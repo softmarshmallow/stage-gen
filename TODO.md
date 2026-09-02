@@ -962,10 +962,11 @@ Assessed against the played `iron-petal-unit-live-20260902-v9` run. Grouped by w
 actually costs, because three of these share one regeneration and one of them changes what "fair"
 means.
 
-### Ground: the projection is declared, and the instrument that would prove it is blind
+### Ground: the instruments now say what they can prove, and no more
 
-Reassessed 2026-09-03 against `iron-petal-unit-live-20260903-boss-big`. The contract half of
-this section shipped; the measuring half did not survive contact with real art.
+Reassessed and largely closed 2026-09-03. The contract half of this section had already shipped;
+the measuring half did not survive contact with real art, and neither did the diagnosis of the
+defect it was written for. What is left open is written as what it would take, not as a wish.
 
 - [x] **Adopt a declared ground projection.** Landed 2026-09-02 in `0dcd8a8`, a commit whose message
       names none of it, which is why every checkbox in this section went stale for a day.
@@ -982,49 +983,88 @@ this section shipped; the measuring half did not survive contact with real art.
       one for a strict side view anyway, and is the only member served. Field presence is not
       identity: an absent block means `orthographic_v1` and the default is excluded from the ground
       node's cache identity, so declaring it re-billed nothing.
-- [ ] **The projection gate exists and measures nothing.** `_MAX_PROJECTION_LEAN_SPREAD_DEGREES =
-      14.0` is in place and every published tile passes it - by reporting the same number every
-      time. `_dominant_lean_degrees` runs its Sobel pair through `ImageFilter.Kernel(..., scale=1,
-      offset=128)` on an 8-bit `L` image, so a strong edge clips both channels and lands on the
-      +-45 degree bin. Synthetic parallel edges drawn at 20 / 30 / 45 / 60 / 70 degrees all measure
-      **45.0**; every tile in `iron-petal-unit-live-20260903-boss-big` reports
-      `projection_lean_degrees [-45.0, -45.0, -45.0]` with spread `0.0`. The instrument has no
-      resolution left, so the gate cannot refuse anything and the tolerance was never tested. The
-      original -36.8 / +30.8 / +40.2 reading was taken with a different instrument and does not
-      transfer. Fix the estimator in Pillow alone - this project depends on exactly httpx, pillow
-      and pydantic, and one check does not justify numpy - then re-measure the shipped tiles and set
-      the tolerance from what a consistent tile actually shows. Expect the current art to fail.
-- [ ] **Guide residue is gated by a share, and the defect is a line.** The residue check landed with
-      the rest (`_MAX_GUIDE_RESIDUE_DISTANCE = 10`, `_MAX_GUIDE_RESIDUE_SHARE = 0.06`) and it works:
-      it measures authorship rather than alpha, it refused two of the three provider attempts that
-      produced the shipped `rescue_calibration`, and the 23-pixel band this item was opened for is
-      gone. What survives is at the edges, where a share over an area cannot see it. Whole-tile
-      residue is `0.0075`; by 64-pixel row it is `0.056` at row 8 and `0.068` at row 10, and by
-      scanline the first opaque line - y 512, the top of the surface the avatar stands on - is
-      `0.805`, while the last, y 700, is `1.000` at exactly the guide's fill colour. A guide-coloured
-      hairline rims every slab. The prompt lever is already spent: the HARD CONTRACT names the
-      lighter band along each exposed top edge and demands it be painted over. The replacement check
-      is per-row or per-edge, not a global share.
-- [ ] **The seam bridge fixes the join and breaks its own borders.** Every chunk ends with shared
-      bridge column 0 and starts with bridge column 1, so an A-to-B join is continuous by
-      construction - but `canonicalize_structural_ground_seam_bridge` publishes *the first generated
-      segment's* right apron as that shared two-column bridge, so the same 128 pixels of one
-      segment's art is dropped into every other segment: two hard vertical edges 128px apart at
-      every join, where each chunk's own art meets the insert. Direction is edge *conditioning* -
-      each chunk paints toward a shared edge profile - rather than a foreign insert, which changes
-      what the model is asked for, what the canonicalizer proves, and probably the guide. Not a
-      tolerance to loosen.
+- [x] **The projection gate exists and measures nothing.** Fixed 2026-09-03. Pillow's kernel filter
+      clamps into the source image's own range, so the 8-bit Sobel pair saturated on every strong
+      edge and dropped it in the 45-degree bin: families drawn at 20 / 30 / 45 / 60 / 70 degrees all
+      measured 45.0. The estimator now reads signed gradients in 32-bit over a blurred copy,
+      excluding the one-pixel ring Pillow fills with source luminance, and resolves those same
+      families to within 0.2 degrees. Two further things were wrong once it could speak. The lean
+      was the modal histogram bin, which jumps between unrelated bins on honest art, and is now the
+      magnitude-weighted circular mean of the diagonal band. The spread was `max - min` on a
+      circular quantity, reading +87 against -87 as 174 degrees of disagreement rather than six -
+      it refused a synthetic fixture outright the moment real angles arrived - and is now the
+      smallest arc covering the thirds. With all of that, the 14-degree tolerance was measured
+      rather than assumed: the twelve shipped tiles spread 7.2 to 59.6 degrees while being visibly
+      correct front elevations, and the same tiles hatched into an opposite-leaning splay spread
+      76.0 to 84.6, so it moved to 68. Both the constant and `runner.md` now say plainly that this
+      refuses two projections in one tile and nothing subtler.
+- [ ] **Refusing one receding top face needs a different instrument.** The gate above is a
+      whole-tile edge statistic and honest greenhouse detail - a pipe bend against a bracket chamfer
+      against a hanging vine - already moves it sixty degrees across thirds of a correct tile, so no
+      threshold on it can see a single slab drawn with a receding top. Three candidates were
+      measured and none separated with usable margin: diagonal-family concentration (real art 0.077
+      to 0.304 against sheared controls 0.168 to 0.394), the surface band's family angle (real up to
+      9.8 degrees against controls from 7.8), and the levelness of the cap-to-face boundary, whose
+      control was invalid because a horizontal shear leaves horizontal boundaries horizontal. What
+      the claim actually needs is a detector local to the surface run rather than a statistic over
+      the tile, and it is worth building only when a package is drawn badly enough to want it.
+- [x] **Guide residue is gated by a share, and the defect is a line.** Fixed 2026-09-03, and the
+      cause was not the one recorded here. The model was not painting around the guide: the prompt
+      already names the lighter top band and demands it be painted over, the residue gate already
+      refuses a returned conditioning image, and it refused two of the three attempts behind the
+      shipped `rescue_calibration`. Publication was the cause. A returned painting ramps its alpha
+      from nothing to opaque over four or five pixels along the top of every slab, and the
+      canonicalizer composited that ramp straight onto a base built from the guide's own cap and
+      fill colours - so the hairline was the fallback showing through the paint's own soft edge.
+      The painting is now laid down twice: its solid core grown outward to put material colour under
+      the whole rim, then the painting itself at true alpha, so the edge keeps the softness the
+      provider drew and fades into its own material. Over all twelve tiles, re-canonicalized offline
+      with no provider spend, the guide's cap colour went from up to 0.924 of a row to at most 0.003.
+      Two other shapes were tried and are worse: hardening the feather publishes whatever the
+      encoder left where nobody could see it, as a line of yellow and magenta speckle, and growing
+      the core over the whole rim stretches the slab's dark ink contour into a heavy band.
+- [x] **The seam bridge fixes the join and breaks its own borders.** Fixed 2026-09-03 by asking for
+      a joint. Continuity was never the problem - every chunk carries the same shared two-column
+      bridge at both edges, so any A-to-B join is continuous by construction - and the cost the
+      contract could not see is that whatever those two columns contain is republished at every
+      junction in the finished track, seconds apart. Iron Petal put a coral pipe run under a hanging
+      vine there. Measured, every published tile's first and last column were byte identical, and
+      each painting's own aprons carried 0.71 to 1.29 times the colour incident of the span they
+      joined. The aprons are now asked for as the bolted joint between two spans, with the
+      walking-surface band running level and unbroken through them and no pipe, conduit, cable,
+      vine, leaf, flower, hatch, lit fitting or lettering; regenerated, they carry 0.48 to 0.81, and
+      a join reads as a plain bolted plate. The number is recorded as `apron_incident_share` rather
+      than refused, because how quiet a joint should be is art direction and this repo puts art
+      direction in the prompt. Edge response was tried as the measure first and cannot see this at
+      all - a plain bolted plate has as much contour as a pipe behind a vine.
+- [ ] **A bare rim cannot be repaired after the fact, and the floor that says so is tight.** The
+      top-cell coverage floor is now derived from how far publication grows the painting's own
+      colour under its rim: a cell may be bare over at most that distance. Rendered against a
+      genuinely eight-pixel bare rim, every underlay radius is wrong in the same way - the nearest
+      paint at a slab's top edge is its dark ink contour, so widening the reach only trades a lilac
+      band for a dark one - which is why the answer is to refuse rather than to widen. The cost is
+      that `rescue_calibration` spent all six attempts under the new floor on the first regeneration.
+      If it keeps failing, the lever is the prompt: demand a hard, fully opaque top edge on every
+      slab rather than a feathered one.
 
 ### Content fidelity
 
-- [ ] **Background layers float.** `botanical_terraces` is disconnected pipe runs hanging in void:
-      horizontal runs terminating mid-air on open cut faces, no vertical support, large dead
-      regions. Nothing in the layer contract requires an object to be supported, attached, or
-      terminated, so this is an authoring and prompt gap first; whether any part of it is gateable
-      is the open question. The machinery around the layer is sound - measured anchors and seals,
-      `generated_bridge` loop construction, placement fields held out of generation identity - so
-      nothing here is a pipeline problem. The brief is the lever, and today it spends its whole
-      length on a negative-space contract that never asks for an object to be held up by anything.
+- [x] **Background layers float.** Fixed 2026-09-03 in the brief, which is where it always lived.
+      `botanical_terraces` was disconnected pipe runs hanging in void - horizontal runs terminating
+      mid-air on open cut faces, clusters with nothing reaching them - because nothing in the layer
+      contract requires an object to be supported and the brief spent its whole length on negative
+      space. Support now leads it: two or three slender service runs cross the full width, every
+      other element is carried by one of them, and every branch ends in a capped elbow, flange or
+      valve rather than a cut face. The sparseness the negative-space contract used to buy is bought
+      instead by keeping the carrying runs slender, so both demands hold at once. The machinery
+      around the layer was never the problem and was not touched: measured anchors and seals,
+      `generated_bridge` loop construction, placement fields held out of generation identity. Its
+      loop seam was inspected at the same time and is invisible in all three layers.
+- [ ] **Whether a floating object is gateable is still open.** The fix above is a brief, so nothing
+      refuses the next package that hangs a pipe in the air. A support check would have to decide
+      what "carried" means for an alpha silhouette - plausibly that every connected component
+      touches a component that spans the full width, which is checkable - and it is worth writing
+      when a second package needs it rather than guessed at from one.
 - [ ] **The coin needs a drawn spin, and the right projection.** Two separate defects.
       `lumen_seed.png` is rendered in 3/4 perspective while the game is strict side view. And
       `collectiblePresentation` fakes rotation by squashing `scaleX` on a cosine, which on a
