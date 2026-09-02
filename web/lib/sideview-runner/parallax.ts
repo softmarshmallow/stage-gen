@@ -29,7 +29,10 @@ export const RUNNER_DEPTHS = Object.freeze({
   shadow: 24,
   pickup: 26,
   hazard: 27,
+  /** The boss sits behind the avatar it faces; its shots pass in front. */
+  boss: 29,
   avatar: 30,
+  shot: 32,
   foreground: 40, // + layer order
   hud: 100,
   /** Screen-FX overlays paint over the HUD; a cut-in uses this and the next few rungs. */

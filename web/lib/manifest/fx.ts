@@ -82,6 +82,15 @@ export interface FxCutInMoment {
   readonly effect: "cut_in";
   readonly portraitId: string;
   readonly choreography: CutInChoreographyName;
+  /**
+   * The two lines the cut-in letters.
+   *
+   * Display names the producer already held - a track name, a boss name -
+   * never a generated string, so what is on screen always answers to something
+   * the package authored.
+   */
+  readonly title: string;
+  readonly subtitle: string;
 }
 
 export type FxMoment = FxCutInMoment;
@@ -246,6 +255,8 @@ export function parseFxBlock(value: unknown, label = "fx"): FxBlock {
         `${momentLabel}.choreography`,
         CUT_IN_CHOREOGRAPHY_NAMES,
       ),
+      title: text(raw.title, `${momentLabel}.title`),
+      subtitle: text(raw.subtitle, `${momentLabel}.subtitle`),
     });
   });
   const names = new Set(moments.map((entry) => entry.moment));
@@ -256,7 +267,14 @@ export function parseFxBlock(value: unknown, label = "fx"): FxBlock {
 }
 
 /** The published fixture shape, for every consumer's manifest tests. */
-export function fxBlockFixture(): Record<string, unknown> {
+export function fxBlockFixture(
+  options: { readonly moments?: readonly FxMomentName[] } = {},
+): Record<string, unknown> {
+  const names = options.moments ?? (["stage_start"] as const);
+  const lettering: Record<string, readonly [string, string]> = {
+    stage_start: ["Sunpetal Sprint", "Bellweather"],
+    encounter_start: ["Thicket Router", "Sunpetal Sprint"],
+  };
   return {
     cut_in: {
       frame: {
@@ -275,26 +293,24 @@ export function fxBlockFixture(): Record<string, unknown> {
         band_rect: { x: 0, y: 260, width: 1536, height: 520 },
         asset: "fx/cut_in/frame.png",
       },
-      portraits: [
-        {
-          role: "portrait",
-          portrait_id: "stage_start",
-          layout: CUT_IN_PORTRAIT_LAYOUT,
-          alpha_policy: CUT_IN_PORTRAIT_ALPHA_POLICY,
-          canvas: { width: 1536, height: 1024 },
-          alpha_rect: { x: 120, y: 0, width: 1300, height: 1024 },
-          placement: { scale: 0.44, x: 0.5, y: 0.53 },
-          asset: "fx/cut_in/portrait.stage_start.png",
-        },
-      ],
+      portraits: names.map((name) => ({
+        role: "portrait",
+        portrait_id: name,
+        layout: CUT_IN_PORTRAIT_LAYOUT,
+        alpha_policy: CUT_IN_PORTRAIT_ALPHA_POLICY,
+        canvas: { width: 1536, height: 1024 },
+        alpha_rect: { x: 120, y: 0, width: 1300, height: 1024 },
+        placement: { scale: 0.44, x: 0.5, y: 0.53 },
+        asset: `fx/cut_in/portrait.${name}.png`,
+      })),
     },
-    moments: [
-      {
-        moment: "stage_start",
-        effect: "cut_in",
-        portrait_id: "stage_start",
-        choreography: "tear_reveal_v1",
-      },
-    ],
+    moments: names.map((name) => ({
+      moment: name,
+      effect: "cut_in",
+      portrait_id: name,
+      choreography: "tear_reveal_v1",
+      title: lettering[name][0],
+      subtitle: lettering[name][1],
+    })),
   };
 }

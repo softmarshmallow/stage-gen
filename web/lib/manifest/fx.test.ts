@@ -12,6 +12,8 @@ describe("parseFxBlock", () => {
       effect: "cut_in",
       portraitId: "stage_start",
       choreography: "tear_reveal_v1",
+      title: "Sunpetal Sprint",
+      subtitle: "Bellweather",
     });
     expect(Object.isFrozen(block)).toBe(true);
     expect(Object.isFrozen(block.cutIn?.frame.maskPolygon)).toBe(true);

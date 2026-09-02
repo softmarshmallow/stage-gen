@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  bossBarRect,
   deathPanelRect,
   formatRunDistance,
   formatScore,
@@ -63,5 +64,30 @@ describe("vitalsBarRect", () => {
   test("stays inside a narrow canvas", () => {
     const bar = vitalsBarRect(320);
     expect(bar.x + bar.width).toBeLessThanOrEqual(320);
+  });
+});
+
+describe("bossBarRect", () => {
+  test("sits top-right, opposite the run's own readout", () => {
+    const rect = bossBarRect();
+    const readout = hudReadoutRect();
+
+    expect(rect.x).toBeGreaterThan(readout.x);
+    expect(rect.x + rect.width).toBeLessThanOrEqual(RUNNER_VIEW_WIDTH);
+    expect(rect.y).toBeGreaterThanOrEqual(0);
+  });
+
+  test("stays inside a narrow canvas", () => {
+    const rect = bossBarRect(480);
+
+    expect(rect.x).toBeGreaterThanOrEqual(0);
+    expect(rect.x + rect.width).toBeLessThanOrEqual(480);
+  });
+
+  test("never overlaps the vitals gauge", () => {
+    const boss = bossBarRect();
+    const vitals = vitalsBarRect();
+
+    expect(boss.x).toBeGreaterThan(vitals.x + vitals.width);
   });
 });

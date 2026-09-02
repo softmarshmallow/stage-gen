@@ -32,7 +32,9 @@ import {
 import { createAvatarSystem } from "./avatar";
 import type { RunnerMotionState, RunnerRuntimeManifest } from "./contract";
 import { createDifficultySystem } from "./difficulty";
+import { buildBossView } from "./boss-view";
 import { createEncounterSystem } from "./encounter";
+import type { RunnerEncounterBinding } from "./world";
 import { createFixedStepAccumulator } from "./fixed-step";
 import { buildHud, createHudSystem, type HudView } from "./hud";
 import {
@@ -71,7 +73,11 @@ import {
   createSegmentsSystem,
 } from "./segments";
 import { sealSystems, type GameSystem, type SealedSystems } from "@/lib/game-systems/systems";
-import { buildCutInView, HIDDEN_FX_VIEW } from "@/lib/fx/cut-in-view";
+import {
+  buildCutInView,
+  type CutInMomentBinding,
+  HIDDEN_FX_VIEW,
+} from "@/lib/fx/cut-in-view";
 import { createFxSystem, type FxView } from "@/lib/fx/moment-system";
 import {
   createCameraSystem,
@@ -127,6 +133,14 @@ export function assembleRunnerSystems(
 
 function avatarTextureKey(state: RunnerMotionState): string {
   return `runner:avatar:${state}`;
+}
+
+export function bossTextureKey(bossId: string, state: string): string {
+  return `runner:boss:${bossId}:${state}`;
+}
+
+export function projectileTextureKey(projectileId: string): string {
+  return `runner:projectile:${projectileId}`;
 }
 
 function avatarAnimationKey(state: RunnerMotionState): string {
@@ -310,8 +324,10 @@ class RunnerScene extends Phaser.Scene {
     }
 
     const fxView = await this.buildFxView(manifest);
+    const encounter = await this.buildEncounterBinding(manifest);
     const world = createRunnerWorld(manifest, (Math.random() * 0x100000000) >>> 0, {
       intro: fxView !== null,
+      encounter,
     });
     const groundLine = groundLineY(world.config);
     const bands = buildParallaxStage(
@@ -322,13 +338,39 @@ class RunnerScene extends Phaser.Scene {
       groundLine,
     );
     const actors = this.buildActorsView(world, propRasterSizes, itemRasterSizes);
+    const bossView =
+      encounter === null
+        ? null
+        : buildBossView(this, world, {
+            bossTextureKey,
+            projectileTextureKey,
+            bossSourcePxPerUnit:
+              manifest.bosses.find((entry) => entry.bossId === encounter.encounter.bossId)
+                ?.calibration.sourcePxPerUnit ?? 1,
+            projectiles: manifest.projectiles,
+          });
     const stage: ParallaxStageView = {
       sync: (current) => {
         bands.sync(current);
         actors.sync(current);
+        bossView?.sync(current);
       },
     };
-    const hud = buildHud(this, world.config.tilePx, world.config.maxVitalPoints);
+    const encounterBoss =
+      encounter === null
+        ? null
+        : manifest.bosses.find((entry) => entry.bossId === encounter.encounter.bossId) ?? null;
+    const hud = buildHud(
+      this,
+      world.config.tilePx,
+      world.config.maxVitalPoints,
+      encounterBoss === null || encounter === null
+        ? null
+        : {
+            displayName: encounterBoss.displayName,
+            hitsToDefeat: encounter.encounter.hitsToDefeat,
+          },
+    );
 
     this.disposers.push(attachKeyboardIntentSource(this.latch, window));
     this.disposers.push(attachPointerIntentSource(this.latch, this.game.canvas));
@@ -628,26 +670,114 @@ class RunnerScene extends Phaser.Scene {
    * under the canonical alpha policy, the view built over the HUD. A package
    * with no binding gets null, and the world is born running.
    */
+  /**
+   * Resolve the published encounter into what the world needs, loading its art.
+   *
+   * The manifest publishes the fight as names and numbers; the world wants the
+   * arithmetic, the arena chunk and the moment. Resolving once at boot keeps
+   * every system downstream testable from a hand-built config with no manifest
+   * at all.
+   */
+  private async buildEncounterBinding(
+    manifest: RunnerRuntimeManifest,
+  ): Promise<RunnerEncounterBinding | null> {
+    const published = manifest.gameplay.encounter;
+    if (published === null) return null;
+    const arena = manifest.segments.chunks.find(
+      (chunk) => chunk.segmentId === published.arenaSegmentId,
+    );
+    const boss = manifest.bosses.find((entry) => entry.bossId === published.bossId);
+    // Both resolve by contract; the parser refused the document otherwise.
+    if (arena === undefined || boss === undefined) return null;
+    for (const motion of boss.motions) {
+      await loadTrimmedSprite(
+        this.url(motion.atlas),
+        bossTextureKey(boss.bossId, motion.state),
+        this.textures,
+        TRANSPARENCY_POLICY,
+      );
+    }
+    for (const shot of manifest.projectiles) {
+      await loadTrimmedSprite(
+        this.url(shot.image),
+        projectileTextureKey(shot.projectileId),
+        this.textures,
+        TRANSPARENCY_POLICY,
+      );
+    }
+    return {
+      encounter: {
+        profile: published.profile,
+        locomotion: published.locomotion,
+        intervalColumns: published.intervalColumns,
+        arenaSegmentId: published.arenaSegmentId,
+        bossId: published.bossId,
+        bossProjectileId: published.bossProjectileId,
+        playerProjectileId: published.playerProjectileId,
+        thrust: {
+          maxClimbRowsPerSecond: published.maxClimbRowsPerSecond,
+          maxFallRowsPerSecond: published.maxFallRowsPerSecond,
+          climbAccelerationRowsPerSecondSquared:
+            published.climbAccelerationRowsPerSecondSquared,
+        },
+        firingDistanceColumns: published.firingDistanceColumns,
+        projectileSpeedColumnsPerSecond: published.projectileSpeedColumnsPerSecond,
+        projectileHeightRows: published.projectileHeightRows,
+        salvoShots: published.salvoShots,
+        salvoPeriodSeconds: published.salvoPeriodSeconds,
+        salvoBudget: published.salvoBudget,
+        laneMarginRows: published.laneMarginRows,
+        hitsToDefeat: published.hitsToDefeat,
+        playerFirePeriodSeconds: published.playerFirePeriodSeconds,
+        playerShotSpeedColumnsPerSecond: published.playerShotSpeedColumnsPerSecond,
+        bossHeightRows: boss.calibration.heightUnits * manifest.scale.playerHeightTiles,
+      },
+      arenaChunk: arena,
+      moment:
+        manifest.fx?.moments.find((entry) => entry.moment === "encounter_start") ?? null,
+    };
+  }
+
   private async buildFxView(manifest: RunnerRuntimeManifest): Promise<FxView | null> {
-    const moment = manifest.fx?.moments.find((entry) => entry.moment === "stage_start");
     const cutIn = manifest.fx?.cutIn;
-    if (!moment || !cutIn) return null;
-    const portrait = cutIn.portraits.find((entry) => entry.portraitId === moment.portraitId);
-    if (!portrait) return null;
+    const moments = manifest.fx?.moments ?? [];
+    if (!cutIn || moments.length === 0) return null;
     const frameKey = "runner:fx:cut_in:frame";
-    const portraitKey = `runner:fx:cut_in:portrait:${portrait.portraitId}`;
-    await loadTransparentSprite(this.url(cutIn.frame.asset), frameKey, this.textures, TRANSPARENCY_POLICY);
-    await loadTransparentSprite(this.url(portrait.asset), portraitKey, this.textures, TRANSPARENCY_POLICY);
+    await loadTransparentSprite(
+      this.url(cutIn.frame.asset),
+      frameKey,
+      this.textures,
+      TRANSPARENCY_POLICY,
+    );
+    // Every published moment is bound up front, so the director can begin one
+    // mid-run without loading anything: a texture fetch during a fight would
+    // stall the frame the boss arrives on.
+    const bindings = new Map<string, CutInMomentBinding>();
+    for (const moment of moments) {
+      const portrait = cutIn.portraits.find((entry) => entry.portraitId === moment.portraitId);
+      if (!portrait) continue;
+      const portraitKey = `runner:fx:cut_in:portrait:${portrait.portraitId}`;
+      await loadTransparentSprite(
+        this.url(portrait.asset),
+        portraitKey,
+        this.textures,
+        TRANSPARENCY_POLICY,
+      );
+      bindings.set(moment.moment, {
+        portrait,
+        portraitTextureKey: portraitKey,
+        title: moment.title,
+        subtitle: moment.subtitle,
+      });
+    }
+    if (bindings.size === 0) return null;
     const view = buildCutInView(this, {
       viewWidth: RUNNER_VIEW_WIDTH,
       viewHeight: RUNNER_VIEW_HEIGHT,
       depth: RUNNER_DEPTHS.fx,
       frame: cutIn.frame,
-      portrait,
       frameTextureKey: frameKey,
-      portraitTextureKey: portraitKey,
-      title: manifest.trackDisplayName,
-      subtitle: manifest.displayName,
+      bindings,
     });
     view.hide();
     this.disposers.push(() => view.destroy());

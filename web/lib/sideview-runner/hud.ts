@@ -13,6 +13,7 @@ import type { Rect } from "@/lib/shell/hud-geometry";
 import { RUNNER_DEPTHS } from "./parallax";
 import { GaugeBar } from "@/lib/sideview/gauge-bar";
 import type { GameSystem } from "@/lib/game-systems/systems";
+import { BOSS_HIT_FLASH_MS } from "./encounter-arithmetic";
 import { avatarIsImmune } from "./vitals";
 import { RUNNER_VIEW_HEIGHT, RUNNER_VIEW_WIDTH, type RunnerWorld } from "./world";
 
@@ -57,6 +58,18 @@ export function vitalsBarRect(viewWidth: number = RUNNER_VIEW_WIDTH): Rect {
   return { x: readout.x, y: readout.y - 12, width: Math.min(180, readout.width), height: 10 };
 }
 
+/**
+ * The boss's own bar: top right, opposite the run's readout.
+ *
+ * Deliberately not beside the vitals gauge. The two answer different questions
+ * - how much of the run is left, and how much of the fight is - and stacking
+ * them would invite reading one for the other at the moment both are moving.
+ */
+export function bossBarRect(viewWidth: number = RUNNER_VIEW_WIDTH): Rect {
+  const width = Math.min(320, viewWidth * 0.3);
+  return { x: viewWidth - 24 - width, y: 26, width, height: 14 };
+}
+
 /** The death card, centered with a fixed aspect so it reads the same everywhere. */
 export function deathPanelRect(
   viewWidth: number = RUNNER_VIEW_WIDTH,
@@ -80,8 +93,8 @@ export interface HudView {
 export function createHudSystem(view: HudView): GameSystem<RunnerWorld> {
   return {
     id: "runner/hud",
-    contractVersion: "hud-system-v3",
-    reads: ["run", "avatar", "camera", "vitals"],
+    contractVersion: "hud-system-v4",
+    reads: ["run", "avatar", "camera", "vitals", "encounter"],
     writes: [],
     after: ["runner/parallax"],
     update(world) {
@@ -103,7 +116,12 @@ const HINT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
 };
 
 /** Build the HUD objects on a live scene and return the view the system drives. */
-export function buildHud(scene: Phaser.Scene, tilePx: number, maxPoints: number | null): HudView {
+export function buildHud(
+  scene: Phaser.Scene,
+  tilePx: number,
+  maxPoints: number | null,
+  boss: { readonly displayName: string; readonly hitsToDefeat: number } | null = null,
+): HudView {
   const readout = hudReadoutRect();
   // A one-hit-kill package has nothing to draw: a bar that can only ever read
   // full is a promise about mistakes the player does not have.
@@ -118,6 +136,30 @@ export function buildHud(scene: Phaser.Scene, tilePx: number, maxPoints: number 
           scrollFactor: 0,
           depth: RUNNER_DEPTHS.hud,
         });
+  const bossRect = bossBarRect();
+  const bossBar =
+    boss === null
+      ? null
+      : new GaugeBar(scene, {
+          style: { width: bossRect.width, height: bossRect.height },
+          max: boss.hitsToDefeat,
+          scrollFactor: 0,
+          depth: RUNNER_DEPTHS.hud,
+        });
+  const bossLabel =
+    boss === null
+      ? null
+      : scene.add
+          .text(bossRect.x + bossRect.width, bossRect.y - 22, boss.displayName.toUpperCase(), {
+            ...READOUT_STYLE,
+            fontSize: "18px",
+            color: "#ffb4a2",
+          })
+          .setOrigin(1, 0)
+          .setDepth(RUNNER_DEPTHS.hud)
+          .setScrollFactor(0)
+          .setVisible(false);
+
   const distanceText = scene.add
     .text(readout.x, readout.y, "0 m", READOUT_STYLE)
     .setDepth(RUNNER_DEPTHS.hud)
@@ -185,6 +227,35 @@ export function buildHud(scene: Phaser.Scene, tilePx: number, maxPoints: number 
           // says a blow connected rather than only the avatar saying it.
           dimmed: avatarIsImmune(world),
         });
+      }
+      // The boss bar exists only while there is a boss to read it about, and
+      // goes as soon as the fight is decided rather than lingering through the
+      // retreat.
+      const fighting = world.encounter?.boss ?? null;
+      if (bossBar && bossLabel) {
+        const visible = fighting !== null && world.encounter?.phase === "battle";
+        bossLabel.setVisible(visible);
+        if (visible && fighting) {
+          bossBar.update({
+            value: fighting.hp.value,
+            max: fighting.hp.max,
+            x: bossRect.x + bossRect.width / 2,
+            y: bossRect.y + bossRect.height / 2,
+            dimmed:
+              fighting.lastHitAtMs !== null &&
+              world.vitals.clockMs - fighting.lastHitAtMs < BOSS_HIT_FLASH_MS,
+          });
+        } else {
+          // Parked off-screen rather than destroyed: the next encounter wants
+          // the same bar back.
+          bossBar.update({
+            value: 0,
+            max: boss?.hitsToDefeat ?? 1,
+            x: bossRect.x + bossRect.width / 2,
+            y: -100,
+            dimmed: false,
+          });
+        }
       }
       distanceText.setText(formatRunDistance(world.avatar.distanceColumns, tilePx));
       scoreText.setText(formatScore(world.run.score));

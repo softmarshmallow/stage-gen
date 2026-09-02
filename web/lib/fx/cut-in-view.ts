@@ -16,17 +16,30 @@ import type { FxCutInFrame, FxCutInPortrait } from "@/lib/manifest/fx";
 import type { CutInFrame } from "./cut-in";
 import type { FxView } from "./moment-system";
 
+/** What one moment wears: its plate, and the two lines it is announced with. */
+export interface CutInMomentBinding {
+  readonly portrait: FxCutInPortrait;
+  readonly portraitTextureKey: string;
+  readonly title: string;
+  readonly subtitle: string;
+}
+
 export interface CutInViewOptions {
   readonly viewWidth: number;
   readonly viewHeight: number;
   /** The depth the overlay starts at; it uses this and the next few rungs. */
   readonly depth: number;
   readonly frame: FxCutInFrame;
-  readonly portrait: FxCutInPortrait;
   readonly frameTextureKey: string;
-  readonly portraitTextureKey: string;
-  readonly title: string;
-  readonly subtitle: string;
+  /**
+   * Every moment this package plays, keyed by moment name.
+   *
+   * One view rather than one per moment, because the composition is built out
+   * of textures derived from the frame's key: a second view over the same
+   * frame would destroy the first one's buffers. The subject is worn per tick
+   * instead, using the moment the system already hands to `sync`.
+   */
+  readonly bindings: ReadonlyMap<string, CutInMomentBinding>;
 }
 
 /** Shadow offset under the rip, in group heights. */
@@ -81,7 +94,7 @@ export function buildCutInView(scene: Phaser.Scene, options: CutInViewOptions): 
   const stageTexture = created;
   scene.textures.addCanvas(eraserKey, inverseAlphaCanvas(scene, options.frameTextureKey));
   const stripes = scene.make.graphics({}, false);
-  const portrait = scene.make.image({}, false).setTexture(options.portraitTextureKey);
+  const portrait = scene.make.image({}, false);
   const eraser = scene.make
     .image({}, false)
     .setTexture(eraserKey)
@@ -91,10 +104,12 @@ export function buildCutInView(scene: Phaser.Scene, options: CutInViewOptions): 
 
   const ink = scene.add.image(0, 0, options.frameTextureKey).setScrollFactor(0).setDepth(depth + 6);
   ink.setBlendMode("MULTIPLY");
+  const firstBinding = options.bindings.values().next().value;
+  if (firstBinding === undefined) throw new Error("a cut-in view needs at least one moment");
 
   const banner = scene.add.graphics().setScrollFactor(0).setDepth(depth + 7);
   const title = scene.add
-    .text(0, 0, options.title.toUpperCase(), {
+    .text(0, 0, firstBinding.title.toUpperCase(), {
       fontFamily: "system-ui, sans-serif",
       fontSize: "40px",
       fontStyle: "bold",
@@ -103,7 +118,7 @@ export function buildCutInView(scene: Phaser.Scene, options: CutInViewOptions): 
     .setScrollFactor(0)
     .setDepth(depth + 8);
   const subtitle = scene.add
-    .text(0, 0, options.subtitle.toUpperCase(), {
+    .text(0, 0, firstBinding.subtitle.toUpperCase(), {
       fontFamily: "system-ui, sans-serif",
       fontSize: "28px",
       color: "#ffdcc8",
@@ -112,11 +127,29 @@ export function buildCutInView(scene: Phaser.Scene, options: CutInViewOptions): 
     .setDepth(depth + 8);
   const objects = [scrim, shadow, plate, stage, ink, banner, title, subtitle];
 
-  const portraitAspect = options.portrait.canvas.width / options.portrait.canvas.height;
+  // Worn, not fixed: the moment decides which plate and which words, and the
+  // system passes it on every tick.
+  let worn: CutInMomentBinding = firstBinding;
+  portrait.setTexture(firstBinding.portraitTextureKey);
+  let portraitAspect = worn.portrait.canvas.width / worn.portrait.canvas.height;
   // The placement agent judged this over the same composition the evidence shows:
   // the portrait canvas centre in group units and its height as a fraction of the
   // group height. The choreography's slide and push-in ride on top of it.
-  const { placement } = options.portrait;
+  let placement = worn.portrait.placement;
+
+  function wear(moment: string): void {
+    const binding = options.bindings.get(moment);
+    if (binding === undefined) {
+      throw new Error(`cut-in view has no portrait bound for moment "${moment}"`);
+    }
+    if (binding === worn) return;
+    worn = binding;
+    portraitAspect = binding.portrait.canvas.width / binding.portrait.canvas.height;
+    placement = binding.portrait.placement;
+    portrait.setTexture(binding.portraitTextureKey);
+    title.setText(binding.title.toUpperCase());
+    subtitle.setText(binding.subtitle.toUpperCase());
+  }
 
   function drawStripes(phase: number): void {
     const period = CUT_IN_STRIPE_PERIOD_FRACTION * groupHeight;
@@ -174,7 +207,8 @@ export function buildCutInView(scene: Phaser.Scene, options: CutInViewOptions): 
   }
 
   return {
-    sync(frameState: CutInFrame): void {
+    sync(frameState: CutInFrame, moment: string): void {
+      wear(moment);
       for (const object of objects) object.setVisible(true);
       const scale = frameState.ripScale;
       const cx = viewWidth / 2 + frameState.ripX * viewWidth;

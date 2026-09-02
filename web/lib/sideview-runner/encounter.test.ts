@@ -73,6 +73,8 @@ function encounterWorld(options: Options = {}): RunnerWorld {
               effect: "cut_in",
               portraitId: "encounter_start",
               choreography: "tear_reveal_v1",
+              title: "Thicket Router",
+              subtitle: "Sunpetal Sprint",
             },
     },
   });
