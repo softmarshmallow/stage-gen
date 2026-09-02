@@ -1040,7 +1040,7 @@ defect it was written for. What is left open is written as what it would take, n
       the joint clause was also long enough to crowd out the demand that every guide cell be
       painted, and two segments started failing the coverage checks under it; stating the top edge
       on its own line - paint each slab to its very first pixel, hard-edged - fixed both, and took
-      the aprons to 0.000 saturated colour in `iron-petal-unit-live-20260903-ground-4`.
+      the aprons to 0.000 saturated colour in `iron-petal-unit-live-20260903-ground-5`.
 - [x] **A bare rim cannot be repaired after the fact, so it is refused - measured where it shows.**
       Closed 2026-09-03 after two wrong turns worth keeping. Deriving the top-cell coverage floor
       from how far publication can reach was right in spirit: rendered against a genuinely
@@ -1154,7 +1154,7 @@ defect it was written for. What is left open is written as what it would take, n
       recognisably the same machine as the concept plate the run drew, and does it read as a face
       at all - the one thing a cut-in of a machine can fail at that a cut-in of a person cannot?).
 - [ ] Semantic visual review of the ground and the middle-distance layer in
-      `iron-petal-unit-live-20260903-ground-4` by someone other than its producer. Three
+      `iron-petal-unit-live-20260903-ground-5` by someone other than its producer. Three
       questions, in the order they were worked: does a chunk join read as a joint - a place where
       two spans are bolted together - rather than as a panel of one segment's scenery inserted into
       another, and does seeing the same joint every twenty-four columns read as infrastructure or as
