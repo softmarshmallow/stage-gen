@@ -1297,6 +1297,41 @@ generated and never played, and no script plays a track that does not exist.
 produce. Only the post-process gates are evidence here: non-silence, duration inside the
 60–90 s band, and level.
 
+### 07:56 — The board survives its own ending, and the lead had been clearing QA's saves
+
+QA played pass 1 to the end and found the sharpest remaining defect: **reaching `left_alone`
+cleared `localStorage` entirely.** The seventeen facts, `ward_regard`, what Henry told Ruth,
+what he said to Nell — all discarded at the exact moment they became the episode's output.
+`FACTS.md` says what Henry carries into Episode Two is *the board, exactly*; as shipped,
+nothing carried, and a player had no way to see what they had left the building with.
+
+Fixed: a `case_result_v1` record is written under its own key **before** the save is cleared,
+so a finished run cannot be mistaken for a resumable one. The closing card now shows the
+carried board — a count and the sorted facts — which is also the only way a player learns
+that what they chose to watch is what they left with. Three tests; 1382 web tests pass.
+
+**And a hazard the lead created.** The dev server is one origin, so every tab shares
+`localStorage`. The lead cleared `stage_gen.*` three times while testing the loading layer,
+in the same store QA was playing in. No evidence it corrupted a pass, but it could have, and
+QA was told to discount anything that looks like it. The lead is out of the browser until
+pass 2 reports.
+
+*Open design question handed to QA rather than decided by the lead:* one result record per
+case, overwritten each completion — which matches "the board Episode Two opens on" — or one
+per completion, which keeps a history. Pass 2 will overwrite pass 1's under the current
+shape.
+
+### 07:49 — The narration stays on its plate
+
+QA found the window room's exit overflowing: the exit narration and the win narration
+concatenate into three lines and the third rendered below the border, on the backdrop.
+
+Phaser wraps to a width and grows downward without limit, so a fixed plate holding authored
+prose has to fit the words to the plate. `setNarration` steps 26 → 23 → 20 → 18 until the
+text is inside the plate's **measured** interior — measured on the drawn frame, not guessed
+— and clamps at 18, because below that the narration would be smaller than the control hints
+and losing a line is better than losing the paragraph.
+
 ---
 
 ## 3. Ledger
