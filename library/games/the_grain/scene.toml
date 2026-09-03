@@ -15,7 +15,7 @@ kind = "dialogue-scene-v5"
 game_id = "the_grain"
 display_name = "The Grain — Episode One"
 revision = 1
-scene_brief = "Gouache painting, never photography: a 1972 farewell supper in a closed department store"
+scene_brief = "Flat-ink screen print, never photography: a 1972 farewell supper in a closed department store"
 transparency_mode = "native"
 
 # The art direction of record, as pixels rather than adjectives. Candidate 1 of a
@@ -139,7 +139,7 @@ source_sha256 = "bf50b140a6cddfacec36e9512c05854d7862f6071e71d6ef1e8e167db01f2bd
 [[references]]
 reference_id = "cover"
 source = "references/cover.png"
-source_sha256 = "bea91b0610916d0f5e493adf2b415cb4a94ab7792868e053b526f1efb56f5930"
+source_sha256 = "764c0c4e185155615f1f46623ab59afca506721d3a08495a20550bcf47dff559"
 rights_status = "unreviewed"
 rights_basis = [
     "Original brand-neutral prompt composed from this production's own art direction, with no third-party image input.",

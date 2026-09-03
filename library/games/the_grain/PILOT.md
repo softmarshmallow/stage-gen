@@ -1415,9 +1415,85 @@ direction, `gpt-image-2`, 2048x1152, no reference image attached to any of them.
 | `the-grain-concept` sheet 1 | 4 | 2.00 | four text-to-image art directions, A-D; exploration, unreviewed |
 | `the-grain-concept` sheet 2 | 4 | 2.00 | E-H, triangulating A, C and D after the director dropped the oil |
 
-Nothing in the package was touched to make it. The shipped build, its bundle, its rooms and
-its cache are exactly as they were at the freeze. If a direction is chosen, the regeneration
-is a separate, planned run against a new style plate.
+Sheets 1 and 2 touched nothing in the package. The regeneration below is the separate,
+planned run the note promised.
+
+### After the freeze — regeneration in direction A
+
+The director chose **direction A** on 2026-09-03: a hand-pulled silkscreen poster in four
+flat inks, hard cut edges, visible ink grain, shadow drawn as a shape rather than as a
+darkening. Two plates were drawn in that direction against the complete canonical cover
+subject; the first carried a cream poster margin and was rejected for style-plate use,
+because a reference leaks composition and every backdrop would have inherited the border.
+The second is full-bleed and was promoted.
+
+**What changed in the package, and why each one had to.** The style plate is the only input
+upstream of every image, but it is not the only place the medium was written down:
+
+| Surface | Change |
+|---|---|
+| `references/cover.png` + both room copies | the direction-A plate replaces the gouache one |
+| `references/cover.provenance.json` × 3 | new digest, generation record, selection rationale; review still `pending` |
+| `rooms/*/room.toml` `[style]` | label, keywords and avoid-list rewritten to flat ink; a paper margin added to `avoid` |
+| `scene.toml` `scene_brief` | "Flat-ink screen print, never photography: …" — the anchor model reads this and nothing else about medium |
+| `ui.toml` × 3 | the three atlas prompts said "painted gouache"; a cream plate under flat-ink art would read as a different game |
+| `ui.toml` / `room.toml` digests × 6 | the plate's sha256 is declared in six places and refused the run until all six agreed |
+
+The `scene_brief` is capped at 96 characters, so the medium sentence had to earn its words:
+"never photography" is kept because that exact guard is what fixed the photoreal defect at
+06:47, and "flat-ink screen print" replaces "gouache painting".
+
+**Planned before spend.**
+
+| Run | Planned ops | Estimated USD |
+|---|---|---|
+| `the-grain-motor-court-a` | 4 image, 4 structured | 2.08 |
+| `the-grain-window-a` | dry-run before spend | — |
+| `the-grain-scene-a` | 47 image, 4 music, 12 structured | 33.74 |
+
+The motor court is run and looked at **before** the scene, so a wrong anchor costs four
+images and not forty-seven. That order is the pilot's own lesson: 59% of its operations went
+on work a look would have caught.
+
+**Actuals.**
+
+| Run | Ops | Wall clock | Outcome |
+|---|---|---|---|
+| `the-grain-concept` sheets 1-2 | 8 image | ~4 min | eight directions; A chosen |
+| `the-grain-cover-a` | 2 image | ~3 min | plate 1 rejected for its poster margin; plate 2 ships |
+| `the-grain-motor-court-a` | 7 image, 4 structured | 11m 00s | planned 4 images; three extra UI atlas rolls |
+| `the-grain-window-a` | 10 image, 4 structured | 10m 39s | planned 6; four extra UI atlas rolls |
+| `the-grain-scene-a` | 47 image, 13 structured, **0 music** | 4m 51s | the four tracks cache-hit, saving ~USD 10 |
+| `the-grain-motor-court-a2`, `-window-a2` | **0** | 86ms, 450ms | eighteen click boxes re-measured, free |
+| **Total** | **74 image, 21 structured** | | **~USD 37.42** |
+
+**What the run is worth knowing for.**
+
+*The grain does not reach the stages, and the reason is structural.* Measured as
+high-frequency energy: the style plate 6.76, the room backdrops 7.31, the twelve scene
+stages **4.34**, the old gouache stages 3.51. The rooms match the plate because `room.toml`
+carries an authored `[style]` block with keywords and an avoid-list. **The scenario contract
+has no such block**, so a stage's only medium input is the plate plus a 96-character
+`scene_brief`. This is the same asymmetry recorded at 06:47, when the rooms escaped the
+photoreal defect for exactly this reason and the stages did not. The stages read closer to
+candidate H — clean flat fields — than to the silkscreen that was chosen.
+
+*Expression differentiation fell 17%.* Mean pairwise difference across each actor's four
+plates went 8.25 to 6.83; `paul` fell 45%, to 4.41. Six of eight actors got less
+distinguishable and two got slightly better. Flat graphic drops the facial modelling that
+was carrying the difference between "dry" and "grave". This was predicted when the direction
+was recommended against for cast plates, and it happened.
+
+*Every click box in both rooms had to be re-measured, and it cost nothing.* The new plates
+moved composition far past the ~27px same-brief drift band. Before the correction the window
+room's `service_lift` — the room's only exit — sat on open street, `stage_door` and
+`access_door` sat on the wrong doors, and the motor court's `service_bell` had missed its
+push entirely. **Both proofs still said `solvable: true`,** because a proof never sees the
+image; this is the `service_bell` defect of 06:45 recurring for the same reason. Eighteen
+regions were re-measured against the pixels and both rooms re-ran at **zero provider
+operations**, in 86 and 450 milliseconds, because `art_region` and `region` are now separate
+fields. That split was authored for this exact case and this is its first use: under the old
+contract the same correction would have redrawn both plates.
 
 ## 4. Screenshots
 
@@ -1542,10 +1618,10 @@ one-option menu is presented identically to a real choice.
 - Rooms nested under one package rather than given a member type in the room contract.
 - The placeholder `scenarios/chapter_one.*` predated the narrative lock and was deleted at
   05:57 rather than bumped to the v2 identity.
-- **The window room's `scrape` is narrated and not depicted.** The fact stays obtainable
-  because it is one of the two the outline says step 6a of the argument needs; the plate
-  never drew a long scrape on the scenic wall. Fixing it means a brief change, which
-  re-imagines the composition and throws away all eleven measured hit-area rectangles.
+- ~~**The window room's `scrape` is narrated and not depicted.**~~ **Closed 2026-09-03 by the
+  direction-A redraw.** The new plate draws a long pale scrape running the scenic wall from
+  roughly (630, 275) to (1000, 245), and `painted_wall` is measured onto it. Not fixed by
+  intent — the brief was unchanged; the medium change simply produced a plate that drew it.
 - **The man lies in front of the chair rather than partly behind it**, his shoulder about
   30px clear of the steel column the novel puts it against. Third roll got the chair right
   and not the contact.

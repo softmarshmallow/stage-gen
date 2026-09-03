@@ -7,8 +7,8 @@
   "game_id": "the_grain",
   "reference_id": "cover_style",
   "source": "references/cover.png",
-  "sha256": "bea91b0610916d0f5e493adf2b415cb4a94ab7792868e053b526f1efb56f5930",
-  "bytes": 3726675,
+  "sha256": "764c0c4e185155615f1f46623ab59afca506721d3a08495a20550bcf47dff559",
+  "bytes": 4176251,
   "media": {
     "mime_type": "image/png",
     "width": 2048,
@@ -27,53 +27,53 @@
     "attempt_count": 1,
     "retry_count": 0,
     "n": 1,
-    "generated_at": "2026-09-02T20:48:51.466Z",
-    "prompt": "A painted illustration in gouache on board, visible brushwork, restrained detail, matte and dry, not photographic, not glossy, not anime, not ink comic. Subject: the deep motor court of a 1972 Los Angeles department store after closing, seen wide. A heavy stone porte-cochere canopy spans the top third of the frame, lit from beneath by small recessed lamps. At the far side, one large display window glows warm amber against the cold blue-black of the stone, the empty driveway and the night street. Inside the lit window an unfinished display: six mannequins in evening dress stand and sit in a loose arc, all facing an empty seventh chair. Behind the chair, a very large white paper moon fills the back of the window. Above the moon, where the painted scenery meets the top of the window, a short black rectangle is open in a dark gallery rail, set high near the window ceiling. On the display floor lie a stick of seamstress chalk and a pair of steel scissors. Behind the window the real sales floor is completely dark. Palette: muted ochre, bottle green, oxblood, cream, deep blue-black. Strong contrast between the amber interior and the cold exterior. No people anywhere. No letters, no numbers, no signage, no logos, no readable text of any kind.",
-    "prompt_hash_scope": "full_exact_utf8_string",
-    "prompt_sha256": "3dc200a4a75b9a3d28d36783748f10f48bcf4f74f10f7c38c13ede96020a64d7",
-    "input_references": []
+    "generated_at": "2026-09-03T05:04:18.237Z",
+    "prompt": "A hand-pulled silkscreen poster. Four flat inks and no more, printed one over another with slight registration offset and visible ink grain at the edges of each shape. No blending, no gradients, no rendered highlights: every value is a flat area of colour with a hard cut edge, and shadow is a shape rather than a darkening. Heavy solid black carries the architecture. Bold, graphic, poster-scale reading at a glance.\nSubject: the deep motor court of a 1972 Los Angeles department store after closing, seen wide. A heavy stone porte-cochere canopy spans the top third of the frame, lit from beneath by small recessed lamps. At the far side, one large display window glows warm amber against the cold blue-black of the stone, the empty driveway and the night street. Inside the lit window an unfinished display: six mannequins in evening dress stand and sit in a loose arc, all facing an empty seventh chair. Behind the chair, a very large white paper moon fills the back of the window. Above the moon, where the painted scenery meets the top of the window, a short black rectangle is open in a dark gallery rail, set high near the window ceiling. On the display floor lie a stick of seamstress chalk and a pair of steel scissors. Behind the window the real sales floor is completely dark.\nPalette: cream stock, one warm amber, one deep oxblood, one cold slate blue, and solid black. Strong contrast between the amber interior and the cold exterior. No people anywhere. No letters, no numbers, no signage, no logos, no readable text of any kind.\nNot photographic. No camera artefacts, no lens flare, no depth-of-field blur. Not 3D rendered, not anime, not modern digital concept art, no painterly brushwork.\nThe printed image fills the entire frame edge to edge. There is no paper margin, no border, no cream or white frame around the image, and no visible edge of the stock.",
+    "prompt_sha256": "c61e113cc36eae18dc791d356836a05b358fb64bf5bf271c864b768991649167"
   },
   "style_reference": null,
   "selection": {
-    "spike": "the-grain-cover-v1",
-    "candidate": "wide_motor_court",
-    "candidate_source": "out/the-grain-cover/candidate-1.png",
-    "candidate_count": 6,
+    "spike": "the-grain-concept",
+    "candidate": "direction_a_silkscreen",
+    "candidate_source": "out/the-grain-cover-a/cover-2.png",
+    "candidate_count": 8,
     "selected_on": "2026-09-03",
-    "selected_by": "production lead",
-    "rationale": "The only candidate correct on every subject item, free of people, and complete on the light rule: six blank-headed mannequins facing the empty seventh chair, the paper moon whole, the gallery rectangle unmistakably an open slot, chalk and scissors on the display floor, the store behind unlit, the stone canopy lit from beneath and the street cold. It states all four palette colours as objects rather than as a wash. Its blank heads were weighed as a cost and accepted as a protection: with nine actors, a plate carrying a face would pull every one of them toward it.",
+    "selected_by": "director",
+    "rationale": "The director reviewed two text-to-image art-direction sheets of four candidates each - A silkscreen, B oil, C ink and watercolour, D cel background, then E flat inks under a drawn line, F cel design in gouache, G four washes, H flat fields - and chose direction A: a hand-pulled silkscreen poster in four flat inks with hard cut edges, visible ink grain, and shadow drawn as a shape rather than as a darkening. These bytes are that direction redrawn against the complete canonical cover subject, which the concept sheet had abbreviated: the gallery-rail rectangle above the moon is restored, and the plate is full-bleed with no poster margin so no backdrop drawn against it inherits a paper border.",
     "not_selected": [
-      "candidate-2 (through the glass) was the runner-up: same subject discipline, and the best reading of the gallery rectangle, but mullions make the mannequin count ambiguous and the interior skews yellow.",
-      "candidate-3 rendered the figures as people with faces and was rejected as a plate.",
-      "candidate-4 read as a resort garden court rather than a downtown motor court.",
-      "candidate-5 lost the warm half of the palette.",
-      "candidate-6 showed a lit room behind the display, contradicting the dark sales floor."
+      "B (oil, chiaroscuro) was dropped by the director with A, C and D kept.",
+      "C and D were kept through the first sheet but not chosen.",
+      "E, F, G and H were the second sheet, drawn to triangulate A, C and D.",
+      "The first direction-A plate, out/the-grain-cover-a/cover.png, carried a cream poster margin and was rejected for style-plate use because a reference leaks composition and every backdrop would have inherited the border."
     ]
   },
   "exploration": {
-    "run": "out/the-grain-cover/",
-    "note": "The five unselected candidates are kept in the run as exploration and are labelled unreviewed exploration. They are not package members, are not promoted, and are not identity or style references for anything.",
+    "run": "out/the-grain-concept/",
+    "note": "Eight direction candidates plus the two direction-A plates are kept as unreviewed exploration. They are not package members, are not promoted, and are not identity or style references for anything.",
     "candidates": [
-      "out/the-grain-cover/candidate-1.png",
-      "out/the-grain-cover/candidate-2.png",
-      "out/the-grain-cover/candidate-3.png",
-      "out/the-grain-cover/candidate-4.png",
-      "out/the-grain-cover/candidate-5.png",
-      "out/the-grain-cover/candidate-6.png"
+      "out/the-grain-concept/candidate-A.png",
+      "out/the-grain-concept/candidate-B.png",
+      "out/the-grain-concept/candidate-C.png",
+      "out/the-grain-concept/candidate-D.png",
+      "out/the-grain-concept/candidate-E.png",
+      "out/the-grain-concept/candidate-F.png",
+      "out/the-grain-concept/candidate-G.png",
+      "out/the-grain-concept/candidate-H.png",
+      "out/the-grain-cover-a/cover.png"
     ]
   },
   "visual_review": {
     "status": "pending",
-    "artifact_sha256": "bea91b0610916d0f5e493adf2b415cb4a94ab7792868e053b526f1efb56f5930",
-    "artifact_bytes": 3726675,
-    "note": "Selecting a candidate is not publication approval, and the lane that produced an image cannot review it. An independent semantic pass on these exact bytes is still owed before the rights status may move."
+    "artifact_sha256": "764c0c4e185155615f1f46623ab59afca506721d3a08495a20550bcf47dff559",
+    "artifact_bytes": 4176251,
+    "note": "The director chose the direction from a sheet, which is a selection by someone other than the producer, but not a semantic review of these exact bytes: this plate is a later regeneration in that direction. An independent pass on these bytes is still owed before the rights status may move."
   },
   "rights": {
     "status": "unreviewed",
     "reviewed_at": null,
     "basis": [
       "Original brand-neutral prompt composed from this production's art direction, with no third-party image input.",
-      "First-party AI-generated plate selected by the production lead from a six-candidate style sheet on 2026-09-03.",
+      "First-party AI-generated plate in the art direction the director chose from two eight-candidate sheets on 2026-09-03.",
       "No independent semantic review of the exact committed bytes is recorded; the image is unreviewed and unpublished."
     ],
     "publication_authorized": false

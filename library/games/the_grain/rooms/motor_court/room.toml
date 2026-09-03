@@ -28,7 +28,7 @@ revision = 1
 [[references]]
 reference_id = "cover_style"
 source = "references/cover.png"
-source_sha256 = "bea91b0610916d0f5e493adf2b415cb4a94ab7792868e053b526f1efb56f5930"
+source_sha256 = "764c0c4e185155615f1f46623ab59afca506721d3a08495a20550bcf47dff559"
 rights_status = "unreviewed"
 rights_basis = [
     "Original brand-neutral prompt composed from this production's art direction, with no third-party image input.",
@@ -37,19 +37,23 @@ rights_basis = [
 ]
 
 [style]
-label = "painted illustration, gouache-like, 1972 Los Angeles at night"
+label = "screen-printed poster, four flat inks, 1972 Los Angeles at night"
 keywords = [
-    "visible brushwork and restrained detail",
-    "warm amber light against cold blue-black glass",
-    "muted ochre, bottle green, oxblood, cream",
-    "low practical lamps, deep unlit interiors",
+    "large flat areas of unmodulated ink with hard cut edges",
+    "slight registration offset and visible ink grain at the edge of every shape",
+    "shadow drawn as a flat shape, never as a darkening",
+    "heavy solid black carrying the architecture",
+    "cream, warm amber, deep oxblood and cold slate blue, and nothing else",
     "1972 wardrobe, cars, and fixtures",
 ]
 avoid = [
     "photorealism",
     "anime",
-    "comic ink linework",
+    "painterly brushwork or visible brush texture",
+    "gradients, blends, or airbrushed transitions",
+    "drawn pen outlines or comic ink linework",
     "gloss or specular highlights",
+    "a paper margin, border or visible edge of stock around the image",
     "readable text",
     "branding or signage lettering",
     "people",
@@ -101,7 +105,7 @@ label = "The unfinished window"
 art = "scenery"
 brief = "six mannequin figures in evening dress, four standing and two seated on low plinths, all turned inward toward an empty seventh chair; the chair is a plain seat raised on a single slender steel column base; behind it a large matte white paper moon, flat and papery with a visible seam, no craters and no lunar surface"
 art_region = { x = 0.56, y = 0.30, w = 0.28, h = 0.34 }
-region = { x = 0.56, y = 0.30, w = 0.28, h = 0.34 }
+region = { x = 0.5602, y = 0.35, w = 0.3031, h = 0.3375 }
 
 [[hotspots]]
 hotspot_id = "black_rectangle"
@@ -109,7 +113,7 @@ label = "Above the moon"
 art = "scenery"
 brief = "a short black rectangle left open where the painted scenery meets the ceiling of the window, directly above the paper moon"
 art_region = { x = 0.666, y = 0.243, w = 0.057, h = 0.078 }
-region = { x = 0.666, y = 0.243, w = 0.057, h = 0.078 }
+region = { x = 0.6992, y = 0.2694, w = 0.0586, h = 0.0736 }
 
 [[hotspots]]
 hotspot_id = "chalk_and_scissors"
@@ -117,7 +121,7 @@ label = "The window floor"
 art = "scenery"
 brief = "a stick of tailor's chalk and a pair of scissors left on the floor inside the glass"
 art_region = { x = 0.660, y = 0.617, w = 0.079, h = 0.065 }
-region = { x = 0.660, y = 0.617, w = 0.079, h = 0.065 }
+region = { x = 0.668, y = 0.6944, w = 0.1289, h = 0.0625 }
 
 [[hotspots]]
 hotspot_id = "service_bell"
@@ -125,7 +129,7 @@ label = "The service bell"
 art = "scenery"
 brief = "a small plain bell push mounted beside an unmarked service door"
 art_region = { x = 0.857, y = 0.461, w = 0.045, h = 0.086 }
-region = { x = 0.857, y = 0.461, w = 0.045, h = 0.086 }
+region = { x = 0.8852, y = 0.5139, w = 0.0367, h = 0.0583 }
 
 # --- interactions ------------------------------------------------------------
 # Four looks and one way in. The two texture looks carry no effect and therefore
