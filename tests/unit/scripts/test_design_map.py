@@ -281,5 +281,5 @@ def test_the_shipped_maps_carry_a_terrain_request_and_no_geometry() -> None:
         assert "[[climbable.placements]]" not in text
         assert '[terrain]\nmode = "platformer-chunk-map-v1"' in text
         game_map = _map(map_id)
-        assert game_map.kind == "game-map-v9"
+        assert game_map.kind == "game-map-v10"
         assert json.loads(game_map.terrain.model_dump_json())["brief"].strip()

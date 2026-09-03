@@ -48,7 +48,7 @@ Start here for the headless, general-purpose system:
   TO-BE projection, camera, gameplay-space, asset-view, style, profile-ID, and
   module-namespace terminology; it does not claim implementation support.
 - [Authored map-generation contract](spec/game/map-generation-contract.md) —
-  exact-current `game-map-v9`: explicit image-reference closure, side-view
+  exact-current `game-map-v10`: explicit image-reference closure, side-view
   continuity, per-map layers, binary terrain, ladder and portal composition,
   bundle review, cache, and gameplay-relationship exclusion.
 - [Platformer map design](spec/game/platformer-map-design.md) — the promoted chunk-grammar map
@@ -96,7 +96,7 @@ Start here for the headless, general-purpose system:
   `spoken_line_v1` bark realization, verbatim text with delivery annotations,
   the length-ceiling and level gates, the `generate-speech` audition command,
   and the seam a voiced script will use.
-- [Authored game maps](game-maps.md) — exact-current `game-map-v9` package
+- [Authored game maps](game-maps.md) — exact-current `game-map-v10` package
   placement, visual/static-topology ownership, gameplay boundary, terrain
   projection, and links to the field-level authority.
 - [Scene profiles and gameplay components](spec/scene-gameplay-components.md) —

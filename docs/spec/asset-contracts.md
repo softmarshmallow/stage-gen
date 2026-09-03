@@ -411,7 +411,7 @@ an independent semantic verdict accepts their exact bytes.
 
 ## Runtime ladder
 
-> **Prepared map-local contract.** In `game-map-v9`, optional `[ladder]`
+> **Prepared map-local contract.** In `game-map-v10`, optional `[ladder]`
 > direction and placements live in the owning map. The appearance is generated
 > once per map and reused only by that map's validated placements. The older
 > a run-global ladder raster is not
@@ -822,7 +822,7 @@ The 8-slot count matches the 8-item palette (one slot per item kind).
 
 ## Portal pair (entry / exit)
 
-> **Prepared map-local contract.** In `game-map-v9`, optional `[portal]`
+> **Prepared map-local contract.** In `game-map-v10`, optional `[portal]`
 > direction and endpoint anchors live in the owning map. The older prompt-only
 > recipe may still generate one global pair; it is not the prepared-package
 > authority.

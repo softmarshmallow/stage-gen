@@ -20,9 +20,16 @@ from stage_gen.components.game_ui.nodes import (
     DEFAULT_ATLAS_ROLES,
     ui_atlas_manifest_block,
 )
+from stage_gen.components.painted_terrain import (
+    PAINTED_TERRAIN_CELL_PX,
+    PaintedTerrainGround,
+    painted_silhouette_tolerance,
+    painted_terrain_segments,
+)
 from stage_gen.components.platformer_content import MotionPresentation, PropContent
-from stage_gen.components.platformer_map import PreparedMapLayer
+from stage_gen.components.platformer_map import PreparedGameMap, PreparedMapLayer
 from stage_gen.components.platformer_map.prepared import (
+    PreparedMapTerrain,
     load_prepared_map_terrain_bytes,
     validate_generated_terrain,
 )
@@ -349,16 +356,7 @@ def _assemble_prepared_runtime(
             "hostile_population_enabled": map_use.hostile_population_enabled,
             "track_ids": list(map_use.track_ids),
             "layers": [layer_manifest(game_map.map_id, layer) for layer in game_map.layers],
-            "ground": {
-                "mode": game_map.ground.mode,
-                # Inlined so the consumer can read the world without a second fetch -- the same
-                # treatment portal endpoints already get. The generated record itself is in the
-                # closure as provenance, which is where its digest and lineage live.
-                "occupancy": list(terrain.occupancy),
-                "vertical_fit": game_map.ground.vertical_fit,
-                "walk_surface_row": terrain.walk_surface_row,
-                "asset": publish(f"maps/{game_map.map_id}/ground.png"),
-            },
+            "ground": _ground_manifest(game_map, terrain, publish),
         }
         if game_map.climbable is not None:
             climbable = game_map.climbable
@@ -920,7 +918,22 @@ def runtime_artifact_closure(
             closure.append(
                 (f"maps/{game_map.map_id}/layers/{layer.layer_id}.validation.json", "provenance")
             )
-        closure.append((f"maps/{game_map.map_id}/ground.png", "asset"))
+        if isinstance(game_map.ground, PaintedTerrainGround):
+            for segment in painted_terrain_segments(
+                game_map.terrain.columns, game_map.terrain.rows
+            ):
+                closure.append((f"maps/{game_map.map_id}/ground/{segment.segment_id}.png", "asset"))
+                # Each segment's own measurements travel with its raster, the way a layer's
+                # measured placement travels with its own.
+                closure.append(
+                    (
+                        f"maps/{game_map.map_id}/ground/{segment.segment_id}.validation.json",
+                        "provenance",
+                    )
+                )
+            closure.append((f"maps/{game_map.map_id}/ground.validation.json", "provenance"))
+        else:
+            closure.append((f"maps/{game_map.map_id}/ground.png", "asset"))
         # Generated geometry travels with the run, but the manifest already inlines what a
         # consumer reads from it.
         closure.append((terrain_artifact_path(game_map.map_id), "provenance"))
@@ -1071,3 +1084,52 @@ __all__ = [
     "runtime_artifact_paths",
     "verify_prepared_runtime",
 ]
+
+
+def _ground_manifest(
+    game_map: PreparedGameMap,
+    terrain: PreparedMapTerrain,
+    publish: Callable[[str], dict[str, object]],
+) -> dict[str, object]:
+    """Project either ground discipline into runtime shape.
+
+    Everything the geometry needs is mode-independent and stays on both arms: occupancy,
+    the vertical fit and the walk-surface row are what the consumer computes collision,
+    the world box and every layer datum from, and none of them knows how the ground is
+    drawn. Only the raster differs -- one repeating atlas, or one bespoke plate per
+    segment -- so a consumer that already reads a map keeps reading it.
+
+    Occupancy is inlined so the consumer can read the world without a second fetch, the
+    same treatment portal endpoints already get. The generated record itself is in the
+    closure as provenance, which is where its digest and lineage live.
+    """
+
+    common: dict[str, object] = {
+        "mode": game_map.ground.mode,
+        "occupancy": list(terrain.occupancy),
+        "vertical_fit": game_map.ground.vertical_fit,
+        "walk_surface_row": terrain.walk_surface_row,
+    }
+    if not isinstance(game_map.ground, PaintedTerrainGround):
+        return {**common, "asset": publish(f"maps/{game_map.map_id}/ground.png")}
+    segments = painted_terrain_segments(game_map.terrain.columns, game_map.terrain.rows)
+    return {
+        **common,
+        "cell_px": PAINTED_TERRAIN_CELL_PX,
+        # Published rather than implied. Collision is occupancy and nothing samples the
+        # image at any stage, so this band changes no rule of play -- but a consumer
+        # drawing a debug overlay needs the number rather than a description of it.
+        "silhouette_tolerance": painted_silhouette_tolerance().model_dump(mode="json"),
+        # One texture per segment, never one stitched raster: fifty-six columns fit inside a
+        # 4096-pixel texture and sixty-five do not, so segment textures keep the runtime
+        # bounded by construction rather than by luck.
+        "segments": [
+            {
+                "segment_id": segment.segment_id,
+                "start_column": segment.start_column,
+                "columns": segment.columns,
+                "asset": publish(f"maps/{game_map.map_id}/ground/{segment.segment_id}.png"),
+            }
+            for segment in segments
+        ],
+    }

@@ -102,6 +102,14 @@ Re-pinned 2026-09-03 a seventh time for authoring alone: the road's three spawn 
 That is a gameplay-document edit, so package resolve, gameplay validation, and the manifest move
 and nothing else does -- no terrain, layer, ground, climbable, or portal identity, and no
 provider node at all.
+Re-pinned 2026-09-03 an eighth time for a contract widening: ``[ground].mode`` is now a
+discriminated union, so a map may name ``painted-terrain-v1`` instead of the tile atlas, and the
+map document identity moved to ``game-map-v10``. No map declares the new mode -- it is opt-in and
+the atlas stays the default -- so the node COUNT and the topology are untouched, which is the
+point: landing a mode nobody has asked for must not move the shape of the graph. Seven nodes move
+on identity alone: package resolve, both map composites, both advisory map reviews, gameplay
+validation, and the manifest. No image node moves and no terrain design moves, so the widening
+re-bills nothing.
 """
 
 from __future__ import annotations
@@ -118,7 +126,7 @@ REPOSITORY_ROOT = Path(__file__).parents[4]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
 
 BELLWEATHER_NODE_COUNT = 230
-BELLWEATHER_GRAPH_SHA256 = "e89310783933da005550880fd122069da8075fb162fe016e0bbf95084c0efb4a"
+BELLWEATHER_GRAPH_SHA256 = "e89fbabbe940b2f129c7e63ef398983201291590e8feb07765bd8bde43b8c8ae"
 BELLWEATHER_TOPOLOGY_SHA256 = "819c43338c5e6305746a4aaca59a1ee52ab712f09b073a36ff8504b1d839bc87"
 
 

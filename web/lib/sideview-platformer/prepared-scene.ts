@@ -805,9 +805,37 @@ export class PreparedStageScene extends Phaser.Scene {
     );
   }
 
+  /** Texture key for one painted segment's full-grid raster. */
+  private paintedGroundKey(map: PreparedMap, segmentId: string): string {
+    return `prepared_ground_${map.map_id}_${segmentId}`;
+  }
+
   private async loadGroundOrFallback(map: PreparedMap): Promise<void> {
     const key = `prepared_ground_${map.map_id}`;
     try {
+      if (map.ground.mode === "painted-terrain-v1") {
+        // Each segment is one bespoke full-grid raster, so there is no atlas geometry to
+        // assert and no lookup to satisfy - only that the raster is the size its own
+        // declared window says it is.
+        const ground = map.ground;
+        for (const segment of ground.segments) {
+          const segmentKey = this.paintedGroundKey(map, segment.segment_id);
+          const canvas = await loadTransparentSprite(
+            this.url(segment.asset.path),
+            segmentKey,
+            this.textures,
+            this.transparencyPolicy,
+          );
+          const expectedWidth = segment.columns * ground.cell_px;
+          const expectedHeight = ground.occupancy.length * ground.cell_px;
+          if (canvas.width !== expectedWidth || canvas.height !== expectedHeight) {
+            throw new Error(
+              `painted terrain ${segment.segment_id} must be exactly ${expectedWidth}x${expectedHeight}`,
+            );
+          }
+        }
+        return;
+      }
       await loadTerrainAtlas(
         this.url(map.ground.asset.path),
         key,
@@ -1253,6 +1281,38 @@ export class PreparedStageScene extends Phaser.Scene {
     const terrainWorld = this.terrainWorld;
     if (!terrainWorld) {
       throw new Error("prepared map render requires projected terrain geometry");
+    }
+    if (map.ground.mode === "painted-terrain-v1") {
+      // One image per segment at its own start column, and nothing else. There is no
+      // walk-surface inset and no boundary overscan: the atlas needs both because its
+      // cells are transparent above the cap and along a boundary contour, while a painted
+      // segment already fills its cells and already overhangs them by as much as the
+      // published silhouette band allows.
+      const ground = map.ground;
+      const everySegmentLoaded = ground.segments.every((segment) =>
+        this.textures.exists(this.paintedGroundKey(map, segment.segment_id)),
+      );
+      if (everySegmentLoaded) {
+        for (const segment of ground.segments) {
+          this.groundSprites.push(
+            this.add
+              .image(
+                segment.start_column * TILE_PX,
+                terrainWorld.topY,
+                this.paintedGroundKey(map, segment.segment_id),
+              )
+              .setOrigin(0, 0)
+              .setDisplaySize(
+                segment.columns * TILE_PX,
+                ground.occupancy.length * TILE_PX,
+              )
+              .setDepth(10),
+          );
+        }
+        return;
+      }
+      // Fall through to the flat fallback below, which is keyed off the map rather than
+      // off a segment and so serves either discipline.
     }
     if (this.textures.exists(groundKey)) {
       const visibleSurfaceOffset = terrainAtlasWalkSurfaceOffset(TILE_PX);

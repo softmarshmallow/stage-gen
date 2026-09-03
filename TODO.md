@@ -299,7 +299,7 @@ today measures against them as follows:
 | Reach / targets / hits per swing | 1.4 tiles / 1 / 1 | ~3 tiles / many / 3-5 stacked numbers |
 | Common mob HP vs player damage | 2 vs 1 | one-hit, six-digit numbers |
 | Feedback per hit | hurt strip, knockback tween, bar, text | spark, flinch, death burst, coin pop |
-| Terrain silhouette | 47-mask tile grid | organic painted rock masses |
+| Terrain silhouette | 47-mask tile grid | organic painted rock masses, and structures with standable lines in them |
 
 Already present and worth putting in the demo rather than rebuilding: the auto-hunt bot in
 `web/lib/sideview-platformer/bot-hunter.ts` is the reference's "Full Auto"; floating mob HP bars,
@@ -307,7 +307,9 @@ critical text with punch, loot drops, the EXP stat log, death strips, contact sh
 two-species spawn tables per zone all exist. Each item below is one dedicated thread. The
 suggested order is D, C, A, E first - each consumer-only, visible on the existing
 `out/bellweather-m2` run, and free of provider spend - then B and F, then G as the art-only
-interim, then H as its own spec-first thread. I stays deferred.
+interim, then H as its own spec-first thread. I stays deferred, and K joins it there: K is
+the one that moves the silhouette axis, but it is a new asset family and H had to be spiked
+before the difference between them was legible.
 
 The four consumer-side threads (D, C, A, E) share three constraints. Every new motion is a pure
 sampler over `nowMs` in the shape of `sampleCombatText` and `sampleFixedMobHit` - no
@@ -525,24 +527,109 @@ before and after every authoring edit and confirm no image node's cache identity
       family with `prop_placements`; large non-colliding rock and root props snapped to deck edges
       break the tile-grid read at zero contract cost while H is designed. Authoring plus art, no
       code beyond what the village already uses.
-- [ ] **H. Painted terrain as a platformer ground mode (hard, new).** The literal suggestion -
-      one large painted sprite with ground geometry traced afterwards - conflicts with doctrine:
-      authored occupancy, not the image, owns collision, and `scripts/author_terrain.py` proves
-      rise tolerance, deck exposure, and camera range offline from that occupancy. Paint-first,
-      trace-after would discard those proofs. The doctrine-compatible version already ships for the
-      runner: `runner-structural-ground-v1` turns authored occupancy into a guide, paints it with a
-      native-alpha edit, and masks the result back to exact occupancy with seam bridges
-      (`docs/spec/game/runner.md`). The taxonomy reserves the home as `2d/sideview/painted_terrain`
-      (`docs/spec/asset-taxonomy.md`, validation case 1). Porting it needs a new mode under
-      `[ground]` with producer, validation, manifest, and consumer paths - what the map contract
-      demands of every ground mode - plus relaxed admission, because runner admission forbids any
-      solid above `walk_surface_row` and a platformer map is mostly floating decks. Segment the
-      96-column map at the runner's segment width and reuse its seam bridge. Spec first, then
-      spend.
+- [ ] **H. Painted terrain as an opt-in ground mode (hard, new).** Spiked 2026-09-03 with four
+      provider operations; the component is built and proven offline, the wiring is in progress,
+      and the mode is deliberately **not** the default. Naming first, because the one word was
+      carrying two different features: **painted terrain** is this thread - one bespoke painting
+      per segment of the *authored terrain silhouette*, an alternative to the 47-mask atlas for a
+      map that wants custom, style-refined ground instead of generic tiles - and **painted
+      structures** is thread K below, which is a different thing entirely and is what the
+      reference frame was actually asking for.
+      The literal suggestion - one large painted sprite with geometry traced afterwards -
+      still conflicts with doctrine: authored occupancy, not the image, owns collision, and
+      `scripts/author_terrain.py` proves rise tolerance, deck exposure and camera range offline
+      from that occupancy. The shipped shape is the runner's (`runner-structural-ground-v1`):
+      occupancy becomes a guide, a native-alpha edit paints it, and the result is masked back.
+      What is new here, and what the port could not simply copy, is three things.
+      **A hunting map is 71 per cent air.** The runner's ground is one continuous bank whose only
+      visible edge is the top, so every one of its thresholds is a mean over a mostly-solid grid.
+      Crowncrag Road is a flat bank plus eleven isolated one-tile decks, and a model can fill
+      every one of the forty hop-gap cells completely while still scoring 0.07 on the runner's
+      `empty_leakage` mean. Leakage is therefore measured per cell, and again along the two
+      structures that matter: the gaps a player jumps through, and the air a deck hangs in
+      (`deck_support_run`, which refuses a pillar the player would walk straight through).
+      **Exact alpha is worse than what ships.** The runner proves every solid cell opaque to its
+      last pixel and every empty cell transparent to its first. On this occupancy that publishes
+      one razor-straight line across fifty-six tiles and eleven perfect rectangles - *more*
+      rectilinear than the atlas already shipping, whose cells carry transparent contours and
+      whose caps are lifted ten source pixels. So the drawn edge is allowed to leave the authored
+      one by a bounded, published, asymmetric band: eight pixels inward everywhere, sixteen
+      outward at a side or an underside, eight outward over a walking surface, because drawn
+      wider than collision reads as moss over the feet while drawn narrower puts a body on
+      visible air, and an overhang above a surface is the one outward error a player reads a jump
+      against. It is a *presentation* bound - collision is computed in `prepared-terrain.ts` from
+      `terrain.json` and nothing samples the image at any stage - and it travels in the manifest
+      as `ground.silhouette_tolerance` so a debug overlay can say how far the art may stray.
+      **Segmentation is about resolution, not about joins.** The runner segments because its
+      track is infinite and any chunk may follow any chunk, which is what its shared seam bridge
+      is for; pasting one identical 64-pixel column at six fixed positions in a finite map would
+      be a defect rather than a fix. These segments are a derived partition of one map - three of
+      19/19/18, the arithmetic that lands every segment at exactly the 64-pixel publication cell
+      with no resample anywhere - and each guide simply draws two of its neighbour's real columns
+      as context. Measured on synthetic returns the butt-joins sit at 1.01x and 0.91x the median
+      interior column step, so the designed fallback (a deterministic jittered cut, zero provider
+      ops) stays unbuilt.
+      Two things the spike taught that reading could not. The band had to be measured against the
+      cell's *core* rather than the whole cell: a deck's end cell is exposed on two sides at once
+      and a correctly organic silhouette rounds that corner, which a whole-cell floor reads as a
+      missing floor. And the guide's row window needs a **bottom bleed**: a window whose bottom
+      edge is a hard line reads as a mass that ends there, and the first two paintings duly gave
+      the bank a handsome rocky underside and pulled it up off the map's last row - the row that
+      meets the bottom of the screen. The bank now runs off the canvas the way the context
+      columns run off the sides.
+      Eligibility is offline and refuses before spend: at most fifteen rows, because a taller
+      grid cannot carry the publication cell on a 1024-pixel guide canvas and no partition can
+      help - the height cap is independent of how the columns are cut.
+      - [x] Wired 2026-09-03, all four paths the map contract demands of a mode. The contract is
+            a discriminated union on `PreparedGameMap.ground` at `game-map-v10`, with an offline
+            eligibility gate that refuses a grid taller than the guide canvas can carry before any
+            spend. The graph branches per map: three guide, three generate and three canonicalize
+            nodes plus one compose, replacing the atlas pair, so a painted Crowncrag Road plans at
+            238 nodes against 230 and 98 image operations against 96. The manifest publishes
+            `cell_px`, the tolerance and an ordered `segments` array and no longer a single
+            `ground.asset`; the consumer parses both arms, refuses a manifest carrying both, and
+            draws one image per segment without the walk-surface inset or the boundary overscan the
+            atlas needs. No map declares the mode, so the node count and the topology are untouched
+            and the widening re-bills nothing -- seven local and advisory nodes move on identity
+            alone, proven by a plan diff against the cached world run.
+      - [ ] Decide whether Bellweather itself adopts it. It is an authoring flip of four lines and
+            a re-pin, and it is a taste call rather than a technical one: the in-scene comparison
+            is on file. Sunpetal Crossing stays on the atlas either way, which is what keeps the
+            union honest.
 - [ ] **I. Generated VFX sprites (new, deferred).** No effect or VFX asset family exists in the
       taxonomy. D covers the demo procedurally; a generated slash, spark, or burst family is a new
       taxonomy entry with its own contract, review, and cache identity, and has no caller until D
       has shown what shapes are worth drawing.
+- [ ] **K. Painted structures (new, deferred).** The feature the reference frame was actually
+      asking for, and the one that is *genuinely* impossible with a tile atlas. The frame is a
+      MapleStory mushroom house: a large painted structure with an interior, a balcony and a
+      door, in which only a few horizontal lines are standable. A cliff face with ledges, a tree
+      with branches, a building interior - all the same shape. Thread H cannot produce any of
+      them, and the spike proved why: H paints *the occupancy*, so its output is a function of
+      the grid, and a grid of floating one-tile decks can only ever be painted as floating
+      one-tile decks. Rock banks with organic edges are the tileset's job and H merely does them
+      better; a house with three floors in it is a different asset family.
+      The inversion is the whole design. H is occupancy -> guide -> paint -> mask back. A
+      structure is art in its own right, placed on a map, carrying standable lines declared *on*
+      it - and it is not a ground mode at all: in the reference the ground is still a tiled stone
+      band and the house sits on it. Collision stays authored and is never traced from the image,
+      which is what separates this from the paint-first suggestion doctrine already refused: the
+      lines are declared first and the guide asks the art to put its floors exactly there. The
+      guide, source validator, canonicalizer and join machinery from H all transfer; what changes
+      is that the guide draws a bounding box with floor lines rather than an occupancy grid, and
+      that nothing is masked back - the art is free everywhere inside its box, and only the
+      declared lines are validated.
+      Closest existing shapes to reuse: `prop_placements` for how a placed object reaches a map,
+      `RunnerHazard` for a prop anchored to authored geometry with a closed anchor word validated
+      against occupancy, and `floatingPlatforms` in `prepared-terrain.ts` for the record a
+      standable line has to become - which means thread B's deck lanes, and therefore mobs
+      standing on a balcony, come for free.
+      Open before it starts: whether the standable lines are hand-authored beside the prompt or
+      designed by a structured node the way `map_terrain.design` now designs occupancy; and
+      whether a structure may also carry solid regions rather than only floors. Home in the
+      taxonomy is its own, `2d/sideview/painted_structure`, beside rather than inside
+      `2d/sideview/painted_terrain`, because conflating them is exactly the confusion that cost
+      this thread its first two provider calls.
 - [x] **J. A number drawn one digit at a time (easy).** Landed 2026-09-03 from a reference frame
       of the real thing: a column of MapleStory damage numbers where no two digits of a number sit
       on the same line. That is what one `Phaser.GameObjects.Text` per number structurally cannot

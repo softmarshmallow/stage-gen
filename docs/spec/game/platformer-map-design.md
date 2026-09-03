@@ -15,7 +15,7 @@
 
 ## Authority and purpose
 
-A map's terrain shape is generated, exactly the way its artwork is generated. `game-map-v9`
+A map's terrain shape is generated, exactly the way its artwork is generated. `game-map-v10`
 states the request — a `[terrain]` table naming a generator and a brief — and a graph node
 answers with a `map-terrain-v1` artifact carrying the occupancy, the walk-surface row, and the
 climbable placements. No geometry is written back into `maps/<map_id>.toml`, for the same
@@ -276,7 +276,7 @@ Per-chunk tagging gets contiguity for free, and it puts switches on landmarks by
 "the hollow is the glow-moss pocket" is a single word in the sentence, where a grid format would
 need a separate biome-region list with its own counting.
 
-**A profile authored for Bellweather ships `biomes = ()` today.** `game-map-v9` binds exactly
+**A profile authored for Bellweather ships `biomes = ()` today.** `game-map-v10` binds exactly
 one terrain atlas per map and exposes no per-region style surface, so a design that expressed
 per-region appearance would have nowhere to send it. Enabling regions is not a profile edit: it
 needs a new ground mode under `[ground]` with its producer, validation, manifest, and consumer
@@ -335,7 +335,7 @@ mirrored, treat a placement change as paid work and sequence it accordingly.
 
 ## Related contracts
 
-- [Authored map-generation contract](map-generation-contract.md) — `game-map-v9`, which owns the
+- [Authored map-generation contract](map-generation-contract.md) — `game-map-v10`, which owns the
   `occupancy` matrix and the climbable placements a design is applied into.
 - [Canonical game-generation pipeline](generation-pipeline.md) — the generation graph and the
   cache identities a design edit does and does not disturb.

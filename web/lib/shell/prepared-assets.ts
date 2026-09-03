@@ -179,7 +179,11 @@ export function projectPreparedRuntimeAssets(
     groups.push(
       group(`map-${map.map_id}`, `Map: ${map.display_name}`, [
         ...background,
-        bound(map.ground.asset, "Ground atlas", true),
+        ...(map.ground.mode === "painted-terrain-v1"
+          ? map.ground.segments.map((segment) =>
+              bound(segment.asset, `Painted terrain ${segment.segment_id}`, true),
+            )
+          : [bound(map.ground.asset, "Ground atlas", true)]),
         ...(map.climbable
           ? [bound(map.climbable.asset, "Climbable atlas", true)]
           : []),

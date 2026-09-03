@@ -13,7 +13,7 @@ adapts both from `prepared-game-runtime-v10` into Phaser objects.
 | --- | --- | --- |
 | `game-contract-v9` | Shared identity, art direction, genre members carrying presentation, cast IDs, and package membership | Simulation or engine state |
 | `gameplay-contract-v1` | Navigation, player start, progression, inventory semantics, combat, map use, transitions, population, loot, placements, interactions, quests, and effects | Map image generation or Phaser objects |
-| `game-map-v9` | Map references/layers, per-layer runtime presentation, the terrain request a generator answers, the climbable roster, and portal presentation/anchors | Movement permission, destinations, spawning, interactions, or the generated geometry itself |
+| `game-map-v10` | Map references/layers, per-layer runtime presentation, the terrain request a generator answers, the climbable roster, and portal presentation/anchors | Movement permission, destinations, spawning, interactions, or the generated geometry itself |
 | `map-terrain-v1` | Generated occupancy, walk-surface row, and climbable placements for one map | Any authored intent; it is an artifact, not a source |
 | Content/UI/sequence contracts | Actor/item/prop presentation, interface presentation, and authored control flow | Physics or mutable runtime state |
 | Recipe and manifest | Generated artifacts, portable contract projection, digests, and provenance | Browser lifecycle or hidden gameplay defaults |

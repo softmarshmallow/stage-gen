@@ -76,7 +76,7 @@ def test_canonical_maps_own_portal_endpoints_and_optional_climbable_geometry() -
     village = load_prepared_game_map_bytes(_map_bytes("sunpetal-crossing"))
     road = load_prepared_game_map_bytes(_map_bytes("crowncrag-road"))
 
-    assert village.kind == road.kind == "game-map-v9"
+    assert village.kind == road.kind == "game-map-v10"
     assert village.layers[2].presentation.detail_blur_screen_pixels == 0.65
     assert village.climbable is None
     assert village.portal is not None
@@ -116,10 +116,10 @@ def test_canonical_maps_own_portal_endpoints_and_optional_climbable_geometry() -
         assert terrain.occupancy[lower_surface - 3][column] == "0"
 
 
-def test_map_rejects_the_retired_v8_identity() -> None:
+def test_map_rejects_a_retired_identity() -> None:
     source = _map_bytes("sunpetal-crossing").replace(
+        b'schema_version = 10\nkind = "game-map-v10"',
         b'schema_version = 9\nkind = "game-map-v9"',
-        b'schema_version = 8\nkind = "game-map-v8"',
         1,
     )
 

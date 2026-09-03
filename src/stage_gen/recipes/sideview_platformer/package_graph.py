@@ -9,6 +9,25 @@ from typing import Any
 
 from gnode import Binding, BindingTable, GraphBuilder, ModelRef, NodeCard, Port, PortRef
 from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes
+from stage_gen.components.painted_terrain import (
+    PAINTED_TERRAIN_CANONICALIZE,
+    PAINTED_TERRAIN_CANONICALIZER_ID,
+    PAINTED_TERRAIN_COMPOSE,
+    PAINTED_TERRAIN_GENERATE,
+    PAINTED_TERRAIN_GROUND_VALIDATION_KIND,
+    PAINTED_TERRAIN_GUIDE,
+    PAINTED_TERRAIN_GUIDE_ID,
+    PAINTED_TERRAIN_GUIDE_KIND,
+    PAINTED_TERRAIN_GUIDE_REPORT_KIND,
+    PAINTED_TERRAIN_KIND,
+    PAINTED_TERRAIN_PLATE_KIND,
+    PAINTED_TERRAIN_RAW_KIND,
+    PAINTED_TERRAIN_VALIDATION_KIND,
+    PaintedTerrainGround,
+    painted_silhouette_tolerance,
+    painted_terrain_generation_prompt,
+    painted_terrain_segments,
+)
 from stage_gen.components.platformer_content import (
     DEFAULT_MOTION_ANCHOR,
     ContentReference,
@@ -433,62 +452,82 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             ports=(_record("terrain", f"maps/{game_map.map_id}/terrain.json", "map-terrain-v1"),),
         )
 
-        # The atlas paintover is appearance only: authored geometry and vertical fit select cells
-        # and placement downstream without changing what the image model is asked to paint.
         ground_direction = game_map.ground.model_dump(
             mode="json", exclude=set(PLACEMENT_ONLY_GROUND_FIELDS)
         )
-        ground = builder.add(
-            MAP_GROUND_GENERATE,
-            f"map-{game_map.map_id}-ground-generate",
-            domain=f"map-{game_map.map_id}",
-            description=f"paint the declared 47-mask ground atlas for {game_map.map_id}",
-            params={"map_id": game_map.map_id},
-            depends_on=(package_root,),
-            cache_depends_on=(),
-            input_digests=(
-                map_direction,
-                _object_sha256(ground_direction),
-                *_reference_digests(references, game_map.ground.reference_ids),
-                hashlib.sha256(terrain_atlas_template_path().read_bytes()).hexdigest(),
-                hashlib.sha256(terrain_atlas_topology_reference_path().read_bytes()).hexdigest(),
-                _object_sha256({"generation_contract": MATERIAL_SOURCE_CONTRACT_ID}),
-            ),
-            ports=(
-                _artifact("image", f"maps/{game_map.map_id}/ground.raw.png", "ground-atlas-raw-v1"),
-            ),
-            card=NodeCard(template_ref="terrain_atlas_12x4_template_v1"),
-        )
-        ground_validation = builder.add(
-            MAP_GROUND_VALIDATE,
-            f"map-{game_map.map_id}-ground-validate",
-            domain=f"map-{game_map.map_id}",
-            description=f"validate the {game_map.ground.mode} ground contract",
-            params={"map_id": game_map.map_id},
-            # The validator composes its evidence plate over the generated occupancy, so the
-            # terrain node is a real input: without the edge the scheduler may run this before
-            # terrain.json exists, and a cached verdict would survive a reshaped level.
-            depends_on=(ground.node_id, terrain.node_id),
-            input_digests=(
-                _object_sha256(ground_direction),
-                _object_sha256({"canonicalizer": MATERIAL_ASSEMBLER_ID}),
-                hashlib.sha256(terrain_atlas_lookup_path().read_bytes()).hexdigest(),
-                hashlib.sha256(terrain_atlas_template_path().read_bytes()).hexdigest(),
-            ),
-            ports=(
-                _artifact("image", f"maps/{game_map.map_id}/ground.png", "ground-atlas-v1"),
-                _record(
-                    "validation",
-                    f"maps/{game_map.map_id}/ground.validation.json",
-                    "ground-validation-v1",
+        # Which discipline draws this map's terrain. The atlas is the default and stays it;
+        # painted terrain is the opt-in, and it fans out per derived segment rather than
+        # producing one repeating material sheet. Both read the same generated occupancy and
+        # neither owns collision, so everything downstream of this branch is identical.
+        if isinstance(game_map.ground, PaintedTerrainGround):
+            ground_validation_id = _add_painted_terrain_nodes(
+                builder,
+                game_map,
+                package_root=package_root,
+                terrain_node_id=terrain.node_id,
+                map_direction=map_direction,
+                ground_direction=ground_direction,
+                references=references,
+            )
+        else:
+            ground = builder.add(
+                MAP_GROUND_GENERATE,
+                f"map-{game_map.map_id}-ground-generate",
+                domain=f"map-{game_map.map_id}",
+                description=f"paint the declared 47-mask ground atlas for {game_map.map_id}",
+                params={"map_id": game_map.map_id},
+                depends_on=(package_root,),
+                cache_depends_on=(),
+                input_digests=(
+                    map_direction,
+                    _object_sha256(ground_direction),
+                    *_reference_digests(references, game_map.ground.reference_ids),
+                    hashlib.sha256(terrain_atlas_template_path().read_bytes()).hexdigest(),
+                    hashlib.sha256(
+                        terrain_atlas_topology_reference_path().read_bytes()
+                    ).hexdigest(),
+                    _object_sha256({"generation_contract": MATERIAL_SOURCE_CONTRACT_ID}),
                 ),
-                _artifact(
-                    "evidence", f"maps/{game_map.map_id}/ground.evidence.png", "ground-evidence-v1"
+                ports=(
+                    _artifact(
+                        "image", f"maps/{game_map.map_id}/ground.raw.png", "ground-atlas-raw-v1"
+                    ),
                 ),
-            ),
-            card=NodeCard(reference_inputs=(PortRef(node_id=ground.node_id, port_id="image"),)),
-            duration_seconds=1.5,
-        )
+                card=NodeCard(template_ref="terrain_atlas_12x4_template_v1"),
+            )
+            ground_validation = builder.add(
+                MAP_GROUND_VALIDATE,
+                f"map-{game_map.map_id}-ground-validate",
+                domain=f"map-{game_map.map_id}",
+                description=f"validate the {game_map.ground.mode} ground contract",
+                params={"map_id": game_map.map_id},
+                # The validator composes its evidence plate over the generated occupancy, so the
+                # terrain node is a real input: without the edge the scheduler may run this before
+                # terrain.json exists, and a cached verdict would survive a reshaped level.
+                depends_on=(ground.node_id, terrain.node_id),
+                input_digests=(
+                    _object_sha256(ground_direction),
+                    _object_sha256({"canonicalizer": MATERIAL_ASSEMBLER_ID}),
+                    hashlib.sha256(terrain_atlas_lookup_path().read_bytes()).hexdigest(),
+                    hashlib.sha256(terrain_atlas_template_path().read_bytes()).hexdigest(),
+                ),
+                ports=(
+                    _artifact("image", f"maps/{game_map.map_id}/ground.png", "ground-atlas-v1"),
+                    _record(
+                        "validation",
+                        f"maps/{game_map.map_id}/ground.validation.json",
+                        "ground-validation-v1",
+                    ),
+                    _artifact(
+                        "evidence",
+                        f"maps/{game_map.map_id}/ground.evidence.png",
+                        "ground-evidence-v1",
+                    ),
+                ),
+                card=NodeCard(reference_inputs=(PortRef(node_id=ground.node_id, port_id="image"),)),
+                duration_seconds=1.5,
+            )
+            ground_validation_id = ground_validation.node_id
         presentation_validations: list[str] = []
         if game_map.climbable is not None:
             # The atlas is appearance only, exactly like the ground paintover: it draws every
@@ -604,7 +643,7 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             domain=f"map-{game_map.map_id}",
             description=f"compose all declared layers and ground for {game_map.map_id}",
             params={"map_id": game_map.map_id},
-            depends_on=(*layer_validations, ground_validation.node_id, terrain.node_id),
+            depends_on=(*layer_validations, ground_validation_id, terrain.node_id),
             input_digests=(
                 _object_sha256(_map_without_runtime_presentation(game_map)),
                 _object_sha256({"compositor": "prepared-map-placed-compositor-v6"}),
@@ -1415,6 +1454,161 @@ class _GraphBuilder(GraphBuilder):
         self.package = package
 
 
+def _add_painted_terrain_nodes(
+    builder: _GraphBuilder,
+    game_map: PreparedGameMap,
+    *,
+    package_root: str,
+    terrain_node_id: str,
+    map_direction: str,
+    ground_direction: dict[str, object],
+    references: dict[str, PreparedMapReference],
+) -> str:
+    """Fan one map out into its derived segments, and return the node that composes them.
+
+    Every node here declares an edge to the terrain node, and none of them opts out of
+    cache inheritance the way the atlas image does. That is the honest cost of the mode and
+    it is the inverse of the atlas's designed property: the atlas paints a material that
+    knows nothing about the level, so reshaping a level never re-bills it, while a painting
+    OF the occupancy must be repainted when the occupancy moves. The partition is what
+    bounds it -- a deck edited in the middle of one segment re-bills that segment alone.
+    """
+
+    segments = painted_terrain_segments(game_map.terrain.columns, game_map.terrain.rows)
+    prompt_direction = _painted_terrain_material_direction(builder.package, game_map)
+    canonical_ids: list[str] = []
+    with builder.within_template("painted-terrain-segment-pipeline@v1"):
+        for segment in segments:
+            segment_identity = _object_sha256(
+                {
+                    "index": segment.index,
+                    "start_column": segment.start_column,
+                    "columns": segment.columns,
+                    "count": len(segments),
+                    "guide": PAINTED_TERRAIN_GUIDE_ID,
+                }
+            )
+            base = f"map-{game_map.map_id}-ground-{segment.segment_id}"
+            guide = builder.add(
+                PAINTED_TERRAIN_GUIDE,
+                f"{base}-guide",
+                domain=f"map-{game_map.map_id}",
+                description=(f"draw the {segment.segment_id} terrain guide for {game_map.map_id}"),
+                params={"map_id": game_map.map_id, "segment_id": segment.segment_id},
+                # Terrain is a real input, not a scheduling nicety: without the edge the
+                # scheduler may draw a guide before terrain.json exists.
+                depends_on=(package_root, terrain_node_id),
+                input_digests=(
+                    map_direction,
+                    _object_sha256(ground_direction),
+                    segment_identity,
+                    *_reference_digests(references, game_map.ground.reference_ids),
+                ),
+                ports=(
+                    _artifact(
+                        "guide",
+                        f"maps/{game_map.map_id}/ground/{segment.segment_id}.guide.png",
+                        PAINTED_TERRAIN_GUIDE_KIND,
+                    ),
+                    _record(
+                        "guide_report",
+                        f"maps/{game_map.map_id}/ground/{segment.segment_id}.guide.json",
+                        PAINTED_TERRAIN_GUIDE_REPORT_KIND,
+                    ),
+                ),
+            )
+            generated = builder.add(
+                PAINTED_TERRAIN_GENERATE,
+                f"{base}-generate",
+                domain=f"map-{game_map.map_id}",
+                description=f"paint {segment.segment_id} of {game_map.map_id}",
+                params={"map_id": game_map.map_id, "segment_id": segment.segment_id},
+                depends_on=(guide.node_id,),
+                input_digests=(
+                    _text_digest(
+                        painted_terrain_generation_prompt(
+                            prompt_direction,
+                            segment=segment,
+                            columns=segment.columns,
+                            rows=game_map.terrain.rows,
+                        )
+                    ),
+                ),
+                ports=(
+                    _artifact(
+                        "image",
+                        f"maps/{game_map.map_id}/ground/{segment.segment_id}.raw.png",
+                        PAINTED_TERRAIN_RAW_KIND,
+                    ),
+                ),
+                card=NodeCard(reference_inputs=(PortRef(node_id=guide.node_id, port_id="guide"),)),
+            )
+            canonical = builder.add(
+                PAINTED_TERRAIN_CANONICALIZE,
+                f"{base}-canonicalize",
+                domain=f"map-{game_map.map_id}",
+                description=(
+                    f"admit {segment.segment_id} of {game_map.map_id} to its authored geometry"
+                ),
+                params={"map_id": game_map.map_id, "segment_id": segment.segment_id},
+                depends_on=(guide.node_id, generated.node_id),
+                input_digests=(
+                    _object_sha256({"canonicalizer": PAINTED_TERRAIN_CANONICALIZER_ID}),
+                    _object_sha256(painted_silhouette_tolerance().model_dump(mode="json")),
+                ),
+                ports=(
+                    _artifact(
+                        "image",
+                        f"maps/{game_map.map_id}/ground/{segment.segment_id}.png",
+                        PAINTED_TERRAIN_KIND,
+                    ),
+                    _record(
+                        "validation",
+                        f"maps/{game_map.map_id}/ground/{segment.segment_id}.validation.json",
+                        PAINTED_TERRAIN_VALIDATION_KIND,
+                    ),
+                ),
+                duration_seconds=2.0,
+            )
+            canonical_ids.append(canonical.node_id)
+    compose = builder.add(
+        PAINTED_TERRAIN_COMPOSE,
+        f"map-{game_map.map_id}-ground-compose",
+        domain=f"map-{game_map.map_id}",
+        description=f"stitch the painted terrain of {game_map.map_id} into one plate",
+        params={"map_id": game_map.map_id},
+        depends_on=(*canonical_ids, terrain_node_id),
+        input_digests=(_object_sha256({"segments": len(segments)}),),
+        ports=(
+            # The plate is evidence, a composite input and a review subject. It is never a
+            # runtime asset: fifty-six columns fit inside a 4096-pixel texture and
+            # sixty-five do not, so the consumer always loads segments.
+            _artifact(
+                "evidence",
+                f"maps/{game_map.map_id}/ground.evidence.png",
+                PAINTED_TERRAIN_PLATE_KIND,
+            ),
+            _record(
+                "validation",
+                f"maps/{game_map.map_id}/ground.validation.json",
+                PAINTED_TERRAIN_GROUND_VALIDATION_KIND,
+            ),
+        ),
+        duration_seconds=1.5,
+    )
+    return compose.node_id
+
+
+def _painted_terrain_material_direction(
+    package: ResolvedGamePackage, game_map: PreparedGameMap
+) -> str:
+    style = package.game.style
+    return (
+        f"{game_map.ground.prompt.strip()} Target style: {style.label}; "
+        f"{', '.join(style.keywords)}."
+    )
+
+
 def _visual_direction(package: ResolvedGamePackage) -> dict[str, object]:
     return {
         "universe_sha256": package.file(package.game.universe.source).sha256,
@@ -1468,6 +1662,10 @@ def _reference_digests(
 
 def _file_digests(package: ResolvedGamePackage, paths: Iterable[str]) -> tuple[str, ...]:
     return tuple(package.file(path).sha256 for path in paths)
+
+
+def _text_digest(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 def _object_sha256(value: object) -> str:

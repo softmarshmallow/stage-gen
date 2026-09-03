@@ -431,7 +431,7 @@ Those clauses are not copied into every authored map.
 
 | Field | Contract |
 | --- | --- |
-| `mode` | Exactly `terrain-atlas-3x3-minimal-v1` initially |
+| `mode` | `terrain-atlas-3x3-minimal-v1` (the default) or `painted-terrain-v1` |
 | `reference_ids` | Non-empty ordered references resolved through the map catalog |
 | `vertical_fit` | Exactly `floor_to_screen_bottom` initially; where the generated grid sits vertically |
 
@@ -457,6 +457,45 @@ template and authoritative lookup into 120-by-120 RGBA cells. The provider does
 not generate topology, alpha, cells, or connectors. Generated map occupancy and
 all eight neighbors select runtime cells, and dynamic tilemaps admit only
 `direct_pass` connector continuity. See [the terrain-atlas contract](../terrain-atlas.md).
+
+`painted-terrain-v1` is the opt-in second discipline, for a map that wants custom,
+style-refined ground instead of a repeating tile sheet. It is not the default and never
+becomes one: it costs one image operation per derived segment where the atlas costs one per
+map, and a map that does not ask for it is unaffected.
+
+Both modes are drawn from the same generated occupancy and neither owns collision. The
+difference is only what the raster is. The atlas paints one material that knows nothing
+about the level, so reshaping a level never re-bills it. Painted terrain paints the
+occupancy itself: the producer renders the authored grid as flat registration blocks, a
+native-alpha edit paints over that guide, and a local canonicalizer masks the result back
+into a bounded band around the exact authored silhouette. Reshaping a level therefore does
+re-bill the affected paintings, which is the honest cost of the mode and is bounded by the
+partition described below.
+
+Segmentation is derived, never authored: a 1536x1024 conditioning canvas cannot hold a wide
+map at the 64-pixel publication cell, so the columns are cut into the fewest segments that
+all publish at native scale, each guide drawing two of its neighbour's real columns as
+context that publication crops away. A map is refused offline, before any spend, if its grid
+is taller than the guide canvas can carry at that cell -- the height cap is independent of
+how the columns are cut, so no partition can rescue a tall map.
+
+The drawn edge is allowed to leave the authored one by a published, asymmetric tolerance:
+inward everywhere by an eighth of a cell, outward by a quarter at a side or an underside and
+by an eighth over a walking surface. Drawn wider than collision reads as moss over the feet;
+drawn narrower puts a body on visible air; and an overhang above a surface is the one outward
+error a player reads a jump against. The band is presentation only -- collision is computed
+from occupancy and nothing samples the image at any stage -- and it travels in the manifest as
+`ground.silhouette_tolerance` so a consumer drawing a debug overlay knows how far the art may
+stray. Exact silhouette equality was considered and refused: on a map of floating decks it
+publishes perfect rectangles, which is squarer than the tile atlas it replaces.
+
+The manifest projection differs accordingly. The atlas publishes one `ground.asset`; painted
+terrain publishes `cell_px`, `silhouette_tolerance`, and an ordered `segments` array carrying
+one asset each, and must not declare `ground.asset`. Occupancy, `vertical_fit` and
+`walk_surface_row` stay on both, because they are geometry and geometry does not know how it
+is drawn. The consumer loads one texture per segment rather than one atlas, and needs neither
+the walk-surface inset nor the boundary overscan the atlas requires: a painted segment
+already fills its cells and already overhangs them by as much as the band allows.
 
 Generated occupancy is gameplay geometry, not an image-model instruction. The
 first string is the top row. `1` means occupied terrain and `0` means empty

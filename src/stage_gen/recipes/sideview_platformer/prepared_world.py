@@ -7,6 +7,7 @@ import hashlib
 import io
 import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
+from io import BytesIO
 from pathlib import Path
 from typing import Literal
 
@@ -41,6 +42,30 @@ from stage_gen.components.image_repeat import (
     ImageRepeatValidationPolicy,
     build_three_repeat_preview,
     validate_image_repeat,
+)
+from stage_gen.components.painted_terrain import (
+    PAINTED_TERRAIN_CANONICALIZE,
+    PAINTED_TERRAIN_CANONICALIZER_ID,
+    PAINTED_TERRAIN_COMPOSE,
+    PAINTED_TERRAIN_GENERATE,
+    PAINTED_TERRAIN_GROUND_VALIDATION_KIND,
+    PAINTED_TERRAIN_GUIDE,
+    PAINTED_TERRAIN_GUIDE_HEIGHT,
+    PAINTED_TERRAIN_GUIDE_ID,
+    PAINTED_TERRAIN_GUIDE_KIND,
+    PAINTED_TERRAIN_GUIDE_WIDTH,
+    PAINTED_TERRAIN_RAW_KIND,
+    PaintedTerrainGround,
+    PaintedTerrainSegment,
+    build_painted_terrain_guide,
+    canonicalize_painted_terrain_segment,
+    painted_silhouette_tolerance,
+    painted_terrain_generation_prompt,
+    painted_terrain_join_discontinuity,
+    painted_terrain_material_identity,
+    painted_terrain_segments,
+    stitch_painted_terrain,
+    validate_painted_terrain_source,
 )
 from stage_gen.components.platformer_map import PreparedGameMap, PreparedMapLayer
 from stage_gen.components.platformer_map.prepared import (
@@ -192,6 +217,12 @@ class PreparedWorldNodeHandler:
         registry.register(MAP_TERRAIN_DESIGN, self._bind(self._generate_terrain))
         registry.register(MAP_GROUND_GENERATE, self._bind(self._generate_ground))
         registry.register(MAP_GROUND_VALIDATE, self._bind(self._validate_ground))
+        registry.register(PAINTED_TERRAIN_GUIDE, self._bind(self._guide_painted_terrain))
+        registry.register(PAINTED_TERRAIN_GENERATE, self._bind(self._generate_painted_terrain))
+        registry.register(
+            PAINTED_TERRAIN_CANONICALIZE, self._bind(self._canonicalize_painted_terrain)
+        )
+        registry.register(PAINTED_TERRAIN_COMPOSE, self._bind(self._compose_painted_terrain))
         registry.register(MAP_CLIMBABLE_GENERATE, self._bind(self._generate_climbable))
         registry.register(MAP_CLIMBABLE_VALIDATE, self._bind(self._validate_climbable))
         registry.register(MAP_PORTAL_GENERATE, self._bind(self._generate_portal))
@@ -604,6 +635,226 @@ class PreparedWorldNodeHandler:
             provider_operations=result.attempts,
         )
 
+    # -------------------------------------------------------- painted terrain
+
+    def _painted_ground(self, game_map: PreparedGameMap) -> PaintedTerrainGround:
+        ground = game_map.ground
+        if not isinstance(ground, PaintedTerrainGround):
+            raise ValueError(f"map {game_map.map_id} does not declare painted terrain")
+        return ground
+
+    def _painted_material(self, game_map: PreparedGameMap) -> tuple[str, list[bytes]]:
+        """The identity every painted node agrees on, and the bytes it is derived from.
+
+        Derived here rather than passed down the graph so the guide, the source validator
+        and the canonicalizer cannot disagree about what material they are talking about:
+        the canonicalizer re-derives the guide and refuses a mismatch, which only works if
+        all three arrive at the same digest from the same inputs.
+        """
+
+        ground = self._painted_ground(game_map)
+        by_id = {item.reference_id: item for item in game_map.references}
+        entries = [self._package.file(by_id[rid].source) for rid in ground.reference_ids]
+        style = self._package.game.style
+        identity = painted_terrain_material_identity(
+            prompt=ground.prompt,
+            visual_direction_sha256=hashlib.sha256(
+                json.dumps(
+                    {"label": style.label, "keywords": list(style.keywords)},
+                    sort_keys=True,
+                ).encode("utf-8")
+            ).hexdigest(),
+            reference_sha256=[entry.sha256 for entry in entries],
+        )
+        return identity, [entry.data for entry in entries]
+
+    def _painted_segment(self, node: Node, game_map: PreparedGameMap) -> PaintedTerrainSegment:
+        segment_id = node.params.get("segment_id")
+        if segment_id is None:
+            raise ValueError(f"node {node.node_id} declares no segment_id")
+        for segment in painted_terrain_segments(game_map.terrain.columns, game_map.terrain.rows):
+            if segment.segment_id == segment_id:
+                return segment
+        raise ValueError(f"map {game_map.map_id} has no painted segment {segment_id}")
+
+    async def _guide_painted_terrain(self, node: Node) -> NodeExecutionResult:
+        game_map = self._node_map(node)
+        segment = self._painted_segment(node, game_map)
+        identity, references = self._painted_material(game_map)
+        occupancy = self._terrain(game_map).occupancy
+        guide, report = build_painted_terrain_guide(
+            occupancy,
+            segment,
+            material_identity=identity,
+            material_references=references,
+        )
+        await _write_local_image_multi(
+            self._run_dir / node.port("guide").artifact_ref,
+            guide,
+            model=PAINTED_TERRAIN_GUIDE_ID,
+            prompt=(
+                "Draw the authored occupancy of one map segment as flat registration blocks, "
+                "with a band on every side that faces air and the bottom row running off the "
+                "canvas."
+            ),
+            inputs=[
+                (
+                    terrain_artifact_path(game_map.map_id),
+                    "\n".join(occupancy).encode("utf-8"),
+                )
+            ],
+            validation=report,
+        )
+        atomic_write_json(self._run_dir / node.port("guide_report").artifact_ref, report)
+        return self._result(node, provider_operations=0)
+
+    async def _generate_painted_terrain(self, node: Node) -> NodeExecutionResult:
+        game_map = self._node_map(node)
+        segment = self._painted_segment(node, game_map)
+        identity, references = self._painted_material(game_map)
+        occupancy = self._terrain(game_map).occupancy
+        _producer, guide_port = dependency_port(self._graph, node, kind=PAINTED_TERRAIN_GUIDE_KIND)
+        guide = (self._run_dir / guide_port.artifact_ref).read_bytes()
+        style = self._package.game.style
+        material_direction = (
+            f"{self._painted_ground(game_map).prompt.strip()} Target style: {style.label}; "
+            f"{', '.join(style.keywords)}."
+        )
+        result = await self._images.generate(
+            ImageGenerationRequest(
+                prompt=painted_terrain_generation_prompt(
+                    material_direction,
+                    segment=segment,
+                    columns=segment.columns,
+                    rows=len(occupancy),
+                ),
+                artifact_path=self._run_dir / node.port("image").artifact_ref,
+                input_references=(
+                    ImageReference(
+                        url=_data_url(guide, "image/png"),
+                        provenance_ref=(
+                            f"run://{guide_port.artifact_ref}"
+                            f"#sha256={hashlib.sha256(guide).hexdigest()}"
+                        ),
+                    ),
+                    *self._image_references(game_map, self._painted_ground(game_map).reference_ids),
+                ),
+                quality="high",
+                background="transparent",
+                output_format="png",
+                size=f"{PAINTED_TERRAIN_GUIDE_WIDTH}x{PAINTED_TERRAIN_GUIDE_HEIGHT}",
+                timeout_seconds=600,
+                metadata={
+                    "checkpoint": "world",
+                    "map_id": game_map.map_id,
+                    "segment_id": segment.segment_id,
+                    "ground_mode": game_map.ground.mode,
+                    "native_alpha": True,
+                },
+                # Admission runs inside the provider's own retry budget, so a painting that
+                # closed a hop gap or hung a support re-rolls rather than failing the run
+                # after the spend.
+                validate=lambda artifact: validate_painted_terrain_source(
+                    artifact.data,
+                    occupancy=occupancy,
+                    segment=segment,
+                    guide=guide,
+                    material_identity=identity,
+                    material_references=references,
+                ),
+            )
+        )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
+
+    async def _canonicalize_painted_terrain(self, node: Node) -> NodeExecutionResult:
+        game_map = self._node_map(node)
+        segment = self._painted_segment(node, game_map)
+        identity, references = self._painted_material(game_map)
+        occupancy = self._terrain(game_map).occupancy
+        _guide_producer, guide_port = dependency_port(
+            self._graph, node, kind=PAINTED_TERRAIN_GUIDE_KIND
+        )
+        _source_producer, source_port = dependency_port(
+            self._graph, node, kind=PAINTED_TERRAIN_RAW_KIND
+        )
+        guide = (self._run_dir / guide_port.artifact_ref).read_bytes()
+        source = (self._run_dir / source_port.artifact_ref).read_bytes()
+        canonical, report = canonicalize_painted_terrain_segment(
+            source,
+            occupancy=occupancy,
+            segment=segment,
+            guide=guide,
+            material_identity=identity,
+            material_references=references,
+        )
+        await _write_local_image_multi(
+            self._run_dir / node.port("image").artifact_ref,
+            canonical,
+            model=PAINTED_TERRAIN_CANONICALIZER_ID,
+            prompt=(
+                "Crop the segment's own columns from the conditioning canvas, clip the "
+                "painting to the published silhouette band, and lay deterministic material "
+                "under whatever the model did not paint."
+            ),
+            inputs=[
+                (guide_port.artifact_ref, guide),
+                (source_port.artifact_ref, source),
+            ],
+            validation=report,
+        )
+        atomic_write_json(self._run_dir / node.port("validation").artifact_ref, report)
+        return self._result(node, provider_operations=0)
+
+    async def _compose_painted_terrain(self, node: Node) -> NodeExecutionResult:
+        game_map = self._node_map(node)
+        identity, _references = self._painted_material(game_map)
+        occupancy = self._terrain(game_map).occupancy
+        segments = painted_terrain_segments(game_map.terrain.columns, game_map.terrain.rows)
+        published: list[tuple[PaintedTerrainSegment, bytes]] = []
+        inputs: list[tuple[str, bytes]] = []
+        boundaries: list[int] = []
+        for segment in segments:
+            ref = f"maps/{game_map.map_id}/ground/{segment.segment_id}.png"
+            data = (self._run_dir / ref).read_bytes()
+            published.append((segment, data))
+            inputs.append((ref, data))
+            if segment.start_column:
+                boundaries.append(segment.start_column)
+        plate = stitch_painted_terrain(published, occupancy=occupancy)
+        joins = painted_terrain_join_discontinuity(_decode_png(plate), boundaries=boundaries)
+        validation: dict[str, object] = {
+            "schema_version": 1,
+            "kind": PAINTED_TERRAIN_GROUND_VALIDATION_KIND,
+            "mode": game_map.ground.mode,
+            "map_id": game_map.map_id,
+            "material_identity": identity,
+            "geometry_authority": "authored_occupancy",
+            "silhouette_tolerance": painted_silhouette_tolerance().model_dump(mode="json"),
+            "segments": [
+                {
+                    "segment_id": segment.segment_id,
+                    "start_column": segment.start_column,
+                    "columns": segment.columns,
+                }
+                for segment in segments
+            ],
+            # A cut is invisible when the step across it is unremarkable among the steps
+            # inside the paintings. Recorded rather than gated: the deterministic jittered
+            # cut that would fix a visible one costs no provider call, so this is the
+            # measurement that decides whether to turn it on.
+            "joins": joins,
+        }
+        await _write_local_image_multi(
+            self._run_dir / node.port("evidence").artifact_ref,
+            plate,
+            model="painted-terrain-plate-v1",
+            prompt="Stitch every published painted segment into one plate of the whole map.",
+            inputs=inputs,
+            validation=validation,
+        )
+        atomic_write_json(self._run_dir / node.port("validation").artifact_ref, validation)
+        return self._result(node, provider_operations=0)
+
     async def _validate_ground(self, node: Node) -> NodeExecutionResult:
         game_map = self._node_map(node)
         _producer, source_port = dependency_port(self._graph, node, kind="ground-atlas-raw-v1")
@@ -850,8 +1101,18 @@ class PreparedWorldNodeHandler:
         for layer in backgrounds:
             with Image.open(layer_path(layer)) as opened:
                 place(layer, opened.convert("RGBA"))
-        ground_path = self._run_dir / f"maps/{game_map.map_id}/ground.png"
-        canvas.alpha_composite(_ground_preview(ground_path, canvas.size, terrain.occupancy))
+        # Both modes hand the composite one plate of the terrain as it will be drawn. The
+        # atlas has to be composed through the occupancy to become one; painted terrain's
+        # stitched plate already is one, which is the whole point of the compose node.
+        painted = isinstance(game_map.ground, PaintedTerrainGround)
+        ground_path = self._run_dir / (
+            f"maps/{game_map.map_id}/ground.evidence.png"
+            if painted
+            else f"maps/{game_map.map_id}/ground.png"
+        )
+        canvas.alpha_composite(
+            _ground_preview(ground_path, canvas.size, terrain.occupancy, composed=painted)
+        )
         for layer in foregrounds:
             with Image.open(layer_path(layer)) as opened:
                 place(layer, opened.convert("RGBA"))
@@ -875,7 +1136,7 @@ class PreparedWorldNodeHandler:
             )
             for layer in ordered
         ]
-        inputs.append((f"maps/{game_map.map_id}/ground.png", ground_path.read_bytes()))
+        inputs.append((ground_path.relative_to(self._run_dir).as_posix(), ground_path.read_bytes()))
         await _write_local_image_multi(
             output,
             data,
@@ -897,7 +1158,6 @@ class PreparedWorldNodeHandler:
         game_map = self._node_map(node)
         output = self._run_dir / node.port("verdict").artifact_ref
         composite_path = self._run_dir / f"maps/{game_map.map_id}/composite.png"
-        ground_path = self._run_dir / f"maps/{game_map.map_id}/ground.png"
         ground_evidence_path = self._run_dir / f"maps/{game_map.map_id}/ground.evidence.png"
         references = [
             StructuredReference(
@@ -910,11 +1170,18 @@ class PreparedWorldNodeHandler:
                     f"run://{ground_evidence_path.relative_to(self._run_dir).as_posix()}"
                 ),
             ),
-            StructuredReference(
-                url=_data_url(_judge_plate(ground_path.read_bytes()), "image/png"),
-                provenance_ref=f"run://{ground_path.relative_to(self._run_dir).as_posix()}",
-            ),
         ]
+        # The atlas ships a third plate -- the repeating material sheet itself -- because the
+        # judge cannot see tile joins in a composed map. Painted terrain has no such sheet:
+        # every segment is bespoke, so the two plates above are the whole of it.
+        if not isinstance(game_map.ground, PaintedTerrainGround):
+            ground_path = self._run_dir / f"maps/{game_map.map_id}/ground.png"
+            references.append(
+                StructuredReference(
+                    url=_data_url(_judge_plate(ground_path.read_bytes()), "image/png"),
+                    provenance_ref=f"run://{ground_path.relative_to(self._run_dir).as_posix()}",
+                )
+            )
         declared_presentations: list[str] = []
         for asset in ("portal", "climbable"):
             direction = game_map.portal if asset == "portal" else game_map.climbable
@@ -1331,11 +1598,16 @@ def _bounded_repeat_preview(data: bytes) -> bytes:
 
 
 def _ground_preview(
-    path: Path, size: tuple[int, int], occupancy: tuple[str, ...] | list[str]
+    path: Path,
+    size: tuple[int, int],
+    occupancy: tuple[str, ...] | list[str],
+    *,
+    composed: bool = False,
 ) -> Image.Image:
-    atlas = path.read_bytes()
-    composed, _ = compose_canonical_terrain(atlas, occupancy)
-    with Image.open(io.BytesIO(composed)) as opened:
+    data = path.read_bytes()
+    if not composed:
+        data, _ = compose_canonical_terrain(data, occupancy)
+    with Image.open(io.BytesIO(data)) as opened:
         ground = opened.convert("RGBA")
     preview = Image.new("RGBA", size, (0, 0, 0, 0))
     target_height = max(1, round(ground.height * size[0] / ground.width))
@@ -1475,6 +1747,12 @@ def _validate_map_presentation_source(
         "subject_dimensions": report["subject_dimensions"],
         "index_order": report["index_order"],
     }
+
+
+def _decode_png(data: bytes) -> Image.Image:
+    with Image.open(BytesIO(data)) as opened:
+        opened.load()
+        return opened.convert("RGBA")
 
 
 async def _write_local_image(

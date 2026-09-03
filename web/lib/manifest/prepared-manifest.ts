@@ -90,6 +90,63 @@ export type PreparedMapCamera = Readonly<{
   follow_axes: readonly PreparedCameraAxis[];
 }>;
 
+/**
+ * What every ground discipline owes the consumer, whatever draws it.
+ *
+ * All four fields are geometry, and geometry does not know how it is painted: occupancy is
+ * the sole collision authority, the vertical fit places the grid, and the walk-surface row
+ * is the datum every `walk_surface` anchored layer registers to. A second mode therefore
+ * changes only the raster and the draw loop, never the seam.
+ */
+type PreparedGroundGeometry = Readonly<{
+  /** Top-to-bottom rectangular binary terrain topology. */
+  occupancy: readonly string[];
+  /** The deepest authored row bottoms out at the viewport edge, so no gap can open below it. */
+  vertical_fit: "floor_to_screen_bottom";
+  /** Occupancy row whose top edge is the datum for `walk_surface` anchored layers. */
+  walk_surface_row: number;
+}>;
+
+/** The 47-mask tile atlas: one repeating material sheet, selected per cell. */
+export type PreparedTerrainAtlasGround = PreparedGroundGeometry &
+  Readonly<{
+    mode: "terrain-atlas-3x3-minimal-v1";
+    asset: RuntimeArtifact;
+  }>;
+
+/** One bespoke painting per derived segment of the same authored occupancy. */
+export type PreparedPaintedSegment = Readonly<{
+  segment_id: string;
+  /** First authored column this raster covers. */
+  start_column: number;
+  columns: number;
+  asset: RuntimeArtifact;
+}>;
+
+export type PreparedPaintedGround = PreparedGroundGeometry &
+  Readonly<{
+    mode: "painted-terrain-v1";
+    /** Published pixels per occupancy cell in every segment raster. */
+    cell_px: number;
+    /**
+     * How far the drawn edge may leave the authored one, in published pixels.
+     *
+     * Presentation only: collision is computed from `occupancy` and nothing here or
+     * downstream samples the image. It travels so a debug overlay can say how far the art
+     * is allowed to stray rather than guessing.
+     */
+    silhouette_tolerance: Readonly<{
+      cell_px: number;
+      erode_px: number;
+      dilate_px: number;
+      surface_dilate_px: number;
+    }>;
+    /** Ordered, contiguous, and covering every authored column exactly once. */
+    segments: readonly PreparedPaintedSegment[];
+  }>;
+
+export type PreparedGround = PreparedTerrainAtlasGround | PreparedPaintedGround;
+
 export type PreparedMap = Readonly<{
   map_id: string;
   revision: number;
@@ -99,16 +156,7 @@ export type PreparedMap = Readonly<{
   hostile_population_enabled: boolean;
   track_ids: readonly string[];
   layers: readonly PreparedLayer[];
-  ground: Readonly<{
-    mode: "terrain-atlas-3x3-minimal-v1";
-    /** Top-to-bottom rectangular binary terrain topology. */
-    occupancy: readonly string[];
-    /** The deepest authored row bottoms out at the viewport edge, so no gap can open below it. */
-    vertical_fit: "floor_to_screen_bottom";
-    /** Occupancy row whose top edge is the datum for `walk_surface` anchored layers. */
-    walk_surface_row: number;
-    asset: RuntimeArtifact;
-  }>;
+  ground: PreparedGround;
   climbable?: Readonly<{
     mode: "climbable-atlas-v1";
     asset: RuntimeArtifact;
@@ -790,9 +838,13 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
       });
     });
     const ground = object(map.ground, `maps[${mapIndex}].ground`);
-    if (ground.mode !== "terrain-atlas-3x3-minimal-v1") {
+    if (
+      ground.mode !== "terrain-atlas-3x3-minimal-v1" &&
+      ground.mode !== "painted-terrain-v1"
+    ) {
       throw new Error("ground mode is invalid");
     }
+    const paintedGround = ground.mode === "painted-terrain-v1";
     const occupancy = binaryOccupancy(
       ground.occupancy,
       `maps[${mapIndex}].ground.occupancy`,
@@ -809,6 +861,61 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
     if (walkSurfaceRow >= occupancy.length) {
       throw new Error("ground walk_surface_row must index an authored occupancy row");
     }
+    // Cross-contamination is refused rather than ignored, the same way the runner refuses a
+    // structural ground that declares an atlas: a manifest that carries both shapes is a
+    // producer defect, and silently preferring one of them hides it.
+    const paintedFields = ground.cell_px !== undefined || ground.segments !== undefined;
+    if (!paintedGround && paintedFields) {
+      throw new Error("terrain-atlas ground must not declare painted cell_px or segments");
+    }
+    if (paintedGround && ground.asset !== undefined) {
+      throw new Error("painted-terrain-v1 must not declare a single ground asset");
+    }
+    const painted = !paintedGround
+      ? undefined
+      : (() => {
+          const cellPx = integer(ground.cell_px, "ground cell_px", 1);
+          const tolerance = object(ground.silhouette_tolerance, "ground silhouette_tolerance");
+          const segments = array(ground.segments, "ground segments").map((entry, index) => {
+            const segment = object(entry, `ground.segments[${index}]`);
+            return Object.freeze({
+              segment_id: id(segment.segment_id, "ground segment_id"),
+              start_column: integer(segment.start_column, "ground segment start_column", 0),
+              columns: integer(segment.columns, "ground segment columns", 1),
+              asset: artifact(segment.asset, "ground segment asset"),
+            });
+          });
+          if (segments.length === 0) {
+            throw new Error("painted ground must declare at least one segment");
+          }
+          // Ordered, contiguous, and covering every authored column exactly once. The draw
+          // loop places each raster by its own start column, so a gap here would be a hole
+          // in the floor and an overlap would be a doubled silhouette.
+          let expected = 0;
+          for (const segment of segments) {
+            if (segment.start_column !== expected) {
+              throw new Error("painted ground segments must tile the map in order");
+            }
+            expected += segment.columns;
+          }
+          if (expected !== occupancy[0]!.length) {
+            throw new Error("painted ground segments must cover every authored column");
+          }
+          return Object.freeze({
+            cell_px: cellPx,
+            silhouette_tolerance: Object.freeze({
+              cell_px: integer(tolerance.cell_px, "silhouette_tolerance cell_px", 1),
+              erode_px: integer(tolerance.erode_px, "silhouette_tolerance erode_px", 0),
+              dilate_px: integer(tolerance.dilate_px, "silhouette_tolerance dilate_px", 0),
+              surface_dilate_px: integer(
+                tolerance.surface_dilate_px,
+                "silhouette_tolerance surface_dilate_px",
+                0,
+              ),
+            }),
+            segments: Object.freeze(segments),
+          });
+        })();
     const climbable =
       map.climbable === undefined
         ? undefined
@@ -984,13 +1091,22 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
       hostile_population_enabled: map.hostile_population_enabled === true,
       track_ids: Object.freeze(array(map.track_ids, "map track_ids").map((track) => id(track, "track_id"))),
       layers: Object.freeze(layers),
-      ground: Object.freeze({
-        mode: "terrain-atlas-3x3-minimal-v1",
-        occupancy,
-        vertical_fit: verticalFit,
-        walk_surface_row: walkSurfaceRow,
-        asset: artifact(ground.asset, "ground asset"),
-      }),
+      ground:
+        painted === undefined
+          ? Object.freeze({
+              mode: "terrain-atlas-3x3-minimal-v1" as const,
+              occupancy,
+              vertical_fit: verticalFit,
+              walk_surface_row: walkSurfaceRow,
+              asset: artifact(ground.asset, "ground asset"),
+            })
+          : Object.freeze({
+              mode: "painted-terrain-v1" as const,
+              occupancy,
+              vertical_fit: verticalFit,
+              walk_surface_row: walkSurfaceRow,
+              ...painted,
+            }),
       ...(climbable === undefined ? {} : { climbable }),
       ...(portal === undefined ? {} : { portal }),
     });

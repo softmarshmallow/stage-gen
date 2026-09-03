@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 
-def test_map_contract_documents_the_exact_v9_terrain_camera_climbable_and_portal_ownership() -> (
+def test_map_contract_documents_the_exact_v10_terrain_camera_climbable_and_portal_ownership() -> (
     None
 ):
     repository = Path(__file__).parents[2]
@@ -12,7 +12,7 @@ def test_map_contract_documents_the_exact_v9_terrain_camera_climbable_and_portal
     )
 
     for required in (
-        "`game-map-v9`",
+        "`game-map-v10`",
         "`map-terrain-v1`",
         "### `[terrain]`",
         "### Camera",

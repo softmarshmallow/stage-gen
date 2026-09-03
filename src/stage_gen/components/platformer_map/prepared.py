@@ -1,4 +1,4 @@
-"""Exact-current compound map-generation contract (``game-map-v9``).
+"""Exact-current compound map-generation contract (``game-map-v10``).
 
 The authored document states what a map should be: its art direction, its layers and
 references, the climbable roster it can draw, and the terrain it wants generated. It carries
@@ -10,7 +10,7 @@ against each other by :func:`validate_generated_terrain`.
 from __future__ import annotations
 
 from pathlib import PurePosixPath
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, ValidationError, field_validator, model_validator
 
@@ -27,9 +27,15 @@ from stage_gen.components._game_input import (
     portable_relative_path,
     unique_values,
 )
+from stage_gen.components.painted_terrain import (
+    PAINTED_TERRAIN_MAX_ROWS,
+    PAINTED_TERRAIN_MIN_SEGMENT_COLUMNS,
+    PaintedTerrainGround,
+    painted_terrain_segments,
+)
 from stage_gen.media import LOOP_METHODS, LoopConstruction
 
-PREPARED_GAME_MAP_SCHEMA_VERSION = 9
+PREPARED_GAME_MAP_SCHEMA_VERSION = 10
 #: Generated terrain geometry is its own artifact contract, produced by a generator the map
 #: names and never written back into the authored document.
 PREPARED_MAP_TERRAIN_SCHEMA_VERSION = 1
@@ -234,6 +240,17 @@ class PreparedMapGround(PersistedContractModel):
         return normalized_text(value, "map ground prompt", multiline=True)
 
 
+#: How a map's terrain is drawn. The tile atlas is the default and stays it: it is cheap,
+#: it repeats forever, and every map that does not ask for anything else gets it. Painted
+#: terrain is the opt-in for a map that wants custom, style-refined ground instead of
+#: generic tiles, and it costs one image call per derived segment. Both modes are drawn
+#: from the same generated occupancy and neither owns collision.
+type PreparedGroundDirection = Annotated[
+    PreparedMapGround | PaintedTerrainGround,
+    Field(discriminator="mode"),
+]
+
+
 class PreparedMapClimbableVariant(PersistedContractModel):
     """One climbable appearance the map generates. Role is declared, never detected."""
 
@@ -376,8 +393,8 @@ class PreparedMapTerrainRequest(PersistedContractModel):
 
 
 class PreparedGameMap(PersistedContractModel):
-    schema_version: Literal[9]
-    kind: Literal["game-map-v9"]
+    schema_version: Literal[10]
+    kind: Literal["game-map-v10"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     map_id: str = Field(pattern=KEBAB_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
@@ -387,7 +404,7 @@ class PreparedGameMap(PersistedContractModel):
     continuity: PreparedMapContinuity
     references: list[PreparedMapReference] = Field(min_length=1, max_length=32)
     layers: list[PreparedMapLayer] = Field(min_length=1, max_length=8)
-    ground: PreparedMapGround
+    ground: PreparedGroundDirection
     terrain: PreparedMapTerrainRequest
     climbable: PreparedMapClimbable | None = None
     portal: PreparedMapPortal | None = None
@@ -430,6 +447,23 @@ class PreparedGameMap(PersistedContractModel):
         unused = sorted(reference_ids - selected_ids)
         if unused:
             raise ValueError("map declares unused reference IDs: " + ", ".join(unused))
+        if isinstance(self.ground, PaintedTerrainGround):
+            # Painted terrain is one image call per derived segment, so a map it cannot serve
+            # has to be refused while planning rather than discovered after the spend. The
+            # row cap is the binding one and no partition can relieve it: a grid taller than
+            # the guide canvas can carry at the publication cell loses native resolution
+            # however its columns are cut.
+            if self.terrain.rows > PAINTED_TERRAIN_MAX_ROWS:
+                raise ValueError(
+                    f"painted terrain needs at most {PAINTED_TERRAIN_MAX_ROWS} rows, "
+                    f"and this map asks for {self.terrain.rows}"
+                )
+            if self.terrain.columns < PAINTED_TERRAIN_MIN_SEGMENT_COLUMNS:
+                raise ValueError(
+                    f"painted terrain needs at least {PAINTED_TERRAIN_MIN_SEGMENT_COLUMNS} "
+                    f"columns, and this map asks for {self.terrain.columns}"
+                )
+            painted_terrain_segments(self.terrain.columns, self.terrain.rows)
         opaque_layers = [layer for layer in self.layers if layer.alpha_mode == "opaque"]
         if len(opaque_layers) != 1:
             raise ValueError("map must declare exactly one opaque layer")
@@ -633,6 +667,7 @@ __all__ = [
     "PREPARED_GAME_MAP_SCHEMA_VERSION",
     "PreparedGameMap",
     "PreparedMapContinuity",
+    "PreparedGroundDirection",
     "PreparedMapGround",
     "PreparedMapClimbable",
     "PreparedMapCamera",

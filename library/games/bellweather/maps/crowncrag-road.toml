@@ -1,5 +1,5 @@
-schema_version = 9
-kind = "game-map-v9"
+schema_version = 10
+kind = "game-map-v10"
 game_id = "bellweather"
 map_id = "crowncrag-road"
 revision = 17
