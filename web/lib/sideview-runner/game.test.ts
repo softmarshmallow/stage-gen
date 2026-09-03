@@ -34,6 +34,7 @@ const DOCUMENTED_ORDER = [
   "runner/parallax",
   "runner/hud",
   "runner/audio",
+  "runner/dust",
 ];
 
 const noopView = { sync: () => undefined };

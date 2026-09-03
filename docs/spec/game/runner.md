@@ -532,6 +532,21 @@ per placement rather than per frame: overlap is a level that holds for the
 whole crossing, and one prop costs at most one point however long that takes. These are consumer
 presentation rules, not authored geometry and not generation prompts.
 
+Ground dust is the same kind of rule. The `runner/dust` system records a puff on
+the frame the ground is struck — a stride on a fixed cadence while running, a
+denser cadence while sliding, a burst thrown back on a ground takeoff and a burst
+splayed both ways on a landing — with the camera's scroll at that instant, and
+each frame draws every live record as a pure sample over the fixed-step clock:
+a puff is locked to the ground it was born on and slides away with it, swells
+from a flat speck at the heel into a rounder cloud, and thins to nothing over
+380 ms. Only the stride grows with the speed ramp, so the ramp becomes visible
+at the feet. Nothing is drawn for it: a puff at foot scale is a cream ellipse
+with a graphite ink rim, which is the register the package already paints in,
+and a fixed-step replay draws the same dust on the same frame as the run that
+was played. The viewer's reduced-motion preference lays none. A world-space
+effect sprite under `2d/fx/sprite.*` would replace this drawing, not this
+system, if a game ever wants more than a silhouette.
+
 A survivable package draws its gauge as one capsule bar above the readout
 band, in screen space rather than over the avatar: the avatar is pinned to a
 fixed screen anchor and never moves, so a bar tracking it would hold still

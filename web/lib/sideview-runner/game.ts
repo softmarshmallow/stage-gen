@@ -32,6 +32,12 @@ import {
 import { createAvatarSystem } from "./avatar";
 import type { RunnerMotionState, RunnerRuntimeManifest } from "./contract";
 import { createDifficultySystem } from "./difficulty";
+import {
+  createDustSystem,
+  createGraphicsDustCanvas,
+  SILENT_DUST_CANVAS,
+  type DustCanvas,
+} from "./dust";
 import { buildBossView } from "./boss-view";
 import { createEncounterSystem } from "./encounter";
 import type { RunnerEncounterBinding } from "./world";
@@ -105,6 +111,8 @@ export function assembleRunnerSystems(
   audio: RunnerAudioSink,
   music: RunnerMusicSink = SILENT_MUSIC_SINK,
   fx: FxView = HIDDEN_FX_VIEW,
+  dust: DustCanvas = SILENT_DUST_CANVAS,
+  dustOptions: { readonly reducedMotion?: boolean } = {},
 ): readonly GameSystem<RunnerWorld>[] {
   return [
     createIntentSystem(latch),
@@ -128,7 +136,20 @@ export function assembleRunnerSystems(
     createParallaxSystem(stage),
     createHudSystem(hud),
     createAudioSystem(audio, music),
+    // Ground dust is drawn from the frame every other system has settled; it
+    // pins itself last and never writes a key, so it is free to be omitted
+    // from a headless boot with the silent canvas.
+    createDustSystem(dust, dustOptions),
   ];
+}
+
+/** The viewer's motion preference; a headless or pre-window boot reads as no preference. */
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
 }
 
 function avatarTextureKey(state: RunnerMotionState): string {
@@ -396,6 +417,8 @@ class RunnerScene extends Phaser.Scene {
       });
     }
 
+    const dustCanvas = createGraphicsDustCanvas(this, RUNNER_DEPTHS.dust);
+    this.disposers.push(() => dustCanvas.destroy());
     this.sealed = sealSystems(
       assembleRunnerSystems(
         this.latch,
@@ -404,6 +427,8 @@ class RunnerScene extends Phaser.Scene {
         createWebAudioSink(manifest.audio, (path) => this.url(path)),
         this.soundtrack ?? SILENT_MUSIC_SINK,
         fxView ?? HIDDEN_FX_VIEW,
+        dustCanvas,
+        { reducedMotion: prefersReducedMotion() },
       ),
       { events: (current) => current.events },
     );

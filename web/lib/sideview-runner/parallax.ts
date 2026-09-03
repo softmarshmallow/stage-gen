@@ -27,6 +27,8 @@ export const RUNNER_DEPTHS = Object.freeze({
   background: 0, // + layer order
   ground: 20,
   shadow: 24,
+  /** Ground dust lies over the shadow and under everything that stands on the ground. */
+  dust: 25,
   pickup: 26,
   hazard: 27,
   /** The boss sits behind the avatar it faces; its shots pass in front. */
