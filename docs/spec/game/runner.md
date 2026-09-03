@@ -508,8 +508,9 @@ powering down with a metal clunk; `hull_clank` on a survivable hit, a hard hit
 on sheet metal; and `seed_chime` on collect, a half-second coin collect named
 by its game idiom, with the chain still lifting its playback rate - and speaks
 its stage start as `mira_go`, Mira's two-beat 「よーし、いくよーっ！」 on the
-catalog's `mira` voice, chosen by ear over a shorter line because the two-beat
-read carries the cut-in.
+catalog's `mira` voice: a take the director chose from an eight-draw audition
+matrix (stability 1.0, `ja`, 2.56 s), pinned into the package by digest and
+republished by a local node, so the shipped run buys no read.
 
 The same contract owns what the soundtrack does at the run's edges, in the
 vocabulary interactive-music middleware uses: an *action* on the music with a
@@ -662,17 +663,17 @@ rather than only the atlas branch. Regenerate with
   "kind": "sideview-runner-execution-graph-contract-v1",
   "fixture_ref": "library/games/iron-petal-unit",
   "graph_schema_version": 1,
-  "topology_sha256": "c8e1ea389b80056537058f849d6f84393acaa139761b0a609761c457a842d30a",
+  "topology_sha256": "c3be1f81d692cc3d2100e7b3955d76565c7d923031b404de60d77af401fd69e4",
   "node_count": 109,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
-    "local": 55,
+    "local": 56,
     "image_generation": 39,
     "structured_generation": 7,
     "tool_loop": 2,
     "music_generation": 2,
     "sound_effect_generation": 3,
-    "speech_generation": 1
+    "speech_generation": 0
   },
   "resources": [
     {
@@ -743,11 +744,11 @@ lineage.
 | Catalog | 4 obstacles, 1 collectible, and 2 projectiles, each generated and locally validated | 7 | 0 | 0 | 0 | 0 | 7 |
 | Soundtrack | 2 loop-ready tracks and technical validation | 0 | 0 | 0 | 2 | 0 | 2 |
 | Sound effects | One generate-and-admit pair per `generated_clip_v1` effect; Iron Petal realizes its collect, hurt, and death cues this way | 0 | 0 | 0 | 0 | 3 | 3 |
-| Spoken lines | One speak-and-admit pair per `spoken_line_v1` effect, on the voice the catalog casts; Iron Petal announces its stage start this way | 0 | 0 | 0 | 0 | 1 | 1 |
+| Spoken lines | One speak-and-admit pair per `spoken_line_v1` effect, on the voice the catalog casts - or, for a pinned take, one republish-and-admit pair and no provider call; Iron Petal announces its stage start with a pinned take | 0 | 0 | 0 | 0 | 0 | 2 |
 | Screen FX | One cut-in frame plate and one portrait plate per bound moment (`stage_start` from authored references, `encounter_start` from the boss's own concept plate), each generated, admitted (mask polygon traced), and reviewed; each portrait placed inside the frame by one tool-loop episode before admission | 3 | 3 | 2 | 0 | 0 | 3 |
 | World-space FX | One ground-dust atlas, generated and admitted into four measured cells; absent entirely for a package that authors no `sprite.dust` | 1 | 0 | 0 | 0 | 0 | 1 |
 | Package | Captured-package barrier and terminal runtime assembly | 0 | 0 | 0 | 0 | 0 | 2 |
-| **Total** | **109 nodes** | **39** | **7** | **2** | **2** | **4** | **55** |
+| **Total** | **109 nodes** | **39** | **7** | **2** | **2** | **3** | **56** |
 
 ## Resolution and admission
 

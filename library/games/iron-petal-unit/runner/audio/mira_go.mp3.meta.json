@@ -1,0 +1,64 @@
+{
+  "schema_version": 2,
+  "provider": "elevenlabs",
+  "model": "eleven_v3",
+  "seed": null,
+  "prompt": "[excited][shouting] よーし、いくよーっ！",
+  "prompt_sha256": "dcd6585e5542153cf2c6c58a9b70b67951800722a18017069c40cce352c7ded1",
+  "references": [],
+  "refs": [],
+  "inputs": [],
+  "params": {
+    "voice": "6awt6FKyZGV0HyQEwisX",
+    "output_format": "mp3",
+    "validated": true,
+    "stability": 1.0,
+    "language_code": "ja",
+    "metadata": {
+      "source": "stage-gen-headless"
+    }
+  },
+  "validation": {
+    "output_nonempty": true,
+    "media_type": "audio/mpeg",
+    "signature": "matched",
+    "source_shape": "binary",
+    "caller": true,
+    "minimum_bytes": 2048,
+    "bytes": 62737,
+    "peak_dbfs": -1.0,
+    "clipped": false,
+    "duration_seconds": 2.56
+  },
+  "component": {
+    "name": "@stage-gen/speech-generation",
+    "version": "0.0.0"
+  },
+  "tool": {
+    "name": "stage-gen",
+    "version": "0.0.0"
+  },
+  "artifact": {
+    "sha256": "2908041b2bb0a13ddca49a9f90b371a52a036a67451276a893e947d04c16609a",
+    "bytes": 62737,
+    "media_type": "audio/mpeg"
+  },
+  "rights": {
+    "status": "unreviewed",
+    "attribution": [],
+    "basis": [],
+    "reviewed_at": null
+  },
+  "ts": "2026-09-03T08:04:58.568Z",
+  "attempts": 1,
+  "retries": 0,
+  "response": {
+    "media_type": "audio/mpeg",
+    "bytes": 62737,
+    "source_shape": "binary",
+    "request_id": "gtmZG66qpXa7aljg7DRG",
+    "usage": {
+      "character_cost": 16
+    }
+  }
+}

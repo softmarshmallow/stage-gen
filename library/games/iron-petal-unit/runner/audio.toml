@@ -1,7 +1,7 @@
 schema_version = 4
 kind = "runner-audio-v4"
 game_id = "iron-petal-unit"
-revision = 5
+revision = 6
 
 # What the soundtrack does at the run's edges. The death stinger is the effect
 # bound to `death` below; the music fades out under it, and a fresh run starts
@@ -139,12 +139,22 @@ effect_id = "mira_go"
 display_name = "Mira: Here We Go"
 
 # A bark, not a clip: read by the catalog's `mira` voice, annotations verbatim.
-# Chosen by ear over the short line - the two-beat read carries the cut-in.
+# The two-beat read carries the cut-in; the robust (1.0) mode read it best.
 [effects.realization]
 kind = "spoken_line_v1"
 text = "[excited][shouting] よーし、いくよーっ！"
 voice_id = "mira"
-stability = 0.5
+stability = 1.0
 max_seconds = 3.0
 gain = 0.7
 strength_pitch_multiplier = 0.0
+
+# The take the director chose (2026-09-03) from an eight-draw audition matrix:
+# stability 1.0, language ja, 2.56 s, -1.0 dBFS. The bytes and the sidecar
+# that produced them are committed beside this contract and republished as-is.
+[effects.realization.pinned]
+source = "runner/audio/mira_go.mp3"
+source_sha256 = "2908041b2bb0a13ddca49a9f90b371a52a036a67451276a893e947d04c16609a"
+provenance_source = "runner/audio/mira_go.mp3.meta.json"
+provenance_sha256 = "c02de51f29830338eb094ac569ed999ab8f41bcf0f08b098d55b44e2351b3e0b"
+rights_status = "unreviewed"
