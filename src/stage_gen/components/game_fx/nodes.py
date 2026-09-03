@@ -94,6 +94,9 @@ from stage_gen.components.game_fx.models import (
     CutInPortraitSubject,
     GameFx,
 )
+from stage_gen.components.game_fx.sprite import (
+    DUST_ATLAS_KIND,
+)
 
 _P = "2d/fx"
 _PROVIDER = NodePolicy(max_attempts=6)
@@ -177,6 +180,39 @@ FX_CUT_IN_REVIEW = NodeType(
     features=STRUCTURED_FEATURES,
     policy=_PROVIDER,
     contract_version="fx-cut-in-review-v1",
+)
+
+#: The dust atlas's cache contract. Separate from the cut-in's: the two families share a
+#: module and nothing else, and one shared constant would re-bill every cut-in plate to
+#: reword a sentence about dust.
+FX_SPRITE_DUST_CONTRACT_VERSION = "prepared-fx-sprite-dust-v1"
+FX_SPRITE_DUST_VALIDATION_VERSION = "prepared-fx-sprite-dust-validation-v1"
+
+FX_SPRITE_DUST_RAW_KIND = "fx-sprite-dust-raw-v1"
+FX_SPRITE_DUST_ATLAS_KIND = DUST_ATLAS_KIND
+FX_SPRITE_DUST_VALIDATION_KIND = "fx-sprite-dust-validation-v1"
+
+FX_SPRITE_DUST_GENERATE = NodeType(
+    type_id=f"{_P}/sprite.dust.generate",
+    title="Ground dust atlas",
+    archetype=ViewArchetype.IMAGE,
+    operation="image_generation",
+    features=IMAGE_FEATURES,
+    policy=_PROVIDER,
+    contract_version="fx-sprite-dust-v1",
+)
+
+FX_SPRITE_DUST_VALIDATE = NodeType(
+    type_id=f"{_P}/sprite.dust.validate",
+    title="Ground dust atlas admission",
+    archetype=ViewArchetype.VALIDATE,
+    operation="local",
+    contract_version="fx-sprite-dust-validate-v1",
+)
+
+FX_SPRITE_NODE_TYPES = (
+    FX_SPRITE_DUST_GENERATE,
+    FX_SPRITE_DUST_VALIDATE,
 )
 
 #: Every type this module owns, for a recipe's own type census and registry checks.
@@ -361,6 +397,37 @@ def cut_in_review_prompt(
 
 
 # ------------------------------------------------------------------- graph
+
+
+#: What a particle must survive. Round one of the spike asked for dust and got beautiful
+#: plates whose wisps, grit flecks and hairline outlines all became grey speckle at the size
+#: a puff is actually drawn. The instruction that fixed it is not about dust at all: it is a
+#: size, a floor on lobe scale, and an explicit list of what must not be drawn.
+_SPRITE_SMALL = (
+    "This is a small game particle: it must stay bold and readable when it is scaled down to "
+    "about forty pixels across. Build it from only a few large simple rounded lobes. No thin "
+    "wisps, no trailing streaks, no small scattered flecks or specks, no fine internal detail, "
+    "no faint haze, no thin tapering tails."
+)
+
+#: The sheet's shape. The four silhouettes are named in the reading order
+#: ``DUST_CELL_KINDS`` fixes, because that order is what binds a cell to the contact it
+#: draws; the gate checks separation and solidity, and this sentence is what makes them
+#: likely in the first place.
+_DUST_TASK = (
+    "A sprite sheet of cartoon dust puffs for a game, laid out as a two-by-two grid of four "
+    "separate clouds on one canvas, each puff centred in its own quarter, well clear of the "
+    "others and of the canvas edges, and all four drawn at a similar size. The four "
+    "silhouettes differ, in reading order: the first low and wide, the second tall and "
+    "rounded, the third small and compact, the fourth leaning to one side as if swept. "
+    "{direction} " + _SPRITE_SMALL
+)
+
+
+def dust_content_task(direction: str) -> str:
+    """The dust atlas brief: the sheet's shape, the package's register, the alpha rule."""
+
+    return f"{_DUST_TASK.format(direction=direction.strip())} {_PLATE_COMMON}"
 
 
 def plate_id_for(role: str, portrait_id: str | None = None) -> str:
