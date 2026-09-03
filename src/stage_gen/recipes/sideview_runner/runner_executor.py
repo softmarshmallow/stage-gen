@@ -127,8 +127,9 @@ class SideviewRunnerExecutor:
         if self._config.open_router_api_key is None:
             raise ValueError("sideview-runner execution requires OPENROUTER_API_KEY")
         plan = await self._open_run(input_path, run_dir=run_dir)
-        needs_sound_effects = bool(plan.resolved.runner.audio.generated_effects())
-        needs_speech = bool(plan.resolved.runner.audio.spoken_lines())
+        audio = plan.resolved.runner.audio
+        needs_sound_effects = bool(audio.bought_generated_effects())
+        needs_speech = bool(audio.bought_spoken_lines())
         if (needs_sound_effects or needs_speech) and self._config.elevenlabs_api_key is None:
             raise ValueError(
                 "sideview-runner execution requires ELEVENLABS_API_KEY for generated clips "

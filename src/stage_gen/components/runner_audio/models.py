@@ -235,6 +235,40 @@ class RunnerAudioContract(PersistedContractModel):
             if isinstance(effect.realization, SpokenLineRealization)
         )
 
+    def bought_generated_effects(self) -> tuple[RunnerSoundEffect, ...]:
+        """The generated clips a run actually buys: those without a pinned take."""
+
+        return tuple(
+            effect
+            for effect in self.generated_effects()
+            if isinstance(effect.realization, GeneratedClipRealization)
+            and effect.realization.pinned is None
+        )
+
+    def bought_spoken_lines(self) -> tuple[RunnerSoundEffect, ...]:
+        """The spoken lines a run actually buys: those without a pinned take."""
+
+        return tuple(
+            effect
+            for effect in self.spoken_lines()
+            if isinstance(effect.realization, SpokenLineRealization)
+            and effect.realization.pinned is None
+        )
+
+    def pinned_effects(self) -> tuple[RunnerSoundEffect, ...]:
+        """The effects whose bytes the package already carries, in canonical order.
+
+        A pinned take is republished through admission and costs no provider
+        operation, whatever kind it was bought as.
+        """
+
+        return tuple(
+            effect
+            for effect in self.effects
+            if isinstance(effect.realization, GeneratedClipRealization | SpokenLineRealization)
+            and effect.realization.pinned is not None
+        )
+
     def voice_ids(self) -> tuple[str, ...]:
         """Every catalog voice the contract names, deduplicated, in canonical order."""
 

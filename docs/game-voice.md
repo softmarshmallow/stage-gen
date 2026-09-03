@@ -34,7 +34,7 @@ The seam it will use is at the end of this page.
 | Owner | Owns |
 | --- | --- |
 | `voices.toml` | Each `voice_id`, its display name, language, casting note for a person, rights status and basis, and the provider voice it resolves to with the date that was last checked |
-| Genre audio contract (`runner/audio.toml`) | Which event a line answers, the verbatim text with its delivery annotations, the `voice_id` that reads it, stability, the length ceiling, and the playback mix |
+| Genre audio contract (`runner/audio.toml`) | Which event a line answers, the verbatim text with its delivery annotations, the `voice_id` that reads it, stability, the length ceiling, the playback mix, the `take` ordinal, and the pinned take's digests and rights when one is committed |
 | `game.toml` | Exact `voices.toml` source path, bound per genre member the way `fx.toml` is |
 | Recipe | Provider/model selection, one speak node and one admission node per line, the cache identity, provenance, and publishing the measured length |
 | Runtime (web consumer) | When the event fires, Web Audio lifecycle, decoding, applying the authored gain and rate lift, and holding the one announcement that fires before audio can start |
@@ -108,6 +108,53 @@ Annotations steer the words after them: `[excited]`, `[cheerful]`,
 snaps a delivery in a way no tag does. Short lines are the model's weak spot;
 the fix is direction and voice, never a run-up, because a run-up is only
 usable by trimming and trimming is forbidden.
+
+## Choosing a take
+
+A read is a lottery: the seed pins its length and nothing else, and level is
+the one thing the route holds steady. Whether a draw *lands* is a person's
+call, so the contract carries two fields for that person and nothing else
+tries to decide for them.
+
+**`take`** is the reroll ordinal. It enters the cache identity only above the
+first draw, so bumping it redraws this one line and leaves every other node a
+cache hit:
+
+```toml
+[effects.realization]
+kind = "spoken_line_v1"
+text = "[excited][shouting] よーし、いくよーっ！"
+voice_id = "mira"
+take = 2                       # the second draw of exactly this request
+```
+
+**`pinned`** is the pick. An audition you liked - from `generate-speech`, or
+from a run's `audio/` - is committed into the package with the sidecar that
+produced it, both digest-locked, and republished as the effect through the
+same level and length gates a fresh draw meets. The graph buys nothing for a
+pinned line; the text and voice stay authored beside it as the record of what
+produced the take.
+
+```toml
+[effects.realization.pinned]
+source = "runner/audio/mira_go.mp3"
+source_sha256 = "<sha256 of the mp3>"
+provenance_source = "runner/audio/mira_go.mp3.meta.json"
+provenance_sha256 = "<sha256 of the sidecar>"
+rights_status = "unreviewed"           # a stronger status needs a rights_basis
+```
+
+The resolver locks both files into the package closure, refuses a sidecar
+that describes different bytes than the take, and refuses a take that is not
+an mp3 stream - all offline. The republish node writes both verbatim: the
+sidecar is the provenance of the take, and rewriting it would claim the run
+made what a person chose. Its admission record carries
+`listening_verdict: "author_selected"`, the one verdict code ever writes,
+because pinning *is* the listen.
+
+The loop is: audition N (cheap), bump `take` where a draw is close, pin the one
+that lands. Everything downstream - gain, pitch, `max_seconds` - stays a
+re-plan.
 
 ## Events
 

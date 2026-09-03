@@ -25,6 +25,7 @@ from gnode import (
     Graph,
     GraphBuilder,
     ModelRef,
+    Node,
     NodeCard,
     Port,
     PortRef,
@@ -57,7 +58,7 @@ from stage_gen.components.sideview_actor.motion_rebase import (
     motion_rebase_prompt,
     motion_rebase_verification_prompt,
 )
-from stage_gen.components.sound_effect import GeneratedClipRealization
+from stage_gen.components.sound_effect import GeneratedClipRealization, PinnedTake
 from stage_gen.components.speech import SpokenLineRealization
 from stage_gen.recipes.sideview_runner.runner_prompts import (
     avatar_concept_prompt,
@@ -75,6 +76,7 @@ from stage_gen.recipes.sideview_runner.runner_prompts import (
 )
 from stage_gen.recipes.sideview_runner.runner_types import (
     ATTEMPT_LEDGER_KIND,
+    AUDIO_REPUBLISH,
     AVATAR_CONCEPT_GENERATE,
     AVATAR_CONCEPT_KIND,
     AVATAR_MOTION_GENERATE,
@@ -161,6 +163,8 @@ RUNNER_CACHE_RECORD_KIND = "sideview-runner-node-cache-v1"
 SOUND_EFFECT_CONTRACT_VERSION = "runner-sound-effect-v1"
 #: The spoken line's identity contract: bump when what a read request means changes.
 SPEECH_CONTRACT_VERSION = "runner-speech-line-v1"
+#: The pinned take's identity contract: the committed bytes and sidecar, republished.
+PINNED_TAKE_CONTRACT_VERSION = "runner-pinned-take-v1"
 
 #: The one canonical motion-state order: deterministic node ids and plate bands.
 #: Re-exported from the contract component so the vocabulary that validates,
@@ -321,6 +325,43 @@ def effective_loop_construction(resolved: ResolvedRunnerPackage, layer_id: str) 
         if layer.layer_id == layer_id:
             return layer.loop_construction or track.continuity.loop_construction
     raise KeyError(layer_id)
+
+
+def _add_pinned_take(
+    builder: GraphBuilder,
+    effect_id: str,
+    pinned: PinnedTake,
+    *,
+    kind: str,
+    barrier: tuple[str, ...],
+) -> Node:
+    """One local node that republishes a reviewed audition as the effect's artifact.
+
+    Its identity is the committed bytes and the sidecar that produced them, so
+    re-pinning a different take re-keys it and nothing else. The package is a
+    barrier here as it is for a bought draw: the take's own digests are its
+    lineage, and an unrelated authored edit must not republish it.
+    """
+
+    return builder.add(
+        AUDIO_REPUBLISH,
+        f"audio-{effect_id}-republish",
+        domain="audio",
+        description=f"republish the reviewed {effect_id} take",
+        params={"effect_id": effect_id},
+        depends_on=barrier,
+        cache_depends_on=(),
+        input_digests=(
+            _object_sha256(
+                {
+                    "contract": PINNED_TAKE_CONTRACT_VERSION,
+                    "source_sha256": pinned.source_sha256,
+                    "provenance_sha256": pinned.provenance_sha256,
+                }
+            ),
+        ),
+        ports=(_artifact("audio", f"audio/{effect_id}.mp3", kind),),
+    )
 
 
 def resolved_voice(runner: ResolvedRunnerMember, voice_id: str) -> GameVoice:
@@ -1129,29 +1170,40 @@ def build_runner_execution_graph(
             for effect in generated_effects:
                 realization = effect.realization
                 assert isinstance(realization, GeneratedClipRealization)
-                generate_id = f"sound-effect-{effect.effect_id}-generate"
-                generated = builder.add(
-                    SOUND_EFFECT_GENERATE,
-                    generate_id,
-                    domain="audio",
-                    description=f"generate the {effect.effect_id} clip",
-                    params={"effect_id": effect.effect_id},
-                    depends_on=barrier,
-                    cache_depends_on=(),
-                    input_digests=(
-                        _object_sha256(
-                            {
-                                "contract": SOUND_EFFECT_CONTRACT_VERSION,
-                                **realization.generation_identity(),
-                            }
+                if realization.pinned is not None:
+                    generated = _add_pinned_take(
+                        builder,
+                        effect.effect_id,
+                        realization.pinned,
+                        kind=SOUND_EFFECT_CLIP_KIND,
+                        barrier=barrier,
+                    )
+                else:
+                    generate_id = f"sound-effect-{effect.effect_id}-generate"
+                    generated = builder.add(
+                        SOUND_EFFECT_GENERATE,
+                        generate_id,
+                        domain="audio",
+                        description=f"generate the {effect.effect_id} clip",
+                        params={"effect_id": effect.effect_id},
+                        depends_on=barrier,
+                        cache_depends_on=(),
+                        input_digests=(
+                            _object_sha256(
+                                {
+                                    "contract": SOUND_EFFECT_CONTRACT_VERSION,
+                                    **realization.generation_identity(),
+                                }
+                            ),
                         ),
-                    ),
-                    ports=(
-                        _artifact("audio", f"audio/{effect.effect_id}.mp3", SOUND_EFFECT_CLIP_KIND),
-                        _attempts(generate_id),
-                    ),
-                    card=NodeCard(prompt=realization.prompt),
-                )
+                        ports=(
+                            _artifact(
+                                "audio", f"audio/{effect.effect_id}.mp3", SOUND_EFFECT_CLIP_KIND
+                            ),
+                            _attempts(generate_id),
+                        ),
+                        card=NodeCard(prompt=realization.prompt),
+                    )
                 validated = builder.add(
                     SOUND_EFFECT_VALIDATE,
                     f"sound-effect-{effect.effect_id}-validate",
@@ -1178,44 +1230,60 @@ def build_runner_execution_graph(
     speech_validations: list[str] = []
     spoken_lines = runner.audio.spoken_lines()
     if spoken_lines:
-        speech_route = profile.require(RunnerOperationKind.SPEECH_GENERATION)
+        # A package whose every line is pinned never touches the route, so
+        # the route is only required when a line is actually bought.
+        speech_route = (
+            profile.require(RunnerOperationKind.SPEECH_GENERATION)
+            if runner.audio.bought_spoken_lines()
+            else None
+        )
         with builder.within_template("speech-pipeline@v1"):
             for effect in spoken_lines:
                 realization = effect.realization
                 assert isinstance(realization, SpokenLineRealization)
-                voice = resolved_voice(runner, realization.voice_id)
-                if voice.provider.name != speech_route.model.provider:
-                    raise ValueError(
-                        f"voice {voice.voice_id} is cast on {voice.provider.name!r} but the "
-                        f"speech route is {speech_route.model}"
+                if realization.pinned is not None:
+                    generated = _add_pinned_take(
+                        builder,
+                        effect.effect_id,
+                        realization.pinned,
+                        kind=SPEECH_CLIP_KIND,
+                        barrier=barrier,
                     )
-                generate_id = f"speech-{effect.effect_id}-generate"
-                generated = builder.add(
-                    SPEECH_GENERATE,
-                    generate_id,
-                    domain="audio",
-                    description=f"speak the {effect.effect_id} line",
-                    params={"effect_id": effect.effect_id},
-                    depends_on=barrier,
-                    cache_depends_on=(),
-                    input_digests=(
-                        _object_sha256(
-                            {
-                                "contract": SPEECH_CONTRACT_VERSION,
-                                **realization.generation_identity(
-                                    provider=voice.provider.name,
-                                    voice=voice.provider.voice,
-                                    language_code=voice.language_code,
-                                ),
-                            }
+                else:
+                    assert speech_route is not None
+                    voice = resolved_voice(runner, realization.voice_id)
+                    if voice.provider.name != speech_route.model.provider:
+                        raise ValueError(
+                            f"voice {voice.voice_id} is cast on {voice.provider.name!r} but the "
+                            f"speech route is {speech_route.model}"
+                        )
+                    generate_id = f"speech-{effect.effect_id}-generate"
+                    generated = builder.add(
+                        SPEECH_GENERATE,
+                        generate_id,
+                        domain="audio",
+                        description=f"speak the {effect.effect_id} line",
+                        params={"effect_id": effect.effect_id},
+                        depends_on=barrier,
+                        cache_depends_on=(),
+                        input_digests=(
+                            _object_sha256(
+                                {
+                                    "contract": SPEECH_CONTRACT_VERSION,
+                                    **realization.generation_identity(
+                                        provider=voice.provider.name,
+                                        voice=voice.provider.voice,
+                                        language_code=voice.language_code,
+                                    ),
+                                }
+                            ),
                         ),
-                    ),
-                    ports=(
-                        _artifact("audio", f"audio/{effect.effect_id}.mp3", SPEECH_CLIP_KIND),
-                        _attempts(generate_id),
-                    ),
-                    card=NodeCard(prompt=realization.text),
-                )
+                        ports=(
+                            _artifact("audio", f"audio/{effect.effect_id}.mp3", SPEECH_CLIP_KIND),
+                            _attempts(generate_id),
+                        ),
+                        card=NodeCard(prompt=realization.text),
+                    )
                 validated = builder.add(
                     SPEECH_VALIDATE,
                     f"speech-{effect.effect_id}-validate",

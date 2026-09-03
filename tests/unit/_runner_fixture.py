@@ -484,6 +484,46 @@ VOICES_MEMBER_SOURCE = """
 source = "voices.toml"
 """
 
+PINNED_TAKE_SOURCE = "runner/audio/mira_go.mp3"
+
+
+def pinned_audio(package: Path, data: bytes) -> str:
+    """Commit ``data`` into the package as a reviewed take and return its TOML block.
+
+    The sidecar is written by the same provenance writer the audition command
+    uses, so what the fixture pins is exactly what a person would pin.
+    """
+
+    from gnode import BinaryArtifact, ProvenanceInput, write_artifact_with_provenance
+    from stage_gen.identity import SPEECH_GENERATION_COMPONENT, STAGE_GEN_TOOL
+
+    take = package / PINNED_TAKE_SOURCE
+    take.parent.mkdir(parents=True, exist_ok=True)
+    write_artifact_with_provenance(
+        take,
+        BinaryArtifact(data=data, media_type="audio/mpeg"),
+        ProvenanceInput(
+            provider="scripted",
+            model="scripted-tts",
+            prompt="[excited][shouting] よーし、いくよーっ!",
+            params={"voice": "voice-fixture-7", "output_format": "mp3", "validated": True},
+            validation={"output_nonempty": True, "signature": "matched"},
+            component=SPEECH_GENERATION_COMPONENT,
+            tool=STAGE_GEN_TOOL,
+            attempts=1,
+        ),
+    )
+    sidecar = Path(f"{take}.meta.json")
+    return f"""
+[effects.realization.pinned]
+source = "{PINNED_TAKE_SOURCE}"
+source_sha256 = "{hashlib.sha256(data).hexdigest()}"
+provenance_source = "{PINNED_TAKE_SOURCE}.meta.json"
+provenance_sha256 = "{hashlib.sha256(sidecar.read_bytes()).hexdigest()}"
+rights_status = "unreviewed"
+"""
+
+
 RUNNER_SOUNDTRACK = """schema_version = 1
 kind = "game-soundtrack-v1"
 game_id = "bellweather"
@@ -726,19 +766,23 @@ def two_genre_package(
     rows: int = 8,
     walk_surface_row: int = 5,
     spoken: bool = False,
+    pinned_take: bytes | None = None,
 ) -> Path:
     """Copy the committed platformer bellweather and author a runner member on
     top of it, so tests control every chunk under admission while the
     platformer-owned members stay the canonical ones. ``spoken`` speaks the
-    run-start announcement and binds the voice catalog it resolves through."""
+    run-start announcement and binds the voice catalog it resolves through;
+    ``pinned_take`` commits those bytes as the line's reviewed take."""
 
     package = tmp_path / "bellweather"
     shutil.copytree(SOURCE_PACKAGE, package)
     runner = package / "runner"
     (runner / "content").mkdir(parents=True)
-    (runner / "audio.toml").write_text(
-        RUNNER_AUDIO_SPOKEN if spoken else RUNNER_AUDIO, encoding="utf-8"
-    )
+    audio_source = RUNNER_AUDIO_SPOKEN if spoken else RUNNER_AUDIO
+    if pinned_take is not None:
+        assert spoken, "a pinned take pins the spoken line"
+        audio_source = audio_source + pinned_audio(package, pinned_take)
+    (runner / "audio.toml").write_text(audio_source, encoding="utf-8")
     (runner / "soundtrack.toml").write_text(RUNNER_SOUNDTRACK, encoding="utf-8")
     if spoken:
         (package / "voices.toml").write_text(RUNNER_VOICES, encoding="utf-8")

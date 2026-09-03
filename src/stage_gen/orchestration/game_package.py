@@ -17,7 +17,7 @@ from typing import Any, Literal
 from PIL import Image, UnidentifiedImageError
 from pydantic import Field, field_validator, model_validator
 
-from gnode import PersistedContractModel
+from gnode import ArtifactProvenance, PersistedContractModel, assert_audio_signature
 from stage_gen.components._game_input import (
     GAME_ID_PATTERN,
     AuthoredContractLoadError,
@@ -69,7 +69,12 @@ from stage_gen.components.platformer_map import (
     bottom_contiguous_surface_row,
     load_prepared_game_map_bytes,
 )
-from stage_gen.components.runner_audio import RunnerAudioContract, load_runner_audio_bytes
+from stage_gen.components.runner_audio import (
+    GeneratedClipRealization,
+    RunnerAudioContract,
+    SpokenLineRealization,
+    load_runner_audio_bytes,
+)
 from stage_gen.components.runner_content import (
     RunnerAvatarCatalog,
     RunnerBossCatalog,
@@ -952,6 +957,21 @@ def _resolve_runner_member(
             "invalid_game_voices_contract",
         )
     )
+    # A pinned take is a reviewed audition the package carries by digest: the
+    # bytes and the sidecar that produced them, both locked into the closure,
+    # and the sidecar must describe exactly those bytes.
+    for effect in audio.pinned_effects():
+        realization = effect.realization
+        assert isinstance(realization, GeneratedClipRealization | SpokenLineRealization)
+        pinned = realization.pinned
+        assert pinned is not None
+        label = f"runner audio {effect.effect_id} pinned take"
+        take_bytes = locked(pinned.source, pinned.source_sha256, label)
+        _validate_audio(take_bytes, pinned.source)
+        sidecar_bytes = locked(
+            pinned.provenance_source, pinned.provenance_sha256, f"{label} provenance"
+        )
+        _validate_take_provenance(sidecar_bytes, pinned.source_sha256, pinned.source)
     track_reference_bytes: dict[str, bytes] = {}
     for track_reference in track.references:
         data = locked(
@@ -1979,6 +1999,31 @@ def _validate_file_size(path: str, size: int) -> None:
     if size > _MAX_PACKAGE_FILE_BYTES:
         raise GamePackageValidationError(
             "package_too_large", f"prepared package file exceeds the size limit: {path}"
+        )
+
+
+def _validate_audio(data: bytes, path: str) -> None:
+    try:
+        assert_audio_signature(data, "audio/mpeg")
+    except ValueError as error:
+        raise GamePackageValidationError(
+            "invalid_pinned_take", f"pinned take is not an mp3 stream: {path}"
+        ) from error
+
+
+def _validate_take_provenance(data: bytes, artifact_sha256: str, path: str) -> None:
+    """The committed sidecar must be a provenance record for exactly the pinned bytes."""
+
+    try:
+        record = ArtifactProvenance.model_validate_json(data)
+    except ValueError as error:
+        raise GamePackageValidationError(
+            "invalid_pinned_take", f"pinned take provenance is not a provenance record: {path}"
+        ) from error
+    if record.artifact is None or record.artifact.sha256 != artifact_sha256:
+        raise GamePackageValidationError(
+            "invalid_pinned_take",
+            f"pinned take provenance describes different bytes than the take: {path}",
         )
 
 

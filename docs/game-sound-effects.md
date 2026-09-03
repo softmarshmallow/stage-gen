@@ -124,6 +124,33 @@ a set after listening is a free re-plan, never a redraw. Anything under half a
 second stays an oscillator: the route cannot go shorter and trimming is
 post-processing.
 
+## Choosing a take
+
+The route has no seed and a person picks the winner, so a generated clip
+carries the same two selection fields a spoken line does (see
+[game-voice.md](game-voice.md) for the full account). `take` is the reroll
+ordinal - part of the identity above the first draw, so bumping it redraws
+this one clip alone - and `[effects.realization.pinned]` commits a reviewed
+audition into the package by digest, sidecar and all, republished through the
+same gates with no provider call:
+
+```toml
+[effects.realization]
+kind = "generated_clip_v1"
+prompt = "hard hit on sheet metal"
+duration_seconds = 0.5
+gain = 0.8
+strength_pitch_multiplier = 0.0
+take = 3
+
+[effects.realization.pinned]
+source = "runner/audio/hull_clank.mp3"
+source_sha256 = "<sha256 of the mp3>"
+provenance_source = "runner/audio/hull_clank.mp3.meta.json"
+provenance_sha256 = "<sha256 of the sidecar>"
+rights_status = "unreviewed"
+```
+
 ## Music transitions
 
 What the soundtrack does when the run ends is authored, not assumed, and it is

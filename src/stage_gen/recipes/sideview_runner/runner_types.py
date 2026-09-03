@@ -313,6 +313,14 @@ SPEECH_VALIDATE = NodeType(
     contract_version="runner-speech-validate-v1",
 )
 
+AUDIO_REPUBLISH = NodeType(
+    type_id=f"{_P}/audio.republish",
+    title="Pinned take",
+    archetype=ViewArchetype.SOURCE,
+    operation="local",
+    contract_version="runner-audio-republish-v1",
+)
+
 MANIFEST_ASSEMBLE = NodeType(
     type_id=f"{_P}/manifest.assemble",
     title="Runtime manifest assembly",
@@ -351,6 +359,7 @@ RUNNER_NODE_TYPES: tuple[NodeType, ...] = (
     SOUND_EFFECT_VALIDATE,
     SPEECH_GENERATE,
     SPEECH_VALIDATE,
+    AUDIO_REPUBLISH,
     *FX_CUT_IN_NODE_TYPES,
     MANIFEST_ASSEMBLE,
 )
@@ -362,6 +371,7 @@ def runner_type_index() -> dict[str, NodeType]:
 
 __all__ = [
     "ATTEMPT_LEDGER_KIND",
+    "AUDIO_REPUBLISH",
     "AVATAR_CONCEPT_GENERATE",
     "BOSS_CONCEPT_GENERATE",
     "BOSS_MOTION_GENERATE",

@@ -80,3 +80,20 @@ def test_admission_refuses_silence_clipping_and_truncation() -> None:
         admission_facts(PAYLOAD[: MINIMUM_SOUND_EFFECT_PAYLOAD_BYTES - 1], -12.0)
     # The floor itself is admitted; one tenth below it is not.
     assert admission_facts(PAYLOAD, SOUND_EFFECT_MINIMUM_PEAK_DBFS)["peak_dbfs"] == -40.0
+
+
+def test_the_take_ordinal_re_keys_the_draw_and_a_pin_replaces_it() -> None:
+    first = _clip().generation_identity()
+    assert "take" not in first
+    assert _clip(take=2).generation_identity() == {**first, "take": 2}
+    pinned = _clip(
+        pinned={
+            "source": "runner/audio/hull_clank.mp3",
+            "source_sha256": "a" * 64,
+            "provenance_source": "runner/audio/hull_clank.mp3.meta.json",
+            "provenance_sha256": "b" * 64,
+            "rights_status": "unreviewed",
+        }
+    )
+    assert pinned.pinned is not None
+    assert pinned.generation_identity() == first

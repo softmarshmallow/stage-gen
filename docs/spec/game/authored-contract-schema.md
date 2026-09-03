@@ -216,7 +216,7 @@ The root catalogs subordinate contracts; it does not absorb their fields:
 | `maps/<map_id>.toml` | Visual/static map composition, terrain occupancy, ladder placement, and portal presentation/anchors |
 | Content catalogs | Player, mob, NPC, prop, item, and projectile identities, visual references, motion presentation, the player's drawn equipment, and NPC catalog-wide world orientation |
 | `soundtrack.toml` | Track identities, creative briefs, and playback policy |
-| `runner/audio.toml` | Runner event-to-effect bindings and portable effect realizations: oscillator sweeps, generated clips, and spoken lines |
+| `runner/audio.toml` | Runner event-to-effect bindings and portable effect realizations: oscillator sweeps, generated clips, and spoken lines, each bought kind with a `take` ordinal and an optional pinned, digest-locked take under `runner/audio/` |
 | `voices.toml` | The game-global voice catalog: each `voice_id` a spoken line may name, its language and casting note, its rights statement, and the provider voice it resolves to |
 | `runner/track.toml` | Authored runner occupancy, hazards, pickups, parallax layers, and the closed atlas/structural-ground presentation mode |
 | `runner/content/avatar.toml` | One runner actor, its chronological visible-person age, single-character or visible-rider-machine silhouette basis, references, and motion playback |

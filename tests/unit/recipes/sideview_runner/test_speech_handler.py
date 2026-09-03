@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import shutil
 from pathlib import Path
@@ -262,3 +263,107 @@ async def test_execution_refuses_early_without_the_provider_key_when_a_line_is_s
             cache_dir=tmp_path / "cache",
             invocation_id="needs-a-key",
         )
+
+
+REPUBLISH = "audio-mira_go-republish"
+
+
+@pytest.mark.asyncio
+async def test_a_pinned_take_is_republished_verbatim_and_buys_nothing(tmp_path: Path) -> None:
+    take = await _tone(tmp_path / "take.mp3", seconds=1.5, volume_db=-12)
+    package = two_genre_package(tmp_path / "package", spoken=True, pinned_take=take)
+    plan = SideviewRunnerExecutor(StageGenConfig()).plan(package)
+    graph = plan.graph
+
+    # The line is served by a local republish node; no provider node exists for it.
+    assert not any(node.node_id == GENERATE for node in graph.nodes)
+    republish = graph.node(REPUBLISH)
+    assert republish.operation == "local"
+    assert republish.port("audio").artifact_ref == "audio/mira_go.mp3"
+    assert graph.node(VALIDATE).depends_on == (REPUBLISH,)
+    assert VALIDATE in graph.node("manifest-assemble").depends_on
+    assert graph.operation_counts()["speech_generation"] == 0
+
+    # Re-pinning a different take re-keys the republish node; a mix change does not.
+    other = await _tone(tmp_path / "other.mp3", seconds=1.6, volume_db=-12)
+    repinned = SideviewRunnerExecutor(StageGenConfig()).plan(
+        two_genre_package(tmp_path / "repinned", spoken=True, pinned_take=other)
+    )
+    assert repinned.graph.node(REPUBLISH).cache_key != republish.cache_key
+    # The same take and sidecar, byte for byte: only the mix differs.
+    louder_package = tmp_path / "louder"
+    shutil.copytree(package, louder_package)
+    audio_toml = louder_package / "runner" / "audio.toml"
+    audio_toml.write_text(
+        audio_toml.read_text().replace("gain = 0.7", "gain = 0.9"), encoding="utf-8"
+    )
+    louder = SideviewRunnerExecutor(StageGenConfig()).plan(louder_package)
+    assert louder.graph.node(REPUBLISH).cache_key == republish.cache_key
+
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    handler = SideviewRunnerNodeHandler(
+        graph,
+        plan.resolved,
+        run_dir=run_dir,
+        cache_dir=tmp_path / "cache",
+        image_service=object(),  # type: ignore[arg-type]
+        structured_service=object(),  # type: ignore[arg-type]
+    )
+    result = await handler._republish_audio(republish)
+    assert result.provider_operations == 0
+    assert (run_dir / "audio/mira_go.mp3").read_bytes() == take
+    # The sidecar is the take's own provenance, byte for byte: this run made nothing.
+    assert (run_dir / "audio/mira_go.mp3.meta.json").read_bytes() == (
+        package / "runner/audio/mira_go.mp3.meta.json"
+    ).read_bytes()
+
+    await handler._validate_speech(graph.node(VALIDATE))
+    record = json.loads((run_dir / "audio/mira_go.validation.json").read_text())
+    assert record["listening_verdict"] == "author_selected"
+    assert abs(record["duration_seconds"] - 1.5) <= 0.1
+    block = manifest_audio(
+        plan.resolved.runner.audio, read_validation=lambda ref: (run_dir / ref).read_bytes()
+    )
+    entries = cast("list[dict[str, Any]]", block["effects"])
+    published = {entry["effect_id"]: entry for entry in entries}["mira_go"]["realization"]
+    assert published["duration_seconds"] == record["duration_seconds"]
+    assert "pinned" not in json.dumps(block)
+
+
+@pytest.mark.asyncio
+async def test_a_pinned_take_is_locked_into_the_closure_and_refused_when_it_lies(
+    tmp_path: Path,
+) -> None:
+    take = await _tone(tmp_path / "take.mp3", seconds=1.0, volume_db=-12)
+
+    tampered = two_genre_package(tmp_path / "tampered", spoken=True, pinned_take=take)
+    (tampered / "runner/audio/mira_go.mp3").write_bytes(take + b"\x00")
+    with pytest.raises(GamePackageValidationError, match="sha256 mismatch"):
+        SideviewRunnerExecutor(StageGenConfig()).plan(tampered)
+
+    orphan = two_genre_package(tmp_path / "orphan", spoken=True, pinned_take=take)
+    (orphan / "runner/audio/stray.mp3").write_bytes(take)
+    with pytest.raises(GamePackageValidationError, match="unreferenced"):
+        SideviewRunnerExecutor(StageGenConfig()).plan(orphan)
+
+    # A sidecar that describes other bytes is refused even when its own digest matches.
+    lying = two_genre_package(tmp_path / "lying", spoken=True, pinned_take=take)
+    sidecar = lying / "runner/audio/mira_go.mp3.meta.json"
+    record = json.loads(sidecar.read_text())
+    record["artifact"]["sha256"] = "0" * 64
+    sidecar.write_text(json.dumps(record), encoding="utf-8")
+    audio_toml = lying / "runner/audio.toml"
+    text = audio_toml.read_text()
+    old_line = next(line for line in text.splitlines() if line.startswith("provenance_sha256"))
+    text = text.replace(
+        old_line, f'provenance_sha256 = "{hashlib.sha256(sidecar.read_bytes()).hexdigest()}"'
+    )
+    audio_toml.write_text(text, encoding="utf-8")
+    with pytest.raises(GamePackageValidationError, match="different bytes"):
+        SideviewRunnerExecutor(StageGenConfig()).plan(lying)
+
+    # A pinned take that is not audio is refused before any plan.
+    fake = two_genre_package(tmp_path / "fake", spoken=True, pinned_take=b"not audio" * 400)
+    with pytest.raises(GamePackageValidationError, match="not an mp3"):
+        SideviewRunnerExecutor(StageGenConfig()).plan(fake)

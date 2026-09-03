@@ -101,3 +101,56 @@ def test_admission_refuses_a_read_over_its_ceiling_and_keeps_the_level_gates() -
         speech_admission_facts(
             PAYLOAD, LevelAndDuration(peak_dbfs=-44.0, duration_seconds=1.0), max_seconds=None
         )
+
+
+def test_the_take_ordinal_re_keys_the_read_and_nothing_else() -> None:
+    first = _line().generation_identity(provider="p", voice="v", language_code=None)
+    assert "take" not in first
+    second = _line(take=2).generation_identity(provider="p", voice="v", language_code=None)
+    assert second == {**first, "take": 2}
+    with pytest.raises(ValueError):
+        _line(take=0)
+    with pytest.raises(ValueError):
+        _line(take=100)
+
+
+def _pinned(**overrides: object) -> dict[str, object]:
+    fields: dict[str, object] = {
+        "source": "runner/audio/mira_go.mp3",
+        "source_sha256": "a" * 64,
+        "provenance_source": "runner/audio/mira_go.mp3.meta.json",
+        "provenance_sha256": "b" * 64,
+        "rights_status": "unreviewed",
+    }
+    fields.update(overrides)
+    return fields
+
+
+def test_a_pinned_take_is_a_digest_locked_pair_with_a_rights_statement() -> None:
+    line = _line(pinned=_pinned())
+    assert line.pinned is not None
+    assert line.pinned.source == "runner/audio/mira_go.mp3"
+    # The pick never enters the read's identity: it replaces the read entirely.
+    assert line.generation_identity(provider="p", voice="v", language_code=None) == _line(
+        pinned=None
+    ).generation_identity(provider="p", voice="v", language_code=None)
+
+    with pytest.raises(ValueError, match="beside"):
+        _line(pinned=_pinned(provenance_source="runner/audio/other.mp3.meta.json"))
+    with pytest.raises(ValueError, match=r"\.mp3"):
+        _line(
+            pinned=_pinned(
+                source="runner/audio/mira_go.wav",
+                provenance_source="runner/audio/mira_go.wav.meta.json",
+            )
+        )
+    with pytest.raises(ValueError, match="without a basis"):
+        _line(pinned=_pinned(rights_status="redistribution-approved"))
+    with pytest.raises(ValueError):
+        _line(pinned=_pinned(source="../mira_go.mp3", provenance_source="../mira_go.mp3.meta.json"))
+    approved = _line(
+        pinned=_pinned(
+            rights_status="redistribution-approved", rights_basis=["Reviewed 2026-09-03."]
+        )
+    )
+    assert approved.pinned is not None and approved.pinned.rights_basis == ["Reviewed 2026-09-03."]

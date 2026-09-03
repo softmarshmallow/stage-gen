@@ -16,6 +16,11 @@ audio contract any more than a model id does.
 Playback mixing - gain and the strength-driven rate lift - is consumer data. It
 travels with the line in the manifest but stays out of the generation identity,
 so rebalancing after listening never re-bills a read.
+
+A read is a lottery and a person picks the winner, so a line carries the same
+two fields a generated clip does: ``take``, the reroll ordinal that re-keys
+this one read, and ``pinned``, the reviewed audition committed into the
+package and republished in place of a fresh draw.
 """
 
 from __future__ import annotations
@@ -26,6 +31,7 @@ from pydantic import Field, model_validator
 
 from gnode import PersistedContractModel
 from stage_gen.components._game_input import SNAKE_ID_PATTERN, normalized_text
+from stage_gen.components.sound_effect.models import FIRST_TAKE, MAX_TAKE, PinnedTake
 
 SPOKEN_LINE_REALIZATION_KIND = "spoken_line_v1"
 SPOKEN_LINE_OUTPUT_FORMAT = "mp3"
@@ -54,6 +60,10 @@ class SpokenLineRealization(PersistedContractModel):
     gain: float = Field(gt=0.0, le=1.0)
     #: Multiplies playback rate by ``1 + event_strength * value``. Zero disables it.
     strength_pitch_multiplier: float = Field(ge=0.0, le=2.0)
+    #: The reroll ordinal. Bump it to redraw this line alone.
+    take: int = Field(default=FIRST_TAKE, ge=FIRST_TAKE, le=MAX_TAKE)
+    #: The reviewed pick. When present the graph buys nothing for this line.
+    pinned: PinnedTake | None = None
 
     @model_validator(mode="after")
     def validate_text(self) -> SpokenLineRealization:
@@ -70,7 +80,9 @@ class SpokenLineRealization(PersistedContractModel):
         Deliberately excludes ``gain``, ``strength_pitch_multiplier`` and
         ``max_seconds``: they change how a line is played or judged, not which
         line was read. No seed: measured, a seed pins the length of a read and
-        not its waveform, so it cannot make a draw repeatable.
+        not its waveform, so it cannot make a draw repeatable. ``take`` enters
+        only above the first draw, so an existing key is undisturbed until a
+        person asks for another.
         """
 
         identity: dict[str, object] = {
@@ -83,6 +95,8 @@ class SpokenLineRealization(PersistedContractModel):
             identity["stability"] = self.stability
         if language_code is not None:
             identity["language_code"] = language_code
+        if self.take != FIRST_TAKE:
+            identity["take"] = self.take
         return identity
 
 

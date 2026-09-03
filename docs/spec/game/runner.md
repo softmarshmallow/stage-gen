@@ -491,8 +491,12 @@ stability, the longest read its frame budget tolerates, and the same playback
 mix; the graph buys it once through the `speech_generation` route on the
 provider voice `voices.toml` casts, admits it on container, level, and that
 length ceiling, and publishes the *measured* length, since the route never
-took one. The bindings are the same in every case, so a cue changes
-realization without remapping gameplay. The authoring contracts and their
+took one. Both bought kinds carry a `take` reroll ordinal that re-keys that
+one draw alone, and may instead `pin` a reviewed audition - the mp3 and the
+sidecar that produced it, committed under `runner/audio/` and digest-locked
+into the closure - which a local node republishes through the same gates
+with no provider operation. The bindings are the same in every case, so a cue
+changes realization without remapping gameplay. The authoring contracts and their
 gates are in [game-sound-effects.md](../../game-sound-effects.md) and
 [game-voice.md](../../game-voice.md); the routes' measured boundaries are in
 [model-eleven-text-to-sound-v2.md](../model-eleven-text-to-sound-v2.md) and

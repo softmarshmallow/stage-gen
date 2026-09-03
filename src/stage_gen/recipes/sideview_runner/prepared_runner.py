@@ -44,6 +44,7 @@ from gnode import (
     ToolLoopService,
     assert_audio_signature,
     assert_image_signature,
+    atomic_write_bytes,
     atomic_write_json,
     dependency_port,
     hash_input_reference,
@@ -153,6 +154,7 @@ from stage_gen.components.sideview_terrain import (
 from stage_gen.components.sound_effect import (
     DURATION_TOLERANCE_SECONDS,
     GeneratedClipRealization,
+    PinnedTake,
     admit_sound_effect_bytes,
     admit_sound_effect_bytes_sync,
 )
@@ -191,6 +193,7 @@ from stage_gen.recipes.sideview_runner.runner_prompts import (
 )
 from stage_gen.recipes.sideview_runner.runner_types import (
     ATTEMPT_LEDGER_KIND,
+    AUDIO_REPUBLISH,
     AVATAR_CONCEPT_GENERATE,
     AVATAR_CONCEPT_KIND,
     AVATAR_MOTION_GENERATE,
@@ -719,6 +722,12 @@ def manifest_gameplay(gameplay: RunnerGameplayContract) -> dict[str, object]:
         "ducked_height_fraction": (None if duck is None else duck.ducked_height_fraction),
         "min_overhead_clearance_rows": (None if duck is None else duck.min_overhead_clearance_rows),
     }
+
+
+def _listening_verdict(pinned: PinnedTake | None) -> str:
+    """A pinned take was chosen by a person; a fresh draw has not been heard."""
+
+    return "author_selected" if pinned is not None else "not_performed"
 
 
 def manifest_audio(
@@ -2385,6 +2394,7 @@ class SideviewRunnerNodeHandler:
             SOUNDTRACK_VALIDATE.type_id,
             SOUND_EFFECT_VALIDATE.type_id,
             SPEECH_VALIDATE.type_id,
+            AUDIO_REPUBLISH.type_id,
             MANIFEST_ASSEMBLE.type_id,
         }:
             # These are cheap local publication gates. Audio validation needs
@@ -2452,6 +2462,7 @@ class SideviewRunnerNodeHandler:
         registry.register(SOUND_EFFECT_VALIDATE, self._bind(self._validate_sound_effect))
         registry.register(SPEECH_GENERATE, self._bind(self._generate_speech))
         registry.register(SPEECH_VALIDATE, self._bind(self._validate_speech))
+        registry.register(AUDIO_REPUBLISH, self._bind(self._republish_audio))
         registry.register(FX_CUT_IN_GENERATE, self._bind(self._generate_fx_plate))
         registry.register(FX_CUT_IN_DRAW, self._bind(self._draw_fx_frame))
         registry.register(FX_CUT_IN_PLACE, self._bind(self._place_fx_portrait))
@@ -3368,7 +3379,7 @@ class SideviewRunnerNodeHandler:
                 "peak_dbfs": level["peak_dbfs"],
                 "clipped": level["clipped"],
                 "container_valid": True,
-                "listening_verdict": "not_performed",
+                "listening_verdict": _listening_verdict(realization.pinned),
             },
         )
         return self._result(node)
@@ -3400,9 +3411,39 @@ class SideviewRunnerNodeHandler:
                 "peak_dbfs": facts["peak_dbfs"],
                 "clipped": facts["clipped"],
                 "container_valid": True,
-                "listening_verdict": "not_performed",
+                "listening_verdict": _listening_verdict(realization.pinned),
             },
         )
+        return self._result(node)
+
+    async def _republish_audio(self, node: Node) -> NodeExecutionResult:
+        """Install a reviewed take as the effect's artifact, sidecar and all.
+
+        The bytes and the sidecar come from the package closure, already
+        digest-locked by the resolver. They are written verbatim - the sidecar
+        is the provenance of the take, and rewriting it would claim this run
+        made what a person chose - and admitted on the same level and length
+        gates a fresh draw meets, so a pinned take that clips is a package
+        error rather than a shipped one.
+        """
+
+        effect = self._runner.audio.effect(str(node.params["effect_id"]))
+        realization = effect.realization
+        if not isinstance(realization, GeneratedClipRealization | SpokenLineRealization):
+            raise ValueError(f"runner effect {effect.effect_id} cannot carry a pinned take")
+        pinned = realization.pinned
+        if pinned is None:
+            raise ValueError(f"runner effect {effect.effect_id} pins no take")
+        data = self._package.file(pinned.source).data
+        sidecar = self._package.file(pinned.provenance_source).data
+        if isinstance(realization, SpokenLineRealization):
+            admit_speech_bytes_sync(data, max_seconds=realization.max_seconds)
+        else:
+            admit_sound_effect_bytes_sync(data)
+        port = node.port("audio")
+        assert port.sidecar_ref is not None
+        atomic_write_bytes(self._run_dir / port.artifact_ref, data)
+        atomic_write_bytes(self._run_dir / port.sidecar_ref, sidecar)
         return self._result(node)
 
     # ---------------------------------------------------------------- manifest
