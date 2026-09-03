@@ -16,7 +16,10 @@ from stage_gen.recipes.dialogue_scene.scene_types import dialogue_type_index
 if TYPE_CHECKING:
     from pathlib import Path
 
-DIALOGUE_VIEW_SCHEMA_VERSION: Literal[3] = 3
+# Derived from the graph rather than restated, because the writer reads the graph's value and
+# a second copy here is free to disagree with it — which is exactly what happened when the
+# graph went to 5 and this stayed 3, leaving every scene run unreadable by the run viewer.
+DIALOGUE_VIEW_SCHEMA_VERSION: int = DialogueSceneGraph.VIEW_SCHEMA_VERSION
 DIALOGUE_VIEW_KIND: Literal["dialogue-scene-execution-view-v1"] = "dialogue-scene-execution-view-v1"
 
 

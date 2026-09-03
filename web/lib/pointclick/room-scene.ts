@@ -21,6 +21,7 @@ import { registerPresentationFallback } from "@/lib/ui-atlas/fallback";
 import type { UiIconGlyph } from "@/lib/manifest/ui-icon-layout";
 import { AtlasButton } from "@/lib/ui-atlas/button";
 import { UI_ATLAS_SHEETS, uiAtlasSheetKey } from "@/lib/ui-atlas/sheets";
+import { mostReadable } from "@/lib/ui-atlas/contrast";
 import { NineSliceWidget } from "@/lib/ui-atlas/widget";
 import { roomUiSheetAsset } from "./contract";
 import type { RoomHotspot, RoomManifest } from "./contract";
@@ -53,6 +54,8 @@ const PANEL_STROKE = 0x6d757f;
 const ACCENT = 0xffdf8a;
 const ACCENT_TEXT = "#ffdf8a";
 const BODY_TEXT = "#f2f3f5";
+/** The dark end of the range, for when the drawn plate is light. */
+const INK_TEXT = "#141726";
 const DIM_TEXT = "#98a0ab";
 const CORNER = 10;
 
@@ -271,9 +274,16 @@ class RoomScene extends Phaser.Scene {
     // measured on the drawn frame, so the text is fitted to it rather than
     // trusted to be short.
     this.narrationHeight = Math.max(1, narrationSafe.height - (text.y - narrationSafe.y) * 2);
+    // Measured on the drawn plate, not fixed: the narration colour was authored for a dark
+    // fallback fill, and a package that ships a cream panel made the narration invisible while
+    // the hotspot labels, which are accent gold, survived. See lib/ui-atlas/contrast.
+    const narrationBg = narrationPanel.interiorColor();
+    const narrationInk =
+      narrationBg === null ? BODY_TEXT : (mostReadable(narrationBg, [BODY_TEXT, INK_TEXT]) ?? BODY_TEXT);
     this.narration = this.add
       .text(text.x, text.y, "", {
         ...NARRATION_STYLE,
+        color: narrationInk,
         wordWrap: { width: text.wrapWidth },
       })
       .setDepth(DEPTH.hud + 1);
@@ -282,8 +292,13 @@ class RoomScene extends Phaser.Scene {
     // canvas when the bar was a rectangle and is the drawn frame's border now. It starts at
     // the bar's own measured interior instead, so the words never run under the art.
     const label = roomTextLayout(barPanel.safeRect());
+    const barBg = barPanel.interiorColor();
+    // The hint is deliberately quiet, so its dim grey is offered first and only replaced when
+    // the drawn bar makes it unreadable rather than merely subtle.
+    const hintInk =
+      barBg === null ? DIM_TEXT : (mostReadable(barBg, [DIM_TEXT, INK_TEXT, BODY_TEXT], 3) ?? DIM_TEXT);
     this.holdingLabel = this.add
-      .text(label.x, label.y, "", { ...CONTROL_STYLE, fontSize: "18px", color: DIM_TEXT })
+      .text(label.x, label.y, "", { ...CONTROL_STYLE, fontSize: "18px", color: hintInk })
       .setDepth(DEPTH.hud + 1);
 
     this.createInventorySlots();
@@ -372,7 +387,7 @@ class RoomScene extends Phaser.Scene {
     onPress: () => void,
     glyph?: UiIconGlyph,
   ): AtlasButton {
-    return new AtlasButton({
+    const button = new AtlasButton({
       scene: this,
       sheetKey: uiAtlasSheetKey("button_rect"),
       layout: this.manifest.ui.buttonRect.layout,
@@ -389,6 +404,13 @@ class RoomScene extends Phaser.Scene {
         : undefined,
       onPress,
     });
+    // The verb reads on the button's own art, which is a different sheet from the panels.
+    const face = button.widget.interiorColor();
+    if (face !== null) {
+      const ink = mostReadable(face, [BODY_TEXT, INK_TEXT]);
+      if (ink !== null) button.text.setColor(ink);
+    }
+    return button;
   }
 
   private setMode(mode: VerbMode): void {

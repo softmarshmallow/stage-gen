@@ -10,6 +10,7 @@ import type Phaser from "phaser";
 import type { Insets, UiAtlasRoleLayout } from "../manifest/ui-atlas-layout";
 import { uiAtlasCellFor } from "../manifest/ui-atlas-layout";
 import type { Rect, Size } from "../shell/hud-geometry";
+import type { Rgb } from "./contrast";
 
 /** The smallest on-screen size a sheet can be drawn at without its corners overlapping. */
 export function minimumSliceSize(insets: Insets, drawScale = 1): Size {
@@ -67,11 +68,13 @@ export type NineSliceWidgetOptions = Readonly<{
  */
 export class NineSliceWidget {
   readonly image: Phaser.GameObjects.NineSlice;
+  private readonly scene: Phaser.Scene;
   private readonly sheetKey: string;
   private readonly layout: UiAtlasRoleLayout;
   private state: string;
 
   constructor(options: NineSliceWidgetOptions) {
+    this.scene = options.scene;
     this.sheetKey = options.sheetKey;
     this.layout = options.layout;
     this.state = options.state ?? options.layout.cells[0].state;
@@ -147,6 +150,46 @@ export class NineSliceWidget {
       width: width - left - right,
       height: height - top - bottom,
     };
+  }
+
+  /**
+   * The average colour of the drawn interior, for choosing a readable text colour on it.
+   *
+   * Sampled from the current state's frame rather than assumed, because the sheet is generated
+   * art: the same role is a cream plate in one package and a near-black one in the next, and a
+   * constant text colour is legible in only one of them. Points are taken on a small grid around
+   * the frame's centre — the flat band a nine-slice stretches, which is exactly where the words
+   * sit — and averaged, so one speck of ink grain or one ornament pixel cannot decide it.
+   *
+   * Returns null when the texture cannot be read, which is the caller's signal to keep whatever
+   * colour it was authored with rather than guess.
+   */
+  interiorColor(): Rgb | null {
+    const frame = this.scene.textures.getFrame(this.sheetKey, this.frame());
+    if (!frame || frame.width < 3 || frame.height < 3) return null;
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    let seen = 0;
+    for (const fx of [0.35, 0.5, 0.65]) {
+      for (const fy of [0.35, 0.5, 0.65]) {
+        const pixel = this.scene.textures.getPixel(
+          Math.floor(frame.width * fx),
+          Math.floor(frame.height * fy),
+          this.sheetKey,
+          this.frame(),
+        );
+        // A fully transparent sample is the panel showing whatever is behind it, which this
+        // cannot speak for; ignore it rather than averaging in a meaningless black.
+        if (!pixel || pixel.alpha < 8) continue;
+        r += pixel.red;
+        g += pixel.green;
+        b += pixel.blue;
+        seen += 1;
+      }
+    }
+    if (seen === 0) return null;
+    return { r: r / seen, g: g / seen, b: b / seen };
   }
 
   get currentState(): string {

@@ -526,7 +526,7 @@ def _build_run_view_for(run_dir: Path) -> RunView:
     if not plan_path.is_file():
         raise ValueError(f"run directory has no execution-plan.json: {run_dir.name}")
     declared = json.loads(plan_path.read_text(encoding="utf-8")).get("kind")
-    if declared == "dialogue-scene-execution-graph-v3":
+    if declared == "dialogue-scene-execution-graph-v5":
         return build_dialogue_scene_view(run_dir)
     if declared == "pointclick-room-execution-graph-v1":
         return build_pointclick_room_view(run_dir)

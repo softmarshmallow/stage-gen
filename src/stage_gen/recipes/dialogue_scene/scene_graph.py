@@ -106,7 +106,13 @@ class DialogueSceneGraph(Graph):
     RUN_SUMMARY_KIND: ClassVar[str] = "dialogue-scene-execution-summary-v1"
     PROJECTION_KIND: ClassVar[str] = "dialogue-scene-execution-projection-v1"
     VIEW_KIND: ClassVar[str] = "dialogue-scene-execution-view-v1"
-    VIEW_SCHEMA_VERSION: ClassVar[int] = 5
+    # The run-view document's version, which is NOT this recipe's version: the view is the
+    # shared read-only shape every recipe exports for the run viewer, and it is 3 across all
+    # of them. It was bumped to 5 alongside the graph when the scene gained several
+    # scenarios, which silently made every scene run unreadable by the viewer — the document
+    # shape had not changed at all. `scene_view.DIALOGUE_VIEW_SCHEMA_VERSION` said 3 the
+    # whole time; this is the value the writer actually reads.
+    VIEW_SCHEMA_VERSION: ClassVar[int] = 3
 
     schema_version: Literal[5]
     kind: Literal["dialogue-scene-execution-graph-v5"]

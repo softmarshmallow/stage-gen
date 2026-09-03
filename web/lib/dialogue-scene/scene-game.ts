@@ -36,6 +36,7 @@ import { actorEmphasis, narrationEmphasis } from "./emphasis";
 import { AtlasButton } from "@/lib/ui-atlas/button";
 import { UI_ATLAS_SHEETS, uiAtlasSheetKey } from "@/lib/ui-atlas/sheets";
 import { NineSliceWidget } from "@/lib/ui-atlas/widget";
+import { mostReadable } from "@/lib/ui-atlas/contrast";
 import { registerPresentationFallback } from "@/lib/ui-atlas/fallback";
 import type { Rect } from "@/lib/shell/hud-geometry";
 import { applyDeviceZoom, currentDevicePixelScale, deviceGameSize } from "@/lib/device-pixels/device-camera";
@@ -77,6 +78,17 @@ const CORNER = 18;
 
 /** Depth rungs: world, then character, then the panel, then choices, then the end card. */
 const DEPTH = { backdrop: 0, sprite: 10, panel: 100, choice: 150, complete: 200 } as const;
+
+/**
+ * The first of `candidates` that is readable on the widget's drawn interior.
+ *
+ * Null when the sheet cannot be sampled, which is the caller's signal to keep the authored
+ * colour: a stand-in texture or an unloaded sheet is not a reason to repaint the HUD.
+ */
+function readableOnPanel(widget: NineSliceWidget, candidates: readonly string[]): string | null {
+  const background = widget.interiorColor();
+  return background === null ? null : mostReadable(background, candidates);
+}
 
 const BODY_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   fontFamily: "Georgia, 'Times New Roman', serif",
@@ -146,6 +158,8 @@ class DialogueScene extends Phaser.Scene {
   private speaker!: Phaser.GameObjects.Text;
   private body!: Phaser.GameObjects.Text;
   private progress!: Phaser.GameObjects.Text;
+  /** Body colour measured on the drawn panel; see `readableOnPanel`. */
+  private inkOnPanel: string = PAPER;
   private choiceLayer!: Phaser.GameObjects.Container;
   private completeLayer!: Phaser.GameObjects.Container;
   private completeTitle!: Phaser.GameObjects.Text;
@@ -260,20 +274,31 @@ class DialogueScene extends Phaser.Scene {
     // the ornament-free interior and the layout turns it into a name row, a wrapped body, and
     // a bottom-right progress anchor.
     this.box = visualNovelBoxLayout(this.panel.safeRect());
+    // The panel is generated art, so the text colour is measured on it rather than fixed. The
+    // authored pairing is paper on a dark plate; on a light one it inverts, which is the whole
+    // reason this exists — a cream plate swallowed the body text entirely while the speaker
+    // name, which happened to be ink, stayed readable.
+    this.inkOnPanel = readableOnPanel(this.panel, [PAPER, INK]) ?? PAPER;
+    const meta = readableOnPanel(this.panel, [DIM, INK, PAPER]) ?? DIM;
+
     this.speaker = this.add
-      .text(this.box.name.x, this.box.name.y, "", SPEAKER_STYLE)
+      .text(this.box.name.x, this.box.name.y, "", {
+        ...SPEAKER_STYLE,
+        color: readableOnPanel(this.panel, [INK, PAPER]) ?? INK,
+      })
       .setOrigin(0, 0)
       .setDepth(DEPTH.panel + 2);
 
     this.body = this.add
       .text(this.box.body.x, this.box.body.y, "", {
         ...BODY_STYLE,
+        color: this.inkOnPanel,
         wordWrap: { width: this.box.bodyWrapWidth },
       })
       .setDepth(DEPTH.panel + 1);
 
     this.progress = this.add
-      .text(this.box.progress.x, this.box.progress.y, "", META_STYLE)
+      .text(this.box.progress.x, this.box.progress.y, "", { ...META_STYLE, color: meta })
       .setOrigin(1, 1)
       .setDepth(DEPTH.panel + 1);
   }
@@ -307,6 +332,7 @@ class DialogueScene extends Phaser.Scene {
     this.completeTitle = this.add
       .text(card.x + card.width / 2, card.y + card.height / 2 - 26, "", {
         ...BODY_STYLE,
+        color: readableOnPanel(frame, [PAPER, INK]) ?? BODY_STYLE.color,
         fontSize: "38px",
       })
       .setOrigin(0.5, 0.5);
@@ -425,6 +451,9 @@ class DialogueScene extends Phaser.Scene {
         style: { ...CHOICE_STYLE, align: "center" },
         onPress: () => this.act({ kind: "choose", option: index }),
       });
+      // A choice sits on the button sheet, not the panel, so it is measured on its own art.
+      const choiceInk = readableOnPanel(button.widget, [PAPER, INK]);
+      if (choiceInk !== null) button.text.setColor(choiceInk);
       this.choiceButtons.push(button);
       this.choiceLayer.add([...button.parts]);
     }
