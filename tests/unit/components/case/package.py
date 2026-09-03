@@ -118,7 +118,7 @@ def statements_declarations(*, script_sha256: str, **overrides: Any) -> dict[str
 def room_document(**overrides: Any) -> dict[str, Any]:
     value: dict[str, Any] = {
         "schema_version": 1,
-        "kind": "pointclick-room-v2",
+        "kind": "pointclick-room-v3",
         "room_id": "motor_court",
         "display_name": "The Motor Court",
         "revision": 1,
@@ -144,6 +144,7 @@ def room_document(**overrides: Any) -> dict[str, Any]:
                 "label": "The unfinished window",
                 "art": "scenery",
                 "brief": "A display window with six mannequins and an empty seventh chair",
+                "art_region": {"x": 0.1, "y": 0.2, "w": 0.4, "h": 0.4},
                 "region": {"x": 0.1, "y": 0.2, "w": 0.4, "h": 0.4},
             },
             {
@@ -151,6 +152,7 @@ def room_document(**overrides: Any) -> dict[str, Any]:
                 "label": "The service bell",
                 "art": "scenery",
                 "brief": "A brass bell push beside the stage door",
+                "art_region": {"x": 0.7, "y": 0.5, "w": 0.1, "h": 0.1},
                 "region": {"x": 0.7, "y": 0.5, "w": 0.1, "h": 0.1},
             },
         ],

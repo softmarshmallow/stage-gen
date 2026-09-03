@@ -529,7 +529,7 @@ class PointClickRoomNodeHandler:
             output_format="png",
             size=f"{width}x{height}",
             metadata={
-                "recipe": "pointclick-room-v2",
+                "recipe": "pointclick-room-v3",
                 "node": node.node_id,
                 "role": role,
                 "room_sha256": self._resolved.room_sha256,
@@ -692,7 +692,7 @@ def _image_validator(
             "width": facts.width,
             "height": facts.height,
             "alpha": facts.has_alpha,
-            "recipe_contract": "pointclick-room-v2",
+            "recipe_contract": "pointclick-room-v3",
         }
 
     return validate

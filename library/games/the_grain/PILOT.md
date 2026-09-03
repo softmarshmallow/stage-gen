@@ -1404,6 +1404,21 @@ five were found by QA. A pilot that had trusted its proofs would have shipped al
 Three aborts on the `universe_prompts` import are recorded at zero: the process died before
 a provider client was constructed.
 
+### After the freeze — the director's art-direction sheet
+
+Requested by the director after the report closed, and therefore **not part of the pilot's
+196 operations**. Planned before spend, per sheet: four `image_generation` operations, one per
+direction, `gpt-image-2`, 2048x1152, no reference image attached to any of them.
+
+| Run | Ops | Estimated USD | Outcome |
+|---|---|---|---|
+| `the-grain-concept` sheet 1 | 4 | 2.00 | four text-to-image art directions, A-D; exploration, unreviewed |
+| `the-grain-concept` sheet 2 | 4 | 2.00 | E-H, triangulating A, C and D after the director dropped the oil |
+
+Nothing in the package was touched to make it. The shipped build, its bundle, its rooms and
+its cache are exactly as they were at the freeze. If a direction is chosen, the regeneration
+is a separate, planned run against a new style plate.
+
 ## 4. Screenshots
 
 Held under `out/`. The director's visual review list, in the order it should be looked at:
@@ -1501,6 +1516,26 @@ one-option menu is presented identically to a real choice.
 ---
 
 ## 6. Debt
+
+- **Every actor stands, including at the supper table.** Raised by the director on
+  2026-09-03 after play. This is a limitation of the plate contract, not a bug in any
+  image: a `dialogue-scene` actor is one cut-out full-body plate drawn alone against a
+  flat backdrop and composited into a slot, so the only pose the contract can express is
+  the pose that plate was drawn in. Nine people seated around one table cannot be
+  assembled from nine independently drawn standing figures — they would not share a table
+  edge, a horizon, a chair line or an occlusion order.
+
+  **The untried approach, recorded as the TODO.** Draw *one* image containing all the
+  actors in the seated arrangement, then pass that image back to the image model to
+  separate it into per-actor layers plus a foreground occluder for the table itself, and
+  composite those. That is a different node shape from anything this pipeline has: it
+  needs a group-composition plate, a segmentation-or-relight pass over a generated image,
+  and a foreground layer the runtime draws *in front* of the actors rather than behind
+  them. **None of those three has been tried in this repository.** Nothing here estimates
+  what it costs or whether the separation holds identity across layers.
+
+  Until then the supper scene is staged standing, and that is a stated limitation rather
+  than an oversight.
 
 - Shell is autosave + Continue + a fifty-line backlog and nothing else: no save slots, no
   skip-already-read, no preferences. Deliberate; recorded at launch.

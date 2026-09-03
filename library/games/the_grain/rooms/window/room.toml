@@ -17,7 +17,7 @@
 # "What did you touch?" is then a different exchange with a longer answer.
 
 schema_version = 1
-kind = "pointclick-room-v2"
+kind = "pointclick-room-v3"
 room_id = "e1_window"
 display_name = "The Window"
 revision = 1
@@ -102,6 +102,7 @@ hotspot_id = "six_figures"
 label = "The six figures"
 art = "scenery"
 brief = "six blank-faced mannequins in evening dress, four standing and two seated on low plinths, turned inward toward an empty seventh chair"
+art_region = { x = 0.492, y = 0.344, w = 0.109, h = 0.322 }
 region = { x = 0.492, y = 0.344, w = 0.109, h = 0.322 }
 
 [[hotspots]]
@@ -109,6 +110,7 @@ hotspot_id = "paper_moon"
 label = "The paper moon"
 art = "scenery"
 brief = "a large matte white paper moon, flat and papery with a visible seam and no craters, hung behind the seventh chair, split across its middle and sagged inward"
+art_region = { x = 0.616, y = 0.331, w = 0.155, h = 0.242 }
 region = { x = 0.616, y = 0.331, w = 0.155, h = 0.242 }
 
 [[hotspots]]
@@ -116,6 +118,7 @@ hotspot_id = "the_man"
 label = "The man beneath it"
 art = "scenery"
 brief = "a man in a dark suit lying partly behind the pedestal chair with one shoulder resting against its single polished steel column, a shoe extended into the light"
+art_region = { x = 0.602, y = 0.553, w = 0.141, h = 0.135 }
 region = { x = 0.602, y = 0.553, w = 0.141, h = 0.135 }
 
 [[hotspots]]
@@ -123,6 +126,7 @@ hotspot_id = "under_the_jaw"
 label = "Under the jaw"
 art = "scenery"
 brief = "the man's head and collar where it lies turned away from the glass"
+art_region = { x = 0.630, y = 0.564, w = 0.042, h = 0.068 }
 region = { x = 0.630, y = 0.564, w = 0.042, h = 0.068 }
 
 [[hotspots]]
@@ -130,6 +134,7 @@ hotspot_id = "torn_piece"
 label = "The paper in his hand"
 art = "sprite"
 brief = "a small torn piece of typed script paper, creased where a hand closed on it, one edge visible beneath curled fingers"
+art_region = { x = 0.605, y = 0.589, w = 0.041, h = 0.065 }
 region = { x = 0.605, y = 0.589, w = 0.041, h = 0.065 }
 
 [[hotspots]]
@@ -137,6 +142,7 @@ hotspot_id = "stage_door"
 label = "The stage door"
 art = "scenery"
 brief = "a narrow painted steel door beside the guard's booth, standing ajar onto the display stage"
+art_region = { x = 0.24, y = 0.36, w = 0.08, h = 0.44 }
 region = { x = 0.24, y = 0.36, w = 0.08, h = 0.44 }
 
 [[hotspots]]
@@ -144,6 +150,7 @@ hotspot_id = "gallery_carton"
 label = "The carton on the gallery"
 art = "sprite"
 brief = "a shallow cardboard carton with its flaps folded back, standing on a narrow service gallery beside an open section of rail"
+art_region = { x = 0.658, y = 0.114, w = 0.052, h = 0.078 }
 region = { x = 0.658, y = 0.114, w = 0.052, h = 0.078 }
 
 [[hotspots]]
@@ -151,6 +158,7 @@ hotspot_id = "steel_lip"
 label = "Under the steel lip"
 art = "scenery"
 brief = "the underside of a steel lip running beneath the gallery, carrying pale horizontal marks"
+art_region = { x = 0.547, y = 0.178, w = 0.141, h = 0.047 }
 region = { x = 0.547, y = 0.178, w = 0.141, h = 0.047 }
 
 [[hotspots]]
@@ -158,6 +166,7 @@ hotspot_id = "painted_wall"
 label = "The painted wall"
 art = "scenery"
 brief = "the painted scenic wall below the gallery, crossed lower down by one long scrape"
+art_region = { x = 0.500, y = 0.303, w = 0.109, h = 0.039 }
 region = { x = 0.500, y = 0.303, w = 0.109, h = 0.039 }
 
 [[hotspots]]
@@ -165,6 +174,7 @@ hotspot_id = "call_button"
 label = "The red button"
 art = "scenery"
 brief = "a small red push button in a metal housing, mounted on the post beside the open section of rail"
+art_region = { x = 0.691, y = 0.097, w = 0.039, h = 0.083 }
 region = { x = 0.691, y = 0.097, w = 0.039, h = 0.083 }
 
 [[hotspots]]
@@ -172,6 +182,7 @@ hotspot_id = "access_door"
 label = "The plain door"
 art = "scenery"
 brief = "a plain flush door in the vestibule wall, opposite the lift, with a small enamel plate above the handle"
+art_region = { x = 0.130, y = 0.522, w = 0.090, h = 0.260 }
 region = { x = 0.130, y = 0.522, w = 0.090, h = 0.260 }
 
 [[hotspots]]
@@ -179,6 +190,7 @@ hotspot_id = "wired_glass"
 label = "The wired glass"
 art = "scenery"
 brief = "a small square pane of wired glass set into the plain door, with an enclosed stair turning upward behind it"
+art_region = { x = 0.127, y = 0.451, w = 0.094, h = 0.062 }
 region = { x = 0.127, y = 0.451, w = 0.094, h = 0.062 }
 
 [[hotspots]]
@@ -186,6 +198,7 @@ hotspot_id = "mr_bell"
 label = "Mr. Bell"
 art = "scenery"
 brief = "an elderly night guard of about sixty in a gray uniform, standing a few feet from the display glass with no cap on his head"
+art_region = { x = 0.305, y = 0.424, w = 0.066, h = 0.389 }
 region = { x = 0.305, y = 0.424, w = 0.066, h = 0.389 }
 
 [[hotspots]]
@@ -193,6 +206,7 @@ hotspot_id = "service_lift"
 label = "The service lift"
 art = "scenery"
 brief = "the wired-glass door of the service lift at the end of the narrow vestibule"
+art_region = { x = 0.01, y = 0.30, w = 0.11, h = 0.50 }
 region = { x = 0.01, y = 0.30, w = 0.11, h = 0.50 }
 
 # -------------------------------------------------------------- interactions

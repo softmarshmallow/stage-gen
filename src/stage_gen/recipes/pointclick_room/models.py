@@ -23,7 +23,7 @@ from pydantic import Field, StringConstraints, field_validator, model_validator
 from gnode import PersistedContractModel, RightsStatus
 
 POINTCLICK_ROOM_SCHEMA_VERSION = 1
-POINTCLICK_ROOM_KIND = "pointclick-room-v2"
+POINTCLICK_ROOM_KIND = "pointclick-room-v3"
 
 SNAKE_ID = Annotated[
     str, StringConstraints(pattern=r"^[a-z][a-z0-9_]*$", min_length=1, max_length=64)
@@ -83,7 +83,13 @@ class RoomStyle(PersistedContractModel):
 
 
 class HotspotRegion(PersistedContractModel):
-    """Normalized rectangle: placement for a sprite, hit area either way."""
+    """One normalized rectangle over the fixed scene frame.
+
+    Two different jobs are carried by two different fields of this shape, and
+    keeping them apart is the point: see ``Hotspot.art_region`` (art direction,
+    read by the backdrop prompt) and ``Hotspot.region`` (hit area, read by the
+    runtime).
+    """
 
     x: float = Field(ge=0.0, le=1.0)
     y: float = Field(ge=0.0, le=1.0)
@@ -105,6 +111,21 @@ class Hotspot(PersistedContractModel):
     #: a hit area only.
     art: Literal["sprite", "scenery"] = "sprite"
     brief: BRIEF
+    #: The composition this hotspot is drawn against: where a ``scenery`` object
+    #: is asked to be painted into the backdrop, and where a ``sprite`` asks the
+    #: backdrop to leave a quiet, uncluttered surface for it. This is the only
+    #: rectangle any image prompt reads, so it — and never ``region`` — rides the
+    #: backdrop's cache identity.
+    #:
+    #: It is authored art direction, and it is a historical fact once the plate
+    #: exists: the composition that produced the picture on disk. Editing it is a
+    #: request for a different picture and re-bills the backdrop, as it must.
+    art_region: HotspotRegion
+    #: The hit area the runtime tests the cursor against. No image node reads it,
+    #: so correcting it against a delivered plate costs nothing and cannot change
+    #: the art. Authors start it equal to ``art_region`` — a guess at a
+    #: composition the generator is not bound by — and then correct it to the
+    #: picture that actually arrived.
     region: HotspotRegion
     #: A hidden hotspot exists but cannot be seen or clicked until an effect
     #: reveals it.
@@ -170,7 +191,7 @@ class WinCondition(PersistedContractModel):
 
 class PointClickRoom(PersistedContractModel):
     schema_version: Literal[1]
-    kind: Literal["pointclick-room-v2"]
+    kind: Literal["pointclick-room-v3"]
     room_id: SNAKE_ID
     display_name: LABEL
     revision: int = Field(ge=1)

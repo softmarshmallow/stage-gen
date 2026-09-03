@@ -61,6 +61,9 @@ RETIRED_PREPARED_IDENTITIES = (
     # Retired when the cover became an authored package member: a room is a
     # directory of room.toml plus the references its art is drawn against.
     "pointclick-room-v1",
+    # Retired when a hotspot's art direction and its hit area became two fields:
+    # correcting a rectangle against the delivered plate must not redraw it.
+    "pointclick-room-v2",
     # Retired by the CookieRun adoption pass: the runner family gained the
     # duck verb, hazard anchors, and the published arc arithmetic in one bump.
     "runner-gameplay-v1",
@@ -241,7 +244,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
 
     room = documents["docs/spec/game/pointclick-room.md"]
     for identity in (
-        "`pointclick-room-v2`",
+        "`pointclick-room-v3`",
         "`pointclick-room-execution-graph-v1`",
         "`pointclick-room-runtime-v3`",
         "`pointclick-solvability-v1`",

@@ -18,7 +18,7 @@ taxonomy path. The authored `room.toml` is a text IR composed inside that
 grammar. Generation supplies art and narration only; puzzle logic never comes
 from a model.
 
-## Authored contract — `pointclick-room-v2`
+## Authored contract — `pointclick-room-v3`
 
 One room = one authored package directory `library/games/<game_id>/` holding
 `room.toml` beside the `references/` its art is generated against — the same
@@ -26,7 +26,7 @@ package shape the platformer's `game.toml` uses (schema: `PointClickRoom` in
 [`models.py`](../../../src/stage_gen/recipes/pointclick_room/models.py);
 unknown fields rejected):
 
-- `schema_version = 1`, `kind = "pointclick-room-v2"`, `room_id`,
+- `schema_version = 1`, `kind = "pointclick-room-v3"`, `room_id`,
   `display_name`, `revision`.
 - `[[references]]` — the authored images this room is drawn against: id,
   `source` under `references/`, `source_sha256`, and an explicit rights status
@@ -36,10 +36,14 @@ unknown fields rejected):
   declared reference; the words feed the model-selected canonical style anchor
   exactly as the dialogue recipe does, and the reference carries the look.
 - `[scene]` — the backdrop brief and the fixed frame (default 1280×720).
-- `[[hotspots]]` — id, label, brief, normalized `region` rect, `hidden` flag,
-  and `art`: `"sprite"` hotspots get their own generated transparent object
-  composited at the region; `"scenery"` hotspots are painted into the backdrop
-  and carry a hit area only.
+- `[[hotspots]]` — id, label, brief, `hidden` flag, `art`, and **two normalized
+  rectangles that mean different things**. `art_region` is art direction: where
+  a `"scenery"` hotspot is asked to be painted into the backdrop, and where a
+  `"sprite"` hotspot asks the backdrop to leave a quiet, uncluttered surface for
+  the object that will be composited there. `region` is the hit area the runtime
+  tests the cursor against. `art` selects which of the two draws: `"sprite"`
+  hotspots get their own generated transparent object, `"scenery"` hotspots are
+  painted into the backdrop and carry a hit area only.
 - `[[items]]` — id, label, brief; every item must be obtainable through some
   effect.
 - `[[interactions]]` — `on = {verb, hotspot, item?}` plus `requires` (flags),
@@ -94,6 +98,29 @@ re-bills the room deliberately rather than leaving assets drawn against a
 reference that no longer exists. The terminal bundle republishes it into the
 run, carrying the authored rights decision across, because the manifest names
 it and a run must carry the bytes it names.
+
+**A hit area is not art direction, and correcting one is free.** Hotspot
+rectangles are authored before the plate exists, so they are a guess at a
+composition the generator is not bound by. The author then measures the
+delivered backdrop and corrects them — and that correction must not redraw the
+backdrop, because generation is unseeded: a second draw is a different picture,
+and the rectangles just measured would be wrong for it. Measured on this pilot,
+before the split: 3 corrected rectangles in the motor court redrew the plate and
+the composition drifted ~27px; 12 in the window room re-imagined it and 7 of 14
+rectangles were lost, leaving a gating exit on blank stone. So the two jobs are
+two fields. `art_region` is the composition an image is told about — it is the
+only rectangle any prompt reads, and it rides the backdrop's cache identity, so
+editing it is a request for a different picture and re-bills as it must.
+`region` is the hit area; **no image node reads it**, it is carried to the
+player in the runtime manifest, and moving it re-keys only the local nodes that
+republish it — the bundle included, so the corrected rectangles do reach the
+runtime. The two start equal, and the second one diverges as the room is fitted
+to the art that actually arrived. The solvability proof reads neither.
+
+This narrows what an image node's identity *legitimately* depends on; it does
+not weaken what reuse must prove. A cache record is still honoured only when the
+key matches, the recorded lineage still matches what the dependencies produced
+this run, and every restored byte hashes to what was recorded.
 
 Every generation node's **complete static prompt rides its card in the plan**
 — the handler sends the card text verbatim with the style anchor appended

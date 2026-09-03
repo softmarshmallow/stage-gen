@@ -35,7 +35,14 @@ BACKDROP_REFERENCE_CLAUSE = (
 
 
 def _region_span(hotspot: Hotspot) -> str:
-    region = hotspot.region
+    """The composition rectangle, which is the only one an image is told about.
+
+    Deliberately ``art_region`` and never ``region``: the hit area is corrected
+    against the delivered plate, and a correction must not redraw the picture it
+    was measured from.
+    """
+
+    region = hotspot.art_region
     return f"x {region.x:.2f}-{region.x + region.w:.2f}, y {region.y:.2f}-{region.y + region.h:.2f}"
 
 

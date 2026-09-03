@@ -42,7 +42,7 @@ Start here for the headless, general-purpose system:
   and operation contracts, internal fan-out, execution semantics, and explicitly
   separated target evolution.
 - [Point-and-click puzzle room](spec/game/pointclick-room.md) — one of five recipes
-  (`2d/roomview/pointclick`): the authored `pointclick-room-v2` room package, its
+  (`2d/roomview/pointclick`): the authored `pointclick-room-v3` room package, its
   solvability proof, the 14-node graph, and the `pointclick-room-runtime-v2` manifest.
 - [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) — proposed
   TO-BE projection, camera, gameplay-space, asset-view, style, profile-ID, and

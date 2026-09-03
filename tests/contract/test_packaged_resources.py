@@ -273,7 +273,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # modules, and its specification document; the two point-and-click rooms
         # of the Grain's episode bring a room package each - room, UI, cover and
         # provenance (measured 511).
-        assert len(sdist_entries) <= 511
+        # Splitting a hotspot's art direction from its hit area (2026-09-03) adds
+        # two test modules - the room's own provider-free fakes and the cache
+        # identity tests they serve - and no source module (measured 513).
+        assert len(sdist_entries) <= 513
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. Raised again for the scenario contract, whose seven source modules put the

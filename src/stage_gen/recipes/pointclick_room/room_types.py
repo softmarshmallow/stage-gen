@@ -21,7 +21,7 @@ IMAGE_FEATURES = ("transparent_background", "reference_images")
 STRUCTURED_FEATURES = ("structured_output",)
 
 #: Payload kinds (persisted vocabulary).
-ROOM_KIND = "pointclick-room-v2"
+ROOM_KIND = "pointclick-room-v3"
 #: The authored style reference, republished into the run by the bundle so the
 #: playable manifest is a closed set of bytes rather than a pointer at a package.
 COVER_KIND = "room-style-reference-v1"

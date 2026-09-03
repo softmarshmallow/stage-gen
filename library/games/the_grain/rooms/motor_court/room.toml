@@ -14,7 +14,7 @@
 # quarter to eight. A Henry who did not can say only that he walked past it.
 
 schema_version = 1
-kind = "pointclick-room-v2"
+kind = "pointclick-room-v3"
 room_id = "motor_court"
 display_name = "The Motor Court"
 revision = 1
@@ -84,6 +84,7 @@ hotspot_id = "stone_canopy"
 label = "The canopy"
 art = "scenery"
 brief = "heavy stone piers and a stone soffit lit from beneath, the dark drive curving out to the street"
+art_region = { x = 0.0, y = 0.0, w = 0.26, h = 0.88 }
 region = { x = 0.0, y = 0.0, w = 0.26, h = 0.88 }
 
 [[hotspots]]
@@ -91,6 +92,7 @@ hotspot_id = "display_windows"
 label = "The other windows"
 art = "scenery"
 brief = "a receding run of lit display windows, each holding dressed mannequin figures: one seated at a laid dinner table, one descending a painted staircase, one standing beside a stack of travelling trunks, all against a dark sales floor"
+art_region = { x = 0.28, y = 0.28, w = 0.26, h = 0.40 }
 region = { x = 0.28, y = 0.28, w = 0.26, h = 0.40 }
 
 [[hotspots]]
@@ -98,6 +100,7 @@ hotspot_id = "unfinished_window"
 label = "The unfinished window"
 art = "scenery"
 brief = "six mannequin figures in evening dress, four standing and two seated on low plinths, all turned inward toward an empty seventh chair; the chair is a plain seat raised on a single slender steel column base; behind it a large matte white paper moon, flat and papery with a visible seam, no craters and no lunar surface"
+art_region = { x = 0.56, y = 0.30, w = 0.28, h = 0.34 }
 region = { x = 0.56, y = 0.30, w = 0.28, h = 0.34 }
 
 [[hotspots]]
@@ -105,6 +108,7 @@ hotspot_id = "black_rectangle"
 label = "Above the moon"
 art = "scenery"
 brief = "a short black rectangle left open where the painted scenery meets the ceiling of the window, directly above the paper moon"
+art_region = { x = 0.666, y = 0.243, w = 0.057, h = 0.078 }
 region = { x = 0.666, y = 0.243, w = 0.057, h = 0.078 }
 
 [[hotspots]]
@@ -112,6 +116,7 @@ hotspot_id = "chalk_and_scissors"
 label = "The window floor"
 art = "scenery"
 brief = "a stick of tailor's chalk and a pair of scissors left on the floor inside the glass"
+art_region = { x = 0.660, y = 0.617, w = 0.079, h = 0.065 }
 region = { x = 0.660, y = 0.617, w = 0.079, h = 0.065 }
 
 [[hotspots]]
@@ -119,6 +124,7 @@ hotspot_id = "service_bell"
 label = "The service bell"
 art = "scenery"
 brief = "a small plain bell push mounted beside an unmarked service door"
+art_region = { x = 0.857, y = 0.461, w = 0.045, h = 0.086 }
 region = { x = 0.857, y = 0.461, w = 0.045, h = 0.086 }
 
 # --- interactions ------------------------------------------------------------

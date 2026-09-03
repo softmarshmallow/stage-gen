@@ -175,7 +175,7 @@ its own records support, and the reader judges liveness from when the trace was 
   covering the current side-view platformer and runner DAGs, typed nodes, operation contracts,
   internal fan-out, and execution semantics.
 - A [point-and-click puzzle room recipe](docs/spec/game/pointclick-room.md) whose authored
-  `pointclick-room-v2` package is proven finishable before any generation is paid for, and
+  `pointclick-room-v3` package is proven finishable before any generation is paid for, and
   whose `pointclick-room-runtime-v2` manifest a browser consumer replays with the same state
   machine the proof searched.
 - A separate, game-global [authored soundtrack catalog](docs/game-soundtrack.md)
@@ -199,9 +199,10 @@ define another's assumptions or artifact layout.
 
 The point-and-click recipe (`2d/roomview/pointclick`) is one of the four.
 One room is one authored package under `library/games/<game_id>/`: a
-`pointclick-room-v2` `room.toml` — a backdrop brief, hotspots with normalized
-regions, items, and interactions written in a closed grammar of two verbs and four
-effects — beside the `references/` it is drawn against. The recipe searches the
+`pointclick-room-v3` `room.toml` — a backdrop brief, hotspots carrying an
+art-direction rectangle and a separate runtime hit area, items, and interactions
+written in a closed grammar of two verbs and four effects — beside the
+`references/` it is drawn against. The recipe searches the
 room's reachable state space and refuses a room that cannot reach its win
 condition, so the puzzle is proven finishable before a cent is spent; generation
 supplies art and narration only, and the art direction arrives as an authored

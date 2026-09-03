@@ -1188,3 +1188,166 @@ specifically there is still a step. The lever, if it is ever revisited, is the s
 treatment line in the anchor — "isolated painted character sprite with a readable
 silhouette" asks for less than the background line, which demands "distinct depth planes"
 and got them.
+
+---
+
+# Play notes — PASS 1 (the Holts, looking at almost nothing) — COMPLETE
+
+Played end to end on `the-grain-scene-5`, `the-grain-motor-court-3`,
+`the-grain-window-3`, at `/case/the-grain-episode-one`. Ended: **"The case is closed. It
+ended through `left_alone`."**
+
+Every board below is quoted from the `localStorage` save at that beat, not eyeballed.
+
+## The board at the statement — seventeen facts
+
+| | |
+|---|---|
+| carried in | `place_card_moved_twice`, `rang_the_bell`, `suitcase_unopened`, `hand_in_the_door`, `would_you_have_come_first`, `marian_salt`, `envelope_hear_it`, `saucers_crossed_out`, `key_returned_to_edwin`, `paul_not_to_wait`, `paul_needed_to_think`, `saw_body`, `left_the_room` |
+| said to Ward | `kept_reaction`, `kept_key_origin`, `kept_frightened`, `kept_paul_words` |
+
+Not held: `eighth_card`, `ruth_knife_on_plate`, `brass_key_after_dessert`,
+`pocketknife_lent`, `coffee_not_drunk`, `smear_on_shoe`, `indicator_at_three`,
+`ruth_two_fingers`, and everything in the window beyond the body.
+
+## Predictions — all three confirmed
+
+| | predicted | observed |
+|---|---|---|
+| Ward's close | `ward_close_plain`, no `ward_regard` | correct |
+| Nell at the car | does not turn | correct — `told_nell_in_the_court` unset → `nell_does_not_turn` |
+| the ending | `left_alone` | correct |
+
+## The gating works, and it is the best thing in the build
+
+Verified in play at every beat of the statement:
+
+- **Ruth and the card** — two options only. *"Her reaction said no."* is **absent**. A
+  Henry who did not read the cards cannot make the claim.
+- **The key** — one option, "He had it at the table."
+- **Her return** — routed to `return_ward_asks`, not `return_ward_knows`. *"She didn't
+  drink the coffee."* is never offered.
+- **June's sentence** — the whole beat is skipped; Ward never asks, because nobody told
+  him there is a sentence.
+- **Nell in the court** — one option, "I'm not going to describe it to you."
+- **What Paul said** — all three offered, correctly, because both accounts are
+  unmissable. What Henry gives is a real choice rather than a capability.
+
+**A player cannot lie upward.** The episode's promise — what he watched he saw, and what
+he saw he can later say — is enforced by the script, visibly, at every beat.
+
+## Defect — the board is destroyed at the ending
+
+On reaching `left_alone` the shell clears the save. `Object.keys(localStorage)` returns
+`[]`. The entire board — seventeen facts, `ward_regard`, what he told Ruth, what he said
+to Nell — is discarded at the exact moment it becomes the episode's output.
+
+`FACTS.md` says *"What Henry carries into Episode Two: the board, exactly"*, and the
+outline's final section is built on it. **As shipped, nothing carries.** The episode
+computes its verdict and throws it away; no player, director, or Episode Two can read
+what a play-through produced. Pass 1's board exists only because state was sampled at
+every beat while playing.
+
+Small fix if it is ever taken: write the final state under a completed-run key instead of
+deleting it, so the ending leaves an artifact.
+
+## Two smaller findings
+
+- **The room narration panel overflows.** On the window room's exit the exit narration
+  and the win narration concatenate to three lines, and the third renders *below* the
+  panel border on the dark background. A length problem, not a layout one — it appears
+  only where two narrations join.
+- **One-option menus** ("He had it at the table.", "I'm not going to describe it to
+  you.") are presented identically to real choices. Correct behaviour, slightly odd
+  feel. Not worth fixing.
+
+## Confirmed in passing
+
+- The loading label clears on **room** leaves as well as scenario leaves
+  (`data-shell-loading` count 0 in the window room), so both leaf kinds are covered.
+- **Gouache changes the composition verdict.** At five slots the painted figures
+  integrate with the painted room instead of sitting on it. The Winter Room is still
+  largely behind them, but it reads as a painted group in a painted room rather than
+  cutouts on a backdrop. The scale note stands, and is softer than it was against the
+  photoreal art.
+
+---
+
+# Play notes — PASS 2 (Ruth and Paul, looking at everything) — COMPLETE
+
+Played end to end on `the-grain-scene-5`, `the-grain-motor-court-3`,
+`the-grain-window-3`. Ended: **"The case is closed. It ended through `left_alone`."**
+
+## The board — 54 facts, read from the result record
+
+```
+stage_gen.case_result.the-grain-episode-one
+  run_tag      the-grain-episode-one
+  outcome      left_alone
+  finished_at  2026-09-02T23:05:36.522Z
+  facts        54, sorted
+```
+
+42 carried into the statement, 12 written by it. Every fact sampled during the pass
+appears in the record; the only one in the record not in a sample is
+`would_you_have_come_second`, set in the motor court after the last sample. Correct.
+
+Against pass 1's **seventeen**.
+
+## Predictions — all three confirmed
+
+| | predicted | observed |
+|---|---|---|
+| Ward's close | `ward_close_kept_looking` | correct — reached `told_coffee` **and** `told_shoe` **and** `told_paul_words` |
+| `ward_regard` | set | correct |
+| Nell at the car | turns | correct — `told_nell_in_the_court` set → `nell_turns` |
+
+## The gating, verified in both directions
+
+The two passes together are the proof. Same script, same build, opposite ends:
+
+| Beat | pass 1 — looked at nothing | pass 2 — looked at everything |
+|---|---|---|
+| Ruth and the card | 2 options, report **absent** | 3 options, report present |
+| June's sentence | beat **skipped entirely** | beat runs; Henry offers it |
+| The key | 1 option, "He had it at the table." | 2, including "Mr. Price laid it beside his fork" |
+| Her return | `return_ward_asks`, no report | `return_ward_knows`, report offered |
+| Nell in the court | 1 option, "I'm not going to describe it to you." | 4, including both objects |
+| Ward's close | `ward_close_plain`, no `ward_regard` | `ward_close_kept_looking`, `ward_regard` |
+| Nell at the car | does not turn | turns |
+
+**A player cannot lie upward, and cannot be denied what they earned.**
+
+## Both fixes verified
+
+- **Case result record.** Exists after `left_alone` with the right shape and facts; the
+  in-progress save is correctly gone and the record is the only remaining key. The
+  closing card — "CARRIED OUT OF THE BUILDING · 54" over twelve wrapped lines of small
+  caps — is legible at that length, does not overflow, and does not crowd the button.
+- **Narration overflow.** Checked on the exact case that broke it, the window room's
+  exit where the exit and win narrations concatenate. Three lines, inside the border, at
+  a smaller size that reads as a longer passage rather than a different component.
+
+## Two moments confirmed in play
+
+The model exchange plays as written — Ward *"That isn't what I asked."* then Henry
+*"It is what I saw."* at line 99/272 — and Henry's *"I will."* closes Ward's earned door
+line. Both fixed sentences landed verbatim on screen, not only in the file.
+
+## What pass 2 proves about the shipped window room
+
+All fifteen interactions fired and all sixteen window flags were collected, including
+`pulled_the_paper` — **but only because the clicks were aimed at measured rectangles
+rather than at the objects in the picture.** `under_the_jaw` and `torn_piece` could not
+be hit by aiming at the body; the Hotspots overlay was needed to find them.
+
+That is the shipped hit-area gap seen from the player's side, and it confirms the
+prediction in the window-3 note: a determined player with an overlay can get everything;
+a normal player will not find the neck or the paper.
+
+## Observation
+
+Beat loads degraded from 2–8s in pass 1 to 20–30s in pass 2 on the same build and
+assets, with page memory flat at 35MB. Most likely dev-server recompilation after the
+morning's commits rather than anything in the game. Recorded as an observation; nobody
+plays this on a dev server.

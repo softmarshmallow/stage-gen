@@ -3,7 +3,7 @@
 # generation supplies the art and the narration lines left as gaps.
 
 schema_version = 1
-kind = "pointclick-room-v2"
+kind = "pointclick-room-v3"
 room_id = "clockmakers_attic"
 display_name = "The Clockmaker's Attic"
 revision = 3
@@ -48,6 +48,7 @@ hotspot_id = "workbench"
 label = "Cluttered workbench"
 art = "scenery"
 brief = "a long timber workbench crowded with clockmaker's tools, tiny drawers, and shavings"
+art_region = { x = 0.02, y = 0.52, w = 0.30, h = 0.34 }
 region = { x = 0.02, y = 0.52, w = 0.30, h = 0.34 }
 
 [[hotspots]]
@@ -55,6 +56,7 @@ hotspot_id = "brass_clock"
 label = "Great brass clock"
 art = "scenery"
 brief = "an ornate brass wall clock with an exposed keyhole, stopped at seven minutes past three"
+art_region = { x = 0.46, y = 0.16, w = 0.20, h = 0.38 }
 region = { x = 0.46, y = 0.16, w = 0.20, h = 0.38 }
 
 [[hotspots]]
@@ -62,6 +64,7 @@ hotspot_id = "dust_sheet"
 label = "Dust sheet"
 art = "sprite"
 brief = "a heavy cream dust sheet draped over a small, boxy shape, hem pooling on the floor"
+art_region = { x = 0.72, y = 0.50, w = 0.22, h = 0.36 }
 region = { x = 0.72, y = 0.50, w = 0.22, h = 0.36 }
 
 [[hotspots]]
@@ -69,6 +72,7 @@ hotspot_id = "music_box"
 label = "Silent music box"
 art = "sprite"
 brief = "a small walnut music box with mother-of-pearl inlay, its winding drum missing one gear"
+art_region = { x = 0.74, y = 0.58, w = 0.16, h = 0.22 }
 region = { x = 0.74, y = 0.58, w = 0.16, h = 0.22 }
 hidden = true
 
@@ -77,6 +81,7 @@ hotspot_id = "round_window"
 label = "Round window"
 art = "scenery"
 brief = "a round leaded window holding the last violet light of dusk"
+art_region = { x = 0.10, y = 0.10, w = 0.15, h = 0.26 }
 region = { x = 0.10, y = 0.10, w = 0.15, h = 0.26 }
 
 [[hotspots]]
@@ -84,6 +89,7 @@ hotspot_id = "tin_lantern"
 label = "Tin lantern"
 art = "scenery"
 brief = "a punched-tin lantern with a stub of candle, hanging from a rafter hook"
+art_region = { x = 0.30, y = 0.05, w = 0.11, h = 0.24 }
 region = { x = 0.30, y = 0.05, w = 0.11, h = 0.24 }
 
 [[items]]
