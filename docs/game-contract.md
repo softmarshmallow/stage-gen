@@ -327,7 +327,7 @@ does not by itself define a core game contract.
   schema version and kind. Validators reject every other identity rather than
   upgrading or translating it.
 - The current prepared closure uses repository selector `game-package-v4`, root
-  `game-contract-v9`, `gameplay-contract-v1`, `game-ui-v4`, `game-map-v9`,
+  `game-contract-v9`, `gameplay-contract-v1`, `game-ui-v4`, `game-map-v10`,
   `game-soundtrack-v1`, `player-content-v3`, V2 mob/prop/item catalogs, the
   optional `projectile-content-v2` catalog, `npc-content-v3`,
   `scenario-catalog-v1`, `scenario-v2`, `runner-gameplay-v4`,
@@ -335,7 +335,7 @@ does not by itself define a core game contract.
   `game-fx-v2` contracts.
   Provider-free
   integration emits `prepared-game-runtime-v10` for the platformer member
-  and `sideview-runner-runtime-v10` for the runner member.
+  and `sideview-runner-runtime-v11` for the runner member.
 - Subsystems such as population, motion, scenarios, maps, and soundtrack
   catalogs retain independent current identities beneath the game identity.
 - A new recipe capability adds declared profile support; it does not broaden an
@@ -354,13 +354,13 @@ does not by itself define a core game contract.
 | --- | --- |
 | [Authored game contract schema](spec/game/authored-contract-schema.md) | Implemented current-only `game-contract-v9` package-root fields, vocabulary, validation, and binding |
 | [Canonical game-generation pipeline](spec/game/generation-pipeline.md) | Machine-checked current scrolling DAG, stage and operation contracts, execution semantics, and separately labelled target evolution |
-| [Authored map-generation contract](spec/game/map-generation-contract.md) | Exact-current `game-map-v9` references, layers, runtime presentation, binary terrain, map-local ladders and portals, validation, review, cache, and usage boundary |
+| [Authored map-generation contract](spec/game/map-generation-contract.md) | Exact-current `game-map-v10` references, layers, runtime presentation, binary terrain, map-local ladders and portals, validation, review, cache, and usage boundary |
 | [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) | Proposed TO-BE terminology, profiles, and module namespace rules |
 | [Dialogue and cutscene sequence contract](spec/game/dialogue-and-cutscene-sequences.md) | Proposed TO-BE dialogue graph, branching, shots, cues, control leases, skip/resume, and outcome semantics |
 | [Case: the container above the narrative leaves](spec/game/case.md) | Exact-current `case-v1`, `case-catalog-v1` and the `case-runtime-v1` projection: the beat graph over scenarios and rooms, the declared fact namespace, the must-availability proof, and the leaf binding |
 | [Screen FX: transitions and overlays](spec/game/fx.md) | Exact-current `game-fx-v2`: generated cut-in plates, the game-global moment vocabulary, the traced mask polygon a runtime draws, and the two host contracts |
 | [Authored character library](character-library.md) | Durable character identity and character-source rights |
-| [Authored game maps](game-maps.md) | Exact-current `game-map-v9` package placement, ownership summary, and runtime projection |
+| [Authored game maps](game-maps.md) | Exact-current `game-map-v10` package placement, ownership summary, and runtime projection |
 | [Authored game soundtracks](game-soundtrack.md) | Game-global track catalog and generation binding |
 | [Sprite-sheet slicing and instance recovery](spec/sprite-sheet-processing.md) | Implemented alpha-component repacking default, known loss modes, and planned geometry and ownership recovery |
 | [Generated-media publication](generated-media-publication.md) | Rights review and repository publication gates |

@@ -78,3 +78,36 @@ describe("parseFxBlock", () => {
     expect(() => parseFxBlock(document)).toThrow("frame.layout must be one of");
   });
 });
+
+describe("the dust atlas", () => {
+  test("parses the cells the producer measured", () => {
+    const block = parseFxBlock(fxBlockFixture());
+    expect(block.sprite?.dust.layout).toBe("fx_dust_atlas_1024x1024_v1");
+    expect(block.sprite?.dust.cells.map((cell) => cell.kind)).toEqual([
+      "land",
+      "takeoff",
+      "stride",
+      "slide",
+    ]);
+    for (const cell of block.sprite!.dust.cells) {
+      expect(cell.width).toBeGreaterThan(0);
+      expect(cell.x + cell.width).toBeLessThanOrEqual(1024);
+    }
+  });
+
+  test("a package without one publishes null rather than an empty atlas", () => {
+    expect(parseFxBlock(fxBlockFixture({ dust: false })).sprite).toBeNull();
+  });
+
+  test("refuses a sheet that does not name every kind exactly once", () => {
+    const raw = fxBlockFixture() as { sprite: { dust: { cells: { kind: string }[] } } };
+    raw.sprite.dust.cells[1]!.kind = "land";
+    expect(() => parseFxBlock(raw)).toThrow(/each dust kind exactly once/);
+  });
+
+  test("refuses a cell that runs off the atlas it was measured on", () => {
+    const raw = fxBlockFixture() as { sprite: { dust: { cells: { x: number }[] } } };
+    raw.sprite.dust.cells[0]!.x = 900;
+    expect(() => parseFxBlock(raw)).toThrow(/runs off the atlas/);
+  });
+});

@@ -3,7 +3,7 @@
 > **Contract maturity: exact-current authored, generation, manifest, and consumer contract.**
 >
 > This document is the canonical source of truth for the current authored map
-> input. It defines `game-map-v9` as one compound map-generation contract
+> input. It defines `game-map-v10` as one compound map-generation contract
 > for one map, level, or gameplay scene. Prepared-package resolution validates
 > the complete source and reference closure before provider work; the scrolling
 > recipe executes its typed branches; `prepared-game-runtime-v10` projects the
@@ -57,7 +57,7 @@ There is no `maps/index.toml`. `game.toml` catalogs each map source by its
 exact package-relative path. `gameplay.toml` references those maps only by
 stable `map_id`.
 
-Each `game-map-v9` source carries `game_id`, `map_id`, `revision`, and
+Each `game-map-v10` source carries `game_id`, `map_id`, `revision`, and
 `display_name`. `map_id` is lower-kebab-case and matches the TOML filename.
 Reference image filenames are independent: there is no requirement for
 `<map_id>.png`, one reference per map, or one reference per layer.
@@ -66,7 +66,7 @@ Reference image filenames are independent: there is no requirement for
 
 ```toml
 schema_version = 9
-kind = "game-map-v9"
+kind = "game-map-v10"
 game_id = "the-sky-remembers"
 map_id = "summer-field"
 revision = 1
@@ -629,7 +629,7 @@ discovered from the directory.
 
 ## Usage boundary
 
-`game-map-v9` does not contain:
+`game-map-v10` does not contain:
 
 - terrain geometry or climbable placement, both of which are generated into a
   `map-terrain-v1` artifact and bound to the map by digest;

@@ -95,11 +95,32 @@ export interface FxCutInMoment {
 
 export type FxMoment = FxCutInMoment;
 
+export const DUST_ATLAS_LAYOUT = "fx_dust_atlas_1024x1024_v1";
+export const DUST_ATLAS_ALPHA_POLICY = "transparent_exterior_v1";
+/** The contacts a dust cell can draw, in the order the layout fixes. */
+export const DUST_CELL_KINDS = ["land", "takeoff", "stride", "slide"] as const;
+export type FxDustCellKind = (typeof DUST_CELL_KINDS)[number];
+
+/** One cell: the rectangle the producer measured, never re-derived from the image. */
+export interface FxDustCell extends FxRect {
+  readonly kind: FxDustCellKind;
+}
+
+export interface FxDustAtlas {
+  readonly asset: string;
+  readonly layout: typeof DUST_ATLAS_LAYOUT;
+  readonly alphaPolicy: typeof DUST_ATLAS_ALPHA_POLICY;
+  readonly canvas: FxCanvas;
+  readonly cells: readonly FxDustCell[];
+}
+
 export interface FxBlock {
   readonly cutIn: {
     readonly frame: FxCutInFrame;
     readonly portraits: readonly FxCutInPortrait[];
   } | null;
+  /** World-space effect atlases; null when the package authored none. */
+  readonly sprite: { readonly dust: FxDustAtlas } | null;
   readonly moments: readonly FxMoment[];
 }
 
@@ -193,6 +214,40 @@ function polygon(value: unknown, label: string): readonly (readonly [number, num
 }
 
 /** Parse one published `fx` block, refusing bindings that name nothing. */
+function dustAtlas(value: unknown, label: string): FxDustAtlas {
+  const raw = record(value, label);
+  if (!Array.isArray(raw.cells) || raw.cells.length !== DUST_CELL_KINDS.length) {
+    throw new Error(`${label}.cells must carry one rectangle per dust kind`);
+  }
+  const plate = canvas(raw.canvas, `${label}.canvas`);
+  const cells = raw.cells.map((entry, index): FxDustCell => {
+    const cellLabel = `${label}.cells[${index}]`;
+    const cell = record(entry, cellLabel);
+    const box = rect(cell, cellLabel);
+    if (box.width <= 0 || box.height <= 0) {
+      throw new Error(`${cellLabel} must have a positive size`);
+    }
+    if (box.x + box.width > plate.width || box.y + box.height > plate.height) {
+      throw new Error(`${cellLabel} runs off the atlas`);
+    }
+    return Object.freeze({
+      kind: literal(cell.kind, `${cellLabel}.kind`, DUST_CELL_KINDS),
+      ...box,
+    });
+  });
+  const kinds = new Set(cells.map((cell) => cell.kind));
+  if (kinds.size !== DUST_CELL_KINDS.length) {
+    throw new Error(`${label}.cells must name each dust kind exactly once`);
+  }
+  return Object.freeze({
+    asset: text(raw.asset, `${label}.asset`),
+    layout: literal(raw.layout, `${label}.layout`, [DUST_ATLAS_LAYOUT]),
+    alphaPolicy: literal(raw.alpha_policy, `${label}.alpha_policy`, [DUST_ATLAS_ALPHA_POLICY]),
+    canvas: plate,
+    cells: Object.freeze(cells),
+  });
+}
+
 export function parseFxBlock(value: unknown, label = "fx"): FxBlock {
   const source = record(value, label);
   let cutIn: FxBlock["cutIn"] = null;
@@ -235,6 +290,11 @@ export function parseFxBlock(value: unknown, label = "fx"): FxBlock {
     }
     cutIn = Object.freeze({ frame, portraits: Object.freeze(portraits) });
   }
+  let sprite: FxBlock["sprite"] = null;
+  if (source.sprite !== null && source.sprite !== undefined) {
+    const rawSprite = record(source.sprite, `${label}.sprite`);
+    sprite = Object.freeze({ dust: dustAtlas(rawSprite.dust, `${label}.sprite.dust`) });
+  }
   if (!Array.isArray(source.moments) || source.moments.length === 0) {
     throw new Error(`${label}.moments must not be empty`);
   }
@@ -263,19 +323,36 @@ export function parseFxBlock(value: unknown, label = "fx"): FxBlock {
   if (names.size !== moments.length) {
     throw new Error(`${label}.moments must bind each moment once`);
   }
-  return Object.freeze({ cutIn, moments: Object.freeze(moments) });
+  return Object.freeze({ cutIn, sprite, moments: Object.freeze(moments) });
 }
 
 /** The published fixture shape, for every consumer's manifest tests. */
 export function fxBlockFixture(
-  options: { readonly moments?: readonly FxMomentName[] } = {},
+  options: { readonly moments?: readonly FxMomentName[]; readonly dust?: boolean } = {},
 ): Record<string, unknown> {
   const names = options.moments ?? (["stage_start"] as const);
   const lettering: Record<string, readonly [string, string]> = {
     stage_start: ["Sunpetal Sprint", "Bellweather"],
     encounter_start: ["Thicket Router", "Sunpetal Sprint"],
   };
+  const dust = options.dust ?? true;
   return {
+    sprite: dust
+      ? {
+          dust: {
+            asset: "fx/sprite/dust.png",
+            layout: DUST_ATLAS_LAYOUT,
+            alpha_policy: DUST_ATLAS_ALPHA_POLICY,
+            canvas: { width: 1024, height: 1024 },
+            cells: [
+              { kind: "land", x: 80, y: 241, width: 440, height: 215 },
+              { kind: "takeoff", x: 600, y: 104, width: 344, height: 368 },
+              { kind: "stride", x: 161, y: 656, width: 215, height: 205 },
+              { kind: "slide", x: 576, y: 602, width: 376, height: 274 },
+            ],
+          },
+        }
+      : null,
     cut_in: {
       frame: {
         role: "frame",

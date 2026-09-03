@@ -15,8 +15,8 @@
 import { type FxBlock, parseFxBlock } from "@/lib/manifest/fx";
 import type { PreparedLayerPresentation } from "@/lib/manifest/prepared-manifest";
 
-export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v10";
-export const RUNNER_RUNTIME_SCHEMA_VERSION = 10;
+export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v11";
+export const RUNNER_RUNTIME_SCHEMA_VERSION = 11;
 export const RUNNER_STRUCTURAL_GROUND_CELL_PX = 64;
 
 /** Every way a run can come to grief, each answered separately by the package. */

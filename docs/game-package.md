@@ -5,7 +5,7 @@
 >
 > Directory and ZIP ingestion, contract parsing, digest closure, media decoding,
 > cross-contract validation, repository selection, both typed scrolling DAGs, and
-> `prepared-game-runtime-v10` / `sideview-runner-runtime-v10` assembly are executable.
+> `prepared-game-runtime-v10` / `sideview-runner-runtime-v11` assembly are executable.
 > Successful package validation
 > is still authored-input truth only; it does not prove that a live run completed,
 > passed semantic review, is playable, or is approved for publication.
@@ -43,7 +43,7 @@ Only these prepared-package identities are accepted by the resolver:
 | Runner avatar catalog | `runner-avatar-v3` |
 | Runner audio | `runner-audio-v3` |
 | Gameplay | `gameplay-contract-v1` |
-| Map generation | `game-map-v9` |
+| Map generation | `game-map-v10` |
 | Soundtrack | `game-soundtrack-v1` |
 | UI | `game-ui-v4` |
 | Player catalog | `player-content-v3` |
@@ -57,7 +57,7 @@ Only these prepared-package identities are accepted by the resolver:
 
 Successful provider-free integration of the platformer member emits
 `prepared-game-runtime-v10`; a runner member's run emits
-`sideview-runner-runtime-v10` from its own local manifest assembly.
+`sideview-runner-runtime-v11` from its own local manifest assembly.
 Prepared consumers reject older or mixed runtime identities rather than translating them.
 
 The resolver does not upgrade, translate, or infer another shape. In

@@ -306,9 +306,59 @@ and each is cheap to fix when a game actually wants it.
 | `mask_polygon` approximates within IoU 0.90 | a hole covering under ~10 % of the silhouette is smoothed over in the outline, and a sliver thinner than the 22 px erosion disappears from it entirely (the outline then describes the main piece, which is what it is checked against) | publish a multi-ring outline, or drop the outline for consumers that can clip with alpha |
 | the frame gate runs inside the six-attempt retry owner | a shape that fails a *material* check re-rolls up to six times before the run fails | split material checks (retry-worthy) from shape checks (author-worthy) if this ever costs real money |
 
+## World-space sprites
+
+A cut-in is one big picture the runtime animates. A world-space sprite is the opposite: a
+small picture drawn many times a second at a fistful of pixels, and its whole problem is
+still reading at that size. They share this document and the package's art direction, and
+nothing else — the gates measure different things because the failures are different.
+
+The family lives at `2d/fx/sprite/<name>.*` and has one member, `dust`. A package authors
+it under `[sprite.dust]`: a `layout`, an `alpha_policy`, the references it is drawn from,
+and a `prompt` that is the dust's *register* — what the puffs are made of and how they are
+drawn. The prompt may not describe the sheet's layout, and a prompt that names a grid, a
+quarter or a reading order is refused offline, before any spend. This is the same rule the
+frame's `shape` slot learned the hard way: the model follows whichever sentence sits nearest
+the shape, so two sentences describing the same thing is a coin toss, not a direction.
+
+`fx_dust_atlas_1024x1024_v1` is one transparent plate holding four separate clouds, read
+left to right then top to bottom, and that reading order *is* the binding: the first cell
+draws a landing, the second a takeoff, the third a stride, the fourth a slide. A package
+that wants a different assignment authors a different layout; it does not reorder anything.
+
+The sheet is not a strip and nothing assumes a rigid grid, because a generated sheet never
+lands on one. The gate finds the clouds the way the cut-in gate finds pieces — connected
+regions of painted alpha — and assigns each to a kind by the quarter its *centroid* sits in,
+so a cloud that leans past a midline still belongs to the quarter it was drawn in. It then
+refuses what a consumer could not use: a sheet that is not exactly four clouds, two clouds
+sharing a quarter, a cloud thinner than 96 px on its short side, and a cloud filling under
+0.35 of its own bounding box. That last one is the whole lesson of the spike as a number —
+a shape can have the bounding box of a cloud and still be trailing wisps, and wisps are what
+turn into grey speckle at 40 px. There is deliberately no rule about the gap between clouds:
+two nearer than one mask block are a single connected piece, so the count already says so.
+
+Canonicalization does three things and publishes what it measured. It clears the exterior to
+alpha 0; it **lifts a body at alpha 250 or above to 255**, because the provider's transparent
+output tops out at 254 and a consumer compositing that over a lit background shows a hairline
+of it through what was drawn as solid paint; and it erases specks under 1 % of the plate,
+which the gate measured around and refuses only as a spray of more than 16. The cells are
+measured on the canonical plate, not the raw one — a speck erased after measuring would leave
+a published rectangle around nothing.
+
+There is no review node. What a reviewer judges on a cut-in is a face and a composition;
+what makes dust right is whether four solid clouds came back separable, and the gate measures
+exactly that, offline, for nothing. A second sprite family that needs taste rather than
+measurement brings its own reviewer.
+
+The manifest publishes the atlas and its cells; a consumer registers those rectangles as
+sub-frames and never looks at the pixels to find them, exactly as it never re-derives a
+motion strip's frames. A runner with no published atlas draws its dust procedurally instead,
+so dust never depends on a provider having been paid — see
+[runner.md](runner.md) for what the runtime does with either.
+
 ## Growing the vocabulary
 
 A second effect kind, a second choreography, or a new moment is a new identity and a dropped
-run set, never an optional field on the shapes above. World-space effect sprites (a slash, a
-spark, a burst) land under the same taxonomy path, `2d/fx/sprite.*`, and the same document,
-when they have a caller.
+run set, never an optional field on the shapes above. A second world-space sprite (a slash,
+a spark, a burst) joins `sprite` as a sibling of `dust` under its own layout, when it has a
+caller.

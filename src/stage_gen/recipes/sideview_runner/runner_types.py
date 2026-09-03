@@ -57,9 +57,9 @@ SOUNDTRACK_VALIDATION_KIND = "soundtrack-validation-v1"
 SOUND_EFFECT_CLIP_KIND = "sound-effect-clip-v1"
 SOUND_EFFECT_VALIDATION_KIND = "sound-effect-validation-v1"
 ATTEMPT_LEDGER_KIND = "attempt-ledger-v2"
-MANIFEST_KIND = "sideview-runner-runtime-v10"
+MANIFEST_KIND = "sideview-runner-runtime-v11"
 #: Moves with MANIFEST_KIND; the web parser pins both together.
-MANIFEST_SCHEMA_VERSION = 10
+MANIFEST_SCHEMA_VERSION = 11
 
 PACKAGE_RESOLVE = NodeType(
     type_id=f"{_P}/package.resolve",
@@ -298,7 +298,7 @@ MANIFEST_ASSEMBLE = NodeType(
     operation="local",
     # v10: every cut-in portrait publishes the placement the tool-loop agent
     # judged inside the frame, so the runtime document moved to v9 with it.
-    contract_version="runner-manifest-assemble-v10",
+    contract_version="runner-manifest-assemble-v11",
 )
 
 RUNNER_NODE_TYPES: tuple[NodeType, ...] = (

@@ -9,7 +9,7 @@
 
 ## Current boundary
 
-Each `maps/<map_id>.toml` is one `game-map-v9` source. It describes the assets
+Each `maps/<map_id>.toml` is one `game-map-v10` source. It describes the assets
 and composition needed to generate one side-view map and the static topology
 needed to render its ground, climbables, and portal structures.
 

@@ -186,7 +186,7 @@ export function runnerManifestFixture(
 ): Record<string, unknown> {
   if (options.encounter === true) return encounterManifestFixture();
   return {
-    schema_version: 10,
+    schema_version: 11,
     kind: RUNNER_RUNTIME_KIND,
     game_id: "bellweather",
     display_name: "Bellweather",

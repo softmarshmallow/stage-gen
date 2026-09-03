@@ -144,7 +144,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
         "`game-contract-v9`",
         "`gameplay-contract-v1`",
         "`game-ui-v4`",
-        "`game-map-v9`",
+        "`game-map-v10`",
         "`prepared-game-runtime-v10`",
     ):
         assert identity in game_contract
@@ -159,7 +159,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
 
     maps = documents["docs/game-maps.md"]
     for identity in (
-        "`game-map-v9`",
+        "`game-map-v10`",
         "`climbable-atlas-v1`",
         "`portal-pair-1x2-v1`",
         "`prepared-game-runtime-v10`",
@@ -222,7 +222,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     assert "`runner-avatar-v3`" in runner
     assert "`runner-structural-ground-v1`" in runner
     assert "native-alpha GPT Image 2" in runner
-    assert "`sideview-runner-runtime-v10`" in documents["docs/game-package.md"]
+    assert "`sideview-runner-runtime-v11`" in documents["docs/game-package.md"]
     fx = documents["docs/spec/game/fx.md"]
     assert "exact current identity is `game-fx-v2`" in fx
     assert "`cut_in_frame_1536x1024_v1`" in fx

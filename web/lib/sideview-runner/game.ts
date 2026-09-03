@@ -33,9 +33,11 @@ import { createAvatarSystem } from "./avatar";
 import type { RunnerMotionState, RunnerRuntimeManifest } from "./contract";
 import { createDifficultySystem } from "./difficulty";
 import {
+  createAtlasDustCanvas,
   createDustSystem,
   createGraphicsDustCanvas,
   SILENT_DUST_CANVAS,
+  type DustAtlasCells,
   type DustCanvas,
 } from "./dust";
 import { buildBossView } from "./boss-view";
@@ -417,7 +419,10 @@ class RunnerScene extends Phaser.Scene {
       });
     }
 
-    const dustCanvas = createGraphicsDustCanvas(this, RUNNER_DEPTHS.dust);
+    // A published atlas replaces the procedural draw outright; a package without one
+    // keeps the ellipses, so dust never depends on a provider having been paid.
+    const dustCanvas =
+      (await this.buildDustCanvas(manifest)) ?? createGraphicsDustCanvas(this, RUNNER_DEPTHS.dust);
     this.disposers.push(() => dustCanvas.destroy());
     this.sealed = sealSystems(
       assembleRunnerSystems(
@@ -784,6 +789,28 @@ class RunnerScene extends Phaser.Scene {
       moment:
         manifest.fx?.moments.find((entry) => entry.moment === "encounter_start") ?? null,
     };
+  }
+
+  /**
+   * The published dust atlas, as a texture with one registered sub-frame per kind, or
+   * null when the package authored none. Registering the cells the producer measured is
+   * the whole of the consumer's job here: it never looks at the pixels to find them.
+   */
+  private async buildDustCanvas(
+    manifest: RunnerRuntimeManifest,
+  ): Promise<(DustCanvas & { destroy(): void }) | null> {
+    const dust = manifest.fx?.sprite?.dust;
+    if (!dust) return null;
+    const textureKey = "runner:fx:sprite:dust";
+    await loadTransparentSprite(this.url(dust.asset), textureKey, this.textures, TRANSPARENCY_POLICY);
+    const texture = this.textures.get(textureKey);
+    const cells = Object.fromEntries(
+      dust.cells.map((cell) => {
+        texture.add(cell.kind, 0, cell.x, cell.y, cell.width, cell.height);
+        return [cell.kind, { frame: cell.kind, width: cell.width, height: cell.height }];
+      }),
+    ) as DustAtlasCells;
+    return createAtlasDustCanvas(this, RUNNER_DEPTHS.dust, textureKey, cells);
   }
 
   private async buildFxView(manifest: RunnerRuntimeManifest): Promise<FxView | null> {

@@ -517,7 +517,7 @@ tempo; a runner author expresses BPM inside the creative brief.
 
 ## Runtime composition
 
-Successful runner generation emits `sideview-runner-runtime-v10`. Its `ground`
+Successful runner generation emits `sideview-runner-runtime-v11`. Its `ground`
 field is the same closed union as the authored track. Atlas mode publishes one
 atlas path. Structural mode publishes `cell_px = 64` and an authored-order
 `chunks` array whose `segment_id`, image path, columns, and rows must match the
@@ -643,12 +643,12 @@ rather than only the atlas branch. Regenerate with
   "kind": "sideview-runner-execution-graph-contract-v1",
   "fixture_ref": "library/games/iron-petal-unit",
   "graph_schema_version": 1,
-  "topology_sha256": "c75f676d7f35580a4d63b18ff321dde978774b4838d615f1d3a03f088e6de4f0",
-  "node_count": 105,
+  "topology_sha256": "99c514c6ce20441db9a30884045f58781c89c8b78cb8241cd08bea617ec9dcad",
+  "node_count": 107,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
-    "local": 53,
-    "image_generation": 38,
+    "local": 54,
+    "image_generation": 39,
     "structured_generation": 7,
     "tool_loop": 2,
     "music_generation": 2,
@@ -718,8 +718,9 @@ lineage.
 | Soundtrack | 2 loop-ready tracks and technical validation | 0 | 0 | 0 | 2 | 0 | 2 |
 | Sound effects | One generate-and-admit pair per `generated_clip_v1` effect; Iron Petal realizes its collect, hurt, and death cues this way | 0 | 0 | 0 | 0 | 3 | 3 |
 | Screen FX | One cut-in frame plate and one portrait plate per bound moment (`stage_start` from authored references, `encounter_start` from the boss's own concept plate), each generated, admitted (mask polygon traced), and reviewed; each portrait placed inside the frame by one tool-loop episode before admission | 3 | 3 | 2 | 0 | 0 | 3 |
+| World-space FX | One ground-dust atlas, generated and admitted into four measured cells; absent entirely for a package that authors no `sprite.dust` | 1 | 0 | 0 | 0 | 0 | 1 |
 | Package | Captured-package barrier and terminal runtime assembly | 0 | 0 | 0 | 0 | 0 | 2 |
-| **Total** | **105 nodes** | **38** | **7** | **2** | **2** | **3** | **53** |
+| **Total** | **107 nodes** | **39** | **7** | **2** | **2** | **3** | **54** |
 
 ## Resolution and admission
 

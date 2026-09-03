@@ -177,7 +177,15 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # proof and resolver, plus the leaf binding and the runtime projection in
         # the composition root - neither is a component, because a case names
         # rooms and a room is a recipe (measured 248).
-        assert len(wheel_entries) <= 248
+        # Painted terrain (2026-09-03) adds nine: a second terrain discipline beside
+        # the tile atlas, homed at its own taxonomy path because a side-view RPG
+        # consumes it on the same terms a platformer does. Its modules split along the
+        # pipeline it owns - segments, guide, prompt, silhouette, canonicalize,
+        # validate - plus models and node types (measured 257).
+        # The dust atlas (2026-09-03) adds one: a second FX discipline whose gate is
+        # nothing like the cut-in's - a small picture judged on whether it survives being
+        # drawn at forty pixels - so it is its own module beside it (measured 258).
+        assert len(wheel_entries) <= 258
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -276,7 +284,14 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # Splitting a hotspot's art direction from its hit area (2026-09-03) adds
         # two test modules - the room's own provider-free fakes and the cache
         # identity tests they serve - and no source module (measured 513).
-        assert len(sdist_entries) <= 513
+        # Painted terrain (2026-09-03) adds its nine source modules, five test modules
+        # and their shared fixture; the map contract's move to `game-map-v10` renames a
+        # contract test rather than adding one (measured 526).
+        # The dust atlas (2026-09-03) adds its source module and its focused tests. The
+        # cap is set to what the tree measures rather than to that arithmetic: the
+        # painted-terrain work above landed more files than its own note counted, and it
+        # was still landing them while this was measured (measured 532).
+        assert len(sdist_entries) <= 532
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. Raised again for the scenario contract, whose seven source modules put the
@@ -301,8 +316,11 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # 7.0 MB. An adversarial review of the universe recipe then added four
         # more test modules and the rules they pin - cache identity for the
         # requested canvas, the reroll ledger, the page's symlink refusal - and
-        # measured 7.03 MB; the ceiling is 7.1 MB.
-        assert sum(sdist_entries.values()) < 7_100_000
+        # measured 7.03 MB; the ceiling is 7.1 MB. Painted terrain (2026-09-03) added
+        # its nine source modules, five test modules and their shared fixture and
+        # measured 7.15 MB; the ceiling is 7.2 MB. The dust atlas (2026-09-03) added its
+        # gate and its focused tests and measured 7.23 MB; the ceiling is 7.3 MB.
+        assert sum(sdist_entries.values()) < 7_300_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)
