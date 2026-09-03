@@ -131,7 +131,11 @@ class UniverseGraph(Graph):
     RUN_SUMMARY_KIND: ClassVar[str] = "universe-execution-summary-v1"
     PROJECTION_KIND: ClassVar[str] = "universe-execution-projection-v1"
     VIEW_KIND: ClassVar[str] = "universe-execution-view-v1"
-    VIEW_SCHEMA_VERSION: ClassVar[int] = 1
+    # The run-view document contract is shared and owned by gnode; this is
+    # its version, not a per-recipe counter. Declaring 1 emitted the ring-0
+    # v3 shape under a version every consumer refuses, so universe runs were
+    # invisible to the run viewer.
+    VIEW_SCHEMA_VERSION: ClassVar[int] = 3
 
     schema_version: Literal[1]
     kind: Literal["universe-execution-graph-v1"]

@@ -16,6 +16,7 @@ import { listReadyScenes } from "@/lib/shell/dialogue-scene";
 import { listReadyRooms } from "@/lib/shell/pointclick-room";
 import { listReadyRunnerRuns } from "@/lib/shell/sideview-runner";
 import { listExecutionViewRuns } from "@/lib/shell/execution-view";
+import { listUniverseRuns } from "@/lib/shell/universe";
 import { DIALOGUE_SCENE_BUNDLE_KIND } from "@/lib/dialogue-scene/bundle";
 import { SCENE_MODULES, type SceneModule } from "@/lib/shell/scene-modules";
 import { POINTCLICK_RUNTIME_KIND } from "@/lib/pointclick/contract";
@@ -39,7 +40,10 @@ interface GenreRunRow {
   /** Run-relative asset ref for the row's thumbnail, when the run has one. */
   readonly thumb: string | null;
   /** Additional per-run links beside the play action (e.g. the asset explorer). */
-  readonly extraLinks?: readonly { readonly label: string; readonly href: string }[];
+  readonly extraLinks?: readonly {
+    readonly label: string;
+    readonly href: string;
+  }[];
 }
 
 interface GenreSectionSpec {
@@ -68,7 +72,9 @@ const GENRE_SECTIONS: Readonly<Record<string, GenreSectionSpec>> = {
         tag: project.tag,
         title: project.displayName,
         thumb: project.conceptFile ?? null,
-        extraLinks: [{ label: "[ ⌕ assets ]", href: `/packages/${project.tag}` }],
+        extraLinks: [
+          { label: "[ ⌕ assets ]", href: `/packages/${project.tag}` },
+        ],
       })),
   },
   [POINTCLICK_RUNTIME_KIND]: {
@@ -148,15 +154,24 @@ function GenreSection({
               </div>
               <div className="min-w-0">
                 <div className="truncate text-[13px] text-fg">{row.title}</div>
-                <div className="mt-0.5 truncate text-[11px] text-dim">{row.tag}</div>
+                <div className="mt-0.5 truncate text-[11px] text-dim">
+                  {row.tag}
+                </div>
               </div>
               {row.extraLinks?.length ? (
                 <div className="flex items-center gap-1.5 max-[480px]:col-span-full max-[480px]:justify-end">
-                  <Link className={cx(playActive, playSizeCompact)} href={module.route(row.tag)}>
+                  <Link
+                    className={cx(playActive, playSizeCompact)}
+                    href={module.route(row.tag)}
+                  >
                     {spec.action}
                   </Link>
                   {row.extraLinks.map((link) => (
-                    <Link key={link.href} className={linkGhost} href={link.href}>
+                    <Link
+                      key={link.href}
+                      className={linkGhost}
+                      href={link.href}
+                    >
                       {link.label}
                     </Link>
                   ))}
@@ -186,10 +201,13 @@ function GenreSection({
 }
 
 export default async function Home() {
-  const listed = SCENE_MODULES.filter((module) => module.kind in GENRE_SECTIONS);
-  const [views, cases, sections] = await Promise.all([
+  const listed = SCENE_MODULES.filter(
+    (module) => module.kind in GENRE_SECTIONS,
+  );
+  const [views, cases, universes, sections] = await Promise.all([
     listExecutionViewRuns(),
     listReadyCases(),
+    listUniverseRuns(),
     Promise.all(listed.map((module) => GENRE_SECTIONS[module.kind].load())),
   ]);
   return (
@@ -223,7 +241,9 @@ export default async function Home() {
               className="grid grid-cols-[1fr_auto] items-center gap-3 border border-border px-2.5 py-1.5 hover:border-fg"
             >
               <div className="min-w-0">
-                <div className="truncate text-[13px] text-fg">{entry.displayName}</div>
+                <div className="truncate text-[13px] text-fg">
+                  {entry.displayName}
+                </div>
                 <div className="mt-0.5 truncate text-[11px] text-dim">
                   {entry.tag} · {entry.beats} beats
                 </div>
@@ -238,7 +258,9 @@ export default async function Home() {
           ))}
           <li className="grid grid-cols-[1fr_auto] items-center gap-3 border border-border px-2.5 py-1.5 hover:border-fg">
             <div className="min-w-0">
-              <div className="truncate text-[13px] text-fg">A demonstration case</div>
+              <div className="truncate text-[13px] text-fg">
+                A demonstration case
+              </div>
               <div className="mt-0.5 truncate text-[11px] text-dim">
                 demo · scenario, room, scenario · hand-authored fixture
               </div>
@@ -248,6 +270,45 @@ export default async function Home() {
             </Link>
           </li>
         </ul>
+      </section>
+
+      {/* A universe is a world, not a scene: nothing plays it, so it lists
+          itself here rather than joining the genre sections above. */}
+      <section className="mt-8 border-t border-border pt-4">
+        <div className="mb-2 text-[13px]">
+          <span className="text-dim">universes</span>
+          <span className="text-dim opacity-60"> · {universes.length}</span>
+        </div>
+        {universes.length > 0 ? (
+          <ul className="flex list-none flex-col gap-1.5">
+            {universes.map((entry) => (
+              <li
+                key={entry.tag}
+                className="grid grid-cols-[1fr_auto] items-center gap-3 border border-border px-2.5 py-1.5 hover:border-fg"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-[13px] text-fg">
+                    {entry.title}
+                  </div>
+                  <div className="mt-0.5 truncate text-[11px] text-dim">
+                    {entry.tag} · {entry.entityCount} entities ·{" "}
+                    {entry.counts.admitted ?? 0} admitted
+                  </div>
+                </div>
+                <Link
+                  className={cx(playActive, playSizeCompact)}
+                  href={`/universe/${encodeURIComponent(entry.tag)}`}
+                >
+                  [ ▶ open gallery ]
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className={metaLine}>
+            None yet. Generate one with <code>stage-gen universe gallery</code>.
+          </p>
+        )}
       </section>
 
       <section className="mt-8 border-t border-border pt-4">

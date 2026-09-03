@@ -36,7 +36,9 @@ describe("parseExecutionView", () => {
   test("carries the typed-node fields the v3 contract added", () => {
     const view = parseExecutionView(executionViewFixture());
     const generate = view.nodes[1];
-    expect(generate.typeId).toBe("2d/sideview/platformer/motion_atlas.generate");
+    expect(generate.typeId).toBe(
+      "2d/sideview/platformer/motion_atlas.generate",
+    );
     expect(generate.title).toBe("Motion atlas");
     expect(generate.archetype).toBe("image");
     expect(generate.params).toEqual({ actor_id: "wayfarer", state: "idle" });
@@ -81,13 +83,18 @@ describe("parseExecutionView", () => {
       "matte",
       "package",
     ]);
-    expect(view.nodes[1].card?.templateRef).toBe("portrait_frame_1x1_template_v1");
+    expect(view.nodes[1].card?.templateRef).toBe(
+      "portrait_frame_1x1_template_v1",
+    );
   });
 
   test("isExecutionViewKind knows every carried recipe and nothing else", () => {
-    expect(isExecutionViewKind("sideview-platformer-execution-view-v1")).toBe(true);
+    expect(isExecutionViewKind("sideview-platformer-execution-view-v1")).toBe(
+      true,
+    );
     expect(isExecutionViewKind("dialogue-scene-execution-view-v1")).toBe(true);
     expect(isExecutionViewKind("sideview-runner-execution-view-v1")).toBe(true);
+    expect(isExecutionViewKind("universe-execution-view-v1")).toBe(true);
     expect(isExecutionViewKind("prepared-game-execution-view-v1")).toBe(false);
     expect(isExecutionViewKind(3)).toBe(false);
   });
@@ -107,6 +114,35 @@ describe("parseExecutionView", () => {
       throw new Error("unreachable");
     }
     expect(view.subject.gameId).toBe("bellweather");
+  });
+
+  test("accepts the universe kind and labels it by universe and phase", () => {
+    const document = {
+      ...executionViewFixture(),
+      kind: "universe-execution-view-v1",
+      recipe: "universe",
+      universe_id: "lantern_ferry",
+      phase: "gallery",
+    };
+    const view = parseExecutionView(document);
+    expect(view.subject.kind).toBe("universe-execution-view-v1");
+    // One universe runs twice — semantic, then gallery — so the phase is what
+    // tells two runs of the same world apart in the list.
+    expect(subjectLabel(view.subject)).toBe("lantern_ferry · gallery");
+    if (view.subject.kind !== "universe-execution-view-v1") {
+      throw new Error("unreachable");
+    }
+    expect(view.subject.universeId).toBe("lantern_ferry");
+  });
+
+  test("refuses a universe view missing its phase", () => {
+    const document = {
+      ...executionViewFixture(),
+      kind: "universe-execution-view-v1",
+      recipe: "universe",
+      universe_id: "lantern_ferry",
+    };
+    expect(() => parseExecutionView(document)).toThrow(/phase/);
   });
 
   test("refuses a runner view missing its track identity", () => {
@@ -129,7 +165,9 @@ describe("parseExecutionView", () => {
     expect(failed.nodes[1].state).toBe("failed");
     expect(failed.nodes[1].error).toContain("comparison-plate-v1");
     expect(failed.nodes[2].state).toBe("skipped");
-    expect(failed.nodes[2].blockedBy).toEqual(["player-wayfarer-state-idle-generate"]);
+    expect(failed.nodes[2].blockedBy).toEqual([
+      "player-wayfarer-state-idle-generate",
+    ]);
   });
 
   test("refuses an unknown version with the re-export message, never migrates", () => {
@@ -176,7 +214,10 @@ describe("parseExecutionView", () => {
     const document = executionViewFixture();
     const nodes = document.nodes as Record<string, unknown>[];
     const artifacts = nodes[1].artifacts as Record<string, unknown>[];
-    nodes[1] = { ...nodes[1], artifacts: [{ ...artifacts[0], display: "hologram" }] };
+    nodes[1] = {
+      ...nodes[1],
+      artifacts: [{ ...artifacts[0], display: "hologram" }],
+    };
     expect(() => parseExecutionView(document)).toThrow("display is invalid");
   });
 
@@ -189,7 +230,9 @@ describe("parseExecutionView", () => {
     const document = executionViewFixture();
     const nodes = document.nodes as Record<string, unknown>[];
     nodes[1] = { ...nodes[1], archetype: "vibes" };
-    expect(() => parseExecutionView(document)).toThrow("must be null or one of");
+    expect(() => parseExecutionView(document)).toThrow(
+      "must be null or one of",
+    );
   });
 
   test("accepts a null archetype: the exporter admitting an unregistered type", () => {
@@ -251,7 +294,9 @@ describe("parseExecutionView", () => {
         reference_inputs: [{ node_id: "ghost", port_id: "identity" }],
       },
     };
-    expect(() => parseExecutionView(strayNode)).toThrow("undeclared node ghost");
+    expect(() => parseExecutionView(strayNode)).toThrow(
+      "undeclared node ghost",
+    );
   });
 
   test("refuses duplicate port ids on one node", () => {
@@ -260,8 +305,16 @@ describe("parseExecutionView", () => {
     nodes[0] = {
       ...nodes[0],
       ports: [
-        { port_id: "identity", artifact_ref: "a.json", kind: "package-identity-v1" },
-        { port_id: "identity", artifact_ref: "b.json", kind: "package-identity-v1" },
+        {
+          port_id: "identity",
+          artifact_ref: "a.json",
+          kind: "package-identity-v1",
+        },
+        {
+          port_id: "identity",
+          artifact_ref: "b.json",
+          kind: "package-identity-v1",
+        },
       ],
     };
     expect(() => parseExecutionView(document)).toThrow("unique port ids");
@@ -273,22 +326,35 @@ describe("runLiveness", () => {
 
   test("a finished run reports what its records say, whatever the clock says", () => {
     const view = parseExecutionView(executionViewFixture());
-    expect(runLiveness(view, written + 10 * 365 * 24 * 60 * 60 * 1000)).toBe("succeeded");
-    expect(runLiveness(parseExecutionView(failedExecutionViewFixture()), written)).toBe("failed");
+    expect(runLiveness(view, written + 10 * 365 * 24 * 60 * 60 * 1000)).toBe(
+      "succeeded",
+    );
+    expect(
+      runLiveness(parseExecutionView(failedExecutionViewFixture()), written),
+    ).toBe("failed");
   });
 
   test("an unfinished run is running only while its trace is still fresh", () => {
     const view = parseExecutionView(unfinishedExecutionViewFixture());
     expect(runLiveness(view, written + 1_000)).toBe("running");
-    expect(runLiveness(view, written + RUNNING_TRACE_STALENESS_MS)).toBe("running");
-    expect(runLiveness(view, written + RUNNING_TRACE_STALENESS_MS + 1)).toBe("interrupted");
+    expect(runLiveness(view, written + RUNNING_TRACE_STALENESS_MS)).toBe(
+      "running",
+    );
+    expect(runLiveness(view, written + RUNNING_TRACE_STALENESS_MS + 1)).toBe(
+      "interrupted",
+    );
     // Days later — the case that used to read "in flight" for a dead run.
-    expect(runLiveness(view, written + 3 * 24 * 60 * 60 * 1000)).toBe("interrupted");
+    expect(runLiveness(view, written + 3 * 24 * 60 * 60 * 1000)).toBe(
+      "interrupted",
+    );
   });
 
   test("an unfinished run with no readable stamp never claims to be running", () => {
-    expect(runLiveness(parseExecutionView(unfinishedExecutionViewFixture(null)), written)).toBe(
-      "interrupted",
-    );
+    expect(
+      runLiveness(
+        parseExecutionView(unfinishedExecutionViewFixture(null)),
+        written,
+      ),
+    ).toBe("interrupted");
   });
 });

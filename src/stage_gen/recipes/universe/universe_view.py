@@ -11,7 +11,9 @@ from stage_gen.recipes.universe.universe_types import universe_type_index
 if TYPE_CHECKING:
     from pathlib import Path
 
-UNIVERSE_VIEW_SCHEMA_VERSION: Literal[1] = 1
+#: Matches ``UniverseGraph.VIEW_SCHEMA_VERSION``: the shared run-view
+#: document version, which gnode owns and every recipe emits.
+UNIVERSE_VIEW_SCHEMA_VERSION: Literal[3] = 3
 UNIVERSE_VIEW_KIND: Literal["universe-execution-view-v1"] = "universe-execution-view-v1"
 
 

@@ -8,13 +8,18 @@
 // re-export, not a migration.
 
 /** The side-view platformer recipe's view: identified by a game. */
-export const PLATFORMER_EXECUTION_VIEW_KIND = "sideview-platformer-execution-view-v1";
+export const PLATFORMER_EXECUTION_VIEW_KIND =
+  "sideview-platformer-execution-view-v1";
 /** The dialogue-scene recipe's view: identified by a scene. */
 export const DIALOGUE_EXECUTION_VIEW_KIND = "dialogue-scene-execution-view-v1";
 /** The point-and-click room recipe's view: identified by a room. */
-export const POINTCLICK_EXECUTION_VIEW_KIND = "pointclick-room-execution-view-v1";
+export const POINTCLICK_EXECUTION_VIEW_KIND =
+  "pointclick-room-execution-view-v1";
 /** The infinite-runner recipe's view: identified by a game and its track. */
 export const RUNNER_EXECUTION_VIEW_KIND = "sideview-runner-execution-view-v1";
+
+/** The universe recipe's view: identified by the universe it expanded. */
+export const UNIVERSE_EXECUTION_VIEW_KIND = "universe-execution-view-v1";
 
 /** Every view kind this build renders. A kind outside it is another recipe's. */
 export const EXECUTION_VIEW_KINDS = [
@@ -22,6 +27,7 @@ export const EXECUTION_VIEW_KINDS = [
   DIALOGUE_EXECUTION_VIEW_KIND,
   POINTCLICK_EXECUTION_VIEW_KIND,
   RUNNER_EXECUTION_VIEW_KIND,
+  UNIVERSE_EXECUTION_VIEW_KIND,
 ] as const;
 
 export type ExecutionViewKind = (typeof EXECUTION_VIEW_KINDS)[number];
@@ -33,7 +39,9 @@ export const EXECUTION_VIEW_REFUSAL =
   `schema_version ${EXECUTION_VIEW_SCHEMA_VERSION}; re-export this run ` +
   "(stage-gen export-view --run out/<tag>)";
 
-export function isExecutionViewKind(value: unknown): value is ExecutionViewKind {
+export function isExecutionViewKind(
+  value: unknown,
+): value is ExecutionViewKind {
   return (EXECUTION_VIEW_KINDS as readonly unknown[]).includes(value);
 }
 
@@ -41,11 +49,7 @@ export function isExecutionViewKind(value: unknown): value is ExecutionViewKind 
 // claim the run is going: a document written once cannot know that. Liveness is
 // decided by the reader from traceModifiedAt — see runLiveness below.
 export type ExecutionRunState =
-  | "planned"
-  | "unfinished"
-  | "canceled"
-  | "succeeded"
-  | "failed";
+  "planned" | "unfinished" | "canceled" | "succeeded" | "failed";
 
 export const EXECUTION_RUN_STATES: readonly ExecutionRunState[] = [
   "planned",
@@ -67,22 +71,22 @@ export const RUNNING_TRACE_STALENESS_MS = 15 * 60 * 1000;
 // document: it folds the run's records together with how long ago they were
 // last written, so it can only be decided at read time.
 export type ExecutionRunLiveness =
-  | "planned"
-  | "running"
-  | "interrupted"
-  | "canceled"
-  | "succeeded"
-  | "failed";
+  "planned" | "running" | "interrupted" | "canceled" | "succeeded" | "failed";
 
 export function runLiveness(
-  run: { readonly runState: ExecutionRunState; readonly traceModifiedAt: string | null },
+  run: {
+    readonly runState: ExecutionRunState;
+    readonly traceModifiedAt: string | null;
+  },
   now: number,
 ): ExecutionRunLiveness {
   if (run.runState !== "unfinished") return run.runState;
   if (run.traceModifiedAt === null) return "interrupted";
   const written = Date.parse(run.traceModifiedAt);
   if (Number.isNaN(written)) return "interrupted";
-  return now - written <= RUNNING_TRACE_STALENESS_MS ? "running" : "interrupted";
+  return now - written <= RUNNING_TRACE_STALENESS_MS
+    ? "running"
+    : "interrupted";
 }
 
 // One vocabulary for every surface that names a run's condition.
@@ -105,11 +109,7 @@ export function nodeStateLabel(
 }
 
 export type ExecutionNodeState =
-  | "pending"
-  | "running"
-  | "succeeded"
-  | "failed"
-  | "skipped";
+  "pending" | "running" | "succeeded" | "failed" | "skipped";
 
 export const EXECUTION_NODE_STATES: readonly ExecutionNodeState[] = [
   "pending",
@@ -119,7 +119,8 @@ export const EXECUTION_NODE_STATES: readonly ExecutionNodeState[] = [
   "skipped",
 ];
 
-export type ArtifactDisplay = "image" | "audio" | "data" | "text" | "motion_atlas";
+export type ArtifactDisplay =
+  "image" | "audio" | "data" | "text" | "motion_atlas";
 
 export interface ExecutionViewMotion {
   readonly frameCount: number;
@@ -286,6 +287,13 @@ export type ExecutionViewSubject =
       readonly recipe: string;
       readonly gameId: string;
       readonly trackId: string;
+    }
+  | {
+      readonly kind: typeof UNIVERSE_EXECUTION_VIEW_KIND;
+      readonly recipe: string;
+      readonly universeId: string;
+      /** Which of the recipe's two sealed graphs this run was. */
+      readonly phase: string;
     };
 
 /** The one identity a run is labelled by, whichever recipe wrote it. */
@@ -301,6 +309,10 @@ export function subjectLabel(subject: ExecutionViewSubject): string {
       // A runner run generates one track of one game; the track is the
       // specific thing the run was for, so it carries the label.
       return subject.trackId;
+    case UNIVERSE_EXECUTION_VIEW_KIND:
+      // The recipe runs one universe twice — semantic, then gallery — so the
+      // phase is what tells two runs of the same world apart in a list.
+      return `${subject.universeId} · ${subject.phase}`;
   }
 }
 
@@ -339,7 +351,8 @@ function text(value: unknown, label: string): string {
 
 function textOrNull(value: unknown, label: string): string | null {
   if (value === null || value === undefined) return null;
-  if (typeof value !== "string") throw new Error(`${label} must be a string or null`);
+  if (typeof value !== "string")
+    throw new Error(`${label} must be a string or null`);
   return value;
 }
 
@@ -363,30 +376,48 @@ function runState(value: unknown, label: string): ExecutionRunState {
 }
 
 function texts(value: unknown, label: string): readonly string[] {
-  return Object.freeze(array(value, label).map((entry, index) => text(entry, `${label}[${index}]`)));
+  return Object.freeze(
+    array(value, label).map((entry, index) =>
+      text(entry, `${label}[${index}]`),
+    ),
+  );
 }
 
 function nodeState(value: unknown, label: string): ExecutionNodeState {
   if ((EXECUTION_NODE_STATES as readonly unknown[]).includes(value)) {
     return value as ExecutionNodeState;
   }
-  throw new Error(`${label} must be one of ${EXECUTION_NODE_STATES.join(", ")}`);
+  throw new Error(
+    `${label} must be one of ${EXECUTION_NODE_STATES.join(", ")}`,
+  );
 }
 
 function motion(value: unknown, label: string): ExecutionViewMotion | null {
   if (value === null || value === undefined) return null;
   const record = object(value, label);
   const mode = record.mode ?? null;
-  if (mode !== null && mode !== "hold" && mode !== "loop" && mode !== "once" && mode !== "gameplay_driven") {
+  if (
+    mode !== null &&
+    mode !== "hold" &&
+    mode !== "loop" &&
+    mode !== "once" &&
+    mode !== "gameplay_driven"
+  ) {
     throw new Error(`${label}.mode is invalid`);
   }
   return Object.freeze({
     frameCount: count(record.frame_count, `${label}.frame_count`),
     mode,
-    framesPerSecond: countOrNull(record.frames_per_second, `${label}.frames_per_second`),
+    framesPerSecond: countOrNull(
+      record.frames_per_second,
+      `${label}.frames_per_second`,
+    ),
     canonicalFrameIndices: Object.freeze(
-      array(record.canonical_frame_indices ?? [], `${label}.canonical_frame_indices`).map(
-        (entry, index) => count(entry, `${label}.canonical_frame_indices[${index}]`),
+      array(
+        record.canonical_frame_indices ?? [],
+        `${label}.canonical_frame_indices`,
+      ).map((entry, index) =>
+        count(entry, `${label}.canonical_frame_indices[${index}]`),
       ),
     ),
   });
@@ -420,15 +451,22 @@ function archetype(value: unknown, label: string): ViewArchetype | null {
   // this type. That is a documented gap, not a broken document: the renderer
   // falls back to the generic view. An unknown *string* is a real disagreement.
   if (value === null || value === undefined) return null;
-  if ((VIEW_ARCHETYPES as readonly unknown[]).includes(value)) return value as ViewArchetype;
-  throw new Error(`${label} must be null or one of ${VIEW_ARCHETYPES.join(", ")}`);
+  if ((VIEW_ARCHETYPES as readonly unknown[]).includes(value))
+    return value as ViewArchetype;
+  throw new Error(
+    `${label} must be null or one of ${VIEW_ARCHETYPES.join(", ")}`,
+  );
 }
 
-function params(value: unknown, label: string): Readonly<Record<string, string>> {
+function params(
+  value: unknown,
+  label: string,
+): Readonly<Record<string, string>> {
   const record = object(value ?? {}, label);
   const out: Record<string, string> = {};
   for (const [key, entry] of Object.entries(record)) {
-    if (typeof entry !== "string") throw new Error(`${label}.${key} must be a string`);
+    if (typeof entry !== "string")
+      throw new Error(`${label}.${key} must be a string`);
     out[key] = entry;
   }
   return Object.freeze(out);
@@ -452,7 +490,10 @@ function portRef(value: unknown, label: string): ExecutionViewPortRef {
   });
 }
 
-function authoredInput(value: unknown, label: string): ExecutionViewAuthoredInput {
+function authoredInput(
+  value: unknown,
+  label: string,
+): ExecutionViewAuthoredInput {
   const record = object(value, label);
   return Object.freeze({
     label: text(record.label, `${label}.label`),
@@ -469,13 +510,14 @@ function card(value: unknown, label: string): ExecutionViewCard | null {
     templateRef: textOrNull(record.template_ref, `${label}.template_ref`),
     schemaName: textOrNull(record.schema_name, `${label}.schema_name`),
     referenceInputs: Object.freeze(
-      array(record.reference_inputs ?? [], `${label}.reference_inputs`).map((entry, index) =>
-        portRef(entry, `${label}.reference_inputs[${index}]`),
+      array(record.reference_inputs ?? [], `${label}.reference_inputs`).map(
+        (entry, index) => portRef(entry, `${label}.reference_inputs[${index}]`),
       ),
     ),
     authoredInputs: Object.freeze(
-      array(record.authored_inputs ?? [], `${label}.authored_inputs`).map((entry, index) =>
-        authoredInput(entry, `${label}.authored_inputs[${index}]`),
+      array(record.authored_inputs ?? [], `${label}.authored_inputs`).map(
+        (entry, index) =>
+          authoredInput(entry, `${label}.authored_inputs[${index}]`),
       ),
     ),
   });
@@ -484,14 +526,21 @@ function card(value: unknown, label: string): ExecutionViewCard | null {
 function node(value: unknown, label: string): ExecutionViewNode {
   const record = object(value, label);
   const cache = record.cache ?? null;
-  if (cache !== null && cache !== "hit" && cache !== "miss" && cache !== "bypass") {
+  if (
+    cache !== null &&
+    cache !== "hit" &&
+    cache !== "miss" &&
+    cache !== "bypass"
+  ) {
     throw new Error(`${label}.cache is invalid`);
   }
   const dependsOn = texts(record.depends_on ?? [], `${label}.depends_on`);
   const barrierOnly = texts(record.barrier_only ?? [], `${label}.barrier_only`);
   for (const barrier of barrierOnly) {
     if (!dependsOn.includes(barrier)) {
-      throw new Error(`${label}.barrier_only names ${barrier}, which is not a dependency`);
+      throw new Error(
+        `${label}.barrier_only names ${barrier}, which is not a dependency`,
+      );
     }
   }
   const ports = Object.freeze(
@@ -527,19 +576,31 @@ function node(value: unknown, label: string): ExecutionViewNode {
       record.estimated_duration_seconds,
       `${label}.estimated_duration_seconds`,
     ),
-    estimatedCostLowUsd: count(record.estimated_cost_low_usd, `${label}.estimated_cost_low_usd`),
+    estimatedCostLowUsd: count(
+      record.estimated_cost_low_usd,
+      `${label}.estimated_cost_low_usd`,
+    ),
     estimatedCostHighUsd: count(
       record.estimated_cost_high_usd,
       `${label}.estimated_cost_high_usd`,
     ),
     state: nodeState(record.state, `${label}.state`),
-    startedOffsetMs: countOrNull(record.started_offset_ms, `${label}.started_offset_ms`),
-    endedOffsetMs: countOrNull(record.ended_offset_ms, `${label}.ended_offset_ms`),
+    startedOffsetMs: countOrNull(
+      record.started_offset_ms,
+      `${label}.started_offset_ms`,
+    ),
+    endedOffsetMs: countOrNull(
+      record.ended_offset_ms,
+      `${label}.ended_offset_ms`,
+    ),
     queueMs: countOrNull(record.queue_ms, `${label}.queue_ms`),
     durationMs: countOrNull(record.duration_ms, `${label}.duration_ms`),
     cache,
     attempts: countOrNull(record.attempts, `${label}.attempts`),
-    providerOperations: countOrNull(record.provider_operations, `${label}.provider_operations`),
+    providerOperations: countOrNull(
+      record.provider_operations,
+      `${label}.provider_operations`,
+    ),
     knownCostUsd: countOrNull(record.known_cost_usd, `${label}.known_cost_usd`),
     error: textOrNull(record.error, `${label}.error`),
     blockedBy: texts(record.blocked_by ?? [], `${label}.blocked_by`),
@@ -551,21 +612,43 @@ function node(value: unknown, label: string): ExecutionViewNode {
   });
 }
 
-function subject(root: Record<string, unknown>, kind: ExecutionViewKind): ExecutionViewSubject {
+function subject(
+  root: Record<string, unknown>,
+  kind: ExecutionViewKind,
+): ExecutionViewSubject {
   const recipe = text(root.recipe, "recipe");
   switch (kind) {
     case PLATFORMER_EXECUTION_VIEW_KIND:
-      return Object.freeze({ kind, recipe, gameId: text(root.game_id, "game_id") });
+      return Object.freeze({
+        kind,
+        recipe,
+        gameId: text(root.game_id, "game_id"),
+      });
     case DIALOGUE_EXECUTION_VIEW_KIND:
-      return Object.freeze({ kind, recipe, sceneId: text(root.scene_id, "scene_id") });
+      return Object.freeze({
+        kind,
+        recipe,
+        sceneId: text(root.scene_id, "scene_id"),
+      });
     case POINTCLICK_EXECUTION_VIEW_KIND:
-      return Object.freeze({ kind, recipe, roomId: text(root.room_id, "room_id") });
+      return Object.freeze({
+        kind,
+        recipe,
+        roomId: text(root.room_id, "room_id"),
+      });
     case RUNNER_EXECUTION_VIEW_KIND:
       return Object.freeze({
         kind,
         recipe,
         gameId: text(root.game_id, "game_id"),
         trackId: text(root.track_id, "track_id"),
+      });
+    case UNIVERSE_EXECUTION_VIEW_KIND:
+      return Object.freeze({
+        kind,
+        recipe,
+        universeId: text(root.universe_id, "universe_id"),
+        phase: text(root.phase, "phase"),
       });
   }
 }
@@ -589,16 +672,24 @@ export function parseExecutionView(value: unknown): ExecutionView {
     ),
   ) as Readonly<Record<ExecutionNodeState, number>>;
   const nodes = Object.freeze(
-    array(root.nodes, "nodes").map((entry, index) => node(entry, `nodes[${index}]`)),
+    array(root.nodes, "nodes").map((entry, index) =>
+      node(entry, `nodes[${index}]`),
+    ),
   );
   const portsByNode = new Map(
-    nodes.map((entry) => [entry.nodeId, new Set(entry.ports.map((declared) => declared.portId))]),
+    nodes.map((entry) => [
+      entry.nodeId,
+      new Set(entry.ports.map((declared) => declared.portId)),
+    ]),
   );
-  if (portsByNode.size !== nodes.length) throw new Error("execution view node ids must be unique");
+  if (portsByNode.size !== nodes.length)
+    throw new Error("execution view node ids must be unique");
   for (const entry of nodes) {
     for (const dependency of entry.dependsOn) {
       if (!portsByNode.has(dependency)) {
-        throw new Error(`execution view node ${entry.nodeId} depends on an undeclared node`);
+        throw new Error(
+          `execution view node ${entry.nodeId} depends on an undeclared node`,
+        );
       }
     }
     // A reference input is an edge endpoint, so it is checked like one: a card
