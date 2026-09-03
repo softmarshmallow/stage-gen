@@ -82,6 +82,10 @@ export type DustPuff = Readonly<{
   radiusX: number;
   radiusY: number;
   alpha: number;
+  /** Which contact threw this puff, so a renderer can choose art per event. */
+  kind: DustKind;
+  /** 0..1 through its life, so a renderer with stages can choose one. */
+  progress: number;
 }>;
 
 /** Deterministic unit noise in [0, 1) for one seed and channel; no state, no wall clock. */
@@ -153,6 +157,8 @@ export function sampleDustPuff(record: DustRecord, nowMs: number, scrollXNow: nu
     radiusX: grown * (1 + 0.35 * (1 - swell)),
     radiusY,
     alpha: 1 - fade * fade,
+    kind: record.kind,
+    progress,
   });
 }
 
@@ -175,6 +181,32 @@ export function dustCloudLobes(puff: DustPuff): readonly DustLobe[] {
 /** True once nothing of the record can still be drawn. */
 export function dustRecordSpent(record: DustRecord, nowMs: number): boolean {
   return nowMs - record.bornAtMs >= DUST_PUFF_LIFE_MS;
+}
+
+/**
+ * The ellipse box is the puff's core, not its outline: a drawn cloud carries lobes past it, so a
+ * sprite fitted exactly inside the box reads smaller than the shape it replaces. This is how much
+ * bigger the art is drawn, measured against the procedural draw at true game size.
+ */
+export const DUST_SPRITE_OVERSCAN = 1.35;
+
+export type DustSpriteRect = Readonly<{ x: number; y: number; width: number; height: number }>;
+
+/**
+ * Where one puff's art goes: `x`/`y` is the sprite's centre, sized to fit the puff's box with the
+ * frame's own aspect preserved and its base seated where the ellipse's base sits. Preserving the
+ * frame aspect is what keeps a wide cloud wide - stretching art to the box would undo the
+ * silhouette the art was chosen for.
+ */
+export function dustSpriteRect(puff: DustPuff, frameWidth: number, frameHeight: number): DustSpriteRect {
+  if (!(frameWidth > 0) || !(frameHeight > 0)) {
+    throw new Error("dust sprite geometry requires a positive frame size");
+  }
+  const scale =
+    Math.min((puff.radiusX * 2) / frameWidth, (puff.radiusY * 2) / frameHeight) * DUST_SPRITE_OVERSCAN;
+  const width = frameWidth * scale;
+  const height = frameHeight * scale;
+  return Object.freeze({ x: puff.x, y: puff.y + puff.radiusY - height / 2, width, height });
 }
 
 /** What the scene must offer: a surface cleared each frame, then one call per live puff. */
@@ -312,6 +344,57 @@ export function createDustSystem(
         activeCount: records.length,
         records: Object.freeze([...records]),
       }),
+  };
+}
+
+/**
+ * One published atlas cell per dust kind: the sub-frame name already registered on the texture,
+ * and the size that frame occupies. The pipeline measures the cells and publishes them; the
+ * consumer never re-derives them from the image, the way it never re-derives a motion strip.
+ */
+export type DustAtlasCell = Readonly<{ frame: string | number; width: number; height: number }>;
+export type DustAtlasCells = Readonly<Record<DustKind, DustAtlasCell>>;
+
+/**
+ * The generated-art dust surface: one pooled image per live puff, drawn from an atlas.
+ *
+ * A pool rather than create-and-destroy, because a run lays thousands of puffs and each would
+ * otherwise be a game object allocated and freed inside a frame. Every image is hidden when the
+ * frame opens and only the ones this frame drew are shown again, so the pool settles at the
+ * busiest frame the run ever had and nothing from a past frame is left on screen.
+ */
+export function createAtlasDustCanvas(
+  scene: Phaser.Scene,
+  depth: number,
+  textureKey: string,
+  cells: DustAtlasCells,
+): DustCanvas & { destroy(): void } {
+  const pool: Phaser.GameObjects.Image[] = [];
+  let live = 0;
+  return {
+    begin: () => {
+      for (const image of pool) image.setVisible(false);
+      live = 0;
+    },
+    puff: (puff) => {
+      const cell = cells[puff.kind];
+      const rect = dustSpriteRect(puff, cell.width, cell.height);
+      let image = pool[live];
+      if (image === undefined) {
+        image = scene.add.image(rect.x, rect.y, textureKey, cell.frame).setDepth(depth);
+        pool.push(image);
+      }
+      image
+        .setTexture(textureKey, cell.frame)
+        .setPosition(rect.x, rect.y)
+        .setDisplaySize(rect.width, rect.height)
+        .setAlpha(puff.alpha)
+        .setVisible(true);
+      live += 1;
+    },
+    destroy: () => {
+      for (const image of pool.splice(0)) image.destroy();
+    },
   };
 }
 

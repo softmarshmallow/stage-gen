@@ -553,9 +553,19 @@ from a flat speck at the heel into a rounder cloud, and thins to nothing over
 at the feet. Nothing is drawn for it: a puff at foot scale is a cream ellipse
 with a graphite ink rim, which is the register the package already paints in,
 and a fixed-step replay draws the same dust on the same frame as the run that
-was played. The viewer's reduced-motion preference lays none. A world-space
-effect sprite under `2d/fx/sprite.*` would replace this drawing, not this
-system, if a game ever wants more than a silhouette.
+was played. The viewer's reduced-motion preference lays none.
+
+What a puff is *drawn as* is separable from when it is thrown. Each sampled puff
+carries its kind and its age, and a run installs one surface to receive them:
+the procedural surface draws the lobed cream ellipse with its ink rim, and the
+atlas surface draws a published sprite cell per kind from a pooled image. The
+sprite is fitted inside the puff's box with the cell's own aspect preserved and
+its base seated where the ellipse's base sits, so the two surfaces agree on
+where dust is and differ only in what it looks like. Cell rectangles are
+measured by the producer and published, never re-derived from the image by the
+consumer, exactly as a motion strip's cells are. A generated dust atlas is a
+`2d/fx/sprite.*` artifact and needs that node before a package can carry one;
+until then the procedural surface is what every run installs.
 
 A survivable package draws its gauge as one capsule bar above the readout
 band, in screen space rather than over the avatar: the avatar is pinned to a

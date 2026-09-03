@@ -2,19 +2,23 @@ import { describe, expect, test } from "bun:test";
 import { stepAvatar } from "./avatar";
 import { parseRunnerRuntimeManifest } from "./contract";
 import {
+  createAtlasDustCanvas,
   createDustSystem,
+  DUST_SPRITE_OVERSCAN,
   DUST_LAND_PUFFS,
   DUST_PUFF_LIFE_MS,
   DUST_SLIDE_INTERVAL_MS,
   DUST_STRIDE_INTERVAL_MS,
   DUST_TAKEOFF_PUFFS,
   dustCloudLobes,
+  dustSpriteRect,
   dustRecordSpent,
   dustUnitNoise,
   sampleDustPuff,
   type DustPuff,
   type DustRecord,
 } from "./dust";
+import type Phaser from "phaser";
 import { runnerManifestFixture } from "./fixture";
 import { runnerIntent } from "./intent";
 import { createRunnerWorld, rowToScreenY } from "./world";
@@ -31,6 +35,45 @@ const RECORD: DustRecord = Object.freeze({
   scrollXAtBirth: 4_000,
   tilePx: 64,
   intensity: 0,
+});
+
+class FakeImage {
+  texture: [string, string | number] | null = null;
+  position: [number, number] | null = null;
+  display: [number, number] | null = null;
+  alpha = 1;
+  visible = true;
+  destroyed = false;
+
+  setDepth(): this { return this; }
+  setTexture(key: string, frame: string | number): this { this.texture = [key, frame]; return this; }
+  setPosition(x: number, y: number): this { this.position = [x, y]; return this; }
+  setDisplaySize(width: number, height: number): this { this.display = [width, height]; return this; }
+  setAlpha(alpha: number): this { this.alpha = alpha; return this; }
+  setVisible(visible: boolean): this { this.visible = visible; return this; }
+  destroy(): void { this.destroyed = true; }
+}
+
+function fakeScene(): Readonly<{ scene: Phaser.Scene; images: FakeImage[] }> {
+  const images: FakeImage[] = [];
+  const scene = {
+    add: {
+      image(x: number, y: number, key: string, frame: string | number): FakeImage {
+        const created = new FakeImage();
+        created.setTexture(key, frame).setPosition(x, y);
+        images.push(created);
+        return created;
+      },
+    },
+  } as unknown as Phaser.Scene;
+  return Object.freeze({ scene, images });
+}
+
+const CELLS = Object.freeze({
+  stride: { frame: 0, width: 224, height: 208 },
+  slide: { frame: 1, width: 392, height: 280 },
+  takeoff: { frame: 2, width: 360, height: 384 },
+  land: { frame: 3, width: 456, height: 224 },
 });
 
 function stepAt(frame: number) {
@@ -273,5 +316,86 @@ describe("createDustSystem", () => {
     const after = canvas.last()[0]!;
     // The puff moved back by the scroll, plus the little it was thrown back on its own.
     expect(before.x - after.x).toBeGreaterThanOrEqual(30);
+  });
+});
+
+describe("dustSpriteRect", () => {
+  const puff = sampleDustPuff({ ...RECORD, kind: "land" }, 1_200, 4_000)!;
+
+  test("preserves the frame's aspect rather than stretching art to the puff's box", () => {
+    const wide = dustSpriteRect(puff, 456, 224);
+    const tall = dustSpriteRect(puff, 360, 384);
+    expect(wide.width / wide.height).toBeCloseTo(456 / 224, 6);
+    expect(tall.width / tall.height).toBeCloseTo(360 / 384, 6);
+  });
+
+  test("seats the art's base where the ellipse's base sits, centred on the puff", () => {
+    const rect = dustSpriteRect(puff, 456, 224);
+    expect(rect.x).toBe(puff.x);
+    expect(rect.y + rect.height / 2).toBeCloseTo(puff.y + puff.radiusY, 6);
+  });
+
+  test("fits inside the puff's box on its tight axis, then overscans by the measured factor", () => {
+    const rect = dustSpriteRect(puff, 456, 224);
+    const contained = Math.min((puff.radiusX * 2) / 456, (puff.radiusY * 2) / 224);
+    expect(rect.width).toBeCloseTo(456 * contained * DUST_SPRITE_OVERSCAN, 6);
+  });
+
+  test("refuses a frame with no size rather than dividing by zero", () => {
+    expect(() => dustSpriteRect(puff, 0, 224)).toThrow(/positive frame size/);
+    expect(() => dustSpriteRect(puff, 456, -1)).toThrow(/positive frame size/);
+  });
+});
+
+describe("createAtlasDustCanvas", () => {
+  test("draws each puff with its own kind's cell, positioned and sized by the geometry", () => {
+    const { scene, images } = fakeScene();
+    const canvas = createAtlasDustCanvas(scene, 25, "runner:dust", CELLS);
+    const puff = sampleDustPuff({ ...RECORD, kind: "takeoff" }, 1_200, 4_000)!;
+    canvas.begin();
+    canvas.puff(puff);
+    const rect = dustSpriteRect(puff, CELLS.takeoff.width, CELLS.takeoff.height);
+    expect(images).toHaveLength(1);
+    expect(images[0]!.texture).toEqual(["runner:dust", 2]);
+    expect(images[0]!.position).toEqual([rect.x, rect.y]);
+    expect(images[0]!.display).toEqual([rect.width, rect.height]);
+    expect(images[0]!.visible).toBe(true);
+  });
+
+  test("pools its images: a busier frame grows the pool, a quieter one only hides", () => {
+    const { scene, images } = fakeScene();
+    const canvas = createAtlasDustCanvas(scene, 25, "runner:dust", CELLS);
+    const puff = sampleDustPuff(RECORD, 1_200, 4_000)!;
+    canvas.begin();
+    for (let index = 0; index < 3; index += 1) canvas.puff(puff);
+    expect(images).toHaveLength(3);
+
+    canvas.begin();
+    canvas.puff(puff);
+    expect(images).toHaveLength(3);
+    expect(images.map((image) => image.visible)).toEqual([true, false, false]);
+    expect(images.every((image) => image.destroyed)).toBe(false);
+  });
+
+  test("carries the puff's alpha and destroys the pool on teardown", () => {
+    const { scene, images } = fakeScene();
+    const canvas = createAtlasDustCanvas(scene, 25, "runner:dust", CELLS);
+    const fading = sampleDustPuff(RECORD, 1_000 + DUST_PUFF_LIFE_MS * 0.9, 4_000)!;
+    expect(fading.alpha).toBeLessThan(1);
+    canvas.begin();
+    canvas.puff(fading);
+    expect(images[0]!.alpha).toBe(fading.alpha);
+    canvas.destroy();
+    expect(images[0]!.destroyed).toBe(true);
+  });
+
+  test("the system drives it exactly as it drives the procedural canvas", () => {
+    const { scene, images } = fakeScene();
+    const canvas = createAtlasDustCanvas(scene, 25, "runner:dust", CELLS);
+    const system = createDustSystem(canvas);
+    const world = runningWorld();
+    system.update(world, stepAt(1));
+    expect(images).toHaveLength(1);
+    expect(images[0]!.texture).toEqual(["runner:dust", 0]);
   });
 });
