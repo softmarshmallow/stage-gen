@@ -83,25 +83,34 @@ export default function PreviewCanvas({
     }
   }, []);
 
-  return (
-    <>
+  // A capture keeps the design-space canvas at exactly its own size, because a frame hash
+  // taken at another size is a different recording. Nothing else here may vary it.
+  if (automationMode) {
+    return (
       <div
         ref={ref}
         aria-label="optional scrolling-game preview"
-        data-automation={automationMode ?? undefined}
-        style={{
-          width: automationMode ? 1280 : "100%",
-          maxWidth: automationMode ? undefined : 1280,
-          height: automationMode ? 720 : undefined,
-          aspectRatio: automationMode ? undefined : "1280 / 720",
-          margin: "0 auto",
-          background: "#000",
-        }}
+        data-automation={automationMode}
+        style={{ width: 1280, height: 720, margin: "0 auto", background: "#000" }}
+      />
+    );
+  }
+  // A person gets the whole surface the page hands over, the same shape the runner route
+  // uses. The canvas keeps its 16:9 design space -- `Phaser.Scale.FIT` with `CENTER_BOTH`
+  // already letterboxes it inside whatever this element turns out to be -- so filling the
+  // viewport changes how big the game is drawn and never how much of the world is in it.
+  return (
+    <div className="flex h-full w-full min-h-0 flex-col">
+      <div
+        ref={ref}
+        aria-label="optional scrolling-game preview"
+        className="min-h-0 flex-1"
+        style={{ background: "#000" }}
       />
       {kits.length > 1 ? (
         <DeveloperKitBar kits={kits} active={active} onSelect={select} />
       ) : null}
-    </>
+    </div>
   );
 }
 

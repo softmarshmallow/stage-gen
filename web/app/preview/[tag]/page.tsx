@@ -50,25 +50,29 @@ export default async function PreviewPage({
       </main>
     );
   }
+  // The page gives the canvas the viewport and stays out of the way, the same shape the
+  // runner and room routes use: one row of chrome, and the game beneath it.
   return (
-    <main className="bg-bg">
+    <main className="fixed inset-0 flex flex-col bg-black">
       <div className="flex items-center gap-4 px-4 py-2 text-xs text-dim">
         <Link href="/" className="text-fg no-underline">
           [ ◂ back ]
         </Link>
-        <span>
+        <span className="truncate">
           stage-gen / optional scrolling preview /{" "}
           <span className="text-fg">{tag}</span>
         </span>
-        <span data-testid="preview-transparency-mode">
+        <span data-testid="preview-transparency-mode" className="shrink-0">
           transparency: <span className="text-fg">canonical alpha</span>
         </span>
       </div>
-      <PreviewCanvas
-        tag={tag}
-        transparencyPolicy={policy}
-        automationMode={automationMode}
-      />
+      <div className="min-h-0 flex-1">
+        <PreviewCanvas
+          tag={tag}
+          transparencyPolicy={policy}
+          automationMode={automationMode}
+        />
+      </div>
     </main>
   );
 }
