@@ -32,7 +32,11 @@ from gnode import (
 )
 from gnode.providers.openai import supports_openai_native_alpha_model
 from stage_gen.components.game_fx import CutInPortraitSubject
-from stage_gen.components.game_fx.nodes import TOOL_LOOP_FEATURES, add_cut_in_nodes
+from stage_gen.components.game_fx.nodes import (
+    TOOL_LOOP_FEATURES,
+    add_cut_in_nodes,
+    add_sprite_nodes,
+)
 from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.components.runner_content import (
     RUNNER_MOTION_ORDER,
@@ -1144,6 +1148,18 @@ def build_runner_execution_graph(
             direction_digests=(direction_digest,),
             attempts_port=_attempts,
             subject_reference=runner_subject_reference(runner),
+        )
+        # World-space sprites are the same family's nodes and the same art direction;
+        # they answer to the runtime rather than to a moment, so they bind no moment.
+        fx_terminals.extend(
+            add_sprite_nodes(
+                builder,
+                root="package-resolve",
+                fx=runner.fx,
+                style_prompt=lambda task: fx_plate_prompt(resolved, task),
+                direction_digests=(direction_digest,),
+                attempts_port=_attempts,
+            )
         )
 
     # ---------------------------------------------------------------- manifest

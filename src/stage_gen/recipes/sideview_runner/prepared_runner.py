@@ -67,16 +67,23 @@ from stage_gen.components.game_fx.nodes import (
     FX_CUT_IN_REVIEW,
     FX_CUT_IN_VALIDATE,
     FX_CUT_IN_VALIDATION_KIND,
+    FX_SPRITE_DUST_GENERATE,
+    FX_SPRITE_DUST_RAW_KIND,
+    FX_SPRITE_DUST_VALIDATE,
     FxCutInHost,
     cut_in_generate_request,
     cut_in_place_request,
     cut_in_review_request,
     derive_cut_in_validation,
+    derive_sprite_dust_validation,
     fx_manifest_block,
     parse_cut_in_review,
+    sprite_dust_generate_request,
     write_cut_in_draw,
     write_cut_in_validation,
+    write_sprite_dust_validation,
 )
+from stage_gen.components.game_fx.sprite import validate_dust_atlas
 from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.components.image_repeat import ImageRepeatValidationPolicy, validate_image_repeat
 from stage_gen.components.runner_audio import RunnerAudioContract
@@ -1362,6 +1369,8 @@ class SideviewRunnerNodeHandler:
             return cut_in_generate_request(
                 self._fx_host(), self._graph, node, read=self._read_run_artifact
             )
+        if node.type_id == FX_SPRITE_DUST_GENERATE.type_id:
+            return sprite_dust_generate_request(self._fx_host(), node)
         raise ValueError(f"runner node has no image request builder: {node.type_id}")
 
     def _music_generation_request(self, node: Node) -> MusicGenerationRequest:
@@ -1774,6 +1783,9 @@ class SideviewRunnerNodeHandler:
                 validate_frame_plate(data)
             else:
                 validate_portrait_plate(data)
+            return
+        if node.type_id == FX_SPRITE_DUST_GENERATE.type_id:
+            validate_dust_atlas(data)
             return
         raise ValueError(f"runner cache has no provider admission for {node.type_id}")
 
@@ -2219,6 +2231,15 @@ class SideviewRunnerNodeHandler:
                 label="procedural cut-in frame",
             )
             return
+        if node.type_id == FX_SPRITE_DUST_VALIDATE.type_id:
+            raw_ref = self._dependency_artifact(node, kind=FX_SPRITE_DUST_RAW_KIND)
+            canonical, record, _facts = derive_sprite_dust_validation(
+                (self._run_dir / raw_ref).read_bytes()
+            )
+            self._admit_local_image_and_record(
+                node, bundle, image=canonical, validation=record
+            )
+            return
         if node.type_id == FX_CUT_IN_VALIDATE.type_id:
             raw_ref = self._dependency_artifact(node, kind=FX_CUT_IN_RAW_KIND)
             frame_record: dict[str, object] | None = None
@@ -2317,6 +2338,8 @@ class SideviewRunnerNodeHandler:
         registry.register(FX_CUT_IN_PLACE, self._bind(self._place_fx_portrait))
         registry.register(FX_CUT_IN_VALIDATE, self._bind(self._validate_fx_plate))
         registry.register(FX_CUT_IN_REVIEW, self._bind(self._review_fx_plate))
+        registry.register(FX_SPRITE_DUST_GENERATE, self._bind(self._generate_fx_sprite))
+        registry.register(FX_SPRITE_DUST_VALIDATE, self._bind(self._validate_fx_sprite))
         registry.register(MANIFEST_ASSEMBLE, self._bind(self._assemble_manifest))
         return registry
 
@@ -3267,6 +3290,19 @@ class SideviewRunnerNodeHandler:
         tool_loop = self._tool_loop
         result = await self._execute_provider_operation(node, lambda: tool_loop.run(request))
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
+
+    async def _generate_fx_sprite(self, node: Node) -> NodeExecutionResult:
+        request = sprite_dust_generate_request(self._fx_host(), node)
+        result = await self._execute_provider_operation(
+            node, lambda: self._images.generate(request)
+        )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
+
+    async def _validate_fx_sprite(self, node: Node) -> NodeExecutionResult:
+        await write_sprite_dust_validation(
+            self._fx_host(), self._graph, node, read=self._read_run_artifact
+        )
+        return self._result(node)
 
     async def _validate_fx_plate(self, node: Node) -> NodeExecutionResult:
         await write_cut_in_validation(

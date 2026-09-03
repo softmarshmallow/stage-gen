@@ -1,7 +1,7 @@
 schema_version = 2
 kind = "game-fx-v2"
 game_id = "iron-petal-unit"
-revision = 4
+revision = 5
 
 [[references]]
 reference_id = "operator_primary"
@@ -24,6 +24,12 @@ alpha_policy = "transparent_exterior_opaque_body_v1"
 reference_ids = ["cover_style"]
 prompt = "The cover's print-poster register: flat white paper stock, a bold uneven hand-inked black rim, the graphic weight of a notice pinned up in a greenhouse service bay."
 shape = "One wide shard on a strong diagonal, running off both the left and the right edge of the canvas and thick enough along its whole length to carry a face. Its top and its bottom edge are long and clean, broken here and there by a sharp angular chip, so it reads as a sheet slashed open rather than fringed or frayed."
+
+[sprite.dust]
+layout = "fx_dust_atlas_1024x1024_v1"
+alpha_policy = "transparent_exterior_v1"
+reference_ids = ["cover_style"]
+prompt = "Each cloud is a compact cartoon puff of a handful of big rounded lobes, flat cream-white, one warm-grey shading band underneath, and the same thick even graphite ink outline: the cover's own line weight, kicked up off a greenhouse service floor."
 
 [[cut_in.portraits]]
 portrait_id = "stage_start"

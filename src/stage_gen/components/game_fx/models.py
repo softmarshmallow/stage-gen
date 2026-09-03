@@ -35,6 +35,11 @@ from stage_gen.components.game_fx.cut_in import (
     FRAME_ALPHA_POLICY,
     PORTRAIT_ALPHA_POLICY,
 )
+from stage_gen.components.game_fx.sprite import (
+    DUST_ALPHA_POLICY,
+    DUST_ATLAS_LAYOUT,
+    DUST_CELL_KINDS,
+)
 
 GAME_FX_SCHEMA_VERSION = 2
 GAME_FX_KIND = "game-fx-v2"
@@ -150,6 +155,55 @@ class CutInFrameDirection(PersistedContractModel):
         return self
 
 
+class DustAtlasDirection(PersistedContractModel):
+    """The ground-dust atlas: four clouds on one transparent plate, one per contact.
+
+    ``prompt`` is the dust's register — what the puffs are made of and how they are drawn
+    — and nothing about the sheet's layout or the four silhouettes, which the layout fixes
+    and the component's brief states. A package that wants different clouds writes a
+    different register; a package that wants a different *assignment* of cloud to contact
+    is asking for a different layout, which is a new identity rather than a field.
+
+    There is no procedural mode. The runner draws its own dust when no atlas is published,
+    and that drawing lives in the consumer where it can be sampled per frame, so a
+    ``procedural_v1`` here would be a second implementation of a thing that already exists.
+    """
+
+    layout: Literal["fx_dust_atlas_1024x1024_v1"]
+    alpha_policy: Literal["transparent_exterior_v1"]
+    reference_ids: list[str] = Field(default_factory=list, max_length=16)
+    prompt: str
+
+    @field_validator("reference_ids")
+    @classmethod
+    def validate_reference_ids(cls, value: list[str]) -> list[str]:
+        unique_values(value, "sprite.dust.reference_ids")
+        return value
+
+    @field_validator("prompt")
+    @classmethod
+    def validate_prompt(cls, value: str) -> str:
+        prompt = normalized_text(value, "sprite.dust.prompt", multiline=True)
+        # The layout owns the grid and the four silhouettes. A register that also describes
+        # them competes with the brief for the model's attention, and the spike showed which
+        # one loses: the sentence nearest the shape wins, whichever one was authored.
+        lowered = prompt.lower()
+        for banned in ("two-by-two", "2x2", "grid", "quarter", "reading order"):
+            if banned in lowered:
+                raise ValueError(
+                    f"sprite.dust.prompt must not describe the sheet's layout ({banned!r}): "
+                    f"the layout {DUST_ATLAS_LAYOUT!r} fixes the grid and the four "
+                    f"silhouettes in the order {', '.join(DUST_CELL_KINDS)}"
+                )
+        return prompt
+
+
+class SpriteDirection(PersistedContractModel):
+    """The world-space sprite family. One member today; a slash or a spark joins it here."""
+
+    dust: DustAtlasDirection | None = None
+
+
 class CutInPortraitSubject(PersistedContractModel):
     """A drawn actor the plate takes its identity from, instead of an authored file.
 
@@ -252,6 +306,7 @@ class GameFx(PersistedContractModel):
     revision: int = Field(ge=1)
     references: list[FxReference] = Field(min_length=1, max_length=32)
     cut_in: CutInDirection | None = None
+    sprite: SpriteDirection | None = None
     moments: list[FxMoment] = Field(min_length=1, max_length=16)
 
     def moment(self, name: str) -> FxMoment | None:
@@ -281,6 +336,18 @@ class GameFx(PersistedContractModel):
                         f"cut_in portrait {portrait.portrait_id} must declare layout "
                         f"{CUT_IN_PORTRAIT_LAYOUT!r} and alpha_policy {PORTRAIT_ALPHA_POLICY!r}"
                     )
+        return self
+
+    @model_validator(mode="after")
+    def validate_sprite_layouts(self) -> GameFx:
+        dust = None if self.sprite is None else self.sprite.dust
+        if dust is not None and (
+            dust.layout != DUST_ATLAS_LAYOUT or dust.alpha_policy != DUST_ALPHA_POLICY
+        ):
+            raise ValueError(
+                f"sprite.dust must declare layout {DUST_ATLAS_LAYOUT!r} "
+                f"and alpha_policy {DUST_ALPHA_POLICY!r}"
+            )
         return self
 
     @model_validator(mode="after")
@@ -319,6 +386,8 @@ class GameFx(PersistedContractModel):
                 (f"cut_in portrait {portrait.portrait_id}", portrait.reference_ids)
                 for portrait in self.cut_in.portraits
             )
+        if self.sprite is not None and self.sprite.dust is not None:
+            selections.append(("sprite.dust", self.sprite.dust.reference_ids))
         for label, reference_ids in selections:
             unknown = sorted(set(reference_ids) - declared)
             if unknown:
@@ -336,6 +405,8 @@ def load_game_fx_bytes(data: bytes) -> GameFx:
 
 __all__ = [
     "CUT_IN_CHOREOGRAPHIES",
+    "DustAtlasDirection",
+    "SpriteDirection",
     "FX_EFFECTS",
     "FX_MOMENTS",
     "FX_RESERVED_MOMENTS",
