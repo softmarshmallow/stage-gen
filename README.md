@@ -87,9 +87,11 @@ only an admitted, explicitly selected graph can spend.
 A live runner call is single-shot, requires provider credentials, and may spend money; omitting
 `--dry-run` intentionally executes the selected runner graph and assembles one immutable
 `sideview-runner-runtime-v12` run. The platformer recipe remains checkpointed:
-`--checkpoint world` and `--checkpoint content` execute paid dependency closures, while
-`--checkpoint integration` is provider-free and assembles `prepared-game-runtime-v10` over
-accepted `--artifact-root` directories.
+`--checkpoint world` and `--checkpoint content` execute paid dependency closures,
+`--checkpoint soundtrack` is that content closure narrowed to the tracks so a rewritten
+creative brief cannot regenerate reviewed art, and `--checkpoint integration` is
+provider-free and assembles `prepared-game-runtime-v10` over accepted `--artifact-root`
+directories.
 
 GPT Image 2 native alpha is the quality-first live image route. The standalone compatibility
 background-removal command remains available:

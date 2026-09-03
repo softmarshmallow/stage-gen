@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -243,8 +244,15 @@ class PreparedPackageExecutor:
         run_dir: Path,
         cache_dir: Path,
         invocation_id: str,
+        targets: Callable[[ExecutionGraph], tuple[str, ...]] = content_target_node_ids,
     ) -> PreparedPackageContentRun:
-        """Execute exactly the content review/validation targets and dependency closure."""
+        """Execute exactly the named content targets and their dependency closure.
+
+        `targets` is how a caller asks for a narrower slice than the whole content
+        checkpoint -- the soundtrack alone, say -- without a second copy of this method's
+        service wiring. It selects targets from the plan rather than taking node ids,
+        because the ids are derived from the package and only the plan knows them.
+        """
 
         assert_safe_path_segment(invocation_id, "invocation_id")
         if self._config.openai_api_key is None:
@@ -296,7 +304,7 @@ class PreparedPackageExecutor:
                 handler,
                 invocation_id=invocation_id,
                 trace_sink=trace,
-                target_node_ids=content_target_node_ids(plan.graph),
+                target_node_ids=targets(plan.graph),
             )
         finally:
             trace.close()

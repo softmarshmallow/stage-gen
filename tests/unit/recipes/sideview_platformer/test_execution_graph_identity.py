@@ -110,6 +110,12 @@ point: landing a mode nobody has asked for must not move the shape of the graph.
 on identity alone: package resolve, both map composites, both advisory map reviews, gameplay
 validation, and the manifest. No image node moves and no terrain design moves, so the widening
 re-bills nothing.
+Re-pinned 2026-09-03 a ninth time for authoring alone: Crowncrag Road's track was briefed as
+a calm open-air forest piece, which is the wrong music for a hunting ground, and is now a
+driving one written to loop under a long fight. A track's cache identity is its own authored
+entry, so package resolve, that one track's generate and validate, and the manifest move,
+and nothing else does -- the village's track and the battle cue are untouched, and no image
+node moves.
 """
 
 from __future__ import annotations
@@ -126,7 +132,7 @@ REPOSITORY_ROOT = Path(__file__).parents[4]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
 
 BELLWEATHER_NODE_COUNT = 230
-BELLWEATHER_GRAPH_SHA256 = "e89fbabbe940b2f129c7e63ef398983201291590e8feb07765bd8bde43b8c8ae"
+BELLWEATHER_GRAPH_SHA256 = "f8925e46346b28e7978fb06840e529b294e672a65d274684e63e55de7da8f818"
 BELLWEATHER_TOPOLOGY_SHA256 = "819c43338c5e6305746a4aaca59a1ee52ab712f09b073a36ff8504b1d839bc87"
 
 

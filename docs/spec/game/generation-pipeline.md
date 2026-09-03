@@ -80,8 +80,14 @@ contains `game.toml`. There is no bare-prompt fallback. The runner recipe is a s
 its live call executes the complete selected member and assembles `sideview-runner-runtime-v12`.
 The platformer recipe remains checkpointed. `--checkpoint world` executes only the map-review
 targets and their complete dependency closure. `--checkpoint content` independently executes cast,
-catalog, UI, soundtrack, and stable-ID binding targets and their dependency closure. Neither paid
-bounded checkpoint can assemble a manifest. `--checkpoint integration` is a provider-free terminal
+catalog, UI, soundtrack, and stable-ID binding targets and their dependency closure.
+`--checkpoint soundtrack` is that closure narrowed to the soundtrack's own targets. It exists
+because a track's cache identity is its own authored entry and nothing else, so a rewritten
+creative brief re-bills exactly one track -- while the full content closure also carries every
+actor, catalog and interface terminal, and regenerates any whose contract has moved since the
+last accepted run. Editing a piece of music must not replace reviewed art, so the slice is
+declared rather than left to the operator to avoid. Neither paid bounded checkpoint can
+assemble a manifest. `--checkpoint integration` is a provider-free terminal
 operation over accepted artifact roots. It validates the complete package-derived runtime closure,
 applies caller-ordered corrective-run precedence, atomically publishes one run whose tag is
 immutable by default, and emits `prepared-game-runtime-v10`. The `--dry-run` path exercises the

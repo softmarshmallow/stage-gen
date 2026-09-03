@@ -666,7 +666,7 @@ def _package_copy(tmp_path: Path) -> Path:
     [
         ("content/player.toml", "frames_per_second = 6", "frames_per_second = 8"),
         ("content/player.toml", 'playback_mode = "loop"', 'playback_mode = "once"'),
-        ("soundtrack.toml", "revision = 2", "revision = 3"),
+        ("soundtrack.toml", "revision = 3", "revision = 4"),
     ],
 )
 def test_editing_an_authored_member_reaches_the_nodes_that_capture_and_assemble_it(

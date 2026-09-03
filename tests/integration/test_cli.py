@@ -156,7 +156,7 @@ def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
         )
         == 1
     )
-    assert "requires --checkpoint world, content, or integration" in error.getvalue()
+    assert "requires --checkpoint world, content, soundtrack, or integration" in error.getvalue()
 
 
 def test_character_profile_cli_validate_digest_help_and_errors(
@@ -391,7 +391,7 @@ def test_generate_help_exposes_package_dry_run_controls(
 
     assert exit_info.value.code == 0
     assert "--dry-run" in help_text
-    assert "--checkpoint {world,content,integration}" in help_text
+    assert "--checkpoint {world,content,soundtrack,integration}" in help_text
     assert "--artifact-root ARTIFACT_ROOTS" in help_text
     assert "--failure-node FAILURE_NODE" in help_text
     assert "--force-stage" not in help_text

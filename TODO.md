@@ -596,6 +596,27 @@ before and after every authoring edit and confirm no image node's cache identity
             a re-pin, and it is a taste call rather than a technical one: the in-scene comparison
             is on file. Sunpetal Crossing stays on the atlas either way, which is what keeps the
             union honest.
+- [x] **L. The hunting ground gets hunting music (easy).** Landed 2026-09-03. Crowncrag Road
+      was briefed as "playful forward momentum, rustling color, and open-air wonder" -- correct
+      for a forest walk, wrong for the map you fight on, and the road shuffles it with the
+      battle cue so half the time the hunting ground played the calm one. The brief is now a
+      driving loop: a constant frame-drum and low-tom groove under running figures, no slow
+      opening, no quiet middle, and no climax to arrive at, because the track has to survive a
+      long stretch of fighting rather than build to something. The village and the battle cue
+      are untouched and their audio is byte-identical.
+      What this cost more than a brief rewrite: **`--checkpoint soundtrack`**. A track's cache
+      identity is its own authored entry and the content contract, and it declares no cache
+      dependency on the package root, so a rewritten brief re-bills exactly one track -- the
+      plan diff shows one provider node moving. But the *content checkpoint* is the whole
+      content closure, and 55 of its 102 provider nodes were already stale against contracts
+      that had moved since `content-v3` was accepted. Running it would have regenerated six
+      mobs, four NPCs, the player and the interface to change one piece of music, replacing art
+      that had already been reviewed. So `run_content` now takes its targets, the soundtrack has
+      its own bounded slice, and a test pins that the slice reaches music nodes and nothing
+      else. Measured: one `music_generation`, zero images, zero structured calls; assembled
+      provider-free as `out/bellweather-hunt-v8`.
+      Listening verdict is `not_performed` -- the validator checks the container, the duration
+      and the loop intent, never whether the music is any good. That is the user's ear.
 - [ ] **I. Generated VFX sprites (new, deferred).** No effect or VFX asset family exists in the
       taxonomy. D covers the demo procedurally; a generated slash, spark, or burst family is a new
       taxonomy entry with its own contract, review, and cache identity, and has no caller until D

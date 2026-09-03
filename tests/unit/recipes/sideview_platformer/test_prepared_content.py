@@ -10,6 +10,7 @@ import pytest
 from PIL import Image, ImageDraw
 
 from gnode import (
+    LOCAL_OPERATION,
     ImageGenerationRequest,
     MusicGenerationRequest,
     Scheduler,
@@ -32,11 +33,13 @@ from stage_gen.recipes.sideview_platformer.motion_contract import (
     motion_source_facing,
 )
 from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
+from stage_gen.recipes.sideview_platformer.package_types import SOUNDTRACK_VALIDATE
 from stage_gen.recipes.sideview_platformer.prepared_content import (
     PreparedContentNodeHandler,
     _validate_atlas,
     _validate_transparent_image,
     content_target_node_ids,
+    soundtrack_target_node_ids,
 )
 from tests.unit._ui_atlas_fixture import ui_sheet
 
@@ -424,3 +427,41 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
     assert prop_validation["ground_contact"]["kind"] == "alpha-ground-contact-v1"
     assert prop_validation["ground_contact"]["ground_contact_y_normalized"] == 0.9501953125
     assert (run_dir / "soundtrack/sunpetal_morning.validation.json").is_file()
+
+
+def test_the_soundtrack_checkpoint_reaches_the_tracks_and_nothing_else() -> None:
+    """A rewritten creative brief must not be able to regenerate reviewed art.
+
+    The content checkpoint is the whole content closure, so it carries every actor,
+    catalog and interface terminal with it; any of those whose contract has moved since the
+    last accepted run regenerates too. That is the correct behaviour for a content run and
+    the wrong price for editing a piece of music, so the soundtrack has its own bounded
+    slice and this pins what that slice may touch.
+    """
+
+    prepared = PreparedPackageExecutor(StageGenConfig()).plan(BELLWEATHER)
+    graph = prepared.graph
+    by_id = {node.node_id: node for node in graph.nodes}
+
+    targets = soundtrack_target_node_ids(graph)
+    assert targets, "bellweather authors a soundtrack"
+    assert set(targets) <= set(content_target_node_ids(graph))
+    assert all(by_id[node_id].type_id == SOUNDTRACK_VALIDATE.type_id for node_id in targets)
+
+    closure: set[str] = set()
+    pending = list(targets)
+    while pending:
+        node_id = pending.pop()
+        if node_id in closure:
+            continue
+        closure.add(node_id)
+        pending.extend(by_id[node_id].depends_on)
+
+    provider = {by_id[node_id].operation for node_id in closure} - {LOCAL_OPERATION}
+    assert provider == {"music_generation"}, (
+        "the soundtrack closure reached a non-music provider node, so a brief edit could "
+        "regenerate art"
+    )
+    # The package root is in every closure by construction; nothing else may be.
+    domains = {by_id[node_id].domain for node_id in closure if by_id[node_id].domain}
+    assert domains == {"soundtrack", "package"}

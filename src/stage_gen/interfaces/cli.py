@@ -64,6 +64,10 @@ from stage_gen.recipes.pointclick_room.room_executor import PointClickRoomExecut
 from stage_gen.recipes.pointclick_room.room_view import build_pointclick_room_view
 from stage_gen.recipes.sideview_platformer.execution_view import build_execution_view
 from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
+from stage_gen.recipes.sideview_platformer.prepared_content import (
+    content_target_node_ids,
+    soundtrack_target_node_ids,
+)
 from stage_gen.recipes.sideview_platformer.view_annotations import (
     annotate_sideview_platformer_artifact,
 )
@@ -118,7 +122,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     generate_parser.add_argument(
         "--checkpoint",
-        choices=("world", "content", "integration"),
+        choices=("world", "content", "soundtrack", "integration"),
         help="execute one explicitly bounded live checkpoint",
     )
     generate_parser.add_argument(
@@ -1202,10 +1206,10 @@ async def _dispatch_async(
             else output_path.parent / ".stage-gen-cache"
         )
         if not args.dry_run:
-            if args.checkpoint not in {"world", "content", "integration"}:
+            if args.checkpoint not in {"world", "content", "soundtrack", "integration"}:
                 raise ValueError(
                     "prepared-package execution requires --checkpoint "
-                    "world, content, or integration"
+                    "world, content, soundtrack, or integration"
                 )
             if args.failure_node is not None:
                 raise ValueError("--failure-node is available only with --dry-run")
@@ -1255,8 +1259,19 @@ async def _dispatch_async(
                 live_summary = live_result.summary
                 live_graph = live_result.plan.graph
             else:
+                # `soundtrack` is `content` narrowed to the tracks. A track's cache
+                # identity is its own authored entry, so a rewritten brief re-bills one
+                # track -- but the full content closure also drags in every actor, catalog
+                # and interface terminal, and regenerates any whose contract has moved
+                # since the last accepted run. Rewriting a creative brief should not
+                # replace reviewed art.
                 content_result = await prepared_executor.run_content(
                     Path(args.input_path),
+                    targets=(
+                        soundtrack_target_node_ids
+                        if checkpoint == "soundtrack"
+                        else content_target_node_ids
+                    ),
                     run_dir=output_path,
                     cache_dir=cache_dir,
                     invocation_id=invocation_id,

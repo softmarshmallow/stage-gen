@@ -1,7 +1,7 @@
 schema_version = 1
 kind = "game-soundtrack-v1"
 game_id = "bellweather"
-revision = 2
+revision = 3
 
 [playback]
 selection = "shuffle"
@@ -21,13 +21,13 @@ target_duration_seconds = 90
 [[tracks]]
 track_id = "crowncrag_road"
 display_name = "Amberbell Forest"
-creative_brief = "An original bright autumn-forest adventure instrumental with nimble strings, wooden flute, plucked harp, light frame drum, warm handbells, and restrained brass; playful forward momentum, rustling color, and open-air wonder without military weight or a recognizable melody."
+creative_brief = "An original driving autumn-forest hunting-ground instrumental at a brisk, steady tempo. A constant frame-drum and low-tom groove carries nimble running figures on strings and wooden flute, with plucked harp accents, bright handbells, and warm brass swells at the turnarounds. Written to loop under a long stretch of fighting: unbroken forward drive and a clear pulse the whole way through, with no slow opening, no quiet middle, and no climax to arrive at. Energetic and adventurous, never grim, military, or menacing, and with no recognizable melody."
 
 [tracks.generation]
 intent = "generate"
 instrumental = true
 seamless_loop = true
-target_duration_seconds = 105
+target_duration_seconds = 100
 
 [[tracks]]
 track_id = "chronicle_unbound"

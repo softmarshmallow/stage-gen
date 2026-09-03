@@ -1656,6 +1656,22 @@ def content_target_node_ids(graph: ExecutionGraph) -> tuple[str, ...]:
     return tuple(node.node_id for node in graph.nodes if node.type_id in CONTENT_TARGET_TYPE_IDS)
 
 
+def soundtrack_target_node_ids(graph: ExecutionGraph) -> tuple[str, ...]:
+    """The soundtrack's own terminals, and nothing else this plan carries.
+
+    A track's cache identity is its own authored entry and the content contract, and it
+    declares no cache dependency on the package root, so a rewritten creative brief re-bills
+    exactly one track. The whole content checkpoint cannot honour that: it drags in every
+    actor, catalog and interface terminal, and any of those whose contract has moved since
+    the last accepted run regenerates as well -- replacing reviewed art to change a piece of
+    music. Scoping the targets is what keeps the cost of an edit proportional to the edit.
+    """
+
+    return tuple(
+        node.node_id for node in graph.nodes if node.type_id == SOUNDTRACK_VALIDATE.type_id
+    )
+
+
 def _coverage_matrix(package: ResolvedGamePackage) -> dict[str, object]:
     projectile_ids = (
         []
