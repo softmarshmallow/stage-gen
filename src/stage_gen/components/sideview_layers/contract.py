@@ -142,10 +142,13 @@ def resolve_layer_placement(layer: PlacedLayer, trim: dict[str, object]) -> dict
 
     The author declares intent from a closed vocabulary; the fraction is measured here, because an
     authored fraction would be a prediction about pixels that did not exist when it was written. An
-    explicit override is honoured, but one that cannot reach the seal line is rejected against the
-    exact measured value rather than silently leaving a gap the runtime would fill with whatever
-    sits behind the layer. Shared by every recipe that places a layer, so the runner and the
-    platformer cannot drift into two meanings of one anchor name.
+    explicit override is honoured, and at a bottom-registered anchor one that cannot reach the seal
+    line is rejected against the exact measured value rather than silently leaving a gap the runtime
+    would fill with whatever sits behind the layer. The top edge is not the mirror of that: what a
+    gap reveals there is the map's one opaque canvas_cover base, which is sky above a horizon and
+    not a hole, so the top measurement is a default and not a floor. Shared by every recipe that
+    places a layer, so the runner and the platformer cannot drift into two meanings of one anchor
+    name.
     """
 
     seal: float | None = None
@@ -164,22 +167,29 @@ def resolve_layer_placement(layer: PlacedLayer, trim: dict[str, object]) -> dict
         # on rather than on a full-coverage row it may not have.
         seal = content_bottom_offset_fraction(trim)
     elif layer.vertical_anchor == "screen_top":
-        # The mirror: lift the sparse upper fringe above the edge so the first row every column
-        # spans meets it. A fringe with no such row is left at its alpha box on purpose.
+        # The mirror, but only as a DEFAULT. Lifting the sparse upper fringe so the first row
+        # every column spans meets the edge is the right guess for a cloud band, and it is a
+        # poor one for a horizon: it pushes the peaks, the clouds and the castle off the top
+        # and leaves a flat plate of sky where the distance should be.
+        #
+        # It cannot be a floor the way the bottom seal is, because the two edges are not
+        # symmetric. Every map declares exactly one opaque layer and the contract makes it
+        # canvas_cover, so whatever a top-edge gap reveals is that full-bleed backdrop -- sky
+        # above a mountain, which is what should be there. At the bottom edge the same gap is
+        # a hole in the world. So an author who has looked at the composite may place this
+        # layer lower, and only the measurement stands in when no one has.
         seal = top_seal_offset_fraction(trim)
     resolved = seal if seal is not None else 0.0
     source = "measured"
     if layer.vertical_offset is not None:
-        if seal is not None and layer.vertical_anchor in BOTTOM_REGISTERED_ANCHORS:
-            if layer.vertical_offset < seal:
-                raise ValueError(
-                    f"layer {layer.layer_id} declares vertical_offset "
-                    f"{layer.vertical_offset} but sealing requires at least {seal}"
-                )
-        elif seal is not None and layer.vertical_offset > seal:
+        if (
+            seal is not None
+            and layer.vertical_anchor in BOTTOM_REGISTERED_ANCHORS
+            and layer.vertical_offset < seal
+        ):
             raise ValueError(
-                f"layer {layer.layer_id} declares vertical_offset {layer.vertical_offset} "
-                f"but sealing the top edge requires at most {seal}"
+                f"layer {layer.layer_id} declares vertical_offset "
+                f"{layer.vertical_offset} but sealing requires at least {seal}"
             )
         resolved = layer.vertical_offset
         source = "authored"

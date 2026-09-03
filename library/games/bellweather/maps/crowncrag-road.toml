@@ -67,7 +67,15 @@ order = 1
 parallax = 0.14
 alpha_mode = "transparent"
 vertical_anchor = "screen_top"
-presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 0.0 }
+# The measured top seal lifts a layer until its first fully-spanning row meets the frame
+# edge. That is the right guess for a cloud fringe and the wrong one here: it pushed the
+# peaks, the clouds and the castle off the top and left a flat plate of sky where the
+# distance should be. Nothing is lost by letting the sky show above a mountain, because the
+# opaque base is a canvas_cover plate and is what a gap here reveals.
+vertical_offset = -0.28
+# Haze, for the same reason the village hazes its midground: a distance painted at the same
+# contrast as the terrain competes with it, and the player has to read against both.
+presentation = { contrast = 0.88, saturation = 0.84, atmosphere_color = "#9fd8ee", atmosphere_strength = 0.22, detail_blur_screen_pixels = 0.6 }
 prompt = """
 Separate the monumental cream clouds, lavender-blue mountains, soft autumn
 valley, distant turquoise water, and many-spired Crowncrag Castle as one far
@@ -85,7 +93,9 @@ order = 2
 parallax = 0.62
 alpha_mode = "transparent"
 vertical_anchor = "walk_surface"
-presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 0.0 }
+# Pushed further than the village pushes its own midground, because this one is measurably
+# more saturated than that one and it sits behind a fight rather than behind a conversation.
+presentation = { contrast = 0.80, saturation = 0.82, atmosphere_color = "#9fd8ee", atmosphere_strength = 0.12, detail_blur_screen_pixels = 0.8 }
 prompt = """
 Separate Amberbell Forest's readable midground landmarks: one monumental
 bell-hung tree, exposed roots, selective cream-stone shrines, layered autumn

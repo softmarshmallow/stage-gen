@@ -751,6 +751,7 @@ export class PreparedStageScene extends Phaser.Scene {
             const layout = preparedLayerLayout(layer.placement, {
               viewportHeight: VIEW_H,
               walkSurfaceY,
+              parallax: layer.parallax,
             });
             return this.loadPresentationOrFallback(
               loadVerifiedRepeatLayer(
@@ -1257,6 +1258,7 @@ export class PreparedStageScene extends Phaser.Scene {
       const layout = preparedLayerLayout(layer.placement, {
         viewportHeight: VIEW_H,
         walkSurfaceY,
+        parallax: layer.parallax,
       });
       const sprite = this.add.tileSprite(
         0,
@@ -1269,10 +1271,12 @@ export class PreparedStageScene extends Phaser.Scene {
         .setOrigin(0, 0)
         .setScale(layout.scale)
         // X is always screen-locked because horizontal parallax is applied as a texture offset
-        // below rather than as position. Y is not: a layer registered to the walk surface has a
-        // world datum and must travel with the camera, while viewport furniture must not. Both
-        // render identically while the camera rests at the bottom of the world.
-        .setScrollFactor(0, layout.space === "world" ? 1 : 0)
+        // below rather than as position. Y cannot be, because a layer is exactly one texture
+        // tall and has nothing to slide inside, so depth on this axis is position and the
+        // factor is the layer's own parallax. Every layer renders identically while the camera
+        // rests at the bottom of the world, which is why a map that never scrolls vertically
+        // sees no change at all.
+        .setScrollFactor(0, layout.verticalScrollFactor)
         .setDepth(layer.plane === "foreground" ? 80 + index : index - 20)
         .setData("parallax", layer.parallax);
       this.layerSprites.push(sprite);

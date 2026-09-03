@@ -116,6 +116,12 @@ driving one written to loop under a long fight. A track's cache identity is its 
 entry, so package resolve, that one track's generate and validate, and the manifest move,
 and nothing else does -- the village's track and the battle cue are untouched, and no image
 node moves.
+Re-pinned 2026-09-03 a tenth time for authoring alone: Crowncrag Road's far horizon was sealed
+to the top edge, which pushed its peaks and its castle out of frame, and its midground was
+drawn at the same contrast as the terrain the player has to read against. The horizon now
+declares its own offset and both carry atmosphere. Placement and presentation are consumed
+downstream of generation, so no layer image moves -- one local layer validation, the composite,
+gameplay validation, the manifest, package resolve, and the advisory map review.
 """
 
 from __future__ import annotations
@@ -132,7 +138,7 @@ REPOSITORY_ROOT = Path(__file__).parents[4]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
 
 BELLWEATHER_NODE_COUNT = 230
-BELLWEATHER_GRAPH_SHA256 = "f8925e46346b28e7978fb06840e529b294e672a65d274684e63e55de7da8f818"
+BELLWEATHER_GRAPH_SHA256 = "b58d83f925437fdc3d50bde46a9806f6d1aebcd4e2e5bf9f29665649609ed359"
 BELLWEATHER_TOPOLOGY_SHA256 = "819c43338c5e6305746a4aaca59a1ee52ab712f09b073a36ff8504b1d839bc87"
 
 

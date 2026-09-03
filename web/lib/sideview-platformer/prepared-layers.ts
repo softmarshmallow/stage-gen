@@ -25,6 +25,22 @@ export type PreparedLayerLayout = Readonly<{
   topY: number;
   /** Space `topY` belongs to. A world layer follows camera scroll; a screen layer does not. */
   space: PreparedLayerSpace;
+  /**
+   * How much of the camera's vertical travel this layer takes, as a scroll factor.
+   *
+   * Horizontal parallax is a texture offset, because a layer repeats on x and can be slid
+   * inside itself forever. Vertically it cannot: a layer is exactly one texture tall, so
+   * depth on this axis has to be position, and this is that number.
+   *
+   * It is the layer's own parallax rather than a second declaration, because parallax is
+   * already the statement of how far away the layer is and distance does not change with
+   * the axis you look along. A sky at zero holds still; a near frame above one falls away
+   * faster than the world as the player climbs, which is what a thing between the camera
+   * and the world does. Only the walk-surface datum is exempt: that layer is registered to
+   * the terrain, so it travels with it exactly or it stops meeting the ground it was
+   * measured against.
+   */
+  verticalScrollFactor: number;
   /** Texture height in source pixels, so the tile sprite never repeats vertically. */
   sourceHeight: number;
   renderedHeight: number;
@@ -33,6 +49,8 @@ export type PreparedLayerLayout = Readonly<{
 export type PreparedLayerContext = Readonly<{
   viewportHeight: number;
   walkSurfaceY: number;
+  /** The layer's declared parallax, which is also its vertical scroll factor. */
+  parallax: number;
 }>;
 
 /**
@@ -97,7 +115,10 @@ export function preparedLayerLayout(
   placement: PreparedLayerPlacement,
   context: PreparedLayerContext,
 ): PreparedLayerLayout {
-  const { viewportHeight, walkSurfaceY } = context;
+  const { viewportHeight, walkSurfaceY, parallax } = context;
+  if (!Number.isFinite(parallax) || parallax < 0) {
+    throw new Error("prepared layer layout requires a non-negative parallax");
+  }
   if (!Number.isFinite(viewportHeight) || viewportHeight <= 0) {
     throw new Error("prepared layer layout requires a positive viewport height");
   }
@@ -133,10 +154,12 @@ export function preparedLayerLayout(
     const datum = anchor === "screen_bottom" ? viewportHeight : walkSurfaceY;
     topY = datum - (1 - placement.vertical_offset) * renderedHeight;
   }
+  const space = anchor === "walk_surface" ? "world" : "screen";
   return Object.freeze({
     scale,
     topY,
-    space: anchor === "walk_surface" ? "world" : "screen",
+    space,
+    verticalScrollFactor: space === "world" ? 1 : parallax,
     sourceHeight: placement.trimmed_height,
     renderedHeight,
   });

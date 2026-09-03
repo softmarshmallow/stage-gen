@@ -62,7 +62,7 @@ describe("ground datum", () => {
 });
 
 describe("layer layout", () => {
-  const context = { viewportHeight: VIEW_H, walkSurfaceY: 528 };
+  const context = { viewportHeight: VIEW_H, walkSurfaceY: 528, parallax: 0 };
 
   test("an opaque base covers the viewport exactly", () => {
     const layout = preparedLayerLayout(
@@ -146,5 +146,75 @@ describe("layer layout", () => {
     expect(() =>
       preparedLayerLayout(placement({ trimmed_height: 0 }), context),
     ).toThrow(/positive raster heights/);
+  });
+});
+
+describe("vertical parallax", () => {
+  const placement = (
+    anchor: PreparedLayerPlacement["vertical_anchor"],
+  ): PreparedLayerPlacement =>
+    Object.freeze({
+      vertical_anchor: anchor,
+      vertical_offset: 0,
+      vertical_offset_source: "measured",
+      source_height: 1024,
+      trimmed_height: 512,
+      trimmed_top: 0,
+    });
+
+  test("a layer takes as much of the camera's climb as its distance implies", () => {
+    // Depth does not change with the axis you look along, so the number that already says
+    // how far away a layer is says it on y as well. Horizontal parallax cannot use this,
+    // because a layer repeats on x and slides inside itself instead of moving.
+    const near = preparedLayerLayout(placement("screen_bottom"), {
+      viewportHeight: VIEW_H,
+      walkSurfaceY: 500,
+      parallax: 1.42,
+    });
+    expect(near.verticalScrollFactor).toBe(1.42);
+  });
+
+  test("a sky plate holds still", () => {
+    const sky = preparedLayerLayout(placement("canvas_cover"), {
+      viewportHeight: VIEW_H,
+      walkSurfaceY: 500,
+      parallax: 0,
+    });
+    expect(sky.verticalScrollFactor).toBe(0);
+  });
+
+  test("the walk-surface layer travels with the terrain whatever its parallax", () => {
+    // It is registered to the ground it was measured against. Letting it drift would take
+    // its solid base off the row the producer resolved it to.
+    const midground = preparedLayerLayout(placement("walk_surface"), {
+      viewportHeight: VIEW_H,
+      walkSurfaceY: 500,
+      parallax: 0.62,
+    });
+    expect(midground.space).toBe("world");
+    expect(midground.verticalScrollFactor).toBe(1);
+  });
+
+  test("a map that never scrolls vertically cannot notice any of this", () => {
+    // Every factor multiplies the camera's vertical travel, and a map whose camera follows
+    // x alone has none, which is why the village is untouched by this rule.
+    for (const parallax of [0, 0.16, 0.58, 1.32]) {
+      const layout = preparedLayerLayout(placement("screen_top"), {
+        viewportHeight: VIEW_H,
+        walkSurfaceY: 500,
+        parallax,
+      });
+      expect(layout.topY - 0 * layout.verticalScrollFactor).toBe(layout.topY);
+    }
+  });
+
+  test("a negative parallax is refused rather than inverting the world", () => {
+    expect(() =>
+      preparedLayerLayout(placement("screen_top"), {
+        viewportHeight: VIEW_H,
+        walkSurfaceY: 500,
+        parallax: -1,
+      }),
+    ).toThrow(/non-negative parallax/);
   });
 });

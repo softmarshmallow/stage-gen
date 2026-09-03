@@ -617,6 +617,36 @@ before and after every authoring edit and confirm no image node's cache identity
       provider-free as `out/bellweather-hunt-v8`.
       Listening verdict is `not_performed` -- the validator checks the container, the duration
       and the loop intent, never whether the music is any good. That is the user's ear.
+- [x] **M. The hunting ground's layers read as distance (easy).** Landed 2026-09-03, three
+      complaints from one played frame, all placement or presentation and so all free of image
+      spend: those fields are excluded from a layer's cache identity by design.
+      **The far horizon was sealed out of frame.** A `screen_top` layer is lifted until the
+      first row every column spans meets the frame edge, and Amberbell's horizon is sparse for
+      its top 61 per cent -- so the clouds, the peaks and Crowncrag Castle were pushed above the
+      viewport and a flat plate of sky sat where the distance should be. The seal is right at the
+      *bottom* edge, where a gap is a hole in the world. At the top it is guarding against
+      nothing: the contract makes every map declare exactly one opaque layer and forces it to
+      `canvas_cover`, so what a top-edge gap reveals is that full-bleed sky plate, which is what
+      belongs above a mountain. The measurement is now the default rather than a floor, the road
+      authors `vertical_offset = -0.28`, and the resolved record still carries
+      `minimum_seal_offset` so the composite says what was overridden.
+      **The midground was as vivid as the thing the player has to read.** The village already
+      hazes its own (`atmosphere_color #b8e8f4`, contrast 0.84); the road's four layers were all
+      neutral. Measured, the road's midground is the more saturated of the two (0.74 against
+      0.50), so it is pushed further: contrast 0.80, saturation 0.82, `#9fd8ee` at 0.12, and the
+      horizon behind it at 0.22.
+      **The near frame was glued to the bottom of the screen.** A layer's vertical scroll factor
+      is now its own parallax rather than a flat zero, because depth does not change with the
+      axis you look along and the map already declares how far away each layer is. Horizontal
+      parallax cannot work this way -- a layer repeats on x and slides inside itself -- but
+      vertically a layer is exactly one texture tall, so depth there has to be position. The sky
+      at 0 still holds still; the foliage frame at 1.42 falls away as the player climbs. Only the
+      walk-surface datum is exempt, because it is registered to terrain it was measured against.
+      A map whose camera follows x alone has no vertical travel to multiply, so the village is
+      untouched by construction, and a test says so.
+      Cost: two structured map reviews for the world re-run, no image node and no terrain design.
+      Assembled as `out/bellweather-hunt-v9`. The road's map review still returns `reject` on the
+      same pre-existing complaints, and the checkpoint still treats it as advisory.
 - [ ] **I. Generated VFX sprites (new, deferred).** No effect or VFX asset family exists in the
       taxonomy. D covers the demo procedurally; a generated slash, spark, or burst family is a new
       taxonomy entry with its own contract, review, and cache identity, and has no caller until D
