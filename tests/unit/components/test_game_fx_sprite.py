@@ -128,8 +128,10 @@ def test_the_contract_projection_carries_the_cells_a_consumer_reads() -> None:
     contract = dust_atlas_contract(facts)
     assert contract["layout"] == "fx_dust_atlas_1024x1024_v1"
     assert contract["canvas"] == {"width": 1024, "height": 1024}
-    assert [cell["kind"] for cell in contract["cells"]] == list(DUST_CELL_KINDS)
-    for cell in contract["cells"]:
+    cells = contract["cells"]
+    assert isinstance(cells, list)
+    assert [cell["kind"] for cell in cells] == list(DUST_CELL_KINDS)
+    for cell in cells:
         assert cell["width"] > 0 and cell["height"] > 0
         assert cell["x"] >= 0 and cell["x"] + cell["width"] <= 1024
 

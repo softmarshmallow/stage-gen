@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import get_args
 
 import pytest
+from pydantic import BaseModel
 
 from stage_gen.recipes.dialogue_scene.scene_graph import DialogueSceneGraph
 from stage_gen.recipes.pointclick_room.room_graph import PointClickRoomGraph
@@ -30,7 +31,7 @@ from stage_gen.recipes.sideview_runner.runner_graph import SideviewRunnerGraph
 CLI_SOURCE = Path(__file__).resolve().parents[2] / "src" / "stage_gen" / "interfaces" / "cli.py"
 
 
-def declared_kind(model: type) -> str:
+def declared_kind(model: type[BaseModel]) -> str:
     """The single value of a model's `kind: Literal[...]` field."""
     annotation = model.model_fields["kind"].annotation
     args = get_args(annotation)
@@ -53,7 +54,7 @@ def dispatched_kinds() -> set[str]:
     [DialogueSceneGraph, PointClickRoomGraph, SideviewRunnerGraph],
     ids=lambda model: model.__name__,
 )
-def test_export_view_dispatch_covers_every_recipe_graph_kind(model: type) -> None:
+def test_export_view_dispatch_covers_every_recipe_graph_kind(model: type[BaseModel]) -> None:
     kind = declared_kind(model)
     assert kind in dispatched_kinds(), (
         f"{model.__name__} declares {kind!r}, which `stage-gen export-view` does not dispatch. "

@@ -934,9 +934,7 @@ def _produced_reference(
     return artifact_ref, read(artifact_ref)
 
 
-def sprite_dust_generate_request(
-    host: FxCutInHost, node: Node
-) -> ImageGenerationRequest:
+def sprite_dust_generate_request(host: FxCutInHost, node: Node) -> ImageGenerationRequest:
     """The exact image request the dust generate node sends.
 
     The gate runs inside the request, which is what makes a sheet that came back as one
@@ -1607,9 +1605,7 @@ def fx_manifest_block(
     return block
 
 
-def _sprite_block(
-    fx: GameFx, read_validation: Callable[[str], bytes]
-) -> dict[str, object] | None:
+def _sprite_block(fx: GameFx, read_validation: Callable[[str], bytes]) -> dict[str, object] | None:
     """The published ``sprite`` block: each atlas's asset and the cells measured from it.
 
     The cells come from the validate record rather than the declared layout for the same
