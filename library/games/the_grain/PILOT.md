@@ -1805,14 +1805,37 @@ The brief's eight, with what each actually returned.
 | 7 | Manifests and provenance; no absolute paths | **pass** — every run carries its manifest; zero absolute paths, temp paths or credential-shaped strings across all four shipped runs; the bundle carries `rights.aggregate: unreviewed` and `publication_authorized: false` |
 | 8 | A full play-through with a reload and a Continue | **partly.** Resume is **proven** — a reload mid-episode into a fresh tab offered the save and Continue landed on the same line. The two full passes are QA's and are in section 5. |
 
-**Re-verified in the running consumer after the direction-A redraw** (2026-09-03, post-freeze):
-beat 1 opens on the new Calder Investigations plate, Ruth composites into it with clean
-edges and a matching palette, and the new narration plate carries two wrapped lines legibly.
-In the motor court room all six hotspots land on their objects in the live Hotspots overlay,
-and **`service_bell` — the hotspot that shipped unclickable — rings and completes the room**:
-*"✦ Room complete — Each footstep returns from the stone."* The window room's fourteen
-regions are verified against the plate offline but have not been played end to end since
-the redraw; that pass is owed.
+**Played start to finish on the direction-A art** (2026-09-03, post-freeze), all eight beats
+in one sitting, driven from the shell's own keys — `ArrowRight` advances, digits choose —
+taking option 1 at every decision:
+
+| Beat | What was verified |
+|---|---|
+| 1 `b_office` | opens on the new plate; Ruth composites in with clean edges, matching palette and agreeing light; the new narration plate carries two wrapped lines legibly |
+| 2 `b_motor_court` | all six hotspots land in the live Hotspots overlay; **`service_bell` — which shipped unclickable — rings**: *"✦ Room complete — Each footstep returns from the stone."* |
+| 3 `b_way_in` | two actors placed on one stage, Edwin left/`formal` and Ruth right/`dry`, speaker name rendering |
+| 4-5 `b_table`, `b_coffee` | pass |
+| 6 `b_window` | all **fourteen** hotspots land; `the_man` fires `saw_body`, and **`service_lift` — which sat on open street before the correction — exits**: *"✦ Room complete — Henry has attended the supper for less than two hours. For the first time that evening, he is working."* |
+| 7-8 `b_the_court`, `b_statements` | pass to the terminal |
+
+**The ending renders:** *"The case is closed. It ended through `left_alone`. CARRIED OUT OF
+THE BUILDING · 30"*, with the thirty facts listed. `case_result_v1` is written to
+localStorage and the save is cleared, which is the fix of 2026-09-03 working.
+
+**Autosave, backlog and resume, re-proven on this art.** The save carries beat, statement,
+stage, each actor's slot and expression, the flag set and **50 backlog entries**. Mid-episode
+the record read `b_way_in` / `the_place_card#4`; a full page reload offered *"A save is
+waiting at The way in, line the_place_card#4"*, and **Continue landed on 14/47 — the line
+immediately after it** — same stage, same two actors, same slots and expressions.
+
+**Music: generated, bundled, cued and fetched; audibility unverified.** Four tracks are in
+the new bundle as real mp3 bytes with durations (office 75.2s, supper 88.4s, window 71.6s,
+statements). Five of the six scenarios cue one — `e1_way_in` genuinely cues none, so an
+empty track list on that beat is correct rather than a fault. During play the runtime
+fetched `api/assets/the-grain-scene-a/assets/track-office.mp3` **200 OK**. What is *not*
+verified is that sound is audible: Phaser is module-scoped, so its sound manager cannot be
+reached from the page, and this lane has no ears. A listening verdict is still owed and is
+the one thing here taken on inference rather than measurement.
 
 
 **Beat resolution**, checked directly rather than assumed — every one of the eight resolves
