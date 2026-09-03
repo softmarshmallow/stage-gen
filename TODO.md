@@ -1028,7 +1028,12 @@ defect it was written for. What is left open is written as what it would take, n
       bridge at both edges, so any A-to-B join is continuous by construction - and the cost the
       contract could not see is that whatever those two columns contain is republished at every
       junction in the finished track, seconds apart. Iron Petal put a coral pipe run under a hanging
-      vine there. Measured, every published tile's first and last column were byte identical, and
+      vine there. The plan recorded here was to replace the shared panel with edge *conditioning*,
+      and that was wrong: under the seam rule any chunk may follow any chunk, so pixel-exact
+      continuity needs both sides of a cut to carry bytes derived from shared inputs. Two
+      independently painted aprons differ in tone at the cut, which is a visible edge rather than
+      none; per-pair bridges are N-squared; runtime cross-fading blends two pictures into mush. The
+      shared panel stays, by design, and what it carries is the thing that changed. Measured, every published tile's first and last column were byte identical, and
       each painting's own aprons carried 0.71 to 1.29 times the colour incident of the span they
       joined. The aprons are now asked for as the bolted joint between two spans, with the
       walking-surface band running level and unbroken through them and no pipe, conduit, cable,

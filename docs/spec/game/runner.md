@@ -188,7 +188,17 @@ presentation a closed union:
   a few seconds apart. Iron Petal shipped a coral pipe run under a hanging vine
   there, and it read as exactly what it was - one segment's scenery inserted
   into every other segment, with two hard vertical edges 128 pixels apart at
-  every join. The fix is to ask for a joint rather than a slice of scenery: the
+  every join.
+
+  The shared panel is not the defect, and replacing it was considered and
+  rejected. Under the seam rule any chunk may follow any chunk, so pixel-exact
+  continuity requires both sides of a cut to carry bytes derived from inputs
+  they share. Conditioning each chunk to paint toward a common edge profile
+  yields two independent paintings that differ in tone at the cut - a visible
+  edge rather than none. Per-pair bridges are N-squared over the chunk set.
+  Cross-fading at runtime blends two different pictures and moves the problem
+  into the consumer. So the mechanism stays, and the fix is what it carries: ask
+  for a joint rather than a slice of scenery. The
   prompt now names the aprons as the bolted joint between two spans, demands
   the walking-surface band run level and unbroken through them at the depth and
   colour it holds across the rest of the canvas, and forbids pipe, conduit,
