@@ -15,8 +15,8 @@
 import { type FxBlock, parseFxBlock } from "@/lib/manifest/fx";
 import type { PreparedLayerPresentation } from "@/lib/manifest/prepared-manifest";
 
-export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v11";
-export const RUNNER_RUNTIME_SCHEMA_VERSION = 11;
+export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v12";
+export const RUNNER_RUNTIME_SCHEMA_VERSION = 12;
 export const RUNNER_STRUCTURAL_GROUND_CELL_PX = 64;
 
 /** Every way a run can come to grief, each answered separately by the package. */
@@ -232,7 +232,8 @@ export interface RunnerSoundtrack {
   readonly tracks: readonly RunnerSoundtrackTrack[];
 }
 
-export const RUNNER_AUDIO_EVENTS = [
+/** The eight player-verb consequences: every package binds all of them. */
+export const RUNNER_VERB_AUDIO_EVENTS = [
   "takeoff",
   "air_jump",
   "land",
@@ -242,6 +243,13 @@ export const RUNNER_AUDIO_EVENTS = [
   "hurt",
   "death",
 ] as const;
+
+/**
+ * Every event the audio system posts. `stage_start` is the announcement - the
+ * stage-start moment's first frame, once per boot - and the one binding a
+ * package may leave silent, because silence is a legitimate announcement.
+ */
+export const RUNNER_AUDIO_EVENTS = ["stage_start", ...RUNNER_VERB_AUDIO_EVENTS] as const;
 
 export type RunnerAudioEvent = (typeof RUNNER_AUDIO_EVENTS)[number];
 
@@ -265,7 +273,33 @@ export interface RunnerGeneratedClip {
   readonly strengthPitchMultiplier: number;
 }
 
-export type RunnerEffectRealization = RunnerOscillatorSweep | RunnerGeneratedClip;
+/**
+ * A line a cast voice read once - a bark. Played exactly like a clip; the
+ * duration is the measured read, published off the admission record, since
+ * the route never took one.
+ */
+export interface RunnerSpokenLine {
+  readonly kind: "spoken_line_v1";
+  /** Run-relative artifact path, always under `audio/`. */
+  readonly clip: string;
+  readonly durationSeconds: number;
+  readonly gain: number;
+  readonly strengthPitchMultiplier: number;
+}
+
+export type RunnerEffectRealization =
+  | RunnerOscillatorSweep
+  | RunnerGeneratedClip
+  | RunnerSpokenLine;
+
+/** The realizations the sink decodes from bytes rather than synthesizes. */
+export type RunnerClipRealization = RunnerGeneratedClip | RunnerSpokenLine;
+
+export function isClipRealization(
+  realization: RunnerEffectRealization,
+): realization is RunnerClipRealization {
+  return realization.kind === "generated_clip_v1" || realization.kind === "spoken_line_v1";
+}
 
 export interface RunnerSoundEffect {
   readonly effectId: string;
@@ -312,7 +346,8 @@ export interface RunnerMusicTransitions {
 }
 
 export interface RunnerAudio {
-  readonly bindings: Readonly<Record<RunnerAudioEvent, string>>;
+  /** Every verb binds an effect; `stage_start` alone may be null. */
+  readonly bindings: Readonly<Record<RunnerAudioEvent, string | null>>;
   readonly effects: readonly RunnerSoundEffect[];
   readonly music: RunnerMusicTransitions;
 }
@@ -1114,22 +1149,28 @@ function runnerMusic(value: unknown): RunnerMusicTransitions {
 function runnerAudio(value: unknown): RunnerAudio {
   const raw = record(value, "audio");
   const rawBindings = record(raw.bindings, "audio.bindings");
-  const bindings = Object.freeze(
-    Object.fromEntries(
-      RUNNER_AUDIO_EVENTS.map((event) => [
+  const stageStart = rawBindings.stage_start;
+  if (stageStart !== undefined && stageStart !== null && typeof stageStart !== "string") {
+    throw new Error("audio.bindings.stage_start must be an effect id or null");
+  }
+  const bindings = Object.freeze({
+    ...(Object.fromEntries(
+      RUNNER_VERB_AUDIO_EVENTS.map((event) => [
         event,
         text(rawBindings[event], `audio.bindings.${event}`),
       ]),
-    ) as Record<RunnerAudioEvent, string>,
-  );
+    ) as Record<(typeof RUNNER_VERB_AUDIO_EVENTS)[number], string>),
+    stage_start: stageStart === undefined ? null : stageStart,
+  }) as Readonly<Record<RunnerAudioEvent, string | null>>;
   const effects = array(raw.effects, "audio.effects").map((entry, index) => {
     const effect = record(entry, `audio.effects[${index}]`);
     const realization = record(effect.realization, `audio.effects[${index}].realization`);
     const kind = literal(realization.kind, `audio.effects[${index}].realization.kind`, [
       "oscillator_sweep_v1",
       "generated_clip_v1",
+      "spoken_line_v1",
     ]);
-    if (kind === "generated_clip_v1") {
+    if (kind === "generated_clip_v1" || kind === "spoken_line_v1") {
       const clip = text(realization.clip, `audio.effects[${index}].realization.clip`);
       if (!/^audio\/[a-z][a-z0-9_]*\.mp3$/.test(clip)) {
         throw new Error(`audio.effects[${index}].realization.clip must be a run-relative audio/*.mp3`);
@@ -1202,8 +1243,11 @@ function runnerAudio(value: unknown): RunnerAudio {
   uniqueIds(effects.map((effect) => effect.effectId), "audio effect ids");
   const effectIds = new Set(effects.map((effect) => effect.effectId));
   for (const event of RUNNER_AUDIO_EVENTS) {
-    if (!effectIds.has(bindings[event])) {
-      throw new Error(`audio.bindings.${event} references unknown effect ${bindings[event]}`);
+    const bound = bindings[event];
+    // A silent announcement binds nothing; every verb still has to resolve.
+    if (bound === null) continue;
+    if (!effectIds.has(bound)) {
+      throw new Error(`audio.bindings.${event} references unknown effect ${bound}`);
     }
   }
   for (const effectId of effectIds) {

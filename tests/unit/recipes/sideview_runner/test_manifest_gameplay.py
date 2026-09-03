@@ -151,6 +151,8 @@ def test_the_published_audio_block_is_exactly_the_authored_contract() -> None:
     block = manifest_audio(load_runner_audio_bytes(RUNNER_AUDIO.encode()))
 
     assert block["bindings"] == {
+        # The announcement is the one binding a package may leave silent.
+        "stage_start": None,
         "takeoff": "takeoff_whistle",
         "hurt": "soft_landing",
         "air_jump": "air_jump_whistle",

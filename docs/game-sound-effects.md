@@ -5,11 +5,16 @@
 A genre's audio contract binds its semantic events to named effects, says
 how each effect is realized, and says what the soundtrack does at the run's
 edges. Today the runner member owns one, `runner/audio.toml`
-with the exact identity `runner-audio-v3`. An effect is realized either as a
-provider-free `oscillator_sweep_v1` the consumer synthesizes, or as a
+with the exact identity `runner-audio-v4`. An effect is realized as a
+provider-free `oscillator_sweep_v1` the consumer synthesizes, as a
 `generated_clip_v1` the execution graph buys once from a text-to-sound-effect
-route and the consumer plays back. The event bindings are the same either way,
-so a cue can change realization without remapping gameplay.
+route and the consumer plays back, or as a `spoken_line_v1` - a bark - the
+graph buys once from a text-to-speech route on a voice the game's catalog
+casts; that third kind has its own page, [game-voice.md](game-voice.md). The
+event bindings are the same in every case, so a cue can change realization
+without remapping gameplay. Eight events are consequences of player verbs and
+every package binds all eight; the ninth, `stage_start`, is an announcement
+and may be left silent.
 
 This page is the authoring and execution contract for the generated kind. The
 measured behaviour of the route it is bought from - what it can and cannot be
@@ -31,8 +36,8 @@ you write is the prompt it hears.
 ## Current source
 
 ```toml
-schema_version = 3
-kind = "runner-audio-v3"
+schema_version = 4
+kind = "runner-audio-v4"
 game_id = "example-game"
 revision = 1
 

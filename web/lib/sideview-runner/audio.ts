@@ -4,15 +4,22 @@
 //
 // The system detects edges (takeoff, the air jump, landing, the slide, a
 // cleared hazard, a collect, a survivable hit, death) by comparing world state across frames
-// and reports them to an injected sink. The Web Audio sink plays the authored
-// manifest realization for the bound effect — synthesizing an oscillator
-// sweep, or decoding a clip the run generated once — with no hidden cue
-// table, while headless suites inject a recorder. The run's edges also reach
-// a music sink: the stinger the effect binding owns and the authored action
-// on the soundtrack (a fade, a pause, a duck) are posted side by side.
+// and reports them to an injected sink, and posts one announcement - the
+// stage start - on its first frame of a boot. The Web Audio sink plays the
+// authored manifest realization for the bound effect — synthesizing an
+// oscillator sweep, or decoding a clip the run generated once, a spoken line
+// among them — with no hidden cue table, while headless suites inject a
+// recorder. The run's edges also reach a music sink: the stinger the effect
+// binding owns and the authored action on the soundtrack (a fade, a pause, a
+// duck) are posted side by side.
 
 import type { GameSystem } from "@/lib/game-systems/systems";
-import type { RunnerAudio, RunnerAudioEvent, RunnerMusicEvent } from "./contract";
+import {
+  isClipRealization,
+  type RunnerAudio,
+  type RunnerAudioEvent,
+  type RunnerMusicEvent,
+} from "./contract";
 import type { RunnerWorld } from "./world";
 
 export type RunnerAudioCue = RunnerAudioEvent;
@@ -20,6 +27,12 @@ export type RunnerAudioCue = RunnerAudioEvent;
 export interface RunnerAudioSink {
   /** `strength` grades the cue: the collect pitch rises with the chain. */
   play(cue: RunnerAudioCue, strength: number): void;
+  /**
+   * Retry a browser-policy-blocked start from a trusted user gesture. Only
+   * the announcement waits for it: every other cue is a consequence of an
+   * input, which is itself the gesture.
+   */
+  unlock?(): void;
 }
 
 export const SILENT_AUDIO_SINK: RunnerAudioSink = Object.freeze({
@@ -50,14 +63,23 @@ export function createAudioSystem(
   let prevSliding = false;
   let prevDead = false;
   let prevDistance = 0;
+  let announced = false;
   return {
     id: "runner/audio",
-    // v3: the run's edges also reach the music sink.
-    contractVersion: "audio-system-v3",
+    // v4: the stage start is announced once per boot.
+    contractVersion: "audio-system-v4",
     reads: ["avatar", "obstacles", "run", "vitals"],
     writes: [],
     after: ["runner/run-loop", "runner/hud"],
     update(world) {
+      // The announcement rides the first frame of a boot: with a stage-start
+      // moment that is the intro's first frame, so the line and the rip are
+      // one beat; without one it is the first running frame. Never on a
+      // restart - the intro plays once per boot, and so does this.
+      if (!announced) {
+        announced = true;
+        sink.play("stage_start", 1);
+      }
       const avatar = world.avatar;
       const dead = world.run.phase === "dead";
       const restarted = avatar.distanceColumns < prevDistance;
@@ -120,9 +142,16 @@ export function strengthLift(strength: number, multiplier: number): number {
  * The browser sink: a lazily created AudioContext (browsers demand a user
  * gesture before audio; the first post-gesture cue starts it) and the exact
  * authored realization reached through each event binding. Every generated
- * clip is fetched as soon as the sink exists and decoded on the first cue
- * that needs it; a cue that fires before its clip is ready is dropped rather
- * than delayed, because a late cue is worse than a missing one.
+ * clip and spoken line is fetched as soon as the sink exists and decoded on
+ * the first cue that needs it; a cue that fires before its clip is ready is
+ * dropped rather than delayed, because a late cue is worse than a missing one.
+ *
+ * The one exception is the announcement. `stage_start` fires on the first
+ * frame of a boot, before any clip can have decoded and before any gesture
+ * can have unlocked the context, so it is held in a single slot and played
+ * when the clip lands or `unlock()` lets the context start - and dropped the
+ * moment any other cue fires, because by then the run has begun and an
+ * announcement of its start is stale.
  */
 export function createWebAudioSink(
   audio: RunnerAudio,
@@ -135,11 +164,44 @@ export function createWebAudioSink(
   const bytes = new Map<string, Promise<ArrayBuffer>>();
   const buffers = new Map<string, AudioBuffer>();
   const decoding = new Set<string>();
+  let held: { readonly clip: string; readonly strength: number } | null = null;
   for (const effect of audio.effects) {
-    if (effect.realization.kind !== "generated_clip_v1") continue;
+    if (!isClipRealization(effect.realization)) continue;
     const clip = effect.realization.clip;
     if (!bytes.has(clip)) bytes.set(clip, fetchBytes(resolveUrl(clip)));
   }
+
+  const playBuffer = (
+    ctx: AudioContext,
+    buffer: AudioBuffer,
+    gainValue: number,
+    lift: number,
+  ) => {
+    const now = ctx.currentTime;
+    const gain = ctx.createGain();
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.playbackRate.setValueAtTime(lift, now);
+    gain.gain.setValueAtTime(gainValue, now);
+    source.connect(gain).connect(ctx.destination);
+    source.start(now);
+  };
+
+  /** Play the held announcement if its clip is decoded and the context runs. */
+  const releaseHeld = () => {
+    if (!held || !context || context.state !== "running") return;
+    const buffer = buffers.get(held.clip);
+    if (!buffer) return;
+    const effect = effects.get(audio.bindings.stage_start ?? "");
+    const voice = effect?.realization;
+    held = null;
+    if (!voice || !isClipRealization(voice)) return;
+    try {
+      playBuffer(context, buffer, voice.gain, strengthLift(1, voice.strengthPitchMultiplier));
+    } catch {
+      // Same garnish rule as every other cue.
+    }
+  };
 
   const decodeClip = (ctx: AudioContext, clip: string) => {
     const pending = bytes.get(clip);
@@ -149,34 +211,36 @@ export function createWebAudioSink(
       .then((data) => ctx.decodeAudioData(data.slice(0)))
       .then((buffer) => {
         buffers.set(clip, buffer);
+        releaseHeld();
       })
       .catch(() => undefined)
       .finally(() => decoding.delete(clip));
   };
 
   return {
+    unlock() {
+      if (!context || context.state !== "suspended") return;
+      void context.resume().then(releaseHeld, () => undefined);
+    },
     play(cue, strength) {
       try {
         context ??= new AudioContext();
-        if (context.state === "suspended") void context.resume();
-        const effect = effects.get(audio.bindings[cue]);
+        if (context.state === "suspended") void context.resume().then(releaseHeld, () => undefined);
+        if (cue !== "stage_start") held = null;
+        const effect = effects.get(audio.bindings[cue] ?? "");
         if (!effect) return;
         const voice = effect.realization;
         const lift = strengthLift(strength, voice.strengthPitchMultiplier);
         const now = context.currentTime;
         const gain = context.createGain();
-        if (voice.kind === "generated_clip_v1") {
+        if (isClipRealization(voice)) {
           const buffer = buffers.get(voice.clip);
-          if (!buffer) {
+          if (!buffer || context.state !== "running") {
             decodeClip(context, voice.clip);
+            if (cue === "stage_start") held = { clip: voice.clip, strength };
             return;
           }
-          const source = context.createBufferSource();
-          source.buffer = buffer;
-          source.playbackRate.setValueAtTime(lift, now);
-          gain.gain.setValueAtTime(voice.gain, now);
-          source.connect(gain).connect(context.destination);
-          source.start(now);
+          playBuffer(context, buffer, voice.gain, lift);
           return;
         }
         const seconds = voice.durationMilliseconds / 1_000;

@@ -204,6 +204,7 @@ class RunnerScene extends Phaser.Scene {
   private readonly latch = createIntentLatch();
   private readonly disposers: (() => void)[] = [];
   private soundtrack?: RunnerSoundtrackPlayback;
+  private audioSink?: RunnerAudioSink;
 
   constructor(
     private readonly tag: string,
@@ -400,7 +401,12 @@ class RunnerScene extends Phaser.Scene {
 
     this.disposers.push(attachKeyboardIntentSource(this.latch, window));
     this.disposers.push(attachPointerIntentSource(this.latch, this.game.canvas));
-    const unlock = () => this.soundtrack?.unlock();
+    // One gesture unlocks both: the soundtrack, and the announcement the
+    // audio sink is holding for a context the browser would not start cold.
+    const unlock = () => {
+      this.soundtrack?.unlock();
+      this.audioSink?.unlock?.();
+    };
     window.addEventListener("keydown", unlock);
     this.game.canvas.addEventListener("pointerdown", unlock);
     this.disposers.push(() => {
@@ -424,12 +430,13 @@ class RunnerScene extends Phaser.Scene {
     const dustCanvas =
       (await this.buildDustCanvas(manifest)) ?? createGraphicsDustCanvas(this, RUNNER_DEPTHS.dust);
     this.disposers.push(() => dustCanvas.destroy());
+    this.audioSink = createWebAudioSink(manifest.audio, (path) => this.url(path));
     this.sealed = sealSystems(
       assembleRunnerSystems(
         this.latch,
         stage,
         hud,
-        createWebAudioSink(manifest.audio, (path) => this.url(path)),
+        this.audioSink,
         this.soundtrack ?? SILENT_MUSIC_SINK,
         fxView ?? HIDDEN_FX_VIEW,
         dustCanvas,

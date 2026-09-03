@@ -228,6 +228,14 @@ def test_ground_validation_keys_the_topology_lookup_resource(
     )
 
 
+def test_a_spoken_line_adds_exactly_one_read_and_its_admission(tmp_path: Path) -> None:
+    plan = _executor().plan(two_genre_package(tmp_path, spoken=True))
+    operations = Counter(node.operation for node in plan.graph.nodes)
+    assert operations["speech_generation"] == 1
+    assert operations["local"] == 15
+    assert {resource.resource_id for resource in plan.graph.resources} >= {"elevenlabs-speech"}
+
+
 def test_the_plan_states_the_exact_graph_the_member_implies(tmp_path: Path) -> None:
     plan = _executor().plan(two_genre_package(tmp_path))
 

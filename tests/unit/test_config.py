@@ -229,3 +229,24 @@ def test_sound_effect_model_defaults_to_the_documented_route_and_is_overridable(
     )
     with pytest.raises(ValueError, match="non-empty"):
         StageGenConfig(sound_effect_model=" ")
+
+
+def test_speech_generation_is_gated_on_the_elevenlabs_credential() -> None:
+    config = load_config(env={"OPENROUTER_API_KEY": "secret-value", "OPENAI_API_KEY": "x"})
+    with pytest.raises(ConfigError) as captured:
+        assert_capabilities(config, [CapabilityName.SPEECH_GENERATION])
+    assert str(captured.value).endswith("ELEVENLABS_API_KEY")
+    assert "secret-value" not in str(captured.value)
+    assert_capabilities(
+        load_config(env={"ELEVENLABS_API_KEY": "eleven"}),
+        [CapabilityName.SPEECH_GENERATION],
+    )
+
+
+def test_speech_model_defaults_to_the_documented_route_and_is_overridable() -> None:
+    assert load_config(env={}).speech_model == "eleven_v3"
+    assert load_config(env={"STAGE_GEN_SPEECH_MODEL": "eleven_v3_conversational"}).speech_model == (
+        "eleven_v3_conversational"
+    )
+    with pytest.raises(ValueError, match="non-empty"):
+        StageGenConfig(speech_model=" ")

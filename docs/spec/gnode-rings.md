@@ -17,7 +17,7 @@ the SDK grows above it.
 | Ring | Name | Contents | Media-aware? |
 | --- | --- | --- | --- |
 | 0 | engine core | graph topology, the node ABI (typed node types, registry dispatch, ports, cards, policy, the graph builder and its subgraph-template stamping), scheduling, trace, run view, model bindings, reliability, provenance contracts | no — media-free by lint |
-| 1 | modality disciplines | per-modality model specs and their retry-owning services: image, structured, tool loop, music, sound effect, background removal (`gnode/modalities/`) | yes — modality-generic only |
+| 1 | modality disciplines | per-modality model specs and their retry-owning services: image, structured, tool loop, music, sound effect, speech, background removal (`gnode/modalities/`) | yes — modality-generic only |
 | 2 | first-party providers | vendor adapters implementing ring-1 specs: `openai`, `openrouter`, `fal` (`gnode/providers/`) | yes |
 | 3 | standard nodes | individually promoted, cross-domain node types | empty by policy (see below) |
 
@@ -60,6 +60,7 @@ protocol with a hard version in its name and a `spec_version` marker, replaced
 | `ToolLoopModelV1` | one turn of a bounded tool-using episode | `step` |
 | `MusicModelV1` | instrumental music generation | `generate_once` |
 | `SoundEffectModelV1` | text-to-sound-effect generation | `generate_once` |
+| `SpeechModelV1` | text-to-speech generation on a provider voice | `generate_once` |
 | `BackgroundRemovalModelV1` | foreground matting | `remove_once` |
 
 Each modality package owns three things and nothing else:

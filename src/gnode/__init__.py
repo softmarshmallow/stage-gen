@@ -125,6 +125,14 @@ from gnode.modalities.sound_effect import (
     SoundEffectModelV1,
     SoundEffectOutputFormat,
 )
+from gnode.modalities.speech import (
+    ProviderSpeech,
+    SpeechGenerationRequest,
+    SpeechGenerationResult,
+    SpeechGenerationService,
+    SpeechModelV1,
+    SpeechOutputFormat,
+)
 from gnode.modalities.structured import (
     ProviderStructuredOutput,
     StructuredGenerationRequest,
@@ -367,6 +375,7 @@ __all__ = [
     "ProviderMusic",
     "ProviderResponseMetadata",
     "ProviderSoundEffect",
+    "ProviderSpeech",
     "ProviderStructuredOutput",
     "ProviderToolLoopStep",
     "record_artifact_rights",
@@ -405,6 +414,11 @@ __all__ = [
     "SoundEffectGenerationService",
     "SoundEffectModelV1",
     "SoundEffectOutputFormat",
+    "SpeechGenerationRequest",
+    "SpeechGenerationResult",
+    "SpeechGenerationService",
+    "SpeechModelV1",
+    "SpeechOutputFormat",
     "StructuredGenerationRequest",
     "StructuredGenerationResult",
     "StructuredGenerationService",

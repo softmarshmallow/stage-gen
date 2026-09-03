@@ -1,0 +1,20 @@
+schema_version = 1
+kind = "game-voices-v1"
+game_id = "iron-petal-unit"
+revision = 1
+
+# The cast, by name. A spoken line in a genre audio contract names a voice
+# here and nothing else; the provider reference lives only in this catalog.
+
+[[voices]]
+voice_id = "mira"
+display_name = "Mira"
+language_code = "ja"
+casting = "Eleven-year-old rescue pilot: bright, quick, never breathy. Cheerful under pressure, the crooked grin audible."
+rights_status = "unreviewed"
+
+[voices.provider]
+name = "elevenlabs"
+# Suzu: ja-JP, young, cute, characters_animation - the stock roster's closest read.
+voice = "6awt6FKyZGV0HyQEwisX"
+verified_on = "2026-09-03"

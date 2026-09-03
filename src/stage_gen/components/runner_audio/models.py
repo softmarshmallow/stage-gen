@@ -1,11 +1,18 @@
 """Authored runner audio: event bindings and portable effect realizations.
 
-The runner owns when its eight semantic audio events occur. This contract owns
-which named effect answers each event and how each effect is realized: either
-the provider-free oscillator sweep the web consumer synthesizes, or a generated
-clip the graph buys once and the consumer plays back. The event-to-effect
-bindings are the same either way, so a cue can change realization without
-remapping gameplay. The contract also owns what the soundtrack does at the
+The runner owns when its nine semantic audio events occur. This contract owns
+which named effect answers each event and how each effect is realized: the
+provider-free oscillator sweep the web consumer synthesizes, a generated clip
+the graph buys once from a text-to-sound route, or a spoken line - a *bark* -
+the graph buys once from a text-to-speech route on a voice the game's catalog
+declares. The event-to-effect bindings are the same in every case, so a cue
+can change realization without remapping gameplay.
+
+Eight of the events are consequences of player verbs and every package binds
+all eight. The ninth, ``stage_start``, is an announcement - the frame the
+stage-start moment opens, before the first run of a boot - and silence is a
+legitimate announcement, so it is the one binding a package may leave out.
+The contract also owns what the soundtrack does at the
 run's edges - the interactive-music vocabulary of an action, a fade time, and
 a fade curve on death and restart, and an optional duck under the hurt cue -
 while the soundtrack catalog itself stays a separate member. Provider or model
@@ -28,10 +35,12 @@ from stage_gen.components._game_input import (
     sha256_bytes,
 )
 from stage_gen.components.sound_effect import GeneratedClipRealization
+from stage_gen.components.speech import SpokenLineRealization
 
-RUNNER_AUDIO_SCHEMA_VERSION = 3
+RUNNER_AUDIO_SCHEMA_VERSION = 4
 
 RunnerAudioEvent = Literal[
+    "stage_start",
     "takeoff",
     "air_jump",
     "land",
@@ -44,8 +53,11 @@ RunnerAudioEvent = Literal[
 
 
 class RunnerAudioBindings(PersistedContractModel):
-    """Every semantic runner event explicitly names one effect identity."""
+    """Every player-verb event explicitly names one effect identity; the announcement may not."""
 
+    #: The stage-start moment's first frame, once per boot. Optional: an
+    #: announcement may be silent, where a verb's consequence may not.
+    stage_start: str | None = Field(default=None, pattern=SNAKE_ID_PATTERN, max_length=64)
     takeoff: str = Field(pattern=SNAKE_ID_PATTERN, max_length=64)
     air_jump: str = Field(pattern=SNAKE_ID_PATTERN, max_length=64)
     land: str = Field(pattern=SNAKE_ID_PATTERN, max_length=64)
@@ -59,6 +71,7 @@ class RunnerAudioBindings(PersistedContractModel):
 
     def effect_ids(self) -> tuple[str, ...]:
         return (
+            *(() if self.stage_start is None else (self.stage_start,)),
             self.takeoff,
             self.air_jump,
             self.land,
@@ -84,7 +97,7 @@ class OscillatorSweepRealization(PersistedContractModel):
 
 
 RunnerEffectRealization = Annotated[
-    OscillatorSweepRealization | GeneratedClipRealization,
+    OscillatorSweepRealization | GeneratedClipRealization | SpokenLineRealization,
     Field(discriminator="kind"),
 ]
 
@@ -174,8 +187,8 @@ class RunnerSoundEffect(PersistedContractModel):
 
 
 class RunnerAudioContract(PersistedContractModel):
-    schema_version: Literal[3]
-    kind: Literal["runner-audio-v3"]
+    schema_version: Literal[4]
+    kind: Literal["runner-audio-v4"]
     game_id: str = Field(pattern=GAME_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     bindings: RunnerAudioBindings
@@ -205,12 +218,34 @@ class RunnerAudioContract(PersistedContractModel):
         raise ValueError(f"unknown runner audio effect_id: {effect_id}")
 
     def generated_effects(self) -> tuple[RunnerSoundEffect, ...]:
-        """The effects that cost a provider operation, in canonical order."""
+        """The effects that cost a text-to-sound operation, in canonical order."""
 
         return tuple(
             effect
             for effect in self.effects
             if isinstance(effect.realization, GeneratedClipRealization)
+        )
+
+    def spoken_lines(self) -> tuple[RunnerSoundEffect, ...]:
+        """The effects that cost a text-to-speech operation, in canonical order."""
+
+        return tuple(
+            effect
+            for effect in self.effects
+            if isinstance(effect.realization, SpokenLineRealization)
+        )
+
+    def voice_ids(self) -> tuple[str, ...]:
+        """Every catalog voice the contract names, deduplicated, in canonical order."""
+
+        return tuple(
+            sorted(
+                {
+                    effect.realization.voice_id
+                    for effect in self.effects
+                    if isinstance(effect.realization, SpokenLineRealization)
+                }
+            )
         )
 
 
@@ -241,6 +276,7 @@ __all__ = [
     "RunnerMusicEvent",
     "RunnerMusicTransitions",
     "RunnerSoundEffect",
+    "SpokenLineRealization",
     "canonical_runner_audio_json",
     "load_runner_audio_bytes",
     "runner_audio_sha256",

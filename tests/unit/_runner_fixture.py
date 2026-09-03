@@ -318,8 +318,8 @@ reference_ids = ["cover_style"]
 prompt = "A tiny warm-brass coin with one pressed petal and no text; clean collectible icon."
 """
 
-RUNNER_AUDIO = """schema_version = 3
-kind = "runner-audio-v3"
+RUNNER_AUDIO = """schema_version = 4
+kind = "runner-audio-v4"
 game_id = "bellweather"
 revision = 1
 
@@ -438,6 +438,50 @@ prompt = "heavy wooden cart toppling onto gravel"
 duration_seconds = 1.0
 gain = 0.5
 strength_pitch_multiplier = 0.0
+"""
+
+#: The same audio contract with the run-start announcement spoken. Opt-in per
+#: test, so the default fixture keeps its provider census and the speech tests
+#: pay for exactly one more operation.
+RUNNER_AUDIO_SPOKEN = (
+    RUNNER_AUDIO.replace("[bindings]\n", '[bindings]\nstage_start = "mira_go"\n', 1)
+    + """
+[[effects]]
+effect_id = "mira_go"
+display_name = "Mira: Here We Go"
+
+[effects.realization]
+kind = "spoken_line_v1"
+text = "[excited][shouting] よーし、いくよーっ!"
+voice_id = "mira"
+stability = 0.5
+max_seconds = 3.0
+gain = 0.7
+strength_pitch_multiplier = 0.0
+"""
+)
+
+RUNNER_VOICES = """schema_version = 1
+kind = "game-voices-v1"
+game_id = "bellweather"
+revision = 1
+
+[[voices]]
+voice_id = "mira"
+display_name = "Mira"
+language_code = "ja"
+casting = "Eleven-year-old rescue pilot: bright, quick, never breathy."
+rights_status = "unreviewed"
+
+[voices.provider]
+name = "elevenlabs"
+voice = "voice-fixture-7"
+verified_on = "2026-09-03"
+"""
+
+VOICES_MEMBER_SOURCE = """
+[genres.voices]
+source = "voices.toml"
 """
 
 RUNNER_SOUNDTRACK = """schema_version = 1
@@ -681,23 +725,31 @@ def two_genre_package(
     projectiles: str | None = None,
     rows: int = 8,
     walk_surface_row: int = 5,
+    spoken: bool = False,
 ) -> Path:
     """Copy the committed platformer bellweather and author a runner member on
     top of it, so tests control every chunk under admission while the
-    platformer-owned members stay the canonical ones."""
+    platformer-owned members stay the canonical ones. ``spoken`` speaks the
+    run-start announcement and binds the voice catalog it resolves through."""
 
     package = tmp_path / "bellweather"
     shutil.copytree(SOURCE_PACKAGE, package)
     runner = package / "runner"
     (runner / "content").mkdir(parents=True)
-    (runner / "audio.toml").write_text(RUNNER_AUDIO, encoding="utf-8")
+    (runner / "audio.toml").write_text(
+        RUNNER_AUDIO_SPOKEN if spoken else RUNNER_AUDIO, encoding="utf-8"
+    )
     (runner / "soundtrack.toml").write_text(RUNNER_SOUNDTRACK, encoding="utf-8")
+    if spoken:
+        (package / "voices.toml").write_text(RUNNER_VOICES, encoding="utf-8")
     with (package / "game.toml").open("a", encoding="utf-8") as container:
         container.write(RUNNER_MEMBER)
         if bosses is not None:
             container.write(BOSS_MEMBER_SOURCE)
         if projectiles is not None:
             container.write(PROJECTILE_MEMBER_SOURCE)
+        if spoken:
+            container.write(VOICES_MEMBER_SOURCE)
     (runner / "gameplay.toml").write_text(gameplay, encoding="utf-8")
     (runner / "track.toml").write_text(
         runner_track_toml(chunks, rows=rows, walk_surface_row=walk_surface_row), encoding="utf-8"

@@ -47,6 +47,21 @@ measured model boundary — what this route can and cannot be asked for — is
 recorded in [spec/model-eleven-text-to-sound-v2.md](spec/model-eleven-text-to-sound-v2.md);
 the authoring contract that consumes it is [game-sound-effects.md](game-sound-effects.md).
 
+The same key authenticates the `speech_generation` operation:
+`POST https://api.elevenlabs.io/v1/text-to-speech/{voice}` with the `xi-api-key`
+header, model `eleven_v3` (`STAGE_GEN_SPEECH_MODEL`), verified against the
+account's model listing on 2026-09-03 (`requires_alpha_access` false;
+`can_use_style` and `can_use_speaker_boost` false, so `voice_settings` carries
+`stability` alone). The runner binding table declares it against `elevenlabs`
+with the `audio_tags` and `stability` features and the `elevenlabs-speech`
+resource; the adapter is `ElevenLabsSpeechBackend` in the same package. The
+voice is the provider's own reference, resolved from the game's `voices.toml`
+by the recipe and never authored beside gameplay. A seed is never sent:
+measured, it pins the length of a read and not its waveform. The route bills
+in characters and reports the charge in the same `character-cost` header. The
+measured model boundary is [spec/model-eleven-v3.md](spec/model-eleven-v3.md);
+the authoring contract is [game-voice.md](game-voice.md).
+
 Provider code stays behind adapters. Pipelines depend on the repository's
 component contract, not a vendor SDK response type.
 

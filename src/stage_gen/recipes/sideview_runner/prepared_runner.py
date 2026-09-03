@@ -36,6 +36,7 @@ from gnode import (
     ProvenanceInput,
     SoftwareIdentity,
     SoundEffectGenerationRequest,
+    SpeechGenerationRequest,
     StructuredGenerationRequest,
     StructuredOutputSchema,
     StructuredReference,
@@ -155,10 +156,16 @@ from stage_gen.components.sound_effect import (
     admit_sound_effect_bytes,
     admit_sound_effect_bytes_sync,
 )
+from stage_gen.components.speech import (
+    SpokenLineRealization,
+    admit_speech_bytes,
+    admit_speech_bytes_sync,
+)
 from stage_gen.identity import (
     IMAGE_GENERATION_COMPONENT,
     MUSIC_GENERATION_COMPONENT,
     SOUND_EFFECT_GENERATION_COMPONENT,
+    SPEECH_GENERATION_COMPONENT,
     STAGE_GEN_TOOL,
     STRUCTURED_GENERATION_COMPONENT,
     TOOL_LOOP_COMPONENT,
@@ -216,6 +223,9 @@ from stage_gen.recipes.sideview_runner.runner_types import (
     SOUNDTRACK_GENERATE,
     SOUNDTRACK_TRACK_KIND,
     SOUNDTRACK_VALIDATE,
+    SPEECH_CLIP_KIND,
+    SPEECH_GENERATE,
+    SPEECH_VALIDATE,
     STRUCTURAL_GROUND_GUIDE_KIND,
     STRUCTURAL_GROUND_RAW_KIND,
     STRUCTURAL_GROUND_SEAM_BRIDGE_KIND,
@@ -242,8 +252,10 @@ if TYPE_CHECKING:
         NodeExecutionContext,
         NodeHandler,
         SoundEffectGenerationService,
+        SpeechGenerationService,
         StructuredGenerationService,
     )
+    from stage_gen.components.game_voices import GameVoice
     from stage_gen.components.platformer_map import PreparedMapLayer
     from stage_gen.components.runner_track import RunnerSegmentChunk, RunnerTrack
     from stage_gen.media import LoopConstruction
@@ -709,14 +721,21 @@ def manifest_gameplay(gameplay: RunnerGameplayContract) -> dict[str, object]:
     }
 
 
-def manifest_audio(audio: RunnerAudioContract) -> dict[str, object]:
+def manifest_audio(
+    audio: RunnerAudioContract,
+    *,
+    read_validation: Callable[[str], bytes] | None = None,
+) -> dict[str, object]:
     """Project the authored event/effect closure without consumer defaults.
 
     A generated clip publishes what the consumer plays - the artifact path,
     its duration, and the playback mixing - and not what bought it: the
-    prompt and influence live in the artifact's provenance sidecar. The music
-    transitions are published as authored; they are consumer mixing and the
-    runtime is the only reader.
+    prompt and influence live in the artifact's provenance sidecar. A spoken
+    line publishes the same shape, but its duration was never authored - the
+    route decides how long a read takes - so it is read off the admission
+    record, the one place the measured length exists, which is why a contract
+    that speaks needs ``read_validation``. The music transitions are published
+    as authored; they are consumer mixing and the runtime is the only reader.
     """
 
     effects: list[dict[str, object]] = []
@@ -728,6 +747,22 @@ def manifest_audio(audio: RunnerAudioContract) -> dict[str, object]:
                 "kind": realization.kind,
                 "clip": f"audio/{effect.effect_id}.mp3",
                 "duration_seconds": realization.duration_seconds,
+                "gain": realization.gain,
+                "strength_pitch_multiplier": realization.strength_pitch_multiplier,
+            }
+        elif isinstance(realization, SpokenLineRealization):
+            if read_validation is None:
+                raise ValueError(
+                    f"spoken line {effect.effect_id} needs its admission record to publish"
+                )
+            record = json.loads(read_validation(f"audio/{effect.effect_id}.validation.json"))
+            duration = record.get("duration_seconds") if isinstance(record, dict) else None
+            if not isinstance(duration, (int, float)) or duration <= 0:
+                raise ValueError(f"spoken line {effect.effect_id} admission carries no length")
+            projected = {
+                "kind": realization.kind,
+                "clip": f"audio/{effect.effect_id}.mp3",
+                "duration_seconds": float(duration),
                 "gain": realization.gain,
                 "strength_pitch_multiplier": realization.strength_pitch_multiplier,
             }
@@ -816,6 +851,7 @@ class SideviewRunnerNodeHandler:
         tool_loop_service: ToolLoopService[dict[str, object]] | None = None,
         music_service: MusicGenerationService | None = None,
         sound_effect_service: SoundEffectGenerationService | None = None,
+        speech_service: SpeechGenerationService | None = None,
         capability_timeout_s: float | None = None,
     ) -> None:
         self._graph = graph
@@ -828,6 +864,7 @@ class SideviewRunnerNodeHandler:
         self._tool_loop = tool_loop_service
         self._music = music_service
         self._sound_effects = sound_effect_service
+        self._speech = speech_service
         self._timeout = capability_timeout_s
         self._cache = NodeArtifactCache(
             graph,
@@ -1415,6 +1452,44 @@ class SideviewRunnerNodeHandler:
             validate=lambda artifact: admit_sound_effect_bytes(artifact.data),
         )
 
+    def _spoken_line(self, node: Node) -> tuple[str, SpokenLineRealization]:
+        effect = self._runner.audio.effect(str(node.params["effect_id"]))
+        realization = effect.realization
+        if not isinstance(realization, SpokenLineRealization):
+            raise ValueError(f"runner effect {effect.effect_id} is not a spoken line")
+        return effect.effect_id, realization
+
+    def _cast_voice(self, voice_id: str) -> GameVoice:
+        voices = self._runner.voices
+        voice = None if voices is None else voices.voice(voice_id)
+        if voice is None:
+            raise ValueError(
+                f"spoken line names voice {voice_id!r}, which the package does not cast"
+            )
+        return voice
+
+    def _speech_request(self, node: Node) -> SpeechGenerationRequest:
+        effect_id, realization = self._spoken_line(node)
+        voice = self._cast_voice(realization.voice_id)
+        max_seconds = realization.max_seconds
+        return SpeechGenerationRequest(
+            text=self._provider_prompt(node),
+            voice=voice.provider.voice,
+            artifact_path=self._run_dir / node.port("audio").artifact_ref,
+            stability=realization.stability,
+            language_code=voice.language_code,
+            output_format="mp3",
+            timeout_seconds=120,
+            metadata={
+                "effect_id": effect_id,
+                "voice_id": realization.voice_id,
+                "max_seconds": max_seconds,
+            },
+            # The length ceiling is checked here, inside the retry owner, so an
+            # over-long read is redrawn and never persisted - trimming is forbidden.
+            validate=lambda artifact: admit_speech_bytes(artifact.data, max_seconds=max_seconds),
+        )
+
     @staticmethod
     def _sync_artifact_validation(
         validator: Callable[[BinaryArtifact], object] | None,
@@ -1704,6 +1779,45 @@ class SideviewRunnerNodeHandler:
                 if sound_request.rights is None
                 else sound_request.rights.model_dump(mode="json")
             )
+        elif node.operation == RunnerOperationKind.SPEECH_GENERATION:
+            speech_request = self._speech_request(node)
+            refs, inputs = [], []
+            params = {
+                "voice": speech_request.voice,
+                "output_format": speech_request.output_format,
+                "validated": speech_request.validate is not None,
+            }
+            if speech_request.stability is not None:
+                params["stability"] = speech_request.stability
+            if speech_request.language_code is not None:
+                params["language_code"] = speech_request.language_code
+            if speech_request.metadata:
+                params["metadata"] = dict(speech_request.metadata)
+            # The live validator decodes asynchronously; the cache path must
+            # restate the same facts synchronously, so it measures again here.
+            caller = admit_speech_bytes_sync(
+                artifact_data, max_seconds=self._spoken_line(node)[1].max_seconds
+            )
+            response_shape = (
+                None if provider_response is None else provider_response.get("source_shape")
+            )
+            if response_shape != "binary":
+                raise ValueError("speech provenance has no valid provider response shape")
+            validation = {
+                "output_nonempty": True,
+                "media_type": "audio/mpeg",
+                "signature": "matched",
+                "source_shape": response_shape,
+                "caller": True,
+                **caller,
+            }
+            component = SPEECH_GENERATION_COMPONENT
+            seed = None
+            rights = (
+                None
+                if speech_request.rights is None
+                else speech_request.rights.model_dump(mode="json")
+            )
         else:
             raise ValueError(f"node {node.node_id} is not provider-backed")
 
@@ -1777,6 +1891,10 @@ class SideviewRunnerNodeHandler:
         if node.type_id == SOUND_EFFECT_GENERATE.type_id:
             assert_audio_signature(data, "audio/mpeg")
             admit_sound_effect_bytes_sync(data)
+            return
+        if node.type_id == SPEECH_GENERATE.type_id:
+            assert_audio_signature(data, "audio/mpeg")
+            admit_speech_bytes_sync(data, max_seconds=self._spoken_line(node)[1].max_seconds)
             return
         if node.type_id == FX_CUT_IN_GENERATE.type_id:
             if str(node.params["plate"]) == "frame":
@@ -2236,9 +2354,7 @@ class SideviewRunnerNodeHandler:
             canonical, record, _facts = derive_sprite_dust_validation(
                 (self._run_dir / raw_ref).read_bytes()
             )
-            self._admit_local_image_and_record(
-                node, bundle, image=canonical, validation=record
-            )
+            self._admit_local_image_and_record(node, bundle, image=canonical, validation=record)
             return
         if node.type_id == FX_CUT_IN_VALIDATE.type_id:
             raw_ref = self._dependency_artifact(node, kind=FX_CUT_IN_RAW_KIND)
@@ -2268,6 +2384,7 @@ class SideviewRunnerNodeHandler:
         if node.type_id in {
             SOUNDTRACK_VALIDATE.type_id,
             SOUND_EFFECT_VALIDATE.type_id,
+            SPEECH_VALIDATE.type_id,
             MANIFEST_ASSEMBLE.type_id,
         }:
             # These are cheap local publication gates. Audio validation needs
@@ -2333,6 +2450,8 @@ class SideviewRunnerNodeHandler:
         registry.register(SOUNDTRACK_VALIDATE, self._bind(self._validate_track))
         registry.register(SOUND_EFFECT_GENERATE, self._bind(self._generate_sound_effect))
         registry.register(SOUND_EFFECT_VALIDATE, self._bind(self._validate_sound_effect))
+        registry.register(SPEECH_GENERATE, self._bind(self._generate_speech))
+        registry.register(SPEECH_VALIDATE, self._bind(self._validate_speech))
         registry.register(FX_CUT_IN_GENERATE, self._bind(self._generate_fx_plate))
         registry.register(FX_CUT_IN_DRAW, self._bind(self._draw_fx_frame))
         registry.register(FX_CUT_IN_PLACE, self._bind(self._place_fx_portrait))
@@ -2423,6 +2542,7 @@ class SideviewRunnerNodeHandler:
         elif node.operation in {
             RunnerOperationKind.MUSIC_GENERATION,
             RunnerOperationKind.SOUND_EFFECT_GENERATION,
+            RunnerOperationKind.SPEECH_GENERATION,
         }:
             preferred = "audio"
         else:
@@ -2533,6 +2653,9 @@ class SideviewRunnerNodeHandler:
         if node.type_id == SOUND_EFFECT_GENERATE.type_id:
             # Verbatim: the authored text is the entire prompt.
             return self._generated_clip(node)[1].prompt
+        if node.type_id == SPEECH_GENERATE.type_id:
+            # Verbatim, delivery annotations included: nothing is compiled onto a line.
+            return self._spoken_line(node)[1].text
         raise ValueError(f"provider node {node.node_id} carries no executable prompt")
 
     def _authored_references(self, node: Node) -> tuple[ImageReference, ...]:
@@ -3250,6 +3373,38 @@ class SideviewRunnerNodeHandler:
         )
         return self._result(node)
 
+    async def _generate_speech(self, node: Node) -> NodeExecutionResult:
+        service = self._speech
+        if service is None:
+            raise ValueError("runner speech execution requires a speech service")
+        request = self._speech_request(node)
+        result = await self._execute_provider_operation(node, lambda: service.generate(request))
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
+
+    async def _validate_speech(self, node: Node) -> NodeExecutionResult:
+        effect_id, realization = self._spoken_line(node)
+        source = self._run_dir / self._dependency_artifact(node, kind=SPEECH_CLIP_KIND)
+        probe = await probe_audio(source, timeout_seconds=120)
+        facts = await admit_speech_bytes(source.read_bytes(), max_seconds=realization.max_seconds)
+        atomic_write_json(
+            self._run_dir / node.port("validation").artifact_ref,
+            {
+                "schema_version": 1,
+                "kind": "sideview-runner-speech-validation-v1",
+                "effect_id": effect_id,
+                "voice_id": realization.voice_id,
+                "format_name": probe.format_name,
+                # The length the consumer will play: measured, never authored.
+                "duration_seconds": round(probe.duration_seconds, 3),
+                "max_seconds": realization.max_seconds,
+                "peak_dbfs": facts["peak_dbfs"],
+                "clipped": facts["clipped"],
+                "container_valid": True,
+                "listening_verdict": "not_performed",
+            },
+        )
+        return self._result(node)
+
     # ---------------------------------------------------------------- manifest
 
     # ------------------------------------------------------------------- fx
@@ -3640,7 +3795,7 @@ class SideviewRunnerNodeHandler:
             "items": items,
             "bosses": bosses,
             "projectiles": projectiles,
-            "audio": manifest_audio(runner.audio),
+            "audio": manifest_audio(runner.audio, read_validation=self._read_run_artifact),
             "soundtrack": (
                 None
                 if runner.soundtrack is None

@@ -3,6 +3,7 @@ import {
   bottomContiguousSurfaceRow,
   parseRunnerRuntimeManifest,
   RUNNER_REFUSAL,
+  RUNNER_AUDIO_EVENTS,
 } from "./contract";
 import {
   runnerArenaChunkFixture,
@@ -292,6 +293,50 @@ describe("parseRunnerRuntimeManifest", () => {
       "duration_seconds is out of range",
     );
     expect(() => parseRunnerRuntimeManifest(mutate((r) => (r.gain = 0)))).toThrow("gain");
+  });
+
+  test("parses a spoken line as a third clip kind and the announcement as the one optional binding", () => {
+    const manifest = parseRunnerRuntimeManifest(validRunnerManifest());
+    const line = manifest.audio.effects.find((effect) => effect.effectId === "mira_go");
+    expect(line?.realization).toEqual({
+      kind: "spoken_line_v1",
+      clip: "audio/mira_go.mp3",
+      durationSeconds: 2.01,
+      gain: 0.7,
+      strengthPitchMultiplier: 0,
+    });
+    expect(manifest.audio.bindings.stage_start).toBe("mira_go");
+    expect(RUNNER_AUDIO_EVENTS[0]).toBe("stage_start");
+
+    // Silent: null and absent both mean no announcement, and neither is an error.
+    for (const silence of [null, undefined]) {
+      const document = validRunnerManifest();
+      const audio = document.audio as {
+        bindings: Record<string, unknown>;
+        effects: Record<string, unknown>[];
+      };
+      if (silence === undefined) delete audio.bindings.stage_start;
+      else audio.bindings.stage_start = silence;
+      audio.effects = audio.effects.filter((entry) => entry.effect_id !== "mira_go");
+      expect(parseRunnerRuntimeManifest(document).audio.bindings.stage_start).toBeNull();
+    }
+
+    // A declared line nobody announces is dead art; an announcement of a
+    // missing line is unresolved; every verb stays mandatory.
+    const unused = validRunnerManifest();
+    (unused.audio as { bindings: Record<string, unknown> }).bindings.stage_start = null;
+    expect(() => parseRunnerRuntimeManifest(unused)).toThrow("mira_go is not bound");
+    const unresolved = validRunnerManifest();
+    (unresolved.audio as { bindings: Record<string, unknown> }).bindings.stage_start = "ghost";
+    expect(() => parseRunnerRuntimeManifest(unresolved)).toThrow(
+      "audio.bindings.stage_start references unknown effect ghost",
+    );
+    const verbless = validRunnerManifest();
+    delete (verbless.audio as { bindings: Record<string, unknown> }).bindings.death;
+    expect(() => parseRunnerRuntimeManifest(verbless)).toThrow("audio.bindings.death");
+    const typed = validRunnerManifest();
+    (typed.audio as { bindings: Record<string, unknown> }).bindings.stage_start = 7;
+    expect(() => parseRunnerRuntimeManifest(typed)).toThrow("stage_start");
   });
 
   test("parses the music transitions and refuses an unpaired, unbounded, or alien one", () => {

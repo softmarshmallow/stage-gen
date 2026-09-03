@@ -1,7 +1,7 @@
-schema_version = 3
-kind = "runner-audio-v3"
+schema_version = 4
+kind = "runner-audio-v4"
 game_id = "iron-petal-unit"
-revision = 4
+revision = 5
 
 # What the soundtrack does at the run's edges. The death stinger is the effect
 # bound to `death` below; the music fades out under it, and a fresh run starts
@@ -23,7 +23,10 @@ hold_seconds = 0.2
 recovery_seconds = 0.8
 curve = "linear"
 
+# The run-start announcement rides the stage-start cut-in: Mira speaks on the
+# frame the rip opens, once per boot. It is the one binding that may be silent.
 [bindings]
+stage_start = "mira_go"
 takeoff = "servo_takeoff"
 air_jump = "reactor_air_step"
 land = "ceramic_landing"
@@ -129,4 +132,19 @@ kind = "generated_clip_v1"
 prompt = "hard hit on sheet metal"
 duration_seconds = 0.5
 gain = 0.8
+strength_pitch_multiplier = 0.0
+
+[[effects]]
+effect_id = "mira_go"
+display_name = "Mira: Here We Go"
+
+# A bark, not a clip: read by the catalog's `mira` voice, annotations verbatim.
+# Chosen by ear over the short line - the two-beat read carries the cut-in.
+[effects.realization]
+kind = "spoken_line_v1"
+text = "[excited][shouting] よーし、いくよーっ！"
+voice_id = "mira"
+stability = 0.5
+max_seconds = 3.0
+gain = 0.7
 strength_pitch_multiplier = 0.0

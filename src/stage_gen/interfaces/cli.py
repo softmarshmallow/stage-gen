@@ -20,6 +20,7 @@ from stage_gen.capabilities import (
     generate_image_artifact,
     generate_music,
     generate_sound_effect,
+    generate_speech,
     remove_background,
 )
 from stage_gen.components._secure_fs import SecurePathError, read_absolute_regular_file
@@ -504,6 +505,13 @@ def build_parser() -> argparse.ArgumentParser:
     sound_effect_parser.add_argument("--loop", action="store_true")
     sound_effect_parser.add_argument("prompt", nargs="+")
 
+    speech_parser = commands.add_parser("generate-speech")
+    speech_parser.add_argument("--output", required=True)
+    speech_parser.add_argument("--voice", required=True)
+    speech_parser.add_argument("--stability", type=float, default=None)
+    speech_parser.add_argument("--language", default=None, dest="language_code")
+    speech_parser.add_argument("text", nargs="+")
+
     env_parser = commands.add_parser("import-env")
     env_parser.add_argument("--source", required=True)
     env_parser.add_argument("--destination", required=True)
@@ -576,6 +584,7 @@ def create_doctor_report(
             "text": config.text_model,
             "music": config.music_model,
             "soundEffect": config.sound_effect_model,
+            "speech": config.speech_model,
             "backgroundRemoval": config.background_removal_model,
         },
         "outDir": str(config.out_dir),
@@ -1327,6 +1336,16 @@ async def _dispatch_async(
             duration_seconds=args.duration,
             prompt_influence=args.prompt_influence,
             loop=args.loop,
+            config=config,
+            runtime=runtime,
+        )
+    elif args.command == "generate-speech":
+        result = await generate_speech(
+            text=" ".join(args.text).strip(),
+            output_path=args.output,
+            voice=args.voice,
+            stability=args.stability,
+            language_code=args.language_code,
             config=config,
             runtime=runtime,
         )

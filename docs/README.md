@@ -88,10 +88,14 @@ Start here for the headless, general-purpose system:
 - [Authored game soundtracks](game-soundtrack.md) — the current separate
   game-global track catalog, scrolling generation pipeline, shuffle playback,
   prepared-runtime projection, and listening/publication boundary.
-- [Authored game sound effects](game-sound-effects.md) — the `runner-audio-v3`
+- [Authored game sound effects](game-sound-effects.md) — the `runner-audio-v4`
   event bindings, the oscillator and generated-clip realizations, the verbatim
   prompt rule, the objective admission gates, the audition command, and the
   music transitions the soundtrack performs at the run's edges.
+- [Authored game voice](game-voice.md) — the `game-voices-v1` cast catalog, the
+  `spoken_line_v1` bark realization, verbatim text with delivery annotations,
+  the length-ceiling and level gates, the `generate-speech` audition command,
+  and the seam a voiced script will use.
 - [Authored game maps](game-maps.md) — exact-current `game-map-v9` package
   placement, visual/static-topology ownership, gameplay boundary, terrain
   projection, and links to the field-level authority.

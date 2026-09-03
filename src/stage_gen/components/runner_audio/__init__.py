@@ -1,4 +1,4 @@
-"""The runner genre's authored audio contract (``runner-audio-v3``)."""
+"""The runner genre's authored audio contract (``runner-audio-v4``)."""
 
 from .models import (
     RUNNER_AUDIO_SCHEMA_VERSION,
@@ -15,6 +15,7 @@ from .models import (
     RunnerMusicEvent,
     RunnerMusicTransitions,
     RunnerSoundEffect,
+    SpokenLineRealization,
     canonical_runner_audio_json,
     load_runner_audio_bytes,
     runner_audio_sha256,
@@ -35,6 +36,7 @@ __all__ = [
     "RunnerMusicEvent",
     "RunnerMusicTransitions",
     "RunnerSoundEffect",
+    "SpokenLineRealization",
     "canonical_runner_audio_json",
     "load_runner_audio_bytes",
     "runner_audio_sha256",

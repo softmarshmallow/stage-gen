@@ -57,6 +57,7 @@ export function runnerAudioFixture(): Record<string, unknown> {
       },
     },
     bindings: {
+      stage_start: "mira_go",
       takeoff: "takeoff_whistle",
       air_jump: "air_jump_whistle",
       land: "soft_landing",
@@ -91,6 +92,18 @@ export function runnerAudioFixture(): Record<string, unknown> {
           clip: "audio/run_ended.mp3",
           duration_seconds: 1,
           gain: 0.5,
+          strength_pitch_multiplier: 0,
+        },
+      },
+      // And one spoken line - the announcement - so the third kind is exercised.
+      {
+        effect_id: "mira_go",
+        display_name: "Mira: Here We Go",
+        realization: {
+          kind: "spoken_line_v1",
+          clip: "audio/mira_go.mp3",
+          duration_seconds: 2.01,
+          gain: 0.7,
           strength_pitch_multiplier: 0,
         },
       },
@@ -186,7 +199,7 @@ export function runnerManifestFixture(
 ): Record<string, unknown> {
   if (options.encounter === true) return encounterManifestFixture();
   return {
-    schema_version: 11,
+    schema_version: 12,
     kind: RUNNER_RUNTIME_KIND,
     game_id: "bellweather",
     display_name: "Bellweather",

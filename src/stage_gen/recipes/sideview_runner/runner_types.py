@@ -20,6 +20,8 @@ IMAGE_EDIT_FEATURES = (*IMAGE_FEATURES, "masked_edit")
 STRUCTURED_FEATURES = ("structured_output", "image_input")
 MUSIC_FEATURES = ("instrumental_loop",)
 SOUND_EFFECT_FEATURES = ("exact_duration",)
+#: A speech route that reads bracketed delivery annotations and takes a stability mode.
+SPEECH_FEATURES = ("audio_tags", "stability")
 
 #: Payload kinds (persisted vocabulary).
 PACKAGE_KIND = "runner-package-v1"
@@ -56,10 +58,12 @@ SOUNDTRACK_TRACK_KIND = "soundtrack-track-v1"
 SOUNDTRACK_VALIDATION_KIND = "soundtrack-validation-v1"
 SOUND_EFFECT_CLIP_KIND = "sound-effect-clip-v1"
 SOUND_EFFECT_VALIDATION_KIND = "sound-effect-validation-v1"
+SPEECH_CLIP_KIND = "speech-line-v1"
+SPEECH_VALIDATION_KIND = "speech-validation-v1"
 ATTEMPT_LEDGER_KIND = "attempt-ledger-v2"
-MANIFEST_KIND = "sideview-runner-runtime-v11"
+MANIFEST_KIND = "sideview-runner-runtime-v12"
 #: Moves with MANIFEST_KIND; the web parser pins both together.
-MANIFEST_SCHEMA_VERSION = 11
+MANIFEST_SCHEMA_VERSION = 12
 
 PACKAGE_RESOLVE = NodeType(
     type_id=f"{_P}/package.resolve",
@@ -291,6 +295,24 @@ SOUND_EFFECT_VALIDATE = NodeType(
     contract_version="runner-sound-effect-validate-v1",
 )
 
+SPEECH_GENERATE = NodeType(
+    type_id=f"{_P}/speech.generate",
+    title="Spoken line",
+    archetype=ViewArchetype.SOUND,
+    operation="speech_generation",
+    features=SPEECH_FEATURES,
+    policy=_PROVIDER,
+    contract_version="runner-speech-line-v1",
+)
+
+SPEECH_VALIDATE = NodeType(
+    type_id=f"{_P}/speech.validate",
+    title="Line admission",
+    archetype=ViewArchetype.VALIDATE,
+    operation="local",
+    contract_version="runner-speech-validate-v1",
+)
+
 MANIFEST_ASSEMBLE = NodeType(
     type_id=f"{_P}/manifest.assemble",
     title="Runtime manifest assembly",
@@ -298,7 +320,7 @@ MANIFEST_ASSEMBLE = NodeType(
     operation="local",
     # v10: every cut-in portrait publishes the placement the tool-loop agent
     # judged inside the frame, so the runtime document moved to v9 with it.
-    contract_version="runner-manifest-assemble-v11",
+    contract_version="runner-manifest-assemble-v12",
 )
 
 RUNNER_NODE_TYPES: tuple[NodeType, ...] = (
@@ -327,6 +349,8 @@ RUNNER_NODE_TYPES: tuple[NodeType, ...] = (
     SOUNDTRACK_VALIDATE,
     SOUND_EFFECT_GENERATE,
     SOUND_EFFECT_VALIDATE,
+    SPEECH_GENERATE,
+    SPEECH_VALIDATE,
     *FX_CUT_IN_NODE_TYPES,
     MANIFEST_ASSEMBLE,
 )
@@ -386,6 +410,11 @@ __all__ = [
     "SOUNDTRACK_TRACK_KIND",
     "SOUNDTRACK_VALIDATE",
     "SOUNDTRACK_VALIDATION_KIND",
+    "SPEECH_CLIP_KIND",
+    "SPEECH_FEATURES",
+    "SPEECH_GENERATE",
+    "SPEECH_VALIDATE",
+    "SPEECH_VALIDATION_KIND",
     "STRUCTURED_FEATURES",
     "STRUCTURAL_GROUND_GUIDE_KIND",
     "STRUCTURAL_GROUND_GUIDE_VALIDATION_KIND",

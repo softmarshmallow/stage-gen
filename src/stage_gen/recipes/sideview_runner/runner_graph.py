@@ -38,6 +38,7 @@ from stage_gen.components.game_fx.nodes import (
     add_sprite_nodes,
 )
 from stage_gen.components.game_soundtrack.prompt import music_track_prompt
+from stage_gen.components.game_voices import GameVoice
 from stage_gen.components.runner_content import (
     RUNNER_MOTION_ORDER,
     declared_boss_motion_states,
@@ -57,6 +58,7 @@ from stage_gen.components.sideview_actor.motion_rebase import (
     motion_rebase_verification_prompt,
 )
 from stage_gen.components.sound_effect import GeneratedClipRealization
+from stage_gen.components.speech import SpokenLineRealization
 from stage_gen.recipes.sideview_runner.runner_prompts import (
     avatar_concept_prompt,
     avatar_motion_prompt,
@@ -120,6 +122,11 @@ from stage_gen.recipes.sideview_runner.runner_types import (
     SOUNDTRACK_TRACK_KIND,
     SOUNDTRACK_VALIDATE,
     SOUNDTRACK_VALIDATION_KIND,
+    SPEECH_CLIP_KIND,
+    SPEECH_FEATURES,
+    SPEECH_GENERATE,
+    SPEECH_VALIDATE,
+    SPEECH_VALIDATION_KIND,
     STRUCTURAL_GROUND_GUIDE_KIND,
     STRUCTURAL_GROUND_GUIDE_VALIDATION_KIND,
     STRUCTURAL_GROUND_KIND,
@@ -152,6 +159,8 @@ RUNNER_CACHE_NAMESPACE = "sideview-runner-nodes-v1"
 RUNNER_CACHE_RECORD_KIND = "sideview-runner-node-cache-v1"
 #: The generate node's identity contract: bump when what a clip request means changes.
 SOUND_EFFECT_CONTRACT_VERSION = "runner-sound-effect-v1"
+#: The spoken line's identity contract: bump when what a read request means changes.
+SPEECH_CONTRACT_VERSION = "runner-speech-line-v1"
 
 #: The one canonical motion-state order: deterministic node ids and plate bands.
 #: Re-exported from the contract component so the vocabulary that validates,
@@ -168,6 +177,7 @@ class RunnerOperationKind(StrEnum):
     TOOL_LOOP = "tool_loop"
     MUSIC_GENERATION = "music_generation"
     SOUND_EFFECT_GENERATION = "sound_effect_generation"
+    SPEECH_GENERATION = "speech_generation"
 
 
 class SideviewRunnerGraph(Graph):
@@ -267,6 +277,18 @@ def runner_graph_profile(config: StageGenConfig) -> BindingTable:
                 estimated_cost_high_usd=0.10,
                 verified_on="2026-09-02",
             ),
+            # Measured in the speech spike: a bark is a few dozen characters,
+            # the route bills per character, and a call returns in seconds.
+            Binding(
+                operation=RunnerOperationKind.SPEECH_GENERATION,
+                model=ModelRef(model=config.speech_model, provider="elevenlabs"),
+                features=frozenset(SPEECH_FEATURES),
+                resource_id="elevenlabs-speech",
+                estimated_duration_seconds=10.0,
+                estimated_cost_low_usd=0.001,
+                estimated_cost_high_usd=0.05,
+                verified_on="2026-09-03",
+            ),
         ]
     )
 
@@ -299,6 +321,22 @@ def effective_loop_construction(resolved: ResolvedRunnerPackage, layer_id: str) 
         if layer.layer_id == layer_id:
             return layer.loop_construction or track.continuity.loop_construction
     raise KeyError(layer_id)
+
+
+def resolved_voice(runner: ResolvedRunnerMember, voice_id: str) -> GameVoice:
+    """The catalog voice a spoken line names.
+
+    The package resolver has already refused a name the catalog lacks, so this
+    is the graph builder refusing to plan around a voice it cannot see rather
+    than a second validation.
+    """
+
+    if runner.voices is None:
+        raise ValueError(f"spoken line names voice {voice_id!r} but the package binds no catalog")
+    voice = runner.voices.voice(voice_id)
+    if voice is None:
+        raise ValueError(f"spoken line names voice {voice_id!r}, which the catalog does not cast")
+    return voice
 
 
 def runner_subject_reference(
@@ -1132,6 +1170,70 @@ def build_runner_execution_graph(
                 )
                 sound_effect_validations.append(validated.node_id)
 
+    # ---------------------------------------------------------- spoken lines
+    # The text is authored, verbatim, annotations included. The identity takes
+    # the *resolved* voice: the same catalog name recast to another provider
+    # voice is a different asset. Gain, pitch and the frame budget stay out of
+    # it, so a rebalance after listening is never a redraw.
+    speech_validations: list[str] = []
+    spoken_lines = runner.audio.spoken_lines()
+    if spoken_lines:
+        speech_route = profile.require(RunnerOperationKind.SPEECH_GENERATION)
+        with builder.within_template("speech-pipeline@v1"):
+            for effect in spoken_lines:
+                realization = effect.realization
+                assert isinstance(realization, SpokenLineRealization)
+                voice = resolved_voice(runner, realization.voice_id)
+                if voice.provider.name != speech_route.model.provider:
+                    raise ValueError(
+                        f"voice {voice.voice_id} is cast on {voice.provider.name!r} but the "
+                        f"speech route is {speech_route.model}"
+                    )
+                generate_id = f"speech-{effect.effect_id}-generate"
+                generated = builder.add(
+                    SPEECH_GENERATE,
+                    generate_id,
+                    domain="audio",
+                    description=f"speak the {effect.effect_id} line",
+                    params={"effect_id": effect.effect_id},
+                    depends_on=barrier,
+                    cache_depends_on=(),
+                    input_digests=(
+                        _object_sha256(
+                            {
+                                "contract": SPEECH_CONTRACT_VERSION,
+                                **realization.generation_identity(
+                                    provider=voice.provider.name,
+                                    voice=voice.provider.voice,
+                                    language_code=voice.language_code,
+                                ),
+                            }
+                        ),
+                    ),
+                    ports=(
+                        _artifact("audio", f"audio/{effect.effect_id}.mp3", SPEECH_CLIP_KIND),
+                        _attempts(generate_id),
+                    ),
+                    card=NodeCard(prompt=realization.text),
+                )
+                validated = builder.add(
+                    SPEECH_VALIDATE,
+                    f"speech-{effect.effect_id}-validate",
+                    domain="audio",
+                    description=f"admit the {effect.effect_id} container, length, and level",
+                    params={"effect_id": effect.effect_id},
+                    depends_on=(generated.node_id,),
+                    input_digests=(package.closure_sha256,),
+                    ports=(
+                        _record(
+                            "validation",
+                            f"audio/{effect.effect_id}.validation.json",
+                            SPEECH_VALIDATION_KIND,
+                        ),
+                    ),
+                )
+                speech_validations.append(validated.node_id)
+
     # -------------------------------------------------------------------- fx
     # The screen-FX plates are the shared family's nodes, hosted here: the
     # runner supplies its art direction and its ledger port and nothing else.
@@ -1190,6 +1292,7 @@ def build_runner_execution_graph(
             *catalog_validations,
             *soundtrack_validations,
             *sound_effect_validations,
+            *speech_validations,
             *fx_terminals,
         ),
         input_digests=(package.closure_sha256,),

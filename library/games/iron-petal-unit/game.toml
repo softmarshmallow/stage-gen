@@ -1,7 +1,7 @@
 schema_version = 9
 kind = "game-contract-v9"
 game_id = "iron-petal-unit"
-revision = 5
+revision = 6
 display_name = "Iron Petal Unit"
 
 [universe]
@@ -98,6 +98,9 @@ source = "runner/soundtrack.toml"
 
 [genres.fx]
 source = "fx.toml"
+
+[genres.voices]
+source = "voices.toml"
 
 [evidence.cover]
 artifact_source = "references/cover.png"

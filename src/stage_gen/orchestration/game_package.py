@@ -41,6 +41,7 @@ from stage_gen.components.game_contract import (
 from stage_gen.components.game_fx import GameFx, load_game_fx_bytes
 from stage_gen.components.game_soundtrack import GameSoundtrack, load_game_soundtrack_bytes
 from stage_gen.components.game_ui import GameUi, load_game_ui_bytes
+from stage_gen.components.game_voices import GameVoices, load_game_voices_bytes
 from stage_gen.components.platformer_content import (
     PLAYER_CLIMB_STATE_BY_CLIMBABLE_ROLE,
     WEAPON_CLASSES_BY_PLAYER_EQUIPMENT,
@@ -176,6 +177,8 @@ class ResolvedRunnerMember:
     soundtrack: GameSoundtrack | None
     #: The screen-FX document, when the game authors one for this genre.
     fx: GameFx | None
+    #: The voice catalog, required exactly when the audio contract speaks a line.
+    voices: GameVoices | None
     #: Present exactly when the gameplay declares an encounter.
     bosses: RunnerBossCatalog | None
     projectiles: ProjectileContentCatalog | None
@@ -940,6 +943,15 @@ def _resolve_runner_member(
                 f"fx reference {fx_reference.reference_id}",
             )
             _validate_image(data, fx_reference.source)
+    voices = (
+        None
+        if runner_member.voices is None
+        else _load_locked(
+            member(runner_member.voices.source),
+            load_game_voices_bytes,
+            "invalid_game_voices_contract",
+        )
+    )
     track_reference_bytes: dict[str, bytes] = {}
     for track_reference in track.references:
         data = locked(
@@ -982,6 +994,7 @@ def _resolve_runner_member(
         audio=audio,
         soundtrack=soundtrack,
         fx=fx,
+        voices=voices,
         bosses=bosses,
         projectiles=projectiles,
     )
@@ -1023,10 +1036,24 @@ def _validate_runner_member(*, game: PreparedGameContract, runner: ResolvedRunne
         runner.audio.game_id,
         *(() if runner.soundtrack is None else (runner.soundtrack.game_id,)),
         *(() if runner.fx is None else (runner.fx.game_id,)),
+        *(() if runner.voices is None else (runner.voices.game_id,)),
     ]
     if any(game_id != game.game_id for game_id in owned):
         raise GamePackageValidationError(
             "cross_game_identity", "every package contract must share game.toml game_id"
+        )
+    # A spoken line names a voice; the catalog is where the name becomes a
+    # provider reference with a rights statement. Refused here, offline, so no
+    # graph is ever planned around a voice nobody cast.
+    spoken_voice_ids = runner.audio.voice_ids()
+    if spoken_voice_ids and runner.voices is None:
+        raise GamePackageValidationError(
+            "unresolved_cross_reference",
+            "runner audio speaks a line but the package binds no voices.toml catalog",
+        )
+    if runner.voices is not None:
+        _assert_subset(
+            set(spoken_voice_ids), set(runner.voices.voice_ids()), "spoken line voice_id"
         )
     if runner.fx is not None:
         unplayed = sorted(set(runner.fx.moment_names()) - runner_fx_moments(runner.gameplay))

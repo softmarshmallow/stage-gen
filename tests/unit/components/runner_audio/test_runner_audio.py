@@ -8,6 +8,7 @@ from stage_gen.components._game_input import AuthoredContractLoadError
 from stage_gen.components.runner_audio import (
     GeneratedClipRealization,
     RunnerAudioContract,
+    SpokenLineRealization,
     canonical_runner_audio_json,
     load_runner_audio_bytes,
     runner_audio_sha256,
@@ -47,8 +48,8 @@ strength_pitch_multiplier = 1.0
     ]
     if reverse:
         effects.reverse()
-    return """schema_version = 3
-kind = "runner-audio-v3"
+    return """schema_version = 4
+kind = "runner-audio-v4"
 game_id = "test-game"
 revision = 1
 
@@ -191,9 +192,88 @@ def test_a_generated_clip_is_bounded_before_any_spend(mutation: tuple[str, str])
 
 
 def test_the_retired_headers_are_refused() -> None:
-    for retired in ("runner-audio-v1", "runner-audio-v2"):
+    for retired in ("runner-audio-v1", "runner-audio-v2", "runner-audio-v3"):
         with pytest.raises(AuthoredContractLoadError):
-            _load(_source().replace('kind = "runner-audio-v3"', f'kind = "{retired}"'))
+            _load(_source().replace('kind = "runner-audio-v4"', f'kind = "{retired}"'))
+
+
+SPOKEN_LINE = """\
+[[effects]]
+effect_id = "mira_go"
+display_name = "Mira: Here We Go"
+
+[effects.realization]
+kind = "spoken_line_v1"
+text = "[excited][shouting] よーし、いくよーっ!"
+voice_id = "mira"
+stability = 0.5
+max_seconds = 3.0
+gain = 0.7
+strength_pitch_multiplier = 0.0
+"""
+
+
+def _spoken_source() -> str:
+    return (
+        _source().replace("\n[bindings]\n", '\n[bindings]\nstage_start = "mira_go"\n', 1)
+        + SPOKEN_LINE
+    )
+
+
+def test_stage_start_is_the_one_binding_a_package_may_leave_silent() -> None:
+    silent = _load(_source())
+    assert silent.bindings.stage_start is None
+    assert "stage_start" not in silent.bindings.effect_ids()
+    assert silent.spoken_lines() == ()
+    assert silent.voice_ids() == ()
+
+    spoken = _load(_spoken_source())
+    assert spoken.bindings.stage_start == "mira_go"
+    assert spoken.bindings.effect_ids()[0] == "mira_go"
+    assert [effect.effect_id for effect in spoken.spoken_lines()] == ["mira_go"]
+    assert spoken.voice_ids() == ("mira",)
+    # A declared line nobody plays is dead art, like any other effect.
+    with pytest.raises(AuthoredContractLoadError, match="unused effects"):
+        _load(_source() + SPOKEN_LINE)
+    # The eight verb consequences stay mandatory.
+    with pytest.raises(AuthoredContractLoadError):
+        _load(_spoken_source().replace('takeoff = "jump_tone"\n', ""))
+
+
+def test_a_spoken_line_names_its_voice_and_never_a_provider() -> None:
+    audio = _load(_spoken_source())
+    line = audio.effect("mira_go").realization
+    assert isinstance(line, SpokenLineRealization)
+    assert line.text == "[excited][shouting] よーし、いくよーっ!"
+    assert line.voice_id == "mira"
+    assert line.max_seconds == 3.0
+    serialized = canonical_runner_audio_json(audio)
+    assert b"provider" not in serialized
+    assert b"model" not in serialized
+    assert b"elevenlabs" not in serialized
+    louder = _load(_spoken_source().replace("gain = 0.7", "gain = 0.9"))
+    assert runner_audio_sha256(audio) != runner_audio_sha256(louder)
+    identity = line.generation_identity(provider="p", voice="v", language_code=None)
+    louder_line = louder.effect("mira_go").realization
+    assert isinstance(louder_line, SpokenLineRealization)
+    assert identity == louder_line.generation_identity(provider="p", voice="v", language_code=None)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        ("max_seconds = 3.0", "max_seconds = 0.2"),
+        ("max_seconds = 3.0", "max_seconds = 31"),
+        ('voice_id = "mira"', 'voice_id = "Mira"'),
+        ('voice_id = "mira"', 'voice_id = "6awt6FKyZGV0HyQEwisX"'),
+        ("stability = 0.5", "stability = 1.5"),
+        ('text = "[excited][shouting] よーし、いくよーっ!"', 'text = " "'),
+    ],
+)
+def test_a_spoken_line_is_bounded_before_any_spend(mutation: tuple[str, str]) -> None:
+    old, new = mutation
+    with pytest.raises(AuthoredContractLoadError):
+        _load(_spoken_source().replace(old, new, 1))
 
 
 DUCK = """

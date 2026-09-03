@@ -34,9 +34,10 @@ A runner member claims the fixed `runner/` prefix inside the package:
 | `runner/content/items.toml` | `item-content-v2` | Pickups, reused verbatim |
 | `runner/content/bosses.toml` | `boss-content-v1` | Optional: the actors an encounter brings, drawn facing left |
 | `runner/content/projectiles.toml` | `projectile-content-v2` | Optional: what the fight throws, reused verbatim from the platformer |
-| `runner/audio.toml` | `runner-audio-v3` | Required event bindings, sound-effect realizations (oscillator sweeps or generated clips), and the soundtrack's transitions at the run's edges |
+| `runner/audio.toml` | `runner-audio-v4` | Required event bindings (the stage-start announcement alone may be silent), effect realizations (oscillator sweeps, generated clips, or spoken lines), and the soundtrack's transitions at the run's edges |
 | `runner/soundtrack.toml` | `game-soundtrack-v1` | Optional |
 | `fx.toml` | `game-fx-v2` | Optional root sibling: the [screen FX](fx.md) plates and moment bindings this genre plays; the runner emits `stage_start`, and `encounter_start` when it declares an encounter |
+| `voices.toml` | `game-voices-v1` | Optional root sibling, required exactly when `audio.toml` speaks a line: the [voice catalog](../../game-voice.md) a spoken line's `voice_id` resolves through |
 
 There is no UI member (the runtime draws its distance/score HUD itself) and no
 scenario member yet; both are additive later. The screen-FX document is the
@@ -472,25 +473,39 @@ fixed beat phase at any point in a run. The compatible fraction ships instead:
 per-event audio one-shots, specific to *how* the obstacle was avoided.
 `runner/audio.toml` explicitly binds takeoff, air jump, landing, slide, hazard
 clear, collect, hurt (a survivable vitals drain), and death events to named
-effects. An effect is realized one of
-two ways. `oscillator_sweep_v1` authors waveform, start/end frequency,
+effects, and may bind a ninth, `stage_start` - the announcement on the first
+frame of a boot, the same frame the stage-start cut-in opens - which is the one
+event a package may leave silent, because silence is a legitimate
+announcement where a verb's consequence is not. An effect is realized one of
+three ways. `oscillator_sweep_v1` authors waveform, start/end frequency,
 duration, gain, and optional strength-driven pitch response at zero provider
 cost; the consumer synthesizes it and owns only Web Audio lifecycle.
 `generated_clip_v1` authors a verbatim prompt, an exact duration of at least
 half a second, optional prompt influence, and the same playback gain and pitch
 response; the graph buys it once as `audio/<effect_id>.mp3` through the
 `sound_effect_generation` route, admits it on container, duration, and level,
-and the consumer decodes and plays it. The bindings are the same either way, so
-a cue changes realization without remapping gameplay. The authoring contract
-and its gates are in [game-sound-effects.md](../../game-sound-effects.md); the
-route's measured boundary is in
-[model-eleven-text-to-sound-v2.md](../model-eleven-text-to-sound-v2.md). Iron
+and the consumer decodes and plays it. `spoken_line_v1` - a *bark*, the
+industry's word for a short event-triggered one-liner - authors verbatim text
+with its delivery annotations, the catalog `voice_id` that reads it, a
+stability, the longest read its frame budget tolerates, and the same playback
+mix; the graph buys it once through the `speech_generation` route on the
+provider voice `voices.toml` casts, admits it on container, level, and that
+length ceiling, and publishes the *measured* length, since the route never
+took one. The bindings are the same in every case, so a cue changes
+realization without remapping gameplay. The authoring contracts and their
+gates are in [game-sound-effects.md](../../game-sound-effects.md) and
+[game-voice.md](../../game-voice.md); the routes' measured boundaries are in
+[model-eleven-text-to-sound-v2.md](../model-eleven-text-to-sound-v2.md) and
+[model-eleven-v3.md](../model-eleven-v3.md). Iron
 Petal keeps five short cues on oscillators, including the jump, where nothing the
-route returned was judged usable, and realizes three as generated clips chosen
+route returned was judged usable, realizes three as generated clips chosen
 by ear from auditioned draws: `unit_stalled` on death, a one-second machine
 powering down with a metal clunk; `hull_clank` on a survivable hit, a hard hit
 on sheet metal; and `seed_chime` on collect, a half-second coin collect named
-by its game idiom, with the chain still lifting its playback rate.
+by its game idiom, with the chain still lifting its playback rate - and speaks
+its stage start as `mira_go`, Mira's two-beat 「よーし、いくよーっ！」 on the
+catalog's `mira` voice, chosen by ear over a shorter line because the two-beat
+read carries the cut-in.
 
 The same contract owns what the soundtrack does at the run's edges, in the
 vocabulary interactive-music middleware uses: an *action* on the music with a
@@ -517,7 +532,7 @@ tempo; a runner author expresses BPM inside the creative brief.
 
 ## Runtime composition
 
-Successful runner generation emits `sideview-runner-runtime-v11`. Its `ground`
+Successful runner generation emits `sideview-runner-runtime-v12`. Its `ground`
 field is the same closed union as the authored track. Atlas mode publishes one
 atlas path. Structural mode publishes `cell_px = 64` and an authored-order
 `chunks` array whose `segment_id`, image path, columns, and rows must match the
@@ -626,10 +641,10 @@ The embedded contract is content-insensitive where content does not change
 topology: a changed prompt or reference re-keys node cache identities and
 `graph_sha256`, not `topology_sha256`. Adding a segment in structural-ground
 mode, a layer, a motion state, a catalog entry, a soundtrack member, or a
-generated-clip effect changes the topology and therefore this checked
-snapshot. So does a binding-table route, because declared resources are part
-of the topology; the `elevenlabs-sound-effect` resource below serves Iron
-Petal's generated clips. So does a node type's contract version: the manifest
+generated-clip or spoken-line effect changes the topology and therefore this
+checked snapshot. So does a binding-table route, because declared resources are
+part of the topology; the `elevenlabs-sound-effect` and `elevenlabs-speech`
+resources below serve Iron Petal's generated clips and its spoken stage start. So does a node type's contract version: the manifest
 assembly moved to v8 when the audio block gained the music transitions, which
 re-keyed this snapshot with no new node. The checked runner fixture is
 Iron Petal Unit so the snapshot covers the per-segment structural-ground fan-out
@@ -643,16 +658,17 @@ rather than only the atlas branch. Regenerate with
   "kind": "sideview-runner-execution-graph-contract-v1",
   "fixture_ref": "library/games/iron-petal-unit",
   "graph_schema_version": 1,
-  "topology_sha256": "99c514c6ce20441db9a30884045f58781c89c8b78cb8241cd08bea617ec9dcad",
-  "node_count": 107,
+  "topology_sha256": "c8e1ea389b80056537058f849d6f84393acaa139761b0a609761c457a842d30a",
+  "node_count": 109,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
-    "local": 54,
+    "local": 55,
     "image_generation": 39,
     "structured_generation": 7,
     "tool_loop": 2,
     "music_generation": 2,
-    "sound_effect_generation": 3
+    "sound_effect_generation": 3,
+    "speech_generation": 1
   },
   "resources": [
     {
@@ -690,6 +706,12 @@ rather than only the atlas branch. Regenerate with
       "max_in_flight": null,
       "requests_per_minute": null,
       "rate_limit_owner": "none"
+    },
+    {
+      "resource_id": "elevenlabs-speech",
+      "max_in_flight": null,
+      "requests_per_minute": null,
+      "rate_limit_owner": "none"
     }
   ]
 }
@@ -709,7 +731,7 @@ artifact carries its digest. A cache hit restores that original generation ledge
 current hit/miss telemetry stays in the execution trace so it cannot perturb downstream cache
 lineage.
 
-| Domain | Concrete expansion | Image | Structured | Tool loop | Music | Sound | Local |
+| Domain | Concrete expansion | Image | Structured | Tool loop | Music | Sound + speech | Local |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | World | 12 segments × (guide + structural paint + canonicalize) - the twelfth is the encounter's arena - one shared generated-apron seam bridge, plus 3 layers × (generate + loop + validate) | 18 | 0 | 0 | 0 | 0 | 28 |
 | Avatar | One combined rider-machine concept, 5 motion strips and validations, two whole-silhouette motion-rebase judgements | 6 | 2 | 0 | 0 | 0 | 5 |
@@ -717,10 +739,11 @@ lineage.
 | Catalog | 4 obstacles, 1 collectible, and 2 projectiles, each generated and locally validated | 7 | 0 | 0 | 0 | 0 | 7 |
 | Soundtrack | 2 loop-ready tracks and technical validation | 0 | 0 | 0 | 2 | 0 | 2 |
 | Sound effects | One generate-and-admit pair per `generated_clip_v1` effect; Iron Petal realizes its collect, hurt, and death cues this way | 0 | 0 | 0 | 0 | 3 | 3 |
+| Spoken lines | One speak-and-admit pair per `spoken_line_v1` effect, on the voice the catalog casts; Iron Petal announces its stage start this way | 0 | 0 | 0 | 0 | 1 | 1 |
 | Screen FX | One cut-in frame plate and one portrait plate per bound moment (`stage_start` from authored references, `encounter_start` from the boss's own concept plate), each generated, admitted (mask polygon traced), and reviewed; each portrait placed inside the frame by one tool-loop episode before admission | 3 | 3 | 2 | 0 | 0 | 3 |
 | World-space FX | One ground-dust atlas, generated and admitted into four measured cells; absent entirely for a package that authors no `sprite.dust` | 1 | 0 | 0 | 0 | 0 | 1 |
 | Package | Captured-package barrier and terminal runtime assembly | 0 | 0 | 0 | 0 | 0 | 2 |
-| **Total** | **107 nodes** | **39** | **7** | **2** | **2** | **3** | **54** |
+| **Total** | **109 nodes** | **39** | **7** | **2** | **2** | **4** | **55** |
 
 ## Resolution and admission
 
@@ -730,9 +753,10 @@ alongside siblings, registers its files into the same exact closure
 
 - identity: every runner contract shares the container's `game_id`
   (`cross_game_identity`);
-- audio: all eight semantic events bind to declared effects, every effect is
-  used, and each realization is bounded before execution
-  (`invalid_runner_audio`);
+- audio: all eight verb events bind to declared effects, the optional
+  announcement resolves when bound, every effect is used, each realization is
+  bounded before execution (`invalid_runner_audio`), and a spoken line names a
+  voice `voices.toml` casts (`unresolved_cross_reference`);
 - bindings: cast avatar, gameplay `track_id`, hazard `prop_id`, and pickup
   `item_id` all resolve (`unresolved_cross_reference`);
 - verbs: overhead hazards demand a duck profile

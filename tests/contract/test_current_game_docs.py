@@ -11,6 +11,8 @@ CURRENT_GAME_DOC_PATHS = (
     "docs/game-maps.md",
     "docs/game-soundtrack.md",
     "docs/game-sound-effects.md",
+    "docs/game-voice.md",
+    "docs/spec/model-eleven-v3.md",
     "docs/dialogue-character-runtime-pipeline.md",
     "docs/spec/game/authored-contract-schema.md",
     "docs/spec/game/map-generation-contract.md",
@@ -105,6 +107,12 @@ RETIRED_PREPARED_IDENTITIES = (
     # fought over. Gameplay, track and the runtime manifest moved together.
     "runner-gameplay-v3",
     "runner-track-v3",
+    # Retired when the audio realization union gained the spoken line and the
+    # bindings gained the one optional event, the stage-start announcement: a
+    # third clip kind and a nullable binding are consumer-visible, so the
+    # runtime manifest moved with the contract.
+    "runner-audio-v3",
+    "sideview-runner-runtime-v11",
 )
 
 FORBIDDEN_OLD_VERSION_SUPPORT = (
@@ -210,19 +218,25 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     assert "`prepared-game-runtime-v10`" in soundtrack
 
     sound_effects = documents["docs/game-sound-effects.md"]
-    assert "`runner-audio-v3`" in sound_effects
+    assert "`runner-audio-v4`" in sound_effects
     assert "`generated_clip_v1`" in sound_effects
     assert "No normalization, no trimming, no\nconcatenation" in sound_effects
     assert "spec/model-eleven-text-to-sound-v2.md" in sound_effects
 
     runner = documents["docs/spec/game/runner.md"]
-    assert "`runner-audio-v3`" in runner
+    assert "`runner-audio-v4`" in runner
     assert "`generated_clip_v1`" in runner
+    assert "`spoken_line_v1`" in runner
+    assert "`game-voices-v1`" in runner
     assert "`runner-track-v4`" in runner
     assert "`runner-avatar-v3`" in runner
     assert "`runner-structural-ground-v1`" in runner
     assert "native-alpha GPT Image 2" in runner
-    assert "`sideview-runner-runtime-v11`" in documents["docs/game-package.md"]
+    assert "`sideview-runner-runtime-v12`" in documents["docs/game-package.md"]
+    voice = documents["docs/game-voice.md"]
+    assert "exact identity `game-voices-v1`" in voice
+    assert "`spoken_line_v1`" in voice
+    assert "generate-speech" in voice
     fx = documents["docs/spec/game/fx.md"]
     assert "exact current identity is `game-fx-v2`" in fx
     assert "`cut_in_frame_1536x1024_v1`" in fx

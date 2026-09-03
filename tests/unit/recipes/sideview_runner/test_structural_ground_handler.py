@@ -151,6 +151,8 @@ def test_structural_graph_adds_one_shared_local_bridge_without_provider_fanout(
     ]
     assert all(bridge.node_id in node.depends_on for node in validations)
     assert graph.operation_counts() == {
+        # Declared by the binding table, used by no node in a silent package.
+        "speech_generation": 0,
         "local": 18,
         "image_generation": 10,
         "structured_generation": 2,

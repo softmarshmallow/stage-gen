@@ -9,7 +9,18 @@ import { stepAvatar } from "./avatar";
 const STEP = { dt: 1 / 60, now: 1 / 60, frame: 1 } as const;
 const manifest = parseRunnerRuntimeManifest(runnerManifestFixture());
 
+/** Records every cue but the announcement, which the edge tests are not about. */
 function recorder(): { cues: RunnerAudioCue[]; play: (cue: RunnerAudioCue) => void } {
+  const cues: RunnerAudioCue[] = [];
+  return {
+    cues,
+    play: (cue) => {
+      if (cue !== "stage_start") cues.push(cue);
+    },
+  };
+}
+
+function fullRecorder(): { cues: RunnerAudioCue[]; play: (cue: RunnerAudioCue) => void } {
   const cues: RunnerAudioCue[] = [];
   return { cues, play: (cue) => cues.push(cue) };
 }
@@ -80,6 +91,42 @@ describe("createAudioSystem", () => {
     world.avatar.distanceColumns = 0.5;
     system.update(world, STEP);
     expect(sink.cues).toEqual(["death"]);
+  });
+});
+
+describe("createAudioSystem announcement", () => {
+  test("the stage start is announced on the first frame of a boot and never again", () => {
+    const world = createRunnerWorld(manifest, 1);
+    const sink = fullRecorder();
+    const system = createAudioSystem(sink);
+    system.update(world, STEP);
+    expect(sink.cues).toEqual(["stage_start"]);
+    system.update(world, STEP);
+    expect(sink.cues).toEqual(["stage_start"]);
+
+    // A restart after death resets the edges quietly; the boot happened once,
+    // so however many verb cues the reset frames post, the announcement is not among them.
+    world.avatar.distanceColumns = 40;
+    system.update(world, STEP);
+    world.avatar.distanceColumns = 0;
+    system.update(world, STEP);
+    expect(sink.cues.filter((cue) => cue === "stage_start")).toEqual(["stage_start"]);
+  });
+
+  test("a package that binds no announcement still posts the cue, which the sink drops", () => {
+    const document = runnerManifestFixture() as {
+      audio: { bindings: Record<string, unknown>; effects: Array<{ effect_id: string }> };
+    };
+    document.audio.bindings.stage_start = null;
+    document.audio.effects = document.audio.effects.filter(
+      (effect) => effect.effect_id !== "mira_go",
+    );
+    const silent = parseRunnerRuntimeManifest(document);
+    expect(silent.audio.bindings.stage_start).toBeNull();
+    const world = createRunnerWorld(silent, 1);
+    const sink = fullRecorder();
+    createAudioSystem(sink).update(world, STEP);
+    expect(sink.cues).toEqual(["stage_start"]);
   });
 });
 

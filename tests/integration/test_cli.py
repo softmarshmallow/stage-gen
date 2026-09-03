@@ -514,6 +514,79 @@ def test_generate_sound_effect_refuses_a_non_mp3_output_before_any_runtime(
     assert ".mp3" in errors.getvalue()
 
 
+def test_generate_speech_passes_the_verbatim_text_and_the_provider_voice(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "eleven")
+    calls: list[dict[str, object]] = []
+
+    class _Runtime:
+        async def generate_speech(self, **kwargs: object) -> CapabilityArtifactResult:
+            calls.append(kwargs)
+            output = str(kwargs["output_path"])
+            return CapabilityArtifactResult(
+                artifact_path=output,
+                provenance_path=f"{output}.meta.json",
+                media_type="audio/mpeg",
+                bytes=30_000,
+                attempts=1,
+            )
+
+    output = StringIO()
+    assert (
+        main(
+            [
+                "generate-speech",
+                "--output",
+                str(tmp_path / "go.mp3"),
+                "--voice",
+                "voice-7",
+                "--stability",
+                "0.5",
+                "--language",
+                "ja",
+                "[excited]",
+                "いくよっ!",
+            ],
+            runtime=_Runtime(),  # type: ignore[arg-type]
+            stdout=output,
+        )
+        == 0
+    )
+    # The annotation survives the shell verbatim: nothing strips a bracket.
+    assert calls == [
+        {
+            "text": "[excited] いくよっ!",
+            "output_path": str(tmp_path / "go.mp3"),
+            "voice": "voice-7",
+            "stability": 0.5,
+            "language_code": "ja",
+            "metadata": None,
+        }
+    ]
+    assert json.loads(output.getvalue())["mediaType"] == "audio/mpeg"
+    assert "generate-speech" in build_parser().format_help()
+
+
+def test_generate_speech_refuses_a_non_mp3_output_before_any_runtime(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "eleven")
+    errors = StringIO()
+    assert (
+        main(
+            ["generate-speech", "--output", str(tmp_path / "x.wav"), "--voice", "v", "hi"],
+            runtime=object(),  # type: ignore[arg-type]
+            stdout=StringIO(),
+            stderr=errors,
+        )
+        != 0
+    )
+    assert ".mp3" in errors.getvalue()
+
+
 def test_scenario_cli_proves_the_shipped_scenario_without_touching_a_provider() -> None:
     repository = Path(__file__).resolve().parents[2]
     package = repository / "library/games/larkfield"

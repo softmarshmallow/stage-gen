@@ -23,11 +23,13 @@ from gnode import (
     RetryPolicy,
     SoundEffectGenerationRequest,
     SoundEffectGenerationService,
+    SpeechGenerationRequest,
+    SpeechGenerationService,
     StructuredGenerationService,
     ToolLoopService,
     inspect_image,
 )
-from gnode.providers.elevenlabs import ElevenLabsSoundEffectBackend
+from gnode.providers.elevenlabs import ElevenLabsSoundEffectBackend, ElevenLabsSpeechBackend
 from gnode.providers.fal import FalBackgroundRemovalBackend
 from gnode.providers.openai import OpenAIImageBackend
 from gnode.providers.openrouter import (
@@ -41,12 +43,14 @@ from stage_gen.components.audio_normalization import (
     FfmpegAudioNormalizer,
 )
 from stage_gen.components.sound_effect import admit_sound_effect_bytes
+from stage_gen.components.speech import admit_speech_bytes
 from stage_gen.config import StageGenConfig, TransparencyMode
 from stage_gen.identity import (
     BACKGROUND_REMOVAL_COMPONENT,
     IMAGE_GENERATION_COMPONENT,
     MUSIC_GENERATION_COMPONENT,
     SOUND_EFFECT_GENERATION_COMPONENT,
+    SPEECH_GENERATION_COMPONENT,
     STAGE_GEN_TOOL,
     STRUCTURED_GENERATION_COMPONENT,
     TOOL_LOOP_COMPONENT,
@@ -175,6 +179,21 @@ def create_sound_effect_service(
     )
 
 
+def create_speech_service(
+    *,
+    api_key: str,
+    model: str = "eleven_v3",
+    base_url: str = "https://api.elevenlabs.io/v1",
+    retry_policy: RetryPolicy | None = None,
+) -> SpeechGenerationService:
+    return SpeechGenerationService(
+        ElevenLabsSpeechBackend(api_key=api_key, model=model, base_url=base_url),
+        component=SPEECH_GENERATION_COMPONENT,
+        tool=STAGE_GEN_TOOL,
+        retry_policy=retry_policy,
+    )
+
+
 class DefaultHeadlessRuntime:
     """Compose generic standalone operations; recipes supply their own executor."""
 
@@ -186,6 +205,7 @@ class DefaultHeadlessRuntime:
         background_service: BackgroundRemovalService | None = None,
         music_service: MusicGenerationService | None = None,
         sound_effect_service: SoundEffectGenerationService | None = None,
+        speech_service: SpeechGenerationService | None = None,
     ) -> None:
         self._config = config
         openrouter_url = config.open_router_base_url or "https://openrouter.ai/api/v1"
@@ -203,6 +223,15 @@ class DefaultHeadlessRuntime:
             create_sound_effect_service(
                 api_key=config.elevenlabs_api_key,
                 model=config.sound_effect_model,
+                base_url=config.elevenlabs_base_url or "https://api.elevenlabs.io/v1",
+            )
+            if config.elevenlabs_api_key
+            else None
+        )
+        self._speech = speech_service or (
+            create_speech_service(
+                api_key=config.elevenlabs_api_key,
+                model=config.speech_model,
                 base_url=config.elevenlabs_base_url or "https://api.elevenlabs.io/v1",
             )
             if config.elevenlabs_api_key
@@ -439,6 +468,51 @@ class DefaultHeadlessRuntime:
             generated.attempts,
         )
 
+    async def generate_speech(
+        self,
+        *,
+        text: str,
+        output_path: str,
+        voice: str,
+        stability: float | None = None,
+        language_code: str | None = None,
+        metadata: Mapping[str, object] | None = None,
+    ) -> CapabilityArtifactResult:
+        """One verbatim-text read on one provider voice, admitted on level, never post-processed.
+
+        The audition tool: the voice is the provider's own reference, exactly as
+        the sound-effect twin takes a raw prompt. Which voice a game-owned name
+        resolves to is the package's business, not this command's.
+        """
+
+        service = self._speech or _missing("ELEVENLABS_API_KEY")
+        output = await asyncio.to_thread(Path(output_path).resolve)
+        if output.suffix.lower() != ".mp3":
+            raise ValueError("generate-speech output must use a .mp3 extension")
+        generated = await service.generate(
+            SpeechGenerationRequest(
+                text=text,
+                voice=voice,
+                artifact_path=output,
+                stability=stability,
+                language_code=language_code,
+                output_format="mp3",
+                timeout_seconds=self._config.capability_timeout_ms / 1000,
+                metadata=dict(metadata)
+                if metadata is not None
+                else {"source": "stage-gen-headless"},
+                rights=_unreviewed_generated_music_rights(),
+                validate=lambda artifact: admit_speech_bytes(artifact.data),
+            )
+        )
+        return _result(
+            str(output),
+            generated.provenance_path,
+            generated.media_type,
+            len(generated.data),
+            generated.attempts,
+        )
+
 
 def create_headless_runtime(
     config: StageGenConfig,
@@ -447,6 +521,7 @@ def create_headless_runtime(
     background_service: BackgroundRemovalService | None = None,
     music_service: MusicGenerationService | None = None,
     sound_effect_service: SoundEffectGenerationService | None = None,
+    speech_service: SpeechGenerationService | None = None,
 ) -> DefaultHeadlessRuntime:
     return DefaultHeadlessRuntime(
         config,
@@ -454,6 +529,7 @@ def create_headless_runtime(
         background_service=background_service,
         music_service=music_service,
         sound_effect_service=sound_effect_service,
+        speech_service=speech_service,
     )
 
 

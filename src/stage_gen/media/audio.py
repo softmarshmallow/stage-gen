@@ -318,6 +318,83 @@ def parse_peak_dbfs(stderr: str) -> float:
     return _finite(matches[-1], "volumedetect max_volume")
 
 
+_DECODED_TIME_LINE = re.compile(r"time=(\d+):(\d\d):(\d\d(?:\.\d+)?)")
+
+
+def parse_decoded_duration_seconds(stderr: str) -> float:
+    """Read how far ffmpeg's decode ran from its final progress line.
+
+    The same ``volumedetect`` pass that measures a stream's peak decodes the
+    whole stream and reports where it stopped, so a caller holding only bytes -
+    a validator inside a retry owner, before any file exists - can learn a
+    clip's length without a second process or a temporary file. ``ffprobe``
+    cannot be trusted here: on a pipe it has no size to estimate from.
+    """
+
+    matches = _DECODED_TIME_LINE.findall(stderr)
+    if not matches:
+        raise ValueError("ffmpeg reported no decoded time")
+    hours, minutes, seconds = matches[-1]
+    duration = int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+    if duration <= 0:
+        raise ValueError("ffmpeg decoded no audio")
+    return duration
+
+
+@dataclass(frozen=True, slots=True)
+class LevelAndDuration:
+    peak_dbfs: float
+    duration_seconds: float
+
+
+async def measure_level_and_duration(
+    data: bytes,
+    *,
+    runner: AudioProcessRunner | None = None,
+    ffmpeg: str = "ffmpeg",
+    timeout_seconds: float = DEFAULT_AUDIO_PROCESS_TIMEOUT_SECONDS,
+) -> LevelAndDuration:
+    """Peak and decoded length from one pass over a payload, bytes never altered."""
+
+    if runner is None:
+        result = await run_process(
+            ffmpeg, peak_measurement_args(), timeout_seconds, input_bytes=data
+        )
+    else:
+        result = await runner(ffmpeg, peak_measurement_args(), timeout_seconds)
+    return LevelAndDuration(
+        peak_dbfs=parse_peak_dbfs(result.stderr),
+        duration_seconds=parse_decoded_duration_seconds(result.stderr),
+    )
+
+
+def measure_level_and_duration_sync(
+    data: bytes,
+    *,
+    ffmpeg: str = "ffmpeg",
+    timeout_seconds: float = DEFAULT_AUDIO_PROCESS_TIMEOUT_SECONDS,
+) -> LevelAndDuration:
+    """The blocking twin of ``measure_level_and_duration`` for synchronous cache admission."""
+
+    try:
+        completed = subprocess.run(
+            [ffmpeg, *peak_measurement_args()],
+            input=data,
+            capture_output=True,
+            timeout=timeout_seconds,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise TimeoutError(f"{ffmpeg} timed out after {timeout_seconds:g}s") from exc
+    stderr = completed.stderr.decode("utf-8", errors="replace")
+    if completed.returncode != 0:
+        raise RuntimeError(f"{ffmpeg} exited with {completed.returncode}: {stderr.strip()[-800:]}")
+    return LevelAndDuration(
+        peak_dbfs=parse_peak_dbfs(stderr),
+        duration_seconds=parse_decoded_duration_seconds(stderr),
+    )
+
+
 async def measure_peak_dbfs(
     data: bytes,
     *,

@@ -61,7 +61,7 @@ that same bridge: its right edge receives bridge column 0 and its left edge
 receives bridge column 1, so every A-to-B join reconstructs the original
 continuous two-column generated material. Each published segment remains
 `columns * 64` by `rows * 64`, while authored occupancy remains collision
-authority. Its terminal node emits `sideview-runner-runtime-v11`. The exact
+authority. Its terminal node emits `sideview-runner-runtime-v12`. The exact
 fixture fan-out and provider-operation counts are machine-checked in
 [`runner.md`](runner.md); changing that fan-out requires regenerating its
 embedded contract in this same change.
@@ -77,7 +77,7 @@ the same compiled direction, so this genre input is part of the provider node's 
 
 `stage-gen generate` requires `--input` pointing to a prepared directory or ZIP whose root
 contains `game.toml`. There is no bare-prompt fallback. The runner recipe is a single-shot graph:
-its live call executes the complete selected member and assembles `sideview-runner-runtime-v11`.
+its live call executes the complete selected member and assembles `sideview-runner-runtime-v12`.
 The platformer recipe remains checkpointed. `--checkpoint world` executes only the map-review
 targets and their complete dependency closure. `--checkpoint content` independently executes cast,
 catalog, UI, soundtrack, and stable-ID binding targets and their dependency closure. Neither paid

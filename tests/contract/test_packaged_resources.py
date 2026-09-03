@@ -185,7 +185,12 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # The dust atlas (2026-09-03) adds one: a second FX discipline whose gate is
         # nothing like the cut-in's - a small picture judged on whether it survives being
         # drawn at forty pixels - so it is its own module beside it (measured 258).
-        assert len(wheel_entries) <= 258
+        # Speech (2026-09-03) adds nine: a ring-1 modality (package, models, service)
+        # and its ElevenLabs backend, the spoken-line component (package, models,
+        # admission) and the voice catalog (package, models). A voice is an input
+        # the sound route never had, so nothing here shares a module with sound
+        # effects (measured 267).
+        assert len(wheel_entries) <= 267
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -291,7 +296,11 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # cap is set to what the tree measures rather than to that arithmetic: the
         # painted-terrain work above landed more files than its own note counted, and it
         # was still landing them while this was measured (measured 532).
-        assert len(sdist_entries) <= 532
+        # Speech (2026-09-03) adds seventeen: the nine wheel modules, six test
+        # modules across the modality, the provider, the two components and the
+        # runner handler, and two documents - the model boundary and the voice
+        # authoring contract - plus Iron Petal's voice catalog (measured 549).
+        assert len(sdist_entries) <= 549
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. Raised again for the scenario contract, whose seven source modules put the
@@ -320,7 +329,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # its nine source modules, five test modules and their shared fixture and
         # measured 7.15 MB; the ceiling is 7.2 MB. The dust atlas (2026-09-03) added its
         # gate and its focused tests and measured 7.23 MB; the ceiling is 7.3 MB.
-        assert sum(sdist_entries.values()) < 7_300_000
+        # Speech (2026-09-03): two documents and the modality, component, and test
+        # modules above are text, about 110 KiB together, and the tree was already
+        # within 60 KiB of the cap (measured 7,358,533).
+        assert sum(sdist_entries.values()) < 7_450_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)

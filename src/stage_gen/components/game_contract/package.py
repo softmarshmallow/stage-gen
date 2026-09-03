@@ -368,8 +368,9 @@ class RunnerGenreMember(PersistedContractModel):
     items, and explicit event-to-effect audio. Bosses and projectiles arrive
     together with an encounter and are absent without one. Soundtrack is
     optional, and so
-    is the screen-FX document (``fx.toml``, a root sibling the genre consumes at
-    its stage start); there is no UI member (the runtime draws its
+    are the screen-FX document (``fx.toml``, a root sibling the genre consumes at
+    its stage start) and the voice catalog (``voices.toml``, the root sibling a
+    spoken line resolves its voice through); there is no UI member (the runtime draws its
     distance/score HUD itself) and no scenario member in v1. The family
     claims the fixed `runner/` prefix so its members can never collide with a
     sibling genre's.
@@ -384,6 +385,9 @@ class RunnerGenreMember(PersistedContractModel):
     audio: PackageSource
     soundtrack: PackageSource | None = None
     fx: PackageSource | None = None
+    #: The game-global voice catalog (``voices.toml``), a root sibling like
+    #: ``fx.toml``: required exactly when the audio contract speaks a line.
+    voices: PackageSource | None = None
 
     @model_validator(mode="after")
     def validate_member_sources(self) -> RunnerGenreMember:
@@ -415,6 +419,7 @@ class RunnerGenreMember(PersistedContractModel):
                 else {"soundtrack": (self.soundtrack.source, "runner/soundtrack.toml")}
             ),
             **({} if self.fx is None else {"fx": (self.fx.source, "fx.toml")}),
+            **({} if self.voices is None else {"voices": (self.voices.source, "voices.toml")}),
         }
         for label, (actual, expected) in exact_sources.items():
             if actual != expected:
@@ -435,6 +440,7 @@ class RunnerGenreMember(PersistedContractModel):
             self.audio.source,
             *([] if self.soundtrack is None else [self.soundtrack.source]),
             *([] if self.fx is None else [self.fx.source]),
+            *([] if self.voices is None else [self.voices.source]),
         ]
 
 
