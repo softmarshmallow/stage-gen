@@ -1805,19 +1805,36 @@ The brief's eight, with what each actually returned.
 | 7 | Manifests and provenance; no absolute paths | **pass** — every run carries its manifest; zero absolute paths, temp paths or credential-shaped strings across all four shipped runs; the bundle carries `rights.aggregate: unreviewed` and `publication_authorized: false` |
 | 8 | A full play-through with a reload and a Continue | **partly.** Resume is **proven** — a reload mid-episode into a fresh tab offered the save and Continue landed on the same line. The two full passes are QA's and are in section 5. |
 
+**Re-verified in the running consumer after the direction-A redraw** (2026-09-03, post-freeze):
+beat 1 opens on the new Calder Investigations plate, Ruth composites into it with clean
+edges and a matching palette, and the new narration plate carries two wrapped lines legibly.
+In the motor court room all six hotspots land on their objects in the live Hotspots overlay,
+and **`service_bell` — the hotspot that shipped unclickable — rings and completes the room**:
+*"✦ Room complete — Each footstep returns from the stone."* The window room's fourteen
+regions are verified against the plate offline but have not been played end to end since
+the redraw; that pass is owed.
+
+
 **Beat resolution**, checked directly rather than assumed — every one of the eight resolves
 to artifacts that exist:
 
 ```
-b_office        the-grain-scene-5         bundle ✓  scenario e1_office ✓
-b_motor_court   the-grain-motor-court-3   manifest ✓ room ✓ proof ✓
-b_way_in        the-grain-scene-5         bundle ✓  scenario e1_way_in ✓
-b_table         the-grain-scene-5         bundle ✓  scenario e1_table ✓
-b_coffee        the-grain-scene-5         bundle ✓  scenario e1_coffee ✓
-b_window        the-grain-window-3        manifest ✓ room ✓ proof ✓
-b_the_court     the-grain-scene-5         bundle ✓  scenario e1_the_court ✓
-b_statements    the-grain-scene-5         bundle ✓  scenario e1_statements ✓
+b_office        the-grain-scene-a          bundle ✓  scenario e1_office ✓
+b_motor_court   the-grain-motor-court-a2   manifest ✓ room ✓ proof ✓
+b_way_in        the-grain-scene-a          bundle ✓  scenario e1_way_in ✓
+b_table         the-grain-scene-a          bundle ✓  scenario e1_table ✓
+b_coffee        the-grain-scene-a          bundle ✓  scenario e1_coffee ✓
+b_window        the-grain-window-a2        manifest ✓ room ✓ proof ✓
+b_the_court     the-grain-scene-a          bundle ✓  scenario e1_the_court ✓
+b_statements    the-grain-scene-a          bundle ✓  scenario e1_statements ✓
 ```
+
+*Re-bundled onto the direction-A runs on 2026-09-03. Until that re-bundle the episode
+still played on the gouache art: the new runs existed and the authored case proved, but
+nothing pointed the runtime at them. Generating art is not shipping it — the bundle is the
+step that makes a redraw playable, and it is easy to skip because every proof passes
+without it. The gouache run tags above are what the pilot froze on and are kept in
+`out/` for comparison.*
 
 **What the gates did not catch**, and it is the pilot's sharpest lesson: a room whose only
 exit could not be clicked passed gate 2 with *solvable, 16 states, zero unreachable
