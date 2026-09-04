@@ -119,6 +119,48 @@ declarations as the failing fixtures. E2 unchanged. E1: identical except the
 frame after a restart, where post-reset systems no longer see the stale
 `run-ended` — the diff is at that frame and nowhere else.
 
+**Evidence, measured.** Branch `runtime/step-1-kernel`; `bun test` 1501 pass,
+0 fail; `tsc --noEmit` clean.
+
+- **E1.** Frame-by-frame digests of the 600-step golden, old chain against
+  new: **one frame of six hundred moved — 278**, the frame the run ends, where
+  the avatar reads `jump` rather than `death`. The pose is worn at 279 by
+  `runner/avatar`, the slice's one author, which is the one-frame delay
+  `stepAvatar`'s own comment already claimed and the run-loop's undeclared
+  write contradicted. Frames 279–600 hash identically one by one, the restart
+  at 410 included; the chain checkpoints at 300 and 600 are re-pinned for that
+  single frame, and the checkpoint at 60 is unchanged. The prediction above
+  was half right and half impossible: the restart *is* a frame boundary now,
+  but the dead run's `run-ended` was never in the queue at it — `run-ended`
+  and the restart press are always at least one frame apart, because the phase
+  must already be `dead` before a press restarts. The queue-and-mailbox
+  emptying at reset is real and proven in `kernel/systems.test.ts`, which is
+  the level at which it can be exhibited at all. The golden now seals with
+  `devTrap` on: 600 frames of the real roster with every write checked, no
+  refusal.
+- **E2.** `DOCUMENTED_ORDER` is unchanged. The camera's fake `reads: ["run"]`
+  became `after: ["runner/run-loop"]` — the same edge — and a test asserts
+  both the declaration and the position it buys.
+- **E3.** Six refusals fixtured from the runner's own pre-fix declarations:
+  two owners of `fx`, a shared write into owned `fx`, the death-pose write
+  under the dev trap, the cycle that declaring that write would have closed,
+  `run-ended` consumed with `runner/vitals` removed, and an unknown name in an
+  `after` edge — plus the kernel's own ownership, trap, reset and
+  deferred-consume tests.
+- **Falsifier.** Strict `owns` forced **one** new `after` edge
+  (`runner/camera`), and it replaced a fake read rather than adding a
+  constraint: net new ordering edges, zero. Far under the threshold; the
+  slices are cut at the right grain.
+- **Consolidation.** Five hash/PRNG implementations became one
+  (`kernel/rng.ts`, `kernel/hash.ts`), and the accumulator moved to
+  `kernel/fixed-step.ts`. The platformer's heightmap and spawn director import
+  the kernel's with the arithmetic unchanged; their suites are green, so no
+  baked artifact moved.
+- **One thing the ruling did not fit.** `avatar.motion = "death"` could not
+  "become declared": every system sealed before the run-loop reads `avatar`,
+  so a run-loop that declared the write closes a cycle (E3 proves it). It
+  became the avatar's own write instead — which is why E1 has its one frame.
+
 **Played evidence.** None needed; nothing visible changes. Iron Petal's run
 assembled and captured (E5) as the "before" record for everything after.
 
