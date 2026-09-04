@@ -223,6 +223,8 @@ import {
   type InteractionSession,
 } from "@/lib/families/interaction";
 import { parsePlatformerInteractionBlock } from "./interaction";
+import { PromptBoard, type Prompt } from "@/lib/families/prompt";
+import { parsePlatformerPromptBlock } from "./prompt";
 import {
   applyEffects,
   QuestLedger,
@@ -360,6 +362,22 @@ export class PreparedStageScene extends Phaser.Scene {
   private mobPopulationMapId?: string;
   private mobIdByPopulationSlot: readonly string[] = [];
   private npcs: NpcActor[] = [];
+  /**
+   * Which villager is being offered a conversation, as the `prompt` family's board.
+   *
+   * The scene used to set every talk prompt's visibility itself on every frame.
+   * The board decides whether the answer changed and the view below is the only
+   * thing that touches a `Text` — which is what makes "what is on offer" a
+   * question something other than a renderer can answer.
+   */
+  private readonly npcPrompts = new PromptBoard({
+    show: (prompt) => {
+      this.npcs.find((npc) => npc.npcId === prompt.ownerId)?.talkPrompt.setVisible(true);
+    },
+    hide: (ownerId) => {
+      this.npcs.find((npc) => npc.npcId === ownerId)?.talkPrompt.setVisible(false);
+    },
+  });
   private items?: ItemSystem;
   private projectiles?: ProjectileSystem;
   /**
@@ -670,6 +688,7 @@ export class PreparedStageScene extends Phaser.Scene {
     parsePlatformerLootBlocks(manifest.blocks);
     parsePlatformerEffectsBlock(manifest.blocks);
     parsePlatformerInteractionBlock(manifest.blocks);
+    parsePlatformerPromptBlock(manifest.blocks);
     // A quest that could never finish is refused before the first frame rather
     // than at the moment it would have.
     sealQuestCompletions(gameplay.quests, gameplay.effects, PLATFORMER_QUEST_STATE_OPERATION);
@@ -1489,6 +1508,10 @@ export class PreparedStageScene extends Phaser.Scene {
       sprite.destroy();
     for (const mob of this.mobs) mob.destroy();
     for (const npc of this.npcs) npc.sprite.destroy();
+    // Before the next world's villagers exist: a board that kept its answers
+    // across a rebuild would decline to re-offer a prompt whose owner id
+    // appeared on the next map too, and that prompt would never be drawn.
+    this.npcPrompts.clear();
     this.items?.clearAll();
     this.items = undefined;
     this.projectiles?.clearAll();
@@ -2425,11 +2448,27 @@ export class PreparedStageScene extends Phaser.Scene {
       distance: (npc) => Math.abs(npc.sprite.x - player.sprite.x),
     });
     for (const npc of this.npcs) {
-      npc.talkPrompt.setVisible(npc === nearest);
+      this.npcPrompts.set(npc.npcId, npc === nearest ? this.talkPrompt(npc) : null);
     }
     if (nearest && (Phaser.Input.Keyboard.JustDown(keys.interact) || Phaser.Input.Keyboard.JustDown(keys.enter))) {
       this.openInteraction(nearest.npcId);
     }
+  }
+
+  /**
+   * The offer one villager makes, anchored where their prompt already floats.
+   *
+   * The place is fixed at world build — above the name label, above the drawn
+   * figure — so nothing on screen moves when the player walks into range and
+   * only the prompt appears.
+   */
+  private talkPrompt(npc: NpcActor): Prompt {
+    return {
+      ownerId: npc.npcId,
+      kind: "talk",
+      text: NPC_TALK_PROMPT_TEXT,
+      anchor: { x: npc.talkPrompt.x, y: npc.talkPrompt.y },
+    };
   }
 
   /** The conversation this NPC offers on this map, if gameplay binds one. */
@@ -2450,7 +2489,7 @@ export class PreparedStageScene extends Phaser.Scene {
     const bound = this.scenarioForNpc(npcId);
     if (!bound) return;
     const { program, interactionId } = bound;
-    for (const npc of this.npcs) npc.talkPrompt.setVisible(false);
+    for (const npc of this.npcs) this.npcPrompts.set(npc.npcId, null);
     this.activeScenario = openSession(interactionId, program, initialScenarioState(program));
     this.recordEvent("dialogue-opened", { npcId, interactionId });
     this.renderDialogueNode();

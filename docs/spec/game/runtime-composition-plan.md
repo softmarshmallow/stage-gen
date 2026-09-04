@@ -1309,6 +1309,42 @@ two families, and the report says which concept split them.
   cleared by every interaction including a refused one, and the case save
   already drops it on resume for the same reason. Moving it would be inventing a
   slice, not extracting one.
+- **`prompt`.** Extracted into the platformer as `lib/families/prompt/`; the
+  runner offers no affordance and takes none, which is this family's E7 rather
+  than a gap. All four copies the plan counted were there: the scene setting
+  every villager's `Text` visibility itself on every frame, the portal system
+  positioning and showing a `Text` of its own, and — genuinely dead — an `Npc`
+  class carrying a third `talkPrompt` with the same show-and-hide written again,
+  constructed by nothing since the prepared scene started building its own
+  villagers. The ruling that `prompt` is not part of `interaction` is the
+  portal's doing and is worth restating as measured: "UP to enter" has nothing
+  to do with a conversation, it is an affordance the *space* offers and a map
+  entry answers, and the only thing it shares with a talk prompt is the shape —
+  an owner, a kind, a line and a place to float it. The board is a registry
+  rather than a frame step, deliberately: the two offering systems are already
+  ordered by the roster for other reasons, and a settle step between them would
+  buy an ordering constraint for nothing. **E1: zero diff in both genres,
+  nothing re-pinned** — six hundred platformer digests byte-identical, including
+  the frames either side of the portal at 150 and the talk prompt raised and
+  withdrawn in the village. **E2:** neither documented order moves, which is the
+  registry ruling's own evidence: no new system, no new edge. **E4:** the board
+  instantiated into two shapes in its own suite — a talk-shaped one with many
+  owners of which at most one offers, and an enter-shaped one with a single
+  owner where stepping from one arch to the next is a `moved` edge rather than a
+  hide and a show that would blink the prompt off for a frame. **E7:** a board
+  with no view still answers what is on offer, which is the thing none of the
+  three copies could do without being asked to draw.
+- **The dead class, deleted.** `Npc` is gone and `npc.ts` is now what the scene
+  actually reads from it: the talking range, the line of text, and the two
+  pieces of geometry and style the prompt is drawn with. Removing it is what
+  makes "three copies" true rather than four.
+- **The block, and the refusal.** `gameplay`, in the platformer. The family
+  authors no block of its own — the line of text is the runtime's word for a
+  key, not the package's — but *whether either affordance exists* is authored:
+  a talk prompt only where `[[npc_placements]]` and `[[interactions]]` put a
+  villager with a scenario, an enter prompt only where `[[transitions]]` put a
+  door with somewhere behind it. That is the same shape `clock` used when it
+  gated the block deciding whether its holder could exist.
 - **One thing the family holds that neither genre binds, and why.**
   `[inventory].starting_capacity` is still parsed and unread, deliberately. The
   rule is the family's and is proven in its own suite (a full bag refuses the

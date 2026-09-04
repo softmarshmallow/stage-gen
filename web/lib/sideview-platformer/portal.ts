@@ -13,6 +13,7 @@
 
 import Phaser from "phaser";
 import { SCENE_CONTENT_DEPTH } from "./depths";
+import { PromptBoard } from "@/lib/families/prompt";
 import { terrainSurfaceY } from "./terrain";
 /** The two ends of a portal pair: the way back in, and the way onward. */
 export type PortalEnd = "entry" | "exit";
@@ -93,6 +94,15 @@ const PORTAL_SHIMMER_ALPHA_AMPLITUDE = 0.015;
 /** Height above a portal's base that its prompt floats at. */
 const PORTAL_PROMPT_RISE = 24;
 const PORTAL_PROMPT_TEXT = "UP to enter";
+/**
+ * The one owner a portal system offers under.
+ *
+ * At most one door is usable at a time — `advanceContact` returns the first and
+ * only — so the system is the owner rather than the individual portal, and
+ * moving from one door to the next is a `moved` edge on one offer instead of a
+ * withdraw and an offer that would flicker the prompt off for a frame.
+ */
+const PORTAL_PROMPT_OWNER = "portal/enter";
 
 export type PortalIdlePresentation = Readonly<{
   /** Fixed to avoid temporal texture resampling of the authored portal raster. */
@@ -120,6 +130,30 @@ export class PortalSystem {
   private opts: PortalSystemOpts;
   private firedPortalId: string | null = null;
   private prompt?: Phaser.GameObjects.Text;
+  /**
+   * What this system is offering, as the `prompt` family's board.
+   *
+   * The show-and-hide used to be written out here; now the board decides
+   * whether the answer changed and this class only draws.
+   */
+  private readonly prompts = new PromptBoard({
+    show: (prompt) => {
+      if (!this.prompt) {
+        this.prompt = this.opts.scene.add.text(0, 0, prompt.text, {
+          fontFamily: "monospace",
+          fontSize: "18px",
+          color: "#f4f4f4",
+          backgroundColor: "#000000a0",
+          padding: { x: 8, y: 4 },
+        });
+        this.prompt.setOrigin(0.5, 1);
+        this.prompt.setDepth(SCENE_CONTENT_DEPTH.effect);
+      }
+      this.prompt.setPosition(prompt.anchor.x, prompt.anchor.y);
+      this.prompt.setVisible(true);
+    },
+    hide: () => this.prompt?.setVisible(false),
+  });
   private presentationLocked = false;
   private readonly baseDisplaySizes = new Map<
     string,
@@ -306,31 +340,31 @@ export class PortalSystem {
     return usable;
   }
 
-  /** Say which key opens the door, above the door it opens. */
+  /**
+   * Say which key opens the door, above the door it opens.
+   *
+   * The offer is data — an owner, a kind, a line and a place — and the board is
+   * what turns "this door is usable" into a change the view has to draw. A door
+   * already walked through offers nothing, which is the one condition this
+   * genre adds to the family's shape.
+   */
   private showPrompt(
     usable: Readonly<{ portalId: string }> | null,
   ): void {
     const portal = usable ? this.portalById(usable.portalId) : undefined;
     if (!portal || this.firedPortalId !== null) {
-      this.prompt?.setVisible(false);
+      this.prompts.set(PORTAL_PROMPT_OWNER, null);
       return;
     }
-    if (!this.prompt) {
-      this.prompt = this.opts.scene.add.text(0, 0, PORTAL_PROMPT_TEXT, {
-        fontFamily: "monospace",
-        fontSize: "18px",
-        color: "#f4f4f4",
-        backgroundColor: "#000000a0",
-        padding: { x: 8, y: 4 },
-      });
-      this.prompt.setOrigin(0.5, 1);
-      this.prompt.setDepth(SCENE_CONTENT_DEPTH.effect);
-    }
-    this.prompt.setPosition(
-      portal.x,
-      portal.y - portal.sprite.displayHeight - PORTAL_PROMPT_RISE,
-    );
-    this.prompt.setVisible(true);
+    this.prompts.set(PORTAL_PROMPT_OWNER, {
+      ownerId: PORTAL_PROMPT_OWNER,
+      kind: "enter",
+      text: PORTAL_PROMPT_TEXT,
+      anchor: {
+        x: portal.x,
+        y: portal.y - portal.sprite.displayHeight - PORTAL_PROMPT_RISE,
+      },
+    });
   }
 
   /** True while the player's feet are inside `portal`'s mouth. */
@@ -359,6 +393,7 @@ export class PortalSystem {
   destroy(): void {
     this.prompt?.destroy();
     this.prompt = undefined;
+    this.prompts.clear();
     for (const portal of this.portals) portal.sprite.destroy();
     this.portals.length = 0;
     this.baseDisplaySizes.clear();
