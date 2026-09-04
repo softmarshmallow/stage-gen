@@ -57,6 +57,7 @@ from stage_gen.orchestration.case_binding import BoundCase, bind_case
 from stage_gen.orchestration.case_bundle import publish_case
 from stage_gen.orchestration.env_import import import_provider_env
 from stage_gen.orchestration.game_package import resolve_prepared_package
+from stage_gen.recipes.cache_report import cache_report
 from stage_gen.recipes.dialogue_scene.review import transition_dialogue_review
 from stage_gen.recipes.dialogue_scene.scene_executor import DialogueSceneExecutor
 from stage_gen.recipes.dialogue_scene.scene_view import build_dialogue_scene_view
@@ -64,6 +65,10 @@ from stage_gen.recipes.pointclick_room.room_executor import PointClickRoomExecut
 from stage_gen.recipes.pointclick_room.room_view import build_pointclick_room_view
 from stage_gen.recipes.sideview_platformer.execution_view import build_execution_view
 from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
+from stage_gen.recipes.sideview_platformer.package_graph import (
+    CONTENT_CACHE_NAMESPACE,
+    WORLD_CACHE_NAMESPACE,
+)
 from stage_gen.recipes.sideview_platformer.prepared_content import (
     content_target_node_ids,
     soundtrack_target_node_ids,
@@ -72,6 +77,7 @@ from stage_gen.recipes.sideview_platformer.view_annotations import (
     annotate_sideview_platformer_artifact,
 )
 from stage_gen.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
+from stage_gen.recipes.sideview_runner.runner_graph import RUNNER_CACHE_NAMESPACE
 from stage_gen.recipes.sideview_runner.runner_view import build_sideview_runner_view
 from stage_gen.recipes.universe import gallery_page as universe_gallery_page
 from stage_gen.recipes.universe.universe_executor import UniverseExecutor
@@ -426,6 +432,14 @@ def build_parser() -> argparse.ArgumentParser:
                     "declares exactly one"
                 ),
             )
+            package_action_parser.add_argument(
+                "--cache-dir",
+                dest="cache_dir",
+                help=(
+                    "price the plan against this execution cache: the report gains a "
+                    "`cache` block naming every provider node that would bill"
+                ),
+            )
 
     profile_parser = commands.add_parser(
         "character-profile",
@@ -706,6 +720,10 @@ def _dispatch(
                     "graph": runner_plan.graph.model_dump(mode="json"),
                     "projection": runner_plan.projection.model_dump(mode="json"),
                 }
+                if args.cache_dir:
+                    plan_report["cache"] = cache_report(
+                        runner_plan.graph, Path(args.cache_dir), (RUNNER_CACHE_NAMESPACE,)
+                    )
                 stdout.write(f"{json.dumps(plan_report, sort_keys=True, separators=(',', ':'))}\n")
                 return 0
             if genre != "platformer":
@@ -716,6 +734,12 @@ def _dispatch(
                 "graph": plan.graph.model_dump(mode="json"),
                 "projection": plan.projection.model_dump(mode="json"),
             }
+            if args.cache_dir:
+                plan_report["cache"] = cache_report(
+                    plan.graph,
+                    Path(args.cache_dir),
+                    (WORLD_CACHE_NAMESPACE, CONTENT_CACHE_NAMESPACE),
+                )
             stdout.write(f"{json.dumps(plan_report, sort_keys=True, separators=(',', ':'))}\n")
         else:
             package_report = {"valid": True, **resolved_package.identity()}
