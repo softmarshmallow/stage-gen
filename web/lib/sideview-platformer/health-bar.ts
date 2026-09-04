@@ -13,7 +13,7 @@
 // the readout saying how close that body is to dying - and behind any mob that happened to
 // stand in front of one. They sit above every world layer and below the true screen furniture.
 //
-// The drawing itself lives in `lib/sideview/gauge-bar.ts` and is shared with every other
+// The drawing itself lives in `lib/families/hud/gauge-bar.ts` and is shared with every other
 // bounded resource on screen - the capsule, the spectrum, the crop, the baked textures. What
 // stays here is what is actually the platformer's: the two sizes, the drop below the feet, the
 // actor-HUD rung, and the rule that a mob's bar arrives with its first wound.
@@ -24,7 +24,7 @@ import {
   gaugeBarFillWidth,
   gaugeBarRevealedByChange,
   type GaugeBarStyle,
-} from "@/lib/sideview/gauge-bar";
+} from "@/lib/families/hud";
 import { SCENE_CONTENT_DEPTH } from "./depths";
 
 export type HealthBarStyle = GaugeBarStyle &

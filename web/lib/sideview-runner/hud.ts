@@ -11,7 +11,9 @@
 import type Phaser from "phaser";
 import type { Rect } from "@/lib/shell/hud-geometry";
 import { RUNNER_DEPTHS } from "./parallax";
-import { GaugeBar } from "@/lib/sideview/gauge-bar";
+import { RUNNER_BLOCKS } from "./contract";
+import { GaugeBar, parseHudBlock, type HudBlockView, type HudReadout } from "@/lib/families/hud";
+import type { BlockTable } from "@/lib/manifest/blocks";
 import type { GameSystem } from "@/lib/kernel/systems";
 import { BOSS_HIT_FLASH_MS } from "./encounter-arithmetic";
 import { avatarIsImmune } from "./vitals";
@@ -85,9 +87,15 @@ export function deathPanelRect(
   };
 }
 
-export interface HudView {
-  sync(world: RunnerWorld): void;
-}
+/**
+ * This genre's readout, which is the `hud` family's port at this world.
+ *
+ * The runner already had this shape and was the only place in the repository
+ * that named it; the platformer has four readouts and named none. It is the
+ * family's `HudReadout` now, instantiated at `RunnerWorld` — a picture of the
+ * slices, owning none of them.
+ */
+export type HudView = HudReadout<RunnerWorld>;
 
 /** The HUD paints over everything, so it seals after the world presentation. */
 export function createHudSystem(view: HudView): GameSystem<RunnerWorld> {
@@ -269,4 +277,22 @@ export function buildHud(
       for (const object of deathLayer) object.setVisible(dead);
     },
   };
+}
+
+
+/**
+ * The block this genre's readouts depend on.
+ *
+ * `gameplay`, because whether the bar is drawn at all is authored: a
+ * one-hit-kill package has nothing to read off a capsule, and `buildHud` says
+ * so by not building one.
+ */
+export const RUNNER_HUD_BLOCK = Object.freeze({
+  block: "gameplay",
+  version: RUNNER_BLOCKS.gameplay,
+});
+
+/** Gate the runner's hud block. Refuses by naming `gameplay`. */
+export function parseRunnerHudBlock(blocks: BlockTable): HudBlockView {
+  return parseHudBlock(blocks, RUNNER_HUD_BLOCK);
 }

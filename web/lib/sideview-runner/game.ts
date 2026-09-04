@@ -52,7 +52,7 @@ import { buildBossView } from "./boss-view";
 import { parseRunnerDirectorBlocks, createEncounterSystem } from "./encounter";
 import type { RunnerEncounterBinding } from "./world";
 import { createFixedStepAccumulator } from "@/lib/kernel/fixed-step";
-import { buildHud, createHudSystem, type HudView } from "./hud";
+import { buildHud, createHudSystem, parseRunnerHudBlock, type HudView } from "./hud";
 import {
   attachKeyboardIntentSource,
   attachPointerIntentSource,
@@ -144,6 +144,7 @@ export function gateRunnerFamilyBlocks(blocks: BlockTable): void {
   parseRunnerParticlesBlock(blocks);
   parseRunnerLootBlocks(blocks);
   parseRunnerDirectorBlocks(blocks);
+  parseRunnerHudBlock(blocks);
   parseScreenFxBlock(blocks);
 }
 

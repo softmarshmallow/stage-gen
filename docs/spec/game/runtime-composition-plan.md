@@ -1510,6 +1510,44 @@ two families, and the report says which concept split them.
   the boss's gauge on the HUD, the drop and the score on `director/ended` — is
   not taken. Two of those are `hud`'s and one is `announce`'s; what the director
   makes possible and does not itself do is listed under `hud` below.
+- **`hud`.** Extracted into both genres as `lib/families/hud/`. The composition
+  table's slice column for this family says "nothing", and that is the whole
+  ruling: a readout owns no state. A bar is a picture of `vitals`, a log a
+  picture of `progression`'s edges, a damage number a picture of what `combat`
+  just resolved, a defeat panel a picture of `checkpoints`. So what the family
+  holds is the shared drawing and the *shape* of a readout. `gauge-bar.ts` —
+  the capsule every bounded resource on screen is read off, already shared and
+  living under `lib/sideview/` because that is where it happened to be lifted to
+  — moves in; and `HudReadout<World>`, the port the runner already had and
+  called `HudView`, is named, with `hide` optional because a readout with
+  nothing to hide is an answer rather than a stub every second implementation
+  writes. **E1: zero diff in all three goldens, nothing re-pinned.** **E2:**
+  neither documented order moves; `runner/hud` keeps its id, its declarations
+  and its `after`. **E4:** the capsule at two placements — a runner-shaped bar
+  that is screen furniture at the readout rect's width, and a platformer-shaped
+  one under a body at a smaller size — with placement, scroll factor and depth
+  the caller's and the drawing not. **E7:** `silentReadout` draws nothing and
+  changes nothing, which is what the order test and the replay harness already
+  passed by hand.
+- **The block, and it is deliberately not `ui`.** `gameplay`, in both genres.
+  `ui.toml` is art direction — sheets, nine-slice geometry, icon grids — and
+  belongs to the `ui` family; the runner does not publish it at all. What a
+  readout needs from a package is whether it exists to be drawn:
+  `[gameplay] combat_text.enabled` decides that damage numbers appear over an
+  actor, `[gameplay] progression.enabled` that the stat log has anything to say,
+  and the runner's vitals profile decides that a bar which could only ever read
+  full is not built.
+- **What `hud` could not do, and why it is a scope statement.** None of the
+  platformer's four readouts takes the family's port, because this genre has no
+  world to hand one: the scene still holds the state, which is `frame-roster.ts`'s
+  own stated limit — the slices are "declared and not held, typed `?: never`;
+  each becomes real storage on the step that extracts its class". A readout here
+  is handed explicit arguments instead. The runner, which does have a world, is
+  where the port is instantiated today, and the platformer's four follow the
+  classes they draw. Two of the director's played-evidence items are here and
+  are owed with them: the boss's gauge on the HUD (a second instantiation of the
+  capsule, over a slice the scene does not yet publish) and the announcement
+  (`announce`, which no step has created).
 - **One thing the family holds that neither genre binds, and why.**
   `[inventory].starting_capacity` is still parsed and unread, deliberately. The
   rule is the family's and is proven in its own suite (a full bag refuses the

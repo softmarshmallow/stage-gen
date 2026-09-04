@@ -137,6 +137,7 @@ import {
   setPieceTrigger,
 } from "./director";
 import type { DirectorSwap } from "@/lib/families/director";
+import { parsePlatformerHudBlock } from "./hud";
 import { DefeatPanel } from "./defeat-panel";
 import { mobRenderEnvelope } from "./mob-geometry";
 import {
@@ -737,6 +738,7 @@ export class PreparedStageScene extends Phaser.Scene {
     parsePlatformerPromptBlock(manifest.blocks);
     parsePlatformerCheckpointsBlock(manifest.blocks);
     parsePlatformerDirectorBlocks(manifest.blocks);
+    parsePlatformerHudBlock(manifest.blocks);
     // A quest that could never finish is refused before the first frame rather
     // than at the moment it would have.
     sealQuestCompletions(gameplay.quests, gameplay.effects, PLATFORMER_QUEST_STATE_OPERATION);
