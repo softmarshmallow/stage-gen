@@ -71,3 +71,4 @@ it. A ruling that is overturned gets a new record that says so.
 | [0053](0053-sprites-are-minified-without-mipmaps.md) | Sprites are minified without mipmaps | Higher source resolution makes it worse, not better |
 | [0054](0054-a-layer-resolves-in-two-spaces-not-on-a-coefficient.md) | A layer resolves in two spaces, not on a coefficient | Partial parallax needs slack the paintings do not have |
 | [0055](0055-a-calibrated-actor-is-measured-by-its-alpha.md) | A calibrated actor is measured by its alpha, not its body | Deferred until a second actor carries a tail |
+| [0056](0056-the-style-plate-is-split-not-swapped.md) | The style plate is split, not swapped | A swap would leave the actor's identity binding pointing at nobody |

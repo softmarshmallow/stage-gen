@@ -99,8 +99,12 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         for path in _walk_files(repo / "concept-studio", frozenset({".md"}))
         if "workspaces" not in path.relative_to(repo / "concept-studio").parts
     ]
+    # `TODO.md` is one line per open item, each linking to the decision, plan or
+    # spec that holds its context, so it is link-checked like the rest of the
+    # documentation rather than only scanned for stale prose.
     markdown = [
         *[path for path in doctrine if path.exists()],
+        *[path for path in governance if path.exists()],
         *_walk_files(repo / "docs", frozenset({".md"})),
         *concept_markdown,
     ]
@@ -235,8 +239,10 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         for label, pattern in stale_patterns:
             if pattern.search(source):
                 failures.append(f"{relative}: {label}")
-        if text_file != repo / "TODO.md" and account_funding.search(source):
-            failures.append(f"{relative}: account-specific funding note outside TODO.md")
+        # No file is exempt. `TODO.md` used to be, because it carried the note;
+        # the note is gone, so the carve-out went with it.
+        if account_funding.search(source):
+            failures.append(f"{relative}: account-specific funding note")
 
     imitation_patterns = (
         re.compile(r"\bin the style of\b", re.IGNORECASE),
