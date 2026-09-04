@@ -124,6 +124,10 @@ import {
   type VerticalWorld,
 } from "./vertical";
 import { sampleMapNameBanner } from "./fixed-motion";
+import {
+  DeterministicSoundtrackPlayer,
+  type SoundtrackTransport,
+} from "./soundtrack";
 import type { ScaleReference } from "@/lib/sideview/sprite-scale";
 import {
   registerGridPresentationFallback,
@@ -373,8 +377,15 @@ export class PreparedStageScene extends Phaser.Scene {
   private choiceKeys: readonly Phaser.Input.Keyboard.Key[] = [];
   /** The portrait holds on the last speaker while the player reads a choice. */
   private lastSpeakerId: string | null = null;
-  private soundtrack?: HTMLAudioElement;
-  private audioUnlocked = false;
+  /**
+   * Track order for the run, and the element the current track is playing on.
+   *
+   * The order is the player's: a seeded shuffle bag that exhausts before it refills and never
+   * repeats across a refill, narrowed to the entered map's pool. The element is only a transport -
+   * it holds one track at a time and knows nothing about which.
+   */
+  private soundtrackPlayer?: DeterministicSoundtrackPlayer;
+  private soundtrackAudio?: HTMLAudioElement;
   private developerKit: DeveloperKit | null = null;
   private selectableKits: readonly DeveloperKit[] = [];
   /**
@@ -556,6 +567,19 @@ export class PreparedStageScene extends Phaser.Scene {
       y: VIEW_H - 28,
       enabled: this.gameplay.progression.enabled,
     });
+    const tracks = manifest.soundtrack.tracks.map((track) => ({
+      track_id: track.track_id,
+      path: this.url(track.asset.path),
+    }));
+    if (tracks.length > 0) {
+      this.soundtrackPlayer = new DeterministicSoundtrackPlayer({
+        // The package's own digest: two runs of one package hear the same order, two packages do
+        // not, and nothing about the order depends on when the run happened to start.
+        seed: manifest.package_sha256,
+        tracks,
+        transport: this.soundtrackTransport(),
+      });
+    }
     for (const itemId of this.gameplay.player.starting_item_ids) this.addInventory(itemId, 1);
     if (!hasHealingConsumable(manifest.items)) {
       // Playable, but only downhill: nothing in the package can put hit points back, so every run
@@ -1152,26 +1176,12 @@ export class PreparedStageScene extends Phaser.Scene {
       };
       this.choiceKeys = DIALOGUE_CHOICE_KEYCODES.map((code) => keyboard.addKey(code));
     }
-    let unlockPending = false;
-    const releaseAudioUnlock = () => {
+    const startAudio = () => {
+      // The player owns the gate: it answers true exactly once, on the gesture that actually
+      // starts playback, so both listeners retire themselves on that answer and on no other.
+      if (this.soundtrackPlayer?.beginFromPlayerGesture() !== true) return;
       keyboard?.off("keydown", startAudio);
       this.input.off(Phaser.Input.Events.POINTER_DOWN, startAudio);
-    };
-    const startAudio = () => {
-      const soundtrack = this.soundtrack;
-      if (!soundtrack || this.audioUnlocked || unlockPending) return;
-      unlockPending = true;
-      void soundtrack.play().then(
-        () => {
-          this.audioUnlocked = true;
-          releaseAudioUnlock();
-        },
-        () => {
-          // Autoplay policies vary. Keep both gesture routes armed until one
-          // playback attempt actually succeeds.
-          unlockPending = false;
-        },
-      );
     };
     keyboard?.on("keydown", startAudio);
     this.input.on(Phaser.Input.Events.POINTER_DOWN, startAudio);
@@ -2803,15 +2813,53 @@ export class PreparedStageScene extends Phaser.Scene {
     this.requestMapEntry(home.map_id, home.normalized_x);
   }
 
+  /**
+   * Narrow playback to the entered map's pool.
+   *
+   * The scene names the pool and stops there. Which of its tracks plays, in what order, and
+   * whether the one already playing survives the change are the player's decisions, and they are
+   * seeded, which is why the same run hears the same order twice.
+   */
   private selectSoundtrack(map: PreparedMap): void {
-    const manifest = this.manifest;
-    const track = manifest?.soundtrack.tracks.find((entry) => entry.track_id === map.track_ids[0]);
-    if (!track) return;
-    this.soundtrack?.pause();
-    this.soundtrack = new Audio(this.url(track.asset.path));
-    this.soundtrack.loop = true;
-    this.soundtrack.volume = 0.34;
-    if (this.audioUnlocked) void this.soundtrack.play().catch(() => undefined);
+    if (map.track_ids.length === 0) return;
+    this.soundtrackPlayer?.setTrackPool(map.track_ids);
+  }
+
+  /**
+   * Play one track, and say when it has finished.
+   *
+   * The transport is the whole of what this scene knows about audio: one element, replaced per
+   * track, never looped - a looped element would never end, and the bag that decides what comes
+   * next advances on the end of the track before it.
+   */
+  private soundtrackTransport(): SoundtrackTransport {
+    return {
+      play: (track, onEnded) => {
+        this.soundtrackAudio?.pause();
+        const audio = new Audio(track.path);
+        audio.volume = 0.34;
+        audio.addEventListener("ended", onEnded, { once: true });
+        this.soundtrackAudio = audio;
+        // A browser may still refuse this one; the order has already moved on, which is the price
+        // of an order that does not depend on which attempts a browser happened to allow.
+        void audio.play().catch(() => undefined);
+      },
+      stop: () => {
+        this.soundtrackAudio?.pause();
+        this.soundtrackAudio = undefined;
+      },
+    };
+  }
+
+  /**
+   * Silence the run.
+   *
+   * A scene that is torn down while a track is playing leaves an element playing into a page that
+   * no longer has a game on it: nothing else holds a reference to it, so nothing else can stop it.
+   */
+  stopSoundtrack(): void {
+    this.soundtrackPlayer?.stop();
+    this.soundtrackPlayer = undefined;
   }
 
   /**
@@ -2902,6 +2950,7 @@ export class PreparedStageScene extends Phaser.Scene {
         : null,
       npcPrompts: this.npcs.map((npc) => ({ npcId: npc.npcId, visible: npc.talkPrompt.visible })),
       mapLabel: this.mapLabel?.text ?? null,
+      soundtrack: this.soundtrackPlayer?.snapshot() ?? null,
       // Absent rather than null while nothing is announced, so a frame with no banner carries no
       // banner field at all and the golden's quiet frames stay quiet.
       banner: this.mapBanner
@@ -2974,7 +3023,12 @@ export function bootPreparedGame(
     },
   });
   return {
-    destroy: (removeCanvas: boolean) => game.destroy(removeCanvas),
+    destroy: (removeCanvas: boolean) => {
+      // Before the game, not after: `game.destroy` drops every reference to the scene, and the
+      // element the soundtrack is playing on is not one of the things it knows how to stop.
+      scene.stopSoundtrack();
+      game.destroy(removeCanvas);
+    },
     // Refused for a capture at the handle as well as at the scene, so neither is the single place
     // an override could leak into a recording.
     setDeveloperKit: (kit) => (automationMode === null ? scene.switchDeveloperKit(kit) : false),

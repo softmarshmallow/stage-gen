@@ -95,11 +95,15 @@ export function installHeadlessBrowser(options: HeadlessBrowserOptions): Install
     loop = false;
     volume = 1;
     constructor(readonly src: string = "") {}
+    /** No decoder, so no playback: every attempt is refused the way a locked browser refuses one. */
     play(): Promise<void> {
-      return Promise.reject(new Error("headless audio is never unlocked"));
+      return Promise.reject(new Error("headless audio has no output device"));
     }
     pause(): void {
-      // Nothing is playing; the call is recorded only by the scene's own bookkeeping.
+      // Nothing is playing; the call is recorded only by the caller's own bookkeeping.
+    }
+    addEventListener(): void {
+      // A track that never plays never ends, so the `ended` handler is registered and never fires.
     }
   });
   set("fetch", (input: unknown): Promise<FetchResponse> => {

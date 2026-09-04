@@ -147,7 +147,10 @@ function digest(world: unknown, events: readonly unknown[]): string {
  */
 const GOLDEN: Record<number, string> = {
   // Still in the village, mid-conversation with the baker. Upstream of every re-pin so far.
-  60: "fceee423071df122b788bc24b09db031f6013db1e8b5ec4a2634c867062e9ae1",
+  // Re-pinned once, for the soundtrack player being wired at all: from frame 1 the record carries
+  // a `soundtrack` field it did not have, silent until the first keypress at 60 starts the
+  // village's track.
+  60: "b60392b5d048486787cbf1799dcb2780cc7ed97defebd757ba10415d8d276a0e",
   // On the hunting route, one creature down and the loot collected.
   //
   // Re-pinned once, for `Mob` off the engine's tweens and timers. Twenty-two of six hundred frames
@@ -167,9 +170,13 @@ const GOLDEN: Record<number, string> = {
   // same run — the kill at 290, both pickups at 293 and all three contact hits are on identical
   // frames — but the player's hp between 306 and 469 differs, because a critical is seeded from
   // where the creature that struck it was standing.
-  300: "d0cd3b039800a2e671fdaaddb82043fc22522ed3251becedc2875843f400070b",
+  // Re-pinned again for the soundtrack. All six hundred frames moved and every changed field is
+  // under `soundtrack`: the run is silent until the keypress at 60 starts `village_theme`, and the
+  // portal at 150 narrows the pool to the route's two tracks, which the seeded bag opens with
+  // `road_theme_b` and plans `road_theme` behind.
+  300: "cfe1c4dd7769ebbc97f150a06c9db571d4e9b0513c57e9038e19d62f2ddb4e3d",
   // The whole run.
-  600: "df961d1251c387b670f5f321a8612d269d6daaa595ee58f517496af077277d57",
+  600: "67ae19375510abba36ff158f1e9629048ba9f249cde9e10f518941ad40bb4bdd",
 };
 
 describe("the platformer replays to its golden", () => {

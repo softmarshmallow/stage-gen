@@ -996,9 +996,17 @@ export class StubKey {
 
   /** Press for one frame's worth of latch, the way a browser keydown arms `JustDown`. */
   press(): void {
-    if (!this.isDown) this.justDownLatch = true;
+    if (!this.isDown) {
+      this.justDownLatch = true;
+      // Phaser's keyboard plugin emits `keydown` on the press, and the audio unlock is the one
+      // thing in this runtime that listens for it rather than polling a key.
+      this.onFirstPress?.();
+    }
     this.isDown = true;
   }
+
+  /** Set by the keyboard plugin, so a press reaches whatever registered for `keydown`. */
+  onFirstPress?: () => void;
 
   release(): void {
     this.isDown = false;
@@ -1019,6 +1027,9 @@ export class StubKeyboardPlugin {
     const existing = this.keys.get(keyCode);
     if (existing) return existing;
     const key = new StubKey(keyCode);
+    key.onFirstPress = () => {
+      for (const handler of this.listeners.get("keydown") ?? []) handler();
+    };
     this.keys.set(keyCode, key);
     return key;
   }

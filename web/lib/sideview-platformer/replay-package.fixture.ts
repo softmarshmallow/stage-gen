@@ -223,6 +223,13 @@ export function replayRuntimeManifest(): Record<string, unknown> {
           display_name: "Road Theme",
           asset: artifact("soundtrack/road_theme.ogg", "audio/ogg"),
         },
+        // Two tracks on the route, because a shuffle bag that cannot repeat has nothing to shuffle
+        // in a pool of one - the player says so and stops after a single play.
+        {
+          track_id: "road_theme_b",
+          display_name: "Road Theme, Reprise",
+          asset: artifact("soundtrack/road_theme_b.ogg", "audio/ogg"),
+        },
       ],
     },
     gameplay: replayGameplayContract(),
@@ -299,7 +306,7 @@ function routeMap(): Record<string, unknown> {
     role: "scrolling_hunting_route",
     camera: { mode: "player_follow", follow_axes: ["x", "y"] },
     hostile_population_enabled: true,
-    track_ids: ["road_theme"],
+    track_ids: ["road_theme", "road_theme_b"],
     layers: [layer("dawn_sky", "maps/road/background.png")],
     ground: {
       mode: "terrain-atlas-3x3-minimal-v1",
@@ -392,7 +399,7 @@ function replayGameplayContract(): Record<string, unknown> {
         map_id: "road-map",
         role: "scrolling_hunting_route",
         hostile_population_enabled: true,
-        track_ids: ["road_theme"],
+        track_ids: ["road_theme", "road_theme_b"],
       },
     ],
     spawns: [
