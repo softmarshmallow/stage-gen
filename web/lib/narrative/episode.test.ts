@@ -12,6 +12,19 @@ import path from "node:path";
 // episode, its `facts`, its autosave, and whether a player who stops in the
 // middle of a beat comes back to the same sentence.
 //
+// It is one boot: one process, one document read, one store. The resume is a
+// second `CaseSession` over that same store, which is exactly the reload the
+// shell performs — nothing is relaunched and nothing is read from disk twice.
+//
+// The save is measured by the family that made it rather than by the bytes it
+// left: every `save/written` and `save/loaded` the `persistence` store raised is
+// collected, so the cadence, the declared scopes and the version the bytes
+// carried are all assertions here. Three things the step's ruling asks for meet
+// in this one run — the played episode, the family's scope subtraction over the
+// episode's own mid-beat state, and the cross-version restore, which is done by
+// writing that same save back in the flat shape version 1 shipped and opening on
+// it.
+//
 // The episode's TWO ROOM BEATS are reported rather than played, and the reason is
 // named rather than hidden: every point-and-click room published in this
 // repository writes `schema_version: 1` under kind `pointclick-room-runtime-v3`,
@@ -32,7 +45,12 @@ import { readCaseDocument } from "./case-io";
 import type { CaseDocument } from "./case";
 import { readSceneFixture } from "@/lib/shell/dialogue-scene";
 import { CaseSession, type CaseEvent } from "./runtime";
-import { memorySaveStorage } from "@/lib/families/persistence";
+import { BACKLOG_LIMIT, CASE_SAVE_PROFILE, caseSaveKey, parseCaseSave } from "./case-save";
+import {
+  memorySaveStorage,
+  serializeSave,
+  type PersistenceEvent,
+} from "@/lib/families/persistence";
 import {
   initialScenarioState,
   reduceScenario,
@@ -81,11 +99,15 @@ describe.if(AVAILABLE)("the case episode, saved mid-beat and resumed", () => {
     expect(leaves.size).toBe(6);
     const storage = memorySaveStorage();
     const heard: CaseEvent[] = [];
+    // Every write and every read the `persistence` family makes, so the save is
+    // measured by the family that made it rather than by the bytes it left.
+    const saves: PersistenceEvent[] = [];
     const clock = { at: new Date("2026-09-05T09:00:00.000Z") };
 
     const open = () =>
       new CaseSession(document, EPISODE, storage, {
         onEvent: (event) => heard.push(event),
+        onPersistence: (event) => saves.push(event),
         now: () => clock.at,
       });
 
@@ -123,7 +145,12 @@ describe.if(AVAILABLE)("the case episode, saved mid-beat and resumed", () => {
     // The room's exported flags crossed the boundary as declared facts, and
     // nothing else did: no inventory, no revealed hotspots, no fired indices.
     const carried = first.state.progress.facts;
-    expect(carried.length).toBeGreaterThan(0);
+    expect([...carried]).toEqual([
+      "chalk_and_scissors",
+      "gallery_open",
+      "rang_the_bell",
+      "window_before",
+    ]);
     expect(carried.every((fact) => document.facts.includes(fact))).toBe(true);
 
     // ------------------------------------------------- stopping in mid-sentence
@@ -149,8 +176,56 @@ describe.if(AVAILABLE)("the case episode, saved mid-beat and resumed", () => {
       outcome: null,
     });
     const stoppedStatement = scenarioStatementId(mid.label, mid.index);
+    // Named, so "the same sentence" below is a sentence and not a variable.
+    expect(stoppedStatement).toBe("the_service_door#10");
     const backlogWhenStopped = stoppedAt.backlog.length;
+    // The backlog is at its cap by the time they stop, which is the shape a
+    // resume has to restore: the last fifty lines, not the first fifty.
+    expect(backlogWhenStopped).toBe(BACKLOG_LIMIT);
     expect(backlogWhenStopped).toBeGreaterThan(6);
+
+    // The save is the `persistence` family's, and it says so. One write per line
+    // drawn plus one per beat entered — the autosave cadence the shell chose —
+    // and the last of them is the sentence the player stopped on.
+    const written = saves.filter((event) => event.type === "save/written");
+    expect(written).toHaveLength(saves.length);
+    // Not a magic number: every line the case drew and every beat it entered, and
+    // nothing else, left a save behind. 103 + 2 by the sixth line of `b_way_in`.
+    expect(written).toHaveLength(
+      heard.filter((event) => event.type === "line/presented").length +
+        heard.filter((event) => event.type === "beat/entered").length,
+    );
+    expect(written.length).toBe(105);
+    const last = written[written.length - 1]!;
+    expect(last.key).toBe(caseSaveKey(EPISODE));
+    // Both declared scopes are in the bytes: `facts` outlives the leaf, the
+    // scenario and the backlog belong to it. No `room` slice, because a scenario
+    // beat has none to write — absent rather than null, which is the whole point
+    // of the v2 envelope.
+    expect(last.scopes).toEqual(["game", "run"]);
+    expect(last.slices).toEqual(["facts", "scenario", "backlog"]);
+
+    // The bytes as they sit in the store, kept for the cross-version restore
+    // further down; this build writes v2.
+    const midBytes = storage.entries.get(caseSaveKey(EPISODE))!;
+    expect(midBytes).toBeDefined();
+    const midWire = JSON.parse(midBytes) as Record<string, unknown>;
+    expect(midWire.schema_version).toBe(2);
+    expect(midWire.kind).toBe("case_save_v1");
+    expect(Object.keys(midWire.slices as object).sort()).toEqual([
+      "backlog",
+      "facts",
+      "scenario",
+    ]);
+
+    // E7 for the family, over the episode's own mid-beat state rather than a
+    // fixture: restricted to the "game" scope, what survives the leaf is the four
+    // facts and nothing else. The leaf's playback and its backlog are a
+    // subtraction, not a special case.
+    const midSave = parseCaseSave(midWire);
+    const gameOnly = serializeSave(CASE_SAVE_PROFILE, midSave, ["game"]);
+    expect(Object.keys(gameOnly.slices as object)).toEqual(["facts"]);
+    expect((gameOnly.slices as { facts: readonly string[] }).facts).toEqual([...carried]);
 
     // ------------------------------------------------------------ the resume
     // A second session, on the same store: this is the reload.
@@ -166,6 +241,14 @@ describe.if(AVAILABLE)("the case episode, saved mid-beat and resumed", () => {
     second.continueSaved();
     expect(second.state.progress.beatId).toBe("b_way_in");
     expect(second.state.progress.facts).toEqual(carried);
+
+    // The read is the family's too, and it names the version the bytes carried.
+    const loaded = saves.filter((event) => event.type === "save/loaded");
+    expect(loaded).toHaveLength(1);
+    expect(loaded[0]!.key).toBe(caseSaveKey(EPISODE));
+    expect(loaded[0]!.writtenVersion).toBe(2);
+    expect(loaded[0]!.scopes).toEqual(["game", "run"]);
+    expect(loaded[0]!.slices).toEqual(["facts", "scenario", "backlog"]);
 
     // And the leaf resumes at the same drawn moment: the saved scenario state is
     // checked against the program it claims to belong to and accepted.
@@ -219,8 +302,12 @@ describe.if(AVAILABLE)("the case episode, saved mid-beat and resumed", () => {
     }
 
     expect(second.state.phase).toBe("finished");
-    expect(second.state.ending).not.toBeNull();
-    expect(second.state.carried.length).toBeGreaterThan(carried.length);
+    // The episode's own ending, reached on the session that resumed rather than
+    // on the one that started, and the four facts that crossed the room boundary
+    // are still among the forty-nine it finished holding.
+    expect(second.state.ending).toBe("left_alone");
+    expect(second.state.carried).toHaveLength(49);
+    for (const fact of carried) expect(second.state.carried).toContain(fact);
     // The in-progress save is gone — there is nothing left to resume — and the
     // episode's output is not.
     expect(storage.entries.has("stage_gen.case_save.the-grain-episode-one")).toBe(false);
@@ -235,6 +322,43 @@ describe.if(AVAILABLE)("the case episode, saved mid-beat and resumed", () => {
     expect(entered).toEqual(document.beats.slice(1).map((beat) => beat.beatId));
     expect(heard.filter((event) => event.type === "facts/established").length).toBeGreaterThan(0);
     expect(heard.filter((event) => event.type === "case/finished")).toHaveLength(1);
+
+    // --------------------------------- the same stop, written by the last build
+    // The machine half of the step's ruling, over the episode's own bytes rather
+    // than a hand-built record: take the save the run above wrote, put it back
+    // into the flat shape `case_save_v1` shipped as version 1, and open on it.
+    // The versioned parse runs the upgrade forward and the player comes back to
+    // the same sentence with the same four facts — which is what "a save written
+    // by one version is restored by the next" has to mean for a person who was
+    // mid-episode when the build changed under them.
+    const asV1 = {
+      schema_version: 1,
+      kind: midWire.kind,
+      run_tag: midWire.run_tag,
+      beat_id: midWire.beat_id,
+      statement_id: midWire.statement_id,
+      updated_at: midWire.updated_at,
+      ...(midWire.slices as Record<string, unknown>),
+    };
+    const oldStore = memorySaveStorage({ [caseSaveKey(EPISODE)]: JSON.stringify(asV1) });
+    const upgradeSaves: PersistenceEvent[] = [];
+    const upgraded = new CaseSession(document, EPISODE, oldStore, {
+      onPersistence: (event) => upgradeSaves.push(event),
+      now: () => clock.at,
+    });
+    expect(upgraded.open().phase).toBe("offering_continue");
+    expect(upgradeSaves.filter((event) => event.type === "save/loaded")).toHaveLength(1);
+    const fromV1 = upgradeSaves.find((event) => event.type === "save/loaded")!;
+    expect(fromV1.writtenVersion).toBe(1);
+    expect(fromV1.slices).toEqual(["facts", "scenario", "backlog"]);
+    const back = upgraded.state.resume;
+    expect(back?.beatId).toBe("b_way_in");
+    expect(back?.statementId).toBe(stoppedStatement);
+    expect(back?.facts).toEqual(carried);
+    expect(back?.backlog).toHaveLength(backlogWhenStopped);
+    const fromOld = restoreScenarioState(wayIn, back!.scenario!);
+    expect(fromOld).not.toBeNull();
+    expect(scenarioView(wayIn, fromOld!)).toEqual(scenarioView(wayIn, mid));
   });
 });
 
