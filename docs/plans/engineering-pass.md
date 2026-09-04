@@ -492,6 +492,29 @@ both topology digests re-pinned with the reason. The provider seam and the local
 provenance writer joined `_node_kit`.
 
 
+**2026-09-04 — Runtime step 1 landed (workstream E, the web lane).** Run on its
+own branch in a worktree and fast-forwarded onto `main` green. `web/lib/game-systems/`
+is `web/lib/kernel/` with the additions the runtime plan rules: `owns` refused at seal for
+two owners; `emits` / `consumes` typed against the world's event union; `reset(scope)`
+on systems and a composition reset that also drains the queue and the accumulator; a
+dev-mode write trap; `after` for ordering edges, `reads` only for reads; one `Rng` with
+named channels, one accumulator, one hash (five PRNG/hash copies folded, the platformer's
+arithmetic untouched). The runner's declarations corrected: `fx` has one owner and the
+director requests a moment through an event; the camera's fake read is an `after`.
+
+Measured. **E1**: of the 600-step replay golden exactly one frame moved, frame 278 -
+the death pose, which could not become a declared write without closing a cycle (the
+refusal is a test), so it became the avatar system's own and lands one frame later,
+the delay the code's own comment already claimed. Frames 279-600 identical, the restart
+at 410 included; the golden now seals with the write trap on. The plan's predicted
+restart-frame diff cannot occur: `run-ended` and the restart press are never in the
+same frame, so the queue drain is proven at kernel level instead. **E2**: the sealed
+order byte-identical. **E3**: six refusals from the runner's own pre-fix declarations,
+plus kernel tests for ownership, the trap, reset and deferred consume. **Falsifier**:
+one new `after` edge, and it replaced a fake read - net zero. Docs outside the runtime
+plan that still say `game-systems/` are fixed in the same commit as this entry.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one

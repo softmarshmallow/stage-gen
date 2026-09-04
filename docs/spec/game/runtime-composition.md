@@ -10,7 +10,7 @@ cited inline. Nothing here is implemented beyond what "Where it stands" says.
 The generation side of this repo has one shape: a node declares what it reads
 and writes, a planner refuses an impossible graph before any spend, and the
 plan is data you can inspect. The gameplay side has the same shape in one
-place — `web/lib/game-systems/` — and one genre built on it. This document
+place — `web/lib/kernel/`, `game-systems/` until runtime step 1 — and one genre built on it. This document
 makes that shape the contract for every genre, names the layer between
 "engine-free primitive" and "genre" that is missing today, and says how an
 authored TOML name reaches a system without the system knowing which genre
@@ -29,10 +29,10 @@ and is blocked entirely on three runtime families — `score`, `timers`,
 
 | | Substrate | Shape | Lines |
 | --- | --- | --- | --- |
-| `game-systems/` | kernel | `GameSystem<W>` with `reads`/`writes`/`emits`/`consumes`/`after`; `sealSystems` (Kahn order, refuses cycles, duplicates and unknown edges at seal time); per-frame `EventQueue`; domain-free `Gauge` | 1.0k |
+| `kernel/` (was `game-systems/`) | kernel | `GameSystem<W>` with `reads`/`writes`/`emits`/`consumes`/`after`; `sealSystems` (Kahn order, refuses cycles, duplicates and unknown edges at seal time); per-frame `EventQueue`; domain-free `Gauge` | 1.0k |
 | `fx/` | first family | `fx/moment` is a genre-neutral system: it holds a moment, drives an `FxView` port, emits `fx-released` / `fx-finished`. Its silent view lives in a file that value-imports Phaser, so reading the runner's sealed order in a test requires mocking the engine | 0.6k |
 | `sideview-runner/` | genre, on the kernel | `RunnerWorld` is data; 14 systems are behaviour; eight ports, two of which ship no silent implementation; the boot is "one thin adapter"; 60 Hz fixed step; seeded — except that the boot seed is `Math.random()` and reduced-motion is read from `window.matchMedia` at assembly | 12.2k |
-| `sideview-platformer/` | genre, **not** on the kernel | `PreparedStageScene extends Phaser.Scene`: 2.8k lines, 54 fields, ~70 methods; `update()` orders the frame by hand; `now` is `performance.now()`; hitstop is "hand the actors a zero delta"; `Mob` uses engine tweens and timers. Imports nothing from `game-systems/`. 13.8k lines are pure, hash-seeded rules with tests; 9.5k are rule-plus-drawing classes. Four modules are dead or orphaned (`npc.ts`'s class, `dialogue-sequence.ts`, `heightmap.ts`, and a fully extracted `soundtrack.ts` player the scene never calls) | 36.4k |
+| `sideview-platformer/` | genre, **not** on the kernel | `PreparedStageScene extends Phaser.Scene`: 2.8k lines, 54 fields, ~70 methods; `update()` orders the frame by hand; `now` is `performance.now()`; hitstop is "hand the actors a zero delta"; `Mob` uses engine tweens and timers. Imports nothing from the kernel. 13.8k lines are pure, hash-seeded rules with tests; 9.5k are rule-plus-drawing classes. Four modules are dead or orphaned (`npc.ts`'s class, `dialogue-sequence.ts`, `heightmap.ts`, and a fully extracted `soundtrack.ts` player the scene never calls) | 36.4k |
 | `pointclick/`, `dialogue-scene/` | turn-based genres | a pure reducer and a Phaser scene that only draws. The reducers emit nothing, so their consumers rediscover edges by diffing strings | 1.6k, 3.1k |
 | `shell/case*.ts` + `app/_play/CasePlayer.tsx` | the container above leaves | pure rules (`advanceCase`, `mergeFacts`) whose only runtime is a 544-line React component; every `/scene` and `/room` page already runs inside a single-beat case | — |
 | `sideview/`, `ui-atlas/`, `device-pixels/`, `manifest/`, `shell/`, `illustrated-map/` | shared presentation | asset loading, sprite scale, terrain atlas, gauge bar, motion playback, layer treatment, widgets, device-pixel camera; an overworld contract nothing consumes | — |
@@ -71,7 +71,7 @@ ring 0   kernel       GameSystem, sealSystems, EventQueue, FixedStep + accumulat
 ```
 
 **Ring 0 — kernel** is engine-free and genre-free and names no gameplay noun.
-It is `game-systems/` today plus what the runner and the platformer keep
+It is `kernel/` today plus what the runner and the platformer keep
 privately and should not: the fixed-step accumulator (`sideview-runner/
 fixed-step.ts`, duplicated as `GameplayAutomationClock` in the platformer),
 `mulberry32` (written twice in the runner), the deterministic hash (five
@@ -122,7 +122,7 @@ and what it returns is data plus one sealed tick.
 
 ### Kernel (ring 0)
 
-What `game-systems/systems.ts` has, plus what the runner audit showed it
+What `kernel/systems.ts` has, plus what the runner audit showed it
 lacks. Additions are marked.
 
 ```ts
