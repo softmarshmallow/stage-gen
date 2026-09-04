@@ -351,6 +351,14 @@ export class PreparedStageScene extends Phaser.Scene {
   private mapLabel?: Phaser.GameObjects.Text;
   /** The arriving-map announcement and the simulation time it was raised at. */
   private mapBanner?: { text: Phaser.GameObjects.Text; raisedAtMs: number };
+  /**
+   * A map entry asked for during a frame, applied once that frame has finished.
+   *
+   * `enterMap` rebuilds the world, and `clearWorld` destroys the player controller. Both callers
+   * that can reach it from inside `update` are in the middle of stepping that controller when they
+   * do, so the entry has to wait for the end of the frame rather than land in the middle of one.
+   */
+  private pendingMapEntry?: { mapId: string; normalizedX: number; announce: boolean };
   private dialoguePanel?: NineSliceWidget;
   private dialogueText?: Phaser.GameObjects.Text;
   private dialogueName?: Phaser.GameObjects.Text;
@@ -468,6 +476,25 @@ export class PreparedStageScene extends Phaser.Scene {
       const parallax = Number(layer.getData("parallax") ?? 0);
       layer.tilePositionX = this.cameras.main.scrollX * parallax;
     }
+    this.applyPendingMapEntry();
+  }
+
+  /**
+   * Ask for a map entry, without taking one.
+   *
+   * The first request of a frame wins. Two portals cannot both be walked into on one frame, and a
+   * respawn asked for after a portal was would carry the player somewhere they did not ask to go.
+   */
+  private requestMapEntry(mapId: string, normalizedX: number, announce = true): void {
+    this.pendingMapEntry ??= { mapId, normalizedX, announce };
+  }
+
+  /** Take the entry the frame asked for, now that the frame is over. */
+  private applyPendingMapEntry(): void {
+    const pending = this.pendingMapEntry;
+    if (!pending) return;
+    this.pendingMapEntry = undefined;
+    void this.enterMap(pending.mapId, pending.normalizedX, pending.announce);
   }
 
   private url(path: string): string {
@@ -1869,8 +1896,8 @@ export class PreparedStageScene extends Phaser.Scene {
     if (health.defeated) {
       if (this.defeatedAtMs === null) this.recordEvent("player-defeated", null);
       this.defeatedAtMs ??= now;
-      // Rebuilding the world also rebuilds the player, so the recovered character is a fresh
-      // controller at full health. Nothing below this line may touch the old one.
+      // The recovery is asked for rather than taken: the world is rebuilt at the end of this
+      // frame, so nothing below this line steps a controller that is about to be retired.
       if (this.updateDefeatPrompt(now)) return;
     } else {
       this.defeatedAtMs = null;
@@ -1976,7 +2003,7 @@ export class PreparedStageScene extends Phaser.Scene {
         (candidate) => candidate.spawn_id === transition?.to_spawn_id,
       );
       if (destination && transition && spawn) {
-        void this.enterMap(destination.map_id, spawn.normalized_x);
+        this.requestMapEntry(destination.map_id, spawn.normalized_x);
       }
     }
 
@@ -2773,7 +2800,7 @@ export class PreparedStageScene extends Phaser.Scene {
     this.defeatPanel?.hide();
     const home = resolveHomeSpawn(gameplay);
     this.recordEvent("player-respawned", { mapId: home.map_id });
-    void this.enterMap(home.map_id, home.normalized_x);
+    this.requestMapEntry(home.map_id, home.normalized_x);
   }
 
   private selectSoundtrack(map: PreparedMap): void {

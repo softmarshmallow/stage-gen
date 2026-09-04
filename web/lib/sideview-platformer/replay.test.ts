@@ -160,9 +160,16 @@ const GOLDEN: Record<number, string> = {
   // 150 to 194, and every changed field is under `banner`: the announcement raised by the portal
   // transition at 150 now exists in the record at all — a tween is engine state the probe could
   // not read — and lives for exactly the fade-hold-fade it declares, 1500ms at a 1/30s step.
-  300: "74f5437c5730bc98451a0a1ce5e3aecccb6db2304aa31d7b829abeafeb0f4bce",
+  // Re-pinned again for `enterMap` deferred to the end of the frame that asks for it. Frames 150
+  // to 600 moved, and the whole tail follows from one thing: the world is now rebuilt after the
+  // frame's systems have run, so the population's first two spawns land on 151 instead of 150 and
+  // those two creatures are a frame behind their old selves forever after. The run itself is the
+  // same run — the kill at 290, both pickups at 293 and all three contact hits are on identical
+  // frames — but the player's hp between 306 and 469 differs, because a critical is seeded from
+  // where the creature that struck it was standing.
+  300: "d0cd3b039800a2e671fdaaddb82043fc22522ed3251becedc2875843f400070b",
   // The whole run.
-  600: "d6bb1f7808c2b701722dbfa3a72b2cb5f0a9ee098354b3a3e05d76c0e10375f0",
+  600: "df961d1251c387b670f5f321a8612d269d6daaa595ee58f517496af077277d57",
 };
 
 describe("the platformer replays to its golden", () => {
