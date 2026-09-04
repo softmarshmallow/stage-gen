@@ -38,6 +38,7 @@ from stage_gen.recipes.sideview_platformer.prepared_content import (
     PreparedContentNodeHandler,
     _validate_atlas,
     _validate_transparent_image,
+    content_review_target_node_ids,
     content_target_node_ids,
     soundtrack_target_node_ids,
 )
@@ -268,7 +269,12 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
         prepared.graph,
         handler,
         invocation_id="content-handler",
-        target_node_ids=content_target_node_ids(prepared.graph),
+        # Both content checkpoints together: the default closure and the reviews that
+        # `content-review` runs over it, so every request the handler can make is proved.
+        target_node_ids=(
+            *content_target_node_ids(prepared.graph),
+            *content_review_target_node_ids(prepared.graph),
+        ),
     )
 
     assert summary.ok is True
