@@ -57,10 +57,10 @@ function scriptedIntent(frame: number) {
 
 /** Which scene-level keys — the ones `PlayerIntent` does not carry — are held on a frame. */
 function scriptedKeys(frame: number): readonly ("interact" | "enter" | "up" | "space")[] {
-  // Talk to the baker, then advance her two lines and the ending.
-  if ([60, 68, 76].includes(frame)) return ["interact"];
-  // A jump pressed while the panel is up. It is meant to advance the conversation and, before the
-  // dialogue-hold fix, is swallowed by the intent read that runs first — which is why it is here.
+  // Open the conversation, then advance her first line.
+  if ([60, 68].includes(frame)) return ["interact"];
+  // And end it with a jump, which is the key the dialogue hold used to swallow: the frame's intent
+  // read spends space's latch, and the panel then reads a key nobody pressed.
   if (frame === 72) return ["space"];
   // Ask the east gate to open, after the walk has run out of world.
   if (frame === 150 || frame === 151) return ["up"];
@@ -174,9 +174,16 @@ const GOLDEN: Record<number, string> = {
   // under `soundtrack`: the run is silent until the keypress at 60 starts `village_theme`, and the
   // portal at 150 narrows the pool to the route's two tracks, which the seeded bag opens with
   // `road_theme_b` and plans `road_theme` behind.
-  300: "cfe1c4dd7769ebbc97f150a06c9db571d4e9b0513c57e9038e19d62f2ddb4e3d",
+  // Re-pinned again for the latched keys drained on one side of the dialogue hold. 529 frames
+  // moved, 72 to 600, and the measurement is the strongest one this file has produced: with the
+  // same script, the runtime before the fix never leaves the conversation at all — the player
+  // stands at x=546 in the village for all 528 remaining frames and the run records two dialogue
+  // events and nothing else — because space, the key the script ends the conversation with, was
+  // spent by the intent read that runs first. After it, the conversation closes at 72 and the run
+  // proceeds through the portal, four spawns, ten throws, a kill, two pickups and three hits.
+  300: "a03ea96dfdd4b2a9b1b60e585524fd526fd4ac6e4f3f7c9e25750ff91ad6e179",
   // The whole run.
-  600: "67ae19375510abba36ff158f1e9629048ba9f249cde9e10f518941ad40bb4bdd",
+  600: "07cd2b982d078de8de1b32fa28c69186eb2ac217cb51886006ae346e4cac4e52",
 };
 
 describe("the platformer replays to its golden", () => {

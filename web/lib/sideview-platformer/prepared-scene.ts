@@ -459,12 +459,13 @@ export class PreparedStageScene extends Phaser.Scene {
     // Before the dialogue hold, because an announcement that stopped fading while a conversation
     // was open would still be sitting on the screen when the panel closed.
     this.updateMapBanner(now);
+    // One reading of the keyboard per frame, taken before anything branches on it, and then handed
+    // to whichever side of the frame consumes it. `JustDown` spends the latch, and the scene's own
+    // keys are the same `Key` objects the controller binds - `addKey` returns the existing one for
+    // a code - so a second reader downstream of the first sees a key nobody pressed.
+    const keyboardIntent = this.player.readKeyboardIntent();
     if (this.activeScenario) {
-      // Drain this frame's intent and drop it. Edge-triggered requests latch until something
-      // reads them, so skipping the read would queue a jump or an inventory toggle behind the
-      // conversation and fire it the moment the panel closes.
-      this.player.readKeyboardIntent();
-      this.updateDialogueInput();
+      this.updateDialogueInput(keyboardIntent);
       return;
     }
     this.statLog?.update(now);
@@ -472,7 +473,7 @@ export class PreparedStageScene extends Phaser.Scene {
     // frames after a blow lands while every presentation keeps sampling `now`, so the number
     // still punches and the flash still ends on time over a world that has briefly stopped.
     const simulationDelta = this.impact?.hitstopActive(now) ? 0 : delta;
-    this.updatePlayer(simulationDelta, now);
+    this.updatePlayer(simulationDelta, now, keyboardIntent);
     this.updateMobs(simulationDelta, now);
     // Between the two on purpose: the mobs have already moved this frame, so a shot collides
     // against where they actually are, and a kill still lands in this frame's drop collection
@@ -1892,12 +1893,12 @@ export class PreparedStageScene extends Phaser.Scene {
     }
   }
 
-  private updatePlayer(delta: number, now: number): void {
+  private updatePlayer(delta: number, now: number, keyboardIntent: PlayerIntent): void {
     const player = this.player;
     const keys = this.keys;
     const gameplay = this.gameplay;
     if (!player || !keys || !gameplay || !this.currentMap) return;
-    const intent = this.resolveIntent(delta, now);
+    const intent = this.resolveIntent(delta, now, keyboardIntent);
     player.update(delta, now, intent);
     if (intent.toggleInventory) this.inventoryHud?.toggle();
     if (intent.useHealing) this.useHealingItem();
@@ -1908,7 +1909,7 @@ export class PreparedStageScene extends Phaser.Scene {
       this.defeatedAtMs ??= now;
       // The recovery is asked for rather than taken: the world is rebuilt at the end of this
       // frame, so nothing below this line steps a controller that is about to be retired.
-      if (this.updateDefeatPrompt(now)) return;
+      if (this.updateDefeatPrompt(now, keyboardIntent)) return;
     } else {
       this.defeatedAtMs = null;
       this.defeatPanel?.hide();
@@ -2274,7 +2275,7 @@ export class PreparedStageScene extends Phaser.Scene {
     this.renderDialogueNode();
   }
 
-  private updateDialogueInput(): void {
+  private updateDialogueInput(keyboardIntent: PlayerIntent): void {
     const keys = this.keys;
     if (!keys) return;
     const active = this.activeScenario;
@@ -2294,7 +2295,9 @@ export class PreparedStageScene extends Phaser.Scene {
     if (
       Phaser.Input.Keyboard.JustDown(keys.interact) ||
       Phaser.Input.Keyboard.JustDown(keys.enter) ||
-      Phaser.Input.Keyboard.JustDown(keys.jump)
+      // The jump the frame's one keyboard read already took, rather than a second `JustDown` on
+      // the same `Key`: space could not advance a conversation while the read ran first.
+      keyboardIntent.jump
     ) {
       this.applyScenarioAction({ kind: "advance" });
     }
@@ -2675,12 +2678,13 @@ export class PreparedStageScene extends Phaser.Scene {
    * human's - otherwise a jump pressed during auto-play would be queued and fired later, at the
    * moment control happened to come back.
    */
-  private resolveIntent(delta: number, now: number): PlayerIntent {
+  private resolveIntent(
+    delta: number,
+    now: number,
+    keyboardIntent: PlayerIntent,
+  ): PlayerIntent {
     const player = this.player;
     if (!player) return NEUTRAL_PLAYER_INTENT;
-    // Read unconditionally, even when a script is driving: the latches are consumed by reading
-    // them, and one left armed fires later on a frame nothing asked for it.
-    const keyboardIntent = player.readKeyboardIntent();
     const humanIntent = this.intentSource ? this.intentSource() : keyboardIntent;
     const control = resolveBotControl({
       humanIntent,
@@ -2762,7 +2766,7 @@ export class PreparedStageScene extends Phaser.Scene {
    * is an unattended run that stops forever at its first death; that is a property of who is at the
    * keyboard, not a decision any behaviour makes, so it is settled here rather than in the roster.
    */
-  private updateDefeatPrompt(nowMs: number): boolean {
+  private updateDefeatPrompt(nowMs: number, keyboardIntent: PlayerIntent): boolean {
     const defeatedAtMs = this.defeatedAtMs;
     const gameplay = this.gameplay;
     const panel = this.defeatPanel;
@@ -2774,7 +2778,7 @@ export class PreparedStageScene extends Phaser.Scene {
       destinationName:
         this.manifest?.maps.find((map) => map.map_id === home.map_id)?.display_name ?? "",
     });
-    if (panel?.visible && this.confirmKeyPressed()) panel.requestConfirm();
+    if (panel?.visible && this.confirmKeyPressed(keyboardIntent)) panel.requestConfirm();
     const confirmed = panel?.consumeConfirm() ?? false;
     const unattended =
       this.controlSource === "bot" &&
@@ -2785,13 +2789,15 @@ export class PreparedStageScene extends Phaser.Scene {
   }
 
   /** The same keys that advance a conversation also accept the death screen. */
-  private confirmKeyPressed(): boolean {
+  private confirmKeyPressed(keyboardIntent: PlayerIntent): boolean {
     const keys = this.keys;
     if (!keys) return false;
     return (
       Phaser.Input.Keyboard.JustDown(keys.interact) ||
       Phaser.Input.Keyboard.JustDown(keys.enter) ||
-      Phaser.Input.Keyboard.JustDown(keys.jump)
+      // Same reason as the conversation's: the frame has already read space once, and the answer
+      // it got is the only one there is.
+      keyboardIntent.jump
     );
   }
 
