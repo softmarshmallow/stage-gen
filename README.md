@@ -86,13 +86,13 @@ only an admitted, explicitly selected graph can spend.
 
 A live runner call is single-shot, requires provider credentials, and may spend money; omitting
 `--dry-run` intentionally executes the selected runner graph and assembles one immutable
-`sideview-runner-runtime-v12` run. The platformer recipe remains checkpointed:
+`sideview-runner-runtime-v13` run. The platformer recipe remains checkpointed:
 `--checkpoint world` and `--checkpoint content` execute paid dependency closures,
 `--checkpoint soundtrack` is that content closure narrowed to the tracks so a rewritten
 creative brief cannot regenerate reviewed art, `--checkpoint world-review` and
 `--checkpoint content-review` run the semantic reviews over a closure the cache already
-holds, and `--checkpoint integration` is provider-free and assembles
-`prepared-game-runtime-v10` over accepted `--artifact-root` directories.
+holds, and `--checkpoint integration` runs the terminal manifest node over the cache with
+every provider backend refusing, publishing `prepared-game-runtime-v11` without spending.
 
 GPT Image 2 native alpha is the quality-first live image route. The standalone compatibility
 background-removal command remains available:
@@ -369,9 +369,9 @@ bun test
 bun run build --webpack
 ```
 
-`web/` starts no run. The preview boots one published `prepared-game-runtime-v10`
+`web/` starts no run. The preview boots one published `prepared-game-runtime-v11`
 package, `/packages/<tag>` projects that manifest's closure, `/runner/<tag>` plays a
-published `sideview-runner-runtime-v12` run, `/room/<tag>` replays one published
+published `sideview-runner-runtime-v13` run, `/room/<tag>` replays one published
 `pointclick-room-runtime-v3` room, and `/runs` renders exported run views. Browser
 code never receives provider credentials, and the docs gate checks that nothing
 under `web/lib/shell` can spawn a process.

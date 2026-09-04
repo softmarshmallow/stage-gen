@@ -69,7 +69,18 @@ def steps(python: str = sys.executable, *, scratch: Path) -> tuple[Step, ...]:
     """
 
     def dry_run(*command: str, name: str) -> Step:
-        return Step((*command, "--dry-run", "--output", str(scratch / name)))
+        # A dry run writes its own fake cache; it goes to scratch, never to the real
+        # cache root every paid checkpoint restores from.
+        return Step(
+            (
+                *command,
+                "--dry-run",
+                "--cache-dir",
+                str(scratch / "cache"),
+                "--output",
+                str(scratch / name),
+            )
+        )
 
     return (
         Step(("ruff", "format", "--check", ".")),

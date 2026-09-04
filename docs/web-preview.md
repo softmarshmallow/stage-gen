@@ -11,7 +11,7 @@ The preview route is `/preview/<run-tag>`. The run directory is `out/<run-tag>/`
 ```json
 {
   "schema_version": 10,
-  "kind": "prepared-game-runtime-v10"
+  "kind": "prepared-game-runtime-v11"
 }
 ```
 
@@ -23,18 +23,17 @@ portable paths below the selected run. The asset route permits nested paths only
 path-segment, containment, regular-file, and realpath checks.
 
 The Python producer is
-[`prepared_manifest.py`](../src/stage_gen/recipes/sideview_platformer/prepared_manifest.py). It
-searches accepted artifact roots in caller priority order, validates the complete package-derived
+[`prepared_manifest.py`](../src/stage_gen/recipes/sideview_platformer/prepared_manifest.py),
+run by the graph's terminal `manifest-assemble` node
+([`prepared_integration.py`](../src/stage_gen/recipes/sideview_platformer/prepared_integration.py)).
+Integration restores the node's closure from the cache, validates the complete package-derived
 media closure before writing, assembles in a temporary sibling directory, and atomically renames
-the complete run into place. Integration is provider-free:
+the complete run into place. It is provider-free by construction: every backend refuses.
 
 ```sh
 stage-gen generate \
   --input library/games/bellweather \
   --checkpoint integration \
-  --artifact-root /path/to/corrective-actor-run \
-  --artifact-root /path/to/complete-content-run \
-  --artifact-root /path/to/complete-world-run \
   --output out/bellweather-prepared-v1
 ```
 
@@ -42,8 +41,10 @@ Publishing a run tag is immutable by default. Republishing an identical closure 
 output directory is a no-op (`disposition: unchanged`); publishing different bytes under that tag
 requires `--replace-output` and reports the `replaced_manifest_sha256` it destroyed.
 
-The first root containing an expected relative artifact wins. This is how a narrowly regenerated
-motion run can replace stale motion without copying unrelated older content into it or rerunning
+The cache is the authority; an optional `--artifact-root` is read after it, for an artifact the
+cache lacks. A narrowly regenerated motion run replaces stale motion by writing the cache, not by
+being named here; roots exist so an accepted run whose cache entries were lost can still publish
+without copying unrelated older content into it or rerunning
 providers. Every selected byte is recorded once in `closure.artifacts` with path, SHA-256, byte
 count, media type, and image dimensions. The closure list has its own canonical digest.
 
@@ -277,7 +278,7 @@ runtime-manifest parser of the old numbered generation, `WorldSpec`, `VillageSpe
 filename scene are gone rather than retired in place.
 
 No backward-compatible prepared-input translation exists. A directory or ZIP with root
-`game.toml` is the package root, and `prepared-game-runtime-v10` is the only manifest accepted by
+`game.toml` is the package root, and `prepared-game-runtime-v11` is the only manifest accepted by
 the preview. A run directory that holds neither is not a subject this consumer can render, and the
 route answers 404 rather than guessing.
 

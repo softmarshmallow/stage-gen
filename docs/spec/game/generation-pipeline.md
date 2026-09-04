@@ -61,7 +61,7 @@ that same bridge: its right edge receives bridge column 0 and its left edge
 receives bridge column 1, so every A-to-B join reconstructs the original
 continuous two-column generated material. Each published segment remains
 `columns * 64` by `rows * 64`, while authored occupancy remains collision
-authority. Its terminal node emits `sideview-runner-runtime-v12`. The exact
+authority. Its terminal node emits `sideview-runner-runtime-v13`. The exact
 fixture fan-out and provider-operation counts are machine-checked in
 [`runner.md`](runner.md); changing that fan-out requires regenerating its
 embedded contract in this same change.
@@ -77,7 +77,7 @@ the same compiled direction, so this genre input is part of the provider node's 
 
 `stage-gen generate` requires `--input` pointing to a prepared directory or ZIP whose root
 contains `game.toml`. There is no bare-prompt fallback. The runner recipe is a single-shot graph:
-its live call executes the complete selected member and assembles `sideview-runner-runtime-v12`.
+its live call executes the complete selected member and assembles `sideview-runner-runtime-v13`.
 The platformer recipe remains checkpointed. `--checkpoint world` executes everything the map
 reviews read - each map's composite and presentation validations - and their complete dependency
 closure, and not the reviews themselves. `--checkpoint content` independently executes cast,
@@ -94,7 +94,7 @@ declared rather than left to the operator to avoid. Neither paid bounded checkpo
 assemble a manifest. `--checkpoint integration` is a provider-free terminal
 operation over accepted artifact roots. It validates the complete package-derived runtime closure,
 applies caller-ordered corrective-run precedence, atomically publishes one run whose tag is
-immutable by default, and emits `prepared-game-runtime-v10`. The `--dry-run` path exercises the
+immutable by default, and emits `prepared-game-runtime-v11`. The `--dry-run` path exercises the
 selected complete graph with deterministic fake operations.
 
 ## Current boundary graph
@@ -170,7 +170,7 @@ topology and therefore this checked snapshot.
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "library/games/bellweather",
   "graph_schema_version": 1,
-  "topology_sha256": "819c43338c5e6305746a4aaca59a1ee52ab712f09b073a36ff8504b1d839bc87",
+  "topology_sha256": "6d60dc2b3440fd6ca2fd95150664e5f79d003741ea1fd087a0b5be3ceed0fb3c",
   "node_count": 230,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
@@ -531,10 +531,24 @@ kinds, so a reader never has to infer which recipe wrote a run directory.
 | `content/coverage-matrix.json`, `gameplay.bindings.json` | Required authored coverage and verified stable-ID relationships |
 | `soundtrack/*.mp3`, `*.validation.json` | Generated audio, provider provenance, duration/container facts, and explicit listening status |
 | `dry-run/*.json` | Fake artifacts used to validate content and lineage cache behavior |
-| `manifest.json` | Portable `prepared-game-runtime-v10` authored projection, runtime-only layer/contact-shadow presentation, prop ground contacts, front-facing NPC playback, and SHA-bound runtime closure |
+| `manifest.json` | Portable `prepared-game-runtime-v11` authored projection, runtime-only layer/contact-shadow presentation, prop ground contacts, front-facing NPC playback, and SHA-bound runtime closure |
 
 Trace records contain portable artifact references, hashes, and sanitized errors. They do not
 contain credentials, authorization headers, signed URLs, temporary paths, or absolute inputs.
+
+## Per-block versions
+
+`manifest.json` is a set of named blocks, and its root carries a `blocks` table: block key to
+the block's own version, `platformer-<key>-block-v1` today for every block the consumer parses
+(`presentation`, `scale`, `maps`, `player`, `mobs`, `npcs`, `props`, `items`, `projectiles`,
+`ui`, `soundtrack`, `gameplay`, `scenarios`, `closure`). A block whose shape moves bumps its own
+version in `PLATFORMER_MANIFEST_BLOCKS` and in the parser that reads it; nothing else moves. The
+document's `kind` moves on structural change only - the set of blocks or the root fields - which
+is contract rule C-R3 in [game-contract.md](../../game-contract.md). The consumer gates every
+block it parses and its refusal names the block. The current table is generated into
+[contract-identities.md](../../contract-identities.md). The root fields `style`, `proportion`,
+`universe` and `canonical_game_sha256` carry no block version because no consumer reads them;
+they are the C-R6 defects the engineering pass lists, and leave rather than gain a version.
 
 ## Runtime closure roles
 
@@ -577,9 +591,6 @@ uv run stage-gen generate \
 uv run stage-gen generate \
   --input library/games/bellweather \
   --checkpoint integration \
-  --artifact-root /tmp/bellweather-actor-correction \
-  --artifact-root /tmp/bellweather-content \
-  --artifact-root /tmp/bellweather-world \
   --output out/bellweather-prepared-v1
 ```
 
@@ -588,9 +599,15 @@ content-and-lineage validated warm-cache behavior. Package planning and dry-run 
 provider. `--checkpoint world` requires direct OpenAI image and OpenRouter structured
 capabilities. `--checkpoint content` additionally requires OpenRouter music generation and local
 `ffprobe` technical inspection. Listening acceptance remains a separate human verdict and is
-never inferred from a valid audio container. `--checkpoint integration` performs no provider
-operations and requires no provider credential; it fails before publication when any expected
-runtime artifact is absent or unsafe.
+never inferred from a valid audio container. `--checkpoint integration` runs the terminal
+`manifest-assemble` node's whole dependency closure as a graph run over the cache: every node
+the cache holds is restored into the run exactly as the paid checkpoints restore it, admission
+included, local nodes re-run for free, and every provider backend refuses, so a paid artifact
+the cache does not hold stops the run naming the checkpoint that produces it. Nothing is spent
+by construction. The graph, projection, trace and summary of that run sit beside the published
+directory as `.<tag>.integration-<invocation>`; the published directory holds the manifest and
+exactly the bytes it binds. `--artifact-root` names an accepted run directory integration may
+read *after* the cache for an artifact the cache lacks; it never overrides one the cache holds.
 
 A published run tag names exactly one byte set, because prose, reviews, and research cite runs by
 digest. Integration is deterministic, so republishing an identical closure over an existing output

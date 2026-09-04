@@ -269,6 +269,17 @@ class PreparedWorldNodeHandler:
         self._cache.write(node, context, result)
         return result
 
+    def restore(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult | None:
+        """The cache's answer alone: restored into the run, or ``None``. Never generates."""
+
+        return self._cache.read(node, context)
+
+    @property
+    def registered_type_ids(self) -> frozenset[str]:
+        """The node types this checkpoint owns; integration routes by it."""
+
+        return frozenset(node_type.type_id for node_type in self._registry.types())
+
     # ---------------------------------------------------------------- dispatch
 
     def _build_registry(self) -> NodeTypeRegistry:

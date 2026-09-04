@@ -355,7 +355,49 @@ manifest that binds them, paid on the next regeneration.
 | C4 | Room manifest `schema_version` read off its kind |
 | C-R1..R6 | Written into the game contract |
 | B7 | Deferred to workstream D, now free |
-| C1, C2 | Next: per-block manifests and the derived identity table |
+| C1, C2 | Landed in phase 2, below |
+
+**2026-09-04 — Phase 2, first cut: the seam.** D3 and C2 first (zero risk,
+each turns a class of drift into a test), then C1 and D1 together, because
+the per-block table is the projection layer's output and the terminal node is
+what publishes it.
+
+| Card | Landed as |
+| --- | --- |
+| D3 | `components/sideview_stage` holds the five stage blocks both side-view genres author; `platformer_map` re-exports them, `runner_track` imports them, and the lint refuses a genre component importing another genre. `platformer_map_design` → `sideview_map_design` (its own docstring said it). No key moved |
+| C2 | `stage_gen.identities` reads every persisted identity from its `Literal` field or constant; `docs/contract-identities.md` is generated; the docs rule is derived (a listed family only at its current version, a retired family never; history exempt). It replaced 269 literal assertions and found drift the audit missed: `ARCHITECTURE.md` at runner runtime v7 against v12, five sites at room runtime v2 against v3, three docs citing the dialogue recipe at v6 |
+| C1 | Both runtime manifests carry a root `blocks` table (platformer 14, runner 14 + optional `fx-block-v1` declared in `game_fx`); both TS parsers gate every block by name; the root kinds moved once (`prepared-game-runtime-v11`, `sideview-runner-runtime-v13`) and by design not again for a block-local change. Block versions are identities in the table. Both topology digests re-pinned (the terminal port kind is the manifest identity); no cache key moved |
+| D1 | `PLATFORMER_MANIFEST_BLOCKS`: one builder per block over a `_Publication`, the assembler a comprehension. `manifest-assemble` has a handler: `PreparedIntegrationNodeHandler` runs the terminal's closure over the cache with every backend refusing (`create_provider_free_*_service`), restores what the cache holds with admission, re-runs local nodes, adopts a paid node's ports from an `--artifact-root` only when the cache lacks them (a run-level fact, never a cache write), and refuses otherwise with the checkpoint named. `--checkpoint integration` no longer needs a root; the run's graph, trace and summary sit beside the published directory |
+
+Measured, both shipped games republished under the new identity:
+
+| Game | Provider ops | Against the previous publish |
+| --- | --- | --- |
+| Bellweather (`out/bellweather-c1-parity`) | **0** — 230 nodes; 79 paid nodes adopted from the checkpoint run dirs, the rest restored | byte-identical: same 109 artifacts, same values; only `schema_version`, `kind` and the added `blocks` differ. `verify_prepared_runtime` valid; the web parser reads it |
+| Iron Petal (`out/iron-petal-c1-parity`) | **4** structured — exactly the B6 rebase judge/verify pair on avatar and boss, priced by `plan --cache-dir` before the run | identical except the root bump, `blocks`, and three avatar rebase multipliers the re-judge moved by ≤ 0.05 |
+
+Two facts the seam surfaced, recorded rather than smoothed over:
+
+1. **Bellweather's cache does not hold its shipped content.** `plan --cache-dir .cache`
+   prices 55 paid nodes (30 motion atlases, 11 actor reviews, 6 concepts, 3 UI
+   atlases and their reviews, the B6 pair) at $1.6–9.1; the shipped run was assembled
+   from checkpoint directories whose cache entries predate the key moves of the last
+   week. Adoption from those directories is how it republishes at 0 today; the price
+   stays visible in `plan` until the content checkpoint runs again. That is the
+   honest state, and the reason `--artifact-root` survives as a fallback.
+2. **The gate's dry runs wrote a second, namespace-less cache into `.cache/`** (135
+   two-hex directories) the day `.cache` became the default root. The gate now hands
+   every dry run a scratch cache directory; the flat entries were deleted. D12's
+   "second cache implementation" is this, and it still wants folding into the one
+   cache.
+
+Decisions taken here: block versions are genre-prefixed (`platformer-*`,
+`runner-*`) because the two genres' `gameplay`, `scale` and `soundtrack` blocks
+have different shapes today, and a block a shared family builds is declared in
+that family (`fx-block-v1`); when D8 unifies a block, it moves to the component
+and drops the prefix. The runtime family layer parses blocks one family at a
+time (runtime steps 3–6); until then the genre parser gates all of them up
+front and the message names the block.
 
 
 ## Decisions that are yours

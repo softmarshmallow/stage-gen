@@ -6,7 +6,7 @@ import asyncio
 import base64
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING, NoReturn, Protocol, Self, cast
+from typing import TYPE_CHECKING, ClassVar, Literal, NoReturn, Protocol, Self, cast
 
 from gnode import (
     ArtifactRights,
@@ -586,4 +586,50 @@ def _result(
         media_type=media_type,
         bytes=byte_count,
         attempts=attempts,
+    )
+
+
+class ProviderFreeRefusal(RuntimeError):
+    """A provider call was attempted inside a run that promised to make none."""
+
+
+class _RefusingBackend:
+    """A backend for a provider-free run: every generation refuses, nothing is spent.
+
+    Integration restores from the cache or stops. Handing the checkpoint handlers a
+    backend that refuses, rather than no backend, keeps every cache-admission and
+    local-node path exactly the code the paid checkpoints run.
+    """
+
+    spec_version: ClassVar[Literal[1]] = 1
+    provider = "none"
+    model = "provider-free"
+    secrets: tuple[str, ...] = ()
+    supports_native_alpha = True
+
+    def __init__(self, reason: str) -> None:
+        self._reason = reason
+
+    async def generate_once(self, request: object) -> NoReturn:
+        raise ProviderFreeRefusal(self._reason)
+
+    async def aclose(self) -> None:
+        return None
+
+
+def create_provider_free_image_service(reason: str) -> ImageGenerationService:
+    return ImageGenerationService(
+        _RefusingBackend(reason), component=IMAGE_GENERATION_COMPONENT, tool=STAGE_GEN_TOOL
+    )
+
+
+def create_provider_free_structured_service(reason: str) -> StructuredGenerationService[object]:
+    return StructuredGenerationService(
+        _RefusingBackend(reason), component=STRUCTURED_GENERATION_COMPONENT, tool=STAGE_GEN_TOOL
+    )
+
+
+def create_provider_free_music_service(reason: str) -> MusicGenerationService:
+    return MusicGenerationService(
+        _RefusingBackend(reason), component=MUSIC_GENERATION_COMPONENT, tool=STAGE_GEN_TOOL
     )

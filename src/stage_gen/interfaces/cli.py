@@ -146,7 +146,10 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         default=[],
         dest="artifact_roots",
-        help="accepted run root searched for integration artifacts; repeat in priority order",
+        help=(
+            "an accepted run root integration may read after the cache; repeat in priority "
+            "order. The cache is the authority: a root supplies what it lacks, never overrides"
+        ),
     )
     generate_parser.add_argument("--invocation-id")
     generate_parser.add_argument(
@@ -1217,34 +1220,46 @@ async def _dispatch_async(
             invocation_id = args.invocation_id or f"{checkpoint}-{uuid.uuid4().hex}"
             prepared_executor = PreparedPackageExecutor(config)
             if checkpoint == "integration":
-                if not args.artifact_roots:
-                    raise ValueError("integration requires at least one --artifact-root")
-                integration_result = prepared_executor.run_integration(
+                # The published closure is `--output`; the graph's own record of how it
+                # was restored sits beside it, dot-prefixed, one directory per invocation.
+                integration_run_dir = output_path.parent / (
+                    f".{output_path.name}.integration-{invocation_id}"
+                )
+                integration_result = await prepared_executor.run_integration(
                     Path(args.input_path),
-                    run_dir=output_path,
+                    run_dir=integration_run_dir,
+                    output_dir=output_path,
+                    cache_dir=cache_dir,
+                    invocation_id=invocation_id,
                     artifact_roots=tuple(Path(path) for path in args.artifact_roots),
                     replace_output=bool(args.replace_output),
                 )
+                published = integration_result.result
                 integration_report: dict[str, object] = {
-                    "ok": True,
+                    "ok": integration_result.summary.ok and published is not None,
                     "genre": genre,
                     "checkpoint": checkpoint,
                     "invocation_id": invocation_id,
                     "graph_sha256": integration_result.plan.graph.graph_sha256,
                     "topology_sha256": integration_result.plan.graph.topology_sha256,
-                    "artifact_count": integration_result.result.artifact_count,
+                    "executed_node_count": len(integration_result.summary.nodes),
+                    "provider_operation_counts": (
+                        integration_result.summary.provider_operation_counts
+                    ),
+                    "artifact_count": None if published is None else published.artifact_count,
+                    "adopted_from_roots": list(integration_result.adopted_node_ids),
                     "package_sha256": integration_result.plan.package.package_sha256,
-                    "provider_operation_counts": {},
-                    "run_dir": str(output_path),
-                    "disposition": integration_result.result.disposition,
+                    "run_dir": str(integration_run_dir),
+                    "output_dir": str(output_path),
+                    "disposition": None if published is None else published.disposition,
                     "replaced_manifest_sha256": (
-                        integration_result.result.replaced_manifest_sha256
+                        None if published is None else published.replaced_manifest_sha256
                     ),
                 }
                 stdout.write(
                     f"{json.dumps(integration_report, sort_keys=True, separators=(',', ':'))}\n"
                 )
-                return 0
+                return 0 if integration_report["ok"] else 1
             if args.artifact_roots:
                 raise ValueError("--artifact-root is available only with --checkpoint integration")
             if args.replace_output:
