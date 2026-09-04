@@ -111,7 +111,7 @@ bun run stage-gen -- dialogue-scene generate \
 A prepared game binds its cast in `game.toml` rather than in a request document,
 so the `sideview-platformer` recipe reads authored profiles through the package it
 is given. The dialogue run persists `character-profile.json` with provenance and
-publishes `dialogue-scene-bundle-v5` using recipe `dialogue-scene-v6`. These
+publishes `dialogue-scene-bundle-v8` using recipe `dialogue-scene-v8`. These
 artifacts carry identity and lineage; they do not authorize publication.
 
 The scene document resolves only package-relative TOML members, rejects symlink
@@ -122,5 +122,5 @@ generated observation, runtime placement, or publication approval.
 
 Per-shot direction, pose conditioning, generated observation, and cross-image
 consistency remain explicitly proposed research in
-[Dialogue character direction and observation](spec/dialogue-character-direction.md);
+[Dialogue character direction and observation](research/dialogue-character-direction.md);
 the scene document neither accepts nor synthesizes them from a profile.

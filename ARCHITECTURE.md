@@ -140,10 +140,10 @@ integration surfaces, none of which can start a run. The side-view platformer
 preview boots one published `prepared-game-runtime-v10` package; its horizontal
 camera, parallax, terrain, movement, combat, and interaction rules are local
 consumer decisions. The runner at `/runner/<tag>` plays one published
-`sideview-runner-runtime-v7` run with its own fixed-step simulation. The asset
+`sideview-runner-runtime-v12` run with its own fixed-step simulation. The asset
 explorer projects the platformer manifest's closure. The deterministic
 dialogue-scene showcase consumes a committed browser fixture and schema. The
-room player at `/room/<tag>` replays one published `pointclick-room-runtime-v2`
+room player at `/room/<tag>` replays one published `pointclick-room-runtime-v3`
 manifest through a pure reducer. The run viewer consumes a run's derived
 `execution-view.json` and renders it read-only. No surface owns generation or
 defines reusable component contracts.

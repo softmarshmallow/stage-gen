@@ -13,7 +13,7 @@
 ## Why a taxonomy first
 
 The repository generates exactly one interface asset, the `inventory_panel`
-of `game-ui-v1`. Every other interface element in the four consumers is drawn
+of `game-ui-v4`. Every other interface element in the four consumers is drawn
 from engine primitives with per-genre constants: the runner's readout and death
 card, the room's narration panel, verb buttons and slot frames, the visual
 novel's dialogue panel, speaker chip and choice buttons, and the platformer's
@@ -190,10 +190,10 @@ Packs are on-demand role lists assembled from the tiers, never new tiers.
   `hud-geometry.ts`: a nine-slice draw with stretch or tile bands, a state
   switch, a content rect. Genre HUDs keep deciding where a panel sits and what
   a press means.
-- A successor to `game-ui-v1` is a new identity and a dropped run set, not
+- A successor to `game-ui-v4` is a new identity and a dropped run set, not
   optional fields on the inventory role.
 
-## Executable slice v0 (promoted as `game-ui-v3`, extended as `game-ui-v4`)
+## Executable slice v0 (promoted as `game-ui-v3`, since retired by `game-ui-v4`)
 
 The first slice is intentionally two roles, because those two exercise every
 hard part of the contract: insets, content rect, state consistency, and the
@@ -205,7 +205,7 @@ text-free rule.
 | `button_rect` | `nine_slice` | normal, hover, pressed, disabled | can it hold one silhouette across states and move only value and hue |
 
 The slice was proven in an untracked spike (two mediums, two takes, sixteen
-cells) and promoted on 2026-09-02 as the exact-current `game-ui-v3` contract
+cells) and promoted on 2026-09-02 as the `game-ui-v3` contract, since retired by `game-ui-v4`,
 in [ui.md](ui.md). Three facts the spike settled travelled into the gate:
 `band_fill` is *admitted per sheet* rather than authored (a flat medium
 stretches, a painterly one tiles, and neither is a prompt failure); cells are

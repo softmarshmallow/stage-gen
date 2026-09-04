@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+from stage_gen.identities import current_versions
+
 
 def _load_docs_checker() -> ModuleType:
     path = Path(__file__).parents[2] / "scripts/check_docs.py"
@@ -42,6 +44,13 @@ def test_repository_storage_policy_uses_live_enforced_limits() -> None:
     ) in policy
 
 
+def _current(family: str) -> str:
+    """The identity a document must name, at whatever version the code declares."""
+
+    (version,) = current_versions()[family]
+    return f"{family}-v{version}"
+
+
 def test_character_profile_workflow_is_discoverable_and_version_accurate() -> None:
     repository_root = Path(__file__).parents[2]
     readme = (repository_root / "README.md").read_text(encoding="utf-8")
@@ -54,7 +63,7 @@ def test_character_profile_workflow_is_discoverable_and_version_accurate() -> No
         "stage-gen character-profile digest",
         "library/games/larkfield",
         "--package-root",
-        "dialogue-scene-bundle-v5",
+        _current("dialogue-scene-bundle"),
     ):
         assert required in readme or required in library or required in docs_index
     assert "At committed HEAD it is not a provider-backed" not in architecture

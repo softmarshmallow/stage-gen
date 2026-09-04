@@ -273,7 +273,7 @@ control overrides `!` for that reason and says so in place.
 under [`lib/shell`](../web/lib/shell) may import a process-spawning API - the docs gate checks the
 absence, because a shell that can spawn is one refactor away from being a second generator. The
 prompt-launching Generate view, its `POST /api/run` start/retry/SSE routes, the scrolling
-manifest V7 parser, `WorldSpec`, `VillageSpec`, the map-book adapter, and the slot-derived
+runtime-manifest parser of the old numbered generation, `WorldSpec`, `VillageSpec`, the map-book adapter, and the slot-derived
 filename scene are gone rather than retired in place.
 
 No backward-compatible prepared-input translation exists. A directory or ZIP with root

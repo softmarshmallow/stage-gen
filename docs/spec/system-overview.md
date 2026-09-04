@@ -137,7 +137,7 @@ The `pointclick-room` sibling recipe packages one fixed painted room, its
 cursor-driven hotspots, an inventory, and a puzzle declared as data and proven
 finishable before any generation is paid for. Its
 [room specification](game/pointclick-room.md) owns the authored
-`pointclick-room-v3` contract, the graph, and the `pointclick-room-runtime-v2`
+`pointclick-room-v3` contract, the graph, and the `pointclick-room-runtime-v3`
 manifest the `/room/<tag>` consumer under `web/lib/pointclick/` renders from.
 
 Every genre that plays a conversation walks the same machine. The village

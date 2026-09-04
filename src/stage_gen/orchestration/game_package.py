@@ -123,6 +123,10 @@ from stage_gen.components.scenario import (
 
 MAIN_GAME_SELECTOR_REF = "library/games/main.toml"
 GAME_PACKAGE_VALIDATION_SCHEMA_VERSION = 6
+#: The resolved package document and its validation report carry the same schema
+#: version under two kinds; the identity table reads both from here.
+RESOLVED_GAME_PACKAGE_KIND = f"resolved-game-package-v{GAME_PACKAGE_VALIDATION_SCHEMA_VERSION}"
+GAME_PACKAGE_VALIDATION_KIND = f"game-package-validation-v{GAME_PACKAGE_VALIDATION_SCHEMA_VERSION}"
 GAME_PACKAGE_SELECTOR_SCHEMA_VERSION = 4
 
 _MAX_PACKAGE_FILES = 512
@@ -247,7 +251,7 @@ class ResolvedPreparedPackage:
             }
         return {
             "schema_version": GAME_PACKAGE_VALIDATION_SCHEMA_VERSION,
-            "kind": "resolved-game-package-v6",
+            "kind": RESOLVED_GAME_PACKAGE_KIND,
             "game_id": self.game.game_id,
             "revision": self.game.revision,
             "package_sha256": self.package_sha256,
@@ -389,7 +393,7 @@ def validate_game_package(
     return {
         **resolved.identity(),
         "schema_version": GAME_PACKAGE_VALIDATION_SCHEMA_VERSION,
-        "kind": "game-package-validation-v6",
+        "kind": GAME_PACKAGE_VALIDATION_KIND,
         "valid": True,
         "source_status": "current",
         "generated_status": "not_checked",
@@ -418,7 +422,7 @@ def invalid_game_package_report(error: GamePackageValidationError) -> dict[str, 
     )
     return {
         "schema_version": GAME_PACKAGE_VALIDATION_SCHEMA_VERSION,
-        "kind": "game-package-validation-v6",
+        "kind": GAME_PACKAGE_VALIDATION_KIND,
         "valid": False,
         "source_status": "current" if source_is_current else "invalid",
         "generated_status": "not_checked",

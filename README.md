@@ -179,13 +179,13 @@ its own records support, and the reader judges liveness from when the trace was 
   internal fan-out, and execution semantics.
 - A [point-and-click puzzle room recipe](docs/spec/game/pointclick-room.md) whose authored
   `pointclick-room-v3` package is proven finishable before any generation is paid for, and
-  whose `pointclick-room-runtime-v2` manifest a browser consumer replays with the same state
+  whose `pointclick-room-runtime-v3` manifest a browser consumer replays with the same state
   machine the proof searched.
 - A separate, game-global [authored soundtrack catalog](docs/game-soundtrack.md)
-  with stable track IDs and digest-bound generation, plus [authored map books](docs/game-maps.md)
-  that order map identities and select game-global track pools without owning geometry.
+  with stable track IDs and digest-bound generation, plus [authored maps](docs/game-maps.md)
+  that carry art direction and a terrain request and never own geometry.
 - A current-only [dialogue-character runtime pipeline](docs/dialogue-character-runtime-pipeline.md)
-  for reviewed character-bundle import into manifest V7.
+  for reviewed character-bundle import into the platformer runtime manifest.
 - An agent-facing [Game Concept Studio](concept-studio/README.md), governed by the root
   [`game-concept-studio` skill](.agents/skills/game-concept-studio/SKILL.md), for pre-production
   concept text and cover exploration before any game package is authored.
@@ -209,7 +209,7 @@ written in a closed grammar of two verbs and four effects — beside the
 room's reachable state space and refuses a room that cannot reach its win
 condition, so the puzzle is proven finishable before a cent is spent; generation
 supplies art and narration only, and the art direction arrives as an authored
-image rather than an adjective. The run publishes a `pointclick-room-runtime-v2`
+image rather than an adjective. The run publishes a `pointclick-room-runtime-v3`
 manifest that the `/room/<tag>` browser consumer replays with the same state
 machine the proof searched.
 
@@ -259,7 +259,7 @@ uv run stage-gen character-profile digest \
 Installed CLI users pass their own package directory with `--package-root`.
 Profiles describe durable identity only; per-shot direction, pose conditioning,
 image observation, and consistency reports remain
-[future research](docs/spec/dialogue-character-direction.md).
+[future research](docs/research/dialogue-character-direction.md).
 
 ## Authored game contracts
 
@@ -372,7 +372,7 @@ bun run build --webpack
 `web/` starts no run. The preview boots one published `prepared-game-runtime-v10`
 package, `/packages/<tag>` projects that manifest's closure, `/runner/<tag>` plays a
 published `sideview-runner-runtime-v12` run, `/room/<tag>` replays one published
-`pointclick-room-runtime-v2` room, and `/runs` renders exported run views. Browser
+`pointclick-room-runtime-v3` room, and `/runs` renders exported run views. Browser
 code never receives provider credentials, and the docs gate checks that nothing
 under `web/lib/shell` can spawn a process.
 

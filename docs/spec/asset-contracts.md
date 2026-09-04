@@ -214,10 +214,6 @@ Missing required bytes, unsafe paths, invalid digests, malformed layout bindings
 an incomplete authored relationship fails integration before the immutable run is
 renamed into place.
 
-The older tag-based prompt recipe has a separate manifest V7 gate and its own
-run-global browser roles. Its `runtime_assets` envelope, `runtime_slot`,
-and `scale_reference` rules are producer facts,
-not prepared-package authority.
 Canvas captures such as `gameplay-verification.png` are review evidence, not
 canonical generated assets, and are excluded from manifest publication.
 

@@ -28,6 +28,9 @@ Start here for the headless, general-purpose system:
 - [Canonical game package](game-package.md) — the repository's bundled-demo and
   schema-test SSOT: its Git-backed selector, exact current-only game/soundtrack/map
   closure, validator, generated-freshness boundary, and authoring workflow.
+- [Contract identities](contract-identities.md) — generated from the code: every
+  persisted identity at its current version with the module that declares it; a
+  current document may cite no other version.
 - [Game contract](game-contract.md) — ratified target game-domain composition,
   ownership boundaries, cross-contract invariants, and subordinate authorities,
   with current executable identities kept explicitly separate.
@@ -43,7 +46,7 @@ Start here for the headless, general-purpose system:
   separated target evolution.
 - [Point-and-click puzzle room](spec/game/pointclick-room.md) — one of five recipes
   (`2d/roomview/pointclick`): the authored `pointclick-room-v3` room package, its
-  solvability proof, the 14-node graph, and the `pointclick-room-runtime-v2` manifest.
+  solvability proof, the 14-node graph, and the `pointclick-room-runtime-v3` manifest.
 - [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) — proposed
   TO-BE projection, camera, gameplay-space, asset-view, style, profile-ID, and
   module-namespace terminology; it does not claim implementation support.
@@ -158,7 +161,7 @@ Start here for the headless, general-purpose system:
 - [Game Concept Studio](../concept-studio/README.md) — the pre-production concept
   document and exploratory-cover workflow before game-package authoring, governed
   by the root [`game-concept-studio` skill](../.agents/skills/game-concept-studio/SKILL.md).
-- [Dialogue character direction and observation](spec/dialogue-character-direction.md)
+- [Dialogue character direction and observation](research/dialogue-character-direction.md)
   — proposed semantic per-shot direction, optional pose conditioning, and
   digest-bound observation contracts; research-only and not implemented.
 
@@ -168,8 +171,8 @@ platformer. They are useful component/recipe evidence, not the definition of
 `stage-gen` as a whole.
 
 The Visual Novel Scene Kit Python producer has one strict lower_snake_case
-path: an authored package (`dialogue-scene-v2`) resolved by recipe
-`dialogue-scene-v6` into `dialogue-scene-bundle-v5`. Prior contracts were
+path: an authored package (`dialogue-scene-v5`) resolved by recipe
+`dialogue-scene-v8` into `dialogue-scene-bundle-v8`. Prior contracts were
 removed rather than kept behind a parser, and prior runs were dropped rather
 than migrated. The deterministic web installer reads that one contract,
 validates and copies its immutable files, then projects accepted `scene_data`

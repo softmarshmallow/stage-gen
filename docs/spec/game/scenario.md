@@ -170,7 +170,7 @@ provable and keeps the runtime from becoming an interpreter.
 show <actor> [<expression>] at far_left | left | center | right | far_right
 ```
 
-`scenario-v1` carried the middle three. **A supper table of eight needs more than
+The retired `scenario-v1` carried the middle three. **A supper table of eight needs more than
 three positions before composition can carry meaning**, so v2 adds the outer
 pair, and an exchange can put the Holts at the ends of the frame while the person
 across the table holds the centre.

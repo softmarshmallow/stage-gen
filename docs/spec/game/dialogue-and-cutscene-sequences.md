@@ -536,7 +536,7 @@ with equivalent digest, rights, failure, and prefetch guarantees.
 The following example communicates the proposed boundaries. It is not an
 implemented schema and reserves no final field layout. Its `kind` is deliberately
 a name no contract claims: `game-sequence-v1` was retired when both genres moved
-onto [`scenario-v1`](scenario.md), and reusing that identity here would make an
+onto the authored [scenario](scenario.md), and reusing that identity here would make an
 illustration look like a shape something still writes.
 
 ```toml

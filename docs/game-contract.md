@@ -399,6 +399,10 @@ The rules apply forward. Where a shipped contract violates one today, the
 violation is listed in `docs/plans/engineering-pass.md` with its price, and is
 corrected when the family that owns the block lands.
 
+The table of every current identity, with the module that declares each, is
+generated into [contract-identities.md](contract-identities.md); the contract
+test refuses a current document that cites any other version.
+
 ## Non-goals
 
 This master contract does not:

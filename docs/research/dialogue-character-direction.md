@@ -50,7 +50,7 @@ The proposal extends, rather than reinterprets, these current boundaries:
 | `docs/dialogue-scene-framing.md` “Numeric contract and deterministic mapping” and “Final-crop authority and source acceptance” | Prompting provides coarse source framing; the viewport owns exact final crop and cannot reveal missing pixels. | Generation records intended crop; the consistency report may classify crop safety, while the consumer remains final presentation authority. |
 
 The implemented v2 stage graph and portable bundle remain normative in
-[Visual Novel Scene Kit asset contract](dialogue-scene-assets.md). This document
+[Visual Novel Scene Kit asset contract](../spec/dialogue-scene-assets.md). This document
 only proposes the next contract.
 
 ## Research basis
