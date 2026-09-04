@@ -1592,6 +1592,68 @@ two families, and the report says which concept split them.
   and for the same reason. The family is now where the contract bump that
   decides either meaning lands.
 
+- **The step's own falsifier, measured.** None of the nine families needed a
+  genre-specific branch inside the family file: `inventory` is parameterized by
+  its capacity and its slot count, `loot` by its reach and its ledger, `effects`
+  by its vocabulary and its lowering, `interaction` by whether its model has a
+  space, `prompt` by its kinds, `checkpoints` by the word its genre calls a safe
+  place, `director` by its phases and its swaps, `hud` by its world, `ui` by its
+  knobs — no `if (runner)`. What is genre-shaped stayed in the genre every time:
+  what an item is worth, which drops can be passed by, what `grant_item` means,
+  how near is near enough to talk, which key opens a door, what a safe place is
+  called, what a fight is over.
+- **The ordering cost, in full.** One new `after` edge in the whole step:
+  `mobs/population` after `director/set-piece`, in the platformer. One new
+  undeclared feedback read, written at the read site: the gate reading the
+  creature standing in it. **The step-2 list of eight feedback reads is nine.**
+  The runner gained no edge and no read, and its `DOCUMENTED_ORDER` is
+  byte-identical to step 5's. The platformer's gained exactly one entry.
+  Everything else in nine commits was a move, a parameter, or a port.
+- **The re-pins, in full.** Three of the twenty-seven golden checkpoints across
+  the three runs moved, all in one commit and all for `director`: the walk run's
+  300 and 600, and all three of the defeat run's. The walk run's 60 did not,
+  because the village is upstream of the road. Every other commit in the step is
+  a zero-diff commit measured with `REPLAY_FRAMES` against a baseline baked from
+  `main` before the branch started.
+- **What step 6 was chartered to split and did not, and it is the biggest one.**
+  Step 2's falsifier measurement ends: "the player is doing the work of a
+  controller, a combat resolver and an inventory consumer at once, and two of
+  its three feedback reads are the seam between them. That concentration is the
+  finding step 6 should carry." Step 3 adds that the platformer's `session`
+  stays inside `updatePlayer` and waits for "the split that can be measured".
+  `player/update` is still one system. What this step did to it is real but is
+  not the split: its inventory half now goes through the `inventory` family's
+  bag, its loot half through `loot`, its defeat half through `checkpoints`, and
+  the set-piece that used to be a spawn at world build has left it entirely. The
+  method it calls is smaller and every rule inside it now belongs to a named
+  family — but the *system* still declares one set of reads and writes covering
+  a controller step, a contact-damage loop, an attack resolution and two
+  consumable spends.
+  Two things it now has that it did not before, and they are what the split
+  needs: the defeat run, which is the golden that can observe the arrangement
+  step 3 could not measure, and the `director` precedent for adding a system
+  between `player/update` and `mobs/population` at a cost of one edge. What is
+  still missing is a *ruling*, not evidence: the confirm frame `return`s out of
+  the middle of the system, so a split has to say where the contact loop goes on
+  the frame a defeat is accepted, and that is a decision about what the game
+  does rather than about where the code lives. Taking it inside this step would
+  have meant ruling it in a commit message. It is written down here instead, with
+  the instrument it needs already baked.
+- **The other two thirds of the `director` refactor.** Named under `director`
+  above and repeated here because they are the step's other omission: the shots
+  into `projectiles` and the boss gauge into `combat`. Neither family exists as
+  a directory, no earlier step created one, and step 6 rules nothing about
+  either beyond a single clause, so doing them means two further family
+  extractions — each with its own two-genre reconciliation — under a ruling that
+  has not been argued.
+
+**Played evidence.** Not taken: no browser in this pass, so the Page-Eater gate
+capture (E5) the `director` ruling asks for is owed, along with the two of its
+listed beats that are other families' — the boss's gauge on the HUD and the
+announcement. The three replay goldens are the record in the meantime, and for
+the director the defeat run is the stronger claim: it records the gate firing at
+a measured frame rather than a still showing that it did.
+
 ## Step 7 — the capstone: a genre from three TOML tables
 
 **Fact.** The taxonomy's "minigames from existing assets" case says
