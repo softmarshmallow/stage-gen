@@ -17,6 +17,7 @@ import {
   type PlatformerFrameSteps,
   type PlatformerFrameSystem,
 } from "./frame-roster";
+import type { RoundParams } from "./round";
 
 /**
  * The platformer's frame order, derived and pinned.
@@ -126,6 +127,26 @@ function inertSteps(record: string[] = []): PlatformerFrameSteps {
 }
 
 const roster = (steps: PlatformerFrameSteps = inertSteps()) => assemblePlatformerSystems(steps);
+
+/** What the wave variant authors: a score with four awards and a ninety-second countdown. */
+const WAVE_ROUND: RoundParams = Object.freeze({
+  score: Object.freeze({
+    awards: Object.freeze({
+      mob_defeated: 25,
+      boss_defeated: 500,
+      item_collected: 10,
+      wave_cleared: 250,
+    }),
+    chain: null,
+  }),
+  scoreShown: true,
+  timers: Object.freeze([
+    { timerId: "crowncrag_rush", durationMs: 90_000, onEnd: "session_ended", shown: true } as const,
+  ]),
+});
+
+const variantRoster = (steps: PlatformerFrameSteps = inertSteps()) =>
+  assemblePlatformerSystems(steps, WAVE_ROUND);
 
 /** The real roster with one system's declaration replaced, the way the runner fixtures its own. */
 function rosterWith(
@@ -536,5 +557,131 @@ describe("the camera family in the platformer", () => {
     expect(() =>
       parsePlatformerCameraBlock({ ...PREPARED_RUNTIME_BLOCKS, maps: "platformer-maps-block-v2" }),
     ).toThrow('manifest block "maps" is published as platformer-maps-block-v2');
+  });
+});
+
+// --- E2 and E7 for the variant roster -----------------------------------------------------------
+//
+// Step 7's machine evidence, and the shape of both halves is worth stating before the assertions.
+// E2 is that the *variant* — a package that authors `[score]` and `[timers]` — seals to the same
+// twenty-five ids as the package that authors neither, because rule 6 says the roster is fixed per
+// genre and a block decides only whether a system does anything. E7 is the subtraction the plan
+// names: the same roster with `combat`, `population`, `progression` and `score` quiet, which is the
+// cinematic platformer's own row in the composition table's "what the planned genres draw".
+
+describe("E2: the variant roster", () => {
+  test("a package that authors a round seals to the same order as one that authors none", () => {
+    // The claim is not that the two rosters resemble each other. It is that they are the same
+    // roster: same ids, same order, and the difference between a story game and a time attack is
+    // what four of the twenty-five systems do when they run, not whether they are there.
+    expect(sealSystems(variantRoster()).order).toEqual(DOCUMENTED_ORDER);
+    expect(variantRoster().map((system) => system.id)).toEqual(DOCUMENTED_ORDER);
+  });
+
+  test("and every system of it is reached, including the four the shipped package leaves quiet", () => {
+    const ran: string[] = [];
+    const drawn: string[] = [];
+    const steps = { ...inertSteps(ran), dialogueOpen: () => false };
+    const sealed = sealSystems(
+      assemblePlatformerSystems(steps, WAVE_ROUND, {
+        sync: (readout) => drawn.push(`${readout.phase}:${readout.total}:${readout.remainingMs}`),
+      }),
+    );
+    const world = createPlatformerFrameWorld(WAVE_ROUND);
+    // Two frames, because the lifecycle spends the first one leaving `starting`.
+    sealed.tick(world, { dt: 1000 / 30, now: 0, frame: 1 });
+    ran.length = 0;
+    sealed.tick(world, { dt: 1000 / 30, now: 1000 / 30, frame: 2 });
+    // Three of the twenty-five call no step of their own — a countdown, a lifecycle and a readout
+    // are answered from slices — so what they did is asserted directly below rather than recorded.
+    expect(ran).toEqual(
+      DOCUMENTED_ORDER.filter(
+        (id) => id !== "dialogue/input" && !ANSWERED_FROM_SLICES.includes(id),
+      ),
+    );
+    // The countdown counted, on the clock the family was handed.
+    expect(world.timers.entries[0]?.elapsedMs).toBeGreaterThan(0);
+    expect(world.timers.entries[0]?.remainingMs).toBeLessThan(90_000);
+    // The lifecycle began, and did not end: ninety seconds have not passed.
+    expect(world.session.phase).toBe("running");
+    expect(world.session.endedBy).toBeNull();
+    // And the readout was handed one view per frame, over slices and never the world.
+    expect(drawn).toHaveLength(2);
+    // One frame of counting, not two: the first frame is the one the lifecycle spends leaving
+    // `starting`, and a countdown does not run before the round it belongs to has begun.
+    expect(drawn[1]).toBe(`running:0:${90_000 - 1000 / 30}`);
+  });
+});
+
+/** The three systems a round has that answer from slices and reach no step of their own. */
+const ANSWERED_FROM_SLICES: readonly string[] = ["timers/countdown", "session/run", "hud/round"];
+
+/**
+ * The four families the cinematic platformer refuses, as the systems that own them.
+ *
+ * `combat` is the shot pool and the blow's release; `population` is the census and the creatures it
+ * keeps; `progression` is the stat log; `score` is the scorer. What is left is a genre that walks,
+ * jumps, talks, is placed by set-pieces, is timed and is drawn — which is the row the composition
+ * table already wrote for it.
+ */
+const CINEMATIC_REFUSES: readonly string[] = [
+  "projectiles/step",
+  "impact/release",
+  "mobs/population",
+  "mobs/step",
+  "progression/stat-log",
+  "score/run",
+];
+
+/** The slices those systems were the last writer of, dropped from the readers that named them. */
+const CINEMATIC_ORPHANED_SLICES: readonly string[] = ["impact", "score"];
+
+describe("E7: the variant roster with four families quiet", () => {
+  test("seals to the identical order minus their entries, and to the cinematic platformer's shape", () => {
+    const quiet = variantRoster()
+      .filter((system) => !CINEMATIC_REFUSES.includes(system.id))
+      .map((system) => ({
+        ...system,
+        // Dropping a family means dropping the reads that name its slice, which is the honest form
+        // of "quiet": a readout of a score nobody keeps is not a readout that draws zero, and a
+        // camera carrying a tremor nothing raises is not a camera that shakes by nothing.
+        reads: system.reads.filter(
+          (key) => !CINEMATIC_ORPHANED_SLICES.includes(key),
+        ) as PlatformerFrameSystem["reads"],
+        after: system.after?.filter((id) => !CINEMATIC_REFUSES.includes(id)),
+      }));
+    expect(sealSystems(quiet).order).toEqual(
+      DOCUMENTED_ORDER.filter((id) => !CINEMATIC_REFUSES.includes(id)),
+    );
+  });
+
+  test("and what remains still ticks, in that order, with nothing left dangling", () => {
+    const ran: string[] = [];
+    const steps = { ...inertSteps(ran), dialogueOpen: () => false };
+    const quiet = assemblePlatformerSystems(steps, WAVE_ROUND)
+      .filter((system) => !CINEMATIC_REFUSES.includes(system.id))
+      .map((system) => ({
+        ...system,
+        reads: system.reads.filter(
+          (key) => !CINEMATIC_ORPHANED_SLICES.includes(key),
+        ) as PlatformerFrameSystem["reads"],
+        after: system.after?.filter((id) => !CINEMATIC_REFUSES.includes(id)),
+      }));
+    const world = createPlatformerFrameWorld(WAVE_ROUND);
+    const sealed = sealSystems(quiet);
+    sealed.tick(world, { dt: 1000 / 30, now: 0, frame: 1 });
+    ran.length = 0;
+    sealed.tick(world, { dt: 1000 / 30, now: 1000 / 30, frame: 2 });
+    expect(ran).toEqual(
+      DOCUMENTED_ORDER.filter(
+        (id) =>
+          id !== "dialogue/input" &&
+          !CINEMATIC_REFUSES.includes(id) &&
+          !ANSWERED_FROM_SLICES.includes(id),
+      ),
+    );
+    // The round still runs: a genre that refuses combat and a census can still be timed, which is
+    // the whole reason `timers` is a family and not a minigame's private countdown.
+    expect(world.timers.entries[0]?.remainingMs).toBeLessThan(90_000);
   });
 });

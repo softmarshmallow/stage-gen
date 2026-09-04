@@ -1,0 +1,185 @@
+schema_version = 9
+kind = "game-contract-v9"
+game_id = "bellweather"
+revision = 26
+display_name = "Bellweather"
+
+[universe]
+source = "universe.md"
+
+[style]
+label = "clean chibi storybook fantasy"
+keywords = [
+  "high-resolution 2D digital game art",
+  "2.25-head-tall super-deformed characters",
+  "controlled dark character contours",
+  "two-to-three-band cel shading",
+  "clean saturated color fields",
+  "digital gouache-like environmental color blocking",
+  "rounded irregular silhouettes and decorative curls",
+  "object-local stone wood leaf cloth water and cloud texture",
+  "distinct lateral painted planes with atmospheric depth",
+  "high-key sky blue moss turquoise brass peach coral and lavender",
+  "cheerful adventurous sociable gently magical mood",
+]
+avoid = [
+  "franchise characters mascots costumes landmarks or trade dress",
+  "strict pixel-grid retro imitation",
+  "photorealism or 3D-rendered materials",
+  "full-frame paper grain canvas texture or sepia cast",
+  "realistic adult body proportions",
+  "infant anatomy or ambiguous baby presentation",
+  "sexualized character presentation",
+  "grim violence gore or firearms",
+  "text pseudo-text logos signatures or watermarks",
+]
+
+[proportion]
+heads_tall = 2.25
+
+[proportion.by_body_kind]
+dwarf = 2.1
+elf = 2.35
+halfling = 2.0
+
+[scale]
+unit = "player_height"
+player_height_tiles = 2.40
+minimum = 0.25
+steps = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
+
+[scale.ranks]
+common = 0.5
+uncommon = 0.65
+elite = 0.85
+boss = 1.5
+
+# One game, one look, one or more genres: the container above holds what every
+# genre of this game must share, and each [[genres]] member carries its own
+# camera, cast roles, and contract members.
+[[genres]]
+genre = "platformer"
+
+[genres.presentation]
+view_profile = "side_view_2d"
+gameplay_space = "side_plane"
+
+[genres.presentation.contact_shadows]
+enabled = true
+opacity = 0.18
+softness_screen_pixels = 6.0
+
+[genres.cast]
+player_id = "wayfarer"
+mob_ids = [
+  "petal_puff",
+  "jewelwing_beetle",
+  "thimblejay",
+  "bellbelly_toad",
+  "bramblehart",
+  "crowncrag_page_eater",
+]
+npc_ids = ["mara_crumbwell", "elowen_thistledew", "brom_copperkeg", "pip_pennant"]
+
+[genres.gameplay]
+source = "gameplay.toml"
+
+[genres.ui]
+source = "ui.toml"
+
+[genres.soundtrack]
+source = "soundtrack.toml"
+
+[[genres.maps]]
+map_id = "sunpetal-crossing"
+source = "maps/sunpetal-crossing.toml"
+
+[[genres.maps]]
+map_id = "crowncrag-road"
+source = "maps/crowncrag-road.toml"
+
+[genres.content.player]
+source = "content/player.toml"
+
+[genres.content.mobs]
+source = "content/mobs.toml"
+
+[genres.content.npcs]
+source = "content/npcs.toml"
+
+[genres.content.props]
+source = "content/props.toml"
+
+[genres.content.items]
+source = "content/items.toml"
+
+[genres.content.projectiles]
+source = "content/projectiles.toml"
+
+[genres.scenarios]
+index_source = "scenarios/index.toml"
+
+[evidence.cover]
+artifact_source = "references/cover.png"
+artifact_sha256 = "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5"
+provenance_source = "references/cover.provenance.json"
+provenance_sha256 = "53182eaff1d239336ed19c58fc050b8f8a6a112004c9b28f64c3f252c6a3ec4c"
+review_source = "references/cover.visual-review.md"
+review_sha256 = "02309e73ff7388487f88d158dbf0d6c4b85502cfd5c318b7ab95ac820f0e1798"
+
+[evidence.sunpetal_crossing_scene]
+artifact_source = "references/sunpetal-crossing-scene.png"
+artifact_sha256 = "d1661c52ee8a4c95694ef4ab72d3965f192211ec883f47ed7277aa681d9532bb"
+provenance_source = "references/sunpetal-crossing-scene.provenance.json"
+provenance_sha256 = "3042c8a991f7c586feaf3b4666ab30d14ed0d995dc24f0c8f1a6350133a3a09f"
+review_source = "references/sunpetal-crossing-scene.visual-review.md"
+review_sha256 = "9d8baf0fabde02ee5e449356c708e568a572ef041f6923974c3b02f35e0c41f9"
+
+[evidence.amberbell_forest_scene]
+artifact_source = "references/amberbell-forest-scene.png"
+artifact_sha256 = "0d65f9b8015e066e0f53fa8cf597b25b56fb811568141d1d0a2faf9edaa73589"
+provenance_source = "references/amberbell-forest-scene.provenance.json"
+provenance_sha256 = "e18a8cc9c52de544b3a48219fc1dfe64cc15ea30e003426b698bcbee157e8979"
+review_source = "references/amberbell-forest-scene.visual-review.md"
+review_sha256 = "fd021dc3750cebc7e358c3d3e33cdb36763d1324dd440333042a790568c334e6"
+
+[evidence.npc_mara_crumbwell]
+artifact_source = "references/npc-mara-crumbwell.png"
+artifact_sha256 = "1ad67392e11ea29ed941d044f1b80e96c3bbcd36b9a161e4529de51b43060e4a"
+provenance_source = "references/npc-mara-crumbwell.provenance.json"
+provenance_sha256 = "82d7862e306cf684b12c6ed0e94aba0a85fca19e1b5650bd413f0160c4fe10e2"
+review_source = "references/npc-mara-crumbwell.visual-review.md"
+review_sha256 = "36e0a48ef1ffbe53e1cbf04313526461e33920e35bc850fec9c487dde1d62ba4"
+
+[evidence.npc_elowen_thistledew]
+artifact_source = "references/npc-elowen-thistledew.png"
+artifact_sha256 = "27bcfeb369c5c25c2c120ecb0920a18d0b426d64a04c306583e0027f7b279908"
+provenance_source = "references/npc-elowen-thistledew.provenance.json"
+provenance_sha256 = "cddc9ae91152fec4b74d7ae4bba493b69aaea7ea419cc65349e12230c6eea86e"
+review_source = "references/npc-elowen-thistledew.visual-review.md"
+review_sha256 = "333360e8165fb0f7fa3d737b11aa533ce3c4c203a580ed36e6394ee42cfca8be"
+
+[evidence.npc_brom_copperkeg]
+artifact_source = "references/npc-brom-copperkeg.png"
+artifact_sha256 = "a52e6cbe0bb8d246afa54c4b6777cf4eef4ab964ed56e1502ddbbdfa87485fd3"
+provenance_source = "references/npc-brom-copperkeg.provenance.json"
+provenance_sha256 = "74d63d87750e356ec37436a08bbc8fd65765342fa6ef687d77e5e92b848bc8c0"
+review_source = "references/npc-brom-copperkeg.visual-review.md"
+review_sha256 = "d9c47ff2efceee0b2f18e3df1e4bbf1bf08f63b13c0316202ca4e660580a67b3"
+
+[evidence.npc_pip_pennant]
+artifact_source = "references/npc-pip-pennant.png"
+artifact_sha256 = "a4a3db1c4b33860086895c4e2a8d6f0f87a575bb387a2a9aae23d12eb1217cd6"
+provenance_source = "references/npc-pip-pennant.provenance.json"
+provenance_sha256 = "ff843abb028dbe7b4a2f157455742bde73bcc5497afcb10fd1da27c0c5df3fcc"
+review_source = "references/npc-pip-pennant.visual-review.md"
+review_sha256 = "c4a45b3c0fbda12c4ab84c5e3d5f075e093c01e92c92fdec5756511a8f9c4660"
+
+[rights]
+status = "redistribution-approved"
+basis = [
+  "Authored package text and prompts are original and brand-neutral.",
+  "The cover and loop-aware Sunpetal reference are AI-generated and have digest-bound acceptance records.",
+  "The loop-aware Amberbell reference is AI-generated and has a digest-bound acceptance record.",
+  "The four NPC identity references are AI-generated and have digest-bound acceptance records.",
+]

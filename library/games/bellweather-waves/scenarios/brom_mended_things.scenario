@@ -1,0 +1,40 @@
+# Migrated from the retired `game-sequence-v1` file of the same name.
+# The lines are the authored ones, copied rather than rewritten.
+
+label brom_checks_sword:
+    stage sunpetal_crossing
+    show brom_copperkeg focused at center
+    brom_copperkeg "Hold that training sword level. The edge is harmless, but your grip is trying to wrestle it. A tool works better when you stop asking it to be afraid."
+    jump wayfarer_defends_grip
+
+label wayfarer_defends_grip:
+    show wayfarer curious at center
+    wayfarer "I was trying to look prepared. Is it that obvious this is my first road with monsters on it?"
+    jump brom_reframes_monsters
+
+label brom_reframes_monsters:
+    brom_copperkeg proud "Story-beasts, not monsters. Most are ordinary neighbors caught in a bad chapter. Drive them off cleanly and leave them a world worth returning to."
+    jump wayfarer_notices_charm
+
+label wayfarer_notices_charm:
+    wayfarer curious "Is that why you keep a toy windmill beside the forge? It has more careful repairs than some knights have armor."
+    jump brom_explains_repairs
+
+label brom_explains_repairs:
+    brom_copperkeg worried "A child brought it to me after the first page-storm. Said if the village windmill could forget its turning, hers might teach it again. I could not tell her how frightened that made me."
+    jump wayfarer_names_courage
+
+label wayfarer_names_courage:
+    wayfarer determined "You repaired it anyway. Perhaps courage is doing careful work while the frightening answer is still unknown."
+    jump brom_gives_principle
+
+label brom_gives_principle:
+    brom_copperkeg neutral "That is smithing, adventuring, and most decent living. Learn what must be struck, what must be braced, and what only needs time to cool."
+    jump wayfarer_accepts_lesson
+
+label wayfarer_accepts_lesson:
+    wayfarer delighted "I came for sword advice and received a philosophy. I will try not to swing either one carelessly."
+    jump menders_oath_shared
+
+label menders_oath_shared:
+    end menders_oath_shared

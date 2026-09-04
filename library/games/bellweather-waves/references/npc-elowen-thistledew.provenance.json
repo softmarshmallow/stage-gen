@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "provenance_kind": "game_package_reference",
+  "lineage_kind": "selected_npc_identity_reference_v1",
+  "state": "redistribution-approved",
+  "artifact": {
+    "path": "references/npc-elowen-thistledew.png",
+    "media_type": "image/png",
+    "width": 1254,
+    "height": 1254,
+    "bytes": 1630611,
+    "sha256": "27bcfeb369c5c25c2c120ecb0920a18d0b426d64a04c306583e0027f7b279908"
+  },
+  "generation": {
+    "tool": "codex/image_gen",
+    "provider": "not_exposed_by_builtin_tool",
+    "model": "not_exposed_by_builtin_tool",
+    "quality": "built-in-default",
+    "attempt_count": 1,
+    "retry_count": 0,
+    "n": 1,
+    "input_references": [
+      {
+        "sha256": "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5",
+        "role": "bellweather_style_and_sd_proportion_reference_only"
+      }
+    ],
+    "prompt_summary": "Fresh SD identity concept for adult herbalist Elowen Thistledew; strict chibi anatomy, clean anime cel shading, bold contour, and botanical folio story prop."
+  },
+  "visual_review": {
+    "status": "approved",
+    "result": "pass",
+    "independent": true,
+    "reviewed_by": "authenticated task owner",
+    "reviewed_at": "2026-08-26",
+    "artifact_sha256": "27bcfeb369c5c25c2c120ecb0920a18d0b426d64a04c306583e0027f7b279908",
+    "verification_report": "references/npc-elowen-thistledew.visual-review.md",
+    "verification_report_sha256": "333360e8165fb0f7fa3d737b11aa533ce3c4c203a580ed36e6394ee42cfca8be"
+  },
+  "rights": {
+    "status": "redistribution-approved",
+    "reviewed_at": "2026-08-26",
+    "basis": [
+      "Original brand-neutral Bellweather character direction.",
+      "The only visual input was the synthetic Bellweather cover used for style and SD proportion.",
+      "The authenticated task owner approved the exact displayed PNG for prepared NPC-reference use."
+    ]
+  }
+}

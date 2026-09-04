@@ -111,6 +111,20 @@ def steps(python: str = sys.executable, *, scratch: Path) -> tuple[Step, ...]:
                 "platformer",
             )
         ),
+        # The wave variant plans too, and it is the one package in the library whose
+        # gameplay contract carries the two optional round tables: a `[score]` or
+        # `[timers]` the resolver would refuse never reaches a runtime family.
+        Step(
+            (
+                "stage-gen",
+                "package",
+                "plan",
+                "--input",
+                "library/games/bellweather-waves",
+                "--genre",
+                "platformer",
+            )
+        ),
         Step(
             (
                 "stage-gen",

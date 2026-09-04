@@ -1,0 +1,152 @@
+schema_version = 10
+kind = "game-map-v10"
+game_id = "bellweather"
+map_id = "sunpetal-crossing"
+revision = 12
+display_name = "Sunpetal Crossing"
+
+[view]
+profile = "side_view_2d"
+gameplay_space = "side_plane"
+
+[camera]
+mode = "player_follow"
+follow_axes = ["x"]
+
+[terrain]
+mode = "platformer-chunk-map-v1"
+columns = 64
+rows = 12
+walk_surface_row = 9
+brief = """
+A village market crossing with the ground of a real place rather than a floor. The
+street dips through a shallow ford at one end and climbs a little to the mill yard at
+the other, and a couple of low platforms give something to hop onto without turning the
+village into a course. Keep the main street near its datum so the painted frontage still
+meets the earth, and keep every villager easy to walk up to.
+"""
+
+[continuity]
+seamless_axis = "x"
+loop_construction = "generated_bridge"
+# Explicit here because this map's default is generative and can be rejected. Crowncrag omits the
+# field: its default is already deterministic, so the fallback can never fire.
+loop_fallback = "mirror_repeat"
+
+[[references]]
+reference_id = "sunpetal_scene"
+source = "references/sunpetal-crossing-scene.png"
+source_sha256 = "d1661c52ee8a4c95694ef4ab72d3965f192211ec883f47ed7277aa681d9532bb"
+rights_status = "redistribution-approved"
+rights_basis = [
+  "AI-generated loop-aware Bellweather scene reference approved by the authenticated task owner.",
+  "Digest-bound review in references/sunpetal-crossing-scene.visual-review.md.",
+]
+
+[[layers]]
+layer_id = "clear_sky"
+reference_ids = ["sunpetal_scene"]
+plane = "background"
+order = 0
+parallax = 0.0
+alpha_mode = "opaque"
+vertical_anchor = "canvas_cover"
+presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 0.0 }
+prompt = """
+Reconstruct only the uninterrupted high-key blue sky plate behind Sunpetal
+Crossing. Preserve its clean digital finish, broad calm color field, and gentle
+horizontal light variation. Remove clouds, mountains, islands, buildings,
+trees, water, characters, creatures, and near decoration, then complete newly
+exposed sky naturally.
+"""
+
+[[layers]]
+layer_id = "clouds_and_far_valley"
+reference_ids = ["sunpetal_scene"]
+plane = "background"
+order = 1
+parallax = 0.16
+alpha_mode = "transparent"
+vertical_anchor = "screen_top"
+presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 0.0 }
+prompt = """
+Separate the monumental cream clouds, lavender-blue mountains, floating
+islands, and fine waterfalls as one distant atmospheric layer. Preserve their
+rounded silhouettes, progressively softer depth, generous blue-sky spacing,
+and the reference's quiet recurring rhythm near both lateral boundaries.
+Exclude the village, trees, route, characters, creatures, and near decoration.
+"""
+
+[[layers]]
+layer_id = "sunpetal_village"
+# This layer's own ends disagree in the source art - its ground line sits about 21px lower at the
+# tail than at the head, against 0 or -1px for every other layer here - so it is the one layer the
+# map default cannot serve. `seam_repaint` relocates the wrap into the middle of the canvas the
+# provider sees, so the join is painted through rather than met at a canvas edge.
+loop_construction = "seam_repaint"
+reference_ids = ["sunpetal_scene"]
+plane = "background"
+order = 2
+parallax = 0.58
+alpha_mode = "transparent"
+vertical_anchor = "walk_surface"
+presentation = { contrast = 0.84, saturation = 0.90, atmosphere_color = "#b8e8f4", atmosphere_strength = 0.06, detail_blur_screen_pixels = 0.65 }
+prompt = """
+Separate Sunpetal Crossing's readable midground village: warm timber-and-stone
+cottages, flower boxes, market awnings, one windmill, broad trees, lantern
+posts, bridge architecture, fences, and blank decorative pennants. Preserve
+the selected scene's strict side-view scale and centered landmark rhythm.
+Exclude sky, far scenery, paving and terrain fill, close fence and flowers,
+characters, and creatures.
+"""
+
+[[layers]]
+layer_id = "near_garden_frame"
+reference_ids = ["sunpetal_scene"]
+plane = "foreground"
+order = 0
+parallax = 1.32
+alpha_mode = "transparent"
+vertical_anchor = "screen_bottom"
+presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 1.4 }
+prompt = """
+Separate only the restrained near fence, flower heads, grass tips, and low
+garden foliage along the bottom edge. Preserve their sparse coral, cream,
+turquoise, and moss rhythm without introducing large framing anchors. Exclude
+the route, masonry, buildings, bridge, sky, distant scenery, characters, and
+creatures.
+"""
+
+[ground]
+mode = "terrain-atlas-3x3-minimal-v1"
+reference_ids = ["sunpetal_scene"]
+vertical_fit = "floor_to_screen_bottom"
+prompt = """
+Create Sunpetal Crossing's stable terrain material from the selected scene:
+warm cream paving, moss-softened stone edges, restrained grass and tiny flowers
+at the surface, and darker compacted soil or masonry beneath. Match the clean
+digital-gouache-like finish and preserve broad quiet areas around a crisp
+readable footing line.
+"""
+
+[portal]
+mode = "portal-pair-1x2-v1"
+reference_ids = ["sunpetal_scene"]
+prompt = """
+Create a matched pair of welcoming Sunpetal gate portals built from rounded
+cream stone, honey-toned timber, small brass bells, turquoise cloth accents,
+and sparse coral flowers. The entry should feel calm and cool while the exit
+is slightly warmer and more luminous. Keep both architectural silhouettes
+clear, friendly, and native to the village without text, signs, characters,
+creatures, loose inventory items, or unrelated scenery.
+"""
+
+[[portal.endpoints]]
+anchor = "west_gate"
+normalized_x = 0.08
+role = "entry"
+
+[[portal.endpoints]]
+anchor = "east_gate"
+normalized_x = 0.92
+role = "exit"

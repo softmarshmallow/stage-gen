@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "provenance_kind": "game_package_reference",
+  "lineage_kind": "selected_npc_identity_reference_v1",
+  "state": "redistribution-approved",
+  "artifact": {
+    "path": "references/npc-mara-crumbwell.png",
+    "media_type": "image/png",
+    "width": 1254,
+    "height": 1254,
+    "bytes": 1785041,
+    "sha256": "1ad67392e11ea29ed941d044f1b80e96c3bbcd36b9a161e4529de51b43060e4a"
+  },
+  "generation": {
+    "tool": "codex/image_gen",
+    "provider": "not_exposed_by_builtin_tool",
+    "model": "not_exposed_by_builtin_tool",
+    "quality": "built-in-default",
+    "attempt_count": 1,
+    "retry_count": 0,
+    "n": 1,
+    "input_references": [
+      {
+        "sha256": "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5",
+        "role": "bellweather_style_and_sd_proportion_reference_only"
+      }
+    ],
+    "prompt_summary": "Fresh SD identity concept for adult baker Mara Crumbwell; strict 2-to-2.25-head chibi anatomy, clean anime cel shading, bold contour, and one family-loaf story prop."
+  },
+  "visual_review": {
+    "status": "approved",
+    "result": "pass",
+    "independent": true,
+    "reviewed_by": "authenticated task owner",
+    "reviewed_at": "2026-08-26",
+    "artifact_sha256": "1ad67392e11ea29ed941d044f1b80e96c3bbcd36b9a161e4529de51b43060e4a",
+    "verification_report": "references/npc-mara-crumbwell.visual-review.md",
+    "verification_report_sha256": "36e0a48ef1ffbe53e1cbf04313526461e33920e35bc850fec9c487dde1d62ba4"
+  },
+  "rights": {
+    "status": "redistribution-approved",
+    "reviewed_at": "2026-08-26",
+    "basis": [
+      "Original brand-neutral Bellweather character direction.",
+      "The only visual input was the synthetic Bellweather cover used for style and SD proportion.",
+      "The authenticated task owner approved the exact displayed PNG for prepared NPC-reference use."
+    ]
+  }
+}

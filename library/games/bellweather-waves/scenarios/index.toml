@@ -1,0 +1,18 @@
+# Which scenarios this game holds: one per NPC conversation. Replaces the
+# retired `sequences/index.toml`.
+schema_version = 1
+kind = "scenario-catalog-v1"
+game_id = "bellweather"
+revision = 1
+
+[[scenarios]]
+scenario_id = "sunpetal_welcome"
+
+[[scenarios]]
+scenario_id = "elowen_skybell_memory"
+
+[[scenarios]]
+scenario_id = "brom_mended_things"
+
+[[scenarios]]
+scenario_id = "pip_lantern_road"

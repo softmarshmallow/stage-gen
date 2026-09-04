@@ -242,6 +242,42 @@ export function replayRuntimeManifest(): Record<string, unknown> {
   };
 }
 
+/**
+ * The same package, authored as a timed round: `[score]`, `[timers]`, and the
+ * entry moved onto the route.
+ *
+ * Three tables and nothing else. Every map, creature, item, projectile, track
+ * and conversation is the one above, byte for byte, which is the whole claim
+ * step 7 makes about the family layer: a genre from three TOML tables, over
+ * content that was authored for something else. The waves themselves author
+ * nothing — the route's own `[mob_population]` zone is what the wave director
+ * draws from — and what chooses the wave reading of that zone rather than the
+ * census reading is one award in the score table.
+ */
+export function wavesRuntimeManifest(): Record<string, unknown> {
+  const base = replayRuntimeManifest();
+  return {
+    ...base,
+    display_name: "Replay Rush",
+    entry_map_id: "road-map",
+    entry_spawn_id: "road_start",
+    score: {
+      awards: { mob_defeated: 25, boss_defeated: 500, item_collected: 10, wave_cleared: 250 },
+      display: "hud",
+    },
+    timers: {
+      entries: [
+        { timer_id: "replay_rush", seconds: 90, on_end: "session_ended", display: "hud" },
+      ],
+    },
+    gameplay: {
+      ...replayGameplayContract(),
+      entry_map_id: "road-map",
+      entry_spawn_id: "road_start",
+    },
+  };
+}
+
 function layer(layerId: string, path: string) {
   return {
     layer_id: layerId,

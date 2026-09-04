@@ -1,0 +1,188 @@
+schema_version = 10
+kind = "game-map-v10"
+game_id = "bellweather"
+map_id = "crowncrag-road"
+revision = 17
+display_name = "Amberbell Forest"
+
+[view]
+profile = "side_view_2d"
+gameplay_space = "side_plane"
+
+[camera]
+mode = "player_follow"
+follow_axes = ["x", "y"]
+
+[terrain]
+mode = "platformer-chunk-map-v1"
+columns = 56
+rows = 14
+walk_surface_row = 11
+brief = """
+A hunting ground built the way a hunting map is built: the river bank is one flat lane that
+runs the whole width, and the level is a set of storeys hung above it. Every storey is a
+walkable lane of its own -- a line of wide decks with only a hop between them, running across
+most of the map, so a hunter can work the second and third floors the way they work the
+ground. Offset each storey against the one below so its gaps open over the decks beneath and
+there is headroom to stand, and feed the storeys from the bank with the ladders and ropes.
+Keep the ground itself almost level, nothing beyond a shallow dip or a single step. Fill the
+grid's height with storeys rather than with one tall tower.
+"""
+
+[continuity]
+seamless_axis = "x"
+loop_construction = "mirror_repeat"
+
+[[references]]
+reference_id = "amberbell_scene"
+source = "references/amberbell-forest-scene.png"
+source_sha256 = "0d65f9b8015e066e0f53fa8cf597b25b56fb811568141d1d0a2faf9edaa73589"
+rights_status = "redistribution-approved"
+rights_basis = [
+  "AI-generated loop-aware Bellweather scene reference approved by the authenticated task owner.",
+  "Digest-bound review in references/amberbell-forest-scene.visual-review.md.",
+]
+
+[[layers]]
+layer_id = "open_sky"
+reference_ids = ["amberbell_scene"]
+plane = "background"
+order = 0
+parallax = 0.0
+alpha_mode = "opaque"
+vertical_anchor = "canvas_cover"
+presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 0.0 }
+prompt = """
+Reconstruct only the uninterrupted saturated blue sky plate behind Amberbell
+Forest. Preserve its calm high-key color variation and warm autumn light.
+Remove clouds, mountains, castle, trees, shrines, water, route, characters,
+creatures, and near decoration, then complete newly exposed sky naturally.
+"""
+
+[[layers]]
+layer_id = "amberbell_horizon"
+reference_ids = ["amberbell_scene"]
+plane = "background"
+order = 1
+parallax = 0.14
+alpha_mode = "transparent"
+vertical_anchor = "screen_top"
+# The measured top seal lifts a layer until its first fully-spanning row meets the frame
+# edge. That is the right guess for a cloud fringe and the wrong one here: it pushed the
+# peaks, the clouds and the castle off the top and left a flat plate of sky where the
+# distance should be. Nothing is lost by letting the sky show above a mountain, because the
+# opaque base is a canvas_cover plate and is what a gap here reveals.
+vertical_offset = -0.28
+# Haze, for the same reason the village hazes its midground: a distance painted at the same
+# contrast as the terrain competes with it, and the player has to read against both.
+presentation = { contrast = 0.88, saturation = 0.84, atmosphere_color = "#9fd8ee", atmosphere_strength = 0.22, detail_blur_screen_pixels = 0.6 }
+prompt = """
+Separate the monumental cream clouds, lavender-blue mountains, soft autumn
+valley, distant turquoise water, and many-spired Crowncrag Castle as one far
+horizon layer. Preserve the castle as a small destination safely inside the
+composition and retain the reference's compatible atmospheric rhythm at both
+lateral boundaries. Exclude the ancient tree, shrines, route, characters,
+creatures, and near decoration.
+"""
+
+[[layers]]
+layer_id = "amberbell_route"
+reference_ids = ["amberbell_scene"]
+plane = "background"
+order = 2
+parallax = 0.62
+alpha_mode = "transparent"
+vertical_anchor = "walk_surface"
+# Pushed further than the village pushes its own midground, because this one is measurably
+# more saturated than that one and it sits behind a fight rather than behind a conversation.
+presentation = { contrast = 0.80, saturation = 0.82, atmosphere_color = "#9fd8ee", atmosphere_strength = 0.12, detail_blur_screen_pixels = 0.8 }
+prompt = """
+Separate Amberbell Forest's readable midground landmarks: one monumental
+bell-hung tree, exposed roots, selective cream-stone shrines, layered autumn
+canopy masses, mossy rocks, and the clear stream banks. Preserve the strict
+side-view scale, broad quiet shapes, and centered landmark hierarchy. Exclude
+sky, distant castle and mountains, route paving and terrain fill, close edge
+foliage, characters, creatures, and interface elements.
+"""
+
+[[layers]]
+layer_id = "autumn_foliage_frame"
+reference_ids = ["amberbell_scene"]
+plane = "foreground"
+order = 0
+parallax = 1.42
+alpha_mode = "transparent"
+vertical_anchor = "screen_bottom"
+presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 1.6 }
+prompt = """
+Separate only restrained near stream-edge leaves, small roots, and a few mossy
+stones along the bottom edge. Preserve sparse dark-teal, amber, and coral
+accents without introducing a large edge anchor or uniform decoration. Exclude
+the route, shrines, ancient tree, distant scenery, characters, and creatures.
+"""
+
+[ground]
+mode = "terrain-atlas-3x3-minimal-v1"
+reference_ids = ["amberbell_scene"]
+vertical_fit = "floor_to_screen_bottom"
+prompt = """
+Create Amberbell Forest's stable terrain material from the selected scene:
+broad warm cream paving interwoven with old roots, moss-softened edges, sparse
+amber leaf litter, rounded darker stones, and compact forest soil beneath.
+Keep the footing line crisp and preserve broad quiet material areas rather
+than dense repeated decoration.
+"""
+
+[climbable]
+mode = "climbable-atlas-v1"
+reference_ids = ["amberbell_scene"]
+
+[[climbable.ladders]]
+variant_id = "bellroot_ladder"
+prompt = """
+A sturdy front-facing Amberbell climbing ladder assembled from warm weathered
+wood, dark teal binding cord, small brass fittings, and restrained moss. Evenly
+spaced flat rungs between two straight rails. It should feel maintained by local
+travelers and belong beside the old bell-hung tree and cream-stone shrines.
+"""
+
+[[climbable.ladders]]
+variant_id = "shrine_rope_ladder"
+prompt = """
+A hanging Amberbell rope ladder: two braided hemp side ropes with short flat
+weathered-wood rungs lashed between them in dark teal cord, hanging straight.
+Lighter and more makeshift than the timber ladder, the same maintained make.
+"""
+
+[[climbable.ropes]]
+variant_id = "bellrope_climb"
+prompt = """
+A braided hemp Amberbell climbing rope with dark teal whipping at even
+intervals, a small brass ferrule at the top, and a simple knotted foot loop at
+the bottom. One continuous near-vertical strand.
+"""
+
+# Terrain and placements are compiled by scripts/author_terrain.py from a declarative
+# level plan, which checks the rise tolerance, deck exposure, ledge overlap, and the
+# runtime camera range before anything is written here.
+[portal]
+mode = "portal-pair-1x2-v1"
+reference_ids = ["amberbell_scene"]
+prompt = """
+Create a matched pair of Amberbell road portals formed from moss-softened
+cream stone, dark old roots, modest brass bells, and restrained turquoise
+light. The entry should feel quiet and cool while the exit toward Crowncrag is
+slightly warmer and more luminous. Keep both architectural silhouettes clear
+and grounded without text, signs, characters, creatures, loose inventory
+items, or unrelated scenery.
+"""
+
+[[portal.endpoints]]
+anchor = "west_gate"
+normalized_x = 0.05
+role = "entry"
+
+[[portal.endpoints]]
+anchor = "east_gate"
+normalized_x = 0.95
+role = "exit"

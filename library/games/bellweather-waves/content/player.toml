@@ -1,0 +1,101 @@
+schema_version = 3
+kind = "player-content-v3"
+game_id = "bellweather"
+revision = 5
+
+[[references]]
+reference_id = "cover_wayfarer"
+source = "references/cover.png"
+source_sha256 = "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5"
+rights_status = "redistribution-approved"
+rights_basis = ["AI-generated Bellweather concept cover approved by the authenticated task owner."]
+
+[[players]]
+player_id = "wayfarer"
+display_name = "The Wayfarer"
+body_kind = "human"
+age = 20
+reference_ids = ["cover_wayfarer"]
+prompt = """
+The selected cover's adult female novice adventurer, age 20 and approximately
+2.25 heads tall, with a very large expressive head and amber eyes, chestnut bob,
+compact torso, short simplified limbs, oversized boots and gloves, and a bold
+dark outer contour with thinner controlled interior lines. Preserve the cream
+tunic, teal short cloak, coral scarf, dark shorts over opaque leggings, warm
+brown boots, travel satchel, and simple wooden training sword. Keep the
+presentation modest, practical, non-sexual, original, and unmistakably adult
+despite the deliberate super-deformed proportions.
+"""
+# The prose above names *which* object; this names the class of thing it is, which is the half a
+# validator can hold against gameplay's weapon_class. A hand weapon fights melee and nothing else.
+equipment = "hand_weapon_v1"
+
+[[players.motions]]
+state = "idle"
+playback_mode = "hold"
+canonical_frame_indices = [0]
+
+[[players.motions]]
+state = "walk"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 8
+
+[[players.motions]]
+state = "run"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 14
+
+[[players.motions]]
+state = "jump"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 8
+
+[[players.motions]]
+state = "crouch"
+playback_mode = "loop"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 6
+
+[[players.motions]]
+state = "climb_ladder"
+playback_mode = "gameplay_driven"
+canonical_frame_indices = [0, 1]
+anchor = "top"
+
+[[players.motions]]
+state = "climb_rope"
+playback_mode = "gameplay_driven"
+canonical_frame_indices = [0, 1]
+anchor = "top"
+
+[[players.motions]]
+state = "basic_attack"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 12
+
+[[players.motions]]
+state = "skill_cast"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 10
+
+[[players.motions]]
+state = "hurt"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 7
+
+[[players.motions]]
+state = "death"
+playback_mode = "once"
+canonical_frame_indices = [0, 1, 2, 3]
+frames_per_second = 6
+
+[players.dialogue_art]
+enabled = true
+subject_view = "front_three_quarter"
+expressions = ["neutral", "curious", "determined", "delighted", "concerned"]

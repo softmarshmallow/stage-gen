@@ -1,0 +1,26 @@
+schema_version = 2
+kind = "projectile-content-v2"
+game_id = "bellweather"
+revision = 1
+
+[[references]]
+reference_id = "cover_style"
+source = "references/cover.png"
+source_sha256 = "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5"
+rights_status = "redistribution-approved"
+rights_basis = ["AI-generated Bellweather concept cover approved by the authenticated task owner."]
+
+[[projectiles]]
+projectile_id = "paperwing_dart"
+display_name = "Paperwing Dart"
+silhouette = "axial_v1"
+flight = "flat_bolt_v1"
+impact = "single_target_v1"
+length_units = 0.50
+reference_ids = ["cover_style"]
+prompt = """
+A folded cream-paper glider dart with a sharply creased nose, two swept
+turquoise-edged wings, and a short trailing coral ribbon. Decorative color
+blocking only, with absolutely no readable or pseudo writing, no metal point,
+and no barb.
+"""

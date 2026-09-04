@@ -1,0 +1,40 @@
+schema_version = 4
+kind = "game-ui-v4"
+game_id = "bellweather"
+revision = 4
+
+[[references]]
+reference_id = "cover_style"
+source = "references/cover.png"
+source_sha256 = "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5"
+rights_status = "redistribution-approved"
+rights_basis = [
+  "AI-generated Bellweather cover with digest-bound provenance and visual review in the package.",
+]
+
+[inventory_panel]
+layout = "inventory_grid_4x2_v1"
+alpha_policy = "transparent_exterior_opaque_panel_v1"
+reference_ids = ["cover_style"]
+prompt = "A compact cheerful adventurer's satchel panel in Bellweather's painted storybook style, using warm carved wood, moss-turquoise cloth, small brass corners, and restrained leaf curls. Keep all eight empty slot wells plainly readable and visually quiet so colorful item icons remain dominant."
+
+[panel_frame]
+layout = "nine_slice_panel_1024_v1"
+alpha_policy = "transparent_exterior_opaque_body_v1"
+reference_ids = ["cover_style"]
+prompt = "A warm carved-wood frame in Bellweather's painted storybook style with small brass corner caps and a quiet, evenly lit moss-turquoise cloth inner surface that dialogue and titles can sit on."
+
+[button_rect]
+layout = "nine_slice_button_sheet_4x1024_v1"
+alpha_policy = "transparent_exterior_opaque_body_v1"
+reference_ids = ["cover_style"]
+prompt = "A compact carved-wood button in Bellweather's painted storybook style with small brass corner caps and a quiet linen-toned face, warm and inviting in its normal state."
+
+# The icon set is a fixed vocabulary the game may only restyle: the glyphs, their order
+# and the grid belong to the layout, and this prompt is style direction alone. It is a
+# preview set, expected to be rewritten as the games generated here outgrow it.
+[preview_icons]
+layout = "icon_grid_4x4_1024_preview_v1"
+alpha_policy = "transparent_exterior_opaque_glyph_v1"
+reference_ids = ["cover_style"]
+prompt = "Bold flat glyphs in Bellweather's painted storybook palette: warm brass-toned symbols with a soft dark outline that match the carved-wood and moss-turquoise interface. Simple solid shapes, no gradients or fine detail that would blur at small sizes."

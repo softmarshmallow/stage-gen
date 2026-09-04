@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "provenance_kind": "game_package_reference",
+  "lineage_kind": "selected_game_concept_cover_v1",
+  "state": "redistribution-approved",
+  "artifact": {
+    "path": "references/cover.png",
+    "media_type": "image/png",
+    "width": 1536,
+    "height": 864,
+    "bytes": 2263298,
+    "sha256": "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5"
+  },
+  "generation": {
+    "provider": "openrouter",
+    "model": "openai/gpt-image-2",
+    "quality": "high",
+    "aspect_ratio": "16:9",
+    "attempt_count": 1,
+    "retry_count": 0,
+    "n": 1,
+    "input_references": [],
+    "prompt_sha256": "63e660d7041d3d41d5462f168c593310926dfa9b158071b18f6c94b6a69ea69d"
+  },
+  "visual_review": {
+    "status": "approved",
+    "result": "pass",
+    "independent": true,
+    "reviewed_by": "authenticated task owner",
+    "reviewed_at": "2026-08-26T12:39:16Z",
+    "artifact_sha256": "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5",
+    "artifact_bytes": 2263298,
+    "verification_report": "references/cover.visual-review.md",
+    "verification_report_sha256": "02309e73ff7388487f88d158dbf0d6c4b85502cfd5c318b7ab95ac820f0e1798"
+  },
+  "rights": {
+    "status": "redistribution-approved",
+    "reviewed_at": "2026-08-26T12:39:16Z",
+    "basis": [
+      "Original brand-neutral text-only prompt with no third-party image input.",
+      "The authenticated task owner inspected and approved the exact digest-bound PNG for canonical package use on 2026-08-26.",
+      "The accepted image contains no observed protected character, copied costume, recognizable mascot, logo, signature, watermark, or pseudo-text."
+    ]
+  }
+}
