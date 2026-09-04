@@ -69,7 +69,12 @@ function stubCanvas(): Record<string, unknown> {
 export type HeadlessBrowserOptions = Readonly<{
   /** The one document the runtime is allowed to fetch. Everything else answers 404. */
   manifest: unknown;
-  /** Simulation time, so `performance.now()` is the harness's clock and not the machine's. */
+  /**
+   * Simulation time, so `performance.now()` is the harness's clock and not the
+   * machine's. The scene no longer calls it — it reads the tick's `step.now` —
+   * but the page around it still can, and a browser API answering a real clock
+   * would put a machine's time into a replay.
+   */
   now: () => number;
   /** Leave the runtime's own warnings and load failures on stderr, for tuning a script. */
   verbose?: boolean;

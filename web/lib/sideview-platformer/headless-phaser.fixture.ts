@@ -17,10 +17,10 @@
  *    texture becomes the runtime's magenta placeholder at the placeholder's size. Terrain, decks,
  *    ladders, portals, spawns and every gameplay distance come from the manifest and are therefore
  *    real; sprite frame sizes, and the render bounds derived from them, are the fallback's.
- * 2. **One clock.** Phaser steps tweens, timers and animations from the engine's wall clock, and the
- *    scene reads `performance.now()` for simulation time; under a fixed-frame capture those two
- *    diverge, which is exactly the defect the "off engine tweens" work exists to remove. Here they are
- *    the same virtual clock. That makes the harness *kinder* to the engine-driven code than a browser
+ * 2. **One clock.** Phaser steps tweens, timers and animations from the engine's wall clock; under a
+ *    fixed-frame capture that diverges from the simulation's, which is exactly the defect the "off
+ *    engine tweens" work exists to remove. The scene itself now reads the tick's own `step.now` and
+ *    nothing else. Here both are the same virtual clock. That makes the harness *kinder* to the engine-driven code than a browser
  *    is: a diff this harness shows when a subsystem moves onto the fixed step is a real semantic
  *    difference, and the nondeterminism the browser would add on top is not visible here at all.
  * 3. **The camera is a re-implementation.** `startFollow` with a dead zone and a lerp is thirty lines

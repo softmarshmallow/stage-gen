@@ -276,6 +276,80 @@ list of hidden edges; the audit predicted the list, and the diff between
 prediction and refusal is itself evidence about how well the fact-finding
 worked.
 
+**Evidence, measured.** Branch `runtime/step-2-strangler`; `bun test` 1519
+pass, 0 fail; `tsc --noEmit` clean at every commit.
+
+- **E1.** Zero diff, as predicted, and measured rather than asserted: all six
+  hundred per-frame digests are byte-identical to the step-0 chain and the
+  checkpoints at 60, 300 and 600 are unchanged. Nothing was re-pinned. The
+  frame is twenty systems now, `update` is a `tick`, and `performance.now()`
+  occurs nowhere in `sideview-platformer/` outside the fixtures — the second
+  use, the map banner's own stamp, became `step.now` with it, so the
+  announcement and the clock it is sampled against are finally the same clock
+  in a browser as well as under the harness.
+- **E2.** `DOCUMENTED_ORDER` exists for the platformer for the first time, and
+  it is exactly the hand-written frame: registration order, sealed order and
+  the documented list are the same twenty ids. Sixteen pairs of it are asserted
+  under a *reversed* registration, which is what separates an order a
+  declaration buys from an order the tie-break happens to give; the ties that
+  do not survive are between steps whose relative order means nothing (the
+  overlay's visibility against its text, the announcement against the developer
+  keys), and they are named rather than papered over.
+- **The refusals, and the audit's prediction.** Six on the first attempt, every
+  one a `SystemCycleError`, each now a fixture in `frame-roster.test.ts`: the
+  hitstop deadline (`clock/hitstop` -> `player/update` -> `clock/hitstop`); the
+  creatures the player fights (`player/update` -> `mobs/population` ->
+  `player/update`); the bag a throw spends from (`player/update` ->
+  `mobs/population` -> `mobs/step` -> `projectiles/step` -> `player/update`);
+  the creature step against the shot pool (`mobs/step` -> `projectiles/step` ->
+  `mobs/step`); the camera the population director asks what is on screen
+  (`mobs/population` -> ... -> `camera/shake` -> `mobs/population`); and the
+  stage a map entry rebuilds (`player/update` -> `map/entry` ->
+  `player/update`). The audit predicted four hidden edges and the diff runs
+  both ways. Two of the four were refused — the population director's mixed-age
+  read, and the mob's committed strike read a frame later by the player update,
+  which is the largest of the six. The other two were **not** hidden at all:
+  impact release before shake sum, and shake before parallax, are both plain
+  writes-before-reads that the sealer derives without being told, so the audit's
+  "every parallax layer inherits the shake undeclared" is fixed by declaring the
+  read and costs no edge. Four of the six refusals were unpredicted, and all
+  four are one-frame lags the frame's own comments never mentioned.
+- **The edge list.** Five `after` edges on three systems: `mobs/step` after
+  `mobs/population` (the split the refusal forced), `debug/overlay` after
+  `control/auto-play`, and `map/entry` after the three systems still stepping
+  the world it replaces. Eight feedback reads are written at the read site —
+  `impact` by the clock, `mobs` and `items` by the player, `mobs` and `camera`
+  by the population director, `player`, `control` and `items` by the debug
+  overlay — plus one deferred *write*, the map entry's rebuilt stage, which is a
+  feedback read's mirror image and is written down at the write site for the
+  same reason.
+- **Falsifier: half tripped, and reported rather than argued away.** The
+  wrapped classes *did* seal, in the hand order, with a zero-diff golden, so the
+  falsifier's first clause is not met and step 3 is not blocked. Its
+  measurement is: eight undeclared feedback reads against four predicted edges.
+  Three of the eight are one system — `debug/overlay` reading the player, the
+  control source and the bag, all of them presentation lagging a frame, which is
+  the ordinary shape rather than a boundary defect — and two more are
+  `player/update`, the largest system in the roster, reading the creatures and
+  the bag. That concentration is the finding step 6 should carry: the player is
+  doing the work of a controller, a combat resolver and an inventory consumer at
+  once, and two of its three feedback reads are the seam between them.
+- **One thing the wrapper does not buy.** The dev write trap. The steps mutate
+  the scene's own fields rather than the world object, so for every slice the
+  scene still holds — seventeen of twenty — the trap has nothing to check. Three
+  are real world state (`intent`, `hold`, `clock`); the rest are declared and
+  not held, typed `?: never` so nothing can pretend otherwise. Each becomes real
+  storage on the step that extracts its class.
+- **Two things found on the way.** `updateMobs` was two systems wearing one
+  name, and the split is what made the mixed-age read visible at all. And step
+  0's keyboard fix left `keys.jump` bound and unread — the very binding whose
+  latch the intent spends — which is now asserted as unread, because anything
+  that starts reading it re-opens the 529-frame defect.
+
+**Played evidence.** Not taken: no browser in this pass. E1's six hundred
+identical digests are the record, and the E5 stills are owed at the next step
+that has a reason to boot one.
+
 **Played evidence.** Crowncrag Road plays as before (E5 stills identical to
 the step-0 capture).
 
