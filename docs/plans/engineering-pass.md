@@ -793,6 +793,27 @@ chain into the bot's roster, live creatures on the nav graph, and one stale sent
 the composition doc about the death strip locking control.
 
 
+**2026-09-05 — Runtime step 6 landed (workstream E).** Eleven commits: a second
+scripted platformer run that reaches a defeat, baked first so the splits had a before;
+then `inventory`, `loot`, `effects`, `interaction`, `prompt`, `checkpoints`, `hud`,
+`ui` - each zero-diff on every golden, each with its two instantiations and its
+subtraction, the dead fourth `Npc` copy deleted, three new refusals on effects - and
+the **director** as the framing example: runner identical; **platformer re-pinned on
+both runs for one origin**, the set-piece gate armed at the authored `east_gate`
+(x=2304) where the walk never reaches (x=1948 at furthest), so the dart that struck
+the boss at frame 264 flies on and the critical sequence shifts by a frame or two;
+in the defeat run the gate fires at 259 and the defeat slides from 320 to 376. Feedback
+reads 8 → 9 (the gate reading the creature in it, declared); `after` edges 5 → 6 in the
+platformer, none in the runner. **Not taken, and named as a ruling the plan owes, not
+evidence it lacks**: `player/update` is still one system - its inventory, loot, defeat
+and set-piece halves left through their families, but the confirm frame returns out of
+the middle of it, and someone must decide where the contact loop goes on the frame a
+defeat is accepted; the defeat golden that decision needs now exists. Also reported:
+`fall_recovery` has nowhere to fall to in this genre's space until a pit is authored;
+the director's shots and gauge thirds want `projectiles` and `combat` families no step
+creates; played evidence is still owed.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one
