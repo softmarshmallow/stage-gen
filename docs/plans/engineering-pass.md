@@ -400,6 +400,44 @@ time (runtime steps 3–6); until then the genre parser gates all of them up
 front and the message names the block.
 
 
+**2026-09-04 — Phase 2, second cut: the recipe substrate (D2).** Four modules
+under `recipes/`, each the one copy of something five recipes wrote for
+themselves; every recipe now subclasses them and keeps only what is its own.
+No cache key, topology digest, document kind or manifest byte moved: both
+goldens, all five graph-identity tests and the pipeline-doc snapshot are
+unchanged, and `docs/contract-identities.md` is current.
+
+| Module | Owns | Was |
+| --- | --- | --- |
+| `recipes/ports.py` | `artifact_port`, `record_port`, `attempts_port`, `text_digest`, `object_digest` | the same five functions under private names in five graph modules (`object_digest` keeps `ensure_ascii=True`; `canonical_json_bytes` would move every non-ASCII key) |
+| `recipes/graph_document.py` | `RecipeGraph`: `identity_header`, `annotator_key`, `view_header` and `operation_vocabulary` from `OPERATIONS` / `VIEW_FIELDS` / `IDENTITY_FIELDS`; the four derived document kinds from the `recipe` literal; `seal()` filling `schema_version`, `kind`, `recipe` from the pinned literals | five classes re-stating six `ClassVar`s and four methods each; the run-view version bumped by hand twice, breaking the viewer both times |
+| `recipes/node_handler.py` | `RecipeNodeHandler`: cache read → registered method → cache write; failures mapped once (`_failure`, `_failed`, `_cancelled` hooks); `restore`, `registered_type_ids`, `_result`, `_path`, `_read`, `_card_prompt`; `_handlers()` returns `(NodeType, method)` pairs | six `__call__` loops, six `_bind`s, six `_build_registry`s, six `_result`s |
+| `recipes/executor.py` | `RecipeExecutor`: `plan` / `plan_graph`, `open_run`, `dispatch`, `dry_dispatch`, `dry_run`, `require`; `RunServices` composing every provider service from the config and closing them together; `RecipePlan` / `RecipeRun` | five executors inlining the run directory, the scheduler, the trace, the secrets and the service constructors with their default base URLs (fifteen sites) |
+| `media/data_url.py` | `data_url` | six byte-identical copies in recipes and components, two more in the runtime |
+
+Measured: the five executors went from 1352 lines to 720, the six handlers
+from 11191 to 10788, the six graph modules from 5127 to 4919; the substrate
+is 712 lines, so the source is 531 lines smaller net and a sixth recipe writes
+`_resolve`, `_build`, `_type_index`, `_handlers` and its own `run`. The
+plan's "~1500 removed" was the gross figure; the duplication in the handlers
+turned out to be thin per copy and the executors were where the weight was.
+
+Decisions taken here: the modules are public names beside `manifest_blocks.py`
+and `node_cache.py`, not the underscore names the card sketched. A plan's
+input is `plan.resolved` in every recipe (`plan.package` and `plan.scene` are
+gone; two CLI sites and four tests moved). The platformer's three identical
+run types collapsed into `PreparedPackageRun`; the integration run keeps its
+own. A missing credential is refused by `assert_capabilities` everywhere, so
+`ConfigError` is now a `ValueError` and names the variable, which is what the
+old per-recipe messages did. A failure that escapes a node method is recorded
+as `<Type>: <message>` (the universe's form) in every recipe; the runner keeps
+its stricter rule that a pre-component failure never counts as spend, as an
+override. The world checkpoint's live runs now share the 900 s node-timeout
+floor the other live runs already had. `tests/contract/test_recipe_substrate.py`
+pins the derived document kinds and refuses a recipe that grows a substrate
+member back.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one

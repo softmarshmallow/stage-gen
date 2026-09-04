@@ -258,7 +258,7 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
     music = _FakeMusicService()
     handler = PreparedContentNodeHandler(
         prepared.graph,
-        prepared.package,
+        prepared.resolved,
         run_dir=run_dir,
         cache_dir=tmp_path / "cache",
         image_service=images,  # type: ignore[arg-type]

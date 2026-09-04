@@ -8,7 +8,6 @@ with the runtime-selected style anchor appended once.
 
 from __future__ import annotations
 
-import base64
 import json
 from io import BytesIO
 from pathlib import Path
@@ -19,13 +18,10 @@ from PIL import Image
 from gnode import (
     ArtifactRights,
     BinaryArtifact,
-    CacheDisposition,
     ImageGenerationRequest,
     ImageReference,
-    NodeArtifact,
-    NodeExecutionError,
     NodeExecutionResult,
-    NodeTypeRegistry,
+    NodeType,
     ProvenanceInput,
     RetryExhaustedError,
     SoftwareIdentity,
@@ -33,7 +29,6 @@ from gnode import (
     StructuredOutputSchema,
     atomic_write_json,
     dependency_port,
-    resolve_relative_path_within_root,
     write_artifact_with_provenance_async,
 )
 from stage_gen.canonical import content_sha256
@@ -53,14 +48,13 @@ from stage_gen.image_style import (
     append_style_anchor_once,
     compile_style_prompt_anchor,
 )
-from stage_gen.media import inspect_image
-from stage_gen.recipes.node_cache import NodeArtifactCache
+from stage_gen.media import data_url, inspect_image
+from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
 from stage_gen.recipes.pointclick_room.models import RoomReference, prove_room_solvable
 from stage_gen.recipes.pointclick_room.room_graph import (
     POINTCLICK_CACHE_NAMESPACE,
     POINTCLICK_CACHE_RECORD_KIND,
     PointClickRoomGraph,
-    RoomOperationKind,
 )
 from stage_gen.recipes.pointclick_room.room_prompts import narration_ids, narration_json_schema
 from stage_gen.recipes.pointclick_room.room_types import (
@@ -81,13 +75,11 @@ from stage_gen.recipes.pointclick_room.room_types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable, Sequence
+    from collections.abc import Callable, Sequence
 
     from gnode import (
         ImageGenerationService,
         Node,
-        NodeExecutionContext,
-        NodeHandler,
         StructuredGenerationService,
     )
     from stage_gen.recipes.pointclick_room.room_request import ResolvedPointClickRoom
@@ -97,17 +89,13 @@ _COMPONENT = SoftwareIdentity(name="@stage-gen/pointclick-room", version="1")
 SPRITE_SIZE = 1024
 
 
-def _data_url(data: bytes, media_type: str) -> str:
-    return f"data:{media_type};base64,{base64.b64encode(data).decode('ascii')}"
-
-
 def room_target_node_ids(graph: PointClickRoomGraph) -> tuple[str, ...]:
     """Every node except the terminal bundle, which the caller publishes explicitly."""
 
     return tuple(node.node_id for node in graph.nodes if node.node_id != graph.terminal_node_id)
 
 
-class PointClickRoomNodeHandler:
+class PointClickRoomNodeHandler(RecipeNodeHandler):
     """Dispatch room nodes while provider operations stay component-owned."""
 
     def __init__(
@@ -121,19 +109,10 @@ class PointClickRoomNodeHandler:
         structured_service: StructuredGenerationService[Any],
         capability_timeout_s: float | None = None,
     ) -> None:
-        self._graph = graph
         self._resolved = resolved
-        self._run_dir = run_dir
         self._images = image_service
         self._structured = structured_service
         self._timeout = capability_timeout_s
-        self._cache = NodeArtifactCache(
-            graph,
-            run_dir=run_dir,
-            cache_dir=cache_dir,
-            namespace=POINTCLICK_CACHE_NAMESPACE,
-            record_kind=POINTCLICK_CACHE_RECORD_KIND,
-        )
         self._atlas = UiAtlasHandlers(
             UiAtlasHost(
                 ui=resolved.ui,
@@ -148,51 +127,30 @@ class PointClickRoomNodeHandler:
             structured_service=structured_service,
             provider_call=self._provider_call,
         )
-        self._registry = self._build_registry()
+        super().__init__(
+            graph,
+            run_dir=run_dir,
+            cache_dir=cache_dir,
+            namespace=POINTCLICK_CACHE_NAMESPACE,
+            record_kind=POINTCLICK_CACHE_RECORD_KIND,
+        )
 
-    async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
-        cached = self._cache.read(node, context)
-        if cached is not None:
-            return cached
-        try:
-            result = await self._registry(node, context)
-        except NodeExecutionError:
-            raise
-        except Exception as error:
-            external = node.operation != RoomOperationKind.LOCAL
-            attempts = int(getattr(error, "attempts", 1))
-            raise NodeExecutionError(
-                str(error),
-                attempts=attempts,
-                provider_operations=attempts if external else 0,
-            ) from error
-        self._cache.write(node, context, result)
-        return result
-
-    # ---------------------------------------------------------------- dispatch
-
-    def _build_registry(self) -> NodeTypeRegistry:
-        registry = NodeTypeRegistry()
-        registry.register(ROOM_RESOLVE, self._bind(self._write_room))
-        registry.register(STYLE_SELECT, self._bind(self._select_style))
-        registry.register(BACKDROP_GENERATE, self._bind(self._backdrop))
-        registry.register(HOTSPOT_SPRITE_GENERATE, self._bind(self._sprite))
-        registry.register(ITEM_ICON_GENERATE, self._bind(self._sprite))
-        registry.register(HOTSPOT_SPRITE_VALIDATE, self._bind(self._validate_sprite))
-        registry.register(ITEM_ICON_VALIDATE, self._bind(self._validate_sprite))
-        registry.register(NARRATION_COMPILE, self._bind(self._narration))
-        registry.register(PUZZLE_VALIDATE, self._bind(self._puzzle))
-        registry.register(ROOM_BUNDLE, self._bind(self._bundle))
-        registry.register(UI_ATLAS_GENERATE, self._bind(self._atlas.generate))
-        registry.register(UI_ATLAS_VALIDATE, self._bind(self._atlas.validate))
-        registry.register(UI_ATLAS_REVIEW, self._bind(self._atlas.review))
-        return registry
-
-    def _bind(self, method: Callable[[Node], Awaitable[NodeExecutionResult]]) -> NodeHandler:
-        async def handler(node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
-            return await method(node)
-
-        return handler
+    def _handlers(self) -> tuple[tuple[NodeType, NodeMethod], ...]:
+        return (
+            (ROOM_RESOLVE, self._write_room),
+            (STYLE_SELECT, self._select_style),
+            (BACKDROP_GENERATE, self._backdrop),
+            (HOTSPOT_SPRITE_GENERATE, self._sprite),
+            (ITEM_ICON_GENERATE, self._sprite),
+            (HOTSPOT_SPRITE_VALIDATE, self._validate_sprite),
+            (ITEM_ICON_VALIDATE, self._validate_sprite),
+            (NARRATION_COMPILE, self._narration),
+            (PUZZLE_VALIDATE, self._puzzle),
+            (ROOM_BUNDLE, self._bundle),
+            (UI_ATLAS_GENERATE, self._atlas.generate),
+            (UI_ATLAS_VALIDATE, self._atlas.validate),
+            (UI_ATLAS_REVIEW, self._atlas.review),
+        )
 
     # ------------------------------------------------------------------ nodes
 
@@ -517,7 +475,7 @@ class PointClickRoomNodeHandler:
             # package member and the digest the resolver matched, not a local path.
             input_references=tuple(
                 ImageReference(
-                    url=_data_url(reference.data, reference.media_type),
+                    url=data_url(reference.data, reference.media_type),
                     provenance_ref=(
                         f"package://{self._resolved.room.room_id}/{reference.source}"
                         f"#sha256={reference.sha256}"
@@ -599,44 +557,8 @@ class PointClickRoomNodeHandler:
             ),
         )
 
-    def _result(
-        self, node: Node, *, attempts: int = 1, provider_operations: int
-    ) -> NodeExecutionResult:
-        refs: list[str] = []
-        for port in node.ports:
-            refs.append(port.artifact_ref)
-            if port.sidecar_ref is not None:
-                refs.append(port.sidecar_ref)
-        artifacts = tuple(
-            NodeArtifact(
-                artifact_ref=ref,
-                sha256=content_sha256(self._read(ref)),
-                bytes=len(self._read(ref)),
-            )
-            for ref in refs
-            if (self._run_dir / ref).is_file()
-        )
-        return NodeExecutionResult(
-            cache=CacheDisposition.MISS,
-            attempts=attempts,
-            provider_operations=provider_operations,
-            artifacts=artifacts,
-        )
-
-    def _card_prompt(self, node: Node) -> str:
-        """The plan is the single source of a node's static instruction text."""
-
-        if node.card is None or node.card.prompt is None:
-            raise ValueError(f"node {node.node_id} declares no card prompt")
-        return node.card.prompt
-
     def _style_anchor(self) -> CanonicalStyleAnchor:
         return CanonicalStyleAnchor.model_validate_json(self._read("style-anchor.json"))
-
-    def _read(self, relative: str) -> bytes:
-        return resolve_relative_path_within_root(
-            self._run_dir, relative, "room artifact path"
-        ).read_bytes()
 
 
 def _ledger(records: list[dict[str, object]]) -> dict[str, object]:

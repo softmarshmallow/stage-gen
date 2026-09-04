@@ -17,7 +17,7 @@ drawn.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import TYPE_CHECKING, ClassVar, Final, Literal
+from typing import TYPE_CHECKING, Final, Literal
 
 from pydantic import Field
 
@@ -26,18 +26,18 @@ from gnode import (
     AuthoredInput,
     Binding,
     BindingTable,
-    Graph,
     GraphBuilder,
     ImageGenerationService,
     ModelRef,
     NodeCard,
     Port,
     PortRef,
-    seal_graph,
 )
 from stage_gen.canonical import canonical_json_bytes, content_sha256
 from stage_gen.config import CapabilityName, StageGenConfig
 from stage_gen.orchestration.runtime import create_image_service, create_openai_image_service
+from stage_gen.recipes.graph_document import RecipeGraph
+from stage_gen.recipes.ports import artifact_port, attempts_port, text_digest
 from stage_gen.recipes.universe.models import GalleryPlan, SampleLedger, UniverseProposal
 from stage_gen.recipes.universe.ontology import SIZE_BY_MODE
 from stage_gen.recipes.universe.universe_prompts import (
@@ -123,19 +123,17 @@ class UniverseOperationKind(StrEnum):
     STRUCTURED_GENERATION = "structured_generation"
 
 
-class UniverseGraph(Graph):
+class UniverseGraph(RecipeGraph):
     """One phase of one universe, bound to the source package that produced it."""
 
-    TRACE_SCHEMA_VERSION: ClassVar[int] = UNIVERSE_TRACE_SCHEMA_VERSION
-    TRACE_EVENT_KIND: ClassVar[str] = "universe-execution-event-v1"
-    RUN_SUMMARY_KIND: ClassVar[str] = "universe-execution-summary-v1"
-    PROJECTION_KIND: ClassVar[str] = "universe-execution-projection-v1"
-    VIEW_KIND: ClassVar[str] = "universe-execution-view-v1"
-    # The run-view document contract is shared and owned by gnode; this is
-    # its version, not a per-recipe counter. Declaring 1 emitted the ring-0
-    # v3 shape under a version every consumer refuses, so universe runs were
-    # invisible to the run viewer.
-    VIEW_SCHEMA_VERSION: ClassVar[int] = 3
+    OPERATIONS = UniverseOperationKind
+    # The phase is in topology identity because the two phases really are different
+    # shapes. The poster digest and the sample ledger are deliberately not: rerolling one
+    # image, or swapping the poster, changes what the graph draws and so moves
+    # ``graph_sha256`` and the affected cache keys, but it does not change the shape of
+    # the graph, and the checked doc snapshot should not move for it.
+    IDENTITY_FIELDS = ("phase",)
+    VIEW_FIELDS = ("phase", "universe_id", "medium_id", "entity_count")
 
     schema_version: Literal[1]
     kind: Literal["universe-execution-graph-v1"]
@@ -150,34 +148,6 @@ class UniverseGraph(Graph):
     sample_ledger_sha256: str | None = Field(default=None, pattern=SHA256_PATTERN)
     #: Generation is exploration; publication is a separate human decision.
     publication_authorized: Literal[False]
-
-    def operation_vocabulary(self) -> tuple[str, ...]:
-        return tuple(operation.value for operation in UniverseOperationKind)
-
-    def identity_header(self) -> dict[str, object]:
-        """Structure only, because this feeds ``topology_sha256``.
-
-        The phase is here because the two phases really are different shapes.
-        The poster digest and the sample ledger are deliberately not: rerolling
-        one image, or swapping the poster, changes what the graph draws and so
-        moves ``graph_sha256`` and the affected cache keys, but it does not
-        change the shape of the graph, and the checked doc snapshot should not
-        move for it.
-        """
-
-        return {**super().identity_header(), "recipe": self.recipe, "phase": self.phase}
-
-    def annotator_key(self) -> str:
-        return self.recipe
-
-    def view_header(self) -> dict[str, object]:
-        return {
-            "recipe": self.recipe,
-            "phase": self.phase,
-            "universe_id": self.universe_id,
-            "medium_id": self.medium_id,
-            "entity_count": self.entity_count,
-        }
 
 
 class ImageRoute:
@@ -291,20 +261,6 @@ def universe_graph_profile(config: StageGenConfig, *, images: bool) -> BindingTa
     return BindingTable(routes)
 
 
-def _artifact(port_id: str, ref: str, kind: str) -> Port:
-    return Port(port_id=port_id, artifact_ref=ref, kind=kind, sidecar_ref=f"{ref}.meta.json")
-
-
-def _attempts(node_id: str) -> Port:
-    return Port(
-        port_id="attempts", artifact_ref=f"attempts/{node_id}.json", kind=ATTEMPT_LEDGER_KIND
-    )
-
-
-def _text_digest(value: str) -> str:
-    return content_sha256(value.encode("utf-8"))
-
-
 def _schema_digest(model_type: type[UniverseProposal] | type[GalleryPlan]) -> str:
     return content_sha256(canonical_json_bytes(model_type.model_json_schema()))
 
@@ -363,10 +319,10 @@ def build_universe_semantic_graph(
             "medium": resolved.medium.medium_id,
             "poster_proxy_long_edge": str(POSTER_PROXY_LONG_EDGE),
         },
-        input_digests=(*source_digests, _text_digest(str(POSTER_PROXY_LONG_EDGE))),
+        input_digests=(*source_digests, text_digest(str(POSTER_PROXY_LONG_EDGE))),
         ports=(
-            _artifact("source_lock", SOURCE_LOCK_REF, SOURCE_LOCK_KIND),
-            _artifact("poster_proxy", POSTER_PROXY_REF, POSTER_PROXY_KIND),
+            artifact_port("source_lock", SOURCE_LOCK_REF, SOURCE_LOCK_KIND),
+            artifact_port("poster_proxy", POSTER_PROXY_REF, POSTER_PROXY_KIND),
         ),
         card=NodeCard(
             prompt="Lock the source package and derive the evidence ledger.",
@@ -392,12 +348,12 @@ def build_universe_semantic_graph(
         depends_on=("source-lock",),
         input_digests=(
             *source_digests,
-            _text_digest(proposal_prompt),
+            text_digest(proposal_prompt),
             _schema_digest(UniverseProposal),
         ),
         ports=(
-            _artifact("proposal", PROPOSAL_REF, PROPOSAL_KIND),
-            _attempts("universe-propose"),
+            artifact_port("proposal", PROPOSAL_REF, PROPOSAL_KIND),
+            attempts_port("universe-propose", ATTEMPT_LEDGER_KIND),
         ),
         card=NodeCard(
             prompt=proposal_prompt,
@@ -414,10 +370,10 @@ def build_universe_semantic_graph(
         description="Set-level concept plan: purposes, modes, motifs, and registers across the set",
         params={"poster_reference_count": "0"},
         depends_on=("universe-propose",),
-        input_digests=(_text_digest(plan_prompt), _schema_digest(GalleryPlan)),
+        input_digests=(text_digest(plan_prompt), _schema_digest(GalleryPlan)),
         ports=(
-            _artifact("plan", PLAN_REF, GALLERY_PLAN_KIND),
-            _attempts("gallery-plan"),
+            artifact_port("plan", PLAN_REF, GALLERY_PLAN_KIND),
+            attempts_port("gallery-plan", ATTEMPT_LEDGER_KIND),
         ),
         card=NodeCard(
             prompt=plan_prompt,
@@ -431,7 +387,7 @@ def build_universe_semantic_graph(
         domain="universe",
         description="Deterministic taxonomy, lineage, graph, and set-diversity evaluation",
         depends_on=("source-lock", "universe-propose", "gallery-plan"),
-        ports=(_artifact("evaluation", EVALUATION_REF, EVALUATION_KIND),),
+        ports=(artifact_port("evaluation", EVALUATION_REF, EVALUATION_KIND),),
         card=NodeCard(
             prompt="Re-run every deterministic evaluator on the persisted proposal and plan.",
             reference_inputs=(
@@ -447,10 +403,10 @@ def build_universe_semantic_graph(
         description="Independent semantic review of proposal and plan with the poster as evidence",
         params={"poster_reference_count": "1"},
         depends_on=("source-lock", "universe-propose", "gallery-plan", "universe-evaluate"),
-        input_digests=(_text_digest(REVIEW_INSTRUCTIONS),),
+        input_digests=(text_digest(REVIEW_INSTRUCTIONS),),
         ports=(
-            _artifact("review", SEMANTIC_REVIEW_REF, SEMANTIC_REVIEW_KIND),
-            _attempts("universe-review"),
+            artifact_port("review", SEMANTIC_REVIEW_REF, SEMANTIC_REVIEW_KIND),
+            attempts_port("universe-review", ATTEMPT_LEDGER_KIND),
         ),
         card=NodeCard(
             prompt=REVIEW_INSTRUCTIONS,
@@ -476,8 +432,8 @@ def build_universe_semantic_graph(
             "universe-review",
         ),
         ports=(
-            _artifact("universe", UNIVERSE_REF, ADMITTED_KIND),
-            _artifact("admission", ADMISSION_REF, ADMISSION_KIND),
+            artifact_port("universe", UNIVERSE_REF, ADMITTED_KIND),
+            artifact_port("admission", ADMISSION_REF, ADMISSION_KIND),
         ),
         card=NodeCard(
             prompt="Admit only when evaluation and review both pass on the exact persisted bytes.",
@@ -487,14 +443,10 @@ def build_universe_semantic_graph(
             ),
         ),
     )
-    return seal_graph(
-        UniverseGraph,
+    return UniverseGraph.seal(
         resources=builder.resources(),
         nodes=builder.nodes,
         terminal_node_id="universe-admit",
-        schema_version=UNIVERSE_GRAPH_SCHEMA_VERSION,
-        kind="universe-execution-graph-v1",
-        recipe="universe",
         phase="semantic",
         universe_id=source.universe_id,
         medium_id=resolved.medium.medium_id,
@@ -563,12 +515,12 @@ def build_universe_gallery_graph(
         input_digests=(
             admitted.universe_sha256,
             compile_digest,
-            _text_digest(global_prompt),
+            text_digest(global_prompt),
             resolved.poster_sha256,
         ),
         ports=(
-            _artifact("global", GLOBAL_DIRECTION_REF, GLOBAL_DIRECTION_KIND),
-            _attempts("direction-global"),
+            artifact_port("global", GLOBAL_DIRECTION_REF, GLOBAL_DIRECTION_KIND),
+            attempts_port("direction-global", ATTEMPT_LEDGER_KIND),
         ),
         card=NodeCard(
             prompt=global_prompt,
@@ -603,12 +555,12 @@ def build_universe_gallery_graph(
                 depends_on=("direction-global",),
                 input_digests=(
                     admitted.universe_sha256,
-                    _text_digest(entity_id),
+                    text_digest(entity_id),
                     compile_digest,
-                    _text_digest(entity_prompt),
+                    text_digest(entity_prompt),
                 ),
                 ports=(
-                    _artifact(
+                    artifact_port(
                         "direction",
                         f"production/direction/entities/{entity_id}.json",
                         ENTITY_DIRECTION_KIND,
@@ -618,7 +570,7 @@ def build_universe_gallery_graph(
                         artifact_ref=f"production/direction/entities/{entity_id}.warnings.json",
                         kind=DIRECTION_WARNINGS_KIND,
                     ),
-                    _attempts(direction_id),
+                    attempts_port(direction_id, ATTEMPT_LEDGER_KIND),
                 ),
                 card=NodeCard(
                     prompt=entity_prompt,
@@ -646,11 +598,11 @@ def build_universe_gallery_graph(
                 # to a superseded canvas is not a valid answer to this question.
                 input_digests=(
                     render_digest,
-                    _text_digest(size),
+                    text_digest(size),
                     _sample_digest(entity_id, samples.sample(entity_id)),
                 ),
                 ports=(
-                    _artifact("image", f"package/entities/{entity_id}.png", CONCEPT_IMAGE_KIND),
+                    artifact_port("image", f"package/entities/{entity_id}.png", CONCEPT_IMAGE_KIND),
                 ),
                 card=NodeCard(
                     prompt=(
@@ -670,9 +622,9 @@ def build_universe_gallery_graph(
                 description=f"Downscaled review proxy for {entity.display_name}",
                 params={"entity_id": entity_id, "long_edge": str(REVIEW_PROXY_LONG_EDGE)},
                 depends_on=(image_id,),
-                input_digests=(_text_digest(str(REVIEW_PROXY_LONG_EDGE)),),
+                input_digests=(text_digest(str(REVIEW_PROXY_LONG_EDGE)),),
                 ports=(
-                    _artifact(
+                    artifact_port(
                         "proxy",
                         f"production/review/proxies/{entity_id}.png",
                         REVIEW_PROXY_KIND,
@@ -692,14 +644,14 @@ def build_universe_gallery_graph(
                 description=f"Independent review of the {entity.display_name} image",
                 params={"entity_id": entity_id, "proxy_reference_count": "1"},
                 depends_on=(proxy_id, direction_id),
-                input_digests=(_text_digest(IMAGE_REVIEW_INSTRUCTIONS), review_digest),
+                input_digests=(text_digest(IMAGE_REVIEW_INSTRUCTIONS), review_digest),
                 ports=(
-                    _artifact(
+                    artifact_port(
                         "review",
                         f"production/review/reviews/{entity_id}.json",
                         IMAGE_REVIEW_KIND,
                     ),
-                    _attempts(review_id),
+                    attempts_port(review_id, ATTEMPT_LEDGER_KIND),
                 ),
                 card=NodeCard(
                     prompt=IMAGE_REVIEW_INSTRUCTIONS,
@@ -718,8 +670,12 @@ def build_universe_gallery_graph(
                 params={"entity_id": entity_id},
                 depends_on=(review_id, image_id, direction_id),
                 ports=(
-                    _artifact("record", f"package/entities/{entity_id}.json", ENTITY_RECORD_KIND),
-                    _artifact("markdown", f"package/entities/{entity_id}.md", ENTITY_MARKDOWN_KIND),
+                    artifact_port(
+                        "record", f"package/entities/{entity_id}.json", ENTITY_RECORD_KIND
+                    ),
+                    artifact_port(
+                        "markdown", f"package/entities/{entity_id}.md", ENTITY_MARKDOWN_KIND
+                    ),
                 ),
                 card=NodeCard(
                     prompt="Materialize the entity record with its review outcome.",
@@ -736,7 +692,7 @@ def build_universe_gallery_graph(
         domain="gallery",
         description="Closed image inventory: exactly one image per entity, statuses recorded",
         depends_on=tuple(record_nodes),
-        ports=(_artifact("inventory", INVENTORY_REF, INVENTORY_KIND),),
+        ports=(artifact_port("inventory", INVENTORY_REF, INVENTORY_KIND),),
         card=NodeCard(
             prompt="Enumerate the closed image inventory from the entity records.",
             reference_inputs=tuple(
@@ -744,14 +700,10 @@ def build_universe_gallery_graph(
             ),
         ),
     )
-    return seal_graph(
-        UniverseGraph,
+    return UniverseGraph.seal(
         resources=builder.resources(),
         nodes=builder.nodes,
         terminal_node_id="gallery-close",
-        schema_version=UNIVERSE_GRAPH_SCHEMA_VERSION,
-        kind="universe-execution-graph-v1",
-        recipe="universe",
         phase="gallery",
         universe_id=admitted.universe_id,
         medium_id=medium.medium_id,

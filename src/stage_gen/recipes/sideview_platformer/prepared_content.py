@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import io
 import json
 import math
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Literal, cast
 
@@ -15,7 +14,6 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 from gnode import (
     BinaryArtifact,
-    CacheDisposition,
     ImageGenerationRequest,
     ImageGenerationService,
     ImageReference,
@@ -23,12 +21,8 @@ from gnode import (
     MusicGenerationRequest,
     MusicGenerationService,
     Node,
-    NodeArtifact,
-    NodeExecutionContext,
-    NodeExecutionError,
     NodeExecutionResult,
-    NodeHandler,
-    NodeTypeRegistry,
+    NodeType,
     ProvenanceInput,
     SoftwareIdentity,
     StructuredGenerationRequest,
@@ -102,6 +96,7 @@ from stage_gen.components.sideview_actor.motion_rebase import (
 )
 from stage_gen.media import (
     AlphaComponentRepackContract,
+    data_url,
     measure_alpha_ground_contact,
     probe_audio,
     repack_alpha_components,
@@ -109,7 +104,7 @@ from stage_gen.media import (
 )
 from stage_gen.media.sprite_sheets import measure_alpha_subjects, split_atlas_columns
 from stage_gen.orchestration.game_package import ResolvedGamePackage
-from stage_gen.recipes.node_cache import NodeArtifactCache
+from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
 from stage_gen.recipes.sideview_platformer.execution_graph import ExecutionGraph, OperationKind
 from stage_gen.recipes.sideview_platformer.motion_contract import (
     MotionActorKind,
@@ -159,7 +154,7 @@ CatalogEntry = PropContent | ItemContent | ProjectileContent
 ActorContent = PlayerContent | MobContent | NpcContent
 
 
-class PreparedContentNodeHandler:
+class PreparedContentNodeHandler(RecipeNodeHandler):
     """Dispatch content nodes while shared components retain provider/retry ownership."""
 
     def __init__(
@@ -173,23 +168,10 @@ class PreparedContentNodeHandler:
         structured_service: StructuredGenerationService[object],
         music_service: MusicGenerationService,
     ) -> None:
-        self._graph = graph
         self._package = package
-        self._run_dir = run_dir
-        self._cache_dir = cache_dir
         self._images = image_service
         self._structured = structured_service
         self._music = music_service
-        self._cache = NodeArtifactCache(
-            graph,
-            run_dir=run_dir,
-            cache_dir=cache_dir,
-            namespace=CONTENT_CACHE_NAMESPACE,
-            record_kind=CACHE_RECORD_KIND,
-            admit=lambda node, payloads: (
-                bool(payloads) and self._cached_primary_artifact_valid(node, payloads[0])
-            ),
-        )
         self._atlas = UiAtlasHandlers(
             UiAtlasHost(
                 ui=package.ui,
@@ -205,7 +187,16 @@ class PreparedContentNodeHandler:
             image_service=image_service,
             structured_service=structured_service,
         )
-        self._registry = self._build_registry()
+        super().__init__(
+            graph,
+            run_dir=run_dir,
+            cache_dir=cache_dir,
+            namespace=CONTENT_CACHE_NAMESPACE,
+            record_kind=CACHE_RECORD_KIND,
+            admit=lambda node, payloads: (
+                bool(payloads) and self._cached_primary_artifact_valid(node, payloads[0])
+            ),
+        )
 
     def _motion_source_facing(
         self, kind: MotionActorKind, state: str
@@ -216,74 +207,38 @@ class PreparedContentNodeHandler:
             npc_world_orientation=(self._package.npcs.world_orientation if kind == "npc" else None),
         )
 
-    async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
-        cached = self._cache.read(node, context)
-        if cached is not None:
-            return cached
-        try:
-            result = await self._registry(node, context)
-        except NodeExecutionError:
-            raise
-        except Exception as error:
-            external = not node.is_local
-            attempts = int(getattr(error, "attempts", 1))
-            raise NodeExecutionError(
-                str(error),
-                attempts=attempts,
-                provider_operations=attempts if external else 0,
-            ) from error
-        self._cache.write(node, context, result)
-        return result
-
-    def restore(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult | None:
-        """The cache's answer alone: restored into the run, or ``None``. Never generates."""
-
-        return self._cache.read(node, context)
-
-    @property
-    def registered_type_ids(self) -> frozenset[str]:
-        """The node types this checkpoint owns; integration routes by it."""
-
-        return frozenset(node_type.type_id for node_type in self._registry.types())
-
     # ---------------------------------------------------------------- dispatch
 
-    def _build_registry(self) -> NodeTypeRegistry:
+    def _handlers(self) -> tuple[tuple[NodeType, NodeMethod], ...]:
         """Registered types replace the seven id regexes this handler once walked."""
 
-        registry = NodeTypeRegistry()
-        registry.register(PACKAGE_RESOLVE, self._bind(self._resolve_package))
-        registry.register(GAMEPLAY_BINDINGS_VALIDATE, self._bind(self._write_bindings))
-        registry.register(ACTOR_CONCEPT_GENERATE, self._bind(self._generate_concept))
-        registry.register(MOTION_ATLAS_GENERATE, self._bind(self._generate_motion))
-        registry.register(MOTION_ATLAS_VALIDATE, self._bind(self._validate_motion))
-        registry.register(DIALOGUE_ATLAS_GENERATE, self._bind(self._generate_dialogue))
-        registry.register(DIALOGUE_ATLAS_VALIDATE, self._bind(self._validate_dialogue))
-        registry.register(WORLD_SPRITE_GENERATE, self._bind(self._generate_world_sprite))
-        registry.register(WORLD_SPRITE_VALIDATE, self._bind(self._validate_world_sprite))
-        registry.register(MOTION_REBASE_JUDGE, self._bind(self._actor_motion_rebase))
-        registry.register(MOTION_REBASE_VERIFY, self._bind(self._actor_motion_rebase_verify))
-        registry.register(ACTOR_CONTACT_SHEET, self._bind(self._actor_contact_sheet))
-        registry.register(ACTOR_REVIEW, self._bind(self._actor_review))
-        registry.register(CATALOG_ASSET_GENERATE, self._bind(self._generate_catalog_asset))
-        registry.register(CATALOG_ASSET_VALIDATE, self._bind(self._validate_catalog_asset))
-        registry.register(CATALOG_CONTACT_SHEET, self._bind(self._catalog_contact_sheet))
-        registry.register(CATALOG_REVIEW, self._bind(self._catalog_review))
-        registry.register(SOUNDTRACK_GENERATE, self._bind(self._generate_track))
-        registry.register(SOUNDTRACK_VALIDATE, self._bind(self._validate_track))
-        registry.register(UI_INVENTORY_GENERATE, self._bind(self._generate_inventory_panel))
-        registry.register(UI_INVENTORY_VALIDATE, self._bind(self._validate_inventory_panel))
-        registry.register(UI_INVENTORY_REVIEW, self._bind(self._review_inventory_panel))
-        registry.register(UI_ATLAS_GENERATE, self._bind(self._atlas.generate))
-        registry.register(UI_ATLAS_VALIDATE, self._bind(self._atlas.validate))
-        registry.register(UI_ATLAS_REVIEW, self._bind(self._atlas.review))
-        return registry
-
-    def _bind(self, method: Callable[[Node], Awaitable[NodeExecutionResult]]) -> NodeHandler:
-        async def handler(node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
-            return await method(node)
-
-        return handler
+        return (
+            (PACKAGE_RESOLVE, self._resolve_package),
+            (GAMEPLAY_BINDINGS_VALIDATE, self._write_bindings),
+            (ACTOR_CONCEPT_GENERATE, self._generate_concept),
+            (MOTION_ATLAS_GENERATE, self._generate_motion),
+            (MOTION_ATLAS_VALIDATE, self._validate_motion),
+            (DIALOGUE_ATLAS_GENERATE, self._generate_dialogue),
+            (DIALOGUE_ATLAS_VALIDATE, self._validate_dialogue),
+            (WORLD_SPRITE_GENERATE, self._generate_world_sprite),
+            (WORLD_SPRITE_VALIDATE, self._validate_world_sprite),
+            (MOTION_REBASE_JUDGE, self._actor_motion_rebase),
+            (MOTION_REBASE_VERIFY, self._actor_motion_rebase_verify),
+            (ACTOR_CONTACT_SHEET, self._actor_contact_sheet),
+            (ACTOR_REVIEW, self._actor_review),
+            (CATALOG_ASSET_GENERATE, self._generate_catalog_asset),
+            (CATALOG_ASSET_VALIDATE, self._validate_catalog_asset),
+            (CATALOG_CONTACT_SHEET, self._catalog_contact_sheet),
+            (CATALOG_REVIEW, self._catalog_review),
+            (SOUNDTRACK_GENERATE, self._generate_track),
+            (SOUNDTRACK_VALIDATE, self._validate_track),
+            (UI_INVENTORY_GENERATE, self._generate_inventory_panel),
+            (UI_INVENTORY_VALIDATE, self._validate_inventory_panel),
+            (UI_INVENTORY_REVIEW, self._review_inventory_panel),
+            (UI_ATLAS_GENERATE, self._atlas.generate),
+            (UI_ATLAS_VALIDATE, self._atlas.validate),
+            (UI_ATLAS_REVIEW, self._atlas.review),
+        )
 
     # ------------------------------------------------------------- node params
 
@@ -432,7 +387,7 @@ class PreparedContentNodeHandler:
         references = (
             *self._image_references(self._package.ui.references, panel.reference_ids),
             ImageReference(
-                url=_data_url(template_data, "image/png"),
+                url=data_url(template_data, "image/png"),
                 provenance_ref=(
                     "resource://fixtures/image_gen_templates/inventory_template.png"
                     f"#sha256={_sha(template_data)}"
@@ -629,7 +584,7 @@ class PreparedContentNodeHandler:
         concept_data = (self._run_dir / concept_ref).read_bytes()
         references = (
             ImageReference(
-                url=_data_url(concept_data, "image/png"),
+                url=data_url(concept_data, "image/png"),
                 provenance_ref=f"run://{concept_ref}#sha256={_sha(concept_data)}",
             ),
         )
@@ -719,7 +674,7 @@ class PreparedContentNodeHandler:
                 artifact_path=output,
                 input_references=(
                     ImageReference(
-                        url=_data_url(concept_data, "image/png"),
+                        url=data_url(concept_data, "image/png"),
                         provenance_ref=f"run://{concept_ref}#sha256={_sha(concept_data)}",
                     ),
                 ),
@@ -1527,7 +1482,7 @@ class PreparedContentNodeHandler:
             package_file = self._package.file(reference.source)
             values.append(
                 ImageReference(
-                    url=_data_url(package_file.data, _media_type(reference.source)),
+                    url=data_url(package_file.data, _media_type(reference.source)),
                     provenance_ref=(
                         f"package://{self._package.game.game_id}/{reference.source}"
                         f"#sha256={package_file.sha256}"
@@ -1544,7 +1499,7 @@ class PreparedContentNodeHandler:
 
     def _run_structured_reference(self, path: Path) -> StructuredReference:
         return StructuredReference(
-            url=_data_url(path.read_bytes(), "image/png"),
+            url=data_url(path.read_bytes(), "image/png"),
             provenance_ref=f"run://{path.relative_to(self._run_dir).as_posix()}",
         )
 
@@ -1553,7 +1508,7 @@ class PreparedContentNodeHandler:
     ) -> StructuredReference:
         package_file = self._package.file(reference.source)
         return StructuredReference(
-            url=_data_url(package_file.data, _media_type(reference.source)),
+            url=data_url(package_file.data, _media_type(reference.source)),
             provenance_ref=(
                 f"package://{self._package.game.game_id}/{reference.source}"
                 f"#sha256={package_file.sha256}"
@@ -1568,27 +1523,6 @@ class PreparedContentNodeHandler:
 
     def _npc(self, entity_id: str) -> NpcContent:
         return next(entry for entry in self._package.npcs.npcs if entry.npc_id == entity_id)
-
-    def _result(
-        self, node: Node, *, attempts: int = 1, provider_operations: int
-    ) -> NodeExecutionResult:
-        """Every declared port, artifact then sidecar, exactly as the type promised."""
-
-        refs: list[str] = []
-        for port in node.ports:
-            refs.append(port.artifact_ref)
-            if port.sidecar_ref is not None:
-                refs.append(port.sidecar_ref)
-        return NodeExecutionResult(
-            cache=CacheDisposition.MISS,
-            attempts=attempts,
-            provider_operations=provider_operations,
-            artifacts=tuple(
-                _node_artifact(self._run_dir, self._run_dir / ref)
-                for ref in refs
-                if (self._run_dir / ref).is_file()
-            ),
-        )
 
     def _cached_primary_artifact_valid(self, node: Node, data: bytes) -> bool:
         """Re-prove a restored image against the contract the node was asked for.
@@ -2232,17 +2166,6 @@ def _parse_review(value: object) -> dict[str, object]:
     }:
         raise ValueError("content review has an invalid verdict")
     return value
-
-
-def _node_artifact(run_dir: Path, path: Path) -> NodeArtifact:
-    data = path.read_bytes()
-    return NodeArtifact(
-        artifact_ref=path.relative_to(run_dir).as_posix(), sha256=_sha(data), bytes=len(data)
-    )
-
-
-def _data_url(data: bytes, media_type: str) -> str:
-    return f"data:{media_type};base64,{base64.b64encode(data).decode('ascii')}"
 
 
 def _media_type(path: str) -> str:

@@ -13,7 +13,6 @@ priced decision rather than an automatic retry.
 
 from __future__ import annotations
 
-import base64
 import json
 from io import BytesIO
 from typing import TYPE_CHECKING, Any, Literal
@@ -23,14 +22,10 @@ from PIL import Image, ImageOps
 from gnode import (
     ArtifactRights,
     BinaryArtifact,
-    CacheDisposition,
     ImageGenerationRequest,
     ImageGenerationService,
-    NodeArtifact,
-    NodeExecutionError,
     NodeExecutionResult,
-    NodeHandler,
-    NodeTypeRegistry,
+    NodeType,
     ProvenanceInput,
     SoftwareIdentity,
     StructuredGenerationService,
@@ -40,8 +35,9 @@ from gnode import (
 )
 from stage_gen.canonical import canonical_json_bytes, content_sha256
 from stage_gen.identity import STAGE_GEN_TOOL
+from stage_gen.media import data_url
 from stage_gen.media.codec import encode_png
-from stage_gen.recipes.node_cache import NodeArtifactCache
+from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
 from stage_gen.recipes.universe import models
 from stage_gen.recipes.universe.medium import forbidden_terms_present
 from stage_gen.recipes.universe.schema import AttemptLedger, generate_structured, known_cost
@@ -86,10 +82,10 @@ from stage_gen.recipes.universe.universe_types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable, Mapping, Sequence
+    from collections.abc import Mapping, Sequence
     from pathlib import Path
 
-    from gnode import Node, NodeExecutionContext
+    from gnode import Node
     from stage_gen.recipes.universe.universe_request import (
         AdmittedUniverse,
         ResolvedUniverseSource,
@@ -122,10 +118,6 @@ def make_image_proxy(data: bytes, *, long_edge: int, fmt: Literal["JPEG", "PNG"]
     return output.getvalue()
 
 
-def _data_url(data: bytes, media_type: str) -> str:
-    return f"data:{media_type};base64,{base64.b64encode(data).decode('ascii')}"
-
-
 def _document_bytes(value: object) -> bytes:
     return (
         json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False, allow_nan=False) + "\n"
@@ -136,7 +128,7 @@ def _compact(value: object) -> str:
     return canonical_json_bytes(value).decode("utf-8")
 
 
-class UniverseNodeHandler:
+class UniverseNodeHandler(RecipeNodeHandler):
     """One run's node work: cache first, then the type's own handler."""
 
     def __init__(
@@ -150,13 +142,11 @@ class UniverseNodeHandler:
         image_service: ImageGenerationService | None = None,
         admitted: AdmittedUniverse | None = None,
     ) -> None:
-        self._graph = graph
         self._resolved = resolved
-        self._run_dir = run_dir
         self._structured = structured_service
         self._images = image_service
         self._admitted = admitted
-        self._cache = NodeArtifactCache(
+        super().__init__(
             graph,
             run_dir=run_dir,
             cache_dir=cache_dir,
@@ -164,8 +154,10 @@ class UniverseNodeHandler:
             record_kind=UNIVERSE_CACHE_RECORD_KIND,
             admit=_admit_cached,
         )
-        self._registry = NodeTypeRegistry()
-        for node_type, method in (
+        self._registry.validate_graph_types(graph.nodes)
+
+    def _handlers(self) -> tuple[tuple[NodeType, NodeMethod], ...]:
+        return (
             (SOURCE_LOCK, self._source_lock),
             (PROPOSE, self._propose),
             (PLAN, self._plan),
@@ -179,51 +171,6 @@ class UniverseNodeHandler:
             (CONCEPT_REVIEW, self._image_review),
             (ENTITY_RECORD, self._record),
             (GALLERY_CLOSE, self._close),
-        ):
-            self._registry.register(node_type, _bind(method))
-        self._registry.validate_graph_types(graph.nodes)
-
-    async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
-        cached = self._cache.read(node, context)
-        if cached is not None:
-            return cached
-        try:
-            result = await self._registry(node, context)
-        except NodeExecutionError:
-            raise
-        except Exception as error:
-            attempts = min(max(int(getattr(error, "attempts", 1)), 1), 6)
-            raise NodeExecutionError(
-                f"{type(error).__name__}: {error}",
-                attempts=attempts,
-                provider_operations=0 if node.is_local else attempts,
-            ) from error
-        self._cache.write(node, context, result)
-        return result
-
-    # -- utilities ------------------------------------------------------------
-
-    def _path(self, ref: str) -> Path:
-        return self._run_dir / ref
-
-    def _result(
-        self, node: Node, *, attempts: int = 1, operations: int = 0, cost: float | None = None
-    ) -> NodeExecutionResult:
-        artifacts: list[NodeArtifact] = []
-        for port in node.ports:
-            for ref in (port.artifact_ref, port.sidecar_ref):
-                if ref is None:
-                    continue
-                data = self._path(ref).read_bytes()
-                artifacts.append(
-                    NodeArtifact(artifact_ref=ref, sha256=content_sha256(data), bytes=len(data))
-                )
-        return NodeExecutionResult(
-            cache=CacheDisposition.MISS,
-            attempts=attempts,
-            provider_operations=operations,
-            artifacts=tuple(artifacts),
-            known_cost_usd=cost,
         )
 
     async def _write_local(
@@ -278,7 +225,7 @@ class UniverseNodeHandler:
 
         ref = INPUT_POSTER_PROXY_REF if self._admitted is not None else POSTER_PROXY_REF
         return StructuredReference(
-            url=_data_url(self._path(ref).read_bytes(), "image/jpeg"),
+            url=data_url(self._path(ref).read_bytes(), "image/jpeg"),
             provenance_ref=self._run_ref(ref),
         )
 
@@ -328,7 +275,7 @@ EXPANSION DIRECTION (full text)
 
     # -- semantic phase -------------------------------------------------------
 
-    async def _source_lock(self, node: Node, _context: NodeExecutionContext) -> NodeExecutionResult:
+    async def _source_lock(self, node: Node) -> NodeExecutionResult:
         resolved = self._resolved
         source = resolved.source
         proxy = make_image_proxy(
@@ -383,7 +330,7 @@ EXPANSION DIRECTION (full text)
         )
         return self._result(node)
 
-    async def _propose(self, node: Node, _context: NodeExecutionContext) -> NodeExecutionResult:
+    async def _propose(self, node: Node) -> NodeExecutionResult:
         service, card_prompt = self._require_structured(node)
         ledger = AttemptLedger(operation_id="universe.propose")
         try:
@@ -403,10 +350,13 @@ EXPANSION DIRECTION (full text)
             await self._write_ledger(node, ledger)
         attempts = operation["attempts"]
         return self._result(
-            node, attempts=attempts, operations=attempts, cost=known_cost(operation.get("usage"))
+            node,
+            attempts=attempts,
+            provider_operations=attempts,
+            known_cost_usd=known_cost(operation.get("usage")),
         )
 
-    async def _plan(self, node: Node, _context: NodeExecutionContext) -> NodeExecutionResult:
+    async def _plan(self, node: Node) -> NodeExecutionResult:
         service, card_prompt = self._require_structured(node)
         proposal = self._load_proposal()
         projection = {
@@ -457,10 +407,13 @@ EXPANSION DIRECTION (full text)
             await self._write_ledger(node, ledger)
         attempts = operation["attempts"]
         return self._result(
-            node, attempts=attempts, operations=attempts, cost=known_cost(operation.get("usage"))
+            node,
+            attempts=attempts,
+            provider_operations=attempts,
+            known_cost_usd=known_cost(operation.get("usage")),
         )
 
-    async def _evaluate(self, node: Node, _context: NodeExecutionContext) -> NodeExecutionResult:
+    async def _evaluate(self, node: Node) -> NodeExecutionResult:
         proposal = self._load_proposal()
         plan = self._load_plan()
         proposal_evaluation = self._proposal_evaluation(proposal)
@@ -492,7 +445,7 @@ EXPANSION DIRECTION (full text)
             raise ValueError("persisted proposal or plan failed deterministic evaluation")
         return self._result(node)
 
-    async def _review(self, node: Node, _context: NodeExecutionContext) -> NodeExecutionResult:
+    async def _review(self, node: Node) -> NodeExecutionResult:
         service, card_prompt = self._require_structured(node)
         proposal_bytes = self._path(PROPOSAL_REF).read_bytes()
         plan_bytes = self._path(PLAN_REF).read_bytes()
@@ -539,10 +492,13 @@ EXPANSION DIRECTION (full text)
             await self._write_ledger(node, ledger)
         attempts = operation["attempts"]
         return self._result(
-            node, attempts=attempts, operations=attempts, cost=known_cost(operation.get("usage"))
+            node,
+            attempts=attempts,
+            provider_operations=attempts,
+            known_cost_usd=known_cost(operation.get("usage")),
         )
 
-    async def _admit(self, node: Node, _context: NodeExecutionContext) -> NodeExecutionResult:
+    async def _admit(self, node: Node) -> NodeExecutionResult:
         review = models.SemanticReview.model_validate_json(
             self._path(SEMANTIC_REVIEW_REF).read_bytes()
         )
@@ -647,9 +603,7 @@ EXPANSION DIRECTION (full text)
             "plan": plan.model_dump(mode="json"),
         }
 
-    async def _global_direction(
-        self, node: Node, _context: NodeExecutionContext
-    ) -> NodeExecutionResult:
+    async def _global_direction(self, node: Node) -> NodeExecutionResult:
         service, card_prompt = self._require_structured(node)
         admitted = self._require_admitted()
         proposal = admitted.proposal
@@ -732,12 +686,13 @@ EXPANSION DIRECTION (full text)
             await self._write_ledger(node, ledger)
         attempts = operation["attempts"]
         return self._result(
-            node, attempts=attempts, operations=attempts, cost=known_cost(operation.get("usage"))
+            node,
+            attempts=attempts,
+            provider_operations=attempts,
+            known_cost_usd=known_cost(operation.get("usage")),
         )
 
-    async def _entity_direction(
-        self, node: Node, _context: NodeExecutionContext
-    ) -> NodeExecutionResult:
+    async def _entity_direction(self, node: Node) -> NodeExecutionResult:
         service, card_prompt = self._require_structured(node)
         entity_id = str(node.params["entity_id"])
         admitted = self._require_admitted()
@@ -783,10 +738,13 @@ EXPANSION DIRECTION (full text)
         )
         attempts = operation["attempts"]
         return self._result(
-            node, attempts=attempts, operations=attempts, cost=known_cost(operation.get("usage"))
+            node,
+            attempts=attempts,
+            provider_operations=attempts,
+            known_cost_usd=known_cost(operation.get("usage")),
         )
 
-    async def _image(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
+    async def _image(self, node: Node) -> NodeExecutionResult:
         if self._images is None:
             raise ValueError("gallery image nodes require an image generation service")
         entity_id = str(node.params["entity_id"])
@@ -823,7 +781,7 @@ EXPANSION DIRECTION (full text)
                 moderation="low",
                 metadata={
                     "operation_id": f"universe.image.{entity_id}",
-                    "invocation_id": context.invocation_id,
+                    "invocation_id": self.invocation_id,
                     "entity_id": entity_id,
                     "medium_id": self._resolved.medium.medium_id,
                     "image_route": GALLERY_IMAGE_ROUTE.route_id,
@@ -842,11 +800,11 @@ EXPANSION DIRECTION (full text)
         return self._result(
             node,
             attempts=result.attempts,
-            operations=result.attempts,
-            cost=known_cost(result.response_metadata.usage),
+            provider_operations=result.attempts,
+            known_cost_usd=known_cost(result.response_metadata.usage),
         )
 
-    async def _proxy(self, node: Node, _context: NodeExecutionContext) -> NodeExecutionResult:
+    async def _proxy(self, node: Node) -> NodeExecutionResult:
         entity_id = str(node.params["entity_id"])
         image_ref = f"package/entities/{entity_id}.png"
         proxy = make_image_proxy(
@@ -862,9 +820,7 @@ EXPANSION DIRECTION (full text)
         )
         return self._result(node)
 
-    async def _image_review(
-        self, node: Node, _context: NodeExecutionContext
-    ) -> NodeExecutionResult:
+    async def _image_review(self, node: Node) -> NodeExecutionResult:
         service, card_prompt = self._require_structured(node)
         entity_id = str(node.params["entity_id"])
         image_ref = f"package/entities/{entity_id}.png"
@@ -894,7 +850,7 @@ EXPANSION DIRECTION (full text)
             )
         )
         proxy_reference = StructuredReference(
-            url=_data_url(self._path(proxy_ref).read_bytes(), "image/png"),
+            url=data_url(self._path(proxy_ref).read_bytes(), "image/png"),
             provenance_ref=self._run_ref(proxy_ref),
         )
 
@@ -924,10 +880,13 @@ EXPANSION DIRECTION (full text)
             await self._write_ledger(node, ledger)
         attempts = operation["attempts"]
         return self._result(
-            node, attempts=attempts, operations=attempts, cost=known_cost(operation.get("usage"))
+            node,
+            attempts=attempts,
+            provider_operations=attempts,
+            known_cost_usd=known_cost(operation.get("usage")),
         )
 
-    async def _record(self, node: Node, _context: NodeExecutionContext) -> NodeExecutionResult:
+    async def _record(self, node: Node) -> NodeExecutionResult:
         entity_id = str(node.params["entity_id"])
         admitted = self._require_admitted()
         proposal = admitted.proposal
@@ -1007,7 +966,7 @@ EXPANSION DIRECTION (full text)
         )
         return self._result(node)
 
-    async def _close(self, node: Node, _context: NodeExecutionContext) -> NodeExecutionResult:
+    async def _close(self, node: Node) -> NodeExecutionResult:
         admitted = self._require_admitted()
         entries = []
         for entity in admitted.proposal.entities:
@@ -1063,15 +1022,6 @@ def _admit_cached(node: Node, payloads: tuple[bytes, ...]) -> bool:
     except (ValueError, TypeError):
         return False
     return (facts.width, facts.height) == (width, height) and not facts.has_alpha
-
-
-def _bind(
-    method: Callable[[Node, NodeExecutionContext], Awaitable[NodeExecutionResult]],
-) -> NodeHandler:
-    async def handler(node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
-        return await method(node, context)
-
-    return handler
 
 
 def _other(relationship: models.Relationship, entity_id: str) -> str:

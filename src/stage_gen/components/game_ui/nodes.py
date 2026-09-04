@@ -26,7 +26,6 @@ gates on full static prompts admits these nodes like any other.
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
@@ -92,6 +91,7 @@ from stage_gen.components.game_ui.icons import (
     validate_icon_sheet,
 )
 from stage_gen.components.game_ui.models import AtlasRoleDirection, GameUi, IconSetDirection
+from stage_gen.media import data_url
 
 _P = "2d/ui"
 _PROVIDER = NodePolicy(max_attempts=6)
@@ -638,7 +638,7 @@ class UiAtlasHandlers:
         references = (
             *self._image_references(direction.reference_ids),
             ImageReference(
-                url=_data_url(template_data, "image/png"),
+                url=data_url(template_data, "image/png"),
                 provenance_ref=f"geometry://{role.layout}#sha256={_sha(template_data)}",
             ),
         )
@@ -765,7 +765,7 @@ class UiAtlasHandlers:
             package_file = self._host.file(source)
             values.append(
                 ImageReference(
-                    url=_data_url(package_file.data, _media_type(source)),
+                    url=data_url(package_file.data, _media_type(source)),
                     provenance_ref=(
                         f"package://{self._host.package_id}/{source}#sha256={package_file.sha256}"
                     ),
@@ -776,7 +776,7 @@ class UiAtlasHandlers:
     def _package_structured_reference(self, source: str) -> StructuredReference:
         package_file = self._host.file(source)
         return StructuredReference(
-            url=_data_url(package_file.data, _media_type(source)),
+            url=data_url(package_file.data, _media_type(source)),
             provenance_ref=(
                 f"package://{self._host.package_id}/{source}#sha256={package_file.sha256}"
             ),
@@ -1007,7 +1007,7 @@ def _card_prompt(node: Node) -> str:
 
 def _structured_reference_from_run(path: Path, run_dir: Path) -> StructuredReference:
     return StructuredReference(
-        url=_data_url(path.read_bytes(), "image/png"),
+        url=data_url(path.read_bytes(), "image/png"),
         provenance_ref=f"run://{path.relative_to(run_dir).as_posix()}",
     )
 
@@ -1017,10 +1017,6 @@ def _node_artifact(run_dir: Path, path: Path) -> NodeArtifact:
     return NodeArtifact(
         artifact_ref=path.relative_to(run_dir).as_posix(), sha256=_sha(data), bytes=len(data)
     )
-
-
-def _data_url(data: bytes, media_type: str) -> str:
-    return f"data:{media_type};base64,{base64.b64encode(data).decode('ascii')}"
 
 
 def _media_type(path: str) -> str:

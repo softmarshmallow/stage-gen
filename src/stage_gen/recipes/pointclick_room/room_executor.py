@@ -7,28 +7,12 @@ component.
 
 from __future__ import annotations
 
-import asyncio
-from dataclasses import dataclass
+from collections.abc import Mapping
 from pathlib import Path
 
-from gnode import (
-    DryRunNodeHandler,
-    JsonlTraceSink,
-    Projection,
-    RunSummary,
-    Scheduler,
-    assert_safe_path_segment,
-    atomic_write_json,
-    project_schedule,
-    validate_plan_types,
-    write_graph,
-    write_run_summary,
-)
-from stage_gen.config import StageGenConfig
-from stage_gen.orchestration.runtime import (
-    create_openai_image_service,
-    create_structured_service,
-)
+from gnode import NodeType, assert_safe_path_segment
+from stage_gen.config import CapabilityName
+from stage_gen.recipes.executor import RecipeExecutor, RecipePlan, RecipeRun
 from stage_gen.recipes.pointclick_room.prepared_room import PointClickRoomNodeHandler
 from stage_gen.recipes.pointclick_room.room_graph import (
     PointClickRoomGraph,
@@ -42,72 +26,23 @@ from stage_gen.recipes.pointclick_room.room_request import (
 )
 from stage_gen.recipes.pointclick_room.room_types import pointclick_type_index
 
-
-@dataclass(frozen=True, slots=True)
-class PointClickRoomPlan:
-    resolved: ResolvedPointClickRoom
-    graph: PointClickRoomGraph
-    projection: Projection
+PointClickRoomPlan = RecipePlan[ResolvedPointClickRoom, PointClickRoomGraph]
+PointClickRoomRun = RecipeRun[PointClickRoomPlan]
 
 
-@dataclass(frozen=True, slots=True)
-class PointClickRoomRun:
-    plan: PointClickRoomPlan
-    summary: RunSummary
-    run_dir: Path
-
-
-class PointClickRoomExecutor:
+class PointClickRoomExecutor(RecipeExecutor[ResolvedPointClickRoom, PointClickRoomGraph]):
     """Resolve, plan, and dispatch one authored room."""
 
-    def __init__(self, config: StageGenConfig) -> None:
-        self._config = config
+    IDENTITY_DOCUMENT = "room-identity.json"
 
-    def plan(self, input_path: Path) -> PointClickRoomPlan:
-        """Resolve one authored room package directory into its exact plan."""
+    def _resolve(self, input_path: Path) -> ResolvedPointClickRoom:
+        return resolve_pointclick_room(read_room_document(input_path), root=input_path)
 
-        resolved = resolve_pointclick_room(read_room_document(input_path), root=input_path)
-        graph = build_pointclick_room_graph(resolved, profile=room_graph_profile(self._config))
-        validate_plan_types(graph.nodes, pointclick_type_index())
-        return PointClickRoomPlan(
-            resolved=resolved, graph=graph, projection=project_schedule(graph)
-        )
+    def _build(self, resolved: ResolvedPointClickRoom) -> PointClickRoomGraph:
+        return build_pointclick_room_graph(resolved, profile=room_graph_profile(self._config))
 
-    async def dry_run(
-        self,
-        input_path: Path,
-        *,
-        run_dir: Path,
-        cache_dir: Path,
-        invocation_id: str,
-        failure_node_id: str | None = None,
-        time_scale: float = 0.0001,
-    ) -> PointClickRoomRun:
-        assert_safe_path_segment(invocation_id, "invocation_id")
-        plan = await self._open_run(input_path, run_dir=run_dir)
-        trace = JsonlTraceSink(run_dir / "execution-trace.jsonl")
-        scheduler = Scheduler(
-            plan.graph.resources,
-            node_timeout_seconds=self._config.stage_timeout_s,
-            secrets=self._secrets(),
-        )
-        try:
-            summary = await scheduler.run(
-                plan.graph,
-                DryRunNodeHandler(
-                    plan.graph,
-                    run_dir=run_dir,
-                    cache_dir=cache_dir,
-                    failure_node_id=failure_node_id,
-                    time_scale=time_scale,
-                ),
-                invocation_id=invocation_id,
-                trace_sink=trace,
-            )
-        finally:
-            trace.close()
-        write_run_summary(run_dir / "execution-summary.json", summary)
-        return PointClickRoomRun(plan=plan, summary=summary, run_dir=run_dir)
+    def _type_index(self) -> Mapping[str, NodeType]:
+        return pointclick_type_index()
 
     async def run(
         self,
@@ -120,64 +55,23 @@ class PointClickRoomExecutor:
         """Execute the whole room, including the terminal bundle."""
 
         assert_safe_path_segment(invocation_id, "invocation_id")
-        if self._config.openai_api_key is None:
-            raise ValueError("pointclick-room execution requires OPENAI_API_KEY")
-        if self._config.open_router_api_key is None:
-            raise ValueError("pointclick-room execution requires OPENROUTER_API_KEY")
-        plan = await self._open_run(input_path, run_dir=run_dir)
-        trace = JsonlTraceSink(run_dir / "execution-trace.jsonl")
-        image_service = create_openai_image_service(
-            api_key=self._config.openai_api_key,
-            model=self._config.openai_image_model,
-            base_url=self._config.openai_base_url or "https://api.openai.com/v1",
-            images_per_minute=self._config.openai_image_ipm,
-        )
-        structured_service = create_structured_service(
-            api_key=self._config.open_router_api_key,
-            model=self._config.text_model,
-            base_url=self._config.open_router_base_url or "https://openrouter.ai/api/v1",
-        )
-        scheduler = Scheduler(
-            plan.graph.resources,
-            node_timeout_seconds=max(self._config.stage_timeout_s, 900),
-            secrets=self._secrets(),
-        )
-        handler = PointClickRoomNodeHandler(
-            plan.graph,
-            plan.resolved,
-            run_dir=run_dir,
-            cache_dir=cache_dir,
-            image_service=image_service,
-            structured_service=structured_service,
-            capability_timeout_s=self._config.capability_timeout_s,
-        )
-        try:
-            summary = await scheduler.run(
-                plan.graph,
-                handler,
-                invocation_id=invocation_id,
-                trace_sink=trace,
-            )
-        finally:
-            trace.close()
-            await image_service.aclose()
-            await structured_service.aclose()
-        write_run_summary(run_dir / "execution-summary.json", summary)
-        return PointClickRoomRun(plan=plan, summary=summary, run_dir=run_dir)
-
-    async def _open_run(self, input_path: Path, *, run_dir: Path) -> PointClickRoomPlan:
+        self.require(CapabilityName.NATIVE_IMAGE_GENERATION, CapabilityName.STRUCTURED_GENERATION)
         plan = self.plan(input_path)
-        await asyncio.to_thread(run_dir.mkdir, parents=True, exist_ok=False)
-        write_graph(run_dir / "execution-plan.json", plan.graph)
-        atomic_write_json(
-            run_dir / "execution-projection.json",
-            plan.projection.model_dump(mode="json"),
-        )
-        atomic_write_json(run_dir / "room-identity.json", plan.resolved.identity())
-        return plan
-
-    def _secrets(self) -> tuple[str, ...]:
-        return self._config.secret_values()
+        await self.open_run(plan, run_dir=run_dir)
+        async with self.services() as services:
+            handler = PointClickRoomNodeHandler(
+                plan.graph,
+                plan.resolved,
+                run_dir=run_dir,
+                cache_dir=cache_dir,
+                image_service=services.image(),
+                structured_service=services.structured(),
+                capability_timeout_s=self._config.capability_timeout_s,
+            )
+            summary = await self.dispatch(
+                plan, handler, run_dir=run_dir, invocation_id=invocation_id
+            )
+        return RecipeRun(plan=plan, summary=summary, run_dir=run_dir)
 
 
 __all__ = ["PointClickRoomExecutor", "PointClickRoomPlan", "PointClickRoomRun"]

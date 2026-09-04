@@ -1005,7 +1005,7 @@ async def _dispatch_dialogue_scene(
     report = {
         "ok": run.summary.ok,
         "recipe": "dialogue-scene",
-        "scene_id": run.plan.scene.scene_id,
+        "scene_id": run.plan.resolved.scene_id,
         "run_dir": str(output_path),
         "graph_sha256": run.plan.graph.graph_sha256,
         "topology_sha256": run.plan.graph.topology_sha256,
@@ -1248,7 +1248,7 @@ async def _dispatch_async(
                     ),
                     "artifact_count": None if published is None else published.artifact_count,
                     "adopted_from_roots": list(integration_result.adopted_node_ids),
-                    "package_sha256": integration_result.plan.package.package_sha256,
+                    "package_sha256": integration_result.plan.resolved.package_sha256,
                     "run_dir": str(integration_run_dir),
                     "output_dir": str(output_path),
                     "disposition": None if published is None else published.disposition,

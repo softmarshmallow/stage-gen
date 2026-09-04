@@ -24,7 +24,6 @@ the pipeline renders.
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import io
 import json
@@ -102,6 +101,7 @@ from stage_gen.components.game_fx.sprite import (
     dust_atlas_contract,
     validate_dust_atlas,
 )
+from stage_gen.media import data_url
 
 _P = "2d/fx"
 _PROVIDER = NodePolicy(max_attempts=6)
@@ -902,7 +902,7 @@ def _authored_references(
         package_file = host.file(source)
         values.append(
             ImageReference(
-                url=_data_url(package_file.data, _media_type(source)),
+                url=data_url(package_file.data, _media_type(source)),
                 provenance_ref=f"package://{host.package_id}/{source}#sha256={package_file.sha256}",
             )
         )
@@ -1037,9 +1037,7 @@ def cut_in_generate_request(
         artifact_ref, data = _produced_reference(graph, port_ref, read)
         # First, because the prompt calls it image 1: the identity the plate is drawn
         # from leads the authored style references it is drawn in.
-        subject_references = (
-            ImageReference(_data_url(data, "image/png"), f"run://{artifact_ref}"),
-        )
+        subject_references = (ImageReference(data_url(data, "image/png"), f"run://{artifact_ref}"),)
         if subject is not None:
             metadata["subject_id"] = subject.actor_id
     return ImageGenerationRequest(
@@ -1074,7 +1072,7 @@ def cut_in_review_request(
     evidence_ref = evidence_port.artifact_ref
     references: list[StructuredReference] = [
         StructuredReference(
-            url=_data_url(read(evidence_ref), "image/png"),
+            url=data_url(read(evidence_ref), "image/png"),
             provenance_ref=f"run://{evidence_ref}",
         )
     ]
@@ -1085,7 +1083,7 @@ def cut_in_review_request(
         artifact_ref, data = _produced_reference(graph, port_ref, read)
         references.append(
             StructuredReference(
-                url=_data_url(data, "image/png"), provenance_ref=f"run://{artifact_ref}"
+                url=data_url(data, "image/png"), provenance_ref=f"run://{artifact_ref}"
             )
         )
     by_id = {entry.reference_id: entry for entry in host.fx.references}
@@ -1094,7 +1092,7 @@ def cut_in_review_request(
         package_file = host.file(source)
         references.append(
             StructuredReference(
-                url=_data_url(package_file.data, _media_type(source)),
+                url=data_url(package_file.data, _media_type(source)),
                 provenance_ref=f"package://{host.package_id}/{source}#sha256={package_file.sha256}",
             )
         )
@@ -1186,7 +1184,7 @@ def _mask_facts(reveal: Mapping[str, Any]) -> str:
     )
 
 
-def _render_data_url(composed: Image.Image) -> str:
+def _renderdata_url(composed: Image.Image) -> str:
     stage = Image.new("RGBA", composed.size, (*_RENDER_STAGE, 255))
     stage.alpha_composite(composed)
     scaled = stage.convert("RGB").resize(
@@ -1195,7 +1193,7 @@ def _render_data_url(composed: Image.Image) -> str:
     )
     stream = io.BytesIO()
     scaled.save(stream, format="JPEG", quality=85, optimize=True)
-    return _data_url(stream.getvalue(), "image/jpeg")
+    return data_url(stream.getvalue(), "image/jpeg")
 
 
 def cut_in_place_request(
@@ -1232,7 +1230,7 @@ def cut_in_place_request(
         composed = compose_hold_frame(frame_data, raw, placement={"scale": scale, "x": x, "y": y})
         return ToolResult(
             text=f"Rendered the composition at scale={scale:g}, x={x:g}, y={y:g}.",
-            images=(_render_data_url(composed),),
+            images=(_renderdata_url(composed),),
         )
 
     def admit(value: object) -> dict[str, object]:
@@ -1271,13 +1269,13 @@ def cut_in_place_request(
         validate=admit,
         references=(
             ToolLoopReference(
-                url=_data_url(raw, "image/png"), provenance_ref=f"run://{raw_port.artifact_ref}"
+                url=data_url(raw, "image/png"), provenance_ref=f"run://{raw_port.artifact_ref}"
             ),
             ToolLoopReference(
-                url=_data_url(frame_data, "image/png"),
+                url=data_url(frame_data, "image/png"),
                 provenance_ref=f"run://{frame_plate_port.artifact_ref}",
             ),
-            ToolLoopReference(url=_render_data_url(starting)),
+            ToolLoopReference(url=_renderdata_url(starting)),
         ),
         max_steps=FX_CUT_IN_PLACE_MAX_STEPS,
         max_total_tokens=FX_CUT_IN_PLACE_MAX_TOTAL_TOKENS,
@@ -1684,10 +1682,6 @@ def _node_artifact(run_dir: Path, path: Path) -> NodeArtifact:
     return NodeArtifact(
         artifact_ref=path.relative_to(run_dir).as_posix(), sha256=_sha(data), bytes=len(data)
     )
-
-
-def _data_url(data: bytes, media_type: str) -> str:
-    return f"data:{media_type};base64,{base64.b64encode(data).decode('ascii')}"
 
 
 def _media_type(path: str) -> str:

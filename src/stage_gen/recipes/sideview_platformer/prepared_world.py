@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import io
 import json
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Literal
 
@@ -14,18 +13,13 @@ from PIL import Image, ImageChops, ImageOps, ImageStat
 
 from gnode import (
     BinaryArtifact,
-    CacheDisposition,
     ImageGenerationRequest,
     ImageGenerationService,
     ImageReference,
     InputProvenance,
     Node,
-    NodeArtifact,
-    NodeExecutionContext,
-    NodeExecutionError,
     NodeExecutionResult,
-    NodeHandler,
-    NodeTypeRegistry,
+    NodeType,
     ProvenanceInput,
     SoftwareIdentity,
     StructuredGenerationRequest,
@@ -98,12 +92,13 @@ from stage_gen.media import (
     LoopConstruction,
     RegistrationError,
     SeamConditioning,
+    data_url,
     repack_alpha_components,
     trim_layer_to_alpha_box,
 )
 from stage_gen.media.codec import decode_rgba, encode_png
 from stage_gen.orchestration.game_package import ResolvedGamePackage
-from stage_gen.recipes.node_cache import NodeArtifactCache
+from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
 from stage_gen.recipes.sideview_platformer.climbable_atlas import (
     MAX_HEIGHT_PARITY,
     ROLE_ASPECT_ENVELOPE,
@@ -148,7 +143,7 @@ _COMPOSITE_VIEWPORT_HEIGHT_PX = 720
 _COMPOSITE_TILE_PX = 64
 
 
-class PreparedWorldNodeHandler:
+class PreparedWorldNodeHandler(RecipeNodeHandler):
     """Dispatch map nodes while retaining provider operations in shared components."""
 
     def __init__(
@@ -163,15 +158,12 @@ class PreparedWorldNodeHandler:
         terrain_template_path: Path,
         terrain_topology_reference_path: Path,
     ) -> None:
-        self._graph = graph
         self._package = package
-        self._run_dir = run_dir
-        self._cache_dir = cache_dir
         self._images = image_service
         self._structured = structured_service
         self._terrain_template_path = terrain_template_path
         self._terrain_topology_reference_path = terrain_topology_reference_path
-        self._cache = NodeArtifactCache(
+        super().__init__(
             graph,
             run_dir=run_dir,
             cache_dir=cache_dir,
@@ -181,7 +173,6 @@ class PreparedWorldNodeHandler:
                 bool(payloads) and self._cached_world_artifact_valid(node, payloads[0])
             ),
         )
-        self._registry = self._build_registry()
 
     def _cached_world_artifact_valid(self, node: Node, data: bytes) -> bool:
         """Re-prove a restored image against the gate its generation ran inside.
@@ -250,73 +241,35 @@ class PreparedWorldNodeHandler:
             return False
         return True
 
-    async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
-        cached = self._cache.read(node, context)
-        if cached is not None:
-            return cached
-        try:
-            result = await self._registry(node, context)
-        except NodeExecutionError:
-            raise
-        except Exception as error:
-            external = not node.is_local
-            attempts = int(getattr(error, "attempts", 1))
-            raise NodeExecutionError(
-                str(error),
-                attempts=attempts,
-                provider_operations=attempts if external else 0,
-            ) from error
-        self._cache.write(node, context, result)
-        return result
-
-    def restore(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult | None:
-        """The cache's answer alone: restored into the run, or ``None``. Never generates."""
-
-        return self._cache.read(node, context)
-
-    @property
-    def registered_type_ids(self) -> frozenset[str]:
-        """The node types this checkpoint owns; integration routes by it."""
-
-        return frozenset(node_type.type_id for node_type in self._registry.types())
-
     # ---------------------------------------------------------------- dispatch
 
-    def _build_registry(self) -> NodeTypeRegistry:
+    def _handlers(self) -> tuple[tuple[NodeType, NodeMethod], ...]:
         """Registered types replace the five node-id regexes this handler once walked.
 
         The manifest type is deliberately absent: this checkpoint stops at the map
         reviews, and the registry's own "unregistered type" refusal is what says so.
         """
 
-        registry = NodeTypeRegistry()
-        registry.register(PACKAGE_RESOLVE, self._bind(self._resolve_package))
-        registry.register(MAP_LAYER_GENERATE, self._bind(self._generate_layer))
-        registry.register(MAP_LAYER_LOOP_PAINT, self._bind(self._paint_layer_loop))
-        registry.register(MAP_LAYER_LOOP_CONSTRUCT, self._bind(self._construct_layer_loop))
-        registry.register(MAP_LAYER_VALIDATE, self._bind(self._validate_layer))
-        registry.register(MAP_TERRAIN_DESIGN, self._bind(self._generate_terrain))
-        registry.register(MAP_GROUND_GENERATE, self._bind(self._generate_ground))
-        registry.register(MAP_GROUND_VALIDATE, self._bind(self._validate_ground))
-        registry.register(PAINTED_TERRAIN_GUIDE, self._bind(self._guide_painted_terrain))
-        registry.register(PAINTED_TERRAIN_GENERATE, self._bind(self._generate_painted_terrain))
-        registry.register(
-            PAINTED_TERRAIN_CANONICALIZE, self._bind(self._canonicalize_painted_terrain)
+        return (
+            (PACKAGE_RESOLVE, self._resolve_package),
+            (MAP_LAYER_GENERATE, self._generate_layer),
+            (MAP_LAYER_LOOP_PAINT, self._paint_layer_loop),
+            (MAP_LAYER_LOOP_CONSTRUCT, self._construct_layer_loop),
+            (MAP_LAYER_VALIDATE, self._validate_layer),
+            (MAP_TERRAIN_DESIGN, self._generate_terrain),
+            (MAP_GROUND_GENERATE, self._generate_ground),
+            (MAP_GROUND_VALIDATE, self._validate_ground),
+            (PAINTED_TERRAIN_GUIDE, self._guide_painted_terrain),
+            (PAINTED_TERRAIN_GENERATE, self._generate_painted_terrain),
+            (PAINTED_TERRAIN_CANONICALIZE, self._canonicalize_painted_terrain),
+            (PAINTED_TERRAIN_COMPOSE, self._compose_painted_terrain),
+            (MAP_CLIMBABLE_GENERATE, self._generate_climbable),
+            (MAP_CLIMBABLE_VALIDATE, self._validate_climbable),
+            (MAP_PORTAL_GENERATE, self._generate_portal),
+            (MAP_PORTAL_VALIDATE, self._validate_portal),
+            (MAP_COMPOSITE, self._composite),
+            (MAP_REVIEW, self._review),
         )
-        registry.register(PAINTED_TERRAIN_COMPOSE, self._bind(self._compose_painted_terrain))
-        registry.register(MAP_CLIMBABLE_GENERATE, self._bind(self._generate_climbable))
-        registry.register(MAP_CLIMBABLE_VALIDATE, self._bind(self._validate_climbable))
-        registry.register(MAP_PORTAL_GENERATE, self._bind(self._generate_portal))
-        registry.register(MAP_PORTAL_VALIDATE, self._bind(self._validate_portal))
-        registry.register(MAP_COMPOSITE, self._bind(self._composite))
-        registry.register(MAP_REVIEW, self._bind(self._review))
-        return registry
-
-    def _bind(self, method: Callable[[Node], Awaitable[NodeExecutionResult]]) -> NodeHandler:
-        async def handler(node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
-            return await method(node)
-
-        return handler
 
     # ------------------------------------------------------------- instance ids
 
@@ -517,12 +470,12 @@ class PreparedWorldNodeHandler:
                     artifact_path=edit_path,
                     input_references=(
                         ImageReference(
-                            _data_url(conditioning.conditioning_png, "image/png"),
+                            data_url(conditioning.conditioning_png, "image/png"),
                             "loop-conditioning",
                         ),
                     ),
                     mask_reference=ImageReference(
-                        _data_url(conditioning.mask_png, "image/png"), "loop-mask"
+                        data_url(conditioning.mask_png, "image/png"), "loop-mask"
                     ),
                     quality="high",
                     background="transparent" if transparent else "opaque",
@@ -673,14 +626,14 @@ class PreparedWorldNodeHandler:
         topology_reference = self._terrain_topology_reference_path.read_bytes()
         references = (
             ImageReference(
-                url=_data_url(template, "image/png"),
+                url=data_url(template, "image/png"),
                 provenance_ref=(
                     "resource://image_gen_templates/terrain_atlas_12x4_template.png"
                     f"#sha256={hashlib.sha256(template).hexdigest()}"
                 ),
             ),
             ImageReference(
-                url=_data_url(topology_reference, "image/png"),
+                url=data_url(topology_reference, "image/png"),
                 provenance_ref=(
                     "resource://image_gen_templates/"
                     "terrain_atlas_godot_topology_reference.png"
@@ -812,7 +765,7 @@ class PreparedWorldNodeHandler:
                 artifact_path=self._run_dir / node.port("image").artifact_ref,
                 input_references=(
                     ImageReference(
-                        url=_data_url(guide, "image/png"),
+                        url=data_url(guide, "image/png"),
                         provenance_ref=(
                             f"run://{guide_port.artifact_ref}"
                             f"#sha256={hashlib.sha256(guide).hexdigest()}"
@@ -1242,11 +1195,11 @@ class PreparedWorldNodeHandler:
         ground_evidence_path = self._run_dir / f"maps/{game_map.map_id}/ground.evidence.png"
         references = [
             StructuredReference(
-                url=_data_url(_judge_plate(composite_path.read_bytes()), "image/png"),
+                url=data_url(_judge_plate(composite_path.read_bytes()), "image/png"),
                 provenance_ref=f"run://{composite_path.relative_to(self._run_dir).as_posix()}",
             ),
             StructuredReference(
-                url=_data_url(_judge_plate(ground_evidence_path.read_bytes()), "image/png"),
+                url=data_url(_judge_plate(ground_evidence_path.read_bytes()), "image/png"),
                 provenance_ref=(
                     f"run://{ground_evidence_path.relative_to(self._run_dir).as_posix()}"
                 ),
@@ -1259,7 +1212,7 @@ class PreparedWorldNodeHandler:
             ground_path = self._run_dir / f"maps/{game_map.map_id}/ground.png"
             references.append(
                 StructuredReference(
-                    url=_data_url(_judge_plate(ground_path.read_bytes()), "image/png"),
+                    url=data_url(_judge_plate(ground_path.read_bytes()), "image/png"),
                     provenance_ref=f"run://{ground_path.relative_to(self._run_dir).as_posix()}",
                 )
             )
@@ -1271,7 +1224,7 @@ class PreparedWorldNodeHandler:
             path = self._run_dir / f"maps/{game_map.map_id}/{asset}.png"
             references.append(
                 StructuredReference(
-                    url=_data_url(_judge_plate(path.read_bytes()), "image/png"),
+                    url=data_url(_judge_plate(path.read_bytes()), "image/png"),
                     provenance_ref=f"run://{path.relative_to(self._run_dir).as_posix()}",
                 )
             )
@@ -1280,7 +1233,7 @@ class PreparedWorldNodeHandler:
             package_file = self._package.file(ref.source)
             references.append(
                 StructuredReference(
-                    url=_data_url(_judge_plate(package_file.data), "image/png"),
+                    url=data_url(_judge_plate(package_file.data), "image/png"),
                     provenance_ref=f"package://{self._package.game.game_id}/{ref.source}#sha256={package_file.sha256}",
                 )
             )
@@ -1294,13 +1247,13 @@ class PreparedWorldNodeHandler:
             references.extend(
                 (
                     StructuredReference(
-                        url=_data_url(_judge_plate(layer_path.read_bytes()), "image/png"),
+                        url=data_url(_judge_plate(layer_path.read_bytes()), "image/png"),
                         provenance_ref=(
                             f"run://{layer_path.relative_to(self._run_dir).as_posix()}"
                         ),
                     ),
                     StructuredReference(
-                        url=_data_url(_judge_plate(repeat_path.read_bytes()), "image/png"),
+                        url=data_url(_judge_plate(repeat_path.read_bytes()), "image/png"),
                         provenance_ref=(
                             f"run://{repeat_path.relative_to(self._run_dir).as_posix()}"
                         ),
@@ -1501,40 +1454,11 @@ class PreparedWorldNodeHandler:
             entry = self._package.file(ref.source)
             values.append(
                 ImageReference(
-                    url=_data_url(entry.data, _media_type(ref.source)),
+                    url=data_url(entry.data, _media_type(ref.source)),
                     provenance_ref=f"package://{self._package.game.game_id}/{ref.source}#sha256={entry.sha256}",
                 )
             )
         return tuple(values)
-
-    def _result(
-        self,
-        node: Node,
-        *,
-        attempts: int = 1,
-        provider_operations: int,
-    ) -> NodeExecutionResult:
-        """Report exactly the ports this node declared, artifact then paired sidecar.
-
-        A declared address that carries nothing this run is skipped rather than
-        invented: the loop repaint intermediate exists only when admission
-        escalated to a provider edit, and a record port has no sidecar to pair.
-        """
-
-        refs: list[str] = []
-        for port in node.ports:
-            refs.append(port.artifact_ref)
-            if port.sidecar_ref is not None:
-                refs.append(port.sidecar_ref)
-        artifacts = tuple(
-            _node_artifact(self._run_dir, ref) for ref in refs if (self._run_dir / ref).is_file()
-        )
-        return NodeExecutionResult(
-            cache=CacheDisposition.MISS,
-            attempts=attempts,
-            provider_operations=provider_operations,
-            artifacts=artifacts,
-        )
 
 
 def world_review_target_node_ids(graph: ExecutionGraph) -> tuple[str, ...]:
@@ -1937,11 +1861,6 @@ def _parse_review(value: object) -> dict[str, object]:
     return value
 
 
-def _node_artifact(run_dir: Path, ref: str) -> NodeArtifact:
-    data = (run_dir / ref).read_bytes()
-    return NodeArtifact(artifact_ref=ref, sha256=_sha(data), bytes=len(data))
-
-
 #: The longest side a judge reference is transported at. Judges are constrained
 #: to recognition, never measurement (doctrine), so a bounded plate changes
 #: nothing they are allowed to read - and an unbounded one already broke a
@@ -1966,10 +1885,6 @@ def _judge_plate(data: bytes) -> bytes:
     buffer = io.BytesIO()
     resized.save(buffer, format="PNG")
     return bytes(buffer.getvalue())
-
-
-def _data_url(data: bytes, media_type: str) -> str:
-    return f"data:{media_type};base64,{base64.b64encode(data).decode('ascii')}"
 
 
 def _media_type(path: str) -> str:

@@ -7,9 +7,8 @@ static prompt rides its card — the plan states what each node will be told.
 
 from __future__ import annotations
 
-import hashlib
 from enum import StrEnum
-from typing import TYPE_CHECKING, ClassVar, Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field
 
@@ -18,15 +17,14 @@ from gnode import (
     AuthoredInput,
     Binding,
     BindingTable,
-    Graph,
     GraphBuilder,
     ModelRef,
     NodeCard,
     Port,
     PortRef,
-    seal_graph,
 )
 from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes
+from stage_gen.recipes.graph_document import RecipeGraph
 from stage_gen.recipes.pointclick_room.room_prompts import (
     backdrop_prompt,
     hotspot_sprite_prompt,
@@ -61,6 +59,7 @@ from stage_gen.recipes.pointclick_room.room_types import (
     STYLE_ANCHOR_KIND,
     STYLE_SELECT,
 )
+from stage_gen.recipes.ports import artifact_port, attempts_port, record_port, text_digest
 
 if TYPE_CHECKING:
     from stage_gen.config import StageGenConfig
@@ -80,33 +79,17 @@ class RoomOperationKind(StrEnum):
     STRUCTURED_GENERATION = "structured_generation"
 
 
-class PointClickRoomGraph(Graph):
+class PointClickRoomGraph(RecipeGraph):
     """One room plan of record, bound to the authored document that produced it."""
 
-    TRACE_SCHEMA_VERSION: ClassVar[int] = POINTCLICK_TRACE_SCHEMA_VERSION
-    TRACE_EVENT_KIND: ClassVar[str] = "pointclick-room-execution-event-v1"
-    RUN_SUMMARY_KIND: ClassVar[str] = "pointclick-room-execution-summary-v1"
-    PROJECTION_KIND: ClassVar[str] = "pointclick-room-execution-projection-v1"
-    VIEW_KIND: ClassVar[str] = "pointclick-room-execution-view-v1"
-    VIEW_SCHEMA_VERSION: ClassVar[int] = 3
+    OPERATIONS = RoomOperationKind
+    VIEW_FIELDS = ("room_id",)
 
     schema_version: Literal[1]
     kind: Literal["pointclick-room-execution-graph-v1"]
     recipe: Literal["pointclick-room"]
     room_id: str
     room_sha256: str = Field(pattern=SHA256_PATTERN)
-
-    def identity_header(self) -> dict[str, object]:
-        return {**super().identity_header(), "recipe": self.recipe}
-
-    def annotator_key(self) -> str:
-        return self.recipe
-
-    def view_header(self) -> dict[str, object]:
-        return {"recipe": self.recipe, "room_id": self.room_id}
-
-    def operation_vocabulary(self) -> tuple[str, ...]:
-        return tuple(operation.value for operation in RoomOperationKind)
 
 
 IMAGE_FEATURES = ("transparent_background", "reference_images")
@@ -147,31 +130,6 @@ def room_graph_profile(config: StageGenConfig) -> BindingTable:
     )
 
 
-def _artifact(port_id: str, ref: str, kind: str) -> Port:
-    return Port(port_id=port_id, artifact_ref=ref, kind=kind, sidecar_ref=f"{ref}.meta.json")
-
-
-def _record(port_id: str, ref: str, kind: str) -> Port:
-    return Port(port_id=port_id, artifact_ref=ref, kind=kind)
-
-
-def _attempts(node_id: str) -> Port:
-    return Port(
-        port_id="attempts", artifact_ref=f"attempts/{node_id}.json", kind=ATTEMPT_LEDGER_KIND
-    )
-
-
-def _text_digest(text: str) -> str:
-    """One generation node's identity is its own instruction, not the whole room.
-
-    Keying a node on exactly the prompt it will send is what makes an authored
-    edit cheap: nudging a hotspot region or rewording one brief re-bills only
-    the nodes whose instructions actually changed.
-    """
-
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
 def build_pointclick_room_graph(
     resolved: ResolvedPointClickRoom,
     *,
@@ -189,7 +147,7 @@ def build_pointclick_room_graph(
         domain="room",
         description="Canonicalize and admit the authored room document",
         input_digests=(resolved.room_sha256,),
-        ports=(_artifact("room", "room.json", ROOM_KIND),),
+        ports=(artifact_port("room", "room.json", ROOM_KIND),),
     )
     builder.add(
         STYLE_SELECT,
@@ -202,13 +160,13 @@ def build_pointclick_room_graph(
         # edit never chains into every image's cache key through here.
         cache_depends_on=(),
         input_digests=(
-            _text_digest(resolved.style_selection_brief),
+            text_digest(resolved.style_selection_brief),
             resolved.style_resource_sha256,
             resolved.style_compiler_sha256,
         ),
         ports=(
-            _artifact("anchor", "style-anchor.json", STYLE_ANCHOR_KIND),
-            _attempts("room-style-select"),
+            artifact_port("anchor", "style-anchor.json", STYLE_ANCHOR_KIND),
+            attempts_port("room-style-select", ATTEMPT_LEDGER_KIND),
         ),
         card=NodeCard(prompt=resolved.style_selection_brief, schema_name="canonical_style_anchor"),
     )
@@ -231,13 +189,13 @@ def build_pointclick_room_graph(
         description="Paint the full-frame room backdrop",
         depends_on=("room-style-select",),
         input_digests=(
-            _text_digest(backdrop_prompt(room)),
-            _text_digest(f"{room.scene.width}x{room.scene.height}"),
+            text_digest(backdrop_prompt(room)),
+            text_digest(f"{room.scene.width}x{room.scene.height}"),
             *style_digests,
         ),
         ports=(
-            _artifact("image", "assets/backdrop.png", BACKDROP_KIND),
-            _attempts("room-backdrop"),
+            artifact_port("image", "assets/backdrop.png", BACKDROP_KIND),
+            attempts_port("room-backdrop", ATTEMPT_LEDGER_KIND),
         ),
         card=NodeCard(
             prompt=backdrop_prompt(room),
@@ -260,14 +218,14 @@ def build_pointclick_room_graph(
                 params={"hotspot_id": hotspot.hotspot_id},
                 depends_on=("room-style-select",),
                 input_digests=(
-                    _text_digest(hotspot_sprite_prompt(room, hotspot)),
+                    text_digest(hotspot_sprite_prompt(room, hotspot)),
                     *style_digests,
                 ),
                 ports=(
-                    _artifact(
+                    artifact_port(
                         "image", f"assets/hotspots/{hotspot.hotspot_id}.png", HOTSPOT_SPRITE_KIND
                     ),
-                    _attempts(generate_id),
+                    attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
                 ),
                 card=NodeCard(
                     prompt=hotspot_sprite_prompt(room, hotspot),
@@ -284,7 +242,7 @@ def build_pointclick_room_graph(
                 depends_on=(generated.node_id,),
                 input_digests=(resolved.room_sha256,),
                 ports=(
-                    _record(
+                    record_port(
                         "validation",
                         f"assets/hotspots/{hotspot.hotspot_id}.validation.json",
                         SPRITE_VALIDATION_KIND,
@@ -308,12 +266,12 @@ def build_pointclick_room_graph(
                 params={"item_id": item.item_id},
                 depends_on=("room-style-select",),
                 input_digests=(
-                    _text_digest(item_icon_prompt(room, item)),
+                    text_digest(item_icon_prompt(room, item)),
                     *style_digests,
                 ),
                 ports=(
-                    _artifact("image", f"assets/items/{item.item_id}.png", ITEM_ICON_KIND),
-                    _attempts(generate_id),
+                    artifact_port("image", f"assets/items/{item.item_id}.png", ITEM_ICON_KIND),
+                    attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
                 ),
                 card=NodeCard(
                     prompt=item_icon_prompt(room, item),
@@ -330,7 +288,7 @@ def build_pointclick_room_graph(
                 depends_on=(generated.node_id,),
                 input_digests=(resolved.room_sha256,),
                 ports=(
-                    _record(
+                    record_port(
                         "validation",
                         f"assets/items/{item.item_id}.validation.json",
                         SPRITE_VALIDATION_KIND,
@@ -353,10 +311,10 @@ def build_pointclick_room_graph(
             description="Write every narration line the author left to generation",
             depends_on=("room-resolve",),
             cache_depends_on=(),
-            input_digests=(_text_digest(narration_prompt(room)),),
+            input_digests=(text_digest(narration_prompt(room)),),
             ports=(
-                _artifact("document", "narration.json", NARRATION_KIND),
-                _attempts("room-narration"),
+                artifact_port("document", "narration.json", NARRATION_KIND),
+                attempts_port("room-narration", ATTEMPT_LEDGER_KIND),
             ),
             card=NodeCard(prompt=narration_prompt(room), schema_name="pointclick_narration_v1"),
         )
@@ -370,8 +328,8 @@ def build_pointclick_room_graph(
         depends_on=("room-resolve",),
         input_digests=(resolved.room_sha256,),
         ports=(
-            _record("puzzle", "puzzle.json", PUZZLE_KIND),
-            _record("solvability", "puzzle.validation.json", SOLVABILITY_KIND),
+            record_port("puzzle", "puzzle.json", PUZZLE_KIND),
+            record_port("solvability", "puzzle.validation.json", SOLVABILITY_KIND),
         ),
     )
 
@@ -384,8 +342,8 @@ def build_pointclick_room_graph(
         root="room-resolve",
         ui=resolved.ui,
         style_prompt=lambda task: ui_atlas_prompt(room, task),
-        direction_digests=(_text_digest(style_clause(room)),),
-        attempts_port=_attempts,
+        direction_digests=(text_digest(style_clause(room)),),
+        attempts_port=lambda node_id: attempts_port(node_id, ATTEMPT_LEDGER_KIND),
     )
 
     builder.add(
@@ -406,10 +364,10 @@ def build_pointclick_room_graph(
             # The bundle republishes the authored style references into the run:
             # the manifest names them, so the run must carry the bytes it names.
             *(
-                _artifact(f"reference_{reference.reference_id}", reference.source, COVER_KIND)
+                artifact_port(f"reference_{reference.reference_id}", reference.source, COVER_KIND)
                 for reference in resolved.style_references
             ),
-            _record("manifest", "manifest.json", MANIFEST_KIND),
+            record_port("manifest", "manifest.json", MANIFEST_KIND),
             Port(
                 port_id="merged_attempts",
                 artifact_ref="attempts.json",
@@ -418,14 +376,10 @@ def build_pointclick_room_graph(
         ),
     )
 
-    return seal_graph(
-        PointClickRoomGraph,
+    return PointClickRoomGraph.seal(
         resources=builder.resources(),
         nodes=builder.nodes,
         terminal_node_id="room-bundle",
-        schema_version=POINTCLICK_GRAPH_SCHEMA_VERSION,
-        kind="pointclick-room-execution-graph-v1",
-        recipe="pointclick-room",
         room_id=room.room_id,
         room_sha256=resolved.room_sha256,
     )

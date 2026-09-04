@@ -32,6 +32,7 @@ from .audio import (
     validate_music_payload,
     validate_sound_effect_payload,
 )
+from .data_url import data_url
 from .guide_lattice import (
     CYAN_GUIDES,
     GuideColorContract,
@@ -98,6 +99,7 @@ from .sprite_sheets import (
 )
 
 __all__ = [
+    "data_url",
     "ALPHA_COMPONENT_REPACK_VERSION",
     "ALPHA_GROUND_CONTACT_VERSION",
     "AlphaComponentRepackContract",

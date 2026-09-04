@@ -7,31 +7,12 @@ enough that its cheapest gate is admission, not a checkpoint cut.
 
 from __future__ import annotations
 
-import asyncio
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from collections.abc import Mapping
+from pathlib import Path
 
-from gnode import (
-    DryRunNodeHandler,
-    JsonlTraceSink,
-    Projection,
-    RunSummary,
-    Scheduler,
-    assert_safe_path_segment,
-    atomic_write_json,
-    project_schedule,
-    validate_plan_types,
-    write_graph,
-    write_run_summary,
-)
-from stage_gen.orchestration.runtime import (
-    create_music_service,
-    create_openai_image_service,
-    create_sound_effect_service,
-    create_speech_service,
-    create_structured_service,
-    create_tool_loop_service,
-)
+from gnode import NodeType, assert_safe_path_segment
+from stage_gen.config import CapabilityName
+from stage_gen.recipes.executor import RecipeExecutor, RecipePlan, RecipeRun
 from stage_gen.recipes.sideview_runner.prepared_runner import SideviewRunnerNodeHandler
 from stage_gen.recipes.sideview_runner.runner_graph import (
     SideviewRunnerGraph,
@@ -44,75 +25,23 @@ from stage_gen.recipes.sideview_runner.runner_request import (
 )
 from stage_gen.recipes.sideview_runner.runner_types import runner_type_index
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
-    from stage_gen.config import StageGenConfig
+SideviewRunnerPlan = RecipePlan[ResolvedRunnerPackage, SideviewRunnerGraph]
+SideviewRunnerRun = RecipeRun[SideviewRunnerPlan]
 
 
-@dataclass(frozen=True, slots=True)
-class SideviewRunnerPlan:
-    resolved: ResolvedRunnerPackage
-    graph: SideviewRunnerGraph
-    projection: Projection
-
-
-@dataclass(frozen=True, slots=True)
-class SideviewRunnerRun:
-    plan: SideviewRunnerPlan
-    summary: RunSummary
-    run_dir: Path
-
-
-class SideviewRunnerExecutor:
+class SideviewRunnerExecutor(RecipeExecutor[ResolvedRunnerPackage, SideviewRunnerGraph]):
     """Resolve, plan, and dispatch one package's runner member."""
 
-    def __init__(self, config: StageGenConfig) -> None:
-        self._config = config
+    IDENTITY_DOCUMENT = "runner-identity.json"
 
-    def plan(self, input_path: Path) -> SideviewRunnerPlan:
-        resolved = resolve_runner_package(input_path)
-        graph = build_runner_execution_graph(resolved, profile=runner_graph_profile(self._config))
-        validate_plan_types(graph.nodes, runner_type_index())
-        return SideviewRunnerPlan(
-            resolved=resolved, graph=graph, projection=project_schedule(graph)
-        )
+    def _resolve(self, input_path: Path) -> ResolvedRunnerPackage:
+        return resolve_runner_package(input_path)
 
-    async def dry_run(
-        self,
-        input_path: Path,
-        *,
-        run_dir: Path,
-        cache_dir: Path,
-        invocation_id: str,
-        failure_node_id: str | None = None,
-        time_scale: float = 0.0001,
-    ) -> SideviewRunnerRun:
-        assert_safe_path_segment(invocation_id, "invocation_id")
-        plan = await self._open_run(input_path, run_dir=run_dir)
-        trace = JsonlTraceSink(run_dir / "execution-trace.jsonl")
-        scheduler = Scheduler(
-            plan.graph.resources,
-            node_timeout_seconds=self._config.stage_timeout_s,
-            secrets=self._secrets(),
-        )
-        try:
-            summary = await scheduler.run(
-                plan.graph,
-                DryRunNodeHandler(
-                    plan.graph,
-                    run_dir=run_dir,
-                    cache_dir=cache_dir,
-                    failure_node_id=failure_node_id,
-                    time_scale=time_scale,
-                ),
-                invocation_id=invocation_id,
-                trace_sink=trace,
-            )
-        finally:
-            trace.close()
-        write_run_summary(run_dir / "execution-summary.json", summary)
-        return SideviewRunnerRun(plan=plan, summary=summary, run_dir=run_dir)
+    def _build(self, resolved: ResolvedRunnerPackage) -> SideviewRunnerGraph:
+        return build_runner_execution_graph(resolved, profile=runner_graph_profile(self._config))
+
+    def _type_index(self) -> Mapping[str, NodeType]:
+        return runner_type_index()
 
     async def run(
         self,
@@ -125,115 +54,36 @@ class SideviewRunnerExecutor:
         """Execute the whole runner member, including the terminal manifest."""
 
         assert_safe_path_segment(invocation_id, "invocation_id")
-        if self._config.openai_api_key is None:
-            raise ValueError("sideview-runner execution requires OPENAI_API_KEY")
-        if self._config.open_router_api_key is None:
-            raise ValueError("sideview-runner execution requires OPENROUTER_API_KEY")
-        plan = await self._open_run(input_path, run_dir=run_dir)
+        self.require(CapabilityName.NATIVE_IMAGE_GENERATION, CapabilityName.STRUCTURED_GENERATION)
+        plan = self.plan(input_path)
         audio = plan.resolved.runner.audio
         needs_sound_effects = bool(audio.bought_generated_effects())
         needs_speech = bool(audio.bought_spoken_lines())
-        if (needs_sound_effects or needs_speech) and self._config.elevenlabs_api_key is None:
-            raise ValueError(
-                "sideview-runner execution requires ELEVENLABS_API_KEY for generated clips "
-                "and spoken lines"
-            )
-        trace = JsonlTraceSink(run_dir / "execution-trace.jsonl")
-        image_service = create_openai_image_service(
-            api_key=self._config.openai_api_key,
-            model=self._config.openai_image_model,
-            base_url=self._config.openai_base_url or "https://api.openai.com/v1",
-            images_per_minute=self._config.openai_image_ipm,
-        )
-        structured_service = create_structured_service(
-            api_key=self._config.open_router_api_key,
-            model=self._config.text_model,
-            base_url=self._config.open_router_base_url or "https://openrouter.ai/api/v1",
-        )
-        tool_loop_service = create_tool_loop_service(
-            api_key=self._config.open_router_api_key,
-            model=self._config.text_model,
-            base_url=self._config.open_router_base_url or "https://openrouter.ai/api/v1",
-        )
-        music_service = (
-            create_music_service(
-                api_key=self._config.open_router_api_key,
-                model=self._config.music_model,
-                base_url=self._config.open_router_base_url or "https://openrouter.ai/api/v1",
-            )
-            if plan.resolved.runner.soundtrack is not None
-            else None
-        )
-        sound_effect_service = (
-            create_sound_effect_service(
-                api_key=self._config.elevenlabs_api_key,
-                model=self._config.sound_effect_model,
-                base_url=self._config.elevenlabs_base_url or "https://api.elevenlabs.io/v1",
-            )
-            if needs_sound_effects and self._config.elevenlabs_api_key is not None
-            else None
-        )
-        speech_service = (
-            create_speech_service(
-                api_key=self._config.elevenlabs_api_key,
-                model=self._config.speech_model,
-                base_url=self._config.elevenlabs_base_url or "https://api.elevenlabs.io/v1",
-            )
-            if needs_speech and self._config.elevenlabs_api_key is not None
-            else None
-        )
-        scheduler = Scheduler(
-            plan.graph.resources,
-            node_timeout_seconds=max(self._config.stage_timeout_s, 900),
-            secrets=self._secrets(),
-        )
-        handler = SideviewRunnerNodeHandler(
-            plan.graph,
-            plan.resolved,
-            run_dir=run_dir,
-            cache_dir=cache_dir,
-            image_service=image_service,
-            structured_service=structured_service,
-            tool_loop_service=tool_loop_service,
-            music_service=music_service,
-            sound_effect_service=sound_effect_service,
-            speech_service=speech_service,
-            capability_timeout_s=self._config.capability_timeout_s,
-        )
-        try:
-            summary = await scheduler.run(
+        if needs_sound_effects:
+            self.require(CapabilityName.SOUND_EFFECT_GENERATION)
+        if needs_speech:
+            self.require(CapabilityName.SPEECH_GENERATION)
+        await self.open_run(plan, run_dir=run_dir)
+        async with self.services() as services:
+            handler = SideviewRunnerNodeHandler(
                 plan.graph,
-                handler,
-                invocation_id=invocation_id,
-                trace_sink=trace,
+                plan.resolved,
+                run_dir=run_dir,
+                cache_dir=cache_dir,
+                image_service=services.image(),
+                structured_service=services.structured(),
+                tool_loop_service=services.tool_loop(),
+                music_service=(
+                    services.music() if plan.resolved.runner.soundtrack is not None else None
+                ),
+                sound_effect_service=services.sound_effect() if needs_sound_effects else None,
+                speech_service=services.speech() if needs_speech else None,
+                capability_timeout_s=self._config.capability_timeout_s,
             )
-        finally:
-            trace.close()
-            await image_service.aclose()
-            await structured_service.aclose()
-            await tool_loop_service.aclose()
-            if music_service is not None:
-                await music_service.aclose()
-            if sound_effect_service is not None:
-                await sound_effect_service.aclose()
-            if speech_service is not None:
-                await speech_service.aclose()
-        write_run_summary(run_dir / "execution-summary.json", summary)
-        return SideviewRunnerRun(plan=plan, summary=summary, run_dir=run_dir)
-
-    async def _open_run(self, input_path: Path, *, run_dir: Path) -> SideviewRunnerPlan:
-        plan = self.plan(input_path)
-        await asyncio.to_thread(run_dir.mkdir, parents=True, exist_ok=False)
-        write_graph(run_dir / "execution-plan.json", plan.graph)
-        atomic_write_json(
-            run_dir / "execution-projection.json",
-            plan.projection.model_dump(mode="json"),
-        )
-        atomic_write_json(run_dir / "runner-identity.json", plan.resolved.identity())
-        return plan
-
-    def _secrets(self) -> tuple[str, ...]:
-        return self._config.secret_values()
+            summary = await self.dispatch(
+                plan, handler, run_dir=run_dir, invocation_id=invocation_id
+            )
+        return RecipeRun(plan=plan, summary=summary, run_dir=run_dir)
 
 
 __all__ = ["SideviewRunnerExecutor", "SideviewRunnerPlan", "SideviewRunnerRun"]

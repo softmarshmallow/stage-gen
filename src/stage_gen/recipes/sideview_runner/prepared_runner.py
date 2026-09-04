@@ -9,7 +9,6 @@ recipe's node wiring.
 
 from __future__ import annotations
 
-import base64
 import inspect
 import io
 import json
@@ -32,7 +31,7 @@ from gnode import (
     NodeArtifact,
     NodeExecutionError,
     NodeExecutionResult,
-    NodeTypeRegistry,
+    NodeType,
     ProvenanceInput,
     SoftwareIdentity,
     SoundEffectGenerationRequest,
@@ -172,7 +171,7 @@ from stage_gen.identity import (
     STRUCTURED_GENERATION_COMPONENT,
     TOOL_LOOP_COMPONENT,
 )
-from stage_gen.media import RegistrationError, probe_audio, validate_music_payload
+from stage_gen.media import RegistrationError, data_url, probe_audio, validate_music_payload
 from stage_gen.media.layer_rasters import trim_layer_to_alpha_box
 from stage_gen.media.sprite_sheets import (
     AlphaComponentRepackContract,
@@ -180,7 +179,7 @@ from stage_gen.media.sprite_sheets import (
     split_atlas_columns,
 )
 from stage_gen.recipes.manifest_blocks import present_blocks
-from stage_gen.recipes.node_cache import NodeArtifactCache
+from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
 from stage_gen.recipes.sideview_runner.runner_graph import (
     RUNNER_CACHE_NAMESPACE,
     RUNNER_CACHE_RECORD_KIND,
@@ -254,8 +253,6 @@ if TYPE_CHECKING:
         ImageGenerationService,
         MusicGenerationService,
         Node,
-        NodeExecutionContext,
-        NodeHandler,
         SoundEffectGenerationService,
         SpeechGenerationService,
         StructuredGenerationService,
@@ -310,10 +307,6 @@ RUNNER_LAYER_MIN_VISIBLE_FRACTION = 0.005
 RUNNER_LAYER_MIN_TRANSPARENT_EDGE_FRACTION = 0.05
 
 _COMPONENT = SoftwareIdentity(name="@stage-gen/sideview-runner", version=RUNNER_HANDLER_VERSION)
-
-
-def _data_url(data: bytes, media_type: str) -> str:
-    return f"data:{media_type};base64,{base64.b64encode(data).decode('ascii')}"
 
 
 def _json_normalize_provider_identity(value: dict[str, object]) -> dict[str, object]:
@@ -847,7 +840,7 @@ def manifest_rebase_multipliers(
     return multipliers
 
 
-class SideviewRunnerNodeHandler:
+class SideviewRunnerNodeHandler(RecipeNodeHandler):
     """Dispatch runner nodes while provider operations stay component-owned."""
 
     def __init__(
@@ -865,11 +858,9 @@ class SideviewRunnerNodeHandler:
         speech_service: SpeechGenerationService | None = None,
         capability_timeout_s: float | None = None,
     ) -> None:
-        self._graph = graph
         self._resolved = resolved
         self._package = resolved.package
         self._runner = resolved.runner
-        self._run_dir = run_dir
         self._images = image_service
         self._structured = structured_service
         self._tool_loop = tool_loop_service
@@ -877,7 +868,7 @@ class SideviewRunnerNodeHandler:
         self._sound_effects = sound_effect_service
         self._speech = speech_service
         self._timeout = capability_timeout_s
-        self._cache = NodeArtifactCache(
+        super().__init__(
             graph,
             run_dir=run_dir,
             cache_dir=cache_dir,
@@ -885,49 +876,34 @@ class SideviewRunnerNodeHandler:
             record_kind=RUNNER_CACHE_RECORD_KIND,
             admit=self._admit_cached_bundle,
         )
-        self._registry = self._build_registry()
 
-    async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
-        cached = self._cache.read(node, context)
-        if cached is not None:
-            # The cached attempt ledger is provenance for the bytes being
-            # restored. Preserve it byte-for-byte; cache disposition belongs
-            # to the execution trace/result and must not perturb child lineage.
-            return cached
-        try:
-            result = await self._registry(node, context)
-        except CancellationError as error:
-            # The retry owner records how many operations had actually started
-            # before cancellation. Preserve that count without turning the
-            # cancellation into an ordinary node failure.
-            raw_operations = getattr(error, "provider_operations", 0)
-            provider_operations = (
-                raw_operations
-                if isinstance(raw_operations, int)
-                and not isinstance(raw_operations, bool)
-                and 0 <= raw_operations <= node.max_attempts
-                else 0
-            )
-            if node.operation != RunnerOperationKind.LOCAL:
-                self._write_failed_attempt_ledger(node, provider_operations=provider_operations)
-            raise
-        except NodeExecutionError as error:
-            self._write_failed_attempt_ledger(node, provider_operations=error.provider_operations)
-            raise
-        except Exception as error:
-            external = node.operation != RunnerOperationKind.LOCAL
-            if external:
-                # Reaching this branch means request construction or another
-                # pre-component step failed.  Only the component boundary
-                # below may turn retry-owner evidence into provider spend.
-                self._write_failed_attempt_ledger(node, provider_operations=0)
-            raise NodeExecutionError(
-                str(error),
-                attempts=1,
-                provider_operations=0,
-            ) from error
-        self._cache.write(node, context, result)
-        return result
+    # The base handler owns the loop; the runner keeps the attempt ledger it publishes
+    # beside every provider node, and refuses to turn a pre-component failure into spend.
+
+    def _cancelled(self, node: Node, error: CancellationError) -> None:
+        # The retry owner records how many operations had actually started before
+        # cancellation. Preserve that count without turning the cancellation into an
+        # ordinary node failure.
+        raw_operations = getattr(error, "provider_operations", 0)
+        provider_operations = (
+            raw_operations
+            if isinstance(raw_operations, int)
+            and not isinstance(raw_operations, bool)
+            and 0 <= raw_operations <= node.max_attempts
+            else 0
+        )
+        self._write_failed_attempt_ledger(node, provider_operations=provider_operations)
+
+    def _failed(self, node: Node, error: NodeExecutionError) -> None:
+        self._write_failed_attempt_ledger(node, provider_operations=error.provider_operations)
+
+    def _failure(self, node: Node, error: Exception) -> NodeExecutionError:
+        # Reaching this means request construction or another pre-component step failed.
+        # Only the component boundary (`_execute_provider_operation`) may turn retry-owner
+        # evidence into provider spend.
+        return NodeExecutionError(
+            f"{type(error).__name__}: {error}", attempts=1, provider_operations=0
+        )
 
     async def _execute_provider_operation(
         self,
@@ -1253,14 +1229,14 @@ class SideviewRunnerNodeHandler:
                 artifact_path=output,
                 input_references=(
                     ImageReference(
-                        _data_url(template, "image/png"),
+                        data_url(template, "image/png"),
                         (
                             "resource://image_gen_templates/terrain_atlas_12x4_template.png"
                             f"#sha256={content_sha256(template)}"
                         ),
                     ),
                     ImageReference(
-                        _data_url(topology, "image/png"),
+                        data_url(topology, "image/png"),
                         (
                             "resource://image_gen_templates/"
                             "terrain_atlas_godot_topology_reference.png"
@@ -1288,7 +1264,7 @@ class SideviewRunnerNodeHandler:
                 artifact_path=output,
                 input_references=(
                     ImageReference(
-                        _data_url(guide, "image/png"),
+                        data_url(guide, "image/png"),
                         f"run://{guide_ref}#sha256={content_sha256(guide)}",
                     ),
                     *self._authored_references(node),
@@ -1344,12 +1320,12 @@ class SideviewRunnerNodeHandler:
                 artifact_path=output,
                 input_references=(
                     ImageReference(
-                        _data_url(conditioning.conditioning_png, "image/png"),
+                        data_url(conditioning.conditioning_png, "image/png"),
                         "loop-conditioning",
                     ),
                 ),
                 mask_reference=ImageReference(
-                    _data_url(conditioning.mask_png, "image/png"), "loop-mask"
+                    data_url(conditioning.mask_png, "image/png"), "loop-mask"
                 ),
                 quality="high",
                 background=("transparent" if layer.alpha_mode == "transparent" else "opaque"),
@@ -1387,7 +1363,7 @@ class SideviewRunnerNodeHandler:
                 prompt=self._card_prompt(node),
                 artifact_path=output,
                 input_references=(
-                    ImageReference(_data_url(concept, "image/png"), "identity-concept"),
+                    ImageReference(data_url(concept, "image/png"), "identity-concept"),
                 ),
                 quality="high",
                 background="transparent",
@@ -1664,7 +1640,7 @@ class SideviewRunnerNodeHandler:
                 else (self._run_dir / node.port("plate").artifact_ref).read_bytes()
             )
             plate_ref = f"run://{node.port('plate').artifact_ref}"
-            reference = StructuredReference(_data_url(plate_data, "image/png"), plate_ref)
+            reference = StructuredReference(data_url(plate_data, "image/png"), plate_ref)
             refs, inputs = self._reference_identity((reference,))
             states = list(self._actor(node).states)
             schema_description = (
@@ -2426,60 +2402,47 @@ class SideviewRunnerNodeHandler:
 
     # ---------------------------------------------------------------- dispatch
 
-    def _build_registry(self) -> NodeTypeRegistry:
-        registry = NodeTypeRegistry()
-        registry.register(PACKAGE_RESOLVE, self._bind(self._write_package))
-        registry.register(TRACK_GROUND_GENERATE, self._bind(self._generate_ground))
-        registry.register(TRACK_GROUND_VALIDATE, self._bind(self._validate_ground))
-        registry.register(TRACK_STRUCTURAL_GROUND_GUIDE, self._bind(self._guide_structural_ground))
-        registry.register(
-            TRACK_STRUCTURAL_GROUND_GENERATE, self._bind(self._generate_structural_ground)
+    def _handlers(self) -> tuple[tuple[NodeType, NodeMethod], ...]:
+        # The boss rides the avatar's handlers: same operation, different subject,
+        # resolved from the node's own params.
+        return (
+            (PACKAGE_RESOLVE, self._write_package),
+            (TRACK_GROUND_GENERATE, self._generate_ground),
+            (TRACK_GROUND_VALIDATE, self._validate_ground),
+            (TRACK_STRUCTURAL_GROUND_GUIDE, self._guide_structural_ground),
+            (TRACK_STRUCTURAL_GROUND_GENERATE, self._generate_structural_ground),
+            (TRACK_STRUCTURAL_GROUND_SEAM_BRIDGE, self._build_structural_ground_seam_bridge),
+            (TRACK_STRUCTURAL_GROUND_VALIDATE, self._validate_structural_ground),
+            (LAYER_GENERATE, self._generate_layer),
+            (LAYER_LOOP_CONSTRUCT, self._layer_loop),
+            (LAYER_LOOP_PAINT, self._layer_loop),
+            (LAYER_VALIDATE, self._validate_layer),
+            (AVATAR_CONCEPT_GENERATE, self._generate_concept),
+            (AVATAR_MOTION_GENERATE, self._generate_motion),
+            (AVATAR_MOTION_VALIDATE, self._validate_motion),
+            (BOSS_CONCEPT_GENERATE, self._generate_concept),
+            (BOSS_MOTION_GENERATE, self._generate_motion),
+            (BOSS_MOTION_VALIDATE, self._validate_motion),
+            (MOTION_REBASE_JUDGE, self._rebase_judge),
+            (MOTION_REBASE_VERIFY, self._rebase_verify),
+            (CATALOG_ASSET_GENERATE, self._generate_catalog),
+            (CATALOG_ASSET_VALIDATE, self._validate_catalog),
+            (SOUNDTRACK_GENERATE, self._generate_track),
+            (SOUNDTRACK_VALIDATE, self._validate_track),
+            (SOUND_EFFECT_GENERATE, self._generate_sound_effect),
+            (SOUND_EFFECT_VALIDATE, self._validate_sound_effect),
+            (SPEECH_GENERATE, self._generate_speech),
+            (SPEECH_VALIDATE, self._validate_speech),
+            (AUDIO_REPUBLISH, self._republish_audio),
+            (FX_CUT_IN_GENERATE, self._generate_fx_plate),
+            (FX_CUT_IN_DRAW, self._draw_fx_frame),
+            (FX_CUT_IN_PLACE, self._place_fx_portrait),
+            (FX_CUT_IN_VALIDATE, self._validate_fx_plate),
+            (FX_CUT_IN_REVIEW, self._review_fx_plate),
+            (FX_SPRITE_DUST_GENERATE, self._generate_fx_sprite),
+            (FX_SPRITE_DUST_VALIDATE, self._validate_fx_sprite),
+            (MANIFEST_ASSEMBLE, self._assemble_manifest),
         )
-        registry.register(
-            TRACK_STRUCTURAL_GROUND_SEAM_BRIDGE,
-            self._bind(self._build_structural_ground_seam_bridge),
-        )
-        registry.register(
-            TRACK_STRUCTURAL_GROUND_VALIDATE, self._bind(self._validate_structural_ground)
-        )
-        registry.register(LAYER_GENERATE, self._bind(self._generate_layer))
-        registry.register(LAYER_LOOP_CONSTRUCT, self._bind(self._layer_loop))
-        registry.register(LAYER_LOOP_PAINT, self._bind(self._layer_loop))
-        registry.register(LAYER_VALIDATE, self._bind(self._validate_layer))
-        registry.register(AVATAR_CONCEPT_GENERATE, self._bind(self._generate_concept))
-        registry.register(AVATAR_MOTION_GENERATE, self._bind(self._generate_motion))
-        registry.register(AVATAR_MOTION_VALIDATE, self._bind(self._validate_motion))
-        # The boss rides the avatar's handlers: same operation, different
-        # subject, resolved from the node's own params.
-        registry.register(BOSS_CONCEPT_GENERATE, self._bind(self._generate_concept))
-        registry.register(BOSS_MOTION_GENERATE, self._bind(self._generate_motion))
-        registry.register(BOSS_MOTION_VALIDATE, self._bind(self._validate_motion))
-        registry.register(MOTION_REBASE_JUDGE, self._bind(self._rebase_judge))
-        registry.register(MOTION_REBASE_VERIFY, self._bind(self._rebase_verify))
-        registry.register(CATALOG_ASSET_GENERATE, self._bind(self._generate_catalog))
-        registry.register(CATALOG_ASSET_VALIDATE, self._bind(self._validate_catalog))
-        registry.register(SOUNDTRACK_GENERATE, self._bind(self._generate_track))
-        registry.register(SOUNDTRACK_VALIDATE, self._bind(self._validate_track))
-        registry.register(SOUND_EFFECT_GENERATE, self._bind(self._generate_sound_effect))
-        registry.register(SOUND_EFFECT_VALIDATE, self._bind(self._validate_sound_effect))
-        registry.register(SPEECH_GENERATE, self._bind(self._generate_speech))
-        registry.register(SPEECH_VALIDATE, self._bind(self._validate_speech))
-        registry.register(AUDIO_REPUBLISH, self._bind(self._republish_audio))
-        registry.register(FX_CUT_IN_GENERATE, self._bind(self._generate_fx_plate))
-        registry.register(FX_CUT_IN_DRAW, self._bind(self._draw_fx_frame))
-        registry.register(FX_CUT_IN_PLACE, self._bind(self._place_fx_portrait))
-        registry.register(FX_CUT_IN_VALIDATE, self._bind(self._validate_fx_plate))
-        registry.register(FX_CUT_IN_REVIEW, self._bind(self._review_fx_plate))
-        registry.register(FX_SPRITE_DUST_GENERATE, self._bind(self._generate_fx_sprite))
-        registry.register(FX_SPRITE_DUST_VALIDATE, self._bind(self._validate_fx_sprite))
-        registry.register(MANIFEST_ASSEMBLE, self._bind(self._assemble_manifest))
-        return registry
-
-    def _bind(self, method: Callable[[Node], Awaitable[NodeExecutionResult]]) -> NodeHandler:
-        async def handler(node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
-            return await method(node)
-
-        return handler
 
     def _result(
         self,
@@ -2487,8 +2450,16 @@ class SideviewRunnerNodeHandler:
         *,
         attempts: int = 1,
         provider_operations: int = 0,
+        known_cost_usd: float | None = None,
         provider_output_selected: bool = True,
     ) -> NodeExecutionResult:
+        """The base result, after the attempt ledger every provider node publishes.
+
+        Unlike the base, a declared port that carries nothing is a refusal here: the
+        runner's ports are exact, and a missing one is a handler bug, not an optional
+        intermediate.
+        """
+
         if node.operation != RunnerOperationKind.LOCAL:
             output_selection: Literal[
                 "provider_output", "fallback_output", "local_output", "none"
@@ -2533,6 +2504,7 @@ class SideviewRunnerNodeHandler:
             attempts=attempts,
             provider_operations=provider_operations,
             artifacts=artifacts,
+            known_cost_usd=known_cost_usd,
         )
 
     def _provider_output_ref(self, node: Node) -> str:
@@ -2631,12 +2603,6 @@ class SideviewRunnerNodeHandler:
 
     # ------------------------------------------------------------------ shared
 
-    def _card_prompt(self, node: Node) -> str:
-        card = node.card
-        if card is None or card.prompt is None:
-            raise ValueError(f"node {node.node_id} carries no card prompt")
-        return card.prompt
-
     def _provider_prompt(self, node: Node) -> str:
         """Return the exact prompt sent by every provider-backed node."""
 
@@ -2680,7 +2646,7 @@ class SideviewRunnerNodeHandler:
             data = self._package.file(authored.ref).data
             references.append(
                 ImageReference(
-                    _data_url(data, _image_media_type(data)),
+                    data_url(data, _image_media_type(data)),
                     (
                         f"package://{self._package.game.game_id}/{authored.ref}"
                         f"#sha256={authored.sha256}"
@@ -3277,7 +3243,7 @@ class SideviewRunnerNodeHandler:
 
     def _structured_reference(self, path: Path) -> StructuredReference:
         return StructuredReference(
-            url=_data_url(path.read_bytes(), "image/png"),
+            url=data_url(path.read_bytes(), "image/png"),
             provenance_ref=f"run://{path.relative_to(self._run_dir).as_posix()}",
         )
 

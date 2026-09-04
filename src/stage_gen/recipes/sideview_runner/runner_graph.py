@@ -10,10 +10,9 @@ the whole generative graph on purpose.
 from __future__ import annotations
 
 import hashlib
-import json
 from collections.abc import Callable
 from enum import StrEnum
-from typing import TYPE_CHECKING, ClassVar, Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field
 
@@ -22,14 +21,11 @@ from gnode import (
     AuthoredInput,
     Binding,
     BindingTable,
-    Graph,
     GraphBuilder,
     ModelRef,
     Node,
     NodeCard,
-    Port,
     PortRef,
-    seal_graph,
 )
 from gnode.providers.openai import supports_openai_native_alpha_model
 from stage_gen.components.game_fx import CutInPortraitSubject
@@ -61,6 +57,14 @@ from stage_gen.components.sideview_actor.motion_rebase import (
 )
 from stage_gen.components.sound_effect import GeneratedClipRealization, PinnedTake
 from stage_gen.components.speech import SpokenLineRealization
+from stage_gen.recipes.graph_document import RecipeGraph
+from stage_gen.recipes.ports import (
+    artifact_port,
+    attempts_port,
+    object_digest,
+    record_port,
+    text_digest,
+)
 from stage_gen.recipes.sideview_runner.runner_prompts import (
     avatar_concept_prompt,
     avatar_motion_prompt,
@@ -185,15 +189,11 @@ class RunnerOperationKind(StrEnum):
     SPEECH_GENERATION = "speech_generation"
 
 
-class SideviewRunnerGraph(Graph):
+class SideviewRunnerGraph(RecipeGraph):
     """One runner plan of record, bound to the package closure that produced it."""
 
-    TRACE_SCHEMA_VERSION: ClassVar[int] = RUNNER_TRACE_SCHEMA_VERSION
-    TRACE_EVENT_KIND: ClassVar[str] = "sideview-runner-execution-event-v1"
-    RUN_SUMMARY_KIND: ClassVar[str] = "sideview-runner-execution-summary-v1"
-    PROJECTION_KIND: ClassVar[str] = "sideview-runner-execution-projection-v1"
-    VIEW_KIND: ClassVar[str] = "sideview-runner-execution-view-v1"
-    VIEW_SCHEMA_VERSION: ClassVar[int] = 3
+    OPERATIONS = RunnerOperationKind
+    VIEW_FIELDS = ("game_id", "track_id")
 
     schema_version: Literal[1]
     kind: Literal["sideview-runner-execution-graph-v1"]
@@ -201,18 +201,6 @@ class SideviewRunnerGraph(Graph):
     game_id: str
     track_id: str
     package_sha256: str = Field(pattern=SHA256_PATTERN)
-
-    def identity_header(self) -> dict[str, object]:
-        return {**super().identity_header(), "recipe": self.recipe}
-
-    def annotator_key(self) -> str:
-        return self.recipe
-
-    def view_header(self) -> dict[str, object]:
-        return {"recipe": self.recipe, "game_id": self.game_id, "track_id": self.track_id}
-
-    def operation_vocabulary(self) -> tuple[str, ...]:
-        return tuple(operation.value for operation in RunnerOperationKind)
 
 
 def runner_graph_profile(config: StageGenConfig) -> BindingTable:
@@ -298,28 +286,6 @@ def runner_graph_profile(config: StageGenConfig) -> BindingTable:
     )
 
 
-def _artifact(port_id: str, ref: str, kind: str) -> Port:
-    return Port(port_id=port_id, artifact_ref=ref, kind=kind, sidecar_ref=f"{ref}.meta.json")
-
-
-def _record(port_id: str, ref: str, kind: str) -> Port:
-    return Port(port_id=port_id, artifact_ref=ref, kind=kind)
-
-
-def _attempts(node_id: str) -> Port:
-    return Port(
-        port_id="attempts", artifact_ref=f"attempts/{node_id}.json", kind=ATTEMPT_LEDGER_KIND
-    )
-
-
-def _text_digest(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
-def _object_sha256(value: object) -> str:
-    return _text_digest(json.dumps(value, sort_keys=True, separators=(",", ":")))
-
-
 def effective_loop_construction(resolved: ResolvedRunnerPackage, layer_id: str) -> LoopConstruction:
     track = resolved.runner.track
     for layer in track.layers:
@@ -353,7 +319,7 @@ def _add_pinned_take(
         depends_on=barrier,
         cache_depends_on=(),
         input_digests=(
-            _object_sha256(
+            object_digest(
                 {
                     "contract": PINNED_TAKE_CONTRACT_VERSION,
                     "source_sha256": pinned.source_sha256,
@@ -361,7 +327,7 @@ def _add_pinned_take(
                 }
             ),
         ),
-        ports=(_artifact("audio", f"audio/{effect_id}.mp3", kind),),
+        ports=(artifact_port("audio", f"audio/{effect_id}.mp3", kind),),
     )
 
 
@@ -442,7 +408,7 @@ def build_runner_execution_graph(
         domain="package",
         description="Capture and admit the prepared package's runner member",
         input_digests=(package.closure_sha256,),
-        ports=(_record("package", "package-identity.json", PACKAGE_KIND),),
+        ports=(record_port("package", "package-identity.json", PACKAGE_KIND),),
     )
     barrier = ("package-resolve",)
 
@@ -475,17 +441,17 @@ def build_runner_execution_graph(
                         direction_digest,
                         material_identity,
                         occupancy_digest,
-                        _text_digest(str(track.segments.walk_surface_row)),
-                        _text_digest(STRUCTURAL_GROUND_GUIDE_ID),
+                        text_digest(str(track.segments.walk_surface_row)),
+                        text_digest(STRUCTURAL_GROUND_GUIDE_ID),
                         *(entry.sha256 for entry in ground_references),
                     ),
                     ports=(
-                        _artifact(
+                        artifact_port(
                             "image",
                             f"world/ground/{segment_id}.guide.png",
                             STRUCTURAL_GROUND_GUIDE_KIND,
                         ),
-                        _record(
+                        record_port(
                             "validation",
                             f"world/ground/{segment_id}.guide.json",
                             STRUCTURAL_GROUND_GUIDE_VALIDATION_KIND,
@@ -502,19 +468,19 @@ def build_runner_execution_graph(
                     params={"segment_id": segment_id},
                     depends_on=(guide.node_id,),
                     input_digests=(
-                        _text_digest(track.track_id),
+                        text_digest(track.track_id),
                         direction_digest,
                         material_identity,
-                        _text_digest(prompt),
+                        text_digest(prompt),
                         *(entry.sha256 for entry in ground_references),
                     ),
                     ports=(
-                        _artifact(
+                        artifact_port(
                             "image",
                             f"world/ground/{segment_id}.raw.png",
                             STRUCTURAL_GROUND_RAW_KIND,
                         ),
-                        _attempts(generate_id),
+                        attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
                     ),
                     card=NodeCard(
                         prompt=prompt,
@@ -541,18 +507,18 @@ def build_runner_execution_graph(
                 input_digests=(
                     material_identity,
                     first_occupancy_digest,
-                    _text_digest(first_chunk.segment_id),
-                    _text_digest(str(track.segments.walk_surface_row)),
-                    _text_digest(STRUCTURAL_GROUND_SEAM_BRIDGE_CANONICALIZER_ID),
+                    text_digest(first_chunk.segment_id),
+                    text_digest(str(track.segments.walk_surface_row)),
+                    text_digest(STRUCTURAL_GROUND_SEAM_BRIDGE_CANONICALIZER_ID),
                     *(entry.sha256 for entry in ground_references),
                 ),
                 ports=(
-                    _artifact(
+                    artifact_port(
                         "image",
                         "world/ground/shared-seam-bridge.png",
                         STRUCTURAL_GROUND_SEAM_BRIDGE_KIND,
                     ),
-                    _record(
+                    record_port(
                         "validation",
                         "world/ground/shared-seam-bridge.validation.json",
                         STRUCTURAL_GROUND_SEAM_BRIDGE_VALIDATION_KIND,
@@ -581,15 +547,15 @@ def build_runner_execution_graph(
                     input_digests=(
                         material_identity,
                         occupancy_digest,
-                        _text_digest(STRUCTURAL_GROUND_CANONICALIZER_ID),
+                        text_digest(STRUCTURAL_GROUND_CANONICALIZER_ID),
                     ),
                     ports=(
-                        _artifact(
+                        artifact_port(
                             "image",
                             f"world/ground/{segment_id}.png",
                             STRUCTURAL_GROUND_KIND,
                         ),
-                        _record(
+                        record_port(
                             "validation",
                             f"world/ground/{segment_id}.validation.json",
                             STRUCTURAL_GROUND_VALIDATION_KIND,
@@ -620,16 +586,16 @@ def build_runner_execution_graph(
             depends_on=barrier,
             cache_depends_on=(),
             input_digests=(
-                _text_digest(track.track_id),
+                text_digest(track.track_id),
                 direction_digest,
-                _text_digest(ground_prompt(resolved, track)),
+                text_digest(ground_prompt(resolved, track)),
                 terrain_template_sha256,
                 terrain_topology_sha256,
                 *(entry.sha256 for entry in ground_references),
             ),
             ports=(
-                _artifact("image", "world/ground.raw.png", GROUND_RAW_KIND),
-                _attempts("track-ground-generate"),
+                artifact_port("image", "world/ground.raw.png", GROUND_RAW_KIND),
+                attempts_port("track-ground-generate", ATTEMPT_LEDGER_KIND),
             ),
             card=NodeCard(
                 prompt=ground_prompt(resolved, track),
@@ -649,8 +615,8 @@ def build_runner_execution_graph(
                 hashlib.sha256(terrain_atlas_lookup_path().read_bytes()).hexdigest(),
             ),
             ports=(
-                _artifact("image", "world/ground.png", GROUND_ATLAS_KIND),
-                _record("validation", "world/ground.validation.json", GROUND_VALIDATION_KIND),
+                artifact_port("image", "world/ground.png", GROUND_ATLAS_KIND),
+                record_port("validation", "world/ground.validation.json", GROUND_VALIDATION_KIND),
             ),
             card=NodeCard(
                 reference_inputs=(PortRef(node_id=ground_generate.node_id, port_id="image"),)
@@ -675,14 +641,16 @@ def build_runner_execution_graph(
                 depends_on=barrier,
                 cache_depends_on=(),
                 input_digests=(
-                    _text_digest(track.track_id),
+                    text_digest(track.track_id),
                     direction_digest,
-                    _text_digest(prompt),
+                    text_digest(prompt),
                     *(entry.sha256 for entry in layer_references),
                 ),
                 ports=(
-                    _artifact("image", f"world/layers/{layer.layer_id}.raw.png", LAYER_RAW_KIND),
-                    _attempts(generate_id),
+                    artifact_port(
+                        "image", f"world/layers/{layer.layer_id}.raw.png", LAYER_RAW_KIND
+                    ),
+                    attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
                 ),
                 card=NodeCard(prompt=prompt, authored_inputs=layer_references),
             )
@@ -694,8 +662,10 @@ def build_runner_execution_graph(
             )
             loop_id = f"layer-{layer.layer_id}-loop"
             loop_ports = [
-                _artifact("loop_image", f"world/layers/{layer.layer_id}.loop.png", LAYER_LOOP_KIND),
-                _record(
+                artifact_port(
+                    "loop_image", f"world/layers/{layer.layer_id}.loop.png", LAYER_LOOP_KIND
+                ),
+                record_port(
                     "loop_report",
                     f"world/layers/{layer.layer_id}.loop.json",
                     LAYER_LOOP_REPORT_KIND,
@@ -703,13 +673,13 @@ def build_runner_execution_graph(
             ]
             if LOOP_METHODS[construction].is_generative:
                 loop_ports.append(
-                    _artifact(
+                    artifact_port(
                         "edit_image",
                         f"world/layers/{layer.layer_id}.loop-edit.png",
                         LAYER_LOOP_EDIT_KIND,
                     )
                 )
-                loop_ports.append(_attempts(loop_id))
+                loop_ports.append(attempts_port(loop_id, ATTEMPT_LEDGER_KIND))
             looped = builder.add(
                 loop_type,
                 loop_id,
@@ -718,12 +688,12 @@ def build_runner_execution_graph(
                 params={"layer_id": layer.layer_id, "construction": construction},
                 depends_on=(generated.node_id,),
                 input_digests=(
-                    _text_digest(track.track_id),
-                    _text_digest(construction),
+                    text_digest(track.track_id),
+                    text_digest(construction),
                     *(
                         (
-                            _text_digest(track.continuity.loop_fallback),
-                            _text_digest(layer.prompt),
+                            text_digest(track.continuity.loop_fallback),
+                            text_digest(layer.prompt),
                         )
                         if LOOP_METHODS[construction].is_generative
                         else ()
@@ -745,8 +715,8 @@ def build_runner_execution_graph(
                 depends_on=(looped.node_id,),
                 input_digests=(package.closure_sha256,),
                 ports=(
-                    _artifact("image", f"world/layers/{layer.layer_id}.png", LAYER_LOOP_KIND),
-                    _record(
+                    artifact_port("image", f"world/layers/{layer.layer_id}.png", LAYER_LOOP_KIND),
+                    record_port(
                         "validation",
                         f"world/layers/{layer.layer_id}.validation.json",
                         LAYER_VALIDATION_KIND,
@@ -766,14 +736,14 @@ def build_runner_execution_graph(
         depends_on=barrier,
         cache_depends_on=(),
         input_digests=(
-            _text_digest(avatar.avatar_id),
+            text_digest(avatar.avatar_id),
             direction_digest,
-            _text_digest(avatar_concept_prompt(resolved, avatar)),
+            text_digest(avatar_concept_prompt(resolved, avatar)),
             *(entry.sha256 for entry in avatar_references),
         ),
         ports=(
-            _artifact("image", "avatar/concept.png", AVATAR_CONCEPT_KIND),
-            _attempts("avatar-concept-generate"),
+            artifact_port("image", "avatar/concept.png", AVATAR_CONCEPT_KIND),
+            attempts_port("avatar-concept-generate", ATTEMPT_LEDGER_KIND),
         ),
         card=NodeCard(
             prompt=avatar_concept_prompt(resolved, avatar), authored_inputs=avatar_references
@@ -797,13 +767,13 @@ def build_runner_execution_graph(
                 params={"state": state},
                 depends_on=(concept.node_id,),
                 input_digests=(
-                    _text_digest(avatar.avatar_id),
+                    text_digest(avatar.avatar_id),
                     direction_digest,
-                    _text_digest(prompt),
+                    text_digest(prompt),
                 ),
                 ports=(
-                    _artifact("image", f"avatar/{state}.raw.png", MOTION_RAW_KIND),
-                    _attempts(generate_id),
+                    artifact_port("image", f"avatar/{state}.raw.png", MOTION_RAW_KIND),
+                    attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
                 ),
                 card=NodeCard(
                     prompt=prompt,
@@ -821,10 +791,10 @@ def build_runner_execution_graph(
                 # lineage plus the authored anchor - not the whole closure:
                 # this node feeds the paid rebase judges, and an unrelated
                 # authored edit must not re-bill them through it.
-                input_digests=(_text_digest(motions_by_state[state].anchor),),
+                input_digests=(text_digest(motions_by_state[state].anchor),),
                 ports=(
-                    _artifact("image", f"avatar/{state}.png", MOTION_ATLAS_KIND),
-                    _record(
+                    artifact_port("image", f"avatar/{state}.png", MOTION_ATLAS_KIND),
+                    record_port(
                         "validation", f"avatar/{state}.validation.json", MOTION_VALIDATION_KIND
                     ),
                 ),
@@ -841,14 +811,14 @@ def build_runner_execution_graph(
         # avatar in its prompt; keying it on the closure re-billed both
         # structured operations for every unrelated authored edit.
         input_digests=(
-            _text_digest(avatar.avatar_id),
-            _text_digest(avatar.display_name),
-            _text_digest(MOTION_REBASE_SCHEMA_NAME),
+            text_digest(avatar.avatar_id),
+            text_digest(avatar.display_name),
+            text_digest(MOTION_REBASE_SCHEMA_NAME),
         ),
         ports=(
-            _artifact("plate", "avatar/rebase-plate.png", REBASE_PLATE_KIND),
-            _artifact("reading", "avatar/rebase-reading.json", REBASE_READING_KIND),
-            _attempts("avatar-rebase-judge"),
+            artifact_port("plate", "avatar/rebase-plate.png", REBASE_PLATE_KIND),
+            artifact_port("reading", "avatar/rebase-reading.json", REBASE_READING_KIND),
+            attempts_port("avatar-rebase-judge", ATTEMPT_LEDGER_KIND),
         ),
         card=NodeCard(
             prompt=motion_rebase_prompt(avatar.display_name, list(declared_motion_states(avatar)))
@@ -861,14 +831,16 @@ def build_runner_execution_graph(
         description="judge the residual on a plate composed with the first reading applied",
         depends_on=(rebase_judge.node_id,),
         input_digests=(
-            _text_digest(avatar.avatar_id),
-            _text_digest(avatar.display_name),
-            _text_digest(MOTION_REBASE_SCHEMA_NAME),
+            text_digest(avatar.avatar_id),
+            text_digest(avatar.display_name),
+            text_digest(MOTION_REBASE_SCHEMA_NAME),
         ),
         ports=(
-            _artifact("plate", "avatar/rebase-verify-plate.png", REBASE_PLATE_KIND),
-            _artifact("verification", "avatar/rebase-verification.json", REBASE_VERIFICATION_KIND),
-            _attempts("avatar-rebase-verify"),
+            artifact_port("plate", "avatar/rebase-verify-plate.png", REBASE_PLATE_KIND),
+            artifact_port(
+                "verification", "avatar/rebase-verification.json", REBASE_VERIFICATION_KIND
+            ),
+            attempts_port("avatar-rebase-verify", ATTEMPT_LEDGER_KIND),
         ),
         card=NodeCard(
             prompt=motion_rebase_verification_prompt(
@@ -897,14 +869,14 @@ def build_runner_execution_graph(
                 depends_on=barrier,
                 cache_depends_on=(),
                 input_digests=(
-                    _text_digest(boss.boss_id),
+                    text_digest(boss.boss_id),
                     direction_digest,
-                    _text_digest(boss_concept_text),
+                    text_digest(boss_concept_text),
                     *(entry.sha256 for entry in boss_references),
                 ),
                 ports=(
-                    _artifact("image", f"boss/{boss.boss_id}/concept.png", BOSS_CONCEPT_KIND),
-                    _attempts(f"boss-{boss.boss_id}-concept-generate"),
+                    artifact_port("image", f"boss/{boss.boss_id}/concept.png", BOSS_CONCEPT_KIND),
+                    attempts_port(f"boss-{boss.boss_id}-concept-generate", ATTEMPT_LEDGER_KIND),
                 ),
                 card=NodeCard(prompt=boss_concept_text, authored_inputs=boss_references),
             )
@@ -922,17 +894,17 @@ def build_runner_execution_graph(
                         params={"actor": "boss", "boss_id": boss.boss_id, "state": state},
                         depends_on=(boss_concept.node_id,),
                         input_digests=(
-                            _text_digest(boss.boss_id),
+                            text_digest(boss.boss_id),
                             direction_digest,
-                            _text_digest(prompt),
+                            text_digest(prompt),
                         ),
                         ports=(
-                            _artifact(
+                            artifact_port(
                                 "image",
                                 f"boss/{boss.boss_id}/{state}.raw.png",
                                 MOTION_RAW_KIND,
                             ),
-                            _attempts(generate_id),
+                            attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
                         ),
                         card=NodeCard(
                             prompt=prompt,
@@ -948,14 +920,14 @@ def build_runner_execution_graph(
                         description=f"repack the {boss.boss_id} {state} strip into cells",
                         params={"actor": "boss", "boss_id": boss.boss_id, "state": state},
                         depends_on=(generated.node_id,),
-                        input_digests=(_text_digest(boss_motions[state].anchor),),
+                        input_digests=(text_digest(boss_motions[state].anchor),),
                         ports=(
-                            _artifact(
+                            artifact_port(
                                 "image",
                                 f"boss/{boss.boss_id}/{state}.png",
                                 MOTION_ATLAS_KIND,
                             ),
-                            _record(
+                            record_port(
                                 "validation",
                                 f"boss/{boss.boss_id}/{state}.validation.json",
                                 MOTION_VALIDATION_KIND,
@@ -971,18 +943,20 @@ def build_runner_execution_graph(
                 params={"actor": "boss", "boss_id": boss.boss_id},
                 depends_on=tuple(boss_motion_validations),
                 input_digests=(
-                    _text_digest(boss.boss_id),
-                    _text_digest(boss.display_name),
-                    _text_digest(MOTION_REBASE_SCHEMA_NAME),
+                    text_digest(boss.boss_id),
+                    text_digest(boss.display_name),
+                    text_digest(MOTION_REBASE_SCHEMA_NAME),
                 ),
                 ports=(
-                    _artifact("plate", f"boss/{boss.boss_id}/rebase-plate.png", REBASE_PLATE_KIND),
-                    _artifact(
+                    artifact_port(
+                        "plate", f"boss/{boss.boss_id}/rebase-plate.png", REBASE_PLATE_KIND
+                    ),
+                    artifact_port(
                         "reading",
                         f"boss/{boss.boss_id}/rebase-reading.json",
                         REBASE_READING_KIND,
                     ),
-                    _attempts(f"boss-{boss.boss_id}-rebase-judge"),
+                    attempts_port(f"boss-{boss.boss_id}-rebase-judge", ATTEMPT_LEDGER_KIND),
                 ),
                 card=NodeCard(
                     prompt=motion_rebase_prompt(
@@ -998,22 +972,22 @@ def build_runner_execution_graph(
                 params={"actor": "boss", "boss_id": boss.boss_id},
                 depends_on=(boss_judge.node_id,),
                 input_digests=(
-                    _text_digest(boss.boss_id),
-                    _text_digest(boss.display_name),
-                    _text_digest(MOTION_REBASE_SCHEMA_NAME),
+                    text_digest(boss.boss_id),
+                    text_digest(boss.display_name),
+                    text_digest(MOTION_REBASE_SCHEMA_NAME),
                 ),
                 ports=(
-                    _artifact(
+                    artifact_port(
                         "plate",
                         f"boss/{boss.boss_id}/rebase-verify-plate.png",
                         REBASE_PLATE_KIND,
                     ),
-                    _artifact(
+                    artifact_port(
                         "verification",
                         f"boss/{boss.boss_id}/rebase-verification.json",
                         REBASE_VERIFICATION_KIND,
                     ),
-                    _attempts(f"boss-{boss.boss_id}-rebase-verify"),
+                    attempts_port(f"boss-{boss.boss_id}-rebase-verify", ATTEMPT_LEDGER_KIND),
                 ),
                 card=NodeCard(
                     prompt=motion_rebase_verification_prompt(
@@ -1084,14 +1058,14 @@ def build_runner_execution_graph(
                     cache_depends_on=(),
                     input_digests=(
                         direction_digest,
-                        _text_digest(prompt),
+                        text_digest(prompt),
                         *(entry.sha256 for entry in entity_references),
                     ),
                     ports=(
-                        _artifact(
+                        artifact_port(
                             "image", f"catalog/{family}s/{entity_id}.raw.png", CATALOG_RAW_KIND
                         ),
-                        _attempts(generate_id),
+                        attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
                     ),
                     card=NodeCard(prompt=prompt, authored_inputs=entity_references),
                 )
@@ -1104,10 +1078,10 @@ def build_runner_execution_graph(
                     depends_on=(generated.node_id,),
                     input_digests=(package.closure_sha256,),
                     ports=(
-                        _artifact(
+                        artifact_port(
                             "image", f"catalog/{family}s/{entity_id}.png", CATALOG_ASSET_KIND
                         ),
-                        _record(
+                        record_port(
                             "validation",
                             f"catalog/{family}s/{entity_id}.validation.json",
                             CATALOG_VALIDATION_KIND,
@@ -1139,10 +1113,10 @@ def build_runner_execution_graph(
                     params={"track_id": track_id},
                     depends_on=barrier,
                     cache_depends_on=(),
-                    input_digests=(_text_digest(provider_prompt),),
+                    input_digests=(text_digest(provider_prompt),),
                     ports=(
-                        _artifact("audio", f"soundtrack/{track_id}.mp3", SOUNDTRACK_TRACK_KIND),
-                        _attempts(generate_id),
+                        artifact_port("audio", f"soundtrack/{track_id}.mp3", SOUNDTRACK_TRACK_KIND),
+                        attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
                     ),
                     card=NodeCard(prompt=provider_prompt),
                 )
@@ -1155,7 +1129,7 @@ def build_runner_execution_graph(
                     depends_on=(generated.node_id,),
                     input_digests=(package.closure_sha256,),
                     ports=(
-                        _record(
+                        record_port(
                             "validation",
                             f"soundtrack/{track_id}.validation.json",
                             SOUNDTRACK_VALIDATION_KIND,
@@ -1194,7 +1168,7 @@ def build_runner_execution_graph(
                         depends_on=barrier,
                         cache_depends_on=(),
                         input_digests=(
-                            _object_sha256(
+                            object_digest(
                                 {
                                     "contract": SOUND_EFFECT_CONTRACT_VERSION,
                                     **realization.generation_identity(),
@@ -1202,10 +1176,10 @@ def build_runner_execution_graph(
                             ),
                         ),
                         ports=(
-                            _artifact(
+                            artifact_port(
                                 "audio", f"audio/{effect.effect_id}.mp3", SOUND_EFFECT_CLIP_KIND
                             ),
-                            _attempts(generate_id),
+                            attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
                         ),
                         card=NodeCard(prompt=realization.prompt),
                     )
@@ -1218,7 +1192,7 @@ def build_runner_execution_graph(
                     depends_on=(generated.node_id,),
                     input_digests=(package.closure_sha256,),
                     ports=(
-                        _record(
+                        record_port(
                             "validation",
                             f"audio/{effect.effect_id}.validation.json",
                             SOUND_EFFECT_VALIDATION_KIND,
@@ -1272,7 +1246,7 @@ def build_runner_execution_graph(
                         depends_on=barrier,
                         cache_depends_on=(),
                         input_digests=(
-                            _object_sha256(
+                            object_digest(
                                 {
                                     "contract": SPEECH_CONTRACT_VERSION,
                                     **realization.generation_identity(
@@ -1284,8 +1258,10 @@ def build_runner_execution_graph(
                             ),
                         ),
                         ports=(
-                            _artifact("audio", f"audio/{effect.effect_id}.mp3", SPEECH_CLIP_KIND),
-                            _attempts(generate_id),
+                            artifact_port(
+                                "audio", f"audio/{effect.effect_id}.mp3", SPEECH_CLIP_KIND
+                            ),
+                            attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
                         ),
                         card=NodeCard(prompt=realization.text),
                     )
@@ -1298,7 +1274,7 @@ def build_runner_execution_graph(
                     depends_on=(generated.node_id,),
                     input_digests=(package.closure_sha256,),
                     ports=(
-                        _record(
+                        record_port(
                             "validation",
                             f"audio/{effect.effect_id}.validation.json",
                             SPEECH_VALIDATION_KIND,
@@ -1321,7 +1297,7 @@ def build_runner_execution_graph(
             fx=runner.fx,
             style_prompt=lambda task: fx_plate_prompt(resolved, task),
             direction_digests=(direction_digest,),
-            attempts_port=_attempts,
+            attempts_port=lambda node_id: attempts_port(node_id, ATTEMPT_LEDGER_KIND),
             subject_reference=runner_subject_reference(runner),
         )
         # World-space sprites are the same family's nodes and the same art direction;
@@ -1333,7 +1309,7 @@ def build_runner_execution_graph(
                 fx=runner.fx,
                 style_prompt=lambda task: fx_plate_prompt(resolved, task),
                 direction_digests=(direction_digest,),
-                attempts_port=_attempts,
+                attempts_port=lambda node_id: attempts_port(node_id, ATTEMPT_LEDGER_KIND),
             )
         )
 
@@ -1371,25 +1347,21 @@ def build_runner_execution_graph(
         input_digests=(package.closure_sha256,),
         ports=(
             *(
-                _artifact(
+                artifact_port(
                     f"reference_{hashlib.sha256(source.encode('utf-8')).hexdigest()[:32]}",
                     source,
                     REFERENCE_KIND,
                 )
                 for source in republished_sources
             ),
-            _record("manifest", "manifest.json", MANIFEST_KIND),
+            record_port("manifest", "manifest.json", MANIFEST_KIND),
         ),
     )
 
-    return seal_graph(
-        SideviewRunnerGraph,
+    return SideviewRunnerGraph.seal(
         resources=builder.resources(),
         nodes=builder.nodes,
         terminal_node_id="manifest-assemble",
-        schema_version=RUNNER_GRAPH_SCHEMA_VERSION,
-        kind="sideview-runner-execution-graph-v1",
-        recipe="sideview-runner",
         game_id=package.game.game_id,
         track_id=track.track_id,
         package_sha256=package.package_sha256,

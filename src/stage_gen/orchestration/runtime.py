@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Literal, NoReturn, Protocol, Self, cast
@@ -55,6 +54,7 @@ from stage_gen.identity import (
     STRUCTURED_GENERATION_COMPONENT,
     TOOL_LOOP_COMPONENT,
 )
+from stage_gen.media import data_url
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -295,9 +295,7 @@ class DefaultHeadlessRuntime:
             facts = inspect_image(data)
             references.append(
                 ImageReference(
-                    url=(
-                        f"data:{facts.media_type};base64," + base64.b64encode(data).decode("ascii")
-                    ),
+                    url=(data_url(data, facts.media_type)),
                     provenance_ref=str(path),
                 )
             )
@@ -357,10 +355,7 @@ class DefaultHeadlessRuntime:
 
         result = await service.remove(
             BackgroundRemovalRequest(
-                image_url=(
-                    f"data:{source_facts.media_type};base64,"
-                    + base64.b64encode(source_data).decode("ascii")
-                ),
+                image_url=data_url(source_data, source_facts.media_type),
                 artifact_path=output_path,
                 output_format="png",
                 timeout_seconds=self._config.capability_timeout_ms / 1000,

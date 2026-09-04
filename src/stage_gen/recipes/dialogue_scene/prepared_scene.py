@@ -13,7 +13,6 @@ bundle node merges them in graph order into the ``attempts.json`` the bundle bin
 
 from __future__ import annotations
 
-import base64
 from dataclasses import asdict
 from io import BytesIO
 from pathlib import Path
@@ -25,15 +24,12 @@ from gnode import (
     ArtifactRights,
     BackgroundRemovalRequest,
     BinaryArtifact,
-    CacheDisposition,
     ImageGenerationRequest,
     ImageReference,
     InputProvenance,
     MusicGenerationRequest,
-    NodeArtifact,
-    NodeExecutionError,
     NodeExecutionResult,
-    NodeTypeRegistry,
+    NodeType,
     ProvenanceInput,
     RetryExhaustedError,
     SoftwareIdentity,
@@ -42,7 +38,6 @@ from gnode import (
     StructuredReference,
     atomic_write_json,
     dependency_port,
-    resolve_relative_path_within_root,
     write_artifact_with_provenance_async,
 )
 from stage_gen.components.game_ui.nodes import (
@@ -67,6 +62,7 @@ from stage_gen.media import (
     NATIVE_ALPHA_OPAQUE_THRESHOLD,
     apply_chroma_transparency,
     compose_source_with_alpha,
+    data_url,
     decontaminate_magenta_edges,
     inspect_image,
     normalize_png,
@@ -95,7 +91,6 @@ from stage_gen.recipes.dialogue_scene.prompts import base_plate_prompt, expressi
 from stage_gen.recipes.dialogue_scene.scene_graph import (
     DIALOGUE_CACHE_NAMESPACE,
     DIALOGUE_CACHE_RECORD_KIND,
-    DialogueOperationKind,
     DialogueSceneGraph,
 )
 from stage_gen.recipes.dialogue_scene.scene_request import (
@@ -122,7 +117,7 @@ from stage_gen.recipes.dialogue_scene.scene_types import (
     TRACK_GENERATE,
 )
 from stage_gen.recipes.dialogue_scene.schema import dialogue_plan_json_schema
-from stage_gen.recipes.node_cache import NodeArtifactCache
+from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Sequence
@@ -133,8 +128,6 @@ if TYPE_CHECKING:
         ImageGenerationService,
         MusicGenerationService,
         Node,
-        NodeExecutionContext,
-        NodeHandler,
         StructuredGenerationService,
     )
     from stage_gen.components.scenario import TrackDeclaration
@@ -156,7 +149,7 @@ def scene_target_node_ids(graph: DialogueSceneGraph) -> tuple[str, ...]:
     return tuple(node.node_id for node in graph.nodes if node.node_id != graph.terminal_node_id)
 
 
-class DialogueSceneNodeHandler:
+class DialogueSceneNodeHandler(RecipeNodeHandler):
     """Dispatch dialogue nodes while provider operations stay component-owned."""
 
     def __init__(
@@ -172,21 +165,12 @@ class DialogueSceneNodeHandler:
         music_service: MusicGenerationService | None = None,
         capability_timeout_s: float | None = None,
     ) -> None:
-        self._graph = graph
         self._scene = scene
-        self._run_dir = run_dir
         self._images = image_service
         self._structured = structured_service
         self._background = background_service
         self._music = music_service
         self._timeout = capability_timeout_s
-        self._cache = NodeArtifactCache(
-            graph,
-            run_dir=run_dir,
-            cache_dir=cache_dir,
-            namespace=DIALOGUE_CACHE_NAMESPACE,
-            record_kind=DIALOGUE_CACHE_RECORD_KIND,
-        )
         self._atlas = UiAtlasHandlers(
             UiAtlasHost(
                 ui=scene.ui,
@@ -201,56 +185,33 @@ class DialogueSceneNodeHandler:
             structured_service=structured_service,
             provider_call=self._atlas_provider_call,
         )
-        self._registry = self._build_registry()
+        super().__init__(
+            graph,
+            run_dir=run_dir,
+            cache_dir=cache_dir,
+            namespace=DIALOGUE_CACHE_NAMESPACE,
+            record_kind=DIALOGUE_CACHE_RECORD_KIND,
+        )
 
-    async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
-        cached = self._cache.read(node, context)
-        if cached is not None:
-            return cached
-        try:
-            result = await self._registry(node, context)
-        except NodeExecutionError:
-            raise
-        except Exception as error:
-            external = node.operation != DialogueOperationKind.LOCAL
-            attempts = int(getattr(error, "attempts", 1))
-            raise NodeExecutionError(
-                str(error),
-                attempts=attempts,
-                provider_operations=attempts if external else 0,
-            ) from error
-        self._cache.write(node, context, result)
-        return result
-
-    # ---------------------------------------------------------------- dispatch
-
-    def _build_registry(self) -> NodeTypeRegistry:
-        """Registered types replace the id-string chain this handler once walked."""
-
-        registry = NodeTypeRegistry()
-        registry.register(REQUEST_RESOLVE, self._bind(self._write_request))
-        registry.register(SCENARIO_ADMIT, self._bind(self._write_scenario))
-        registry.register(PROFILE_RESOLVE, self._bind(self._write_profile))
-        registry.register(STYLE_SELECT, self._bind(self._select_style))
-        registry.register(CONCEPT_INGEST, self._bind(self._concept_publish))
-        registry.register(PLAN_COMPILE, self._bind(self._plan))
-        registry.register(BACKDROP_GENERATE, self._bind(self._backdrop_generate))
-        registry.register(EXPRESSION_GENERATE, self._bind(self._expression_base))
-        registry.register(EXPRESSION_DERIVE, self._bind(self._expression_edit))
-        registry.register(SPRITE_MATTE, self._bind(self._canonicalize_matte))
-        registry.register(SPRITE_CANONICALIZE, self._bind(self._canonicalize_local))
-        registry.register(TRACK_GENERATE, self._bind(self._track_generate))
-        registry.register(BUNDLE_PACKAGE, self._bind(self._bundle))
-        registry.register(UI_ATLAS_GENERATE, self._bind(self._atlas.generate))
-        registry.register(UI_ATLAS_VALIDATE, self._bind(self._atlas.validate))
-        registry.register(UI_ATLAS_REVIEW, self._bind(self._atlas.review))
-        return registry
-
-    def _bind(self, method: Callable[[Node], Awaitable[NodeExecutionResult]]) -> NodeHandler:
-        async def handler(node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
-            return await method(node)
-
-        return handler
+    def _handlers(self) -> tuple[tuple[NodeType, NodeMethod], ...]:
+        return (
+            (REQUEST_RESOLVE, self._write_request),
+            (SCENARIO_ADMIT, self._write_scenario),
+            (PROFILE_RESOLVE, self._write_profile),
+            (STYLE_SELECT, self._select_style),
+            (CONCEPT_INGEST, self._concept_publish),
+            (PLAN_COMPILE, self._plan),
+            (BACKDROP_GENERATE, self._backdrop_generate),
+            (EXPRESSION_GENERATE, self._expression_base),
+            (EXPRESSION_DERIVE, self._expression_edit),
+            (SPRITE_MATTE, self._canonicalize_matte),
+            (SPRITE_CANONICALIZE, self._canonicalize_local),
+            (TRACK_GENERATE, self._track_generate),
+            (BUNDLE_PACKAGE, self._bundle),
+            (UI_ATLAS_GENERATE, self._atlas.generate),
+            (UI_ATLAS_VALIDATE, self._atlas.validate),
+            (UI_ATLAS_REVIEW, self._atlas.review),
+        )
 
     def _node_actor(self, node: Node) -> ResolvedSceneActor:
         """The declared actor this node instance is bound to."""
@@ -643,7 +604,7 @@ class DialogueSceneNodeHandler:
         removed_relative = node.port("matte").artifact_ref
         prompt = self._card_prompt(node)
         request = BackgroundRemovalRequest(
-            image_url=_data_url(source),
+            image_url=data_url(source, "image/png"),
             artifact_path=self._run_dir / removed_relative,
             metadata={
                 "recipe": self._scene.recipe_version,
@@ -985,47 +946,11 @@ class DialogueSceneNodeHandler:
         )
         return self._relative(provenance)
 
-    def _result(
-        self, node: Node, *, attempts: int = 1, provider_operations: int
-    ) -> NodeExecutionResult:
-        refs: list[str] = []
-        for port in node.ports:
-            refs.append(port.artifact_ref)
-            if port.sidecar_ref is not None:
-                refs.append(port.sidecar_ref)
-        artifacts = tuple(
-            NodeArtifact(
-                artifact_ref=ref,
-                sha256=content_sha256(self._read(ref)),
-                bytes=len(self._read(ref)),
-            )
-            for ref in refs
-            if (self._run_dir / ref).is_file()
-        )
-        return NodeExecutionResult(
-            cache=CacheDisposition.MISS,
-            attempts=attempts,
-            provider_operations=provider_operations,
-            artifacts=artifacts,
-        )
-
-    def _card_prompt(self, node: Node) -> str:
-        """The plan is the single source of a node's static instruction text."""
-
-        if node.card is None or node.card.prompt is None:
-            raise ValueError(f"node {node.node_id} declares no card prompt")
-        return node.card.prompt
-
     def _dependency_artifact(self, node: Node, *, kind: str) -> str:
         """Resolve one typed input to the artifact ref its producer declared."""
 
         _producer, port = dependency_port(self._graph, node, kind=kind)
         return port.artifact_ref
-
-    def _read(self, relative: str) -> bytes:
-        return resolve_relative_path_within_root(
-            self._run_dir, relative, "dialogue artifact path"
-        ).read_bytes()
 
     def _relative(self, path: str | Path) -> str:
         return Path(path).resolve().relative_to(self._run_dir.resolve()).as_posix()
@@ -1088,19 +1013,15 @@ def _rejected_records(
     ]
 
 
-def _data_url(data: bytes) -> str:
-    return f"data:image/png;base64,{base64.b64encode(data).decode('ascii')}"
-
-
 def _image_reference(data: bytes, path: str) -> ImageReference:
     return ImageReference(
-        url=_data_url(data), provenance_ref=f"{path}#sha256={content_sha256(data)}"
+        url=data_url(data, "image/png"), provenance_ref=f"{path}#sha256={content_sha256(data)}"
     )
 
 
 def _structured_reference(data: bytes, path: str) -> StructuredReference:
     return StructuredReference(
-        url=_data_url(data), provenance_ref=f"{path}#sha256={content_sha256(data)}"
+        url=data_url(data, "image/png"), provenance_ref=f"{path}#sha256={content_sha256(data)}"
     )
 
 

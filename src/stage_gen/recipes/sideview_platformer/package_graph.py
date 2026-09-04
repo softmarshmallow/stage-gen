@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from collections.abc import Iterable, Sequence
 from typing import Any
 
-from gnode import Binding, BindingTable, GraphBuilder, ModelRef, NodeCard, Port, PortRef
+from gnode import Binding, BindingTable, GraphBuilder, ModelRef, NodeCard, PortRef
 from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes
 from stage_gen.components.painted_terrain import (
     PAINTED_TERRAIN_CANONICALIZE,
@@ -53,10 +52,10 @@ from stage_gen.media import (
     LOOP_METHODS,
 )
 from stage_gen.orchestration.game_package import ResolvedGamePackage
+from stage_gen.recipes.ports import artifact_port, object_digest, record_port, text_digest
 from stage_gen.recipes.sideview_platformer.execution_graph import (
     ExecutionGraph,
     OperationKind,
-    finalize_execution_graph,
 )
 from stage_gen.recipes.sideview_platformer.motion_contract import (
     MotionActorKind,
@@ -140,18 +139,6 @@ MAP_CLIMBABLE_CONTRACT_VERSION = "prepared-map-climbable-atlas-v1"
 MAP_PORTAL_CONTRACT_VERSION = "prepared-map-portal-pair-1x2-v1"
 
 
-def _record(port_id: str, ref: str, kind: str) -> Port:
-    """A calibration/metadata record written without a provenance sidecar."""
-
-    return Port(port_id=port_id, artifact_ref=ref, kind=kind)
-
-
-def _artifact(port_id: str, ref: str, kind: str) -> Port:
-    """One artifact-plus-sidecar port; the pair stays visibly one payload."""
-
-    return Port(port_id=port_id, artifact_ref=ref, kind=kind, sidecar_ref=f"{ref}.meta.json")
-
-
 def package_graph_profile(config: StageGenConfig) -> BindingTable:
     """Declare the provider routes this plan may use, credentials untouched.
 
@@ -212,7 +199,7 @@ def build_package_execution_graph(
         domain="package",
         description="validate and capture the complete prepared package",
         input_digests=(package.closure_sha256,),
-        ports=(_record("identity", "package.identity.json", "package-identity-v1"),),
+        ports=(record_port("identity", "package.identity.json", "package-identity-v1"),),
         duration_seconds=0.1,
     )
     package_root = package_node.node_id
@@ -238,7 +225,7 @@ def build_package_execution_graph(
         depends_on=(package_root,),
         cache_depends_on=(),
         input_digests=(
-            _object_sha256({"contract": CONTENT_BINDING_CONTRACT_VERSION}),
+            object_digest({"contract": CONTENT_BINDING_CONTRACT_VERSION}),
             *_file_digests(
                 package,
                 (
@@ -258,8 +245,8 @@ def build_package_execution_graph(
             ),
         ),
         ports=(
-            _record("bindings", "gameplay.bindings.json", "gameplay-bindings-v1"),
-            _record("coverage", "content/coverage-matrix.json", "coverage-matrix-v1"),
+            record_port("bindings", "gameplay.bindings.json", "gameplay-bindings-v1"),
+            record_port("coverage", "content/coverage-matrix.json", "coverage-matrix-v1"),
         ),
         duration_seconds=0.5,
     )
@@ -274,15 +261,15 @@ def build_package_execution_graph(
         # The canonical projection alone does not reach the members the manifest reads, such as
         # authored playback, so the assembled manifest keys on the whole captured closure.
         input_digests=(package.canonical_game_sha256, package.closure_sha256),
-        ports=(_record("manifest", "manifest.json", PREPARED_RUNTIME_MANIFEST_KIND),),
+        ports=(record_port("manifest", "manifest.json", PREPARED_RUNTIME_MANIFEST_KIND),),
         duration_seconds=1.0,
     )
-    return finalize_execution_graph(
-        game_id=package.game.game_id,
-        package_sha256=package.package_sha256,
+    return ExecutionGraph.seal(
         resources=builder.resources(),
         nodes=builder.nodes,
         terminal_node_id=manifest.node_id,
+        game_id=package.game.game_id,
+        package_sha256=package.package_sha256,
     )
 
 
@@ -293,7 +280,7 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
         # Both loop fields are consumed after generation, so they are excluded here for the same
         # reason placement is: changing which construction a map selects, or which one it falls
         # back to, must re-run the loop node only and never re-bill every layer image.
-        map_direction = _object_sha256(
+        map_direction = object_digest(
             {
                 "game": _visual_direction(builder.package),
                 "view": game_map.view.model_dump(mode="json"),
@@ -309,7 +296,7 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             # a provider image that would come back byte-identical.
             input_digests = (
                 map_direction,
-                _object_sha256(
+                object_digest(
                     layer.model_dump(mode="json", exclude=set(NON_GENERATIVE_LAYER_FIELDS))
                 ),
                 *_reference_digests(references, layer.reference_ids),
@@ -324,7 +311,7 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 cache_depends_on=(),
                 input_digests=input_digests,
                 ports=(
-                    _artifact(
+                    artifact_port(
                         "image",
                         f"maps/{game_map.map_id}/layers/{layer.layer_id}.raw.png",
                         "map-layer-raw-v1",
@@ -343,7 +330,7 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             # construction's version here, as this once did, meant revising any one of them
             # re-ran the loop node for every layer in every map regardless of what it selected.
             loop_digests = (
-                _object_sha256(
+                object_digest(
                     {
                         **loop_method_identity(
                             construction, fallback=game_map.continuity.loop_fallback
@@ -355,11 +342,11 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             layer_root = f"maps/{game_map.map_id}/layers/{layer.layer_id}"
             layer_params = {"map_id": game_map.map_id, "layer_id": layer.layer_id}
             loop_ports = (
-                _artifact("loop_image", f"{layer_root}.loop.png", "map-layer-loop-image-v1"),
-                _record("loop_report", f"{layer_root}.loop.json", "layer-loop-report-v1"),
+                artifact_port("loop_image", f"{layer_root}.loop.png", "map-layer-loop-image-v1"),
+                record_port("loop_report", f"{layer_root}.loop.json", "layer-loop-report-v1"),
                 # The repaint intermediate exists only when admission escalates to
                 # a provider edit; declaring it keeps that channel visible.
-                _artifact("edit_image", f"{layer_root}.edit.png", "map-layer-loop-edit-v1"),
+                artifact_port("edit_image", f"{layer_root}.edit.png", "map-layer-loop-edit-v1"),
             )
             loop_card = NodeCard(
                 reference_inputs=(PortRef(node_id=generated.node_id, port_id="image"),)
@@ -404,10 +391,10 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 params=layer_params,
                 depends_on=(looped.node_id,),
                 input_digests=(
-                    _object_sha256(
+                    object_digest(
                         layer.model_dump(mode="json", exclude=set(RUNTIME_ONLY_LAYER_FIELDS))
                     ),
-                    _object_sha256(
+                    object_digest(
                         {
                             "canonicalizer": "prepared-map-loop-construction-v1",
                             "placement": LAYER_PLACEMENT_CANONICALIZER,
@@ -415,9 +402,11 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                     ),
                 ),
                 ports=(
-                    _artifact("image", f"{layer_root}.png", "map-layer-v1"),
-                    _record("validation", f"{layer_root}.validation.json", "layer-validation-v1"),
-                    _record("repeat_preview", f"{layer_root}.repeat.png", "repeat-preview-v1"),
+                    artifact_port("image", f"{layer_root}.png", "map-layer-v1"),
+                    record_port(
+                        "validation", f"{layer_root}.validation.json", "layer-validation-v1"
+                    ),
+                    record_port("repeat_preview", f"{layer_root}.repeat.png", "repeat-preview-v1"),
                 ),
                 card=NodeCard(
                     reference_inputs=(PortRef(node_id=looped.node_id, port_id="loop_image"),)
@@ -440,18 +429,20 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             cache_depends_on=(),
             input_digests=(
                 map_direction,
-                _object_sha256(game_map.terrain.model_dump(mode="json")),
+                object_digest(game_map.terrain.model_dump(mode="json")),
                 # The camera bounds what the designer may build: a surface the runtime cannot
                 # frame is unplayable, so the framing ceiling in terrain_design reads the same
                 # declaration the scene does. That makes the camera a real geometry input.
-                _object_sha256(game_map.camera.model_dump(mode="json")),
-                _object_sha256(
+                object_digest(game_map.camera.model_dump(mode="json")),
+                object_digest(
                     {}
                     if game_map.climbable is None
                     else {"variants": [entry.variant_id for entry in game_map.climbable.variants]}
                 ),
             ),
-            ports=(_record("terrain", f"maps/{game_map.map_id}/terrain.json", "map-terrain-v1"),),
+            ports=(
+                record_port("terrain", f"maps/{game_map.map_id}/terrain.json", "map-terrain-v1"),
+            ),
         )
 
         ground_direction = game_map.ground.model_dump(
@@ -482,16 +473,16 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 cache_depends_on=(),
                 input_digests=(
                     map_direction,
-                    _object_sha256(ground_direction),
+                    object_digest(ground_direction),
                     *_reference_digests(references, game_map.ground.reference_ids),
                     hashlib.sha256(terrain_atlas_template_path().read_bytes()).hexdigest(),
                     hashlib.sha256(
                         terrain_atlas_topology_reference_path().read_bytes()
                     ).hexdigest(),
-                    _object_sha256({"generation_contract": MATERIAL_SOURCE_CONTRACT_ID}),
+                    object_digest({"generation_contract": MATERIAL_SOURCE_CONTRACT_ID}),
                 ),
                 ports=(
-                    _artifact(
+                    artifact_port(
                         "image", f"maps/{game_map.map_id}/ground.raw.png", "ground-atlas-raw-v1"
                     ),
                 ),
@@ -508,19 +499,19 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 # terrain.json exists, and a cached verdict would survive a reshaped level.
                 depends_on=(ground.node_id, terrain.node_id),
                 input_digests=(
-                    _object_sha256(ground_direction),
-                    _object_sha256({"canonicalizer": MATERIAL_ASSEMBLER_ID}),
+                    object_digest(ground_direction),
+                    object_digest({"canonicalizer": MATERIAL_ASSEMBLER_ID}),
                     hashlib.sha256(terrain_atlas_lookup_path().read_bytes()).hexdigest(),
                     hashlib.sha256(terrain_atlas_template_path().read_bytes()).hexdigest(),
                 ),
                 ports=(
-                    _artifact("image", f"maps/{game_map.map_id}/ground.png", "ground-atlas-v1"),
-                    _record(
+                    artifact_port("image", f"maps/{game_map.map_id}/ground.png", "ground-atlas-v1"),
+                    record_port(
                         "validation",
                         f"maps/{game_map.map_id}/ground.validation.json",
                         "ground-validation-v1",
                     ),
-                    _artifact(
+                    artifact_port(
                         "evidence",
                         f"maps/{game_map.map_id}/ground.evidence.png",
                         "ground-evidence-v1",
@@ -550,12 +541,12 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 cache_depends_on=(),
                 input_digests=(
                     map_direction,
-                    _object_sha256({"contract": MAP_CLIMBABLE_CONTRACT_VERSION}),
-                    _object_sha256(climbable_direction),
+                    object_digest({"contract": MAP_CLIMBABLE_CONTRACT_VERSION}),
+                    object_digest(climbable_direction),
                     *_reference_digests(references, game_map.climbable.reference_ids),
                 ),
                 ports=(
-                    _artifact(
+                    artifact_port(
                         "image",
                         f"maps/{game_map.map_id}/climbable.raw.png",
                         "climbable-atlas-raw-v1",
@@ -574,15 +565,15 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 params={"map_id": game_map.map_id, "asset": "climbable"},
                 depends_on=(climbable.node_id,),
                 input_digests=(
-                    _object_sha256({"contract": MAP_CLIMBABLE_CONTRACT_VERSION}),
-                    _object_sha256({"repack_contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
-                    _object_sha256(game_map.climbable.model_dump(mode="json")),
+                    object_digest({"contract": MAP_CLIMBABLE_CONTRACT_VERSION}),
+                    object_digest({"repack_contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
+                    object_digest(game_map.climbable.model_dump(mode="json")),
                 ),
                 ports=(
-                    _artifact(
+                    artifact_port(
                         "image", f"maps/{game_map.map_id}/climbable.png", "climbable-atlas-v1"
                     ),
-                    _record(
+                    record_port(
                         "validation",
                         f"maps/{game_map.map_id}/climbable.validation.json",
                         "presentation-validation-v1",
@@ -605,12 +596,12 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 cache_depends_on=(),
                 input_digests=(
                     map_direction,
-                    _object_sha256({"contract": MAP_PORTAL_CONTRACT_VERSION}),
-                    _object_sha256(game_map.portal.model_dump(mode="json")),
+                    object_digest({"contract": MAP_PORTAL_CONTRACT_VERSION}),
+                    object_digest(game_map.portal.model_dump(mode="json")),
                     *_reference_digests(references, game_map.portal.reference_ids),
                 ),
                 ports=(
-                    _artifact(
+                    artifact_port(
                         "image", f"maps/{game_map.map_id}/portal.raw.png", "portal-pair-raw-v1"
                     ),
                 ),
@@ -623,13 +614,13 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 params={"map_id": game_map.map_id, "asset": "portal"},
                 depends_on=(portal.node_id,),
                 input_digests=(
-                    _object_sha256({"contract": MAP_PORTAL_CONTRACT_VERSION}),
-                    _object_sha256({"repack_contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
-                    _object_sha256(game_map.portal.model_dump(mode="json")),
+                    object_digest({"contract": MAP_PORTAL_CONTRACT_VERSION}),
+                    object_digest({"repack_contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
+                    object_digest(game_map.portal.model_dump(mode="json")),
                 ),
                 ports=(
-                    _artifact("image", f"maps/{game_map.map_id}/portal.png", "portal-pair-v1"),
-                    _record(
+                    artifact_port("image", f"maps/{game_map.map_id}/portal.png", "portal-pair-v1"),
+                    record_port(
                         "validation",
                         f"maps/{game_map.map_id}/portal.validation.json",
                         "presentation-validation-v1",
@@ -647,11 +638,11 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             params={"map_id": game_map.map_id},
             depends_on=(*layer_validations, ground_validation_id, terrain.node_id),
             input_digests=(
-                _object_sha256(_map_without_runtime_presentation(game_map)),
-                _object_sha256({"compositor": "prepared-map-placed-compositor-v6"}),
+                object_digest(_map_without_runtime_presentation(game_map)),
+                object_digest({"compositor": "prepared-map-placed-compositor-v6"}),
             ),
             ports=(
-                _artifact("image", f"maps/{game_map.map_id}/composite.png", "map-composite-v1"),
+                artifact_port("image", f"maps/{game_map.map_id}/composite.png", "map-composite-v1"),
             ),
             duration_seconds=2.0,
         )
@@ -666,10 +657,12 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 map_direction,
                 # v5: judge references are transported as bounded recognition plates;
                 # an unbounded payload broke a large map's review in production.
-                _object_sha256({"review_contract": "prepared-map-review-v5"}),
+                object_digest({"review_contract": "prepared-map-review-v5"}),
             ),
             ports=(
-                _artifact("verdict", f"maps/{game_map.map_id}/review.json", "review-verdict-v1"),
+                artifact_port(
+                    "verdict", f"maps/{game_map.map_id}/review.json", "review-verdict-v1"
+                ),
             ),
             card=NodeCard(
                 schema_name="prepared_map_review",
@@ -686,8 +679,8 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
     for player in builder.package.player.players:
         identity = (
             _visual_direction_digest(builder.package),
-            _object_sha256({"contract": CONTENT_CONCEPT_CONTRACT_VERSION}),
-            _object_sha256(player.model_dump(mode="json", exclude={"motions"})),
+            object_digest({"contract": CONTENT_CONCEPT_CONTRACT_VERSION}),
+            object_digest(player.model_dump(mode="json", exclude={"motions"})),
             *_reference_digests(references, player.reference_ids),
         )
         actor_root = f"content/players/{player.player_id}"
@@ -701,7 +694,7 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             depends_on=(package_root,),
             cache_depends_on=(),
             input_digests=identity,
-            ports=(_artifact("image", f"{actor_root}/concept.png", "actor-concept-v1"),),
+            ports=(artifact_port("image", f"{actor_root}/concept.png", "actor-concept-v1"),),
         )
         concept_ref = PortRef(node_id=concept.node_id, port_id="image")
         validations: list[str] = []
@@ -716,11 +709,11 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 params={**actor_params, "state": state},
                 depends_on=(concept.node_id,),
                 input_digests=(
-                    _object_sha256({"contract": CONTENT_MOTION_CONTRACT_VERSION}),
-                    _object_sha256(_motion_identity("player", state, source_facing)),
+                    object_digest({"contract": CONTENT_MOTION_CONTRACT_VERSION}),
+                    object_digest(_motion_identity("player", state, source_facing)),
                 ),
                 ports=(
-                    _artifact(
+                    artifact_port(
                         "image", f"{actor_root}/states/{state}.source.png", "motion-source-v1"
                     ),
                 ),
@@ -737,12 +730,14 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                     params={**actor_params, "state": state},
                     depends_on=(generated.node_id,),
                     input_digests=(
-                        _object_sha256({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
-                        _object_sha256(_motion_repack_identity(motion)),
+                        object_digest({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
+                        object_digest(_motion_repack_identity(motion)),
                     ),
                     ports=(
-                        _artifact("image", f"{actor_root}/states/{state}.png", "motion-atlas-v1"),
-                        _record(
+                        artifact_port(
+                            "image", f"{actor_root}/states/{state}.png", "motion-atlas-v1"
+                        ),
+                        record_port(
                             "validation",
                             f"{actor_root}/states/{state}.validation.json",
                             "atlas-validation-v1",
@@ -762,10 +757,12 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             params=actor_params,
             depends_on=(concept.node_id,),
             input_digests=(
-                _object_sha256({"contract": CONTENT_DIALOGUE_CONTRACT_VERSION}),
-                _object_sha256(player.dialogue_art.model_dump(mode="json")),
+                object_digest({"contract": CONTENT_DIALOGUE_CONTRACT_VERSION}),
+                object_digest(player.dialogue_art.model_dump(mode="json")),
             ),
-            ports=(_artifact("image", f"{actor_root}/dialogue.source.png", "dialogue-source-v1"),),
+            ports=(
+                artifact_port("image", f"{actor_root}/dialogue.source.png", "dialogue-source-v1"),
+            ),
             card=NodeCard(reference_inputs=(concept_ref,)),
         )
         dialogue_validation = builder.add(
@@ -776,12 +773,12 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             params=actor_params,
             depends_on=(dialogue.node_id,),
             input_digests=(
-                _object_sha256({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
-                _object_sha256(player.dialogue_art.model_dump(mode="json")),
+                object_digest({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
+                object_digest(player.dialogue_art.model_dump(mode="json")),
             ),
             ports=(
-                _artifact("image", f"{actor_root}/dialogue.png", "dialogue-atlas-v1"),
-                _record(
+                artifact_port("image", f"{actor_root}/dialogue.png", "dialogue-atlas-v1"),
+                record_port(
                     "validation", f"{actor_root}/dialogue.validation.json", "atlas-validation-v1"
                 ),
             ),
@@ -803,14 +800,14 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             depends_on=validations,
             input_digests=(
                 *identity,
-                _object_sha256({"contract": CONTENT_MOTION_REBASE_CONTRACT_VERSION}),
-                _object_sha256({"schema": MOTION_REBASE_SCHEMA_NAME}),
+                object_digest({"contract": CONTENT_MOTION_REBASE_CONTRACT_VERSION}),
+                object_digest({"schema": MOTION_REBASE_SCHEMA_NAME}),
             ),
             ports=(
-                _artifact(
+                artifact_port(
                     "reading", f"{actor_root}/motion-rebase-first-pass.json", "rebase-reading-v1"
                 ),
-                _artifact("plate", f"{actor_root}/motion-rebase-plate.png", "rebase-plate-v1"),
+                artifact_port("plate", f"{actor_root}/motion-rebase-plate.png", "rebase-plate-v1"),
             ),
             card=NodeCard(schema_name="motion_rebase"),
         )
@@ -830,12 +827,12 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             depends_on=(rebase.node_id,),
             input_digests=(
                 *identity,
-                _object_sha256({"contract": CONTENT_MOTION_REBASE_CONTRACT_VERSION}),
-                _object_sha256({"schema": MOTION_REBASE_SCHEMA_NAME}),
+                object_digest({"contract": CONTENT_MOTION_REBASE_CONTRACT_VERSION}),
+                object_digest({"schema": MOTION_REBASE_SCHEMA_NAME}),
             ),
             ports=(
-                _artifact("reading", f"{actor_root}/motion-rebase.json", "rebase-reading-v1"),
-                _artifact(
+                artifact_port("reading", f"{actor_root}/motion-rebase.json", "rebase-reading-v1"),
+                artifact_port(
                     "plate",
                     f"{actor_root}/motion-rebase-verification-plate.png",
                     "rebase-plate-v1",
@@ -853,8 +850,8 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             description=f"assemble complete player review board for {player.player_id}",
             params=actor_params,
             depends_on=(*validations, dialogue_validation.node_id),
-            input_digests=(_object_sha256(player.model_dump(mode="json", exclude={"motions"})),),
-            ports=(_artifact("sheet", f"{actor_root}/contact-sheet.png", "contact-sheet-v1"),),
+            input_digests=(object_digest(player.model_dump(mode="json", exclude={"motions"})),),
+            ports=(artifact_port("sheet", f"{actor_root}/contact-sheet.png", "contact-sheet-v1"),),
             duration_seconds=1.0,
         )
         review = builder.add(
@@ -869,11 +866,11 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             depends_on=(contact.node_id,),
             input_digests=(
                 *identity,
-                _object_sha256({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
-                _object_sha256({"contract": CONTENT_ACTOR_PLAYBACK_REVIEW_CONTRACT_VERSION}),
-                _object_sha256({"contract": CONTENT_PLAYER_REVIEW_CONTRACT_VERSION}),
+                object_digest({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
+                object_digest({"contract": CONTENT_ACTOR_PLAYBACK_REVIEW_CONTRACT_VERSION}),
+                object_digest({"contract": CONTENT_PLAYER_REVIEW_CONTRACT_VERSION}),
             ),
-            ports=(_artifact("verdict", f"{actor_root}/review.json", "review-verdict-v1"),),
+            ports=(artifact_port("verdict", f"{actor_root}/review.json", "review-verdict-v1"),),
             card=NodeCard(
                 schema_name="prepared_content_review",
                 reference_inputs=(PortRef(node_id=contact.node_id, port_id="sheet"),),
@@ -920,8 +917,8 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
     for mob in builder.package.mobs.mobs:
         identity = (
             _visual_direction_digest(builder.package),
-            _object_sha256({"contract": CONTENT_CONCEPT_CONTRACT_VERSION}),
-            _object_sha256(mob.model_dump(mode="json", exclude={"motions", *_MAGNITUDE_FIELDS})),
+            object_digest({"contract": CONTENT_CONCEPT_CONTRACT_VERSION}),
+            object_digest(mob.model_dump(mode="json", exclude={"motions", *_MAGNITUDE_FIELDS})),
             *_reference_digests(references, mob.reference_ids),
         )
         actor_root = f"content/mobs/{mob.mob_id}"
@@ -935,7 +932,7 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             depends_on=(package_root,),
             cache_depends_on=(),
             input_digests=identity,
-            ports=(_artifact("image", f"{actor_root}/concept.png", "actor-concept-v1"),),
+            ports=(artifact_port("image", f"{actor_root}/concept.png", "actor-concept-v1"),),
         )
         concept_ref = PortRef(node_id=concept.node_id, port_id="image")
         validations: list[str] = []
@@ -953,11 +950,11 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 params={**actor_params, "state": state},
                 depends_on=(concept.node_id,),
                 input_digests=(
-                    _object_sha256({"contract": CONTENT_MOTION_CONTRACT_VERSION}),
-                    _object_sha256(_motion_identity("mob", state, source_facing)),
+                    object_digest({"contract": CONTENT_MOTION_CONTRACT_VERSION}),
+                    object_digest(_motion_identity("mob", state, source_facing)),
                 ),
                 ports=(
-                    _artifact(
+                    artifact_port(
                         "image", f"{actor_root}/states/{state}.source.png", "motion-source-v1"
                     ),
                 ),
@@ -972,12 +969,14 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                     params={**actor_params, "state": state},
                     depends_on=(generated.node_id,),
                     input_digests=(
-                        _object_sha256({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
-                        _object_sha256(_motion_repack_identity(motion)),
+                        object_digest({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
+                        object_digest(_motion_repack_identity(motion)),
                     ),
                     ports=(
-                        _artifact("image", f"{actor_root}/states/{state}.png", "motion-atlas-v1"),
-                        _record(
+                        artifact_port(
+                            "image", f"{actor_root}/states/{state}.png", "motion-atlas-v1"
+                        ),
+                        record_port(
                             "validation",
                             f"{actor_root}/states/{state}.validation.json",
                             "atlas-validation-v1",
@@ -997,11 +996,9 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             params=actor_params,
             depends_on=tuple(validations),
             input_digests=(
-                _object_sha256(
-                    mob.model_dump(mode="json", exclude={"motions", *_MAGNITUDE_FIELDS})
-                ),
+                object_digest(mob.model_dump(mode="json", exclude={"motions", *_MAGNITUDE_FIELDS})),
             ),
-            ports=(_artifact("sheet", f"{actor_root}/contact-sheet.png", "contact-sheet-v1"),),
+            ports=(artifact_port("sheet", f"{actor_root}/contact-sheet.png", "contact-sheet-v1"),),
             duration_seconds=1.0,
         )
         review = builder.add(
@@ -1013,10 +1010,10 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             depends_on=(contact.node_id,),
             input_digests=(
                 *identity,
-                _object_sha256({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
-                _object_sha256({"contract": CONTENT_ACTOR_PLAYBACK_REVIEW_CONTRACT_VERSION}),
+                object_digest({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
+                object_digest({"contract": CONTENT_ACTOR_PLAYBACK_REVIEW_CONTRACT_VERSION}),
             ),
-            ports=(_artifact("verdict", f"{actor_root}/review.json", "review-verdict-v1"),),
+            ports=(artifact_port("verdict", f"{actor_root}/review.json", "review-verdict-v1"),),
             card=NodeCard(
                 schema_name="prepared_content_review",
                 reference_inputs=(PortRef(node_id=contact.node_id, port_id="sheet"),),
@@ -1037,8 +1034,8 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
         )
         identity = (
             _visual_direction_digest(builder.package),
-            _object_sha256({"contract": CONTENT_CONCEPT_CONTRACT_VERSION}),
-            _object_sha256(npc.model_dump(mode="json", exclude={"motions", *_MAGNITUDE_FIELDS})),
+            object_digest({"contract": CONTENT_CONCEPT_CONTRACT_VERSION}),
+            object_digest(npc.model_dump(mode="json", exclude={"motions", *_MAGNITUDE_FIELDS})),
             *_reference_digests(references, npc.reference_ids),
         )
         actor_root = f"content/npcs/{npc.npc_id}"
@@ -1052,7 +1049,7 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             depends_on=(package_root,),
             cache_depends_on=(),
             input_digests=identity,
-            ports=(_artifact("image", f"{actor_root}/concept.png", "actor-concept-v1"),),
+            ports=(artifact_port("image", f"{actor_root}/concept.png", "actor-concept-v1"),),
         )
         concept_ref = PortRef(node_id=concept.node_id, port_id="image")
         world = builder.add(
@@ -1066,15 +1063,15 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             params=actor_params,
             depends_on=(concept.node_id,),
             input_digests=(
-                _object_sha256({"contract": CONTENT_MOTION_CONTRACT_VERSION}),
-                _object_sha256(
+                object_digest({"contract": CONTENT_MOTION_CONTRACT_VERSION}),
+                object_digest(
                     {
                         "states": [motion.state for motion in npc.motions],
                         "source_facing": source_facing,
                     }
                 ),
             ),
-            ports=(_artifact("image", f"{actor_root}/world.source.png", "motion-source-v1"),),
+            ports=(artifact_port("image", f"{actor_root}/world.source.png", "motion-source-v1"),),
             card=NodeCard(reference_inputs=(concept_ref,)),
         )
         world_validation = builder.add(
@@ -1085,12 +1082,14 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             params=actor_params,
             depends_on=(world.node_id,),
             input_digests=(
-                _object_sha256({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
-                _object_sha256([_motion_repack_identity(motion) for motion in npc.motions]),
+                object_digest({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
+                object_digest([_motion_repack_identity(motion) for motion in npc.motions]),
             ),
             ports=(
-                _artifact("image", f"{actor_root}/world.png", "motion-atlas-v1"),
-                _record("validation", f"{actor_root}/world.validation.json", "atlas-validation-v1"),
+                artifact_port("image", f"{actor_root}/world.png", "motion-atlas-v1"),
+                record_port(
+                    "validation", f"{actor_root}/world.validation.json", "atlas-validation-v1"
+                ),
             ),
             card=NodeCard(reference_inputs=(PortRef(node_id=world.node_id, port_id="image"),)),
             duration_seconds=0.75,
@@ -1103,10 +1102,12 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             params=actor_params,
             depends_on=(concept.node_id,),
             input_digests=(
-                _object_sha256({"contract": CONTENT_DIALOGUE_CONTRACT_VERSION}),
-                _object_sha256(npc.dialogue_expressions),
+                object_digest({"contract": CONTENT_DIALOGUE_CONTRACT_VERSION}),
+                object_digest(npc.dialogue_expressions),
             ),
-            ports=(_artifact("image", f"{actor_root}/dialogue.source.png", "dialogue-source-v1"),),
+            ports=(
+                artifact_port("image", f"{actor_root}/dialogue.source.png", "dialogue-source-v1"),
+            ),
             card=NodeCard(reference_inputs=(concept_ref,)),
         )
         dialogue_validation = builder.add(
@@ -1117,12 +1118,12 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             params=actor_params,
             depends_on=(dialogue.node_id,),
             input_digests=(
-                _object_sha256({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
-                _object_sha256(npc.dialogue_expressions),
+                object_digest({"contract": CONTENT_ALPHA_REPACK_CONTRACT_VERSION}),
+                object_digest(npc.dialogue_expressions),
             ),
             ports=(
-                _artifact("image", f"{actor_root}/dialogue.png", "dialogue-atlas-v1"),
-                _record(
+                artifact_port("image", f"{actor_root}/dialogue.png", "dialogue-atlas-v1"),
+                record_port(
                     "validation", f"{actor_root}/dialogue.validation.json", "atlas-validation-v1"
                 ),
             ),
@@ -1137,11 +1138,9 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             params=actor_params,
             depends_on=(world_validation.node_id, dialogue_validation.node_id),
             input_digests=(
-                _object_sha256(
-                    npc.model_dump(mode="json", exclude={"motions", *_MAGNITUDE_FIELDS})
-                ),
+                object_digest(npc.model_dump(mode="json", exclude={"motions", *_MAGNITUDE_FIELDS})),
             ),
-            ports=(_artifact("sheet", f"{actor_root}/contact-sheet.png", "contact-sheet-v1"),),
+            ports=(artifact_port("sheet", f"{actor_root}/contact-sheet.png", "contact-sheet-v1"),),
             duration_seconds=1.0,
         )
         review = builder.add(
@@ -1153,10 +1152,10 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             depends_on=(contact.node_id,),
             input_digests=(
                 *identity,
-                _object_sha256({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
-                _object_sha256({"contract": CONTENT_ACTOR_PLAYBACK_REVIEW_CONTRACT_VERSION}),
+                object_digest({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
+                object_digest({"contract": CONTENT_ACTOR_PLAYBACK_REVIEW_CONTRACT_VERSION}),
             ),
-            ports=(_artifact("verdict", f"{actor_root}/review.json", "review-verdict-v1"),),
+            ports=(artifact_port("verdict", f"{actor_root}/review.json", "review-verdict-v1"),),
             card=NodeCard(
                 schema_name="prepared_content_review",
                 reference_inputs=(PortRef(node_id=contact.node_id, port_id="sheet"),),
@@ -1191,7 +1190,7 @@ def _add_catalog_family(
     validations: list[str] = []
     with builder.within_template(f"catalog-pipeline@v1:{plural}"):
         for entity_id, entry in entries:
-            entry_digest = _object_sha256(_entry_dump(entry))
+            entry_digest = object_digest(_entry_dump(entry))
             generated = builder.add(
                 CATALOG_ASSET_GENERATE,
                 f"{family}-{entity_id}-generate",
@@ -1202,12 +1201,14 @@ def _add_catalog_family(
                 cache_depends_on=(),
                 input_digests=(
                     _visual_direction_digest(builder.package),
-                    _object_sha256({"contract": CONTENT_CATALOG_CONTRACT_VERSION}),
+                    object_digest({"contract": CONTENT_CATALOG_CONTRACT_VERSION}),
                     entry_digest,
                     *_reference_digests(references, _entry_reference_ids(entry)),
                 ),
                 ports=(
-                    _artifact("image", f"content/{plural}/{entity_id}.png", "catalog-sprite-v1"),
+                    artifact_port(
+                        "image", f"content/{plural}/{entity_id}.png", "catalog-sprite-v1"
+                    ),
                 ),
             )
             validations.append(
@@ -1220,7 +1221,7 @@ def _add_catalog_family(
                     depends_on=(generated.node_id,),
                     input_digests=(entry_digest, *validate_extra_digests),
                     ports=(
-                        _record(
+                        record_port(
                             "validation",
                             f"content/{plural}/{entity_id}.validation.json",
                             "catalog-validation-v1",
@@ -1241,9 +1242,11 @@ def _add_catalog_family(
             depends_on=tuple(validations),
             input_digests=(
                 catalog_digest,
-                _object_sha256({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
+                object_digest({"contract": CONTENT_REVIEW_CONTRACT_VERSION}),
             ),
-            ports=(_artifact("sheet", f"content/{plural}/contact-sheet.png", "contact-sheet-v1"),),
+            ports=(
+                artifact_port("sheet", f"content/{plural}/contact-sheet.png", "contact-sheet-v1"),
+            ),
             duration_seconds=1.0,
         )
         return builder.add(
@@ -1254,7 +1257,7 @@ def _add_catalog_family(
             params={"family": family},
             depends_on=(contact.node_id,),
             input_digests=(catalog_digest,),
-            ports=(_artifact("verdict", f"content/{plural}/review.json", "review-verdict-v1"),),
+            ports=(artifact_port("verdict", f"content/{plural}/review.json", "review-verdict-v1"),),
             card=NodeCard(
                 schema_name="prepared_content_review",
                 reference_inputs=(PortRef(node_id=contact.node_id, port_id="sheet"),),
@@ -1279,10 +1282,10 @@ def _add_prop_nodes(builder: _GraphBuilder, package_root: str) -> str:
         plural="props",
         entries=[(prop.prop_id, prop) for prop in catalog.props],
         references={entry.reference_id: entry for entry in catalog.references},
-        catalog_digest=_object_sha256(_without_magnitude(catalog.model_dump(mode="json"), "props")),
+        catalog_digest=object_digest(_without_magnitude(catalog.model_dump(mode="json"), "props")),
         validate_description="validate isolated alpha and framing for prop {entity_id}",
         validate_extra_digests=(
-            _object_sha256({"contract": CONTENT_PROP_CONTACT_VALIDATION_VERSION}),
+            object_digest({"contract": CONTENT_PROP_CONTACT_VALIDATION_VERSION}),
         ),
         review_description="review complete prop identity and isolation coverage",
     )
@@ -1297,7 +1300,7 @@ def _add_item_nodes(builder: _GraphBuilder, package_root: str) -> str:
         plural="items",
         entries=[(item.item_id, item) for item in catalog.items],
         references={entry.reference_id: entry for entry in catalog.references},
-        catalog_digest=_object_sha256(_without_magnitude(catalog.model_dump(mode="json"), "items")),
+        catalog_digest=object_digest(_without_magnitude(catalog.model_dump(mode="json"), "items")),
         validate_description="validate isolated alpha and framing for item {entity_id}",
         validate_extra_digests=(),
         review_description="review complete item identity and isolation coverage",
@@ -1321,7 +1324,7 @@ def _add_projectile_nodes(builder: _GraphBuilder, package_root: str) -> str | No
         plural="projectiles",
         entries=[(projectile.projectile_id, projectile) for projectile in catalog.projectiles],
         references={entry.reference_id: entry for entry in catalog.references},
-        catalog_digest=_object_sha256(
+        catalog_digest=object_digest(
             _without_magnitude(catalog.model_dump(mode="json"), "projectiles")
         ),
         validate_description=(
@@ -1344,10 +1347,12 @@ def _add_soundtrack_nodes(builder: _GraphBuilder, package_root: str) -> list[str
             depends_on=(package_root,),
             cache_depends_on=(),
             input_digests=(
-                _object_sha256({"contract": CONTENT_SOUNDTRACK_CONTRACT_VERSION}),
-                _object_sha256(track.model_dump(mode="json")),
+                object_digest({"contract": CONTENT_SOUNDTRACK_CONTRACT_VERSION}),
+                object_digest(track.model_dump(mode="json")),
             ),
-            ports=(_artifact("audio", f"soundtrack/{track.track_id}.mp3", "soundtrack-track-v1"),),
+            ports=(
+                artifact_port("audio", f"soundtrack/{track.track_id}.mp3", "soundtrack-track-v1"),
+            ),
         )
         validation = builder.add(
             SOUNDTRACK_VALIDATE,
@@ -1359,9 +1364,9 @@ def _add_soundtrack_nodes(builder: _GraphBuilder, package_root: str) -> list[str
             ),
             params={"track_id": track.track_id},
             depends_on=(generated.node_id,),
-            input_digests=(_object_sha256(track.generation.model_dump(mode="json")),),
+            input_digests=(object_digest(track.generation.model_dump(mode="json")),),
             ports=(
-                _record(
+                record_port(
                     "validation",
                     f"soundtrack/{track.track_id}.validation.json",
                     "track-validation-v1",
@@ -1406,12 +1411,12 @@ def _add_inventory_panel_nodes(builder: _GraphBuilder, package_root: str) -> str
         cache_depends_on=(),
         input_digests=(
             _visual_direction_digest(builder.package),
-            _object_sha256({"contract": UI_INVENTORY_PANEL_CONTRACT_VERSION}),
-            _object_sha256(panel.model_dump(mode="json")),
+            object_digest({"contract": UI_INVENTORY_PANEL_CONTRACT_VERSION}),
+            object_digest(panel.model_dump(mode="json")),
             *(references[reference_id].source_sha256 for reference_id in panel.reference_ids),
             hashlib.sha256(inventory_template_path().read_bytes()).hexdigest(),
         ),
-        ports=(_artifact("image", "ui/inventory_panel.raw.png", "ui-panel-raw-v1"),),
+        ports=(artifact_port("image", "ui/inventory_panel.raw.png", "ui-panel-raw-v1"),),
         card=NodeCard(template_ref="inventory_grid_4x2_template_v1"),
     )
     validated = builder.add(
@@ -1421,13 +1426,13 @@ def _add_inventory_panel_nodes(builder: _GraphBuilder, package_root: str) -> str
         description="validate opaque panel and slot interiors on a transparent exterior",
         depends_on=(generated.node_id,),
         input_digests=(
-            _object_sha256({"contract": UI_INVENTORY_PANEL_CONTRACT_VERSION}),
-            _object_sha256(panel.model_dump(mode="json")),
+            object_digest({"contract": UI_INVENTORY_PANEL_CONTRACT_VERSION}),
+            object_digest(panel.model_dump(mode="json")),
         ),
         ports=(
-            _artifact("image", "ui/inventory_panel.png", "ui-panel-v1"),
-            _record("validation", "ui/inventory_panel.validation.json", "ui-validation-v1"),
-            _artifact("evidence", "ui/inventory_panel.evidence.png", "ui-evidence-v1"),
+            artifact_port("image", "ui/inventory_panel.png", "ui-panel-v1"),
+            record_port("validation", "ui/inventory_panel.validation.json", "ui-validation-v1"),
+            artifact_port("evidence", "ui/inventory_panel.evidence.png", "ui-evidence-v1"),
         ),
         card=NodeCard(reference_inputs=(PortRef(node_id=generated.node_id, port_id="image"),)),
         duration_seconds=0.75,
@@ -1439,10 +1444,10 @@ def _add_inventory_panel_nodes(builder: _GraphBuilder, package_root: str) -> str
         description="review inventory readability, style, and filled slot surfaces",
         depends_on=(validated.node_id,),
         input_digests=(
-            _object_sha256({"contract": UI_INVENTORY_PANEL_REVIEW_VERSION}),
-            _object_sha256(panel.model_dump(mode="json")),
+            object_digest({"contract": UI_INVENTORY_PANEL_REVIEW_VERSION}),
+            object_digest(panel.model_dump(mode="json")),
         ),
-        ports=(_artifact("verdict", "ui/inventory_panel.review.json", "review-verdict-v1"),),
+        ports=(artifact_port("verdict", "ui/inventory_panel.review.json", "review-verdict-v1"),),
         card=NodeCard(
             schema_name="prepared_ui_inventory_review",
             reference_inputs=(PortRef(node_id=validated.node_id, port_id="image"),),
@@ -1483,7 +1488,7 @@ def _add_painted_terrain_nodes(
     canonical_ids: list[str] = []
     with builder.within_template("painted-terrain-segment-pipeline@v1"):
         for segment in segments:
-            segment_identity = _object_sha256(
+            segment_identity = object_digest(
                 {
                     "index": segment.index,
                     "start_column": segment.start_column,
@@ -1504,17 +1509,17 @@ def _add_painted_terrain_nodes(
                 depends_on=(package_root, terrain_node_id),
                 input_digests=(
                     map_direction,
-                    _object_sha256(ground_direction),
+                    object_digest(ground_direction),
                     segment_identity,
                     *_reference_digests(references, game_map.ground.reference_ids),
                 ),
                 ports=(
-                    _artifact(
+                    artifact_port(
                         "guide",
                         f"maps/{game_map.map_id}/ground/{segment.segment_id}.guide.png",
                         PAINTED_TERRAIN_GUIDE_KIND,
                     ),
-                    _record(
+                    record_port(
                         "guide_report",
                         f"maps/{game_map.map_id}/ground/{segment.segment_id}.guide.json",
                         PAINTED_TERRAIN_GUIDE_REPORT_KIND,
@@ -1529,7 +1534,7 @@ def _add_painted_terrain_nodes(
                 params={"map_id": game_map.map_id, "segment_id": segment.segment_id},
                 depends_on=(guide.node_id,),
                 input_digests=(
-                    _text_digest(
+                    text_digest(
                         painted_terrain_generation_prompt(
                             prompt_direction,
                             segment=segment,
@@ -1539,7 +1544,7 @@ def _add_painted_terrain_nodes(
                     ),
                 ),
                 ports=(
-                    _artifact(
+                    artifact_port(
                         "image",
                         f"maps/{game_map.map_id}/ground/{segment.segment_id}.raw.png",
                         PAINTED_TERRAIN_RAW_KIND,
@@ -1557,16 +1562,16 @@ def _add_painted_terrain_nodes(
                 params={"map_id": game_map.map_id, "segment_id": segment.segment_id},
                 depends_on=(guide.node_id, generated.node_id),
                 input_digests=(
-                    _object_sha256({"canonicalizer": PAINTED_TERRAIN_CANONICALIZER_ID}),
-                    _object_sha256(painted_silhouette_tolerance().model_dump(mode="json")),
+                    object_digest({"canonicalizer": PAINTED_TERRAIN_CANONICALIZER_ID}),
+                    object_digest(painted_silhouette_tolerance().model_dump(mode="json")),
                 ),
                 ports=(
-                    _artifact(
+                    artifact_port(
                         "image",
                         f"maps/{game_map.map_id}/ground/{segment.segment_id}.png",
                         PAINTED_TERRAIN_KIND,
                     ),
-                    _record(
+                    record_port(
                         "validation",
                         f"maps/{game_map.map_id}/ground/{segment.segment_id}.validation.json",
                         PAINTED_TERRAIN_VALIDATION_KIND,
@@ -1582,17 +1587,17 @@ def _add_painted_terrain_nodes(
         description=f"stitch the painted terrain of {game_map.map_id} into one plate",
         params={"map_id": game_map.map_id},
         depends_on=(*canonical_ids, terrain_node_id),
-        input_digests=(_object_sha256({"segments": len(segments)}),),
+        input_digests=(object_digest({"segments": len(segments)}),),
         ports=(
             # The plate is evidence, a composite input and a review subject. It is never a
             # runtime asset: fifty-six columns fit inside a 4096-pixel texture and
             # sixty-five do not, so the consumer always loads segments.
-            _artifact(
+            artifact_port(
                 "evidence",
                 f"maps/{game_map.map_id}/ground.evidence.png",
                 PAINTED_TERRAIN_PLATE_KIND,
             ),
-            _record(
+            record_port(
                 "validation",
                 f"maps/{game_map.map_id}/ground.validation.json",
                 PAINTED_TERRAIN_GROUND_VALIDATION_KIND,
@@ -1628,7 +1633,7 @@ def _visual_direction(package: ResolvedGamePackage) -> dict[str, object]:
 
 
 def _visual_direction_digest(package: ResolvedGamePackage) -> str:
-    return _object_sha256(_visual_direction(package))
+    return object_digest(_visual_direction(package))
 
 
 def visual_prompt(package: ResolvedGamePackage, specific: str) -> str:
@@ -1666,15 +1671,6 @@ def _reference_digests(
 
 def _file_digests(package: ResolvedGamePackage, paths: Iterable[str]) -> tuple[str, ...]:
     return tuple(package.file(path).sha256 for path in paths)
-
-
-def _text_digest(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
-
-
-def _object_sha256(value: object) -> str:
-    encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
 
 
 def _motion_repack_identity(motion: MotionPresentation) -> dict[str, object]:

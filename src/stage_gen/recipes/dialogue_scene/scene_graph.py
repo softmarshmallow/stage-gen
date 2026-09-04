@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 from hashlib import sha256
-from typing import TYPE_CHECKING, ClassVar, Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field
 
@@ -26,13 +26,11 @@ from gnode import (
     AuthoredInput,
     Binding,
     BindingTable,
-    Graph,
     GraphBuilder,
     ModelRef,
     NodeCard,
     Port,
     PortRef,
-    seal_graph,
 )
 from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes
 from stage_gen.recipes.dialogue_scene.identity import canonical_json_bytes
@@ -73,6 +71,8 @@ from stage_gen.recipes.dialogue_scene.scene_types import (
     TRACK_GENERATE,
     TRACK_KIND,
 )
+from stage_gen.recipes.graph_document import RecipeGraph
+from stage_gen.recipes.ports import artifact_port, attempts_port
 
 if TYPE_CHECKING:
     from stage_gen.components.scenario import TrackDeclaration
@@ -98,21 +98,11 @@ class DialogueOperationKind(StrEnum):
     MUSIC_GENERATION = "music_generation"
 
 
-class DialogueSceneGraph(Graph):
+class DialogueSceneGraph(RecipeGraph):
     """One dialogue-scene plan of record, bound to the request that produced it."""
 
-    TRACE_SCHEMA_VERSION: ClassVar[int] = DIALOGUE_TRACE_SCHEMA_VERSION
-    TRACE_EVENT_KIND: ClassVar[str] = "dialogue-scene-execution-event-v1"
-    RUN_SUMMARY_KIND: ClassVar[str] = "dialogue-scene-execution-summary-v1"
-    PROJECTION_KIND: ClassVar[str] = "dialogue-scene-execution-projection-v1"
-    VIEW_KIND: ClassVar[str] = "dialogue-scene-execution-view-v1"
-    # The run-view document's version, which is NOT this recipe's version: the view is the
-    # shared read-only shape every recipe exports for the run viewer, and it is 3 across all
-    # of them. It was bumped to 5 alongside the graph when the scene gained several
-    # scenarios, which silently made every scene run unreadable by the viewer — the document
-    # shape had not changed at all. `scene_view.DIALOGUE_VIEW_SCHEMA_VERSION` said 3 the
-    # whole time; this is the value the writer actually reads.
-    VIEW_SCHEMA_VERSION: ClassVar[int] = 3
+    OPERATIONS = DialogueOperationKind
+    VIEW_FIELDS = ("game_id", "scene_id")
 
     schema_version: Literal[5]
     kind: Literal["dialogue-scene-execution-graph-v5"]
@@ -120,20 +110,6 @@ class DialogueSceneGraph(Graph):
     game_id: str
     scene_id: str
     request_sha256: str = Field(pattern=SHA256_PATTERN)
-
-    def identity_header(self) -> dict[str, object]:
-        return {**super().identity_header(), "recipe": self.recipe}
-
-    def annotator_key(self) -> str:
-        return self.recipe
-
-    def view_header(self) -> dict[str, object]:
-        return {"recipe": self.recipe, "game_id": self.game_id, "scene_id": self.scene_id}
-
-    def operation_vocabulary(self) -> tuple[str, ...]:
-        """Report every declared operation, so a zero count stays visible."""
-
-        return tuple(operation.value for operation in DialogueOperationKind)
 
 
 IMAGE_FEATURES = ("transparent_background", "reference_images")
@@ -203,20 +179,6 @@ def dialogue_graph_profile(config: StageGenConfig) -> BindingTable:
             )
         )
     return BindingTable(bindings)
-
-
-def _artifact(port_id: str, ref: str, kind: str) -> Port:
-    """One artifact-plus-sidecar port; the pair stays visibly one payload."""
-
-    return Port(port_id=port_id, artifact_ref=ref, kind=kind, sidecar_ref=f"{ref}.meta.json")
-
-
-def _attempts(node_id: str) -> Port:
-    return Port(
-        port_id="attempts",
-        artifact_ref=f"attempts/{node_id}.json",
-        kind=ATTEMPT_LEDGER_KIND,
-    )
 
 
 def _slug(value: str) -> str:
@@ -304,7 +266,7 @@ def build_dialogue_scene_graph(
         domain="scene",
         description="Canonicalize the authored dialogue request",
         input_digests=(scene.request_sha256, scene.policy_digest, scene.template_digest),
-        ports=(_artifact("request", "request.json", REQUEST_KIND),),
+        ports=(artifact_port("request", "request.json", REQUEST_KIND),),
     )
     # One admit node per bound narrative. A single node publishing all of them
     # would make editing the fourth scenario re-publish the other five, and the
@@ -323,8 +285,8 @@ def build_dialogue_scene_graph(
             depends_on=("scene-request",),
             input_digests=(scenario.program_sha256,),
             ports=(
-                _artifact("program", f"scenarios/{_slug(scenario_id)}.json", SCENARIO_KIND),
-                _artifact(
+                artifact_port("program", f"scenarios/{_slug(scenario_id)}.json", SCENARIO_KIND),
+                artifact_port(
                     "proof",
                     f"scenarios/{_slug(scenario_id)}.validation.json",
                     SCENARIO_ADMISSION_KIND,
@@ -360,8 +322,8 @@ def build_dialogue_scene_graph(
             scene.style_compiler_sha256,
         ),
         ports=(
-            _artifact("anchor", "style-anchor.json", STYLE_ANCHOR_KIND),
-            _attempts("scene-style-select"),
+            artifact_port("anchor", "style-anchor.json", STYLE_ANCHOR_KIND),
+            attempts_port("scene-style-select", ATTEMPT_LEDGER_KIND),
         ),
         card=NodeCard(prompt=scene.style_selection_brief, schema_name="canonical_style_anchor"),
     )
@@ -376,7 +338,7 @@ def build_dialogue_scene_graph(
         description="Publish the authored style plate",
         depends_on=("scene-style-select",),
         input_digests=(style_plate.sha256,),
-        ports=(_artifact("image", "assets/style-plate.png", CONCEPT_KIND),),
+        ports=(artifact_port("image", "assets/style-plate.png", CONCEPT_KIND),),
         card=NodeCard(authored_inputs=style_inputs),
     )
 
@@ -396,10 +358,10 @@ def build_dialogue_scene_graph(
             depends_on=("scene-style-plate",),
             input_digests=(*digests, _brief_digest(stage.brief)),
             ports=(
-                _artifact("image", f"assets/{node_id}.png", BACKDROP_KIND),
+                artifact_port("image", f"assets/{node_id}.png", BACKDROP_KIND),
                 *(
                     (
-                        _artifact(
+                        artifact_port(
                             "provider_raw",
                             f"raw/{node_id}-provider.png",
                             PROVIDER_RAW_KIND,
@@ -408,7 +370,7 @@ def build_dialogue_scene_graph(
                     if native
                     else ()
                 ),
-                _attempts(node_id),
+                attempts_port(node_id, ATTEMPT_LEDGER_KIND),
             ),
             # Every backdrop is drawn against the same authored plate as the
             # sprites, so a room and the people standing in it agree on light.
@@ -452,7 +414,7 @@ def build_dialogue_scene_graph(
             params={"actor": actor.actor_id},
             depends_on=("scene-style-plate",),
             input_digests=(actor.profile.canonical_sha256, actor.profile.source_sha256),
-            ports=(_artifact("profile", f"characters/{slug}.json", PROFILE_KIND),),
+            ports=(artifact_port("profile", f"characters/{slug}.json", PROFILE_KIND),),
         )
         builder.add(
             PLAN_COMPILE,
@@ -466,8 +428,8 @@ def build_dialogue_scene_graph(
             depends_on=(profile_node, "scene-style-plate"),
             input_digests=actor_digests,
             ports=(
-                _artifact("document", f"plans/{slug}.json", PLAN_KIND),
-                _attempts(plan_node),
+                artifact_port("document", f"plans/{slug}.json", PLAN_KIND),
+                attempts_port(plan_node, ATTEMPT_LEDGER_KIND),
             ),
             card=NodeCard(
                 prompt=plan_prompt(request, scene.art_request_sha256, actor.profile.profile),
@@ -487,12 +449,12 @@ def build_dialogue_scene_graph(
             depends_on=(plan_node, "scene-style-plate"),
             input_digests=actor_digests,
             ports=(
-                _artifact(
+                artifact_port(
                     "source",
                     f"raw/{slug}-{_slug(base.expression_id)}.png",
                     EXPRESSION_SOURCE_KIND,
                 ),
-                _attempts(base_node),
+                attempts_port(base_node, ATTEMPT_LEDGER_KIND),
             ),
             card=NodeCard(
                 template_ref=neutral_template,
@@ -513,8 +475,8 @@ def build_dialogue_scene_graph(
                 depends_on=(base_node,),
                 input_digests=actor_digests,
                 ports=(
-                    _artifact("source", f"raw/{slug}-{state}.png", EXPRESSION_SOURCE_KIND),
-                    _attempts(f"actor-{slug}-{state}"),
+                    artifact_port("source", f"raw/{slug}-{state}.png", EXPRESSION_SOURCE_KIND),
+                    attempts_port(f"actor-{slug}-{state}", ATTEMPT_LEDGER_KIND),
                 ),
                 card=NodeCard(
                     template_ref=expression_template,
@@ -529,7 +491,7 @@ def build_dialogue_scene_graph(
             state = _slug(expression.expression_id)
             node_id = f"actor-{slug}-canonicalize-{state}"
             terminal_ids.append(node_id)
-            sprite = _artifact("sprite", f"assets/{slug}-{state}.png", EXPRESSION_SPRITE_KIND)
+            sprite = artifact_port("sprite", f"assets/{slug}-{state}.png", EXPRESSION_SPRITE_KIND)
             source_ref = PortRef(node_id=f"actor-{slug}-{state}", port_id="source")
             if request.transparency_mode == "ai":
                 builder.add(
@@ -543,9 +505,9 @@ def build_dialogue_scene_graph(
                     depends_on=(f"actor-{slug}-{state}",),
                     input_digests=(scene.transparency_digest,),
                     ports=(
-                        _artifact("matte", f"raw/{slug}-{state}.removed.png", MATTE_RAW_KIND),
+                        artifact_port("matte", f"raw/{slug}-{state}.removed.png", MATTE_RAW_KIND),
                         sprite,
-                        _attempts(node_id),
+                        attempts_port(node_id, ATTEMPT_LEDGER_KIND),
                     ),
                     card=NodeCard(
                         prompt="Remove the background while preserving the adult character.",
@@ -593,8 +555,8 @@ def build_dialogue_scene_graph(
             cache_depends_on=(),
             input_digests=(_track_digest(track),),
             ports=(
-                _artifact("audio", f"assets/{node_id}.mp3", TRACK_KIND),
-                _attempts(node_id),
+                artifact_port("audio", f"assets/{node_id}.mp3", TRACK_KIND),
+                attempts_port(node_id, ATTEMPT_LEDGER_KIND),
             ),
             card=NodeCard(prompt=track_prompt(request.game_id, track)),
         )
@@ -610,7 +572,7 @@ def build_dialogue_scene_graph(
             ui=scene.ui,
             style_prompt=ui_atlas_prompt,
             direction_digests=(scene.style_reference.sha256,),
-            attempts_port=_attempts,
+            attempts_port=lambda node_id: attempts_port(node_id, ATTEMPT_LEDGER_KIND),
         )
     )
 
@@ -628,18 +590,14 @@ def build_dialogue_scene_graph(
             Port(
                 port_id="merged_attempts", artifact_ref="attempts.json", kind=MERGED_ATTEMPTS_KIND
             ),
-            _artifact("bundle", "bundle.json", BUNDLE_KIND),
+            artifact_port("bundle", "bundle.json", BUNDLE_KIND),
         ),
     )
 
-    return seal_graph(
-        DialogueSceneGraph,
+    return DialogueSceneGraph.seal(
         resources=builder.resources(),
         nodes=builder.nodes,
         terminal_node_id="scene-bundle",
-        schema_version=DIALOGUE_GRAPH_SCHEMA_VERSION,
-        kind="dialogue-scene-execution-graph-v5",
-        recipe="dialogue-scene",
         game_id=request.game_id,
         scene_id=scene.scene_id,
         request_sha256=scene.request_sha256,

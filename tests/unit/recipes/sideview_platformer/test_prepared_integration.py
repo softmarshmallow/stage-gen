@@ -39,7 +39,7 @@ async def _content_run(tmp_path: Path) -> tuple[Path, Path]:
     cache_dir = tmp_path / "cache"
     handler = PreparedContentNodeHandler(
         prepared.graph,
-        prepared.package,
+        prepared.resolved,
         run_dir=run_dir,
         cache_dir=cache_dir,
         image_service=_FakeImageService(),  # type: ignore[arg-type]
@@ -71,7 +71,7 @@ async def _integrate(
     run_dir.mkdir()
     handler = PreparedIntegrationNodeHandler(
         prepared.graph,
-        prepared.package,
+        prepared.resolved,
         run_dir=run_dir,
         cache_dir=cache_dir,
         output_dir=tmp_path / "published",
@@ -148,7 +148,7 @@ def test_the_manifest_node_is_registered_by_the_integration_handler() -> None:
     prepared = PreparedPackageExecutor(StageGenConfig()).plan(BELLWEATHER)
     handler = PreparedIntegrationNodeHandler(
         prepared.graph,
-        prepared.package,
+        prepared.resolved,
         run_dir=Path("/nonexistent"),
         cache_dir=Path("/nonexistent"),
         output_dir=Path("/nonexistent"),

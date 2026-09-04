@@ -6,30 +6,11 @@ work stays inside the node handler, and every provider operation inside a compon
 
 from __future__ import annotations
 
-import asyncio
-from dataclasses import dataclass
+from collections.abc import Mapping
 from pathlib import Path
 
-from gnode import (
-    DryRunNodeHandler,
-    JsonlTraceSink,
-    Projection,
-    RunSummary,
-    Scheduler,
-    assert_safe_path_segment,
-    atomic_write_json,
-    project_schedule,
-    validate_plan_types,
-    write_graph,
-    write_run_summary,
-)
-from stage_gen.config import StageGenConfig
-from stage_gen.orchestration.runtime import (
-    create_background_removal_service,
-    create_music_service,
-    create_openai_image_service,
-    create_structured_service,
-)
+from gnode import NodeType, assert_safe_path_segment
+from stage_gen.config import CapabilityName
 from stage_gen.recipes.dialogue_scene.prepared_scene import DialogueSceneNodeHandler
 from stage_gen.recipes.dialogue_scene.scene_graph import (
     DialogueSceneGraph,
@@ -42,77 +23,26 @@ from stage_gen.recipes.dialogue_scene.scene_request import (
     resolve_dialogue_scene,
 )
 from stage_gen.recipes.dialogue_scene.scene_types import dialogue_type_index
+from stage_gen.recipes.executor import RecipeExecutor, RecipePlan, RecipeRun
+
+DialogueScenePlan = RecipePlan[ResolvedDialogueScene, DialogueSceneGraph]
+DialogueSceneRun = RecipeRun[DialogueScenePlan]
 
 
-@dataclass(frozen=True, slots=True)
-class DialogueScenePlan:
-    scene: ResolvedDialogueScene
-    graph: DialogueSceneGraph
-    projection: Projection
-
-
-@dataclass(frozen=True, slots=True)
-class DialogueSceneRun:
-    plan: DialogueScenePlan
-    summary: RunSummary
-    run_dir: Path
-
-
-class DialogueSceneExecutor:
+class DialogueSceneExecutor(RecipeExecutor[ResolvedDialogueScene, DialogueSceneGraph]):
     """Resolve, plan, and dispatch one authored scene package."""
 
-    def __init__(self, config: StageGenConfig) -> None:
-        self._config = config
+    IDENTITY_DOCUMENT = "scene.json"
 
-    def plan(self, package_root: Path) -> DialogueScenePlan:
-        root = package_root.absolute()
-        scene = resolve_dialogue_scene(read_scene_document(root), root=root)
-        graph = build_dialogue_scene_graph(
-            scene,
-            profile=dialogue_graph_profile(self._config),
-        )
-        validate_plan_types(graph.nodes, dialogue_type_index())
-        return DialogueScenePlan(
-            scene=scene,
-            graph=graph,
-            projection=project_schedule(graph),
-        )
+    def _resolve(self, input_path: Path) -> ResolvedDialogueScene:
+        root = input_path.absolute()
+        return resolve_dialogue_scene(read_scene_document(root), root=root)
 
-    async def dry_run(
-        self,
-        package_root: Path,
-        *,
-        run_dir: Path,
-        cache_dir: Path,
-        invocation_id: str,
-        failure_node_id: str | None = None,
-        time_scale: float = 0.0001,
-    ) -> DialogueSceneRun:
-        assert_safe_path_segment(invocation_id, "invocation_id")
-        plan = await self._open_run(package_root, run_dir=run_dir)
-        trace = JsonlTraceSink(run_dir / "execution-trace.jsonl")
-        scheduler = Scheduler(
-            plan.graph.resources,
-            node_timeout_seconds=self._config.stage_timeout_s,
-            secrets=self._secrets(),
-        )
-        try:
-            summary = await scheduler.run(
-                plan.graph,
-                DryRunNodeHandler(
-                    plan.graph,
-                    run_dir=run_dir,
-                    cache_dir=cache_dir,
-                    failure_node_id=failure_node_id,
-                    time_scale=time_scale,
-                ),
-                invocation_id=invocation_id,
-                trace_sink=trace,
-            )
-        finally:
-            trace.close()
-        write_run_summary(run_dir / "execution-summary.json", summary)
-        return DialogueSceneRun(plan=plan, summary=summary, run_dir=run_dir)
+    def _build(self, resolved: ResolvedDialogueScene) -> DialogueSceneGraph:
+        return build_dialogue_scene_graph(resolved, profile=dialogue_graph_profile(self._config))
+
+    def _type_index(self) -> Mapping[str, NodeType]:
+        return dialogue_type_index()
 
     async def run(
         self,
@@ -125,82 +55,30 @@ class DialogueSceneExecutor:
         """Execute the whole scene, including the terminal bundle."""
 
         assert_safe_path_segment(invocation_id, "invocation_id")
-        if self._config.openai_api_key is None:
-            raise ValueError("dialogue-scene execution requires OPENAI_API_KEY")
-        if self._config.open_router_api_key is None:
-            raise ValueError("dialogue-scene execution requires OPENROUTER_API_KEY")
-        plan = await self._open_run(package_root, run_dir=run_dir)
-        trace = JsonlTraceSink(run_dir / "execution-trace.jsonl")
-        image_service = create_openai_image_service(
-            api_key=self._config.openai_api_key,
-            model=self._config.openai_image_model,
-            base_url=self._config.openai_base_url or "https://api.openai.com/v1",
-            images_per_minute=self._config.openai_image_ipm,
-        )
-        structured_service = create_structured_service(
-            api_key=self._config.open_router_api_key,
-            model=self._config.text_model,
-            base_url=self._config.open_router_base_url or "https://openrouter.ai/api/v1",
-        )
-        music_service = create_music_service(
-            api_key=self._config.open_router_api_key,
-            model=self._config.music_model,
-            base_url=self._config.open_router_base_url or "https://openrouter.ai/api/v1",
-        )
-        background_service = (
-            create_background_removal_service(
-                api_key=self._config.fal_key,
-                model=self._config.background_removal_model,
-            )
-            if plan.scene.request.transparency_mode == "ai" and self._config.fal_key is not None
-            else None
-        )
-        scheduler = Scheduler(
-            plan.graph.resources,
-            node_timeout_seconds=max(self._config.stage_timeout_s, 900),
-            secrets=self._secrets(),
-        )
-        handler = DialogueSceneNodeHandler(
-            plan.graph,
-            plan.scene,
-            run_dir=run_dir,
-            cache_dir=cache_dir,
-            image_service=image_service,
-            structured_service=structured_service,
-            background_service=background_service,
-            music_service=music_service,
-            capability_timeout_s=self._config.capability_timeout_s,
-        )
-        try:
-            summary = await scheduler.run(
-                plan.graph,
-                handler,
-                invocation_id=invocation_id,
-                trace_sink=trace,
-            )
-        finally:
-            trace.close()
-            await image_service.aclose()
-            await structured_service.aclose()
-            await music_service.aclose()
-            if background_service is not None:
-                await background_service.aclose()
-        write_run_summary(run_dir / "execution-summary.json", summary)
-        return DialogueSceneRun(plan=plan, summary=summary, run_dir=run_dir)
-
-    async def _open_run(self, package_root: Path, *, run_dir: Path) -> DialogueScenePlan:
+        self.require(CapabilityName.NATIVE_IMAGE_GENERATION, CapabilityName.STRUCTURED_GENERATION)
         plan = self.plan(package_root)
-        await asyncio.to_thread(run_dir.mkdir, parents=True, exist_ok=False)
-        write_graph(run_dir / "execution-plan.json", plan.graph)
-        atomic_write_json(
-            run_dir / "execution-projection.json",
-            plan.projection.model_dump(mode="json"),
+        await self.open_run(plan, run_dir=run_dir)
+        # The AI matte route is bound only when the request asks for it and a key exists;
+        # without one the scene falls back to the local matte, as the profile declares.
+        wants_ai_matte = (
+            plan.resolved.request.transparency_mode == "ai" and self._config.fal_key is not None
         )
-        atomic_write_json(run_dir / "scene.json", plan.scene.identity())
-        return plan
-
-    def _secrets(self) -> tuple[str, ...]:
-        return self._config.secret_values()
+        async with self.services() as services:
+            handler = DialogueSceneNodeHandler(
+                plan.graph,
+                plan.resolved,
+                run_dir=run_dir,
+                cache_dir=cache_dir,
+                image_service=services.image(),
+                structured_service=services.structured(),
+                background_service=services.background_removal() if wants_ai_matte else None,
+                music_service=services.music(),
+                capability_timeout_s=self._config.capability_timeout_s,
+            )
+            summary = await self.dispatch(
+                plan, handler, run_dir=run_dir, invocation_id=invocation_id
+            )
+        return RecipeRun(plan=plan, summary=summary, run_dir=run_dir)
 
 
 __all__ = ["DialogueSceneExecutor", "DialogueScenePlan", "DialogueSceneRun"]

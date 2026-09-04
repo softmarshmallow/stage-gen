@@ -107,7 +107,9 @@ class StageGenConfig(ContractModel):
         return self.capability_timeout_ms / 1000
 
 
-class ConfigError(Exception):
+class ConfigError(ValueError):
+    """A capability the run needs has no credential; a value error, because it is one."""
+
     def __init__(self, missing: Iterable[str]) -> None:
         self.missing = tuple(dict.fromkeys(missing))
         suffix = "" if len(self.missing) == 1 else "s"
