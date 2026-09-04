@@ -185,6 +185,7 @@ import {
   NPC_TALK_PROMPT_TEXT,
 } from "./npc";
 import { DebugOverlay } from "./debug-overlay";
+import { parsePlatformerClockBlock } from "./clock";
 import {
   createPlatformerFrameWorld,
   sealPlatformerFrame,
@@ -574,6 +575,11 @@ export class PreparedStageScene extends Phaser.Scene {
     const manifest = parsePreparedRuntimeManifest(raw);
     const gameplay = parsePreparedGameplayContract(manifest.gameplay);
     assertPreparedGameplayManifestClosure(manifest, gameplay);
+    // Each runtime family gates the block it depends on, by name, for itself.
+    // A producer that moves one block gets a refusal naming that block from
+    // the family that could not go on, rather than a genre parser speaking on
+    // behalf of a dozen consumers it does not know about.
+    parsePlatformerClockBlock(manifest.blocks);
     this.manifest = manifest;
     this.gameplay = gameplay;
     await Promise.all([

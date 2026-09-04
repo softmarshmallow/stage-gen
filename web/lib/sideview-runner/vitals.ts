@@ -161,14 +161,18 @@ export function createVitalsSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/vitals",
     contractVersion: "vitals-system-v3",
-    reads: ["avatar", "segments"],
+    reads: ["clock", "avatar", "segments"],
     writes: [],
     owns: ["vitals"],
     consumes: ["hazard-contact", "pit", "crush", "shot-contact"],
     emits: ["drained", "absorbed", "run-ended"],
-    update(world, step) {
+    update(world) {
       const vitals = world.vitals;
-      vitals.clockMs = stepClockMs(step.now);
+      // The simulation's own clock, not the frame's. A refractory window
+      // stamped against `step.now` keeps expiring while a moment holds the
+      // simulation, so a two-second cut-in burns straight through a
+      // nine-hundred-millisecond immunity that never protected anything.
+      vitals.clockMs = stepClockMs(world.clock.simulationNow);
       vitals.hurtThisFrame = false;
       vitals.depletedThisFrame = false;
       if (world.run.phase !== "running") return;

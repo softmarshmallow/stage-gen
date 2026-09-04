@@ -16,6 +16,7 @@ import type {
 } from "./contract";
 import { beginFxMoment, type FxState } from "@/lib/fx/moment-system";
 import type { FxMoment } from "@/lib/manifest/fx";
+import { createClock, type ClockState } from "@/lib/families/clock/clock";
 import { createEventQueue, type EventQueue } from "@/lib/kernel/events";
 import { createGauge } from "@/lib/kernel/gauge";
 import { mulberry32, type Rng } from "@/lib/kernel/rng";
@@ -174,6 +175,15 @@ export interface RunnerWorldConfig {
 }
 
 export interface RunnerWorld {
+  /**
+   * The simulation clock: this frame's delta and its integral.
+   *
+   * Owned by the `clock` family. Every integrator reads `simulationDt` rather
+   * than `step.dt`, and everything that stamps a deadline reads
+   * `simulationNow` rather than `step.now`, so a moment holding the simulation
+   * stops both instead of stopping the first and burning through the second.
+   */
+  clock: ClockState;
   intent: RunnerIntent;
   difficulty: DifficultyState;
   avatar: AvatarState;
@@ -395,6 +405,11 @@ export function createRunnerWorld(
   // The reset fills every dynamic field; the placeholders exist only to give
   // it a complete object to work on.
   const world: RunnerWorld = {
+    // Built here and never rebuilt: the clock belongs to the session, and a
+    // restart inside one does not rewind it. `resetRunnerWorld` leaves it
+    // alone for that reason, and the clock system's own `reset` decides what a
+    // session start means.
+    clock: createClock(),
     intent: NEUTRAL_RUNNER_INTENT,
     difficulty: {
       ceiling: 1,

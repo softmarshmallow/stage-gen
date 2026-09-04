@@ -20,6 +20,20 @@ function step(nowSeconds: number) {
   return { dt: 1 / 60, now: nowSeconds, frame: Math.round(nowSeconds * 60) } as const;
 }
 
+/**
+ * Advance the simulation clock and resolve vitals.
+ *
+ * The system stamps its window from `clock.simulationNow` rather than from
+ * `step.now` since the `clock` family landed, so a unit test has to say what
+ * the simulation clock reads. Under a hold the two numbers differ, which is
+ * the whole reason the integral exists.
+ */
+function tick(world: RunnerWorld, nowSeconds: number): void {
+  world.clock.simulationDt = 1 / 60;
+  world.clock.simulationNow = nowSeconds;
+  system.update(world, step(nowSeconds));
+}
+
 function worldWith(consequences: Partial<RunnerConsequences> = {}): RunnerWorld {
   const document = runnerManifestFixture();
   const gameplay = document.gameplay as Record<string, unknown>;
@@ -31,7 +45,7 @@ describe("createVitalsSystem", () => {
   test("a hazard contact spends one point and leaves the run alive", () => {
     const world = worldWith();
     world.events.emit({ type: "hazard-contact", key: "6:filter_stack" });
-    system.update(world, step(1));
+    tick(world, 1);
     expect(world.vitals.gauge?.value).toBe(2);
     expect(world.vitals.hurtThisFrame).toBe(true);
     expect(world.events.ofType("run-ended")).toHaveLength(0);
@@ -41,10 +55,10 @@ describe("createVitalsSystem", () => {
   test("a second contact inside the immunity window is absorbed, not charged", () => {
     const world = worldWith();
     world.events.emit({ type: "hazard-contact", key: "6:a" });
-    system.update(world, step(1));
+    tick(world, 1);
     world.events.beginFrame();
     world.events.emit({ type: "hazard-contact", key: "9:b" });
-    system.update(world, step(1.4));
+    tick(world, 1.4);
     expect(world.vitals.gauge?.value).toBe(2);
     expect(world.events.ofType("absorbed")).toHaveLength(1);
   });
@@ -52,10 +66,10 @@ describe("createVitalsSystem", () => {
   test("a contact after the window connects again", () => {
     const world = worldWith();
     world.events.emit({ type: "hazard-contact", key: "6:a" });
-    system.update(world, step(1));
+    tick(world, 1);
     world.events.beginFrame();
     world.events.emit({ type: "hazard-contact", key: "9:b" });
-    system.update(world, step(1 + RUNNER_REFRACTORY_MS / 1000));
+    tick(world, 1 + RUNNER_REFRACTORY_MS / 1000);
     expect(world.vitals.gauge?.value).toBe(1);
   });
 
@@ -65,13 +79,13 @@ describe("createVitalsSystem", () => {
     for (let hit = 0; hit < 2; hit += 1) {
       world.events.beginFrame();
       world.events.emit({ type: "hazard-contact", key: `${hit}:a` });
-      system.update(world, step(now));
+      tick(world, now);
       expect(world.events.ofType("run-ended")).toHaveLength(0);
       now += RUNNER_REFRACTORY_MS / 1000;
     }
     world.events.beginFrame();
     world.events.emit({ type: "hazard-contact", key: "final:a" });
-    system.update(world, step(now));
+    tick(world, now);
     expect(world.vitals.gauge?.value).toBe(0);
     expect(world.vitals.depletedThisFrame).toBe(true);
     expect(world.events.ofType("run-ended")[0]?.source).toBe("hazard");
@@ -80,7 +94,7 @@ describe("createVitalsSystem", () => {
   test("a terminal consequence ends the run without touching the gauge", () => {
     const world = worldWith({ crush: "end_run_v1" });
     world.events.emit({ type: "crush" });
-    system.update(world, step(1));
+    tick(world, 1);
     expect(world.events.ofType("run-ended")[0]?.source).toBe("crush");
     expect(world.vitals.gauge?.value).toBe(3);
   });
@@ -91,7 +105,7 @@ describe("createVitalsSystem", () => {
     const world = worldWith({ crush: "drain_v1" });
     world.events.emit({ type: "hazard-contact", key: "6:a" });
     world.events.emit({ type: "crush" });
-    system.update(world, step(1));
+    tick(world, 1);
     expect(world.vitals.gauge?.value).toBe(2);
     expect(world.events.ofType("absorbed")).toHaveLength(1);
   });
@@ -100,7 +114,7 @@ describe("createVitalsSystem", () => {
     const world = worldWith();
     world.avatar.y = world.config.rows + 4;
     world.events.emit({ type: "pit" });
-    system.update(world, step(1));
+    tick(world, 1);
     // The sealer proved a same-frame write impossible: the avatar emits the
     // occurrence, so the answer has to arrive as next frame's feedback.
     expect(world.avatar.y).toBe(world.config.rows + 4);
@@ -111,14 +125,14 @@ describe("createVitalsSystem", () => {
     const world = worldWith();
     world.run.phase = "dead";
     world.events.emit({ type: "hazard-contact", key: "6:a" });
-    system.update(world, step(1));
+    tick(world, 1);
     expect(world.vitals.gauge?.value).toBe(3);
     expect(world.events.ofType("run-ended")).toHaveLength(0);
   });
 
   test("the clock is converted once: fixed steps count seconds, the gauge milliseconds", () => {
     const world = worldWith();
-    system.update(world, step(2));
+    tick(world, 2);
     expect(world.vitals.clockMs).toBe(2000);
   });
 });
@@ -178,7 +192,7 @@ describe("the immunity read", () => {
     expect(avatarBlinkAlpha(world)).toBe(1);
 
     world.events.emit({ type: "hazard-contact", key: "6:a" });
-    system.update(world, step(1));
+    tick(world, 1);
     expect(avatarIsImmune(world)).toBe(true);
     expect(avatarBlinkAlpha(world)).toBe(RUNNER_BLINK_ALPHA);
 

@@ -30,6 +30,7 @@ import {
   type RunnerMusicSink,
 } from "./audio";
 import { createAvatarSystem } from "./avatar";
+import { createRunnerClockSystem } from "./clock";
 import type { RunnerMotionState, RunnerRuntimeManifest } from "./contract";
 import { createDifficultySystem } from "./difficulty";
 import {
@@ -122,6 +123,9 @@ export function assembleRunnerSystems(
   dustOptions: { readonly reducedMotion?: boolean } = {},
 ): readonly GameSystem<RunnerWorld>[] {
   return [
+    // The clock first: everything that integrates is handed its delta, and
+    // everything that stamps a deadline is handed its integral.
+    createRunnerClockSystem(),
     createIntentSystem(latch),
     // Always sealed, even with nothing to play: two consumers read its
     // release, and one topology is easier to reason about than two.

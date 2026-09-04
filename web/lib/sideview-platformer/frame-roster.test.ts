@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { SealRefusal, SystemCycleError, sealSystems } from "@/lib/kernel/systems";
+import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
+import { parsePlatformerClockBlock } from "./clock";
 import { NEUTRAL_PLAYER_INTENT } from "./player-intent";
 import {
   assemblePlatformerSystems,
@@ -34,7 +36,10 @@ const DOCUMENTED_ORDER = [
   // what the hand-written `return` in the middle of `update` did.
   "dialogue/input",
   "progression/stat-log",
-  "clock/hitstop",
+  // The `clock` family, sealed where the genre's own hitstop step used to be:
+  // it now answers for both of this frame's holders, the conversation as well
+  // as the blow, rather than for the blow alone.
+  "clock/step",
   // The simulation, in the order the audit found it: the player against
   // creatures that have not moved yet, then the director that places new ones
   // against the player that has, then the creatures, then the shots against
@@ -73,7 +78,7 @@ function inertSteps(record: string[] = []): PlatformerFrameSteps {
     dialogueOpen: () => true,
     updateDialogueInput: note("dialogue/input", undefined),
     updateStatLog: note("progression/stat-log", undefined),
-    hitstopActive: note("clock/hitstop", false),
+    hitstopActive: note("clock/step", false),
     updatePlayer: note("player/update", undefined),
     updateMobPopulation: note("mobs/population", undefined),
     stepMobs: note("mobs/step", undefined),
@@ -155,8 +160,8 @@ const LOAD_BEARING = [
   ["dialogue/input", "player/update"],
   ["dialogue/input", "npc/prompt"],
   // The simulation delta is decided before the integrators are handed it.
-  ["clock/hitstop", "player/update"],
-  ["clock/hitstop", "mobs/step"],
+  ["clock/step", "player/update"],
+  ["clock/step", "mobs/step"],
   // The director places bodies against a player that has already moved.
   ["player/update", "mobs/population"],
   // ...and the creatures it reserved are stepped after it reserved them.
@@ -205,9 +210,9 @@ describe("the edges the frame order actually rests on", () => {
  */
 describe("the refusals that produced the edge list", () => {
   test("1: the hitstop deadline is last frame's", () => {
-    // `clock/hitstop` asks the impact system whether a blow is still holding the
+    // `clock/step` asks the impact system whether a blow is still holding the
     // simulation, and the systems that arm one are sealed after it.
-    expect(() => sealSystems(alsoReads("clock/hitstop", "impact"))).toThrow(SystemCycleError);
+    expect(() => sealSystems(alsoReads("clock/step", "impact"))).toThrow(SystemCycleError);
   });
 
   test("2: the creatures the player fights are where they stood last frame", () => {
@@ -339,5 +344,53 @@ describe("the frame's one keyboard reading", () => {
         expect(source).toContain("jump: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)");
         expect(/\bkeys\??\.jump\b/.test(source)).toBe(false);
       });
+  });
+});
+
+// --- The `clock` family, sealed into this genre ---------------------------------------------
+
+describe("the clock family in the platformer", () => {
+  test("E7 subtraction: with the clock taken out, the rest seals to the identical order", () => {
+    const quiet = roster().filter((system) => system.id !== "clock/step");
+    expect(sealSystems(quiet).order).toEqual(DOCUMENTED_ORDER.filter((id) => id !== "clock/step"));
+  });
+
+  test("both holders stop the simulation, and the conversation is named first", () => {
+    const world = createPlatformerFrameWorld();
+    let dialogue = false;
+    let hitstop = false;
+    const steps = { ...inertSteps(), dialogueOpen: () => dialogue, hitstopActive: () => hitstop };
+    const sealed = sealSystems(assemblePlatformerSystems(steps));
+    const tick = (frame: number) => sealed.tick(world, { dt: 1000 / 30, now: frame * (1000 / 30), frame });
+
+    tick(1);
+    expect(world.clock.held).toBe(false);
+    expect(world.clock.simulationDt).toBeCloseTo(1000 / 30, 9);
+
+    hitstop = true;
+    tick(2);
+    expect(world.clock.heldBy).toBe("hitstop");
+    expect(world.clock.simulationDt).toBe(0);
+
+    dialogue = true;
+    tick(3);
+    expect(world.clock.heldBy).toBe("dialogue");
+
+    dialogue = false;
+    hitstop = false;
+    tick(4);
+    expect(world.clock.held).toBe(false);
+    // Two of four frames were held: the integral is two deltas, not four.
+    expect(world.clock.simulationNow).toBeCloseTo((2 * 1000) / 30, 9);
+  });
+
+  test("the family gates its own block, and the refusal names it", () => {
+    expect(parsePlatformerClockBlock(PREPARED_RUNTIME_BLOCKS).published).toBe(true);
+    expect(() =>
+      parsePlatformerClockBlock({ ...PREPARED_RUNTIME_BLOCKS, gameplay: "platformer-gameplay-block-v2" }),
+    ).toThrow(
+      'manifest block "gameplay" is published as platformer-gameplay-block-v2; ' +
+        "this build reads platformer-gameplay-block-v1",
+    );
   });
 });

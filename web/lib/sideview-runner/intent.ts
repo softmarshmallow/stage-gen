@@ -190,12 +190,21 @@ export function attachPointerIntentSource(
 export function createIntentSystem(latch: RunnerIntentLatch): GameSystem<RunnerWorld> {
   return {
     id: "runner/intent",
-    contractVersion: "intent-system-v3",
-    reads: [],
+    contractVersion: "intent-system-v4",
+    reads: ["clock"],
     writes: [],
     owns: ["intent"],
     update(world) {
-      world.intent = latch.sample();
+      // Sampled unconditionally, because a latch that is not drained is a
+      // request queued against the moment the hold ends: press jump under a
+      // cut-in and the avatar would launch itself the instant the overlay
+      // tore away. The edges are spent and then reported neutral; the levels
+      // are conditions and stay as they are, and the integrator they feed is
+      // being handed a zero delta in any case.
+      const sampled = latch.sample();
+      world.intent = world.clock.held
+        ? runnerIntent({ duck: sampled.duck, thrust: sampled.thrust })
+        : sampled;
     },
   };
 }

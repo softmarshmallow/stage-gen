@@ -416,6 +416,57 @@ mutation, `HIDDEN_FX_VIEW` moves to an engine-free file so the runner's
 order test stops mocking Phaser. *Machine:* E4; E1 identical. *Played:* the
 kill shake on Crowncrag Road, identical stills.
 
+**Evidence, measured.** Branch `runtime/step-3-families`; `bun test` and
+`tsc --noEmit` green at every commit. Families live in `web/lib/families/<x>/`,
+one directory each, and every one of them gates the manifest block it depends
+on itself, by name, through the per-block table — so a producer that moves a
+block gets a refusal from the family that could not go on rather than from a
+genre parser speaking for a dozen consumers it does not know about.
+
+- **`clock`.** Extracted into both rosters as `clock/step`, replacing the
+  platformer's `clock/hitstop` step and adding a slice the runner never had.
+  **E1 platformer: zero diff** — all six hundred per-frame digests
+  byte-identical, nothing re-pinned; the frame world is not in the snapshot and
+  the delta every integrator is handed is the same number by a different route.
+  **E1 runner: zero diff over the eleven slices that existed before, and all
+  three checkpoints re-pinned because a twelfth appeared.** The world gained
+  `clock`, so every frame is a different digest of the same run; measured
+  rather than argued with a new instrument, `REPLAY_SLICES`, which names the
+  slices to hash and reproduces the step-2 chain frame for frame. The
+  behaviour the family exists to change is invisible in this golden for the
+  reason step 0 left `defeatedAtMs` alone: the runner fixture publishes no `fx`
+  block, so it has no moment, so it never holds, so `simulationDt` is `step.dt`
+  and `simulationNow` is `step.now` on all six hundred frames. It is exhibited
+  directly instead — under a moment in flight the avatar integrates nothing,
+  and the jump edge pressed under it is *drained and reported neutral* rather
+  than queued, which is the half of the ruling that a zero delta alone does not
+  buy. **E2:** the runner's `DOCUMENTED_ORDER` gains `clock/step` at the head
+  (everything that integrates or stamps reads it); the platformer's is the same
+  twenty ids with `clock/hitstop` renamed, and the two `LOAD_BEARING` pairs and
+  the refusal-1 cycle fixture move with the name. **E4:** one family file
+  sealed into two hand-built worlds that share no field but the clock — a
+  runner-shaped one holder, a platformer-shaped two — plus one test each in the
+  genres' own suites. **E7:** both rosters with `clock/step` filtered out seal
+  to the identical order minus that entry, in both genres.
+- **The block, and the refusal.** `clock` authors no block of its own — a hold
+  is a runtime fact — but *whether a genre's holder can exist* is authored, and
+  the family gates that block: `fx` in the runner (optional; no fx block is no
+  moment is no holder, which is an answer and not a refusal) and `gameplay` in
+  the platformer (`combat.enabled` is what makes `hitstopActive` answer at all).
+  Moving either gets `manifest block "fx" is published as fx-block-v2; this
+  build reads fx-block-v1`, from the clock.
+- **One thing the ruling did not fit, and it is the dead phase.** The step's
+  fact lists four hold mechanisms and the fourth is the runner's dead phase.
+  It is not a holder here. A hold is transient and the simulation resumes into
+  the same run; `dead` is the session's own phase, the systems that skip under
+  it are reading a lifecycle and not a clock, and — the part that decides it —
+  the simulation clock has to keep counting through a death so that a moment
+  playing over the restart is timed from a clock that never rewinds, which is
+  what the kernel's `reset` scopes already say. Making it a holder would have
+  frozen `vitals.clockMs` from frame 278 to 410 of the runner's golden and
+  moved a third of the chain for no change in play, which is the shape of
+  movement this step refuses rather than re-pins.
+
 **Falsifier for the step.** Any of the five needing a genre-specific branch
 inside the family file means the boundary is wrong for that one; it stays
 genre-owned and the table is corrected — the family list is not a target.

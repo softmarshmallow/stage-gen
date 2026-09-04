@@ -33,6 +33,8 @@
 
 import type { FixedStep, GameSystem, SealedSystems } from "@/lib/kernel/systems";
 import { sealSystems } from "@/lib/kernel/systems";
+import { createClock, createClockSystem, type ClockState } from "@/lib/families/clock/clock";
+import { platformerClockHolders } from "./clock";
 import { NEUTRAL_PLAYER_INTENT, type PlayerIntent } from "./player-intent";
 
 /**
@@ -56,8 +58,14 @@ export interface PlatformerFrameWorld {
   intent: PlayerIntent;
   /** True while a conversation holds the simulation; every system below the hold reads it. */
   hold: boolean;
-  /** Elapsed simulation milliseconds for this frame's integrators: zero under hitstop. */
-  clock: number;
+  /**
+   * The simulation clock: elapsed milliseconds this frame, and their integral.
+   *
+   * Owned by the `clock` family rather than by a hitstop step of the genre's
+   * own, which is what makes "how much time passed" one decision with one
+   * author for both of this frame's holders.
+   */
+  clock: ClockState;
 
   /** The constructed world — map, terrain, decks, layers, camera bounds, the actors' existence. */
   readonly stage?: never;
@@ -103,7 +111,7 @@ export type PlatformerFrameSystem = GameSystem<PlatformerFrameWorld>;
 
 /** A fresh frame world. The three real slices start neutral; the rest are names. */
 export function createPlatformerFrameWorld(): PlatformerFrameWorld {
-  return { intent: NEUTRAL_PLAYER_INTENT, hold: false, clock: 0 };
+  return { intent: NEUTRAL_PLAYER_INTENT, hold: false, clock: createClock() };
 }
 
 /**
@@ -248,22 +256,18 @@ export function assemblePlatformerSystems(
         steps.updateStatLog(step.now);
       },
     },
-    {
-      id: "clock/hitstop",
-      contractVersion: "clock-system-v1",
+    // The `clock` family, instantiated into this genre's two holders. It used
+    // to be a genre step called "clock/hitstop" that knew about exactly one of
+    // them and left the other — the conversation — to be re-checked at the top
+    // of every system below it. The holders themselves are in `clock.ts`, with
+    // the block the family gates for itself.
+    createClockSystem<PlatformerFrameWorld>({
+      slice: "clock",
+      // `hold` is this frame's, written by `dialogue/input` above; the sealer
+      // is what puts this system after it.
       reads: ["hold"],
-      writes: [],
-      owns: ["clock"],
-      update: (world, step) => {
-        if (held(world)) return;
-        // Feedback read of `impact`, undeclared: the hitstop deadline this asks
-        // about was armed by a blow landed on an *earlier* frame, because the
-        // systems that arm one — the player's swing and the shot pool — are
-        // sealed after this. Declaring the read closes the cycle
-        // clock/hitstop -> player/update -> clock/hitstop, which is refusal 1.
-        world.clock = steps.hitstopActive(step.now) ? 0 : step.dt;
-      },
-    },
+      holders: platformerClockHolders(steps),
+    }),
     {
       id: "player/update",
       contractVersion: "player-system-v1",
@@ -292,7 +296,7 @@ export function assemblePlatformerSystems(
       ],
       update: (world, step) => {
         if (held(world)) return;
-        steps.updatePlayer(world.clock, step.now, world.intent);
+        steps.updatePlayer(world.clock.simulationDt, step.now, world.intent);
       },
     },
     {
@@ -336,7 +340,7 @@ export function assemblePlatformerSystems(
       after: ["mobs/population"],
       update: (world, step) => {
         if (held(world)) return;
-        steps.stepMobs(world.clock, step.now);
+        steps.stepMobs(world.clock.simulationDt, step.now);
       },
     },
     {
@@ -346,7 +350,7 @@ export function assemblePlatformerSystems(
       writes: ["projectiles", "mobs", "items", "impact", "statLog", "transcript"],
       update: (world, step) => {
         if (held(world)) return;
-        steps.updateProjectiles(world.clock, step.now);
+        steps.updateProjectiles(world.clock.simulationDt, step.now);
       },
     },
     {
@@ -356,7 +360,7 @@ export function assemblePlatformerSystems(
       writes: ["items", "transcript"],
       update: (world, step) => {
         if (held(world)) return;
-        steps.collectDrops(world.clock, step.now);
+        steps.collectDrops(world.clock.simulationDt, step.now);
       },
     },
     {

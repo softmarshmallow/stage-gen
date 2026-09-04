@@ -328,7 +328,7 @@ export function createEncounterSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/encounter",
     contractVersion: "encounter-system-v2",
-    reads: ["avatar", "difficulty"],
+    reads: ["clock", "avatar", "difficulty"],
     writes: [],
     owns: ["encounter", "locomotion"],
     emits: [
@@ -340,8 +340,12 @@ export function createEncounterSystem(): GameSystem<RunnerWorld> {
       "fx-requested",
     ],
     consumes: ["fx-released"],
-    update(world, step) {
-      stepEncounter(world, step.now, step.dt);
+    update(world) {
+      // The director's own phase timers run on the simulation clock, so the
+      // fight is frozen for exactly as long as its cut-in holds it — a
+      // director stamped against `step.now` would spend the cut-in's two
+      // seconds of its own phase budget while nothing could be fought.
+      stepEncounter(world, world.clock.simulationNow, world.clock.simulationDt);
     },
   };
 }

@@ -21,6 +21,8 @@ const {
   UnknownSystemError,
 } = await import("@/lib/kernel/systems");
 const { createIntentLatch } = await import("./intent");
+const { parseRunnerClockBlock, momentHolds } = await import("./clock");
+const { RUNNER_BLOCKS } = await import("./contract");
 const { SILENT_AUDIO_SINK } = await import("./audio");
 const { createRunnerWorld } = await import("./world");
 const { parseRunnerRuntimeManifest } = await import("./contract");
@@ -29,6 +31,10 @@ type RunnerWorld = import("./world").RunnerWorld;
 type RunnerSystem = import("@/lib/kernel/systems").GameSystem<RunnerWorld>;
 
 const DOCUMENTED_ORDER = [
+  // The `clock` family, first: it decides how much simulation time this frame
+  // carries, and the intent that is drained under a hold, the avatar that
+  // integrates it and the vitals that stamp against it all read the answer.
+  "clock/step",
   "runner/intent",
   "runner/difficulty",
   "runner/avatar",
@@ -217,5 +223,68 @@ describe("the sealer refuses the declarations this step corrected", () => {
       );
     expect(seal).toThrow(UnknownSystemError);
     expect(seal).toThrow('names unregistered "runner/run-lop"');
+  });
+});
+
+// --- The `clock` family, sealed into this genre ---------------------------------------------
+
+describe("the clock family in the runner", () => {
+  const roster = () =>
+    assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK);
+
+  test("E7 subtraction: with the clock taken out, the rest seals to the identical order", () => {
+    // The family is one entry, and removing it moves nothing else: every
+    // system that reads the clock reads it as an input, not as a position.
+    const quiet = roster().filter((system) => system.id !== "clock/step");
+    expect(sealSystems(quiet, EVENTS).order).toEqual(
+      DOCUMENTED_ORDER.filter((id) => id !== "clock/step"),
+    );
+  });
+
+  test("the moment is this genre's one holder, and the dead phase is not", () => {
+    const world = createRunnerWorld(parseRunnerRuntimeManifest(runnerManifestFixture()), 1);
+    expect(momentHolds(world)).toBe(false);
+    world.fx = { moment: "boss_arrival", choreography: "tear_reveal_v1", startedAt: null, released: false };
+    expect(momentHolds(world)).toBe(true);
+    // Released is released: the simulation resumes while the overlay tears away.
+    world.fx.released = true;
+    expect(momentHolds(world)).toBe(false);
+    world.fx = null;
+    world.run.phase = "dead";
+    expect(momentHolds(world)).toBe(false);
+  });
+
+  test("under a hold the avatar integrates nothing and the jump edge is spent, not queued", () => {
+    const latch = createIntentLatch();
+    const sealed = sealSystems(
+      assembleRunnerSystems(latch, noopView, noopView, SILENT_AUDIO_SINK),
+      runnerSealOptions({ devTrap: true }),
+    );
+    const world = createRunnerWorld(parseRunnerRuntimeManifest(runnerManifestFixture()), 1);
+    // A moment already in flight, the way a boss cut-in reaches a running run.
+    world.fx = { moment: "boss_arrival", choreography: "tear_reveal_v1", startedAt: null, released: false };
+    const before = { ...world.avatar };
+    latch.requestJump();
+    sealed.tick(world, { dt: 1 / 60, now: 1 / 60, frame: 1 });
+    expect(world.clock.held).toBe(true);
+    expect(world.clock.simulationDt).toBe(0);
+    expect(world.clock.simulationNow).toBe(0);
+    // The edge was drained by the sample and reported neutral, so nothing
+    // launched — and nothing is queued to launch when the overlay lets go.
+    expect(world.intent.jump).toBe(false);
+    expect(world.avatar.jumpImpulses).toBe(before.jumpImpulses);
+    expect(world.avatar.distanceColumns).toBe(before.distanceColumns);
+    expect(world.avatar.grounded).toBe(true);
+  });
+
+  test("the family gates its own block, and the refusal names it", () => {
+    const blocks = { ...RUNNER_BLOCKS };
+    expect(parseRunnerClockBlock(blocks).published).toBe(true);
+    const { fx: _fx, ...withoutFx } = blocks;
+    // No fx block is no moment, which is no holder — not a refusal.
+    expect(parseRunnerClockBlock(withoutFx).published).toBe(false);
+    expect(() => parseRunnerClockBlock({ ...blocks, fx: "fx-block-v2" })).toThrow(
+      'manifest block "fx" is published as fx-block-v2; this build reads fx-block-v1',
+    );
   });
 });

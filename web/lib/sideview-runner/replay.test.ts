@@ -60,6 +60,26 @@ function plain(value: unknown): unknown {
   return value;
 }
 
+/**
+ * The slices this digest covers, or null for all of them.
+ *
+ * `REPLAY_SLICES` is the instrument a step that *adds* a slice needs. A new
+ * slice moves every frame's digest by existing, which says nothing about
+ * behaviour; naming the slices that were there before turns "did the run
+ * change" back into a frame-by-frame question with an answer. The clock family
+ * is the first user: eleven slices named, six hundred digests identical.
+ */
+const RESTRICT: readonly string[] | null = process.env.REPLAY_SLICES
+  ? process.env.REPLAY_SLICES.split(",")
+  : null;
+
+function restrict(world: RunnerWorld): unknown {
+  if (RESTRICT === null) return world;
+  const out: Record<string, unknown> = {};
+  for (const key of RESTRICT) out[key] = (world as unknown as Record<string, unknown>)[key];
+  return out;
+}
+
 function digest(world: unknown, events: readonly unknown[]): string {
   const hasher = new Bun.CryptoHasher("sha256");
   hasher.update(JSON.stringify({ world: plain(world), events: plain(events) }));
@@ -79,13 +99,31 @@ function digest(world: unknown, events: readonly unknown[]): string {
  * restart at frame 410 included.
  */
 const GOLDEN: Record<number, string> = {
-  // Unchanged from the previous pin: this checkpoint is upstream of 278.
-  60: "7bdfe7f4b742caf3b323a5c30f5faa1bf1f2b352edce5095caa2cf83eba5dfb1",
-  // These two moved, and only because the chain carries frame 278 forward:
-  // frames 279..600 hash identically one by one.
-  300: "5199eb928ae27ab2ef52e4b02511cffba5ce2572f6997d15fdbca24f592b9af0",
-  600: "00746829deb2f00ddfcf2a9333e68fd16c1253e74717f427cb8e33dcb1a83d99",
+  60: "b2d389c2cb410d20d127b5e4b5bcbc8645949f4aa855521fe5427e62d1223ed6",
+  300: "876b5647838e0fe02a9300962ef22abc5d08a66abd0603e311fd52999bf43e5f",
+  600: "f8bb6e74ab6a5d603519563e8f9463a04b22f6357b3f46a90105b3d138186e2f",
 };
+
+/**
+ * Re-pinned a second time, for the `clock` family.
+ *
+ * All three checkpoints moved and no frame of the run did. The world gained a
+ * `clock` slice — four numbers the digest had never hashed — so every frame's
+ * digest is a different digest of the same run. Measured rather than claimed:
+ * with `REPLAY_SLICES` naming the eleven slices that existed before (avatar,
+ * camera, difficulty, encounter, fx, intent, locomotion, obstacles, run,
+ * segments, vitals) all six hundred per-frame digests are byte-identical to
+ * the previous chain, the death at 278 and the restart at 410 included.
+ *
+ * The behaviour the family exists to change — a jump pressed under a cut-in no
+ * longer firing, and a refractory window that no longer expires while the
+ * simulation is held — is invisible here for the reason step 0 left
+ * `defeatedAtMs` alone: this package publishes no `fx` block, so it has no
+ * moment, so it never holds. `clock.simulationDt` equals `step.dt` and
+ * `clock.simulationNow` equals `step.now` on every one of these frames, which
+ * is exactly why nothing moved. The hold is exhibited in
+ * `lib/families/clock/clock.test.ts` and in `intent.test.ts` instead.
+ */
 
 /** The frame the run ends, and the frame after it takes the pose. */
 const DEATH_FRAME = 278;
@@ -93,7 +131,7 @@ const DEATH_FRAME = 278;
 const RESTART_FRAME = 410;
 
 describe("the runner replays to its golden", () => {
-  test("six hundred fixed steps under a scripted intent hash to the pinned chain", () => {
+  test("six hundred fixed steps under a scripted intent hash to the pinned chain", async () => {
     const manifest = parseRunnerRuntimeManifest(runnerManifestFixture());
     const world = createRunnerWorld(manifest, SEED);
     const latch = createIntentLatch();
@@ -108,15 +146,22 @@ describe("the runner replays to its golden", () => {
     const clock = createFixedStepAccumulator();
     let chain = "";
     const seen: Record<number, string> = {};
+    const frames: string[] = [];
+    const dumps: string[] = [];
     const notes: { death?: string; restartSeed?: number; restartEvents?: number } = {};
     for (let frame = 1; frame <= FRAMES; frame += 1) {
       drive(latch, frame);
       const steps = clock.advance(FRAME_MS + 1e-9);
       expect(steps.length).toBe(1);
       sealed.tick(world, steps[0]);
+      const frameDigest = digest(restrict(world), world.events.frame);
       const hasher = new Bun.CryptoHasher("sha256");
-      hasher.update(chain + digest(world, world.events.frame));
+      hasher.update(chain + frameDigest);
       chain = hasher.digest("hex");
+      frames.push(`${frame} ${frameDigest}`);
+      if (process.env.REPLAY_DUMP) {
+        dumps.push(`${frame} ${JSON.stringify(plain({ w: restrict(world), e: world.events.frame }))}`);
+      }
       if (frame in GOLDEN) seen[frame] = chain;
       if (frame === DEATH_FRAME) notes.death = world.avatar.motion;
       if (frame === RESTART_FRAME) {
@@ -124,6 +169,14 @@ describe("the runner replays to its golden", () => {
         notes.restartEvents = world.events.frame.length;
       }
     }
+    // The same two instruments the platformer's golden carries: one unchained
+    // digest per frame, so "which frames moved" is a diff rather than a claim,
+    // and the whole hashed world per frame, so "and why" is a field diff.
+    if (process.env.REPLAY_DUMP) await Bun.write(process.env.REPLAY_DUMP, `${dumps.join("\n")}\n`);
+    if (process.env.REPLAY_FRAMES) {
+      await Bun.write(process.env.REPLAY_FRAMES, `${frames.join("\n")}\n`);
+    }
+    if (RESTRICT !== null) return;
     expect(seen).toEqual(GOLDEN);
     // The documented frame, asserted rather than only described: the pose is
     // the avatar's to write, one frame later.

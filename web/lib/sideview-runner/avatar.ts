@@ -243,14 +243,18 @@ export function createAvatarSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/avatar",
     contractVersion: "avatar-system-v5",
-    reads: ["intent", "difficulty"],
+    reads: ["clock", "intent", "difficulty"],
     writes: [],
     // One author for the avatar, death pose included: the run-loop used to
     // write the pose too, a frame earlier, without declaring it.
     owns: ["avatar"],
     emits: ["pit", "crush"],
-    update(world, step) {
-      stepAvatar(world, step.dt);
+    update(world) {
+      // The simulation's delta, not the frame's: under a moment the avatar
+      // integrates zero, which is the half of "a jump under the cut-in does
+      // not fire" that this system owns. The other half is the intent system
+      // reporting neutral edges while the clock is held.
+      stepAvatar(world, world.clock.simulationDt);
     },
   };
 }
