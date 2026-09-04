@@ -330,6 +330,34 @@ exemption granted and scoped to `audio.toml`).
 
 Gate: 22 steps, 223 s, green.
 
+**2026-09-04 — Phase 1 landed.** The batch turned out almost free: with a
+declared cache identity (B2), renames stop costing before any type is
+renamed, so B7 becomes a zero-cost move for workstream D; the codec (B3)
+keeps every site's compression level, so it moves no bytes; the world
+admission (B4) admits all 17 of Bellweather's cached images today. The one
+real key movement is B6 - the rebase judges now bind the schema they ask
+for - and it is two nodes on Bellweather and four on Iron Petal, plus the
+manifest that binds them, paid on the next regeneration.
+
+| Card | Landed as |
+| --- | --- |
+| B1 / C-R2 | Rule written into `docs/game-contract.md`; mechanism is B4 plus the free validate nodes |
+| B2 | `NodeType.identity`, defaulting to `type_id`; both goldens unchanged |
+| B3 | `media/codec.py`; five encoders and six decoders delegate to it at their own level |
+| B4 | World cache admission re-runs each image's gate; 17/17 admitted on the real cache |
+| B5 | `replay_cache.py`, its script, test and doc section removed (−2.4k lines) |
+| B6 | Schema names renamed; bound as input digests on every rebase judge; goldens re-pinned with the diff as the record |
+| B8 | `STAGE_GEN_CACHE_DIR`, default `.cache`; the three namespaces merged under it (`out/.stage-gen-cache` kept until deleted by hand) |
+| B9 | The five spend verbs require a terminal or `--yes` |
+| B10 | `validate_plan_types` in every recipe's plan; found the runner census missing its dust-sprite types |
+| B12 | Reviews out of `world` (41→39 nodes, 4→2 structured) and `content` (189→171, 20→2); `world-review` / `content-review` run them |
+| C3 | `game-map-v2`, its book and both CLI verbs removed (−650 lines); `stage-gen map validate` had refused every shipped map |
+| C4 | Room manifest `schema_version` read off its kind |
+| C-R1..R6 | Written into the game contract |
+| B7 | Deferred to workstream D, now free |
+| C1, C2 | Next: per-block manifests and the derived identity table |
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one

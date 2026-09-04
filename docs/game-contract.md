@@ -365,6 +365,40 @@ does not by itself define a core game contract.
 | [Sprite-sheet slicing and instance recovery](spec/sprite-sheet-processing.md) | Implemented alpha-component repacking default, known loss modes, and planned geometry and ownership recovery |
 | [Generated-media publication](generated-media-publication.md) | Rights review and repository publication gates |
 
+## Versioning discipline
+
+Six rules, each written after the fifteen days that showed what its absence
+costs. They govern every versioned document and every node type in the tree.
+
+1. **Two words, never one.** A node type's `contract_version` is a cache key:
+   it says whether paid work must be redone. A document's `schema_version` and
+   `kind` are an identity: they say whether a consumer may read it. Neither is
+   bumped to express the other.
+2. **A paid node's `contract_version` moves only when its request moves** —
+   prompt, size, references, provider, model. An acceptance criterion lives in
+   the free validate node downstream and in the checkpoint's cache-admission
+   callback, where tightening it costs exactly the artifacts that no longer
+   pass. One validator change once redrew eleven layer images because it was
+   expressed as a generate bump.
+3. **Per-block versions in published manifests.** A runtime manifest is a set
+   of named blocks, each carrying its own version; the document version moves
+   on structural change only, and an unknown block version refuses that
+   block's consumer rather than the run. Nine of the runner manifest's eleven
+   bumps in two days touched one block.
+4. **Additive optional fields bump nothing.** A new optional table or field
+   is read by the consumer that wants it and ignored by the one that does
+   not; it moves no version and drops no run.
+5. **One authority per version string; documents derive.** A version literal
+   lives in exactly one model and every mention elsewhere is generated or
+   checked against it. The retired set is every version below the current
+   one, computed, never listed by hand.
+6. **Publish only what a consumer reads.** A field in a runtime manifest that
+   no consumer parses is a defect, and the check is mechanical.
+
+The rules apply forward. Where a shipped contract violates one today, the
+violation is listed in `docs/plans/engineering-pass.md` with its price, and is
+corrected when the family that owns the block lands.
+
 ## Non-goals
 
 This master contract does not:
