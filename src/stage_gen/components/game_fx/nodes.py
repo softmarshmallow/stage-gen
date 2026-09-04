@@ -24,7 +24,6 @@ the pipeline renders.
 
 from __future__ import annotations
 
-import hashlib
 import io
 import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
@@ -37,7 +36,6 @@ from PIL import Image
 from gnode import (
     AuthoredInput,
     BinaryArtifact,
-    CacheDisposition,
     Graph,
     GraphBuilder,
     ImageGenerationRequest,
@@ -45,7 +43,6 @@ from gnode import (
     ImageReference,
     InputProvenance,
     Node,
-    NodeArtifact,
     NodeCard,
     NodeExecutionResult,
     NodePolicy,
@@ -68,6 +65,15 @@ from gnode import (
     atomic_write_json,
     dependency_port,
     write_artifact_with_provenance_async,
+)
+from stage_gen.canonical import content_sha256
+from stage_gen.components._node_kit import (
+    ProviderCall,
+    artifact_port,
+    card_prompt,
+    node_result,
+    object_digest,
+    record_port,
 )
 from stage_gen.components.game_fx.cut_in import (
     CUT_IN_FRAME,
@@ -466,14 +472,6 @@ def cut_in_artifact_refs(plate_id: str) -> tuple[str, str, str, str, str, str]:
     )
 
 
-def _artifact(port_id: str, ref: str, kind: str) -> Port:
-    return Port(port_id=port_id, artifact_ref=ref, kind=kind, sidecar_ref=f"{ref}.meta.json")
-
-
-def _record(port_id: str, ref: str, kind: str) -> Port:
-    return Port(port_id=port_id, artifact_ref=ref, kind=kind)
-
-
 def sprite_dust_node_ids(*, prefix: str = "fx") -> tuple[str, str]:
     """The generate and validate ids the dust atlas occupies in a host graph."""
 
@@ -524,10 +522,10 @@ def add_sprite_nodes(
     )
     generate_id, validate_id = sprite_dust_node_ids(prefix=prefix)
     raw_ref, atlas_ref, validation_ref = sprite_dust_artifact_refs()
-    direction = _object_sha256(dust.model_dump(mode="json"))
+    direction = object_digest(dust.model_dump(mode="json"))
     params = {"sprite": "dust"}
 
-    ports: list[Port] = [_artifact("image", raw_ref, FX_SPRITE_DUST_RAW_KIND)]
+    ports: list[Port] = [artifact_port("image", raw_ref, FX_SPRITE_DUST_RAW_KIND)]
     if attempts_port is not None:
         ports.append(attempts_port(generate_id))
     produced = builder.add(
@@ -540,7 +538,7 @@ def add_sprite_nodes(
         params=params,
         input_digests=(
             *direction_digests,
-            _object_sha256({"contract": FX_SPRITE_DUST_CONTRACT_VERSION}),
+            object_digest({"contract": FX_SPRITE_DUST_CONTRACT_VERSION}),
             direction,
             *(entry.sha256 for entry in authored),
         ),
@@ -557,10 +555,10 @@ def add_sprite_nodes(
         description="admit the dust atlas, lift its body opaque, and measure its cells",
         depends_on=(produced.node_id,),
         params=params,
-        input_digests=(_object_sha256({"contract": FX_SPRITE_DUST_VALIDATION_VERSION}),),
+        input_digests=(object_digest({"contract": FX_SPRITE_DUST_VALIDATION_VERSION}),),
         ports=(
-            _artifact("image", atlas_ref, FX_SPRITE_DUST_ATLAS_KIND),
-            _record("validation", validation_ref, FX_SPRITE_DUST_VALIDATION_KIND),
+            artifact_port("image", atlas_ref, FX_SPRITE_DUST_ATLAS_KIND),
+            record_port("validation", validation_ref, FX_SPRITE_DUST_VALIDATION_KIND),
         ),
         card=NodeCard(reference_inputs=(PortRef(node_id=produced.node_id, port_id="image"),)),
         duration_seconds=2.0,
@@ -611,8 +609,8 @@ def add_cut_in_nodes(
 
     terminals: list[str] = []
     frame = fx.cut_in.frame
-    frame_geometry = _object_sha256(CUT_IN_FRAME.geometry_record())
-    frame_direction = _object_sha256(frame.model_dump(mode="json"))
+    frame_geometry = object_digest(CUT_IN_FRAME.geometry_record())
+    frame_direction = object_digest(frame.model_dump(mode="json"))
     generate_id, draw_id, _place_id, validate_id, review_id = cut_in_node_ids(
         "frame", prefix=prefix
     )
@@ -622,7 +620,7 @@ def add_cut_in_nodes(
     params: dict[str, str] = {"plate": "frame"}
     if frame.mode == "generated_v1":
         authored = authored_for(frame.reference_ids)
-        ports: list[Port] = [_artifact("image", raw_ref, FX_CUT_IN_RAW_KIND)]
+        ports: list[Port] = [artifact_port("image", raw_ref, FX_CUT_IN_RAW_KIND)]
         if attempts_port is not None:
             ports.append(attempts_port(generate_id))
         producer = builder.add(
@@ -635,7 +633,7 @@ def add_cut_in_nodes(
             params=params,
             input_digests=(
                 *direction_digests,
-                _object_sha256({"contract": FX_CUT_IN_CONTRACT_VERSION}),
+                object_digest({"contract": FX_CUT_IN_CONTRACT_VERSION}),
                 frame_direction,
                 *(entry.sha256 for entry in authored),
                 frame_geometry,
@@ -656,11 +654,11 @@ def add_cut_in_nodes(
             cache_depends_on=(),
             params=params,
             input_digests=(
-                _object_sha256({"contract": FX_CUT_IN_DRAW_VERSION}),
+                object_digest({"contract": FX_CUT_IN_DRAW_VERSION}),
                 frame_direction,
                 frame_geometry,
             ),
-            ports=(_artifact("image", raw_ref, FX_CUT_IN_RAW_KIND),),
+            ports=(artifact_port("image", raw_ref, FX_CUT_IN_RAW_KIND),),
             duration_seconds=1.0,
         )
     frame_validated = builder.add(
@@ -671,19 +669,19 @@ def add_cut_in_nodes(
         depends_on=(producer.node_id,),
         params=params,
         input_digests=(
-            _object_sha256({"contract": FX_CUT_IN_FRAME_VALIDATION_VERSION}),
+            object_digest({"contract": FX_CUT_IN_FRAME_VALIDATION_VERSION}),
             frame_geometry,
         ),
         ports=(
-            _artifact("image", plate_ref, FX_CUT_IN_PLATE_KIND),
-            _record("validation", validation_ref, FX_CUT_IN_VALIDATION_KIND),
-            _artifact("evidence", evidence_ref, FX_CUT_IN_EVIDENCE_KIND),
+            artifact_port("image", plate_ref, FX_CUT_IN_PLATE_KIND),
+            record_port("validation", validation_ref, FX_CUT_IN_VALIDATION_KIND),
+            artifact_port("evidence", evidence_ref, FX_CUT_IN_EVIDENCE_KIND),
         ),
         card=NodeCard(reference_inputs=(PortRef(node_id=producer.node_id, port_id="image"),)),
         duration_seconds=2.0,
     )
     if frame.mode == "generated_v1":
-        review_ports: list[Port] = [_artifact("verdict", verdict_ref, FX_CUT_IN_VERDICT_KIND)]
+        review_ports: list[Port] = [artifact_port("verdict", verdict_ref, FX_CUT_IN_VERDICT_KIND)]
         if attempts_port is not None:
             review_ports.append(attempts_port(review_id))
         reviewed = builder.add(
@@ -694,7 +692,7 @@ def add_cut_in_nodes(
             depends_on=(frame_validated.node_id,),
             params=params,
             input_digests=(
-                _object_sha256({"contract": FX_CUT_IN_REVIEW_VERSION}),
+                object_digest({"contract": FX_CUT_IN_REVIEW_VERSION}),
                 frame_direction,
             ),
             ports=tuple(review_ports),
@@ -709,13 +707,13 @@ def add_cut_in_nodes(
     else:
         terminals.append(frame_validated.node_id)
 
-    portrait_geometry = _object_sha256(CUT_IN_PORTRAIT.geometry_record())
+    portrait_geometry = object_digest(CUT_IN_PORTRAIT.geometry_record())
     for portrait in fx.cut_in.portraits:
         plate_id = plate_id_for("portrait", portrait.portrait_id)
         # Absent fields are absent from the digest, so a portrait that declares no
         # subject keeps the cache key it had before subjects existed. What a plate
         # does not say cannot re-bill it.
-        direction_digest = _object_sha256(portrait.model_dump(mode="json", exclude_none=True))
+        direction_digest = object_digest(portrait.model_dump(mode="json", exclude_none=True))
         generate_id, _draw_id, place_id, validate_id, review_id = cut_in_node_ids(
             plate_id, prefix=prefix
         )
@@ -734,7 +732,7 @@ def add_cut_in_nodes(
         # copied from, so the concept being redrawn has to re-key the portrait. Every
         # other input is authored, and stays a digest.
         subject_port = None if subject is None else subject_reference(subject)  # type: ignore[misc]
-        ports = [_artifact("image", raw_ref, FX_CUT_IN_RAW_KIND)]
+        ports = [artifact_port("image", raw_ref, FX_CUT_IN_RAW_KIND)]
         if attempts_port is not None:
             ports.append(attempts_port(generate_id))
         generated = builder.add(
@@ -747,7 +745,7 @@ def add_cut_in_nodes(
             params=params,
             input_digests=(
                 *direction_digests,
-                _object_sha256({"contract": FX_CUT_IN_CONTRACT_VERSION}),
+                object_digest({"contract": FX_CUT_IN_CONTRACT_VERSION}),
                 direction_digest,
                 *(entry.sha256 for entry in authored),
                 portrait_geometry,
@@ -763,7 +761,7 @@ def add_cut_in_nodes(
                 reference_inputs=() if subject_port is None else (subject_port,),
             ),
         )
-        place_ports = [_artifact("placement", placement_ref, FX_CUT_IN_PLACEMENT_KIND)]
+        place_ports = [artifact_port("placement", placement_ref, FX_CUT_IN_PLACEMENT_KIND)]
         if attempts_port is not None:
             place_ports.append(attempts_port(place_id))
         placed = builder.add(
@@ -774,7 +772,7 @@ def add_cut_in_nodes(
             depends_on=(generated.node_id, frame_validated.node_id),
             params=params,
             input_digests=(
-                _object_sha256({"contract": FX_CUT_IN_PLACE_VERSION}),
+                object_digest({"contract": FX_CUT_IN_PLACE_VERSION}),
                 portrait_geometry,
                 frame_geometry,
             ),
@@ -796,18 +794,18 @@ def add_cut_in_nodes(
             depends_on=(generated.node_id, frame_validated.node_id, placed.node_id),
             params=params,
             input_digests=(
-                _object_sha256({"contract": FX_CUT_IN_PORTRAIT_VALIDATION_VERSION}),
+                object_digest({"contract": FX_CUT_IN_PORTRAIT_VALIDATION_VERSION}),
                 portrait_geometry,
             ),
             ports=(
-                _artifact("image", plate_ref, FX_CUT_IN_PLATE_KIND),
-                _record("validation", validation_ref, FX_CUT_IN_VALIDATION_KIND),
-                _artifact("evidence", evidence_ref, FX_CUT_IN_EVIDENCE_KIND),
+                artifact_port("image", plate_ref, FX_CUT_IN_PLATE_KIND),
+                record_port("validation", validation_ref, FX_CUT_IN_VALIDATION_KIND),
+                artifact_port("evidence", evidence_ref, FX_CUT_IN_EVIDENCE_KIND),
             ),
             card=NodeCard(reference_inputs=(PortRef(node_id=generated.node_id, port_id="image"),)),
             duration_seconds=2.0,
         )
-        review_ports = [_artifact("verdict", verdict_ref, FX_CUT_IN_VERDICT_KIND)]
+        review_ports = [artifact_port("verdict", verdict_ref, FX_CUT_IN_VERDICT_KIND)]
         if attempts_port is not None:
             review_ports.append(attempts_port(review_id))
         reviewed = builder.add(
@@ -822,7 +820,7 @@ def add_cut_in_nodes(
             ),
             params=params,
             input_digests=(
-                _object_sha256({"contract": FX_CUT_IN_REVIEW_VERSION}),
+                object_digest({"contract": FX_CUT_IN_REVIEW_VERSION}),
                 direction_digest,
             ),
             ports=tuple(review_ports),
@@ -871,9 +869,6 @@ class FxCutInHost:
     tool: SoftwareIdentity
 
 
-ProviderCall = Callable[[Node, str, str, Callable[[], Awaitable[Any]]], Awaitable[Any]]
-
-
 def cut_in_direction(
     fx: GameFx, node: Node
 ) -> tuple[CutInPlate, CutInFrameDirection | CutInPortraitDirection]:
@@ -884,12 +879,6 @@ def cut_in_direction(
     if str(node.params["plate"]) == "frame":
         return CUT_IN_FRAME, fx.cut_in.frame
     return CUT_IN_PORTRAIT, fx.cut_in.portrait(str(node.params["portrait_id"]))
-
-
-def _card_prompt(node: Node) -> str:
-    if node.card is None or node.card.prompt is None:
-        raise ValueError(f"node {node.node_id} carries no prompt on its card")
-    return node.card.prompt
 
 
 def _authored_references(
@@ -946,7 +935,7 @@ def sprite_dust_generate_request(host: FxCutInHost, node: Node) -> ImageGenerati
     if dust is None:
         raise ValueError("dust atlas node on a document that declares no sprite.dust")
     return ImageGenerationRequest(
-        prompt=_card_prompt(node),
+        prompt=card_prompt(node),
         artifact_path=host.run_dir / node.port("image").artifact_ref,
         input_references=_authored_references(host, dust.reference_ids),
         quality="high",
@@ -1041,7 +1030,7 @@ def cut_in_generate_request(
         if subject is not None:
             metadata["subject_id"] = subject.actor_id
     return ImageGenerationRequest(
-        prompt=_card_prompt(node),
+        prompt=card_prompt(node),
         artifact_path=host.run_dir / node.port("image").artifact_ref,
         input_references=(
             *subject_references,
@@ -1097,7 +1086,7 @@ def cut_in_review_request(
             )
         )
     return StructuredGenerationRequest(
-        prompt=_card_prompt(node),
+        prompt=card_prompt(node),
         system=(
             "You are a strict independent 2D game-art technical director. Return only the "
             "requested structured review."
@@ -1215,8 +1204,8 @@ def cut_in_place_request(
     _frame_node, frame_plate_port = dependency_port(graph, node, kind=FX_CUT_IN_PLATE_KIND)
     raw = read(raw_port.artifact_ref)
     frame_data = read(frame_plate_port.artifact_ref)
-    portrait_sha256 = _sha(raw)
-    frame_sha256 = _sha(frame_data)
+    portrait_sha256 = content_sha256(raw)
+    frame_sha256 = content_sha256(frame_data)
     with Image.open(io.BytesIO(frame_data)) as opened:
         reveal = mask_reveal_facts(opened.convert("RGBA").getchannel("A"))
     centre_x, centre_y = cast(list[float], reveal["centroid"])
@@ -1240,7 +1229,7 @@ def cut_in_place_request(
 
     starting = compose_hold_frame(frame_data, raw, placement=start)
     return ToolLoopRequest(
-        instructions=_card_prompt(node),
+        instructions=card_prompt(node),
         system=(
             f"{_PLACE_SYSTEM} Image 1 is the portrait plate (its transparent exterior may "
             "render as flat black or white). Image 2 is the frame plate. Image 3 is the "
@@ -1321,7 +1310,9 @@ def derive_cut_in_validation(
         if placement_record is None:
             raise ValueError(f"node {node.node_id} needs the portrait's admitted placement")
         placement = admit_cut_in_placement(
-            placement_record, portrait_sha256=_sha(raw), frame_sha256=_sha(frame_data)
+            placement_record,
+            portrait_sha256=content_sha256(raw),
+            frame_sha256=content_sha256(frame_data),
         )
         for key in ("portrait_sha256", "frame_sha256"):
             if placement_record.get(key) != placement[key]:
@@ -1493,19 +1484,8 @@ class FxCutInHandlers:
     def _result(
         self, node: Node, *, attempts: int = 1, provider_operations: int
     ) -> NodeExecutionResult:
-        run_dir = self._host.run_dir
-        refs: list[str] = []
-        for port in node.ports:
-            refs.append(port.artifact_ref)
-            if port.sidecar_ref is not None:
-                refs.append(port.sidecar_ref)
-        return NodeExecutionResult(
-            cache=CacheDisposition.MISS,
-            attempts=attempts,
-            provider_operations=provider_operations,
-            artifacts=tuple(
-                _node_artifact(run_dir, run_dir / ref) for ref in refs if (run_dir / ref).is_file()
-            ),
+        return node_result(
+            self._host.run_dir, node, attempts=attempts, provider_operations=provider_operations
         )
 
 
@@ -1661,7 +1641,7 @@ async def _write_local_image(
             inputs=[
                 InputProvenance(
                     ref=ref,
-                    sha256=_sha(payload),
+                    sha256=content_sha256(payload),
                     source="content",
                     bytes=len(payload),
                     media_type="image/png",
@@ -1677,13 +1657,6 @@ async def _write_local_image(
     )
 
 
-def _node_artifact(run_dir: Path, path: Path) -> NodeArtifact:
-    data = path.read_bytes()
-    return NodeArtifact(
-        artifact_ref=path.relative_to(run_dir).as_posix(), sha256=_sha(data), bytes=len(data)
-    )
-
-
 def _media_type(path: str) -> str:
     return {
         ".png": "image/png",
@@ -1691,15 +1664,6 @@ def _media_type(path: str) -> str:
         ".jpeg": "image/jpeg",
         ".webp": "image/webp",
     }[PurePosixPath(path).suffix.lower()]
-
-
-def _sha(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
-def _object_sha256(value: object) -> str:
-    encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
 
 
 __all__ = [

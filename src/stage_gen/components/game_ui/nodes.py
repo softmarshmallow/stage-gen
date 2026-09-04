@@ -26,7 +26,6 @@ gates on full static prompts admits these nodes like any other.
 
 from __future__ import annotations
 
-import hashlib
 import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -38,7 +37,6 @@ from pydantic import Field
 from gnode import (
     AuthoredInput,
     BinaryArtifact,
-    CacheDisposition,
     Graph,
     GraphBuilder,
     ImageGenerationRequest,
@@ -46,7 +44,6 @@ from gnode import (
     ImageReference,
     InputProvenance,
     Node,
-    NodeArtifact,
     NodeCard,
     NodeExecutionResult,
     NodePolicy,
@@ -65,7 +62,16 @@ from gnode import (
     dependency_port,
     write_artifact_with_provenance_async,
 )
+from stage_gen.canonical import content_sha256
 from stage_gen.components._game_input import SNAKE_ID_PATTERN
+from stage_gen.components._node_kit import (
+    ProviderCall,
+    artifact_port,
+    card_prompt,
+    node_result,
+    object_digest,
+    record_port,
+)
 from stage_gen.components.game_ui.atlas import (
     ATLAS_ALPHA_POLICY,
     ATLAS_ROLES,
@@ -442,14 +448,6 @@ def atlas_artifact_refs(role: UiSheetRole) -> tuple[str, str, str, str, str]:
     )
 
 
-def _artifact(port_id: str, ref: str, kind: str) -> Port:
-    return Port(port_id=port_id, artifact_ref=ref, kind=kind, sidecar_ref=f"{ref}.meta.json")
-
-
-def _record(port_id: str, ref: str, kind: str) -> Port:
-    return Port(port_id=port_id, artifact_ref=ref, kind=kind)
-
-
 def add_ui_atlas_nodes(
     builder: GraphBuilder,
     *,
@@ -478,8 +476,8 @@ def add_ui_atlas_nodes(
     for role in roles:
         family = sheet_family(role)
         direction = _role_direction(ui, role)
-        direction_digest = _object_sha256(direction.model_dump(mode="json"))
-        geometry_digest = _object_sha256(role.geometry_record())
+        direction_digest = object_digest(direction.model_dump(mode="json"))
+        geometry_digest = object_digest(role.geometry_record())
         generate_id, validate_id, review_id = atlas_node_ids(role, prefix=prefix)
         raw_ref, image_ref, validation_ref, evidence_ref, verdict_ref = atlas_artifact_refs(role)
         # An input that reaches a provider is never invisible in the plan: the card names
@@ -492,8 +490,8 @@ def add_ui_atlas_nodes(
             )
             for reference_id in direction.reference_ids
         )
-        generate_ports: list[Port] = [_artifact("image", raw_ref, UI_ATLAS_RAW_KIND)]
-        review_ports: list[Port] = [_artifact("verdict", verdict_ref, UI_ATLAS_VERDICT_KIND)]
+        generate_ports: list[Port] = [artifact_port("image", raw_ref, UI_ATLAS_RAW_KIND)]
+        review_ports: list[Port] = [artifact_port("verdict", verdict_ref, UI_ATLAS_VERDICT_KIND)]
         if attempts_port is not None:
             generate_ports.append(attempts_port(generate_id))
             review_ports.append(attempts_port(review_id))
@@ -507,7 +505,7 @@ def add_ui_atlas_nodes(
             params={"role": role.role},
             input_digests=(
                 *direction_digests,
-                _object_sha256({"contract": UI_ATLAS_CONTRACT_VERSION}),
+                object_digest({"contract": UI_ATLAS_CONTRACT_VERSION}),
                 direction_digest,
                 *(entry.sha256 for entry in authored),
                 geometry_digest,
@@ -527,14 +525,14 @@ def add_ui_atlas_nodes(
             depends_on=(generated.node_id,),
             params={"role": role.role},
             input_digests=(
-                _object_sha256({"contract": UI_ATLAS_VALIDATION_VERSION}),
+                object_digest({"contract": UI_ATLAS_VALIDATION_VERSION}),
                 direction_digest,
                 geometry_digest,
             ),
             ports=(
-                _artifact("image", image_ref, UI_ATLAS_IMAGE_KIND),
-                _record("validation", validation_ref, UI_ATLAS_VALIDATION_KIND),
-                _artifact("evidence", evidence_ref, UI_ATLAS_EVIDENCE_KIND),
+                artifact_port("image", image_ref, UI_ATLAS_IMAGE_KIND),
+                record_port("validation", validation_ref, UI_ATLAS_VALIDATION_KIND),
+                artifact_port("evidence", evidence_ref, UI_ATLAS_EVIDENCE_KIND),
             ),
             card=NodeCard(reference_inputs=(PortRef(node_id=generated.node_id, port_id="image"),)),
             duration_seconds=1.5,
@@ -547,7 +545,7 @@ def add_ui_atlas_nodes(
             depends_on=(validated.node_id,),
             params={"role": role.role},
             input_digests=(
-                _object_sha256({"contract": UI_ATLAS_REVIEW_VERSION}),
+                object_digest({"contract": UI_ATLAS_REVIEW_VERSION}),
                 direction_digest,
             ),
             ports=tuple(review_ports),
@@ -600,9 +598,6 @@ class UiAtlasHost:
     tool: SoftwareIdentity
 
 
-ProviderCall = Callable[[Node, str, str, Callable[[], Awaitable[Any]]], Awaitable[Any]]
-
-
 class UiAtlasHandlers:
     """The three coroutines behind the atlas node types, owned by no recipe.
 
@@ -634,12 +629,12 @@ class UiAtlasHandlers:
         family = sheet_family(role)
         output = self._host.run_dir / node.port("image").artifact_ref
         template_data = family.template(role)
-        prompt = _card_prompt(node)
+        prompt = card_prompt(node)
         references = (
             *self._image_references(direction.reference_ids),
             ImageReference(
                 url=data_url(template_data, "image/png"),
-                provenance_ref=f"geometry://{role.layout}#sha256={_sha(template_data)}",
+                provenance_ref=f"geometry://{role.layout}#sha256={content_sha256(template_data)}",
             ),
         )
         request = ImageGenerationRequest(
@@ -803,7 +798,7 @@ class UiAtlasHandlers:
                 inputs=[
                     InputProvenance(
                         ref=ref,
-                        sha256=_sha(payload),
+                        sha256=content_sha256(payload),
                         source="content",
                         bytes=len(payload),
                         media_type="image/png",
@@ -821,19 +816,8 @@ class UiAtlasHandlers:
     def _result(
         self, node: Node, *, attempts: int = 1, provider_operations: int
     ) -> NodeExecutionResult:
-        run_dir = self._host.run_dir
-        refs: list[str] = []
-        for port in node.ports:
-            refs.append(port.artifact_ref)
-            if port.sidecar_ref is not None:
-                refs.append(port.sidecar_ref)
-        return NodeExecutionResult(
-            cache=CacheDisposition.MISS,
-            attempts=attempts,
-            provider_operations=provider_operations,
-            artifacts=tuple(
-                _node_artifact(run_dir, run_dir / ref) for ref in refs if (run_dir / ref).is_file()
-            ),
+        return node_result(
+            self._host.run_dir, node, attempts=attempts, provider_operations=provider_operations
         )
 
 
@@ -999,23 +983,10 @@ def ui_atlas_manifest_block(
 # ----------------------------------------------------------------- helpers
 
 
-def _card_prompt(node: Node) -> str:
-    if node.card is None or node.card.prompt is None:
-        raise ValueError(f"node {node.node_id} carries no prompt on its card")
-    return node.card.prompt
-
-
 def _structured_reference_from_run(path: Path, run_dir: Path) -> StructuredReference:
     return StructuredReference(
         url=data_url(path.read_bytes(), "image/png"),
         provenance_ref=f"run://{path.relative_to(run_dir).as_posix()}",
-    )
-
-
-def _node_artifact(run_dir: Path, path: Path) -> NodeArtifact:
-    data = path.read_bytes()
-    return NodeArtifact(
-        artifact_ref=path.relative_to(run_dir).as_posix(), sha256=_sha(data), bytes=len(data)
     )
 
 
@@ -1026,15 +997,6 @@ def _media_type(path: str) -> str:
         ".jpeg": "image/jpeg",
         ".webp": "image/webp",
     }[PurePosixPath(path).suffix.lower()]
-
-
-def _sha(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
-def _object_sha256(value: object) -> str:
-    encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
 
 
 __all__ = [
