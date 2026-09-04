@@ -43,6 +43,7 @@ import {
   createDustSystem,
   createGraphicsDustCanvas,
   SILENT_DUST_CANVAS,
+  parseRunnerParticlesBlock,
   type DustAtlasCells,
   type DustCanvas,
 } from "./dust";
@@ -135,6 +136,7 @@ export function gateRunnerFamilyBlocks(blocks: BlockTable): void {
   parseRunnerCameraBlock(blocks);
   parseRunnerSoundtrackBlocks(blocks);
   parseRunnerCuesBlock(blocks);
+  parseRunnerParticlesBlock(blocks);
   parseScreenFxBlock(blocks);
 }
 

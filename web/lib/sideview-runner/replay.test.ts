@@ -223,6 +223,11 @@ describe("the runner replays to its golden", () => {
 const SINK_GOLDEN = {
   cues: "fdaf4bd42b412166b868a2524cce8a768df003b632e00fa40128857b92a01a7f",
   music: "29c692fc69d53eefcd14f45f89b9331e05541f309924860e51d1793327588f80",
+  // The dust canvas is a sink too, and the same argument applies to it: the
+  // puffs a run lays are not world state, so a refactor of what *decides* to
+  // lay one moves nothing the world digest can see. Every puff of the run,
+  // with the frame it was drawn on and the shape it was drawn at.
+  dust: "93cedb0302e2c946db2bef52a9838f7803b063fba1c167fd02891a8b29d94e1f",
 };
 
 describe("the runner's audio sinks record the same run", () => {
@@ -233,6 +238,7 @@ describe("the runner's audio sinks record the same run", () => {
     const noopView = { sync: () => undefined, hide: () => undefined };
     const cues: string[] = [];
     const music: string[] = [];
+    const dust: string[] = [];
     let frame = 0;
     const sealed = sealSystems(
       assembleRunnerSystems(
@@ -244,6 +250,22 @@ describe("the runner's audio sinks record the same run", () => {
             cues.push(`${frame} ${cue} ${strength.toFixed(6)}`),
         },
         { transition: (event: RunnerMusicEvent) => music.push(`${frame} ${event}`) },
+        undefined,
+        {
+          begin: () => undefined,
+          puff: (puff: {
+            x: number;
+            y: number;
+            radiusX: number;
+            radiusY: number;
+            alpha: number;
+            kind: string;
+            progress: number;
+          }) =>
+            dust.push(
+              `${frame} ${puff.kind} ${puff.x.toFixed(6)} ${puff.y.toFixed(6)} ${puff.radiusX.toFixed(6)} ${puff.radiusY.toFixed(6)} ${puff.alpha.toFixed(6)} ${puff.progress.toFixed(6)}`,
+            ),
+        },
       ),
       runnerSealOptions({ clock: () => clock, devTrap: true }),
     );
@@ -258,7 +280,7 @@ describe("the runner's audio sinks record the same run", () => {
     if (process.env.REPLAY_SINKS) {
       // The instrument the next family re-pins against: the whole recording,
       // line by line, so "which posts moved" is a diff rather than a claim.
-      Bun.write(process.env.REPLAY_SINKS, `${[...cues, ...music].join("\n")}\n`);
+      Bun.write(process.env.REPLAY_SINKS, `${[...cues, ...music, ...dust].join("\n")}\n`);
     }
     // What the recording is of, asserted rather than only hashed: the
     // announcement rides the first frame, every survivable hit ducks the music
@@ -272,6 +294,10 @@ describe("the runner's audio sinks record the same run", () => {
       "hurt",
       "hurt",
     ]);
-    expect({ cues: hash(cues), music: hash(music) }).toEqual(SINK_GOLDEN);
+    // The dust is a real recording and not an empty one: a run that laid no
+    // puff would hash stably to nothing at all, which is the one way this
+    // golden could pass without measuring anything.
+    expect(dust.length).toBeGreaterThan(600);
+    expect({ cues: hash(cues), music: hash(music), dust: hash(dust) }).toEqual(SINK_GOLDEN);
   });
 });

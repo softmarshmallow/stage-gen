@@ -213,19 +213,24 @@ describe("createDustSystem", () => {
   });
 
   test("a ground takeoff bursts once; the air jump kicks no ground", () => {
+    // The occurrence says which jump it was. The system used to compare a copy
+    // of last frame's `grounded` against this frame's to guess.
     const world = runningWorld();
     const system = createDustSystem(recorder());
     system.update(world, stepAt(1));
     const before = system.snapshot().activeCount;
 
-    world.intent = runnerIntent({ jump: true });
-    stepAvatar(world, 1 / 60);
+    world.events.beginFrame();
+    world.events.emit({ type: "jumped", airJump: false });
+    world.avatar.grounded = false;
     system.update(world, stepAt(2));
     const kinds = system.snapshot().records.map((record) => record.kind);
     expect(kinds.filter((kind) => kind === "takeoff")).toHaveLength(DUST_TAKEOFF_PUFFS);
     expect(system.snapshot().activeCount).toBe(before + DUST_TAKEOFF_PUFFS);
 
-    stepAvatar(world, 1 / 60);
+    // A second jump with nothing under the feet kicks nothing up.
+    world.events.beginFrame();
+    world.events.emit({ type: "jumped", airJump: true });
     system.update(world, stepAt(3));
     expect(system.snapshot().activeCount).toBe(before + DUST_TAKEOFF_PUFFS);
   });
@@ -233,13 +238,12 @@ describe("createDustSystem", () => {
   test("a landing splays a burst on the frame the feet touch down", () => {
     const world = runningWorld();
     const system = createDustSystem(recorder());
-    system.update(world, stepAt(1));
     world.avatar.grounded = false;
-    world.avatar.motion = "jump";
-    system.update(world, stepAt(2));
+    system.update(world, stepAt(1));
+    world.events.beginFrame();
+    world.events.emit({ type: "landed" });
     world.avatar.grounded = true;
-    world.avatar.motion = "run";
-    system.update(world, stepAt(3));
+    system.update(world, stepAt(2));
     const lands = system.snapshot().records.filter((record) => record.kind === "land");
     expect(lands).toHaveLength(DUST_LAND_PUFFS);
     expect(lands.map((record) => record.index)).toEqual([0, 1, 2, 3]);
@@ -277,15 +281,24 @@ describe("createDustSystem", () => {
     expect(system.snapshot().activeCount).toBe(0);
   });
 
-  test("a restart forgets the dust of the run that ended", () => {
+  test("a restart forgets the dust of the run that ended, and the first frame lays none", () => {
+    // The composition says a run restarted; the system used to notice by
+    // watching the avatar's distance go backwards, which is a read of another
+    // slice's history. The first frame of the new run stays quiet, which is
+    // what the distance-watching version did with the frame it spent
+    // resynchronising.
     const world = runningWorld();
     const system = createDustSystem(recorder());
     world.avatar.distanceColumns = 40;
     system.update(world, stepAt(1));
     expect(system.snapshot().activeCount).toBe(1);
+    system.reset?.(world, "run");
+    expect(system.snapshot().activeCount).toBe(0);
     world.avatar.distanceColumns = 2;
     system.update(world, stepAt(2));
     expect(system.snapshot().activeCount).toBe(0);
+    system.update(world, stepAt(3));
+    expect(system.snapshot().activeCount).toBe(1);
   });
 
   test("nothing is laid outside the running phase or under reduced motion", () => {

@@ -197,6 +197,7 @@ import { parsePlatformerIntentBlock } from "./player-intent";
 import { parsePlatformerVitalsBlock } from "./vitals";
 import { parsePlatformerCameraBlock } from "./camera";
 import { parsePlatformerSoundtrackBlock } from "./soundtrack";
+import { parsePlatformerParticlesBlock } from "./impact-presentation";
 import {
   createPlatformerFrameWorld,
   sealPlatformerFrame,
@@ -597,6 +598,7 @@ export class PreparedStageScene extends Phaser.Scene {
     parsePlatformerVitalsBlock(manifest.blocks);
     parsePlatformerCameraBlock(manifest.blocks);
     parsePlatformerSoundtrackBlock(manifest.blocks);
+    parsePlatformerParticlesBlock(manifest.blocks);
     this.manifest = manifest;
     this.gameplay = gameplay;
     await Promise.all([

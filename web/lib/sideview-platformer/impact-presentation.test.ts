@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type Phaser from "phaser";
 import { SCENE_CONTENT_DEPTH } from "./depths";
+import { particleUnitNoise } from "@/lib/families/particles";
+import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
 import {
   IMPACT_BURST_MS,
   IMPACT_BURST_SHARDS,
@@ -16,6 +18,7 @@ import {
   IMPACT_SWING_MS,
   IMPACT_SWING_SPAN_RADIANS,
   ImpactSystem,
+  parsePlatformerParticlesBlock,
   impactHitstopMs,
   impactLifetimeMs,
   impactUnitNoise,
@@ -372,5 +375,33 @@ describe("impact system", () => {
     expect(system.shakeOffset(10)).toEqual({ x: 0, y: 0 });
     system.update(IMPACT_FLASH_MS);
     expect(system.snapshot().activeCount).toBe(0);
+  });
+});
+
+// --- The `particles` family, sealed into this genre ------------------------------------------
+
+describe("the particles family in the platformer", () => {
+  test("the noise is the family's, not a second copy", () => {
+    expect(impactUnitNoise).toBe(particleUnitNoise);
+  });
+
+  test("E7 subtraction: a system with no blows in it draws nothing and shakes nothing", () => {
+    // The smallest form the subtraction has here, and the same one `screen-fx`
+    // took: a ring with nothing in it sums to exactly zero.
+    const { scene } = fakeScene();
+    const system = new ImpactSystem({ scene, enabled: false });
+    expect(system.showHit({ x: 1, y: 1, dirSign: 1, critical: false, died: true, seed: 1, nowMs: 0 })).toBeNull();
+    expect(system.shakeOffset(0)).toEqual({ x: 0, y: 0 });
+    expect(system.snapshot().activeCount).toBe(0);
+  });
+
+  test("the family gates its own block, by name", () => {
+    expect(parsePlatformerParticlesBlock(PREPARED_RUNTIME_BLOCKS).published).toBe(true);
+    expect(() =>
+      parsePlatformerParticlesBlock({
+        ...PREPARED_RUNTIME_BLOCKS,
+        gameplay: "platformer-gameplay-block-v2",
+      }),
+    ).toThrow('manifest block "gameplay" is published as platformer-gameplay-block-v2');
   });
 });

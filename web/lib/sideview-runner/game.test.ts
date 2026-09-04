@@ -31,6 +31,8 @@ const { parseScreenFxBlock } = await import("@/lib/families/screen-fx/manifest")
 const { parseRunnerCameraBlock, cameraScrollX } = await import("./camera");
 const { parseRunnerSoundtrackBlocks, createRunnerSoundtrackPlayback, CONTINUE_MUSIC } =
   await import("./soundtrack");
+const { parseRunnerParticlesBlock, dustUnitNoise } = await import("./dust");
+const { particleUnitNoise } = await import("@/lib/families/particles");
 const { RUNNER_BLOCKS } = await import("./contract");
 const { SILENT_AUDIO_SINK } = await import("./audio");
 const { createRunnerWorld } = await import("./world");
@@ -619,5 +621,37 @@ describe("the cues family in the runner", () => {
       "drained",
       "run-ended",
     ]);
+  });
+});
+
+// --- The `particles` family, sealed into this genre --------------------------------------------
+
+describe("the particles family in the runner", () => {
+  const roster = () =>
+    assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK);
+
+  test("E7 subtraction: a genre that throws nothing seals to the identical order", () => {
+    // The dust writes no key and owns no slice; taking it out takes its three
+    // consumes with it, and every one of them still has another consumer — the
+    // cue system hears the same three verbs — so nothing else moves.
+    const quiet = roster().filter((system) => system.id !== "runner/dust");
+    expect(sealSystems(quiet, EVENTS).order).toEqual(
+      DOCUMENTED_ORDER.filter((id) => id !== "runner/dust"),
+    );
+  });
+
+  test("the noise is the family's, not a second copy", () => {
+    expect(dustUnitNoise).toBe(particleUnitNoise);
+  });
+
+  test("the family gates its own block, optional and by name", () => {
+    expect(parseRunnerParticlesBlock(RUNNER_BLOCKS).published).toBe(true);
+    const { fx: _fx, ...withoutFx } = RUNNER_BLOCKS;
+    // No fx block is no dust atlas, which is the procedural silhouette rather
+    // than a refusal.
+    expect(parseRunnerParticlesBlock(withoutFx).published).toBe(false);
+    expect(() => parseRunnerParticlesBlock({ ...RUNNER_BLOCKS, fx: "fx-block-v2" })).toThrow(
+      'manifest block "fx" is published as fx-block-v2',
+    );
   });
 });

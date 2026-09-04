@@ -14,6 +14,15 @@
 // than a silhouette; this module is the caller they would replace.
 
 import type Phaser from "phaser";
+import {
+  easeOutCubic,
+  ParticleRing,
+  particleUnitNoise,
+  parseParticlesBlock,
+  type ParticlesBlockView,
+} from "@/lib/families/particles";
+import type { BlockTable } from "@/lib/manifest/blocks";
+import { RUNNER_BLOCKS } from "./contract";
 import type { GameSystem } from "@/lib/kernel/systems";
 import { stepClockMs } from "./vitals";
 import type { RunnerWorld } from "./world";
@@ -88,17 +97,12 @@ export type DustPuff = Readonly<{
   progress: number;
 }>;
 
-/** Deterministic unit noise in [0, 1) for one seed and channel; no state, no wall clock. */
-export function dustUnitNoise(seed: number, channel: number): number {
-  let hash = (Math.imul(seed ^ channel, 0x9e3779b1) ^ (seed >>> 15)) >>> 0;
-  hash = Math.imul(hash ^ (hash >>> 13), 0x85ebca6b) >>> 0;
-  hash = Math.imul(hash ^ (hash >>> 16), 0xc2b2ae35) >>> 0;
-  return hash / 4294967296;
-}
-
-function easeOutCubic(progress: number): number {
-  return 1 - (1 - progress) ** 3;
-}
+/**
+ * Deterministic unit noise in [0, 1) for one seed and channel; no state, no
+ * wall clock. The `particles` family's, under this genre's name: the platformer
+ * had written the same eight lines out as `impactUnitNoise`.
+ */
+export const dustUnitNoise = particleUnitNoise;
 
 /**
  * Where a puff is kicked, in tiles, relative to the feet: `x` positive is forward (the way the
@@ -236,49 +240,65 @@ export interface DustSystem extends GameSystem<RunnerWorld> {
 }
 
 /**
+ * The block this genre's dust art is authored in.
+ *
+ * `fx`'s `[sprite.dust]` is the atlas the puffs are cut from, and it is
+ * optional in every package: without one the run draws the procedural
+ * silhouette, which is an answer. A package that publishes an `fx` block this
+ * build cannot read is refused, by name, from the particles.
+ */
+export const RUNNER_PARTICLES_BLOCK = Object.freeze({
+  block: "fx",
+  version: RUNNER_BLOCKS.fx,
+  optional: true,
+});
+
+/** Gate the runner's particles block. Refuses by naming `fx`. */
+export function parseRunnerParticlesBlock(blocks: BlockTable): ParticlesBlockView {
+  return parseParticlesBlock(blocks, RUNNER_PARTICLES_BLOCK);
+}
+
+/**
  * The dust system: presentation, so it writes no world key.
  *
- * It detects the same edges the audio system detects (a ground takeoff, a landing, the start of
- * a slide) and the two contacts that lay a trail (running, sliding), and records a puff for each
- * on the frame it happens, with the camera's scroll at that instant. The records are then only
- * sampled. Pinned behind the audio system so the sealed order stays unique whatever the
- * registration order; it reads nothing the audio system writes.
+ * What lays a puff is now what the world said happened. A takeoff, a landing
+ * and the first frame of a slide are the avatar's own occurrences — the same
+ * three the cue system hears — and the two trails are cadences over levels the
+ * avatar publishes, which is a read and not a copy. It used to keep four
+ * private copies of that slice (`prevJumpImpulses`, `prevGrounded`,
+ * `prevSliding`, `prevDistance`) and diff them frame to frame, and the fourth
+ * existed only to notice a restart, which the composition's own reset now says.
+ *
+ * The ring, the cap and the noise are the `particles` family's; what a puff
+ * looks like is this genre's, and stays here. Pinned behind the cue system so
+ * the sealed order stays unique whatever the registration order; it reads
+ * nothing the cue system writes.
  */
 export function createDustSystem(
   canvas: DustCanvas,
   options: DustSystemOptions = {},
 ): DustSystem {
   const reducedMotion = options.reducedMotion ?? false;
-  const maxActive = Math.max(1, Math.min(MAX_ACTIVE_CAP, options.maxActive ?? DUST_DEFAULT_ACTIVE_CAP));
-  let records: DustRecord[] = [];
-  let prevJumpImpulses = 0;
-  let prevGrounded = true;
-  let prevSliding = false;
-  let prevDistance = 0;
+  const ring = new ParticleRing<DustRecord>({
+    max: options.maxActive ?? DUST_DEFAULT_ACTIVE_CAP,
+    ceiling: MAX_ACTIVE_CAP,
+  });
   let strideTick = -1;
   let slideTick = -1;
-
-  const remember = (record: DustRecord) => {
-    records.push(record);
-    if (records.length > maxActive) records.splice(0, records.length - maxActive);
-  };
+  /** The first frame of a new run lays nothing; see `reset`. */
+  let resumed = false;
 
   return {
     id: "runner/dust",
-    contractVersion: "dust-system-v1",
+    contractVersion: "dust-system-v2",
     reads: ["avatar", "run", "camera", "difficulty"],
     writes: [],
+    consumes: ["jumped", "landed", "slid"],
     after: ["runner/parallax", "runner/audio"],
     update(world, step) {
       const nowMs = stepClockMs(step.now);
       const avatar = world.avatar;
       const running = world.run.phase === "running";
-      const restarted = avatar.distanceColumns < prevDistance;
-      if (restarted) {
-        records = [];
-        strideTick = -1;
-        slideTick = -1;
-      }
       const scrollX = world.camera.scrollX;
       const config = world.config;
       const ramp = Math.max(1e-9, config.arithmetic.maxSpeedMultiplier - 1);
@@ -286,7 +306,7 @@ export function createDustSystem(
       const born = (kind: DustKind, count: number) => {
         const feetY = rowToScreenY(avatar.y, config);
         for (let index = 0; index < count; index += 1) {
-          remember(
+          ring.remember(
             Object.freeze({
               kind,
               index,
@@ -302,13 +322,21 @@ export function createDustSystem(
         }
       };
 
-      if (running && !reducedMotion && !restarted) {
-        if (avatar.jumpImpulses > prevJumpImpulses && prevGrounded) born("takeoff", DUST_TAKEOFF_PUFFS);
-        if (avatar.grounded && !prevGrounded) born("land", DUST_LAND_PUFFS);
+      const quiet = resumed;
+      resumed = false;
+      if (running && !reducedMotion && !quiet) {
+        // A ground takeoff kicks dust; an air jump has no ground to kick, and
+        // the occurrence says which it was rather than the reader guessing from
+        // a copy of last frame's `grounded`.
+        for (const jump of world.events.ofType("jumped")) {
+          if (!jump.airJump) born("takeoff", DUST_TAKEOFF_PUFFS);
+        }
+        for (const _landing of world.events.ofType("landed")) born("land", DUST_LAND_PUFFS);
         if (avatar.grounded && avatar.sliding) {
           const tick = Math.floor(nowMs / DUST_SLIDE_INTERVAL_MS);
-          // The first frame of a slide lays its own puff rather than waiting for the cadence.
-          if (!prevSliding || tick !== slideTick) {
+          // The first frame of a slide lays its own puff rather than waiting
+          // for the cadence, and that first frame is an occurrence.
+          if (world.events.ofType("slid").length > 0 || tick !== slideTick) {
             slideTick = tick;
             born("slide", 1);
           }
@@ -326,23 +354,38 @@ export function createDustSystem(
         }
       }
 
-      records = records.filter((record) => !dustRecordSpent(record, nowMs));
+      ring.prune((record) => dustRecordSpent(record, nowMs));
       canvas.begin();
-      for (const record of records) {
+      for (const record of ring.records) {
         const puff = sampleDustPuff(record, nowMs, scrollX);
         if (puff !== null) canvas.puff(puff);
       }
-
-      prevJumpImpulses = avatar.jumpImpulses;
-      prevGrounded = avatar.grounded;
-      prevSliding = avatar.sliding;
-      prevDistance = avatar.distanceColumns;
+    },
+    /**
+     * A new run lays no dust from the old one.
+     *
+     * This is the fourth shadow copy gone: the system used to notice a restart
+     * by watching the avatar's distance go backwards, which is a read of
+     * another slice's history. The composition knows, and says so.
+     */
+    reset() {
+      ring.clear();
+      strideTick = -1;
+      slideTick = -1;
+      // And the first frame of the new run lays nothing, which is what the
+      // distance-watching version did: it spent that frame resynchronising its
+      // four copies and laid no puff. Kept exactly, because this commit is a
+      // refactor of where the decision lives and not of what it decides — the
+      // dust recording is byte-identical across all six hundred frames, and a
+      // run's first frame laying a stride puff is a change somebody should make
+      // deliberately, with its own evidence.
+      resumed = true;
     },
     snapshot: () =>
       Object.freeze({
         reducedMotion,
-        activeCount: records.length,
-        records: Object.freeze([...records]),
+        activeCount: ring.count,
+        records: Object.freeze([...ring.records]),
       }),
   };
 }

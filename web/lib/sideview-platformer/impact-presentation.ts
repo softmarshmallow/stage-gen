@@ -24,6 +24,16 @@ import {
   sumShake,
   type ShakeOffset,
 } from "@/lib/families/screen-fx/shake";
+import {
+  easeOutCubic,
+  ParticleRing,
+  particleUnitNoise,
+  parseParticlesBlock,
+  unitProgress,
+  type ParticlesBlockView,
+} from "@/lib/families/particles";
+import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
+import type { BlockTable } from "@/lib/manifest/blocks";
 import type Phaser from "phaser";
 import { SCENE_CONTENT_DEPTH } from "./depths";
 
@@ -98,20 +108,31 @@ export type ImpactSample = Readonly<{
   complete: boolean;
 }>;
 
-/** Deterministic unit noise in [0, 1) for one seed and channel; no state, no wall clock. */
-export function impactUnitNoise(seed: number, channel: number): number {
-  let hash = (Math.imul(seed ^ channel, 0x9e3779b1) ^ (seed >>> 15)) >>> 0;
-  hash = Math.imul(hash ^ (hash >>> 13), 0x85ebca6b) >>> 0;
-  hash = Math.imul(hash ^ (hash >>> 16), 0xc2b2ae35) >>> 0;
-  return hash / 4294967296;
-}
+/**
+ * Deterministic unit noise in [0, 1) for one seed and channel; no state, no
+ * wall clock. The `particles` family's, under this genre's name: the runner's
+ * ground dust had written the same eight lines out as `dustUnitNoise`, which is
+ * how one family turned out to have two implementations and no owner.
+ */
+export const impactUnitNoise = particleUnitNoise;
 
-function unitProgress(value: number): number {
-  return Math.max(0, Math.min(1, value));
-}
+/**
+ * The block this genre's particles depend on.
+ *
+ * A spark is thrown by a blow, and whether a package has blows at all is
+ * `[gameplay] combat.enabled` — the same authored fact the clock's hitstop
+ * holder depends on. A producer that moves it gets `manifest block "gameplay"
+ * is published as …; this build reads platformer-gameplay-block-v1`, from the
+ * particles.
+ */
+export const PLATFORMER_PARTICLES_BLOCK = Object.freeze({
+  block: "gameplay",
+  version: PREPARED_RUNTIME_BLOCKS.gameplay,
+});
 
-function easeOutCubic(progress: number): number {
-  return 1 - (1 - progress) ** 3;
+/** Gate the platformer's particles block. Refuses by naming `gameplay`. */
+export function parsePlatformerParticlesBlock(blocks: BlockTable): ParticlesBlockView {
+  return parseParticlesBlock(blocks, PLATFORMER_PARTICLES_BLOCK);
 }
 
 function elapsedSince(event: ImpactEvent, nowMs: number): number {
@@ -353,8 +374,16 @@ type ActiveImpact = {
 export class ImpactSystem {
   private readonly scene: Phaser.Scene;
   private readonly maxActive: number;
-  private readonly active: ActiveImpact[] = [];
-  private readonly swings: SwingEvent[] = [];
+  /**
+   * The two bounded rings, both the `particles` family's.
+   *
+   * A blow holds its target sprite white while it is live, so the record has to
+   * be let go of when it leaves the ring however it leaves — evicted by the cap
+   * or pruned once spent — which is what `onRelease` is for. The runner's dust
+   * passes none, because a puff owns nothing.
+   */
+  private readonly active: ParticleRing<ActiveImpact>;
+  private readonly swings: ParticleRing<SwingEvent>;
   private graphics: Phaser.GameObjects.Graphics | null = null;
   private nextEventId = 1;
   private enabled: boolean;
@@ -369,6 +398,12 @@ export class ImpactSystem {
     }
     this.scene = options.scene;
     this.maxActive = maxActive;
+    this.active = new ParticleRing<ActiveImpact>({
+      max: maxActive,
+      ceiling: MAX_ACTIVE_CAP,
+      onRelease: (entry) => this.setFlash(entry, false),
+    });
+    this.swings = new ParticleRing<SwingEvent>({ max: maxActive, ceiling: MAX_ACTIVE_CAP });
     this.enabled = options.enabled ?? true;
     this.reducedMotion = options.reducedMotion ?? false;
   }
@@ -396,7 +431,7 @@ export class ImpactSystem {
     ) {
       return null;
     }
-    if (this.active.length >= this.maxActive) this.releaseAt(0);
+    this.active.makeRoom();
 
     const eventId = this.nextEventId;
     this.nextEventId = this.nextEventId >= Number.MAX_SAFE_INTEGER ? 1 : this.nextEventId + 1;
@@ -413,7 +448,7 @@ export class ImpactSystem {
     });
     const entry: ActiveImpact = { event, target: input.target, flashing: false };
     this.setFlash(entry, sampleImpactFlash(event, input.nowMs));
-    this.active.push(entry);
+    this.active.remember(entry);
     // Hitstop extends rather than restarts: three blows in one frame hold once, and the longest
     // of them wins, so a combo's kill is never shortened by the blows before it.
     this.hitstopUntil = Math.max(
@@ -436,10 +471,10 @@ export class ImpactSystem {
     ) {
       return null;
     }
-    if (this.swings.length >= this.maxActive) this.swings.shift();
+    this.swings.makeRoom();
     const eventId = this.nextEventId;
     this.nextEventId = this.nextEventId >= Number.MAX_SAFE_INTEGER ? 1 : this.nextEventId + 1;
-    this.swings.push(
+    this.swings.remember(
       Object.freeze({
         eventId,
         startedAtMs: input.nowMs,
@@ -462,7 +497,7 @@ export class ImpactSystem {
   shakeOffset(nowMs: number): ShakeOffset {
     if (this.disposed || !this.enabled) return NO_SHAKE;
     return sumShake(
-      this.active.map((entry) => sampleImpactShake(entry.event, nowMs)),
+      this.active.records.map((entry) => sampleImpactShake(entry.event, nowMs)),
       IMPACT_SHAKE_PX * IMPACT_CRITICAL_SCALE,
     );
   }
@@ -471,23 +506,22 @@ export class ImpactSystem {
     if (this.disposed) return;
     const graphics = this.ensureGraphics();
     graphics.clear();
-    for (let index = this.swings.length - 1; index >= 0; index -= 1) {
-      const arc = sampleSwingArc(this.swings[index]!, nowMs);
-      if (arc === null) {
-        this.swings.splice(index, 1);
-        continue;
-      }
+    // Newest first, the way both rings have always been walked: a record that
+    // has run out is released as it is passed rather than in a second sweep.
+    this.swings.prune((swing) => sampleSwingArc(swing, nowMs) === null);
+    for (const swing of this.swings.records) {
+      const arc = sampleSwingArc(swing, nowMs);
+      if (arc === null) continue;
       graphics.lineStyle(arc.width, IMPACT_SWING_COLOR, arc.alpha);
       graphics.beginPath();
       graphics.arc(arc.x, arc.y, arc.radius, arc.startAngle, arc.endAngle, arc.anticlockwise);
       graphics.strokePath();
     }
-    for (let index = this.active.length - 1; index >= 0; index -= 1) {
-      const entry = this.active[index]!;
+    for (const entry of [...this.active.records]) {
       const sample = sampleImpact(entry.event, nowMs);
       this.setFlash(entry, sample.flash);
       if (sample.complete) {
-        this.releaseAt(index);
+        this.active.release(entry);
         continue;
       }
       const sparkColor = entry.event.critical ? IMPACT_CRITICAL_SPARK_COLOR : IMPACT_SPARK_COLOR;
@@ -504,8 +538,8 @@ export class ImpactSystem {
 
   clear(): void {
     if (this.disposed) return;
-    while (this.active.length > 0) this.releaseAt(this.active.length - 1);
-    this.swings.length = 0;
+    this.active.clear();
+    this.swings.clear();
     this.graphics?.clear();
     this.hitstopUntil = 0;
   }
@@ -523,11 +557,11 @@ export class ImpactSystem {
       enabled: this.enabled,
       reducedMotion: this.reducedMotion,
       disposed: this.disposed,
-      activeCount: this.active.length,
-      swingCount: this.swings.length,
+      activeCount: this.active.count,
+      swingCount: this.swings.count,
       hitstopUntilMs: this.hitstopUntil,
       entries: Object.freeze(
-        this.active.map((entry) =>
+        this.active.records.map((entry) =>
           Object.freeze({
             eventId: entry.event.eventId,
             startedAtMs: entry.event.startedAtMs,
@@ -554,10 +588,4 @@ export class ImpactSystem {
     entry.target?.setFlash(on);
   }
 
-  private releaseAt(index: number): void {
-    const entry = this.active[index];
-    if (!entry) return;
-    this.setFlash(entry, false);
-    this.active.splice(index, 1);
-  }
 }
