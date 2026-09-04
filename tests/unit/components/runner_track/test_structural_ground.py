@@ -784,3 +784,13 @@ def test_source_admission_refuses_a_part_painted_walking_surface() -> None:
             material_identity=MATERIAL_IDENTITY,
             material_references=[REFERENCE],
         )
+
+
+# See tests/unit/components/painted_terrain/test_guide.py: the guide is a cache
+# input, so its bytes are pinned rather than merely compared with themselves.
+PINNED_GUIDE_SHA256 = "62477691f846664c0bf35bdcbfcc05b683c47d6cb5875f10b74cdba7c1a40ebf"
+
+
+def test_the_guide_bytes_are_pinned_so_a_redraw_is_a_decision() -> None:
+    guide, _report = _guide()
+    assert sha256(guide).hexdigest() == PINNED_GUIDE_SHA256

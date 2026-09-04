@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from hashlib import sha256
 from io import BytesIO
 
 import pytest
@@ -93,3 +94,14 @@ def test_the_report_records_what_the_model_will_be_looking_at() -> None:
 def test_unusable_material_references_are_refused_while_planning() -> None:
     with pytest.raises(ValueError, match="at least one material reference"):
         validate_painted_terrain_material_references([])
+
+
+# The guide is a cache input: its bytes feed the provider node's identity and
+# every downstream lineage. A change to how it is drawn is therefore either a
+# deliberate re-bill or a silent divergence between warm and cold runs, and a
+# determinism test that calls the builder twice cannot tell. This digest can.
+PINNED_GUIDE_SHA256 = "a278a47eba8f60988631f09aaea4de432d8675c24525c140016808d3c40d74a2"
+
+
+def test_the_guide_bytes_are_pinned_so_a_redraw_is_a_decision() -> None:
+    assert sha256(fixture.guide()).hexdigest() == PINNED_GUIDE_SHA256
