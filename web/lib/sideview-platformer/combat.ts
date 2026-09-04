@@ -15,6 +15,28 @@
 // unit-tested without a browser; these rules can, and they are the part that decides whether the
 // fight is fair.
 
+import { ladder, parseActorAiBlock, type ActorAiBlockView } from "@/lib/families/actor-ai";
+import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
+import type { BlockTable } from "@/lib/manifest/blocks";
+
+/**
+ * The block this genre authors its archetypes in.
+ *
+ * `mobs`, and only a *word* per creature: the producer publishes no numbers at
+ * all, so the closed archetype vocabulary is the whole authored surface and
+ * every radius, speed and cadence below is gameplay this consumer owns. Moving
+ * the block gets the refusal from `actor-ai`, by name.
+ */
+export const PLATFORMER_ACTOR_AI_BLOCK = Object.freeze({
+  block: "mobs",
+  version: PREPARED_RUNTIME_BLOCKS.mobs,
+});
+
+/** Gate the platformer's actor-ai block. Refuses by naming `mobs`. */
+export function parsePlatformerActorAiBlock(blocks: BlockTable): ActorAiBlockView {
+  return parseActorAiBlock(blocks, PLATFORMER_ACTOR_AI_BLOCK);
+}
+
 /** Aggression archetypes, mirroring the closed vocabulary the generator draws from. */
 export type MobAggression =
   | "passive"
@@ -394,12 +416,37 @@ export function mobIntent(input: {
   attackReadyAtMs: number;
   playerDefeated: boolean;
 }): MobIntent {
+  // The ladder, as an auction. This was five `if`s in a fixed order, which is a
+  // priority auction written the other way round — and saying so is the whole
+  // of `actor-ai`'s ruling, because the claim that "the auction subsumes the
+  // node chain" is only worth making if it costs nothing to cash. It costs
+  // nothing: the rungs are in the order the chain tested them, the strictly
+  // greater bid wins, and `combat.test.ts` asserts the two agree over every
+  // archetype crossed with every distance and cadence boundary.
+  //
+  // The ordering matters and is asserted: cooldown outranks range, so a mob
+  // that has just swung preserves its committed combat pose instead of falling
+  // through to idle patrol.
   const { profile, distancePx, nowMs, attackReadyAtMs, playerDefeated } = input;
-  if (!profile.hostile) return "hold";
-  if (playerDefeated || distancePx > profile.aggroRadiusPx) return "hold";
-  if (profile.flees) return "flee";
-  if (distancePx <= profile.strikeRangePx) {
-    return nowMs >= attackReadyAtMs ? "strike" : "attack_recovery";
-  }
-  return "chase";
+  return (
+    ladder<typeof input, MobIntent>(
+      [
+        [({ profile: p }) => !p.hostile, "hold"],
+        [
+          ({ profile: p, distancePx: d, playerDefeated: dead }) =>
+            dead || d > p.aggroRadiusPx,
+          "hold",
+        ],
+        [({ profile: p }) => p.flees, "flee"],
+        [
+          ({ profile: p, distancePx: d, nowMs: now, attackReadyAtMs: ready }) =>
+            d <= p.strikeRangePx && now >= ready,
+          "strike",
+        ],
+        [({ profile: p, distancePx: d }) => d <= p.strikeRangePx, "attack_recovery"],
+        [() => true, "chase"],
+      ],
+      { profile, distancePx, nowMs, attackReadyAtMs, playerDefeated },
+    ) ?? "chase"
+  );
 }

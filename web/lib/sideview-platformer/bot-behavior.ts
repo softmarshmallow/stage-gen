@@ -5,7 +5,7 @@
 // them, and nothing else. That separation is the whole reason the system can grow: a new behaviour
 // is a new value implementing `BotBehavior`, added to a roster, and no existing line changes.
 //
-// Arbitration is a priority auction, not a state machine. Every behaviour is asked, every frame,
+// Arbitration is the `actor-ai` family's priority auction, not a state machine. Every behaviour is asked, every frame,
 // what it would do and how badly it wants to; the loudest proposal wins and the rest are discarded.
 // A state machine would need every behaviour to know its neighbours in order to name a transition,
 // and adding the seventh state to a six-state machine means editing six states. Here the seventh
@@ -20,6 +20,7 @@ import type { BotWorldView } from "./bot-view";
 import type { PlayerIntent } from "./player-intent";
 import { NEUTRAL_PLAYER_INTENT } from "./player-intent";
 import type { MovementCapabilities, NavReach, NavSteerTuning } from "./bot-navigation";
+import { arbitrate as familyArbitrate } from "@/lib/families/actor-ai";
 
 /**
  * What the bot is trying to accomplish, in one word.
@@ -185,17 +186,14 @@ export function observeBotMemory(input: Readonly<{
 /**
  * Pick the winning proposal.
  *
- * Strictly greater wins, so a tie leaves the earlier-declared behaviour in place. Roster order is
- * therefore a real tiebreak the author controls, and reordering the roster is a legitimate way to
- * express "when these two want the frame equally, prefer this one".
+ * The rule is the `actor-ai` family's now, and this genre's proposals are one
+ * of two things it arbitrates between: strictly greater wins, so a tie leaves
+ * the earlier-declared behaviour in place. Roster order is therefore a real
+ * tiebreak the author controls, and reordering the roster is a legitimate way
+ * to express "when these two want the frame equally, prefer this one".
  */
 export function arbitrate(proposals: readonly (BotProposal | null)[]): BotProposal | null {
-  let winner: BotProposal | null = null;
-  for (const proposal of proposals) {
-    if (!proposal) continue;
-    if (!winner || proposal.priority > winner.priority) winner = proposal;
-  }
-  return winner;
+  return familyArbitrate(proposals);
 }
 
 /**

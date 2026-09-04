@@ -24,6 +24,8 @@ import {
   isPlayerInvulnerable,
   playerInvulnerabilityBlinkAlpha,
 } from "./vitals";
+import { parsePlatformerActorAiBlock } from "./combat";
+import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
 
 describe("attack level reach", () => {
   test("accepts the same or one adjacent level and rejects a jump above it", () => {
@@ -435,5 +437,14 @@ describe("level growth", () => {
     expect(grownPlayerHealth(health, 4)).toBe(health);
     expect(() => grownPlayerHealth(health, 0)).toThrow(RangeError);
     expect(() => grownPlayerHealth(health, 2.5)).toThrow(RangeError);
+  });
+});
+
+describe("the platformer's arbitration is the actor-ai family's", () => {
+  test("the actor-ai block is gated by the family, by name", () => {
+    expect(parsePlatformerActorAiBlock(PREPARED_RUNTIME_BLOCKS).block).toBe("mobs");
+    expect(() =>
+      parsePlatformerActorAiBlock({ ...PREPARED_RUNTIME_BLOCKS, mobs: "platformer-mobs-block-v2" }),
+    ).toThrow('manifest block "mobs" is published as platformer-mobs-block-v2');
   });
 });

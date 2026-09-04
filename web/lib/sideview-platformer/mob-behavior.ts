@@ -1,4 +1,5 @@
 import { motionNeedsRestart } from "@/lib/families/sideview/motion";
+import { Awareness } from "@/lib/families/actor-ai";
 import {
   type AggressionProfile,
   attackFootLevelsOverlap,
@@ -253,7 +254,7 @@ export type MobDirective = MobIntent | "return_home";
 export class MobAwarenessNode
   implements MobBehaviorNode<MobAwarenessInput, MobDirective>
 {
-  private mode: "idle" | "engaged" | "returning" = "idle";
+  private readonly awareness = new Awareness();
 
   constructor(private readonly profile: AggressionProfile) {}
 
@@ -264,13 +265,20 @@ export class MobAwarenessNode
     ) {
       throw new Error("mob awareness distance must be finite and non-negative");
     }
-    const canEngage =
-      input.playerObserved &&
-      !input.playerDefeated &&
-      input.playerWithinPursuitTerritory &&
-      input.distancePx <= this.profile.aggroRadiusPx;
-    if (canEngage) {
-      this.mode = "engaged";
+    // Every condition for engaging is the *profile's*, evaluated here; the
+    // hysteresis around it is the `actor-ai` family's, and has no numbers in it
+    // at all. Aggro radius answers whether a creature notices or retains you;
+    // pursuit territory answers where it is allowed to hunt.
+    const directive = this.awareness.step({
+      canEngage:
+        input.playerObserved &&
+        !input.playerDefeated &&
+        input.playerWithinPursuitTerritory &&
+        input.distancePx <= this.profile.aggroRadiusPx,
+      homeReturnRequired: input.homeReturnRequired,
+      atHome: input.atHome,
+    });
+    if (directive === "engage") {
       return mobIntent({
         profile: this.profile,
         distancePx: input.distancePx,
@@ -279,16 +287,11 @@ export class MobAwarenessNode
         playerDefeated: false,
       });
     }
-    if (this.mode === "engaged" || input.homeReturnRequired) {
-      this.mode = "returning";
-    }
-    if (this.mode === "returning" && !input.atHome) return "return_home";
-    this.mode = "idle";
-    return "hold";
+    return directive === "return" ? "return_home" : "hold";
   }
 
   reset(): void {
-    this.mode = "idle";
+    this.awareness.reset();
   }
 }
 

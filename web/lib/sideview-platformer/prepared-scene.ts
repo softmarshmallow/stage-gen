@@ -198,6 +198,7 @@ import { parsePlatformerClockBlock } from "./clock";
 import { parsePlatformerTraversalBlocks } from "./vertical";
 import { parsePlatformerParallaxBlock } from "./prepared-layers";
 import { parsePlatformerNavigationBlock } from "./bot-navigation";
+import { parsePlatformerActorAiBlock } from "./combat";
 import { parsePlatformerIntentBlock } from "./player-intent";
 import { parsePlatformerVitalsBlock } from "./vitals";
 import { parsePlatformerCameraBlock } from "./camera";
@@ -602,6 +603,7 @@ export class PreparedStageScene extends Phaser.Scene {
     parsePlatformerParallaxBlock(manifest.blocks);
     parsePlatformerMotionBlocks(manifest.blocks);
     parsePlatformerNavigationBlock(manifest.blocks);
+    parsePlatformerActorAiBlock(manifest.blocks);
     resolvePreparedPlayerMotions(manifest.player.states);
     parsePlatformerClockBlock(manifest.blocks);
     parsePlatformerIntentBlock(manifest.blocks);
