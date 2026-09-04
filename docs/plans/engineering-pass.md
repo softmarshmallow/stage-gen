@@ -770,6 +770,26 @@ never reaches the runtime manifest - the producer keeps only `boss_mob_ids` - wh
 a C5 item for the pipeline lane, one authored field surviving `src/`.
 
 
+**2026-09-04 — Runtime step 5 landed (workstream E).** `traversal`, `parallax`,
+`motion` (under `web/lib/families/sideview/`), `navigation` and `actor-ai`, each its own
+commit, **E1 bit-identical in both genres on all five** - 600 per-frame digests and the
+runner's 1,043-line sink recording byte for byte, nothing re-pinned - and **zero new
+`after` edges, feedback reads or declaration changes**; the platformer's roster file is
+byte-identical to before. Traversal is one walk both genres call (rows in the runner,
+projected pixels in the platformer; the one real disagreement, clamp versus crossing,
+is a parameter both values of which the runner alone uses). Parallax's depth ladder is
+an ordered vocabulary that refuses an inversion. Motion's vocabulary is a parameter with
+three closed sets instantiated plus the plan's jumper set in the suite; both genres now
+refuse a missing state in one voice, the platformer for the first time. Navigation's two
+lane derivations are one rule, measured column for column, and the jump integrator is
+an import of traversal's. The main finding: the creature's "node chain" the plan
+predicted would move frames is a fixed-order priority ladder, and the auction
+reproduces it exactly across every archetype, distance and cadence boundary. Owed, not
+forced: the reviewed captures (no browser this pass), folding the rest of the creature's
+chain into the bot's roster, live creatures on the nav graph, and one stale sentence in
+the composition doc about the death strip locking control.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one
