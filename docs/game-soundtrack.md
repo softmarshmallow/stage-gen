@@ -86,7 +86,7 @@ choice is execution configuration and never appears in authored TOML.
 
 Provider-free integration projects playback policy and each track’s stable ID,
 display name, duration, artifact path, digest, and byte count into
-`prepared-game-runtime-v11`. The prepared consumer validates that exact closure,
+`prepared-game-runtime-v12`. The prepared consumer validates that exact closure,
 then plays the first track assigned to the current map and restarts selection
 when the map changes. Browser autoplay restrictions remain consumer behavior.
 The runner consumer additionally performs the fades, pauses, and ducks its

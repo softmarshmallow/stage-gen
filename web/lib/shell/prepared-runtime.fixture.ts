@@ -156,8 +156,8 @@ export function preparedRuntimeManifestFixture(): Record<string, unknown> {
   ];
 
   return {
-    schema_version: 11,
-    kind: "prepared-game-runtime-v11",
+    schema_version: 12,
+    kind: "prepared-game-runtime-v12",
     blocks: { ...PREPARED_RUNTIME_BLOCKS },
     game_id: "prepared_fixture",
     revision: 1,

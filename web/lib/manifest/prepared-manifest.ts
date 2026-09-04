@@ -26,8 +26,8 @@ import { parseUiIconSetLayout, type UiIconSetLayout } from "./ui-icon-layout";
 export type RuntimeArtifactRole = "asset" | "provenance";
 
 /** The one prepared-runtime identity this build reads. There is no second one. */
-export const PREPARED_RUNTIME_KIND = "prepared-game-runtime-v11";
-export const PREPARED_RUNTIME_SCHEMA_VERSION = 11;
+export const PREPARED_RUNTIME_KIND = "prepared-game-runtime-v12";
+export const PREPARED_RUNTIME_SCHEMA_VERSION = 12;
 /** Every block this build reads, at the version it reads it (C-R3). */
 export const PREPARED_RUNTIME_BLOCKS = Object.freeze({
   presentation: "platformer-presentation-block-v1",
@@ -260,8 +260,8 @@ export type MotionCalibration = Readonly<{
 }>;
 
 export type PreparedRuntimeManifest = Readonly<{
-  schema_version: 11;
-  kind: "prepared-game-runtime-v11";
+  schema_version: 12;
+  kind: "prepared-game-runtime-v12";
   blocks: BlockTable;
   game_id: string;
   revision: number;
@@ -1238,8 +1238,8 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
   const entryMapId = id(root.entry_map_id, "entry_map_id");
   if (!maps.some((map) => map.map_id === entryMapId)) throw new Error("entry_map_id does not resolve");
   return Object.freeze({
-    schema_version: 11,
-    kind: "prepared-game-runtime-v11",
+    schema_version: 12,
+    kind: "prepared-game-runtime-v12",
     blocks,
     game_id: gameId,
     revision: integer(root.revision, "revision", 1),

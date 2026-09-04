@@ -11,7 +11,7 @@ The preview route is `/preview/<run-tag>`. The run directory is `out/<run-tag>/`
 ```json
 {
   "schema_version": 10,
-  "kind": "prepared-game-runtime-v11"
+  "kind": "prepared-game-runtime-v12"
 }
 ```
 
@@ -278,7 +278,7 @@ runtime-manifest parser of the old numbered generation, `WorldSpec`, `VillageSpe
 filename scene are gone rather than retired in place.
 
 No backward-compatible prepared-input translation exists. A directory or ZIP with root
-`game.toml` is the package root, and `prepared-game-runtime-v11` is the only manifest accepted by
+`game.toml` is the package root, and `prepared-game-runtime-v12` is the only manifest accepted by
 the preview. A run directory that holds neither is not a subject this consumer can render, and the
 route answers 404 rather than guessing.
 

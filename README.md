@@ -92,7 +92,7 @@ A live runner call is single-shot, requires provider credentials, and may spend 
 creative brief cannot regenerate reviewed art, `--checkpoint world-review` and
 `--checkpoint content-review` run the semantic reviews over a closure the cache already
 holds, and `--checkpoint integration` runs the terminal manifest node over the cache with
-every provider backend refusing, publishing `prepared-game-runtime-v11` without spending.
+every provider backend refusing, publishing `prepared-game-runtime-v12` without spending.
 
 GPT Image 2 native alpha is the quality-first live image route. The standalone compatibility
 background-removal command remains available:
@@ -370,7 +370,7 @@ bun test
 bun run build --webpack
 ```
 
-`web/` starts no run. The preview boots one published `prepared-game-runtime-v11`
+`web/` starts no run. The preview boots one published `prepared-game-runtime-v12`
 package, `/packages/<tag>` projects that manifest's closure, `/runner/<tag>` plays a
 published `sideview-runner-runtime-v13` run, `/room/<tag>` replays one published
 `pointclick-room-runtime-v3` room, and `/runs` renders exported run views. Browser

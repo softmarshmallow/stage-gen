@@ -36,7 +36,9 @@ BELLWEATHER_NODE_COUNT = 230
 # Re-pinned when the motion-rebase family moved to `sideview_actor` (D8): the pair's type
 # ids, the port order and the verification's port are the family's; both nodes keep this
 # recipe's cache identity. No cache key moved.
-BELLWEATHER_TOPOLOGY_SHA256 = "8a87fc24d472931f986127737ab25a95c266cbbf014da373d86e61e1fe19ae53"
+# Re-pinned when the manifest root lost its four unread fields (C6): the root kind moved to
+# v12, and the terminal port kind is the manifest identity. No cache key moved.
+BELLWEATHER_TOPOLOGY_SHA256 = "aaa49dc731aeda29fd92fc8705ebedb197c8499aa74b62d13172edecac7ebba1"
 
 
 def _bellweather_graph() -> ExecutionGraph:

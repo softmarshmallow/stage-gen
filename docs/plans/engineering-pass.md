@@ -547,6 +547,28 @@ the sprite prompt shares, which moved to the host. `sideview_layers` and
 them. The UI and fx kits use `components/_node_kit.py` for the helpers they had copied.
 
 
+**G2, re-read against the gate.** The card asked for validation looped over the
+library. The gate already reads every package's source: `package plan` for the two
+shipped games (both cache-key goldens sit on them), a provider-free dry run for the
+room, the two scenes and the universe, `scenario check` for three packages and `case
+check` for `the_grain`. `validate_game_package.py` stays the repository-selected
+exact-current check it was written to be, keyed on `main.toml` by design; looping it
+would validate what the dry runs already resolve. Closed by A5; no code.
+
+
+**2026-09-04 — C6 for the platformer root.** The manifest root published `style`,
+`proportion`, the whole universe text and `canonical_game_sha256`; no consumer read any
+of them (the TypeScript parser reads six root fields and the block table, the Python
+verifier none of the four). They are gone, and because the root's shape moved, the root
+kind moved with it: `prepared-game-runtime-v12`, swept through the parser, its fixtures
+and fifteen documents by the derived docs rule. Measured: Bellweather republished
+provider-free (`out/bellweather-c6-parity`, 0 operations, 79 nodes adopted from the
+checkpoint roots as before); 109 of 110 files byte-identical to the v11 publish, the
+manifest differing only by the four removed fields and its version. The Bellweather
+topology digest re-pinned (the terminal port kind is the manifest identity); no cache
+key moved. The runner root was already C-R6 clean.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one

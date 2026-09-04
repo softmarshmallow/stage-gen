@@ -6,7 +6,7 @@
 > input. It defines `game-map-v10` as one compound map-generation contract
 > for one map, level, or gameplay scene. Prepared-package resolution validates
 > the complete source and reference closure before provider work; the scrolling
-> recipe executes its typed branches; `prepared-game-runtime-v11` projects the
+> recipe executes its typed branches; `prepared-game-runtime-v12` projects the
 > exact map closure; and the prepared web adapter consumes that projection.
 > This implementation status does not assert that any particular live output
 > has passed semantic review or publication gates.
@@ -704,4 +704,4 @@ closures fail closed.
 Successful input validation proves only authored closure. A playable build still
 requires successful provider and local graph execution, the required independent
 semantic reviews, provider-free integration of every runtime artifact, and exact
-`prepared-game-runtime-v11` consumer admission.
+`prepared-game-runtime-v12` consumer admission.

@@ -342,7 +342,7 @@ GAMEPLAY_BINDINGS_VALIDATE = NodeType(
 #: The runtime manifest's identity. Moves on structural change only (C-R3): a block that
 #: changes shape moves its own version in ``PLATFORMER_MANIFEST_BLOCKS``. Declared here,
 #: beside the node that publishes it, so the graph's port kind and the document agree.
-PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 11
+PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 12
 PREPARED_RUNTIME_MANIFEST_KIND = (
     f"prepared-game-runtime-v{PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION}"
 )

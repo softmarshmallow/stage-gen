@@ -137,7 +137,7 @@ sidecars so consumers load canonical outputs without guessing from colour.
 
 The current `web/` application is an optional consumer with six committed
 integration surfaces, none of which can start a run. The side-view platformer
-preview boots one published `prepared-game-runtime-v11` package; its horizontal
+preview boots one published `prepared-game-runtime-v12` package; its horizontal
 camera, parallax, terrain, movement, combat, and interaction rules are local
 consumer decisions. The runner at `/runner/<tag>` plays one published
 `sideview-runner-runtime-v13` run with its own fixed-step simulation. The asset

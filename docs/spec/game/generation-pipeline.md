@@ -94,7 +94,7 @@ declared rather than left to the operator to avoid. Neither paid bounded checkpo
 assemble a manifest. `--checkpoint integration` is a provider-free terminal
 operation over accepted artifact roots. It validates the complete package-derived runtime closure,
 applies caller-ordered corrective-run precedence, atomically publishes one run whose tag is
-immutable by default, and emits `prepared-game-runtime-v11`. The `--dry-run` path exercises the
+immutable by default, and emits `prepared-game-runtime-v12`. The `--dry-run` path exercises the
 selected complete graph with deterministic fake operations.
 
 ## Current boundary graph
@@ -170,7 +170,7 @@ topology and therefore this checked snapshot.
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "library/games/bellweather",
   "graph_schema_version": 1,
-  "topology_sha256": "8a87fc24d472931f986127737ab25a95c266cbbf014da373d86e61e1fe19ae53",
+  "topology_sha256": "aaa49dc731aeda29fd92fc8705ebedb197c8499aa74b62d13172edecac7ebba1",
   "node_count": 230,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
@@ -531,7 +531,7 @@ kinds, so a reader never has to infer which recipe wrote a run directory.
 | `content/coverage-matrix.json`, `gameplay.bindings.json` | Required authored coverage and verified stable-ID relationships |
 | `soundtrack/*.mp3`, `*.validation.json` | Generated audio, provider provenance, duration/container facts, and explicit listening status |
 | every declared port, under `--dry-run` | A small `dry-run-artifact-v1` document at each port a node declares, written through the same node cache as a live run, so a rehearsal exercises the cache and lineage rules a live run will meet |
-| `manifest.json` | Portable `prepared-game-runtime-v11` authored projection, runtime-only layer/contact-shadow presentation, prop ground contacts, front-facing NPC playback, and SHA-bound runtime closure |
+| `manifest.json` | Portable `prepared-game-runtime-v12` authored projection, runtime-only layer/contact-shadow presentation, prop ground contacts, front-facing NPC playback, and SHA-bound runtime closure |
 
 Trace records contain portable artifact references, hashes, and sanitized errors. They do not
 contain credentials, authorization headers, signed URLs, temporary paths, or absolute inputs.
@@ -546,9 +546,9 @@ version in `PLATFORMER_MANIFEST_BLOCKS` and in the parser that reads it; nothing
 document's `kind` moves on structural change only - the set of blocks or the root fields - which
 is contract rule C-R3 in [game-contract.md](../../game-contract.md). The consumer gates every
 block it parses and its refusal names the block. The current table is generated into
-[contract-identities.md](../../contract-identities.md). The root fields `style`, `proportion`,
-`universe` and `canonical_game_sha256` carry no block version because no consumer reads them;
-they are the C-R6 defects the engineering pass lists, and leave rather than gain a version.
+[contract-identities.md](../../contract-identities.md). The root once carried `style`, `proportion`,
+`universe` and `canonical_game_sha256`; no consumer read them, and under C-R6 they left in
+v12 rather than gain a version.
 
 ## Runtime closure roles
 

@@ -73,8 +73,8 @@ function preparedManifestFixture() {
   ];
   const closure = [...Object.values(assets), ...provenance].reverse();
   return {
-    schema_version: 11,
-    kind: "prepared-game-runtime-v11",
+    schema_version: 12,
+    kind: "prepared-game-runtime-v12",
     blocks: { ...PREPARED_RUNTIME_BLOCKS },
     game_id: "fixture",
     revision: 1,

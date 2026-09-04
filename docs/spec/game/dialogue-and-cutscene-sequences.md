@@ -633,7 +633,7 @@ overlay. Its movement lock and beat cursor prove one consumer integration, not
 the general sequence contract proposed here.
 
 The current prepared gameplay consumer accepts compiled scenario programs and
-NPC-expression projections only inside `prepared-game-runtime-v11`, and validates
+NPC-expression projections only inside `prepared-game-runtime-v12`, and validates
 each declared block as one unit. An NPC exposes interaction only when gameplay
 binds it to a resolved scenario. A malformed declared scenario fails closed and
 does not substitute unrelated dialogue. A future extension must either preflight
@@ -656,7 +656,7 @@ text IR rather than an adopted narrative engine. Semantics outside the scenario
 subset stay refused rather than approximated.
 
 The current prepared scenario and runtime shapes remain valid only as the exact
-`prepared-game-runtime-v11` projection. They MUST NOT silently acquire unsupported
+`prepared-game-runtime-v12` projection. They MUST NOT silently acquire unsupported
 shot, timeline, or cutscene semantics. A future adapter must either emit the
 exact supported subset or fail; it cannot erase authored semantics to fit a
 different consumer shape.

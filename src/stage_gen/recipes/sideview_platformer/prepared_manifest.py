@@ -705,10 +705,8 @@ def _assemble_prepared_runtime(
         "revision": package.game.revision,
         "display_name": package.game.display_name,
         "package_sha256": package.package_sha256,
-        "canonical_game_sha256": package.canonical_game_sha256,
-        "universe": package.file(package.game.universe.source).data.decode("utf-8"),
-        "style": package.game.style.model_dump(mode="json"),
-        "proportion": package.game.proportion.model_dump(mode="json"),
+        # C-R6: the root publishes only what a consumer reads. The universe text, the style
+        # and proportion tables and the canonical game digest left in v12; nothing read them.
         "entry_map_id": package.gameplay.entry_map_id,
         "entry_spawn_id": package.gameplay.entry_spawn_id,
         **blocks,

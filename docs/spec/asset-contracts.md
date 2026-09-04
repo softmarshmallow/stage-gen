@@ -198,7 +198,7 @@ never silently changes the selected strategy.
 ### Runtime publication gate
 
 Prepared manifest completion requires the complete package-derived runtime
-closure. `prepared-game-runtime-v11` publishes every map's layers, 47-mask ground
+closure. `prepared-game-runtime-v12` publishes every map's layers, 47-mask ground
 atlas, authored occupancy, and only the ladder or portal bundles that map declares;
 it also publishes all authored actor motions, dialogue, props, items, inventory UI,
 soundtrack, gameplay, and sequence bindings. Ladder placement and portal endpoint
@@ -256,7 +256,7 @@ The [canonical game-generation pipeline](game/generation-pipeline.md) owns the c
 package graph, conditional composition, operation counts, and execution semantics. Prepared
 packages do not use numbered waves: package resolution fans out map-local layers, 47-mask ground,
 optional ladder and portal presentation, actors, catalogs, UI, soundtrack, and bindings according
-to explicit dependencies, then a provider-free integration step emits `prepared-game-runtime-v11`.
+to explicit dependencies, then a provider-free integration step emits `prepared-game-runtime-v12`.
 
 Provider latency, service concurrency, and account throttling are operational
 observations rather than recipe contracts. The executor may fan out independent
@@ -267,7 +267,7 @@ provider concurrency tier.
 
 # Asset specifications
 
-> **Output rows name the published `prepared-game-runtime-v11` paths.** Each is
+> **Output rows name the published `prepared-game-runtime-v12` paths.** Each is
 > the closure path `prepared_manifest.py` publishes with role `asset`; sidecar
 > validation records ride the same closure as role `provenance`. Where a section
 > documents a legacy or run-internal artifact, its row says so explicitly.
