@@ -15,9 +15,20 @@
 // publishes the gauge's ceiling — a bar cannot be drawn without it — and the
 // rest is tunable here without regenerating a single image.
 
-import { drain, isRefractory, refractoryBlinkAlpha, type Gauge } from "@/lib/kernel/gauge";
+import type { Gauge } from "@/lib/kernel/gauge";
+import {
+  bodyBlinkAlpha,
+  bodyIsImmune,
+  CONTACT_HURT_PROFILE,
+  parseVitalsBlock,
+  resolveVitals,
+  vitalsClockMs,
+  type VitalsBlockView,
+  type VitalsSlice,
+} from "@/lib/families/vitals";
+import type { BlockTable } from "@/lib/manifest/blocks";
 import type { FxEvent } from "@/lib/fx/moment-system";
-import type { RunnerDamageSource } from "./contract";
+import { RUNNER_BLOCKS, type RunnerDamageSource } from "./contract";
 import type { GameSystem } from "@/lib/kernel/systems";
 import { surfaceRowAt } from "./segments";
 import type { EncounterEvent } from "./encounter";
@@ -34,16 +45,16 @@ import type { RunnerWorld } from "./world";
  * platformer's, and at base speed it is comfortably longer than any authored
  * hazard's crossing, so one prop can only ever cost one point.
  */
-export const RUNNER_REFRACTORY_MS = 900;
+export const RUNNER_REFRACTORY_MS = CONTACT_HURT_PROFILE.refractoryMs;
 
 /** One bright/dim phase of the avatar while the window is open. */
-export const RUNNER_BLINK_INTERVAL_MS = 75;
+export const RUNNER_BLINK_INTERVAL_MS = CONTACT_HURT_PROFILE.blinkIntervalMs;
 
 /** Dim phase opacity: trackable while running, unmistakable as immunity. */
-export const RUNNER_BLINK_ALPHA = 0.35;
+export const RUNNER_BLINK_ALPHA = CONTACT_HURT_PROFILE.blinkAlpha;
 
 /** Points one contact spends. One, for every source: a hit is a hit. */
-export const RUNNER_DRAIN_AMOUNT = 1;
+export const RUNNER_DRAIN_AMOUNT = CONTACT_HURT_PROFILE.drainAmount;
 
 /**
  * How far ahead recovery looks for somewhere to stand, in columns.
@@ -55,37 +66,15 @@ export const RUNNER_DRAIN_AMOUNT = 1;
  */
 export const RUNNER_RECOVERY_LOOKAHEAD_COLUMNS = 12;
 
-export interface VitalsState {
-  /** Null exactly when no consequence drains — a one-hit-kill package. */
-  gauge: Gauge | null;
-  /**
-   * The simulation clock, in milliseconds, that the gauge was last evaluated
-   * against.
-   *
-   * The fixed step counts in *seconds* while the gauge and its window are in
-   * milliseconds, and presentation must blink against exactly the clock the
-   * window was written from — Phaser's own `time.now` is a different clock and
-   * would drift out of phase with the simulation on any stall. So the
-   * conversion happens once, here, and everything that needs the time reads
-   * this rather than converting again.
-   */
-  clockMs: number;
-  /**
-   * Where a survivor is to be put down, applied by the avatar next frame.
-   *
-   * Not written straight onto the avatar, and the sealer is what proved that
-   * cannot work: the avatar emits the occurrence, so a vitals system that
-   * wrote the avatar back would have to run both before and after it. A
-   * one-frame feedback hand-off is the honest shape, and it is the same one
-   * `stepAvatar` already uses for the run phase and the segment window — at
-   * 60Hz it is one extra frame of falling, which is invisible.
-   */
-  pendingRecovery: Readonly<{ column: number; row: number }> | null;
-  /** Set on the frame a drain connected, for the audio cue and the bar flash. */
-  hurtThisFrame: boolean;
-  /** Set on the frame the gauge emptied, so the run-loop ends the run once. */
-  depletedThisFrame: boolean;
-}
+/**
+ * This genre's vitals slice: the family's, with the runner's recovery shape.
+ *
+ * A recovery is "a column and a row" here and something else in the next
+ * genre, so the family is generic over it and never learns what standing
+ * somewhere means.
+ */
+export type RunnerRecovery = Readonly<{ column: number; row: number }>;
+export type VitalsState = VitalsSlice<RunnerRecovery>;
 
 export type RunnerEvent =
   /** The avatar overlapped this hazard instance for the first time. */
@@ -128,25 +117,32 @@ export function recoverySurface(
 
 /** Whether the avatar is inside its post-contact immunity window. */
 export function avatarIsImmune(world: RunnerWorld): boolean {
-  const gauge = world.vitals.gauge;
-  return gauge !== null && isRefractory(gauge, world.vitals.clockMs);
+  return bodyIsImmune(world.vitals);
 }
 
 /** The fixed step counts seconds; the gauge counts milliseconds. */
-export function stepClockMs(stepNowSeconds: number): number {
-  return stepNowSeconds * 1000;
+export const stepClockMs = vitalsClockMs;
+
+/** Sprite opacity for this frame: the shared blink, at the shared cadence. */
+export function avatarBlinkAlpha(world: RunnerWorld): number {
+  return bodyBlinkAlpha(world.vitals, CONTACT_HURT_PROFILE);
 }
 
-/** Sprite opacity for this frame: the shared blink, at the runner's cadence. */
-export function avatarBlinkAlpha(world: RunnerWorld): number {
-  const gauge = world.vitals.gauge;
-  if (gauge === null) return 1;
-  return refractoryBlinkAlpha(
-    gauge,
-    world.vitals.clockMs,
-    RUNNER_BLINK_INTERVAL_MS,
-    RUNNER_BLINK_ALPHA,
-  );
+/**
+ * The block this genre's consequence table is authored in.
+ *
+ * `[run.consequences]` and `[run.vitals]` both live under `gameplay`, so a
+ * producer that moves the block gets a refusal naming it from the family that
+ * cannot resolve a contact without it.
+ */
+export const RUNNER_VITALS_BLOCK = Object.freeze({
+  block: "gameplay",
+  version: RUNNER_BLOCKS.gameplay,
+});
+
+/** Gate the runner's vitals block. Refuses by naming `gameplay`. */
+export function parseRunnerVitalsBlock(blocks: BlockTable): VitalsBlockView {
+  return parseVitalsBlock(blocks, RUNNER_VITALS_BLOCK);
 }
 
 /**
@@ -177,90 +173,50 @@ export function createVitalsSystem(): GameSystem<RunnerWorld> {
       vitals.depletedThisFrame = false;
       if (world.run.phase !== "running") return;
 
-      // One frame can carry several sources — clipping a prop on the way into
-      // a pit is ordinary play. They are resolved in the order they happened,
-      // and the refractory window makes all but the first absorbed, so a
-      // compound accident costs one point rather than three.
-      const occurrences = world.events.frame.filter(
-        (event) =>
-          event.type === "hazard-contact" ||
-          event.type === "pit" ||
-          event.type === "crush" ||
-          event.type === "shot-contact",
-      );
-
-      for (const occurrence of occurrences) {
-        const source: RunnerDamageSource =
-          occurrence.type === "hazard-contact"
+      // Which occurrences can hurt is this genre's question; what each one
+      // costs is the package's table; resolving the two is the family's.
+      const sources = world.events.frame
+        .filter(
+          (event) =>
+            event.type === "hazard-contact" ||
+            event.type === "pit" ||
+            event.type === "crush" ||
+            event.type === "shot-contact",
+        )
+        .map((event): RunnerDamageSource =>
+          event.type === "hazard-contact"
             ? "hazard"
-            : occurrence.type === "shot-contact"
+            : event.type === "shot-contact"
               ? "shot"
-              : occurrence.type;
-        const consequence = world.config.consequences[source];
+              : (event.type as "pit" | "crush"),
+        );
 
-        if (consequence === undefined || consequence === null) {
-          // Unreachable: the contract pairs a shot answer with the encounter
-          // that fires it. A missing answer must still not forgive the hit.
-          world.events.emit({ type: "run-ended", source });
-          return;
-        }
+      const verdicts = resolveVitals<RunnerDamageSource, RunnerRecovery>({
+        vitals,
+        sources,
+        consequences: world.config.consequences,
+        profile: CONTACT_HURT_PROFILE,
+        // The `RecoveryPolicy` port, answered by this genre's own space: the
+        // next solid column ahead, found with the same surface query the
+        // avatar's physics uses, so a landing is exactly a landing.
+        recover: () => recoverySurface(world, world.avatar.distanceColumns),
+      });
 
-        if (consequence === "end_run_v1") {
-          world.events.emit({ type: "run-ended", source });
-          return;
-        }
-
-        const gauge = vitals.gauge;
-        if (gauge === null) {
-          // A package whose consequences all end the run has no gauge, and the
-          // contract refuses this combination — but a draining consequence
-          // reaching a missing gauge must still not silently forgive the hit.
-          world.events.emit({ type: "run-ended", source });
-          return;
-        }
-
-        const change = drain(gauge, RUNNER_DRAIN_AMOUNT, vitals.clockMs, RUNNER_REFRACTORY_MS);
-        if (!change.connected) {
-          world.events.emit({ type: "absorbed", source });
-          continue;
-        }
-        vitals.gauge = change.gauge;
-        vitals.hurtThisFrame = true;
-        world.events.emit({ type: "drained", source, remaining: change.after });
-
-        if (consequence === "drain_and_recover_v1") {
-          recoverAvatar(world, source);
-        }
-
-        if (change.depleted) {
-          vitals.depletedThisFrame = true;
-          world.events.emit({ type: "run-ended", source });
-          return;
+      for (const verdict of verdicts) {
+        if (verdict.kind === "drained") {
+          world.events.emit({
+            type: "drained",
+            source: verdict.source,
+            remaining: verdict.remaining,
+          });
+        } else if (verdict.kind === "absorbed") {
+          world.events.emit({ type: "absorbed", source: verdict.source });
+        } else {
+          world.events.emit({ type: "run-ended", source: verdict.source });
         }
       }
     },
   };
-}
-
-/**
- * Put a survivor back on the ground.
- *
- * A pit fall and a crush both leave the avatar somewhere it cannot legally be,
- * so forgiving them means choosing a place to continue from. The next solid
- * column ahead is the honest choice: it never rewinds progress the player
- * earned, it never skips a hazard they have not passed, and it is the same
- * surface query the avatar's own physics uses, so the landing is exactly a
- * landing. With nowhere to stand inside the lookahead the run ends instead —
- * a forgiving package should not become an unplayable one on a malformed
- * stream.
- */
-function recoverAvatar(world: RunnerWorld, source: RunnerDamageSource): void {
-  const surface = recoverySurface(world, world.avatar.distanceColumns);
-  if (surface === null) {
-    world.events.emit({ type: "run-ended", source });
-    return;
-  }
-  world.vitals.pendingRecovery = surface;
 }
 
 /**

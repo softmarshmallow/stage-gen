@@ -67,9 +67,11 @@ import {
   aggressionProfile,
   parseAggression,
   attackFootLevelsOverlap,
-  healingRestoreAmount,
   resolveCriticalDamage,
 } from "./combat";
+import {
+  healingRestoreAmount,
+} from "./vitals";
 import {
   experienceForRank,
   grantExperience,
@@ -187,6 +189,7 @@ import {
 import { DebugOverlay } from "./debug-overlay";
 import { parsePlatformerClockBlock } from "./clock";
 import { parsePlatformerIntentBlock } from "./player-intent";
+import { parsePlatformerVitalsBlock } from "./vitals";
 import {
   createPlatformerFrameWorld,
   sealPlatformerFrame,
@@ -582,6 +585,7 @@ export class PreparedStageScene extends Phaser.Scene {
     // behalf of a dozen consumers it does not know about.
     parsePlatformerClockBlock(manifest.blocks);
     parsePlatformerIntentBlock(manifest.blocks);
+    parsePlatformerVitalsBlock(manifest.blocks);
     this.manifest = manifest;
     this.gameplay = gameplay;
     await Promise.all([

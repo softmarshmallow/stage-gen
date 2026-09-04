@@ -528,6 +528,35 @@ genre parser speaking for a dozen consumers it does not know about.
   controller suppresses. The runner's boot runs every family's gate together in
   `gateRunnerFamilyBlocks`, which is a list a dropped family takes its line out
   of, not a genre parser gating on anyone's behalf.
+- **`vitals`.** Extracted into both genres. The runner's system keeps its
+  vocabulary and hands the resolution to `resolveVitals` — sources are opaque
+  strings, the consequence table is the package's, and "where does a survivor
+  stand" is the `RecoveryPolicy` port, answered here by the same `surfaceAt`
+  query the avatar's own physics uses. The platformer's half of it left
+  `combat.ts`: `PlayerHealthState` was the kernel's `Gauge` written a second
+  time under four other names, with the same absorb-while-immune rule, and it
+  is now `lib/sideview-platformer/vitals.ts`, a view over the primitive with
+  the arithmetic deleted. The challenge ("health is an RPG thing and vitals is
+  an arcade thing") is settled by a number rather than an argument: both genres
+  had independently arrived at 900ms of immunity, a 75ms blink and 0.35 dim,
+  and those four numbers are one `CONTACT_HURT_PROFILE` now, asserted equal to
+  each genre's old constants in each genre's own suite. **E1: zero diff in both
+  genres, nothing re-pinned** — which is what "a refactor of where the rule
+  lives, not the rule" has to look like. **E2:** neither documented order
+  moves. **E4:** the family resolved against two bodies in one file — a
+  runner-shaped one with a table per source and a recovery port that answers,
+  and a platformer-shaped one with a single opaque source and no recovery at
+  all. **E7:** the runner's roster with `runner/vitals` removed seals to the
+  identical order minus it, once the session's consume of `run-ended` comes out
+  with it — vitals is its only emitter, and a channel with no other end is a
+  refusal the kernel already makes.
+- **The block, and the refusal.** `gameplay`, in both genres. The platformer's
+  authored form stays a bare `starting_health` integer and a `contact_damage`
+  boolean and is mapped onto the table **in the consumer**, exactly as the
+  ruling says: the boolean is not a consequence, it decides whether the source
+  is raised at all, which is what the scene's own guard already did, so the
+  table itself is the one thing the package can mean. Unifying the authored
+  form is the contract bump the ruling defers.
 - **One thing the ruling did not fit, and it is the dead phase.** The step's
   fact lists four hold mechanisms and the fourth is the runner's dead phase.
   It is not a holder here. A hold is transient and the simulation resumes into

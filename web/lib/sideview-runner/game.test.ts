@@ -25,6 +25,8 @@ const { parseRunnerClockBlock, momentHolds } = await import("./clock");
 const { parseRunnerSessionBlock } = await import("./session");
 const { gateRunnerFamilyBlocks } = await import("./game");
 const { RUNNER_INTENT_SHAPE, parseRunnerIntentBlock } = await import("./intent");
+const { parseRunnerVitalsBlock, RUNNER_REFRACTORY_MS, RUNNER_BLINK_ALPHA } = await import("./vitals");
+const { CONTACT_HURT_PROFILE } = await import("@/lib/families/vitals");
 const { RUNNER_BLOCKS } = await import("./contract");
 const { SILENT_AUDIO_SINK } = await import("./audio");
 const { createRunnerWorld } = await import("./world");
@@ -401,6 +403,42 @@ describe("the intent family in the runner", () => {
     expect(() => gateRunnerFamilyBlocks(RUNNER_BLOCKS)).not.toThrow();
     expect(() =>
       gateRunnerFamilyBlocks({ ...RUNNER_BLOCKS, gameplay: "runner-gameplay-block-v2" }),
+    ).toThrow('manifest block "gameplay" is published as runner-gameplay-block-v2');
+  });
+});
+
+// --- The `vitals` family, sealed into this genre -----------------------------------------------
+
+describe("the vitals family in the runner", () => {
+  const roster = () =>
+    assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK);
+
+  test("E7 subtraction: a genre with no vitals seals to the identical order", () => {
+    // The one thing that has to come out with it is the session's consume of
+    // `run-ended`: vitals is the only emitter, and a channel with no other end
+    // is a refusal the kernel already makes (fixtured above). A genre with no
+    // vitals has no verdict to hear, which is the point of taking it out.
+    const quiet = roster()
+      .filter((system) => system.id !== "runner/vitals")
+      .map((system) =>
+        system.id === "session/run"
+          ? { ...system, consumes: (system.consumes ?? []).filter((type) => type !== "run-ended") }
+          : system,
+      );
+    expect(sealSystems(quiet, EVENTS).order).toEqual(
+      DOCUMENTED_ORDER.filter((id) => id !== "runner/vitals"),
+    );
+  });
+
+  test("the window and the blink are the family's profile, not a second copy", () => {
+    expect(RUNNER_REFRACTORY_MS).toBe(CONTACT_HURT_PROFILE.refractoryMs);
+    expect(RUNNER_BLINK_ALPHA).toBe(CONTACT_HURT_PROFILE.blinkAlpha);
+  });
+
+  test("the family gates its own block, and the refusal names it", () => {
+    expect(parseRunnerVitalsBlock(RUNNER_BLOCKS).published).toBe(true);
+    expect(() =>
+      parseRunnerVitalsBlock({ ...RUNNER_BLOCKS, gameplay: "runner-gameplay-block-v2" }),
     ).toThrow('manifest block "gameplay" is published as runner-gameplay-block-v2');
   });
 });

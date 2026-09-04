@@ -2,26 +2,28 @@ import { describe, expect, test } from "bun:test";
 import {
   DEFAULT_AGGRESSION,
   MOB_AGGRESSIONS,
+  aggressionProfile,
+  attackFootLevelsOverlap,
+  CRITICAL_PROFILE_NAMES,
+  criticalRule,
+  resolveCriticalDamage,
+  mobIntent,
+  parseAggression,
+  resolveDamage,
+} from "./combat";
+import {
   PLAYER_INVULNERABLE_BLINK_ALPHA,
   PLAYER_INVULNERABLE_BLINK_INTERVAL_MS,
   PLAYER_INVULNERABLE_MS,
   PLAYER_MAX_HP,
-  aggressionProfile,
-  attackFootLevelsOverlap,
   applyPlayerDamage,
   applyPlayerHealing,
-  CRITICAL_PROFILE_NAMES,
-  criticalRule,
   grownPlayerHealth,
   healingRestoreAmount,
-  resolveCriticalDamage,
   initialPlayerHealth,
   isPlayerInvulnerable,
-  mobIntent,
-  parseAggression,
   playerInvulnerabilityBlinkAlpha,
-  resolveDamage,
-} from "./combat";
+} from "./vitals";
 
 describe("attack level reach", () => {
   test("accepts the same or one adjacent level and rejects a jump above it", () => {

@@ -201,41 +201,10 @@ export function parseAggression(value: unknown): MobAggression | null {
 
 // --- Player health -------------------------------------------------------------------------
 
-/**
- * Starting and maximum player hit points.
- *
- * Six, not three: a `relentless` mob deals two, so three would mean two blows from a standing
- * start and the stage would read as unfair rather than dangerous. Six gives a player three
- * mistakes against the worst creature in the roster and six against the common one.
- */
-export const PLAYER_MAX_HP = 6;
-
-/**
- * Invulnerability after taking a blow, in ms.
- *
- * Without it, a mob standing inside the player drains the whole bar in one cooldown cycle,
- * because contact is continuous and nothing separates one blow from the next. 900ms is longer
- * than the fastest archetype's 900ms cooldown by design — it guarantees that even `relentless`
- * cannot land twice without the player having had a full window to move.
- */
-export const PLAYER_INVULNERABLE_MS = 900;
-
-/** One bright/dim phase of the player sprite while a post-hit immunity window is active. */
-export const PLAYER_INVULNERABLE_BLINK_INTERVAL_MS = 75;
-/** Dim phase opacity: visible enough to track while making immunity unmistakable. */
-export const PLAYER_INVULNERABLE_BLINK_ALPHA = 0.35;
-
 /** Horizontal shove applied to the player on a hit, in pixels per second. */
 export const PLAYER_KNOCKBACK_VX = 260;
 /** Upward component, so a blow lifts the player slightly rather than sliding them along. */
 export const PLAYER_KNOCKBACK_VY = -180;
-
-export type PlayerHealthState = Readonly<{
-  hp: number;
-  maxHp: number;
-  invulnerableUntilMs: number;
-  defeated: boolean;
-}>;
 
 /**
  * The authoritative outcome of applying one damage attempt to one health pool.
@@ -255,10 +224,6 @@ export type DamageResolution = Readonly<{
   /** Whether the blow that produced this resolution rolled critical. Presentation reads it here. */
   critical: boolean;
 }>;
-
-/** Player damage also carries the immutable state that must replace the caller's current state. */
-export type PlayerDamageResolution = DamageResolution &
-  Readonly<{ health: PlayerHealthState }>;
 
 function rejectedDamage(
   hp: number,
@@ -401,186 +366,10 @@ export function resolveCriticalDamage(
   });
 }
 
-export function initialPlayerHealth(maxHp = PLAYER_MAX_HP): PlayerHealthState {
-  if (!Number.isSafeInteger(maxHp) || maxHp <= 0) {
-    throw new RangeError("player max HP must be a positive integer");
-  }
-  return Object.freeze({
-    hp: maxHp,
-    maxHp,
-    invulnerableUntilMs: 0,
-    defeated: false,
-  });
-}
-
-/**
- * Apply one blow, honouring invulnerability.
- *
- * Pure and total: it returns the next state and whether the blow connected, so the caller can
- * decide about knockback, flashes and transcript events without this function knowing about any
- * of them. A blow that lands during invulnerability is not an error and is not a hit — it is
- * simply absorbed, which is what makes standing next to a mob survivable.
- */
-export function applyPlayerDamage(
-  health: PlayerHealthState,
-  amount: number,
-  nowMs: number,
-  critical = false,
-): PlayerDamageResolution {
-  if (
-    health.defeated ||
-    !Number.isFinite(amount) ||
-    amount <= 0 ||
-    nowMs < health.invulnerableUntilMs
-  ) {
-    return Object.freeze({
-      ...rejectedDamage(health.hp, amount, health.defeated),
-      health,
-    });
-  }
-
-  const resolution = resolveDamage(health.hp, amount, health.defeated, critical);
-  if (!resolution.connected) {
-    return Object.freeze({ ...resolution, health });
-  }
-  const nextHealth = Object.freeze({
-    hp: resolution.hpAfter,
-    maxHp: health.maxHp,
-    invulnerableUntilMs: nowMs + PLAYER_INVULNERABLE_MS,
-    defeated: resolution.defeated,
-  });
-  return Object.freeze({
-    ...resolution,
-    health: nextHealth,
-  });
-}
-
-/**
- * What one healing consumable restores, as a fraction of the pool it is poured into.
- *
- * A fraction rather than a flat number because the pool is authored per package: `starting_health`
- * is 6 in one game and 60 in the next, and a flat "+4" is a lifesaver in the first and litter in
- * the second. Two fifths means a full bar is three drinks away at worst, so carrying a stack is
- * worth doing and carrying one is not a full reset.
- */
-export const PLAYER_HEALING_RESTORE_FRACTION = 0.4;
-
-/** Hit points one consumable restores against `maxHp`, always at least one. */
-export function healingRestoreAmount(maxHp: number): number {
-  if (!Number.isFinite(maxHp) || maxHp <= 0) {
-    throw new RangeError("healing restore requires a positive maximum HP");
-  }
-  return Math.max(1, Math.ceil(maxHp * PLAYER_HEALING_RESTORE_FRACTION));
-}
-
-/** The authoritative outcome of one healing attempt, shaped like its damage counterpart. */
-export type PlayerHealResolution = Readonly<{
-  connected: boolean;
-  attemptedAmount: number;
-  appliedAmount: number;
-  hpBefore: number;
-  hpAfter: number;
-  health: PlayerHealthState;
-}>;
-
-/**
- * Restore hit points, honouring the pool ceiling.
- *
- * Pure and total, like `applyPlayerDamage`, and rejecting rather than clamping in the three cases
- * where a drink would be wasted: a defeated player (recovery is respawn's job, not a potion's), an
- * invalid or non-positive amount, and a pool already at full. That last rejection is the one that
- * matters in play — it is what stops a held key, or an automated policy, from emptying a bag into
- * a character who was never hurt. `connected` tells the caller whether the item was actually
- * spent, so the inventory and the health pool cannot disagree.
- *
- * Invulnerability is deliberately untouched: drinking is not being hit, and granting immunity here
- * would make chugging the strongest defensive move in the game.
- */
-export function applyPlayerHealing(
-  health: PlayerHealthState,
-  amount: number,
-): PlayerHealResolution {
-  const rejected = Object.freeze({
-    connected: false,
-    attemptedAmount: Number.isFinite(amount) ? amount : 0,
-    appliedAmount: 0,
-    hpBefore: health.hp,
-    hpAfter: health.hp,
-    health,
-  });
-  if (
-    health.defeated ||
-    !Number.isFinite(amount) ||
-    amount <= 0 ||
-    health.hp >= health.maxHp
-  ) {
-    return rejected;
-  }
-  const hpAfter = Math.min(health.maxHp, health.hp + amount);
-  if (hpAfter <= health.hp) return rejected;
-  return Object.freeze({
-    connected: true,
-    attemptedAmount: amount,
-    appliedAmount: hpAfter - health.hp,
-    hpBefore: health.hp,
-    hpAfter,
-    health: Object.freeze({
-      hp: hpAfter,
-      maxHp: health.maxHp,
-      invulnerableUntilMs: health.invulnerableUntilMs,
-      defeated: false,
-    }),
-  });
-}
-
-/**
- * Raise the pool ceiling and fill it, which is what a level-up is.
- *
- * The full heal is the point, not a side effect: a level that only widened the bar would arrive
- * as an empty promise in the middle of the fight that earned it. A ceiling that did not grow is
- * returned untouched, so calling this on a level that buys no health is harmless. It never lowers
- * a ceiling — shrinking a pool is not something levelling does, and silently doing it here would
- * hide the caller's mistake.
- */
-export function grownPlayerHealth(
-  health: PlayerHealthState,
-  maxHp: number,
-): PlayerHealthState {
-  if (!Number.isSafeInteger(maxHp) || maxHp <= 0) {
-    throw new RangeError("grown player health requires a positive integer maximum");
-  }
-  if (maxHp <= health.maxHp) return health;
-  return Object.freeze({
-    hp: maxHp,
-    maxHp,
-    invulnerableUntilMs: health.invulnerableUntilMs,
-    defeated: health.defeated,
-  });
-}
-
-export function isPlayerInvulnerable(
-  health: PlayerHealthState,
-  nowMs: number,
-): boolean {
-  return nowMs < health.invulnerableUntilMs;
-}
-
-/**
- * Deterministic sprite opacity for post-hit invulnerability.
- *
- * The phase is derived from the remaining immunity time, so the connecting hit starts dim even
- * though the scene resolves combat after the player's update for that frame. Defeat never
- * blinks: its authored terminal presentation remains fully visible.
- */
-export function playerInvulnerabilityBlinkAlpha(
-  health: PlayerHealthState,
-  nowMs: number,
-): number {
-  if (health.defeated || !isPlayerInvulnerable(health, nowMs)) return 1;
-  const remainingMs = health.invulnerableUntilMs - nowMs;
-  const phase = Math.floor(remainingMs / PLAYER_INVULNERABLE_BLINK_INTERVAL_MS);
-  return phase % 2 === 0 ? PLAYER_INVULNERABLE_BLINK_ALPHA : 1;
-}
+// The player's own pool, its window and its blink moved to `vitals.ts`: they were the kernel's
+// `Gauge` written a second time under four other names, and the `vitals` family owns them now.
+// What is left here is combat — reach, criticals, aggression, and `resolveDamage` against a bare
+// pool, which mobs use as well as players.
 
 // --- Mob decision --------------------------------------------------------------------------
 

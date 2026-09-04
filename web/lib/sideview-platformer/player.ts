@@ -19,18 +19,20 @@ import {
   type ScaleReference,
 } from "@/lib/sideview/sprite-scale";
 import {
+  PLAYER_KNOCKBACK_VX,
+  PLAYER_KNOCKBACK_VY,
+} from "./combat";
+import {
   type PlayerDamageResolution,
   type PlayerHealResolution,
   type PlayerHealthState,
-  PLAYER_KNOCKBACK_VX,
-  PLAYER_KNOCKBACK_VY,
   applyPlayerDamage,
   applyPlayerHealing,
   grownPlayerHealth,
   initialPlayerHealth,
   isPlayerInvulnerable,
   playerInvulnerabilityBlinkAlpha,
-} from "./combat";
+} from "./vitals";
 import { nextAttackHitTick, stepAttackWindow } from "./attack-window";
 import { type PlayerIntent, playerIntent } from "./player-intent";
 import {

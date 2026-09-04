@@ -67,7 +67,7 @@ import {
 } from "./parallax";
 import { createScoreSystem } from "./score";
 import { createSessionSystemForRunner, parseRunnerSessionBlock } from "./session";
-import { avatarBlinkAlpha, createVitalsSystem } from "./vitals";
+import { avatarBlinkAlpha, createVitalsSystem, parseRunnerVitalsBlock } from "./vitals";
 import {
   collectiblePresentation,
   hazardCueAlpha,
@@ -128,6 +128,7 @@ export function gateRunnerFamilyBlocks(blocks: BlockTable): void {
   parseRunnerClockBlock(blocks);
   parseRunnerSessionBlock(blocks);
   parseRunnerIntentBlock(blocks);
+  parseRunnerVitalsBlock(blocks);
 }
 
 export function assembleRunnerSystems(
