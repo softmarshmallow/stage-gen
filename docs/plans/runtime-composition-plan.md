@@ -1869,6 +1869,49 @@ here, since they get their reducers-with-events here); a save written by one
 version and restored by the next under the versioned parse. *Played:* the
 existing case episode, saved mid-beat and resumed, on one boot.
 
+**Evidence, measured.** Branch `runtime/step-8-hosts`, seven commits; `bun test`
+1871 pass, 0 fail; `tsc --noEmit` clean at every commit; the repository gate green.
+
+- **The host.** `new Phaser.Game` went from four to one (`lib/hosts/phaser/host.ts`);
+  the three engine loading paths became one `loading → ready | failed` machine in
+  `scene-base.ts` with one label and one failure card, and the fourth, the case
+  shell's DOM veil, stays by design but is driven by the case runtime's `drawn`
+  rather than a component's own state. The 200 ms poll in the preview canvas is
+  `handle.subscribe`; the only interval left under `web/app` is the motion player.
+  Capture is a host mode, `HostMode = "interactive" | "capture"`; the goldens' mode
+  literal moved from `"gameplay-v2"` to `"capture"` and no frame moved.
+- **`narrative/`.** `shell/case*.ts` lifted into `lib/narrative/`: a pure
+  `reduceCase` plus `CaseSession`. `CasePlayer.tsx` fell from 544 to 382 lines and
+  from nine `useState` plus three `useRef` to one `useState` over
+  `useSyncExternalStore`.
+- **`persistence`.** `lib/families/persistence/`: scopes `game` and `run`, events
+  `save/written` / `save/loaded`, `serializeSave` as subtraction over declared
+  slices, a versioned parse that runs upgrades forward; the case wire moved v1 → v2.
+  Cross-version restore proved three ways: the generic family test, the case's own
+  v1 bytes, and the episode's real save rewritten flat as version 1 and restored to
+  the same sentence. Mutating the upgrade's `from` breaks the test, so it is
+  load-bearing. The family gates no block and reads none: no new `after` edge, no new
+  feedback read; the step-2 list stays at ten.
+- **E1.** The room: fourteen scripted clicks, chain `3edcda10…`, solved on the last
+  effect. The dialogue scene: opening plus twenty-five actions, twenty-six frames,
+  chain `68aec044…`, ending `stranded`.
+- **Played, on one boot.** `lib/narrative/episode.test.ts`: one process, one document
+  read, one store; eight beats, six scenario leaves. Stopped six lines into
+  `b_way_in` at `the_service_door#10` after 105 saves - 103 lines drawn plus two
+  beats entered, asserted as that relation - the last carrying both scopes and
+  exactly `facts`, `scenario`, `backlog`, with no `room` slice. Resumed on the same
+  store to the same sentence (`writtenVersion` 2), four facts having crossed the room
+  boundary, and finished `left_alone` holding forty-nine facts on the session that
+  resumed. **E7** over that real mid-beat state: restricted to `game`, the save is
+  those four facts and nothing else.
+- **Both shipped goldens byte-identical.** The digest sets in the platformer's
+  `replay.test.ts` and `waves-replay.test.ts` and the runner's `replay.test.ts` are
+  unchanged.
+- **Could not take.** The episode's two ROOM beats are reported, not played: every
+  published room is `pointclick-room-runtime-v3` at `schema_version` 1 while the
+  parser demands 3, so playing one costs a regeneration. No authored `[save]` table
+  (a `src/` contract change). No browser stills.
+
 ## Sequencing and cost
 
 - Steps 0 and 1 are independent and run in parallel; 2 depends on both.

@@ -970,6 +970,24 @@ repointed, no test named a moved path. The runtime lane's step 8 evidence, runni
 its own branch, lands against the plan at its new path.
 
 
+**2026-09-05 — Runtime step 8 landed (workstream E): hosts, `persistence`, the case.**
+Seven commits, rebased over F2 and fast-forwarded; the runtime plan's last step. Four
+`Phaser.Game` boots became one `bootGame` with one `GameHandle` carrying a
+subscription, the 200 ms poll in the preview canvas is gone, three engine loading
+paths became one state machine, and capture is a host mode rather than a fourth boot.
+The case runtime left `CasePlayer.tsx` for `lib/narrative/` (544 to 382 lines, twelve
+hooks to one). `persistence` is a family: declared scopes, `save/written` /
+`save/loaded`, a versioned parse with upgrades proven load-bearing three ways, gating
+no block and reading none. E1 goldens exist now for the room and the dialogue scene.
+The published case episode plays on one boot, saved six lines into a beat after 105
+writes and resumed to the same sentence, finishing with forty-nine facts; both shipped
+goldens byte-identical. Reported, not played: the two ROOM beats, because every
+published room is `pointclick-room-runtime-v3` at `schema_version` 1 against a parser
+that demands 3 - a regeneration, which is provider spend and a separate decision. With
+this the runtime plan's eight steps are all landed; what the pass still owes is listed
+under the cards above (E5 stills, G1's attestation, G3).
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one
