@@ -20,7 +20,7 @@
 // The consumer's own constants at the bottom are feel — approach speed, pose
 // duration, the hit flash — and no refusal reads them.
 
-import { createGauge, type Gauge } from "@/lib/game-systems/gauge";
+import { createGauge, type Gauge } from "@/lib/kernel/gauge";
 
 /** The published encounter arithmetic, camel-cased from the manifest. */
 export interface EncounterConfig {

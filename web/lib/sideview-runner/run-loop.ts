@@ -13,7 +13,7 @@
 // handle, not an input gesture.
 
 import { resetRunnerWorld, type Rng, type RunnerWorld } from "./world";
-import type { GameSystem } from "@/lib/game-systems/systems";
+import type { GameSystem } from "@/lib/kernel/systems";
 
 /** What one collected pickup is worth before the chain multiplier. */
 export const PICKUP_SCORE = 10;

@@ -80,7 +80,7 @@ import {
   surfaceRowAt,
   createSegmentsSystem,
 } from "./segments";
-import { sealSystems, type GameSystem, type SealedSystems } from "@/lib/game-systems/systems";
+import { sealSystems, type GameSystem, type SealedSystems } from "@/lib/kernel/systems";
 import {
   buildCutInView,
   type CutInMomentBinding,

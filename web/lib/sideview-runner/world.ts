@@ -14,9 +14,9 @@ import type {
 } from "./contract";
 import { beginFxMoment, type FxState } from "@/lib/fx/moment-system";
 import type { FxMoment } from "@/lib/manifest/fx";
-import { createEventQueue, type EventQueue } from "@/lib/game-systems/events";
-import { createGauge } from "@/lib/game-systems/gauge";
-import type { GameSystem } from "@/lib/game-systems/systems";
+import { createEventQueue, type EventQueue } from "@/lib/kernel/events";
+import { createGauge } from "@/lib/kernel/gauge";
+import type { GameSystem } from "@/lib/kernel/systems";
 import type { RunnerEvent, VitalsState } from "./vitals";
 import type { DifficultyState } from "./difficulty";
 import { rampProfile, type RampProfileName } from "./difficulty";

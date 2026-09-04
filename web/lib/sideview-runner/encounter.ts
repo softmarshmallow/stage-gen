@@ -15,9 +15,9 @@
 // encounter while the run is dead or holding for the intro. Declaring either
 // would seal a cycle, because the systems that write them are downstream.
 
-import type { GameSystem } from "@/lib/game-systems/systems";
+import type { GameSystem } from "@/lib/kernel/systems";
 import { beginFxMoment } from "@/lib/fx/moment-system";
-import { drain } from "@/lib/game-systems/gauge";
+import { drain } from "@/lib/kernel/gauge";
 
 import {
   BOSS_ATTACK_POSE_SECONDS,

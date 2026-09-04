@@ -6,7 +6,7 @@
 // latched when the action is asked for, consumed by exactly one sample — so
 // a held key can never read as a stream of fresh jumps. `duck` is held state.
 
-import type { GameSystem } from "@/lib/game-systems/systems";
+import type { GameSystem } from "@/lib/kernel/systems";
 import type { RunnerWorld } from "./world";
 
 export type RunnerIntent = Readonly<{

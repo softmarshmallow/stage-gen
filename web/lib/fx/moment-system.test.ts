@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { createEventQueue, type EventQueue } from "@/lib/game-systems/events";
-import { sealSystems } from "@/lib/game-systems/systems";
+import { createEventQueue, type EventQueue } from "@/lib/kernel/events";
+import { sealSystems } from "@/lib/kernel/systems";
 import { CUT_IN_CHOREOGRAPHIES, type CutInFrame } from "./cut-in";
 import { beginFxMoment, createFxSystem, type FxEvent, type FxWorld } from "./moment-system";
 

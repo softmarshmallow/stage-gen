@@ -13,7 +13,7 @@
 // avatar's feet sit at y, and gravity is positive.
 
 import { surfaceRowAt } from "./segments";
-import type { GameSystem } from "@/lib/game-systems/systems";
+import type { GameSystem } from "@/lib/kernel/systems";
 
 import { type ThrustArithmetic, thrustVelocity } from "./encounter-arithmetic";
 import { applyPendingRecovery } from "./vitals";

@@ -14,7 +14,7 @@
 // than a silhouette; this module is the caller they would replace.
 
 import type Phaser from "phaser";
-import type { GameSystem } from "@/lib/game-systems/systems";
+import type { GameSystem } from "@/lib/kernel/systems";
 import { stepClockMs } from "./vitals";
 import type { RunnerWorld } from "./world";
 import { rowToScreenY } from "./world";

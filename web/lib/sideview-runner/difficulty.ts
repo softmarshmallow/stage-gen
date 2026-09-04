@@ -11,7 +11,7 @@
 // hardest one forever. The rest cadence below re-admits the catalog's easiest
 // rank on a fixed beat, so a breather is guaranteed rather than probable.
 
-import type { GameSystem } from "@/lib/game-systems/systems";
+import type { GameSystem } from "@/lib/kernel/systems";
 import type { RunnerWorld } from "./world";
 
 export type RampProfileName = "gentle_ramp_v1" | "brisk_ramp_v1";

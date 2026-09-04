@@ -1,7 +1,7 @@
 // The runner's vitals: what a contact costs, and what happens after it.
 //
 // Everything genuinely general here — the gauge, its refractory window, the
-// blink phase — lives in `lib/game-systems/gauge.ts` and is shared with the
+// blink phase — lives in `lib/kernel/gauge.ts` and is shared with the
 // platformer. What stays in this file is what is actually the runner's: which
 // occurrences can hurt, which consequence each package chose for them, and
 // where the avatar is put down again when a fall is survivable.
@@ -15,10 +15,10 @@
 // publishes the gauge's ceiling — a bar cannot be drawn without it — and the
 // rest is tunable here without regenerating a single image.
 
-import { drain, isRefractory, refractoryBlinkAlpha, type Gauge } from "@/lib/game-systems/gauge";
+import { drain, isRefractory, refractoryBlinkAlpha, type Gauge } from "@/lib/kernel/gauge";
 import type { FxEvent } from "@/lib/fx/moment-system";
 import type { RunnerDamageSource } from "./contract";
-import type { GameSystem } from "@/lib/game-systems/systems";
+import type { GameSystem } from "@/lib/kernel/systems";
 import { surfaceRowAt } from "./segments";
 import type { EncounterEvent } from "./encounter";
 import type { RunnerWorld } from "./world";

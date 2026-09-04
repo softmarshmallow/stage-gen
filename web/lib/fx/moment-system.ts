@@ -9,7 +9,7 @@
 // world, which is what makes it the same system for a runner's stage start
 // and a visual novel's scene entry.
 
-import type { GameSystem } from "@/lib/game-systems/systems";
+import type { GameSystem } from "@/lib/kernel/systems";
 import { CUT_IN_CHOREOGRAPHIES, type CutInChoreographyName, type CutInFrame, cutInFrame } from "./cut-in";
 
 export interface FxState {

@@ -12,7 +12,7 @@ import type Phaser from "phaser";
 import type { Rect } from "@/lib/shell/hud-geometry";
 import { RUNNER_DEPTHS } from "./parallax";
 import { GaugeBar } from "@/lib/sideview/gauge-bar";
-import type { GameSystem } from "@/lib/game-systems/systems";
+import type { GameSystem } from "@/lib/kernel/systems";
 import { BOSS_HIT_FLASH_MS } from "./encounter-arithmetic";
 import { avatarIsImmune } from "./vitals";
 import { RUNNER_VIEW_HEIGHT, RUNNER_VIEW_WIDTH, type RunnerWorld } from "./world";

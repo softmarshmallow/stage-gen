@@ -13,7 +13,7 @@
 // binding owns and the authored action on the soundtrack (a fade, a pause, a
 // duck) are posted side by side.
 
-import type { GameSystem } from "@/lib/game-systems/systems";
+import type { GameSystem } from "@/lib/kernel/systems";
 import {
   isClipRealization,
   type RunnerAudio,

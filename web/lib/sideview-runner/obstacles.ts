@@ -15,7 +15,7 @@ import {
   type StreamedHazard,
   type StreamedPickup,
 } from "./segments";
-import type { GameSystem } from "@/lib/game-systems/systems";
+import type { GameSystem } from "@/lib/kernel/systems";
 import type { AvatarState, RunnerWorld, RunnerWorldConfig } from "./world";
 
 export interface WorldBox {

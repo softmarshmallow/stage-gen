@@ -12,7 +12,7 @@ mock.module("phaser", () => ({
 }));
 
 const { assembleRunnerSystems } = await import("./game");
-const { sealSystems } = await import("@/lib/game-systems/systems");
+const { sealSystems } = await import("@/lib/kernel/systems");
 const { createIntentLatch } = await import("./intent");
 const { SILENT_AUDIO_SINK } = await import("./audio");
 
