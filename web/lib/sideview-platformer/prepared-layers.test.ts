@@ -1,9 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
+  parsePlatformerParallaxBlock,
   preparedGroundBaselineY,
   preparedLayerLayout,
   preparedWalkSurfaceY,
 } from "./prepared-layers";
+import { PLATFORMER_DEPTH_LADDER, SCENE_CONTENT_DEPTH, SCENE_LAYER_DEPTH } from "./depths";
+import { layerLayout } from "@/lib/families/sideview/parallax";
+import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
 import { projectPreparedTerrainWorld } from "./prepared-terrain";
 import type { PreparedLayerPlacement, PreparedMap } from "@/lib/manifest/prepared-manifest";
 
@@ -216,5 +220,52 @@ describe("vertical parallax", () => {
         parallax: -1,
       }),
     ).toThrow(/non-negative parallax/);
+  });
+});
+
+describe("the platformer's placement is the parallax family's, promoted from here", () => {
+  test("the genre resolver is the family resolver over the authored field names", () => {
+    const placement: PreparedLayerPlacement = {
+      vertical_anchor: "walk_surface",
+      vertical_offset: 0.125,
+      vertical_offset_source: "measured",
+      source_height: 1080,
+      trimmed_height: 400,
+      trimmed_top: 40,
+    };
+    const context = { viewportHeight: VIEW_H, walkSurfaceY: 512, parallax: 0.4 };
+    expect(preparedLayerLayout(placement, context)).toEqual(
+      layerLayout(
+        {
+          verticalAnchor: placement.vertical_anchor,
+          verticalOffset: placement.vertical_offset,
+          sourceHeight: placement.source_height,
+          trimmedHeight: placement.trimmed_height,
+        },
+        context,
+      ),
+    );
+  });
+
+  test("the depth ladder is this genre's rungs in the family's order", () => {
+    expect(PLATFORMER_DEPTH_LADDER).toEqual({
+      background: SCENE_LAYER_DEPTH.sky,
+      world: SCENE_LAYER_DEPTH.worldTerrain,
+      actors: SCENE_LAYER_DEPTH.actorsEffects,
+      foreground: SCENE_LAYER_DEPTH.nearForeground,
+      actorHud: SCENE_CONTENT_DEPTH.actorHud,
+      hud: SCENE_LAYER_DEPTH.screenHud,
+      overlay: SCENE_CONTENT_DEPTH.dialogue,
+    });
+  });
+
+  test("the parallax block is gated by the family, by name", () => {
+    expect(parsePlatformerParallaxBlock(PREPARED_RUNTIME_BLOCKS).block).toBe("maps");
+    expect(() =>
+      parsePlatformerParallaxBlock({
+        ...PREPARED_RUNTIME_BLOCKS,
+        maps: "platformer-maps-block-v2",
+      }),
+    ).toThrow('manifest block "maps" is published as platformer-maps-block-v2');
   });
 });

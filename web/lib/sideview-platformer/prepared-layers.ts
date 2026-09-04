@@ -5,46 +5,44 @@
 // review composite and the browser agree by construction rather than by coincidence.
 
 import type { PreparedLayerPlacement, PreparedMap } from "@/lib/manifest/prepared-manifest";
+import {
+  layerLayout,
+  parseParallaxBlock,
+  type LayerLayout,
+  type LayerSpace,
+  type ParallaxBlockView,
+} from "@/lib/families/sideview/parallax";
+import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
+import type { BlockTable } from "@/lib/manifest/blocks";
+
+/**
+ * The block this genre authors its bands in.
+ *
+ * `maps`, and not a layer block of its own: a platformer band belongs to one
+ * map, and the `walk_surface_row` a world-registered band resolves against is
+ * in the same map's ground. Layers and their datum are one authored fact here,
+ * so they are one block, and the parallax family gates it by name.
+ */
+export const PLATFORMER_PARALLAX_BLOCK = Object.freeze({
+  block: "maps",
+  version: PREPARED_RUNTIME_BLOCKS.maps,
+});
+
+/** Gate the platformer's parallax block. Refuses by naming `maps`. */
+export function parsePlatformerParallaxBlock(blocks: BlockTable): ParallaxBlockView {
+  return parseParallaxBlock(blocks, PLATFORMER_PARALLAX_BLOCK);
+}
 
 /**
  * Which space a layer's `topY` is measured in.
  *
- * `screen` layers are viewport furniture - a sky plate, a horizon band, a near frame - and hold
- * still while the world moves past them. A `world` layer is registered to the terrain itself, so
- * the camera has to carry it.
- *
- * The two coincide exactly while the camera rests at the bottom of the world, which is why one
- * anchor vocabulary could stand for both until now.
+ * The family's own vocabulary, aliased: this module was where the fact was
+ * discovered, and promoting it is what made the runner's placement — which had
+ * no notion of space at all — the lesser copy rather than a second opinion.
  */
-export type PreparedLayerSpace = "screen" | "world";
+export type PreparedLayerSpace = LayerSpace;
 
-export type PreparedLayerLayout = Readonly<{
-  /** Uniform scale from painted-frame pixels to screen pixels. */
-  scale: number;
-  /** Y of the trimmed raster's top edge, measured in `space`. */
-  topY: number;
-  /** Space `topY` belongs to. A world layer follows camera scroll; a screen layer does not. */
-  space: PreparedLayerSpace;
-  /**
-   * How much of the camera's vertical travel this layer takes, as a scroll factor.
-   *
-   * Horizontal parallax is a texture offset, because a layer repeats on x and can be slid
-   * inside itself forever. Vertically it cannot: a layer is exactly one texture tall, so
-   * depth on this axis has to be position, and this is that number.
-   *
-   * It is the layer's own parallax rather than a second declaration, because parallax is
-   * already the statement of how far away the layer is and distance does not change with
-   * the axis you look along. A sky at zero holds still; a near frame above one falls away
-   * faster than the world as the player climbs, which is what a thing between the camera
-   * and the world does. Only the walk-surface datum is exempt: that layer is registered to
-   * the terrain, so it travels with it exactly or it stops meeting the ground it was
-   * measured against.
-   */
-  verticalScrollFactor: number;
-  /** Texture height in source pixels, so the tile sprite never repeats vertically. */
-  sourceHeight: number;
-  renderedHeight: number;
-}>;
+export type PreparedLayerLayout = LayerLayout;
 
 export type PreparedLayerContext = Readonly<{
   viewportHeight: number;
@@ -102,65 +100,21 @@ export function preparedWalkSurfaceY(
 /**
  * Resolve one layer's transform from its declared anchor and measured raster.
  *
- * The painted frame stays the scale datum after empty rows are trimmed away, so trimming never
- * changes a layer's apparent size. Bottom-registered anchors place the layer so its measured
- * full-coverage line — not its deepest stray tip — lands on the datum; the offset the producer
- * resolved is exactly the fraction that has to sit past it.
- *
- * The anchor also decides which space the result belongs to. Every `screen_*` datum and the cover
- * plate are viewport features; `walk_surface` is the terrain the player stands on, so it alone
- * resolves against a world coordinate and alone has to move when the camera does.
+ * The arithmetic and the five anchors are the family's now; this is the genre's
+ * adapter onto its own authored field names. Nothing about the resolution moved
+ * — the promotion was of this file's contract, not away from it.
  */
 export function preparedLayerLayout(
   placement: PreparedLayerPlacement,
   context: PreparedLayerContext,
 ): PreparedLayerLayout {
-  const { viewportHeight, walkSurfaceY, parallax } = context;
-  if (!Number.isFinite(parallax) || parallax < 0) {
-    throw new Error("prepared layer layout requires a non-negative parallax");
-  }
-  if (!Number.isFinite(viewportHeight) || viewportHeight <= 0) {
-    throw new Error("prepared layer layout requires a positive viewport height");
-  }
-  if (!Number.isFinite(walkSurfaceY)) {
-    throw new Error("prepared layer layout requires a finite walk surface");
-  }
-  if (placement.source_height <= 0 || placement.trimmed_height <= 0) {
-    throw new Error("prepared layer layout requires positive raster heights");
-  }
-  if (!Number.isFinite(placement.vertical_offset)) {
-    throw new Error("prepared layer layout requires a finite vertical offset");
-  }
-  const scale = viewportHeight / placement.source_height;
-  const renderedHeight = placement.trimmed_height * scale;
-  const anchor = placement.vertical_anchor;
-  let topY: number;
-  if (anchor === "canvas_cover") {
-    // A cover plate is a full-bleed background. There is nothing to slide, so an offset here is
-    // meaningless and the map contract already rejects one.
-    topY = 0;
-  } else if (anchor === "screen_center") {
-    // The most general registration: the trimmed raster's own midline meets the viewport midline,
-    // so neither edge is privileged and a band shorter than the screen is free to sit anywhere.
-    // This only reads as "centered" because the raster is already cropped to its alpha box.
-    topY =
-      viewportHeight / 2 - renderedHeight / 2 + placement.vertical_offset * renderedHeight;
-  } else if (anchor === "screen_top") {
-    // Top-registered layers hang from the viewport ceiling. A positive offset slides the layer
-    // down by that fraction of its rendered height, which is the same sign convention the
-    // bottom-registered branch uses, so one number reads the same way on every layer.
-    topY = placement.vertical_offset * renderedHeight;
-  } else {
-    const datum = anchor === "screen_bottom" ? viewportHeight : walkSurfaceY;
-    topY = datum - (1 - placement.vertical_offset) * renderedHeight;
-  }
-  const space = anchor === "walk_surface" ? "world" : "screen";
-  return Object.freeze({
-    scale,
-    topY,
-    space,
-    verticalScrollFactor: space === "world" ? 1 : parallax,
-    sourceHeight: placement.trimmed_height,
-    renderedHeight,
-  });
+  return layerLayout(
+    {
+      verticalAnchor: placement.vertical_anchor,
+      verticalOffset: placement.vertical_offset,
+      sourceHeight: placement.source_height,
+      trimmedHeight: placement.trimmed_height,
+    },
+    context,
+  );
 }

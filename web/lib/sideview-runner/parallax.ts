@@ -21,6 +21,50 @@ import type { RunnerLayer } from "./contract";
 import { windowOccupancyGrid } from "./segments";
 import type { GameSystem } from "@/lib/kernel/systems";
 import { rowToScreenY, RUNNER_VIEW_HEIGHT, RUNNER_VIEW_WIDTH, type RunnerWorld } from "./world";
+import {
+  bandDepth,
+  bandTilePosition,
+  layerLayout,
+  parseParallaxBlock,
+  sealDepthLadder,
+  type ParallaxBlockView,
+} from "@/lib/families/sideview/parallax";
+import { RUNNER_BLOCKS } from "./contract";
+import type { BlockTable } from "@/lib/manifest/blocks";
+
+/**
+ * The block this genre authors its bands in.
+ *
+ * `layers`, a block of its own, because a runner track is one endless place
+ * rather than a book of maps: the bands outlive every chunk streamed under
+ * them. Moving it gets the refusal from the parallax family, by name.
+ */
+export const RUNNER_PARALLAX_BLOCK = Object.freeze({
+  block: "layers",
+  version: RUNNER_BLOCKS.layers,
+});
+
+/** Gate the runner's parallax block. Refuses by naming `layers`. */
+export function parseRunnerParallaxBlock(blocks: BlockTable): ParallaxBlockView {
+  return parseParallaxBlock(blocks, RUNNER_PARALLAX_BLOCK);
+}
+
+/**
+ * This genre's rungs on the family's ladder, sealed in the family's order.
+ *
+ * The numbers are the runner's and always were; what is new is that the *order*
+ * is checked rather than assumed. There is no `actorHud` rung — nothing here
+ * draws a readout at a world position — and a genre is allowed to skip a rung,
+ * only never to invert two.
+ */
+export const RUNNER_DEPTH_LADDER = sealDepthLadder({
+  background: 0,
+  world: 20,
+  actors: 30,
+  foreground: 40,
+  hud: 100,
+  overlay: 120,
+});
 
 /** Depth rungs: background bands, ground, actors, foreground bands, HUD. */
 export const RUNNER_DEPTHS = Object.freeze({
@@ -52,12 +96,20 @@ export interface LayerBandPlacement {
 /**
  * Resolve one band's vertical placement from its declared anchor.
  *
- * Every layer is painted at full frame height, so the viewport height is the
- * one scale datum; anchors then choose which edge registers where, with the
- * same sign convention the platformer uses — a positive offset slides the
- * layer down by that fraction of its rendered height. `walk_surface` is the
- * only world-registered anchor: its base meets the ground line the avatar
- * actually runs on.
+ * The arithmetic is the parallax family's — the same five-anchor resolution the
+ * platformer's producer-measured placement uses — and this is the adapter onto
+ * this genre's own layer shape. Two things stay here because they are the
+ * runner's own facts and not the family's: every band is painted at full frame
+ * height, so the *scale datum* has to be recovered from the opaque cover rather
+ * than read off the layer (`runnerLayerFrameHeight`, below), and a missing
+ * offset is zero because this contract makes it nullable where the platformer's
+ * producer always resolves one.
+ *
+ * The band's `space` and `verticalScrollFactor` come back and are ignored, and
+ * that is honest rather than lazy: this genre's camera never leaves the floor,
+ * so every band is a screen band and there is no vertical travel to take a
+ * fraction of. A runner that gained a climbing camera would already have the
+ * answer waiting.
  */
 export function runnerLayerPlacement(
   layer: Pick<RunnerLayer, "height" | "verticalAnchor" | "verticalOffset">,
@@ -68,29 +120,20 @@ export function runnerLayerPlacement(
   if (viewHeight <= 0 || layer.height <= 0 || sourceFrameHeight <= 0) {
     throw new Error("layer placement requires positive heights");
   }
-  // Transparent bands are vertically trimmed but keep the same authored
-  // 1536-wide frame as the opaque cover. When that cover is available its
-  // height remains the scale datum, so a low foreground strip stays a strip
-  // instead of being inflated to an entire screen.
-  const scale = viewHeight / sourceFrameHeight;
-  const renderedHeight = layer.height * scale;
-  const offset = layer.verticalOffset ?? 0;
-  let topY: number;
-  switch (layer.verticalAnchor) {
-    case "canvas_cover":
-      topY = 0;
-      break;
-    case "screen_top":
-      topY = offset * renderedHeight;
-      break;
-    case "screen_bottom":
-      topY = viewHeight - (1 - offset) * renderedHeight;
-      break;
-    case "walk_surface":
-      topY = groundLine - (1 - offset) * renderedHeight;
-      break;
-  }
-  return Object.freeze({ topY, renderedHeight, scale });
+  const layout = layerLayout(
+    {
+      verticalAnchor: layer.verticalAnchor,
+      verticalOffset: layer.verticalOffset ?? 0,
+      sourceHeight: sourceFrameHeight,
+      trimmedHeight: layer.height,
+    },
+    { viewportHeight: viewHeight, walkSurfaceY: groundLine, parallax: 0 },
+  );
+  return Object.freeze({
+    topY: layout.topY,
+    renderedHeight: layout.renderedHeight,
+    scale: layout.scale,
+  });
 }
 
 /**
@@ -122,14 +165,12 @@ export function runnerLayerFrameHeight(
 
 /** Depth of one band: plane decides the shelf, authored order stacks within it. */
 export function layerBandDepth(layer: Pick<RunnerLayer, "plane" | "order">): number {
-  return layer.plane === "background"
-    ? RUNNER_DEPTHS.background + layer.order
-    : RUNNER_DEPTHS.foreground + layer.order;
+  return bandDepth(RUNNER_DEPTH_LADDER, layer.plane, layer.order);
 }
 
 /** Texture-space scroll for one band at a given world scroll. */
 export function bandTilePositionX(scrollX: number, parallax: number, scale: number): number {
-  return (scrollX * parallax) / scale;
+  return bandTilePosition(scrollX, parallax, scale);
 }
 
 /** What the world-presentation system needs from the built stage. */

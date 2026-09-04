@@ -6,6 +6,8 @@
 // into every import graph. The band values mirror the canonical scene stack's
 // render depths; content depths interleave between the bands.
 
+import { sealDepthLadder } from "@/lib/families/sideview/parallax";
+
 export const SCENE_LAYER_DEPTH = Object.freeze({
   sky: 0,
   distant: 100,
@@ -35,4 +37,29 @@ export const SCENE_CONTENT_DEPTH = Object.freeze({
   hud: SCENE_LAYER_DEPTH.screenHud,
   /** Modal conversation presentation always covers ordinary HUD and actor readouts. */
   dialogue: SCENE_LAYER_DEPTH.screenHud + 100,
+});
+
+/**
+ * This genre's rungs on the parallax family's ordered ladder.
+ *
+ * The numbers above are unchanged and always were this genre's; what is new is
+ * that the *order* is checked instead of assumed. Seven rungs, all present here
+ * — unlike the runner, this genre does draw readouts at world positions, so it
+ * has an `actorHud` — and `sealDepthLadder` refuses an inversion.
+ *
+ * One thing this does not yet cover, said plainly rather than quietly fixed:
+ * the prepared scene draws its parallax bands on a *second*, undeclared ladder
+ * of literals (`plane === "foreground" ? 80 + index : index - 20`) that has
+ * nothing to do with these values. Re-pointing those at `bandDepth` would move
+ * every band's render depth, which is a presentation change owing a capture,
+ * not an extraction — so it is reported and left.
+ */
+export const PLATFORMER_DEPTH_LADDER = sealDepthLadder({
+  background: SCENE_LAYER_DEPTH.sky,
+  world: SCENE_LAYER_DEPTH.worldTerrain,
+  actors: SCENE_LAYER_DEPTH.actorsEffects,
+  foreground: SCENE_LAYER_DEPTH.nearForeground,
+  actorHud: SCENE_CONTENT_DEPTH.actorHud,
+  hud: SCENE_LAYER_DEPTH.screenHud,
+  overlay: SCENE_CONTENT_DEPTH.dialogue,
 });

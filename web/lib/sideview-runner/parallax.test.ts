@@ -3,12 +3,16 @@ import {
   atlasGroundTileKey,
   bandTilePositionX,
   layerBandDepth,
+  parseRunnerParallaxBlock,
   RUNNER_DEPTHS,
+  RUNNER_DEPTH_LADDER,
   runnerLayerFrameHeight,
   runnerLayerPlacement,
   structuralGroundPlacement,
   structuralGroundSourceSize,
 } from "./parallax";
+import { RUNNER_BLOCKS } from "./contract";
+import { bandDepth, layerLayout } from "@/lib/families/sideview/parallax";
 
 const VIEW_H = 720;
 const GROUND_LINE = 528;
@@ -161,5 +165,64 @@ describe("bandTilePositionX", () => {
   test("scrolls texture space by parallax over scale", () => {
     expect(bandTilePositionX(1000, 0.5, 2)).toBe(250);
     expect(bandTilePositionX(1000, 0, 2)).toBe(0);
+  });
+});
+
+describe("the runner's bands are the parallax family's, at this genre's numbers", () => {
+  test("every anchor resolves to the family's own resolution", () => {
+    const layer = {
+      height: 540,
+      verticalAnchor: "screen_bottom" as const,
+      verticalOffset: 0.25,
+    };
+    for (const verticalAnchor of [
+      "canvas_cover",
+      "screen_top",
+      "screen_bottom",
+      "walk_surface",
+    ] as const) {
+      const genre = runnerLayerPlacement({ ...layer, verticalAnchor }, 720, 700, 1080);
+      const family = layerLayout(
+        {
+          verticalAnchor,
+          verticalOffset: layer.verticalOffset,
+          sourceHeight: 1080,
+          trimmedHeight: 540,
+        },
+        { viewportHeight: 720, walkSurfaceY: 700, parallax: 0 },
+      );
+      expect(genre).toEqual({
+        topY: family.topY,
+        renderedHeight: family.renderedHeight,
+        scale: family.scale,
+      });
+    }
+    // A null offset is this genre's own fact — its contract makes the field
+    // nullable where the platformer's producer always resolves one — and it
+    // means zero.
+    expect(
+      runnerLayerPlacement({ ...layer, verticalOffset: null }, 720, 700, 1080).topY,
+    ).toBe(runnerLayerPlacement({ ...layer, verticalOffset: 0 }, 720, 700, 1080).topY);
+  });
+
+  test("the depth ladder is this genre's rungs in the family's order", () => {
+    expect(RUNNER_DEPTH_LADDER).toEqual({
+      background: RUNNER_DEPTHS.background,
+      world: RUNNER_DEPTHS.ground,
+      actors: RUNNER_DEPTHS.avatar,
+      foreground: RUNNER_DEPTHS.foreground,
+      hud: RUNNER_DEPTHS.hud,
+      overlay: RUNNER_DEPTHS.fx,
+    });
+    expect(layerBandDepth({ plane: "foreground", order: 2 })).toBe(
+      bandDepth(RUNNER_DEPTH_LADDER, "foreground", 2),
+    );
+  });
+
+  test("the parallax block is gated by the family, by name", () => {
+    expect(parseRunnerParallaxBlock(RUNNER_BLOCKS).published).toBe(true);
+    expect(() =>
+      parseRunnerParallaxBlock({ ...RUNNER_BLOCKS, layers: "runner-layers-block-v2" }),
+    ).toThrow('manifest block "layers" is published as runner-layers-block-v2');
   });
 });

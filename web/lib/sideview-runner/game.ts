@@ -64,6 +64,7 @@ import { createObstaclesSystem, pickupKey } from "./obstacles";
 import {
   buildParallaxStage,
   createParallaxSystem,
+  parseRunnerParallaxBlock,
   runnerLayerFrameHeight,
   RUNNER_DEPTHS,
   structuralGroundSourceSize,
@@ -130,6 +131,7 @@ const GROUND_TEXTURE_KEY = "runner:ground";
  */
 export function gateRunnerFamilyBlocks(blocks: BlockTable): void {
   parseRunnerTraversalBlock(blocks);
+  parseRunnerParallaxBlock(blocks);
   parseRunnerClockBlock(blocks);
   parseRunnerSessionBlock(blocks);
   parseRunnerIntentBlock(blocks);
