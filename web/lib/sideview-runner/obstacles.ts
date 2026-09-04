@@ -96,7 +96,7 @@ export function createObstaclesSystem(): GameSystem<RunnerWorld> {
     reads: ["segments", "avatar"],
     writes: [],
     owns: ["obstacles"],
-    emits: ["hazard-contact"],
+    emits: ["hazard-contact", "hazard-cleared", "collected"],
     update(world) {
       const obstacles = world.obstacles;
       obstacles.hazardContact = false;
@@ -137,6 +137,18 @@ export function createObstaclesSystem(): GameSystem<RunnerWorld> {
           }
         }
       }
+      for (const hazard of streamedHazards(world.segments)) {
+        // Cleared, not struck: the avatar crossed this hazard's far edge and is
+        // past it. Edge-triggered by the same per-instance set `struck` and
+        // `missed` already use — the cue system used to work this out by
+        // keeping last frame's distance and re-scanning every streamed hazard
+        // against it, which is a shadow copy of a slice it does not own.
+        const key = hazardKey(hazard);
+        if (world.avatar.distanceColumns < hazard.worldColumn + 1) continue;
+        if (obstacles.cleared.has(key)) continue;
+        obstacles.cleared.add(key);
+        world.events.emit({ type: "hazard-cleared", key });
+      }
       for (const pickup of streamedPickups(world.segments)) {
         const key = pickupKey(pickup);
         if (obstacles.collected.has(key)) continue;
@@ -153,6 +165,7 @@ export function createObstaclesSystem(): GameSystem<RunnerWorld> {
         if (boxesOverlap(avatar, pickupBox(pickup.worldColumn, pickup.row))) {
           obstacles.collected.add(key);
           obstacles.collectedThisFrame.push(pickup);
+          world.events.emit({ type: "collected", key });
         }
       }
     },

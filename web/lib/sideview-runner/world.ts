@@ -93,6 +93,8 @@ export interface ObstaclesState {
   hazardContact: boolean;
   /** Instance keys of hazards already struck, so one prop costs one point. */
   struck: Set<string>;
+  /** Instance keys of hazards already crossed, so one prop is cleared once. */
+  cleared: Set<string>;
   /** Pickups first collected this frame, for scoring and despawn effects. */
   collectedThisFrame: StreamedPickup[];
   /** Pickups newly missed this frame; the run-loop breaks the chain on them. */
@@ -345,6 +347,7 @@ export function resetRunnerWorld(
     missed: new Set(),
     hazardContact: false,
     struck: new Set(),
+    cleared: new Set(),
     collectedThisFrame: [],
     missedThisFrame: 0,
   };
@@ -422,6 +425,7 @@ export function createRunnerWorld(
       missed: new Set(),
       hazardContact: false,
       struck: new Set(),
+      cleared: new Set(),
       collectedThisFrame: [],
       missedThisFrame: 0,
     },

@@ -101,10 +101,29 @@ function digest(world: unknown, events: readonly unknown[]): string {
  * restart at frame 410 included.
  */
 const GOLDEN: Record<number, string> = {
-  60: "18bc90f7f233169ad3d8de407b6d16fe878adcad9036a2acff2f91fce2df8263",
-  300: "c7a384414ff712e177cc128b8c95b3ceaf94729de7f142b174ae2e66c3696b31",
-  600: "d0eb468b03c722166edb5cc032ec600b7a30f6c8eda74cb383f7bbfa883afd29",
+  60: "1186c2a9857d1c64a90eb26e95f8108845d9041fe0e96ac4f42bbd1a5e370581",
+  300: "9e5705b857a50aa19ca84dd3b50130addef86c36aa226a67aef5a79f354d5c3a",
+  600: "6bdf4642b85e6085ba75cd45f0386439fb6b03873d1f7d39a905d73d733e6d06",
 };
+
+/**
+ * Re-pinned a third time, for the `cues` family, and for the same reason as the
+ * second: the record gained things it did not have, and no frame of the run
+ * moved.
+ *
+ * Five occurrences appeared — `jumped`, `landed`, `slid`, `hazard-cleared` and
+ * `collected` — and one field, `obstacles.cleared`, the per-instance set that
+ * makes a crossing edge-triggered the way `struck` and `missed` already were.
+ * Fifteen of the six hundred frames carry one of the new occurrences, so
+ * fifteen digests differ by carrying it; the checkpoints differ because the
+ * chain runs through them.
+ *
+ * Measured with `REPLAY_DUMP` rather than argued: all six hundred frames of the
+ * new dump, with the five new occurrences and the one new field removed, are
+ * equal to the previous dump field for field — the death at 278, the restart at
+ * 410 and every value in between included. And the sink recording below, which
+ * is what the family actually changed, is byte-identical.
+ */
 
 /**
  * Re-pinned a second time, for the `clock` family.

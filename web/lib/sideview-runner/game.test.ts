@@ -418,17 +418,19 @@ describe("the vitals family in the runner", () => {
     assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK);
 
   test("E7 subtraction: a genre with no vitals seals to the identical order", () => {
-    // The one thing that has to come out with it is the session's consume of
-    // `run-ended`: vitals is the only emitter, and a channel with no other end
+    // What has to come out with it is every consume of the occurrences vitals
+    // is the only emitter of — `run-ended` heard by the session, and `drained`
+    // and `run-ended` heard by the cues — because a channel with no other end
     // is a refusal the kernel already makes (fixtured above). A genre with no
-    // vitals has no verdict to hear, which is the point of taking it out.
+    // vitals has no verdict to hear and no hurt to play, which is the point of
+    // taking it out.
+    const orphaned = ["run-ended", "drained"];
     const quiet = roster()
       .filter((system) => system.id !== "runner/vitals")
-      .map((system) =>
-        system.id === "session/run"
-          ? { ...system, consumes: (system.consumes ?? []).filter((type) => type !== "run-ended") }
-          : system,
-      );
+      .map((system) => ({
+        ...system,
+        consumes: (system.consumes ?? []).filter((type) => !orphaned.includes(type)),
+      }));
     expect(sealSystems(quiet, EVENTS).order).toEqual(
       DOCUMENTED_ORDER.filter((id) => id !== "runner/vitals"),
     );
@@ -575,5 +577,47 @@ describe("the soundtrack family in the runner", () => {
     expect(() =>
       parseRunnerSoundtrackBlocks({ ...RUNNER_BLOCKS, audio: "runner-audio-block-v2" }),
     ).toThrow('manifest block "audio" is published as runner-audio-block-v2');
+  });
+});
+
+// --- The `cues` family, sealed into this genre -------------------------------------------------
+
+describe("the cues family in the runner", () => {
+  const roster = () =>
+    assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK);
+
+  test("E7 subtraction: a genre that says nothing out loud seals to the identical order", () => {
+    // The cue system writes no key and owns no slice, so nothing in the frame
+    // depends on it having run. The one edge that names it — the dust, pinned
+    // behind it so the sealed order stays unique — comes out with it, which is
+    // the honest form of "the family is quiet".
+    const quiet = roster()
+      .filter((system) => system.id !== "runner/audio")
+      .map((system) => ({
+        ...system,
+        after: (system.after ?? []).filter((id) => id !== "runner/audio"),
+      }));
+    expect(sealSystems(quiet, EVENTS).order).toEqual(
+      DOCUMENTED_ORDER.filter((id) => id !== "runner/audio"),
+    );
+  });
+
+  test("it is a pure consumer: no writes, no owned slice, and every rule an occurrence", () => {
+    const cues = roster().find((system) => system.id === "runner/audio");
+    expect(cues?.writes).toEqual([]);
+    expect(cues?.owns).toBeUndefined();
+    // Every name it hears is emitted by some system in this roster — which is
+    // what the sealer checks, and what makes a cue bound to nothing a refusal.
+    const emitted = new Set(roster().flatMap((system) => system.emits ?? []));
+    for (const type of cues?.consumes ?? []) expect(emitted.has(type)).toBe(true);
+    expect(cues?.consumes).toEqual([
+      "jumped",
+      "landed",
+      "slid",
+      "hazard-cleared",
+      "collected",
+      "drained",
+      "run-ended",
+    ]);
   });
 });

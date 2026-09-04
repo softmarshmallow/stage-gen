@@ -27,6 +27,7 @@ import { presentPreparedLayerCanvas } from "@/lib/sideview/prepared-layer-presen
 import {
   createAudioSystem,
   createWebAudioSink,
+  parseRunnerCuesBlock,
   SILENT_MUSIC_SINK,
   type RunnerAudioSink,
   type RunnerMusicSink,
@@ -133,6 +134,7 @@ export function gateRunnerFamilyBlocks(blocks: BlockTable): void {
   parseRunnerVitalsBlock(blocks);
   parseRunnerCameraBlock(blocks);
   parseRunnerSoundtrackBlocks(blocks);
+  parseRunnerCuesBlock(blocks);
   parseScreenFxBlock(blocks);
 }
 

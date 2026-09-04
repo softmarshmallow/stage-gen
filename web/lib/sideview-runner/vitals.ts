@@ -89,6 +89,22 @@ export type RunnerEvent =
   | { readonly type: "absorbed"; readonly source: RunnerDamageSource }
   /** The run is over, by this source. */
   | { readonly type: "run-ended"; readonly source: RunnerDamageSource }
+  /**
+   * What the avatar did, said by the avatar.
+   *
+   * The `traversal` verbs. They exist because two presentation systems — the
+   * cues and the ground dust — were each keeping their own shadow copy of
+   * `jumpImpulses`, `grounded` and `sliding` and comparing them across frames
+   * to work out what had already happened inside `stepAvatar`. The step knows;
+   * now it says so.
+   */
+  | { readonly type: "jumped"; readonly airJump: boolean }
+  | { readonly type: "landed" }
+  | { readonly type: "slid" }
+  /** A hazard's far edge was crossed without being struck. */
+  | { readonly type: "hazard-cleared"; readonly key: string }
+  /** A pickup was taken. */
+  | { readonly type: "collected"; readonly key: string }
   /** A moment was asked for, released the simulation, or finished. */
   | FxEvent
   /** The boss encounter's own announcements. */

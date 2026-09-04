@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { jumpArcFor, stepAvatar } from "./avatar";
+import { createAvatarSystem, jumpArcFor, stepAvatar } from "./avatar";
 import { BASE_SPEED_COLUMNS_PER_SECOND } from "./difficulty";
 import { parseRunnerRuntimeManifest } from "./contract";
 import { runnerManifestFixture } from "./fixture";
@@ -399,5 +399,58 @@ describe("thrust locomotion", () => {
 
     expect(world.avatar.y).toBe(floor);
     expect(world.avatar.motion).toBe("run");
+  });
+});
+
+// --- The traversal verbs: what the avatar says it did ------------------------------------------
+
+describe("the avatar reports its own verbs", () => {
+  const STEP = { dt: 1 / 60, now: 1 / 60, frame: 1 } as const;
+
+  test("a takeoff, an air jump, a landing and a slide are occurrences, once each", () => {
+    // Read off this step's own before and after, by the slice's sole author.
+    // Two presentation systems used to keep a private copy of `jumpImpulses`,
+    // `grounded` and `sliding` and diff them across frames instead.
+    const world = craftedWorld("1".repeat(240));
+    const system = createAvatarSystem();
+    const heard = () => world.events.frame.map((event) => event.type);
+    // The clock system is what hands the avatar its delta; with no roster here
+    // the test plays that part, which is the whole of what this system reads
+    // besides the intent.
+    const tickOnce = () => {
+      world.events.beginFrame();
+      world.clock.simulationDt = DT;
+      system.update(world, STEP);
+    };
+
+    world.intent = runnerIntent({ jump: true });
+    tickOnce();
+    expect(heard()).toEqual(["jumped"]);
+    expect(world.events.ofType("jumped")[0].airJump).toBe(false);
+
+    // Still holding: the intent is a level here, but a launch is not — the
+    // impulse only rises when one actually happens.
+    tickOnce();
+    expect(heard()).toEqual(["jumped"]);
+    expect(world.events.ofType("jumped")[0].airJump).toBe(true);
+
+    world.intent = runnerIntent();
+    tickOnce();
+    expect(heard()).toEqual([]);
+
+    // Fall back onto the ground, and land.
+    let landed = false;
+    for (let tick = 0; tick < 240 && !landed; tick += 1) {
+      tickOnce();
+      landed = heard().includes("landed");
+    }
+    expect(landed).toBe(true);
+
+    // A held duck is a level, and the slide it starts is one occurrence.
+    world.intent = runnerIntent({ duck: true });
+    tickOnce();
+    expect(heard()).toEqual(["slid"]);
+    tickOnce();
+    expect(heard()).toEqual([]);
   });
 });

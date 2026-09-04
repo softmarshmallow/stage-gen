@@ -168,3 +168,46 @@ describe("missed pickups", () => {
     expect(sliding.obstacles.hazardContact).toBe(false);
   });
 });
+
+// --- What the obstacle field says happened -----------------------------------------------------
+
+describe("the obstacle field reports its own occurrences", () => {
+  const system = createObstaclesSystem();
+
+  test("a pickup taken is an occurrence, once, keyed like the instance it is", () => {
+    const world = worldAt(6.5);
+    system.update(world, STEP);
+    const collected = world.events.ofType("collected");
+    expect(collected).toHaveLength(1);
+    expect(collected[0].key).toBe(pickupKey(world.obstacles.collectedThisFrame[0]));
+    world.events.beginFrame();
+    system.update(world, STEP);
+    expect(world.events.ofType("collected")).toHaveLength(0);
+  });
+
+  test("a hazard crossed is cleared once, and edge-triggered by its own set", () => {
+    // The cue system used to work this out by keeping last frame's distance and
+    // re-scanning every streamed hazard against it — a shadow copy of a slice
+    // it does not own. It is the same per-instance set `struck` and `missed`
+    // already were.
+    const before = worldAt(6.5);
+    system.update(before, STEP);
+    expect(before.events.ofType("hazard-cleared")).toHaveLength(0);
+
+    const world = worldAt(7.5);
+    system.update(world, STEP);
+    expect(world.events.ofType("hazard-cleared")).toHaveLength(1);
+    expect(world.obstacles.cleared.size).toBe(1);
+    world.events.beginFrame();
+    world.avatar.distanceColumns = 8.5;
+    system.update(world, STEP);
+    expect(world.events.ofType("hazard-cleared")).toHaveLength(0);
+  });
+
+  test("a dead run clears nothing", () => {
+    const world = worldAt(7.5);
+    world.run.phase = "dead";
+    system.update(world, STEP);
+    expect(world.events.frame).toHaveLength(0);
+  });
+});

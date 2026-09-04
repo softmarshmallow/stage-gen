@@ -13,6 +13,9 @@
 // binding owns and the authored action on the soundtrack (a fade, a pause, a
 // duck) are posted side by side.
 
+import { createCueSystem } from "@/lib/families/cues";
+import { parseCuesBlock, type CuesBlockView } from "@/lib/families/cues/manifest";
+import type { BlockTable } from "@/lib/manifest/blocks";
 import type { GameSystem } from "@/lib/kernel/systems";
 import {
   isClipRealization,
@@ -20,9 +23,39 @@ import {
   type RunnerAudioEvent,
   type RunnerMusicEvent,
 } from "./contract";
+import type { RunnerEvent } from "./vitals";
+import { RUNNER_BLOCKS } from "./contract";
 import type { RunnerWorld } from "./world";
 
+/**
+ * The block this genre's cues are authored in.
+ *
+ * `audio` — `[bindings]` names which effect id each cue reaches and
+ * `[[effects]]` says how each id is realized. A producer that moves it gets
+ * `manifest block "audio" is published as …; this build reads
+ * runner-audio-block-v1`, from the cues, and separately from the soundtrack,
+ * which reads `[music.*]` out of the same file.
+ */
+export const RUNNER_CUES_BLOCK = Object.freeze({
+  block: "audio",
+  version: RUNNER_BLOCKS.audio,
+});
+
+/** Gate the runner's cues block. Refuses by naming `audio`. */
+export function parseRunnerCuesBlock(blocks: BlockTable): CuesBlockView {
+  return parseCuesBlock(blocks, RUNNER_CUES_BLOCK);
+}
+
 export type RunnerAudioCue = RunnerAudioEvent;
+
+/**
+ * Every name this genre's cue table posts, across both channels.
+ *
+ * The effect sink answers for the nine verbs and the music sink for the three
+ * run edges, and `restart` is the one name only the second has — a run that
+ * begins again is a thing the music does and not a sound the world makes.
+ */
+export type RunnerCueName = RunnerAudioCue | RunnerMusicEvent;
 
 export interface RunnerAudioSink {
   /** `strength` grades the cue: the collect pitch rises with the chain. */
@@ -49,88 +82,85 @@ export const SILENT_MUSIC_SINK: RunnerMusicSink = Object.freeze({
 });
 
 /**
- * The cue system: presentation, so it writes no world key. The explicit
- * edges pin it to the very end of the frame - after the session that
- * settles the phase and score, and after the hud that closes the drawing
- * chain - so the sealed order stays unique regardless of registration order.
+ * The runner's binding of the `cues` family: nine verbs, renamed.
+ *
+ * A pure consumer. Every cue below is an occurrence some other system emitted
+ * on the frame it happened — the avatar's three traversal verbs, the two the
+ * obstacle field raises, the drain the vitals resolve, the end the session
+ * hears — and this table is only the map from those onto the names a package's
+ * `[bindings]` binds an effect to. It used to be a hundred lines of edge
+ * detection over five shadow copies of two other systems' slices, resynced by
+ * hand after every restart.
+ *
+ * Two channels, because in this genre one occurrence is heard by two listeners:
+ * the effect sink plays the stinger and the music sink performs the
+ * soundtrack's authored action, side by side, which is what the audio contract
+ * has always said. The music vocabulary is the `soundtrack` family's, not this
+ * one's; the cue system is the consumer both reach through.
+ *
+ * The explicit edges pin it to the very end of the frame — after the session
+ * that settles the phase and score, and after the hud that closes the drawing
+ * chain — so the sealed order stays unique regardless of registration order.
  */
 export function createAudioSystem(
   sink: RunnerAudioSink,
   music: RunnerMusicSink = SILENT_MUSIC_SINK,
 ): GameSystem<RunnerWorld> {
-  let prevJumpImpulses = 0;
-  let prevGrounded = true;
-  let prevSliding = false;
-  let prevDead = false;
-  let prevDistance = 0;
-  let announced = false;
-  return {
+  /** A run that has already ended answers for its own death and nothing else. */
+  const alive = (world: RunnerWorld) => world.run.phase !== "dead";
+  return createCueSystem<RunnerWorld, RunnerEvent["type"], RunnerCueName, "effect" | "music">({
     id: "runner/audio",
-    // v4: the stage start is announced once per boot.
-    contractVersion: "audio-system-v4",
-    reads: ["avatar", "obstacles", "run", "vitals"],
-    writes: [],
+    // v5: the edges are occurrences rather than shadow copies.
+    contractVersion: "audio-system-v5",
+    reads: ["run", "score"],
     after: ["session/run", "runner/hud"],
-    update(world) {
-      // The announcement rides the first frame of a boot: with a stage-start
-      // moment that is the intro's first frame, so the line and the rip are
-      // one beat; without one it is the first running frame. Never on a
-      // restart - the intro plays once per boot, and so does this.
-      if (!announced) {
-        announced = true;
-        sink.play("stage_start", 1);
-      }
-      const avatar = world.avatar;
-      const dead = world.run.phase === "dead";
-      const restarted = avatar.distanceColumns < prevDistance;
-      if (restarted) {
-        music.transition("restart");
-        prevJumpImpulses = avatar.jumpImpulses;
-        prevGrounded = avatar.grounded;
-        prevSliding = avatar.sliding;
-        prevDead = dead;
-        prevDistance = avatar.distanceColumns;
-        return;
-      }
-
-      if (avatar.jumpImpulses > prevJumpImpulses) {
-        sink.play(avatar.airJumpsUsed > 0 ? "air_jump" : "takeoff", 1);
-      }
-      if (avatar.grounded && !prevGrounded && !dead) {
-        sink.play("land", 1);
-      }
-      if (avatar.sliding && !prevSliding) {
-        sink.play("slide", 1);
-      }
-      if (!dead) {
-        for (const hazard of world.segments.chunks.flatMap((chunk) => chunk.hazards)) {
-          const passed = hazard.worldColumn + 1;
-          if (prevDistance < passed && avatar.distanceColumns >= passed) {
-            sink.play("hazard_cleared", 1);
-          }
-        }
-        for (let i = 0; i < world.obstacles.collectedThisFrame.length; i += 1) {
-          sink.play("collect", Math.min(1, world.score.chain / 30));
-        }
-        // The vitals system sets this on the frame a drain connects; a hit
-        // that ends the run is death's to answer, not this cue's.
-        if (world.vitals.hurtThisFrame) {
-          sink.play("hurt", 1);
-          music.transition("hurt");
-        }
-      }
-      if (dead && !prevDead) {
-        sink.play("death", 1);
-        music.transition("death");
-      }
-
-      prevJumpImpulses = avatar.jumpImpulses;
-      prevGrounded = avatar.grounded;
-      prevSliding = avatar.sliding;
-      prevDead = dead;
-      prevDistance = avatar.distanceColumns;
+    // Every rule that names no channel is an effect; the music channel is
+    // named at the three rules that reach it.
+    channel: "effect",
+    sinks: {
+      effect: { play: (cue, strength) => sink.play(cue as RunnerAudioCue, strength) },
+      // The music sink takes the same names; what it does with each is the
+      // package's authored `[music]` action, resolved inside the playback.
+      music: { play: (cue) => music.transition(cue as RunnerMusicEvent) },
     },
-  };
+    // The stage start is announced once per boot, on the first frame. The one
+    // cue nothing happened to cause: with a stage-start moment that is the
+    // intro's first frame, so the line and the rip are one beat; without one it
+    // is the first running frame. Never on a restart.
+    announce: "stage_start",
+    announceChannel: "effect",
+    // And the next run's first frame. Not a rule, because the ask never
+    // survives into it: the composition rebuilds the world at the end of the
+    // frame that asks for a restart and throws both frames of occurrences away
+    // with the run they described. So the music starts again over the run that
+    // exists rather than the one that just ended, and the composition is what
+    // says so.
+    resumed: "restart",
+    resumedChannel: "music",
+    // Rule order is post order, and it is the order the hand-written system
+    // posted in: the traversal verbs, then the field, then the consequence,
+    // then the end of the run.
+    table: [
+      { on: "jumped", cue: (_world, event: { airJump: boolean }) => (event.airJump ? "air_jump" : "takeoff") },
+      { on: "landed", cue: "land", when: alive },
+      { on: "slid", cue: "slide" },
+      { on: "hazard-cleared", cue: "hazard_cleared", when: alive },
+      {
+        on: "collected",
+        cue: "collect",
+        when: alive,
+        // The chain is this frame's: the scorer is sealed before this system.
+        strength: (world: RunnerWorld) => Math.min(1, world.score.chain / 30),
+      },
+      // A survivable hit: the stinger, and the duck under it.
+      { on: "drained", cue: "hurt", when: alive },
+      { on: "drained", cue: "hurt", when: alive, channel: "music" },
+      // The one that ends it. `run-ended` is the vitals' verdict and the
+      // session's input, and it is this frame's for both.
+      { on: "run-ended", cue: "death" },
+      { on: "run-ended", cue: "death", channel: "music" },
+    ],
+  });
 }
 
 /** The playback-rate lift a strength-graded cue applies to a realization. */

@@ -248,13 +248,31 @@ export function createAvatarSystem(): GameSystem<RunnerWorld> {
     // One author for the avatar, death pose included: the run-loop used to
     // write the pose too, a frame earlier, without declaring it.
     owns: ["avatar"],
-    emits: ["pit", "crush"],
+    emits: ["pit", "crush", "jumped", "landed", "slid"],
     update(world) {
       // The simulation's delta, not the frame's: under a moment the avatar
       // integrates zero, which is the half of "a jump under the cut-in does
       // not fire" that this system owns. The other half is the intent system
       // reporting neutral edges while the clock is held.
+      //
+      // The three verbs are read off this step's own before and after, not off
+      // a copy of last frame's avatar: this system is the slice's sole author,
+      // so nothing can have moved it since, and the comparison is local rather
+      // than a shadow of somebody else's state. Two consumers used to keep that
+      // shadow — the cues and the ground dust — and a restart had to
+      // resynchronise both by hand.
+      const before = {
+        jumpImpulses: world.avatar.jumpImpulses,
+        grounded: world.avatar.grounded,
+        sliding: world.avatar.sliding,
+      };
       stepAvatar(world, world.clock.simulationDt);
+      const avatar = world.avatar;
+      if (avatar.jumpImpulses > before.jumpImpulses) {
+        world.events.emit({ type: "jumped", airJump: avatar.airJumpsUsed > 0 });
+      }
+      if (avatar.grounded && !before.grounded) world.events.emit({ type: "landed" });
+      if (avatar.sliding && !before.sliding) world.events.emit({ type: "slid" });
     },
   };
 }
