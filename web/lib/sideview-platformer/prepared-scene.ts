@@ -22,7 +22,12 @@ import { EMPTY_NAV_GRAPH, type NavGraph } from "./bot-navigation";
 import type { BotWorldView } from "./bot-view";
 import { NEUTRAL_PLAYER_INTENT, type PlayerIntent } from "./player-intent";
 import type { ScenePlayerIntentSource } from "./player-intent";
-import { bootGame, type GameHandle, type HostMode } from "@/lib/hosts/phaser/host";
+import {
+  bootGame,
+  type GameHandle,
+  type HostListener,
+  type HostMode,
+} from "@/lib/hosts/phaser/host";
 import { hostScene } from "@/lib/hosts/phaser/scene-base";
 import type { GameEvent } from "@/lib/kernel/events";
 
@@ -291,7 +296,7 @@ import {
   type PlatformerFrameSteps,
   type PlatformerFrameWorld,
 } from "./frame-roster";
-import type { SealedSystems } from "@/lib/kernel/systems";
+import type { ResetScope, SealedSystems } from "@/lib/kernel/systems";
 
 const VIEW_W = 1280;
 const VIEW_H = 720;
@@ -3704,8 +3709,13 @@ export function bootPreparedGame(
     capture ? null : developerKit,
   );
   const handle = bootGame(parent, scene);
+  // The one handle, with the two readers a developer console needs. Written out
+  // rather than spread, because `sealedOrder` is a live getter and a spread would
+  // freeze whatever it happened to answer at boot — which is the empty list.
   return Object.freeze({
-    ...handle,
+    destroy: (removeCanvas = true) => handle.destroy(removeCanvas),
+    reset: (seed: number, scope: ResetScope) => handle.reset(seed, scope),
+    subscribe: (listener: HostListener<PlatformerFrameWorld>) => handle.subscribe(listener),
     get sealedOrder(): readonly string[] {
       return handle.sealedOrder;
     },

@@ -500,7 +500,7 @@ class RunnerScene extends hostScene<RunnerWorld>(Phaser.Scene) {
       runnerSealOptions({ clock: () => this.accumulator }),
     );
     this.world = world;
-    this.children.getByName("loading-label")?.destroy();
+    // The label goes with `finishLoading`, which `create` runs when this resolves.
   }
 
   /** Avatar, hazard, pickup, and contact-shadow drawing, mirrored from world state. */
