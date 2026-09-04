@@ -48,7 +48,12 @@ from stage_gen.components.sideview_actor.motion_geometry import (
 from stage_gen.media import measure_alpha_ground_contact
 from stage_gen.media.sprite_sheets import split_atlas_columns
 from stage_gen.orchestration.game_package import ResolvedGamePackage
-from stage_gen.recipes.manifest_blocks import ManifestBlock, block_table, build_blocks
+from stage_gen.recipes.manifest_blocks import (
+    ManifestBlock,
+    block_table,
+    build_blocks,
+    present_blocks,
+)
 from stage_gen.recipes.sideview_platformer.asset_unit import (
     admit_rank_ladder,
     resolve_rank_magnitude,
@@ -643,7 +648,18 @@ def _soundtrack_block(pub: _Publication) -> object:
 
 
 def _gameplay_block(pub: _Publication) -> object:
-    return pub.package.gameplay.model_dump(mode="json")
+    # The score and the timers are their own blocks, parsed by their own families.
+    return pub.package.gameplay.model_dump(mode="json", exclude={"score", "timers"})
+
+
+def _score_block(pub: _Publication) -> object:
+    score = pub.package.gameplay.score
+    return None if score is None else score.model_dump(mode="json")
+
+
+def _timers_block(pub: _Publication) -> object:
+    timers = pub.package.gameplay.timers
+    return None if timers is None else timers.model_dump(mode="json")
 
 
 def _scenarios_block(pub: _Publication) -> object:
@@ -681,6 +697,9 @@ PLATFORMER_MANIFEST_BLOCKS: tuple[ManifestBlock[_Publication], ...] = (
     ManifestBlock("ui", "platformer-ui-block-v1", _ui_block),
     ManifestBlock("soundtrack", "platformer-soundtrack-block-v1", _soundtrack_block),
     ManifestBlock("gameplay", "platformer-gameplay-block-v1", _gameplay_block),
+    # Optional: published only when authored, so a game without them carries no entry.
+    ManifestBlock("score", "platformer-score-block-v1", _score_block),
+    ManifestBlock("timers", "platformer-timers-block-v1", _timers_block),
     ManifestBlock("scenarios", "platformer-scenarios-block-v1", _scenarios_block),
     ManifestBlock("closure", "platformer-closure-block-v1", _closure_block),
 )
@@ -696,11 +715,13 @@ def _assemble_prepared_runtime(
     pub = _Publication(package, tuple(artifact_roots), output_dir)
     # Silhouette height carries threat, so the ladder is admitted before anything reads it.
     admit_rank_ladder(pub.scale, {mob.mob_id: mob.rank for mob in package.mobs.mobs})
+    # An optional block a package did not author is built as None: absent from the table
+    # and absent from the document, so a consumer reads its absence as absence.
     blocks = build_blocks(PLATFORMER_MANIFEST_BLOCKS, pub)
     manifest: dict[str, object] = {
         "schema_version": PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION,
         "kind": PREPARED_RUNTIME_MANIFEST_KIND,
-        "blocks": PLATFORMER_MANIFEST_BLOCK_VERSIONS,
+        "blocks": present_blocks(PLATFORMER_MANIFEST_BLOCK_VERSIONS, blocks),
         "game_id": package.game.game_id,
         "revision": package.game.revision,
         "display_name": package.game.display_name,
@@ -709,7 +730,7 @@ def _assemble_prepared_runtime(
         # and proportion tables and the canonical game digest left in v12; nothing read them.
         "entry_map_id": package.gameplay.entry_map_id,
         "entry_spawn_id": package.gameplay.entry_spawn_id,
-        **blocks,
+        **{key: value for key, value in blocks.items() if value is not None},
     }
     _validate_closure_roles(manifest, pub.artifacts)
     atomic_write_json(output_dir / "manifest.json", manifest)

@@ -70,7 +70,9 @@ not an identity but a cache key (C-R1); its evidence is the cache-key goldens.
 | `platformer-props-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['props']` |
 | `platformer-scale-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['scale']` |
 | `platformer-scenarios-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['scenarios']` |
+| `platformer-score-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['score']` |
 | `platformer-soundtrack-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['soundtrack']` |
+| `platformer-timers-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['timers']` |
 | `platformer-ui-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['ui']` |
 | `runner-audio-block-v1` | `block` | `stage_gen.recipes.sideview_runner.runner_types:RUNNER_MANIFEST_BLOCK_VERSIONS['audio']` |
 | `runner-avatar-block-v1` | `block` | `stage_gen.recipes.sideview_runner.runner_types:RUNNER_MANIFEST_BLOCK_VERSIONS['avatar']` |

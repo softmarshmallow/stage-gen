@@ -325,6 +325,51 @@ GameplayEffect = Annotated[
 ]
 
 
+#: What a run can be scored on. A closed vocabulary: the consumer's families emit these
+#: occurrences, and a score rule names which of them count.
+ScoreEvent = Literal["mob_defeated", "boss_defeated", "item_collected", "wave_cleared"]
+
+
+class ScorePolicy(PersistedContractModel):
+    """Points per scored occurrence, and where the total is shown.
+
+    Optional in the contract: a game without a score authors none, and the runtime seals
+    with the `score` family quiet. Authored as names and integers; the consumer owns the
+    readout.
+    """
+
+    awards: dict[ScoreEvent, int] = Field(min_length=1)
+    display: Literal["hud", "hidden"] = "hud"
+
+    @field_validator("awards")
+    @classmethod
+    def validate_awards(cls, value: dict[ScoreEvent, int]) -> dict[ScoreEvent, int]:
+        for event, points in value.items():
+            if points < 1 or points > 1_000_000:
+                raise ValueError(f"score award for {event} must be between 1 and 1000000")
+        return value
+
+
+class TimerEntry(PersistedContractModel):
+    """One authored timer: how long it runs and what its end means to the session."""
+
+    timer_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    seconds: int = Field(ge=1, le=3600)
+    on_end: Literal["session_ended"]
+    display: Literal["hud", "hidden"] = "hud"
+
+
+class TimersPolicy(PersistedContractModel):
+    """The timers a run keeps; optional, like the score."""
+
+    entries: list[TimerEntry] = Field(min_length=1, max_length=16)
+
+    @model_validator(mode="after")
+    def validate_unique_timers(self) -> TimersPolicy:
+        unique_values((entry.timer_id for entry in self.entries), "timer_id")
+        return self
+
+
 class GameplayContract(PersistedContractModel):
     schema_version: Literal[1]
     kind: Literal["gameplay-contract-v1"]
@@ -349,6 +394,9 @@ class GameplayContract(PersistedContractModel):
     interactions: list[Interaction] = Field(default_factory=list, max_length=512)
     quests: list[Quest] = Field(default_factory=list, max_length=256)
     effects: list[GameplayEffect] = Field(default_factory=list, max_length=512)
+    #: The two additive blocks a minigame variant authors and a story game leaves out.
+    score: ScorePolicy | None = None
+    timers: TimersPolicy | None = None
 
     @model_validator(mode="after")
     def validate_internal_graph(self) -> GameplayContract:

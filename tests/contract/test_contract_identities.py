@@ -50,7 +50,12 @@ def _current_documents() -> list[Path]:
 
 
 def _live_lines(text: str) -> list[tuple[int, str]]:
-    """Lines held to the current version: not a `retired` note, not a `Was` history table."""
+    """Lines held to the current version.
+
+    Not a `retired` note, not a `Was` history table, and not a quoted refusal - a document
+    that shows what a consumer says when a block is published at a version it does not
+    read (`published as … ; this build reads …`) is describing the refusal, not citing.
+    """
 
     live: list[tuple[int, str]] = []
     in_history_table = False
@@ -60,7 +65,12 @@ def _live_lines(text: str) -> list[tuple[int, str]]:
             continue
         if re.match(r"^\|\s*Was\b", line):
             in_history_table = True
-        if in_history_table or re.search(r"\bretire[ds]?\b", line, flags=re.IGNORECASE):
+        if (
+            in_history_table
+            or re.search(r"\bretire[ds]?\b", line, flags=re.IGNORECASE)
+            or "is published as" in line
+            or "this build reads" in line
+        ):
             continue
         live.append((number, line))
     return live

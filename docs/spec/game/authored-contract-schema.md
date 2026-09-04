@@ -211,7 +211,7 @@ The root catalogs subordinate contracts; it does not absorb their fields:
 
 | Contract | Authority |
 | --- | --- |
-| `gameplay.toml` | Movement, entry map, transition relationships, population, combat, loot, interactions, quests, and effects |
+| `gameplay.toml` | Movement, entry map, transition relationships, population, combat, loot, interactions, quests, and effects; optionally `[score]` (points per scored occurrence) and `[timers]` (timers whose end is a session edge), the two blocks a minigame variant authors |
 | `ui.toml` | Generated interface presentation and layout |
 | `maps/<map_id>.toml` | Visual/static map composition, terrain occupancy, ladder placement, and portal presentation/anchors |
 | Content catalogs | Player, mob, NPC, prop, item, and projectile identities, visual references, motion presentation, the player's drawn equipment, and NPC catalog-wide world orientation |

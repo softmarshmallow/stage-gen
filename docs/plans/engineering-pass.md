@@ -814,6 +814,21 @@ the director's shots and gauge thirds want `projectiles` and `combat` families n
 creates; played evidence is still owed.
 
 
+**2026-09-05 — C5, the additive blocks runtime step 7 needs.** `GameplayContract`
+gains two optional tables: `[score]` (points per scored occurrence from a closed
+vocabulary - `mob_defeated`, `boss_defeated`, `item_collected`, `wave_cleared` - and a
+readout choice) and `[timers]` (timers whose end is a session edge). Each is its own
+manifest block, `platformer-score-block-v1` and `platformer-timers-block-v1`, built as
+`None` and absent from both the table and the document when a package authors neither;
+the gameplay block excludes them, so its shape did not move. The TypeScript parser lists
+both as optional and parses them into typed blocks; its refusal names the block. The
+root kind stays at v12: adding blocks a story game never carries is additive, and a
+consumer that does not know them reads their absence as absence. Measured: Bellweather
+republished provider-free (`out/bellweather-c5-parity`), all 110 files byte-identical to
+the v12 publish, the manifest included. The variant package, the wave director profile
+and the `score` / `timers` families are the runtime lane's step 7.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one

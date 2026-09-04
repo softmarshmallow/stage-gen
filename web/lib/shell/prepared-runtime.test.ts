@@ -37,6 +37,39 @@ describe("prepared runtime manifest reading", () => {
     expect(manifest?.player.concept.path).toBe("content/player/concept.png");
   });
 
+  test("parses the optional score and timers blocks when a package authors them", async () => {
+    const tag = `test-prepared-optional-${process.pid}`;
+    const runDir = runDirFor(tag);
+    cleanup.push(runDir);
+    await mkdir(runDir, { recursive: true });
+    const fixture = preparedRuntimeManifestFixture() as Record<string, unknown>;
+    const blocks = fixture.blocks as Record<string, string>;
+    const authored = {
+      ...fixture,
+      blocks: { ...blocks, score: "platformer-score-block-v1", timers: "platformer-timers-block-v1" },
+      score: { awards: { wave_cleared: 500, mob_defeated: 100 }, display: "hud" },
+      timers: { entries: [{ timer_id: "run", seconds: 90, on_end: "session_ended" }] },
+    };
+    await writeFile(path.join(runDir, "manifest.json"), JSON.stringify(authored), "utf8");
+    const manifest = await readPreparedRuntimeManifest(tag);
+    expect(manifest?.score?.awards.wave_cleared).toBe(500);
+    expect(manifest?.timers?.entries[0]?.seconds).toBe(90);
+    expect(manifest?.timers?.entries[0]?.display).toBe("hud");
+
+    // A story game authors neither: both absent from the table and the document.
+    const quiet = await (async () => {
+      await writeFile(path.join(runDir, "manifest.json"), JSON.stringify(fixture), "utf8");
+      return readPreparedRuntimeManifest(tag);
+    })();
+    expect(quiet?.score).toBeNull();
+    expect(quiet?.timers).toBeNull();
+
+    // A block published at a version this build does not read is refused by name.
+    const stale = { ...authored, blocks: { ...authored.blocks, score: "platformer-score-block-v2" } };
+    await writeFile(path.join(runDir, "manifest.json"), JSON.stringify(stale), "utf8");
+    await expect(readPreparedRuntimeManifest(tag)).rejects.toThrow(/block "score"/);
+  });
+
   test("rejects symlinked manifest files", async () => {
     const tag = `test-prepared-symlink-${process.pid}`;
     const targetTag = `${tag}-target`;

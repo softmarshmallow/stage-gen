@@ -541,7 +541,9 @@ contain credentials, authorization headers, signed URLs, temporary paths, or abs
 `manifest.json` is a set of named blocks, and its root carries a `blocks` table: block key to
 the block's own version, `platformer-<key>-block-v1` today for every block the consumer parses
 (`presentation`, `scale`, `maps`, `player`, `mobs`, `npcs`, `props`, `items`, `projectiles`,
-`ui`, `soundtrack`, `gameplay`, `scenarios`, `closure`). A block whose shape moves bumps its own
+`ui`, `soundtrack`, `gameplay`, `scenarios`, `closure`), plus two a package authors or leaves
+out - `score` and `timers`, absent from the table and the document when not authored, so the
+runtime's `score` and `timers` families seal quiet. A block whose shape moves bumps its own
 version in `PLATFORMER_MANIFEST_BLOCKS` and in the parser that reads it; nothing else moves. The
 document's `kind` moves on structural change only - the set of blocks or the root fields - which
 is contract rule C-R3 in [game-contract.md](../../game-contract.md). The consumer gates every

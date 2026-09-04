@@ -44,7 +44,26 @@ export const PREPARED_RUNTIME_BLOCKS = Object.freeze({
   gameplay: "platformer-gameplay-block-v1",
   scenarios: "platformer-scenarios-block-v1",
   closure: "platformer-closure-block-v1",
+  score: "platformer-score-block-v1",
+  timers: "platformer-timers-block-v1",
 } as const);
+/** Blocks a package authors or leaves out; absent means the family seals quiet. */
+export const PREPARED_RUNTIME_OPTIONAL_BLOCKS = Object.freeze(["score", "timers"] as const);
+
+/** The scored occurrences a package may award points for. */
+export const SCORE_EVENTS = ["mob_defeated", "boss_defeated", "item_collected", "wave_cleared"] as const;
+export type ScoreEvent = (typeof SCORE_EVENTS)[number];
+export type ScoreBlock = Readonly<{
+  awards: Readonly<Partial<Record<ScoreEvent, number>>>;
+  display: "hud" | "hidden";
+}>;
+export type TimerEntry = Readonly<{
+  timer_id: string;
+  seconds: number;
+  on_end: "session_ended";
+  display: "hud" | "hidden";
+}>;
+export type TimersBlock = Readonly<{ entries: readonly TimerEntry[] }>;
 
 export type RuntimeArtifact = Readonly<{
   path: string;
@@ -345,6 +364,10 @@ export type PreparedRuntimeManifest = Readonly<{
     }>[];
   }>;
   gameplay: Record<string, unknown>;
+  /** Present only when the package authored `[score]`. */
+  score: ScoreBlock | null;
+  /** Present only when the package authored `[timers]`. */
+  timers: TimersBlock | null;
   /** The compiled narratives, validated rather than passed through opaque. */
   scenarios: readonly ScenarioProgram[];
   closure: Readonly<{
@@ -735,7 +758,9 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
   ) {
     throw new Error("prepared runtime manifest identity is invalid");
   }
-  const blocks = parseBlockTable(root.blocks, PREPARED_RUNTIME_BLOCKS);
+  const blocks = parseBlockTable(root.blocks, PREPARED_RUNTIME_BLOCKS, {
+    optional: PREPARED_RUNTIME_OPTIONAL_BLOCKS,
+  });
   const rawPresentation = object(root.presentation, "presentation");
   if (
     rawPresentation.view_profile !== "side_view_2d" ||
@@ -1259,7 +1284,45 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
     ui: Object.freeze({ inventory_panel: inventoryPanel, panel_frame: panelFrame, button_rect: buttonRect, preview_icons: previewIcons }),
     soundtrack: Object.freeze({ playback: Object.freeze({ selection: "shuffle", no_immediate_repeat: true }), tracks: Object.freeze(tracks) }),
     gameplay: object(root.gameplay, "gameplay"),
+    // Optional blocks: the gate has checked the version of any the table names; the
+    // document says whether the package authored one.
+    score: root.score == null ? null : parseScoreBlock(root.score),
+    timers: root.timers == null ? null : parseTimersBlock(root.timers),
     scenarios: Object.freeze(array(root.scenarios, "scenarios").map(parseScenarioProgram)),
     closure: Object.freeze({ artifact_count: closureArtifacts.length, artifacts_sha256: artifactsSha256, artifacts: Object.freeze(closureArtifacts) }),
   });
+}
+
+function parseScoreBlock(value: unknown): ScoreBlock {
+  const raw = object(value, "score");
+  const awardsRaw = object(raw.awards, "score.awards");
+  const awards: Partial<Record<ScoreEvent, number>> = {};
+  for (const [event, points] of Object.entries(awardsRaw)) {
+    if (!(SCORE_EVENTS as readonly string[]).includes(event)) {
+      throw new Error(`score.awards names an unknown event: ${event}`);
+    }
+    awards[event as ScoreEvent] = integer(points, `score.awards.${event}`, 1);
+  }
+  if (Object.keys(awards).length === 0) throw new Error("score.awards is empty");
+  const display = raw.display ?? "hud";
+  if (display !== "hud" && display !== "hidden") throw new Error("score.display is unknown");
+  return Object.freeze({ awards: Object.freeze(awards), display });
+}
+
+function parseTimersBlock(value: unknown): TimersBlock {
+  const raw = object(value, "timers");
+  const entries = array(raw.entries, "timers.entries").map((entry, index) => {
+    const timer = object(entry, `timers.entries[${index}]`);
+    if (timer.on_end !== "session_ended") throw new Error(`timers.entries[${index}].on_end is unknown`);
+    const display = timer.display ?? "hud";
+    if (display !== "hud" && display !== "hidden") throw new Error(`timers.entries[${index}].display is unknown`);
+    return Object.freeze({
+      timer_id: id(timer.timer_id, `timers.entries[${index}].timer_id`),
+      seconds: integer(timer.seconds, `timers.entries[${index}].seconds`, 1),
+      on_end: "session_ended" as const,
+      display,
+    });
+  });
+  if (entries.length === 0) throw new Error("timers.entries is empty");
+  return Object.freeze({ entries: Object.freeze(entries) });
 }
