@@ -1,10 +1,8 @@
 # Runtime composition: the plan, and the evidence for each ruling
 
-> **Checked by:** none.
-
-Companion to [runtime-composition.md](runtime-composition.md), which states
-the end state. This document is the path, and it dies when the path is
-walked. Status: draft for sign-off.
+Companion to [runtime-composition.md](../spec/game/runtime-composition.md),
+which states the end state. This document is the path, and it dies when the
+path is walked. Status: draft for sign-off.
 
 ## Method: every step is a taxonomy ruling
 

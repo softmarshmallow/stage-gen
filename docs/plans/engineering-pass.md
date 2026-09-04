@@ -2,7 +2,7 @@
 
 Status: draft for sign-off. Companion to
 [runtime-composition.md](../spec/game/runtime-composition.md) (the runtime's
-end state) and [runtime-composition-plan.md](../spec/game/runtime-composition-plan.md)
+end state) and [runtime-composition-plan.md](runtime-composition-plan.md)
 (the runtime's path). This document is the whole system: pipeline core,
 recipes, components, contracts, verification, library, docs, process. It was
 written after ten audits — five of the runtime, five of everything else — and

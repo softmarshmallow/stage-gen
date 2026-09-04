@@ -2,12 +2,16 @@
 
 > **Checked by:** `tests/contract/test_docs_check.py`.
 
-> **Contract maturity: proposed TO-BE.**
+> **Contract maturity: proposed TO-BE for the vocabulary; three of its profile
+> identities are bound.**
 >
 > This specification defines canonical target terminology, profile identity,
 > and namespace rules for game view, camera, gameplay space, asset view, and
-> visual style. It does not claim that a profile is implemented, record support
-> status, or define a project plan.
+> visual style. `lateral_orthographic_side_plane_v1`,
+> `screen_space_dialogue_stage_v1` and `screen_space_room_stage_v1` are bound
+> to camera aliases by the [asset taxonomy](../asset-taxonomy.md) and carried by
+> the recipes under them. Every other term here is target vocabulary: it records
+> no support status and defines no project plan.
 
 The [Game contract](../../game-contract.md) owns the game-wide domain model.
 The [authored contract schema](authored-contract-schema.md) documents the

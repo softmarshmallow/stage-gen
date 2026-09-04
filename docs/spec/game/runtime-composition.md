@@ -7,12 +7,18 @@ follows five full audits of the runtime (the platformer's welded and pure
 halves, the runner and kernel, the turn-based genres and hosts, and the
 published contracts against the planned genres). Every claim below has a
 `file:line` behind it in the audit notes; the ones that changed a decision are
-cited inline. Nothing here is implemented beyond what "Where it stands" says.
+cited inline. Nothing here is implemented beyond what "Where it stands" says,
+which is measured against the tree rather than against the audits: steps 0
+through 7 of [the plan](../../plans/runtime-composition-plan.md) landed after
+this document was written, so the kernel, the ring-1 families and both
+side-view genres on them are built, and what is left open is named in the
+table.
 
 The generation side of this repo has one shape: a node declares what it reads
 and writes, a planner refuses an impossible graph before any spend, and the
 plan is data you can inspect. The gameplay side has the same shape in one
-place — `web/lib/kernel/`, `game-systems/` until runtime step 1 — and one genre built on it. This document
+place — `web/lib/kernel/`, `game-systems/` until runtime step 1 — and, when this
+was written, one genre built on it. This document
 makes that shape the contract for every genre, names the layer between
 "engine-free primitive" and "genre" that is missing today, and says how an
 authored TOML name reaches a system without the system knowing which genre
@@ -22,36 +28,43 @@ The goal is not code reuse. It is reuse of the *abstraction*: a new genre
 should be a composition of families whose parameters it names, plus the few
 systems that are genuinely its own, rather than a fresh scene that reinvents
 health, inventory, camera and music because the last scene welded them to its
-map. The sharpest proof that the layer is missing is the taxonomy's own
-"minigames from existing assets" case: it needs no generator module at all
-and is blocked entirely on three runtime families — `score`, `timers`,
-`waves` — that have no manifest block and no home.
+map. The sharpest proof that the layer was missing is the taxonomy's own
+"minigames from existing assets" case: it needs no generator module at all and
+was blocked entirely on three runtime families — `score`, `timers`, `waves` —
+that had no manifest block and no home. All three now have one, which is what
+the plan's capstone step proved.
 
 ## Where it stands
 
 | | Substrate | Shape | Lines |
 | --- | --- | --- | --- |
 | `kernel/` (was `game-systems/`) | kernel | `GameSystem<W>` with `reads`/`writes`/`emits`/`consumes`/`after`; `sealSystems` (Kahn order, refuses cycles, duplicates and unknown edges at seal time); per-frame `EventQueue`; domain-free `Gauge` | 1.0k |
-| `fx/` | first family | `fx/moment` is a genre-neutral system: it holds a moment, drives an `FxView` port, emits `fx-released` / `fx-finished`. Its silent view lives in a file that value-imports Phaser, so reading the runner's sealed order in a test requires mocking the engine | 0.6k |
-| `sideview-runner/` | genre, on the kernel | `RunnerWorld` is data; 14 systems are behaviour; eight ports, two of which ship no silent implementation; the boot is "one thin adapter"; 60 Hz fixed step; seeded — except that the boot seed is `Math.random()` and reduced-motion is read from `window.matchMedia` at assembly | 12.2k |
-| `sideview-platformer/` | genre, **not** on the kernel | `PreparedStageScene extends Phaser.Scene`: 2.8k lines, 54 fields, ~70 methods; `update()` orders the frame by hand; `now` is `performance.now()`; hitstop is "hand the actors a zero delta"; `Mob` uses engine tweens and timers. Imports nothing from the kernel. 13.8k lines are pure, hash-seeded rules with tests; 9.5k are rule-plus-drawing classes. Four modules are dead or orphaned (`npc.ts`'s class, `dialogue-sequence.ts`, `heightmap.ts`, and a fully extracted `soundtrack.ts` player the scene never calls) | 36.4k |
-| `pointclick/`, `dialogue-scene/` | turn-based genres | a pure reducer and a Phaser scene that only draws. The reducers emit nothing, so their consumers rediscover edges by diffing strings | 1.6k, 3.1k |
+| `families/` | ring 1 | 23 families — `clock`, `session`, `intent`, `vitals`, `screen-fx`, `soundtrack`, `cues`, `camera`, `particles`, `director`, `score`, `timers`, `hud`, `inventory`, `loot`, `navigation`, `interaction`, `checkpoints`, `effects`, `prompt`, `ui`, `actor-ai`, and `sideview` (motion, parallax, traversal) — each a genre-neutral system or kit over a port, parsing the manifest block it is named for through the shared block gate | 9.1k |
+| `sideview-runner/` | genre, on the kernel | `RunnerWorld` is data; systems are behaviour; the boot is "one thin adapter"; 60 Hz fixed step; seeded — except that the boot seed is `Math.random()` and reduced-motion is read from `window.matchMedia` at assembly | 8.1k |
+| `sideview-platformer/` | genre, on the kernel | `PreparedStageScene extends Phaser.Scene` still owns the boot, the loading and the drawing, but the frame is a sealed roster (`frame-roster.ts`, twenty declared systems over the families it composes) rather than an ordered `update()`, and the simulation reads `step.now` rather than `performance.now()`. Two modules are still dead: `dialogue-sequence.ts` and `heightmap.ts` | 25.0k |
+| `pointclick/`, `dialogue-scene/` | turn-based genres | a pure reducer and a Phaser scene that only draws. The reducers emit nothing, so their consumers rediscover edges by diffing strings | 1.4k, 2.4k |
 | `shell/case*.ts` + `app/_play/CasePlayer.tsx` | the container above leaves | pure rules (`advanceCase`, `mergeFacts`) whose only runtime is a 544-line React component; every `/scene` and `/room` page already runs inside a single-beat case | — |
-| `sideview/`, `ui-atlas/`, `device-pixels/`, `manifest/`, `shell/`, `illustrated-map/` | shared presentation | asset loading, sprite scale, terrain atlas, gauge bar, motion playback, layer treatment, widgets, device-pixel camera; an overworld contract nothing consumes | — |
+| `sideview/`, `device-pixels/`, `manifest/`, `shell/`, `illustrated-map/` | shared presentation | asset loading, sprite scale, terrain atlas, gauge bar, motion playback, layer treatment, widgets, device-pixel camera; an overworld contract nothing consumes | — |
 
-Read as one sentence: the node/event architecture is built and proven on one
-genre; the platformer — three times the runner's size and the genre every
-future side-view genre borrows from — does not use it; and between kernel and
-genre there is one family where the audits count thirty-nine.
+Line counts are non-test TypeScript under each directory, measured after the
+plan's step 7.
 
-Where the same concept is written more than once today: bottom-contiguous
-surface (three times), the intent latch (twice), soundtrack (twice, one
-orphaned), "what a contact costs" (twice), inventory (three times inside the
-runtime plus one published geometry), camera (twice), boss encounters (twice,
-with disjoint authored shapes), parallax placement (twice), the deterministic
-hash/PRNG (five times), the `Phaser.Game` boot block (four times), the React
-mount effect (four times), and the mob's and the bot's arbitration engines
-(two mechanisms for one job).
+Read as one sentence: the node/event architecture is built, the ring-1 layer
+the audits found missing exists, and both side-view genres now compose it — so
+what is left to earn is not the shape but its edges: the platformer's scene
+still owns its own boot and drawing, and the turn-based genres are not on the
+kernel at all.
+
+Where the same concept was written more than once when the five audits ran:
+bottom-contiguous surface (three times), the intent latch (twice), soundtrack
+(twice, one orphaned), "what a contact costs" (twice), inventory (three times
+inside the runtime plus one published geometry), camera (twice), boss
+encounters (twice, with disjoint authored shapes), parallax placement (twice),
+the deterministic hash/PRNG (five times), the `Phaser.Game` boot block (four
+times), the React mount effect (four times), and the mob's and the bot's
+arbitration engines (two mechanisms for one job). The plan's steps 3 to 6
+closed the ones it names; the list is kept because it is the measurement the
+ring rule was argued from.
 
 ## Topology: four rings and a container
 
@@ -444,7 +457,7 @@ The runner is one genre on the kernel, and one consumer is not a protocol.
 The platformer is where the contract earns or loses its name. The path — one
 taxonomy ruling per step, each with a fact, a challenge, a machine proof, a
 played artifact and a falsifier — is in
-[runtime-composition-plan.md](runtime-composition-plan.md). In outline:
+[runtime-composition-plan.md](../../plans/runtime-composition-plan.md). In outline:
 instruments and prerequisites; the kernel additions proven on the runner;
 the strangler; `clock`/`session`/`intent`/`vitals`/`screen-fx`;
 `soundtrack`/`cues`/`camera`/`particles`; the space and the actors; the

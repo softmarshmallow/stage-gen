@@ -2,15 +2,18 @@
 
 > **Checked by:** none.
 
-> **Contract maturity: proposed TO-BE.** Scope: the game-generic, screen-space
-> interface module (`2d/ui` in the [asset taxonomy](../asset-taxonomy.md)).
+> **Contract maturity: proposed TO-BE, except the slice that shipped.** Scope:
+> the game-generic, screen-space interface module (`2d/ui` in the
+> [asset taxonomy](../asset-taxonomy.md)).
 >
 > This document names the interface roles a generated game can ask for, the
-> axes every role declares, and what a pixel gate can prove about each. It does
-> not claim runtime support, define a persisted schema, or replace the
-> exact-current [authored game UI contract](ui.md), whose single
-> `inventory_panel` role stays authoritative until a successor identity is
-> ratified. The first executable slice is scoped at the end, deliberately small.
+> axes every role declares, and what a pixel gate can prove about each. The
+> slice scoped at the end is implemented: `panel_frame` and `button_rect` were
+> promoted on 2026-09-02, one narrow icon role followed, and the exact-current
+> [authored game UI contract](ui.md) is the authority for those three and for
+> the fixed-layout `inventory_panel` beside them. Every other role here is
+> unpromoted taxonomy: it claims no runtime support and defines no persisted
+> schema until it is ratified there.
 
 ## Why a taxonomy first
 

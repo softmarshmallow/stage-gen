@@ -2,7 +2,7 @@
 
 > **Checked by:** none.
 
-> **Contract maturity: ratified TO-BE master.** Scope: the side-view platformer
+> **Contract maturity: ratified, and implemented.** Scope: the side-view platformer
 > recipe's motion atlases (`2d/sideview/platformer` in the
 > [asset taxonomy](asset-taxonomy.md)).
 >
@@ -10,11 +10,13 @@
 > agreement with one another: what the baseline is, what the judging atlas
 > contains, what a judge returns, and how a consumer composes the result.
 >
-> It does not claim runtime support, enumerate implementation status, track
-> migration work, or serve as a project plan. It is scoped to coherence within
-> one actor; magnitude across entities is [Asset unit](asset-unit.md). The
-> measurements behind both are in
-> [Asset scale study](../research/asset-scale-study.md).
+> It is implemented rather than proposed:
+> `src/stage_gen/components/sideview_actor/motion_rebase.py` and its node kit
+> are wired into both side-view recipes, which is where the judging atlas and
+> the verification pass are produced. It still does not track migration work or
+> serve as a project plan. It is scoped to coherence within one actor;
+> magnitude across entities is [Asset unit](asset-unit.md). The measurements
+> behind both are in [Asset scale study](../research/asset-scale-study.md).
 
 ## What this contract is for
 

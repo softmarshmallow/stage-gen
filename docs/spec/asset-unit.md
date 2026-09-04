@@ -2,7 +2,7 @@
 
 > **Checked by:** none.
 
-> **Contract maturity: ratified TO-BE master.** Scope: the side-view platformer
+> **Contract maturity: ratified, and implemented.** Scope: the side-view platformer
 > recipe's sprite contracts (`2d/sideview/platformer` in the
 > [asset taxonomy](asset-taxonomy.md)).
 >
@@ -10,10 +10,12 @@
 > what one unit is, which entity classes declare it, how a declaration is
 > resolved and admitted, and how a consumer projects it onto the screen.
 >
-> It does not claim runtime support, enumerate implementation status, track
-> migration work, or serve as a project plan. The measurements that motivate
-> every choice here are recorded in
-> [Asset scale study](../research/asset-scale-study.md).
+> It is implemented rather than proposed:
+> `src/stage_gen/components/sideview_actor/asset_unit.py` resolves, measures and
+> admits one package's magnitudes against the canonical player height, and both
+> side-view recipes read it. It still does not track migration work or serve as
+> a project plan. The measurements that motivate every choice here are recorded
+> in [Asset scale study](../research/asset-scale-study.md).
 
 ![The same map, camera and artwork rendered twice: above, a per-class pixel constant applied to each untrimmed canvas; below, each subject's declared height_units projected through the asset unit, with a ruler marking one, two and three player heights](../media/asset-unit-calibration.webp)
 
