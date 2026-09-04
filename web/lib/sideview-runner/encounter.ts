@@ -33,11 +33,12 @@ import {
   createBossState,
   encounterStreamsArena,
   laneSeedFor,
-  mulberry32,
+
   salvoRows,
   shotBox,
   shotExpired,
 } from "./encounter-arithmetic";
+import { mulberry32 } from "@/lib/kernel/rng";
 import { chunkAt } from "./segments";
 import type { RunnerWorld } from "./world";
 

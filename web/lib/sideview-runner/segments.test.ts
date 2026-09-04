@@ -12,7 +12,7 @@ import {
   surfaceRowAt,
   windowOccupancyGrid,
 } from "./segments";
-import { mulberry32 } from "./world";
+import { mulberry32 } from "@/lib/kernel/rng";
 
 function chunkFixture(overrides: Partial<RunnerChunk> = {}): RunnerChunk {
   return {

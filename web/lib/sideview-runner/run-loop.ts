@@ -12,7 +12,8 @@
 // just played. Replaying the same seed is a deliberate act through the boot
 // handle, not an input gesture.
 
-import { resetRunnerWorld, type Rng, type RunnerWorld } from "./world";
+import type { Rng } from "@/lib/kernel/rng";
+import { resetRunnerWorld, type RunnerWorld } from "./world";
 import type { GameSystem } from "@/lib/kernel/systems";
 
 /** What one collected pickup is worth before the chain multiplier. */

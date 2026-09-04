@@ -25,7 +25,7 @@ const { SILENT_AUDIO_SINK } = await import("./audio");
 const { createRunnerWorld } = await import("./world");
 const { parseRunnerRuntimeManifest } = await import("./contract");
 const { runnerManifestFixture } = await import("./fixture");
-const { createFixedStepAccumulator } = await import("./fixed-step");
+const { createFixedStepAccumulator } = await import("@/lib/kernel/fixed-step");
 
 const SEED = 0x5eed_1234;
 const FRAMES = 600;

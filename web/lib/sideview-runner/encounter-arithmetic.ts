@@ -21,6 +21,7 @@
 // duration, the hit flash — and no refusal reads them.
 
 import { createGauge, type Gauge } from "@/lib/kernel/gauge";
+import type { Rng } from "@/lib/kernel/rng";
 
 /** The published encounter arithmetic, camel-cased from the manifest. */
 export interface EncounterConfig {
@@ -219,20 +220,6 @@ export function bossApproach(
 
 export function bossRetreat(currentOffsetColumns: number, dt: number): number {
   return currentOffsetColumns + BOSS_RETREAT_COLUMNS_PER_SECOND * dt;
-}
-
-/** A small deterministic generator, seeded per encounter. */
-export type Rng = () => number;
-
-export function mulberry32(seed: number): Rng {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
 }
 
 /**

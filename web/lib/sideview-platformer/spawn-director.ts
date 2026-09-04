@@ -1,3 +1,6 @@
+import { fnv1a32 } from "@/lib/kernel/hash";
+import { mulberry32, type Rng } from "@/lib/kernel/rng";
+
 export type SpawnVisibility =
   | "offscreen_required"
   | "offscreen_preferred"
@@ -632,31 +635,27 @@ interface MapState {
   nextZoneIndex: number;
 }
 
+/**
+ * The director's stream, over the kernel's generator.
+ *
+ * This was a fourth hand-rolled mulberry32; it is the same arithmetic, with
+ * the same zero-seed substitution, so every population the director has ever
+ * spawned from a given seed it still spawns.
+ */
 class DeterministicRandom {
-  private state: number;
+  private readonly draw: Rng;
 
   constructor(seed: number) {
-    this.state = seed >>> 0;
-    if (this.state === 0) this.state = 0x6d2b79f5;
+    this.draw = mulberry32((seed >>> 0) === 0 ? 0x6d2b79f5 : seed >>> 0);
   }
 
   next(): number {
-    this.state = (this.state + 0x6d2b79f5) >>> 0;
-    let value = this.state;
-    value = Math.imul(value ^ (value >>> 15), value | 1);
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-    return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296;
+    return this.draw();
   }
 }
 
-function hashString(value: string): number {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return hash >>> 0;
-}
+/** The tree's one string hash, under the name this module has always used. */
+const hashString = fnv1a32;
 
 function mixSeed(seed: number, mapId: string, zoneId: string, salt: number): number {
   let mixed = seed >>> 0;

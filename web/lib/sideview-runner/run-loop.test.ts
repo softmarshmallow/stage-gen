@@ -3,7 +3,8 @@ import { createRunLoopSystem, nextRunSeed, PICKUP_SCORE } from "./run-loop";
 import { parseRunnerRuntimeManifest } from "./contract";
 import { runnerManifestFixture } from "./fixture";
 import { runnerIntent } from "./intent";
-import { createRunnerWorld, mulberry32 } from "./world";
+import { mulberry32 } from "@/lib/kernel/rng";
+import { createRunnerWorld } from "./world";
 
 const STEP = { dt: 1 / 60, now: 1 / 60, frame: 1 } as const;
 const manifest = parseRunnerRuntimeManifest(runnerManifestFixture());

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { mulberry32 } from "@/lib/kernel/rng";
 import {
   BOSS_APPROACH_COLUMNS_PER_SECOND,
   BOSS_HALF_WIDTH_FRACTION,
@@ -16,7 +17,6 @@ import {
   createEncounterState,
   encounterStreamsArena,
   laneSeedFor,
-  mulberry32,
   salvoRows,
   shotBox,
   shotExpired,

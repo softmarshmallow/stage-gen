@@ -5,26 +5,13 @@
 // fix mob/player Y positions.
 //
 // Determinism: SAME tag → SAME heightmap, byte-for-byte. We seed a small
-// xorshift32 PRNG from a 32-bit FNV-1a hash of the tag, then sample.
+// xorshift32 PRNG from a 32-bit FNV-1a hash of the tag, then sample. Both of
+// those now come from the kernel, which holds the tree's one hash and one
+// generator: same constants, same arithmetic, same stream, so every heightmap
+// baked before the move comes out byte-identical after it.
 
-function fnv1a32(s: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return h >>> 0;
-}
-
-function makeRng(seed: number): () => number {
-  let x = (seed | 0) || 1;
-  return () => {
-    x ^= x << 13;
-    x ^= x >>> 17;
-    x ^= x << 5;
-    return ((x >>> 0) % 0x100000000) / 0x100000000;
-  };
-}
+import { fnv1a32 } from "@/lib/kernel/hash";
+import { xorshift32 as makeRng } from "@/lib/kernel/rng";
 
 export type HeightmapOpts = {
   /** Number of tile columns to generate. */

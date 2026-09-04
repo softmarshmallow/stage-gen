@@ -5,7 +5,8 @@ import { parseRunnerRuntimeManifest } from "./contract";
 import { runnerManifestFixture } from "./fixture";
 import { runnerIntent } from "./intent";
 import { createSegmentStream, streamAhead } from "./segments";
-import { createRunnerWorld, mulberry32, type RunnerWorld } from "./world";
+import { mulberry32 } from "@/lib/kernel/rng";
+import { createRunnerWorld, type RunnerWorld } from "./world";
 
 const DT = 1 / 60;
 const manifest = parseRunnerRuntimeManifest(runnerManifestFixture());

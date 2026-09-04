@@ -3,8 +3,10 @@
 // The world is data, the systems are behavior, and the seed is identity: a
 // world created from the same manifest and seed streams the same chunks and
 // scores the same run, which is what makes a report about a run repeatable.
-// The RNG is mulberry32 — tiny, deterministic, and good enough for chunk
-// selection, which is the only random decision the runner makes.
+// The generator is the kernel's — mulberry32, tiny and deterministic, and
+// good enough for chunk selection, which is the only random decision the
+// runner makes. It used to be declared here as well as in
+// `encounter-arithmetic.ts`, two byte-identical copies of one guarantee.
 
 import type {
   RunnerRuntimeManifest,
@@ -16,6 +18,7 @@ import { beginFxMoment, type FxState } from "@/lib/fx/moment-system";
 import type { FxMoment } from "@/lib/manifest/fx";
 import { createEventQueue, type EventQueue } from "@/lib/kernel/events";
 import { createGauge } from "@/lib/kernel/gauge";
+import { mulberry32, type Rng } from "@/lib/kernel/rng";
 import type { GameSystem } from "@/lib/kernel/systems";
 import type { RunnerEvent, VitalsState } from "./vitals";
 import type { DifficultyState } from "./difficulty";
@@ -33,20 +36,6 @@ import {
   type SegmentStream,
   type StreamedPickup,
 } from "./segments";
-
-export type Rng = () => number;
-
-/** The classic mulberry32: 32-bit state, uniform floats in [0, 1). */
-export function mulberry32(seed: number): Rng {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 /**
  * `intro` holds the simulation while a screen-FX moment plays over it; the

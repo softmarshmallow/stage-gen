@@ -43,7 +43,7 @@ import {
 import { buildBossView } from "./boss-view";
 import { createEncounterSystem } from "./encounter";
 import type { RunnerEncounterBinding } from "./world";
-import { createFixedStepAccumulator } from "./fixed-step";
+import { createFixedStepAccumulator } from "@/lib/kernel/fixed-step";
 import { buildHud, createHudSystem, type HudView } from "./hud";
 import {
   attachKeyboardIntentSource,

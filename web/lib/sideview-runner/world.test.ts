@@ -5,7 +5,6 @@ import {
   cameraScrollX,
   createRunnerWorld,
   groundLineY,
-  mulberry32,
   resetRunnerWorld,
   rowToScreenY,
   RUNNER_VIEW_HEIGHT,
@@ -13,28 +12,6 @@ import {
 } from "./world";
 
 const manifest = parseRunnerRuntimeManifest(runnerManifestFixture());
-
-describe("mulberry32", () => {
-  test("is deterministic and uniform-ish in [0, 1)", () => {
-    const a = mulberry32(1234);
-    const b = mulberry32(1234);
-    const values = Array.from({ length: 100 }, () => a());
-    expect(Array.from({ length: 100 }, () => b())).toEqual(values);
-    for (const value of values) {
-      expect(value).toBeGreaterThanOrEqual(0);
-      expect(value).toBeLessThan(1);
-    }
-    expect(new Set(values).size).toBeGreaterThan(90);
-  });
-
-  test("different seeds produce different streams", () => {
-    const a = mulberry32(1);
-    const b = mulberry32(2);
-    expect(Array.from({ length: 8 }, () => a())).not.toEqual(
-      Array.from({ length: 8 }, () => b()),
-    );
-  });
-});
 
 describe("createRunnerWorld", () => {
   test("primes a streamed window the avatar can stand on immediately", () => {
