@@ -41,11 +41,12 @@ import {
 } from "./room-hud";
 import { bagItemIds } from "@/lib/families/inventory";
 import {
-  clickHotspot,
+  clickHotspotTurn,
   hotspotVisible,
   initialState,
-  inspectHotspot,
+  interactTurn,
   selectItem,
+  type RoomEvent,
   type RoomPlayState,
 } from "./state";
 
@@ -105,6 +106,8 @@ export interface RoomGameOptions {
 
 class RoomScene extends hostScene<RoomPlayState>(Phaser.Scene) {
   private state: RoomPlayState;
+  /** What the last click raised, published once and then forgotten. */
+  private turnEvents: readonly RoomEvent[] = [];
   private mode: VerbMode = "act";
   private hintsVisible = false;
   private pressStartedAt = 0;
@@ -252,10 +255,14 @@ class RoomScene extends hostScene<RoomPlayState>(Phaser.Scene) {
       secondary: pointer.rightButtonReleased(),
       heldMs: this.time.now - this.pressStartedAt,
     });
-    this.state =
+    const turn =
       verb === "inspect"
-        ? inspectHotspot(this.manifest, this.state, hotspotId)
-        : clickHotspot(this.manifest, this.state, hotspotId);
+        ? interactTurn(this.manifest, this.state, "inspect", hotspotId)
+        : clickHotspotTurn(this.manifest, this.state, hotspotId);
+    this.state = turn.state;
+    // Carried to `render`, which is the one place this scene tells a host
+    // anything: what happened on this click and not merely what is true after it.
+    this.turnEvents = turn.events;
     this.render();
   }
 
@@ -464,7 +471,8 @@ class RoomScene extends hostScene<RoomPlayState>(Phaser.Scene) {
   /** One pass over the whole view from the reducer's state: no partial updates. */
   private render(): void {
     this.options.onChange?.(this.state);
-    this.publish(this.state);
+    this.publish(this.state, this.turnEvents);
+    this.turnEvents = [];
     for (const hotspot of this.manifest.hotspots) {
       const object = this.hotspotObjects.get(hotspot.id);
       if (object === undefined) continue;

@@ -21,7 +21,56 @@ import {
   sealEffectVocabulary,
   type LoweredEffect,
 } from "@/lib/families/effects";
+import type { GameEvent } from "@/lib/kernel/events";
 import type { RoomEffect, RoomManifest, Verb } from "./contract";
+
+// ------------------------------------------------------------------- events
+//
+// The reducer knew what happened at every click and threw it away: it answered a
+// new state, and a consumer that wanted the edge — which interaction fired, which
+// operation ran, whether this click was the one that solved the room — had to
+// diff two states and guess. That is the failure `kernel/events.ts` exists to
+// end, and it is why this reducer had no replay golden: there was nothing per
+// step to hash but a position.
+//
+// The names are the composition table's, not new ones: `interaction/outcome` and
+// `interaction/refused` belong to the `interaction` family, `effects/applied` to
+// `effects`. The room is one consumer of each.
+
+export interface InteractionOutcome extends GameEvent {
+  readonly type: "interaction/outcome";
+  /** The authored index that won. The room's affordance selection has no distance. */
+  readonly index: number;
+  readonly verb: Verb;
+  readonly hotspot: string;
+  readonly item: string | null;
+}
+
+export interface InteractionRefused extends GameEvent {
+  readonly type: "interaction/refused";
+  readonly verb: Verb;
+  readonly hotspot: string;
+  readonly item: string | null;
+}
+
+export interface EffectApplied extends GameEvent {
+  readonly type: "effects/applied";
+  readonly operation: (typeof ROOM_EFFECT_OPERATIONS)[number];
+  readonly payload: string;
+}
+
+/** The room's win condition became true on this click, and not before. */
+export interface RoomSolved extends GameEvent {
+  readonly type: "room/solved";
+}
+
+export type RoomEvent = InteractionOutcome | InteractionRefused | EffectApplied | RoomSolved;
+
+/** One click, and everything that happened inside it. */
+export interface RoomTurn {
+  readonly state: RoomPlayState;
+  readonly events: readonly RoomEvent[];
+}
 
 export interface RoomPlayState {
   readonly flags: readonly string[];
@@ -175,6 +224,7 @@ function applyInteraction(
   manifest: RoomManifest,
   state: RoomPlayState,
   index: number,
+  events: RoomEvent[],
 ): RoomPlayState {
   const interaction = manifest.interactions[index];
   const flags = new Set(state.flags);
@@ -187,21 +237,25 @@ function applyInteraction(
   // `inventory` bag — and none of them writes a slice this reducer does not own.
   const vocabulary = sealEffectVocabulary<string>(ROOM_EFFECT_OPERATIONS, {
     set_flag: (flag) => {
+      events.push({ type: "effects/applied", operation: "set_flag", payload: flag });
       flags.add(flag);
     },
     // The unit grant, and the sentence that keeps this bag a set: a room's item
     // is carried or it is not, so a second `grant_item` for the same name is
     // the no-op `Set.add` always was rather than a second unit.
     grant_item: (itemId) => {
+      events.push({ type: "effects/applied", operation: "grant_item", payload: itemId });
       if (carried(inventory, itemId) < 1) {
         inventory = grant(inventory, itemId, 1, UNLIMITED).bag;
       }
     },
     // `remove_item` takes the stack, however deep it is.
     remove_item: (itemId) => {
+      events.push({ type: "effects/applied", operation: "remove_item", payload: itemId });
       inventory = consume(inventory, itemId, carried(inventory, itemId)).bag;
     },
     reveal_hotspot: (hotspotId) => {
+      events.push({ type: "effects/applied", operation: "reveal_hotspot", payload: hotspotId });
       revealed.add(hotspotId);
     },
   });
@@ -211,6 +265,7 @@ function applyInteraction(
   const fired =
     interaction.effects.length > 0 ? [...state.fired, index].sort((a, b) => a - b) : state.fired;
   const solved = manifest.win.requires.every((flag) => flags.has(flag));
+  if (solved && !state.solved) events.push({ type: "room/solved" });
   const narration =
     solved && !state.solved
       ? `${interaction.narration} ${manifest.win.narration}`
@@ -243,16 +298,38 @@ export function interact(
   hotspotId: string,
   item: string | null = null,
 ): RoomPlayState {
+  return interactTurn(manifest, state, verb, hotspotId, item).state;
+}
+
+/** The same click, with the occurrences inside it. */
+export function interactTurn(
+  manifest: RoomManifest,
+  state: RoomPlayState,
+  verb: Verb,
+  hotspotId: string,
+  item: string | null = null,
+): RoomTurn {
+  const events: RoomEvent[] = [];
   const index = selectAffordance<number>({
     candidates: manifest.interactions.map((_, at) => at),
     available: (at) => interactionAvailable(manifest, state, at, verb, hotspotId, item),
   });
-  if (index !== null) return applyInteraction(manifest, state, index);
-  return {
-    ...state,
-    selectedItem: null,
-    narration: item === null ? MISS_LINE : MISS_WITH_ITEM_LINE,
-  };
+  if (index !== null) {
+    events.push({ type: "interaction/outcome", index, verb, hotspot: hotspotId, item });
+    // The effects run inside `applyInteraction`, so the outcome is announced
+    // first and the operations it performed follow it, in authored order.
+    const next = applyInteraction(manifest, state, index, events);
+    return Object.freeze({ state: next, events: Object.freeze(events) });
+  }
+  events.push({ type: "interaction/refused", verb, hotspot: hotspotId, item });
+  return Object.freeze({
+    state: {
+      ...state,
+      selectedItem: null,
+      narration: item === null ? MISS_LINE : MISS_WITH_ITEM_LINE,
+    },
+    events: Object.freeze(events),
+  });
 }
 
 /**
@@ -264,13 +341,21 @@ export function clickHotspot(
   state: RoomPlayState,
   hotspotId: string,
 ): RoomPlayState {
+  return clickHotspotTurn(manifest, state, hotspotId).state;
+}
+
+export function clickHotspotTurn(
+  manifest: RoomManifest,
+  state: RoomPlayState,
+  hotspotId: string,
+): RoomTurn {
   if (state.selectedItem !== null) {
-    return interact(manifest, state, "use", hotspotId, state.selectedItem);
+    return interactTurn(manifest, state, "use", hotspotId, state.selectedItem);
   }
   const bareUse = manifest.interactions.some((interaction, index) =>
     interactionAvailable(manifest, state, index, "use", hotspotId, null),
   );
-  return interact(manifest, state, bareUse ? "use" : "inspect", hotspotId);
+  return interactTurn(manifest, state, bareUse ? "use" : "inspect", hotspotId);
 }
 
 export function inspectHotspot(

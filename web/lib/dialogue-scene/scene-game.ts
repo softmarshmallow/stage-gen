@@ -49,7 +49,9 @@ import {
 import { scenarioActionForKey, scenarioOptionForKey } from "@/lib/scenario/keys";
 import {
   initialScenarioState,
-  reduceScenario,
+  reduceScenarioTurn,
+  type ScenarioAction,
+  type ScenarioEvent,
   restoreScenarioState,
   scenarioIsFinished,
   scenarioProgress,
@@ -147,6 +149,8 @@ export interface DialogueSceneOptions {
 
 class DialogueScene extends hostScene<ScenarioState>(Phaser.Scene) {
   private playback: ScenarioState;
+  /** What the last action raised, published once and then forgotten. */
+  private turnEvents: readonly ScenarioEvent[] = [];
   private readonly audio: ScenarioAudio;
 
   private backdrop!: Phaser.GameObjects.Image;
@@ -365,7 +369,7 @@ class DialogueScene extends hostScene<ScenarioState>(Phaser.Scene) {
       .setVisible(false);
   }
 
-  private act(action: Parameters<typeof reduceScenario>[2]): void {
+  private act(action: ScenarioAction): void {
     // Advancing off the end plays again rather than doing nothing. The reducer
     // is right to hold at the ending - that is what "finished" means - but a tap
     // that visibly does nothing reads as a broken scene, so the view decides
@@ -386,9 +390,14 @@ class DialogueScene extends hostScene<ScenarioState>(Phaser.Scene) {
     // Every advance is a user gesture, which is exactly what a browser wants
     // before it will start audio: the opening `play` lands on the first tap.
     this.audio.unlock();
-    const next = reduceScenario(this.fixture.scenario, this.playback, intent);
-    if (next === this.playback) return;
-    this.playback = next;
+    const turn = reduceScenarioTurn(this.fixture.scenario, this.playback, intent);
+    if (turn.state === this.playback) return;
+    this.playback = turn.state;
+    // Carried to `render`, which is the one place this scene tells a host
+    // anything: every invisible statement the settle walked, not just where it
+    // stopped. A host that heard only the position would be diffing states to
+    // rediscover a backdrop change the reducer knew for certain.
+    this.turnEvents = turn.events;
     this.render();
   }
 
@@ -409,7 +418,8 @@ class DialogueScene extends hostScene<ScenarioState>(Phaser.Scene) {
   private render(): void {
     const view = scenarioView(this.fixture.scenario, this.playback);
     this.report(view);
-    this.publish(this.playback);
+    this.publish(this.playback, this.turnEvents);
+    this.turnEvents = [];
     this.audio.apply(this.playback.tracks);
     this.renderStage();
     this.renderCast(view?.kind === "line" ? view.speaker : null);

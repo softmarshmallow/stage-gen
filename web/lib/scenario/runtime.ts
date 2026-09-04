@@ -62,6 +62,80 @@ export interface ScenarioEndView {
 
 export type ScenarioView = ScenarioLineView | ScenarioChoiceView | ScenarioEndView;
 
+// ------------------------------------------------------------------- events
+//
+// The reducer has always known exactly what happened at every step and thrown it
+// away: `settle` walks the invisible statements — a stage change, a cast entry, a
+// flag, a branch — and answers with a state that says where it ended and nothing
+// about how. A consumer that needed an edge had to diff two states and guess,
+// which is the failure `kernel/events.ts` was written to end, and it is why this
+// reducer had no replay golden: there was nothing per step to hash but a
+// position.
+//
+// Now every transition names itself. The events are the scenario's own — no
+// genre vocabulary, no drawing — and they are the second half of what E1 hashes.
+
+import type { GameEvent } from "@/lib/kernel/events";
+
+export interface ScenarioPresented extends GameEvent {
+  readonly type: "scenario/presented";
+  readonly statementId: string;
+  readonly kind: "line" | "choice";
+}
+
+export interface ScenarioBranched extends GameEvent {
+  readonly type: "scenario/branched";
+  readonly from: string;
+  readonly to: string;
+  /** `jump` is unconditional; `branch` took the first satisfied edge. */
+  readonly cause: "jump" | "branch" | "choice";
+}
+
+export interface ScenarioFlagChanged extends GameEvent {
+  readonly type: "scenario/flag-changed";
+  readonly flag: string;
+  readonly value: boolean;
+}
+
+export interface ScenarioStaged extends GameEvent {
+  readonly type: "scenario/staged";
+  readonly stage: string;
+}
+
+export interface ScenarioActorChanged extends GameEvent {
+  readonly type: "scenario/actor-changed";
+  readonly actorId: string;
+  /** `null` when the actor left the stage. */
+  readonly slot: ScenarioSlot | null;
+  readonly expression: string | null;
+}
+
+export interface ScenarioAudioChanged extends GameEvent {
+  readonly type: "scenario/audio-changed";
+  readonly track: string;
+  readonly action: "play" | "stop";
+}
+
+export interface ScenarioEnded extends GameEvent {
+  readonly type: "scenario/ended";
+  readonly outcome: string;
+}
+
+export type ScenarioEvent =
+  | ScenarioPresented
+  | ScenarioBranched
+  | ScenarioFlagChanged
+  | ScenarioStaged
+  | ScenarioActorChanged
+  | ScenarioAudioChanged
+  | ScenarioEnded;
+
+/** One transition, and everything that happened inside it. */
+export interface ScenarioTurn {
+  readonly state: ScenarioState;
+  readonly events: readonly ScenarioEvent[];
+}
+
 export type ScenarioAction =
   | { readonly kind: "advance" }
   | { readonly kind: "choose"; readonly option: number }
@@ -81,17 +155,31 @@ export function initialScenarioState(
   program: ScenarioProgram,
   carried: readonly string[] = [],
 ): ScenarioState {
+  return initialScenarioTurn(program, carried).state;
+}
+
+/** The opening, with everything the settle did on the way to the first moment. */
+export function initialScenarioTurn(
+  program: ScenarioProgram,
+  carried: readonly string[] = [],
+): ScenarioTurn {
   const declared = new Set(program.importedFlags);
-  return settle(program, {
-    label: program.entry,
-    index: -1,
-    flags: Object.freeze([...new Set(carried.filter((flag) => declared.has(flag)))].sort()),
-    seen: [],
-    stage: null,
-    actors: [],
-    tracks: [],
-    outcome: null,
-  });
+  const events: ScenarioEvent[] = [];
+  const state = settle(
+    program,
+    {
+      label: program.entry,
+      index: -1,
+      flags: Object.freeze([...new Set(carried.filter((flag) => declared.has(flag)))].sort()),
+      seen: [],
+      stage: null,
+      actors: [],
+      tracks: [],
+      outcome: null,
+    },
+    events,
+  );
+  return Object.freeze({ state, events: Object.freeze(events) });
 }
 
 /**
@@ -152,21 +240,47 @@ export function reduceScenario(
   state: ScenarioState,
   action: ScenarioAction,
 ): ScenarioState {
-  if (action.kind === "restart") return initialScenarioState(program);
-  if (state.outcome !== null) return state;
+  return reduceScenarioTurn(program, state, action).state;
+}
+
+/**
+ * One transition, and the occurrences inside it.
+ *
+ * The same reducer; what is added is a record of the invisible statements the
+ * settle walked through on the way to the next moment. A turn that moves nothing
+ * — a stray key at an ending, a choice that was not offered — reports no events,
+ * which is what makes "nothing happened" a checkable answer rather than an
+ * unchanged object a caller has to notice by identity.
+ */
+export function reduceScenarioTurn(
+  program: ScenarioProgram,
+  state: ScenarioState,
+  action: ScenarioAction,
+): ScenarioTurn {
+  if (action.kind === "restart") return initialScenarioTurn(program);
+  const events: ScenarioEvent[] = [];
+  const turn = (next: ScenarioState): ScenarioTurn =>
+    Object.freeze({ state: next, events: Object.freeze(events) });
+  if (state.outcome !== null) return turn(state);
 
   const statement = statementAt(program, state);
-  if (statement === null) return state;
+  if (statement === null) return turn(state);
 
   if (statement.kind === "choice") {
-    if (action.kind !== "choose") return state;
+    if (action.kind !== "choose") return turn(state);
     const available = availableOptions(statement.options, state.flags);
     const chosen = available[action.option];
-    if (chosen === undefined) return state;
-    return settle(program, { ...state, label: chosen.target, index: -1 });
+    if (chosen === undefined) return turn(state);
+    events.push({
+      type: "scenario/branched",
+      from: state.label,
+      to: chosen.target,
+      cause: "choice",
+    });
+    return turn(settle(program, { ...state, label: chosen.target, index: -1 }, events));
   }
-  if (action.kind !== "advance") return state;
-  return settle(program, { ...state, index: state.index + 1 });
+  if (action.kind !== "advance") return turn(state);
+  return turn(settle(program, { ...state, index: state.index + 1 }, events));
 }
 
 /** What is on screen now: a line, a choice, or the end card. */
@@ -235,7 +349,11 @@ export function scenarioActor(state: ScenarioState, actorId: string): ScenarioAc
  * what keeps "what is drawn" a pure function of the state, instead of something
  * the view has to re-derive by peeking at the next few statements.
  */
-function settle(program: ScenarioProgram, start: ScenarioState): ScenarioState {
+function settle(
+  program: ScenarioProgram,
+  start: ScenarioState,
+  events: ScenarioEvent[],
+): ScenarioState {
   let state = start;
   // The program is a finite graph whose every block terminates, and the proof
   // refused any that could not reach an `end`. A cycle of invisible statements
@@ -250,9 +368,20 @@ function settle(program: ScenarioProgram, start: ScenarioState): ScenarioState {
       state = { ...state, index: 0 };
       continue;
     }
-    if (isPresented(statement)) return markSeen(speak(state, statement));
-    state = apply(program, state, statement);
-    if (state.outcome !== null) return state;
+    if (isPresented(statement)) {
+      const settled = markSeen(speak(state, statement, events));
+      events.push({
+        type: "scenario/presented",
+        statementId: scenarioStatementId(settled.label, settled.index),
+        kind: statement.kind === "choice" ? "choice" : "line",
+      });
+      return settled;
+    }
+    state = apply(program, state, statement, events);
+    if (state.outcome !== null) {
+      events.push({ type: "scenario/ended", outcome: state.outcome });
+      return state;
+    }
   }
   throw new Error("scenario runtime exceeded its step bound; the program is not walkable");
 }
@@ -261,11 +390,18 @@ function apply(
   program: ScenarioProgram,
   state: ScenarioState,
   statement: ScenarioStatement,
+  events: ScenarioEvent[],
 ): ScenarioState {
   switch (statement.kind) {
     case "show": {
       const others = state.actors.filter((actor) => actor.actorId !== statement.actor);
       const previous = scenarioActor(state, statement.actor);
+      events.push({
+        type: "scenario/actor-changed",
+        actorId: statement.actor,
+        slot: statement.slot,
+        expression: statement.expression ?? previous?.expression ?? null,
+      });
       return {
         ...state,
         index: state.index + 1,
@@ -280,14 +416,26 @@ function apply(
       };
     }
     case "hide":
+      events.push({
+        type: "scenario/actor-changed",
+        actorId: statement.actor,
+        slot: null,
+        expression: null,
+      });
       return {
         ...state,
         index: state.index + 1,
         actors: state.actors.filter((actor) => actor.actorId !== statement.actor),
       };
     case "stage":
+      events.push({ type: "scenario/staged", stage: statement.stage });
       return { ...state, index: state.index + 1, stage: statement.stage };
     case "audio":
+      events.push({
+        type: "scenario/audio-changed",
+        track: statement.track,
+        action: statement.action,
+      });
       return {
         ...state,
         index: state.index + 1,
@@ -297,6 +445,11 @@ function apply(
             : state.tracks.filter((track) => track !== statement.track),
       };
     case "set":
+      events.push({
+        type: "scenario/flag-changed",
+        flag: statement.flag,
+        value: statement.value,
+      });
       return {
         ...state,
         index: state.index + 1,
@@ -305,11 +458,19 @@ function apply(
           : state.flags.filter((flag) => flag !== statement.flag),
       };
     case "jump":
+      events.push({
+        type: "scenario/branched",
+        from: state.label,
+        to: statement.target,
+        cause: "jump",
+      });
       return { ...state, label: statement.target, index: 0 };
     case "branch": {
       // First satisfied edge, exactly as the admission proof searched it.
       const edge = statement.edges.find((entry) => holds(entry.condition, state.flags));
-      return { ...state, label: edge?.target ?? statement.default, index: 0 };
+      const target = edge?.target ?? statement.default;
+      events.push({ type: "scenario/branched", from: state.label, to: target, cause: "branch" });
+      return { ...state, label: target, index: 0 };
     }
     case "end":
       return { ...state, outcome: statement.outcome };
@@ -325,12 +486,22 @@ function apply(
  * `show` last put her. Staging itself stays `show`'s job - a line spoken from
  * off stage changes nothing.
  */
-function speak(state: ScenarioState, statement: ScenarioStatement): ScenarioState {
+function speak(
+  state: ScenarioState,
+  statement: ScenarioStatement,
+  events: ScenarioEvent[],
+): ScenarioState {
   if (statement.kind !== "line" || statement.speaker === null || statement.expression === null) {
     return state;
   }
   const staged = scenarioActor(state, statement.speaker);
   if (staged === null || staged.expression === statement.expression) return state;
+  events.push({
+    type: "scenario/actor-changed",
+    actorId: statement.speaker,
+    slot: staged.slot,
+    expression: statement.expression,
+  });
   return {
     ...state,
     actors: state.actors.map((actor) =>
