@@ -1,127 +1,15 @@
-"""Pinned identity for the prepared-game plan.
+"""Bellweather's planned graph is pinned, and a moved node is named.
 
-The engine may move; the graph a package plans to may not. These digests must
-only ever change when the recipe deliberately changes what it plans — never as
-a side effect of moving code, renaming a symbol, or re-declaring a provider
-route. Re-pinned 2026-08-31 for the node-ABI schema bump (typed nodes, ports,
-and the taxonomy-aligned persisted vocabulary), which changed every digest by
-design in one coordinated move.
+Two things are pinned. The topology digest and the node count say the graph
+has the same shape; they move rarely and a move is worth a sentence. The
+cache-key golden - ``bellweather.cache-keys.json``, one line per node - says
+which nodes would re-bill; when it moves, the diff of the golden file names
+the nodes, and the failure message counts the provider operations among them.
 
-Re-pinned again 2026-08-31: the node card gained ``authored_inputs`` so that a
-package member a node is handed can never be invisible in the plan. Bellweather
-plans exactly the same work — the topology digest below is unchanged, and no
-cache key moved, because the card is not part of one — but every card now
-carries the field, so the document digest moves with it. This recipe declares
-no authored inputs yet; wiring its reference images through the new field is a
-deliberate later change that will move this digest again.
-
-Re-pinned 2026-09-01 after the shared Bellweather container gained the required
-runner audio member and optional runner soundtrack. Platformer topology and
-operation count remain unchanged; the plan document binds the package closure,
-so its graph digest moves with those newly captured authored members.
-
-Re-pinned 2026-09-02 for ``alpha-component-repack-v3``. The fused-component fallback now
-requires one higher-alpha principal core in every expected source lattice slot. The local repack
-cache identity changed deliberately while provider operations and topology stayed fixed.
-
-Re-pinned again 2026-09-02 for ``runner-gameplay-v3``. Bellweather's runner member re-authored
-its gameplay closure - the collision box split away from what a contact costs, and a vitals
-gauge arrived, and the container's own revision moved with it - and the plan document binds the
-whole package closure, so the platformer's graph digest moves with a sibling member it does not
-read. Topology, node count, and operation counts are all unchanged, which is the same shape as
-the 2026-09-01 re-pin above.
-
-Re-pinned once more the same day when that runner member was retired outright. It was the
-vehicle the runner genre was built against before Iron Petal existed - a sprinting restyle of
-the platformer's own Wayfarer, reusing the same cover, referenced by no scenario, map, or
-gameplay member on the platformer side. Iron Petal is the canonical runner game now, so
-bellweather is a platformer package again and its closure shrinks by the whole ``runner/``
-prefix. Platformer topology and operation counts are still untouched; only the closure the
-document binds is smaller.
-
-Re-pinned 2026-09-02 for ``game-ui-v2``. Two nine-slice atlas roles (``panel_frame`` and a
-four-state ``button_rect`` sheet) join the UI domain as one generic typed triplet fanned out over
-the role: six nodes, two image and two structured operations, two local admissions. Topology,
-node count, and the UI cache identities all changed by design; the atlas image key hashes the
-role's geometry record rather than template bytes, so a rasterizer change cannot re-bill it.
-
-Re-pinned once more the same day for ``prepared-ui-atlas-validation-v2``: the atlas validate node
-gained its own identity so a richer record (the measured ornament-free ``safe_rect``) re-runs the
-local gate over cached sheets without touching the image key. Topology unchanged; the graph digest
-moves with the two validate cache identities.
-
-Re-pinned 2026-09-02 when the atlas triplet moved to its own home. Three other genres wanted the
-same two roles, so the nodes now carry the component's taxonomy path (``2d/ui/atlas.*``) instead
-of this recipe's, and the prompt they send is composed at plan time onto the card rather than in
-the handler. A cache key hashes the type id, so the six UI atlas keys move and Bellweather re-bills
-its two sheets exactly once; the topology digest moves with the renamed types, and every other
-node in the plan is untouched.
-
-Re-pinned 2026-09-02 for Bellweather's gameplay member at revision 5: the package now names the
-``melee_sweep_v1`` weapon class and the ``arcade_v1`` number scale, both closed names the consumer
-turns into numbers, and roughly doubles each hunting zone's population with a shorter respawn, so
-no image or structured operation moves and topology is unchanged. The plan
-document binds the whole closure, so the graph digest moves with the authored bytes. The working
-tree this was pinned against also carried the ``game-ui-v3`` bump to ``ui.toml``; the digest
-captures both, and lands or re-pins with that change.
-
-Re-pinned once more the same day when the mob content model gained its optional ``aggression``
-name and the manifest projection began carrying it. No authored byte moved, no operation moved;
-the plan document's package projection did.
-Re-pinned 2026-09-03 for ``game-ui-v4``: the preview icon set joins the UI domain as a third
-role of the same shared triplet — one image, one local admission, one structured review — so the
-node count rises by three and topology moves with the fan-out. The icon role is a fixed glyph grid
-the document may only restyle; the two nine-slice roles' cache identities are untouched, because a
-role's key hashes its own direction and geometry rather than the document as a whole.
-Re-pinned 2026-09-03 again when Crowncrag Road's terrain request went from 96x16 to 56x24 (walk
-surface row 21) with a brief that asks for storeys. The terrain table is the terrain node's own
-identity, so that node and the local composite and review behind it moved; no layer, ground,
-climbable, or portal image identity did, and the node count is unchanged.
-Re-pinned 2026-09-03 a third time for a topology fix the reshape exposed: ground validation
-composes its evidence over generated occupancy but declared no edge to the terrain node, so a
-cache-cold run scheduled it before terrain.json existed. The edge moves ground-validate's
-lineage and the topology digest; no provider node's identity moved.
-
-Re-pinned 2026-09-03 a fourth time for ``map-terrain-design-v2``: the recipe now fences the
-floor to a one-tile relief around the walk-surface datum instead of a free 1..8 depth, so the
-level's interest hangs above the ground as floating decks, and the grammar gained ``shelves``,
-the word that stacks decks over one column range. Neither lives in the authored terrain table,
-so a cached design composed under the old rule and vocabulary would otherwise be reused
-unexamined; the contract version is how both reach identity.
-Re-pinned 2026-09-03 a fifth time for ``map-terrain-design-v3``: shelves are held to a validated
-standing-room width, because the first v2 design took the advisory schema minimum of four
-tiles for every deck. Same two nodes move; topology and image identities hold.
-Re-pinned 2026-09-03 a sixth time for ``map-terrain-design-v4`` together with Crowncrag Road's
-own reshape from 56x24 to 56x14 (walk surface row 11). The v3 map was too tall to read and each
-shelves chunk was one narrow stack, so a shelves tier is now a lane of decks rather than a single
-deck and the grid was shortened to the storeys it actually needs. The map document and the
-contract version both feed the terrain node's key, so the same two nodes move.
-Only the two terrain nodes and their dependants move; topology and every image identity hold.
-Re-pinned 2026-09-03 a seventh time for authoring alone: the road's three spawn zones now name
-``terrain_and_decks``, so their creatures stand on the storeys over the bank as well as on it.
-That is a gameplay-document edit, so package resolve, gameplay validation, and the manifest move
-and nothing else does -- no terrain, layer, ground, climbable, or portal identity, and no
-provider node at all.
-Re-pinned 2026-09-03 an eighth time for a contract widening: ``[ground].mode`` is now a
-discriminated union, so a map may name ``painted-terrain-v1`` instead of the tile atlas, and the
-map document identity moved to ``game-map-v10``. No map declares the new mode -- it is opt-in and
-the atlas stays the default -- so the node COUNT and the topology are untouched, which is the
-point: landing a mode nobody has asked for must not move the shape of the graph. Seven nodes move
-on identity alone: package resolve, both map composites, both advisory map reviews, gameplay
-validation, and the manifest. No image node moves and no terrain design moves, so the widening
-re-bills nothing.
-Re-pinned 2026-09-03 a ninth time for authoring alone: Crowncrag Road's track was briefed as
-a calm open-air forest piece, which is the wrong music for a hunting ground, and is now a
-driving one written to loop under a long fight. A track's cache identity is its own authored
-entry, so package resolve, that one track's generate and validate, and the manifest move,
-and nothing else does -- the village's track and the battle cue are untouched, and no image
-node moves.
-Re-pinned 2026-09-03 a tenth time for authoring alone: Crowncrag Road's far horizon was sealed
-to the top edge, which pushed its peaks and its castle out of frame, and its midground was
-drawn at the same contrast as the terrain the player has to read against. The horizon now
-declares its own offset and both carry atmosphere. Placement and presentation are consumed
-downstream of generation, so no layer image moves -- one local layer validation, the composite,
-gameplay validation, the manifest, package resolve, and the advisory map review.
+That replaces a single whole-graph digest that conflated four independent
+facts (topology, node identity, cache keys, authored bytes) and was re-pinned
+in twelve commits over three days, each with a hand-written paragraph saying
+which of the four had moved. Now the diff says so.
 """
 
 from __future__ import annotations
@@ -133,12 +21,13 @@ from stage_gen.config import StageGenConfig
 from stage_gen.recipes.sideview_platformer.execution_graph import ExecutionGraph, OperationKind
 from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
 from stage_gen.recipes.sideview_platformer.package_types import platformer_type_index
+from tests.unit.recipes._cache_key_golden import assert_cache_keys_match_golden
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
 BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
+BELLWEATHER_CACHE_KEYS = Path(__file__).with_name("bellweather.cache-keys.json")
 
 BELLWEATHER_NODE_COUNT = 230
-BELLWEATHER_GRAPH_SHA256 = "b58d83f925437fdc3d50bde46a9806f6d1aebcd4e2e5bf9f29665649609ed359"
 BELLWEATHER_TOPOLOGY_SHA256 = "819c43338c5e6305746a4aaca59a1ee52ab712f09b073a36ff8504b1d839bc87"
 
 
@@ -150,8 +39,11 @@ def test_planning_bellweather_reproduces_its_pinned_identity() -> None:
     graph = _bellweather_graph()
 
     assert len(graph.nodes) == BELLWEATHER_NODE_COUNT
-    assert graph.graph_sha256 == BELLWEATHER_GRAPH_SHA256
     assert graph.topology_sha256 == BELLWEATHER_TOPOLOGY_SHA256
+
+
+def test_planning_bellweather_reproduces_its_cache_key_golden() -> None:
+    assert_cache_keys_match_golden(_bellweather_graph(), BELLWEATHER_CACHE_KEYS)
 
 
 def test_the_plan_document_keeps_its_declared_vocabulary() -> None:
