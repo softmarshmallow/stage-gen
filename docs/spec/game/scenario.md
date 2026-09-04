@@ -48,7 +48,7 @@ trade. Monogatari is web-native but DOM-based with its own format, which is the
 shape the scene consumer was deliberately moved off.
 
 **What is genuinely trivial, and what is not.** The interpreter is trivial: it
-is the conversation core in `web/lib/dialogue/` generalized from one statement
+is the conversation core in `web/lib/dialogue-scene/` generalized from one statement
 kind to about ten. What is engine-shaped is the *shell* — save slots, backlog,
 skip-already-read, preferences — and no option on the table supplies that on our
 engine anyway. That work is real, bounded, and shared with the platformer; see

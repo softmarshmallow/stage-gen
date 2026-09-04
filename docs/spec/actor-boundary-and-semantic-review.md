@@ -8,10 +8,12 @@ This note has two deliberately separate status classes:
   side-view platformer actor-facing review.
 - **Future proposal**: a reusable semantic-review capability and broader semantic criteria.
 
-The current code uses `src/stage_gen/components/structured_generation/` and
-`src/gnode/providers/openrouter/structured.py`. There is no
-`src/stage_gen/components/semantic_review/` package and no
-`src/gnode/providers/openrouter/review.py`. Those names appear only in the future section.
+Status (2026-09-04): the "current implementation" below describes the layout of
+August 2026. Structured generation has since moved to `src/gnode/modalities/structured/`
+over `src/gnode/providers/openrouter/structured.py`, and the recipe modules named
+here were folded into `src/stage_gen/media/` and the recipe's `motion_contract.py`.
+There is still no semantic_review package and no review.py provider module; those
+names appear only in the future section.
 
 This document does not define a migration path or parallel contract versions. Current
 identifiers below describe the one implementation accepted now. A future contract must replace
@@ -71,7 +73,7 @@ consumer adapters own runtime assumptions.
 src/stage_gen/media/images.py
   apply_chroma_transparency            soft matte and despill
 
-src/stage_gen/components/structured_generation/
+src/gnode/modalities/structured/
   StructuredGenerationService          provider-neutral strict structured output
 
 src/gnode/providers/openrouter/structured.py
@@ -114,8 +116,8 @@ Two rules constrain that proposal:
 
 ### Current state
 
-The deterministic boundary pipeline is implemented in
-`src/stage_gen/recipes/sideview_platformer/raster_contracts.py`:
+The deterministic boundary pipeline was implemented in the recipe's former
+`raster_contracts.py`; its functions now live in `src/stage_gen/media/`:
 
 | function | role |
 |---|---|
@@ -191,7 +193,8 @@ remains a possible future policy, not a current contract.
 ### Current actor-facing gate
 
 The current acceptance slice specified here is recipe-specific and covers actor facing. The
-exact identifiers in `src/stage_gen/recipes/sideview_platformer/review_criteria.py` are:
+exact identifiers in the recipe's former `review_criteria.py` (the facing vocabulary now
+lives in `src/stage_gen/recipes/sideview_platformer/motion_contract.py`) were:
 
 | identifier | current value or role |
 |---|---|

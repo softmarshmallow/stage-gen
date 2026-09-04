@@ -86,7 +86,7 @@ the old names.
 | `web/lib/sideview-platformer` | `web/lib/sideview-platformer` | consumer adapter for `2d/sideview/platformer` | d |
 | `web/lib/pointclick` | new in the ABI pass | consumer adapter for `2d/roomview/pointclick` | d |
 | `web/lib/dialogue-scene` | unchanged | consumer adapter for `2d/frontview/vn/scene` | d |
-| `web/lib/dialogue` | new | the agnostic conversation core both genres walk | a |
+| `web/lib/dialogue-scene` | new | the agnostic conversation core both genres walk | a |
 | `components/actor_content` | new in the runner pass | `2d/actor_content` | b — shared drawn-actor blocks (references, motion playback) |
 | `components/runner_gameplay` | new in the runner pass | `2d/sideview/runner/gameplay` | d |
 | `components/runner_track` | new in the runner pass | `2d/sideview/runner/track` | d — authored tiled segments over the shared side-view stage |
@@ -95,7 +95,7 @@ the old names.
 | `components/sideview_actor` | lifted from the platformer recipe | `2d/sideview/actor` | c — magnitude, strip geometry, rebase admission |
 | `components/sideview_layers` | lifted from the platformer recipe | `2d/sideview/loop_x` | c — the horizontal-loop layer contract |
 | `web/lib/game-systems` | new in the vitals pass | the agnostic runtime substrate every genre may seal against | a — sealed system protocol, frame event queue, and the bounded-resource gauge; no genre, no engine, and deliberately not named after health |
-| `web/lib/sideview/gauge-bar` | new in the vitals pass | shared side-view presentation | c — one capsule widget, placed by its caller in world or screen space |
+| `web/lib/sideview/gauge-bar.ts` | new in the vitals pass | shared side-view presentation | c — one capsule widget, placed by its caller in world or screen space |
 
 The modality components (image, structured, music, background removal) left
 this table in the same change series: they are `gnode` ring-1 material — see

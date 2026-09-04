@@ -344,8 +344,8 @@ those remain subject to the separate generated-media publication gate.
 
 ## Historical built-in assets
 
-`web/public/dialogue-scene/demo/anime/` is preserved historical provenance for
-the original showcase. It is not a portable v1 bundle, not an accepted current
+The original showcase once kept under web/public/dialogue-scene/demo/anime has
+been removed from the tree; its provenance survives in history only. It is not a portable v1 bundle, not an accepted current
 wire schema, and not a compatibility fixture for v2. The separately versioned
 built-in `anime-v2/` demo set is also consumer-owned fixture data rather than a
 producer bundle example. Neither tree is rewritten by theme generation or by

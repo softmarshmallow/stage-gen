@@ -1,7 +1,7 @@
 # Browser scene-layer contract
 
 > **CURRENT consumer contract.** The inference rules below remain executable
-> for manifest V7. The ratified
+> for `prepared-game-runtime-v10`. The ratified
 > [Authored map-generation contract](spec/game/map-generation-contract.md)
 > makes layer plane and order explicit per map; the implementation cutover will
 > remove browser inference from opaque/parallax thresholds and select each

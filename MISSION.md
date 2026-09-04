@@ -49,7 +49,7 @@ and deterministic post-processing.
 
 This recipe is evidence that the pipeline composes end to end. Its platformer
 terms, horizontal projection, parallax values, fixed sheet roles, and browser
-scene remain inside `src/stage_gen/recipes/scrolling_preview/` and `web/`. They are
+scene remain inside `src/stage_gen/recipes/sideview_platformer/` and `web/`. They are
 not defaults for reusable components or future recipes.
 
 ## Acceptance criteria

@@ -142,7 +142,7 @@ manifest the `/room/<tag>` consumer under `web/lib/pointclick/` renders from.
 
 Every genre that plays a conversation walks the same machine. The village
 dialogue box in the platformer and the visual-novel scene are two presentations
-of one ordered cursor over beats, kept in `web/lib/dialogue/` free of any
+of one ordered cursor over beats, kept in `web/lib/dialogue-scene/` free of any
 engine, manifest, or genre vocabulary — each consumer owns only how it draws
 the ends. That boundary is what lets a conversation become a node later without
 either genre owning the answer. The [scenario contract](game/scenario.md)

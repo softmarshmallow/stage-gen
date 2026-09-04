@@ -33,7 +33,7 @@ shared state is `TODO.md`; the public product and operational contracts live in
 - Reusable components remain independent of genre, camera, gameplay loop,
   preview runtime, and future engine choice.
 - Recipe-specific scrolling assumptions stay in
-  `src/stage_gen/recipes/scrolling_preview/`. Browser scene assumptions stay in
+  `src/stage_gen/recipes/sideview_platformer/`. Browser scene assumptions stay in
   `web/`.
 - The public command is `uv run stage-gen <args>`; the Python package is the
   authoritative backend.

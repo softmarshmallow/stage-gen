@@ -102,6 +102,27 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
                 relative = markdown_file.relative_to(repo).as_posix()
                 failures.append(f"{relative}: missing link {raw_target}")
 
+    # Prose that names a source path names one that exists. Two root doctrine
+    # documents kept pointing at a recipe package deleted in a rename, and four
+    # specifications named modules that never came back from a refactor; a
+    # reader trusts a path in backticks more than a sentence, so a wrong one
+    # is worse than none. History under docs/research and docs/media is
+    # exempt: it describes what was.
+    source_path_pattern = re.compile(
+        r"`((?:src|web|scripts|tests|library|concept-studio)/[A-Za-z0-9_./-]+?)(?:::[^`]*)?`"
+    )
+    for markdown_file in markdown:
+        relative = markdown_file.relative_to(repo).as_posix()
+        if relative.startswith(("docs/research/", "docs/media/")):
+            continue
+        source = markdown_file.read_text(encoding="utf-8")
+        for match in source_path_pattern.findall(source):
+            candidate = match.rstrip("/")
+            if "*" in candidate or "<" in candidate or "{" in candidate:
+                continue
+            if not (repo / candidate).exists():
+                failures.append(f"{relative}: names missing path `{match}`")
+
     text_files: list[Path] = []
     for path in [
         *doctrine,

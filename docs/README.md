@@ -152,7 +152,7 @@ Start here for the headless, general-purpose system:
 - [Dialogue-scene animation research](dialogue-scene-animation.md) — deferred
   video, sprite-grid, and layered-rig ideas; no implementation commitment.
 - [Dialogue character runtime pipeline](dialogue-character-runtime-pipeline.md)
-  — current-only manifest V7 sanitize/package/review/bind responsibilities for
+  — current-only the current runtime manifest sanitize/package/review/bind responsibilities for
   importing an optional reviewed character-only expression bundle into scrolling
   gameplay without cross-run paths or background assets.
 - [Game Concept Studio](../concept-studio/README.md) — the pre-production concept
@@ -173,9 +173,9 @@ path: an authored package (`dialogue-scene-v2`) resolved by recipe
 removed rather than kept behind a parser, and prior runs were dropped rather
 than migrated. The deterministic web installer reads that one contract,
 validates and copies its immutable files, then projects accepted `scene_data`
-into the active fixture without generating or inventing copy. Only
-`web/public/dialogue-scene/demo/anime/` is historical: it preserves its showcase
-provenance and is not an accepted current portable-bundle example.
+into the active fixture without generating or inventing copy. The
+original anime showcase once kept under web/public/dialogue-scene/demo/anime has
+been removed; it was never an accepted portable-bundle example.
 
 Provider facts in this repository were last verified on 2026-08-14. Re-check
 capability metadata before changing adapters because hosted model contracts
