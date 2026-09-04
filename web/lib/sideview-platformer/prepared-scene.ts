@@ -200,6 +200,7 @@ import {
   NPC_TALK_PROMPT_GAP_PX,
   NPC_TALK_PROMPT_STYLE,
   NPC_TALK_PROMPT_TEXT,
+  NPC_TALK_RANGE_PX,
 } from "./npc";
 import { DebugOverlay } from "./debug-overlay";
 import { parsePlatformerClockBlock } from "./clock";
@@ -215,6 +216,13 @@ import { parsePlatformerParticlesBlock } from "./impact-presentation";
 import { parsePlatformerInventoryBlocks } from "./bag";
 import { dropSpread, resolveLootDrops } from "@/lib/families/loot";
 import { LOOT_DROP_SPACING_PX, parsePlatformerLootBlocks } from "./loot";
+import {
+  openSession,
+  selectAffordance,
+  stepSession,
+  type InteractionSession,
+} from "@/lib/families/interaction";
+import { parsePlatformerInteractionBlock } from "./interaction";
 import {
   applyEffects,
   QuestLedger,
@@ -438,11 +446,15 @@ export class PreparedStageScene extends Phaser.Scene {
   private dialogueName?: Phaser.GameObjects.Text;
   private dialoguePortrait?: Phaser.GameObjects.Sprite;
   private dialoguePortraitHeight = 0;
-  private activeScenario?: {
-    program: ScenarioProgram;
-    state: ScenarioState;
-    interaction: string;
-  };
+  /**
+   * The conversation in flight, as the `interaction` family's session.
+   *
+   * A value rather than a mutable record: which authored interaction the
+   * playback belongs to, what an advance does when the program has ended, and
+   * who is told the outcome are the family's lifecycle now, and this field is
+   * only where the current one is kept.
+   */
+  private activeScenario?: InteractionSession<ScenarioProgram, ScenarioState>;
   /** Number keys 1-8, so a choice is picked the way the visual novel picks one. */
   private choiceKeys: readonly Phaser.Input.Keyboard.Key[] = [];
   /** The portrait holds on the last speaker while the player reads a choice. */
@@ -657,6 +669,7 @@ export class PreparedStageScene extends Phaser.Scene {
     parsePlatformerInventoryBlocks(manifest.blocks);
     parsePlatformerLootBlocks(manifest.blocks);
     parsePlatformerEffectsBlock(manifest.blocks);
+    parsePlatformerInteractionBlock(manifest.blocks);
     // A quest that could never finish is refused before the first frame rather
     // than at the moment it would have.
     sealQuestCompletions(gameplay.quests, gameplay.effects, PLATFORMER_QUEST_STATE_OPERATION);
@@ -2391,21 +2404,26 @@ export class PreparedStageScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Offer the nearest villager the player can talk to, and open it if asked.
+   *
+   * The pick is the `interaction` family's: a candidate is *available* when the
+   * package binds it a scenario and the player is inside talking range, and
+   * between two available ones the nearer wins. Both of those conditions are
+   * this genre's to evaluate — a range in pixels and a binding in `gameplay` —
+   * and the rule that turns them into one offer is not.
+   */
   private updateInteractionPrompt(): void {
     const player = this.player;
     const keys = this.keys;
     if (!player || !keys || !this.currentMap) return;
-    const nearest = this.npcs
-      .filter(
-        (npc) =>
-          Math.abs(npc.sprite.x - player.sprite.x) < 145 &&
-          this.scenarioForNpc(npc.npcId) !== undefined,
-      )
-      .sort(
-        (left, right) =>
-          Math.abs(left.sprite.x - player.sprite.x) -
-          Math.abs(right.sprite.x - player.sprite.x),
-      )[0];
+    const nearest = selectAffordance<NpcActor>({
+      candidates: this.npcs,
+      available: (npc) =>
+        Math.abs(npc.sprite.x - player.sprite.x) < NPC_TALK_RANGE_PX &&
+        this.scenarioForNpc(npc.npcId) !== undefined,
+      distance: (npc) => Math.abs(npc.sprite.x - player.sprite.x),
+    });
     for (const npc of this.npcs) {
       npc.talkPrompt.setVisible(npc === nearest);
     }
@@ -2433,11 +2451,7 @@ export class PreparedStageScene extends Phaser.Scene {
     if (!bound) return;
     const { program, interactionId } = bound;
     for (const npc of this.npcs) npc.talkPrompt.setVisible(false);
-    this.activeScenario = {
-      program,
-      state: initialScenarioState(program),
-      interaction: interactionId,
-    };
+    this.activeScenario = openSession(interactionId, program, initialScenarioState(program));
     this.recordEvent("dialogue-opened", { npcId, interactionId });
     this.renderDialogueNode();
   }
@@ -2473,11 +2487,20 @@ export class PreparedStageScene extends Phaser.Scene {
   private applyScenarioAction(action: ScenarioAction): void {
     const active = this.activeScenario;
     if (!active) return;
-    const next = reduceScenario(active.program, active.state, action);
-    if (next === active.state) return;
-    active.state = next;
-    if (scenarioIsFinished(next)) {
-      this.applyOutcome(active.interaction, next.outcome);
+    const step = stepSession({
+      session: active,
+      action,
+      reduce: reduceScenario,
+      finished: scenarioIsFinished,
+      outcome: (state) => state.outcome,
+    });
+    // "The action did nothing" is separate from "it advanced": redrawing on a
+    // no-op is what makes the panel flicker on every key a conversation does
+    // not answer.
+    if (step.kind === "unchanged") return;
+    this.activeScenario = step.session;
+    if (step.kind === "finished") {
+      this.applyOutcome(step.interactionId, step.outcome);
       this.closeDialogue();
       return;
     }
@@ -2490,7 +2513,7 @@ export class PreparedStageScene extends Phaser.Scene {
     if (!active || !manifest) return;
     const view = scenarioView(active.program, active.state);
     if (view === null || view.kind === "end") {
-      this.applyOutcome(active.interaction, active.state.outcome);
+      this.applyOutcome(active.interactionId, active.state.outcome);
       this.closeDialogue();
       return;
     }
@@ -2581,7 +2604,7 @@ export class PreparedStageScene extends Phaser.Scene {
 
   private closeDialogue(): void {
     this.recordEvent("dialogue-closed", {
-      interactionId: this.activeScenario?.interaction ?? "",
+      interactionId: this.activeScenario?.interactionId ?? "",
     });
     this.activeScenario = undefined;
     this.lastSpeakerId = null;
@@ -3147,7 +3170,7 @@ export class PreparedStageScene extends Phaser.Scene {
       questStates: this.questStates.entries(),
       dialogue: this.activeScenario
         ? {
-            interaction: this.activeScenario.interaction,
+            interaction: this.activeScenario.interactionId,
             label: this.activeScenario.state.label,
             index: this.activeScenario.state.index,
             flags: [...this.activeScenario.state.flags],

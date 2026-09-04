@@ -38,6 +38,14 @@ import { mirrorFor } from "@/lib/families/sideview/motion";
  */
 export const NPC_TALK_PROMPT_TEXT = "▲ Talk";
 
+/**
+ * How near the player has to stand for a villager to offer a conversation.
+ *
+ * Consumer-owned: nothing refuses over it, and it is a fact about how far a
+ * person will reasonably walk to be spoken to rather than about the package.
+ */
+export const NPC_TALK_RANGE_PX = 145;
+
 /** Clearance between the tallest drawn idle frame and the bottom of the name label. */
 const NAME_LABEL_GAP_PX = 10;
 

@@ -1270,6 +1270,45 @@ two families, and the report says which concept split them.
   precisely what the gate refuses. The room has no block table, so the family
   takes its dependency there at the document-kind grain its own parser already
   refuses on.
+- **`interaction`.** Extracted into both genres as `lib/families/interaction/`,
+  in the two halves the code has. The first is the *pick*: "which affordance is
+  offered", which the platformer wrote inline as a filter-and-sort over placed
+  villagers inside the frame step that draws the prompt, and the room wrote
+  inline as a first-available scan inside its reducer. They are one rule with
+  one parameter — available by the package's own conditions, and between two
+  available ones the nearer wins where the model has a space and the earlier
+  wins where it does not. Authored order is not a degenerate proximity and is
+  asserted as its own case: the room's list is a priority the author wrote down,
+  a special interaction before a general one, and re-sorting it changes which
+  line a click produces. The second half is the *session*: the scenario reducer
+  was already shared with the visual novel, but the lifecycle around it — which
+  authored interaction this playback belongs to, what an advance does when the
+  program has ended, and who is told the outcome — was a mutable field and an
+  inlined `applyScenarioAction`. It is a value with three answers now, and the
+  third is the one that was not there: "the action did nothing" is separate from
+  "it advanced", which is what stops the panel redrawing on every key a
+  conversation does not answer. **E1: zero diff in both genres, nothing
+  re-pinned** — six hundred platformer digests byte-identical over a run that
+  opens a conversation at 60, advances it at 68 and closes it at 72, and the
+  runner byte-identical, having no interactions. **E2:** neither documented
+  order moves; `npc/prompt` and `dialogue/input` keep their ids and
+  declarations. **E4:** the pick resolved against two models in one file — a
+  platformer-shaped one with a range and a nearest, a room-shaped one with
+  neither — plus a visual-novel-shaped session written in the family's own suite
+  with nothing placed in a world, the way the intent family's held axis was.
+- **The block, and the refusal.** `gameplay`, in the platformer, and two tables
+  of it: `[[interactions]]` binds an actor on a map to a scenario and says what
+  each outcome means, and `[[npc_placements]]` is what puts that actor somewhere
+  to be near. An affordance with no binding is not an affordance. The room
+  authors its interactions inside its own versioned document, so the dependency
+  is taken at that grain.
+- **One thing named in the ruling that stayed where it was.** The room's
+  `selectedItem` is an interaction latch, which is why the inventory split left
+  it behind — but it did not move *here* either, because it is not part of the
+  pick or the session: it is a gesture the room's own click handling owns, it is
+  cleared by every interaction including a refused one, and the case save
+  already drops it on resume for the same reason. Moving it would be inventing a
+  slice, not extracting one.
 - **One thing the family holds that neither genre binds, and why.**
   `[inventory].starting_capacity` is still parsed and unread, deliberately. The
   rule is the family's and is proven in its own suite (a full bag refuses the

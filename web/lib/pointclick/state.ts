@@ -15,6 +15,7 @@ import {
   UNLIMITED,
   type CountedBag,
 } from "@/lib/families/inventory";
+import { selectAffordance } from "@/lib/families/interaction";
 import {
   applyEffects,
   sealEffectVocabulary,
@@ -225,7 +226,16 @@ function applyInteraction(
   };
 }
 
-/** Perform one explicit verb on a hotspot; misses narrate rather than throw. */
+/**
+ * Perform one explicit verb on a hotspot; misses narrate rather than throw.
+ *
+ * The pick is the `interaction` family's, with *no* distance: this model has no
+ * space to measure, so the first available interaction the author wrote wins.
+ * That is a priority the author put in the list on purpose — two interactions
+ * on the same verb and hotspot are a general case and a special one — and it is
+ * why "authored order" is a real second shape rather than a degenerate
+ * proximity. A miss is `interaction/refused`, and it narrates.
+ */
 export function interact(
   manifest: RoomManifest,
   state: RoomPlayState,
@@ -233,11 +243,11 @@ export function interact(
   hotspotId: string,
   item: string | null = null,
 ): RoomPlayState {
-  for (let index = 0; index < manifest.interactions.length; index += 1) {
-    if (interactionAvailable(manifest, state, index, verb, hotspotId, item)) {
-      return applyInteraction(manifest, state, index);
-    }
-  }
+  const index = selectAffordance<number>({
+    candidates: manifest.interactions.map((_, at) => at),
+    available: (at) => interactionAvailable(manifest, state, at, verb, hotspotId, item),
+  });
+  if (index !== null) return applyInteraction(manifest, state, index);
   return {
     ...state,
     selectedItem: null,
