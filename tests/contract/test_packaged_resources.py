@@ -133,64 +133,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
             entry.filename: entry.file_size for entry in wheel.infolist() if not entry.is_dir()
         }
         _assert_archive_hygiene(wheel_entries, resource_prefix="stage_gen/resources/")
-        # The prepared-package cutover adds eleven deliberate headless modules: the generic DAG,
-        # fake verifier, recipe graph builder, thin package executor, live prepared-world handler,
-        # live prepared-content handler, runtime-manifest assembler, and shared motion-source
-        # contract, plus the provider-neutral sprite repacker, the two-file game UI contract,
-        # and the attributed terrain topology reference.
-        # Keep the ceiling exact enough to catch accidental packaging growth without treating
-        # those boundaries as bloat.
-        # The platformer map-design component adds five more: the capability profiles, the design
-        # model and its validator, the chunk grammar, the design loop, and the package init.
-        # The motion-rebase contract adds its recipe module and the provider-neutral plate
-        # compositor it shares with the asset unit.
-        # The player-equipment contract adds one: the recipe-owned art directives keyed on the
-        # authored equipment, which the prompt builder and the actor review both read.
-        # The derived execution view adds two: the generic plan-and-trace join exporter, and the
-        # recipe-owned artifact display annotations the CLI wires into it.
-        # Splitting the engine out adds the whole gnode package: its import surface and typing
-        # marker, graph, scheduler, trace, dry-run handler, run view, model bindings, and the
-        # reliability and contract modules that moved with them. The application shrank by the
-        # same modules, so the net growth is the engine's own package files.
-        # The runner genre pass adds six wheel modules: the shared canonical
-        # digests and the sideview_runner recipe's request, types, graph,
-        # handler, view, and executor (measured 205).
-        # Explicit runner audio adds the two-file runner_audio component:
-        # its public surface and persisted contract model (measured 207).
-        # Structural runner ground adds its provider-neutral guide and exact
-        # occupancy canonicalizer as one focused module (measured 208). The
-        # provider-free runner cache replay adds one auditable migration module
-        # without adding provider dependencies (measured 209).
-        # The sound-effect node adds eight: the gnode sound_effect modality
-        # (package, models, service), the elevenlabs provider adapter (package,
-        # backend), and the stage_gen sound_effect component (package, model,
-        # admission) (measured 218).
-        # The tool-loop agent (2026-09-03) adds four: the gnode tool_loop
-        # modality (package, models, service) and its OpenRouter adapter
-        # (measured 228 with the screen-FX family in between).
-        # The universe recipe (2026-09-03) adds fourteen: its own package plus
-        # ontology, medium, models, schema, prompts, types, request, graph,
-        # handler, manifest, consumer page, executor, and view. It is the first
-        # recipe whose output is a package to read rather than to play, so it
-        # shares no module with the four that came before (measured 242).
-        # The case container (2026-09-03) adds six: its component package, models,
-        # proof and resolver, plus the leaf binding and the runtime projection in
-        # the composition root - neither is a component, because a case names
-        # rooms and a room is a recipe (measured 248).
-        # Painted terrain (2026-09-03) adds nine: a second terrain discipline beside
-        # the tile atlas, homed at its own taxonomy path because a side-view RPG
-        # consumes it on the same terms a platformer does. Its modules split along the
-        # pipeline it owns - segments, guide, prompt, silhouette, canonicalize,
-        # validate - plus models and node types (measured 257).
-        # The dust atlas (2026-09-03) adds one: a second FX discipline whose gate is
-        # nothing like the cut-in's - a small picture judged on whether it survives being
-        # drawn at forty pixels - so it is its own module beside it (measured 258).
-        # Speech (2026-09-03) adds nine: a ring-1 modality (package, models, service)
-        # and its ElevenLabs backend, the spoken-line component (package, models,
-        # admission) and the voice catalog (package, models). A voice is an input
-        # the sound route never had, so nothing here shares a module with sound
-        # effects (measured 267).
-        assert len(wheel_entries) <= 267
+        # No entry count here either: like the sdist's, it was re-pinned on every
+        # honest addition with a paragraph of arithmetic. What it guarded - tests,
+        # library packages, docs media, or a stray directory in the wheel - is
+        # asserted by name below.
         assert sum(wheel_entries.values()) < 5_000_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -215,92 +161,21 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         assert all(member.isfile() or member.isdir() for member in members)
         root, sdist_entries = _sdist_file_entries(members)
         _assert_archive_hygiene(sdist_entries, resource_prefix="src/stage_gen/resources/")
-        # A guard against accidental bloat - a stray directory swept into the sdist - and not
-        # a cap on the project growing. Current-only game contracts, maintenance harnesses, and
-        # the hardened Concept Studio core and direct native-alpha provider bring the clean
-        # source distribution to 337 files. Prepared-package execution, the UI contract, and
-        # the terrain-atlas integration add the focused source, tests, templates, and canonical
-        # documentation and traversal-contract tests tracked here.
-        # The size assertions below are the ones that actually bound the archive. The layer
-        # vertical-placement contract adds two source modules and their focused tests. The
-        # climbable atlas adds its sizing/envelope module, the terrain authoring compiler, and the
-        # pipeline graph-contract writer. The platformer map-design component adds fourteen: its
-        # five source modules, the design script, its six focused test modules, and the contract
-        # documentation.
-        # The asset-scale documentation figures add two: the deterministic renderer that
-        # composites them and its focused test. The motion-rebase contract adds four: two
-        # source modules and their focused tests. The asset unit adds its own recipe module
-        # and focused tests. The projectile asset family adds four: the silhouette art
-        # declaration, the authored Bellweather catalog, and two focused test modules.
-        # The derived execution view adds its exporter and recipe-annotation source modules
-        # and their two focused test modules.
-        # Splitting the engine out adds the gnode package's own files plus its two focused test
-        # modules: the model-binding table and the pinned plan identity.
-        # Recording cancellation adds one: the scheduler test that interrupts a run mid-flight
-        # and proves the trace says so rather than leaving it to be inferred.
-        # The ring cut nets a few package files: modality and provider package
-        # __init__ modules, the signature/inspection modules, and the
-        # application's identity and image_style modules (measured 362).
-        # The node-ABI pass adds the engine's node_types and build modules, the
-        # two recipes' type-census modules, and the whole point-and-click room
-        # recipe with its authored library room (measured 379).
-        # The runner genre pass nets seventeen sdist entries: the shared canonical
-        # digests, the camera-scoped sideview components, the runner family
-        # contracts, and the sideview_runner recipe with its tests arrive, while
-        # the orphaned game-contract-v3 stack leaves (measured 411).
-        # Explicit runner audio adds its component, focused test, and canonical
-        # audio/soundtrack sources to the source distribution (measured 415).
-        # Structural runner ground plus its focused component, recipe, and
-        # current-game contract coverage adds six deliberate entries (measured 421).
-        # The provider-free replay adds its migration module, operator script,
-        # and focused adversarial test module (measured 424).
-        # The vitals pass adds the runner_gameplay component's focused test
-        # package - its __init__ and the consequence/gauge contract module -
-        # which is the first focused coverage that component has had (426).
-        # The sound-effect model adapter contract adds one specification page,
-        # recording the measured ElevenLabs boundary the same way the image model
-        # page records its own (427).
-        # The nine-slice UI atlas (`game-ui-v2`) adds its component module, its
-        # taxonomy page, the synthetic-sheet test fixture, and the gate's focused
-        # test module (431).
-        # The agnostic sound-effect node adds fifteen: the eight wheel modules
-        # above, their six focused test modules (the gnode service and adapter,
-        # the component, the runner handler, the live smoke, and one test
-        # package __init__), and the authored sound-effects contract page (446).
-        # The screen-FX family adds eight: the component's contract, plate gate,
-        # node set, and package init, the two focused test modules, the spec page,
-        # and the recipe-neutral UI atlas node module extracted in the same
-        # window (454).
-        # The tool-loop agent (2026-09-03) adds the modality and adapter above plus
-        # their unit tests and the runner-side placement tests (measured 468 beside
-        # the encounter pass that landed the same day).
-        # The encounter pass closed with one more focused test module than that
-        # measurement caught: the actor-subject resolver, which exists because
-        # two handlers had quietly kept reading the avatar's catalog (469). It
-        # adds no wheel module - the boss and its projectiles reuse contracts
-        # and pipelines that already shipped.
-        # The universe recipe (2026-09-03) adds its fourteen modules, five test
-        # modules, the fixture poster script and its test, and the four members
-        # of the committed Lantern Ferry package (measured 492).
-        # The case container (2026-09-03) adds its five modules, five test
-        # modules, and its specification document; the two point-and-click rooms
-        # of the Grain's episode bring a room package each - room, UI, cover and
-        # provenance (measured 511).
-        # Splitting a hotspot's art direction from its hit area (2026-09-03) adds
-        # two test modules - the room's own provider-free fakes and the cache
-        # identity tests they serve - and no source module (measured 513).
-        # Painted terrain (2026-09-03) adds its nine source modules, five test modules
-        # and their shared fixture; the map contract's move to `game-map-v10` renames a
-        # contract test rather than adding one (measured 526).
-        # The dust atlas (2026-09-03) adds its source module and its focused tests. The
-        # cap is set to what the tree measures rather than to that arithmetic: the
-        # painted-terrain work above landed more files than its own note counted, and it
-        # was still landing them while this was measured (measured 532).
-        # Speech (2026-09-03) adds seventeen: the nine wheel modules, six test
-        # modules across the modality, the provider, the two components and the
-        # runner handler, and two documents - the model boundary and the voice
-        # authoring contract - plus Iron Petal's voice catalog (measured 549).
-        assert len(sdist_entries) <= 549
+        # The size assertions below are what bound the archive. There is deliberately
+        # no entry count: a count is a number that has to be re-pinned on every
+        # honest addition, and the comment explaining each re-pin was a changelog
+        # nobody reads. What a count was standing in for - a stray directory swept
+        # into the sdist - is asserted directly: nothing Git ignores may ship.
+        ignored = subprocess.run(
+            ["git", "check-ignore", "--stdin", "--no-index"],
+            cwd=Path(__file__).resolve().parents[2],
+            input="\n".join(sorted(sdist_entries)),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert ignored.returncode in {0, 1}, ignored.stderr
+        assert ignored.stdout.strip() == "", ignored.stdout
         # Raised once when the loop-construction contract landed: two source modules, their
         # focused tests, and the concurrent presentation work crossed the previous 6MB line by
         # about 27KB. Raised again for the scenario contract, whose seven source modules put the
@@ -332,7 +207,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # Speech (2026-09-03): two documents and the modality, component, and test
         # modules above are text, about 110 KiB together, and the tree was already
         # within 60 KiB of the cap (measured 7,358,533).
-        assert sum(sdist_entries.values()) < 7_450_000
+        # Raised for the engineering pass (2026-09-04): two runtime specifications,
+        # the system plan, and the two cache-key goldens that replaced the
+        # whole-graph digest pins.
+        assert sum(sdist_entries.values()) < 8_000_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)
@@ -460,6 +338,11 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
             if path.is_file() and path.suffix.lower() in MEDIA_SUFFIXES
         )
 
+    tracked_files = set(
+        subprocess.run(
+            ["git", "ls-files", "-z"], cwd=repository, capture_output=True, text=True, check=True
+        ).stdout.split("\0")
+    )
     total = 0
     for relative in sorted(relative_paths):
         assert relative.parts[0] in {
@@ -496,12 +379,25 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
             # direction of record rather than the game's, and the room recipe is
             # handed that directory. It is the same rule read at the level that
             # owns the reference; see docs/spec/game/case.md.
-            assert relative.parts[3] == "references" or (
-                relative.parts[3] == "rooms"
-                and len(relative.parts) >= 7
-                and relative.parts[5] == "references"
+            # A runner member owns a fixed `runner/` closure, and a spoken line the
+            # director pinned is committed inside it as `runner/audio/<take>.mp3`
+            # beside the `.meta.json` sidecar the audio contract binds by digest. It
+            # is the one place audio bytes may live in a package: a take is
+            # evidence of a chosen read, not reference art.
+            is_pinned_take = (
+                relative.parts[3:5] == ("runner", "audio")
+                and len(relative.parts) == 6
+                and relative.suffix.lower() == ".mp3"
             )
-            assert relative.suffix.lower() in IMAGE_MEDIA_SUFFIXES
+            if is_pinned_take:
+                assert relative.with_suffix(".mp3.meta.json").as_posix() in tracked_files
+            else:
+                assert relative.parts[3] == "references" or (
+                    relative.parts[3] == "rooms"
+                    and len(relative.parts) >= 7
+                    and relative.parts[5] == "references"
+                )
+                assert relative.suffix.lower() in IMAGE_MEDIA_SUFFIXES
         if relative.parts[0] == "web":
             assert relative.parts[:2] in {("web", "public"), ("web", "scripts")}
         if relative.suffix.lower() in {".mp4", ".webm"}:
