@@ -182,7 +182,7 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, IdentitySource], ...] = (
     # Recipe versions stamped beside a generated document's own kind.
     ("recipe", _field("recipes.dialogue_scene.models", "DialogueScenePlan", "recipe_version")),
     # Blocks a shared component builds for more than one manifest.
-    ("block", _constant("components.game_fx.nodes", "FX_MANIFEST_BLOCK_VERSION")),
+    ("block", _constant("components.game_fx.block", "FX_MANIFEST_BLOCK_VERSION")),
     # Audio realizations.
     ("realization", _constant("components.sound_effect.models", "GENERATED_CLIP_REALIZATION_KIND")),
     ("realization", _constant("components.speech.models", "SPOKEN_LINE_REALIZATION_KIND")),

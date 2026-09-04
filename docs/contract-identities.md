@@ -57,7 +57,7 @@ not an identity but a cache key (C-R1); its evidence is the cache-key goldens.
 | `scenario-catalog-v1` | `authored` | `stage_gen.components.scenario.models:ScenarioCatalog.kind` |
 | `scenario-v2` | `authored` | `stage_gen.components.scenario.models:ScenarioDeclarations.kind` |
 | `universe-source-v1` | `authored` | `stage_gen.recipes.universe.models:UniverseSource.kind` |
-| `fx-block-v1` | `block` | `stage_gen.components.game_fx.nodes:FX_MANIFEST_BLOCK_VERSION` |
+| `fx-block-v1` | `block` | `stage_gen.components.game_fx.block:FX_MANIFEST_BLOCK_VERSION` |
 | `platformer-closure-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['closure']` |
 | `platformer-gameplay-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['gameplay']` |
 | `platformer-items-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['items']` |

@@ -536,6 +536,17 @@ floors the platformer's gate lacks; the platformer always re-admits after the tr
 publishes a repeat preview, the runner neither.
 
 
+**2026-09-04 — D10 closed.** `components/game_fx/nodes.py` (1758 lines, two families)
+is four modules: `_host.py` (what both families need from a host), `cut_in_nodes.py`,
+`sprite_nodes.py`, `block.py` (the manifest block that reads both), with `nodes.py` a
+facade re-exporting every public name so no host changed an import; the identity
+table reads the block version from `block.py`, its one home. The split was done from
+the module's own dependency graph: the only cross-family reference was the plate brief
+the sprite prompt shares, which moved to the host. `sideview_layers` and
+`sideview_actor` now export their surfaces (27 and 43 names), the node families among
+them. The UI and fx kits use `components/_node_kit.py` for the helpers they had copied.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one

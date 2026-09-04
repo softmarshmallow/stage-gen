@@ -1,5 +1,6 @@
 """Authored screen-FX contracts: transitions and overlays, generated as plates."""
 
+from stage_gen.components.game_fx.block import FX_MANIFEST_BLOCK_VERSION
 from stage_gen.components.game_fx.cut_in import (
     CUT_IN_CANVAS,
     CUT_IN_FRAME,
@@ -45,7 +46,6 @@ from stage_gen.components.game_fx.models import (
     GameFx,
     load_game_fx_bytes,
 )
-from stage_gen.components.game_fx.nodes import FX_MANIFEST_BLOCK_VERSION
 
 __all__ = [
     "FX_MANIFEST_BLOCK_VERSION",
