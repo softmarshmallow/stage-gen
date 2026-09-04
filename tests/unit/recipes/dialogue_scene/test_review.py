@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import shutil
+import tempfile
 from io import StringIO
 from pathlib import Path
 
@@ -20,17 +22,44 @@ from stage_gen.recipes.dialogue_scene.review import (
 from .package import write_scene_package
 from .test_prepared_scene import run_scene
 
+_SHARED_RUN: Path | None = None
 
-async def _source_bundle(root: Path) -> tuple[Path, Path, dict[str, object]]:
-    """A reviewable bundle from a real run.
+
+def _fresh_base() -> Path:
+    return Path(tempfile.mkdtemp(prefix="dialogue-review-")).resolve()
+
+
+def _copy_shared(shared: Path, root: Path) -> None:
+    root.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(shared / "package", root / "package")
+    shutil.copytree(shared / "run", root / "run")
+
+
+async def _shared_run(root: Path) -> Path:
+    """One provider-free scene run, executed once per session and copied per test.
 
     The review validates the character profile's own provenance lineage, so the
     fixture has to be a run the recipe actually produced rather than hand-written
-    JSON that merely has the right shape.
+    JSON that merely has the right shape. Producing it is the whole recipe -
+    about fifteen seconds - and every test here used to produce its own, which
+    put this one file at more than half the suite's wall time. The run is
+    deterministic under the fakes, so one copy per test is the same evidence.
     """
 
-    package = write_scene_package(root / "package")
-    await run_scene(package, run_dir=root / "run", cache_dir=root / "cache")
+    global _SHARED_RUN
+    if _SHARED_RUN is None:
+        base = await asyncio.to_thread(_fresh_base)
+        package = write_scene_package(base / "package")
+        await run_scene(package, run_dir=base / "run", cache_dir=base / "cache")
+        _SHARED_RUN = base
+    await asyncio.to_thread(_copy_shared, _SHARED_RUN, root)
+    return root
+
+
+async def _source_bundle(root: Path) -> tuple[Path, Path, dict[str, object]]:
+    """A reviewable bundle from a real run, on a private copy of the shared one."""
+
+    await _shared_run(root)
     bundle_path = root / "run/bundle.json"
     bundle = DialogueBundle.model_validate_json(bundle_path.read_bytes())
     acceptance_path = root / "run/acceptance.json"
@@ -77,8 +106,7 @@ async def _profile_bundle(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> tuple[Path, Path, DialogueBundle]:
     del monkeypatch
-    package = write_scene_package(tmp_path / "package")
-    await run_scene(package, run_dir=tmp_path / "run", cache_dir=tmp_path / "cache")
+    package = (await _shared_run(tmp_path)) / "package"
     bundle_path = tmp_path / "run/bundle.json"
     return (
         package / "characters/mio.toml",
