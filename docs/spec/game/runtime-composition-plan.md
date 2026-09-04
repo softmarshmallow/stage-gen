@@ -501,6 +501,33 @@ genre parser speaking for a dozen consumers it does not know about.
   respawn with a restart in place and no lineage), and the roster wiring waits
   for the split that can be measured. `session/ended` for the step-7 minigame
   is unaffected: the family emits through the host's own occurrences.
+- **`intent`.** Extracted into both genres. One latch, generic over which keys
+  are edges and which are levels, and one `defineIntent` that checks the split
+  against the record itself: a key classified twice, or not at all, is refused
+  at module load, where before the rule was a paragraph at the top of two files
+  and a pair of lines at the bottom of one sampler that happened to clear two
+  variables. The runner's four verbs (`requestJump`, `setDuck`, …) are a
+  four-line adapter over the family latch; the platformer's `playerIntent`
+  builder is the family's, and its ten keys are declared. **E1: zero diff in
+  both genres, nothing re-pinned** — six hundred platformer digests identical,
+  and the runner's chain unchanged from the session pin. **E2:** neither
+  documented order moves; the ids and the declarations are untouched. **E4:**
+  one latch, two records — a runner-shaped one, and the jumper-shaped one the
+  plan asked for, with a *held axis and a three-state level*, asserted to read
+  twice when sampled twice, with no jumper in the tree. That test is the whole
+  argument for making edge-vs-level a parameter: under the runner's
+  consume-on-sample rule a held climb reads as one frame of climbing and then
+  nothing. **E7:** both rosters seal to the identical order minus the intent
+  system; in the runner the one `after` edge that names it — the difficulty
+  ramp, pinned behind the frame's single input read — is dropped with it, which
+  is the honest form of "the family is quiet".
+- **The block, and the refusal.** `gameplay`, in both genres, and for the same
+  reason with different fields: `[gameplay].duck_profile` is what makes `duck`
+  a level the runner's packages have, and `[gameplay] combat.enabled` is what
+  makes `attack` an edge the platformer answers for rather than one the
+  controller suppresses. The runner's boot runs every family's gate together in
+  `gateRunnerFamilyBlocks`, which is a list a dropped family takes its line out
+  of, not a genre parser gating on anyone's behalf.
 - **One thing the ruling did not fit, and it is the dead phase.** The step's
   fact lists four hold mechanisms and the fourth is the runner's dead phase.
   It is not a holder here. A hold is transient and the simulation resumes into

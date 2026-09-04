@@ -12,6 +12,10 @@
 // that cannot distinguish the two must not report the edge fields as held, or the controller will
 // read a held key as an unbroken stream of fresh requests.
 
+import { defineIntent, intentFrom, parseIntentBlock, type IntentBlockView } from "@/lib/families/intent";
+import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
+import type { BlockTable } from "@/lib/manifest/blocks";
+
 export type PlayerIntent = Readonly<{
   left: boolean;
   right: boolean;
@@ -59,14 +63,49 @@ export const NEUTRAL_PLAYER_INTENT: PlayerIntent = Object.freeze({
 });
 
 /**
+ * Which of this genre's keys are requests and which are conditions.
+ *
+ * The paragraph above this file's type used to be the only statement of it, and a paragraph cannot
+ * be checked: a field added to `PlayerIntent` and forgotten by whichever sampler was supposed to
+ * clear it is a request nothing spends or a condition nothing holds, and both read as "the input is
+ * dropping presses". `defineIntent` refuses a key classified twice or not at all, against the
+ * record itself, at module load.
+ *
+ * `face` is a level and not a boolean, which is the reason the family is generic over the value
+ * type rather than over a set of flags: "which way to face, regardless of which direction is
+ * pressed" is a condition with three states.
+ */
+export const PLATFORMER_INTENT_SHAPE = defineIntent<PlayerIntent>(
+  NEUTRAL_PLAYER_INTENT,
+  ["jump", "attack", "useHealing", "toggleInventory"],
+  ["left", "right", "up", "down", "run", "face"],
+);
+
+/**
+ * The block this genre's intent depends on.
+ *
+ * `[gameplay] combat.enabled` is what makes `attack` an edge this package answers for rather than
+ * one the controller suppresses, so `gameplay` is the block the family gates by name for itself.
+ */
+export const PLATFORMER_INTENT_BLOCK = Object.freeze({
+  block: "gameplay",
+  version: PREPARED_RUNTIME_BLOCKS.gameplay,
+});
+
+/** Gate the platformer's intent block. Refuses by naming `gameplay`. */
+export function parsePlatformerIntentBlock(blocks: BlockTable): IntentBlockView {
+  return parseIntentBlock(blocks, PLATFORMER_INTENT_BLOCK);
+}
+
+/**
  * Build a frozen intent, defaulting every unstated field to "not asked for".
  *
- * Defaulting rather than requiring all nine fields is deliberate: a policy that only wants to walk
+ * Defaulting rather than requiring all ten fields is deliberate: a policy that only wants to walk
  * right should say `{ right: true }` and inherit silence everywhere else, so adding a future action
  * to the type cannot silently change what an existing source is asking for.
  */
 export function playerIntent(requested: Partial<PlayerIntent> = {}): PlayerIntent {
-  return Object.freeze({ ...NEUTRAL_PLAYER_INTENT, ...requested });
+  return intentFrom(PLATFORMER_INTENT_SHAPE, requested);
 }
 
 /**

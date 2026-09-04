@@ -2,7 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { SealRefusal, SystemCycleError, sealSystems } from "@/lib/kernel/systems";
 import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
 import { parsePlatformerClockBlock } from "./clock";
-import { NEUTRAL_PLAYER_INTENT } from "./player-intent";
+import {
+  NEUTRAL_PLAYER_INTENT,
+  PLATFORMER_INTENT_SHAPE,
+  parsePlatformerIntentBlock,
+} from "./player-intent";
 import {
   assemblePlatformerSystems,
   createPlatformerFrameWorld,
@@ -392,5 +396,43 @@ describe("the clock family in the platformer", () => {
       'manifest block "gameplay" is published as platformer-gameplay-block-v2; ' +
         "this build reads platformer-gameplay-block-v1",
     );
+  });
+});
+
+// --- The `intent` family, sealed into this genre -----------------------------------------------
+
+describe("the intent family in the platformer", () => {
+  test("E7 subtraction: with the intent read taken out, the rest seals to the identical order", () => {
+    const quiet = roster().filter((system) => system.id !== "intent/keyboard");
+    expect(sealSystems(quiet).order).toEqual(
+      DOCUMENTED_ORDER.filter((id) => id !== "intent/keyboard"),
+    );
+  });
+
+  test("the edge-vs-level split is data this genre declares, not a comment", () => {
+    expect([...PLATFORMER_INTENT_SHAPE.edges].sort()).toEqual([
+      "attack",
+      "jump",
+      "toggleInventory",
+      "useHealing",
+    ]);
+    expect([...PLATFORMER_INTENT_SHAPE.levels].sort()).toEqual([
+      "down",
+      "face",
+      "left",
+      "right",
+      "run",
+      "up",
+    ]);
+  });
+
+  test("the family gates its own block, and the refusal names it", () => {
+    expect(parsePlatformerIntentBlock(PREPARED_RUNTIME_BLOCKS).published).toBe(true);
+    expect(() =>
+      parsePlatformerIntentBlock({
+        ...PREPARED_RUNTIME_BLOCKS,
+        gameplay: "platformer-gameplay-block-v2",
+      }),
+    ).toThrow('manifest block "gameplay" is published as platformer-gameplay-block-v2');
   });
 });

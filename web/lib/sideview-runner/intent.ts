@@ -6,7 +6,17 @@
 // latched when the action is asked for, consumed by exactly one sample — so
 // a held key can never read as a stream of fresh jumps. `duck` is held state.
 
+import {
+  createIntentLatch as createFamilyLatch,
+  createIntentSystem as createFamilyIntentSystem,
+  defineIntent,
+  intentFrom,
+  parseIntentBlock,
+  type IntentLatch,
+} from "@/lib/families/intent";
+import type { BlockTable } from "@/lib/manifest/blocks";
 import type { GameSystem } from "@/lib/kernel/systems";
+import { RUNNER_BLOCKS } from "./contract";
 import type { RunnerWorld } from "./world";
 
 export type RunnerIntent = Readonly<{
@@ -36,9 +46,39 @@ export const NEUTRAL_RUNNER_INTENT: RunnerIntent = Object.freeze({
   action: false,
 });
 
+/**
+ * Which of this genre's keys are requests and which are conditions.
+ *
+ * The rule used to be a paragraph at the top of this file and a pair of lines
+ * at the bottom of `sample` that happened to clear two variables. It is data
+ * now, and the family checks it against the record: a key classified twice, or
+ * not at all, is refused where it is declared.
+ */
+export const RUNNER_INTENT_SHAPE = defineIntent<RunnerIntent>(
+  NEUTRAL_RUNNER_INTENT,
+  ["jump", "action"],
+  ["duck", "thrust"],
+);
+
+/**
+ * The block this genre's intent depends on.
+ *
+ * `[gameplay].duck_profile` is what makes `duck` a level this package has at
+ * all; a package with none has a key nothing can mean.
+ */
+export const RUNNER_INTENT_BLOCK = Object.freeze({
+  block: "gameplay",
+  version: RUNNER_BLOCKS.gameplay,
+});
+
+/** Gate the runner's intent block. Refuses by naming `gameplay`. */
+export function parseRunnerIntentBlock(blocks: BlockTable) {
+  return parseIntentBlock(blocks, RUNNER_INTENT_BLOCK);
+}
+
 /** Build a frozen intent, defaulting every unstated field to "not asked for". */
 export function runnerIntent(requested: Partial<RunnerIntent> = {}): RunnerIntent {
-  return Object.freeze({ ...NEUTRAL_RUNNER_INTENT, ...requested });
+  return intentFrom(RUNNER_INTENT_SHAPE, requested);
 }
 
 /**
@@ -49,39 +89,35 @@ export function runnerIntent(requested: Partial<RunnerIntent> = {}): RunnerInten
  * request that lands between two ticks is seen exactly once, never zero or
  * twice.
  */
-export interface RunnerIntentLatch {
+export interface RunnerIntentLatch extends IntentLatch<RunnerIntent> {
   requestJump(): void;
   requestAction(): void;
   setDuck(held: boolean): void;
   setThrust(held: boolean): void;
-  /** Read this frame's intent, consuming the latched edges. */
-  sample(): RunnerIntent;
 }
 
+/**
+ * The family's latch, wearing this genre's verbs.
+ *
+ * The four named methods are the whole adapter: the browser sources say
+ * "requestJump", the family says "request an edge called jump", and neither
+ * has to know the other's spelling. The behaviour is the family's — including
+ * the one this genre had to write out by hand, that a sample spends the edges
+ * and leaves the levels alone.
+ */
 export function createIntentLatch(): RunnerIntentLatch {
-  let jump = false;
-  let action = false;
-  let duck = false;
-  let thrust = false;
+  const latch = createFamilyLatch(RUNNER_INTENT_SHAPE);
   return {
-    requestJump: () => {
-      jump = true;
-    },
-    requestAction: () => {
-      action = true;
-    },
-    setDuck: (held: boolean) => {
-      duck = held;
-    },
-    setThrust: (held: boolean) => {
-      thrust = held;
-    },
-    sample: () => {
-      const sampled = runnerIntent({ jump, action, duck, thrust });
-      jump = false;
-      action = false;
-      return sampled;
-    },
+    ...latch,
+    request: (key) => latch.request(key),
+    set: (key, value) => latch.set(key, value),
+    sample: () => latch.sample(),
+    sampleHeld: () => latch.sampleHeld(),
+    reset: () => latch.reset(),
+    requestJump: () => latch.request("jump"),
+    requestAction: () => latch.request("action"),
+    setDuck: (held: boolean) => latch.set("duck", held),
+    setThrust: (held: boolean) => latch.set("thrust", held),
   };
 }
 
@@ -186,25 +222,22 @@ export function attachPointerIntentSource(
   };
 }
 
-/** The intent system: publish this frame's sampled intent as world data. */
+/**
+ * The intent system: publish this frame's sampled intent as world data.
+ *
+ * Sampled unconditionally even under a hold, because a latch that is not
+ * drained is a request queued against the moment the hold ends: press jump
+ * under a cut-in and the avatar would launch itself the instant the overlay
+ * tore away. That is the family's `sampleHeld`, and it is the same rule in
+ * every genre that has a clock.
+ */
 export function createIntentSystem(latch: RunnerIntentLatch): GameSystem<RunnerWorld> {
-  return {
+  return createFamilyIntentSystem<RunnerWorld, RunnerIntent>({
     id: "runner/intent",
-    contractVersion: "intent-system-v4",
+    contractVersion: "intent-system-v5",
+    slice: "intent",
+    latch,
     reads: ["clock"],
-    writes: [],
-    owns: ["intent"],
-    update(world) {
-      // Sampled unconditionally, because a latch that is not drained is a
-      // request queued against the moment the hold ends: press jump under a
-      // cut-in and the avatar would launch itself the instant the overlay
-      // tore away. The edges are spent and then reported neutral; the levels
-      // are conditions and stay as they are, and the integrator they feed is
-      // being handed a zero delta in any case.
-      const sampled = latch.sample();
-      world.intent = world.clock.held
-        ? runnerIntent({ duck: sampled.duck, thrust: sampled.thrust })
-        : sampled;
-    },
-  };
+    held: (world) => world.clock.held,
+  }) as GameSystem<RunnerWorld>;
 }

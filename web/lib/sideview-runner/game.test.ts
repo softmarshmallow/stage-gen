@@ -23,6 +23,8 @@ const {
 const { createIntentLatch } = await import("./intent");
 const { parseRunnerClockBlock, momentHolds } = await import("./clock");
 const { parseRunnerSessionBlock } = await import("./session");
+const { gateRunnerFamilyBlocks } = await import("./game");
+const { RUNNER_INTENT_SHAPE, parseRunnerIntentBlock } = await import("./intent");
 const { RUNNER_BLOCKS } = await import("./contract");
 const { SILENT_AUDIO_SINK } = await import("./audio");
 const { createRunnerWorld } = await import("./world");
@@ -363,6 +365,42 @@ describe("the session family in the runner", () => {
     expect(parseRunnerSessionBlock(RUNNER_BLOCKS).published).toBe(true);
     expect(() =>
       parseRunnerSessionBlock({ ...RUNNER_BLOCKS, gameplay: "runner-gameplay-block-v2" }),
+    ).toThrow('manifest block "gameplay" is published as runner-gameplay-block-v2');
+  });
+});
+
+// --- The `intent` family, sealed into this genre -----------------------------------------------
+
+describe("the intent family in the runner", () => {
+  const roster = () =>
+    assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK);
+
+  test("E7 subtraction: with the intent taken out, the rest seals to the identical order", () => {
+    // One system names it in an `after` edge — the difficulty ramp, which is
+    // pinned behind the frame's one input read — so the subtraction drops that
+    // edge with it. That is the honest form of "the family is quiet": a genre
+    // that has no intent has no ramp pinned behind one either.
+    const quiet = roster()
+      .filter((system) => system.id !== "runner/intent")
+      .map((system) => ({
+        ...system,
+        after: (system.after ?? []).filter((id) => id !== "runner/intent"),
+      }));
+    expect(sealSystems(quiet, EVENTS).order).toEqual(
+      DOCUMENTED_ORDER.filter((id) => id !== "runner/intent"),
+    );
+  });
+
+  test("the edge-vs-level split is data this genre declares, not a comment", () => {
+    expect([...RUNNER_INTENT_SHAPE.edges].sort()).toEqual(["action", "jump"]);
+    expect([...RUNNER_INTENT_SHAPE.levels].sort()).toEqual(["duck", "thrust"]);
+  });
+
+  test("the family gates its own block, and the boot runs every family's gate", () => {
+    expect(parseRunnerIntentBlock(RUNNER_BLOCKS).published).toBe(true);
+    expect(() => gateRunnerFamilyBlocks(RUNNER_BLOCKS)).not.toThrow();
+    expect(() =>
+      gateRunnerFamilyBlocks({ ...RUNNER_BLOCKS, gameplay: "runner-gameplay-block-v2" }),
     ).toThrow('manifest block "gameplay" is published as runner-gameplay-block-v2');
   });
 });

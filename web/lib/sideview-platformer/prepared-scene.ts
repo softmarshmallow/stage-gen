@@ -186,6 +186,7 @@ import {
 } from "./npc";
 import { DebugOverlay } from "./debug-overlay";
 import { parsePlatformerClockBlock } from "./clock";
+import { parsePlatformerIntentBlock } from "./player-intent";
 import {
   createPlatformerFrameWorld,
   sealPlatformerFrame,
@@ -580,6 +581,7 @@ export class PreparedStageScene extends Phaser.Scene {
     // the family that could not go on, rather than a genre parser speaking on
     // behalf of a dozen consumers it does not know about.
     parsePlatformerClockBlock(manifest.blocks);
+    parsePlatformerIntentBlock(manifest.blocks);
     this.manifest = manifest;
     this.gameplay = gameplay;
     await Promise.all([

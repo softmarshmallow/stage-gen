@@ -30,7 +30,8 @@ import {
   type RunnerMusicSink,
 } from "./audio";
 import { createAvatarSystem } from "./avatar";
-import { createRunnerClockSystem } from "./clock";
+import { createRunnerClockSystem, parseRunnerClockBlock } from "./clock";
+import type { BlockTable } from "@/lib/manifest/blocks";
 import type { RunnerMotionState, RunnerRuntimeManifest } from "./contract";
 import { createDifficultySystem } from "./difficulty";
 import {
@@ -50,6 +51,7 @@ import {
   attachKeyboardIntentSource,
   attachPointerIntentSource,
   createIntentLatch,
+  parseRunnerIntentBlock,
   createIntentSystem,
   type RunnerIntentLatch,
 } from "./intent";
@@ -64,7 +66,7 @@ import {
   type RunnerGroundTextures,
 } from "./parallax";
 import { createScoreSystem } from "./score";
-import { createSessionSystemForRunner } from "./session";
+import { createSessionSystemForRunner, parseRunnerSessionBlock } from "./session";
 import { avatarBlinkAlpha, createVitalsSystem } from "./vitals";
 import {
   collectiblePresentation,
@@ -113,6 +115,21 @@ const GROUND_TEXTURE_KEY = "runner:ground";
  * depend on this order — the declarations pin a unique topology — but keeping
  * the list readable in frame order documents the intent.
  */
+/**
+ * Every family gate this genre's roster depends on, run once at boot.
+ *
+ * Each family declares the block it cannot go on without and gates it by name
+ * through the per-block table. Calling them together here is not the genre
+ * parser doing it for them — the dependency and the refusal belong to the
+ * family, and a family dropped from the roster takes its line out of this
+ * function with it.
+ */
+export function gateRunnerFamilyBlocks(blocks: BlockTable): void {
+  parseRunnerClockBlock(blocks);
+  parseRunnerSessionBlock(blocks);
+  parseRunnerIntentBlock(blocks);
+}
+
 export function assembleRunnerSystems(
   latch: RunnerIntentLatch,
   stage: ParallaxStageView,
@@ -470,6 +487,7 @@ class RunnerScene extends Phaser.Scene {
       (await this.buildDustCanvas(manifest)) ?? createGraphicsDustCanvas(this, RUNNER_DEPTHS.dust);
     this.disposers.push(() => dustCanvas.destroy());
     this.audioSink = createWebAudioSink(manifest.audio, (path) => this.url(path));
+    gateRunnerFamilyBlocks(manifest.blocks);
     this.sealed = sealSystems(
       assembleRunnerSystems(
         this.latch,
