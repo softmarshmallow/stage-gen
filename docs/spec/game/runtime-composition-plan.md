@@ -1678,6 +1678,185 @@ thing in the repository besides the three family directories.
 platformer's shape and the replay of what remains is unchanged, which is the
 rule-6 proof the planned Limbo-shaped genre will need.
 
+**Evidence, measured.** Branch `runtime/step-7-capstone`; `bun test` 1833 pass,
+0 fail; `tsc --noEmit` clean at every commit; the repository gate green. Four
+commits: `score`, `timers`, the wave profile with the roster wiring, and the
+variant package with its played run.
+
+- **`score`.** Extracted into `lib/families/score/`, and the composition table's
+  entry for it was exact: "runner-only, inside `run-loop`, with `10` and `500`
+  hard-coded; blocks the minigames case". It blocks it because a time-attack run
+  *is* a score — the whole of what the player is asked for is a number — and a
+  number nobody can author is a number every such game shares. The family is the
+  three facts a scorekeeper has: an award table from an occurrence kind to what
+  it pays, an optional chain with a multiplier ladder, and the accumulation. The
+  kinds, the ladder and what breaks a chain are all the caller's. **E1: zero
+  diff in the runner's golden, nothing re-pinned** — the arithmetic is preserved
+  to the letter, the order a break and the frame's collections are applied in
+  included, which is the one thing a rewrite of it would have got wrong. **E4:**
+  the family sealed into a chained trail world and a chainless minigame world
+  that share no field but the slice it owns, plus the runner's roster and the
+  variant's roster as the two live instantiations. **E7:** a roster with the
+  scorer removed seals to the identical order minus it, once the readout's read
+  of the slice comes out with it.
+- **The block, and the refusal.** `score`, and it is the family's own rather
+  than a table inside somebody else's — one of the two the pipeline gained for
+  this step. Optional in rule 6's strong sense: absent is *no score*, not awards
+  of zero, and the parse of an absent block is null rather than an empty table.
+  A version this build does not read is refused by name: `manifest block "score"
+  is published as platformer-score-block-v2; this build reads
+  platformer-score-block-v1`. The runner authors none and keeps its constants,
+  which rule 7 admits rather than tolerates — a number belongs in the pipeline's
+  table iff an offline refusal reads it, and nothing offline refuses on what a
+  token is worth.
+- **`timers`.** Landed as `lib/families/timers/`, and the composition table's
+  entry for it was one word long — "none" — which was the honest state of the
+  code. Both genres have *stamps*: a millisecond deadline compared against
+  `step.now`, which is the right shape for a nine-hundred-millisecond immunity
+  window and the wrong shape for a clock the player is reading. A countdown is a
+  value. Two rulings inside it, both inherited: it counts on the **simulation**
+  clock, which is rule 4 applied to the case step 3 named in the abstract when
+  it said a refractory window stamped against `step.now` would burn through a
+  hold; and it expires exactly **once**, latched on the entry rather than
+  recomputed, because a genre that ends its session on the expiry has to hear
+  the edge once however long the teardown takes. **E4:** neither shipped genre
+  counts down, so the second instantiation is a hand-built world rather than a
+  second roster — `session`'s own shape in step 3, for the same reason — and the
+  two worlds share no field but the slice: a ninety-second round at the
+  platformer's 1/30s step, and a pair of runner-shaped windows with a hold that
+  stops both. **E7:** the roster with the countdown removed seals to the
+  identical order minus it, and a package that authors no timers seals the
+  system quiet with an empty parameter list rather than absent.
+- **The ninety seconds are 2701 frames and not 2700, and it is measured rather
+  than tolerated.** 1000/30 is not representable; the sum of 2700 of them falls
+  a few nanoseconds short of ninety seconds; and a countdown expires when the
+  time has elapsed rather than when it nearly has. The frame the ninetieth
+  second passes during is the 2701st, and both the family's own suite and the
+  played run below agree on it to the frame.
+- **The block, and the refusal.** `timers`, the family's own and the second the
+  pipeline gained, optional in the same strong sense. Seconds in, milliseconds
+  out, converted once. `manifest block "timers" is published as
+  platformer-timers-block-v2; this build reads platformer-timers-block-v1`.
+- **`waves`, and the ruling the plan's one clause is doing.** "`waves` is a
+  `director` profile" is right and the obvious reading is wrong. A wave looks
+  like `population` — creatures appear, the map fills — and it is not.
+  `population` is a **census**: a target headcount kept forever, with no
+  beginning and no end. A wave is a **set-piece**: armed at a place, started,
+  ended, with an outcome other families consume. That is `director`'s four facts
+  exactly, so `sideview-platformer/waves.ts` holds a phase machine, a trigger
+  and a seeded draw, and not one new mechanism. The phase vocabulary differs
+  from the gate's by one word and the word is the recurrence: a gate that has
+  ended stays ended (`once`), a wave that has been cleared is waiting for the
+  next one (`recurring`), and the pause it waits out is the zone's own
+  `respawn_delay_ms` — the census's word for the same thing.
+- **Where a wave comes from, and it is the authoring half of the ruling.** The
+  zones are already authored. `[mob_population].maps[].zones` states a span, a
+  headcount, a weighted table and a delay; a census reads those as "how many
+  should be standing here", a wave reads the same five numbers as "how many
+  arrive at once, drawn from what, and how long until the next lot". No new
+  table, no new asset, no generator module, which is the whole claim the
+  taxonomy's minigame case makes. And *which* reading a package gets is authored
+  too, in a block that exists: `wave_cleared` is one of the four members of the
+  contract's closed score vocabulary and the only one naming a thing no story
+  game has, so a package that pays for one is a package whose run is made of
+  them. Bellweather's hunting route and a time-attack arena are one map and one
+  line of TOML apart. No `[waves]` block was invented, which the step's own
+  ruling says is the point.
+- **E2, and the addition that moved nothing.** The platformer's roster gains
+  five entries — `director/waves` between the gate and the census, then
+  `timers/countdown`, `session/run`, `score/run` and `hud/round` after
+  everything that steps the world. All five are quiet for both shipped packages
+  in rule 6's sense: in the roster, parameters empty, returning at the first
+  line. **E1: zero diff in both platformer goldens, nothing re-pinned** — six
+  hundred frames of the walk run and six hundred of the defeat run
+  byte-identical with five systems added, which is the strongest available
+  statement that "a family with no block runs quiet" is a rule the code keeps
+  rather than a sentence in a document. The round's snapshot is absent rather
+  than null for a package that authors none, the way the banner already was; the
+  first draft compared the round's parameters by identity instead of by content,
+  published an empty round for a game that has none, and both goldens caught it
+  on the first run.
+- **Three findings the wiring produced.** The scorer reads `transcript` — this
+  genre has no event queue and what a frame did is the record the golden already
+  hashes — so the sealer puts it after the five systems that write one, which is
+  "score the frame once everything that could score has happened", derived
+  rather than typed out. The `session` family is finally sealed into this genre,
+  and it does not touch what step 3 declined to move: the defeat stays inside
+  `updatePlayer`; what this session owns is the *round*, a lifecycle the genre
+  did not have, so there was nothing to move. And `hud/round` is the first
+  `HudReadout` the platformer instantiates — step 6 recorded that it could not,
+  because "this genre has no world to hand one" — since the score and the
+  countdown are the first two slices of this world that are real storage rather
+  than a declared name.
+- **The ordering cost, in full.** One new `after` edge, `director/waves` after
+  `director/set-piece`, plus that name added to the census's existing edge — two
+  profiles of one family both placing bodies into `mobs`, neither reading what
+  the other wrote, so the edge is explicit and its direction is arbitrary; what
+  it buys is that it is not arbitrary at run time. One new undeclared feedback
+  read, written at the read site: the countdown asks the lifecycle whether the
+  round is running and the lifecycle decides after it, because `session/run`
+  reads the countdown. **The step-2 list of eight feedback reads, which step 6
+  made nine, is ten.**
+- **The variant package (E6).** `library/games/bellweather-waves/` is
+  Bellweather's package, file for file: the same universe, maps, creatures,
+  items, projectiles, props, NPCs, scenarios, soundtrack, UI atlas and reference
+  evidence, at the same paths with the same digests, under the same `game_id`.
+  One file differs. `gameplay.toml` moves the entry to
+  `crowncrag-road`/`road_west_gate` and gains the two round tables; the waves
+  author nothing at all. That the two are one package with three tables is
+  measured rather than argued: the offline plans are identical node for node —
+  **230 node ids and 230 artifact-ref sets equal** — and exactly **three cache
+  keys differ, all of them local** (`package-resolve`,
+  `gameplay-bindings-validate`, `manifest-assemble`). Nothing paid moved, which
+  is why the assembly adopts Bellweather's own artifacts wholesale.
+- **The assembly (E5), provider-free by construction.** `--checkpoint
+  integration` over the five existing content roots: `ok` true,
+  `provider_operation_counts` image, music and structured all **0**,
+  `artifact_count` **109**, **122** of 230 executed nodes adopted from the
+  roots, disposition `created`, in 31 seconds. No image, no music, no clip. The
+  published manifest carries `platformer-score-block-v1` and
+  `platformer-timers-block-v1` in its block table and both blocks in the
+  document; Bellweather's carries neither, in the table or the document. The
+  package validator refused nothing, and the gate gains a step so that the
+  variant plans offline like every other package in the library.
+- **The played run, and it is headless rather than in a browser.** Two runs, one
+  reported and one baked. The reported one drives the *assembled* variant's own
+  `manifest.json` through the platformer's replay harness for 3,000 fixed steps
+  of 1/30s: **13 waves spawned across the road's three authored zones and 10
+  cleared**, 113 creatures defeated, 105 items collected, **6,375 points**, and
+  `session-ended {cause: "timer", score: 6375}` at **frame 2945** with the
+  countdown reading exactly 90,000 ms elapsed. 243 of those 2,945 frames carried
+  no simulation time at all — the hitstop of the run's own blows — which is why
+  the ninetieth second arrives 244 frames after the 2,701st and is the `clock`
+  family's ruling arriving somewhere a person can see it. The HUD readout at the
+  final frame is `0:00  ✦ 6375  time`. The baked one is `waves-replay.test.ts`,
+  the harness's third golden, over the replay fixture package authored as a
+  round: 5 waves spawned and 4 cleared out of the route's one zone, 13 creatures
+  defeated, 31 items collected, the authored gate fired and won, **2,135
+  points** — 25×13 + 10×31 + 250×4 + 500×1, every term an authored number — and
+  `session-ended` at frame 2748, which is 2702 counted frames plus the 46 the
+  run spent held.
+- **E7 for the variant roster.** The same roster with `combat` (the shot pool,
+  the blow's release), `population` (the census, the creatures), `progression`
+  (the stat log) and `score` (the scorer) quiet seals to the identical order
+  minus those six entries, once the two reads that name their slices come out
+  with them — `camera/shake`'s read of `impact` and `hud/round`'s read of
+  `score`. What is left walks, jumps, talks, is placed by set-pieces, is timed
+  and is drawn, which is the cinematic platformer's own row in the composition
+  table's "what the planned genres draw". What remains still ticks in that
+  order, and the round still runs, which is the whole reason `timers` is a
+  family rather than a minigame's private countdown.
+- **What this pass could not do.** No browser, so the E5 *stills* the step's own
+  text asks for are still owed, as they have been since step 2; the headless run
+  above is the record and it measures more than a still could. The variant plays
+  from the road but has no arena of its own — a dedicated map costs a map's worth
+  of layer images and the step's ruling already says the existing road proves the
+  same thing for nothing. And the wave director does not swap anything while a
+  wave is on: `director`'s `SwapLedger` is instantiated by the gate and not by
+  the waves, because the only swap either genre authors is a track and no
+  authored field names one per zone. That is a table nobody has written, not a
+  mechanism nobody has built.
+
 ## Step 8 — hosts, `persistence`, the case
 
 *Fact:* one `Phaser.Game` block copied four times; three loading paths and
