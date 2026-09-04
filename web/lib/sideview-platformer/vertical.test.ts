@@ -1,5 +1,32 @@
 import { describe, expect, test } from "bun:test";
 import { buildHeightmapFromSeed } from "./heightmap";
+import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
+import {
+  advanceClimbMotion,
+  resolveVerticalLanding as resolveFamilyVerticalLanding,
+} from "@/lib/families/sideview/traversal";
+import {
+  CLIMBABLE_JUMP_HORIZONTAL_SPEED,
+  CLIMBABLE_JUMP_VELOCITY,
+  CLIMBABLE_SPEED,
+  PLATFORMER_CLIMB_PROFILE,
+  parsePlatformerTraversalBlocks,
+} from "./vertical";
+
+/** One ladder, stated flat, for the "the genre's call is the family's call" assertions. */
+const familyLadder = {
+  id: "ladder-family",
+  platformId: "deck-family",
+  variantId: "v",
+  role: "ladder",
+  centerX: 320,
+  upperDeckY: 500,
+  lowerSurfaceY: 628,
+  activationHalfWidth: 30,
+  visualTopOvershoot: 32,
+  visualBottomOvershoot: 32,
+  visualWidth: 64,
+} as const;
 import {
   DEMO_VERTICAL_LAYOUT_KINDS,
   CLIMBABLE_ENDPOINT_TOLERANCE,
@@ -1251,5 +1278,81 @@ describe("ladder endpoints, camera, culling, and rendering", () => {
       visualTopOvershoot: 24,
     } as unknown as typeof up;
     expect(() => ladderVisualBounds(mutated)).toThrow("visual contract drifted");
+  });
+});
+
+describe("the platformer's traversal is the family's, in pixels", () => {
+  test("the climb profile is four of this genre's numbers over the family's rule", () => {
+    expect(PLATFORMER_CLIMB_PROFILE).toEqual({
+      speed: CLIMBABLE_SPEED,
+      endpointTolerance: CLIMBABLE_ENDPOINT_TOLERANCE,
+      jumpVelocity: CLIMBABLE_JUMP_VELOCITY,
+      jumpHorizontalSpeed: CLIMBABLE_JUMP_HORIZONTAL_SPEED,
+    });
+    // The genre's function *is* the family's under that profile, not merely
+    // equal to it: the same call, spelled twice, has to agree exactly.
+    expect(
+      advanceLadderMotion({ ladder: familyLadder, footY: 600, deltaSeconds: 1 / 30, up: true, down: false }),
+    ).toEqual(
+      advanceClimbMotion({
+        geometry: {
+          centerX: familyLadder.centerX,
+          activationHalfWidth: familyLadder.activationHalfWidth,
+          upperY: familyLadder.upperDeckY,
+          lowerY: familyLadder.lowerSurfaceY,
+          deckId: familyLadder.platformId,
+        },
+        profile: PLATFORMER_CLIMB_PROFILE,
+        footY: 600,
+        deltaSeconds: 1 / 30,
+        up: true,
+        down: false,
+      }),
+    );
+  });
+
+  test("this genre takes the clamping terrain entry, and says so", () => {
+    // A descending foot already inside a raised column is pinned to it here.
+    // The runner buries the same foot; the difference is a parameter, and this
+    // is the platformer's half of it asserted rather than described.
+    expect(
+      resolveVerticalLanding({
+        x: 100,
+        previousFootY: 700,
+        nextFootY: 710,
+        vy: 300,
+        terrainY: 688,
+        platforms: [],
+      }),
+    ).toEqual({ footY: 688, vy: 0, support: "terrain", supportId: null });
+    expect(
+      resolveFamilyVerticalLanding({
+        x: 100,
+        previousFootY: 700,
+        nextFootY: 710,
+        vy: 300,
+        terrainY: 688,
+        terrainEntry: "crossing",
+      }).support,
+    ).toBe("buried");
+  });
+
+  test("the traversal blocks are gated by the family, by name, and there are two", () => {
+    expect(parsePlatformerTraversalBlocks(PREPARED_RUNTIME_BLOCKS).map((view) => view.block)).toEqual([
+      "gameplay",
+      "maps",
+    ]);
+    expect(() =>
+      parsePlatformerTraversalBlocks({
+        ...PREPARED_RUNTIME_BLOCKS,
+        maps: "platformer-maps-block-v2",
+      }),
+    ).toThrow('manifest block "maps" is published as platformer-maps-block-v2');
+    expect(() =>
+      parsePlatformerTraversalBlocks({
+        ...PREPARED_RUNTIME_BLOCKS,
+        gameplay: "platformer-gameplay-block-v2",
+      }),
+    ).toThrow('manifest block "gameplay" is published as platformer-gameplay-block-v2');
   });
 });

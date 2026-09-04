@@ -2,6 +2,7 @@
 // for the locked 47-mask terrain atlas. Generation and slicing remain in Python.
 
 import lookupContract from "./terrain-atlas-lookup.json";
+import { bottomContiguousGrid } from "@/lib/families/sideview/traversal";
 
 export const TERRAIN_ATLAS_COLUMNS = 12;
 export const TERRAIN_ATLAS_ROWS = 4;
@@ -214,6 +215,15 @@ export function terrainAtlasBoundaryOverscanPlan(
   );
 }
 
+/**
+ * Project a heightfield back into an occupancy grid.
+ *
+ * The third of the three writings of the bottom-contiguous rule, and the one
+ * that runs the other way: a heightfield has no overhangs by construction, so
+ * the grid it implies is exactly the family's membership predicate evaluated
+ * over every cell. The arithmetic is the family's; the integer contract on the
+ * heights is this module's, because an atlas cell is a whole cell.
+ */
 export function bottomContiguousOccupancy(
   heights: readonly number[],
 ): readonly (readonly boolean[])[] {
@@ -223,12 +233,7 @@ export function bottomContiguousOccupancy(
   ) {
     throw new Error("terrain heights must be nonnegative safe integers");
   }
-  const rows = Math.max(0, ...heights);
-  return Object.freeze(
-    Array.from({ length: rows }, (_, row) =>
-      Object.freeze(heights.map((height) => row >= rows - height)),
-    ),
-  );
+  return bottomContiguousGrid(heights);
 }
 
 export function terrainAtlasLookupEntries(): readonly Readonly<{

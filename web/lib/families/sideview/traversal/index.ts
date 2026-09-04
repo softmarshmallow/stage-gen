@@ -1,0 +1,56 @@
+export {
+  belongsToBottomStack,
+  booleanOccupancy,
+  bottomContiguousGrid,
+  bottomContiguousHeight,
+  bottomContiguousHeights,
+  bottomContiguousSurfaceRow,
+  stringOccupancy,
+  surfaceDatum,
+  type OccupancyGrid,
+} from "./surface";
+export {
+  resolveTerrainStep,
+  resolveTerrainWalk,
+  resolveVerticalLanding,
+  type LandingResolution,
+  type LandingSupport,
+  type OneWayDeck,
+  type SurfaceSupport,
+  type TerrainEntry,
+  type TerrainStepResolution,
+  type TerrainWalkResolution,
+} from "./contact";
+export {
+  fallRecoverySteps,
+  jumpArcFromAdmission,
+  resolveJumpRequest,
+  simulateJumpArc,
+  type JumpArc,
+  type JumpKind,
+  type JumpReachability,
+  type JumpResolution,
+} from "./jump";
+export {
+  advanceClimbMotion,
+  climbEntryAt,
+  climbJumpOffVelocity,
+  deckAtX,
+  dropThroughActive,
+  resolveCrouchHorizontalVelocity,
+  TRAVERSAL_CAPABILITIES,
+  TRAVERSAL_LOCOMOTIONS,
+  UNIMPLEMENTED_CAPABILITIES,
+  type ClimbEntry,
+  type ClimbGeometry,
+  type ClimbMotion,
+  type ClimbProfile,
+  type TraversalCapability,
+  type TraversalLocomotion,
+} from "./capabilities";
+export {
+  parseTraversalBlock,
+  parseTraversalBlocks,
+  type TraversalBlockBinding,
+  type TraversalBlockView,
+} from "./manifest";

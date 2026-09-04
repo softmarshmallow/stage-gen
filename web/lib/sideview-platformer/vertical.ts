@@ -1,4 +1,51 @@
 import { terrainSurfaceY } from "./terrain";
+import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
+import type { BlockTable } from "@/lib/manifest/blocks";
+import {
+  advanceClimbMotion,
+  climbEntryAt,
+  climbJumpOffVelocity,
+  deckAtX,
+  dropThroughActive,
+  fallRecoverySteps,
+  resolveCrouchHorizontalVelocity as resolveFamilyCrouchHorizontalVelocity,
+  resolveJumpRequest as resolveFamilyJumpRequest,
+  resolveTerrainStep as resolveFamilyTerrainStep,
+  resolveTerrainWalk as resolveFamilyTerrainWalk,
+  resolveVerticalLanding as resolveFamilyVerticalLanding,
+  simulateJumpArc,
+  type ClimbGeometry,
+  type ClimbProfile,
+  type JumpKind,
+  type JumpReachability,
+  type SurfaceSupport,
+  type TerrainStepResolution,
+  type TerrainWalkResolution,
+  parseTraversalBlocks,
+  type TraversalBlockView,
+} from "@/lib/families/sideview/traversal";
+
+/**
+ * The blocks this genre's traversal depends on.
+ *
+ * Two, and neither is a redundancy. `gameplay` carries `[navigation]` —
+ * `allowed_movements`, `logical_world_wrap`, `fall_recovery` — which is the
+ * capability list itself. `maps` carries the authored occupancy every surface
+ * is derived from, so a producer that moves the map book has moved the ground
+ * the core stands on, and the refusal should come from the core rather than
+ * from a genre parser speaking for it.
+ */
+export const PLATFORMER_TRAVERSAL_BLOCKS = Object.freeze([
+  Object.freeze({ block: "gameplay", version: PREPARED_RUNTIME_BLOCKS.gameplay }),
+  Object.freeze({ block: "maps", version: PREPARED_RUNTIME_BLOCKS.maps }),
+]);
+
+/** Gate the platformer's traversal blocks. Refuses by naming `gameplay` or `maps`. */
+export function parsePlatformerTraversalBlocks(
+  blocks: BlockTable,
+): readonly TraversalBlockView[] {
+  return parseTraversalBlocks(blocks, PLATFORMER_TRAVERSAL_BLOCKS);
+}
 
 export const UPPER_PLATFORM_THICKNESS = 32 as const;
 export const CLIMBABLE_ACTIVATION_HALF_WIDTH = 30 as const;
@@ -97,7 +144,14 @@ export type ClimbableZone = Readonly<{
   visualWidth: number;
 }>;
 
-export type PlayerSupport = "terrain" | "platform" | "climbable" | "air";
+/**
+ * How this genre's bodies are held up.
+ *
+ * The family's own vocabulary, aliased rather than restated: a `platform` here
+ * is the core's one-way deck, and the two names agreeing is what lets a landing
+ * resolved by the family be assigned to a controller field without a map.
+ */
+export type PlayerSupport = SurfaceSupport;
 
 export type VerticalWorld = Readonly<{
   platforms: readonly UpperPlatform[];
@@ -118,25 +172,16 @@ export type PlatformRoute = Readonly<{
   ladderId: string | null;
 }>;
 
-export type JumpReachability = Readonly<{
-  reachable: boolean;
-  rise: number;
-  gap: number;
-  apexRise: number;
-  landingStep: number | null;
-  horizontalRange: number | null;
-  /** Step the mid-air impulse was spent on, or null for a single grounded jump. */
-  airJumpStep: number | null;
-}>;
+export type { JumpReachability };
 
 /**
- * Semi-implicit Euler proof matching Player.update's fixed-step jump order.
+ * Prove an authored arc at this genre's own numbers.
  *
- * `airJumpVelocity` proves a double jump. The impulse is spent on the first
- * step the arc stops rising, which is both the height-optimal moment and the
- * one a player naturally hits, so a route proved here is a route a player can
- * fly. Landing still requires a descending foot, so the second arc cannot
- * "land" on a deck it is passing on the way up.
+ * The simulation is the family's — semi-implicit Euler in the same step order
+ * `Player.update` integrates in — and everything this file adds is the four
+ * platformer constants it defaults to, which is exactly the "profile" shape the
+ * step-3 families settled on: the arithmetic is shared, the numbers are the
+ * genre's.
  */
 export function simulatePlatformJump(input: Readonly<{
   rise: number;
@@ -148,106 +193,31 @@ export function simulatePlatformJump(input: Readonly<{
   stepSeconds?: number;
   maximumSteps?: number;
 }>): JumpReachability {
-  const horizontalSpeed = input.horizontalSpeed ?? PLATFORMER_RUN_SPEED;
-  const jumpVelocity = input.jumpVelocity ?? PLATFORMER_JUMP_VELOCITY;
-  const airJumpVelocity = input.airJumpVelocity ?? null;
-  const gravity = input.gravity ?? PLATFORMER_GRAVITY;
-  const stepSeconds = input.stepSeconds ?? PLATFORMER_FIXED_STEP_SECONDS;
-  const maximumSteps = input.maximumSteps ?? 120;
-  for (const value of [
-    input.rise,
-    input.gap,
-    horizontalSpeed,
-    jumpVelocity,
-    gravity,
-    stepSeconds,
-    maximumSteps,
-    ...(airJumpVelocity === null ? [] : [airJumpVelocity]),
-  ]) {
-    if (!Number.isFinite(value)) throw new Error("jump proof values must be finite");
-  }
-  if (
-    input.rise < 0 ||
-    input.gap < 0 ||
-    horizontalSpeed < 0 ||
-    jumpVelocity <= 0 ||
-    (airJumpVelocity !== null && airJumpVelocity <= 0) ||
-    gravity <= 0 ||
-    stepSeconds <= 0 ||
-    !Number.isSafeInteger(maximumSteps) ||
-    maximumSteps < 1
-  ) {
-    throw new Error("jump proof values are outside their supported range");
-  }
-  const targetY = -input.rise;
-  let y = 0;
-  let vy = -jumpVelocity;
-  let apexRise = 0;
-  let airJumpStep: number | null = null;
-  let airJumpPending = airJumpVelocity !== null;
-  for (let step = 1; step <= maximumSteps; step += 1) {
-    const previousY = y;
-    vy += gravity * stepSeconds;
-    if (airJumpPending && vy >= 0) {
-      vy = -airJumpVelocity!;
-      airJumpPending = false;
-      airJumpStep = step;
-    }
-    y += vy * stepSeconds;
-    apexRise = Math.max(apexRise, -y);
-    if (vy >= 0 && previousY <= targetY && y >= targetY) {
-      const horizontalRange = horizontalSpeed * stepSeconds * step;
-      return deepFreeze({
-        reachable: input.gap <= horizontalRange,
-        rise: input.rise,
-        gap: input.gap,
-        apexRise,
-        landingStep: step,
-        horizontalRange,
-        airJumpStep,
-      });
-    }
-  }
-  return deepFreeze({
-    reachable: false,
+  return simulateJumpArc({
     rise: input.rise,
     gap: input.gap,
-    apexRise,
-    landingStep: null,
-    horizontalRange: null,
-    airJumpStep,
+    horizontalSpeed: input.horizontalSpeed ?? PLATFORMER_RUN_SPEED,
+    jumpVelocity: input.jumpVelocity ?? PLATFORMER_JUMP_VELOCITY,
+    airJumpVelocity: input.airJumpVelocity ?? null,
+    gravity: input.gravity ?? PLATFORMER_GRAVITY,
+    stepSeconds: input.stepSeconds ?? PLATFORMER_FIXED_STEP_SECONDS,
+    maximumSteps: input.maximumSteps ?? 120,
   });
 }
 
+/** How many fixed steps a drop of `fallDistance` takes at this genre's gravity. */
 export function platformDropRecoverySteps(input: Readonly<{
   fallDistance: number;
   gravity?: number;
   stepSeconds?: number;
   maximumSteps?: number;
 }>): number | null {
-  const gravity = input.gravity ?? PLATFORMER_GRAVITY;
-  const stepSeconds = input.stepSeconds ?? PLATFORMER_FIXED_STEP_SECONDS;
-  const maximumSteps = input.maximumSteps ?? 120;
-  if (
-    !Number.isFinite(input.fallDistance) ||
-    input.fallDistance < 0 ||
-    !Number.isFinite(gravity) ||
-    gravity <= 0 ||
-    !Number.isFinite(stepSeconds) ||
-    stepSeconds <= 0 ||
-    !Number.isSafeInteger(maximumSteps) ||
-    maximumSteps < 1
-  ) {
-    throw new Error("drop proof values are outside their supported range");
-  }
-  let distance = 0;
-  let velocity = 0;
-  for (let step = 1; step <= maximumSteps; step += 1) {
-    velocity += gravity * stepSeconds;
-    distance += velocity * stepSeconds;
-    if (distance >= input.fallDistance) return step;
-  }
-  return null;
+  return fallRecoverySteps({
+    fallDistance: input.fallDistance,
+    gravity: input.gravity ?? PLATFORMER_GRAVITY,
+    stepSeconds: input.stepSeconds ?? PLATFORMER_FIXED_STEP_SECONDS,
+    maximumSteps: input.maximumSteps ?? 120,
+  });
 }
 
 export type VerticalWorldInput = Readonly<{
@@ -1019,11 +989,12 @@ export function ladderVisualBounds(ladder: ClimbableZone): LadderVisualBounds {
   });
 }
 
+/** The deck a given x stands over, or undefined between decks. */
 export function platformAtX(
   platforms: readonly UpperPlatform[],
   x: number,
 ): UpperPlatform | undefined {
-  return platforms.find((platform) => x >= platform.left && x <= platform.right);
+  return deckAtX(platforms, x);
 }
 
 export type LandingResolution = Readonly<{
@@ -1033,7 +1004,15 @@ export type LandingResolution = Readonly<{
   supportId: string | null;
 }>;
 
-/** Resolve one-way deck crossings before the terminal terrain candidate. */
+/**
+ * Resolve one-way deck crossings before the terminal terrain candidate.
+ *
+ * `clamp` is this genre's answer to a descending foot already below the
+ * terrain, and it is the forgiving one: a horizontal step can move an
+ * already-falling foot into a raised column, so any descending sample at or
+ * below the surface is pinned to it rather than treated as a body inside a
+ * hill. The runner takes the other answer, which is why the family asks.
+ */
 export function resolveVerticalLanding(input: Readonly<{
   x: number;
   previousFootY: number;
@@ -1043,48 +1022,23 @@ export function resolveVerticalLanding(input: Readonly<{
   platforms: readonly UpperPlatform[];
   ignoredPlatformId?: string | null;
 }>): LandingResolution {
-  for (const value of [input.x, input.previousFootY, input.nextFootY, input.vy, input.terrainY]) {
-    if (!Number.isFinite(value)) throw new Error("landing coordinates must be finite");
-  }
-  if (input.vy >= 0) {
-    const crossed = input.platforms
-      .filter(
-        (platform) =>
-          platform.id !== input.ignoredPlatformId &&
-          input.x >= platform.left &&
-          input.x <= platform.right &&
-          input.previousFootY <= platform.deckY &&
-          input.nextFootY >= platform.deckY,
-      )
-      .sort((left, right) => left.deckY - right.deckY || left.id.localeCompare(right.id));
-    const platform = crossed[0];
-    if (platform) {
-      return deepFreeze({
-        footY: platform.deckY,
-        vy: 0,
-        support: "platform",
-        supportId: platform.id,
-      });
-    }
-    // Terrain is solid rather than one-way. A horizontal step can move an
-    // already-falling foot into a raised column, so `previousFootY` may already
-    // be below the new surface. Clamp any descending sample at/below terrain.
-    if (input.nextFootY >= input.terrainY) {
-      return deepFreeze({ footY: input.terrainY, vy: 0, support: "terrain", supportId: null });
-    }
-  }
-  return deepFreeze({
-    footY: input.nextFootY,
+  const landing = resolveFamilyVerticalLanding({
+    x: input.x,
+    previousFootY: input.previousFootY,
+    nextFootY: input.nextFootY,
     vy: input.vy,
-    support: "air",
-    supportId: null,
+    terrainY: input.terrainY,
+    decks: input.platforms,
+    ignoredDeckId: input.ignoredPlatformId,
+    terrainEntry: "clamp",
   });
+  if (landing.support === "buried") {
+    throw new Error("clamped terrain entry cannot bury a foot");
+  }
+  return landing as LandingResolution;
 }
 
-export type TerrainStepResolution = Readonly<{
-  footY: number;
-  support: Extract<PlayerSupport, "terrain" | "air">;
-}>;
+export type { TerrainStepResolution, TerrainWalkResolution };
 
 /**
  * Resolve a standing foot against the terrain column under it.
@@ -1105,23 +1059,12 @@ export function resolveTerrainStep(input: Readonly<{
   surfaceY: number;
   tolerance?: number;
 }>): TerrainStepResolution {
-  const tolerance = input.tolerance ?? TERRAIN_STEP_DOWN_TOLERANCE;
-  for (const value of [input.footY, input.surfaceY, tolerance]) {
-    if (!Number.isFinite(value)) throw new Error("terrain step values must be finite");
-  }
-  if (tolerance < 0) throw new Error("terrain step tolerance must be nonnegative");
-  if (input.surfaceY > input.footY + tolerance) {
-    return deepFreeze({ footY: input.footY, support: "air" });
-  }
-  return deepFreeze({ footY: input.surfaceY, support: "terrain" });
+  return resolveFamilyTerrainStep({
+    footY: input.footY,
+    surfaceY: input.surfaceY,
+    tolerance: input.tolerance ?? TERRAIN_STEP_DOWN_TOLERANCE,
+  });
 }
-
-export type TerrainWalkResolution = Readonly<{
-  x: number;
-  blocked: boolean;
-  /** Column whose face stopped the move, or null when nothing did. */
-  blockedColumn: number | null;
-}>;
 
 /**
  * Resolve horizontal motion against the terrain columns it crosses.
@@ -1145,52 +1088,24 @@ export function resolveTerrainWalk(input: Readonly<{
   tolerance?: number;
   allowDescents?: boolean;
 }>): TerrainWalkResolution {
-  const tolerance = input.tolerance ?? TERRAIN_STEP_UP_TOLERANCE;
-  for (const value of [input.previousX, input.nextX, input.footY, input.tilePixels, tolerance]) {
-    if (!Number.isFinite(value)) throw new Error("terrain walk values must be finite");
-  }
-  if (input.tilePixels <= 0) throw new Error("terrain walk tile size must be positive");
-  if (tolerance < 0) throw new Error("terrain walk tolerance must be nonnegative");
-  const unblocked: TerrainWalkResolution = deepFreeze({
-    x: input.nextX,
-    blocked: false,
-    blockedColumn: null,
+  return resolveFamilyTerrainWalk({
+    previousX: input.previousX,
+    nextX: input.nextX,
+    footY: input.footY,
+    tileUnits: input.tilePixels,
+    surfaceAt: input.surfaceAt,
+    tolerance: input.tolerance ?? TERRAIN_STEP_UP_TOLERANCE,
+    contactGap: TERRAIN_WALL_CONTACT_GAP,
+    ...(input.allowDescents === undefined ? {} : { allowDescents: input.allowDescents }),
   });
-  const from = Math.floor(input.previousX / input.tilePixels);
-  const to = Math.floor(input.nextX / input.tilePixels);
-  if (from === to) return unblocked;
-  const step = to > from ? 1 : -1;
-  const allowDescents = input.allowDescents ?? true;
-  for (let column = from + step; step > 0 ? column <= to : column >= to; column += step) {
-    const surfaceY = input.surfaceAt(column);
-    if (!Number.isFinite(surfaceY)) throw new Error("terrain walk surface must be finite");
-    const sameLevel = Math.abs(surfaceY - input.footY) <= tolerance;
-    if (sameLevel || (allowDescents && surfaceY > input.footY)) continue;
-    return deepFreeze({
-      x:
-        step > 0
-          ? column * input.tilePixels - TERRAIN_WALL_CONTACT_GAP
-          : (column + 1) * input.tilePixels,
-      blocked: true,
-      blockedColumn: column,
-    });
-  }
-  return unblocked;
 }
 
 /** Keep crouch locomotion directional but always slower than an ordinary walk. */
 export function resolveCrouchHorizontalVelocity(velocity: number): number {
-  if (!Number.isFinite(velocity)) {
-    throw new Error("crouch horizontal velocity must be finite");
-  }
-  return (
-    Math.sign(velocity) *
-    Math.min(Math.abs(velocity), PLATFORMER_CROUCH_SPEED)
-  );
+  return resolveFamilyCrouchHorizontalVelocity(velocity, PLATFORMER_CROUCH_SPEED);
 }
 
-export type JumpKind = "ground" | "air" | "none";
-
+export type { JumpKind };
 export type JumpResolution = Readonly<{
   kind: JumpKind;
   /** Signed vertical velocity to assign; negative is upward, 0 when refused. */
@@ -1199,7 +1114,7 @@ export type JumpResolution = Readonly<{
 }>;
 
 /**
- * Decide which jump a press buys.
+ * Decide which jump a press buys, at this genre's budget and velocities.
  *
  * `coyoteExpiresAtMs` is set by the caller only when a support was lost by
  * falling, never by jumping, so the grace window cannot be spent twice or
@@ -1215,37 +1130,40 @@ export function resolveJumpRequest(input: Readonly<{
   jumpVelocity?: number;
   airJumpVelocity?: number;
 }>): JumpResolution {
-  const maximumAirJumps = input.maximumAirJumps ?? PLATFORMER_AIR_JUMPS_MAX;
-  const jumpVelocity = input.jumpVelocity ?? PLATFORMER_JUMP_VELOCITY;
-  const airJumpVelocity = input.airJumpVelocity ?? PLATFORMER_AIR_JUMP_VELOCITY;
-  if (!Number.isSafeInteger(input.airJumpsUsed) || input.airJumpsUsed < 0) {
-    throw new Error("air jump count must be a nonnegative integer");
-  }
-  if (!Number.isSafeInteger(maximumAirJumps) || maximumAirJumps < 0) {
-    throw new Error("air jump budget must be a nonnegative integer");
-  }
-  if (!Number.isFinite(input.nowMs)) throw new Error("jump clock must be finite");
-  const refused: JumpResolution = deepFreeze({
-    kind: "none",
-    vy: 0,
+  return resolveFamilyJumpRequest({
+    support: input.support,
     airJumpsUsed: input.airJumpsUsed,
+    nowMs: input.nowMs,
+    coyoteExpiresAtMs: input.coyoteExpiresAtMs,
+    crouching: input.crouching,
+    maximumAirJumps: input.maximumAirJumps ?? PLATFORMER_AIR_JUMPS_MAX,
+    jumpVelocity: input.jumpVelocity ?? PLATFORMER_JUMP_VELOCITY,
+    airJumpVelocity: input.airJumpVelocity ?? PLATFORMER_AIR_JUMP_VELOCITY,
   });
-  if (input.support === "climbable") return refused;
-  if (input.support !== "air") {
-    if (input.crouching) return refused;
-    return deepFreeze({ kind: "ground", vy: -jumpVelocity, airJumpsUsed: 0 });
-  }
-  const coyoteOpen =
-    input.coyoteExpiresAtMs !== null && input.nowMs <= input.coyoteExpiresAtMs;
-  if (coyoteOpen && input.airJumpsUsed === 0) {
-    return deepFreeze({ kind: "ground", vy: -jumpVelocity, airJumpsUsed: 0 });
-  }
-  if (input.airJumpsUsed >= maximumAirJumps) return refused;
-  return deepFreeze({
-    kind: "air",
-    vy: -airJumpVelocity,
-    airJumpsUsed: input.airJumpsUsed + 1,
-  });
+}
+
+/**
+ * This genre's climb profile: how fast, how close, and what letting go costs.
+ *
+ * Four numbers, asserted here rather than in the family, which is what makes
+ * the family's climb capability a mechanism rather than a ladder.
+ */
+export const PLATFORMER_CLIMB_PROFILE: ClimbProfile = Object.freeze({
+  speed: CLIMBABLE_SPEED,
+  endpointTolerance: CLIMBABLE_ENDPOINT_TOLERANCE,
+  jumpVelocity: CLIMBABLE_JUMP_VELOCITY,
+  jumpHorizontalSpeed: CLIMBABLE_JUMP_HORIZONTAL_SPEED,
+});
+
+/** This genre's authored zone, projected onto the two endpoints and the axis. */
+function climbableGeometry(zone: ClimbableZone): ClimbGeometry {
+  return {
+    centerX: zone.centerX,
+    activationHalfWidth: zone.activationHalfWidth,
+    upperY: zone.upperDeckY,
+    lowerY: zone.lowerSurfaceY,
+    deckId: zone.platformId,
+  };
 }
 
 export function ladderEntryAt(input: Readonly<{
@@ -1257,36 +1175,20 @@ export function ladderEntryAt(input: Readonly<{
   up: boolean;
   down: boolean;
 }>): Readonly<{ ladder: ClimbableZone; direction: "up" | "down" }> | null {
-  for (const ladder of input.climbables) {
-    if (Math.abs(input.x - ladder.centerX) > ladder.activationHalfWidth) continue;
-    if (
-      input.support === "terrain" &&
-      input.up &&
-      !input.down &&
-      Math.abs(input.footY - ladder.lowerSurfaceY) <= CLIMBABLE_ENDPOINT_TOLERANCE
-    ) {
-      return deepFreeze({ ladder, direction: "up" });
-    }
-    if (
-      input.support === "air" &&
-      input.up &&
-      !input.down &&
-      input.footY >= ladder.upperDeckY &&
-      input.footY <= ladder.lowerSurfaceY
-    ) {
-      return deepFreeze({ ladder, direction: "up" });
-    }
-    if (
-      input.support === "platform" &&
-      input.supportId === ladder.platformId &&
-      input.down &&
-      !input.up &&
-      input.footY === ladder.upperDeckY
-    ) {
-      return deepFreeze({ ladder, direction: "down" });
-    }
-  }
-  return null;
+  const entry = climbEntryAt({
+    zones: input.climbables,
+    geometry: climbableGeometry,
+    profile: PLATFORMER_CLIMB_PROFILE,
+    support: input.support,
+    supportId: input.supportId,
+    x: input.x,
+    footY: input.footY,
+    up: input.up,
+    down: input.down,
+  });
+  return entry === null
+    ? null
+    : Object.freeze({ ladder: entry.zone, direction: entry.direction });
 }
 
 export type LadderMotion = Readonly<{
@@ -1303,20 +1205,14 @@ export function advanceLadderMotion(input: Readonly<{
   up: boolean;
   down: boolean;
 }>): LadderMotion {
-  if (!Number.isFinite(input.footY) || !Number.isFinite(input.deltaSeconds)) {
-    throw new Error("ladder motion values must be finite");
-  }
-  if (input.deltaSeconds < 0) throw new Error("ladder delta must be nonnegative");
-  const direction = input.up === input.down ? 0 : input.up ? -1 : 1;
-  const vy = direction * CLIMBABLE_SPEED;
-  const next = input.footY + vy * input.deltaSeconds;
-  if (next <= input.ladder.upperDeckY) {
-    return deepFreeze({ footY: input.ladder.upperDeckY, vy: 0, exit: "platform" });
-  }
-  if (next >= input.ladder.lowerSurfaceY) {
-    return deepFreeze({ footY: input.ladder.lowerSurfaceY, vy: 0, exit: "terrain" });
-  }
-  return deepFreeze({ footY: next, vy, exit: null });
+  return advanceClimbMotion({
+    geometry: climbableGeometry(input.ladder),
+    profile: PLATFORMER_CLIMB_PROFILE,
+    footY: input.footY,
+    deltaSeconds: input.deltaSeconds,
+    up: input.up,
+    down: input.down,
+  });
 }
 
 export function ladderJumpOffVelocity(input: Readonly<{
@@ -1324,17 +1220,11 @@ export function ladderJumpOffVelocity(input: Readonly<{
   right: boolean;
   facing: "left" | "right";
 }>): Readonly<{ vx: number; vy: number }> {
-  const direction =
-    input.left !== input.right
-      ? input.left
-        ? -1
-        : 1
-      : input.facing === "left"
-        ? -1
-        : 1;
-  return deepFreeze({
-    vx: direction * CLIMBABLE_JUMP_HORIZONTAL_SPEED,
-    vy: CLIMBABLE_JUMP_VELOCITY,
+  return climbJumpOffVelocity({
+    profile: PLATFORMER_CLIMB_PROFILE,
+    left: input.left,
+    right: input.right,
+    facing: input.facing,
   });
 }
 
@@ -1344,13 +1234,13 @@ export function platformDropThroughActive(input: Readonly<{
   footY: number;
   deckY: number;
 }>): boolean {
-  for (const value of [input.nowMs, input.expiresAtMs, input.footY, input.deckY]) {
-    if (!Number.isFinite(value)) throw new Error("drop-through values must be finite");
-  }
-  return (
-    input.nowMs <= input.expiresAtMs ||
-    input.footY <= input.deckY + PLATFORM_DROP_CLEARANCE
-  );
+  return dropThroughActive({
+    nowMs: input.nowMs,
+    expiresAtMs: input.expiresAtMs,
+    footY: input.footY,
+    deckY: input.deckY,
+    clearance: PLATFORM_DROP_CLEARANCE,
+  });
 }
 
 export function verticalObjectVisible(input: Readonly<{

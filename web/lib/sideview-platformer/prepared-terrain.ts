@@ -3,6 +3,11 @@ import { climbableVisualWidth } from "./prepared-climbable";
 import { parseTerrainOccupancy } from "@/lib/sideview/terrain-atlas";
 import { terrainSurfaceY } from "./terrain";
 import {
+  belongsToBottomStack,
+  booleanOccupancy,
+  bottomContiguousHeights,
+} from "@/lib/families/sideview/traversal";
+import {
   createVerticalWorld,
   CLIMBABLE_VISUAL_OVERSHOOT,
   type UpperPlatform,
@@ -19,21 +24,7 @@ export type PreparedTerrainWorld = Readonly<{
   verticalWorld: VerticalWorld;
 }>;
 
-function bottomContiguousHeights(
-  occupancy: readonly (readonly boolean[])[],
-): readonly number[] {
-  const rows = occupancy.length;
-  const columns = occupancy[0]!.length;
-  return Object.freeze(
-    Array.from({ length: columns }, (_, column) => {
-      let height = 0;
-      for (let row = rows - 1; row >= 0 && occupancy[row]![column]; row -= 1) {
-        height += 1;
-      }
-      return height;
-    }),
-  );
-}
+
 
 function floatingPlatforms(
   occupancy: readonly (readonly boolean[])[],
@@ -47,7 +38,7 @@ function floatingPlatforms(
   for (let row = 0; row < rows; row += 1) {
     let column = 0;
     while (column < columns) {
-      const belongsToGround = row >= rows - heights[column]!;
+      const belongsToGround = belongsToBottomStack(row, rows, heights[column]!);
       const exposedFloatingSurface =
         occupancy[row]![column]! &&
         !belongsToGround &&
@@ -59,7 +50,7 @@ function floatingPlatforms(
       const start = column;
       column += 1;
       while (column < columns) {
-        const nextBelongsToGround = row >= rows - heights[column]!;
+        const nextBelongsToGround = belongsToBottomStack(row, rows, heights[column]!);
         if (
           !occupancy[row]![column] ||
           nextBelongsToGround ||
@@ -105,7 +96,7 @@ export function projectPreparedTerrainWorld(
   const columns = occupancy[0]!.length;
   const worldWidth = columns * tilePixels;
   const topY = baselineY - rows * tilePixels;
-  const heights = bottomContiguousHeights(occupancy);
+  const heights = bottomContiguousHeights(booleanOccupancy(occupancy));
   const platforms = floatingPlatforms(
     occupancy,
     heights,

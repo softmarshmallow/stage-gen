@@ -14,10 +14,40 @@
 
 import { surfaceRowAt } from "./segments";
 import type { GameSystem } from "@/lib/kernel/systems";
+import { RUNNER_BLOCKS } from "./contract";
+import type { BlockTable } from "@/lib/manifest/blocks";
+import {
+  jumpArcFromAdmission,
+  resolveJumpRequest,
+  resolveTerrainStep,
+  resolveVerticalLanding,
+  parseTraversalBlock,
+  type TraversalBlockView,
+} from "@/lib/families/sideview/traversal";
 
 import { type ThrustArithmetic, thrustVelocity } from "./encounter-arithmetic";
 import { applyPendingRecovery } from "./vitals";
 import type { RunnerWorld } from "./world";
+
+/**
+ * The block this genre authors its traversal in.
+ *
+ * The composition table calls it `[navigation]` and this genre has no such
+ * block: the same subject is authored as `gameplay.jump_profile`,
+ * `gameplay.duck_profile`, `max_clear_gap_columns` and `max_rise_tiles` — the
+ * admission arithmetic the arc is *derived* from rather than an authored arc.
+ * Move it and the refusal comes from the traversal core, by name, rather than
+ * from a genre parser gating a dozen blocks on a dozen consumers' behalf.
+ */
+export const RUNNER_TRAVERSAL_BLOCK = Object.freeze({
+  block: "gameplay",
+  version: RUNNER_BLOCKS.gameplay,
+});
+
+/** Gate the runner's traversal block. Refuses by naming `gameplay`. */
+export function parseRunnerTraversalBlock(blocks: BlockTable): TraversalBlockView {
+  return parseTraversalBlock(blocks, RUNNER_TRAVERSAL_BLOCK);
+}
 
 /** The consumer's own defaults, equal to the SDK's published values; runtime
  * code passes the manifest's arithmetic instead of relying on these. */
@@ -51,38 +81,40 @@ export interface JumpArcArithmetic {
 }
 
 /**
- * Derive the jump arc from the admission arithmetic.
+ * Derive the jump arc from the admission arithmetic, in rows.
  *
- * A pit of `maxClearGapColumns` needs the takeoff column plus the gap crossed
- * before landing, so flat-ground airtime is `(gap + 1) / speed` at the
- * slowest admitted speed — every ramped speed then crosses farther. Peak
- * height is the maximal rise plus a margin. From airtime T and peak P, the
- * kinematics close: v0 = 4P/T and g = 8P/T².
+ * The closure is the family's — a pit of `maxClearGapColumns` needs the takeoff
+ * column plus the gap crossed before landing, peak height is the maximal rise
+ * plus a margin, and from airtime T and peak P the kinematics close as
+ * `v0 = 4P/T` and `g = 8P/T²`. What this genre supplies is the *unit*: its
+ * admission counts grid cells and its avatar integrates in rows, so the arc
+ * comes back in rows and the field names say so. A genre that admitted the same
+ * track in pixels would get a pixel arc out of the identical arithmetic, which
+ * is the whole of what "generic over the length unit" buys here.
  */
 export function jumpArcFor(
   maxRiseTiles: number,
   maxClearGapColumns: number,
   arithmetic: JumpArcArithmetic = {},
 ): JumpArc {
-  const minSpeed =
-    arithmetic.baseSpeedColumnsPerSecond ?? DEFAULT_BASE_SPEED_COLUMNS_PER_SECOND;
-  if (minSpeed <= 0) {
-    throw new Error("jump arc requires a positive minimum speed");
-  }
-  const peakRows = maxRiseTiles + (arithmetic.jumpPeakMarginTiles ?? JUMP_PEAK_MARGIN_TILES);
-  const airtimeSeconds =
-    ((maxClearGapColumns + 1) / minSpeed) * (arithmetic.airtimeHeadroom ?? AIRTIME_HEADROOM);
+  const arc = jumpArcFromAdmission({
+    maxRise: maxRiseTiles,
+    maxClearGap: maxClearGapColumns,
+    minSpeed: arithmetic.baseSpeedColumnsPerSecond ?? DEFAULT_BASE_SPEED_COLUMNS_PER_SECOND,
+    peakMargin: arithmetic.jumpPeakMarginTiles ?? JUMP_PEAK_MARGIN_TILES,
+    airtimeHeadroom: arithmetic.airtimeHeadroom ?? AIRTIME_HEADROOM,
+  });
   return Object.freeze({
-    initialSpeedRowsPerSecond: (4 * peakRows) / airtimeSeconds,
-    gravityRowsPerSecondSquared: (8 * peakRows) / (airtimeSeconds * airtimeSeconds),
-    peakRows,
-    airtimeSeconds,
+    initialSpeedRowsPerSecond: arc.initialSpeedPerSecond,
+    gravityRowsPerSecondSquared: arc.gravityPerSecondSquared,
+    peakRows: arc.peakUnits,
+    airtimeSeconds: arc.airtimeSeconds,
   });
 }
 
-function launch(world: RunnerWorld, arc: JumpArc): void {
+function launch(world: RunnerWorld, vy: number): void {
   const avatar = world.avatar;
-  avatar.vy = -arc.initialSpeedRowsPerSecond;
+  avatar.vy = vy;
   avatar.grounded = false;
   avatar.sliding = false;
   avatar.motion = "jump";
@@ -129,14 +161,25 @@ export function stepAvatar(world: RunnerWorld, dt: number): void {
   const support = surfaceRowAt(world.segments, Math.floor(avatar.distanceColumns));
 
   if (world.intent.jump) {
-    if (avatar.grounded) {
-      launch(world, arc);
-    } else if (avatar.airJumpsUsed < JUMP_FEEL_PROFILES[world.config.jumpProfile].airJumps) {
-      // The air jump: a full relaunch from wherever the mistake happened.
-      // Recovery, never reach — admission's arithmetic is single-hop, so no
-      // admitted chunk ever demands this press.
-      avatar.airJumpsUsed += 1;
-      launch(world, arc);
+    // The family answers which jump the press buys; this genre supplies the
+    // budget and the velocities. Both velocities are the same arc, because the
+    // air jump here is a full relaunch from wherever the mistake happened —
+    // recovery, never reach, since admission's arithmetic is single-hop and no
+    // admitted chunk ever demands the press. There is no coyote window: the
+    // track has no ledges to forgive, so the grace branch is simply never open.
+    const request = resolveJumpRequest({
+      support: avatar.grounded ? "terrain" : "air",
+      airJumpsUsed: avatar.airJumpsUsed,
+      nowMs: 0,
+      coyoteExpiresAtMs: null,
+      crouching: false,
+      maximumAirJumps: JUMP_FEEL_PROFILES[world.config.jumpProfile].airJumps,
+      jumpVelocity: arc.initialSpeedRowsPerSecond,
+      airJumpVelocity: arc.initialSpeedRowsPerSecond,
+    });
+    if (request.kind !== "none") {
+      avatar.airJumpsUsed = request.airJumpsUsed;
+      launch(world, request.vy);
     }
   }
 
@@ -144,15 +187,23 @@ export function stepAvatar(world: RunnerWorld, dt: number): void {
     // The slide is held state: low while duck is held, back up when released.
     avatar.sliding = world.config.duckProfile !== null && world.intent.duck;
     avatar.motion = avatar.sliding ? "slide" : "run";
-    if (support === null || support > avatar.y) {
+    // The standing foot against the column under it, at zero tolerance: this
+    // track steps in whole rows and there is no kerb small enough to absorb.
+    const contact =
+      support === null
+        ? null
+        : resolveTerrainStep({ footY: avatar.y, surfaceY: support, tolerance: 0 });
+    if (contact === null || contact.support === "air") {
       // Ran off a ledge or over a pit: start falling from the current height.
       avatar.grounded = false;
       avatar.sliding = false;
       avatar.motion = "jump";
-    } else if (support < avatar.y) {
-      // The ground face rose into the avatar: an unjumped step is a crush.
-      // What that costs is not decided here — the package's consequence table
-      // answers it, and the vitals system reads that. This says what happened.
+    } else if (contact.footY < avatar.y) {
+      // The ground face rose into the avatar. The family lifts a buried foot as
+      // a recovery; this genre refuses the lift, because an unjumped step is a
+      // crush. What that costs is not decided here — the package's consequence
+      // table answers it, and the vitals system reads that. This says what
+      // happened.
       world.events.emit({ type: "crush" });
       return;
     }
@@ -162,22 +213,35 @@ export function stepAvatar(world: RunnerWorld, dt: number): void {
     const yBefore = avatar.y;
     avatar.vy += arc.gravityRowsPerSecondSquared * dt;
     avatar.y += avatar.vy * dt;
-    if (support !== null && avatar.y >= support) {
-      if (avatar.vy >= 0 && yBefore <= support) {
-        // Fell across the surface from above: land on it.
-        avatar.y = support;
-        avatar.vy = 0;
-        avatar.grounded = true;
-        avatar.airJumpsUsed = 0;
-        avatar.sliding = world.config.duckProfile !== null && world.intent.duck;
-        avatar.motion = avatar.sliding ? "slide" : "run";
-      } else {
-        // Buried without crossing from above — ascending into a step's face,
-        // or carried into a pit wall while already below its rim. Either way
-        // it is a crush.
-        world.events.emit({ type: "crush" });
-        return;
-      }
+    // `crossing`, which is the runner's half of the family's one real
+    // disagreement: this track is admitted so that no arc ever has to arrive
+    // from inside a step's face, so a foot below the surface that did not cross
+    // it from above is buried rather than landed. The platformer clamps
+    // instead, and neither answer can be derived from the other.
+    const landing =
+      support === null
+        ? null
+        : resolveVerticalLanding({
+            x: avatar.distanceColumns,
+            previousFootY: yBefore,
+            nextFootY: avatar.y,
+            vy: avatar.vy,
+            terrainY: support,
+            terrainEntry: "crossing",
+          });
+    if (landing?.support === "terrain") {
+      // Fell across the surface from above: land on it.
+      avatar.y = landing.footY;
+      avatar.vy = landing.vy;
+      avatar.grounded = true;
+      avatar.airJumpsUsed = 0;
+      avatar.sliding = world.config.duckProfile !== null && world.intent.duck;
+      avatar.motion = avatar.sliding ? "slide" : "run";
+    } else if (landing?.support === "buried") {
+      // Ascending into a step's face, or carried into a pit wall while already
+      // below its rim. Either way it is a crush.
+      world.events.emit({ type: "crush" });
+      return;
     } else if (avatar.y > world.config.rows) {
       world.events.emit({ type: "pit" });
     }
@@ -214,6 +278,7 @@ function stepThrust(world: RunnerWorld, dt: number, thrust: ThrustArithmetic): v
   }
   if (avatar.grounded) avatar.grounded = false;
 
+  const yBefore = avatar.y;
   avatar.vy = thrustVelocity(avatar.vy, held, dt, thrust);
   avatar.y += avatar.vy * dt;
 
@@ -223,9 +288,25 @@ function stepThrust(world: RunnerWorld, dt: number, thrust: ThrustArithmetic): v
     avatar.vy = 0;
   }
 
-  if (support !== null && avatar.y >= support && avatar.vy >= 0) {
-    avatar.y = support;
-    avatar.vy = 0;
+  // `clamp` under thrust, and the arena is why: it is flat by contract, so a
+  // descending body that is at or below the floor arrived there by falling onto
+  // it and there is nothing to bury it in. The same family function, the other
+  // entry rule, in the same genre — which is the clearest statement available
+  // that the rule is a parameter and not a genre.
+  const landing =
+    support === null
+      ? null
+      : resolveVerticalLanding({
+          x: avatar.distanceColumns,
+          previousFootY: yBefore,
+          nextFootY: avatar.y,
+          vy: avatar.vy,
+          terrainY: support,
+          terrainEntry: "clamp",
+        });
+  if (landing?.support === "terrain") {
+    avatar.y = landing.footY;
+    avatar.vy = landing.vy;
     avatar.grounded = true;
     avatar.motion = "run";
     return;

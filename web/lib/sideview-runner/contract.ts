@@ -15,6 +15,10 @@
 import { type BlockTable, parseBlockTable } from "@/lib/manifest/blocks";
 import { type FxBlock, parseFxBlock } from "@/lib/manifest/fx";
 import type { PreparedLayerPresentation } from "@/lib/manifest/prepared-manifest";
+import {
+  bottomContiguousSurfaceRow as familySurfaceRow,
+  stringOccupancy,
+} from "@/lib/families/sideview/traversal";
 
 export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v13";
 export const RUNNER_RUNTIME_SCHEMA_VERSION = 13;
@@ -690,11 +694,7 @@ export function bottomContiguousSurfaceRow(
   occupancy: readonly string[],
   column: number,
 ): number | null {
-  const rows = occupancy.length;
-  if (occupancy[rows - 1]?.[column] !== "1") return null;
-  let surface = rows - 1;
-  while (surface > 0 && occupancy[surface - 1]?.[column] === "1") surface -= 1;
-  return surface;
+  return familySurfaceRow(stringOccupancy(occupancy), column);
 }
 
 function chunk(

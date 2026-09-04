@@ -193,6 +193,7 @@ import {
 } from "./npc";
 import { DebugOverlay } from "./debug-overlay";
 import { parsePlatformerClockBlock } from "./clock";
+import { parsePlatformerTraversalBlocks } from "./vertical";
 import { parsePlatformerIntentBlock } from "./player-intent";
 import { parsePlatformerVitalsBlock } from "./vitals";
 import { parsePlatformerCameraBlock } from "./camera";
@@ -593,6 +594,7 @@ export class PreparedStageScene extends Phaser.Scene {
     // A producer that moves one block gets a refusal naming that block from
     // the family that could not go on, rather than a genre parser speaking on
     // behalf of a dozen consumers it does not know about.
+    parsePlatformerTraversalBlocks(manifest.blocks);
     parsePlatformerClockBlock(manifest.blocks);
     parsePlatformerIntentBlock(manifest.blocks);
     parsePlatformerVitalsBlock(manifest.blocks);

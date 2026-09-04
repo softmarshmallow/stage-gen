@@ -32,7 +32,7 @@ import {
   type RunnerAudioSink,
   type RunnerMusicSink,
 } from "./audio";
-import { createAvatarSystem } from "./avatar";
+import { createAvatarSystem, parseRunnerTraversalBlock } from "./avatar";
 import { createRunnerCameraSystem, parseRunnerCameraBlock } from "./camera";
 import { createRunnerClockSystem, parseRunnerClockBlock } from "./clock";
 import type { BlockTable } from "@/lib/manifest/blocks";
@@ -129,6 +129,7 @@ const GROUND_TEXTURE_KEY = "runner:ground";
  * function with it.
  */
 export function gateRunnerFamilyBlocks(blocks: BlockTable): void {
+  parseRunnerTraversalBlock(blocks);
   parseRunnerClockBlock(blocks);
   parseRunnerSessionBlock(blocks);
   parseRunnerIntentBlock(blocks);

@@ -1,7 +1,20 @@
 import { describe, expect, test } from "bun:test";
-import { createAvatarSystem, jumpArcFor, stepAvatar } from "./avatar";
+import {
+  AIRTIME_HEADROOM,
+  DEFAULT_BASE_SPEED_COLUMNS_PER_SECOND,
+  JUMP_PEAK_MARGIN_TILES,
+  createAvatarSystem,
+  jumpArcFor,
+  parseRunnerTraversalBlock,
+  stepAvatar,
+} from "./avatar";
+import {
+  bottomContiguousSurfaceRow as familySurfaceRow,
+  jumpArcFromAdmission,
+  stringOccupancy,
+} from "@/lib/families/sideview/traversal";
 import { BASE_SPEED_COLUMNS_PER_SECOND } from "./difficulty";
-import { parseRunnerRuntimeManifest } from "./contract";
+import { bottomContiguousSurfaceRow, parseRunnerRuntimeManifest } from "./contract";
 import { runnerManifestFixture } from "./fixture";
 import { runnerIntent } from "./intent";
 import { createSegmentStream, streamAhead } from "./segments";
@@ -452,5 +465,44 @@ describe("the avatar reports its own verbs", () => {
     expect(heard()).toEqual(["slid"]);
     tickOnce();
     expect(heard()).toEqual([]);
+  });
+});
+
+describe("the runner's traversal is the family's, in rows", () => {
+  test("the derived arc is the family closure with this genre's unit and defaults", () => {
+    const arc = jumpArcFor(2, 3);
+    const family = jumpArcFromAdmission({
+      maxRise: 2,
+      maxClearGap: 3,
+      minSpeed: DEFAULT_BASE_SPEED_COLUMNS_PER_SECOND,
+      peakMargin: JUMP_PEAK_MARGIN_TILES,
+      airtimeHeadroom: AIRTIME_HEADROOM,
+    });
+    // Not "equal to" — *is*. The row-named fields are the family's four numbers
+    // relabelled with the unit this genre integrates in, and nothing else.
+    expect(arc).toEqual({
+      initialSpeedRowsPerSecond: family.initialSpeedPerSecond,
+      gravityRowsPerSecondSquared: family.gravityPerSecondSquared,
+      peakRows: family.peakUnits,
+      airtimeSeconds: family.airtimeSeconds,
+    });
+  });
+
+  test("the surface a runner stands on is the family's one bottom-contiguous walk", () => {
+    const occupancy = ["0000", "0110", "1111"];
+    for (let column = 0; column < 4; column += 1) {
+      expect(bottomContiguousSurfaceRow(occupancy, column)).toBe(
+        familySurfaceRow(stringOccupancy(occupancy), column),
+      );
+    }
+    // And a pit is still a pit through the family: a floating cell is scenery.
+    expect(bottomContiguousSurfaceRow(["010", "000", "101"], 1)).toBeNull();
+  });
+
+  test("the traversal block is gated by the family, by name", () => {
+    expect(parseRunnerTraversalBlock(manifest.blocks).published).toBe(true);
+    expect(() =>
+      parseRunnerTraversalBlock({ ...manifest.blocks, gameplay: "runner-gameplay-block-v2" }),
+    ).toThrow('manifest block "gameplay" is published as runner-gameplay-block-v2');
   });
 });
