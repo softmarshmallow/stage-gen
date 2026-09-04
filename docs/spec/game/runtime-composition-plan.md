@@ -87,6 +87,90 @@ later golden.
 **Evidence:** E1 goldens exist and are green on `main`; each bug commit's
 golden diff is the bug's own proof.
 
+**Evidence, measured — the platformer half.** Branch
+`runtime/step-0-platformer`; `bun test` 1503 pass, 0 fail; `tsc --noEmit`
+clean at every commit.
+
+- **E1 platformer.** Six hundred fixed steps of 1/30s driven through
+  `PreparedStageScene.update` by a scripted `PlayerIntent` source, hashing a
+  `replaySnapshot` composed from the `snapshot()` each family already
+  publishes — player, mobs, world items, projectiles, portals, inventory,
+  combat text, impact, stat log, defeat panel, progression, quests, dialogue,
+  camera and diagnostics — plus the frame's events. The chain is pinned at 60,
+  300 and 600; `REPLAY_FRAMES` writes one unchained digest per frame and
+  `REPLAY_DUMP` the whole hashed snapshot per frame, which is how every "which
+  frames moved and why" below was measured rather than argued. Three things
+  the plan assumed had to be built rather than used. There is no capture mode
+  running the fixed step: `GameplayAutomationClock`,
+  `GameplayAutomationSnapshot` and `GameplayTranscriptEvent` are published by
+  `automation.ts` and constructed by nothing outside its own test — the scene
+  publishes a different, smaller `__preparedGame` object. The `PlayerIntent`
+  seam existed as a type and reached no source; `driveWithIntent` is the seam
+  the file's opening paragraph describes. And nothing could construct a scene
+  outside a browser, so the harness is two documented stand-ins: a headless
+  Phaser (scene graph, textures, keyboard, tweens/timers/animations, and a
+  re-implementation of the dead-zone camera follow, because the spawn director
+  asks the camera what is on screen) and a headless page that serves the
+  manifest and refuses every asset, which sends the run down the runtime's own
+  shipped presentation-fallback path. The consequence is stated in both
+  headers and is the golden's one real limit: **authored geometry is real,
+  art is uniformly the magenta placeholder**, and the engine's tweens and
+  timers run on the same virtual clock as the simulation — which makes this
+  harness kinder to engine-driven code than a browser is, not harsher.
+- **`Mob` off engine tweens and timers.** Confirmed: `MobOpts.fixedStepMotion`
+  exists (`mob.ts:133`), the scene constructs every creature without it, and
+  the string does not occur in `prepared-scene.ts`. **22 of 600 frames moved,
+  291–312**, all under `mobs`: the fade of the creature killed at 290 starts on
+  the killing frame instead of 500 ms later and the body retires at 299 rather
+  than 313; the knockback x matches frame for frame, which is the measurement
+  that `sampleFixedMobHit` really does reproduce the Cubic ease. Setting the
+  flag alone was not enough and the golden is what said so — the scene stepped
+  only living creatures, so nothing sampled a dead one, and the tween also
+  owned the retirement.
+- **The banner off its tween.** Confirmed at `prepared-scene.ts:2784-2786`.
+  **45 contiguous frames moved, 150–194**, all under `banner`: the
+  announcement raised by the portal transition exists in the record at all —
+  a tween is engine state the probe cannot read — and lives for exactly the
+  1500 ms it declares. `sampleMapNameBanner` joins `fixed-motion.ts`.
+- **`enterMap` deferred to frame end.** Confirmed: `void this.enterMap(...)`
+  at `prepared-scene.ts:1979` inside `updatePlayer`, on an `async` method with
+  no `await`, so `clearWorld` destroys the player controller mid-frame and
+  twenty lines go on reading it. **Frames 150–600 moved**, all from one thing:
+  the world is rebuilt after the frame's systems, so the population's first
+  two spawns land at 151 instead of 150 and those creatures are a frame behind
+  forever. The run is the same run — the kill at 290, both pickups at 293 and
+  all three contact hits on identical frames — and the hp difference from 306
+  to 469 is a critical seeded from where the creature that struck it stood.
+- **The orphaned `DeterministicSoundtrackPlayer`.** Confirmed: 480 lines of
+  tested shuffle-bag, pool and gesture logic constructed by nothing outside
+  its own test file, while the scene took `track_ids[0]`, looped an `Audio`
+  element, and never stopped it on destroy. **All 600 frames moved**, every
+  changed field under `soundtrack`. Reported and not fixed: a pool of exactly
+  one track goes quiet after that track, because `refillBag` compares against
+  `lastTrackId !== null` rather than the one track's own id —
+  `soundtrack.test.ts:453` asserts that case deliberately, so it is the
+  class's stated contract and not on this step's list.
+- **Every latched key drained on the same side of the dialogue hold.**
+  Confirmed: `readKeyboardIntent` spends `JustDown` on the space `Key`
+  (`player.ts:549,577`) and `updateDialogueInput` then re-reads the same
+  object (`prepared-scene.ts:2297`), as does `confirmKeyPressed`
+  (`prepared-scene.ts:2788`). **529 frames moved, 72–600**, and it is the
+  sharpest measurement here: under the same script the runtime before the fix
+  never leaves the conversation — the player stands at x=546 for 528 frames
+  and the run records two dialogue events and nothing else.
+- **Not fixed, and why.** `defeatedAtMs` cleared on transition is confirmed in
+  code — the field is scene state describing a controller `clearWorld` retires,
+  and only `respawnAtHome` remembers to clear it, so the `K`-key world rebuild
+  leaves it set — but this script never reaches a defeat, so the golden cannot
+  observe the change and it is left for the commit that can earn one. The room
+  and dialogue scenes passing the fallback diagnostic is confirmed
+  (`pointclick/room-scene.ts:184`, `dialogue-scene/scene-game.ts:204` both drop
+  the optional sink, so a missing texture in either is silent) and belongs to
+  neither genre's replay. `restoreRoomState` does not exist: `pointclick/state.ts`
+  publishes `initialState` and no restore, while the dialogue scene resumes
+  through `restoreScenarioState`; the item is a missing symmetry, not a defect
+  in code that is there.
+
 ## Step 1 — the kernel, proven on the runner
 
 **Fact.** `fx` has two writers (`fx/moment` and the encounter director). The
