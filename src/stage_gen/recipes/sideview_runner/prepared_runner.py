@@ -144,6 +144,7 @@ from stage_gen.components.sideview_layers.pipeline import (
     construct_deterministic,
     layer_repeat_policies,
     loop_conditioning,
+    loop_layer,
     validate_provider_image,
 )
 from stage_gen.components.sideview_terrain import (
@@ -171,7 +172,14 @@ from stage_gen.identity import (
     STRUCTURED_GENERATION_COMPONENT,
     TOOL_LOOP_COMPONENT,
 )
-from stage_gen.media import RegistrationError, data_url, probe_audio, validate_music_payload
+from stage_gen.media import (
+    LOOP_METHODS,
+    RegistrationError,
+    SeamConditioning,
+    data_url,
+    probe_audio,
+    validate_music_payload,
+)
 from stage_gen.media.layer_rasters import trim_layer_to_alpha_box
 from stage_gen.media.sprite_sheets import (
     AlphaComponentRepackContract,
@@ -2893,94 +2901,42 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
         construction = cast("LoopConstruction", node.params["construction"])
         source_ref = self._dependency_artifact(node, kind=LAYER_RAW_KIND)
         raw_data = (self._run_dir / source_ref).read_bytes()
-        alpha_policy, coverage = layer_repeat_policies(layer.alpha_mode)
-
-        def admit(data: bytes) -> Any:
-            return validate_image_repeat(
-                data,
-                axis="x",
-                alpha_policy=alpha_policy,
-                coverage_policy=coverage,
-                validation_policy=ImageRepeatValidationPolicy(),
-            )
-
-        from stage_gen.media import LOOP_METHODS
-
-        admission = admit(raw_data)
-        provider_operations = 0
-        fallback = self._track().continuity.loop_fallback
         generative = LOOP_METHODS[construction].is_generative
         edit_ref = node.port("edit_image").artifact_ref if generative else None
-        edit_path = self._run_dir / edit_ref if edit_ref is not None else None
-        edit_data: bytes | None = None
-        if admission.verdict == "pass":
-            looped = raw_data
-            record: dict[str, object] = {
-                "schema_version": 1,
-                "kind": "direct-loop-admission-v1",
-                "construction": "none",
-                "skipped_construction": construction,
-                "provider_operations": 0,
-            }
-            if edit_path is not None and edit_ref is not None:
-                edit_data = raw_data
-                await _write_local_image(
-                    edit_path,
-                    edit_data,
-                    prompt=f"Record the skipped {layer.layer_id} loop edit without provider use.",
-                    inputs=[(source_ref, raw_data)],
-                    validation={"construction": "none", "provider_skipped": True},
-                    model="sideview-runner-loop-edit-bypass-v1",
-                )
-        elif not generative:
-            looped, record = construct_deterministic(construction, raw_data)
-            record["construction"] = construction
-        else:
-            conditioning = loop_conditioning(construction, raw_data)
-            assert edit_path is not None
+
+        async def paint(_conditioning: SeamConditioning) -> tuple[bytes, int]:
+            assert edit_ref is not None
             request = self._image_generation_request(node)
             generation = await self._execute_provider_operation(
                 node, lambda: self._images.generate(request)
             )
-            provider_operations = generation.attempts
-            edit_data = edit_path.read_bytes()
-            try:
-                looped, record = assemble_loop(
-                    construction, raw_data, edit_data, conditioning=conditioning
-                )
-                record["construction"] = construction
-            except RegistrationError as error:
-                looped, record = construct_deterministic(fallback, raw_data)
-                record["construction"] = fallback
-                record["rejected_construction"] = construction
-                record["rejection"] = str(error)
-            record["provider_operations"] = provider_operations
-        report = admit(looped)
-        if report.verdict != "pass" and generative:
-            rejected_report = report.model_dump(mode="json")
-            looped, record = construct_deterministic(fallback, raw_data)
-            record["construction"] = fallback
-            record["rejected_construction"] = construction
-            record["rejection"] = "constructed loop failed x-repeat admission"
-            record["rejected_repeat"] = rejected_report
-            record["provider_operations"] = provider_operations
-            report = admit(looped)
-        if report.verdict != "pass":
-            raise ValueError(
-                f"constructed loop for {self._track().track_id}/{layer.layer_id} failed "
-                "x-repeat admission"
+            return (self._run_dir / edit_ref).read_bytes(), generation.attempts
+
+        outcome = await loop_layer(
+            raw_data,
+            construction=construction,
+            fallback=self._track().continuity.loop_fallback,
+            alpha_mode=layer.alpha_mode,
+            label=f"{self._track().track_id}/{layer.layer_id}",
+            paint=paint if generative else None,
+        )
+        if outcome.edit_bypassed and edit_ref is not None and outcome.edit_data is not None:
+            await _write_local_image(
+                self._run_dir / edit_ref,
+                outcome.edit_data,
+                prompt=f"Record the skipped {layer.layer_id} loop edit without provider use.",
+                inputs=[(source_ref, raw_data)],
+                validation={"construction": "none", "provider_skipped": True},
+                model="sideview-runner-loop-edit-bypass-v1",
             )
-        record["repeat"] = report.model_dump(mode="json")
         loop_inputs = [(source_ref, raw_data)]
-        if (
-            record["construction"] == construction
-            and edit_ref is not None
-            and edit_data is not None
-        ):
-            loop_inputs.append((edit_ref, edit_data))
+        if outcome.edit_is_the_selected_construction and edit_ref is not None:
+            assert outcome.edit_data is not None
+            loop_inputs.append((edit_ref, outcome.edit_data))
+        record = outcome.record
         await _write_local_image(
             self._run_dir / node.port("loop_image").artifact_ref,
-            looped,
+            outcome.looped,
             prompt=f"Loop the {layer.layer_id} layer by {record['construction']}.",
             inputs=loop_inputs,
             validation={"construction": record["construction"]},
@@ -2988,10 +2944,10 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
         atomic_write_json(self._run_dir / node.port("loop_report").artifact_ref, record)
         return self._result(
             node,
-            attempts=max(1, provider_operations),
-            provider_operations=provider_operations,
+            attempts=max(1, outcome.provider_operations),
+            provider_operations=outcome.provider_operations,
             provider_output_selected=(
-                provider_operations > 0 and record["construction"] == construction
+                outcome.provider_operations > 0 and record["construction"] == construction
             ),
         )
 

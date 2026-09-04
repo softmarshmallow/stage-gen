@@ -58,7 +58,7 @@ change that would is out of scope by definition.
 | The map contract's image-identity exclusions (camera, loop construction, anchor, presentation) | `map-generation-contract.md:650-664` |
 | Refusal-bearing comments recording the measured value that moved a threshold | `structural_ground.py:53-155` |
 | The import-boundary test and the ring architecture | `tests/contract/test_import_boundaries.py` |
-| The runtime kernel: sealed systems, declared dataflow, refusal at seal | `web/lib/game-systems/` |
+| The runtime kernel: sealed systems, declared dataflow, refusal at seal | the old `game-systems` directory |
 | Case above scenario, bound only in orchestration | `case/resolve.py:8-9` |
 | Verify-don't-trust in the runner manifest | `prepared_runner.py:3714-3773` |
 
@@ -493,7 +493,7 @@ provenance writer joined `_node_kit`.
 
 
 **2026-09-04 — Runtime step 1 landed (workstream E, the web lane).** Run on its
-own branch in a worktree and fast-forwarded onto `main` green. `web/lib/game-systems/`
+own branch in a worktree and fast-forwarded onto `main` green. the old `game-systems` directory
 is `web/lib/kernel/` with the additions the runtime plan rules: `owns` refused at seal for
 two owners; `emits` / `consumes` typed against the world's event union; `reset(scope)`
 on systems and a composition reset that also drains the queue and the accumulator; a
@@ -512,7 +512,28 @@ same frame, so the queue drain is proven at kernel level instead. **E2**: the se
 order byte-identical. **E3**: six refusals from the runner's own pre-fix declarations,
 plus kernel tests for ownership, the trap, reset and deferred consume. **Falsifier**:
 one new `after` edge, and it replaced a fake read - net zero. Docs outside the runtime
-plan that still say `game-systems/` are fixed in the same commit as this entry.
+plan that still named the old directory are fixed in the same commit as this entry.
+
+
+**2026-09-04 — D8, third family: the layer loop, the core only.** The hundred and
+thirty lines both recipes wrote for admit-or-construct-or-paint-then-fall-back are one
+function, `sideview_layers.pipeline.loop_layer`, taking the raw layer, the construction,
+the fallback, the alpha mode and a painter; it returns the loop, the report in the
+shape both recipes always wrote, the edit bytes and whether they were a bypass, and
+the spend. Both handlers call it and keep their own ports, prompts and provenance;
+no artifact, record or key moved on either game. The core has its own tests for the
+three branches.
+
+Decision: the layer *node family* (types, layout, host, handler kit) waits for D7.
+The runner's cache admission re-derives its layer records byte-exactly
+(`_publish_runner_layer`, `_validate_layer_candidate`, `_admit_loop_bundle`) and its
+provenance identity rebuilds the layer requests; unifying the records and the gates
+before that proving half is retired means mirroring every convergence in it, which is
+work D7 deletes. The survey's other findings stand recorded for that cut: the
+platformer's loop-paint type does not declare `masked_edit` though it sends a mask; the
+runner's validate node keys on the whole closure; the runner adds three transparency
+floors the platformer's gate lacks; the platformer always re-admits after the trim and
+publishes a repeat preview, the runner neither.
 
 
 ## Decisions that are yours

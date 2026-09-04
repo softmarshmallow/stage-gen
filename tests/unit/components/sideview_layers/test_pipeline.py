@@ -12,6 +12,7 @@ from stage_gen.components.sideview_layers.pipeline import (
     assemble_loop,
     construct_deterministic,
     loop_conditioning,
+    loop_layer,
     validate_provider_image,
 )
 from stage_gen.media import LOOP_METHODS, LoopConstruction
@@ -126,3 +127,90 @@ def test_the_bottom_edge_keeps_its_floor() -> None:
     assert seal is not None
     with pytest.raises(ValueError, match="sealing requires at least"):
         resolve_layer_placement(_Layer("screen_bottom", seal - 0.1), _trim())
+
+
+# ------------------------------------------------------------------ loop core
+
+
+def _broken_strip(width: int = 1536, height: int = 1024) -> bytes:
+    """A layer whose left and right edges disagree, so it cannot loop without construction."""
+
+    image = Image.new("RGBA", (width, height))
+    draw = ImageDraw.Draw(image)
+    for x in range(width):
+        level = round(x * 255 / (width - 1))
+        draw.line([x, 0, x, height - 1], fill=(level, 60, 255 - level, 255))
+    stream = io.BytesIO()
+    image.save(stream, format="PNG")
+    return stream.getvalue()
+
+
+async def _no_paint(_conditioning: object) -> tuple[bytes, int]:
+    raise AssertionError("a layer that already loops must not be painted")
+
+
+@pytest.mark.asyncio
+async def test_a_layer_that_already_loops_is_admitted_and_its_edit_bypassed() -> None:
+    """Admission first: the raw layer ships untouched, and a generative construction records
+    a provider-free bypass at its edit port instead of spending."""
+
+    looped, _record = construct_deterministic("mirror_repeat", _strip())
+    outcome = await loop_layer(
+        looped,
+        construction="seam_repaint",
+        fallback="mirror_repeat",
+        alpha_mode="opaque",
+        label="test/sky",
+        paint=_no_paint,
+    )
+    assert outcome.looped == looped
+    assert outcome.record["kind"] == "direct-loop-admission-v1"
+    assert outcome.record["construction"] == "none"
+    assert outcome.record["skipped_construction"] == "seam_repaint"
+    assert outcome.edit_bypassed and outcome.edit_data == looped
+    assert outcome.provider_operations == 0
+    assert not outcome.edit_is_the_selected_construction
+
+
+@pytest.mark.asyncio
+async def test_a_deterministic_construction_needs_no_painter() -> None:
+    outcome = await loop_layer(
+        _broken_strip(),
+        construction="mirror_repeat",
+        fallback="mirror_repeat",
+        alpha_mode="opaque",
+        label="test/hills",
+        paint=None,
+    )
+    assert outcome.record["construction"] == "mirror_repeat"
+    assert outcome.record["repeat"]["verdict"] == "pass"  # type: ignore[index]
+    assert outcome.edit_data is None and outcome.provider_operations == 0
+
+
+@pytest.mark.asyncio
+async def test_a_generative_edit_that_still_does_not_loop_falls_back_and_says_so() -> None:
+    """The provider's return lands but fails re-admission: the declared fallback ships, the
+    rejection is recorded rather than shipped as art, and the spend is still counted."""
+
+    painted: list[int] = []
+
+    async def paint(conditioning: object) -> tuple[bytes, int]:
+        painted.append(1)
+        # Hand back the conditioning canvas unchanged: it lands, and the seam stays.
+        return conditioning.conditioning_png, 2  # type: ignore[attr-defined]
+
+    outcome = await loop_layer(
+        _broken_strip(),
+        construction="seam_repaint",
+        fallback="mirror_repeat",
+        alpha_mode="opaque",
+        label="test/ridge",
+        paint=paint,
+    )
+    assert painted == [1]
+    assert outcome.provider_operations == 2
+    assert outcome.record["construction"] == "mirror_repeat"
+    assert outcome.record["rejected_construction"] == "seam_repaint"
+    assert outcome.record["provider_operations"] == 2
+    assert outcome.edit_data is not None and not outcome.edit_bypassed
+    assert not outcome.edit_is_the_selected_construction

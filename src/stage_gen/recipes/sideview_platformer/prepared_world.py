@@ -72,10 +72,8 @@ from stage_gen.components.sideview_layers.contract import (
     resolve_layer_placement,
 )
 from stage_gen.components.sideview_layers.pipeline import (
-    assemble_loop,
-    construct_deterministic,
     layer_repeat_policies,
-    loop_conditioning,
+    loop_layer,
     validate_provider_image,
 )
 from stage_gen.components.sideview_map_design import DesignBrief, design_chunks
@@ -90,7 +88,6 @@ from stage_gen.media import (
     LOOP_METHODS,
     AlphaComponentRepackContract,
     LoopConstruction,
-    RegistrationError,
     SeamConditioning,
     data_url,
     repack_alpha_components,
@@ -416,53 +413,12 @@ class PreparedWorldNodeHandler(RecipeNodeHandler):
         _producer, source_port = dependency_port(self._graph, node, kind="map-layer-raw-v1")
         raw_data = (self._run_dir / source_port.artifact_ref).read_bytes()
         construction = layer.loop_construction or game_map.continuity.loop_construction
-        alpha_policy, coverage = layer_repeat_policies(layer.alpha_mode)
-        output = self._run_dir / node.port("loop_image").artifact_ref
-        record_path = self._run_dir / node.port("loop_report").artifact_ref
-
-        def admit(data: bytes) -> object:
-            return validate_image_repeat(
-                data,
-                axis="x",
-                alpha_policy=alpha_policy,
-                coverage_policy=coverage,
-                validation_policy=ImageRepeatValidationPolicy(),
-            )
-
-        # Admission first. A layer the model already returned as a clean repeat unit is published
-        # untouched, which is both free and strictly better than constructing over it.
-        admission = admit(raw_data)
-        provider_operations = 0
         generative = LOOP_METHODS[construction].is_generative
         edit_ref = node.port("edit_image").artifact_ref if generative else None
-        edit_path = self._run_dir / edit_ref if edit_ref is not None else None
-        edit_data: bytes | None = None
-        if admission.verdict == "pass":  # type: ignore[attr-defined]
-            looped = raw_data
-            record: dict[str, object] = {
-                "schema_version": 1,
-                "kind": "direct-loop-admission-v1",
-                "construction": "none",
-                "skipped_construction": construction,
-                "provider_operations": 0,
-            }
-            if edit_path is not None and edit_ref is not None:
-                edit_data = raw_data
-                await _write_local_image(
-                    edit_path,
-                    edit_data,
-                    model="prepared-map-loop-edit-bypass-v1",
-                    prompt="Record a provider-free bypass for an already seamless layer.",
-                    source_ref=source_port.artifact_ref,
-                    source_data=raw_data,
-                    validation={"construction": "none", "provider_skipped": True},
-                )
-        elif not generative:
-            looped, record = construct_deterministic(construction, raw_data)
-            record["construction"] = construction
-        else:
-            conditioning = loop_conditioning(construction, raw_data)
-            assert edit_path is not None
+
+        async def paint(conditioning: SeamConditioning) -> tuple[bytes, int]:
+            assert edit_ref is not None
+            edit_path = self._run_dir / edit_ref
             transparent = layer.alpha_mode == "transparent"
             generation = await self._images.generate(
                 ImageGenerationRequest(
@@ -490,63 +446,40 @@ class PreparedWorldNodeHandler(RecipeNodeHandler):
                     },
                 )
             )
-            provider_operations = generation.attempts
-            edit_data = edit_path.read_bytes()
-            try:
-                looped, record = assemble_loop(
-                    construction, raw_data, edit_data, conditioning=conditioning
-                )
-                record["construction"] = construction
-            except RegistrationError as error:
-                # The return is a different composition, not a displaced copy, so no translation
-                # lands it. The fallback is required to be deterministic, so the map still gets a
-                # usable loop unit and the rejection is recorded rather than shipped as art.
-                fallback = game_map.continuity.loop_fallback
-                looped, record = construct_deterministic(fallback, raw_data)
-                record["construction"] = fallback
-                record["rejected_construction"] = construction
-                record["rejection"] = str(error)
-            record["provider_operations"] = provider_operations
-        report = admit(looped)
-        if (
-            report.verdict != "pass"  # type: ignore[attr-defined]
-            and generative
-        ):
-            # A generative construction can return art that lands correctly and still fails
-            # admission, which is exactly the case `loop_fallback` exists for; falling back only on
-            # a registration disagreement would leave the commoner failure killing the whole run.
-            # The rejection is recorded rather than shipped, so a silent degrade stays visible.
-            fallback = game_map.continuity.loop_fallback
-            rejected_report = report.model_dump(mode="json")  # type: ignore[attr-defined]
-            looped, record = construct_deterministic(fallback, raw_data)
-            record["construction"] = fallback
-            record["rejected_construction"] = construction
-            record["rejection"] = "constructed loop failed x-repeat admission"
-            record["rejected_repeat"] = rejected_report
-            record["provider_operations"] = provider_operations
-            report = admit(looped)
-        if report.verdict != "pass":  # type: ignore[attr-defined]
-            raise ValueError(
-                f"constructed loop for {game_map.map_id}/{layer.layer_id} failed x-repeat admission"
+            return edit_path.read_bytes(), generation.attempts
+
+        outcome = await loop_layer(
+            raw_data,
+            construction=construction,
+            fallback=game_map.continuity.loop_fallback,
+            alpha_mode=layer.alpha_mode,
+            label=f"{game_map.map_id}/{layer.layer_id}",
+            paint=paint if generative else None,
+        )
+        if outcome.edit_bypassed and edit_ref is not None and outcome.edit_data is not None:
+            await _write_local_image(
+                self._run_dir / edit_ref,
+                outcome.edit_data,
+                model="prepared-map-loop-edit-bypass-v1",
+                prompt="Record a provider-free bypass for an already seamless layer.",
+                source_ref=source_port.artifact_ref,
+                source_data=raw_data,
+                validation={"construction": "none", "provider_skipped": True},
             )
-        record["repeat"] = report.model_dump(mode="json")  # type: ignore[attr-defined]
         inputs = [(source_port.artifact_ref, raw_data)]
-        if (
-            record["construction"] == construction
-            and edit_ref is not None
-            and edit_data is not None
-        ):
-            inputs.append((edit_ref, edit_data))
+        if outcome.edit_is_the_selected_construction and edit_ref is not None:
+            assert outcome.edit_data is not None
+            inputs.append((edit_ref, outcome.edit_data))
         await _write_local_image_multi(
-            output,
-            looped,
-            model=record["kind"],  # type: ignore[arg-type]
+            self._run_dir / node.port("loop_image").artifact_ref,
+            outcome.looped,
+            model=outcome.record["kind"],  # type: ignore[arg-type]
             prompt="Admit or construct the layer's horizontal loop unit.",
             inputs=inputs,
-            validation=record,
+            validation=outcome.record,
         )
-        atomic_write_json(record_path, record)
-        return self._result(node, provider_operations=provider_operations)
+        atomic_write_json(self._run_dir / node.port("loop_report").artifact_ref, outcome.record)
+        return self._result(node, provider_operations=outcome.provider_operations)
 
     async def _validate_layer(self, node: Node) -> NodeExecutionResult:
         layer = self._node_layer(node, self._node_map(node))

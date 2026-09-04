@@ -12,10 +12,13 @@ wiring and fallbacks, while the constructions themselves live here and in
 from __future__ import annotations
 
 import io
-from typing import TYPE_CHECKING, Literal, cast
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from PIL import Image
 
+from stage_gen.components.image_repeat import ImageRepeatValidationPolicy, validate_image_repeat
 from stage_gen.components.sideview_layers.contract import (
     LOOP_ANCHOR_BAND_PX,
     LOOP_BRIDGE_CONTEXT_SPAN_PX,
@@ -24,6 +27,8 @@ from stage_gen.components.sideview_layers.contract import (
     LOOP_REPAINT_WINDOW_PX,
 )
 from stage_gen.media import (
+    LOOP_METHODS,
+    RegistrationError,
     SeamConditioning,
     assemble_fold_repaint,
     assemble_generated_bridge,
@@ -170,3 +175,128 @@ __all__ = [
     "loop_conditioning",
     "validate_provider_image",
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class LoopOutcome:
+    """What looping one layer produced, for the host to publish under its own provenance."""
+
+    #: The admitted loop unit: the raw layer when it already looped, else the construction.
+    looped: bytes
+    #: The loop report, in the shape both recipes have always written.
+    record: dict[str, object]
+    #: The bytes at the edit port: the provider's edit, or the raw layer recorded as a
+    #: provider-free bypass when admission passed on a generative construction. ``None``
+    #: when the construction declares no edit port.
+    edit_data: bytes | None
+    #: Whether ``edit_data`` is the bypass copy rather than a provider's work.
+    edit_bypassed: bool
+    provider_operations: int
+
+    @property
+    def edit_is_the_selected_construction(self) -> bool:
+        """The edit belongs in the loop's provenance only when the loop was built from it."""
+
+        return (
+            self.edit_data is not None
+            and not self.edit_bypassed
+            and (self.record.get("rejected_construction") is None)
+        )
+
+
+Painter = Callable[[SeamConditioning], Awaitable[tuple[bytes, int]]]
+
+
+async def loop_layer(
+    raw_data: bytes,
+    *,
+    construction: LoopConstruction,
+    fallback: LoopConstruction,
+    alpha_mode: Literal["opaque", "transparent"],
+    label: str,
+    paint: Painter | None,
+) -> LoopOutcome:
+    """Admit a generated layer as a loop, or construct one by the declared construction.
+
+    Admission first: a layer the model already returned as a clean repeat unit is published
+    untouched, which is both free and strictly better than constructing over it. A
+    deterministic construction is local. A generative one asks ``paint`` for the edit over
+    the conditioning canvas, assembles the loop from it, and falls back to ``fallback`` on
+    a registration disagreement or a failed re-admission - recorded rather than shipped, so
+    a silent degrade stays visible. This was the same hundred and thirty lines in two
+    recipes; the recipes keep their ports, provenance and prompts, and share the decision.
+    """
+
+    alpha_policy, coverage = layer_repeat_policies(alpha_mode)
+
+    def admit(data: bytes) -> Any:
+        return validate_image_repeat(
+            data,
+            axis="x",
+            alpha_policy=alpha_policy,
+            coverage_policy=coverage,
+            validation_policy=ImageRepeatValidationPolicy(),
+        )
+
+    generative = LOOP_METHODS[construction].is_generative
+    admission = admit(raw_data)
+    provider_operations = 0
+    edit_data: bytes | None = None
+    edit_bypassed = False
+    if admission.verdict == "pass":
+        looped = raw_data
+        record: dict[str, object] = {
+            "schema_version": 1,
+            "kind": "direct-loop-admission-v1",
+            "construction": "none",
+            "skipped_construction": construction,
+            "provider_operations": 0,
+        }
+        if generative:
+            edit_data = raw_data
+            edit_bypassed = True
+    elif not generative:
+        looped, record = construct_deterministic(construction, raw_data)
+        record["construction"] = construction
+    else:
+        if paint is None:
+            raise ValueError(f"{label} selects {construction}, which needs a provider edit")
+        conditioning = loop_conditioning(construction, raw_data)
+        edit_data, provider_operations = await paint(conditioning)
+        try:
+            looped, record = assemble_loop(
+                construction, raw_data, edit_data, conditioning=conditioning
+            )
+            record["construction"] = construction
+        except RegistrationError as error:
+            # The return is a different composition, not a displaced copy, so no translation
+            # lands it. The fallback is required to be deterministic, so the layer still gets a
+            # usable loop unit and the rejection is recorded rather than shipped as art.
+            looped, record = construct_deterministic(fallback, raw_data)
+            record["construction"] = fallback
+            record["rejected_construction"] = construction
+            record["rejection"] = str(error)
+        record["provider_operations"] = provider_operations
+    report = admit(looped)
+    if report.verdict != "pass" and generative:
+        # A generative construction can return art that lands correctly and still fails
+        # admission, which is exactly the case the fallback exists for; falling back only on a
+        # registration disagreement would leave the commoner failure killing the whole run.
+        rejected_report = report.model_dump(mode="json")
+        looped, record = construct_deterministic(fallback, raw_data)
+        record["construction"] = fallback
+        record["rejected_construction"] = construction
+        record["rejection"] = "constructed loop failed x-repeat admission"
+        record["rejected_repeat"] = rejected_report
+        record["provider_operations"] = provider_operations
+        report = admit(looped)
+    if report.verdict != "pass":
+        raise ValueError(f"constructed loop for {label} failed x-repeat admission")
+    record["repeat"] = report.model_dump(mode="json")
+    return LoopOutcome(
+        looped=looped,
+        record=record,
+        edit_data=edit_data,
+        edit_bypassed=edit_bypassed,
+        provider_operations=provider_operations,
+    )
