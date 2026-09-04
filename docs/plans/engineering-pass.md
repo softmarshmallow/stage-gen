@@ -946,6 +946,30 @@ exist, a named file that is not a test, or a test that never names the spec; the
 has its own negative test over a fabricated tree. Documented in `docs/testing.md`.
 
 
+**2026-09-05 — F2 landed: the decision log is a decision log.** Four commits on a docs
+branch, fast-forwarded. `docs/decisions/` holds fifty-six ADRs seeded from what
+`TODO.md` had actually recorded, each with exactly Fact / Challenge / Ruling / Evidence /
+Falsifier and an index; a completed item that recorded only a chore was dropped, and a
+ruling that sat inside an item still open for execution was promoted anyway, because
+the ruling is settled even when the work is not (0027 "a number belongs in the SDK
+table iff a refusal depends on it", 0008 "a package-facing knob is a closed word with a
+default, never a number", 0031 "the second hop is recovery, never reach").
+`TODO.md` went from 1,391 lines to 105, one line per open item linking out, its
+authorization sentence kept verbatim; its links are now checked like every other
+document's. Of the six candidate documents only the runtime plan moved to
+`docs/plans/` - it is a path by its own title - and the other five stayed as the
+contracts they are, with their maturity lines made true of the tree: the asset unit and
+the motion rebase are "ratified, and implemented" (both wired into both side-view
+recipes), the UI atlas is "proposed TO-BE, except the slice that shipped", the view and
+style taxonomy no longer claims no profile is implemented, and
+`runtime-composition.md`'s "Where it stands" was rewritten against the measured tree
+after steps 0-7 (twenty-three families in ring 1, the platformer on the kernel, dead
+modules four to two). The checker's account-funding carve-out is gone because the note
+it excused no longer exists anywhere; the rule is now unconditional. Three links
+repointed, no test named a moved path. The runtime lane's step 8 evidence, running on
+its own branch, lands against the plan at its new path.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one
