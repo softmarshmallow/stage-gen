@@ -12,6 +12,7 @@ from typing import Literal
 from PIL import Image, ImageChops
 
 from gnode import inspect_image
+from stage_gen.media.codec import decode_rgba, encode_png
 
 ALPHA_COMPONENT_REPACK_VERSION = "alpha-component-repack-v3"
 ALPHA_GROUND_CONTACT_VERSION = "alpha-ground-contact-v1"
@@ -739,9 +740,7 @@ def _validate_repacked_output(
 
 
 def _png_bytes(image: Image.Image) -> bytes:
-    stream = io.BytesIO()
-    image.save(stream, format="PNG", optimize=False)
-    return stream.getvalue()
+    return encode_png(image)
 
 
 def split_atlas_columns(data: bytes, columns: int, rows: int = 1) -> tuple[bytes, ...]:
@@ -774,8 +773,7 @@ def split_atlas_columns(data: bytes, columns: int, rows: int = 1) -> tuple[bytes
 
 
 def _decode_atlas(data: bytes) -> Image.Image:
-    with Image.open(io.BytesIO(data)) as opened:
-        return opened.convert("RGBA")
+    return decode_rgba(data, label="atlas")
 
 
 def measure_alpha_subjects(

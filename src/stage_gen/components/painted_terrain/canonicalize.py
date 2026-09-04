@@ -52,6 +52,7 @@ from stage_gen.components.painted_terrain.silhouette import (
     painted_silhouette_band,
     painted_silhouette_report,
 )
+from stage_gen.media.codec import encode_png
 
 PAINTED_TERRAIN_CANONICALIZER_ID: Final = "painted-terrain-canonicalization-v1"
 PAINTED_TERRAIN_VALIDATION_ID: Final = "painted-terrain-validation-v1"
@@ -284,11 +285,7 @@ def _extend_painted_edges(painting: Image.Image, *, radius: int) -> Image.Image:
 
 
 def _png(image: Image.Image) -> bytes:
-    from io import BytesIO
-
-    stream = BytesIO()
-    image.save(stream, format="PNG", optimize=False)
-    return stream.getvalue()
+    return encode_png(image)
 
 
 __all__ = [

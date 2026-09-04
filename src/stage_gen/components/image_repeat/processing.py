@@ -8,12 +8,12 @@ import math
 from bisect import bisect_left
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
-from io import BytesIO
 from typing import Literal, cast
 
-from PIL import Image, UnidentifiedImageError
+from PIL import Image
 
 from stage_gen.media import inspect_image
+from stage_gen.media.codec import decode_rgba, encode_png
 
 from .models import (
     DETERMINISTIC_VALIDATOR_VERSION,
@@ -1328,15 +1328,8 @@ def _percentile(values: Sequence[float], fraction: float) -> float:
 
 
 def _decode_rgba(data: bytes) -> Image.Image:
-    try:
-        with Image.open(BytesIO(data)) as image:
-            image.load()
-            return image.convert("RGBA")
-    except (UnidentifiedImageError, OSError) as error:
-        raise ValueError("image-repeat PNG is not decodable") from error
+    return decode_rgba(data, label="image-repeat PNG")
 
 
 def _encode_png(image: Image.Image) -> bytes:
-    output = BytesIO()
-    image.save(output, format="PNG", compress_level=9, optimize=False)
-    return output.getvalue()
+    return encode_png(image, compress_level=9)

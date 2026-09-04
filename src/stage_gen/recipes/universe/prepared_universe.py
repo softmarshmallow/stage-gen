@@ -40,6 +40,7 @@ from gnode import (
 )
 from stage_gen.canonical import canonical_json_bytes, content_sha256
 from stage_gen.identity import STAGE_GEN_TOOL
+from stage_gen.media.codec import encode_png
 from stage_gen.recipes.node_cache import NodeArtifactCache
 from stage_gen.recipes.universe import models
 from stage_gen.recipes.universe.medium import forbidden_terms_present
@@ -117,7 +118,7 @@ def make_image_proxy(data: bytes, *, long_edge: int, fmt: Literal["JPEG", "PNG"]
     if fmt == "JPEG":
         image.save(output, format="JPEG", quality=90, optimize=True)
     else:
-        image.save(output, format="PNG", compress_level=6)
+        return encode_png(image, compress_level=6)
     return output.getvalue()
 
 

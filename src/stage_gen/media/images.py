@@ -6,13 +6,13 @@ import math
 from array import array
 from dataclasses import asdict, dataclass
 from hashlib import sha256
-from io import BytesIO
 from typing import Any
 
-from PIL import Image, ImageChops, ImageFilter, UnidentifiedImageError
+from PIL import Image, ImageChops, ImageFilter
 from PIL import __version__ as pillow_version
 
 from gnode import inspect_image
+from stage_gen.media.codec import decode_image, decode_rgba, encode_png
 
 CHROMA_DISTANCE_THRESHOLD = 36
 # Distance at or above which a pixel is wholly foreground. Between this and
@@ -451,26 +451,15 @@ def compose_source_with_alpha(
 
 
 def _decode_image(data: bytes) -> Image.Image:
-    if not data:
-        raise ValueError("image data must be non-empty")
-    try:
-        with Image.open(BytesIO(data)) as image:
-            if getattr(image, "n_frames", 1) != 1:
-                raise ValueError("animated images are not supported")
-            image.load()
-            return image.copy()
-    except (UnidentifiedImageError, OSError) as exc:
-        raise ValueError("image data is not decodable") from exc
+    return decode_image(data)
 
 
 def _decode_rgba(data: bytes) -> Image.Image:
-    return _decode_image(data).convert("RGBA")
+    return decode_rgba(data)
 
 
 def _encode_png(image: Image.Image) -> bytes:
-    output = BytesIO()
-    image.save(output, format="PNG", compress_level=9, optimize=False)
-    data = output.getvalue()
+    data = encode_png(image, compress_level=9)
     inspect_image(data, expected_media_type="image/png")
     return data
 

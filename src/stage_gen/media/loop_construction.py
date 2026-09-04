@@ -32,13 +32,14 @@ ever append, so the original stays recoverable from the result. ``seam_repaint``
 
 from __future__ import annotations
 
-import io
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Literal
 
 from PIL import Image, ImageChops, ImageOps, ImageStat
+
+from stage_gen.media.codec import decode_rgba, encode_png
 
 MIRROR_REPEAT_VERSION = "mirror-repeat-v1"
 GENERATED_BRIDGE_VERSION = "generated-bridge-v1"
@@ -139,14 +140,11 @@ class RegistrationError(ValueError):
 
 
 def _decode(data: bytes) -> Image.Image:
-    with Image.open(io.BytesIO(data)) as opened:
-        return opened.convert("RGBA")
+    return decode_rgba(data, label="loop source")
 
 
 def _encode(image: Image.Image) -> bytes:
-    stream = io.BytesIO()
-    image.save(stream, format="PNG", optimize=False)
-    return stream.getvalue()
+    return encode_png(image)
 
 
 def _mirrored(source: Image.Image) -> Image.Image:

@@ -17,13 +17,13 @@ import math
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from hashlib import sha256
-from io import BytesIO
 from itertools import pairwise
 from typing import Final, cast
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 from stage_gen.components.runner_track.models import DEFAULT_GROUND_PROJECTION
+from stage_gen.media.codec import decode_rgba
 from stage_gen.media.guide_lattice import png_bytes
 
 STRUCTURAL_GROUND_MODE: Final = "runner-structural-ground-v1"
@@ -1201,14 +1201,7 @@ def projection_lean_spread(leans: Sequence[float | None]) -> float | None:
 
 
 def _decode_rgba(data: bytes, *, label: str) -> Image.Image:
-    try:
-        with Image.open(BytesIO(data)) as opened:
-            opened.load()
-            if opened.format != "PNG":
-                raise ValueError(f"{label} must be PNG")
-            return opened.convert("RGBA")
-    except (OSError, SyntaxError) as error:
-        raise ValueError(f"{label} is not a decodable PNG") from error
+    return decode_rgba(data, label=label, require_png=True)
 
 
 def _alpha_coverage(alpha: Image.Image, *, minimum_alpha: int) -> float:

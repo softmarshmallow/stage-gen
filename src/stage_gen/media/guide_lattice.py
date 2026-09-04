@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from io import BytesIO
 from typing import Final, Protocol, cast
 
 from PIL import Image
+
+from stage_gen.media.codec import encode_png
 
 
 @dataclass(frozen=True, slots=True)
@@ -260,9 +261,7 @@ def repair_internal_cell_seams(
 
 
 def png_bytes(image: Image.Image) -> bytes:
-    stream = BytesIO()
-    image.save(stream, format="PNG", optimize=False)
-    return stream.getvalue()
+    return encode_png(image)
 
 
 __all__ = [

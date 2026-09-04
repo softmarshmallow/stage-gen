@@ -32,7 +32,6 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from hashlib import sha256
-from io import BytesIO
 from typing import Final, cast
 
 from PIL import Image, ImageDraw
@@ -44,6 +43,7 @@ from stage_gen.components.painted_terrain.segments import (
     PaintedTerrainSegment,
     painted_terrain_row_window,
 )
+from stage_gen.media.codec import decode_rgba as _decode_rgba
 from stage_gen.media.guide_lattice import png_bytes
 
 RGB = tuple[int, int, int]
@@ -310,14 +310,7 @@ def validate_painted_terrain_material_references(references: Sequence[bytes]) ->
 
 
 def decode_rgba(data: bytes, *, label: str) -> Image.Image:
-    try:
-        with Image.open(BytesIO(data)) as opened:
-            opened.load()
-            if opened.format != "PNG":
-                raise ValueError(f"{label} must be PNG")
-            return opened.convert("RGBA")
-    except (OSError, SyntaxError) as error:
-        raise ValueError(f"{label} is not a decodable PNG") from error
+    return _decode_rgba(data, label=label, require_png=True)
 
 
 def jitter(color: RGB, amount: int) -> RGB:
