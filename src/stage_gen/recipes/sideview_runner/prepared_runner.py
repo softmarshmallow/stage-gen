@@ -27,7 +27,6 @@ from gnode import (
     ImageGenerationRequest,
     ImageReference,
     InputProvenance,
-    MusicGenerationRequest,
     NodeArtifact,
     NodeExecutionError,
     NodeExecutionResult,
@@ -85,6 +84,8 @@ from stage_gen.components.game_fx.nodes import (
     write_sprite_dust_validation,
 )
 from stage_gen.components.game_fx.sprite import validate_dust_atlas
+from stage_gen.components.game_soundtrack import SoundtrackTrack
+from stage_gen.components.game_soundtrack.nodes import SoundtrackHandlers, SoundtrackHost
 from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.components.image_repeat import ImageRepeatValidationPolicy, validate_image_repeat
 from stage_gen.components.runner_audio import RunnerAudioContract
@@ -225,7 +226,6 @@ from stage_gen.recipes.sideview_runner.runner_types import (
     SOUND_EFFECT_GENERATE,
     SOUND_EFFECT_VALIDATE,
     SOUNDTRACK_GENERATE,
-    SOUNDTRACK_TRACK_KIND,
     SOUNDTRACK_VALIDATE,
     SPEECH_CLIP_KIND,
     SPEECH_GENERATE,
@@ -840,6 +840,10 @@ def manifest_rebase_multipliers(
     return multipliers
 
 
+def _no_soundtrack(track_id: str) -> SoundtrackTrack:
+    raise ValueError(f"runner package declares no soundtrack member (asked for {track_id})")
+
+
 class SideviewRunnerNodeHandler(RecipeNodeHandler):
     """Dispatch runner nodes while provider operations stay component-owned."""
 
@@ -868,6 +872,18 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
         self._sound_effects = sound_effect_service
         self._speech = speech_service
         self._timeout = capability_timeout_s
+        soundtrack = resolved.runner.soundtrack
+        self._soundtrack = SoundtrackHandlers(
+            SoundtrackHost(
+                run_dir=run_dir,
+                track=(soundtrack.track if soundtrack is not None else _no_soundtrack),
+            ),
+            graph=graph,
+            music_service=music_service,
+            provider_call=lambda node, _role, _prompt, thunk: self._execute_provider_operation(
+                node, thunk
+            ),
+        )
         super().__init__(
             graph,
             run_dir=run_dir,
@@ -1397,24 +1413,6 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
             return sprite_dust_generate_request(self._fx_host(), node)
         raise ValueError(f"runner node has no image request builder: {node.type_id}")
 
-    def _music_generation_request(self, node: Node) -> MusicGenerationRequest:
-        soundtrack = self._runner.soundtrack
-        if soundtrack is None:
-            raise ValueError("runner package declares no soundtrack member")
-        track = soundtrack.track(str(node.params["track_id"]))
-        return MusicGenerationRequest(
-            prompt=self._provider_prompt(node),
-            artifact_path=self._run_dir / node.port("audio").artifact_ref,
-            output_format="mp3",
-            timeout_seconds=900,
-            metadata={
-                "track_id": track.track_id,
-                "target_duration_seconds": track.generation.target_duration_seconds,
-                "seamless_loop": track.generation.seamless_loop,
-            },
-            validate=lambda artifact: validate_music_payload(artifact.data),
-        )
-
     def _generated_clip(self, node: Node) -> tuple[str, GeneratedClipRealization]:
         effect = self._runner.audio.effect(str(node.params["effect_id"]))
         realization = effect.realization
@@ -1694,7 +1692,7 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
             seed = None
             rights = None
         elif node.operation == RunnerOperationKind.MUSIC_GENERATION:
-            music_request = self._music_generation_request(node)
+            music_request = self._soundtrack.request(node)
             refs, inputs = [], []
             params = {
                 "output_format": music_request.output_format,
@@ -3283,34 +3281,14 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
         return self._result(node)
 
     async def _generate_track(self, node: Node) -> NodeExecutionResult:
-        music = self._music
-        if music is None:
-            raise ValueError("runner soundtrack execution requires a music service")
-        request = self._music_generation_request(node)
-        result = await self._execute_provider_operation(node, lambda: music.generate(request))
-        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
+        # The family generates; this recipe's result writes the attempt ledger beside it.
+        result = await self._soundtrack.generate(node)
+        return self._result(
+            node, attempts=result.attempts, provider_operations=result.provider_operations
+        )
 
     async def _validate_track(self, node: Node) -> NodeExecutionResult:
-        soundtrack = self._runner.soundtrack
-        if soundtrack is None:
-            raise ValueError("runner package declares no soundtrack member")
-        track = soundtrack.track(str(node.params["track_id"]))
-        source = self._run_dir / self._dependency_artifact(node, kind=SOUNDTRACK_TRACK_KIND)
-        probe = await probe_audio(source, timeout_seconds=120)
-        if probe.duration_seconds < 15:
-            raise ValueError("generated soundtrack track is shorter than 15 seconds")
-        atomic_write_json(
-            self._run_dir / node.port("validation").artifact_ref,
-            {
-                "schema_version": 1,
-                "kind": "sideview-runner-soundtrack-validation-v1",
-                "track_id": track.track_id,
-                "format_name": probe.format_name,
-                "duration_seconds": round(probe.duration_seconds, 3),
-                "container_valid": True,
-                "listening_verdict": "not_performed",
-            },
-        )
+        await self._soundtrack.validate(node)
         return self._result(node)
 
     # ----------------------------------------------------------- sound effects

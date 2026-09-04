@@ -800,3 +800,43 @@ def test_one_command_spend_refuses_without_confirmation_off_a_terminal(argv: lis
     error = StringIO()
     assert main(argv, stderr=error) == 1
     assert "pass --yes to confirm" in error.getvalue()
+
+
+def test_a_dry_run_accepts_a_run_and_cache_root_under_a_symlinked_directory(
+    tmp_path: Path,
+) -> None:
+    """macOS temp roots sit under ``/var -> /private/var``; the CLI resolves the user's paths.
+
+    The node cache refuses a symlink above a root it writes under. The rule is for the
+    tree beneath the chosen root, not the operating system's layout above it, so the
+    CLI hands the cache and the run directory resolved. This was the gate's own four
+    dry runs failing the day the rehearsal moved onto the real cache.
+    """
+
+    real = tmp_path / "real"
+    real.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(real, target_is_directory=True)
+    room = Path(__file__).resolve().parents[2] / "library" / "games" / "clockmakers_attic"
+    stdout = StringIO()
+    assert (
+        main(
+            [
+                "pointclick-room",
+                "generate",
+                "--input",
+                str(room),
+                "--dry-run",
+                "--cache-dir",
+                str(link / "cache"),
+                "--output",
+                str(link / "attic"),
+            ],
+            stdout=stdout,
+        )
+        == 0
+    )
+    report = json.loads(stdout.getvalue())
+    assert report["ok"] is True
+    assert report["run_dir"] == str((real / "attic").resolve())
+    assert (real / "cache").is_dir()

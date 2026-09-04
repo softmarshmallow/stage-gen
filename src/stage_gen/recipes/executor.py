@@ -20,7 +20,6 @@ from typing import ClassVar, Protocol
 
 from gnode import (
     BackgroundRemovalService,
-    DryRunNodeHandler,
     Graph,
     ImageGenerationService,
     JsonlTraceSink,
@@ -51,6 +50,7 @@ from stage_gen.orchestration.runtime import (
     create_structured_service,
     create_tool_loop_service,
 )
+from stage_gen.recipes.dry_run import DryRunNodeHandler
 
 OPENAI_BASE_URL = "https://api.openai.com/v1"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"

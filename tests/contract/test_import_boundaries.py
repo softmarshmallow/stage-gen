@@ -183,7 +183,6 @@ ENGINE_RINGS = {
     "binding": 0,
     "build": 0,
     "contracts": 0,
-    "dry_run": 0,
     "graph": 0,
     "node_types": 0,
     "reliability": 0,

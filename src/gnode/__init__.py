@@ -27,7 +27,6 @@ from gnode.contracts import (
     RightsStatus,
     SoftwareIdentity,
 )
-from gnode.dry_run import DRY_RUN_CACHE_SCHEMA_VERSION, DryRunNodeHandler
 from gnode.graph import (
     LOCAL_OPERATION,
     NODE_ID_PATTERN,
@@ -302,8 +301,6 @@ __all__ = [
     "DEFAULT_LOCAL_DURATION_SECONDS",
     "dependency_ancestors",
     "dependency_port",
-    "DRY_RUN_CACHE_SCHEMA_VERSION",
-    "DryRunNodeHandler",
     "FileOperations",
     "generic_artifact_annotation",
     "Graph",

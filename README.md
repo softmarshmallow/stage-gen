@@ -312,7 +312,6 @@ src/gnode/              the engine: an asset graph and its scheduler
   schedule.py          offline projection and the live scheduler
   trace.py             append-only run trace and post-run summary
   view.py              derived read-only run view for a client
-  dry_run.py           deterministic provider-free node handler
   binding.py           model@provider routes and their declared features
   contracts/           persisted contract bases and provenance records
   reliability/         retries, cancellation, redaction, paths, persistence
@@ -321,7 +320,9 @@ src/stage_gen/          the application, consuming `gnode`
                        and verified single-axis image-repeat operations
   providers/           OpenAI, OpenRouter, and FAL HTTP adapters
   media/               deterministic image/audio inspection and normalization
-  recipes/             application compositions and exported manifests
+  recipes/             application compositions and exported manifests; the
+                       recipe substrate (graph document, ports, node handler,
+                       executor, provider-free dry run) lives at its root
   orchestration/       package resolution, execution documents, composition
   interfaces/          the argparse CLI, the only automation surface
   resources/           wheel-packaged templates and approved fallback music

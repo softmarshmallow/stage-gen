@@ -15,6 +15,11 @@ from stage_gen.components.game_fx.nodes import (
     FX_MANIFEST_BLOCK_VERSION,
     FX_SPRITE_NODE_TYPES,
 )
+from stage_gen.components.game_soundtrack.nodes import (
+    SOUNDTRACK_TRACK_KIND,
+    SOUNDTRACK_VALIDATION_KIND,
+    soundtrack_node_types,
+)
 
 _P = "2d/sideview/runner"
 _PROVIDER = NodePolicy(max_attempts=6)
@@ -58,8 +63,6 @@ CATALOG_ASSET_KIND = "catalog-asset-v1"
 CATALOG_VALIDATION_KIND = "catalog-asset-validation-v3"
 TRACK_KIND = "runner-track-runtime-track-v1"
 SOUNDTRACK_RAW_KIND = "soundtrack-track-raw-v1"
-SOUNDTRACK_TRACK_KIND = "soundtrack-track-v1"
-SOUNDTRACK_VALIDATION_KIND = "soundtrack-validation-v1"
 SOUND_EFFECT_CLIP_KIND = "sound-effect-clip-v1"
 SOUND_EFFECT_VALIDATION_KIND = "sound-effect-validation-v1"
 SPEECH_CLIP_KIND = "speech-line-v1"
@@ -283,23 +286,12 @@ CATALOG_ASSET_VALIDATE = NodeType(
     contract_version="runner-catalog-asset-validate-v3",
 )
 
-SOUNDTRACK_GENERATE = NodeType(
-    type_id=f"{_P}/soundtrack.generate",
-    title="Soundtrack track",
-    archetype=ViewArchetype.MUSIC,
-    operation="music_generation",
-    features=MUSIC_FEATURES,
-    policy=_PROVIDER,
-    contract_version="runner-soundtrack-track-v3",
-)
-
-SOUNDTRACK_VALIDATE = NodeType(
-    type_id=f"{_P}/soundtrack.validate",
-    title="Track admission",
-    archetype=ViewArchetype.VALIDATE,
-    operation="local",
-    contract_version="runner-soundtrack-validate-v1",
-)
+#: The soundtrack family lives in its component; this recipe shipped its generation under
+#: its own type id and contract, which stay as the cache identity so no track is paid for
+#: twice. Admission is local and converged on the component's.
+_SOUNDTRACK = soundtrack_node_types(identity_prefix=_P, track_version="runner-soundtrack-track-v3")
+SOUNDTRACK_GENERATE = _SOUNDTRACK.generate
+SOUNDTRACK_VALIDATE = _SOUNDTRACK.validate
 
 SOUND_EFFECT_GENERATE = NodeType(
     type_id=f"{_P}/sound_effect.generate",

@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from gnode import DryRunNodeHandler, NodeStatus, Scheduler
+from gnode import NodeStatus, Scheduler
 from stage_gen.config import StageGenConfig
+from stage_gen.recipes.dry_run import DryRunNodeHandler
 from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
 from stage_gen.recipes.sideview_platformer.prepared_content import content_target_node_ids
 from stage_gen.recipes.sideview_platformer.prepared_world import world_target_node_ids
@@ -92,16 +93,16 @@ async def test_cache_replay_rejects_modified_content_and_lineage(tmp_path: Path)
         cache_dir=cache_dir,
         invocation_id="first",
     )
+    # The dry run writes through the real node cache: one bundle per key, holding the
+    # record and the payloads. Tampering with either must read as a miss, not a hit.
     node = first.plan.graph.node("props-review")
-    record_path = cache_dir / node.cache_key[:2] / f"{node.cache_key}.json"
+    record_path = next(cache_dir.rglob(f"{node.cache_key}/record.json"))
     record = json.loads(record_path.read_text(encoding="utf-8"))
-    record["dependency_lineage"] = []
+    record["lineage"] = []
     record_path.write_text(json.dumps(record), encoding="utf-8")
 
     content_node = first.plan.graph.node("items-review")
-    content_artifact = (
-        cache_dir / content_node.cache_key[:2] / f"{content_node.cache_key}.artifact.json"
-    )
+    content_artifact = next(cache_dir.rglob(f"{content_node.cache_key}/artifacts/0.bin"))
     content_artifact.write_bytes(content_artifact.read_bytes() + b"corrupt")
 
     replay = await executor.dry_run(

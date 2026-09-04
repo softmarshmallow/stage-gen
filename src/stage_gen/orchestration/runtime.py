@@ -261,7 +261,13 @@ class DefaultHeadlessRuntime:
         await self.aclose()
 
     async def aclose(self) -> None:
-        services = (self._image, self._background, self._music, self._sound_effect)
+        services = (
+            self._image,
+            self._background,
+            self._music,
+            self._sound_effect,
+            self._speech,
+        )
         closed: set[int] = set()
         first_error: BaseException | None = None
         for service in services:

@@ -21,6 +21,7 @@ accidental.
 from __future__ import annotations
 
 from gnode import NodePolicy, NodeType, ViewArchetype
+from stage_gen.components.game_soundtrack.nodes import soundtrack_node_types
 from stage_gen.components.game_ui.nodes import (
     UI_ATLAS_GENERATE,
     UI_ATLAS_REVIEW,
@@ -309,23 +310,11 @@ CATALOG_REVIEW = NodeType(
     contract_version="catalog-review-v1",
 )
 
-SOUNDTRACK_GENERATE = NodeType(
-    type_id=f"{_P}/soundtrack.generate",
-    title="Soundtrack track",
-    archetype=ViewArchetype.MUSIC,
-    operation="music_generation",
-    features=MUSIC_FEATURES,
-    policy=_PROVIDER,
-    contract_version="soundtrack-track-v1",
-)
-
-SOUNDTRACK_VALIDATE = NodeType(
-    type_id=f"{_P}/soundtrack.validate",
-    title="Track admission",
-    archetype=ViewArchetype.VALIDATE,
-    operation="local",
-    contract_version="soundtrack-validate-v1",
-)
+#: The soundtrack family lives in its component; this recipe shipped it under its own
+#: type ids, which stay as the cache identity so no track is paid for twice.
+_SOUNDTRACK = soundtrack_node_types(identity_prefix=_P)
+SOUNDTRACK_GENERATE = _SOUNDTRACK.generate
+SOUNDTRACK_VALIDATE = _SOUNDTRACK.validate
 
 UI_INVENTORY_GENERATE = NodeType(
     type_id=f"{_P}/ui_inventory.generate",

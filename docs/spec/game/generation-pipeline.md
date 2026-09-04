@@ -170,7 +170,7 @@ topology and therefore this checked snapshot.
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "library/games/bellweather",
   "graph_schema_version": 1,
-  "topology_sha256": "6d60dc2b3440fd6ca2fd95150664e5f79d003741ea1fd087a0b5be3ceed0fb3c",
+  "topology_sha256": "a5e14edc9954c642f0f3833ff571079c0eae4ee5f99c46bc44aa0e9df4c8a6a2",
   "node_count": 230,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
@@ -530,7 +530,7 @@ kinds, so a reader never has to infer which recipe wrote a run directory.
 | `ui/{panel_frame,button_rect}.png`, `*.validation.json`, `*.evidence.png` | Alpha-normalized nine-slice sheet, the detected cells / insets / content rects / admitted band fill, and the re-drawn review evidence |
 | `content/coverage-matrix.json`, `gameplay.bindings.json` | Required authored coverage and verified stable-ID relationships |
 | `soundtrack/*.mp3`, `*.validation.json` | Generated audio, provider provenance, duration/container facts, and explicit listening status |
-| `dry-run/*.json` | Fake artifacts used to validate content and lineage cache behavior |
+| every declared port, under `--dry-run` | A small `dry-run-artifact-v1` document at each port a node declares, written through the same node cache as a live run, so a rehearsal exercises the cache and lineage rules a live run will meet |
 | `manifest.json` | Portable `prepared-game-runtime-v11` authored projection, runtime-only layer/contact-shadow presentation, prop ground contacts, front-facing NPC playback, and SHA-bound runtime closure |
 
 Trace records contain portable artifact references, hashes, and sanitized errors. They do not

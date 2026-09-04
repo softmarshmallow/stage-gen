@@ -91,7 +91,7 @@ class RecipeNodeHandler(ABC):
             # It comes back byte-for-byte; cache disposition belongs to the trace.
             return cached
         try:
-            result = await self._registry(node, context)
+            result = await self._dispatch(node, context)
         except CancellationError as error:
             self._cancelled(node, error)
             raise
@@ -104,6 +104,11 @@ class RecipeNodeHandler(ABC):
             raise failure from error
         self._cache.write(node, context, result)
         return result
+
+    async def _dispatch(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
+        """Run the node's own method; the registry refuses a type nobody registered."""
+
+        return await self._registry(node, context)
 
     def restore(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult | None:
         """The cache's answer alone: restored into the run, or ``None``. Never generates."""

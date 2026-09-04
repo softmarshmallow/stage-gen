@@ -438,6 +438,46 @@ pins the derived document kinds and refuses a recipe that grows a substrate
 member back.
 
 
+**D4, re-measured after B3 and D2.** The card's "byte-identical helpers" were
+mostly the PNG codec (B3 took it) and the recipe kit (D2 took it). What is
+left: the six `validate_rights_basis` and nine `validate_source` field
+validators are four to seven lines each and differ in the label they name, so
+hoisting them buys a few dozen lines against a shared-validator import in
+every model; `_noise` / `_jitter` / `_luminance` / `_shifted` are D9's fork,
+not D4's; the two node-host kits (`UiAtlasHost` + `UiAtlasHandlers`,
+`FxCutInHost` + `FxCutInHandlers`) are the shape D8 generalises. D4 is
+folded into D8 and D9; no separate cut.
+
+
+**2026-09-04 — D10, D11, D12, the small cards.**
+
+| Card | Landed as |
+| --- | --- |
+| D12 | `recipes/dry_run.py`: the dry run is a `RecipeNodeHandler` over the real `NodeArtifactCache` (namespace `dry-run-nodes-v1`), writing a `dry-run-artifact-v1` placeholder at every declared port; the engine's `gnode/dry_run.py`, its flat cache and its own lineage rule are gone. `is_placeholder` lets a reader that keys on a run file's presence (the gallery manifest) tell a rehearsal from an artifact. `DefaultHeadlessRuntime.aclose` now closes the speech client. The one genuinely stale `__all__` entry (`game_fx.FX_MANIFEST_BLOCK_VERSION`, exported but never imported) is fixed; the other two the audit counted are PEP 695 type aliases the audit's parser did not see |
+| D11 | `tests/unit/recipes/test_model_identity.py`: for every recipe profile, the model each binding keys on is the model the service `RunServices` composes for that operation calls with. D2 made the config the one source; this keeps it so |
+| D10 | `concept_studio` stays in `src/`: it is a shipped entry point (`stage-gen-concept`) with its own README and skill, so "zero production consumers" was the wrong test. `components/dialogue_sequence/` holds only a stale `__pycache__` (untracked; delete by hand). The `game_fx` split and the `sideview_layers` / `sideview_actor` surfaces land with D8, which is where those two components gain node kits |
+
+
+**2026-09-04 — D8, first family: the soundtrack.** `components/game_soundtrack/nodes.py`
+exports the pair (`soundtrack.generate`, `soundtrack.validate` at the taxonomy's
+complete path), the graph helper and the handler kit; both recipes declare the pair
+through `soundtrack_node_types(identity_prefix=…)`, which is where a recipe that
+shipped the family under its own type id keeps that id as the cache identity (B2's
+mechanism, used for the first time). The family owns the ports, the card and the
+admission's key; the host names the nodes and keys the generation, because both are
+cache identity and both differ between the two recipes. The unified admission record
+is the platformer's superset - the runner's had dropped the five facts that tie the
+measured clip to the authored intent.
+
+Measured against the last published plans: Bellweather 0 keys moved; Iron Petal 3
+local keys moved (the two admissions converging on the family's record and contract,
+and the manifest downstream), no provider key, $0. Both topology digests re-pinned
+with the reason. `components/_node_kit.py` holds what every kit wrote for itself
+(`ProviderCall`, `card_prompt`, `node_result`, the two digests); `recipes/ports.py`
+now imports its digests from it. The UI and fx kits still carry their own copies and
+move onto it with the next families (motion rebase, then the layer loop).
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one

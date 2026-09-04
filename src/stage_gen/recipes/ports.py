@@ -11,10 +11,8 @@ shipped key was taken under the former.
 
 from __future__ import annotations
 
-import hashlib
-import json
-
 from gnode import Port
+from stage_gen.components._node_kit import object_digest, text_digest
 
 
 def artifact_port(port_id: str, ref: str, kind: str) -> Port:
@@ -37,19 +35,6 @@ def attempts_port(node_id: str, kind: str) -> Port:
     """
 
     return Port(port_id="attempts", artifact_ref=f"attempts/{node_id}.json", kind=kind)
-
-
-def text_digest(text: str) -> str:
-    """A node keyed on exactly the instruction it will send, so an edit re-bills one node."""
-
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
-def object_digest(value: object) -> str:
-    """Digest of a JSON value in the compact, sorted, ASCII form every key was taken under."""
-
-    encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
 
 
 __all__ = ["artifact_port", "attempts_port", "object_digest", "record_port", "text_digest"]

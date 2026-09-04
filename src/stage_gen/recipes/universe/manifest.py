@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+from stage_gen.recipes.dry_run import is_placeholder
 from stage_gen.recipes.universe.universe_graph import (
     INPUT_POSTER_PROXY_REF,
     INPUT_UNIVERSE_REF,
@@ -39,6 +40,24 @@ ENTITY_STATUSES = (
 )
 
 
+def _artifact_present(path: Path) -> bool:
+    """A run file counts as the artifact only when a producer wrote it.
+
+    A dry run writes a placeholder at every declared port; the manifest names the
+    bytes it publishes, and a placeholder is not one of them.
+    """
+
+    return path.is_file() and not is_placeholder(path)
+
+
+def _recorded_status(path: Path) -> str | None:
+    """The status an entity record carries, or ``None`` when no record is there."""
+
+    if not _artifact_present(path):
+        return None
+    return str(json.loads(path.read_bytes())["status"])
+
+
 def finalize_gallery(
     run_dir: Path,
     graph: UniverseGraph,
@@ -61,8 +80,9 @@ def finalize_gallery(
         review_ref = f"production/review/reviews/{entity_id}.json"
         status = "unknown"
         reason = ""
-        if (run_dir / record_ref).is_file():
-            status = str(json.loads((run_dir / record_ref).read_bytes())["status"])
+        recorded = _recorded_status(run_dir / record_ref)
+        if recorded is not None:
+            status = recorded
         else:
             for stage, node_id in (
                 ("direction_failed", f"direction-{safe}"),
@@ -87,9 +107,9 @@ def finalize_gallery(
                 "primary_class": entity.primary_class,
                 "status": status,
                 "reason": reason,
-                "image": image_ref if (run_dir / image_ref).is_file() else None,
-                "record": record_ref if (run_dir / record_ref).is_file() else None,
-                "review": review_ref if (run_dir / review_ref).is_file() else None,
+                "image": image_ref if _artifact_present(run_dir / image_ref) else None,
+                "record": record_ref if _artifact_present(run_dir / record_ref) else None,
+                "review": review_ref if _artifact_present(run_dir / review_ref) else None,
             }
         )
     manifest: dict[str, object] = {

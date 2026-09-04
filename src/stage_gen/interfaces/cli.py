@@ -982,7 +982,7 @@ async def _dispatch_dialogue_scene(
         stdout.write(f"{json.dumps(review_result, separators=(',', ':'))}\n")
         return 0
     executor = DialogueSceneExecutor(config)
-    output_path = Path(args.output_path)
+    output_path = _resolve_output_path(args.output_path)
     cache_dir = _resolve_cache_dir(args.cache_dir)
     invocation_id = args.invocation_id or f"dialogue-{uuid.uuid4().hex}"
     if args.dry_run:
@@ -1024,7 +1024,7 @@ async def _dispatch_pointclick_room(
     stdout: TextIO,
 ) -> int:
     executor = PointClickRoomExecutor(config)
-    output_path = Path(args.output_path)
+    output_path = _resolve_output_path(args.output_path)
     cache_dir = _resolve_cache_dir(args.cache_dir)
     invocation_id = args.invocation_id or f"room-{uuid.uuid4().hex}"
     if args.dry_run:
@@ -1067,7 +1067,7 @@ async def _dispatch_universe(
 ) -> int:
     executor = UniverseExecutor(config)
     input_path = Path(args.input_path)
-    output_path = Path(args.output_path)
+    output_path = _resolve_output_path(args.output_path)
     cache_dir = _resolve_cache_dir(args.cache_dir)
     phase = str(args.universe_command)
     invocation_id = args.invocation_id or f"universe-{phase}-{uuid.uuid4().hex}"
@@ -1151,7 +1151,7 @@ async def _dispatch_async(
         generate_package = resolve_prepared_package(Path(args.input_path))
         declared_genres = [entry.genre for entry in generate_package.game.genres]
         genre = _resolve_cli_genre(declared_genres, getattr(args, "genre", None))
-        output_path = Path(args.output_path)
+        output_path = _resolve_output_path(args.output_path)
         # The genre dispatch point: each genre member executes through its own
         # recipe executor. The runner runs single-shot; the platformer keeps its
         # bounded checkpoints below.
@@ -1400,10 +1400,22 @@ async def _dispatch_async(
     return 0
 
 
-def _resolve_cache_dir(explicit: str | None) -> Path:
-    """The execution cache root: the flag, else the configured repo-anchored directory."""
+def _resolve_output_path(raw: str) -> Path:
+    """A run directory the user named, resolved through symlinks for the same reason."""
 
-    return Path(explicit) if explicit else load_config().cache_dir
+    return Path(raw).resolve()
+
+
+def _resolve_cache_dir(explicit: str | None) -> Path:
+    """The execution cache root: the flag, else the configured repo-anchored directory.
+
+    Resolved through symlinks here, at the user's boundary: the node cache refuses a
+    symlink anywhere above a root it writes under, and on macOS every temporary
+    directory sits under one (``/var`` -> ``/private/var``). The layout above the root
+    the user chose is the operating system's; the rule guards what lies beneath it.
+    """
+
+    return (Path(explicit) if explicit else load_config().cache_dir).resolve()
 
 
 def _parse_input_document(text: str, *, suffix: str) -> object:

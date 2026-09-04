@@ -18,7 +18,6 @@ from gnode import (
     ImageGenerationService,
     ImageReference,
     InputProvenance,
-    MusicGenerationRequest,
     MusicGenerationService,
     Node,
     NodeExecutionResult,
@@ -33,7 +32,7 @@ from gnode import (
     dependency_port,
     write_artifact_with_provenance_async,
 )
-from stage_gen.components.game_soundtrack.prompt import music_track_prompt
+from stage_gen.components.game_soundtrack.nodes import SoundtrackHandlers, SoundtrackHost
 from stage_gen.components.game_ui import (
     INVENTORY_CANVAS_HEIGHT,
     INVENTORY_CANVAS_WIDTH,
@@ -98,9 +97,7 @@ from stage_gen.media import (
     AlphaComponentRepackContract,
     data_url,
     measure_alpha_ground_contact,
-    probe_audio,
     repack_alpha_components,
-    validate_music_payload,
 )
 from stage_gen.media.sprite_sheets import measure_alpha_subjects, split_atlas_columns
 from stage_gen.orchestration.game_package import ResolvedGamePackage
@@ -187,6 +184,11 @@ class PreparedContentNodeHandler(RecipeNodeHandler):
             image_service=image_service,
             structured_service=structured_service,
         )
+        self._soundtrack = SoundtrackHandlers(
+            SoundtrackHost(run_dir=run_dir, track=package.soundtrack.track),
+            graph=graph,
+            music_service=music_service,
+        )
         super().__init__(
             graph,
             run_dir=run_dir,
@@ -230,8 +232,8 @@ class PreparedContentNodeHandler(RecipeNodeHandler):
             (CATALOG_ASSET_VALIDATE, self._validate_catalog_asset),
             (CATALOG_CONTACT_SHEET, self._catalog_contact_sheet),
             (CATALOG_REVIEW, self._catalog_review),
-            (SOUNDTRACK_GENERATE, self._generate_track),
-            (SOUNDTRACK_VALIDATE, self._validate_track),
+            (SOUNDTRACK_GENERATE, self._soundtrack.generate),
+            (SOUNDTRACK_VALIDATE, self._soundtrack.validate),
             (UI_INVENTORY_GENERATE, self._generate_inventory_panel),
             (UI_INVENTORY_VALIDATE, self._validate_inventory_panel),
             (UI_INVENTORY_REVIEW, self._review_inventory_panel),
@@ -478,60 +480,6 @@ class PreparedContentNodeHandler(RecipeNodeHandler):
             references=references,
             metadata={"checkpoint": "ui", "role": "inventory_panel"},
         )
-
-    async def _generate_track(self, node: Node) -> NodeExecutionResult:
-        track = self._package.soundtrack.track(node.params["track_id"])
-        output = self._run_dir / node.port("audio").artifact_ref
-        result = await self._music.generate(
-            MusicGenerationRequest(
-                prompt=music_track_prompt(
-                    medium="a 2D game",
-                    game_id=self._package.game.game_id,
-                    track_id=track.track_id,
-                    creative_brief=track.creative_brief,
-                    generation=track.generation,
-                ),
-                artifact_path=output,
-                output_format="mp3",
-                timeout_seconds=900,
-                metadata={
-                    "checkpoint": "content",
-                    "track_id": track.track_id,
-                    "target_duration_seconds": track.generation.target_duration_seconds,
-                    "seamless_loop": track.generation.seamless_loop,
-                },
-                validate=lambda artifact: validate_music_payload(artifact.data),
-            )
-        )
-        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
-
-    async def _validate_track(self, node: Node) -> NodeExecutionResult:
-        track = self._package.soundtrack.track(node.params["track_id"])
-        source = self._run_dir / self._dependency_artifact(node, kind="soundtrack-track-v1")
-        probe = await probe_audio(source, timeout_seconds=120)
-        if probe.duration_seconds < 15:
-            raise ValueError("generated soundtrack track is shorter than 15 seconds")
-        output = self._run_dir / node.port("validation").artifact_ref
-        atomic_write_json(
-            output,
-            {
-                "schema_version": 1,
-                "kind": "prepared-soundtrack-validation-v1",
-                "track_id": track.track_id,
-                "format_name": probe.format_name,
-                "duration_seconds": round(probe.duration_seconds, 3),
-                "target_duration_seconds": track.generation.target_duration_seconds,
-                "target_delta_seconds": round(
-                    probe.duration_seconds - track.generation.target_duration_seconds, 3
-                ),
-                "bit_rate": probe.bit_rate,
-                "instrumental_intent": track.generation.instrumental,
-                "seamless_loop_intent": track.generation.seamless_loop,
-                "container_valid": True,
-                "listening_verdict": "not_performed",
-            },
-        )
-        return self._result(node, provider_operations=0)
 
     async def _generate_concept(self, node: Node) -> NodeExecutionResult:
         kind = self._actor_kind(node)

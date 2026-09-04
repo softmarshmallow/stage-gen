@@ -34,6 +34,10 @@ from stage_gen.components.game_fx.nodes import (
     add_cut_in_nodes,
     add_sprite_nodes,
 )
+from stage_gen.components.game_soundtrack.nodes import (
+    SoundtrackNodeTypes,
+    add_soundtrack_nodes,
+)
 from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.components.game_voices import GameVoice
 from stage_gen.components.runner_content import (
@@ -126,9 +130,7 @@ from stage_gen.recipes.sideview_runner.runner_types import (
     SOUND_EFFECT_VALIDATE,
     SOUND_EFFECT_VALIDATION_KIND,
     SOUNDTRACK_GENERATE,
-    SOUNDTRACK_TRACK_KIND,
     SOUNDTRACK_VALIDATE,
-    SOUNDTRACK_VALIDATION_KIND,
     SPEECH_CLIP_KIND,
     SPEECH_FEATURES,
     SPEECH_GENERATE,
@@ -1094,49 +1096,28 @@ def build_runner_execution_graph(
     soundtrack_validations: list[str] = []
     if runner.soundtrack is not None:
         with builder.within_template("soundtrack-pipeline@v1"):
-            for track_id in runner.soundtrack.track_ids:
-                audio_track = runner.soundtrack.track(track_id)
-                provider_prompt = music_track_prompt(
+            soundtrack_validations = add_soundtrack_nodes(
+                builder,
+                types=SoundtrackNodeTypes(
+                    generate=SOUNDTRACK_GENERATE, validate=SOUNDTRACK_VALIDATE
+                ),
+                tracks=[
+                    runner.soundtrack.track(track_id) for track_id in runner.soundtrack.track_ids
+                ],
+                depends_on=barrier,
+                node_id=lambda track, stage: f"soundtrack-{track.track_id}-{stage}",
+                prompt=lambda track: music_track_prompt(
                     medium="a 2D game",
                     game_id=package.game.game_id,
-                    track_id=audio_track.track_id,
-                    creative_brief=audio_track.creative_brief,
-                    generation=audio_track.generation,
+                    track_id=track.track_id,
+                    creative_brief=track.creative_brief,
+                    generation=track.generation,
                     direction=soundtrack_direction(),
-                )
-                generate_id = f"soundtrack-{track_id}-generate"
-                generated = builder.add(
-                    SOUNDTRACK_GENERATE,
-                    generate_id,
-                    domain="soundtrack",
-                    description=f"generate the {track_id} track",
-                    params={"track_id": track_id},
-                    depends_on=barrier,
-                    cache_depends_on=(),
-                    input_digests=(text_digest(provider_prompt),),
-                    ports=(
-                        artifact_port("audio", f"soundtrack/{track_id}.mp3", SOUNDTRACK_TRACK_KIND),
-                        attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
-                    ),
-                    card=NodeCard(prompt=provider_prompt),
-                )
-                validated = builder.add(
-                    SOUNDTRACK_VALIDATE,
-                    f"soundtrack-{track_id}-validate",
-                    domain="soundtrack",
-                    description=f"admit the {track_id} container and duration",
-                    params={"track_id": track_id},
-                    depends_on=(generated.node_id,),
-                    input_digests=(package.closure_sha256,),
-                    ports=(
-                        record_port(
-                            "validation",
-                            f"soundtrack/{track_id}.validation.json",
-                            SOUNDTRACK_VALIDATION_KIND,
-                        ),
-                    ),
-                )
-                soundtrack_validations.append(validated.node_id)
+                ),
+                # Keyed on the complete compiled prompt, as it always was.
+                generate_digests=lambda _track, provider_prompt: (text_digest(provider_prompt),),
+                attempts_port=lambda node_id: attempts_port(node_id, ATTEMPT_LEDGER_KIND),
+            )
 
     # ------------------------------------------------------------ sound effects
     # The prompt is the authored text, verbatim: the recipe compiles nothing

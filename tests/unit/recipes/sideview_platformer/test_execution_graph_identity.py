@@ -30,7 +30,10 @@ BELLWEATHER_CACHE_KEYS = Path(__file__).with_name("bellweather.cache-keys.json")
 BELLWEATHER_NODE_COUNT = 230
 # Re-pinned when the manifest gained per-block versions (C-R3): the terminal node\'s port
 # kind is the manifest identity, so the topology moved with it. No cache key moved.
-BELLWEATHER_TOPOLOGY_SHA256 = "6d60dc2b3440fd6ca2fd95150664e5f79d003741ea1fd087a0b5be3ceed0fb3c"
+# Re-pinned again when the soundtrack family moved to its component (D8): the pair's
+# type ids and the admission's port kind are the family's; both nodes keep this
+# recipe's cache identity. No cache key moved.
+BELLWEATHER_TOPOLOGY_SHA256 = "a5e14edc9954c642f0f3833ff571079c0eae4ee5f99c46bc44aa0e9df4c8a6a2"
 
 
 def _bellweather_graph() -> ExecutionGraph:

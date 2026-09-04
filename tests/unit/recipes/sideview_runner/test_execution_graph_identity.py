@@ -19,7 +19,11 @@ IRON_PETAL_CACHE_KEYS = Path(__file__).with_name("iron-petal-unit.cache-keys.jso
 IRON_PETAL_NODE_COUNT = 109
 # Re-pinned when the manifest gained per-block versions (C-R3): the terminal node\'s port
 # kind is the manifest identity, so the topology moved with it. No cache key moved.
-IRON_PETAL_TOPOLOGY_SHA256 = "188d0536db018709caef6822277ce81166d3560d5dd178c776298fea9e9e808c"
+# Re-pinned again when the soundtrack family moved to its component (D8): the pair's
+# type ids are the family's, the generate node keeps this recipe's cache identity and
+# contract, and the two admissions converged on the family's record - three local keys
+# moved (both admissions and the manifest that depends on them), no provider key.
+IRON_PETAL_TOPOLOGY_SHA256 = "4bc30980c9198ffcb5bc4c8ebb713cfbf86d4310348819d54d20c16485cc456e"
 
 
 def test_planning_iron_petal_reproduces_its_pinned_identity() -> None:

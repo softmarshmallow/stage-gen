@@ -45,6 +45,7 @@ from stage_gen.components.game_fx.models import (
     GameFx,
     load_game_fx_bytes,
 )
+from stage_gen.components.game_fx.nodes import FX_MANIFEST_BLOCK_VERSION
 
 __all__ = [
     "FX_MANIFEST_BLOCK_VERSION",

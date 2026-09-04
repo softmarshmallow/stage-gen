@@ -7,6 +7,11 @@ from collections.abc import Iterable, Sequence
 from typing import Any
 
 from gnode import Binding, BindingTable, GraphBuilder, ModelRef, NodeCard, PortRef
+from stage_gen.components.game_soundtrack.nodes import (
+    SoundtrackNodeTypes,
+    add_soundtrack_nodes,
+)
+from stage_gen.components.game_soundtrack.prompt import music_track_prompt
 from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes
 from stage_gen.components.painted_terrain import (
     PAINTED_TERRAIN_CANONICALIZE,
@@ -1336,47 +1341,27 @@ def _add_projectile_nodes(builder: _GraphBuilder, package_root: str) -> str | No
 
 
 def _add_soundtrack_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
-    terminals: list[str] = []
-    for track in builder.package.soundtrack.tracks:
-        generated = builder.add(
-            SOUNDTRACK_GENERATE,
-            f"track-{track.track_id}-generate",
-            domain="soundtrack",
-            description=f"generate soundtrack track {track.track_id}",
-            params={"track_id": track.track_id},
-            depends_on=(package_root,),
-            cache_depends_on=(),
-            input_digests=(
-                object_digest({"contract": CONTENT_SOUNDTRACK_CONTRACT_VERSION}),
-                object_digest(track.model_dump(mode="json")),
-            ),
-            ports=(
-                artifact_port("audio", f"soundtrack/{track.track_id}.mp3", "soundtrack-track-v1"),
-            ),
-        )
-        validation = builder.add(
-            SOUNDTRACK_VALIDATE,
-            f"track-{track.track_id}-validate",
-            domain="soundtrack",
-            description=(
-                "validate audio container, duration, channels, and loop intent for "
-                f"{track.track_id}"
-            ),
-            params={"track_id": track.track_id},
-            depends_on=(generated.node_id,),
-            input_digests=(object_digest(track.generation.model_dump(mode="json")),),
-            ports=(
-                record_port(
-                    "validation",
-                    f"soundtrack/{track.track_id}.validation.json",
-                    "track-validation-v1",
-                ),
-            ),
-            card=NodeCard(reference_inputs=(PortRef(node_id=generated.node_id, port_id="audio"),)),
-            duration_seconds=1.0,
-        )
-        terminals.append(validation.node_id)
-    return terminals
+    package = builder.package
+    return add_soundtrack_nodes(
+        builder,
+        types=SoundtrackNodeTypes(generate=SOUNDTRACK_GENERATE, validate=SOUNDTRACK_VALIDATE),
+        tracks=package.soundtrack.tracks,
+        depends_on=(package_root,),
+        node_id=lambda track, stage: f"track-{track.track_id}-{stage}",
+        prompt=lambda track: music_track_prompt(
+            medium="a 2D game",
+            game_id=package.game.game_id,
+            track_id=track.track_id,
+            creative_brief=track.creative_brief,
+            generation=track.generation,
+        ),
+        # Keyed on the authored track and this recipe's contract, as it always was; the
+        # prompt is on the card for the handler, not in the key.
+        generate_digests=lambda track, _prompt: (
+            object_digest({"contract": CONTENT_SOUNDTRACK_CONTRACT_VERSION}),
+            object_digest(track.model_dump(mode="json")),
+        ),
+    )
 
 
 def _add_ui_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
