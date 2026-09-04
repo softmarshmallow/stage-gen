@@ -881,6 +881,28 @@ provider gate included. `GRAPH_HELPER_DEPARTURES` is empty; the structure test k
 refusing a new one without a card.
 
 
+**2026-09-05 — The remaining cards, ruled.** With D5 and D9 landed the D lane is
+closed. What is left, and why each waits: **F2 / F3** are one docs pass over
+thirty-two specs, and the runtime lane's step 7 branch is editing one of the five
+"proposed TO-BE" documents F2 moves (`runtime-composition-plan.md`, its evidence
+lines); the pass lands after that branch fast-forwards, on a clean tree, so the move
+and the merge cannot fight. **G1** is measured smaller than the card and blocked on a
+person: under `library/games/` the eighteen binaries are authored inputs whose digest,
+origin and rights sit in the game contract - already outside the publication gate by
+the policy's own words - plus exactly one generated artifact, the pinned take
+`iron-petal-unit/runner/audio/mira_go.mp3`, whose sidecar says `unreviewed`. Declaring
+the root means teaching the checker that contract-bound inputs are exempt (package
+resolution already proves them) and enumerating pinned takes; the gate then stays red
+until that take carries a listening review with a reviewer, a basis and a timestamp,
+which is an attestation nobody in this pass can write for themselves. The mechanism is
+a small cut; the ruling is that it lands with the attestation, not before it.
+**G4** is closed by what C-R2 and C-R3 built: "drop rather than translate" still holds
+at the document boundary (no compat shims exist), the node boundary re-admits a cached
+artifact through its own gate (D7's admission rule), and the manifest boundary versions
+each block so a consumer refuses the one block that moved. **G3** stays the user's
+decision, as the plan lists it.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one
