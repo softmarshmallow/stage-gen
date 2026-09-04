@@ -478,6 +478,20 @@ now imports its digests from it. The UI and fx kits still carry their own copies
 move onto it with the next families (motion rebase, then the layer loop).
 
 
+**2026-09-04 — D8, second family: the motion rebase.**
+`components/sideview_actor/motion_rebase_nodes.py` exports the judge/verify pair at
+`2d/sideview/actor`, the graph helper and the handler kit over a `RebaseSubject` every
+host resolves its own way - the runner's subject resolution, which was the better one
+because it carried the baseline and the atlas location as data rather than assuming the
+player, is now the family's shape; the platformer builds its subject from the player
+with its atlases located by type, as before. The verification's port and schema
+converged on one form (`verification` / `rebase-verification-v1`, the correction
+schema); the plate provenance records the superset of what either recipe recorded.
+Measured against the last published plans: **no cache key moved on either game**;
+both topology digests re-pinned with the reason. The provider seam and the local-image
+provenance writer joined `_node_kit`.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one

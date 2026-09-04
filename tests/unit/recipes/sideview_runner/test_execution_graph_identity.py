@@ -23,7 +23,10 @@ IRON_PETAL_NODE_COUNT = 109
 # type ids are the family's, the generate node keeps this recipe's cache identity and
 # contract, and the two admissions converged on the family's record - three local keys
 # moved (both admissions and the manifest that depends on them), no provider key.
-IRON_PETAL_TOPOLOGY_SHA256 = "4bc30980c9198ffcb5bc4c8ebb713cfbf86d4310348819d54d20c16485cc456e"
+# Re-pinned when the motion-rebase family moved to `sideview_actor` (D8): the pair's type
+# ids are the family's; both nodes keep this recipe's cache identity and contracts. No
+# cache key moved.
+IRON_PETAL_TOPOLOGY_SHA256 = "73ea6cdf7a2d1774b3421701a1675f4179b50354e909c7412090cf1bb15da3c3"
 
 
 def test_planning_iron_petal_reproduces_its_pinned_identity() -> None:

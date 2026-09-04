@@ -27,6 +27,7 @@ from stage_gen.components.game_ui.nodes import (
     UI_ATLAS_REVIEW,
     UI_ATLAS_VALIDATE,
 )
+from stage_gen.components.sideview_actor.motion_rebase_nodes import motion_rebase_node_types
 
 _P = "2d/sideview/platformer"
 _PROVIDER = NodePolicy(max_attempts=6)
@@ -236,25 +237,11 @@ WORLD_SPRITE_VALIDATE = NodeType(
     contract_version="world-sprite-validate-v1",
 )
 
-MOTION_REBASE_JUDGE = NodeType(
-    type_id=f"{_P}/motion_rebase.judge",
-    title="Scale rebase reading",
-    archetype=ViewArchetype.JUDGE,
-    operation="structured_generation",
-    features=STRUCTURED_FEATURES,
-    policy=NodePolicy(max_attempts=6, gates=("rebase-admission",)),
-    contract_version="motion-rebase-v1",
-)
-
-MOTION_REBASE_VERIFY = NodeType(
-    type_id=f"{_P}/motion_rebase.verify",
-    title="Scale rebase residual",
-    archetype=ViewArchetype.JUDGE,
-    operation="structured_generation",
-    features=STRUCTURED_FEATURES,
-    policy=NodePolicy(max_attempts=6, gates=("rebase-admission",)),
-    contract_version="motion-rebase-verify-v1",
-)
+#: The motion-rebase family lives in `sideview_actor`; this recipe shipped it under its own
+#: type ids, which stay as the cache identity so no reading is paid for twice.
+_MOTION_REBASE = motion_rebase_node_types(identity_prefix=_P)
+MOTION_REBASE_JUDGE = _MOTION_REBASE.judge
+MOTION_REBASE_VERIFY = _MOTION_REBASE.verify
 
 ACTOR_CONTACT_SHEET = NodeType(
     type_id=f"{_P}/actor.contact_sheet",

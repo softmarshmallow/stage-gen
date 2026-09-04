@@ -35,7 +35,6 @@ from gnode import (
     SoftwareIdentity,
     SoundEffectGenerationRequest,
     SpeechGenerationRequest,
-    StructuredGenerationRequest,
     StructuredOutputSchema,
     StructuredReference,
     ToolLoopReference,
@@ -127,17 +126,17 @@ from stage_gen.components.sideview_actor.asset_unit import (
 from stage_gen.components.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
 from stage_gen.components.sideview_actor.motion_rebase import (
     MOTION_REBASE_SCHEMA_NAME,
-    MotionRebaseError,
-    MotionRebaseReading,
     admit_first_pass_record,
     build_motion_rebase_plate,
     build_motion_rebase_verification_plate,
-    evaluate_motion_rebase,
-    evaluate_motion_rebase_correction,
     motion_rebase_json_schema,
     motion_rebase_prompt,
     motion_rebase_verification_prompt,
-    parse_motion_rebase,
+)
+from stage_gen.components.sideview_actor.motion_rebase_nodes import (
+    MotionRebaseHandlers,
+    MotionRebaseHost,
+    RebaseSubject,
 )
 from stage_gen.components.sideview_layers.contract import resolve_layer_placement
 from stage_gen.components.sideview_layers.pipeline import (
@@ -873,6 +872,20 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
         self._speech = speech_service
         self._timeout = capability_timeout_s
         soundtrack = resolved.runner.soundtrack
+        self._rebase = MotionRebaseHandlers(
+            MotionRebaseHost(
+                run_dir=run_dir,
+                subject=self._rebase_subject,
+                component=_COMPONENT,
+                handler_version=RUNNER_HANDLER_VERSION,
+                plate_model="sideview-runner-rebase-plate-v1",
+            ),
+            graph=graph,
+            structured_service=structured_service,
+            provider_call=lambda node, _role, _prompt, thunk: self._execute_provider_operation(
+                node, thunk
+            ),
+        )
         self._soundtrack = SoundtrackHandlers(
             SoundtrackHost(
                 run_dir=run_dir,
@@ -3094,150 +3107,32 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
             )
         return frames_by_state
 
-    async def _rebase_judge(self, node: Node) -> NodeExecutionResult:
+    def _rebase_subject(self, node: Node) -> RebaseSubject:
+        """The family's view of this node's actor: the runner's subject, atlases by convention."""
+
         subject = self._actor(node)
-        states = list(subject.states)
-        frames_by_state = self._state_frames(node)
-        plate = build_motion_rebase_plate(frames_by_state, baseline_state=subject.baseline_state)
-        plate_output = self._run_dir / node.port("plate").artifact_ref
-        await _write_local_image(
-            plate_output,
-            plate.png,
-            prompt=(
-                f"Compose the complete motion-rebase judging plate for {subject.entity_id}: "
-                "every frame of every state at one uniform source scale."
-            ),
-            inputs=[
-                (
-                    f"{subject.artifact_dir}/{state}.png",
-                    (self._run_dir / f"{subject.artifact_dir}/{state}.png").read_bytes(),
-                )
-                for state in states
-            ],
-            validation={"baseline_state": subject.baseline_state, "frame_count": len(plate.frames)},
-            model="sideview-runner-rebase-plate-v1",
+        return RebaseSubject(
+            label=subject.label,
+            entity_id=subject.entity_id,
+            display_name=subject.display_name,
+            states=subject.states,
+            baseline_state=subject.baseline_state,
+            atlas_refs={state: f"{subject.artifact_dir}/{state}.png" for state in subject.states},
+            geometry=lambda _state: DEFAULT_MOTION_ATLAS_GEOMETRY,
         )
 
-        def admit(reading: object) -> dict[str, object]:
-            if not isinstance(reading, MotionRebaseReading):
-                raise MotionRebaseError("judge returned a reading the parser did not admit")
-            return evaluate_motion_rebase(
-                reading,
-                published_states=states,
-                plate=plate,
-                baseline_state=subject.baseline_state,
-            )
-
-        request = StructuredGenerationRequest(
-            prompt=self._provider_prompt(node),
-            system=(
-                "You are a sprite-sheet scale judge. Return only the strict structured object."
-            ),
-            artifact_path=self._run_dir / node.port("reading").artifact_ref,
-            schema=StructuredOutputSchema(
-                name=MOTION_REBASE_SCHEMA_NAME,
-                description="Per-state draw-scale multipliers against an actor's baseline",
-                json_schema=motion_rebase_json_schema(),
-                strict=True,
-            ),
-            parse=parse_motion_rebase,
-            references=(self._structured_reference(plate_output),),
-            artifact_value=admit,
-            validate=admit,
-            timeout_seconds=600,
-            metadata={
-                "kind": "avatar-motion-rebase",
-                "entity_id": subject.entity_id,
-                "states": states,
-                "plate_sha256": plate.sha256,
-            },
+    async def _rebase_judge(self, node: Node) -> NodeExecutionResult:
+        # The family judges; this recipe's result writes the attempt ledger beside it.
+        result = await self._rebase.judge(node)
+        return self._result(
+            node, attempts=result.attempts, provider_operations=result.provider_operations
         )
-        result = await self._execute_provider_operation(
-            node, lambda: self._structured.generate(request)
-        )
-        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
     async def _rebase_verify(self, node: Node) -> NodeExecutionResult:
-        subject = self._actor(node)
-        states = list(subject.states)
-        frames_by_state = self._state_frames(node)
-        plate = build_motion_rebase_plate(frames_by_state, baseline_state=subject.baseline_state)
-        first_pass_ref = self._dependency_artifact(
-            node, kind=REBASE_READING_KIND, port_id="reading"
+        result = await self._rebase.verify(node)
+        return self._result(
+            node, attempts=result.attempts, provider_operations=result.provider_operations
         )
-        first_pass_data = (self._run_dir / first_pass_ref).read_bytes()
-        first_pass = admit_first_pass_record(
-            json.loads(first_pass_data),
-            published_states=states,
-            plate=plate,
-            baseline_state=subject.baseline_state,
-        )
-        verification_plate = build_motion_rebase_verification_plate(
-            frames_by_state, first_pass, baseline_state=subject.baseline_state
-        )
-        plate_output = self._run_dir / node.port("plate").artifact_ref
-        await _write_local_image(
-            plate_output,
-            verification_plate.png,
-            prompt=(
-                f"Compose the motion-rebase verification plate for {subject.entity_id}: every "
-                "frame with its first-pass multiplier applied."
-            ),
-            inputs=[
-                (
-                    f"{subject.artifact_dir}/{state}.png",
-                    (self._run_dir / f"{subject.artifact_dir}/{state}.png").read_bytes(),
-                )
-                for state in states
-            ]
-            + [(first_pass_ref, first_pass_data)],
-            validation={
-                "baseline_state": subject.baseline_state,
-                "first_pass_sha256": content_sha256(first_pass_data),
-            },
-            model="sideview-runner-rebase-plate-v1",
-        )
-
-        def admit(reading: object) -> dict[str, object]:
-            if not isinstance(reading, MotionRebaseReading):
-                raise MotionRebaseError("judge returned a reading the parser did not admit")
-            return evaluate_motion_rebase_correction(
-                reading,
-                first_pass=first_pass,
-                published_states=states,
-                plate=plate,
-                verification_plate=verification_plate,
-                baseline_state=subject.baseline_state,
-            )
-
-        request = StructuredGenerationRequest(
-            prompt=self._provider_prompt(node),
-            system=(
-                "You are a sprite-sheet scale judge. Return only the strict structured object."
-            ),
-            artifact_path=self._run_dir / node.port("verification").artifact_ref,
-            schema=StructuredOutputSchema(
-                name=MOTION_REBASE_SCHEMA_NAME,
-                description="Residual per-state multipliers on the rebased plate",
-                json_schema=motion_rebase_json_schema(),
-                strict=True,
-            ),
-            parse=parse_motion_rebase,
-            references=(self._structured_reference(plate_output),),
-            artifact_value=admit,
-            validate=admit,
-            timeout_seconds=600,
-            metadata={
-                "kind": "avatar-motion-rebase-verify",
-                "entity_id": subject.entity_id,
-                "states": states,
-                "plate_sha256": verification_plate.sha256,
-            },
-        )
-        result = await self._execute_provider_operation(
-            node, lambda: self._structured.generate(request)
-        )
-        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
     def _structured_reference(self, path: Path) -> StructuredReference:
         return StructuredReference(

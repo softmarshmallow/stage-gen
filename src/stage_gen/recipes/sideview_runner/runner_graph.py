@@ -56,8 +56,11 @@ from stage_gen.components.runner_track import (
 )
 from stage_gen.components.sideview_actor.motion_rebase import (
     MOTION_REBASE_SCHEMA_NAME,
-    motion_rebase_prompt,
-    motion_rebase_verification_prompt,
+)
+from stage_gen.components.sideview_actor.motion_rebase_nodes import (
+    MotionRebaseNodeTypes,
+    RebaseLayout,
+    add_motion_rebase_nodes,
 )
 from stage_gen.components.sound_effect import GeneratedClipRealization, PinnedTake
 from stage_gen.components.speech import SpokenLineRealization
@@ -120,9 +123,6 @@ from stage_gen.recipes.sideview_runner.runner_types import (
     MOTION_VALIDATION_KIND,
     PACKAGE_KIND,
     PACKAGE_RESOLVE,
-    REBASE_PLATE_KIND,
-    REBASE_READING_KIND,
-    REBASE_VERIFICATION_KIND,
     REFERENCE_KIND,
     SOUND_EFFECT_CLIP_KIND,
     SOUND_EFFECT_FEATURES,
@@ -803,52 +803,30 @@ def build_runner_execution_graph(
             )
             motion_validations.append(validated.node_id)
 
-    rebase_judge = builder.add(
-        MOTION_REBASE_JUDGE,
-        "avatar-rebase-judge",
+    # The judge reads the motion atlases (carried by lineage) and names the avatar in its
+    # prompt; keying it on the closure re-billed both structured operations for every
+    # unrelated authored edit.
+    _avatar_rebase_judge, avatar_rebase_verify = add_motion_rebase_nodes(
+        builder,
+        types=MotionRebaseNodeTypes(judge=MOTION_REBASE_JUDGE, verify=MOTION_REBASE_VERIFY),
+        judge_id="avatar-rebase-judge",
+        verify_id="avatar-rebase-verify",
         domain="avatar",
-        description="judge every motion atlas against the run baseline on one plate",
-        depends_on=tuple(motion_validations),
-        # The judge reads the motion atlases (carried by lineage) and names the
-        # avatar in its prompt; keying it on the closure re-billed both
-        # structured operations for every unrelated authored edit.
+        display_name=avatar.display_name,
+        states=declared_motion_states(avatar),
+        depends_on=motion_validations,
         input_digests=(
             text_digest(avatar.avatar_id),
             text_digest(avatar.display_name),
             text_digest(MOTION_REBASE_SCHEMA_NAME),
         ),
-        ports=(
-            artifact_port("plate", "avatar/rebase-plate.png", REBASE_PLATE_KIND),
-            artifact_port("reading", "avatar/rebase-reading.json", REBASE_READING_KIND),
-            attempts_port("avatar-rebase-judge", ATTEMPT_LEDGER_KIND),
+        layout=RebaseLayout(
+            plate="avatar/rebase-plate.png",
+            reading="avatar/rebase-reading.json",
+            verification_plate="avatar/rebase-verify-plate.png",
+            verification="avatar/rebase-verification.json",
         ),
-        card=NodeCard(
-            prompt=motion_rebase_prompt(avatar.display_name, list(declared_motion_states(avatar)))
-        ),
-    )
-    rebase_verify = builder.add(
-        MOTION_REBASE_VERIFY,
-        "avatar-rebase-verify",
-        domain="avatar",
-        description="judge the residual on a plate composed with the first reading applied",
-        depends_on=(rebase_judge.node_id,),
-        input_digests=(
-            text_digest(avatar.avatar_id),
-            text_digest(avatar.display_name),
-            text_digest(MOTION_REBASE_SCHEMA_NAME),
-        ),
-        ports=(
-            artifact_port("plate", "avatar/rebase-verify-plate.png", REBASE_PLATE_KIND),
-            artifact_port(
-                "verification", "avatar/rebase-verification.json", REBASE_VERIFICATION_KIND
-            ),
-            attempts_port("avatar-rebase-verify", ATTEMPT_LEDGER_KIND),
-        ),
-        card=NodeCard(
-            prompt=motion_rebase_verification_prompt(
-                avatar.display_name, list(declared_motion_states(avatar))
-            )
-        ),
+        attempts_port=lambda node_id: attempts_port(node_id, ATTEMPT_LEDGER_KIND),
     )
 
     # -------------------------------------------------------------------- boss
@@ -937,67 +915,30 @@ def build_runner_execution_graph(
                         ),
                     )
                     boss_motion_validations.append(validated.node_id)
-            boss_judge = builder.add(
-                MOTION_REBASE_JUDGE,
-                f"boss-{boss.boss_id}-rebase-judge",
+            _boss_judge, boss_verify = add_motion_rebase_nodes(
+                builder,
+                types=MotionRebaseNodeTypes(judge=MOTION_REBASE_JUDGE, verify=MOTION_REBASE_VERIFY),
+                judge_id=f"boss-{boss.boss_id}-rebase-judge",
+                verify_id=f"boss-{boss.boss_id}-rebase-verify",
                 domain="boss",
-                description=f"judge every {boss.boss_id} atlas against its hover baseline",
-                params={"actor": "boss", "boss_id": boss.boss_id},
-                depends_on=tuple(boss_motion_validations),
+                display_name=boss.display_name,
+                states=declared_boss_motion_states(boss),
+                depends_on=boss_motion_validations,
                 input_digests=(
                     text_digest(boss.boss_id),
                     text_digest(boss.display_name),
                     text_digest(MOTION_REBASE_SCHEMA_NAME),
                 ),
-                ports=(
-                    artifact_port(
-                        "plate", f"boss/{boss.boss_id}/rebase-plate.png", REBASE_PLATE_KIND
-                    ),
-                    artifact_port(
-                        "reading",
-                        f"boss/{boss.boss_id}/rebase-reading.json",
-                        REBASE_READING_KIND,
-                    ),
-                    attempts_port(f"boss-{boss.boss_id}-rebase-judge", ATTEMPT_LEDGER_KIND),
+                layout=RebaseLayout(
+                    plate=f"boss/{boss.boss_id}/rebase-plate.png",
+                    reading=f"boss/{boss.boss_id}/rebase-reading.json",
+                    verification_plate=f"boss/{boss.boss_id}/rebase-verify-plate.png",
+                    verification=f"boss/{boss.boss_id}/rebase-verification.json",
                 ),
-                card=NodeCard(
-                    prompt=motion_rebase_prompt(
-                        boss.display_name, list(declared_boss_motion_states(boss))
-                    )
-                ),
-            )
-            boss_verify = builder.add(
-                MOTION_REBASE_VERIFY,
-                f"boss-{boss.boss_id}-rebase-verify",
-                domain="boss",
-                description=f"judge the {boss.boss_id} residual on the rebased plate",
                 params={"actor": "boss", "boss_id": boss.boss_id},
-                depends_on=(boss_judge.node_id,),
-                input_digests=(
-                    text_digest(boss.boss_id),
-                    text_digest(boss.display_name),
-                    text_digest(MOTION_REBASE_SCHEMA_NAME),
-                ),
-                ports=(
-                    artifact_port(
-                        "plate",
-                        f"boss/{boss.boss_id}/rebase-verify-plate.png",
-                        REBASE_PLATE_KIND,
-                    ),
-                    artifact_port(
-                        "verification",
-                        f"boss/{boss.boss_id}/rebase-verification.json",
-                        REBASE_VERIFICATION_KIND,
-                    ),
-                    attempts_port(f"boss-{boss.boss_id}-rebase-verify", ATTEMPT_LEDGER_KIND),
-                ),
-                card=NodeCard(
-                    prompt=motion_rebase_verification_prompt(
-                        boss.display_name, list(declared_boss_motion_states(boss))
-                    )
-                ),
+                attempts_port=lambda node_id: attempts_port(node_id, ATTEMPT_LEDGER_KIND),
             )
-            boss_terminals.append(boss_verify.node_id)
+            boss_terminals.append(boss_verify)
 
     # ----------------------------------------------------------------- catalog
     catalog_validations: list[str] = []
@@ -1317,7 +1258,7 @@ def build_runner_execution_graph(
             *ground_validations,
             *layer_validations,
             *motion_validations,
-            rebase_verify.node_id,
+            avatar_rebase_verify,
             *boss_terminals,
             *catalog_validations,
             *soundtrack_validations,

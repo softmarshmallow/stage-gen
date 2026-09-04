@@ -20,6 +20,12 @@ from stage_gen.components.game_soundtrack.nodes import (
     SOUNDTRACK_VALIDATION_KIND,
     soundtrack_node_types,
 )
+from stage_gen.components.sideview_actor.motion_rebase_nodes import (
+    REBASE_PLATE_KIND,
+    REBASE_READING_KIND,
+    REBASE_VERIFICATION_KIND,
+    motion_rebase_node_types,
+)
 
 _P = "2d/sideview/runner"
 _PROVIDER = NodePolicy(max_attempts=6)
@@ -55,9 +61,6 @@ BOSS_CONCEPT_KIND = "boss-concept-v1"
 MOTION_RAW_KIND = "avatar-motion-raw-v1"
 MOTION_ATLAS_KIND = "avatar-motion-atlas-v1"
 MOTION_VALIDATION_KIND = "avatar-motion-validation-v2"
-REBASE_PLATE_KIND = "rebase-plate-v1"
-REBASE_READING_KIND = "rebase-reading-v1"
-REBASE_VERIFICATION_KIND = "rebase-verification-v1"
 CATALOG_RAW_KIND = "catalog-asset-raw-v1"
 CATALOG_ASSET_KIND = "catalog-asset-v1"
 CATALOG_VALIDATION_KIND = "catalog-asset-validation-v3"
@@ -248,25 +251,15 @@ BOSS_MOTION_VALIDATE = NodeType(
     contract_version="runner-boss-motion-validate-v1",
 )
 
-MOTION_REBASE_JUDGE = NodeType(
-    type_id=f"{_P}/motion_rebase.judge",
-    title="Scale rebase reading",
-    archetype=ViewArchetype.JUDGE,
-    operation="structured_generation",
-    features=STRUCTURED_FEATURES,
-    policy=NodePolicy(max_attempts=6, gates=("rebase-admission",)),
-    contract_version="runner-motion-rebase-v3",
+#: The motion-rebase family lives in `sideview_actor`; this recipe shipped it under its own
+#: type ids and contracts, which stay as the cache identity so no reading is paid for twice.
+_MOTION_REBASE = motion_rebase_node_types(
+    identity_prefix=_P,
+    judge_version="runner-motion-rebase-v3",
+    verify_version="runner-motion-rebase-verify-v3",
 )
-
-MOTION_REBASE_VERIFY = NodeType(
-    type_id=f"{_P}/motion_rebase.verify",
-    title="Scale rebase residual",
-    archetype=ViewArchetype.JUDGE,
-    operation="structured_generation",
-    features=STRUCTURED_FEATURES,
-    policy=NodePolicy(max_attempts=6, gates=("rebase-admission",)),
-    contract_version="runner-motion-rebase-verify-v3",
-)
+MOTION_REBASE_JUDGE = _MOTION_REBASE.judge
+MOTION_REBASE_VERIFY = _MOTION_REBASE.verify
 
 CATALOG_ASSET_GENERATE = NodeType(
     type_id=f"{_P}/catalog_asset.generate",

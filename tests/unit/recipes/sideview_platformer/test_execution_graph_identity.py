@@ -33,7 +33,10 @@ BELLWEATHER_NODE_COUNT = 230
 # Re-pinned again when the soundtrack family moved to its component (D8): the pair's
 # type ids and the admission's port kind are the family's; both nodes keep this
 # recipe's cache identity. No cache key moved.
-BELLWEATHER_TOPOLOGY_SHA256 = "a5e14edc9954c642f0f3833ff571079c0eae4ee5f99c46bc44aa0e9df4c8a6a2"
+# Re-pinned when the motion-rebase family moved to `sideview_actor` (D8): the pair's type
+# ids, the port order and the verification's port are the family's; both nodes keep this
+# recipe's cache identity. No cache key moved.
+BELLWEATHER_TOPOLOGY_SHA256 = "8a87fc24d472931f986127737ab25a95c266cbbf014da373d86e61e1fe19ae53"
 
 
 def _bellweather_graph() -> ExecutionGraph:

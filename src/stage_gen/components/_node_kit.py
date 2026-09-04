@@ -10,11 +10,22 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from gnode import CacheDisposition, Node, NodeArtifact, NodeExecutionResult
+from gnode import (
+    BinaryArtifact,
+    CacheDisposition,
+    InputProvenance,
+    Node,
+    NodeArtifact,
+    NodeExecutionResult,
+    ProvenanceInput,
+    SoftwareIdentity,
+    write_artifact_with_provenance_async,
+)
+from stage_gen.identity import STAGE_GEN_TOOL
 
 #: The seam for a recipe that keeps its own attempt ledger: it receives the node, a role
 #: label, the exact prompt, and a thunk, and must return whatever the thunk returns.
@@ -85,4 +96,59 @@ def node_result(
     )
 
 
-__all__ = ["ProviderCall", "card_prompt", "node_result", "object_digest", "text_digest"]
+async def write_local_image(
+    path: Path,
+    data: bytes,
+    *,
+    prompt: str,
+    inputs: Sequence[tuple[str, bytes]],
+    validation: Mapping[str, object],
+    model: str,
+    component: SoftwareIdentity,
+    handler_version: str,
+) -> Path:
+    """Publish a locally composed PNG with the provenance every kit writes the same way.
+
+    ``inputs`` are the run-relative refs the composition read and their bytes; a
+    ``.json`` input is recorded as such, everything else a kit composes from is a PNG.
+    """
+
+    return await write_artifact_with_provenance_async(
+        path,
+        BinaryArtifact(data=data, media_type="image/png"),
+        ProvenanceInput(
+            provider="local",
+            model=model,
+            prompt=prompt,
+            refs=[ref for ref, _ in inputs],
+            inputs=[
+                InputProvenance(
+                    ref=ref,
+                    sha256=hashlib.sha256(payload).hexdigest(),
+                    source="content",
+                    bytes=len(payload),
+                    media_type=(
+                        "application/json"
+                        if ref.split("#", 1)[0].endswith(".json")
+                        else "image/png"
+                    ),
+                )
+                for ref, payload in inputs
+            ],
+            params={"version": handler_version},
+            validation=dict(validation),
+            component=component,
+            tool=STAGE_GEN_TOOL,
+            attempts=1,
+        ),
+    )
+
+
+__all__ = [
+    "ProviderCall",
+    "card_prompt",
+    "node_result",
+    "object_digest",
+    "text_digest",
+    "write_local_image",
+]

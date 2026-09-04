@@ -170,7 +170,7 @@ topology and therefore this checked snapshot.
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "library/games/bellweather",
   "graph_schema_version": 1,
-  "topology_sha256": "a5e14edc9954c642f0f3833ff571079c0eae4ee5f99c46bc44aa0e9df4c8a6a2",
+  "topology_sha256": "8a87fc24d472931f986127737ab25a95c266cbbf014da373d86e61e1fe19ae53",
   "node_count": 230,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {

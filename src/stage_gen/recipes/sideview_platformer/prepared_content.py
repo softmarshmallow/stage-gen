@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import io
-import json
 import math
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -79,19 +78,11 @@ from stage_gen.components.sideview_actor.motion_geometry import (
 )
 from stage_gen.components.sideview_actor.motion_rebase import (
     BASELINE_STATE,
-    MOTION_REBASE_CORRECTION_SCHEMA_NAME,
-    MOTION_REBASE_SCHEMA_NAME,
-    MotionRebaseError,
-    MotionRebaseReading,
-    admit_first_pass_record,
-    build_motion_rebase_plate,
-    build_motion_rebase_verification_plate,
-    evaluate_motion_rebase,
-    evaluate_motion_rebase_correction,
-    motion_rebase_json_schema,
-    motion_rebase_prompt,
-    motion_rebase_verification_prompt,
-    parse_motion_rebase,
+)
+from stage_gen.components.sideview_actor.motion_rebase_nodes import (
+    MotionRebaseHandlers,
+    MotionRebaseHost,
+    RebaseSubject,
 )
 from stage_gen.media import (
     AlphaComponentRepackContract,
@@ -99,7 +90,7 @@ from stage_gen.media import (
     measure_alpha_ground_contact,
     repack_alpha_components,
 )
-from stage_gen.media.sprite_sheets import measure_alpha_subjects, split_atlas_columns
+from stage_gen.media.sprite_sheets import measure_alpha_subjects
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
 from stage_gen.recipes.sideview_platformer.execution_graph import ExecutionGraph, OperationKind
@@ -184,6 +175,20 @@ class PreparedContentNodeHandler(RecipeNodeHandler):
             image_service=image_service,
             structured_service=structured_service,
         )
+        self._rebase = MotionRebaseHandlers(
+            MotionRebaseHost(
+                run_dir=run_dir,
+                subject=self._rebase_subject,
+                component=SoftwareIdentity(
+                    name="@stage-gen/sideview-platformer", version=CONTENT_HANDLER_VERSION
+                ),
+                handler_version=CONTENT_HANDLER_VERSION,
+                plate_model="prepared-content-motion-rebase-plate-v1",
+                metadata={"checkpoint": "content"},
+            ),
+            graph=graph,
+            structured_service=structured_service,
+        )
         self._soundtrack = SoundtrackHandlers(
             SoundtrackHost(run_dir=run_dir, track=package.soundtrack.track),
             graph=graph,
@@ -224,8 +229,8 @@ class PreparedContentNodeHandler(RecipeNodeHandler):
             (DIALOGUE_ATLAS_VALIDATE, self._validate_dialogue),
             (WORLD_SPRITE_GENERATE, self._generate_world_sprite),
             (WORLD_SPRITE_VALIDATE, self._validate_world_sprite),
-            (MOTION_REBASE_JUDGE, self._actor_motion_rebase),
-            (MOTION_REBASE_VERIFY, self._actor_motion_rebase_verify),
+            (MOTION_REBASE_JUDGE, self._rebase.judge),
+            (MOTION_REBASE_VERIFY, self._rebase.verify),
             (ACTOR_CONTACT_SHEET, self._actor_contact_sheet),
             (ACTOR_REVIEW, self._actor_review),
             (CATALOG_ASSET_GENERATE, self._generate_catalog_asset),
@@ -950,195 +955,20 @@ class PreparedContentNodeHandler(RecipeNodeHandler):
         )
         return self._result(node, provider_operations=0)
 
-    async def _actor_motion_rebase(self, node: Node) -> NodeExecutionResult:
-        """Judge every one of this actor's atlases against its idle baseline, on one plate.
-
-        Separate states are separate provider calls, so nothing in the pixels ties their draw
-        scale together, and an alpha box cannot separate a short pose from a small drawing. The
-        plate is composited locally from bytes that have already shipped: it costs no generation,
-        cannot be redrawn by a provider, and shows every frame at one uniform scale so a state
-        drawn small looks small.
-        """
+    def _rebase_subject(self, node: Node) -> RebaseSubject:
+        """The player this rebase node judges, with its atlases located by type."""
 
         player = self._rebase_player(node)
-        states = [motion.state for motion in player.motions]
-        atlases = self._published_state_atlases(node, states)
-        frames_by_state = {}
-        for state in states:
-            geometry = motion_atlas_geometry("player", state)
-            frames_by_state[state] = split_atlas_columns(
-                (self._run_dir / atlases[state]).read_bytes(),
-                geometry.columns,
-                geometry.rows,
-            )
-        plate = build_motion_rebase_plate(frames_by_state)
-
-        plate_output = self._run_dir / node.port("plate").artifact_ref
-        await _write_local_image(
-            plate_output,
-            plate.png,
-            prompt=(
-                "Compose the complete motion-rebase judging plate for "
-                f"{player.player_id}: every frame of every state at one uniform source scale."
-            ),
-            inputs=[
-                (atlases[state], (self._run_dir / atlases[state]).read_bytes()) for state in states
-            ],
-            validation={
-                "baseline_state": BASELINE_STATE,
-                "frame_count": len(plate.frames),
-                "band_count": len(plate.bands),
-                "band_baseline_px": [band.baseline_drawn_height for band in plate.bands],
-            },
-            model="prepared-content-motion-rebase-plate-v1",
+        states = tuple(motion.state for motion in player.motions)
+        return RebaseSubject(
+            label="player",
+            entity_id=player.player_id,
+            display_name=player.display_name,
+            states=states,
+            baseline_state=BASELINE_STATE,
+            atlas_refs=self._published_state_atlases(node, states),
+            geometry=lambda state: motion_atlas_geometry("player", state),
         )
-
-        def admit(reading: object) -> dict[str, object]:
-            # The service is bound to `object`, so the admitted type is re-established here
-            # rather than assumed: an unparsed reading must fail closed like any other.
-            if not isinstance(reading, MotionRebaseReading):
-                raise MotionRebaseError("judge returned a reading the parser did not admit")
-            return evaluate_motion_rebase(reading, published_states=states, plate=plate)
-
-        record_output = self._run_dir / node.port("reading").artifact_ref
-        result = await self._structured.generate(
-            StructuredGenerationRequest(
-                prompt=motion_rebase_prompt(player.display_name, states),
-                system=(
-                    "You are a sprite-sheet scale judge. Return only the strict structured object."
-                ),
-                artifact_path=record_output,
-                schema=StructuredOutputSchema(
-                    name=MOTION_REBASE_SCHEMA_NAME,
-                    description="Per-state draw-scale multipliers against an actor's baseline",
-                    json_schema=motion_rebase_json_schema(),
-                    strict=True,
-                ),
-                parse=parse_motion_rebase,
-                references=(self._run_structured_reference(plate_output),),
-                artifact_value=admit,
-                validate=admit,
-                timeout_seconds=600,
-                metadata={
-                    "checkpoint": "content",
-                    # A distinct kind from the semantic review: both judge the same actor, but
-                    # one reads appearance and this one reads draw scale, and a consumer of the
-                    # trace must be able to tell them apart.
-                    "kind": "player-motion-rebase",
-                    "entity_id": player.player_id,
-                    "states": list(states),
-                    "plate_sha256": plate.sha256,
-                },
-            )
-        )
-        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
-
-    async def _actor_motion_rebase_verify(self, node: Node) -> NodeExecutionResult:
-        """Close the loop on the first pass: judge the residual on a plate composed with it.
-
-        The first reading is taken across atlases that disagree by up to a factor of three,
-        which is the hard form of the task. This stage applies that reading, composes a plate
-        where every state is drawn already rebased, and asks the judge only for the small
-        correction that remains - then multiplies the two. The first-pass record is re-admitted
-        from disk against a plate rebuilt from today's bytes, so a reading that outlived its
-        artwork is refused rather than corrected.
-        """
-
-        player = self._rebase_player(node)
-        states = [motion.state for motion in player.motions]
-        atlases = self._published_state_atlases(node, states)
-        frames_by_state = {}
-        for state in states:
-            geometry = motion_atlas_geometry("player", state)
-            frames_by_state[state] = split_atlas_columns(
-                (self._run_dir / atlases[state]).read_bytes(),
-                geometry.columns,
-                geometry.rows,
-            )
-        plate = build_motion_rebase_plate(frames_by_state)
-        first_pass = admit_first_pass_record(
-            json.loads(
-                (
-                    self._run_dir
-                    / self._dependency_artifact(node, kind="rebase-reading-v1", port_id="reading")
-                ).read_bytes()
-            ),
-            published_states=states,
-            plate=plate,
-        )
-        verification_plate = build_motion_rebase_verification_plate(frames_by_state, first_pass)
-
-        plate_output = self._run_dir / node.port("plate").artifact_ref
-        await _write_local_image(
-            plate_output,
-            verification_plate.png,
-            prompt=(
-                "Compose the motion-rebase verification plate for "
-                f"{player.player_id}: every frame of every state with its first-pass "
-                "multiplier applied."
-            ),
-            inputs=[
-                (atlases[state], (self._run_dir / atlases[state]).read_bytes()) for state in states
-            ],
-            validation={
-                "baseline_state": BASELINE_STATE,
-                "frame_count": len(verification_plate.frames),
-                "band_count": len(verification_plate.bands),
-                "band_baseline_px": [
-                    band.baseline_drawn_height for band in verification_plate.bands
-                ],
-                "first_pass": {state: first_pass[state] for state in sorted(first_pass)},
-            },
-            model="prepared-content-motion-rebase-plate-v1",
-        )
-
-        def admit(reading: object) -> dict[str, object]:
-            # The service is bound to `object`, so the admitted type is re-established here
-            # rather than assumed: an unparsed reading must fail closed like any other.
-            if not isinstance(reading, MotionRebaseReading):
-                raise MotionRebaseError("judge returned a reading the parser did not admit")
-            return evaluate_motion_rebase_correction(
-                reading,
-                first_pass=first_pass,
-                published_states=states,
-                plate=plate,
-                verification_plate=verification_plate,
-            )
-
-        record_output = self._run_dir / node.port("reading").artifact_ref
-        result = await self._structured.generate(
-            StructuredGenerationRequest(
-                prompt=motion_rebase_verification_prompt(player.display_name, states),
-                system=(
-                    "You are a sprite-sheet scale judge. Return only the strict structured object."
-                ),
-                artifact_path=record_output,
-                schema=StructuredOutputSchema(
-                    name=MOTION_REBASE_CORRECTION_SCHEMA_NAME,
-                    description=(
-                        "Per-state residual corrections against an actor's first-pass rebase"
-                    ),
-                    json_schema=motion_rebase_json_schema(),
-                    strict=True,
-                ),
-                parse=parse_motion_rebase,
-                references=(self._run_structured_reference(plate_output),),
-                artifact_value=admit,
-                validate=admit,
-                timeout_seconds=600,
-                metadata={
-                    "checkpoint": "content",
-                    # A distinct kind from the first pass: both judge the same actor's scale,
-                    # but one reads the raw disagreement and this one reads the residual after
-                    # the first pass is applied.
-                    "kind": "player-motion-rebase-verify",
-                    "entity_id": player.player_id,
-                    "states": list(states),
-                    "plate_sha256": verification_plate.sha256,
-                },
-            )
-        )
-        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
     async def _actor_review(self, node: Node) -> NodeExecutionResult:
         kind = self._actor_kind(node)

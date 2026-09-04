@@ -40,6 +40,11 @@ from stage_gen.components.platformer_content import (
 from stage_gen.components.platformer_map import PreparedGameMap, PreparedMapReference
 from stage_gen.components.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
 from stage_gen.components.sideview_actor.motion_rebase import MOTION_REBASE_SCHEMA_NAME
+from stage_gen.components.sideview_actor.motion_rebase_nodes import (
+    MotionRebaseNodeTypes,
+    RebaseLayout,
+    add_motion_rebase_nodes,
+)
 from stage_gen.components.sideview_layers.contract import (
     LAYER_PLACEMENT_CANONICALIZER,
     NON_GENERATIVE_LAYER_FIELDS,
@@ -790,63 +795,27 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             card=NodeCard(reference_inputs=(PortRef(node_id=dialogue.node_id, port_id="image"),)),
             duration_seconds=0.75,
         )
-        rebase = builder.add(
-            MOTION_REBASE_JUDGE,
-            f"player-{player.player_id}-motion-rebase",
+        _rebase_judge_id, rebase_verify_id = add_motion_rebase_nodes(
+            builder,
+            types=MotionRebaseNodeTypes(judge=MOTION_REBASE_JUDGE, verify=MOTION_REBASE_VERIFY),
+            judge_id=f"player-{player.player_id}-motion-rebase",
+            verify_id=f"player-{player.player_id}-motion-rebase-verify",
             domain=f"player-{player.player_id}",
-            description=(
-                "judge every motion atlas against the idle baseline on one comparison plate "
-                f"for {player.player_id}"
-            ),
-            params=actor_params,
-            # Every published atlas, because the plate carries every frame of every state: a
-            # reading taken against a partial plate would rebase onto a baseline the judge
-            # could not see beside the states it was rating.
+            display_name=player.display_name,
+            states=[motion.state for motion in player.motions],
             depends_on=validations,
             input_digests=(
                 *identity,
                 object_digest({"contract": CONTENT_MOTION_REBASE_CONTRACT_VERSION}),
                 object_digest({"schema": MOTION_REBASE_SCHEMA_NAME}),
             ),
-            ports=(
-                artifact_port(
-                    "reading", f"{actor_root}/motion-rebase-first-pass.json", "rebase-reading-v1"
-                ),
-                artifact_port("plate", f"{actor_root}/motion-rebase-plate.png", "rebase-plate-v1"),
-            ),
-            card=NodeCard(schema_name="motion_rebase"),
-        )
-        rebase_verify = builder.add(
-            MOTION_REBASE_VERIFY,
-            f"player-{player.player_id}-motion-rebase-verify",
-            domain=f"player-{player.player_id}",
-            description=(
-                "close the loop on the rebase: judge the residual on a plate composed with "
-                f"the first-pass multipliers applied for {player.player_id}"
+            layout=RebaseLayout(
+                plate=f"{actor_root}/motion-rebase-plate.png",
+                reading=f"{actor_root}/motion-rebase-first-pass.json",
+                verification_plate=f"{actor_root}/motion-rebase-verification-plate.png",
+                verification=f"{actor_root}/motion-rebase.json",
             ),
             params=actor_params,
-            # The first reading is taken across atlases that disagree by up to a factor of
-            # three, which is the hard form of the task. This node applies that reading, so the
-            # judge only reads the small residual - the easy form - and the two multiply into
-            # the published record.
-            depends_on=(rebase.node_id,),
-            input_digests=(
-                *identity,
-                object_digest({"contract": CONTENT_MOTION_REBASE_CONTRACT_VERSION}),
-                object_digest({"schema": MOTION_REBASE_SCHEMA_NAME}),
-            ),
-            ports=(
-                artifact_port("reading", f"{actor_root}/motion-rebase.json", "rebase-reading-v1"),
-                artifact_port(
-                    "plate",
-                    f"{actor_root}/motion-rebase-verification-plate.png",
-                    "rebase-plate-v1",
-                ),
-            ),
-            card=NodeCard(
-                schema_name="motion_rebase",
-                reference_inputs=(PortRef(node_id=rebase.node_id, port_id="reading"),),
-            ),
         )
         contact = builder.add(
             ACTOR_CONTACT_SHEET,
@@ -881,7 +850,7 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 reference_inputs=(PortRef(node_id=contact.node_id, port_id="sheet"),),
             ),
         )
-        terminals.extend((rebase_verify.node_id, review.node_id))
+        terminals.extend((rebase_verify_id, review.node_id))
     return terminals
 
 

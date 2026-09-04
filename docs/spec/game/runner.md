@@ -667,7 +667,7 @@ rather than only the atlas branch. Regenerate with
   "kind": "sideview-runner-execution-graph-contract-v1",
   "fixture_ref": "library/games/iron-petal-unit",
   "graph_schema_version": 1,
-  "topology_sha256": "4bc30980c9198ffcb5bc4c8ebb713cfbf86d4310348819d54d20c16485cc456e",
+  "topology_sha256": "73ea6cdf7a2d1774b3421701a1675f4179b50354e909c7412090cf1bb15da3c3",
   "node_count": 109,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
