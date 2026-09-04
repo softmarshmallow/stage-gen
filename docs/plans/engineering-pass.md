@@ -981,11 +981,15 @@ hooks to one). `persistence` is a family: declared scopes, `save/written` /
 no block and reading none. E1 goldens exist now for the room and the dialogue scene.
 The published case episode plays on one boot, saved six lines into a beat after 105
 writes and resumed to the same sentence, finishing with forty-nine facts; both shipped
-goldens byte-identical. Reported, not played: the two ROOM beats, because every
-published room is `pointclick-room-runtime-v3` at `schema_version` 1 against a parser
-that demands 3 - a regeneration, which is provider spend and a separate decision. With
-this the runtime plan's eight steps are all landed; what the pass still owes is listed
-under the cards above (E5 stills, G1's attestation, G3).
+goldens byte-identical. The two ROOM beats were first reported rather than played,
+because every published room carried `schema_version` 1 against a parser demanding 3;
+the cause turned out to be the drift C-R2 names, not spend: the Sep 4 fix changed what
+the bundle node writes without bumping its contract, so a cached republish restored the
+old document. `room-bundle-v4` bumps it, both rooms republished with zero provider
+operations, the episode re-bundled, and the test now plays both rooms through the room
+reducer to the writes the case declares. With this the runtime plan's eight steps are
+all landed; what the pass still owes is listed under the cards above (E5 stills, G1's
+attestation, G3).
 
 
 ## Decisions that are yours

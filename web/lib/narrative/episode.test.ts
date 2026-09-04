@@ -25,17 +25,15 @@ import path from "node:path";
 // writing that same save back in the flat shape version 1 shipped and opening on
 // it.
 //
-// The episode's TWO ROOM BEATS are reported rather than played, and the reason is
-// named rather than hidden: every point-and-click room published in this
-// repository writes `schema_version: 1` under kind `pointclick-room-runtime-v3`,
-// and `b24c224` ("the manifest's schema version says what its kind says") made
-// the parser demand 3. No published room can be read by this build without being
-// regenerated, and a regeneration is provider spend. So each room beat is driven
-// through the seam the case runtime actually has — a leaf reporting its outcome
-// and the flags it finished holding, which is all a case ever hears from one —
-// with the flags taken from what the published document says that beat writes.
-// The room's own click-by-click autosave is covered by `runtime.test.ts` and by
-// `case-save.test.ts` over the room fixture.
+// The episode's TWO ROOM BEATS are played through the room's own reducer over
+// the published room runs: every authored interaction is offered in authored
+// order until nothing more fires, so the room ends holding every flag it can
+// reach, and the solvability record's shortest solution is replayed on a fresh
+// state as a second proof that the consumer solves what the pipeline proved.
+// (These rooms were unreadable until 2026-09-05: `b24c224` made the parser demand
+// the schema version the kind names without bumping the bundle node's contract,
+// so a cached republish kept restoring the old document. `room-bundle-v4` fixed
+// that; both rooms republished provider-free.)
 //
 // It skips, loudly, when the episode is not published in this checkout. `out/` is
 // not in the repository, and a test that needed it would be a test that fails on
@@ -60,6 +58,14 @@ import {
   type ScenarioState,
 } from "@/lib/scenario/runtime";
 import type { ScenarioProgram } from "@/lib/scenario/program";
+import { parseRoomManifest } from "@/lib/pointclick/contract";
+import {
+  initialState as initialRoomState,
+  interactTurn,
+  type RoomPlayState,
+} from "@/lib/pointclick/state";
+import { bagItemIds } from "@/lib/families/inventory";
+import { runDirFor } from "@/lib/shell/runs";
 
 
 const EPISODE = "the-grain-episode-one";
@@ -74,6 +80,45 @@ async function published(): Promise<boolean> {
   }
 }
 
+
+/**
+ * Play one published room to exhaustion: offer every authored interaction in
+ * authored order until a pass fires nothing new. The state it ends in is the
+ * room's own, holding every flag the manifest can reach from what was carried
+ * in. The solvability record's shortest solution is replayed separately on a
+ * fresh state, so the pipeline's proof and the consumer's reducer agree.
+ */
+async function playRoom(runTag: string, carried: readonly string[]): Promise<RoomPlayState> {
+  const dir = runDirFor(runTag);
+  const manifest = parseRoomManifest(
+    JSON.parse(await fs.readFile(path.join(dir, "manifest.json"), "utf8")),
+  );
+  const proof = JSON.parse(await fs.readFile(path.join(dir, "puzzle.validation.json"), "utf8")) as {
+    readonly solvable: boolean;
+    readonly solution: readonly number[];
+  };
+  expect(proof.solvable).toBe(true);
+  let shortest = initialRoomState(manifest, carried);
+  for (const index of proof.solution) {
+    const on = manifest.interactions[index]!.on;
+    shortest = interactTurn(manifest, shortest, on.verb, on.hotspot, on.item).state;
+  }
+  expect(shortest.solved).toBe(true);
+
+  let state = initialRoomState(manifest, carried);
+  const signature = (of: RoomPlayState) =>
+    JSON.stringify([of.flags, of.revealed, of.fired, bagItemIds(of.inventory)]);
+  for (let pass = 0; pass < 16; pass += 1) {
+    const before = signature(state);
+    for (const interaction of manifest.interactions) {
+      const { verb, hotspot, item } = interaction.on;
+      state = interactTurn(manifest, state, verb, hotspot, item).state;
+    }
+    if (signature(state) === before) break;
+  }
+  expect(state.solved).toBe(true);
+  return state;
+}
 
 /** One step of a scenario: advance, or take the first available option. */
 function step(program: ScenarioProgram, state: ScenarioState): ScenarioState {
@@ -138,9 +183,13 @@ describe.if(AVAILABLE)("the case episode, saved mid-beat and resumed", () => {
     first.finish("b_office", officeOutcome!, scenario.flags);
     expect(first.state.progress.beatId).toBe("b_motor_court");
 
-    // The room beat, reporting its win and the flags it finished holding.
+    // The room beat, played through the room reducer over its published run:
+    // the flags it finished holding are the room's, and they are exactly the
+    // writes the case declares for it.
     const courtBeat = document.beats.find((beat) => beat.beatId === "b_motor_court")!;
-    first.finish("b_motor_court", "win", courtBeat.writes);
+    const court = await playRoom(courtBeat.runTag, first.state.progress.facts);
+    expect([...court.flags].sort()).toEqual([...courtBeat.writes].sort());
+    first.finish("b_motor_court", "win", court.flags);
     expect(first.state.progress.beatId).toBe("b_way_in");
     // The room's exported flags crossed the boundary as declared facts, and
     // nothing else did: no inventory, no revealed hotspots, no fired indices.
@@ -273,7 +322,9 @@ describe.if(AVAILABLE)("the case episode, saved mid-beat and resumed", () => {
     for (let guard = 0; guard < 40 && second.state.phase === "playing"; guard += 1) {
       const beat = document.beats.find((entry) => entry.beatId === at)!;
       if (beat.kind === "room") {
-        second.finish(at, "win", beat.writes);
+        const room = await playRoom(beat.runTag, second.state.progress.facts);
+        expect([...room.flags].sort()).toEqual([...beat.writes].sort());
+        second.finish(at, "win", room.flags);
       } else {
         const program = leaves.get(at)!;
         let playing =

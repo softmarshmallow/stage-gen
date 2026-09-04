@@ -1907,10 +1907,20 @@ existing case episode, saved mid-beat and resumed, on one boot.
 - **Both shipped goldens byte-identical.** The digest sets in the platformer's
   `replay.test.ts` and `waves-replay.test.ts` and the runner's `replay.test.ts` are
   unchanged.
-- **Could not take.** The episode's two ROOM beats are reported, not played: every
-  published room is `pointclick-room-runtime-v3` at `schema_version` 1 while the
-  parser demands 3, so playing one costs a regeneration. No authored `[save]` table
-  (a `src/` contract change). No browser stills.
+- **The ROOM beats, taken after all.** They were first reported rather than played:
+  every published room carried `schema_version` 1 under `pointclick-room-runtime-v3`
+  while the parser demands 3. The cause was not the pipeline but the cache: the
+  Sep 4 fix that reads the number off the kind changed what the bundle node writes
+  without bumping its contract, and a local node is admitted on lineage, so
+  "re-publish from cache" restored the Sep 3 document byte for byte. `room-bundle-v4`
+  bumps it; both rooms republished from `out/cache-the-grain` with zero provider
+  operations (14 and 18 nodes, every paid node restored) and the episode re-bundled
+  over them. The episode test now plays both rooms through the room reducer: every
+  authored interaction offered in authored order to a fixpoint, ending solved and
+  holding exactly the writes the case declares, and the solvability record's
+  shortest solution replayed on a fresh state as the second proof.
+- **Could not take.** No authored `[save]` table (a `src/` contract change). No
+  browser stills.
 
 ## Sequencing and cost
 

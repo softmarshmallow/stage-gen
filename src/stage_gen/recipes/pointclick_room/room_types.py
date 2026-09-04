@@ -123,12 +123,15 @@ PUZZLE_VALIDATE = NodeType(
     contract_version="room-puzzle-validate-v1",
 )
 
+#: v4: the manifest's `schema_version` is read off the kind (3, was pinned at 1). The
+#: bundle is a local node admitted on lineage, so without this bump a cached run kept
+#: restoring the old document - which is what "re-publish from cache" then did.
 ROOM_BUNDLE = NodeType(
     type_id=f"{_P}/room.bundle",
     title="Room runtime bundle",
     archetype=ViewArchetype.PACKAGE,
     operation="local",
-    contract_version="room-bundle-v3",
+    contract_version="room-bundle-v4",
 )
 
 POINTCLICK_NODE_TYPES: tuple[NodeType, ...] = (
