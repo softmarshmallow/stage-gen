@@ -10,7 +10,7 @@ import {
 } from "@/lib/scenario/runtime";
 import type { ScenarioChoiceOption, ScenarioProgram } from "@/lib/scenario/program";
 import { dialogueChoicePrompt } from "./dialogue-choices";
-import type { GameplayAutomationMode } from "./automation";
+import type { GameplayAutomationMode, GameplayTranscriptEvent } from "./automation";
 import { Bot, resolveBotControl, type BotControlSource } from "./bot";
 import { HUNTER_BOT_PROFILE } from "./bot-hunter";
 import {
@@ -21,6 +21,7 @@ import {
 import { EMPTY_NAV_GRAPH, type NavGraph } from "./bot-navigation";
 import type { BotWorldView } from "./bot-view";
 import { NEUTRAL_PLAYER_INTENT, type PlayerIntent } from "./player-intent";
+import type { ScenePlayerIntentSource } from "./player-intent";
 import { GAMEPLAY_AUTOMATION_VIEWPORT } from "./automation";
 import {
   applyDeviceZoom,
@@ -365,6 +366,22 @@ export class PreparedStageScene extends Phaser.Scene {
   private audioUnlocked = false;
   private developerKit: DeveloperKit | null = null;
   private selectableKits: readonly DeveloperKit[] = [];
+  /**
+   * A script driving the player in place of the keyboard, for a replay or a demo.
+   *
+   * The keyboard is still read on every frame it is set, and its answer still thrown away, for the
+   * same reason auto-play reads it: an edge-triggered request that is never read stays armed and
+   * fires later out of context.
+   */
+  private intentSource?: ScenePlayerIntentSource;
+  /**
+   * What happened this frame, cleared at the top of every `update`.
+   *
+   * Bounded and flat: a replay hashes the world and this list together, so a frame's diff says both
+   * that something changed and what the runtime called it.
+   */
+  private frameEvents: GameplayTranscriptEvent[] = [];
+  private transcriptFrame = 0;
 
   constructor(
     tag: string,
@@ -409,7 +426,8 @@ export class PreparedStageScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
-
+    this.transcriptFrame += 1;
+    this.frameEvents = [];
     if (!this.ready || this.loading || !this.player || !this.keys) return;
     const now = performance.now();
     this.debugOverlay?.toggleForKey(this.keys.debugOverlay);
@@ -909,6 +927,39 @@ export class PreparedStageScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Drive the player from a script instead of the keyboard.
+   *
+   * The seam `player-intent.ts` was written for, finally connected to something: a replay or a demo
+   * answers with this frame's intent and the controller cannot tell it from a person. It reaches the
+   * controller only — the scene's own latched keys (talk, enter a portal, confirm a death) are not
+   * part of `PlayerIntent` and are still pressed on the keyboard.
+   */
+  driveWithIntent(source: ScenePlayerIntentSource | null): void {
+    this.intentSource = source ?? undefined;
+  }
+
+  /** Everything the runtime named this frame, in the order it named it. */
+  get transcript(): readonly GameplayTranscriptEvent[] {
+    return this.frameEvents;
+  }
+
+  private recordEvent(
+    kind: string,
+    data: Readonly<Record<string, string | number | boolean>> | null = null,
+  ): void {
+    // Bounded so a pathological frame cannot make one entry of the golden unbounded.
+    if (this.frameEvents.length >= 64) return;
+    this.frameEvents.push(
+      Object.freeze({
+        kind,
+        frame: this.transcriptFrame,
+        simulationMs: Math.round(this.time.now),
+        data,
+      }),
+    );
+  }
+
   private recordDiagnostic(message: string): void {
     const bounded = message.trim().slice(0, 256);
     if (!bounded || this.diagnostics.includes(bounded)) return;
@@ -1200,6 +1251,7 @@ export class PreparedStageScene extends Phaser.Scene {
     this.mapLabel?.setText(map.display_name);
     this.selectSoundtrack(map);
     this.loading = false;
+    this.recordEvent("map-entered", { mapId: map.map_id, startX: Math.round(startX) });
     if (announce) this.flashMapName(map.display_name);
   }
 
@@ -1777,6 +1829,10 @@ export class PreparedStageScene extends Phaser.Scene {
       const instanceId =
         `${reservation.map_id}/mob/${this.nextMobInstance++}`;
       director.confirm(reservation.reservation_id, instanceId);
+      this.recordEvent("mob-spawned", {
+        instanceId,
+        column: reservation.candidate_column,
+      });
       this.mobs.push(mob);
       this.mobInstanceIds.set(mob, instanceId);
     } catch (error) {
@@ -1800,6 +1856,7 @@ export class PreparedStageScene extends Phaser.Scene {
 
     const health = player.healthState;
     if (health.defeated) {
+      if (this.defeatedAtMs === null) this.recordEvent("player-defeated", null);
       this.defeatedAtMs ??= now;
       // Rebuilding the world also rebuilds the player, so the recovered character is a fresh
       // controller at full health. Nothing below this line may touch the old one.
@@ -1833,6 +1890,11 @@ export class PreparedStageScene extends Phaser.Scene {
           blow.critical,
         );
         if (resolution.connected) {
+          this.recordEvent("player-damaged", {
+            applied: resolution.appliedAmount,
+            hp: resolution.hpAfter,
+            critical: resolution.critical,
+          });
           this.combatText?.showDamage({
             resolution,
             direction: "incoming",
@@ -1877,6 +1939,7 @@ export class PreparedStageScene extends Phaser.Scene {
           this.applyPlayerBlow(living[index], player.sprite.x, facing, now, hitTick === 0);
         }
       } else if (hitTick === 0 && this.throwOne(player.sprite.x, player.sprite.y, facing)) {
+        this.recordEvent("projectile-thrown", { x: Math.round(player.sprite.x), dirSign: facing });
         // The shot is the effect, so the round is spent only once one is actually in the air —
         // the inverse of drinking, where the bag opens only if the heal connected.
         if (this.ammoItemId) this.consumeInventory(this.ammoItemId, 1);
@@ -1973,6 +2036,10 @@ export class PreparedStageScene extends Phaser.Scene {
       });
     }
     if (result.died) {
+      this.recordEvent("mob-defeated", {
+        ladderIndex: mob.ladderIndex,
+        x: Math.round(mob.sprite.x),
+      });
       this.recordManagedMobDeath(mob, nowMs);
       this.dropLoot(mob, dirSign);
       this.awardExperience(mob, nowMs);
@@ -2098,7 +2165,9 @@ export class PreparedStageScene extends Phaser.Scene {
       TILE_PX * 0.9,
     )) {
       const itemId = manifest.items[item.kindIndex]?.item_id;
-      if (itemId) this.addInventory(itemId, 1);
+      if (!itemId) continue;
+      this.recordEvent("item-collected", { itemId });
+      this.addInventory(itemId, 1);
     }
   }
 
@@ -2149,6 +2218,7 @@ export class PreparedStageScene extends Phaser.Scene {
       state: initialScenarioState(program),
       interaction: interactionId,
     };
+    this.recordEvent("dialogue-opened", { npcId, interactionId });
     this.renderDialogueNode();
   }
 
@@ -2273,6 +2343,9 @@ export class PreparedStageScene extends Phaser.Scene {
   }
 
   private closeDialogue(): void {
+    this.recordEvent("dialogue-closed", {
+      interactionId: this.activeScenario?.interaction ?? "",
+    });
     this.activeScenario = undefined;
     this.lastSpeakerId = null;
     this.dialoguePanel?.image.setVisible(false);
@@ -2553,7 +2626,10 @@ export class PreparedStageScene extends Phaser.Scene {
   private resolveIntent(delta: number, now: number): PlayerIntent {
     const player = this.player;
     if (!player) return NEUTRAL_PLAYER_INTENT;
-    const humanIntent = player.readKeyboardIntent();
+    // Read unconditionally, even when a script is driving: the latches are consumed by reading
+    // them, and one left armed fires later on a frame nothing asked for it.
+    const keyboardIntent = player.readKeyboardIntent();
+    const humanIntent = this.intentSource ? this.intentSource() : keyboardIntent;
     const control = resolveBotControl({
       humanIntent,
       enabled: this.autoPlayEnabled && this.bot !== undefined,
@@ -2681,6 +2757,7 @@ export class PreparedStageScene extends Phaser.Scene {
     this.defeatedAtMs = null;
     this.defeatPanel?.hide();
     const home = resolveHomeSpawn(gameplay);
+    this.recordEvent("player-respawned", { mapId: home.map_id });
     void this.enterMap(home.map_id, home.normalized_x);
   }
 
@@ -2698,6 +2775,63 @@ export class PreparedStageScene extends Phaser.Scene {
   private flashMapName(name: string): void {
     const banner = this.add.text(VIEW_W / 2, 105, name, { fontFamily: "Georgia, serif", fontSize: "36px", color: "#fff4cf", stroke: "#203849", strokeThickness: 7 }).setOrigin(0.5).setScrollFactor(0).setDepth(870).setAlpha(0);
     this.tweens.add({ targets: banner, alpha: 1, duration: 250, yoyo: true, hold: 1000, onComplete: () => banner.destroy() });
+  }
+
+  /**
+   * Everything a replay hashes: the world this frame, and what the runtime called what happened.
+   *
+   * Composed out of the snapshots each family already publishes rather than re-reading their
+   * internals, so a family that changes what it considers state changes what the golden sees by
+   * saying so. Presentation nothing reads back - layer scroll offsets, contact shadow rings, the
+   * loading label - is deliberately absent; the camera is not, because the spawn director asks it
+   * what is on screen.
+   */
+  replaySnapshot(): Readonly<Record<string, unknown>> {
+    const camera = this.cameras.main;
+    return Object.freeze({
+      ready: this.ready,
+      loading: this.loading,
+      mapId: this.currentMap?.map_id ?? null,
+      diagnostics: [...this.diagnostics],
+      weaponClass: this.weapon.weaponClass,
+      ammoItemId: this.ammoItemId,
+      camera: { scrollX: camera.scrollX, scrollY: camera.scrollY, zoom: camera.zoom },
+      player: this.player?.snapshot(this.time.now) ?? null,
+      platforms: this.verticalWorld.platforms.map((platform) => ({ ...platform })),
+      climbables: this.verticalWorld.climbables.map((climbable) => ({ ...climbable })),
+      mobs: this.mobs.map((mob) => ({
+        botId: this.mobBotIds.get(mob) ?? null,
+        instanceId: this.mobInstanceIds.get(mob) ?? null,
+        alpha: mob.sprite.alpha,
+        active: mob.sprite.active,
+        ...mob.snapshot(),
+      })),
+      worldItems: this.items?.snapshot() ?? [],
+      projectiles: this.projectiles?.snapshot() ?? [],
+      portals: this.portal?.snapshot() ?? [],
+      inventory: {
+        carried: [...this.inventory.entries()].sort(([left], [right]) => (left < right ? -1 : 1)),
+        slots: this.inventoryHud?.snapshot() ?? [],
+      },
+      combatText: this.combatText?.snapshot() ?? null,
+      impact: this.impact?.snapshot() ?? null,
+      statLog: this.statLog?.snapshot() ?? null,
+      defeatPanel: this.defeatPanel?.snapshot() ?? null,
+      defeatedAtMs: this.defeatedAtMs,
+      progression: this.progression ?? null,
+      questStates: [...this.questStates.entries()].sort(([left], [right]) => (left < right ? -1 : 1)),
+      dialogue: this.activeScenario
+        ? {
+            interaction: this.activeScenario.interaction,
+            label: this.activeScenario.state.label,
+            index: this.activeScenario.state.index,
+            flags: [...this.activeScenario.state.flags],
+            outcome: this.activeScenario.state.outcome,
+          }
+        : null,
+      npcPrompts: this.npcs.map((npc) => ({ npcId: npc.npcId, visible: npc.talkPrompt.visible })),
+      mapLabel: this.mapLabel?.text ?? null,
+    });
   }
 
   private fail(error: unknown): void {

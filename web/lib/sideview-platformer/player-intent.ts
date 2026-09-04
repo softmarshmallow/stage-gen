@@ -68,3 +68,13 @@ export const NEUTRAL_PLAYER_INTENT: PlayerIntent = Object.freeze({
 export function playerIntent(requested: Partial<PlayerIntent> = {}): PlayerIntent {
   return Object.freeze({ ...NEUTRAL_PLAYER_INTENT, ...requested });
 }
+
+/**
+ * A source of intent that is not a keyboard.
+ *
+ * The type this module's opening paragraph promised and nothing had yet declared: a policy, a demo,
+ * or a replay's script answers this once per frame and the scene acts on it instead of reading keys.
+ * Nothing about the source travels with the answer, which is what keeps the controller unable to
+ * tell one apart from a person.
+ */
+export type ScenePlayerIntentSource = () => PlayerIntent;

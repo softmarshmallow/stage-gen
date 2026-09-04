@@ -76,6 +76,37 @@ export class ProjectileSystem {
     return this.shots.length;
   }
 
+  /**
+   * Every shot in the air, as plain numbers.
+   *
+   * The pool is the one combat family a replay could not otherwise see: a shot lives for a handful
+   * of frames between the throw and the impact, so a golden that hashed only mobs and drops would
+   * record the consequences of the flight and never the flight.
+   */
+  snapshot(): readonly Readonly<{
+    id: string;
+    x: number;
+    y: number;
+    vxPx: number;
+    vyPx: number;
+    dirSign: 1 | -1;
+    spinDegrees: number;
+    struck: number;
+  }>[] {
+    return this.shots.map((shot) =>
+      Object.freeze({
+        id: shot.state.id,
+        x: shot.state.x,
+        y: shot.state.y,
+        vxPx: shot.state.vxPx,
+        vyPx: shot.state.vyPx,
+        dirSign: shot.state.dirSign,
+        spinDegrees: shot.spinDegrees,
+        struck: shot.struck.size,
+      }),
+    );
+  }
+
   /** What this pool throws, for callers that must reason about the flight before one exists. */
   get profile(): ProjectileProfile {
     return this.opts.projectile;
