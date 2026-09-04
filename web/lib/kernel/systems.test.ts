@@ -1,6 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { createEventQueue, type GameEvent } from "./events";
-import { sealSystems, type FixedStep, type GameSystem } from "./systems";
+import {
+  OwnershipConflictError,
+  SystemCycleError,
+  UndeclaredWriteError,
+  UnemittedEventError,
+  UnknownSystemError,
+  sealSystems,
+  type FixedStep,
+  type GameSystem,
+  type ResetScope,
+} from "./systems";
 
 interface World {
   a: number;
@@ -128,8 +138,10 @@ function eventWorld(): EventWorld {
 function eventSystem(
   id: string,
   options: {
-    emits?: readonly string[];
-    consumes?: readonly string[];
+    emits?: readonly TestEvent["type"][];
+    consumes?: readonly TestEvent["type"][];
+    consumesDeferred?: readonly TestEvent["type"][];
+    owns?: readonly (keyof EventWorld & string)[];
     onUpdate?: (world: EventWorld) => void;
   },
 ): GameSystem<EventWorld> {
@@ -138,8 +150,10 @@ function eventSystem(
     contractVersion: `${id}-v1`,
     reads: [],
     writes: [],
+    owns: options.owns,
     emits: options.emits,
     consumes: options.consumes,
+    consumesDeferred: options.consumesDeferred,
     update(world) {
       options.onUpdate?.(world);
     },
@@ -258,5 +272,297 @@ describe("sealSystems event channel", () => {
     const queue = createEventQueue<GameEvent>();
     queue.emit({ type: "anything" });
     expect(queue.frame).toHaveLength(1);
+  });
+
+  test("a deferred consumer hears an occurrence one frame late", () => {
+    const world = eventWorld();
+    const heard: number[] = [];
+    const sealed = sealSystems<EventWorld>(
+      [
+        // Sealed FIRST and still hearing the emitter that follows it: the
+        // whole point of the deferred channel.
+        eventSystem("early", {
+          consumesDeferred: ["struck"],
+          onUpdate: (w) => heard.push(w.events.previous("struck").length),
+        }),
+        eventSystem("late", {
+          emits: ["struck"],
+          onUpdate: (w) => w.events.emit({ type: "struck" }),
+        }),
+      ],
+      EVENTS,
+    );
+    expect(sealed.order).toEqual(["early", "late"]);
+    sealed.tick(world, STEP);
+    sealed.tick(world, STEP);
+    sealed.tick(world, STEP);
+    expect(heard).toEqual([0, 1, 1]);
+  });
+
+  test("a deferred consume cannot close a cycle, because it is not this frame", () => {
+    const sealed = sealSystems<EventWorld>(
+      [
+        eventSystem("ping", { emits: ["struck"], consumesDeferred: ["drained"] }),
+        eventSystem("pong", { emits: ["drained"], consumes: ["struck"] }),
+      ],
+      EVENTS,
+    );
+    expect(sealed.order).toEqual(["ping", "pong"]);
+  });
+
+  test("a deferred consume of a type nothing emits is still refused", () => {
+    expect(() =>
+      sealSystems<EventWorld>([eventSystem("listener", { consumesDeferred: ["unheard"] })], EVENTS),
+    ).toThrow(UnemittedEventError);
+  });
+});
+
+// --- Ownership -----------------------------------------------------------------------------
+
+describe("owns", () => {
+  test("refuses two owners of one slice, naming both and the slice", () => {
+    const seal = () =>
+      sealSystems<World>([
+        { ...system("first", [], []), owns: ["a"] },
+        { ...system("second", [], []), owns: ["a"] },
+      ]);
+    expect(seal).toThrow(OwnershipConflictError);
+    expect(seal).toThrow('refused two owners of "a"');
+    expect(seal).toThrow('"first" and "second"');
+  });
+
+  test("refuses another system's write into an owned slice", () => {
+    const seal = () =>
+      sealSystems<World>([
+        { ...system("owner", [], []), owns: ["a"] },
+        system("interloper", [], ["a"]),
+      ]);
+    expect(seal).toThrow(OwnershipConflictError);
+    expect(seal).toThrow('it writes "a", which "owner" owns');
+  });
+
+  test("an owned slice orders exactly like a written one", () => {
+    const sealed = sealSystems<World>([
+      system("reader", ["a"], []),
+      { ...system("owner", [], []), owns: ["a"] },
+    ]);
+    expect(sealed.order).toEqual(["owner", "reader"]);
+  });
+
+  test("an owner may declare the same slice in writes as well", () => {
+    const sealed = sealSystems<World>([{ ...system("owner", [], ["a"]), owns: ["a"] }]);
+    expect(sealed.order).toEqual(["owner"]);
+  });
+});
+
+// --- The dev-mode write trap ---------------------------------------------------------------
+
+interface TrapWorld {
+  owned: { value: number };
+  shared: { value: number };
+  readonlySlice: { value: number };
+}
+
+function trapWorld(): TrapWorld {
+  return { owned: { value: 0 }, shared: { value: 0 }, readonlySlice: { value: 0 } };
+}
+
+function trapSystem(
+  id: string,
+  declaration: Pick<GameSystem<TrapWorld>, "reads" | "writes" | "owns">,
+  onUpdate: (world: TrapWorld) => void,
+): GameSystem<TrapWorld> {
+  return { id, contractVersion: `${id}-v1`, ...declaration, update: onUpdate };
+}
+
+describe("the dev write trap", () => {
+  test("refuses a field written inside a slice the system only reads", () => {
+    const sealed = sealSystems<TrapWorld>(
+      [
+        trapSystem("thief", { reads: ["readonlySlice"], writes: ["shared"] }, (world) => {
+          world.readonlySlice.value = 1;
+        }),
+      ],
+      { devTrap: true },
+    );
+    const seal = () => sealed.tick(trapWorld(), STEP);
+    expect(seal).toThrow(UndeclaredWriteError);
+    expect(seal).toThrow('"thief" wrote "readonlySlice.value"');
+  });
+
+  test("refuses a slice replaced on the world", () => {
+    const sealed = sealSystems<TrapWorld>(
+      [
+        trapSystem("thief", { reads: [], writes: ["shared"] }, (world) => {
+          world.owned = { value: 9 };
+        }),
+      ],
+      { devTrap: true },
+    );
+    expect(() => sealed.tick(trapWorld(), STEP)).toThrow('"thief" wrote "owned"');
+  });
+
+  test("lets a system write what it declares, owned or shared", () => {
+    const world = trapWorld();
+    const sealed = sealSystems<TrapWorld>(
+      [
+        trapSystem("author", { reads: [], writes: ["shared"], owns: ["owned"] }, (w) => {
+          w.shared.value += 1;
+          w.owned = { value: 7 };
+        }),
+      ],
+      { devTrap: true },
+    );
+    sealed.tick(world, STEP);
+    expect(world.shared.value).toBe(1);
+    expect(world.owned).toEqual({ value: 7 });
+  });
+
+  test("is off by default, so production does not pay for it", () => {
+    const world = trapWorld();
+    const sealed = sealSystems<TrapWorld>([
+      trapSystem("thief", { reads: ["readonlySlice"], writes: [] }, (w) => {
+        w.readonlySlice.value = 1;
+      }),
+    ]);
+    expect(() => sealed.tick(world, STEP)).not.toThrow();
+    expect(world.readonlySlice.value).toBe(1);
+  });
+
+  test("hands the world through unchanged for reads", () => {
+    const world = trapWorld();
+    const seen: number[] = [];
+    const sealed = sealSystems<TrapWorld>(
+      [
+        trapSystem("reader", { reads: ["shared"], writes: [] }, (w) => {
+          seen.push(w.shared.value);
+        }),
+      ],
+      { devTrap: true },
+    );
+    world.shared.value = 4;
+    sealed.tick(world, STEP);
+    expect(seen).toEqual([4]);
+  });
+});
+
+// --- Reset ---------------------------------------------------------------------------------
+
+describe("composition reset", () => {
+  test("resets every system in sealed order, with the scope", () => {
+    const world = eventWorld();
+    const trace: string[] = [];
+    const sealed = sealSystems<EventWorld>([
+      {
+        ...eventSystem("first", {}),
+        reset: (_world: EventWorld, scope: ResetScope) => trace.push(`first:${scope}`),
+      },
+      {
+        ...eventSystem("second", {}),
+        reset: (_world: EventWorld, scope: ResetScope) => trace.push(`second:${scope}`),
+      },
+    ]);
+    sealed.reset(world, "run");
+    expect(trace).toEqual(["first:run", "second:run"]);
+  });
+
+  test("empties the frame queue, and the frame a deferred consumer would hear", () => {
+    const world = eventWorld();
+    const sealed = sealSystems<EventWorld>(
+      [
+        eventSystem("emitter", {
+          emits: ["struck"],
+          onUpdate: (w) => w.events.emit({ type: "struck" }),
+        }),
+      ],
+      EVENTS,
+    );
+    sealed.tick(world, STEP);
+    expect(world.events.frame).toHaveLength(1);
+    sealed.reset(world, "run");
+    expect(world.events.frame).toHaveLength(0);
+    expect(world.events.previous("struck")).toHaveLength(0);
+  });
+
+  test("rewinds the clock for a session and leaves it alone for a run", () => {
+    let resets = 0;
+    const sealed = sealSystems<EventWorld>([eventSystem("quiet", {})], {
+      clock: () => ({
+        reset: () => {
+          resets += 1;
+        },
+      }),
+    });
+    sealed.reset(eventWorld(), "run");
+    expect(resets).toBe(0);
+    sealed.reset(eventWorld(), "session");
+    expect(resets).toBe(1);
+  });
+
+  test("a declared reset trigger ends the tick it is emitted in", () => {
+    const world = eventWorld();
+    const seen: number[] = [];
+    let restarts = 0;
+    const sealed = sealSystems<EventWorld>(
+      [
+        {
+          ...eventSystem("ender", {
+            emits: ["drained"],
+            onUpdate: (w) => {
+              if (w.a === 0) w.events.emit({ type: "drained" });
+              w.a += 1;
+            },
+          }),
+          writes: ["a"],
+          reset: () => {
+            restarts += 1;
+          },
+        },
+        eventSystem("after", {
+          onUpdate: (w) => seen.push(w.events.frame.length),
+        }),
+      ],
+      { ...EVENTS, resetOn: ["drained"] },
+    );
+    sealed.tick(world, STEP);
+    // Everything sealed after the ender still saw the occurrence this frame;
+    // the reset happens at the frame boundary, not underneath them.
+    expect(seen).toEqual([1]);
+    expect(restarts).toBe(1);
+    // And nothing survives into the next frame.
+    expect(world.events.frame).toHaveLength(0);
+    sealed.tick(world, STEP);
+    expect(restarts).toBe(1);
+  });
+
+  test("refuses a reset trigger nothing emits", () => {
+    expect(() =>
+      sealSystems<EventWorld>([eventSystem("emitter", { emits: ["struck"] })], {
+        ...EVENTS,
+        resetOn: ["drained"],
+      }),
+    ).toThrow(UnemittedEventError);
+  });
+});
+
+// --- The refusals are named ----------------------------------------------------------------
+
+describe("every refusal carries a name a caller can catch", () => {
+  test("an unknown after edge", () => {
+    expect(() => sealSystems<World>([system("orphan", [], [], { after: ["phantom"] })])).toThrow(
+      UnknownSystemError,
+    );
+  });
+
+  test("a cycle", () => {
+    expect(() =>
+      sealSystems<World>([system("ping", ["b"], ["a"]), system("pong", ["a"], ["b"])]),
+    ).toThrow(SystemCycleError);
+  });
+
+  test("a consumed type with no emitter", () => {
+    expect(() =>
+      sealSystems<EventWorld>([eventSystem("listener", { consumes: ["unheard"] })], EVENTS),
+    ).toThrow(UnemittedEventError);
   });
 });

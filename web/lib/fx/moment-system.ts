@@ -59,7 +59,11 @@ export function beginFxMoment(
 export function createFxSystem<W extends FxWorld>(
   view: FxView,
   options: { readonly after?: readonly string[] } = {},
-): GameSystem<W> {
+  // The event parameter is spelled out rather than derived from `W`: inside a
+  // generic, a host world's union is not yet known, and what this system says
+  // and hears is its own vocabulary in any case. A host whose union lacks
+  // these types cannot seal it, which is the check that matters.
+): GameSystem<W, FxEvent["type"]> {
   return {
     id: FX_MOMENT_SYSTEM_ID,
     contractVersion: "fx-moment-system-v1",

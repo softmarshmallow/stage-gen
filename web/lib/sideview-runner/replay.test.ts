@@ -26,6 +26,7 @@ const { createRunnerWorld } = await import("./world");
 const { parseRunnerRuntimeManifest } = await import("./contract");
 const { runnerManifestFixture } = await import("./fixture");
 const { createFixedStepAccumulator } = await import("@/lib/kernel/fixed-step");
+type RunnerWorld = import("./world").RunnerWorld;
 
 const SEED = 0x5eed_1234;
 const FRAMES = 600;
@@ -80,7 +81,7 @@ describe("the runner replays to its golden", () => {
     const noopView = { sync: () => undefined };
     const sealed = sealSystems(
       assembleRunnerSystems(latch, noopView, noopView, SILENT_AUDIO_SINK),
-      { events: (w: { events: { beginFrame(): void } }) => w.events },
+      { events: (w: RunnerWorld) => w.events },
     );
     const clock = createFixedStepAccumulator();
     let chain = "";

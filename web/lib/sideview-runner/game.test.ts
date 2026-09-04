@@ -15,6 +15,7 @@ const { assembleRunnerSystems } = await import("./game");
 const { sealSystems } = await import("@/lib/kernel/systems");
 const { createIntentLatch } = await import("./intent");
 const { SILENT_AUDIO_SINK } = await import("./audio");
+type RunnerWorld = import("./world").RunnerWorld;
 
 const DOCUMENTED_ORDER = [
   "runner/intent",
@@ -41,7 +42,7 @@ const noopView = { sync: () => undefined };
 
 // The runner declares events, so sealing needs the accessor that clears the
 // frame queue each tick — the same one `RunnerScene` passes.
-const EVENTS = { events: (world: { events: unknown }) => world.events as { beginFrame(): void } };
+const EVENTS = { events: (world: RunnerWorld) => world.events };
 
 describe("assembleRunnerSystems", () => {
   test("seals into the documented frame order", () => {
