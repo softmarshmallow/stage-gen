@@ -751,6 +751,25 @@ cannot observe a defeat; that is the system step 2 found to be three under one n
 step 6 splits.
 
 
+**2026-09-04 — Runtime step 4 landed (workstream E).** `camera`, `soundtrack`, `cues`
+and `particles` under `web/lib/families/`, sealed into both rosters. A prerequisite the
+plan did not name: three of the four write no world key - cues, music and dust post to
+sinks - so the runner's replay gained a second golden over the ports (`REPLAY_SINKS`:
+20 cues, 6 music edges, 1,017 puffs for the scripted run), pinned before the families
+that change them landed. **camera** is one family with a mode (`anchored`, `follow`),
+shake an input the view carries and removes; zero-diff both genres. **soundtrack** is
+one player over a host transport with selection as a parameter; zero-diff, the two
+genres' 27 own tests untouched. **cues** deleted the five shadow copies the runner's
+audio system kept of avatar state; the sinks are byte-identical line for line, the
+world golden re-pinned for five occurrence kinds and one field that appeared, proven
+field for field against the previous dump. **particles** shares the mechanism (ring,
+cap, eviction, noise); all 1,017 puffs identical. Ordering cost zero: no new `after`
+edge, no new feedback read, one undeclared read declared. Reported, not forced: E6 for
+the soundtrack cannot run because the platformer's authored boss-encounter `track_id`
+never reaches the runtime manifest - the producer keeps only `boss_mob_ids` - which is
+a C5 item for the pipeline lane, one authored field surviving `src/`.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one
