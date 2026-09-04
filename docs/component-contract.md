@@ -23,6 +23,35 @@ Every component must:
 9. support cancellation/timeouts without leaving a success marker; and
 10. expose enough information for a headless benchmark.
 
+## Structure
+
+The properties above say what a component does; this says what one looks like, so
+that a reader who has seen one has seen them all. A component is a package under
+`src/stage_gen/components/` whose `__init__.py` exports its surface in `__all__`,
+holding:
+
+- `models.py` — the authored contract: the pydantic models and the vocabulary they
+  close over, with their persisted `kind` and version literals;
+- `loader.py` and `library.py` where the component reads authored files or resolves a
+  library binding;
+- one or more node-family modules, `nodes.py` or `<family>_nodes.py`, each holding a
+  family's `NodeType` declarations (with `<family>_node_types(identity_prefix=…)` when
+  a recipe shipped the family under its own type ids), an `add_<family>_nodes` graph
+  helper that declares the nodes and their ports over a builder, and a
+  `<Family>Handlers` kit over a `<Family>Host` that a recipe binds into its own node
+  handler - the soundtrack, motion-rebase, layer, UI atlas, inventory-panel and cut-in
+  families are the shape;
+- private helpers as `_<name>.py`, shared across components through
+  `components/_node_kit.py` and its siblings rather than copied.
+
+A component imports the engine, `stage_gen.media`, `stage_gen.canonical` and other
+components; never a recipe, the orchestration layer or a provider. Recipes host node
+families; they do not own node semantics. Two departures stand today and are named in
+the conformance test so they cannot silently multiply: `painted_terrain/nodes.py`
+declares its four types but its graph helper and handlers still live in the platformer
+recipe (workstream D9), and `game_fx/sprite_nodes.py` exposes request builders rather
+than a handler kit because the runner drives its retries.
+
 ## Independence rule
 
 The reusable contract does not assume a genre, camera, engine, coordinate

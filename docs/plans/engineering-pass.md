@@ -688,6 +688,18 @@ are done: the runner and the platformer register the same soundtrack, motion-reb
 layer kits, and a third side-view genre would register them the same way.
 
 
+**2026-09-04 — F4.** `docs/component-contract.md` gains a Structure section: a
+component is `models.py`, optional `loader.py` / `library.py`, one or more
+`*nodes*.py` node-family modules (types, `<family>_node_types(identity_prefix=…)`, an
+`add_<family>_nodes` graph helper, a `<Family>Handlers` kit over a `<Family>Host`),
+private `_*.py` helpers shared through `_node_kit`, and an `__init__.py` exporting
+`__all__`. `tests/contract/test_component_structure.py` refuses a package without a
+surface, a node module that declares types without its graph helper, and any
+component importing a recipe or the orchestration layer. The two departures are named
+in the test with the card that closes them (`painted_terrain/nodes.py`, D9) and cannot
+multiply.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one
