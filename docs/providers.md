@@ -192,30 +192,17 @@ structured rebase and optional music nodes. The platformer retains its separatel
 checkpoint workflow. Compatibility background removal remains an explicit standalone capability
 and never silently replaces failed native generation.
 
-## Accepted-run provider-free cache replay
+## Accepted-run cache replay, retired
 
-`scripts/revalidate_runner_provider_cache.py` is an exceptional migration tool for an already
-accepted runner run whose cache or validator contract tightened after generation. It constructs no
-provider adapter and fails closed unless every current provider request matches the recorded
-provider/model, prompt and structured system/schema, route capabilities, parameters, ordered input
-bytes and media types, and current node contract. It then runs current validators and mixed local
-assembly, seeds complete current cache bundles, and performs a second current-graph run with denial
-services that raise on any cache miss.
-
-The replay preserves historical provider artifact bytes exactly. It migrates each provenance
-sidecar onto the exact current request identity before cache admission, while retaining the
-historical response, attempt count, timestamp, rights, and artifact digest. The portable audit
-hash-binds both sidecar versions and must disclose any non-provider-transmitted reference-label
-normalization or reconstruction of historically omitted deterministic mask lineage. Source plans,
-artifacts, and sidecars are descriptor-read as confined regular non-symlink files. The final trace
-must report every provider node as a cache hit and zero provider operations. This mechanism does
-not create a new semantic candidate and does not replace independent visual review, listening
-review, rights review, or ordinary live-generation provenance.
-
-Primary sources:
-
-- [BiRefNet API reference](https://fal.ai/docs/model-api-reference/image-generation-api/birefnet)
-- [BiRefNet v2 model API](https://fal.ai/models/fal-ai/birefnet/v2/api)
+A 2,200-line migration tool once re-seeded an accepted runner run's provider
+bytes after the recipe's validators tightened, because a tightening inside a
+paid node could only be expressed as "redraw everything". It was retired in
+the engineering pass: a paid node's contract version now moves only when its
+request does, acceptance lives in the free validate node downstream and in
+every checkpoint's cache-admission callback, and `stage-gen package plan
+--cache-dir` says what a run would bill before it runs. What the tool
+preserved - historical bytes exactly, under a current request identity - is
+what the cache does by construction when the request has not changed.
 
 ## Music through OpenRouter
 

@@ -24,7 +24,6 @@ from stage_gen.components.game_fx.nodes import (
 )
 from stage_gen.config import StageGenConfig
 from stage_gen.recipes.sideview_runner.prepared_runner import SideviewRunnerNodeHandler
-from stage_gen.recipes.sideview_runner.replay_cache import _primary_provider_port
 from stage_gen.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
 from stage_gen.recipes.sideview_runner.runner_graph import runner_subject_reference
 
@@ -147,8 +146,8 @@ def test_a_subject_the_genre_does_not_draw_is_refused_while_planning() -> None:
 def test_replay_resolves_the_family_s_provider_ports() -> None:
     graph = _plan().graph
     _g, _d, place_id, _v, review_id = cut_in_node_ids("portrait-stage_start")
-    assert _primary_provider_port(graph.node(place_id))[0].endswith(".placement.json")
-    assert _primary_provider_port(graph.node(review_id))[0].endswith(".review.json")
+    assert graph.node(place_id).port("placement").artifact_ref.endswith(".placement.json")
+    assert graph.node(review_id).port("verdict").artifact_ref.endswith(".review.json")
 
 
 def test_a_warm_cache_admits_the_family_s_review_verdict(tmp_path: Path) -> None:
