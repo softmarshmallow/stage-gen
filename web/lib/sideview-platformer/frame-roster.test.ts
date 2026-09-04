@@ -58,6 +58,9 @@ const DOCUMENTED_ORDER = [
   // frame's player position and writes the body it stands behind before
   // anything steps one.
   "director/set-piece",
+  // ...and the `waves` profile of the same family, which arms at a census
+  // zone's own left edge instead of at a portal anchor.
+  "director/waves",
   "mobs/population",
   "mobs/step",
   "projectiles/step",
@@ -69,8 +72,18 @@ const DOCUMENTED_ORDER = [
   "npc/prompt",
   "shadows/contact",
   "parallax/scroll",
-  // Last, always: it tears the world down and builds another one.
+  // Last among the systems that step the world: it tears it down and builds
+  // another one.
   "map/entry",
+  // The round, and every one of the four is quiet for a package that authors
+  // neither `[score]` nor `[timers]`. They are a *reading* of the frame rather
+  // than a part of it — how much time is left, whether that was the last frame,
+  // what the frame was worth, and what a readout shows — which is why they seal
+  // after everything that could have changed any of those answers.
+  "timers/countdown",
+  "session/run",
+  "score/run",
+  "hud/round",
 ];
 
 /** A steps object that answers every call, so the roster can be sealed without a scene. */
@@ -105,6 +118,10 @@ function inertSteps(record: string[] = []): PlatformerFrameSteps {
     updateContactShadows: note("shadows/contact", undefined),
     scrollParallaxLayers: note("parallax/scroll", undefined),
     applyPendingMapEntry: note("map/entry", undefined),
+    stepWaves: note("director/waves", undefined),
+    scoredThisFrame: note("score/run", {}),
+    scoreChanged: () => undefined,
+    roundEnded: () => undefined,
   };
 }
 
@@ -285,10 +302,39 @@ describe("the conversation hold", () => {
     const ran: string[] = [];
     const sealed = sealSystems(roster({ ...inertSteps(ran), dialogueOpen: () => false }));
     sealed.tick(createPlatformerFrameWorld(), { dt: 1000 / 30, now: 0, frame: 1 });
-    // Everything but the conversation's own input, which only runs while one is open.
-    expect(ran).toEqual(DOCUMENTED_ORDER.filter((id) => id !== "dialogue/input"));
+    // Everything but the conversation's own input, which only runs while one is
+    // open — and the four round systems, which for a package that authors
+    // neither optional block reach no step at all. That is what "quiet" means
+    // here and it is asserted rather than described: an empty award table, an
+    // empty countdown, a lifecycle with nothing that can end it, and a readout
+    // with nothing to draw.
+    expect(ran).toEqual(
+      DOCUMENTED_ORDER.filter((id) => id !== "dialogue/input" && !QUIET_WITHOUT_A_ROUND.includes(id)),
+    );
+  });
+
+  test("a quiet round writes nothing into its own slices", () => {
+    const world = createPlatformerFrameWorld();
+    const sealed = sealSystems(roster({ ...inertSteps(), dialogueOpen: () => false }));
+    for (let frame = 1; frame <= 120; frame += 1) {
+      sealed.tick(world, { dt: 1000 / 30, now: (frame * 1000) / 30, frame });
+    }
+    expect(world.score).toEqual({ total: 0, chain: 0, multiplier: 1 });
+    expect(world.timers.entries).toEqual([]);
+    // The lifecycle does the one thing it always does: it starts. Nothing can
+    // end it, because nothing is counting down.
+    expect(world.session.phase).toBe("running");
+    expect(world.session.endedBy).toBeNull();
   });
 });
+
+/** The four systems a package with no `[score]` and no `[timers]` never reaches a step through. */
+const QUIET_WITHOUT_A_ROUND: readonly string[] = [
+  "timers/countdown",
+  "session/run",
+  "score/run",
+  "hud/round",
+];
 
 /**
  * The invariant that lets the one keyboard reading be modelled as a read.

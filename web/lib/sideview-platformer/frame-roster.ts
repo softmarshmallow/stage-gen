@@ -38,6 +38,22 @@ import { platformerClockHolders } from "./clock";
 import { createPlatformerCameraSystem } from "./camera";
 import type { ShakeOffset } from "@/lib/families/camera";
 import { NEUTRAL_PLAYER_INTENT, type PlayerIntent } from "./player-intent";
+import { createScoreState, type ScoreState } from "@/lib/families/score";
+import { createTimersState, type TimersState } from "@/lib/families/timers";
+import type { SessionState } from "@/lib/families/session/session";
+import type { HudReadout } from "@/lib/families/hud";
+import {
+  createPlatformerRoundHudSystem,
+  createPlatformerScoreSystem,
+  createPlatformerSessionSystem,
+  createPlatformerTimersSystem,
+  NO_ROUND,
+  type PlatformerRoundEnd,
+  type PlatformerRoundPhase,
+  type RoundParams,
+  type RoundReadout,
+} from "./round";
+import type { ScoreEvent } from "@/lib/manifest/prepared-manifest";
 
 /**
  * The slices the frame is ordered over.
@@ -68,6 +84,22 @@ export interface PlatformerFrameWorld {
    * author for both of this frame's holders.
    */
   clock: ClockState;
+  /**
+   * The round's three slices, and they are the first this genre's world holds
+   * that the scene does not.
+   *
+   * Every earlier family that landed here found its state already living on a
+   * scene field or a game object, so the wrapper could only declare a name. A
+   * score, a countdown and a lifecycle had no such home to be lifted out of —
+   * this genre had none of the three — so they are storage from the first
+   * commit, which is what lets the write trap check them and what finally gives
+   * the `hud` family a world to hand a readout.
+   */
+  score: ScoreState;
+  timers: TimersState;
+  session: SessionState<PlatformerRoundPhase, PlatformerRoundEnd>;
+  /** The authored waves in flight on this map, as `director` set-pieces. */
+  readonly waves?: never;
 
   /** The constructed world — map, terrain, decks, layers, camera bounds, the actors' existence. */
   readonly stage?: never;
@@ -111,9 +143,19 @@ export interface PlatformerFrameWorld {
 
 export type PlatformerFrameSystem = GameSystem<PlatformerFrameWorld>;
 
-/** A fresh frame world. The three real slices start neutral; the rest are names. */
-export function createPlatformerFrameWorld(): PlatformerFrameWorld {
-  return { intent: NEUTRAL_PLAYER_INTENT, hold: false, clock: createClock() };
+/** A fresh frame world. The six real slices start neutral; the rest are names. */
+export function createPlatformerFrameWorld(round: RoundParams = NO_ROUND): PlatformerFrameWorld {
+  return {
+    intent: NEUTRAL_PLAYER_INTENT,
+    hold: false,
+    clock: createClock(),
+    score: createScoreState(),
+    timers: createTimersState(round.timers),
+    // `starting` for exactly one frame: the round begins on the first tick, and
+    // saying so through the family's own held-start role beats a phase that is
+    // born running and can never be observed beginning.
+    session: { phase: "starting", seed: 0, runIndex: 0, endedBy: null },
+  };
 }
 
 /**
@@ -141,6 +183,8 @@ export interface PlatformerFrameSteps {
   updatePlayer(simulationDeltaMs: number, nowMs: number, intent: PlayerIntent): void;
   /** Advance every authored set-piece: armed, engaged, ended. */
   stepSetPieces(nowMs: number): void;
+  /** Advance every authored wave: armed, engaged, cleared, and armed again. */
+  stepWaves(nowMs: number): void;
   updateMobPopulation(nowMs: number): void;
   stepMobs(simulationDeltaMs: number, nowMs: number): void;
   updateProjectiles(simulationDeltaMs: number, nowMs: number): void;
@@ -154,6 +198,12 @@ export interface PlatformerFrameSteps {
   updateContactShadows(): void;
   scrollParallaxLayers(): void;
   applyPendingMapEntry(): void;
+  /** This frame's scored occurrences, counted out of the transcript. */
+  scoredThisFrame(): Readonly<Partial<Record<ScoreEvent, number>>>;
+  /** The score moved. */
+  scoreChanged(delta: number, total: number): void;
+  /** The round is over, and why. */
+  roundEnded(cause: PlatformerRoundEnd): void;
 }
 
 /** Every system below the conversation hold returns at its first line while one is open. */
@@ -171,6 +221,8 @@ function held(world: PlatformerFrameWorld): boolean {
  */
 export function assemblePlatformerSystems(
   steps: PlatformerFrameSteps,
+  round: RoundParams = NO_ROUND,
+  roundView?: HudReadout<RoundReadout>,
 ): readonly PlatformerFrameSystem[] {
   return [
     {
@@ -328,6 +380,28 @@ export function assemblePlatformerSystems(
       },
     },
     {
+      // The `waves` profile of the same family: a set-piece armed at a zone's
+      // own left edge rather than at a portal anchor, recurring rather than
+      // once, and drawing what it places from the census table the package
+      // already authored. Same reads, same writes and the same undeclared
+      // feedback read of `mobs` as the gate above, for the same reason — a wave
+      // is cleared when nothing in it is standing, and what is standing is what
+      // `mobs/step` left at the end of the previous frame.
+      id: "director/waves",
+      contractVersion: "director-system-v1",
+      reads: ["hold", "player", "stage"],
+      writes: ["mobs", "transcript"],
+      // Two profiles of one family, both placing bodies into `mobs` and neither
+      // reading what the other wrote, so nothing in the dataflow orders them.
+      // The edge is explicit and its direction is arbitrary; what it buys is
+      // that it is not arbitrary at run time.
+      after: ["director/set-piece"],
+      update: (world, step) => {
+        if (held(world)) return;
+        steps.stepWaves(step.now);
+      },
+    },
+    {
       id: "mobs/population",
       contractVersion: "population-system-v1",
       // `player` is this frame's: the director places bodies against where the
@@ -353,7 +427,7 @@ export function assemblePlatformerSystems(
       // `mobs/step` after `mobs/population` is, and it buys the set-piece's
       // creature the same treatment a spawned one gets — stepped on the frame
       // it arrives rather than a frame later.
-      after: ["director/set-piece"],
+      after: ["director/set-piece", "director/waves"],
       update: (world, step) => {
         if (held(world)) return;
         steps.updateMobPopulation(step.now);
@@ -467,14 +541,32 @@ export function assemblePlatformerSystems(
         steps.applyPendingMapEntry();
       },
     },
+    // The round: four families, all four quiet for a package that authors
+    // neither optional block. They are registered last because a round is a
+    // reading of the frame rather than a part of it — what the frame did, what
+    // it was worth, and whether it was the last one.
+    //
+    // The countdown carries one undeclared feedback read, written down here:
+    // it asks the lifecycle whether the round is still running, and the
+    // lifecycle decides *this* frame's answer after it, because `session/run`
+    // reads the countdown. Declaring it would close
+    // timers/countdown -> session/run -> timers/countdown. A countdown that
+    // runs one frame into a round that has just ended is a countdown; a cycle
+    // is not a frame.
+    createPlatformerTimersSystem(round),
+    createPlatformerSessionSystem(steps),
+    createPlatformerScoreSystem(steps, round),
+    createPlatformerRoundHudSystem(round, roundView),
   ];
 }
 
 /** Seal the platformer's frame. No system emits or consumes, so there is no queue to clear. */
 export function sealPlatformerFrame(
   steps: PlatformerFrameSteps,
+  round: RoundParams = NO_ROUND,
+  roundView?: HudReadout<RoundReadout>,
 ): SealedSystems<PlatformerFrameWorld> {
-  return sealSystems(assemblePlatformerSystems(steps));
+  return sealSystems(assemblePlatformerSystems(steps, round, roundView));
 }
 
 export type { FixedStep };

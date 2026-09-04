@@ -220,6 +220,28 @@ import {
 } from "./npc";
 import { DebugOverlay } from "./debug-overlay";
 import { parsePlatformerClockBlock } from "./clock";
+import {
+  drawWave,
+  playsInWaves,
+  WaveRound,
+  waveFractions,
+  waveSourcesFromZones,
+} from "./waves";
+import {
+  formatRoundClock,
+  formatRoundScore,
+  hasRound,
+  NO_ROUND,
+  parsePlatformerScoreBlock,
+  parsePlatformerTimersBlock,
+  platformerRoundParams,
+  type PlatformerRoundEnd,
+  type RoundParams,
+  type RoundReadout,
+} from "./round";
+import type { HudReadout } from "@/lib/families/hud";
+import { createTimersState } from "@/lib/families/timers";
+import type { ScoreEvent } from "@/lib/manifest/prepared-manifest";
 import { parsePlatformerTraversalBlocks } from "./vertical";
 import { parsePlatformerParallaxBlock } from "./prepared-layers";
 import { parsePlatformerNavigationBlock } from "./bot-navigation";
@@ -448,6 +470,18 @@ export class PreparedStageScene extends Phaser.Scene {
   private readonly setPieces = new Map<string, SetPiece>();
   /** The creature standing in each engaged gate; world state, destroyed with the world. */
   private readonly setPieceBodies = new Map<string, Mob>();
+  /**
+   * The authored waves, for the life of the session — the same lifetime the
+   * gates have and for the same reason: how many waves a run has cleared is a
+   * fact about the run, and a map entry does not un-clear them.
+   */
+  private readonly waves = new Map<string, WaveRound>();
+  /** The bodies of each engaged wave; world state, destroyed with the world. */
+  private readonly waveBodies = new Map<string, Mob[]>();
+  /** What this package authored about a round, read once at load. */
+  private round: RoundParams = NO_ROUND;
+  /** The round readout's Phaser half; silent until a package authors a round. */
+  private roundText?: Phaser.GameObjects.Text;
   private defeatPanel?: DefeatPanel;
   private bot?: Bot;
   private navGraph: NavGraph = EMPTY_NAV_GRAPH;
@@ -629,8 +663,17 @@ export class PreparedStageScene extends Phaser.Scene {
     this.transcriptFrame += 1;
     this.frameEvents = [];
     if (!this.ready || this.loading || !this.player || !this.keys) return;
+    // A round that is over is over. This is a lifecycle read and not a hold —
+    // step 3 settled that distinction on the runner's dead phase — and it is the
+    // host's own guard rather than a `reads: ["session"]` on twenty systems that
+    // would move the shipped genre's sealed order for a phase it never leaves.
+    if (this.frameWorld.session.phase === "ended") return;
     this.stepNowMs = time;
-    this.sealedFrame ??= sealPlatformerFrame(this.frameSteps());
+    this.sealedFrame ??= sealPlatformerFrame(
+      this.frameSteps(),
+      this.round,
+      hasRound(this.round) ? this.roundHudReadout() : undefined,
+    );
     this.sealedFrame.tick(this.frameWorld, {
       dt: delta,
       now: time,
@@ -665,6 +708,7 @@ export class PreparedStageScene extends Phaser.Scene {
       hitstopActive: (nowMs) => this.impact?.hitstopActive(nowMs) ?? false,
       updatePlayer: (deltaMs, nowMs, intent) => this.updatePlayer(deltaMs, nowMs, intent),
       stepSetPieces: (nowMs) => this.stepSetPieces(nowMs),
+      stepWaves: (nowMs) => this.stepWaves(nowMs),
       updateMobPopulation: (nowMs) => this.updateMobPopulation(nowMs),
       stepMobs: (deltaMs, nowMs) => this.stepMobs(deltaMs, nowMs),
       updateProjectiles: (deltaMs, nowMs) => this.updateProjectiles(deltaMs, nowMs),
@@ -678,7 +722,148 @@ export class PreparedStageScene extends Phaser.Scene {
       updateContactShadows: () => this.updateContactShadows(),
       scrollParallaxLayers: () => this.scrollParallaxLayers(),
       applyPendingMapEntry: () => this.applyPendingMapEntry(),
+      scoredThisFrame: () => this.scoredThisFrame(),
+      scoreChanged: (delta, total) => this.recordEvent("score-changed", { delta, total }),
+      roundEnded: (cause) => this.roundEnded(cause),
     };
+  }
+
+  /**
+   * This frame's scored occurrences, counted out of the record the frame kept.
+   *
+   * The transcript is this genre's event queue — it is what the replay golden
+   * hashes and what the automation probe publishes — so the scorer reads it
+   * rather than asking five systems what they did. `boss_defeated` is the
+   * gate's *outcome* and not the creature's death, because a set-piece is what
+   * makes a boss a boss: the same creature standing on the road outside a gate
+   * is a mob, and the record says which it was.
+   */
+  private scoredThisFrame(): Readonly<Partial<Record<ScoreEvent, number>>> {
+    const counts: Partial<Record<ScoreEvent, number>> = {};
+    for (const event of this.frameEvents) {
+      if (event.kind === "mob-defeated") counts.mob_defeated = (counts.mob_defeated ?? 0) + 1;
+      else if (event.kind === "encounter-ended")
+        counts.boss_defeated = (counts.boss_defeated ?? 0) + 1;
+      else if (event.kind === "item-collected")
+        counts.item_collected = (counts.item_collected ?? 0) + 1;
+      else if (event.kind === "wave-cleared")
+        counts.wave_cleared = (counts.wave_cleared ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  /** The round is over. The `session` family decided it; this says so. */
+  private roundEnded(cause: PlatformerRoundEnd): void {
+    this.recordEvent("session-ended", {
+      cause,
+      score: this.frameWorld.score.total,
+    });
+  }
+
+  /**
+   * The round readout: the first `HudReadout` this genre instantiates.
+   *
+   * It is built only for a package that authored a round, which is what keeps
+   * the shipped games' frames identical — a scene with no round has no text
+   * object, draws nothing, and the family's own `silentReadout` stands in.
+   */
+  private roundHudReadout(): HudReadout<RoundReadout> {
+    return {
+      sync: (readout) => {
+        const parts: string[] = [];
+        if (readout.remainingMs !== null) parts.push(formatRoundClock(readout.remainingMs));
+        if (readout.total !== null) parts.push(formatRoundScore(readout.total));
+        if (readout.phase === "ended") parts.push("time");
+        const text = parts.join("  ");
+        if (!this.roundText) {
+          this.roundText = this.add
+            .text(VIEW_W / 2, 24, text, {
+              color: "#ffffff",
+              fontFamily: "system-ui, sans-serif",
+              fontSize: "28px",
+              backgroundColor: "#15334faa",
+              padding: { x: 14, y: 6 },
+            })
+            .setOrigin(0.5, 0)
+            .setScrollFactor(0)
+            .setDepth(SCENE_CONTENT_DEPTH.hud);
+          return;
+        }
+        this.roundText.setText(text);
+      },
+      hide: () => this.roundText?.setVisible(false),
+    };
+  }
+
+  /**
+   * Advance every wave on this map by one frame.
+   *
+   * Armed until the player reaches the zone's own left edge, engaged while
+   * anything the wave placed is standing, cleared when nothing is — and armed
+   * again once the zone's authored `respawn_delay_ms` has run out, which is the
+   * `recurring` recurrence the family already has a word for. The whole of the
+   * profile's authored input is the census table this package wrote for a
+   * hunting route; nothing here is new content.
+   */
+  private stepWaves(nowMs: number): void {
+    const player = this.player;
+    const map = this.currentMap;
+    if (!player || !map || this.waves.size === 0) return;
+    for (const round of this.waves.values()) {
+      if (round.state.phase === "cleared") {
+        if (round.readyToRearm(nowMs)) round.rearm(nowMs);
+        continue;
+      }
+      if (round.state.phase === "armed") {
+        if (!round.reached(this.worldWidth, player.sprite.x)) continue;
+        const bodies = this.placeWave(round, nowMs);
+        if (bodies.length === 0) {
+          this.recordDiagnostic(
+            `wave zone ${round.source.zoneId} could not place any of its creatures`,
+          );
+          continue;
+        }
+        this.waveBodies.set(round.source.zoneId, bodies);
+        this.recordEvent("wave-spawned", {
+          zoneId: round.source.zoneId,
+          wave: round.waveIndex,
+          size: bodies.length,
+        });
+        round.engage(nowMs);
+        continue;
+      }
+      const bodies = this.waveBodies.get(round.source.zoneId) ?? [];
+      if (bodies.some((mob) => mob.isAlive())) continue;
+      this.waveBodies.delete(round.source.zoneId);
+      const wave = round.waveIndex;
+      round.clear(nowMs);
+      this.recordEvent("wave-cleared", { zoneId: round.source.zoneId, wave });
+    }
+  }
+
+  /** Put one wave on the map, drawn from the zone's own authored table. */
+  private placeWave(round: WaveRound, nowMs: number): Mob[] {
+    const manifest = this.manifest;
+    if (!manifest) return [];
+    const drawn = drawWave(round.source, round.waveIndex);
+    const fractions = waveFractions(round.source, drawn.length);
+    const bodies: Mob[] = [];
+    for (const [index, mobId] of drawn.entries()) {
+      const mobSlot = manifest.mobs.findIndex((candidate) => candidate.mob_id === mobId);
+      if (mobSlot < 0) continue;
+      const column = Math.max(
+        0,
+        Math.min(
+          this.heights.length - 1,
+          Math.floor(((fractions[index] ?? 0) * this.worldWidth) / TILE_PX),
+        ),
+      );
+      const mob = this.createMobAtColumn(mobSlot, column, undefined, nowMs);
+      if (!mob) continue;
+      this.mobs.push(mob);
+      bodies.push(mob);
+    }
+    return bodies;
   }
 
   /** Carry every parallax layer by its own fraction of the camera's scroll. */
@@ -741,11 +926,21 @@ export class PreparedStageScene extends Phaser.Scene {
     parsePlatformerDirectorBlocks(manifest.blocks);
     parsePlatformerHudBlock(manifest.blocks);
     parsePlatformerUiBlock(manifest.blocks);
+    // The two optional blocks, gated by the families that read them. Absent is
+    // an answer: a package that authors neither seals the round quiet.
+    parsePlatformerScoreBlock(manifest.blocks);
+    parsePlatformerTimersBlock(manifest.blocks);
     // A quest that could never finish is refused before the first frame rather
     // than at the moment it would have.
     sealQuestCompletions(gameplay.quests, gameplay.effects, PLATFORMER_QUEST_STATE_OPERATION);
     this.manifest = manifest;
     this.gameplay = gameplay;
+    // The round, read once. `createPlatformerFrameWorld` built an empty
+    // countdown at construction because the world exists before the manifest
+    // does; the authored entries replace it here, which is the one place the
+    // slice is built from anything.
+    this.round = platformerRoundParams(manifest);
+    this.frameWorld.timers = createTimersState(this.round.timers);
     await Promise.all([
       this.loadPlayerAssets(manifest),
       this.loadMobAssets(manifest),
@@ -1572,6 +1767,9 @@ export class PreparedStageScene extends Phaser.Scene {
     // — but the bodies standing in them do not, because this teardown is what
     // destroys them.
     this.setPieceBodies.clear();
+    // Same rule for the waves: the rounds keep their count across a rebuild, the
+    // bodies do not.
+    this.waveBodies.clear();
     this.items?.clearAll();
     this.items = undefined;
     this.projectiles?.clearAll();
@@ -2028,7 +2226,23 @@ export class PreparedStageScene extends Phaser.Scene {
         cluster_radius_px: Math.round(TILE_PX * 2.5),
       },
     );
-    if (projection) {
+    // A package that plays in waves reads the same authored zones as waves, and
+    // the census does not also run: the two are two readings of one table, and
+    // a map keeping a target headcount *and* sending waves at it would be
+    // neither. Which reading a package gets is one authored word — an award for
+    // `wave_cleared` — and the map is Bellweather's either way.
+    const authoredZones =
+      gameplay.mob_population?.maps.find((entry) => entry.map_id === map.map_id) ?? null;
+    if (playsInWaves(this.manifest?.score ?? null) && authoredZones) {
+      for (const source of waveSourcesFromZones(authoredZones.zones, authoredZones.seed_salt)) {
+        const existing = this.waves.get(source.zoneId);
+        if (existing) {
+          existing.worldTornDown();
+          continue;
+        }
+        this.waves.set(source.zoneId, new WaveRound(source));
+      }
+    } else if (projection) {
       this.mobIdByPopulationSlot = projection.mob_id_by_slot;
       this.mobPopulationDirector = new MobPopulationDirector(
         projection.manifest,
@@ -3379,6 +3593,26 @@ export class PreparedStageScene extends Phaser.Scene {
       banner: this.mapBanner
         ? { text: this.mapBanner.text.text, alpha: this.mapBanner.text.alpha }
         : undefined,
+      // Absent rather than null for a package that authors no round, which is
+      // the rule the banner above already keeps: a quiet family adds no field,
+      // so the two shipped goldens hash exactly what they hashed before.
+      round: !hasRound(this.round)
+        ? undefined
+        : {
+              score: { ...this.frameWorld.score },
+              timers: this.frameWorld.timers.entries.map((entry) => ({ ...entry })),
+              session: { ...this.frameWorld.session },
+              waves: [...this.waves.values()].map((round) => ({
+                zoneId: round.source.zoneId,
+                phase: round.state.phase,
+                wave: round.waveIndex,
+                cleared: round.cleared,
+                standing: (this.waveBodies.get(round.source.zoneId) ?? []).filter((mob) =>
+                  mob.isAlive(),
+                ).length,
+              })),
+              readout: this.roundText?.text ?? null,
+            },
     });
   }
 
