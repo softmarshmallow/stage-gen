@@ -79,6 +79,7 @@ import {
 } from "./presentation";
 import {
   createRunnerSoundtrackPlayback,
+  parseRunnerSoundtrackBlocks,
   type RunnerSoundtrackPlayback,
 } from "./soundtrack";
 import {
@@ -131,6 +132,7 @@ export function gateRunnerFamilyBlocks(blocks: BlockTable): void {
   parseRunnerIntentBlock(blocks);
   parseRunnerVitalsBlock(blocks);
   parseRunnerCameraBlock(blocks);
+  parseRunnerSoundtrackBlocks(blocks);
   parseScreenFxBlock(blocks);
 }
 

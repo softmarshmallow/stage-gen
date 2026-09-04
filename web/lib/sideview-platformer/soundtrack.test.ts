@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
 import {
   DeterministicSoundtrackPlayer,
+  parsePlatformerSoundtrackBlock,
   declaresMapScopedSoundtrack,
   parseSoundtrackForMapPool,
   parseSoundtrackManifest,
@@ -495,5 +497,45 @@ describe("deterministic soundtrack player", () => {
       current_track_id: null,
       next_track_id: null,
     });
+  });
+});
+
+// --- The `soundtrack` family, sealed into this genre -------------------------------------------
+
+describe("the soundtrack family in the platformer", () => {
+  test("E7 subtraction: a package that publishes no soundtrack has none, which is an answer", () => {
+    // The soundtrack is not a frame step in either genre — it is a host object
+    // the scene builds when the package has tracks — so "quiet" is a package
+    // with no catalog. That is not a refusal: `parseSoundtrackManifest` answers
+    // null, the scene builds no player, and the run is silent.
+    const manifest = { schema_version: 7 } as const;
+    expect(parseSoundtrackManifest(manifest)).toBeNull();
+    expect(parseSoundtrackForMapPool(manifest, undefined)).toBeNull();
+    expect(declaresMapScopedSoundtrack(manifest)).toBe(false);
+  });
+
+  test("the transitions half is the other genre's, and this one authors none", () => {
+    // The family carries both halves; the parameter this genre sets is the
+    // transport, which has no gain, so nothing here can fade. A run edge that
+    // wanted one would author `[music]` first — which is a contract bump.
+    const recording = recordingTransport();
+    const player = new DeterministicSoundtrackPlayer({
+      tracks: TRACKS,
+      seed: "no-transitions",
+      transport: recording.transport,
+    });
+    player.beginFromPlayerGesture();
+    expect(Object.hasOwn(recording.transport, "gain")).toBe(false);
+    expect(player.current_track_id).not.toBeNull();
+  });
+
+  test("the family gates its own block, by name", () => {
+    expect(parsePlatformerSoundtrackBlock(PREPARED_RUNTIME_BLOCKS).published).toBe(true);
+    expect(() =>
+      parsePlatformerSoundtrackBlock({
+        ...PREPARED_RUNTIME_BLOCKS,
+        soundtrack: "platformer-soundtrack-block-v2",
+      }),
+    ).toThrow('manifest block "soundtrack" is published as platformer-soundtrack-block-v2');
   });
 });

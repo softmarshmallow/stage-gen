@@ -22,6 +22,8 @@ const { assembleRunnerSystems, runnerSealOptions } = await import("./game");
 const { sealSystems } = await import("@/lib/kernel/systems");
 const { createIntentLatch } = await import("./intent");
 const { SILENT_AUDIO_SINK } = await import("./audio");
+type RunnerAudioCue = import("./audio").RunnerAudioCue;
+type RunnerMusicEvent = import("./contract").RunnerMusicEvent;
 const { createRunnerWorld } = await import("./world");
 const { parseRunnerRuntimeManifest } = await import("./contract");
 const { runnerManifestFixture } = await import("./fixture");
@@ -186,5 +188,71 @@ describe("the runner replays to its golden", () => {
     expect(notes.restartSeed).not.toBe(SEED);
     expect(notes.restartEvents).toBe(0);
     expect(world.run.phase).toBe("running");
+  });
+});
+
+/**
+ * E1 for the audio families: the same six hundred frames, recorded at the sinks.
+ *
+ * The world golden above hashes state, and neither the cue sink nor the music
+ * sink is state — they are the two ports the run's edges are posted to, and a
+ * refactor of *which system posts them* moves nothing the world digest can see.
+ * So they get a golden of their own: every cue with the frame it fired on and
+ * the strength it carried, and every music edge with its frame, hashed the same
+ * way. `soundtrack` and `cues` are both measured against this recording.
+ */
+const SINK_GOLDEN = {
+  cues: "fdaf4bd42b412166b868a2524cce8a768df003b632e00fa40128857b92a01a7f",
+  music: "29c692fc69d53eefcd14f45f89b9331e05541f309924860e51d1793327588f80",
+};
+
+describe("the runner's audio sinks record the same run", () => {
+  test("six hundred fixed steps post the pinned cues and music edges", () => {
+    const manifest = parseRunnerRuntimeManifest(runnerManifestFixture());
+    const world = createRunnerWorld(manifest, SEED);
+    const latch = createIntentLatch();
+    const noopView = { sync: () => undefined, hide: () => undefined };
+    const cues: string[] = [];
+    const music: string[] = [];
+    let frame = 0;
+    const sealed = sealSystems(
+      assembleRunnerSystems(
+        latch,
+        noopView,
+        noopView,
+        {
+          play: (cue: RunnerAudioCue, strength: number) =>
+            cues.push(`${frame} ${cue} ${strength.toFixed(6)}`),
+        },
+        { transition: (event: RunnerMusicEvent) => music.push(`${frame} ${event}`) },
+      ),
+      runnerSealOptions({ clock: () => clock, devTrap: true }),
+    );
+    const clock = createFixedStepAccumulator();
+    for (frame = 1; frame <= FRAMES; frame += 1) {
+      drive(latch, frame);
+      const steps = clock.advance(FRAME_MS + 1e-9);
+      sealed.tick(world, steps[0]);
+    }
+    const hash = (lines: readonly string[]) =>
+      new Bun.CryptoHasher("sha256").update(lines.join("\n")).digest("hex");
+    if (process.env.REPLAY_SINKS) {
+      // The instrument the next family re-pins against: the whole recording,
+      // line by line, so "which posts moved" is a diff rather than a claim.
+      Bun.write(process.env.REPLAY_SINKS, `${[...cues, ...music].join("\n")}\n`);
+    }
+    // What the recording is of, asserted rather than only hashed: the
+    // announcement rides the first frame, every survivable hit ducks the music
+    // beside its stinger, and the death and the restart are one edge each.
+    expect(cues[0]).toBe("1 stage_start 1.000000");
+    expect(music.map((line) => line.split(" ")[1])).toEqual([
+      "hurt",
+      "hurt",
+      "death",
+      "restart",
+      "hurt",
+      "hurt",
+    ]);
+    expect({ cues: hash(cues), music: hash(music) }).toEqual(SINK_GOLDEN);
   });
 });

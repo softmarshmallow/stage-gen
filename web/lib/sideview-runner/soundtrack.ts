@@ -1,20 +1,58 @@
-// The soundtrack element and the authored transitions it performs at the
-// run's edges. Middleware vocabulary: an action on the music (stop, pause,
-// resume, play) with a fade time and curve, posted beside the stinger the
-// effect bindings own, and an optional duck under a survivable hit. Fades run
-// on the element's volume through an injectable frame scheduler, one at a
-// time; a new transition cancels the one in flight.
+// The runner's binding of the `soundtrack` family: an element, a queue, and
+// the authored transitions the run's edges perform.
+//
+// This genre authors one half of the family. There is no place binding — the
+// run is one endless stage, so there is nowhere for a pool to be narrowed to —
+// and what it does author is the middleware vocabulary: an action on the music
+// (stop, pause, resume, play) with a fade time and a curve, posted beside the
+// stinger the effect bindings own, and an optional duck under a survivable hit.
+//
+// What is left in this file is the transport and the genre's own vocabulary.
+// The transport is a browser `Audio` element per track, with the autoplay dance
+// that goes with it: an optimistic start, a `playbackAllowed` flag the promise
+// settles, and a retry from the first trusted gesture. The vocabulary is the
+// three run edges and the map from each onto the family's `MusicAction`. The
+// selection, the gesture gate, the fade machine and what a duck *is* are the
+// family's, and the platformer instantiates the same object with the other half
+// of it turned on.
 
-import type {
-  MusicFadeCurve,
-  RunnerMusicEvent,
-  RunnerMusicTransitions,
-  RunnerSoundtrack,
+import {
+  fadeGain,
+  ShuffleQueue,
+  SoundtrackPlayer,
+  soundtrackCatalog,
+  type FadingTransport,
+  type SoundtrackTrack,
+} from "@/lib/families/soundtrack";
+import { parseSoundtrackBlock, type SoundtrackBlockView } from "@/lib/families/soundtrack/manifest";
+import type { BlockTable } from "@/lib/manifest/blocks";
+import {
+  RUNNER_BLOCKS,
+  type RunnerMusicEvent,
+  type RunnerMusicTransitions,
+  type RunnerSoundtrack,
 } from "./contract";
 
 const DEFAULT_SOUNDTRACK_VOLUME = 0.34;
-/** Web Audio's exponential-ramp floor: a geometric fade cannot pass through zero. */
-const EXPONENTIAL_FLOOR = 0.0001;
+
+/**
+ * The blocks this genre's soundtrack depends on.
+ *
+ * Two, because the authored file is two: `soundtrack` names the tracks, and
+ * `audio` carries `[music.*]` — the action each run edge performs. A package
+ * that moves either gets the refusal from the soundtrack, by name, which is the
+ * point of a family taking its own dependency: `cues` reads `audio` as well,
+ * and neither family speaks for the other.
+ */
+export const RUNNER_SOUNDTRACK_BLOCKS = Object.freeze([
+  Object.freeze({ block: "soundtrack", version: RUNNER_BLOCKS.soundtrack }),
+  Object.freeze({ block: "audio", version: RUNNER_BLOCKS.audio }),
+]);
+
+/** Gate the runner's soundtrack blocks. Refuses by naming `soundtrack` or `audio`. */
+export function parseRunnerSoundtrackBlocks(blocks: BlockTable): readonly SoundtrackBlockView[] {
+  return RUNNER_SOUNDTRACK_BLOCKS.map((binding) => parseSoundtrackBlock(blocks, binding));
+}
 
 /** Every edge is `continue`: the shape a consumer without a contract would assume. */
 export const CONTINUE_MUSIC: RunnerMusicTransitions = Object.freeze({
@@ -51,38 +89,6 @@ interface RunnerSoundtrackPlaybackOptions {
   readonly now?: () => number;
 }
 
-interface FadeStep {
-  readonly to: number;
-  readonly seconds: number;
-  readonly curve: MusicFadeCurve;
-}
-
-function shuffledTracks(
-  soundtrack: RunnerSoundtrack,
-  random: () => number,
-): RunnerSoundtrack["tracks"] {
-  const tracks = [...soundtrack.tracks];
-  for (let index = tracks.length - 1; index > 0; index -= 1) {
-    const swap = Math.floor(random() * (index + 1));
-    [tracks[index], tracks[swap]] = [tracks[swap], tracks[index]];
-  }
-  return tracks;
-}
-
-/** The gain at `progress` (0..1) along a fade, as Web Audio's ramps define the shapes. */
-export function fadeGain(
-  from: number,
-  to: number,
-  progress: number,
-  curve: MusicFadeCurve,
-): number {
-  const clamped = Math.max(0, Math.min(1, progress));
-  if (curve === "linear") return from + (to - from) * clamped;
-  const start = Math.max(from, EXPONENTIAL_FLOOR);
-  const end = Math.max(to, EXPONENTIAL_FLOOR);
-  return start * (end / start) ** clamped;
-}
-
 function defaultSchedule(callback: () => void): () => void {
   if (typeof requestAnimationFrame === "function") {
     const handle = requestAnimationFrame(callback);
@@ -97,6 +103,71 @@ function defaultNow(): number {
 }
 
 /**
+ * The element transport: one `Audio` per track, and the autoplay dance.
+ *
+ * A browser refuses an audible start no gesture asked for, and answers with a
+ * rejected promise rather than an error, so "is it playing" is a flag settled
+ * asynchronously and every attempt is tokened — a stale rejection must not mark
+ * a later element blocked.
+ */
+function createElementTransport(
+  resolveUrl: (path: string) => string,
+  createAudio: (source: string) => AudioElementLike,
+): FadingTransport {
+  let current: AudioElementLike | undefined;
+  let listener: (() => void) | undefined;
+  let playbackAllowed = false;
+  let latestAttempt = 0;
+  let disposed = false;
+
+  const attempt = () => {
+    if (!current || disposed) return;
+    const candidate = current;
+    const token = ++latestAttempt;
+    void candidate.play().then(
+      () => {
+        if (!disposed && current === candidate && latestAttempt === token) playbackAllowed = true;
+      },
+      () => {
+        if (!disposed && current === candidate && latestAttempt === token) playbackAllowed = false;
+      },
+    );
+  };
+
+  return {
+    play(track: SoundtrackTrack, onEnded: () => void, startGain?: number) {
+      if (current && listener) current.removeEventListener("ended", listener);
+      current = createAudio(resolveUrl(track.source));
+      current.volume = startGain ?? 1;
+      listener = onEnded;
+      current.addEventListener("ended", listener);
+      attempt();
+    },
+    stop() {
+      disposed = true;
+      latestAttempt += 1;
+      if (current) {
+        current.pause();
+        current = undefined;
+      }
+    },
+    pause() {
+      current?.pause();
+    },
+    resume() {
+      attempt();
+    },
+    gain: () => (current && !disposed ? current.volume : null),
+    setGain(value: number) {
+      if (current) current.volume = value;
+    },
+    get allowed() {
+      return playbackAllowed;
+    },
+  };
+}
+
+/**
  * Start the declared soundtrack optimistically. Browsers that permit audible
  * autoplay begin at once; browsers that refuse it keep the same audio element
  * ready for `unlock()` on the first trusted key or pointer gesture.
@@ -107,146 +178,44 @@ export function createRunnerSoundtrackPlayback(
   options: RunnerSoundtrackPlaybackOptions = {},
 ): RunnerSoundtrackPlayback {
   const createAudio = options.createAudio ?? ((source: string) => new Audio(source));
-  const queue = shuffledTracks(soundtrack, options.random ?? Math.random);
   const volume = options.volume ?? DEFAULT_SOUNDTRACK_VOLUME;
   const music = options.music ?? CONTINUE_MUSIC;
-  const schedule = options.schedule ?? defaultSchedule;
-  const now = options.now ?? defaultNow;
-  let current: AudioElementLike | undefined;
-  let index = 0;
-  let disposed = false;
-  let playbackAllowed = false;
-  let latestAttempt = 0;
-  /** True from a stop or pause until the restart action; ducks are ignored meanwhile. */
-  let halted = false;
+  const player = new SoundtrackPlayer({
+    selector: new ShuffleQueue(
+      soundtrackCatalog(
+        soundtrack.tracks.map((track) => ({ trackId: track.trackId, source: track.audio })),
+      ),
+      options.random ?? Math.random,
+    ),
+    transport: createElementTransport(resolveUrl, createAudio),
+    // No gesture gate: a browser that permits autoplay should be playing before
+    // the player has touched anything, and one that refuses is retried by
+    // `unlock`. The gate is the platformer's half of the same family.
+    start: "eager",
+    gain: volume,
+    fades: { schedule: options.schedule ?? defaultSchedule, now: options.now ?? defaultNow },
+  });
 
-  let steps: FadeStep[] = [];
-  let stepStart = 0;
-  let stepFrom = 0;
-  let settled: (() => void) | undefined;
-  let cancelTick: (() => void) | undefined;
-
-  const cancelFade = () => {
-    cancelTick?.();
-    cancelTick = undefined;
-    steps = [];
-    settled = undefined;
-  };
-
-  const tick = () => {
-    cancelTick = undefined;
-    const element = current;
-    if (!element || disposed) {
-      steps = [];
-      return;
-    }
-    while (steps.length > 0) {
-      const step = steps[0];
-      const elapsed = (now() - stepStart) / 1_000;
-      const progress = step.seconds <= 0 ? 1 : Math.min(1, elapsed / step.seconds);
-      element.volume = progress >= 1 ? step.to : fadeGain(stepFrom, step.to, progress, step.curve);
-      if (progress < 1) {
-        cancelTick = schedule(tick);
-        return;
-      }
-      steps.shift();
-      stepStart = now();
-      stepFrom = element.volume;
-    }
-    const done = settled;
-    settled = undefined;
-    done?.();
-  };
-
-  const fade = (next: readonly FadeStep[], onSettled?: () => void) => {
-    cancelFade();
-    if (!current) return;
-    steps = [...next];
-    stepStart = now();
-    stepFrom = current.volume;
-    settled = onSettled;
-    tick();
-  };
-
-  const attemptPlayback = () => {
-    if (!current || disposed) return;
-    const candidate = current;
-    const attempt = ++latestAttempt;
-    void candidate.play().then(
-      () => {
-        if (!disposed && current === candidate && latestAttempt === attempt) {
-          playbackAllowed = true;
-        }
-      },
-      () => {
-        if (!disposed && current === candidate && latestAttempt === attempt) {
-          playbackAllowed = false;
-        }
-      },
-    );
-  };
-
-  const onEnded = () => playNext(volume);
-  const playNext = (startVolume: number) => {
-    if (disposed) return;
-    cancelFade();
-    if (current) current.removeEventListener("ended", onEnded);
-    const track = queue[index % queue.length];
-    index += 1;
-    current = createAudio(resolveUrl(track.audio));
-    current.volume = startVolume;
-    current.addEventListener("ended", onEnded);
-    attemptPlayback();
-  };
-
-  playNext(volume);
   return {
     unlock() {
-      if (!playbackAllowed && !halted) attemptPlayback();
+      player.unlock();
     },
     transition(event) {
-      if (disposed || !current) return;
       if (event === "death") {
-        const action = music.death;
-        if (action.action === "continue") return;
-        halted = true;
-        fade([{ to: 0, seconds: action.fadeSeconds, curve: action.curve }], () =>
-          current?.pause(),
-        );
+        player.transition(music.death);
         return;
       }
       if (event === "restart") {
-        const action = music.restart;
-        if (action.action === "continue" || !halted) return;
-        halted = false;
-        if (action.action === "play") {
-          // The stopped element may still be mid-fade; it is done either way.
-          current.pause();
-          playNext(0);
-        } else {
-          current.volume = 0;
-          attemptPlayback();
-        }
-        fade([{ to: volume, seconds: action.fadeSeconds, curve: action.curve }]);
+        player.transition(music.restart);
         return;
       }
       const duck = music.hurt;
-      if (!duck || halted) return;
-      const ducked = volume * duck.duckGain;
-      fade([
-        { to: ducked, seconds: duck.fadeSeconds, curve: duck.curve },
-        { to: ducked, seconds: duck.holdSeconds, curve: "linear" },
-        { to: volume, seconds: duck.recoverySeconds, curve: duck.curve },
-      ]);
+      if (duck) player.duck(duck);
     },
     dispose() {
-      disposed = true;
-      latestAttempt += 1;
-      cancelFade();
-      if (current) {
-        current.pause();
-        current = undefined;
-      }
+      player.stop();
     },
   };
 }
+
+export { fadeGain };

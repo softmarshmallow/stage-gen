@@ -8,6 +8,38 @@
  * need to know what a map is.
  */
 
+import {
+  ShuffleBag,
+  soundtrackCatalog,
+  SoundtrackPlayer as FamilySoundtrackPlayer,
+  type SoundtrackSnapshot as FamilySoundtrackSnapshot,
+} from "@/lib/families/soundtrack";
+import {
+  parseSoundtrackBlock,
+  type SoundtrackBlockView,
+} from "@/lib/families/soundtrack/manifest";
+import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
+import type { BlockTable } from "@/lib/manifest/blocks";
+
+/**
+ * The block this genre's soundtrack is authored in.
+ *
+ * The catalog is `soundtrack`; the pools that narrow it are `[[map_uses]]
+ * track_ids` inside the map book, and the family gates the catalog because a
+ * package with no catalog has no soundtrack to bind a place to. A producer that
+ * moves it gets `manifest block "soundtrack" is published as …; this build
+ * reads platformer-soundtrack-block-v1`, from the soundtrack.
+ */
+export const PLATFORMER_SOUNDTRACK_BLOCK = Object.freeze({
+  block: "soundtrack",
+  version: PREPARED_RUNTIME_BLOCKS.soundtrack,
+});
+
+/** Gate the platformer's soundtrack block. Refuses by naming `soundtrack`. */
+export function parsePlatformerSoundtrackBlock(blocks: BlockTable): SoundtrackBlockView {
+  return parseSoundtrackBlock(blocks, PLATFORMER_SOUNDTRACK_BLOCK);
+}
+
 export type SoundtrackTrack = Readonly<{
   track_id: string;
   path: string;
@@ -23,11 +55,8 @@ export type SoundtrackSpec = Readonly<{
   map_scoped: true;
 }>;
 
-export type SoundtrackSnapshot = Readonly<{
-  started: boolean;
-  current_track_id: string | null;
-  next_track_id: string | null;
-}>;
+/** The family's own snapshot, in this genre's names — which are the same names. */
+export type SoundtrackSnapshot = FamilySoundtrackSnapshot;
 
 export type SoundtrackTransport = Readonly<{
   play: (track: SoundtrackTrack, onEnded: () => void) => void;
@@ -276,85 +305,63 @@ export function parseSoundtrackForMapPool(
   return soundtrack;
 }
 
-function seedFromString(value: string): number {
-  let seed = 0x811c9dc5;
-  for (let index = 0; index < value.length; index += 1) {
-    seed ^= value.charCodeAt(index);
-    seed = Math.imul(seed, 0x01000193);
-  }
-  return seed >>> 0;
-}
-
-/** A small deterministic generator used only to order a finite shuffle bag. */
-function nextRandom(state: { value: number }): number {
-  state.value = (state.value + 0x6d2b79f5) >>> 0;
-  let value = state.value;
-  value = Math.imul(value ^ (value >>> 15), value | 1);
-  value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-  return ((value ^ (value >>> 14)) >>> 0) / 0x1_0000_0000;
-}
-
 /**
- * A deterministic, cyclic shuffle bag. Every multi-track bag is exhausted once
- * before refill, and the first item after refill cannot equal the prior item.
- * A one-track catalog ends after one play because a repeat-free cycle is
- * impossible for that catalog.
+ * The platformer's binding of the `soundtrack` family: a seeded bag and a place.
+ *
+ * This genre authors the other half of the family from the runner's. There are
+ * no transitions here — no run edge fades the music, because until `session`
+ * reaches this genre there is no run edge to fade it at — and what it does
+ * author is the place binding: every map names a pool of track ids, and
+ * entering one narrows what may play without interrupting a track the
+ * destination also admits.
+ *
+ * Everything the class used to implement itself is the family's now: the bag,
+ * the no-immediate-repeat rule, the pool narrowing with its retained-track
+ * sentinel, the gesture gate and the snapshot. What is left is this genre's
+ * vocabulary — `{track_id, path}` against the family's `{trackId, source}` —
+ * and the transport it hands over, which is why the adapter below is the whole
+ * of the difference.
  */
 export class DeterministicSoundtrackPlayer {
-  private readonly tracks: readonly SoundtrackTrack[];
-  private activeTracks: readonly SoundtrackTrack[];
-  private activePoolKey: string;
-  private readonly randomState: { value: number };
-  private readonly transport: SoundtrackTransport;
-  private readonly onStateChange?: (snapshot: SoundtrackSnapshot) => void;
-  private bag: SoundtrackTrack[] = [];
-  private currentTrack: SoundtrackTrack | null = null;
-  private lastTrackId: string | null = null;
-  private hasStarted = false;
-  private disposed = false;
-  private playToken = 0;
+  private readonly player: FamilySoundtrackPlayer;
 
   constructor(options: SoundtrackPlayerOptions) {
-    if (options.tracks.length === 0) {
-      throw new Error("soundtrack player requires at least one track");
-    }
-    const ids = new Set(options.tracks.map((track) => track.track_id));
-    if (ids.size !== options.tracks.length) {
-      throw new Error("soundtrack player track_id values must be unique");
-    }
-    this.tracks = Object.freeze(
-      options.tracks.map((track) => Object.freeze({ ...track })),
+    const byId = new Map(options.tracks.map((track) => [track.track_id, track]));
+    const catalog = soundtrackCatalog(
+      options.tracks.map((track) => ({ trackId: track.track_id, source: track.path })),
     );
-    this.activeTracks = this.resolveTrackPool(options.trackIds);
-    this.activePoolKey = this.poolKey(this.activeTracks);
-    this.randomState = { value: seedFromString(options.seed) };
-    this.transport = options.transport;
-    this.onStateChange = options.onStateChange;
-    this.refillBag();
+    this.player = new FamilySoundtrackPlayer({
+      selector: new ShuffleBag(catalog, options.seed, options.trackIds),
+      transport: {
+        play: (track, onEnded) => {
+          const authored = byId.get(track.trackId);
+          if (authored) options.transport.play(authored, onEnded);
+        },
+        stop: () => options.transport.stop(),
+      },
+      // A browser will not start audible playback a player never asked for, so
+      // the first track waits for a real gesture. The runner's half of the
+      // family starts eagerly and retries instead.
+      start: "gesture",
+      onStateChange: options.onStateChange,
+    });
   }
 
   get current_track_id(): string | null {
-    return this.currentTrack?.track_id ?? null;
+    return this.player.current_track_id;
   }
 
   get next_track_id(): string | null {
-    return this.bag[0]?.track_id ?? null;
+    return this.player.next_track_id;
   }
 
   snapshot(): SoundtrackSnapshot {
-    return Object.freeze({
-      started: this.hasStarted,
-      current_track_id: this.current_track_id,
-      next_track_id: this.next_track_id,
-    });
+    return this.player.snapshot();
   }
 
   /** Must be called synchronously from a real pointer or keyboard gesture. */
   beginFromPlayerGesture(): boolean {
-    if (this.disposed || this.hasStarted || this.bag.length === 0) return false;
-    this.hasStarted = true;
-    this.playNext();
-    return true;
+    return this.player.beginFromPlayerGesture();
   }
 
   /**
@@ -365,115 +372,11 @@ export class DeterministicSoundtrackPlayer {
    * The prior track remains the no-repeat sentinel across that switch.
    */
   setTrackPool(trackIds: readonly string[]): boolean {
-    if (this.disposed) return false;
-    const nextTracks = this.resolveTrackPool(trackIds);
-    const nextPoolKey = this.poolKey(nextTracks);
-    if (nextPoolKey === this.activePoolKey) return false;
-
-    this.activeTracks = nextTracks;
-    this.activePoolKey = nextPoolKey;
-    this.bag = [];
-    const currentAllowed =
-      this.currentTrack !== null &&
-      nextTracks.some((track) => track.track_id === this.currentTrack?.track_id);
-    if (currentAllowed || !this.hasStarted) {
-      // A retained current track counts as the first consumed item in the
-      // destination's new bag. Do not schedule it a second time before every
-      // other destination track has had its turn.
-      this.refillBag(currentAllowed ? this.currentTrack?.track_id : undefined);
-      this.emitState();
-      return true;
-    }
-
-    // Invalidate the prior transport callback before replacing its media.
-    this.currentTrack = null;
-    this.playToken += 1;
-    this.refillBag();
-    this.playNext();
-    return true;
+    return this.player.bindPool(trackIds);
   }
 
   stop(): void {
-    if (this.disposed) return;
-    this.disposed = true;
-    this.hasStarted = false;
-    this.currentTrack = null;
-    this.bag = [];
-    this.playToken += 1;
-    this.transport.stop();
-    this.emitState();
-  }
-
-  private playNext(): void {
-    if (this.disposed) return;
-    const track = this.bag.shift();
-    if (!track) {
-      this.currentTrack = null;
-      this.emitState();
-      return;
-    }
-
-    this.currentTrack = track;
-    this.lastTrackId = track.track_id;
-    this.refillBag();
-    const token = ++this.playToken;
-    this.emitState();
-    this.transport.play(track, () => {
-      if (this.disposed || token !== this.playToken) return;
-      this.currentTrack = null;
-      this.playNext();
-    });
-  }
-
-  private refillBag(excludedTrackId?: string): void {
-    if (this.bag.length > 0) return;
-    if (
-      excludedTrackId === undefined &&
-      this.activeTracks.length === 1 &&
-      this.lastTrackId !== null
-    )
-      return;
-
-    const next = this.activeTracks.filter(
-      (track) => track.track_id !== excludedTrackId,
-    );
-    for (let index = next.length - 1; index > 0; index -= 1) {
-      const swapIndex = Math.floor(nextRandom(this.randomState) * (index + 1));
-      [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
-    }
-    if (this.lastTrackId !== null && next[0]?.track_id === this.lastTrackId) {
-      const replacement = next.findIndex(
-        (track) => track.track_id !== this.lastTrackId,
-      );
-      if (replacement > 0) {
-        [next[0], next[replacement]] = [next[replacement], next[0]];
-      }
-    }
-    this.bag = next;
-  }
-
-  private resolveTrackPool(trackIds?: readonly string[]): readonly SoundtrackTrack[] {
-    if (trackIds === undefined) return this.tracks;
-    if (trackIds.length === 0) {
-      throw new Error("soundtrack track pool requires at least one track_id");
-    }
-    const requested = new Set(trackIds);
-    if (requested.size !== trackIds.length) {
-      throw new Error("soundtrack track pool track_id values must be unique");
-    }
-    const selected = this.tracks.filter((track) => requested.has(track.track_id));
-    if (selected.length !== requested.size) {
-      throw new Error("soundtrack track pool names an unknown track_id");
-    }
-    return Object.freeze(selected);
-  }
-
-  private poolKey(tracks: readonly SoundtrackTrack[]): string {
-    return tracks.map((track) => track.track_id).join("\0");
-  }
-
-  private emitState(): void {
-    this.onStateChange?.(this.snapshot());
+    this.player.stop();
   }
 }
 

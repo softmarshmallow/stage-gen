@@ -195,6 +195,8 @@ import { DebugOverlay } from "./debug-overlay";
 import { parsePlatformerClockBlock } from "./clock";
 import { parsePlatformerIntentBlock } from "./player-intent";
 import { parsePlatformerVitalsBlock } from "./vitals";
+import { parsePlatformerCameraBlock } from "./camera";
+import { parsePlatformerSoundtrackBlock } from "./soundtrack";
 import {
   createPlatformerFrameWorld,
   sealPlatformerFrame,
@@ -593,6 +595,8 @@ export class PreparedStageScene extends Phaser.Scene {
     parsePlatformerClockBlock(manifest.blocks);
     parsePlatformerIntentBlock(manifest.blocks);
     parsePlatformerVitalsBlock(manifest.blocks);
+    parsePlatformerCameraBlock(manifest.blocks);
+    parsePlatformerSoundtrackBlock(manifest.blocks);
     this.manifest = manifest;
     this.gameplay = gameplay;
     await Promise.all([

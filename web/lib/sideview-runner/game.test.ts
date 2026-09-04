@@ -29,6 +29,8 @@ const { parseRunnerVitalsBlock, RUNNER_REFRACTORY_MS, RUNNER_BLINK_ALPHA } = awa
 const { CONTACT_HURT_PROFILE } = await import("@/lib/families/vitals");
 const { parseScreenFxBlock } = await import("@/lib/families/screen-fx/manifest");
 const { parseRunnerCameraBlock, cameraScrollX } = await import("./camera");
+const { parseRunnerSoundtrackBlocks, createRunnerSoundtrackPlayback, CONTINUE_MUSIC } =
+  await import("./soundtrack");
 const { RUNNER_BLOCKS } = await import("./contract");
 const { SILENT_AUDIO_SINK } = await import("./audio");
 const { createRunnerWorld } = await import("./world");
@@ -513,5 +515,65 @@ describe("the camera family in the runner", () => {
     expect(() =>
       parseRunnerCameraBlock({ ...RUNNER_BLOCKS, camera: "runner-camera-block-v2" }),
     ).toThrow('manifest block "camera" is published as runner-camera-block-v2');
+  });
+});
+
+// --- The `soundtrack` family, sealed into this genre -------------------------------------------
+
+describe("the soundtrack family in the runner", () => {
+  test("E7 subtraction: a genre that publishes no soundtrack seals and plays nothing", () => {
+    // The soundtrack is not a system: it is the music sink the cue system posts
+    // the run's edges to, so "quiet" here is the silent sink the boot already
+    // defaults to — which is what a package with no `[soundtrack]` gets. The
+    // order is the documented one and the run posts its edges into nothing.
+    const posted: string[] = [];
+    const sealed = sealSystems(
+      assembleRunnerSystems(createIntentLatch(), noopView, noopView, {
+        play: () => posted.push("cue"),
+      }),
+      EVENTS,
+    );
+    expect(sealed.order).toEqual(DOCUMENTED_ORDER);
+    const world = createRunnerWorld(parseRunnerRuntimeManifest(runnerManifestFixture()), 1);
+    sealed.tick(world, { dt: 1 / 60, now: 1 / 60, frame: 1 });
+    expect(posted).toEqual(["cue"]);
+  });
+
+  test("the place binding is the other genre's half, and asking for it here refuses", () => {
+    // The family carries both halves and this genre authors one. A run is one
+    // endless stage: there is no place for a pool to be narrowed to, and the
+    // selector says so rather than accepting a binding it would ignore.
+    const playback = createRunnerSoundtrackPlayback(
+      { selection: "shuffle", tracks: [{ trackId: "a", audio: "a.mp3" }] },
+      (path) => path,
+      { createAudio: () => ({
+          volume: 0,
+          play: () => Promise.resolve(),
+          pause: () => undefined,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+        }),
+        random: () => 0,
+      },
+    );
+    // And the default contract is "every edge continues": a package with no
+    // authored `[music]` hears the same track through its own death.
+    expect(CONTINUE_MUSIC.death.action).toBe("continue");
+    playback.transition("death");
+    playback.dispose();
+  });
+
+  test("the family gates its own blocks, both of them, by name", () => {
+    expect(parseRunnerSoundtrackBlocks(RUNNER_BLOCKS).map((view) => view.block)).toEqual([
+      "soundtrack",
+      "audio",
+    ]);
+    expect(() =>
+      parseRunnerSoundtrackBlocks({ ...RUNNER_BLOCKS, soundtrack: "runner-soundtrack-block-v2" }),
+    ).toThrow('manifest block "soundtrack" is published as runner-soundtrack-block-v2');
+    // The second is `cues`' block too, and both families gate it for themselves.
+    expect(() =>
+      parseRunnerSoundtrackBlocks({ ...RUNNER_BLOCKS, audio: "runner-audio-block-v2" }),
+    ).toThrow('manifest block "audio" is published as runner-audio-block-v2');
   });
 });
