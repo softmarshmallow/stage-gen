@@ -72,6 +72,7 @@ from stage_gen.recipes.pointclick_room.room_types import (
     ITEM_ICON_KIND,
     ITEM_ICON_VALIDATE,
     MANIFEST_KIND,
+    MANIFEST_SCHEMA_VERSION,
     NARRATION_COMPILE,
     PUZZLE_VALIDATE,
     ROOM_BUNDLE,
@@ -432,7 +433,7 @@ class PointClickRoomNodeHandler:
         )
         digests = {ref: content_sha256(self._read(ref)) for ref in artifacts}
         manifest = {
-            "schema_version": 1,
+            "schema_version": MANIFEST_SCHEMA_VERSION,
             "kind": MANIFEST_KIND,
             "room_id": room.room_id,
             "display_name": room.display_name,

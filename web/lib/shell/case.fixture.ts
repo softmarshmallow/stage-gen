@@ -639,7 +639,7 @@ export function demoRoomManifest(): RoomManifest {
 
 export function demoRoomWire(): Record<string, unknown> {
   return {
-    schema_version: 1,
+    schema_version: 3,
     kind: "pointclick-room-runtime-v3",
     room_id: "demo_room",
     display_name: "The broadcast room",

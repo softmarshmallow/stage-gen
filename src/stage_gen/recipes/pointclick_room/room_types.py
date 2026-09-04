@@ -37,6 +37,9 @@ STYLE_ANCHOR_KIND = "style-anchor-v1"
 ATTEMPT_LEDGER_KIND = "attempt-ledger-v1"
 MERGED_ATTEMPTS_KIND = "attempt-ledger-merged-v1"
 MANIFEST_KIND = "pointclick-room-runtime-v3"
+#: Read off the kind rather than pinned beside it: the number had sat at 1 through three
+#: kind bumps, a guard that never once fired.
+MANIFEST_SCHEMA_VERSION = int(MANIFEST_KIND.rsplit("-v", 1)[1])
 
 ROOM_RESOLVE = NodeType(
     type_id=f"{_P}/room.resolve",
@@ -162,6 +165,7 @@ __all__ = [
     "ITEM_ICON_KIND",
     "ITEM_ICON_VALIDATE",
     "MANIFEST_KIND",
+    "MANIFEST_SCHEMA_VERSION",
     "MERGED_ATTEMPTS_KIND",
     "NARRATION_COMPILE",
     "NARRATION_KIND",

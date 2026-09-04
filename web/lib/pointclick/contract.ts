@@ -14,7 +14,7 @@ import { parseUiIconSetLayout } from "@/lib/manifest/ui-icon-layout";
 import type { UiSheetRole } from "@/lib/ui-atlas/sheets";
 
 export const POINTCLICK_RUNTIME_KIND = "pointclick-room-runtime-v3";
-export const POINTCLICK_RUNTIME_SCHEMA_VERSION = 1;
+export const POINTCLICK_RUNTIME_SCHEMA_VERSION = 3;
 
 export const POINTCLICK_REFUSAL =
   "unsupported point-and-click room manifest; regenerate this room with a current stage-gen " +

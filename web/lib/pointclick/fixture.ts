@@ -4,7 +4,7 @@ import { uiAtlasFixtureBlock } from "@/lib/shell/prepared-runtime.fixture";
 
 export function roomManifestFixture(): Record<string, unknown> {
   return {
-    schema_version: 1,
+    schema_version: 3,
     kind: "pointclick-room-runtime-v3",
     room_id: "test_room",
     display_name: "Test Room",
