@@ -33,11 +33,11 @@ import {
   type VisualNovelBoxLayout,
 } from "./scene-hud";
 import { actorEmphasis, narrationEmphasis } from "./emphasis";
-import { AtlasButton } from "@/lib/ui-atlas/button";
-import { UI_ATLAS_SHEETS, uiAtlasSheetKey } from "@/lib/ui-atlas/sheets";
-import { NineSliceWidget } from "@/lib/ui-atlas/widget";
-import { mostReadable } from "@/lib/ui-atlas/contrast";
-import { registerPresentationFallback } from "@/lib/ui-atlas/fallback";
+import { AtlasButton } from "@/lib/families/ui/button";
+import { UI_ATLAS_SHEETS, uiAtlasSheetKey } from "@/lib/families/ui/sheets";
+import { NineSliceWidget } from "@/lib/families/ui/widget";
+import { mostReadable } from "@/lib/families/ui/contrast";
+import { registerPresentationFallback } from "@/lib/families/ui/fallback";
 import type { Rect } from "@/lib/shell/hud-geometry";
 import { applyDeviceZoom, currentDevicePixelScale, deviceGameSize } from "@/lib/device-pixels/device-camera";
 import {

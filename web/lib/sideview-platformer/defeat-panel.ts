@@ -23,9 +23,9 @@
 import type Phaser from "phaser";
 import type { UiAtlasRoleLayout } from "@/lib/manifest/ui-atlas-layout";
 import type { UiIconSetLayout } from "@/lib/manifest/ui-icon-layout";
-import { AtlasButton } from "@/lib/ui-atlas/button";
-import { uiAtlasSheetKey } from "@/lib/ui-atlas/sheets";
-import { NineSliceWidget, minimumSliceSize } from "@/lib/ui-atlas/widget";
+import { AtlasButton } from "@/lib/families/ui/button";
+import { uiAtlasSheetKey } from "@/lib/families/ui/sheets";
+import { NineSliceWidget, minimumSliceSize } from "@/lib/families/ui/widget";
 import { DEFAULT_DEFEAT_PANEL_KNOBS, defeatPanelLayout } from "./defeat-panel-layout";
 import { SCENE_CONTENT_DEPTH } from "./depths";
 import { defeatPromptState } from "./respawn";

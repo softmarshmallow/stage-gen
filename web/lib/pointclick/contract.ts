@@ -11,7 +11,7 @@ import type { UiAtlasRoleLayout, UiAtlasRoleName } from "@/lib/manifest/ui-atlas
 import { parseUiAtlasRoleLayout } from "@/lib/manifest/ui-atlas-layout";
 import type { UiIconSetLayout } from "@/lib/manifest/ui-icon-layout";
 import { parseUiIconSetLayout } from "@/lib/manifest/ui-icon-layout";
-import type { UiSheetRole } from "@/lib/ui-atlas/sheets";
+import type { UiSheetRole } from "@/lib/families/ui/sheets";
 
 export const POINTCLICK_RUNTIME_KIND = "pointclick-room-runtime-v3";
 export const POINTCLICK_RUNTIME_SCHEMA_VERSION = 3;

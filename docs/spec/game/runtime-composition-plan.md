@@ -1548,6 +1548,38 @@ two families, and the report says which concept split them.
   are owed with them: the boss's gauge on the HUD (a second instantiation of the
   capsule, over a slice the scene does not yet publish) and the announcement
   (`announce`, which no step has created).
+- **`ui`.** Extracted as `lib/families/ui/`, and the composition table's note on
+  it was exact: `ui-atlas/` was "genre-free by construction and five of its six
+  files import Phaser — a family with a view half that has not been named as
+  one". Naming it is most of the move: the sheet loader, the nine-slice widget,
+  the button, the icon, the contrast rule and the presentation fallback are
+  byte-identical and are a family's view half now instead of a directory beside
+  two genres. What is new is the port the table asks for. `text-plate` is the
+  two of the three "speaker + body + portrait in a rect" layouts that really are
+  one function: the platformer's conversation box and the room's narration
+  plate, which differ by a portrait slot of zero, a name row of zero, and a
+  padding that is asymmetric in one and not the other. Both consumers are the
+  family's call now, with their own numbers. **E1: zero diff in all three
+  goldens, nothing re-pinned.** **E2:** neither documented order moves. **E4:**
+  the plate at two layouts in the family's own suite, plus each consumer's
+  existing suite passing unchanged against it. **E3:** a safe rect too small for
+  the slots it was asked for is refused by name rather than laid out into
+  negative widths — which the room's own version never checked.
+- **The block, and the refusal.** `ui`, and it is the one block in this step
+  that is a family's own rather than a table inside somebody else's: the panel
+  frame the conversation box and the defeat screen are both cut from, the button
+  rect, the preview icon grid, the inventory panel's slot geometry. Three strict
+  parsers already read it; what was missing was a *consumer* taking the
+  dependency, because until now this was a directory. The runner publishes no
+  `ui` block at all, which is an answer — its HUD is drawn from primitives and
+  it owns no sheet — so the gate is the platformer's, and the room's roles live
+  inside its own versioned document.
+- **The third layout, and why it did not move.** The dialogue scene's is not a
+  plate. Its speaker is a *chip* beside the panel rather than a row inside the
+  safe rect, and its portraits are the staged sprites rather than a slot in the
+  box, so `speakerChipRect` and `bodyTextPoint` divide a panel that has a
+  different anatomy. Folding it in would mean a plate with a chip parameter that
+  one consumer uses, which is the shape rule 7 exists to refuse.
 - **One thing the family holds that neither genre binds, and why.**
   `[inventory].starting_capacity` is still parsed and unread, deliberately. The
   rule is the family's and is proven in its own suite (a full bag refuses the

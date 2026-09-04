@@ -11,8 +11,8 @@
 // proportion the artist gave it.
 
 import type Phaser from "phaser";
-import type { UiIconGlyph, UiIconSetLayout } from "../manifest/ui-icon-layout";
-import { uiIconCellFor, uiIconNativeSize } from "../manifest/ui-icon-layout";
+import type { UiIconGlyph, UiIconSetLayout } from "@/lib/manifest/ui-icon-layout";
+import { uiIconCellFor, uiIconNativeSize } from "@/lib/manifest/ui-icon-layout";
 
 /** The frame registered on `sheetKey` for one glyph. */
 export function iconFrameName(sheetKey: string, glyph: UiIconGlyph): string {

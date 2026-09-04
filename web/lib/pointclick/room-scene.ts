@@ -17,12 +17,12 @@ import Phaser from "phaser";
 import { preparedAssetUrl } from "@/lib/shell/asset-url";
 import { containRect, type Rect } from "@/lib/shell/hud-geometry";
 import { applyDeviceZoom, currentDevicePixelScale, deviceGameSize } from "@/lib/device-pixels/device-camera";
-import { registerPresentationFallback } from "@/lib/ui-atlas/fallback";
+import { registerPresentationFallback } from "@/lib/families/ui/fallback";
 import type { UiIconGlyph } from "@/lib/manifest/ui-icon-layout";
-import { AtlasButton } from "@/lib/ui-atlas/button";
-import { UI_ATLAS_SHEETS, uiAtlasSheetKey } from "@/lib/ui-atlas/sheets";
-import { mostReadable } from "@/lib/ui-atlas/contrast";
-import { NineSliceWidget } from "@/lib/ui-atlas/widget";
+import { AtlasButton } from "@/lib/families/ui/button";
+import { UI_ATLAS_SHEETS, uiAtlasSheetKey } from "@/lib/families/ui/sheets";
+import { mostReadable } from "@/lib/families/ui/contrast";
+import { NineSliceWidget } from "@/lib/families/ui/widget";
 import { roomUiSheetAsset } from "./contract";
 import type { RoomHotspot, RoomManifest } from "./contract";
 import {
@@ -277,7 +277,7 @@ class RoomScene extends Phaser.Scene {
     this.narrationHeight = Math.max(1, narrationSafe.height - (text.y - narrationSafe.y) * 2);
     // Measured on the drawn plate, not fixed: the narration colour was authored for a dark
     // fallback fill, and a package that ships a cream panel made the narration invisible while
-    // the hotspot labels, which are accent gold, survived. See lib/ui-atlas/contrast.
+    // the hotspot labels, which are accent gold, survived. See lib/families/ui/contrast.
     const narrationBg = narrationPanel.interiorColor();
     const narrationInk =
       narrationBg === null ? BODY_TEXT : (mostReadable(narrationBg, [BODY_TEXT, INK_TEXT]) ?? BODY_TEXT);

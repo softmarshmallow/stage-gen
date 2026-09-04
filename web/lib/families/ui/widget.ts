@@ -7,9 +7,9 @@
 // change. Where the widget sits and what its press means stay with the genre HUD that owns it.
 
 import type Phaser from "phaser";
-import type { Insets, UiAtlasRoleLayout } from "../manifest/ui-atlas-layout";
-import { uiAtlasCellFor } from "../manifest/ui-atlas-layout";
-import type { Rect, Size } from "../shell/hud-geometry";
+import type { Insets, UiAtlasRoleLayout } from "@/lib/manifest/ui-atlas-layout";
+import { uiAtlasCellFor } from "@/lib/manifest/ui-atlas-layout";
+import type { Rect, Size } from "@/lib/shell/hud-geometry";
 import type { Rgb } from "./contrast";
 
 /** The smallest on-screen size a sheet can be drawn at without its corners overlapping. */

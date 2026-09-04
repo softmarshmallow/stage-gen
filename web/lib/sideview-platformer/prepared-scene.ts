@@ -138,6 +138,7 @@ import {
 } from "./director";
 import type { DirectorSwap } from "@/lib/families/director";
 import { parsePlatformerHudBlock } from "./hud";
+import { parsePlatformerUiBlock } from "./ui";
 import { DefeatPanel } from "./defeat-panel";
 import { mobRenderEnvelope } from "./mob-geometry";
 import {
@@ -158,9 +159,9 @@ import {
   registerGridPresentationFallback,
   registerPresentationFallback,
   type PresentationFallbackKind,
-} from "@/lib/ui-atlas/fallback";
-import { UI_ATLAS_SHEETS } from "@/lib/ui-atlas/sheets";
-import { NineSliceWidget } from "@/lib/ui-atlas/widget";
+} from "@/lib/families/ui/fallback";
+import { UI_ATLAS_SHEETS } from "@/lib/families/ui/sheets";
+import { NineSliceWidget } from "@/lib/families/ui/widget";
 import { DEFAULT_DIALOGUE_BOX_KNOBS, dialogueBoxLayout } from "./dialogue-box-layout";
 import {
   assertPreparedGameplayManifestClosure,
@@ -739,6 +740,7 @@ export class PreparedStageScene extends Phaser.Scene {
     parsePlatformerCheckpointsBlock(manifest.blocks);
     parsePlatformerDirectorBlocks(manifest.blocks);
     parsePlatformerHudBlock(manifest.blocks);
+    parsePlatformerUiBlock(manifest.blocks);
     // A quest that could never finish is refused before the first frame rather
     // than at the moment it would have.
     sealQuestCompletions(gameplay.quests, gameplay.effects, PLATFORMER_QUEST_STATE_OPERATION);

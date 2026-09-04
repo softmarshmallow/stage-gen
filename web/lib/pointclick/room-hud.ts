@@ -19,6 +19,7 @@
 // button, how long the press was held) and exactly the kind of thing that goes
 // subtly wrong on touch, where there is no right-click and no hover.
 
+import { textPlateLayout } from "@/lib/families/ui/text-plate";
 import type { Rect, Size } from "@/lib/shell/hud-geometry";
 import type { Verb } from "./contract";
 
@@ -209,9 +210,16 @@ export function roomTextLayout(
   safe: Rect,
   knobs: RoomTextKnobs = DEFAULT_ROOM_TEXT_KNOBS,
 ): Readonly<{ x: number; y: number; wrapWidth: number }> {
-  return Object.freeze({
-    x: safe.x + knobs.paddingX,
-    y: safe.y + knobs.paddingY,
-    wrapWidth: Math.max(1, safe.width - knobs.paddingX * 2),
-  });
+  // The `ui` family's text plate with the portrait slot and the speaker row set
+  // to zero, which is the whole of what makes a narration plate a different
+  // thing from a conversation box. The asymmetric padding is this room's and is
+  // why the plate takes two paddings rather than one.
+  return textPlateLayout(safe, {
+    portraitSlotWidth: 0,
+    columnGap: 0,
+    nameRowHeight: 0,
+    rowGap: 0,
+    paddingX: knobs.paddingX,
+    paddingY: knobs.paddingY,
+  }).text;
 }

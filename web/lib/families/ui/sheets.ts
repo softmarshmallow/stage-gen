@@ -7,8 +7,8 @@
 // leaving the missing presentation visible to verification.
 
 import type Phaser from "phaser";
-import type { UiAtlasRoleName } from "../manifest/ui-atlas-layout";
-import type { UI_PREVIEW_ICONS_ROLE } from "../manifest/ui-icon-layout";
+import type { UiAtlasRoleName } from "@/lib/manifest/ui-atlas-layout";
+import type { UI_PREVIEW_ICONS_ROLE } from "@/lib/manifest/ui-icon-layout";
 import type { PresentationFallbackDiagnostic, PresentationFallbackKind } from "./fallback";
 import { registerPresentationFallback } from "./fallback";
 

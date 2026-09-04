@@ -8,9 +8,9 @@
 // it, exactly as the taxonomy says, because the icon sheet publishes no button of its own.
 
 import type Phaser from "phaser";
-import type { UiAtlasRoleLayout } from "../manifest/ui-atlas-layout";
-import type { UiIconGlyph, UiIconSetLayout } from "../manifest/ui-icon-layout";
-import type { Rect } from "../shell/hud-geometry";
+import type { UiAtlasRoleLayout } from "@/lib/manifest/ui-atlas-layout";
+import type { UiIconGlyph, UiIconSetLayout } from "@/lib/manifest/ui-icon-layout";
+import type { Rect } from "@/lib/shell/hud-geometry";
 import { AtlasIcon } from "./icon";
 import { NineSliceWidget } from "./widget";
 
