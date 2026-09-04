@@ -18,23 +18,10 @@ from stage_gen.components.game_ui.inventory_nodes import (
 )
 from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes
 from stage_gen.components.painted_terrain import (
-    PAINTED_TERRAIN_CANONICALIZE,
-    PAINTED_TERRAIN_CANONICALIZER_ID,
-    PAINTED_TERRAIN_COMPOSE,
-    PAINTED_TERRAIN_GENERATE,
-    PAINTED_TERRAIN_GROUND_VALIDATION_KIND,
-    PAINTED_TERRAIN_GUIDE,
-    PAINTED_TERRAIN_GUIDE_ID,
-    PAINTED_TERRAIN_GUIDE_KIND,
-    PAINTED_TERRAIN_GUIDE_REPORT_KIND,
-    PAINTED_TERRAIN_KIND,
-    PAINTED_TERRAIN_PLATE_KIND,
-    PAINTED_TERRAIN_RAW_KIND,
-    PAINTED_TERRAIN_VALIDATION_KIND,
     PaintedTerrainGround,
-    painted_silhouette_tolerance,
-    painted_terrain_generation_prompt,
-    painted_terrain_segments,
+    PaintedTerrainLayout,
+    add_painted_terrain_nodes,
+    painted_terrain_node_types,
 )
 from stage_gen.components.platformer_content import (
     DEFAULT_MOTION_ANCHOR,
@@ -68,7 +55,7 @@ from stage_gen.components.sideview_terrain.atlas import (
 )
 from stage_gen.config import StageGenConfig
 from stage_gen.orchestration.game_package import ResolvedGamePackage
-from stage_gen.recipes.ports import artifact_port, object_digest, record_port, text_digest
+from stage_gen.recipes.ports import artifact_port, object_digest, record_port
 from stage_gen.recipes.sideview_platformer.execution_graph import (
     ExecutionGraph,
     OperationKind,
@@ -147,6 +134,8 @@ CONTENT_PLAYER_REVIEW_CONTRACT_VERSION = "prepared-content-player-review-v6"
 #: Bumped whenever the plate layout, the judge prompt, or admission changes, so a cached
 #: reading cannot outlive the composition it was taken from.
 CONTENT_MOTION_REBASE_CONTRACT_VERSION = "prepared-content-motion-rebase-v3"
+#: The painted-terrain family at its own home: this recipe shipped it there, so no prefix.
+PAINTED_TERRAIN_TYPES = painted_terrain_node_types()
 CONTENT_BINDING_CONTRACT_VERSION = "prepared-content-binding-report-v1"
 CONTENT_SOUNDTRACK_CONTRACT_VERSION = "prepared-content-soundtrack-v1"
 MAP_CLIMBABLE_CONTRACT_VERSION = "prepared-map-climbable-atlas-v1"
@@ -1335,139 +1324,34 @@ def _add_painted_terrain_nodes(
     ground_direction: dict[str, object],
     references: dict[str, PreparedMapReference],
 ) -> str:
-    """Fan one map out into its derived segments, and return the node that composes them.
+    """Host the painted-terrain family for one map; returns the node that composes it.
 
-    Every node here declares an edge to the terrain node, and none of them opts out of
-    cache inheritance the way the atlas image does. That is the honest cost of the mode and
-    it is the inverse of the atlas's designed property: the atlas paints a material that
-    knows nothing about the level, so reshaping a level never re-bills it, while a painting
-    OF the occupancy must be repainted when the occupancy moves. The partition is what
-    bounds it -- a deck edited in the middle of one segment re-bills that segment alone.
+    The family keys the partition, the prompt and the admission; this recipe keys the guide
+    on its art direction, the ground table and the material references it names.
     """
 
-    segments = painted_terrain_segments(game_map.terrain.columns, game_map.terrain.rows)
-    prompt_direction = _painted_terrain_material_direction(builder.package, game_map)
-    canonical_ids: list[str] = []
-    with builder.within_template("painted-terrain-segment-pipeline@v1"):
-        for segment in segments:
-            segment_identity = object_digest(
-                {
-                    "index": segment.index,
-                    "start_column": segment.start_column,
-                    "columns": segment.columns,
-                    "count": len(segments),
-                    "guide": PAINTED_TERRAIN_GUIDE_ID,
-                }
-            )
-            base = f"map-{game_map.map_id}-ground-{segment.segment_id}"
-            guide = builder.add(
-                PAINTED_TERRAIN_GUIDE,
-                f"{base}-guide",
-                domain=f"map-{game_map.map_id}",
-                description=(f"draw the {segment.segment_id} terrain guide for {game_map.map_id}"),
-                params={"map_id": game_map.map_id, "segment_id": segment.segment_id},
-                # Terrain is a real input, not a scheduling nicety: without the edge the
-                # scheduler may draw a guide before terrain.json exists.
-                depends_on=(package_root, terrain_node_id),
-                input_digests=(
-                    map_direction,
-                    object_digest(ground_direction),
-                    segment_identity,
-                    *_reference_digests(references, game_map.ground.reference_ids),
-                ),
-                ports=(
-                    artifact_port(
-                        "guide",
-                        f"maps/{game_map.map_id}/ground/{segment.segment_id}.guide.png",
-                        PAINTED_TERRAIN_GUIDE_KIND,
-                    ),
-                    record_port(
-                        "guide_report",
-                        f"maps/{game_map.map_id}/ground/{segment.segment_id}.guide.json",
-                        PAINTED_TERRAIN_GUIDE_REPORT_KIND,
-                    ),
-                ),
-            )
-            generated = builder.add(
-                PAINTED_TERRAIN_GENERATE,
-                f"{base}-generate",
-                domain=f"map-{game_map.map_id}",
-                description=f"paint {segment.segment_id} of {game_map.map_id}",
-                params={"map_id": game_map.map_id, "segment_id": segment.segment_id},
-                depends_on=(guide.node_id,),
-                input_digests=(
-                    text_digest(
-                        painted_terrain_generation_prompt(
-                            prompt_direction,
-                            segment=segment,
-                            columns=segment.columns,
-                            rows=game_map.terrain.rows,
-                        )
-                    ),
-                ),
-                ports=(
-                    artifact_port(
-                        "image",
-                        f"maps/{game_map.map_id}/ground/{segment.segment_id}.raw.png",
-                        PAINTED_TERRAIN_RAW_KIND,
-                    ),
-                ),
-                card=NodeCard(reference_inputs=(PortRef(node_id=guide.node_id, port_id="guide"),)),
-            )
-            canonical = builder.add(
-                PAINTED_TERRAIN_CANONICALIZE,
-                f"{base}-canonicalize",
-                domain=f"map-{game_map.map_id}",
-                description=(
-                    f"admit {segment.segment_id} of {game_map.map_id} to its authored geometry"
-                ),
-                params={"map_id": game_map.map_id, "segment_id": segment.segment_id},
-                depends_on=(guide.node_id, generated.node_id),
-                input_digests=(
-                    object_digest({"canonicalizer": PAINTED_TERRAIN_CANONICALIZER_ID}),
-                    object_digest(painted_silhouette_tolerance().model_dump(mode="json")),
-                ),
-                ports=(
-                    artifact_port(
-                        "image",
-                        f"maps/{game_map.map_id}/ground/{segment.segment_id}.png",
-                        PAINTED_TERRAIN_KIND,
-                    ),
-                    record_port(
-                        "validation",
-                        f"maps/{game_map.map_id}/ground/{segment.segment_id}.validation.json",
-                        PAINTED_TERRAIN_VALIDATION_KIND,
-                    ),
-                ),
-                duration_seconds=2.0,
-            )
-            canonical_ids.append(canonical.node_id)
-    compose = builder.add(
-        PAINTED_TERRAIN_COMPOSE,
-        f"map-{game_map.map_id}-ground-compose",
+    return add_painted_terrain_nodes(
+        builder,
+        types=PAINTED_TERRAIN_TYPES,
+        map_id=game_map.map_id,
+        columns=game_map.terrain.columns,
+        rows=game_map.terrain.rows,
         domain=f"map-{game_map.map_id}",
-        description=f"stitch the painted terrain of {game_map.map_id} into one plate",
-        params={"map_id": game_map.map_id},
-        depends_on=(*canonical_ids, terrain_node_id),
-        input_digests=(object_digest({"segments": len(segments)}),),
-        ports=(
-            # The plate is evidence, a composite input and a review subject. It is never a
-            # runtime asset: fifty-six columns fit inside a 4096-pixel texture and
-            # sixty-five do not, so the consumer always loads segments.
-            artifact_port(
-                "evidence",
-                f"maps/{game_map.map_id}/ground.evidence.png",
-                PAINTED_TERRAIN_PLATE_KIND,
-            ),
-            record_port(
-                "validation",
-                f"maps/{game_map.map_id}/ground.validation.json",
-                PAINTED_TERRAIN_GROUND_VALIDATION_KIND,
-            ),
+        node_prefix=f"map-{game_map.map_id}-ground",
+        terrain_node_id=terrain_node_id,
+        depends_on=(package_root,),
+        guide_digests=(
+            map_direction,
+            object_digest(ground_direction),
+            *_reference_digests(references, game_map.ground.reference_ids),
         ),
-        duration_seconds=1.5,
+        material_direction=_painted_terrain_material_direction(builder.package, game_map),
+        layout=PaintedTerrainLayout(
+            directory=f"maps/{game_map.map_id}/ground",
+            evidence=f"maps/{game_map.map_id}/ground.evidence.png",
+            validation=f"maps/{game_map.map_id}/ground.validation.json",
+        ),
     )
-    return compose.node_id
 
 
 def _painted_terrain_material_direction(

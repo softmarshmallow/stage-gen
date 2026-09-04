@@ -859,6 +859,28 @@ between the two genres; the only observable difference is which label a
 `conflicting_source_digest` refusal names. Net +220 lines, all headers and imports.
 
 
+**2026-09-05 — D9 closed: the painted-terrain node family.** The one departure the
+structure test allowlisted is gone. `components/painted_terrain/nodes.py` now carries the
+family's whole shape: `painted_terrain_node_types(identity_prefix=…)`, a
+`PaintedTerrainLayout` naming a map's segment files under one directory plus the plate,
+`add_painted_terrain_nodes(...)` owning the partition identity, the prompt (now on the
+card, so the handler reads what the plan digested) and the admission key while the host
+keys the guide, and `PaintedTerrainHost` / `PaintedTerrainHandlers` with `guide`,
+`generate`, `canonicalize`, `compose` and the `revalidate_source` re-gate the cache
+admission calls. The host contract is three callables - the occupancy rows, the resolved
+`PaintedMaterial` (identity, reference bytes, provider references) and the provenance
+input the guide records - and the compose step reads each segment's raster off the edge
+that carries it rather than a path convention. The platformer's `prepared_world.py`
+lost its six painted methods for one `PaintedTerrainHandlers` beside its layer kit;
+`package_graph.py`'s helper is a thirty-line host call. Measured: no shipped map
+declares `painted-terrain-v1`, so the Bellweather platformer plan is byte-identical
+before and after (`stage-gen package plan`, compared whole); the family gained the test
+the platformer path never had - the helper over a 56-column map (19/19/18) and the four
+handlers driven end to end on the fixture map through a fake image service, the
+provider gate included. `GRAPH_HELPER_DEPARTURES` is empty; the structure test keeps
+refusing a new one without a card.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one
