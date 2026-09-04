@@ -326,6 +326,27 @@ export class SaveStore<StateT> {
   }
 }
 
+/**
+ * The browser's own store, reached only when it is actually read or written.
+ *
+ * Deliberately not `window.localStorage` handed over directly: a client
+ * component is pre-rendered on the server, and evaluating `window` while
+ * building the thing that will later hold the save is a crash at import time for
+ * a capability nobody has used yet. Absent-window reads answer "no save", which
+ * is the same answer a blocked store gives and is already handled everywhere.
+ */
+export function browserSaveStorage(): SaveStorage {
+  return {
+    getItem: (key) => (typeof window === "undefined" ? null : window.localStorage.getItem(key)),
+    setItem: (key, value) => {
+      if (typeof window !== "undefined") window.localStorage.setItem(key, value);
+    },
+    removeItem: (key) => {
+      if (typeof window !== "undefined") window.localStorage.removeItem(key);
+    },
+  };
+}
+
 /** A store with no browser: the test double the family ships with. */
 export function memorySaveStorage(
   seed: Readonly<Record<string, string>> = {},

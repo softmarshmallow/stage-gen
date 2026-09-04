@@ -32,6 +32,15 @@
 // `facts` is the only `"game"`-scope slice this runtime has. That is not a
 // simplification: it is the case contract. A fact is the only thing a scenario
 // and a room can both say, and nothing else crosses a beat boundary.
+//
+// `case_result_v1` below is deliberately NOT a profile. It is what a finished
+// case leaves behind, and its lifetime is neither of the two scopes the runtime
+// declares: it outlives the case itself, which is why it survives the save being
+// cleared and is filed under its own key. Naming that third lifetime is exactly
+// what an authored `[save]` table would do — scopes and the triggers that write
+// them — and it is a contract change in `src/`. Until there is one, this record
+// stays as it is rather than being forced into a scope vocabulary that does not
+// yet have a word for it.
 
 import { bagItemIds, bagOfOne } from "@/lib/families/inventory";
 import type { ScenarioSlot } from "@/lib/scenario/program";

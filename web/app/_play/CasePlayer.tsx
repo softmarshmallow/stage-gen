@@ -26,6 +26,7 @@ import {
 } from "@/lib/narrative/case";
 import type { BacklogLine, CaseSave } from "@/lib/narrative/case-save";
 import { CaseSession } from "@/lib/narrative/runtime";
+import { browserSaveStorage } from "@/lib/families/persistence";
 import type { DialogueSceneMoment } from "@/lib/dialogue-scene/scene-game";
 import type { DialogueSceneFixture } from "@/lib/dialogue-scene/schema";
 import type { RoomManifest } from "@/lib/pointclick/contract";
@@ -57,7 +58,7 @@ export default function CasePlayer({
   // One session per case, for as long as the case is on screen. It holds the
   // save store and the state; this component holds neither.
   const session = useMemo(
-    () => new CaseSession(caseDocument, tag, window.localStorage),
+    () => new CaseSession(caseDocument, tag, browserSaveStorage()),
     [caseDocument, tag],
   );
   const state = useSyncExternalStore(

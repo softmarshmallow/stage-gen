@@ -1,4 +1,5 @@
 export {
+  browserSaveStorage,
   memorySaveStorage,
   parseSave,
   SAVE_SCOPES,
