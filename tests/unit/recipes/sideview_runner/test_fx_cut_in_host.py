@@ -150,49 +150,60 @@ def test_replay_resolves_the_family_s_provider_ports() -> None:
     assert graph.node(review_id).port("verdict").artifact_ref.endswith(".review.json")
 
 
+def _payloads(node: Any, records: dict[str, bytes]) -> tuple[bytes, ...]:
+    """Every declared ref in declaration order; a sidecar is an empty object when not given."""
+
+    refs = [
+        ref
+        for port in node.ports
+        for ref in (
+            (port.artifact_ref, port.sidecar_ref) if port.sidecar_ref else (port.artifact_ref,)
+        )
+    ]
+    return tuple(records.get(ref, b"{}") for ref in refs)
+
+
 def test_a_warm_cache_admits_the_family_s_review_verdict(tmp_path: Path) -> None:
+    """A structured record is admitted as the object its reader expects; the cache key and
+    the lineage prove it answers this request, so nothing re-judges its content."""
+
     plan = _plan()
     handler = _handler(plan, tmp_path)
     _g, _d, _p, _v, review_id = cut_in_node_ids("portrait-stage_start")
     node = plan.graph.node(review_id)
     assert node.type_id == FX_CUT_IN_REVIEW.type_id
     verdict_ref = node.port("verdict").artifact_ref
-    handler._admit_structured_bundle(
-        node, {verdict_ref: json.dumps({"verdict": "accept", "confidence": 0.9}).encode()}
+    handler._admit_cached_bundle_or_raise(
+        node,
+        _payloads(
+            node, {verdict_ref: json.dumps({"verdict": "accept", "confidence": 0.9}).encode()}
+        ),
     )
-    with pytest.raises(ValueError, match="invalid verdict"):
-        handler._admit_structured_bundle(
-            node, {verdict_ref: json.dumps({"verdict": "maybe"}).encode()}
+    with pytest.raises(ValueError, match="is not an object"):
+        handler._admit_cached_bundle_or_raise(
+            node, _payloads(node, {verdict_ref: json.dumps(["accept"]).encode()})
         )
 
 
-def test_a_warm_cache_admits_a_placement_only_over_the_plates_it_was_judged_on(
+def test_a_placement_is_bound_to_the_plates_it_was_judged_on_by_lineage(
     tmp_path: Path,
 ) -> None:
+    """The plates a placement was judged over are the place node's dependencies, so a
+    placement over other plates is a different lineage and a cache miss - the graph binds
+    it, and admission no longer re-derives it."""
+
     plan = _plan()
     handler = _handler(plan, tmp_path)
     generate_id, _d, place_id, _v, _r = cut_in_node_ids("portrait-stage_start")
     node = plan.graph.node(place_id)
-    raw = _png((200, 150, 120, 255))
-    frame = _png((255, 255, 255, 255))
-    run_dir = tmp_path / "run"
-    for ref, data in (
-        (plan.graph.node(generate_id).port("image").artifact_ref, raw),
-        (plan.graph.node("fx-cut_in-frame-validate").port("image").artifact_ref, frame),
-    ):
-        (run_dir / ref).parent.mkdir(parents=True, exist_ok=True)
-        (run_dir / ref).write_bytes(data)
+    assert generate_id in node.depends_on
+    assert "fx-cut_in-frame-validate" in node.depends_on
     placement_ref = node.port("placement").artifact_ref
     record = admit_cut_in_placement(
         {"scale": 0.45, "x": 0.5, "y": 0.52, "rationale": "Eyes in the upper band."},
-        portrait_sha256=_sha(raw),
-        frame_sha256=_sha(frame),
+        portrait_sha256=_sha(_png((200, 150, 120, 255))),
+        frame_sha256=_sha(_png((255, 255, 255, 255))),
     )
-    handler._admit_tool_loop_bundle(node, {placement_ref: json.dumps(record).encode()})
-
-    stale = {**record, "frame_sha256": "0" * 64}
-    with pytest.raises(ValueError, match="admitted placement"):
-        handler._admit_tool_loop_bundle(node, {placement_ref: json.dumps(stale).encode()})
-    out_of_range = {**record, "scale": 9}
-    with pytest.raises(ValueError, match="scale must be between"):
-        handler._admit_tool_loop_bundle(node, {placement_ref: json.dumps(out_of_range).encode()})
+    handler._admit_cached_bundle_or_raise(
+        node, _payloads(node, {placement_ref: json.dumps(record).encode()})
+    )

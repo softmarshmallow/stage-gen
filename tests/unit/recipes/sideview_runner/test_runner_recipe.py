@@ -13,7 +13,6 @@ from PIL import Image, ImageDraw
 
 from stage_gen.config import StageGenConfig
 from stage_gen.recipes.sideview_runner.prepared_runner import (
-    _json_normalize_provider_identity,
     _validate_catalog_candidate,
     _validate_layer_candidate,
     _validate_motion_candidate,
@@ -32,23 +31,6 @@ from ..._runner_fixture import two_genre_package
 
 def _executor() -> SideviewRunnerExecutor:
     return SideviewRunnerExecutor(StageGenConfig())
-
-
-def test_provider_identity_is_exactly_json_round_trip_stable() -> None:
-    normalized = _json_normalize_provider_identity(
-        {
-            "validation": {
-                "visible_bbox": (12, 24, 96, 128),
-                "nested": {"anchors": ((1, 2), (3, 4))},
-            }
-        }
-    )
-
-    assert normalized == json.loads(json.dumps(normalized))
-    assert normalized["validation"] == {
-        "visible_bbox": [12, 24, 96, 128],
-        "nested": {"anchors": [[1, 2], [3, 4]]},
-    }
 
 
 def _select_structural_ground(package: Path) -> Path:

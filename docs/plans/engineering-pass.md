@@ -625,6 +625,25 @@ does, instead of being flattened with an internal failure into 1. Report shape a
 resolutions have their own tests.
 
 
+**2026-09-04 — D7, the runner's proving half.** `prepared_runner.py` spent 1246 of its
+3861 lines proving that a cached artifact still matched today's request: it rebuilt
+every provider request to compare against the sidecar (`expected_provider_provenance_identity`,
+318 lines with an `elif` per node kind), re-derived every local node's outputs
+byte-exactly, and re-checked the attempt ledger, the plates and the record fields of
+every structured node. All of that is what the cache key and the lineage bind since
+B2/B6: a record under this key was produced by this request. What the key cannot say
+is whether the bytes still pass today's gate, so admission is now the rule the
+platformer's checkpoints already ran (C-R2): a provider artifact re-runs the same
+refusal-bearing check its retry owner ran, a loop unit must still loop, a structured
+record must still be an object, and a local node is admitted on its lineage. The
+handler is 2608 lines. Three tests that pinned request re-derivation (a forged
+sidecar prompt, forged identity fields, a tampered edit sidecar) went with it, with
+the reason: the sidecar is provenance the run restores, not an authority the run
+re-proves; the tests that pin the media gate (an arbitrary self-consistent PNG is
+refused) stay. The layer node family can now converge its records without mirroring
+them here.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one

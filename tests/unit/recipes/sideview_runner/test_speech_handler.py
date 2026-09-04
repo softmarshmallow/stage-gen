@@ -214,13 +214,7 @@ async def test_generate_then_validate_records_the_measured_length_and_replays_it
     bindings = cast("dict[str, Any]", block["bindings"])
     assert bindings["stage_start"] == "mira_go"
 
-    # The synchronous cache path restates exactly the facts the live owner recorded.
-    identity = handler.expected_provider_provenance_identity(
-        graph.node(GENERATE), line, provider_response={"source_shape": "binary"}
-    )
-    assert identity["prompt"] == AUTHORED_TEXT
-    assert identity["params"] == sidecar["params"]
-    assert identity["validation"] == sidecar["validation"]
+    # The cache path re-proves the clip against the same gate the live owner ran.
     handler._admit_provider_artifact(graph.node(GENERATE), line)
 
 

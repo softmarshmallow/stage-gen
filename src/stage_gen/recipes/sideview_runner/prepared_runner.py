@@ -9,18 +9,15 @@ recipe's node wiring.
 
 from __future__ import annotations
 
-import inspect
 import io
 import json
 import math
-from collections.abc import Mapping as MappingABC
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from PIL import Image
 
 from gnode import (
-    ArtifactProvenance,
     BinaryArtifact,
     CacheDisposition,
     CancellationError,
@@ -35,12 +32,10 @@ from gnode import (
     SoftwareIdentity,
     SoundEffectGenerationRequest,
     SpeechGenerationRequest,
-    StructuredOutputSchema,
     StructuredReference,
     ToolLoopReference,
     ToolLoopService,
     assert_audio_signature,
-    assert_image_signature,
     atomic_write_bytes,
     atomic_write_json,
     dependency_port,
@@ -51,8 +46,6 @@ from gnode import (
 from stage_gen.canonical import content_sha256
 from stage_gen.components.actor_content import MotionPresentation
 from stage_gen.components.game_fx.cut_in import (
-    admit_cut_in_placement,
-    draw_procedural_frame,
     validate_frame_plate,
     validate_portrait_plate,
 )
@@ -60,23 +53,15 @@ from stage_gen.components.game_fx.nodes import (
     FX_CUT_IN_DRAW,
     FX_CUT_IN_GENERATE,
     FX_CUT_IN_PLACE,
-    FX_CUT_IN_PLACEMENT_KIND,
-    FX_CUT_IN_PLATE_KIND,
-    FX_CUT_IN_RAW_KIND,
     FX_CUT_IN_REVIEW,
     FX_CUT_IN_VALIDATE,
-    FX_CUT_IN_VALIDATION_KIND,
     FX_SPRITE_DUST_GENERATE,
-    FX_SPRITE_DUST_RAW_KIND,
     FX_SPRITE_DUST_VALIDATE,
     FxCutInHost,
     cut_in_generate_request,
     cut_in_place_request,
     cut_in_review_request,
-    derive_cut_in_validation,
-    derive_sprite_dust_validation,
     fx_manifest_block,
-    parse_cut_in_review,
     sprite_dust_generate_request,
     write_cut_in_draw,
     write_cut_in_validation,
@@ -125,11 +110,6 @@ from stage_gen.components.sideview_actor.asset_unit import (
 )
 from stage_gen.components.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
 from stage_gen.components.sideview_actor.motion_rebase import (
-    MOTION_REBASE_SCHEMA_NAME,
-    admit_first_pass_record,
-    build_motion_rebase_plate,
-    build_motion_rebase_verification_plate,
-    motion_rebase_json_schema,
     motion_rebase_prompt,
     motion_rebase_verification_prompt,
 )
@@ -140,8 +120,6 @@ from stage_gen.components.sideview_actor.motion_rebase_nodes import (
 )
 from stage_gen.components.sideview_layers.contract import resolve_layer_placement
 from stage_gen.components.sideview_layers.pipeline import (
-    assemble_loop,
-    construct_deterministic,
     layer_repeat_policies,
     loop_conditioning,
     loop_layer,
@@ -164,17 +142,10 @@ from stage_gen.components.speech import (
     admit_speech_bytes_sync,
 )
 from stage_gen.identity import (
-    IMAGE_GENERATION_COMPONENT,
-    MUSIC_GENERATION_COMPONENT,
-    SOUND_EFFECT_GENERATION_COMPONENT,
-    SPEECH_GENERATION_COMPONENT,
     STAGE_GEN_TOOL,
-    STRUCTURED_GENERATION_COMPONENT,
-    TOOL_LOOP_COMPONENT,
 )
 from stage_gen.media import (
     LOOP_METHODS,
-    RegistrationError,
     SeamConditioning,
     data_url,
     probe_audio,
@@ -184,7 +155,6 @@ from stage_gen.media.layer_rasters import trim_layer_to_alpha_box
 from stage_gen.media.sprite_sheets import (
     AlphaComponentRepackContract,
     repack_alpha_components,
-    split_atlas_columns,
 )
 from stage_gen.recipes.manifest_blocks import present_blocks
 from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
@@ -227,7 +197,6 @@ from stage_gen.recipes.sideview_runner.runner_types import (
     MOTION_REBASE_JUDGE,
     MOTION_REBASE_VERIFY,
     PACKAGE_RESOLVE,
-    REBASE_READING_KIND,
     RUNNER_MANIFEST_BLOCK_VERSIONS,
     SOUND_EFFECT_CLIP_KIND,
     SOUND_EFFECT_GENERATE,
@@ -314,20 +283,6 @@ RUNNER_LAYER_MIN_VISIBLE_FRACTION = 0.005
 RUNNER_LAYER_MIN_TRANSPARENT_EDGE_FRACTION = 0.05
 
 _COMPONENT = SoftwareIdentity(name="@stage-gen/sideview-runner", version=RUNNER_HANDLER_VERSION)
-
-
-def _json_normalize_provider_identity(value: dict[str, object]) -> dict[str, object]:
-    """Return the exact JSON value a persisted provenance sidecar can represent."""
-
-    try:
-        normalized = json.loads(
-            json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
-        )
-    except (TypeError, ValueError, json.JSONDecodeError) as error:
-        raise ValueError("runner provider identity is not standards-compliant JSON") from error
-    if not isinstance(normalized, dict):
-        raise ValueError("runner provider identity must normalize to an object")
-    return cast("dict[str, object]", normalized)
 
 
 def _image_media_type(data: bytes) -> str:
@@ -992,6 +947,18 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
         return True
 
     def _admit_cached_bundle_or_raise(self, node: Node, payloads: tuple[bytes, ...]) -> None:
+        """Re-prove the media, not the request.
+
+        The cache key binds the type identity, the contract version, the model, every
+        input digest and the lineage of what a node consumed; a record under this key was
+        produced by this request. What the key cannot say is whether the bytes still pass
+        today's gate - a validator tightened after an image was accepted - so a provider
+        artifact re-runs the same refusal-bearing check its retry owner ran (C-R2), and a
+        structured record must still be the object shape its reader expects. A local
+        node's outputs are a deterministic function of its lineage and its contract
+        version, both bound; nothing here re-derives them.
+        """
+
         refs = tuple(
             ref
             for port in node.ports
@@ -1003,63 +970,33 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
         )
         if len(refs) != len(payloads):
             raise ValueError("runner cache payload count differs from declared outputs")
+        if node.is_local:
+            return
         bundle = dict(zip(refs, payloads, strict=True))
-
-        provider_operations = 0
-        output_selection = "local_output"
-        if node.operation != RunnerOperationKind.LOCAL:
-            provider_operations, output_selection = self._admit_attempt_ledger(node, bundle)
-
-        provider_ref = (
-            self._provider_output_ref(node) if node.operation != RunnerOperationKind.LOCAL else None
-        )
-        for port in node.ports:
-            if port.sidecar_ref is None:
-                continue
-            provider_owned = provider_operations > 0 and port.artifact_ref == provider_ref
-            self._admit_provenance_pair(
-                node,
-                artifact_ref=port.artifact_ref,
-                artifact_data=bundle[port.artifact_ref],
-                sidecar_data=bundle[port.sidecar_ref],
-                bundle=bundle,
-                provider_owned=provider_owned,
-                provider_operations=provider_operations,
-            )
-
         if node.type_id == LAYER_LOOP_PAINT.type_id:
-            self._admit_loop_bundle(
-                node,
-                bundle,
-                provider_operations=provider_operations,
-                output_selection=output_selection,
+            # The provider's edit is an intermediate; the loop unit is what ships, and it
+            # must still be a loop under today's admission.
+            layer = self._layer(node)
+            alpha_policy, coverage = layer_repeat_policies(layer.alpha_mode)
+            report = validate_image_repeat(
+                bundle[node.port("loop_image").artifact_ref],
+                axis="x",
+                alpha_policy=alpha_policy,
+                coverage_policy=coverage,
+                validation_policy=ImageRepeatValidationPolicy(),
             )
+            if report.verdict != "pass":
+                raise ValueError("cached layer loop no longer passes x-repeat admission")
             return
-        if node.operation == RunnerOperationKind.STRUCTURED_GENERATION:
-            self._admit_structured_bundle(node, bundle)
+        if node.operation in (
+            RunnerOperationKind.STRUCTURED_GENERATION,
+            RunnerOperationKind.TOOL_LOOP,
+        ):
+            record = json.loads(bundle[self._provider_output_ref(node)])
+            if not isinstance(record, dict):
+                raise ValueError(f"{node.node_id} cached record is not an object")
             return
-        if node.operation == RunnerOperationKind.TOOL_LOOP:
-            self._admit_tool_loop_bundle(node, bundle)
-            return
-        if node.operation != RunnerOperationKind.LOCAL:
-            if output_selection != "provider_output":
-                raise ValueError("ordinary provider cache output was not provider-selected")
-            self._admit_provider_artifact(node, bundle[self._provider_output_ref(node)])
-            return
-        self._admit_local_bundle(node, bundle)
-
-    @staticmethod
-    def _strict_json_object(data: bytes, *, label: str) -> dict[str, Any]:
-        def reject_constant(value: str) -> None:
-            raise ValueError(f"{label} contains non-finite JSON value {value}")
-
-        try:
-            value = json.loads(data, parse_constant=reject_constant)
-        except (UnicodeDecodeError, json.JSONDecodeError) as error:
-            raise ValueError(f"{label} is not strict JSON") from error
-        if not isinstance(value, dict):
-            raise ValueError(f"{label} must be a JSON object")
-        return cast("dict[str, Any]", value)
+        self._admit_provider_artifact(node, bundle[self._provider_output_ref(node)])
 
     @staticmethod
     def _require_equal(actual: object, expected: object, *, label: str) -> None:
@@ -1075,184 +1012,6 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
         if ref.endswith(".json"):
             return "application/json"
         raise ValueError(f"runner cache artifact has unknown media type: {ref}")
-
-    def _admit_provenance_pair(
-        self,
-        node: Node,
-        *,
-        artifact_ref: str,
-        artifact_data: bytes,
-        sidecar_data: bytes,
-        bundle: Mapping[str, bytes],
-        provider_owned: bool,
-        provider_operations: int,
-    ) -> None:
-        raw = self._strict_json_object(sidecar_data, label=f"{artifact_ref} provenance")
-        provenance = ArtifactProvenance.model_validate(raw)
-        media_type = self._artifact_media_type(artifact_ref)
-        expected_artifact = {
-            "sha256": content_sha256(artifact_data),
-            "bytes": len(artifact_data),
-            "media_type": media_type,
-        }
-        actual_artifact = (
-            None if provenance.artifact is None else provenance.artifact.model_dump(mode="json")
-        )
-        self._require_equal(
-            actual_artifact,
-            expected_artifact,
-            label=f"{artifact_ref} provenance artifact binding",
-        )
-        self._require_equal(
-            provenance.prompt_sha256,
-            content_sha256(provenance.prompt.encode("utf-8")),
-            label=f"{artifact_ref} provenance prompt digest",
-        )
-        if media_type == "image/png":
-            assert_image_signature(artifact_data, media_type)
-            with Image.open(io.BytesIO(artifact_data)) as opened:
-                opened.load()
-                if opened.format != "PNG":
-                    raise ValueError(f"{artifact_ref} is not a decodable PNG")
-        elif media_type == "audio/mpeg":
-            assert_audio_signature(artifact_data, media_type)
-        else:
-            self._strict_json_object(artifact_data, label=artifact_ref)
-
-        if provider_owned:
-            expected = self.expected_provider_provenance_identity(
-                node,
-                artifact_data,
-                bundle=bundle,
-                provider_response=provenance.response,
-            )
-            actual = {
-                "schema_version": provenance.schema_version,
-                "provider": provenance.provider,
-                "model": provenance.model,
-                "seed": provenance.seed,
-                "prompt": provenance.prompt,
-                "prompt_sha256": provenance.prompt_sha256,
-                "references": provenance.references,
-                "refs": provenance.refs,
-                "inputs": [
-                    item.model_dump(mode="json", exclude_none=True) for item in provenance.inputs
-                ],
-                "params": provenance.params,
-                "validation": provenance.validation,
-                "component": provenance.component.model_dump(mode="json"),
-                "tool": provenance.tool.model_dump(mode="json"),
-                "rights": (
-                    None if provenance.rights is None else provenance.rights.model_dump(mode="json")
-                ),
-            }
-            self._require_equal(actual, expected, label=f"{artifact_ref} provider identity")
-            self._require_equal(
-                provenance.attempts,
-                provider_operations,
-                label=f"{artifact_ref} provider attempts",
-            )
-        else:
-            self._require_equal(
-                provenance.provider, "local", label=f"{artifact_ref} local provider"
-            )
-            self._require_equal(
-                provenance.component,
-                _COMPONENT,
-                label=f"{artifact_ref} local component identity",
-            )
-
-    def _admit_attempt_ledger(self, node: Node, bundle: Mapping[str, bytes]) -> tuple[int, str]:
-        attempt_ref = self._attempt_port_ref(node)
-        if attempt_ref is None or attempt_ref not in bundle:
-            raise ValueError("provider cache bundle has no attempt ledger")
-        ledger = self._strict_json_object(bundle[attempt_ref], label=f"{node.node_id} ledger")
-        expected_fields = {
-            "schema_version",
-            "kind",
-            "node_id",
-            "cache_hit",
-            "provider_operations",
-            "output_selection",
-            "prompt_sha256",
-            "attempts",
-        }
-        self._require_equal(set(ledger), expected_fields, label=f"{node.node_id} ledger fields")
-        self._require_equal(ledger["schema_version"], 2, label=f"{node.node_id} ledger schema")
-        self._require_equal(
-            ledger["kind"],
-            "sideview-runner-attempt-ledger-v2",
-            label=f"{node.node_id} ledger kind",
-        )
-        self._require_equal(ledger["node_id"], node.node_id, label=f"{node.node_id} ledger node")
-        # A stored ledger describes the miss that authored these bytes. Cache
-        # reads preserve it byte-for-byte and never write a cache_hit=true form.
-        self._require_equal(ledger["cache_hit"], False, label=f"{node.node_id} ledger cache flag")
-        operations = ledger["provider_operations"]
-        if type(operations) is not int or not 0 <= operations <= node.max_attempts:
-            raise ValueError(f"{node.node_id} ledger provider_operations is invalid")
-        prompt_sha256 = content_sha256(self._provider_prompt(node).encode("utf-8"))
-        self._require_equal(
-            ledger["prompt_sha256"], prompt_sha256, label=f"{node.node_id} ledger prompt"
-        )
-        attempts = ledger["attempts"]
-        if not isinstance(attempts, list) or len(attempts) != operations:
-            raise ValueError(f"{node.node_id} ledger attempt count is invalid")
-        selection = ledger["output_selection"]
-        if selection not in {"provider_output", "fallback_output", "local_output"}:
-            raise ValueError(f"{node.node_id} ledger output selection is invalid")
-        if selection == "provider_output" and operations < 1:
-            raise ValueError("provider-selected ledger records no provider operation")
-        if selection == "fallback_output" and (
-            operations < 1 or node.type_id != LAYER_LOOP_PAINT.type_id
-        ):
-            raise ValueError("fallback ledger is not a paid generative-loop fallback")
-        if selection == "local_output" and (
-            operations != 0 or node.type_id != LAYER_LOOP_PAINT.type_id
-        ):
-            raise ValueError("local-output ledger is not a skipped generative loop")
-
-        selected_ref = self._provider_output_ref(node)
-        for ordinal, entry in enumerate(attempts, start=1):
-            if not isinstance(entry, dict):
-                raise ValueError(f"{node.node_id} ledger attempt is not an object")
-            selected = selection == "provider_output" and ordinal == operations
-            expected_entry_fields = (
-                {"attempt", "outcome", "artifact_ref", "artifact_sha256", "prompt_sha256"}
-                if selected
-                else {"attempt", "outcome", "prompt_sha256", "reason"}
-            )
-            self._require_equal(
-                set(entry), expected_entry_fields, label=f"{node.node_id} attempt fields"
-            )
-            self._require_equal(entry["attempt"], ordinal, label=f"{node.node_id} attempt ordinal")
-            self._require_equal(
-                entry["prompt_sha256"], prompt_sha256, label=f"{node.node_id} attempt prompt"
-            )
-            if selected:
-                self._require_equal(
-                    entry["outcome"], "selected", label=f"{node.node_id} selected outcome"
-                )
-                self._require_equal(
-                    entry["artifact_ref"], selected_ref, label=f"{node.node_id} selected ref"
-                )
-                self._require_equal(
-                    entry["artifact_sha256"],
-                    content_sha256(bundle[selected_ref]),
-                    label=f"{node.node_id} selected digest",
-                )
-            else:
-                self._require_equal(
-                    entry["outcome"],
-                    "not_selected",
-                    label=f"{node.node_id} unselected outcome",
-                )
-                self._require_equal(
-                    entry["reason"],
-                    "provider attempt did not produce the selected output",
-                    label=f"{node.node_id} unselected reason",
-                )
-        return operations, cast("str", selection)
 
     def _image_generation_request(self, node: Node) -> ImageGenerationRequest:
         """Build the one current OpenAI request for an image provider node."""
@@ -1497,22 +1256,6 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
         )
 
     @staticmethod
-    def _sync_artifact_validation(
-        validator: Callable[[BinaryArtifact], object] | None,
-        artifact: BinaryArtifact,
-    ) -> dict[str, object]:
-        if validator is None:
-            return {}
-        result = validator(artifact)
-        if inspect.isawaitable(result):
-            raise ValueError("runner provider cache validation must be synchronous")
-        if result is None:
-            return {}
-        if not isinstance(result, MappingABC):
-            raise ValueError("runner provider validator returned a non-mapping")
-        return dict(result)
-
-    @staticmethod
     def _reference_identity(
         references: Sequence[ImageReference | StructuredReference | ToolLoopReference],
     ) -> tuple[list[str], list[dict[str, object]]]:
@@ -1527,325 +1270,6 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
             for reference in references
         ]
         return refs, inputs
-
-    def expected_provider_provenance_identity(
-        self,
-        node: Node,
-        artifact_data: bytes,
-        *,
-        bundle: Mapping[str, bytes] | None = None,
-        provider_response: Mapping[str, object] | None = None,
-    ) -> dict[str, object]:
-        """Return the exact current request identity a provider sidecar must carry.
-
-        Replay migration uses this same helper after staging current dependencies,
-        so cache admission and sidecar migration cannot drift on ordered inputs,
-        mask lineage, provider params, or caller-validation facts.
-        """
-
-        if node.operation == RunnerOperationKind.IMAGE_GENERATION:
-            image_request = self._image_generation_request(node)
-            references = (
-                image_request.input_references
-                if image_request.mask_reference is None
-                else (*image_request.input_references, image_request.mask_reference)
-            )
-            refs, inputs = self._reference_identity(references)
-            params: dict[str, object] = {
-                "n": 1,
-                "validated": image_request.validate is not None,
-                "operation": "edit" if image_request.input_references else "generation",
-                "output_format": image_request.output_format or "png",
-            }
-            for key in ("size", "quality", "background"):
-                value = getattr(image_request, key)
-                if value is not None:
-                    params[key] = value
-            if image_request.moderation is not None and not image_request.input_references:
-                params["moderation"] = image_request.moderation
-            if image_request.output_compression is not None:
-                params["output_compression"] = image_request.output_compression
-            if image_request.metadata:
-                params["metadata"] = dict(image_request.metadata)
-            caller = self._sync_artifact_validation(
-                image_request.validate,
-                BinaryArtifact(data=artifact_data, media_type="image/png"),
-            )
-            validation: dict[str, object] = {
-                "output_nonempty": True,
-                "base64": "strict",
-                "media_type": "image/png",
-                "signature": "matched",
-                "caller": image_request.validate is not None,
-                **caller,
-            }
-            component = IMAGE_GENERATION_COMPONENT
-            seed = None
-            rights = None
-        elif node.type_id == FX_CUT_IN_REVIEW.type_id:
-            # The shared family's request builder is the identity: the same
-            # function the handler sends, re-run over the restored run.
-            review_request = cut_in_review_request(
-                self._fx_host(), self._graph, node, read=self._read_run_artifact
-            )
-            refs, inputs = self._reference_identity(review_request.references)
-            review_system = review_request.system or ""
-            params = {
-                "schema_name": review_request.schema.name,
-                "schema_description": review_request.schema.description,
-                "schema": dict(review_request.schema.json_schema),
-                "strict": review_request.schema.strict,
-                "require_parameters": True,
-                "system": review_system,
-                "system_sha256": content_sha256(review_system.encode("utf-8")),
-                "max_tokens": review_request.max_tokens,
-                "metadata": dict(review_request.metadata),
-            }
-            self._strict_json_object(artifact_data, label=f"{node.node_id} structured artifact")
-            validation = {
-                "output_nonempty": True,
-                "json": "parsed",
-                "schema": "caller-validated",
-            }
-            component = STRUCTURED_GENERATION_COMPONENT
-            seed = None
-            rights = None
-        elif node.type_id == FX_CUT_IN_PLACE.type_id:
-            # The episode's identity is what the agent was given, never the path
-            # it took: instructions, system, tools, budget, and the admitted
-            # record. Rebuilt from the restored plates by the shared builder.
-            place_request = cut_in_place_request(
-                self._fx_host(), self._graph, node, read=self._read_run_artifact
-            )
-            refs, inputs = self._reference_identity(place_request.references)
-            place_system = place_request.system or ""
-            params = {
-                "instructions_sha256": content_sha256(place_request.instructions.encode("utf-8")),
-                "tools": [
-                    {
-                        "name": spec.name,
-                        "description": spec.description,
-                        "parameters": dict(spec.parameters),
-                    }
-                    for spec in place_request.tool_specs
-                ],
-                "submit_schema": dict(place_request.submit_schema),
-                "strict": True,
-                "require_parameters": True,
-                "max_steps": place_request.max_steps,
-                "system": place_system,
-                "system_sha256": content_sha256(place_system.encode("utf-8")),
-                "max_total_tokens": place_request.max_total_tokens,
-                "metadata": dict(place_request.metadata),
-                "artifact_value": "caller-canonicalized",
-                "validated": True,
-            }
-            canonical_placement = self._strict_json_object(
-                artifact_data, label=f"{node.node_id} placement artifact"
-            )
-            validation = {
-                "submitted": True,
-                "json": "parsed",
-                "schema": "caller-validated",
-                **canonical_placement,
-            }
-            component = TOOL_LOOP_COMPONENT
-            seed = None
-            rights = None
-        elif node.operation == RunnerOperationKind.STRUCTURED_GENERATION:
-            plate_data = (
-                bundle[node.port("plate").artifact_ref]
-                if bundle is not None
-                else (self._run_dir / node.port("plate").artifact_ref).read_bytes()
-            )
-            plate_ref = f"run://{node.port('plate').artifact_ref}"
-            reference = StructuredReference(data_url(plate_data, "image/png"), plate_ref)
-            refs, inputs = self._reference_identity((reference,))
-            states = list(self._actor(node).states)
-            schema_description = (
-                "Per-state draw-scale multipliers against an actor's baseline"
-                if node.type_id == MOTION_REBASE_JUDGE.type_id
-                else "Residual per-state multipliers on the rebased plate"
-            )
-            schema = StructuredOutputSchema(
-                name=MOTION_REBASE_SCHEMA_NAME,
-                description=schema_description,
-                json_schema=motion_rebase_json_schema(),
-                strict=True,
-            )
-            system = "You are a sprite-sheet scale judge. Return only the strict structured object."
-            # Named for the actor it judged: two actors' judgements share one
-            # node type, so the mirrored identity is the only place a reader
-            # can tell whose strips were on the plate.
-            subject_label = self._actor(node).label
-            kind = (
-                f"{subject_label}-motion-rebase"
-                if node.type_id == MOTION_REBASE_JUDGE.type_id
-                else f"{subject_label}-motion-rebase-verify"
-            )
-            params = {
-                "schema_name": schema.name,
-                "schema_description": schema.description,
-                "schema": dict(schema.json_schema),
-                "strict": schema.strict,
-                "require_parameters": True,
-                "system": system,
-                "system_sha256": content_sha256(system.encode("utf-8")),
-                "metadata": {
-                    "kind": kind,
-                    "entity_id": self._actor(node).entity_id,
-                    "states": states,
-                    "plate_sha256": content_sha256(plate_data),
-                },
-                "artifact_value": "caller-canonicalized",
-                "validated": True,
-            }
-            canonical = self._strict_json_object(
-                artifact_data, label=f"{node.node_id} structured artifact"
-            )
-            validation = {
-                "output_nonempty": True,
-                "json": "parsed",
-                "schema": "caller-validated",
-                **canonical,
-            }
-            component = STRUCTURED_GENERATION_COMPONENT
-            seed = None
-            rights = None
-        elif node.operation == RunnerOperationKind.MUSIC_GENERATION:
-            music_request = self._soundtrack.request(node)
-            refs, inputs = [], []
-            params = {
-                "output_format": music_request.output_format,
-                "modalities": ["text", "audio"],
-                "stream": True,
-                "validated": music_request.validate is not None,
-            }
-            if music_request.metadata:
-                params["metadata"] = dict(music_request.metadata)
-            caller = self._sync_artifact_validation(
-                music_request.validate,
-                BinaryArtifact(data=artifact_data, media_type="audio/mpeg"),
-            )
-            response_shape = (
-                None if provider_response is None else provider_response.get("source_shape")
-            )
-            if response_shape not in {"sse", "json"}:
-                raise ValueError("music provenance has no valid provider response shape")
-            validation = {
-                "output_nonempty": True,
-                "base64": "strict",
-                "media_type": "audio/mpeg",
-                "signature": "matched",
-                "source_shape": response_shape,
-                "caller": music_request.validate is not None,
-                **caller,
-            }
-            component = MUSIC_GENERATION_COMPONENT
-            seed = music_request.seed
-            rights = (
-                None
-                if music_request.rights is None
-                else music_request.rights.model_dump(mode="json")
-            )
-        elif node.operation == RunnerOperationKind.SOUND_EFFECT_GENERATION:
-            sound_request = self._sound_effect_request(node)
-            refs, inputs = [], []
-            params = {
-                "output_format": sound_request.output_format,
-                "loop": sound_request.loop,
-                "validated": sound_request.validate is not None,
-            }
-            if sound_request.duration_seconds is not None:
-                params["duration_seconds"] = sound_request.duration_seconds
-            if sound_request.prompt_influence is not None:
-                params["prompt_influence"] = sound_request.prompt_influence
-            if sound_request.metadata:
-                params["metadata"] = dict(sound_request.metadata)
-            # The live validator decodes asynchronously; the cache path must
-            # restate the same facts synchronously, so it measures again here.
-            caller = admit_sound_effect_bytes_sync(artifact_data)
-            response_shape = (
-                None if provider_response is None else provider_response.get("source_shape")
-            )
-            if response_shape != "binary":
-                raise ValueError("sound effect provenance has no valid provider response shape")
-            validation = {
-                "output_nonempty": True,
-                "media_type": "audio/mpeg",
-                "signature": "matched",
-                "source_shape": response_shape,
-                "caller": True,
-                **caller,
-            }
-            component = SOUND_EFFECT_GENERATION_COMPONENT
-            seed = None
-            rights = (
-                None
-                if sound_request.rights is None
-                else sound_request.rights.model_dump(mode="json")
-            )
-        elif node.operation == RunnerOperationKind.SPEECH_GENERATION:
-            speech_request = self._speech_request(node)
-            refs, inputs = [], []
-            params = {
-                "voice": speech_request.voice,
-                "output_format": speech_request.output_format,
-                "validated": speech_request.validate is not None,
-            }
-            if speech_request.stability is not None:
-                params["stability"] = speech_request.stability
-            if speech_request.language_code is not None:
-                params["language_code"] = speech_request.language_code
-            if speech_request.metadata:
-                params["metadata"] = dict(speech_request.metadata)
-            # The live validator decodes asynchronously; the cache path must
-            # restate the same facts synchronously, so it measures again here.
-            caller = admit_speech_bytes_sync(
-                artifact_data, max_seconds=self._spoken_line(node)[1].max_seconds
-            )
-            response_shape = (
-                None if provider_response is None else provider_response.get("source_shape")
-            )
-            if response_shape != "binary":
-                raise ValueError("speech provenance has no valid provider response shape")
-            validation = {
-                "output_nonempty": True,
-                "media_type": "audio/mpeg",
-                "signature": "matched",
-                "source_shape": response_shape,
-                "caller": True,
-                **caller,
-            }
-            component = SPEECH_GENERATION_COMPONENT
-            seed = None
-            rights = (
-                None
-                if speech_request.rights is None
-                else speech_request.rights.model_dump(mode="json")
-            )
-        else:
-            raise ValueError(f"node {node.node_id} is not provider-backed")
-
-        prompt = self._provider_prompt(node)
-        return _json_normalize_provider_identity(
-            {
-                "schema_version": 2,
-                "provider": node.provider,
-                "model": node.model,
-                "seed": seed,
-                "prompt": prompt,
-                "prompt_sha256": content_sha256(prompt.encode("utf-8")),
-                "references": refs,
-                "refs": refs,
-                "inputs": inputs,
-                "params": params,
-                "validation": validation,
-                "component": component.model_dump(mode="json"),
-                "tool": STAGE_GEN_TOOL.model_dump(mode="json"),
-                "rights": rights,
-            }
-        )
 
     def _admit_provider_artifact(self, node: Node, data: bytes) -> None:
         """Run the same refusal-bearing check the provider retry owner runs."""
@@ -1922,501 +1346,6 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
             alpha_policy=alpha_policy,
             coverage_policy=coverage,
             validation_policy=ImageRepeatValidationPolicy(),
-        )
-
-    def _admit_loop_bundle(
-        self,
-        node: Node,
-        bundle: Mapping[str, bytes],
-        *,
-        provider_operations: int,
-        output_selection: str,
-    ) -> None:
-        source_ref = self._dependency_artifact(node, kind=LAYER_RAW_KIND)
-        source = (self._run_dir / source_ref).read_bytes()
-        looped = bundle[node.port("loop_image").artifact_ref]
-        report = self._strict_json_object(
-            bundle[node.port("loop_report").artifact_ref], label=f"{node.node_id} loop report"
-        )
-        repeat = self._repeat_report(node, looped)
-        if repeat.verdict != "pass":
-            raise ValueError(f"{node.node_id} cached loop fails current x-repeat admission")
-
-        construction = cast("LoopConstruction", node.params["construction"])
-        from stage_gen.media import LOOP_METHODS
-
-        generative = LOOP_METHODS[construction].is_generative
-        if not generative:
-            if provider_operations or output_selection != "local_output":
-                raise ValueError("deterministic loop has provider provenance")
-            source_admission = self._repeat_report(node, source)
-            if source_admission.verdict == "pass":
-                expected_image = source
-                expected: dict[str, object] = {
-                    "schema_version": 1,
-                    "kind": "direct-loop-admission-v1",
-                    "construction": "none",
-                    "skipped_construction": construction,
-                    "provider_operations": 0,
-                }
-            else:
-                expected_image, expected = construct_deterministic(construction, source)
-                expected["construction"] = construction
-            expected["repeat"] = self._repeat_report(node, expected_image).model_dump(mode="json")
-            self._require_equal(looped, expected_image, label=f"{node.node_id} loop bytes")
-            self._require_equal(report, expected, label=f"{node.node_id} loop report")
-            return
-
-        edit = bundle[node.port("edit_image").artifact_ref]
-        if self._repeat_report(node, source).verdict == "pass":
-            if provider_operations or output_selection != "local_output":
-                raise ValueError("directly admitted loop claims a provider operation")
-            expected = {
-                "schema_version": 1,
-                "kind": "direct-loop-admission-v1",
-                "construction": "none",
-                "skipped_construction": construction,
-                "provider_operations": 0,
-                "repeat": repeat.model_dump(mode="json"),
-            }
-            self._require_equal(looped, source, label=f"{node.node_id} direct loop bytes")
-            self._require_equal(edit, source, label=f"{node.node_id} skipped edit bytes")
-            self._require_equal(report, expected, label=f"{node.node_id} direct loop report")
-            return
-
-        if provider_operations < 1:
-            raise ValueError("generative loop needing construction records no provider operation")
-        conditioning = loop_conditioning(construction, source)
-        layer = self._layer(node)
-        validate_provider_image(
-            edit,
-            width=conditioning.width,
-            height=conditioning.height,
-            transparent=layer.alpha_mode == "transparent",
-        )
-        try:
-            candidate, candidate_record = assemble_loop(
-                construction, source, edit, conditioning=conditioning
-            )
-        except RegistrationError as error:
-            candidate = None
-            candidate_record = None
-            rejection = str(error)
-            rejected_repeat = None
-        else:
-            candidate_repeat = self._repeat_report(node, cast("bytes", candidate))
-            rejection = "constructed loop failed x-repeat admission"
-            rejected_repeat = candidate_repeat.model_dump(mode="json")
-
-        if output_selection == "provider_output":
-            if candidate is None or candidate_record is None:
-                raise ValueError("selected provider loop fails current registration")
-            candidate_repeat = self._repeat_report(node, candidate)
-            if candidate_repeat.verdict != "pass":
-                raise ValueError("selected provider loop fails current repeat admission")
-            expected = dict(candidate_record)
-            expected["construction"] = construction
-            expected["provider_operations"] = provider_operations
-            expected["repeat"] = candidate_repeat.model_dump(mode="json")
-            self._require_equal(looped, candidate, label=f"{node.node_id} selected loop bytes")
-            self._require_equal(report, expected, label=f"{node.node_id} selected loop report")
-            return
-
-        if output_selection != "fallback_output":
-            raise ValueError("constructed loop has unsupported output selection")
-        if candidate is not None and rejected_repeat is not None:
-            candidate_repeat = self._repeat_report(node, candidate)
-            if candidate_repeat.verdict == "pass":
-                raise ValueError("fallback ledger rejected a currently admissible provider loop")
-        fallback = self._track().continuity.loop_fallback
-        fallback_image, fallback_record = construct_deterministic(fallback, source)
-        expected = dict(fallback_record)
-        expected["construction"] = fallback
-        expected["rejected_construction"] = construction
-        expected["rejection"] = rejection
-        if rejected_repeat is not None:
-            expected["rejected_repeat"] = rejected_repeat
-        expected["provider_operations"] = provider_operations
-        expected["repeat"] = self._repeat_report(node, fallback_image).model_dump(mode="json")
-        self._require_equal(looped, fallback_image, label=f"{node.node_id} fallback loop bytes")
-        self._require_equal(report, expected, label=f"{node.node_id} fallback loop report")
-
-    @staticmethod
-    def _admit_evidence(record: Mapping[str, object], states: Sequence[str]) -> None:
-        evidence = record.get("evidence")
-        if not isinstance(evidence, dict) or set(evidence) != set(states):
-            raise ValueError("motion-rebase evidence does not cover current states")
-        if any(
-            not isinstance(value, str) or not value.strip() or len(value) > 300
-            for value in evidence.values()
-        ):
-            raise ValueError("motion-rebase evidence is malformed")
-
-    @staticmethod
-    def _numeric_state_map(
-        value: object,
-        states: Sequence[str],
-        *,
-        label: str,
-    ) -> dict[str, float]:
-        if not isinstance(value, dict) or set(value) != set(states):
-            raise ValueError(f"{label} does not cover current states")
-        result: dict[str, float] = {}
-        for state, raw in value.items():
-            if isinstance(raw, bool) or not isinstance(raw, (int, float)):
-                raise ValueError(f"{label} contains a non-number")
-            number = float(raw)
-            if not math.isfinite(number):
-                raise ValueError(f"{label} contains a non-finite number")
-            result[cast("str", state)] = number
-        return result
-
-    def _admit_tool_loop_bundle(self, node: Node, bundle: Mapping[str, bytes]) -> None:
-        if node.type_id != FX_CUT_IN_PLACE.type_id:
-            raise ValueError(f"unknown runner tool-loop cache node {node.type_id}")
-        record_ref = self._provider_output_ref(node)
-        record = self._strict_json_object(bundle[record_ref], label=record_ref)
-        raw_ref = self._dependency_artifact(node, kind=FX_CUT_IN_RAW_KIND)
-        frame_ref = self._dependency_artifact(node, kind=FX_CUT_IN_PLATE_KIND)
-        expected = admit_cut_in_placement(
-            record,
-            portrait_sha256=content_sha256((self._run_dir / raw_ref).read_bytes()),
-            frame_sha256=content_sha256((self._run_dir / frame_ref).read_bytes()),
-        )
-        self._require_equal(record, expected, label=f"{node.node_id} admitted placement")
-
-    def _admit_structured_bundle(self, node: Node, bundle: Mapping[str, bytes]) -> None:
-        if node.type_id == FX_CUT_IN_REVIEW.type_id:
-            # The shared family's verdict: a well-formed review is the whole
-            # admission, its identity is proved by the provenance pair.
-            verdict_ref = self._provider_output_ref(node)
-            parse_cut_in_review(self._strict_json_object(bundle[verdict_ref], label=verdict_ref))
-            return
-        subject = self._actor(node)
-        states = list(subject.states)
-        frames = self._state_frames(node)
-        plate = build_motion_rebase_plate(frames, baseline_state=subject.baseline_state)
-        plate_data = bundle[node.port("plate").artifact_ref]
-        record_ref = self._provider_output_ref(node)
-        record = self._strict_json_object(bundle[record_ref], label=record_ref)
-        if node.type_id == MOTION_REBASE_JUDGE.type_id:
-            self._require_equal(
-                plate_data, plate.png, label=f"{node.node_id} current comparison plate"
-            )
-            self._require_equal(
-                set(record),
-                {"baseline_state", "states", "plate_sha256", "evidence"},
-                label=f"{node.node_id} reading fields",
-            )
-            admit_first_pass_record(
-                record,
-                published_states=states,
-                plate=plate,
-                baseline_state=subject.baseline_state,
-            )
-            self._admit_evidence(record, states)
-            return
-        if node.type_id != MOTION_REBASE_VERIFY.type_id:
-            raise ValueError(f"unknown runner structured cache node {node.type_id}")
-
-        first_ref = self._dependency_artifact(node, kind=REBASE_READING_KIND, port_id="reading")
-        first_record = self._strict_json_object(
-            (self._run_dir / first_ref).read_bytes(), label=first_ref
-        )
-        first_pass = admit_first_pass_record(
-            first_record,
-            published_states=states,
-            plate=plate,
-            baseline_state=subject.baseline_state,
-        )
-        verification_plate = build_motion_rebase_verification_plate(
-            frames, first_pass, baseline_state=subject.baseline_state
-        )
-        self._require_equal(
-            plate_data,
-            verification_plate.png,
-            label=f"{node.node_id} current verification plate",
-        )
-        self._require_equal(
-            set(record),
-            {
-                "baseline_state",
-                "states",
-                "first_pass",
-                "correction",
-                "plate_sha256",
-                "verification_plate_sha256",
-                "evidence",
-            },
-            label=f"{node.node_id} verification fields",
-        )
-        self._require_equal(
-            record["baseline_state"],
-            subject.baseline_state,
-            label=f"{node.node_id} verification baseline",
-        )
-        self._require_equal(
-            record["plate_sha256"], plate.sha256, label=f"{node.node_id} plate digest"
-        )
-        self._require_equal(
-            record["verification_plate_sha256"],
-            verification_plate.sha256,
-            label=f"{node.node_id} verification plate digest",
-        )
-        recorded_first = self._numeric_state_map(
-            record["first_pass"], states, label="verification first pass"
-        )
-        self._require_equal(
-            recorded_first,
-            {state: round(first_pass[state], 2) for state in states},
-            label=f"{node.node_id} first-pass binding",
-        )
-        corrections = self._numeric_state_map(
-            record["correction"], states, label="verification corrections"
-        )
-        if corrections[subject.baseline_state] != 1.0 or any(
-            not 0.5 <= value <= 2.0 for value in corrections.values()
-        ):
-            raise ValueError("verification corrections lie outside the admitted residual band")
-        expected_states = {
-            state: (
-                1.0
-                if state == subject.baseline_state
-                else round(first_pass[state] * corrections[state], 2)
-            )
-            for state in states
-        }
-        self._require_equal(
-            self._numeric_state_map(record["states"], states, label="verification states"),
-            expected_states,
-            label=f"{node.node_id} composed verification",
-        )
-        self._admit_evidence(record, states)
-
-    def _admit_local_bundle(self, node: Node, bundle: Mapping[str, bytes]) -> None:
-        """Re-derive deterministic local cache outputs from admitted dependencies."""
-
-        if node.type_id == PACKAGE_RESOLVE.type_id:
-            actual = self._strict_json_object(
-                bundle[node.port("package").artifact_ref], label="runner package identity"
-            )
-            self._require_equal(actual, self._resolved.identity(), label="runner package identity")
-            return
-        if node.type_id == TRACK_GROUND_VALIDATE.type_id:
-            source_ref = self._dependency_artifact(node, kind=GROUND_RAW_KIND)
-            canonical, validation = assemble_terrain_atlas(
-                (self._run_dir / source_ref).read_bytes()
-            )
-            if validation["classification"] != "direct_pass":
-                raise ValueError("cached terrain source no longer directly passes")
-            self._admit_local_image_and_record(node, bundle, image=canonical, validation=validation)
-            return
-        if node.type_id == TRACK_STRUCTURAL_GROUND_GUIDE.type_id:
-            chunk = self._segment(node)
-            inputs = self._structural_material_inputs()
-            guide, report = build_structural_ground_guide(
-                chunk.occupancy,
-                walk_surface_row=self._track().segments.walk_surface_row,
-                material_identity=self._structural_material_identity(),
-                material_references=[data for _ref, data in inputs],
-            )
-            self._admit_local_image_and_record(
-                node,
-                bundle,
-                image=guide,
-                validation={**report, "segment_id": chunk.segment_id},
-            )
-            return
-        if node.type_id == TRACK_STRUCTURAL_GROUND_SEAM_BRIDGE.type_id:
-            chunk = self._segment(node)
-            raw_ref = self._dependency_artifact(node, kind=STRUCTURAL_GROUND_RAW_KIND)
-            guide_ref = self._dependency_artifact(node, kind=STRUCTURAL_GROUND_GUIDE_KIND)
-            inputs = self._structural_material_inputs()
-            bridge, report = canonicalize_structural_ground_seam_bridge(
-                (self._run_dir / raw_ref).read_bytes(),
-                occupancy=chunk.occupancy,
-                walk_surface_row=self._track().segments.walk_surface_row,
-                material_identity=self._structural_material_identity(),
-                material_references=[data for _ref, data in inputs],
-                guide=(self._run_dir / guide_ref).read_bytes(),
-            )
-            validate_structural_ground_seam_bridge(
-                bridge,
-                rows=len(chunk.occupancy),
-                walk_surface_row=self._track().segments.walk_surface_row,
-            )
-            self._admit_local_image_and_record(
-                node,
-                bundle,
-                image=bridge,
-                validation={**report, "source_segment_id": chunk.segment_id},
-            )
-            return
-        if node.type_id == TRACK_STRUCTURAL_GROUND_VALIDATE.type_id:
-            chunk = self._segment(node)
-            raw_ref = self._dependency_artifact(node, kind=STRUCTURAL_GROUND_RAW_KIND)
-            guide_ref = self._dependency_artifact(node, kind=STRUCTURAL_GROUND_GUIDE_KIND)
-            bridge_ref = self._dependency_artifact(node, kind=STRUCTURAL_GROUND_SEAM_BRIDGE_KIND)
-            bridge = (self._run_dir / bridge_ref).read_bytes()
-            inputs = self._structural_material_inputs()
-            canonical, report = canonicalize_structural_ground(
-                (self._run_dir / raw_ref).read_bytes(),
-                occupancy=chunk.occupancy,
-                walk_surface_row=self._track().segments.walk_surface_row,
-                material_identity=self._structural_material_identity(),
-                material_references=[data for _ref, data in inputs],
-                guide=(self._run_dir / guide_ref).read_bytes(),
-                seam_bridge=bridge,
-            )
-            validate_structural_ground_canonical(
-                canonical,
-                occupancy=chunk.occupancy,
-                walk_surface_row=self._track().segments.walk_surface_row,
-                seam_bridge=bridge,
-            )
-            self._admit_local_image_and_record(
-                node,
-                bundle,
-                image=canonical,
-                validation={
-                    **report,
-                    "segment_id": chunk.segment_id,
-                    "seam_bridge_ref": bridge_ref,
-                },
-            )
-            return
-        if node.type_id == LAYER_LOOP_CONSTRUCT.type_id:
-            self._admit_loop_bundle(
-                node,
-                bundle,
-                provider_operations=0,
-                output_selection="local_output",
-            )
-            return
-        if node.type_id == LAYER_VALIDATE.type_id:
-            layer = self._layer(node)
-            source_ref = self._dependency_artifact(node, kind=LAYER_LOOP_KIND)
-            looped = (self._run_dir / source_ref).read_bytes()
-            published, validation = _publish_runner_layer(layer, looped)
-            self._admit_local_image_and_record(node, bundle, image=published, validation=validation)
-            return
-        if node.type_id in (AVATAR_MOTION_VALIDATE.type_id, BOSS_MOTION_VALIDATE.type_id):
-            state = str(node.params["state"])
-            geometry = DEFAULT_MOTION_ATLAS_GEOMETRY
-            source_ref = self._dependency_artifact(node, kind=MOTION_RAW_KIND)
-            source = (self._run_dir / source_ref).read_bytes()
-            source_facts = _validate_motion_source(source)
-            motion = self._actor(node).motion(state)
-            canonical, repack = repack_alpha_components(
-                source,
-                AlphaComponentRepackContract(
-                    rows=geometry.rows,
-                    columns=geometry.columns,
-                    required_cells=geometry.required_cells,
-                    anchor=motion.anchor,
-                    source_slot_policy="exact_required_slots",
-                ),
-            )
-            validation = {
-                "schema_version": 2,
-                "kind": "sideview-runner-motion-validation-v2",
-                "state": state,
-                "columns": geometry.columns,
-                "rows": geometry.rows,
-                "frames": geometry.required_cells,
-                "runtime_horizontal_mirroring": True,
-                "source_validation": source_facts,
-                "repack": repack,
-            }
-            self._admit_local_image_and_record(node, bundle, image=canonical, validation=validation)
-            return
-        if node.type_id == CATALOG_ASSET_VALIDATE.type_id:
-            source_ref = self._dependency_artifact(node, kind=CATALOG_RAW_KIND)
-            source = (self._run_dir / source_ref).read_bytes()
-            family = str(node.params["family"])
-            published, trim, sparse_tail_trim = canonicalize_runner_catalog_sprite(
-                source, family=family
-            )
-            validation = {
-                "schema_version": 3,
-                "kind": "sideview-runner-catalog-validation-v3",
-                "family": family,
-                "entity_id": node.params["entity_id"],
-                "source_validation": _validate_transparent_sprite(source),
-                "trim": trim,
-                "sparse_tail_trim": sparse_tail_trim,
-            }
-            self._admit_local_image_and_record(node, bundle, image=published, validation=validation)
-            return
-        if node.type_id == FX_CUT_IN_DRAW.type_id:
-            self._require_equal(
-                bundle[node.port("image").artifact_ref],
-                draw_procedural_frame(),
-                label="procedural cut-in frame",
-            )
-            return
-        if node.type_id == FX_SPRITE_DUST_VALIDATE.type_id:
-            raw_ref = self._dependency_artifact(node, kind=FX_SPRITE_DUST_RAW_KIND)
-            canonical, record, _facts = derive_sprite_dust_validation(
-                (self._run_dir / raw_ref).read_bytes()
-            )
-            self._admit_local_image_and_record(node, bundle, image=canonical, validation=record)
-            return
-        if node.type_id == FX_CUT_IN_VALIDATE.type_id:
-            raw_ref = self._dependency_artifact(node, kind=FX_CUT_IN_RAW_KIND)
-            frame_record: dict[str, object] | None = None
-            frame_data: bytes | None = None
-            placement_record: dict[str, object] | None = None
-            if str(node.params["plate"]) == "portrait":
-                record_ref = self._dependency_artifact(node, kind=FX_CUT_IN_VALIDATION_KIND)
-                frame_record = self._strict_json_object(
-                    (self._run_dir / record_ref).read_bytes(), label=record_ref
-                )
-                frame_ref = self._dependency_artifact(node, kind=FX_CUT_IN_PLATE_KIND)
-                frame_data = (self._run_dir / frame_ref).read_bytes()
-                placement_ref = self._dependency_artifact(node, kind=FX_CUT_IN_PLACEMENT_KIND)
-                placement_record = self._strict_json_object(
-                    (self._run_dir / placement_ref).read_bytes(), label=placement_ref
-                )
-            canonical, record, _facts = derive_cut_in_validation(
-                (self._run_dir / raw_ref).read_bytes(),
-                node,
-                frame_record=frame_record,
-                frame_data=frame_data,
-                placement_record=placement_record,
-            )
-            self._admit_local_image_and_record(node, bundle, image=canonical, validation=record)
-            return
-        if node.type_id in {
-            SOUNDTRACK_VALIDATE.type_id,
-            SOUND_EFFECT_VALIDATE.type_id,
-            SPEECH_VALIDATE.type_id,
-            AUDIO_REPUBLISH.type_id,
-            MANIFEST_ASSEMBLE.type_id,
-        }:
-            # These are cheap local publication gates. Audio validation needs
-            # an actual ffprobe and manifest assembly closes over every
-            # admitted output, so rerun them instead of trusting a serialized
-            # verdict that cannot be decisively checked in this synchronous
-            # cache callback.
-            raise ValueError(f"{node.node_id} is always refreshed locally")
-        raise ValueError(f"runner cache has no local admission for {node.type_id}")
-
-    def _admit_local_image_and_record(
-        self,
-        node: Node,
-        bundle: Mapping[str, bytes],
-        *,
-        image: bytes,
-        validation: Mapping[str, object],
-    ) -> None:
-        image_ref = node.port("image").artifact_ref
-        validation_ref = node.port("validation").artifact_ref
-        self._require_equal(bundle[image_ref], image, label=f"{node.node_id} local image")
-        self._require_equal(
-            self._strict_json_object(bundle[validation_ref], label=validation_ref),
-            dict(validation),
-            label=f"{node.node_id} local validation",
         )
 
     # ---------------------------------------------------------------- dispatch
@@ -3051,17 +1980,6 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
             artifact_dir=f"boss/{boss.boss_id}",
             concept_kind=BOSS_CONCEPT_KIND,
         )
-
-    def _state_frames(self, node: Node) -> dict[str, tuple[bytes, ...]]:
-        subject = self._actor(node)
-        frames_by_state: dict[str, tuple[bytes, ...]] = {}
-        geometry = DEFAULT_MOTION_ATLAS_GEOMETRY
-        for state in subject.states:
-            atlas_ref = f"{subject.artifact_dir}/{state}.png"
-            frames_by_state[state] = split_atlas_columns(
-                (self._run_dir / atlas_ref).read_bytes(), geometry.columns, geometry.rows
-            )
-        return frames_by_state
 
     def _rebase_subject(self, node: Node) -> RebaseSubject:
         """The family's view of this node's actor: the runner's subject, atlases by convention."""

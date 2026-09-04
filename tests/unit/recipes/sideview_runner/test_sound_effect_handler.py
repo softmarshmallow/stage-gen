@@ -174,17 +174,7 @@ async def test_generate_then_validate_persists_level_facts_and_replays_them(
     assert record["peak_dbfs"] == sidecar["validation"]["peak_dbfs"]
     assert record["listening_verdict"] == "not_performed"
 
-    # The synchronous cache path restates exactly the facts the live owner recorded.
-    identity = handler.expected_provider_provenance_identity(
-        graph.node(GENERATE), clip, provider_response={"source_shape": "binary"}
-    )
-    assert identity["prompt"] == AUTHORED_PROMPT
-    assert identity["params"] == sidecar["params"]
-    assert identity["validation"] == sidecar["validation"]
-    with pytest.raises(ValueError, match="provider response shape"):
-        handler.expected_provider_provenance_identity(
-            graph.node(GENERATE), clip, provider_response={"source_shape": "sse"}
-        )
+    # The cache path re-proves the clip against the same gate the live owner ran.
     handler._admit_provider_artifact(graph.node(GENERATE), clip)
 
 
