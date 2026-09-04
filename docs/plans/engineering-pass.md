@@ -903,6 +903,35 @@ each block so a consumer refuses the one block that moved. **G3** stays the user
 decision, as the plan lists it.
 
 
+**2026-09-05 — Runtime step 7 landed (workstream E): a genre from three TOML tables.**
+Five commits on its branch, rebased over D5 and D9 and fast-forwarded onto `main`.
+The `score` and `timers` families under `web/lib/families/` parse C5's optional blocks
+through the block gate (a refusal names the block and both versions), pass E4 with
+two hand-built worlds each, and pass E7 - the roster minus the family seals to the
+identical order minus it. `waves` is a `director` profile, not a population: it draws
+from the `[mob_population]` zones already authored, read as waves, and the one authored
+word that selects that reading is an award for `wave_cleared`, the only member of the
+score vocabulary a story game never pays. Five systems joined the platformer roster
+(`director/waves`, `timers/countdown`, `session/run`, `score/run`, `hud/round`), all
+quiet for both shipped packages: **both platformer goldens byte-identical, nothing
+re-pinned**; the runner's `10` / `500` preserved, E1 zero diff. Ordering cost: one new
+`after` edge and one new undeclared feedback read (the step-2 list is now ten). The
+variant `library/games/bellweather-waves/` is Bellweather file for file except
+`gameplay.toml` (entry on Crowncrag Road, `[score]`, `[timers]`); its plan shares all
+230 node ids with Bellweather's and moves exactly three cache keys, all local. Assembled
+provider-free: `ok`, zero provider operations in every count, 109 artifacts, 122 of 230
+nodes adopted from the five content roots. Played headless over the assembled manifest
+for 3,000 fixed steps: 13 waves spawned across the road's three zones, 10 cleared,
+6,375 points, `session-ended {cause: "timer"}` at frame 2945 with exactly 90,000 ms of
+simulation time elapsed (243 frames carried none: own-blow hitstop); the durable golden
+pins a fixture round at 2,135 points with its arithmetic spelled out. Owed: the E5
+stills (no browser, since step 2); an arena of the variant's own (layer images, and the
+road proves the point for nothing). Measured cost worth a card: the variant duplicates
+Bellweather's 14 MB of reference media because the package closure forbids symlinks;
+two sibling packages sharing references by digest is a contract question for the
+G lane, not a copy to keep making.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one
