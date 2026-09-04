@@ -190,9 +190,10 @@ export function attachPointerIntentSource(
 export function createIntentSystem(latch: RunnerIntentLatch): GameSystem<RunnerWorld> {
   return {
     id: "runner/intent",
-    contractVersion: "intent-system-v2",
+    contractVersion: "intent-system-v3",
     reads: [],
-    writes: ["intent"],
+    writes: [],
+    owns: ["intent"],
     update(world) {
       world.intent = latch.sample();
     },

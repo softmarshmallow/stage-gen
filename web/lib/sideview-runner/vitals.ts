@@ -21,6 +21,7 @@ import type { RunnerDamageSource } from "./contract";
 import type { GameSystem } from "@/lib/kernel/systems";
 import { surfaceRowAt } from "./segments";
 import type { EncounterEvent } from "./encounter";
+import type { RunLoopEvent } from "./run-loop";
 import type { RunnerWorld } from "./world";
 
 /**
@@ -99,10 +100,12 @@ export type RunnerEvent =
   | { readonly type: "absorbed"; readonly source: RunnerDamageSource }
   /** The run is over, by this source. */
   | { readonly type: "run-ended"; readonly source: RunnerDamageSource }
-  /** A screen-FX moment released the simulation, or finished. */
+  /** A moment was asked for, released the simulation, or finished. */
   | FxEvent
   /** The boss encounter's own announcements. */
-  | EncounterEvent;
+  | EncounterEvent
+  /** The lifecycle's own: this run is over and another was asked for. */
+  | RunLoopEvent;
 
 /**
  * The first solid surface at or after a column, or null within the lookahead.
@@ -157,9 +160,10 @@ export function avatarBlinkAlpha(world: RunnerWorld): number {
 export function createVitalsSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/vitals",
-    contractVersion: "vitals-system-v2",
+    contractVersion: "vitals-system-v3",
     reads: ["avatar", "segments"],
-    writes: ["vitals"],
+    writes: [],
+    owns: ["vitals"],
     consumes: ["hazard-contact", "pit", "crush", "shot-contact"],
     emits: ["drained", "absorbed", "run-ended"],
     update(world, step) {

@@ -286,15 +286,20 @@ export function cameraScrollX(distanceColumns: number, config: RunnerWorldConfig
 
 /**
  * The auto-run camera: scroll is a pure function of the avatar's distance.
- * It reads `run` as well because a restart resets the world mid-frame, and
- * the camera must frame the fresh run, not the dead one it was following.
+ *
+ * It used to declare a read of `run` it never performed, to buy the ordering
+ * edge that put it after the run-loop. That is what `after` is for, and the
+ * edge is still wanted: the run-loop is where a run ends, and the frame the
+ * camera draws should be the one the lifecycle has finished deciding.
  */
 export function createCameraSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/camera",
-    contractVersion: "camera-system-v1",
-    reads: ["avatar", "run"],
-    writes: ["camera"],
+    contractVersion: "camera-system-v2",
+    reads: ["avatar"],
+    writes: [],
+    owns: ["camera"],
+    after: ["runner/run-loop"],
     update(world) {
       world.camera.scrollX = cameraScrollX(world.avatar.distanceColumns, world.config);
     },

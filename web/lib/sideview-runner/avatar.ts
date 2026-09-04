@@ -242,9 +242,12 @@ function stepThrust(world: RunnerWorld, dt: number, thrust: ThrustArithmetic): v
 export function createAvatarSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/avatar",
-    contractVersion: "avatar-system-v4",
+    contractVersion: "avatar-system-v5",
     reads: ["intent", "difficulty"],
-    writes: ["avatar"],
+    writes: [],
+    // One author for the avatar, death pose included: the run-loop used to
+    // write the pose too, a frame earlier, without declaring it.
+    owns: ["avatar"],
     emits: ["pit", "crush"],
     update(world, step) {
       stepAvatar(world, step.dt);

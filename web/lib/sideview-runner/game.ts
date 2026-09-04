@@ -80,7 +80,12 @@ import {
   surfaceRowAt,
   createSegmentsSystem,
 } from "./segments";
-import { sealSystems, type GameSystem, type SealedSystems } from "@/lib/kernel/systems";
+import {
+  sealSystems,
+  type GameSystem,
+  type SealOptions,
+  type SealedSystems,
+} from "@/lib/kernel/systems";
 import {
   buildCutInView,
   type CutInMomentBinding,
@@ -143,6 +148,32 @@ export function assembleRunnerSystems(
     // from a headless boot with the silent canvas.
     createDustSystem(dust, dustOptions),
   ];
+}
+
+/**
+ * What every host must pass to seal that roster.
+ *
+ * A composition is its declarations *and* its boundaries: the queue that is
+ * cleared each frame, and the occurrence that ends a run. A host that sealed
+ * the roster without `resetOn` would run a game in which death is permanent
+ * and the restart press does nothing, so it is not left to each host to
+ * remember — the boot, the replay harness and the order tests all seal the
+ * same way.
+ */
+export function runnerSealOptions(
+  options: {
+    readonly clock?: () => { reset(): void };
+    readonly devTrap?: boolean;
+  } = {},
+): SealOptions<RunnerWorld> {
+  return {
+    events: (world) => world.events,
+    resetOn: ["run-restarted"],
+    // The clock is for a session reset only: a restart must not rewind the
+    // clock a moment in flight is timed against.
+    ...(options.clock ? { clock: options.clock } : {}),
+    ...(options.devTrap ? { devTrap: true } : {}),
+  };
 }
 
 /** The viewer's motion preference; a headless or pre-window boot reads as no preference. */
@@ -442,7 +473,7 @@ class RunnerScene extends Phaser.Scene {
         dustCanvas,
         { reducedMotion: prefersReducedMotion() },
       ),
-      { events: (current) => current.events },
+      runnerSealOptions({ clock: () => this.accumulator }),
     );
     this.world = world;
     this.children.getByName("loading-label")?.destroy();

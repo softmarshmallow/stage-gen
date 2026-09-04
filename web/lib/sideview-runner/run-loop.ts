@@ -11,6 +11,14 @@
 // run's RNG — deterministic given the original seed, different from the run
 // just played. Replaying the same seed is a deliberate act through the boot
 // handle, not an input gesture.
+//
+// The restart is asked for, not performed here. This system emits
+// `run-restarted`; the composition names that occurrence in `resetOn`, lets
+// the frame finish, and then runs the reset — which is this system's own
+// `reset`, plus an emptied event queue. It used to rewrite eleven slices in
+// the middle of its own update, with six systems still to run on a world that
+// had just been replaced under them and a dead run's occurrences still in the
+// queue.
 
 import type { Rng } from "@/lib/kernel/rng";
 import { resetRunnerWorld, type RunnerWorld } from "./world";
@@ -38,13 +46,33 @@ export function nextRunSeed(rng: Rng): number {
   return Math.floor(rng() * 0x100000000) >>> 0;
 }
 
+/** The lifecycle's own occurrence: this run is over and another was asked for. */
+export type RunLoopEvent = {
+  readonly type: "run-restarted";
+  readonly seed: number;
+};
+
 export function createRunLoopSystem(): GameSystem<RunnerWorld> {
+  // The seed the next run starts from, drawn from the dying run's stream at
+  // the moment the restart is asked for. Held here rather than on the world
+  // because it belongs to no slice: between the ask and the reset there is no
+  // run for it to be part of.
+  let pendingSeed: number | null = null;
   return {
     id: "runner/run-loop",
-    contractVersion: "run-loop-system-v4",
+    contractVersion: "run-loop-system-v5",
     reads: ["intent", "avatar", "obstacles"],
-    writes: ["run"],
+    writes: [],
+    owns: ["run"],
+    emits: ["run-restarted"],
     consumes: ["run-ended", "fx-released", "boss-defeated"],
+    reset(world, scope) {
+      // Called by the composition, never mid-tick. A session replays the boot,
+      // cut-in and all; a run picks up the seed the ask drew.
+      const seed = pendingSeed ?? nextRunSeed(world.run.rng);
+      pendingSeed = null;
+      resetRunnerWorld(world, seed, { intro: scope === "session" });
+    },
     update(world) {
       const run = world.run;
       if (run.phase === "intro") {
@@ -79,7 +107,10 @@ export function createRunLoopSystem(): GameSystem<RunnerWorld> {
         if (ended) {
           run.phase = "dead";
           run.cause = ended.source;
-          world.avatar.motion = "death";
+          // The death pose is not written here. `avatar` has one author, and
+          // it already wears `death` for as long as the phase is dead — one
+          // frame later, which is the sixtieth of a second its own comment
+          // has always claimed.
         }
         return;
       }
@@ -87,7 +118,8 @@ export function createRunLoopSystem(): GameSystem<RunnerWorld> {
       // that caused the death was consumed by its own frame, so this is
       // always a new, deliberate press.
       if (world.intent.action || world.intent.jump) {
-        resetRunnerWorld(world, nextRunSeed(run.rng), { intro: false });
+        pendingSeed = nextRunSeed(run.rng);
+        world.events.emit({ type: "run-restarted", seed: pendingSeed });
       }
     },
   };

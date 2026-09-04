@@ -239,9 +239,10 @@ export function streamedPickups(stream: SegmentStream): readonly StreamedPickup[
 export function createSegmentsSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/segments",
-    contractVersion: "segments-system-v3",
+    contractVersion: "segments-system-v4",
     reads: ["difficulty", "avatar", "encounter"],
-    writes: ["segments"],
+    writes: [],
+    owns: ["segments"],
     update(world) {
       const profile = rampProfile(world.config.rampProfile);
       const ahead = Math.ceil(world.avatar.distanceColumns) + world.config.streamAheadColumns;

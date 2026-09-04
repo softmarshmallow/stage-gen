@@ -96,9 +96,10 @@ export function speedMultiplier(profile: RampProfile, distanceColumns: number): 
 export function createDifficultySystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/difficulty",
-    contractVersion: "difficulty-system-v3",
+    contractVersion: "difficulty-system-v4",
     reads: [],
-    writes: ["difficulty"],
+    writes: [],
+    owns: ["difficulty"],
     after: ["runner/intent"],
     update(world) {
       const profile = rampProfile(world.config.rampProfile);

@@ -18,7 +18,7 @@ mock.module("phaser", () => ({
   },
 }));
 
-const { assembleRunnerSystems } = await import("./game");
+const { assembleRunnerSystems, runnerSealOptions } = await import("./game");
 const { sealSystems } = await import("@/lib/kernel/systems");
 const { createIntentLatch } = await import("./intent");
 const { SILENT_AUDIO_SINK } = await import("./audio");
@@ -66,26 +66,49 @@ function digest(world: unknown, events: readonly unknown[]): string {
   return hasher.digest("hex");
 }
 
-/** Digest chain checkpoints; the final value covers every frame. */
+/**
+ * Digest chain checkpoints; the final value covers every frame.
+ *
+ * Re-pinned once, for the kernel step, against a frame-by-frame diff of the
+ * previous chain. Exactly ONE of the six hundred frames moved: frame 278, the
+ * frame the run ends. The run-loop used to write `avatar.motion = "death"`
+ * itself — an undeclared write into a slice it does not own — so at 278 the
+ * avatar wore the death pose while still reading `jump`. It now wears it at
+ * 279, written by the avatar system, which is the one frame of delay that
+ * system's own comment has always claimed. 279 onward are identical, the
+ * restart at frame 410 included.
+ */
 const GOLDEN: Record<number, string> = {
+  // Unchanged from the previous pin: this checkpoint is upstream of 278.
   60: "7bdfe7f4b742caf3b323a5c30f5faa1bf1f2b352edce5095caa2cf83eba5dfb1",
-  300: "25016dd5ce1ee5b115988ec21b48199c675ed753f1023e7513e2c18e828dab69",
-  600: "e7407a8694cb4b61d1669e0eb3efe6d4df7ca869fb5eb662f74e03b49e3353c3",
+  // These two moved, and only because the chain carries frame 278 forward:
+  // frames 279..600 hash identically one by one.
+  300: "5199eb928ae27ab2ef52e4b02511cffba5ce2572f6997d15fdbca24f592b9af0",
+  600: "00746829deb2f00ddfcf2a9333e68fd16c1253e74717f427cb8e33dcb1a83d99",
 };
+
+/** The frame the run ends, and the frame after it takes the pose. */
+const DEATH_FRAME = 278;
+/** The frame the scripted jump asks for a restart. */
+const RESTART_FRAME = 410;
 
 describe("the runner replays to its golden", () => {
   test("six hundred fixed steps under a scripted intent hash to the pinned chain", () => {
     const manifest = parseRunnerRuntimeManifest(runnerManifestFixture());
     const world = createRunnerWorld(manifest, SEED);
     const latch = createIntentLatch();
-    const noopView = { sync: () => undefined };
+    const noopView = { sync: () => undefined, hide: () => undefined };
+    // Sealed with the trap on: six hundred frames of the real roster is the
+    // strongest statement available that every write is declared, and it costs
+    // thirty milliseconds. A refusal fails this test by being thrown.
     const sealed = sealSystems(
       assembleRunnerSystems(latch, noopView, noopView, SILENT_AUDIO_SINK),
-      { events: (w: RunnerWorld) => w.events },
+      runnerSealOptions({ clock: () => clock, devTrap: true }),
     );
     const clock = createFixedStepAccumulator();
     let chain = "";
     const seen: Record<number, string> = {};
+    const notes: { death?: string; restartSeed?: number; restartEvents?: number } = {};
     for (let frame = 1; frame <= FRAMES; frame += 1) {
       drive(latch, frame);
       const steps = clock.advance(FRAME_MS + 1e-9);
@@ -95,7 +118,20 @@ describe("the runner replays to its golden", () => {
       hasher.update(chain + digest(world, world.events.frame));
       chain = hasher.digest("hex");
       if (frame in GOLDEN) seen[frame] = chain;
+      if (frame === DEATH_FRAME) notes.death = world.avatar.motion;
+      if (frame === RESTART_FRAME) {
+        notes.restartSeed = world.run.seed;
+        notes.restartEvents = world.events.frame.length;
+      }
     }
     expect(seen).toEqual(GOLDEN);
+    // The documented frame, asserted rather than only described: the pose is
+    // the avatar's to write, one frame later.
+    expect(notes.death).not.toBe("death");
+    // And the restart happened, through the composition rather than mid-tick:
+    // a new seed, and no occurrence of the dead run left in the queue.
+    expect(notes.restartSeed).not.toBe(SEED);
+    expect(notes.restartEvents).toBe(0);
+    expect(world.run.phase).toBe("running");
   });
 });

@@ -3,6 +3,7 @@ import { createRunLoopSystem, nextRunSeed, PICKUP_SCORE } from "./run-loop";
 import { parseRunnerRuntimeManifest } from "./contract";
 import { runnerManifestFixture } from "./fixture";
 import { runnerIntent } from "./intent";
+import { stepAvatar } from "./avatar";
 import { mulberry32 } from "@/lib/kernel/rng";
 import { createRunnerWorld } from "./world";
 
@@ -25,6 +26,11 @@ describe("createRunLoopSystem", () => {
     system.update(world, STEP);
     expect(world.run.phase).toBe("dead");
     expect(world.run.cause).toBe("crush");
+    // The death pose is not written here. `avatar` has one author, and it
+    // wears the pose on its own next tick, from the phase this system just
+    // set — the one frame its own comment has always claimed.
+    expect(world.avatar.motion).not.toBe("death");
+    stepAvatar(world, STEP.dt);
     expect(world.avatar.motion).toBe("death");
   });
 
@@ -56,31 +62,43 @@ describe("createRunLoopSystem", () => {
     expect(world.run.phase).toBe("dead");
   });
 
-  test("a jump or action request restarts a dead run under a fresh seed", () => {
+  test("a jump or action request asks for a restart rather than performing one", () => {
+    const loop = createRunLoopSystem();
     const world = createRunnerWorld(manifest, 1);
     const firstSeed = world.run.seed;
     world.run.phase = "dead";
     world.run.score = 90;
     world.avatar.distanceColumns = 300;
     world.intent = runnerIntent({ jump: true });
-    system.update(world, STEP);
+    loop.update(world, STEP);
+    // The world is untouched: the ask is an occurrence, and the composition
+    // performs the reset at the end of the frame that carried it.
+    expect(world.run.phase).toBe("dead");
+    expect(world.run.score).toBe(90);
+    const asked = world.events.ofType("run-restarted");
+    expect(asked).toHaveLength(1);
+    expect(asked[0]?.seed).not.toBe(firstSeed);
+
+    loop.reset?.(world, "run");
     // Widened read: TS control-flow narrowing cannot see the in-place reset.
     expect(world.run.phase as string).toBe("running");
-    expect(world.run.seed).not.toBe(firstSeed);
+    expect(world.run.seed).toBe(asked[0]?.seed);
     expect(world.run.score).toBe(0);
     expect(world.avatar.distanceColumns).toBe(2);
     expect(world.segments.chunks.length).toBeGreaterThan(0);
   });
 
   test("the fresh seed is deterministic from the dying run's RNG", () => {
-    const runA = createRunnerWorld(manifest, 5);
-    const runB = createRunnerWorld(manifest, 5);
-    for (const world of [runA, runB]) {
+    const seeds = [5, 5].map((seed) => {
+      const loop = createRunLoopSystem();
+      const world = createRunnerWorld(manifest, seed);
       world.run.phase = "dead";
       world.intent = runnerIntent({ action: true });
-      system.update(world, STEP);
-    }
-    expect(runA.run.seed).toBe(runB.run.seed);
+      loop.update(world, STEP);
+      loop.reset?.(world, "run");
+      return world.run.seed;
+    });
+    expect(seeds[0]).toBe(seeds[1]);
   });
 });
 
@@ -170,7 +188,9 @@ describe("the intro phase", () => {
     expect(world.run.phase).toBe("dead");
     world.events.beginFrame();
     world.intent = runnerIntent({ jump: true });
-    system.update(world, STEP);
+    const loop = createRunLoopSystem();
+    loop.update(world, STEP);
+    loop.reset?.(world, "run");
     expect(world.run.phase).toBe("running");
     expect(world.fx).toBeNull();
   });

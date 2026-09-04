@@ -92,9 +92,10 @@ export function hazardKey(hazard: StreamedHazard): string {
 export function createObstaclesSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/obstacles",
-    contractVersion: "obstacles-system-v3",
+    contractVersion: "obstacles-system-v4",
     reads: ["segments", "avatar"],
-    writes: ["obstacles"],
+    writes: [],
+    owns: ["obstacles"],
     emits: ["hazard-contact"],
     update(world) {
       const obstacles = world.obstacles;
