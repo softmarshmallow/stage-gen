@@ -123,6 +123,7 @@ import {
   ladderVisualBounds,
   type VerticalWorld,
 } from "./vertical";
+import { sampleMapNameBanner } from "./fixed-motion";
 import type { ScaleReference } from "@/lib/sideview/sprite-scale";
 import {
   registerGridPresentationFallback,
@@ -348,6 +349,8 @@ export class PreparedStageScene extends Phaser.Scene {
   private questStates = new Map<string, string>();
   private debugOverlay?: DebugOverlay;
   private mapLabel?: Phaser.GameObjects.Text;
+  /** The arriving-map announcement and the simulation time it was raised at. */
+  private mapBanner?: { text: Phaser.GameObjects.Text; raisedAtMs: number };
   private dialoguePanel?: NineSliceWidget;
   private dialogueText?: Phaser.GameObjects.Text;
   private dialogueName?: Phaser.GameObjects.Text;
@@ -434,6 +437,9 @@ export class PreparedStageScene extends Phaser.Scene {
     this.updateAutoPlayToggle(now);
     this.updateKitSwitch(now);
     this.updateDebugOverlay();
+    // Before the dialogue hold, because an announcement that stopped fading while a conversation
+    // was open would still be sitting on the screen when the panel closed.
+    this.updateMapBanner(now);
     if (this.activeScenario) {
       // Drain this frame's intent and drop it. Edge-triggered requests latch until something
       // reads them, so skipping the read would queue a jump or an inventory toggle behind the
@@ -2781,9 +2787,38 @@ export class PreparedStageScene extends Phaser.Scene {
     if (this.audioUnlocked) void this.soundtrack.play().catch(() => undefined);
   }
 
+  /**
+   * Announce the map being entered.
+   *
+   * Raised here and stepped in `update` rather than handed to `tweens.add`, because a tween is
+   * advanced by the engine's own frame delta: under a fixed-step capture the announcement lasted a
+   * different number of frames on every recording of the same run, and under a paused loop it did
+   * not advance at all. `sampleMapNameBanner` is the same fade-hold-fade shape read off simulation
+   * time, which is the clock everything else in the frame is already resolved against.
+   */
   private flashMapName(name: string): void {
-    const banner = this.add.text(VIEW_W / 2, 105, name, { fontFamily: "Georgia, serif", fontSize: "36px", color: "#fff4cf", stroke: "#203849", strokeThickness: 7 }).setOrigin(0.5).setScrollFactor(0).setDepth(870).setAlpha(0);
-    this.tweens.add({ targets: banner, alpha: 1, duration: 250, yoyo: true, hold: 1000, onComplete: () => banner.destroy() });
+    this.mapBanner?.text.destroy();
+    this.mapBanner = {
+      text: this.add
+        .text(VIEW_W / 2, 105, name, { fontFamily: "Georgia, serif", fontSize: "36px", color: "#fff4cf", stroke: "#203849", strokeThickness: 7 })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(870)
+        .setAlpha(0),
+      raisedAtMs: performance.now(),
+    };
+  }
+
+  private updateMapBanner(nowMs: number): void {
+    const banner = this.mapBanner;
+    if (!banner) return;
+    const sample = sampleMapNameBanner(banner.raisedAtMs, nowMs);
+    if (sample.done) {
+      banner.text.destroy();
+      this.mapBanner = undefined;
+      return;
+    }
+    banner.text.setAlpha(sample.alpha);
   }
 
   /**
@@ -2840,6 +2875,11 @@ export class PreparedStageScene extends Phaser.Scene {
         : null,
       npcPrompts: this.npcs.map((npc) => ({ npcId: npc.npcId, visible: npc.talkPrompt.visible })),
       mapLabel: this.mapLabel?.text ?? null,
+      // Absent rather than null while nothing is announced, so a frame with no banner carries no
+      // banner field at all and the golden's quiet frames stay quiet.
+      banner: this.mapBanner
+        ? { text: this.mapBanner.text.text, alpha: this.mapBanner.text.alpha }
+        : undefined,
     });
   }
 

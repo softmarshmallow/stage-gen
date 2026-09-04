@@ -61,3 +61,38 @@ export function sampleFixedMobHit(
     complete,
   });
 }
+
+/** How long the map-name banner takes to arrive, how long it stays, and the same again to leave. */
+export const MAP_NAME_BANNER_FADE_MS = 250;
+export const MAP_NAME_BANNER_HOLD_MS = 1000;
+
+export type MapNameBannerSample = Readonly<{ alpha: number; done: boolean }>;
+
+/**
+ * The banner's opacity `nowMs` after it was raised, and whether it is finished.
+ *
+ * Pure fixed-clock equivalent of the yoyo-with-hold tween the scene used to hand the engine: in
+ * two hundred and fifty milliseconds, held for a second, out in another two hundred and fifty. A
+ * tween is stepped by the browser's frame delta, so under a fixed-step capture the same run
+ * announced the same map for a different number of frames every time it was recorded.
+ */
+export function sampleMapNameBanner(
+  raisedAtMs: number,
+  nowMs: number,
+): MapNameBannerSample {
+  const elapsedMs = Math.max(0, nowMs - raisedAtMs);
+  const outFromMs = MAP_NAME_BANNER_FADE_MS + MAP_NAME_BANNER_HOLD_MS;
+  const totalMs = outFromMs + MAP_NAME_BANNER_FADE_MS;
+  if (elapsedMs >= totalMs) return Object.freeze({ alpha: 0, done: true });
+  if (elapsedMs <= MAP_NAME_BANNER_FADE_MS) {
+    return Object.freeze({
+      alpha: unitProgress(elapsedMs, MAP_NAME_BANNER_FADE_MS),
+      done: false,
+    });
+  }
+  if (elapsedMs <= outFromMs) return Object.freeze({ alpha: 1, done: false });
+  return Object.freeze({
+    alpha: 1 - unitProgress(elapsedMs - outFromMs, MAP_NAME_BANNER_FADE_MS),
+    done: false,
+  });
+}

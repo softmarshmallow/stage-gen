@@ -6,6 +6,9 @@ import {
   MOB_SPAWN_FADE_MS,
   sampleFixedMobHit,
   sampleMobSpawnFade,
+  MAP_NAME_BANNER_FADE_MS,
+  MAP_NAME_BANNER_HOLD_MS,
+  sampleMapNameBanner,
   type FixedMobHitMotion,
 } from "./fixed-motion";
 
@@ -62,4 +65,28 @@ describe("fixed-clock mob hit motion", () => {
     expect(sampleMobSpawnFade(1_000, 0)).toEqual({ alpha: 0, complete: false });
   });
 
+});
+
+describe("fixed-clock map name banner", () => {
+  test("fades in, holds, fades out, and then reports itself finished", () => {
+    const raised = 1000;
+    const at = (offset: number) => sampleMapNameBanner(raised, raised + offset);
+    expect(at(-50)).toEqual({ alpha: 0, done: false });
+    expect(at(0)).toEqual({ alpha: 0, done: false });
+    expect(at(MAP_NAME_BANNER_FADE_MS / 2).alpha).toBeCloseTo(0.5, 10);
+    expect(at(MAP_NAME_BANNER_FADE_MS)).toEqual({ alpha: 1, done: false });
+    expect(at(MAP_NAME_BANNER_FADE_MS + MAP_NAME_BANNER_HOLD_MS)).toEqual({
+      alpha: 1,
+      done: false,
+    });
+    expect(
+      at(MAP_NAME_BANNER_FADE_MS * 1.5 + MAP_NAME_BANNER_HOLD_MS).alpha,
+    ).toBeCloseTo(0.5, 10);
+    // The tween this replaces destroyed its target in `onComplete`; `done` is what now says so.
+    expect(at(MAP_NAME_BANNER_FADE_MS * 2 + MAP_NAME_BANNER_HOLD_MS)).toEqual({
+      alpha: 0,
+      done: true,
+    });
+    expect(at(10_000)).toEqual({ alpha: 0, done: true });
+  });
 });

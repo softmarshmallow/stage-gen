@@ -156,9 +156,13 @@ const GOLDEN: Record<number, string> = {
   // 299 rather than 313. Its knockback x is identical frame for frame in both runs, which is the
   // measurement that `sampleFixedMobHit` really does reproduce the Cubic ease the tween ran; 313
   // onward hash identically one by one.
-  300: "b5d8aff5cfa4f092a68e5d19d0febaa7b6fb96a7db98f3e91a546d201f372c3d",
+  // Re-pinned again for the map-name banner off its tween. Forty-five contiguous frames moved,
+  // 150 to 194, and every changed field is under `banner`: the announcement raised by the portal
+  // transition at 150 now exists in the record at all — a tween is engine state the probe could
+  // not read — and lives for exactly the fade-hold-fade it declares, 1500ms at a 1/30s step.
+  300: "74f5437c5730bc98451a0a1ce5e3aecccb6db2304aa31d7b829abeafeb0f4bce",
   // The whole run.
-  600: "02af68f0f2942ed254d5728e3f82610f4a14bd748d5a4f61183f6a41bdac9d0a",
+  600: "d6bb1f7808c2b701722dbfa3a72b2cb5f0a9ee098354b3a3e05d76c0e10375f0",
 };
 
 describe("the platformer replays to its golden", () => {
