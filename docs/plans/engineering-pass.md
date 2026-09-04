@@ -765,9 +765,12 @@ world golden re-pinned for five occurrence kinds and one field that appeared, pr
 field for field against the previous dump. **particles** shares the mechanism (ring,
 cap, eviction, noise); all 1,017 puffs identical. Ordering cost zero: no new `after`
 edge, no new feedback read, one undeclared read declared. Reported, not forced: E6 for
-the soundtrack cannot run because the platformer's authored boss-encounter `track_id`
-never reaches the runtime manifest - the producer keeps only `boss_mob_ids` - which is
-a C5 item for the pipeline lane, one authored field surviving `src/`.
+the soundtrack could not run because the web parser exposes no boss encounters. Checked
+against the producer: the manifest's `gameplay` block is the whole authored gameplay
+contract (`_gameplay_block` is one `model_dump`), so `boss_encounters[].track_id` is
+already published; what keeps only `boss_mob_ids` is the binding report
+(`gameplay.bindings.json`), which nothing at runtime reads. The gap is one parsed field
+on the consumer, in the runtime lane, not a pipeline change.
 
 
 **2026-09-04 — Runtime step 5 landed (workstream E).** `traversal`, `parallax`,
