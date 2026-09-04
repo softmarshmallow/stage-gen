@@ -18,6 +18,7 @@
 // resume the right sentence in an empty room. So the record carries the runtime's
 // own presented state, with the statement id as its identity.
 
+import { bagItemIds, bagOfOne } from "@/lib/families/inventory";
 import type { ScenarioSlot } from "@/lib/scenario/program";
 import { SCENARIO_SLOTS } from "@/lib/scenario/program";
 import type { ScenarioState } from "@/lib/scenario/runtime";
@@ -217,7 +218,11 @@ export function serializeCaseSave(save: CaseSave): unknown {
         ? null
         : {
             flags: [...save.room.flags],
-            inventory: [...save.room.inventory],
+            // The saved form stays a list of item ids: the room's bag is the
+            // `inventory` family's counted bag with every quantity 1, so the
+            // names are the whole of it and the save file's shape is unchanged
+            // across this refactor.
+            inventory: bagItemIds(save.room.inventory),
             revealed: [...save.room.revealed],
             fired: [...save.room.fired],
             narration: save.room.narration,
@@ -380,7 +385,7 @@ function savedRoom(value: unknown): RoomPlayState {
   const raw = record(value, "case save room");
   return Object.freeze({
     flags: Object.freeze(ids(raw.flags, "case save room.flags")),
-    inventory: Object.freeze(ids(raw.inventory, "case save room.inventory")),
+    inventory: bagOfOne(ids(raw.inventory, "case save room.inventory")),
     revealed: Object.freeze(ids(raw.revealed, "case save room.revealed")),
     fired: Object.freeze(
       list(raw.fired, "case save room.fired").map((entry, index) =>

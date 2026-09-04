@@ -19,6 +19,7 @@
 
 import Phaser from "phaser";
 import { SCENE_CONTENT_DEPTH } from "./depths";
+import { slotByKind, type InventoryPanelView } from "@/lib/families/inventory";
 import {
   INVENTORY_GRID_4X2_V1,
   type InventoryPanelLayout,
@@ -58,11 +59,21 @@ export interface InventoryHudOpts {
 
 type SlotEntry = {
   kindIndex: number;
+  slotIndex: number;
   count: number;
   icon: Phaser.GameObjects.Image;
 };
 
-export class InventoryHud {
+/**
+ * The panel half of the `inventory` family, drawn in Phaser.
+ *
+ * What left this class is the rule: which square a stack occupies used to be
+ * `kindIndex % slotCentres.length` written out in four places here, and it is
+ * `slotByKind` in the family now — the bag decides where a stack lives, this
+ * decides what a square looks like. What is left is geometry and drawing, which
+ * is `ui`'s half of the same picture.
+ */
+export class InventoryHud implements InventoryPanelView {
   private opts: InventoryHudOpts;
   private container: Phaser.GameObjects.Container;
   private panelImg: Phaser.GameObjects.Image | null = null;
@@ -116,16 +127,30 @@ export class InventoryHud {
     }
   }
 
-  addItem(kindIndex: number) {
+  /**
+   * Draw one slot at the count the bag now holds.
+   *
+   * A count rather than a delta, so a grant of three is one call and a view
+   * that missed an update cannot drift from the bag. Zero tears the slot down
+   * rather than leaving it showing "x0", which also frees the square for the
+   * next kind that lands on it.
+   */
+  setSlot(slotIndex: number, kindIndex: number, count: number): void {
     const existing = this.slots.get(kindIndex);
-    if (existing) {
-      existing.count += 1;
-      const t = this.countTexts.get(kindIndex);
-      if (t) t.setText(`x${existing.count}`);
+    if (count <= 0) {
+      if (!existing) return;
+      existing.icon.destroy();
+      this.countTexts.get(kindIndex)?.destroy();
+      this.countTexts.delete(kindIndex);
+      this.slots.delete(kindIndex);
       return;
     }
-    const slotIdx = kindIndex % this.slotCentres.length;
-    const slot = this.slotCentres[slotIdx];
+    if (existing) {
+      existing.count = count;
+      this.countTexts.get(kindIndex)?.setText(`x${count}`);
+      return;
+    }
+    const slot = this.slotCentres[slotIndex];
     const sx = slot.x * this.scaleFactor;
     const sy = slot.y * this.scaleFactor;
     const iconSizeWorld = 192 * this.scaleFactor; // ~75% of 256-px slot
@@ -146,7 +171,8 @@ export class InventoryHud {
       // Track via fake icon ref.
       this.slots.set(kindIndex, {
         kindIndex,
-        count: 1,
+        slotIndex,
+        count,
         icon: g as unknown as Phaser.GameObjects.Image,
       });
       return;
@@ -169,7 +195,7 @@ export class InventoryHud {
     const txt = this.opts.scene.add.text(
       sx + iconSizeWorld * 0.3,
       sy + iconSizeWorld * 0.3,
-      "x1",
+      `x${count}`,
       {
         fontFamily: "ui-monospace, Menlo, monospace",
         fontSize: `${Math.max(10, Math.floor(iconSizeWorld * 0.18))}px`,
@@ -180,28 +206,7 @@ export class InventoryHud {
     this.container.add(txt);
     this.countTexts.set(kindIndex, txt);
 
-    this.slots.set(kindIndex, { kindIndex, count: 1, icon });
-  }
-
-  /**
-   * Spend one of a stack, emptying the slot when the last one goes.
-   *
-   * The panel is a picture of what the player carries, so a consumed item has to leave it. An
-   * emptied slot is torn down rather than left showing "x0", which also frees the slot for the
-   * next kind that lands on the same index.
-   */
-  removeItem(kindIndex: number): void {
-    const existing = this.slots.get(kindIndex);
-    if (!existing) return;
-    existing.count -= 1;
-    if (existing.count > 0) {
-      this.countTexts.get(kindIndex)?.setText(`x${existing.count}`);
-      return;
-    }
-    existing.icon.destroy();
-    this.countTexts.get(kindIndex)?.destroy();
-    this.countTexts.delete(kindIndex);
-    this.slots.delete(kindIndex);
+    this.slots.set(kindIndex, { kindIndex, slotIndex, count, icon });
   }
 
   toggle() {
@@ -217,15 +222,20 @@ export class InventoryHud {
   snapshot() {
     return Array.from(this.slots.values()).map((s) => ({
       kindIndex: s.kindIndex,
-      slotIndex: s.kindIndex % this.slotCentres.length,
+      slotIndex: s.slotIndex,
       count: s.count,
       // World-space coordinates (relative to the screen, since scrollFactor=0).
       x: s.icon.x + this.container.x,
       y: s.icon.y + this.container.y,
       // Expected (target) slot centre on the panel canvas.
-      expectedPanelX: this.slotCentres[s.kindIndex % this.slotCentres.length].x,
-      expectedPanelY: this.slotCentres[s.kindIndex % this.slotCentres.length].y,
+      expectedPanelX: this.slotCentres[s.slotIndex].x,
+      expectedPanelY: this.slotCentres[s.slotIndex].y,
     }));
+  }
+
+  /** Where the bag says this kind belongs, for a caller that has only a kind. */
+  slotFor(kindIndex: number): number {
+    return slotByKind(kindIndex, this.slotCentres.length);
   }
 
   bounds() {

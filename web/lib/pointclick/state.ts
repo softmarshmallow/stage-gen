@@ -7,11 +7,30 @@
  * timers, no physics, no hidden state: every transition is a click.
  */
 
+import {
+  carried,
+  consume,
+  EMPTY_BAG,
+  grant,
+  UNLIMITED,
+  type CountedBag,
+} from "@/lib/families/inventory";
 import type { RoomManifest, Verb } from "./contract";
 
 export interface RoomPlayState {
   readonly flags: readonly string[];
-  readonly inventory: readonly string[];
+  /**
+   * What the player carries, as the `inventory` family's counted bag.
+   *
+   * It was a sorted `readonly string[]` used as a set, which looked like a
+   * second inventory model and is not one: the room's authored vocabulary
+   * grants one (`grant_item`) and removes the stack (`remove_item`), so a
+   * counted bag with every quantity 1 and no capacity reads back as exactly the
+   * set this used to be. `selectedItem` stays below and does *not* move with
+   * it — it is an interaction latch, cleared by every interaction whether an
+   * item was involved or not, and no rule about what is carried reads it.
+   */
+  readonly inventory: CountedBag;
   readonly revealed: readonly string[];
   readonly fired: readonly number[];
   readonly selectedItem: string | null;
@@ -57,7 +76,7 @@ export function initialState(
   const flags = [...new Set(carried.filter((flag) => vocabulary.has(flag)))].sort();
   return {
     flags,
-    inventory: [],
+    inventory: EMPTY_BAG,
     revealed: [],
     fired: [],
     selectedItem: null,
@@ -99,7 +118,7 @@ function interactionAvailable(
   if (interaction.requires.some((flag) => !state.flags.includes(flag))) {
     return false;
   }
-  if (item !== null && !state.inventory.includes(item)) {
+  if (item !== null && carried(state.inventory, item) < 1) {
     return false;
   }
   return hotspotVisible(manifest, state, hotspotId);
@@ -112,17 +131,23 @@ function applyInteraction(
 ): RoomPlayState {
   const interaction = manifest.interactions[index];
   const flags = new Set(state.flags);
-  const inventory = new Set(state.inventory);
+  let inventory = state.inventory;
   const revealed = new Set(state.revealed);
   for (const effect of interaction.effects) {
     if (effect.set_flag !== undefined) {
       flags.add(effect.set_flag);
     }
     if (effect.grant_item !== undefined) {
-      inventory.add(effect.grant_item);
+      // The unit grant, and the sentence that keeps this bag a set: a room's
+      // item is carried or it is not, so a second `grant_item` for the same
+      // name is the no-op `Set.add` always was rather than a second unit.
+      if (carried(inventory, effect.grant_item) < 1) {
+        inventory = grant(inventory, effect.grant_item, 1, UNLIMITED).bag;
+      }
     }
     if (effect.remove_item !== undefined) {
-      inventory.delete(effect.remove_item);
+      // `remove_item` takes the stack, however deep it is.
+      inventory = consume(inventory, effect.remove_item, carried(inventory, effect.remove_item)).bag;
     }
     if (effect.reveal_hotspot !== undefined) {
       revealed.add(effect.reveal_hotspot);
@@ -137,7 +162,7 @@ function applyInteraction(
       : interaction.narration;
   return {
     flags: [...flags].sort(),
-    inventory: [...inventory].sort(),
+    inventory,
     revealed: [...revealed].sort(),
     fired,
     selectedItem: null,
@@ -193,7 +218,7 @@ export function inspectHotspot(
 }
 
 export function selectItem(state: RoomPlayState, itemId: string | null): RoomPlayState {
-  if (itemId !== null && !state.inventory.includes(itemId)) {
+  if (itemId !== null && carried(state.inventory, itemId) < 1) {
     return state;
   }
   return { ...state, selectedItem: state.selectedItem === itemId ? null : itemId };

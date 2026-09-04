@@ -38,6 +38,7 @@ import {
   winPanelRect,
   type VerbMode,
 } from "./room-hud";
+import { bagItemIds } from "@/lib/families/inventory";
 import {
   clickHotspot,
   hotspotVisible,
@@ -344,7 +345,7 @@ class RoomScene extends Phaser.Scene {
         .setDepth(DEPTH.hud + 3)
         .setInteractive({ useHandCursor: true });
       zone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_UP, () => {
-        const itemId = this.state.inventory[index];
+        const itemId = bagItemIds(this.state.inventory)[index];
         if (itemId === undefined) return;
         this.state = selectItem(this.state, itemId);
         this.render();
@@ -504,7 +505,7 @@ class RoomScene extends Phaser.Scene {
   private renderInventory(): void {
     this.slotFrames.clear();
     this.slotIcons.forEach((icon, index) => {
-      const itemId = this.state.inventory[index];
+      const itemId = bagItemIds(this.state.inventory)[index];
       const item =
         itemId === undefined
           ? undefined

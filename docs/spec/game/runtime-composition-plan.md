@@ -1146,6 +1146,60 @@ an authoring decision for later, not evidence.
 the runner's machine cannot express as a parameter — or the reverse — it is
 two families, and the report says which concept split them.
 
+**Evidence, measured.** Branch `runtime/step-6-welded`; `bun test` and
+`tsc --noEmit` green at every commit. One commit per split, in the order below.
+
+- **`inventory`.** Extracted into both genres as `lib/families/inventory/`. The
+  three bags are one: the platformer scene's `Map<string, number>` with two
+  private methods over it, the HUD's *second* map keyed by catalog index with
+  the slot-assignment rule written inline in four places, and the room reducer's
+  `readonly string[]` used as a set with its add and remove spelled out inside
+  `applyInteraction`. The ruling's first clause is measured rather than argued:
+  the room's set really is the counted bag with every quantity 1, because the
+  room's authored vocabulary grants one (`grant_item`) and removes the stack
+  (`remove_item`), so a unit-granted bag reads back as exactly the set it was —
+  which is the second body of E4. The ruling's second clause held on
+  inspection: `selectedItem` is set by a click and cleared by *every*
+  interaction whether an item was involved or not, and no rule about what is
+  carried reads it, so it stays with the room's interaction state and does not
+  move here. The third moved the rule and left the drawing: `kindIndex %
+  slotCentres.length` was written four times in the Phaser class — the add, the
+  remove, and twice in the snapshot, where it was recomputed to report where an
+  icon was *supposed* to be — and is `slotByKind` in the family now, with the
+  panel reduced to one port method that takes a count rather than a delta.
+  **E1: zero diff in both genres, nothing re-pinned** — six hundred platformer
+  digests byte-identical, and the runner's chain and its 1,043-line sink
+  recording byte-identical, the runner having no bag at all, which is the
+  trivial half. **E2:** neither documented order moves; the bag is a store the
+  scene holds, not a frame step. **E4:** one bag resolved against two shapes in
+  one file — a platformer-shaped one with quantities, a spend per shot and a
+  stack that leaves the bag when it empties, and a room-shaped one with unit
+  grants and no capacity — plus the room's own suite and the platformer's golden
+  as the second instantiation in each genre's tree. **E7:** the panel is a port,
+  so a bag with nothing drawing it is the subtraction, and `NO_INVENTORY_PANEL`
+  is asserted to change nothing about what is carried.
+- **The block, and the refusal.** Two in the platformer, `gameplay` and `items`.
+  `gameplay` is where `[inventory]` and `[player].starting_item_ids` are
+  authored; `items` is not a redundancy, because every name in the bag is an
+  item id from that catalog and every square on the panel is a *position* in it,
+  so a catalog at a version this build does not read is a bag that cannot be
+  drawn. Moving either gets `manifest block "items" is published as
+  platformer-items-block-v2; this build reads platformer-items-block-v1`, from
+  the inventory family. The room has no block table to gate — its whole document
+  is one versioned kind its own parser refuses on — so the family takes its
+  dependency there at that grain rather than inventing a block for it.
+- **One thing the family holds that neither genre binds, and why.**
+  `[inventory].starting_capacity` is still parsed and unread, deliberately. The
+  rule is the family's and is proven in its own suite (a full bag refuses the
+  whole grant rather than filling to the brim, because half a stack arriving is
+  a state neither authored form can describe), but what the published number
+  *counts* — stacks or units — is not authored, and binding it adds a refusal
+  the golden cannot observe: the scripted run carries six units against a
+  published capacity of twenty-four. That is the shape of change step 3 refused
+  when it left `defeatedAtMs` alone. `currency_item_id` is in the same position
+  and for the same reason. The family is now where the contract bump that
+  decides either meaning lands.
+
 ## Step 7 — the capstone: a genre from three TOML tables
 
 **Fact.** The taxonomy's "minigames from existing assets" case says

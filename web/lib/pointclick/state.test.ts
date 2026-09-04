@@ -1,3 +1,4 @@
+import { bagEntries } from "@/lib/families/inventory";
 import { describe, expect, test } from "bun:test";
 
 import { parseRoomManifest } from "./contract";
@@ -21,7 +22,7 @@ describe("room state machine", () => {
     expect(hotspotVisible(manifest, state, "prize")).toBe(false);
 
     state = clickHotspot(manifest, state, "bench");
-    expect(state.inventory).toEqual(["key"]);
+    expect(bagEntries(state.inventory)).toEqual([["key", 1]]);
     expect(state.narration).toBe("You find a key under the bench.");
 
     state = selectItem(state, "key");
@@ -56,7 +57,7 @@ describe("room state machine", () => {
     state = clickHotspot(manifest, state, "bench");
     const again = clickHotspot(manifest, state, "bench");
     // The grant already fired, so the primary click falls through to inspect.
-    expect(again.inventory).toEqual(["key"]);
+    expect(bagEntries(again.inventory)).toEqual([["key", 1]]);
     expect(again.narration).toBe("A sturdy bench.");
     const inspected = inspectHotspot(manifest, again, "bench");
     expect(inspected.narration).toBe("A sturdy bench.");

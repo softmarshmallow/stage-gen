@@ -56,6 +56,14 @@ import { Mob, type MobDeckFooting } from "./mob";
 import { ItemSystem } from "./items";
 import { InventoryHud } from "./inventory";
 import {
+  carried,
+  consume as consumeFromBag,
+  EMPTY_BAG,
+  grant as grantToBag,
+  UNLIMITED,
+  type CountedBag,
+} from "@/lib/families/inventory";
+import {
   PortalSystem,
 } from "./portal";
 import { CombatTextSystem } from "./combat-text";
@@ -204,6 +212,7 @@ import { parsePlatformerVitalsBlock } from "./vitals";
 import { parsePlatformerCameraBlock } from "./camera";
 import { parsePlatformerSoundtrackBlock } from "./soundtrack";
 import { parsePlatformerParticlesBlock } from "./impact-presentation";
+import { parsePlatformerInventoryBlocks } from "./bag";
 import {
   createPlatformerFrameWorld,
   sealPlatformerFrame,
@@ -338,7 +347,14 @@ export class PreparedStageScene extends Phaser.Scene {
   /** Which catalog item a throw is spending, or null for a class that spends nothing. */
   private ammoItemId: string | null = null;
   private inventoryHud?: InventoryHud;
-  private readonly inventory = new Map<string, number>();
+  /**
+   * What the player carries, as the `inventory` family's counted bag.
+   *
+   * A value rather than a mutable map, so the two operations that change it are
+   * the family's and nothing else in this file can reach in and set a count.
+   * The panel is mirrored from it at every change through the family's port.
+   */
+  private inventory: CountedBag = EMPTY_BAG;
   /** When the current defeat began, or null while the player is alive. Drives respawn timing. */
   private defeatedAtMs: number | null = null;
   private defeatPanel?: DefeatPanel;
@@ -611,6 +627,7 @@ export class PreparedStageScene extends Phaser.Scene {
     parsePlatformerCameraBlock(manifest.blocks);
     parsePlatformerSoundtrackBlock(manifest.blocks);
     parsePlatformerParticlesBlock(manifest.blocks);
+    parsePlatformerInventoryBlocks(manifest.blocks);
     this.manifest = manifest;
     this.gameplay = gameplay;
     await Promise.all([
@@ -674,6 +691,8 @@ export class PreparedStageScene extends Phaser.Scene {
         transport: this.soundtrackTransport(),
       });
     }
+    // The bag the run opens with: one of each, the same unit grant the room's
+    // `grant_item` performs, which is why a set was ever enough over there.
     for (const itemId of this.gameplay.player.starting_item_ids) this.addInventory(itemId, 1);
     if (!hasHealingConsumable(manifest.items)) {
       // Playable, but only downhill: nothing in the package can put hit points back, so every run
@@ -2209,10 +2228,8 @@ export class PreparedStageScene extends Phaser.Scene {
     const projectiles = this.projectiles;
     if (!projectiles) return false;
     if (this.weapon.ammoKind !== null) {
-      const carried = this.ammoItemId
-        ? (this.inventory.get(this.ammoItemId) ?? 0)
-        : 0;
-      if (carried < 1) return false;
+      const rounds = this.ammoItemId ? carried(this.inventory, this.ammoItemId) : 0;
+      if (rounds < 1) return false;
     }
     return (
       projectiles.fire({
@@ -2564,21 +2581,30 @@ export class PreparedStageScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Take units into the bag, and settle whatever carrying them completes.
+   *
+   * The bag arithmetic is the family's; what is left here is the two things
+   * that are this genre's — mirroring the panel, and asking whether the stack
+   * that just grew finishes a quest.
+   *
+   * The bag is instantiated with no capacity, deliberately. `[inventory]
+   * starting_capacity` is still parsed and unread: what the number counts —
+   * stacks or units — is not authored, and binding it adds a refusal the golden
+   * cannot observe (the scripted run carries six units against a published
+   * capacity of twenty-four). The family holds the rule so the contract bump
+   * that decides the meaning has somewhere to land.
+   */
   private addInventory(itemId: string, quantity: number): void {
-    if (!Number.isFinite(quantity) || quantity <= 0) return;
-    const integerQuantity = Math.floor(quantity);
-    this.inventory.set(itemId, (this.inventory.get(itemId) ?? 0) + integerQuantity);
-    const itemIndex = this.manifest?.items.findIndex((item) => item.item_id === itemId) ?? -1;
-    if (itemIndex >= 0) {
-      for (let index = 0; index < integerQuantity; index += 1) {
-        this.inventoryHud?.addItem(itemIndex);
-      }
-    }
+    const verdict = grantToBag(this.inventory, itemId, quantity, UNLIMITED);
+    if (verdict.moved <= 0) return;
+    this.inventory = verdict.bag;
+    this.mirrorInventorySlot(itemId);
     for (const quest of this.gameplay?.quests ?? []) {
       if (
         quest.completion_item_id !== itemId ||
         this.questStates.get(quest.quest_id) !== "active" ||
-        (this.inventory.get(itemId) ?? 0) < quest.completion_count
+        carried(this.inventory, itemId) < quest.completion_count
       )
         continue;
       const effect = this.gameplay?.effects.find(
@@ -2590,21 +2616,26 @@ export class PreparedStageScene extends Phaser.Scene {
     }
   }
 
-  /** Remove a spent stack entry from both the counted bag and the panel that pictures it. */
+  /** Spend from the bag, and redraw the slot that pictures it. */
   private consumeInventory(itemId: string, quantity: number): void {
-    if (!Number.isFinite(quantity) || quantity <= 0) return;
-    const carried = this.inventory.get(itemId) ?? 0;
-    const spent = Math.min(carried, Math.floor(quantity));
-    if (spent <= 0) return;
-    const remaining = carried - spent;
-    if (remaining > 0) this.inventory.set(itemId, remaining);
-    else this.inventory.delete(itemId);
-    const itemIndex =
-      this.manifest?.items.findIndex((item) => item.item_id === itemId) ?? -1;
-    if (itemIndex < 0) return;
-    for (let index = 0; index < spent; index += 1) {
-      this.inventoryHud?.removeItem(itemIndex);
-    }
+    const verdict = consumeFromBag(this.inventory, itemId, quantity);
+    if (verdict.moved <= 0) return;
+    this.inventory = verdict.bag;
+    this.mirrorInventorySlot(itemId);
+  }
+
+  /**
+   * Redraw one stack's square from the bag.
+   *
+   * The panel is told the count rather than a delta, which is the family port's
+   * contract: a view that missed a change cannot drift, and a kind the catalog
+   * does not carry has no square to draw at all.
+   */
+  private mirrorInventorySlot(itemId: string): void {
+    const panel = this.inventoryHud;
+    const itemIndex = this.manifest?.items.findIndex((item) => item.item_id === itemId) ?? -1;
+    if (!panel || itemIndex < 0) return;
+    panel.setSlot(panel.slotFor(itemIndex), itemIndex, carried(this.inventory, itemId));
   }
 
   /**
@@ -2844,7 +2875,7 @@ export class PreparedStageScene extends Phaser.Scene {
       // ask whether the question applied to it.
       ammoCarried:
         this.weapon.ammoKind === null ||
-        (this.ammoItemId !== null && (this.inventory.get(this.ammoItemId) ?? 0) >= 1),
+        (this.ammoItemId !== null && carried(this.inventory, this.ammoItemId) >= 1),
       weaponBand: preparedBotWeaponBand(
         this.weapon,
         TILE_PX,
