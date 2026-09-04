@@ -714,6 +714,23 @@ the one departure from the component shape; that is a node-family move like D8's
 zero-key by construction, and it is the next card in this lane.
 
 
+**D5, sized for the next cut.** `orchestration/game_package.py` is 1921 lines in 36
+definitions. Measured by function: ~750 lines are runner validation
+(`_validate_runner_chunk` 291, `_validate_runner_member` 258, `_resolve_runner_member`
+152, `_validate_runner_encounter` 48), ~400 are platformer validation
+(`_validate_cross_contracts` 293, `_resolve_platformer_member` 94, climbable roles),
+and ~450 are the genre-free capture the composition root should be
+(`_resolve_captured_package`, the zip and directory captures, the repository report,
+the selector). It imports fifteen components, ten of them genre-scoped. The cut is
+`orchestration/package_capture.py` (capture, identity, selector, closure digests) plus
+`recipes/sideview_runner/validation.py` and `recipes/sideview_platformer/validation.py`
+holding each genre's member resolution and cross-contract rules, with the resolved
+package carrying members by genre rather than two named fields; the guard is the
+boundary test the card names (orchestration may not import a genre component) and the
+existing package tests. Zero cache identity is involved. It is the last structural D
+card and starts the next session.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one
