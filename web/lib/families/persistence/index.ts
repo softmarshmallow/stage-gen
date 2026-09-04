@@ -1,0 +1,17 @@
+export {
+  memorySaveStorage,
+  parseSave,
+  SAVE_SCOPES,
+  SaveRefusal,
+  SaveStore,
+  serializeSave,
+  type DeclaredSlice,
+  type PersistenceEvent,
+  type SaveLoaded,
+  type SaveProfile,
+  type SaveRecord,
+  type SaveScope,
+  type SaveStorage,
+  type SaveUpgrade,
+  type SaveWritten,
+} from "./persistence";
