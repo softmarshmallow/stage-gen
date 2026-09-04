@@ -26,7 +26,6 @@ from PIL import Image
 
 from stage_gen.components.game_contract.package import PreparedScale
 
-ASSET_UNIT_SCHEMA_NAME: Final = "scrolling_preview_asset_unit_v1"
 ASSET_UNIT_ERROR_CODE: Final = "scrolling-asset-unit-v1"
 
 #: The player is the unit, by definition. Declaring a magnitude for it is an error rather than a

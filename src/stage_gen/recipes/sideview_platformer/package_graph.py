@@ -35,6 +35,7 @@ from stage_gen.components.platformer_content import (
 )
 from stage_gen.components.platformer_map import PreparedGameMap, PreparedMapReference
 from stage_gen.components.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
+from stage_gen.components.sideview_actor.motion_rebase import MOTION_REBASE_SCHEMA_NAME
 from stage_gen.components.sideview_layers.contract import (
     LAYER_PLACEMENT_CANONICALIZER,
     NON_GENERATIVE_LAYER_FIELDS,
@@ -802,6 +803,7 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             input_digests=(
                 *identity,
                 _object_sha256({"contract": CONTENT_MOTION_REBASE_CONTRACT_VERSION}),
+                _object_sha256({"schema": MOTION_REBASE_SCHEMA_NAME}),
             ),
             ports=(
                 _artifact(
@@ -828,6 +830,7 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             input_digests=(
                 *identity,
                 _object_sha256({"contract": CONTENT_MOTION_REBASE_CONTRACT_VERSION}),
+                _object_sha256({"schema": MOTION_REBASE_SCHEMA_NAME}),
             ),
             ports=(
                 _artifact("reading", f"{actor_root}/motion-rebase.json", "rebase-reading-v1"),

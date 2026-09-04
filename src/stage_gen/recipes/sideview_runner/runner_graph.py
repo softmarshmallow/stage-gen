@@ -55,6 +55,7 @@ from stage_gen.components.runner_track import (
     structural_ground_occupancy_sha256,
 )
 from stage_gen.components.sideview_actor.motion_rebase import (
+    MOTION_REBASE_SCHEMA_NAME,
     motion_rebase_prompt,
     motion_rebase_verification_prompt,
 )
@@ -842,6 +843,7 @@ def build_runner_execution_graph(
         input_digests=(
             _text_digest(avatar.avatar_id),
             _text_digest(avatar.display_name),
+            _text_digest(MOTION_REBASE_SCHEMA_NAME),
         ),
         ports=(
             _artifact("plate", "avatar/rebase-plate.png", REBASE_PLATE_KIND),
@@ -861,6 +863,7 @@ def build_runner_execution_graph(
         input_digests=(
             _text_digest(avatar.avatar_id),
             _text_digest(avatar.display_name),
+            _text_digest(MOTION_REBASE_SCHEMA_NAME),
         ),
         ports=(
             _artifact("plate", "avatar/rebase-verify-plate.png", REBASE_PLATE_KIND),
@@ -970,6 +973,7 @@ def build_runner_execution_graph(
                 input_digests=(
                     _text_digest(boss.boss_id),
                     _text_digest(boss.display_name),
+                    _text_digest(MOTION_REBASE_SCHEMA_NAME),
                 ),
                 ports=(
                     _artifact("plate", f"boss/{boss.boss_id}/rebase-plate.png", REBASE_PLATE_KIND),
@@ -996,6 +1000,7 @@ def build_runner_execution_graph(
                 input_digests=(
                     _text_digest(boss.boss_id),
                     _text_digest(boss.display_name),
+                    _text_digest(MOTION_REBASE_SCHEMA_NAME),
                 ),
                 ports=(
                     _artifact(

@@ -26,8 +26,8 @@ from stage_gen.media.comparison_plate import (
     compose_banded_comparison_plate,
 )
 
-MOTION_REBASE_SCHEMA_NAME: Final = "scrolling_preview_motion_rebase_v1"
-MOTION_REBASE_CORRECTION_SCHEMA_NAME: Final = "scrolling_preview_motion_rebase_correction_v1"
+MOTION_REBASE_SCHEMA_NAME: Final = "sideview_actor_motion_rebase_v1"
+MOTION_REBASE_CORRECTION_SCHEMA_NAME: Final = "sideview_actor_motion_rebase_correction_v1"
 MOTION_REBASE_ERROR_CODE: Final = "scrolling-motion-rebase-v1"
 
 #: The baseline is an upright rest pose. Ratios alone cannot recover stature, so any consumer that
