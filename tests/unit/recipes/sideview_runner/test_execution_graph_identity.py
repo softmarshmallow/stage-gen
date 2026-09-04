@@ -17,7 +17,9 @@ IRON_PETAL = REPOSITORY_ROOT / "library/games/iron-petal-unit"
 IRON_PETAL_CACHE_KEYS = Path(__file__).with_name("iron-petal-unit.cache-keys.json")
 
 IRON_PETAL_NODE_COUNT = 109
-IRON_PETAL_TOPOLOGY_SHA256 = "c3be1f81d692cc3d2100e7b3955d76565c7d923031b404de60d77af401fd69e4"
+# Re-pinned when the manifest gained per-block versions (C-R3): the terminal node\'s port
+# kind is the manifest identity, so the topology moved with it. No cache key moved.
+IRON_PETAL_TOPOLOGY_SHA256 = "188d0536db018709caef6822277ce81166d3560d5dd178c776298fea9e9e808c"
 
 
 def test_planning_iron_petal_reproduces_its_pinned_identity() -> None:

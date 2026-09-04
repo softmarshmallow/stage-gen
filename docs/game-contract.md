@@ -334,8 +334,8 @@ does not by itself define a core game contract.
   `runner-track-v4`, `runner-avatar-v3`, `runner-audio-v4`, and the optional
   `game-fx-v2` contracts.
   Provider-free
-  integration emits `prepared-game-runtime-v10` for the platformer member
-  and `sideview-runner-runtime-v12` for the runner member.
+  integration emits `prepared-game-runtime-v11` for the platformer member
+  and `sideview-runner-runtime-v13` for the runner member.
 - Subsystems such as population, motion, scenarios, maps, and soundtrack
   catalogs retain independent current identities beneath the game identity.
 - A new recipe capability adds declared profile support; it does not broaden an

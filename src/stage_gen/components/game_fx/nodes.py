@@ -1549,6 +1549,11 @@ def parse_cut_in_review(value: object) -> dict[str, object]:
 # ---------------------------------------------------------------- manifest
 
 
+#: The ``fx`` block's own version (C-R3). Declared beside the function that builds it,
+#: because the block is the family's, whichever manifest carries it.
+FX_MANIFEST_BLOCK_VERSION = "fx-block-v1"
+
+
 def fx_manifest_block(
     fx: GameFx,
     *,

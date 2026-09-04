@@ -248,8 +248,8 @@ every member path, digest, and byte size as `closure_sha256`, which appears in
 the `resolved-game-package-v6` identity and in the
 `game-package-validation-v6` report.
 The selected genre DAG consumes this resolved package. Platformer integration
-emits `prepared-game-runtime-v10`; runner integration emits
-`sideview-runner-runtime-v12`.
+emits `prepared-game-runtime-v11`; runner integration emits
+`sideview-runner-runtime-v13`.
 
 Validate the canonical package with:
 

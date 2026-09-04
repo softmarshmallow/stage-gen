@@ -29,13 +29,22 @@ from importlib import import_module
 from typing import Literal, get_args
 
 type IdentityRole = Literal[
-    "authored", "generated", "manifest", "graph", "mode", "namespace", "recipe", "realization"
+    "authored",
+    "generated",
+    "manifest",
+    "block",
+    "graph",
+    "mode",
+    "namespace",
+    "recipe",
+    "realization",
 ]
 
 ROLE_MEANING: dict[IdentityRole, str] = {
     "authored": "a document an author writes and the pipeline validates",
     "generated": "a document the pipeline writes and a consumer or a later node reads",
     "manifest": "a runtime manifest a web consumer parses",
+    "block": "one named block of a runtime manifest, versioned on its own (C-R3)",
     "graph": "a sealed execution-graph document",
     "mode": "a closed-vocabulary word inside a document that selects a producer",
     "namespace": "a node-cache namespace: one recipe's whole tree of restorable work",
@@ -142,9 +151,7 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, IdentitySource], ...] = (
     # Runtime manifests: what a web consumer parses.
     (
         "manifest",
-        _constant(
-            "recipes.sideview_platformer.prepared_manifest", "PREPARED_RUNTIME_MANIFEST_KIND"
-        ),
+        _constant("recipes.sideview_platformer.package_types", "PREPARED_RUNTIME_MANIFEST_KIND"),
     ),
     ("manifest", _constant("recipes.sideview_runner.runner_types", "MANIFEST_KIND")),
     ("manifest", _constant("recipes.pointclick_room.room_types", "MANIFEST_KIND")),
@@ -174,10 +181,22 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, IdentitySource], ...] = (
     ("namespace", _constant("recipes.universe.universe_graph", "UNIVERSE_CACHE_NAMESPACE")),
     # Recipe versions stamped beside a generated document's own kind.
     ("recipe", _field("recipes.dialogue_scene.models", "DialogueScenePlan", "recipe_version")),
+    # Blocks a shared component builds for more than one manifest.
+    ("block", _constant("components.game_fx.nodes", "FX_MANIFEST_BLOCK_VERSION")),
     # Audio realizations.
     ("realization", _constant("components.sound_effect.models", "GENERATED_CLIP_REALIZATION_KIND")),
     ("realization", _constant("components.speech.models", "SPOKEN_LINE_REALIZATION_KIND")),
     ("realization", _field("components.runner_audio.models", "OscillatorSweepRealization")),
+)
+
+#: Block registries: a manifest's ``blocks`` table, key -> version. A version a component
+#: declares (a block a shared family builds) is read from the component; the registry that
+#: publishes it only references it.
+BLOCK_REGISTRIES: tuple[IdentitySource, ...] = (
+    _constant(
+        "recipes.sideview_platformer.prepared_manifest", "PLATFORMER_MANIFEST_BLOCK_VERSIONS"
+    ),
+    _constant("recipes.sideview_runner.runner_types", "RUNNER_MANIFEST_BLOCK_VERSIONS"),
 )
 
 #: Families with no current member: the whole family is retired, at every version. A family
@@ -232,6 +251,17 @@ def contract_identities() -> tuple[ContractIdentity, ...]:
         seen[identity] = source
         family, separator, version = parse_identity(identity)
         entries.append(ContractIdentity(identity, family, separator, version, role, source))
+    for registry in BLOCK_REGISTRIES:
+        table = getattr(import_module(registry.module), registry.attribute)
+        if not isinstance(table, dict):
+            raise TypeError(f"{registry} is not a block table")
+        for key, identity in table.items():
+            if identity in seen:
+                continue  # a component's block, referenced here and declared there
+            source = IdentitySource(registry.module, f"{registry.attribute}[{key!r}]")
+            seen[identity] = source
+            family, separator, version = parse_identity(identity)
+            entries.append(ContractIdentity(identity, family, separator, version, "block", source))
     return tuple(entries)
 
 

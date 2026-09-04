@@ -179,6 +179,7 @@ from stage_gen.media.sprite_sheets import (
     repack_alpha_components,
     split_atlas_columns,
 )
+from stage_gen.recipes.manifest_blocks import present_blocks
 from stage_gen.recipes.node_cache import NodeArtifactCache
 from stage_gen.recipes.sideview_runner.runner_graph import (
     RUNNER_CACHE_NAMESPACE,
@@ -220,6 +221,7 @@ from stage_gen.recipes.sideview_runner.runner_types import (
     MOTION_REBASE_VERIFY,
     PACKAGE_RESOLVE,
     REBASE_READING_KIND,
+    RUNNER_MANIFEST_BLOCK_VERSIONS,
     SOUND_EFFECT_CLIP_KIND,
     SOUND_EFFECT_GENERATE,
     SOUND_EFFECT_VALIDATE,
@@ -3875,6 +3877,7 @@ class SideviewRunnerNodeHandler:
                 )
             ),
         }
+        manifest["blocks"] = present_blocks(RUNNER_MANIFEST_BLOCK_VERSIONS, manifest)
         atomic_write_json(self._run_dir / node.port("manifest").artifact_ref, manifest)
         return self._result(node)
 

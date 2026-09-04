@@ -12,11 +12,31 @@
  * `placement` inside the frame, so the runtime draws what the reviewer saw.
  */
 
+import { type BlockTable, parseBlockTable } from "@/lib/manifest/blocks";
 import { type FxBlock, parseFxBlock } from "@/lib/manifest/fx";
 import type { PreparedLayerPresentation } from "@/lib/manifest/prepared-manifest";
 
-export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v12";
-export const RUNNER_RUNTIME_SCHEMA_VERSION = 12;
+export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v13";
+export const RUNNER_RUNTIME_SCHEMA_VERSION = 13;
+/** Every block this build reads, at the version it reads it (C-R3); `fx` is optional. */
+export const RUNNER_BLOCKS = Object.freeze({
+  presentation: "runner-presentation-block-v1",
+  camera: "runner-camera-block-v1",
+  scale: "runner-scale-block-v1",
+  gameplay: "runner-gameplay-block-v1",
+  ground: "runner-ground-block-v1",
+  layers: "runner-layers-block-v1",
+  segments: "runner-segments-block-v1",
+  avatar: "runner-avatar-block-v1",
+  props: "runner-props-block-v1",
+  items: "runner-items-block-v1",
+  bosses: "runner-bosses-block-v1",
+  projectiles: "runner-projectiles-block-v1",
+  audio: "runner-audio-block-v1",
+  soundtrack: "runner-soundtrack-block-v1",
+  fx: "fx-block-v1",
+} as const);
+export const RUNNER_OPTIONAL_BLOCKS = Object.freeze(["fx"] as const);
 export const RUNNER_STRUCTURAL_GROUND_CELL_PX = 64;
 
 /** Every way a run can come to grief, each answered separately by the package. */
@@ -353,6 +373,7 @@ export interface RunnerAudio {
 }
 
 export interface RunnerRuntimeManifest {
+  readonly blocks: BlockTable;
   readonly gameId: string;
   readonly displayName: string;
   readonly trackId: string;
@@ -1272,6 +1293,7 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
   ) {
     throw new Error(RUNNER_REFUSAL);
   }
+  const blocks = parseBlockTable(raw.blocks, RUNNER_BLOCKS, { optional: RUNNER_OPTIONAL_BLOCKS });
 
   const rawPresentation = record(raw.presentation, "presentation");
   const rawShadows = record(rawPresentation.contact_shadows, "presentation.contact_shadows");
@@ -1485,6 +1507,7 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
   const fx = raw.fx === null || raw.fx === undefined ? null : parseFxBlock(raw.fx, "fx");
 
   const manifest: RunnerRuntimeManifest = {
+    blocks,
     gameId: text(raw.game_id, "game_id"),
     displayName: text(raw.display_name, "display_name"),
     trackId: text(raw.track_id, "track_id"),

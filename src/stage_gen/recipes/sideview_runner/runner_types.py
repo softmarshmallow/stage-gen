@@ -10,7 +10,11 @@ judges - every other review stays an operator decision.
 from __future__ import annotations
 
 from gnode import NodePolicy, NodeType, ViewArchetype
-from stage_gen.components.game_fx.nodes import FX_CUT_IN_NODE_TYPES, FX_SPRITE_NODE_TYPES
+from stage_gen.components.game_fx.nodes import (
+    FX_CUT_IN_NODE_TYPES,
+    FX_MANIFEST_BLOCK_VERSION,
+    FX_SPRITE_NODE_TYPES,
+)
 
 _P = "2d/sideview/runner"
 _PROVIDER = NodePolicy(max_attempts=6)
@@ -61,9 +65,29 @@ SOUND_EFFECT_VALIDATION_KIND = "sound-effect-validation-v1"
 SPEECH_CLIP_KIND = "speech-line-v1"
 SPEECH_VALIDATION_KIND = "speech-validation-v1"
 ATTEMPT_LEDGER_KIND = "attempt-ledger-v2"
-MANIFEST_KIND = "sideview-runner-runtime-v12"
-#: Moves with MANIFEST_KIND; the web parser pins both together.
-MANIFEST_SCHEMA_VERSION = 12
+#: Moves on structural change only (C-R3); the web parser pins kind and version together.
+MANIFEST_SCHEMA_VERSION = 13
+MANIFEST_KIND = f"sideview-runner-runtime-v{MANIFEST_SCHEMA_VERSION}"
+#: The manifest's blocks, each at its own version, in the order the document publishes
+#: them. A block whose shape moves bumps its version here and in the parser; the ``fx``
+#: block is the family's and is declared beside the function that builds it.
+RUNNER_MANIFEST_BLOCK_VERSIONS: dict[str, str] = {
+    "presentation": "runner-presentation-block-v1",
+    "camera": "runner-camera-block-v1",
+    "scale": "runner-scale-block-v1",
+    "gameplay": "runner-gameplay-block-v1",
+    "ground": "runner-ground-block-v1",
+    "layers": "runner-layers-block-v1",
+    "segments": "runner-segments-block-v1",
+    "avatar": "runner-avatar-block-v1",
+    "props": "runner-props-block-v1",
+    "items": "runner-items-block-v1",
+    "bosses": "runner-bosses-block-v1",
+    "projectiles": "runner-projectiles-block-v1",
+    "audio": "runner-audio-block-v1",
+    "soundtrack": "runner-soundtrack-block-v1",
+    "fx": FX_MANIFEST_BLOCK_VERSION,
+}
 
 PACKAGE_RESOLVE = NodeType(
     type_id=f"{_P}/package.resolve",
@@ -403,6 +427,7 @@ __all__ = [
     "MANIFEST_ASSEMBLE",
     "MANIFEST_KIND",
     "MANIFEST_SCHEMA_VERSION",
+    "RUNNER_MANIFEST_BLOCK_VERSIONS",
     "MOTION_ATLAS_KIND",
     "MOTION_RAW_KIND",
     "MOTION_REBASE_JUDGE",

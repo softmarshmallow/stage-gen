@@ -113,7 +113,7 @@ and `0` respectively.
 
 Package resolution verifies every reference, digest, identity, cross-contract
 map reference, climbable/climb dependency, and portal transition before provider
-work. Integration emits only `prepared-game-runtime-v10`; the web runtime does
+work. Integration emits only `prepared-game-runtime-v11`; the web runtime does
 not infer missing terrain, climbable, portal, or gameplay semantics.
 
 The canonical Bellweather package is the repository example:

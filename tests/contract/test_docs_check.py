@@ -141,9 +141,9 @@ def test_game_contract_authorities_are_discoverable_and_match_the_live_models() 
         "stage-gen package digest",
         "stage-gen package plan",
         "library/games/<game_id>/game.toml",
-        "game-package-v4",
-        "game-contract-v9",
-        "prepared-game-runtime-v10",
+        _current("game-package"),
+        _current("game-contract"),
+        _current("prepared-game-runtime"),
     ):
         assert any(required in document for document in discoverable_docs)
 

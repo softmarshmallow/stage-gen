@@ -537,7 +537,11 @@ tempo; a runner author expresses BPM inside the creative brief.
 
 ## Runtime composition
 
-Successful runner generation emits `sideview-runner-runtime-v12`. Its `ground`
+Successful runner generation emits `sideview-runner-runtime-v13`. Its root carries a
+`blocks` table naming every block's own version (`runner-<key>-block-v1`, and the
+shared `fx-block-v1` when the package authors effects): a block whose shape moves
+bumps its version in `RUNNER_MANIFEST_BLOCK_VERSIONS` and in the parser, and the
+document's kind moves on structural change only (C-R3). Its `ground`
 field is the same closed union as the authored track. Atlas mode publishes one
 atlas path. Structural mode publishes `cell_px = 64` and an authored-order
 `chunks` array whose `segment_id`, image path, columns, and rows must match the
@@ -663,7 +667,7 @@ rather than only the atlas branch. Regenerate with
   "kind": "sideview-runner-execution-graph-contract-v1",
   "fixture_ref": "library/games/iron-petal-unit",
   "graph_schema_version": 1,
-  "topology_sha256": "c3be1f81d692cc3d2100e7b3955d76565c7d923031b404de60d77af401fd69e4",
+  "topology_sha256": "188d0536db018709caef6822277ce81166d3560d5dd178c776298fea9e9e808c",
   "node_count": 109,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {

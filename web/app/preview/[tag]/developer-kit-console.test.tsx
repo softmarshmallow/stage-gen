@@ -79,7 +79,7 @@ describe("the preview shell", () => {
     await mkdir(runDir, { recursive: true });
     await writeFile(
       path.join(runDir, "manifest.json"),
-      JSON.stringify({ schema_version: 10, kind: "prepared-game-runtime-v10" }),
+      JSON.stringify({ schema_version: 11, kind: "prepared-game-runtime-v11" }),
       "utf8",
     );
 

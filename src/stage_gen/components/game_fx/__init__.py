@@ -47,6 +47,7 @@ from stage_gen.components.game_fx.models import (
 )
 
 __all__ = [
+    "FX_MANIFEST_BLOCK_VERSION",
     "CUT_IN_CANVAS",
     "CUT_IN_CHOREOGRAPHIES",
     "CUT_IN_FRAME",

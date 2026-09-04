@@ -363,6 +363,14 @@ GAMEPLAY_BINDINGS_VALIDATE = NodeType(
     contract_version="gameplay-bindings-v1",
 )
 
+#: The runtime manifest's identity. Moves on structural change only (C-R3): a block that
+#: changes shape moves its own version in ``PLATFORMER_MANIFEST_BLOCKS``. Declared here,
+#: beside the node that publishes it, so the graph's port kind and the document agree.
+PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 11
+PREPARED_RUNTIME_MANIFEST_KIND = (
+    f"prepared-game-runtime-v{PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION}"
+)
+
 MANIFEST_ASSEMBLE = NodeType(
     type_id=f"{_P}/manifest.assemble",
     title="Runtime manifest assembly",
@@ -431,6 +439,8 @@ __all__ = [
     "GAMEPLAY_BINDINGS_VALIDATE",
     "IMAGE_FEATURES",
     "MANIFEST_ASSEMBLE",
+    "PREPARED_RUNTIME_MANIFEST_KIND",
+    "PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION",
     "MAP_CLIMBABLE_GENERATE",
     "MAP_CLIMBABLE_VALIDATE",
     "MAP_COMPOSITE",

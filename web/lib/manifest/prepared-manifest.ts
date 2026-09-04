@@ -1,4 +1,5 @@
 import { parseScenarioProgram, type ScenarioProgram } from "@/lib/scenario/program";
+import { type BlockTable, parseBlockTable } from "./blocks";
 import type { ScaleVocabulary, SubjectCalibration } from "./asset-unit";
 import {
   parseInventoryPanelLayout,
@@ -25,8 +26,25 @@ import { parseUiIconSetLayout, type UiIconSetLayout } from "./ui-icon-layout";
 export type RuntimeArtifactRole = "asset" | "provenance";
 
 /** The one prepared-runtime identity this build reads. There is no second one. */
-export const PREPARED_RUNTIME_KIND = "prepared-game-runtime-v10";
-export const PREPARED_RUNTIME_SCHEMA_VERSION = 10;
+export const PREPARED_RUNTIME_KIND = "prepared-game-runtime-v11";
+export const PREPARED_RUNTIME_SCHEMA_VERSION = 11;
+/** Every block this build reads, at the version it reads it (C-R3). */
+export const PREPARED_RUNTIME_BLOCKS = Object.freeze({
+  presentation: "platformer-presentation-block-v1",
+  scale: "platformer-scale-block-v1",
+  maps: "platformer-maps-block-v1",
+  player: "platformer-player-block-v1",
+  mobs: "platformer-mobs-block-v1",
+  npcs: "platformer-npcs-block-v1",
+  props: "platformer-props-block-v1",
+  items: "platformer-items-block-v1",
+  projectiles: "platformer-projectiles-block-v1",
+  ui: "platformer-ui-block-v1",
+  soundtrack: "platformer-soundtrack-block-v1",
+  gameplay: "platformer-gameplay-block-v1",
+  scenarios: "platformer-scenarios-block-v1",
+  closure: "platformer-closure-block-v1",
+} as const);
 
 export type RuntimeArtifact = Readonly<{
   path: string;
@@ -242,8 +260,9 @@ export type MotionCalibration = Readonly<{
 }>;
 
 export type PreparedRuntimeManifest = Readonly<{
-  schema_version: 10;
-  kind: "prepared-game-runtime-v10";
+  schema_version: 11;
+  kind: "prepared-game-runtime-v11";
+  blocks: BlockTable;
   game_id: string;
   revision: number;
   display_name: string;
@@ -716,6 +735,7 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
   ) {
     throw new Error("prepared runtime manifest identity is invalid");
   }
+  const blocks = parseBlockTable(root.blocks, PREPARED_RUNTIME_BLOCKS);
   const rawPresentation = object(root.presentation, "presentation");
   if (
     rawPresentation.view_profile !== "side_view_2d" ||
@@ -1218,8 +1238,9 @@ export function parsePreparedRuntimeManifest(value: unknown): PreparedRuntimeMan
   const entryMapId = id(root.entry_map_id, "entry_map_id");
   if (!maps.some((map) => map.map_id === entryMapId)) throw new Error("entry_map_id does not resolve");
   return Object.freeze({
-    schema_version: 10,
-    kind: "prepared-game-runtime-v10",
+    schema_version: 11,
+    kind: "prepared-game-runtime-v11",
+    blocks,
     game_id: gameId,
     revision: integer(root.revision, "revision", 1),
     display_name: text(root.display_name, "display_name"),

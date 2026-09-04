@@ -28,7 +28,9 @@ BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
 BELLWEATHER_CACHE_KEYS = Path(__file__).with_name("bellweather.cache-keys.json")
 
 BELLWEATHER_NODE_COUNT = 230
-BELLWEATHER_TOPOLOGY_SHA256 = "819c43338c5e6305746a4aaca59a1ee52ab712f09b073a36ff8504b1d839bc87"
+# Re-pinned when the manifest gained per-block versions (C-R3): the terminal node\'s port
+# kind is the manifest identity, so the topology moved with it. No cache key moved.
+BELLWEATHER_TOPOLOGY_SHA256 = "6d60dc2b3440fd6ca2fd95150664e5f79d003741ea1fd087a0b5be3ceed0fb3c"
 
 
 def _bellweather_graph() -> ExecutionGraph:

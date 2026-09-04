@@ -8,7 +8,7 @@
 // Iron Petal, and nothing here mirrors a committed package. A fixture that
 // tracked a real one would fail for the package's reasons as well as its own.
 
-import { RUNNER_RUNTIME_KIND } from "./contract";
+import { RUNNER_BLOCKS, RUNNER_RUNTIME_KIND } from "./contract";
 
 const SHA = "a".repeat(64);
 
@@ -199,8 +199,9 @@ export function runnerManifestFixture(
 ): Record<string, unknown> {
   if (options.encounter === true) return encounterManifestFixture();
   return {
-    schema_version: 12,
+    schema_version: 13,
     kind: RUNNER_RUNTIME_KIND,
+    blocks: { ...RUNNER_BLOCKS },
     game_id: "bellweather",
     display_name: "Bellweather",
     track_id: "sunpetal-sprint",

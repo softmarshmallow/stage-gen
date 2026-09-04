@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { parsePreparedRuntimeManifest } from "@/lib/manifest/prepared-manifest";
+import {
+  parsePreparedRuntimeManifest,
+  PREPARED_RUNTIME_BLOCKS,
+} from "@/lib/manifest/prepared-manifest";
 import { INVENTORY_GRID_4X2_V1 } from "@/lib/manifest/inventory-layout";
 import { UI_ATLAS_FIXTURE_ROLES } from "./prepared-runtime.fixture";
 import { projectPreparedRuntimeAssets } from "./prepared-assets";
@@ -70,8 +73,9 @@ function preparedManifestFixture() {
   ];
   const closure = [...Object.values(assets), ...provenance].reverse();
   return {
-    schema_version: 10,
-    kind: "prepared-game-runtime-v10",
+    schema_version: 11,
+    kind: "prepared-game-runtime-v11",
+    blocks: { ...PREPARED_RUNTIME_BLOCKS },
     game_id: "fixture",
     revision: 1,
     display_name: "Fixture Game",

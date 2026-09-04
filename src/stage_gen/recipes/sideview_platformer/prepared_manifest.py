@@ -7,7 +7,7 @@ import json
 import shutil
 import tempfile
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
@@ -48,6 +48,7 @@ from stage_gen.components.sideview_actor.motion_geometry import (
 from stage_gen.media import measure_alpha_ground_contact
 from stage_gen.media.sprite_sheets import split_atlas_columns
 from stage_gen.orchestration.game_package import ResolvedGamePackage
+from stage_gen.recipes.manifest_blocks import ManifestBlock, block_table, build_blocks
 from stage_gen.recipes.sideview_platformer.asset_unit import (
     admit_rank_ladder,
     resolve_rank_magnitude,
@@ -56,9 +57,12 @@ from stage_gen.recipes.sideview_platformer.motion_contract import (
     motion_atlas_geometry,
     motion_source_facing,
 )
+from stage_gen.recipes.sideview_platformer.package_types import (
+    PREPARED_RUNTIME_MANIFEST_KIND,
+    PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION,
+)
 from stage_gen.recipes.sideview_platformer.terrain_design import terrain_artifact_path
 
-PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION = 10
 #: The render projection the scrolling-preview consumer draws at. This is the only place
 #: the asset unit meets pixels, and a consumer multiplies through it exactly once.
 RUNTIME_TILE_PX = 64
@@ -66,9 +70,6 @@ RUNTIME_TILE_PX = 64
 #: The state the asset unit measures. Every other state reaches its scale through a rebase
 #: multiplier, so measuring a second one would create a second authority for one quantity.
 _BASELINE_STATE = "idle"
-PREPARED_RUNTIME_MANIFEST_KIND = "prepared-game-runtime-v10"
-
-#: What a consumer is expected to do with one published byte set.
 #:
 #: ``asset`` names media this package publishes as its own content. Every one of them is bound
 #: by name somewhere in the manifest, so a consumer enumerating what the game is made of must
@@ -222,21 +223,21 @@ def _file_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _assemble_prepared_runtime(
-    package: ResolvedGamePackage,
-    *,
-    artifact_roots: Sequence[Path],
-    output_dir: Path,
-) -> PreparedManifestResult:
-    roots = tuple(artifact_roots)
+@dataclass(slots=True)
+class _Publication:
+    """Where artifacts come from, where they go, and the records the manifest binds them by."""
 
-    artifacts: dict[str, dict[str, object]] = {}
-    scale = package.game.scale
-    # Silhouette height carries threat, so the ladder is admitted before anything reads it.
-    admit_rank_ladder(scale, {mob.mob_id: mob.rank for mob in package.mobs.mobs})
+    package: ResolvedGamePackage
+    roots: tuple[Path, ...]
+    output_dir: Path
+    artifacts: dict[str, dict[str, object]] = field(default_factory=dict)
 
-    def _publish(relative_path: str, role: RuntimeArtifactRole) -> dict[str, object]:
-        existing = artifacts.get(relative_path)
+    @property
+    def scale(self) -> PreparedScale:
+        return self.package.game.scale
+
+    def _publish(self, relative_path: str, role: RuntimeArtifactRole) -> dict[str, object]:
+        existing = self.artifacts.get(relative_path)
         if existing is not None:
             if existing["role"] != role:
                 raise PreparedManifestError(
@@ -244,105 +245,161 @@ def _assemble_prepared_runtime(
                     f"{relative_path}"
                 )
             return existing
-        source = _find_artifact(roots, relative_path)
-        target = _safe_output_path(output_dir, relative_path)
+        source = _find_artifact(self.roots, relative_path)
+        target = _safe_output_path(self.output_dir, relative_path)
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source, target)
+        # Integration restores into the directory it publishes from; the same file is
+        # not copied onto itself.
+        if not (target.exists() and target.resolve() == source):
+            shutil.copyfile(source, target)
         record = _artifact_record(target, relative_path, role)
-        artifacts[relative_path] = record
+        self.artifacts[relative_path] = record
         return record
 
-    def publish(relative_path: str) -> dict[str, object]:
+    def publish(self, relative_path: str) -> dict[str, object]:
         """Publish one asset and return the record the manifest binds it by."""
 
-        return _publish(relative_path, "asset")
+        return self._publish(relative_path, "asset")
 
-    def publish_provenance(relative_path: str) -> None:
+    def publish_provenance(self, relative_path: str) -> None:
         """Publish one record or judged plate the run ships so it can be re-derived.
 
         Nothing is returned, because provenance is never bound as an asset. It reaches a
         consumer through the closure alone, where its declared role says not to present it.
         """
 
-        _publish(relative_path, "provenance")
+        self._publish(relative_path, "provenance")
 
-    def prop_manifest(prop: PropContent) -> dict[str, object]:
-        relative_path = f"content/props/{prop.prop_id}.png"
-        asset = publish(relative_path)
-        contact = measure_alpha_ground_contact(
-            _safe_output_path(output_dir, relative_path).read_bytes()
+    def read(self, relative_path: str) -> bytes:
+        """The bytes of a published path, exactly as a consumer will load them."""
+
+        return _safe_output_path(self.output_dir, relative_path).read_bytes()
+
+    def find(self, relative_path: str) -> Path:
+        return _find_artifact(self.roots, relative_path)
+
+    def records(self) -> list[dict[str, object]]:
+        return [self.artifacts[path] for path in sorted(self.artifacts)]
+
+
+def _presentation_block(pub: _Publication) -> object:
+    return pub.package.platformer.presentation.model_dump(mode="json")
+
+
+def _scale_block(pub: _Publication) -> object:
+    return pub.scale.model_dump(mode="json")
+
+
+def _layer_manifest(pub: _Publication, map_id: str, layer: PreparedMapLayer) -> dict[str, object]:
+    layer_id = layer.layer_id
+    relative_path = f"maps/{map_id}/layers/{layer_id}.png"
+    asset = pub.publish(relative_path)
+    validation_path = f"maps/{map_id}/layers/{layer_id}.validation.json"
+    pub.publish_provenance(validation_path)
+    validation = json.loads(pub.read(validation_path))
+    placement = validation.get("placement")
+    if not isinstance(placement, dict):
+        raise PreparedManifestError(
+            f"map layer {map_id}/{layer_id} has no resolved vertical placement"
         )
-        normalized = contact["ground_contact_y_normalized"]
-        if not isinstance(normalized, (int, float)):
-            raise PreparedManifestError("prop ground contact measurement is invalid")
-        return {
-            "prop_id": prop.prop_id,
-            "display_name": prop.display_name,
-            "ground_contact_y_normalized": float(normalized),
-            "calibration": _subject_calibration(
-                output_dir,
-                relative_path,
-                resolve_declared_magnitude(scale, prop.height_units, subject=prop.prop_id),
-                scale,
-                subject=prop.prop_id,
-            ),
-            "asset": asset,
-        }
-
-    def layer_manifest(map_id: str, layer: PreparedMapLayer) -> dict[str, object]:
-        layer_id = layer.layer_id
-        relative_path = f"maps/{map_id}/layers/{layer_id}.png"
-        asset = publish(relative_path)
-        validation_path = f"maps/{map_id}/layers/{layer_id}.validation.json"
-        publish_provenance(validation_path)
-        validation = json.loads(_safe_output_path(output_dir, validation_path).read_bytes())
-        placement = validation.get("placement")
-        if not isinstance(placement, dict):
+    for field_name in ("vertical_anchor", "vertical_offset", "source_height", "trimmed_height"):
+        if field_name not in placement:
             raise PreparedManifestError(
-                f"map layer {map_id}/{layer_id} has no resolved vertical placement"
+                f"map layer {map_id}/{layer_id} placement is missing {field_name}"
             )
-        for field in ("vertical_anchor", "vertical_offset", "source_height", "trimmed_height"):
-            if field not in placement:
-                raise PreparedManifestError(
-                    f"map layer {map_id}/{layer_id} placement is missing {field}"
-                )
-        if placement["vertical_anchor"] != layer.vertical_anchor:
-            raise PreparedManifestError(
-                f"map layer {map_id}/{layer_id} placement does not match its authored anchor"
-            )
-        return {
-            "layer_id": layer_id,
-            "plane": layer.plane,
-            "order": layer.order,
-            "parallax": layer.parallax,
-            "alpha_mode": layer.alpha_mode,
-            # Resolved placement: the runtime applies it and never re-measures the raster.
-            "placement": {
-                "vertical_anchor": placement["vertical_anchor"],
-                "vertical_offset": float(placement["vertical_offset"]),
-                "vertical_offset_source": placement.get("vertical_offset_source", "measured"),
-                # The painted frame stays the scale datum after empty rows are trimmed away.
-                "source_height": int(placement["source_height"]),
-                "trimmed_height": int(placement["trimmed_height"]),
-                "trimmed_top": int(placement["trimmed_top"]),
-            },
-            "presentation": layer.presentation.model_dump(mode="json"),
-            "asset": asset,
-        }
+    if placement["vertical_anchor"] != layer.vertical_anchor:
+        raise PreparedManifestError(
+            f"map layer {map_id}/{layer_id} placement does not match its authored anchor"
+        )
+    return {
+        "layer_id": layer_id,
+        "plane": layer.plane,
+        "order": layer.order,
+        "parallax": layer.parallax,
+        "alpha_mode": layer.alpha_mode,
+        # Resolved placement: the runtime applies it and never re-measures the raster.
+        "placement": {
+            "vertical_anchor": placement["vertical_anchor"],
+            "vertical_offset": float(placement["vertical_offset"]),
+            "vertical_offset_source": placement.get("vertical_offset_source", "measured"),
+            # The painted frame stays the scale datum after empty rows are trimmed away.
+            "source_height": int(placement["source_height"]),
+            "trimmed_height": int(placement["trimmed_height"]),
+            "trimmed_top": int(placement["trimmed_top"]),
+        },
+        "presentation": layer.presentation.model_dump(mode="json"),
+        "asset": asset,
+    }
 
+
+def _climbable_manifest(
+    pub: _Publication, game_map: PreparedGameMap, terrain: PreparedMapTerrain
+) -> dict[str, object]:
+    climbable = game_map.climbable
+    assert climbable is not None
+    # Atlas cell index is roster index: ladders left to right, then ropes. The binding is
+    # positional, which is what lets the runtime address a variant without measuring it.
+    #
+    # Each variant's trimmed rectangle inside the repacked sheet travels with it, so the
+    # consumer crops and sizes exactly rather than re-deriving geometry from alpha. A rope
+    # is several times narrower than a ladder; without this the runtime has no way to draw
+    # each at its own width.
+    climbable_validation_path = f"maps/{game_map.map_id}/climbable.validation.json"
+    pub.publish_provenance(climbable_validation_path)
+    climbable_validation = json.loads(pub.read(climbable_validation_path))
+    cells = climbable_validation.get("placements")
+    if not isinstance(cells, list) or len(cells) != len(climbable.variants):
+        raise PreparedManifestError(
+            "climbable validation does not describe one cell per declared variant"
+        )
+    variants = []
+    for index, entry in enumerate(climbable.variants):
+        cell = cells[index]
+        if not isinstance(cell, dict):
+            raise PreparedManifestError("climbable validation cell is invalid")
+        box = cell.get("target_bbox")
+        if not isinstance(box, list) or len(box) != 4:
+            raise PreparedManifestError("climbable validation cell geometry is invalid")
+        left, top, right, bottom = (int(value) for value in box)
+        if right <= left or bottom <= top:
+            raise PreparedManifestError("climbable validation cell is empty")
+        variants.append(
+            {
+                "variant_id": entry.variant_id,
+                "role": climbable.role_of(entry.variant_id),
+                "cell_index": index,
+                "cell": {
+                    "x": left,
+                    "y": top,
+                    "width": right - left,
+                    "height": bottom - top,
+                },
+            }
+        )
+    return {
+        "mode": climbable.mode,
+        "index_order": "left_to_right",
+        "variants": variants,
+        "placements": [entry.model_dump(mode="json") for entry in terrain.climbable_placements],
+        "asset": pub.publish(f"maps/{game_map.map_id}/climbable.png"),
+    }
+
+
+def _maps_block(pub: _Publication) -> object:
+    package = pub.package
     map_uses = {entry.map_id: entry for entry in package.gameplay.map_uses}
     maps: list[dict[str, object]] = []
     for game_map in package.maps:
         map_use = map_uses[game_map.map_id]
         # Generated geometry, checked against what the map asked for before anything is written.
         terrain = load_prepared_map_terrain_bytes(
-            _find_artifact(roots, terrain_artifact_path(game_map.map_id)).read_bytes()
+            pub.find(terrain_artifact_path(game_map.map_id)).read_bytes()
         )
         validate_generated_terrain(game_map, terrain)
         # The record the occupancy below was read from travels with the run so a consumer can
         # re-derive the world instead of trusting the inlined copy. Nothing fetches it to play:
         # it is provenance, not an asset.
-        publish_provenance(terrain_artifact_path(game_map.map_id))
+        pub.publish_provenance(terrain_artifact_path(game_map.map_id))
         map_manifest: dict[str, object] = {
             "map_id": game_map.map_id,
             "revision": game_map.revision,
@@ -355,85 +412,39 @@ def _assemble_prepared_runtime(
             "role": map_use.role,
             "hostile_population_enabled": map_use.hostile_population_enabled,
             "track_ids": list(map_use.track_ids),
-            "layers": [layer_manifest(game_map.map_id, layer) for layer in game_map.layers],
-            "ground": _ground_manifest(game_map, terrain, publish),
+            "layers": [_layer_manifest(pub, game_map.map_id, layer) for layer in game_map.layers],
+            "ground": _ground_manifest(game_map, terrain, pub.publish),
         }
         if game_map.climbable is not None:
-            climbable = game_map.climbable
-            # Atlas cell index is roster index: ladders left to right, then ropes. The binding is
-            # positional, which is what lets the runtime address a variant without measuring it.
-            #
-            # Each variant's trimmed rectangle inside the repacked sheet travels with it, so the
-            # consumer crops and sizes exactly rather than re-deriving geometry from alpha. A rope
-            # is several times narrower than a ladder; without this the runtime has no way to draw
-            # each at its own width.
-            climbable_validation_path = f"maps/{game_map.map_id}/climbable.validation.json"
-            publish_provenance(climbable_validation_path)
-            climbable_validation = json.loads(
-                _safe_output_path(output_dir, climbable_validation_path).read_bytes()
-            )
-            cells = climbable_validation.get("placements")
-            if not isinstance(cells, list) or len(cells) != len(climbable.variants):
-                raise PreparedManifestError(
-                    "climbable validation does not describe one cell per declared variant"
-                )
-            variants = []
-            for index, entry in enumerate(climbable.variants):
-                cell = cells[index]
-                if not isinstance(cell, dict):
-                    raise PreparedManifestError("climbable validation cell is invalid")
-                box = cell.get("target_bbox")
-                if not isinstance(box, list) or len(box) != 4:
-                    raise PreparedManifestError("climbable validation cell geometry is invalid")
-                left, top, right, bottom = (int(value) for value in box)
-                if right <= left or bottom <= top:
-                    raise PreparedManifestError("climbable validation cell is empty")
-                variants.append(
-                    {
-                        "variant_id": entry.variant_id,
-                        "role": climbable.role_of(entry.variant_id),
-                        "cell_index": index,
-                        "cell": {
-                            "x": left,
-                            "y": top,
-                            "width": right - left,
-                            "height": bottom - top,
-                        },
-                    }
-                )
-            map_manifest["climbable"] = {
-                "mode": climbable.mode,
-                "index_order": "left_to_right",
-                "variants": variants,
-                "placements": [
-                    entry.model_dump(mode="json") for entry in terrain.climbable_placements
-                ],
-                "asset": publish(f"maps/{game_map.map_id}/climbable.png"),
-            }
+            map_manifest["climbable"] = _climbable_manifest(pub, game_map, terrain)
         if game_map.portal is not None:
             map_manifest["portal"] = {
                 "mode": game_map.portal.mode,
                 "endpoints": [entry.model_dump(mode="json") for entry in game_map.portal.endpoints],
-                "asset": publish(f"maps/{game_map.map_id}/portal.png"),
+                "asset": pub.publish(f"maps/{game_map.map_id}/portal.png"),
             }
         maps.append(map_manifest)
+    return maps
 
-    player = package.player.players[0]
-    player_manifest = {
+
+def _player_block(pub: _Publication) -> object:
+    player = pub.package.player.players[0]
+    scale = pub.scale
+    return {
         "player_id": player.player_id,
         "display_name": player.display_name,
         "body_kind": player.body_kind,
-        "concept": publish(f"content/players/{player.player_id}/concept.png"),
+        "concept": pub.publish(f"content/players/{player.player_id}/concept.png"),
         "states": {
             motion.state: _motion_binding(
-                publish(f"content/players/{player.player_id}/states/{motion.state}.png"),
+                pub.publish(f"content/players/{player.player_id}/states/{motion.state}.png"),
                 motion,
                 actor_kind="player",
             )
             for motion in player.motions
         },
         "dialogue": _dialogue_binding(
-            publish(f"content/players/{player.player_id}/dialogue.png"),
+            pub.publish(f"content/players/{player.player_id}/dialogue.png"),
             player.dialogue_art.expressions,
         ),
         "calibration": {
@@ -441,7 +452,7 @@ def _assemble_prepared_runtime(
             # per-state ratios that bring every other atlas onto it. The pair is deliberate: the
             # first is authored input and its measurement, the second is derived output.
             **_subject_calibration(
-                output_dir,
+                pub.output_dir,
                 f"content/players/{player.player_id}/states/{_BASELINE_STATE}.png",
                 resolve_player_magnitude(None),
                 scale,
@@ -449,32 +460,35 @@ def _assemble_prepared_runtime(
                 columns=motion_atlas_geometry("player", _BASELINE_STATE).columns,
             ),
             **_motion_rebase_binding(
-                output_dir,
-                publish_provenance,
+                pub.output_dir,
+                pub.publish_provenance,
                 player.player_id,
                 [motion.state for motion in player.motions],
             ),
         },
     }
 
-    mobs = [
+
+def _mobs_block(pub: _Publication) -> object:
+    scale = pub.scale
+    return [
         {
             "mob_id": mob.mob_id,
             "display_name": mob.display_name,
             "body_kind": mob.body_kind,
             "rank": mob.rank,
             "aggression": mob.aggression,
-            "concept": publish(f"content/mobs/{mob.mob_id}/concept.png"),
+            "concept": pub.publish(f"content/mobs/{mob.mob_id}/concept.png"),
             "states": {
                 motion.state: _motion_binding(
-                    publish(f"content/mobs/{mob.mob_id}/states/{motion.state}.png"),
+                    pub.publish(f"content/mobs/{mob.mob_id}/states/{motion.state}.png"),
                     motion,
                     actor_kind="mob",
                 )
                 for motion in mob.motions
             },
             "calibration": _subject_calibration(
-                output_dir,
+                pub.output_dir,
                 f"content/mobs/{mob.mob_id}/states/{mob.motions[0].state}.png",
                 resolve_rank_magnitude(scale, mob.rank),
                 scale,
@@ -482,27 +496,31 @@ def _assemble_prepared_runtime(
                 columns=motion_atlas_geometry("mob", mob.motions[0].state).columns,
             ),
         }
-        for mob in package.mobs.mobs
+        for mob in pub.package.mobs.mobs
     ]
 
-    npcs = [
+
+def _npcs_block(pub: _Publication) -> object:
+    package = pub.package
+    scale = pub.scale
+    return [
         {
             "npc_id": npc.npc_id,
             "display_name": npc.display_name,
             "role": npc.role,
             "body_kind": npc.body_kind,
             "world": _motion_binding(
-                publish(f"content/npcs/{npc.npc_id}/world.png"),
+                pub.publish(f"content/npcs/{npc.npc_id}/world.png"),
                 npc.motions[0],
                 actor_kind="npc",
                 npc_world_orientation=package.npcs.world_orientation,
             ),
             "dialogue": _dialogue_binding(
-                publish(f"content/npcs/{npc.npc_id}/dialogue.png"),
+                pub.publish(f"content/npcs/{npc.npc_id}/dialogue.png"),
                 npc.dialogue_expressions,
             ),
             "calibration": _subject_calibration(
-                output_dir,
+                pub.output_dir,
                 f"content/npcs/{npc.npc_id}/world.png",
                 resolve_declared_magnitude(scale, npc.height_units, subject=npc.npc_id),
                 scale,
@@ -513,37 +531,70 @@ def _assemble_prepared_runtime(
         for npc in package.npcs.npcs
     ]
 
-    props = [prop_manifest(prop) for prop in package.props.props]
-    items = [
+
+def _prop_manifest(pub: _Publication, prop: PropContent) -> dict[str, object]:
+    relative_path = f"content/props/{prop.prop_id}.png"
+    asset = pub.publish(relative_path)
+    contact = measure_alpha_ground_contact(pub.read(relative_path))
+    normalized = contact["ground_contact_y_normalized"]
+    if not isinstance(normalized, (int, float)):
+        raise PreparedManifestError("prop ground contact measurement is invalid")
+    return {
+        "prop_id": prop.prop_id,
+        "display_name": prop.display_name,
+        "ground_contact_y_normalized": float(normalized),
+        "calibration": _subject_calibration(
+            pub.output_dir,
+            relative_path,
+            resolve_declared_magnitude(pub.scale, prop.height_units, subject=prop.prop_id),
+            pub.scale,
+            subject=prop.prop_id,
+        ),
+        "asset": asset,
+    }
+
+
+def _props_block(pub: _Publication) -> object:
+    return [_prop_manifest(pub, prop) for prop in pub.package.props.props]
+
+
+def _items_block(pub: _Publication) -> object:
+    scale = pub.scale
+    return [
         {
             "item_id": item.item_id,
             "display_name": item.display_name,
             "item_kind": item.item_kind,
             # Published before it is measured: the calibration describes the bytes a consumer
             # will load, not the bytes the run happened to produce.
-            "asset": publish(f"content/items/{item.item_id}.png"),
+            "asset": pub.publish(f"content/items/{item.item_id}.png"),
             "calibration": _subject_calibration(
-                output_dir,
+                pub.output_dir,
                 f"content/items/{item.item_id}.png",
                 resolve_declared_magnitude(scale, item.height_units, subject=item.item_id),
                 scale,
                 subject=item.item_id,
             ),
         }
-        for item in package.items.items
+        for item in pub.package.items.items
     ]
-    projectiles = [
+
+
+def _projectiles_block(pub: _Publication) -> object:
+    package = pub.package
+    scale = pub.scale
+    return [
         {
             "projectile_id": entry.projectile_id,
             "display_name": entry.display_name,
             "silhouette": entry.silhouette,
             "flight": entry.flight,
             "impact": entry.impact,
-            "asset": publish(f"content/projectiles/{entry.projectile_id}.png"),
+            "asset": pub.publish(f"content/projectiles/{entry.projectile_id}.png"),
             # Measured across, not up: the subject is drawn lying along its own travel axis, so
             # its width is the dimension `length_units` declares. The record names the axis.
             "calibration": _subject_calibration(
-                output_dir,
+                pub.output_dir,
                 f"content/projectiles/{entry.projectile_id}.png",
                 resolve_declared_magnitude(scale, entry.length_units, subject=entry.projectile_id),
                 scale,
@@ -553,84 +604,121 @@ def _assemble_prepared_runtime(
         }
         for entry in ([] if package.projectiles is None else package.projectiles.projectiles)
     ]
-    tracks = [
-        {
-            "track_id": track.track_id,
-            "display_name": track.display_name,
-            "instrumental": track.generation.instrumental,
-            "seamless_loop": track.generation.seamless_loop,
-            "target_duration_seconds": track.generation.target_duration_seconds,
-            "asset": publish(f"soundtrack/{track.track_id}.mp3"),
-        }
-        for track in package.soundtrack.tracks
-    ]
 
+
+def _ui_block(pub: _Publication) -> object:
     try:
         atlas_block = ui_atlas_manifest_block(
-            read_validation=lambda path: _safe_output_path(output_dir, path).read_bytes(),
-            publish=publish,
-            publish_provenance=publish_provenance,
+            read_validation=pub.read,
+            publish=pub.publish,
+            publish_provenance=pub.publish_provenance,
         )
     except ValueError as error:
         raise PreparedManifestError(str(error)) from error
-
-    ui: dict[str, object] = {
+    return {
         "inventory_panel": {
             **inventory_panel_layout_contract(),
-            "asset": publish("ui/inventory_panel.png"),
+            "asset": pub.publish("ui/inventory_panel.png"),
         },
         **atlas_block,
     }
 
-    artifact_records = [artifacts[path] for path in sorted(artifacts)]
-    closure_sha256 = _canonical_sha256(artifact_records)
+
+def _soundtrack_block(pub: _Publication) -> object:
+    package = pub.package
+    return {
+        "playback": package.soundtrack.playback.model_dump(mode="json"),
+        "tracks": [
+            {
+                "track_id": track.track_id,
+                "display_name": track.display_name,
+                "instrumental": track.generation.instrumental,
+                "seamless_loop": track.generation.seamless_loop,
+                "target_duration_seconds": track.generation.target_duration_seconds,
+                "asset": pub.publish(f"soundtrack/{track.track_id}.mp3"),
+            }
+            for track in package.soundtrack.tracks
+        ],
+    }
+
+
+def _gameplay_block(pub: _Publication) -> object:
+    return pub.package.gameplay.model_dump(mode="json")
+
+
+def _scenarios_block(pub: _Publication) -> object:
+    # The compiled program, not the authored declarations: the consumer walks a
+    # graph, and re-deriving it in TypeScript would be a second compiler that
+    # could disagree with the proof.
+    return [
+        scenario.program.model_dump(mode="json", exclude_none=True)
+        for scenario in pub.package.scenarios
+    ]
+
+
+def _closure_block(pub: _Publication) -> object:
+    records = pub.records()
+    return {
+        "artifact_count": len(records),
+        "artifacts_sha256": _canonical_sha256(records),
+        "artifacts": records,
+    }
+
+
+#: The manifest's blocks, in publication order, each at its own version. The closure is
+#: last because it records what every earlier block published. A block whose shape moves
+#: bumps its version here and the parser that reads it; nothing else moves.
+PLATFORMER_MANIFEST_BLOCKS: tuple[ManifestBlock[_Publication], ...] = (
+    ManifestBlock("presentation", "platformer-presentation-block-v1", _presentation_block),
+    ManifestBlock("scale", "platformer-scale-block-v1", _scale_block),
+    ManifestBlock("maps", "platformer-maps-block-v1", _maps_block),
+    ManifestBlock("player", "platformer-player-block-v1", _player_block),
+    ManifestBlock("mobs", "platformer-mobs-block-v1", _mobs_block),
+    ManifestBlock("npcs", "platformer-npcs-block-v1", _npcs_block),
+    ManifestBlock("props", "platformer-props-block-v1", _props_block),
+    ManifestBlock("items", "platformer-items-block-v1", _items_block),
+    ManifestBlock("projectiles", "platformer-projectiles-block-v1", _projectiles_block),
+    ManifestBlock("ui", "platformer-ui-block-v1", _ui_block),
+    ManifestBlock("soundtrack", "platformer-soundtrack-block-v1", _soundtrack_block),
+    ManifestBlock("gameplay", "platformer-gameplay-block-v1", _gameplay_block),
+    ManifestBlock("scenarios", "platformer-scenarios-block-v1", _scenarios_block),
+    ManifestBlock("closure", "platformer-closure-block-v1", _closure_block),
+)
+PLATFORMER_MANIFEST_BLOCK_VERSIONS: dict[str, str] = block_table(PLATFORMER_MANIFEST_BLOCKS)
+
+
+def _assemble_prepared_runtime(
+    package: ResolvedGamePackage,
+    *,
+    artifact_roots: Sequence[Path],
+    output_dir: Path,
+) -> PreparedManifestResult:
+    pub = _Publication(package, tuple(artifact_roots), output_dir)
+    # Silhouette height carries threat, so the ladder is admitted before anything reads it.
+    admit_rank_ladder(pub.scale, {mob.mob_id: mob.rank for mob in package.mobs.mobs})
+    blocks = build_blocks(PLATFORMER_MANIFEST_BLOCKS, pub)
     manifest: dict[str, object] = {
         "schema_version": PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION,
         "kind": PREPARED_RUNTIME_MANIFEST_KIND,
+        "blocks": PLATFORMER_MANIFEST_BLOCK_VERSIONS,
         "game_id": package.game.game_id,
         "revision": package.game.revision,
         "display_name": package.game.display_name,
         "package_sha256": package.package_sha256,
         "canonical_game_sha256": package.canonical_game_sha256,
         "universe": package.file(package.game.universe.source).data.decode("utf-8"),
-        "presentation": package.platformer.presentation.model_dump(mode="json"),
         "style": package.game.style.model_dump(mode="json"),
         "proportion": package.game.proportion.model_dump(mode="json"),
-        "scale": package.game.scale.model_dump(mode="json"),
         "entry_map_id": package.gameplay.entry_map_id,
         "entry_spawn_id": package.gameplay.entry_spawn_id,
-        "maps": maps,
-        "player": player_manifest,
-        "mobs": mobs,
-        "npcs": npcs,
-        "props": props,
-        "items": items,
-        "projectiles": projectiles,
-        "ui": ui,
-        "soundtrack": {
-            "playback": package.soundtrack.playback.model_dump(mode="json"),
-            "tracks": tracks,
-        },
-        "gameplay": package.gameplay.model_dump(mode="json"),
-        # The compiled program, not the authored declarations: the consumer walks a
-        # graph, and re-deriving it in TypeScript would be a second compiler that
-        # could disagree with the proof.
-        "scenarios": [
-            scenario.program.model_dump(mode="json", exclude_none=True)
-            for scenario in package.scenarios
-        ],
-        "closure": {
-            "artifact_count": len(artifact_records),
-            "artifacts_sha256": closure_sha256,
-            "artifacts": artifact_records,
-        },
+        **blocks,
     }
-    _validate_closure_roles(manifest, artifacts)
+    _validate_closure_roles(manifest, pub.artifacts)
     atomic_write_json(output_dir / "manifest.json", manifest)
     return PreparedManifestResult(
         manifest=manifest,
         output_dir=output_dir,
-        artifact_count=len(artifact_records),
+        artifact_count=len(pub.artifacts),
     )
 
 

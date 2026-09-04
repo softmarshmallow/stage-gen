@@ -5,7 +5,7 @@
 The prepared game separates visual/static map composition from semantic game
 use. `gameplay.toml` is the portable simulation contract; each
 `maps/<map_id>.toml` supplies visual layers and static topology; the web runtime
-adapts both from `prepared-game-runtime-v10` into Phaser objects.
+adapts both from `prepared-game-runtime-v11` into Phaser objects.
 
 ## Ownership
 

@@ -96,6 +96,7 @@ from stage_gen.recipes.sideview_platformer.package_types import (
     MOTION_REBASE_VERIFY,
     MUSIC_FEATURES,
     PACKAGE_RESOLVE,
+    PREPARED_RUNTIME_MANIFEST_KIND,
     SOUNDTRACK_GENERATE,
     SOUNDTRACK_VALIDATE,
     STRUCTURED_FEATURES,
@@ -273,7 +274,7 @@ def build_package_execution_graph(
         # The canonical projection alone does not reach the members the manifest reads, such as
         # authored playback, so the assembled manifest keys on the whole captured closure.
         input_digests=(package.canonical_game_sha256, package.closure_sha256),
-        ports=(_record("manifest", "manifest.json", "prepared-game-runtime-v10"),),
+        ports=(_record("manifest", "manifest.json", PREPARED_RUNTIME_MANIFEST_KIND),),
         duration_seconds=1.0,
     )
     return finalize_execution_graph(

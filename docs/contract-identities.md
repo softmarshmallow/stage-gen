@@ -17,6 +17,7 @@ not an identity but a cache key (C-R1); its evidence is the cache-key goldens.
 | `authored` | a document an author writes and the pipeline validates |
 | `generated` | a document the pipeline writes and a consumer or a later node reads |
 | `manifest` | a runtime manifest a web consumer parses |
+| `block` | one named block of a runtime manifest, versioned on its own (C-R3) |
 | `graph` | a sealed execution-graph document |
 | `mode` | a closed-vocabulary word inside a document that selects a producer |
 | `namespace` | a node-cache namespace: one recipe's whole tree of restorable work |
@@ -56,6 +57,35 @@ not an identity but a cache key (C-R1); its evidence is the cache-key goldens.
 | `scenario-catalog-v1` | `authored` | `stage_gen.components.scenario.models:ScenarioCatalog.kind` |
 | `scenario-v2` | `authored` | `stage_gen.components.scenario.models:ScenarioDeclarations.kind` |
 | `universe-source-v1` | `authored` | `stage_gen.recipes.universe.models:UniverseSource.kind` |
+| `fx-block-v1` | `block` | `stage_gen.components.game_fx.nodes:FX_MANIFEST_BLOCK_VERSION` |
+| `platformer-closure-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['closure']` |
+| `platformer-gameplay-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['gameplay']` |
+| `platformer-items-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['items']` |
+| `platformer-maps-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['maps']` |
+| `platformer-mobs-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['mobs']` |
+| `platformer-npcs-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['npcs']` |
+| `platformer-player-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['player']` |
+| `platformer-presentation-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['presentation']` |
+| `platformer-projectiles-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['projectiles']` |
+| `platformer-props-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['props']` |
+| `platformer-scale-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['scale']` |
+| `platformer-scenarios-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['scenarios']` |
+| `platformer-soundtrack-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['soundtrack']` |
+| `platformer-ui-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['ui']` |
+| `runner-audio-block-v1` | `block` | `stage_gen.recipes.sideview_runner.runner_types:RUNNER_MANIFEST_BLOCK_VERSIONS['audio']` |
+| `runner-avatar-block-v1` | `block` | `stage_gen.recipes.sideview_runner.runner_types:RUNNER_MANIFEST_BLOCK_VERSIONS['avatar']` |
+| `runner-bosses-block-v1` | `block` | `stage_gen.recipes.sideview_runner.runner_types:RUNNER_MANIFEST_BLOCK_VERSIONS['bosses']` |
+| `runner-camera-block-v1` | `block` | `stage_gen.recipes.sideview_runner.runner_types:RUNNER_MANIFEST_BLOCK_VERSIONS['camera']` |
+| `runner-gameplay-block-v1` | `block` | `stage_gen.recipes.sideview_runner.runner_types:RUNNER_MANIFEST_BLOCK_VERSIONS['gameplay']` |
+| `runner-ground-block-v1` | `block` | `stage_gen.recipes.sideview_runner.runner_types:RUNNER_MANIFEST_BLOCK_VERSIONS['ground']` |
+| `runner-items-block-v1` | `block` | `stage_gen.recipes.sideview_runner.runner_types:RUNNER_MANIFEST_BLOCK_VERSIONS['items']` |
+| `runner-layers-block-v1` | `block` | `stage_gen.recipes.sideview_runner.runner_types:RUNNER_MANIFEST_BLOCK_VERSIONS['layers']` |
+| `runner-presentation-block-v1` | `block` | `stage_gen.recipes.sideview_runner.runner_types:RUNNER_MANIFEST_BLOCK_VERSIONS['presentation']` |
+| `runner-projectiles-block-v1` | `block` | `stage_gen.recipes.sideview_runner.runner_types:RUNNER_MANIFEST_BLOCK_VERSIONS['projectiles']` |
+| `runner-props-block-v1` | `block` | `stage_gen.recipes.sideview_runner.runner_types:RUNNER_MANIFEST_BLOCK_VERSIONS['props']` |
+| `runner-scale-block-v1` | `block` | `stage_gen.recipes.sideview_runner.runner_types:RUNNER_MANIFEST_BLOCK_VERSIONS['scale']` |
+| `runner-segments-block-v1` | `block` | `stage_gen.recipes.sideview_runner.runner_types:RUNNER_MANIFEST_BLOCK_VERSIONS['segments']` |
+| `runner-soundtrack-block-v1` | `block` | `stage_gen.recipes.sideview_runner.runner_types:RUNNER_MANIFEST_BLOCK_VERSIONS['soundtrack']` |
 | `case-admission-v1` | `generated` | `stage_gen.components.case.models:CaseAdmissionReport.kind` |
 | `case-runtime-v1` | `generated` | `stage_gen.components.case.models:CaseRuntime.kind` |
 | `dialogue-scene-bundle-v8` | `generated` | `stage_gen.recipes.dialogue_scene.models:DialogueBundle.kind` |
@@ -75,8 +105,8 @@ not an identity but a cache key (C-R1); its evidence is the cache-key goldens.
 | `sideview-runner-execution-graph-v1` | `graph` | `stage_gen.recipes.sideview_runner.runner_graph:SideviewRunnerGraph.kind` |
 | `universe-execution-graph-v1` | `graph` | `stage_gen.recipes.universe.universe_graph:UniverseGraph.kind` |
 | `pointclick-room-runtime-v3` | `manifest` | `stage_gen.recipes.pointclick_room.room_types:MANIFEST_KIND` |
-| `prepared-game-runtime-v10` | `manifest` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PREPARED_RUNTIME_MANIFEST_KIND` |
-| `sideview-runner-runtime-v12` | `manifest` | `stage_gen.recipes.sideview_runner.runner_types:MANIFEST_KIND` |
+| `prepared-game-runtime-v11` | `manifest` | `stage_gen.recipes.sideview_platformer.package_types:PREPARED_RUNTIME_MANIFEST_KIND` |
+| `sideview-runner-runtime-v13` | `manifest` | `stage_gen.recipes.sideview_runner.runner_types:MANIFEST_KIND` |
 | `universe-gallery-manifest-v1` | `manifest` | `stage_gen.recipes.universe.universe_types:MANIFEST_KIND` |
 | `auto_run_x_v1` | `mode` | `stage_gen.components.runner_track.models:RunnerCamera.mode` |
 | `climbable-atlas-v1` | `mode` | `stage_gen.components.platformer_map.prepared:PreparedMapClimbable.mode` |
