@@ -1,5 +1,23 @@
 # Documentation
 
+Three kinds of document live here. A **spec** under [`spec/`](spec/) states a
+contract and opens by naming what checks it. A **decision** under
+[`decisions/`](decisions/README.md) records one ruling — fact, challenge,
+ruling, evidence, and the observation that would overturn it. A **plan** under
+[`plans/`](plans/) is a path rather than a contract: steps, evidence lines and
+rulings in progress, and it dies when the path is walked. Open work is one line
+per item in [`TODO.md`](../TODO.md), linking to whichever of the three holds
+its context.
+
+- [Decisions](decisions/README.md) — the indexed decision log, seeded from what
+  `TODO.md` had recorded and grown one record per ruling since.
+- [The engineering pass](plans/engineering-pass.md) — the standing plan: what
+  each card cuts, in what order, and what it measured when it landed.
+- [Runtime composition: the plan](plans/runtime-composition-plan.md) — the path
+  from a scene that orders its own frame to families on a sealed kernel, one
+  taxonomy ruling per step, companion to
+  [runtime-composition.md](spec/game/runtime-composition.md).
+
 Start here for the headless, general-purpose system:
 
 - [System overview](spec/system-overview.md) — ownership and data flow.
