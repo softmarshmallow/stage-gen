@@ -146,12 +146,19 @@ function digest(world: unknown, events: readonly unknown[]): string {
  * frames moved and why. That is the whole discipline this file exists to enforce.
  */
 const GOLDEN: Record<number, string> = {
-  // Still in the village, mid-conversation with the baker.
+  // Still in the village, mid-conversation with the baker. Upstream of every re-pin so far.
   60: "fceee423071df122b788bc24b09db031f6013db1e8b5ec4a2634c867062e9ae1",
   // On the hunting route, one creature down and the loot collected.
-  300: "cdbfcc2622b081a8bf47c4599e37c901e07c390c87d306479607931e4685fe2b",
+  //
+  // Re-pinned once, for `Mob` off the engine's tweens and timers. Twenty-two of six hundred frames
+  // moved — 291 to 312 — and every changed field is under `mobs`. The killed creature's fade now
+  // begins on the killing frame instead of five hundred milliseconds later, and the body retires at
+  // 299 rather than 313. Its knockback x is identical frame for frame in both runs, which is the
+  // measurement that `sampleFixedMobHit` really does reproduce the Cubic ease the tween ran; 313
+  // onward hash identically one by one.
+  300: "b5d8aff5cfa4f092a68e5d19d0febaa7b6fb96a7db98f3e91a546d201f372c3d",
   // The whole run.
-  600: "d8f08f4e7dea72f5925c11c61b22aa824801c046daf363be43dec9a01c68d385",
+  600: "02af68f0f2942ed254d5728e3f82610f4a14bd748d5a4f61183f6a41bdac9d0a",
 };
 
 describe("the platformer replays to its golden", () => {
@@ -163,6 +170,7 @@ describe("the platformer replays to its golden", () => {
       const frames: string[] = [];
       const kinds = new Set<string>();
       const notes: Record<string, number> = {};
+      const dumps: string[] = [];
       for (let frame = 1; frame <= FRAMES; frame += 1) {
         harness.step(frame);
         const snapshot = harness.scene.replaySnapshot();
@@ -171,6 +179,9 @@ describe("the platformer replays to its golden", () => {
         hasher.update(chain + frameDigest);
         chain = hasher.digest("hex");
         frames.push(`${frame} ${frameDigest}`);
+        if (process.env.REPLAY_DUMP) {
+          dumps.push(`${frame} ${JSON.stringify(plain({ w: snapshot, e: harness.scene.transcript }))}`);
+        }
         if (frame in GOLDEN) seen[frame] = chain;
         for (const event of harness.scene.transcript) {
           kinds.add(event.kind);
@@ -179,8 +190,10 @@ describe("the platformer replays to its golden", () => {
         const player = snapshot.player as { state?: string } | null;
         if (player?.state === "climb") notes.climbed ??= frame;
       }
-      // The instrument for a bug commit: a per-frame digest file the next run is diffed against,
-      // so "which frames moved" is measured rather than asserted.
+      // The instruments a bug commit re-pins against. `REPLAY_FRAMES` writes one unchained digest
+      // per frame, so "which frames moved" is a diff rather than a claim; `REPLAY_DUMP` writes the
+      // whole hashed snapshot per frame, so "and why" is a field-level diff rather than a guess.
+      if (process.env.REPLAY_DUMP) await Bun.write(process.env.REPLAY_DUMP, `${dumps.join("\n")}\n`);
       if (process.env.REPLAY_FRAMES) {
         await Bun.write(process.env.REPLAY_FRAMES, `${frames.join("\n")}\n`);
       }

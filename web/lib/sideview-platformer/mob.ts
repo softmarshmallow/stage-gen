@@ -363,6 +363,9 @@ export class Mob {
 
   update(dtMs: number, nowMs: number) {
     this.step(dtMs, nowMs);
+    // The step can retire the body outright when a fixed-clock death fade finishes; there is then
+    // no bar left to anchor and nothing that would want one.
+    if (!this.sprite.active) return;
     this.syncHealthBar();
   }
 
@@ -378,6 +381,13 @@ export class Mob {
       this.sprite.alpha = sample.alpha;
       this.sprite.setVisible(!sample.hidden);
       if (sample.complete) this.fixedHitMotion = undefined;
+      // Retire the body as well as fade it. The tween this replaces destroyed the actor in its
+      // `onComplete`; without that the corpse stays in the scene's list forever, invisible, and
+      // goes on occupying a point the spawn director will not place anything on.
+      if (sample.hidden) {
+        this.destroy();
+        return;
+      }
     }
     if (this.state === "dead") return;
     const dt = dtMs / 1000;

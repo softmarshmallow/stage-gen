@@ -1641,6 +1641,11 @@ export class PreparedStageScene extends Phaser.Scene {
       deathTextureKey: this.textures.exists(deathKey) ? deathKey : undefined,
       behaviorSeed,
       spawnedAtMs,
+      // Simulation time, never the engine's. A knockback tween and a death timer are stepped by
+      // whatever wall-clock delta the browser handed the loop, so the same run recorded twice puts
+      // a corpse in two different places; `sampleFixedMobHit` reproduces the identical ease and
+      // fade from `nowMs`, which is the clock the rest of this frame is already resolved against.
+      fixedStepMotion: true,
     });
     this.addContactShadow(mob.sprite);
     // Identity for anything that has to follow one mob across frames. The director's own instance
@@ -1983,7 +1988,11 @@ export class PreparedStageScene extends Phaser.Scene {
   private updateMobs(delta: number, now: number): void {
     this.updateMobPopulation(now);
     for (const mob of this.mobs) {
-      if (mob.isAlive()) mob.update(delta, now);
+      // A dead body is stepped too, for as long as its sprite survives. Its fade and the
+      // retirement that fade ends in are sampled from simulation time inside `update`, so a loop
+      // that stepped only the living would leave every corpse standing at full opacity forever -
+      // which is what a fixed-clock death actually did before this line was widened.
+      if (mob.isAlive() || mob.sprite.active) mob.update(delta, now);
     }
     this.mobs = this.mobs.filter((mob) => mob.isAlive() || mob.sprite.active);
   }
