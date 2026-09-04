@@ -397,7 +397,11 @@ export function sealSystems<W>(
     }
     // A deferred consume is last frame's occurrence: it constrains nothing
     // about this frame's order, which is exactly why it cannot close a cycle.
-    for (const type of system.consumesDeferred ?? []) requireEmitter(type, system.id);
+    // Nor does it require an emitter. An in-frame consume with no emitter is a
+    // channel with no other end — a defect. A deferred one is a mailbox: the
+    // fx system listens for asks in a roster whose genre may have no director
+    // to make them, and an empty mailbox is not a defect. What would have been
+    // a typo is caught by the type instead, against the world's own union.
     for (const dependency of system.after ?? []) {
       if (!byId.has(dependency)) {
         throw new UnknownSystemError(

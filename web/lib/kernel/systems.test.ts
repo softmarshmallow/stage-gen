@@ -310,10 +310,15 @@ describe("sealSystems event channel", () => {
     expect(sealed.order).toEqual(["ping", "pong"]);
   });
 
-  test("a deferred consume of a type nothing emits is still refused", () => {
-    expect(() =>
-      sealSystems<EventWorld>([eventSystem("listener", { consumesDeferred: ["unheard"] })], EVENTS),
-    ).toThrow(UnemittedEventError);
+  test("a deferred consume needs no emitter: an ask nobody makes is not a defect", () => {
+    // The in-frame rule stays — a consumer with no emitter is a channel with
+    // no other end — but a mailbox may sit empty, which is how the fx system
+    // seals into a roster whose genre has no director to ask it for anything.
+    const sealed = sealSystems<EventWorld>(
+      [eventSystem("listener", { consumesDeferred: ["unheard"] })],
+      EVENTS,
+    );
+    expect(sealed.order).toEqual(["listener"]);
   });
 });
 

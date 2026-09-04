@@ -6,6 +6,7 @@ import {
   bossHoverFeetRow,
 } from "./encounter-arithmetic";
 import { stepEncounter, encounterWantsArena } from "./encounter";
+import { createFxSystem } from "@/lib/fx/moment-system";
 import { runnerManifestFixture } from "./fixture";
 import { runnerIntent } from "./intent";
 import { createSegmentStream, streamAhead } from "./segments";
@@ -147,6 +148,15 @@ describe("arming the encounter", () => {
     stepEncounter(world, 3 * DT, DT);
 
     expect(world.encounter?.phase).toBe("cut_in");
+    // The director asks; it does not write the slice. `fx/moment` owns that,
+    // and starts the moment on its own next tick — which is the earliest it
+    // could ever have been drawn, since fx is sealed ahead of the director.
+    expect(world.fx).toBeNull();
+    expect(world.events.ofType("fx-requested")[0]?.moment).toBe("encounter_start");
+
+    const fx = createFxSystem<RunnerWorld>({ sync: () => undefined, hide: () => undefined });
+    world.events.beginFrame();
+    fx.update(world, { dt: DT, now: 4 * DT, frame: 4 });
     expect(world.fx?.moment).toBe("encounter_start");
   });
 

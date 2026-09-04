@@ -1,8 +1,9 @@
 // The encounter director: the one system that decides a boss fight is due,
 // runs it, and hands the run back.
 //
-// It owns three slices and nothing else: the encounter state, the locomotion
-// the avatar wears, and the fx slot it pushes one moment into. Everything a
+// It owns two slices and nothing else: the encounter state and the locomotion
+// the avatar wears. The cut-in it plays is not a third — the fx system owns
+// that slice and this system asks it for the moment. Everything a
 // consequence costs still belongs to the vitals system, everything a score is
 // worth still belongs to the run-loop, and every sprite still belongs to a
 // view. This file decides only what is happening.
@@ -16,7 +17,7 @@
 // would seal a cycle, because the systems that write them are downstream.
 
 import type { GameSystem } from "@/lib/kernel/systems";
-import { beginFxMoment } from "@/lib/fx/moment-system";
+import { requestFxMoment } from "@/lib/fx/moment-system";
 import { drain } from "@/lib/kernel/gauge";
 
 import {
@@ -267,7 +268,11 @@ export function stepEncounter(world: RunnerWorld, now: number, dt: number): void
         beginBattle(world, state, now);
         return;
       }
-      beginFxMoment(world, moment.moment, moment.choreography);
+      // The director asks; `fx/moment` owns the slice and starts the moment on
+      // its next tick — which is when it could first have been drawn in any
+      // case, because fx is sealed ahead of this system so that this system
+      // can hear the release it emits.
+      requestFxMoment(world, moment.moment, moment.choreography);
       enterPhase(state, "cut_in", now);
       return;
     }
@@ -322,15 +327,17 @@ export function encounterWantsArena(world: RunnerWorld): boolean {
 export function createEncounterSystem(): GameSystem<RunnerWorld> {
   return {
     id: "runner/encounter",
-    contractVersion: "encounter-system-v1",
+    contractVersion: "encounter-system-v2",
     reads: ["avatar", "difficulty"],
-    writes: ["encounter", "locomotion", "fx"],
+    writes: [],
+    owns: ["encounter", "locomotion"],
     emits: [
       "encounter-started",
       "shot-contact",
       "boss-hit",
       "boss-defeated",
       "encounter-ended",
+      "fx-requested",
     ],
     consumes: ["fx-released"],
     update(world, step) {
