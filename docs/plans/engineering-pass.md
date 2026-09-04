@@ -644,6 +644,30 @@ refused) stay. The layer node family can now converge its records without mirror
 them here.
 
 
+**2026-09-04 — Runtime step 2, the strangler, landed (workstream E).** On its own
+branch, fast-forwarded onto `main`. The platformer frame is a sealed roster of
+**20 systems** in exactly the hand-written order (`updateMobs` was two systems under
+one name; splitting it is what made the mixed-age read visible; the dialogue
+early-return became a `hold` slice every later system reads). **E1: zero diff** - all
+600 per-frame digests byte-identical to the step-0 chain, nothing re-pinned. **E2
+exists**: `frame-roster.test.ts` pins the documented order and asserts sixteen pairs
+under a reversed registration, separating what a declaration buys from what the
+tie-break gives. `performance.now()` is gone from the frame. **The sealer refused
+six cycles on the first attempt** against the audit's four predicted edges: two of
+the predicted were refused (the population director's mixed-age read; the mob's
+committed strike read a frame later), two were not hidden at all (impact-before-shake
+and shake-before-parallax are plain writes-before-reads the sealer derives unaided),
+and four one-frame lags no comment mentioned were. Five new `after` edges, eight
+feedback reads written at the read site, one deferred write. **The falsifier half
+tripped**: the roster sealed in the hand order zero-diff, so step 3 is not blocked,
+but eight feedback reads against four predicted is over the line, and five of them
+sit on two systems - `debug/overlay` (presentation lag) and `player/update`, which is
+controller, combat resolver and inventory consumer at once. That is the finding step
+6's split order carries. Not done: played evidence (no browser this pass); the dev
+write trap is inert for 17 of 20 slices because the steps mutate scene fields, not
+the world - typed `?: never` so nothing can pretend otherwise.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one
