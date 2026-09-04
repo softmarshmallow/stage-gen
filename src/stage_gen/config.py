@@ -41,6 +41,27 @@ class StageGenConfig(ContractModel):
     open_router_api_key: str | None = Field(default=None, repr=False)
     fal_key: str | None = Field(default=None, repr=False)
     elevenlabs_api_key: str | None = Field(default=None, repr=False)
+
+    def secret_values(self) -> tuple[str, ...]:
+        """Every provider credential this configuration holds, for trace redaction.
+
+        One list, so an executor cannot forget the key its newest modality
+        needs: the runner's redaction set omitted the ElevenLabs key for as
+        long as speech existed, and a scheduler redacts exactly what it is
+        handed.
+        """
+
+        return tuple(
+            value
+            for value in (
+                self.openai_api_key,
+                self.open_router_api_key,
+                self.fal_key,
+                self.elevenlabs_api_key,
+            )
+            if value is not None
+        )
+
     openai_base_url: str | None = None
     open_router_base_url: str | None = None
     fal_base_url: str | None = None

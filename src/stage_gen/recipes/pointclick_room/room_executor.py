@@ -174,11 +174,7 @@ class PointClickRoomExecutor:
         return plan
 
     def _secrets(self) -> tuple[str, ...]:
-        return tuple(
-            value
-            for value in (self._config.openai_api_key, self._config.open_router_api_key)
-            if value is not None
-        )
+        return self._config.secret_values()
 
 
 __all__ = ["PointClickRoomExecutor", "PointClickRoomPlan", "PointClickRoomRun"]

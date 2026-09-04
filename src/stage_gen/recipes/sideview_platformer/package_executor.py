@@ -144,15 +144,7 @@ class PreparedPackageExecutor:
         executor = Scheduler(
             plan.graph.resources,
             node_timeout_seconds=self._config.stage_timeout_s,
-            secrets=tuple(
-                value
-                for value in (
-                    self._config.openai_api_key,
-                    self._config.open_router_api_key,
-                    self._config.fal_key,
-                )
-                if value is not None
-            ),
+            secrets=self._config.secret_values(),
         )
         try:
             summary = await executor.run(
@@ -210,7 +202,7 @@ class PreparedPackageExecutor:
         executor = Scheduler(
             plan.graph.resources,
             node_timeout_seconds=self._config.stage_timeout_s,
-            secrets=(self._config.openai_api_key, self._config.open_router_api_key),
+            secrets=self._config.secret_values(),
         )
         handler = PreparedWorldNodeHandler(
             plan.graph,
@@ -287,7 +279,7 @@ class PreparedPackageExecutor:
         executor = Scheduler(
             plan.graph.resources,
             node_timeout_seconds=max(self._config.stage_timeout_s, 900),
-            secrets=(self._config.openai_api_key, self._config.open_router_api_key),
+            secrets=self._config.secret_values(),
         )
         handler = PreparedContentNodeHandler(
             plan.graph,
