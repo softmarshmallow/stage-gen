@@ -605,6 +605,25 @@ genre parser speaking for a dozen consumers it does not know about.
   moved a third of the chain for no change in play, which is the shape of
   movement this step refuses rather than re-pins.
 
+- **The step's own falsifier, measured.** None of the five needed a
+  genre-specific branch inside the family file. `clock` is parameterized by its
+  holders, `session` by its phase names and its restart shape, `intent` by
+  which keys are edges, `vitals` by its sources and its recovery port, and
+  `screen-fx` by its profile — five parameters, no `if (runner)`. The one thing
+  that *is* genre-shaped stayed in the genre every time: which events can hurt,
+  which events shake the view, what a contact is.
+- **The ordering cost, in full.** Two new feedback reads, both written down at
+  the read site: the runner's clock reading last frame's moment (the fx system
+  is sealed after the avatar, so a declared read would have to run both before
+  and after it), and the runner's scorer reading last frame's phase (which is
+  what preserved the single system's behaviour exactly — it scored the frame
+  and only then asked whether the frame had ended the run). One new `after`
+  edge, `session/run` after `score/run`, which is that second feedback read's
+  explicit half. Two existing edges were re-pointed at the renamed lifecycle
+  (`runner/camera`, `runner/audio`) and one fake read was deleted — the
+  session's `reads: ["avatar"]`, which step 1 left behind when the death pose
+  became the avatar's own to write. Net new ordering constraints: one.
+
 **Falsifier for the step.** Any of the five needing a genre-specific branch
 inside the family file means the boundary is wrong for that one; it stays
 genre-owned and the table is corrected — the family list is not a target.
