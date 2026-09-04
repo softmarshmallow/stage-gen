@@ -1,41 +1,11 @@
-"""Provider-neutral authored game-map API."""
+"""The authored game map, at its current contract only.
 
-from .library import (
-    GAME_MAP_LIBRARY_RESOLUTION_VERSION,
-    ResolvedGameMap,
-    ResolvedGameMapBook,
-    resolve_game_map_book_binding,
-    resolve_game_map_source,
-)
-from .loader import (
-    GameMapLoadError,
-    canonical_game_map_book_json,
-    canonical_game_map_json,
-    canonical_resolved_game_map_book_json,
-    load_game_map,
-    load_game_map_book,
-    load_game_map_book_bytes,
-    load_game_map_bytes,
-    load_game_map_mapping,
-    load_resolved_game_map_book_bytes,
-)
-from .models import (
-    GAME_MAP_BOOK_SCHEMA_VERSION,
-    GAME_MAP_SCHEMA_VERSION,
-    GameMap,
-    GameMapBook,
-    GameMapBookBinding,
-    GameMapReference,
-    LevelCamera,
-    LevelMechanisms,
-    LevelProfile,
-    LevelRole,
-    LevelScrollAxis,
-    LevelTraversal,
-    LevelTraversalAffordance,
-    LevelView,
-    ResolvedGameMapBookDocument,
-)
+The previous document (`game-map-v2`), its ordered book, and the two CLI verbs
+that validated them were retired in the engineering pass: no map in the library
+had parsed under them since `game-map-v10`, and the book required an index file
+the library forbids.
+"""
+
 from .prepared import (
     PREPARED_GAME_MAP_SCHEMA_VERSION,
     PreparedGameMap,
@@ -58,52 +28,22 @@ from .prepared import (
 )
 
 __all__ = [
-    "GAME_MAP_BOOK_SCHEMA_VERSION",
-    "GAME_MAP_LIBRARY_RESOLUTION_VERSION",
-    "GAME_MAP_SCHEMA_VERSION",
     "PREPARED_GAME_MAP_SCHEMA_VERSION",
-    "GameMap",
-    "GameMapBook",
-    "GameMapBookBinding",
-    "GameMapLoadError",
-    "GameMapReference",
-    "LevelCamera",
-    "LevelMechanisms",
-    "LevelProfile",
-    "LevelRole",
-    "LevelScrollAxis",
-    "LevelTraversal",
-    "LevelTraversalAffordance",
-    "LevelView",
     "PreparedGameMap",
     "PreparedMapCamera",
-    "PreparedMapContinuity",
-    "PreparedMapGround",
     "PreparedMapClimbable",
     "PreparedMapClimbablePlacement",
     "PreparedMapClimbableVariant",
+    "PreparedMapContinuity",
+    "PreparedMapGround",
     "PreparedMapLayer",
     "PreparedMapLayerPresentation",
     "PreparedMapPortal",
     "PreparedMapPortalEndpoint",
     "PreparedMapReference",
     "PreparedMapView",
-    "ResolvedGameMap",
-    "ResolvedGameMapBook",
-    "ResolvedGameMapBookDocument",
-    "canonical_game_map_book_json",
-    "canonical_game_map_json",
-    "canonical_prepared_game_map_json",
-    "canonical_resolved_game_map_book_json",
     "bottom_contiguous_surface_row",
-    "load_game_map",
-    "load_game_map_book",
-    "load_game_map_book_bytes",
-    "load_game_map_bytes",
-    "load_game_map_mapping",
+    "canonical_prepared_game_map_json",
     "load_prepared_game_map_bytes",
     "normalized_terrain_column",
-    "load_resolved_game_map_book_bytes",
-    "resolve_game_map_book_binding",
-    "resolve_game_map_source",
 ]

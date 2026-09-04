@@ -47,6 +47,9 @@ RETIRED_PREPARED_IDENTITIES = (
     "prepared-game-runtime-v9",
     "game-map-book-v1",
     "game-map-book-manifest-v2",
+    "game-map-book-binding-v1",
+    "resolved-game-map-v2",
+    "resolved-game-map-book-v2",
     "manifest V7",
     # Retired by the coordinated persisted-vocabulary bump that landed with the node ABI.
     # The before/after table in docs/spec/asset-taxonomy.md is the one place these survive,

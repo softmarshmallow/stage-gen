@@ -147,8 +147,6 @@ entry_map_id = "field-one"
     ("command", "relative_source", "expected_kind", "expected_schema_version"),
     [
         ("soundtrack", "soundtrack.toml", "resolved-game-soundtrack-v1", 1),
-        ("map", "maps/field-one.toml", "resolved-game-map-v2", 2),
-        ("map-book", "maps/index.toml", "resolved-game-map-book-v2", 2),
     ],
 )
 def test_registered_component_cli_surfaces_validate_and_digest_isolated_sources(
@@ -206,40 +204,10 @@ def test_registered_component_cli_surfaces_validate_and_digest_isolated_sources(
     assert digest_output.getvalue() == f"{expected_source_sha256}\n"
 
 
-@pytest.mark.parametrize("action", ["validate", "digest"])
-def test_map_book_cli_rejects_a_stale_locked_map(tmp_path: Path, action: str) -> None:
-    game_directory = _write_component_library(tmp_path)
-    source = game_directory / "maps/index.toml"
-    changed_map = game_directory / "maps/field-two.toml"
-    changed_map.write_text(
-        changed_map.read_text(encoding="utf-8").replace("Test Map", "Changed Map"),
-        encoding="utf-8",
-    )
-    errors = io.StringIO()
-
-    assert (
-        main(
-            [
-                "map-book",
-                action,
-                "--input",
-                str(source),
-                "--game-library-root",
-                str(tmp_path),
-            ],
-            stderr=errors,
-        )
-        == 1
-    )
-    assert "source_sha256 mismatch for map_id field-two" in errors.getvalue()
-
-
 @pytest.mark.parametrize(
     ("command", "relative_source"),
     [
         ("soundtrack", "soundtrack.toml"),
-        ("map", "maps/field-one.toml"),
-        ("map-book", "maps/index.toml"),
     ],
 )
 def test_registered_component_cli_surfaces_reject_symlinked_sources(
@@ -272,39 +240,6 @@ def test_registered_component_cli_surfaces_reject_symlinked_sources(
     assert "symlink" in errors.getvalue()
 
 
-def test_map_cli_rejects_the_previous_game_map_schema(tmp_path: Path) -> None:
-    source = tmp_path / "library/games/test-game/maps/entry-map.toml"
-    source.parent.mkdir(parents=True)
-    source.write_text(
-        """schema_version = 1
-kind = "game-map-v1"
-game_id = "test-game"
-map_id = "entry-map"
-revision = 1
-display_name = "Entry Map"
-soundtrack_track_ids = ["first_theme", "second_theme"]
-""",
-        encoding="utf-8",
-    )
-    errors = io.StringIO()
-
-    assert (
-        main(
-            [
-                "map",
-                "validate",
-                "--input",
-                str(source),
-                "--game-library-root",
-                str(tmp_path),
-            ],
-            stderr=errors,
-        )
-        == 1
-    )
-    assert "invalid game map contract" in errors.getvalue()
-
-
 def test_character_profile_cli_rejects_a_symlinked_source(tmp_path: Path) -> None:
     repository = Path(__file__).resolve().parents[2]
     external_profile = repository / "library/games/larkfield/characters/nao.toml"
@@ -335,8 +270,6 @@ def test_character_profile_cli_rejects_a_symlinked_source(tmp_path: Path) -> Non
     ("command", "relative_source", "root_option"),
     [
         ("soundtrack", "library/games/../soundtrack.toml", "--game-library-root"),
-        ("map", "library/games/../maps/entry-map.toml", "--game-library-root"),
-        ("map-book", "library/games/../maps/index.toml", "--game-library-root"),
         (
             "character-profile",
             "library/games/../profile.toml",
@@ -365,26 +298,3 @@ def test_authored_library_cli_rejects_parent_segments_before_reading(
         == 1
     )
     assert "dot or parent" in errors.getvalue()
-
-
-def test_map_cli_rejects_non_game_owned_source_path(tmp_path: Path) -> None:
-    source = tmp_path / "maps/entry-map.toml"
-    source.parent.mkdir()
-    source.write_text("not relevant", encoding="utf-8")
-    errors = io.StringIO()
-
-    assert (
-        main(
-            [
-                "map",
-                "validate",
-                "--input",
-                str(source),
-                "--game-library-root",
-                str(tmp_path),
-            ],
-            stderr=errors,
-        )
-        == 1
-    )
-    assert "ROOT/library/games/<game_id>/maps/<map_id>.toml" in errors.getvalue()
