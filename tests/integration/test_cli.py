@@ -137,7 +137,8 @@ def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
     assert "no execution-plan.json" in error.getvalue()
 
     error = StringIO()
-    assert main(["generate", "--input", str(package)], stderr=error) == 1
+    # A flag the command cannot mean is a usage error, and says so with status 2.
+    assert main(["generate", "--input", str(package)], stderr=error) == 2
     assert "generate requires --output" in error.getvalue()
 
     error = StringIO()
@@ -154,7 +155,7 @@ def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
             ],
             stderr=error,
         )
-        == 1
+        == 2
     )
     assert (
         "requires --checkpoint world, content, soundtrack, world-review, content-review, or "
@@ -798,7 +799,8 @@ def test_one_command_spend_refuses_without_confirmation_off_a_terminal(argv: lis
     """The only spend in the CLI that nothing prices first still needs a person, or --yes."""
 
     error = StringIO()
-    assert main(argv, stderr=error) == 1
+    # Refusing a paid verb off a terminal is a usage error: status 2, like argparse.
+    assert main(argv, stderr=error) == 2
     assert "pass --yes to confirm" in error.getvalue()
 
 

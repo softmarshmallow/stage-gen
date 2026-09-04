@@ -15,6 +15,16 @@ from pathlib import Path
 from typing import Never, TextIO, cast
 
 from gnode import RunView, write_run_view
+from stage_gen.application import (
+    UsageError as CliUsageError,
+)
+from stage_gen.application import (
+    resolve_cache_dir,
+    resolve_genre,
+    resolve_output_path,
+    run_report,
+    write_report,
+)
 from stage_gen.capabilities import (
     HeadlessRuntime,
     generate_image_artifact,
@@ -55,6 +65,7 @@ from stage_gen.recipes.cache_report import cache_report
 from stage_gen.recipes.dialogue_scene.review import transition_dialogue_review
 from stage_gen.recipes.dialogue_scene.scene_executor import DialogueSceneExecutor
 from stage_gen.recipes.dialogue_scene.scene_view import build_dialogue_scene_view
+from stage_gen.recipes.executor import RecipeRun
 from stage_gen.recipes.pointclick_room.room_executor import PointClickRoomExecutor
 from stage_gen.recipes.pointclick_room.room_view import build_pointclick_room_view
 from stage_gen.recipes.sideview_platformer.execution_view import build_execution_view
@@ -81,10 +92,6 @@ from stage_gen.recipes.sideview_runner.runner_view import build_sideview_runner_
 from stage_gen.recipes.universe import gallery_page as universe_gallery_page
 from stage_gen.recipes.universe.universe_executor import UniverseExecutor
 from stage_gen.recipes.universe.universe_view import build_universe_view
-
-
-class CliUsageError(ValueError):
-    pass
 
 
 class _Parser(argparse.ArgumentParser):
@@ -633,6 +640,9 @@ def main(
     try:
         namespace = parser.parse_args(args)
         return _dispatch(namespace, runtime=runtime, stdout=output)
+    except CliUsageError as error:
+        errors.write(f"stage-gen: usage: {error}\n")
+        return 2
     except ConfigError as error:
         errors.write(f"stage-gen: configuration: {error}\n")
         return 2
@@ -645,27 +655,6 @@ def main(
 
 def entrypoint() -> None:
     raise SystemExit(main())
-
-
-def _resolve_cli_genre(declared: Sequence[str], requested: str | None) -> str:
-    """Pick the genre member one run addresses.
-
-    One run serves one genre member. With a single declared member the flag is
-    noise, so it defaults; with several, defaulting would silently choose a
-    genre, which is exactly the kind of decision a spend-adjacent command must
-    not make on its own.
-    """
-
-    if requested is not None:
-        if requested not in declared:
-            raise ValueError(
-                f"genre {requested!r} is not declared by this package; declared: "
-                + ", ".join(declared)
-            )
-        return requested
-    if len(declared) == 1:
-        return declared[0]
-    raise ValueError("--genre is required for a package declaring several: " + ", ".join(declared))
 
 
 def _dispatch(
@@ -712,7 +701,7 @@ def _dispatch(
             stdout.write(f"{resolved_package.closure_sha256}\n")
         elif args.package_command == "plan":
             declared_genres = [entry.genre for entry in resolved_package.game.genres]
-            genre = _resolve_cli_genre(declared_genres, getattr(args, "genre", None))
+            genre = resolve_genre(declared_genres, getattr(args, "genre", None))
             # The genre dispatch point: each genre member plans through its own
             # recipe executor.
             if genre == "runner":
@@ -729,7 +718,7 @@ def _dispatch(
                 stdout.write(f"{json.dumps(plan_report, sort_keys=True, separators=(',', ':'))}\n")
                 return 0
             if genre != "platformer":
-                raise ValueError(f"no recipe is registered for genre {genre!r}")
+                raise CliUsageError(f"no recipe is registered for genre {genre!r}")
             plan = PreparedPackageExecutor(load_config()).plan(Path(args.input_path))
             plan_report = {
                 "genre": genre,
@@ -831,9 +820,9 @@ def _beat_run_tags(values: list[str]) -> dict[str, str]:
     for value in values:
         beat_id, separator, run_tag = value.partition("=")
         if not separator or not beat_id or not run_tag:
-            raise ValueError(f"--beat-run expects BEAT_ID=RUN_TAG; found `{value}`")
+            raise CliUsageError(f"--beat-run expects BEAT_ID=RUN_TAG; found `{value}`")
         if beat_id in tags:
-            raise ValueError(f"--beat-run names beat `{beat_id}` twice")
+            raise CliUsageError(f"--beat-run names beat `{beat_id}` twice")
         tags[beat_id] = run_tag
     return tags
 
@@ -982,8 +971,8 @@ async def _dispatch_dialogue_scene(
         stdout.write(f"{json.dumps(review_result, separators=(',', ':'))}\n")
         return 0
     executor = DialogueSceneExecutor(config)
-    output_path = _resolve_output_path(args.output_path)
-    cache_dir = _resolve_cache_dir(args.cache_dir)
+    output_path = resolve_output_path(args.output_path)
+    cache_dir = resolve_cache_dir(args.cache_dir, config)
     invocation_id = args.invocation_id or f"dialogue-{uuid.uuid4().hex}"
     if args.dry_run:
         run = await executor.dry_run(
@@ -995,26 +984,22 @@ async def _dispatch_dialogue_scene(
         )
     else:
         if args.failure_node is not None:
-            raise ValueError("--failure-node is available only with --dry-run")
+            raise CliUsageError("--failure-node is available only with --dry-run")
         run = await executor.run(
             Path(args.input_path),
             run_dir=output_path,
             cache_dir=cache_dir,
             invocation_id=invocation_id,
         )
-    report = {
-        "ok": run.summary.ok,
-        "recipe": "dialogue-scene",
-        "scene_id": run.plan.resolved.scene_id,
-        "run_dir": str(output_path),
-        "graph_sha256": run.plan.graph.graph_sha256,
-        "topology_sha256": run.plan.graph.topology_sha256,
-        "node_count": len(run.plan.graph.nodes),
-        "provider_operation_counts": run.summary.provider_operation_counts,
-        "duration_ms": run.summary.duration_ms,
-    }
-    stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
-    return 0 if run.summary.ok else 1
+    return write_report(
+        stdout,
+        run_report(
+            run,
+            run_dir=output_path,
+            recipe="dialogue-scene",
+            scene_id=run.plan.resolved.scene_id,
+        ),
+    )
 
 
 async def _dispatch_pointclick_room(
@@ -1024,8 +1009,8 @@ async def _dispatch_pointclick_room(
     stdout: TextIO,
 ) -> int:
     executor = PointClickRoomExecutor(config)
-    output_path = _resolve_output_path(args.output_path)
-    cache_dir = _resolve_cache_dir(args.cache_dir)
+    output_path = resolve_output_path(args.output_path)
+    cache_dir = resolve_cache_dir(args.cache_dir, config)
     invocation_id = args.invocation_id or f"room-{uuid.uuid4().hex}"
     if args.dry_run:
         run = await executor.dry_run(
@@ -1037,26 +1022,22 @@ async def _dispatch_pointclick_room(
         )
     else:
         if args.failure_node is not None:
-            raise ValueError("--failure-node is available only with --dry-run")
+            raise CliUsageError("--failure-node is available only with --dry-run")
         run = await executor.run(
             Path(args.input_path),
             run_dir=output_path,
             cache_dir=cache_dir,
             invocation_id=invocation_id,
         )
-    report = {
-        "ok": run.summary.ok,
-        "recipe": "pointclick-room",
-        "room_id": run.plan.resolved.room.room_id,
-        "run_dir": str(output_path),
-        "graph_sha256": run.plan.graph.graph_sha256,
-        "topology_sha256": run.plan.graph.topology_sha256,
-        "node_count": len(run.plan.graph.nodes),
-        "provider_operation_counts": run.summary.provider_operation_counts,
-        "duration_ms": run.summary.duration_ms,
-    }
-    stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
-    return 0 if run.summary.ok else 1
+    return write_report(
+        stdout,
+        run_report(
+            run,
+            run_dir=output_path,
+            recipe="pointclick-room",
+            room_id=run.plan.resolved.room.room_id,
+        ),
+    )
 
 
 async def _dispatch_universe(
@@ -1067,12 +1048,12 @@ async def _dispatch_universe(
 ) -> int:
     executor = UniverseExecutor(config)
     input_path = Path(args.input_path)
-    output_path = _resolve_output_path(args.output_path)
-    cache_dir = _resolve_cache_dir(args.cache_dir)
+    output_path = resolve_output_path(args.output_path)
+    cache_dir = resolve_cache_dir(args.cache_dir, config)
     phase = str(args.universe_command)
     invocation_id = args.invocation_id or f"universe-{phase}-{uuid.uuid4().hex}"
     if not args.dry_run and args.failure_node is not None:
-        raise ValueError("--failure-node is available only with --dry-run")
+        raise CliUsageError("--failure-node is available only with --dry-run")
     if phase == "semantic":
         if args.dry_run:
             run = await executor.dry_run_semantic(
@@ -1114,22 +1095,16 @@ async def _dispatch_universe(
                 rerolls=rerolls,
                 sample_ledger=sample_ledger,
             )
-    report: dict[str, object] = {
-        "ok": run.summary.ok,
-        "recipe": "universe",
-        "phase": phase,
-        "universe_id": run.plan.resolved.universe_id,
-        "run_dir": str(output_path),
-        "graph_sha256": run.plan.graph.graph_sha256,
-        "topology_sha256": run.plan.graph.topology_sha256,
-        "node_count": len(run.plan.graph.nodes),
-        "provider_operation_counts": run.summary.provider_operation_counts,
-        "duration_ms": run.summary.duration_ms,
-    }
+    report = run_report(
+        run,
+        run_dir=output_path,
+        recipe="universe",
+        phase=phase,
+        universe_id=run.plan.resolved.universe_id,
+    )
     if run.manifest is not None:
         report["counts"] = run.manifest["counts"]
-    stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
-    return 0 if run.summary.ok else 1
+    return write_report(stdout, report)
 
 
 async def _dispatch_async(
@@ -1147,18 +1122,18 @@ async def _dispatch_async(
         return await _dispatch_universe(args, config=config, stdout=stdout)
     if args.command == "generate":
         if args.output_path is None:
-            raise ValueError("generate requires --output")
+            raise CliUsageError("generate requires --output")
         generate_package = resolve_prepared_package(Path(args.input_path))
         declared_genres = [entry.genre for entry in generate_package.game.genres]
-        genre = _resolve_cli_genre(declared_genres, getattr(args, "genre", None))
-        output_path = _resolve_output_path(args.output_path)
+        genre = resolve_genre(declared_genres, getattr(args, "genre", None))
+        output_path = resolve_output_path(args.output_path)
         # The genre dispatch point: each genre member executes through its own
         # recipe executor. The runner runs single-shot; the platformer keeps its
         # bounded checkpoints below.
         if genre == "runner":
-            runner_cache = _resolve_cache_dir(args.cache_dir)
+            runner_cache = resolve_cache_dir(args.cache_dir, config)
             if args.checkpoint is not None:
-                raise ValueError(
+                raise CliUsageError(
                     "the runner genre runs single-shot; --checkpoint is platformer-only"
                 )
             if args.artifact_roots or args.replace_output:
@@ -1177,7 +1152,7 @@ async def _dispatch_async(
                 )
             else:
                 if args.failure_node is not None:
-                    raise ValueError("--failure-node is available only with --dry-run")
+                    raise CliUsageError("--failure-node is available only with --dry-run")
                 runner_invocation = args.invocation_id or f"runner-{uuid.uuid4().hex}"
                 runner_result = await runner_executor.run(
                     Path(args.input_path),
@@ -1185,22 +1160,18 @@ async def _dispatch_async(
                     cache_dir=runner_cache,
                     invocation_id=runner_invocation,
                 )
-            runner_report = {
-                "ok": runner_result.summary.ok,
-                "genre": genre,
-                "invocation_id": runner_invocation,
-                "graph_sha256": runner_result.plan.graph.graph_sha256,
-                "topology_sha256": runner_result.plan.graph.topology_sha256,
-                "node_count": len(runner_result.plan.graph.nodes),
-                "provider_operation_counts": runner_result.summary.provider_operation_counts,
-                "duration_ms": runner_result.summary.duration_ms,
-                "run_dir": str(output_path),
-            }
-            stdout.write(f"{json.dumps(runner_report, sort_keys=True, separators=(',', ':'))}\n")
-            return 0 if runner_result.summary.ok else 1
+            return write_report(
+                stdout,
+                run_report(
+                    runner_result,
+                    run_dir=output_path,
+                    genre=genre,
+                    invocation_id=runner_invocation,
+                ),
+            )
         if genre != "platformer":
-            raise ValueError(f"no recipe is registered for genre {genre!r}")
-        cache_dir = _resolve_cache_dir(args.cache_dir)
+            raise CliUsageError(f"no recipe is registered for genre {genre!r}")
+        cache_dir = resolve_cache_dir(args.cache_dir, config)
         if not args.dry_run:
             if args.checkpoint not in {
                 "world",
@@ -1210,12 +1181,12 @@ async def _dispatch_async(
                 "content-review",
                 "integration",
             }:
-                raise ValueError(
+                raise CliUsageError(
                     "prepared-package execution requires --checkpoint "
                     "world, content, soundtrack, world-review, content-review, or integration"
                 )
             if args.failure_node is not None:
-                raise ValueError("--failure-node is available only with --dry-run")
+                raise CliUsageError("--failure-node is available only with --dry-run")
             checkpoint = cast("str", args.checkpoint)
             invocation_id = args.invocation_id or f"{checkpoint}-{uuid.uuid4().hex}"
             prepared_executor = PreparedPackageExecutor(config)
@@ -1235,35 +1206,34 @@ async def _dispatch_async(
                     replace_output=bool(args.replace_output),
                 )
                 published = integration_result.result
-                integration_report: dict[str, object] = {
-                    "ok": integration_result.summary.ok and published is not None,
-                    "genre": genre,
-                    "checkpoint": checkpoint,
-                    "invocation_id": invocation_id,
-                    "graph_sha256": integration_result.plan.graph.graph_sha256,
-                    "topology_sha256": integration_result.plan.graph.topology_sha256,
-                    "executed_node_count": len(integration_result.summary.nodes),
-                    "provider_operation_counts": (
-                        integration_result.summary.provider_operation_counts
+                return write_report(
+                    stdout,
+                    run_report(
+                        integration_result,
+                        run_dir=integration_run_dir,
+                        ok=integration_result.summary.ok and published is not None,
+                        genre=genre,
+                        checkpoint=checkpoint,
+                        invocation_id=invocation_id,
+                        executed_node_count=len(integration_result.summary.nodes),
+                        artifact_count=None if published is None else published.artifact_count,
+                        adopted_from_roots=list(integration_result.adopted_node_ids),
+                        package_sha256=integration_result.plan.resolved.package_sha256,
+                        output_dir=str(output_path),
+                        disposition=None if published is None else published.disposition,
+                        replaced_manifest_sha256=(
+                            None if published is None else published.replaced_manifest_sha256
+                        ),
                     ),
-                    "artifact_count": None if published is None else published.artifact_count,
-                    "adopted_from_roots": list(integration_result.adopted_node_ids),
-                    "package_sha256": integration_result.plan.resolved.package_sha256,
-                    "run_dir": str(integration_run_dir),
-                    "output_dir": str(output_path),
-                    "disposition": None if published is None else published.disposition,
-                    "replaced_manifest_sha256": (
-                        None if published is None else published.replaced_manifest_sha256
-                    ),
-                }
-                stdout.write(
-                    f"{json.dumps(integration_report, sort_keys=True, separators=(',', ':'))}\n"
                 )
-                return 0 if integration_report["ok"] else 1
             if args.artifact_roots:
-                raise ValueError("--artifact-root is available only with --checkpoint integration")
+                raise CliUsageError(
+                    "--artifact-root is available only with --checkpoint integration"
+                )
             if args.replace_output:
-                raise ValueError("--replace-output is available only with --checkpoint integration")
+                raise CliUsageError(
+                    "--replace-output is available only with --checkpoint integration"
+                )
             if checkpoint in {"world", "world-review"}:
                 live_result = await prepared_executor.run_world(
                     Path(args.input_path),
@@ -1276,8 +1246,7 @@ async def _dispatch_async(
                         else world_target_node_ids
                     ),
                 )
-                live_summary = live_result.summary
-                live_graph = live_result.plan.graph
+                live_run: RecipeRun[object] = live_result
             else:
                 # `soundtrack` is `content` narrowed to the tracks. A track's cache
                 # identity is its own authored entry, so a rewritten brief re-bills one
@@ -1298,24 +1267,20 @@ async def _dispatch_async(
                     cache_dir=cache_dir,
                     invocation_id=invocation_id,
                 )
-                live_summary = content_result.summary
-                live_graph = content_result.plan.graph
-            report = {
-                "ok": live_summary.ok,
-                "genre": genre,
-                "checkpoint": checkpoint,
-                "invocation_id": invocation_id,
-                "graph_sha256": live_graph.graph_sha256,
-                "topology_sha256": live_graph.topology_sha256,
-                "executed_node_count": len(live_summary.nodes),
-                "provider_operation_counts": live_summary.provider_operation_counts,
-                "duration_ms": live_summary.duration_ms,
-                "run_dir": str(output_path),
-            }
-            stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
-            return 0 if live_summary.ok else 1
+                live_run = content_result
+            return write_report(
+                stdout,
+                run_report(
+                    live_run,
+                    run_dir=output_path,
+                    genre=genre,
+                    checkpoint=checkpoint,
+                    invocation_id=invocation_id,
+                    executed_node_count=len(live_run.summary.nodes),
+                ),
+            )
         if args.replace_output:
-            raise ValueError("--replace-output is available only with --checkpoint integration")
+            raise CliUsageError("--replace-output is available only with --checkpoint integration")
         invocation_id = args.invocation_id or f"dry-run-{uuid.uuid4().hex}"
         dry_run_result = await PreparedPackageExecutor(config).dry_run(
             Path(args.input_path),
@@ -1324,24 +1289,17 @@ async def _dispatch_async(
             invocation_id=invocation_id,
             failure_node_id=args.failure_node,
         )
-        dry_run_report = {
-            "ok": dry_run_result.summary.ok,
-            "genre": genre,
-            "invocation_id": invocation_id,
-            "graph_sha256": dry_run_result.plan.graph.graph_sha256,
-            "topology_sha256": dry_run_result.plan.graph.topology_sha256,
-            "node_count": len(dry_run_result.plan.graph.nodes),
-            "provider_operation_counts": dry_run_result.summary.provider_operation_counts,
-            "duration_ms": dry_run_result.summary.duration_ms,
-            "run_dir": str(output_path),
-        }
-        stdout.write(f"{json.dumps(dry_run_report, sort_keys=True, separators=(',', ':'))}\n")
-        return 0 if dry_run_result.summary.ok else 1
+        return write_report(
+            stdout,
+            run_report(
+                dry_run_result, run_dir=output_path, genre=genre, invocation_id=invocation_id
+            ),
+        )
     # One paid call, no plan, no cache: the only spend in this CLI that nothing
     # prices first. A person at a terminal has typed the prompt they are paying
     # for; a script has not, so it says so with --yes or is refused.
     if not args.yes and not sys.stdin.isatty():
-        raise ValueError(
+        raise CliUsageError(
             f"{args.command} makes a paid provider call; pass --yes to confirm it "
             "when stdin is not a terminal"
         )
@@ -1350,7 +1308,7 @@ async def _dispatch_async(
         if aspect_ratio != "auto":
             pieces = aspect_ratio.split(":")
             if len(pieces) != 2 or not all(piece.isdigit() and int(piece) > 0 for piece in pieces):
-                raise ValueError("--aspect-ratio must be auto or positive <width>:<height>")
+                raise CliUsageError("--aspect-ratio must be auto or positive <width>:<height>")
         result = await generate_image_artifact(
             prompt=" ".join(args.prompt).strip(),
             output_path=args.output,
@@ -1395,27 +1353,9 @@ async def _dispatch_async(
             runtime=runtime,
         )
     else:
-        raise ValueError(f"unsupported command: {args.command}")
+        raise CliUsageError(f"unsupported command: {args.command}")
     stdout.write(f"{json.dumps(result.to_dict(), separators=(',', ':'))}\n")
     return 0
-
-
-def _resolve_output_path(raw: str) -> Path:
-    """A run directory the user named, resolved through symlinks for the same reason."""
-
-    return Path(raw).resolve()
-
-
-def _resolve_cache_dir(explicit: str | None) -> Path:
-    """The execution cache root: the flag, else the configured repo-anchored directory.
-
-    Resolved through symlinks here, at the user's boundary: the node cache refuses a
-    symlink anywhere above a root it writes under, and on macOS every temporary
-    directory sits under one (``/var`` -> ``/private/var``). The layout above the root
-    the user chose is the operating system's; the rule guards what lies beneath it.
-    """
-
-    return (Path(explicit) if explicit else load_config().cache_dir).resolve()
 
 
 def _parse_input_document(text: str, *, suffix: str) -> object:

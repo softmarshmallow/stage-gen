@@ -130,8 +130,8 @@ function item(itemId: string, kind: string) {
 export function replayRuntimeManifest(): Record<string, unknown> {
   const artifacts = [artifact("content/player/concept.png")];
   return {
-    schema_version: 11,
-    kind: "prepared-game-runtime-v11",
+    schema_version: 12,
+    kind: "prepared-game-runtime-v12",
     blocks: { ...PREPARED_RUNTIME_BLOCKS },
     game_id: "replay-route",
     revision: 1,

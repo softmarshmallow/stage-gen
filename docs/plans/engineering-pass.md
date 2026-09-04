@@ -582,6 +582,49 @@ that is request content, not identity. A second genre with an inventory register
 kit the way the platformer does.
 
 
+**F2 / F3 / F4, sequenced.** F3 (a spec names the test that checks it, and the docs
+gate refuses a spec whose test is missing) is a judgment per spec - thirty-two of them,
+seven of which mention a test today, five of which are "proposed TO-BE" documents that
+F2 moves to `docs/plans/`. The two are one docs pass and land together, after the D
+lane's structural cuts. F4's shape rule is now visible in the code: a component is
+`models.py` (the authored contract), optional `loader.py` / `library.py`, one or more
+`*nodes*.py` modules (node types, a graph helper, a handler kit over a host), private
+`_*.py` helpers, and an `__init__.py` that exports the surface; the conformance test
+lands with F4's prose in that same pass.
+
+
+**2026-09-04 — Runtime step 0, the platformer half, landed (workstream E).** On its
+own branch, fast-forwarded onto `main`. Nothing in the repository had constructed a
+`PreparedStageScene` outside a browser; a headless Phaser fixture (scene graph,
+textures, keyboard with real latch semantics, tween/timer/animation managers, and a
+re-implementation of the dead-zone camera follow) and a headless browser fixture that
+refuses every asset now drive the scene through the runtime's own shipped fallback
+path. Three plan premises proved false and were built: there was no capture mode
+running the fixed step, the `PlayerIntent` seam reached no source, and the projectile
+system had no snapshot. **E1 platformer**: 600 fixed steps over a purpose-built two-map
+package, pinned at 60 / 300 / 600. Five of the eight listed bugs confirmed in code and
+fixed, each re-baking the golden with the moved frames counted: mobs off engine tweens
+and timers (22 frames), the banner off its tween (45), `enterMap` deferred to frame end
+(frames 150-600, the population's first spawns moving one frame), the orphaned
+soundtrack player wired and stopped (all 600, soundtrack fields only), one keyboard
+read per frame across the dialogue hold (529 frames - before the fix the run never
+left the conversation). Reported, not fixed: `defeatedAtMs` on transition is confirmed
+but the script never reaches a defeat; the room and dialogue scenes' fallback
+diagnostic is outside the platformer replay; `restoreRoomState` does not exist. The
+replay fixture's manifest root is at v12 with C6. Step 2, the strangler, has its
+before.
+
+**2026-09-04 — D6, the application layer.** `stage_gen/application/`: one
+`run_report` (the seven keys every run command reports, the command's own fields on
+top), `write_report`, `UsageError`, and `resolve_genre` / `resolve_output_path` /
+`resolve_cache_dir` reachable without argparse. The CLI's six report dicts are one
+call each; a flag the command cannot mean - `--failure-node` off a dry run,
+`--artifact-root` off integration, a paid verb off a terminal without `--yes`, a
+genre the package does not declare - is a usage error and exits 2, the way argparse
+does, instead of being flattened with an internal failure into 1. Report shape and
+resolutions have their own tests.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one
