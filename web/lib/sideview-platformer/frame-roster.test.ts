@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { SealRefusal, SystemCycleError, sealSystems } from "@/lib/kernel/systems";
 import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
+import { KILL_SHAKE_PROFILE } from "@/lib/families/screen-fx/shake";
+import { IMPACT_SHAKE_MS, IMPACT_SHAKE_PX } from "./impact-presentation";
 import { parsePlatformerClockBlock } from "./clock";
 import {
   NEUTRAL_PLAYER_INTENT,
@@ -434,5 +436,19 @@ describe("the intent family in the platformer", () => {
         gameplay: "platformer-gameplay-block-v2",
       }),
     ).toThrow('manifest block "gameplay" is published as platformer-gameplay-block-v2');
+  });
+});
+
+// --- The `screen-fx` family, sealed into this genre --------------------------------------------
+
+describe("the screen-fx family in the platformer", () => {
+  test("E7 subtraction: with the shake taken out, the rest seals to the identical order", () => {
+    const quiet = roster().filter((system) => system.id !== "camera/shake");
+    expect(sealSystems(quiet).order).toEqual(DOCUMENTED_ORDER.filter((id) => id !== "camera/shake"));
+  });
+
+  test("the kill shake is the family's profile, not a second copy", () => {
+    expect(IMPACT_SHAKE_MS).toBe(KILL_SHAKE_PROFILE.durationMs);
+    expect(IMPACT_SHAKE_PX).toBe(KILL_SHAKE_PROFILE.amplitudePx);
   });
 });

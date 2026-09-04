@@ -27,6 +27,7 @@ const { gateRunnerFamilyBlocks } = await import("./game");
 const { RUNNER_INTENT_SHAPE, parseRunnerIntentBlock } = await import("./intent");
 const { parseRunnerVitalsBlock, RUNNER_REFRACTORY_MS, RUNNER_BLINK_ALPHA } = await import("./vitals");
 const { CONTACT_HURT_PROFILE } = await import("@/lib/families/vitals");
+const { parseScreenFxBlock } = await import("@/lib/families/screen-fx/manifest");
 const { RUNNER_BLOCKS } = await import("./contract");
 const { SILENT_AUDIO_SINK } = await import("./audio");
 const { createRunnerWorld } = await import("./world");
@@ -440,5 +441,37 @@ describe("the vitals family in the runner", () => {
     expect(() =>
       parseRunnerVitalsBlock({ ...RUNNER_BLOCKS, gameplay: "runner-gameplay-block-v2" }),
     ).toThrow('manifest block "gameplay" is published as runner-gameplay-block-v2');
+  });
+});
+
+// --- The `screen-fx` family, sealed into this genre --------------------------------------------
+
+describe("the screen-fx family in the runner", () => {
+  const roster = () =>
+    assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK);
+
+  test("E7 subtraction: a genre that plays no moment seals to the identical order", () => {
+    // The moment's two consumers hear `fx-released`; taking the family out
+    // takes their consume with it, which is what "this package has no fx block"
+    // means at the roster level. Nothing else about the frame moves.
+    const quiet = roster()
+      .filter((system) => system.id !== "fx/moment")
+      .map((system) => ({
+        ...system,
+        consumes: (system.consumes ?? []).filter((type) => type !== "fx-released"),
+        after: (system.after ?? []).filter((id) => id !== "fx/moment"),
+      }));
+    expect(sealSystems(quiet, EVENTS).order).toEqual(
+      DOCUMENTED_ORDER.filter((id) => id !== "fx/moment"),
+    );
+  });
+
+  test("the family gates its own block, optional and by name", () => {
+    expect(parseScreenFxBlock(RUNNER_BLOCKS).published).toBe(true);
+    const { fx: _fx, ...withoutFx } = RUNNER_BLOCKS;
+    expect(parseScreenFxBlock(withoutFx).published).toBe(false);
+    expect(() => parseScreenFxBlock({ ...RUNNER_BLOCKS, fx: "fx-block-v2" })).toThrow(
+      'manifest block "fx" is published as fx-block-v2',
+    );
   });
 });

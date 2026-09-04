@@ -17,18 +17,25 @@
 // from a seed, which is what lets it ship without a provider call and stay identical between two
 // captures of the same run.
 
+import {
+  KILL_SHAKE_PROFILE,
+  NO_SHAKE,
+  sampleShake,
+  sumShake,
+  type ShakeOffset,
+} from "@/lib/families/screen-fx/shake";
 import type Phaser from "phaser";
 import { SCENE_CONTENT_DEPTH } from "./depths";
 
 export const IMPACT_FLASH_MS = 64;
 export const IMPACT_SPARK_MS = 150;
 export const IMPACT_BURST_MS = 420;
-export const IMPACT_SHAKE_MS = 130;
+export const IMPACT_SHAKE_MS = KILL_SHAKE_PROFILE.durationMs;
 /** Frames the simulation holds on an ordinary connect: short enough to read as weight, not lag. */
 export const IMPACT_HITSTOP_MS = 40;
 /** A kill holds longer, which is what makes the last blow feel different from the others. */
 export const IMPACT_KILL_HITSTOP_MS = 70;
-export const IMPACT_SHAKE_PX = 4;
+export const IMPACT_SHAKE_PX = KILL_SHAKE_PROFILE.amplitudePx;
 export const IMPACT_SPARK_RAYS = 5;
 export const IMPACT_SPARK_LENGTH_PX = 30;
 export const IMPACT_SPARK_SPREAD_RADIANS = Math.PI * 0.55;
@@ -50,8 +57,6 @@ export const IMPACT_SWING_TRAIL_FRACTION = 0.45;
 export const IMPACT_SWING_COLOR = 0xfff0a6;
 
 const MAX_ACTIVE_CAP = 256;
-const SHAKE_STEP_MS = 16;
-const SHAKE_PATTERN = Object.freeze([1, -0.8, 0.55, -0.35, 0.2, 0] as const);
 const SPARK_GROWTH_FRACTION = 0.45;
 const BURST_UPWARD_BIAS_PX = 80;
 
@@ -199,22 +204,24 @@ export function sampleImpactShards(event: ImpactEvent, nowMs: number): readonly 
   return Object.freeze(shards);
 }
 
-/** Camera nudge for one event, in world pixels; zero unless the blow killed. */
-export function sampleImpactShake(
-  event: ImpactEvent,
-  nowMs: number,
-): Readonly<{ x: number; y: number }> {
-  if (!event.died || event.reducedMotion) return Object.freeze({ x: 0, y: 0 });
-  const elapsedMs = elapsedSince(event, nowMs);
-  if (elapsedMs >= IMPACT_SHAKE_MS) return Object.freeze({ x: 0, y: 0 });
-  const step = Math.floor(elapsedMs / SHAKE_STEP_MS);
-  const phase = Math.abs(Math.trunc(event.seed)) % SHAKE_PATTERN.length;
-  const decay = 1 - elapsedMs / IMPACT_SHAKE_MS;
-  const amplitude = IMPACT_SHAKE_PX * (event.critical ? IMPACT_CRITICAL_SCALE : 1) * decay;
-  return Object.freeze({
-    x: SHAKE_PATTERN[(phase + step) % SHAKE_PATTERN.length] * amplitude * event.dirSign,
-    y: SHAKE_PATTERN[(phase + step + 2) % SHAKE_PATTERN.length] * amplitude * 0.6,
-  });
+/**
+ * Camera nudge for one event, in world pixels; zero unless the blow killed.
+ *
+ * The decaying pattern is the `screen-fx` family's; what stays here is the
+ * genre's answer to "which events shake the view at all" — a kill, and only
+ * when the viewer has not asked for reduced motion.
+ */
+export function sampleImpactShake(event: ImpactEvent, nowMs: number): ShakeOffset {
+  if (!event.died || event.reducedMotion) return NO_SHAKE;
+  return sampleShake(
+    {
+      seed: event.seed,
+      elapsedMs: elapsedSince(event, nowMs),
+      dirSign: event.dirSign,
+      scale: event.critical ? IMPACT_CRITICAL_SCALE : 1,
+    },
+    KILL_SHAKE_PROFILE,
+  );
 }
 
 export function sampleImpact(event: ImpactEvent, nowMs: number): ImpactSample {
@@ -452,20 +459,12 @@ export class ImpactSystem {
   }
 
   /** The camera nudge for this frame: every live kill's shake summed and clamped. */
-  shakeOffset(nowMs: number): Readonly<{ x: number; y: number }> {
-    if (this.disposed || !this.enabled) return Object.freeze({ x: 0, y: 0 });
-    let x = 0;
-    let y = 0;
-    for (const entry of this.active) {
-      const shake = sampleImpactShake(entry.event, nowMs);
-      x += shake.x;
-      y += shake.y;
-    }
-    const bound = IMPACT_SHAKE_PX * IMPACT_CRITICAL_SCALE;
-    return Object.freeze({
-      x: Math.max(-bound, Math.min(bound, x)),
-      y: Math.max(-bound, Math.min(bound, y)),
-    });
+  shakeOffset(nowMs: number): ShakeOffset {
+    if (this.disposed || !this.enabled) return NO_SHAKE;
+    return sumShake(
+      this.active.map((entry) => sampleImpactShake(entry.event, nowMs)),
+      IMPACT_SHAKE_PX * IMPACT_CRITICAL_SCALE,
+    );
   }
 
   update(nowMs: number): void {

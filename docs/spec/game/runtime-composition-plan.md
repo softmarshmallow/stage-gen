@@ -557,6 +557,42 @@ genre parser speaking for a dozen consumers it does not know about.
   is raised at all, which is what the scene's own guard already did, so the
   table itself is the one thing the package can mean. Unifying the authored
   form is the contract bump the ruling defers.
+- **`screen-fx`.** Extracted into both genres. `lib/fx/` becomes
+  `lib/families/screen-fx/`, the first family directory the plan's own layout
+  asks for; `HIDDEN_FX_VIEW` leaves the Phaser file for an engine-free
+  `view.ts`, so a headless boot, the replay harness and the order test no
+  longer import a renderer to say "draw nothing"; and the camera shake — a
+  private scene method that mutated `camera.scrollX`, which is why every
+  parallax layer inherited it — becomes a pure decaying sample and a
+  sum-and-clamp in `shake.ts`. The platformer's `sampleImpactShake` keeps the
+  one thing that is the genre's, *which events shake the view at all*, and
+  hands the arithmetic over; `IMPACT_SHAKE_MS` and `IMPACT_SHAKE_PX` are the
+  family's profile, asserted equal in the genre's own suite. Hitstop had
+  already moved out to `clock` in this step's first commit. **E1: zero diff in
+  both genres, nothing re-pinned.** **E2:** neither documented order moves.
+  **E4:** the moment system sealed into two worlds with nothing in common but
+  the `fx` slice — a runner-shaped run and a stage-shaped map, the second
+  exercising the deferred `fx-requested` hand-off — plus the shake profile
+  instantiated at a second genre's four numbers. **E7:** the runner's roster
+  with `fx/moment` removed (and its consumers' `fx-released` consume with it)
+  seals to the identical order minus it; the platformer's with `camera/shake`
+  removed likewise; and the sum of no shake sources is exactly zero, which is
+  the smallest form the subtraction has.
+- **The block, and the refusal.** `fx`, the only block of the five that is the
+  family's own, optional in both genres: a package that publishes none plays no
+  moment, which is an answer. One at a version this build does not read is
+  refused as `manifest block "fx" is published as fx-block-v2; this build reads
+  fx-block-v1`.
+- **Two things the ruling named that were not there to move.** The "flash" the
+  family table lists is, in the code, a per-target hit flash inside
+  `impact-presentation.ts` — a sprite turning white for four frames, owned by
+  the blow that caused it — and not a screen effect; there is no screen flash
+  in either genre to move, and inventing one is content work, not extraction.
+  And the runner's order test still mocks Phaser: `HIDDEN_FX_VIEW` was one
+  reason and it is gone, but `assembleRunnerSystems` lives in the boot file
+  beside `class RunnerScene extends Phaser.Scene`, so the mock is bought by the
+  roster sharing a module with the host. That is the `hosts/phaser` split in
+  the plan's own directory target, not a screen-fx move.
 - **One thing the ruling did not fit, and it is the dead phase.** The step's
   fact lists four hold mechanisms and the fourth is the runner's dead phase.
   It is not a holder here. A hold is transient and the simulation resumes into

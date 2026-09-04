@@ -6,7 +6,7 @@ import {
   bossHoverFeetRow,
 } from "./encounter-arithmetic";
 import { stepEncounter, encounterWantsArena } from "./encounter";
-import { createFxSystem } from "@/lib/fx/moment-system";
+import { createFxSystem } from "@/lib/families/screen-fx/moment-system";
 import { runnerManifestFixture } from "./fixture";
 import { runnerIntent } from "./intent";
 import { createSegmentStream, streamAhead } from "./segments";

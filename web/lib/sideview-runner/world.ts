@@ -14,7 +14,7 @@ import type {
   RunnerConsequences,
   RunnerMotionState,
 } from "./contract";
-import { beginFxMoment, type FxState } from "@/lib/fx/moment-system";
+import { beginFxMoment, type FxState } from "@/lib/families/screen-fx/moment-system";
 import type { FxMoment } from "@/lib/manifest/fx";
 import { createClock, type ClockState } from "@/lib/families/clock/clock";
 import type { SessionState } from "@/lib/families/session/session";

@@ -20,6 +20,8 @@ import {
   loadTransparentSprite,
   registerCanvas,
 } from "@/lib/sideview/assets";
+import { parseScreenFxBlock } from "@/lib/families/screen-fx/manifest";
+import { HIDDEN_FX_VIEW } from "@/lib/families/screen-fx/view";
 import { installMotionPlayback } from "@/lib/sideview/motion-playback";
 import { presentPreparedLayerCanvas } from "@/lib/sideview/prepared-layer-presentation";
 import {
@@ -93,9 +95,8 @@ import {
 import {
   buildCutInView,
   type CutInMomentBinding,
-  HIDDEN_FX_VIEW,
-} from "@/lib/fx/cut-in-view";
-import { createFxSystem, type FxView } from "@/lib/fx/moment-system";
+} from "@/lib/families/screen-fx/cut-in-view";
+import { createFxSystem, type FxView } from "@/lib/families/screen-fx/moment-system";
 import {
   createCameraSystem,
   createRunnerWorld,
@@ -129,6 +130,7 @@ export function gateRunnerFamilyBlocks(blocks: BlockTable): void {
   parseRunnerSessionBlock(blocks);
   parseRunnerIntentBlock(blocks);
   parseRunnerVitalsBlock(blocks);
+  parseScreenFxBlock(blocks);
 }
 
 export function assembleRunnerSystems(

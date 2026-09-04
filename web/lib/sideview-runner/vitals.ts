@@ -27,7 +27,7 @@ import {
   type VitalsSlice,
 } from "@/lib/families/vitals";
 import type { BlockTable } from "@/lib/manifest/blocks";
-import type { FxEvent } from "@/lib/fx/moment-system";
+import type { FxEvent } from "@/lib/families/screen-fx/moment-system";
 import { RUNNER_BLOCKS, type RunnerDamageSource } from "./contract";
 import type { GameSystem } from "@/lib/kernel/systems";
 import { surfaceRowAt } from "./segments";

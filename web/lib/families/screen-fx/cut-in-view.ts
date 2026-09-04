@@ -263,9 +263,3 @@ function inverseAlphaCanvas(scene: Phaser.Scene, frameTextureKey: string): HTMLC
   context.drawImage(source, 0, 0);
   return canvas;
 }
-
-/** The view a scene uses when the manifest plays no moment: nothing to draw. */
-export const HIDDEN_FX_VIEW: FxView = Object.freeze({
-  sync: () => undefined,
-  hide: () => undefined,
-});

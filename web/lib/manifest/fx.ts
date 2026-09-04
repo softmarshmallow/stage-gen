@@ -6,7 +6,7 @@
 // that clips by geometry rather than by the plate's own alpha. Either way the
 // consumer is handed the shape and never reads pixels to rediscover it.
 
-import { CUT_IN_CHOREOGRAPHY_NAMES, type CutInChoreographyName } from "@/lib/fx/cut-in";
+import { CUT_IN_CHOREOGRAPHY_NAMES, type CutInChoreographyName } from "@/lib/families/screen-fx/cut-in";
 
 /**
  * The moments a package may bind, mirroring the generator's `FX_MOMENTS`.

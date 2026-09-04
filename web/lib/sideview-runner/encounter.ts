@@ -17,7 +17,7 @@
 // would seal a cycle, because the systems that write them are downstream.
 
 import type { GameSystem } from "@/lib/kernel/systems";
-import { requestFxMoment } from "@/lib/fx/moment-system";
+import { requestFxMoment } from "@/lib/families/screen-fx/moment-system";
 import { drain } from "@/lib/kernel/gauge";
 
 import {
