@@ -569,6 +569,19 @@ topology digest re-pinned (the terminal port kind is the manifest identity); no 
 key moved. The runner root was already C-R6 clean.
 
 
+**2026-09-04 — B7, the inventory rehome.** The inventory-panel triplet (painting,
+alpha admission, review) is `components/game_ui/inventory_nodes.py`: node types at
+`2d/ui/inventory.*`, the graph helper, the pixel gate and canonicalizer, the evidence
+composite, and an `InventoryPanelHandlers` kit over the same `UiAtlasHost` the atlas
+triplet uses plus the host's prompt framing and the layout template. The platformer
+declares the triplet through `inventory_node_types(identity_prefix=…)` and keeps its
+shipped cache identity: measured against the last published plan, no Bellweather key
+moved. The review now names its own schema (`prepared_ui_inventory_review`, the name
+the node card already carried) with inventory checks rather than the actor review's;
+that is request content, not identity. A second genre with an inventory registers the
+kit the way the platformer does.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one

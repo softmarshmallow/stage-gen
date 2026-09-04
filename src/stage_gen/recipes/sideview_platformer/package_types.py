@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from gnode import NodePolicy, NodeType, ViewArchetype
 from stage_gen.components.game_soundtrack.nodes import soundtrack_node_types
+from stage_gen.components.game_ui.inventory_nodes import inventory_node_types
 from stage_gen.components.game_ui.nodes import (
     UI_ATLAS_GENERATE,
     UI_ATLAS_REVIEW,
@@ -303,33 +304,12 @@ _SOUNDTRACK = soundtrack_node_types(identity_prefix=_P)
 SOUNDTRACK_GENERATE = _SOUNDTRACK.generate
 SOUNDTRACK_VALIDATE = _SOUNDTRACK.validate
 
-UI_INVENTORY_GENERATE = NodeType(
-    type_id=f"{_P}/ui_inventory.generate",
-    title="Inventory panel",
-    archetype=ViewArchetype.IMAGE,
-    operation="image_generation",
-    features=IMAGE_FEATURES,
-    policy=_PROVIDER,
-    contract_version="ui-inventory-v1",
-)
-
-UI_INVENTORY_VALIDATE = NodeType(
-    type_id=f"{_P}/ui_inventory.validate",
-    title="Inventory panel admission",
-    archetype=ViewArchetype.VALIDATE,
-    operation="local",
-    contract_version="ui-inventory-validate-v1",
-)
-
-UI_INVENTORY_REVIEW = NodeType(
-    type_id=f"{_P}/ui_inventory.review",
-    title="Inventory panel review",
-    archetype=ViewArchetype.JUDGE,
-    operation="structured_generation",
-    features=STRUCTURED_FEATURES,
-    policy=_PROVIDER,
-    contract_version="ui-inventory-review-v1",
-)
+#: The inventory-panel family lives in `game_ui`; this recipe shipped it under its own
+#: type ids, which stay as the cache identity so no panel is paid for twice.
+_INVENTORY = inventory_node_types(identity_prefix=_P)
+UI_INVENTORY_GENERATE = _INVENTORY.generate
+UI_INVENTORY_VALIDATE = _INVENTORY.validate
+UI_INVENTORY_REVIEW = _INVENTORY.review
 
 GAMEPLAY_BINDINGS_VALIDATE = NodeType(
     type_id=f"{_P}/gameplay_bindings.validate",

@@ -16,9 +16,9 @@ from stage_gen.components.game_ui import (
     INVENTORY_SLOT_SIZE,
     INVENTORY_SLOT_TOP,
 )
-from stage_gen.recipes.sideview_platformer.prepared_content import (
-    _canonicalize_inventory_panel_image,
-    _validate_inventory_panel_image,
+from stage_gen.components.game_ui.inventory_nodes import (
+    canonicalize_inventory_panel_image,
+    validate_inventory_panel_image,
 )
 
 
@@ -64,7 +64,7 @@ def _panel(
 
 
 def test_inventory_panel_validator_requires_opaque_middle_and_slots() -> None:
-    facts = _validate_inventory_panel_image(_panel())
+    facts = validate_inventory_panel_image(_panel())
 
     assert facts["panel_core_alpha_min"] == 255
     assert facts["slot_interior_alpha_minima"] == [255] * 8
@@ -73,21 +73,21 @@ def test_inventory_panel_validator_requires_opaque_middle_and_slots() -> None:
 
 def test_inventory_panel_validator_rejects_alpha_inside_a_slot() -> None:
     with pytest.raises(ValueError, match="middle must be fully opaque"):
-        _validate_inventory_panel_image(_panel(slot_hole=True))
+        validate_inventory_panel_image(_panel(slot_hole=True))
 
 
 def test_inventory_panel_validator_rejects_alpha_in_the_panel_middle() -> None:
     with pytest.raises(ValueError, match="middle must be fully opaque"):
-        _validate_inventory_panel_image(_panel(middle_hole=True))
+        validate_inventory_panel_image(_panel(middle_hole=True))
 
 
 def test_inventory_panel_validator_rejects_alpha_at_the_canvas_border() -> None:
     with pytest.raises(ValueError, match="canvas border"):
-        _validate_inventory_panel_image(_panel(exterior_glow=True))
+        validate_inventory_panel_image(_panel(exterior_glow=True))
 
 
 def test_inventory_panel_canonicalizer_clamps_admitted_middle_to_alpha_255() -> None:
-    canonical, facts = _canonicalize_inventory_panel_image(_panel(panel_alpha=251))
+    canonical, facts = canonicalize_inventory_panel_image(_panel(panel_alpha=251))
     with Image.open(io.BytesIO(canonical)) as image:
         alpha = image.getchannel("A")
 

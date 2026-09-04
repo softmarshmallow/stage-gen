@@ -31,6 +31,16 @@ from stage_gen.components.game_ui.icons import (
     render_icon_template,
     validate_icon_sheet,
 )
+from stage_gen.components.game_ui.inventory_nodes import (
+    InventoryNodeTypes,
+    InventoryPanelHandlers,
+    InventoryPanelHost,
+    add_inventory_panel_nodes,
+    canonicalize_inventory_panel_image,
+    inventory_node_types,
+    inventory_panel_evidence,
+    validate_inventory_panel_image,
+)
 from stage_gen.components.game_ui.models import (
     GAME_UI_SCHEMA_VERSION,
     INVENTORY_CANVAS_HEIGHT,
@@ -57,6 +67,14 @@ from stage_gen.components.game_ui.models import (
 )
 
 __all__ = [
+    "InventoryNodeTypes",
+    "InventoryPanelHandlers",
+    "InventoryPanelHost",
+    "add_inventory_panel_nodes",
+    "canonicalize_inventory_panel_image",
+    "inventory_node_types",
+    "inventory_panel_evidence",
+    "validate_inventory_panel_image",
     "ATLAS_ALPHA_POLICY",
     "ATLAS_ROLES",
     "ATLAS_SCALE_MODE",

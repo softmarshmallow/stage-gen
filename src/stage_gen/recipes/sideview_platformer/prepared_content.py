@@ -33,21 +33,13 @@ from gnode import (
 )
 from stage_gen.components.game_soundtrack.nodes import SoundtrackHandlers, SoundtrackHost
 from stage_gen.components.game_ui import (
-    INVENTORY_CANVAS_HEIGHT,
-    INVENTORY_CANVAS_WIDTH,
-    INVENTORY_PANEL_HEIGHT,
-    INVENTORY_PANEL_LEFT,
-    INVENTORY_PANEL_TOP,
-    INVENTORY_PANEL_WIDTH,
-    INVENTORY_SLOT_COLUMNS,
-    INVENTORY_SLOT_GUTTER,
-    INVENTORY_SLOT_LEFT,
-    INVENTORY_SLOT_ROWS,
-    INVENTORY_SLOT_SIZE,
-    INVENTORY_SLOT_TOP,
     AtlasRole,
     UiReference,
-    inventory_panel_layout_contract,
+)
+from stage_gen.components.game_ui.inventory_nodes import (
+    InventoryPanelHandlers,
+    InventoryPanelHost,
+    validate_inventory_panel_image,
 )
 from stage_gen.components.game_ui.nodes import (
     DEFAULT_ATLAS_ROLES,
@@ -160,16 +152,27 @@ class PreparedContentNodeHandler(RecipeNodeHandler):
         self._images = image_service
         self._structured = structured_service
         self._music = music_service
+        ui_host = UiAtlasHost(
+            ui=package.ui,
+            run_dir=run_dir,
+            package_id=package.game.game_id,
+            file=package.file,
+            component=SoftwareIdentity(
+                name="@stage-gen/sideview-platformer", version=CONTENT_HANDLER_VERSION
+            ),
+            tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
+        )
         self._atlas = UiAtlasHandlers(
-            UiAtlasHost(
-                ui=package.ui,
-                run_dir=run_dir,
-                package_id=package.game.game_id,
-                file=package.file,
-                component=SoftwareIdentity(
-                    name="@stage-gen/sideview-platformer", version=CONTENT_HANDLER_VERSION
-                ),
-                tool=SoftwareIdentity(name="stage-gen", version="0.0.0"),
+            ui_host,
+            graph=graph,
+            image_service=image_service,
+            structured_service=structured_service,
+        )
+        self._inventory = InventoryPanelHandlers(
+            InventoryPanelHost(
+                ui=ui_host,
+                frame_prompt=self._visual_prompt,
+                template_path=inventory_template_path(),
             ),
             graph=graph,
             image_service=image_service,
@@ -239,9 +242,9 @@ class PreparedContentNodeHandler(RecipeNodeHandler):
             (CATALOG_REVIEW, self._catalog_review),
             (SOUNDTRACK_GENERATE, self._soundtrack.generate),
             (SOUNDTRACK_VALIDATE, self._soundtrack.validate),
-            (UI_INVENTORY_GENERATE, self._generate_inventory_panel),
-            (UI_INVENTORY_VALIDATE, self._validate_inventory_panel),
-            (UI_INVENTORY_REVIEW, self._review_inventory_panel),
+            (UI_INVENTORY_GENERATE, self._inventory.generate),
+            (UI_INVENTORY_VALIDATE, self._inventory.validate),
+            (UI_INVENTORY_REVIEW, self._inventory.review),
             (UI_ATLAS_GENERATE, self._atlas.generate),
             (UI_ATLAS_VALIDATE, self._atlas.validate),
             (UI_ATLAS_REVIEW, self._atlas.review),
@@ -370,121 +373,6 @@ class PreparedContentNodeHandler(RecipeNodeHandler):
             self._run_dir / node.port("identity").artifact_ref, self._package.identity()
         )
         return self._result(node, provider_operations=0)
-
-    async def _generate_inventory_panel(self, node: Node) -> NodeExecutionResult:
-        panel = self._package.ui.required_inventory_panel()
-        output = self._run_dir / node.port("image").artifact_ref
-        template = inventory_template_path()
-        template_data = template.read_bytes()
-        prompt = self._visual_prompt(
-            "Create one inventory panel for the game's screen-fixed interface.\n"
-            f"Authored direction: {panel.prompt}\n"
-            "Use the supplied layout template as the exact geometry authority: one 1536 by 1024 "
-            "canvas, one outer panel, and eight empty slots in a strict four-column by two-row "
-            "layout. Preserve the template's panel and slot positions. The template is layout "
-            "guidance, not the requested visual style. Keep the canvas exterior outside the panel "
-            "transparent. The entire panel body and every empty slot well must be solid, filled, "
-            "and fully opaque alpha 255. Do not cut transparent or semi-transparent holes into "
-            "the panel middle or any slot interior. Slots may look recessed through opaque color "
-            "and shading only. Keep the canvas border and empty space beyond the decorated panel "
-            "silhouette clear alpha 0. No exterior glow, drop shadow, color wash, backdrop, or "
-            "scenery. Straps, leaves, corners, and ornaments may shape the panel silhouette. No "
-            "items, text, numbers, labels, icons, cursor, character, logo, signature, or watermark."
-        )
-        references = (
-            *self._image_references(self._package.ui.references, panel.reference_ids),
-            ImageReference(
-                url=data_url(template_data, "image/png"),
-                provenance_ref=(
-                    "resource://fixtures/image_gen_templates/inventory_template.png"
-                    f"#sha256={_sha(template_data)}"
-                ),
-            ),
-        )
-        result = await self._images.generate(
-            ImageGenerationRequest(
-                prompt=prompt,
-                artifact_path=output,
-                input_references=references,
-                quality="high",
-                background="transparent",
-                output_format="png",
-                size="1536x1024",
-                timeout_seconds=600,
-                metadata={
-                    "checkpoint": "ui",
-                    "role": "inventory_panel",
-                    "layout": panel.layout,
-                    "alpha_policy": panel.alpha_policy,
-                },
-                validate=lambda artifact: _validate_inventory_panel_image(artifact.data),
-            )
-        )
-        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
-
-    async def _validate_inventory_panel(self, node: Node) -> NodeExecutionResult:
-        source = self._run_dir / self._dependency_artifact(node, kind="ui-panel-raw-v1")
-        data = source.read_bytes()
-        canonical_data, facts = _canonicalize_inventory_panel_image(data)
-        canonical = self._run_dir / node.port("image").artifact_ref
-        validation = self._run_dir / node.port("validation").artifact_ref
-        evidence = self._run_dir / node.port("evidence").artifact_ref
-        await _write_local_image(
-            canonical,
-            canonical_data,
-            prompt=(
-                "Normalize only the admitted alpha boundary: clear the already-transparent "
-                "exterior and clamp the already-opaque panel core and slot interiors to alpha 255."
-            ),
-            inputs=((source.relative_to(self._run_dir).as_posix(), data),),
-            validation=facts,
-            model="prepared-ui-inventory-validation-v2",
-        )
-        atomic_write_json(
-            validation,
-            {
-                "schema_version": 1,
-                "kind": "prepared-ui-inventory-validation-v2",
-                **inventory_panel_layout_contract(),
-                **facts,
-            },
-        )
-        evidence_data = _inventory_panel_evidence(canonical_data)
-        await _write_local_image(
-            evidence,
-            evidence_data,
-            prompt="Composite the inventory panel over a checkerboard for review evidence.",
-            inputs=((canonical.relative_to(self._run_dir).as_posix(), data),),
-            validation={"source_validation": facts, "checkerboard_only": True},
-            model="prepared-ui-inventory-evidence-v1",
-        )
-        return self._result(node, provider_operations=0)
-
-    async def _review_inventory_panel(self, node: Node) -> NodeExecutionResult:
-        panel = self._package.ui.required_inventory_panel()
-        evidence = self._run_dir / self._dependency_artifact(node, kind="ui-evidence-v1")
-        references = [self._run_structured_reference(evidence)]
-        references.extend(
-            self._package_structured_reference(reference)
-            for reference in self._package.ui.references
-            if reference.reference_id in set(panel.reference_ids)
-        )
-        return await self._run_review(
-            node,
-            prompt=(
-                "Review the generated inventory panel against its authored direction and the "
-                "exact four-column by two-row layout. Image 1 is the generated panel composited "
-                "over a checkerboard; remaining images are authored visual references. "
-                "Deterministic pixel validation has already proved a transparent canvas border, "
-                "a fully opaque panel core, and fully opaque interiors for all eight slots. "
-                "Do not mistake the checkerboard outside the panel for artwork. Judge style "
-                "coherence, eight-slot readability, consistent visual hierarchy, clean exterior "
-                "silhouette, and absence of items, text, pseudo-text, labels, logos, or scenery. "
-                f"Authored direction: {panel.prompt} Uncertainty must not be called accept."
-            ),
-            references=references,
-            metadata={"checkpoint": "ui", "role": "inventory_panel"},
-        )
 
     async def _generate_concept(self, node: Node) -> NodeExecutionResult:
         kind = self._actor_kind(node)
@@ -1332,7 +1220,7 @@ class PreparedContentNodeHandler(RecipeNodeHandler):
                 else:
                     _validate_transparent_image(data, width=1024, height=1024)
             elif node.type_id == UI_INVENTORY_GENERATE.type_id:
-                _validate_inventory_panel_image(data)
+                validate_inventory_panel_image(data)
             elif node.type_id == UI_ATLAS_GENERATE.type_id:
                 validate_ui_sheet(data, str(node.params["role"]))
             else:
@@ -1644,126 +1532,6 @@ def _validate_atlas(
     }
 
 
-def _validate_inventory_panel_image(data: bytes) -> dict[str, object]:
-    with Image.open(io.BytesIO(data)) as opened:
-        if "A" not in opened.getbands():
-            raise ValueError("inventory panel output must carry an alpha channel")
-        image = opened.convert("RGBA")
-    if image.size != (INVENTORY_CANVAS_WIDTH, INVENTORY_CANVAS_HEIGHT):
-        raise ValueError(
-            "inventory panel output must be exactly "
-            f"{INVENTORY_CANVAS_WIDTH}x{INVENTORY_CANVAS_HEIGHT}"
-        )
-    alpha = image.getchannel("A")
-    extrema = cast(tuple[int, int], alpha.getextrema())
-    opaque_admission_min = 250
-    transparent_admission_max = 16
-    if extrema[0] > transparent_admission_max or extrema[1] < opaque_admission_min:
-        raise ValueError("inventory panel must contain transparent exterior and opaque artwork")
-    border = [
-        *alpha.crop((0, 0, alpha.width, 1)).get_flattened_data(),
-        *alpha.crop((0, alpha.height - 1, alpha.width, alpha.height)).get_flattened_data(),
-        *alpha.crop((0, 0, 1, alpha.height)).get_flattened_data(),
-        *alpha.crop((alpha.width - 1, 0, alpha.width, alpha.height)).get_flattened_data(),
-    ]
-    if max(border) > transparent_admission_max:
-        raise ValueError("inventory panel exterior must remain transparent at the canvas border")
-
-    transparent_pixels = sum(alpha.histogram()[: transparent_admission_max + 1])
-    transparent_pixel_fraction = transparent_pixels / (alpha.width * alpha.height)
-    if transparent_pixel_fraction < 0.1:
-        raise ValueError("inventory panel must retain meaningful transparent exterior space")
-
-    core_inset = 32
-    core = alpha.crop(
-        (
-            INVENTORY_PANEL_LEFT + core_inset,
-            INVENTORY_PANEL_TOP + core_inset,
-            INVENTORY_PANEL_LEFT + INVENTORY_PANEL_WIDTH - core_inset,
-            INVENTORY_PANEL_TOP + INVENTORY_PANEL_HEIGHT - core_inset,
-        )
-    )
-    core_min = cast(tuple[int, int], core.getextrema())[0]
-    if core_min < opaque_admission_min:
-        raise ValueError(
-            "inventory panel middle must be fully opaque; transparent or translucent pixels found"
-        )
-
-    slot_alpha_minima: list[int] = []
-    slot_inset = 24
-    for row in range(INVENTORY_SLOT_ROWS):
-        for column in range(INVENTORY_SLOT_COLUMNS):
-            left = (
-                INVENTORY_SLOT_LEFT
-                + column * (INVENTORY_SLOT_SIZE + INVENTORY_SLOT_GUTTER)
-                + slot_inset
-            )
-            top = (
-                INVENTORY_SLOT_TOP
-                + row * (INVENTORY_SLOT_SIZE + INVENTORY_SLOT_GUTTER)
-                + slot_inset
-            )
-            interior = alpha.crop(
-                (
-                    left,
-                    top,
-                    left + INVENTORY_SLOT_SIZE - 2 * slot_inset,
-                    top + INVENTORY_SLOT_SIZE - 2 * slot_inset,
-                )
-            )
-            slot_alpha_minima.append(cast(tuple[int, int], interior.getextrema())[0])
-    if any(value < opaque_admission_min for value in slot_alpha_minima):
-        raise ValueError(
-            "every inventory slot interior must be visually opaque before normalization"
-        )
-
-    return {
-        "width": image.width,
-        "height": image.height,
-        "alpha_min": extrema[0],
-        "alpha_max": extrema[1],
-        "border_alpha_max": max(border),
-        "transparent_pixel_fraction": round(transparent_pixel_fraction, 6),
-        "panel_core_alpha_min": core_min,
-        "slot_interior_alpha_minima": slot_alpha_minima,
-        "opaque_admission_min": opaque_admission_min,
-        "transparent_admission_max": transparent_admission_max,
-        "all_slot_interiors_opaque": True,
-        "pixel_rewrite_performed": False,
-    }
-
-
-def _canonicalize_inventory_panel_image(data: bytes) -> tuple[bytes, dict[str, object]]:
-    source_facts = _validate_inventory_panel_image(data)
-    with Image.open(io.BytesIO(data)) as opened:
-        image = opened.convert("RGBA")
-    alpha = image.getchannel("A")
-
-    transparent_admission_max = cast(int, source_facts["transparent_admission_max"])
-    alpha = alpha.point(lambda value: 0 if value <= transparent_admission_max else value)
-    core_inset = 32
-    alpha.paste(
-        255,
-        (
-            INVENTORY_PANEL_LEFT + core_inset,
-            INVENTORY_PANEL_TOP + core_inset,
-            INVENTORY_PANEL_LEFT + INVENTORY_PANEL_WIDTH - core_inset,
-            INVENTORY_PANEL_TOP + INVENTORY_PANEL_HEIGHT - core_inset,
-        ),
-    )
-    image.putalpha(alpha)
-    output = io.BytesIO()
-    image.save(output, format="PNG", optimize=False)
-    canonical_data = output.getvalue()
-    canonical_facts = _validate_inventory_panel_image(canonical_data)
-    return canonical_data, {
-        "source": source_facts,
-        "canonical": canonical_facts,
-        "pixel_rewrite_performed": True,
-        "pixel_rewrite": "alpha_boundary_normalization_v1",
-    }
-
-
 _ATLAS_GEOMETRY_COMMON = (
     "Use the supplied layout template as the exact geometry authority. It is layout guidance, "
     "not the requested visual style: do not draw its magenta, yellow, or cyan. Magenta marks "
@@ -1815,16 +1583,6 @@ def _atlas_prompt(role: AtlasRole, direction: str) -> str:
             f"states. {looks} Each body is itself a nine-slice. "
         )
     return f"{body}{_ATLAS_NINE_SLICE_RULE} {_ATLAS_GEOMETRY_COMMON}"
-
-
-def _inventory_panel_evidence(data: bytes) -> bytes:
-    with Image.open(io.BytesIO(data)) as opened:
-        panel = opened.convert("RGBA")
-    canvas = _checkerboard(panel.size)
-    canvas.alpha_composite(panel)
-    stream = io.BytesIO()
-    canvas.convert("RGB").save(stream, format="PNG", optimize=False)
-    return stream.getvalue()
 
 
 def _contact_sheet(entries: Sequence[tuple[str, Path]], *, title: str) -> bytes:

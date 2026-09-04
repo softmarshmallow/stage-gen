@@ -38,7 +38,9 @@ BELLWEATHER_NODE_COUNT = 230
 # recipe's cache identity. No cache key moved.
 # Re-pinned when the manifest root lost its four unread fields (C6): the root kind moved to
 # v12, and the terminal port kind is the manifest identity. No cache key moved.
-BELLWEATHER_TOPOLOGY_SHA256 = "aaa49dc731aeda29fd92fc8705ebedb197c8499aa74b62d13172edecac7ebba1"
+# Re-pinned when the inventory-panel family moved to `game_ui` (B7): the triplet's type ids
+# are the family's; all three keep this recipe's cache identity. No cache key moved.
+BELLWEATHER_TOPOLOGY_SHA256 = "e66804985e78d4a49bd9025c9734d471563db8913db8e0b6e73a84db809e67c8"
 
 
 def _bellweather_graph() -> ExecutionGraph:

@@ -12,6 +12,10 @@ from stage_gen.components.game_soundtrack.nodes import (
     add_soundtrack_nodes,
 )
 from stage_gen.components.game_soundtrack.prompt import music_track_prompt
+from stage_gen.components.game_ui.inventory_nodes import (
+    InventoryNodeTypes,
+    add_inventory_panel_nodes,
+)
 from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes
 from stage_gen.components.painted_terrain import (
     PAINTED_TERRAIN_CANONICALIZE,
@@ -143,8 +147,6 @@ CONTENT_PLAYER_REVIEW_CONTRACT_VERSION = "prepared-content-player-review-v6"
 CONTENT_MOTION_REBASE_CONTRACT_VERSION = "prepared-content-motion-rebase-v3"
 CONTENT_BINDING_CONTRACT_VERSION = "prepared-content-binding-report-v1"
 CONTENT_SOUNDTRACK_CONTRACT_VERSION = "prepared-content-soundtrack-v1"
-UI_INVENTORY_PANEL_CONTRACT_VERSION = "prepared-ui-inventory-panel-v2"
-UI_INVENTORY_PANEL_REVIEW_VERSION = "prepared-ui-inventory-panel-review-v1"
 MAP_CLIMBABLE_CONTRACT_VERSION = "prepared-map-climbable-atlas-v1"
 MAP_PORTAL_CONTRACT_VERSION = "prepared-map-portal-pair-1x2-v1"
 
@@ -1354,59 +1356,20 @@ def _add_ui_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
 
 
 def _add_inventory_panel_nodes(builder: _GraphBuilder, package_root: str) -> str:
-    panel = builder.package.ui.required_inventory_panel()
-    references = {entry.reference_id: entry for entry in builder.package.ui.references}
-    generated = builder.add(
-        UI_INVENTORY_GENERATE,
-        "ui-inventory-panel-generate",
-        domain="ui",
-        description="generate the authored inventory panel presentation",
+    package = builder.package
+    return add_inventory_panel_nodes(
+        builder,
+        types=InventoryNodeTypes(
+            generate=UI_INVENTORY_GENERATE,
+            validate=UI_INVENTORY_VALIDATE,
+            review=UI_INVENTORY_REVIEW,
+        ),
+        panel=package.ui.required_inventory_panel(),
+        references={entry.reference_id: entry for entry in package.ui.references},
         depends_on=(package_root,),
-        cache_depends_on=(),
-        input_digests=(
-            _visual_direction_digest(builder.package),
-            object_digest({"contract": UI_INVENTORY_PANEL_CONTRACT_VERSION}),
-            object_digest(panel.model_dump(mode="json")),
-            *(references[reference_id].source_sha256 for reference_id in panel.reference_ids),
-            hashlib.sha256(inventory_template_path().read_bytes()).hexdigest(),
-        ),
-        ports=(artifact_port("image", "ui/inventory_panel.raw.png", "ui-panel-raw-v1"),),
-        card=NodeCard(template_ref="inventory_grid_4x2_template_v1"),
+        direction_digest=_visual_direction_digest(package),
+        template_sha256=hashlib.sha256(inventory_template_path().read_bytes()).hexdigest(),
     )
-    validated = builder.add(
-        UI_INVENTORY_VALIDATE,
-        "ui-inventory-panel-validate",
-        domain="ui",
-        description="validate opaque panel and slot interiors on a transparent exterior",
-        depends_on=(generated.node_id,),
-        input_digests=(
-            object_digest({"contract": UI_INVENTORY_PANEL_CONTRACT_VERSION}),
-            object_digest(panel.model_dump(mode="json")),
-        ),
-        ports=(
-            artifact_port("image", "ui/inventory_panel.png", "ui-panel-v1"),
-            record_port("validation", "ui/inventory_panel.validation.json", "ui-validation-v1"),
-            artifact_port("evidence", "ui/inventory_panel.evidence.png", "ui-evidence-v1"),
-        ),
-        card=NodeCard(reference_inputs=(PortRef(node_id=generated.node_id, port_id="image"),)),
-        duration_seconds=0.75,
-    )
-    return builder.add(
-        UI_INVENTORY_REVIEW,
-        "ui-inventory-panel-review",
-        domain="ui",
-        description="review inventory readability, style, and filled slot surfaces",
-        depends_on=(validated.node_id,),
-        input_digests=(
-            object_digest({"contract": UI_INVENTORY_PANEL_REVIEW_VERSION}),
-            object_digest(panel.model_dump(mode="json")),
-        ),
-        ports=(artifact_port("verdict", "ui/inventory_panel.review.json", "review-verdict-v1"),),
-        card=NodeCard(
-            schema_name="prepared_ui_inventory_review",
-            reference_inputs=(PortRef(node_id=validated.node_id, port_id="image"),),
-        ),
-    ).node_id
 
 
 class _GraphBuilder(GraphBuilder):
