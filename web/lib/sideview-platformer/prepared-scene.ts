@@ -163,7 +163,12 @@ import {
 } from "./prepared-player";
 import { frameScaleForHeight } from "@/lib/sideview/sprite-scale";
 import { SCENE_CONTENT_DEPTH } from "./depths";
-import { cameraWorldBounds } from "./camera-follow";
+import {
+  followBounds,
+  NO_SHAKE,
+  ShakeCarrier,
+  type ShakeOffset,
+} from "@/lib/families/camera";
 import {
   preparedGroundBaselineY,
   preparedLayerLayout,
@@ -350,7 +355,8 @@ export class PreparedStageScene extends Phaser.Scene {
   private combatText?: CombatTextSystem;
   private impact?: ImpactSystem;
   /** The camera nudge applied last frame, subtracted before this frame's is added. */
-  private appliedShake: Readonly<{ x: number; y: number }> = Object.freeze({ x: 0, y: 0 });
+  /** The tremor the view is carrying, so the next one replaces it rather than adding to it. */
+  private readonly shakeCarrier = new ShakeCarrier();
   private healthBar?: FloatingHealthBar;
   private verticalWorld: VerticalWorld = Object.freeze({
     platforms: Object.freeze([]),
@@ -536,7 +542,8 @@ export class PreparedStageScene extends Phaser.Scene {
       updateImpact: (nowMs) => {
         this.impact?.update(nowMs);
       },
-      applyImpactShake: (nowMs) => this.applyImpactShake(nowMs),
+      impactShake: (nowMs) => this.impactShake(nowMs),
+      carryCameraShake: (next) => this.carryCameraShake(next),
       updateInteractionPrompt: () => this.updateInteractionPrompt(),
       updateContactShadows: () => this.updateContactShadows(),
       scrollParallaxLayers: () => this.scrollParallaxLayers(),
@@ -1337,11 +1344,11 @@ export class PreparedStageScene extends Phaser.Scene {
     // has always been asked to track both axes with the same dead zone - so an axis is enabled or
     // disabled purely by the world box the camera is allowed to move inside. Without a vertical
     // axis that box is exactly one viewport tall, which is what pins the camera to the floor.
-    const bounds = cameraWorldBounds({
+    const bounds = followBounds({
       followAxes: map.camera.follow_axes,
       worldWidth: this.worldWidth,
-      terrainTopY: terrainWorld.topY,
-      groundBaselineY: this.groundBaselineY,
+      topY: terrainWorld.topY,
+      baselineY: this.groundBaselineY,
       viewportHeight: VIEW_H,
     });
     // Bounds, follow offset and dead zone are Phaser midpoint helpers: they place the visible
@@ -1395,7 +1402,7 @@ export class PreparedStageScene extends Phaser.Scene {
     this.projectiles?.clearAll();
     this.projectiles = undefined;
     this.combatText?.clear();
-    this.applyImpactShake(null);
+    this.carryCameraShake(NO_SHAKE);
     this.impact?.clear();
     this.statLog?.clear();
     this.portal?.destroy();
@@ -2239,15 +2246,23 @@ export class PreparedStageScene extends Phaser.Scene {
    * makes the shake settle rather than what makes it move. `null` removes the nudge outright,
    * for a world about to be torn down.
    */
-  private applyImpactShake(nowMs: number | null): void {
+  /**
+   * What is shaking the view this frame.
+   *
+   * Which events shake it at all is this genre's answer and stays here; the
+   * decay, the pattern and the sum are the `screen-fx` family's, and where the
+   * view ends up is the `camera` family's.
+   */
+  private impactShake(nowMs: number): ShakeOffset {
+    return this.impact?.shakeOffset(nowMs) ?? NO_SHAKE;
+  }
+
+  /** Move the camera from the offset it carries to `next`, through the family's carrier. */
+  private carryCameraShake(next: ShakeOffset): void {
     const camera = this.cameras.main;
-    camera.scrollX -= this.appliedShake.x;
-    camera.scrollY -= this.appliedShake.y;
-    const offset =
-      nowMs === null ? Object.freeze({ x: 0, y: 0 }) : (this.impact?.shakeOffset(nowMs) ?? Object.freeze({ x: 0, y: 0 }));
-    camera.scrollX += offset.x;
-    camera.scrollY += offset.y;
-    this.appliedShake = offset;
+    const moved = this.shakeCarrier.shift({ scrollX: camera.scrollX, scrollY: camera.scrollY }, next);
+    camera.scrollX = moved.scrollX;
+    camera.scrollY = moved.scrollY;
   }
 
   /** The scale the package named, resolved through the table on every read like the weapon. */

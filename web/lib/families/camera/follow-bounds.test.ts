@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { cameraWorldBounds } from "./camera-follow";
+import { followBounds as cameraWorldBounds } from "@/lib/families/camera";
 
 describe("declared camera axes", () => {
   // Bellweather's two shipped maps, at the prepared adapter's 64px tiles and 720px viewport:
   // a 12-row village whose camera holds the floor, and a 16-row road whose camera may climb.
-  const village = { worldWidth: 4096, terrainTopY: 720 - 12 * 64, groundBaselineY: 720, viewportHeight: 720 };
-  const road = { worldWidth: 6144, terrainTopY: 720 - 16 * 64, groundBaselineY: 720, viewportHeight: 720 };
+  const village = { worldWidth: 4096, topY: 720 - 12 * 64, baselineY: 720, viewportHeight: 720 };
+  const road = { worldWidth: 6144, topY: 720 - 16 * 64, baselineY: 720, viewportHeight: 720 };
 
   test("without a vertical axis the box is exactly one viewport, so the camera cannot leave the floor", () => {
     expect(cameraWorldBounds({ ...village, followAxes: ["x"] })).toEqual({
@@ -49,7 +49,7 @@ describe("declared camera axes", () => {
       /must be positive/,
     );
     expect(() =>
-      cameraWorldBounds({ ...road, followAxes: [], groundBaselineY: road.terrainTopY }),
+      cameraWorldBounds({ ...road, followAxes: [], baselineY: road.topY }),
     ).toThrow(/floor below the top of the terrain/);
   });
 });

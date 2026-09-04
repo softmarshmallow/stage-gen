@@ -21,7 +21,7 @@ import type { SessionState } from "@/lib/families/session/session";
 import { createEventQueue, type EventQueue } from "@/lib/kernel/events";
 import { createGauge } from "@/lib/kernel/gauge";
 import { mulberry32, type Rng } from "@/lib/kernel/rng";
-import type { GameSystem } from "@/lib/kernel/systems";
+import { cameraScrollX } from "./camera";
 import type { RunnerEvent, VitalsState } from "./vitals";
 import type { DifficultyState } from "./difficulty";
 import { rampProfile, type RampProfileName } from "./difficulty";
@@ -294,32 +294,15 @@ export function groundLineY(config: RunnerWorldConfig): number {
   return rowToScreenY(config.walkSurfaceRow, config);
 }
 
-/** Horizontal world scroll that pins the avatar to its screen anchor. */
-export function cameraScrollX(distanceColumns: number, config: RunnerWorldConfig): number {
-  return distanceColumns * config.tilePx - config.avatarScreenX;
-}
-
 /**
- * The auto-run camera: scroll is a pure function of the avatar's distance.
+ * Horizontal world scroll that pins the avatar to its screen anchor.
  *
- * It used to declare a read of `run` it never performed, to buy the ordering
- * edge that put it after the run loop. That is what `after` is for, and the
- * edge is still wanted: the session is where a run ends, and the frame the
- * camera draws should be the one the lifecycle has finished deciding.
+ * Re-exported from the `camera` family's binding, where the arithmetic and the
+ * system that writes it now live. Kept here because the world is where the
+ * slice is initialised and reset, and both of those are camera positions
+ * rather than camera frames.
  */
-export function createCameraSystem(): GameSystem<RunnerWorld> {
-  return {
-    id: "runner/camera",
-    contractVersion: "camera-system-v2",
-    reads: ["avatar"],
-    writes: [],
-    owns: ["camera"],
-    after: ["session/run"],
-    update(world) {
-      world.camera.scrollX = cameraScrollX(world.avatar.distanceColumns, world.config);
-    },
-  };
-}
+export { cameraScrollX };
 
 /**
  * Reset every dynamic half of the world in place for a new run under `seed`.

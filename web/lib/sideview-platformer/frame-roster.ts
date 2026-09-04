@@ -35,6 +35,8 @@ import type { FixedStep, GameSystem, SealedSystems } from "@/lib/kernel/systems"
 import { sealSystems } from "@/lib/kernel/systems";
 import { createClock, createClockSystem, type ClockState } from "@/lib/families/clock/clock";
 import { platformerClockHolders } from "./clock";
+import { createPlatformerCameraSystem } from "./camera";
+import type { ShakeOffset } from "@/lib/families/camera";
 import { NEUTRAL_PLAYER_INTENT, type PlayerIntent } from "./player-intent";
 
 /**
@@ -142,7 +144,10 @@ export interface PlatformerFrameSteps {
   updateProjectiles(simulationDeltaMs: number, nowMs: number): void;
   collectDrops(simulationDeltaMs: number, nowMs: number): void;
   updateImpact(nowMs: number): void;
-  applyImpactShake(nowMs: number): void;
+  /** What is shaking the view this frame; the genre decides which events do. */
+  impactShake(nowMs: number): ShakeOffset;
+  /** Move the view from the offset it carries to this one. */
+  carryCameraShake(next: ShakeOffset): void;
   updateInteractionPrompt(): void;
   updateContactShadows(): void;
   scrollParallaxLayers(): void;
@@ -373,16 +378,12 @@ export function assemblePlatformerSystems(
         steps.updateImpact(step.now);
       },
     },
-    {
-      id: "camera/shake",
-      contractVersion: "camera-system-v1",
-      reads: ["hold", "impact"],
-      writes: ["camera"],
-      update: (world, step) => {
-        if (held(world)) return;
-        steps.applyImpactShake(step.now);
-      },
-    },
+    // The `camera` family, instantiated into this genre's follow mode. The
+    // frame does not compute a scroll here — the engine's follow does — so the
+    // whole of the step is carrying the tremor a blow raised, which is what
+    // "shake is an input" means once the offset is a value rather than a write
+    // into `camera.scrollX`.
+    createPlatformerCameraSystem(steps),
     {
       id: "npc/prompt",
       contractVersion: "npc-system-v1",

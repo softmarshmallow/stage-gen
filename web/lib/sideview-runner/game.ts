@@ -32,6 +32,7 @@ import {
   type RunnerMusicSink,
 } from "./audio";
 import { createAvatarSystem } from "./avatar";
+import { createRunnerCameraSystem, parseRunnerCameraBlock } from "./camera";
 import { createRunnerClockSystem, parseRunnerClockBlock } from "./clock";
 import type { BlockTable } from "@/lib/manifest/blocks";
 import type { RunnerMotionState, RunnerRuntimeManifest } from "./contract";
@@ -98,7 +99,6 @@ import {
 } from "@/lib/families/screen-fx/cut-in-view";
 import { createFxSystem, type FxView } from "@/lib/families/screen-fx/moment-system";
 import {
-  createCameraSystem,
   createRunnerWorld,
   groundLineY,
   resetRunnerWorld,
@@ -130,6 +130,7 @@ export function gateRunnerFamilyBlocks(blocks: BlockTable): void {
   parseRunnerSessionBlock(blocks);
   parseRunnerIntentBlock(blocks);
   parseRunnerVitalsBlock(blocks);
+  parseRunnerCameraBlock(blocks);
   parseScreenFxBlock(blocks);
 }
 
@@ -167,7 +168,7 @@ export function assembleRunnerSystems(
     // under the phase they were collected in.
     createScoreSystem(),
     createSessionSystemForRunner(),
-    createCameraSystem(),
+    createRunnerCameraSystem(),
     createParallaxSystem(stage),
     createHudSystem(hud),
     createAudioSystem(audio, music),

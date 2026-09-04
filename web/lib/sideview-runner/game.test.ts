@@ -28,6 +28,7 @@ const { RUNNER_INTENT_SHAPE, parseRunnerIntentBlock } = await import("./intent")
 const { parseRunnerVitalsBlock, RUNNER_REFRACTORY_MS, RUNNER_BLINK_ALPHA } = await import("./vitals");
 const { CONTACT_HURT_PROFILE } = await import("@/lib/families/vitals");
 const { parseScreenFxBlock } = await import("@/lib/families/screen-fx/manifest");
+const { parseRunnerCameraBlock, cameraScrollX } = await import("./camera");
 const { RUNNER_BLOCKS } = await import("./contract");
 const { SILENT_AUDIO_SINK } = await import("./audio");
 const { createRunnerWorld } = await import("./world");
@@ -473,5 +474,44 @@ describe("the screen-fx family in the runner", () => {
     expect(() => parseScreenFxBlock({ ...RUNNER_BLOCKS, fx: "fx-block-v2" })).toThrow(
       'manifest block "fx" is published as fx-block-v2',
     );
+  });
+});
+
+// --- The `camera` family, sealed into this genre -----------------------------------------------
+
+describe("the camera family in the runner", () => {
+  const roster = () =>
+    assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK);
+
+  test("E7 subtraction: a genre with no camera seals to the identical order", () => {
+    // The camera owns its slice and nothing in this roster reads it except the
+    // parallax and the dust, both of which are presentation pinned by their own
+    // edges — so a genre that draws without a scrolling view (a single-screen
+    // arena, say) takes the entry out and moves nothing else.
+    const quiet = roster()
+      .filter((system) => system.id !== "runner/camera")
+      .map((system) => ({ ...system, reads: system.reads.filter((key) => key !== "camera") }));
+    expect(sealSystems(quiet, EVENTS).order).toEqual(
+      DOCUMENTED_ORDER.filter((id) => id !== "runner/camera"),
+    );
+  });
+
+  test("the mode is the whole of what this genre authors, and it is anchored", () => {
+    const manifest = parseRunnerRuntimeManifest(runnerManifestFixture());
+    expect(manifest.camera.mode).toBe("auto_run_x_v1");
+    const world = createRunnerWorld(manifest, 1);
+    // The scroll is a pure function of distance: no dead zone, no follow, no
+    // bounds box — the avatar never leaves its screen column.
+    world.avatar.distanceColumns = 10;
+    expect(cameraScrollX(10, world.config)).toBe(
+      10 * world.config.tilePx - world.config.avatarScreenX,
+    );
+  });
+
+  test("the family gates its own block, by name", () => {
+    expect(parseRunnerCameraBlock(RUNNER_BLOCKS).published).toBe(true);
+    expect(() =>
+      parseRunnerCameraBlock({ ...RUNNER_BLOCKS, camera: "runner-camera-block-v2" }),
+    ).toThrow('manifest block "camera" is published as runner-camera-block-v2');
   });
 });

@@ -2,8 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { SealRefusal, SystemCycleError, sealSystems } from "@/lib/kernel/systems";
 import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
 import { KILL_SHAKE_PROFILE } from "@/lib/families/screen-fx/shake";
+import { NO_SHAKE, ShakeCarrier } from "@/lib/families/camera";
 import { IMPACT_SHAKE_MS, IMPACT_SHAKE_PX } from "./impact-presentation";
 import { parsePlatformerClockBlock } from "./clock";
+import { parsePlatformerCameraBlock } from "./camera";
 import {
   NEUTRAL_PLAYER_INTENT,
   PLATFORMER_INTENT_SHAPE,
@@ -91,7 +93,8 @@ function inertSteps(record: string[] = []): PlatformerFrameSteps {
     updateProjectiles: note("projectiles/step", undefined),
     collectDrops: note("items/collect", undefined),
     updateImpact: note("impact/release", undefined),
-    applyImpactShake: note("camera/shake", undefined),
+    impactShake: note("camera/shake", NO_SHAKE),
+    carryCameraShake: () => undefined,
     updateInteractionPrompt: note("npc/prompt", undefined),
     updateContactShadows: note("shadows/contact", undefined),
     scrollParallaxLayers: note("parallax/scroll", undefined),
@@ -442,13 +445,44 @@ describe("the intent family in the platformer", () => {
 // --- The `screen-fx` family, sealed into this genre --------------------------------------------
 
 describe("the screen-fx family in the platformer", () => {
-  test("E7 subtraction: with the shake taken out, the rest seals to the identical order", () => {
-    const quiet = roster().filter((system) => system.id !== "camera/shake");
-    expect(sealSystems(quiet).order).toEqual(DOCUMENTED_ORDER.filter((id) => id !== "camera/shake"));
-  });
-
   test("the kill shake is the family's profile, not a second copy", () => {
     expect(IMPACT_SHAKE_MS).toBe(KILL_SHAKE_PROFILE.durationMs);
     expect(IMPACT_SHAKE_PX).toBe(KILL_SHAKE_PROFILE.amplitudePx);
+  });
+});
+
+// --- The `camera` family, sealed into this genre -----------------------------------------------
+
+describe("the camera family in the platformer", () => {
+  test("E7 subtraction: with the camera taken out, the rest seals to the identical order", () => {
+    // A genre that never shakes — the cinematic platformer the plan names —
+    // drops the entry and the parallax's read of what it wrote with it.
+    const quiet = roster()
+      .filter((system) => system.id !== "camera/shake")
+      .map((system) => ({
+        ...system,
+        reads: system.reads.filter((key) => key !== "camera"),
+      }));
+    expect(sealSystems(quiet).order).toEqual(DOCUMENTED_ORDER.filter((id) => id !== "camera/shake"));
+  });
+
+  test("the offset is an input: what the follow wrote survives the tremor", () => {
+    // The whole reason the shake stopped being a write into `camera.scrollX`.
+    // Two frames of tremor with the follower moving underneath, and the view
+    // ends where the follower put it rather than where the shake left it.
+    const carrier = new ShakeCarrier();
+    let view = { scrollX: 1_000, scrollY: 0 };
+    view = carrier.shift(view, { x: 4, y: -2 });
+    expect(view).toEqual({ scrollX: 1_004, scrollY: -2 });
+    view = { scrollX: view.scrollX + 8, scrollY: view.scrollY };
+    view = carrier.shift(view, NO_SHAKE);
+    expect(view).toEqual({ scrollX: 1_008, scrollY: 0 });
+  });
+
+  test("the family gates its own block, by name", () => {
+    expect(parsePlatformerCameraBlock(PREPARED_RUNTIME_BLOCKS).published).toBe(true);
+    expect(() =>
+      parsePlatformerCameraBlock({ ...PREPARED_RUNTIME_BLOCKS, maps: "platformer-maps-block-v2" }),
+    ).toThrow('manifest block "maps" is published as platformer-maps-block-v2');
   });
 });
