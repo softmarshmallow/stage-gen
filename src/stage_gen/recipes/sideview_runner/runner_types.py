@@ -10,7 +10,7 @@ judges - every other review stays an operator decision.
 from __future__ import annotations
 
 from gnode import NodePolicy, NodeType, ViewArchetype
-from stage_gen.components.game_fx.nodes import FX_CUT_IN_NODE_TYPES
+from stage_gen.components.game_fx.nodes import FX_CUT_IN_NODE_TYPES, FX_SPRITE_NODE_TYPES
 
 _P = "2d/sideview/runner"
 _PROVIDER = NodePolicy(max_attempts=6)
@@ -361,6 +361,7 @@ RUNNER_NODE_TYPES: tuple[NodeType, ...] = (
     SPEECH_VALIDATE,
     AUDIO_REPUBLISH,
     *FX_CUT_IN_NODE_TYPES,
+    *FX_SPRITE_NODE_TYPES,
     MANIFEST_ASSEMBLE,
 )
 

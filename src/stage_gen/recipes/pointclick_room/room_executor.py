@@ -20,6 +20,7 @@ from gnode import (
     assert_safe_path_segment,
     atomic_write_json,
     project_schedule,
+    validate_plan_types,
     write_graph,
     write_run_summary,
 )
@@ -39,6 +40,7 @@ from stage_gen.recipes.pointclick_room.room_request import (
     read_room_document,
     resolve_pointclick_room,
 )
+from stage_gen.recipes.pointclick_room.room_types import pointclick_type_index
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +68,7 @@ class PointClickRoomExecutor:
 
         resolved = resolve_pointclick_room(read_room_document(input_path), root=input_path)
         graph = build_pointclick_room_graph(resolved, profile=room_graph_profile(self._config))
+        validate_plan_types(graph.nodes, pointclick_type_index())
         return PointClickRoomPlan(
             resolved=resolved, graph=graph, projection=project_schedule(graph)
         )

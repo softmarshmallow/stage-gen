@@ -15,6 +15,7 @@ so the scheduler never learns any of this exists.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 
@@ -89,10 +90,17 @@ class NodeType:
     contract_version: str
     features: tuple[str, ...] = ()
     policy: NodePolicy = field(default_factory=NodePolicy)
+    #: The string the cache key binds this type by. It defaults to ``type_id``,
+    #: so a type is free to move to a better taxonomy home by keeping its old
+    #: id here: a rename is then a rename and not a re-bill of every artifact
+    #: the type ever produced. It moves only when the type's meaning does.
+    identity: str | None = None
 
     def __post_init__(self) -> None:
         if not _TYPE_ID.fullmatch(self.type_id):
             raise ValueError(f"invalid node type identifier: {self.type_id!r}")
+        if self.identity is not None and not _TYPE_ID.fullmatch(self.identity):
+            raise ValueError(f"invalid node type cache identity: {self.identity!r}")
         if not self.title.strip():
             raise ValueError("node types require a human title")
         if not self.contract_version.strip():
@@ -106,6 +114,37 @@ class NodeType:
     @property
     def is_local(self) -> bool:
         return self.operation == LOCAL_OPERATION
+
+    @property
+    def cache_identity(self) -> str:
+        """What the cache key calls this type: ``identity`` when declared, else ``type_id``."""
+
+        return self.type_id if self.identity is None else self.identity
+
+
+def validate_plan_types(nodes: Sequence[Node], types: Mapping[str, NodeType]) -> None:
+    """Refuse a plan whose nodes disagree with a recipe's type census.
+
+    The registry check runs when a handler is built - after a plan is already
+    on disk. This one runs at plan time from the census alone, so a stale
+    persisted plan, or a builder that emitted a type the census does not
+    declare, fails before any executor exists to spend on it.
+    """
+
+    for node in nodes:
+        declared = types.get(node.type_id)
+        if declared is None:
+            raise NodeTypeError(f"node {node.node_id} carries undeclared type {node.type_id}")
+        if node.operation != declared.operation:
+            raise NodeTypeError(
+                f"node {node.node_id} carries operation {node.operation} but its "
+                f"type {node.type_id} declares {declared.operation}"
+            )
+        if node.max_attempts != declared.policy.max_attempts:
+            raise NodeTypeError(
+                f"node {node.node_id} carries max_attempts {node.max_attempts} but "
+                f"its type {node.type_id} declares {declared.policy.max_attempts}"
+            )
 
 
 class NodeTypeError(ValueError):
@@ -173,6 +212,7 @@ class NodeTypeRegistry:
 
 
 __all__ = [
+    "validate_plan_types",
     "TYPE_ID_PATTERN",
     "NodePolicy",
     "NodeType",

@@ -24,6 +24,7 @@ from gnode import (
     assert_safe_path_segment,
     atomic_write_json,
     project_schedule,
+    validate_plan_types,
     write_graph,
     write_run_summary,
 )
@@ -51,6 +52,7 @@ from stage_gen.recipes.universe.universe_request import (
     resolve_sample_ledger,
     resolve_universe_source,
 )
+from stage_gen.recipes.universe.universe_types import universe_type_index
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -91,6 +93,7 @@ class UniverseExecutor:
         graph = build_universe_semantic_graph(
             resolved, profile=universe_graph_profile(self._config, images=False)
         )
+        validate_plan_types(graph.nodes, universe_type_index())
         return UniversePlan(resolved=resolved, graph=graph, projection=project_schedule(graph))
 
     def plan_gallery(
@@ -115,6 +118,7 @@ class UniverseExecutor:
             samples=samples,
             profile=universe_graph_profile(self._config, images=True),
         )
+        validate_plan_types(graph.nodes, universe_type_index())
         return UniversePlan(
             resolved=resolved,
             graph=graph,

@@ -169,6 +169,7 @@ from gnode.node_types import (
     NodeTypeError,
     NodeTypeRegistry,
     ViewArchetype,
+    validate_plan_types,
 )
 from gnode.reliability import (
     AI_RETRY_COUNT,
@@ -442,6 +443,7 @@ __all__ = [
     "ToolResult",
     "ToolSpec",
     "topological_node_ids",
+    "validate_plan_types",
     "topology_sha256",
     "TraceSink",
     "TYPE_ID_PATTERN",

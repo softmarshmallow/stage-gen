@@ -19,6 +19,7 @@ from gnode import (
     assert_safe_path_segment,
     atomic_write_json,
     project_schedule,
+    validate_plan_types,
     write_graph,
     write_run_summary,
 )
@@ -40,6 +41,7 @@ from stage_gen.recipes.dialogue_scene.scene_request import (
     read_scene_document,
     resolve_dialogue_scene,
 )
+from stage_gen.recipes.dialogue_scene.scene_types import dialogue_type_index
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +71,7 @@ class DialogueSceneExecutor:
             scene,
             profile=dialogue_graph_profile(self._config),
         )
+        validate_plan_types(graph.nodes, dialogue_type_index())
         return DialogueScenePlan(
             scene=scene,
             graph=graph,

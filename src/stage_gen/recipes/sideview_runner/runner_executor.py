@@ -20,6 +20,7 @@ from gnode import (
     assert_safe_path_segment,
     atomic_write_json,
     project_schedule,
+    validate_plan_types,
     write_graph,
     write_run_summary,
 )
@@ -41,6 +42,7 @@ from stage_gen.recipes.sideview_runner.runner_request import (
     ResolvedRunnerPackage,
     resolve_runner_package,
 )
+from stage_gen.recipes.sideview_runner.runner_types import runner_type_index
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -71,6 +73,7 @@ class SideviewRunnerExecutor:
     def plan(self, input_path: Path) -> SideviewRunnerPlan:
         resolved = resolve_runner_package(input_path)
         graph = build_runner_execution_graph(resolved, profile=runner_graph_profile(self._config))
+        validate_plan_types(graph.nodes, runner_type_index())
         return SideviewRunnerPlan(
             resolved=resolved, graph=graph, projection=project_schedule(graph)
         )

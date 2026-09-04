@@ -164,7 +164,7 @@ class GraphBuilder:
             input_sha256=digests,
             cache_key=build_node_cache_key(
                 node_id=node_id,
-                type_id=node_type.type_id,
+                type_id=node_type.cache_identity,
                 operation=node_type.operation,
                 provider=provider,
                 model=model,

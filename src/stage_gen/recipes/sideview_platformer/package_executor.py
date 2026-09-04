@@ -16,6 +16,7 @@ from gnode import (
     assert_safe_path_segment,
     atomic_write_json,
     project_schedule,
+    validate_plan_types,
     write_graph,
     write_run_summary,
 )
@@ -31,6 +32,7 @@ from stage_gen.recipes.sideview_platformer.package_graph import (
     build_package_execution_graph,
     package_graph_profile,
 )
+from stage_gen.recipes.sideview_platformer.package_types import platformer_type_index
 from stage_gen.recipes.sideview_platformer.prepared_content import (
     PreparedContentNodeHandler,
     content_target_node_ids,
@@ -96,6 +98,7 @@ class PreparedPackageExecutor:
             package,
             profile=package_graph_profile(self._config),
         )
+        validate_plan_types(graph.nodes, platformer_type_index())
         return PreparedPackagePlan(
             package=package,
             graph=graph,
@@ -171,8 +174,9 @@ class PreparedPackageExecutor:
         run_dir: Path,
         cache_dir: Path,
         invocation_id: str,
+        targets: Callable[[ExecutionGraph], tuple[str, ...]] = world_target_node_ids,
     ) -> PreparedPackageWorldRun:
-        """Execute exactly the map review targets and their dependency closure."""
+        """Execute exactly the named world targets and their dependency closure."""
 
         assert_safe_path_segment(invocation_id, "invocation_id")
         if self._config.openai_api_key is None:
@@ -220,7 +224,7 @@ class PreparedPackageExecutor:
                 handler,
                 invocation_id=invocation_id,
                 trace_sink=trace,
-                target_node_ids=world_target_node_ids(plan.graph),
+                target_node_ids=targets(plan.graph),
             )
         finally:
             trace.close()
