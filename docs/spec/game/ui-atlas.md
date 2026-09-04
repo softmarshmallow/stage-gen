@@ -1,5 +1,7 @@
 # Game UI atlas taxonomy
 
+> **Checked by:** none.
+
 > **Contract maturity: proposed TO-BE.** Scope: the game-generic, screen-space
 > interface module (`2d/ui` in the [asset taxonomy](../asset-taxonomy.md)).
 >

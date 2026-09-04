@@ -1,5 +1,7 @@
 # Visual Novel Scene Kit: dialogue-scene asset contract
 
+> **Checked by:** none.
+
 > **Status: implemented v5 headless recipe.** The Python `dialogue-scene`
 > recipe generates a portable, provider-neutral bundle. The web application is
 > a consumer adapter and never generates assets.

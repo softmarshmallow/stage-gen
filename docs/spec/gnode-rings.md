@@ -1,5 +1,7 @@
 # gnode rings
 
+> **Checked by:** none.
+
 > **Contract maturity: current.** The ring-1 and ring-2 extraction is
 > implemented; the layering law and the promotion policy are normative and
 > lint-enforced.

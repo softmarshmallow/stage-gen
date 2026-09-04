@@ -1,5 +1,7 @@
 # Runtime composition: families, genres, and the sealed tick
 
+> **Checked by:** none.
+
 Status: draft for sign-off, second pass. The first pass was a sample; this one
 follows five full audits of the runtime (the platformer's welded and pure
 halves, the runner and kernel, the turn-based genres and hosts, and the

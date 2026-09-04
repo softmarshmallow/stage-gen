@@ -1,5 +1,7 @@
 # Side-view platformer image asset contracts
 
+> **Checked by:** `tests/contract/test_docs_check.py`.
+
 This is the recipe-specific contract for 2D side-view platformer media: what each
 prepared-package asset is, its dimensions, its reference and layout inputs, and
 its sheet grid. It is not the global definition of `stage-gen`. Reusable components remain

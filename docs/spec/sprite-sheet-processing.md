@@ -1,5 +1,7 @@
 # Sprite-sheet slicing and instance-recovery contract
 
+> **Checked by:** none.
+
 > **Status: alpha-component instance recovery is implemented and is the prepared-game default;
 > broader geometry and ownership recovery remain planned.**
 > `src/stage_gen/media/sprite_sheets.py` implements the deterministic

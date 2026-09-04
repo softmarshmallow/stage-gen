@@ -1,5 +1,7 @@
 # Speech model adapter contract
 
+> **Checked by:** `tests/contract/test_current_game_docs.py`.
+
 Request surface verified against the account's live model listing on
 2026-09-03. Behavioural findings below were measured in this repository over
 35 generations (`spikes/tts-elevenlabs/`, rounds 1 and 1b); every listening

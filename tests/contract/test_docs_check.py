@@ -30,6 +30,39 @@ def test_repository_documentation_and_publication_contract() -> None:
     assert result.media_count == 2
 
 
+def test_every_spec_names_a_true_checker(tmp_path: Path) -> None:
+    """A spec says what checks it, and the checker must exist and name the spec back."""
+
+    checker = _load_docs_checker()
+    spec_dir = tmp_path / "docs/spec/game"
+    spec_dir.mkdir(parents=True)
+    tests_dir = tmp_path / "tests/contract"
+    tests_dir.mkdir(parents=True)
+    (tests_dir / "test_true.py").write_text('SPEC = "spec/game/true.md"\n', encoding="utf-8")
+    (tests_dir / "test_silent.py").write_text("x = 1\n", encoding="utf-8")
+
+    def spec(name: str, claim: str) -> None:
+        (spec_dir / f"{name}.md").write_text(
+            f"# {name}\n\n> **Checked by:** {claim}\n\nBody.\n", encoding="utf-8"
+        )
+
+    spec("true", "`tests/contract/test_true.py`.")
+    spec("honest", "none.")
+    spec("missing", "`tests/contract/test_absent.py`.")
+    spec("borrowed", "`tests/contract/test_silent.py`.")
+    spec("source", "`src/stage_gen/config.py`.")
+    (spec_dir / "silent.md").write_text("# silent\n\nNo line at all.\n", encoding="utf-8")
+
+    failures = checker.check_spec_checkers(tmp_path)
+    assert failures == [
+        "docs/spec/game/borrowed.md: Checked by names `tests/contract/test_silent.py`, "
+        "which never names the spec",
+        "docs/spec/game/missing.md: Checked by names missing test `tests/contract/test_absent.py`",
+        "docs/spec/game/silent.md: no `> **Checked by:**` line",
+        "docs/spec/game/source.md: Checked by names a non-test `src/stage_gen/config.py`",
+    ]
+
+
 def test_repository_storage_policy_uses_live_enforced_limits() -> None:
     repository_root = Path(__file__).parents[2]
     policy = (repository_root / "docs/repository-storage.md").read_text(encoding="utf-8")

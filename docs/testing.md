@@ -86,6 +86,13 @@ uv run python scripts/check_docs.py
 uv run pytest tests/unit/test_media_rights.py tests/contract/test_docs_check.py -q
 ```
 
+Two of the checker's rules bind prose to the tree. A backticked source path
+must exist. And every specification under `docs/spec/` opens with a
+`> **Checked by:** ...` line naming the test modules that read it, or `none.`
+when nothing does; a named test must exist and must itself name the spec, so a
+document cannot claim a checker it never had, and `none.` is an honest fact a
+reader can act on rather than a pointer that rotted.
+
 ## System tools and packaged resources
 
 `ffmpeg` and `ffprobe` must be on `PATH` for generated-music normalization and

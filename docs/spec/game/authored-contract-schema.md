@@ -1,5 +1,7 @@
 # Authored game contract schema
 
+> **Checked by:** `tests/contract/test_current_game_docs.py`, `tests/contract/test_docs_check.py`, `tests/contract/test_generation_pipeline_docs.py`.
+
 > **Contract maturity: exact-current prepared-package root.**
 >
 > This document specifies `game-contract-v9`, the root `game.toml` accepted by

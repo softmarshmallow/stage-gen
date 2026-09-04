@@ -1,5 +1,7 @@
 # Platformer map design
 
+> **Checked by:** none.
+
 > **Contract maturity: promoted module, exact-current for the design contract.**
 >
 > This document defines `stage_gen.components.sideview_map_design`: what a capability

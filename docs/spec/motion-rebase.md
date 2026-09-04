@@ -1,5 +1,7 @@
 # Motion rebase
 
+> **Checked by:** none.
+
 > **Contract maturity: ratified TO-BE master.** Scope: the side-view platformer
 > recipe's motion atlases (`2d/sideview/platformer` in the
 > [asset taxonomy](asset-taxonomy.md)).

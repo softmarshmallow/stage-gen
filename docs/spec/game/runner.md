@@ -1,5 +1,7 @@
 # Runner genre family
 
+> **Checked by:** `tests/contract/test_current_game_docs.py`, `tests/contract/test_generation_pipeline_docs.py`, `tests/unit/recipes/sideview_runner/test_execution_graph_identity.py`.
+
 > **Contract maturity: exact-current authored contracts.** Executable
 > authority: `src/stage_gen/components/runner_gameplay/`,
 > `src/stage_gen/components/runner_track/`,

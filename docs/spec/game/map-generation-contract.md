@@ -1,5 +1,7 @@
 # Authored map-generation contract
 
+> **Checked by:** `tests/contract/test_current_game_docs.py`, `tests/contract/test_game_map_v10_docs.py`.
+
 > **Contract maturity: exact-current authored, generation, manifest, and consumer contract.**
 >
 > This document is the canonical source of truth for the current authored map

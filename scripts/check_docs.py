@@ -38,6 +38,52 @@ def _walk_files(path: Path, suffixes: frozenset[str]) -> list[Path]:
     return files
 
 
+CHECKED_BY_PATTERN = re.compile(r"^> \*\*Checked by:\*\* (.+)$", re.MULTILINE)
+
+
+def check_spec_checkers(repo: Path) -> list[str]:
+    """Every specification says what checks it, and the claim is true.
+
+    A spec under ``docs/spec`` opens with ``> **Checked by:** `tests/...`, ...`` naming
+    the test modules that read it, or ``none.`` when nothing does. A named test must
+    exist, live under ``tests/`` or be a ``web/lib`` test, and actually name the spec,
+    so a document cannot borrow a checker it never had; ``none`` is a statement a
+    reader can act on rather than a pointer that quietly rotted.
+    """
+
+    failures: list[str] = []
+    for spec in sorted(_walk_files(repo / "docs/spec", frozenset({".md"}))):
+        relative = spec.relative_to(repo).as_posix()
+        source = spec.read_text(encoding="utf-8")
+        match = CHECKED_BY_PATTERN.search(source)
+        if match is None:
+            failures.append(f"{relative}: no `> **Checked by:**` line")
+            continue
+        claim = match.group(1).strip()
+        if claim == "none.":
+            continue
+        named = re.findall(r"`([^`]+)`", claim)
+        if not named:
+            failures.append(f"{relative}: Checked by names no test in backticks")
+        spec_ref = relative[len("docs/") :]
+        for test_ref in named:
+            is_test = (test_ref.startswith("tests/") and test_ref.endswith(".py")) or (
+                test_ref.startswith("web/lib/") and test_ref.endswith(".test.ts")
+            )
+            if not is_test:
+                failures.append(f"{relative}: Checked by names a non-test `{test_ref}`")
+                continue
+            test_path = repo / test_ref
+            if not test_path.is_file():
+                failures.append(f"{relative}: Checked by names missing test `{test_ref}`")
+                continue
+            if spec_ref not in test_path.read_text(encoding="utf-8", errors="ignore"):
+                failures.append(
+                    f"{relative}: Checked by names `{test_ref}`, which never names the spec"
+                )
+    return failures
+
+
 def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
     doctrine = [
         repo / "README.md",
@@ -122,6 +168,8 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
                 continue
             if not (repo / candidate).exists():
                 failures.append(f"{relative}: names missing path `{match}`")
+
+    failures.extend(check_spec_checkers(repo))
 
     text_files: list[Path] = []
     for path in [

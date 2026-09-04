@@ -1,5 +1,7 @@
 # Screen FX: transitions and overlays
 
+> **Checked by:** `tests/contract/test_current_game_docs.py`.
+
 > **Contract maturity: exact-current authored contract.** Executable authority:
 > `src/stage_gen/components/game_fx/` (contract, plate gates, placement admission, and the
 > recipe-neutral node set) and `web/lib/families/screen-fx/` (the pure choreography, the generic moment

@@ -1,5 +1,7 @@
 # System overview
 
+> **Checked by:** none.
+
 `stage-gen` is a headless orchestration surface over reusable 2D media
 components. It produces validated artifacts and provenance for games and game
 tools; it does not own gameplay or require a particular runtime.

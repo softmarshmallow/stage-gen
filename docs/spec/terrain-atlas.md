@@ -1,5 +1,7 @@
 # Side-view platformer terrain atlas
 
+> **Checked by:** `tests/contract/test_docs_check.py`.
+
 The prepared-game ground contract is `terrain-atlas-3x3-minimal-v1`. It is a
 Godot-compatible 3x3-minimal terrain topology carried in a 12-column by 4-row
 atlas. It is not a 9-slice and it does not encode true smooth slopes.

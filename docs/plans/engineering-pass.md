@@ -932,6 +932,20 @@ two sibling packages sharing references by digest is a contract question for the
 G lane, not a copy to keep making.
 
 
+**2026-09-05 — F3 landed: a spec says what checks it.** Every one of the thirty-two
+files under `docs/spec/` now opens with `> **Checked by:** ...` naming the test modules
+that read it, computed rather than asserted: a test counts only if it names the spec's
+path. Eighteen name at least one test; fourteen say `none.` - the actor-boundary review,
+the prompt contract, the taxonomy, the asset unit, the dialogue-scene kit, the map
+design, both runtime-composition documents, the UI atlas taxonomy, the rings, the image
+adapter, the motion rebase, the sprite-sheet contract and the overview - which is the
+honest map of where a
+document has no executable twin, and the list F2 reads when it decides which of them
+are plans. The docs checker refuses a spec with no line, a named test that does not
+exist, a named file that is not a test, or a test that never names the spec; the rule
+has its own negative test over a fabricated tree. Documented in `docs/testing.md`.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one

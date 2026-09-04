@@ -1,5 +1,7 @@
 # Point-and-click puzzle room
 
+> **Checked by:** `tests/contract/test_current_game_docs.py`.
+
 > **Contract maturity: exact-current for the authored contract, the pipeline,
 > and the runtime manifest.** Executable authority:
 > `src/stage_gen/recipes/pointclick_room/` and `web/lib/pointclick/`.

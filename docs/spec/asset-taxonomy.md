@@ -1,5 +1,7 @@
 # Asset taxonomy and module namespace
 
+> **Checked by:** none.
+
 > **Contract maturity: current naming discipline.** The renames it prescribes
 > are implemented; persisted vocabulary is explicitly out of scope until the
 > next coordinated schema bump.

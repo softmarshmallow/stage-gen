@@ -1,5 +1,7 @@
 # Case: the container above the narrative leaves
 
+> **Checked by:** `tests/contract/test_packaged_resources.py`.
+
 > **Contract maturity: exact-current for the authored contract, the structural
 > proof, the leaf binding, the `case-runtime-v1` projection, and
 > `stage-gen case check` / `case bundle`.** Executable authority:

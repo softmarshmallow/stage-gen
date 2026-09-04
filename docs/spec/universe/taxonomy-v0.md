@@ -1,5 +1,7 @@
 # Universe ontology and entity concept taxonomy
 
+> **Checked by:** `tests/contract/test_generation_pipeline_docs.py`.
+
 > **Contract maturity: ratified V0 target, documentation-only.**
 >
 > This document defines the first semantic contract for universe-oriented

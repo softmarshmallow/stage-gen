@@ -1,5 +1,7 @@
 # Scenario: the executable narrative subset
 
+> **Checked by:** `tests/unit/components/scenario/test_admission.py`.
+
 > **Contract maturity: exact-current for the authored contract, the script
 > surface, the admission proof, and the runtime that walks it.** Executable
 > authority: `src/stage_gen/components/scenario/`, `web/lib/scenario/`, the

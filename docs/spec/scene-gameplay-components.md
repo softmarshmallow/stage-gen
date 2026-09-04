@@ -1,5 +1,7 @@
 # Scene profiles and gameplay components
 
+> **Checked by:** `tests/contract/test_current_game_docs.py`.
+
 > **Contract maturity: exact-current prepared gameplay and consumer boundary.**
 
 The prepared game separates visual/static map composition from semantic game

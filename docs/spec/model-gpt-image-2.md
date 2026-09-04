@@ -1,5 +1,7 @@
 # Image-model adapter contract
 
+> **Checked by:** none.
+
 Direct native alpha verified from official OpenAI documentation on 2026-08-25;
 the compatibility OpenRouter route was verified on 2026-08-14. This page
 records the model-specific boundary used by the side-view platformer recipe. The

@@ -1,5 +1,7 @@
 # Authored game UI contract
 
+> **Checked by:** `tests/contract/test_current_game_docs.py`.
+
 `ui.toml` is the game-global source of truth for generated interface presentation. It is a root
 sibling of `gameplay.toml`: UI owns appearance, while gameplay owns inventory capacity, contents,
 pickup/use rules, input, and visibility state.

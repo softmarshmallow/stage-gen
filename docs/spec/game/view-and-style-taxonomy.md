@@ -1,5 +1,7 @@
 # Game view and style taxonomy
 
+> **Checked by:** `tests/contract/test_docs_check.py`.
+
 > **Contract maturity: proposed TO-BE.**
 >
 > This specification defines canonical target terminology, profile identity,

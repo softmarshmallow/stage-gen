@@ -1,5 +1,7 @@
 # Universe generation V1
 
+> **Checked by:** `tests/contract/test_generation_pipeline_docs.py`.
+
 > **Contract maturity: exact-current authored contracts.** Executable
 > authority: `src/stage_gen/recipes/universe/`. The semantic vocabulary it
 > projects is ratified separately in [taxonomy V0](taxonomy-v0.md), which stays

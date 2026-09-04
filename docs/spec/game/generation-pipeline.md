@@ -1,5 +1,7 @@
 # Canonical game-generation pipeline
 
+> **Checked by:** `tests/contract/test_current_game_docs.py`, `tests/contract/test_generation_pipeline_docs.py`.
+
 > **Contract maturity: current executable overview.**
 >
 > This is the canonical human overview of prepared-game generation — the

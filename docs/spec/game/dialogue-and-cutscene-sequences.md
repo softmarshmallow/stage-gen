@@ -1,5 +1,7 @@
 # Dialogue and cutscene sequence contract
 
+> **Checked by:** `tests/contract/test_current_game_docs.py`, `tests/contract/test_docs_check.py`.
+
 > **Contract maturity: proposed TO-BE.**
 >
 > This specification defines the target semantic contract for authored dialogue
