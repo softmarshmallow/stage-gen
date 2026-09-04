@@ -25,10 +25,14 @@ uv run python scripts/check.py
 ```
 
 It removes provider credentials from child-process environments, disables cwd
-`.env` credential loading for those children, checks formatting/lint and strict
-typing, runs `pytest -m "not live"`, builds both distribution formats, verifies
-packaged resources, and exercises CLI help, recipe discovery, and offline
-benchmarks.
+`.env` credential loading for those children, and runs every step whether or
+not an earlier one failed - formatting, lint, strict typing, `pytest -m "not
+live"`, the web suite (`bun run check`, `bun test`), the docs check, both
+distribution builds, the library package validation, and an offline plan of
+every package in `library/games/` - then prints one PASS/FAIL line per step
+with its timing and exits non-zero if any failed. The fast half (formatting,
+lint, the web suite, the contract tests) also runs as a pre-push hook once
+`git config core.hooksPath .githooks` is set.
 
 ## Live provider tests
 

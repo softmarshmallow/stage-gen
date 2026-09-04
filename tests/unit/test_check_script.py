@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 from types import ModuleType
 
@@ -10,6 +11,9 @@ def load_check_script() -> ModuleType:
     spec = importlib.util.spec_from_file_location("stage_gen_check", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
+    # Registered before execution: dataclasses resolve their annotations through
+    # sys.modules, and the gate script declares two.
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -52,10 +56,43 @@ def test_offline_gate_removes_provider_credentials_and_lists_required_checks() -
         "--genre",
         "runner",
     ) in commands
-    assert ("stage-gen", "dialogue-scene", "generate", "--help") in commands
-    assert ("stage-gen", "pointclick-room", "generate", "--help") in commands
-    assert ("stage-gen", "scenario", "check", "--help") in commands
-    assert ("stage-gen", "case", "check", "--help") in commands
-    assert ("stage-gen", "case", "bundle", "--help") in commands
-    assert ("stage-gen", "universe", "semantic", "--help") in commands
-    assert ("stage-gen", "universe", "gallery", "--help") in commands
+    assert ("bun", "test") in commands
+    assert ("python", "scripts/validate_game_package.py", "--root", ".") in commands
+    # Every other package in the library plans offline too, as a dry run into
+    # scratch, or as the offline proof its recipe offers.
+    joined = [" ".join(command) for command in commands]
+    assert any(
+        c.startswith(
+            "stage-gen pointclick-room generate --input library/games/clockmakers_attic --dry-run"
+        )
+        for c in joined
+    )
+    assert any(
+        c.startswith("stage-gen dialogue-scene generate --input library/games/larkfield --dry-run")
+        for c in joined
+    )
+    assert any(
+        c.startswith("stage-gen dialogue-scene generate --input library/games/the_grain --dry-run")
+        for c in joined
+    )
+    assert any(
+        c.startswith("stage-gen universe semantic --input library/games/lantern_ferry --dry-run")
+        for c in joined
+    )
+    assert ("stage-gen", "scenario", "check", "--input", "library/games/the_grain") in commands
+    assert ("stage-gen", "case", "check", "--input", "library/games/the_grain") in commands
+
+
+def test_the_gate_reports_every_step_rather_than_stopping_at_the_first() -> None:
+    check = load_check_script()
+    outcomes = [
+        check.Outcome(check.Step(("ruff", "format", "--check", ".")), 1, 0.5),
+        check.Outcome(check.Step(("pytest",)), 0, 12.0),
+        check.Outcome(check.Step(("bun", "test")), None, 0.0),
+    ]
+    table = check.report(outcomes)
+    lines = table.splitlines()
+    assert lines[0].startswith("FAIL") and "exit   1" in lines[0]
+    assert lines[1].startswith("PASS")
+    assert lines[2].startswith("FAIL") and "exit   -" in lines[2]
+    assert lines[-1] == "offline gate: 1 of 3 steps passed in 12s"

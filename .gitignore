@@ -182,3 +182,6 @@ spikes/
 
 # Local dialogue capture evidence remains unreviewed until publication gates promote it.
 /web/output/playwright/dialogue-overlay/
+
+# Session workspaces, never tracked (was only in .git/info/exclude, which a clone does not see).
+local/
