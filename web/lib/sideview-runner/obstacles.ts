@@ -15,6 +15,9 @@ import {
   type StreamedHazard,
   type StreamedPickup,
 } from "./segments";
+import { collectDrops, parseLootBlock, type LootBlockView } from "@/lib/families/loot";
+import type { BlockTable } from "@/lib/manifest/blocks";
+import { RUNNER_BLOCKS } from "./contract";
 import type { GameSystem } from "@/lib/kernel/systems";
 import type { AvatarState, RunnerWorld, RunnerWorldConfig } from "./world";
 
@@ -149,25 +152,49 @@ export function createObstaclesSystem(): GameSystem<RunnerWorld> {
         obstacles.cleared.add(key);
         world.events.emit({ type: "hazard-cleared", key });
       }
-      for (const pickup of streamedPickups(world.segments)) {
-        const key = pickupKey(pickup);
-        if (obstacles.collected.has(key)) continue;
+      // The collect half of the `loot` family, instantiated with no drop half:
+      // this genre authors its pickups as placements inside the streamed
+      // chunks, so nothing here ever falls out of anything. The two predicates
+      // stay in the genre — admission proved the reach against exactly
+      // `pickupBox`'s insets, and "passed for good" is a fact about a track
+      // that only runs one way — and the ledger is the slice this system owns,
+      // handed over by reference so the family writes into the world rather
+      // than into a copy of it.
+      const collection = collectDrops<StreamedPickup>({
+        candidates: streamedPickups(world.segments),
+        key: pickupKey,
+        ledger: { collected: obstacles.collected, missed: obstacles.missed },
         // A pickup fully behind the avatar was passed for good: it is missed
-        // exactly once, and the run-loop breaks the chain on it.
-        if (pickup.worldColumn + 1 < world.avatar.distanceColumns - 0.5) {
-          if (!obstacles.missed.has(key)) {
-            obstacles.missed.add(key);
-            obstacles.missedThisFrame += 1;
-          }
-          continue;
-        }
-        if (Math.abs(pickup.worldColumn - world.avatar.distanceColumns) > 2) continue;
-        if (boxesOverlap(avatar, pickupBox(pickup.worldColumn, pickup.row))) {
-          obstacles.collected.add(key);
-          obstacles.collectedThisFrame.push(pickup);
-          world.events.emit({ type: "collected", key });
-        }
+        // exactly once, and the scorer breaks the chain on it.
+        passed: (pickup) => pickup.worldColumn + 1 < world.avatar.distanceColumns - 0.5,
+        reached: (pickup) =>
+          // Only placements near the avatar can overlap; skip the rest cheaply.
+          Math.abs(pickup.worldColumn - world.avatar.distanceColumns) <= 2 &&
+          boxesOverlap(avatar, pickupBox(pickup.worldColumn, pickup.row)),
+      });
+      obstacles.collectedThisFrame = [...collection.taken];
+      obstacles.missedThisFrame = collection.missed.length;
+      for (const pickup of collection.taken) {
+        world.events.emit({ type: "collected", key: pickupKey(pickup) });
       }
     },
   };
+}
+
+/**
+ * The blocks this genre's loot is authored in.
+ *
+ * `segments`, because there is no drop rule here at all: a pickup is a
+ * *placement* inside a streamed chunk, so the block that decides what there is
+ * to collect is the one the chunks come from. And `items`, the catalog each
+ * placement's `item_id` names.
+ */
+export const RUNNER_LOOT_BLOCKS = Object.freeze([
+  Object.freeze({ block: "segments", version: RUNNER_BLOCKS.segments }),
+  Object.freeze({ block: "items", version: RUNNER_BLOCKS.items }),
+]);
+
+/** Gate the runner's loot blocks. Refuses by naming the block that moved. */
+export function parseRunnerLootBlocks(blocks: BlockTable): readonly LootBlockView[] {
+  return RUNNER_LOOT_BLOCKS.map((binding) => parseLootBlock(blocks, binding));
 }

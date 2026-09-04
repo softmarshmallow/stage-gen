@@ -103,17 +103,17 @@ describe("drop pop arc", () => {
     for (let frame = 1; frame <= 120; frame += 1) {
       items.update(1000 / 60, frame * (1000 / 60));
       minY = Math.min(minY, item.sprite.y);
-      if (bouncedAt === null && item.bounces === 1) bouncedAt = frame;
-      if (settledAt === null && item.settled) settledAt = frame;
+      if (bouncedAt === null && item.body.bounces === 1) bouncedAt = frame;
+      if (settledAt === null && item.body.settled) settledAt = frame;
     }
     expect(minY).toBeLessThan(startY);
     expect(bouncedAt).not.toBeNull();
     expect(settledAt).not.toBeNull();
     expect(settledAt!).toBeGreaterThan(bouncedAt!);
-    expect(item.bounces).toBe(1);
-    expect(item.vx).toBe(0);
+    expect(item.body.bounces).toBe(1);
+    expect(item.body.vx).toBe(0);
     expect(item.sprite.x).toBeGreaterThan(320);
-    expect(Math.abs(item.sprite.getData("groundY") as number - SURFACE)).toBe(0);
+    expect(Math.abs(item.body.groundY - SURFACE)).toBe(0);
     expect(Math.abs(item.sprite.y - SURFACE)).toBeLessThanOrEqual(2);
   });
 
@@ -121,12 +121,12 @@ describe("drop pop arc", () => {
     const items = system();
     const item = items.drop(320, SURFACE, 0, 1)!;
     // Land it hard on the first frame so the bounce is measurable in isolation.
-    item.vy = 600;
+    item.body.vy = 600;
     items.update(1000 / 60, 16);
-    expect(item.bounces).toBe(1);
+    expect(item.body.bounces).toBe(1);
     expect(item.sprite.y).toBe(SURFACE);
-    expect(item.vy).toBeCloseTo(-(600 + 1500 / 60) * DROP_BOUNCE_RESTITUTION, 6);
-    expect(item.settled).toBeFalse();
+    expect(item.body.vy).toBeCloseTo(-(600 + 1500 / 60) * DROP_BOUNCE_RESTITUTION, 6);
+    expect(item.body.settled).toBeFalse();
   });
 
   test("two systems replay the same arc frame for frame", () => {

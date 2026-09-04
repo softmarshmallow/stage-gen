@@ -61,7 +61,7 @@ import {
   createIntentSystem,
   type RunnerIntentLatch,
 } from "./intent";
-import { createObstaclesSystem, pickupKey } from "./obstacles";
+import { createObstaclesSystem, parseRunnerLootBlocks, pickupKey } from "./obstacles";
 import {
   buildParallaxStage,
   createParallaxSystem,
@@ -142,6 +142,7 @@ export function gateRunnerFamilyBlocks(blocks: BlockTable): void {
   parseRunnerSoundtrackBlocks(blocks);
   parseRunnerCuesBlock(blocks);
   parseRunnerParticlesBlock(blocks);
+  parseRunnerLootBlocks(blocks);
   parseScreenFxBlock(blocks);
 }
 

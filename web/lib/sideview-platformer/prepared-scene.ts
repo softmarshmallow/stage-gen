@@ -213,6 +213,8 @@ import { parsePlatformerCameraBlock } from "./camera";
 import { parsePlatformerSoundtrackBlock } from "./soundtrack";
 import { parsePlatformerParticlesBlock } from "./impact-presentation";
 import { parsePlatformerInventoryBlocks } from "./bag";
+import { dropSpread, resolveLootDrops } from "@/lib/families/loot";
+import { LOOT_DROP_SPACING_PX, parsePlatformerLootBlocks } from "./loot";
 import {
   createPlatformerFrameWorld,
   sealPlatformerFrame,
@@ -628,6 +630,7 @@ export class PreparedStageScene extends Phaser.Scene {
     parsePlatformerSoundtrackBlock(manifest.blocks);
     parsePlatformerParticlesBlock(manifest.blocks);
     parsePlatformerInventoryBlocks(manifest.blocks);
+    parsePlatformerLootBlocks(manifest.blocks);
     this.manifest = manifest;
     this.gameplay = gameplay;
     await Promise.all([
@@ -2305,28 +2308,28 @@ export class PreparedStageScene extends Phaser.Scene {
     return numberScaleProfile(this.gameplay?.combat.number_scale);
   }
 
+  /**
+   * Knock this creature's loot loose.
+   *
+   * The rule is the `loot` family's — which stacks the authored `[[loot_rules]]`
+   * turn into for one seeded death, and where the units of a stack land relative
+   * to the body — and what is left here is the two things that are this genre's:
+   * the seed (the corpse's column and its ladder index, so the same kill in the
+   * same run drops the same things twice) and the catalog lookup that turns an
+   * authored item id into the palette index the drop is drawn from.
+   */
   private dropLoot(mob: Mob, dirSign: 1 | -1 = 1): void {
     const manifest = this.manifest;
     const gameplay = this.gameplay;
     const items = this.items;
     const spec = manifest?.mobs[mob.ladderIndex];
     if (!manifest || !gameplay || !items || !spec) return;
-    const rules = gameplay.loot_rules.filter((entry) => entry.mob_id === spec.mob_id);
-    for (const rule of rules) {
-      const seed =
-        (Math.floor(mob.sprite.x) * 2654435761 + mob.ladderIndex * 2246822519) >>> 0;
-      if (seed / 0xffffffff > rule.chance) continue;
-      const itemIndex = manifest.items.findIndex((item) => item.item_id === rule.item_id);
+    const seed = (Math.floor(mob.sprite.x) * 2654435761 + mob.ladderIndex * 2246822519) >>> 0;
+    for (const drop of resolveLootDrops(gameplay.loot_rules, spec.mob_id, seed)) {
+      const itemIndex = manifest.items.findIndex((item) => item.item_id === drop.itemId);
       if (itemIndex < 0) continue;
-      const span = rule.quantity_max - rule.quantity_min + 1;
-      const quantity = rule.quantity_min + (seed % span);
-      for (let index = 0; index < quantity; index += 1) {
-        items.drop(
-          mob.sprite.x + (index - (quantity - 1) / 2) * 28,
-          mob.sprite.y - TILE_PX,
-          itemIndex,
-          dirSign,
-        );
+      for (const offset of dropSpread(drop.quantity, LOOT_DROP_SPACING_PX)) {
+        items.drop(mob.sprite.x + offset, mob.sprite.y - TILE_PX, itemIndex, dirSign);
       }
     }
   }
@@ -2866,9 +2869,9 @@ export class PreparedStageScene extends Phaser.Scene {
       threats,
       pickups: (this.items?.items ?? []).map((item) => ({
         id: item.id,
-        x: item.sprite.x,
-        y: item.sprite.y,
-        settled: item.settled,
+        x: item.body.x,
+        y: item.body.y,
+        settled: item.body.settled,
       })),
       healingCarried: selectHealingItemId(manifest.items, this.inventory) !== null,
       // True for a class that spends nothing, so a free-throwing or swinging policy never has to

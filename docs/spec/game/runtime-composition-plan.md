@@ -1188,6 +1188,47 @@ two families, and the report says which concept split them.
   the inventory family. The room has no block table to gate — its whole document
   is one versioned kind its own parser refuses on — so the family takes its
   dependency there at that grain rather than inventing a block for it.
+- **`loot`.** Extracted into both genres as `lib/families/loot/`, in three
+  halves rather than two, because the split the code actually has is drop /
+  ground / collect. The drop half is the authored rule (`[[loot_rules]]` → which
+  stacks a seeded death produces, and where the units of a stack land relative to
+  the corpse); the ground half is `DropBody` and `stepDrop`, which is the pop,
+  the single bounce and the settle into a bob; the collect half is `collectDrops`,
+  the one both genres have. The weld the plan names is real and it is the second
+  half: a drop's position lived *on its Phaser sprite* — `sprite.x`, `sprite.y`
+  and a `groundY` in `setData` — so "where is the loot" was a question only a
+  renderer could answer. It is a value now, stepped over a surface *port* the
+  genre answers from the same `terrainSurfaceY` the controller stands on, and
+  the sprite is mirrored from it. **E1: zero diff in both genres, nothing
+  re-pinned** — six hundred platformer digests byte-identical across a run that
+  kills at 290 and takes both drops on 293, and the runner's chain and its
+  1,043-line sink recording byte-identical. **E2:** neither documented order
+  moves; `items/collect` and `runner/obstacles` keep their ids and their
+  declarations. **E4:** the collect half resolved against two shapes in one file
+  — a runner-shaped one with a ledger and a "passed for good" rule, and a
+  platformer-shaped one with neither — plus the drop half instantiated in the
+  platformer's own suite and the collect half in the runner's roster.
+- **What the two shapes taught the family, and it is the ledger.** The runner
+  remembers what it has collected and what it has passed because its pickups
+  outlive the collection; the platformer does not, because a taken drop is
+  destroyed and the array *is* the ledger. So the ledger is optional and its
+  absence is a statement rather than a default — a second copy of a fact the
+  world already carries is what step 4 deleted five of. Neither the reach test
+  nor the passing test moved: "near enough to take" is a forgiving circle in
+  pixels in one genre and a strict box in track columns in the other, and
+  admission proved the second against exactly `pickupBox`'s insets. And the
+  *order* is the caller's and is load-bearing — the platformer hands its
+  candidates over back to front, which is what its array-splicing loop did, and
+  two drops taken on one frame are two events whose order the golden hashes.
+- **The block, and the refusal.** Two in each genre, and they are not the same
+  two, which is the sharpest available statement that the family is halves.
+  The platformer gates `gameplay` (where `[[loot_rules]]` is) and `items` (the
+  catalog every rule resolves against). The runner gates `segments` and `items`:
+  it authors no drop rule at all, because its pickups are *placements* inside the
+  streamed chunks, so the block that decides what there is to collect is the one
+  the chunks come from. Moving either gets `manifest block "segments" is
+  published as runner-segments-block-v2; this build reads
+  runner-segments-block-v1`, from the loot family.
 - **One thing the family holds that neither genre binds, and why.**
   `[inventory].starting_capacity` is still parsed and unread, deliberately. The
   rule is the family's and is proven in its own suite (a full bag refuses the

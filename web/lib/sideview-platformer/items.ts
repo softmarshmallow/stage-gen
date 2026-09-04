@@ -1,12 +1,23 @@
-// Items system (Phase 7).
+// The platformer's drops: the `loot` family's bodies, drawn in Phaser.
 //
-// Drops one item-sheet cell at a position when a mob dies (TC-086) and
-// supports gravity-fall to the ground baseline. The scene polls for
-// player overlap and calls collect() on contact (TC-087).
+// What left this file is the arithmetic and the state. A drop's position used
+// to live on its sprite — `sprite.x`, `sprite.y` and a `groundY` in Phaser's
+// `setData` bag — so "where is the loot" was a question only a renderer could
+// answer; it is a `DropBody` now, and the sprite is mirrored from it. The pop,
+// the single bounce and the settle into a bob are `stepDrop`, over a surface
+// port this file answers from the terrain. What is left here is the drop *view*
+// (TC-086) and the genre's own reach test for a pickup (TC-087).
 
 import Phaser from "phaser";
 import { SCENE_CONTENT_DEPTH } from "./depths";
 import { terrainSurfaceY } from "./terrain";
+import {
+  collectDrops,
+  launchDrop,
+  stepDrop,
+  type DropBody,
+  type DropDirection,
+} from "@/lib/families/loot";
 
 export type ItemKindIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | number;
 
@@ -21,16 +32,10 @@ export interface DroppedItem {
   id: string;
   /** Index 0..7 into the world's items palette (and items_<tag>.png cell). */
   kindIndex: number;
-  /** Phaser image displayed in the world. */
+  /** Phaser image displayed in the world, mirrored from `body` after every step. */
   sprite: Phaser.GameObjects.Image;
-  /** True once the item has settled to ground. */
-  settled: boolean;
-  /** Vertical velocity (px/s) while falling. */
-  vy: number;
-  /** Horizontal pop velocity (px/s), halved by the landing bounce and gone once settled. */
-  vx: number;
-  /** Bounces taken so far; the arc allows exactly one before the drop settles. */
-  bounces: number;
+  /** Where the drop is and what it is doing, as the family's value. */
+  body: DropBody;
 }
 
 export interface ItemSystemOpts {
@@ -46,50 +51,34 @@ export interface ItemSystemOpts {
   worldWidthPx?: number;
 }
 
-const GRAVITY_PX = 1500;
-
-// A drop *pops*: it leaves the corpse with an upward and sideways velocity, bounces once, and only
-// then settles into its bob. Before this it fell straight down from a tile above the kill, which
-// read as an item appearing rather than as something being knocked loose. The velocities are seeded
-// from the drop's own sequence number, so the same kill in the same run pops the same way twice,
-// which is what a fixed-frame capture needs and what a tween never provides.
-export const DROP_POP_VX_MIN_PX = 60;
-export const DROP_POP_VX_SPAN_PX = 80;
-export const DROP_POP_VY_MIN_PX = 260;
-export const DROP_POP_VY_SPAN_PX = 120;
-export const DROP_BOUNCE_RESTITUTION = 0.35;
-/** A landing slower than this settles outright; bouncing a crawl reads as jitter. */
-export const DROP_BOUNCE_MIN_VY_PX = 120;
-export const DROP_BOUNCE_VX_RETAINED = 0.5;
-
-export type DropDirection = 1 | -1 | 0;
-
-function dropUnitNoise(sequence: number, channel: number): number {
-  let hash = (Math.imul(sequence ^ channel, 0x9e3779b1) ^ (sequence >>> 15)) >>> 0;
-  hash = Math.imul(hash ^ (hash >>> 13), 0x85ebca6b) >>> 0;
-  hash = Math.imul(hash ^ (hash >>> 16), 0xc2b2ae35) >>> 0;
-  return hash / 4294967296;
-}
+export type { DropDirection };
 
 /**
  * The launch velocity for one drop, in pixels per second.
  *
- * `dirSign` is the direction the blow travelled, so loot flies away from the striker as the mob
- * does; zero alternates by sequence, for callers that have no blow to report.
+ * Re-exported at the genre's own name because the platformer's suite pins these
+ * numbers; the arithmetic is the family's.
  */
-export function dropPopVelocity(
-  sequence: number,
-  dirSign: DropDirection,
-): Readonly<{ vx: number; vy: number }> {
-  if (!Number.isSafeInteger(sequence) || sequence < 0) {
-    throw new Error("drop pop velocity requires a nonnegative sequence");
-  }
-  const direction = dirSign === 0 ? (sequence % 2 === 0 ? 1 : -1) : dirSign;
-  return Object.freeze({
-    vx: direction * (DROP_POP_VX_MIN_PX + dropUnitNoise(sequence, 0x11) * DROP_POP_VX_SPAN_PX),
-    vy: -(DROP_POP_VY_MIN_PX + dropUnitNoise(sequence, 0x22) * DROP_POP_VY_SPAN_PX),
-  });
-}
+export {
+  dropPopVelocity,
+  DROP_BOUNCE_RESTITUTION,
+  DROP_BOUNCE_VX_RETAINED,
+} from "@/lib/families/loot";
+
+/**
+ * The pop numbers at this genre's own names, in pixels.
+ *
+ * The family carries them unit-free — a drop pops the same way whether the
+ * world is measured in pixels or in track columns — and the platformer's suite
+ * pins them as pixels, which is what these aliases say.
+ */
+export {
+  DROP_BOUNCE_MIN_VY as DROP_BOUNCE_MIN_VY_PX,
+  DROP_POP_VX_MIN as DROP_POP_VX_MIN_PX,
+  DROP_POP_VX_SPAN as DROP_POP_VX_SPAN_PX,
+  DROP_POP_VY_MIN as DROP_POP_VY_MIN_PX,
+  DROP_POP_VY_SPAN as DROP_POP_VY_SPAN_PX,
+} from "@/lib/families/loot";
 
 export class ItemSystem {
   readonly items: DroppedItem[] = [];
@@ -120,79 +109,72 @@ export class ItemSystem {
       (phaserFrame?.width ?? 1) / Math.max(1, phaserFrame?.height ?? 1);
     sprite.setDisplaySize(targetH * aspect, targetH);
     sprite.setDepth(SCENE_CONTENT_DEPTH.item);
-    const launch = dropPopVelocity(this.nextDropId, dirSign);
     const item: DroppedItem = {
       id: `drop_${this.nextDropId}`,
       kindIndex,
       sprite,
-      settled: false,
-      vy: launch.vy,
-      vx: launch.vx,
-      bounces: 0,
+      // The bob's phase is the catalog kind, which is what it has always been:
+      // two tarts resting side by side rise together and a tart beside a dart
+      // does not.
+      body: launchDrop(x, y, this.nextDropId, dirSign, kindIndex),
     };
     this.nextDropId += 1;
     this.items.push(item);
     return item;
   }
 
+  /**
+   * Step every drop, and mirror each body onto the sprite that pictures it.
+   *
+   * The surface is the family's port, answered here from the terrain heightmap
+   * — the same `terrainSurfaceY` the controller stands on, so a drop and the
+   * body that walks over it agree about where the ground is.
+   */
   update(dtMs: number, nowMs: number) {
-    const dt = dtMs / 1000;
+    const margin = this.opts.tilePx / 2;
+    const worldWidth = this.opts.worldWidthPx;
     for (const it of this.items) {
-      if (it.settled) {
-        // Gentle bob.
-        const bob = Math.sin(nowMs / 200 + it.kindIndex) * 2;
-        it.sprite.y = it.sprite.getData("groundY") + bob;
-        continue;
-      }
-      it.vy += GRAVITY_PX * dt;
-      it.sprite.y += it.vy * dt;
-      it.sprite.x += it.vx * dt;
-      const worldWidth = this.opts.worldWidthPx;
-      if (worldWidth !== undefined) {
-        const margin = this.opts.tilePx / 2;
-        it.sprite.x = Math.max(margin, Math.min(worldWidth - margin, it.sprite.x));
-      }
-      const col = Math.floor(it.sprite.x / this.opts.tilePx);
-      const colH = this.opts.heightFn(col);
-      const surfaceY = terrainSurfaceY(
-        colH,
-        this.opts.tilePx,
-        this.opts.baselineY,
-      );
-      if (it.sprite.y >= surfaceY) {
-        it.sprite.y = surfaceY;
-        if (it.bounces < 1 && it.vy > DROP_BOUNCE_MIN_VY_PX) {
-          it.vy = -it.vy * DROP_BOUNCE_RESTITUTION;
-          it.vx *= DROP_BOUNCE_VX_RETAINED;
-          it.bounces += 1;
-          continue;
-        }
-        it.settled = true;
-        it.vy = 0;
-        it.vx = 0;
-        it.sprite.setData("groundY", surfaceY);
-      }
+      stepDrop(it.body, dtMs, nowMs, {
+        surfaceAt: (x) =>
+          terrainSurfaceY(
+            this.opts.heightFn(Math.floor(x / this.opts.tilePx)),
+            this.opts.tilePx,
+            this.opts.baselineY,
+          ),
+        clampX:
+          worldWidth === undefined
+            ? undefined
+            : (x) => Math.max(margin, Math.min(worldWidth - margin, x)),
+      });
+      it.sprite.x = it.body.x;
+      it.sprite.y = it.body.y;
     }
   }
 
   /**
-   * Test whether the player rectangle overlaps any settled (or even falling)
-   * item. On overlap, remove the item from the world and return its info.
+   * Which drops the body is standing over, taken and removed.
+   *
+   * The reach test is this genre's — a cheap, forgiving circle in pixels, wider
+   * than it is tall because a player is — and the resolution is the `loot`
+   * family's. The candidates are handed over back to front and the removals are
+   * taken in that same order, which is what the array-splicing loop this
+   * replaced did: two drops taken on one frame are two events, and which comes
+   * first is what a replay hashes.
    */
-  tryPickup(playerX: number, playerY: number, radiusPx: number): DroppedItem[] {
-    const picked: DroppedItem[] = [];
-    for (let i = this.items.length - 1; i >= 0; i--) {
-      const it = this.items[i];
-      const dx = it.sprite.x - playerX;
-      const dy = it.sprite.y - playerY;
-      // Cheap circle test, generous radius — player overlap is forgiving.
-      if (Math.abs(dx) < radiusPx && Math.abs(dy) < radiusPx * 1.5) {
-        it.sprite.destroy();
-        this.items.splice(i, 1);
-        picked.push(it);
-      }
+  tryPickup(playerX: number, playerY: number, radiusPx: number): readonly DroppedItem[] {
+    const candidates = [...this.items].reverse();
+    const { taken } = collectDrops<DroppedItem>({
+      candidates,
+      key: (item) => item.id,
+      reached: (item) =>
+        Math.abs(item.body.x - playerX) < radiusPx &&
+        Math.abs(item.body.y - playerY) < radiusPx * 1.5,
+    });
+    for (const item of taken) {
+      item.sprite.destroy();
+      this.items.splice(this.items.indexOf(item), 1);
     }
-    return picked;
+    return taken;
   }
 
   /** Remove one presentation-only or live drop without disturbing its peers. */
@@ -216,9 +198,9 @@ export class ItemSystem {
       const bounds = it.sprite.getBounds();
       return {
         kindIndex: it.kindIndex,
-        x: it.sprite.x,
-        y: it.sprite.y,
-        settled: it.settled,
+        x: it.body.x,
+        y: it.body.y,
+        settled: it.body.settled,
         renderBounds: {
           left: bounds.left,
           right: bounds.right,
