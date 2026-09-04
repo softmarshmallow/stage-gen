@@ -664,6 +664,186 @@ detects edges with five `prev*` locals. *Ruling:* one family that consumes
 events. *Machine:* E1 identical in both — the samples are pure and the
 events replace the shadow copies without changing a frame. *Played:* none.
 
+**Evidence, measured.** Branch `runtime/step-4-families`; `bun test` 1639 pass,
+0 fail; `tsc --noEmit` clean at every commit. Four families, four commits, each
+sealed into both rosters where both genres have the thing.
+
+- **One instrument had to be built first, and it is the step's own finding.**
+  Three of these four families do not write a world key: cues, the soundtrack
+  and the dust all post to *sinks*, so the six-hundred-frame world golden
+  cannot see them at all — a refactor of which system posts a cue moves nothing
+  it hashes. So the runner's replay gained a second golden over the ports
+  themselves: every cue with the frame it fired on and the strength it carried,
+  every music edge with its frame, and every puff with the shape it was drawn
+  at. It is 1,043 lines for this run — 20 cues, 6 music edges and 1,017 puffs —
+  written out by `REPLAY_SINKS` and hashed in the test, and it is what "E1
+  identical" means for every family below that has no slice.
+- **`camera`.** Extracted into both rosters — `runner/camera` and the
+  platformer's `camera/shake` — as one family with a **mode**. `anchored`
+  derives a scroll from a tracked position and a screen anchor, which is the
+  whole of `auto_run_x_v1`; `follow` derives none, states the box a follower may
+  move inside, and carries the tremor while the engine does the moving. **E1:
+  zero diff in both genres, nothing re-pinned** — six hundred per-frame digests
+  byte-identical on each side. The ruling's other half landed too: shake is an
+  *input* now. It was a private scene method that mutated `camera.scrollX`
+  (which is why every parallax layer inherited it undeclared); step 3 made the
+  arithmetic a pure offset, and the `ShakeCarrier` is what removes the offset
+  the view carries before adding the next, so a finished tremor leaves the view
+  exactly where the follow put it — asserted rather than described, across a
+  whole 130ms shake with the follower advancing underneath it. The scene's
+  teardown path releases through the same carrier, which is why the object is
+  the host's and not the system's. **E2:** neither documented order moves; the
+  runner keeps the `after: ["session/run"]` edge that replaced its fake read in
+  step 1. **E4:** one file sealed into two worlds sharing no field — a
+  runner-shaped one whose camera is a slice and which never shakes, and a
+  platformer-shaped one with no camera slice at all (the view is a game object
+  the host holds), a hold that quiets the frame, and a blow that shakes it.
+  **E7:** both rosters with the camera filtered out seal to the identical order
+  minus that entry, once the parallax's read of what it wrote comes out with it
+  — which is the cinematic platformer that never shakes.
+- **The block, and the refusal.** Two blocks, because the two genres author the
+  camera in two places and the family does not pretend otherwise: `camera` in
+  the runner (`mode = "auto_run_x_v1"` is one authored word and the whole
+  vocabulary), and `maps` in the platformer, because `camera.follow_axes` is
+  per map. Moving either gets `manifest block "maps" is published as
+  platformer-maps-block-v2; this build reads platformer-maps-block-v1`, from the
+  camera.
+- **`soundtrack`.** Extracted into both genres. One `SoundtrackPlayer` with both
+  halves: selection, the place binding, the gesture gate, the fade machine, the
+  transitions and the snapshot, over a transport the host keeps. The platformer
+  had shipped a deterministic bag with a map-scoped pool and a transport port
+  and no transitions at all; the runner had shipped transitions, fades and a
+  duck over a queue with no place binding. Selection is a **parameter** and not
+  a branch — two named policies, `ShuffleBag` and `ShuffleQueue`, the same shape
+  the clock's holders have — because unifying it would have changed which track
+  a run hears, which is a change with no evidence behind it. **E1: zero diff in
+  both genres, nothing re-pinned**, and the platformer's `soundtrack` snapshot
+  is in its golden frame by frame, so that is the strong form. Both genre files
+  became views over the family with their public surfaces unchanged: all 27 of
+  the two genres' own soundtrack tests pass untouched, which is the second
+  measurement. **E4:** the family instantiated twice in one file — a placed
+  soundtrack with a seeded bag, a gesture gate and a transport with no gain at
+  all, and an edged one with a queue, an eager start and a duck under a hit,
+  asserted through the fade frame by frame on a manual clock. **E7:** the
+  soundtrack is not a frame step in either genre, so "quiet" is a package with
+  no catalog: the platformer answers `null` and builds no player, and the runner
+  seals its documented order with the silent music sink the boot already
+  defaults to. Neither is a refusal, which is the answer a family with an
+  optional block owes.
+- **The block, and the refusal.** `soundtrack` in both genres — and, in the
+  runner, `audio` as well, because the authored file is two: `soundtrack` names
+  the tracks and `[music.*]` inside `audio` names what each run edge does to
+  them. `cues` reads `audio` too, and both families gate it for themselves,
+  which is the per-block table's whole point: two consumers of one file, two
+  refusals, neither speaking for the other. Moving it gets `manifest block
+  "soundtrack" is published as platformer-soundtrack-block-v2; this build reads
+  platformer-soundtrack-block-v1`.
+- **What `soundtrack` could not do, and why it was not forced.** The E6 the
+  ruling names — entering the gate band crossfades, driven by names already
+  authored — is not takeable in `web/`. Bellweather authors it:
+  `[[boss_encounters]] page_eater_gate` carries `track_id =
+  "chronicle_unbound"`, and the road map's pool already lists both tracks. But
+  the producer discards it: `prepared_content.py` keeps
+  `"boss_mob_ids": [entry.mob_id for entry in gameplay.boss_encounters]` and
+  nothing else, so the anchor, the respawn policy and the track never reach the
+  runtime manifest — which is the framing example this document opens with, and
+  step 5's `encounters` work. The mechanism is in place and proven (`bindPool`
+  is exactly the crossfade, and E4 exercises it); what is missing is one
+  authored field surviving the producer, and that is `src/`.
+- **`cues`.** Extracted into the runner's roster, as `runner/audio` — the same
+  id, a pure consumer now. The family holds no state at all: no slice, no memory
+  between frames, nothing another system can read back, and the whole of the
+  genre's contribution is the **rename table**, one rule per occurrence in the
+  order the cues are posted. What it replaces is the finding: the old system
+  detected its edges by keeping *five* private copies of two other systems'
+  slices — `prevJumpImpulses`, `prevGrounded`, `prevSliding`, `prevDead`,
+  `prevDistance` — and resynchronising all five by hand after a restart. All
+  five are gone. The avatar reports `jumped`/`landed`/`slid` off its own step's
+  before and after (it is the slice's sole author, so nothing can have moved it
+  since), and the obstacle field reports `collected` and `hazard-cleared` with
+  the same per-instance set `struck` and `missed` already used — which is
+  strictly better than the scan it replaces, because a crossing is edge
+  triggered by identity rather than by a remembered distance. **E1 on the two
+  sinks: byte-identical, line for line, to the recording pinned before the
+  family landed** — every cue on the same frame with the same strength, every
+  music edge on the same frame. **E1 on the world: all three checkpoints
+  re-pinned, and no frame of the run moved.** The record gained five occurrence
+  kinds and one field (`obstacles.cleared`), so fifteen of the six hundred
+  frames differ by carrying one; measured with `REPLAY_DUMP` the way step 3
+  measured the session, all six hundred frames with the five new occurrences and
+  the one new field removed are equal to the previous dump field for field.
+  **E1 platformer: zero diff**, trivially — that genre authors no audio.
+  **E2:** the runner's documented order is unchanged. **E4:** the family sealed
+  into two worlds — a runner-shaped scored run with a guard on the lifecycle,
+  and a stage-shaped world with no run at all whose blows are heard by two
+  sinks, which is the genre that authors no audio today and gets SFX for free
+  when it does. **E7:** the roster with `runner/audio` removed seals to the
+  identical order minus it, once the dust's `after` edge that names it is
+  dropped with it.
+- **One thing the ruling did not fit, and it is the restart.** A pure consumer
+  cannot hear it. `run-restarted` is named in the composition's `resetOn`, so
+  the queue throws *both* frames away with the run they described — deliberately,
+  as `events.ts` says — and no consumer, deferred or not, can hear the ask on
+  the frame after it. Reading it same-frame would have moved the music's restart
+  from frame 411 to 410, which the sink recording would have shown. So the
+  composition says it instead, through the reset hook every system already has:
+  a notification, with the same standing the boot announcement has, and not a
+  shadow copy of anybody's state.
+- **The block, and the refusal.** `audio`, in the runner only — the platformer
+  authors no audio member, and giving it one is the contract bump the ruling
+  itself calls optional, so it was not taken. `[bindings]` is the authored half
+  of the rename table and `[[effects]]` the realizations it reaches. Moving it
+  gets `manifest block "audio" is published as runner-audio-block-v2; this build
+  reads runner-audio-block-v1`, from the cues, and separately from the
+  soundtrack.
+- **`particles`.** Extracted into both genres. The family is the mechanism — the
+  bounded ring, the cap, the eviction and the deterministic noise — and the
+  shapes stay genre-owned, because what a puff looks like and what a shard looks
+  like are not things either could use from the other. The consolidation the
+  fact predicted is exact: `dustUnitNoise` and `impactUnitNoise` were the same
+  eight lines under two names, and both genres now assert that their name *is*
+  the family's function rather than equals it. The dust hears the avatar's three
+  verbs instead of keeping four copies of that slice, and the fourth copy — the
+  distance it watched to notice a restart — is the composition's reset hook.
+  **E1: zero diff in both genres, nothing re-pinned**, and for the dust that
+  means all 1,017 puffs of the six hundred frames, position, radius, alpha and
+  progress, identical to the recording taken before the family landed. **E2:**
+  neither documented order moves. **E4:** one ring instantiated twice in one
+  file — a puff ring that releases nothing, and a blow ring whose every
+  departure has to let go of the sprite it is holding white, which is the one
+  parameter the two differ by. **E7:** the runner's roster with `runner/dust`
+  removed seals to the identical order minus it, and every occurrence it
+  consumed still has the cue system at the other end; the platformer's smallest
+  form is the one `screen-fx` took, a ring with nothing in it summing to exactly
+  zero.
+- **One thing preserved rather than improved.** The first frame of a new run
+  lays no dust. That was an artifact of the distance-watching version — it spent
+  that frame resynchronising its four copies — and the ring-and-events version
+  would naturally lay a stride puff there; the sink recording caught the
+  difference at frame 411 and it was put back. A run's first frame laying dust
+  is a change somebody should make deliberately, with its own evidence, and this
+  commit is a refactor of where the decision lives.
+- **The block, and the refusal.** Two blocks again, and for the same reason as
+  the camera: the runner's dust atlas is `fx`'s `[sprite.dust]`, optional in
+  every package — no atlas is the procedural silhouette, which is an answer —
+  and the platformer's sparks exist only for a package whose `gameplay` enables
+  combat, because a blow is what throws them.
+- **The step's own falsifier, measured.** None of the four needed a
+  genre-specific branch inside the family file. `camera` is parameterized by its
+  mode, `soundtrack` by its selection policy and its transport, `cues` by its
+  rename table, `particles` by its release hook — four parameters, no
+  `if (runner)`. What is genre-shaped stayed in the genre every time: which
+  events shake the view, which names a package binds an effect to, what a puff
+  looks like.
+- **The ordering cost, in full: zero.** No new `after` edge in either genre, and
+  no new undeclared feedback read — the step-2 finding's list of eight is
+  unchanged. Both documented orders are byte-identical to step 3's. The cue
+  system's slice reads went the other way: it read `world.score.chain`
+  *undeclared* and now declares `score`, which costs no edge because the scorer
+  is already sealed before it, and it dropped `avatar`, `obstacles` and `vitals`
+  entirely — the three slices it was shadow-copying — for event channels that
+  buy the same edges. Two undeclared things fixed, nothing added.
+
 ## Step 5 — the space and the actors
 
 The big ones. Each carries a real chance of being falsified, and the plan
