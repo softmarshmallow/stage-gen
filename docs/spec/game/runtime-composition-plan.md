@@ -1229,6 +1229,47 @@ two families, and the report says which concept split them.
   the chunks come from. Moving either gets `manifest block "segments" is
   published as runner-segments-block-v2; this build reads
   runner-segments-block-v1`, from the loot family.
+- **`effects`.** Extracted into both genres as `lib/families/effects/`. The
+  family is a *lowering* plus a dispatch, and the reason is the fact the
+  composition table already states: the two vocabularies share `grant_item` by
+  name and not by type. The platformer's effect is a tagged record carrying a
+  quantity; the room's is one object with four optional fields, no tag at all,
+  and an object may carry three operations at once. Neither can be renamed into
+  the other, so each genre lowers its authored shape to `(operation, payload)`
+  and the family owns the vocabulary, the seal and the dispatch. Quest state is
+  the family's second slice: `questStates` is a `QuestLedger`, and "carry this
+  many of this item while the quest is running" is `questsCompletedBy`, with the
+  word for *running* left in the genre because `active` is a name a package
+  publishes rather than a state a runtime knows. **E1: zero diff in both genres,
+  nothing re-pinned** — six hundred platformer digests byte-identical over a run
+  that grants from a conversation outcome, and the runner byte-identical, having
+  no effects at all. **E2:** neither documented order moves. **E4:** the same
+  dispatch sealed into two vocabularies in one file — a platformer-shaped one
+  whose payload is the whole authored record, and a room-shaped one whose
+  payload is a bare name — plus each genre's own suite. **E3:** three refusals
+  the seal buys, all new: an operation a package may name that nothing
+  implements, a handler answering an operation nothing declares, and a quest
+  whose completion effect is not a state change.
+- **The one thing that could not stay welded, and it is refused rather than
+  widened.** The platformer resolved `completion_effect_id` and then performed
+  it *only if* the operation happened to be `set_quest_state` — a filter at one
+  call site, which meant a package authoring anything else there validated
+  clean, shipped, and silently never completed the quest. Dispatching it
+  uniformly (which is the family's whole content: every authored effect id does
+  what it declares, everywhere) would widen behaviour for exactly those
+  packages, and this golden cannot observe the widening because the package
+  authors a state change there. So the shape is refused at boot by
+  `sealQuestCompletions` instead, which makes the uniform dispatch
+  behaviour-preserving for every package that can boot and turns a silent no-op
+  into a named refusal. Zero frames moved.
+- **The block, and the refusal.** `gameplay`, in the platformer, and it is the
+  family's own subject twice over: `[[effects]]` *is* the operation vocabulary —
+  the names a package may use — and `[[quests]]` names the effect ids each
+  lifecycle runs through. A vocabulary at a version this build does not read is
+  a set of names the dispatch would seal against the wrong handlers, which is
+  precisely what the gate refuses. The room has no block table, so the family
+  takes its dependency there at the document-kind grain its own parser already
+  refuses on.
 - **One thing the family holds that neither genre binds, and why.**
   `[inventory].starting_capacity` is still parsed and unread, deliberately. The
   rule is the family's and is proven in its own suite (a full bag refuses the

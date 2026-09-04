@@ -216,6 +216,22 @@ import { parsePlatformerInventoryBlocks } from "./bag";
 import { dropSpread, resolveLootDrops } from "@/lib/families/loot";
 import { LOOT_DROP_SPACING_PX, parsePlatformerLootBlocks } from "./loot";
 import {
+  applyEffects,
+  QuestLedger,
+  questsCompletedBy,
+  resolveEffects,
+  sealEffectVocabulary,
+  sealQuestCompletions,
+  type SealedEffectVocabulary,
+} from "@/lib/families/effects";
+import {
+  parsePlatformerEffectsBlock,
+  PLATFORMER_EFFECT_OPERATIONS,
+  PLATFORMER_QUEST_ACTIVE,
+  PLATFORMER_QUEST_STATE_OPERATION,
+} from "./effects";
+import type { PreparedGameplayEffect } from "./prepared-gameplay";
+import {
   createPlatformerFrameWorld,
   sealPlatformerFrame,
   type PlatformerFrameSteps,
@@ -395,7 +411,16 @@ export class PreparedStageScene extends Phaser.Scene {
   private heights: readonly number[] = Object.freeze([1]);
   private readonly scaleReferences = new Map<string, ScaleReference>();
   private readonly diagnostics: string[] = [];
-  private questStates = new Map<string, string>();
+  /** Which quests are running or finished, as the `effects` family's ledger. */
+  private questStates = new QuestLedger();
+  /**
+   * The authored operation vocabulary, checked against this scene's handlers.
+   *
+   * Sealed once at boot rather than dispatched with an `if` per call site: an
+   * operation a package may name and nothing implements is a refusal here, not
+   * an effect that quietly does nothing at the one moment it fires.
+   */
+  private effects?: SealedEffectVocabulary<PreparedGameplayEffect>;
   private debugOverlay?: DebugOverlay;
   private mapLabel?: Phaser.GameObjects.Text;
   /** The arriving-map announcement and the simulation time it was raised at. */
@@ -631,6 +656,10 @@ export class PreparedStageScene extends Phaser.Scene {
     parsePlatformerParticlesBlock(manifest.blocks);
     parsePlatformerInventoryBlocks(manifest.blocks);
     parsePlatformerLootBlocks(manifest.blocks);
+    parsePlatformerEffectsBlock(manifest.blocks);
+    // A quest that could never finish is refused before the first frame rather
+    // than at the moment it would have.
+    sealQuestCompletions(gameplay.quests, gameplay.effects, PLATFORMER_QUEST_STATE_OPERATION);
     this.manifest = manifest;
     this.gameplay = gameplay;
     await Promise.all([
@@ -694,6 +723,16 @@ export class PreparedStageScene extends Phaser.Scene {
         transport: this.soundtrackTransport(),
       });
     }
+    this.effects = sealEffectVocabulary<PreparedGameplayEffect>(PLATFORMER_EFFECT_OPERATIONS, {
+      grant_item: (effect) => {
+        if (effect.operation !== "grant_item") return;
+        this.addInventory(effect.item_id, effect.quantity);
+      },
+      set_quest_state: (effect) => {
+        if (effect.operation !== "set_quest_state") return;
+        this.questStates.set(effect.quest_id, effect.state);
+      },
+    });
     // The bag the run opens with: one of each, the same unit grant the room's
     // `grant_item` performs, which is why a set was ever enough over there.
     for (const itemId of this.gameplay.player.starting_item_ids) this.addInventory(itemId, 1);
@@ -2486,12 +2525,27 @@ export class PreparedStageScene extends Phaser.Scene {
     );
     const bound = interaction?.outcomes.find((entry) => entry.outcome_id === outcome);
     if (!bound) return;
-    for (const effectId of bound.effect_ids) {
-      const effect = this.gameplay?.effects.find((entry) => entry.effect_id === effectId);
-      if (!effect) continue;
-      if (effect.operation === "grant_item") this.addInventory(String(effect.item_id), Number(effect.quantity));
-      if (effect.operation === "set_quest_state") this.questStates.set(String(effect.quest_id), String(effect.state));
-    }
+    this.performEffects(bound.effect_ids);
+  }
+
+  /**
+   * Perform the effects an outcome or a quest named, in the order it named them.
+   *
+   * Resolution and dispatch are the `effects` family's; what each operation
+   * *means* is this scene's, and every one of them reaches another family
+   * through its own API rather than writing a slice the family does not own.
+   */
+  private performEffects(effectIds: readonly string[]): void {
+    const vocabulary = this.effects;
+    const table = this.gameplay?.effects;
+    if (!vocabulary || !table) return;
+    applyEffects(
+      vocabulary,
+      resolveEffects(table, effectIds).map((effect) => ({
+        operation: effect.operation,
+        payload: effect,
+      })),
+    );
   }
 
   private ensureDialogueUi(): void {
@@ -2603,19 +2657,20 @@ export class PreparedStageScene extends Phaser.Scene {
     if (verdict.moved <= 0) return;
     this.inventory = verdict.bag;
     this.mirrorInventorySlot(itemId);
-    for (const quest of this.gameplay?.quests ?? []) {
-      if (
-        quest.completion_item_id !== itemId ||
-        this.questStates.get(quest.quest_id) !== "active" ||
-        carried(this.inventory, itemId) < quest.completion_count
-      )
-        continue;
-      const effect = this.gameplay?.effects.find(
-        (entry) => entry.effect_id === quest.completion_effect_id,
-      );
-      if (effect?.operation === "set_quest_state") {
-        this.questStates.set(String(effect.quest_id), String(effect.state));
-      }
+    // The completion rule is the family's; the word for "running" is this
+    // genre's. The effect a completed quest names is performed through the same
+    // dispatch every other effect goes through — it used to be filtered down to
+    // the state change at this one call site, which is why a completion that
+    // named anything else silently did nothing, and why that shape is refused
+    // at boot now instead.
+    for (const quest of questsCompletedBy(
+      this.gameplay?.quests ?? [],
+      this.questStates,
+      itemId,
+      carried(this.inventory, itemId),
+      PLATFORMER_QUEST_ACTIVE,
+    )) {
+      this.performEffects([quest.completion_effect_id]);
     }
   }
 
@@ -3089,7 +3144,7 @@ export class PreparedStageScene extends Phaser.Scene {
       defeatPanel: this.defeatPanel?.snapshot() ?? null,
       defeatedAtMs: this.defeatedAtMs,
       progression: this.progression ?? null,
-      questStates: [...this.questStates.entries()].sort(([left], [right]) => (left < right ? -1 : 1)),
+      questStates: this.questStates.entries(),
       dialogue: this.activeScenario
         ? {
             interaction: this.activeScenario.interaction,

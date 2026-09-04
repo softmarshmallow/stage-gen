@@ -15,7 +15,12 @@ import {
   UNLIMITED,
   type CountedBag,
 } from "@/lib/families/inventory";
-import type { RoomManifest, Verb } from "./contract";
+import {
+  applyEffects,
+  sealEffectVocabulary,
+  type LoweredEffect,
+} from "@/lib/families/effects";
+import type { RoomEffect, RoomManifest, Verb } from "./contract";
 
 export interface RoomPlayState {
   readonly flags: readonly string[];
@@ -36,6 +41,47 @@ export interface RoomPlayState {
   readonly selectedItem: string | null;
   readonly narration: string;
   readonly solved: boolean;
+}
+
+/**
+ * Every operation a room may author.
+ *
+ * The room's authored form is one object with four optional fields rather than
+ * a tagged operation, and an object may carry several at once — so the effects
+ * family is reached through a *lowering* rather than by renaming a field. The
+ * order below is the order the fields were applied in and is kept exactly: an
+ * effect that grants an item and reveals the hotspot it is used on is not the
+ * same effect the other way round.
+ */
+export const ROOM_EFFECT_OPERATIONS = Object.freeze([
+  "set_flag",
+  "grant_item",
+  "remove_item",
+  "reveal_hotspot",
+] as const);
+
+/**
+ * One authored room effect, as the operations it performs.
+ *
+ * The payload is a bare name, which is the whole difference between this
+ * vocabulary and the platformer's: they share `grant_item` by name and not by
+ * type, because over there a grant carries a quantity and here it is a unit.
+ */
+function loweredRoomEffect(effect: RoomEffect): readonly LoweredEffect<string>[] {
+  const lowered: LoweredEffect<string>[] = [];
+  if (effect.set_flag !== undefined) {
+    lowered.push({ operation: "set_flag", payload: effect.set_flag });
+  }
+  if (effect.grant_item !== undefined) {
+    lowered.push({ operation: "grant_item", payload: effect.grant_item });
+  }
+  if (effect.remove_item !== undefined) {
+    lowered.push({ operation: "remove_item", payload: effect.remove_item });
+  }
+  if (effect.reveal_hotspot !== undefined) {
+    lowered.push({ operation: "reveal_hotspot", payload: effect.reveal_hotspot });
+  }
+  return lowered;
 }
 
 export const MISS_LINE = "Nothing happens.";
@@ -133,25 +179,33 @@ function applyInteraction(
   const flags = new Set(state.flags);
   let inventory = state.inventory;
   const revealed = new Set(state.revealed);
-  for (const effect of interaction.effects) {
-    if (effect.set_flag !== undefined) {
-      flags.add(effect.set_flag);
-    }
-    if (effect.grant_item !== undefined) {
-      // The unit grant, and the sentence that keeps this bag a set: a room's
-      // item is carried or it is not, so a second `grant_item` for the same
-      // name is the no-op `Set.add` always was rather than a second unit.
-      if (carried(inventory, effect.grant_item) < 1) {
-        inventory = grant(inventory, effect.grant_item, 1, UNLIMITED).bag;
+  // The vocabulary, sealed against the handlers meant to answer it: an
+  // operation this room may author and nothing implements is a refusal here
+  // rather than an effect that quietly does nothing. Every handler reaches
+  // another family through its own API — the two item operations go to the
+  // `inventory` bag — and none of them writes a slice this reducer does not own.
+  const vocabulary = sealEffectVocabulary<string>(ROOM_EFFECT_OPERATIONS, {
+    set_flag: (flag) => {
+      flags.add(flag);
+    },
+    // The unit grant, and the sentence that keeps this bag a set: a room's item
+    // is carried or it is not, so a second `grant_item` for the same name is
+    // the no-op `Set.add` always was rather than a second unit.
+    grant_item: (itemId) => {
+      if (carried(inventory, itemId) < 1) {
+        inventory = grant(inventory, itemId, 1, UNLIMITED).bag;
       }
-    }
-    if (effect.remove_item !== undefined) {
-      // `remove_item` takes the stack, however deep it is.
-      inventory = consume(inventory, effect.remove_item, carried(inventory, effect.remove_item)).bag;
-    }
-    if (effect.reveal_hotspot !== undefined) {
-      revealed.add(effect.reveal_hotspot);
-    }
+    },
+    // `remove_item` takes the stack, however deep it is.
+    remove_item: (itemId) => {
+      inventory = consume(inventory, itemId, carried(inventory, itemId)).bag;
+    },
+    reveal_hotspot: (hotspotId) => {
+      revealed.add(hotspotId);
+    },
+  });
+  for (const effect of interaction.effects) {
+    applyEffects(vocabulary, loweredRoomEffect(effect));
   }
   const fired =
     interaction.effects.length > 0 ? [...state.fired, index].sort((a, b) => a - b) : state.fired;
