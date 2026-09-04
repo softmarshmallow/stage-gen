@@ -50,6 +50,55 @@ def test_components_do_not_import_application_or_provider_layers() -> None:
     assert not violations, "component import boundary violations:\n" + "\n".join(violations)
 
 
+GENRE_PREFIXES = ("platformer_", "runner_", "pointclick_")
+
+
+def _genre_of(component: str) -> str | None:
+    for prefix in GENRE_PREFIXES:
+        if component.startswith(prefix):
+            return prefix
+    return None
+
+
+def test_components_import_across_genres_only_through_neutral_homes() -> None:
+    """A genre-scoped component (``platformer_*``, ``runner_*``) imports only components
+    of its own genre or genre-neutral ones; a neutral component imports no genre.
+
+    This is the pipeline twin of the runtime's family rule: what two genres share lives in
+    a home neither of them owns (``sideview_stage``, ``actor_content``, ``sideview_actor``),
+    never inside one of them. The runner once read the platformer's map models for the
+    five stage blocks; the lint keeps that from returning.
+    """
+
+    violations: list[str] = []
+    for path in sorted(COMPONENT_ROOT.rglob("*.py")):
+        component = path.relative_to(COMPONENT_ROOT).parts[0]
+        if component.endswith(".py"):
+            component = component[: -len(".py")]
+        own_genre = _genre_of(component)
+        package = _package_for(path)
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.Import, ast.ImportFrom)):
+                continue
+            for imported in _imported_modules(node, package):
+                parts = imported.split(".")
+                if parts[:2] != ["stage_gen", "components"] or len(parts) < 3:
+                    continue
+                target = parts[2]
+                if target == component or target.startswith("_"):
+                    continue
+                target_genre = _genre_of(target)
+                if target_genre is None or target_genre == own_genre:
+                    continue
+                relative = path.relative_to(SOURCE_ROOT.parent)
+                violations.append(
+                    f"{relative}:{node.lineno} imports {imported} "
+                    f"({component} may not import the {target_genre.rstrip('_')} genre)"
+                )
+    assert not violations, "cross-genre component imports:\n" + "\n".join(violations)
+
+
 RECIPE_ROOT = SOURCE_ROOT / "stage_gen" / "recipes"
 
 

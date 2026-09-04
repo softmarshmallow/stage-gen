@@ -20,7 +20,7 @@ declares climbable variants" untested, because the branch that withholds a word 
 
 from __future__ import annotations
 
-from stage_gen.components.platformer_map_design import (
+from stage_gen.components.sideview_map_design import (
     STANDARD_TILE_ROLES,
     GeometryProfile,
     MovementProfile,

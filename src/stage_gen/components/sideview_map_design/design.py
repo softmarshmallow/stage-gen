@@ -14,7 +14,7 @@ from pydantic import Field, ValidationError
 
 from gnode import PersistedContractModel
 from stage_gen.components._game_input import canonical_contract_json
-from stage_gen.components.platformer_map_design.capabilities import PlatformerProfile
+from stage_gen.components.sideview_map_design.capabilities import PlatformerProfile
 
 PLATFORMER_MAP_DESIGN_SCHEMA_VERSION = 1
 PLATFORMER_MAP_DESIGN_KIND = "platformer-chunk-map-v1"

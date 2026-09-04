@@ -18,7 +18,7 @@ from stage_gen.components.platformer_map.prepared import (
     PreparedMapClimbablePlacement,
     PreparedMapTerrain,
 )
-from stage_gen.components.platformer_map_design import (
+from stage_gen.components.sideview_map_design import (
     STANDARD_TILE_ROLES,
     DesignedMap,
     GeometryProfile,

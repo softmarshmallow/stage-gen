@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from stage_gen.components.platformer_map_design import (
+from stage_gen.components.sideview_map_design import (
     EMPTY_TILE_ROLE,
     GROUND_TILE_ROLE,
     PLATFORM_TILE_ROLE,

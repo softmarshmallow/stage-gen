@@ -30,8 +30,8 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
 from gnode import StructuredOutputSchema
-from stage_gen.components.platformer_map_design.capabilities import PlatformerProfile
-from stage_gen.components.platformer_map_design.design import Climbable, DesignedMap
+from stage_gen.components.sideview_map_design.capabilities import PlatformerProfile
+from stage_gen.components.sideview_map_design.design import Climbable, DesignedMap
 
 
 @dataclass(frozen=True)

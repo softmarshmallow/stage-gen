@@ -2,7 +2,7 @@
 
 > **Contract maturity: promoted module, exact-current for the design contract.**
 >
-> This document defines `stage_gen.components.platformer_map_design`: what a capability
+> This document defines `stage_gen.components.sideview_map_design`: what a capability
 > profile declares, what the chunk grammar can say, what the validator is authoritative
 > over, the persisted `platformer-chunk-map-v1` design artifact, and how a design is
 > applied to an authored map.
@@ -41,7 +41,7 @@ the front-end — the words — is a design choice, and it is the one the study 
 
 | Boundary | Owns | Does not own |
 | --- | --- | --- |
-| `stage_gen.components.platformer_map_design` | Capability profiles as data, the chunk grammar and its expander, the design validator over geometry, movement, and reachability, and the persisted `platformer-chunk-map-v1` design artifact | Art, atlases, the authored TOML package, the generation graph, or any specific game's numbers |
+| `stage_gen.components.sideview_map_design` | Capability profiles as data, the chunk grammar and its expander, the design validator over geometry, movement, and reachability, and the persisted `platformer-chunk-map-v1` design artifact | Art, atlases, the authored TOML package, the generation graph, or any specific game's numbers |
 | Caller (a recipe, script, or authoring tool) | Constructing the profile, supplying the brief, building the structured-generation service, and deciding whether a design is applied at all | The rules a design is judged against; those are the profile's, and the validator is authoritative over them |
 | `maps/<map_id>.toml` | The authored `occupancy` matrix, climbable variants and placements, and every visual and reference declaration | How that geometry was composed; a map source records no design lineage |
 | Recipe and consumer | Terrain atlas selection, collision bodies, camera framing, and pixel projection | Whether the shape is playable; that is settled before any provider work begins |
@@ -78,7 +78,7 @@ not a mode of this one.
 The name is the boundary. A package called `map_design` would invite exactly the retargeting the
 previous section rules out, and the invitation would be plausible: the encoding *looks*
 domain-neutral, and only the validator behind it is not. So the package is
-`platformer_map_design`, the capability dataclass is `PlatformerProfile`, and the persisted kind
+`sideview_map_design`, the capability dataclass is `PlatformerProfile`, and the persisted kind
 is `platformer-chunk-map-v1`. A future top-down track gets its own name at every one of those
 three levels rather than a `kind` variant here.
 

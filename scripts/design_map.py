@@ -35,7 +35,7 @@ from stage_gen.components.platformer_map.prepared import (
     canonical_prepared_map_terrain_json,
     validate_generated_terrain,
 )
-from stage_gen.components.platformer_map_design import (
+from stage_gen.components.sideview_map_design import (
     DesignBrief,
     DesignedMap,
     PlatformerChunkMapDesign,

@@ -73,7 +73,6 @@ from stage_gen.components.platformer_map.prepared import (
     load_prepared_map_terrain_bytes,
     validate_generated_terrain,
 )
-from stage_gen.components.platformer_map_design import DesignBrief, design_chunks
 from stage_gen.components.sideview_layers.contract import (
     LAYER_PLACEMENT_CANONICALIZER,
     resolve_layer_placement,
@@ -85,6 +84,7 @@ from stage_gen.components.sideview_layers.pipeline import (
     loop_conditioning,
     validate_provider_image,
 )
+from stage_gen.components.sideview_map_design import DesignBrief, design_chunks
 from stage_gen.components.sideview_terrain.atlas import (
     MATERIAL_ASSEMBLER_ID,
     assemble_terrain_atlas,

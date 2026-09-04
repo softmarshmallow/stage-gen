@@ -21,9 +21,9 @@ from gnode import (
     StructuredGenerationRequest,
     StructuredGenerationService,
 )
-from stage_gen.components.platformer_map_design.capabilities import PlatformerProfile
-from stage_gen.components.platformer_map_design.design import DesignedMap, check
-from stage_gen.components.platformer_map_design.grammar import (
+from stage_gen.components.sideview_map_design.capabilities import PlatformerProfile
+from stage_gen.components.sideview_map_design.design import DesignedMap, check
+from stage_gen.components.sideview_map_design.grammar import (
     build_chunk_prompt,
     build_chunk_schema,
     expand_chunks,

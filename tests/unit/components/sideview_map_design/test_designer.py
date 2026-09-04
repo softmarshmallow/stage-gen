@@ -14,7 +14,7 @@ from gnode import (
     StructuredGenerationRequest,
     StructuredGenerationService,
 )
-from stage_gen.components.platformer_map_design import (
+from stage_gen.components.sideview_map_design import (
     MAX_QUOTED_PROBLEMS,
     DesignBrief,
     design_chunks,

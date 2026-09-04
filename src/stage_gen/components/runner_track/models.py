@@ -33,7 +33,7 @@ from stage_gen.components._game_input import (
     sha256_bytes,
     unique_values,
 )
-from stage_gen.components.platformer_map import (
+from stage_gen.components.sideview_stage import (
     PreparedMapContinuity,
     PreparedMapGround,
     PreparedMapLayer,
