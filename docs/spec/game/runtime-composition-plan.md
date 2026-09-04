@@ -1345,6 +1345,25 @@ two families, and the report says which concept split them.
   villager with a scenario, an enter prompt only where `[[transitions]]` put a
   door with somewhere behind it. That is the same shape `clock` used when it
   gated the block deciding whether its holder could exist.
+- **E1's second scenario, baked before the split that needs it.** The
+  platformer's golden could not observe a defeat: its event kinds stopped at
+  `player-damaged`, which is exactly what step 3 reported when it declined to
+  pull `session` out of `updatePlayer` ("the platformer's golden **cannot
+  observe any of them**"). Step 6 is chartered to split that system, so a second
+  scripted run was written and pinned *first*, on the code as it stood, so the
+  split has a before. It opens the way the first run does — east out of the
+  village and through the gate, without the conversation, which is why it
+  arrives ten frames earlier — and then does the one thing the first run never
+  does: it fights nothing. No throw, no healing draught, and it walks the route
+  out and back so the creatures it is not killing keep reaching it. Three
+  contacts is what six points of health and a nine-hundred-millisecond immunity
+  window are worth. **The defeat lands at 320, the death screen finishes fading
+  in at 347, the run answers it at 500 and wakes in the village**, and the
+  record carries the two event kinds the first run cannot produce,
+  `player-defeated` and `player-respawned`. Three checkpoints are pinned — 300,
+  350 and 600 — and the first run's six hundred digests are byte-identical
+  across the commit that adds it, which is what makes it an instrument rather
+  than a change.
 - **One thing the family holds that neither genre binds, and why.**
   `[inventory].starting_capacity` is still parsed and unread, deliberately. The
   rule is the family's and is proven in its own suite (a full bag refuses the

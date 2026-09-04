@@ -69,6 +69,60 @@ function scriptedKeys(frame: number): readonly ("interact" | "enter" | "up" | "s
   return [];
 }
 
+/**
+ * The second scripted run: the one that dies.
+ *
+ * The first run never reaches a defeat — its event kinds stop at
+ * `player-damaged` — so nothing about defeat, the prompt it raises, or the
+ * recovery it offers could be measured at all. Step 3 said so in as many words
+ * when it declined to pull the platformer's `session` out of `updatePlayer`
+ * ("the platformer's golden cannot observe any of them"), and step 6 is the
+ * step chartered to split that system. So the golden needs a run that gets
+ * there first, and this is it.
+ *
+ * The opening is the first run's: east out of the village and through the gate,
+ * without the conversation, which is why it arrives ten frames earlier. What it
+ * then does is the one thing the first run never does — it fights nothing. No
+ * throw, no healing draught, and it walks the route out and back so the
+ * creatures it is not killing keep reaching it. Three contacts is what six
+ * points of health and a nine-hundred-millisecond immunity window are worth:
+ * the defeat lands at 320, the panel finishes fading in at 347, and the run
+ * answers it at 500 and wakes up in the village.
+ */
+function defeatIntent(frame: number) {
+  const between = (from: number, to: number) => frame >= from && frame < to;
+  // East out of the village, then up and down the hunting route without ever
+  // striking back or drinking anything. Three contacts is all six points are
+  // worth.
+  return playerIntent({
+    right: between(1, 150) || between(155, 300) || between(455, 600),
+    left: between(305, 450),
+    run: between(1, 150) || between(155, 300) || between(305, 450) || between(455, 600),
+  });
+}
+
+/** Which scene-level keys the defeat run holds. */
+function defeatKeys(frame: number): readonly ("interact" | "enter" | "up" | "space")[] {
+  // Ask the east gate to open, on alternate frames so each press is a fresh
+  // edge: this run has no conversation to pace it, so it arrives at the arch
+  // earlier than the first one and the exact frame is not worth pinning.
+  if (frame >= 140 && frame <= 200 && frame % 2 === 0) return ["up"];
+  // Accept the death screen, once, well after it is up: the run has to record
+  // the recovery as well as the defeat.
+  if (DEFEAT_CONFIRM_FRAMES.includes(frame)) return ["enter"];
+  return [];
+}
+
+/**
+ * When the defeat run answers its own death screen.
+ *
+ * Measured from the run rather than guessed: the defeat lands at 320 and the
+ * panel finishes fading in at 347, so a press at 500 is unambiguously an answer
+ * to a prompt that is up. Exactly one press, so the recovery is one edge and
+ * the village the player wakes in is not then talked to.
+ */
+const DEFEAT_CONFIRM_FRAMES: readonly number[] = [500];
+
 type Harness = Readonly<{
   scene: InstanceType<typeof PreparedStageScene>;
   step: (frame: number) => void;
@@ -79,7 +133,15 @@ async function settle(): Promise<void> {
   for (let turn = 0; turn < 2000; turn += 1) await Promise.resolve();
 }
 
-async function bootReplay(): Promise<Harness> {
+type Script = Readonly<{
+  intent: (frame: number) => ReturnType<typeof playerIntent>;
+  keys: (frame: number) => readonly ("interact" | "enter" | "up" | "space")[];
+}>;
+
+const WALK_AND_TALK: Script = { intent: scriptedIntent, keys: scriptedKeys };
+const STAND_AND_DIE: Script = { intent: defeatIntent, keys: defeatKeys };
+
+async function bootReplay(script: Script = WALK_AND_TALK): Promise<Harness> {
   let clockMs = 0;
   const browser = installHeadlessBrowser({
     manifest: replayRuntimeManifest(),
@@ -91,7 +153,7 @@ async function bootReplay(): Promise<Harness> {
   scene.create();
   await settle();
   let frame = 0;
-  scene.driveWithIntent(() => scriptedIntent(frame));
+  scene.driveWithIntent(() => script.intent(frame));
   const keyboard = engine.input.keyboard;
   const keys: Record<string, StubKey> = {
     interact: keyboard.addKey(KEY_CODES.E),
@@ -103,7 +165,7 @@ async function bootReplay(): Promise<Harness> {
     scene,
     step: (next: number) => {
       frame = next;
-      const held = new Set<string>(scriptedKeys(next));
+      const held = new Set<string>(script.keys(next));
       for (const [name, key] of Object.entries(keys)) {
         if (held.has(name)) key.press();
         else key.release();
@@ -238,6 +300,77 @@ describe("the platformer replays to its golden", () => {
       ]);
       expect(notes["map-entered"]).toBe(150);
       expect(notes.climbed).toBe(380);
+    } finally {
+      harness.restore();
+    }
+  });
+});
+
+/**
+ * E1's second scenario: the run that reaches a defeat.
+ *
+ * Same instruments, same digest, its own chain. It exists because a split that
+ * moves where defeat is decided has to have a before, and the first run cannot
+ * provide one: it never dies, so every arrangement of the defeat that step 6
+ * could reach would hash identically under it and prove nothing.
+ */
+const DEFEAT_GOLDEN: Record<number, string> = {
+  // On the route, two contacts in and still standing.
+  300: "8cc2413d5982e43b3d446927e215640f39c2c2b1565544625a1c1a93f85d8d9b",
+  // Defeated at 320, and the death screen has just finished arriving.
+  350: "1e2ed6a445653f2d2259d62096b9e66da9d136f27abffbfd56254c67c65edeab",
+  // The whole run: the defeat, the prompt, the answer, and the village.
+  600: "faf696794eb8722c00e43e72116cb290e4645d89c6541032a70a9944ce2dcb88",
+};
+
+describe("the platformer replays its defeat run to a golden of its own", () => {
+  test("six hundred fixed steps of standing still hash to the pinned chain", async () => {
+    const harness = await bootReplay(STAND_AND_DIE);
+    try {
+      let chain = "";
+      const seen: Record<number, string> = {};
+      const frames: string[] = [];
+      const dumps: string[] = [];
+      const kinds = new Set<string>();
+      const notes: Record<string, number> = {};
+      for (let frame = 1; frame <= FRAMES; frame += 1) {
+        harness.step(frame);
+        const snapshot = harness.scene.replaySnapshot();
+        const frameDigest = digest(snapshot, harness.scene.transcript);
+        const hasher = new Bun.CryptoHasher("sha256");
+        hasher.update(chain + frameDigest);
+        chain = hasher.digest("hex");
+        frames.push(`${frame} ${frameDigest}`);
+        if (process.env.REPLAY_DUMP) {
+          dumps.push(`${frame} ${JSON.stringify(plain({ w: snapshot, e: harness.scene.transcript }))}`);
+        }
+        if (frame in DEFEAT_GOLDEN) seen[frame] = chain;
+        for (const event of harness.scene.transcript) {
+          kinds.add(event.kind);
+          notes[event.kind] ??= frame;
+        }
+        const panel = snapshot.defeatPanel as { visible?: boolean } | null;
+        if (panel?.visible) notes.panelUp ??= frame;
+      }
+      if (process.env.REPLAY_DUMP) await Bun.write(process.env.REPLAY_DUMP, `${dumps.join("\n")}\n`);
+      if (process.env.REPLAY_FRAMES) {
+        await Bun.write(process.env.REPLAY_FRAMES, `${frames.join("\n")}\n`);
+      }
+      expect(seen).toEqual(DEFEAT_GOLDEN);
+      // What this recording is of, and the whole reason it exists: the two
+      // event kinds the first run cannot produce, `player-defeated` and
+      // `player-respawned`. `mob-defeated` is absent on purpose — this run
+      // kills nothing, which is how it manages to die.
+      expect([...kinds].sort()).toEqual([
+        "map-entered",
+        "mob-spawned",
+        "player-damaged",
+        "player-defeated",
+        "player-respawned",
+      ]);
+      expect(notes["player-defeated"]).toBe(320);
+      expect(notes.panelUp).toBe(347);
+      expect(notes["player-respawned"]).toBe(500);
     } finally {
       harness.restore();
     }
