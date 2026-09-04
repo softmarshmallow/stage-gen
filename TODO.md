@@ -99,7 +99,3 @@ The adoption and what it refuses are [0025](docs/decisions/0025-cookierun-is-ado
 
 - [ ] `2d/sideview/jumper`, the vertical endless jumper and its own genre member family, blocked asset-side on a y-loop module ([0045](docs/decisions/0045-the-vertical-jumper-is-its-own-genre-family.md)).
 - [ ] `2d/sideview/cinematic_platformer`, the first of the three genres the "atmospheric side-view adventure" premise was hiding; its new requirement is authoring vocabulary — a finite non-looping level with an authored end ([0046](docs/decisions/0046-limbo-badland-and-ori-are-three-genres.md)).
-
-## Git reconciliation
-
-- [ ] Reconcile origin commits `98e0214` and `00f90d1` only after the worktree is clean: compare them with the local theme/compiler equivalents, retain each change once, and run the full offline gates; do not pull or merge them blindly over local work.
