@@ -1,4 +1,5 @@
 import { terrainSurfaceY } from "./terrain";
+import { laneAtColumn } from "@/lib/families/navigation";
 import { resolveTerrainWalk, type TerrainWalkResolution } from "./vertical";
 
 export type MobNavigationSurface = "terrain_lane" | "deck_lane";
@@ -177,17 +178,22 @@ export class MobTerrainLaneNode implements MobLaneNode {
     if (!Number.isFinite(spawnHeight)) {
       throw new Error("mob terrain lane spawn height must be finite");
     }
-    let leftColumn = spawnColumn;
-    while (leftColumn > 0 && this.opts.heightAtColumn(leftColumn - 1) === spawnHeight) {
-      leftColumn -= 1;
-    }
-    let rightColumn = spawnColumn;
-    while (
-      rightColumn + 1 < worldColumns &&
-      this.opts.heightAtColumn(rightColumn + 1) === spawnHeight
-    ) {
-      rightColumn += 1;
-    }
+    // The shelf, from the `navigation` family's one lane rule rather than from
+    // a second walk of the same heightfield. At tolerance zero adjacent
+    // equality chains to equality with the spawn column, so the run is exactly
+    // the run this class used to derive for itself — and it is now the same run
+    // the nav graph cuts, which is what stops a creature standing where the
+    // graph says nobody can.
+    const lane = laneAtColumn(
+      {
+        columns: worldColumns,
+        surfaceAt: (column) => this.opts.heightAtColumn(column),
+        tolerance: 0,
+      },
+      spawnColumn,
+    );
+    const leftColumn = lane.startColumn;
+    const rightColumn = lane.endColumn - 1;
     const worldMin = this.opts.renderedHalfWidth;
     const worldMax = this.opts.worldWidthPx - this.opts.renderedHalfWidth;
     this._homeX = spawnX;

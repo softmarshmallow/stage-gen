@@ -11,7 +11,7 @@ import {
   type NavAgentState,
   type NavGraph,
   type NavLink,
-} from "./bot-navigation";
+} from "@/lib/sideview-platformer/bot-navigation";
 
 const TILE = 64;
 const BASELINE = 720;

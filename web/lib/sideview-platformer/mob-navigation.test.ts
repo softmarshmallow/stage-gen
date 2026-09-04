@@ -4,6 +4,9 @@ import {
   MobNavigationPolicy,
   MobTerrainLaneNode,
 } from "./mob-navigation";
+import { laneAtColumn } from "@/lib/families/navigation";
+import { parsePlatformerNavigationBlock } from "./bot-navigation";
+import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
 
 function node(heights: readonly number[], spawnColumn: number) {
   const tilePixels = 64;
@@ -163,5 +166,43 @@ describe("mob deck-lane navigation node", () => {
           policy: new MobNavigationPolicy(tilePixels),
         }),
     ).toThrow("positive width");
+  });
+});
+
+describe("the mob's shelf is the navigation family's lane", () => {
+  test("the derived territory is the lane the graph would cut", () => {
+    const heights = [2, 2, 2, 3, 3, 2, 2, 2, 2, 1];
+    const policy = new MobNavigationPolicy(64);
+    const node = new MobTerrainLaneNode({
+      spawnColumn: 6,
+      spawnX: 6 * 64 + 32,
+      tilePixels: 64,
+      worldWidthPx: heights.length * 64,
+      baselineY: 720,
+      renderedHalfWidth: 0,
+      heightAtColumn: (column) => heights[column] ?? 0,
+      policy,
+    });
+    const lane = laneAtColumn(
+      { columns: heights.length, surfaceAt: (column) => heights[column] ?? 0, tolerance: 0 },
+      6,
+    );
+    expect([lane.startColumn, lane.endColumn]).toEqual([5, 9]);
+    // The class's own edges are the lane's, with this genre's one-pixel inset on
+    // the right so a walk's column lookup still resolves inside the shelf.
+    expect(node.containsWorldX(lane.startColumn * 64)).toBe(true);
+    expect(node.containsWorldX(lane.endColumn * 64 - 1)).toBe(true);
+    expect(node.containsWorldX(lane.startColumn * 64 - 1)).toBe(false);
+    expect(node.containsWorldX(lane.endColumn * 64)).toBe(false);
+  });
+
+  test("the navigation block is gated by the family, by name", () => {
+    expect(parsePlatformerNavigationBlock(PREPARED_RUNTIME_BLOCKS).block).toBe("gameplay");
+    expect(() =>
+      parsePlatformerNavigationBlock({
+        ...PREPARED_RUNTIME_BLOCKS,
+        gameplay: "platformer-gameplay-block-v2",
+      }),
+    ).toThrow('manifest block "gameplay" is published as platformer-gameplay-block-v2');
   });
 });
