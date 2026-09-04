@@ -185,6 +185,13 @@ import {
   NPC_TALK_PROMPT_TEXT,
 } from "./npc";
 import { DebugOverlay } from "./debug-overlay";
+import {
+  createPlatformerFrameWorld,
+  sealPlatformerFrame,
+  type PlatformerFrameSteps,
+  type PlatformerFrameWorld,
+} from "./frame-roster";
+import type { SealedSystems } from "@/lib/kernel/systems";
 
 const VIEW_W = 1280;
 const VIEW_H = 720;
@@ -404,6 +411,25 @@ export class PreparedStageScene extends Phaser.Scene {
    */
   private frameEvents: GameplayTranscriptEvent[] = [];
   private transcriptFrame = 0;
+  /**
+   * The frame, as a sealed roster rather than as seventy calls in a row.
+   *
+   * Built once, on the first tick that has something to tick — the steps close
+   * over `this`, so they are valid for the scene's whole life whatever the world
+   * is rebuilt into. `frame-roster.ts` carries the declarations and the edges;
+   * this file carries the steps they order.
+   */
+  private sealedFrame?: SealedSystems<PlatformerFrameWorld>;
+  private readonly frameWorld: PlatformerFrameWorld = createPlatformerFrameWorld();
+  /**
+   * This frame's `step.now`.
+   *
+   * The tick is the only clock. Everything inside the frame is handed `step.now`
+   * by the roster; this field is for the two places that stamp simulation time
+   * from outside a system's `update` — the map-name announcement raised by an
+   * `enterMap` that a system asked for.
+   */
+  private stepNowMs = 0;
 
   constructor(
     tag: string,
@@ -447,48 +473,78 @@ export class PreparedStageScene extends Phaser.Scene {
     void this.loadAll().catch((error: unknown) => this.fail(error));
   }
 
-  update(_time: number, delta: number): void {
+  /**
+   * One fixed step of the platformer, ordered by the sealer rather than by hand.
+   *
+   * Everything this used to spell out in sequence — which step reads which
+   * slice, which one has to wait for which, and which reads a value a frame
+   * older than it looks — is a declaration in `frame-roster.ts` now, and the
+   * order below is derived from those declarations and pinned by
+   * `frame-roster.test.ts`. The clock is the engine's frame time handed through
+   * `step.now`, not `performance.now()`: the simulation and everything that
+   * samples over it now read one clock, and under a fixed-step capture that
+   * clock is the capture's.
+   */
+  update(time: number, delta: number): void {
     this.transcriptFrame += 1;
     this.frameEvents = [];
     if (!this.ready || this.loading || !this.player || !this.keys) return;
-    const now = performance.now();
-    this.debugOverlay?.toggleForKey(this.keys.debugOverlay);
-    this.updateAutoPlayToggle(now);
-    this.updateKitSwitch(now);
-    this.updateDebugOverlay();
-    // Before the dialogue hold, because an announcement that stopped fading while a conversation
-    // was open would still be sitting on the screen when the panel closed.
-    this.updateMapBanner(now);
-    // One reading of the keyboard per frame, taken before anything branches on it, and then handed
-    // to whichever side of the frame consumes it. `JustDown` spends the latch, and the scene's own
-    // keys are the same `Key` objects the controller binds - `addKey` returns the existing one for
-    // a code - so a second reader downstream of the first sees a key nobody pressed.
-    const keyboardIntent = this.player.readKeyboardIntent();
-    if (this.activeScenario) {
-      this.updateDialogueInput(keyboardIntent);
-      return;
-    }
-    this.statLog?.update(now);
-    // Hitstop holds the simulation, not the clock: actors receive no elapsed time for a few
-    // frames after a blow lands while every presentation keeps sampling `now`, so the number
-    // still punches and the flash still ends on time over a world that has briefly stopped.
-    const simulationDelta = this.impact?.hitstopActive(now) ? 0 : delta;
-    this.updatePlayer(simulationDelta, now, keyboardIntent);
-    this.updateMobs(simulationDelta, now);
-    // Between the two on purpose: the mobs have already moved this frame, so a shot collides
-    // against where they actually are, and a kill still lands in this frame's drop collection
-    // rather than the next one's.
-    this.updateProjectiles(simulationDelta, now);
-    this.collectDrops(simulationDelta, now);
-    this.impact?.update(now);
-    this.applyImpactShake(now);
-    this.updateInteractionPrompt();
-    this.updateContactShadows();
+    this.stepNowMs = time;
+    this.sealedFrame ??= sealPlatformerFrame(this.frameSteps());
+    this.sealedFrame.tick(this.frameWorld, {
+      dt: delta,
+      now: time,
+      frame: this.transcriptFrame,
+    });
+  }
+
+  /**
+   * The steps the roster orders, bound to this scene.
+   *
+   * A step per system and nothing else: the roster decides when each runs and
+   * on what, and this object decides only what "run" means. The methods stay
+   * private, so the declarations can be read on their own without the scene,
+   * and the scene can rename its internals without touching them.
+   */
+  private frameSteps(): PlatformerFrameSteps {
+    return {
+      toggleDebugOverlay: () => {
+        const key = this.keys?.debugOverlay;
+        if (key) this.debugOverlay?.toggleForKey(key);
+      },
+      updateAutoPlayToggle: (nowMs) => this.updateAutoPlayToggle(nowMs),
+      updateKitSwitch: (nowMs) => this.updateKitSwitch(nowMs),
+      updateDebugOverlay: () => this.updateDebugOverlay(),
+      updateMapBanner: (nowMs) => this.updateMapBanner(nowMs),
+      readIntent: () => this.player?.readKeyboardIntent() ?? NEUTRAL_PLAYER_INTENT,
+      dialogueOpen: () => this.activeScenario !== undefined,
+      updateDialogueInput: (intent) => this.updateDialogueInput(intent),
+      updateStatLog: (nowMs) => {
+        this.statLog?.update(nowMs);
+      },
+      hitstopActive: (nowMs) => this.impact?.hitstopActive(nowMs) ?? false,
+      updatePlayer: (deltaMs, nowMs, intent) => this.updatePlayer(deltaMs, nowMs, intent),
+      updateMobPopulation: (nowMs) => this.updateMobPopulation(nowMs),
+      stepMobs: (deltaMs, nowMs) => this.stepMobs(deltaMs, nowMs),
+      updateProjectiles: (deltaMs, nowMs) => this.updateProjectiles(deltaMs, nowMs),
+      collectDrops: (deltaMs, nowMs) => this.collectDrops(deltaMs, nowMs),
+      updateImpact: (nowMs) => {
+        this.impact?.update(nowMs);
+      },
+      applyImpactShake: (nowMs) => this.applyImpactShake(nowMs),
+      updateInteractionPrompt: () => this.updateInteractionPrompt(),
+      updateContactShadows: () => this.updateContactShadows(),
+      scrollParallaxLayers: () => this.scrollParallaxLayers(),
+      applyPendingMapEntry: () => this.applyPendingMapEntry(),
+    };
+  }
+
+  /** Carry every parallax layer by its own fraction of the camera's scroll. */
+  private scrollParallaxLayers(): void {
     for (const layer of this.layerSprites) {
       const parallax = Number(layer.getData("parallax") ?? 0);
       layer.tilePositionX = this.cameras.main.scrollX * parallax;
     }
-    this.applyPendingMapEntry();
   }
 
   /**
@@ -2029,8 +2085,15 @@ export class PreparedStageScene extends Phaser.Scene {
     this.combatText?.update(now);
   }
 
-  private updateMobs(delta: number, now: number): void {
-    this.updateMobPopulation(now);
+  /**
+   * Step every creature, and retire the ones whose bodies are gone.
+   *
+   * Split from the population director it used to be called by, because the two
+   * read the world at different ages: the director reasons about where the
+   * creatures stood last frame and this steps them to where they stand now.
+   * `frame-roster.ts` carries that edge as an explicit `after`.
+   */
+  private stepMobs(delta: number, now: number): void {
     for (const mob of this.mobs) {
       // A dead body is stepped too, for as long as its sprite survives. Its fade and the
       // retirement that fade ends in are sampled from simulation time inside `update`, so a loop
@@ -2886,7 +2949,10 @@ export class PreparedStageScene extends Phaser.Scene {
         .setScrollFactor(0)
         .setDepth(870)
         .setAlpha(0),
-      raisedAtMs: performance.now(),
+      // Simulation time, not the machine's: the banner is stepped by
+      // `banner/map-name` against `step.now`, and a stamp from a different clock
+      // would make its fade a different length on every recording of one run.
+      raisedAtMs: this.stepNowMs,
     };
   }
 
