@@ -2,7 +2,7 @@
 
 > **Contract maturity: exact-current authored contract.** Executable authority:
 > `src/stage_gen/components/game_fx/` (contract, plate gates, placement admission, and the
-> recipe-neutral node set) and `web/lib/fx/` (the pure choreography, the generic moment
+> recipe-neutral node set) and `web/lib/families/screen-fx/` (the pure choreography, the generic moment
 > system, the Phaser view). The runner is the first host (`docs/spec/game/runner.md`);
 > every other genre adopts the family through the two host contracts at the end of this page.
 
@@ -67,7 +67,7 @@ fade. Separating it afterwards is a segmentation problem, not a transform.
 | `portrait` — one die-cut close-up | actor-scoped, bound to the digest-locked references the actor uses or to the concept plate the run drew for it | soft edge admitted | the image model |
 | backdrop, stripes, lettering | runtime | — | the consumer |
 | placement — where the portrait sits inside the frame's opening | judged once per portrait | — | the tool-loop agent (below) |
-| choreography | consumer | — | `web/lib/fx/cut-in.ts` |
+| choreography | consumer | — | `web/lib/families/screen-fx/cut-in.ts` |
 
 The frame plate does three jobs at runtime: its silhouette is the mask, drawn as-is it is
 the white rim, filled black and offset it is the shadow. Drawn once more on top in multiply,
@@ -255,7 +255,7 @@ records are published like any other.
 
 ## Choreography
 
-`tear_reveal_v1` is the served choreography. Its beats live in `web/lib/fx/cut-in.ts` as a
+`tear_reveal_v1` is the served choreography. Its beats live in `web/lib/families/screen-fx/cut-in.ts` as a
 pure function of elapsed milliseconds, so a fixed-step replay draws the same frame on the
 same tick: the rip sweeps in over 180 ms and settles from 1.12× scale; the portrait slides in
 from 30 % left with a back-ease overshoot between 100 and 400 ms and pushes in 4 % over the

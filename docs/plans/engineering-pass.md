@@ -731,6 +731,26 @@ existing package tests. Zero cache identity is involved. It is the last structur
 card and starts the next session.
 
 
+**2026-09-04 — Runtime step 3, the first families, landed (workstream E).** On its
+own branch, fast-forwarded onto `main`. `web/lib/families/{clock,session,intent,vitals,screen-fx}/`,
+each gating its own manifest block through `families/block-gate.ts` so a refusal names
+the block (`manifest block "fx" is published as fx-block-v2; this build reads
+fx-block-v1`). **clock** in both rosters, owning the simulation clock: platformer
+zero-diff; runner zero-diff over its eleven pre-existing slices, the checkpoints
+re-pinned only because a twelfth slice appeared, proven frame for frame by a new
+`REPLAY_SLICES` instrument. **session** in the runner (`session/run` + `score/run`,
+`run-loop.ts` deleted): zero-diff, re-pinned for a field regrouping proven by mapping
+all 600 dump frames back onto the old shape. **intent**, **vitals** (both genres had
+arrived at the same four hurt numbers; the platformer's arithmetic is now a view over
+the kernel gauge) and **screen-fx** (shake is a pure sample) in both genres, all
+zero-diff, nothing re-pinned. E4 dual instantiation and E7 subtraction hold for each.
+Two new feedback reads, one net new `after` edge. Reported, not forced: the
+platformer's `session` stays inside `updatePlayer` - its defeat sits between the
+controller step and the contact loop, every extraction moves a frame, and the golden
+cannot observe a defeat; that is the system step 2 found to be three under one name and
+step 6 splits.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one
