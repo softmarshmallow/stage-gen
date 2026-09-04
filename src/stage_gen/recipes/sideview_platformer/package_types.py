@@ -29,6 +29,7 @@ from stage_gen.components.game_ui.nodes import (
     UI_ATLAS_VALIDATE,
 )
 from stage_gen.components.sideview_actor.motion_rebase_nodes import motion_rebase_node_types
+from stage_gen.components.sideview_layers.nodes import layer_node_types
 
 _P = "2d/sideview/platformer"
 _PROVIDER = NodePolicy(max_attempts=6)
@@ -45,41 +46,23 @@ PACKAGE_RESOLVE = NodeType(
     contract_version="package-resolve-v1",
 )
 
-MAP_LAYER_GENERATE = NodeType(
-    type_id=f"{_P}/map_layer.generate",
-    title="Map layer painting",
-    archetype=ViewArchetype.IMAGE,
-    operation="image_generation",
-    features=IMAGE_FEATURES,
-    policy=_PROVIDER,
-    contract_version="map-layer-v2",
+#: The parallax-layer family lives in `sideview_layers`; this recipe shipped it under its
+#: own type ids and contracts, which stay as the cache identity so no layer is paid for
+#: twice. Admission is local and converged on the family's.
+_LAYERS = layer_node_types(
+    identity_prefix=f"{_P}/map_layer",
+    generate_version="map-layer-v2",
+    loop_paint_version="map-layer-loop-v2",
+    loop_construct_version="map-layer-loop-v1",
+    # The map reviews depend on the admissions; converging this key would re-bill them.
+    validate_version="map-layer-validate-v1",
 )
-
-MAP_LAYER_LOOP_PAINT = NodeType(
-    type_id=f"{_P}/map_layer.loop_paint",
-    title="Layer loop repaint",
-    archetype=ViewArchetype.IMAGE,
-    operation="image_generation",
-    features=IMAGE_FEATURES,
-    policy=_PROVIDER,
-    contract_version="map-layer-loop-v2",
-)
-
-MAP_LAYER_LOOP_CONSTRUCT = NodeType(
-    type_id=f"{_P}/map_layer.loop_construct",
-    title="Layer loop construction",
-    archetype=ViewArchetype.TRANSFORM,
-    operation="local",
-    contract_version="map-layer-loop-v1",
-)
-
-MAP_LAYER_VALIDATE = NodeType(
-    type_id=f"{_P}/map_layer.validate",
-    title="Layer admission",
-    archetype=ViewArchetype.VALIDATE,
-    operation="local",
-    contract_version="map-layer-validate-v1",
-)
+MAP_LAYER_GENERATE = _LAYERS.generate
+MAP_LAYER_LOOP_PAINT = _LAYERS.loop_paint
+MAP_LAYER_LOOP_CONSTRUCT = _LAYERS.loop_construct
+MAP_LAYER_VALIDATE = _LAYERS.validate
+#: The image route this recipe binds must offer the masked edit the loop repaint sends.
+IMAGE_EDIT_FEATURES = (*IMAGE_FEATURES, "masked_edit")
 
 MAP_TERRAIN_DESIGN = NodeType(
     type_id=f"{_P}/map_terrain.design",

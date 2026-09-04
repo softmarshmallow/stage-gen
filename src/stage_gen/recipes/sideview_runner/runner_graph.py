@@ -62,6 +62,11 @@ from stage_gen.components.sideview_actor.motion_rebase_nodes import (
     RebaseLayout,
     add_motion_rebase_nodes,
 )
+from stage_gen.components.sideview_layers.nodes import (
+    LayerLayout,
+    LayerNodeTypes,
+    add_layer_nodes,
+)
 from stage_gen.components.sound_effect import GeneratedClipRealization, PinnedTake
 from stage_gen.components.speech import SpokenLineRealization
 from stage_gen.recipes.graph_document import RecipeGraph
@@ -107,13 +112,8 @@ from stage_gen.recipes.sideview_runner.runner_types import (
     GROUND_VALIDATION_KIND,
     LAYER_GENERATE,
     LAYER_LOOP_CONSTRUCT,
-    LAYER_LOOP_EDIT_KIND,
-    LAYER_LOOP_KIND,
     LAYER_LOOP_PAINT,
-    LAYER_LOOP_REPORT_KIND,
-    LAYER_RAW_KIND,
     LAYER_VALIDATE,
-    LAYER_VALIDATION_KIND,
     MANIFEST_ASSEMBLE,
     MANIFEST_KIND,
     MOTION_ATLAS_KIND,
@@ -633,99 +633,59 @@ def build_runner_execution_graph(
             transparent = layer.alpha_mode == "transparent"
             prompt = layer_prompt(resolved, layer.prompt, transparent=transparent)
             layer_references = reference_inputs(layer.reference_ids, track_sources)
-            generate_id = f"layer-{layer.layer_id}-generate"
-            generated = builder.add(
-                LAYER_GENERATE,
-                generate_id,
-                domain="world",
-                description=f"paint the {layer.layer_id} parallax layer",
-                params={"layer_id": layer.layer_id},
-                depends_on=barrier,
-                cache_depends_on=(),
-                input_digests=(
-                    text_digest(track.track_id),
-                    direction_digest,
-                    text_digest(prompt),
-                    *(entry.sha256 for entry in layer_references),
-                ),
-                ports=(
-                    artifact_port(
-                        "image", f"world/layers/{layer.layer_id}.raw.png", LAYER_RAW_KIND
-                    ),
-                    attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
-                ),
-                card=NodeCard(prompt=prompt, authored_inputs=layer_references),
-            )
             construction = layer.loop_construction or track.continuity.loop_construction
-            loop_type = (
-                LAYER_LOOP_PAINT
-                if LOOP_METHODS[construction].is_generative
-                else LAYER_LOOP_CONSTRUCT
-            )
-            loop_id = f"layer-{layer.layer_id}-loop"
-            loop_ports = [
-                artifact_port(
-                    "loop_image", f"world/layers/{layer.layer_id}.loop.png", LAYER_LOOP_KIND
-                ),
-                record_port(
-                    "loop_report",
-                    f"world/layers/{layer.layer_id}.loop.json",
-                    LAYER_LOOP_REPORT_KIND,
-                ),
-            ]
-            if LOOP_METHODS[construction].is_generative:
-                loop_ports.append(
-                    artifact_port(
-                        "edit_image",
-                        f"world/layers/{layer.layer_id}.loop-edit.png",
-                        LAYER_LOOP_EDIT_KIND,
-                    )
+            generative = LOOP_METHODS[construction].is_generative
+            layer_validations.append(
+                add_layer_nodes(
+                    builder,
+                    types=LayerNodeTypes(
+                        generate=LAYER_GENERATE,
+                        loop_paint=LAYER_LOOP_PAINT,
+                        loop_construct=LAYER_LOOP_CONSTRUCT,
+                        validate=LAYER_VALIDATE,
+                    ),
+                    layer=layer,
+                    construction=construction,
+                    node_ids=(
+                        f"layer-{layer.layer_id}-generate",
+                        f"layer-{layer.layer_id}-loop",
+                        f"layer-{layer.layer_id}-validate",
+                    ),
+                    domain="world",
+                    depends_on=barrier,
+                    generate_digests=(
+                        text_digest(track.track_id),
+                        direction_digest,
+                        text_digest(prompt),
+                        *(entry.sha256 for entry in layer_references),
+                    ),
+                    loop_digests=(
+                        text_digest(track.track_id),
+                        text_digest(construction),
+                        *(
+                            (
+                                text_digest(track.continuity.loop_fallback),
+                                text_digest(layer.prompt),
+                            )
+                            if generative
+                            else ()
+                        ),
+                    ),
+                    layout=LayerLayout(
+                        raw=f"world/layers/{layer.layer_id}.raw.png",
+                        loop=f"world/layers/{layer.layer_id}.loop.png",
+                        loop_report=f"world/layers/{layer.layer_id}.loop.json",
+                        loop_edit=f"world/layers/{layer.layer_id}.loop-edit.png",
+                        image=f"world/layers/{layer.layer_id}.png",
+                        validation=f"world/layers/{layer.layer_id}.validation.json",
+                    ),
+                    params={"layer_id": layer.layer_id},
+                    generate_prompt=prompt,
+                    authored_inputs=layer_references,
+                    loop_prompt=layer_loop_prompt(layer.prompt) if generative else None,
+                    attempts_port=lambda node_id: attempts_port(node_id, ATTEMPT_LEDGER_KIND),
                 )
-                loop_ports.append(attempts_port(loop_id, ATTEMPT_LEDGER_KIND))
-            looped = builder.add(
-                loop_type,
-                loop_id,
-                domain="world",
-                description=f"loop the {layer.layer_id} layer by {construction}",
-                params={"layer_id": layer.layer_id, "construction": construction},
-                depends_on=(generated.node_id,),
-                input_digests=(
-                    text_digest(track.track_id),
-                    text_digest(construction),
-                    *(
-                        (
-                            text_digest(track.continuity.loop_fallback),
-                            text_digest(layer.prompt),
-                        )
-                        if LOOP_METHODS[construction].is_generative
-                        else ()
-                    ),
-                ),
-                ports=tuple(loop_ports),
-                card=(
-                    NodeCard(prompt=layer_loop_prompt(layer.prompt))
-                    if LOOP_METHODS[construction].is_generative
-                    else None
-                ),
             )
-            validated = builder.add(
-                LAYER_VALIDATE,
-                f"layer-{layer.layer_id}-validate",
-                domain="world",
-                description=f"admit and place the {layer.layer_id} layer",
-                params={"layer_id": layer.layer_id},
-                depends_on=(looped.node_id,),
-                input_digests=(package.closure_sha256,),
-                ports=(
-                    artifact_port("image", f"world/layers/{layer.layer_id}.png", LAYER_LOOP_KIND),
-                    record_port(
-                        "validation",
-                        f"world/layers/{layer.layer_id}.validation.json",
-                        LAYER_VALIDATION_KIND,
-                    ),
-                ),
-            )
-            layer_validations.append(validated.node_id)
 
     # ------------------------------------------------------------------ avatar
     avatar = runner.avatar.avatar

@@ -26,14 +26,12 @@ from gnode import (
     StructuredGenerationService,
     StructuredOutputSchema,
     StructuredReference,
-    atomic_write_bytes,
     atomic_write_json,
     dependency_port,
     write_artifact_with_provenance_async,
 )
 from stage_gen.components.image_repeat import (
     ImageRepeatValidationPolicy,
-    build_three_repeat_preview,
     validate_image_repeat,
 )
 from stage_gen.components.painted_terrain import (
@@ -67,13 +65,8 @@ from stage_gen.components.platformer_map.prepared import (
     load_prepared_map_terrain_bytes,
     validate_generated_terrain,
 )
-from stage_gen.components.sideview_layers.contract import (
-    LAYER_PLACEMENT_CANONICALIZER,
-    resolve_layer_placement,
-)
+from stage_gen.components.sideview_layers.nodes import LayerHandlers, LayerHost
 from stage_gen.components.sideview_layers.pipeline import (
-    layer_repeat_policies,
-    loop_layer,
     validate_provider_image,
 )
 from stage_gen.components.sideview_map_design import DesignBrief, design_chunks
@@ -85,13 +78,11 @@ from stage_gen.components.sideview_terrain.atlas import (
     terrain_atlas_generation_prompt,
 )
 from stage_gen.media import (
-    LOOP_METHODS,
     AlphaComponentRepackContract,
     LoopConstruction,
     SeamConditioning,
     data_url,
     repack_alpha_components,
-    trim_layer_to_alpha_box,
 )
 from stage_gen.media.codec import decode_rgba, encode_png
 from stage_gen.orchestration.game_package import ResolvedGamePackage
@@ -160,6 +151,32 @@ class PreparedWorldNodeHandler(RecipeNodeHandler):
         self._structured = structured_service
         self._terrain_template_path = terrain_template_path
         self._terrain_topology_reference_path = terrain_topology_reference_path
+        self._layers = LayerHandlers(
+            LayerHost(
+                run_dir=run_dir,
+                layer=lambda node: self._node_layer(node, self._node_map(node)),
+                fallback=lambda node: self._node_map(node).continuity.loop_fallback,
+                label=lambda node: f"{node.params['map_id']}/{node.params['layer_id']}",
+                metadata=lambda node: {
+                    "checkpoint": "world",
+                    "map_id": node.params["map_id"],
+                    "layer_id": node.params["layer_id"],
+                },
+                references=lambda node: self._image_references(
+                    self._node_map(node), self._node_layer(node, self._node_map(node)).reference_ids
+                ),
+                loop_prompt=lambda node, layer, conditioning, construction: self._loop_prompt(
+                    layer, conditioning, construction
+                ),
+                generate_prompt=self._layer_prompt,
+                component=SoftwareIdentity(
+                    name="@stage-gen/sideview-platformer", version=WORLD_HANDLER_VERSION
+                ),
+                handler_version=WORLD_HANDLER_VERSION,
+            ),
+            graph=graph,
+            image_service=image_service,
+        )
         super().__init__(
             graph,
             run_dir=run_dir,
@@ -249,10 +266,10 @@ class PreparedWorldNodeHandler(RecipeNodeHandler):
 
         return (
             (PACKAGE_RESOLVE, self._resolve_package),
-            (MAP_LAYER_GENERATE, self._generate_layer),
-            (MAP_LAYER_LOOP_PAINT, self._paint_layer_loop),
-            (MAP_LAYER_LOOP_CONSTRUCT, self._construct_layer_loop),
-            (MAP_LAYER_VALIDATE, self._validate_layer),
+            (MAP_LAYER_GENERATE, self._layers.generate),
+            (MAP_LAYER_LOOP_PAINT, self._layers.loop),
+            (MAP_LAYER_LOOP_CONSTRUCT, self._layers.loop),
+            (MAP_LAYER_VALIDATE, self._layers.validate),
             (MAP_TERRAIN_DESIGN, self._generate_terrain),
             (MAP_GROUND_GENERATE, self._generate_ground),
             (MAP_GROUND_VALIDATE, self._validate_ground),
@@ -345,206 +362,6 @@ class PreparedWorldNodeHandler(RecipeNodeHandler):
         validate_generated_terrain(game_map, terrain)
         atomic_write_json(output, json.loads(canonical_prepared_map_terrain_json(terrain)))
         return self._result(node, provider_operations=len(attempts))
-
-    async def _generate_layer(self, node: Node) -> NodeExecutionResult:
-        game_map = self._node_map(node)
-        layer = self._node_layer(node, game_map)
-        output = self._run_dir / node.port("image").artifact_ref
-        prompt = self._map_prompt(game_map, layer.prompt) + (
-            "\nOutput one horizontally seamless repeat unit. The left and right edges must join "
-            "without a visible seam. "
-        )
-        transparent = layer.alpha_mode == "transparent"
-        prompt += (
-            "Isolate only this layer on a fully transparent background with true alpha."
-            if transparent
-            else "Output a completely opaque sky plate with no transparency."
-        )
-        references = self._image_references(game_map, layer.reference_ids)
-        result = await self._images.generate(
-            ImageGenerationRequest(
-                prompt=prompt,
-                artifact_path=output,
-                input_references=references,
-                quality="high",
-                background="transparent" if transparent else "opaque",
-                output_format="png",
-                size="1536x1024",
-                timeout_seconds=600,
-                metadata={
-                    "checkpoint": "world",
-                    "map_id": game_map.map_id,
-                    "layer_id": layer.layer_id,
-                },
-                validate=lambda artifact: validate_provider_image(
-                    artifact.data, width=1536, height=1024, transparent=transparent
-                ),
-            )
-        )
-        return self._result(
-            node,
-            attempts=result.attempts,
-            provider_operations=result.attempts,
-        )
-
-    async def _paint_layer_loop(self, node: Node) -> NodeExecutionResult:
-        """The generative route: admission first, then a provider edit when it fails."""
-
-        return await self._layer_loop(node)
-
-    async def _construct_layer_loop(self, node: Node) -> NodeExecutionResult:
-        """The local route: admission first, then a deterministic construction."""
-
-        return await self._layer_loop(node)
-
-    async def _layer_loop(self, node: Node) -> NodeExecutionResult:
-        """Admit the generated layer as a loop, or construct one by the declared construction.
-
-        The layer's own selection wins over the map's. A map's layers do not share a difficulty:
-        one whose ends already agree loops under any construction, while one whose ends disagree
-        in the source art fails under all of them, and a single map-wide choice cannot say so.
-
-        Which of the two loop types the plan carries follows from that same selection, so both
-        routes read one implementation: the branch below is the declaration the builder read.
-        """
-
-        game_map = self._node_map(node)
-        layer = self._node_layer(node, game_map)
-        _producer, source_port = dependency_port(self._graph, node, kind="map-layer-raw-v1")
-        raw_data = (self._run_dir / source_port.artifact_ref).read_bytes()
-        construction = layer.loop_construction or game_map.continuity.loop_construction
-        generative = LOOP_METHODS[construction].is_generative
-        edit_ref = node.port("edit_image").artifact_ref if generative else None
-
-        async def paint(conditioning: SeamConditioning) -> tuple[bytes, int]:
-            assert edit_ref is not None
-            edit_path = self._run_dir / edit_ref
-            transparent = layer.alpha_mode == "transparent"
-            generation = await self._images.generate(
-                ImageGenerationRequest(
-                    prompt=self._loop_prompt(layer, conditioning, construction),
-                    artifact_path=edit_path,
-                    input_references=(
-                        ImageReference(
-                            data_url(conditioning.conditioning_png, "image/png"),
-                            "loop-conditioning",
-                        ),
-                    ),
-                    mask_reference=ImageReference(
-                        data_url(conditioning.mask_png, "image/png"), "loop-mask"
-                    ),
-                    quality="high",
-                    background="transparent" if transparent else "opaque",
-                    output_format="png",
-                    size=f"{conditioning.width}x{conditioning.height}",
-                    timeout_seconds=600,
-                    metadata={
-                        "checkpoint": "world",
-                        "map_id": game_map.map_id,
-                        "layer_id": layer.layer_id,
-                        "operation": f"loop_{construction}",
-                    },
-                )
-            )
-            return edit_path.read_bytes(), generation.attempts
-
-        outcome = await loop_layer(
-            raw_data,
-            construction=construction,
-            fallback=game_map.continuity.loop_fallback,
-            alpha_mode=layer.alpha_mode,
-            label=f"{game_map.map_id}/{layer.layer_id}",
-            paint=paint if generative else None,
-        )
-        if outcome.edit_bypassed and edit_ref is not None and outcome.edit_data is not None:
-            await _write_local_image(
-                self._run_dir / edit_ref,
-                outcome.edit_data,
-                model="prepared-map-loop-edit-bypass-v1",
-                prompt="Record a provider-free bypass for an already seamless layer.",
-                source_ref=source_port.artifact_ref,
-                source_data=raw_data,
-                validation={"construction": "none", "provider_skipped": True},
-            )
-        inputs = [(source_port.artifact_ref, raw_data)]
-        if outcome.edit_is_the_selected_construction and edit_ref is not None:
-            assert outcome.edit_data is not None
-            inputs.append((edit_ref, outcome.edit_data))
-        await _write_local_image_multi(
-            self._run_dir / node.port("loop_image").artifact_ref,
-            outcome.looped,
-            model=outcome.record["kind"],  # type: ignore[arg-type]
-            prompt="Admit or construct the layer's horizontal loop unit.",
-            inputs=inputs,
-            validation=outcome.record,
-        )
-        atomic_write_json(self._run_dir / node.port("loop_report").artifact_ref, outcome.record)
-        return self._result(node, provider_operations=outcome.provider_operations)
-
-    async def _validate_layer(self, node: Node) -> NodeExecutionResult:
-        layer = self._node_layer(node, self._node_map(node))
-        _producer, loop_port = dependency_port(self._graph, node, kind="map-layer-loop-image-v1")
-        _report_producer, report_port = dependency_port(
-            self._graph, node, kind="layer-loop-report-v1"
-        )
-        raw_path = self._run_dir / loop_port.artifact_ref
-        raw_data = raw_path.read_bytes()
-        construction = json.loads((self._run_dir / report_port.artifact_ref).read_bytes())
-        alpha_policy, coverage = layer_repeat_policies(layer.alpha_mode)
-        canonical = raw_data
-        report = validate_image_repeat(
-            canonical,
-            axis="x",
-            alpha_policy=alpha_policy,
-            coverage_policy=coverage,
-            validation_policy=ImageRepeatValidationPolicy(),
-        )
-        if report.verdict != "pass":
-            raise ValueError("constructed map layer failed deterministic x-repeat validation")
-        trimmed, trim = trim_layer_to_alpha_box(canonical)
-        trim_report = validate_image_repeat(
-            trimmed,
-            axis="x",
-            alpha_policy=alpha_policy,
-            coverage_policy=coverage,
-            validation_policy=ImageRepeatValidationPolicy(),
-        )
-        if trim_report.verdict != "pass":
-            # The bytes that ship must be the bytes that passed. Trimming empty rows can change
-            # the edge statistics, so the artifact is re-admitted after the trim rather than
-            # inheriting a verdict earned by a raster we no longer publish.
-            raise ValueError("trimmed map layer failed deterministic x-repeat validation")
-        placement = _resolve_layer_placement(layer, trim)
-        output = self._run_dir / node.port("image").artifact_ref
-        validation_path = self._run_dir / node.port("validation").artifact_ref
-        preview_path = self._run_dir / node.port("repeat_preview").artifact_ref
-        await _write_local_image(
-            output,
-            trimmed,
-            model=LAYER_PLACEMENT_CANONICALIZER,
-            prompt=(
-                "Trim the constructed map loop unit to its alpha box vertically while preserving "
-                "the repeat period."
-            ),
-            source_ref=loop_port.artifact_ref,
-            source_data=raw_data,
-            validation={
-                "construction": construction,
-                "repeat": trim_report.model_dump(mode="json"),
-                "trim": trim,
-                "placement": placement,
-            },
-        )
-        atomic_write_json(
-            validation_path,
-            {
-                "repeat": trim_report.model_dump(mode="json"),
-                "trim": trim,
-                "placement": placement,
-            },
-        )
-        atomic_write_bytes(preview_path, _bounded_repeat_preview(trimmed))
-        return self._result(node, provider_operations=0)
 
     async def _generate_ground(self, node: Node) -> NodeExecutionResult:
         game_map = self._node_map(node)
@@ -1238,6 +1055,23 @@ class PreparedWorldNodeHandler(RecipeNodeHandler):
     def _map(self, map_id: str) -> PreparedGameMap:
         return next(item for item in self._package.maps if item.map_id == map_id)
 
+    def _layer_prompt(self, node: Node) -> str:
+        """The painting brief: the map's direction around the layer's own, plus the seam rule."""
+
+        game_map = self._node_map(node)
+        layer = self._node_layer(node, game_map)
+        prompt = self._map_prompt(game_map, layer.prompt) + (
+            "\nOutput one horizontally seamless repeat unit. The left and right edges must join "
+            "without a visible seam. "
+        )
+        transparent = layer.alpha_mode == "transparent"
+        prompt += (
+            "Isolate only this layer on a fully transparent background with true alpha."
+            if transparent
+            else "Output a completely opaque sky plate with no transparency."
+        )
+        return prompt
+
     def _map_prompt(self, game_map: PreparedGameMap, specific: str) -> str:
         universe = self._package.file(self._package.game.universe.source).data.decode("utf-8")
         style = self._package.game.style
@@ -1440,20 +1274,6 @@ def _composite_layer_top(
     return datum - (1 - offset) * rendered_height
 
 
-def _resolve_layer_placement(layer: PreparedMapLayer, trim: dict[str, object]) -> dict[str, object]:
-    """Resolve one layer's vertical placement through the resolver every recipe shares.
-
-    The rule used to live here. It moved to the shared layer component when the runner gained
-    the same measured placement, so one anchor name cannot mean two things in two genres; the
-    thin wrapper keeps this recipe's call sites and error prefix unchanged.
-    """
-
-    try:
-        return resolve_layer_placement(layer, trim)
-    except ValueError as error:
-        raise ValueError(f"map {error}") from error
-
-
 def _canonicalize_x_wrap(
     data: bytes,
     *,
@@ -1535,18 +1355,6 @@ def _canonicalize_x_wrap(
 
 def _png_bytes(image: Image.Image) -> bytes:
     return encode_png(image)
-
-
-def _bounded_repeat_preview(data: bytes) -> bytes:
-    preview_data = build_three_repeat_preview(data, axis="x")
-    with Image.open(io.BytesIO(preview_data)) as opened:
-        preview = opened.convert("RGB")
-    if preview.width > 4_608:
-        target_height = round(preview.height * 4_608 / preview.width)
-        preview = preview.resize((4_608, target_height), Image.Resampling.LANCZOS)
-    stream = io.BytesIO()
-    preview.save(stream, format="PNG", optimize=False)
-    return stream.getvalue()
 
 
 def _ground_preview(

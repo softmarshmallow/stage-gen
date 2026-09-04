@@ -57,14 +57,16 @@ from stage_gen.components.sideview_layers.contract import (
     RUNTIME_ONLY_LAYER_FIELDS,
     loop_method_identity,
 )
+from stage_gen.components.sideview_layers.nodes import (
+    LayerLayout,
+    LayerNodeTypes,
+    add_layer_nodes,
+)
 from stage_gen.components.sideview_terrain.atlas import (
     MATERIAL_ASSEMBLER_ID,
     MATERIAL_SOURCE_CONTRACT_ID,
 )
 from stage_gen.config import StageGenConfig
-from stage_gen.media import (
-    LOOP_METHODS,
-)
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.ports import artifact_port, object_digest, record_port, text_digest
 from stage_gen.recipes.sideview_platformer.execution_graph import (
@@ -88,7 +90,7 @@ from stage_gen.recipes.sideview_platformer.package_types import (
     DIALOGUE_ATLAS_GENERATE,
     DIALOGUE_ATLAS_VALIDATE,
     GAMEPLAY_BINDINGS_VALIDATE,
-    IMAGE_FEATURES,
+    IMAGE_EDIT_FEATURES,
     MANIFEST_ASSEMBLE,
     MAP_CLIMBABLE_GENERATE,
     MAP_CLIMBABLE_VALIDATE,
@@ -164,7 +166,7 @@ def package_graph_profile(config: StageGenConfig) -> BindingTable:
             Binding(
                 operation=OperationKind.IMAGE_GENERATION,
                 model=ModelRef(model=config.openai_image_model, provider="openai"),
-                features=frozenset(IMAGE_FEATURES),
+                features=frozenset(IMAGE_EDIT_FEATURES),
                 resource_id="openai-image",
                 estimated_duration_seconds=120.0,
                 estimated_cost_low_usd=0.04,
@@ -303,129 +305,72 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
         )
         layer_validations: list[str] = []
         for layer in game_map.layers:
-            # Vertical placement is consumed downstream of the image, so it must not enter the
-            # generation digest: changing an anchor re-runs one local node instead of re-billing
-            # a provider image that would come back byte-identical.
-            input_digests = (
-                map_direction,
-                object_digest(
-                    layer.model_dump(mode="json", exclude=set(NON_GENERATIVE_LAYER_FIELDS))
-                ),
-                *_reference_digests(references, layer.reference_ids),
-            )
-            generated = builder.add(
-                MAP_LAYER_GENERATE,
-                f"map-{game_map.map_id}-layer-{layer.layer_id}-generate",
-                domain=f"map-{game_map.map_id}",
-                description=f"generate map layer {game_map.map_id}/{layer.layer_id}",
-                params={"map_id": game_map.map_id, "layer_id": layer.layer_id},
-                depends_on=(package_root,),
-                cache_depends_on=(),
-                input_digests=input_digests,
-                ports=(
-                    artifact_port(
-                        "image",
-                        f"maps/{game_map.map_id}/layers/{layer.layer_id}.raw.png",
-                        "map-layer-raw-v1",
-                    ),
-                ),
-            )
-            # Loop construction sits between generation and validation because the generative
-            # constructions need a provider call while the deterministic ones are purely local.
-            # Which node kind this is follows from the construction's own declaration rather than
-            # from a name comparison here. Admission runs first inside the node either way, so a
-            # layer the model already returned as a clean repeat unit costs nothing on any route.
             # The layer may override the map's construction, so resolve before anything reads it.
             construction = layer.loop_construction or game_map.continuity.loop_construction
-            method = LOOP_METHODS[construction]
-            # Identity is scoped to the construction this layer actually selected. Binding every
-            # construction's version here, as this once did, meant revising any one of them
-            # re-ran the loop node for every layer in every map regardless of what it selected.
-            loop_digests = (
-                object_digest(
-                    {
-                        **loop_method_identity(
-                            construction, fallback=game_map.continuity.loop_fallback
-                        ),
-                        "alpha_mode": layer.alpha_mode,
-                    }
-                ),
-            )
             layer_root = f"maps/{game_map.map_id}/layers/{layer.layer_id}"
-            layer_params = {"map_id": game_map.map_id, "layer_id": layer.layer_id}
-            loop_ports = (
-                artifact_port("loop_image", f"{layer_root}.loop.png", "map-layer-loop-image-v1"),
-                record_port("loop_report", f"{layer_root}.loop.json", "layer-loop-report-v1"),
-                # The repaint intermediate exists only when admission escalates to
-                # a provider edit; declaring it keeps that channel visible.
-                artifact_port("edit_image", f"{layer_root}.edit.png", "map-layer-loop-edit-v1"),
-            )
-            loop_card = NodeCard(
-                reference_inputs=(PortRef(node_id=generated.node_id, port_id="image"),)
-            )
-            if method.is_generative:
-                looped = builder.add(
-                    MAP_LAYER_LOOP_PAINT,
-                    f"map-{game_map.map_id}-layer-{layer.layer_id}-loop",
+            layer_validations.append(
+                add_layer_nodes(
+                    builder,
+                    types=LayerNodeTypes(
+                        generate=MAP_LAYER_GENERATE,
+                        loop_paint=MAP_LAYER_LOOP_PAINT,
+                        loop_construct=MAP_LAYER_LOOP_CONSTRUCT,
+                        validate=MAP_LAYER_VALIDATE,
+                    ),
+                    layer=layer,
+                    construction=construction,
+                    node_ids=(
+                        f"map-{game_map.map_id}-layer-{layer.layer_id}-generate",
+                        f"map-{game_map.map_id}-layer-{layer.layer_id}-loop",
+                        f"map-{game_map.map_id}-layer-{layer.layer_id}-validate",
+                    ),
                     domain=f"map-{game_map.map_id}",
-                    description=(
-                        f"admit the x-axis loop for {layer.layer_id}, else {construction}"
+                    depends_on=(package_root,),
+                    # Vertical placement is consumed downstream of the image, so it must not
+                    # enter the generation digest: changing an anchor re-runs one local node
+                    # instead of re-billing a provider image that would come back identical.
+                    generate_digests=(
+                        map_direction,
+                        object_digest(
+                            layer.model_dump(mode="json", exclude=set(NON_GENERATIVE_LAYER_FIELDS))
+                        ),
+                        *_reference_digests(references, layer.reference_ids),
                     ),
-                    params=layer_params,
-                    # The generated raster is this node's content input, so the
-                    # edge is cache lineage: a repainted layer must never be
-                    # served a loop derived from the discarded image.
-                    depends_on=(generated.node_id,),
-                    input_digests=loop_digests,
-                    ports=loop_ports,
-                    card=loop_card,
+                    # Identity is scoped to the construction this layer actually selected.
+                    loop_digests=(
+                        object_digest(
+                            {
+                                **loop_method_identity(
+                                    construction, fallback=game_map.continuity.loop_fallback
+                                ),
+                                "alpha_mode": layer.alpha_mode,
+                            }
+                        ),
+                    ),
+                    layout=LayerLayout(
+                        raw=f"{layer_root}.raw.png",
+                        loop=f"{layer_root}.loop.png",
+                        loop_report=f"{layer_root}.loop.json",
+                        loop_edit=f"{layer_root}.edit.png",
+                        image=f"{layer_root}.png",
+                        validation=f"{layer_root}.validation.json",
+                        repeat_preview=f"{layer_root}.repeat.png",
+                    ),
+                    params={"map_id": game_map.map_id, "layer_id": layer.layer_id},
+                    # This recipe's admission key as it shipped: the map reviews depend on it.
+                    validate_digests=(
+                        object_digest(
+                            layer.model_dump(mode="json", exclude=set(RUNTIME_ONLY_LAYER_FIELDS))
+                        ),
+                        object_digest(
+                            {
+                                "canonicalizer": "prepared-map-loop-construction-v1",
+                                "placement": LAYER_PLACEMENT_CANONICALIZER,
+                            }
+                        ),
+                    ),
                 )
-            else:
-                looped = builder.add(
-                    MAP_LAYER_LOOP_CONSTRUCT,
-                    f"map-{game_map.map_id}-layer-{layer.layer_id}-loop",
-                    domain=f"map-{game_map.map_id}",
-                    description=(
-                        f"admit the x-axis loop for {layer.layer_id}, else {construction}"
-                    ),
-                    params=layer_params,
-                    depends_on=(generated.node_id,),
-                    input_digests=loop_digests,
-                    ports=loop_ports[:2],
-                    card=loop_card,
-                    duration_seconds=1.0,
-                )
-            validated = builder.add(
-                MAP_LAYER_VALIDATE,
-                f"map-{game_map.map_id}-layer-{layer.layer_id}-validate",
-                domain=f"map-{game_map.map_id}",
-                description=f"validate alpha and x-axis repeat admission for {layer.layer_id}",
-                params=layer_params,
-                depends_on=(looped.node_id,),
-                input_digests=(
-                    object_digest(
-                        layer.model_dump(mode="json", exclude=set(RUNTIME_ONLY_LAYER_FIELDS))
-                    ),
-                    object_digest(
-                        {
-                            "canonicalizer": "prepared-map-loop-construction-v1",
-                            "placement": LAYER_PLACEMENT_CANONICALIZER,
-                        }
-                    ),
-                ),
-                ports=(
-                    artifact_port("image", f"{layer_root}.png", "map-layer-v1"),
-                    record_port(
-                        "validation", f"{layer_root}.validation.json", "layer-validation-v1"
-                    ),
-                    record_port("repeat_preview", f"{layer_root}.repeat.png", "repeat-preview-v1"),
-                ),
-                card=NodeCard(
-                    reference_inputs=(PortRef(node_id=looped.node_id, port_id="loop_image"),)
-                ),
-                duration_seconds=1.0,
             )
-            layer_validations.append(validated.node_id)
 
         # Terrain shape is generated the way artwork is generated: the map states a generator and
         # a brief, this node produces geometry, and the result is an artifact with provenance.

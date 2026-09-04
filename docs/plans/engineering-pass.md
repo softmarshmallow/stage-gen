@@ -668,6 +668,26 @@ write trap is inert for 17 of 20 slices because the steps mutate scene fields, n
 the world - typed `?: never` so nothing can pretend otherwise.
 
 
+**2026-09-04 — D8 closed: the layer node family.** With D7's proving half gone,
+`components/sideview_layers/nodes.py` exports the four types at the taxonomy's
+`2d/sideview/loop_x`, the graph helper (the loop type follows the construction, which is
+stamped in the loop's params for both recipes now), the provider gate with a host's
+floors (`LayerGate`: the runner's three measured minima, the platformer's bare canvas
+gate), `publish_layer` (trim, place, re-admit after the trim - the runner had skipped
+that re-admission), and `LayerHandlers` over a `LayerHost`. The admission record is one
+shape both manifests read; an opaque cover is placed only where the host places covers.
+Both recipes declare the family through `layer_node_types(identity_prefix=…)` and keep
+their shipped identities and contracts for the paid nodes. Measured against the last
+published plans: **Bellweather 0 keys moved** - its admission key and contract were
+kept as shipped because the two map reviews (paid, evidence) depend on it, and converging
+it would have re-billed them; **Iron Petal 3 local keys** (the three layer admissions
+converging on the family's) plus the manifest downstream, no provider key. Both
+topology digests and the Iron Petal golden re-pinned with the reason. The platformer's
+image route now declares the masked edit its loop repaint sends. D8's three families
+are done: the runner and the platformer register the same soundtrack, motion-rebase and
+layer kits, and a third side-view genre would register them the same way.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one

@@ -118,12 +118,14 @@ from stage_gen.components.sideview_actor.motion_rebase_nodes import (
     MotionRebaseHost,
     RebaseSubject,
 )
-from stage_gen.components.sideview_layers.contract import resolve_layer_placement
+from stage_gen.components.sideview_layers.nodes import (
+    LayerGate,
+    LayerHandlers,
+    LayerHost,
+    admit_layer_candidate,
+)
 from stage_gen.components.sideview_layers.pipeline import (
     layer_repeat_policies,
-    loop_conditioning,
-    loop_layer,
-    validate_provider_image,
 )
 from stage_gen.components.sideview_terrain import (
     assemble_terrain_atlas,
@@ -145,8 +147,6 @@ from stage_gen.identity import (
     STAGE_GEN_TOOL,
 )
 from stage_gen.media import (
-    LOOP_METHODS,
-    SeamConditioning,
     data_url,
     probe_audio,
     validate_music_payload,
@@ -186,9 +186,7 @@ from stage_gen.recipes.sideview_runner.runner_types import (
     GROUND_RAW_KIND,
     LAYER_GENERATE,
     LAYER_LOOP_CONSTRUCT,
-    LAYER_LOOP_KIND,
     LAYER_LOOP_PAINT,
-    LAYER_RAW_KIND,
     LAYER_VALIDATE,
     MANIFEST_ASSEMBLE,
     MANIFEST_KIND,
@@ -236,7 +234,6 @@ if TYPE_CHECKING:
     from stage_gen.components.game_voices import GameVoice
     from stage_gen.components.platformer_map import PreparedMapLayer
     from stage_gen.components.runner_track import RunnerSegmentChunk, RunnerTrack
-    from stage_gen.media import LoopConstruction
     from stage_gen.recipes.sideview_runner.runner_request import ResolvedRunnerPackage
 
 RUNNER_HANDLER_VERSION = "1"
@@ -278,9 +275,13 @@ RUNNER_SPRITE_VISIBLE_ALPHA_MIN = 16
 RUNNER_CUTOUT_MIN_TRANSPARENT_FRACTION = 0.10
 RUNNER_CUTOUT_MIN_VISIBLE_FRACTION = 0.005
 RUNNER_CUTOUT_MIN_TRANSPARENT_EDGE_FRACTION = 0.10
-RUNNER_LAYER_MIN_TRANSPARENT_FRACTION = 0.05
-RUNNER_LAYER_MIN_VISIBLE_FRACTION = 0.005
-RUNNER_LAYER_MIN_TRANSPARENT_EDGE_FRACTION = 0.05
+#: A runner's transparent layers must carry meaningful content: the floors measured on the
+#: shipped tracks, below which a "layer" is a wash or a blank.
+RUNNER_LAYER_GATE = LayerGate(
+    minimum_transparent_fraction=0.05,
+    minimum_visible_fraction=0.005,
+    minimum_transparent_edge_fraction=0.05,
+)
 
 _COMPONENT = SoftwareIdentity(name="@stage-gen/sideview-runner", version=RUNNER_HANDLER_VERSION)
 
@@ -380,38 +381,6 @@ def _validate_transparent_sprite(data: bytes) -> dict[str, object]:
     }
 
 
-def _publish_runner_layer(
-    layer: PreparedMapLayer, looped: bytes
-) -> tuple[bytes, dict[str, object]]:
-    """Trim a looped layer and resolve its placement, once, for the node and its cache mirror.
-
-    Module-level and pure so the live validate node and the byte-exact cache admission cannot
-    drift: they must produce identical records or every cached run becomes a permanent miss. A
-    transparent layer's offset is resolved from the raster it actually received, through the
-    resolver the platformer shares; the opaque cover is placed by its anchor alone.
-    """
-
-    if layer.alpha_mode == "transparent":
-        published, trim = trim_layer_to_alpha_box(looped)
-        placement: dict[str, object] | None = resolve_layer_placement(layer, trim)
-    else:
-        published, trim, placement = looped, {"trimmed": False}, None
-    with Image.open(io.BytesIO(published)) as opened:
-        width, height = opened.size
-    validation: dict[str, object] = {
-        "schema_version": 2,
-        "kind": "sideview-runner-layer-validation-v2",
-        "layer_id": layer.layer_id,
-        "alpha_mode": layer.alpha_mode,
-        "vertical_anchor": layer.vertical_anchor,
-        "width": width,
-        "height": height,
-        "trim": trim,
-        "placement": placement,
-    }
-    return published, validation
-
-
 def _published_layer_offset(validation: dict[str, object]) -> float | None:
     """The producer-resolved offset, or None for the opaque cover that has no placement."""
 
@@ -426,22 +395,6 @@ def _published_layer_offset_source(validation: dict[str, object]) -> str | None:
     if not isinstance(placement, dict):
         return None
     return cast("str", placement["vertical_offset_source"])
-
-
-def _validate_layer_candidate(data: bytes, *, transparent: bool) -> dict[str, object]:
-    return validate_provider_image(
-        data,
-        width=1536,
-        height=1024,
-        transparent=transparent,
-        minimum_transparent_fraction=(
-            RUNNER_LAYER_MIN_TRANSPARENT_FRACTION if transparent else 0.0
-        ),
-        minimum_visible_fraction=(RUNNER_LAYER_MIN_VISIBLE_FRACTION if transparent else 0.0),
-        minimum_transparent_edge_fraction=(
-            RUNNER_LAYER_MIN_TRANSPARENT_EDGE_FRACTION if transparent else 0.0
-        ),
-    )
 
 
 def canonicalize_runner_catalog_sprite(
@@ -835,6 +788,32 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
         self._speech = speech_service
         self._timeout = capability_timeout_s
         soundtrack = resolved.runner.soundtrack
+        self._layers = LayerHandlers(
+            LayerHost(
+                run_dir=run_dir,
+                layer=self._layer,
+                fallback=lambda _node: self._track().continuity.loop_fallback,
+                label=lambda node: f"{self._track().track_id}/{node.params['layer_id']}",
+                metadata=lambda node: {
+                    "track_id": self._track().track_id,
+                    "layer_id": node.params["layer_id"],
+                },
+                references=self._authored_references,
+                loop_prompt=lambda node, _layer, _conditioning, _construction: (
+                    self._provider_prompt(node)
+                ),
+                component=_COMPONENT,
+                handler_version=RUNNER_HANDLER_VERSION,
+                gate=RUNNER_LAYER_GATE,
+                # The opaque cover ships as painted and is placed by its anchor alone.
+                place_opaque=False,
+            ),
+            graph=graph,
+            image_service=image_service,
+            provider_call=lambda node, _role, _prompt, thunk: self._execute_provider_operation(
+                node, thunk
+            ),
+        )
         self._rebase = MotionRebaseHandlers(
             MotionRebaseHost(
                 run_dir=run_dir,
@@ -1088,52 +1067,6 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
                     projection=self._structural_projection(),
                 ),
             )
-        if node.type_id == LAYER_GENERATE.type_id:
-            layer = self._layer(node)
-            transparent = layer.alpha_mode == "transparent"
-            return ImageGenerationRequest(
-                prompt=self._card_prompt(node),
-                artifact_path=output,
-                input_references=self._authored_references(node),
-                quality="high",
-                background="transparent" if transparent else "opaque",
-                output_format="png",
-                size="1536x1024",
-                timeout_seconds=600,
-                metadata={"track_id": self._track().track_id, "layer_id": layer.layer_id},
-                validate=lambda artifact: _validate_layer_candidate(
-                    artifact.data, transparent=transparent
-                ),
-            )
-        if node.type_id == LAYER_LOOP_PAINT.type_id:
-            layer = self._layer(node)
-            construction = cast("LoopConstruction", node.params["construction"])
-            source_ref = self._dependency_artifact(node, kind=LAYER_RAW_KIND)
-            source = (self._run_dir / source_ref).read_bytes()
-            conditioning = loop_conditioning(construction, source)
-            return ImageGenerationRequest(
-                prompt=self._provider_prompt(node),
-                artifact_path=output,
-                input_references=(
-                    ImageReference(
-                        data_url(conditioning.conditioning_png, "image/png"),
-                        "loop-conditioning",
-                    ),
-                ),
-                mask_reference=ImageReference(
-                    data_url(conditioning.mask_png, "image/png"), "loop-mask"
-                ),
-                quality="high",
-                background=("transparent" if layer.alpha_mode == "transparent" else "opaque"),
-                output_format="png",
-                size=f"{conditioning.width}x{conditioning.height}",
-                timeout_seconds=600,
-                metadata={
-                    "track_id": self._track().track_id,
-                    "layer_id": layer.layer_id,
-                    "operation": f"loop_{construction}",
-                },
-            )
         if node.type_id in (AVATAR_CONCEPT_GENERATE.type_id, BOSS_CONCEPT_GENERATE.type_id):
             subject = self._actor(node)
             return ImageGenerationRequest(
@@ -1292,7 +1225,9 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
             return
         if node.type_id == LAYER_GENERATE.type_id:
             layer = self._layer(node)
-            _validate_layer_candidate(data, transparent=layer.alpha_mode == "transparent")
+            admit_layer_candidate(
+                data, transparent=layer.alpha_mode == "transparent", gate=RUNNER_LAYER_GATE
+            )
             return
         if node.type_id in (AVATAR_CONCEPT_GENERATE.type_id, BOSS_CONCEPT_GENERATE.type_id):
             facts = _validate_transparent_sprite(data)
@@ -1663,6 +1598,30 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
         )
         return self._result(node)
 
+    async def _generate_layer(self, node: Node) -> NodeExecutionResult:
+        # The family paints; this recipe's result writes the attempt ledger beside it.
+        result = await self._layers.generate(node)
+        return self._result(
+            node, attempts=result.attempts, provider_operations=result.provider_operations
+        )
+
+    async def _layer_loop(self, node: Node) -> NodeExecutionResult:
+        result = await self._layers.loop(node)
+        report = json.loads((self._run_dir / node.port("loop_report").artifact_ref).read_bytes())
+        return self._result(
+            node,
+            attempts=result.attempts,
+            provider_operations=result.provider_operations,
+            provider_output_selected=(
+                result.provider_operations > 0
+                and report["construction"] == node.params["construction"]
+            ),
+        )
+
+    async def _validate_layer(self, node: Node) -> NodeExecutionResult:
+        await self._layers.validate(node)
+        return self._result(node)
+
     async def _generate_ground(self, node: Node) -> NodeExecutionResult:
         request = self._image_generation_request(node)
         result = await self._execute_provider_operation(
@@ -1816,83 +1775,6 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
             model=STRUCTURAL_GROUND_CANONICALIZER_ID,
         )
         atomic_write_json(self._run_dir / node.port("validation").artifact_ref, report)
-        return self._result(node)
-
-    async def _generate_layer(self, node: Node) -> NodeExecutionResult:
-        request = self._image_generation_request(node)
-        result = await self._execute_provider_operation(
-            node, lambda: self._images.generate(request)
-        )
-        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
-
-    async def _layer_loop(self, node: Node) -> NodeExecutionResult:
-        layer = self._layer(node)
-        construction = cast("LoopConstruction", node.params["construction"])
-        source_ref = self._dependency_artifact(node, kind=LAYER_RAW_KIND)
-        raw_data = (self._run_dir / source_ref).read_bytes()
-        generative = LOOP_METHODS[construction].is_generative
-        edit_ref = node.port("edit_image").artifact_ref if generative else None
-
-        async def paint(_conditioning: SeamConditioning) -> tuple[bytes, int]:
-            assert edit_ref is not None
-            request = self._image_generation_request(node)
-            generation = await self._execute_provider_operation(
-                node, lambda: self._images.generate(request)
-            )
-            return (self._run_dir / edit_ref).read_bytes(), generation.attempts
-
-        outcome = await loop_layer(
-            raw_data,
-            construction=construction,
-            fallback=self._track().continuity.loop_fallback,
-            alpha_mode=layer.alpha_mode,
-            label=f"{self._track().track_id}/{layer.layer_id}",
-            paint=paint if generative else None,
-        )
-        if outcome.edit_bypassed and edit_ref is not None and outcome.edit_data is not None:
-            await _write_local_image(
-                self._run_dir / edit_ref,
-                outcome.edit_data,
-                prompt=f"Record the skipped {layer.layer_id} loop edit without provider use.",
-                inputs=[(source_ref, raw_data)],
-                validation={"construction": "none", "provider_skipped": True},
-                model="sideview-runner-loop-edit-bypass-v1",
-            )
-        loop_inputs = [(source_ref, raw_data)]
-        if outcome.edit_is_the_selected_construction and edit_ref is not None:
-            assert outcome.edit_data is not None
-            loop_inputs.append((edit_ref, outcome.edit_data))
-        record = outcome.record
-        await _write_local_image(
-            self._run_dir / node.port("loop_image").artifact_ref,
-            outcome.looped,
-            prompt=f"Loop the {layer.layer_id} layer by {record['construction']}.",
-            inputs=loop_inputs,
-            validation={"construction": record["construction"]},
-        )
-        atomic_write_json(self._run_dir / node.port("loop_report").artifact_ref, record)
-        return self._result(
-            node,
-            attempts=max(1, outcome.provider_operations),
-            provider_operations=outcome.provider_operations,
-            provider_output_selected=(
-                outcome.provider_operations > 0 and record["construction"] == construction
-            ),
-        )
-
-    async def _validate_layer(self, node: Node) -> NodeExecutionResult:
-        layer = self._layer(node)
-        source_ref = self._dependency_artifact(node, kind=LAYER_LOOP_KIND)
-        looped = (self._run_dir / source_ref).read_bytes()
-        published, validation = _publish_runner_layer(layer, looped)
-        await _write_local_image(
-            self._run_dir / node.port("image").artifact_ref,
-            published,
-            prompt=f"Publish the admitted {layer.layer_id} loop unit.",
-            inputs=[(source_ref, looped)],
-            validation=validation,
-        )
-        atomic_write_json(self._run_dir / node.port("validation").artifact_ref, validation)
         return self._result(node)
 
     async def _generate_concept(self, node: Node) -> NodeExecutionResult:

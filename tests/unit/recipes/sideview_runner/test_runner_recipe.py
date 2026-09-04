@@ -11,10 +11,11 @@ from pathlib import Path
 import pytest
 from PIL import Image, ImageDraw
 
+from stage_gen.components.sideview_layers.nodes import admit_layer_candidate
 from stage_gen.config import StageGenConfig
 from stage_gen.recipes.sideview_runner.prepared_runner import (
+    RUNNER_LAYER_GATE,
     _validate_catalog_candidate,
-    _validate_layer_candidate,
     _validate_motion_candidate,
     _validate_motion_source,
     _validate_transparent_sprite,
@@ -415,7 +416,7 @@ def test_native_alpha_gates_reject_an_opaque_canvas_with_one_transparent_corner(
     layer_encoded = BytesIO()
     layer.save(layer_encoded, format="PNG", optimize=False)
     with pytest.raises(ValueError, match="transparent negative space"):
-        _validate_layer_candidate(layer_encoded.getvalue(), transparent=True)
+        admit_layer_candidate(layer_encoded.getvalue(), transparent=True, gate=RUNNER_LAYER_GATE)
 
 
 def test_native_alpha_gates_reject_near_opaque_canvases_below_the_negative_space_floor() -> None:
@@ -431,7 +432,7 @@ def test_native_alpha_gates_reject_near_opaque_canvases_below_the_negative_space
     layer_encoded = BytesIO()
     layer.save(layer_encoded, format="PNG", optimize=False)
     with pytest.raises(ValueError, match="transparent negative space"):
-        _validate_layer_candidate(layer_encoded.getvalue(), transparent=True)
+        admit_layer_candidate(layer_encoded.getvalue(), transparent=True, gate=RUNNER_LAYER_GATE)
 
 
 def test_native_alpha_gates_require_negative_space_to_reach_the_canvas_edge() -> None:
@@ -447,7 +448,7 @@ def test_native_alpha_gates_require_negative_space_to_reach_the_canvas_edge() ->
     layer_encoded = BytesIO()
     layer.save(layer_encoded, format="PNG", optimize=False)
     with pytest.raises(ValueError, match="transparent edge separation"):
-        _validate_layer_candidate(layer_encoded.getvalue(), transparent=True)
+        admit_layer_candidate(layer_encoded.getvalue(), transparent=True, gate=RUNNER_LAYER_GATE)
 
 
 def test_a_slide_free_avatar_fans_out_no_slide_nodes(tmp_path: Path) -> None:

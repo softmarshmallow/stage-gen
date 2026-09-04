@@ -40,7 +40,11 @@ BELLWEATHER_NODE_COUNT = 230
 # v12, and the terminal port kind is the manifest identity. No cache key moved.
 # Re-pinned when the inventory-panel family moved to `game_ui` (B7): the triplet's type ids
 # are the family's; all three keep this recipe's cache identity. No cache key moved.
-BELLWEATHER_TOPOLOGY_SHA256 = "e66804985e78d4a49bd9025c9734d471563db8913db8e0b6e73a84db809e67c8"
+# Re-pinned when the layer family moved to `sideview_layers` (D8): the four type ids, the
+# port kinds and the construction stamped in the loop's params are the family's; every node
+# keeps this recipe's cache identity and contracts, the admission's included because the map
+# reviews depend on it. No cache key moved.
+BELLWEATHER_TOPOLOGY_SHA256 = "61af6a11d4b4fcb2eb2d91c48b00e820353a7d251b80e7bc5c127263d71a4fdb"
 
 
 def _bellweather_graph() -> ExecutionGraph:

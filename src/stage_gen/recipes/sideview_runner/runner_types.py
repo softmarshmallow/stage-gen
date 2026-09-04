@@ -26,6 +26,14 @@ from stage_gen.components.sideview_actor.motion_rebase_nodes import (
     REBASE_VERIFICATION_KIND,
     motion_rebase_node_types,
 )
+from stage_gen.components.sideview_layers.nodes import (
+    LAYER_LOOP_EDIT_KIND,
+    LAYER_LOOP_KIND,
+    LAYER_LOOP_REPORT_KIND,
+    LAYER_RAW_KIND,
+    LAYER_VALIDATION_KIND,
+    layer_node_types,
+)
 
 _P = "2d/sideview/runner"
 _PROVIDER = NodePolicy(max_attempts=6)
@@ -51,11 +59,6 @@ STRUCTURAL_GROUND_SEAM_BRIDGE_KIND = "runner-structural-ground-seam-bridge-v1"
 STRUCTURAL_GROUND_SEAM_BRIDGE_VALIDATION_KIND = "runner-structural-ground-seam-bridge-validation-v2"
 STRUCTURAL_GROUND_KIND = "runner-structural-ground-v1"
 STRUCTURAL_GROUND_VALIDATION_KIND = "runner-structural-ground-validation-v3"
-LAYER_RAW_KIND = "track-layer-raw-v1"
-LAYER_LOOP_KIND = "track-layer-loop-v1"
-LAYER_LOOP_EDIT_KIND = "track-layer-loop-edit-v1"
-LAYER_LOOP_REPORT_KIND = "track-layer-loop-report-v1"
-LAYER_VALIDATION_KIND = "track-layer-validation-v1"
 AVATAR_CONCEPT_KIND = "avatar-concept-v1"
 BOSS_CONCEPT_KIND = "boss-concept-v1"
 MOTION_RAW_KIND = "avatar-motion-raw-v1"
@@ -155,41 +158,19 @@ TRACK_STRUCTURAL_GROUND_VALIDATE = NodeType(
     contract_version="runner-structural-ground-validate-v3",
 )
 
-LAYER_GENERATE = NodeType(
-    type_id=f"{_P}/layer.generate",
-    title="Track layer painting",
-    archetype=ViewArchetype.IMAGE,
-    operation="image_generation",
-    features=IMAGE_FEATURES,
-    policy=_PROVIDER,
-    contract_version="runner-layer-v3",
+#: The parallax-layer family lives in `sideview_layers`; this recipe shipped it under its
+#: own type ids and contracts, which stay as the cache identity so no layer is paid for
+#: twice. Admission is local and converged on the family's.
+_LAYERS = layer_node_types(
+    identity_prefix=f"{_P}/layer",
+    generate_version="runner-layer-v3",
+    loop_paint_version="runner-layer-loop-v4",
+    loop_construct_version="runner-layer-loop-v1",
 )
-
-LAYER_LOOP_CONSTRUCT = NodeType(
-    type_id=f"{_P}/layer.loop_construct",
-    title="Layer loop construction",
-    archetype=ViewArchetype.TRANSFORM,
-    operation="local",
-    contract_version="runner-layer-loop-v1",
-)
-
-LAYER_LOOP_PAINT = NodeType(
-    type_id=f"{_P}/layer.loop_paint",
-    title="Layer loop repaint",
-    archetype=ViewArchetype.IMAGE,
-    operation="image_generation",
-    features=IMAGE_EDIT_FEATURES,
-    policy=_PROVIDER,
-    contract_version="runner-layer-loop-v4",
-)
-
-LAYER_VALIDATE = NodeType(
-    type_id=f"{_P}/layer.validate",
-    title="Layer admission",
-    archetype=ViewArchetype.VALIDATE,
-    operation="local",
-    contract_version="runner-layer-validate-v1",
-)
+LAYER_GENERATE = _LAYERS.generate
+LAYER_LOOP_PAINT = _LAYERS.loop_paint
+LAYER_LOOP_CONSTRUCT = _LAYERS.loop_construct
+LAYER_VALIDATE = _LAYERS.validate
 
 AVATAR_CONCEPT_GENERATE = NodeType(
     type_id=f"{_P}/avatar_concept.generate",
