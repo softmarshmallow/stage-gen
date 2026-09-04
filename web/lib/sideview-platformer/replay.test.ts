@@ -153,7 +153,7 @@ async function bootReplay(script: Script = WALK_AND_TALK): Promise<Harness> {
     now: () => clockMs,
     verbose: process.env.REPLAY_TRACE === "1",
   });
-  const scene = new PreparedStageScene("replay", "canonical-alpha", "gameplay-v2");
+  const scene = new PreparedStageScene("replay", "canonical-alpha", "capture");
   const engine = scene as unknown as StubScene;
   scene.create();
   await settle();

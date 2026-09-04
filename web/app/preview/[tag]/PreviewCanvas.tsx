@@ -28,19 +28,16 @@ export default function PreviewCanvas({
 
   useEffect(() => {
     let preview: PreparedPreviewGameHandle | undefined;
+    let unsubscribe: (() => void) | undefined;
     let cancelled = false;
-    // One poll, running for as long as the canvas is mounted, mirroring the scene rather than
-    // remembering what this component last did. The scene is the source of truth and it changes
-    // the kit on its own - `K` switches without React hearing anything - so a console that tracked
-    // only its own clicks would sit on a stale answer the moment the keyboard was used. The kit
-    // list doubles as readiness: it is empty until the manifest has loaded and the weapon class has
-    // been settled, so the console is simply not there until there is something true to render.
-    let poll: ReturnType<typeof setInterval> | undefined;
+    const capture = automationMode !== null;
 
     // The browser adapter touches window at construction time, so load it
     // lazily and keep its lifecycle out of the headless pipeline.
     void (async () => {
-      const { bootPreparedGame } = await import("@/lib/sideview-platformer/prepared-scene");
+      const { bootPreparedGame, DEVTOOLS_KIT_SWITCHED } = await import(
+        "@/lib/sideview-platformer/prepared-scene"
+      );
       // Before the scene, not inside it. A Phaser text object rasterises when it is constructed,
       // so a damage number drawn before its face is usable is drawn in a fallback and stays in it,
       // and a capture taken then is a capture of whatever font the machine happened to have.
@@ -49,11 +46,23 @@ export default function PreviewCanvas({
       );
       await loadBrowserCombatTextFont();
       if (cancelled || !ref.current) return;
-      preview = bootPreparedGame(ref.current, tag, transparencyPolicy, automationMode);
+      preview = bootPreparedGame(
+        ref.current,
+        tag,
+        transparencyPolicy,
+        capture ? "capture" : "interactive",
+      );
       handle.current = preview;
-      if (automationMode !== null) return;
-      poll = setInterval(() => {
-        if (cancelled || !preview) return;
+      if (capture) return;
+      // The subscription, not a timer. The scene is still the source of truth
+      // and it changes the kit on its own — `K` switches without React hearing
+      // anything — but it now *says* so, on the frame it happened, through the
+      // handle's own seam. What used to be a 200 ms poll running for as long as
+      // the canvas was mounted is a listener that does nothing on the frames
+      // where nothing changed.
+      unsubscribe = preview.subscribe((_world, frame) => {
+        if (!preview) return;
+        if (!frame.some((event) => event.type === DEVTOOLS_KIT_SWITCHED)) return;
         const options = preview.developerKitOptions();
         setKits((current) => (current.length === options.length ? current : options));
         const scene = preview.activeDeveloperKit();
@@ -62,12 +71,12 @@ export default function PreviewCanvas({
             ? current
             : scene,
         );
-      }, 200);
+      });
     })();
 
     return () => {
       cancelled = true;
-      clearInterval(poll);
+      unsubscribe?.();
       handle.current = null;
       setKits([]);
       setActive(null);
@@ -76,8 +85,8 @@ export default function PreviewCanvas({
   }, [automationMode, tag, transparencyPolicy]);
 
   const select = useCallback((kit: DeveloperKit, isPublished: boolean) => {
-    // Applied immediately for a responsive control, but the poll above is what keeps it true: the
-    // scene owns whether the switch happened, and a refused switch is corrected on the next tick.
+    // Applied immediately for a responsive control, but the subscription above is what keeps it
+    // true: the scene owns whether the switch happened, and it says so on the frame it did.
     if (handle.current?.setDeveloperKit(isPublished ? null : kit)) {
       setActive(isPublished ? null : kit);
     }

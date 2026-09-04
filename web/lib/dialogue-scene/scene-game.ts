@@ -39,7 +39,8 @@ import { NineSliceWidget } from "@/lib/families/ui/widget";
 import { mostReadable } from "@/lib/families/ui/contrast";
 import { registerPresentationFallback } from "@/lib/families/ui/fallback";
 import type { Rect } from "@/lib/shell/hud-geometry";
-import { applyDeviceZoom, currentDevicePixelScale, deviceGameSize } from "@/lib/device-pixels/device-camera";
+import { bootGame, type GameHandle } from "@/lib/hosts/phaser/host";
+import { hostScene } from "@/lib/hosts/phaser/scene-base";
 import {
   dialogueSceneExpression,
   dialogueSceneStage,
@@ -116,9 +117,7 @@ const CHOICE_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   color: PAPER,
 };
 
-export interface DialogueSceneGameHandle {
-  destroy(removeCanvas: boolean): void;
-}
+export type DialogueSceneGameHandle = GameHandle<ScenarioState>;
 
 /** What the scene reports to whatever is hosting it, once per drawn moment. */
 export interface DialogueSceneMoment {
@@ -146,7 +145,7 @@ export interface DialogueSceneOptions {
   readonly onFinish?: (outcome: string, flags: readonly string[]) => void;
 }
 
-class DialogueScene extends Phaser.Scene {
+class DialogueScene extends hostScene<ScenarioState>(Phaser.Scene) {
   private playback: ScenarioState;
   private readonly audio: ScenarioAudio;
 
@@ -169,7 +168,7 @@ class DialogueScene extends Phaser.Scene {
     private readonly fixture: DialogueSceneFixture,
     private readonly options: DialogueSceneOptions = {},
   ) {
-    super("dialogue-scene");
+    super({ key: "dialogue-scene", designSpace: DIALOGUE_STAGE, background: "#05070a" });
     const resumed =
       options.resume == null ? null : restoreScenarioState(fixture.scenario, options.resume);
     this.playback =
@@ -203,8 +202,7 @@ class DialogueScene extends Phaser.Scene {
     for (const [, key, kind] of UI_ATLAS_SHEETS) {
       if (!this.textures.exists(key)) registerPresentationFallback(this.textures, key, kind);
     }
-    // The canvas is device-pixel sized; zoom the camera back to the stage it is written in.
-    applyDeviceZoom(this.cameras.main, DIALOGUE_STAGE);
+    this.zoomToDesignSpace();
     const opening = this.fixture.stages[0]!;
     this.backdrop = this.add
       .image(0, 0, stageKey(opening.stageId))
@@ -227,6 +225,13 @@ class DialogueScene extends Phaser.Scene {
     this.createPanel();
     this.createChoiceLayer();
     this.createCompleteCard();
+    // Phaser's own loader ran in `preload`; reaching here is what "ready" means
+    // for a scene whose assets are all declared images. The backdrop is the one
+    // that cannot be stood in for — the interface sheets have their loud
+    // fallback above — so a stage that will not decode says so on the card the
+    // base owns rather than drawing the engine's missing-texture green.
+    if (this.textures.exists(stageKey(opening.stageId))) this.finishLoading();
+    else this.failLoading("Unable to load scene", new Error(opening.src));
 
     // A tap on the frame advances, because a visual novel with one thing to do
     // needs no button to find. When a choice is up, the tap has to land on an
@@ -387,14 +392,24 @@ class DialogueScene extends Phaser.Scene {
     this.render();
   }
 
-  /** Stop everything on teardown; the script has no say once the scene is gone. */
-  stopAudio(): void {
+  /**
+   * Stop everything on teardown; the script has no say once the scene is gone.
+   *
+   * Phaser tears down its own canvas; the audio elements are ours, and a track
+   * still playing after the player navigated away is the one bug every web
+   * soundtrack has shipped at least once. The one boot runs this before
+   * `game.destroy`, for every scene, which is what turned three dispose orders
+   * into one.
+   */
+  override hostDispose(): void {
     this.audio.stopAll();
+    super.hostDispose();
   }
 
   private render(): void {
     const view = scenarioView(this.fixture.scenario, this.playback);
     this.report(view);
+    this.publish(this.playback);
     this.audio.apply(this.playback.tracks);
     this.renderStage();
     this.renderCast(view?.kind === "line" ? view.speaker : null);
@@ -577,22 +592,5 @@ export function bootDialogueSceneGame(
   fixture: DialogueSceneFixture,
   options: DialogueSceneOptions = {},
 ): DialogueSceneGameHandle {
-  const scene = new DialogueScene(fixture, options);
-  const game = new Phaser.Game({
-    type: Phaser.AUTO,
-    ...deviceGameSize(DIALOGUE_STAGE, currentDevicePixelScale()),
-    parent,
-    backgroundColor: "#05070a",
-    scene: [scene],
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  });
-  return {
-    destroy: (removeCanvas: boolean) => {
-      // Phaser tears down its own canvas; the audio elements are ours, and a
-      // track still playing after the player navigated away is the one bug
-      // every web soundtrack has shipped at least once.
-      scene.stopAudio();
-      game.destroy(removeCanvas);
-    },
-  };
+  return bootGame(parent, new DialogueScene(fixture, options));
 }

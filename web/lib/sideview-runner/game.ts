@@ -11,7 +11,8 @@
 import Phaser from "phaser";
 import { preparedAssetUrl } from "@/lib/shell/asset-url";
 import type { PreviewTransparencyPolicy } from "@/lib/shell/transparency";
-import { applyDeviceZoom, currentDevicePixelScale, deviceGameSize } from "@/lib/device-pixels/device-camera";
+import { bootGame, type GameHandle } from "@/lib/hosts/phaser/host";
+import { hostScene } from "@/lib/hosts/phaser/scene-base";
 import {
   loadFrameStrip,
   loadParallaxLayer,
@@ -271,7 +272,7 @@ interface PickupView {
   readonly phase: number;
 }
 
-class RunnerScene extends Phaser.Scene {
+class RunnerScene extends hostScene<RunnerWorld>(Phaser.Scene) {
   private world?: RunnerWorld;
   private sealed?: SealedSystems<RunnerWorld>;
   private readonly accumulator = createFixedStepAccumulator();
@@ -284,7 +285,11 @@ class RunnerScene extends Phaser.Scene {
     private readonly tag: string,
     private readonly manifest: RunnerRuntimeManifest,
   ) {
-    super("sideview-runner");
+    super({
+      key: "sideview-runner",
+      designSpace: { width: RUNNER_VIEW_WIDTH, height: RUNNER_VIEW_HEIGHT },
+      background: "#000000",
+    });
   }
 
   private url(file: string): string {
@@ -292,36 +297,11 @@ class RunnerScene extends Phaser.Scene {
   }
 
   create(): void {
-    // The canvas is device-pixel sized; zoom the camera back to the design space it is written in.
-    applyDeviceZoom(this.cameras.main, { width: RUNNER_VIEW_WIDTH, height: RUNNER_VIEW_HEIGHT });
-    this.add
-      .text(RUNNER_VIEW_WIDTH / 2, RUNNER_VIEW_HEIGHT / 2, "loading track…", {
-        fontFamily: "system-ui, sans-serif",
-        fontSize: "22px",
-        color: "#98a0ab",
-      })
-      .setOrigin(0.5)
-      .setName("loading-label");
-    void this.buildStage().catch((error: unknown) => {
-      this.children.getByName("loading-label")?.destroy();
-      this.add
-        .text(
-          RUNNER_VIEW_WIDTH / 2,
-          RUNNER_VIEW_HEIGHT / 2,
-          `Unable to load runner track\n${error instanceof Error ? error.message : String(error)}`,
-          {
-            align: "center",
-            color: "#ffffff",
-            fontFamily: "system-ui, sans-serif",
-            fontSize: "20px",
-            backgroundColor: "#5b1720dd",
-            padding: { x: 22, y: 16 },
-            wordWrap: { width: 900 },
-          },
-        )
-        .setOrigin(0.5)
-        .setDepth(1200);
-    });
+    this.zoomToDesignSpace();
+    this.showLoading("loading track\u2026");
+    void this.buildStage()
+      .then(() => this.finishLoading())
+      .catch((error: unknown) => this.failLoading("Unable to load runner track", error));
   }
 
   private async buildStage(): Promise<void> {
@@ -948,59 +928,47 @@ class RunnerScene extends Phaser.Scene {
     for (const step of this.accumulator.advance(delta)) {
       sealed.tick(world, step);
     }
+    // After the sealed order, never inside it: a listener sees a settled world.
+    this.publish(world, world.events.frame);
   }
 
-  sealedOrder(): readonly string[] {
+  override hostSealedOrder(): readonly string[] {
     return this.sealed?.order ?? [];
   }
 
-  restartRun(seed?: number): void {
+  /**
+   * Start the run over, in place.
+   *
+   * `run` is what the death card asks for; a `session` reset of this genre is the
+   * same thing, because the runner's session is one run and the composition has
+   * nothing older than the track to forget.
+   */
+  override hostReset(seed: number): void {
     if (!this.world) return;
-    resetRunnerWorld(this.world, seed ?? this.world.run.seed);
+    resetRunnerWorld(this.world, Number.isFinite(seed) ? seed : this.world.run.seed);
   }
 
-  dispose(): void {
+  override hostDispose(): void {
     for (const disposer of this.disposers.splice(0)) disposer();
+    super.hostDispose();
   }
 }
 
-export interface RunnerGameHandle {
-  destroy(removeCanvas: boolean): void;
-  /** Reset the run in place: same seed replays the same track, a new one varies it. */
-  restart(seed?: number): void;
-  /** The sealed system order, for inspection; empty until assets finish loading. */
-  sealedOrder(): readonly string[];
-}
+export type RunnerGameHandle = GameHandle<RunnerWorld>;
 
 /**
- * Boot one runner track into `parent`, scaled to fit whatever that element
- * is. The design space is fixed at 1280×720; the engine letterboxes. The canvas itself is
- * sized in device pixels and the scene's camera zooms it back, so nothing in the scene is
- * measured in CSS pixels and nothing is drawn at less than screen resolution.
+ * Boot one runner track into `parent`.
+ *
+ * The design space is fixed at 1280x720 and the engine letterboxes; the canvas
+ * itself is sized in device pixels by the host and the scene's camera zooms it
+ * back, so nothing in the scene is measured in CSS pixels and nothing is drawn
+ * at less than screen resolution. Everything that used to be spelled out here is
+ * `bootGame`'s now, and what is left is the scene this genre needs.
  */
 export function bootRunnerGame(
   parent: HTMLElement,
   tag: string,
   manifest: RunnerRuntimeManifest,
 ): RunnerGameHandle {
-  const scene = new RunnerScene(tag, manifest);
-  const game = new Phaser.Game({
-    type: Phaser.AUTO,
-    ...deviceGameSize(
-      { width: RUNNER_VIEW_WIDTH, height: RUNNER_VIEW_HEIGHT },
-      currentDevicePixelScale(),
-    ),
-    parent,
-    backgroundColor: "#000000",
-    scene: [scene],
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  });
-  return {
-    destroy: (removeCanvas: boolean) => {
-      scene.dispose();
-      game.destroy(removeCanvas);
-    },
-    restart: (seed?: number) => scene.restartRun(seed),
-    sealedOrder: () => scene.sealedOrder(),
-  };
+  return bootGame(parent, new RunnerScene(tag, manifest));
 }

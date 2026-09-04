@@ -10,7 +10,7 @@ import {
 } from "@/lib/scenario/runtime";
 import type { ScenarioChoiceOption, ScenarioProgram } from "@/lib/scenario/program";
 import { dialogueChoicePrompt } from "./dialogue-choices";
-import type { GameplayAutomationMode, GameplayTranscriptEvent } from "./automation";
+import type { GameplayTranscriptEvent } from "./automation";
 import { Bot, resolveBotControl, type BotControlSource } from "./bot";
 import { HUNTER_BOT_PROFILE } from "./bot-hunter";
 import {
@@ -22,14 +22,20 @@ import { EMPTY_NAV_GRAPH, type NavGraph } from "./bot-navigation";
 import type { BotWorldView } from "./bot-view";
 import { NEUTRAL_PLAYER_INTENT, type PlayerIntent } from "./player-intent";
 import type { ScenePlayerIntentSource } from "./player-intent";
-import { GAMEPLAY_AUTOMATION_VIEWPORT } from "./automation";
+import { bootGame, type GameHandle, type HostMode } from "@/lib/hosts/phaser/host";
+import { hostScene } from "@/lib/hosts/phaser/scene-base";
+import type { GameEvent } from "@/lib/kernel/events";
+
+/**
+ * The occurrence a console mirrors: the kit in force, or the list of kits this
+ * run can be played as, has changed. Host-level and never in the sealed roster —
+ * a developer override is not part of the simulation and never reaches a capture.
+ */
+export const DEVTOOLS_KIT_SWITCHED = "devtools/kit-switched";
 import {
-  applyDeviceZoom,
   centeredScroll,
-  currentDevicePixelScale,
   deviceCameraBounds,
   deviceFollowOffset,
-  deviceGameSize,
   logicalWorldView,
   midpointOffset,
 } from "@/lib/device-pixels/device-camera";
@@ -376,7 +382,7 @@ function scaleSpriteFrameToHeight(
   sprite.setScale(plan.scale);
 }
 
-export class PreparedStageScene extends Phaser.Scene {
+export class PreparedStageScene extends hostScene<PlatformerFrameWorld>(Phaser.Scene) {
   private readonly tag: string;
   private readonly transparencyPolicy: PreviewTransparencyPolicy;
   private manifest?: PreparedRuntimeManifest;
@@ -605,46 +611,55 @@ export class PreparedStageScene extends Phaser.Scene {
    */
   private stepNowMs = 0;
 
+  /**
+   * Host-level occurrences waiting for the end of this frame.
+   *
+   * Not the transcript: the transcript is the genre's own record of what the
+   * simulation did, and these are things the *host* did — a kit switched, the
+   * kit list becoming known. They are what let the preview console mirror the
+   * scene at a frame boundary instead of reading it on a 200 ms interval.
+   */
+  private readonly hostFrame: GameEvent[] = [];
+
   constructor(
     tag: string,
     transparencyPolicy: PreviewTransparencyPolicy,
-    automationMode: GameplayAutomationMode | null = null,
+    mode: HostMode = "interactive",
     developerKit: DeveloperKit | null = null,
   ) {
-    super({ key: "PreparedStageScene" });
+    super({
+      key: "PreparedStageScene",
+      designSpace: VIEWPORT,
+      background: "#000000",
+      mode,
+    });
     this.tag = tag;
     this.transparencyPolicy = transparencyPolicy;
     // A developer's choice of kit, never the package's. It reaches the two places the runtime
     // decides how this character fights and nowhere else: `this.gameplay` stays exactly the object
     // the closure check validated, so nothing downstream can mistake an override for a published
-    // fact. Under automation it is always null - see `bootPreparedGame`.
+    // fact. Under a capture it is always null - see `bootPreparedGame`.
     this.developerKit = developerKit;
-    // Auto-play is on for an ordinary preview and off under automation. A fixed-frame capture is
+    // Auto-play is on for an ordinary preview and off under a capture. A fixed-frame capture is
     // a recording of scripted input, and a second actor pressing keys inside it would make the
     // transcript a recording of the bot instead - which is not what that gate is asserting.
-    this.autoPlayEnabled = automationMode === null;
-    if (automationMode === null) this.bot = new Bot(HUNTER_BOT_PROFILE);
+    this.autoPlayEnabled = mode === "interactive";
+    if (mode === "interactive") this.bot = new Bot(HUNTER_BOT_PROFILE);
   }
 
   create(): void {
-    // The canvas was sized in device pixels at boot; the camera zooms by the same factor about
-    // a top-left origin so everything below keeps addressing the design space. A capture boots
-    // a design-space canvas, for which this is the identity.
-    applyDeviceZoom(this.cameras.main, VIEWPORT);
+    this.zoomToDesignSpace();
     this.cameras.main.setBackgroundColor("#73c7ed");
-    this.add
-      .text(VIEW_W / 2, VIEW_H / 2, "Preparing game…", {
-        color: "#ffffff",
-        fontFamily: "system-ui, sans-serif",
-        fontSize: "24px",
-        backgroundColor: "#15334faa",
-        padding: { x: 18, y: 12 },
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(1000)
-      .setName("loading-label");
-    void this.loadAll().catch((error: unknown) => this.fail(error));
+    this.showLoading("Preparing game…");
+    void this.loadAll()
+      .then(() => this.finishLoading())
+      .catch((error: unknown) => {
+        console.error(
+          "[prepared-scene] load failed:",
+          error instanceof Error ? error.message : String(error),
+        );
+        this.failLoading("Unable to load prepared game", error);
+      });
   }
 
   /**
@@ -660,6 +675,14 @@ export class PreparedStageScene extends Phaser.Scene {
    * clock is the capture's.
    */
   update(time: number, delta: number): void {
+    this.stepFrame(time, delta);
+    // At the end of every path, including the ones that returned early: a view
+    // mirroring this boot has to hear the frames where nothing happened too,
+    // because "still loading" and "the round is over" are things it draws.
+    this.publish(this.frameWorld, this.hostFrame.splice(0));
+  }
+
+  private stepFrame(time: number, delta: number): void {
     this.transcriptFrame += 1;
     this.frameEvents = [];
     if (!this.ready || this.loading || !this.player || !this.keys) return;
@@ -1032,7 +1055,8 @@ export class PreparedStageScene extends Phaser.Scene {
       false,
     );
     this.createInterface(manifest);
-    this.children.getByName("loading-label")?.destroy();
+    // The label goes with `finishLoading`, which the caller runs when this
+    // resolves; `ready` is the scene's own gate and stays here.
     this.ready = true;
     if (typeof window !== "undefined") {
       window.__sceneReady = true;
@@ -1523,6 +1547,10 @@ export class PreparedStageScene extends Phaser.Scene {
     manifest: PreparedRuntimeManifest,
     gameplay: PreparedGameplayContract,
   ): void {
+    // The list doubles as readiness — it is empty until the manifest has loaded
+    // and the weapon class has been settled — so the console hears it becoming
+    // known on the frame it becomes known.
+    this.hostFrame.push({ type: DEVTOOLS_KIT_SWITCHED });
     this.selectableKits = selectableDeveloperKits({
       publishedWeaponClass: gameplay.combat.weapon_class ?? "melee_dps_v1",
       publishedProjectileId: gameplay.combat.projectile_id,
@@ -3275,6 +3303,10 @@ export class PreparedStageScene extends Phaser.Scene {
       nowMs: this.time.now,
     });
     this.publishProbe(manifest);
+    // Said rather than left to be discovered. The console used to find this out
+    // by reading the scene every 200 ms, because the handle had nowhere to say
+    // it; it is one occurrence on the frame it happened now.
+    this.hostFrame.push({ type: DEVTOOLS_KIT_SWITCHED });
     return true;
   }
 
@@ -3497,6 +3529,21 @@ export class PreparedStageScene extends Phaser.Scene {
   }
 
   /**
+   * Everything this scene owns that Phaser does not.
+   *
+   * The one boot runs this before `game.destroy` — the element the soundtrack is
+   * playing on is not one of the things the engine knows how to stop.
+   */
+  override hostDispose(): void {
+    this.stopSoundtrack();
+    super.hostDispose();
+  }
+
+  override hostSealedOrder(): readonly string[] {
+    return this.sealedFrame?.order ?? [];
+  }
+
+  /**
    * Announce the map being entered.
    *
    * Raised here and stepped in `update` rather than handed to `tweens.add`, because a tween is
@@ -3616,16 +3663,9 @@ export class PreparedStageScene extends Phaser.Scene {
     });
   }
 
-  private fail(error: unknown): void {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[prepared-scene] load failed:", message);
-    this.children.getByName("loading-label")?.destroy();
-    this.add.text(VIEW_W / 2, VIEW_H / 2, `Unable to load prepared game\n${message}`, { align: "center", color: "#ffffff", fontFamily: "system-ui, sans-serif", fontSize: "20px", backgroundColor: "#5b1720dd", padding: { x: 22, y: 16 }, wordWrap: { width: 900 } }).setOrigin(0.5).setScrollFactor(0).setDepth(1200);
-  }
 }
 
-export type PreparedPreviewGameHandle = {
-  destroy: (removeCanvas: boolean) => void;
+export type PreparedPreviewGameHandle = GameHandle<PlatformerFrameWorld> & {
   /**
    * Play the running scene as a different kit, without reloading it.
    *
@@ -3650,46 +3690,30 @@ export function bootPreparedGame(
   parent: HTMLElement,
   tag: string,
   transparencyPolicy: PreviewTransparencyPolicy,
-  automationMode: GameplayAutomationMode | null = null,
+  mode: HostMode = "interactive",
   developerKit: DeveloperKit | null = null,
 ): PreparedPreviewGameHandle {
   // A capture is a recording of one published run, so a developer override is refused here rather
   // than merely defaulted: the transcript digests carry no record of an override, so a frame hash
   // taken under one would be attributed to the package it is not showing.
+  const capture = mode === "capture";
   const scene = new PreparedStageScene(
     tag,
     transparencyPolicy,
-    automationMode,
-    automationMode === null ? developerKit : null,
+    mode,
+    capture ? null : developerKit,
   );
-  // A capture keeps the design-space canvas so its frame hashes are the same on every screen; a
-  // person gets one sized in device pixels, which the scene's camera zooms back to design space.
-  const canvasSize = automationMode
-    ? GAMEPLAY_AUTOMATION_VIEWPORT
-    : deviceGameSize(GAMEPLAY_AUTOMATION_VIEWPORT, currentDevicePixelScale());
-  const game = new Phaser.Game({
-    type: automationMode ? Phaser.CANVAS : Phaser.AUTO,
-    width: canvasSize.width,
-    height: canvasSize.height,
-    parent,
-    backgroundColor: "#000000",
-    scene: [scene],
-    scale: {
-      mode: automationMode ? Phaser.Scale.NONE : Phaser.Scale.FIT,
-      autoCenter: Phaser.Scale.CENTER_BOTH,
-    },
-  });
-  return {
-    destroy: (removeCanvas: boolean) => {
-      // Before the game, not after: `game.destroy` drops every reference to the scene, and the
-      // element the soundtrack is playing on is not one of the things it knows how to stop.
-      scene.stopSoundtrack();
-      game.destroy(removeCanvas);
+  const handle = bootGame(parent, scene);
+  return Object.freeze({
+    ...handle,
+    get sealedOrder(): readonly string[] {
+      return handle.sealedOrder;
     },
     // Refused for a capture at the handle as well as at the scene, so neither is the single place
     // an override could leak into a recording.
-    setDeveloperKit: (kit) => (automationMode === null ? scene.switchDeveloperKit(kit) : false),
+    setDeveloperKit: (kit: DeveloperKit | null) =>
+      capture ? false : scene.switchDeveloperKit(kit),
     developerKitOptions: () => scene.developerKitOptions(),
-    activeDeveloperKit: () => (automationMode === null ? scene.activeDeveloperKit() : null),
-  };
+    activeDeveloperKit: () => (capture ? null : scene.activeDeveloperKit()),
+  });
 }

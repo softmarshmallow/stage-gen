@@ -71,7 +71,7 @@ describe("the wave variant plays, and the round ends at the timer", () => {
       manifest: wavesRuntimeManifest(),
       now: () => clockMs,
     });
-    const scene = new PreparedStageScene("waves", "canonical-alpha", "gameplay-v2");
+    const scene = new PreparedStageScene("waves", "canonical-alpha", "capture");
     const engine = scene as unknown as StubScene;
     scene.create();
     await settle();

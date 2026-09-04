@@ -16,7 +16,8 @@
 import Phaser from "phaser";
 import { preparedAssetUrl } from "@/lib/shell/asset-url";
 import { containRect, type Rect } from "@/lib/shell/hud-geometry";
-import { applyDeviceZoom, currentDevicePixelScale, deviceGameSize } from "@/lib/device-pixels/device-camera";
+import { bootGame, type GameHandle } from "@/lib/hosts/phaser/host";
+import { hostScene } from "@/lib/hosts/phaser/scene-base";
 import { registerPresentationFallback } from "@/lib/families/ui/fallback";
 import type { UiIconGlyph } from "@/lib/manifest/ui-icon-layout";
 import { AtlasButton } from "@/lib/families/ui/button";
@@ -86,9 +87,7 @@ function spriteKey(ref: string): string {
   return `room:${ref}`;
 }
 
-export interface RoomGameHandle {
-  destroy(removeCanvas: boolean): void;
-}
+export type RoomGameHandle = GameHandle<RoomPlayState>;
 
 /**
  * How a host drives one room.
@@ -104,7 +103,7 @@ export interface RoomGameOptions {
   readonly onChange?: (state: RoomPlayState) => void;
 }
 
-class RoomScene extends Phaser.Scene {
+class RoomScene extends hostScene<RoomPlayState>(Phaser.Scene) {
   private state: RoomPlayState;
   private mode: VerbMode = "act";
   private hintsVisible = false;
@@ -129,7 +128,11 @@ class RoomScene extends Phaser.Scene {
     private readonly manifest: RoomManifest,
     private readonly options: RoomGameOptions = {},
   ) {
-    super("pointclick-room");
+    super({
+      key: "pointclick-room",
+      designSpace: canvasSize(manifest.scene),
+      background: "#05070a",
+    });
     this.state = options.resume ?? initialState(manifest, options.carriedFlags ?? []);
   }
 
@@ -157,8 +160,7 @@ class RoomScene extends Phaser.Scene {
 
   create(): void {
     const stage = this.stage;
-    // The canvas is device-pixel sized; zoom the camera back to the authored frame plus HUD band.
-    applyDeviceZoom(this.cameras.main, canvasSize(this.manifest.scene));
+    this.zoomToDesignSpace();
     this.input.mouse?.disableContextMenu();
 
     // The backdrop covers the authored frame exactly; the HUD band below it is
@@ -187,6 +189,12 @@ class RoomScene extends Phaser.Scene {
 
     this.createHud();
     this.createWinCard();
+    // Phaser's own loader ran in `preload`; reaching `create` is what "ready"
+    // means for a scene whose assets are all declared images. The failure card
+    // the base owns is why a backdrop that will not decode now says so instead
+    // of leaving a room the player can click around in the dark.
+    if (this.textures.exists(BACKDROP_KEY)) this.finishLoading();
+    else this.failLoading("Unable to load room", new Error(this.manifest.scene.backdrop));
     this.render();
   }
 
@@ -456,6 +464,7 @@ class RoomScene extends Phaser.Scene {
   /** One pass over the whole view from the reducer's state: no partial updates. */
   private render(): void {
     this.options.onChange?.(this.state);
+    this.publish(this.state);
     for (const hotspot of this.manifest.hotspots) {
       const object = this.hotspotObjects.get(hotspot.id);
       if (object === undefined) continue;
@@ -549,14 +558,5 @@ export function bootRoomGame(
   manifest: RoomManifest,
   options: RoomGameOptions = {},
 ): RoomGameHandle {
-  const canvas = canvasSize(manifest.scene);
-  const game = new Phaser.Game({
-    type: Phaser.AUTO,
-    ...deviceGameSize(canvas, currentDevicePixelScale()),
-    parent,
-    backgroundColor: "#05070a",
-    scene: [new RoomScene(tag, manifest, options)],
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  });
-  return { destroy: (removeCanvas: boolean) => game.destroy(removeCanvas) };
+  return bootGame(parent, new RoomScene(tag, manifest, options));
 }
