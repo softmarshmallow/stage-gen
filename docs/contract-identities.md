@@ -93,11 +93,11 @@ not an identity but a cache key (C-R1); its evidence is the cache-key goldens.
 | `dialogue-scene-bundle-v8` | `generated` | `stage_gen.recipes.dialogue_scene.models:DialogueBundle.kind` |
 | `dialogue-scene-plan-v8` | `generated` | `stage_gen.recipes.dialogue_scene.models:DialogueScenePlan.kind` |
 | `dialogue-scene-review-v6` | `generated` | `stage_gen.recipes.dialogue_scene.models:IndependentReview.kind` |
-| `game-package-validation-v6` | `generated` | `stage_gen.orchestration.game_package:GAME_PACKAGE_VALIDATION_KIND` |
+| `game-package-validation-v6` | `generated` | `stage_gen.orchestration.package_capture:GAME_PACKAGE_VALIDATION_KIND` |
 | `map-terrain-v1` | `generated` | `stage_gen.components.platformer_map.prepared:PreparedMapTerrain.kind` |
 | `platformer-chunk-map-v1` | `generated` | `stage_gen.components.sideview_map_design.design:PlatformerChunkMapDesign.kind` |
 | `pointclick-solvability-v1` | `generated` | `stage_gen.recipes.pointclick_room.models:RoomSolvabilityReport.kind` |
-| `resolved-game-package-v6` | `generated` | `stage_gen.orchestration.game_package:RESOLVED_GAME_PACKAGE_KIND` |
+| `resolved-game-package-v6` | `generated` | `stage_gen.orchestration.package_capture:RESOLVED_GAME_PACKAGE_KIND` |
 | `scenario-admission-v1` | `generated` | `stage_gen.components.scenario.models:ScenarioAdmissionReport.kind` |
 | `scenario-program-v2` | `generated` | `stage_gen.components.scenario.models:ScenarioProgram.kind` |
 | `universe-sample-ledger-v1` | `generated` | `stage_gen.recipes.universe.models:SampleLedger.kind` |

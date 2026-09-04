@@ -131,23 +131,79 @@ def test_recipes_do_not_import_each_other() -> None:
     assert not violations, "recipe-to-recipe import violations:\n" + "\n".join(violations)
 
 
-def test_prepared_package_resolution_has_no_provider_or_recipe_dependency() -> None:
-    path = SOURCE_ROOT / "stage_gen" / "orchestration" / "game_package.py"
+ORCHESTRATION_ROOT = SOURCE_ROOT / "stage_gen" / "orchestration"
+PACKAGE_RESOLUTION_MODULES = (
+    ORCHESTRATION_ROOT / "game_package.py",
+    ORCHESTRATION_ROOT / "package_capture.py",
+    *sorted(RECIPE_ROOT.glob("*/validation.py")),
+)
+PROVIDER_FREE_FORBIDDEN = (
+    "stage_gen.capabilities",
+    "stage_gen.providers",
+    "stage_gen.interfaces",
+    "stage_gen.orchestration.runtime",
+)
+
+
+def _import_violations(path: Path, forbidden: tuple[str, ...]) -> list[str]:
+    package = _package_for(path)
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    forbidden = (
-        "stage_gen.capabilities",
-        "stage_gen.providers",
-        "stage_gen.recipes",
-        "stage_gen.orchestration.runtime",
-    )
     violations: list[str] = []
     for node in ast.walk(tree):
         if not isinstance(node, (ast.Import, ast.ImportFrom)):
             continue
-        for imported in _imported_modules(node, "stage_gen.orchestration"):
+        for imported in _imported_modules(node, package):
             if any(imported == prefix or imported.startswith(f"{prefix}.") for prefix in forbidden):
-                violations.append(f"{path.name}:{node.lineno} imports {imported}")
+                violations.append(
+                    f"{path.relative_to(SOURCE_ROOT.parent)}:{node.lineno} imports {imported}"
+                )
+    return violations
+
+
+def test_prepared_package_resolution_is_provider_free() -> None:
+    """A malformed package must never reach a paid operation: the composition root,
+    the capture and every genre's validation module import no provider, capability,
+    interface or composed runtime, and the genre modules import no recipe at all -
+    the composition root may import exactly a recipe's `validation` module."""
+
+    violations: list[str] = []
+    for path in PACKAGE_RESOLUTION_MODULES:
+        forbidden: tuple[str, ...] = PROVIDER_FREE_FORBIDDEN
+        if path.name != "game_package.py":
+            forbidden = (*forbidden, "stage_gen.recipes")
+        violations.extend(_import_violations(path, forbidden))
+    composition_root = ORCHESTRATION_ROOT / "game_package.py"
+    package = _package_for(composition_root)
+    tree = ast.parse(composition_root.read_text(encoding="utf-8"), filename=str(composition_root))
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Import, ast.ImportFrom)):
+            continue
+        for imported in _imported_modules(node, package):
+            if not imported.startswith("stage_gen.recipes."):
+                continue
+            parts = imported.split(".")
+            if len(parts) < 4 or parts[3] != "validation":
+                violations.append(
+                    f"game_package.py:{node.lineno} imports {imported}, "
+                    "not a recipe's validation module"
+                )
     assert not violations, "package resolution must remain provider-free:\n" + "\n".join(violations)
+
+
+def test_orchestration_does_not_import_genre_components() -> None:
+    """Orchestration is the composition root, not a genre: a genre's contracts are
+    read by the recipe that owns them (its `validation.py`), never here."""
+
+    genre_components = tuple(
+        f"stage_gen.components.{entry.name}"
+        for entry in COMPONENT_ROOT.iterdir()
+        if entry.is_dir() and _genre_of(entry.name) is not None
+    )
+    assert genre_components, "the component root names no genre component"
+    violations: list[str] = []
+    for path in sorted(ORCHESTRATION_ROOT.rglob("*.py")):
+        violations.extend(_import_violations(path, genre_components))
+    assert not violations, "orchestration imports a genre component:\n" + "\n".join(violations)
 
 
 ENGINE_ROOT = SOURCE_ROOT / "gnode"

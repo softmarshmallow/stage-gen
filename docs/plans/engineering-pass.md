@@ -829,6 +829,36 @@ the v12 publish, the manifest included. The variant package, the wave director p
 and the `score` / `timers` families are the runtime lane's step 7.
 
 
+**2026-09-05 — D5 closed: package resolution split by owner.** `orchestration/game_package.py`
+was 2,156 lines, 65 of its imports naming a genre component. It is now the 360-line
+composition root it was declared to be: the selector, the repository report, the
+genre-free members of the game contract (universe, evidence), and a `GENRE_RESOLVERS`
+roster of two entries that hands each declared member to the recipe that owns it.
+`orchestration/package_capture.py` (489 lines) holds what knows no genre: the directory
+and ZIP captures, the digest registry as a `PackageCapture` whose `member` / `locked` /
+`image` / `audio_take` methods register every named path and whose `close()` proves the
+closure in both directions, the byte admissions, `load_locked`, `assert_subset`, the
+closure digest, and `ResolvedPreparedPackage` carrying `members` by genre. Each genre's
+member resolution and cross-contract rules moved verbatim to
+`recipes/sideview_runner/validation.py` (897 lines: `ResolvedRunnerMember`, the seam rule,
+the encounter triangles, the chunk proofs) and `recipes/sideview_platformer/validation.py`
+(630 lines: `ResolvedPlatformerMember`, the cross-contract rules, and `ResolvedGamePackage`
+as the recipe's view with the member's contracts as named fields, built by `.of()`).
+`ResolvedRunnerOnlyPackage` is gone; a runner-only package is a package whose `members`
+name one genre. The identity table now cites the constants at their home. Two guards
+replace the old one: the composition root, the capture and every `recipes/*/validation.py`
+stay provider-, capability-, interface- and runtime-free, the genre modules import no
+recipe, and the composition root imports no recipe module but a `validation` one;
+and nothing under `orchestration/` imports a genre component (proved to catch the old
+file: 65 hits). Kept deliberately: `ResolvedGamePackage` still declares the thirteen
+platformer fields the member declares, because ~120 field reads across the platformer
+recipe are its API and a property per field is the same duplication in a worse shape;
+the alternative, `package.platformer.gameplay`, is a mechanical follow-up with no
+structural payoff. Genre members now resolve before the evidence set rather than
+between the two genres; the only observable difference is which label a
+`conflicting_source_digest` refusal names. Net +220 lines, all headers and imports.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one

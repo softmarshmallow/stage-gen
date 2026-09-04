@@ -33,7 +33,8 @@ node's kind from an output path convention.
 
 | Boundary | Current authority |
 | --- | --- |
-| Authored package membership and cross-contract closure | [`game_package.py`](../../../src/stage_gen/orchestration/game_package.py) |
+| Authored package capture, membership, and closure | [`game_package.py`](../../../src/stage_gen/orchestration/game_package.py) over [`package_capture.py`](../../../src/stage_gen/orchestration/package_capture.py) |
+| The platformer member's resolution and cross-contract rules | [`validation.py`](../../../src/stage_gen/recipes/sideview_platformer/validation.py) |
 | Asset-level fan-out, dependencies, typed ports, cache inputs, and provider routes | [`package_graph.py`](../../../src/stage_gen/recipes/sideview_platformer/package_graph.py) |
 | The recipe's node-type census: `type_id`, view archetype, capability and features, attempt policy, per-type cache contract version | [`package_types.py`](../../../src/stage_gen/recipes/sideview_platformer/package_types.py) |
 | Dependency scheduling, resource gates, result contracts, and trace | [`gnode`](../../../src/gnode/) — [`graph.py`](../../../src/gnode/graph.py), [`schedule.py`](../../../src/gnode/schedule.py), [`trace.py`](../../../src/gnode/trace.py) |

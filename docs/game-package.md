@@ -119,8 +119,10 @@ Resolution is local and provider-free. Before it returns a package it verifies:
 - portable paths with no traversal, symlink, ambiguous archive root, duplicate
   ZIP entry, encryption, or unsafe size/compression behavior.
 
-The resolver imports no provider, recipe, or composed runtime module. A
-malformed package therefore cannot perform a paid operation.
+The resolver imports no provider or composed runtime module, and the one recipe
+module it composes per genre (`recipes/<recipe>/validation.py`) is held to the
+same rule by a contract test. A malformed package therefore cannot perform a
+paid operation.
 
 `resolve_prepared_package` is the genre-neutral capture boundary and accepts a
 runner-only root or a platformer-containing root. `resolve_game_package` is the

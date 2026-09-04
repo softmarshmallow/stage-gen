@@ -47,7 +47,6 @@ from stage_gen.components.sideview_actor.motion_geometry import (
 )
 from stage_gen.media import measure_alpha_ground_contact
 from stage_gen.media.sprite_sheets import split_atlas_columns
-from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.manifest_blocks import (
     ManifestBlock,
     block_table,
@@ -67,6 +66,7 @@ from stage_gen.recipes.sideview_platformer.package_types import (
     PREPARED_RUNTIME_MANIFEST_SCHEMA_VERSION,
 )
 from stage_gen.recipes.sideview_platformer.terrain_design import terrain_artifact_path
+from stage_gen.recipes.sideview_platformer.validation import ResolvedGamePackage
 
 #: The render projection the scrolling-preview consumer draws at. This is the only place
 #: the asset unit meets pixels, and a consumer multiplies through it exactly once.

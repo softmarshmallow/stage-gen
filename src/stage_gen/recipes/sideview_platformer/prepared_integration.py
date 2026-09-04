@@ -28,7 +28,6 @@ from gnode import (
     NodeExecutionResult,
     atomic_write_json,
 )
-from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.orchestration.runtime import (
     create_provider_free_image_service,
     create_provider_free_music_service,
@@ -42,6 +41,7 @@ from stage_gen.recipes.sideview_platformer.prepared_manifest import (
     assemble_prepared_runtime,
 )
 from stage_gen.recipes.sideview_platformer.prepared_world import PreparedWorldNodeHandler
+from stage_gen.recipes.sideview_platformer.validation import ResolvedGamePackage
 
 PROVIDER_FREE_REASON = (
     "integration is provider-free: this node's artifact is not in the cache, so the "

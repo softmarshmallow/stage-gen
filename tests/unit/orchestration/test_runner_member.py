@@ -21,12 +21,12 @@ from PIL import Image
 from stage_gen.interfaces.cli import main
 from stage_gen.orchestration.game_package import (
     GamePackageValidationError,
-    ResolvedRunnerOnlyPackage,
     resolve_game_package,
     resolve_prepared_package,
     validate_game_package,
 )
 from stage_gen.recipes.sideview_runner.runner_request import resolve_runner_package
+from stage_gen.recipes.sideview_runner.validation import ResolvedRunnerMember
 
 from .._runner_fixture import (
     ARC_PICKUPS,
@@ -83,9 +83,10 @@ def test_a_two_genre_package_resolves_both_members(tmp_path: Path) -> None:
     package = resolve_game_package(_two_genre_package(tmp_path))
 
     assert [entry.genre for entry in package.game.genres] == ["platformer", "runner"]
-    assert package.runner is not None
-    assert package.runner.track.track_id == "meadow-dash"
-    assert package.runner.avatar.avatar.avatar_id == "wayfarer_sprinter"
+    runner = package.member("runner", ResolvedRunnerMember)
+    assert runner is not None
+    assert runner.track.track_id == "meadow-dash"
+    assert runner.avatar.avatar.avatar_id == "wayfarer_sprinter"
     identity = package.identity()
     genres = identity["genres"]
     assert isinstance(genres, dict)
@@ -99,9 +100,11 @@ def test_a_runner_only_package_resolves_without_inventing_a_platformer(tmp_path:
 
     package = resolve_prepared_package(source)
 
-    assert isinstance(package, ResolvedRunnerOnlyPackage)
+    assert list(package.members) == ["runner"]
     assert [entry.genre for entry in package.game.genres] == ["runner"]
-    assert package.runner.track.track_id == "meadow-dash"
+    runner = package.member("runner", ResolvedRunnerMember)
+    assert runner is not None
+    assert runner.track.track_id == "meadow-dash"
     identity = package.identity()
     assert identity["schema_version"] == 6
     assert identity["kind"] == "resolved-game-package-v6"
@@ -149,8 +152,8 @@ def test_runner_only_directory_and_zip_have_the_same_closure(tmp_path: Path) -> 
     directory = resolve_prepared_package(source)
     zipped = resolve_prepared_package(archive)
 
-    assert isinstance(directory, ResolvedRunnerOnlyPackage)
-    assert isinstance(zipped, ResolvedRunnerOnlyPackage)
+    assert list(directory.members) == ["runner"]
+    assert list(zipped.members) == ["runner"]
     assert zipped.source_kind == "zip"
     assert zipped.closure_sha256 == directory.closure_sha256
 
@@ -220,8 +223,9 @@ proportion_basis = "visible_rider_head_v1"''',
     admitted = resolve_prepared_package(
         runner_only_package(tmp_path / "with", avatar=combined, piloted_heads_tall=4.5)
     )
-    assert isinstance(admitted, ResolvedRunnerOnlyPackage)
-    assert admitted.runner.avatar.avatar.age == 11
+    admitted_runner = admitted.member("runner", ResolvedRunnerMember)
+    assert admitted_runner is not None
+    assert admitted_runner.avatar.avatar.age == 11
     assert admitted.game.proportion.heads_for("piloted_machine") == 4.5
 
 
@@ -575,7 +579,7 @@ def test_an_encounter_package_resolves_with_its_boss_arena_and_projectiles(
 ) -> None:
     resolved = resolve_game_package(_encounter_package(tmp_path))
 
-    runner = resolved.runner
+    runner = resolved.member("runner", ResolvedRunnerMember)
     assert runner is not None
     assert runner.gameplay.encounter is not None
     assert runner.gameplay.encounter.boss_id == "bramble_harvester"

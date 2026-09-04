@@ -13,7 +13,7 @@ from pathlib import Path
 
 from gnode import NodeType, assert_safe_path_segment
 from stage_gen.config import CapabilityName
-from stage_gen.orchestration.game_package import ResolvedGamePackage, resolve_game_package
+from stage_gen.orchestration.game_package import resolve_game_package
 from stage_gen.recipes.executor import RecipeExecutor, RecipePlan, RecipeRun
 from stage_gen.recipes.sideview_platformer.execution_graph import ExecutionGraph
 from stage_gen.recipes.sideview_platformer.package_graph import (
@@ -33,6 +33,7 @@ from stage_gen.recipes.sideview_platformer.prepared_world import (
     PreparedWorldNodeHandler,
     world_target_node_ids,
 )
+from stage_gen.recipes.sideview_platformer.validation import ResolvedGamePackage
 from stage_gen.resources import (
     terrain_atlas_template_path,
     terrain_atlas_topology_reference_path,

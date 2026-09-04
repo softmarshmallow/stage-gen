@@ -159,8 +159,8 @@ from stage_gen.resources import (
 if TYPE_CHECKING:
     from stage_gen.config import StageGenConfig
     from stage_gen.media import LoopConstruction
-    from stage_gen.orchestration.game_package import ResolvedRunnerMember
     from stage_gen.recipes.sideview_runner.runner_request import ResolvedRunnerPackage
+    from stage_gen.recipes.sideview_runner.validation import ResolvedRunnerMember
 
 RUNNER_GRAPH_SCHEMA_VERSION = 1
 RUNNER_TRACE_SCHEMA_VERSION = 1

@@ -85,7 +85,6 @@ from stage_gen.media import (
     repack_alpha_components,
 )
 from stage_gen.media.codec import decode_rgba, encode_png
-from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
 from stage_gen.recipes.sideview_platformer.climbable_atlas import (
     MAX_HEIGHT_PARITY,
@@ -120,6 +119,7 @@ from stage_gen.recipes.sideview_platformer.terrain_design import (
     terrain_artifact_path,
     terrain_profile,
 )
+from stage_gen.recipes.sideview_platformer.validation import ResolvedGamePackage
 
 WORLD_HANDLER_VERSION = "prepared-world-v3"
 #: Ceiling on the common period a map composite may need. Mixed layer periods multiply out through

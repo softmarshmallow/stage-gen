@@ -13,9 +13,9 @@ from typing import TYPE_CHECKING
 from stage_gen.orchestration.game_package import (
     GamePackageValidationError,
     ResolvedPreparedPackage,
-    ResolvedRunnerMember,
     resolve_prepared_package,
 )
+from stage_gen.recipes.sideview_runner.validation import ResolvedRunnerMember
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -42,7 +42,7 @@ class ResolvedRunnerPackage:
 
 def resolve_runner_package(input_path: Path) -> ResolvedRunnerPackage:
     package = resolve_prepared_package(input_path)
-    runner = package.runner
+    runner = package.member("runner", ResolvedRunnerMember)
     if runner is None:
         raise GamePackageValidationError(
             "missing_genre_member", "prepared package declares no runner genre member"

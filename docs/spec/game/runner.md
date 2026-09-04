@@ -5,8 +5,8 @@
 > `src/stage_gen/components/runner_track/`,
 > `src/stage_gen/components/runner_content/`,
 > `src/stage_gen/components/runner_audio/`, and the runner member resolution
-> in `src/stage_gen/orchestration/game_package.py`. The generation recipe
-> lives in `src/stage_gen/recipes/sideview_runner/` and the playable runtime
+> in `src/stage_gen/recipes/sideview_runner/validation.py`. The generation
+> recipe lives in `src/stage_gen/recipes/sideview_runner/` and the playable runtime
 > in `web/lib/sideview-runner/`, served at `/runner/<tag>`.
 
 The infinite runner is a genre member of the `game-contract-v9` container

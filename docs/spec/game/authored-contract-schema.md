@@ -261,6 +261,7 @@ uv run stage-gen package plan --input library/games/bellweather
 
 The executable authority is
 `src/stage_gen/components/game_contract/package.py` together with
-`src/stage_gen/orchestration/game_package.py`. The canonical Bellweather source
+`src/stage_gen/orchestration/game_package.py`, which composes each genre's
+member resolution from its recipe's `validation.py`. The canonical Bellweather source
 is the integration fixture; documentation examples do not replace executable
 validation.
