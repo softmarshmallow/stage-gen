@@ -455,6 +455,52 @@ genre parser speaking for a dozen consumers it does not know about.
   the platformer (`combat.enabled` is what makes `hitstopActive` answer at all).
   Moving either gets `manifest block "fx" is published as fx-block-v2; this
   build reads fx-block-v1`, from the clock.
+- **`session`.** Extracted into the runner's roster as `session/run` plus
+  `score/run`; **not** extracted into the platformer's, and that is this step's
+  one refusal — see below. `run-loop.ts` is gone: the phase machine and the
+  seed lineage are the family's, the token line is a scorer with a slice of its
+  own, and `run` lost `score`, `chain` and `multiplier` to it. **E1 runner:
+  zero diff, and all three checkpoints re-pinned because the fields were
+  regrouped.** Measured with `REPLAY_DUMP`: all six hundred frames of the new
+  dump, mapped back onto the old shape field by field, are equal to the step-2
+  dump — the death at 278, its cause, every value of the score line and the
+  restart at 410 included. **E1 platformer: zero diff**, trivially, because
+  nothing there changed. **E2:** `runner/run-loop` becomes `score/run` then
+  `session/run` in `DOCUMENTED_ORDER`, and the camera's and the audio's `after`
+  edges follow the name. One tie does not survive a reversed registration and
+  is named rather than papered over — `score/run` against `runner/vitals`,
+  which nothing either declares orders, because neither reads what the other
+  writes; every other pair is asserted to survive. **E4:** the family sealed
+  into two hand-built worlds with different phase vocabularies *and* different
+  restart shapes — a runner-shaped one (held start, seeded lineage, reset by
+  the composition) and a platformer-shaped one (no held start, a restart that
+  is a map entry, performed in place). **E7:** the roster with `score/run`
+  removed and the one edge that names it dropped seals to the identical order
+  minus that entry — a genre that keeps the lifecycle and refuses the token
+  line, which is the plan's own cinematic platformer.
+- **The block, and the refusal.** `gameplay`, in the runner. The machine is
+  code, but the vocabulary `endedBy` carries is not: `hazard`, `pit`, `crush`
+  and `shot` are ways to end a run because `[gameplay].consequences` answers
+  for each of them. Moving it gets `manifest block "gameplay" is published as
+  runner-gameplay-block-v2; this build reads runner-gameplay-block-v1`.
+- **What `session` could not do, and why it was not forced.** The platformer's
+  defeat is inside `updatePlayer`: it stamps `defeatedAtMs`, raises the panel,
+  reads the confirm and respawns, all between the controller step and the
+  contact-damage loop, and the confirm frame `return`s out of the middle of the
+  system. Every arrangement that pulls it out moves behaviour on some frame —
+  sealed after `player/update` the contact loop now runs on the confirm frame
+  that used to skip it; sealed before it, the panel's first frame arrives one
+  or two ticks later — and the platformer's golden **cannot observe any of
+  them**, because the scripted run never reaches a defeat (its event kinds
+  stop at `player-damaged`; there is no `player-defeated` in the record). A
+  change that cannot be measured is not a change worth making under this
+  method, and the system it is buried in is the one step 2 already found to be
+  three systems wearing one name and step 6 is chartered to split. So the
+  platformer keeps its defeat flag, the family carries the platformer's shape
+  and is proven against it (E4's second world is exactly defeat → prompt →
+  respawn with a restart in place and no lineage), and the roster wiring waits
+  for the split that can be measured. `session/ended` for the step-7 minigame
+  is unaffected: the family emits through the host's own occurrences.
 - **One thing the ruling did not fit, and it is the dead phase.** The step's
   fact lists four hold mechanisms and the fourth is the runner's dead phase.
   It is not a holder here. A hold is transient and the simulation resumes into

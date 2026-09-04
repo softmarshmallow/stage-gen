@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { createRunLoopSystem, nextRunSeed, PICKUP_SCORE } from "./run-loop";
-import { parseRunnerRuntimeManifest } from "./contract";
+import { createSessionSystemForRunner, nextRunSeed, parseRunnerSessionBlock } from "./session";
+import { parseRunnerRuntimeManifest, RUNNER_BLOCKS } from "./contract";
 import { runnerManifestFixture } from "./fixture";
 import { runnerIntent } from "./intent";
 import { stepAvatar } from "./avatar";
@@ -9,23 +9,15 @@ import { createRunnerWorld } from "./world";
 
 const STEP = { dt: 1 / 60, now: 1 / 60, frame: 1 } as const;
 const manifest = parseRunnerRuntimeManifest(runnerManifestFixture());
-const system = createRunLoopSystem();
+const system = createSessionSystemForRunner();
 
-describe("createRunLoopSystem", () => {
-  test("scores this frame's collected pickups", () => {
-    const world = createRunnerWorld(manifest, 1);
-    world.obstacles.collectedThisFrame = [{ itemId: "sunleaf_token", worldColumn: 6, row: 2 }];
-    system.update(world, STEP);
-    expect(world.run.score).toBe(PICKUP_SCORE);
-    expect(world.run.phase).toBe("running");
-  });
-
-  test("a run-ended verdict ends the run and carries its source as the cause", () => {
+describe("the session in the runner", () => {
+  test("a run-ended verdict ends the run and carries its source", () => {
     const world = createRunnerWorld(manifest, 1);
     world.events.emit({ type: "run-ended", source: "crush" });
     system.update(world, STEP);
     expect(world.run.phase).toBe("dead");
-    expect(world.run.cause).toBe("crush");
+    expect(world.run.endedBy).toBe("crush");
     // The death pose is not written here. `avatar` has one author, and it
     // wears the pose on its own next tick, from the phase this system just
     // set — the one frame its own comment has always claimed.
@@ -49,56 +41,68 @@ describe("createRunLoopSystem", () => {
     world.events.emit({ type: "drained", source: "hazard", remaining: 2 });
     system.update(world, STEP);
     expect(world.run.phase).toBe("running");
-    expect(world.run.cause).toBe(null);
-  });
-
-  test("dead runs ignore scoring and wait for the restart request", () => {
-    const world = createRunnerWorld(manifest, 1);
-    world.run.phase = "dead";
-    world.run.score = 30;
-    world.obstacles.collectedThisFrame = [{ itemId: "sunleaf_token", worldColumn: 6, row: 2 }];
-    system.update(world, STEP);
-    expect(world.run.score).toBe(30);
-    expect(world.run.phase).toBe("dead");
+    expect(world.run.endedBy).toBe(null);
   });
 
   test("a jump or action request asks for a restart rather than performing one", () => {
-    const loop = createRunLoopSystem();
+    const session = createSessionSystemForRunner();
     const world = createRunnerWorld(manifest, 1);
     const firstSeed = world.run.seed;
     world.run.phase = "dead";
-    world.run.score = 90;
     world.avatar.distanceColumns = 300;
     world.intent = runnerIntent({ jump: true });
-    loop.update(world, STEP);
+    session.update(world, STEP);
     // The world is untouched: the ask is an occurrence, and the composition
     // performs the reset at the end of the frame that carried it.
     expect(world.run.phase).toBe("dead");
-    expect(world.run.score).toBe(90);
     const asked = world.events.ofType("run-restarted");
     expect(asked).toHaveLength(1);
     expect(asked[0]?.seed).not.toBe(firstSeed);
 
-    loop.reset?.(world, "run");
+    session.reset?.(world, "run");
     // Widened read: TS control-flow narrowing cannot see the in-place reset.
     expect(world.run.phase as string).toBe("running");
     expect(world.run.seed).toBe(asked[0]?.seed);
-    expect(world.run.score).toBe(0);
     expect(world.avatar.distanceColumns).toBe(2);
     expect(world.segments.chunks.length).toBeGreaterThan(0);
   });
 
+  test("the lineage is counted: a run inside a session, a session from zero", () => {
+    const session = createSessionSystemForRunner();
+    const world = createRunnerWorld(manifest, 1);
+    expect(world.run.runIndex).toBe(0);
+    world.run.phase = "dead";
+    world.intent = runnerIntent({ action: true });
+    session.update(world, STEP);
+    session.reset?.(world, "run");
+    expect(world.run.runIndex).toBe(1);
+    session.reset?.(world, "run");
+    expect(world.run.runIndex).toBe(2);
+    session.reset?.(world, "session");
+    expect(world.run.runIndex).toBe(0);
+  });
+
   test("the fresh seed is deterministic from the dying run's RNG", () => {
     const seeds = [5, 5].map((seed) => {
-      const loop = createRunLoopSystem();
+      const session = createSessionSystemForRunner();
       const world = createRunnerWorld(manifest, seed);
       world.run.phase = "dead";
       world.intent = runnerIntent({ action: true });
-      loop.update(world, STEP);
-      loop.reset?.(world, "run");
+      session.update(world, STEP);
+      session.reset?.(world, "run");
       return world.run.seed;
     });
     expect(seeds[0]).toBe(seeds[1]);
+  });
+
+  test("the family gates its own block, and the refusal names it", () => {
+    expect(parseRunnerSessionBlock(RUNNER_BLOCKS).published).toBe(true);
+    expect(() =>
+      parseRunnerSessionBlock({ ...RUNNER_BLOCKS, gameplay: "runner-gameplay-block-v2" }),
+    ).toThrow(
+      'manifest block "gameplay" is published as runner-gameplay-block-v2; ' +
+        "this build reads runner-gameplay-block-v1",
+    );
   });
 });
 
@@ -108,63 +112,6 @@ describe("nextRunSeed", () => {
     expect(Number.isSafeInteger(seed)).toBe(true);
     expect(seed).toBeGreaterThanOrEqual(0);
     expect(seed).toBeLessThan(0x100000000);
-  });
-});
-
-describe("the pickup chain", () => {
-  test("the multiplier steps at 5, 15, and 30 and caps at x4", async () => {
-    const { chainMultiplier } = await import("./run-loop");
-    expect(chainMultiplier(0)).toBe(1);
-    expect(chainMultiplier(4)).toBe(1);
-    expect(chainMultiplier(5)).toBe(2);
-    expect(chainMultiplier(15)).toBe(3);
-    expect(chainMultiplier(30)).toBe(4);
-    expect(chainMultiplier(500)).toBe(4);
-  });
-
-  test("collections extend the chain and score by the earned multiplier", async () => {
-    const { createRunLoopSystem, PICKUP_SCORE } = await import("./run-loop");
-    const { parseRunnerRuntimeManifest } = await import("./contract");
-    const { runnerManifestFixture } = await import("./fixture");
-    const { createRunnerWorld } = await import("./world");
-    const world = createRunnerWorld(parseRunnerRuntimeManifest(runnerManifestFixture()), 1);
-    const system = createRunLoopSystem();
-    const step = { dt: 1 / 60, now: 1 / 60, frame: 1 } as const;
-    const token = { itemId: "sunleaf_token", worldColumn: 6, row: 2 } as const;
-    world.run.chain = 4;
-    world.obstacles.collectedThisFrame = [token];
-    system.update(world, step);
-    // Chain reaches 5 this frame, so the frame scores at the x2 it earned.
-    expect(world.run.chain).toBe(5);
-    expect(world.run.multiplier).toBe(2);
-    expect(world.run.score).toBe(PICKUP_SCORE * 2);
-  });
-
-  test("a miss breaks the chain before the frame's collections extend it", async () => {
-    const { createRunLoopSystem, PICKUP_SCORE } = await import("./run-loop");
-    const { parseRunnerRuntimeManifest } = await import("./contract");
-    const { runnerManifestFixture } = await import("./fixture");
-    const { createRunnerWorld } = await import("./world");
-    const world = createRunnerWorld(parseRunnerRuntimeManifest(runnerManifestFixture()), 1);
-    const system = createRunLoopSystem();
-    const step = { dt: 1 / 60, now: 1 / 60, frame: 1 } as const;
-    world.run.chain = 40;
-    world.run.multiplier = 4;
-    world.obstacles.missedThisFrame = 1;
-    world.obstacles.collectedThisFrame = [
-      { itemId: "sunleaf_token", worldColumn: 6, row: 2 } as const,
-    ];
-    system.update(world, step);
-    expect(world.run.chain).toBe(1);
-    expect(world.run.multiplier).toBe(1);
-    expect(world.run.score).toBe(PICKUP_SCORE);
-  });
-
-  test("formatCombo is silent without a chain and loud about the multiplier", async () => {
-    const { formatCombo } = await import("./hud");
-    expect(formatCombo(0, 1)).toBe("");
-    expect(formatCombo(3, 1)).toBe("3 chain");
-    expect(formatCombo(17, 3)).toBe("\u00d73 \u00b7 17 chain");
   });
 });
 
@@ -188,9 +135,9 @@ describe("the intro phase", () => {
     expect(world.run.phase).toBe("dead");
     world.events.beginFrame();
     world.intent = runnerIntent({ jump: true });
-    const loop = createRunLoopSystem();
-    loop.update(world, STEP);
-    loop.reset?.(world, "run");
+    const session = createSessionSystemForRunner();
+    session.update(world, STEP);
+    session.reset?.(world, "run");
     expect(world.run.phase).toBe("running");
     expect(world.fx).toBeNull();
   });

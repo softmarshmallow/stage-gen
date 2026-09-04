@@ -22,6 +22,7 @@ const {
 } = await import("@/lib/kernel/systems");
 const { createIntentLatch } = await import("./intent");
 const { parseRunnerClockBlock, momentHolds } = await import("./clock");
+const { parseRunnerSessionBlock } = await import("./session");
 const { RUNNER_BLOCKS } = await import("./contract");
 const { SILENT_AUDIO_SINK } = await import("./audio");
 const { createRunnerWorld } = await import("./world");
@@ -41,13 +42,19 @@ const DOCUMENTED_ORDER = [
   // The screen-FX moment seals before the encounter director that consumes
   // its release; the director seals before the stream it asks for an arena,
   // before the vitals that answer for the shots it fires, and before the
-  // run-loop that pays for the boss it defeats.
+  // scorer that pays for the boss it defeats.
   "fx/moment",
   "runner/encounter",
   "runner/segments",
   "runner/obstacles",
   "runner/vitals",
-  "runner/run-loop",
+  // The scorer, then the lifecycle. They were one system, and the split is the
+  // one the `session` family rules: "what ended the run" and "what a token was
+  // worth" are two questions. The scorer runs first and feedback-reads the
+  // phase, which is how the single system behaved — it scored the frame and
+  // only then asked whether the frame had ended the run.
+  "score/run",
+  "session/run",
   "runner/camera",
   "runner/parallax",
   "runner/hud",
@@ -82,7 +89,34 @@ describe("assembleRunnerSystems", () => {
     const reversed = [
       ...assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK),
     ].reverse();
-    expect(sealSystems(reversed, EVENTS).order).toEqual(DOCUMENTED_ORDER);
+    // One tie does not survive the reversal, and it is named rather than
+    // papered over: `score/run` and `runner/vitals` are unordered by anything
+    // either declares — neither reads what the other writes, and the scorer's
+    // read of the phase is a feedback read by construction — so the
+    // registration order is the only thing separating them. Every other pair
+    // is bought by a declaration.
+    const swapped = [...DOCUMENTED_ORDER];
+    const at = swapped.indexOf("score/run");
+    swapped[at - 1] = "score/run";
+    swapped[at] = "runner/vitals";
+    expect(sealSystems(reversed, EVENTS).order).toEqual(swapped);
+  });
+
+  test("and every load-bearing pair survives the reversal", () => {
+    const reversed = [
+      ...assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK),
+    ].reverse();
+    const order = sealSystems(reversed, EVENTS).order;
+    const before = (a: string, b: string) =>
+      expect(order.indexOf(a)).toBeLessThan(order.indexOf(b));
+    before("clock/step", "runner/intent");
+    before("clock/step", "runner/avatar");
+    before("runner/intent", "runner/avatar");
+    before("runner/obstacles", "score/run");
+    before("score/run", "session/run");
+    before("runner/vitals", "session/run");
+    before("session/run", "runner/camera");
+    before("session/run", "runner/audio");
   });
 
   test("every system declares a contract version", () => {
@@ -116,7 +150,7 @@ describe("the encounter in the sealed order", () => {
     expect(at("runner/encounter")).toBeLessThan(at("runner/segments"));
     // ... and emits shot-contact and boss-defeated, which these answer.
     expect(at("runner/encounter")).toBeLessThan(at("runner/vitals"));
-    expect(at("runner/encounter")).toBeLessThan(at("runner/run-loop"));
+    expect(at("runner/encounter")).toBeLessThan(at("session/run"));
   });
 
   test("the camera keeps its place on an after edge instead of a read it never made", () => {
@@ -130,12 +164,12 @@ describe("the encounter in the sealed order", () => {
       SILENT_AUDIO_SINK,
     ).find((system) => system.id === "runner/camera");
     expect(camera?.reads).toEqual(["avatar"]);
-    expect(camera?.after).toEqual(["runner/run-loop"]);
+    expect(camera?.after).toEqual(["session/run"]);
     const order = sealSystems(
       assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK),
       EVENTS,
     ).order;
-    expect(order.indexOf("runner/run-loop")).toBeLessThan(order.indexOf("runner/camera"));
+    expect(order.indexOf("session/run")).toBeLessThan(order.indexOf("runner/camera"));
   });
 });
 
@@ -165,9 +199,9 @@ describe("the sealer refuses the declarations this step corrected", () => {
     expect(seal).toThrow('it writes "fx", which "fx/moment" owns');
   });
 
-  test("an undeclared write: the death pose the run-loop used to apply", () => {
+  test("an undeclared write: the death pose the run loop used to apply", () => {
     const sealed = sealSystems(
-      rosterWith("runner/run-loop", (system) => ({
+      rosterWith("session/run", (system) => ({
         ...system,
         update(world, step) {
           system.update(world, step);
@@ -180,7 +214,7 @@ describe("the sealer refuses the declarations this step corrected", () => {
     const world = createRunnerWorld(parseRunnerRuntimeManifest(runnerManifestFixture()), 1);
     const tick = () => sealed.tick(world, { dt: 1 / 60, now: 1 / 60, frame: 1 });
     expect(tick).toThrow(UndeclaredWriteError);
-    expect(tick).toThrow('"runner/run-loop" wrote "avatar.motion"');
+    expect(tick).toThrow('"session/run" wrote "avatar.motion"');
   });
 
   test("declaring that write instead would have closed a cycle", () => {
@@ -194,15 +228,15 @@ describe("the sealer refuses the declarations this step corrected", () => {
       owns: [],
       writes: ["avatar"],
     })).map((system) =>
-      system.id === "runner/run-loop" ? { ...system, writes: ["avatar" as const] } : system,
+      system.id === "session/run" ? { ...system, writes: ["avatar" as const] } : system,
     );
     const seal = () => sealSystems(shared, EVENTS);
     expect(seal).toThrow(SystemCycleError);
-    expect(seal).toThrow("runner/run-loop");
+    expect(seal).toThrow("session/run");
   });
 
   test("a consumed type with no emitter: the verdict with nobody to give it", () => {
-    // Drop vitals, the only system that emits `run-ended`, and the run-loop's
+    // Drop vitals, the only system that emits `run-ended`, and the session's
     // consume has no other end.
     const withoutVitals = assembleRunnerSystems(
       createIntentLatch(),
@@ -286,5 +320,49 @@ describe("the clock family in the runner", () => {
     expect(() => parseRunnerClockBlock({ ...blocks, fx: "fx-block-v2" })).toThrow(
       'manifest block "fx" is published as fx-block-v2; this build reads fx-block-v1',
     );
+  });
+});
+
+// --- The `session` family, sealed into this genre ---------------------------------------------
+
+describe("the session family in the runner", () => {
+  const roster = () =>
+    assembleRunnerSystems(createIntentLatch(), noopView, noopView, SILENT_AUDIO_SINK);
+
+  test("E7 subtraction: a genre that keeps the session and refuses the score still seals", () => {
+    // The plan's cinematic platformer wants the lifecycle and not the token
+    // line. Take the scorer out, drop the one edge that names it, and the rest
+    // of the frame is the same frame — which is the whole claim of splitting
+    // them: the lifecycle never needed the score to decide anything.
+    const quiet = roster()
+      .filter((system) => system.id !== "score/run")
+      .map((system) =>
+        system.id === "session/run"
+          ? { ...system, after: (system.after ?? []).filter((id) => id !== "score/run") }
+          : system,
+      );
+    expect(sealSystems(quiet, EVENTS).order).toEqual(
+      DOCUMENTED_ORDER.filter((id) => id !== "score/run"),
+    );
+  });
+
+  test("the two questions have two authors, and the sealer says so", () => {
+    const systems = roster();
+    const session = systems.find((system) => system.id === "session/run");
+    const score = systems.find((system) => system.id === "score/run");
+    expect(session?.owns).toEqual(["run"]);
+    expect(score?.owns).toEqual(["score"]);
+    // The scorer's read of the phase is a feedback read by construction: it is
+    // not declared, and the session's own `after` edge is what keeps the frame
+    // scored under the phase it was collected in.
+    expect(score?.reads).toEqual(["obstacles"]);
+    expect(session?.after).toEqual(["score/run"]);
+  });
+
+  test("the family gates its own block, and the refusal names it", () => {
+    expect(parseRunnerSessionBlock(RUNNER_BLOCKS).published).toBe(true);
+    expect(() =>
+      parseRunnerSessionBlock({ ...RUNNER_BLOCKS, gameplay: "runner-gameplay-block-v2" }),
+    ).toThrow('manifest block "gameplay" is published as runner-gameplay-block-v2');
   });
 });

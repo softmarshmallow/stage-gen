@@ -17,6 +17,7 @@ import type {
 import { beginFxMoment, type FxState } from "@/lib/fx/moment-system";
 import type { FxMoment } from "@/lib/manifest/fx";
 import { createClock, type ClockState } from "@/lib/families/clock/clock";
+import type { SessionState } from "@/lib/families/session/session";
 import { createEventQueue, type EventQueue } from "@/lib/kernel/events";
 import { createGauge } from "@/lib/kernel/gauge";
 import { mulberry32, type Rng } from "@/lib/kernel/rng";
@@ -30,6 +31,7 @@ import {
   createEncounterState,
 } from "./encounter-arithmetic";
 import type { RunnerIntent } from "./intent";
+import { createScoreState, type ScoreState } from "./score";
 import { NEUTRAL_RUNNER_INTENT } from "./intent";
 import {
   createSegmentStream,
@@ -52,7 +54,7 @@ export type RunPhase = "intro" | "running" | "dead";
  * `crush` was called `step` while it was only ever a way to die; now that a
  * package can forgive it, it is worth a name a reader recognises.
  */
-export type DeathCause = "hazard" | "pit" | "crush" | "shot" | null;
+export type DeathCause = "hazard" | "pit" | "crush" | "shot";
 
 /**
  * Which physics the avatar integrates.
@@ -97,16 +99,17 @@ export interface ObstaclesState {
   missedThisFrame: number;
 }
 
-export interface RunState {
-  phase: RunPhase;
-  seed: number;
+/**
+ * The session: phase, seed lineage, and what ended the run.
+ *
+ * The `score`, `chain` and `multiplier` that used to sit here left with the
+ * scorer. "What ended the run" and "what a token was worth" are two questions
+ * and they had one author; now the lifecycle owns this slice and `score/run`
+ * owns its own.
+ */
+export interface RunState extends SessionState<RunPhase, DeathCause> {
+  /** This run's stream: chunk selection, and the seed the next run is drawn from. */
   rng: Rng;
-  score: number;
-  /** Consecutive pickups collected without a miss; the multiplier's input. */
-  chain: number;
-  /** Score multiplier earned by the current chain; 1 with no chain. */
-  multiplier: number;
-  cause: DeathCause;
 }
 
 export interface CameraState {
@@ -191,6 +194,8 @@ export interface RunnerWorld {
   obstacles: ObstaclesState;
   vitals: VitalsState;
   run: RunState;
+  /** The scorekeeper's slice; one author, and not the lifecycle's. */
+  score: ScoreState;
   camera: CameraState;
   /** The screen-FX moment in flight, driven by the generic fx system; null when none. */
   fx: FxState | null;
@@ -298,8 +303,8 @@ export function cameraScrollX(distanceColumns: number, config: RunnerWorldConfig
  * The auto-run camera: scroll is a pure function of the avatar's distance.
  *
  * It used to declare a read of `run` it never performed, to buy the ordering
- * edge that put it after the run-loop. That is what `after` is for, and the
- * edge is still wanted: the run-loop is where a run ends, and the frame the
+ * edge that put it after the run loop. That is what `after` is for, and the
+ * edge is still wanted: the session is where a run ends, and the frame the
  * camera draws should be the one the lifecycle has finished deciding.
  */
 export function createCameraSystem(): GameSystem<RunnerWorld> {
@@ -309,7 +314,7 @@ export function createCameraSystem(): GameSystem<RunnerWorld> {
     reads: ["avatar"],
     writes: [],
     owns: ["camera"],
-    after: ["runner/run-loop"],
+    after: ["session/run"],
     update(world) {
       world.camera.scrollX = cameraScrollX(world.avatar.distanceColumns, world.config);
     },
@@ -370,11 +375,12 @@ export function resetRunnerWorld(
   world.run = {
     phase: intro ? "intro" : "running",
     seed,
+    // Overwritten by the session's own reset, which knows whether this is the
+    // next run of a session or the first of a new one; the boot's first world
+    // is run zero.
+    runIndex: world.run?.runIndex ?? 0,
     rng,
-    score: 0,
-    chain: 0,
-    multiplier: 1,
-    cause: null,
+    endedBy: null,
   };
   world.fx = null;
   world.locomotion = "run";
@@ -446,12 +452,14 @@ export function createRunnerWorld(
     run: {
       phase: "running",
       seed,
+      runIndex: 0,
       rng: mulberry32(seed),
-      score: 0,
-      chain: 0,
-      multiplier: 1,
-      cause: null,
+      endedBy: null,
     },
+    // Reset by `score/run`, which owns it; `resetRunnerWorld` leaves it alone
+    // so that the slice has exactly one author on a restart as well as on a
+    // tick.
+    score: createScoreState(),
     camera: { scrollX: 0 },
     fx: null,
     locomotion: "run",

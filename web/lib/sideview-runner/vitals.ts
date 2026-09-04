@@ -21,7 +21,7 @@ import type { RunnerDamageSource } from "./contract";
 import type { GameSystem } from "@/lib/kernel/systems";
 import { surfaceRowAt } from "./segments";
 import type { EncounterEvent } from "./encounter";
-import type { RunLoopEvent } from "./run-loop";
+import type { SessionEvent } from "./session";
 import type { RunnerWorld } from "./world";
 
 /**
@@ -105,7 +105,7 @@ export type RunnerEvent =
   /** The boss encounter's own announcements. */
   | EncounterEvent
   /** The lifecycle's own: this run is over and another was asked for. */
-  | RunLoopEvent;
+  | SessionEvent;
 
 /**
  * The first solid surface at or after a column, or null within the lookahead.

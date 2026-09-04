@@ -63,7 +63,8 @@ import {
   type ParallaxStageView,
   type RunnerGroundTextures,
 } from "./parallax";
-import { createRunLoopSystem } from "./run-loop";
+import { createScoreSystem } from "./score";
+import { createSessionSystemForRunner } from "./session";
 import { avatarBlinkAlpha, createVitalsSystem } from "./vitals";
 import {
   collectiblePresentation,
@@ -142,7 +143,10 @@ export function assembleRunnerSystems(
     createSegmentsSystem(),
     createObstaclesSystem(),
     createVitalsSystem(),
-    createRunLoopSystem(),
+    // The scorer, then the lifecycle: this frame's collections are scored
+    // under the phase they were collected in.
+    createScoreSystem(),
+    createSessionSystemForRunner(),
     createCameraSystem(),
     createParallaxSystem(stage),
     createHudSystem(hud),

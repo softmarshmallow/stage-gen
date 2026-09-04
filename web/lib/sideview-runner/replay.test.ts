@@ -99,9 +99,9 @@ function digest(world: unknown, events: readonly unknown[]): string {
  * restart at frame 410 included.
  */
 const GOLDEN: Record<number, string> = {
-  60: "b2d389c2cb410d20d127b5e4b5bcbc8645949f4aa855521fe5427e62d1223ed6",
-  300: "876b5647838e0fe02a9300962ef22abc5d08a66abd0603e311fd52999bf43e5f",
-  600: "f8bb6e74ab6a5d603519563e8f9463a04b22f6357b3f46a90105b3d138186e2f",
+  60: "18bc90f7f233169ad3d8de407b6d16fe878adcad9036a2acff2f91fce2df8263",
+  300: "c7a384414ff712e177cc128b8c95b3ceaf94729de7f142b174ae2e66c3696b31",
+  600: "d0eb468b03c722166edb5cc032ec600b7a30f6c8eda74cb383f7bbfa883afd29",
 };
 
 /**

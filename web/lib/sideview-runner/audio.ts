@@ -50,7 +50,7 @@ export const SILENT_MUSIC_SINK: RunnerMusicSink = Object.freeze({
 
 /**
  * The cue system: presentation, so it writes no world key. The explicit
- * edges pin it to the very end of the frame - after the run-loop that
+ * edges pin it to the very end of the frame - after the session that
  * settles the phase and score, and after the hud that closes the drawing
  * chain - so the sealed order stays unique regardless of registration order.
  */
@@ -70,7 +70,7 @@ export function createAudioSystem(
     contractVersion: "audio-system-v4",
     reads: ["avatar", "obstacles", "run", "vitals"],
     writes: [],
-    after: ["runner/run-loop", "runner/hud"],
+    after: ["session/run", "runner/hud"],
     update(world) {
       // The announcement rides the first frame of a boot: with a stage-start
       // moment that is the intro's first frame, so the line and the rip are
@@ -110,7 +110,7 @@ export function createAudioSystem(
           }
         }
         for (let i = 0; i < world.obstacles.collectedThisFrame.length; i += 1) {
-          sink.play("collect", Math.min(1, world.run.chain / 30));
+          sink.play("collect", Math.min(1, world.score.chain / 30));
         }
         // The vitals system sets this on the frame a drain connects; a hit
         // that ends the run is death's to answer, not this cue's.

@@ -258,12 +258,12 @@ export function buildHud(
         }
       }
       distanceText.setText(formatRunDistance(world.avatar.distanceColumns, tilePx));
-      scoreText.setText(formatScore(world.run.score));
-      comboText.setText(formatCombo(world.run.chain, world.run.multiplier));
+      scoreText.setText(formatScore(world.score.total));
+      comboText.setText(formatCombo(world.score.chain, world.score.multiplier));
       const dead = world.run.phase === "dead";
       if (dead) {
         summary.setText(
-          `${formatRunDistance(world.avatar.distanceColumns, tilePx)} · ${formatScore(world.run.score)}`,
+          `${formatRunDistance(world.avatar.distanceColumns, tilePx)} · ${formatScore(world.score.total)}`,
         );
       }
       for (const object of deathLayer) object.setVisible(dead);

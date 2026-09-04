@@ -35,14 +35,16 @@ describe("createRunnerWorld", () => {
 
   test("resetRunnerWorld rebuilds the dynamic halves in place", () => {
     const world = createRunnerWorld(manifest, 5);
-    world.run.score = 120;
+    world.score.total = 120;
     world.run.phase = "dead";
     world.avatar.distanceColumns = 400;
     world.obstacles.collected.add("40:2:sunleaf_token");
     resetRunnerWorld(world, 6);
     // Widened read: TS control-flow narrowing cannot see the in-place reset.
     expect(world.run.phase as string).toBe("running");
-    expect(world.run.score).toBe(0);
+    // The scorer owns its own slice and its own reset; `resetRunnerWorld`
+    // deliberately leaves it alone so that one slice has one author.
+    expect(world.score.total).toBe(120);
     expect(world.run.seed).toBe(6);
     expect(world.avatar.distanceColumns).toBe(2);
     expect(world.obstacles.collected.size).toBe(0);

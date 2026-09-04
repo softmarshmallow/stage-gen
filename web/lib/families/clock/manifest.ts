@@ -8,44 +8,14 @@
 // block enables combat. So the family gates that one block itself, by name,
 // through the per-block table, instead of trusting the genre parser to have
 // gated everything up front on its behalf.
-//
-// The gate is the point, not the fields. A producer that moves the block this
-// family reads gets a refusal that names the block and the version this build
-// reads, from the family that could not go on — which is what `blocks.ts`
-// says the per-block table is for.
 
-import { parseBlockTable, type BlockTable } from "@/lib/manifest/blocks";
+import { gateFamilyBlock, type FamilyBlockBinding, type FamilyBlockView } from "../block-gate";
+import type { BlockTable } from "@/lib/manifest/blocks";
 
-export interface ClockBlockBinding {
-  /** The block key this genre authors the clock's holders in. */
-  readonly block: string;
-  /** The version of that block this build reads. */
-  readonly version: string;
-  /** True when a package may publish no such block at all. */
-  readonly optional?: boolean;
-}
+export type ClockBlockBinding = FamilyBlockBinding;
+export type ClockBlockView = FamilyBlockView;
 
-export interface ClockBlockView {
-  readonly block: string;
-  /** The version the package published, or null when an optional block is absent. */
-  readonly version: string | null;
-  /** Whether the package published the block the genre's holders come from. */
-  readonly published: boolean;
-}
-
-/**
- * Gate the one block this genre's clock holders are authored in.
- *
- * `blocks` is the manifest's own per-block table, already parsed; re-gating it
- * here is not redundant, it is the family taking its own dependency instead of
- * inheriting the genre's.
- */
+/** Gate the one block this genre's clock holders are authored in. */
 export function parseClockBlock(blocks: BlockTable, binding: ClockBlockBinding): ClockBlockView {
-  const gated = parseBlockTable(
-    blocks,
-    { [binding.block]: binding.version },
-    binding.optional ? { optional: [binding.block] } : {},
-  );
-  const version = gated[binding.block] ?? null;
-  return Object.freeze({ block: binding.block, version, published: version !== null });
+  return gateFamilyBlock(blocks, binding);
 }
