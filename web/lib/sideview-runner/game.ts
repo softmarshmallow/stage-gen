@@ -22,7 +22,8 @@ import {
 } from "@/lib/sideview/assets";
 import { parseScreenFxBlock } from "@/lib/families/screen-fx/manifest";
 import { HIDDEN_FX_VIEW } from "@/lib/families/screen-fx/view";
-import { installMotionPlayback } from "@/lib/sideview/motion-playback";
+import { installMotionPlayback } from "@/lib/families/sideview/motion";
+import { parseRunnerMotionBlocks } from "./contract";
 import { presentPreparedLayerCanvas } from "@/lib/sideview/prepared-layer-presentation";
 import {
   createAudioSystem,
@@ -132,6 +133,7 @@ const GROUND_TEXTURE_KEY = "runner:ground";
 export function gateRunnerFamilyBlocks(blocks: BlockTable): void {
   parseRunnerTraversalBlock(blocks);
   parseRunnerParallaxBlock(blocks);
+  parseRunnerMotionBlocks(blocks);
   parseRunnerClockBlock(blocks);
   parseRunnerSessionBlock(blocks);
   parseRunnerIntentBlock(blocks);

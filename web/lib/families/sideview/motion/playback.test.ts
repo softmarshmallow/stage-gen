@@ -7,7 +7,7 @@ import {
   installMotionPlayback,
   repackedMotionFootOriginY,
   repackedMotionHeadOriginY,
-} from "./motion-playback";
+} from "./playback";
 
 describe("resolved motion playback", () => {
   test("holds one canonical frame without creating or starting an animation", () => {

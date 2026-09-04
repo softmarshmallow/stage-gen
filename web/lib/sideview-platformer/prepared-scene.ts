@@ -153,11 +153,13 @@ import {
   anchorRepackedMotionFeet,
   applyMotionPlayback,
   installMotionPlayback,
-} from "@/lib/sideview/motion-playback";
+} from "@/lib/families/sideview/motion";
 import {
   PREPARED_PLAYER_PRESERVE_SOURCE_SCALE_STATES,
+  parsePlatformerMotionBlocks,
   preparedPlayerClimbArtwork,
   preparedPlayerMotionPlayback,
+  resolvePreparedPlayerMotions,
   preparedPlayerStateAdapter,
   preparedPlayerStateRebase,
 } from "./prepared-player";
@@ -597,6 +599,8 @@ export class PreparedStageScene extends Phaser.Scene {
     // behalf of a dozen consumers it does not know about.
     parsePlatformerTraversalBlocks(manifest.blocks);
     parsePlatformerParallaxBlock(manifest.blocks);
+    parsePlatformerMotionBlocks(manifest.blocks);
+    resolvePreparedPlayerMotions(manifest.player.states);
     parsePlatformerClockBlock(manifest.blocks);
     parsePlatformerIntentBlock(manifest.blocks);
     parsePlatformerVitalsBlock(manifest.blocks);

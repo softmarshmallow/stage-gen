@@ -1,3 +1,4 @@
+import { motionNeedsRestart } from "@/lib/families/sideview/motion";
 import {
   type AggressionProfile,
   attackFootLevelsOverlap,
@@ -506,7 +507,17 @@ export function constrainMobStrikeToAttackLevel(input: Readonly<{
   return "chase";
 }
 
-/** Recover locomotion after a finite attack/hurt strip has stopped on its last frame. */
+/**
+ * Recover locomotion after a finite attack/hurt strip has stopped on its last frame.
+ *
+ * Which of this genre's mob states are sustained is this genre's fact; the rule
+ * that a sustained state whose animation is not running has to be restarted is
+ * the `sideview/motion` family's, and it is the same rule any actor with
+ * looping states needs.
+ */
+/** The mob states that are conditions rather than events, and so loop. */
+const MOB_SUSTAINED_STATES = new Set(["wander", "chase", "return_home", "attack_recovery"]);
+
 export function mobLocomotionAnimationNeedsRestart(input: Readonly<{
   state:
     | "wander"
@@ -520,16 +531,10 @@ export function mobLocomotionAnimationNeedsRestart(input: Readonly<{
   idleAnimationKey: string;
   isPlaying: boolean;
 }>): boolean {
-  if (
-    input.state !== "wander" &&
-    input.state !== "chase" &&
-    input.state !== "return_home" &&
-    input.state !== "attack_recovery"
-  ) {
-    return false;
-  }
-  return (
-    input.currentAnimationKey !== input.idleAnimationKey ||
-    !input.isPlaying
-  );
+  return motionNeedsRestart({
+    sustained: MOB_SUSTAINED_STATES.has(input.state),
+    currentAnimationKey: input.currentAnimationKey,
+    sustainedAnimationKey: input.idleAnimationKey,
+    isPlaying: input.isPlaying,
+  });
 }

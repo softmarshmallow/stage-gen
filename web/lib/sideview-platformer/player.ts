@@ -55,7 +55,7 @@ import {
   applyMotionPlayback,
   installMotionPlayback,
   type RuntimeMotionPlayback,
-} from "@/lib/sideview/motion-playback";
+} from "@/lib/families/sideview/motion";
 import {
   PLATFORMER_COYOTE_MS,
   PLATFORMER_GRAVITY,
@@ -87,6 +87,7 @@ export {
   PLAYER_ATTACK_STATE_BY_MOTION,
   type PlayerState,
 } from "./player-state";
+import { mirrorFor } from "@/lib/families/sideview/motion";
 
 export type PlatformDropTraversalPhase =
   | "drop-commanded"
@@ -631,7 +632,7 @@ export class Player {
     if (!controlsLocked && this.support === "climbable" && this.activeClimbable) {
       this.continueLadder({ dt, up, down, left, right, wantsJump });
       this.sprite.setFlipX(
-        this.support === "climbable" ? false : this.facing === "left",
+        this.support === "climbable" ? false : mirrorFor(this.facing),
       );
       return;
     }
@@ -664,7 +665,7 @@ export class Player {
       });
       this.continueLadder({ dt, up, down, left, right, wantsJump: false });
       this.sprite.setFlipX(
-        this.support === "climbable" ? false : this.facing === "left",
+        this.support === "climbable" ? false : mirrorFor(this.facing),
       );
       return;
     }
@@ -912,7 +913,7 @@ export class Player {
     }
 
     // Flip sprite by facing.
-    this.sprite.setFlipX(this.facing === "left");
+    this.sprite.setFlipX(mirrorFor(this.facing));
   }
 
   private continueLadder(input: Readonly<{
@@ -1304,14 +1305,14 @@ export class Player {
     if (result.health.defeated && this.hasDeathPresentation()) {
       this.hurtUntil = 0;
       this.setState("death");
-      this.sprite.setFlipX(this.facing === "left");
+      this.sprite.setFlipX(mirrorFor(this.facing));
     } else if (this.hasHurtPresentation()) {
       this.hurtUntil = nowMs + HURT_DURATION_MS;
       // The scene resolves strikes after `update`, so waiting for the next state-selection pass
       // leaves the hit frame in the old pose. Enter now; the update loop holds the final frame
       // when this is also the best available terminal fallback.
       this.setState("hurt");
-      this.sprite.setFlipX(this.facing === "left");
+      this.sprite.setFlipX(mirrorFor(this.facing));
     }
     return result;
   }

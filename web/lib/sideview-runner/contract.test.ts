@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
+  parseRunnerMotionBlocks,
+  RUNNER_AVATAR_MOTIONS,
+  RUNNER_BASE_MOTION_STATES,
+  RUNNER_BLOCKS,
+  RUNNER_BOSS_MOTIONS,
+  RUNNER_BOSS_MOTION_STATES,
+  RUNNER_LOOPING_MOTION_STATES,
+  RUNNER_MOTION_STATES,
   bottomContiguousSurfaceRow,
   parseRunnerRuntimeManifest,
   RUNNER_REFUSAL,
@@ -823,7 +831,13 @@ describe("the encounter contract", () => {
       ),
     };
 
-    expect(() => parseRunnerRuntimeManifest(document)).toThrow("declares no death motion");
+    // The wording moved with the rule: the boss's missing-state refusal and the
+    // avatar's are now the same refusal from the `sideview/motion` family, so
+    // both read "is missing the <state> state" rather than one of them speaking
+    // its own dialect. The refusal itself is unchanged.
+    expect(() => parseRunnerRuntimeManifest(document)).toThrow(
+      "bosses[0].motions is missing the death state",
+    );
   });
 
   test("the boss holds its hover and performs everything else once", () => {
@@ -839,5 +853,27 @@ describe("the encounter contract", () => {
     };
 
     expect(() => parseRunnerRuntimeManifest(document)).toThrow("must play loop");
+  });
+});
+
+describe("the runner's motion vocabularies are the family's", () => {
+  test("two vocabularies in one genre, which is what makes it a parameter", () => {
+    expect([...RUNNER_AVATAR_MOTIONS.states]).toEqual([...RUNNER_MOTION_STATES]);
+    expect([...RUNNER_AVATAR_MOTIONS.required]).toEqual([...RUNNER_BASE_MOTION_STATES]);
+    expect([...RUNNER_AVATAR_MOTIONS.looping]).toEqual([...RUNNER_LOOPING_MOTION_STATES]);
+    expect([...RUNNER_BOSS_MOTIONS.states]).toEqual([...RUNNER_BOSS_MOTION_STATES]);
+    // Every boss state is owed; three of six avatar states are, and the other
+    // three are owed on conditions this genre evaluates.
+    expect([...RUNNER_BOSS_MOTIONS.required]).toEqual([...RUNNER_BOSS_MOTION_STATES]);
+  });
+
+  test("the motion blocks are gated by the family, by name, and there are two", () => {
+    expect(parseRunnerMotionBlocks(RUNNER_BLOCKS).map((view) => view.block)).toEqual([
+      "avatar",
+      "bosses",
+    ]);
+    expect(() =>
+      parseRunnerMotionBlocks({ ...RUNNER_BLOCKS, avatar: "runner-avatar-block-v2" }),
+    ).toThrow('manifest block "avatar" is published as runner-avatar-block-v2');
   });
 });

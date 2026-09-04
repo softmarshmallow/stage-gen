@@ -42,7 +42,7 @@ import {
   aggressionProfile,
   resolveDamage,
 } from "./combat";
-import { anchorRepackedMotionFeet } from "@/lib/sideview/motion-playback";
+import { anchorRepackedMotionFeet } from "@/lib/families/sideview/motion";
 import {
   constrainMobStrikeToAttackLevel,
   mobAttackLevelReachable,
@@ -61,6 +61,7 @@ import {
   type MobLaneNode,
 } from "./mob-navigation";
 import type { TerrainWalkResolution } from "./vertical";
+import { mirrorFor } from "@/lib/families/sideview/motion";
 
 export type MobAiState =
   | "wander"
@@ -573,7 +574,7 @@ export class Mob {
 
   /** Apply the facing node's stable decision; no behavior branch writes sprite mirroring. */
   private renderFacing(): void {
-    this.sprite.setFlipX(this.facing.currentDirection === -1);
+    this.sprite.setFlipX(mirrorFor(this.facing.currentDirection === -1 ? "left" : "right"));
   }
 
   /** The same resolution without applying it, for a move that is not the mob's own step. */

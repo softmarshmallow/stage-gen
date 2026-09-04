@@ -2,7 +2,15 @@ import type { ClimbArtwork } from "./player";
 import type { PlayerState } from "./player-state";
 import type { ClimbableRole } from "./vertical";
 import type { MotionBinding, MotionCalibration } from "@/lib/manifest/prepared-manifest";
-import type { RuntimeMotionPlayback } from "@/lib/sideview/motion-playback";
+import {
+  parseMotionBlocks,
+  resolveMotionSet,
+  sealMotionVocabulary,
+  type MotionBlockView,
+  type RuntimeMotionPlayback,
+} from "@/lib/families/sideview/motion";
+import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
+import type { BlockTable } from "@/lib/manifest/blocks";
 
 type PreparedPlayerStateAdapter = Readonly<{
   runtime_state: PlayerState;
@@ -54,6 +62,58 @@ export const PREPARED_PLAYER_STATE_ADAPTERS: Readonly<
   hurt: Object.freeze({ runtime_state: "hurt", texture_key: "character_hurt" }),
   death: Object.freeze({ runtime_state: "death", texture_key: "character_death" }),
 });
+
+/**
+ * This genre's player vocabulary, closed by the `sideview/motion` family.
+ *
+ * Ten authored states, and the adapter table above is the vocabulary — it
+ * always was, and until now nothing checked it. A package publishing a pose
+ * this controller does not draw used to be *skipped*, silently, in two places;
+ * now it is refused by name at boot, which is the difference between a producer
+ * finding out and a producer not.
+ *
+ * `idle` is the only required member, and it is required for a reason that can
+ * be pointed at rather than argued: the controller builds its sprite from the
+ * idle strip and applies the idle playback before any rule has run, so a
+ * package without one reaches a texture that does not exist. Every other state
+ * is genuinely optional and the *fallback table* — not a `textures.exists` at
+ * the point of decision — is what says what is drawn instead.
+ */
+export const PREPARED_PLAYER_MOTIONS = sealMotionVocabulary({
+  states: Object.keys(PREPARED_PLAYER_STATE_ADAPTERS),
+  required: ["idle"],
+});
+
+/**
+ * Close the published motion set against the vocabulary.
+ *
+ * Called once at boot, before the controller is built, so the refusal names the
+ * package rather than surfacing as a missing texture ten frames in.
+ */
+export function resolvePreparedPlayerMotions(
+  states: Readonly<Record<string, MotionBinding>>,
+): readonly string[] {
+  return resolveMotionSet(Object.keys(states), PREPARED_PLAYER_MOTIONS, {
+    label: "player.states",
+  });
+}
+
+/**
+ * The blocks whose actors this genre draws motion for.
+ *
+ * `player` and `mobs`: a motion belongs to the actor that wears it, so the
+ * family gates the actor's own block rather than inventing a `motion` block
+ * neither genre authors.
+ */
+export const PLATFORMER_MOTION_BLOCKS = Object.freeze([
+  Object.freeze({ block: "player", version: PREPARED_RUNTIME_BLOCKS.player }),
+  Object.freeze({ block: "mobs", version: PREPARED_RUNTIME_BLOCKS.mobs }),
+]);
+
+/** Gate the platformer's motion blocks. Refuses by naming `player` or `mobs`. */
+export function parsePlatformerMotionBlocks(blocks: BlockTable): readonly MotionBlockView[] {
+  return parseMotionBlocks(blocks, PLATFORMER_MOTION_BLOCKS);
+}
 
 /**
  * A crouch is intentionally shorter in world space. Matching its alpha-bbox

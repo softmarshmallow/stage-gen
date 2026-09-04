@@ -19,6 +19,12 @@ import {
   bottomContiguousSurfaceRow as familySurfaceRow,
   stringOccupancy,
 } from "@/lib/families/sideview/traversal";
+import {
+  parseMotionBlock,
+  resolveMotionSet,
+  sealMotionVocabulary,
+  type MotionBlockView,
+} from "@/lib/families/sideview/motion";
 
 export const RUNNER_RUNTIME_KIND = "sideview-runner-runtime-v13";
 export const RUNNER_RUNTIME_SCHEMA_VERSION = 13;
@@ -120,6 +126,52 @@ export const RUNNER_BASE_MOTION_STATES: readonly RunnerMotionState[] = [
   "jump",
   "death",
 ];
+
+/**
+ * This genre's avatar vocabulary, closed by the `sideview/motion` family.
+ *
+ * Six states, three of them owed by every avatar. The other three are owed
+ * conditionally — a `slide` exactly when the package declares a duck profile, a
+ * `fly` exactly when it declares an encounter, a `hurt` exactly when it draws
+ * its hurt rather than blinking it — and those conditions are this genre's to
+ * evaluate, which is why they reach the family as `extraRequired` rather than
+ * as knowledge the family has to carry.
+ */
+export const RUNNER_AVATAR_MOTIONS = sealMotionVocabulary({
+  states: RUNNER_MOTION_STATES,
+  required: RUNNER_BASE_MOTION_STATES,
+  looping: RUNNER_LOOPING_MOTION_STATES,
+});
+
+/**
+ * The boss vocabulary: three states, all of them owed.
+ *
+ * A second instantiation inside one genre, which is the cheapest possible
+ * demonstration that the vocabulary really is a parameter: nothing about the
+ * avatar's six states is baked into the family that the boss's three have to
+ * work around.
+ */
+export const RUNNER_BOSS_MOTIONS = sealMotionVocabulary({
+  states: ["hover", "attack", "death"],
+  required: ["hover", "attack", "death"],
+});
+
+/**
+ * The blocks whose actors this genre draws motion for.
+ *
+ * `avatar` and `bosses`. A motion belongs to the actor that wears it, so the
+ * family gates the actor's own block rather than inventing a `motion` block
+ * neither genre authors.
+ */
+export const RUNNER_MOTION_BLOCKS = Object.freeze([
+  Object.freeze({ block: "avatar", version: RUNNER_BLOCKS.avatar }),
+  Object.freeze({ block: "bosses", version: RUNNER_BLOCKS.bosses }),
+]);
+
+/** Gate the runner's motion blocks. Refuses by naming `avatar` or `bosses`. */
+export function parseRunnerMotionBlocks(blocks: BlockTable): readonly MotionBlockView[] {
+  return RUNNER_MOTION_BLOCKS.map((binding) => parseMotionBlock(blocks, binding));
+}
 
 export interface RunnerCalibration {
   readonly heightUnits: number;
@@ -921,10 +973,11 @@ function boss(value: unknown, label: string): RunnerBoss {
   const motions = array(raw.motions, `${label}.motions`).map((entry, index) =>
     bossMotion(entry, `${label}.motions[${index}]`),
   );
-  const declared = new Set(motions.map((entry) => entry.state));
-  for (const state of RUNNER_BOSS_MOTION_STATES) {
-    if (!declared.has(state)) throw new Error(`${label} declares no ${state} motion`);
-  }
+  resolveMotionSet(
+    motions.map((entry) => entry.state),
+    RUNNER_BOSS_MOTIONS,
+    { label: `${label}.motions` },
+  );
   return Object.freeze({
     bossId: text(raw.boss_id, `${label}.boss_id`),
     displayName: text(raw.display_name, `${label}.display_name`),
@@ -1404,21 +1457,19 @@ export function parseRunnerRuntimeManifest(value: unknown): RunnerRuntimeManifes
     motion(entry, `avatar.motions[${index}]`),
   );
   const motionStates = motions.map((entry) => entry.state);
-  uniqueIds(motionStates, "avatar motion states");
   const declaresDuck =
     rawGameplay.duck_profile !== null && rawGameplay.duck_profile !== undefined;
-  const requiredStates: readonly RunnerMotionState[] = [
-    ...RUNNER_BASE_MOTION_STATES,
-    ...(declaresDuck ? (["slide"] as const) : []),
-    // The drawn hurt representation owes its strip, exactly as a duck profile
-    // owes a slide. The blink representation owes none and must not ship one.
-    ...(vitals?.hurtRepresentation === "drawn_v1" ? (["hurt"] as const) : []),
-  ];
-  for (const required of requiredStates) {
-    if (!motionStates.includes(required)) {
-      throw new Error(`avatar.motions is missing the ${required} state`);
-    }
-  }
+  // The family closes the set and refuses the gaps; the conditions are this
+  // genre's, so they arrive as `extraRequired`. A duck profile owes a slide and
+  // the drawn hurt representation owes a hurt, exactly as before — what moved
+  // is who says "is missing the ... state", not when.
+  resolveMotionSet(motionStates, RUNNER_AVATAR_MOTIONS, {
+    label: "avatar.motions",
+    extraRequired: [
+      ...(declaresDuck ? (["slide"] as const) : []),
+      ...(vitals?.hurtRepresentation === "drawn_v1" ? (["hurt"] as const) : []),
+    ],
+  });
   if (vitals?.hurtRepresentation !== "drawn_v1" && motionStates.includes("hurt")) {
     throw new Error(
       'avatar.motions declares hurt but gameplay.vitals.hurt_representation is not "drawn_v1"',

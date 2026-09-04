@@ -28,6 +28,7 @@ import {
   type ScaleReference,
 } from "@/lib/sideview/sprite-scale";
 import { terrainSurfaceY } from "./terrain";
+import { mirrorFor } from "@/lib/families/sideview/motion";
 
 /**
  * Marker shown above the villager the player can currently talk to.
@@ -259,7 +260,7 @@ export class Npc {
    */
   update(playerX: number, isInteractionTarget: boolean): void {
     if (this.opts.facesPlayer) {
-      this.sprite.setFlipX(playerX < this.sprite.x);
+      this.sprite.setFlipX(mirrorFor(playerX < this.sprite.x ? "left" : "right"));
     }
     if (isInteractionTarget !== this.interactionTarget) {
       this.interactionTarget = isInteractionTarget;

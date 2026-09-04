@@ -6,7 +6,12 @@ import {
   preparedPlayerClimbArtwork,
   preparedPlayerMotionPlayback,
   preparedPlayerStateAdapter,
+  parsePlatformerMotionBlocks,
+  PREPARED_PLAYER_MOTIONS,
+  PREPARED_PLAYER_STATE_ADAPTERS,
+  resolvePreparedPlayerMotions,
 } from "./prepared-player";
+import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
 
 const ASSET = Object.freeze({
   path: "content/players/wayfarer/states/crouch.png",
@@ -127,5 +132,41 @@ describe("prepared player adapter", () => {
     } as const;
     expect(playerSheetScaleForState({ ...shared, state: "crouch" })).toBe(0.2);
     expect(playerSheetScaleForState({ ...shared, state: "walk" })).toBe(0.32);
+  });
+});
+
+describe("the platformer's motion vocabulary is the family's, closed", () => {
+  test("the adapter table is the vocabulary, and idle is the one owed state", () => {
+    expect([...PREPARED_PLAYER_MOTIONS.states]).toEqual(
+      Object.keys(PREPARED_PLAYER_STATE_ADAPTERS),
+    );
+    expect([...PREPARED_PLAYER_MOTIONS.required]).toEqual(["idle"]);
+  });
+
+  test("the new refusal: a pose nothing draws, and a missing idle", () => {
+    const states = { idle: crouchBinding(), crouch: crouchBinding() };
+    expect([...resolvePreparedPlayerMotions(states)]).toEqual(["idle", "crouch"]);
+    // Before this family a published pose the controller does not draw was
+    // *skipped*, silently, in two places. It is refused by name now.
+    expect(() =>
+      resolvePreparedPlayerMotions({ ...states, wobble: crouchBinding() }),
+    ).toThrow("player.states declares unknown motion state wobble");
+    // And the one state the controller draws before any rule has run.
+    expect(() => resolvePreparedPlayerMotions({ crouch: crouchBinding() })).toThrow(
+      "player.states is missing the idle state",
+    );
+  });
+
+  test("the motion blocks are gated by the family, by name, and there are two", () => {
+    expect(parsePlatformerMotionBlocks(PREPARED_RUNTIME_BLOCKS).map((view) => view.block)).toEqual([
+      "player",
+      "mobs",
+    ]);
+    expect(() =>
+      parsePlatformerMotionBlocks({
+        ...PREPARED_RUNTIME_BLOCKS,
+        mobs: "platformer-mobs-block-v2",
+      }),
+    ).toThrow('manifest block "mobs" is published as platformer-mobs-block-v2');
   });
 });
