@@ -700,6 +700,20 @@ in the test with the card that closes them (`painted_terrain/nodes.py`, D9) and 
 multiply.
 
 
+**D9, re-measured.** Hashing every function body across `painted_terrain/` and
+`runner_track/structural_ground.py`: four helpers are byte-identical (`_luminance`,
+`noise`, `_shifted`, part of `_extend_painted_edges`), 28 lines in all. The six
+same-named functions the audit counted as "a 1:1 roster" diverge in their bodies,
+because they are the two regimes the plan already called defensible - the runner's
+seam bridge over a mostly-solid guide, the platformer's silhouette band over a
+mostly-transparent one - and both guide rasters are pinned by digest (A9), so a
+shared core that moved a byte would be a red test and a 14-image re-bill. Verdict:
+no cut. The four helpers are not worth an import each. What D9 actually owes is the
+graph helper and handler kit for `painted_terrain`, which the structure test names as
+the one departure from the component shape; that is a node-family move like D8's,
+zero-key by construction, and it is the next card in this lane.
+
+
 ## Decisions that are yours
 
 1. **Take the B batch as one priced commit** — the plan's central bet: one
