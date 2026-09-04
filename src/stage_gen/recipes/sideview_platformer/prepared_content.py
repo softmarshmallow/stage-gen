@@ -1650,10 +1650,35 @@ CONTENT_TARGET_TYPE_IDS: frozenset[str] = frozenset(
 )
 
 
-def content_target_node_ids(graph: ExecutionGraph) -> tuple[str, ...]:
-    """Every content terminal this plan carries, in graph order."""
+#: The reviews among the content terminals: evidence for an operator, run by the
+#: `content-review` checkpoint, and not part of the default paid closure.
+CONTENT_REVIEW_TYPE_IDS: frozenset[str] = frozenset(
+    node_type.type_id
+    for node_type in (ACTOR_REVIEW, CATALOG_REVIEW, UI_INVENTORY_REVIEW, UI_ATLAS_REVIEW)
+)
 
-    return tuple(node.node_id for node in graph.nodes if node.type_id in CONTENT_TARGET_TYPE_IDS)
+
+def content_review_target_node_ids(graph: ExecutionGraph) -> tuple[str, ...]:
+    """Every content review this plan carries, in graph order."""
+
+    return tuple(node.node_id for node in graph.nodes if node.type_id in CONTENT_REVIEW_TYPE_IDS)
+
+
+def content_target_node_ids(graph: ExecutionGraph) -> tuple[str, ...]:
+    """Every content terminal this plan carries, with each review replaced by what it reads.
+
+    See `world_target_node_ids`: a review is a paid structured operation whose verdict
+    nothing downstream consumes, so the default closure stops at the review's own
+    dependencies and `content-review` runs the reviews over a content the cache holds.
+    """
+
+    terminals: list[str] = []
+    for node in graph.nodes:
+        if node.type_id not in CONTENT_TARGET_TYPE_IDS:
+            continue
+        chosen = node.depends_on if node.type_id in CONTENT_REVIEW_TYPE_IDS else (node.node_id,)
+        terminals.extend(node_id for node_id in chosen if node_id not in terminals)
+    return tuple(terminals)
 
 
 def soundtrack_target_node_ids(graph: ExecutionGraph) -> tuple[str, ...]:
@@ -2222,4 +2247,8 @@ def _sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-__all__ = ["PreparedContentNodeHandler", "content_target_node_ids"]
+__all__ = [
+    "PreparedContentNodeHandler",
+    "content_review_target_node_ids",
+    "content_target_node_ids",
+]

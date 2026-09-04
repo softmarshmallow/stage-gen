@@ -33,12 +33,6 @@ from stage_gen.components.game_soundtrack import (
     ResolvedGameSoundtrack,
     resolve_game_soundtrack_binding,
 )
-from stage_gen.components.platformer_map import (
-    ResolvedGameMap,
-    ResolvedGameMapBook,
-    resolve_game_map_book_binding,
-    resolve_game_map_source,
-)
 from stage_gen.components.scenario import (
     ResolvedScenario,
     read_scenario_catalog,
@@ -70,8 +64,13 @@ from stage_gen.recipes.sideview_platformer.package_graph import (
     WORLD_CACHE_NAMESPACE,
 )
 from stage_gen.recipes.sideview_platformer.prepared_content import (
+    content_review_target_node_ids,
     content_target_node_ids,
     soundtrack_target_node_ids,
+)
+from stage_gen.recipes.sideview_platformer.prepared_world import (
+    world_review_target_node_ids,
+    world_target_node_ids,
 )
 from stage_gen.recipes.sideview_platformer.view_annotations import (
     annotate_sideview_platformer_artifact,
@@ -128,8 +127,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     generate_parser.add_argument(
         "--checkpoint",
-        choices=("world", "content", "soundtrack", "integration"),
-        help="execute one explicitly bounded live checkpoint",
+        choices=("world", "content", "soundtrack", "world-review", "content-review", "integration"),
+        help=(
+            "execute one explicitly bounded live checkpoint; the review checkpoints run the "
+            "semantic reviews over a world or content closure the cache already holds"
+        ),
     )
     generate_parser.add_argument(
         "--replace-output",
@@ -471,48 +473,35 @@ def build_parser() -> argparse.ArgumentParser:
             help="workspace root containing library/games",
         )
 
-    map_parser = commands.add_parser(
-        "map",
-        description="Validate and inspect one authored game map",
-    )
-    map_commands = map_parser.add_subparsers(dest="map_command", required=True)
-    for action in ("validate", "digest"):
-        map_action_parser = map_commands.add_parser(action)
-        map_action_parser.add_argument("--input", required=True, dest="input_path")
-        map_action_parser.add_argument(
-            "--game-library-root",
-            required=True,
-            help="workspace root containing library/games",
-        )
-
-    map_book_parser = commands.add_parser(
-        "map-book",
-        description="Validate and inspect an authored ordered game map book",
-    )
-    map_book_commands = map_book_parser.add_subparsers(dest="map_book_command", required=True)
-    for action in ("validate", "digest"):
-        map_book_action_parser = map_book_commands.add_parser(action)
-        map_book_action_parser.add_argument("--input", required=True, dest="input_path")
-        map_book_action_parser.add_argument(
-            "--game-library-root",
-            required=True,
-            help="workspace root containing library/games",
-        )
-
     image_parser = commands.add_parser("generate-image")
     image_parser.add_argument("--output", required=True)
     image_parser.add_argument("--aspect-ratio", default="1:1")
     image_parser.add_argument("--reference", action="append", default=[])
     image_parser.add_argument("prompt", nargs="+")
+    image_parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="confirm a paid provider call when stdin is not a terminal",
+    )
 
     background_parser = commands.add_parser("remove-background")
     background_parser.add_argument("--input", required=True, dest="input_path")
     background_parser.add_argument("--output", required=True)
+    background_parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="confirm a paid provider call when stdin is not a terminal",
+    )
 
     music_parser = commands.add_parser("generate-music")
     music_parser.add_argument("--output", required=True)
     music_parser.add_argument("--format", choices=("mp3", "wav"), default="mp3")
     music_parser.add_argument("prompt", nargs="+")
+    music_parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="confirm a paid provider call when stdin is not a terminal",
+    )
 
     sound_effect_parser = commands.add_parser("generate-sound-effect")
     sound_effect_parser.add_argument("--output", required=True)
@@ -522,6 +511,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sound_effect_parser.add_argument("--loop", action="store_true")
     sound_effect_parser.add_argument("prompt", nargs="+")
+    sound_effect_parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="confirm a paid provider call when stdin is not a terminal",
+    )
 
     speech_parser = commands.add_parser("generate-speech")
     speech_parser.add_argument("--output", required=True)
@@ -529,6 +523,11 @@ def build_parser() -> argparse.ArgumentParser:
     speech_parser.add_argument("--stability", type=float, default=None)
     speech_parser.add_argument("--language", default=None, dest="language_code")
     speech_parser.add_argument("text", nargs="+")
+    speech_parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="confirm a paid provider call when stdin is not a terminal",
+    )
 
     env_parser = commands.add_parser("import-env")
     env_parser.add_argument("--source", required=True)
@@ -758,28 +757,6 @@ def _dispatch(
                 f"{json.dumps(soundtrack_report, sort_keys=True, separators=(',', ':'))}\n"
             )
         return 0
-    if command == "map":
-        resolved_map = _resolve_cli_game_map(
-            input_path=Path(args.input_path),
-            game_library_root=Path(args.game_library_root),
-        )
-        if args.map_command == "digest":
-            stdout.write(f"{resolved_map.source_sha256}\n")
-        else:
-            map_report = {"valid": True, **resolved_map.identity()}
-            stdout.write(f"{json.dumps(map_report, sort_keys=True, separators=(',', ':'))}\n")
-        return 0
-    if command == "map-book":
-        resolved_map_book = _resolve_cli_game_map_book(
-            input_path=Path(args.input_path),
-            game_library_root=Path(args.game_library_root),
-        )
-        if args.map_book_command == "digest":
-            stdout.write(f"{resolved_map_book.source_sha256}\n")
-        else:
-            map_book_report = {"valid": True, **resolved_map_book.identity()}
-            stdout.write(f"{json.dumps(map_book_report, sort_keys=True, separators=(',', ':'))}\n")
-        return 0
     if command == "doctor":
         config = load_config()
         mode = (
@@ -1003,7 +980,7 @@ async def _dispatch_dialogue_scene(
         return 0
     executor = DialogueSceneExecutor(config)
     output_path = Path(args.output_path)
-    cache_dir = Path(args.cache_dir) if args.cache_dir else output_path.parent / ".dialogue-cache"
+    cache_dir = _resolve_cache_dir(args.cache_dir)
     invocation_id = args.invocation_id or f"dialogue-{uuid.uuid4().hex}"
     if args.dry_run:
         run = await executor.dry_run(
@@ -1045,7 +1022,7 @@ async def _dispatch_pointclick_room(
 ) -> int:
     executor = PointClickRoomExecutor(config)
     output_path = Path(args.output_path)
-    cache_dir = Path(args.cache_dir) if args.cache_dir else output_path.parent / ".pointclick-cache"
+    cache_dir = _resolve_cache_dir(args.cache_dir)
     invocation_id = args.invocation_id or f"room-{uuid.uuid4().hex}"
     if args.dry_run:
         run = await executor.dry_run(
@@ -1088,7 +1065,7 @@ async def _dispatch_universe(
     executor = UniverseExecutor(config)
     input_path = Path(args.input_path)
     output_path = Path(args.output_path)
-    cache_dir = Path(args.cache_dir) if args.cache_dir else output_path.parent / ".universe-cache"
+    cache_dir = _resolve_cache_dir(args.cache_dir)
     phase = str(args.universe_command)
     invocation_id = args.invocation_id or f"universe-{phase}-{uuid.uuid4().hex}"
     if not args.dry_run and args.failure_node is not None:
@@ -1176,11 +1153,7 @@ async def _dispatch_async(
         # recipe executor. The runner runs single-shot; the platformer keeps its
         # bounded checkpoints below.
         if genre == "runner":
-            runner_cache = (
-                Path(args.cache_dir)
-                if args.cache_dir is not None
-                else output_path.parent / ".stage-gen-cache"
-            )
+            runner_cache = _resolve_cache_dir(args.cache_dir)
             if args.checkpoint is not None:
                 raise ValueError(
                     "the runner genre runs single-shot; --checkpoint is platformer-only"
@@ -1224,16 +1197,19 @@ async def _dispatch_async(
             return 0 if runner_result.summary.ok else 1
         if genre != "platformer":
             raise ValueError(f"no recipe is registered for genre {genre!r}")
-        cache_dir = (
-            Path(args.cache_dir)
-            if args.cache_dir is not None
-            else output_path.parent / ".stage-gen-cache"
-        )
+        cache_dir = _resolve_cache_dir(args.cache_dir)
         if not args.dry_run:
-            if args.checkpoint not in {"world", "content", "soundtrack", "integration"}:
+            if args.checkpoint not in {
+                "world",
+                "content",
+                "soundtrack",
+                "world-review",
+                "content-review",
+                "integration",
+            }:
                 raise ValueError(
                     "prepared-package execution requires --checkpoint "
-                    "world, content, soundtrack, or integration"
+                    "world, content, soundtrack, world-review, content-review, or integration"
                 )
             if args.failure_node is not None:
                 raise ValueError("--failure-node is available only with --dry-run")
@@ -1273,12 +1249,17 @@ async def _dispatch_async(
                 raise ValueError("--artifact-root is available only with --checkpoint integration")
             if args.replace_output:
                 raise ValueError("--replace-output is available only with --checkpoint integration")
-            if checkpoint == "world":
+            if checkpoint in {"world", "world-review"}:
                 live_result = await prepared_executor.run_world(
                     Path(args.input_path),
                     run_dir=output_path,
                     cache_dir=cache_dir,
                     invocation_id=invocation_id,
+                    targets=(
+                        world_review_target_node_ids
+                        if checkpoint == "world-review"
+                        else world_target_node_ids
+                    ),
                 )
                 live_summary = live_result.summary
                 live_graph = live_result.plan.graph
@@ -1294,6 +1275,8 @@ async def _dispatch_async(
                     targets=(
                         soundtrack_target_node_ids
                         if checkpoint == "soundtrack"
+                        else content_review_target_node_ids
+                        if checkpoint == "content-review"
                         else content_target_node_ids
                     ),
                     run_dir=output_path,
@@ -1339,6 +1322,14 @@ async def _dispatch_async(
         }
         stdout.write(f"{json.dumps(dry_run_report, sort_keys=True, separators=(',', ':'))}\n")
         return 0 if dry_run_result.summary.ok else 1
+    # One paid call, no plan, no cache: the only spend in this CLI that nothing
+    # prices first. A person at a terminal has typed the prompt they are paying
+    # for; a script has not, so it says so with --yes or is refused.
+    if not args.yes and not sys.stdin.isatty():
+        raise ValueError(
+            f"{args.command} makes a paid provider call; pass --yes to confirm it "
+            "when stdin is not a terminal"
+        )
     if args.command == "generate-image":
         aspect_ratio: str = args.aspect_ratio
         if aspect_ratio != "auto":
@@ -1394,6 +1385,12 @@ async def _dispatch_async(
     return 0
 
 
+def _resolve_cache_dir(explicit: str | None) -> Path:
+    """The execution cache root: the flag, else the configured repo-anchored directory."""
+
+    return Path(explicit) if explicit else load_config().cache_dir
+
+
 def _parse_input_document(text: str, *, suffix: str) -> object:
     if suffix == ".toml":
         return tomllib.loads(text)
@@ -1431,49 +1428,6 @@ def _resolve_cli_game_soundtrack(
         {
             "schema_version": 1,
             "kind": "game-soundtrack-binding-v1",
-            "ref": relative.as_posix(),
-            "source_sha256": source_sha256,
-        },
-        game_library_root=root,
-    )
-
-
-def _resolve_cli_game_map(*, input_path: Path, game_library_root: Path) -> ResolvedGameMap:
-    """Validate one fixed-path map and report its exact authored source digest."""
-
-    return resolve_game_map_source(
-        input_path,
-        game_library_root=game_library_root,
-    )
-
-
-def _resolve_cli_game_map_book(*, input_path: Path, game_library_root: Path) -> ResolvedGameMapBook:
-    """Digest an ordered map index and validate every map digest it locks."""
-
-    root = game_library_root.absolute()
-    source = input_path.absolute()
-    try:
-        relative = source.relative_to(root)
-    except ValueError as error:
-        raise ValueError("game map book input must be inside game library root") from error
-    parts = relative.parts
-    if (
-        len(parts) != 5
-        or parts[:2] != ("library", "games")
-        or parts[3:]
-        != (
-            "maps",
-            "index.toml",
-        )
-    ):
-        raise ValueError(
-            "game map book input must equal ROOT/library/games/<game_id>/maps/index.toml"
-        )
-    source_sha256 = _secure_cli_source_sha256(source, label="game map book input")
-    return resolve_game_map_book_binding(
-        {
-            "schema_version": 1,
-            "kind": "game-map-book-binding-v1",
             "ref": relative.as_posix(),
             "source_sha256": source_sha256,
         },

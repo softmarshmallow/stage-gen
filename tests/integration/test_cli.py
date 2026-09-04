@@ -156,7 +156,10 @@ def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
         )
         == 1
     )
-    assert "requires --checkpoint world, content, soundtrack, or integration" in error.getvalue()
+    assert (
+        "requires --checkpoint world, content, soundtrack, world-review, content-review, or "
+        "integration"
+    ) in error.getvalue()
 
 
 def test_character_profile_cli_validate_digest_help_and_errors(
@@ -391,7 +394,9 @@ def test_generate_help_exposes_package_dry_run_controls(
 
     assert exit_info.value.code == 0
     assert "--dry-run" in help_text
-    assert "--checkpoint {world,content,soundtrack,integration}" in help_text
+    assert (
+        "--checkpoint {world,content,soundtrack,world-review,content-review,integration}"
+    ) in help_text
     assert "--artifact-root ARTIFACT_ROOTS" in help_text
     assert "--failure-node FAILURE_NODE" in help_text
     assert "--force-stage" not in help_text
@@ -460,6 +465,7 @@ def test_generate_sound_effect_passes_the_verbatim_prompt_and_route_parameters(
         main(
             [
                 "generate-sound-effect",
+                "--yes",
                 "--output",
                 str(tmp_path / "hatch.mp3"),
                 "--duration",
@@ -499,6 +505,7 @@ def test_generate_sound_effect_refuses_a_non_mp3_output_before_any_runtime(
         main(
             [
                 "generate-sound-effect",
+                "--yes",
                 "--output",
                 str(tmp_path / "x.wav"),
                 "--duration",
@@ -538,6 +545,7 @@ def test_generate_speech_passes_the_verbatim_text_and_the_provider_voice(
         main(
             [
                 "generate-speech",
+                "--yes",
                 "--output",
                 str(tmp_path / "go.mp3"),
                 "--voice",
@@ -577,7 +585,7 @@ def test_generate_speech_refuses_a_non_mp3_output_before_any_runtime(
     errors = StringIO()
     assert (
         main(
-            ["generate-speech", "--output", str(tmp_path / "x.wav"), "--voice", "v", "hi"],
+            ["generate-speech", "--yes", "--output", str(tmp_path / "x.wav"), "--voice", "v", "hi"],
             runtime=object(),  # type: ignore[arg-type]
             stdout=StringIO(),
             stderr=errors,
@@ -774,3 +782,21 @@ def test_universe_failure_injection_is_refused_outside_a_dry_run(
     assert exit_code != 0
     assert "available only with --dry-run" in capsys.readouterr().err
     assert not (tmp_path / "run").exists()
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["generate-image", "--output", "x.png", "a prompt"],
+        ["remove-background", "--input", "x.png", "--output", "y.png"],
+        ["generate-music", "--output", "x.mp3", "a prompt"],
+        ["generate-sound-effect", "--output", "x.mp3", "--duration", "1", "a prompt"],
+        ["generate-speech", "--output", "x.mp3", "--voice", "v", "hi"],
+    ],
+)
+def test_one_command_spend_refuses_without_confirmation_off_a_terminal(argv: list[str]) -> None:
+    """The only spend in the CLI that nothing prices first still needs a person, or --yes."""
+
+    error = StringIO()
+    assert main(argv, stderr=error) == 1
+    assert "pass --yes to confirm" in error.getvalue()

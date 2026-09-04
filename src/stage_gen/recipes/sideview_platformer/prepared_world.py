@@ -7,7 +7,6 @@ import hashlib
 import io
 import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from io import BytesIO
 from pathlib import Path
 from typing import Literal
 
@@ -102,6 +101,7 @@ from stage_gen.media import (
     repack_alpha_components,
     trim_layer_to_alpha_box,
 )
+from stage_gen.media.codec import decode_rgba, encode_png
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.node_cache import NodeArtifactCache
 from stage_gen.recipes.sideview_platformer.climbable_atlas import (
@@ -111,7 +111,7 @@ from stage_gen.recipes.sideview_platformer.climbable_atlas import (
     plan_climbable_atlas,
     role_aspect_admits,
 )
-from stage_gen.recipes.sideview_platformer.execution_graph import ExecutionGraph
+from stage_gen.recipes.sideview_platformer.execution_graph import ExecutionGraph, OperationKind
 from stage_gen.recipes.sideview_platformer.package_graph import (
     CACHE_RECORD_KIND,
     WORLD_CACHE_NAMESPACE,
@@ -177,8 +177,78 @@ class PreparedWorldNodeHandler:
             cache_dir=cache_dir,
             namespace=WORLD_CACHE_NAMESPACE,
             record_kind=CACHE_RECORD_KIND,
+            admit=lambda node, payloads: (
+                bool(payloads) and self._cached_world_artifact_valid(node, payloads[0])
+            ),
         )
         self._registry = self._build_registry()
+
+    def _cached_world_artifact_valid(self, node: Node, data: bytes) -> bool:
+        """Re-prove a restored image against the gate its generation ran inside.
+
+        The content checkpoint has done this since it existed; the world checkpoint,
+        which spends the most on images, admitted on key, digest and lineage alone.
+        A validator tightened after an image was accepted therefore kept serving the
+        old bytes - the exact drift a two-thousand-line replay tool was written to
+        repair. Re-running the gate here makes a tightening cost exactly the images
+        that no longer pass, and nothing else.
+        """
+
+        if node.operation != OperationKind.IMAGE_GENERATION:
+            return True
+        try:
+            game_map = self._node_map(node)
+            if node.type_id == MAP_LAYER_GENERATE.type_id:
+                layer = self._node_layer(node, game_map)
+                validate_provider_image(
+                    data,
+                    width=1536,
+                    height=1024,
+                    transparent=layer.alpha_mode == "transparent",
+                )
+            elif node.type_id == MAP_LAYER_LOOP_PAINT.type_id:
+                # The loop's own gate - a clean declared-axis repeat - runs in the free
+                # validate node downstream over the published unit; what is restored here
+                # is the provider's edit at the conditioning canvas, so the bar is that it
+                # decodes at all.
+                decode_rgba(data, label="loop edit")
+            elif node.type_id == MAP_GROUND_GENERATE.type_id:
+                require_terrain_atlas_source(
+                    data, template=self._terrain_template_path.read_bytes()
+                )
+            elif node.type_id == PAINTED_TERRAIN_GENERATE.type_id:
+                segment = self._painted_segment(node, game_map)
+                identity, references = self._painted_material(game_map)
+                occupancy = self._terrain(game_map).occupancy
+                guide, _report = build_painted_terrain_guide(
+                    occupancy, segment, material_identity=identity, material_references=references
+                )
+                validate_painted_terrain_source(
+                    data,
+                    occupancy=occupancy,
+                    segment=segment,
+                    guide=guide,
+                    material_identity=identity,
+                    material_references=references,
+                )
+            elif node.type_id == MAP_CLIMBABLE_GENERATE.type_id:
+                climbable = game_map.climbable
+                if climbable is None:
+                    return False
+                plan = plan_climbable_atlas(len(climbable.variants))
+                _validate_map_presentation_source(
+                    data,
+                    asset="climbable",
+                    expected_size=(plan.width_px, plan.height_px),
+                    roles=[climbable.role_of(entry.variant_id) for entry in climbable.variants],
+                )
+            elif node.type_id == MAP_PORTAL_GENERATE.type_id:
+                _validate_map_presentation_source(data, asset="portal", expected_size=(1536, 1024))
+            else:
+                return False
+        except (OSError, ValueError):
+            return False
+        return True
 
     async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
         cached = self._cache.read(node, context)
@@ -1456,14 +1526,30 @@ class PreparedWorldNodeHandler:
         )
 
 
-def world_target_node_ids(graph: ExecutionGraph) -> tuple[str, ...]:
-    """Every map review: the world checkpoint's terminals, read off the plan.
-
-    The plan already says which nodes are map reviews, so the checkpoint asks it
-    instead of rebuilding node-id strings the builder alone is entitled to spell.
-    """
+def world_review_target_node_ids(graph: ExecutionGraph) -> tuple[str, ...]:
+    """Every map review, read off the plan: the `world-review` checkpoint's terminals."""
 
     return tuple(node.node_id for node in graph.nodes if node.type_id == MAP_REVIEW.type_id)
+
+
+def world_target_node_ids(graph: ExecutionGraph) -> tuple[str, ...]:
+    """The world checkpoint's terminals: everything a map review reads, and not the review.
+
+    A semantic review is evidence for an operator, not a gate the manifest consumes,
+    and it is a paid structured operation per map. The default closure therefore
+    stops one edge short of it - at the composite and the presentation validations
+    the review depends on - and `world-review` runs the reviews over a world the
+    cache already holds. Read off the review's own edges so the closure cannot
+    drift from what the review actually needs.
+    """
+
+    terminals: list[str] = []
+    for node in graph.nodes:
+        if node.type_id == MAP_REVIEW.type_id:
+            terminals.extend(
+                dependency for dependency in node.depends_on if dependency not in terminals
+            )
+    return tuple(terminals)
 
 
 def _composite_layer_top(
@@ -1580,9 +1666,7 @@ def _canonicalize_x_wrap(
 
 
 def _png_bytes(image: Image.Image) -> bytes:
-    stream = io.BytesIO()
-    image.save(stream, format="PNG", optimize=False)
-    return stream.getvalue()
+    return encode_png(image)
 
 
 def _bounded_repeat_preview(data: bytes) -> bytes:
@@ -1750,9 +1834,7 @@ def _validate_map_presentation_source(
 
 
 def _decode_png(data: bytes) -> Image.Image:
-    with Image.open(BytesIO(data)) as opened:
-        opened.load()
-        return opened.convert("RGBA")
+    return decode_rgba(data)
 
 
 async def _write_local_image(
@@ -1893,4 +1975,9 @@ def _sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-__all__ = ["PreparedWorldNodeHandler", "WORLD_HANDLER_VERSION", "world_target_node_ids"]
+__all__ = [
+    "PreparedWorldNodeHandler",
+    "WORLD_HANDLER_VERSION",
+    "world_review_target_node_ids",
+    "world_target_node_ids",
+]

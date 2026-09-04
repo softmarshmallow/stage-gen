@@ -134,14 +134,16 @@ async def test_world_targets_execute_only_map_ancestors(tmp_path: Path) -> None:
     )
 
     assert summary.ok is True
-    assert len(summary.nodes) == 41
+    # The two map reviews sit outside the default closure: they are evidence for an
+    # operator, run by `world-review` over a world the cache already holds.
+    assert len(summary.nodes) == 39
     # Thirteen asset images plus four Sunpetal loop nodes: that map declares `generated_bridge`,
     # so each of its layers may need one bridge image. Crowncrag declares `mirror_repeat` and its
     # loop nodes are local. This is the worst case; admission runs first and a layer that already
-    # loops spends nothing.
+    # loops spends nothing. The two structured operations are the terrain designs.
     assert summary.provider_operation_counts == {
         "image_generation": 17,
-        "structured_generation": 4,
+        "structured_generation": 2,
         "music_generation": 0,
     }
     assert {trace.node_id for trace in summary.nodes}.isdisjoint(
@@ -165,10 +167,12 @@ async def test_content_targets_execute_only_content_ancestors(tmp_path: Path) ->
     )
 
     assert summary.ok is True
-    assert len(summary.nodes) == 189
+    # Eighteen reviews leave the default closure for `content-review`; the two
+    # structured operations that remain are the motion-rebase judge and its verification.
+    assert len(summary.nodes) == 171
     assert summary.provider_operation_counts == {
         "image_generation": 79,
-        "structured_generation": 20,
+        "structured_generation": 2,
         "music_generation": 3,
     }
     node_ids = {trace.node_id for trace in summary.nodes}
@@ -176,7 +180,7 @@ async def test_content_targets_execute_only_content_ancestors(tmp_path: Path) ->
     # The projectile is a content family like props and items, and its sprite is a required
     # runtime artifact. Absent from this closure, the content checkpoint produced everything
     # except that sprite and integration then failed on it.
-    assert "projectiles-review" in node_ids
+    assert "projectiles-review" not in node_ids
     assert "projectile-paperwing_dart-generate" in node_ids
     assert "manifest-assemble" not in node_ids
     assert not any(node_id.startswith("map-") for node_id in node_ids)

@@ -89,9 +89,10 @@ A live runner call is single-shot, requires provider credentials, and may spend 
 `sideview-runner-runtime-v12` run. The platformer recipe remains checkpointed:
 `--checkpoint world` and `--checkpoint content` execute paid dependency closures,
 `--checkpoint soundtrack` is that content closure narrowed to the tracks so a rewritten
-creative brief cannot regenerate reviewed art, and `--checkpoint integration` is
-provider-free and assembles `prepared-game-runtime-v10` over accepted `--artifact-root`
-directories.
+creative brief cannot regenerate reviewed art, `--checkpoint world-review` and
+`--checkpoint content-review` run the semantic reviews over a closure the cache already
+holds, and `--checkpoint integration` is provider-free and assembles
+`prepared-game-runtime-v10` over accepted `--artifact-root` directories.
 
 GPT Image 2 native alpha is the quality-first live image route. The standalone compatibility
 background-removal command remains available:

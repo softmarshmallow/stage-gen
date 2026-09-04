@@ -36,6 +36,11 @@ DEFAULT_TRANSPARENCY_MODE = TransparencyMode.NATIVE
 
 class StageGenConfig(ContractModel):
     out_dir: Path = Path("out")
+    #: Where every recipe's content-addressed cache lives, under its own namespace.
+    #: Repo-anchored rather than derived from a run's --output: a run written under
+    #: a different parent used to start a cold cache silently, and `rm -rf out`
+    #: destroyed a gigabyte of paid artifacts that only lived there.
+    cache_dir: Path = Path(".cache")
     game_library_root: Path | None = None
     openai_api_key: str | None = Field(default=None, repr=False)
     open_router_api_key: str | None = Field(default=None, repr=False)
@@ -119,6 +124,7 @@ def load_config(
     values: Mapping[str, str | None] = _application_environment() if env is None else env
     config = StageGenConfig(
         out_dir=_first(values, "STAGE_GEN_OUT_DIR", "OUT_DIR") or "out",
+        cache_dir=_first(values, "STAGE_GEN_CACHE_DIR") or ".cache",
         game_library_root=_first(values, "STAGE_GEN_GAME_LIBRARY_ROOT"),
         openai_api_key=_first(values, "OPENAI_API_KEY"),
         open_router_api_key=_first(values, "OPENROUTER_API_KEY"),

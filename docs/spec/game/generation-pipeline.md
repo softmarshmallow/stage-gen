@@ -78,9 +78,13 @@ the same compiled direction, so this genre input is part of the provider node's 
 `stage-gen generate` requires `--input` pointing to a prepared directory or ZIP whose root
 contains `game.toml`. There is no bare-prompt fallback. The runner recipe is a single-shot graph:
 its live call executes the complete selected member and assembles `sideview-runner-runtime-v12`.
-The platformer recipe remains checkpointed. `--checkpoint world` executes only the map-review
-targets and their complete dependency closure. `--checkpoint content` independently executes cast,
-catalog, UI, soundtrack, and stable-ID binding targets and their dependency closure.
+The platformer recipe remains checkpointed. `--checkpoint world` executes everything the map
+reviews read - each map's composite and presentation validations - and their complete dependency
+closure, and not the reviews themselves. `--checkpoint content` independently executes cast,
+catalog, UI, soundtrack, and stable-ID binding targets and their dependency closure, again with
+each review replaced by what it reads. A semantic review is evidence for an operator rather than a
+gate the manifest consumes, so it is paid for on request: `--checkpoint world-review` and
+`--checkpoint content-review` run the reviews over a closure the cache already holds.
 `--checkpoint soundtrack` is that closure narrowed to the soundtrack's own targets. It exists
 because a track's cache identity is its own authored entry and nothing else, so a rewritten
 creative brief re-bills exactly one track -- while the full content closure also carries every
@@ -285,11 +289,12 @@ playback-only package edit changes package and manifest identity without invalid
 structured-review, or music nodes. Content-producing dependencies such as actor concept to motion
 generation remain cache-lineage dependencies.
 
-The live World checkpoint is the exact 41-node closure rooted at both map-review nodes: one
-package capture, 17 image generations or edits, 19 map-local canonicalization/composition
-operations, and four structured operations - one terrain topology design and one semantic review
-per map. It cannot schedule any cast, catalog, soundtrack, gameplay-binding, or
-manifest node. Each layer, ground, climbable, and portal generation writes a retained `*.raw.png`;
+The live World checkpoint is the exact 39-node closure rooted at each map's composite and
+presentation validations: one package capture, 17 image generations or edits, 19 map-local
+canonicalization/composition operations, and two structured operations - one terrain topology
+design per map. The two map reviews sit one edge above it and belong to `world-review`, a 41-node
+closure whose only additional spend is those two structured operations. Neither can schedule any
+cast, catalog, soundtrack, gameplay-binding, or manifest node. Each layer, ground, climbable, and portal generation writes a retained `*.raw.png`;
 only its dependent validator may write the canonical runtime-facing PNG.
 
 Each ground image operation receives the attributed 12-by-4 topology template as its strict first
@@ -336,10 +341,12 @@ Placement geometry is still checked on every edit: bottom-supported terrain atta
 exposed upper deck exactly `rise_tiles` above it are enforced against the map's authored occupancy
 when the package resolves, ahead of any node.
 
-The live Content checkpoint is the exact 189-node closure rooted at every cast/catalog/UI review,
-every soundtrack validation, and `gameplay-bindings-validate`: 78 image operations, 19 structured
-operations, three music operations, and 86 local nodes including package capture. It cannot schedule
-map or manifest nodes. Twenty-eight identity/catalog/UI images are initially independent; each actor's
+The live Content checkpoint is the exact 171-node closure rooted at what every cast/catalog/UI
+review reads, every soundtrack validation, the motion-rebase verification, and
+`gameplay-bindings-validate`: 79 image operations, two structured operations (the motion-rebase
+judge and its verification), three music operations, and 87 local nodes including package capture.
+The eighteen reviews belong to `content-review`, a 180-node closure whose only additional spend is
+those eighteen structured operations. Neither can schedule map or manifest nodes. Twenty-eight identity/catalog/UI images are initially independent; each actor's
 state and dialogue descendants become ready immediately after that actor's concept succeeds.
 Soundtrack generation, gameplay binding, unrelated actors, and unrelated catalogs overlap.
 
