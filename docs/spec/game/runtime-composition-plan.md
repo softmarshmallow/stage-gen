@@ -893,6 +893,209 @@ the ruling is explicitly the one most likely to be softened to "one family,
 two arbitrators" if the suite cannot be made to pass. *Played:* the
 hunting-ground capture, reviewed side by side with step 0's.
 
+**Evidence, measured.** Branch `runtime/step-5-space-actors`; `bun test` 1704
+pass, 0 fail; `tsc --noEmit` clean at every commit. Five families, five commits.
+**E1 bit-identical in both genres on every one of them** — six hundred per-frame
+digests byte-identical on each side and the runner's 1,043-line sink recording
+byte-identical line for line, at every commit, with nothing re-pinned anywhere.
+The step's own bar was "a physics refactor that moves a float is a different
+game", and no float moved.
+
+- **`sideview/traversal`.** Extracted into both genres as
+  `lib/families/sideview/traversal/`. Nothing in it names a row or a pixel: the
+  runner's body lives *inside* the occupancy grid, integrating in rows off an
+  arc derived from the admission arithmetic; the platformer's lives in pixels
+  projected off the same grid, with an authored arc, decks, a ladder, a crouch
+  and a coyote window. Both call the same six functions — surface, step, walk,
+  landing, jump request, and both arc functions. The three writings of
+  bottom-contiguous surface are one walk read from four sides: a row
+  (`sideview-runner/contract.ts`), a height (`prepared-terrain.ts`), a grid
+  rebuilt from heights (`sideview/terrain-atlas.ts`), and the same
+  `row >= rows - heights[column]` predicate inlined a fourth time in the
+  floating-platform scan. **E1: zero diff in both genres, nothing re-pinned.**
+  **E2:** neither documented order moves; traversal is a core, not a frame step.
+  **E4:** the family resolved against two bodies in one file that share no unit
+  — a runner-shaped one whose foot is a row index and a platformer-shaped one
+  whose foot is a pixel — plus one test each in the genres' own suites asserting
+  that the genre's function *is* the family's under the genre's profile, not
+  merely equal to it. **E7:** at this family's grain the subtraction is a body
+  with every capability quiet — no decks is exactly the terrain landing, no air
+  budget refuses in the air, no zones is no climb — and the six hundred frames of
+  both goldens are the proof that removing nothing removed nothing.
+- **The one place the genres genuinely disagree, and it is a parameter.** A
+  descending foot already below the terrain is *clamped* by the platformer — a
+  horizontal step can carry a falling foot into a raised column and pinning it is
+  the forgiving answer a walker wants — and requires a *crossing* in the runner,
+  whose track is admitted so that no arc ever arrives from inside a step's face,
+  so a foot that gets there was buried and the package's consequence table
+  answers for it. Neither answer can be derived from the other. Both appear in
+  the runner alone: `crossing` on the track, `clamp` under thrust, where the
+  arena is flat by contract — which is the clearest available statement that the
+  rule is a parameter and not a genre.
+- **The block, and the refusal.** `gameplay` in the runner — the composition
+  table calls the block `[navigation]` and this genre has no such block; the same
+  subject is `jump_profile`, `duck_profile`, `max_clear_gap_columns` and
+  `max_rise_tiles`, the admission arithmetic the arc is *derived* from. Two in
+  the platformer, `gameplay` and `maps`, and the second is not a redundancy: the
+  surface a body stands on is the map's authored occupancy. Moving either gets
+  `manifest block "maps" is published as platformer-maps-block-v2; this build
+  reads platformer-maps-block-v1`, from the traversal core.
+- **`sideview/parallax`.** Extracted into both genres. The promotion goes one
+  way, as the ruling says: `prepared-layers.ts` already *was* the contract — five
+  anchors, a producer-measured offset resolved against a viewport and a ground
+  datum, and alone the fact that an anchor also chooses a *space* — and
+  `runnerLayerPlacement` is the same arithmetic with one anchor missing and the
+  space fact absent. Two things stayed in the runner because they are its own
+  facts: the scale datum is recovered from the opaque cover, since every band is
+  painted at full frame height and only the cover survives trimming, and a null
+  offset means zero because that contract makes the field nullable. The `space`
+  and `verticalScrollFactor` the family hands back are ignored there, which is an
+  answer rather than a gap — that camera never leaves the floor, so the two
+  spaces coincide exactly, and the coincidence is asserted rather than assumed.
+  The depth ladder is an ordered vocabulary now: the genres share no value past
+  the first (tens from zero against hundreds) and they are the same ladder, each
+  states its rungs, `sealDepthLadder` refuses an inversion, and skipping is
+  allowed — the runner has no `actorHud` because nothing there draws a readout at
+  a world position. **E1: zero diff in both genres, nothing re-pinned**, and
+  honestly the trivial form: placement is presentation, so the world digest
+  cannot see a band. The measurement that counts is that all six hundred frames
+  and the whole sink recording are byte-identical anyway. **E2:** neither
+  documented order moves. **E4:** one placement contract resolved against two
+  contexts with nothing in common but the viewport — a platformer-shaped one
+  whose camera has climbed, so screen and world bands separate, and a
+  runner-shaped one where they coincide. **E7:** the empty ladder seals, and a
+  band asked to stand on a rung that is not there is refused by name rather than
+  drawn at zero.
+- **The block, and the refusal.** `layers` in the runner, a block of its own
+  because a track is one endless place; `maps` in the platformer, because a band
+  belongs to a map and the walk-surface row it registers against is in that map's
+  ground.
+- **One thing reported and left.** The prepared scene draws its bands on a
+  *second*, undeclared ladder of literals (`plane === "foreground" ? 80 + index :
+  index - 20`) unrelated to `SCENE_LAYER_DEPTH`. Re-pointing those at `bandDepth`
+  moves every band's render depth, which is a presentation change owing a
+  capture rather than an extraction.
+- **`sideview/motion`.** Extracted into both genres. `motion-playback.ts` was
+  already shared and is now the family's; what was not shared is everything
+  around it. The vocabulary is a **parameter**, and three closed sets are
+  instantiated that share one member between them: the runner's avatar (six
+  states, three owed outright and three owed on conditions the *genre* evaluates
+  and hands over as `extraRequired`), the runner's boss (three, all owed — a
+  second vocabulary inside one genre, which is the cheapest proof the parameter
+  is real), and the platformer's player (eleven, one owed). The plan's jumper,
+  `{rise, fall, death}`, is written in the family's own suite with no jumper in
+  the tree, the way the intent family's held axis was. **E1: zero diff in both
+  genres, nothing re-pinned.** **E2:** neither documented order moves. **E4:**
+  three vocabularies over one machine, plus the fallback table exercised against
+  four packages that shipped different subsets of the same artwork. **E7:** a
+  chosen state with nothing to draw returns null and the caller holds the pose it
+  had, which is the smallest form the subtraction has here.
+- **The refusal, in both directions.** The runner's two missing-state refusals
+  were already there and now speak with one voice — `bosses[0].motions is missing
+  the death state`, re-pinned in its own test with the reason. The platformer had
+  none: a package publishing a pose the controller does not draw was *skipped*,
+  silently, in two separate places, and is refused by name at boot now, as is a
+  missing `idle`, the one state the controller draws before any rule has run. The
+  blocks are `avatar` and `bosses` in the runner and `player` and `mobs` in the
+  platformer — a motion belongs to the actor that wears it, so the family gates
+  the actor's block rather than inventing one neither genre authors.
+- **One thing the ruling named that is not true of the code.** "Motion
+  availability currently decides rules — whether a package shipped a death strip
+  changes the player's control lock" is stale. `controlsLocked` is
+  `health.defeated` and nothing else; the one `hurtUntil` that availability sets
+  feeds presentation alone; and the defeat panel's delay is a constant. The rule
+  and the substitution are separated anyway — `playerDamagePresentationState` is
+  now a one-line rule that knows nothing about what shipped plus the family's
+  fallback walk — because that is what stops the next state being threaded in as
+  another `if (available)`. The one place availability still decides a timing is
+  `mobDeathPresentationPlan`'s fade delay, and only off the fixed-step path,
+  which step 0 already forced to zero for every shipped boot.
+- **`navigation`.** Extracted, and nothing in `bot-navigation.ts` ever mentioned
+  a bot. What made it look like one character's property is that the *other*
+  character with the same problem — the creature wandering a shelf — had a
+  second, incompatible derivation of the same lanes over the same heightfield, so
+  the two never met: the graph cut maximal runs of columns sharing a surface, the
+  creature expanded outward from its spawn column while the height matched. One
+  rule, and only one of the two was ever checked against the walk the controller
+  performs. `lanes.ts` is that rule once, as adjacent-connectivity — the form
+  that subsumes both — and the suite measures the agreement column for column
+  rather than asserting it, because the two really are two walks. A jump link is
+  a promise kept because the admission and the physics read one integrator, and
+  that dependency is an import now: `jumpMoveFor` calls the traversal family's
+  `simulateJumpArc`. Steering is generic over the intent record — the buttons a
+  navigator asks for are six, the record they land in is the `intent` family's
+  and its keys are the genre's — and the repertoire stays in the genre, because a
+  navigator's model of itself has to be the model its physics uses. **E1: zero
+  diff in both genres, nothing re-pinned.** **E2:** neither documented order
+  moves. **E4:** one `buildNavGraph` over one map with two repertoires — a
+  player-shaped navigator that climbs, double-jumps and drops through, and a
+  creature-shaped one with none of those and a slower walk. The creature reaches
+  a deck through the bot's graph, by the one move it has, and the deck it cannot
+  reach is not a place it fails at but a place that does not exist. **E7:** a
+  repertoire a body does not have removes the links rather than leaving them to
+  fail, which is the subtraction stated where this family has one.
+- **The block, and the refusal.** `gameplay` in the platformer alone. The
+  composition table's "none; derived from the space family" is right about the
+  geometry and not about the repertoire: `[navigation].allowed_movements` is what
+  admits a link at all. The runner has no navigation to gate.
+- **What `navigation` could not do, and why it was not forced.** Wiring live
+  creatures onto the graph moves every frame of the platformer's golden with no
+  evidence behind the movement, which is the shape step 4 refused when it put the
+  missing first-frame dust back. The graph is proved to answer for a creature;
+  what a creature does with the answer belongs to a step that can measure it.
+- **`actor-ai`, and the prediction that did not hold.** The plan expected this
+  ruling to be softened and expected E1 to move — "a different arbitrator
+  produces different frames". It did not, and the reason is the finding: the
+  creature's "node chain" is not a state machine. `mobIntent` is five conditions
+  in a fixed order, and a fixed order *is* a priority ladder written the other way
+  round, so restating it as an auction is the same function rather than an
+  approximation of it. Measured exhaustively rather than argued — every archetype
+  crossed with every distance and cadence boundary, the chain kept verbatim
+  beside the ladder, six hundred comparisons, all equal. **E1: zero diff in both
+  genres, nothing re-pinned.** **E2:** neither documented order moves. **E4:**
+  the auction arbitrates the bot's proposals and the creature's rungs, and the
+  one stateful thing either had — `Awareness`, acquisition and retention with
+  hysteresis and no numbers in it at all — is instantiated per archetype.
+  **E7:** every bidder declining is an answer, and a ladder with no rung holding
+  is the empty auction.
+- **The block, and the refusal.** `mobs` in the platformer, and archetype names
+  only, exactly as the composition table says: the producer publishes a word per
+  creature and no numbers at all, so the closed vocabulary is the whole authored
+  surface and every radius, speed and cadence is gameplay the consumer owns. The
+  bot authors nothing — it is a second profile over the same machinery, assembled
+  in code, which is what "profiles as genre content" means.
+- **What `actor-ai` could not do, and why it was not forced.** Folding the *rest*
+  of the creature's chain — facing, pursuit target, return-home stepping, action
+  timing — into the bot's behaviour roster really would move frames: those nodes
+  run in an order a roster would re-derive, and the tie-breaks and intent shapes
+  differ. That is the swap the reviewed capture is for, and no browser was booted
+  in this pass. What the commit leaves behind for it is the instrument: the
+  per-archetype characterisation the plan asks for — awareness hysteresis,
+  return-home, pursuit level, cadence — written down as the "before".
+- **The step's own falsifier, measured.** The traversal falsifier is not tripped:
+  bit-identical replay was reached for the runner, so the unit genericity holds
+  and the family did not have to ship as the platformer's core. None of the five
+  needed a genre-specific branch inside the family file: traversal is
+  parameterized by its length unit, its terrain entry and its capability list;
+  parallax by its anchor and its rungs; motion by its vocabulary and its fallback
+  table; navigation by its repertoire and its intent builder; actor-ai by its
+  profiles — no `if (runner)`. What is genre-shaped stayed in the genre every
+  time: what a crush costs, which band is the scale datum, which pose a package
+  owes, how fast a body walks, how near is near.
+- **The ordering cost, in full: zero.** No new `after` edge in either genre, no
+  new undeclared feedback read — the step-2 finding's list of eight is unchanged
+  — and no declaration of any kind was added, removed or changed anywhere in the
+  step, which is a one-line `git diff` filter over the whole branch. Both
+  documented orders are byte-identical to step 4's, and the platformer's
+  `frame-roster.ts` is byte-identical to `main`.
+
+**Played evidence.** Not taken: no browser in this pass, so the traversal
+ruling's "Crowncrag Road and Iron Petal, identical stills" and `actor-ai`'s
+reviewed hunting-ground capture are both owed. The bit-identical replays are the
+record in the meantime, and for traversal they are the stronger claim the
+ruling asked for; for `actor-ai` the capture is owed only by the swap that was
+not taken.
+
 ## Step 6 — the welded classes, and the director
 
 **The six splits** (`inventory`, `loot`, `effects`, `interaction`, `prompt`,
