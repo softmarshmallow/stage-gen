@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import CasePlayer from "@/app/_play/CasePlayer";
-import { singleBeatCase } from "@/lib/shell/case";
+import { singleBeatCase } from "@/lib/narrative/case";
 import { readRoomManifest } from "@/lib/shell/pointclick-room";
 import { isSafeRunTag } from "@/lib/shell/runs";
 

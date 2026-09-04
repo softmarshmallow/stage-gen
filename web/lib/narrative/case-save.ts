@@ -1,4 +1,4 @@
-// The pilot's whole persistence substrate: one autosave per case, in the browser.
+// The case's save, as declared scopes over the `persistence` family.
 //
 // This is the shell, not Scenario. The scenario contract's only obligation was to
 // make a save possible, and it met it: statement identity is `<label>#<index>`,
@@ -17,6 +17,21 @@
 // the invisible statements before the line, and a save that dropped them would
 // resume the right sentence in an empty room. So the record carries the runtime's
 // own presented state, with the statement id as its identity.
+//
+// What changed at v2, and why the version moved: this file used to be its own
+// persistence substrate — one hand-written record, one hand-written parser — and
+// it wrote its fields FLAT. That shape cannot say a slice is absent, and "absent"
+// is the whole of what a scope is for. `facts` outlives the leaf; the scenario's
+// playback, the room's fired interactions and the backlog do not, and the record
+// a finished case leaves behind is the game scope with the run scope subtracted.
+// v2 is the same fields under `slices`, so the profile can write a subset and the
+// reader can say which scopes came back. A v1 save is upgraded on the way in by
+// the family's versioned parse rather than discarded, so a player mid-episode
+// when this shipped keeps their place.
+//
+// `facts` is the only `"game"`-scope slice this runtime has. That is not a
+// simplification: it is the case contract. A fact is the only thing a scenario
+// and a room can both say, and nothing else crosses a beat boundary.
 
 import { bagItemIds, bagOfOne } from "@/lib/families/inventory";
 import type { ScenarioSlot } from "@/lib/scenario/program";
@@ -24,9 +39,27 @@ import { SCENARIO_SLOTS } from "@/lib/scenario/program";
 import type { ScenarioState } from "@/lib/scenario/runtime";
 import { scenarioStatementId } from "@/lib/scenario/runtime";
 import type { RoomPlayState } from "@/lib/pointclick/state";
+import {
+  parseSave,
+  SaveStore,
+  serializeSave,
+  type PersistenceEvent,
+  type SaveProfile,
+  type SaveScope,
+  type SaveStorage,
+} from "@/lib/families/persistence";
 
+export type { SaveStorage };
+
+/**
+ * The record's name, which does not move with its version.
+ *
+ * A version bump that renamed the kind would refuse every save already written,
+ * which is the opposite of what a versioned parse is for.
+ */
 export const CASE_SAVE_KIND = "case_save_v1";
-export const CASE_SAVE_SCHEMA_VERSION = 1;
+/** v1: the fields written flat. v2: the same fields under declared scopes. */
+export const CASE_SAVE_SCHEMA_VERSION = 2;
 export const CASE_RESULT_KIND = "case_result_v1";
 export const BACKLOG_LIMIT = 50;
 
@@ -76,13 +109,6 @@ export interface CaseResult {
   readonly finishedAt: string;
 }
 
-/** Only what this module needs of `localStorage`, so a test needs no browser. */
-export interface SaveStorage {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem(key: string): void;
-}
-
 export function caseSaveKey(tag: string): string {
   return `${SAVE_KEY_PREFIX}${tag}`;
 }
@@ -97,34 +123,165 @@ export function appendBacklog(
 }
 
 /**
+ * The case's own save profile: which slices there are, and how long each lives.
+ *
+ * `facts` is the only `"game"`-scope slice, because a fact is the only thing that
+ * crosses a beat boundary. Everything else belongs to the leaf being played and
+ * goes when it does.
+ *
+ * `run_tag`, `beat_id`, `statement_id` and `updated_at` are meta rather than
+ * slices: they say which save this is and where it was taken, not what the
+ * player's state is. `statement_id` is derivable from the scenario slice, and it
+ * is written anyway so the Continue card can name the line without loading the
+ * program the line belongs to.
+ */
+export const CASE_SAVE_PROFILE: SaveProfile<CaseSave> = {
+  kind: CASE_SAVE_KIND,
+  version: CASE_SAVE_SCHEMA_VERSION,
+  slices: [
+    {
+      slice: "facts",
+      scope: "game",
+      serialize: (save) => [...save.facts],
+      parse: (value) => Object.freeze(ids(value, "case save facts")),
+    },
+    {
+      slice: "scenario",
+      scope: "run",
+      serialize: (save) => (save.scenario === null ? undefined : wireScenario(save.scenario)),
+      parse: savedScenario,
+    },
+    {
+      slice: "room",
+      scope: "run",
+      serialize: (save) => (save.room === null ? undefined : wireRoom(save.room)),
+      parse: savedRoom,
+    },
+    {
+      slice: "backlog",
+      scope: "run",
+      serialize: (save) =>
+        save.backlog.map((line) => ({ speaker: line.speaker, text: line.text })),
+      parse: savedBacklog,
+    },
+  ],
+  serializeMeta: (save) => ({
+    run_tag: save.runTag,
+    beat_id: save.beatId,
+    statement_id: save.statementId,
+    updated_at: save.updatedAt,
+  }),
+  parseMeta: (root) => ({
+    runTag: text(root.run_tag, "case save run_tag", 128),
+    beatId: text(root.beat_id, "case save beat_id", 128),
+    statementId:
+      root.statement_id === null || root.statement_id === undefined
+        ? null
+        : text(root.statement_id, "case save statement_id", 200),
+    updatedAt: text(root.updated_at, "case save updated_at", 64),
+  }),
+  upgrades: [
+    {
+      // v1 wrote the slices flat beside the meta. Nothing about a v1 save is
+      // wrong — the fields are the same fields — so the upgrade is the envelope
+      // and nothing else, and a player mid-episode keeps their place.
+      from: 1,
+      upgrade: (record) => ({
+        schema_version: 2,
+        kind: record.kind,
+        run_tag: record.run_tag,
+        beat_id: record.beat_id,
+        statement_id: record.statement_id ?? null,
+        updated_at: record.updated_at,
+        slices: {
+          facts: record.facts,
+          ...(record.scenario === null || record.scenario === undefined
+            ? {}
+            : { scenario: record.scenario }),
+          ...(record.room === null || record.room === undefined ? {} : { room: record.room }),
+          backlog: record.backlog,
+        },
+      }),
+    },
+  ],
+};
+
+/**
  * Read the save for one case, or null when there is nothing usable there.
  *
  * Never throws. The bytes come from a browser the player owns and a build that
  * may have moved on since they were written; a save that no longer parses means
- * "no save", which is exactly what the shell should offer them.
+ * "no save", which is exactly what the shell should offer them. A save written by
+ * an EARLIER build is a different matter, and is upgraded rather than discarded.
  */
-export function readCaseSave(storage: SaveStorage, tag: string): CaseSave | null {
-  let raw: string | null;
+export function readCaseSave(
+  storage: SaveStorage,
+  tag: string,
+  emit?: (event: PersistenceEvent) => void,
+): CaseSave | null {
+  const record = new SaveStore(storage, CASE_SAVE_PROFILE, emit).read(caseSaveKey(tag));
+  if (record === null) return null;
   try {
-    raw = storage.getItem(caseSaveKey(tag));
-  } catch {
-    return null;
-  }
-  if (raw === null) return null;
-  try {
-    return parseCaseSave(JSON.parse(raw));
+    return assembleCaseSave(record.meta, record.slices);
   } catch {
     return null;
   }
 }
 
-export function writeCaseSave(storage: SaveStorage, save: CaseSave): void {
-  try {
-    storage.setItem(caseSaveKey(save.runTag), JSON.stringify(serializeCaseSave(save)));
-  } catch {
-    // A full or blocked store loses the save, not the session. A player who
-    // cannot autosave should still be able to finish the case they are playing.
-  }
+/**
+ * Write one save, in the scopes asked for.
+ *
+ * The default is everything. A caller that wants only what survives the leaf
+ * says `["game"]`, and gets a record carrying the facts and no playback.
+ */
+export function writeCaseSave(
+  storage: SaveStorage,
+  save: CaseSave,
+  scopes?: readonly SaveScope[],
+  emit?: (event: PersistenceEvent) => void,
+): void {
+  new SaveStore(storage, CASE_SAVE_PROFILE, emit).write(caseSaveKey(save.runTag), save, scopes);
+}
+
+export function clearCaseSave(storage: SaveStorage, tag: string): void {
+  new SaveStore(storage, CASE_SAVE_PROFILE).clear(caseSaveKey(tag));
+}
+
+export function serializeCaseSave(
+  save: CaseSave,
+  scopes?: readonly SaveScope[],
+): Record<string, unknown> {
+  return serializeSave(CASE_SAVE_PROFILE, save, scopes);
+}
+
+/**
+ * Validate one persisted save, upgrading it from whatever version wrote it.
+ *
+ * Strict about shape, and deliberately not strict about meaning: whether the
+ * label still exists, or the flags are still declared, is a question about a
+ * program this module has never seen. `restoreScenarioState` answers that with
+ * the program in hand and refuses a snapshot that no longer fits.
+ */
+export function parseCaseSave(value: unknown): CaseSave {
+  const record = parseSave(CASE_SAVE_PROFILE, value);
+  return assembleCaseSave(record.meta, record.slices);
+}
+
+/** The parsed slices and meta, as the one record the shell passes around. */
+function assembleCaseSave(
+  meta: Readonly<Record<string, unknown>>,
+  slices: Readonly<Record<string, unknown>>,
+): CaseSave {
+  return Object.freeze({
+    runTag: meta.runTag as string,
+    beatId: meta.beatId as string,
+    facts: (slices.facts ?? Object.freeze([])) as readonly string[],
+    statementId: (meta.statementId ?? null) as string | null,
+    scenario: (slices.scenario ?? null) as ScenarioState | null,
+    room: (slices.room ?? null) as RoomPlayState | null,
+    backlog: (slices.backlog ?? Object.freeze([])) as readonly BacklogLine[],
+    updatedAt: meta.updatedAt as string,
+  });
 }
 
 export function caseResultKey(tag: string): string {
@@ -178,102 +335,6 @@ export function readCaseResult(storage: SaveStorage, tag: string): CaseResult | 
   } catch {
     return null;
   }
-}
-
-export function clearCaseSave(storage: SaveStorage, tag: string): void {
-  try {
-    storage.removeItem(caseSaveKey(tag));
-  } catch {
-    // As above: forgetting a save is not worth ending a play-through over.
-  }
-}
-
-export function serializeCaseSave(save: CaseSave): unknown {
-  return {
-    schema_version: CASE_SAVE_SCHEMA_VERSION,
-    kind: CASE_SAVE_KIND,
-    run_tag: save.runTag,
-    beat_id: save.beatId,
-    facts: [...save.facts],
-    statement_id: save.statementId,
-    scenario:
-      save.scenario === null
-        ? null
-        : {
-            label: save.scenario.label,
-            index: save.scenario.index,
-            flags: [...save.scenario.flags],
-            seen: [...save.scenario.seen],
-            stage: save.scenario.stage,
-            actors: save.scenario.actors.map((actor) => ({
-              actor_id: actor.actorId,
-              expression: actor.expression,
-              slot: actor.slot,
-            })),
-            tracks: [...save.scenario.tracks],
-            outcome: save.scenario.outcome,
-          },
-    room:
-      save.room === null
-        ? null
-        : {
-            flags: [...save.room.flags],
-            // The saved form stays a list of item ids: the room's bag is the
-            // `inventory` family's counted bag with every quantity 1, so the
-            // names are the whole of it and the save file's shape is unchanged
-            // across this refactor.
-            inventory: bagItemIds(save.room.inventory),
-            revealed: [...save.room.revealed],
-            fired: [...save.room.fired],
-            narration: save.room.narration,
-            solved: save.room.solved,
-          },
-    backlog: save.backlog.map((line) => ({ speaker: line.speaker, text: line.text })),
-    updated_at: save.updatedAt,
-  };
-}
-
-/**
- * Validate one persisted save.
- *
- * Strict about shape, and deliberately not strict about meaning: whether the
- * label still exists, or the flags are still declared, is a question about a
- * program this module has never seen. `restoreScenarioState` answers that with
- * the program in hand and refuses a snapshot that no longer fits.
- */
-export function parseCaseSave(value: unknown): CaseSave {
-  const root = record(value, "case save");
-  exact(root.schema_version, CASE_SAVE_SCHEMA_VERSION, "case save schema_version");
-  exact(root.kind, CASE_SAVE_KIND, "case save kind");
-  const scenarioRaw = root.scenario;
-  const roomRaw = root.room;
-  return Object.freeze({
-    runTag: text(root.run_tag, "case save run_tag", 128),
-    beatId: text(root.beat_id, "case save beat_id", 128),
-    facts: Object.freeze(ids(root.facts, "case save facts")),
-    statementId:
-      root.statement_id === null || root.statement_id === undefined
-        ? null
-        : text(root.statement_id, "case save statement_id", 200),
-    scenario:
-      scenarioRaw === null || scenarioRaw === undefined ? null : savedScenario(scenarioRaw),
-    room: roomRaw === null || roomRaw === undefined ? null : savedRoom(roomRaw),
-    backlog: Object.freeze(
-      list(root.backlog, "case save backlog")
-        .slice(-BACKLOG_LIMIT)
-        .map((entry, index) => {
-          const line = record(entry, `case save backlog[${index}]`);
-          return Object.freeze({
-            speaker:
-              line.speaker === null || line.speaker === undefined
-                ? null
-                : text(line.speaker, `case save backlog[${index}].speaker`, 96),
-            text: text(line.text, `case save backlog[${index}].text`, TEXT_MAX),
-          });
-        }),
-    ),
-    updatedAt: text(root.updated_at, "case save updated_at", 64),
-  });
 }
 
 /**
@@ -344,6 +405,59 @@ export function roomSave(
 }
 
 // ------------------------------------------------------------------ scalars
+
+/** One scenario slice, as the wire carries it. */
+function wireScenario(state: ScenarioState): unknown {
+  return {
+    label: state.label,
+    index: state.index,
+    flags: [...state.flags],
+    seen: [...state.seen],
+    stage: state.stage,
+    actors: state.actors.map((actor) => ({
+      actor_id: actor.actorId,
+      expression: actor.expression,
+      slot: actor.slot,
+    })),
+    tracks: [...state.tracks],
+    outcome: state.outcome,
+  };
+}
+
+/**
+ * One room slice, as the wire carries it.
+ *
+ * The saved form stays a list of item ids: the room's bag is the `inventory`
+ * family's counted bag with every quantity 1, so the names are the whole of it.
+ */
+function wireRoom(state: RoomPlayState): unknown {
+  return {
+    flags: [...state.flags],
+    inventory: bagItemIds(state.inventory),
+    revealed: [...state.revealed],
+    fired: [...state.fired],
+    narration: state.narration,
+    solved: state.solved,
+  };
+}
+
+/** The last fifty lines, trimmed on the way back in as well as on the way out. */
+function savedBacklog(value: unknown): readonly BacklogLine[] {
+  return Object.freeze(
+    list(value, "case save backlog")
+      .slice(-BACKLOG_LIMIT)
+      .map((entry, index) => {
+        const line = record(entry, `case save backlog[${index}]`);
+        return Object.freeze({
+          speaker:
+            line.speaker === null || line.speaker === undefined
+              ? null
+              : text(line.speaker, `case save backlog[${index}].speaker`, 96),
+          text: text(line.text, `case save backlog[${index}].text`, TEXT_MAX),
+        });
+      }),
+  );
+}
 
 function savedScenario(value: unknown): ScenarioState {
   const raw = record(value, "case save scenario");

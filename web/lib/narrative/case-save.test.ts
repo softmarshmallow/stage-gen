@@ -76,19 +76,75 @@ describe("a scenario save", () => {
     const wire = serializeCaseSave(
       scenarioSave("case_tag", "beat_one", [], state, [], NOW),
     ) as Record<string, unknown>;
+    // v2: the meta beside the envelope, and the declared slices under `slices`.
+    // A scenario beat carries no room, and an absent slice is absent rather than
+    // null — which is the whole reason the shape moved.
     expect(Object.keys(wire).sort()).toEqual([
-      "backlog",
       "beat_id",
-      "facts",
       "kind",
-      "room",
       "run_tag",
-      "scenario",
       "schema_version",
+      "slices",
       "statement_id",
       "updated_at",
     ]);
+    expect(Object.keys(wire.slices as object).sort()).toEqual(["backlog", "facts", "scenario"]);
     expect(wire.kind).toBe("case_save_v1");
+    expect(wire.schema_version).toBe(2);
+  });
+
+  test("only the game scope survives the leaf: facts, and nothing that was played", () => {
+    const state = reduceScenario(program, initialScenarioState(program), { kind: "advance" });
+    const wire = serializeCaseSave(
+      scenarioSave("case_tag", "beat_one", ["has_token"], state, [], NOW),
+      ["game"],
+    ) as Record<string, unknown>;
+    expect(wire.slices).toEqual({ facts: ["has_token"] });
+    const back = parseCaseSave(wire);
+    expect(back.facts).toEqual(["has_token"]);
+    expect(back.scenario).toBeNull();
+    expect(back.backlog).toEqual([]);
+  });
+
+  test("a save written by v1 is restored by v2, under the versioned parse", () => {
+    // The bytes a shipped build wrote, flat, exactly as `case_save_v1` had them.
+    const state = reduceScenario(program, initialScenarioState(program), { kind: "advance" });
+    const v1 = {
+      schema_version: 1,
+      kind: "case_save_v1",
+      run_tag: "the-grain-episode-one",
+      beat_id: "b_office",
+      facts: ["saw_body"],
+      statement_id: `${state.label}#${state.index}`,
+      scenario: {
+        label: state.label,
+        index: state.index,
+        flags: [...state.flags],
+        seen: [...state.seen],
+        stage: state.stage,
+        actors: state.actors.map((actor) => ({
+          actor_id: actor.actorId,
+          expression: actor.expression,
+          slot: actor.slot,
+        })),
+        tracks: [...state.tracks],
+        outcome: state.outcome,
+      },
+      room: null,
+      backlog: [{ speaker: "calder", text: "The grain is in the ledger." }],
+      updated_at: NOW.toISOString(),
+    };
+    const restored = parseCaseSave(v1);
+    expect(restored.beatId).toBe("b_office");
+    expect(restored.facts).toEqual(["saw_body"]);
+    expect(restored.statementId).toBe(`${state.label}#${state.index}`);
+    expect(restored.scenario).toEqual(state);
+    expect(restored.room).toBeNull();
+    expect(restored.backlog).toEqual([
+      { speaker: "calder", text: "The grain is in the ledger." },
+    ]);
+    // And the record it came back as is the record this build writes.
+    expect(parseCaseSave(serializeCaseSave(restored))).toEqual(restored);
   });
 
   test("the whole drawn moment is carried, not only the statement id", () => {
@@ -177,11 +233,12 @@ describe("reading and writing", () => {
       speaker: null,
       text: `line ${index}`,
     }));
+    const wire = serializeCaseSave(beatSave("case_tag", "beat_one", [], [], NOW));
     storage.setItem(
       caseSaveKey("case_tag"),
       JSON.stringify({
-        ...(serializeCaseSave(beatSave("case_tag", "beat_one", [], [], NOW)) as object),
-        backlog: long,
+        ...wire,
+        slices: { ...(wire.slices as object), backlog: long },
       }),
     );
     expect(readCaseSave(storage, "case_tag")?.backlog).toHaveLength(BACKLOG_LIMIT);

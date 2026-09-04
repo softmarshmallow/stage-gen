@@ -3,12 +3,11 @@
 // The case, played at one URL: scenario, room, scenario, and never a second
 // address for the player to type.
 //
-// This is the shell. It owns the three things that outlive one leaf — where the
-// player is, what they are carrying, and what they have already read — and it
-// owns nothing about how a scenario or a room draws itself. Each leaf is still
-// the whole game inside its own canvas; this component decides which one is on
-// screen, hands it the facts an earlier beat exported, listens for the outcome it
-// reports, and writes an autosave at every statement so the player can stop.
+// This is the view. Everything it used to decide — where the player is, what
+// they are carrying, what they have already read, whether there is a save to
+// offer, and what a finished beat does next — is `lib/narrative/runtime.ts` now,
+// and this component subscribes to it. What is left here is the chrome and the
+// leaf swap, which is what a component should have been holding all along.
 //
 // The chrome is deliberately DOM rather than canvas. A backlog and a Continue are
 // not part of either genre's game — they belong to the person holding the device,
@@ -16,32 +15,17 @@
 // two places in a pilot where a keyboard and a screen reader should just work.
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import RoomPlayer from "./RoomPlayer";
 import ScenePlayer from "./ScenePlayer";
 import {
-  advanceCase,
   caseBeat,
   caseBeatNumber,
-  initialCaseProgress,
-  mergeFacts,
-  ROOM_WIN_OUTCOME,
   type CaseBeat,
   type CaseDocument,
-  type CaseProgress,
-} from "@/lib/shell/case";
-import {
-  appendBacklog,
-  beatSave,
-  clearCaseSave,
-  writeCaseResult,
-  readCaseSave,
-  roomSave,
-  scenarioSave,
-  writeCaseSave,
-  type BacklogLine,
-  type CaseSave,
-} from "@/lib/shell/case-save";
+} from "@/lib/narrative/case";
+import type { BacklogLine, CaseSave } from "@/lib/narrative/case-save";
+import { CaseSession } from "@/lib/narrative/runtime";
 import type { DialogueSceneMoment } from "@/lib/dialogue-scene/scene-game";
 import type { DialogueSceneFixture } from "@/lib/dialogue-scene/schema";
 import type { RoomManifest } from "@/lib/pointclick/contract";
@@ -64,194 +48,47 @@ export interface CasePlayerProps {
   readonly backHref?: string;
 }
 
-type Phase = "reading_save" | "offering_continue" | "playing" | "finished";
-
-/**
- * What "the same line, again" means, per leaf kind.
- *
- * A scenario has statement identity and needs nothing else. A room has no such
- * thing — it narrates in response to a click — so its line is identified by the
- * beat, the interactions that have fired, and the words themselves, which is
- * exactly enough to tell a redraw from a new click.
- */
-function scenarioLineKey(beatId: string, statementId: string | null): string {
-  return `${beatId}:${statementId ?? "end"}`;
-}
-
-function roomLineKey(
-  beatId: string,
-  fired: readonly number[],
-  narration: string,
-): string {
-  return `${beatId}:${fired.join(",")}:${narration}`;
-}
-
-interface PendingOutcome {
-  readonly beatId: string;
-  readonly outcome: string;
-  readonly flags: readonly string[];
-}
-
 export default function CasePlayer({
   tag,
   caseDocument,
   leaves,
   backHref = "/",
 }: CasePlayerProps) {
-  const [phase, setPhase] = useState<Phase>("reading_save");
-  const [progress, setProgress] = useState<CaseProgress>(() =>
-    initialCaseProgress(caseDocument),
+  // One session per case, for as long as the case is on screen. It holds the
+  // save store and the state; this component holds neither.
+  const session = useMemo(
+    () => new CaseSession(caseDocument, tag, window.localStorage),
+    [caseDocument, tag],
   );
-  const [resume, setResume] = useState<CaseSave | null>(null);
-  const [backlog, setBacklog] = useState<readonly BacklogLine[]>([]);
+  const state = useSyncExternalStore(
+    (listener) => session.subscribe(listener),
+    () => session.state,
+    () => session.state,
+  );
   const [backlogOpen, setBacklogOpen] = useState(false);
-  const [pending, setPending] = useState<PendingOutcome | null>(null);
-  const [ending, setEnding] = useState<string | null>(null);
-  const [carried, setCarried] = useState<readonly string[]>([]);
-  // Which beat has produced its first moment. The loading layer is shown until it
-  // has, because a leaf's canvas is TRANSPARENT and therefore never covers
-  // anything — an earlier version of this assumed it would, and the label sat in
-  // the middle of every painted stage for the whole beat.
-  const [drawn, setDrawn] = useState<string | null>(null);
 
-  // Mirrors, because the leaf's callbacks fire from inside a Phaser render and
-  // must read the current beat rather than the one captured when they were made.
-  const progressRef = useRef(progress);
-  progressRef.current = progress;
-  const backlogRef = useRef(backlog);
-  backlogRef.current = backlog;
-  const lastLine = useRef<string | null>(null);
+  // The episode's first act: read the save, if there is one, and offer it.
+  useEffect(() => {
+    session.open();
+  }, [session]);
 
   const leafByBeat = useMemo(
     () => new Map(leaves.map((leaf) => [leaf.beat.beatId, leaf])),
     [leaves],
   );
-  const beat = caseBeat(caseDocument, progress.beatId);
+  const beat = caseBeat(caseDocument, state.progress.beatId);
   const leaf = beat === null ? undefined : leafByBeat.get(beat.beatId);
+  const { phase, progress, resume, backlog, pending, ending, carried, drawn } = state;
 
-  useEffect(() => {
-    const saved = readCaseSave(window.localStorage, tag);
-    if (saved !== null && caseBeat(caseDocument, saved.beatId) !== null) {
-      setResume(saved);
-      setBacklog(saved.backlog);
-      setPhase("offering_continue");
-      return;
-    }
-    setPhase("playing");
-  }, [tag, caseDocument]);
-
-  const startOver = useCallback(() => {
-    clearCaseSave(window.localStorage, tag);
-    lastLine.current = null;
-    setResume(null);
-    setBacklog([]);
-    setPending(null);
-    setEnding(null);
-    setProgress(initialCaseProgress(caseDocument));
-    setPhase("playing");
-  }, [caseDocument, tag]);
-
-  const continueSaved = useCallback(() => {
-    if (resume === null) return;
-    // The resumed leaf redraws the moment it was saved at, and reports it like any
-    // other. Without seeding the key it just reported, Continue would append the
-    // line the player is looking at to a backlog that already ends with it.
-    lastLine.current =
-      resume.room === null
-        ? scenarioLineKey(resume.beatId, resume.statementId)
-        : roomLineKey(resume.beatId, resume.room.fired, resume.room.narration);
-    setProgress({ beatId: resume.beatId, facts: resume.facts });
-    setPending(null);
-    setPhase("playing");
-  }, [resume]);
-
-  /** Remember one line, and answer with the backlog the save should carry. */
-  const remember = useCallback(
-    (key: string, line: BacklogLine | null): readonly BacklogLine[] => {
-      if (line === null || lastLine.current === key) return backlogRef.current;
-      lastLine.current = key;
-      const next = appendBacklog(backlogRef.current, line);
-      backlogRef.current = next;
-      setBacklog(next);
-      return next;
-    },
-    [],
-  );
-
-  const onMoment = useCallback(
-    (moment: DialogueSceneMoment) => {
-      const at = progressRef.current;
-      setDrawn(at.beatId);
-      const carried = remember(
-        scenarioLineKey(at.beatId, moment.statementId),
-        moment.line === null ? null : { speaker: moment.line.speaker, text: moment.line.text },
-      );
-      writeCaseSave(
-        window.localStorage,
-        scenarioSave(tag, at.beatId, at.facts, moment.state, carried),
-      );
-      if (moment.outcome !== null) {
-        setPending({ beatId: at.beatId, outcome: moment.outcome, flags: moment.state.flags });
-      }
-    },
-    [remember, tag],
-  );
-
-  const onRoomChange = useCallback(
-    (state: RoomPlayState) => {
-      const at = progressRef.current;
-      setDrawn(at.beatId);
-      const carried = remember(roomLineKey(at.beatId, state.fired, state.narration), {
-        speaker: null,
-        text: state.narration,
-      });
-      writeCaseSave(window.localStorage, roomSave(tag, at.beatId, at.facts, state, carried));
-      if (state.solved) {
-        setPending({ beatId: at.beatId, outcome: ROOM_WIN_OUTCOME, flags: state.flags });
-      }
-    },
-    [remember, tag],
-  );
-
-  const finish = useCallback(
-    (beatId: string, outcome: string, flags: readonly string[]) => {
-      const at = progressRef.current;
-      if (at.beatId !== beatId) return;
-      const next = advanceCase(caseDocument, at, outcome, flags);
-      if (next === null) {
-        // Terminal, or an outcome the case declares no edge for. Either way the
-        // episode is over here; the facts are merged so the closing card can say
-        // what the player finished holding.
-        const carried = mergeFacts(caseDocument, at.facts, flags);
-        // The in-progress save goes — there is nothing left to resume — but the
-        // board does not. What the player finished holding IS the episode's
-        // output: the next case opens on it. Clearing without recording this
-        // discarded the verdict at the moment it was computed.
-        writeCaseResult(window.localStorage, {
-          runTag: tag,
-          outcome,
-          facts: carried,
-          finishedAt: new Date().toISOString(),
-        });
-        clearCaseSave(window.localStorage, tag);
-        setCarried(carried);
-        setEnding(outcome);
-        setPending(null);
-        setPhase("finished");
-        return;
-      }
-      lastLine.current = null;
-      setResume(null);
-      setPending(null);
-      progressRef.current = next;
-      setProgress(next);
-      writeCaseSave(
-        window.localStorage,
-        beatSave(tag, next.beatId, next.facts, backlogRef.current),
-      );
-    },
-    [caseDocument, tag],
-  );
+  const onMoment = (moment: DialogueSceneMoment) => {
+    session.presented({
+      kind: "presented",
+      statementId: moment.statementId,
+      line: moment.line === null ? null : { speaker: moment.line.speaker, text: moment.line.text },
+      scenario: moment.state,
+      outcome: moment.outcome,
+    });
+  };
 
   // Keys belong to whatever is on top. Each leaf's canvas listens on the window,
   // so an overlay that covered only the pixels would still let a space bar
@@ -335,8 +172,8 @@ export default function CasePlayer({
             facts={progress.facts}
             saved={resumeFor(beat.beatId)}
             onMoment={onMoment}
-            onRoomChange={onRoomChange}
-            onFinish={finish}
+            onRoomChange={(room: RoomPlayState) => session.roomChanged(room)}
+            onFinish={(beatId, outcome, flags) => session.finish(beatId, outcome, flags)}
           />
         ) : null}
 
@@ -357,8 +194,8 @@ export default function CasePlayer({
               .
             </p>
             <div className="flex gap-3">
-              <CurtainButton onClick={continueSaved}>Continue</CurtainButton>
-              <CurtainButton onClick={startOver}>Start over</CurtainButton>
+              <CurtainButton onClick={() => session.continueSaved()}>Continue</CurtainButton>
+              <CurtainButton onClick={() => session.startOver()}>Start over</CurtainButton>
             </div>
           </Curtain>
         ) : null}
@@ -385,7 +222,7 @@ export default function CasePlayer({
                 </p>
               </div>
             )}
-            <CurtainButton onClick={startOver}>Play it again</CurtainButton>
+            <CurtainButton onClick={() => session.startOver()}>Play it again</CurtainButton>
           </Curtain>
         ) : null}
 
@@ -403,7 +240,7 @@ export default function CasePlayer({
           >
             <button
               type="button"
-              onClick={() => finish(pending.beatId, pending.outcome, pending.flags)}
+              onClick={() => session.finish(pending.beatId, pending.outcome, pending.flags)}
               className="pointer-events-auto cursor-pointer border border-fg/70 bg-black/80 px-5 py-2 text-sm text-fg"
             >
               Continue →

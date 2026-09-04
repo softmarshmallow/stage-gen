@@ -16,13 +16,13 @@
 // rather than pretending a sixth exists. Nothing here is a rights claim on that
 // art and nothing here is published; it is the demo route's scenery.
 
-import { UI_ATLAS_FIXTURE_ROLES } from "./prepared-runtime.fixture";
+import { UI_ATLAS_FIXTURE_ROLES } from "@/lib/shell/prepared-runtime.fixture";
 import type { UiAtlasRoleLayout } from "@/lib/manifest/ui-atlas-layout";
 import { validateDialogueSceneFixture } from "@/lib/dialogue-scene/schema";
 import type { DialogueSceneFixture } from "@/lib/dialogue-scene/schema";
 import { parseRoomManifest } from "@/lib/pointclick/contract";
 import type { RoomManifest } from "@/lib/pointclick/contract";
-import { preparedAssetUrl } from "./asset-url";
+import { preparedAssetUrl } from "@/lib/shell/asset-url";
 import { parseCase, type CaseDocument } from "./case";
 
 /** The tag `/case/demo` plays under, and the key its autosave is written at. */

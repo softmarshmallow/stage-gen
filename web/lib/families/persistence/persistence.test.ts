@@ -140,10 +140,16 @@ describe("the versioned parse", () => {
     upgrades: [
       {
         from: 1,
-        upgrade: (slices) => ({
-          ...slices,
-          line: { label: String(slices.beat), index: Number(slices.line) },
-        }),
+        upgrade: (record) => {
+          const slices = record.slices as Record<string, unknown>;
+          return {
+            ...record,
+            slices: {
+              ...slices,
+              line: { label: String(slices.beat), index: Number(slices.line) },
+            },
+          };
+        },
       },
     ],
   };

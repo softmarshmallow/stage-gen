@@ -3,7 +3,7 @@ import {
   DEMO_CASE_TAG,
   demoCaseDocument,
   demoCaseLeaf,
-} from "@/lib/shell/case.fixture";
+} from "@/lib/narrative/case.fixture";
 
 export const dynamic = "force-dynamic";
 

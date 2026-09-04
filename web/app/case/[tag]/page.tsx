@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import CasePlayer from "@/app/_play/CasePlayer";
-import { readPlayableCase } from "@/lib/shell/case-io";
+import { readPlayableCase } from "@/lib/narrative/case-io";
 import { isSafeRunTag } from "@/lib/shell/runs";
 
 export const dynamic = "force-dynamic";

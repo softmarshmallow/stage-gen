@@ -14,11 +14,11 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { parseCase, type CaseBeat, type CaseDocument } from "./case";
-import { readSceneFixture } from "./dialogue-scene";
-import { readRoomManifest } from "./pointclick-room";
+import { readSceneFixture } from "@/lib/shell/dialogue-scene";
+import { readRoomManifest } from "@/lib/shell/pointclick-room";
 import type { DialogueSceneFixture } from "@/lib/dialogue-scene/schema";
 import type { RoomManifest } from "@/lib/pointclick/contract";
-import { assertSafeOutRoot, isSafeRunTag, OUT_ROOT, runDirFor } from "./runs";
+import { assertSafeOutRoot, isSafeRunTag, OUT_ROOT, runDirFor } from "@/lib/shell/runs";
 
 const CASE_NAME = "case.json";
 

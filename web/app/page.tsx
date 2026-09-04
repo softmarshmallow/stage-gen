@@ -10,7 +10,7 @@
 // a section by registering, not by editing this file's markup.
 
 import Link from "next/link";
-import { listReadyCases } from "@/lib/shell/case-io";
+import { listReadyCases } from "@/lib/narrative/case-io";
 import { listReadyProjects } from "@/lib/shell/projects";
 import { listReadyScenes } from "@/lib/shell/dialogue-scene";
 import { listReadyRooms } from "@/lib/shell/pointclick-room";

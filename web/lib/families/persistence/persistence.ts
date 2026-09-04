@@ -79,15 +79,20 @@ export interface DeclaredSlice<StateT> {
  * One step of the versioned parse.
  *
  * A save written by one version and read by the next arrives here first: the
- * upgrade takes the slice record as it was written and answers it as the next
- * version would have written it. Applied in order from the record's own version
- * up to the profile's, so a save two versions old is upgraded twice rather than
- * refused — which is the difference between a versioned parse and a version check.
+ * upgrade takes the WHOLE persisted record as it was written and answers it as
+ * the next version would have written it. The whole record and not just its
+ * slices, because the envelope is a thing versions change too — the case's own
+ * v1 wrote its slices flat, with no way to say a slice was absent, which is
+ * exactly what made declared scopes unrepresentable in it.
+ *
+ * Applied in order from the record's own version up to the profile's, so a save
+ * two versions old is upgraded twice rather than refused — which is the whole
+ * difference between a versioned parse and a version check.
  */
 export interface SaveUpgrade {
   /** The version this upgrade reads. It produces `from + 1`. */
   readonly from: number;
-  upgrade(slices: Readonly<Record<string, unknown>>): Record<string, unknown>;
+  upgrade(record: Readonly<Record<string, unknown>>): Record<string, unknown>;
 }
 
 export interface SaveProfile<StateT> {
@@ -214,12 +219,8 @@ export function parseSave<StateT>(
       `save was written by version ${writtenVersion}, which is newer than ${profile.version}`,
     );
   }
-  const raw = root.slices;
-  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new SaveRefusal("save slices must be an object");
-  }
-  let slices = raw as Readonly<Record<string, unknown>>;
   const upgrades = [...(profile.upgrades ?? [])].sort((a, b) => a.from - b.from);
+  let current: Readonly<Record<string, unknown>> = root;
   for (let version = writtenVersion; version < profile.version; version += 1) {
     const step = upgrades.find((upgrade) => upgrade.from === version);
     if (step === undefined) {
@@ -227,8 +228,13 @@ export function parseSave<StateT>(
         `save profile "${profile.kind}" has no upgrade from version ${version}`,
       );
     }
-    slices = step.upgrade(slices);
+    current = step.upgrade(current);
   }
+  const raw = current.slices;
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new SaveRefusal("save slices must be an object");
+  }
+  const slices = raw as Readonly<Record<string, unknown>>;
   const parsed: Record<string, unknown> = {};
   for (const declared of profile.slices) {
     const value = slices[declared.slice];
@@ -239,7 +245,7 @@ export function parseSave<StateT>(
   return Object.freeze({
     kind: profile.kind,
     writtenVersion,
-    meta: Object.freeze(profile.parseMeta?.(root) ?? {}),
+    meta: Object.freeze(profile.parseMeta?.(current) ?? {}),
     slices: Object.freeze(parsed),
     scopes: scopesOf(names, profile as SaveProfile<unknown>),
   });
