@@ -1,81 +1,56 @@
-// Where defeat sends the player, when they are asked about it, and who may answer.
+// The platformer's instantiation of the `checkpoints` family.
 //
-// Defeat used to be terminal: control locked, the death strip played, and the run stopped there
-// with nothing to restart it. That is survivable for a person with a reload button and fatal for
-// anything meant to keep playing on its own, so recovery belongs to the runtime alongside the rest
-// of the gameplay rules.
+// Where defeat sends the player, when they are asked about it, and who may
+// answer. The rules are the family's now; what is left here is what this genre
+// answers them with — the word it calls a safe place, and the three beats the
+// death screen is paced to.
 //
-// Recovery is a decision rather than a timer. The player is told what happened and offered the way
-// back, and the run resumes when they take it — which is what a death screen is for, and what a
-// silent reload three seconds later cannot do. The timer that remains exists only for a run with
-// nobody at the keyboard, which has to answer its own prompt or stop forever at its first death.
-//
-// Home is derived from the package rather than authored into it. The gameplay contract already
-// says which maps are safe hubs and where the game starts, and those two facts are enough to name
-// the village without asking every game to declare a respawn point it would have to keep in sync
-// with its own entry spawn.
+// Home is derived from the package rather than authored into it. The gameplay
+// contract already says which maps are safe hubs and where the game starts, and
+// those two facts are enough to name the village without asking every game to
+// declare a respawn point it would have to keep in sync with its own entry
+// spawn.
 
+import {
+  automatedConfirmDue,
+  defeatPromptState as familyDefeatPromptState,
+  parseCheckpointsBlock,
+  resolveRespawnTarget,
+  type CheckpointsBlockView,
+  type DefeatPromptState,
+  type DefeatPromptTiming,
+  type RespawnSpawn,
+} from "@/lib/families/checkpoints";
+import type { BlockTable } from "@/lib/manifest/blocks";
+import { PREPARED_RUNTIME_BLOCKS } from "@/lib/manifest/prepared-manifest";
 import { DEATH_STRIP_DURATION_MS } from "./death-presentation";
 
-/** The map role a package uses for a settlement with no hostile population. */
+/**
+ * The map role a package uses for a settlement with no hostile population.
+ *
+ * This genre's word, handed to the family as a parameter. It used to be a
+ * literal inside the resolver, which is what made the whole rule
+ * platformer-only: a metroidvania's save room and a cinematic platformer's last
+ * lit brazier are the same idea under other names.
+ */
 export const SAFE_HUB_MAP_ROLE = "safe_village_hub";
 
 export type HomeSpawnInput = Readonly<{
   entry_map_id: string;
   entry_spawn_id: string;
   map_uses: readonly Readonly<{ map_id: string; role: string }>[];
-  spawns: readonly Readonly<{
-    spawn_id: string;
-    map_id: string;
-    normalized_x: number;
-  }>[];
+  spawns: readonly RespawnSpawn[];
 }>;
 
-export type HomeSpawn = Readonly<{
-  spawn_id: string;
-  map_id: string;
-  normalized_x: number;
-}>;
+export type HomeSpawn = RespawnSpawn;
 
-/**
- * Resolve the spawn a defeated player wakes up at.
- *
- * Preference order, and the reason for it: the game's own entry spawn wins when it stands in a
- * safe hub, because that is the arrival the package was authored and art-directed around. When the
- * game instead opens on a hostile route, the first safe hub it declares wins, because respawning
- * into the population that just killed the player is a death loop rather than a recovery. With no
- * safe hub declared at all the entry spawn is the only home a package has, and it is used as-is.
- */
+/** Resolve the spawn a defeated player wakes up at, under this genre's safe-place role. */
 export function resolveHomeSpawn(input: HomeSpawnInput): HomeSpawn {
-  const entrySpawn = input.spawns.find(
-    (spawn) => spawn.spawn_id === input.entry_spawn_id,
-  );
-  if (!entrySpawn) {
-    throw new Error(
-      `gameplay entry spawn ${input.entry_spawn_id} does not resolve to a spawn point`,
-    );
-  }
-  const safeHubMapIds = new Set(
-    input.map_uses
-      .filter((use) => use.role === SAFE_HUB_MAP_ROLE)
-      .map((use) => use.map_id),
-  );
-  if (safeHubMapIds.has(entrySpawn.map_id)) return frozenSpawn(entrySpawn);
-  for (const use of input.map_uses) {
-    if (!safeHubMapIds.has(use.map_id)) continue;
-    const hubSpawn = input.spawns.find((spawn) => spawn.map_id === use.map_id);
-    if (hubSpawn) return frozenSpawn(hubSpawn);
-  }
-  return frozenSpawn(entrySpawn);
-}
-
-function frozenSpawn(
-  spawn: Readonly<{ spawn_id: string; map_id: string; normalized_x: number }>,
-): HomeSpawn {
-  return Object.freeze({
-    spawn_id: spawn.spawn_id,
-    map_id: spawn.map_id,
-    normalized_x: spawn.normalized_x,
+  return resolveRespawnTarget({
+    entry_spawn_id: input.entry_spawn_id,
+    map_uses: input.map_uses,
+    spawns: input.spawns,
+    safeRole: SAFE_HUB_MAP_ROLE,
   });
 }
 
@@ -102,18 +77,15 @@ export const DEFEAT_PROMPT_FADE_MS = 260;
  */
 export const DEFEAT_AUTOMATED_CONFIRM_DELAY_MS = DEFEAT_PROMPT_DELAY_MS + 1400;
 
-export type DefeatPromptState = Readonly<{
-  visible: boolean;
-  alpha: number;
-}>;
+/** This genre's three beats, as the family's timing parameter. */
+export const PLATFORMER_DEFEAT_TIMING: DefeatPromptTiming = Object.freeze({
+  delayMs: DEFEAT_PROMPT_DELAY_MS,
+  fadeMs: DEFEAT_PROMPT_FADE_MS,
+});
 
-/**
- * Whether the prompt is up yet, and how far in it has faded.
- *
- * Sampled from caller-supplied simulation time exactly like the stat log and floating combat text,
- * so normal play and fixed-frame automation follow the same path with no tween to drift between
- * them.
- */
+export type { DefeatPromptState };
+
+/** Whether the prompt is up yet, and how far in it has faded. */
 export function defeatPromptState(
   input: Readonly<{
     defeatedAtMs: number;
@@ -122,19 +94,7 @@ export function defeatPromptState(
     fadeMs?: number;
   }>,
 ): DefeatPromptState {
-  const delayMs = input.delayMs ?? DEFEAT_PROMPT_DELAY_MS;
-  const fadeMs = input.fadeMs ?? DEFEAT_PROMPT_FADE_MS;
-  assertFiniteTiming(input.defeatedAtMs, input.nowMs, delayMs);
-  if (!Number.isFinite(fadeMs) || fadeMs < 0) {
-    throw new Error("defeat prompt timing requires finite milliseconds");
-  }
-  const elapsed = input.nowMs - input.defeatedAtMs - delayMs;
-  if (elapsed < 0) return Object.freeze({ visible: false, alpha: 0 });
-  if (fadeMs === 0) return Object.freeze({ visible: true, alpha: 1 });
-  return Object.freeze({
-    visible: true,
-    alpha: Math.max(0, Math.min(1, elapsed / fadeMs)),
-  });
+  return familyDefeatPromptState(input, PLATFORMER_DEFEAT_TIMING);
 }
 
 /** Whether a run with nobody at the keyboard has waited long enough to accept the prompt. */
@@ -145,18 +105,15 @@ export function automatedDefeatConfirmDue(
     delayMs?: number;
   }>,
 ): boolean {
-  const delayMs = input.delayMs ?? DEFEAT_AUTOMATED_CONFIRM_DELAY_MS;
-  assertFiniteTiming(input.defeatedAtMs, input.nowMs, delayMs);
-  return input.nowMs - input.defeatedAtMs >= delayMs;
+  return automatedConfirmDue(input, DEFEAT_AUTOMATED_CONFIRM_DELAY_MS);
 }
 
-function assertFiniteTiming(defeatedAtMs: number, nowMs: number, delayMs: number): void {
-  if (
-    !Number.isFinite(defeatedAtMs) ||
-    !Number.isFinite(nowMs) ||
-    !Number.isFinite(delayMs) ||
-    delayMs < 0
-  ) {
-    throw new Error("defeat prompt timing requires finite milliseconds");
-  }
+export const PLATFORMER_CHECKPOINTS_BLOCK = Object.freeze({
+  block: "gameplay",
+  version: PREPARED_RUNTIME_BLOCKS.gameplay,
+});
+
+/** Gate the platformer's checkpoints block. Refuses by naming `gameplay`. */
+export function parsePlatformerCheckpointsBlock(blocks: BlockTable): CheckpointsBlockView {
+  return parseCheckpointsBlock(blocks, PLATFORMER_CHECKPOINTS_BLOCK);
 }

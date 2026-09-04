@@ -122,7 +122,12 @@ import {
 } from "./developer-kit";
 import { drawnExtentPx } from "@/lib/manifest/asset-unit";
 import { projectileProfile } from "./projectile-class";
-import { automatedDefeatConfirmDue, resolveHomeSpawn } from "./respawn";
+import {
+  automatedDefeatConfirmDue,
+  parsePlatformerCheckpointsBlock,
+  resolveHomeSpawn,
+} from "./respawn";
+import { CheckpointLedger, DefeatState } from "@/lib/families/checkpoints";
 import { DefeatPanel } from "./defeat-panel";
 import { mobRenderEnvelope } from "./mob-geometry";
 import {
@@ -399,8 +404,28 @@ export class PreparedStageScene extends Phaser.Scene {
    * The panel is mirrored from it at every change through the family's port.
    */
   private inventory: CountedBag = EMPTY_BAG;
-  /** When the current defeat began, or null while the player is alive. Drives respawn timing. */
-  private defeatedAtMs: number | null = null;
+  /**
+   * Whether the player is down, since when, and how many times, as the
+   * `checkpoints` family's store.
+   *
+   * It was a bare `defeatedAtMs` field on this scene, stamped inside
+   * `updatePlayer` and cleared in exactly one of the two places a world is
+   * replaced — so a rebuild reached any other way left the stamp behind
+   * describing a body that no longer exists. A store with a lifetime is what
+   * makes "clear it when the world it describes is torn down" one call at the
+   * teardown instead of a line somebody has to remember at each exit.
+   */
+  private readonly defeat = new DefeatState();
+  /**
+   * The last safe datum the player reached.
+   *
+   * Empty for the whole of this genre: a prepared package authors no
+   * checkpoints, so every recovery falls through to the home spawn. It is held
+   * anyway because the *query* a recovery makes is "the last checkpoint, or
+   * home", and a genre that authors some — the plan's cinematic platformer,
+   * the metroidvania — is then a composition rather than a new rule.
+   */
+  private readonly checkpoints = new CheckpointLedger();
   private defeatPanel?: DefeatPanel;
   private bot?: Bot;
   private navGraph: NavGraph = EMPTY_NAV_GRAPH;
@@ -689,6 +714,7 @@ export class PreparedStageScene extends Phaser.Scene {
     parsePlatformerEffectsBlock(manifest.blocks);
     parsePlatformerInteractionBlock(manifest.blocks);
     parsePlatformerPromptBlock(manifest.blocks);
+    parsePlatformerCheckpointsBlock(manifest.blocks);
     // A quest that could never finish is refused before the first frame rather
     // than at the moment it would have.
     sealQuestCompletions(gameplay.quests, gameplay.effects, PLATFORMER_QUEST_STATE_OPERATION);
@@ -1512,6 +1538,10 @@ export class PreparedStageScene extends Phaser.Scene {
     // across a rebuild would decline to re-offer a prompt whose owner id
     // appeared on the next map too, and that prompt would never be drawn.
     this.npcPrompts.clear();
+    // And the defeat with it. This is step 0's `defeatedAtMs` item, and it is
+    // one call here rather than a line at each exit precisely because the store
+    // has a lifetime: the stamp describes the body this teardown is retiring.
+    this.defeat.clear();
     this.items?.clearAll();
     this.items = undefined;
     this.projectiles?.clearAll();
@@ -2095,13 +2125,12 @@ export class PreparedStageScene extends Phaser.Scene {
 
     const health = player.healthState;
     if (health.defeated) {
-      if (this.defeatedAtMs === null) this.recordEvent("player-defeated", null);
-      this.defeatedAtMs ??= now;
+      if (this.defeat.record(now)) this.recordEvent("player-defeated", null);
       // The recovery is asked for rather than taken: the world is rebuilt at the end of this
       // frame, so nothing below this line steps a controller that is about to be retired.
       if (this.updateDefeatPrompt(now, keyboardIntent)) return;
     } else {
-      this.defeatedAtMs = null;
+      this.defeat.clear();
       this.defeatPanel?.hide();
     }
     if (gameplay.combat.enabled && gameplay.combat.contact_damage) {
@@ -3026,11 +3055,11 @@ export class PreparedStageScene extends Phaser.Scene {
    * keyboard, not a decision any behaviour makes, so it is settled here rather than in the roster.
    */
   private updateDefeatPrompt(nowMs: number, keyboardIntent: PlayerIntent): boolean {
-    const defeatedAtMs = this.defeatedAtMs;
+    const defeatedAtMs = this.defeat.since();
     const gameplay = this.gameplay;
     const panel = this.defeatPanel;
     if (defeatedAtMs === null || !gameplay) return false;
-    const home = resolveHomeSpawn(gameplay);
+    const home = this.checkpoints.placement(resolveHomeSpawn(gameplay));
     panel?.update({
       defeatedAtMs,
       nowMs,
@@ -3071,9 +3100,12 @@ export class PreparedStageScene extends Phaser.Scene {
   private respawnAtHome(): void {
     const gameplay = this.gameplay;
     if (!gameplay) return;
-    this.defeatedAtMs = null;
+    this.defeat.clear();
     this.defeatPanel?.hide();
-    const home = resolveHomeSpawn(gameplay);
+    // The last safe datum, or the home the package derives when there is none —
+    // which is every prepared package today, and is why this reads exactly as
+    // `resolveHomeSpawn` did.
+    const home = this.checkpoints.placement(resolveHomeSpawn(gameplay));
     this.recordEvent("player-respawned", { mapId: home.map_id });
     this.requestMapEntry(home.map_id, home.normalized_x);
   }
@@ -3204,7 +3236,7 @@ export class PreparedStageScene extends Phaser.Scene {
       impact: this.impact?.snapshot() ?? null,
       statLog: this.statLog?.snapshot() ?? null,
       defeatPanel: this.defeatPanel?.snapshot() ?? null,
-      defeatedAtMs: this.defeatedAtMs,
+      defeatedAtMs: this.defeat.since(),
       progression: this.progression ?? null,
       questStates: this.questStates.entries(),
       dialogue: this.activeScenario

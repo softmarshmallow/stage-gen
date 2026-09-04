@@ -1364,6 +1364,48 @@ two families, and the report says which concept split them.
   350 and 600 — and the first run's six hundred digests are byte-identical
   across the commit that adds it, which is what makes it an instrument rather
   than a change.
+- **`checkpoints`.** Extracted into the platformer as
+  `lib/families/checkpoints/`; the runner has none — its restart is a fresh run
+  with a new seed, which is `session`'s business and not a recovery — and that
+  is this family's E7 rather than a gap. The ruling's first clause is done and
+  is the whole point: `SAFE_HUB_MAP_ROLE = "safe_village_hub"` was a literal
+  *inside* the resolver, so the derivation — entry spawn if it stands somewhere
+  safe, else the first safe place declared, else the entry spawn as-is — could
+  not be used by a genre whose safe place is called anything else. The role is a
+  parameter now and nothing else about the rule changed; the family's suite
+  resolves the same package under `save_room` to prove it. Two other things came
+  with it. `defeatedAtMs` is a store with a lifetime rather than a bare field,
+  which is what makes step 0's deferred item one call at the world teardown
+  instead of a line somebody has to remember at each of the two exits; and the
+  recovery's placement goes through a `CheckpointLedger` that is empty for every
+  prepared package, so the query a recovery makes is "the last checkpoint, or
+  home" and the plan's cinematic platformer is a composition rather than a new
+  rule. **E1: zero diff in all three goldens, nothing re-pinned** — the walk run
+  and the runner byte-identical as usual, and, for the first time, the *defeat*
+  run byte-identical too: six hundred digests across a defeat at 320, a death
+  screen at 347 and a recovery at 500, which is the measurement this split
+  existed to be able to make. **E2:** no documented order moves. **E4:** the
+  resolver against two vocabularies in the family's own suite — a
+  platformer-shaped `safe_village_hub` and a metroidvania-shaped `save_room` —
+  plus a ledger with checkpoints and one without.
+- **`fall_recovery` could not be implemented, and it is not a deferral.** The
+  ruling calls for it as a behaviour addition "with an E1 diff at every fall".
+  There are no falls. `resolveVerticalLanding` is called with
+  `terrainEntry: "clamp"` and the terrain surface is defined for *every* column
+  — a column of height zero is the map floor, not a hole — so a descending foot
+  is always caught by ground and there is nowhere in this genre's space model a
+  body can fall to. `[navigation].fall_recovery` is therefore still parsed and
+  unread, and the reason is not that the work was skipped: implementing it means
+  first authoring a place to fall into, which is content work with a contract of
+  its own. This is the same shape as step 5's finding that "motion availability
+  decides a rule" was stale — the ruling named something that is not true of the
+  code, and the honest report is that rather than a pit invented to justify the
+  clause.
+- **The block, and the refusal.** `gameplay`, in the platformer, and three
+  fields of it: `[[map_uses]].role` marks a place safe, `entry_spawn_id` is the
+  fallback home, and `[[spawns]]` is what either resolves to. Moving it gets
+  `manifest block "gameplay" is published as platformer-gameplay-block-v2; this
+  build reads platformer-gameplay-block-v1`, from the checkpoints family.
 - **One thing the family holds that neither genre binds, and why.**
   `[inventory].starting_capacity` is still parsed and unread, deliberately. The
   rule is the family's and is proven in its own suite (a full bag refuses the
