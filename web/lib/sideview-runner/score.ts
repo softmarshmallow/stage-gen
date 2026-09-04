@@ -1,17 +1,27 @@
-// The scorekeeper, out of the run loop at last.
+// The runner's instantiation of the `score` family: a token line with a chain.
 //
-// It was in `run-loop.ts` because both were true of one system: the thing that
-// decided a run was over also decided what a token was worth. They are not one
-// question. "What ended the run" belongs to the lifecycle and "what a token was
-// worth" belongs here, and the split is what lets a genre take one without the
-// other — the cinematic platformer in the plan's target table wants the session
-// and refuses the score.
+// Step 3 took the scorekeeper out of the run loop because "what ended the run"
+// and "what a token was worth" are two questions with two authors. This step
+// takes the last thing that was only ever this genre's by accident: the
+// arithmetic. `10`, `500`, the ladder at 5/15/30, "a miss breaks the chain
+// before this frame's collections extend it" — none of it is about running, and
+// all of it was written here because nothing else had a score.
 //
-// The chain is the trail's instrument: consecutive collected pickups earn a
-// multiplier, and ONE missed pickup breaks it, so leaving the token line has a
-// visible price. That is what makes the ground-token forfeiture of a jump
-// measurable rather than invisible.
+// What stays here is exactly what is the runner's: which occurrences count
+// (a collected pickup, a defeated boss), which of them chain (the pickup line
+// and not the fight), and the numbers themselves. The numbers stay compiled in
+// rather than authored, and rule 7 is why: a number belongs in the pipeline's
+// table iff an offline refusal reads it, and nothing offline refuses on what a
+// token is worth. A genre that *does* author one — the wave variant — is
+// answered from its `[score]` block by the same family and the same system.
 
+import {
+  chainMultiplier as chainMultiplierUnder,
+  createScoreState as createFamilyScoreState,
+  createScoreSystem as createFamilyScoreSystem,
+  type ScoreParams,
+  type ScoreState,
+} from "@/lib/families/score";
 import type { GameSystem } from "@/lib/kernel/systems";
 import type { RunnerWorld } from "./world";
 
@@ -22,32 +32,40 @@ export const PICKUP_SCORE = 10;
 export const CHAIN_MULTIPLIER_STEPS: readonly number[] = [5, 15, 30];
 
 export function chainMultiplier(chain: number): number {
-  let multiplier = 1;
-  for (const step of CHAIN_MULTIPLIER_STEPS) {
-    if (chain >= step) multiplier += 1;
-  }
-  return multiplier;
+  return chainMultiplierUnder(chain, CHAIN_MULTIPLIER_STEPS);
 }
 
 /** What defeating one boss is worth. Feel, like every other score constant. */
 export const BOSS_DEFEAT_SCORE = 500;
 
-export interface ScoreState {
-  total: number;
-  /** Consecutive pickups collected without a miss; the multiplier's input. */
-  chain: number;
-  /** Score multiplier earned by the current chain; 1 with no chain. */
-  multiplier: number;
-}
+/** The two things this genre scores. Opaque to the family, which never learns either. */
+export type RunnerScoreKind = "collected" | "boss-defeated";
+
+/**
+ * The runner's award table.
+ *
+ * The chain is the trail's instrument: consecutive collected pickups earn a
+ * multiplier and ONE missed pickup breaks it, so leaving the token line has a
+ * visible price — which is what makes the ground-token forfeiture of a jump
+ * measurable rather than invisible. A defeated boss pays flat rather than
+ * chained: the fight is not a pickup line, and a player who spent the encounter
+ * dodging should not be paid less for winning it.
+ */
+export const RUNNER_SCORE_PARAMS: ScoreParams<RunnerScoreKind> = Object.freeze({
+  awards: Object.freeze({ collected: PICKUP_SCORE, "boss-defeated": BOSS_DEFEAT_SCORE }),
+  chain: Object.freeze({ steps: CHAIN_MULTIPLIER_STEPS, extendedBy: ["collected"] as const }),
+});
+
+export type { ScoreState };
 
 export function createScoreState(): ScoreState {
-  return { total: 0, chain: 0, multiplier: 1 };
+  return createFamilyScoreState();
 }
 
 export function createScoreSystem(): GameSystem<RunnerWorld> {
-  return {
-    id: "score/run",
-    contractVersion: "score-system-v1",
+  return createFamilyScoreSystem<RunnerWorld, RunnerScoreKind>({
+    slice: "score",
+    params: RUNNER_SCORE_PARAMS,
     // Feedback read of `run`, undeclared and written down here: the phase this
     // frame's collections are scored under is the phase they were collected
     // in, which is last frame's, because `session/run` decides this frame's
@@ -56,28 +74,12 @@ export function createScoreSystem(): GameSystem<RunnerWorld> {
     // behaviour exactly: it scored the frame and only then asked whether the
     // frame had ended the run.
     reads: ["obstacles"],
-    writes: [],
-    owns: ["score"],
     consumes: ["boss-defeated"],
-    update(world) {
-      if (world.run.phase !== "running") return;
-      const score = world.score;
-      // A miss breaks the chain before this frame's collections extend it,
-      // so a frame carrying both starts the new chain at its collections.
-      if (world.obstacles.missedThisFrame > 0) {
-        score.chain = 0;
-      }
-      score.chain += world.obstacles.collectedThisFrame.length;
-      score.multiplier = chainMultiplier(score.chain);
-      score.total +=
-        world.obstacles.collectedThisFrame.length * PICKUP_SCORE * score.multiplier;
-      // A defeated boss pays a flat reward rather than one scaled by the
-      // chain: the fight is not a pickup line, and a player who spent the
-      // encounter dodging should not be paid less for winning it.
-      score.total += world.events.ofType("boss-defeated").length * BOSS_DEFEAT_SCORE;
-    },
-    reset(world) {
-      world.score = createScoreState();
-    },
-  };
+    scoring: (world) => world.run.phase === "running",
+    chainBroken: (world) => world.obstacles.missedThisFrame > 0,
+    counts: (world) => ({
+      collected: world.obstacles.collectedThisFrame.length,
+      "boss-defeated": world.events.ofType("boss-defeated").length,
+    }),
+  }) as GameSystem<RunnerWorld>;
 }
