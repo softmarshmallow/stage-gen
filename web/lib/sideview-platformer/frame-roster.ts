@@ -139,6 +139,8 @@ export interface PlatformerFrameSteps {
   /** Whether a blow is still holding the simulation. */
   hitstopActive(nowMs: number): boolean;
   updatePlayer(simulationDeltaMs: number, nowMs: number, intent: PlayerIntent): void;
+  /** Advance every authored set-piece: armed, engaged, ended. */
+  stepSetPieces(nowMs: number): void;
   updateMobPopulation(nowMs: number): void;
   stepMobs(simulationDeltaMs: number, nowMs: number): void;
   updateProjectiles(simulationDeltaMs: number, nowMs: number): void;
@@ -305,6 +307,27 @@ export function assemblePlatformerSystems(
       },
     },
     {
+      // The `director` family, instantiated into this genre's authored gates.
+      // A set-piece is armed at a map anchor and fires when the player reaches
+      // it, so it reads *this* frame's player position — which is what puts it
+      // after the controller — and writes the body it stands behind into
+      // `mobs`, which is what puts it before everything that steps one.
+      id: "director/set-piece",
+      contractVersion: "director-system-v1",
+      // Feedback read of `mobs`, undeclared: a gate ends when the creature
+      // standing in it is no longer alive, and the creature it is looking at is
+      // the one `mobs/step` left at the end of the previous frame. Declaring
+      // the read closes director/set-piece -> mobs/population -> mobs/step ->
+      // director/set-piece, which is the same shape as refusal 2. A gate that
+      // ends one frame late is a set-piece; a cycle is not a frame.
+      reads: ["hold", "player", "stage"],
+      writes: ["mobs", "transcript"],
+      update: (world, step) => {
+        if (held(world)) return;
+        steps.stepSetPieces(step.now);
+      },
+    },
+    {
       id: "mobs/population",
       contractVersion: "population-system-v1",
       // `player` is this frame's: the director places bodies against where the
@@ -324,6 +347,13 @@ export function assemblePlatformerSystems(
       // which is refusal 5 — an edge the audit did not predict.
       reads: ["hold", "stage", "player"],
       writes: ["mobs", "transcript"],
+      // The gate places its own body before the census counts the map. Both
+      // write `mobs` and neither reads what the other wrote, so nothing in the
+      // dataflow orders them; the edge is explicit for the same reason
+      // `mobs/step` after `mobs/population` is, and it buys the set-piece's
+      // creature the same treatment a spawned one gets — stepped on the frame
+      // it arrives rather than a frame later.
+      after: ["director/set-piece"],
       update: (world, step) => {
         if (held(world)) return;
         steps.updateMobPopulation(step.now);

@@ -85,9 +85,13 @@ function scriptedKeys(frame: number): readonly ("interact" | "enter" | "up" | "s
  * then does is the one thing the first run never does — it fights nothing. No
  * throw, no healing draught, and it walks the route out and back so the
  * creatures it is not killing keep reaching it. Three contacts is what six
- * points of health and a nine-hundred-millisecond immunity window are worth:
- * the defeat lands at 320, the panel finishes fading in at 347, and the run
- * answers it at 500 and wakes up in the village.
+ * points of health and a nine-hundred-millisecond immunity window are worth.
+ *
+ * It also walks far enough east to reach the `east_gate` anchor, which is what
+ * makes it the run that exercises the `director` family's set-piece as well as
+ * the defeat: the gate fires at 259, the defeat lands at 376, the panel
+ * finishes fading in at 403, and the run answers it at 500 and wakes up in the
+ * village.
  */
 function defeatIntent(frame: number) {
   const between = (from: number, to: number) => frame >= from && frame < to;
@@ -116,10 +120,11 @@ function defeatKeys(frame: number): readonly ("interact" | "enter" | "up" | "spa
 /**
  * When the defeat run answers its own death screen.
  *
- * Measured from the run rather than guessed: the defeat lands at 320 and the
- * panel finishes fading in at 347, so a press at 500 is unambiguously an answer
- * to a prompt that is up. Exactly one press, so the recovery is one edge and
- * the village the player wakes in is not then talked to.
+ * Measured from the run rather than guessed: with the gate honoured the defeat
+ * lands at 376 and the panel finishes fading in at 403, so a press at 500 is
+ * unambiguously an answer to a prompt that is up. Exactly one press, so the
+ * recovery is one edge and the village the player wakes in is not then talked
+ * to.
  */
 const DEFEAT_CONFIRM_FRAMES: readonly number[] = [500];
 
@@ -243,9 +248,24 @@ const GOLDEN: Record<number, string> = {
   // events and nothing else — because space, the key the script ends the conversation with, was
   // spent by the intent read that runs first. After it, the conversation closes at 72 and the run
   // proceeds through the portal, four spawns, ten throws, a kill, two pickups and three hits.
-  300: "a03ea96dfdd4b2a9b1b60e585524fd526fd4ac6e4f3f7c9e25750ff91ad6e179",
+  // Re-pinned again for the `director` family. Four hundred and fifty-one
+  // frames moved, 150 to 600, and they all follow from one thing: the boss the
+  // runtime used to stand at ninety-one percent of the road from the moment the
+  // map loaded is a *set-piece* now, armed at the authored `east_gate` anchor,
+  // and this run never walks that far — its furthest point east is x=1948
+  // against a gate at x=2304. So it never meets the boss at all, which is what
+  // "the platformer authored a set-piece and the runtime dropped it to a spawn"
+  // costs when the set-piece is honoured. The cascade has a single origin,
+  // measured with `REPLAY_DUMP` rather than argued: at 264 the dart `shot_4`
+  // used to strike the boss at x=2332 and vanish. It now flies on, so that
+  // blow's hitstop, its spark, its damage number and its place in the critical
+  // sequence are all gone — which is why the creatures step one frame further
+  // at 265, both pickups land at 290 instead of 293, and the contact hit slides
+  // from 306 to 305. The kill at 290 and the map entry at 150 are on the same
+  // frames as before.
+  300: "d4259a823bcc5b6bb663015c16298fa3800934f917fcca135717b881eeb4e8d7",
   // The whole run.
-  600: "07cd2b982d078de8de1b32fa28c69186eb2ac217cb51886006ae346e4cac4e52",
+  600: "8cd90200565e1151b508ceb089bcaa477ca2f47a13bd9c8e31ed34f8aae5d0d3",
 };
 
 describe("the platformer replays to its golden", () => {
@@ -315,12 +335,24 @@ describe("the platformer replays to its golden", () => {
  * could reach would hash identically under it and prove nothing.
  */
 const DEFEAT_GOLDEN: Record<number, string> = {
-  // On the route, two contacts in and still standing.
-  300: "8cc2413d5982e43b3d446927e215640f39c2c2b1565544625a1c1a93f85d8d9b",
-  // Defeated at 320, and the death screen has just finished arriving.
-  350: "1e2ed6a445653f2d2259d62096b9e66da9d136f27abffbfd56254c67c65edeab",
-  // The whole run: the defeat, the prompt, the answer, and the village.
-  600: "faf696794eb8722c00e43e72116cb290e4645d89c6541032a70a9944ce2dcb88",
+  // On the route, past the gate, and still standing.
+  //
+  // Re-pinned once, for the `director` family, and this run is the half of that
+  // measurement that shows the set-piece *working*: it walks far enough east to
+  // reach the authored `east_gate` anchor, so at 259 the gate fires —
+  // `encounter-started` is in the record, the page-eater is placed at the gate
+  // rather than having stood there since the map loaded, and the soundtrack
+  // narrows to the authored `road_theme` for as long as the fight is on. Four
+  // hundred and sixty-one frames moved, 140 to 600, all from that: the fight is
+  // a different fight, so the defeat slides from 320 to 376 and the death
+  // screen from 347 to 403. The run still ends the same way — answered at 500,
+  // awake in the village — and from the respawn onward the two runs agree again
+  // on everything but the combat text still in the air.
+  300: "4feb7d66ee5c67c8a9f9c95c38d8ff6ab92bc6af9d38df2f1877be9f57832fc1",
+  // Defeated at 376; the death screen arrives at 403.
+  350: "7217d56783404397c1d59fd2748b5c078dfc908e43f9980230cf747713fabe66",
+  // The whole run: the gate, the defeat, the prompt, the answer, and the village.
+  600: "c78bf521709e0356f0c0ebc83e4ace27be15867e90e22760b562780aa9fe2952",
 };
 
 describe("the platformer replays its defeat run to a golden of its own", () => {
@@ -362,14 +394,18 @@ describe("the platformer replays its defeat run to a golden of its own", () => {
       // `player-respawned`. `mob-defeated` is absent on purpose — this run
       // kills nothing, which is how it manages to die.
       expect([...kinds].sort()).toEqual([
+        "encounter-started",
         "map-entered",
         "mob-spawned",
         "player-damaged",
         "player-defeated",
         "player-respawned",
       ]);
-      expect(notes["player-defeated"]).toBe(320);
-      expect(notes.panelUp).toBe(347);
+      // The gate fires when the player reaches the authored anchor, and not
+      // when the map loads — which is the whole of what the director changed.
+      expect(notes["encounter-started"]).toBe(259);
+      expect(notes["player-defeated"]).toBe(376);
+      expect(notes.panelUp).toBe(403);
       expect(notes["player-respawned"]).toBe(500);
     } finally {
       harness.restore();

@@ -1406,6 +1406,110 @@ two families, and the report says which concept split them.
   fallback home, and `[[spawns]]` is what either resolves to. Moving it gets
   `manifest block "gameplay" is published as platformer-gameplay-block-v2; this
   build reads platformer-gameplay-block-v1`, from the checkpoints family.
+- **`director`.** Extracted into both genres as `lib/families/director/`, and
+  this is the split the plan opens on. The family is four things and the monster
+  is none of them: the **trigger** (a datum in the caller's own units, reached
+  by a body advancing — a column on an endless track, an anchor's x on an
+  authored map), the **phase** (a name and the time it was entered, with the
+  vocabulary left in the genre because `arena_pending` is a fact about a
+  streamed chunk and nothing else has one), the **outcome**, and the **swaps**.
+  The swaps are the half neither genre had a name for and both got wrong in
+  opposite directions: the runner wrote `world.locomotion = "thrust"` in
+  `beginBattle` and `"run"` in `endBattle`, eighty lines apart with nothing
+  tying them together, and the platformer authored `track_id` on its encounter
+  and **never applied it at all** — a swap nobody wrote and a swap nobody
+  reverts are the same defect at the two ends of one spectrum. A `SwapLedger`
+  applies idempotently and puts everything back in reverse order, so a
+  set-piece that ends by any route — defeated, exhausted, or abandoned because
+  the world was torn down — leaves the run as it found it.
+- **E1 runner: zero diff, nothing re-pinned.** Six hundred per-frame digests and
+  the 1,043-line sink recording byte-identical, which is the "cut-in, thrust and
+  salvos included" the ruling asked for. Two things kept it that way and both
+  are recorded in the code: the trigger datum stays a bare column in the slice
+  rather than becoming the family's `SpatialTrigger`, because that slice is
+  hashed and wrapping it would move every frame of the golden for no behaviour;
+  and the ledger is kept *beside* the world in a `WeakMap` rather than in it,
+  because a ledger holds closures over the world and putting functions in the
+  thing a replay hashes is not a slice. The system's `reset` reverts and drops
+  it, so a run that ends mid-fight cannot leave a swap in force that would make
+  the next fight's `apply` a no-op.
+- **E1 platformer: both goldens re-pinned, and this is the behaviour the ruling
+  exists to add.** `[[boss_encounters]]` publishes four facts — `anchor`,
+  `mob_id`, `track_id`, `respawn_policy` — and the runtime used one: it resolved
+  the entry to an ordinary creature at ninety-one percent of the map at world
+  build and dropped the other three. All four are used now. The anchor resolves
+  against the map's own portal endpoints (the table `[[spawns]]` and
+  `[[transitions]]` already resolve theirs against), the body arrives when the
+  gate fires, `track_id` narrows the soundtrack for as long as the fight is on,
+  and `quest_reset_only` makes the set-piece session-scoped so it does not come
+  back on the next map entry.
+  - **The walk run: 451 frames moved, 150–600, one cause.** Its furthest point
+    east is x=1948 against a gate at x=2304, so it never reaches the gate and
+    never meets the boss — which is exactly what honouring a set-piece costs a
+    run that does not go to it. The cascade has a single origin, measured with
+    `REPLAY_DUMP` rather than argued: at 264 the dart `shot_4` used to strike
+    the boss at x=2332 and vanish; it now flies on, so that blow's hitstop, its
+    spark, its damage number and its place in the critical sequence are all
+    gone. That is why the creatures step one frame further at 265, both pickups
+    land at 290 instead of 293, and the contact hit slides from 306 to 305. The
+    map entry at 150 and the kill at 290 are on the same frames as before, and
+    frames 1–149 are byte-identical.
+  - **The defeat run: 461 frames moved, 140–600, and it is the half that shows
+    the set-piece working.** This run does walk far enough east, so at 259 the
+    gate fires: `encounter-started` is in the record for the first time, the
+    page-eater is *placed* at the gate rather than having stood there since the
+    map loaded, and the soundtrack narrows to the authored `road_theme`. The
+    fight is a different fight, so the defeat slides from 320 to 376 and the
+    death screen from 347 to 403; the run still ends the same way, answered at
+    500 and awake in the village, and from the respawn onward the two runs agree
+    again on everything but the combat text still in the air.
+- **E2: one system and one edge.** `director/set-piece` joins the platformer's
+  `DOCUMENTED_ORDER` between `player/update` and `mobs/population` — it reads
+  *this* frame's player position, which is what puts it after the controller,
+  and writes the body it stands behind, which is what puts it before everything
+  that steps one. One new `after` edge, `mobs/population` after
+  `director/set-piece`, for the same reason `mobs/step` after `mobs/population`
+  exists: both write `mobs`, neither reads what the other wrote, and the edge
+  buys the set-piece's creature the same treatment a spawned one gets. One new
+  undeclared feedback read, written at the read site: the gate looks at the
+  creature standing in it to know whether it has ended, and that creature is the
+  one `mobs/step` left at the end of the previous frame — declaring it closes
+  `director/set-piece -> mobs/population -> mobs/step -> director/set-piece`,
+  which is refusal 2's shape. **The step-2 list of eight feedback reads is nine.**
+  The runner's `DOCUMENTED_ORDER` does not move.
+- **E4 and E3.** E4 is the machine instantiated into two shapes in the family's
+  own suite — a runner-shaped one with six phases, a column datum and a
+  locomotion swap, and a platformer-shaped one with three phases, a pixel datum
+  and a soundtrack swap — plus both genres' own rosters. E3 is the refusal the
+  ruling names, and it is now a fixture in the runner's suite: drop `fx/moment`
+  and leave the director's `consumes` where it is, and the seal refuses
+  `"runner/encounter" consumes "fx-released", which no system emits`. A
+  set-piece that waits for a cut-in nobody can play would otherwise sit in
+  `cut_in` forever.
+- **The block, and the refusal.** Two in each genre, and they differ in the
+  second, which is the same shape `loot` had. The platformer gates `gameplay`
+  (where `[[boss_encounters]]` sits) and `maps`, because the anchor a gate is
+  armed at is a *map* fact — a portal endpoint's normalized x — so a map at a
+  version this build does not read is a gate with no place to stand. The runner
+  gates `gameplay` (`[encounter]`) and `segments`, because the arena a fight is
+  fought over is a streamed chunk role.
+- **What the director split did not do, and why.** The ruling's refactor line
+  says `encounter.ts` splits *three* ways — the machine into `director`, the
+  shots into `projectiles`, the boss gauge into `combat`. Only the first third
+  is done. Neither `projectiles` nor `combat` exists as a family directory:
+  no earlier step created them, and step 6 rules nothing about either beyond
+  this sentence, so moving the runner's `advanceShot`/`shotBox`/`shotExpired`
+  and its `Gauge` into them means performing two further family extractions —
+  each with its own two-genre reconciliation against `sideview-platformer/
+  projectiles.ts` and `combat.ts` — under a ruling that has not been argued.
+  The set-piece machine is what the framing example turns on and it is the third
+  that was taken. The other two are named here rather than half-done.
+- **Played evidence: still owed.** The Page-Eater gate on Crowncrag Road is now
+  a set-piece in code and the goldens record it firing, but no browser was
+  booted in this pass, so the E5 capture the ruling asks for — the announcement,
+  the boss's gauge on the HUD, the drop and the score on `director/ended` — is
+  not taken. Two of those are `hud`'s and one is `announce`'s; what the director
+  makes possible and does not itself do is listed under `hud` below.
 - **One thing the family holds that neither genre binds, and why.**
   `[inventory].starting_capacity` is still parsed and unread, deliberately. The
   rule is the family's and is proven in its own suite (a full bag refuses the

@@ -473,6 +473,18 @@ describe("the screen-fx family in the runner", () => {
     );
   });
 
+  test("E3: a director consuming a moment no fx emits refuses at seal", () => {
+    // The other half of the subtraction above, and the refusal step 6's ruling
+    // asks for by name: drop `fx/moment` and leave the director's `consumes`
+    // where it is, and the kernel refuses a channel with only one end. A
+    // set-piece that waits for a cut-in nobody can play would otherwise sit in
+    // `cut_in` forever, which is a game that never starts its own boss fight.
+    const orphaned = roster().filter((system) => system.id !== "fx/moment");
+    expect(() => sealSystems(orphaned, EVENTS)).toThrow(
+      'sealSystems refused "runner/encounter": it consumes "fx-released", which no system emits',
+    );
+  });
+
   test("the family gates its own block, optional and by name", () => {
     expect(parseScreenFxBlock(RUNNER_BLOCKS).published).toBe(true);
     const { fx: _fx, ...withoutFx } = RUNNER_BLOCKS;

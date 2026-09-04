@@ -49,10 +49,15 @@ const DOCUMENTED_ORDER = [
   // as the blow, rather than for the blow alone.
   "clock/step",
   // The simulation, in the order the audit found it: the player against
-  // creatures that have not moved yet, then the director that places new ones
-  // against the player that has, then the creatures, then the shots against
-  // where the creatures actually ended up, then the loot the shots produced.
+  // creatures that have not moved yet, then the authored set-pieces against the
+  // player that has moved, then the census director that places new bodies
+  // around both, then the creatures, then the shots against where the creatures
+  // actually ended up, then the loot the shots produced.
   "player/update",
+  // The `director` family: a gate armed at a map anchor, which reads this
+  // frame's player position and writes the body it stands behind before
+  // anything steps one.
+  "director/set-piece",
   "mobs/population",
   "mobs/step",
   "projectiles/step",
@@ -88,6 +93,7 @@ function inertSteps(record: string[] = []): PlatformerFrameSteps {
     updateStatLog: note("progression/stat-log", undefined),
     hitstopActive: note("clock/step", false),
     updatePlayer: note("player/update", undefined),
+    stepSetPieces: note("director/set-piece", undefined),
     updateMobPopulation: note("mobs/population", undefined),
     stepMobs: note("mobs/step", undefined),
     updateProjectiles: note("projectiles/step", undefined),

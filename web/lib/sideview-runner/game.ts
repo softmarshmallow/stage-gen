@@ -49,7 +49,7 @@ import {
   type DustCanvas,
 } from "./dust";
 import { buildBossView } from "./boss-view";
-import { createEncounterSystem } from "./encounter";
+import { parseRunnerDirectorBlocks, createEncounterSystem } from "./encounter";
 import type { RunnerEncounterBinding } from "./world";
 import { createFixedStepAccumulator } from "@/lib/kernel/fixed-step";
 import { buildHud, createHudSystem, type HudView } from "./hud";
@@ -143,6 +143,7 @@ export function gateRunnerFamilyBlocks(blocks: BlockTable): void {
   parseRunnerCuesBlock(blocks);
   parseRunnerParticlesBlock(blocks);
   parseRunnerLootBlocks(blocks);
+  parseRunnerDirectorBlocks(blocks);
   parseScreenFxBlock(blocks);
 }
 

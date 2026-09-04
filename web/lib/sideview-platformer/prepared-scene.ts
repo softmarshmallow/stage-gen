@@ -128,6 +128,15 @@ import {
   resolveHomeSpawn,
 } from "./respawn";
 import { CheckpointLedger, DefeatState } from "@/lib/families/checkpoints";
+import {
+  parsePlatformerDirectorBlocks,
+  SetPiece,
+  setPieceAnchorX,
+  setPieceReached,
+  setPieceRecurrence,
+  setPieceTrigger,
+} from "./director";
+import type { DirectorSwap } from "@/lib/families/director";
 import { DefeatPanel } from "./defeat-panel";
 import { mobRenderEnvelope } from "./mob-geometry";
 import {
@@ -426,6 +435,17 @@ export class PreparedStageScene extends Phaser.Scene {
    * the metroidvania — is then a composition rather than a new rule.
    */
   private readonly checkpoints = new CheckpointLedger();
+  /**
+   * The authored gates, for the life of the session.
+   *
+   * Session-scoped rather than world-scoped, deliberately: that is what honours
+   * `respawn_policy = "quest_reset_only"`. A gate that has ended stays ended
+   * when the player walks back onto the map, which is the third of the four
+   * authored facts the runtime used to drop on the floor.
+   */
+  private readonly setPieces = new Map<string, SetPiece>();
+  /** The creature standing in each engaged gate; world state, destroyed with the world. */
+  private readonly setPieceBodies = new Map<string, Mob>();
   private defeatPanel?: DefeatPanel;
   private bot?: Bot;
   private navGraph: NavGraph = EMPTY_NAV_GRAPH;
@@ -642,6 +662,7 @@ export class PreparedStageScene extends Phaser.Scene {
       },
       hitstopActive: (nowMs) => this.impact?.hitstopActive(nowMs) ?? false,
       updatePlayer: (deltaMs, nowMs, intent) => this.updatePlayer(deltaMs, nowMs, intent),
+      stepSetPieces: (nowMs) => this.stepSetPieces(nowMs),
       updateMobPopulation: (nowMs) => this.updateMobPopulation(nowMs),
       stepMobs: (deltaMs, nowMs) => this.stepMobs(deltaMs, nowMs),
       updateProjectiles: (deltaMs, nowMs) => this.updateProjectiles(deltaMs, nowMs),
@@ -715,6 +736,7 @@ export class PreparedStageScene extends Phaser.Scene {
     parsePlatformerInteractionBlock(manifest.blocks);
     parsePlatformerPromptBlock(manifest.blocks);
     parsePlatformerCheckpointsBlock(manifest.blocks);
+    parsePlatformerDirectorBlocks(manifest.blocks);
     // A quest that could never finish is refused before the first frame rather
     // than at the moment it would have.
     sealQuestCompletions(gameplay.quests, gameplay.effects, PLATFORMER_QUEST_STATE_OPERATION);
@@ -1542,6 +1564,10 @@ export class PreparedStageScene extends Phaser.Scene {
     // one call here rather than a line at each exit precisely because the store
     // has a lifetime: the stamp describes the body this teardown is retiring.
     this.defeat.clear();
+    // The gates keep their phase across a rebuild — that is the respawn policy
+    // — but the bodies standing in them do not, because this teardown is what
+    // destroys them.
+    this.setPieceBodies.clear();
     this.items?.clearAll();
     this.items = undefined;
     this.projectiles?.clearAll();
@@ -2008,19 +2034,112 @@ export class PreparedStageScene extends Phaser.Scene {
       this.mobPopulationMapId = map.map_id;
     }
 
+    // The authored gates on this map, as `director` set-pieces. They are not
+    // *placed* here: a set-piece is armed at its anchor and the body it stands
+    // behind arrives when the player reaches it, which is the whole difference
+    // between an encounter and a spawn.
     for (const encounter of gameplay.boss_encounters.filter(
       (entry) => entry.map_id === map.map_id,
     )) {
-      const mobSlot = manifest.mobs.findIndex(
-        (candidate) => candidate.mob_id === encounter.mob_id,
+      const existing = this.setPieces.get(encounter.encounter_id);
+      if (existing) {
+        existing.worldTornDown();
+        continue;
+      }
+      this.setPieces.set(
+        encounter.encounter_id,
+        new SetPiece(encounter, setPieceRecurrence(encounter.respawn_policy)),
       );
-      if (mobSlot < 0) continue;
-      const mob = this.createMobAtColumn(
-        mobSlot,
-        Math.floor(this.heights.length * 0.91),
-      );
-      if (mob) this.mobs.push(mob);
     }
+  }
+
+  /**
+   * Advance every gate on this map by one frame.
+   *
+   * Armed until the player reaches the anchor, engaged while the thing standing
+   * in it is alive, and ended when it is not — at which point everything the
+   * gate swapped is put back by the family's ledger rather than by a line
+   * somebody remembered to write.
+   */
+  private stepSetPieces(nowMs: number): void {
+    const player = this.player;
+    const map = this.currentMap;
+    const manifest = this.manifest;
+    if (!player || !map || !manifest) return;
+    for (const setPiece of this.setPieces.values()) {
+      if (setPiece.authored.map_id !== map.map_id || setPiece.spent()) continue;
+      if (setPiece.state.phase === "armed") {
+        const anchorX = setPieceAnchorX(map, setPiece.authored.anchor, this.worldWidth);
+        if (anchorX === null) {
+          this.recordDiagnostic(
+            `boss encounter ${setPiece.authored.encounter_id} names unknown anchor ${setPiece.authored.anchor}`,
+          );
+          setPiece.end(nowMs, "won");
+          continue;
+        }
+        if (!setPieceReached(setPieceTrigger(anchorX), player.sprite.x)) continue;
+        const body = this.placeSetPieceBody(setPiece.authored.mob_id, anchorX, nowMs);
+        if (!body) {
+          this.recordDiagnostic(
+            `boss encounter ${setPiece.authored.encounter_id} could not place ${setPiece.authored.mob_id}`,
+          );
+          setPiece.end(nowMs, "won");
+          continue;
+        }
+        this.setPieceBodies.set(setPiece.authored.encounter_id, body);
+        setPiece.engage(nowMs, this.setPieceSwaps(setPiece.authored.track_id, map));
+        this.recordEvent("encounter-started", {
+          encounterId: setPiece.authored.encounter_id,
+          x: Math.round(anchorX),
+        });
+        continue;
+      }
+      if (setPiece.state.phase !== "engaged") continue;
+      const body = this.setPieceBodies.get(setPiece.authored.encounter_id);
+      if (body && body.isAlive()) continue;
+      this.setPieceBodies.delete(setPiece.authored.encounter_id);
+      setPiece.end(nowMs, "won");
+      this.recordEvent("encounter-ended", {
+        encounterId: setPiece.authored.encounter_id,
+        outcome: "won",
+      });
+    }
+  }
+
+  /**
+   * What a gate changes about the run while it is on.
+   *
+   * One swap today, and it is the authored fact the runtime never used at all:
+   * `track_id` narrows the soundtrack to the piece the gate is fought to, and
+   * the map's own pool is put back when it ends.
+   */
+  private setPieceSwaps(trackId: string, map: PreparedMap): readonly DirectorSwap[] {
+    const pool = [...map.track_ids];
+    return [
+      {
+        id: "soundtrack",
+        apply: () => this.soundtrackPlayer?.setTrackPool([trackId]),
+        revert: () => {
+          if (pool.length > 0) this.soundtrackPlayer?.setTrackPool(pool);
+        },
+      },
+    ];
+  }
+
+  /** Put the thing the gate stands behind on the map, at the gate. */
+  private placeSetPieceBody(mobId: string, anchorX: number, nowMs: number): Mob | null {
+    const manifest = this.manifest;
+    if (!manifest) return null;
+    const mobSlot = manifest.mobs.findIndex((candidate) => candidate.mob_id === mobId);
+    if (mobSlot < 0) return null;
+    const column = Math.max(
+      0,
+      Math.min(this.heights.length - 1, Math.floor(anchorX / TILE_PX)),
+    );
+    const mob = this.createMobAtColumn(mobSlot, column, undefined, nowMs);
+    if (!mob) return null;
+    this.mobs.push(mob);
+    return mob;
   }
 
   private updateMobPopulation(now: number): void {

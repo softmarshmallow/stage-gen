@@ -17,6 +17,16 @@
 // would seal a cycle, because the systems that write them are downstream.
 
 import type { GameSystem } from "@/lib/kernel/systems";
+import {
+  enterPhase,
+  parseDirectorBlock,
+  SwapLedger,
+  triggerReached,
+  type DirectorBlockView,
+  type DirectorSwap,
+} from "@/lib/families/director";
+import type { BlockTable } from "@/lib/manifest/blocks";
+import { RUNNER_BLOCKS } from "./contract";
 import { requestFxMoment } from "@/lib/families/screen-fx/moment-system";
 import { drain } from "@/lib/kernel/gauge";
 
@@ -75,9 +85,45 @@ function avatarBox(world: RunnerWorld) {
   };
 }
 
-function enterPhase(state: EncounterState, phase: EncounterState["phase"], now: number): void {
-  state.phase = phase;
-  state.phaseStartedAt = now;
+/**
+ * The swaps each run's set-piece has in force, kept beside the world rather
+ * than in it.
+ *
+ * A ledger holds closures over the world, so putting it in a slice would put
+ * functions in the thing the replay hashes — and the slice would then move on
+ * every frame of a fight for no behaviour at all. Keyed by the world it belongs
+ * to so two runs in one process cannot share one, and cleared by the system's
+ * own `reset`.
+ */
+const RUN_SWAPS = new WeakMap<RunnerWorld, SwapLedger>();
+
+function swapsFor(world: RunnerWorld): SwapLedger {
+  const existing = RUN_SWAPS.get(world);
+  if (existing) return existing;
+  const ledger = new SwapLedger();
+  RUN_SWAPS.set(world, ledger);
+  return ledger;
+}
+
+/**
+ * The one thing this set-piece changes about the run: how the avatar moves.
+ *
+ * It used to be two assignments eighty lines apart with nothing tying them
+ * together — `world.locomotion = "thrust"` in `beginBattle` and `= "run"` in
+ * `endBattle`. As a swap, putting it back is the ledger's job and not a line
+ * anybody has to remember at each of the ways a fight can end.
+ */
+function thrustSwap(world: RunnerWorld): DirectorSwap {
+  const before = world.locomotion;
+  return {
+    id: "locomotion",
+    apply: () => {
+      world.locomotion = "thrust";
+    },
+    revert: () => {
+      world.locomotion = before;
+    },
+  };
 }
 
 /** Where the boss waits before it walks in: just past the right edge. */
@@ -132,7 +178,7 @@ function firePlayerShot(world: RunnerWorld, state: EncounterState, config: Encou
 function beginBattle(world: RunnerWorld, state: EncounterState, now: number): void {
   const config = world.config.encounter;
   if (config === null) return;
-  world.locomotion = "thrust";
+  swapsFor(world).apply(thrustSwap(world));
   state.boss = createBossState(config, bossEntryOffset(world), world.config.walkSurfaceRow);
   state.laneSeed = laneSeedFor(world.run.seed, state.encounterIndex);
   state.salvosFired = 0;
@@ -152,8 +198,9 @@ function endBattle(
   state.shots.length = 0;
   // The avatar returns to running physics immediately: it falls under the
   // jump arc's gravity wearing `fly`, lands on the arena floor, and wears
-  // `run` again, which the avatar's own step already does.
-  world.locomotion = "run";
+  // `run` again, which the avatar's own step already does. Put back by the
+  // ledger, so every way out of a fight puts it back the same way.
+  swapsFor(world).revertAll();
   if (state.boss !== null && outcome === "defeated") state.boss.motion = "death";
   enterPhase(state, "retreat", now);
 }
@@ -247,7 +294,12 @@ export function stepEncounter(world: RunnerWorld, now: number, dt: number): void
 
   switch (state.phase) {
     case "idle": {
-      if (world.avatar.distanceColumns >= state.nextArenaAtColumn) {
+      // The trigger is the `director` family's: a datum in the caller's own
+      // units, reached by a body advancing. The datum is stored as a bare
+      // column rather than as the family's `SpatialTrigger` because this slice
+      // is hashed — wrapping it would move every frame of the golden for no
+      // behaviour, which is the shape of movement this plan refuses.
+      if (triggerReached({ at: state.nextArenaAtColumn }, world.avatar.distanceColumns)) {
         enterPhase(state, "arena_pending", now);
       }
       return;
@@ -340,6 +392,14 @@ export function createEncounterSystem(): GameSystem<RunnerWorld> {
       "fx-requested",
     ],
     consumes: ["fx-released"],
+    // A run that ends mid-fight puts the run back the way the set-piece found
+    // it. The composition rebuilds the world anyway; reverting here is what
+    // stops the *ledger* outliving the fight and refusing the next one's swap
+    // as already in force.
+    reset(world) {
+      RUN_SWAPS.get(world)?.revertAll();
+      RUN_SWAPS.delete(world);
+    },
     update(world) {
       // The director's own phase timers run on the simulation clock, so the
       // fight is frozen for exactly as long as its cut-in holds it — a
@@ -348,4 +408,24 @@ export function createEncounterSystem(): GameSystem<RunnerWorld> {
       stepEncounter(world, world.clock.simulationNow, world.clock.simulationDt);
     },
   };
+}
+
+
+/**
+ * The blocks this genre's set-piece is authored in.
+ *
+ * `gameplay`, where `[encounter]` publishes the whole arithmetic — the
+ * interval, the arena's segment id, the stand-off, the salvo budget — and
+ * `segments`, because the arena the fight is fought over is a streamed chunk
+ * role and a set-piece begun over ordinary track would open with the avatar in
+ * a pit.
+ */
+export const RUNNER_DIRECTOR_BLOCKS = Object.freeze([
+  Object.freeze({ block: "gameplay", version: RUNNER_BLOCKS.gameplay }),
+  Object.freeze({ block: "segments", version: RUNNER_BLOCKS.segments }),
+]);
+
+/** Gate the runner's director blocks. Refuses by naming the block that moved. */
+export function parseRunnerDirectorBlocks(blocks: BlockTable): readonly DirectorBlockView[] {
+  return RUNNER_DIRECTOR_BLOCKS.map((binding) => parseDirectorBlock(blocks, binding));
 }
