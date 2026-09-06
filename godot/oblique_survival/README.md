@@ -172,6 +172,7 @@ into the directory `--out` names, each file named after its shot.
 | `storm-strike` | verdict, noon | the storm, then `force_strike()` and `advance(2/60)` — and nothing after it, because the flash envelope is read off `time − flash_at` and one more frame would step it. The additive bolt, the sparkle, the trauma |
 | `junction` | play, noon | weather clear, `advance(30)`, the player teleported to (−11.164, −7.083), `advance(3)`, `advance(1)`. The camera settles at (−3.86, 14.74, 0.22). The road mask and its erosion, the carpet cut, the bleed and smudge fields |
 | `coast` | play, noon | as above with the player at (0, −103.5); the camera settles at (7.30, 14.74, −96.20). The coast discard, the shore rim, the water plate and the cliff ray-march |
+| `winter-coast` | play, noon | force winter, advance 130 s, clock 0.02, the player at (0, −103.5), advance 3 s, the 5 s texture wait, advance 1 s. The ice plate mixed over the water by the snow factor, the waves stilled, the cliff unchanged |
 | `gallery` | gallery | `advance(1)` twice, camera (12.30, 14.74, 12.30) on target (5, 0, 5). True-scale ruler posts, every actor state × facing, every prop family |
 
 The old names `noon`, `night` and `storm` still work; they are aliases for
@@ -643,6 +644,7 @@ and 99th percentile ≤ 0.15:
 | `winter-night` | 0.0079 | 0.124 | pass |
 | `junction` | 0.0105 | 0.149 | pass |
 | `coast` | 0.0106 | 0.204 | mean passes |
+| `winter-coast` | 0.028 (unmasked, `compare_frames.py`) | — | the ice, the stilled waves and the shore land; the residual is flakes and one bush's sway phase at the frame edge |
 | `camp-noon` | 0.0107 | 0.153 | marginal |
 | `winter-noon` | 0.0124 | 0.129 | pass |
 | `storm-noon` | 0.0163 | 0.235 | mean passes |

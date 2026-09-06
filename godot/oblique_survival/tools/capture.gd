@@ -73,7 +73,7 @@ const STRIKE_AGE := 2.0 / 60.0
 ## **0.0085 at +5.00**, 0.0185 at +5.50. Simulating those seconds for real (so
 ## the mobs, the snow and the fire move too) reproduces the swept frame to four
 ## digits: 0.0133 and 0.0083.
-const WINTER_TEXTURE_WAIT := {"winter-noon": 3.0, "winter-night": 5.0}
+const WINTER_TEXTURE_WAIT := {"winter-noon": 3.0, "winter-night": 5.0, "winter-coast": 5.0}
 
 ## Every shot, with the page it is taken on: the mode `main` boots into and the
 ## time of day. `_run_shot` carries the rest of each recipe.
@@ -87,6 +87,7 @@ const SHOT_SPECS := {
 	"storm-strike": {"mode": "verdict", "time": "noon"},
 	"junction": {"mode": "play", "time": "noon"},
 	"coast": {"mode": "play", "time": "noon"},
+	"winter-coast": {"mode": "play", "time": "noon"},
 	"gallery": {"mode": "gallery", "time": "noon"},
 }
 ## The shot order `--capture all` writes, which is the reference sheet's order.
@@ -94,7 +95,7 @@ const SHOTS := [
 	"camp-noon", "camp-night", "camp-night-unlit",
 	"winter-noon", "winter-night",
 	"storm-noon", "storm-strike",
-	"junction", "coast", "gallery",
+	"junction", "coast", "winter-coast", "gallery",
 ]
 ## The names the first reference set used, kept so an older command still runs.
 const SHOT_ALIASES := {"noon": "camp-noon", "night": "camp-night", "storm": "storm-noon"}
@@ -271,6 +272,18 @@ func _run_shot(main, shot: String) -> void:
 			_clear_weather(main)
 			_teleport(main, 0.0, -103.5)
 			main.advance(3.0)
+			main.advance(1.0)
+		"winter-coast":
+			# The frozen shore: the ice plate mixed over the water by the snow
+			# factor, the waves stilled, the cliff unchanged. Same stand as
+			# `coast`, taken after the winter ramp with the clock parked at noon.
+			main.force_season("winter")
+			main.force_weather("auto")
+			main.advance(130.0)
+			main.set_clock(0.02)
+			_teleport(main, 0.0, -103.5)
+			main.advance(3.0)
+			main.advance(float(WINTER_TEXTURE_WAIT[shot]))
 			main.advance(1.0)
 		"gallery":
 			main.set_mode("gallery")
