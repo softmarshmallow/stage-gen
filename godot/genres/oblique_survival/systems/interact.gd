@@ -9,6 +9,21 @@ extends RefCounted
 const FALL_SECONDS := 1.1
 
 
+static func declaration() -> KernelSystem:
+	return KernelSystem.of({
+		"id": "survival/interact",
+		"contract_version": "survival-interact-system-v1",
+		# `clock` was not in the viewer's tags and the sealer found it: a felled
+		# trunk's landing time is stamped `world.time + FALL_SECONDS`, so this
+		# system reads the clock `day_cycle` writes. Under the viewer's order
+		# `day_cycle` happened to run first and the read was satisfied by
+		# accident; under a different valid order it was not, and a yield landed
+		# one step early. Declaring it is the fix, and it is why the frame order
+		# is derived rather than typed.
+		"reads": ["collision", "input", "selection", "clock"],
+		"writes": ["entities", "inventory", "player_action"],
+	})
+
 static func update(world: SurvivalWorld, dt: float) -> void:
 	var player: SurvivalPlayerState = world.player
 	var states := SurvivalTargeting.player_states(world)

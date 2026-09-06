@@ -7,6 +7,14 @@ extends RefCounted
 ## `hurt` and `gather` play to completion before idle/walk can take over.
 
 
+static func declaration() -> KernelSystem:
+	return KernelSystem.of({
+		"id": "survival/player_anim",
+		"contract_version": "survival-player-anim-system-v1",
+		"reads": ["player_vitals", "player_action"],
+		"writes": ["player_frame"],
+	})
+
 static func update(world: SurvivalWorld, dt: float) -> void:
 	var player: SurvivalPlayerState = world.player
 	player.elapsed += dt

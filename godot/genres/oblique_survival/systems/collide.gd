@@ -7,5 +7,13 @@ extends RefCounted
 ## iteration. Forage and dropped items carry radius 0 and are skipped.
 
 
+static func declaration() -> KernelSystem:
+	return KernelSystem.of({
+		"id": "survival/collide",
+		"contract_version": "survival-collide-system-v1",
+		"reads": ["player"],
+		"writes": ["collision"],
+	})
+
 static func update(world: SurvivalWorld, _dt: float) -> void:
 	SurvivalTargeting.push_out_of_footprints(world, world.player)

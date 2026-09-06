@@ -17,6 +17,14 @@ extends RefCounted
 ## `world.hot` says so for the screen.
 
 
+static func declaration() -> KernelSystem:
+	return KernelSystem.of({
+		"id": "survival/vitals",
+		"contract_version": "survival-vitals-system-v1",
+		"reads": ["vitals_delta", "mobs", "season", "entities_state", "torch", "warm", "inventory"],
+		"writes": ["player_vitals"],
+	})
+
 static func update(world: SurvivalWorld, dt: float) -> void:
 	var player: SurvivalPlayerState = world.player
 	var rules: Dictionary = world.manifest["gameplay"]

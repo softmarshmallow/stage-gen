@@ -6,6 +6,14 @@ extends RefCounted
 ## regrow timer), the world is told, and the event is emitted for the ear.
 ## Reads `clock`, writes `season` (index.html:1501-1523).
 
+static func declaration() -> KernelSystem:
+	return KernelSystem.of({
+		"id": "survival/season",
+		"contract_version": "survival-season-system-v1",
+		"reads": ["clock"],
+		"writes": ["season"],
+	})
+
 static func update(world: SurvivalWorld, _dt: float) -> void:
 	var season := world.season
 	var now := SurvivalHelpers.season_for(season, world.day)

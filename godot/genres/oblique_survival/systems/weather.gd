@@ -12,6 +12,14 @@ const FORCED_RAIN := {"clear": 0.0, "rain": 0.4, "storm": 1.0, "snow": 0.0}
 ## arrives and leaves at its own authored onset and decay.
 const FORCED_SNOW := {"clear": 0.0, "rain": 0.0, "storm": 0.0, "snow": 1.0}
 
+static func declaration() -> KernelSystem:
+	return KernelSystem.of({
+		"id": "survival/weather",
+		"contract_version": "survival-weather-system-v1",
+		"reads": ["clock", "season"],
+		"writes": ["weather", "look"],
+	})
+
 static func update(world: SurvivalWorld, dt: float) -> void:
 	var w := world.weather
 	var condition := String(w["condition"])

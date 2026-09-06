@@ -5,6 +5,14 @@ extends RefCounted
 ## burn. Reads `entities`, `torch`, `warm`, `built` and `season`, writes
 ## `entities_state` (index.html:1330-1364).
 
+static func declaration() -> KernelSystem:
+	return KernelSystem.of({
+		"id": "survival/timers",
+		"contract_version": "survival-timers-system-v1",
+		"reads": ["entities", "torch", "warm", "built", "season"],
+		"writes": ["entities_state"],
+	})
+
 static func update(world: SurvivalWorld, dt: float) -> void:
 	if float(world.torch["remaining"]) > 0.0:
 		world.torch["remaining"] = float(world.torch["remaining"]) - dt

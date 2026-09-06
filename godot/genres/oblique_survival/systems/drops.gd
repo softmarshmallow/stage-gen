@@ -18,6 +18,14 @@ const PICKUP_RADIUS := 1.0
 const PICKUP_SPEED := 7.0
 
 
+static func declaration() -> KernelSystem:
+	return KernelSystem.of({
+		"id": "survival/drops",
+		"contract_version": "survival-drops-system-v1",
+		"reads": ["collision", "entities", "clock"],
+		"writes": ["items"],
+	})
+
 static func update(world: SurvivalWorld, dt: float) -> void:
 	var player: SurvivalPlayerState = world.player
 	# Yields queued behind a falling trunk, released when the crown lands.

@@ -1,20 +1,32 @@
 class_name SurvivalSim
 extends RefCounted
 
-## The fifteen systems, in the order the viewer's `orderSystems` resolves them
-## (a Kahn sort over writes-before-reads; re-running it on the viewer's exact
-## tags gives this sequence), and the fixed-step loop around them.
+## The fifteen systems and the fixed-step loop around them.
 ##
-## Systems are looked up by script path rather than by class so a partly built
-## project still runs: a system that is not present yet is skipped, once with a
-## warning.
+## The order is **derived, not written**: `SurvivalRoster.seal()` runs the
+## kernel's sealer over the fifteen declarations and returns the order, and
+## `tests/test_survival_roster.gd` pins it so a declaration edit that reorders
+## the frame is a visible diff rather than a behaviour change nobody sees until
+## a replay drifts.
+##
+## Until the kernel landed this list was pasted in: the result of the browser
+## viewer's own sort (`viewer/index.html:354-386`), copied because there was
+## nothing here to derive it. That sort emitted a whole layer of ready systems
+## per round; the kernel emits the first ready system and re-scans. Both are
+## valid topological orders of the same declarations, and they differ — which
+## is exactly the case where an undeclared coupling would show. It does not:
+## all three replay goldens come out byte-identical under either order, which
+## is what says the fifteen declarations are complete.
 
 const FIXED_STEP := 1.0 / 60.0
 const MAX_SUBSTEPS := 5
 ## The viewer clamps a frame delta before it reaches the loop (index.html:5447).
 const MAX_FRAME_DELTA := 0.25
 
-const SYSTEM_IDS: Array[String] = [
+## The order the browser viewer's layered sort produced, kept as history: it is
+## what this host ran from the port until the kernel derived one, and the
+## roster test records that the two agree on every golden.
+const PASTED_ORDER: Array[String] = [
 	"player_move",
 	"collide",
 	"select",
@@ -93,14 +105,23 @@ static func step(world: SurvivalWorld, dt: float) -> void:
 
 ## Resolve the system scripts once. A system that is not in the project is
 ## warned about here and then simply absent from the walk.
+## Resolve the order once, from the sealer. A refusal is fatal rather than
+## skipped: a roster the kernel will not order is a frame nobody can define,
+## and running fourteen of fifteen systems would be a different game played
+## quietly.
 static func _resolve() -> void:
+	var sealed: Variant = SurvivalRoster.seal()
+	if not (sealed is KernelSealed):
+		push_error("sim: the roster was refused: %s" % (sealed as KernelRefusal).line())
+		_resolved = []
+		_resolved_done = true
+		return
 	var found: Array = []
-	for id in SYSTEM_IDS:
+	for full in (sealed as KernelSealed).order:
+		var id := String(full).trim_prefix("survival/")
 		var script := system_script(id)
 		if script == null:
-			if not _warned.has(id):
-				_warned[id] = true
-				push_warning("sim: system '%s' is not present; skipping it" % id)
+			push_error("sim: system '%s' sealed but not in the project" % id)
 			continue
 		found.append([id, script])
 	_resolved = found
@@ -149,8 +170,15 @@ static func system_script(id: String) -> GDScript:
 
 ## Which system ids the project actually ships, in execution order.
 static func present_systems() -> Array[String]:
+	if not _resolved_done:
+		_resolve()
 	var found: Array[String] = []
-	for id in SYSTEM_IDS:
-		if system_script(id) != null:
-			found.append(id)
+	for entry: Array in _resolved:
+		found.append(String(entry[0]))
 	return found
+
+
+## The execution order, derived. One place asks the roster; everything else
+## asks here.
+static func system_order() -> Array[String]:
+	return present_systems()

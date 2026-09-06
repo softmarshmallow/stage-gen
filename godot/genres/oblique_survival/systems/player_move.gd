@@ -9,6 +9,14 @@ const APPROACH_STALL_SECONDS := 0.6
 const GOTO_ARRIVE_METERS := 0.12
 
 
+static func declaration() -> KernelSystem:
+	return KernelSystem.of({
+		"id": "survival/player_move",
+		"contract_version": "survival-player-move-system-v1",
+		"reads": ["input"],
+		"writes": ["player"],
+	})
+
 static func update(world: SurvivalWorld, dt: float) -> void:
 	var player: SurvivalPlayerState = world.player
 	# Deviation from the viewer (decisions.md: "death stops the player"): the

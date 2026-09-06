@@ -8,6 +8,14 @@ extends RefCounted
 ## with props (only the player does) and nothing pushes them apart.
 
 
+static func declaration() -> KernelSystem:
+	return KernelSystem.of({
+		"id": "survival/mob_ai",
+		"contract_version": "survival-mob-ai-system-v1",
+		"reads": ["collision"],
+		"writes": ["mobs"],
+	})
+
 static func update(world: SurvivalWorld, dt: float) -> void:
 	var gameplay: Dictionary = world.manifest["gameplay"]
 	var rules: Dictionary = gameplay.get("mob", {})

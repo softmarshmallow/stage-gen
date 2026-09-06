@@ -5,6 +5,14 @@ extends RefCounted
 ## `warm`, `vitals_delta`. viewer/index.html 788-845 and 1305-1313.
 
 
+static func declaration() -> KernelSystem:
+	return KernelSystem.of({
+		"id": "survival/use",
+		"contract_version": "survival-use-system-v1",
+		"reads": ["input", "selection", "inventory"],
+		"writes": ["inventory_use", "torch", "warm", "vitals_delta"],
+	})
+
 static func update(world: SurvivalWorld, _dt: float) -> void:
 	if bool(world.input["use"]):
 		use_selected(world)

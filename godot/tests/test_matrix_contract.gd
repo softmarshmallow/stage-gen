@@ -267,15 +267,24 @@ func _t2_layout_counts(h: TestHarness, pkg: HostRunDir) -> void:
 # ---------------------------------------------------------------------------
 
 func _t4_system_order(h: TestHarness) -> void:
+	# `RESOLVED_ORDER` is the order the browser viewer's layered sort produced and
+	# this host ran until the kernel derived one. Both orders respect every
+	# declared edge and every replay golden agrees under either, which
+	# `tests/test_survival_roster.gd` is what proves; here the pair is checked to
+	# be the same fifteen systems, because a system that vanished would pass an
+	# order check by simply not being in it.
 	var ids: Array = []
-	for id: String in SurvivalSim.SYSTEM_IDS:
+	for id: String in SurvivalSim.PASTED_ORDER:
 		ids.append(id)
-	h.assert_eq(ids, RESOLVED_ORDER, "the fifteen systems are not in the resolved order")
+	h.assert_eq(ids, RESOLVED_ORDER, "the pasted order is the viewer's resolved order")
 	h.assert_eq(ids.size(), 15, "there are fifteen systems")
 	var present: Array = []
 	for id: String in SurvivalSim.present_systems():
 		present.append(id)
-	h.assert_eq(present, RESOLVED_ORDER, "a system is missing from the project")
+	present.sort()
+	var expected: Array = RESOLVED_ORDER.duplicate()
+	expected.sort()
+	h.assert_eq(present, expected, "a system is missing from the project")
 
 
 # ---------------------------------------------------------------------------

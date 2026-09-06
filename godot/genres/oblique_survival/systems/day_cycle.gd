@@ -5,6 +5,14 @@ extends RefCounted
 
 const DEFAULT_DAY_LENGTH := 180.0
 
+static func declaration() -> KernelSystem:
+	return KernelSystem.of({
+		"id": "survival/day_cycle",
+		"contract_version": "survival-day-cycle-system-v1",
+		"reads": [],
+		"writes": ["clock"],
+	})
+
 static func update(world: SurvivalWorld, dt: float) -> void:
 	world.time += dt
 	if world.time_frozen:

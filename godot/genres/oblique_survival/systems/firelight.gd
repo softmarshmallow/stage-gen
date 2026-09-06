@@ -8,6 +8,14 @@ extends RefCounted
 const DEFAULT_TORCH_RADIUS := 3.0
 const DEFAULT_FIRE_RADIUS := 6.0
 
+static func declaration() -> KernelSystem:
+	return KernelSystem.of({
+		"id": "survival/firelight",
+		"contract_version": "survival-firelight-system-v1",
+		"reads": ["clock", "entities_state", "torch"],
+		"writes": ["light"],
+	})
+
 static func update(world: SurvivalWorld, _dt: float) -> void:
 	var player := world.player
 	if float(world.torch["remaining"]) > 0.0:

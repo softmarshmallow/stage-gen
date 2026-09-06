@@ -27,6 +27,14 @@ const WHY_ROOM := "No room there."
 const WORN_WORDS := {"hand": "now in hand", "body": "now worn", "back": "now on the back"}
 
 
+static func declaration() -> KernelSystem:
+	return KernelSystem.of({
+		"id": "survival/craft",
+		"contract_version": "survival-craft-system-v1",
+		"reads": ["input", "inventory_use", "collision"],
+		"writes": ["craft_menu", "built"],
+	})
+
 static func update(world: SurvivalWorld, _dt: float) -> void:
 	var recipes := _recipes(world)
 	if world.placing != null:
