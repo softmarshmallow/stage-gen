@@ -144,8 +144,8 @@ generated interface sheets (the manifest's `ui` block, the shared
 [game UI contract](spec/game/ui.md)) cut as nine-patch styleboxes under the
 published geometry; the host draws no frame of its own when a run carries them,
 and plain boxes when it does not. Its mouse pointer is the same block's
-`cursor_set` when the run carries one — each glyph cut to the HUD's pointer size
-with the published hotspot scaled along, installed as the Godot cursor shape it
+`cursor_set` when the run carries one — each glyph cut to a fixed point size at
+the display's pixel scale with the published hotspot scaled along, installed as the Godot cursor shape it
 stands for — and the system pointer when it does not. Capture is a mode of the
 host rather than a parameter threaded through the boot.
 

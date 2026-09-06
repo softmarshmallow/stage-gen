@@ -16,9 +16,11 @@ extends RefCounted
 ##
 ## **The pointer.** The same block's optional `cursor_set` is the mouse
 ## pointer: nine named glyphs on one sheet, each with the hotspot the gate
-## measured on the drawn glyph. The kit cuts a cell, scales it to the pointer
-## size at the HUD's scale, scales the hotspot with it, and hands the image to
-## Godot for the cursor shape the glyph stands for (`CURSOR_SHAPES`), so the
+## measured on the drawn glyph. The kit cuts a cell to a fixed size in screen
+## points (`CURSOR_POINTS`, times the display's pixel scale and never the
+## HUD's: a pointer keeps the desktop's size whatever the window does, as in
+## any game), scales the hotspot with it, and hands the image to Godot for
+## the cursor shape the glyph stands for (`CURSOR_SHAPES`), so the
 ## arrow, the hand over a thing that can be acted on and the cross while a
 ## built thing is placed are the run's own art. A run without the set keeps
 ## the system pointer.
@@ -72,10 +74,11 @@ const TITLE := 17
 const SHEET_DENSITY := 2.0
 ## The states a button sheet publishes, in the theme's names.
 const BUTTON_STATES := ["normal", "hover", "pressed", "disabled"]
-## The pointer's size in layout units (scaled with the HUD): a little over the
-## desktop's own arrow, because the glyphs carry an ink contour that needs the
-## pixels. Godot caps a custom cursor at 256 pixels a side.
-const CURSOR_UNITS := 36.0
+## The pointer's size in screen points: the desktop's own arrow, fixed. It is
+## multiplied by the display's pixel scale (2 on a Retina screen) and by nothing
+## else — a pointer does not grow with the window or the HUD, unlike a panel.
+## Godot caps a custom cursor at 256 pixels a side.
+const CURSOR_POINTS := 32.0
 const CURSOR_MAX_PX := 256
 ## Which Godot cursor shape each glyph of the fixed vocabulary stands for; a
 ## glyph the host never asks for is still installed, so a Control that asks
@@ -487,21 +490,30 @@ func cursor_image(glyph: String, size_px: int) -> Dictionary:
 	return {"image": cut, "hotspot": point}
 
 
-## The pointer's side in window pixels at a HUD scale.
-static func cursor_px(scale_factor: float) -> int:
-	return clampi(int(round(CURSOR_UNITS * maxf(0.25, scale_factor))), 8, CURSOR_MAX_PX)
+## The pointer's side in physical pixels on a display of the given pixel scale.
+static func cursor_px(display_scale: float) -> int:
+	return clampi(int(round(CURSOR_POINTS * maxf(0.5, display_scale))), 8, CURSOR_MAX_PX)
 
 
-## Hand every glyph to Godot as the cursor shapes it stands for, at the size
-## the HUD's scale asks; called again when the window changes. Returns how
-## many shapes were installed (0 when the run has no set).
-func install_cursors(scale_factor: float) -> int:
+## The pixel scale of the display the window is on: 2 on a Retina screen, 1 on
+## a plain one and under the dummy display server.
+static func display_scale() -> float:
+	var screen := DisplayServer.window_get_current_screen()
+	var value := DisplayServer.screen_get_scale(screen)
+	return value if value > 0.0 else 1.0
+
+
+## Hand every glyph to Godot as the cursor shapes it stands for, at the fixed
+## point size on a display of this pixel scale; called again when the window
+## moves or resizes, and re-cut only when the display scale changed. Returns
+## how many shapes were installed (0 when the run has no set, or nothing moved).
+func install_cursors(display_scale_factor: float) -> int:
 	if not has_cursors():
 		return 0
-	if is_equal_approx(scale_factor, _cursor_scale):
+	if is_equal_approx(display_scale_factor, _cursor_scale):
 		return 0
-	_cursor_scale = scale_factor
-	var side := cursor_px(scale_factor)
+	_cursor_scale = display_scale_factor
+	var side := cursor_px(display_scale_factor)
 	var installed := 0
 	for glyph: String in CURSOR_SHAPES:
 		var cut := cursor_image(glyph, side)

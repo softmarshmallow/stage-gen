@@ -354,9 +354,10 @@ band fill (`godot/oblique_survival/hud/ui_kit.gd`). It draws no `inventory_panel
 — its pack is not eight slots — and paints its slot wells from code inside the
 generated frame until a panel-plus-slot composition replaces the drawn panel
 ([TODO](../../../TODO.md), "Game UI"). Its pointer is the `cursor_set`: each cell
-is cut and scaled to the HUD's pointer size, the published hotspot scaled with
-it, and handed to Godot as the cursor shape the glyph stands for, re-cut when
-the window's scale changes; a run without the set keeps the system pointer.
+is cut to a fixed size in screen points at the display's pixel scale — never the
+HUD's scale, a pointer keeps the desktop's size whatever the window does — the
+published hotspot scaled with it, and handed to Godot as the cursor shape the
+glyph stands for; a run without the set keeps the system pointer.
 
 The prepared asset explorer lists all four platformer artifacts in its UI group. The prepared web
 scene loads the inventory panel into the existing `InventoryHud`; every other surface above is drawn

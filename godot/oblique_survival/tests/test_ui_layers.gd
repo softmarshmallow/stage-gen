@@ -117,9 +117,10 @@ func _kit_cuts_the_pointer(h: TestHarness, w: World) -> void:
 	for glyph: String in UiKit.CURSOR_SHAPES:
 		h.assert_true(kit.cursor_glyphs().has(glyph), "the set names %s" % glyph)
 	var side := UiKit.cursor_px(1.0)
-	h.assert_eq(side, int(UiKit.CURSOR_UNITS), "at scale 1 a pointer is its layout size")
-	h.assert_eq(UiKit.cursor_px(2.0), 2 * side, "and it scales with the HUD")
+	h.assert_eq(side, int(UiKit.CURSOR_POINTS), "on a plain display a pointer is its point size")
+	h.assert_eq(UiKit.cursor_px(2.0), 2 * side, "on a Retina display twice the pixels, the same size")
 	h.assert_eq(UiKit.cursor_px(100.0), UiKit.CURSOR_MAX_PX, "under Godot's cap")
+	h.assert_near(UiKit.display_scale(), 1.0, 0.001, "the dummy display server is a plain display")
 	var arrow := kit.cursor_image("arrow", side)
 	h.assert_false(arrow.is_empty(), "the arrow cuts")
 	var image: Image = arrow["image"]
@@ -145,10 +146,10 @@ func _kit_cuts_the_pointer(h: TestHarness, w: World) -> void:
 		and absf(cross_spot.y - float(side) * 0.5) <= float(side) * 0.2,
 		"a crosshair's hotspot is near its centre (%s)" % str(cross_spot))
 	h.assert_true(kit.cursor_image("nothing", side).is_empty(), "a glyph the set lacks cuts nothing")
-	var installed := kit.install_cursors(1.5)
+	var installed := kit.install_cursors(1.0)
 	h.assert_eq(installed, 11, "every glyph installs for every shape it stands for")
-	h.assert_eq(kit.install_cursors(1.5), 0, "and not twice at one scale")
-	h.assert_true(kit.install_cursors(2.0) > 0, "but again when the scale moves")
+	h.assert_eq(kit.install_cursors(1.0), 0, "and not twice on one display")
+	h.assert_true(kit.install_cursors(2.0) > 0, "but again on a denser display")
 	h.assert_true(kit.cursor_note().begins_with("9 glyphs at "), "and the kit says so: %s" % kit.cursor_note())
 	kit.uninstall_cursors()
 	h.assert_eq(kit.cursor_note(), "9 glyphs, not installed", "uninstalled, the pointer is the system's again")

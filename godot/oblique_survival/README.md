@@ -127,13 +127,15 @@ slots this pack cannot use ([TODO](../../TODO.md), "Game UI").
 
 **The pointer.** The mouse cursor is the same block's `cursor_set` when the run
 carries one: nine named glyphs on one sheet, each with the hotspot the
-pipeline's gate measured on the drawn glyph. The kit cuts a cell, scales it to
-`CURSOR_UNITS` (36) times the HUD's scale, scales the published hotspot with it,
-and hands the image to Godot as the cursor shape the glyph stands for — the
-arrow, the pointing hand the frame owner shows over a thing that can be acted
-on, the cross it shows while a built thing is placed, and the rest for any
-Control that asks for them. The pointers are re-cut when the window's scale
-changes, and a run without the set keeps the system pointer.
+pipeline's gate measured on the drawn glyph. The kit cuts a cell to a fixed
+`CURSOR_POINTS` (32) screen points — times the display's pixel scale and never
+the HUD's, because a pointer keeps the desktop's size whatever the window does,
+as in any game — scales the published hotspot with it, and hands the image to
+Godot as the cursor shape the glyph stands for — the arrow, the pointing hand
+the frame owner shows over a thing that can be acted on, the cross it shows
+while a built thing is placed, and the rest for any Control that asks for them.
+The pointers are re-cut only when the window lands on a display of another
+pixel scale, and a run without the set keeps the system pointer.
 
 **The HUD** (`hud/hud.gd`, `hud/craft_panel.gd`, `hud/death_screen.gd`,
 `hud/pause_menu.gd`, the shared `hud/ui_kit.gd`). The vitals stand top-left

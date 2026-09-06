@@ -187,11 +187,11 @@ func set_ui_scale(scale_factor: float) -> void:
 	ui_scale = maxf(0.25, scale_factor)
 	UiKit.apply_scale(self, _root, ui_scale)
 	_reflow()
-	# The pointer scales with the panels: the run's cursor set, when it has
-	# one, is re-cut at this scale and handed to Godot as the shapes the frame
-	# owner and the buttons ask for.
+	# The pointer does not scale with the panels: the run's cursor set, when
+	# it has one, is cut at a fixed point size for the display the window is
+	# on, and this is the hook that fires when the window moves or resizes.
 	if kit != null:
-		kit.install_cursors(ui_scale)
+		kit.install_cursors(UiKit.display_scale())
 
 
 func set_mode(new_mode: String) -> void:
