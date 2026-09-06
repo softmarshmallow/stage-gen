@@ -238,7 +238,7 @@ season calendar, weather, music and sound. Everything drawn is a flat card
 standing on a 3D ground plane under a fixed elevated-oblique perspective camera,
 so a prop is never seen from behind however far the camera turns. The run
 publishes an `oblique-survival-manifest-v2` manifest that the Godot host under
-`godot/oblique_survival` plays; this recipe has no browser player.
+`godot` plays; this recipe has no browser player.
 
 ```sh
 uv run stage-gen oblique-survival generate \
@@ -408,7 +408,7 @@ published `sideview-runner-runtime-v13` run, `/room/<tag>` replays one published
 code never receives provider credentials, and the docs gate checks that nothing
 under `web/lib/shell` can spawn a process.
 
-`godot/oblique_survival` is the repository's second consumer and starts no run
+`godot` is the repository's second consumer and starts no run
 either. It plays one published `oblique-survival-manifest-v2` run directory,
 named on its command line, and commits no media of its own; see
 [Godot host](docs/godot-host.md) and

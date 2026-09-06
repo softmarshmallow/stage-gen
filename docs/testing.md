@@ -15,7 +15,7 @@ All routine verification is credential-free. Provider-backed tests carry the
 | CLI boundary | `uv run pytest tests/integration -q` |
 | Wheel-packaged resources | `uv run pytest tests/contract/test_packaged_resources.py -q` |
 | Import architecture | `uv run pytest tests/contract/test_import_boundaries.py -q` |
-| Godot survival host | `Godot --headless --path godot/oblique_survival -s res://tests/run_tests.gd` |
+| Godot hosts | `Godot --headless --path godot -s res://tests/run_tests.gd` |
 | Formatting and lint | `uv run ruff format --check . && uv run ruff check .` |
 | Strict typing | `uv run mypy --strict src tests scripts` |
 

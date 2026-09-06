@@ -1,0 +1,36 @@
+; stage-gen — the Godot project that plays a run of any recipe.
+;
+; One project, one template per genre: `genres/<recipe>/` is the simulation,
+; `hosts/<recipe>/` draws and sounds it, `hosts/common/` is what every host
+; shares, `families/` and `kernel/` are what every genre shares. A run
+; directory is named on the command line (`--run <absolute run dir>`) or packed
+; into an export, so nothing under this tree is generated art.
+;
+; See docs/spec/game/host-contract.md for what a host owes and
+; docs/godot-host.md for how to run one.
+
+config_version=5
+
+[application]
+
+config/name="stage-gen"
+run/main_scene="res://hosts/oblique_survival/main.tscn"
+config/features=PackedStringArray("4.7", "Forward Plus")
+
+[display]
+
+; The survival host's design space, kept byte-for-byte through the relocation
+; so its capture sheet stays comparable. A per-host design size belongs in that
+; host's template declaration, and moves there with the boot scene.
+window/size/viewport_width=1600
+window/size/viewport_height=900
+; The capture harness renders into its own SubViewport, so the frame rate must
+; not be pinned to the display's.
+window/vsync/vsync_mode=0
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+; three sets `texture.anisotropy = min(8, maxAnisotropy)` on the tiled ground
+; plates (viewer/index.html:2542); level 3 is 8x.
+textures/default_filters/anisotropic_filtering_level=3

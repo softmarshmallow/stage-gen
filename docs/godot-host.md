@@ -19,11 +19,12 @@ criteria it was measured against are in the
 [game-engine evaluation](game-engine-evaluation.md). 0061 extended the choice to
 every genre, for a reason that is about production rather than about cameras.
 The operating manual beside the code is
-[the host's own README](../godot/oblique_survival/README.md).
+[the project's README](../godot/README.md), and each host's own is beside its
+code under `godot/hosts/<recipe>/`.
 
 ## Runtime input
 
-The host is handed one run directory on the command line — the directory holding
+A host is handed one run directory on the command line — the directory holding
 `manifest.json` beside the `package/` tree it names — and demands this identity:
 
 ```json
@@ -68,7 +69,7 @@ Then play it. Everything after the bare `--` belongs to the host; the editor
 swallows the rest:
 
 ```sh
-Godot --path godot/oblique_survival -- --run <run directory>
+Godot --path godot -- --run <run directory>
 ```
 
 `--mode` chooses the framing (`play` follows the player; `gallery` stands every
@@ -109,14 +110,15 @@ inset is 0.7 m whatever the plate's cell size), and carries an entity's
 proved the port is retired with [decision 0059](decisions/0059-the-world-is-a-point-process-and-the-object-owns-its-habitat.md):
 the capture sheet is the host's own regression reference now, its shots
 derived from the record. The project pins Godot 4.7. Its
-`.godot/` import cache and any export presets are derived or machine-specific and
-are ignored; the per-file `*.import` records are committed, because they are the
-import contract and a missing one makes a headless build non-reproducible.
+`.godot/` import cache is derived and an export is a build, so neither is
+tracked. The project ships no media, so there are no `*.import` records to keep;
+one that ever appears is the import contract for a tracked file and belongs in
+the tree beside it.
 
 ## Headless validation
 
 ```sh
-Godot --headless --path godot/oblique_survival -s res://tests/run_tests.gd
+Godot --headless --path godot -s res://tests/run_tests.gd
 ```
 
 That is the simulation gate: the run package parser, the deterministic PRNG, the

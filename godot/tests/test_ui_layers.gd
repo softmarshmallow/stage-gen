@@ -1,0 +1,625 @@
+extends RefCounted
+
+## The 2D layers, headless: the kit's readings of the world, the death sheet
+## showing on `dead` with the cause's headline, the craft panel following
+## `craft_open` and writing the sim's one-shot inputs, the HUD building a slot
+## per pack slot and its card for the chosen one, and every layer taking a
+## scale. Nothing is drawn; a Control tree stands up under the dummy display
+## server, which is enough to prove the layers build and read. The kit's
+## frames are proved the same way: the styleboxes it cuts from the run's
+## generated sheets carry the manifest's geometry at the kit's density.
+
+
+func run(h: TestHarness) -> void:
+	var w := TestFixtures.world()
+	if w == null:
+		h.fail("test_ui_layers: could not open %s" % TestHarness.RUN_DIR)
+		return
+	_kit_reads_items(h, w)
+	_kit_wears_the_run_frame(h, w)
+	_kit_cuts_the_pointer(h, w)
+	_kit_names_a_death(h)
+	_death_screen_follows_dead(h, w)
+	_craft_panel_follows_craft_open(h, w)
+	_hud_builds_the_pack(h, w)
+	_hud_tells_the_time(h, w)
+	_hud_flies_a_pickup(h, w)
+	_pause_menu_shows_the_help(h, w)
+	_hurt_flash_bleeds_with_health(h, w)
+	_warmth_veil_frosts_and_heats(h, w)
+	_map_fills_the_window(h, w)
+	_layers_take_a_scale(h, w)
+	_args_carry_the_new_flags(h)
+
+
+func _kit_reads_items(h: TestHarness, w: SurvivalWorld) -> void:
+	var m: Dictionary = w.manifest
+	h.assert_eq(SurvivalUiKit.item_name(m, "axe"), "Flint axe", "the display name")
+	h.assert_eq(SurvivalUiKit.item_name(m, "no_such_thing"), "no such thing", "an unknown id opens its underscores")
+	h.assert_eq(SurvivalUiKit.use_verb(SurvivalUiKit.item_spec(m, "berry")), "eat", "berries are eaten")
+	h.assert_eq(SurvivalUiKit.use_verb(SurvivalUiKit.item_spec(m, "poultice")), "apply", "a poultice is applied")
+	h.assert_eq(SurvivalUiKit.use_verb(SurvivalUiKit.item_spec(m, "torch")), "light", "a torch is lit")
+	h.assert_eq(SurvivalUiKit.use_verb(SurvivalUiKit.item_spec(m, "warm_stone")), "warm", "a stone is warmed")
+	h.assert_eq(SurvivalUiKit.use_verb(SurvivalUiKit.item_spec(m, "axe")), "wear", "a tool is worn in the hand")
+	h.assert_eq(SurvivalUiKit.use_verb(SurvivalUiKit.item_spec(m, "grass_cloak")), "wear", "a cloak is worn on the body")
+	h.assert_eq(SurvivalUiKit.use_verb(SurvivalUiKit.item_spec(m, "backpack")), "wear", "a pack is worn on the back")
+	h.assert_eq(SurvivalUiKit.use_verb(SurvivalUiKit.item_spec(m, "log")), "", "a material has no use button")
+	h.assert_eq(SurvivalUiKit.equip_kind(SurvivalUiKit.item_spec(m, "axe")), "hand", "the axe's place")
+	h.assert_eq(SurvivalUiKit.equip_kind(SurvivalUiKit.item_spec(m, "grass_cloak")), "body", "the cloak's place")
+	h.assert_eq(SurvivalUiKit.equip_kind(SurvivalUiKit.item_spec(m, "backpack")), "back", "the pack's place")
+	h.assert_eq(SurvivalUiKit.equip_kind(SurvivalUiKit.item_spec(m, "berry")), "", "berries are not worn")
+	h.assert_eq(SurvivalUiKit.use_hint(SurvivalUiKit.item_spec(m, "axe"), {"item": "axe", "count": 1, "uses": 7}),
+		"chops · 7 uses left", "a tool's hint counts its uses")
+	h.assert_eq(SurvivalUiKit.use_hint(SurvivalUiKit.item_spec(m, "cooked_berry"), null),
+		"+45 hunger · +10 warmth", "a food's hint lists what it gives")
+	h.assert_eq(SurvivalUiKit.use_hint(SurvivalUiKit.item_spec(m, "log"), null), "a material", "a log is a material")
+	h.assert_eq(SurvivalUiKit.inv_count([{"item": "log", "count": 3}, null, {"item": "log", "count": 2}], "log"), 5,
+		"the pack's count sums the stacks")
+	h.assert_eq(SurvivalUiKit.slot_capacity(m, {"back": {"item": "backpack", "count": 1, "uses": null}}, 12), 16,
+		"a pack worn on the back adds its slots")
+	h.assert_eq(SurvivalUiKit.slot_capacity(m, {"back": null}, 12), 12, "nothing on the back adds none")
+	h.assert_eq(SurvivalUiKit.clock_text(125.0), "2:05", "the clock text")
+
+
+## The panels and buttons are cut from the run's `ui` sheets under the
+## geometry the pipeline published — the cell, the insets, the band fill —
+## read at the kit's density; a manifest without the block keeps the flat boxes.
+func _kit_wears_the_run_frame(h: TestHarness, w: SurvivalWorld) -> void:
+	var kit := SurvivalUiKit.new(TestFixtures.package(), w.manifest)
+	h.assert_true(kit.has_frames(), "ember-hollow-v9 dresses the HUD from its ui block")
+	var ui: Dictionary = w.manifest["ui"]
+	var panel: Dictionary = ui["panel_frame"]
+	var density := float(panel["draw_scale"]) * SurvivalUiKit.SHEET_DENSITY
+	var style := kit.panel_style(8.0)
+	h.assert_true(style is StyleBoxTexture, "a panel is the generated frame")
+	var cut: StyleBoxTexture = style
+	var cell: Dictionary = (panel["cells"][0] as Dictionary)["cell"]
+	h.assert_near(cut.region_rect.position.x, float(cell["x"]) / density, 0.01, "the cell's left, at the density")
+	h.assert_near(cut.region_rect.size.x, float(cell["width"]) / density, 0.01, "the cell's width, at the density")
+	h.assert_near(cut.texture_margin_left, float((panel["insets"] as Dictionary)["left"]) / density, 0.01,
+		"the inset, at the density")
+	h.assert_true(cut.content_margin_left >= cut.texture_margin_left, "the content sits inside the inset")
+	h.assert_true(cut.content_margin_top >= cut.texture_margin_top, "above too")
+	h.assert_near(float(cut.texture.get_width()), round(float((panel["canvas"] as Dictionary)["width"]) / density), 1.0,
+		"the sheet shrunk once by the density")
+	var tile := str(panel["band_fill"]) == "tile"
+	h.assert_eq(cut.axis_stretch_horizontal,
+		StyleBoxTexture.AXIS_STRETCH_MODE_TILE if tile else StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH,
+		"the band fill the art was admitted under")
+	h.assert_true(kit.panel(true, 22.0).get_theme_stylebox("panel") is StyleBoxTexture, "every panel wears it")
+	for state: String in SurvivalUiKit.BUTTON_STATES:
+		h.assert_true(kit.theme.get_stylebox(state, "Button") is StyleBoxTexture, "the %s button is the sheet's" % state)
+	var normal: StyleBoxTexture = kit.theme.get_stylebox("normal", "Button")
+	var pressed: StyleBoxTexture = kit.theme.get_stylebox("pressed", "Button")
+	h.assert_true(pressed.region_rect.position.y > normal.region_rect.position.y,
+		"the states are the sheet's stacked bodies, not a tint")
+	h.assert_near(pressed.region_rect.size.x, normal.region_rect.size.x, 0.01, "of one silhouette")
+	h.assert_true(kit.frame_note().begins_with("panel "), "and the kit says what it cut: %s" % kit.frame_note())
+	# A run with no ui block keeps the viewer's boxes.
+	var flat := SurvivalUiKit.new(TestFixtures.package(), {})
+	h.assert_false(flat.has_frames(), "no block, no frame")
+	h.assert_true(flat.panel_style() is StyleBoxFlat, "and the panel is the flat box")
+	h.assert_true(flat.theme.get_stylebox("normal", "Button") is StyleBoxFlat, "as is the button")
+	h.assert_eq(flat.frame_note(), "flat", "and it says so")
+
+
+## The pointer is the run's `ui.cursor_set`: a cell cut and scaled to the
+## pointer size, the published hotspot scaled with it, one Godot shape per
+## glyph. Godot's dummy display server takes the install and shows nothing.
+func _kit_cuts_the_pointer(h: TestHarness, w: SurvivalWorld) -> void:
+	var kit := SurvivalUiKit.new(TestFixtures.package(), w.manifest)
+	h.assert_true(kit.has_cursors(), "ember-hollow-v9 publishes a cursor set")
+	var ui: Dictionary = w.manifest["ui"]
+	var cursors: Dictionary = ui["cursor_set"]
+	var cells: Array = cursors["cells"]
+	h.assert_eq(cells.size(), 9, "the fixed vocabulary is nine pointers")
+	h.assert_eq(kit.cursor_glyphs().size(), 9, "and the kit read every one")
+	for glyph: String in SurvivalUiKit.CURSOR_SHAPES:
+		h.assert_true(kit.cursor_glyphs().has(glyph), "the set names %s" % glyph)
+	var side := SurvivalUiKit.cursor_px(1.0)
+	h.assert_eq(side, int(SurvivalUiKit.CURSOR_POINTS), "on a plain display a pointer is its point size")
+	h.assert_eq(SurvivalUiKit.cursor_px(2.0), 2 * side, "on a Retina display twice the pixels, the same size")
+	h.assert_eq(SurvivalUiKit.cursor_px(100.0), SurvivalUiKit.CURSOR_MAX_PX, "under Godot's cap")
+	h.assert_near(SurvivalUiKit.display_scale(), 1.0, 0.001, "the dummy display server is a plain display")
+	var arrow := kit.cursor_image("arrow", side)
+	h.assert_false(arrow.is_empty(), "the arrow cuts")
+	var image: Image = arrow["image"]
+	h.assert_eq(image.get_width(), side, "to the pointer's side")
+	h.assert_eq(image.get_height(), side, "square")
+	var hotspot: Vector2 = arrow["hotspot"]
+	var published: Dictionary = {}
+	for entry: Variant in cells:
+		if str((entry as Dictionary).get("glyph", "")) == "arrow":
+			published = entry
+	var cell: Dictionary = published["cell"]
+	var spot: Dictionary = published["hotspot"]
+	var factor := float(side) / float(cell["width"])
+	h.assert_near(hotspot.x, round(float(spot["x"]) * factor), 0.51, "the hotspot is the published one, scaled with the cell")
+	h.assert_near(hotspot.y, round(float(spot["y"]) * factor), 0.51, "in y too")
+	h.assert_true(hotspot.x >= 0.0 and hotspot.x < float(side) and hotspot.y >= 0.0 and hotspot.y < float(side),
+		"and inside the image")
+	h.assert_true(hotspot.x < float(side) * 0.5 and hotspot.y < float(side) * 0.5,
+		"an arrow's tip is in its upper left (%s)" % str(hotspot))
+	var cross := kit.cursor_image("crosshair", side)
+	var cross_spot: Vector2 = cross["hotspot"]
+	h.assert_true(absf(cross_spot.x - float(side) * 0.5) <= float(side) * 0.2
+		and absf(cross_spot.y - float(side) * 0.5) <= float(side) * 0.2,
+		"a crosshair's hotspot is near its centre (%s)" % str(cross_spot))
+	h.assert_true(kit.cursor_image("nothing", side).is_empty(), "a glyph the set lacks cuts nothing")
+	var installed := kit.install_cursors(1.0)
+	h.assert_eq(installed, 11, "every glyph installs for every shape it stands for")
+	h.assert_eq(kit.install_cursors(1.0), 0, "and not twice on one display")
+	h.assert_true(kit.install_cursors(2.0) > 0, "but again on a denser display")
+	h.assert_true(kit.cursor_note().begins_with("9 glyphs at "), "and the kit says so: %s" % kit.cursor_note())
+	kit.uninstall_cursors()
+	h.assert_eq(kit.cursor_note(), "9 glyphs, not installed", "uninstalled, the pointer is the system's again")
+	h.assert_true(kit.install_cursors(2.0) > 0, "and can be installed afresh")
+	kit.uninstall_cursors()
+	# A run with no set keeps the system pointer.
+	var flat := SurvivalUiKit.new(TestFixtures.package(), {})
+	h.assert_false(flat.has_cursors(), "no set, no pointer")
+	h.assert_eq(flat.install_cursors(1.0), 0, "and nothing installs")
+	h.assert_eq(flat.cursor_note(), "system", "and it says so")
+
+
+func _kit_names_a_death(h: TestHarness) -> void:
+	h.assert_eq(SurvivalUiKit.death_headline("cold"), "You froze.", "the cold's headline")
+	h.assert_eq(SurvivalUiKit.death_headline("hunger"), "You starved.", "the hunger's headline")
+	h.assert_eq(SurvivalUiKit.death_headline("hurt"), "You did not last.", "the hound's headline")
+	h.assert_eq(SurvivalUiKit.death_headline(""), "You did not last.", "an unknown cause still has one")
+
+
+func _death_screen_follows_dead(h: TestHarness, w: SurvivalWorld) -> void:
+	var screen := SurvivalDeathScreen.new()
+	screen.setup(TestFixtures.package(), w, null)
+	h.assert_false(screen.visible, "the sheet is down while the player lives")
+	screen.handle_event({"type": "death", "cause": "cold"})
+	w.dead = true
+	screen.update(w, 0.0, {})
+	h.assert_true(screen.visible, "and up once the world says dead")
+	h.assert_eq(screen.cause, "cold", "with the event's cause")
+	var count := [0]
+	screen.restart_requested.connect(func() -> void: count[0] += 1)
+	screen._on_begin_again()
+	h.assert_eq(count[0], 1, "the button asks for a restart")
+	w.dead = false
+	screen.update(w, 0.0, {})
+	h.assert_false(screen.visible, "a living world takes the sheet down")
+	screen.free()
+
+
+func _craft_panel_follows_craft_open(h: TestHarness, w: SurvivalWorld) -> void:
+	TestFixtures.bare(w)
+	w.craft_open = false
+	w.dead = false
+	var panel := SurvivalCraftPanel.new()
+	panel.setup(TestFixtures.package(), w, null)
+	h.assert_false(panel.visible, "the table is closed")
+	w.craft_open = true
+	panel.update(w, 0.0, {})
+	h.assert_true(panel.visible, "and open with the world's flag")
+	var recipes: Array = (w.manifest["crafting"] as Dictionary)["recipes"]
+	h.assert_eq(panel._rows.get_child_count(), recipes.size(), "one row per recipe")
+	panel._on_craft()
+	h.assert_true(bool(w.input["menu_confirm"]), "the Craft button is the sim's confirm")
+	panel._on_close()
+	h.assert_true(bool(w.input["craft_toggle"]), "the close button is the sim's toggle")
+	TestFixtures.release(w)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	panel._on_row_input(click, 3)
+	h.assert_eq(w.input["menu_select"], 3, "a clicked row is the sim's select")
+	h.assert_false(bool(w.input["menu_confirm"]), "one click does not make")
+	panel._on_row_input(click, 3)
+	h.assert_true(bool(w.input["menu_confirm"]), "the second click on the same row makes")
+	TestFixtures.release(w)
+	w.craft_open = false
+	panel.update(w, 0.0, {})
+	h.assert_false(panel.visible, "closed again")
+	panel.free()
+
+
+func _hud_builds_the_pack(h: TestHarness, w: SurvivalWorld) -> void:
+	TestFixtures.bare(w)
+	w.dead = false
+	w.craft_open = false
+	SurvivalInventory.inv_add(w, "berry", 3)
+	SurvivalInventory.inv_add(w, "axe", 1)
+	w.selected = 0
+	var hud := SurvivalHud.new()
+	hud.setup(TestFixtures.package(), w, null)
+	h.assert_eq(hud._slot_cells.size(), 12, "a slot per pack slot")
+	h.assert_eq(hud._equip_cells.size(), 3, "and a cell per worn place")
+	h.assert_false(hud._card_panel.visible, "no slot hovered, no card")
+	# The card follows the hovered slot, not the selection.
+	hud._on_slot_hover(0, true)
+	hud.update(w, 0.0, {})
+	h.assert_true(hud._card_panel.visible, "a hovered slot raises its card")
+	h.assert_eq(hud._card_name.text, "Berries ×3", "the card names the hovered stack")
+	h.assert_false(hud._use_button.disabled, "berries can be used")
+	h.assert_eq(hud._use_button.text, "Eat", "and the button says how")
+	hud._on_slot_hover(0, false)
+	hud._on_slot_hover(1, true)
+	hud.update(w, 0.0, {})
+	h.assert_eq(hud._card_name.text, "Flint axe", "the card follows the hover")
+	h.assert_false(hud._use_button.disabled, "a tool is worn")
+	h.assert_eq(hud._use_button.text, "Wear", "and the button says so")
+	h.assert_false(hud._drop_button.disabled, "and can be dropped")
+	hud._on_use()
+	h.assert_eq(w.input["select"], 1, "the card's Use selects its slot")
+	h.assert_true(bool(w.input["use"]), "and uses it")
+	TestFixtures.release(w)
+	hud._on_drop()
+	h.assert_eq(w.input["select"], 1, "the card's Drop selects its slot")
+	h.assert_true(bool(w.input["drop"]), "and drops it")
+	TestFixtures.release(w)
+	hud._on_slot_hover(1, false)
+	hud._on_slot_hover(5, true)
+	hud.update(w, 0.0, {})
+	h.assert_true(hud._drop_button.disabled, "an empty slot drops nothing")
+	hud._on_slot_hover(5, false)
+	hud.update(w, 0.0, {})
+	h.assert_false(hud._card_panel.visible, "the card goes with the hover (no linger at delta 0)")
+	# The worn places: the axe on, the hand's card, its Take off.
+	SurvivalInventory.equip(w, 1)
+	hud._on_equip_hover("hand", true)
+	hud.update(w, 0.0, {})
+	h.assert_true(hud._card_panel.visible, "a hovered worn place raises its card")
+	h.assert_eq(hud._card_name.text, "Flint axe", "naming the worn axe")
+	h.assert_eq(hud._use_button.text, "Take off", "with Take off")
+	h.assert_false(hud._drop_button.visible, "and no Drop")
+	hud._on_use()
+	h.assert_eq(w.input["unequip"], "hand", "Take off is the sim's unequip")
+	TestFixtures.release(w)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	hud._on_equip_input(click, "hand")
+	h.assert_eq(w.input["unequip"], "hand", "a click on the worn thing takes it off")
+	TestFixtures.release(w)
+	hud._on_equip_hover("hand", false)
+	hud._on_equip_hover("body", true)
+	hud.update(w, 0.0, {})
+	h.assert_eq(hud._card_name.text, "body · nothing worn", "an empty worn place says so")
+	hud._on_equip_hover("body", false)
+	# A pack worn grows the hotbar.
+	SurvivalInventory.inv_add(w, "backpack", 1)
+	hud.update(w, 0.0, {})
+	h.assert_eq(hud._slot_cells.size(), 12, "a pack in a slot grows nothing")
+	var pack_slot := -1
+	for index in w.slots.size():
+		if w.slots[index] != null and str((w.slots[index] as Dictionary)["item"]) == "backpack":
+			pack_slot = index
+	SurvivalInventory.equip(w, pack_slot)
+	hud.update(w, 0.0, {})
+	h.assert_eq(hud._slot_cells.size(), 16, "a pack worn on the back grows the hotbar")
+	click.button_index = MOUSE_BUTTON_RIGHT
+	hud._on_slot_input(click, 0)
+	h.assert_eq(w.input["select"], 0, "a right-click selects the slot")
+	h.assert_true(bool(w.input["use"]), "and uses it")
+	TestFixtures.release(w)
+	hud._on_craft_button()
+	h.assert_true(bool(w.input["craft_toggle"]), "the Craft button is the sim's toggle")
+	TestFixtures.release(w)
+	var asked: Array = []
+	hud.action.connect(func(name: String) -> void: asked.append(name))
+	hud._on_map_button()
+	hud._on_menu_button()
+	h.assert_eq(asked, ["map", "menu"], "Map and Menu ask the frame owner")
+	# The hover names the thing under the pointer, above the thing, in an
+	# outlined label with no panel behind it.
+	var pine := TestFixtures.prop(w, "p2", "pine", "grown", 0.0, 1.0)
+	w.entities.append(pine)
+	hud.set_hover({"entity": pine, "target": SurvivalTargeting.target_for(w, pine), "point": null}, Vector2(800.0, 300.0))
+	hud.update(w, 0.0, {})
+	h.assert_true(hud._hover_label.visible, "a hovered pine shows its name")
+	h.assert_true(hud._hover_label.text.find("chop") >= 0, "naming the chop (%s)" % hud._hover_label.text)
+	h.assert_true(hud._hover_label.get_theme_constant("outline_size") >= 3, "outlined")
+	h.assert_true(hud._hover_label.get_parent() == hud._root, "with no panel behind it")
+	var centre := hud._hover_label.position.x + hud._hover_label.size.x * 0.5
+	h.assert_near(centre, 800.0, 1.0, "centred on the anchor")
+	h.assert_true(hud._hover_label.position.y + hud._hover_label.size.y < 300.0, "and standing above it")
+	hud.set_hover({})
+	hud.update(w, 0.0, {})
+	h.assert_false(hud._hover_label.visible, "and none off the world")
+	# The key's target is named the same way, with what the key would do, and
+	# the hover label yields to it when they are the same thing.
+	var target: Variant = SurvivalTargeting.target_for(w, pine)
+	hud.set_focus(target, Vector2(640.0, 420.0))
+	hud.update(w, 0.0, {})
+	h.assert_true(hud._focus_label.visible, "the thing in reach is named")
+	h.assert_true(hud._focus_label.text.find("chop") >= 0, "with the verb (%s)" % hud._focus_label.text)
+	h.assert_true(hud._focus_label.position.y + hud._focus_label.size.y < 420.0, "above its anchor")
+	hud.set_hover({"entity": pine, "target": target, "point": null}, Vector2(640.0, 420.0))
+	hud.update(w, 0.0, {})
+	h.assert_false(hud._hover_label.visible, "the hover says nothing twice")
+	h.assert_false("prompt" in hud, "and there is no prompt strip any more")
+	hud.set_focus(null)
+	hud.set_hover({})
+	hud.update(w, 0.0, {})
+	h.assert_false(hud._focus_label.visible, "no target, no label")
+	w.dead = true
+	hud.update(w, 0.0, {})
+	h.assert_false(hud._hotbar_panel.visible, "the dead have no hotbar")
+	h.assert_false(hud._equip_panel.visible, "nor worn places")
+	w.dead = false
+	hud.free()
+
+
+## The clock: the hour from the phase (sunrise at 06:00, midnight at 0.75),
+## the part of the day, and what comes next in how long — the season's dusk,
+## so winter says dusk earlier.
+func _hud_tells_the_time(h: TestHarness, w: SurvivalWorld) -> void:
+	var length := float((w.manifest["gameplay"] as Dictionary)["day_length_seconds"])
+	h.assert_near(length, 480.0, 1e-9, "the authored day")
+	TestFixtures.force_season(w, "summer")
+	w.day_phase = 0.12
+	var clock := SurvivalHud.clock_of(w)
+	h.assert_eq(str(clock["hour"]), "08:52", "0.12 of the day past sunrise")
+	h.assert_eq(str(clock["word"]), "day", "is day")
+	h.assert_eq(str(clock["next"]), "dusk", "and dusk is what comes")
+	h.assert_near(float(clock["dusk"]), 0.5, 1e-9, "at half the summer day")
+	h.assert_near(float(clock["seconds"]), 0.38 * length, 1e-6, "in the seconds to it")
+	h.assert_eq(str(clock["glyph"]), "sun", "under the sun")
+	h.assert_eq(SurvivalHud.clock_countdown(float(clock["seconds"])), "3:03", "said as m:ss, rounded up")
+	w.day_phase = 0.55
+	clock = SurvivalHud.clock_of(w)
+	h.assert_eq(str(clock["word"]), "dusk", "the light going")
+	h.assert_eq(str(clock["next"]), "dark", "dark next")
+	h.assert_near(float(clock["seconds"]), 0.07 * length, 1e-6, "when the night factor reaches one")
+	w.day_phase = 0.75
+	clock = SurvivalHud.clock_of(w)
+	h.assert_eq(str(clock["hour"]), "00:00", "midnight at three quarters")
+	h.assert_eq(str(clock["word"]), "night", "is night")
+	h.assert_eq(str(clock["next"]), "dawn", "dawn next")
+	h.assert_near(float(clock["seconds"]), 0.13 * length, 1e-6, "at 0.88")
+	h.assert_eq(str(clock["glyph"]), "moon", "under the moon")
+	w.day_phase = 0.9
+	clock = SurvivalHud.clock_of(w)
+	h.assert_eq(str(clock["word"]), "dawn", "the light returning")
+	h.assert_eq(str(clock["next"]), "day", "day next")
+	h.assert_near(float(clock["seconds"]), 0.1 * length, 1e-6, "when the phase wraps")
+	# Winter's longer night: dusk falls at 0.33 of the day, in the same hours.
+	TestFixtures.force_season(w, "winter")
+	w.day_phase = 0.12
+	clock = SurvivalHud.clock_of(w)
+	h.assert_eq(str(clock["hour"]), "08:52", "the hour does not move with the season")
+	h.assert_near(float(clock["dusk"]), 0.33, 1e-9, "but dusk does")
+	h.assert_near(float(clock["seconds"]), 0.21 * length, 1e-6, "and comes sooner")
+	TestFixtures.force_season(w, "summer")
+	w.day_phase = 0.12
+
+
+func _hud_flies_a_pickup(h: TestHarness, w: SurvivalWorld) -> void:
+	TestFixtures.bare(w)
+	w.dead = false
+	w.craft_open = false
+	SurvivalInventory.inv_add(w, "twig", 2)
+	var hud := SurvivalHud.new()
+	hud.setup(TestFixtures.package(), w, null)
+	# A pickup with a place in the world flies from it; the projector is the
+	# frame owner's, here a fixed point.
+	hud.set_projector(func(_point: Vector3) -> Vector2: return Vector2(400.0, 200.0))
+	hud.handle_event({"type": "pickup", "item": "twig", "x": 1.0, "z": 1.0})
+	h.assert_eq(hud.flights_in_air(), 1, "the pickup is in flight")
+	hud.update(w, 0.25, {})
+	h.assert_eq(hud.flights_in_air(), 1, "still in the air half way")
+	hud.update(w, 0.3, {})
+	h.assert_eq(hud.flights_in_air(), 0, "and landed after its half second")
+	h.assert_true(float((hud._slot_cells[0] as Control).get("flash")) > 0.0, "the slot glows where it landed")
+	# A drop leaving the pack does not fly in; nor does a thing behind the camera.
+	hud.handle_event({"type": "pickup", "item": "twig", "x": 1.0, "z": 1.0, "out": true})
+	h.assert_eq(hud.flights_in_air(), 0, "a drop flies nowhere")
+	hud.set_projector(func(_point: Vector3) -> Vector2: return Vector2(-1.0, -1.0))
+	hud.handle_event({"type": "pickup", "item": "twig", "x": 1.0, "z": 1.0})
+	h.assert_eq(hud.flights_in_air(), 0, "a thing off the screen does not fly")
+	hud.free()
+
+
+func _pause_menu_shows_the_help(h: TestHarness, w: SurvivalWorld) -> void:
+	var menu := SurvivalPauseMenu.new()
+	menu.setup(TestFixtures.package(), w, null)
+	h.assert_false(menu.visible, "the menu is down")
+	menu.set_open(true)
+	h.assert_true(menu.visible, "and up when opened")
+	h.assert_eq(menu.page, "menu", "on the menu page")
+	menu.show_page("help")
+	h.assert_eq(menu.page, "help", "How to play is the second page")
+	h.assert_true(menu._help.visible and not menu._menu.visible, "and it is what shows")
+	menu.set_open(false)
+	menu.set_open(true)
+	h.assert_eq(menu.page, "menu", "opening again lands on the menu")
+	var asked: Array = []
+	menu.action.connect(func(name: String) -> void: asked.append(name))
+	menu._on_button("resume")
+	menu._on_button("reset")
+	menu._on_button("help")
+	h.assert_eq(asked, ["resume", "reset"], "the buttons ask the frame owner; help is the menu's own page")
+	# The help names the keys the frame owner binds.
+	var text := ""
+	for section in SurvivalPauseMenu.help_sections():
+		text += str(section[0]) + " " + str(section[1]) + "\n"
+	for key in ["Esc", "WASD", "Space", "C", "M", "R", "F11", "hand", "body", "back"]:
+		h.assert_true(text.find(" %s " % key) >= 0, "the help names %s" % key)
+	h.assert_true(text.find("hold the") >= 0, "and the held-button walk")
+	w.dead = true
+	menu.update(w, 0.0, {})
+	h.assert_eq(asked.back(), "resume", "a death while paused asks to resume")
+	w.dead = false
+	menu.free()
+
+
+## The screen bleeds when health does: a bite floods and fades, a drain
+## throbs while it lasts and lets go after, a held health shows nothing, and
+## the dead are left to the death sheet.
+func _hurt_flash_bleeds_with_health(h: TestHarness, w: SurvivalWorld) -> void:
+	var flash := SurvivalHurtFlash.new()
+	flash.setup(TestFixtures.package(), w, null)
+	h.assert_eq(flash.layer, 21, "above the vignette (20), under the HUD (30)")
+	flash.update(w, 1.0 / 60.0, {})
+	h.assert_near(flash.flash(), 0.0, 1e-6, "nothing at full health")
+	h.assert_near(flash.throb(), 0.0, 1e-6, "and no throb")
+	# The hound's bite: the sim's `hurt` event and a 10-point drop the same tick.
+	w.player.health -= 10.0
+	flash.handle_event({"type": "hurt", "x": 0.0, "z": 0.0})
+	flash.update(w, 1.0 / 60.0, {})
+	h.assert_true(flash.flash() > 0.9, "a bite floods the edges (%.2f)" % flash.flash())
+	h.assert_near(flash.throb(), 0.0, 1e-6, "a bite is not a drain")
+	for i in 60:
+		flash.update(w, 1.0 / 60.0, {})
+	h.assert_near(flash.flash(), 0.0, 1e-6, "and has faded a second later")
+	# A drop the sim never named: a chunk still flashes, so a cause added later shows.
+	w.player.health -= 5.0
+	flash.update(w, 1.0 / 60.0, {})
+	h.assert_true(flash.flash() > 0.9, "an unnamed chunk flashes too")
+	# The drain: health going a little every frame, as the empty belly takes it.
+	var before := flash.throb()
+	for i in 60:
+		w.player.health -= 2.0 / 60.0
+		flash.update(w, 1.0 / 60.0, {})
+	h.assert_true(flash.throb() > 0.9, "a second of drain raises the throb (%.2f)" % flash.throb())
+	h.assert_true(flash.throb() > before, "from nothing")
+	var rect := flash.rect as ColorRect
+	var throb_alpha := float((rect.material as ShaderMaterial).get_shader_parameter("u_throb"))
+	h.assert_true(throb_alpha > 0.2, "and the shader is handed it (%.2f)" % throb_alpha)
+	for i in 120:
+		flash.update(w, 1.0 / 60.0, {})
+	h.assert_near(flash.throb(), 0.0, 1e-6, "two seconds of held health lets it go")
+	# Healing is not hurt.
+	w.player.health += 30.0
+	flash.update(w, 1.0 / 60.0, {})
+	h.assert_near(flash.flash(), 0.0, 1e-6, "eating shows nothing")
+	# The dead bleed no more; the sheet has them.
+	w.dead = true
+	w.player.health -= 1.0 / 60.0
+	flash.update(w, 1.0 / 60.0, {})
+	h.assert_near(flash.throb(), 0.0, 1e-6, "no throb once dead")
+	w.dead = false
+	w.player.health = 100.0
+	flash.free()
+
+
+## The frost creeps in under 35 % warmth and is whole at none; the heat rises
+## while `world.hot` holds and lets go after; a warm player in the open shows
+## nothing; the dead show nothing.
+func _warmth_veil_frosts_and_heats(h: TestHarness, w: SurvivalWorld) -> void:
+	var veil := SurvivalWarmthVeil.new()
+	veil.setup(TestFixtures.package(), w, null)
+	h.assert_eq(veil.layer, 22, "above the hurt flash (21), under the HUD (30)")
+	w.player.warmth = 100.0
+	w.hot = false
+	for i in 60:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.cold(), 0.0, 1e-6, "a warm player in the open: no frost")
+	h.assert_near(veil.hot(), 0.0, 1e-6, "and no heat")
+	w.player.warmth = 40.0
+	for i in 60:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.cold(), 0.0, 1e-6, "40 warmth is above the onset")
+	w.player.warmth = 17.5
+	for i in 120:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.cold(), 0.5, 0.02, "17.5 of 100 is half way to none: half the frost")
+	w.player.warmth = 0.0
+	for i in 120:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.cold(), 1.0, 1e-6, "no warmth is the whole frost")
+	var rect := veil.rect as ColorRect
+	var cold_alpha := float((rect.material as ShaderMaterial).get_shader_parameter("u_cold"))
+	h.assert_true(cold_alpha > 0.5, "and the shader is handed it (%.2f)" % cold_alpha)
+	w.player.warmth = 100.0
+	veil.update(w, 1.0 / 60.0, {})
+	h.assert_true(veil.cold() < 1.0 and veil.cold() > 0.9, "a bar refilled thaws over time, not at once (%.2f)" % veil.cold())
+	for i in 120:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.cold(), 0.0, 1e-6, "and is clear two seconds later")
+	w.hot = true
+	for i in 30:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.hot(), 0.25, 0.02, "half a second at the fire is a quarter of the heat")
+	for i in 120:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.hot(), 1.0, 1e-6, "two seconds is all of it")
+	w.hot = false
+	for i in 120:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.hot(), 0.0, 1e-6, "a step back cools in a second and a half")
+	w.player.warmth = 0.0
+	w.hot = true
+	w.dead = true
+	for i in 120:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.cold(), 0.0, 1e-6, "the dead are not cold")
+	h.assert_near(veil.hot(), 0.0, 1e-6, "nor hot")
+	w.dead = false
+	w.hot = false
+	w.player.warmth = 100.0
+	veil.free()
+
+
+## The map is the whole window: a scrim over it that takes the mouse, the map
+## square as tall as the window less its margins, the column beside it, and a
+## click on the scrim closing it.
+func _map_fills_the_window(h: TestHarness, w: SurvivalWorld) -> void:
+	var map := SurvivalWorldMap.new()
+	map.setup(TestFixtures.package(), w, null)
+	h.assert_false(map.visible, "closed to begin with")
+	map.set_open(true)
+	map.update(w, 0.0, {"yaw": 0.0})
+	h.assert_true(map.visible, "open shows it")
+	var root: Control = map._root
+	var scrim: ColorRect = map._scrim
+	h.assert_eq(scrim.size, root.size, "the scrim covers the window")
+	h.assert_eq(scrim.mouse_filter, Control.MOUSE_FILTER_STOP, "and takes the mouse, so no click walks")
+	var frame: Control = map._frame
+	var expected_side: float = root.size.y - 2.0 * SurvivalWorldMap.MARGIN
+	h.assert_near(frame.size.x, expected_side, 0.5, "the map is as tall as the window allows")
+	h.assert_near(frame.size.y, frame.size.x, 0.5, "and square")
+	h.assert_near(frame.position.y, SurvivalWorldMap.MARGIN, 0.5, "from the top margin")
+	var column: Control = map._column
+	h.assert_near(column.position.x, frame.position.x + frame.size.x + SurvivalWorldMap.GAP, 0.5, "the column stands beside it")
+	h.assert_true(column.position.x + column.size.x <= root.size.x, "inside the window")
+	h.assert_true(frame.position.x >= 0.0, "as is the map")
+	var legend: VBoxContainer = map._legend
+	h.assert_true(legend.get_child_count() >= 4, "the legend names the biomes, the road and the water (%d)" % legend.get_child_count())
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	map._on_scrim_input(click)
+	h.assert_false(map.open, "a click on the scrim closes it")
+	h.assert_false(map.visible, "and hides it")
+	# A wider window: the height still rules the square.
+	map.set_open(true)
+	root.size = Vector2(2560.0, 1440.0)
+	map.update(w, 0.0, {"yaw": 0.0})
+	h.assert_near(map._frame.size.x, 1440.0 - 2.0 * SurvivalWorldMap.MARGIN, 0.5, "in a 2560x1440 window the height rules")
+	# A narrow one: the width, less the column, rules.
+	root.size = Vector2(900.0, 900.0)
+	map.update(w, 0.0, {"yaw": 0.0})
+	h.assert_near(map._frame.size.x, 900.0 - 2.0 * SurvivalWorldMap.MARGIN - SurvivalWorldMap.COLUMN_WIDTH - SurvivalWorldMap.GAP, 0.5,
+		"in a square window the width less the column rules")
+	map.free()
+
+
+func _layers_take_a_scale(h: TestHarness, w: SurvivalWorld) -> void:
+	for layer in [SurvivalHud.new(), SurvivalCraftPanel.new(), SurvivalDeathScreen.new(), SurvivalWorldMap.new(), SurvivalPauseMenu.new()]:
+		layer.setup(TestFixtures.package(), w, null)
+		layer.set_ui_scale(2.0)
+		h.assert_near(layer.transform.get_scale().x, 2.0, 1e-6, "%s scales as a whole" % layer.get_class())
+		layer.set_ui_scale(1.0)
+		h.assert_near(layer.transform.get_scale().x, 1.0, 1e-6, "and back")
+		layer.free()
+
+
+func _args_carry_the_new_flags(h: TestHarness) -> void:
+	var args := HostArgs.parse(PackedStringArray(["--run", "/tmp/r", "--night-floor", "0.38", "--ui-scale", "1.5", "--fullscreen"]))
+	h.assert_near(args.night_floor, 0.38, 1e-9, "--night-floor")
+	h.assert_near(args.ui_scale, 1.5, 1e-9, "--ui-scale")
+	h.assert_true(args.fullscreen, "--fullscreen as a bare flag")
+	var plain := HostArgs.parse(PackedStringArray(["--run", "/tmp/r"]))
+	h.assert_near(plain.night_floor, 0.0, 1e-9, "the game's night keeps nothing by default")
+	h.assert_false(plain.fullscreen, "windowed by default")
+	var off := HostArgs.parse(PackedStringArray(["--fullscreen=false", "--run", "/tmp/r"]))
+	h.assert_false(off.fullscreen, "--fullscreen=false")
+	h.assert_eq(off.run, "/tmp/r", "and the run still parses after it")

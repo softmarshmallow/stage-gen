@@ -1,0 +1,122 @@
+class_name SurvivalPlayerMoveSystem
+extends RefCounted
+
+## Reads `input`, writes `player`. viewer/index.html 1039-1094.
+
+## A committed walk gives up after this long without closing on its target.
+const APPROACH_STALL_SECONDS := 0.6
+## A pointer walk is over once the player stands this close to the spot.
+const GOTO_ARRIVE_METERS := 0.12
+
+
+static func update(world: SurvivalWorld, dt: float) -> void:
+	var player: SurvivalPlayerState = world.player
+	# Deviation from the viewer (decisions.md: "death stops the player"): the
+	# viewer keeps walking at negative health.
+	if world.dead:
+		player.vx = 0.0
+		player.vz = 0.0
+		player.approach = null
+		player.goto = null
+		return
+	if player.busy != null:
+		# A busy player is frozen; movement during an interaction is
+		# discarded, not queued.
+		player.vx = 0.0
+		player.vz = 0.0
+		return
+	# A click on the ground starts a pointer walk (not the viewer's: it had no
+	# mouse). It takes the place of any earlier walk, committed or pointed.
+	var clicked: Variant = world.input.get("click_point", null)
+	if clicked is Dictionary:
+		player.goto = {"x": float(clicked["x"]), "z": float(clicked["z"]), "stall": 0.0}
+		player.approach = null
+	var speed := float((world.manifest["gameplay"] as Dictionary).get("player_speed_meters_per_second", 0.0))
+	if speed == 0.0:
+		speed = 3.2
+	var x := float(world.input["x"])
+	var z := float(world.input["z"])
+	var length := sqrt(x * x + z * z)
+	if length > 1.0:
+		x /= length
+		z /= length
+	# Input arrives in screen space and is turned into world space by the
+	# camera's yaw. This is the one place the simulation knows the camera.
+	var c := cos(world.camera_yaw)
+	var s := sin(world.camera_yaw)
+	player.vx = (x * c + z * s) * speed
+	player.vz = (-x * s + z * c) * speed
+	if player.approach != null:
+		player.goto = null
+	if player.goto != null:
+		# The pointer walk: straight at the spot, until a key takes it back or
+		# the player is standing on it.
+		if length > 0.0:
+			player.goto = null
+		else:
+			var goto := player.goto as Dictionary
+			var to_x: float = float(goto["x"]) - player.x
+			var to_z: float = float(goto["z"]) - player.z
+			var far := sqrt(to_x * to_x + to_z * to_z)
+			if far <= GOTO_ARRIVE_METERS:
+				player.goto = null
+			else:
+				# The last step lands on the spot rather than past it.
+				var pace := minf(speed, far / dt)
+				player.vx = (to_x / far) * pace
+				player.vz = (to_z / far) * pace
+	if player.approach != null:
+		# The key committed the player to a target out of reach. Any movement
+		# key takes the walk back.
+		if length > 0.0:
+			player.approach = null
+		else:
+			var entity: Dictionary = (player.approach as Dictionary)["entity"]
+			var to_x: float = float(entity["x"]) - player.x
+			var to_z: float = float(entity["z"]) - player.z
+			var far := sqrt(to_x * to_x + to_z * to_z)
+			if far == 0.0:
+				far = 1.0
+			player.vx = (to_x / far) * speed
+			player.vz = (to_z / far) * speed
+	var from_x := player.x
+	var from_z := player.z
+	# The coast is a wall: try the full step, then each axis alone so the
+	# player slides along the shore instead of sticking.
+	var step_x := player.vx * dt
+	var step_z := player.vz * dt
+	if bool(world.is_land.call(player.x + step_x, player.z + step_z)):
+		player.x += step_x
+		player.z += step_z
+	elif bool(world.is_land.call(player.x + step_x, player.z)):
+		player.x += step_x
+	elif bool(world.is_land.call(player.x, player.z + step_z)):
+		player.z += step_z
+	var half := float((world.manifest["ground"] as Dictionary)["size_meters"]) / 2.0 - 1.0
+	player.x = clampf(player.x, -half, half)
+	player.z = clampf(player.z, -half, half)
+	player.facing = SurvivalTargeting.facing_for(player.vx, player.vz, world.camera_yaw, player.facing)
+	if player.approach != null:
+		# A walk that is not getting anywhere is dropped rather than paced.
+		var dx := player.x - from_x
+		var dz := player.z - from_z
+		var moved := sqrt(dx * dx + dz * dz)
+		var approach := player.approach as Dictionary
+		if moved < speed * dt * 0.25:
+			approach["stall"] = float(approach["stall"]) + dt
+		else:
+			approach["stall"] = 0.0
+		if float(approach["stall"]) >= APPROACH_STALL_SECONDS:
+			player.approach = null
+	if player.goto != null:
+		# The same rule for the pointer walk: a shore or a footprint in the way
+		# ends it rather than leaving the player pushing at it.
+		var dx := player.x - from_x
+		var dz := player.z - from_z
+		var goto := player.goto as Dictionary
+		if sqrt(dx * dx + dz * dz) < speed * dt * 0.25:
+			goto["stall"] = float(goto["stall"]) + dt
+		else:
+			goto["stall"] = 0.0
+		if float(goto["stall"]) >= APPROACH_STALL_SECONDS:
+			player.goto = null
