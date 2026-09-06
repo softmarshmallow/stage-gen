@@ -28,6 +28,7 @@ func _fresh(w: World) -> void:
 	w.dead = false
 	w.craft_open = false
 	w.message = ""
+	w.focus = null
 	w.target = null
 
 
@@ -95,7 +96,7 @@ func _the_worn_tool_serves_first(h: TestHarness, w: World) -> void:
 	var target: Variant = Targeting.target_for(w, pine)
 	h.assert_true(target != null, "a pine with an axe in hand is a target")
 	h.assert_eq(int((target as Dictionary)["tool_slot"]), Inventory.HAND_SLOT, "served by the hand")
-	var pine_tool: Dictionary = (((w.manifest["props"] as Dictionary)["pine"] as Dictionary)["interaction"] as Dictionary)["tool"]
+	var pine_tool: Dictionary = ((((w.manifest["props"] as Dictionary)["pine"] as Dictionary)["interactions"] as Array)[0] as Dictionary)["tool"]
 	h.assert_eq(int((target as Dictionary)["hits"]), int(pine_tool["hits"]), "with the axe's authored hits")
 	# Chop it down: the hand's axe wears, the pack's does not.
 	w.input["click_entity"] = pine

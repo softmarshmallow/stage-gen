@@ -18,7 +18,7 @@ static func update(world: World, dt: float) -> void:
 	# Deviation from the viewer (decisions.md: "death stops the player"): the
 	# viewer keeps harvesting at negative health.
 	if world.dead:
-		world.target = null
+		_aim(world, null)
 		return
 	var reach := Targeting.reach_of(world)
 	if player.approach != null:
@@ -31,12 +31,14 @@ static func update(world: World, dt: float) -> void:
 			target = Targeting.target_for(world, entity)
 		if target == null:
 			player.approach = null
-			world.target = null
+			_aim(world, null)
 			return
-		world.target = target
-		if (target as Dictionary)["disabled"] != null:
-			# The thing stopped answering on the way (the season turned, the
-			# tool broke): the walk ends where it is, and the reason is said.
+		_aim(world, target)
+		if world.target == null:
+			# The thing stopped answering on the way (the season turned): the
+			# walk ends where it is, and the reason is said — the one time a
+			# refusal is spoken, because a walk ending in silence would be a
+			# mystery.
 			player.approach = null
 			_refuse(world, target as Dictionary)
 			return
@@ -49,7 +51,9 @@ static func update(world: World, dt: float) -> void:
 		return
 	# A thing clicked (not the viewer's: it had no mouse) is the target at any
 	# distance: within reach the action starts, beyond it the click commits
-	# the walk the key would have. A thing with nothing to offer says so.
+	# the walk the key would have. A thing with nothing to offer says so; a
+	# thing that is refused (an axe missing) is passed over — its label
+	# already says what it needs, and the focus stays with the nearest rule.
 	var clicked: Variant = world.input.get("click_entity", null)
 	if clicked is Dictionary:
 		var chosen_by_click: Variant = null
@@ -57,15 +61,13 @@ static func update(world: World, dt: float) -> void:
 			chosen_by_click = Targeting.target_for(world, clicked as Dictionary)
 		player.goto = null
 		if chosen_by_click == null:
-			world.target = Targeting.interactable_at(world)
+			_aim(world, Targeting.interactable_at(world))
 			Helpers.say(world, "Nothing to be done with that.")
 			return
-		world.target = chosen_by_click
 		if (chosen_by_click as Dictionary)["disabled"] != null:
-			# A thing that cannot be acted on is not walked to: the label
-			# says what it needs, and so does the strip.
-			_refuse(world, chosen_by_click as Dictionary)
+			_aim(world, Targeting.interactable_at(world))
 			return
+		_aim(world, chosen_by_click)
 		if float((chosen_by_click as Dictionary)["edge"]) > reach \
 				or not bool((chosen_by_click as Dictionary).get("ready", true)):
 			# The walk, or the wait for a drop still moving: the approach is
@@ -77,9 +79,13 @@ static func update(world: World, dt: float) -> void:
 	if Targeting.yield_pending(world):
 		# A trunk's logs are on their way down beside the player: the held
 		# key waits for them rather than turning to the next tree.
-		world.target = null
+		_aim(world, null)
 		return
-	world.target = Targeting.interactable_at(world)
+	# The focus is the nearest thing by the one rule; the target is that thing
+	# only when it can be acted on. Space over a refused focus (a tree without
+	# an axe) does nothing: the thing stays lit and named with what it needs,
+	# and the player stays where they are.
+	_aim(world, Targeting.interactable_at(world))
 	if world.target == null:
 		return
 	# Each verb has its own key. Space is read as held, the others as a press
@@ -92,11 +98,6 @@ static func update(world: World, dt: float) -> void:
 		wanted = bool(world.input["interact"])
 	if not wanted:
 		return
-	if chosen["disabled"] != null:
-		# Space does not walk to a thing it could not act on (a tree without
-		# an axe): the thing stays lit and named with what it needs.
-		_refuse(world, chosen)
-		return
 	if float(chosen["edge"]) > reach:
 		player.approach = {"entity": chosen["entity"], "stall": 0.0}
 		return
@@ -106,8 +107,15 @@ static func update(world: World, dt: float) -> void:
 	Targeting.start_interaction(world, chosen)
 
 
-## The refusal, said the way `start_interaction` says it: sentence-cased, and
-## facing the thing, so the player is seen to have tried.
+## Focus and target, set together: the focus is what is offered (refused or
+## not), the target is the focus only when nothing refuses it.
+static func _aim(world: World, focus: Variant) -> void:
+	world.focus = focus
+	world.target = focus if focus is Dictionary and (focus as Dictionary)["disabled"] == null else null
+
+
+## A refusal said aloud, sentence-cased and facing the thing: only for a walk
+## that ends because its thing stopped answering.
 static func _refuse(world: World, target: Dictionary) -> void:
 	var entity: Dictionary = target["entity"]
 	var player: PlayerState = world.player
@@ -121,12 +129,12 @@ static func _refuse(world: World, target: Dictionary) -> void:
 static func _advance_busy(world: World, player: PlayerState, states: Dictionary, dt: float) -> void:
 	var busy := player.busy as Dictionary
 	var entity: Variant = busy["entity"]
-	# The thing being worked stays the target through the swing (the viewer
+	# The thing being worked stays the focus through the swing (the viewer
 	# blanked it, and its prompt strip with it; here the lift and the label
 	# are on the thing, and would blink at every blow).
-	world.target = null
+	_aim(world, null)
 	if entity is Dictionary and Targeting.index_of(world.entities, entity) >= 0:
-		world.target = Targeting.target_for(world, entity as Dictionary)
+		_aim(world, Targeting.target_for(world, entity as Dictionary))
 	busy["elapsed"] = float(busy["elapsed"]) + dt
 	if float(busy["elapsed"]) < Targeting.state_duration(states.get(str(busy["state"]), null)):
 		return
@@ -139,7 +147,7 @@ static func _advance_busy(world: World, player: PlayerState, states: Dictionary,
 	player.busy = null
 	# The same tick: what the key would turn to now — the yield just thrown,
 	# before anything else — so the focus never blanks between blow and drop.
-	world.target = null if Targeting.yield_pending(world) else Targeting.interactable_at(world)
+	_aim(world, null if Targeting.yield_pending(world) else Targeting.interactable_at(world))
 
 
 static func _finish_take(world: World, player: PlayerState, entity: Dictionary) -> void:

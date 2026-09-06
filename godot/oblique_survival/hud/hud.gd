@@ -108,9 +108,10 @@ var _card_linger: float = 0.0
 var _message: Label = null
 var _message_panel: PanelContainer = null
 ## The two labels that stand in the world, outlined and unpanelled: the thing
-## under the pointer named above itself, and the thing in reach — the key's
-## target — named with what the key would do (`chop pine (1/3)`). When they
-## are the same thing the focus label alone speaks.
+## under the pointer named above itself, and the focus — the nearest thing
+## that could be acted on — named with what the key would do (`chop pine
+## (1/3)`) or what stands in the way (`chop pine · needs a Flint axe`). When
+## they are the same thing the focus label alone speaks.
 var _hover_label: RichTextLabel = null
 var _focus_label: RichTextLabel = null
 var _debug_panel: PanelContainer = null
@@ -128,7 +129,7 @@ var _world: Variant = null
 var _hover: Dictionary = {}
 ## Where the hovered thing's label hangs, in window pixels; (-1, -1) for none.
 var _anchor: Vector2 = Vector2(-1.0, -1.0)
-## The frame owner's read of `world.target` and where its label hangs.
+## The frame owner's read of `world.focus` and where its label hangs.
 var _focus: Variant = null
 var _focus_anchor: Vector2 = Vector2(-1.0, -1.0)
 var _hover_slot: int = -1
@@ -211,8 +212,9 @@ func set_hover(pick: Dictionary, anchor: Vector2 = Vector2(-1.0, -1.0)) -> void:
 	_anchor = anchor
 
 
-## What the key would act on (`world.target`, or null), and where its label
-## hangs in window pixels. The frame owner reads both every frame.
+## The focus (`world.focus`, or null): the nearest thing that could be acted
+## on, refused or not, and where its label hangs in window pixels. The frame
+## owner reads both every frame.
 func set_focus(target: Variant, anchor: Vector2 = Vector2(-1.0, -1.0)) -> void:
 	_focus = target
 	_focus_anchor = anchor
@@ -708,8 +710,8 @@ func flights_in_air() -> int:
 # World labels, message, debug
 # ===========================================================================
 
-## The two labels in the world. The focus label names the key's target with
-## what the key would do (the viewer's `#prompt`, moved from a strip above the
+## The two labels in the world. The focus label names the focus with what the
+## key would do (the viewer's `#prompt`, moved from a strip above the
 ## hotbar onto the thing itself); the hover label names the thing under the
 ## pointer, unless that is the target, or a slot's card is up (the pointer is
 ## on the panel then).

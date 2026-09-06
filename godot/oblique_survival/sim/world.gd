@@ -80,7 +80,13 @@ var events: Array = []
 ## Held: `x`, `z`, `interact`. One-shot (cleared by `Sim` after every step):
 ## everything else.
 var input: Dictionary = {}
-## The current interactable, or null.
+## The focus: the nearest thing that could be acted on, by one rule for
+## everything (a drop, a bush, a pine that wants an axe), or null. It is lit
+## and named on the screen whether or not the key can act on it now.
+var focus: Variant = null
+## The target: what the key acts on. The focus when it is available, null when
+## the focus is refused (a tool missing, the season barren) — the key and a
+## click pass over a refused thing rather than walk to it.
 var target: Variant = null
 ## The one light in the frame.
 var light: Dictionary = {"x": 0.0, "z": 0.0, "radius": 6.0, "on": false}

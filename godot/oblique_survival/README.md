@@ -75,13 +75,16 @@ walk back. The thing under the cursor lifts (a shade brighter and warmer, a
 material override on that one card) and is named above its own drawn top
 (`chop tree (1/3)`, `take Twigs ×2`, or just `pine · stump` when it offers
 nothing) rather than at the cursor, and the cursor becomes a hand over anything
-clickable. The thing **in reach** — the key's target, `world.target` — lifts
-the same way and is named in the accent colour with what Space would do to it
-(`mine boulder · needs a pickaxe`); that label replaced the prompt strip that
-stood above the hotbar, so nothing is pinned to the screen for it. A thing that
-cannot be acted on yet is still lit and named with what it needs, but neither
-Space nor a click walks the player to it: the refusal is said and the player
-stays put. What a thing offers is resolved from the package's list of
+clickable. The thing **in reach** — the focus, `world.focus`, the nearest thing
+that could be acted on by one rule for everything — lifts the same way and is
+named in the accent colour with what Space would do to it (`chop pine (1/3)`)
+or what stands in the way (`mine boulder · needs a pickaxe`); that label
+replaced the prompt strip that stood above the hotbar, so nothing is pinned to
+the screen for it. Focus and target are two things: the target (`world.target`)
+is the focus only when nothing refuses it. A thing that cannot be acted on yet
+is still the focus, lit and named with what it needs, but it is never the
+target — Space and a click pass over it in silence (the label has already said
+why) and the player stays put. What a thing offers is resolved from the package's list of
 interactions for it (`[[props.interactions]]`, each from the states it applies
 to, in priority order): the first whose state matches and whose tool is carried
 is the offer, so the dead snag is chopped with an axe and snapped for twigs by

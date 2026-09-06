@@ -2,8 +2,8 @@ class_name UiShots
 extends SceneTree
 
 ## The HUD's own contact sheet: the real scene in a real window, overlays on,
-## staged into the moments a player meets — a tree that needs an axe, named
-## and refused with the key held, the pack and a hovered tree at
+## staged into the moments a player meets — a tree that needs an axe, the
+## focus with the key held and passed over, the pack and a hovered tree at
 ## noon (lifted, named above itself), a slot's card, the worn places, a pickup
 ## in flight, a bush gathered by hand (its twigs flying from the bush), a
 ## held-button walk, a bite's red flood and the throb of starving, the
@@ -59,15 +59,20 @@ func _go() -> void:
 	_deafen()
 	var world = _main.world
 
-	# --- a thing that cannot be acted on: no axe, a pine clicked from afar ---
-	# The click makes the pine the target: it is lit and named with what it
-	# needs, the refusal is said in the strip, and half a second later the
-	# player has not moved toward it.
+	# --- a thing that cannot be acted on: no axe, a pine two metres off ---
+	# Standing nearest the pine makes it the focus by the one rule: lit and
+	# named with what it needs. The key is held for half a second and passed
+	# over it: nothing is said, and the player has not moved toward it.
+	var start := _camp()
 	var far_pine: Variant = _nearest_prop("pine", "grown")
 	if far_pine != null:
-		_main.click_at(_screen_of(float(far_pine["x"]), 2.2, float(far_pine["z"])))
+		var toward := Vector2(start.x - float(far_pine["x"]), start.z - float(far_pine["z"])).normalized() * 2.0
+		_teleport(float(far_pine["x"]) + toward.x, float(far_pine["z"]) + toward.y)
+		_main.press_key("space")
 		_main.advance(0.5)
 		await _save("ui-noon-refused.png")
+		_main.release_key("space")
+		_teleport(start.x, start.z)
 		_main.advance(0.3)
 
 	# --- noon: the pack filled, a tree under the pointer, a walk clicked ---

@@ -196,8 +196,8 @@ static func target_for(world: World, entity: Dictionary) -> Variant:
 	# The package lists what can be done to the prop in priority order, each
 	# entry from the states it applies to. The offer is the first available
 	# one for the prop's state; when none is, the first that applies is
-	# offered with its refusal, so the label says what the thing needs and
-	# the key knows not to walk there.
+	# offered with its refusal (`disabled`), so the thing is still the focus
+	# — lit and named with what it needs — while the key has no target in it.
 	var state := str(entity.get("state", ""))
 	var edge := _centre_distance(player, entity) - float(entity.get("radius", 0.0))
 	var refused: Variant = null
@@ -253,8 +253,11 @@ static func _prop_target(world: World, entity: Dictionary, spec: Variant, block:
 const FRESH_SECONDS := 1.5
 
 
-## The nearest thing the key would act on, within the notice radius, or null.
-## The nearest wins, drop or prop, so a log at the feet is taken before the
+## The focus: the nearest thing that could be acted on, within the notice
+## radius, or null — one rule for everything, refused or not (a pine without
+## an axe is the focus, with its refusal on it; `SysInteract` makes it the
+## target only when nothing refuses it). The nearest wins, drop or prop, so a
+## log at the feet is taken before the
 ## stump behind it is chopped — except that a yield on its way down, or one
 ## that has just landed, comes first whatever stands nearer: the stone the
 ## player has just mined is the thing they are looking at, and the held key
@@ -311,8 +314,8 @@ static func start_interaction(world: World, target: Dictionary) -> void:
 		float(entity["x"]) - player.x, float(entity["z"]) - player.z, world.camera_yaw, player.facing
 	)
 	if target["disabled"] != null:
-		var text := str(target["disabled"])
-		Helpers.say(world, text.substr(0, 1).to_upper() + text.substr(1) + ".")
+		# Never a target (`SysInteract._aim`); a caller that did not look is
+		# ignored rather than served.
 		return
 	if bool(target.get("item", false)):
 		# Taking a drop plays the same authored reach-and-lift as harvesting,

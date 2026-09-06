@@ -74,8 +74,10 @@ the picture gate ([decision 0058](decisions/0058-the-night-is-black-and-the-gate
 The game is played with the mouse as much as the keys: a click on a thing acts
 on it or walks to it, a click on the ground walks there and a held button keeps
 the walk on the pointer, the thing under the cursor lifts and is named above
-itself and so does the thing in reach (what the key would do, on the thing,
-rather than in a strip), the pack is a clickable hotbar with three worn places beside it (hand,
+itself and so does the focus — the nearest thing that could be acted on, by one
+rule, named with what the key would do or what it lacks, on the thing rather
+than in a strip; the key acts only when nothing refuses it, and a refused thing
+is passed over rather than walked to — the pack is a clickable hotbar with three worn places beside it (hand,
 body, back — only the worn cloak or pack counts) and a card that rises over the
 hovered slot with its Use, Drop or Take off, a pickup flies into its slot,
 Escape opens a pause menu whose how-to-play page holds the key legend, the

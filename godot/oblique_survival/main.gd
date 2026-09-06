@@ -663,8 +663,9 @@ func _refresh_hover() -> void:
 ## Every frame: the hovered thing's label anchor, projected afresh (the camera
 ## follows the player, so the point moves under a still cursor), the hover
 ## dropped when the thing has left the world (a piece just taken), and the
-## key's target (`world.target`) lifted and named the same way, so what is in
-## reach shows on the thing itself rather than in a strip.
+## focus (`world.focus`: the nearest thing that could be acted on, refused or
+## not) lifted and named the same way, so what is in reach shows on the thing
+## itself rather than in a strip.
 func _follow_hover() -> void:
 	var hud_node = modules.get("hud")
 	if hud_node == null or not hud_node.has_method("set_hover"):
@@ -682,12 +683,12 @@ func _follow_hover() -> void:
 		# still cursor is `bush · cut` now, not `gather bush` until the mouse moves.
 		_hover["target"] = Targeting.target_for(world, entity as Dictionary)
 	hud_node.set_hover(_hover, _label_anchor(entity, cards_node))
-	var target: Variant = world.target if world != null and not world.dead else null
-	var focus: Variant = (target as Dictionary).get("entity") if target is Dictionary else null
+	var focus: Variant = world.focus if world != null and not world.dead else null
+	var focused: Variant = (focus as Dictionary).get("entity") if focus is Dictionary else null
 	if cards_node != null and cards_node.has_method("set_focus"):
-		cards_node.set_focus(String((focus as Dictionary).get("id", "")) if focus is Dictionary else "")
+		cards_node.set_focus(String((focused as Dictionary).get("id", "")) if focused is Dictionary else "")
 	if hud_node.has_method("set_focus"):
-		hud_node.set_focus(target, _label_anchor(focus, cards_node))
+		hud_node.set_focus(focus, _label_anchor(focused, cards_node))
 
 
 ## Where an entity's label hangs on the screen: the drawn top of its card

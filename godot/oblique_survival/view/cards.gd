@@ -71,8 +71,9 @@ var _mode: String = "play"
 ## "". Re-applied every frame, because a card that was rebuilt (a state change,
 ## a season) comes back without its override.
 var _highlight_id: String = ""
-## The entity id the key would act on (`world.target`), lifted the same way so
-## the player sees what is in reach without a prompt strip saying so.
+## The entity id of the focus (`world.focus`: the nearest thing that could be
+## acted on, refused or not), lifted the same way so the player sees what is
+## in reach without a prompt strip saying so.
 var _focus_id: String = ""
 ## Template material instance id -> its lifted twin, made once per template
 ## the pointer has ever rested on and registered for the frame uniforms.
@@ -939,7 +940,7 @@ func set_highlight(entity_id: String) -> void:
 	_apply_highlight()
 
 
-## Lift the card of the thing in reach (the key's target), and let the last one
+## Lift the card of the thing in reach (the focus), and let the last one
 ## down. The same lift as the hover: the two coincide more often than not.
 func set_focus(entity_id: String) -> void:
 	if entity_id == _focus_id:

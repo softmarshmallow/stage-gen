@@ -82,18 +82,24 @@ func _refused_without_an_axe(h: TestHarness, w: World) -> void:
 	var target: Variant = Targeting.target_for(w, pine)
 	h.assert_eq(int((target as Dictionary)["hits"]), 3, "the bare hand would take three blows")
 	h.assert_eq(str((target as Dictionary)["disabled"]), "needs a Flint axe",
-		"but the tool is required, so the target is disabled")
+		"but the tool is required, so the offer is refused")
+	# Within reach, the key held: the pine is the focus (lit, named with what
+	# it needs) and not the target, so the key does nothing and says nothing —
+	# the label already says what is needed.
 	w.message = ""
 	for i in 30:
 		w.input["interact"] = true
 		Sim.step(w, SimFixture.STEP)
-	h.assert_eq(w.message, "Needs a Flint axe.", "the refusal is said, sentence-cased")
+	h.assert_true(w.focus != null and is_same((w.focus as Dictionary)["entity"], pine),
+		"the pine is the focus, by the one nearest rule")
+	h.assert_true(w.target == null, "and not the target")
+	h.assert_eq(w.message, "", "the key is ignored in silence")
 	h.assert_eq(str(pine["state"]), "grown", "and the pine is untouched")
 	h.assert_eq(SimFixture.events_of(w, "hit").size(), 0, "no blow landed")
 	h.assert_true(w.player.busy == null, "and no swing was started")
 	# Three metres off, the held key does not walk to a thing it could not act
-	# on: the pine stays the lit, named target, the refusal is said, and the
-	# player stands where they were.
+	# on: the pine stays the lit, named focus and the player stands where they
+	# were.
 	pine["z"] = 3.5
 	w.player.approach = null
 	w.message = ""
@@ -103,16 +109,18 @@ func _refused_without_an_axe(h: TestHarness, w: World) -> void:
 	h.assert_true(w.player.approach == null, "no walk is committed to a refused thing")
 	h.assert_near(w.player.x, 0.0, 1e-6, "the player has not moved (x)")
 	h.assert_near(w.player.z, 0.0, 1e-6, "the player has not moved (z)")
-	h.assert_true(w.target != null and is_same((w.target as Dictionary)["entity"], pine),
-		"but the pine is still the target, lit and named with what it needs")
-	h.assert_eq(w.message, "Needs a Flint axe.", "and the refusal is said")
-	# Nor does a click on it.
+	h.assert_true(w.focus != null and is_same((w.focus as Dictionary)["entity"], pine),
+		"but the pine is still the focus, lit and named with what it needs")
+	h.assert_true(w.target == null, "with no target in it")
+	h.assert_eq(w.message, "", "and nothing is said")
+	# Nor does a click on it: passed over, the focus stays with the nearest rule.
 	w.input["interact"] = false
 	w.message = ""
 	w.input["click_entity"] = pine
 	Sim.step(w, SimFixture.STEP)
 	h.assert_true(w.player.approach == null, "a click on a refused thing commits no walk either")
-	h.assert_eq(w.message, "Needs a Flint axe.", "it says what is needed")
+	h.assert_true(w.target == null, "nor makes it the target")
+	h.assert_eq(w.message, "", "and is ignored in silence")
 	w.input["click_entity"] = null
 	# With the axe in the pack the same key walks there and fells it.
 	Inventory.inv_add(w, "axe", 1)
@@ -185,9 +193,16 @@ func _barren_in_winter(h: TestHarness, w: World) -> void:
 	h.assert_true(target != null, "the bush is still a target in winter")
 	h.assert_eq(str((target as Dictionary)["disabled"]), "bare in winter",
 		"the season's barren list disables it")
+	# The held key: the bush is the focus, labelled `bare in winter`, and not
+	# the target, so nothing is said and nothing starts.
 	w.message = ""
-	Targeting.start_interaction(w, target as Dictionary)
-	h.assert_eq(w.message, "Bare in winter.", "and the prompt says so, sentence-cased")
+	for i in 10:
+		w.input["interact"] = true
+		Sim.step(w, SimFixture.STEP)
+	w.input["interact"] = false
+	h.assert_true(w.focus != null and is_same((w.focus as Dictionary)["entity"], bush), "the bush is the focus")
+	h.assert_true(w.target == null, "and not the target")
+	h.assert_eq(w.message, "", "the key is passed over in silence")
 	h.assert_eq(str(bush["state"]), "full", "nothing was spent")
 	h.assert_true(w.player.busy == null, "and no swing was started")
 	SimFixture.force_season(w, "summer")
@@ -233,9 +248,9 @@ func _gathered_by_hand(h: TestHarness, w: World) -> void:
 	w.player.busy = null
 	w.dead = false
 	SimFixture.force_season(w, "summer")
-	h.assert_eq(str(((w.manifest["props"] as Dictionary)["twig_bush"]["interaction"] as Dictionary)["yield_to"]), "hand",
+	h.assert_eq(str((((w.manifest["props"] as Dictionary)["twig_bush"]["interactions"] as Array)[0] as Dictionary)["yield_to"]), "hand",
 		"the twig bush yields to the hand")
-	h.assert_eq(str(((w.manifest["props"] as Dictionary)["pine"]["interaction"] as Dictionary)["yield_to"]), "ground",
+	h.assert_eq(str((((w.manifest["props"] as Dictionary)["pine"]["interactions"] as Array)[0] as Dictionary)["yield_to"]), "ground",
 		"and the pine to the ground")
 	var bush := SimFixture.prop(w, "t1", "twig_bush", "full", 0.0, 0.5)
 	w.entities.append(bush)
