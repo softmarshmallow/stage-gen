@@ -17,34 +17,36 @@ extends RefCounted
 ## orders respect every declared edge — which is why the goldens agree under
 ## either.
 
-const SYSTEM_FILES := [
-	"res://genres/oblique_survival/systems/player_move.gd",
-	"res://genres/oblique_survival/systems/collide.gd",
-	"res://genres/oblique_survival/systems/interact.gd",
-	"res://genres/oblique_survival/systems/drops.gd",
-	"res://genres/oblique_survival/systems/select.gd",
-	"res://genres/oblique_survival/systems/use.gd",
-	"res://genres/oblique_survival/systems/craft.gd",
-	"res://genres/oblique_survival/systems/timers.gd",
-	"res://genres/oblique_survival/systems/mob_ai.gd",
-	"res://genres/oblique_survival/systems/vitals.gd",
-	"res://genres/oblique_survival/systems/player_anim.gd",
-	"res://genres/oblique_survival/systems/day_cycle.gd",
-	"res://genres/oblique_survival/systems/season.gd",
-	"res://genres/oblique_survival/systems/weather.gd",
-	"res://genres/oblique_survival/systems/firelight.gd",
-]
+## The systems, named by class rather than by path.
+##
+## A genre references what it composes by `class_name`, never by `res://`: a
+## simulation that can load a script can load anything, and the boundary test
+## refuses the whole family of ways that goes wrong.
+## Not a `const`: a global class is not a constant expression, so the list is
+## built when it is asked for.
+static func system_classes() -> Array:
+	return [
+		SurvivalPlayerMoveSystem,
+		SurvivalCollideSystem,
+		SurvivalInteractSystem,
+		SurvivalDropsSystem,
+		SurvivalSelectSystem,
+		SurvivalUseSystem,
+		SurvivalCraftSystem,
+		SurvivalTimersSystem,
+		SurvivalMobAiSystem,
+		SurvivalVitalsSystem,
+		SurvivalPlayerAnimSystem,
+		SurvivalDayCycleSystem,
+		SurvivalSeasonSystem,
+		SurvivalWeatherSystem,
+		SurvivalFirelightSystem,
+	]
 
 
 ## The roster as scripts, in registration order.
 static func scripts() -> Array:
-	var found: Array = []
-	for path in SYSTEM_FILES:
-		if not ResourceLoader.exists(path):
-			push_error("survival roster: %s is not in the project" % path)
-			continue
-		found.append(load(path))
-	return found
+	return system_classes()
 
 
 ## Seal the roster. Returns a `KernelSealed` or a `KernelRefusal`.

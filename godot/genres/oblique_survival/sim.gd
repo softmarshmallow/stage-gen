@@ -69,38 +69,47 @@ const ONE_SHOT_INPUT := {
 	"place_cancel": false,
 }
 
-static var _scripts: Dictionary = {}
-static var _warned: Dictionary = {}
-## The systems that are actually in the project, resolved once, in order. The
-## step walks this rather than re-resolving fifteen script paths sixty times a
-## second.
-static var _resolved: Array = []
+## The sealed roster, resolved once. The step walks it rather than re-sealing
+## fifteen declarations sixty times a second.
+static var _sealed: KernelSealed = null
 static var _resolved_done: bool = false
 
-## Sum microseconds per system id in `system_micros`. Off by default; the frame
-## owner's `profile` flag is what turns it on, and the smoke run is what asks
-## for that. A `Time.get_ticks_usec()` pair around every system is cheap but not
-## free, so the step is written twice rather than branching per system.
-static var profile: bool = false
+## Sum microseconds per system id. Off by default; the frame owner's `profile`
+## flag turns it on and the smoke run is what asks for that.
+##
+## A simulation may not read the wall clock — that is the whole basis of a
+## replay — so the timing comes from a probe the host passes in, and the host is
+## where `Time` is allowed to live.
+static var profile: bool = false:
+	set(value):
+		profile = value
+		if _sealed != null:
+			_sealed.probe = _probe if value else Callable()
+
+## The host's stopwatch, set with `profile`. Microseconds, monotonic.
+static var _probe: Callable = Callable()
+
 ## system id -> microseconds spent in `update` since `reset_profile`.
-static var system_micros: Dictionary = {}
+static var system_micros: Dictionary:
+	get:
+		return _sealed.system_micros if _sealed != null else {}
+
+## Hand the roster a way to time a system. The frame owner calls this once.
+static func set_probe(probe: Callable) -> void:
+	_probe = probe
+	if _sealed != null and profile:
+		_sealed.probe = probe
 
 static func reset_profile() -> void:
-	system_micros.clear()
+	if _sealed != null:
+		_sealed.system_micros.clear()
 
 ## One simulation step. The host writes `world.input` before calling.
 static func step(world: SurvivalWorld, dt: float) -> void:
 	if not _resolved_done:
 		_resolve()
-	if not profile:
-		for entry: Array in _resolved:
-			(entry[1] as GDScript).update(world, dt)
-	else:
-		for entry: Array in _resolved:
-			var id: String = entry[0]
-			var started := Time.get_ticks_usec()
-			(entry[1] as GDScript).update(world, dt)
-			system_micros[id] = int(system_micros.get(id, 0)) + (Time.get_ticks_usec() - started)
+	if _sealed != null:
+		_sealed.tick(world, dt)
 	clear_one_shots(world)
 
 ## Resolve the system scripts once. A system that is not in the project is
@@ -110,22 +119,15 @@ static func step(world: SurvivalWorld, dt: float) -> void:
 ## and running fourteen of fifteen systems would be a different game played
 ## quietly.
 static func _resolve() -> void:
+	_resolved_done = true
 	var sealed: Variant = SurvivalRoster.seal()
 	if not (sealed is KernelSealed):
 		push_error("sim: the roster was refused: %s" % (sealed as KernelRefusal).line())
-		_resolved = []
-		_resolved_done = true
+		_sealed = null
 		return
-	var found: Array = []
-	for full in (sealed as KernelSealed).order:
-		var id := String(full).trim_prefix("survival/")
-		var script := system_script(id)
-		if script == null:
-			push_error("sim: system '%s' sealed but not in the project" % id)
-			continue
-		found.append([id, script])
-	_resolved = found
-	_resolved_done = true
+	_sealed = sealed as KernelSealed
+	if profile:
+		_sealed.probe = _probe
 
 ## Advance the world by a span of simulated time, the way the viewer's
 ## `window.__survival.advance` does: whole fixed steps, at least one.
@@ -152,29 +154,15 @@ static func clear_one_shots(world: SurvivalWorld) -> void:
 	for key: String in ONE_SHOT_INPUT:
 		world.input[key] = ONE_SHOT_INPUT[key]
 
-## The script implementing a system id, or null when it is not in the project.
-static func system_script(id: String) -> GDScript:
-	if _scripts.has(id):
-		return _scripts[id]
-	var path := "res://genres/oblique_survival/systems/%s.gd" % id
-	var script: GDScript = null
-	if ResourceLoader.exists(path):
-		script = load(path)
-	# A script that failed to parse still loads, as an empty one; treat it as
-	# absent rather than erroring once per step for the rest of the run.
-	if script != null and not script.has_method("update"):
-		push_error("sim: system '%s' has no static update(world, dt)" % id)
-		script = null
-	_scripts[id] = script
-	return script
-
 ## Which system ids the project actually ships, in execution order.
 static func present_systems() -> Array[String]:
 	if not _resolved_done:
 		_resolve()
 	var found: Array[String] = []
-	for entry: Array in _resolved:
-		found.append(String(entry[0]))
+	if _sealed == null:
+		return found
+	for full in _sealed.order:
+		found.append(String(full).trim_prefix("survival/"))
 	return found
 
 

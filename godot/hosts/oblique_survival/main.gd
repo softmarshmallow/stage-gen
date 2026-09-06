@@ -109,6 +109,10 @@ var arg_overrides: Dictionary = {}
 var profile: bool = false:
 	set(value):
 		profile = value
+		# The simulation may not read the wall clock, so the host lends it one:
+		# a probe the sealed roster calls around each system when profiling is
+		# on, and nothing at all when it is off.
+		SurvivalSim.set_probe(Time.get_ticks_usec)
 		SurvivalSim.profile = value
 ## module id -> microseconds spent in `update` since `reset_profile`.
 var module_micros: Dictionary = {}

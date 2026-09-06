@@ -11,10 +11,12 @@ extends RefCounted
 var order: PackedStringArray = PackedStringArray()
 
 var _sequence: Array[KernelSystem] = []
-## Sum microseconds per system id since `reset_profile`. Off unless `profile` is
-## set: a `Time.get_ticks_usec()` pair around every system is cheap but not
-## free, and only the smoke run asks for it.
-var profile: bool = false
+## A stopwatch the host passes in, returning microseconds. Unset by default and
+## unset in every shipped frame: a kernel may not read the wall clock, because a
+## replay's whole basis is that a step is the same twice, so the host lends its
+## clock when it wants a measurement and takes it back afterwards.
+var probe: Callable = Callable()
+## system id -> microseconds spent in `update` since the caller last cleared it.
 var system_micros: Dictionary = {}
 
 
@@ -29,15 +31,15 @@ static func of(order: PackedStringArray, sequence: Array[KernelSystem]) -> Kerne
 ## frame queue is the caller's to clear, because what clears it is a property of
 ## the world rather than of the roster.
 func tick(world: Variant, step: Variant) -> void:
-	if not profile:
+	if not probe.is_valid():
 		for system in _sequence:
 			system.handler.call("update", world, step)
 		return
 	for system in _sequence:
-		var started := Time.get_ticks_usec()
+		var started: int = probe.call()
 		system.handler.call("update", world, step)
 		system_micros[system.id] = (
-			int(system_micros.get(system.id, 0)) + (Time.get_ticks_usec() - started)
+			int(system_micros.get(system.id, 0)) + (int(probe.call()) - started)
 		)
 
 

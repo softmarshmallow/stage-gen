@@ -1,6 +1,6 @@
 # The host contract
 
-> **Checked by:** `tests/contract/test_host_docs.py`
+> **Checked by:** `tests/contract/test_host_docs.py`, `tests/contract/test_godot_boundaries.py`
 
 A **host** plays one published run and starts no generation. This page states
 what every host owes, in terms no engine supplies: the layers and which way

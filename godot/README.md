@@ -29,8 +29,9 @@ Dependencies point inward and a layer never names one outside it. Only files
 under `hosts/` may extend a scene node, touch the filesystem, read the wall
 clock, draw an unseeded random number, or use an engine vector type; simulation
 state is scalars, arrays and dictionaries, so a world can be compared against
-another implementation of itself. A Python contract test enforces the direction
-and the deny-list; it lands with the kernel, and until then the rule is prose.
+another implementation of itself. `tests/contract/test_godot_boundaries.py`
+enforces the direction, the deny-list, the name prefixes, one scene per host and
+a `.uid` beside every script.
 
 Every `class_name` carries its layer or genre: `Kernel*`, `Host*` for the shared
 host half, and the recipe's own word for a genre and its host — `Survival*`,
