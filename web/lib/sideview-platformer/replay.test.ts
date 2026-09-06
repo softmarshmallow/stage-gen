@@ -182,6 +182,55 @@ async function bootReplay(script: Script = WALK_AND_TALK): Promise<Harness> {
   };
 }
 
+/**
+ * Fields the snapshot reads off a Phaser object rather than off the simulation.
+ *
+ * The golden hashes a scene, not a world: `replaySnapshot` reaches into sprites
+ * for a mob's alpha and drawn height, into the camera for its device-pixel
+ * zoom, and into a text object for the map label. Those are this host's
+ * opinion, and another host is allowed to disagree about them — so a port
+ * proved against this golden has to compare what the simulation decided and
+ * nothing else.
+ *
+ * `PARITY_EXCLUDE=1` drops exactly these, by name, everywhere they appear. What
+ * survives is the floor a port must match: positions, velocities, states,
+ * health, support and ladder ids, the drop-through phases, the inventory, the
+ * quest and dialogue state, the portals and the projectiles. Pictures cover
+ * what this list removes.
+ */
+const PARITY_EXCLUDE: readonly string[] = [
+  // read off a Phaser camera
+  "zoom",
+  // read off a Phaser sprite
+  "alpha",
+  "active",
+  "visible",
+  "liveSprite",
+  "renderBounds",
+  "climbAnimationPaused",
+  // read off a Phaser text object or a tween
+  "mapLabel",
+  "banner",
+  // measured against the renderer's glyph advances
+  "combatText",
+  // where this host's inventory panel puts a slot on screen
+  "expectedPanelX",
+  "expectedPanelY",
+];
+
+/**
+ * One question this list leaves open, deliberately.
+ *
+ * `inventory.slots[].x/y` is the same kind of thing as the two panel fields
+ * above — where a slot lands on screen — but `x` and `y` also name every
+ * position in the world, and the exclusion is by leaf name. They stay in, which
+ * means a port either lays its slots out by the same arithmetic or amends this
+ * list with a sentence when its panel changes. The `slot_cell` work in TODO.md
+ * changes that panel, so the sentence is already owed.
+ */
+
+const EXCLUDING = process.env.PARITY_EXCLUDE === "1";
+
 function plain(value: unknown): unknown {
   if (value instanceof Set) return [...value].map(plain).sort();
   if (value instanceof Map) return [...value.entries()].map(([key, entry]) => [plain(key), plain(entry)]);
@@ -190,6 +239,7 @@ function plain(value: unknown): unknown {
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {};
     for (const key of Object.keys(value).sort()) {
+      if (EXCLUDING && PARITY_EXCLUDE.includes(key)) continue;
       const inner = plain((value as Record<string, unknown>)[key]);
       if (inner !== undefined) out[key] = inner;
     }
@@ -304,6 +354,11 @@ describe("the platformer replays to its golden", () => {
       if (process.env.REPLAY_FRAMES) {
         await Bun.write(process.env.REPLAY_FRAMES, `${frames.join("\n")}\n`);
       }
+      // A dropped field changes every digest by being absent, which says nothing
+      // about behaviour, so the pinned chain does not apply while excluding —
+      // the same rule the runner's slice restriction keeps. The dump is still
+      // written, which is the whole reason to run this way.
+      if (EXCLUDING) return;
       expect(seen).toEqual(GOLDEN);
       // What the six hundred frames are actually a recording of. A script that silently stopped
       // covering the map transition or the population would still hash to something stable, and a
@@ -388,6 +443,7 @@ describe("the platformer replays its defeat run to a golden of its own", () => {
       if (process.env.REPLAY_FRAMES) {
         await Bun.write(process.env.REPLAY_FRAMES, `${frames.join("\n")}\n`);
       }
+      if (EXCLUDING) return;
       expect(seen).toEqual(DEFEAT_GOLDEN);
       // What this recording is of, and the whole reason it exists: the two
       // event kinds the first run cannot produce, `player-defeated` and

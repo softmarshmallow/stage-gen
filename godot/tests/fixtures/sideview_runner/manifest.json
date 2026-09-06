@@ -1,0 +1,372 @@
+{
+  "schema_version": 13,
+  "kind": "sideview-runner-runtime-v13",
+  "blocks": {
+    "presentation": "runner-presentation-block-v1",
+    "camera": "runner-camera-block-v1",
+    "scale": "runner-scale-block-v1",
+    "gameplay": "runner-gameplay-block-v1",
+    "ground": "runner-ground-block-v1",
+    "layers": "runner-layers-block-v1",
+    "segments": "runner-segments-block-v1",
+    "avatar": "runner-avatar-block-v1",
+    "props": "runner-props-block-v1",
+    "items": "runner-items-block-v1",
+    "bosses": "runner-bosses-block-v1",
+    "projectiles": "runner-projectiles-block-v1",
+    "audio": "runner-audio-block-v1",
+    "soundtrack": "runner-soundtrack-block-v1",
+    "fx": "fx-block-v1"
+  },
+  "game_id": "bellweather",
+  "display_name": "Bellweather",
+  "track_id": "sunpetal-sprint",
+  "track_display_name": "Sunpetal Sprint",
+  "package_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "presentation": {
+    "view_profile": "side_view_2d",
+    "gameplay_space": "side_plane",
+    "contact_shadows": {
+      "enabled": true,
+      "opacity": 0.18,
+      "softness_screen_pixels": 6
+    }
+  },
+  "camera": {
+    "mode": "auto_run_x_v1"
+  },
+  "scale": {
+    "player_height_tiles": 2.4,
+    "tile_px": 64
+  },
+  "gameplay": {
+    "speed_profile": "steady_runner_v1",
+    "jump_profile": "double_arc_v1",
+    "collision_box": "torso_v1",
+    "duck_profile": "slide_v1",
+    "consequences": {
+      "hazard": "drain_v1",
+      "pit": "drain_and_recover_v1",
+      "crush": "end_run_v1",
+      "shot": null
+    },
+    "encounter": null,
+    "vitals": {
+      "profile": "three_point_v1",
+      "max_points": 3,
+      "hurt_representation": "blink_v1"
+    },
+    "ramp_profile": "gentle_ramp_v1",
+    "max_clear_gap_columns": 3,
+    "max_rise_tiles": 2,
+    "jump_peak_margin_tiles": 0.75,
+    "airtime_headroom": 1.15,
+    "base_speed_columns_per_second": 6,
+    "max_speed_multiplier": 1.5,
+    "avatar_half_width_columns": 0.3,
+    "hazard_column_inset": 0.15,
+    "ducked_height_fraction": 0.5,
+    "min_overhead_clearance_rows": 0.25
+  },
+  "ground": {
+    "atlas": "world/ground.png",
+    "mode": "terrain-atlas-3x3-minimal-v1",
+    "vertical_fit": "floor_to_screen_bottom"
+  },
+  "layers": [
+    {
+      "layer_id": "meadow_sky",
+      "plane": "background",
+      "order": 0,
+      "parallax": 0.05,
+      "alpha_mode": "opaque",
+      "vertical_anchor": "canvas_cover",
+      "vertical_offset": null,
+      "image": "world/layers/meadow_sky.png",
+      "width": 1536,
+      "height": 1024,
+      "presentation": {
+        "contrast": 0.95,
+        "saturation": 0.9,
+        "atmosphere_color": "#bcd6ef",
+        "atmosphere_strength": 0.12,
+        "detail_blur_screen_pixels": 1.2
+      }
+    }
+  ],
+  "segments": {
+    "rows": 8,
+    "walk_surface_row": 5,
+    "chunks": [
+      {
+        "segment_id": "meadow_flat",
+        "difficulty": 1,
+        "occupancy": [
+          "000000000000",
+          "000000000000",
+          "000000000000",
+          "000000000000",
+          "000000000000",
+          "111111111111",
+          "111111111111",
+          "111111111111"
+        ],
+        "hazards": [
+          {
+            "prop_id": "toppled_cart",
+            "column": 6,
+            "anchor": "surface",
+            "clearance_rows": null
+          }
+        ],
+        "pickups": [
+          {
+            "item_id": "sunleaf_token",
+            "column": 6,
+            "row": 2
+          }
+        ]
+      }
+    ]
+  },
+  "avatar": {
+    "avatar_id": "wayfarer_sprinter",
+    "display_name": "Wayfarer Sprinter",
+    "concept": "avatar/concept.png",
+    "calibration": {
+      "height_units": 1,
+      "height_units_source": "definition",
+      "source_px_per_unit": 812.3,
+      "measured_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "subject_extent_px": 812
+    },
+    "motions": [
+      {
+        "state": "run",
+        "playback_mode": "loop",
+        "canonical_frame_indices": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "frames_per_second": 10,
+        "anchor": "bottom",
+        "atlas": "avatar/run.png",
+        "columns": 4,
+        "rebase_multiplier": 1
+      },
+      {
+        "state": "jump",
+        "playback_mode": "once",
+        "canonical_frame_indices": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "frames_per_second": 10,
+        "anchor": "bottom",
+        "atlas": "avatar/jump.png",
+        "columns": 4,
+        "rebase_multiplier": 1
+      },
+      {
+        "state": "slide",
+        "playback_mode": "once",
+        "canonical_frame_indices": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "frames_per_second": 10,
+        "anchor": "bottom",
+        "atlas": "avatar/slide.png",
+        "columns": 4,
+        "rebase_multiplier": 1
+      },
+      {
+        "state": "death",
+        "playback_mode": "once",
+        "canonical_frame_indices": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "frames_per_second": 10,
+        "anchor": "bottom",
+        "atlas": "avatar/death.png",
+        "columns": 4,
+        "rebase_multiplier": 1
+      }
+    ]
+  },
+  "props": [
+    {
+      "prop_id": "toppled_cart",
+      "display_name": "Toppled Cart",
+      "image": "catalog/props/toppled_cart.png",
+      "calibration": {
+        "height_units": 1,
+        "height_units_source": "definition",
+        "source_px_per_unit": 812.3,
+        "measured_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "subject_extent_px": 812
+      }
+    }
+  ],
+  "items": [
+    {
+      "item_id": "sunleaf_token",
+      "display_name": "Sunleaf Token",
+      "image": "catalog/items/sunleaf_token.png",
+      "calibration": {
+        "height_units": 1,
+        "height_units_source": "definition",
+        "source_px_per_unit": 812.3,
+        "measured_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "subject_extent_px": 812
+      }
+    }
+  ],
+  "bosses": [],
+  "projectiles": [],
+  "audio": {
+    "music": {
+      "death": {
+        "action": "pause",
+        "fade_seconds": 0.6,
+        "curve": "exponential"
+      },
+      "restart": {
+        "action": "resume",
+        "fade_seconds": 0.3,
+        "curve": "linear"
+      },
+      "hurt": {
+        "duck_gain": 0.5,
+        "fade_seconds": 0.04,
+        "hold_seconds": 0.15,
+        "recovery_seconds": 0.5,
+        "curve": "linear"
+      }
+    },
+    "bindings": {
+      "stage_start": "mira_go",
+      "takeoff": "takeoff_whistle",
+      "air_jump": "air_jump_whistle",
+      "land": "soft_landing",
+      "slide": "leaf_slide",
+      "hazard_cleared": "clear_sparkle",
+      "collect": "token_chime",
+      "hurt": "soft_landing",
+      "death": "run_ended"
+    },
+    "effects": [
+      {
+        "effect_id": "takeoff_whistle",
+        "display_name": "Takeoff Whistle",
+        "realization": {
+          "kind": "oscillator_sweep_v1",
+          "waveform": "triangle",
+          "start_frequency_hz": 330,
+          "end_frequency_hz": 660,
+          "duration_milliseconds": 120,
+          "gain": 0.16,
+          "strength_pitch_multiplier": 0
+        }
+      },
+      {
+        "effect_id": "air_jump_whistle",
+        "display_name": "Air Jump Whistle",
+        "realization": {
+          "kind": "oscillator_sweep_v1",
+          "waveform": "triangle",
+          "start_frequency_hz": 440,
+          "end_frequency_hz": 990,
+          "duration_milliseconds": 120,
+          "gain": 0.16,
+          "strength_pitch_multiplier": 0
+        }
+      },
+      {
+        "effect_id": "soft_landing",
+        "display_name": "Soft Landing",
+        "realization": {
+          "kind": "oscillator_sweep_v1",
+          "waveform": "sine",
+          "start_frequency_hz": 220,
+          "end_frequency_hz": 160,
+          "duration_milliseconds": 80,
+          "gain": 0.12,
+          "strength_pitch_multiplier": 0
+        }
+      },
+      {
+        "effect_id": "leaf_slide",
+        "display_name": "Leaf Slide",
+        "realization": {
+          "kind": "oscillator_sweep_v1",
+          "waveform": "sawtooth",
+          "start_frequency_hz": 200,
+          "end_frequency_hz": 120,
+          "duration_milliseconds": 160,
+          "gain": 0.07,
+          "strength_pitch_multiplier": 0
+        }
+      },
+      {
+        "effect_id": "clear_sparkle",
+        "display_name": "Clear Sparkle",
+        "realization": {
+          "kind": "oscillator_sweep_v1",
+          "waveform": "sine",
+          "start_frequency_hz": 520,
+          "end_frequency_hz": 780,
+          "duration_milliseconds": 100,
+          "gain": 0.1,
+          "strength_pitch_multiplier": 0
+        }
+      },
+      {
+        "effect_id": "token_chime",
+        "display_name": "Token Chime",
+        "realization": {
+          "kind": "oscillator_sweep_v1",
+          "waveform": "sine",
+          "start_frequency_hz": 660,
+          "end_frequency_hz": 880,
+          "duration_milliseconds": 90,
+          "gain": 0.12,
+          "strength_pitch_multiplier": 1
+        }
+      },
+      {
+        "effect_id": "run_ended",
+        "display_name": "Run Ended",
+        "realization": {
+          "kind": "generated_clip_v1",
+          "clip": "audio/run_ended.mp3",
+          "duration_seconds": 1,
+          "gain": 0.5,
+          "strength_pitch_multiplier": 0
+        }
+      },
+      {
+        "effect_id": "mira_go",
+        "display_name": "Mira: Here We Go",
+        "realization": {
+          "kind": "spoken_line_v1",
+          "clip": "audio/mira_go.mp3",
+          "duration_seconds": 2.01,
+          "gain": 0.7,
+          "strength_pitch_multiplier": 0
+        }
+      }
+    ]
+  },
+  "soundtrack": null,
+  "fx": null
+}

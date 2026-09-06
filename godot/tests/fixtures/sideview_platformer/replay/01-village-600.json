@@ -1,0 +1,8 @@
+{
+  "name": "01-village-600",
+  "genre": "sideview_platformer",
+  "frames": 600,
+  "digest_every": 20,
+  "notes": "The browser platformer's own replay golden, restricted to what the simulation decided. Its snapshot hashes a Phaser scene, so a mob's alpha and drawn height, the camera's device-pixel zoom, the map label, the banner and the combat text are this host's opinion and another host is allowed to disagree about them; `PARITY_EXCLUDE=1` drops exactly those, by the list committed in web/lib/sideview-platformer/replay.test.ts. What survives is 103 leaf fields at frame 300: player position, velocity, state, health, support and ladder ids and the six drop-through phases; mob position, health and state; platforms, climbables, portals; the inventory, the progression, the quests and the dialogue; the camera's scroll; the soundtrack's track ids. That is the floor the Godot port must match line for line. Pictures cover what the list removes. Reproduce with `PARITY_EXCLUDE=1 REPLAY_DUMP=<path> REPLAY_FRAMES=<path> bun test lib/sideview-platformer/replay.test.ts`.",
+  "script": "web/lib/sideview-platformer/replay.test.ts, the village run"
+}
