@@ -53,6 +53,12 @@ ITEM_USES: Final = ("consume", "light", "carry", "wear", "warm")
 #: world.toml's own identity: the world's extent, its landmass, its biome
 #: rules, its set pieces and the population order.
 WORLD_KIND: Final = "oblique-survival-world-v1"
+#: ``props.toml``'s identity. v3: a scattered prop must offer an interaction.
+PROPS_KIND: Final = "oblique-survival-props-v3"
+#: ``ground.toml``'s identity. v2: the forage is the only sheet of ground
+#: pieces, and each of its cells carries its size; ``[clutter]`` and
+#: ``[plants]`` are refused by name.
+GROUND_KIND: Final = "oblique-survival-ground-v2"
 #: What an object's ``edge`` preference may be measured from.
 EDGE_FIELDS: Final = ("water", "biome", "road", "set_piece")
 
@@ -630,47 +636,25 @@ class Water:
     cliff_colour: tuple[float, float, float]
 
 
-@dataclass(frozen=True, slots=True)
-class ClutterCell:
-    """One litter cutout: what it is, how it meets the ground, where it may land."""
-
-    brief: str
-    contact: str
-    biomes: tuple[str, ...]
-    #: This cell's own placement, replacing the sheet's for this cell alone.
-    placement: Placement | None = None
-
-
-CLUTTER_CONTACTS: Final = ("pressed", "fallen", "growing")
-
-
-@dataclass(frozen=True, slots=True)
-class Clutter:
-    """One sheet of small ground-litter cutouts, scattered flat at true scale."""
-
-    columns: int
-    rows: int
-    cell_meters: float
-    #: How the sheet's cells are scattered; a cell may carry its own.
-    placement: Placement
-    cells: tuple[ClutterCell, ...]
-    #: Drawing direction for the sheet only, stated after the package's so it
-    #: wins: the first sheet came back glossy, and the plates are matte.
-    style_emphasis: str
-    #: An auditioned sheet adopted through the lattice gate (explore/ground-audition/).
-    take: str | None
-
-    @property
-    def cell_count(self) -> int:
-        return self.columns * self.rows
-
-    def cells_for(self, biome_id: str) -> tuple[int, ...]:
-        return tuple(index for index, cell in enumerate(self.cells) if biome_id in cell.biomes)
+#: How a ground piece meets the ground, as its brief says it: pressed into it,
+#: fallen onto it, or growing out of it. The forage sheet's cells declare one
+#: each; the prompt turns it into the contact clause and the light rule.
+PIECE_CONTACTS: Final = ("pressed", "fallen", "growing")
 
 
 @dataclass(frozen=True, slots=True)
 class ForageCell:
-    """One forageable cutout: a litter cell that also names what taking it yields."""
+    """One forageable cutout: what it is, how it meets the ground, where it
+    may land, what taking it yields, and how big it is in the world.
+
+    ``size_units`` is the piece's canonical size — its longest extent in
+    player heights — authored like a prop's ``height_units`` and for the same
+    reason: an image model returns no size, a cell's pixels only supply a
+    ruler, and a thing the player must find and click has to be sized by the
+    author against the package floor, never read off the drawing. The
+    manifest calibrates each cell from its own painted extent against this
+    number and keeps the drawing's own opinion beside it as a recorded drift.
+    """
 
     brief: str
     contact: str
@@ -678,50 +662,28 @@ class ForageCell:
     item_id: str
     count: int
     regrow_seconds: float
+    size_units: float
     placement: Placement | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class Forage:
-    """One sheet of pickups lying on the ground, scattered flat like the litter."""
+    """One sheet of pickups lying on the ground, scattered flat by the layout.
+
+    The only sheet of ground pieces there is. Every cell yields an item, so
+    every piece the layout lays is a thing the player can act on: the world
+    generator places nothing the player cannot act on (decision 0060), and a
+    sheet of pure decoration is refused by name at the loader.
+    """
 
     columns: int
     rows: int
+    #: The drawing scale of the lattice: how much real ground one cell spans.
+    #: The prompt states it, so every piece on the sheet is drawn at one
+    #: shared scale; the world size of each piece is its own ``size_units``.
     cell_meters: float
     placement: Placement
     cells: tuple[ForageCell, ...]
-    style_emphasis: str
-    take: str | None
-
-    @property
-    def cell_count(self) -> int:
-        return self.columns * self.rows
-
-    def cells_for(self, biome_id: str) -> tuple[int, ...]:
-        return tuple(index for index, cell in enumerate(self.cells) if biome_id in cell.biomes)
-
-
-@dataclass(frozen=True, slots=True)
-class PlantCell:
-    """One standing plant: what it is, how it meets the ground, where it may grow."""
-
-    brief: str
-    contact: str
-    biomes: tuple[str, ...]
-    placement: Placement | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class Plants:
-    """The mid-scale: one sheet of knee- to waist-high plants, scattered by the
-    layout like the litter but stood up as cards at true size. Not a prop:
-    nothing here is interactable, and there are thousands of them."""
-
-    columns: int
-    rows: int
-    cell_meters: float
-    placement: Placement
-    cells: tuple[PlantCell, ...]
     style_emphasis: str
     take: str | None
 
@@ -1194,11 +1156,9 @@ class Package:
     decals: tuple[Decal, ...]
     macro: MacroPlate | None
     road: Road | None
-    clutter: Clutter | None
-    #: ground.toml [forage]: the pickups lying on the ground. Optional like the litter.
+    #: ground.toml [forage]: the pickups lying on the ground, the one sheet of
+    #: ground pieces. Optional: a package may have nothing to pick up.
     forage: Forage | None
-    #: ground.toml [plants]: the standing mid-scale. Optional like the litter.
-    plants: Plants | None
     water: Water | None
     #: ground.toml [blend]: the viewer's composition numbers. Mixing, never
     #: identity; see BLEND_KEYS.

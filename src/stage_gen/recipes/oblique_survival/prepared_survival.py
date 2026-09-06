@@ -91,9 +91,6 @@ from stage_gen.recipes.oblique_survival.survival_graph import (
 )
 from stage_gen.recipes.oblique_survival.survival_types import (
     ACTOR_CONCEPT,
-    CLUTTER_ADOPT,
-    CLUTTER_GENERATE,
-    CLUTTER_VALIDATE,
     CONTRACT_VERSION_PREFIX,
     DECAL_GENERATE,
     DECAL_VALIDATE,
@@ -120,11 +117,6 @@ from stage_gen.recipes.oblique_survival.survival_types import (
     MUSIC_GENERATE,
     MUSIC_VALIDATE,
     PACKAGE_MANIFEST,
-    PLANTS_ADOPT,
-    PLANTS_GENERATE,
-    PLANTS_LOOK_GENERATE,
-    PLANTS_LOOK_VALIDATE,
-    PLANTS_VALIDATE,
     PRESENTATION_PROFILE,
     PROP_ANCHOR,
     PROP_GENERATE,
@@ -185,9 +177,9 @@ SheetGate = Callable[[bytes], tuple[bytes, dict[str, object]]]
 class SheetLattice(Protocol):
     """What the sheet handlers need of a lattice: its grid and its adopted take.
 
-    The litter, the forage, the plants and the icon sheet are four authored types
-    with four cell types and one drawing route, so what they share is stated here
-    rather than passed as an untyped object. The manifest declares its own, wider
+    The forage and the icon sheet are two authored types with two cell types
+    and one drawing route, so what they share is stated here rather than
+    passed as an untyped object. The manifest declares its own, wider
     protocol: it reads the cells, and this one only draws the grid.
     """
 
@@ -655,17 +647,9 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
             (MACRO_CANONICALIZE, self._macro_canonicalize),
             (ROAD_GENERATE, self._road_generate),
             (ROAD_CANONICALIZE, self._road_canonicalize),
-            (CLUTTER_GENERATE, self._clutter_generate),
-            (CLUTTER_ADOPT, self._clutter_adopt),
-            (CLUTTER_VALIDATE, self._clutter_validate),
             (FORAGE_GENERATE, self._forage_generate),
             (FORAGE_ADOPT, self._forage_adopt),
             (FORAGE_VALIDATE, self._forage_validate),
-            (PLANTS_GENERATE, self._plants_generate),
-            (PLANTS_ADOPT, self._plants_adopt),
-            (PLANTS_VALIDATE, self._plants_validate),
-            (PLANTS_LOOK_GENERATE, self._plants_look_generate),
-            (PLANTS_LOOK_VALIDATE, self._plants_look_validate),
             (ICONS_GENERATE, self._icons_generate),
             (ICONS_ADOPT, self._icons_adopt),
             (ICONS_VALIDATE, self._icons_validate),
@@ -1851,9 +1835,9 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
         )
         return self._result(node)
 
-    # -- piece sheets: the litter, the forage, the icons -----------------------------
+    # -- piece sheets: the forage, the icons -------------------------------------------
     #
-    # Three lattices, one handler shape each for generate, adopt and validate,
+    # Two lattices, one handler shape each for generate, adopt and validate,
     # parametrised on the sheet. ``contacts`` is None for the icons: an icon
     # has no ground to meet.
 
@@ -1864,7 +1848,7 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
         contacts: Sequence[str] | None,
         coverage: tuple[float, float],
         halo: bool = False,
-        inset_fraction: float = gates.CLUTTER_CELL_INSET,
+        inset_fraction: float = gates.SHEET_CELL_INSET,
     ) -> tuple[SheetGate, bytes, str, int]:
         # Only the icon sheet authors its own cell size; the ground sheets take
         # the lattice's.
@@ -1873,7 +1857,7 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
         template = self._path(template_ref).read_bytes()
 
         def gate(data: bytes) -> tuple[bytes, dict[str, object]]:
-            return gates.gate_clutter_sheet(
+            return gates.gate_piece_sheet(
                 data,
                 columns=sheet.columns,
                 rows=sheet.rows,
@@ -1969,7 +1953,7 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
         contacts: Sequence[str] | None,
         coverage: tuple[float, float],
         halo: bool = False,
-        inset_fraction: float = gates.CLUTTER_CELL_INSET,
+        inset_fraction: float = gates.SHEET_CELL_INSET,
         source_ref: str,
         kind: str,
         model: str,
@@ -2000,45 +1984,6 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
         )
         return self._result(node)
 
-    async def _clutter_generate(self, node: Node) -> NodeExecutionResult:
-        clutter = self.package.clutter
-        assert clutter is not None
-        return await self._sheet_generate(
-            node,
-            clutter,
-            contacts=[cell.contact for cell in clutter.cells],
-            coverage=gates.CLUTTER_CELL_COVERAGE,
-            operation_id="survival.ground.clutter",
-        )
-
-    async def _clutter_adopt(self, node: Node) -> NodeExecutionResult:
-        clutter = self.package.clutter
-        assert clutter is not None
-        return await self._sheet_adopt(
-            node,
-            clutter,
-            contacts=[cell.contact for cell in clutter.cells],
-            coverage=gates.CLUTTER_CELL_COVERAGE,
-            kind="oblique-survival-clutter-adoption-v1",
-            model="ground-clutter-adopt",
-            label="litter sheet",
-        )
-
-    async def _clutter_validate(self, node: Node) -> NodeExecutionResult:
-        clutter = self.package.clutter
-        assert clutter is not None
-        return await self._sheet_validate(
-            node,
-            clutter,
-            contacts=[cell.contact for cell in clutter.cells],
-            coverage=gates.CLUTTER_CELL_COVERAGE,
-            source_ref="production/ground/clutter.source.png",
-            kind="oblique-survival-clutter-validation-v1",
-            model="ground-clutter",
-            extra={"cell_meters": clutter.cell_meters},
-            what="litter",
-        )
-
     async def _forage_generate(self, node: Node) -> NodeExecutionResult:
         forage = self.package.forage
         assert forage is not None
@@ -2046,7 +1991,7 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
             node,
             forage,
             contacts=[cell.contact for cell in forage.cells],
-            coverage=gates.CLUTTER_CELL_COVERAGE,
+            coverage=gates.PIECE_CELL_COVERAGE,
             operation_id="survival.ground.forage",
         )
 
@@ -2057,7 +2002,7 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
             node,
             forage,
             contacts=[cell.contact for cell in forage.cells],
-            coverage=gates.CLUTTER_CELL_COVERAGE,
+            coverage=gates.PIECE_CELL_COVERAGE,
             kind="oblique-survival-forage-adoption-v1",
             model="ground-forage-adopt",
             label="forage sheet",
@@ -2070,7 +2015,7 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
             node,
             forage,
             contacts=[cell.contact for cell in forage.cells],
-            coverage=gates.CLUTTER_CELL_COVERAGE,
+            coverage=gates.PIECE_CELL_COVERAGE,
             source_ref="production/ground/forage.source.png",
             kind="oblique-survival-forage-validation-v1",
             model="ground-forage",
@@ -2079,106 +2024,6 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
                 "items": [cell.item_id for cell in forage.cells],
             },
             what="forage",
-        )
-
-    async def _plants_generate(self, node: Node) -> NodeExecutionResult:
-        plants = self.package.plants
-        assert plants is not None
-        return await self._sheet_generate(
-            node,
-            plants,
-            contacts=[cell.contact for cell in plants.cells],
-            coverage=gates.PLANT_CELL_COVERAGE,
-            halo=True,
-            operation_id="survival.ground.plants",
-        )
-
-    async def _plants_adopt(self, node: Node) -> NodeExecutionResult:
-        plants = self.package.plants
-        assert plants is not None
-        return await self._sheet_adopt(
-            node,
-            plants,
-            contacts=[cell.contact for cell in plants.cells],
-            coverage=gates.PLANT_CELL_COVERAGE,
-            halo=True,
-            kind="oblique-survival-plants-adoption-v1",
-            model="ground-plants-adopt",
-            label="plant sheet",
-        )
-
-    async def _plants_validate(self, node: Node) -> NodeExecutionResult:
-        plants = self.package.plants
-        assert plants is not None
-        return await self._sheet_validate(
-            node,
-            plants,
-            contacts=[cell.contact for cell in plants.cells],
-            coverage=gates.PLANT_CELL_COVERAGE,
-            halo=True,
-            source_ref="production/ground/plants.source.png",
-            kind="oblique-survival-plants-validation-v1",
-            model="ground-plants",
-            extra={"cell_meters": plants.cell_meters},
-            what="plant",
-        )
-
-    async def _plants_look_generate(self, node: Node) -> NodeExecutionResult:
-        """The plant sheet repainted for a season: the summer SOURCE sheet
-        (guides and all) as image 1, the style plate as image 2, gated on the
-        same lattice as the summer. The cells are recovered afresh, so a cap
-        that grows a plant's bounds is recorded, not refused."""
-
-        plants = self.package.plants
-        assert plants is not None
-        look_id = str(node.params["look"])
-        summer_ref = "production/ground/plants.source.png"
-        summer = self._path(summer_ref).read_bytes()
-        gate, _template, _template_ref, cell_px = self._sheet_gate(
-            plants,
-            contacts=[cell.contact for cell in plants.cells],
-            coverage=gates.PLANT_CELL_COVERAGE,
-            halo=True,
-            # A cap grows a plant that already fills its cell: the look may
-            # reach the cut, as long as the guides are found intact.
-            inset_fraction=0.0,
-        )
-
-        def validate(artifact: BinaryArtifact) -> dict[str, object]:
-            _canonical, record = gate(artifact.data)
-            return record
-
-        return await self._generate_image(
-            node,
-            size=(plants.columns * cell_px, plants.rows * cell_px),
-            background="transparent" if templates.LATTICE_TRANSPARENT else "opaque",
-            references=(
-                ImageReference(
-                    url=_inline_data_url(summer, "image/png"),
-                    provenance_ref=self._run_ref(summer_ref),
-                ),
-                *self.style_plate,
-            ),
-            validate=validate,
-            operation_id=f"survival.season.{look_id}.plants",
-        )
-
-    async def _plants_look_validate(self, node: Node) -> NodeExecutionResult:
-        plants = self.package.plants
-        assert plants is not None
-        look_id = str(node.params["look"])
-        return await self._sheet_validate(
-            node,
-            plants,
-            contacts=[cell.contact for cell in plants.cells],
-            coverage=gates.PLANT_CELL_COVERAGE,
-            halo=True,
-            inset_fraction=0.0,
-            source_ref=f"production/ground/plants.{look_id}.source.png",
-            kind="oblique-survival-plants-look-validation-v1",
-            model=f"ground-plants-{look_id}",
-            extra={"cell_meters": plants.cell_meters, "look": look_id},
-            what=f"{look_id} plant",
         )
 
     async def _icons_generate(self, node: Node) -> NodeExecutionResult:
@@ -2726,12 +2571,8 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
                         manifest_module.road_ref(self.package.road.road_id),
                     )
                 )
-            if self.package.clutter is not None:
-                extras.append(("litter sheet", manifest_module.clutter_ref()))
             if self.package.forage is not None:
                 extras.append(("forage sheet", manifest_module.forage_ref()))
-            if self.package.plants is not None:
-                extras.append(("plant sheet", manifest_module.plants_ref()))
             if self.package.water is not None:
                 extras.append(("water", manifest_module.water_ref()))
             for condition in self.package.weather:
@@ -2778,12 +2619,6 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
                             assets.append(
                                 (f"{prop.prop_id} {state} {look.look_id}", season.read_bytes())
                             )
-                if self.package.plants is not None:
-                    summer = self._path(manifest_module.plants_ref())
-                    season = self._path(manifest_module.plants_look_ref(look.look_id))
-                    if summer.is_file() and season.is_file():
-                        assets.append(("plant sheet", summer.read_bytes()))
-                        assets.append((f"plant sheet {look.look_id}", season.read_bytes()))
         elif family == "fx":
             entries = [
                 ("fire strip", manifest_module.fire_ref()),
@@ -3564,7 +3399,7 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
             node.port("manifest").artifact_ref,
             manifest_module.manifest_bytes(document),
             media_type="application/json",
-            model="oblique-survival-manifest-v1",
+            model=manifest_module.MANIFEST_KIND,
             prompt="Measure every published asset and describe it for the viewer.",
             validation={"status": "pass", **document["status"]},
         )

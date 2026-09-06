@@ -98,6 +98,11 @@ avoid = [
 # The player is the unit. Every other magnitude is authored in player heights
 # and converted to meters exactly once, in the manifest.
 player_height_meters = 1.7
+# The floor every thing the player can act on keeps: a prop's height, a
+# pickup's height, a forage piece's span. 0.25 is 0.425 m, and at play zoom
+# (79 px/m at the 900 px reference window below) 34 px -- the size below which
+# a thing stops reading as a thing and starts reading as the ground's own
+# marks. The manifest publishes the floor in screen pixels beside the unit.
 minimum_height_units = 0.25
 
 [camera]
@@ -111,6 +116,11 @@ fov_degrees = 35.0
 distance_meters = 18.0
 asset_pitch_degrees = 30.0
 follow_lerp = 0.08
+# The window height these numbers were tuned in. The host keeps the vertical
+# field of view, so at this height the play-zoom ruler is exact:
+# 900 / (2 * 18 * tan(17.5 deg)) = 79.3 screen pixels a metre. The manifest
+# derives it and states every size floor in those pixels beside the unit.
+reference_height_px = 900
 # The reference genre lets the player swing the world with Q and E, and a
 # billboard scene can afford it: a card that always turns to face the camera
 # never shows a back that was never drawn. The default yaw is diagonal, so the

@@ -1,4 +1,4 @@
-// Litter and forage: flat pieces lying on the ground, one MultiMesh per sheet.
+// The forage: flat pieces lying on the ground, one MultiMesh for the sheet.
 //
 // The viewer's material (index.html :3677-3705): `depthWrite: false`,
 // `depthTest: true`, opaque queue, `side: FrontSide`, `renderOrder = ORDER.decal`.
@@ -14,4 +14,4 @@ render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled, fog_dis
 
 #include "res://view/shaders/night.gdshaderinc"
 #include "res://view/shaders/lift.gdshaderinc"
-#include "res://view/shaders/clutter_body.gdshaderinc"
+#include "res://view/shaders/pieces_body.gdshaderinc"

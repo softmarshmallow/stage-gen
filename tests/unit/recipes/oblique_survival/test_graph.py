@@ -42,7 +42,7 @@ from stage_gen.recipes.oblique_survival.models import (
     FOUR_WAY_FACINGS,
     SOUND_CUES,
     BiomeRules,
-    Clutter,
+    Forage,
     ItemUse,
     Look,
     Package,
@@ -76,11 +76,11 @@ from tests.unit.recipes.oblique_survival._survival_fixture import (
 PACKAGE: Final = Path("library/games/ember-hollow")
 
 
-def _clutter(package: Package) -> Clutter:
-    """The authored litter sheet, which the fixture package has."""
+def _forage(package: Package) -> Forage:
+    """The authored forage sheet, which the fixture package has."""
 
-    assert package.clutter is not None
-    return package.clutter
+    assert package.forage is not None
+    return package.forage
 
 
 def _prompt(node: Node) -> str:
@@ -183,7 +183,9 @@ def test_the_minimal_scope_draws_what_a_played_demo_needs(
         "birch",
         "dead_snag",
     }
-    assert len(generated) == 3
+    # Two sprites: the thorn bush's baseline and its picked look. (The fern
+    # clump's one look drew here until decision 0060 retired the prop.)
+    assert len(generated) == 2
     assert len(sheets) == 4
     # And the items those interactions yield, so a pickup has a sprite to be.
     items = {
@@ -203,11 +205,11 @@ def test_the_minimal_scope_draws_what_a_played_demo_needs(
         if node.type_id.endswith(("ground_texture.generate", "ground_texture.adopt"))
     ]
     assert len(grounds) == len(package.biomes)
-    # The ground verdict is the whole ground: material, macro field, track, litter.
+    # The ground verdict is the whole ground: material, macro field, track, forage.
     for step in (
         "ground_macro.generate",
         "ground_road.generate",
-        ("ground_clutter.generate", "ground_clutter.adopt"),
+        ("ground_forage.generate", "ground_forage.adopt"),
         "ground_water.generate",
     ):
         assert len([node for node in graph.nodes if node.type_id.endswith(step)]) == 1, step
@@ -243,11 +245,6 @@ def test_the_full_scope_covers_every_authored_asset(
     assert by_type[f"{prefix}/ground_decal.generate"] == len(package.decals)
     assert by_type[f"{prefix}/ground_macro.generate"] == 1
     assert by_type[f"{prefix}/ground_road.generate"] == 1
-    assert (
-        by_type.get(f"{prefix}/ground_clutter.generate", 0)
-        + by_type.get(f"{prefix}/ground_clutter.adopt", 0)
-        == 1
-    )
     assert (
         by_type.get(f"{prefix}/ground_forage.generate", 0)
         + by_type.get(f"{prefix}/ground_forage.adopt", 0)
@@ -306,7 +303,7 @@ def test_the_prompt_is_bound_into_node_identity(config: StageGenConfig, package:
     baseline = generates(_graph(config, package, "full"))
     # Twice: once for a sprite prop and once for a sheet prop, because the
     # sheet's prompt is a different function and must be bound the same way.
-    for prop_id in ("fern_clump", "pine"):
+    for prop_id in ("thorn_bush", "pine"):
         tweaked_props = list(package.props)
         index = next(i for i, p in enumerate(tweaked_props) if p.prop_id == prop_id)
         first = tweaked_props[index]
@@ -526,8 +523,8 @@ def test_every_generative_prompt_states_the_one_light(package: Package) -> None:
         ),
         *(survival_prompts.decal_prompt(package, decal) for decal in package.decals),
     ]
-    if package.clutter is not None:
-        carriers.append(survival_prompts.clutter_prompt(package, package.clutter))
+    if package.forage is not None:
+        carriers.append(survival_prompts.forage_prompt(package, package.forage))
     for prompt in carriers:
         assert clause in prompt
     # The review asks the same question of the finished set.
@@ -578,9 +575,9 @@ def test_the_plate_rides_on_generative_prompts_and_not_on_paintovers(package: Pa
     carried = survival_prompts.prop_prompt(package, package.prop("birch"), "standing")
     assert survival_prompts.STYLE_PLATE_CLAUSE in carried
 
-    clutter = package.clutter
-    assert clutter is not None
-    paintover = survival_prompts.clutter_prompt(package, clutter)
+    forage = package.forage
+    assert forage is not None
+    paintover = survival_prompts.forage_prompt(package, forage)
     assert survival_prompts.STYLE_PLATE_CLAUSE not in paintover
     # Reference image 1 is the lattice there, and the prompt says so.
     assert "Edit reference image 1" in paintover
@@ -623,7 +620,7 @@ def test_redrawing_the_plate_rebills_the_nodes_that_carry_it(
     before, after = keys(package), keys(redrawn)
     moved = {node_id for node_id in before if before[node_id] != after[node_id]}
     # every carrier moved ...
-    assert "prop-fern-clump-full-generate" in moved
+    assert "prop-thorn-bush-full-generate" in moved
     # An adopted plate carries the plate too: the take answered a brief drawn
     # against it, so a new plate re-adopts (0 ops) rather than staying put.
     floor = package.biome("forest_floor")
@@ -1333,18 +1330,18 @@ def test_a_plate_take_adopts_through_the_gate_and_moves_nothing_else(
         _graph(config, package, "full").operation_counts()["image_generation"]
         - (1 if meadow.take is None else 0)
     )
-    # The litter sheet the same way.
-    assert package.clutter is not None
+    # The forage sheet the same way.
+    assert package.forage is not None
     sheet = replace(
         package,
-        clutter=replace(package.clutter, take="ground/clutter.take.png"),
-        digests={**package.digests, "ground/clutter.take.png": "c" * 64},
+        forage=replace(package.forage, take="ground/forage.take.png"),
+        digests={**package.digests, "ground/forage.take.png": "c" * 64},
     )
     sheet_keys = keys(_graph(config, sheet, "full"))
-    assert "ground-clutter-adopt" in sheet_keys and "ground-clutter-generate" not in sheet_keys
+    assert "ground-forage-adopt" in sheet_keys and "ground-forage-generate" not in sheet_keys
     assert (
         _graph(config, sheet, "full")
-        .node("ground-clutter-adopt")
+        .node("ground-forage-adopt")
         .depends_on[0]
         .startswith("templates-")
     )
@@ -1570,7 +1567,7 @@ def test_still_prompts_are_timeless_and_motion_prompts_are_not(package: Package)
         survival_prompts.item_prompt(package, "log", "a log"),
         survival_prompts.actor_concept_prompt(package, package.player),
         survival_prompts.ground_prompt(package, package.biomes[0]),
-        survival_prompts.clutter_prompt(package, _clutter(package)),
+        survival_prompts.forage_prompt(package, _forage(package)),
         *(survival_prompts.decal_prompt(package, decal) for decal in package.decals),
     ]
     for prompt in stills:
@@ -1803,7 +1800,7 @@ def test_a_season_look_is_one_paintover_per_prop_state_off_its_summer_twin(
     prefix = TYPE_PREFIX
     assert package.seasons is not None
     states = sum(len(prop.states) for prop in package.props)
-    assert states == 29
+    assert states == 28
     for scope in ("props", "actors", "full"):
         graph = _graph(config, package, scope)
         by_type = Counter(node.type_id for node in graph.nodes)
@@ -1881,10 +1878,7 @@ def test_a_look_clause_edit_moves_the_looks_alone_and_a_number_edit_moves_only_t
         "prop-pine-grown-winter-generate" not in reading
         and "prop-twig-bush-full-winter-generate" in reading
     )
-    # The plant sheet's look reads the clause too: one paintover, not sixteen.
     assert moved == reading | {
-        "ground-plants-winter-generate",
-        "ground-plants-winter-validate",
         "review-seasons-sheet",
         "review-seasons-judge",
         "package-manifest",
@@ -1909,50 +1903,37 @@ def test_a_look_clause_edit_moves_the_looks_alone_and_a_number_edit_moves_only_t
     assert winter_season.cold == 1.0
 
 
-def test_the_plant_sheet_is_one_lattice_op_with_one_look_op_judged_on_the_ground_and_the_seasons(
+def test_the_forage_sheet_is_the_only_sheet_of_ground_pieces(
     config: StageGenConfig, package: Package
 ) -> None:
-    """The mid-scale: one sheet (or an adopted take), one winter paintover off it, the
-    summer sheet judged with the ground and the pair judged with the seasons."""
+    """The world places nothing the player cannot act on (decision 0060): the
+    ground has one sheet of pieces, the forage, every cell of which yields an
+    item; no litter sheet, no standing-plant sheet, no season look of one."""
 
-    # The authored package adopts a take; the test walks the drawn road too.
-    plants = package.plants
-    assert plants is not None
-    drawn = replace(package, plants=replace(plants, take=None))
-    graph = _graph(config, drawn, "full")
-    generate = graph.node("ground-plants-generate")
+    graph = _graph(config, package, "full")
+    ids = {node.node_id for node in graph.nodes}
+    assert "ground-forage-adopt" in ids or "ground-forage-generate" in ids
+    assert "ground-forage-validate" in ids
+    assert not [node_id for node_id in ids if "clutter" in node_id or "plants" in node_id]
+    assert not hasattr(package, "clutter") and not hasattr(package, "plants")
+    # The forage sheet is judged with the ground it lies on.
+    assert "ground-forage-validate" in graph.node("review-ground-sheet").depends_on
+    # The drawn road: one paintover off the shared lattice template.
+    forage = package.forage
+    assert forage is not None
+    drawn = replace(package, forage=replace(forage, take=None))
+    generate = _graph(config, drawn, "full").node("ground-forage-generate")
     assert generate.depends_on[0] == "templates-draw-4x4-alpha"
     assert generate.operation != LOCAL_OPERATION
-    look = graph.node("ground-plants-winter-generate")
-    assert look.depends_on == ("ground-plants-validate",)
-    assert look.operation != LOCAL_OPERATION
-    validate = graph.node("ground-plants-winter-validate")
-    assert validate.operation == LOCAL_OPERATION
-    assert validate.port("image").artifact_ref == "package/ground/plants.winter.png"
-    ground_inputs = graph.node("review-ground-sheet").depends_on
-    assert (
-        "ground-plants-validate" in ground_inputs
-        and "ground-plants-winter-validate" not in ground_inputs
-    )
-    seasons_inputs = graph.node("review-seasons-sheet").depends_on
-    assert (
-        "ground-plants-validate" in seasons_inputs
-        and "ground-plants-winter-validate" in seasons_inputs
-    )
-    # The look waits for the props scope, like the prop looks; the summer sheet
-    # is in the lowest scope with the litter it stands among.
-    lowest = _graph(config, package, SCOPES[0])
-    assert "ground-plants-validate" in {node.node_id for node in lowest.nodes}
-    assert "ground-plants-winter-generate" not in {node.node_id for node in lowest.nodes}
-    # A take adopts through the gate at 0 ops and moves the look off the take's digest alone.
-    adopted = _graph(config, package, "full")
-    assert adopted.node("ground-plants-adopt").operation == LOCAL_OPERATION
-    keys = _keys(graph)
-    for node_id, key in _keys(adopted).items():
-        if not node_id.startswith(
-            ("ground-plants-", "review-ground", "review-seasons", "package-manifest", "source-lock")
-        ):
-            assert keys[node_id] == key, node_id
+    # Every cell is sized, and the prompt says each piece's share of its cell.
+    prompt = survival_prompts.forage_prompt(package, forage)
+    for cell in forage.cells:
+        assert cell.size_units >= package.minimum_height_units
+        assert package.meters(cell.size_units) <= forage.cell_meters + 1e-9
+        assert (
+            survival_prompts.fill_words(package.meters(cell.size_units) / forage.cell_meters)
+            in prompt
+        )
 
 
 def test_the_manifest_carries_the_seasons_and_every_look(package: Package, tmp_path: Path) -> None:
@@ -1975,14 +1956,8 @@ def test_the_manifest_carries_the_seasons_and_every_look(package: Package, tmp_p
     for prop_id, block in document["props"].items():
         for state, spec in block["states"].items():
             assert "winter" in spec["looks"], (prop_id, state)
-    plants = document["ground"]["plants"]
-    assert plants["atlas"] == "package/ground/plants.png" and plants["cell_meters"] == 1.4
-    assert len(plants["cells"]) == 16 and all(
-        cell["contact"] == "growing" for cell in plants["cells"]
-    )
-    assert plants["looks"]["winter"]["atlas"] == "package/ground/plants.winter.png"
-    assert len(plants["looks"]["winter"]["cells"]) == 16
-    assert len(document["layout"]["plants"]) > 0
+    assert "plants" not in document["ground"] and "clutter" not in document["ground"]
+    assert "plants" not in document["layout"] and "clutter" not in document["layout"]
     ice = document["weather"]["snow"]["ice"]
     assert ice["texture"] == "package/weather/snow/ice.png" and ice["tiling"] == "mirror_repeat_2d"
     assert document["gameplay"]["warmth"]["drain_per_second"] == 0.5

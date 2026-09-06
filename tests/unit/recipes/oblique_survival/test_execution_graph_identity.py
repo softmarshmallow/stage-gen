@@ -34,6 +34,19 @@ Changelog
             the same triplet over the optional ``cursor_set`` role Ember Hollow's
             ``ui.toml`` declares (``game-ui-v5``). One image and one structured
             review per scope from ``props`` up; ``minimal`` is untouched again.
+
+2026-09-07  The world places nothing the player cannot act on (decision 0060):
+            the litter sheet, the standing-plant sheet and its winter look, and
+            the inert fern clump leave every scope — eleven nodes from ``full``
+            (three images, one of them a paintover; the rest local). The forage
+            adopt and validate move with the sheet's new per-cell sizes, the
+            layout with its object list, the lock with the package text. Zero
+            provider operations re-bill (``test_cache_keys`` shows no image key
+            moved); the three family judgements re-run because their sheets
+            lost members. The manifest port and record now name the kind from
+            ``manifest.MANIFEST_KIND`` (``oblique-survival-manifest-v2``: one
+            sheet of ground pieces, each cell sized) instead of a literal, which
+            is the second move of every topology digest in one day.
 """
 
 from __future__ import annotations
@@ -66,48 +79,48 @@ class ScopeIdentity:
 
 IDENTITIES: Final = {
     "minimal": ScopeIdentity(
-        node_count=71,
-        topology_sha256="c51f9850cd50d6dbc0d178c60edfef7dd350326dad91d5b914851771b00538eb",
+        node_count=64,
+        topology_sha256="7db3fbc94b650feecd4012cb61e9ed08181944054178372493a6d249679970a0",
         operations={
-            "local": 43,
-            "image_generation": 22,
-            "tool_loop": 6,
+            "local": 38,
+            "image_generation": 21,
+            "tool_loop": 5,
             "structured_generation": 0,
             "music_generation": 0,
             "sound_effect_generation": 0,
         },
     ),
     "props": ScopeIdentity(
-        node_count=197,
-        topology_sha256="2224ff515c90f6313c646bc75b77e164eb568f09d6fc5d6759086bf315861854",
+        node_count=186,
+        topology_sha256="14ef3a5a7e5382ecb3180a73c45b02206328c7fe85945997c95918bc22a5916e",
         operations={
-            "local": 101,
-            "image_generation": 77,
-            "tool_loop": 12,
+            "local": 94,
+            "image_generation": 74,
+            "tool_loop": 11,
             "structured_generation": 7,
             "music_generation": 0,
             "sound_effect_generation": 0,
         },
     ),
     "actors": ScopeIdentity(
-        node_count=247,
-        topology_sha256="331023b69c818bb912db763e11afbd5f0a896ea26221269359f9d7c713f9c882",
+        node_count=236,
+        topology_sha256="54ca7dbd5844327e19a49d0182b643197c4ec0a085f522b001d6a4f9c022f562",
         operations={
-            "local": 125,
-            "image_generation": 98,
-            "tool_loop": 12,
+            "local": 118,
+            "image_generation": 95,
+            "tool_loop": 11,
             "structured_generation": 12,
             "music_generation": 0,
             "sound_effect_generation": 0,
         },
     ),
     "full": ScopeIdentity(
-        node_count=289,
-        topology_sha256="2d666274bcc47c58cb05c13011bd02af33da2b7a6b01c68f264a5c43a9726f70",
+        node_count=278,
+        topology_sha256="484879b1b2797be51eec8486412d6d1f72f268a7dadbd07693f1ee3230cb54ca",
         operations={
-            "local": 156,
-            "image_generation": 105,
-            "tool_loop": 12,
+            "local": 149,
+            "image_generation": 102,
+            "tool_loop": 11,
             "structured_generation": 13,
             "music_generation": 0,
             "sound_effect_generation": 3,

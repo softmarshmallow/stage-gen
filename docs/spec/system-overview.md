@@ -149,7 +149,7 @@ generated ground material, an authored crafting table proved reachable before an
 spend, a season calendar, weather, music and sound. Its
 [generation specification](survival/generation-v1.md) owns the authored
 `oblique-survival-package-v2` package, the one sealed graph and its scopes, and
-the `oblique-survival-manifest-v1` manifest. Its consumer is not a browser
+the `oblique-survival-manifest-v2` manifest. Its consumer is not a browser
 surface: the [Godot host](../godot-host.md) plays it.
 
 Every genre that plays a conversation walks the same machine. The village

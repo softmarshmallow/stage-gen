@@ -24,7 +24,7 @@ from stage_gen.recipes.oblique_survival import survival_request
 from stage_gen.recipes.oblique_survival.layout import Layout
 from stage_gen.recipes.oblique_survival.manifest import measure_sprite
 from stage_gen.recipes.oblique_survival.models import (
-    Clutter,
+    Forage,
     ItemUse,
     Package,
     Road,
@@ -56,8 +56,14 @@ def _extrema(channel: Image.Image) -> tuple[int, int]:
     return cast(tuple[int, int], channel.getextrema())
 
 
-def _clutter_of(block: dict[str, Any], *, biomes: Sequence[str] = ("forest_floor",)) -> Clutter:
-    sheet = survival_request._clutter(block, biome_ids=list(biomes))
+def _forage_of(block: dict[str, Any], *, biomes: Sequence[str] = ("forest_floor",)) -> Forage:
+    sheet = survival_request._forage(
+        block,
+        biome_ids=list(biomes),
+        item_ids=["stone", "twig"],
+        player_height_meters=1.7,
+        minimum_height_units=0.25,
+    )
     assert sheet is not None
     return sheet
 
@@ -215,30 +221,46 @@ def _components(grid: list[list[int]], index: int) -> list[int]:
     return sizes
 
 
-def test_a_litter_cell_must_name_a_known_biome_and_a_contact() -> None:
-    cell: dict[str, Any] = {"brief": "a stone", "contact": "pressed", "biomes": ["forest_floor"]}
+def test_a_forage_cell_must_name_a_known_biome_a_contact_and_its_size() -> None:
+    cell: dict[str, Any] = {
+        "brief": "a stone",
+        "contact": "pressed",
+        "biomes": ["forest_floor"],
+        "item_id": "stone",
+        "regrow_seconds": 120.0,
+        "size_units": 0.28,
+    }
     cells = [dict(cell) for _ in range(4)]
     good: dict[str, Any] = {
         "columns": 2,
         "rows": 2,
-        "cell_meters": 0.4,
+        "cell_meters": 0.6,
         "cells": cells,
         "placement": {"density_per_100m2": 4.0},
     }
-    assert _clutter_of(good).cell_count == 4
+    assert _forage_of(good).cell_count == 4
     with pytest.raises(SourceError, match="exactly 4"):
-        _clutter_of({**good, "cells": cells[:3]})
+        _forage_of({**good, "cells": cells[:3]})
     with pytest.raises(SourceError, match="unknown biome"):
-        _clutter_of(good, biomes=("dry_meadow",))
+        _forage_of(good, biomes=("dry_meadow",))
     with pytest.raises(SourceError, match="contact"):
-        _clutter_of({**good, "cells": [{**cell, "contact": "floating"}] * 4})
+        _forage_of({**good, "cells": [{**cell, "contact": "floating"}] * 4})
     with pytest.raises(SourceError, match="no cell may land"):
-        _clutter_of(
+        _forage_of(
             {**good, "placement": {"density_per_100m2": 4.0, "habitat": {"dry_meadow": 1.0}}},
             biomes=("forest_floor", "dry_meadow"),
         )
     with pytest.raises(SourceError, match="not authored any more"):
-        _clutter_of({**good, "density_per_100m2": {"forest_floor": 4.0}})
+        _forage_of({**good, "density_per_100m2": {"forest_floor": 4.0}})
+    # Size is authored, never read off the drawing: required, no lower than
+    # the package floor, no wider than the cell the piece is drawn in.
+    unsized = {k: v for k, v in cell.items() if k != "size_units"}
+    with pytest.raises(SourceError, match="size_units is required"):
+        _forage_of({**good, "cells": [dict(unsized) for _ in range(4)]})
+    with pytest.raises(SourceError, match="under the package minimum"):
+        _forage_of({**good, "cells": [{**cell, "size_units": 0.2} for _ in range(4)]})
+    with pytest.raises(SourceError, match=r"wider than the 0\.6 m cell"):
+        _forage_of({**good, "cells": [{**cell, "size_units": 0.4} for _ in range(4)]})
 
 
 # --- looks: sheets, variants, progress ----------------------------------------------------
@@ -381,7 +403,7 @@ def test_the_manifest_publishes_how_the_looks_were_drawn_and_bound(
     assert pine["variants"] == {"states": ["sapling", "grown", "old"], "weights": [0.2, 0.6, 0.2]}
     rock = document["props"]["moss_boulder"]
     assert rock["interactions"][0]["progress"] == ["cracked", "split"]
-    assert document["props"]["fern_clump"]["drawn"] == {"kind": "sprites"}
+    assert document["props"]["thorn_bush"]["drawn"] == {"kind": "sprites"}
 
 
 def test_every_look_has_a_canonical_size_and_keeps_the_drawing_s_opinion(
@@ -636,7 +658,7 @@ def test_an_item_nothing_reaches_is_refused(tmp_path: Path) -> None:
         tmp_path,
         "items.toml",
         "",
-        '\n[[items]]\nitem_id = "orphan"\nheight_units = 0.2\nprompt = "an orphan"\n',
+        '\n[[items]]\nitem_id = "orphan"\nheight_units = 0.3\nprompt = "an orphan"\n',
         append=True,
     )
     # The icon lattice is full at twenty-four; drop a glyph so the closure is what refuses.
@@ -860,21 +882,51 @@ def test_a_tool_must_serve_the_verb_that_wants_it(tmp_path: Path) -> None:
     _load_refused(root, "axe is a tool and wears; a tool's stack_max is 1")
 
 
-def test_plant_cells_must_grow_and_a_plant_sheet_is_not_litter_scale() -> None:
-    cell = {"brief": "a fern", "contact": "growing", "biomes": ["forest_floor"]}
-    block = {
-        "columns": 2,
-        "rows": 2,
-        "cell_meters": 1.4,
-        "placement": {"density_per_100m2": 4.0},
-        "cells": [dict(cell) for _ in range(4)],
-    }
-    assert survival_request._plants(block, biome_ids=["forest_floor"]) is not None
-    fallen = {**block, "cells": [dict(cell) for _ in range(3)] + [{**cell, "contact": "fallen"}]}
-    with pytest.raises(SourceError, match="must grow"):
-        survival_request._plants(fallen, biome_ids=["forest_floor"])
-    with pytest.raises(SourceError, match="half a metre"):
-        survival_request._plants({**block, "cell_meters": 0.4}, biome_ids=["forest_floor"])
+def test_the_world_places_nothing_the_player_cannot_act_on(tmp_path: Path) -> None:
+    """Decision 0060. A litter sheet and a standing-plant sheet are refused by
+    name; a scattered prop with no interaction is refused by name; the kinds
+    that carried the old grammar are refused by name."""
+
+    root = _source_edit(
+        tmp_path / "decor",
+        "ground.toml",
+        "",
+        "\n[clutter]\ncolumns = 2\nrows = 2\ncell_meters = 0.4\ncells = []\n",
+        append=True,
+    )
+    _load_refused(root, "ground.toml [clutter] is not authored any more")
+
+    root = _source_edit(
+        tmp_path / "plants",
+        "ground.toml",
+        "",
+        "\n[plants]\ncolumns = 2\nrows = 2\ncells = []\n",
+        append=True,
+    )
+    _load_refused(root, "ground.toml [plants] is not authored any more")
+
+    root = _source_edit(
+        tmp_path / "kind", "ground.toml", "oblique-survival-ground-v2", "oblique-survival-ground-v1"
+    )
+    _load_refused(root, "ground.toml kind must be oblique-survival-ground-v2")
+    root = _source_edit(
+        tmp_path / "props-kind",
+        "props.toml",
+        "oblique-survival-props-v3",
+        "oblique-survival-props-v2",
+    )
+    _load_refused(root, "props.toml kind must be oblique-survival-props-v3")
+
+    # A scattered prop that offers nothing: the grass tuft with its
+    # interactions cut is the fern clump this rule retired.
+    root = _source_edit(tmp_path / "inert", "survival.toml", "", "", append=True)
+    props = root / "props.toml"
+    text = props.read_text(encoding="utf-8")
+    start = text.index('prop_id = "grass_tuft"')
+    block_start = text.index("[[props.interactions]]", start)
+    block_end = text.index("[props.season_prompt.winter]", block_start)
+    props.write_text(text[:block_start] + text[block_end:], encoding="utf-8")
+    _load_refused(root, "grass_tuft is scattered by [props.placement] but has no")
 
 
 def test_a_forage_cell_yields_a_declared_item_and_regrows() -> None:
@@ -885,6 +937,7 @@ def test_a_forage_cell_yields_a_declared_item_and_regrows() -> None:
         "item_id": "twig",
         "count": 1,
         "regrow_seconds": 60.0,
+        "size_units": 0.28,
     }
     good = {
         "columns": 2,
@@ -893,14 +946,25 @@ def test_a_forage_cell_yields_a_declared_item_and_regrows() -> None:
         "cells": [dict(cell) for _ in range(4)],
         "placement": {"density_per_100m2": 1.0},
     }
-    sheet = survival_request._forage(good, biome_ids=["forest_floor"], item_ids=["twig"])
+
+    def forage(block: dict[str, Any], item_ids: list[str]) -> Forage | None:
+        return survival_request._forage(
+            block,
+            biome_ids=["forest_floor"],
+            item_ids=item_ids,
+            player_height_meters=1.7,
+            minimum_height_units=0.25,
+        )
+
+    sheet = forage(good, ["twig"])
     assert sheet is not None
     assert sheet.cells[0].item_id == "twig" and sheet.cells_for("forest_floor") == (0, 1, 2, 3)
+    assert sheet.cells[0].size_units == 0.28
     with pytest.raises(SourceError, match="undeclared item"):
-        survival_request._forage(good, biome_ids=["forest_floor"], item_ids=["log"])
+        forage(good, ["log"])
     bad = {**good, "cells": [{**cell, "regrow_seconds": 0.0}] * 4}
     with pytest.raises(SourceError, match="regrow_seconds"):
-        survival_request._forage(bad, biome_ids=["forest_floor"], item_ids=["twig"])
+        forage(bad, ["twig"])
 
 
 # --- seasons -------------------------------------------------------------------------

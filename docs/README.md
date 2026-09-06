@@ -69,7 +69,7 @@ Start here for the headless, general-purpose system:
   recipes (`2d/obliqueview/survival`): the authored survival package and its
   digest-declared takes, the presentation profile, the four-way facing rule, the
   one sealed graph and its four scopes, which edit re-bills which node, the
-  deterministic gates, and the `oblique-survival-manifest-v1` manifest a host plays.
+  deterministic gates, and the `oblique-survival-manifest-v2` manifest a host plays.
 - [Survival world](spec/survival/world.md) — the world generator: `world.toml`, the
   object-owned `placement` block, four point processes over solved fields, set pieces,
   addressed draws so an edit moves one object, and a Monte-Carlo pattern gate.

@@ -219,20 +219,19 @@ def test_pieces_keep_off_the_road_out_of_footprints_and_out_of_the_clearing(
     for entity in world.entities:
         if entity.kind == "prop":
             index.add(entity.x, entity.z, entity.footprint_radius_meters)
-    for name in ("clutter", "forage", "plants"):
-        pieces = getattr(world, name)
-        assert pieces
-        for piece in pieces:
-            x, z = piece["x"], piece["z"]
-            assert layout_module.polyline_distance(x, z, world.road) >= keep_out - 1e-6
-            assert not index.hits(x, z, 0.0)
-            if name != "clutter":
-                assert math.hypot(x, z) >= world.clear_radius_meters
-            assert abs(piece["rotation_degrees"]) <= package.look.ground_piece_jitter_degrees
-            assert 0.8 <= piece["scale"] <= 1.15
+    assert world.forage
+    for piece in world.forage:
+        x, z = piece["x"], piece["z"]
+        assert layout_module.polyline_distance(x, z, world.road) >= keep_out - 1e-6
+        assert not index.hits(x, z, 0.0)
+        assert math.hypot(x, z) >= world.clear_radius_meters
+        assert abs(piece["rotation_degrees"]) <= package.look.ground_piece_jitter_degrees
+        assert 0.8 <= piece["scale"] <= 1.15
 
 
-def test_reeds_stand_at_the_water_and_ferns_under_pines(package: Package, world: Layout) -> None:
+def test_reeds_stand_at_the_water_and_mushrooms_under_pines(
+    package: Package, world: Layout
+) -> None:
     with Image.open(BytesIO(world.splat_png)) as splat:
         alpha = splat.split()[3].load()
         assert alpha is not None
@@ -256,11 +255,24 @@ def test_reeds_stand_at_the_water_and_ferns_under_pines(package: Package, world:
     pine_index = PointIndex(4.0)
     for pine in pines:
         pine_index.add(pine.x, pine.z, 0.0)
-    ferns = _entities(world, "fern_clump")
-    assert ferns
-    for fern in ferns:
-        assert fern.cluster is not None and fern.cluster.startswith("host/")
-        assert pine_index.hits(fern.x, fern.z, 0.0, reach_override=2.5 + 1e-6)
+    # A forage cell with its own `near` block is an object of its own: the two
+    # mushroom cells grow under the pines, within the attachment radius.
+    assert package.forage is not None
+    attached = [
+        (index, cell.placement.near)
+        for index, cell in enumerate(package.forage.cells)
+        if cell.placement is not None
+        and cell.placement.near is not None
+        and cell.placement.near.host == "pine"
+    ]
+    assert attached
+    for index, near in attached:
+        pieces = [piece for piece in world.forage if piece["cell"] == index]
+        assert pieces
+        for piece in pieces:
+            assert pine_index.hits(
+                piece["x"], piece["z"], 0.0, reach_override=near.radius_meters + 1e-6
+            )
     groves = {e.cluster for e in pines if e.cluster is not None}
     assert 15 <= len(groves) <= len(pines) / 2
     hounds = _entities(world, package.mob.actor_id)
@@ -277,7 +289,7 @@ def test_the_record_carries_the_set_pieces_and_the_report(world: Layout) -> None
     ]
     assert record["cell_meters"] == pytest.approx(0.5)
     report = record["report"]
-    assert set(report) >= {"pine", "birch", "clutter", "forage", "plants", "grub_hound"}
+    assert set(report) >= {"pine", "birch", "forage", "grub_hound"}
     assert report["pine"]["verdict"] == "clustered"
     assert report["grass_tuft"]["verdict"] == "spaced"
     assert report["pine"]["r_mc"] < 0.7
@@ -310,7 +322,7 @@ def test_an_edit_to_one_object_moves_only_that_object(package: Package, world: L
 
     def reach_of(ref: str) -> float:
         # One footprint of the edit, plus, for a thing attached to another,
-        # its host's reach and the attachment radius: a fern follows its pine.
+        # its host's reach and the attachment radius: a hound follows its pack.
         own = max(
             [e.footprint_radius_meters for e in world.entities if e.ref_id == ref], default=0.0
         )
@@ -368,7 +380,7 @@ def test_the_world_identity_is_pinned(world: Layout) -> None:
     assert digest == WORLD_DIGEST
 
 
-WORLD_DIGEST: Final = "7c761b93ad3842f95a554375d67aaa66ae361f86f45d1606b462aca1d7ebb3c6"
+WORLD_DIGEST: Final = "32a3df1479c7fdcee90f88f8f16d755ae27b150423f5a81ba6964b8827e444e7"
 
 
 # --- the loader: world.toml and the placement block ------------------------------------
@@ -467,11 +479,11 @@ def test_a_placement_block_is_one_process_on_known_ground(tmp_path: Path) -> Non
     root = _copy(tmp_path / "c")
     _edit(
         root,
-        "props.toml",
-        'near = { host = "pine", radius_meters = 2.5, mean = 0.8, chance = 0.6 }',
-        'near = { host = "oak", radius_meters = 2.5, mean = 0.8, chance = 0.6 }',
+        "ground.toml",
+        'near = { host = "moss_boulder", radius_meters = 1.4, mean = 0.6, chance = 0.7 }',
+        'near = { host = "cairn", radius_meters = 1.4, mean = 0.6, chance = 0.7 }',
     )
-    _refused(root, "fern_clump.placement.near.host names unknown object 'oak'")
+    _refused(root, "forage/5.placement.near.host names unknown object 'cairn'")
     root = _copy(tmp_path / "d")
     _edit(
         root,

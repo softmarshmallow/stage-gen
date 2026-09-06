@@ -29,14 +29,12 @@ from stage_gen.recipes.oblique_survival import templates
 from stage_gen.recipes.oblique_survival.models import (
     Actor,
     Biome,
-    Clutter,
     Decal,
     Forage,
     IconSheet,
     Item,
     MacroPlate,
     Package,
-    Plants,
     Prop,
     Road,
     Track,
@@ -722,10 +720,10 @@ def macro_prompt(macro: MacroPlate) -> str:
     )
 
 
-#: How a litter piece meets the ground, by contact class. The contact lies
+#: How a ground piece meets the ground, by contact class. The contact lies
 #: along the LOWER edge of the cell for every class, because that is the edge
-#: the viewer keeps toward the camera: the layout mirrors and jitters a piece
-#: but never spins it, and the litter re-aims when the camera turns.
+#: the viewer keeps toward the camera: the layout jitters a piece but never
+#: spins it, and the pieces re-aim when the camera turns.
 CONTACT_CLAUSES: Final = {
     "pressed": (
         "PRESSED INTO the ground: only its top shows. Its lower silhouette edge, the edge "
@@ -745,38 +743,74 @@ CONTACT_CLAUSES: Final = {
 }
 
 
-def _pieces_prompt(
-    package: Package,
-    sheet: Clutter | Forage | Plants,
-    *,
-    what: str,
-    listing: str,
-    pop: str = "",
-    fill: str = "between a third and two thirds",
-) -> str:
-    """The lattice paintover for a sheet of still ground pieces, the litter's
-    and the forage's alike. ``what`` names the pieces ("ground litter"),
-    ``listing`` is the reading-order list, ``pop`` an extra clause between
-    the scale rule and the no-ground rule (the forage's pickup pop). The
-    litter's output is byte-identical to what it was before the forage
-    shared this: its cache key is the proof."""
+#: What makes a forage piece read as a thing to take, said as icon conventions
+#: and relations to "this set" rather than as a palette: the same relations as
+#: the pickup clause, one step at a time.
+FORAGE_POP_CLAUSE: Final = (
+    "Every piece here is a PICKUP the player will take: draw each one plumper and more "
+    "rounded than the real thing, with one bold closed contour all the way around, heavier "
+    "than the scenery in this set carries, in clean colour one step brighter and more "
+    "saturated than the ground it will lie on, with a pale highlight on its upper surface, so "
+    "it pops off the turf at thumbnail size while still sitting in contact with it."
+)
 
-    cell_cm = round(sheet.cell_meters * 100)
+
+def fill_words(share: float) -> str:
+    """How much of its cell a piece fills, as words the model acts on, then a
+    percentage: the sheet analogue of ``share_words`` for a prop's looks."""
+
+    fractions = (
+        (1 / 4, "about a quarter"),
+        (1 / 3, "about a third"),
+        (2 / 5, "about two fifths"),
+        (1 / 2, "about half"),
+        (3 / 5, "about three fifths"),
+        (2 / 3, "about two thirds"),
+        (3 / 4, "about three quarters"),
+        (0.85, "most"),
+        (1.0, "nearly all"),
+    )
+    words = min(fractions, key=lambda entry: abs(entry[0] - share))[1]
+    return f"{words} of its cell ({round(share * 100)}%)"
+
+
+def forage_prompt(package: Package, forage: Forage) -> str:
+    """The lattice paintover for the pickups lying on the ground: one piece
+    per cell, each named for the item it yields and its contact, each at its
+    own authored share of the cell.
+
+    The lattice is drawn at ONE scale — a cell is ``cell_meters`` of real
+    ground — and a piece's world size is its ``size_units``, so the share of
+    the cell it fills is the ratio of the two, said per piece. The world then
+    calibrates each piece from what was actually painted; the words here are
+    what keep the drawing near the number.
+    """
+
+    cell_cm = round(forage.cell_meters * 100)
+    listing = "; ".join(
+        f"{cell.brief}, yielding {cell.item_id.replace('_', ' ')} ({cell.contact}), filling "
+        f"{fill_words(package.meters(cell.size_units) / forage.cell_meters)}"
+        for cell in forage.cells
+    )
     leave, around = templates.backing_words()
+    # Never number the cells. "cell 1 ... cell 16" made the model draw its own
+    # grid, five wide, and lay the sixteen pieces into twenty cells; the
+    # lattice count gate refused every attempt. The order is the reading
+    # order and the lattice is the one already drawn.
     return visual_prompt(
         package,
         " ".join(
             (
                 f"Edit reference image 1 as a strict production sprite-sheet paintover. Preserve "
-                f"all {sheet.columns + 1} vertical and {sheet.rows + 1} horizontal cyan guide "
+                f"all {forage.columns + 1} vertical and {forage.rows + 1} horizontal cyan guide "
                 f"lines exactly where they are, perfectly straight and evenly spaced. {leave}",
-                f"The lattice is exactly {sheet.columns} cells wide and {sheet.rows} cells "
+                f"The lattice is exactly {forage.columns} cells wide and {forage.rows} cells "
                 f"tall as already drawn; do not add, move or redraw any guide line.",
-                f"Paint exactly ONE small piece of {what} into each of the {sheet.cell_count} "
-                f"cells, read left to right and then top to bottom, centred in its cell with "
-                f"{around}. Nothing may touch or cross a cyan guide line.",
-                f"In reading order the {sheet.cell_count} pieces are, each with its kind of "
-                f"contact in brackets: {listing}.",
+                f"Paint exactly ONE small forageable ground pickup into each of the "
+                f"{forage.cell_count} cells, read left to right and then top to bottom, centred "
+                f"in its cell with {around}. Nothing may touch or cross a cyan guide line.",
+                f"In reading order the {forage.cell_count} pieces are, each with its kind of "
+                f"contact in brackets and the share of its cell it fills: {listing}.",
                 "Each piece is seen from slightly above and in front, the way the ground is seen "
                 "in play, and every piece is in contact with the ground it is not drawn on. "
                 "There are three kinds of contact.",
@@ -788,117 +822,21 @@ def _pieces_prompt(
                 "is its lit tone, the lower side its shadow tone, and every contact shadow lies "
                 "along the lower edge. Never a shadow on the upper edge.",
                 f"All pieces are drawn at ONE shared scale: a cell is about {cell_cm} centimetres "
-                f"of real ground across, and each piece fills {fill} of "
-                f"its cell.",
-                *((pop,) if pop else ()),
+                f"of real ground across, and each piece fills the share of its cell stated for "
+                f"it above, measured along its longest side.",
+                FORAGE_POP_CLAUSE,
                 "Do not draw ground, soil, grass or a patch of earth around a piece: the contact "
                 "shadow is part of the piece and stops at the piece's own edge. No second object "
                 "in a cell, no numbers, captions, or background.",
                 (
-                    f"For this sheet specifically, override the mood above: {sheet.style_emphasis}"
-                    if sheet.style_emphasis
+                    f"For this sheet specifically, override the mood above: {forage.style_emphasis}"
+                    if forage.style_emphasis
                     else ""
                 ),
             )
         ),
         plate=False,
     )
-
-
-def clutter_prompt(package: Package, clutter: Clutter) -> str:
-    """The lattice paintover again, this time for sixteen still cutouts.
-
-    The first sheet was a catalogue: each piece outlined all the way round
-    and lit from nowhere, a sticker wherever it landed. What makes a ground
-    object convincing is its contact, so every cell names one of three
-    contacts and the sheet shares one light.
-    """
-
-    # Never number the cells. "cell 1 ... cell 16" made the model draw its own
-    # grid, five wide, and lay the sixteen pieces into twenty cells; the
-    # lattice count gate refused every attempt. The order is the reading
-    # order and the lattice is the one already drawn.
-    listing = "; ".join(f"{cell.brief} ({cell.contact})" for cell in clutter.cells)
-    return _pieces_prompt(package, clutter, what="ground litter", listing=listing)
-
-
-#: What makes a forage piece read as a thing to take, said against the litter
-#: it lies among rather than against a palette: the same relations as the
-#: pickup clause, one step at a time.
-FORAGE_POP_CLAUSE: Final = (
-    "Every piece here is a PICKUP the player will take, not litter: draw each one plumper and "
-    "more rounded than the real thing, with one bold closed contour all the way around, "
-    "heavier than any litter in this set carries, in clean colour one step brighter and more "
-    "saturated than the ground it will lie on, with a pale highlight on its upper surface, so "
-    "it pops off the turf at thumbnail size while still sitting in contact with it."
-)
-
-
-def forage_prompt(package: Package, forage: Forage) -> str:
-    """The litter paintover for the pieces the player can take: the same
-    lattice, the same contacts and light, plus the pickup pop, and each cell
-    named for the item it yields."""
-
-    listing = "; ".join(
-        f"{cell.brief}, yielding {cell.item_id.replace('_', ' ')} ({cell.contact})"
-        for cell in forage.cells
-    )
-    return _pieces_prompt(
-        package, forage, what="forageable ground pickup", listing=listing, pop=FORAGE_POP_CLAUSE
-    )
-
-
-#: What makes a plant read as standing in the turf rather than lying on it,
-#: said against the litter the way the forage pop is: the same sheet rules,
-#: one card each, the base on the cell's floor.
-PLANT_STAND_CLAUSE: Final = (
-    "Every piece here is a PLANT STANDING UP from the ground, drawn whole from its base to its "
-    "top as one upright cutout: its base, where its contact shadow is, sits low in its cell "
-    "but a clear margin above the lower guide line, and it rises to its full height with a "
-    "clear margin below the upper guide line too, its tip never touching it, so a knee-high "
-    "plant fills about half the cell and a waist-high plant about three quarters of it. "
-    "Foliage in the set's flat tones, one step darker and more saturated than the "
-    "ground plates, with a thin ink contour. No glow, no haze, no soft shadow and no dark "
-    "vignette around a plant: the clear backing stays fully transparent right up to the ink "
-    "line, and the only shadow is the flat contact shadow inside the cutout at its base."
-)
-
-
-def plants_prompt(package: Package, plants: Plants) -> str:
-    """The lattice paintover for the mid-scale: sixteen standing plants, the
-    same lattice, contacts and light as the litter, plus the standing clause,
-    each filling more of its cell than a piece of litter does."""
-
-    listing = "; ".join(f"{cell.brief} ({cell.contact})" for cell in plants.cells)
-    return _pieces_prompt(
-        package,
-        plants,
-        what="standing ground plant",
-        listing=listing,
-        pop=PLANT_STAND_CLAUSE,
-        fill="between half and nine tenths of the height",
-    )
-
-
-def plants_look_prompt(package: Package, plants: Plants, look: Any) -> str:
-    """The plant sheet repainted for a season: a paintover of its summer
-    sheet, guide lines and all, the way a prop state is repainted. The
-    summer sheet rides as image 1 and the style plate as image 2."""
-
-    pieces = [
-        "Edit reference image 1 as a strict production sprite-sheet paintover. Preserve every "
-        "cyan guide line exactly where it is, perfectly straight; do not add, move or redraw "
-        "any guide line, and keep the transparent backing transparent.",
-        f"Repaint every one of the {plants.cell_count} plants EXACTLY as it is drawn, in its own "
-        f"cell, and change one thing only: {look.prompt}",
-        "Same cell, same placement in the cell, same size, same silhouette under the snow, same "
-        "ink line and the same flat tones; nothing else moves, grows, shrinks or is redrawn, and "
-        "nothing may touch or cross a cyan guide line.",
-        light_clause(package),
-        "Do not draw ground, soil or a patch of snow around a plant: the snow on it is part of "
-        "the cutout and stops at the plant's own edge.",
-    ]
-    return visual_prompt(package, " ".join(pieces), plate=False)
 
 
 def icon_sheet_prompt(package: Package, icons: IconSheet, items: Sequence[Item]) -> str:

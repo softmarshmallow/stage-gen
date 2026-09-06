@@ -39,8 +39,6 @@ const MODULE_FILES := [
 	"res://view/shadows.gd",
 	"res://view/cards.gd",
 	"res://view/pieces.gd",
-	"res://view/plants.gd",
-	"res://view/leaves.gd",
 	"res://view/fire.gd",
 	"res://view/puffs.gd",
 	"res://view/splashes.gd",
@@ -64,7 +62,7 @@ const MODULE_FILES := [
 const UPDATE_ORDER := [
 	"music", "sfx",
 	"weather_view", "water", "splashes", "decals", "ground", "strikes",
-	"cards", "pieces", "plants", "leaves", "puffs", "shadows",
+	"cards", "pieces", "puffs", "shadows",
 	"fire", "gallery", "hurt_flash", "warmth_veil", "hud", "craft_panel", "death_screen", "world_map", "pause_menu",
 ]
 

@@ -40,8 +40,8 @@ func run(h: TestHarness) -> void:
 	h.assert_eq(tallied.size(), counts.size(), "counted a different set of ids")
 	for id: String in counts.keys():
 		h.assert_eq(tallied.get(id, 0), counts[id], "layout count for %s" % id)
-	h.assert_eq(pkg.layout.get("entities", []).size(), 2365, "entity rows")
-	h.assert_eq(pkg.layout.get("forage", []).size(), 1524, "forage rows")
+	h.assert_eq(pkg.layout.get("entities", []).size(), 2271, "entity rows")
+	h.assert_eq(pkg.layout.get("forage", []).size(), 1533, "forage rows")
 
 	# Package-relative references resolve; anything that would leave the run
 	# directory does not.

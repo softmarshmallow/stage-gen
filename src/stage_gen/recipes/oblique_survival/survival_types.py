@@ -172,29 +172,9 @@ ROAD_GENERATE = _image("ground_road", "generate", "Road material plate")
 ROAD_CANONICALIZE = _local(
     "ground_road", "canonicalize", "Road gate and 2-axis mirror", ViewArchetype.VALIDATE
 )
-CLUTTER_GENERATE = _image("ground_clutter", "generate", "Ground litter sheet paintover")
-CLUTTER_ADOPT = _local(
-    "ground_clutter", "adopt", "Adopt an auditioned litter sheet", ViewArchetype.IMAGE
-)
-CLUTTER_VALIDATE = _local(
-    "ground_clutter", "validate", "Litter lattice and isolation gate", ViewArchetype.VALIDATE
-)
 FORAGE_GENERATE = _image("ground_forage", "generate", "Ground forage sheet paintover")
 FORAGE_ADOPT = _local(
     "ground_forage", "adopt", "Adopt an auditioned forage sheet", ViewArchetype.IMAGE
-)
-PLANTS_GENERATE = _image("ground_plants", "generate", "Standing plant sheet paintover")
-PLANTS_ADOPT = _local(
-    "ground_plants", "adopt", "Adopt an auditioned plant sheet", ViewArchetype.IMAGE
-)
-PLANTS_VALIDATE = _local(
-    "ground_plants", "validate", "Plant lattice and isolation gate", ViewArchetype.VALIDATE
-)
-PLANTS_LOOK_GENERATE = _image(
-    "ground_plants_look", "generate", "Season look paintover of the plant sheet"
-)
-PLANTS_LOOK_VALIDATE = _local(
-    "ground_plants_look", "validate", "Plant look lattice gate", ViewArchetype.VALIDATE
 )
 FORAGE_VALIDATE = _local(
     "ground_forage", "validate", "Forage lattice and isolation gate", ViewArchetype.VALIDATE
@@ -285,17 +265,9 @@ OBLIQUE_SURVIVAL_NODE_TYPES: Final[tuple[NodeType, ...]] = (
     MACRO_CANONICALIZE,
     ROAD_GENERATE,
     ROAD_CANONICALIZE,
-    CLUTTER_GENERATE,
-    CLUTTER_ADOPT,
-    CLUTTER_VALIDATE,
     FORAGE_GENERATE,
     FORAGE_ADOPT,
     FORAGE_VALIDATE,
-    PLANTS_GENERATE,
-    PLANTS_ADOPT,
-    PLANTS_VALIDATE,
-    PLANTS_LOOK_GENERATE,
-    PLANTS_LOOK_VALIDATE,
     ICONS_GENERATE,
     ICONS_ADOPT,
     ICONS_VALIDATE,
@@ -342,9 +314,6 @@ def survival_type_index() -> dict[str, NodeType]:
 
 __all__ = [
     "ACTOR_CONCEPT",
-    "CLUTTER_ADOPT",
-    "CLUTTER_GENERATE",
-    "CLUTTER_VALIDATE",
     "CONTRACT_VERSION_PREFIX",
     "DECAL_GENERATE",
     "DECAL_VALIDATE",
@@ -374,11 +343,6 @@ __all__ = [
     "MUSIC_VALIDATE",
     "OBLIQUE_SURVIVAL_NODE_TYPES",
     "PACKAGE_MANIFEST",
-    "PLANTS_ADOPT",
-    "PLANTS_GENERATE",
-    "PLANTS_LOOK_GENERATE",
-    "PLANTS_LOOK_VALIDATE",
-    "PLANTS_VALIDATE",
     "PRESENTATION_PROFILE",
     "PROP_ANCHOR",
     "PROP_GENERATE",

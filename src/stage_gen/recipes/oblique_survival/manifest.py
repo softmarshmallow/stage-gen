@@ -22,7 +22,8 @@ actors still produces a manifest the viewer can open; ``status.actors`` says
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Mapping, Sized
+import math
+from collections.abc import Mapping, Sized
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Final, NotRequired, Protocol, TypedDict, cast
@@ -41,7 +42,7 @@ from stage_gen.recipes.oblique_survival.models import (
 )
 
 SCHEMA_VERSION: Final = 1
-MANIFEST_KIND: Final = "oblique-survival-manifest-v1"
+MANIFEST_KIND: Final = "oblique-survival-manifest-v2"
 #: The seam every actor gets. A billboard that moves cannot be handed a skirt
 #: decal laid at layout time or a patch of earth painted into its cutout: the
 #: first would stay behind, the second would travel with it over water and
@@ -87,8 +88,7 @@ type CellRow = dict[str, Any]
 class LatticeSheet[CellT](Protocol):
     """A sheet of ground pieces: a grid of authored cells at one metre scale.
 
-    Read-only, so a frozen authored sheet (the litter, the forage, the plants)
-    satisfies it as it stands.
+    Read-only, so the frozen authored forage sheet satisfies it as it stands.
     """
 
     @property
@@ -253,14 +253,14 @@ class PropBlock(TypedDict):
     anchor_record: str | None
 
 
-class PieceSheetLook(TypedDict):
-    """A season look of a piece sheet: its own atlas and its own cell bounds."""
-
-    atlas: str
-    cells: list[CellRow]
-
-
 class PieceSheetBlock(TypedDict):
+    """The forage sheet as the consumer reads it: the atlas, the lattice, and
+    per cell the cut (``x``, ``y``, ``w``, ``h``), the painted ``box`` inside
+    it, the authored ``size_meters`` and the ruler that calibrates the one to
+    the other. ``drawn_size_meters`` is the drawing's own opinion at the
+    sheet's shared scale, kept as a recorded drift and never a gate, exactly
+    as a prop's ``drawn_height_meters`` is."""
+
     atlas: str
     columns: int
     rows: int
@@ -268,8 +268,6 @@ class PieceSheetBlock(TypedDict):
     width_px: int
     height_px: int
     cells: list[CellRow]
-    #: The plant sheet only, and only when a season names a look.
-    looks: NotRequired[dict[str, PieceSheetLook]]
 
 
 class BiomeBlock(TypedDict):
@@ -361,9 +359,7 @@ class GroundBlock(TypedDict):
     biome_splat: BiomeSplatBlock | None
     macro: MacroBlock | None
     road: RoadBlock | None
-    clutter: PieceSheetBlock | None
     forage: PieceSheetBlock | None
-    plants: PieceSheetBlock | None
     water: WaterBlock | None
     splat: SplatBlock | None
     decals: dict[str, DecalBlock]
@@ -646,7 +642,22 @@ class StyleBlock(TypedDict):
 
 
 class ScaleBlock(TypedDict):
+    """The unit, the floor, and what the floor means on the screen.
+
+    Every size in the package is authored in player heights and converted to
+    metres exactly once, here. ``minimum_height_units`` is the floor every
+    thing the player can act on keeps (a prop's height, a pickup's height, a
+    forage piece's span). When the camera block states the window height its
+    numbers were tuned in, the screen ruler at play zoom follows from the rig
+    (``reference_height_px / (2 · distance · tan(fov / 2))``) and the floor is
+    published in screen pixels too, so an author sees what the number means.
+    """
+
     player_height_meters: float
+    minimum_height_units: float
+    minimum_height_meters: float
+    screen_px_per_meter: float | None
+    minimum_screen_px: float | None
 
 
 class CameraBlock(TypedDict):
@@ -658,6 +669,10 @@ class CameraBlock(TypedDict):
     rotation_allowed: bool
     yaw_degrees: float
     yaw_step_degrees: float
+    #: The window height, in pixels, the camera numbers were tuned in; the
+    #: host keeps HEIGHT, so the vertical field of view is exact at it. None
+    #: when the package does not say, and then no screen ruler is published.
+    reference_height_px: int | None
 
 
 class Manifest(TypedDict):
@@ -730,22 +745,8 @@ def road_ref(road_id: str) -> str:
     return f"package/ground/road-{road_id}.png"
 
 
-def clutter_ref() -> str:
-    return "package/ground/clutter.png"
-
-
 def forage_ref() -> str:
     return "package/ground/forage.png"
-
-
-def plants_ref() -> str:
-    return "package/ground/plants.png"
-
-
-def plants_look_ref(look: str) -> str:
-    """The plant sheet in a season's look, beside the summer sheet."""
-
-    return f"package/ground/plants.{look}.png"
 
 
 def icons_ref() -> str:
@@ -1221,42 +1222,73 @@ def _prop_block(package: Package, run_dir: Path, prop: Prop) -> PropBlock | None
     }
 
 
-def _piece_sheet_block[CellT](
-    sheet: LatticeSheet[CellT] | None,
-    run_dir: Path,
-    *,
-    ref: str,
-    validation: str,
-    per_cell: Callable[[CellT], Mapping[str, Any]],
-) -> PieceSheetBlock | None:
-    """A lattice of ground pieces (the litter, the forage) as the viewer reads
-    it: the atlas, its cell geometry from the gate's record, and per cell the
-    authored facts ``per_cell`` picks off the declared cell."""
+#: A painted box is published this many pixels wider than the alpha it holds,
+#: within its cell, so the filtered edge of a piece is never cut by its own
+#: window.
+PIECE_BOX_PAD_PX: Final = 2
 
+
+def _forage_block(package: Package, run_dir: Path) -> PieceSheetBlock | None:
+    """The forage sheet as the viewer reads it, each cell calibrated.
+
+    The lattice is drawn at one scale (``cell_meters`` a cell) and every cell
+    carries its own authored ``size_units``; nothing an image model returns
+    carries a size, so the cell's painted extent is only a ruler. Per cell:
+    the cut the atlas is windowed by, the painted ``box`` inside it (alpha
+    bounds, padded), ``size_meters`` from the authored number,
+    ``px_per_meter`` from the painted extent against it, and
+    ``drawn_size_meters`` — the extent at the sheet's shared scale, the
+    drawing's opinion, recorded beside the authored fact and never a gate.
+    A consumer sizes a piece from the box and the ruler; the cell is the cut.
+    """
+
+    sheet = package.forage
+    ref = forage_ref()
     if sheet is None or not _present(run_dir / ref):
         return None
-    facts = _read_json(run_dir / validation) or {}
     with Image.open(BytesIO((run_dir / ref).read_bytes())) as opened:
         sheet_w, sheet_h = opened.size
+        alpha = opened.convert("RGBA").getchannel("A")
     cell_w = sheet_w // sheet.columns
     cell_h = sheet_h // sheet.rows
-    cells = facts.get("cells") or [
-        {
-            "index": index,
-            "x": (index % sheet.columns) * cell_w,
-            "y": (index // sheet.columns) * cell_h,
-            "w": cell_w,
-            "h": cell_h,
-        }
-        for index in range(sheet.cell_count)
-    ]
+    sheet_px_per_meter = cell_w / max(sheet.cell_meters, 1e-6)
     out: list[CellRow] = []
-    for cell in cells:
-        declared = sheet.cells[int(cell["index"])]
+    for index, declared in enumerate(sheet.cells):
+        x = (index % sheet.columns) * cell_w
+        y = (index // sheet.columns) * cell_h
+        cell = alpha.crop((x, y, x + cell_w, y + cell_h))
+        painted = cell.point(lambda value: 255 if value > ALPHA_THRESHOLD else 0).getbbox()
+        if painted is None:
+            painted = (0, 0, cell_w, cell_h)
+        left, top, right, bottom = painted
+        extent_px = max(right - left, bottom - top, 1)
+        size_meters = package.meters(declared.size_units)
+        box_left = max(0, left - PIECE_BOX_PAD_PX)
+        box_top = max(0, top - PIECE_BOX_PAD_PX)
+        box_right = min(cell_w, right + PIECE_BOX_PAD_PX)
+        box_bottom = min(cell_h, bottom + PIECE_BOX_PAD_PX)
         out.append(
             {
-                **{key: cell[key] for key in ("index", "x", "y", "w", "h") if key in cell},
-                **per_cell(declared),
+                "index": index,
+                "x": x,
+                "y": y,
+                "w": cell_w,
+                "h": cell_h,
+                "box": {
+                    "x": x + box_left,
+                    "y": y + box_top,
+                    "w": box_right - box_left,
+                    "h": box_bottom - box_top,
+                },
+                "size_units": declared.size_units,
+                "size_meters": round(size_meters, 4),
+                "px_per_meter": round(extent_px / max(size_meters, 1e-6), 4),
+                "drawn_size_meters": round(extent_px / sheet_px_per_meter, 4),
+                "contact": declared.contact,
+                "biomes": list(declared.biomes),
+                "item_id": declared.item_id,
+                "count": declared.count,
+                "regrow_seconds": declared.regrow_seconds,
             }
         )
     return {
@@ -1314,7 +1346,7 @@ def _ground_block(package: Package, run_dir: Path) -> GroundBlock:
             "width_px": drawn["width_px"],
             "height_px": drawn["height_px"],
         }
-    # The abstract layer, the track, and the litter. Each is absent, not
+    # The abstract layer, the track, and the forage. Each is absent, not
     # broken, when its file is not there; the viewer falls back per layer.
     macro: MacroBlock | None = None
     if package.macro is not None and _present(run_dir / macro_ref()):
@@ -1350,49 +1382,7 @@ def _ground_block(package: Package, run_dir: Path) -> GroundBlock:
             "value_target": package.road.value_target,
             "luma_mean": (facts.get("source") or {}).get("luma_mean"),
         }
-    clutter = _piece_sheet_block(
-        package.clutter,
-        run_dir,
-        ref=clutter_ref(),
-        validation="production/validation/ground/clutter.json",
-        per_cell=lambda cell: {"contact": cell.contact, "biomes": list(cell.biomes)},
-    )
-    forage = _piece_sheet_block(
-        package.forage,
-        run_dir,
-        ref=forage_ref(),
-        validation="production/validation/ground/forage.json",
-        per_cell=lambda cell: {
-            "contact": cell.contact,
-            "biomes": list(cell.biomes),
-            "item_id": cell.item_id,
-            "count": cell.count,
-            "regrow_seconds": cell.regrow_seconds,
-        },
-    )
-    plants = _piece_sheet_block(
-        package.plants,
-        run_dir,
-        ref=plants_ref(),
-        validation="production/validation/ground/plants.json",
-        per_cell=lambda cell: {"contact": cell.contact, "biomes": list(cell.biomes)},
-    )
-    if plants is not None:
-        # A season look of the sheet: its own atlas and its own cell bounds
-        # (a snow cap grows a plant's box), keyed by the look id. The viewer
-        # swaps the atlas and the windows together when the look changes.
-        looks: dict[str, PieceSheetLook] = {}
-        for look in package.seasons.looks if package.seasons is not None else ():
-            block = _piece_sheet_block(
-                package.plants,
-                run_dir,
-                ref=plants_look_ref(look.look_id),
-                validation=f"production/validation/ground/plants.{look.look_id}.json",
-                per_cell=lambda cell: {},
-            )
-            if block is not None:
-                looks[look.look_id] = {"atlas": block["atlas"], "cells": block["cells"]}
-        plants["looks"] = looks
+    forage = _forage_block(package, run_dir)
     water: WaterBlock | None = None
     if package.water is not None:
         facts = _read_json(run_dir / "production/validation/ground/water.json") or {}
@@ -1498,9 +1488,7 @@ def _ground_block(package: Package, run_dir: Path) -> GroundBlock:
         "biome_splat": biome_splat,
         "macro": macro,
         "road": road,
-        "clutter": clutter,
         "forage": forage,
-        "plants": plants,
         "water": water,
         "splat": splat,
         "decals": decals,
@@ -2026,6 +2014,52 @@ def _world_block(package: Package) -> WorldBlock:
     }
 
 
+def _camera_block(package: Package) -> CameraBlock:
+    reference = package.camera.get("reference_height_px")
+    return {
+        "pitch_degrees": package.camera.get("pitch_degrees", 55.0),
+        "fov_degrees": package.camera.get("fov_degrees", 35.0),
+        "distance_meters": package.camera.get("distance_meters", 18.0),
+        "asset_pitch_degrees": package.camera.get("asset_pitch_degrees", 30.0),
+        "follow_lerp": package.camera.get("follow_lerp", 0.08),
+        "rotation_allowed": bool(package.camera.get("rotation_allowed", False)),
+        "yaw_degrees": package.camera.get("yaw_degrees", 45.0),
+        "yaw_step_degrees": package.camera.get("yaw_step_degrees", 45.0),
+        "reference_height_px": (
+            int(reference)
+            if isinstance(reference, int | float) and not isinstance(reference, bool)
+            else None
+        ),
+    }
+
+
+def screen_px_per_meter(package: Package) -> float | None:
+    """The play-zoom ruler: screen pixels per metre of ground-plane height at
+    the reference window, from the rig alone. The host keeps the vertical
+    field of view, so at ``reference_height_px`` this is exact; None when the
+    package states no reference window."""
+
+    camera = _camera_block(package)
+    reference = camera["reference_height_px"]
+    if reference is None or reference <= 0:
+        return None
+    half_fov = math.radians(float(camera["fov_degrees"]) / 2.0)
+    visible_meters = 2.0 * float(camera["distance_meters"]) * math.tan(half_fov)
+    return reference / max(visible_meters, 1e-6)
+
+
+def _scale_block(package: Package) -> ScaleBlock:
+    ruler = screen_px_per_meter(package)
+    minimum_meters = package.meters(package.minimum_height_units)
+    return {
+        "player_height_meters": package.player_height_meters,
+        "minimum_height_units": package.minimum_height_units,
+        "minimum_height_meters": round(minimum_meters, 4),
+        "screen_px_per_meter": round(ruler, 2) if ruler is not None else None,
+        "minimum_screen_px": round(minimum_meters * ruler, 1) if ruler is not None else None,
+    }
+
+
 def build_manifest(
     package: Package,
     run_dir: Path,
@@ -2074,9 +2108,7 @@ def build_manifest(
     ground_layers: dict[str, object] = {
         "macro": ground["macro"],
         "road": ground["road"],
-        "clutter": ground["clutter"],
         "forage": ground["forage"],
-        "plants": ground["plants"],
         "water": water_block if water_block is not None and water_block["texture"] else None,
     }
 
@@ -2120,9 +2152,7 @@ def build_manifest(
                     for k in (
                         package.macro,
                         package.road,
-                        package.clutter,
                         package.forage,
-                        package.plants,
                         package.water,
                     )
                     if k is not None
@@ -2149,18 +2179,9 @@ def build_manifest(
             "layout": "ok" if layout else "missing",
         },
         "style": style,
-        "scale": {"player_height_meters": package.player_height_meters},
+        "scale": _scale_block(package),
         "world": _world_block(package),
-        "camera": {
-            "pitch_degrees": package.camera.get("pitch_degrees", 55.0),
-            "fov_degrees": package.camera.get("fov_degrees", 35.0),
-            "distance_meters": package.camera.get("distance_meters", 18.0),
-            "asset_pitch_degrees": package.camera.get("asset_pitch_degrees", 30.0),
-            "follow_lerp": package.camera.get("follow_lerp", 0.08),
-            "rotation_allowed": bool(package.camera.get("rotation_allowed", False)),
-            "yaw_degrees": package.camera.get("yaw_degrees", 45.0),
-            "yaw_step_degrees": package.camera.get("yaw_step_degrees", 45.0),
-        },
+        "camera": _camera_block(package),
         "ground": ground,
         "actors": actors,
         "props": props,

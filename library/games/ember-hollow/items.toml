@@ -5,6 +5,11 @@
 # player and vanishes at play zoom, fifteen pixels at 40 px/m), seen popping
 # out of a gathered prop or lying where the player dropped it; a forageable
 # item is also painted flat on the ground on the forage sheet in ground.toml.
+# A pickup's height_units keeps survival.toml's minimum_height_units like a
+# prop's: it is a thing the player must see and click, and the floor (0.25,
+# 34 px at play zoom) is where a thing stops reading as ground (2026-09-07:
+# nine of these stood at 0.20 to 0.24 and were the "too small" half of the
+# scale complaint; the forage pieces beside them stood lower still).
 # In the inventory it is a cell of the icon sheet below, one flat glyph per
 # item painted together at one scale. What an item DOES is authored here and
 # read by the consumer only: `use` is a press of the use key, `tool` is what
@@ -28,7 +33,7 @@ prompt = "A short split length of pale-cored firewood with rough bark on one fac
 [[items]]
 item_id = "berry"
 display_name = "Berries"
-height_units = 0.20
+height_units = 0.26
 stack_max = 10
 prompt = "A small tight cluster of three round dark berries on a short stem."
 use = { kind = "consume", hunger = 20.0 }
@@ -36,7 +41,7 @@ use = { kind = "consume", hunger = 20.0 }
 [[items]]
 item_id = "stone"
 display_name = "Stone"
-height_units = 0.24
+height_units = 0.28
 stack_max = 10
 prompt = "A single fist-sized angular grey stone with fractured faces."
 
@@ -57,7 +62,7 @@ prompt = "A short bundle of three thin dry twigs bound together with a strand of
 [[items]]
 item_id = "flint"
 display_name = "Flint"
-height_units = 0.20
+height_units = 0.26
 stack_max = 10
 prompt = "A sharp-edged chip of dark glassy flint with pale worn facets along its edges."
 
@@ -71,7 +76,7 @@ prompt = "A small sheaf of three cut green marsh reeds with their pale ends tied
 [[items]]
 item_id = "mushroom"
 display_name = "Mushroom"
-height_units = 0.20
+height_units = 0.28
 stack_max = 10
 prompt = "A single plump brown-capped mushroom with a short pale stem, pulled whole."
 use = { kind = "consume", hunger = 12.0 }
@@ -79,7 +84,7 @@ use = { kind = "consume", hunger = 12.0 }
 [[items]]
 item_id = "moss"
 display_name = "Moss"
-height_units = 0.20
+height_units = 0.28
 stack_max = 10
 prompt = "A soft rounded handful of bright green moss, lifted in one piece."
 
@@ -88,7 +93,7 @@ prompt = "A soft rounded handful of bright green moss, lifted in one piece."
 [[items]]
 item_id = "rope"
 display_name = "Rope"
-height_units = 0.22
+height_units = 0.26
 stack_max = 5
 prompt = "A short coil of coarse twisted reed rope, its two ends tucked into the coil."
 
@@ -119,7 +124,7 @@ use = { kind = "light", radius_meters = 3.5, burn_seconds = 60.0 }
 [[items]]
 item_id = "cooked_berry"
 display_name = "Stewed berries"
-height_units = 0.22
+height_units = 0.26
 stack_max = 10
 prompt = "A small rounded heap of glossy dark stewed berries on a curled leaf."
 use = { kind = "consume", hunger = 45.0, warmth = 10.0 }
@@ -127,7 +132,7 @@ use = { kind = "consume", hunger = 45.0, warmth = 10.0 }
 [[items]]
 item_id = "poultice"
 display_name = "Moss poultice"
-height_units = 0.22
+height_units = 0.26
 stack_max = 5
 prompt = "A pad of green moss wrapped in dry grass and tied with a single blade, a healing dressing."
 use = { kind = "consume", health = 30.0 }
@@ -157,7 +162,7 @@ use = { kind = "wear", insulation = 0.5 }
 [[items]]
 item_id = "warm_stone"
 display_name = "Warm stone"
-height_units = 0.20
+height_units = 0.26
 stack_max = 1
 prompt = "A smooth rounded river stone, palm sized, glowing faintly amber at its core with a few pale heat lines."
 use = { kind = "warm", heat_seconds = 120.0 }

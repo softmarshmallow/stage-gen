@@ -326,9 +326,9 @@ func _decals(h: TestHarness, manifest: Dictionary) -> void:
 			orphans += 1
 			continue
 		drawn += 1
-	h.assert_eq((layout["decals"] as Array).size(), 2686, "the run places 2686 decals")
+	h.assert_eq((layout["decals"] as Array).size(), 2592, "the run places 2592 decals")
 	h.assert_eq(orphans, 0, "full-v66 has no orphan skirts")
-	h.assert_eq(drawn, 2686, "every decal in the run is drawable")
+	h.assert_eq(drawn, 2592, "every decal in the run is drawable")
 
 
 # --- per-state playback, per-facing cells (critique C3) ----------------------
@@ -433,7 +433,7 @@ func _module(h: TestHarness, pkg: RunPackage) -> void:
 		h.assert_eq(node.get_parent(), cards, "%s is not under the cards module" % id)
 		h.assert_near(node.position.x, float((entity as Dictionary)["x"]), 1e-5, "%s x" % id)
 		h.assert_near(node.position.z, float((entity as Dictionary)["z"]), 1e-5, "%s z" % id)
-	h.assert_eq(want.size(), 16, "full-v66 places sixteen prop states")
+	h.assert_eq(want.size(), 15, "the run places fifteen prop states (the fern clump went with decision 0060)")
 	for key: String in want.keys():
 		h.assert_eq(int(got.get(key, 0)), int(want[key]), "%s cards drawn" % key)
 	h.assert_eq(mobs, 11, "ember-hollow-v9 places eleven mobs")
@@ -609,4 +609,4 @@ func _look_geometry(h: TestHarness, manifest: Dictionary) -> void:
 					<= LOOK_FOOT_TOLERANCE_METERS,
 				"props.%s winter foot moved more than %.2f m" % [where, LOOK_FOOT_TOLERANCE_METERS],
 			)
-	h.assert_eq(compared, 29, "the run draws a winter look for twenty-nine prop states")
+	h.assert_eq(compared, 28, "the run draws a winter look for twenty-eight prop states")

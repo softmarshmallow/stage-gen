@@ -1,7 +1,7 @@
 # Godot host for the survival recipe
 
 `godot/oblique_survival` is an optional consumer of the exact-current
-`oblique-survival-manifest-v1` run. **It starts no run.** It does not plan,
+`oblique-survival-manifest-v2` run. **It starts no run.** It does not plan,
 generate, review, or publish media, it never receives provider credentials, and
 it has no code path that would regenerate anything it reads.
 
@@ -21,7 +21,7 @@ The host is handed one run directory on the command line — the directory holdi
 ```json
 {
   "schema_version": 1,
-  "kind": "oblique-survival-manifest-v1"
+  "kind": "oblique-survival-manifest-v2"
 }
 ```
 

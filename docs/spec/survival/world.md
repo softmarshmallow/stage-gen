@@ -16,8 +16,13 @@
 A world is a square of authored extent with a coast inside it, four biomes
 solved to their authored shares, a rules-only height, a road, a handful of
 **set pieces** (compositions sited whole: the camp the player spawns on, two
-boulder rings a walk away) and a **population**: every prop, the mob and the
-three ground sheets, each standing where its own `placement` block says.
+boulder rings a walk away) and a **population**: every scattered prop, the mob
+and the forage sheet, each standing where its own `placement` block says.
+Everything in the population is a thing the player can act on: a prop with an
+interaction, the mob, a forage cell that yields an item. The loader refuses a
+scattered prop that offers nothing and a sheet of pieces nobody can take
+([decision 0060](../../decisions/0060-the-world-places-nothing-the-player-cannot-act-on.md));
+a set-piece member may stand inert, because it is a landmark the map marks.
 
 The generator that lays it is a component with no vocabulary. It knows
 regions as integers, objects as id strings, and everything else as a number:
@@ -46,7 +51,7 @@ nothing else. A pinned digest names the world the library package lays.
 | `props.toml` `[props.placement]` | the placement block | where and how the prop is scattered; absent means never (a station is built, a camp prop is a member) |
 | `props.toml` | `canopy_radius_meters` | the soft disc of shade the plate carries under a placed instance in a starting look; 0 means none |
 | `actors.toml` `[mob.placement]` | the placement block | the hounds: their packs, their count, what they keep away from |
-| `ground.toml` `[<sheet>.placement]`, a cell's `placement` | the placement block | how a sheet's cells are scattered; a cell may carry its own block and become an object of its own (`forage/8`) |
+| `ground.toml` `[forage.placement]`, a cell's `placement` | the placement block | how the forage sheet's cells are scattered; a cell may carry its own block and become an object of its own (`forage/8`) |
 
 ### The placement block
 
@@ -72,7 +77,7 @@ A density is **where the habitat weight is 1**, proportionally fewer where it
 is lower, none where it is 0. A cluster's density is parents × mean size ×
 chance. `spacing_meters` beside a Poisson density is the object's own hard
 core; alone it is the process. `near` and `avoid` name any placed object, the
-mob, a sheet, or a set-piece member by its prop id; a cycle is refused.
+mob, the forage sheet, or a set-piece member by its prop id; a cycle is refused.
 
 ## What the generator does
 
@@ -110,8 +115,8 @@ mob, a sheet, or a set-piece member by its prop id; a cycle is refused.
 
 `package/world/layout.json`, embedded verbatim in the manifest as `layout`:
 the `entities` (with `cluster`, the grove or host an instance came with, and
-`set_piece`, the instance it is a member of), `set_pieces`, the pieces of each
-sheet, the decals (pads under members, skirts, puddles), the road polyline,
+`set_piece`, the instance it is a member of), `set_pieces`, the forage pieces
+(`forage`), the decals (pads under members, skirts, puddles), the road polyline,
 `counts`, `biome_shares`, `land_share`, `cell_meters`, and a `report` per
 object: the placement tally (candidates, reserve, dropped by its own core, by a
 neighbour, truncated, topped up) and the measurement (`r_mc`, `k_ratio`,
@@ -123,7 +128,9 @@ infers a cell size.
 
 A `[world]` table in `survival.toml`, `density_share`, `biome_weights`,
 `gameplay.mob_count` or a sheet's `density_per_100m2`: all moved to the
-object's block, and named as such. An unknown key anywhere. A habitat naming
+object's block, and named as such. A `[clutter]` or `[plants]` sheet, and a
+scattered prop with no interaction: decoration, which the world does not
+place. An unknown key anywhere. A habitat naming
 a biome nobody drew, a `near` or `avoid` naming nothing, two processes in one
 block, a maximum below a minimum, a set piece with a member in no declared
 state or a pad with no pad decal, two origins, a spawn that is not the origin.
@@ -142,6 +149,8 @@ still leaves the spawn); a semantic designer over the generator.
 
 ## Dated log
 
+- 2026-09-07: the population is only what the player can act on; the litter
+  and plant sheets and the inert fern clump are refused (decision 0060).
 - 2026-09-06: landed. The first world generator was a single random stream,
   uniform inside a biome, with the camp in code and a family density budget;
   this replaces it with the component, the object-owned `placement` block,

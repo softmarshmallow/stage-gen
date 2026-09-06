@@ -6,10 +6,11 @@ extends RefCounted
 
 ## The run every test reads when the command line names none. A real run, not a
 ## fixture: the port is only worth anything if it loads what the pipeline
-## actually emits. `out/ember-hollow-v1` is the promoted run — manifest kind
-## `oblique-survival-manifest-v1` over a package byte-identical to the spike's
-## `full-v66`, so every count in these tests is the same number.
-const DEFAULT_RUN_DIR := "/Users/universe/Documents/shared/stage-gen/out/ember-hollow-v9"
+## actually emits. `out/ember-hollow-v10` is the current run — manifest kind
+## `oblique-survival-manifest-v2`, the forage the only sheet of ground pieces
+## and every cell of it sized (decision 0060); the counts pinned in these
+## tests are that run's.
+const DEFAULT_RUN_DIR := "/Users/universe/Documents/shared/stage-gen/out/ember-hollow-v10"
 
 ## The run this suite is pointed at: `DEFAULT_RUN_DIR`, or the directory after
 ## `-- --run` on the command line.

@@ -15,7 +15,7 @@ extends RefCounted
 ## the look, and opens the snow — the paths a shorter, calmer script misses.
 ##
 ## T29: the boot budget. What the host must do before the first frame is parse
-## the manifest and the layout, and decode the run's 124 PNGs.
+## the manifest and the layout, and decode the run's 119 PNGs.
 
 const STEP := 1.0 / 60.0
 const SCRIPTED_STEPS := 3600
@@ -26,7 +26,7 @@ const STAGE_ENTITIES := 160
 ## Budgets, from D1 T29.
 const PARSE_BUDGET_MS := 60.0
 const DECODE_BUDGET_MS := 500.0
-const EXPECTED_PNGS := 124
+const EXPECTED_PNGS := 119
 
 
 func run(h: TestHarness) -> void:

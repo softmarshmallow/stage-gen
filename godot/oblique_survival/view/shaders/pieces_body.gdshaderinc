@@ -4,10 +4,10 @@
 // same four floats set with `MultiMesh.set_instance_custom_data`. The
 // pointer's lift is `lift.gdshaderinc`, the cards' own formula.
 //
-// This file holds no `render_mode`, so the three sheets that use it can differ
-// where the viewer's materials differ (litter and forage write no depth;
-// plants do; leaves are double sided). Each of those `.gdshader` files includes
-// `night.gdshaderinc` first and then this one.
+// This file holds no `render_mode`; `pieces.gdshader` includes
+// `night.gdshaderinc`, then `lift.gdshaderinc`, then this one. (The litter and
+// the standing plants that once shared it are gone with decision 0060: the
+// world places nothing the player cannot act on.)
 //
 // Window convention: Godot does not flip textures, so a cell given in pixels
 // from the image's top-left is `(x/W, y/H, w/W, h/H)` and the quad's own UV has
@@ -16,8 +16,8 @@
 
 uniform sampler2D u_map : source_color, filter_linear_mipmap, repeat_disable;
 uniform float u_alpha_cutoff = 0.5;
-// Litter darkens under the canopy the way the ground under it does, from the
-// same splat channel; otherwise a leaf glows in a tree's shade. The plate is
+// A piece darkens under the canopy the way the ground under it does, from the
+// same splat channel; otherwise a stone glows in a tree's shade. The plate is
 // data, not colour: no `source_color`, no mipmaps.
 uniform sampler2D u_splat : filter_linear, repeat_disable;
 uniform vec2 u_world_origin = vec2(-128.0, -128.0);

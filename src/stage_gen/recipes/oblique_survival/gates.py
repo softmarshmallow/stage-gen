@@ -149,23 +149,20 @@ TILE_EDGE_DELTA_MAX: Final = 6.0 / 255.0
 MACRO_LUMA_RANGE: Final = (0.36, 0.68)
 MACRO_EDGE_MEAN_MAX: Final = 0.02
 MACRO_HALF_DEVIATION_MAX: Final = 0.22
-#: A litter cutout fills a readable fraction of its cell, and nothing touches a
+#: A ground piece fills a readable fraction of its cell, and nothing touches a
 #: guide line: the inset is the empty margin required on every side of a cell.
-CLUTTER_CELL_COVERAGE: Final = (0.02, 0.60)
-#: A standing plant fills most of its cell's height and a good part of its
-#: width; the litter's ceiling would refuse every waist-high one.
-PLANT_CELL_COVERAGE: Final = (0.03, 0.85)
-#: An inventory icon fills its cell more than a litter piece does: about two
+PIECE_CELL_COVERAGE: Final = (0.02, 0.60)
+#: An inventory icon fills its cell more than a ground piece does: about two
 #: thirds by the brief, and a plump glyph may run to three quarters.
 ICON_CELL_COVERAGE: Final = (0.05, 0.75)
-CLUTTER_CELL_INSET: Final = 0.03
+#: The margin inside a cut a piece must keep clear of, as a share of the cell.
+SHEET_CELL_INSET: Final = 0.03
 #: A prop sheet's cells keep the sprite gate, with two floors lowered. The
 #: sheet's point is one shared scale, so a knee-high stump beside a full pine
 #: is a small thing mid-cell by design: about one percent of a 512-px cell,
 #: with its base near the middle. The sprite floors (1% visible, base in the
 #: lower 45%) exist to keep a lone sprite from wasting its canvas, and that
 #: is not the question a sheet cell answers.
-SHEET_CELL_INSET: Final = CLUTTER_CELL_INSET
 #: A sheet is cut at the emptiest seam near each half line, not on the half
 #: line itself, searched this far either side of it. The dead snag's four
 #: looks came back eighteen times with the top row's roots a few pixels under
@@ -908,7 +905,7 @@ def gate_macro_plate(data: bytes, *, width: int, height: int) -> dict[str, objec
     }
 
 
-#: A litter piece's contact ratio: the mean value of its lowest band over its
+#: A ground piece's contact ratio: the mean value of its lowest band over its
 #: highest band. Recorded for every cell and gating none, after two runs of
 #: trying: the ratio reads colour as light (a mushroom's pale stem under its
 #: dark cap scored 1.43 with a good contact ring, a dark bark piece 0.98 with
@@ -916,14 +913,14 @@ def gate_macro_plate(data: bytes, *, width: int, height: int) -> dict[str, objec
 #: (the old sticker stone and the new pressed stone both scored 0.61), and a
 #: bottom-contour flatness test cannot see a piece made of three pebbles.
 #: Contact is semantic; the review judges it. This number is for the record.
-CLUTTER_CONTACT_RATIO_MAX: Final = 0.92
+PIECE_CONTACT_RATIO_MAX: Final = 0.92
 #: Share of the piece's height taken as its upper and lower bands.
-CLUTTER_CONTACT_BAND: Final = 0.30
+PIECE_CONTACT_BAND: Final = 0.30
 #: Contact classes the ratio refuses. Empty on purpose; see above.
-CLUTTER_CONTACT_GATED: Final[tuple[str, ...]] = ()
+PIECE_CONTACT_GATED: Final[tuple[str, ...]] = ()
 
 
-def clutter_contact_ratio(cell: Image.Image) -> float | None:
+def piece_contact_ratio(cell: Image.Image) -> float | None:
     """Lower-band over upper-band mean value of the covered pixels, or None if empty."""
 
     mask = _mask(cell)
@@ -932,7 +929,7 @@ def clutter_contact_ratio(cell: Image.Image) -> float | None:
         return None
     luma = _luma(cell)
     height = box[3] - box[1]
-    band = max(1, round(height * CLUTTER_CONTACT_BAND))
+    band = max(1, round(height * PIECE_CONTACT_BAND))
 
     def band_mean(top: int, bottom: int) -> float:
         region = (box[0], top, box[2], bottom)
@@ -1098,7 +1095,7 @@ def guided_cells(
     return cells, lattice
 
 
-def gate_clutter_sheet(
+def gate_piece_sheet(
     data: bytes,
     *,
     columns: int,
@@ -1107,11 +1104,12 @@ def gate_clutter_sheet(
     template: bytes | None = None,
     contacts: Sequence[str] | None = None,
     native_alpha: bool = False,
-    coverage: tuple[float, float] = CLUTTER_CELL_COVERAGE,
+    coverage: tuple[float, float] = PIECE_CELL_COVERAGE,
     halo: bool = False,
-    inset_fraction: float = CLUTTER_CELL_INSET,
+    inset_fraction: float = SHEET_CELL_INSET,
 ) -> tuple[bytes, dict[str, object]]:
-    """The fire strip's lattice paintover, asked of sixteen still cutouts.
+    """The fire strip's lattice paintover, asked of a sheet of still cutouts
+    (the forage pieces, the inventory icons).
 
     With ``halo`` each cell has its soft halo stripped (``strip_halo``)
     before it is measured and before it is laid on the canonical sheet.
@@ -1184,15 +1182,11 @@ def gate_clutter_sheet(
         ):
             reasons.append(f"cell {index}'s piece touches its guide line; it will be sliced")
         contact = contacts[index] if contacts is not None and index < len(contacts) else None
-        ratio = clutter_contact_ratio(cell) if box else None
-        if (
-            contact in CLUTTER_CONTACT_GATED
-            and ratio is not None
-            and ratio > CLUTTER_CONTACT_RATIO_MAX
-        ):
+        ratio = piece_contact_ratio(cell) if box else None
+        if contact in PIECE_CONTACT_GATED and ratio is not None and ratio > PIECE_CONTACT_RATIO_MAX:
             reasons.append(
                 f"cell {index} is a sticker: its lower edge is {ratio:.2f} of the value of its "
-                f"upper edge (limit {CLUTTER_CONTACT_RATIO_MAX}); a {contact} piece needs a dark "
+                f"upper edge (limit {PIECE_CONTACT_RATIO_MAX}); a {contact} piece needs a dark "
                 "contact shadow along its lower edge"
             )
         records.append(
@@ -1219,7 +1213,7 @@ def gate_clutter_sheet(
     canvas.save(buffer, format="PNG")
     return buffer.getvalue(), {
         "schema_version": 1,
-        "kind": "oblique-survival-clutter-sheet-v1",
+        "kind": "oblique-survival-piece-sheet-v1",
         "columns": columns,
         "rows": rows,
         "cell_px": cell_px,

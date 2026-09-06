@@ -1,5 +1,5 @@
 schema_version = 1
-kind = "oblique-survival-props-v2"
+kind = "oblique-survival-props-v3"
 package_id = "ember-hollow"
 
 motion_hint_allowed = ["sway_top", "bob", "flicker", "none"]
@@ -20,6 +20,14 @@ hit_reaction_allowed = ["shake", "none"]
 # The verb says nothing about it: gathering by hand is `hand`, anything a tool
 # knocks loose is `ground`. (The contract came 2026-09-06; before it every
 # yield dropped.)
+#
+# A scattered prop must offer something. The world places nothing the player
+# cannot act on (decision 0060): a thing that only stands, scattered among the
+# things that answer the hand, reads as one of them, and the player learns to
+# distrust the set. The fern clump stood here as decoration, 128 of them under
+# the pines beside the gatherable grass, and went with the rule; a set-piece
+# member (the tent) may still stand inert, because it is a landmark the map
+# marks, composed by hand and placed once. (props-v3, 2026-09-07.)
 #
 # What can be done to a prop is a list, [[props.interactions]], each entry
 # saying the states it applies `from` (required, explicit: a fire is lit from
@@ -495,40 +503,12 @@ yields = [{ item_id = "twig", count = 2 }]
 standing = "snow along every upper edge of the bare grey limbs and a cap on the broken top"
 leaning = "snow along every upper edge of the bare grey limbs and a cap on the broken top"
 
-[[props]]
-prop_id = "fern_clump"
-family = "bush"
-height_units = 0.45
-footprint_radius_units = 0.20
-shadow_width_units = 0.70
-edge = "soft"
-motion_hint = "sway_top"
-hit_reaction = "shake"
-max_components = 1
-prompt = """
-A low spreading clump of arching ferns: each frond a narrow blade of small
-paired leaflets, all splaying outward and slightly downward from one crown at
-the ground.
-"""
-states = ["full"]
-
-# Ferns grow under pines: attached to the pines' final points, not scattered.
-[props.placement]
-habitat = { forest_floor = 1.0, mossy_bog = 0.9, dry_meadow = 0.1 }
-near = { host = "pine", radius_meters = 2.5, mean = 0.8, chance = 0.6 }
-
-[props.state_prompt]
-full = "Fresh and fully open, the outer fronds arching almost to the ground."
-
 # --- the crafting world ------------------------------------------------------------
 #
 # Three props the crafting table leans on. The twig bush and the reed clump
 # are the renewable sources of the two things every recipe starts from; the
 # workbench is never scattered (no [world.density] row for its family), it
 # exists only where the player builds it.
-
-[props.season_prompt.winter]
-full = "the fronds bowed under snow, their tips still green"
 
 [[props]]
 prop_id = "twig_bush"

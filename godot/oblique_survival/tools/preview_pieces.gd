@@ -6,11 +6,11 @@ extends SceneTree
 ##       --disable-render-loop --audio-driver Dummy -s res://tools/preview_pieces.gd \
 ##       -- --run <run dir> --out <png> [--yaw 45] [--night 0] [--look ""]
 ##
-## It builds `view/pieces.gd`, `view/plants.gd` and `view/leaves.gd` over the
-## verdict framing (camp at the origin, the manifest's camera block) and nothing
-## else, so what lands in the PNG is this module's work and no one else's. The
-## flat plate under them is a stand-in for the ground module, not a port of it:
-## a dull unshaded quad so the litter and the plants have something to sit on.
+## It builds `view/pieces.gd` over the verdict framing (camp at the origin, the
+## manifest's camera block) and nothing else, so what lands in the PNG is this
+## module's work and no one else's. The flat plate under it is a stand-in for
+## the ground module, not a port of it: a dull unshaded quad so the pieces have
+## something to sit on.
 ##
 ## This is a builder's tool, not the host's capture harness.
 
@@ -81,11 +81,8 @@ func _init() -> void:
 	var world := _world_stub(pkg, yaw, String(extra.get("look", "")))
 
 	var pieces := Pieces.new()
-	var plants := Plants.new()
-	var leaves := Leaves.new()
-	for module in [pieces, plants, leaves]:
-		viewport.add_child(module)
-		module.setup(pkg, world, fu)
+	viewport.add_child(pieces)
+	pieces.setup(pkg, world, fu)
 
 	var night := float(extra.get("night", 0.0))
 	fu.write_frame({
@@ -109,14 +106,9 @@ func _init() -> void:
 		"pixel_ratio": 1.0,
 		"resolution": Vector2(SIZE),
 	}
-	# A handful of leaves in the air, so the pool is in the picture too.
-	leaves.spawn_leaves(target.x + 1.2, target.z + 0.4, 0.0,
-		{"count": 12, "top": 3.6, "bottom": 1.4, "spread": 0.9})
-	for module in [pieces, plants, leaves]:
-		module.update(world, 1.0 / 60.0, cam)
+	pieces.update(world, 1.0 / 60.0, cam)
 	world["time"] = 0.6
-	for module in [pieces, plants, leaves]:
-		module.update(world, 0.6, cam)
+	pieces.update(world, 0.6, cam)
 
 	for i in 2:
 		await process_frame
@@ -126,10 +118,9 @@ func _init() -> void:
 		RenderingServer.force_draw(false)
 	var image := viewport.get_texture().get_image()
 	var error := image.save_png(out)
-	print("preview: %s %dx%d (%s), clutter %d forage %d plants %d" % [
+	print("preview: %s %dx%d (%s), forage %d" % [
 		out, image.get_width(), image.get_height(),
-		"ok" if error == OK else "save failed",
-		pieces.clutter.count, pieces.forage.count, plants.count])
+		"ok" if error == OK else "save failed", pieces.forage.count])
 	print("preview: centre pixel %s" % image.get_pixel(SIZE.x / 2, SIZE.y / 2))
 	quit(0 if error == OK else 1)
 

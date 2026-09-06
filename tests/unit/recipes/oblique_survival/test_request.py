@@ -27,7 +27,7 @@ PACKAGE = Path("library/games/ember-hollow")
 #: two local nodes (``source-lock`` and ``package-manifest``) and no provider
 #: operation, because every other node takes the source lock as a barrier rather
 #: than as lineage.
-SOURCE_DIGEST = "7761c57cb7acba37f0e7fbd0d4134cf690af7865d69110ba5f8d74fcb31f6507"
+SOURCE_DIGEST = "95e3765990adeb796308a35789fc4803cfcd895ab480932f767e673283a04bf3"
 
 #: One take that is declared by digest and whose bytes are in the package.
 FORAGE_TAKE = "ground/forage.take.png"
@@ -67,7 +67,7 @@ def test_every_declared_take_digest_is_the_file_it_names() -> None:
         for name, digest in package.digests.items()
         if ".take." in name and (PACKAGE / name).is_file()
     }
-    assert len(takes) == 18
+    assert len(takes) == 16
     for name, digest in takes.items():
         assert hashlib.sha256((PACKAGE / name).read_bytes()).hexdigest() == digest
 

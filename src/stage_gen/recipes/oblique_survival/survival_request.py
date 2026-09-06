@@ -28,7 +28,6 @@ from stage_gen.canonical import content_sha256
 from stage_gen.components._game_input import AuthoredContractLoadError
 from stage_gen.components.game_ui import GameUi, load_game_ui_bytes
 from stage_gen.recipes.oblique_survival.models import (
-    CLUTTER_CONTACTS,
     DECAL_USES,
     DEFAULT_MUSIC_TRANSITION,
     DROPS_SHAPES,
@@ -36,6 +35,7 @@ from stage_gen.recipes.oblique_survival.models import (
     EDGE_KINDS,
     FACING_SETS,
     GROUND_CONTACTS,
+    GROUND_KIND,
     GROUND_MATERIALS,
     HIT_REACTIONS,
     INTERACTION_VERBS,
@@ -47,6 +47,8 @@ from stage_gen.recipes.oblique_survival.models import (
     MUSIC_CUES,
     MUSIC_CURVES,
     PICKUP_MODES,
+    PIECE_CONTACTS,
+    PROPS_KIND,
     RESERVED_STATE_NAMES,
     SHEET_SHAPES,
     SIDE_VIEWS,
@@ -59,8 +61,6 @@ from stage_gen.recipes.oblique_survival.models import (
     Biome,
     BiomeRules,
     ClusterRule,
-    Clutter,
-    ClutterCell,
     Condition,
     Crafting,
     Decal,
@@ -88,8 +88,6 @@ from stage_gen.recipes.oblique_survival.models import (
     Package,
     PackageFile,
     Placement,
-    PlantCell,
-    Plants,
     Prop,
     Recipe,
     Road,
@@ -829,6 +827,21 @@ def _props(
                 "[[props.interactions]] tables, each with the states it applies `from`"
             )
         interactions = _interactions(row.get("interactions"), prop_id=prop_id, states=states)
+        placement = _placement(
+            row.get("placement"), field=f"{prop_id}.placement", biome_ids=biome_ids
+        )
+        if placement is not None and not interactions:
+            # The world generator places nothing the player cannot act on
+            # (decision 0060): a scattered thing that offers nothing reads as
+            # one that does, and the player learns to distrust the whole set.
+            # A set-piece member may stand inert -- it is a landmark the map
+            # marks, composed by hand and placed once -- but the scatter is
+            # the population, and every one of it answers the hand.
+            raise SourceError(
+                f"{prop_id} is scattered by [props.placement] but has no [[props.interactions]]: "
+                "a placed thing the player cannot act on is decoration, and the world places "
+                "none; give it an interaction or drop its placement"
+            )
         variants = _variants(row.get("variants"), prop_id=prop_id, states=states)
         raw_looks = row.get("look_height_units", {})
         if not isinstance(raw_looks, dict):
@@ -882,9 +895,7 @@ def _props(
                 interactions=interactions,
                 baseline_state=baseline_state,
                 look_height_units=look_height_units,
-                placement=_placement(
-                    row.get("placement"), field=f"{prop_id}.placement", biome_ids=biome_ids
-                ),
+                placement=placement,
                 canopy_radius_meters=_number(
                     row.get("canopy_radius_meters", 0.0),
                     field=f"{prop_id}.canopy_radius_meters",
@@ -1418,12 +1429,8 @@ def _sheets(package: Package) -> list[tuple[str, _PlacedSheet]]:
     """The piece sheets the package has, by the name the population knows them as."""
 
     out: list[tuple[str, _PlacedSheet]] = []
-    if package.clutter is not None:
-        out.append(("clutter", package.clutter))
     if package.forage is not None:
         out.append(("forage", package.forage))
-    if package.plants is not None:
-        out.append(("plants", package.plants))
     return out
 
 
@@ -1565,7 +1572,11 @@ def _item_tool(raw: object, *, item_id: str) -> ItemTool | None:
     return ItemTool(verb=verb, uses=uses)
 
 
-def _items(rows: object) -> tuple[Item, ...]:
+def _items(rows: object, *, minimum_height_units: float) -> tuple[Item, ...]:
+    """``[[items]]``. A pickup's ``height_units`` keeps the package floor like
+    a prop's: it is a thing the player must see and click, and a size under
+    the floor is a size no one finds at play zoom."""
+
     if not isinstance(rows, list) or not rows:
         raise SourceError("items.toml must declare at least one [[items]] entry")
     items: list[Item] = []
@@ -1590,12 +1601,19 @@ def _items(rows: object) -> tuple[Item, ...]:
         tool = _item_tool(row.get("tool"), item_id=item_id)
         if tool is not None and stack_max != 1:
             raise SourceError(f"{item_id} is a tool and wears; a tool's stack_max is 1")
+        height_units = _number(
+            row.get("height_units"), field=f"{item_id}.height_units", low=0.01, high=2.0
+        )
+        if height_units < minimum_height_units:
+            raise SourceError(
+                f"{item_id}.height_units {height_units} is under the package minimum "
+                f"{minimum_height_units}: a pickup is authored no smaller than the floor every "
+                "prop keeps, or nobody finds it on the ground"
+            )
         items.append(
             Item(
                 item_id=item_id,
-                height_units=_number(
-                    row.get("height_units"), field=f"{item_id}.height_units", low=0.01, high=2.0
-                ),
+                height_units=height_units,
                 prompt=_text(row.get("prompt"), field=f"{item_id}.prompt"),
                 display_name=" ".join(str(row.get("display_name", "")).split()),
                 stack_max=stack_max,
@@ -2217,9 +2235,8 @@ def _water(block: object) -> Water | None:
 class PieceSheetScalars(TypedDict):
     """Everything a piece sheet declares beside its cells.
 
-    The keys are exactly the non-``cells`` fields of ``Clutter``, ``Forage``
-    and ``Plants``, so ``_clutter`` and its two siblings splat this straight
-    into the dataclass and mypy checks the splat.
+    The keys are exactly the non-``cells`` fields of ``Forage``, so ``_forage``
+    splats this straight into the dataclass and mypy checks the splat.
     """
 
     columns: int
@@ -2238,14 +2255,15 @@ def _piece_sheet(
     root: Path | None = None,
     digests: DigestLedger | None = None,
 ) -> tuple[PieceSheetScalars, list[dict[str, Any]]] | None:
-    """The shared shape of a sheet of ground pieces: a lattice, a density per
-    biome, and one cell per lattice cell with a brief, a contact and the
-    biomes it may land in. Returns the checked scalars and the raw cells,
-    each with its contact and biomes already validated.
+    """The shape of a sheet of ground pieces: a lattice, a placement, and one
+    cell per lattice cell with a brief, a contact and the biomes it may land
+    in. Returns the checked scalars and the raw cells, each with its contact
+    and biomes already validated.
 
     A cell keeps ``dict[str, Any]``: it carries the author's whole table
-    through (``**raw``), and the two sheets that add fields of their own read
-    them off it, so its keys are open where the scalars are closed."""
+    through (``**raw``), and the sheet that adds fields of its own reads them
+    off it, so its keys are open where the scalars are closed. The forage is
+    the one such sheet now; the icon sheet has its own loader."""
 
     if block is None:
         return None
@@ -2278,9 +2296,9 @@ def _piece_sheet(
         if not isinstance(raw, dict):
             raise SourceError(f"{field}.cells[{index}] must be a table")
         contact = _text(raw.get("contact"), field=f"{field}.cells[{index}].contact")
-        if contact not in CLUTTER_CONTACTS:
+        if contact not in PIECE_CONTACTS:
             raise SourceError(
-                f"{field}.cells[{index}].contact must be one of {list(CLUTTER_CONTACTS)}"
+                f"{field}.cells[{index}].contact must be one of {list(PIECE_CONTACTS)}"
             )
         biomes = _strings(raw.get("biomes"), field=f"{field}.cells[{index}].biomes")
         if not biomes:
@@ -2329,72 +2347,28 @@ def _piece_sheet(
     return scalars, cells
 
 
-def _clutter(
-    block: object,
-    *,
-    biome_ids: Sequence[str],
-    root: Path | None = None,
-    digests: DigestLedger | None = None,
-) -> Clutter | None:
-    parsed = _piece_sheet(block, field="clutter", biome_ids=biome_ids, root=root, digests=digests)
-    if parsed is None:
-        return None
-    scalars, cells = parsed
-    return Clutter(
-        **scalars,
-        cells=tuple(
-            ClutterCell(
-                brief=c["brief"], contact=c["contact"], biomes=c["biomes"], placement=c["placement"]
-            )
-            for c in cells
-        ),
-    )
-
-
-def _plants(
-    block: object,
-    *,
-    biome_ids: Sequence[str],
-    root: Path | None = None,
-    digests: DigestLedger | None = None,
-) -> Plants | None:
-    parsed = _piece_sheet(block, field="plants", biome_ids=biome_ids, root=root, digests=digests)
-    if parsed is None:
-        return None
-    scalars, cells = parsed
-    for index, cell in enumerate(cells):
-        if cell["contact"] != "growing":
-            raise SourceError(
-                f"plants.cells[{index}] must grow from the ground; "
-                "a fallen or pressed thing is litter"
-            )
-    if scalars["cell_meters"] < 0.5:
-        raise SourceError(
-            "plants.cell_meters is under half a metre: that is the litter's scale, not a plant's"
-        )
-    return Plants(
-        **scalars,
-        cells=tuple(
-            PlantCell(
-                brief=c["brief"], contact=c["contact"], biomes=c["biomes"], placement=c["placement"]
-            )
-            for c in cells
-        ),
-    )
-
-
 def _forage(
     block: object,
     *,
     biome_ids: Sequence[str],
     item_ids: Sequence[str],
+    player_height_meters: float,
+    minimum_height_units: float,
     root: Path | None = None,
     digests: DigestLedger | None = None,
 ) -> Forage | None:
+    """``[forage]``: the pickups lying on the ground. Every cell yields a
+    declared item and carries its canonical size, ``size_units``, in player
+    heights: no lower than the package floor (a thing the player must find
+    and click is authored readable, like every prop and pickup), and no
+    larger than the cell it is drawn in (the cell is the drawing scale, and a
+    piece wider than its cell is a piece the model cannot draw at it)."""
+
     parsed = _piece_sheet(block, field="forage", biome_ids=biome_ids, root=root, digests=digests)
     if parsed is None:
         return None
     scalars, cells = parsed
+    cell_units = scalars["cell_meters"] / player_height_meters
     out: list[ForageCell] = []
     for index, raw in enumerate(cells):
         item_id = _identifier(raw.get("item_id"), field=f"forage.cells[{index}].item_id")
@@ -2403,6 +2377,27 @@ def _forage(
         count = raw.get("count", 1)
         if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= 99:
             raise SourceError(f"forage.cells[{index}].count must be an integer within [1, 99]")
+        if "size_units" not in raw:
+            raise SourceError(
+                f"forage.cells[{index}].size_units is required: the piece's longest extent in "
+                "player heights; a pickup's size is authored, never read off its drawing"
+            )
+        size_units = _number(
+            raw.get("size_units"), field=f"forage.cells[{index}].size_units", low=0.01, high=2.0
+        )
+        if size_units < minimum_height_units:
+            raise SourceError(
+                f"forage.cells[{index}].size_units {size_units} is under the package minimum "
+                f"{minimum_height_units}: a thing the player must find and click is authored "
+                "no smaller than the floor every prop and pickup keeps"
+            )
+        if size_units > cell_units + 1e-9:
+            raise SourceError(
+                f"forage.cells[{index}].size_units {size_units} is "
+                f"{size_units * player_height_meters:.2f} m, wider than the "
+                f"{scalars['cell_meters']} m cell it is drawn in; widen forage.cell_meters or "
+                "shrink the piece"
+            )
         out.append(
             ForageCell(
                 brief=raw["brief"],
@@ -2416,6 +2411,7 @@ def _forage(
                     low=1.0,
                     high=3600.0,
                 ),
+                size_units=size_units,
                 placement=raw["placement"],
             )
         )
@@ -3051,6 +3047,24 @@ def load_package(root: Path) -> Package:
         ) from None
     if items_doc.get("kind") != "oblique-survival-items-v1":
         raise SourceError("items.toml kind must be oblique-survival-items-v1")
+    if props_doc.get("kind") != PROPS_KIND:
+        raise SourceError(
+            f"props.toml kind must be {PROPS_KIND}: since v3 a scattered prop must offer an "
+            "interaction, because the world places nothing the player cannot act on"
+        )
+    if ground.get("kind") != GROUND_KIND:
+        raise SourceError(
+            f"ground.toml kind must be {GROUND_KIND}: since v2 the forage is the only sheet of "
+            "ground pieces and each of its cells is sized, because the world places nothing "
+            "the player cannot act on"
+        )
+    for decoration in ("clutter", "plants"):
+        if decoration in ground:
+            raise SourceError(
+                f"ground.toml [{decoration}] is not authored any more: the world places nothing "
+                "the player cannot act on, so a sheet of pieces nobody can take is refused; "
+                "what the ground looks like between the things on it is the plates' job"
+            )
     if "world" in survival:
         raise SourceError(
             "survival.toml [world] moved to world.toml; the world's extent, landmass, "
@@ -3086,6 +3100,9 @@ def load_package(root: Path) -> Package:
     presentation = _subtable(survival, "presentation")
     minimum = _number(
         scale.get("minimum_height_units"), field="minimum_height_units", low=0.01, high=1.0
+    )
+    player_height = _number(
+        scale.get("player_height_meters"), field="player_height_meters", low=0.2, high=10.0
     )
     fx = _subtable(ground, "fx")
     fire = _subtable(fx, "fire")
@@ -3125,20 +3142,16 @@ def load_package(root: Path) -> Package:
     )
     # Parsed before the package is built: a take lands in the digest ledger
     # as it is parsed, and the ledger is copied into the package first.
-    clutter = _clutter(
-        ground.get("clutter"), biome_ids=[b.biome_id for b in biomes], root=root, digests=digests
-    )
-    items = _items(items_doc.get("items"))
+    items = _items(items_doc.get("items"), minimum_height_units=minimum)
     icons = _icons(items_doc.get("icons"), items=items, root=root, digests=digests)
     forage = _forage(
         ground.get("forage"),
         biome_ids=[b.biome_id for b in biomes],
         item_ids=[item.item_id for item in items],
+        player_height_meters=player_height,
+        minimum_height_units=minimum,
         root=root,
         digests=digests,
-    )
-    plants = _plants(
-        ground.get("plants"), biome_ids=[b.biome_id for b in biomes], root=root, digests=digests
     )
     props = _props(
         props_doc.get("props"),
@@ -3166,9 +3179,7 @@ def load_package(root: Path) -> Package:
             presentation.get("ground_contact", "shadow"), field="presentation.ground_contact"
         ),
         look=_look(survival.get("look")),
-        player_height_meters=_number(
-            scale.get("player_height_meters"), field="player_height_meters", low=0.2, high=10.0
-        ),
+        player_height_meters=player_height,
         minimum_height_units=minimum,
         camera=dict(_subtable(survival, "camera")),
         world=world,
@@ -3184,9 +3195,7 @@ def load_package(root: Path) -> Package:
         decals=decals,
         macro=_macro(ground.get("macro")),
         road=_road(ground.get("road")),
-        clutter=clutter,
         forage=forage,
-        plants=plants,
         water=_water(ground.get("water")),
         blend=_blend(ground.get("blend")),
         level=_level(ground.get("blend"), [biome.biome_id for biome in biomes]),

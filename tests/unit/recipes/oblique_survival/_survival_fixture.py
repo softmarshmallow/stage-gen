@@ -33,7 +33,6 @@ from stage_gen.recipes.oblique_survival.manifest import (
     alpha_bbox,
     biome_splat_ref,
     build_manifest,
-    clutter_ref,
     concept_ref,
     decal_ref,
     dust_ref,
@@ -45,8 +44,6 @@ from stage_gen.recipes.oblique_survival.manifest import (
     layout_ref,
     macro_ref,
     manifest_bytes,
-    plants_look_ref,
-    plants_ref,
     prop_look_ref,
     prop_ref,
     road_ref,
@@ -409,12 +406,12 @@ def _fixture_macro() -> bytes:
     return buffer.getvalue()
 
 
-def _fixture_clutter(columns: int, rows: int, cell_px: int) -> bytes:
+def _fixture_pieces(columns: int, rows: int, cell_px: int) -> bytes:
     """One small flat shape per cell, well inside its cell."""
 
     image = Image.new("RGBA", (columns * cell_px, rows * cell_px), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
-    rand = _fixture_rand("clutter")
+    rand = _fixture_rand("pieces")
     palette = [(150, 110, 60, 255), (120, 120, 116, 255), (90, 110, 60, 255), (200, 170, 90, 255)]
     for index in range(columns * rows):
         cx = (index % columns) * cell_px + cell_px // 2
@@ -676,18 +673,11 @@ def write_fixture(package: Package, run_dir: Path, layout: Layout) -> Manifest:
         write(macro_ref(), _fixture_macro())
     if package.road is not None:
         write(road_ref(package.road.road_id), _fixture_ground("road"))
-    if package.clutter is not None:
-        write(clutter_ref(), _fixture_clutter(package.clutter.columns, package.clutter.rows, 256))
     if package.forage is not None:
-        write(forage_ref(), _fixture_clutter(package.forage.columns, package.forage.rows, 256))
-    if package.plants is not None:
-        summer_sheet = _fixture_clutter(package.plants.columns, package.plants.rows, 256)
-        write(plants_ref(), summer_sheet)
-        for look in package.seasons.looks if package.seasons is not None else ():
-            write(plants_look_ref(look.look_id), _fixture_look(summer_sheet))
+        write(forage_ref(), _fixture_pieces(package.forage.columns, package.forage.rows, 256))
     write(
         icons_ref(),
-        _fixture_clutter(package.icons.columns, package.icons.rows, package.icons.cell_px),
+        _fixture_pieces(package.icons.columns, package.icons.rows, package.icons.cell_px),
     )
     if package.water is not None:
         write(water_ref(), _fixture_ground("water"))

@@ -80,7 +80,10 @@ EDGE_FIELD: Final[Mapping[str, str]] = {
     "set_piece": "set_piece",
 }
 #: Sheet object ids, in the order the record lists them.
-SHEET_NAMES: Final = ("clutter", "forage", "plants")
+#: The sheets of ground pieces the population lays. One: the forage. The world
+#: places nothing the player cannot act on, so a litter sheet and a standing-
+#: plant sheet are not objects of the world any more (decision 0060).
+SHEET_NAMES: Final = ("forage",)
 
 #: The hosts run this generator for the sim, seeded from the layout's seed.
 type Rand = Callable[[], float]
@@ -123,7 +126,7 @@ class GroundDecal(DecalPlacement, total=False):
 
 
 class GroundPiece(TypedDict):
-    """One cell of a piece sheet (litter, forage, a standing plant) on the ground."""
+    """One cell of the forage sheet laid on the ground."""
 
     #: Index into the sheet's cells, in reading order.
     cell: int
@@ -171,12 +174,9 @@ class Layout:
     road_id: str | None
     road_width_meters: float
     road: tuple[tuple[float, float], ...]
-    clutter: tuple[GroundPiece, ...]
-    #: The forage pieces, the same shape as the litter: the item each yields
-    #: is the manifest's cell record, not repeated here.
+    #: The forage pieces: the item each yields and its size are the
+    #: manifest's cell record, not repeated here.
     forage: tuple[GroundPiece, ...]
-    #: The standing plants, the same shape again; the viewer stands them up.
-    plants: tuple[GroundPiece, ...]
     land_share: float
     plate_cells: int
     splat_png: bytes
@@ -243,9 +243,7 @@ class Layout:
                 if self.road
                 else None
             ),
-            "clutter": [dict(entry) for entry in self.clutter],
             "forage": [dict(entry) for entry in self.forage],
-            "plants": [dict(entry) for entry in self.plants],
             "land_share": round(self.land_share, 4),
             "biome_shares": {
                 key: round(value, 4) for key, value in sorted(self.biome_shares.items())
@@ -375,12 +373,8 @@ class _Sheet(Protocol):
 
 def _sheets(package: Package) -> list[tuple[str, _Sheet]]:
     out: list[tuple[str, _Sheet]] = []
-    if package.clutter is not None:
-        out.append(("clutter", package.clutter))
     if package.forage is not None:
         out.append(("forage", package.forage))
-    if package.plants is not None:
-        out.append(("plants", package.plants))
     return out
 
 
@@ -424,7 +418,7 @@ def _objects(
                 footprint=0.0,
                 scatter=0.0,
                 keep_out=road,
-                in_clearings=name == "clutter",
+                in_clearings=False,
             )
         )
         for index, cell in enumerate(sheet.cells):
@@ -438,7 +432,7 @@ def _objects(
                     footprint=0.0,
                     scatter=0.0,
                     keep_out=road,
-                    in_clearings=name == "clutter",
+                    in_clearings=False,
                 )
             )
     return objects
@@ -627,7 +621,7 @@ def build_layout(package: Package) -> Layout:
     refusals.extend(plan.refusals)
 
     entities, counts, set_pieces, pads = _entities(package, plan)
-    clutter, forage, plants = _pieces(package, plan, fields, regions)
+    forage = _pieces(package, plan, fields, regions)
     decals = (
         _pad_decals(package, pads)
         + _skirt_decals(package, entities)
@@ -657,9 +651,7 @@ def build_layout(package: Package) -> Layout:
         road_id=package.road.road_id if package.road is not None and road_points else None,
         road_width_meters=road_width,
         road=tuple(road_points),
-        clutter=tuple(clutter),
         forage=tuple(forage),
-        plants=tuple(plants),
         land_share=coast.solved_share,
         plate_cells=cells,
         splat_png=splat,
@@ -783,9 +775,11 @@ def _entities(
 
 def _pieces(
     package: Package, plan: WorldPlan, fields: WorldFields, regions: Mapping[str, int]
-) -> tuple[list[GroundPiece], list[GroundPiece], list[GroundPiece]]:
-    """The sheets' points become cells: the sheet object draws a cell allowed on
-    its biome (one with no placement of its own), a cell object is its cell."""
+) -> list[GroundPiece]:
+    """The sheet's points become cells: the sheet object draws a cell allowed on
+    its biome (one with no placement of its own), a cell object is its cell.
+    ``scale`` is a mild jitter about the cell's authored size, variety and
+    nothing more; the size itself is the manifest's per-cell calibration."""
 
     by_region = {index: biome_id for biome_id, index in regions.items()}
     out: dict[str, list[GroundPiece]] = {name: [] for name in SHEET_NAMES}
@@ -817,7 +811,7 @@ def _pieces(
                     }
                 )
         out[name].sort(key=lambda piece: (piece["z"], piece["x"], piece["cell"]))
-    return out["clutter"], out["forage"], out["plants"]
+    return out["forage"]
 
 
 def _pad_decals(package: Package, pads: list[tuple[float, float, float, str]]) -> list[GroundDecal]:

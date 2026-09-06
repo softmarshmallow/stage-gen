@@ -233,11 +233,11 @@ The survival recipe (`2d/obliqueview/survival`) is the sixth. One world is one
 authored package under `library/games/<game_id>/`: an
 `oblique-survival-package-v2` `survival.toml` beside the files it names — the
 actors and their facing sets, the props and their interaction states, the ground
-as material plates and scattered sheets, the items and the crafting table, a
+as material plates and the forage sheet, the items and the crafting table, a
 season calendar, weather, music and sound. Everything drawn is a flat card
 standing on a 3D ground plane under a fixed elevated-oblique perspective camera,
 so a prop is never seen from behind however far the camera turns. The run
-publishes an `oblique-survival-manifest-v1` manifest that the Godot host under
+publishes an `oblique-survival-manifest-v2` manifest that the Godot host under
 `godot/oblique_survival` plays; this recipe has no browser player.
 
 ```sh
@@ -409,7 +409,7 @@ code never receives provider credentials, and the docs gate checks that nothing
 under `web/lib/shell` can spawn a process.
 
 `godot/oblique_survival` is the repository's second consumer and starts no run
-either. It plays one published `oblique-survival-manifest-v1` run directory,
+either. It plays one published `oblique-survival-manifest-v2` run directory,
 named on its command line, and commits no media of its own; see
 [Godot host](docs/godot-host.md) and
 [decision 0057](docs/decisions/0057-the-survival-game-runs-on-godot.md).

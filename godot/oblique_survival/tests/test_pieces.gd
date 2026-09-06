@@ -1,18 +1,19 @@
 extends RefCounted
 
-## `view/pieces.gd`, `view/plants.gd`, `view/leaves.gd` against the real run.
+## `view/pieces.gd` against the real run.
 ##
-## What is worth asserting headlessly is the arithmetic the viewer does on the
-## CPU: one instance per layout entry, the atlas window each entry resolves to,
-## the metric size a plant's cell box gives it, the layer each sheet lies at,
-## and the transform a piece is laid with. The look of it is a windowed
-## capture's job, not this suite's.
+## What is worth asserting headlessly is the arithmetic the view does on the
+## CPU: one instance per layout entry, the atlas window each entry resolves to
+## (the cell's painted box, not the cell), the metric size that box and the
+## cell's ruler give a piece, the layer the sheet lies at, and the transform a
+## piece is laid with. The look of it is a windowed capture's job, not this
+## suite's.
 ##
 ## Godot's dummy renderer keeps nothing a `MultiMesh` is handed — under
 ## `--headless`, `get_instance_transform` reads back identity and
 ## `get_instance_custom_data` reads back opaque black — so the assertions call
-## the modules' own `piece_transform` / `plant_transform` / `windows`, which are
-## the exact values written into the MultiMesh a line later.
+## the module's own `piece_transform` / `windows`, which are the exact values
+## written into the MultiMesh a line later.
 
 const NOON_YAW := PI / 4.0
 
@@ -27,106 +28,95 @@ func run(h: TestHarness) -> void:
 
 	var pieces := Pieces.new()
 	pieces.setup(pkg, world, fu)
-	var plants := Plants.new()
-	plants.setup(pkg, world, fu)
-	var leaves := Leaves.new()
-	leaves.setup(pkg, world, fu)
 
-	_check_counts(h, pieces, plants, leaves, layout)
+	_check_only_forage(h, pieces, manifest, layout)
 	_check_windows(h, pieces, manifest, layout)
-	_check_plant_size(h, plants, manifest, layout)
-	_check_layers(h, pieces, plants, layout)
+	_check_size(h, pieces, manifest, layout)
+	_check_layer(h, pieces, layout)
 	_check_forage_visibility(h, pieces, world, layout)
 	_check_forage_lift(h, pieces, world)
-	_check_leaves(h, leaves, manifest)
 
 	pieces.free()
-	plants.free()
-	leaves.free()
 
-## One instance per layout entry, for all three sheets and the plant shadows.
-func _check_counts(h: TestHarness, pieces, plants, leaves, layout: Dictionary) -> void:
-	var clutter_entries: int = layout.get("clutter", []).size()
+## One sheet of ground pieces, the forage, one instance per layout entry; no
+## litter and no standing plants anywhere in the run (decision 0060).
+func _check_only_forage(h: TestHarness, pieces, manifest: Dictionary, layout: Dictionary) -> void:
 	var forage_entries: int = layout.get("forage", []).size()
-	var plant_entries: int = layout.get("plants", []).size()
-	h.assert_true(clutter_entries > 0 and forage_entries > 0 and plant_entries > 0,
-		"the run lays clutter, forage and plants")
-	h.assert_eq(pieces.clutter.count, clutter_entries, "clutter instances = layout.clutter")
-	h.assert_eq(pieces.clutter.multimesh.instance_count, clutter_entries, "the clutter MultiMesh is that long")
+	h.assert_true(forage_entries > 0, "the run lays forage")
+	h.assert_true(not layout.has("clutter") and not layout.has("plants"), "the layout lays no litter and no plants")
+	var ground: Dictionary = manifest["ground"]
+	h.assert_true(not ground.has("clutter") and not ground.has("plants"), "the manifest carries no litter and no plant sheet")
 	h.assert_eq(pieces.forage.count, forage_entries, "forage instances = layout.forage")
 	h.assert_eq(pieces.forage.multimesh.instance_count, forage_entries, "the forage MultiMesh is that long")
-	h.assert_eq(plants.count, plant_entries, "plant instances = layout.plants")
-	h.assert_eq(plants.multimesh.instance_count, plant_entries, "the plant MultiMesh is that long")
-	h.assert_eq(plants.shadow_multimesh.instance_count, plant_entries, "one contact ellipse per plant")
-	h.assert_eq(plants.shadow_multimesh.visible_instance_count, plant_entries, "every ellipse is drawn")
-	h.assert_eq(leaves.multimesh.instance_count, Leaves.CAPACITY, "the leaf pool is 96 slots")
+	# Every cell is calibrated: a box, a ruler, an authored size, and the
+	# drawing's own opinion beside it.
+	for cell in ground["forage"]["cells"]:
+		var c: Dictionary = cell
+		h.assert_true(c.get("box") is Dictionary and float(c.get("px_per_meter", 0.0)) > 0.0
+			and float(c.get("size_meters", 0.0)) > 0.0 and c.has("drawn_size_meters"),
+			"forage cell %s is calibrated" % c.get("index"))
+	# The floor: every piece is authored no smaller than the package minimum.
+	var floor_units := float(manifest["scale"]["minimum_height_units"])
+	for cell in ground["forage"]["cells"]:
+		h.assert_true(float(cell["size_units"]) >= floor_units - 1e-9,
+			"forage cell %s keeps the size floor" % cell["index"])
 
-## The window is the cell's pixels from the image's top-left, straight through:
-## Godot does not flip textures, so the viewer's `1 - (y + h)/height` is gone.
+## The window is the cell's painted box in pixels from the image's top-left,
+## straight through: Godot does not flip textures, so the viewer's
+## `1 - (y + h)/height` is gone, and the box is inside its cell.
 func _check_windows(h: TestHarness, pieces, manifest: Dictionary, layout: Dictionary) -> void:
-	var spec: Dictionary = manifest["ground"]["clutter"]
+	var spec: Dictionary = manifest["ground"]["forage"]
 	var cells: Array = spec["cells"]
 	var width := float(spec["width_px"])
 	var height := float(spec["height_px"])
-	var entry: Dictionary = layout["clutter"][0]
+	var entry: Dictionary = layout["forage"][0]
 	var cell: Dictionary = cells[int(entry["cell"]) % cells.size()]
-	var window: Color = pieces.clutter.windows[0]
-	h.assert_near(window.r, float(cell["x"]) / width, 1e-6, "window x = cell.x / width")
-	h.assert_near(window.g, float(cell["y"]) / height, 1e-6, "window y = cell.y / height (not flipped)")
-	h.assert_near(window.b, float(cell["w"]) / width, 1e-6, "window w = cell.w / width")
-	h.assert_near(window.a, float(cell["h"]) / height, 1e-6, "window h = cell.h / height")
+	var box: Dictionary = cell["box"]
+	var window: Color = pieces.forage.windows[0]
+	h.assert_near(window.r, float(box["x"]) / width, 1e-6, "window x = box.x / width")
+	h.assert_near(window.g, float(box["y"]) / height, 1e-6, "window y = box.y / height (not flipped)")
+	h.assert_near(window.b, float(box["w"]) / width, 1e-6, "window w = box.w / width")
+	h.assert_near(window.a, float(box["h"]) / height, 1e-6, "window h = box.h / height")
+	h.assert_true(float(box["x"]) >= float(cell["x"]) and float(box["y"]) >= float(cell["y"])
+		and float(box["x"]) + float(box["w"]) <= float(cell["x"]) + float(cell["w"])
+		and float(box["y"]) + float(box["h"]) <= float(cell["y"]) + float(cell["h"]),
+		"the box lies inside its cell")
 
-## `plantWindows` (index.html :3588-3602):
-## `metersPerPx = cell_meters / (width_px / columns)`, and the card is
-## `cell.w * metersPerPx * entry.scale` by `cell.h * metersPerPx * entry.scale`.
-func _check_plant_size(h: TestHarness, plants, manifest: Dictionary, layout: Dictionary) -> void:
-	var spec: Dictionary = manifest["ground"]["plants"]
+## A piece is `box / px_per_meter` metres a side, times the entry's jitter, and
+## its longest side at jitter 1 is the cell's authored size (within the two
+## pixels of padding the box carries).
+func _check_size(h: TestHarness, pieces, manifest: Dictionary, layout: Dictionary) -> void:
+	var spec: Dictionary = manifest["ground"]["forage"]
 	var cells: Array = spec["cells"]
-	var width := float(spec["width_px"])
-	var columns := float(spec["columns"])
-	var meters_per_px := float(spec["cell_meters"]) / maxf(1.0, width / columns)
-	# The first entry that uses cell 0, so the assertion names a real cell box.
-	var index := -1
-	for i in layout["plants"].size():
-		if int(layout["plants"][i].get("cell", -1)) % cells.size() == 0:
-			index = i
-			break
-	if not h.assert_true(index >= 0, "some plant uses cell 0"):
-		return
-	var entry: Dictionary = layout["plants"][index]
-	var cell: Dictionary = cells[0]
+	var entry: Dictionary = layout["forage"][0]
+	var cell: Dictionary = cells[int(entry["cell"]) % cells.size()]
+	var box: Dictionary = cell["box"]
+	var per_meter := float(cell["px_per_meter"])
 	var scale := float(entry.get("scale", 1.0))
-	var expected_w := float(cell["w"]) * meters_per_px * scale
-	var expected_h := float(cell["h"]) * meters_per_px * scale
-	var basis: Basis = plants.plant_transform(index, _cam()["basis"]).basis
-	h.assert_near(basis.x.length(), expected_w, 1e-4, "the plant card is cell.w metres wide")
-	h.assert_near(basis.y.length(), expected_h, 1e-4, "the plant card is cell.h metres tall")
-	h.note("cell 0 at scale %.3f is %.4f x %.4f m" % [scale, expected_w, expected_h])
+	var expected_w := float(box["w"]) / per_meter * scale
+	var expected_h := float(box["h"]) / per_meter * scale
+	var transform: Transform3D = pieces.piece_transform(pieces.forage, 0, NOON_YAW)
+	h.assert_near(transform.basis.x.length(), expected_w, 1e-5, "a piece is box.w / px_per_meter * scale wide")
+	h.assert_near(transform.basis.y.length(), expected_h, 1e-5, "and box.h / px_per_meter * scale deep")
+	var longest := maxf(float(box["w"]), float(box["h"])) / per_meter
+	var pad := 2.0 * 2.0 / per_meter
+	h.assert_true(absf(longest - float(cell["size_meters"])) <= pad + 1e-6,
+		"the longest side at jitter 1 is the authored size (%.3f vs %.3f m)" % [longest, float(cell["size_meters"])])
+	h.note("cell %d (%s) at scale %.3f is %.3f x %.3f m, authored %.3f, drawn %.3f" % [
+		int(cell["index"]), String(cell.get("item_id", "")), scale, expected_w, expected_h,
+		float(cell["size_meters"]), float(cell["drawn_size_meters"])])
 
-	# Its foot is on the ground: the centre sits half the height up the card's
-	# own axis, so the lowest point of the quad is y = 0.
-	var transform: Transform3D = plants.plant_transform(index, _cam()["basis"])
-	var foot: Vector3 = transform.origin - transform.basis.y * 0.5
-	h.assert_near(foot.y, 0.0, 1e-4, "the plant's foot is on the ground plane")
-	h.assert_near(foot.x, float(entry["x"]), 1e-4, "and stands at the entry's x")
-	h.assert_near(foot.z, float(entry["z"]), 1e-4, "and at the entry's z")
-
-## The Y stack, and the lay-flat transform `layPiece` builds.
-func _check_layers(h: TestHarness, pieces, plants, layout: Dictionary) -> void:
-	h.assert_near(pieces.clutter.y, 0.018, 1e-9, "clutter lies at 0.018")
+## The layer, and the lay-flat transform `layPiece` builds.
+func _check_layer(h: TestHarness, pieces, layout: Dictionary) -> void:
 	h.assert_near(pieces.forage.y, 0.021, 1e-9, "forage lies at 0.021")
-	var entry: Dictionary = layout["clutter"][0]
-	var transform: Transform3D = pieces.piece_transform(pieces.clutter, 0, NOON_YAW)
+	var entry: Dictionary = layout["forage"][0]
+	var transform: Transform3D = pieces.piece_transform(pieces.forage, 0, NOON_YAW)
 	h.assert_near(transform.origin.x, float(entry["x"]), 1e-4, "a piece stands at its entry's x")
-	h.assert_near(transform.origin.y, 0.018, 1e-6, "at the clutter layer")
+	h.assert_near(transform.origin.y, 0.021, 1e-6, "at the forage layer")
 	h.assert_near(transform.origin.z, float(entry["z"]), 1e-4, "and its entry's z")
 	# Laid flat: the quad's normal (its local +Z) points up.
 	var normal: Vector3 = transform.basis.z.normalized()
 	h.assert_near(normal.y, 1.0, 1e-5, "a laid piece faces up")
-	# Square by cell_meters * entry.scale, never by the cell's aspect.
-	var size := 0.42 * float(entry.get("scale", 1.0))
-	h.assert_near(transform.basis.x.length(), size, 1e-5, "a piece is cell_meters * scale wide")
-	h.assert_near(transform.basis.y.length(), size, 1e-5, "and as deep")
 	# The image's bottom edge lands at (sin spin, 0, cos spin) — toward the
 	# camera at this yaw, which is the whole reason the pieces re-orient.
 	var spin: float = NOON_YAW + deg_to_rad(float(entry.get("rotation_degrees", 0.0)))
@@ -195,43 +185,6 @@ func _check_forage_lift(h: TestHarness, pieces, world: Dictionary) -> void:
 	pieces.set_highlight("")
 	h.assert_eq(lifts.call(), [-1, -1], "and both let down")
 
-## The leaves are the litter sheet's `fallen` cells, and they fly.
-func _check_leaves(h: TestHarness, leaves, manifest: Dictionary) -> void:
-	var spec: Dictionary = manifest["ground"]["clutter"]
-	var fallen := 0
-	for cell in spec["cells"]:
-		if String(cell.get("contact", "")) == "fallen":
-			fallen += 1
-	h.assert_eq(leaves._windows.size(), fallen, "one window per `fallen` cell")
-	h.assert_near(leaves._size, float(spec["cell_meters"]) * Leaves.SIZE_SCALE, 1e-9,
-		"a leaf is 0.55 of a litter cell")
-	leaves.spawn_leaves(3.0, -2.0, 0.0, {"count": 5, "top": 4.0, "bottom": 2.0, "spread": 0.8})
-	var live := 0
-	var within := 0
-	for leaf in leaves._live:
-		if leaf == null:
-			continue
-		live += 1
-		if leaf["y"] >= 2.0 and leaf["y"] <= 4.0 and leaf["landed"] < 0.0:
-			within += 1
-	h.assert_eq(live, 5, "five leaves left the crown")
-	h.assert_eq(within, 5, "each between `bottom` and `top`, and airborne")
-	var stub := {"time": 0.25, "camera_yaw": NOON_YAW, "manifest": manifest}
-	leaves.update(stub, 0.25, _cam())
-	var falling := 0
-	for leaf in leaves._live:
-		if leaf != null and leaf["landed"] < 0.0 and leaf["y"] > 0.01:
-			falling += 1
-	h.assert_eq(falling, 5, "and all five are still falling a quarter second later")
-	# Six seconds after they land the pool is empty again.
-	for step in 40:
-		leaves.update({"time": 0.25 + float(step + 1) * 0.5, "camera_yaw": NOON_YAW}, 0.5, _cam())
-	var left := 0
-	for leaf in leaves._live:
-		if leaf != null:
-			left += 1
-	h.assert_eq(left, 0, "and the pool takes every slot back")
-
 func _cam() -> Dictionary:
 	var pitch := deg_to_rad(55.0)
 	var offset := Vector3(sin(NOON_YAW) * cos(pitch), sin(pitch), cos(NOON_YAW) * cos(pitch))
@@ -241,8 +194,7 @@ func _cam() -> Dictionary:
 		"changed": false, "pixel_ratio": 1.0, "resolution": Vector2(1600, 900),
 	}
 
-## Enough of a world for these modules: the camera yaw, the look, and the
-## forage entities they read. Duck-typed, exactly as the modules are.
+## The camera yaw and the forage flags: everything the module reads of a world.
 func _world_stub(pkg) -> Dictionary:
 	var entities: Array = []
 	var cells: Array = pkg.manifest["ground"]["forage"]["cells"]

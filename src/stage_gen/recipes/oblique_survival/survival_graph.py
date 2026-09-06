@@ -32,9 +32,6 @@ from stage_gen.recipes.oblique_survival import templates
 from stage_gen.recipes.oblique_survival.models import Package, strip_key
 from stage_gen.recipes.oblique_survival.survival_types import (
     ACTOR_CONCEPT,
-    CLUTTER_ADOPT,
-    CLUTTER_GENERATE,
-    CLUTTER_VALIDATE,
     DECAL_GENERATE,
     DECAL_VALIDATE,
     DUST_GENERATE,
@@ -62,11 +59,6 @@ from stage_gen.recipes.oblique_survival.survival_types import (
     MUSIC_GENERATE,
     MUSIC_VALIDATE,
     PACKAGE_MANIFEST,
-    PLANTS_ADOPT,
-    PLANTS_GENERATE,
-    PLANTS_LOOK_GENERATE,
-    PLANTS_LOOK_VALIDATE,
-    PLANTS_VALIDATE,
     PRESENTATION_PROFILE,
     PROP_ANCHOR,
     PROP_GENERATE,
@@ -131,7 +123,6 @@ MINIMAL_PROPS: Final = (
     "thorn_bush",
     "birch",
     "dead_snag",
-    "fern_clump",
 )
 
 
@@ -370,7 +361,7 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
         ports=[artifact_port("lock", "production/source-lock.json", "source-lock-v1")],
     )
 
-    # One lattice per distinct grid shape. The flame strip and the litter sheet
+    # One lattice per distinct grid shape. The flame strip and the forage sheet
     # both paint into a 4x4, so they share one template node and one digest.
     template_nodes: dict[tuple[int, int, int], Node] = {}
     transparent = templates.LATTICE_TRANSPARENT
@@ -826,7 +817,7 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
         review_subjects["ground"].append((biome.biome_id, canonicalize.node_id))
         review_inputs["ground"].append(canonicalize.node_id)
 
-    # The rest of the ground: the abstract layer, the track, and the litter.
+    # The rest of the ground: the abstract layer, the track, and the forage.
     # All three belong to the minimal scope, because the ground verdict is
     # about the ground as it is seen, not about one plate.
     if package.macro is not None:
@@ -939,65 +930,9 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
         review_subjects["ground"].append(("water", canonicalize.node_id))
         review_inputs["ground"].append(canonicalize.node_id)
 
-    if package.clutter is not None:
-        clutter = package.clutter
-        template = template_for(clutter.columns, clutter.rows)
-        clutter_template_digest = text_digest(templates.template_id(clutter.columns, clutter.rows))
-        prompt = prompts.clutter_prompt(package, clutter)
-        clutter_port = artifact_port(
-            "image", "production/ground/clutter.source.png", "ground-clutter-source-v1"
-        )
-        if clutter.take is not None:
-            generate = builder.add(
-                CLUTTER_ADOPT,
-                "ground-clutter-adopt",
-                domain="ground",
-                description="Adopt the auditioned litter sheet through the lattice gate",
-                depends_on=[template.node_id],
-                input_digests=[
-                    text_digest(prompt),
-                    text_digest(package.digests[clutter.take]),
-                    clutter_template_digest,
-                ],
-                card=NodeCard(
-                    prompt=prompt, template_ref=templates.template_id(clutter.columns, clutter.rows)
-                ),
-                ports=[clutter_port],
-            )
-        else:
-            generate = builder.add(
-                CLUTTER_GENERATE,
-                "ground-clutter-generate",
-                domain="ground",
-                description=f"Paint {clutter.cell_count} litter cutouts into the lattice",
-                depends_on=[template.node_id],
-                input_digests=[text_digest(prompt), clutter_template_digest],
-                card=NodeCard(
-                    prompt=prompt, template_ref=templates.template_id(clutter.columns, clutter.rows)
-                ),
-                ports=[clutter_port],
-            )
-        validate = builder.add(
-            CLUTTER_VALIDATE,
-            "ground-clutter-validate",
-            domain="ground",
-            description="Recover the cells and refuse any piece on a guide line",
-            depends_on=[generate.node_id],
-            ports=[
-                artifact_port("image", manifest_module.clutter_ref(), "ground-clutter-v1"),
-                artifact_port(
-                    "validation",
-                    "production/validation/ground/clutter.json",
-                    "ground-clutter-validation-v1",
-                ),
-            ],
-        )
-        review_subjects["ground"].append(("litter sheet", validate.node_id))
-        review_inputs["ground"].append(validate.node_id)
-
     if package.forage is not None:
-        # The forage: the litter's twin, one lattice of pickups lying on the
-        # ground. Same template node, same gate, its own identity.
+        # The forage: one lattice of pickups lying on the ground, the only
+        # sheet of ground pieces there is. Every cell is a thing to take.
         forage = package.forage
         template = template_for(forage.columns, forage.rows)
         forage_template_digest = text_digest(templates.template_id(forage.columns, forage.rows))
@@ -1052,117 +987,6 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
         )
         review_subjects["ground"].append(("forage sheet", validate.node_id))
         review_inputs["ground"].append(validate.node_id)
-
-    if package.plants is not None:
-        # The mid-scale: the litter's standing twin, one lattice of plants
-        # scattered by the layout and stood up by the viewer. Judged on the
-        # ground sheet, where the turf it stands in is. A season look
-        # repaints the whole sheet at once, one op, off the summer sheet's
-        # validate (its digest is in the key), and the seasons review sees
-        # the pair the way it sees a prop and its twin.
-        plants = package.plants
-        template = template_for(plants.columns, plants.rows)
-        plants_template_digest = text_digest(templates.template_id(plants.columns, plants.rows))
-        prompt = prompts.plants_prompt(package, plants)
-        plants_port = artifact_port(
-            "image", "production/ground/plants.source.png", "ground-plants-source-v1"
-        )
-        if plants.take is not None:
-            source = builder.add(
-                PLANTS_ADOPT,
-                "ground-plants-adopt",
-                domain="ground",
-                description="Adopt the auditioned plant sheet through the lattice gate",
-                depends_on=[template.node_id],
-                input_digests=[
-                    text_digest(prompt),
-                    text_digest(package.digests[plants.take]),
-                    plants_template_digest,
-                ],
-                card=NodeCard(
-                    prompt=prompt, template_ref=templates.template_id(plants.columns, plants.rows)
-                ),
-                ports=[plants_port],
-            )
-        else:
-            source = builder.add(
-                PLANTS_GENERATE,
-                "ground-plants-generate",
-                domain="ground",
-                description=f"Paint {plants.cell_count} standing plants into the lattice",
-                depends_on=[template.node_id],
-                input_digests=[text_digest(prompt), plants_template_digest],
-                card=NodeCard(
-                    prompt=prompt, template_ref=templates.template_id(plants.columns, plants.rows)
-                ),
-                ports=[plants_port],
-            )
-        validate = builder.add(
-            PLANTS_VALIDATE,
-            "ground-plants-validate",
-            domain="ground",
-            description="Recover the plant cells and refuse any plant on a guide line",
-            depends_on=[source.node_id],
-            ports=[
-                artifact_port("image", manifest_module.plants_ref(), "ground-plants-v1"),
-                artifact_port(
-                    "validation",
-                    "production/validation/ground/plants.json",
-                    "ground-plants-validation-v1",
-                ),
-            ],
-        )
-        review_subjects["ground"].append(("plant sheet", validate.node_id))
-        review_inputs["ground"].append(validate.node_id)
-        if rank >= 1 and package.seasons is not None:
-            for season_look in package.seasons.looks:
-                look_prompt = prompts.plants_look_prompt(package, plants, season_look)
-                look_params = {"look": season_look.look_id}
-                stem = f"ground-plants-{_safe(season_look.look_id)}"
-                look_generate = builder.add(
-                    PLANTS_LOOK_GENERATE,
-                    f"{stem}-generate",
-                    domain="seasons",
-                    description=f"Repaint the plant sheet in its {season_look.look_id} look",
-                    params=look_params,
-                    depends_on=[validate.node_id],
-                    input_digests=[text_digest(look_prompt), *style_digests],
-                    card=NodeCard(prompt=look_prompt),
-                    ports=[
-                        artifact_port(
-                            "image",
-                            f"production/ground/plants.{season_look.look_id}.source.png",
-                            "plants-look-source-v1",
-                        )
-                    ],
-                )
-                look_validate = builder.add(
-                    PLANTS_LOOK_VALIDATE,
-                    f"{stem}-validate",
-                    domain="seasons",
-                    description=f"Gate the {season_look.look_id} plant sheet on its lattice",
-                    params=look_params,
-                    depends_on=[look_generate.node_id],
-                    ports=[
-                        artifact_port(
-                            "image",
-                            manifest_module.plants_look_ref(season_look.look_id),
-                            "plants-look-v1",
-                        ),
-                        artifact_port(
-                            "validation",
-                            f"production/validation/ground/plants.{season_look.look_id}.json",
-                            "plants-look-validation-v1",
-                        ),
-                    ],
-                )
-                review_subjects["seasons"].append(("plant sheet", validate.node_id))
-                review_subjects["seasons"].append(
-                    (f"plant sheet {season_look.look_id}", look_validate.node_id)
-                )
-                if validate.node_id not in review_inputs["seasons"]:
-                    review_inputs["seasons"].append(validate.node_id)
-                review_inputs["seasons"].append(look_validate.node_id)
 
     # Decals sit in the minimal scope: the pads and the skirts are the seam
     # between billboard and ground, and the seam is the ground verdict.
@@ -1996,11 +1820,7 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
                                 if sheet is not None
                                 else None
                             )
-                            for name, sheet in (
-                                ("clutter", package.clutter),
-                                ("forage", package.forage),
-                                ("plants", package.plants),
-                            )
+                            for name, sheet in (("forage", package.forage),)
                         },
                         # The generator's own version: its rules are code, and a
                         # world laid by an earlier one is a different world.
@@ -2030,7 +1850,7 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
         domain="package",
         description="Measure every published asset and write the runtime manifest",
         depends_on=[node.node_id for node in builder.nodes],
-        ports=[artifact_port("manifest", "manifest.json", "oblique-survival-manifest-v1")],
+        ports=[artifact_port("manifest", "manifest.json", manifest_module.MANIFEST_KIND)],
     )
 
     return ObliqueSurvivalGraph.seal(

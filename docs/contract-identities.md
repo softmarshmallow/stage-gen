@@ -109,7 +109,7 @@ not an identity but a cache key (C-R1); its evidence is the cache-key goldens.
 | `sideview-platformer-execution-graph-v1` | `graph` | `stage_gen.recipes.sideview_platformer.execution_graph:ExecutionGraph.kind` |
 | `sideview-runner-execution-graph-v1` | `graph` | `stage_gen.recipes.sideview_runner.runner_graph:SideviewRunnerGraph.kind` |
 | `universe-execution-graph-v1` | `graph` | `stage_gen.recipes.universe.universe_graph:UniverseGraph.kind` |
-| `oblique-survival-manifest-v1` | `manifest` | `stage_gen.recipes.oblique_survival.manifest:MANIFEST_KIND` |
+| `oblique-survival-manifest-v2` | `manifest` | `stage_gen.recipes.oblique_survival.manifest:MANIFEST_KIND` |
 | `pointclick-room-runtime-v3` | `manifest` | `stage_gen.recipes.pointclick_room.room_types:MANIFEST_KIND` |
 | `prepared-game-runtime-v12` | `manifest` | `stage_gen.recipes.sideview_platformer.package_types:PREPARED_RUNTIME_MANIFEST_KIND` |
 | `sideview-runner-runtime-v13` | `manifest` | `stage_gen.recipes.sideview_runner.runner_types:MANIFEST_KIND` |

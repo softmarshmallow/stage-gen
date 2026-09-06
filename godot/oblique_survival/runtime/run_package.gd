@@ -15,7 +15,7 @@ extends RefCounted
 ## under `out/`. The spike's `oblique_survival_v0_manifest` was accepted while
 ## the recipe was being promoted and is gone; a run that still carries it is
 ## refused by name rather than half-read.
-const MANIFEST_KIND := "oblique-survival-manifest-v1"
+const MANIFEST_KIND := "oblique-survival-manifest-v2"
 ## The version of that contract. One document, one identity: a manifest that
 ## names the kind but not this version is a different document.
 const MANIFEST_SCHEMA_VERSION := 1
@@ -75,6 +75,23 @@ static func check_manifest(m: Dictionary) -> PackedStringArray:
 	var ground: Dictionary = m.get("ground", {})
 	if not _truthy(ground.get("size_meters")):
 		problems.append("ground.size_meters missing")
+	# Since manifest-v2 every forage cell is calibrated: the painted box it is
+	# drawn through and the ruler that sizes it (decision 0060). A cell without
+	# them is a piece this host would have to size by guessing, so it refuses.
+	var forage: Variant = ground.get("forage")
+	if forage is Dictionary:
+		var cells: Array = (forage as Dictionary).get("cells", [])
+		for index in cells.size():
+			var cell: Dictionary = cells[index]
+			if not (cell.get("box") is Dictionary):
+				problems.append("ground.forage.cells[%d].box missing" % index)
+			if not _truthy(cell.get("px_per_meter")):
+				problems.append("ground.forage.cells[%d].px_per_meter missing" % index)
+			if not _truthy(cell.get("size_meters")):
+				problems.append("ground.forage.cells[%d].size_meters missing" % index)
+	for decoration in ["clutter", "plants"]:
+		if ground.has(decoration):
+			problems.append("ground.%s is not a layer this host draws: the world places nothing the player cannot act on" % decoration)
 	for id: String in m.get("actors", {}).keys():
 		var actor: Dictionary = m["actors"][id]
 		for state: String in actor.get("states", {}).keys():

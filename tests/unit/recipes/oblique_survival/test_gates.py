@@ -511,7 +511,7 @@ def _litter_sheet(
 
 def test_a_clean_litter_sheet_passes_and_reports_every_cell() -> None:
     canonical, record = _pair(
-        gates.gate_clutter_sheet(
+        gates.gate_piece_sheet(
             _litter_sheet(), columns=4, rows=4, cell_px=templates.LATTICE_CELL_PX, native_alpha=True
         )
     )
@@ -525,7 +525,7 @@ def test_a_clean_litter_sheet_passes_and_reports_every_cell() -> None:
 def test_a_piece_on_a_guide_line_is_refused() -> None:
     with pytest.raises(gates.GateError) as error:
         _pair(
-            gates.gate_clutter_sheet(
+            gates.gate_piece_sheet(
                 _litter_sheet(crossing=5),
                 columns=4,
                 rows=4,
@@ -539,7 +539,7 @@ def test_a_piece_on_a_guide_line_is_refused() -> None:
 def test_an_empty_litter_cell_is_refused() -> None:
     with pytest.raises(gates.GateError) as error:
         _pair(
-            gates.gate_clutter_sheet(
+            gates.gate_piece_sheet(
                 _litter_sheet(empty=9),
                 columns=4,
                 rows=4,
@@ -950,7 +950,7 @@ def test_contact_is_recorded_for_the_reviewer_and_refuses_nothing() -> None:
 
     contacts = ["pressed"] * 5 + ["fallen"] * 7 + ["growing"] * 4
     _canonical, record = _pair(
-        gates.gate_clutter_sheet(
+        gates.gate_piece_sheet(
             _litter_sheet(),
             columns=4,
             rows=4,
@@ -963,7 +963,7 @@ def test_contact_is_recorded_for_the_reviewer_and_refuses_nothing() -> None:
     plain = [cell["contact_ratio"] for cell in record["cells"]]
     assert all(ratio is not None for ratio in plain)
     _canonical, record = _pair(
-        gates.gate_clutter_sheet(
+        gates.gate_piece_sheet(
             _litter_sheet(contact=True),
             columns=4,
             rows=4,
@@ -975,7 +975,7 @@ def test_contact_is_recorded_for_the_reviewer_and_refuses_nothing() -> None:
     shadowed = [cell["contact_ratio"] for cell in record["cells"]]
     # A crescent along the lower edge does move the number, which is why it is worth recording.
     assert all(after < before for after, before in zip(shadowed, plain, strict=True))
-    assert gates.CLUTTER_CONTACT_GATED == ()
+    assert gates.PIECE_CONTACT_GATED == ()
 
 
 # --- weather --------------------------------------------------------------------------
@@ -1156,7 +1156,7 @@ def test_an_icon_sheet_may_fill_its_cells_fuller_than_litter() -> None:
         draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius], fill=(200, 120, 60, 255))
     data = _png(image)
     _canonical, record = _pair(
-        gates.gate_clutter_sheet(
+        gates.gate_piece_sheet(
             data,
             columns=4,
             rows=4,
@@ -1167,7 +1167,7 @@ def test_an_icon_sheet_may_fill_its_cells_fuller_than_litter() -> None:
     )
     assert all(0.55 < c["coverage"] < 0.75 for c in record["cells"])
     with pytest.raises(gates.GateError) as error:
-        _pair(gates.gate_clutter_sheet(data, columns=4, rows=4, cell_px=cell, native_alpha=True))
+        _pair(gates.gate_piece_sheet(data, columns=4, rows=4, cell_px=cell, native_alpha=True))
     assert any("outside 2%-60%" in reason for reason in error.value.reasons)
 
 

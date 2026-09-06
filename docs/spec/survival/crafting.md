@@ -58,9 +58,11 @@ different drawings on purpose.
   size up from the real thing with a bold closed contour, a step brighter than
   the scenery — seen bouncing out of a gathered prop and lying where it was
   dropped. A forageable item is also a cell of the **forage sheet**, scattered
-  flat by the layout with the litter's contacts and light, hidden while its spot
-  regrows. A twig that can be taken has to read apart from a twig that is
-  decoration, so the forage is drawn a step brighter and heavier than the litter.
+  flat by the layout with the ground pieces' contacts and light, hidden while
+  its spot regrows, and sized by its cell's own `size_units` above the package
+  floor ([ground](ground.md)). Nothing lies on the ground that cannot be taken
+  ([decision 0060](../../decisions/0060-the-world-places-nothing-the-player-cannot-act-on.md)),
+  so a twig on the turf is always a twig to pick up.
 - **In the pack**, one **icon sheet**: every item in order, then the glyphs,
   painted together on one lattice so the set shares one scale and one contour
   weight. The pickup sprites are drawn one at a time and never quite agree with

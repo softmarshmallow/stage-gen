@@ -1,5 +1,5 @@
 schema_version = 1
-kind = "oblique-survival-ground-v1"
+kind = "oblique-survival-ground-v2"
 package_id = "ember-hollow"
 
 # The ground is three generated layers and one algorithmic mask, which is what
@@ -7,9 +7,17 @@ package_id = "ember-hollow"
 #
 #   biome plates   fine MATERIAL swatches, 2 m across, mirror-tiled to 4 m
 #   macro plate    a slow abstract colour field, 24 m across, multiplied over them
-#   clutter sheet  the recognisable litter, as cutouts scattered flat at true size
+#   forage sheet   the things on the ground the player can take, scattered flat
 #   road           a track in the splat's red channel, filled with its own plate
 #   biome plate    one channel per non-base biome, solved to its share
+#
+# Nothing lies on the ground that the player cannot act on. ground-v1 carried a
+# litter sheet (sixteen decorative cutouts) and a standing-plant sheet (sixteen
+# knee-high cards), and in play both read as things to click: a fist-sized
+# litter stone lay beside a fist-sized forage stone, a decorative sedge beside
+# a gatherable tuft, and the eye could not tell which would answer the hand.
+# The world places nothing the player cannot act on now (decision 0060); what
+# the ground looks like between the things on it is the plates' job.
 #
 # The first plates were pictures of ground: an 8 m swatch painted as if it were
 # 1 m, so leaves came out half a metre wide. A material states its real span and
@@ -63,8 +71,8 @@ clearly darker than every other ground in the set. Draw it the way the style
 reference is drawn, the ink line and two flat tones per shape and nothing
 rendered inside a shape, at the scale of the material.
 """
-# Still nothing nameable: the litter sheet carries every leaf and twig at
-# true size, and the plants sheet everything that stands.
+# Still nothing nameable: a leaf or a twig the player could take is a forage
+# piece; one the player could not is not in the world at all.
 material = "fabric"
 prompt = """
 woodland turf: a dense fabric of short dark grass and moss over dark earth,
@@ -269,67 +277,37 @@ paper_px = 4.0
 # value 0.25 to 0.38, the pale dirt about 0.7; ours read 0.54 to 0.80).
 level = { forest_floor = 0.34, mossy_bog = 0.36, grey_scree = 0.46, dry_meadow = 0.56 }
 
-# The recognisable litter, at true size. One sheet of cutouts, one per cell,
-# scattered flat on the ground by the layout at cell_meters per cell.
+# The contact rule every ground piece is drawn under. The first sheet of
+# pieces was a catalogue: sixteen objects each outlined all the way round and
+# lit from nowhere, and a piece like that is a sticker wherever it lands. What
+# makes a ground object convincing is its CONTACT, so every cell declares one
+# of three: "pressed" (the ground swallows its lower edge), "fallen" (flat, a
+# thin shadow along its lower edge) or "growing" (a base that spreads into a
+# contact ring). The light is from the top of the image for every cell and
+# the contact lies along the lower edge, which is the edge the viewer keeps
+# toward the camera; the layout only jitters a piece, it never spins it, and
+# the viewer re-aims the pieces when the camera turns. Each cell also names
+# the biomes it may land in: a flint chip in the bog is evidence of nothing.
 #
-# The first sheet was a catalogue: sixteen objects each outlined all the way
-# round and lit from nowhere, and a piece like that is a sticker wherever it
-# lands. What makes a ground object convincing is its CONTACT, so every cell
-# declares one of three: "pressed" (the ground swallows its lower edge),
-# "fallen" (flat, a thin shadow along its lower edge) or "growing" (a base that
-# spreads into a contact ring). The light is from the top of the image for
-# every cell and the contact lies along the lower edge, which is the edge the
-# viewer keeps toward the camera; the layout only mirrors and jitters a piece,
-# it never spins it, and the viewer re-aims the litter when the camera turns.
-# Each cell also names the biomes it may land in: a fir cone on the scree is
-# evidence of nothing.
-[clutter]
-columns = 4
-rows = 4
-# explore/ground-audition/clutter-a2, adopted 2026-09-05 through the lattice
-# gate: the thinner-lined, more matte of two admissible draws.
-take = { path = "ground/clutter.take.png", sha256 = "f993322457c399435b9f99da782078476eb52290aa844ca9b4945fae742c9262" }
-# The first sheet came back glossy against matte plates (GROUND.md idea 7).
-style_emphasis = """
-matte flat colour only, no gloss, no specular highlight, no glow, no
-gradient inside a shape; a thin contour line at the weight of the reference,
-never heavy black; muted colour at the ground plates' own value, the shadow
-tone only one step darker than the lit tone.
-"""
-cell_meters = 0.42
-# How the litter is scattered: a Poisson scatter at this density where the
-# habitat weight is 1, proportionally thinner where it is lower. The old
-# per-biome densities are the habitat weights now, and the density is the
-# forest's, quartered with the 512 m world.
-placement.density_per_100m2 = 4.0
-placement.habitat = { forest_floor = 1.0, grey_scree = 0.6, mossy_bog = 0.5, dry_meadow = 0.35 }
-cells = [
-  { brief = "a fist-sized grey stone", contact = "pressed", biomes = ["forest_floor", "dry_meadow", "mossy_bog", "grey_scree"] },
-  { brief = "a small rounded pebble", contact = "pressed", biomes = ["forest_floor", "dry_meadow", "mossy_bog", "grey_scree"] },
-  { brief = "a flat slab of dark stone", contact = "pressed", biomes = ["forest_floor", "grey_scree"] },
-  { brief = "a scatter of three tiny stones", contact = "pressed", biomes = ["dry_meadow", "grey_scree"] },
-  { brief = "a piece of bark half sunk in the earth", contact = "pressed", biomes = ["forest_floor", "mossy_bog"] },
-  { brief = "a curled dry oak leaf", contact = "fallen", biomes = ["forest_floor", "dry_meadow"] },
-  { brief = "a forked dry twig", contact = "fallen", biomes = ["forest_floor", "dry_meadow", "mossy_bog"] },
-  { brief = "a small fir cone", contact = "fallen", biomes = ["forest_floor"] },
-  { brief = "a patch of fallen needles", contact = "fallen", biomes = ["forest_floor"] },
-  { brief = "a single yellow leaf", contact = "fallen", biomes = ["forest_floor", "dry_meadow", "mossy_bog"] },
-  { brief = "a small bleached bone", contact = "fallen", biomes = ["dry_meadow", "grey_scree"] },
-  { brief = "a broken stick with a pale end", contact = "fallen", biomes = ["forest_floor", "mossy_bog"] },
-  { brief = "a tuft of moss", contact = "growing", biomes = ["forest_floor", "mossy_bog"] },
-  { brief = "a mushroom, cap and a little of the stem", contact = "growing", biomes = ["forest_floor", "mossy_bog"] },
-  { brief = "a tuft of coarse sedge", contact = "growing", biomes = ["mossy_bog", "dry_meadow"] },
-  { brief = "a small clump of pale lichen", contact = "growing", biomes = ["grey_scree", "dry_meadow"] },
-]
-
-# The forage: the things on the ground the player can pick up, at true size.
-# Drawn exactly like the litter, one sheet of cutouts scattered flat by the
-# layout, and unlike the litter every cell names the item it yields, how many,
-# and how long the spot takes to regrow. This is the world representation of
-# a forageable item; the same item dropped from the pack is its pickup sprite
-# (items.toml), and in the pack it is a cell of the icon sheet. The pieces
-# are drawn a step brighter than the litter, with a pickup's closed contour,
-# so a twig that can be taken reads apart from a twig that is decoration.
+# The forage: the things on the ground the player can pick up. One sheet of
+# cutouts scattered flat by the layout, every cell naming the item it yields,
+# how many, how long the spot takes to regrow, and how big it is. This is the
+# world representation of a forageable item; the same item dropped from the
+# pack is its pickup sprite (items.toml), and in the pack it is a cell of the
+# icon sheet. The pieces are drawn with a pickup's closed contour, a step
+# brighter than the ground they lie on.
+#
+# Size is authored, never read off the drawing, the way a prop's is. The
+# lattice is drawn at ONE scale -- `cell_meters` of real ground a cell -- and
+# each cell's `size_units` is the piece's longest extent in player heights in
+# the world: no lower than survival.toml's `minimum_height_units` (a thing the
+# player must find and click is authored readable, 34 px at play zoom), no
+# wider than the cell it is drawn in. The manifest calibrates each cell from
+# its own painted extent against its number, and keeps the drawing's opinion
+# beside it as `drawn_size_meters`. These are pickup sizes, a size up from the
+# real thing like the pickup sprites' (a real flint chip is a thumbnail at
+# play zoom): the sheet's cells stood at 0.14 to 0.25 player heights before
+# they were sized, and the same stone from the pack lay beside them at 0.24.
 [forage]
 columns = 4
 rows = 4
@@ -339,11 +317,14 @@ rows = 4
 take = { path = "ground/forage.take.png", sha256 = "7d626de03622ffbef9e5960a8e488eafa2b40c5d3b8b72abf5612675984381e4" }
 style_emphasis = """
 matte flat colour, no gloss and no glow; a clean closed contour line one
-step heavier than the litter's, and colour one step brighter and more
+step heavier than the scenery's, and colour one step brighter and more
 saturated than the ground plates', so each piece pops off the turf it lies
 on; the shadow tone one step darker than the lit tone.
 """
-cell_meters = 0.5
+# The drawing scale of the lattice: a cell is 60 cm of ground, so a piece that
+# fills three quarters of its cell is drawn as a 45 cm thing. It was 0.5 when
+# the cells were unsized; 0.6 gives the sizes below room above the floor.
+cell_meters = 0.6
 # The forage keeps its density: it is gameplay, and the pieces are cheap.
 # Two mushroom cells below override the sheet and grow under the pines, and
 # the flint chips lie at the foot of the boulders (2026-09-06: the first axe
@@ -354,77 +335,27 @@ cell_meters = 0.5
 placement.density_per_100m2 = 1.0
 placement.habitat = { forest_floor = 1.0, grey_scree = 0.88, mossy_bog = 0.75, dry_meadow = 0.63 }
 cells = [
-  { brief = "a loose bundle of three dry twigs", contact = "fallen", biomes = ["forest_floor", "dry_meadow", "mossy_bog"], item_id = "twig", count = 2, regrow_seconds = 240.0 },
-  { brief = "a single forked dry branch, arm long", contact = "fallen", biomes = ["forest_floor", "dry_meadow"], item_id = "twig", count = 1, regrow_seconds = 240.0 },
-  { brief = "a few pale snapped sticks lying across each other", contact = "fallen", biomes = ["forest_floor", "mossy_bog", "grey_scree"], item_id = "twig", count = 2, regrow_seconds = 240.0 },
-  { brief = "a dark glassy flint nodule with one chipped face", contact = "pressed", biomes = ["grey_scree", "dry_meadow", "forest_floor"], item_id = "flint", count = 1, regrow_seconds = 300.0 },
-  { brief = "a flat flake of dark flint with sharp edges", contact = "fallen", biomes = ["grey_scree", "dry_meadow", "forest_floor"], item_id = "flint", count = 1, regrow_seconds = 300.0 },
-  { brief = "two small dark flint chips side by side", contact = "fallen", biomes = ["grey_scree", "dry_meadow", "forest_floor", "mossy_bog"], item_id = "flint", count = 2, regrow_seconds = 300.0, placement = { near = { host = "moss_boulder", radius_meters = 1.4, mean = 0.6, chance = 0.7 } } },
-  { brief = "a loose fist-sized grey stone, whole", contact = "fallen", biomes = ["grey_scree", "dry_meadow", "forest_floor"], item_id = "stone", count = 1, regrow_seconds = 300.0 },
-  { brief = "a pair of rounded grey stones touching", contact = "pressed", biomes = ["grey_scree", "mossy_bog"], item_id = "stone", count = 2, regrow_seconds = 300.0 },
-  { brief = "a plump brown-capped mushroom, whole", contact = "growing", biomes = ["forest_floor", "mossy_bog"], item_id = "mushroom", count = 1, regrow_seconds = 180.0, placement = { near = { host = "pine", radius_meters = 2.2, mean = 0.5, chance = 0.5 } } },
-  { brief = "a cluster of three small tan mushrooms", contact = "growing", biomes = ["forest_floor", "mossy_bog"], item_id = "mushroom", count = 2, regrow_seconds = 180.0, placement = { near = { host = "pine", radius_meters = 2.2, mean = 0.35, chance = 0.5 } } },
-  { brief = "a single pale mushroom with a broad flat cap", contact = "growing", biomes = ["forest_floor"], item_id = "mushroom", count = 1, regrow_seconds = 180.0 },
-  { brief = "a bright green cushion of moss", contact = "growing", biomes = ["forest_floor", "mossy_bog"], item_id = "moss", count = 1, regrow_seconds = 200.0 },
-  { brief = "a wide flat mat of moss", contact = "growing", biomes = ["mossy_bog"], item_id = "moss", count = 2, regrow_seconds = 200.0 },
-  { brief = "a mossy bit of bark lying on the ground", contact = "fallen", biomes = ["forest_floor", "mossy_bog"], item_id = "moss", count = 1, regrow_seconds = 200.0 },
-  { brief = "a short thick dry stick with the bark peeling", contact = "fallen", biomes = ["forest_floor", "dry_meadow", "grey_scree"], item_id = "twig", count = 1, regrow_seconds = 240.0 },
-  { brief = "a chipped flint core with a pale rind, fist sized", contact = "pressed", biomes = ["grey_scree", "forest_floor"], item_id = "flint", count = 1, regrow_seconds = 300.0 },
+  { brief = "a loose bundle of three dry twigs", contact = "fallen", biomes = ["forest_floor", "dry_meadow", "mossy_bog"], item_id = "twig", count = 2, regrow_seconds = 240.0, size_units = 0.32 },
+  { brief = "a single forked dry branch, arm long", contact = "fallen", biomes = ["forest_floor", "dry_meadow"], item_id = "twig", count = 1, regrow_seconds = 240.0, size_units = 0.34 },
+  { brief = "a few pale snapped sticks lying across each other", contact = "fallen", biomes = ["forest_floor", "mossy_bog", "grey_scree"], item_id = "twig", count = 2, regrow_seconds = 240.0, size_units = 0.32 },
+  { brief = "a dark glassy flint nodule with one chipped face", contact = "pressed", biomes = ["grey_scree", "dry_meadow", "forest_floor"], item_id = "flint", count = 1, regrow_seconds = 300.0, size_units = 0.26 },
+  { brief = "a flat flake of dark flint with sharp edges", contact = "fallen", biomes = ["grey_scree", "dry_meadow", "forest_floor"], item_id = "flint", count = 1, regrow_seconds = 300.0, size_units = 0.27 },
+  { brief = "two small dark flint chips side by side", contact = "fallen", biomes = ["grey_scree", "dry_meadow", "forest_floor", "mossy_bog"], item_id = "flint", count = 2, regrow_seconds = 300.0, size_units = 0.28, placement = { near = { host = "moss_boulder", radius_meters = 1.4, mean = 0.6, chance = 0.7 } } },
+  { brief = "a loose fist-sized grey stone, whole", contact = "fallen", biomes = ["grey_scree", "dry_meadow", "forest_floor"], item_id = "stone", count = 1, regrow_seconds = 300.0, size_units = 0.28 },
+  { brief = "a pair of rounded grey stones touching", contact = "pressed", biomes = ["grey_scree", "mossy_bog"], item_id = "stone", count = 2, regrow_seconds = 300.0, size_units = 0.32 },
+  { brief = "a plump brown-capped mushroom, whole", contact = "growing", biomes = ["forest_floor", "mossy_bog"], item_id = "mushroom", count = 1, regrow_seconds = 180.0, size_units = 0.28, placement = { near = { host = "pine", radius_meters = 2.2, mean = 0.5, chance = 0.5 } } },
+  { brief = "a cluster of three small tan mushrooms", contact = "growing", biomes = ["forest_floor", "mossy_bog"], item_id = "mushroom", count = 2, regrow_seconds = 180.0, size_units = 0.3, placement = { near = { host = "pine", radius_meters = 2.2, mean = 0.35, chance = 0.5 } } },
+  { brief = "a single pale mushroom with a broad flat cap", contact = "growing", biomes = ["forest_floor"], item_id = "mushroom", count = 1, regrow_seconds = 180.0, size_units = 0.28 },
+  { brief = "a bright green cushion of moss", contact = "growing", biomes = ["forest_floor", "mossy_bog"], item_id = "moss", count = 1, regrow_seconds = 200.0, size_units = 0.3 },
+  { brief = "a wide flat mat of moss", contact = "growing", biomes = ["mossy_bog"], item_id = "moss", count = 2, regrow_seconds = 200.0, size_units = 0.34 },
+  { brief = "a mossy bit of bark lying on the ground", contact = "fallen", biomes = ["forest_floor", "mossy_bog"], item_id = "moss", count = 1, regrow_seconds = 200.0, size_units = 0.32 },
+  { brief = "a short thick dry stick with the bark peeling", contact = "fallen", biomes = ["forest_floor", "dry_meadow", "grey_scree"], item_id = "twig", count = 1, regrow_seconds = 240.0, size_units = 0.3 },
+  { brief = "a chipped flint core with a pale rind, fist sized", contact = "pressed", biomes = ["grey_scree", "forest_floor"], item_id = "flint", count = 1, regrow_seconds = 300.0, size_units = 0.28 },
 ]
 
 # The track. Its fill is a material plate; its edge is the splat mask eroded by
 # noise in the shader, the way the reference genre's roads end in a torn edge
 # rather than a line. edge_meters is the width of that erosion band.
-# The mid-scale. The litter is 2 to 40 cm and the props start at a metre and
-# a half; the reference fills every turf between those with knee- to
-# waist-high plants, and that, more than the plate, is the texture of its
-# ground. One lattice sheet of sixteen standing plants, scattered by the
-# layout per biome like the litter but laid as upright cards at true size,
-# not interactable, with a small contact shadow, darkened under the canopy.
-# A cell is 1.4 m of real ground, so a plant drawn to fill it is waist high.
-# The winter look repaints the sheet with snow, like a prop (SEASONS.md).
-[plants]
-columns = 4
-rows = 4
-# explore/ground-audition/plants-a2, adopted 2026-09-06: the eighth draw.
-# The first three came back with a dark halo round every plant and the base
-# on the lower guide (the clause said "on the bottom of its cell"); the next
-# three were clean but the flower spike's tip crossed the top margin by two
-# pixels in each (the brief said "waist high"); the last two both passed
-# under the corrected clause. The user's swap is the verdict.
-take = { path = "ground/plants.take.png", sha256 = "7e65a6c7e54847ee8ef8453ec34561fa29279c3732b32dfa4623032563addcfb" }
-style_emphasis = """
-matte flat colour only, no gloss and no glow; the set's thin ink contour;
-foliage in colour one step darker and one step more saturated than the ground
-plates, the lit tone above and the shadow tone below, so a plant sits in the
-turf rather than on it; every plant drawn whole from its base to its top,
-its base low in its cell but clear of the lower guide line; nothing drawn
-around a plant, no halo, no soft shadow, the backing clear to the ink line.
-"""
-cell_meters = 1.4
-# The mid-scale, quartered with the world like the litter; the meadow is the
-# plants' best ground and the scree their worst.
-placement.density_per_100m2 = 3.0
-placement.habitat = { dry_meadow = 1.0, forest_floor = 0.71, mossy_bog = 0.71, grey_scree = 0.36 }
-cells = [
-  { brief = "a tall clump of dry meadow grass, waist high, its seed heads nodding", contact = "growing", biomes = ["dry_meadow", "grey_scree"] },
-  { brief = "a broad tuft of fresh green grass, knee high", contact = "growing", biomes = ["forest_floor", "dry_meadow", "mossy_bog"] },
-  { brief = "a young fern, three fronds unrolling, knee high", contact = "growing", biomes = ["forest_floor", "mossy_bog"] },
-  { brief = "a birch sapling, one thin stem with a dozen small leaves, waist high", contact = "growing", biomes = ["forest_floor", "dry_meadow"] },
-  { brief = "a pine seedling, one short spire of needles, knee high", contact = "growing", biomes = ["forest_floor", "grey_scree"] },
-  { brief = "a clump of small white wildflowers on thin stems, knee high", contact = "growing", biomes = ["dry_meadow", "forest_floor"] },
-  { brief = "a clump of small yellow flowers among round leaves, shin high", contact = "growing", biomes = ["dry_meadow", "mossy_bog"] },
-  { brief = "a spray of dry reeds with dark seed heads, waist high", contact = "growing", biomes = ["mossy_bog"] },
-  { brief = "a tussock of coarse sedge, knee high, bent over at the tips", contact = "growing", biomes = ["mossy_bog", "dry_meadow"] },
-  { brief = "a small thistle with two purple heads, knee high", contact = "growing", biomes = ["dry_meadow", "grey_scree"] },
-  { brief = "a low heather bush, tiny leaves and a few pink tips, shin high", contact = "growing", biomes = ["grey_scree", "dry_meadow"] },
-  { brief = "a stand of bracken, three tall fronds, waist high", contact = "growing", biomes = ["forest_floor"] },
-  { brief = "a rosette of broad dock leaves, shin high", contact = "growing", biomes = ["forest_floor", "mossy_bog", "dry_meadow"] },
-  { brief = "a spike of pale bell-shaped flowers on one stem, knee high", contact = "growing", biomes = ["forest_floor"] },
-  { brief = "a spindly dead shrub of bare grey twigs, knee high", contact = "growing", biomes = ["grey_scree", "dry_meadow", "forest_floor"] },
-  { brief = "a grey-green tuft of lichen and moss over a low stone, shin high", contact = "growing", biomes = ["grey_scree", "mossy_bog"] },
-]
-
 [road]
 road_id = "dirt_track"
 width_meters = 2.2

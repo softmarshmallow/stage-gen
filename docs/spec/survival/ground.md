@@ -8,25 +8,33 @@
 > `ground.toml` in an [oblique-survival package](generation-v1.md).
 
 The ground is the one asset in this recipe that is a **material rather than a
-picture**. Everything recognisable — a tuft, a twig, a stone, a flower — stands
-on it as its own cutout with its own contact, and nothing identifiable is
-painted into the surface. That separation is what lets a season whiten the
-ground and cap the plants in the same frame, and it is the rule every plate
-brief is written against.
+picture**. Everything recognisable — a tuft, a twig, a stone — stands on it as
+its own cutout with its own contact, and nothing identifiable is painted into
+the surface. That separation is what lets a season whiten the ground and cap
+the props in the same frame, and it is the rule every plate brief is written
+against.
+
+And **nothing lies on the ground that the player cannot act on**
+([decision 0060](../../decisions/0060-the-world-places-nothing-the-player-cannot-act-on.md)).
+The one sheet of ground pieces is the forage, every cell of which yields an
+item and carries its size. A litter sheet of decorative cutouts and a
+standing-plant sheet stood here through ground-v1, and in play a decorative
+stone beside a forage stone was two things the eye could not tell apart; the
+loader refuses both by name now, and what the ground looks like between the
+things on it is the plates' job.
 
 ## The layer stack
 
-Seven layers, six generated and one algorithmic, composed by the consumer in one
-shader over the two structural plates the layout writes.
+Five layers, four generated and one algorithmic, composed by the consumer in one
+shader over the two structural plates the layout writes, and the forage sheet
+laid over them as instanced quads.
 
 | Layer | Authored as | Span | What it is |
 | --- | --- | --- | --- |
 | biome plates | `[[biomes]]`, `material = "field"` or `"fabric"` | 2 m | one material plate per biome, tiled by the consumer |
 | weather cover | `weather.toml [conditions.<id>.cover]` | 2 m | a pale plate laid over every biome by the condition's factor through a torn erosion |
 | macro field | `[macro]` | 24 m, read over `period_meters` | value only, in the turf's own hue: the plate's luma over its measured mean, at an authored strength |
-| litter sheet | `[clutter]` | one cell per piece | flat cutouts scattered by the layout, re-aimed on a camera turn, darkened under canopy |
-| forage sheet | `[forage]` | one cell per pickup | the litter's twin, drawn a step brighter and heavier; each cell names the item it yields |
-| standing plants | `[plants]` | one cell per plant | the mid-scale: knee- to waist-high cards stood up on the ground, sized from each cell's gated box |
+| forage sheet | `[forage]` | one cell per pickup, `cell_meters` the lattice's drawing scale | flat cutouts scattered by the layout, re-aimed on a camera turn, darkened under canopy; each cell names the item it yields and its `size_units` |
 | road, water | `[road]`, `[water]` | 2 m, 6 m | a track plate laid on the splat's red channel; a plane below the coast with its own depth |
 
 **The two structural plates the layout writes.** `world/splat.png` carries the
@@ -97,7 +105,7 @@ belong to the ground:
 | busy-ness at play zoom | field `0.062`, fabric `0.14`, measured at 70 px per metre | speckle that reads as noise; **a fabric has its own limit because the field limit would refuse a drawn turf** |
 | macro no-ink | edge mean `0.02`, value `(0.36, 0.68)`, half deviation `0.22` | drawing inside a plate whose job is a colour field |
 | tile edge | `6/255` | a seam where a plate meets its own repeat |
-| cell isolation | litter `(0.02, 0.60)`, plants `(0.03, 0.85)`, inset `0.03` | an empty cell, an overflowing cell, or a cell touching a guide line |
+| cell isolation | pieces `(0.02, 0.60)`, inset `0.03` | an empty cell, an overflowing cell, or a cell touching a guide line |
 | sheet seam | searched `0.15` either side of each half line | a cut through a drawing rather than through the emptiest gap |
 | decal | soft-edge share `0.05`; irregularity `0.12` | a hard-edged decal, and a ground patch that is a perfect disc |
 
@@ -108,11 +116,17 @@ with sparse marks, a fabric is a drawn stroke in every square metre.
 ## What the manifest publishes
 
 Per biome: the plate's path, its span in metres, its measured mean and its
-authored target, and its material. Per sheet: the atlas, the cell windows, and
-each cell's gated box, so a consumer sizes a card from the drawing rather than
-from the cell. Plus the macro field, the road, the water and its depth, the
-decals with their uses, the two structural plates, and the whole `[blend]`
-table as mixing.
+authored target, and its material. For the forage sheet: the atlas, and per
+cell the cut, the painted `box` inside it, the authored `size_meters`, the
+`px_per_meter` that calibrates the one to the other, and `drawn_size_meters`
+— the drawing's opinion at the lattice's shared scale, a recorded drift and
+never a gate, as a prop's `drawn_height_meters` is. A consumer sizes a piece
+from the box and the ruler; the cell is the cut. Plus the macro field, the
+road, the water and its depth, the decals with their uses, the two structural
+plates, and the whole `[blend]` table as mixing. The manifest's `scale` block
+publishes the floor every placed thing keeps, `minimum_height_units`, in
+metres and — when `[camera] reference_height_px` is stated — in screen pixels
+at play zoom beside `screen_px_per_meter`.
 
 ## Non-goals
 
@@ -143,3 +157,10 @@ table as mixing.
   plants are objects of the world generator with their own `placement` blocks,
   the canopy shade is a prop attribute, and the world is 512 m. See
   [world](world.md).
+- **2026-09-07.** The litter and the plants are gone, and the fern clump with
+  them: the world places nothing the player cannot act on. A forage cell
+  carries `size_units` above the package floor and the manifest calibrates it
+  from its painted box; nine pickups rose to the floor. Zero operations. The
+  drawing-ruler spread that makes the small things' ink vanish (78 to 1,900
+  px/m against a 79 px/m screen) is measured in decision 0060 and left as the
+  next redraw's brief.

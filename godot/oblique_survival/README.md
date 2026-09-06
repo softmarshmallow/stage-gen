@@ -37,14 +37,16 @@ Everything after the bare `--` belongs to the host; Godot swallows the rest.
 | `--seconds`, `--timing-frames` | see below | the play smoke only |
 
 A run is opened when its manifest names the one kind the host reads
-(`runtime/run_package.gd`): **`oblique-survival-manifest-v1` at
+(`runtime/run_package.gd`): **`oblique-survival-manifest-v2` at
 `schema_version` 1**, the promoted recipe's. Anything else is refused before a
 byte of the package is touched, and the refusal names both kinds:
-`kind oblique_survival_v0_manifest is not oblique-survival-manifest-v1`. The
+`kind oblique_survival_v0_manifest is not oblique-survival-manifest-v2`. The
 spike's own `oblique_survival_v0_manifest` was accepted while the recipe was
 being promoted and is gone — one host, one manifest identity. The run to point
-it at is `out/ember-hollow-v3`: the same art as the spike's `full-v66`, restored
-at zero provider operations, over the 512 m world the
+it at is `out/ember-hollow-v10`: the same art as the spike's `full-v66` less the
+litter, the plants and the fern clump
+([decision 0060](../../docs/decisions/0060-the-world-places-nothing-the-player-cannot-act-on.md)),
+restored at zero image operations, over the 512 m world the
 [world generator](../../docs/spec/survival/world.md) lays.
 
 Keyboard handling lives in `runtime/input_map.gd` (`class_name HostInput` —
@@ -374,7 +376,7 @@ one into the directory `--out` names, each file named after its shot.
 
 | Shot | Page | The recipe, and what only this shot proves |
 | --- | --- | --- |
-| `camp-noon` | verdict, noon | clock 0.02, `advance(2)`. Ground plates and level gains, the biome cut, clutter and forage, contact shadows, the day pool |
+| `camp-noon` | verdict, noon | clock 0.02, `advance(2)`. Ground plates and level gains, the biome cut, the forage at its authored sizes, contact shadows, the day pool |
 | `camp-night` | verdict, night | clock 0.73, `advance(2)`, the fire lit by entering verdict. The night tint, the light falloff and flicker, the one-light rule |
 | `camp-night-unlit` | verdict, night | as above, then the campfire set `unlit` with `burn` 0: the no-light branch, the deep-night floor |
 | `winter-noon` | verdict, noon | force winter, `advance(130)`, clock 0.02, `advance(3)` for the reference's texture wait, `advance(1)`. Snow cover at 1, the winter prop look, decals faded, ice on the water |
@@ -488,9 +490,12 @@ shows up here rather than in a still.
 This is the one host run where the render loop is **on** — a picture gate that
 draws with `force_draw` says nothing about what a frame costs while somebody is
 playing. On the 512 m world (`out/ember-hollow-v3`: 2365 entities, 3275 plants, 4314
-clutter pieces, 2686 decals) the smoke reads **11.2 ms a frame (89 fps)** free-running,
+clutter pieces, 2686 decals) the smoke read **11.2 ms a frame (89 fps)** free-running,
 worst 13.1, with the same module split as below: a wider world at the same card
 count costs nothing here, and the plates at 1024 cells cost the same to sample.
+(Since decision 0060 the plants and the litter are gone — the world places
+nothing the player cannot act on — so the run carries 1,524 forage pieces and
+no other ground pieces, and the `plants` and `leaves` rows below are history.)
 The first measurement, on the 256 m run (2471 entities, 4588 plants, 6554 clutter
 pieces, 1608 decals), on an M4 Pro:
 

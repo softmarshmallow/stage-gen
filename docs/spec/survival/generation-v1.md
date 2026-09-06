@@ -72,8 +72,8 @@ a `game.toml` closure.
 | `survival.toml` | `oblique-survival-package-v2` | the root: `[presentation]`, the `[look]` contract (one light, ground-piece aim, jitter), `[style]` with the style plate, `[scale]` (player height in metres), `[camera]`, `[gameplay]` (hunger, health, warmth, torch, night, mob, campfire), `[rights]` |
 | `world.toml` | `oblique-survival-world-v1` | the world: `[world]` (seed, size), `[landmass]`, `[biomes]` (islets), `[spawn]`, `[[set_pieces]]`, `[population]` — see [world](world.md). Where each object stands is that object's own `placement` block in props.toml, actors.toml and ground.toml |
 | `actors.toml` | `oblique-survival-actors-v1` | one entry per drawn actor: role, appearance reference, motion states, the facing set, the side view |
-| `props.toml` | `oblique-survival-props-v2` | every prop, its states, what can be done to it as `[[props.interactions]]` in priority order (each `from` the states it applies to, with its verb and yield), its sheet or variants, and its per-look season overrides |
-| `ground.toml` | `oblique-survival-ground-v1` | the biome plates, the macro field, the road, the water, the litter, forage and plant sheets, the decals, and the `[blend]` mixing the consumer reads — see [ground](ground.md) |
+| `props.toml` | `oblique-survival-props-v3` | every prop, its states, what can be done to it as `[[props.interactions]]` in priority order (each `from` the states it applies to, with its verb and yield), its sheet or variants, and its per-look season overrides; a scattered prop must offer an interaction |
+| `ground.toml` | `oblique-survival-ground-v2` | the biome plates, the macro field, the road, the water, the forage sheet (the one sheet of ground pieces, each cell sized), the decals, and the `[blend]` mixing the consumer reads — see [ground](ground.md) |
 | `items.toml` | `oblique-survival-items-v1` | every item, its pickup brief and its use or tool, and the `[icons]` sheet — see [crafting](crafting.md) |
 | `crafting.toml` | `oblique-survival-crafting-v2` | the pack, the start, the stations and the recipes; a built prop names the look it is built in and is placed by the player — see [crafting](crafting.md) |
 | `seasons.toml` | `oblique-survival-seasons-v1` | the calendar and what each season holds — see [seasons](seasons.md) |
@@ -145,10 +145,10 @@ instead of paying twice.
 
 | Scope | Nodes | Image | Structured | Tool loop | Music | Sound | Local |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `minimal` | 71 | 22 | 0 | 6 | 0 | 0 | 43 |
-| `props` | 197 | 77 | 7 | 12 | 0 | 0 | 101 |
-| `actors` | 247 | 98 | 12 | 12 | 0 | 0 | 125 |
-| **`full`** | **289** | **105** | **13** | **12** | **0** | **3** | **156** |
+| `minimal` | 64 | 21 | 0 | 5 | 0 | 0 | 38 |
+| `props` | 186 | 74 | 7 | 11 | 0 | 0 | 94 |
+| `actors` | 236 | 95 | 12 | 11 | 0 | 0 | 118 |
+| **`full`** | **278** | **102** | **13** | **11** | **0** | **3** | **149** |
 
 Counted from the committed fixture package with every plate, track and clip take
 adopted; the music count is zero for that reason. The `full` row is the block
@@ -167,8 +167,8 @@ The phases, in dependency order: source lock and the paintover lattice
 templates; prop sprites, one image per state, each gated and then given one
 tool-loop anchor; items and the inventory icon sheet; the ground as its layers —
 biome material plates, the macro colour field, the road plate and the water
-plate, each gated and made tileable, then the litter, forage and standing-plant
-sheets as lattice paintovers gated cell by cell; decals; the actor concept sheet,
+plate, each gated and made tileable, then the forage sheet as a lattice
+paintover gated cell by cell; decals; the actor concept sheet,
 then per-state motion strips per facing, gated, repacked and rebased against a
 judging plate; the flame-cycle paintover and the dust sheet; the weather layers;
 the season looks, one paintover per prop state; one contact sheet and one
@@ -247,7 +247,7 @@ loop and never a second provider adapter.
 | busy-ness at play zoom | field `0.062`, fabric `0.14`, measured at `PLAY_PX_PER_METER = 70` | speckle that reads as noise rather than as ground |
 | macro no-ink | `MACRO_EDGE_MEAN_MAX = 0.02`, value `(0.36, 0.68)`, half deviation `0.22` | drawing inside a plate whose whole job is a colour field |
 | tile edge | `TILE_EDGE_DELTA_MAX = 6/255` | a visible seam where a plate meets its own repeat |
-| cell isolation | litter `(0.02, 0.60)`, plants `(0.03, 0.85)`, icons `(0.05, 0.75)`, inset `0.03` | a sheet cell that is empty, that overflows, or that touches a guide line |
+| cell isolation | pieces `(0.02, 0.60)`, icons `(0.05, 0.75)`, inset `0.03` | a sheet cell that is empty, that overflows, or that touches a guide line |
 | sheet seam | searched over `SHEET_SEAM_SEARCH_SHARE = 0.15` either side of each half line | a cut through a drawing: a sheet is cut at its emptiest seam, not on the arithmetic midline |
 | decal feather | soft-edge share `0.05`, irregularity `0.12` over `180` radius samples | a hard-edged decal, and a ground patch that is a disc |
 | lattice residual | `LATTICE_RESIDUAL_MAX_PX = 3.0` | a paintover that moved the guide grid it was drawn over |
@@ -257,7 +257,7 @@ loop and never a second provider adapter.
 
 ## Runtime manifest
 
-A run publishes `oblique-survival-manifest-v1` at `manifest.json`, beside the
+A run publishes `oblique-survival-manifest-v2` at `manifest.json`, beside the
 `package/` tree it names. Its blocks:
 
 `style`, `scale`, `camera`, `look`, `ground_contact`, `ground`, `actors`,
@@ -273,6 +273,15 @@ that authors no `ui.toml`; `status.ui` says `none` then, and `missing` when the
 scope drew no sheets. The host dresses every panel and button from it, installs
 its pointers from `ui.cursor_set`, and falls back to plain boxes under the
 system pointer when it is null.
+
+`scale` is the unit and the floor: `player_height_meters`, the
+`minimum_height_units` every thing the player can act on keeps (a prop's
+height, a pickup's height, a forage piece's span) in units and in metres, and
+— when `[camera] reference_height_px` states the window the rig was tuned in —
+`screen_px_per_meter` at play zoom and the floor in screen pixels, so an author
+sees what the number means. `ground.forage.cells[]` carry the per-cell
+calibration ([ground](ground.md)); there is no other sheet of ground pieces
+([decision 0060](../../decisions/0060-the-world-places-nothing-the-player-cannot-act-on.md)).
 
 Three of them carry the rules a consumer must not invent for itself.
 `ground_contact` is the authored seam between a billboard and the ground: the
@@ -346,14 +355,14 @@ invalidates it and must be regenerated in the same change.
   "fixture_ref": "library/games/ember-hollow",
   "scope": "full",
   "graph_schema_version": 1,
-  "topology_sha256": "2d666274bcc47c58cb05c13011bd02af33da2b7a6b01c68f264a5c43a9726f70",
-  "node_count": 289,
+  "topology_sha256": "484879b1b2797be51eec8486412d6d1f72f268a7dadbd07693f1ee3230cb54ca",
+  "node_count": 278,
   "terminal_node_id": "package-manifest",
   "operation_counts": {
-    "local": 156,
-    "image_generation": 105,
+    "local": 149,
+    "image_generation": 102,
     "structured_generation": 13,
-    "tool_loop": 12,
+    "tool_loop": 11,
     "music_generation": 0,
     "sound_effect_generation": 3
   },
