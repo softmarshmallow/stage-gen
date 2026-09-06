@@ -25,6 +25,8 @@ from typing import Any, Final, Literal, Protocol, TypedDict, cast
 from pydantic import ValidationError
 
 from stage_gen.canonical import content_sha256
+from stage_gen.components._game_input import AuthoredContractLoadError
+from stage_gen.components.game_ui import GameUi, load_game_ui_bytes
 from stage_gen.recipes.oblique_survival.models import (
     CLUTTER_CONTACTS,
     DECAL_USES,
@@ -37,7 +39,6 @@ from stage_gen.recipes.oblique_survival.models import (
     GROUND_MATERIALS,
     HIT_REACTIONS,
     INTERACTION_VERBS,
-    YIELD_DESTINATIONS,
     ITEM_USES,
     LOOK_LIGHTS,
     MAX_BIOMES,
@@ -52,6 +53,7 @@ from stage_gen.recipes.oblique_survival.models import (
     SOUND_CUES,
     WEATHER_CONDITIONS,
     WORLD_KIND,
+    YIELD_DESTINATIONS,
     Actor,
     AvoidRule,
     Biome,
@@ -84,6 +86,7 @@ from stage_gen.recipes.oblique_survival.models import (
     NearRule,
     ObliqueSurvivalSource,
     Package,
+    PackageFile,
     Placement,
     PlantCell,
     Plants,
@@ -116,6 +119,9 @@ from stage_gen.recipes.oblique_survival.models import (
 )
 
 SURVIVAL_DOCUMENT_NAME: Final = "survival.toml"
+#: The shared ``game-ui-v4`` document, optional like music.toml: the interface
+#: sheets the host's HUD is dressed in. Its contract is the game_ui component's.
+UI_DOCUMENT_NAME: Final = "ui.toml"
 
 
 @dataclass(slots=True)
@@ -355,6 +361,39 @@ def _png_reference(
     return relative.as_posix(), digest
 
 
+def _ui(root: Path, digests: DigestLedger) -> tuple[GameUi, dict[str, PackageFile]]:
+    """ui.toml and the bytes behind its references, digested into the ledger.
+
+    The document's own contract is the shared game_ui component's, so it is
+    parsed there; what this loader owns is the same confinement, digest binding
+    and refusals every other authored picture in the package gets. A reference
+    is read once here and carried on the package, because the atlas triplet
+    hands it to the provider as reference image 1.
+    """
+
+    path = root / UI_DOCUMENT_NAME
+    raw = path.read_bytes()
+    digests[path.name] = content_sha256(raw)
+    try:
+        ui = load_game_ui_bytes(raw)
+    except AuthoredContractLoadError as error:
+        raise SourceError(f"{UI_DOCUMENT_NAME} is not a game-ui-v4 document: {error}") from None
+    references: dict[str, PackageFile] = {}
+    for reference in ui.references:
+        field_name = f"{UI_DOCUMENT_NAME} references.{reference.reference_id}.source"
+        source, digest = _png_reference(root, reference.source, digests, field=field_name)
+        assert source is not None and digest is not None
+        if digest != reference.source_sha256:
+            raise SourceError(
+                f"{field_name} {source!r} does not match its declared sha256: "
+                f"declared {reference.source_sha256}, found {digest}"
+            )
+        references[source] = PackageFile(
+            data=(root / Path(*PurePosixPath(source).parts)).read_bytes(), sha256=digest
+        )
+    return ui, references
+
+
 def _load_toml(path: Path, digests: DigestLedger) -> dict[str, object]:
     if not path.is_file():
         raise SourceError(f"missing source file: {path.name}")
@@ -521,9 +560,7 @@ def _interaction(block: object, *, field: str, states: Sequence[str]) -> Interac
     prop_id = field
     next_state = _identifier(block.get("next_state"), field=f"{prop_id}.next_state")
     if next_state not in states:
-        raise SourceError(
-            f"{prop_id}.next_state {next_state!r} is not a declared state"
-        )
+        raise SourceError(f"{prop_id}.next_state {next_state!r} is not a declared state")
     rows = block.get("yields", [])
     if not isinstance(rows, list):
         raise SourceError(f"{prop_id}.yields must be a list")
@@ -543,18 +580,14 @@ def _interaction(block: object, *, field: str, states: Sequence[str]) -> Interac
     raw_progress = block.get("progress", [])
     if not isinstance(raw_progress, list):
         raise SourceError(f"{prop_id}.progress must be a list of states")
-    progress = tuple(
-        _identifier(s, field=f"{prop_id}.progress[]") for s in raw_progress
-    )
+    progress = tuple(_identifier(s, field=f"{prop_id}.progress[]") for s in raw_progress)
     for look in progress:
         if look not in states:
             raise SourceError(f"{prop_id}.progress names undeclared state {look!r}")
     if len(set(progress)) != len(progress):
         raise SourceError(f"{prop_id}.progress repeats a state")
     if next_state in progress:
-        raise SourceError(
-            f"{prop_id}.progress may not contain next_state {next_state!r}"
-        )
+        raise SourceError(f"{prop_id}.progress may not contain next_state {next_state!r}")
     if len(progress) > hits - 1:
         raise SourceError(
             f"{prop_id}.progress lists {len(progress)} looks but only {hits - 1} hits "
@@ -563,7 +596,8 @@ def _interaction(block: object, *, field: str, states: Sequence[str]) -> Interac
     raw_from = block.get("from")
     if raw_from is None:
         raise SourceError(
-            f"{prop_id} must say the states it applies from: from = [...] (one or more declared states)"
+            f"{prop_id} must say the states it applies from: "
+            "from = [...] (one or more declared states)"
         )
     if not isinstance(raw_from, list) or not raw_from:
         raise SourceError(f"{prop_id}.from must be a non-empty list of declared states")
@@ -582,9 +616,7 @@ def _interaction(block: object, *, field: str, states: Sequence[str]) -> Interac
     regrow = block.get("regrow_seconds")
     verb = _identifier(block.get("verb"), field=f"{prop_id}.verb")
     if verb not in INTERACTION_VERBS:
-        raise SourceError(
-            f"{prop_id}.verb must be one of {list(INTERACTION_VERBS)}, got {verb!r}"
-        )
+        raise SourceError(f"{prop_id}.verb must be one of {list(INTERACTION_VERBS)}, got {verb!r}")
     raw_yield_to = block.get("yield_to")
     if yields:
         if raw_yield_to is None:
@@ -595,8 +627,7 @@ def _interaction(block: object, *, field: str, states: Sequence[str]) -> Interac
         yield_to = _text(raw_yield_to, field=f"{prop_id}.yield_to")
         if yield_to not in YIELD_DESTINATIONS:
             raise SourceError(
-                f"{prop_id}.yield_to must be one of {list(YIELD_DESTINATIONS)}, "
-                f"got {yield_to!r}"
+                f"{prop_id}.yield_to must be one of {list(YIELD_DESTINATIONS)}, got {yield_to!r}"
             )
     elif raw_yield_to is not None:
         raise SourceError(f"{prop_id} yields nothing; yield_to has no meaning")
@@ -606,9 +637,7 @@ def _interaction(block: object, *, field: str, states: Sequence[str]) -> Interac
     tool: ToolSpec | None = None
     if raw_tool is not None:
         if not isinstance(raw_tool, dict):
-            raise SourceError(
-                f"{prop_id}.tool must be a table of item_id, hits, required"
-            )
+            raise SourceError(f"{prop_id}.tool must be a table of item_id, hits, required")
         unknown = sorted(set(raw_tool) - {"item_id", "hits", "required"})
         if unknown:
             raise SourceError(f"{prop_id}.tool has unknown keys {unknown}")
@@ -623,9 +652,7 @@ def _interaction(block: object, *, field: str, states: Sequence[str]) -> Interac
         if not isinstance(required, bool):
             raise SourceError(f"{prop_id}.tool.required must be a boolean")
         tool = ToolSpec(
-            item_id=_identifier(
-                raw_tool.get("item_id"), field=f"{prop_id}.tool.item_id"
-            ),
+            item_id=_identifier(raw_tool.get("item_id"), field=f"{prop_id}.tool.item_id"),
             hits=tool_hits,
             required=required,
         )
@@ -3008,6 +3035,10 @@ def load_package(root: Path) -> Package:
     seasons_path = root / "seasons.toml"
     seasons_doc = _load_toml(seasons_path, digests) if seasons_path.is_file() else None
     world_doc = _load_toml(root / "world.toml", digests)
+    ui: GameUi | None = None
+    ui_references: dict[str, PackageFile] = {}
+    if (root / UI_DOCUMENT_NAME).is_file():
+        ui, ui_references = _ui(root, digests)
 
     # The root document's own identity is the one field a schema owns rather
     # than this loader: the repository's contract table reads it off the model.
@@ -3046,6 +3077,8 @@ def load_package(root: Path) -> Package:
     ):
         if doc.get("package_id") != package_id:
             raise SourceError(f"{name} package_id does not match survival.toml")
+    if ui is not None and ui.game_id != package_id:
+        raise SourceError(f"{UI_DOCUMENT_NAME} game_id does not match survival.toml")
 
     style = _subtable(survival, "style")
     scale = _subtable(survival, "scale")
@@ -3178,6 +3211,8 @@ def load_package(root: Path) -> Package:
         sounds=sounds,
         seasons=seasons,
         missing_takes=tuple(digests.missing),
+        ui=ui,
+        ui_references=ui_references,
     )
 
     if package.profile != "elevated_oblique_perspective_ground_plane_v1":

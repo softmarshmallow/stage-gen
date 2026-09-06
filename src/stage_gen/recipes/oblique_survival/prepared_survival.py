@@ -13,7 +13,7 @@ import asyncio
 import base64
 import json
 import math
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Iterable, Mapping, Sequence
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Final, Literal, Protocol, TypedDict, cast
@@ -33,6 +33,7 @@ from gnode import (
     NodeExecutionResult,
     NodeType,
     ProvenanceInput,
+    RetryExhaustedError,
     SoftwareIdentity,
     SoundEffectGenerationRequest,
     SoundEffectGenerationService,
@@ -47,6 +48,13 @@ from gnode import (
     write_artifact_with_provenance_async,
 )
 from stage_gen.canonical import content_sha256
+from stage_gen.components.game_ui.nodes import (
+    UI_ATLAS_GENERATE,
+    UI_ATLAS_REVIEW,
+    UI_ATLAS_VALIDATE,
+    UiAtlasHandlers,
+    UiAtlasHost,
+)
 from stage_gen.components.sideview_actor import motion_rebase
 from stage_gen.components.sound_effect import admit_sound_effect_bytes_sync
 from stage_gen.identity import STAGE_GEN_TOOL
@@ -608,6 +616,7 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
         self.music = music
         self.sounds = sounds
         self._plate: tuple[ImageReference, ...] | None = None
+        self._ui: UiAtlasHandlers | None = None
         super().__init__(
             graph,
             run_dir=run_dir,
@@ -687,6 +696,9 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
             (SOUND_VALIDATE, self._sound_validate),
             (REVIEW_SHEET, self._review_sheet),
             (REVIEW_JUDGE, self._review_judge),
+            (UI_ATLAS_GENERATE, self._ui_generate),
+            (UI_ATLAS_VALIDATE, self._ui_validate),
+            (UI_ATLAS_REVIEW, self._ui_review),
             (WORLD_LAYOUT, self._world_layout),
             (PACKAGE_MANIFEST, self._package_manifest),
         )
@@ -750,6 +762,93 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
         if self.structured is None:
             raise ValueError("structured service missing")
         return self.structured
+
+    def _require_images(self) -> ImageGenerationService:
+        if self.images is None:
+            raise ValueError("image service missing")
+        return self.images
+
+    # -- the interface: the shared triplet, hosted
+
+    def _ui_handlers(self) -> UiAtlasHandlers:
+        """The recipe-neutral atlas triplet, bound to this package and this run.
+
+        Built on first use so a run that draws no interface never asks for the
+        services it would need; the three node types are registered regardless,
+        because a registry that lacks a type the graph can plan is a bug found
+        only when it is too late.
+        """
+
+        if self.package.ui is None:
+            raise NodeExecutionError(
+                "this package declares no ui.toml, so no interface node can run",
+                attempts=1,
+                provider_operations=0,
+            )
+        if self._ui is None:
+            self._ui = UiAtlasHandlers(
+                UiAtlasHost(
+                    ui=self.package.ui,
+                    run_dir=self._run_dir,
+                    package_id=self.package.package_id,
+                    file=self.package.ui_reference,
+                    component=OBLIQUE_SURVIVAL_COMPONENT,
+                    tool=STAGE_GEN_TOOL,
+                ),
+                graph=self._graph,
+                image_service=self._require_images(),
+                structured_service=self._require_structured(),
+                provider_call=self._ui_provider_call,
+            )
+        return self._ui
+
+    async def _ui_generate(self, node: Node) -> NodeExecutionResult:
+        return await self._ui_handlers().generate(node)
+
+    async def _ui_validate(self, node: Node) -> NodeExecutionResult:
+        return await self._ui_handlers().validate(node)
+
+    async def _ui_review(self, node: Node) -> NodeExecutionResult:
+        return await self._ui_handlers().review(node)
+
+    async def _ui_provider_call(
+        self, node: Node, label: str, prompt: str, call: Callable[[], Awaitable[Any]]
+    ) -> Any:
+        """The triplet's provider seam: the node's declared ledger, written either way.
+
+        The sheet gate runs inside the image service's own retry owner, so a
+        refused draw is counted by the result's attempts rather than kept here;
+        the ledger records that count, and a run that exhausted its budget
+        records that too before the failure is raised.
+        """
+
+        operation_id = f"ui-{label}"
+        try:
+            result = await call()
+        except RetryExhaustedError as error:
+            await self._write_ledger(
+                node,
+                operation_id=operation_id,
+                attempts=[
+                    {"attempt": ordinal, "outcome": "rejected", "reason": str(error)}
+                    for ordinal in range(1, int(error.attempts) + 1)
+                ],
+            )
+            raise
+        refused = max(0, int(result.attempts) - 1)
+        await self._write_ledger(
+            node,
+            operation_id=operation_id,
+            attempts=[
+                {
+                    "attempt": ordinal,
+                    "outcome": "rejected",
+                    "reason": "refused by the sheet gate inside the service's retry",
+                }
+                for ordinal in range(1, refused + 1)
+            ],
+        )
+        return result
 
     def _run_ref(self, ref: str) -> str:
         return f"run://{ref}#sha256={content_sha256(self._path(ref).read_bytes())}"

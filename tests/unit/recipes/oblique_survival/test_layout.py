@@ -753,7 +753,9 @@ def test_a_yield_says_where_it_goes(tmp_path: Path) -> None:
         'yield_to = "sky"\nyields = [{ item_id = "grass_tuft", count = 1 }]',
     )
     _load_refused(root, "grass_tuft.interactions[0].yield_to must be one of ['hand', 'ground']")
-    root = _source_edit(tmp_path / "c", "props.toml", "yields = []", 'yield_to = "hand"\nyields = []')
+    root = _source_edit(
+        tmp_path / "c", "props.toml", "yields = []", 'yield_to = "hand"\nyields = []'
+    )
     _load_refused(root, "campfire.interactions[0] yields nothing; yield_to has no meaning")
 
 

@@ -139,7 +139,11 @@ host and nothing else moves.
 It owns loading, the fixed-step loop, mirroring world slices onto scene nodes,
 the perspective camera and its yaw detents, billboard depth against the ground,
 the ground and water shaders, collision, navigation, input latching, the HUD, the
-audio graph, and the runtime effects. Capture is a mode of the host rather than a
+audio graph, and the runtime effects. The HUD's panels and buttons are the run's
+generated interface sheets (the manifest's `ui` block, the shared
+[game UI contract](spec/game/ui.md)) cut as nine-patch styleboxes under the
+published geometry; the host draws no frame of its own when a run carries them,
+and plain boxes when it does not. Capture is a mode of the host rather than a
 parameter threaded through the boot.
 
 Two rules hold the loop honest. A view reads; it never writes a world slice and

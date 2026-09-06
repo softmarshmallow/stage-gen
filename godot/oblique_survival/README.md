@@ -106,6 +106,25 @@ owner hands the sim the one-shot inputs the viewer did not have:
 `place_cancel`, and the held `place_point` (where the pointer is on the ground
 while a built thing is being placed). Keyboard play is untouched.
 
+**The frame.** Every panel and every button is cut from the run's generated
+interface sheets — the shared `game-ui-v4` roles the manifest's `ui` block
+publishes: `panel_frame`, one body, and `button_rect`, four state bodies — and
+drawn as Godot nine-patch styleboxes under the geometry the pipeline's gate
+detected (the cell, the insets, the band fill), never a number read off the
+pixels here. The kit reads a sheet at `draw_scale × SHEET_DENSITY` sheet pixels
+per layout unit: the contract's hint is a 1024 canvas at twice a HUD's density,
+and this HUD is laid out in 900 units and scaled up to the window, so the
+sheets are read at four sheet pixels per unit, a 96-pixel inset landing at 24
+units and a button's frame at about 12, the margins the flat boxes had. A
+button's hover, pressed and disabled looks are the producer's pixels for those
+states, not a tint; the Craft toggle shows the pressed body while the table is
+open. The content sits inside the published insets, so nothing is ever laid
+over the border band. A run whose manifest carries no `ui` block gets the flat
+dark boxes the viewer had. The slot wells (hotbar, worn places) are still drawn
+from code, as plain dark squares inside the generated frame: a slot is not a
+generated role yet, and the drawn `inventory_panel` is one picture of eight
+slots this pack cannot use ([TODO](../../TODO.md), "Game UI").
+
 **The HUD** (`hud/hud.gd`, `hud/craft_panel.gd`, `hud/death_screen.gd`,
 `hud/pause_menu.gd`, the shared `hud/ui_kit.gd`). The vitals stand top-left
 with the title, the day and the season, and under them the **clock**: the hour
@@ -713,8 +732,9 @@ It owns: presentation and play — the frame order, the camera, the shaders, the
 meshes, the HUD, the audio graph, and the simulation the viewer prototyped.
 
 It must not own: any generated media (a run directory is an argument, never a
-resource), any authored content (prompts, TOMLs, takes — those live in the
-game's package), and any pipeline logic. It reads a manifest; it never writes
+resource; the HUD's frames included — they are the run's `ui` sheets, cut under
+the run's geometry), any authored content (prompts, TOMLs, takes — those live in
+the game's package), and any pipeline logic. It reads a manifest; it never writes
 one. It has no opinion on how a run was generated and no code path that would
 regenerate one.
 

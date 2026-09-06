@@ -5,7 +5,9 @@ extends RefCounted
 ## `craft_open` and writing the sim's one-shot inputs, the HUD building a slot
 ## per pack slot and its card for the chosen one, and every layer taking a
 ## scale. Nothing is drawn; a Control tree stands up under the dummy display
-## server, which is enough to prove the layers build and read.
+## server, which is enough to prove the layers build and read. The kit's
+## frames are proved the same way: the styleboxes it cuts from the run's
+## generated sheets carry the manifest's geometry at the kit's density.
 
 
 func run(h: TestHarness) -> void:
@@ -14,6 +16,7 @@ func run(h: TestHarness) -> void:
 		h.fail("test_ui_layers: could not open %s" % TestHarness.RUN_DIR)
 		return
 	_kit_reads_items(h, w)
+	_kit_wears_the_run_frame(h, w)
 	_kit_names_a_death(h)
 	_death_screen_follows_dead(h, w)
 	_craft_panel_follows_craft_open(h, w)
@@ -55,6 +58,48 @@ func _kit_reads_items(h: TestHarness, w: World) -> void:
 		"a pack worn on the back adds its slots")
 	h.assert_eq(UiKit.slot_capacity(m, {"back": null}, 12), 12, "nothing on the back adds none")
 	h.assert_eq(UiKit.clock_text(125.0), "2:05", "the clock text")
+
+
+## The panels and buttons are cut from the run's `ui` sheets under the
+## geometry the pipeline published — the cell, the insets, the band fill —
+## read at the kit's density; a manifest without the block keeps the flat boxes.
+func _kit_wears_the_run_frame(h: TestHarness, w: World) -> void:
+	var kit := UiKit.new(SimFixture.package(), w.manifest)
+	h.assert_true(kit.has_frames(), "ember-hollow-v8 dresses the HUD from its ui block")
+	var ui: Dictionary = w.manifest["ui"]
+	var panel: Dictionary = ui["panel_frame"]
+	var density := float(panel["draw_scale"]) * UiKit.SHEET_DENSITY
+	var style := kit.panel_style(8.0)
+	h.assert_true(style is StyleBoxTexture, "a panel is the generated frame")
+	var cut: StyleBoxTexture = style
+	var cell: Dictionary = (panel["cells"][0] as Dictionary)["cell"]
+	h.assert_near(cut.region_rect.position.x, float(cell["x"]) / density, 0.01, "the cell's left, at the density")
+	h.assert_near(cut.region_rect.size.x, float(cell["width"]) / density, 0.01, "the cell's width, at the density")
+	h.assert_near(cut.texture_margin_left, float((panel["insets"] as Dictionary)["left"]) / density, 0.01,
+		"the inset, at the density")
+	h.assert_true(cut.content_margin_left >= cut.texture_margin_left, "the content sits inside the inset")
+	h.assert_true(cut.content_margin_top >= cut.texture_margin_top, "above too")
+	h.assert_near(float(cut.texture.get_width()), round(float((panel["canvas"] as Dictionary)["width"]) / density), 1.0,
+		"the sheet shrunk once by the density")
+	var tile := str(panel["band_fill"]) == "tile"
+	h.assert_eq(cut.axis_stretch_horizontal,
+		StyleBoxTexture.AXIS_STRETCH_MODE_TILE if tile else StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH,
+		"the band fill the art was admitted under")
+	h.assert_true(kit.panel(true, 22.0).get_theme_stylebox("panel") is StyleBoxTexture, "every panel wears it")
+	for state: String in UiKit.BUTTON_STATES:
+		h.assert_true(kit.theme.get_stylebox(state, "Button") is StyleBoxTexture, "the %s button is the sheet's" % state)
+	var normal: StyleBoxTexture = kit.theme.get_stylebox("normal", "Button")
+	var pressed: StyleBoxTexture = kit.theme.get_stylebox("pressed", "Button")
+	h.assert_true(pressed.region_rect.position.y > normal.region_rect.position.y,
+		"the states are the sheet's stacked bodies, not a tint")
+	h.assert_near(pressed.region_rect.size.x, normal.region_rect.size.x, 0.01, "of one silhouette")
+	h.assert_true(kit.frame_note().begins_with("panel "), "and the kit says what it cut: %s" % kit.frame_note())
+	# A run with no ui block keeps the viewer's boxes.
+	var flat := UiKit.new(SimFixture.package(), {})
+	h.assert_false(flat.has_frames(), "no block, no frame")
+	h.assert_true(flat.panel_style() is StyleBoxFlat, "and the panel is the flat box")
+	h.assert_true(flat.theme.get_stylebox("normal", "Button") is StyleBoxFlat, "as is the button")
+	h.assert_eq(flat.frame_note(), "flat", "and it says so")
 
 
 func _kit_names_a_death(h: TestHarness) -> void:

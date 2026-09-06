@@ -428,8 +428,12 @@ def test_a_dry_run_schedules_every_node_and_still_writes_a_manifest(
         "weather",
         "sounds",
         "seasons",
+        "ui",
         "layout",
     }
+    # The package authors an interface and the rehearsal drew none of it.
+    assert document["status"]["ui"] == "missing"
+    assert document["ui"] is None
     # A dry run composes nothing, and the manifest says so rather than guessing.
     assert document["status"]["music"] == "missing"
     assert document["music"] == {}
@@ -601,6 +605,14 @@ def test_redrawing_the_plate_rebills_the_nodes_that_carry_it(
     shutil.copytree(PACKAGE, root)
     plate = root / "references" / "style-plate.png"
     plate.write_bytes(plate.read_bytes() + b"\x00")  # a different picture, same words
+    # ui.toml binds the same plate by digest, so redrawing it is re-declared there.
+    assert package.style_reference_digest is not None
+    ui_document = root / "ui.toml"
+    ui_document.write_text(
+        ui_document.read_text().replace(
+            package.style_reference_digest, hashlib.sha256(plate.read_bytes()).hexdigest()
+        )
+    )
     redrawn = load_package(root)
     assert redrawn.style_reference_digest != package.style_reference_digest
 
@@ -619,6 +631,8 @@ def test_redrawing_the_plate_rebills_the_nodes_that_carry_it(
     # A sheet is drawn on the sprite route and carries the plate like a sprite.
     assert "prop-pine-sheet-generate" in moved
     assert "actor-wren-concept" in moved
+    # The interface sheets are drawn against the plate too, through ui.toml.
+    assert "ui-panel_frame-generate" in moved
     # ... and the paintovers, which never see the plate, did not.
     assert "fx-fire-generate" not in moved
     assert "ground-macro-generate" not in moved
@@ -1986,3 +2000,60 @@ def test_the_manifest_carries_the_seasons_and_every_look(package: Package, tmp_p
         "sun",
         "moon",
     ]
+
+
+def test_the_interface_is_dressed_from_the_shared_triplet(
+    config: StageGenConfig, package: Package
+) -> None:
+    """Panels and buttons are the one thing every genre draws the same way, so
+    the recipe plans the game_ui triplet over its ui.toml instead of a private
+    copy: three sheets, each generated, gated and reviewed, from the props scope
+    up, hanging off the source lock like every other drawn thing."""
+
+    assert package.ui is not None
+    minimal = _graph(config, package, "minimal")
+    assert not [node for node in minimal.nodes if node.type_id.startswith("2d/ui/")]
+    graph = _graph(config, package, "props")
+    ui_nodes = {node.node_id: node for node in graph.nodes if node.type_id.startswith("2d/ui/")}
+    assert set(ui_nodes) == {
+        f"ui-{role}-{step}"
+        for role in ("panel_frame", "button_rect", "preview_icons")
+        for step in ("generate", "validate", "review")
+    }
+    generate = ui_nodes["ui-panel_frame-generate"]
+    assert generate.depends_on == ("source-lock",)
+    assert generate.operation == "image_generation"
+    assert generate.card is not None and generate.card.prompt is not None
+    # The package's own art direction wraps the shared task, and the plate rides
+    # as reference image 1 exactly as it does on every other picture.
+    assert package.style_label in generate.card.prompt
+    assert "Reference image 1 is a STYLE reference only" in generate.card.prompt
+    assert "Nine-slice rule" in generate.card.prompt
+    assert "Static:" not in generate.card.prompt
+    assert [entry.ref for entry in generate.card.authored_inputs] == ["references/style-plate.png"]
+    # Every provider node in this recipe carries its attempts ledger, the
+    # shared ones included; the local gate carries none.
+    assert any(port.port_id == "attempts" for port in generate.ports)
+    assert any(port.port_id == "attempts" for port in ui_nodes["ui-panel_frame-review"].ports)
+    assert not any(port.port_id == "attempts" for port in ui_nodes["ui-panel_frame-validate"].ports)
+    assert ui_nodes["ui-panel_frame-validate"].operation == LOCAL_OPERATION
+    assert ui_nodes["ui-panel_frame-review"].operation == "structured_generation"
+    assert ui_nodes["ui-panel_frame-review"].depends_on == ("ui-panel_frame-validate",)
+    # The wrapper's words are identity: re-briefing the package's style moves the sheets.
+    restyled = replace(package, style_label="a different look")
+    moved = {
+        node.node_id
+        for node in _graph(config, restyled, "props").nodes
+        if node.type_id.startswith("2d/ui/atlas.generate")
+        and node.cache_key != ui_nodes[node.node_id].cache_key
+    }
+    assert moved == {node_id for node_id in ui_nodes if node_id.endswith("-generate")}
+
+
+def test_a_package_without_an_interface_document_plans_no_interface(
+    config: StageGenConfig, package: Package
+) -> None:
+    bare = replace(package, ui=None, ui_references={})
+    graph = _graph(config, bare, "full")
+    assert not [node for node in graph.nodes if node.type_id.startswith("2d/ui/")]
+    assert len(graph.nodes) == len(_graph(config, package, "full").nodes) - 9

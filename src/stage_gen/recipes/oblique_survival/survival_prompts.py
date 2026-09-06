@@ -96,6 +96,20 @@ def visual_prompt(
     return "\n\n".join(blocks)
 
 
+def ui_atlas_prompt(package: Package, task: str) -> str:
+    """The package's style around one screen-fixed interface task.
+
+    The shared UI triplet composes the task (the nine-slice rule, the template
+    reading) and asks the host for the art direction to wrap it in; this is the
+    same wrapper every other picture in the package gets, with the still clause
+    left off because a panel is furniture, not a thing that could move. The
+    style plate is reference image 1 here too: ui.toml binds the same picture
+    the package's [style] does, and the template rides as image 2.
+    """
+
+    return visual_prompt(package, task, still=False)
+
+
 ASSET_PITCH_CLAUSE: Final = (
     "seen from a slightly elevated three-quarter-front game camera pitched about thirty "
     "degrees above the horizon, so a little of its top surface reads and its base sits as a "

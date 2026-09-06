@@ -101,7 +101,7 @@ func _wet(h: TestHarness) -> void:
 	for pool: Dictionary in weather.wet_pools:
 		built += (pool["multimesh"] as MultiMesh).instance_count
 	h.assert_eq(built, expected, "every conditional decal is in the standing-water pool")
-	h.assert_eq(built, 1311, "ember-hollow-v7 authors 1311 puddles")
+	h.assert_eq(built, 1311, "ember-hollow-v8 authors 1311 puddles")
 	# groundLevel(forest_floor: 0.2668 -> 0.34) * decal_gain 0.62.
 	h.assert_near(WeatherView._decal_gain(pkg.manifest), 1.0139539, 1e-6,
 		"the decal tint is the ground's level times the authored dimming")

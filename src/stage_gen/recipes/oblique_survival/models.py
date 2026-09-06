@@ -22,6 +22,7 @@ from typing import Any, Final, Literal
 from pydantic import BaseModel, ConfigDict
 
 from stage_gen.canonical import content_sha256
+from stage_gen.components.game_ui import GameUi
 
 MOTION_MODES: Final = frozenset({"hold", "loop", "once", "gameplay_driven"})
 MOTION_HINTS: Final = frozenset({"sway_top", "bob", "flicker", "none"})
@@ -1136,6 +1137,14 @@ class World:
 
 
 @dataclass(frozen=True, slots=True)
+class PackageFile:
+    """One authored file's bytes and digest: what the shared UI triplet reads a reference as."""
+
+    data: bytes
+    sha256: str
+
+
+@dataclass(frozen=True, slots=True)
 class Package:
     """The whole authored intent, frozen, with one digest per source file."""
 
@@ -1215,6 +1224,12 @@ class Package:
     #: The takes this package declares by digest whose bytes are not on disk.
     #: Empty for a package that carries all of its own media.
     missing_takes: tuple[MissingTake, ...] = ()
+    #: ui.toml, the shared ``game-ui-v4`` document: the nine-slice panel and
+    #: button sheets and the preview icon grid the host's HUD is dressed in.
+    #: Optional like music: no ui.toml, and the host draws its plain boxes.
+    ui: GameUi | None = None
+    #: The bytes behind each ui.toml reference, by its declared source path.
+    ui_references: Mapping[str, PackageFile] = field(default_factory=dict)
 
     @property
     def actors(self) -> tuple[Actor, ...]:
@@ -1243,6 +1258,14 @@ class Package:
             if entry.biome_id == biome_id:
                 return entry
         raise SourceError(f"unknown biome {biome_id!r}")
+
+    def ui_reference(self, source: str) -> PackageFile:
+        """One ui.toml reference's bytes, by the source path the document declares."""
+
+        try:
+            return self.ui_references[source]
+        except KeyError:
+            raise SourceError(f"ui.toml declares no reference at {source!r}") from None
 
     def source_digest(self) -> str:
         """One digest over every authored file, in a fixed order."""

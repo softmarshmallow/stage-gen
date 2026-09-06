@@ -878,10 +878,10 @@ def test_oblique_survival_plan_prices_a_scope_without_touching_a_provider(
     assert report["scope"] == "full"
     assert report["package_id"] == "ember-hollow"
     assert report["graph"]["kind"] == "oblique-survival-execution-graph-v1"
-    assert len(report["graph"]["nodes"]) == 277
+    assert len(report["graph"]["nodes"]) == 286
     # An empty cache restores nothing, and says how much that leaves to pay for.
     assert report["cache"]["restored_provider_nodes"] == 0
-    assert report["cache"]["billed_provider_nodes"] == 125
+    assert report["cache"]["billed_provider_nodes"] == 131
 
 
 def test_oblique_survival_failure_injection_is_refused_outside_a_dry_run(

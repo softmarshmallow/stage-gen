@@ -106,7 +106,7 @@ func update(world, _delta: float, _cam: Dictionary) -> void:
 # ===========================================================================
 
 func _build_menu(world) -> void:
-	_menu = UiKit.panel(true, 22.0)
+	_menu = kit.panel(true, 22.0)
 	_menu.custom_minimum_size = Vector2(MENU_WIDTH, 0.0)
 	_root.add_child(_menu)
 	var box := VBoxContainer.new()
@@ -141,7 +141,7 @@ func _build_menu(world) -> void:
 
 
 func _build_help() -> void:
-	_help = UiKit.panel(true, 22.0)
+	_help = kit.panel(true, 22.0)
 	_help.custom_minimum_size = Vector2(HELP_WIDTH, 0.0)
 	_help.visible = false
 	_root.add_child(_help)

@@ -27,6 +27,10 @@ Changelog
             that text. Both are local nodes with no provider, every other node
             takes the lock as a barrier rather than as lineage, and so the paid
             run still restores at zero provider operations.
+2026-09-06  Nine keys added per scope from ``props`` up, the shared game_ui
+            triplet over three sheet roles, when ``ui.toml`` joined the package;
+            ``source-lock`` and ``package-manifest`` moved with the source digest.
+            No other key moved: the interface is new spend, not a redraw.
 """
 
 from __future__ import annotations
@@ -54,7 +58,7 @@ GOLDEN_PATH: Final = (
 
 #: What the four scopes plan for the committed package. A count here moves only
 #: when the recipe deliberately plans more or fewer nodes.
-SCOPE_NODE_COUNTS: Final = {"minimal": 71, "props": 185, "actors": 235, "full": 277}
+SCOPE_NODE_COUNTS: Final = {"minimal": 71, "props": 194, "actors": 244, "full": 286}
 
 #: A biome's brief is read by its own plate, by the sheet the ground review is
 #: judged from, and by the manifest that measures what was published. Nothing

@@ -22,6 +22,13 @@ Changelog
             topology digest and neither is a cache-key input, so not one provider
             node's key moved with them. That is exactly what the split between
             this file and ``test_cache_keys.py`` is for.
+
+2026-09-06  The interface joins the props scope and above: nine nodes, the
+            shared game_ui triplet (generate, gate, review) over the panel frame,
+            the button sheet and the preview icon grid, planned when the package
+            authors a ``ui.toml``. Three images and three structured reviews per
+            scope from ``props`` up; ``minimal`` is untouched, and its topology
+            digest proves it. Every other node's key holds (``test_cache_keys``).
 """
 
 from __future__ import annotations
@@ -66,37 +73,37 @@ IDENTITIES: Final = {
         },
     ),
     "props": ScopeIdentity(
-        node_count=185,
-        topology_sha256="5aa780cf86378d0175c3345716ea8f2435e3e4ccc0099bee080a9a77eb8feb17",
+        node_count=194,
+        topology_sha256="0cfcd1ea7f91c7b2a89bb7ce88b4bbd84b06a17a786111acd9e762c807a45a9b",
         operations={
-            "local": 97,
-            "image_generation": 73,
+            "local": 100,
+            "image_generation": 76,
             "tool_loop": 12,
-            "structured_generation": 3,
+            "structured_generation": 6,
             "music_generation": 0,
             "sound_effect_generation": 0,
         },
     ),
     "actors": ScopeIdentity(
-        node_count=235,
-        topology_sha256="edd75f1623fc8dce589210b9b120971a54cb0e456cb0fe78b19a966d2433e255",
+        node_count=244,
+        topology_sha256="5a52170592400886277985f978ddf570727a327c59c2797cf836a78155c4f01f",
         operations={
-            "local": 121,
-            "image_generation": 94,
+            "local": 124,
+            "image_generation": 97,
             "tool_loop": 12,
-            "structured_generation": 8,
+            "structured_generation": 11,
             "music_generation": 0,
             "sound_effect_generation": 0,
         },
     ),
     "full": ScopeIdentity(
-        node_count=277,
-        topology_sha256="df7e69d900ddf28e70d74920057e892f9f7e7de30e761376a2defd7b5c5c5a64",
+        node_count=286,
+        topology_sha256="eb1bb79206bdf286e5839ddb441cb4d5481f40435ccbe0c890e431a3a0447c97",
         operations={
-            "local": 152,
-            "image_generation": 101,
+            "local": 155,
+            "image_generation": 104,
             "tool_loop": 12,
-            "structured_generation": 9,
+            "structured_generation": 12,
             "music_generation": 0,
             "sound_effect_generation": 3,
         },

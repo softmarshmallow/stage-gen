@@ -79,6 +79,7 @@ a `game.toml` closure.
 | `seasons.toml` | `oblique-survival-seasons-v1` | the calendar and what each season holds — see [seasons](seasons.md) |
 | `weather.toml` | `oblique-survival-weather-v1` | the world conditions and the layers each one drives |
 | `music.toml` | — | one instrumental loop per clock cue, and the `[transition]` between them |
+| `ui.toml` | `game-ui-v4` | optional: the screen-fixed interface — the `panel_frame` and `button_rect` nine-slice sheets and the `preview_icons` grid the host's HUD is dressed in — the shared [authored game UI contract](../game/ui.md), planned through the game_ui component's own triplet; no `inventory_panel`, the host draws its slots as plain wells inside the generated frame |
 | `sounds.toml` | — | one clip per thing the player does, with its exact duration and its playback gain |
 
 `publication_authorized` is `false` in every graph this recipe seals and in
@@ -145,9 +146,9 @@ instead of paying twice.
 | Scope | Nodes | Image | Structured | Tool loop | Music | Sound | Local |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | `minimal` | 71 | 22 | 0 | 6 | 0 | 0 | 43 |
-| `props` | 185 | 73 | 3 | 12 | 0 | 0 | 97 |
-| `actors` | 235 | 94 | 8 | 12 | 0 | 0 | 121 |
-| **`full`** | **277** | **101** | **9** | **12** | **0** | **3** | **152** |
+| `props` | 194 | 76 | 6 | 12 | 0 | 0 | 100 |
+| `actors` | 244 | 97 | 11 | 12 | 0 | 0 | 124 |
+| **`full`** | **286** | **104** | **12** | **12** | **0** | **3** | **155** |
 
 Counted from the committed fixture package with every plate, track and clip take
 adopted; the music count is zero for that reason. The `full` row is the block
@@ -157,7 +158,10 @@ below, and both are derived rather than transcribed.
 state, the state its interaction leaves behind (a chopped tree is a stump, and
 without the stump the tree would simply vanish), the items those interactions
 yield, and the items the forage sheet lets the player pick up. Everything else
-waits for `props`.
+waits for `props`, the interface included: the three `ui.toml` sheets are drawn
+from `props` up, because the frame around the screen is part of the rest of
+what is on screen and nothing about it bears on the oblique clause `minimal`
+exists to prove.
 
 The phases, in dependency order: source lock and the paintover lattice
 templates; prop sprites, one image per state, each gated and then given one
@@ -168,7 +172,11 @@ sheets as lattice paintovers gated cell by cell; decals; the actor concept sheet
 then per-state motion strips per facing, gated, repacked and rebased against a
 judging plate; the flame-cycle paintover and the dust sheet; the weather layers;
 the season looks, one paintover per prop state; one contact sheet and one
-semantic review per family; the algorithmic world layout; the manifest.
+semantic review per family; the interface sheets, the shared game_ui triplet
+(generate, pixel gate, review) over the panel frame, the button state sheet and
+the preview icon grid, each hanging off the source lock and wrapped in this
+package's own style words with the style plate as reference image 1; the
+algorithmic world layout; the manifest.
 
 **One image route, not two.** The engine's binding table declares at most one
 route per operation, so a transparent route beside an opaque one would mean two
@@ -203,6 +211,7 @@ govern what goes where, and both were earned rather than designed:
 | `music.toml [transition]`, a sound cue's `gain` or `pitch_jitter` | mixing: a fade is a cue switch, not a redraw |
 | a prop state's prompt, an item's pickup brief, a plate's material clause, a season look's `season_prompt` | identity: the node that reads it redraws |
 | the style plate's bytes | identity for every generative image node — each digests the plate's bytes, not just its own prompt, because the prompt does not change when the picture does |
+| `ui.toml`, a role's prompt or reference, the package's `[style]` words | identity for that interface sheet's triplet: the role's direction, the reference's digest and the style wrapper's words are its cache inputs, exactly as the game_ui component declares them; the slot count and the HUD's layout are the host's and re-bill nothing |
 | a summer prop state | identity for that state **and** its winter twin, which hangs off the summer's gated sprite |
 | `world.toml`, any `placement` block, a prop's `canopy_radius_meters` | the layout re-lays (`world-layout`, a local node) and the manifest follows; no provider node moves, and an edit to one object's block moves that object's points and nothing beyond one footprint of them — see [world](world.md) |
 | the scope | selects nodes; it never moves the key of a node it keeps |
@@ -251,9 +260,16 @@ A run publishes `oblique-survival-manifest-v1` at `manifest.json`, beside the
 `package/` tree it names. Its blocks:
 
 `style`, `scale`, `camera`, `look`, `ground_contact`, `ground`, `actors`,
-`props`, `items`, `icons`, `crafting`, `fx`, `music`, `weather`, `sounds`,
+`props`, `items`, `icons`, `ui`, `crafting`, `fx`, `music`, `weather`, `sounds`,
 `seasons`, `layout`, `gameplay`, `reviews`, `run`, `status`, and
 `publication_authorized`.
+
+`ui` is the shared block every consumer of the game_ui component reads — one
+`ui.<role>` entry per sheet with the geometry the gate detected (cells, insets,
+content and safe rects, band fill, draw scale) and the sheet's `asset` — and it
+is `null` for a package that authors no `ui.toml`; `status.ui` says `none` then,
+and `missing` when the scope drew no sheets. The host dresses every panel and
+button from it and falls back to plain boxes when it is null.
 
 Three of them carry the rules a consumer must not invent for itself.
 `ground_contact` is the authored seam between a billboard and the ground: the
@@ -327,13 +343,13 @@ invalidates it and must be regenerated in the same change.
   "fixture_ref": "library/games/ember-hollow",
   "scope": "full",
   "graph_schema_version": 1,
-  "topology_sha256": "df7e69d900ddf28e70d74920057e892f9f7e7de30e761376a2defd7b5c5c5a64",
-  "node_count": 277,
+  "topology_sha256": "eb1bb79206bdf286e5839ddb441cb4d5481f40435ccbe0c890e431a3a0447c97",
+  "node_count": 286,
   "terminal_node_id": "package-manifest",
   "operation_counts": {
-    "local": 152,
-    "image_generation": 101,
-    "structured_generation": 9,
+    "local": 155,
+    "image_generation": 104,
+    "structured_generation": 12,
     "tool_loop": 12,
     "music_generation": 0,
     "sound_effect_generation": 3

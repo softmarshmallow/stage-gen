@@ -274,14 +274,23 @@ The prompt is composed at plan time and carried on the node card, so a reader se
 instruction the provider will be given without running anything, and a recipe that gates on full
 static prompts admits these nodes like any other.
 
-Four consumers draw from the three sheets today:
+Five consumers draw from the three sheets today:
 
 | Game | `panel_frame` | `button_rect` | `preview_icons` |
 | --- | --- | --- | --- |
 | Bellweather, side-view platformer | defeat panel, NPC conversation box | return button | `home` on the return button |
 | Larkfield, visual novel | dialogue box, end card | choice list, play-again control | `retry` as the end card's icon-only button |
 | The Clockmaker's Attic, point-and-click | HUD bar, narration plate, win card | verb bar | `hand` and `search` on the Act and Look verbs |
+| Ember Hollow, oblique survival (Godot host) | every panel: vitals, hotbar, worn places, item card, message, crafting table, pause menu, death sheet | every button, the four states as the theme's styleboxes | not yet read; the pack's glyphs are its own icon sheet |
 | Iron Petal Unit, runner | not yet wired | not yet wired | not yet wired |
+
+The survival host is the one consumer outside `web/`: it reads the same `ui`
+block off its run manifest, downsamples each sheet by `draw_scale` at load and
+slices it with Godot's own nine-patch stylebox under the published insets and
+band fill (`godot/oblique_survival/hud/ui_kit.gd`). It draws no `inventory_panel`
+— its pack is not eight slots — and paints its slot wells from code inside the
+generated frame until a panel-plus-slot composition replaces the drawn panel
+([TODO](../../../TODO.md), "Game UI").
 
 The prepared asset explorer lists all four platformer artifacts in its UI group. The prepared web
 scene loads the inventory panel into the existing `InventoryHud`; every other surface above is drawn

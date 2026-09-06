@@ -5,6 +5,15 @@ extends RefCounted
 ## button builders, the item icons, and the item helpers the panels read the
 ## world with. One instance per layer; the atlas windows are cheap.
 ##
+## **The frame.** A panel and a button are cut from the run's generated
+## interface sheets when the manifest carries a `ui` block (the shared
+## `game-ui-v4` roles: `panel_frame`, one body; `button_rect`, four state
+## bodies) and drawn as Godot nine-patch styleboxes under the geometry the
+## pipeline's gate detected — the cell, the insets, the band fill — never a
+## number read off the pixels here. A run without the block gets the flat
+## boxes the viewer had. The slot wells stay drawn from code in either case:
+## a slot is not a generated role yet (TODO.md, "Game UI").
+##
 ## The layers are laid out in 1600x900 units and scaled as a whole
 ## (`apply_scale`): the frame owner hands each of them the window's height
 ## over 900, so a panel that reads at 1600x900 reads the same on a 4K screen
@@ -44,6 +53,17 @@ const FONT_SIZE := 15
 const SMALL := 13
 const TITLE := 17
 
+## How densely a generated sheet is read, over the contract's own hint. The
+## sheet's `draw_scale` says a 1024 canvas is drawn at twice a HUD's density;
+## this HUD is laid out in 900 units and scaled up to the window, so the sheets
+## are read at twice that again: four sheet pixels per layout unit, which puts
+## a 96-pixel panel inset at 24 units and a button's frame at about 12 — the
+## margins the flat boxes had. One number for both roles, so a panel and the
+## button on it are cut from the same ruler.
+const SHEET_DENSITY := 2.0
+## The states a button sheet publishes, in the theme's names.
+const BUTTON_STATES := ["normal", "hover", "pressed", "disabled"]
+
 var font: Font = null
 var theme: Theme = null
 
@@ -52,13 +72,20 @@ var _item_cells: Dictionary = {}
 var _glyph_cells: Dictionary = {}
 var _sprites: Dictionary = {}
 var _package: Variant = null
+## The generated panel frame, cut once; every panel draws a duplicate of it.
+var _panel_box: StyleBoxTexture = null
+## The generated button, one stylebox per sheet state.
+var _button_boxes: Dictionary = {}
+## What the frames were cut from, for the debug panel and the tests.
+var _frame_note: String = "flat"
 
 
 func _init(package: Variant = null, manifest: Dictionary = {}) -> void:
 	font = make_font()
-	theme = make_theme(font)
 	_package = package
 	_read_icons(manifest)
+	_read_frames(manifest)
+	theme = make_theme(font, _button_boxes)
 
 
 # ===========================================================================
@@ -102,7 +129,10 @@ static func make_font() -> Font:
 	return made
 
 
-static func make_theme(font_to_use: Font) -> Theme:
+## The theme: the font, the text colours, and the button's four looks — the
+## generated sheet's states when `buttons` carries them (the producer's own
+## pixels for hover and pressed, not a tint), the flat boxes otherwise.
+static func make_theme(font_to_use: Font, buttons: Dictionary = {}) -> Theme:
 	var made := Theme.new()
 	made.default_font = font_to_use
 	made.default_font_size = FONT_SIZE
@@ -114,11 +144,16 @@ static func make_theme(font_to_use: Font) -> Theme:
 	made.set_color("font_pressed_color", "Button", ACCENT)
 	made.set_color("font_focus_color", "Button", TEXT)
 	made.set_color("font_disabled_color", "Button", BUTTON_DISABLED_TEXT)
-	made.set_stylebox("normal", "Button", _button_style(BUTTON_BG, BAR_BORDER))
-	made.set_stylebox("hover", "Button", _button_style(BUTTON_HOVER, ACCENT))
-	made.set_stylebox("pressed", "Button", _button_style(BUTTON_PRESSED, ACCENT))
+	var flat := {
+		"normal": _button_style(BUTTON_BG, BAR_BORDER),
+		"hover": _button_style(BUTTON_HOVER, ACCENT),
+		"pressed": _button_style(BUTTON_PRESSED, ACCENT),
+		"disabled": _button_style(Color(35.0 / 255.0, 38.0 / 255.0, 46.0 / 255.0, 0.5), PANEL_BORDER),
+	}
+	for state: String in BUTTON_STATES:
+		var box: StyleBox = buttons[state] if buttons.has(state) else flat[state]
+		made.set_stylebox(state, "Button", box)
 	made.set_stylebox("focus", "Button", _button_style(Color(0, 0, 0, 0), Color(0, 0, 0, 0)))
-	made.set_stylebox("disabled", "Button", _button_style(Color(35.0 / 255.0, 38.0 / 255.0, 46.0 / 255.0, 0.5), PANEL_BORDER))
 	return made
 
 
@@ -135,11 +170,32 @@ static func _button_style(bg: Color, border: Color) -> StyleBoxFlat:
 	return style
 
 
-## The viewer's panel: dark, bordered, rounded. `interactive` panels take the
-## mouse (their buttons and rows need it); the rest let it through to the
-## world.
-static func panel(interactive: bool = false, margin: float = 12.0) -> PanelContainer:
+## A panel: the run's generated frame when the manifest carries one, the
+## viewer's dark bordered box otherwise. `interactive` panels take the mouse
+## (their buttons and rows need it); the rest let it through to the world.
+## `margin` is the padding inside the frame; a generated frame's own insets
+## are the floor of it, so nothing is ever laid over the border band.
+func panel(interactive: bool = false, margin: float = 12.0) -> PanelContainer:
 	var made := PanelContainer.new()
+	made.add_theme_stylebox_override("panel", panel_style(margin))
+	made.mouse_filter = Control.MOUSE_FILTER_STOP if interactive else Control.MOUSE_FILTER_IGNORE
+	return made
+
+
+## The stylebox a panel of this kit draws.
+func panel_style(margin: float = 12.0) -> StyleBox:
+	if _panel_box != null:
+		var cut: StyleBoxTexture = _panel_box.duplicate()
+		cut.content_margin_left = maxf(cut.texture_margin_left, margin)
+		cut.content_margin_right = maxf(cut.texture_margin_right, margin)
+		cut.content_margin_top = maxf(cut.texture_margin_top, margin * 0.8)
+		cut.content_margin_bottom = maxf(cut.texture_margin_bottom, margin * 0.8)
+		return cut
+	return flat_panel_style(margin)
+
+
+## The viewer's panel: dark, bordered, rounded.
+static func flat_panel_style(margin: float = 12.0) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = PANEL_BG
 	style.border_color = PANEL_BORDER
@@ -149,9 +205,22 @@ static func panel(interactive: bool = false, margin: float = 12.0) -> PanelConta
 	style.content_margin_right = margin
 	style.content_margin_top = margin * 0.8
 	style.content_margin_bottom = margin * 0.8
-	made.add_theme_stylebox_override("panel", style)
-	made.mouse_filter = Control.MOUSE_FILTER_STOP if interactive else Control.MOUSE_FILTER_IGNORE
-	return made
+	return style
+
+
+## True when the panels and buttons are cut from the run's generated sheets.
+func has_frames() -> bool:
+	return _panel_box != null and not _button_boxes.is_empty()
+
+
+## What the frames were cut from: `flat`, or the sheets' sizes and states.
+func frame_note() -> String:
+	return _frame_note
+
+
+## The button's stylebox for one sheet state, or null when the kit is flat.
+func button_style(state: String) -> StyleBoxTexture:
+	return _button_boxes.get(state, null)
 
 
 static func button(text: String, size: int = FONT_SIZE) -> Button:
@@ -211,6 +280,106 @@ static func fit(control: Control) -> void:
 ## `<kbd>` in the viewer's legend.
 static func kbd(key: String) -> String:
 	return "[bgcolor=%s] %s [/bgcolor]" % [KBD_BG, key]
+
+
+# ===========================================================================
+# The generated frames
+# ===========================================================================
+
+## Read the manifest's `ui` block: the panel frame's one body and the button
+## sheet's four, each cut into a nine-patch stylebox under the published
+## geometry. A block a run does not carry, or a sheet that will not load,
+## leaves the kit flat; the frames are a look, not a dependency.
+func _read_frames(manifest: Dictionary) -> void:
+	var ui: Variant = manifest.get("ui", null)
+	if not (ui is Dictionary) or _package == null:
+		return
+	var block: Dictionary = ui
+	var panel_cut := _cut_sheet(block.get("panel_frame", null))
+	var button_cut := _cut_sheet(block.get("button_rect", null))
+	if panel_cut.has("default"):
+		_panel_box = panel_cut["default"]
+	for state: String in BUTTON_STATES:
+		if button_cut.has(state):
+			_button_boxes[state] = button_cut[state]
+	if _panel_box == null and _button_boxes.is_empty():
+		return
+	var notes := PackedStringArray()
+	if _panel_box != null:
+		var region := _panel_box.region_rect
+		notes.append("panel %dx%d inset %d" % [int(region.size.x), int(region.size.y),
+			int(_panel_box.texture_margin_left)])
+	if not _button_boxes.is_empty():
+		notes.append("button %d states" % _button_boxes.size())
+	_frame_note = " · ".join(notes)
+
+
+## One role's sheet, cut: `state -> StyleBoxTexture`. The sheet is read at
+## `draw_scale * SHEET_DENSITY` sheet pixels per layout unit, so every number
+## the manifest publishes in sheet pixels is divided by that once, here; the
+## band fill the art was admitted under picks stretch or tile for the edges.
+func _cut_sheet(role: Variant) -> Dictionary:
+	if not (role is Dictionary):
+		return {}
+	var spec: Dictionary = role
+	var density := maxf(1.0, float(spec.get("draw_scale", 2))) * SHEET_DENSITY
+	var texture := _sheet_texture(str(spec.get("asset", "")), density)
+	if texture == null:
+		return {}
+	var insets: Variant = spec.get("insets", null)
+	if not (insets is Dictionary):
+		return {}
+	var band: Dictionary = insets
+	var tile := str(spec.get("band_fill", "stretch")) == "tile"
+	var axis := StyleBoxTexture.AXIS_STRETCH_MODE_TILE if tile else StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+	var out := {}
+	for entry: Variant in spec.get("cells", []):
+		if not (entry is Dictionary) or not ((entry as Dictionary).get("cell", null) is Dictionary):
+			continue
+		var cell: Dictionary = (entry as Dictionary)["cell"]
+		var box := StyleBoxTexture.new()
+		box.texture = texture
+		box.region_rect = Rect2(
+			float(cell.get("x", 0)) / density, float(cell.get("y", 0)) / density,
+			float(cell.get("width", 0)) / density, float(cell.get("height", 0)) / density)
+		box.texture_margin_left = float(band.get("left", 0)) / density
+		box.texture_margin_top = float(band.get("top", 0)) / density
+		box.texture_margin_right = float(band.get("right", 0)) / density
+		box.texture_margin_bottom = float(band.get("bottom", 0)) / density
+		# The content sits inside the insets: the frame is the padding.
+		box.content_margin_left = box.texture_margin_left
+		box.content_margin_top = box.texture_margin_top
+		box.content_margin_right = box.texture_margin_right
+		box.content_margin_bottom = box.texture_margin_bottom
+		box.axis_stretch_horizontal = axis
+		box.axis_stretch_vertical = axis
+		box.draw_center = true
+		out[str((entry as Dictionary).get("state", "default"))] = box
+	return out
+
+
+## The sheet shrunk by the density once, so the nine-patch's corners land at
+## their layout size (a stylebox draws its corners at texture pixels). Cached.
+func _sheet_texture(ref: String, density: float) -> Texture2D:
+	if ref == "" or _package == null:
+		return null
+	var key := "sheet:%s@%.2f" % [ref, density]
+	if _sprites.has(key):
+		return _sprites[key]
+	var source: Image = _package.image(ref)
+	var made: Texture2D = null
+	if source != null and source.get_width() > 0 and source.get_height() > 0:
+		var copy := Image.new()
+		copy.copy_from(source)
+		if copy.has_mipmaps():
+			copy.clear_mipmaps()
+		copy.resize(
+			maxi(1, int(round(copy.get_width() / density))),
+			maxi(1, int(round(copy.get_height() / density))),
+			Image.INTERPOLATE_LANCZOS)
+		made = ImageTexture.create_from_image(copy)
+	_sprites[key] = made
+	return made
 
 
 # ===========================================================================

@@ -27,10 +27,13 @@ PACKAGE = Path("library/games/ember-hollow")
 #: two local nodes (``source-lock`` and ``package-manifest``) and no provider
 #: operation, because every other node takes the source lock as a barrier rather
 #: than as lineage.
-SOURCE_DIGEST = "b5726563d2d8b09466698b9c7ffb3ee07a3ed510182cf5d865f880f77c47e17e"
+SOURCE_DIGEST = "1738097e55ac6244cdd8e333fae47c3c75183bce187da8e3a839ef6652fd7ef6"
 
 #: One take that is declared by digest and whose bytes are in the package.
 FORAGE_TAKE = "ground/forage.take.png"
+
+#: The shared interface document, optional like music.toml.
+UI_DOCUMENT = "ui.toml"
 
 
 def _copy(tmp_path: Path) -> Path:
@@ -136,3 +139,59 @@ def test_the_package_answers_for_its_own_members() -> None:
         package.actor("nobody")
     with pytest.raises(SourceError, match="unknown biome"):
         package.biome("nowhere")
+
+
+def test_the_interface_document_loads_with_its_reference_bytes() -> None:
+    """ui.toml is the shared game_ui contract; the loader binds its reference the
+    way it binds every other authored picture, and carries the bytes the triplet
+    hands to the provider."""
+
+    package = load_package(PACKAGE)
+    assert package.ui is not None
+    assert package.ui.game_id == "ember-hollow"
+    assert package.ui.inventory_panel is None
+    reference = package.ui.references[0]
+    file = package.ui_reference(reference.source)
+    assert file.sha256 == reference.source_sha256
+    assert hashlib.sha256(file.data).hexdigest() == reference.source_sha256
+    assert package.digests[UI_DOCUMENT]
+    with pytest.raises(SourceError, match="declares no reference"):
+        package.ui_reference("references/nothing.png")
+
+
+def test_a_package_without_the_interface_document_still_loads(tmp_path: Path) -> None:
+    root = _copy(tmp_path)
+    (root / UI_DOCUMENT).unlink()
+    package = load_package(root)
+    assert package.ui is None
+    assert package.ui_references == {}
+    assert UI_DOCUMENT not in package.digests
+
+
+def test_an_interface_document_for_another_game_is_refused(tmp_path: Path) -> None:
+    root = _copy(tmp_path)
+    document = root / UI_DOCUMENT
+    document.write_text(
+        document.read_text().replace('game_id = "ember-hollow"', 'game_id = "other-hollow"')
+    )
+    with pytest.raises(SourceError, match="game_id does not match"):
+        load_package(root)
+
+
+def test_an_interface_reference_must_match_its_declared_digest(tmp_path: Path) -> None:
+    root = _copy(tmp_path)
+    document = root / UI_DOCUMENT
+    text = document.read_text()
+    declared = "0f55649bf337ab3b057e88cf6854ca23a7142ebca57438f03bbd6cd74ee6ade0"
+    assert declared in text
+    document.write_text(text.replace(declared, "0" * 64))
+    with pytest.raises(SourceError, match="does not match its declared sha256"):
+        load_package(root)
+
+
+def test_a_malformed_interface_document_is_refused_by_name(tmp_path: Path) -> None:
+    root = _copy(tmp_path)
+    document = root / UI_DOCUMENT
+    document.write_text(document.read_text().replace('kind = "game-ui-v4"', 'kind = "game-ui-v3"'))
+    with pytest.raises(SourceError, match="not a game-ui-v4 document"):
+        load_package(root)

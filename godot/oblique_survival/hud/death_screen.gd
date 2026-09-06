@@ -47,7 +47,7 @@ func setup(pkg, world, _fu) -> void:
 	_sheet.mouse_default_cursor_shape = Control.CURSOR_ARROW
 	_root.add_child(_sheet)
 
-	_panel = UiKit.panel(true, 22.0)
+	_panel = kit.panel(true, 22.0)
 	_panel.custom_minimum_size = Vector2(PANEL_WIDTH, 0.0)
 	_root.add_child(_panel)
 	var box := VBoxContainer.new()

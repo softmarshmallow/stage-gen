@@ -1,0 +1,56 @@
+# The screen-fixed interface art, kept apart from the world it frames.
+#
+# Nothing here knows what a pack slot or a vital is. Two nine-slice roles cover
+# every panel and every control the Godot host draws: the vitals, the hotbar,
+# the worn places, the item card, the message, the crafting table, the pause
+# menu and the death sheet are one panel frame stretched to their sizes, and
+# every button is one button sheet read at four states. The layout ids are the
+# whole geometry contract — a role never authors cell rectangles or insets,
+# because the generator renders the template from the declared geometry and
+# publishes the geometry it actually detected beside the art.
+#
+# There is no inventory_panel. That role is one drawn eight-slot picture, and
+# this game's pack is twelve slots plus a worn pack's more; the host draws its
+# slots as plain dark wells inside the generated frame until a panel-plus-slot
+# composition replaces the drawn panel (TODO.md, "Game UI").
+
+schema_version = 4
+kind = "game-ui-v4"
+game_id = "ember-hollow"
+revision = 1
+
+# The same style plate every other picture in this package is drawn against
+# (survival.toml [style] reference), bound by the same digest: redrawing the
+# plate is a new look and re-bills the interface too.
+[[references]]
+reference_id = "style_plate"
+source = "references/style-plate.png"
+source_sha256 = "0f55649bf337ab3b057e88cf6854ca23a7142ebca57438f03bbd6cd74ee6ade0"
+rights_status = "unreviewed"
+rights_basis = [
+    "Original brand-neutral prompt composed from this package's style words, with no third-party image input.",
+    "First-party AI-generated concept art, the A2 (reduced shapes) direction, picked by the task owner from three drawn directions and adopted as the package's style plate on 2026-09-06.",
+    "No independent semantic review of the exact committed bytes is recorded yet.",
+]
+
+[panel_frame]
+layout = "nine_slice_panel_1024_v1"
+alpha_policy = "transparent_exterior_opaque_body_v1"
+reference_ids = ["style_plate"]
+prompt = "A screen-fixed panel drawn as a flat paper cutout in the hollow's muted ink palette: one solid deep ash-charcoal inner field inside a plain border of even width in dark bark brown, the whole outer silhouette held by a slightly wobbling tapered ink contour, heaviest on the outside. Two flat tones only, a lit tone and a shadow tone divided by a hard edge; no gradient, no texture, no grain, no wood grain, no rendering inside any shape. A corner may carry one small bone-coloured notch in the ink and nothing more. The inner field must stay one uninterrupted dark quiet colour so bone-white text reads cleanly on it."
+
+[button_rect]
+layout = "nine_slice_button_sheet_4x1024_v1"
+alpha_policy = "transparent_exterior_opaque_body_v1"
+reference_ids = ["style_plate"]
+prompt = "A compact screen-fixed button drawn as a flat paper cutout in the hollow's muted ink palette: one solid rounded-square face of dark bark brown with a plain even border and a slightly wobbling tapered ink contour around the outer silhouette, the face one uninterrupted quiet colour so a short word in bone reads on it. Two flat tones per state, no gradient, no texture, no ornament beyond the ink line; the four states differ only in value and hue, the hover a touch warmer toward amber, the pressed darker, the disabled greyed."
+
+# The icon set is a fixed vocabulary the game may only restyle: the glyphs,
+# their order and the grid belong to the layout, and this prompt is style
+# direction alone. The host reads none of them yet; the pack's own item and
+# HUD glyphs are the items.toml [icons] sheet.
+[preview_icons]
+layout = "icon_grid_4x4_1024_preview_v1"
+alpha_policy = "transparent_exterior_opaque_glyph_v1"
+reference_ids = ["style_plate"]
+prompt = "Flat inked cutout glyphs in the hollow's muted palette: each symbol one solid bone tone cut cleanly like paper, held by a single slightly wobbling ink contour of even weight, with no gradient, texture, grain or interior detail beyond the ink line."

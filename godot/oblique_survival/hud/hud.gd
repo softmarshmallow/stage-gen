@@ -255,8 +255,9 @@ func set_debug_rows(rows: Variant) -> void:
 
 ## What this module reports into a debug panel (its own or another's).
 func status() -> Dictionary:
-	return {"hud": "%d slots, %s, scale %.2f, %d in flight" % [
-		_slot_cells.size(), "debug" if debug_on else "play", ui_scale, _flights.size()]}
+	return {"hud": "%d slots, %s, scale %.2f, %d in flight, frame %s" % [
+		_slot_cells.size(), "debug" if debug_on else "play", ui_scale, _flights.size(),
+		kit.frame_note() if kit != null else "none"]}
 
 
 func update(world, delta: float, _cam: Dictionary) -> void:
@@ -913,7 +914,7 @@ func _status_line(manifest: Dictionary) -> String:
 # ===========================================================================
 
 func _build_hud_panel() -> void:
-	_hud_panel = UiKit.panel(false, 12.0)
+	_hud_panel = kit.panel(false, 12.0)
 	_hud_panel.custom_minimum_size = Vector2(HUD_WIDTH, 0.0)
 	_root.add_child(_hud_panel)
 	var box := VBoxContainer.new()
@@ -952,7 +953,7 @@ func _build_hud_panel() -> void:
 
 ## The three worn places, to the left of the hotbar, each labelled.
 func _build_equipment() -> void:
-	_equip_panel = UiKit.panel(true, 8.0)
+	_equip_panel = kit.panel(true, 8.0)
 	_root.add_child(_equip_panel)
 	_equip_row = HBoxContainer.new()
 	_equip_row.add_theme_constant_override("separation", 5)
@@ -967,7 +968,7 @@ func _build_equipment() -> void:
 
 
 func _build_hotbar() -> void:
-	_hotbar_panel = UiKit.panel(true, 8.0)
+	_hotbar_panel = kit.panel(true, 8.0)
 	_root.add_child(_hotbar_panel)
 	_slot_grid = GridContainer.new()
 	_slot_grid.columns = HOTBAR_COLUMNS
@@ -979,7 +980,7 @@ func _build_hotbar() -> void:
 ## Craft (a toggle that shows the table's state), Map and Menu, stacked at
 ## the hotbar's end.
 func _build_buttons() -> void:
-	_buttons_panel = UiKit.panel(true, 8.0)
+	_buttons_panel = kit.panel(true, 8.0)
 	_root.add_child(_buttons_panel)
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 4)
@@ -997,7 +998,7 @@ func _build_buttons() -> void:
 
 
 func _build_card() -> void:
-	_card_panel = UiKit.panel(true, 10.0)
+	_card_panel = kit.panel(true, 10.0)
 	_card_panel.custom_minimum_size = Vector2(CARD_WIDTH, 0.0)
 	_card_panel.visible = false
 	_root.add_child(_card_panel)
@@ -1036,7 +1037,7 @@ func _build_card() -> void:
 
 
 func _build_message() -> void:
-	_message_panel = UiKit.panel(false, 12.0)
+	_message_panel = kit.panel(false, 12.0)
 	_root.add_child(_message_panel)
 	_message = UiKit.label("", UiKit.FONT_SIZE)
 	_message_panel.add_child(_message)
@@ -1055,7 +1056,7 @@ func _build_labels() -> void:
 
 
 func _build_debug() -> void:
-	_debug_panel = UiKit.panel(false, 10.0)
+	_debug_panel = kit.panel(false, 10.0)
 	_debug_panel.custom_minimum_size = Vector2(240.0, 0.0)
 	_debug_panel.visible = false
 	_root.add_child(_debug_panel)

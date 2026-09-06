@@ -102,7 +102,7 @@ func update(world, _delta: float, _cam: Dictionary) -> void:
 # ===========================================================================
 
 func _build() -> void:
-	_panel = UiKit.panel(true, 14.0)
+	_panel = kit.panel(true, 14.0)
 	_panel.custom_minimum_size = Vector2(WIDTH, 0.0)
 	_root.add_child(_panel)
 	var box := VBoxContainer.new()

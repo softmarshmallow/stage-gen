@@ -23,6 +23,7 @@ from typing import Final, Literal
 from pydantic import BaseModel, Field
 
 from gnode import Binding, BindingTable, GraphBuilder, ModelRef, Node, NodeCard, NodeType, Port
+from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes
 from stage_gen.config import StageGenConfig
 from stage_gen.recipes.graph_document import RecipeGraph
 from stage_gen.recipes.oblique_survival import manifest as manifest_module
@@ -1909,6 +1910,27 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
             ports=[
                 artifact_port("review", manifest_module.review_ref(family), "review-verdict-v1")
             ],
+        )
+
+    # --- the interface
+    # Panels and buttons are the one thing every genre draws the same way, so
+    # the host's HUD is dressed from the shared nine-slice triplet rather than
+    # from a private copy of it. Its identity is this package's own art
+    # direction: repaint the look and the frames re-bill with everything else
+    # they sit beside. A package with no ui.toml has a HUD of plain boxes. The
+    # props scope is where the rest of what is on screen joins the demo, and
+    # the frame around the screen joins there too; the minimal scope proves the
+    # oblique clause and nothing about the interface bears on that.
+    if package.ui is not None and rank >= SCOPE_RANK["props"]:
+        add_ui_atlas_nodes(
+            builder,
+            root=lock.node_id,
+            ui=package.ui,
+            style_prompt=lambda task: prompts.ui_atlas_prompt(package, task),
+            # The wrapper's own words and the plate's bytes: the triplet digests
+            # the role's direction and the reference it names, and this is the
+            # rest of what reaches the provider.
+            direction_digests=[text_digest(prompts.ui_atlas_prompt(package, "")), *style_digests],
         )
 
     # --- close

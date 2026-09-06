@@ -29,6 +29,7 @@ from typing import Any, Final, NotRequired, Protocol, TypedDict, cast
 
 from PIL import Image
 
+from stage_gen.components.game_ui.nodes import DEFAULT_ATLAS_ROLES, ui_atlas_manifest_block
 from stage_gen.recipes.dry_run import is_placeholder
 from stage_gen.recipes.oblique_survival.models import (
     MUSIC_CUES,
@@ -633,6 +634,8 @@ class StatusBlock(TypedDict):
     weather: str
     sounds: str
     seasons: str
+    #: ``none`` for a package with no ui.toml, ``ok`` when every sheet is here.
+    ui: str
     layout: str
 
 
@@ -679,6 +682,9 @@ class Manifest(TypedDict):
     props: dict[str, PropBlock]
     items: dict[str, ItemBlock]
     icons: IconsBlock | None
+    #: The screen-fixed interface sheets, the shared ``ui.<role>`` blocks every
+    #: consumer of the game_ui component reads; None for a package with no ui.toml.
+    ui: JsonRecord | None
     crafting: CraftingBlock
     fx: FxBlock
     #: Keyed by cue, plus ``transition``; the cue vocabulary is closed, so the
@@ -1814,6 +1820,30 @@ def _icons_block(package: Package, run_dir: Path) -> IconsBlock | None:
     }
 
 
+def _ui_block(package: Package, run_dir: Path) -> JsonRecord | None:
+    """The interface sheets, published exactly as every other consumer sees them.
+
+    The validate node is the only place the detected geometry exists, so the
+    block is read from its record rather than from the declared template; the
+    component projects it, and this recipe adds nothing of its own. None when
+    the package authors no ui.toml, and None when a scope drew no sheets, which
+    the status tells apart.
+    """
+
+    if package.ui is None:
+        return None
+    for role in DEFAULT_ATLAS_ROLES:
+        if not _present(run_dir / f"ui/{role.role}.png"):
+            return None
+        if not _present(run_dir / f"ui/{role.role}.validation.json"):
+            return None
+    return ui_atlas_manifest_block(
+        read_validation=lambda ref: (run_dir / ref).read_bytes(),
+        publish=lambda ref: ref,
+        publish_provenance=lambda _ref: None,
+    )
+
+
 def _items_block(package: Package, run_dir: Path, icons: IconsBlock | None) -> dict[str, ItemBlock]:
     windows: dict[str, dict[str, Any]] = {}
     for cell in icons["cells"] if icons is not None else ():
@@ -2018,6 +2048,7 @@ def build_manifest(
     fx = _fx_block(package, run_dir)
     icons = _icons_block(package, run_dir)
     items = _items_block(package, run_dir, icons)
+    ui = _ui_block(package, run_dir)
     music = _music_block(package, run_dir)
     weather = _weather_block(package, run_dir)
     sounds = _sounds_block(package, run_dir)
@@ -2111,6 +2142,8 @@ def build_manifest(
             # No clips authored is a silent player by design, not a missing family.
             "sounds": "none" if not package.sounds else _status(sounds, len(package.sounds)),
             "seasons": _seasons_status(package, props),
+            # No ui.toml is a HUD of plain boxes by design, not a missing family.
+            "ui": "none" if package.ui is None else ("ok" if ui is not None else "missing"),
             "layout": "ok" if layout else "missing",
         },
         "style": style,
@@ -2131,6 +2164,7 @@ def build_manifest(
         "props": props,
         "items": items,
         "icons": icons,
+        "ui": ui,
         "crafting": _crafting_block(package),
         "fx": fx,
         "music": music,

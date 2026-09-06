@@ -8,6 +8,13 @@ Rulings live in [decisions](docs/decisions/README.md) — one record per ruling,
 
 - [ ] Remove the remaining alternate public shapes rather than maintaining readers for them — camelCase artifact/capability and doctor output, the scrolling manifest, `legacyDialogueBeats`, tracked historical JSON under docs/media, and docs/generated-media-inventory.json — replacing or retiring each atomically with its consumers, digest bindings and rejection tests, and adding no aliases ([0005](docs/decisions/0005-one-narrative-contract-deleted-not-aliased.md)).
 
+## Game UI
+
+The contract is [authored game UI](docs/spec/game/ui.md); the taxonomy is [ui-atlas](docs/spec/game/ui-atlas.md).
+
+- [ ] Replace the drawn `inventory_panel` with a composition: retire the fixed `inventory_grid_4x2_v1` role (one picture of eight slots that no game outside the platformer's pack shape can use) and promote `slot_cell` from the taxonomy as a generated role beside `panel_frame`, so a pack of any slot count is the panel frame stretched around a grid of slot cells. Drop the role and its nodes, gate, evidence and review with the two Bellweather documents that declare it, re-pin the platformer's UI group and the web `InventoryHud`, and switch the survival host's code-drawn slot wells to the new cell — one contract bump, no alias. Until then the survival host draws its slots as plain dark wells inside the generated frame, on purpose.
+- [ ] Re-brief Ember Hollow's `preview_icons` to the two flat tones its style plate has, or take the one-tone clause out of the role's prompt: the run `out/ember-hollow-v8` review rejected the set for the lit-and-shadow facets the package's `[style]` asks of every shape, while every glyph registered and the set reads as one hand. One image operation, and nothing reads the sheet yet — the host's glyphs are the pack's own icon sheet ([ui.toml](library/games/ember-hollow/ui.toml)).
+
 ## Scenario
 
 The contract is [scenario](docs/spec/game/scenario.md); the component ruling is [0001](docs/decisions/0001-scenario-is-a-component.md).
