@@ -3,14 +3,21 @@ extends CanvasLayer
 
 ## The M overlay: the splat plates recoloured, north up, with the camp and the
 ## player on top. Ported from `buildMap` / `drawMap`
-## (viewer/index.html:2638-2748) and the `#map` CSS at :84-90.
+## (viewer/index.html:2638-2748); the framing is the host's own. The viewer
+## stood the map in a panel `min(72vh, 72vw)` wide over the running game; here
+## it is the whole window — a scrim over the world, the map as tall as the
+## window allows, the legend and the scale in a column beside it — and a click
+## anywhere on the scrim, M or Escape closes it.
 ##
 ## The base picture is built once, on the first open, at the splat's own
 ## resolution; the vectors are redrawn every frame the panel is up.
 
 const CANVAS := 768.0
-## `#map canvas { width: min(72vh, 72vw) }`.
-const VIEW_SHARE := 0.72
+const LAYER := 31
+const SCRIM := Color(8.0 / 255.0, 9.0 / 255.0, 12.0 / 255.0, 0.94)
+const MARGIN := 36.0
+const COLUMN_WIDTH := 240.0
+const GAP := 40.0
 const WEDGE_RADIUS := 46.0
 const WEDGE_HALF_ANGLE := 0.55
 const PLAYER_RADIUS := 4.5
@@ -38,33 +45,24 @@ var owns_keys: bool = true
 var open: bool = false
 var size_meters: float = 256.0
 
+var kit: UiKit = null
+
 var _root: Control = null
-var _panel: PanelContainer = null
+var _scrim: ColorRect = null
+var _frame: Control = null
 var _view: MapView = null
-var _legend: HBoxContainer = null
-var _font: Font = null
+var _column: VBoxContainer = null
+var _legend: VBoxContainer = null
 var _built: bool = false
 
 
 func setup(pkg, world, _fu) -> void:
 	package = pkg
-	layer = 31
+	layer = LAYER
 	visible = false
 	size_meters = float((world.manifest as Dictionary).get("ground", {}).get("size_meters", 256.0))
-	_font = SystemFont.new()
-	(_font as SystemFont).font_names = PackedStringArray(["ui-monospace", "SF Mono", "Menlo",
-		"Monaco", "DejaVu Sans Mono", "monospace"])
-	_root = Control.new()
-	# Sized by `set_ui_scale`, not by anchors: a full-rect anchor would follow
-	# the viewport's pixels and ignore the layer's scale.
-	_root.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_root.size = Vector2(1600.0, 900.0)
-	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var theme := Theme.new()
-	theme.default_font = _font
-	theme.default_font_size = 13
-	theme.set_color("font_color", "Label", Color("#e8e4dc"))
-	_root.theme = theme
+	kit = UiKit.new(pkg, world.manifest if world != null else {})
+	_root = UiKit.make_root(kit.theme)
 	add_child(_root)
 	_build(world)
 
@@ -90,15 +88,12 @@ func handle_event(_event: Dictionary) -> void:
 
 
 ## The HUD's scale (the window's height over 900, times `--ui-scale`): the
-## layer is scaled as a whole and its root shrunk to match, so the panel's own
-## arithmetic stays in 1600x900 units.
+## layer is scaled as a whole and its root shrunk to match, so the layout's
+## own arithmetic stays in 1600x900 units.
 func set_ui_scale(scale_factor: float) -> void:
-	var s := maxf(0.25, scale_factor)
-	transform = Transform2D(0.0, Vector2.ZERO).scaled(Vector2(s, s))
-	if _root != null:
-		var viewport := get_viewport()
-		if viewport != null:
-			_root.size = viewport.get_visible_rect().size / s
+	UiKit.apply_scale(self, _root, scale_factor)
+	if open:
+		_layout()
 
 
 func set_open(value: bool) -> void:
@@ -106,6 +101,8 @@ func set_open(value: bool) -> void:
 	visible = value
 	if value and not _built:
 		_build_base(_view)
+	if value:
+		_layout()
 
 
 func toggle() -> void:
@@ -131,36 +128,26 @@ func update(world, _delta: float, cam: Dictionary) -> void:
 # ===========================================================================
 
 func _build(world) -> void:
-	_panel = PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(12.0 / 255.0, 13.0 / 255.0, 16.0 / 255.0, 0.82)
-	style.border_color = Color("#2c2f36")
-	style.set_border_width_all(1)
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
-	style.content_margin_left = 10.0
-	style.content_margin_right = 10.0
-	style.content_margin_top = 10.0
-	style.content_margin_bottom = 10.0
-	_panel.add_theme_stylebox_override("panel", style)
-	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root.add_child(_panel)
+	# The scrim takes the window and the mouse: nothing under it is walked to,
+	# and a click on it closes the map.
+	_scrim = ColorRect.new()
+	_scrim.name = "scrim"
+	_scrim.color = SCRIM
+	_scrim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_scrim.gui_input.connect(_on_scrim_input)
+	_root.add_child(_scrim)
 
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 7)
-	_panel.add_child(column)
-
-	var frame := Control.new()
-	frame.name = "frame"
-	frame.clip_contents = true
-	column.add_child(frame)
+	_frame = Control.new()
+	_frame.name = "frame"
+	_frame.clip_contents = true
+	_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_frame)
 
 	_view = MapView.new()
 	_view.size = Vector2(CANVAS, CANVAS)
-	_view.font = _font
+	_view.font = kit.font
 	_view.size_meters = size_meters
+	_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var camp: Dictionary = (world.manifest as Dictionary).get("layout", {}).get("camp_position",
 		{"x": 0.0, "z": 0.0})
 	_view.camp = Vector2(float(camp.get("x", 0.0)), float(camp.get("z", 0.0)))
@@ -171,13 +158,40 @@ func _build(world) -> void:
 			continue
 		pieces.append(Vector2(float(piece.get("x", 0.0)), float(piece.get("z", 0.0))))
 	_view.set_pieces = pieces
-	frame.add_child(_view)
+	_frame.add_child(_view)
 
-	_legend = HBoxContainer.new()
-	_legend.add_theme_constant_override("separation", 12)
-	column.add_child(_legend)
-	_build_base(_view)
+	# The column beside the map: the land's name and size, what each colour
+	# is, the marks, and how to close it.
+	_column = VBoxContainer.new()
+	_column.name = "column"
+	_column.add_theme_constant_override("separation", 10)
+	_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_column)
+	var title := UiKit.label(str((world.manifest as Dictionary).get("title", "The land")), UiKit.TITLE, UiKit.ACCENT)
+	_column.add_child(title)
+	_column.add_child(UiKit.label("%d m across · north up" % int(size_meters), UiKit.SMALL, UiKit.MUTED))
+	_column.add_child(UiKit.spacer(6.0))
+	_legend = VBoxContainer.new()
+	_legend.name = "legend"
+	_legend.add_theme_constant_override("separation", 6)
+	_column.add_child(_legend)
 	_build_legend(world)
+	_column.add_child(UiKit.spacer(6.0))
+	_column.add_child(_legend_entry("the camp", Color("#f2b04a")))
+	_column.add_child(_legend_entry("you, and where the camera looks", Color.WHITE))
+	_column.add_child(UiKit.spacer(14.0))
+	var closing := UiKit.rich(UiKit.SMALL, COLUMN_WIDTH)
+	closing.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	closing.text = "%s or %s closes the map, or click anywhere on it." % [UiKit.kbd("M"), UiKit.kbd("Esc")]
+	closing.modulate.a = 0.75
+	_column.add_child(closing)
+	_build_base(_view)
+
+
+func _on_scrim_input(event: InputEvent) -> void:
+	var button := event as InputEventMouseButton
+	if button != null and button.pressed and button.button_index == MOUSE_BUTTON_LEFT:
+		set_open(false)
 
 
 ## `buildMap` (:2652-2703): one flat colour per splat cell.
@@ -234,28 +248,39 @@ func _build_legend(_world) -> void:
 
 func _legend_entry(label: String, colour: Color) -> Control:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 4)
+	row.add_theme_constant_override("separation", 8)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var swatch := ColorRect.new()
 	swatch.color = colour
-	swatch.custom_minimum_size = Vector2(10.0, 10.0)
+	swatch.custom_minimum_size = Vector2(14.0, 14.0)
 	swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(swatch)
-	var text := Label.new()
-	text.text = label
-	text.add_theme_font_size_override("font_size", 11)
-	text.modulate.a = 0.85
+	var text := UiKit.label(label, UiKit.SMALL, UiKit.TEXT)
+	text.modulate.a = 0.88
 	row.add_child(text)
 	return row
 
 
+## The whole window: the scrim over all of it, the map square as tall as the
+## window less its margins (or as wide as the room beside the column allows),
+## and the column to its right, the pair centred.
 func _layout() -> void:
+	if _root == null or _frame == null:
+		return
 	var view_size: Vector2 = _root.size
-	var side := minf(view_size.y * VIEW_SHARE, view_size.x * VIEW_SHARE)
-	var frame: Control = _panel.get_child(0).get_node("frame")
-	frame.custom_minimum_size = Vector2(side, side)
+	_scrim.position = Vector2.ZERO
+	_scrim.size = view_size
+	var side := minf(view_size.y - 2.0 * MARGIN, view_size.x - 2.0 * MARGIN - COLUMN_WIDTH - GAP)
+	side = maxf(side, 64.0)
+	var block_width := side + GAP + COLUMN_WIDTH
+	var left := (view_size.x - block_width) * 0.5
+	var top := (view_size.y - side) * 0.5
+	_frame.position = Vector2(left, top)
+	_frame.size = Vector2(side, side)
 	_view.scale = Vector2(side / CANVAS, side / CANVAS)
-	_panel.size = _panel.get_combined_minimum_size()
-	_panel.position = (view_size - _panel.size) * 0.5
+	_column.position = Vector2(left + side + GAP, top)
+	_column.size = Vector2(COLUMN_WIDTH, side)
 
 
 func _ground() -> Dictionary:

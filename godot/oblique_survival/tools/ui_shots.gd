@@ -5,8 +5,9 @@ extends SceneTree
 ## staged into the moments a player meets — the pack and a hovered tree at
 ## noon (lifted, named above itself), a slot's card, the worn places, a pickup
 ## in flight, a bush gathered by hand (its twigs flying from the bush), a
-## held-button walk, the crafting table, the pause menu and its
-## how-to-play page, the fire at night, the dark away from it, the death sheet,
+## held-button walk, a bite's red flood and the throb of starving, the
+## crafting table, the pause menu and its how-to-play page, the whole-window
+## map, the fire at night, the dark away from it, the death sheet,
 ## the run begun again, and the same HUD in a 2560x1440 window to show the
 ## scale following the window.
 ##
@@ -148,6 +149,23 @@ func _go() -> void:
 	await _save("ui-drag-walk.png")
 	_main.release_pointer()
 	_main.advance(0.2)
+
+	# --- hurt: a bite's flood, and the slow throb of an empty belly ---------
+	# The bite is the sim's `hurt` event with its ten points off, caught
+	# 80 ms in; the throb is a second of starving, health going a little a
+	# frame, caught on the beat's second peak (the beat starts with the drain;
+	# a peak is at (k + 1/4) / THROB_HERTZ), the belly then refilled so the
+	# shots after are unmarked.
+	world.player.health -= 10.0
+	Helpers.emit(world, {"type": "hurt", "x": world.player.x, "z": world.player.z})
+	_main.advance(0.08)
+	await _save("ui-hurt-bite.png")
+	_main.advance(1.0)
+	world.player.hunger = 0.0
+	_main.advance(1.25 / HurtFlash.THROB_HERTZ)
+	await _save("ui-hurt-starving.png")
+	world.player.hunger = 80.0
+	_main.advance(2.0)
 
 	# The pause menu, and its how-to-play page.
 	_main.set_paused(true)

@@ -197,7 +197,8 @@ static func help_sections() -> Array:
 		["Staying alive",
 			"The belly empties; berries and mushrooms grow back, and a lit fire stews them. The cold "
 			+ "comes with winter and the night: a fire, a torch, a cloak or a warm stone holds it off. "
-			+ "Hounds keep to their ground until you cross it."],
+			+ "Hounds keep to their ground until you cross it. When health is going the edges of the "
+			+ "screen bleed: a flood for a bite, a slow throb while you starve or freeze."],
 		["Dev keys",
 			("%s gallery · %s verdict · %s night · %s season · %s weather · %s strike · %s music · "
 			% [UiKit.kbd("G"), UiKit.kbd("V"), UiKit.kbd("N"), UiKit.kbd("K"), UiKit.kbd("T"),

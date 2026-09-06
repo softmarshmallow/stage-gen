@@ -20,6 +20,8 @@ func run(h: TestHarness) -> void:
 	_hud_builds_the_pack(h, w)
 	_hud_flies_a_pickup(h, w)
 	_pause_menu_shows_the_help(h, w)
+	_hurt_flash_bleeds_with_health(h, w)
+	_map_fills_the_window(h, w)
 	_layers_take_a_scale(h, w)
 	_args_carry_the_new_flags(h)
 
@@ -295,6 +297,100 @@ func _pause_menu_shows_the_help(h: TestHarness, w: World) -> void:
 	h.assert_eq(asked.back(), "resume", "a death while paused asks to resume")
 	w.dead = false
 	menu.free()
+
+
+## The screen bleeds when health does: a bite floods and fades, a drain
+## throbs while it lasts and lets go after, a held health shows nothing, and
+## the dead are left to the death sheet.
+func _hurt_flash_bleeds_with_health(h: TestHarness, w: World) -> void:
+	var flash := HurtFlash.new()
+	flash.setup(SimFixture.package(), w, null)
+	h.assert_eq(flash.layer, 21, "above the vignette (20), under the HUD (30)")
+	flash.update(w, 1.0 / 60.0, {})
+	h.assert_near(flash.flash(), 0.0, 1e-6, "nothing at full health")
+	h.assert_near(flash.throb(), 0.0, 1e-6, "and no throb")
+	# The hound's bite: the sim's `hurt` event and a 10-point drop the same tick.
+	w.player.health -= 10.0
+	flash.handle_event({"type": "hurt", "x": 0.0, "z": 0.0})
+	flash.update(w, 1.0 / 60.0, {})
+	h.assert_true(flash.flash() > 0.9, "a bite floods the edges (%.2f)" % flash.flash())
+	h.assert_near(flash.throb(), 0.0, 1e-6, "a bite is not a drain")
+	for i in 60:
+		flash.update(w, 1.0 / 60.0, {})
+	h.assert_near(flash.flash(), 0.0, 1e-6, "and has faded a second later")
+	# A drop the sim never named: a chunk still flashes, so a cause added later shows.
+	w.player.health -= 5.0
+	flash.update(w, 1.0 / 60.0, {})
+	h.assert_true(flash.flash() > 0.9, "an unnamed chunk flashes too")
+	# The drain: health going a little every frame, as the empty belly takes it.
+	var before := flash.throb()
+	for i in 60:
+		w.player.health -= 2.0 / 60.0
+		flash.update(w, 1.0 / 60.0, {})
+	h.assert_true(flash.throb() > 0.9, "a second of drain raises the throb (%.2f)" % flash.throb())
+	h.assert_true(flash.throb() > before, "from nothing")
+	var rect := flash.rect as ColorRect
+	var throb_alpha := float((rect.material as ShaderMaterial).get_shader_parameter("u_throb"))
+	h.assert_true(throb_alpha > 0.2, "and the shader is handed it (%.2f)" % throb_alpha)
+	for i in 120:
+		flash.update(w, 1.0 / 60.0, {})
+	h.assert_near(flash.throb(), 0.0, 1e-6, "two seconds of held health lets it go")
+	# Healing is not hurt.
+	w.player.health += 30.0
+	flash.update(w, 1.0 / 60.0, {})
+	h.assert_near(flash.flash(), 0.0, 1e-6, "eating shows nothing")
+	# The dead bleed no more; the sheet has them.
+	w.dead = true
+	w.player.health -= 1.0 / 60.0
+	flash.update(w, 1.0 / 60.0, {})
+	h.assert_near(flash.throb(), 0.0, 1e-6, "no throb once dead")
+	w.dead = false
+	w.player.health = 100.0
+	flash.free()
+
+
+## The map is the whole window: a scrim over it that takes the mouse, the map
+## square as tall as the window less its margins, the column beside it, and a
+## click on the scrim closing it.
+func _map_fills_the_window(h: TestHarness, w: World) -> void:
+	var map := WorldMap.new()
+	map.setup(SimFixture.package(), w, null)
+	h.assert_false(map.visible, "closed to begin with")
+	map.set_open(true)
+	map.update(w, 0.0, {"yaw": 0.0})
+	h.assert_true(map.visible, "open shows it")
+	var root: Control = map._root
+	var scrim: ColorRect = map._scrim
+	h.assert_eq(scrim.size, root.size, "the scrim covers the window")
+	h.assert_eq(scrim.mouse_filter, Control.MOUSE_FILTER_STOP, "and takes the mouse, so no click walks")
+	var frame: Control = map._frame
+	var expected_side: float = root.size.y - 2.0 * WorldMap.MARGIN
+	h.assert_near(frame.size.x, expected_side, 0.5, "the map is as tall as the window allows")
+	h.assert_near(frame.size.y, frame.size.x, 0.5, "and square")
+	h.assert_near(frame.position.y, WorldMap.MARGIN, 0.5, "from the top margin")
+	var column: Control = map._column
+	h.assert_near(column.position.x, frame.position.x + frame.size.x + WorldMap.GAP, 0.5, "the column stands beside it")
+	h.assert_true(column.position.x + column.size.x <= root.size.x, "inside the window")
+	h.assert_true(frame.position.x >= 0.0, "as is the map")
+	var legend: VBoxContainer = map._legend
+	h.assert_true(legend.get_child_count() >= 4, "the legend names the biomes, the road and the water (%d)" % legend.get_child_count())
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	map._on_scrim_input(click)
+	h.assert_false(map.open, "a click on the scrim closes it")
+	h.assert_false(map.visible, "and hides it")
+	# A wider window: the height still rules the square.
+	map.set_open(true)
+	root.size = Vector2(2560.0, 1440.0)
+	map.update(w, 0.0, {"yaw": 0.0})
+	h.assert_near(map._frame.size.x, 1440.0 - 2.0 * WorldMap.MARGIN, 0.5, "in a 2560x1440 window the height rules")
+	# A narrow one: the width, less the column, rules.
+	root.size = Vector2(900.0, 900.0)
+	map.update(w, 0.0, {"yaw": 0.0})
+	h.assert_near(map._frame.size.x, 900.0 - 2.0 * WorldMap.MARGIN - WorldMap.COLUMN_WIDTH - WorldMap.GAP, 0.5,
+		"in a square window the width less the column rules")
+	map.free()
 
 
 func _layers_take_a_scale(h: TestHarness, w: World) -> void:

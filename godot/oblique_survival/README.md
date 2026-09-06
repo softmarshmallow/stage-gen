@@ -128,6 +128,24 @@ the ground masks and the weather mode kept, every module rebuilt. A new world
 opens under a clear sky: the viewer's first spell was wet (its spell clock fell
 due on the first step), the host's first spell is dry for the authored minimum.
 
+**The map** (`hud/world_map.gd`, M or the Map button) is the whole window: a
+scrim over the world that takes the mouse, the recoloured plate as tall as the
+window allows with north up, and a column beside it with the land's name and
+size, the biome colours, the camp and player marks, and how to close it. M,
+Escape or a click anywhere on it closes it. The viewer stood the same plate in
+a panel `min(72vh, 72vw)` wide over the running game.
+
+**Hurt** (`view/hurt_flash.gd`, layer 21). When health falls the screen says
+so: a hound's bite — the sim's `hurt` event, or any drop of three points or
+more in one frame — floods the edges red and fades in 0.7 s; health going a
+little every frame (the belly empty, the cold in) raises a slow red border that
+beats at 1.15 Hz, deeper the lower health is, and lets go over 1.4 s once the
+drain stops. The layer never asks the cause — a drop is a drop — so a source
+added to the sim later shows without a view change. It sits above the night
+vignette, so it reads over the black night, and under the HUD. There is no
+asset: the shape is an ellipse ramp in the shader, and `set_mask` takes a
+generated overlay's alpha in its place when one is made.
+
 **The scale.** Every 2D layer is laid out in 1600x900 units and scaled as a
 whole by the window's height over 900 (never below 1), times `--ui-scale`. A
 2560x1440 window draws the panels at 1.6; a Retina fullscreen at 2.5. The
@@ -148,10 +166,11 @@ references rather than the game's darkness (decision
 
 `tools/ui_shots.gd` is the HUD's own contact sheet: the real scene in a real
 window with the overlays on, staged into the moments above (the pack and a
-hovered tree at noon, a slot's card, the worn places, a pickup in flight, a bush gathered by hand, a walk
-clicked, a held-button walk, the pause menu and its help, the table, the fire at
-night, the dark away from it, the death sheet, the run begun again, and the same
-HUD in a 2560x1440 window):
+hovered tree at noon, a slot's card, the worn places, a pickup in flight, a bush
+gathered by hand, a walk clicked, a held-button walk, a bite's red flood and the
+throb of starving, the pause menu and its help, the whole-window map, the table,
+the fire at night, the dark away from it, the death sheet, the run begun again,
+and the same HUD in a 2560x1440 window):
 
 ```
 Godot --path godot/oblique_survival --rendering-driver metal \
@@ -745,7 +764,9 @@ Recorded here because parity with the viewer is the acceptance test.
 - **CSS transitions.** The three bars keep their `width .12s linear` slide; the
   prompt's `.12s` and the message's `.3s` opacity transitions are snaps.
 - **The map draws no entity dots**, because `drawMap` draws none: the plate, the
-  camp triangle, the player's dot and heading wedge, and the scale bar.
+  camp triangle, the player's dot and heading wedge, and the scale bar. Its
+  framing is not the viewer's: the whole window under a scrim, with a legend
+  column, rather than a `min(72vh, 72vw)` panel over the running game.
 
 ### The game's own (not ports)
 
@@ -757,6 +778,9 @@ Recorded here because parity with the viewer is the acceptance test.
   `u_night_floor`, 0 in the game and 0.38 under the capture harness, with the
   grade, the paper, the rain's night factor and the vignette gated on it so a
   black night is black. Every night shot in the gate is rendered at 0.38.
+- **The screen bleeds when health does.** The viewer's hurt was a camera shake
+  and a dust puff; the host adds `view/hurt_flash.gd`, a red flood for a blow
+  and a slow red border while health drains, read off the health itself.
 - **The HUD is not the viewer's DOM overlay any more.** The panels were rebuilt
   for the pointer and for a screen (hotbar, item card, crafting rows, death
   sheet, buttons), and scaled by the window; the viewer's `#hud`, `#craft` and

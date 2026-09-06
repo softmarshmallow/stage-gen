@@ -47,6 +47,7 @@ const MODULE_FILES := [
 	"res://view/strikes.gd",
 	"res://view/weather_view.gd",
 	"res://view/gallery.gd",
+	"res://view/hurt_flash.gd",
 	"res://hud/hud.gd",
 	"res://hud/craft_panel.gd",
 	"res://hud/death_screen.gd",
@@ -63,7 +64,7 @@ const UPDATE_ORDER := [
 	"music", "sfx",
 	"weather_view", "water", "splashes", "decals", "ground", "strikes",
 	"cards", "pieces", "plants", "leaves", "puffs", "shadows",
-	"fire", "gallery", "hud", "craft_panel", "death_screen", "world_map", "pause_menu",
+	"fire", "gallery", "hurt_flash", "hud", "craft_panel", "death_screen", "world_map", "pause_menu",
 ]
 
 ## The HUD is laid out in 1600x900 units and scaled to the window: this height
@@ -736,6 +737,17 @@ func _pick(screen: Vector2) -> Dictionary:
 			found["point"] = {"x": hit.x, "z": hit.z}
 	return found
 
+## Whether a click reaches the world at all: not while the craft panel, the
+## map or the menu is up, the player is dead, the framing is not play, or the
+## world is not yet stood up. The panels take their own clicks before this is
+## reached; the map's scrim does too, and this is the belt behind it.
+func _pointer_blocked() -> bool:
+	if not _booted or paused or world.craft_open or world.dead or not POINTER_MODES.has(mode):
+		return true
+	var map_node = modules.get("world_map")
+	return map_node != null and bool(map_node.get("open"))
+
+
 ## The left button going down: a thing under the pointer is clicked (the
 ## key's action, at any distance), else the ground under it is walked to and
 ## the walk stays on the pointer for as long as the button is held. Nothing
@@ -744,7 +756,7 @@ func _pick(screen: Vector2) -> Dictionary:
 ## reached.
 func _press(screen: Vector2) -> void:
 	_drag_walk = false
-	if not _booted or paused or world.craft_open or world.dead or not POINTER_MODES.has(mode):
+	if _pointer_blocked():
 		return
 	var pick := _pick(screen)
 	if pick.is_empty():
@@ -766,7 +778,7 @@ func _press(screen: Vector2) -> void:
 ## pointer is skipped in silence (the press already said so), and the walk
 ## keeps its last land spot.
 func _drag_step() -> void:
-	if not _booted or world.craft_open or world.dead or not POINTER_MODES.has(mode):
+	if _pointer_blocked():
 		return
 	var pick := _pick(_mouse)
 	var point: Variant = pick.get("point") if not pick.is_empty() else null
