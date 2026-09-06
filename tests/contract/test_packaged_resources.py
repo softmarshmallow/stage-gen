@@ -137,7 +137,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # honest addition with a paragraph of arithmetic. What it guarded - tests,
         # library packages, docs media, or a stray directory in the wheel - is
         # asserted by name below.
-        assert sum(wheel_entries.values()) < 5_000_000
+        # The oblique-survival recipe (2026-09-06): fourteen source modules, 681,720 B of
+        # text, measured 5,139,148 against the previous 5,000,000 line; the ceiling is
+        # 5,300,000. No media, no library package and no gitignored path is in the wheel.
+        assert sum(wheel_entries.values()) < 5_300_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
         assert {
@@ -210,7 +213,11 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # Raised for the engineering pass (2026-09-04): two runtime specifications,
         # the system plan, and the two cache-key goldens that replaced the
         # whole-graph digest pins.
-        assert sum(sdist_entries.values()) < 8_000_000
+        # The oblique-survival recipe (2026-09-06): its fourteen source modules, eight
+        # test modules, the cache-key golden and four specification pages are 1,046,465 B
+        # of text and measured 8,892,585 against the previous 8,000,000 line; the ceiling
+        # is 9,000,000. library/ and godot/ contribute nothing to the archive.
+        assert sum(sdist_entries.values()) < 9_000_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)

@@ -1,0 +1,239 @@
+# The authored input of the oblique-survival recipe: the root document of this
+# package, read by `stage-gen oblique-survival`. Generated output remains
+# unreviewed and unpublished; [rights] below says so, and the loader refuses a
+# package that does not.
+#
+# A standalone root document, not a game.toml member, the way universe.toml and
+# room.toml are: this genre is not a member of the game contract, and making it
+# one is a separate decision with its own contract bump.
+#
+# Adopted takes are declared as `take = { path, sha256 }`. The declared digest
+# is what the package's identity is built from, so the plan and the graph are a
+# function of this committed text alone; the bytes are verified against it when
+# they are here, and an adopt node refuses at execution when they are not.
+
+schema_version = 1
+kind = "oblique-survival-package-v1"
+package_id = "ember-hollow"
+title = "Ember Hollow"
+revision = 1
+
+[presentation]
+profile = "elevated_oblique_perspective_ground_plane_v1"
+scene_dimensionality = "spatial_2_5d"
+gameplay_space = "ground_plane"
+occlusion = "depth_buffer"
+asset_view = "three_quarter_front"
+asset_pitch = "above"
+# Where a billboard meets the ground is an authored decision, and this field
+# is where it is taken; nothing downstream may improvise one. The reference
+# genre paints the seam into the art and draws no shadow at all. Options:
+#   "shadow"        a contact-shadow ellipse only; cheapest, and reads pasted-on
+#   "skirt_decal"   a generated ground skirt per prop family, laid flat under
+#                   the prop (roots and needles, rubble and moss, leaf litter),
+#                   plus a lighter shadow; one image per family, props unchanged
+#   "painted_base"  the prop art carries its own feathered patch of ground, the
+#                   reference's way; every prop is redrawn, the floor gate is
+#                   inverted, and the review judges the skirt instead of the ban
+#   "none"          nothing; for a package whose art already grounds itself
+# The package author owns this choice and its cost. skirt_decal is the default
+# here because it changes no prop art and can be A/B'd against painted_base.
+ground_contact = "skirt_decal"
+
+# The look contract. Three rules that hold one look across every drawn asset
+# and every placement, stated once here and read by the prompts, the layout,
+# the review and the viewer. A 2.5D scene has no runtime light: whatever light
+# an asset was drawn under is the light it keeps, from every camera angle, so
+# the drawings have to agree with each other and with how they are laid down.
+[look]
+# Where the one light comes from in every drawn asset. "overhead": the lit tone
+# on surfaces that face up, the shadow tone only along undersides and lower
+# edges, and the left and right sides of a thing the same tone as each other.
+# The reference's trees carry no side shadow at all, only a little under each
+# tier; a side-lit tree turns wrong the moment the camera steps 45 degrees.
+light = "overhead"
+# A piece that lies on the ground (litter, the contact patch under a prop)
+# carries its shadow tone along its lower edge, so it keeps that edge toward
+# the camera and is never spun: the layout may turn it this far and no more,
+# and the viewer re-aims it when the camera turns. Nothing is ever mirrored
+# for variety; a flipped sprite is the same sprite, and the eye knows it. The
+# only mirror is an actor's facing, which an overhead light makes safe.
+ground_piece_jitter_degrees = 15.0
+
+[style]
+# Chosen from concept art, not from adjectives: three art directions were drawn
+# on one fixed scene (explore/concept_art.py) and this is the words for the one
+# picked -- "A2, reduced shapes". The picture itself is `reference` below, and
+# it rides along as reference image 1 on every generative image node, so the
+# prose and the plate say the same thing. Revising the look means drawing a new
+# plate and rewriting these words together; either alone will drift.
+#
+# The clause that earns its keep is the ban on rendering inside a shape. The
+# first pass of this direction came back with shaded needles and a soft shadow
+# sweeping the ground -- pretty, and uncuttable into flat billboards. Naming a
+# tone count and banning falloff outright is what actually held it.
+label = "flat inked cutout survival"
+reference = "references/style-plate.png"
+keywords = [
+  "premium original 2D game art drawn as flat paper cutouts",
+  "visible tapered ink contours in a slightly wobbling hand-drawn line, heaviest on the outer silhouette",
+  "two flat tones per object, a lit tone and a shadow tone, divided by a hard edge",
+  "few large shapes rather than many small ones: a conifer is stacked ragged masses, a boulder two or three facets",
+  "interior detail almost absent, the ink line doing the describing",
+  "muted earth palette of bark brown moss green ash grey and bone, about six tones in a picture",
+  "warm amber firelight as the only saturated accent",
+  "wry gothic-storybook mood, spiky and a little uneasy, never grim",
+]
+avoid = [
+  "franchise characters mascots costumes landmarks or trade dress",
+  "logos signatures watermarks readable text or pseudo-text",
+  "any rendering inside a shape: gradients, blending, soft shadow falloff, airbrush, volumetric light",
+  "individually drawn needles or leaves, or photographic surface texture",
+  "photorealism 3D-rendered materials or lens blur",
+  "strict pixel-grid retro imitation",
+  "gore grim violence or military insignia",
+]
+
+[scale]
+# The player is the unit. Every other magnitude is authored in player heights
+# and converted to meters exactly once, in the manifest.
+player_height_meters = 1.7
+minimum_height_units = 0.25
+
+[camera]
+# The scene camera pitch and the pitch the art is drawn at are different
+# numbers on purpose: a screen-aligned billboard is not foreshortened by the
+# camera, so the sprite carries its own slight top-down and the ground carries
+# the real one. The mismatch only shows at the base, which the contact shadow
+# ellipse covers.
+pitch_degrees = 55.0
+fov_degrees = 35.0
+distance_meters = 18.0
+asset_pitch_degrees = 30.0
+follow_lerp = 0.08
+# The reference genre lets the player swing the world with Q and E, and a
+# billboard scene can afford it: a card that always turns to face the camera
+# never shows a back that was never drawn. The default yaw is diagonal, so the
+# world reads as a three-quarter view rather than square-on.
+# The camera does not free-spin: Q and E step it between fixed 45-degree
+# detents and it eases across, as the reference genre does. Eight fixed angles
+# beat a continuum here -- verdict shots from two runs line up exactly, and the
+# prop-lighting problem is bounded to eight known views instead of all of them.
+rotation_allowed = true
+yaw_degrees = 45.0
+yaw_step_degrees = 45.0
+
+[world]
+seed = 7
+# 256 m a side: the first worlds were 64 m, and at that size four biomes and
+# three hundred props sat inside one screen's walk of the camp, a diorama
+# rather than a place. The biome lattice and the coast lattice are fixed
+# counts over the world, so a wider world makes wider continents and longer
+# coasts, not more of them; this is the whole point of widening it.
+size_meters = 256.0
+biome_noise_scale = 14.0
+# The islets: a second, finer noise octave per biome, thresholded high, so
+# each biome is also a scatter of patches inside the others. The reference's
+# turf is a patchwork of islands 4 to 12 m across, two or three to a screen;
+# with continents alone a screen was one material. The lattice is cells over
+# the world (256 m / 28 is a 9 m cell, so islets come out 5 to 12 m), and the
+# share is the part of each biome's authored share spent on them.
+biome_islet_lattice = 28
+biome_islet_share = 0.35
+camp_clear_radius_meters = 6.0
+# The camp structures stand on a worn pad, and the road leaves the clearing
+# from its edge. The road itself is declared in ground.toml.
+pad_decal = "path"
+
+# The landmass. A shaped coast inside the square, so the player never reaches
+# the square: land is value noise plus a radial falloff, solved to land_share,
+# and the camp is always land. shore_margin_meters keeps scatter off the coast.
+[world.landmass]
+land_share = 0.60
+coast_noise_lattice = 6
+coast_crinkle = 0.30
+shore_margin_meters = 2.0
+
+# Entities per 100 square meters, before biome weighting and the camp clearing.
+# Tuned down from tree = 3.2 after looking at the fixture: at that density a
+# 1.7 m player is hidden behind 5.4 m trunks most of the time under a 55-degree
+# camera. See the README's "Known flaws" note on occluding foreground props.
+# Halved again with the 256 m world: a forest still closes in where the biome
+# weight is 1.0, and the meadow and scree open out to walking country.
+[world.density]
+tree = 0.9
+rock = 0.45
+bush = 0.6
+grass = 1.8
+
+# Which biome each prop prefers. 1.0 means the density above applies in full,
+# 0.0 means the prop never lands there.
+# A prop may override its family's row with its own `biome_weights` in
+# props.toml; the dead snag and the fern do.
+[world.biome_weights]
+tree = { forest_floor = 1.0, dry_meadow = 0.15, mossy_bog = 0.45, grey_scree = 0.08 }
+rock = { forest_floor = 0.6, dry_meadow = 1.0, mossy_bog = 0.15, grey_scree = 1.0 }
+bush = { forest_floor = 0.9, dry_meadow = 0.7, mossy_bog = 0.5, grey_scree = 0.25 }
+grass = { forest_floor = 0.5, dry_meadow = 1.0, mossy_bog = 0.8, grey_scree = 0.35 }
+
+[gameplay]
+day_length_seconds = 180.0
+player_speed_meters_per_second = 3.2
+# Measured from the prop's footprint edge (or a drop's centre): the action
+# starts on the spot inside it. Small, as in the reference, where the character
+# walks up to the trunk; the collision floor keeps the player 0.34 m off any edge.
+interact_reach_meters = 0.6
+# How far away a target still answers the key. Inside the reach the action
+# starts at once; between the reach and this radius the player first walks up
+# to the target, then acts, as in the reference. A movement key cancels the walk.
+approach_meters = 4.5
+mob_count = 12
+# How a drop enters the inventory: "manual" is the reference's way, stand within
+# reach and press the interact key; "magnet" draws a settled drop within a
+# metre to the player. This game wants the deliberate one.
+pickup = "manual"
+
+# What food restores is the item's own business: items.toml `use`.
+[gameplay.hunger]
+max = 100.0
+drain_per_second = 0.6
+
+[gameplay.health]
+max = 100.0
+starve_damage_per_second = 2.0
+
+[gameplay.mob]
+speed_meters_per_second = 2.6
+aggro_radius_meters = 6.0
+attack_range_meters = 1.0
+attack_damage = 10.0
+attack_cooldown_seconds = 1.5
+wander_radius_meters = 4.0
+
+# What the fire costs is a recipe in crafting.toml; here is only how it burns.
+[gameplay.campfire]
+burn_seconds = 90.0
+light_radius_meters = 6.0
+light_color = [1.0, 0.72, 0.4]
+# The fire's heat: warmth returns inside this radius, at this rate.
+heat_radius_meters = 3.5
+heat_per_second = 8.0
+
+# The cold. A season's `cold` (seasons.toml) scales the drain; the night adds
+# to it; a carried cloak's insulation takes from it; a lit warm stone holds it
+# off; at zero the cold takes health at the starving rate's shape.
+[gameplay.warmth]
+max = 100.0
+drain_per_second = 0.5
+night_scale = 0.6
+freeze_damage_per_second = 2.0
+
+# A lit torch is a small heat: it scales the drain.
+[gameplay.torch]
+heat_scale = 0.7
+
+[gameplay.night]
+tint = [0.35, 0.42, 0.7]
+
+[rights]
+publication_authorized = false

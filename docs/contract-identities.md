@@ -46,6 +46,7 @@ not an identity but a cache key (C-R1); its evidence is the cache-key goldens.
 | `item-content-v2` | `authored` | `stage_gen.components.platformer_content.models:ItemContentCatalog.kind` |
 | `mob-content-v2` | `authored` | `stage_gen.components.platformer_content.models:MobContentCatalog.kind` |
 | `npc-content-v3` | `authored` | `stage_gen.components.platformer_content.models:NpcContentCatalog.kind` |
+| `oblique-survival-package-v1` | `authored` | `stage_gen.recipes.oblique_survival.models:ObliqueSurvivalSource.kind` |
 | `player-content-v3` | `authored` | `stage_gen.components.platformer_content.models:PlayerContentCatalog.kind` |
 | `pointclick-room-v3` | `authored` | `stage_gen.recipes.pointclick_room.models:PointClickRoom.kind` |
 | `projectile-content-v2` | `authored` | `stage_gen.components.platformer_content.models:ProjectileContentCatalog.kind` |
@@ -102,10 +103,12 @@ not an identity but a cache key (C-R1); its evidence is the cache-key goldens.
 | `scenario-program-v2` | `generated` | `stage_gen.components.scenario.models:ScenarioProgram.kind` |
 | `universe-sample-ledger-v1` | `generated` | `stage_gen.recipes.universe.models:SampleLedger.kind` |
 | `dialogue-scene-execution-graph-v5` | `graph` | `stage_gen.recipes.dialogue_scene.scene_graph:DialogueSceneGraph.kind` |
+| `oblique-survival-execution-graph-v1` | `graph` | `stage_gen.recipes.oblique_survival.survival_graph:ObliqueSurvivalGraph.kind` |
 | `pointclick-room-execution-graph-v1` | `graph` | `stage_gen.recipes.pointclick_room.room_graph:PointClickRoomGraph.kind` |
 | `sideview-platformer-execution-graph-v1` | `graph` | `stage_gen.recipes.sideview_platformer.execution_graph:ExecutionGraph.kind` |
 | `sideview-runner-execution-graph-v1` | `graph` | `stage_gen.recipes.sideview_runner.runner_graph:SideviewRunnerGraph.kind` |
 | `universe-execution-graph-v1` | `graph` | `stage_gen.recipes.universe.universe_graph:UniverseGraph.kind` |
+| `oblique-survival-manifest-v1` | `manifest` | `stage_gen.recipes.oblique_survival.manifest:MANIFEST_KIND` |
 | `pointclick-room-runtime-v3` | `manifest` | `stage_gen.recipes.pointclick_room.room_types:MANIFEST_KIND` |
 | `prepared-game-runtime-v12` | `manifest` | `stage_gen.recipes.sideview_platformer.package_types:PREPARED_RUNTIME_MANIFEST_KIND` |
 | `sideview-runner-runtime-v13` | `manifest` | `stage_gen.recipes.sideview_runner.runner_types:MANIFEST_KIND` |
@@ -117,6 +120,7 @@ not an identity but a cache key (C-R1); its evidence is the cache-key goldens.
 | `runner-structural-ground-v1` | `mode` | `stage_gen.components.runner_track.models:RunnerStructuralGround.mode` |
 | `terrain-atlas-3x3-minimal-v1` | `mode` | `stage_gen.components.sideview_stage.models:PreparedMapGround.mode` |
 | `dialogue-scene-nodes-v2` | `namespace` | `stage_gen.recipes.dialogue_scene.scene_graph:DIALOGUE_CACHE_NAMESPACE` |
+| `oblique-survival-nodes-v1` | `namespace` | `stage_gen.recipes.oblique_survival.survival_graph:OBLIQUE_SURVIVAL_CACHE_NAMESPACE` |
 | `pointclick-room-nodes-v1` | `namespace` | `stage_gen.recipes.pointclick_room.room_graph:POINTCLICK_CACHE_NAMESPACE` |
 | `sideview-platformer-content-v1` | `namespace` | `stage_gen.recipes.sideview_platformer.package_graph:CONTENT_CACHE_NAMESPACE` |
 | `sideview-platformer-world-v1` | `namespace` | `stage_gen.recipes.sideview_platformer.package_graph:WORLD_CACHE_NAMESPACE` |

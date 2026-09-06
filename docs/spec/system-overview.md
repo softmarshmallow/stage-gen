@@ -99,9 +99,10 @@ debugging and reproducibility; it is not an IP license.
 
 ## Recipes and preview
 
-Five recipes compile onto the one engine: `sideview-platformer`,
-`sideview-runner`, `dialogue-scene`, `pointclick-room`, and `universe`. The
-first four produce something to play; `universe` produces something to read.
+Six recipes compile onto the one engine: `sideview-platformer`,
+`sideview-runner`, `dialogue-scene`, `pointclick-room`, `oblique-survival`, and
+`universe`. The first five produce something to play; `universe` produces
+something to read.
 Each declares its
 own graph document kind, so no recipe can read another's plan, and none may
 define another's assumptions or artifact layout.
@@ -142,6 +143,15 @@ finishable before any generation is paid for. Its
 `pointclick-room-v3` contract, the graph, and the `pointclick-room-runtime-v3`
 manifest the `/room/<tag>` consumer under `web/lib/pointclick/` renders from.
 
+The `oblique-survival` sibling recipe packages one survival world seen from a
+fixed elevated-oblique perspective camera: billboard cards on a ground plane,
+generated ground material, an authored crafting table proved reachable before any
+spend, a season calendar, weather, music and sound. Its
+[generation specification](survival/generation-v1.md) owns the authored
+`oblique-survival-package-v1` package, the one sealed graph and its scopes, and
+the `oblique-survival-manifest-v1` manifest. Its consumer is not a browser
+surface: the [Godot host](../godot-host.md) plays it.
+
 Every genre that plays a conversation walks the same machine. The village
 dialogue box in the platformer and the visual-novel scene are two presentations
 of one ordered cursor over beats, kept in `web/lib/dialogue-scene/` free of any
@@ -158,7 +168,11 @@ Node and TypeScript are confined to the optional `web/` adapter.
 
 ## Game engine
 
-No engine is selected for future gameplay. The current browser adapter is not
-the default production target. Dedicated 2D engines, including Godot, may be
-evaluated with alternatives once export manifests are stable; see
-[game-engine evaluation](../game-engine-evaluation.md).
+No single engine is selected for the repository. Each consumer host chooses its
+own: the browser adapter hosts the side-view, room and scene genres, and the
+Godot 4.7 host under `godot/oblique_survival` hosts the survival genre. A host is
+a consumer of published manifests and never a dependency of a provider adapter, a
+component contract, or an artifact schema; see
+[game-engine evaluation](../game-engine-evaluation.md),
+[decision 0057](../decisions/0057-the-survival-game-runs-on-godot.md), and the
+[Godot host boundary](../godot-host.md).

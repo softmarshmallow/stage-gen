@@ -39,6 +39,11 @@ UNIVERSE_SEMANTIC_CONTRACT_KIND = _writer.UNIVERSE_SEMANTIC_CONTRACT_KIND
 UNIVERSE_GALLERY_CONTRACT_KIND = _writer.UNIVERSE_GALLERY_CONTRACT_KIND
 UNIVERSE_FIXTURE_REF = _writer.UNIVERSE_FIXTURE_REF
 UNIVERSE_ADMITTED_REF = _writer.UNIVERSE_ADMITTED_REF
+SURVIVAL_DOCUMENT = REPOSITORY_ROOT / "docs/spec/survival/generation-v1.md"
+SURVIVAL_CONTRACT_KIND = _writer.OBLIQUE_SURVIVAL_CONTRACT_KIND
+SURVIVAL_FIXTURE_REF = _writer.OBLIQUE_SURVIVAL_FIXTURE_REF
+SURVIVAL_SCOPE = _writer.OBLIQUE_SURVIVAL_SCOPE
+build_oblique_survival_graph_contract = _writer.build_oblique_survival_graph_contract
 build_graph_contract = _writer.build_graph_contract
 build_runner_graph_contract = _writer.build_runner_graph_contract
 build_universe_semantic_graph_contract = _writer.build_universe_semantic_graph_contract
@@ -117,6 +122,105 @@ def test_universe_contract_blocks_are_rendered_canonically() -> None:
     source = UNIVERSE_DOCUMENT.read_text(encoding="utf-8")
     for label in ("semantic", "gallery"):
         assert render(document_contract(UNIVERSE_DOCUMENT, label=label), label=label) in source
+
+
+def test_survival_document_tracks_the_executable_stage_graph() -> None:
+    assert document_contract(SURVIVAL_DOCUMENT) == build_oblique_survival_graph_contract(
+        REPOSITORY_ROOT
+    )
+
+
+def test_survival_contract_declares_its_identity_its_fixture_and_its_scope() -> None:
+    contract = document_contract(SURVIVAL_DOCUMENT)
+    assert contract["kind"] == SURVIVAL_CONTRACT_KIND
+    assert contract["fixture_ref"] == SURVIVAL_FIXTURE_REF
+    assert (REPOSITORY_ROOT / contract["fixture_ref"]).is_dir()
+    # The scope is the one header field in this recipe's topology identity: it
+    # selects a subset of the nodes. The snapshot is of the widest rung, so the
+    # narrower ones are subsets of a checked graph.
+    assert contract["scope"] == SURVIVAL_SCOPE == "full"
+
+
+def test_survival_contract_block_is_rendered_canonically() -> None:
+    source = SURVIVAL_DOCUMENT.read_text(encoding="utf-8")
+    assert render(document_contract(SURVIVAL_DOCUMENT)) in source
+
+
+def _survival_scope_table_rows() -> list[tuple[str, list[int]]]:
+    """The seven count columns of the survival scope table, per row."""
+
+    source = SURVIVAL_DOCUMENT.read_text(encoding="utf-8")
+    body = source.split("## The graph", 1)[1]
+    rows: list[tuple[str, list[int]]] = []
+    for line in body.splitlines():
+        if not line.startswith("|"):
+            if rows:
+                break
+            continue
+        cells = [cell.strip().strip("*` ") for cell in line.strip().strip("|").split("|")]
+        if len(cells) != 8:
+            continue
+        counts = cells[1:]
+        if not all(re.fullmatch(r"\d+", count) for count in counts):
+            continue
+        rows.append((cells[0], [int(count) for count in counts]))
+    assert rows, "the survival scope table was not found or no longer parses"
+    return rows
+
+
+def test_survival_scope_table_agrees_with_the_graphs_the_code_builds() -> None:
+    """The human table beside the machine block is derived from the same graphs.
+
+    The block above it snapshots the widest scope only; the ladder is the claim a
+    reader budgets a narrow run from, and nothing else recomputes it.
+    """
+
+    from stage_gen.config import StageGenConfig
+    from stage_gen.recipes.oblique_survival.survival_graph import build_graph
+    from stage_gen.recipes.oblique_survival.survival_request import resolve_survival_source
+
+    package = resolve_survival_source(REPOSITORY_ROOT / SURVIVAL_FIXTURE_REF)
+    config = StageGenConfig()
+    rows = _survival_scope_table_rows()
+    assert [name for name, _ in rows] == ["minimal", "props", "actors", "full"]
+    for name, counts in rows:
+        graph = build_graph(config, package, name)
+        operations = graph.operation_counts()
+        assert counts == [
+            len(graph.nodes),
+            operations["image_generation"],
+            operations["structured_generation"],
+            operations["tool_loop"],
+            operations["music_generation"],
+            operations["sound_effect_generation"],
+            operations["local"],
+        ], name
+
+
+def test_survival_documents_are_discoverable_and_name_their_siblings() -> None:
+    """Every survival contract is reachable from the index and from the recipe.
+
+    This is also the Checked-by anchor for the three sibling contracts:
+    spec/survival/generation-v1.md, spec/survival/ground.md,
+    spec/survival/seasons.md and spec/survival/crafting.md each name this file,
+    and the rule in scripts/check_docs.py requires the named test to contain the
+    document's own path.
+    """
+
+    docs_index = (REPOSITORY_ROOT / "docs/README.md").read_text(encoding="utf-8")
+    recipe = SURVIVAL_DOCUMENT.read_text(encoding="utf-8")
+    for relative in (
+        "spec/survival/generation-v1.md",
+        "spec/survival/ground.md",
+        "spec/survival/seasons.md",
+        "spec/survival/crafting.md",
+    ):
+        assert relative in docs_index, relative
+        assert (REPOSITORY_ROOT / "docs" / relative).is_file()
+    for sibling in ("ground.md", "seasons.md", "crafting.md"):
+        assert sibling in recipe
+    # The host that plays the manifest is named by the recipe, not inferred.
+    assert "godot-host.md" in recipe
 
 
 def test_universe_document_is_discoverable_from_the_docs_index() -> None:

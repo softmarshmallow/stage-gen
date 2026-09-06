@@ -43,6 +43,7 @@ Current camera aliases:
 | `sideview` | `lateral_orthographic_side_plane_v1` |
 | `frontview` | `screen_space_dialogue_stage_v1` |
 | `roomview` | `screen_space_room_stage_v1` |
+| `obliqueview` | `elevated_oblique_perspective_ground_plane_v1` |
 
 A new camera segment MUST be introduced by binding it to a canonical profile
 (a future `topdown` binds to `overhead_nadir_orthographic_ground_plane_v1`);
@@ -85,6 +86,11 @@ the old names.
 | `recipes/dialogue_scene` | unchanged | `2d/frontview/vn/scene` | c |
 | `recipes/pointclick_room` | new in the ABI pass | `2d/roomview/pointclick` | c/d — fixed-room stage, cursor-only interaction |
 | `recipes/universe` | new in the universe pass | `universe` | a — no camera and no genre: the semantic half of this recipe proposes, plans and admits a storyworld as text, and only its gallery half draws |
+| `recipes/oblique_survival` | new in the survival pass | `2d/obliqueview/survival` (the recipe is the genre package) | c/d — fixed elevated-oblique perspective camera, billboard cards on a ground plane, and the survival rules the cards obey |
+| the recipe's ground steps | new in the survival pass | `2d/obliqueview/survival/ground_*` | c — material plates, the macro colour field, the road and water plates, and the litter, forage and standing-plant sheets a consumer scatters |
+| the recipe's actor steps | new in the survival pass | `2d/obliqueview/survival/actor_concept`, `.../motion_atlas`, `.../motion_rebase` | c — the four-way facing set, billboard strip geometry, ground-contact measurement |
+| the recipe's world steps | new in the survival pass | `2d/obliqueview/survival/item_*`, `.../prop_*`, `.../season_look`, `.../weather_*`, `.../world_layout` | d — pickups and their icons, prop states and their interaction art, the season looks, the weather layers, and the algorithmic layout |
+| `godot/oblique_survival` | new in the survival pass | consumer host for `2d/obliqueview/survival` | d |
 | `web/lib/sideview-platformer` | `web/lib/sideview-platformer` | consumer adapter for `2d/sideview/platformer` | d |
 | `web/lib/pointclick` | new in the ABI pass | consumer adapter for `2d/roomview/pointclick` | d |
 | `web/lib/dialogue-scene` | unchanged | consumer adapter for `2d/frontview/vn/scene` | d |

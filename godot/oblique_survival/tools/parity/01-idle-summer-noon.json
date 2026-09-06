@@ -1,0 +1,12 @@
+{
+  "name": "01-idle-summer-noon",
+  "note": "critique D2 script 1: summer, noon, nothing pressed. Proves the clock, the weather spell PRNG and the forage regrow timers agree.",
+  "mode": "play",
+  "time": "noon",
+  "season": "summer",
+  "weather": "auto",
+  "digest_every": 60,
+  "steps": [
+    {"until": 1800, "held": []}
+  ]
+}

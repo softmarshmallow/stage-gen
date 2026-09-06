@@ -1,0 +1,103 @@
+# Private ignored spike source package. See survival.toml.
+#
+# The crafting table. This is gameplay data the consumer reads and no node
+# digests: a recipe edit re-bills nothing, like a music fade. The loader
+# still refuses a table that cannot be played: every item, station and
+# product must resolve, and every item must be REACHABLE, from the start
+# inventory, from a prop's yield, from the forage sheet, or from a recipe
+# whose own ingredients are reachable and whose station can exist.
+#
+# A recipe has exactly one product: an item (with a count) or a prop, which
+# is placed in the world in front of the player in its baseline look. A
+# station is a prop the player must stand near, in a given look if one is
+# named; "hand" needs nothing.
+
+schema_version = 1
+kind = "oblique-survival-crafting-v1"
+package_id = "ember-hollow"
+
+[inventory]
+# Slots in the pack. A carried item with `use.kind = "carry"` adds its slots
+# while it is carried.
+slots = 12
+
+[start]
+# The reference starts the player with nothing, and so does this: the first
+# minute is twigs and flint off the ground, then an axe, then wood.
+inventory = {}
+
+[stations]
+campfire = { prop_id = "campfire", state = "lit", reach_meters = 3.0 }
+workbench = { prop_id = "workbench", reach_meters = 3.0 }
+
+# --- by hand -----------------------------------------------------------------------
+
+[[recipes]]
+recipe_id = "axe"
+ingredients = { twig = 1, flint = 1 }
+product = { item_id = "axe", count = 1 }
+station = "hand"
+
+[[recipes]]
+recipe_id = "torch"
+ingredients = { twig = 1, grass_tuft = 2 }
+product = { item_id = "torch", count = 1 }
+station = "hand"
+
+[[recipes]]
+recipe_id = "rope"
+ingredients = { reed = 3 }
+product = { item_id = "rope", count = 1 }
+station = "hand"
+
+[[recipes]]
+recipe_id = "poultice"
+ingredients = { moss = 2, grass_tuft = 1 }
+product = { item_id = "poultice", count = 1 }
+station = "hand"
+
+[[recipes]]
+recipe_id = "campfire"
+ingredients = { log = 2, grass_tuft = 3 }
+product = { prop_id = "campfire" }
+station = "hand"
+
+[[recipes]]
+recipe_id = "workbench"
+ingredients = { log = 4, stone = 2, rope = 1 }
+product = { prop_id = "workbench" }
+station = "hand"
+
+# --- at the bench --------------------------------------------------------------------
+
+[[recipes]]
+recipe_id = "pickaxe"
+ingredients = { twig = 2, flint = 2 }
+product = { item_id = "pickaxe", count = 1 }
+station = "workbench"
+
+[[recipes]]
+recipe_id = "backpack"
+ingredients = { rope = 4, grass_tuft = 4 }
+product = { item_id = "backpack", count = 1 }
+station = "workbench"
+
+[[recipes]]
+recipe_id = "grass_cloak"
+ingredients = { grass_tuft = 6, rope = 2 }
+product = { item_id = "grass_cloak", count = 1 }
+station = "workbench"
+
+# --- at the fire ---------------------------------------------------------------------
+
+[[recipes]]
+recipe_id = "cooked_berry"
+ingredients = { berry = 2 }
+product = { item_id = "cooked_berry", count = 1 }
+station = "campfire"
+
+[[recipes]]
+recipe_id = "warm_stone"
+ingredients = { stone = 1 }
+product = { item_id = "warm_stone", count = 1 }
+station = "campfire"

@@ -95,6 +95,16 @@ The adoption and what it refuses are [0025](docs/decisions/0025-cookierun-is-ado
 - [ ] Semantic visual review of the encounter art in `iron-petal-unit-live-20260903-boss-big`: the boss's three strips at 2.6 player heights, the two projectiles, the avatar's `fly` strip, and the `encounter_start` portrait.
 - [ ] Semantic visual review of the ground and the middle-distance layer in `iron-petal-unit-live-20260903-ground-5`: does a chunk join read as a joint rather than as inserted scenery, does every slab's top edge read as the material's own, and is every branch of the layer carried and terminated? The producer measured all three and looked at all three; none of that is the verdict.
 
+## Survival
+
+The contract is [oblique-survival](docs/spec/survival/generation-v1.md); the host ruling is [0057](docs/decisions/0057-the-survival-game-runs-on-godot.md). The game has no browser surface; its runs are legible at `/runs` through the registered `oblique-survival-execution-view-v1` kind, which is the only place `web/` names the recipe.
+
+- [ ] Act on the seasons review's advisory that the standing-plant sheet's thin outlines and brighter palette sit a step outside the set's muted ink: it is a re-brief of the sheet's style emphasis and one image operation, and the user's verdict comes first ([survival ground](docs/spec/survival/ground.md)).
+- [ ] Remove the snow mound the winter look clause invites under a tuft's base — the ground has its own snow, so a look must not paint it twice; one clause edit plus per-state overrides for the three pairs whose winter twin re-branches rather than caps ([survival seasons](docs/spec/survival/seasons.md)).
+- [ ] Re-brief the road plate the way the two field plates were re-briefed, or give it a torn edge: the dirt track's stub now reads as a soft pale band against the darker turf ([survival ground](docs/spec/survival/ground.md)).
+- [ ] Semantic review of an oblique-survival run's ground, props and actors by someone other than their producer, and a separately recorded listening verdict on its music and sound takes ([VERIFICATION.md](VERIFICATION.md)).
+- [ ] Draw a mob a `back` facing, or keep `single_mirrored` as the admitted coverage for a mob and stop treating it as a gap ([oblique-survival](docs/spec/survival/generation-v1.md)).
+
 ## Future genres
 
 - [ ] `2d/sideview/jumper`, the vertical endless jumper and its own genre member family, blocked asset-side on a y-loop module ([0045](docs/decisions/0045-the-vertical-jumper-is-its-own-genre-family.md)).

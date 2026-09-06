@@ -62,9 +62,24 @@ Start here for the headless, general-purpose system:
   machine-checked current side-view platformer and runner DAGs, typed nodes, stage
   and operation contracts, internal fan-out, execution semantics, and explicitly
   separated target evolution.
-- [Point-and-click puzzle room](spec/game/pointclick-room.md) — one of five recipes
+- [Point-and-click puzzle room](spec/game/pointclick-room.md) — one of six recipes
   (`2d/roomview/pointclick`): the authored `pointclick-room-v3` room package, its
   solvability proof, the 14-node graph, and the `pointclick-room-runtime-v3` manifest.
+- [Oblique-survival generation V1](spec/survival/generation-v1.md) — one of six
+  recipes (`2d/obliqueview/survival`): the authored survival package and its
+  digest-declared takes, the presentation profile, the four-way facing rule, the
+  one sealed graph and its four scopes, which edit re-bills which node, the
+  deterministic gates, and the `oblique-survival-manifest-v1` manifest a host plays.
+- [Survival ground](spec/survival/ground.md) — the ground as a material rather
+  than a picture: the layer stack a consumer composes, the plate contract, the
+  mixing that costs nothing, the gates and their thresholds, and what the
+  manifest publishes.
+- [Survival seasons](spec/survival/seasons.md) — the calendar contract, warmth as
+  a third vital, the per-look paintover and the rule that a look is measured as
+  fractions of its canvas, and the refusals the loader makes offline.
+- [Survival crafting and items](spec/survival/crafting.md) — the authored table,
+  the reachability closure proved before any spend, the two pictures of one item,
+  and which edits are mixing rather than spend.
 - [Game view and style taxonomy](spec/game/view-and-style-taxonomy.md) — proposed
   TO-BE projection, camera, gameplay-space, asset-view, style, profile-ID, and
   module-namespace terminology; it does not claim implementation support.
@@ -160,9 +175,12 @@ Start here for the headless, general-purpose system:
 - [Generated-media publication](generated-media-publication.md) — artifact
   rights records and the repository approval gate.
 - [Repository storage](repository-storage.md) — generated files and Git LFS.
-- [Game-engine evaluation](game-engine-evaluation.md) — deliberately open
-  integration decision.
+- [Game-engine evaluation](game-engine-evaluation.md) — the criteria, the seam,
+  and the one genre for which the evaluation has been run.
 - [Web preview adapter](web-preview.md) — optional first consumer.
+- [Godot host](godot-host.md) — the second consumer, for the survival recipe:
+  what it is handed, how to run it, how it is validated headlessly, and what it
+  owns and must not own.
 - [Visual Novel Scene Kit asset contract](spec/dialogue-scene-assets.md) —
   the current producer/consumer boundary: one authored package contract
   (`dialogue-scene-v5`, one scene binding several scenarios, with per-actor

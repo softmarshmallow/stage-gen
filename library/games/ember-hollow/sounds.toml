@@ -1,0 +1,104 @@
+# Sound effects: one clip per thing the player does. The runtime names the
+# cues (they are the events it emits, the way `day` and `night` are the clock's
+# states) and this file says what each one sounds like; a cue nobody plays is
+# paid audio nobody hears, so the loader refuses one it does not know.
+#
+# The brief is the whole prompt, verbatim: the route is a foley engine, and the
+# measured lever is to name the EVENT and the material it acts on ("axe chop
+# into a tree trunk"), never the object and never a production tag. Duration is
+# the repetition control -- half a second is one footstep, two seconds is a
+# walk -- so every cue states it exactly. The route has no seed, so a brief is
+# a draw, not a sound: a cue may declare `take`, an auditioned draw kept in the
+# package (explore/sfx-audition/) and adopted through the gate instead of
+# re-drawn. Dropping `take` puts the provider draw back.
+#
+# The sweet spot between a recording and a cartoon is a real event, chosen for
+# what it means rather than what it is: a pickup is a soft pop, not a hand on
+# leaf litter; eating is a cartoon bite, not a person chewing. Nothing here
+# names a speech act (the route returns a voice for those).
+#
+# `gain` and `pitch_jitter` are consumer mixing, like music.toml [transition]:
+# no digest and no cache key reads them, so retuning re-bills nothing. The
+# route's output level swings 40 dB between draws and may not be repaired, so
+# the per-cue gain is how a set is made to sit together at playback: above 1
+# is makeup gain for a quiet take (the footstep peaks at -15.5 dBFS). The
+# numbers below aim each take at a playback peak, from its measured peak, and
+# the dev panel's per-cue sliders retune them live; the ear has the last word.
+package_id = "ember-hollow"
+
+[[cues]]
+cue = "footstep"
+# explore/sfx-audition/footstep-b3, picked by measurement (2026-09-05). A run
+# of steps rather than one: the route serves a walk far better than a single
+# half-second event (the user's call), and `onsets` has the player cut it at
+# the steps it finds and fire one a footfall, each a different step.
+take = { path = "sounds/footstep.take.mp3", sha256 = "d8e7ac0c72383379db768810fd613e2fa7277457d94e617583d7b3c063c64e94" }
+prompt = "footsteps walking on damp forest earth and pine needles"
+duration_seconds = 2.5
+onsets = true
+gain = 1.2
+pitch_jitter = 0.7    # a touch, on top of the run's own variety
+
+[[cues]]
+cue = "chop"
+# explore/sfx-audition/chop-a1: the admissible draw with the most level, picked by
+# measurement, not by ear (2026-09-05); the user's pick replaces it.
+take = { path = "sounds/chop.take.mp3", sha256 = "4f8fdbdba80465052252c6dada79db40d12cde8f8790f8b32a4948d831b82717" }
+prompt = "heavy axe chop into a tree trunk"
+duration_seconds = 0.6
+gain = 2.7
+pitch_jitter = 0.5
+
+[[cues]]
+cue = "mine"
+# explore/sfx-audition/mine-a2: the admissible draw with the most level, picked by
+# measurement, not by ear (2026-09-05); the user's pick replaces it.
+take = { path = "sounds/mine.take.mp3", sha256 = "818f0478b040ffee77c15c810a552da33925f1cd807ed083b7be20976a168aa5" }
+prompt = "pickaxe strike on granite rock"
+duration_seconds = 0.6
+gain = 1.4
+pitch_jitter = 0.5
+
+[[cues]]
+cue = "pickup"
+# explore/sfx-audition/pickup-a1: the admissible draw with the most level, picked by
+# measurement, not by ear (2026-09-05); the user's pick replaces it.
+take = { path = "sounds/pickup.take.mp3", sha256 = "4b660977508c105beb641a8dfefbdb5fd3c0e70516e7bb8240ad5e85519571f9" }
+prompt = "video game item pickup sound"
+duration_seconds = 0.5
+gain = 0.8
+pitch_jitter = 0.0
+
+[[cues]]
+cue = "fire"
+# explore/sfx-audition/fire-b3, picked by measurement, not by ear (2026-09-05).
+# Every draw of "campfire burning, wood crackling and popping" clipped at 0 dBFS;
+# placing the fire a few steps off drew it 5 to 22 dB under, three of three.
+take = { path = "sounds/fire.take.mp3", sha256 = "7a87e924771d6365a3f4483d6ff8e907688a880d9af75f76f41cba097f5167c5" }
+prompt = "small campfire crackling softly, heard from a few steps away"
+duration_seconds = 8.0
+loop = true
+gain = 1.1
+
+[[cues]]
+cue = "eat"
+# explore/sfx-audition/eat-a1: the admissible draw with the most level, picked by
+# measurement, not by ear (2026-09-05); the user's pick replaces it.
+take = { path = "sounds/eat.take.mp3", sha256 = "db59427ffbecc8704a59f6cba732fd0fa11922ff0dbbb5df140d82643ed2dc1f" }
+prompt = "cartoon crunchy bite and gulp"
+duration_seconds = 0.7
+gain = 1.0
+pitch_jitter = 0.0
+
+[[cues]]
+cue = "footstep_snow"
+# The walk under snow: played instead of `footstep` while the snow factor is
+# past a half. explore/sfx-audition/footstep_snow-a2: of four draws all were
+# admissible; the one with the most level, picked by measurement, not by ear
+# (2026-09-06); the user's pick replaces it.
+take = { path = "sounds/footstep_snow.take.mp3", sha256 = "44d10d734b663da23882b0e1a68db8927f2ef13b89256ef9ea4c4b60dc592e9d" }
+prompt = "footsteps walking on fresh dry snow, crunching"
+duration_seconds = 2.5
+onsets = true
+gain = 1.2
+pitch_jitter = 0.7

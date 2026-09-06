@@ -1,0 +1,197 @@
+# Private ignored spike source package. See survival.toml.
+#
+# The items: everything that can be carried. An item has two pictures. In the
+# world it is a pickup sprite, drawn a size up (a real log is a fifth of a
+# player and vanishes at play zoom, fifteen pixels at 40 px/m), seen popping
+# out of a gathered prop or lying where the player dropped it; a forageable
+# item is also painted flat on the ground on the forage sheet in ground.toml.
+# In the inventory it is a cell of the icon sheet below, one flat glyph per
+# item painted together at one scale. What an item DOES is authored here and
+# read by the consumer only: `use` is a press of the use key, `tool` is what
+# it serves and how long it lasts, `stack_max` is how many share one slot.
+# None of it is identity: a use edit re-bills nothing. The recipes that turn
+# items into items live in crafting.toml.
+
+schema_version = 1
+kind = "oblique-survival-items-v1"
+package_id = "ember-hollow"
+
+# --- raw materials -------------------------------------------------------------
+
+[[items]]
+item_id = "log"
+display_name = "Log"
+height_units = 0.32
+stack_max = 10
+prompt = "A short split length of pale-cored firewood with rough bark on one face."
+
+[[items]]
+item_id = "berry"
+display_name = "Berries"
+height_units = 0.20
+stack_max = 10
+prompt = "A small tight cluster of three round dark berries on a short stem."
+use = { kind = "consume", hunger = 20.0 }
+
+[[items]]
+item_id = "stone"
+display_name = "Stone"
+height_units = 0.24
+stack_max = 10
+prompt = "A single fist-sized angular grey stone with fractured faces."
+
+[[items]]
+item_id = "grass_tuft"
+display_name = "Cut grass"
+height_units = 0.26
+stack_max = 10
+prompt = "A small bundle of cut dry grass blades tied once at the middle."
+
+[[items]]
+item_id = "twig"
+display_name = "Twigs"
+height_units = 0.26
+stack_max = 10
+prompt = "A short bundle of three thin dry twigs bound together with a strand of grass."
+
+[[items]]
+item_id = "flint"
+display_name = "Flint"
+height_units = 0.20
+stack_max = 10
+prompt = "A sharp-edged chip of dark glassy flint with pale worn facets along its edges."
+
+[[items]]
+item_id = "reed"
+display_name = "Reeds"
+height_units = 0.30
+stack_max = 10
+prompt = "A small sheaf of three cut green marsh reeds with their pale ends tied together."
+
+[[items]]
+item_id = "mushroom"
+display_name = "Mushroom"
+height_units = 0.20
+stack_max = 10
+prompt = "A single plump brown-capped mushroom with a short pale stem, pulled whole."
+use = { kind = "consume", hunger = 12.0 }
+
+[[items]]
+item_id = "moss"
+display_name = "Moss"
+height_units = 0.20
+stack_max = 10
+prompt = "A soft rounded handful of bright green moss, lifted in one piece."
+
+# --- made things -----------------------------------------------------------------
+
+[[items]]
+item_id = "rope"
+display_name = "Rope"
+height_units = 0.22
+stack_max = 5
+prompt = "A short coil of coarse twisted reed rope, its two ends tucked into the coil."
+
+[[items]]
+item_id = "axe"
+display_name = "Flint axe"
+height_units = 0.34
+stack_max = 1
+prompt = "A small hand axe: a chipped flint head lashed with grass cord to a short forked stick handle."
+tool = { verb = "chop", uses = 25 }
+
+[[items]]
+item_id = "pickaxe"
+display_name = "Flint pick"
+height_units = 0.36
+stack_max = 1
+prompt = "A small pick: two pointed flint chips lashed back to back on the end of a stout stick."
+tool = { verb = "mine", uses = 20 }
+
+[[items]]
+item_id = "torch"
+display_name = "Torch"
+height_units = 0.36
+stack_max = 1
+prompt = "An unlit hand torch: a short stick with a fat head of dry grass bound tight around the top."
+use = { kind = "light", radius_meters = 3.5, burn_seconds = 60.0 }
+
+[[items]]
+item_id = "cooked_berry"
+display_name = "Stewed berries"
+height_units = 0.22
+stack_max = 10
+prompt = "A small rounded heap of glossy dark stewed berries on a curled leaf."
+use = { kind = "consume", hunger = 45.0, warmth = 10.0 }
+
+[[items]]
+item_id = "poultice"
+display_name = "Moss poultice"
+height_units = 0.22
+stack_max = 5
+prompt = "A pad of green moss wrapped in dry grass and tied with a single blade, a healing dressing."
+use = { kind = "consume", health = 30.0 }
+
+[[items]]
+item_id = "backpack"
+display_name = "Reed pack"
+height_units = 0.40
+stack_max = 1
+prompt = "A small rounded rucksack woven from reeds, with two grass-rope shoulder straps and a flap."
+use = { kind = "carry", slots = 4 }
+
+# --- against the winter -------------------------------------------------------------
+#
+# `wear` is passive like `carry`: the cloak slows the warmth drain while it is in
+# the pack. `warm` is the torch's shape: light the stone at a fire and it holds
+# the drain off for `heat_seconds`, then it is spent.
+
+[[items]]
+item_id = "grass_cloak"
+display_name = "Grass cloak"
+height_units = 0.42
+stack_max = 1
+prompt = "A short shaggy cloak of layered dry grass bound at the neck with a grass rope, folded over itself."
+use = { kind = "wear", insulation = 0.5 }
+
+[[items]]
+item_id = "warm_stone"
+display_name = "Warm stone"
+height_units = 0.20
+stack_max = 1
+prompt = "A smooth rounded river stone, palm sized, glowing faintly amber at its core with a few pale heat lines."
+use = { kind = "warm", heat_seconds = 120.0 }
+
+# --- the inventory icons -----------------------------------------------------------
+#
+# One lattice sheet, one icon per cell in the items' order above, painted
+# together so every icon shares one scale and one contour weight. A cell left
+# over after the items is a HUD glyph named in `glyphs`; the loader refuses a
+# count that does not fill the lattice exactly, so growing past sixteen items
+# means a 6x4 lattice and the glyphs to fill it.
+[icons]
+columns = 6
+rows = 4
+cell_px = 256
+# 6x4 since the winter pass (18 items and the six HUD glyphs). The 4x4 take
+# of the crafting pass is in explore/ground-audition/adopted-4x4/. This one is
+# explore/ground-audition/icons-a1 (the 6x4 draw), adopted 2026-09-06 through
+# the lattice gate: of three draws a2 touched a guide line in cell 19; a1 has
+# every cell in order, one contour weight across the set.
+take = { path = "items/icons.take.png", sha256 = "9122f9f971ff693ee9708c2d3ae4dd4ddd71b419ef15a46f0fe38e3e956f9220" }
+style_emphasis = """
+flat inventory icons: one clean rounded shape per cell filling about two
+thirds of its cell, a single even dark contour line of the same weight on
+every icon, two or three flat tones per icon with one pale highlight, no
+plate, tile, badge, frame, shadow or glow behind or under any icon, no text.
+"""
+# HUD glyphs, in the cells after the items: the three vitals' rows, the cold
+# beside the warmth bar while it drains, and the day line's sun and moon.
+glyphs = [
+  { glyph = "heart", brief = "a plump rounded heart, red" },
+  { glyph = "bowl", brief = "a small round wooden bowl seen from slightly above, steam rising" },
+  { glyph = "flame", brief = "a single upright flame, orange with a yellow core" },
+  { glyph = "snowflake", brief = "a simple six-armed snowflake, pale blue-white" },
+  { glyph = "sun", brief = "a round sun with short triangular rays, warm yellow" },
+  { glyph = "moon", brief = "a crescent moon, pale cream" },
+]

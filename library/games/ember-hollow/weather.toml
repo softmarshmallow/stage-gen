@@ -1,0 +1,203 @@
+# Private ignored spike source package. Generated output is unreviewed,
+# unpublished, and not a repository fixture. Nothing here is promoted to
+# src/ or library/ without a separate explicit decision.
+#
+# WEATHER: A CONDITION OF THE WORLD, NOT A MOMENT ON THE SCREEN
+#
+# The repository's screen-FX family (fx.toml, components/game_fx) is plates
+# slammed over the screen at a *moment*: a cut-in, a wipe, a vignette. Weather
+# is not a moment. It is a continuous state of the world, like the clock, with
+# one factor the runtime moves on [0, 1] and every layer reads, and its
+# presentation spans three spaces at once: the screen (a veil of falling rain,
+# a flash), the ground (splashes, standing water) and the light (the whole
+# scene's colour and, for a strike, its brightness). So it is its own family,
+# `weather`, a sibling of music.toml, and its taxonomy is structural, the way
+# props and looks are (doctrine A): the system names techniques, the author
+# binds meaning.
+#
+#   condition   a named world state the runtime drives on [0, 1]. `rain` is
+#               the one this package serves; the loader refuses any other,
+#               because a condition no consumer plays is paid art nobody sees.
+#   layers      each a technique the pipeline already knows, never a meaning:
+#     drops     a two-cell sheet, one streak and one drop, run as a screen-space
+#               particle system in several parallax layers. The two cutouts are
+#               the art; how many fall, how fast and at what depths are numbers
+#               here and in the consumer, never baked into a picture. (The first
+#               pass drew a tiling veil of hundreds of streaks: its density was
+#               art, and art cannot be turned down without a re-bill.)
+#     ground    a four-cell puff sheet (the dust sheet's technique, the same
+#               gate) laid FLAT on the ground where drops land.
+#     wet       a binding to a ground decal declared in ground.toml with
+#               use = "wet": the layout scatters it at world generation and
+#               the runtime fades it in with wetness and out as the ground dries.
+#     strike    a four-cell sheet of bolts, stood as billboards at a strike
+#               point in the world (a screen sprite would not survive a camera
+#               turn), plus a flash on the scene's own light model. The flash
+#               is a number, not art.
+#     sound     an ambience loop and a one-shot on the sound-effect route, the
+#               brief verbatim, level-gated inside the retry owner.
+#
+# Every layer is optional; rain with only drops is still rain. Timing that
+# belongs to the WORLD (how a spell arrives and leaves, how often it strikes)
+# is authored here. Timing that is only feel (the flash envelope's pulses, a
+# fade curve, the parallax ratios) is the consumer's and lives in the viewer.
+
+schema_version = 1
+kind = "oblique-survival-weather-v1"
+package_id = "ember-hollow"
+
+[[conditions]]
+condition_id = "rain"
+# The world's clock for the condition. Spells are drawn from these ranges by
+# the runtime's own seed; the master control (T in the viewer) overrides them.
+onset_seconds = 14.0
+decay_seconds = 26.0
+dry_spell_seconds = [120.0, 360.0]
+wet_spell_seconds = [70.0, 200.0]
+# The world under full rain: every colour multiplied by the tint and pulled
+# this far toward grey. The reference's rain reads as a cool wash before it
+# reads as streaks; this is the wash.
+tint = [0.80, 0.88, 0.94]
+desaturate = 0.30
+
+[conditions.drops]
+# The two cells, left and right. How many are on screen at full rain, how
+# many parallax layers the consumer stacks them in, and how tall the streak
+# is in the nearest layer, in player heights.
+kinds = ["streak", "drop"]
+count_per_screen = 180
+layers = 3
+# Metres per second measured at the ground; the consumer paces the nearer
+# layers faster. Seven crossed the screen in a second and a half and read as
+# drifting once the streaks were drawn at their true size; the user asked for
+# smaller and faster, and twelve is a downpour.
+fall_speed_meters_per_second = 12.0
+# The streak's height in the nearest layer, in player heights. A third of one
+# was a hairline nobody noticed; half of one with the bold streak was icicles.
+# Those verdicts were given under a GL point-size cap the viewer no longer
+# has (2026-09-05): drawn honestly, 0.4 stood the near streak across two
+# fifths of the screen, so this is what that capped look measured as, a
+# fifth of the screen in the near layer and a twelfth in the far. Not identity
+# for the drops picture (only its brief is digested); retune freely, and the
+# dev panel's "rain streak height" slider does it live.
+height_units = 0.15
+prompt = """
+one falling rain streak: a bold tapering vertical stroke about a sixth as wide
+as it is tall, solid pale bone-white with a thin ink contour, rounded at the
+top and pointed at the bottom, unbroken; and one small round raindrop, pale
+grey-blue with a tiny highlight.
+"""
+
+[conditions.ground]
+# The four quadrant cells, in the reading order the layout fixes. Laid flat,
+# so a ring is a wide shallow ellipse and a crown rises from one.
+kinds = ["ring", "crown", "spray", "bead"]
+height_units = 0.16
+rate_per_100_sqm_per_second = 10.0
+prompt = """
+Four separate rain splashes lying flat on the ground, seen from a little above:
+a wide shallow ripple ring of pale grey-blue water; a small crown splash of
+three or four pale droplets rising from a shallow ring; a wider flat spray of a
+few pale flecks around a small ring; a single round pale grey-blue bead.
+"""
+
+[conditions.wet]
+decal_id = "puddle"
+per_100_sqm = 0.5
+dry_seconds = 90.0
+
+[conditions.strike]
+# Strikes happen only above this intensity; below it, rain is just rain.
+above = 0.72
+interval_seconds = [7.0, 24.0]
+flash_seconds = 0.5
+height_units = 8.0
+prompt = """
+Four separate lightning bolts: each a single tall jagged flat bone-white shape
+with a dark ink contour and a thin pale yellow inner rim, running from a little
+below the top of its area to a fine point a little above its bottom, with clear
+empty space between the bolt and every edge of its area, at least three times
+taller than it is wide, forking once or twice into shorter side branches.
+"""
+
+[conditions.sound]
+# The sound-effect route is a foley engine: name the event and its material.
+ambience = { prompt = "Steady rain falling on tree leaves and soft earth, heard from under the trees, no thunder, no wind, no birds, no voices.", duration_seconds = 20.0 }
+strike = { prompt = "A close lightning strike: one sharp crack of thunder, then a long rolling rumble that fades out completely.", duration_seconds = 5.0 }
+
+
+# SNOW: A SEASON, NOT A SPELL
+#
+# The reference's winter turns the turf white and caps every sprite; the turf
+# is possible because nothing recognisable is painted into it (GROUND.md,
+# layer 5). This condition serves the turf: a `cover` plate on the ground
+# plate route, laid over every biome by coverage through the same torn
+# erosion a biome edge gets, `drops` reused as snowfall, `ice` a plate on the
+# water route the water shader mixes in as the snow rises, and a wind loop.
+# The runtime does not roll snow from the spell clock: the season holds its
+# factor (seasons.toml `snow`), ramped through the onset and decay below; the
+# master control and the dev panel still force it. The spell ranges are
+# unused while a calendar is authored. Sprite caps are the season's look
+# (seasons.toml `look`), not this condition's.
+[[conditions]]
+condition_id = "snow"
+onset_seconds = 60.0
+decay_seconds = 120.0
+dry_spell_seconds = [600.0, 1800.0]
+wet_spell_seconds = [300.0, 900.0]
+tint = [0.88, 0.92, 1.0]
+desaturate = 0.35
+
+[conditions.cover]
+texel_meters = 2.0
+feature_max_meters = 0.25
+value_target = 0.84
+style_emphasis = """
+for this plate only, set the mood aside: an evenly lit plate of fresh fallen
+snow, very pale cool white, with no black and no deep shadow anywhere. Draw it
+the way the style reference is drawn, the ink line and two flat tones per
+shape and nothing rendered inside a shape, at the scale of the material.
+"""
+prompt = """
+fresh snow cover: plain pale blue-white snow, mostly bare, with a sparse
+scatter of soft slightly deeper blue-grey hollows and a few faint wind
+ripples, nothing identifiable.
+"""
+
+[conditions.ice]
+# The water, frozen: drawn on the water plate route with the cover's pale
+# band, mirrored like every plate, mixed over the water by the snow factor
+# with the waves stilled. A look, not a floor: nothing stands across the water.
+texel_meters = 6.0
+value_target = 0.72
+# explore/ground-audition/ice-a1, adopted 2026-09-06 through the plate gate
+# (luma 0.89 against the cover's band; the viewer levels it to value_target).
+take = { path = "weather/ice.take.png", sha256 = "0aafefebc526e7edd44671194ae5dc2898cdbeee78dd3d1acec64443a734beec" }
+style_emphasis = """
+for this plate only, set the mood aside: an evenly lit plate of lake ice, pale
+grey-blue, with no black and no deep shadow anywhere. Draw it the way the style
+reference is drawn, the ink line and two flat tones per shape and nothing
+rendered inside a shape, at the scale of the material.
+"""
+prompt = """
+frozen lake ice: plain pale grey-blue ice, mostly bare, with a few faint long
+pressure cracks, a sparse scatter of wind-scoured snow patches, nothing
+identifiable.
+"""
+
+[conditions.sound]
+ambience = { prompt = "steady cold wind blowing over open snow, no voices", duration_seconds = 20.0 }
+
+[conditions.drops]
+kinds = ["flake", "speck"]
+shape = "blob"
+count_per_screen = 160
+layers = 3
+fall_speed_meters_per_second = 1.2
+# Down from 0.05, where the flakes read as large opaque discs; at 0.025
+# they were dust.
+height_units = 0.035
+prompt = """
+one soft snowflake: a plain rounded white blob with a thin ink contour and a
+slightly irregular edge; and one tiny round white speck.
+"""

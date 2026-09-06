@@ -154,12 +154,15 @@ its own records support, and the reader judges liveness from when the trace was 
   one-axis image repetition.
 - Deterministic image/audio inspection, normalization, persistence, retries,
   cancellation, path confinement, and redaction.
-- Five recipes compiled onto that engine: `sideview-platformer` and `sideview-runner`
+- Six recipes compiled onto that engine: `sideview-platformer` and `sideview-runner`
   build distinct prepared-game members from a `game.toml` package, `dialogue-scene`
   builds an adult, non-explicit scene bundle from an authored request,
   `pointclick-room` builds a fixed painted puzzle room from an authored room package,
-  and `universe` builds an explorable storyworld package with one concept image per
-  admitted entity.
+  `oblique-survival` builds a billboard-sprite survival world under a fixed
+  elevated-oblique perspective camera — ground material, props and their interaction
+  states, four-way actors, an authored crafting table, a season calendar, weather,
+  music and sound — from an authored survival package, and `universe` builds an
+  explorable storyworld package with one concept image per admitted entity.
   Each declares its own graph document kind, so no recipe can read another's plan.
 - An application-agnostic asset-graph engine, `gnode`: declared `model@provider` routes with the
   features each supports, offline projection, resource-aware scheduling, content-and-lineage cache
@@ -197,10 +200,12 @@ viewpoint and camera, composition rules, and validation harnesses belong to
 individual recipes. `sideview-platformer` is the side-view reference integration;
 `sideview-runner` is the reaction-fair auto-run integration;
 `dialogue-scene` is a separate adult, non-explicit visual-novel bundle recipe;
-`pointclick-room` is a fixed-room, cursor-driven puzzle recipe. No recipe may
-define another's assumptions or artifact layout.
+`pointclick-room` is a fixed-room, cursor-driven puzzle recipe;
+`oblique-survival` is the ground-plane survival recipe under an elevated-oblique
+perspective camera. No recipe may define another's assumptions or artifact
+layout.
 
-The point-and-click recipe (`2d/roomview/pointclick`) is one of the four.
+The point-and-click recipe (`2d/roomview/pointclick`) is one of the six.
 One room is one authored package under `library/games/<game_id>/`: a
 `pointclick-room-v3` `room.toml` — a backdrop brief, hotspots carrying an
 art-direction rectangle and a separate runtime hit area, items, and interactions
@@ -221,6 +226,32 @@ uv run stage-gen pointclick-room generate \
 
 Add `--dry-run` for the free rehearsal. See the
 [point-and-click puzzle room specification](docs/spec/game/pointclick-room.md).
+
+## A survival world on a ground plane
+
+The survival recipe (`2d/obliqueview/survival`) is the sixth. One world is one
+authored package under `library/games/<game_id>/`: an
+`oblique-survival-package-v1` `survival.toml` beside the files it names — the
+actors and their facing sets, the props and their interaction states, the ground
+as material plates and scattered sheets, the items and the crafting table, a
+season calendar, weather, music and sound. Everything drawn is a flat card
+standing on a 3D ground plane under a fixed elevated-oblique perspective camera,
+so a prop is never seen from behind however far the camera turns. The run
+publishes an `oblique-survival-manifest-v1` manifest that the Godot host under
+`godot/oblique_survival` plays; this recipe has no browser player.
+
+```sh
+uv run stage-gen oblique-survival generate \
+  --input library/games/ember-hollow \
+  --output out/ember-hollow-v1 \
+  --scope full
+```
+
+Add `--dry-run` for the free rehearsal, and `--scope minimal` for the narrowest
+rung of the ladder — a narrow scope shares every node it keeps with a wide one,
+so it warms the cache rather than paying twice. See the
+[oblique-survival specification](docs/spec/survival/generation-v1.md) and the
+[Godot host](docs/godot-host.md).
 
 ## Authored dialogue in the same game
 
@@ -377,6 +408,12 @@ published `sideview-runner-runtime-v13` run, `/room/<tag>` replays one published
 code never receives provider credentials, and the docs gate checks that nothing
 under `web/lib/shell` can spawn a process.
 
+`godot/oblique_survival` is the repository's second consumer and starts no run
+either. It plays one published `oblique-survival-manifest-v1` run directory,
+named on its command line, and commits no media of its own; see
+[Godot host](docs/godot-host.md) and
+[decision 0057](docs/decisions/0057-the-survival-game-runs-on-godot.md).
+
 ## Configuration and providers
 
 `.env.example` is the configuration reference. The Python application imports
@@ -441,6 +478,8 @@ review by an agent other than its producer.
 
 - [Documentation index](docs/README.md)
 - [Asset contracts](docs/spec/asset-contracts.md)
+- [Oblique-survival generation](docs/spec/survival/generation-v1.md)
+- [Godot host](docs/godot-host.md)
 - [Verified single-axis image repeat](docs/image-repeat.md)
 - [Scene-layer contract](docs/scene-layers.md)
 - [Verification rules](VERIFICATION.md)

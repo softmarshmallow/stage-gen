@@ -1,0 +1,30 @@
+{
+  "name": "02-walk-and-chop",
+  "note": "critique D2 script 2: noon, d held for 300 steps, then space held for 600. Proves movement, coast collision, targeting, the harvest cycle and drop physics agree. The axe is handed over first because this run's crafting.start is empty on both sides, and space against a tree with empty hands only ever prints a refusal.",
+  "mode": "play",
+  "time": "noon",
+  "season": "auto",
+  "weather": "auto",
+  "give": {
+    "axe": 1
+  },
+  "digest_every": 60,
+  "steps": [
+    {
+      "until": 300,
+      "held": [
+        "d"
+      ]
+    },
+    {
+      "until": 900,
+      "held": [
+        "space"
+      ]
+    },
+    {
+      "until": 1800,
+      "held": []
+    }
+  ]
+}

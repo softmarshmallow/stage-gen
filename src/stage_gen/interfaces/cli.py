@@ -66,6 +66,10 @@ from stage_gen.recipes.dialogue_scene.review import transition_dialogue_review
 from stage_gen.recipes.dialogue_scene.scene_executor import DialogueSceneExecutor
 from stage_gen.recipes.dialogue_scene.scene_view import build_dialogue_scene_view
 from stage_gen.recipes.executor import RecipeRun
+from stage_gen.recipes.oblique_survival.survival_executor import ObliqueSurvivalExecutor
+from stage_gen.recipes.oblique_survival.survival_graph import OBLIQUE_SURVIVAL_CACHE_NAMESPACE
+from stage_gen.recipes.oblique_survival.survival_types import SCOPES as SURVIVAL_SCOPES
+from stage_gen.recipes.oblique_survival.survival_view import build_oblique_survival_view
 from stage_gen.recipes.pointclick_room.room_executor import PointClickRoomExecutor
 from stage_gen.recipes.pointclick_room.room_view import build_pointclick_room_view
 from stage_gen.recipes.sideview_platformer.execution_view import build_execution_view
@@ -307,6 +311,62 @@ def build_parser() -> argparse.ArgumentParser:
         help="re-render the consumer page from a finished gallery run, provider-free",
     )
     universe_page_parser.add_argument("--run", required=True, dest="run_dir")
+
+    oblique_survival_parser = commands.add_parser(
+        "oblique-survival",
+        description="Generate one authored elevated-oblique survival world, scope by scope",
+    )
+    oblique_survival_commands = oblique_survival_parser.add_subparsers(
+        dest="oblique_survival_command", required=True
+    )
+    oblique_survival_generate_parser = oblique_survival_commands.add_parser(
+        "generate",
+        help="draw, gate and publish one scope of one survival package",
+    )
+    oblique_survival_generate_parser.add_argument(
+        "--input",
+        required=True,
+        dest="input_path",
+        help="authored survival package directory (survival.toml plus its siblings)",
+    )
+    oblique_survival_generate_parser.add_argument("--output", required=True, dest="output_path")
+    oblique_survival_generate_parser.add_argument("--cache-dir", dest="cache_dir")
+    oblique_survival_generate_parser.add_argument(
+        "--scope",
+        choices=SURVIVAL_SCOPES,
+        default="full",
+        help="which rung of the ladder to draw; a narrower scope shares every node it keeps",
+    )
+    oblique_survival_generate_parser.add_argument("--dry-run", action="store_true", dest="dry_run")
+    oblique_survival_generate_parser.add_argument("--invocation-id")
+    oblique_survival_generate_parser.add_argument(
+        "--failure-node", dest="failure_node", help="inject one dry-run node failure"
+    )
+    oblique_survival_plan_parser = oblique_survival_commands.add_parser(
+        "plan",
+        help="print the exact plan for one scope, offline, and what a cache would restore",
+    )
+    oblique_survival_plan_parser.add_argument("--input", required=True, dest="input_path")
+    oblique_survival_plan_parser.add_argument("--scope", choices=SURVIVAL_SCOPES, default="full")
+    oblique_survival_plan_parser.add_argument(
+        "--cache-dir",
+        dest="cache_dir",
+        help="report which provider operations this cache would restore, before any spend",
+    )
+    oblique_survival_import_parser = oblique_survival_commands.add_parser(
+        "import-run",
+        help="replay a prior run's artifacts into the cache, key by key, provider-free",
+    )
+    oblique_survival_import_parser.add_argument("--run", required=True, dest="run_dir")
+    oblique_survival_import_parser.add_argument("--input", required=True, dest="input_path")
+    oblique_survival_import_parser.add_argument("--cache-dir", required=True, dest="cache_dir")
+    oblique_survival_import_parser.add_argument("--scope", choices=SURVIVAL_SCOPES, default="full")
+    oblique_survival_finalize_parser = oblique_survival_commands.add_parser(
+        "finalize",
+        help="rebuild one run's manifest from what it has on disk, provider-free",
+    )
+    oblique_survival_finalize_parser.add_argument("--run", required=True, dest="run_dir")
+    oblique_survival_finalize_parser.add_argument("--input", required=True, dest="input_path")
 
     scenario_parser = commands.add_parser(
         "scenario",
@@ -574,6 +634,8 @@ def _build_run_view_for(run_dir: Path) -> RunView:
         return build_sideview_runner_view(run_dir)
     if declared == "universe-execution-graph-v1":
         return build_universe_view(run_dir)
+    if declared == "oblique-survival-execution-graph-v1":
+        return build_oblique_survival_view(run_dir)
     raise ValueError(
         f"unsupported execution plan kind: {declared!r}; re-export this run with a current "
         "stage-gen"
@@ -1107,6 +1169,86 @@ async def _dispatch_universe(
     return write_report(stdout, report)
 
 
+async def _dispatch_oblique_survival(
+    args: argparse.Namespace,
+    *,
+    config: StageGenConfig,
+    stdout: TextIO,
+) -> int:
+    subcommand = str(args.oblique_survival_command)
+    if subcommand == "plan":
+        executor = ObliqueSurvivalExecutor(config, scope=str(args.scope))
+        plan = executor.plan(Path(args.input_path))
+        plan_report: dict[str, object] = {
+            "recipe": "oblique-survival",
+            "scope": plan.scope,
+            "package_id": plan.resolved.package_id,
+            "graph": plan.graph.model_dump(mode="json"),
+            "projection": plan.projection.model_dump(mode="json"),
+        }
+        if args.cache_dir:
+            # What the warm run would actually cost, read statically and for free.
+            plan_report["cache"] = cache_report(
+                plan.graph, Path(args.cache_dir), (OBLIQUE_SURVIVAL_CACHE_NAMESPACE,)
+            )
+        stdout.write(f"{json.dumps(plan_report, sort_keys=True, separators=(',', ':'))}\n")
+        return 0
+    if subcommand == "import-run":
+        executor = ObliqueSurvivalExecutor(config, scope=str(args.scope))
+        transfer = executor.import_run(
+            Path(args.run_dir),
+            input_path=Path(args.input_path),
+            cache_dir=resolve_cache_dir(args.cache_dir, config),
+        )
+        return write_report(stdout, {"ok": True, **transfer.document()})
+    if subcommand == "finalize":
+        executor = ObliqueSurvivalExecutor(config)
+        run_dir = Path(args.run_dir)
+        manifest = executor.finalize(run_dir, input_path=Path(args.input_path))
+        return write_report(
+            stdout,
+            {
+                "ok": True,
+                "recipe": "oblique-survival",
+                "run_dir": str(run_dir),
+                "status": manifest["status"],
+            },
+        )
+
+    executor = ObliqueSurvivalExecutor(config, scope=str(args.scope))
+    input_path = Path(args.input_path)
+    output_path = resolve_output_path(args.output_path)
+    cache_dir = resolve_cache_dir(args.cache_dir, config)
+    invocation_id = args.invocation_id or f"oblique-survival-{uuid.uuid4().hex}"
+    if not args.dry_run and args.failure_node is not None:
+        raise CliUsageError("--failure-node is available only with --dry-run")
+    if args.dry_run:
+        run = await executor.dry_run(
+            input_path,
+            run_dir=output_path,
+            cache_dir=cache_dir,
+            invocation_id=invocation_id,
+            failure_node_id=args.failure_node,
+        )
+    else:
+        run = await executor.run(
+            input_path,
+            run_dir=output_path,
+            cache_dir=cache_dir,
+            invocation_id=invocation_id,
+        )
+    report = run_report(
+        run,
+        run_dir=output_path,
+        recipe="oblique-survival",
+        scope=run.plan.scope,
+        package_id=run.plan.resolved.package_id,
+    )
+    if run.manifest is not None:
+        report["status"] = run.manifest.get("status")
+    return write_report(stdout, report)
+
+
 async def _dispatch_async(
     args: argparse.Namespace,
     *,
@@ -1120,6 +1262,8 @@ async def _dispatch_async(
         return await _dispatch_pointclick_room(args, config=config, stdout=stdout)
     if args.command == "universe":
         return await _dispatch_universe(args, config=config, stdout=stdout)
+    if args.command == "oblique-survival":
+        return await _dispatch_oblique_survival(args, config=config, stdout=stdout)
     if args.command == "generate":
         if args.output_path is None:
             raise CliUsageError("generate requires --output")

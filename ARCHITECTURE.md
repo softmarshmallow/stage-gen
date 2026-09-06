@@ -38,6 +38,9 @@ src/stage_gen/interfaces/     argparse CLI, the only automation surface
 src/stage_gen/resources/      wheel-packaged recipe resources
 library/games/                source-checkout or external authored package workspace
 web/                          optional browser preview adapter
+godot/                        Godot 4.7 host for the oblique-survival recipe: a
+                              second consumer that loads one published run
+                              directory and starts no generation
 docs/                         contracts, operations, research, and policy
 ```
 
@@ -110,16 +113,19 @@ uv run stage-gen <args>
 ```
 
 The CLI is the only automation surface: there is no HTTP service, and no
-process outside it starts a run. Five recipes compile onto the one engine —
+process outside it starts a run. Six recipes compile onto the one engine —
 `sideview-platformer` and `sideview-runner` build distinct prepared-game
 members from a `game.toml` package, `dialogue-scene` builds a scene bundle from
-an authored request document, and `pointclick-room` builds a fixed painted
+an authored request document, `pointclick-room` builds a fixed painted
 puzzle room from an authored package whose puzzle is proven finishable before generation is scheduled
 (`stage-gen pointclick-room generate --input library/games/<id>
---output out/<tag>`), and `universe` builds an explorable storyworld package —
-typed entities and one concept image each — from a poster, a synopsis, and an
-expansion direction. Each declares its own graph document kind, so no recipe
-can read another's plan.
+--output out/<tag>`), `oblique-survival` builds a billboard-sprite survival
+world on a ground plane under a fixed elevated-oblique perspective camera from
+its own authored package (`stage-gen oblique-survival generate --input
+library/games/<id> --output out/<tag> --scope full`), and `universe` builds an
+explorable storyworld package — typed entities and one concept image each —
+from a poster, a synopsis, and an expansion direction. Each declares its own
+graph document kind, so no recipe can read another's plan.
 
 Generated runs live below the configured output directory. Recipe-specific
 names and file layouts belong in recipe manifests, not in generic
@@ -148,13 +154,21 @@ manifest through a pure reducer. The run viewer consumes a run's derived
 `execution-view.json` and renders it read-only. No surface owns generation or
 defines reusable component contracts.
 
-No production gameplay engine has been selected. A dedicated 2D engine,
-including Godot or another suitable candidate, may be evaluated later. The
-choice is deliberately deferred and must not force changes to provider
-adapters, artifact schemas, or component boundaries.
+One gameplay engine is now selected, and only for one genre: the survival
+recipe's runs are played by the Godot 4.7 host under `godot/oblique_survival`
+([decision 0057](docs/decisions/0057-the-survival-game-runs-on-godot.md),
+[engine evaluation](docs/game-engine-evaluation.md), [host
+boundary](docs/godot-host.md)). It is a second host in the sense of
+[runtime composition](docs/spec/game/runtime-composition.md): it owns scene
+composition, camera behaviour, collision, navigation, input, gameplay, and
+runtime effects for that genre, and it is a dependency of no provider adapter,
+artifact schema, or component boundary. The browser adapter remains the host for
+the other genres. Neither host defines a generator contract, and no other genre
+has selected an engine.
 
 The Python packages are the sole headless implementation. Node and TypeScript are
-confined to the optional `web/` adapter, which launches the public Python CLI.
+confined to the optional `web/` adapter, which launches the public Python CLI,
+and GDScript to the optional Godot host, which launches nothing.
 
 ## Storage and redistribution
 

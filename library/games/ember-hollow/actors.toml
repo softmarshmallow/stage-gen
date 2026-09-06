@@ -1,0 +1,140 @@
+schema_version = 1
+kind = "oblique-survival-actors-v1"
+package_id = "ember-hollow"
+
+# Facings. An actor in this camera is a billboard, and a billboard has no back
+# unless one is drawn, so every actor declares a FACING SET:
+#
+#   four_way          front, back, left, right: all four drawn, one strip per
+#                     state per facing. The player ALWAYS carries this set.
+#   single_mirrored   one authored right-turned three-quarter card, mirrored
+#                     for leftward motion and reused toward and away from the
+#                     camera. For actors that need less detail; the mob's default.
+#
+# A facing is named from the camera, never from the world: front faces the
+# viewer, back faces away, left and right face the screen's sides. The camera
+# turns in 45-degree detents and the runtime resolves an actor's heading
+# against the camera's yaw, so four cards serve every detent. The sides are
+# drawn as a three-quarter view turned toward that side (side_view = "quarter",
+# the face still reads) or as a full profile ("profile").
+#
+# Selection rule, in the viewer: the heading is split into its screen-right and
+# toward-camera components; the side facing wins whenever the sideways part is
+# at least as large as the other, so a perfect diagonal (up and right pressed
+# together) shows the side card, and front or back only when the motion is
+# mostly toward or away from the camera. Standing still keeps the last facing.
+#
+# facing_authored is the single_mirrored set's one drawn side.
+facing_authored = "right"
+
+[player]
+actor_id = "wren"
+role = "player"
+display_name = "Wren"
+baseline_state = "idle"
+facings = { set = "four_way", side_view = "quarter" }
+footprint_radius_units = 0.20
+shadow_width_units = 0.52
+# An authored picture of this actor, carried into the concept node as reference
+# image 1 with the style plate demoted to image 2. The prose below could never
+# hold a character on its own -- it describes an outfit, and the model fills in
+# the body -- so the picture holds the design and the plate holds the drawing.
+# Chosen from the concept-studio workspace `ember-hollow` after twenty-eight
+# candidates; unreviewed exploratory art, used here as an input, not published.
+appearance_reference = "references/player-appearance.png"
+concept_prompt = """
+A small boxy robot, about two and a half heads tall: a big square head with
+rounded corners carrying two large round glowing warm eyes and a small curved
+smile line, a thin antenna with a round bead on top, a short stubby panelled
+body with a glowing warm lamp set in the chest, simple tube limbs, blocky hands
+and broad blocky feet, in pale blue-green painted metal with panel seams,
+rivets and honest scuffs. It has been mending itself with what the wood offers:
+a curved piece of pine bark lashed over the chest panel with tarred rope, one
+forearm replaced with shaped wood bound at the joints, a dark pine-pitch seal
+down the left of the face plate past the eye, and a cord holding one foot plate
+on. It carries a small hand axe.
+"""
+
+[[player.states]]
+state = "idle"
+mode = "loop"
+fps = 6
+direction = """
+stands still and settled, the head dipping and lifting a fraction and the chest
+lamp brightening and dimming with it, like something idling; the four frames form
+one closed cycle that returns to the first pose. The body does not bend.
+"""
+
+[[player.states]]
+state = "walk"
+mode = "loop"
+fps = 8
+# No screen direction is named here: the facing clause says which way the
+# figure faces, and the walk goes that way.
+direction = """
+one full walk cycle stepping in the direction the figure faces: contact, passing,
+contact, passing, on short stiff legs with a slight side-to-side rock of the heavy
+head, which stays level. The limbs swing from the joints; nothing bends or flexes.
+"""
+
+[[player.states]]
+state = "gather"
+mode = "once"
+fps = 9
+direction = """
+squats straight down on its short legs, keeping the body upright, reaches to the
+ground with both blocky hands, then rises again holding something small: four
+sequential frames of one crouch-and-lift. It has no waist and does not bend at one;
+the whole body lowers. The object being gathered is not drawn.
+"""
+
+[[player.states]]
+state = "hurt"
+mode = "once"
+fps = 10
+direction = """
+is knocked backward by an impact on the chest, the heavy head tipping back and the
+arms flung wide, the chest lamp guttering dim, then begins to right itself: four
+sequential frames of one flinch.
+"""
+
+[mob]
+actor_id = "grub_hound"
+role = "mob"
+display_name = "Grub Hound"
+height_units = 0.70
+facings = { set = "single_mirrored" }
+footprint_radius_units = 0.28
+shadow_width_units = 0.66
+concept_prompt = """
+A low six-legged scavenger the size of a big dog: a segmented grub body carried on
+spindly insect legs, a blunt eyeless head split by a wide flat mandible, and a
+ridge of stiff bristles down the back. Pale grub underside, dark chitin plates on top.
+"""
+
+[[mob.states]]
+state = "idle"
+mode = "loop"
+fps = 5
+direction = """
+stands low to the ground, the body segments contracting and expanding as it
+breathes and the bristle ridge lifting slightly; one closed cycle.
+"""
+
+[[mob.states]]
+state = "walk"
+mode = "loop"
+fps = 9
+direction = """
+one scuttling cycle moving toward the viewer's right, legs alternating in two
+banks, the body dipping and rising once across the four frames.
+"""
+
+[[mob.states]]
+state = "attack"
+mode = "once"
+fps = 12
+direction = """
+rears the front of the body up, mandible spread wide, then snaps forward and down
+into a lunge: four sequential frames of one bite.
+"""

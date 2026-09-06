@@ -1,0 +1,42 @@
+# Music: two seamless loops and the fade between them. The clock picks the
+# cue; [transition] at the foot of this file says how the change is made.
+#
+# A track has a `cue`, which is the clock state it plays under (`day` or
+# `night`), and a brief that is the whole prompt: the pipeline appends only the
+# repository's originality clause. Both tracks are instrumental loops of about
+# ninety seconds; the loop seam is the model's promise and the listener's
+# verdict, no gate measures it. Original, brand-neutral, unpublished.
+package_id = "ember-hollow"
+
+[[tracks]]
+track_id = "day_theme"
+# The auditioned draw of this brief the user picked by ear (explore/music-audition,
+# 2026-09-04). Adopted through the gate, never re-drawn: the route has no seed.
+take = { path = "music/day_theme.take.mp3", sha256 = "9ae8cf3c7e26087d521f8c0980343696205085e8e2fb99cfff80bb79aba1e690" }
+cue = "day"
+target_duration_seconds = 90
+prompt = """
+A wry, creaky gothic-vaudeville waltz for the daytime of a bleak survival game: an out-of-tune upright piano, a wheezy accordion, a muted trumpet, a plucked banjo and a tuba oom-pah bass, minor key, 3/4 at about 96 BPM, jaunty but uneasy, like a rickety carnival in a dead wood. One short repeating motif, a sparse arrangement, dry and tinny like an old phonograph, no reverb wash, no strings pad, nothing sweet. Instrumental. A seamless loop of about 90 seconds that ends exactly where it begins.
+"""
+
+[[tracks]]
+track_id = "night_theme"
+take = { path = "music/night_theme.take.mp3", sha256 = "8602c2863e2ea8907c53203f9102dea872e51e89967bd90083d210172a181bbd" }
+cue = "night"
+target_duration_seconds = 90
+prompt = """
+Night music for a dark survival game: a low harmonium drone, a lone bowed double bass, a distant detuned music box that stalls, a muted bass clarinet moan, creaking wood, sparse tuba notes like slow footsteps, very slow at about 56 BPM, minor, hollow and unsettling, almost no melody, dry and close, no reverb wash. Instrumental. A seamless loop of about 90 seconds that ends exactly where it begins.
+"""
+
+# How the two loops change places. This is consumer mixing, not art: no prompt,
+# no digest and no cache key reads it, so retuning the fade re-bills nothing.
+# The clock only picks the cue; the fade runs on its own timeline, so it lasts
+# `crossfade_seconds` whether a day is three minutes or thirty. The overlap is
+# the lever that matters: two unrelated songs held together at half gain for
+# twenty seconds sound broken, so the waltz is nearly gone before the drone
+# arrives.
+[transition]
+crossfade_seconds = 2.5
+curve = "equal_power"   # linear | equal_power | exponential
+overlap = 0.3           # 1 both loops span the window; 0 one out, then the other in
+switch_at = 0.5         # the night factor that flips the cue

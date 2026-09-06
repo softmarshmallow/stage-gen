@@ -12,7 +12,10 @@
 > document kind, and their node tables are not folded into the platformer
 > snapshot below. Only the platformer and the runner carry a checked graph
 > contract block; the dialogue-scene and point-and-click graphs are held to their
-> shapes by their own recipe tests instead, which is weaker and worth closing. So does
+> shapes by their own recipe tests instead, which is weaker and worth closing. So do
+> [oblique-survival](../survival/generation-v1.md), which builds a
+> billboard-sprite world on a ground plane under its own camera and carries a
+> checked contract block of its own, and
 > [universe](../universe/generation-v1.md), which is not a game at all: it
 > builds a storyworld package to read rather than a package to play, and seals
 > two graphs because the size of its gallery is a result of its first phase. The typed package graph is

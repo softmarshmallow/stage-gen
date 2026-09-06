@@ -10,6 +10,7 @@ names the moved nodes and prices them, so a failure reads as a decision -
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
 
 from gnode import Graph
@@ -18,6 +19,17 @@ from gnode import Graph
 def assert_cache_keys_match_golden(graph: Graph, golden: Path) -> None:
     expected = json.loads(golden.read_text(encoding="utf-8"))
     assert isinstance(expected, dict)
+    assert_cache_keys_match(graph, expected, label=golden.name)
+
+
+def assert_cache_keys_match(graph: Graph, expected: Mapping[str, str], *, label: str) -> None:
+    """The same assertion against a map already in hand.
+
+    A recipe that plans several scopes keeps one golden holding a map per scope,
+    so the caller has read the file itself and has a sub-map rather than a path.
+    ``label`` is what the failure names, which is the whole point of the message.
+    """
+
     actual = {node.node_id: node.cache_key for node in graph.nodes}
     if actual == expected:
         return
@@ -30,7 +42,7 @@ def assert_cache_keys_match_golden(graph: Graph, golden: Path) -> None:
     billed = [nodes[node_id] for node_id in moved + added if nodes[node_id].provider is not None]
     low = sum(node.estimated_cost_low_usd for node in billed)
     high = sum(node.estimated_cost_high_usd for node in billed)
-    lines = [f"cache keys moved against {golden.name}:"]
+    lines = [f"cache keys moved against {label}:"]
     lines.extend(f"  moved   {node_id}  ({nodes[node_id].type_id})" for node_id in moved)
     lines.extend(f"  added   {node_id}  ({nodes[node_id].type_id})" for node_id in added)
     lines.extend(f"  removed {node_id}" for node_id in removed)
@@ -48,4 +60,8 @@ def write_cache_key_golden(graph: Graph, golden: Path) -> None:
     golden.write_text(json.dumps(keys, indent=1, sort_keys=True) + "\n", encoding="utf-8")
 
 
-__all__ = ["assert_cache_keys_match_golden", "write_cache_key_golden"]
+__all__ = [
+    "assert_cache_keys_match",
+    "assert_cache_keys_match_golden",
+    "write_cache_key_golden",
+]

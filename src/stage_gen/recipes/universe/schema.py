@@ -4,13 +4,13 @@ Caller-side schema validation and the deterministic semantic validator both run
 inside the service's single retry owner, so a rejected attempt is retried under
 the same six-attempt budget without a nested loop.
 
-Two things here are recipe-local for now and want a better home. The strict
-transport cannot carry ``$defs``, so local references are inlined before the
-schema is sent; the dialogue recipe solves the same problem its own way, and
-one shared canonicalizer should eventually replace both. And OpenRouter
-sometimes returns a ``completionState`` envelope around the object it was asked
-for; unwrapping that is a transport concern which belongs in the provider
-adapter rather than in every caller that might meet it.
+The transport repairs this needs -- inlining local schema references, unwrapping
+OpenRouter's occasional ``completionState`` envelope, reading a cost off a usage
+record -- moved to ``recipes/structured_transport.py`` when a second recipe
+turned out to have written them character for character alike. What stays here
+is universe's own voice and the shape of one accepted call. The dialogue recipe
+still solves the schema-reference problem its own way; one shared canonicalizer
+should eventually replace both.
 """
 
 from __future__ import annotations
@@ -19,7 +19,6 @@ from __future__ import annotations
 # recorded runs. Rewrapping it to satisfy the line limit would risk changing
 # the bytes a model is sent, which is a correctness question, not a style one.
 # ruff: noqa: E501
-import copy
 import json
 import time
 from collections import Counter
@@ -36,86 +35,16 @@ from gnode import (
     StructuredOutputSchema,
     StructuredReference,
 )
+from stage_gen.recipes.structured_transport import (
+    decode_completion_wrapper,
+    inline_local_schema_refs,
+    known_cost,
+)
 from stage_gen.recipes.universe.universe_types import ATTEMPT_LEDGER_KIND
 
 SYSTEM_PROMPT = """You ratify an original storyworld for visual explanation.
 
 Keep source authorities distinct. The synopsis states explicit world facts. An attached poster, when present, supplies literal visual evidence and art grammar only; its typography, layout, and marketing hierarchy are not world facts. The expansion direction controls how the world is expanded; it is rationale, never evidence. Do not hide unsupported assumptions. Return only the strict JSON object requested."""
-
-
-def inline_local_schema_refs(schema: Mapping[str, object]) -> dict[str, object]:
-    definitions = schema.get("$defs")
-    if not isinstance(definitions, dict):
-        return dict(schema)
-
-    def expand(value: object) -> object:
-        if isinstance(value, list):
-            return [expand(item) for item in value]
-        if not isinstance(value, dict):
-            return value
-        reference = value.get("$ref")
-        if isinstance(reference, str) and reference.startswith("#/$defs/"):
-            target = definitions.get(reference.removeprefix("#/$defs/"))
-            if not isinstance(target, dict):
-                raise ValueError(f"unknown local schema reference: {reference}")
-            siblings = {key: item for key, item in value.items() if key != "$ref"}
-            return expand({**copy.deepcopy(target), **siblings})
-        return {str(key): expand(item) for key, item in value.items() if key != "$defs"}
-
-    expanded = expand(dict(schema))
-    if not isinstance(expanded, dict):
-        raise TypeError("expanded schema root must remain an object")
-    return expanded
-
-
-def decode_completion_wrapper(value: object, stats: Counter[str]) -> object:
-    """Unwrap the provider's occasional ``completionState`` envelope."""
-
-    if isinstance(value, str):
-        stripped = value.strip()
-        if not stripped.startswith("{"):
-            return value
-        try:
-            parsed = json.loads(stripped)
-        except ValueError:
-            return value
-        if not isinstance(parsed, dict) or "completionState" not in parsed:
-            return value
-        stats["wrapper_strings"] += 1
-        return decode_completion_wrapper(parsed, stats)
-    if isinstance(value, list):
-        return [decode_completion_wrapper(item, stats) for item in value]
-    if not isinstance(value, dict):
-        return value
-    if "completionState" not in value:
-        return {str(key): decode_completion_wrapper(item, stats) for key, item in value.items()}
-    if value.get("completionState") != "complete":
-        stats["incomplete_wrappers"] += 1
-        return value
-    stats["wrapper_nodes"] += 1
-    entries = value.get("entries")
-    if isinstance(entries, list):
-        decoded: dict[str, object] = {}
-        for entry in entries:
-            if not isinstance(entry, list) or len(entry) != 2 or not isinstance(entry[0], str):
-                stats["malformed_wrappers"] += 1
-                return value
-            decoded[entry[0]] = decode_completion_wrapper(entry[1], stats)
-        return decoded
-    items = value.get("items")
-    if isinstance(items, list):
-        return [decode_completion_wrapper(item, stats) for item in items]
-    if "value" in value:
-        return decode_completion_wrapper(value["value"], stats)
-    stats["malformed_wrappers"] += 1
-    return value
-
-
-def known_cost(usage: object) -> float | None:
-    if not isinstance(usage, Mapping):
-        return None
-    cost = usage.get("cost")
-    return float(cost) if isinstance(cost, int | float) and not isinstance(cost, bool) else None
 
 
 class StructuredOperation(TypedDict):
@@ -277,8 +206,6 @@ __all__ = [
     "SYSTEM_PROMPT",
     "AttemptLedger",
     "StructuredOperation",
-    "decode_completion_wrapper",
     "generate_structured",
-    "inline_local_schema_refs",
     "known_cost",
 ]

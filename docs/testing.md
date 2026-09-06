@@ -15,8 +15,20 @@ All routine verification is credential-free. Provider-backed tests carry the
 | CLI boundary | `uv run pytest tests/integration -q` |
 | Wheel-packaged resources | `uv run pytest tests/contract/test_packaged_resources.py -q` |
 | Import architecture | `uv run pytest tests/contract/test_import_boundaries.py -q` |
+| Godot survival host | `Godot --headless --path godot/oblique_survival -s res://tests/run_tests.gd` |
 | Formatting and lint | `uv run ruff format --check . && uv run ruff check .` |
 | Strict typing | `uv run mypy --strict src tests scripts` |
+
+The Godot host's row is the one command outside the locked gate below: it needs
+the engine on `PATH`, it is GDScript, and it proves the host's simulation only —
+never a picture, which the host's own capture harness produces instead. See
+[Godot host](godot-host.md).
+
+The survival recipe's cache-key golden,
+`tests/contract/fixtures/oblique_survival/ember-hollow.cache-keys.json`, pins every
+node's cache key per scope for the committed package; after a deliberate identity
+change, regenerate it with `uv run python scripts/write_oblique_survival_cache_keys.py --write`
+and read the diff before committing, because a moved provider key is a re-bill.
 
 For Python changes, the complete locked gate is the handoff command:
 

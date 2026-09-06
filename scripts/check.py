@@ -168,12 +168,24 @@ def steps(python: str = sys.executable, *, scratch: Path) -> tuple[Step, ...]:
             "library/games/lantern_ferry",
             name="lantern-ferry",
         ),
+        # The survival package is its own root too, and the widest scope is the
+        # one that plans every node the recipe can build.
+        dry_run(
+            "stage-gen",
+            "oblique-survival",
+            "generate",
+            "--input",
+            "library/games/ember-hollow",
+            name="ember-hollow",
+        ),
         Step(("stage-gen", "scenario", "check", "--input", "library/games/bellweather")),
         Step(("stage-gen", "scenario", "check", "--input", "library/games/larkfield")),
         Step(("stage-gen", "scenario", "check", "--input", "library/games/the_grain")),
         Step(("stage-gen", "case", "check", "--input", "library/games/the_grain")),
         Step(("stage-gen", "case", "bundle", "--help")),
         Step(("stage-gen", "universe", "gallery", "--help")),
+        # The two provider-free survival commands the dry run does not reach.
+        Step(("stage-gen", "oblique-survival", "import-run", "--help")),
     )
 
 

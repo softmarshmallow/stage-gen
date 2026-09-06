@@ -1,0 +1,27 @@
+; Oblique Survival — the Godot host for a run of the oblique-survival pipeline.
+;
+; The project ships no media: a run directory is loaded at runtime
+; (`--run <absolute run dir>`), so nothing under this tree is generated art.
+
+config_version=5
+
+[application]
+
+config/name="Oblique Survival"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.7", "Forward Plus")
+
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900
+; The capture harness renders into its own SubViewport, so the frame rate must
+; not be pinned to the display's.
+window/vsync/vsync_mode=0
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+; three sets `texture.anisotropy = min(8, maxAnisotropy)` on the tiled ground
+; plates (viewer/index.html:2542); level 3 is 8x.
+textures/default_filters/anisotropic_filtering_level=3

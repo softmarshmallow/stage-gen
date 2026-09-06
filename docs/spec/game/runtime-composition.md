@@ -72,7 +72,7 @@ Dependencies point inward. A ring may import any ring inside it and never one
 outside it; within a ring, genres never import genres.
 
 ```text
-ring 3   hosts        Phaser scene per genre, headless harness, (later) Godot
+ring 3   hosts        Phaser scene per genre, headless harness, the Godot survival host
 ring 2   genres       sideview-platformer, sideview-runner, pointclick, dialogue-scene, …
          container    narrative/case — a composition of leaves whose step is a beat boundary
 ring 1   families     intent, clock, session, vitals, combat, projectiles, actor-ai, navigation,

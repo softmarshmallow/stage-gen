@@ -159,7 +159,7 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
     # is worse than none. History under docs/research and docs/media is
     # exempt: it describes what was.
     source_path_pattern = re.compile(
-        r"`((?:src|web|scripts|tests|library|concept-studio)/[A-Za-z0-9_./-]+?)(?:::[^`]*)?`"
+        r"`((?:src|web|scripts|tests|library|concept-studio|godot)/[A-Za-z0-9_./-]+?)(?:::[^`]*)?`"
     )
     for markdown_file in markdown:
         relative = markdown_file.relative_to(repo).as_posix()

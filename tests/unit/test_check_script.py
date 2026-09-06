@@ -79,6 +79,15 @@ def test_offline_gate_removes_provider_credentials_and_lists_required_checks() -
         c.startswith("stage-gen universe semantic --input library/games/lantern_ferry --dry-run")
         for c in joined
     )
+    assert any(
+        c.startswith(
+            "stage-gen oblique-survival generate --input library/games/ember-hollow --dry-run"
+        )
+        for c in joined
+    )
+    # The survival recipe's two provider-free commands are not reached by the dry
+    # run, so the gate at least proves their parsers still build.
+    assert ("stage-gen", "oblique-survival", "import-run", "--help") in commands
     assert ("stage-gen", "scenario", "check", "--input", "library/games/the_grain") in commands
     assert ("stage-gen", "case", "check", "--input", "library/games/the_grain") in commands
 

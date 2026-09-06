@@ -1,0 +1,12 @@
+{
+  "name": "03-winter-night-idle",
+  "note": "critique D2 script 3: winter, night, nothing pressed. Proves the cold, the look swap and the music cue agree.",
+  "mode": "play",
+  "time": "night",
+  "season": "winter",
+  "weather": "auto",
+  "digest_every": 60,
+  "steps": [
+    {"until": 1800, "held": []}
+  ]
+}

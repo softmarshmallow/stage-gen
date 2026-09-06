@@ -185,3 +185,24 @@ spikes/
 
 # Session workspaces, never tracked (was only in .git/info/exclude, which a clone does not see).
 local/
+
+# Ember Hollow's adopted takes stay local: first-party draws that exceed the tracked-media
+# policy (docs/repository-storage.md) in size and in location, and are declared by sha256 in
+# the package TOMLs, so planning and graph identity need only the digest. The two reference
+# images beside them are tracked.
+/library/games/ember-hollow/ground/*.take.png
+/library/games/ember-hollow/items/*.take.png
+/library/games/ember-hollow/weather/*.take.png
+/library/games/ember-hollow/music/*.take.mp3
+/library/games/ember-hollow/sounds/*.take.mp3
+
+# Godot host: the editor's import cache and any export presets are derived or
+# machine-specific; the per-file *.import records are the import contract and stay tracked.
+/godot/**/.godot/
+/godot/build/
+/godot/**/export_presets.cfg
+/library/games/ember-hollow/ground/*.take.png.meta.json
+/library/games/ember-hollow/items/*.take.png.meta.json
+/library/games/ember-hollow/weather/*.take.png.meta.json
+/library/games/ember-hollow/music/*.take.mp3.meta.json
+/library/games/ember-hollow/sounds/*.take.mp3.meta.json

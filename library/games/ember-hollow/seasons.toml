@@ -1,0 +1,61 @@
+# Private ignored spike source package. See survival.toml's header.
+#
+# SEASONS: A CONDITION OF THE WORLD ON THE CLOCK
+#
+# Weather is a condition the world rolls in spells; a season is a condition
+# the calendar holds for days. Both drive presentation across the screen, the
+# ground and the light at once, and neither is a screen-FX moment. The season
+# owns what the weather cannot: the snow factor the snow condition holds (it
+# ramps through that condition's own onset and decay), the cold that drains
+# warmth, the look every prop shows, the share of the day that is night, how
+# fast anything regrows, and what the ground offers.
+#
+# The calendar is an ordered list: the world begins on day 1 in the first
+# season and turns after `days_per_season` days, round and round. Two seasons
+# are authored; autumn and spring are one entry each plus their art.
+#
+# A look (`[seasons.look]`, named after its season) is a set of paintovers: every prop state redrawn
+# with the summer sprite as reference image 1 and the style plate as image 2,
+# under the clause below, so the silhouette, angle, scale, ruler and anchor
+# hold and only the snow is new. A prop may override the clause per state in
+# props.toml [props.season_prompt.<look>].
+#
+# Numbers here are gameplay: no node digests them but the look prompt, and
+# the manifest carries the rest for the consumer.
+
+schema_version = 1
+kind = "oblique-survival-seasons-v1"
+package_id = "ember-hollow"
+
+[calendar]
+order = ["summer", "winter"]   # the world begins in the first, on day 1
+days_per_season = 4            # 4 x 180 s = 12 minutes a season
+
+[[seasons]]
+season_id = "summer"
+display_name = "Summer"
+snow = 0.0            # the snow condition's factor the season holds
+cold = 0.0            # scales [gameplay.warmth].drain_per_second
+night_share = 0.38    # of the day that is night; today's curve
+regrow_scale = 1.0
+
+[[seasons]]
+season_id = "winter"
+display_name = "Winter"
+snow = 1.0
+cold = 1.0
+night_share = 0.55
+regrow_scale = 0.0
+hidden_forage = ["mushroom", "moss"]   # forage cells of these items hide under the snow
+barren = ["thorn_bush"]                # gather refused: "Bare in winter."
+
+# The prop look this season shows, named after the season: one paintover per
+# prop state under this clause (props.toml may override it per state).
+[seasons.look]
+prompt = """
+snow lies on every upward-facing surface: a soft cap on the crown and along the
+tops of branches, ledges and edges, pale blue-white with the set's ink line, and a
+thin rim of it where the base meets the ground. Everything under the snow is
+exactly the reference drawing: same shape, same angle, same size, same colours,
+nothing moved, nothing added, nothing removed.
+"""

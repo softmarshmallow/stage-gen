@@ -21,6 +21,10 @@ export const RUNNER_EXECUTION_VIEW_KIND = "sideview-runner-execution-view-v1";
 /** The universe recipe's view: identified by the universe it expanded. */
 export const UNIVERSE_EXECUTION_VIEW_KIND = "universe-execution-view-v1";
 
+/** The oblique-survival recipe's view: identified by its package and scope. The
+ * game itself has no browser surface (it runs on the Godot host); its run does. */
+export const SURVIVAL_EXECUTION_VIEW_KIND = "oblique-survival-execution-view-v1";
+
 /** Every view kind this build renders. A kind outside it is another recipe's. */
 export const EXECUTION_VIEW_KINDS = [
   PLATFORMER_EXECUTION_VIEW_KIND,
@@ -28,6 +32,7 @@ export const EXECUTION_VIEW_KINDS = [
   POINTCLICK_EXECUTION_VIEW_KIND,
   RUNNER_EXECUTION_VIEW_KIND,
   UNIVERSE_EXECUTION_VIEW_KIND,
+  SURVIVAL_EXECUTION_VIEW_KIND,
 ] as const;
 
 export type ExecutionViewKind = (typeof EXECUTION_VIEW_KINDS)[number];
@@ -294,6 +299,13 @@ export type ExecutionViewSubject =
       readonly universeId: string;
       /** Which of the recipe's two sealed graphs this run was. */
       readonly phase: string;
+    }
+  | {
+      readonly kind: typeof SURVIVAL_EXECUTION_VIEW_KIND;
+      readonly recipe: string;
+      readonly packageId: string;
+      /** Which rung of the scope ladder the run drew: minimal, props, actors or full. */
+      readonly scope: string;
     };
 
 /** The one identity a run is labelled by, whichever recipe wrote it. */
@@ -313,6 +325,10 @@ export function subjectLabel(subject: ExecutionViewSubject): string {
       // The recipe runs one universe twice — semantic, then gallery — so the
       // phase is what tells two runs of the same world apart in a list.
       return `${subject.universeId} · ${subject.phase}`;
+    case SURVIVAL_EXECUTION_VIEW_KIND:
+      // One package is drawn at four widening scopes that share every node they
+      // keep, so the scope is what tells two runs of the same world apart.
+      return `${subject.packageId} · ${subject.scope}`;
   }
 }
 
@@ -649,6 +665,13 @@ function subject(
         recipe,
         universeId: text(root.universe_id, "universe_id"),
         phase: text(root.phase, "phase"),
+      });
+    case SURVIVAL_EXECUTION_VIEW_KIND:
+      return Object.freeze({
+        kind,
+        recipe,
+        packageId: text(root.package_id, "package_id"),
+        scope: text(root.scope, "scope"),
       });
   }
 }

@@ -1,0 +1,326 @@
+/*
+ * The state-level parity harness: the web viewer's half.
+ *
+ * Paste this whole file into the viewer's console once, then call
+ *
+ *     __parity(<the contents of one tools/parity/NN-*.json>)
+ *
+ * and it returns the same JSONL `tools/parity.gd` writes: one world digest
+ * every `digest_every` steps, then a summary line. Save it beside the host's
+ * output and run `tools/parity_diff.py` over the two. README.md's "The parity
+ * harness" section has the click-by-click procedure.
+ *
+ * Nothing here is loaded by the viewer and nothing here is part of the run: it
+ * is a console snippet, and the page it drives is the spike's, not the host's.
+ *
+ * What it does, and why each step is there:
+ *
+ *  - The page has been simulating since it loaded, so the world in front of
+ *    you is at an arbitrary step. It resets to the run's own seed first (the
+ *    `reset` dev control, aimed by setting `world.seed` one below the seed we
+ *    want, because that control resets to `seed + 1`).
+ *  - `resetWorld` rebuilds the world from `createWorld` and therefore drops the
+ *    land and biome masks, which arrived asynchronously and resolved onto the
+ *    old object (index.html:4889-4890). The host's `World.reset` carries them
+ *    across; this reattaches them, or the player would walk on water at a flat
+ *    0.6 friction and every position would part company by the second step.
+ *  - The start options are written onto the world directly rather than through
+ *    `season.force` / `weather.force`, because those `say` a line the host's
+ *    `World.create` never says and the digest carries the message log.
+ *  - `world.rand` is wrapped to count draws and to allow a peek that does not
+ *    consume (it pre-draws one value and hands that same value back on the next
+ *    real draw, so the consumption order is untouched).
+ *  - `world.events.push` is wrapped to count events by type: the viewer's own
+ *    `tick` splices the list empty every frame, so a digest taken afterwards
+ *    would always see none.
+ *  - `world.message` becomes an accessor so every line said inside an
+ *    `advance()` is seen. The host checks the field once per step instead, so
+ *    the two agree as long as no step says twice — which no system does.
+ */
+
+(function () {
+  'use strict';
+
+  var QUANTUM = 0.0001;
+  var DIVISOR = 4294967296;
+  var MESSAGE_HISTORY = 5;
+
+  // `floor(v / q + 0.5) * q`, the operation `parity.gd` uses, so a rounded
+  // field is the same double on both sides and `rng_next` can be compared hard.
+  function r4(value) {
+    var v = Number(value);
+    if (!isFinite(v)) return 0;
+    return Math.floor(v / QUANTUM + 0.5) * QUANTUM;
+  }
+
+  // The viewer's key set holds `event.key.toLowerCase()`. A script writes
+  // `space` because that is the name `HostInput` gives it; every other key
+  // (`w`, `d`, `arrowleft`, `,`) is already the viewer's own name.
+  var KEY_ALIAS = { space: ' ', enter: 'Enter', escape: 'Escape' };
+  function keyName(name) {
+    return Object.prototype.hasOwnProperty.call(KEY_ALIAS, name) ? KEY_ALIAS[name] : name;
+  }
+
+  // The viewer listens on `window` (index.html:5228, :5292). A `document`
+  // dispatch with `bubbles` reaches the same listener; this aims at it.
+  function keyEvent(type, name) {
+    window.dispatchEvent(new KeyboardEvent(type, {
+      key: keyName(name), bubbles: true, cancelable: true, repeat: false,
+    }));
+  }
+  function down(name) { keyEvent('keydown', name); }
+  function up(name) { keyEvent('keyup', name); }
+
+  function sorted(source) {
+    var out = {};
+    Object.keys(source).sort().forEach(function (key) { out[key] = source[key]; });
+    return out;
+  }
+
+  /** One world digest, field for field and in the order `parity.gd` writes. */
+  function digest(w, rng, step, eventCounts, messages) {
+    var p = w.player;
+    var counts = {};
+    var foragePicked = 0;
+    var groundItems = [];
+    for (var i = 0; i < w.entities.length; i += 1) {
+      var e = w.entities[i];
+      if (e.kind === 'prop') {
+        var pk = e.propId + '|' + e.state;
+        counts[pk] = (counts[pk] || 0) + 1;
+      } else if (e.kind === 'mob') {
+        var mk = 'mob:' + e.actorId + '|' + e.state;
+        counts[mk] = (counts[mk] || 0) + 1;
+      } else if (e.kind === 'forage') {
+        if (e.picked) foragePicked += 1;
+      } else if (e.kind === 'item') {
+        // In the array's own order, which is the order they were dropped.
+        if (!e.taken) {
+          groundItems.push({ id: String(e.id), item: String(e.itemId), x: r4(e.x), z: r4(e.z) });
+        }
+      }
+    }
+    var slots = w.slots.map(function (slot) {
+      if (slot == null) return null;
+      return {
+        item: String(slot.item),
+        count: slot.count | 0,
+        // -1 for "no uses": `undefined` here, `null` on the host, and neither
+        // survives a numeric diff.
+        uses: slot.uses == null ? -1 : r4(slot.uses),
+      };
+    });
+    var next = rng.peek();
+    return {
+      step: step,
+      time: r4(w.time),
+      day: w.day,
+      day_phase: r4(w.dayPhase),
+      night: r4(w.night),
+      season: String(w.season.id || ''),
+      weather: {
+        mode: String(w.weather.mode || ''),
+        rain: r4(w.weather.rain),
+        snow: r4(w.weather.snow),
+        // `null` in the viewer where the host writes "".
+        condition: w.weather.condition == null ? '' : String(w.weather.condition),
+      },
+      rng_draws: rng.draws,
+      rng_next: r4(next),
+      rng_next_u32: Math.round(next * DIVISOR),
+      player: {
+        x: r4(p.x),
+        z: r4(p.z),
+        vx: r4(p.vx),
+        vz: r4(p.vz),
+        state: p.state,
+        facing: p.facing,
+        health: r4(p.health),
+        hunger: r4(p.hunger),
+        warmth: r4(p.warmth),
+        busy: p.busy == null ? '' : String(p.busy.state || ''),
+      },
+      entities: sorted(counts),
+      forage_picked: foragePicked,
+      ground_items: groundItems,
+      slots: slots,
+      torch: r4(w.torch.remaining),
+      warm: r4(w.warm.remaining),
+      messages: messages.slice(),
+      events: sorted(eventCounts),
+    };
+  }
+
+  /**
+   * Run one input script and return the JSONL. Synchronous from the reset to
+   * the last step, so the page's own animation frame cannot slip a tick in
+   * between: the tab is frozen for as long as it takes.
+   */
+  window.__parity = function (script) {
+    var S = window.__survival;
+    if (!S) throw new Error('parity: window.__survival is missing — is this the viewer page?');
+    if (!S.dev || !S.dev.controls) throw new Error('parity: window.__survival.dev is missing');
+    if (typeof S.advance !== 'function') throw new Error('parity: window.__survival.advance is missing');
+
+    var manifest = S.manifest;
+    var SEED = (script.seed | 0) || ((manifest.layout && manifest.layout.seed) | 0) || 1;
+    var MODE = script.mode || 'play';
+    var TIME = script.time || 'noon';
+    var SEASON = script.season || 'auto';
+    var WEATHER = script.weather || 'auto';
+    var EVERY = script.digest_every == null ? 60 : (script.digest_every | 0);
+    if (MODE !== 'play') {
+      throw new Error('parity: load the page with ?mode=' + MODE + '; the snippet cannot change the page mode');
+    }
+
+    var before = S.world;
+    var isLand = before.isLand;
+    var frictionAt = before.frictionAt;
+    if (/^\(\s*\)\s*=>\s*true$/.test(String(isLand).trim())) {
+      throw new Error('parity: the land mask has not been read yet — let the scene finish loading, then run again');
+    }
+
+    var reset = S.dev.controls.filter(function (c) { return c.id === 'reset'; })[0];
+    if (!reset) throw new Error("parity: no 'reset' dev control on this page");
+    before.seed = (SEED - 1) | 0;
+    reset.set();
+    var w = S.world;
+    if (w === before) throw new Error('parity: the reset did not build a new world');
+    if ((w.seed >>> 0) !== (SEED >>> 0)) {
+      throw new Error('parity: the reset landed on seed ' + w.seed + ', wanted ' + SEED);
+    }
+
+    // What `World.reset` keeps and `resetWorld` does not.
+    w.isLand = isLand;
+    w.frictionAt = frictionAt;
+    // What `World.create` writes, written the same way and with no `say`.
+    if (TIME === 'night') { w.dayPhase = 0.72; w.night = 1; }
+    w.season.force = SEASON;
+    w.weather.mode = WEATHER;
+
+    // The opening kit, one `invAdd` per unit, exactly as `parity.gd` gives it.
+    var give = script.give || {};
+    var giveControl = S.dev.controls.filter(function (c) { return c.id === 'give'; })[0];
+    Object.keys(give).forEach(function (itemId) {
+      if (!giveControl) throw new Error("parity: this script needs the 'give' dev control");
+      for (var n = 0; n < (give[itemId] | 0); n += 1) giveControl.set(itemId);
+    });
+
+    // The generator: a draw count, and a peek that buffers rather than consumes.
+    var origRand = w.rand;
+    var rng = { draws: 0, buffered: null };
+    w.rand = function () {
+      rng.draws += 1;
+      if (rng.buffered !== null) {
+        var v = rng.buffered;
+        rng.buffered = null;
+        return v;
+      }
+      return origRand();
+    };
+    rng.peek = function () {
+      if (rng.buffered === null) rng.buffered = origRand();
+      return rng.buffered;
+    };
+
+    // The events, counted as they are pushed: `tick` splices the list empty
+    // every frame, so counting afterwards would always find none.
+    var eventCounts = {};
+    var nativePush = Array.prototype.push;
+    w.events.push = function () {
+      for (var i = 0; i < arguments.length; i += 1) {
+        var type = arguments[i] && arguments[i].type;
+        eventCounts[type] = (eventCounts[type] || 0) + 1;
+      }
+      return nativePush.apply(this, arguments);
+    };
+
+    // The message log, caught at the assignment.
+    var messages = [];
+    var messageValue = w.message;
+    Object.defineProperty(w, 'message', {
+      configurable: true,
+      enumerable: true,
+      get: function () { return messageValue; },
+      set: function (value) {
+        messageValue = value;
+        if (value !== '' && value != null) {
+          messages.push(value);
+          while (messages.length > MESSAGE_HISTORY) messages.shift();
+        }
+      },
+    });
+
+    var steps = script.steps || [];
+    var total = 0;
+    steps.forEach(function (entry) { total = Math.max(total, entry.until | 0); });
+    if (total <= 0) throw new Error('parity: the input script has no steps');
+
+    var lines = [];
+    var held = {};
+    var segment = 0;
+    var lastSegment = -1;
+    var digests = 0;
+    var cursor = 0;
+
+    while (cursor < total) {
+      while (segment < steps.length && cursor + 1 > (steps[segment].until | 0)) segment += 1;
+      var entry = steps[segment] || {};
+
+      // Keyups then keydowns: a key held across a boundary is not touched, so
+      // its one-shot verb does not fire a second time.
+      var want = {};
+      (entry.held || []).forEach(function (name) { want[String(name)] = true; });
+      Object.keys(held).forEach(function (name) {
+        if (!want[name]) { up(name); delete held[name]; }
+      });
+      Object.keys(want).forEach(function (name) {
+        if (!held[name]) { down(name); held[name] = true; }
+      });
+      if (segment !== lastSegment) {
+        lastSegment = segment;
+        (entry.press || []).forEach(function (name) { down(String(name)); up(String(name)); });
+      }
+
+      // Run to whichever comes first: the end of this segment, the next
+      // digest, or the end of the script.
+      var segmentEnd = (entry.until | 0) || total;
+      var nextDigest = EVERY > 0 ? (Math.floor(cursor / EVERY) + 1) * EVERY : total;
+      var stop = Math.min(segmentEnd, nextDigest, total);
+      S.advance((stop - cursor) / 60);
+      cursor = stop;
+
+      if (EVERY > 0 && cursor % EVERY === 0) {
+        lines.push(JSON.stringify(digest(w, rng, cursor, eventCounts, messages)));
+        Object.keys(eventCounts).forEach(function (key) { delete eventCounts[key]; });
+        digests += 1;
+      }
+    }
+
+    lines.push(JSON.stringify({
+      summary: true,
+      script: String(script.name || ''),
+      seed: SEED >>> 0,
+      mode: MODE,
+      start_time: TIME,
+      start_season: SEASON,
+      start_weather: WEATHER,
+      steps: total,
+      digest_every: EVERY,
+      digests: digests,
+      rng_draws: rng.draws,
+      entity_count: w.entities.length,
+      drop_count: w.dropCount,
+      built: w.built,
+      final: digest(w, rng, total, eventCounts, messages),
+    }));
+
+    // Let go of the keyboard, or the page walks off on its own the moment the
+    // animation frame resumes.
+    Object.keys(held).forEach(function (name) { up(name); });
+
+    return lines.join('\n');
+  };
+
+  console.log('parity: __parity(script) is ready. Call it with one tools/parity/NN-*.json object.');
+})();

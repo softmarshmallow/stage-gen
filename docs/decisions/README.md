@@ -72,3 +72,4 @@ it. A ruling that is overturned gets a new record that says so.
 | [0054](0054-a-layer-resolves-in-two-spaces-not-on-a-coefficient.md) | A layer resolves in two spaces, not on a coefficient | Partial parallax needs slack the paintings do not have |
 | [0055](0055-a-calibrated-actor-is-measured-by-its-alpha.md) | A calibrated actor is measured by its alpha, not its body | Deferred until a second actor carries a tail |
 | [0056](0056-the-style-plate-is-split-not-swapped.md) | The style plate is split, not swapped | A swap would leave the actor's identity binding pointing at nobody |
+| [0057](0057-the-survival-game-runs-on-godot.md) | The survival game runs on Godot, not on the web preview | A ground-plane genre needs a perspective camera and per-billboard depth the browser host never had |

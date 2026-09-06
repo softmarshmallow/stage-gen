@@ -1,0 +1,555 @@
+schema_version = 1
+kind = "oblique-survival-ground-v1"
+package_id = "ember-hollow"
+
+# The ground is three generated layers and one algorithmic mask, which is what
+# the reference genre does too, once you look at it layer by layer:
+#
+#   biome plates   fine MATERIAL swatches, 2 m across, mirror-tiled to 4 m
+#   macro plate    a slow abstract colour field, 24 m across, multiplied over them
+#   clutter sheet  the recognisable litter, as cutouts scattered flat at true size
+#   road           a track in the splat's red channel, filled with its own plate
+#   biome plate    one channel per non-base biome, solved to its share
+#
+# The first plates were pictures of ground: an 8 m swatch painted as if it were
+# 1 m, so leaves came out half a metre wide. A material states its real span and
+# its largest feature, and both go into the prompt in centimetres.
+#
+# The second plates were materials and read as noise: every square centimetre
+# carried a high-contrast mark. The one that read as ground (the meadow) was
+# mostly plain colour with a few flecks close to its own tone. So a prompt
+# says "mostly bare" and names a few things, and the gate measures local
+# contrast at play zoom (gates.GROUND_BUSYNESS_MAX).
+#
+# texel_meters is how many metres one edge of the source plate covers. Mirror-
+# repeat doubles it before it reaches the viewer, so the visible period is 2x.
+# A fine material tiles invisibly at 4 m; a picture tiles visibly at 16 m.
+
+# The first biome is the base and owns whatever the others leave; each other
+# biome declares a share of the land, and the layout solves one noise field
+# per biome to that share. A biome is a channel of the biome-weight plate, so
+# there are at most four (the base plus R, G, B); a fifth needs a second plate.
+#
+# style_emphasis was rewritten once the style plate existed. The first version
+# fought the package prose for value; this one only sets the mood aside and
+# names the plate's drawing, and the value target does the rest.
+
+[[biomes]]
+biome_id = "forest_floor"
+# explore/ground-audition/forest_floor-a1, adopted 2026-09-06 (pass five):
+# the turf fabric, 0.267 and busy-ness 0.11 under the fabric bands; the
+# broadest blades and the clearest olive of the three draws (a2 and a3 came
+# back darker and finer). The pass-three field plate is archived in
+# explore/ground-audition/pass-three-fields/. The user's swap is the verdict.
+take = { path = "ground/forest_floor.take.png", sha256 = "88dc1744abe79f225a50d18661e94d662f5fe8360a735902eb26bbc35a5bd1ec" }
+# Surface friction for a dropped pickup (packed earth with needles: a log skids a hand's width and stops).
+friction = 0.7
+texel_meters = 2.0
+# 0.12 in minimal-v7 came back as a true material and then averaged to mud at
+# play zoom: hair-thin marks are one pixel wide at seventy pixels per metre.
+# The reference turf is drawn in ten-to-thirty centimetre strokes for exactly
+# that reason. 0.25 here, and the prompt asks for bold marks.
+feature_max_meters = 0.25
+# Pass five (2026-09-06): the woodland floor is a turf, not a dirt. Measured
+# on the reference frames (GROUND.md, "Pass five"), their turf sits at sRGB
+# value 0.25 to 0.38 and saturation about 0.55; our flat tan plate read 0.54
+# on screen at 0.34 saturation, and a darker flat tan read as mud because it
+# was flat, not because it was dark. The blades carry the dark.
+value_target = 0.36
+style_emphasis = """
+for this plate only, set the mood aside: an evenly lit daylight plate of
+dark woodland turf, deep olive green over dark umber, rich and saturated,
+clearly darker than every other ground in the set. Draw it the way the style
+reference is drawn, the ink line and two flat tones per shape and nothing
+rendered inside a shape, at the scale of the material.
+"""
+# Still nothing nameable: the litter sheet carries every leaf and twig at
+# true size, and the plants sheet everything that stands.
+material = "fabric"
+prompt = """
+woodland turf: a dense fabric of short dark grass and moss over dark earth,
+every stroke a short blade or a small tuft lying the same way with a thin ink
+line, in two close tones of deep olive green, the earth never showing through
+as a plain patch.
+"""
+
+[[biomes]]
+biome_id = "dry_meadow"
+# explore/ground-audition/dry_meadow-a1, adopted 2026-09-05: the first
+# fabric plate, 0.808 and busy-ness 0.033 under the 0.062 gate; the bolder
+# of the two admissible draws, picked by looking at play zoom.
+take = { path = "ground/dry_meadow.take.png", sha256 = "a35f9875e3a49634d46c209e92d6b914d3420128a493bcb944bf81f29a5ed68e" }
+# Surface friction for a dropped pickup (dry grass lets a drop run a little further).
+friction = 0.55
+share = 0.24
+texel_meters = 2.0
+feature_max_meters = 0.25
+value_target = 0.55
+style_emphasis = """
+for this plate only, set the mood aside: an evenly lit daylight plate of pale
+straw-coloured open ground, clearly lighter and yellower than woodland earth.
+Draw it the way the style reference is drawn, the ink line and two flat tones
+per shape and nothing rendered inside a shape, at the scale of the material.
+"""
+# A stroke fabric, the reference's turf (GROUND.md idea 6): strokes lying
+# one way in two close tones, the grain inside the stroke.
+material = "fabric"
+prompt = """
+dry meadow turf: a dense fabric of pale sun-bleached straw and short dead
+grass, every stroke a blade of dry grass lying the same way, in two close
+tones of pale straw.
+"""
+
+# The wet ground. Dark and green against the brown, which is the contrast a
+# biome exists to provide: at play zoom a biome is a colour field first and a
+# material second. The dead snag and the fern prefer it (props.toml).
+[[biomes]]
+biome_id = "mossy_bog"
+# explore/ground-audition/mossy_bog-a1, adopted 2026-09-05: 0.597, busy-ness
+# 0.041; the lobed draw, over the hatched one (b1, 0.055) which sat a hair
+# under the gate and two of whose siblings were refused as speckle.
+take = { path = "ground/mossy_bog.take.png", sha256 = "d82aaa063dd918c8e33061d62575e3f647375472a912411f8b516ed47e90011a" }
+# Surface friction for a dropped pickup (sodden moss swallows a drop where it lands).
+friction = 1.1
+share = 0.16
+texel_meters = 2.0
+feature_max_meters = 0.25
+# minimal-v19: "dark damp peat ... a little darker than woodland earth" spent
+# all six attempts at 0.225 against the 0.30 floor. The same lesson as the
+# forest floor in v4: the words are the lever, the number only points. The
+# darkness this biome brings is the moss's colour against the brown, not its
+# value; the plate arrives mid-toned and the runtime darkens it under canopy.
+value_target = 0.46
+style_emphasis = """
+for this plate only, set the mood aside: an evenly lit daylight plate of
+mossy ground, mid-toned overall, the moss a bright yellow-green and the wet
+earth a mid warm brown, with no black and no deep shadow anywhere. Draw it the
+way the style reference is drawn, the ink line and two flat tones per shape
+and nothing rendered inside a shape, at the scale of the material.
+"""
+material = "fabric"
+prompt = """
+mossy bog turf: a dense fabric of low moss, every stroke a soft rounded lobe
+of moss lying the same way, in two close tones of dull yellow-green over a
+warm brown that never shows through.
+"""
+
+# The stony ground. Pale and cool against everything else; rocks like it and
+# trees do not (survival.toml [world.biome_weights]).
+[[biomes]]
+biome_id = "grey_scree"
+# explore/ground-audition/grey_scree-a1, adopted 2026-09-06 (pass five):
+# the stone-chip fabric, 0.528 and busy-ness 0.050, the broadest chips of
+# the three draws (a2 and a3 finer). The pass-three field plate is archived
+# in explore/ground-audition/pass-three-fields/. The user's swap is the verdict.
+take = { path = "ground/grey_scree.take.png", sha256 = "c636e69f2042457a92ad42205917926ddc82b7979320aed97a3b8de9fbf6db6c" }
+# Surface friction for a dropped pickup (loose stone: the slippery one, a drop clatters on).
+friction = 0.45
+share = 0.14
+texel_meters = 2.0
+feature_max_meters = 0.25
+# Pass five: the scree was a plain pale field and the camp stood on it like
+# a sheet of paper (sRGB value 0.64, saturation 0.07 on screen). A fabric of
+# packed stone chips gives it the grain the other fabrics have.
+value_target = 0.48
+style_emphasis = """
+for this plate only, set the mood aside: an evenly lit daylight plate of
+mid-grey broken stone, cool blue-grey, clearly cooler than every earth in the
+set and a little darker than the meadow. Draw it the way the style reference
+is drawn, the ink line and two flat tones per shape and nothing rendered
+inside a shape, at the scale of the material.
+"""
+material = "fabric"
+prompt = """
+rocky scree ground: a dense fabric of small angular stone chips packed close
+and lying the same way, every stroke one flat chip with a thin ink line, in
+two close tones of cool mid grey, no dust showing between them.
+"""
+
+# The abstract layer. No drawing at all: soft cloud-like patches of colour a
+# few metres across, multiplied over the fine material in the shader. The
+# reference genre's ground is exactly this, flat colour fields with soft
+# painted boundaries, with everything recognisable drawn as a sprite on top.
+[macro]
+texel_meters = 24.0
+# Metres the field spans at playback (mixing, no re-bill): the reference's
+# blotches are 5 to 12 m across, a few to a screen, so the 48 m mirrored plate
+# is read over 14 m. The viewer applies it as VALUE only, in the turf's own
+# hue, the plate's luma over its mean; its tints were stains on the lens.
+period_meters = 14.0
+strength = 0.55
+prompt = """
+slightly greener damp patches, slightly warmer dry patches, and a few slightly
+darker shaded patches over a neutral mid-grey base
+"""
+
+# How the viewer composes the plates it is given. Mixing, never identity: no
+# cache key reads a number here, and the dev panel's ground sliders retune
+# them live (GROUND.md). Defaults for anything omitted live in manifest.py.
+#
+# Biomes stack in declaration order, the base lowest, and along a cut the
+# lower carpet is darkened for a short way and the cut takes an ink line, the
+# way the reference lays one turf on another. Widths are in units of the
+# eroded mask's margin: one unit is about a quarter metre where the mask
+# steps, torn by the noise, so the band tears with the edge.
+#
+# Texture bombing samples each plate per triangle-lattice vertex at its own
+# shift and turn, which is what removes the 2-axis mirror's kaleidoscope pairs
+# and the 4 m period at once. The cell stays larger than the largest mark
+# (feature_max_meters); bomb_rotate = 0 once a plate is a directional fabric.
+[blend]
+edge_softness = 0.03
+edge_noise_strength = 0.35
+edge_shadow = 0.35
+edge_shadow_width = 0.4
+edge_ink = 0.45
+edge_ink_width = 0.25
+# The cut's second octave: a 6 m noise tile (its features are a fortieth of
+# it, 15 cm) so the tear scallops at hand scale, streaked 0.6 m along the
+# brush; and a pale rim on the upper carpet so the cut reads as a raised
+# edge, not a line.
+edge_fine_meters = 6.0
+edge_fine_strength = 0.15
+edge_rim = 0.12
+bomb_meters = 3.0
+# Offsets only: the meadow and the bog are fabrics whose strokes lie one way,
+# and a turned cell would turn the grain, which the reference never does.
+bomb_rotate = 0.0
+# The day grade: a linear gain on the whole ground after levelling. Measured
+# at noon in the viewer before it existed the frame's ground sat near 0.28
+# sRGB luma against the reference's 0.6 (GROUND.md, layer 8).
+exposure = 1.0
+# The frame's light by day: a warm pool around the player and a vignette to
+# the corners, which every reference frame has and an even noon does not.
+pool_gain = 0.12
+pool_radius_meters = 9.0
+vignette = 0.2
+# The grade, on ground and sprites alike: blacks lifted a touch, midtones a
+# few degrees warmer, saturation pulled down above mid value.
+grade_lift = 0.03
+grade_warmth = 0.5
+grade_desaturate = 0.0
+# Ink waves on the water, the reference's short white strokes.
+wave_ink = 0.55
+wave_meters = 1.6
+# Contact shadows nearer the object's own width, and darker.
+shadow_scale = 1.4
+shadow_strength = 0.7
+# The skirts and pads over the darker turf (pass five): 1 read as pale stains.
+decal_gain = 0.62
+# The brush: one slow direction field over the whole ground that every
+# stroke follows. The plates are dragged along it over smudge_meters (a line
+# integral through the composed ground, so their marks become strokes of one
+# flow), the cut's fine tear is streaked along it, and across the cut the
+# neighbour's colour bleeds through the winner in those streaks. This is the
+# smudge, and it is ours: the reference cuts hard and never smears.
+# Tiles, not periods: the noise's features are a fortieth of its tile, so a
+# 200 m flow turns over 5 m and a 5 m stroke grain is 12 cm.
+flow_meters = 200.0
+edge_streak = 0.6
+smudge_meters = 0.5
+smudge = 0.3
+edge_bleed = 0.2
+edge_bleed_width = 1.0
+# The strokes themselves: the stroke grain integrated along the flow over
+# smudge_meters, taken by the value, each stroke a little warm or cool.
+# Held under the eye's threshold for a pattern: faint, in patches covering
+# about half the ground, of varying length, on a flow that wobbles.
+stroke = 0.08
+stroke_meters = 5.0
+stroke_cover = 0.55
+# A paper tooth over the whole frame, screen-space, sprites included.
+paper = 0.05
+paper_px = 4.0
+# Display value per biome, sRGB luma, in place of each plate's value_target:
+# levelled to their briefs all four sat within a tenth of each other and the
+# patchwork read tan-grey-tan. The reference alternates dark turf against
+# pale dirt, so the neighbours are pushed apart here; the briefs stay.
+# Pass five: display levels retuned to the measured reference (turf sRGB
+# value 0.25 to 0.38, the pale dirt about 0.7; ours read 0.54 to 0.80).
+level = { forest_floor = 0.34, mossy_bog = 0.36, grey_scree = 0.46, dry_meadow = 0.56 }
+
+# The recognisable litter, at true size. One sheet of cutouts, one per cell,
+# scattered flat on the ground by the layout at cell_meters per cell.
+#
+# The first sheet was a catalogue: sixteen objects each outlined all the way
+# round and lit from nowhere, and a piece like that is a sticker wherever it
+# lands. What makes a ground object convincing is its CONTACT, so every cell
+# declares one of three: "pressed" (the ground swallows its lower edge),
+# "fallen" (flat, a thin shadow along its lower edge) or "growing" (a base that
+# spreads into a contact ring). The light is from the top of the image for
+# every cell and the contact lies along the lower edge, which is the edge the
+# viewer keeps toward the camera; the layout only mirrors and jitters a piece,
+# it never spins it, and the viewer re-aims the litter when the camera turns.
+# Each cell also names the biomes it may land in: a fir cone on the scree is
+# evidence of nothing.
+[clutter]
+columns = 4
+rows = 4
+# explore/ground-audition/clutter-a2, adopted 2026-09-05 through the lattice
+# gate: the thinner-lined, more matte of two admissible draws.
+take = { path = "ground/clutter.take.png", sha256 = "f993322457c399435b9f99da782078476eb52290aa844ca9b4945fae742c9262" }
+# The first sheet came back glossy against matte plates (GROUND.md idea 7).
+style_emphasis = """
+matte flat colour only, no gloss, no specular highlight, no glow, no
+gradient inside a shape; a thin contour line at the weight of the reference,
+never heavy black; muted colour at the ground plates' own value, the shadow
+tone only one step darker than the lit tone.
+"""
+cell_meters = 0.42
+density_per_100m2 = { forest_floor = 10.0, dry_meadow = 3.5, mossy_bog = 5.0, grey_scree = 6.0 }
+cells = [
+  { brief = "a fist-sized grey stone", contact = "pressed", biomes = ["forest_floor", "dry_meadow", "mossy_bog", "grey_scree"] },
+  { brief = "a small rounded pebble", contact = "pressed", biomes = ["forest_floor", "dry_meadow", "mossy_bog", "grey_scree"] },
+  { brief = "a flat slab of dark stone", contact = "pressed", biomes = ["forest_floor", "grey_scree"] },
+  { brief = "a scatter of three tiny stones", contact = "pressed", biomes = ["dry_meadow", "grey_scree"] },
+  { brief = "a piece of bark half sunk in the earth", contact = "pressed", biomes = ["forest_floor", "mossy_bog"] },
+  { brief = "a curled dry oak leaf", contact = "fallen", biomes = ["forest_floor", "dry_meadow"] },
+  { brief = "a forked dry twig", contact = "fallen", biomes = ["forest_floor", "dry_meadow", "mossy_bog"] },
+  { brief = "a small fir cone", contact = "fallen", biomes = ["forest_floor"] },
+  { brief = "a patch of fallen needles", contact = "fallen", biomes = ["forest_floor"] },
+  { brief = "a single yellow leaf", contact = "fallen", biomes = ["forest_floor", "dry_meadow", "mossy_bog"] },
+  { brief = "a small bleached bone", contact = "fallen", biomes = ["dry_meadow", "grey_scree"] },
+  { brief = "a broken stick with a pale end", contact = "fallen", biomes = ["forest_floor", "mossy_bog"] },
+  { brief = "a tuft of moss", contact = "growing", biomes = ["forest_floor", "mossy_bog"] },
+  { brief = "a mushroom, cap and a little of the stem", contact = "growing", biomes = ["forest_floor", "mossy_bog"] },
+  { brief = "a tuft of coarse sedge", contact = "growing", biomes = ["mossy_bog", "dry_meadow"] },
+  { brief = "a small clump of pale lichen", contact = "growing", biomes = ["grey_scree", "dry_meadow"] },
+]
+
+# The forage: the things on the ground the player can pick up, at true size.
+# Drawn exactly like the litter, one sheet of cutouts scattered flat by the
+# layout, and unlike the litter every cell names the item it yields, how many,
+# and how long the spot takes to regrow. This is the world representation of
+# a forageable item; the same item dropped from the pack is its pickup sprite
+# (items.toml), and in the pack it is a cell of the icon sheet. The pieces
+# are drawn a step brighter than the litter, with a pickup's closed contour,
+# so a twig that can be taken reads apart from a twig that is decoration.
+[forage]
+columns = 4
+rows = 4
+# explore/ground-audition/forage-a2, adopted 2026-09-06 through the lattice
+# gate: of three draws two were admissible (a1 touched a guide line); the
+# plumper of the two, with contact bases under the mushrooms.
+take = { path = "ground/forage.take.png", sha256 = "7d626de03622ffbef9e5960a8e488eafa2b40c5d3b8b72abf5612675984381e4" }
+style_emphasis = """
+matte flat colour, no gloss and no glow; a clean closed contour line one
+step heavier than the litter's, and colour one step brighter and more
+saturated than the ground plates', so each piece pops off the turf it lies
+on; the shadow tone one step darker than the lit tone.
+"""
+cell_meters = 0.5
+density_per_100m2 = { forest_floor = 1.6, dry_meadow = 1.0, mossy_bog = 1.2, grey_scree = 1.4 }
+cells = [
+  { brief = "a loose bundle of three dry twigs", contact = "fallen", biomes = ["forest_floor", "dry_meadow", "mossy_bog"], item_id = "twig", count = 2, regrow_seconds = 240.0 },
+  { brief = "a single forked dry branch, arm long", contact = "fallen", biomes = ["forest_floor", "dry_meadow"], item_id = "twig", count = 1, regrow_seconds = 240.0 },
+  { brief = "a few pale snapped sticks lying across each other", contact = "fallen", biomes = ["forest_floor", "mossy_bog", "grey_scree"], item_id = "twig", count = 2, regrow_seconds = 240.0 },
+  { brief = "a dark glassy flint nodule with one chipped face", contact = "pressed", biomes = ["grey_scree", "dry_meadow"], item_id = "flint", count = 1, regrow_seconds = 300.0 },
+  { brief = "a flat flake of dark flint with sharp edges", contact = "fallen", biomes = ["grey_scree", "dry_meadow", "forest_floor"], item_id = "flint", count = 1, regrow_seconds = 300.0 },
+  { brief = "two small dark flint chips side by side", contact = "fallen", biomes = ["grey_scree"], item_id = "flint", count = 2, regrow_seconds = 300.0 },
+  { brief = "a loose fist-sized grey stone, whole", contact = "fallen", biomes = ["grey_scree", "dry_meadow", "forest_floor"], item_id = "stone", count = 1, regrow_seconds = 300.0 },
+  { brief = "a pair of rounded grey stones touching", contact = "pressed", biomes = ["grey_scree", "mossy_bog"], item_id = "stone", count = 2, regrow_seconds = 300.0 },
+  { brief = "a plump brown-capped mushroom, whole", contact = "growing", biomes = ["forest_floor", "mossy_bog"], item_id = "mushroom", count = 1, regrow_seconds = 180.0 },
+  { brief = "a cluster of three small tan mushrooms", contact = "growing", biomes = ["forest_floor", "mossy_bog"], item_id = "mushroom", count = 2, regrow_seconds = 180.0 },
+  { brief = "a single pale mushroom with a broad flat cap", contact = "growing", biomes = ["forest_floor"], item_id = "mushroom", count = 1, regrow_seconds = 180.0 },
+  { brief = "a bright green cushion of moss", contact = "growing", biomes = ["forest_floor", "mossy_bog"], item_id = "moss", count = 1, regrow_seconds = 200.0 },
+  { brief = "a wide flat mat of moss", contact = "growing", biomes = ["mossy_bog"], item_id = "moss", count = 2, regrow_seconds = 200.0 },
+  { brief = "a mossy bit of bark lying on the ground", contact = "fallen", biomes = ["forest_floor", "mossy_bog"], item_id = "moss", count = 1, regrow_seconds = 200.0 },
+  { brief = "a short thick dry stick with the bark peeling", contact = "fallen", biomes = ["forest_floor", "dry_meadow", "grey_scree"], item_id = "twig", count = 1, regrow_seconds = 240.0 },
+  { brief = "a chipped flint core with a pale rind, fist sized", contact = "pressed", biomes = ["grey_scree", "forest_floor"], item_id = "flint", count = 1, regrow_seconds = 300.0 },
+]
+
+# The track. Its fill is a material plate; its edge is the splat mask eroded by
+# noise in the shader, the way the reference genre's roads end in a torn edge
+# rather than a line. edge_meters is the width of that erosion band.
+# The mid-scale. The litter is 2 to 40 cm and the props start at a metre and
+# a half; the reference fills every turf between those with knee- to
+# waist-high plants, and that, more than the plate, is the texture of its
+# ground. One lattice sheet of sixteen standing plants, scattered by the
+# layout per biome like the litter but laid as upright cards at true size,
+# not interactable, with a small contact shadow, darkened under the canopy.
+# A cell is 1.4 m of real ground, so a plant drawn to fill it is waist high.
+# The winter look repaints the sheet with snow, like a prop (SEASONS.md).
+[plants]
+columns = 4
+rows = 4
+# explore/ground-audition/plants-a2, adopted 2026-09-06: the eighth draw.
+# The first three came back with a dark halo round every plant and the base
+# on the lower guide (the clause said "on the bottom of its cell"); the next
+# three were clean but the flower spike's tip crossed the top margin by two
+# pixels in each (the brief said "waist high"); the last two both passed
+# under the corrected clause. The user's swap is the verdict.
+take = { path = "ground/plants.take.png", sha256 = "7e65a6c7e54847ee8ef8453ec34561fa29279c3732b32dfa4623032563addcfb" }
+style_emphasis = """
+matte flat colour only, no gloss and no glow; the set's thin ink contour;
+foliage in colour one step darker and one step more saturated than the ground
+plates, the lit tone above and the shadow tone below, so a plant sits in the
+turf rather than on it; every plant drawn whole from its base to its top,
+its base low in its cell but clear of the lower guide line; nothing drawn
+around a plant, no halo, no soft shadow, the backing clear to the ink line.
+"""
+cell_meters = 1.4
+density_per_100m2 = { forest_floor = 5.0, dry_meadow = 7.0, mossy_bog = 5.0, grey_scree = 2.5 }
+cells = [
+  { brief = "a tall clump of dry meadow grass, waist high, its seed heads nodding", contact = "growing", biomes = ["dry_meadow", "grey_scree"] },
+  { brief = "a broad tuft of fresh green grass, knee high", contact = "growing", biomes = ["forest_floor", "dry_meadow", "mossy_bog"] },
+  { brief = "a young fern, three fronds unrolling, knee high", contact = "growing", biomes = ["forest_floor", "mossy_bog"] },
+  { brief = "a birch sapling, one thin stem with a dozen small leaves, waist high", contact = "growing", biomes = ["forest_floor", "dry_meadow"] },
+  { brief = "a pine seedling, one short spire of needles, knee high", contact = "growing", biomes = ["forest_floor", "grey_scree"] },
+  { brief = "a clump of small white wildflowers on thin stems, knee high", contact = "growing", biomes = ["dry_meadow", "forest_floor"] },
+  { brief = "a clump of small yellow flowers among round leaves, shin high", contact = "growing", biomes = ["dry_meadow", "mossy_bog"] },
+  { brief = "a spray of dry reeds with dark seed heads, waist high", contact = "growing", biomes = ["mossy_bog"] },
+  { brief = "a tussock of coarse sedge, knee high, bent over at the tips", contact = "growing", biomes = ["mossy_bog", "dry_meadow"] },
+  { brief = "a small thistle with two purple heads, knee high", contact = "growing", biomes = ["dry_meadow", "grey_scree"] },
+  { brief = "a low heather bush, tiny leaves and a few pink tips, shin high", contact = "growing", biomes = ["grey_scree", "dry_meadow"] },
+  { brief = "a stand of bracken, three tall fronds, waist high", contact = "growing", biomes = ["forest_floor"] },
+  { brief = "a rosette of broad dock leaves, shin high", contact = "growing", biomes = ["forest_floor", "mossy_bog", "dry_meadow"] },
+  { brief = "a spike of pale bell-shaped flowers on one stem, knee high", contact = "growing", biomes = ["forest_floor"] },
+  { brief = "a spindly dead shrub of bare grey twigs, knee high", contact = "growing", biomes = ["grey_scree", "dry_meadow", "forest_floor"] },
+  { brief = "a grey-green tuft of lichen and moss over a low stone, shin high", contact = "growing", biomes = ["grey_scree", "mossy_bog"] },
+]
+
+[road]
+road_id = "dirt_track"
+width_meters = 2.2
+length_meters = 150.0
+texel_meters = 2.0
+feature_max_meters = 0.25
+value_target = 0.46
+edge_meters = 0.7
+style_emphasis = """
+for this plate only, set the mood aside: an evenly lit daylight plate of
+compacted earth, mid-toned, a little darker and greyer than the forest floor
+around it. Keep the ink contours and flat cutout shading, drawn fine.
+"""
+prompt = """
+the trodden surface of a dirt track, edge to edge with no verge and no border:
+hard-packed grey-brown earth, faint overlapping footprints, a few pressed-in
+flat stones and small ruts.
+"""
+
+# The water. The land is a shaped mass inside the world square (survival.toml
+# [world.landmass]); beyond its torn coast the ground is discarded and this
+# plane shows through. The reference draws a dark cliff side under the land to
+# say it is raised; this demo says it with a shadow band on the water and an
+# ink rim on the coast, which is the same statement at a fraction of the art.
+# The system knows water the way it knows ground: it is a first-party layer,
+# not content, and nothing walks on it.
+[water]
+texel_meters = 6.0
+feature_max_meters = 0.6
+value_target = 0.26
+style_emphasis = """
+for this plate only: a calm dark lake surface, flat and quiet, drawn with
+sparse marks. Keep the ink line and the flat cutout shading; no gothic detail.
+"""
+prompt = """
+still dark lake water seen straight down: a flat ink-wash surface of deep
+green-grey with a few soft curving ripple lines and faint pale flecks of
+reflected light, no shore, no objects, no fish, no foam.
+"""
+colour = [0.13, 0.20, 0.22]
+# The slab (mixing, no re-bill): how far the water lies below the ground, and
+# the face the viewer draws under the far coast by re-sampling the land mask
+# up the view ray. The reference's face is two to three metres; at 0.45 the
+# coast was a hole. The dev panel's "cliff depth" retunes it live.
+depth_meters = 2.2
+cliff_colour = [0.17, 0.13, 0.10]
+
+# Decals are flat feathered patches. use = "pad" goes under the camp
+# structures; use = "skirt" goes under every prop of the listed families when
+# survival.toml says ground_contact = "skirt_decal", scaled to `scale` times
+# the prop's shadow width. A skirt is the seam painted by the pipeline instead
+# of by the prop's own art: the ground reacting to the thing on it, an uneven
+# patch with the centre left as plain ground so the prop's base sits in it.
+# A patch is a ground piece under the look contract (survival.toml [look]): it
+# keeps its lower edge toward the camera, is never spun and never mirrored.
+[[decals]]
+decal_id = "path"
+use = "pad"
+width_meters = 2.4
+height_meters = 2.4
+prompt = """
+A worn patch of bare compacted earth where feet pass every day, with a few
+small stones pressed half into it and a dead leaf or two flattened on it.
+"""
+
+# The contact patches. Each is a brief for the ground at the foot of a family,
+# the way the reference paints it: an uneven darker blot of packed earth with
+# a few things pressed into it, not a ring of anything. The first briefs asked
+# for "a ring of roots" and "a ring of rubble", and the model drew what it was
+# asked, a disc, which the eye then picked out under every tree. The brief
+# names only what lies pressed into the ground, never what stands on it.
+[[decals]]
+decal_id = "tree_skirt"
+use = "skirt"
+families = ["tree"]
+# Laid width as a multiple of the prop's shadow width. 1.7 read as a carpet of
+# dark discs; the patch should sit just outside the trunk, not the canopy.
+scale = 1.1
+width_meters = 2.0
+height_meters = 2.0
+prompt = """
+Packed woodland earth with a drift of fallen brown needles flattened into it,
+two or three small stones pressed half into the ground near its edge, and one
+knuckle of root breaking the surface and sinking back in.
+"""
+
+[[decals]]
+decal_id = "rock_skirt"
+use = "skirt"
+families = ["rock"]
+scale = 1.15
+width_meters = 1.6
+height_meters = 1.6
+prompt = """
+Bare earth with grey grit and a few flat stone chips pressed half into it, and
+a little moss creeping in along its lower side.
+"""
+
+[[decals]]
+decal_id = "bush_skirt"
+use = "skirt"
+families = ["bush"]
+scale = 1.2
+width_meters = 1.4
+height_meters = 1.4
+prompt = """
+Bare earth with a few dropped leaves flattened into it and three or four fallen
+dark berries pressed into the ground.
+"""
+
+# The wet decal: standing water, laid by the layout at world generation and
+# faded in and out by the runtime with the rain's wetness (weather.toml
+# [conditions.wet]). It is a decal because that is what it is structurally, a
+# flat picture on the ground with a soft edge; "puddle" is the author's word.
+[[decals]]
+decal_id = "puddle"
+use = "wet"
+width_meters = 1.6
+height_meters = 1.2
+prompt = """
+A shallow puddle of still rainwater lying in a hollow of bare earth: a flat
+plain unbroken sheet of pale grey-blue, mid-toned, with a darker wet rim of
+mud around it and nothing on its surface.
+"""
+
+[fx.fire]
+columns = 4
+rows = 4
+fps = 12
+height_units = 0.55
+prompt = """
+A single campfire flame: a tall wavering teardrop of layered flat flame shapes,
+bright bone-white at the base rising through amber to a dark ragged tip.
+"""
+
+[fx.dust]
+# The four quadrant cells, in the reading order the layout fixes.
+kinds = ["dust", "leaves", "chips", "sparkle"]
+height_units = 0.30
+prompt = """
+Four separate impact puffs on one sheet, each a single solid cloud with few large
+lobes: a low wide puff of pale dust; a burst of small dark torn leaves; a spray of
+pale angular wood chips; a scatter of bright ember sparks.
+"""

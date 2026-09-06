@@ -3,10 +3,11 @@
 
 `docs/spec/game/generation-pipeline.md` carries a JSON snapshot of the Bellweather platformer
 execution graph, `docs/spec/game/runner.md` snapshots the Iron Petal Unit structural-ground
-runner graph, and `docs/spec/universe/generation-v1.md` snapshots both phases of the Lantern
-Ferry universe. `tests/contract/test_generation_pipeline_docs.py` asserts every document matches
-the graphs the code actually builds. Any change to recipe stages, asset fan-out, or scheduling
-invalidates the relevant snapshot.
+runner graph, `docs/spec/universe/generation-v1.md` snapshots both phases of the Lantern
+Ferry universe, and `docs/spec/survival/generation-v1.md` snapshots the widest scope of the
+Ember Hollow oblique-survival world. `tests/contract/test_generation_pipeline_docs.py` asserts
+every document matches the graphs the code actually builds. Any change to recipe stages, asset
+fan-out, or scheduling invalidates the relevant snapshot.
 
 A document may carry more than one block when a recipe plans more than one graph. Universe does:
 the size of its gallery is a result of its semantic phase, so the two graphs are sealed
@@ -34,6 +35,10 @@ if __package__ in {None, ""}:
 
 from stage_gen.config import StageGenConfig
 from stage_gen.orchestration.game_package import resolve_game_package
+from stage_gen.recipes.oblique_survival.survival_graph import (
+    build_graph as build_oblique_survival_graph,
+)
+from stage_gen.recipes.oblique_survival.survival_request import resolve_survival_source
 from stage_gen.recipes.sideview_platformer.package_graph import (
     build_package_execution_graph,
     package_graph_profile,
@@ -69,6 +74,13 @@ UNIVERSE_FIXTURE_REF = "library/games/lantern_ferry"
 UNIVERSE_ADMITTED_REF = "tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json"
 UNIVERSE_SEMANTIC_CONTRACT_KIND = "universe-semantic-execution-graph-contract-v1"
 UNIVERSE_GALLERY_CONTRACT_KIND = "universe-gallery-execution-graph-contract-v1"
+OBLIQUE_SURVIVAL_DOCUMENT = REPOSITORY_ROOT / "docs/spec/survival/generation-v1.md"
+OBLIQUE_SURVIVAL_FIXTURE_REF = "library/games/ember-hollow"
+OBLIQUE_SURVIVAL_CONTRACT_KIND = "oblique-survival-execution-graph-contract-v1"
+#: The widest rung of the ladder. A narrower scope is a subset of this graph and
+#: changes nothing about the nodes it keeps, so snapshotting the widest one pins
+#: every node identity the recipe can plan.
+OBLIQUE_SURVIVAL_SCOPE = "full"
 
 
 def contract_markers(label: str | None) -> tuple[str, str, re.Pattern[str]]:
@@ -183,6 +195,28 @@ def build_universe_gallery_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[
     }
 
 
+def build_oblique_survival_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
+    """Derive the survival world's contract from the graph the code builds.
+
+    The scope rides the payload because it is the one header field in this
+    recipe's topology identity: it genuinely selects a subset of the nodes.
+    """
+
+    package = resolve_survival_source(repo / OBLIQUE_SURVIVAL_FIXTURE_REF)
+    graph = build_oblique_survival_graph(StageGenConfig(), package, OBLIQUE_SURVIVAL_SCOPE)
+    return {
+        "kind": OBLIQUE_SURVIVAL_CONTRACT_KIND,
+        "fixture_ref": OBLIQUE_SURVIVAL_FIXTURE_REF,
+        "scope": graph.scope,
+        "graph_schema_version": graph.schema_version,
+        "topology_sha256": graph.topology_sha256,
+        "node_count": len(graph.nodes),
+        "terminal_node_id": graph.terminal_node_id,
+        "operation_counts": graph.operation_counts(),
+        "resources": [resource.model_dump(mode="json") for resource in graph.resources],
+    }
+
+
 def document_contract(
     document: Path = PIPELINE_DOCUMENT, *, label: str | None = None
 ) -> dict[str, Any]:
@@ -245,6 +279,12 @@ def main(argv: list[str] | None = None) -> int:
             UNIVERSE_DOCUMENT,
             build_universe_gallery_graph_contract,
             "gallery",
+        ),
+        (
+            "oblique-survival",
+            OBLIQUE_SURVIVAL_DOCUMENT,
+            build_oblique_survival_graph_contract,
+            None,
         ),
     )
     status = 0

@@ -785,6 +785,199 @@ def test_universe_failure_injection_is_refused_outside_a_dry_run(
     assert not (tmp_path / "run").exists()
 
 
+def test_oblique_survival_cli_dry_runs_a_scope_and_exports_its_view(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """One rung of the ladder, rehearsed end to end with no provider anywhere."""
+
+    monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
+    repository = Path(__file__).resolve().parents[2]
+    package = repository / "library/games/ember-hollow"
+    run_dir = tmp_path / "run"
+
+    stdout = StringIO()
+    assert (
+        main(
+            [
+                "oblique-survival",
+                "generate",
+                "--input",
+                str(package),
+                "--output",
+                str(run_dir),
+                "--cache-dir",
+                str(tmp_path / "cache"),
+                "--scope",
+                "minimal",
+                "--dry-run",
+                "--invocation-id",
+                "cli-minimal",
+            ],
+            stdout=stdout,
+        )
+        == 0
+    )
+    report = json.loads(stdout.getvalue())
+    assert report["ok"] is True
+    assert report["recipe"] == "oblique-survival"
+    assert report["scope"] == "minimal"
+    assert report["package_id"] == "ember-hollow"
+    assert report["node_count"] == 71
+    # A rehearsal accounts for what the real run would spend, node for node, and
+    # spends none of it: the dry-run handler stands in for every service.
+    assert report["provider_operation_counts"]["image_generation"] == 22
+    assert report["provider_operation_counts"]["tool_loop"] == 6
+
+    # A rehearsal publishes placeholders, so the run holds no manifest to report a
+    # status for. Rebuilding one from what is on disk is what says so out loud.
+    assert "status" not in report
+    stdout = StringIO()
+    assert (
+        main(
+            ["oblique-survival", "finalize", "--run", str(run_dir), "--input", str(package)],
+            stdout=stdout,
+        )
+        == 0
+    )
+    status = json.loads(stdout.getvalue())["status"]
+    assert set(status) >= {"props", "ground", "items", "layout"}
+    assert set(status.values()) == {"missing"}, "a rehearsal published nothing, and says so"
+
+    stdout = StringIO()
+    assert main(["export-view", "--run", str(run_dir)], stdout=stdout) == 0
+    view = json.loads(stdout.getvalue())
+    assert view["gaps"] == 0
+
+
+def test_oblique_survival_plan_prices_a_scope_without_touching_a_provider(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Planning is free, so it is what a scope is chosen from."""
+
+    monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
+    repository = Path(__file__).resolve().parents[2]
+    stdout = StringIO()
+    assert (
+        main(
+            [
+                "oblique-survival",
+                "plan",
+                "--input",
+                str(repository / "library/games/ember-hollow"),
+                "--scope",
+                "full",
+                "--cache-dir",
+                str(tmp_path / "cache"),
+            ],
+            stdout=stdout,
+        )
+        == 0
+    )
+    report = json.loads(stdout.getvalue())
+    assert report["recipe"] == "oblique-survival"
+    assert report["scope"] == "full"
+    assert report["package_id"] == "ember-hollow"
+    assert report["graph"]["kind"] == "oblique-survival-execution-graph-v1"
+    assert len(report["graph"]["nodes"]) == 277
+    # An empty cache restores nothing, and says how much that leaves to pay for.
+    assert report["cache"]["restored_provider_nodes"] == 0
+    assert report["cache"]["billed_provider_nodes"] == 125
+
+
+def test_oblique_survival_failure_injection_is_refused_outside_a_dry_run(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """Injecting a failure is a dry-run affordance; a paid run must not take it."""
+
+    repository = Path(__file__).resolve().parents[2]
+    exit_code = main(
+        [
+            "oblique-survival",
+            "generate",
+            "--input",
+            str(repository / "library/games/ember-hollow"),
+            "--output",
+            str(tmp_path / "run"),
+            "--scope",
+            "minimal",
+            "--failure-node",
+            "source-lock",
+        ],
+        stdout=StringIO(),
+    )
+    assert exit_code != 0
+    assert "available only with --dry-run" in capsys.readouterr().err
+    assert not (tmp_path / "run").exists()
+
+
+def test_oblique_survival_import_run_refuses_a_run_whose_provider_keys_have_moved(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """A transfer claims a prior run's identity, so it must refuse to claim a wrong one.
+
+    Importing a node under a key it was not taken under would tell the cache a
+    picture answers a brief it never saw. The refusal is what keeps the one-time
+    transfer of a paid run honest.
+    """
+
+    monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
+    repository = Path(__file__).resolve().parents[2]
+    package = repository / "library/games/ember-hollow"
+    prior = tmp_path / "prior"
+    assert (
+        main(
+            [
+                "oblique-survival",
+                "generate",
+                "--input",
+                str(package),
+                "--output",
+                str(prior),
+                "--cache-dir",
+                str(tmp_path / "dry-cache"),
+                "--scope",
+                "minimal",
+                "--dry-run",
+                "--invocation-id",
+                "cli-prior",
+            ],
+            stdout=StringIO(),
+        )
+        == 0
+    )
+
+    # The same package with one prop re-briefed: that prop's picture is a
+    # different answer now, so its key has moved and the run cannot supply it.
+    edited = tmp_path / "package"
+    shutil.copytree(package, edited)
+    props = edited / "props.toml"
+    text = props.read_text(encoding="utf-8")
+    marker = "A slender pale-barked broadleaf tree"
+    assert marker in text, "the fixture package no longer authors the prop this test edits"
+    props.write_text(text.replace(marker, f"A taller {marker[2:]}", 1), encoding="utf-8")
+
+    exit_code = main(
+        [
+            "oblique-survival",
+            "import-run",
+            "--run",
+            str(prior),
+            "--input",
+            str(edited),
+            "--cache-dir",
+            str(tmp_path / "cache"),
+            "--scope",
+            "minimal",
+        ],
+        stdout=StringIO(),
+    )
+    assert exit_code != 0
+    message = capsys.readouterr().err
+    assert "refusing the transfer" in message
+    assert "prop-birch-sheet-generate" in message
+    assert not (tmp_path / "cache").exists(), "a refused transfer wrote nothing"
+
+
 @pytest.mark.parametrize(
     "argv",
     [

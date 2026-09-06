@@ -24,6 +24,11 @@ from stage_gen.recipes.dialogue_scene.scene_graph import (
 from stage_gen.recipes.executor import RecipeExecutor
 from stage_gen.recipes.graph_document import RecipeGraph
 from stage_gen.recipes.node_handler import RecipeNodeHandler
+from stage_gen.recipes.oblique_survival.survival_executor import ObliqueSurvivalExecutor
+from stage_gen.recipes.oblique_survival.survival_graph import (
+    OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION,
+    ObliqueSurvivalGraph,
+)
 from stage_gen.recipes.pointclick_room.room_executor import PointClickRoomExecutor
 from stage_gen.recipes.pointclick_room.room_graph import (
     POINTCLICK_GRAPH_SCHEMA_VERSION,
@@ -56,6 +61,7 @@ GRAPHS: tuple[tuple[type[RecipeGraph], str, int], ...] = (
     (PointClickRoomGraph, "pointclick-room", POINTCLICK_GRAPH_SCHEMA_VERSION),
     (DialogueSceneGraph, "dialogue-scene", DIALOGUE_GRAPH_SCHEMA_VERSION),
     (UniverseGraph, "universe", UNIVERSE_GRAPH_SCHEMA_VERSION),
+    (ObliqueSurvivalGraph, "oblique-survival", OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION),
 )
 
 EXECUTORS = (
@@ -64,6 +70,7 @@ EXECUTORS = (
     PointClickRoomExecutor,
     DialogueSceneExecutor,
     UniverseExecutor,
+    ObliqueSurvivalExecutor,
 )
 
 #: Module-level helpers the substrate owns. A recipe defining one again is the drift.

@@ -2,13 +2,14 @@
 
 > **Checked by:** `tests/contract/test_docs_check.py`.
 
-> **Contract maturity: proposed TO-BE for the vocabulary; three of its profile
+> **Contract maturity: proposed TO-BE for the vocabulary; four of its profile
 > identities are bound.**
 >
 > This specification defines canonical target terminology, profile identity,
 > and namespace rules for game view, camera, gameplay space, asset view, and
 > visual style. `lateral_orthographic_side_plane_v1`,
-> `screen_space_dialogue_stage_v1` and `screen_space_room_stage_v1` are bound
+> `screen_space_dialogue_stage_v1`, `screen_space_room_stage_v1` and
+> `elevated_oblique_perspective_ground_plane_v1` are bound
 > to camera aliases by the [asset taxonomy](../asset-taxonomy.md) and carried by
 > the recipes under them. Every other term here is target vocabulary: it records
 > no support status and defines no project plan.
@@ -17,7 +18,10 @@ The [Game contract](../../game-contract.md) owns the game-wide domain model.
 The [authored contract schema](authored-contract-schema.md) documents the
 currently executable `game.toml` vocabulary. Until a new executable schema is
 ratified and implemented, `side_view_2d` remains the only accepted projection
-of the side-view platformer recipe.
+of the side-view platformer recipe. The oblique-survival recipe is not a
+`game.toml` member and states its own executable projection in its
+[generation specification](../survival/generation-v1.md): perspective, an
+elevated-oblique pose, ground-plane gameplay, and depth-buffer occlusion.
 
 ## Purpose
 
@@ -495,9 +499,12 @@ adapters supply profile-specific expectations.
 
 This specification does not:
 
-- declare any target profile implemented;
-- select a game engine or engine coordinate convention;
-- accept any executable projection other than `side_view_2d`;
+- declare any target profile implemented beyond the four bound above;
+- select a game engine or engine coordinate convention for any recipe other
+  than the one [decision 0057](../../decisions/0057-the-survival-game-runs-on-godot.md)
+  rules on;
+- accept any executable projection other than `side_view_2d` for a `game.toml`
+  member;
 - combine visual style with camera identity;
 - authorize generated media for fixtures or publication; or
 - replace per-recipe asset contracts and acceptance gates.
