@@ -36,6 +36,11 @@ const CARD_ICON := 52.0
 const GLYPH := 16.0
 const HUD_WIDTH := 320.0
 const BAR_HEIGHT := 13.0
+## The day drawn as a strip under the clock: light, dusk, night, dawn, and a
+## tick where the hour stands.
+const DAY_STRIP_HEIGHT := 7.0
+## Phase 0 is sunrise, so the hour reads 06:00 there and midnight at 0.75.
+const SUNRISE_HOUR := 6.0
 const CARD_WIDTH := 300.0
 const MARGIN := 14.0
 ## `.bar > i { transition: width .12s linear }` — the fill slides, it does not jump.
@@ -70,6 +75,9 @@ var ui_scale: float = 1.0
 var _root: Control = null
 var _hud_panel: PanelContainer = null
 var _title: RichTextLabel = null
+## The clock under the title: the hour, and how long until dusk or dawn.
+var _clock_row: Control = null
+var _day_strip: DayStripView = null
 var _health_row: Control = null
 var _health_bar: Control = null
 var _hunger_row: Control = null
@@ -274,9 +282,14 @@ func update(world, delta: float, _cam: Dictionary) -> void:
 	if capacity != _slot_cells.size():
 		_rebuild_slots(capacity)
 
-	var signature := "%s|%d|%s|%d|%d|%d|%s|%s|%s|%s|%d|%d|%d|%d|%s" % [
+	var clock := clock_of(world)
+	_day_strip.phase = float(world.day_phase)
+	_day_strip.dusk = float(clock["dusk"])
+	_day_strip.queue_redraw()
+	var signature := "%s|%d|%s|%s|%d|%d|%d|%s|%s|%s|%s|%d|%d|%d|%d|%s" % [
 		str(manifest.get("title", manifest.get("package_id", ""))),
 		int(world.day),
+		"%s%s%d" % [clock["hour"], clock["word"], int(ceil(float(clock["seconds"])))],
 		("%s:%s" % [_season_glyph(world), spec.get("display_name", season.get("id", ""))]) if has_calendar else "",
 		int(round(health)), int(round(hunger)), int(round(warmth)),
 		"warmth" if (has_calendar or warmth < warmth_max) else "",
@@ -291,6 +304,7 @@ func update(world, delta: float, _cam: Dictionary) -> void:
 		_hud_signature = signature
 		_write_hud_text(world, manifest, season, spec, has_calendar, cold, warm_running,
 			health, hunger, warmth)
+		_write_clock(clock)
 
 	# The bars slide rather than jump (`transition: width .12s linear`).
 	_bar_target(_health_bar, health / maxf(1.0, health_max), delta)
@@ -355,6 +369,57 @@ func _write_hud_text(world, manifest: Dictionary, season: Dictionary, spec: Dict
 	var warm_left: float = float((world.warm as Dictionary).get("remaining", 0.0))
 	_warm.visible = warm_left > 0.0
 	_warm.text = "stone warm · %d s" % int(ceil(warm_left))
+
+
+## The clock row: `☀ 08:52 · day` on the left, `dusk in 3:02` on the right.
+func _write_clock(clock: Dictionary) -> void:
+	_row_text(_clock_row, str(clock["glyph"]), "%s · %s" % [clock["hour"], clock["word"]],
+		"%s in %s" % [clock["next"], clock_countdown(float(clock["seconds"]))], false)
+
+
+## The clock read off the world: the hour (phase 0 is sunrise, 06:00), the
+## part of the day (`day`, `dusk`, `night`, `dawn`), what comes next and in
+## how many seconds — dusk while it is day, dark while dusk falls, dawn
+## through the night, day while dawn breaks — and the glyph for it. The dusk
+## is the season's (`Helpers.night_factor`'s curve), so a winter clock says
+## dusk earlier, in the same hours.
+static func clock_of(world) -> Dictionary:
+	var phase := fposmod(float(world.day_phase), 1.0)
+	var share := Helpers.night_share_of(world)
+	var dusk := maxf(0.2, minf(0.76, 1.0 - share - 0.12))
+	var length := float((world.manifest.get("gameplay", {}) as Dictionary).get("day_length_seconds", 0.0))
+	if length <= 0.0:
+		length = SysDayCycle.DEFAULT_DAY_LENGTH
+	var word := "day"
+	var next := "dusk"
+	var target := dusk
+	var glyph := "sun"
+	if phase >= 0.88:
+		word = "dawn"
+		next = "day"
+		target = 1.0
+	elif phase >= dusk + 0.12:
+		word = "night"
+		next = "dawn"
+		target = 0.88
+		glyph = "moon"
+	elif phase >= dusk:
+		word = "dusk"
+		next = "dark"
+		target = dusk + 0.12
+	var hour := fposmod(SUNRISE_HOUR + phase * 24.0, 24.0)
+	var minutes := int(floor(hour * 60.0 + 1e-6))
+	return {
+		"hour": "%02d:%02d" % [minutes / 60, minutes % 60],
+		"word": word, "next": next, "glyph": glyph, "dusk": dusk,
+		"seconds": maxf(0.0, (target - phase) * length),
+	}
+
+
+## Seconds as `m:ss`.
+static func clock_countdown(seconds: float) -> String:
+	var whole := int(ceil(seconds))
+	return "%d:%02d" % [whole / 60, whole % 60]
 
 
 func _row_text(row: Control, glyph: String, label: String, value: String, cold: bool) -> void:
@@ -858,6 +923,12 @@ func _build_hud_panel() -> void:
 
 	_title = UiKit.rich(UiKit.TITLE, HUD_WIDTH - 24.0)
 	box.add_child(_title)
+	_clock_row = _bar_row()
+	box.add_child(_clock_row)
+	_day_strip = DayStripView.new()
+	_day_strip.custom_minimum_size = Vector2(HUD_WIDTH - 24.0, DAY_STRIP_HEIGHT)
+	_day_strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(_day_strip)
 	box.add_child(UiKit.spacer(6.0))
 
 	_health_row = _bar_row()
@@ -1241,6 +1312,48 @@ class BarView:
 		inner.bg_color = fill
 		inner.set_corner_radius_all(5)
 		draw_style_box(inner, Rect2(1.0, 1.0, maxf(2.0, (size.x - 2.0) * fraction), size.y - 2.0))
+
+
+## The day as a strip: the light hours warm, the dusk fading, the night dark,
+## the dawn brightening again, and a tick where the hour stands, so the eye
+## sees how far off the dark is without reading the countdown.
+class DayStripView:
+	extends Control
+
+	const LIGHT := Color(0.93, 0.80, 0.46)
+	const DARK := Color(0.16, 0.18, 0.28)
+	const STEPS := 8
+
+	var phase: float = 0.0
+	var dusk: float = 0.5
+
+	func _draw() -> void:
+		var track := StyleBoxFlat.new()
+		track.bg_color = UiKit.BAR_BG
+		track.border_color = UiKit.BAR_BORDER
+		track.set_border_width_all(1)
+		track.set_corner_radius_all(4)
+		draw_style_box(track, Rect2(Vector2.ZERO, size))
+		var inner := Rect2(1.0, 1.0, size.x - 2.0, size.y - 2.0)
+		# The light hours as one fill; the two twilights as a few steps each;
+		# the night as one fill.
+		draw_rect(Rect2(inner.position, Vector2(inner.size.x * dusk, inner.size.y)), LIGHT)
+		for i in STEPS:
+			var t0 := float(i) / STEPS
+			var t1 := float(i + 1) / STEPS
+			var colour := LIGHT.lerp(DARK, (t0 + t1) * 0.5)
+			var x0 := inner.position.x + inner.size.x * (dusk + 0.12 * t0)
+			var x1 := inner.position.x + inner.size.x * (dusk + 0.12 * t1)
+			draw_rect(Rect2(x0, inner.position.y, x1 - x0, inner.size.y), colour)
+			var d0 := inner.position.x + inner.size.x * (0.88 + 0.12 * t0)
+			var d1 := inner.position.x + inner.size.x * (0.88 + 0.12 * t1)
+			draw_rect(Rect2(d0, inner.position.y, d1 - d0, inner.size.y), DARK.lerp(LIGHT, (t0 + t1) * 0.5))
+		var n0 := inner.position.x + inner.size.x * (dusk + 0.12)
+		var n1 := inner.position.x + inner.size.x * 0.88
+		if n1 > n0:
+			draw_rect(Rect2(n0, inner.position.y, n1 - n0, inner.size.y), DARK)
+		var tick_x := inner.position.x + inner.size.x * clampf(phase, 0.0, 1.0)
+		draw_rect(Rect2(tick_x - 1.0, 0.0, 2.0, size.y), UiKit.TEXT)
 
 
 ## `.slot` — the cell behind an item's icon; `.sel` outlines the selected one,

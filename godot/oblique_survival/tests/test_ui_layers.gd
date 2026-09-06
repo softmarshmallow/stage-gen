@@ -18,6 +18,7 @@ func run(h: TestHarness) -> void:
 	_death_screen_follows_dead(h, w)
 	_craft_panel_follows_craft_open(h, w)
 	_hud_builds_the_pack(h, w)
+	_hud_tells_the_time(h, w)
 	_hud_flies_a_pickup(h, w)
 	_pause_menu_shows_the_help(h, w)
 	_hurt_flash_bleeds_with_health(h, w)
@@ -239,6 +240,50 @@ func _hud_builds_the_pack(h: TestHarness, w: World) -> void:
 	h.assert_false(hud._equip_panel.visible, "nor worn places")
 	w.dead = false
 	hud.free()
+
+
+## The clock: the hour from the phase (sunrise at 06:00, midnight at 0.75),
+## the part of the day, and what comes next in how long — the season's dusk,
+## so winter says dusk earlier.
+func _hud_tells_the_time(h: TestHarness, w: World) -> void:
+	var length := float((w.manifest["gameplay"] as Dictionary)["day_length_seconds"])
+	h.assert_near(length, 480.0, 1e-9, "the authored day")
+	SimFixture.force_season(w, "summer")
+	w.day_phase = 0.12
+	var clock := Hud.clock_of(w)
+	h.assert_eq(str(clock["hour"]), "08:52", "0.12 of the day past sunrise")
+	h.assert_eq(str(clock["word"]), "day", "is day")
+	h.assert_eq(str(clock["next"]), "dusk", "and dusk is what comes")
+	h.assert_near(float(clock["dusk"]), 0.5, 1e-9, "at half the summer day")
+	h.assert_near(float(clock["seconds"]), 0.38 * length, 1e-6, "in the seconds to it")
+	h.assert_eq(str(clock["glyph"]), "sun", "under the sun")
+	h.assert_eq(Hud.clock_countdown(float(clock["seconds"])), "3:03", "said as m:ss, rounded up")
+	w.day_phase = 0.55
+	clock = Hud.clock_of(w)
+	h.assert_eq(str(clock["word"]), "dusk", "the light going")
+	h.assert_eq(str(clock["next"]), "dark", "dark next")
+	h.assert_near(float(clock["seconds"]), 0.07 * length, 1e-6, "when the night factor reaches one")
+	w.day_phase = 0.75
+	clock = Hud.clock_of(w)
+	h.assert_eq(str(clock["hour"]), "00:00", "midnight at three quarters")
+	h.assert_eq(str(clock["word"]), "night", "is night")
+	h.assert_eq(str(clock["next"]), "dawn", "dawn next")
+	h.assert_near(float(clock["seconds"]), 0.13 * length, 1e-6, "at 0.88")
+	h.assert_eq(str(clock["glyph"]), "moon", "under the moon")
+	w.day_phase = 0.9
+	clock = Hud.clock_of(w)
+	h.assert_eq(str(clock["word"]), "dawn", "the light returning")
+	h.assert_eq(str(clock["next"]), "day", "day next")
+	h.assert_near(float(clock["seconds"]), 0.1 * length, 1e-6, "when the phase wraps")
+	# Winter's longer night: dusk falls at 0.33 of the day, in the same hours.
+	SimFixture.force_season(w, "winter")
+	w.day_phase = 0.12
+	clock = Hud.clock_of(w)
+	h.assert_eq(str(clock["hour"]), "08:52", "the hour does not move with the season")
+	h.assert_near(float(clock["dusk"]), 0.33, 1e-9, "but dusk does")
+	h.assert_near(float(clock["seconds"]), 0.21 * length, 1e-6, "and comes sooner")
+	SimFixture.force_season(w, "summer")
+	w.day_phase = 0.12
 
 
 func _hud_flies_a_pickup(h: TestHarness, w: World) -> void:

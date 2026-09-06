@@ -108,7 +108,13 @@ while a built thing is being placed). Keyboard play is untouched.
 
 **The HUD** (`hud/hud.gd`, `hud/craft_panel.gd`, `hud/death_screen.gd`,
 `hud/pause_menu.gd`, the shared `hud/ui_kit.gd`). The vitals stand top-left
-with the title, the day and the season. Along the bottom: the three **worn**
+with the title, the day and the season, and under them the **clock**: the hour
+(phase 0 is sunrise, 06:00; midnight is three quarters through), the part of the
+day, and what comes next in how long — `dusk in 3:03` through the day, `dark in`
+while dusk falls, `dawn in` through the night, `day in` while dawn breaks — over
+a strip that draws the day (light, dusk, night, dawn) with a tick at the hour,
+so the eye sees how far off the dark is. The dusk is the season's, so winter's
+clock says dusk sooner in the same hours. Along the bottom: the three **worn**
 places (`hand`, `body`, `back`), the pack as a hotbar — left click selects a
 slot, right click uses it, the number keys still work and are printed in each
 slot's corner — and a button cluster: Craft (a toggle that shows the table's

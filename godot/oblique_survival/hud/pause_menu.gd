@@ -205,6 +205,10 @@ static func help_sections() -> Array:
 			+ ("%s use or wear · %s drop · %s craft · %s map · %s this menu · %s begin again · %s fullscreen"
 			% [UiKit.kbd("X"), UiKit.kbd("Z"), UiKit.kbd("C"), UiKit.kbd("M"), UiKit.kbd("Esc"),
 				UiKit.kbd("R"), UiKit.kbd("F11")])],
+		["The clock",
+			("Under the vitals: the hour, the part of the day, and what comes next in how long — "
+			+ "dusk through the day, dark while it falls, dawn through the night — over a strip of "
+			+ "the whole day with a tick at now. Winter's dusk comes sooner.")],
 		["Staying alive",
 			"The belly empties; berries and mushrooms grow back, and a lit fire stews them. The cold "
 			+ "comes with winter, and the dark itself is cold in any season: away from a fire or a "
