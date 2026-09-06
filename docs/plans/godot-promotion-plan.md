@@ -37,7 +37,7 @@ channel, a catalogue, a URL — is out of scope and stays in
 | 4 | E | The export factory proved on survival: the exporter, the release record, the run root rule, the bridge, the web shell | an export opens standalone and answers all six verbs; two exports agree on the closure digest |
 | 5 ✔ | F | The kernel in GDScript, and survival sealed: declarations, a derived order equal to the pasted one, the event queue, refusals as values, the interface writing through the latch | the goldens unchanged line for line |
 | 6 | G | The suite enters the locked gate: a supervisor per test file, fixtures with synthesised media, the CI job | `check.py` fails without the engine; an injected error and an injected hang both turn it red |
-| 7 | H | The browser instruments: the platformer's slice list, every fixture and reference committed, stills taken | the references reproduce; the fixtures carry current identities |
+| 7 ◐ | H | The browser instruments: the platformer's slice list, every fixture and reference committed, stills taken | the references reproduce; the fixtures carry current identities |
 | 8 | I | **The runner**, and the browser runner is deleted | parity N/N, sealed order equal to the documented one, stills, smoke, export |
 | 9 | J | **The platformer**, and the browser platformer is deleted | the same, per map, plus the map-scope reset |
 | 10 | K | **The room, the scene and the case**, and their browser surfaces are deleted together | the same, plus an episode played end to end with a save and a resume |
@@ -55,6 +55,16 @@ suite that runs in CI needs a media-free fixture document, a small world, and
 synthesised media at the sizes that document declares, with the real-run count
 pins moving to tier 2 behind `--run`. That is a restructuring of the suite rather
 than a wrapper around it, and it is why the step is its own commit.
+
+**Step 7 is half done.** The runner's and the platformer's references are
+committed, and the platformer's exclusion list is settled and measured: 103 leaf
+fields survive it, which is the floor its port must match. The room, the scene
+and the case get theirs in the change before their port rather than all at once,
+because an instrument taken early is an instrument that can drift, and the risk
+it guards against — deleting a game before its reference exists — is covered as
+long as each genre's capture precedes its own port. The stills are not taken
+yet; they need the browser's WEBGL renderer rather than its capture mode, whose
+canvas path draws no tint at all.
 
 Steps 8 to 10 each carry their retirement record. The order is the two
 kernel-sealed genres first, while the families port is fresh, then the three
