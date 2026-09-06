@@ -17,6 +17,7 @@
 //     pixels from the top-left is `(x/W, y/H, w/W, h/H)` and `UV.y` indexes it
 //     directly. `Cards.frame_uv` emits windows in that convention.
 #include "res://view/shaders/night.gdshaderinc"
+#include "res://view/shaders/lift.gdshaderinc"
 
 uniform sampler2D u_map : source_color, filter_linear_mipmap, repeat_disable;
 // The atlas window: x, y, w, h in UV space, top-left origin.
@@ -38,13 +39,11 @@ uniform float u_billboard = 1.0;
 // hovered card wears a duplicate of its template's material with this at 1
 // (`Cards.set_highlight`); an instance uniform would have been the natural
 // spelling, but the instance buffer overflows at this world's card count.
-// Not the viewer's; it had no mouse.
+// Not the viewer's; it had no mouse. The lift itself is `lift.gdshaderinc`,
+// shared with the instanced ground pieces so a stone lifts like a rock.
 uniform float u_highlight : hint_range(0.0, 1.0) = 0.0;
-// The hovered card reads a shade brighter and warmer, the way a thing under a
-// hand does in the reference genre; the ink line stays dark because the lift
-// is additive on the tone and the contours are near black.
 vec3 apply_highlight(vec3 colour) {
-	return mix(colour, colour * 1.18 + vec3(0.10, 0.08, 0.04), u_highlight);
+	return lift_colour(colour, u_highlight);
 }
 
 varying vec3 v_world;

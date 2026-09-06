@@ -71,8 +71,10 @@ key takes it back, or the shore or a footprint stalls it for 0.6 s (the same
 rule as the committed walk); a button **held** keeps the walk on the pointer for
 as long as it is down, re-issuing the spot every frame, so the player follows
 the hand and never stalls at a shore while it pushes. A right click takes any
-walk back. The thing under the cursor lifts (a shade brighter and warmer, a
-material override on that one card) and is named above its own drawn top
+walk back. The thing under the cursor lifts (a shade brighter and warmer, one
+formula in `lift.gdshaderinc`: a material override on that one card, or for a
+forage piece — one instance among a thousand in the sheet's single draw — the
+sheet's material told which instance index to lift) and is named above its own drawn top
 (`chop tree (1/3)`, `take Twigs ×2`, or just `pine · stump` when it offers
 nothing) rather than at the cursor, and the cursor becomes a hand over anything
 clickable. The thing **in reach** — the focus, `world.focus`, the nearest thing

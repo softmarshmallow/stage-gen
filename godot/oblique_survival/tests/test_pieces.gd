@@ -37,6 +37,7 @@ func run(h: TestHarness) -> void:
 	_check_plant_size(h, plants, manifest, layout)
 	_check_layers(h, pieces, plants, layout)
 	_check_forage_visibility(h, pieces, world, layout)
+	_check_forage_lift(h, pieces, world)
 	_check_leaves(h, leaves, manifest)
 
 	pieces.free()
@@ -160,6 +161,39 @@ func _check_forage_visibility(h: TestHarness, pieces, world: Dictionary, layout:
 		before.basis.x.length(), 1e-9, "show_all_forage brings every piece back")
 	entity["hidden"] = false
 	h.assert_eq(layout["forage"].size(), pieces.forage.count, "and the sheet is still that long")
+
+## The pointer's lift on the sheet: the hovered and the in-reach forage piece
+## are handed to the material by instance index, and anything that is not a
+## forage entity lifts nothing there. The sheet's material keeps its uniforms
+## on the CPU side, so the dummy renderer reads them back.
+func _check_forage_lift(h: TestHarness, pieces, world: Dictionary) -> void:
+	var entities: Array = world["entities"]
+	if not h.assert_true(entities.size() > 1, "the stub world carries two forage pieces to lift"):
+		return
+	var material: ShaderMaterial = pieces.forage.material
+	# A uniform never set reads back null and means the shader's own -1.
+	var lifts := func() -> Array:
+		var a: Variant = material.get_shader_parameter("u_lift_a")
+		var b: Variant = material.get_shader_parameter("u_lift_b")
+		return [-1 if a == null else int(a), -1 if b == null else int(b)]
+	h.assert_eq(pieces.lifted(), [-1, -1], "nothing is lifted before the pointer moves")
+	h.assert_eq(lifts.call(), [-1, -1], "and the material says so")
+	var first: Dictionary = entities[0]
+	var second: Dictionary = entities[1]
+	pieces.set_highlight(first)
+	h.assert_eq(lifts.call(), [int(first["index"]), -1], "the hovered piece is lifted by its instance index")
+	pieces.set_focus(second)
+	h.assert_eq(lifts.call(), [int(first["index"]), int(second["index"])], "the piece in reach is lifted beside it")
+	pieces.set_focus(first)
+	h.assert_eq(lifts.call(), [int(first["index"]), int(first["index"])],
+		"hover and focus on one piece is one lift twice, not a fight")
+	pieces.set_highlight({"id": "pine-1", "kind": "prop", "x": 0.0, "z": 0.0})
+	h.assert_eq(lifts.call(), [-1, int(first["index"])], "a tree under the pointer lifts nothing on the sheet")
+	pieces.set_highlight({"id": "ghost", "kind": "forage", "index": 999999})
+	h.assert_eq(pieces.forage_index({"kind": "forage", "index": 999999}), -1, "an index off the sheet is no piece")
+	pieces.set_focus(null)
+	pieces.set_highlight("")
+	h.assert_eq(lifts.call(), [-1, -1], "and both let down")
 
 ## The leaves are the litter sheet's `fallen` cells, and they fly.
 func _check_leaves(h: TestHarness, leaves, manifest: Dictionary) -> void:

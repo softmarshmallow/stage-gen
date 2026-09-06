@@ -657,6 +657,10 @@ func _refresh_hover() -> void:
 	var cards_node = modules.get("cards")
 	if cards_node != null and cards_node.has_method("set_highlight"):
 		cards_node.set_highlight(String((entity as Dictionary).get("id", "")) if entity is Dictionary else "")
+	# A forage piece has no card; the sheet lifts it by instance (`Pieces`).
+	var pieces_node = modules.get("pieces")
+	if pieces_node != null and pieces_node.has_method("set_highlight"):
+		pieces_node.set_highlight(entity)
 	_follow_hover()
 	if not is_same(entity, before_entity):
 		var shape := Input.CURSOR_ARROW
@@ -685,12 +689,15 @@ func _follow_hover() -> void:
 	if hud_node == null or not hud_node.has_method("set_hover"):
 		return
 	var cards_node = modules.get("cards")
+	var pieces_node = modules.get("pieces")
 	var entity: Variant = _hover.get("entity")
 	if entity is Dictionary and Targeting.index_of(world.entities, entity) < 0:
 		_hover = {}
 		entity = null
 		if cards_node != null and cards_node.has_method("set_highlight"):
 			cards_node.set_highlight("")
+		if pieces_node != null and pieces_node.has_method("set_highlight"):
+			pieces_node.set_highlight(null)
 		Input.set_default_cursor_shape(Input.CURSOR_ARROW)
 	elif entity is Dictionary:
 		# What the thing offers is re-read every frame: a bush gathered under a
@@ -701,6 +708,8 @@ func _follow_hover() -> void:
 	var focused: Variant = (focus as Dictionary).get("entity") if focus is Dictionary else null
 	if cards_node != null and cards_node.has_method("set_focus"):
 		cards_node.set_focus(String((focused as Dictionary).get("id", "")) if focused is Dictionary else "")
+	if pieces_node != null and pieces_node.has_method("set_focus"):
+		pieces_node.set_focus(focused)
 	if hud_node.has_method("set_focus"):
 		hud_node.set_focus(focus, _label_anchor(focused, cards_node))
 

@@ -228,6 +228,59 @@ func show_all_forage() -> void:
 	_forage_shown.fill(1)
 	_orient(forage, _laid_yaw)
 
+# --- the pointer's lift ------------------------------------------------------
+
+## The forage instance under the pointer and the one in reach, by MultiMesh
+## index, -1 for none. A card is one node and is lifted by swapping its
+## material (`Cards.set_highlight`); a forage piece is one instance among a
+## thousand in a single draw, so the sheet's material is handed the two indices
+## and the shader lifts the instance whose id matches (`u_lift_a`, `u_lift_b`
+## in `clutter_body.gdshaderinc`). Before this a stone that lay in the meadow
+## since the world was laid answered the hand with its label alone, while the
+## same stone knocked loose by a pick — a dropped item, with a card — lifted.
+var _lift_hover: int = -1
+var _lift_focus: int = -1
+
+## Lift the piece standing for `entity` (the thing under the pointer). Anything
+## that is not a forage entity — null, "", a tree — lifts nothing here, so the
+## caller hands over whatever the pick returned and need not sort by kind.
+func set_highlight(entity: Variant) -> void:
+	var index := forage_index(entity)
+	if index == _lift_hover:
+		return
+	_lift_hover = index
+	_apply_lift()
+
+## Lift the piece in reach (the focus), the same way.
+func set_focus(entity: Variant) -> void:
+	var index := forage_index(entity)
+	if index == _lift_focus:
+		return
+	_lift_focus = index
+	_apply_lift()
+
+## The two lifted instance indices, hover then focus, -1 for none.
+func lifted() -> Array[int]:
+	return [_lift_hover, _lift_focus]
+
+func _apply_lift() -> void:
+	if forage == null or forage.material == null:
+		return
+	forage.material.set_shader_parameter("u_lift_a", _lift_hover)
+	forage.material.set_shader_parameter("u_lift_b", _lift_focus)
+
+## A forage entity's instance index on the sheet, -1 for anything else.
+func forage_index(entity: Variant) -> int:
+	if not (entity is Dictionary):
+		return -1
+	var e: Dictionary = entity
+	if e.get("kind", "") != "forage":
+		return -1
+	var index := int(e.get("index", -1))
+	if forage == null or index < 0 or index >= forage.count:
+		return -1
+	return index
+
 # --- shared with `Plants` and `Leaves` --------------------------------------
 
 ## The unit quad every piece, plant and leaf is drawn on: three's

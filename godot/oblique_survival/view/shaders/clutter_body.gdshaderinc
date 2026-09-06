@@ -1,7 +1,8 @@
 // The body of the viewer's CLUTTER_VERT / CLUTTER_FRAG (index.html :2306-2338),
 // ported for a Godot MultiMesh. Three carried the atlas window in a
 // per-instance `vec4 a_cell`; here it rides in INSTANCE_CUSTOM, which is the
-// same four floats set with `MultiMesh.set_instance_custom_data`.
+// same four floats set with `MultiMesh.set_instance_custom_data`. The
+// pointer's lift is `lift.gdshaderinc`, the cards' own formula.
 //
 // This file holds no `render_mode`, so the three sheets that use it can differ
 // where the viewer's materials differ (litter and forage write no depth;
@@ -21,15 +22,24 @@ uniform float u_alpha_cutoff = 0.5;
 uniform sampler2D u_splat : filter_linear, repeat_disable;
 uniform vec2 u_world_origin = vec2(-128.0, -128.0);
 uniform vec2 u_world_extent = vec2(256.0, 256.0);
+// The pointer's lift on an instanced sheet: the instance under the hand and
+// the instance in reach, by MultiMesh index, -1 for none (`Pieces.set_highlight`
+// / `set_focus`). A card is one node and wears a lifted material; a forage
+// piece is one instance among a thousand in a single draw, so the sheet's
+// material is told which two to lift and the vertex stage compares its own id.
+uniform int u_lift_a = -1;
+uniform int u_lift_b = -1;
 
 varying vec2 v_uv;
 varying vec3 v_world;
+varying flat float v_lift;
 
 void vertex() {
 	vec4 window = INSTANCE_CUSTOM;
 	v_uv = window.xy + UV * window.zw;
 	// For a MultiMesh, MODEL_MATRIX already carries the instance transform.
 	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	v_lift = (INSTANCE_ID == u_lift_a || INSTANCE_ID == u_lift_b) ? 1.0 : 0.0;
 }
 
 void fragment() {
@@ -42,5 +52,5 @@ void fragment() {
 	ALPHA_SCISSOR_THRESHOLD = u_alpha_cutoff;
 	float shade = texture(u_splat, (v_world.xz - u_world_origin) / u_world_extent).g;
 	vec3 colour = texel.rgb * (1.0 - shade * 0.26);
-	ALBEDO = apply_night(colour, v_world, FRAGCOORD.xy);
+	ALBEDO = apply_night(lift_colour(colour, v_lift), v_world, FRAGCOORD.xy);
 }

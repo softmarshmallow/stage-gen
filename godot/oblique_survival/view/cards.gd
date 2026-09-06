@@ -1003,8 +1003,9 @@ func _tilt(node: Node3D, radians: float) -> void:
 ## let the last one down. "" lifts nothing. A shared template card (a prop, a
 ## drop) wears a lifted twin of its material as an override; an actor's own
 ## material takes the uniform directly. A forage piece has no card of its own
-## (it is instanced from the sheet), so hovering one lifts nothing and the
-## label alone names it.
+## (it is instanced from the sheet); its lift is the sheet's, by instance
+## index (`Pieces.set_highlight`), and the frame owner hands the same hover to
+## both so a stone in the meadow lifts like the rock beside it.
 func set_highlight(entity_id: String) -> void:
 	if entity_id == _highlight_id:
 		return
