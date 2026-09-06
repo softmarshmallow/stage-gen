@@ -31,6 +31,7 @@ from stage_gen.recipes.oblique_survival.manifest import (
     MOTION_BOTTOM_GUTTER_PX,
     Manifest,
     alpha_bbox,
+    biome_splat_ref,
     build_manifest,
     clutter_ref,
     concept_ref,
@@ -709,5 +710,6 @@ def write_fixture(package: Package, run_dir: Path, layout: Layout) -> Manifest:
             write(weather_ref(cid, "ice"), _fixture_ground("ice"))
         # No fixture audio: a placeholder clip would be a fake listening verdict.
     write(splat_ref(), layout.splat_png)
+    write(biome_splat_ref(), layout.biome_splat_png)
     write(layout_ref(), manifest_bytes(layout.as_record()))
     return build_manifest(package, run_dir, run_id=run_dir.name, graph_sha256=None, scope="fixture")

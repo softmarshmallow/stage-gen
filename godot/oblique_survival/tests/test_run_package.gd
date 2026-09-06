@@ -23,7 +23,7 @@ func run(h: TestHarness) -> void:
 	var embedded: Dictionary = pkg.manifest.get("layout", {})
 	h.assert_true(not pkg.layout.is_empty(), "layout is empty")
 	h.assert_eq(int(pkg.layout.get("seed", 0)), 7, "layout seed")
-	h.assert_near(float(pkg.layout.get("size_meters", 0.0)), 256.0, 1e-9, "layout size_meters")
+	h.assert_near(float(pkg.layout.get("size_meters", 0.0)), 512.0, 1e-9, "layout size_meters")
 	h.assert_eq(pkg.layout.keys(), embedded.keys(), "layout.json and manifest.layout differ in shape")
 	h.assert_eq(
 		pkg.layout.get("entities", []).size(),
@@ -40,8 +40,8 @@ func run(h: TestHarness) -> void:
 	h.assert_eq(tallied.size(), counts.size(), "counted a different set of ids")
 	for id: String in counts.keys():
 		h.assert_eq(tallied.get(id, 0), counts[id], "layout count for %s" % id)
-	h.assert_eq(pkg.layout.get("entities", []).size(), 2471, "entity rows")
-	h.assert_eq(pkg.layout.get("forage", []).size(), 1049, "forage rows")
+	h.assert_eq(pkg.layout.get("entities", []).size(), 2365, "entity rows")
+	h.assert_eq(pkg.layout.get("forage", []).size(), 1452, "forage rows")
 
 	# Package-relative references resolve; anything that would leave the run
 	# directory does not.

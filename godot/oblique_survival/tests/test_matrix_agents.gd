@@ -242,15 +242,15 @@ func _t24_the_blow_lands_at_the_end(h: TestHarness, world: World) -> void:
 
 ## A point that is land, whose step of `reach` toward +x is not.
 ##
-## A hound's step is 2.6 / 60 = 0.043 m and the plate's cells are 0.25 m, so
+## A hound's step is 2.6 / 60 = 0.043 m and the plate's cells are 0.5 m, so
 ## such a point is a thin band just inside a shoreline: found by walking the
 ## row at cell width for a land-to-water edge, then bisecting for the edge
 ## itself and standing back half a step from it.
 func _shore_point(world: World, reach: float) -> Dictionary:
-	var z := -110.0
-	while z <= 110.0:
-		var x := -110.0
-		while x < 110.0:
+	var z := -240.0
+	while z <= 240.0:
+		var x := -240.0
+		while x < 240.0:
 			var here := world.is_land(x, z)
 			var there := world.is_land(x + 0.25, z)
 			if here and not there:
@@ -266,7 +266,7 @@ func _shore_point(world: World, reach: float) -> Dictionary:
 				if world.is_land(point, z) and not world.is_land(point + reach, z):
 					return {"x": point, "z": z}
 			x += 0.25
-		z += 1.0
+		z += 2.0
 	return {"x": INF, "z": INF}
 
 

@@ -9,7 +9,7 @@ extends RefCounted
 ## precedence rule itself, which no sample of the run's own plate can isolate.
 
 ## `round(inset_meters / size * cells)` = round(0.7 / 256 * 1024) = round(2.8).
-const EXPECTED_INSET_CELLS := 3
+const _UNUSED_EXPECTED_INSET_CELLS := 3
 ## The share of the splat's alpha over 127, measured from the plate itself.
 const EXPECTED_LAND_SHARE := 0.5999
 const LAND_SHARE_TOLERANCE := 0.002
@@ -31,50 +31,48 @@ func run(h: TestHarness) -> void:
 
 func _t22_inset(h: TestHarness, pkg: RunPackage) -> void:
 	var masks := Masks.from_package(pkg)
-	h.assert_near(masks.size, 256.0, 1e-9, "the plate covers 256 m")
+	h.assert_near(masks.size, 512.0, 1e-9, "the plate covers 512 m")
 	var splat := pkg.image("package/world/splat.png")
 	if not h.assert_true(splat != null, "splat.png did not decode"):
 		return
 	h.assert_eq(splat.get_width(), 1024, "the splat is 1024 cells across")
-	h.assert_eq(
-		int(round(Masks.DEFAULT_INSET_METERS / 256.0 * 1024.0)),
-		EXPECTED_INSET_CELLS,
-		"0.7 m over 256 m at 1024 cells is not a 3-cell inset",
-	)
-	h.assert_eq(masks._inset, EXPECTED_INSET_CELLS, "the mask built a different inset")
-	# A run at a coarser plate insets less; the inset is never zero.
-	h.assert_eq(Masks.from_package(pkg, 0.0)._inset, 1, "a zero inset is still one cell")
+	h.assert_near(masks._cell_meters, 0.5, 1e-9, "the manifest's cell_meters reached the mask")
+	h.assert_near(masks._inset_meters, Masks.DEFAULT_INSET_METERS, 1e-9, "the inset is in metres")
 
-	# The rule: a point is land only if it and its four neighbours `inset` cells
-	# away are. Find a cell that is land but has a water neighbour three cells
-	# out, and the mask must refuse it.
+	# The rule: a point is land only if it and the four points 0.7 m away are.
+	# At 0.5 m cells a point at a land cell's centre with water in the next
+	# cell over has its +x probe in that water cell, and the mask must refuse
+	# it, whatever the plate's cell size.
 	var cells := splat.get_width()
 	var rows := splat.get_height()
 	var bytes := splat.get_data()
+	var size := masks.size
 	var found_x := INF
 	var found_z := INF
-	var column := EXPECTED_INSET_CELLS
-	while column < cells - EXPECTED_INSET_CELLS and is_inf(found_x):
-		var row := EXPECTED_INSET_CELLS
-		while row < rows - EXPECTED_INSET_CELLS:
+	var column := 2
+	while column < cells - 2 and is_inf(found_x):
+		var row := 2
+		while row < rows - 2:
 			if _alpha(bytes, cells, column, row) > 127 \
-					and _alpha(bytes, cells, column + EXPECTED_INSET_CELLS, row) <= 127:
-				found_x = (float(column) + 0.5) / float(cells) * 256.0 - 128.0
-				found_z = (float(row) + 0.5) / float(rows) * 256.0 - 128.0
+					and _alpha(bytes, cells, column + 1, row) <= 127:
+				found_x = (float(column) + 0.5) / float(cells) * size - size * 0.5
+				found_z = (float(row) + 0.5) / float(rows) * size - size * 0.5
 				break
 			row += 1
 		column += 1
 	if not h.assert_true(not is_inf(found_x), "the plate has no shoreline to test the inset on"):
 		return
 	h.assert_true(not masks.is_land(found_x, found_z),
-		"a land cell three cells from the water was still walkable")
+		"a land cell beside the water was still walkable")
 	# The plate itself says that cell is land: the refusal is the inset's, not
-	# a misread of the alpha channel.
+	# a misread of the alpha channel, and a zero inset is a plain lookup.
 	h.assert_true(
-		_alpha(bytes, cells, floori((found_x + 128.0) / 256.0 * float(cells)),
-			floori((found_z + 128.0) / 256.0 * float(rows))) > 127,
+		_alpha(bytes, cells, floori((found_x + size * 0.5) / size * float(cells)),
+			floori((found_z + size * 0.5) / size * float(rows))) > 127,
 		"the sampled cell is not land in the plate",
 	)
+	h.assert_true(Masks.from_package(pkg, 0.0).is_land(found_x, found_z),
+		"a zero inset does not read the plate as it is")
 
 
 func _t22_land_share(h: TestHarness, pkg: RunPackage) -> void:

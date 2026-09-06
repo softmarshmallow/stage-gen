@@ -41,6 +41,7 @@ from stage_gen.recipes.oblique_survival.models import (
     DEFAULT_MUSIC_TRANSITION,
     FOUR_WAY_FACINGS,
     SOUND_CUES,
+    BiomeRules,
     Clutter,
     ItemUse,
     Look,
@@ -1356,7 +1357,7 @@ def test_the_ground_blend_and_the_field_period_are_mixing_that_no_node_reads(
     assert keys(_graph(config, retuned, "full")) == baseline
     # The islets, by contrast, change where things stand: the layout re-lays.
     islets = replace(
-        package, world={**package.world, "biome_islet_lattice": 0, "biome_islet_share": 0.0}
+        package, world=replace(package.world, biomes=BiomeRules(islet_lattice=0, islet_share=0.0))
     )
     changed = keys(_graph(config, islets, "full"))
     assert changed["world-layout"] != baseline["world-layout"]

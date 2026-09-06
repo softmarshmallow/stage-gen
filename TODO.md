@@ -110,3 +110,12 @@ The contract is [oblique-survival](docs/spec/survival/generation-v1.md); the hos
 
 - [ ] `2d/sideview/jumper`, the vertical endless jumper and its own genre member family, blocked asset-side on a y-loop module ([0045](docs/decisions/0045-the-vertical-jumper-is-its-own-genre-family.md)).
 - [ ] `2d/sideview/cinematic_platformer`, the first of the three genres the "atmospheric side-view adventure" premise was hiding; its new requirement is authoring vocabulary — a finite non-looping level with an authored end ([0046](docs/decisions/0046-limbo-badland-and-ori-are-three-genres.md)).
+
+## Survival world
+
+The contract is [world](docs/spec/survival/world.md); the ruling is [0059](docs/decisions/0059-the-world-is-a-point-process-and-the-object-owns-its-habitat.md).
+
+- [ ] Chunked visibility on the Godot host, so a 1 km world (the generator already lays one) does not submit every card every frame; the sim's flat entity walks are the second cost.
+- [ ] Biome adjacency rules (which biome may touch which): a climate-parameter solver, not the threshold fields; the object-owned habitat is unaffected.
+- [ ] Rendered relief from the rules-only height field, and puddles solved into its hollows rather than scattered.
+- [ ] A road between set pieces: the one track still leaves the spawn and ends where the land does.

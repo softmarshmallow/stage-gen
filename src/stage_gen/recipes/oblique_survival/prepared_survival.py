@@ -3427,9 +3427,14 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
             node.port("layout").artifact_ref,
             _json_bytes(world.as_record()),
             media_type="application/json",
-            model="oblique-survival-layout-v1",
-            prompt="Scatter the world from its seed, clear the camp, lay the path.",
-            validation={"status": "pass", "entities": len(world.entities)},
+            model="oblique-survival-layout-v2",
+            prompt="Lay the world from its seed: set pieces, population, the path.",
+            validation={
+                "status": "pass",
+                "entities": len(world.entities),
+                "set_pieces": len(world.set_pieces),
+                "verdicts": {key: value["verdict"] for key, value in sorted(world.report.items())},
+            },
         )
         await self._write_local(
             node.port("splat").artifact_ref,

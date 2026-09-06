@@ -164,6 +164,13 @@ func _build(world) -> void:
 	var camp: Dictionary = (world.manifest as Dictionary).get("layout", {}).get("camp_position",
 		{"x": 0.0, "z": 0.0})
 	_view.camp = Vector2(float(camp.get("x", 0.0)), float(camp.get("z", 0.0)))
+	# The other set pieces the generator sited; the camp is the triangle.
+	var pieces: Array[Vector2] = []
+	for piece: Dictionary in (world.manifest as Dictionary).get("layout", {}).get("set_pieces", []):
+		if String(piece.get("set_piece", "")) == "camp":
+			continue
+		pieces.append(Vector2(float(piece.get("x", 0.0)), float(piece.get("z", 0.0))))
+	_view.set_pieces = pieces
 	frame.add_child(_view)
 
 	_legend = HBoxContainer.new()
@@ -307,6 +314,7 @@ class MapView:
 	var font: Font = null
 	var size_meters: float = 256.0
 	var camp := Vector2.ZERO
+	var set_pieces: Array[Vector2] = []
 	var player := Vector2.ZERO
 	var yaw: float = 0.0
 
@@ -347,8 +355,13 @@ class MapView:
 		draw_circle(p, WorldMap.PLAYER_RADIUS, Color.WHITE)
 		draw_arc(p, WorldMap.PLAYER_RADIUS, 0.0, TAU, 24, Color("#111111"), 1.5)
 
+		# The other set pieces: a ring where the layout sited each one.
+		for piece: Vector2 in set_pieces:
+			var s := _to_map(piece)
+			draw_arc(s, 6.0, 0.0, TAU, 20, Color("#f2b04a"), 2.0)
+
 		# A scale bar, so the map says how far things are.
-		var meters := 50.0 if size_meters >= 200.0 else 10.0
+		var meters := 100.0 if size_meters >= 400.0 else 50.0 if size_meters >= 200.0 else 10.0
 		var bar := (meters / size_meters) * WorldMap.CANVAS
 		draw_rect(Rect2(10.0, WorldMap.CANVAS - 30.0, bar + 12.0, 20.0), Color(0.0, 0.0, 0.0, 0.45))
 		draw_rect(Rect2(16.0, WorldMap.CANVAS - 17.0, bar, 3.0), Color.WHITE)

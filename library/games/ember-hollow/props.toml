@@ -47,7 +47,6 @@ hit_reaction_allowed = ["shake", "none"]
 [[props]]
 prop_id = "pine"
 family = "tree"
-density_share = 1.0
 height_units = 3.20
 footprint_radius_units = 0.30
 shadow_width_units = 0.95
@@ -66,6 +65,18 @@ states = ["sapling", "grown", "old", "stump"]
 baseline_state = "grown"
 sheet = { columns = 2, rows = 2 }
 look_height_units = { sapling = 1.3, old = 3.0, stump = 0.4 }
+
+canopy_radius_meters = 2.6
+
+# Sparse but clumped: groves. Parents fall where the habitat is best, each with
+# about seven pines within seven metres; a screen at play zoom either holds a
+# grove or holds open ground. parents x mean_size x chance is the density.
+[props.placement]
+habitat = { forest_floor = 1.0, mossy_bog = 0.45, dry_meadow = 0.15, grey_scree = 0.08 }
+cluster = { parents_per_100m2 = 0.078, mean_size = 7.0, radius_meters = 7.0 }
+chance = 0.9
+min_per_world = 120
+max_per_world = 600
 
 [props.state_prompt]
 sapling = """
@@ -105,7 +116,6 @@ stump = "a cap of snow on the cut top"
 [[props]]
 prop_id = "thorn_bush"
 family = "bush"
-density_share = 1.0
 height_units = 0.55
 footprint_radius_units = 0.26
 shadow_width_units = 0.60
@@ -117,6 +127,13 @@ prompt = """
 A low tangled thicket of thin arching thorned canes with small round dark leaves.
 """
 states = ["full", "picked"]
+
+# Small clumps of three, where the forest and the bog meet nothing bare.
+[props.placement]
+habitat = { forest_floor = 1.0, mossy_bog = 0.9, dry_meadow = 0.1 }
+cluster = { parents_per_100m2 = 0.07, mean_size = 3.0, radius_meters = 3.5 }
+chance = 0.9
+min_per_world = 40
 
 [props.state_prompt]
 full = "Heavy with clusters of small round dark berries hanging under the leaves."
@@ -158,6 +175,14 @@ states = ["whole", "cracked", "split", "rubble"]
 baseline_state = "whole"
 sheet = { columns = 2, rows = 2 }
 look_height_units = { rubble = 0.3 }
+
+# Boulder fields: on the scree and the meadow in loose groups, alone under
+# the trees, rare in the bog.
+[props.placement]
+habitat = { grey_scree = 1.0, dry_meadow = 1.0, forest_floor = 0.6, mossy_bog = 0.15 }
+cluster = { parents_per_100m2 = 0.075, mean_size = 5.0, radius_meters = 6.0 }
+chance = 0.92
+min_per_world = 80
 
 [props.state_prompt]
 whole = "Whole and uncut, every face intact."
@@ -205,6 +230,12 @@ A small clump of tall dry grass: stiff thin blades fanning up and outward from a
 single point, a few bent over at the tips.
 """
 states = ["standing", "cut"]
+
+# Even cover, thinned by the habitat: a jittered grid, not a scatter, so the
+# meadow reads as grass rather than as clumps of it.
+[props.placement]
+habitat = { dry_meadow = 1.0, mossy_bog = 0.8, forest_floor = 0.5, grey_scree = 0.35 }
+spacing_meters = 11.0
 
 [props.state_prompt]
 standing = "Full height and upright."
@@ -302,8 +333,6 @@ edge = "soft"
 motion_hint = "sway_top"
 hit_reaction = "shake"
 max_components = 1
-density_share = 0.7
-biome_weights = { forest_floor = 0.7, dry_meadow = 0.5, mossy_bog = 0.6, grey_scree = 0.1 }
 prompt = """
 A slender pale-barked broadleaf tree: a straight light trunk marked with short
 dark scars, splitting high into a few bare limbs that carry a loose open crown
@@ -314,6 +343,17 @@ states = ["sapling", "grown", "old", "stump"]
 baseline_state = "grown"
 sheet = { columns = 2, rows = 2 }
 look_height_units = { sapling = 1.0, old = 2.5, stump = 0.35 }
+
+canopy_radius_meters = 2.9
+
+# Stands, and by preference at the edge of a biome: birch is the tree of the
+# margins. Half as likely deep inside one.
+[props.placement]
+habitat = { forest_floor = 0.7, dry_meadow = 0.5, mossy_bog = 0.6, grey_scree = 0.1 }
+edge = { of = "biome", within_meters = 8.0, falloff_meters = 4.0, outside = 0.4 }
+cluster = { parents_per_100m2 = 0.065, mean_size = 5.5, radius_meters = 6.0 }
+chance = 0.9
+min_per_world = 60
 
 [props.state_prompt]
 sapling = """
@@ -358,9 +398,6 @@ edge = "hard"
 motion_hint = "none"
 hit_reaction = "shake"
 max_components = 1
-density_share = 0.35
-# The bog is where trees die standing.
-biome_weights = { forest_floor = 0.3, dry_meadow = 0.2, mossy_bog = 1.0, grey_scree = 0.35 }
 prompt = """
 A dead standing tree: a bare weathered grey trunk snapped off partway up, with
 three or four stubs of broken branches and strips of loose bark hanging away
@@ -373,6 +410,14 @@ states = ["standing", "leaning", "broken", "stump"]
 baseline_state = "standing"
 sheet = { columns = 2, rows = 2 }
 look_height_units = { leaning = 2.0, broken = 1.2, stump = 0.35 }
+
+canopy_radius_meters = 1.5
+
+# The bog is where trees die standing. Rare, alone, never two together.
+[props.placement]
+habitat = { mossy_bog = 1.0, grey_scree = 0.35, forest_floor = 0.3, dry_meadow = 0.2 }
+density_per_100m2 = 0.2
+spacing_meters = 3.0
 
 [props.state_prompt]
 standing = "Whole and upright, leaning very slightly."
@@ -413,14 +458,17 @@ edge = "soft"
 motion_hint = "sway_top"
 hit_reaction = "shake"
 max_components = 1
-density_share = 0.8
-biome_weights = { forest_floor = 1.0, dry_meadow = 0.1, mossy_bog = 0.9, grey_scree = 0.0 }
 prompt = """
 A low spreading clump of arching ferns: each frond a narrow blade of small
 paired leaflets, all splaying outward and slightly downward from one crown at
 the ground.
 """
 states = ["full"]
+
+# Ferns grow under pines: attached to the pines' final points, not scattered.
+[props.placement]
+habitat = { forest_floor = 1.0, mossy_bog = 0.9, dry_meadow = 0.1 }
+near = { host = "pine", radius_meters = 2.5, mean = 0.8, chance = 0.6 }
 
 [props.state_prompt]
 full = "Fresh and fully open, the outer fronds arching almost to the ground."
@@ -445,13 +493,18 @@ edge = "soft"
 motion_hint = "sway_top"
 hit_reaction = "shake"
 max_components = 1
-density_share = 0.7
-biome_weights = { forest_floor = 0.9, dry_meadow = 0.8, mossy_bog = 0.4, grey_scree = 0.5 }
 prompt = """
 A leafless bush of many thin bare twigs rising from one root in a loose upright
 fan, each twig forking once or twice near its tip, pale grey-brown wood.
 """
 states = ["full", "cut"]
+
+# Twos and threes on the open ground.
+[props.placement]
+habitat = { forest_floor = 0.9, dry_meadow = 0.8, grey_scree = 0.5, mossy_bog = 0.4 }
+cluster = { parents_per_100m2 = 0.05, mean_size = 2.6, radius_meters = 3.0 }
+chance = 0.9
+min_per_world = 30
 
 [props.state_prompt]
 full = "Every twig whole, the fan standing at full height."
@@ -478,14 +531,22 @@ edge = "soft"
 motion_hint = "sway_top"
 hit_reaction = "shake"
 max_components = 3
-density_share = 0.5
-# Reeds are the bog's grass; nowhere else.
-biome_weights = { forest_floor = 0.0, dry_meadow = 0.05, mossy_bog = 1.0, grey_scree = 0.0 }
 prompt = """
 A tall narrow clump of marsh reeds: straight green stems rising close together
 from one point, a few carrying a dark brown seed head at the top.
 """
 states = ["standing", "cut"]
+
+# Reeds are the water's grass: within five metres of it, on low ground, and
+# the bog's above all. A quota floor, because a coast with no reeds is a
+# coast that lost its edge.
+[props.placement]
+habitat = { mossy_bog = 1.0, dry_meadow = 0.3, forest_floor = 0.3, grey_scree = 0.2 }
+edge = { of = "water", within_meters = 5.0, falloff_meters = 3.0, outside = 0.0 }
+height = { min = 0.0, max = 0.35, falloff = 0.1 }
+density_per_100m2 = 5.0
+min_per_world = 100
+max_per_world = 600
 
 [props.state_prompt]
 standing = "Full height and upright, the seed heads nodding a little."

@@ -112,6 +112,15 @@ spindly insect legs, a blunt eyeless head split by a wide flat mandible, and a
 ridge of stiff bristles down the back. Pale grub underside, dark chitin plates on top.
 """
 
+# Hounds roam in packs of about three, a walk from the camp, anywhere on land.
+# The maximum is the world's hound count; the minimum keeps a quiet seed honest.
+[mob.placement]
+habitat = { forest_floor = 1.0, dry_meadow = 1.0, mossy_bog = 1.0, grey_scree = 1.0 }
+cluster = { parents_per_100m2 = 0.004, mean_size = 3.0, radius_meters = 6.0 }
+min_per_world = 6
+max_per_world = 12
+avoid = [ { target = "campfire", radius_meters = 30.0 } ]
+
 [[mob.states]]
 state = "idle"
 mode = "loop"

@@ -231,7 +231,7 @@ Add `--dry-run` for the free rehearsal. See the
 
 The survival recipe (`2d/obliqueview/survival`) is the sixth. One world is one
 authored package under `library/games/<game_id>/`: an
-`oblique-survival-package-v1` `survival.toml` beside the files it names — the
+`oblique-survival-package-v2` `survival.toml` beside the files it names — the
 actors and their facing sets, the props and their interaction states, the ground
 as material plates and scattered sheets, the items and the crafting table, a
 season calendar, weather, music and sound. Everything drawn is a flat card

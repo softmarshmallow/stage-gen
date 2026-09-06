@@ -43,8 +43,9 @@ byte of the package is touched, and the refusal names both kinds:
 `kind oblique_survival_v0_manifest is not oblique-survival-manifest-v1`. The
 spike's own `oblique_survival_v0_manifest` was accepted while the recipe was
 being promoted and is gone — one host, one manifest identity. The run to point
-it at is `out/ember-hollow-v1`, whose package is byte-identical to the spike's
-`full-v66`, so nothing it draws has changed.
+it at is `out/ember-hollow-v2`: the same art as the spike's `full-v66`, restored
+at zero provider operations, over the 512 m world the
+[world generator](../../docs/spec/survival/world.md) lays.
 
 Keyboard handling lives in `runtime/input_map.gd` (`class_name HostInput` —
 `InputMap` is an engine class and cannot be hidden). The frame owner keeps it
@@ -130,7 +131,7 @@ sim/                   the world state, the PRNG, and the fifteen systems in the
 view/                  the camera rig, the environment, the ground and water shaders, and the view modules
 hud/                   the HUD and the world map
 audio/                 music and sound effects
-tools/                 the picture gate, the diff, the gate script, the play smoke, the parity harness
+tools/                 the capture sheet, the diff, the gate script, the play smoke, the parity harness
 tests/                 the headless test runner
 ```
 
@@ -224,11 +225,17 @@ Godot --path godot/oblique_survival --rendering-driver metal --disable-render-lo
       --run <absolute run dir> --capture <shot> --out <png> [--frames N] [--dpr N] [--overlays on|off]
 ```
 
-Ten shots, each one a web-viewer reference frame reproduced step for step — the
-same page mode, the same clock phase, the same forced season and weather, the
-same advance times (with the three measured exceptions below) — so the two
-compare 1:1. `--capture all` writes every one
-into the directory `--out` names, each file named after its shot.
+Twelve shots. They began as web-viewer reference frames reproduced step for
+step — the same page mode, the same clock phase, the same forced season and
+weather, the same advance times — and that comparison is what proved the port
+(the table under "Verified against the run"). Since the world generator
+([decision 0059](../../docs/decisions/0059-the-world-is-a-point-process-and-the-object-owns-its-habitat.md))
+the viewer cannot open the run, so the sheet is the host's own regression
+reference: `--ref` is a previous capture of this host, and the shots that
+stand somewhere in the world find the place in the record (`junction` is the
+road's midpoint, `coast` the first water south of the spawn, `ring` the first
+boulder ring) rather than at typed coordinates. `--capture all` writes every
+one into the directory `--out` names, each file named after its shot.
 
 | Shot | Page | The recipe, and what only this shot proves |
 | --- | --- | --- |
@@ -238,6 +245,7 @@ into the directory `--out` names, each file named after its shot.
 | `winter-noon` | verdict, noon | force winter, `advance(130)`, clock 0.02, `advance(3)` for the reference's texture wait, `advance(1)`. Snow cover at 1, the winter prop look, decals faded, ice on the water |
 | `winter-night` | verdict, night | as above at clock 0.73 with a 5 s wait: the look swap surviving the night grade |
 | `storm-noon` | verdict, noon | force summer, `advance(140)`, clock 0.02, force storm, `advance(45)`. The rain veil, splashes, wet decals, the rain wash |
+| `ring` | play, noon | teleport to 3 m south of the first `boulder_ring` set piece in the record: a composition the generator sited, on the meadow, a walk from the camp |
 | `storm-strike` | verdict, noon | the storm, then `force_strike()` and `advance(2/60)` — and nothing after it, because the flash envelope is read off `time − flash_at` and one more frame would step it. The additive bolt, the sparkle, the trauma |
 | `junction` | play, noon | weather clear, `advance(30)`, the player teleported to (−11.164, −7.083), `advance(3)`, `advance(1)`. The camera settles at (−3.86, 14.74, 0.22). The road mask and its erosion, the carpet cut, the bleed and smudge fields |
 | `coast` | play, noon | as above with the player at (0, −103.5); the camera settles at (7.30, 14.74, −96.20). The coast discard, the shore rim, the water plate and the cliff ray-march |
@@ -344,8 +352,12 @@ shows up here rather than in a still.
 
 This is the one host run where the render loop is **on** — a picture gate that
 draws with `force_draw` says nothing about what a frame costs while somebody is
-playing. Measured on an M4 Pro against `out/ember-hollow-v1` (2471 entities, 4588 plants,
-6554 clutter pieces, 1608 decals):
+playing. On the 512 m world (`out/ember-hollow-v2`: 2365 entities, 3275 plants, 4314
+clutter pieces, 2686 decals) the smoke reads **11.2 ms a frame (89 fps)** free-running,
+worst 13.1, with the same module split as below: a wider world at the same card
+count costs nothing here, and the plates at 1024 cells cost the same to sample.
+The first measurement, on the 256 m run (2471 entities, 4588 plants, 6554 clutter
+pieces, 1608 decals), on an M4 Pro:
 
 - with the loop free-running and `autostep` on: **11.1 ms a frame (90 fps)**,
   worst 15.4.
@@ -719,6 +731,10 @@ Recorded here because parity with the viewer is the acceptance test.
   than teaching eighteen modules to forget one and costs a second.
 
 ## Verified against the run
+
+The record of the port's acceptance, kept as history: the world these frames
+show is the first promoted run's, not the current one, and the viewer that
+made the references cannot open a run of the current kind.
 
 `out/ember-hollow-v1` against the web viewer's like-for-like PNG references,
 1600x900 at device pixel ratio 1, HUD regions masked, on the rule mean ≤ 0.02

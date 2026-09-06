@@ -55,7 +55,7 @@ class ScopeIdentity:
 IDENTITIES: Final = {
     "minimal": ScopeIdentity(
         node_count=71,
-        topology_sha256="c029d6fd1e7bd57c67c2b89dfd5646b8f1c3d1566642b2e08c913ad4d1ee7758",
+        topology_sha256="c51f9850cd50d6dbc0d178c60edfef7dd350326dad91d5b914851771b00538eb",
         operations={
             "local": 43,
             "image_generation": 22,
@@ -67,7 +67,7 @@ IDENTITIES: Final = {
     ),
     "props": ScopeIdentity(
         node_count=185,
-        topology_sha256="2805ad7966353c9f86d955c10f14c4bf438fab1787e1b131eaa1c92bbfca36fc",
+        topology_sha256="5aa780cf86378d0175c3345716ea8f2435e3e4ccc0099bee080a9a77eb8feb17",
         operations={
             "local": 97,
             "image_generation": 73,
@@ -79,7 +79,7 @@ IDENTITIES: Final = {
     ),
     "actors": ScopeIdentity(
         node_count=235,
-        topology_sha256="b03c3f5f01a09a352c3e5ad69b519fbe4ffc2c55804d80ed7cda873ded90a2ff",
+        topology_sha256="edd75f1623fc8dce589210b9b120971a54cb0e456cb0fe78b19a966d2433e255",
         operations={
             "local": 121,
             "image_generation": 94,
@@ -91,7 +91,7 @@ IDENTITIES: Final = {
     ),
     "full": ScopeIdentity(
         node_count=277,
-        topology_sha256="bcdef8db4d9e28924e98ed849e35ca8a4ea5de8a0757ddbf858a8304de895bf8",
+        topology_sha256="df7e69d900ddf28e70d74920057e892f9f7e7de30e761376a2defd7b5c5c5a64",
         operations={
             "local": 152,
             "image_generation": 101,

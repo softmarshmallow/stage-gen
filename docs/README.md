@@ -70,6 +70,9 @@ Start here for the headless, general-purpose system:
   digest-declared takes, the presentation profile, the four-way facing rule, the
   one sealed graph and its four scopes, which edit re-bills which node, the
   deterministic gates, and the `oblique-survival-manifest-v1` manifest a host plays.
+- [Survival world](spec/survival/world.md) — the world generator: `world.toml`, the
+  object-owned `placement` block, four point processes over solved fields, set pieces,
+  addressed draws so an edit moves one object, and a Monte-Carlo pattern gate.
 - [Survival ground](spec/survival/ground.md) — the ground as a material rather
   than a picture: the layer stack a consumer composes, the plate contract, the
   mixing that costs nothing, the gates and their thresholds, and what the
@@ -168,6 +171,10 @@ Start here for the headless, general-purpose system:
   measured against one unchanged validator, why the chunk grammar was promoted and the other four
   set aside, when each set-aside format becomes useful again, and the boundary that named the
   module platformer.
+- [World-generation vocabulary](research/world-generation-vocabulary.md) — the words for the
+  survival world pass: what the layout does today in point-process terms, how Don't Starve and
+  Minecraft author a world, and the proposed split between the author's attributes, the agnostic
+  generator, and the contract.
 - [Prior-art register](research/prior-art.md) — external studies, papers, and tool
   documentation relevant to our problems, each recorded with an explicit applicability
   verdict against our own inputs and the named limit that blocks it where one does.

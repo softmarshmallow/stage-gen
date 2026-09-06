@@ -69,6 +69,15 @@ func _go() -> void:
 	_main.advance(0.6)
 	await _save("ui-noon-walk.png")
 
+	# --- the world map: the recoloured plate, the camp, the set pieces ---
+	var map_node = _main.modules.get("world_map")
+	if map_node != null:
+		map_node.set_open(true)
+		_main.advance(STEP)
+		await _save("ui-map.png")
+		map_node.set_open(false)
+		_main.advance(STEP)
+
 	# --- the crafting table -------------------------------------------------
 	world.input["craft_toggle"] = true
 	_main.advance(STEP)

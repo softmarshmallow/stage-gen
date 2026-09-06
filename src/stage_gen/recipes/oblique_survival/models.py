@@ -8,7 +8,8 @@ this module; the conversion to meters happens once, in ``manifest.py``.
 Reading, validating and digesting the authored files is
 ``survival_request.py``'s job; this module holds only what a validated package
 is. ``ObliqueSurvivalSource`` is the root document's pydantic contract, which is
-where the authored identity ``oblique-survival-package-v1`` is declared.
+where the authored identity ``oblique-survival-package-v2`` is declared, and
+``WORLD_KIND`` is ``world.toml``'s.
 """
 
 from __future__ import annotations
@@ -42,9 +43,11 @@ INTERACTION_VERBS: Final = ("chop", "gather", "mine", "light")
 #: winter: a worn thing insulates while it is carried, a warm thing holds the
 #: cold off for a while once lit at a fire.
 ITEM_USES: Final = ("consume", "light", "carry", "wear", "warm")
-#: The props that stand in the camp clearing at layout time. The crafting
-#: closure counts them as stations that exist before anything is built.
-CAMP_PROP_IDS: Final = frozenset({"campfire", "canvas_tent"})
+#: world.toml's own identity: the world's extent, its landmass, its biome
+#: rules, its set pieces and the population order.
+WORLD_KIND: Final = "oblique-survival-world-v1"
+#: What an object's ``edge`` preference may be measured from.
+EDGE_FIELDS: Final = ("water", "biome", "road", "set_piece")
 
 
 class SourceError(ValueError):
@@ -122,6 +125,8 @@ class Actor:
     #: swapping the picture re-bills the concept and everything off it.
     appearance_reference: str | None = None
     appearance_reference_digest: str | None = None
+    #: Where and how the layout scatters this actor. The mob's; the player has none.
+    placement: Placement | None = None
 
     def state(self, name: str) -> MotionState:
         for entry in self.states:
@@ -207,6 +212,87 @@ class SheetSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class EdgePreference:
+    """A preference for the band near something: the water, a biome's edge,
+    the road, a set piece. Weight 1 within, ``outside`` beyond the falloff."""
+
+    of: str
+    within_meters: float
+    falloff_meters: float
+    outside: float
+
+
+@dataclass(frozen=True, slots=True)
+class HeightPreference:
+    """A band of the rules-only height field, 0 at the coast and 1 inland."""
+
+    min: float
+    max: float
+    falloff: float
+
+
+@dataclass(frozen=True, slots=True)
+class ClusterRule:
+    """Sparse but clumped: parents where the habitat is best, children round each."""
+
+    parents_per_100m2: float
+    mean_size: float
+    radius_meters: float
+
+
+@dataclass(frozen=True, slots=True)
+class NearRule:
+    """Placed round another object's final points (a fern under a pine)."""
+
+    host: str
+    radius_meters: float
+    mean: float
+    chance: float
+
+
+@dataclass(frozen=True, slots=True)
+class AvoidRule:
+    target: str
+    radius_meters: float
+
+
+@dataclass(frozen=True, slots=True)
+class Placement:
+    """Where and how an object stands in the world: the object's own block.
+
+    The object owns its habitat, so adding an object never edits a biome. One
+    of four processes: ``density_per_100m2`` alone is Poisson, ``cluster`` is
+    a Matérn cluster (the density is parents times mean size), ``spacing_meters``
+    alone is a jittered grid, ``near`` attaches to another object. The rest
+    shapes the intensity (habitat, edge, height), the rarity, the quota and
+    the keep-outs. The generator that reads this knows none of the words.
+    """
+
+    habitat: Mapping[str, float]
+    density_per_100m2: float | None = None
+    cluster: ClusterRule | None = None
+    spacing_meters: float | None = None
+    near: NearRule | None = None
+    edge: EdgePreference | None = None
+    height: HeightPreference | None = None
+    chance: float = 1.0
+    min_per_world: int = 0
+    max_per_world: int | None = None
+    avoid: tuple[AvoidRule, ...] = ()
+    clearing_radius_meters: float = 0.0
+
+    @property
+    def process_kind(self) -> str:
+        if self.cluster is not None:
+            return "cluster"
+        if self.near is not None:
+            return "near"
+        if self.spacing_meters is not None and self.density_per_100m2 is None:
+            return "spaced"
+        return "poisson"
+
+
+@dataclass(frozen=True, slots=True)
 class VariantSpec:
     """Looks the layout picks from, one per placed instance, by weight.
 
@@ -249,15 +335,12 @@ class Prop:
     #: same size in the world as it was drawn), which is what a cracked rock
     #: wants and a stump does not.
     look_height_units: Mapping[str, float]
-    #: This prop's share of its FAMILY's density. `[world.density]` is authored
-    #: per family, and the family's budget is split between its props in
-    #: proportion to their shares -- so adding a second conifer mixes the wood
-    #: rather than doubling the number of trees in it.
-    density_share: float = 1.0
-    #: Where this prop prefers to stand, per biome, overriding its family's
-    #: `[world.biome_weights]` row when present. A family says "trees like the
-    #: forest"; a prop says "this dead tree likes the bog".
-    biome_weights: Mapping[str, float] | None = None
+    #: Where and how the layout scatters this prop. Absent means never
+    #: scattered: a station is built, a camp prop is a set-piece member.
+    placement: Placement | None = None
+    #: The soft disc of shade the plate carries under this prop, in metres.
+    #: 0 means none. An attribute, not a family rule: the plate knows no tree.
+    canopy_radius_meters: float = 0.0
     #: Drawn as one sheet (all looks together, one op) rather than as one
     #: sprite per look. Optional; absent means sprites.
     sheet: SheetSpec | None = None
@@ -524,6 +607,8 @@ class ClutterCell:
     brief: str
     contact: str
     biomes: tuple[str, ...]
+    #: This cell's own placement, replacing the sheet's for this cell alone.
+    placement: Placement | None = None
 
 
 CLUTTER_CONTACTS: Final = ("pressed", "fallen", "growing")
@@ -536,7 +621,8 @@ class Clutter:
     columns: int
     rows: int
     cell_meters: float
-    density: Mapping[str, float]
+    #: How the sheet's cells are scattered; a cell may carry its own.
+    placement: Placement
     cells: tuple[ClutterCell, ...]
     #: Drawing direction for the sheet only, stated after the package's so it
     #: wins: the first sheet came back glossy, and the plates are matte.
@@ -562,6 +648,7 @@ class ForageCell:
     item_id: str
     count: int
     regrow_seconds: float
+    placement: Placement | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -571,7 +658,7 @@ class Forage:
     columns: int
     rows: int
     cell_meters: float
-    density: Mapping[str, float]
+    placement: Placement
     cells: tuple[ForageCell, ...]
     style_emphasis: str
     take: str | None
@@ -591,6 +678,7 @@ class PlantCell:
     brief: str
     contact: str
     biomes: tuple[str, ...]
+    placement: Placement | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -602,7 +690,7 @@ class Plants:
     columns: int
     rows: int
     cell_meters: float
-    density: Mapping[str, float]
+    placement: Placement
     cells: tuple[PlantCell, ...]
     style_emphasis: str
     take: str | None
@@ -952,6 +1040,73 @@ class MissingTake:
 
 
 @dataclass(frozen=True, slots=True)
+class Landmass:
+    land_share: float
+    coast_noise_lattice: int
+    coast_crinkle: float
+    shore_margin_meters: float
+    height_octave_lattice: int
+    height_octave_weight: float
+
+
+@dataclass(frozen=True, slots=True)
+class BiomeRules:
+    """The spatial rules of the biomes; the plates stay in ground.toml."""
+
+    islet_lattice: int
+    islet_share: float
+
+
+@dataclass(frozen=True, slots=True)
+class SetPieceMember:
+    prop: str
+    state: str
+    dx: float
+    dz: float
+    #: A worn pad under the member, scaled; None draws none.
+    pad_scale: float | None
+
+
+@dataclass(frozen=True, slots=True)
+class SetPiece:
+    """An authored composition the layout sites whole."""
+
+    set_piece_id: str
+    count: int
+    at: Literal["origin", "band"]
+    band_meters: tuple[float, float]
+    biome: str | None
+    clearing_radius_meters: float
+    pad_decal: str | None
+    #: The player's spawn offset, on the set piece the world names as its spawn.
+    spawn: tuple[float, float] | None
+    members: tuple[SetPieceMember, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class World:
+    """world.toml: the extent, the landmass, the biome rules, the set pieces."""
+
+    seed: int
+    size_meters: float
+    landmass: Landmass
+    biomes: BiomeRules
+    spawn_set_piece: str
+    set_pieces: tuple[SetPiece, ...]
+    population_order: tuple[str, ...]
+
+    def set_piece(self, set_piece_id: str) -> SetPiece:
+        for entry in self.set_pieces:
+            if entry.set_piece_id == set_piece_id:
+                return entry
+        raise SourceError(f"unknown set piece {set_piece_id!r}")
+
+    @property
+    def spawn(self) -> SetPiece:
+        return self.set_piece(self.spawn_set_piece)
+
+
+@dataclass(frozen=True, slots=True)
 class Package:
     """The whole authored intent, frozen, with one digest per source file."""
 
@@ -976,16 +1131,17 @@ class Package:
     look: Look
     player_height_meters: float
     minimum_height_units: float
-    #: Three open sub-documents of survival.toml, carried verbatim into the
-    #: manifest for the consumer to read: the camera rig, the world's size and
-    #: scatter densities, and the gameplay numbers. Their keys are the author's
-    #: and grow without a schema change, so the value type stays ``Any`` on
-    #: purpose; the few entries this package depends on are read through
-    #: ``.get(key, default)`` and coerced at the point of use, and the handful
-    #: that are refusal-bearing (``gameplay.pickup`` and the two reach numbers)
-    #: are validated in ``survival_request._gameplay``.
+    #: Two open sub-documents of survival.toml, carried verbatim into the
+    #: manifest for the consumer to read: the camera rig and the gameplay
+    #: numbers. Their keys are the author's and grow without a schema change,
+    #: so the value type stays ``Any`` on purpose; the few entries this package
+    #: depends on are read through ``.get(key, default)`` and coerced at the
+    #: point of use, and the handful that are refusal-bearing
+    #: (``gameplay.pickup`` and the two reach numbers) are validated in
+    #: ``survival_request._gameplay``.
     camera: Mapping[str, Any]
-    world: Mapping[str, Any]
+    #: world.toml, parsed: the layout reads nothing else about where things go.
+    world: World
     gameplay: Mapping[str, Any]
     facing_authored: str
     player: Actor
@@ -1110,4 +1266,4 @@ class ObliqueSurvivalSource(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     schema_version: Literal[1]
-    kind: Literal["oblique-survival-package-v1"]
+    kind: Literal["oblique-survival-package-v2"]

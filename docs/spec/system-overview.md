@@ -148,7 +148,7 @@ fixed elevated-oblique perspective camera: billboard cards on a ground plane,
 generated ground material, an authored crafting table proved reachable before any
 spend, a season calendar, weather, music and sound. Its
 [generation specification](survival/generation-v1.md) owns the authored
-`oblique-survival-package-v1` package, the one sealed graph and its scopes, and
+`oblique-survival-package-v2` package, the one sealed graph and its scopes, and
 the `oblique-survival-manifest-v1` manifest. Its consumer is not a browser
 surface: the [Godot host](../godot-host.md) plays it.
 

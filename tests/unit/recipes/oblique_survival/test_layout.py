@@ -1,15 +1,12 @@
-"""Offline tests for the world layout and the manifest's scale arithmetic.
-
-The layout is the one part of the recipe that decides where things stand, and it
-is seeded: the same package must place the same world twice, or a consumer that
-reads the manifest and a run that drew the art would disagree about the ground.
+"""Offline tests for the authored package: the loader's refusals, the looks, the
+manifest's scale arithmetic, the seam policy. The layout itself is
+``test_world_layout.py``.
 
     uv run pytest tests/unit/recipes/oblique_survival/test_layout.py
 """
 
 from __future__ import annotations
 
-import math
 import re
 import shutil
 from collections.abc import Callable, Sequence
@@ -25,7 +22,7 @@ from stage_gen.config import StageGenConfig
 from stage_gen.recipes.oblique_survival import layout as layout_module
 from stage_gen.recipes.oblique_survival import survival_request
 from stage_gen.recipes.oblique_survival.layout import Layout
-from stage_gen.recipes.oblique_survival.manifest import manifest_bytes, measure_sprite
+from stage_gen.recipes.oblique_survival.manifest import measure_sprite
 from stage_gen.recipes.oblique_survival.models import (
     Clutter,
     ItemUse,
@@ -109,93 +106,6 @@ def test_a_prop_may_not_be_shorter_than_the_declared_minimum(package: Package) -
         assert prop.height_units >= package.minimum_height_units
 
 
-def test_the_layout_passes_its_own_checks(package: Package, world: Layout) -> None:
-    assert layout_module.check_layout(package, world) == []
-
-
-def test_the_same_seed_gives_byte_identical_output(package: Package) -> None:
-    first = layout_module.build_layout(package)
-    second = layout_module.build_layout(package)
-    assert manifest_bytes(first.as_record()) == manifest_bytes(second.as_record())
-    assert first.splat_png == second.splat_png
-
-
-def test_nothing_overlaps(world: Layout) -> None:
-    entities = world.entities
-    for index, first in enumerate(entities):
-        for second in entities[index + 1 :]:
-            reach = first.scatter_radius_meters + second.scatter_radius_meters
-            distance = math.hypot(first.x - second.x, first.z - second.z)
-            assert distance >= reach - 1e-6, f"{first.entity_id} overlaps {second.entity_id}"
-
-
-def test_the_camp_clearing_holds_only_the_camp(world: Layout) -> None:
-    camp_x, camp_z = world.camp_position
-    for entity in world.entities:
-        if math.hypot(entity.x - camp_x, entity.z - camp_z) < world.clear_radius_meters:
-            assert entity.ref_id in {"campfire", "canvas_tent"}
-
-
-def test_the_player_spawns_inside_the_clearing(world: Layout) -> None:
-    camp_x, camp_z = world.camp_position
-    spawn = world.player_spawn
-    assert math.hypot(spawn[0] - camp_x, spawn[1] - camp_z) <= world.clear_radius_meters
-
-
-def test_every_entity_stays_inside_the_world_square(world: Layout) -> None:
-    half = world.size_meters / 2
-    for entity in world.entities:
-        assert abs(entity.x) <= half
-        assert abs(entity.z) <= half
-
-
-def test_density_ceilings_hold(package: Package, world: Layout) -> None:
-    area_hundreds = (world.size_meters**2) / 100.0
-    for prop in package.props:
-        per_hundred = package.world.get("density", {}).get(prop.family)
-        if per_hundred is None:
-            continue
-        ceiling = round(float(per_hundred) * area_hundreds)
-        assert world.counts.get(prop.prop_id, 0) <= ceiling
-
-
-def test_a_prop_that_never_suits_either_biome_is_never_placed(package: Package) -> None:
-    # Biome weighting is the only thing keeping trees out of the meadow, so a
-    # zero weight everywhere must mean zero placements.
-    blocked = dict(package.world)
-    blocked["biome_weights"] = {
-        **blocked.get("biome_weights", {}),
-        "tree": {biome.biome_id: 0.0 for biome in package.biomes},
-    }
-    variant = replace(package, world=blocked)
-    world = layout_module.build_layout(variant)
-    assert world.counts.get("pine", 0) == 0
-
-
-def test_the_splat_plate_is_data_not_colour(world: Layout) -> None:
-    with Image.open(BytesIO(world.splat_png)) as opened:
-        cells = layout_module.splat_cells(world.size_meters)
-        assert opened.size == (cells, cells)
-        assert opened.mode == "RGBA"
-        red, green, blue, alpha = opened.convert("RGBA").split()
-    # R is the road, a hard mask the shader erodes, so only 0 and 255 may
-    # appear. G is under-canopy shade and may be anything. B is reserved and
-    # empty; the biomes live on their own plate.
-    assert set(_extrema(red)) <= {0, 255}
-    assert _extrema(green)[1] > 0, "no canopy shade was painted at all"
-    assert _extrema(blue) == (0, 0)
-    # A is the landmass, hard too; the coast is torn in the shader.
-    assert _extrema(alpha) == (0, 255)
-
-
-def test_the_layout_record_names_props_and_actors_distinctly(world: Layout) -> None:
-    for entry in _record(world)["entities"]:
-        if entry["kind"] == "prop":
-            assert "prop" in entry and "state" in entry
-        else:
-            assert "actor" in entry
-
-
 def test_a_pure_python_prng_matches_across_the_two_sides() -> None:
     # The viewer runs the same generator on the same seed, so drift here would
     # silently desynchronise anything seeded on both sides.
@@ -208,69 +118,6 @@ def test_a_pure_python_prng_matches_across_the_two_sides() -> None:
 
 
 # --- the road, the pads, and the litter ------------------------------------------------
-
-
-def test_the_road_leaves_the_clearing_and_stays_inside_the_world(
-    package: Package, world: Layout
-) -> None:
-    assert package.road is not None
-    assert world.road_id == package.road.road_id
-    assert len(world.road) >= 6
-    half = world.size_meters / 2.0
-    first = world.road[0]
-    assert math.hypot(first[0] - world.camp_position[0], first[1] - world.camp_position[1]) > 3.0
-    assert all(abs(x) <= half - 3.0 and abs(z) <= half - 3.0 for x, z in world.road)
-
-
-def test_the_camp_structures_stand_on_pads(world: Layout) -> None:
-    pads = [decal for decal in world.decals if decal["decal"] == "path"]
-    assert len(pads) == 2
-    assert all(decal["scale"] >= 1.0 for decal in pads)
-
-
-def test_litter_keeps_off_the_road_and_out_of_footprints(package: Package, world: Layout) -> None:
-    clutter = package.clutter
-    assert clutter is not None
-    assert len(world.clutter) > 100
-    keep_out = _road_of(package).width_meters / 2.0 + 0.25
-    for entry in world.clutter:
-        assert layout_module.polyline_distance(entry["x"], entry["z"], world.road) >= keep_out
-        assert 0 <= entry["cell"] < clutter.cell_count
-    for entity in world.entities:
-        if entity.kind != "prop":
-            continue
-        for entry in world.clutter:
-            assert (
-                math.hypot(entry["x"] - entity.x, entry["z"] - entity.z)
-                >= entity.footprint_radius_meters
-            )
-
-
-def test_the_splat_carries_the_road_in_red(package: Package, world: Layout) -> None:
-    with Image.open(BytesIO(world.splat_png)) as opened:
-        image = opened.convert("RGBA")
-    cells = image.size[0]
-    pixels = image.load()
-    assert pixels is not None
-    red = [
-        (x, y)
-        for y in range(cells)
-        for x in range(cells)
-        if cast(tuple[int, int, int, int], pixels[x, y])[0] > 0
-    ]
-    assert red, "the road never reached the splat"
-    size = world.size_meters
-    reach = _road_of(package).width_meters / 2.0 + size / cells
-    for x, y in red[::37]:
-        wx = (x + 0.5) / cells * size - size / 2.0
-        wz = (y + 0.5) / cells * size - size / 2.0
-        assert layout_module.polyline_distance(wx, wz, world.road) <= reach
-
-
-def test_the_layout_record_carries_the_road_and_the_litter(world: Layout) -> None:
-    record = _record(world)
-    assert record["road"]["points"][0] == {"x": world.road[0][0], "z": world.road[0][1]}
-    assert len(record["clutter"]) == len(world.clutter)
 
 
 # --- the landmass -------------------------------------------------------------------------
@@ -289,46 +136,6 @@ def _land_mask(world: Layout) -> Callable[[float, float], bool]:
         return band[row * cells + column] > 127
 
     return land
-
-
-def test_the_landmass_has_the_authored_share_and_holds_the_camp(
-    package: Package, world: Layout
-) -> None:
-    share = float(package.world["landmass"]["land_share"])
-    assert abs(world.land_share - share) < 0.03
-    land = _land_mask(world)
-    assert land(*world.camp_position)
-    assert land(*world.player_spawn)
-    radius = world.clear_radius_meters
-    for angle in range(0, 360, 30):
-        assert land(radius * math.cos(math.radians(angle)), radius * math.sin(math.radians(angle)))
-
-
-def test_nothing_is_placed_in_the_water(world: Layout) -> None:
-    land = _land_mask(world)
-    for entity in world.entities:
-        assert land(entity.x, entity.z), entity.entity_id
-    for x, z in world.road:
-        assert land(x, z)
-    for entry in world.clutter:
-        assert land(entry["x"], entry["z"])
-    for decal in world.decals:
-        assert land(decal["x"], decal["z"])
-
-
-def test_the_coast_is_inside_the_square(world: Layout) -> None:
-    """The player never reaches the square: every edge cell of the mask is water."""
-
-    with Image.open(BytesIO(world.splat_png)) as opened:
-        alpha = opened.convert("RGBA").getchannel("A")
-    cells = alpha.size[0]
-    edges = (
-        alpha.crop((0, 0, cells, 1)),
-        alpha.crop((0, cells - 1, cells, cells)),
-        alpha.crop((0, 0, 1, cells)),
-        alpha.crop((cells - 1, 0, cells, cells)),
-    )
-    assert max(_extrema(strip)[1] for strip in edges) == 0
 
 
 # --- the seam is authored ------------------------------------------------------------------
@@ -375,92 +182,12 @@ def test_the_ground_line_ignores_a_root_tip_hanging_below_the_base() -> None:
     assert 0.86 <= facts["ground_contact_y_normalized"] <= 0.885
 
 
-def test_a_family_budget_is_split_between_its_props_not_multiplied() -> None:
-    """Adding a second conifer mixes the wood; it does not double it."""
-
-    package = load_package(PACKAGE)
-    world = layout_module.build_layout(package)
-    trees = [prop for prop in package.props if prop.family == "tree"]
-    assert len(trees) > 1, "this test needs more than one tree to mean anything"
-
-    per_hundred = package.world["density"]["tree"]
-    area_hundreds = (world.size_meters**2) / 100.0
-    budget = per_hundred * area_hundreds
-    planted = sum(world.counts.get(prop.prop_id, 0) for prop in trees)
-    assert planted <= round(budget) + len(trees)
-
-    # and the split follows the authored shares
-    shares = {prop.prop_id: prop.density_share for prop in trees}
-    biggest = max(shares, key=lambda key: shares[key])
-    smallest = min(shares, key=lambda key: shares[key])
-    assert world.counts.get(biggest, 0) > world.counts.get(smallest, 0)
-
-    # a prop with no share of its own still gets the whole family budget alone
-    solo = replace(
-        package,
-        props=tuple(
-            prop for prop in package.props if prop.family != "tree" or prop.prop_id == "pine"
-        ),
-    )
-    solo_world = layout_module.build_layout(solo)
-    assert solo_world.counts.get("pine", 0) > world.counts.get("pine", 0)
-
-
 # --- the biomes ---------------------------------------------------------------------------
 
 
 def _biome_plate(world: Layout) -> Image.Image:
     with Image.open(BytesIO(world.biome_splat_png)) as opened:
         return opened.convert("RGBA")
-
-
-def test_the_biome_plate_holds_the_authored_shares(package: Package, world: Layout) -> None:
-    """Each non-base biome gets its share of the square, solved, not assumed."""
-
-    plate = _biome_plate(world)
-    cells = plate.size[0]
-    pixels = plate.load()
-    assert pixels is not None
-    counts = [0, 0, 0]
-    for y in range(cells):
-        for x in range(cells):
-            r, g, b, a = cast(tuple[int, int, int, int], pixels[x, y])
-            assert a == 255, "the biome plate's alpha is not a channel"
-            assert (r > 0) + (g > 0) + (b > 0) <= 1, "a cell belongs to one biome"
-            for index, value in enumerate((r, g, b)):
-                if value > 0:
-                    counts[index] += 1
-    total = cells * cells
-    for index, biome in enumerate(package.biomes[1:]):
-        actual = counts[index] / total
-        assert abs(actual - biome.share) < 0.05, f"{biome.biome_id}: {actual:.3f} vs {biome.share}"
-        assert abs(world.biome_shares[biome.biome_id] - actual) < 0.02
-    base = 1.0 - sum(counts) / total
-    assert abs(world.biome_shares[package.biomes[0].biome_id] - base) < 0.02
-    assert base > 0.3
-
-
-def test_every_biome_is_a_continent_not_speckle(package: Package, world: Layout) -> None:
-    """A biome boundary crossed by a row should be crossed a few times, not fifty."""
-
-    plate = _biome_plate(world)
-    cells = plate.size[0]
-    pixels = plate.load()
-    assert pixels is not None
-    for y in range(0, cells, 16):
-        changes = 0
-        previous = None
-        for x in range(cells):
-            r, g, b, _a = cast(tuple[int, int, int, int], pixels[x, y])
-            current = (r > 0, g > 0, b > 0)
-            if previous is not None and current != previous:
-                changes += 1
-            previous = current
-        # Continents alone crossed a row a dozen times at most; the islets
-        # add a patch every fifteen metres or so, three or four cuts to a
-        # 25 m screen, which is the reference's patchwork. Sixty would be
-        # speckle.
-        assert changes <= 45, f"row {y} crosses {changes} boundaries"
 
 
 def _components(grid: list[list[int]], index: int) -> list[int]:
@@ -488,122 +215,16 @@ def _components(grid: list[list[int]], index: int) -> list[int]:
     return sizes
 
 
-def test_the_islets_make_each_biome_a_patchwork_and_keep_its_share(package: Package) -> None:
-    """The second octave scatters patches a few metres across; the share is unchanged."""
-
-    world = dict(package.world)
-    assert int(world["biome_islet_lattice"]) > 0 and float(world["biome_islet_share"]) > 0
-    continents_only = replace(
-        package, world={**world, "biome_islet_lattice": 0, "biome_islet_share": 0.0}
-    )
-    plain = layout_module.BiomeField(continents_only, 7)
-    patched = layout_module.BiomeField(package, 7)
-    cells = 128
-    size = float(world["size_meters"])
-    meters_per_cell = size / cells
-    plain_grid = plain.index_grid(cells)
-    patched_grid = patched.index_grid(cells)
-    for index, biome in enumerate(package.biomes[1:]):
-        before = _components(plain_grid, index)
-        after = _components(patched_grid, index)
-        assert len(after) >= 2 * len(before), (
-            f"{biome.biome_id}: {len(before)} -> {len(after)} patches"
-        )
-        # The islets are the reference's 4 to 12 m islands, not speckle: the
-        # small patches (under the largest continent) have a typical span of
-        # a few metres.
-        small = sorted(after)[: max(1, len(after) - len(before))]
-        spans = [math.sqrt(count) * meters_per_cell for count in small]
-        typical = spans[len(spans) // 2]
-        assert 3.0 <= typical <= 16.0, f"{biome.biome_id}: typical islet span {typical:.1f} m"
-        assert abs(patched.shares[biome.biome_id] - biome.share) < 0.05
-        assert abs(plain.shares[biome.biome_id] - biome.share) < 0.05
-
-
-def test_the_plate_and_the_scatter_agree_about_where_a_biome_is(
-    package: Package, world: Layout
-) -> None:
-    field = layout_module.BiomeField(package, world.seed)
-    plate = _biome_plate(world)
-    cells = plate.size[0]
-    pixels = plate.load()
-    assert pixels is not None
-    size = world.size_meters
-    order = [biome.biome_id for biome in package.biomes]
-    for x, y in ((3, 3), (100, 40), (128, 128), (200, 230), (60, 190)):
-        wx = (x + 0.5) / cells * size - size / 2.0
-        wz = (y + 0.5) / cells * size - size / 2.0
-        r, g, b, _a = cast(tuple[int, int, int, int], pixels[x, y])
-        expected = order[0]
-        for index, value in enumerate((r, g, b)):
-            if value > 0:
-                expected = order[index + 1]
-        assert field.biome_at(wx, wz, size) == expected
-
-
-def test_a_prop_can_prefer_a_biome_over_its_family(package: Package) -> None:
-    snag = package.prop("dead_snag")
-    pine = package.prop("pine")
-    assert snag.biome_weights is not None and pine.biome_weights is None
-    assert layout_module._biome_weight(package, snag, "mossy_bog") == 1.0
-    assert layout_module._biome_weight(package, pine, "mossy_bog") < 1.0
-    # Without a row of its own the snag would take the tree family's row.
-    plain = replace(snag, biome_weights=None)
-    assert layout_module._biome_weight(package, plain, "mossy_bog") == layout_module._biome_weight(
-        package, pine, "mossy_bog"
-    )
-    # A row of its own is complete: an unnamed biome is a zero, not a fallback.
-    assert layout_module._biome_weight(package, snag, "grey_scree") == 0.35
-
-
-def test_a_fifth_biome_is_refused(package: Package) -> None:
-    rows = [
-        {"biome_id": f"b{i}", "texel_meters": 2.0, "prompt": "x", **({"share": 0.1} if i else {})}
-        for i in range(5)
-    ]
-    with pytest.raises(SourceError, match="at most 4"):
-        survival_request._biomes(rows)
-    with pytest.raises(SourceError, match="splat_channel"):
-        survival_request._biomes(
-            [{"biome_id": "b", "texel_meters": 2.0, "prompt": "x", "splat_channel": "base"}]
-        )
-    with pytest.raises(SourceError, match="remainder"):
-        survival_request._biomes(
-            [{"biome_id": "b", "texel_meters": 2.0, "prompt": "x", "share": 0.2}]
-        )
-
-
-def test_litter_lands_only_where_its_cell_is_allowed_and_is_never_spun(
-    package: Package, world: Layout
-) -> None:
-    clutter = package.clutter
-    assert clutter is not None
-    field = layout_module.BiomeField.for_layout(package, world)
-    seen: set[str] = set()
-    for entry in world.clutter:
-        biome = field.biome_at(entry["x"], entry["z"], world.size_meters)
-        seen.add(biome)
-        assert biome in clutter.cells[entry["cell"]].biomes
-        assert abs(entry["rotation_degrees"]) <= package.look.ground_piece_jitter_degrees
-        assert "mirror" not in entry, "nothing is mirrored for variety"
-    assert seen == set(clutter.density), "every biome with a density gets litter"
-
-
-def test_a_ground_patch_is_a_ground_piece_too(package: Package, world: Layout) -> None:
-    """A patch keeps its lower edge toward the camera, like the litter: never spun."""
-
-    assert world.decals, "the fixture package lays patches"
-    for decal in world.decals:
-        assert abs(decal["rotation_degrees"]) <= package.look.ground_piece_jitter_degrees
-        assert "mirror" not in decal
-    # Jitter is a spread, not a constant: at least two distinct headings.
-    assert len({decal["rotation_degrees"] for decal in world.decals}) > 1
-
-
 def test_a_litter_cell_must_name_a_known_biome_and_a_contact() -> None:
     cell: dict[str, Any] = {"brief": "a stone", "contact": "pressed", "biomes": ["forest_floor"]}
     cells = [dict(cell) for _ in range(4)]
-    good: dict[str, Any] = {"columns": 2, "rows": 2, "cell_meters": 0.4, "cells": cells}
+    good: dict[str, Any] = {
+        "columns": 2,
+        "rows": 2,
+        "cell_meters": 0.4,
+        "cells": cells,
+        "placement": {"density_per_100m2": 4.0},
+    }
     assert _clutter_of(good).cell_count == 4
     with pytest.raises(SourceError, match="exactly 4"):
         _clutter_of({**good, "cells": cells[:3]})
@@ -613,9 +234,11 @@ def test_a_litter_cell_must_name_a_known_biome_and_a_contact() -> None:
         _clutter_of({**good, "cells": [{**cell, "contact": "floating"}] * 4})
     with pytest.raises(SourceError, match="no cell may land"):
         _clutter_of(
-            {**good, "density_per_100m2": {"dry_meadow": 4.0}},
+            {**good, "placement": {"density_per_100m2": 4.0, "habitat": {"dry_meadow": 1.0}}},
             biomes=("forest_floor", "dry_meadow"),
         )
+    with pytest.raises(SourceError, match="not authored any more"):
+        _clutter_of({**good, "density_per_100m2": {"forest_floor": 4.0}})
 
 
 # --- looks: sheets, variants, progress ----------------------------------------------------
@@ -814,99 +437,7 @@ def test_every_tree_is_chopable(package: Package) -> None:
 # --- the wide world ------------------------------------------------------------------------
 
 
-def test_the_world_is_wide_and_the_splat_keeps_its_cell_size(world: Layout) -> None:
-    # 256 m a side, at a quarter metre per splat cell: the road's torn edge
-    # needs more than four cells across it whatever the world's size.
-    assert world.size_meters >= 200.0
-    cells = layout_module.splat_cells(world.size_meters)
-    assert cells == round(world.size_meters / layout_module.SPLAT_CELL_METERS)
-    assert world.size_meters / cells <= 0.25 + 1e-9
-
-
-def test_the_hoisted_noise_grid_agrees_with_the_point_sampler() -> None:
-    noise = layout_module.ValueNoise(4242, 8)
-    cells = 96
-    grid = noise.grid(cells)
-    for row in (0, 17, 48, 95):
-        for column in (0, 3, 50, 95):
-            u = (column + 0.5) / cells
-            v = (row + 0.5) / cells
-            assert abs(grid[row][column] - noise.at(u, v)) < 1e-9
-
-
-def test_the_placement_hash_answers_like_the_full_scan() -> None:
-    rand = layout_module.mulberry32(99)
-    placed = [
-        layout_module.Placed(
-            entity_id=f"p{i:04d}",
-            kind="prop",
-            ref_id="pine",
-            state=None,
-            x=(rand() * 2 - 1) * 60,
-            z=(rand() * 2 - 1) * 60,
-            seed=i,
-            footprint_radius_meters=0.4,
-            scatter_radius_meters=0.3 + rand() * 1.4,
-        )
-        for i in range(300)
-    ]
-    widest = max(entry.scatter_radius_meters for entry in placed)
-    hashed = layout_module.PlacementHash(2.0 * widest + 0.5)
-    for entry in placed:
-        hashed.add(entry)
-
-    def scan(x: float, z: float, radius: float) -> bool:
-        return any(
-            (x - e.x) ** 2 + (z - e.z) ** 2 < (radius + e.scatter_radius_meters) ** 2
-            for e in placed
-        )
-
-    hits = 0
-    for _ in range(2000):
-        x, z, radius = (rand() * 2 - 1) * 62, (rand() * 2 - 1) * 62, 0.2 + rand() * 1.5
-        expected = scan(x, z, radius)
-        hits += expected
-        assert hashed.collides(x, z, radius) == expected
-    assert 0 < hits < 2000
-
-
-def test_the_wide_world_is_thinner_than_the_first_one(package: Package, world: Layout) -> None:
-    # Entities per hundred square metres of LAND, the number the eye reads.
-    # The 64 m world stood at about twelve; the wide one must stay under eight.
-    land_area = world.size_meters**2 * world.land_share
-    per_hundred = len(world.entities) / (land_area / 100.0)
-    assert per_hundred < 8.0
-    assert len(world.road) * 1.5 > 60.0, "a wide world wants a road worth following"
-    assert world.counts.get(package.mob.actor_id, 0) >= 8
-
-
 # --- weather: standing water is laid once, faded by the runtime ---------------------
-
-
-def test_puddles_are_scattered_on_land_off_the_camp_and_clear_of_every_prop(
-    package: Package, world: Layout
-) -> None:
-    rain = package.weather[0]
-    assert rain.wet is not None
-    puddles = [d for d in world.decals if d.get("condition") == "rain"]
-    ceiling = rain.wet.per_100_sqm * (world.size_meters**2) / 100.0
-    assert 0 < len(puddles) <= ceiling + 1
-    assert all(d["decal"] == rain.wet.decal_id for d in puddles)
-    land = _land_mask(world)
-    camp_x, camp_z = world.camp_position
-    for puddle in puddles:
-        assert land(puddle["x"], puddle["z"])
-        assert math.hypot(puddle["x"] - camp_x, puddle["z"] - camp_z) >= world.clear_radius_meters
-        assert 0.8 <= puddle["scale"] <= 1.4
-    # Clear of every prop's scatter radius, so no puddle sits under a trunk.
-    for puddle in puddles[:40]:
-        for entity in world.entities:
-            if entity.kind != "prop":
-                continue
-            assert (
-                math.hypot(puddle["x"] - entity.x, puddle["z"] - entity.z)
-                >= entity.scatter_radius_meters - 1e-6
-            )
 
 
 def test_a_package_without_weather_lays_no_puddles(package: Package) -> None:
@@ -1194,79 +725,13 @@ def test_a_tool_must_serve_the_verb_that_wants_it(tmp_path: Path) -> None:
     _load_refused(root, "axe is a tool and wears; a tool's stack_max is 1")
 
 
-def test_forage_lands_only_where_its_cell_is_allowed_and_off_the_camp(
-    package: Package, world: Layout
-) -> None:
-    forage = package.forage
-    assert forage is not None and world.forage
-    field = layout_module.BiomeField.for_layout(package, world)
-    camp_x, camp_z = world.camp_position
-    seen: set[str] = set()
-    for entry in world.forage:
-        biome = field.biome_at(entry["x"], entry["z"], world.size_meters)
-        seen.add(biome)
-        assert biome in forage.cells[entry["cell"]].biomes
-        assert abs(entry["rotation_degrees"]) <= package.look.ground_piece_jitter_degrees
-        assert math.hypot(entry["x"] - camp_x, entry["z"] - camp_z) >= world.clear_radius_meters
-    assert seen == set(forage.density), "every biome with a density gets forage"
-    record = world.as_record()
-    assert record["forage"] == [dict(entry) for entry in world.forage]
-    # Sparser than the litter, by design.
-    assert len(world.forage) < len(world.clutter) / 3
-
-
-def test_plants_stand_only_where_their_cell_is_allowed_off_the_camp_and_off_the_road(
-    package: Package, world: Layout
-) -> None:
-    """The mid-scale: scattered like the litter, out of the clearing, denser than forage."""
-
-    plants = package.plants
-    assert plants is not None and world.plants
-    field = layout_module.BiomeField.for_layout(package, world)
-    camp_x, camp_z = world.camp_position
-    seen: set[str] = set()
-    for entry in world.plants:
-        biome = field.biome_at(entry["x"], entry["z"], world.size_meters)
-        seen.add(biome)
-        assert biome in plants.cells[entry["cell"]].biomes
-        assert math.hypot(entry["x"] - camp_x, entry["z"] - camp_z) >= world.clear_radius_meters
-        if world.road:
-            assert (
-                layout_module.polyline_distance(entry["x"], entry["z"], list(world.road))
-                >= world.road_width_meters / 2
-            )
-    assert seen == set(plants.density), "every biome with a density gets plants"
-    assert world.as_record()["plants"] == [dict(entry) for entry in world.plants]
-    # A screen's worth of ground holds a few dozen: the densest biome asks
-    # for seven per hundred square metres over the land.
-    assert len(world.plants) > len(world.forage)
-
-
-def test_the_camp_stands_on_the_base_biome(package: Package, world: Layout) -> None:
-    """The islets fade out over the clearing, so the spawn is never on a patch of scree."""
-
-    field = layout_module.BiomeField.for_layout(package, world)
-    base = package.biomes[0].biome_id
-    camp_x, camp_z = world.camp_position
-    radius = world.clear_radius_meters
-    for i in range(-4, 5):
-        for j in range(-4, 5):
-            x = camp_x + i * radius / 4
-            z = camp_z + j * radius / 4
-            if math.hypot(x - camp_x, z - camp_z) <= radius:
-                assert field.biome_at(x, z, world.size_meters) == base, (x, z)
-    # The rule is local: the shares still solve to the authored ones.
-    for biome in package.biomes[1:]:
-        assert abs(world.biome_shares[biome.biome_id] - biome.share) < 0.03, biome.biome_id
-
-
 def test_plant_cells_must_grow_and_a_plant_sheet_is_not_litter_scale() -> None:
     cell = {"brief": "a fern", "contact": "growing", "biomes": ["forest_floor"]}
     block = {
         "columns": 2,
         "rows": 2,
         "cell_meters": 1.4,
-        "density_per_100m2": {"forest_floor": 2.0},
+        "placement": {"density_per_100m2": 4.0},
         "cells": [dict(cell) for _ in range(4)],
     }
     assert survival_request._plants(block, biome_ids=["forest_floor"]) is not None
@@ -1286,7 +751,13 @@ def test_a_forage_cell_yields_a_declared_item_and_regrows() -> None:
         "count": 1,
         "regrow_seconds": 60.0,
     }
-    good = {"columns": 2, "rows": 2, "cell_meters": 0.5, "cells": [dict(cell) for _ in range(4)]}
+    good = {
+        "columns": 2,
+        "rows": 2,
+        "cell_meters": 0.5,
+        "cells": [dict(cell) for _ in range(4)],
+        "placement": {"density_per_100m2": 1.0},
+    }
     sheet = survival_request._forage(good, biome_ids=["forest_floor"], item_ids=["twig"])
     assert sheet is not None
     assert sheet.cells[0].item_id == "twig" and sheet.cells_for("forest_floor") == (0, 1, 2, 3)

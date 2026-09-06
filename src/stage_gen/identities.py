@@ -135,6 +135,7 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, IdentitySource], ...] = (
     ("authored", _field("recipes.dialogue_scene.models", "DialogueSceneDocument")),
     ("authored", _field("recipes.universe.models", "UniverseSource")),
     ("authored", _field("recipes.oblique_survival.models", "ObliqueSurvivalSource")),
+    ("authored", _constant("recipes.oblique_survival.models", "WORLD_KIND")),
     # Generated documents: what the pipeline writes for a consumer or a later node.
     ("generated", _field("components.platformer_map.prepared", "PreparedMapTerrain")),
     ("generated", _field("components.sideview_map_design.design", "PlatformerChunkMapDesign")),

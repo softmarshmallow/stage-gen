@@ -13,7 +13,7 @@
 # they are here, and an adopt node refuses at execution when they are not.
 
 schema_version = 1
-kind = "oblique-survival-package-v1"
+kind = "oblique-survival-package-v2"
 package_id = "ember-hollow"
 title = "Ember Hollow"
 revision = 1
@@ -123,58 +123,8 @@ rotation_allowed = true
 yaw_degrees = 45.0
 yaw_step_degrees = 45.0
 
-[world]
-seed = 7
-# 256 m a side: the first worlds were 64 m, and at that size four biomes and
-# three hundred props sat inside one screen's walk of the camp, a diorama
-# rather than a place. The biome lattice and the coast lattice are fixed
-# counts over the world, so a wider world makes wider continents and longer
-# coasts, not more of them; this is the whole point of widening it.
-size_meters = 256.0
-biome_noise_scale = 14.0
-# The islets: a second, finer noise octave per biome, thresholded high, so
-# each biome is also a scatter of patches inside the others. The reference's
-# turf is a patchwork of islands 4 to 12 m across, two or three to a screen;
-# with continents alone a screen was one material. The lattice is cells over
-# the world (256 m / 28 is a 9 m cell, so islets come out 5 to 12 m), and the
-# share is the part of each biome's authored share spent on them.
-biome_islet_lattice = 28
-biome_islet_share = 0.35
-camp_clear_radius_meters = 6.0
-# The camp structures stand on a worn pad, and the road leaves the clearing
-# from its edge. The road itself is declared in ground.toml.
-pad_decal = "path"
-
-# The landmass. A shaped coast inside the square, so the player never reaches
-# the square: land is value noise plus a radial falloff, solved to land_share,
-# and the camp is always land. shore_margin_meters keeps scatter off the coast.
-[world.landmass]
-land_share = 0.60
-coast_noise_lattice = 6
-coast_crinkle = 0.30
-shore_margin_meters = 2.0
-
-# Entities per 100 square meters, before biome weighting and the camp clearing.
-# Tuned down from tree = 3.2 after looking at the fixture: at that density a
-# 1.7 m player is hidden behind 5.4 m trunks most of the time under a 55-degree
-# camera. See the README's "Known flaws" note on occluding foreground props.
-# Halved again with the 256 m world: a forest still closes in where the biome
-# weight is 1.0, and the meadow and scree open out to walking country.
-[world.density]
-tree = 0.9
-rock = 0.45
-bush = 0.6
-grass = 1.8
-
-# Which biome each prop prefers. 1.0 means the density above applies in full,
-# 0.0 means the prop never lands there.
-# A prop may override its family's row with its own `biome_weights` in
-# props.toml; the dead snag and the fern do.
-[world.biome_weights]
-tree = { forest_floor = 1.0, dry_meadow = 0.15, mossy_bog = 0.45, grey_scree = 0.08 }
-rock = { forest_floor = 0.6, dry_meadow = 1.0, mossy_bog = 0.15, grey_scree = 1.0 }
-bush = { forest_floor = 0.9, dry_meadow = 0.7, mossy_bog = 0.5, grey_scree = 0.25 }
-grass = { forest_floor = 0.5, dry_meadow = 1.0, mossy_bog = 0.8, grey_scree = 0.35 }
+# The world -- its extent, landmass, biome rules and set pieces -- is world.toml,
+# and where each object stands is that object's own `placement` block.
 
 [gameplay]
 day_length_seconds = 180.0
@@ -187,7 +137,6 @@ interact_reach_meters = 0.6
 # starts at once; between the reach and this radius the player first walks up
 # to the target, then acts, as in the reference. A movement key cancels the walk.
 approach_meters = 4.5
-mob_count = 12
 # How a drop enters the inventory: "manual" is the reference's way, stand within
 # reach and press the interact key; "magnet" draws a settled drop within a
 # metre to the player. This game wants the deliberate one.

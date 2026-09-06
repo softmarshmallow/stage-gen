@@ -297,7 +297,12 @@ never heavy black; muted colour at the ground plates' own value, the shadow
 tone only one step darker than the lit tone.
 """
 cell_meters = 0.42
-density_per_100m2 = { forest_floor = 10.0, dry_meadow = 3.5, mossy_bog = 5.0, grey_scree = 6.0 }
+# How the litter is scattered: a Poisson scatter at this density where the
+# habitat weight is 1, proportionally thinner where it is lower. The old
+# per-biome densities are the habitat weights now, and the density is the
+# forest's, quartered with the 512 m world.
+placement.density_per_100m2 = 4.0
+placement.habitat = { forest_floor = 1.0, grey_scree = 0.6, mossy_bog = 0.5, dry_meadow = 0.35 }
 cells = [
   { brief = "a fist-sized grey stone", contact = "pressed", biomes = ["forest_floor", "dry_meadow", "mossy_bog", "grey_scree"] },
   { brief = "a small rounded pebble", contact = "pressed", biomes = ["forest_floor", "dry_meadow", "mossy_bog", "grey_scree"] },
@@ -339,7 +344,10 @@ saturated than the ground plates', so each piece pops off the turf it lies
 on; the shadow tone one step darker than the lit tone.
 """
 cell_meters = 0.5
-density_per_100m2 = { forest_floor = 1.6, dry_meadow = 1.0, mossy_bog = 1.2, grey_scree = 1.4 }
+# The forage keeps its density: it is gameplay, and the pieces are cheap.
+# Two mushroom cells below override the sheet and grow under the pines.
+placement.density_per_100m2 = 1.0
+placement.habitat = { forest_floor = 1.0, grey_scree = 0.88, mossy_bog = 0.75, dry_meadow = 0.63 }
 cells = [
   { brief = "a loose bundle of three dry twigs", contact = "fallen", biomes = ["forest_floor", "dry_meadow", "mossy_bog"], item_id = "twig", count = 2, regrow_seconds = 240.0 },
   { brief = "a single forked dry branch, arm long", contact = "fallen", biomes = ["forest_floor", "dry_meadow"], item_id = "twig", count = 1, regrow_seconds = 240.0 },
@@ -349,8 +357,8 @@ cells = [
   { brief = "two small dark flint chips side by side", contact = "fallen", biomes = ["grey_scree"], item_id = "flint", count = 2, regrow_seconds = 300.0 },
   { brief = "a loose fist-sized grey stone, whole", contact = "fallen", biomes = ["grey_scree", "dry_meadow", "forest_floor"], item_id = "stone", count = 1, regrow_seconds = 300.0 },
   { brief = "a pair of rounded grey stones touching", contact = "pressed", biomes = ["grey_scree", "mossy_bog"], item_id = "stone", count = 2, regrow_seconds = 300.0 },
-  { brief = "a plump brown-capped mushroom, whole", contact = "growing", biomes = ["forest_floor", "mossy_bog"], item_id = "mushroom", count = 1, regrow_seconds = 180.0 },
-  { brief = "a cluster of three small tan mushrooms", contact = "growing", biomes = ["forest_floor", "mossy_bog"], item_id = "mushroom", count = 2, regrow_seconds = 180.0 },
+  { brief = "a plump brown-capped mushroom, whole", contact = "growing", biomes = ["forest_floor", "mossy_bog"], item_id = "mushroom", count = 1, regrow_seconds = 180.0, placement = { near = { host = "pine", radius_meters = 2.2, mean = 0.5, chance = 0.5 } } },
+  { brief = "a cluster of three small tan mushrooms", contact = "growing", biomes = ["forest_floor", "mossy_bog"], item_id = "mushroom", count = 2, regrow_seconds = 180.0, placement = { near = { host = "pine", radius_meters = 2.2, mean = 0.35, chance = 0.5 } } },
   { brief = "a single pale mushroom with a broad flat cap", contact = "growing", biomes = ["forest_floor"], item_id = "mushroom", count = 1, regrow_seconds = 180.0 },
   { brief = "a bright green cushion of moss", contact = "growing", biomes = ["forest_floor", "mossy_bog"], item_id = "moss", count = 1, regrow_seconds = 200.0 },
   { brief = "a wide flat mat of moss", contact = "growing", biomes = ["mossy_bog"], item_id = "moss", count = 2, regrow_seconds = 200.0 },
@@ -389,7 +397,10 @@ its base low in its cell but clear of the lower guide line; nothing drawn
 around a plant, no halo, no soft shadow, the backing clear to the ink line.
 """
 cell_meters = 1.4
-density_per_100m2 = { forest_floor = 5.0, dry_meadow = 7.0, mossy_bog = 5.0, grey_scree = 2.5 }
+# The mid-scale, quartered with the world like the litter; the meadow is the
+# plants' best ground and the scree their worst.
+placement.density_per_100m2 = 3.0
+placement.habitat = { dry_meadow = 1.0, forest_floor = 0.71, mossy_bog = 0.71, grey_scree = 0.36 }
 cells = [
   { brief = "a tall clump of dry meadow grass, waist high, its seed heads nodding", contact = "growing", biomes = ["dry_meadow", "grey_scree"] },
   { brief = "a broad tuft of fresh green grass, knee high", contact = "growing", biomes = ["forest_floor", "dry_meadow", "mossy_bog"] },

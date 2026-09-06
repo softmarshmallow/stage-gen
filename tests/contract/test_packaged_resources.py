@@ -210,6 +210,9 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # Speech (2026-09-03): two documents and the modality, component, and test
         # modules above are text, about 110 KiB together, and the tree was already
         # within 60 KiB of the cap (measured 7,358,533).
+        # The world generator (2026-09-06): the worldgen component's nine modules,
+        # its seven test modules, the recipe's layout test split in two and the
+        # world specification measured 9,083,831; the ceiling is 9.2 MB.
         # Raised for the engineering pass (2026-09-04): two runtime specifications,
         # the system plan, and the two cache-key goldens that replaced the
         # whole-graph digest pins.
@@ -217,7 +220,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # test modules, the cache-key golden and four specification pages are 1,046,465 B
         # of text and measured 8,892,585 against the previous 8,000,000 line; the ceiling
         # is 9,000,000. library/ and godot/ contribute nothing to the archive.
-        assert sum(sdist_entries.values()) < 9_000_000
+        assert sum(sdist_entries.values()) < 9_200_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)

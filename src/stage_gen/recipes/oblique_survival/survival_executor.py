@@ -328,9 +328,14 @@ class ObliqueSurvivalExecutor(RecipeExecutor[Package, ObliqueSurvivalGraph]):
                     continue
                 if recorded.cache_key != node.cache_key:
                     continue
-                artifacts = list(recorded.artifacts)
-                _stage_refs(prior_run_dir, staging, artifacts)
                 ledger = _ledger_ref(node)
+                # The ledger is always re-synthesised: a run the promoted
+                # executor wrote records its ledger in the trace, but the
+                # ledger on disk is rewritten after the trace records it, so
+                # the recorded digest is stale. What the prior run kept of its
+                # refusals is what the new ledger is built from.
+                artifacts = [a for a in recorded.artifacts if a.artifact_ref != ledger]
+                _stage_refs(prior_run_dir, staging, artifacts)
                 if ledger is not None:
                     artifacts.append(_write_ledger(prior_run_dir, staging, node, ledger))
                     ledgers += 1

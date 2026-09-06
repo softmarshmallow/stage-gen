@@ -1919,7 +1919,7 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
         WORLD_LAYOUT,
         "world-layout",
         domain="world",
-        description="Scatter the world, clear the camp, and paint the splat plates",
+        description="Lay the world: site the set pieces, place the population, paint the plates",
         depends_on=[lock.node_id],
         cache_depends_on=(),
         input_digests=[
@@ -1929,66 +1929,56 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
                         # Everything the layout reads. The seam policy and the
                         # decals were missing once, and a run reused a layout
                         # with no skirts under a package that asked for them.
-                        "world": package.world,
+                        "world": asdict(package.world),
                         "ground_contact": package.ground_contact,
                         "look": asdict(package.look),
                         "decals": [asdict(decal) for decal in package.decals],
                         "props": [
                             (
                                 prop.prop_id,
-                                prop.family,
                                 prop.footprint_radius_units,
                                 prop.shadow_width_units,
-                                prop.density_share,
-                                dict(prop.biome_weights)
-                                if prop.biome_weights is not None
-                                else None,
+                                asdict(prop.placement) if prop.placement is not None else None,
+                                prop.canopy_radius_meters,
                                 prop.baseline_state,
                                 asdict(prop.variants) if prop.variants is not None else None,
                             )
                             for prop in package.props
                         ],
+                        "mob": (
+                            package.mob.actor_id,
+                            package.mob.footprint_radius_units,
+                            package.mob.shadow_width_units,
+                            asdict(package.mob.placement)
+                            if package.mob.placement is not None
+                            else None,
+                        ),
                         "biomes": [(biome.biome_id, biome.share) for biome in package.biomes],
                         "road": asdict(package.road) if package.road is not None else None,
-                        # Only what the layout reads of the litter: the sheet's
-                        # drawing direction and its take are the sheet's own.
-                        "clutter": (
-                            {
-                                "columns": package.clutter.columns,
-                                "rows": package.clutter.rows,
-                                "cell_meters": package.clutter.cell_meters,
-                                "density": dict(package.clutter.density),
-                                "cells": [asdict(cell) for cell in package.clutter.cells],
-                            }
-                            if package.clutter is not None
-                            else None
-                        ),
-                        "forage": (
-                            {
-                                "columns": package.forage.columns,
-                                "rows": package.forage.rows,
-                                "cell_meters": package.forage.cell_meters,
-                                "density": dict(package.forage.density),
-                                "cells": [asdict(cell) for cell in package.forage.cells],
-                            }
-                            if package.forage is not None
-                            else None
-                        ),
-                        "plants": (
-                            {
-                                "columns": package.plants.columns,
-                                "rows": package.plants.rows,
-                                "cell_meters": package.plants.cell_meters,
-                                "density": dict(package.plants.density),
-                                "cells": [asdict(cell) for cell in package.plants.cells],
-                            }
-                            if package.plants is not None
-                            else None
-                        ),
-                        # The camp stands on the base biome (the islets fade
-                        # out over the clearing); a layout laid before that
-                        # rule is a different world.
-                        "camp_on_base_biome": True,
+                        # Only what the layout reads of a sheet: its lattice, its
+                        # placement and its cells; the drawing direction and the
+                        # take are the sheet's own.
+                        "sheets": {
+                            name: (
+                                {
+                                    "columns": sheet.columns,
+                                    "rows": sheet.rows,
+                                    "cell_meters": sheet.cell_meters,
+                                    "placement": asdict(sheet.placement),
+                                    "cells": [asdict(cell) for cell in sheet.cells],
+                                }
+                                if sheet is not None
+                                else None
+                            )
+                            for name, sheet in (
+                                ("clutter", package.clutter),
+                                ("forage", package.forage),
+                                ("plants", package.plants),
+                            )
+                        },
+                        # The generator's own version: its rules are code, and a
+                        # world laid by an earlier one is a different world.
+                        "generator": "worldgen-1",
                         # The wet layer scatters puddles at generation; its
                         # density and decal are the layout's business.
                         "wet": [
@@ -2003,7 +1993,7 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
             )
         ],
         ports=[
-            artifact_port("layout", manifest_module.layout_ref(), "world-layout-v1"),
+            artifact_port("layout", manifest_module.layout_ref(), "world-layout-v2"),
             artifact_port("splat", manifest_module.splat_ref(), "world-splat-v2"),
             artifact_port("biome_splat", manifest_module.biome_splat_ref(), "world-biome-splat-v1"),
         ],

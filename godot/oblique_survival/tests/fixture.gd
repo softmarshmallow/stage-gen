@@ -68,6 +68,7 @@ static func prop(w: World, id: String, prop_id: String, state: String, x: float,
 		"x": x, "z": z, "seed": 1,
 		"radius": float(template.get("footprint_radius_meters", 0.0)),
 		"hits": 0, "regrow": 0.0, "burn": 0.0, "dirty": false,
+		"cluster": "", "set_piece": "",
 	}
 
 

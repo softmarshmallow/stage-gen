@@ -317,9 +317,18 @@ class WaterBlock(TypedDict):
     luma_mean: float | None
 
 
+class WorldBlock(TypedDict):
+    seed: int
+    size_meters: float
+    spawn_set_piece: str
+    set_pieces: list[dict[str, object]]
+
+
 class SplatBlock(TypedDict):
     image: str
     resolution: int
+    #: Metres per plate cell, published so no host infers it from the size.
+    cell_meters: float
     channels: dict[str, str | None]
     #: The viewer's composition numbers: floats, plus the per-biome ``level``
     #: map. Mixing, never identity, and open by design.
@@ -329,6 +338,7 @@ class SplatBlock(TypedDict):
 class BiomeSplatBlock(TypedDict):
     image: str
     resolution: int
+    cell_meters: float
     channels: dict[str, str | None]
 
 
@@ -649,6 +659,8 @@ class Manifest(TypedDict):
     status: StatusBlock
     style: StyleBlock
     scale: ScaleBlock
+    #: world.toml as the consumer needs it: the seed, the extent, the set pieces.
+    world: WorldBlock
     camera: CameraBlock
     ground: GroundBlock
     actors: dict[str, ActorBlock]
@@ -1383,6 +1395,7 @@ def _ground_block(package: Package, run_dir: Path) -> GroundBlock:
         splat = {
             "image": splat_ref(),
             "resolution": cells_px,
+            "cell_meters": round(package.world.size_meters / cells_px, 4),
             "channels": channels,
             "blend": {
                 # Defaults; ground.toml [blend] overrides any of them, and
@@ -1446,6 +1459,7 @@ def _ground_block(package: Package, run_dir: Path) -> GroundBlock:
         biome_splat = {
             "image": biome_splat_ref(),
             "resolution": cells_px,
+            "cell_meters": round(package.world.size_meters / cells_px, 4),
             "channels": {
                 channel: (
                     package.biomes[index + 1].biome_id if index + 1 < len(package.biomes) else None
@@ -1454,7 +1468,7 @@ def _ground_block(package: Package, run_dir: Path) -> GroundBlock:
             },
         }
     return {
-        "size_meters": float(package.world.get("size_meters", 64.0)),
+        "size_meters": float(package.world.size_meters),
         "base_biome": package.biomes[0].biome_id,
         "biomes": biomes,
         "biome_splat": biome_splat,
@@ -1938,6 +1952,30 @@ def _status(block: Sized, expected: int) -> str:
     return "ok" if len(block) >= expected else "partial"
 
 
+def _world_block(package: Package) -> WorldBlock:
+    world = package.world
+    return {
+        "seed": world.seed,
+        "size_meters": float(world.size_meters),
+        "spawn_set_piece": world.spawn_set_piece,
+        "set_pieces": [
+            {
+                "set_piece_id": piece.set_piece_id,
+                "count": piece.count,
+                "at": piece.at,
+                "band_meters": list(piece.band_meters),
+                "biome": piece.biome,
+                "clearing_radius_meters": piece.clearing_radius_meters,
+                "members": [
+                    {"prop": member.prop, "state": member.state, "dx": member.dx, "dz": member.dz}
+                    for member in piece.members
+                ],
+            }
+            for piece in world.set_pieces
+        ],
+    }
+
+
 def build_manifest(
     package: Package,
     run_dir: Path,
@@ -2059,6 +2097,7 @@ def build_manifest(
         },
         "style": style,
         "scale": {"player_height_meters": package.player_height_meters},
+        "world": _world_block(package),
         "camera": {
             "pitch_degrees": package.camera.get("pitch_degrees", 55.0),
             "fov_degrees": package.camera.get("fov_degrees", 35.0),

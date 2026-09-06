@@ -51,7 +51,7 @@ concluding a technique is closed to us — the tags narrow the search, the prose
   [OSS and IP policy](../oss-ip.md) and [AGENTS.md](../../AGENTS.md).
 - **Record the disqualifier, not just the verdict.** `blocked` with no named limit is not an entry.
 
-Links last verified 2026-08-28.
+Links last verified 2026-08-28; the world-generation entries were verified 2026-09-06 except the two journal DOIs, whose landing pages refuse an unattended fetch (the papers are cited from the register author's reading, not re-fetched).
 
 ---
 
@@ -234,6 +234,46 @@ empty space; the gaps between islands are "gutters," and the failure is "bleed."
 → `context`. Different geometry from ours — these describe UV islands in 3D — but this is the
 established vocabulary for the transparent-margin failures we hit on layer ends. Write "insufficient
 edge padding," not an invented term.
+
+## 2. World generation: fields, point processes, and how games author them
+
+**[Minecraft Wiki — Placed feature](https://minecraft.wiki/w/Placed_feature)**
+— Mojang's data-driven world generation as documented by the community wiki: a biome is a lookup on
+six climate parameters, each biome lists its *placed features* by decoration step, and a placed
+feature is a chain of placement modifiers (`count`, `rarity_filter`, `noise_threshold_count`,
+`in_square`, heightmap and block predicates), each drawing from a per-feature salted random.
+→ `adoptable`. The authoring shape we took: an object is a chain of numbers the engine reads
+without knowing the object, and every feature's random is salted so one edit moves one feature.
+Not taken: the 3-D density carving and chunk streaming; our world is flat and finite.
+
+**[Don't Starve Wiki — World Generation](https://dontstarve.wiki.gg/wiki/World_Generation)**
+— Klei's generator as the modding community documents it: *tasks* group *rooms*, a room is a biome
+patch with a `distributepercent` and a `distributeprefabs` table, exact counts and *set pieces*
+(static layouts) are placed per room, and rooms are joined into a graph with locks and keys.
+→ `adoptable` · `context`. Set pieces as authored compositions sited whole, and quotas as exact
+counts, are ours now. The room-owned roster is the reading we rejected (0059): it makes every new
+object edit every biome. The lock-and-key graph is progression, kept out of the generator.
+
+**[Bridson — Fast Poisson Disk Sampling in Arbitrary Dimensions](https://www.cs.ubc.ca/~rbridson/docs/bridson-siggraph07-poissondisk.pdf)**
+— Bridson, SIGGRAPH 2007 sketch. Points at least *r* apart that fill the space evenly, in linear time.
+→ `context`. Blue noise is the *opposite* of sparse-but-clumped; our even-cover objects use a jittered
+grid, which is hashed per cell and therefore addressable, where Bridson's active list is a stream.
+
+**[Neyman & Scott — A theory of the spatial distribution of galaxies](https://doi.org/10.1086/145599)**
+— Neyman and Scott, Astrophysical Journal 1958; the *cluster process*: invisible parents from a Poisson
+process, offspring scattered around each. Matérn's disc variant and Thomas's Gaussian variant are the
+two usual offspring laws.
+→ `adoptable`. Our `cluster` block is a Matérn cluster process thinned by the habitat at the parent:
+three authored numbers (parents per area, mean size, radius) are "sparse but clumped", and the
+expected density is their product. Children are addressed by the parent's cell.
+
+**[Clark & Evans — Distance to nearest neighbor as a measure of spatial relationships in populations](https://doi.org/10.2307/1931034)**
+— Clark and Evans, Ecology 1954; the aggregation index *R*, the mean nearest-neighbour distance over
+its expectation under a homogeneous Poisson process. Donnelly (1978) added an edge correction for
+convex regions.
+→ `blocked` · `stationary`. Measured on our fields: a plain Poisson scatter on a habitat shattered into
+islets reads R = 1.3–1.6, and the correction assumes a convex support and a flat intensity. The gate
+uses a Monte-Carlo null on the same fields instead (0059), and R is not computed.
 
 ---
 

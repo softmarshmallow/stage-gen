@@ -239,6 +239,11 @@ static func _build_entities(manifest: Dictionary, layout: Dictionary) -> Array:
 				"regrow": 0.0,
 				"burn": 0.0,
 				"dirty": false,
+				# The grove or host this instance came with, and the set piece it
+				# is a member of; "" for a lone one. Carried for the map and the
+				# tools; the sim reads neither.
+				"cluster": String(raw.get("cluster", "")),
+				"set_piece": String(raw.get("set_piece", "")),
 			})
 		elif kind == "mob":
 			var actor_id := String(raw.get("actor", ""))

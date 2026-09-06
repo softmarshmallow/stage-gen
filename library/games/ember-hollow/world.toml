@@ -1,0 +1,96 @@
+# The world: its extent, its landmass, its biome rules, its set pieces. Read by
+# the algorithmic layout and by nothing that draws, so an edit here re-lays
+# the world at no provider cost.
+#
+# What is NOT here: where any object stands. Every prop, the mob and every
+# ground sheet declare their own `placement` block (props.toml [props.placement],
+# actors.toml [mob.placement], ground.toml [<sheet>.placement]) -- the object
+# owns its habitat, so adding one never edits a biome. The generator that lays
+# the world knows none of the words in this package: regions are integers to
+# it, objects are ids, and everything else is a number in these blocks.
+
+schema_version = 1
+kind = "oblique-survival-world-v1"
+package_id = "ember-hollow"
+
+[world]
+seed = 7
+# 512 m a side, four times the first promoted world's area, at roughly the
+# same number of cards: a quarter of the density, clumped. The biome lattice
+# and the coast lattice are fixed counts over the world, so a wider world
+# makes wider continents and longer coasts, not more of them. The structural
+# plates cap at 1024 cells, so a cell here is 0.5 m; the ground shader's
+# finest structural signal is 0.7 m, and it loses nothing it could draw.
+size_meters = 512.0
+
+# The landmass. A shaped coast inside the square, so the player never reaches
+# the square: land is value noise plus a radial falloff, solved to land_share,
+# and the spawn set piece is always land. shore_margin_meters keeps every
+# object off the torn coast. The height is a rules-only field, 0 at the coast
+# and 1 inland with one finer octave over it; nothing renders it, an object's
+# `height` band reads it (reeds low, scree high).
+[landmass]
+land_share = 0.60
+coast_noise_lattice = 6
+coast_crinkle = 0.30
+shore_margin_meters = 2.0
+height_octave_lattice = 24
+height_octave_weight = 0.25
+
+# The islets: a second, finer noise octave per biome, thresholded high, so
+# each biome is also a scatter of patches inside the others. The reference's
+# turf is a patchwork of islands 4 to 12 m across, two or three to a screen;
+# with continents alone a screen was one material. The lattice is cells over
+# the world (512 m / 56 is a 9 m cell, so islets come out 5 to 12 m), and the
+# share is the part of each biome's authored share spent on them. The plates
+# themselves, their shares and their materials are ground.toml's.
+[biomes]
+islet_lattice = 56
+islet_share = 0.35
+
+# The player spawns on this set piece, at its `spawn` offset.
+[spawn]
+set_piece = "camp"
+
+# Set pieces are compositions placed whole: members at offsets from an anchor,
+# a clearing the population keeps out of, a count, and where they may stand.
+# Exactly one stands at the origin (the spawn); the rest draw a site in a band
+# of distances from it, on the biome they ask for, and refuse by name when
+# the world offers none.
+[[set_pieces]]
+set_piece_id = "camp"
+count = 1
+at = "origin"
+# The camp stands on the base biome by rule: every region fades out over the
+# clearing, so the spawn is never on a patch of scree or bog the noise dropped
+# at the world's centre.
+biome = "forest_floor"
+clearing_radius_meters = 6.0
+# The camp structures stand on a worn pad, the reference genre's base disc.
+pad_decal = "path"
+spawn = { dx = 0.0, dz = 2.4 }
+members = [
+  { prop = "canvas_tent", state = "pitched", dx = -2.2, dz = -1.4, pad_scale = 1.35 },
+  { prop = "campfire", state = "unlit", dx = 1.4, dz = 0.9, pad_scale = 1.0 },
+]
+
+# A ring of boulders on the meadow, twice, a walk from the camp: a landmark
+# from existing art, at no provider cost. Its stones are minable like any other.
+[[set_pieces]]
+set_piece_id = "boulder_ring"
+count = 2
+at = { distance_meters = [70.0, 140.0] }
+biome = "dry_meadow"
+clearing_radius_meters = 4.0
+members = [
+  { prop = "moss_boulder", dx = 0.0, dz = -2.6 },
+  { prop = "moss_boulder", dx = 2.5, dz = -0.8 },
+  { prop = "moss_boulder", dx = 1.5, dz = 2.1 },
+  { prop = "moss_boulder", dx = -1.5, dz = 2.1 },
+  { prop = "moss_boulder", dx = -2.5, dz = -0.8 },
+]
+
+# The order objects are placed in. Empty means the generator's own: hosts
+# before what attaches to them, avoided before avoiders, then by id.
+[population]
+order = []

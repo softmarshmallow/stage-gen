@@ -90,6 +90,7 @@ const SHOT_SPECS := {
 	"junction": {"mode": "play", "time": "noon"},
 	"coast": {"mode": "play", "time": "noon"},
 	"winter-coast": {"mode": "play", "time": "noon"},
+	"ring": {"mode": "play", "time": "noon"},
 	"gallery": {"mode": "gallery", "time": "noon"},
 }
 ## The shot order `--capture all` writes, which is the reference sheet's order.
@@ -97,7 +98,7 @@ const SHOTS := [
 	"camp-noon", "camp-night", "camp-night-unlit",
 	"winter-noon", "winter-night",
 	"storm-noon", "storm-strike",
-	"junction", "coast", "winter-coast", "gallery",
+	"junction", "coast", "winter-coast", "ring", "gallery",
 ]
 ## The names the first reference set used, kept so an older command still runs.
 const SHOT_ALIASES := {"noon": "camp-noon", "night": "camp-night", "storm": "storm-noon"}
@@ -265,19 +266,29 @@ func _run_shot(main, shot: String) -> void:
 			main.force_strike()
 			main.advance(STRIKE_AGE)
 		"junction":
-			# A point on the road polyline, 13.2 m from the camp, on a
-			# forest_floor / dry_meadow boundary. Play mode: the camera eases
-			# to the player and settles at (-3.86, 14.74, 0.22).
+			# The middle of the road polyline, read off the record rather than
+			# typed in, so the shot follows the world. Play mode: the camera
+			# eases to the player.
 			_clear_weather(main)
-			_teleport(main, -11.164, -7.083)
+			var mid := _road_midpoint(main)
+			_teleport(main, mid.x, mid.y)
 			main.advance(3.0)
 			main.advance(1.0)
 		"coast":
-			# The shore lies at z = -105.25 along -z from the camp; standing at
-			# -103.5 puts the water, the shore rim and the cliff ray-march in
-			# frame. Camera settles at (7.30, 14.74, -96.20).
+			# The first water south of the spawn, found by walking -z on the
+			# mask; standing 1.75 m short of it puts the water, the shore rim
+			# and the cliff ray-march in frame.
 			_clear_weather(main)
-			_teleport(main, 0.0, -103.5)
+			var shore := _shore_south(main)
+			_teleport(main, 0.0, shore + SHORE_STAND_METERS)
+			main.advance(3.0)
+			main.advance(1.0)
+		"ring":
+			# The first boulder ring, from the record's set pieces: a set
+			# piece sited by the generator, not authored at the origin.
+			_clear_weather(main)
+			var site := _set_piece(main, "boulder_ring")
+			_teleport(main, site.x, site.y + 3.0)
 			main.advance(3.0)
 			main.advance(1.0)
 		"winter-coast":
@@ -288,7 +299,7 @@ func _run_shot(main, shot: String) -> void:
 			main.force_weather("auto")
 			main.advance(130.0)
 			main.set_clock(0.02)
-			_teleport(main, 0.0, -103.5)
+			_teleport(main, 0.0, _shore_south(main) + SHORE_STAND_METERS)
 			main.advance(3.0)
 			main.advance(float(WINTER_TEXTURE_WAIT[shot]))
 			main.advance(1.0)
@@ -314,6 +325,35 @@ func _clear_weather(main) -> void:
 func _verdict_finish(main) -> void:
 	main.set_mode("verdict")
 	main.frame(FIXED_STEP, true)
+
+## How far short of the water's edge the coast shots stand.
+const SHORE_STAND_METERS := 1.75
+
+## The middle point of the road polyline in the layout record.
+func _road_midpoint(main) -> Vector2:
+	var layout: Dictionary = main.package.layout
+	var points: Array = layout.get("road", {}).get("points", []) if layout.get("road") != null else []
+	if points.is_empty():
+		return Vector2.ZERO
+	var mid: Dictionary = points[points.size() / 2]
+	return Vector2(float(mid.get("x", 0.0)), float(mid.get("z", 0.0)))
+
+## The z of the first water south of the spawn along x = 0, on the walkable mask.
+func _shore_south(main) -> float:
+	var world = main.get_world()
+	var z := -6.0
+	var limit := -float(main.package.manifest.get("ground", {}).get("size_meters", 256.0)) * 0.5
+	while z > limit and world.is_land(0.0, z):
+		z -= 0.25
+	return z
+
+## Where the first instance of a set piece stands, from the record.
+func _set_piece(main, set_piece_id: String) -> Vector2:
+	var layout: Dictionary = main.package.layout
+	for piece: Dictionary in layout.get("set_pieces", []):
+		if String(piece.get("set_piece", "")) == set_piece_id:
+			return Vector2(float(piece.get("x", 0.0)), float(piece.get("z", 0.0)))
+	return Vector2.ZERO
 
 ## The reference recipe's `world.player.x = …; z = …`: a teleport, with the
 ## walk cycle left where it was.

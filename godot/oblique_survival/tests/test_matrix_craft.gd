@@ -276,7 +276,7 @@ func _a_refused_build_spends_nothing(h: TestHarness, world: World) -> void:
 	world.player.x = 0.0
 	world.player.z = 0.0
 	h.assert_true(world.is_land(0.0, 0.0), "the camp is land")
-	h.assert_false(world.is_land(-125.0, -125.0), "and the far corner is not")
+	h.assert_false(world.is_land(-250.0, -250.0), "and the far corner is not")
 
 
 # ---------------------------------------------------------------------------

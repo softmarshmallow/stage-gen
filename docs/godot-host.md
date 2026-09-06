@@ -50,8 +50,8 @@ Produce or select a run first — a live one, or the free rehearsal:
 ```sh
 uv run stage-gen oblique-survival generate \
   --input library/games/ember-hollow \
-  --output out/ember-hollow-v1 \
-  --scope full
+  --output out/ember-hollow-v2 \
+  --scope full --cache-dir out/.oblique-survival-cache
 ```
 
 Then play it. Everything after the bare `--` belongs to the host; the editor
@@ -77,7 +77,14 @@ is under the cursor, the pack is a clickable hotbar with the chosen item's card
 and its Use and Drop buttons, the crafting table and the death sheet are
 panels with buttons, and every panel is scaled by the window's height so a
 fullscreen reads like the 1600x900 window. The host README's "Playing it"
-section is the full account. The project pins Godot 4.7. Its
+section is the full account. The world it plays is 512 m across, laid by the
+[world generator](spec/survival/world.md): the host reads the record's
+`set_pieces` (the map marks them), each plate's `cell_meters` (its walkable
+inset is 0.7 m whatever the plate's cell size), and carries an entity's
+`cluster` and `set_piece` through for the tools. The viewer picture gate that
+proved the port is retired with [decision 0059](decisions/0059-the-world-is-a-point-process-and-the-object-owns-its-habitat.md):
+the capture sheet is the host's own regression reference now, its shots
+derived from the record. The project pins Godot 4.7. Its
 `.godot/` import cache and any export presets are derived or machine-specific and
 are ignored; the per-file `*.import` records are committed, because they are the
 import contract and a missing one makes a headless build non-reproducible.

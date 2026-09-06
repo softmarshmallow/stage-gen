@@ -17,7 +17,12 @@ var size: float = 0.0
 var _land: PackedByteArray = PackedByteArray()
 var _land_cells: int = 0
 var _land_rows: int = 0
-var _inset: int = 1
+## The walkable inset, in metres: a point is land only if the four points this
+## far from it are land too. Never quantised to cells, so a coarser plate keeps
+## the same erosion.
+var _inset_meters: float = DEFAULT_INSET_METERS
+## Metres per plate cell, as the manifest publishes it.
+var _cell_meters: float = 0.0
 
 var _biome: PackedByteArray = PackedByteArray()
 var _biome_cells: int = 0
@@ -42,7 +47,12 @@ static func from_package(pkg: RunPackage, inset_meters: float = DEFAULT_INSET_ME
 			masks._land_cells = image.get_width()
 			masks._land_rows = image.get_height()
 			masks._land = _rgba8_bytes(image)
-			masks._inset = maxi(1, int(round(inset_meters / masks.size * masks._land_cells)))
+			masks._inset_meters = inset_meters
+			var cell: Variant = splat.get("cell_meters")
+			if cell is float or cell is int:
+				masks._cell_meters = float(cell)
+			else:
+				masks._cell_meters = masks.size / float(masks._land_cells)
 	var biome_splat: Variant = ground.get("biome_splat")
 	var biomes: Variant = ground.get("biomes")
 	if masks.size > 0.0 and biome_splat is Dictionary and biomes is Dictionary:
@@ -66,20 +76,25 @@ static func from_package(pkg: RunPackage, inset_meters: float = DEFAULT_INSET_ME
 				masks._biome = _rgba8_bytes(image)
 	return masks
 
-## Land only if this cell and its four neighbours `inset` cells away are land:
-## a 0.7 m erosion that keeps the player inside the shader's torn edge.
+## Land only if this point and the four points `_inset_meters` away are land:
+## a 0.7 m erosion that keeps the player inside the shader's torn edge, the
+## same 0.7 m whatever the plate's cell size.
 func is_land(x: float, z: float) -> bool:
 	if _land.is_empty():
 		return true
-	var column := floori((x + size * 0.5) / size * _land_cells)
-	var row := floori((z + size * 0.5) / size * _land_cells)
+	var m := _inset_meters
 	return (
-		_land_at(column, row)
-		and _land_at(column + _inset, row)
-		and _land_at(column - _inset, row)
-		and _land_at(column, row + _inset)
-		and _land_at(column, row - _inset)
+		_land_at_point(x, z)
+		and _land_at_point(x + m, z)
+		and _land_at_point(x - m, z)
+		and _land_at_point(x, z + m)
+		and _land_at_point(x, z - m)
 	)
+
+func _land_at_point(x: float, z: float) -> bool:
+	var column := floori((x + size * 0.5) / size * _land_cells)
+	var row := floori((z + size * 0.5) / size * _land_rows)
+	return _land_at(column, row)
 
 ## The friction coefficient of the ground under a point.
 func friction_at(x: float, z: float) -> float:
@@ -107,7 +122,7 @@ func _channel_at(x: float, z: float) -> String:
 	if _biome.is_empty():
 		return ""
 	var column := clampi(floori((x + size * 0.5) / size * _biome_cells), 0, _biome_cells - 1)
-	var row := clampi(floori((z + size * 0.5) / size * _biome_cells), 0, _biome_rows - 1)
+	var row := clampi(floori((z + size * 0.5) / size * _biome_rows), 0, _biome_rows - 1)
 	var offset := (row * _biome_cells + column) * 4
 	if _biome[offset] > 127:
 		return "r"

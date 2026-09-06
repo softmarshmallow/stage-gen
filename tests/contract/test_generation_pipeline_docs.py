@@ -214,10 +214,11 @@ def test_survival_documents_are_discoverable_and_name_their_siblings() -> None:
         "spec/survival/ground.md",
         "spec/survival/seasons.md",
         "spec/survival/crafting.md",
+        "spec/survival/world.md",
     ):
         assert relative in docs_index, relative
         assert (REPOSITORY_ROOT / "docs" / relative).is_file()
-    for sibling in ("ground.md", "seasons.md", "crafting.md"):
+    for sibling in ("ground.md", "seasons.md", "crafting.md", "world.md"):
         assert sibling in recipe
     # The host that plays the manifest is named by the recipe, not inferred.
     assert "godot-host.md" in recipe

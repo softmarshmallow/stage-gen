@@ -49,10 +49,10 @@ func _friction_decides_the_skid(h: TestHarness, w: World) -> void:
 	# g, sampled under the drop, so a stone runs on scree (0.45) and stops
 	# short in the bog (1.1). Both patches are flat runs of one biome, on land,
 	# taken from the run's own biome plate.
-	h.assert_near(float(w.friction_at(-98.0, 11.0)), 0.45, 1e-6, "the scree patch is scree")
-	h.assert_near(float(w.friction_at(-112.0, -25.0)), 1.1, 1e-6, "the bog patch is bog")
-	var scree := _skid(w, -98.0, 11.0)
-	var bog := _skid(w, -112.0, -25.0)
+	h.assert_near(float(w.friction_at(24.0, -200.0)), 0.45, 1e-6, "the scree patch is scree")
+	h.assert_near(float(w.friction_at(-88.0, -200.0)), 1.1, 1e-6, "the bog patch is bog")
+	var scree := _skid(w, 24.0, -200.0)
+	var bog := _skid(w, -88.0, -200.0)
 	h.assert_true(scree > bog,
 		"a low-friction surface carries the drop farther (%.3f m on scree vs %.3f m in the bog)" % [scree, bog])
 	# v^2 / (2 * friction * g), within a step of the discrete slide.

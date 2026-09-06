@@ -20,17 +20,17 @@ import tomllib
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
-from typing import Any, Final, Literal, TypedDict, cast
+from typing import Any, Final, Literal, Protocol, TypedDict, cast
 
 from pydantic import ValidationError
 
 from stage_gen.canonical import content_sha256
 from stage_gen.recipes.oblique_survival.models import (
-    CAMP_PROP_IDS,
     CLUTTER_CONTACTS,
     DECAL_USES,
     DEFAULT_MUSIC_TRANSITION,
     DROPS_SHAPES,
+    EDGE_FIELDS,
     EDGE_KINDS,
     FACING_SETS,
     GROUND_CONTACTS,
@@ -50,31 +50,40 @@ from stage_gen.recipes.oblique_survival.models import (
     SIDE_VIEWS,
     SOUND_CUES,
     WEATHER_CONDITIONS,
+    WORLD_KIND,
     Actor,
+    AvoidRule,
     Biome,
+    BiomeRules,
+    ClusterRule,
     Clutter,
     ClutterCell,
     Condition,
     Crafting,
     Decal,
     DustFx,
+    EdgePreference,
     FacingSet,
     FireFx,
     Forage,
     ForageCell,
+    HeightPreference,
     IconGlyph,
     IconSheet,
     Interaction,
     Item,
     ItemTool,
     ItemUse,
+    Landmass,
     Look,
     MacroPlate,
     MissingTake,
     MotionState,
     MusicTransition,
+    NearRule,
     ObliqueSurvivalSource,
     Package,
+    Placement,
     PlantCell,
     Plants,
     Prop,
@@ -83,6 +92,8 @@ from stage_gen.recipes.oblique_survival.models import (
     Season,
     SeasonLook,
     Seasons,
+    SetPiece,
+    SetPieceMember,
     SheetSpec,
     SoundCue,
     SoundEffect,
@@ -99,6 +110,7 @@ from stage_gen.recipes.oblique_survival.models import (
     WeatherSound,
     WeatherStrike,
     WeatherWet,
+    World,
     Yield,
 )
 
@@ -405,10 +417,18 @@ def _actor(
     key: str,
     root: Path,
     digests: DigestLedger,
+    biome_ids: Sequence[str] = (),
 ) -> Actor:
     if not isinstance(block, dict):
         raise SourceError(f"[{key}] must be a table")
     actor_id = _identifier(block.get("actor_id"), field=f"{key}.actor_id")
+    if role == "player" and "placement" in block:
+        raise SourceError("the player is not scattered; it spawns on the spawn set piece")
+    placement = (
+        _placement(block.get("placement"), field=f"{key}.placement", biome_ids=biome_ids)
+        if role == "mob"
+        else None
+    )
     height = (
         1.0
         if role == "player"
@@ -444,6 +464,7 @@ def _actor(
         facings=facings,
         appearance_reference=appearance,
         appearance_reference_digest=appearance_digest,
+        placement=placement,
     )
 
 
@@ -618,7 +639,9 @@ def _variants(raw: object, *, prop_id: str, states: Sequence[str]) -> VariantSpe
     return VariantSpec(states=looks, weights=parsed)
 
 
-def _props(rows: object, *, minimum_height_units: float) -> tuple[Prop, ...]:
+def _props(
+    rows: object, *, minimum_height_units: float, biome_ids: Sequence[str]
+) -> tuple[Prop, ...]:
     if not isinstance(rows, list) or not rows:
         raise SourceError("props.toml declares no props")
     props: list[Prop] = []
@@ -705,6 +728,12 @@ def _props(rows: object, *, minimum_height_units: float) -> tuple[Prop, ...]:
             or not 1 <= components <= 8
         ):
             raise SourceError(f"{prop_id}.max_components must be an integer within [1, 8]")
+        for moved in ("density_share", "biome_weights"):
+            if moved in row:
+                raise SourceError(
+                    f"{prop_id}.{moved} is not authored any more; where and how a prop "
+                    "stands is its [props.placement] block"
+                )
         interaction = _interaction(row.get("interaction"), prop_id=prop_id, states=states)
         variants = _variants(row.get("variants"), prop_id=prop_id, states=states)
         raw_looks = row.get("look_height_units", {})
@@ -759,13 +788,15 @@ def _props(rows: object, *, minimum_height_units: float) -> tuple[Prop, ...]:
                 interaction=interaction,
                 baseline_state=baseline_state,
                 look_height_units=look_height_units,
-                density_share=_number(
-                    row.get("density_share", 1.0),
-                    field=f"{prop_id}.density_share",
-                    low=0.0,
-                    high=10.0,
+                placement=_placement(
+                    row.get("placement"), field=f"{prop_id}.placement", biome_ids=biome_ids
                 ),
-                biome_weights=_biome_weights(row.get("biome_weights"), field=prop_id),
+                canopy_radius_meters=_number(
+                    row.get("canopy_radius_meters", 0.0),
+                    field=f"{prop_id}.canopy_radius_meters",
+                    low=0.0,
+                    high=32.0,
+                ),
                 sheet=_sheet(row.get("sheet"), prop_id=prop_id, states=states),
                 variants=variants,
                 season_prompt=season_prompt,
@@ -774,34 +805,581 @@ def _props(rows: object, *, minimum_height_units: float) -> tuple[Prop, ...]:
     return tuple(props)
 
 
-def _biome_weights(raw: object, *, field: str) -> Mapping[str, float] | None:
+PLACEMENT_KEYS: Final = frozenset(
+    {
+        "habitat",
+        "density_per_100m2",
+        "cluster",
+        "spacing_meters",
+        "near",
+        "edge",
+        "height",
+        "chance",
+        "min_per_world",
+        "max_per_world",
+        "avoid",
+        "clearing_radius_meters",
+    }
+)
+
+
+def _count(value: object, *, field: str, low: int, high: int) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or not low <= value <= high:
+        raise SourceError(f"{field} must be an integer within [{low}, {high}]")
+    return value
+
+
+def _placement(
+    raw: object,
+    *,
+    field: str,
+    biome_ids: Sequence[str],
+    default_habitat: Mapping[str, float] | None = None,
+) -> Placement | None:
+    """One object's placement block. Shape only: what a ``near`` or ``avoid``
+    names is resolved once every object is known (``_check_placement``)."""
+
     if raw is None:
         return None
     if not isinstance(raw, dict):
-        raise SourceError(f"{field}.biome_weights must be a table keyed by biome_id")
-    return {
-        str(key): _number(value, field=f"{field}.biome_weights.{key}", low=0.0, high=1.0)
-        for key, value in raw.items()
+        raise SourceError(f"{field} must be a table")
+    unknown = sorted(set(raw) - PLACEMENT_KEYS)
+    if unknown:
+        raise SourceError(f"{field} has unknown keys {unknown}")
+    habitat_raw = raw.get("habitat", default_habitat)
+    if habitat_raw is None:
+        raise SourceError(f"{field}.habitat is required: a table of biome_id = weight")
+    if not isinstance(habitat_raw, Mapping):
+        raise SourceError(f"{field}.habitat must be a table keyed by biome_id")
+    habitat: dict[str, float] = {}
+    for biome_id, weight in habitat_raw.items():
+        if biome_id not in biome_ids:
+            raise SourceError(f"{field}.habitat names unknown biome {biome_id!r}")
+        habitat[str(biome_id)] = _number(
+            weight, field=f"{field}.habitat.{biome_id}", low=0.0, high=1.0
+        )
+    if not any(weight > 0.0 for weight in habitat.values()):
+        raise SourceError(f"{field}.habitat gives every biome weight 0")
+    density = (
+        _number(raw["density_per_100m2"], field=f"{field}.density_per_100m2", low=0.0, high=400.0)
+        if "density_per_100m2" in raw
+        else None
+    )
+    cluster = None
+    if "cluster" in raw:
+        block = raw["cluster"]
+        if not isinstance(block, dict):
+            raise SourceError(f"{field}.cluster must be a table")
+        unknown = sorted(set(block) - {"parents_per_100m2", "mean_size", "radius_meters"})
+        if unknown:
+            raise SourceError(f"{field}.cluster has unknown keys {unknown}")
+        cluster = ClusterRule(
+            parents_per_100m2=_number(
+                block.get("parents_per_100m2"),
+                field=f"{field}.cluster.parents_per_100m2",
+                low=0.0,
+                high=100.0,
+            ),
+            mean_size=_number(
+                block.get("mean_size"), field=f"{field}.cluster.mean_size", low=1.0, high=64.0
+            ),
+            radius_meters=_number(
+                block.get("radius_meters"),
+                field=f"{field}.cluster.radius_meters",
+                low=0.5,
+                high=64.0,
+            ),
+        )
+    spacing = (
+        _number(raw["spacing_meters"], field=f"{field}.spacing_meters", low=0.5, high=64.0)
+        if "spacing_meters" in raw
+        else None
+    )
+    near = None
+    if "near" in raw:
+        block = raw["near"]
+        if not isinstance(block, dict):
+            raise SourceError(f"{field}.near must be a table")
+        unknown = sorted(set(block) - {"host", "radius_meters", "mean", "chance"})
+        if unknown:
+            raise SourceError(f"{field}.near has unknown keys {unknown}")
+        near = NearRule(
+            host=_identifier(block.get("host"), field=f"{field}.near.host"),
+            radius_meters=_number(
+                block.get("radius_meters"), field=f"{field}.near.radius_meters", low=0.2, high=32.0
+            ),
+            mean=_number(block.get("mean"), field=f"{field}.near.mean", low=0.01, high=64.0),
+            chance=_number(
+                block.get("chance", 1.0), field=f"{field}.near.chance", low=0.0, high=1.0
+            ),
+        )
+        if near.chance <= 0.0:
+            raise SourceError(f"{field}.near.chance must be above 0")
+    processes = [
+        name
+        for name, present in (
+            ("density_per_100m2", density is not None),
+            ("cluster", cluster is not None),
+            ("near", near is not None),
+        )
+        if present
+    ]
+    if len(processes) > 1:
+        raise SourceError(f"{field} declares more than one process: {processes}")
+    if not processes and spacing is None:
+        raise SourceError(
+            f"{field} declares no process: one of density_per_100m2, cluster, near, "
+            "or spacing_meters alone"
+        )
+    edge = None
+    if "edge" in raw:
+        block = raw["edge"]
+        if not isinstance(block, dict):
+            raise SourceError(f"{field}.edge must be a table")
+        unknown = sorted(set(block) - {"of", "within_meters", "falloff_meters", "outside"})
+        if unknown:
+            raise SourceError(f"{field}.edge has unknown keys {unknown}")
+        of = _text(block.get("of"), field=f"{field}.edge.of")
+        if of not in EDGE_FIELDS:
+            raise SourceError(f"{field}.edge.of must be one of {list(EDGE_FIELDS)}")
+        edge = EdgePreference(
+            of=of,
+            within_meters=_number(
+                block.get("within_meters"), field=f"{field}.edge.within_meters", low=0.0, high=256.0
+            ),
+            falloff_meters=_number(
+                block.get("falloff_meters", 0.0),
+                field=f"{field}.edge.falloff_meters",
+                low=0.0,
+                high=256.0,
+            ),
+            outside=_number(
+                block.get("outside", 0.0), field=f"{field}.edge.outside", low=0.0, high=1.0
+            ),
+        )
+    height = None
+    if "height" in raw:
+        block = raw["height"]
+        if not isinstance(block, dict):
+            raise SourceError(f"{field}.height must be a table")
+        unknown = sorted(set(block) - {"min", "max", "falloff"})
+        if unknown:
+            raise SourceError(f"{field}.height has unknown keys {unknown}")
+        low = _number(block.get("min", 0.0), field=f"{field}.height.min", low=0.0, high=1.0)
+        high = _number(block.get("max", 1.0), field=f"{field}.height.max", low=0.0, high=1.0)
+        if high < low:
+            raise SourceError(f"{field}.height.max is below min")
+        height = HeightPreference(
+            min=low,
+            max=high,
+            falloff=_number(
+                block.get("falloff", 0.05), field=f"{field}.height.falloff", low=0.0, high=1.0
+            ),
+        )
+    chance = _number(raw.get("chance", 1.0), field=f"{field}.chance", low=0.0, high=1.0)
+    if chance <= 0.0:
+        raise SourceError(f"{field}.chance must be above 0; leave the object out instead")
+    minimum = _count(
+        raw.get("min_per_world", 0), field=f"{field}.min_per_world", low=0, high=100_000
+    )
+    maximum = (
+        _count(raw["max_per_world"], field=f"{field}.max_per_world", low=0, high=100_000)
+        if "max_per_world" in raw
+        else None
+    )
+    if maximum is not None and maximum < minimum:
+        raise SourceError(f"{field}.max_per_world {maximum} is below min_per_world {minimum}")
+    avoid_raw = raw.get("avoid", [])
+    if not isinstance(avoid_raw, list):
+        raise SourceError(f"{field}.avoid must be a list of {{ target, radius_meters }}")
+    avoid: list[AvoidRule] = []
+    for index, rule in enumerate(avoid_raw):
+        if not isinstance(rule, dict):
+            raise SourceError(f"{field}.avoid[{index}] must be a table")
+        unknown = sorted(set(rule) - {"target", "radius_meters"})
+        if unknown:
+            raise SourceError(f"{field}.avoid[{index}] has unknown keys {unknown}")
+        avoid.append(
+            AvoidRule(
+                target=_identifier(rule.get("target"), field=f"{field}.avoid[{index}].target"),
+                radius_meters=_number(
+                    rule.get("radius_meters"),
+                    field=f"{field}.avoid[{index}].radius_meters",
+                    low=0.1,
+                    high=256.0,
+                ),
+            )
+        )
+    return Placement(
+        habitat=habitat,
+        density_per_100m2=density,
+        cluster=cluster,
+        spacing_meters=spacing,
+        near=near,
+        edge=edge,
+        height=height,
+        chance=chance,
+        min_per_world=minimum,
+        max_per_world=maximum,
+        avoid=tuple(avoid),
+        clearing_radius_meters=_number(
+            raw.get("clearing_radius_meters", 0.0),
+            field=f"{field}.clearing_radius_meters",
+            low=0.0,
+            high=64.0,
+        ),
+    )
+
+
+WORLD_KEYS: Final = frozenset(
+    {
+        "schema_version",
+        "kind",
+        "package_id",
+        "world",
+        "landmass",
+        "biomes",
+        "spawn",
+        "set_pieces",
+        "population",
     }
+)
+SET_PIECE_KEYS: Final = frozenset(
+    {
+        "set_piece_id",
+        "count",
+        "at",
+        "biome",
+        "clearing_radius_meters",
+        "pad_decal",
+        "spawn",
+        "members",
+    }
+)
 
 
-def _check_biome_weights(package: Package) -> None:
-    """A weight that names a biome nobody drew is a typo, not a preference."""
+def _world(doc: Mapping[str, object], *, biome_ids: Sequence[str]) -> World:
+    """world.toml. Refuses offline a world no generator could lay: two origins,
+    a spawn on nothing, a band inside out, an unknown biome."""
 
-    known = {biome.biome_id for biome in package.biomes}
-    rows = package.world.get("biome_weights", {})
-    if not isinstance(rows, dict):
-        raise SourceError("[world.biome_weights] must be a table")
-    for family, entry in rows.items():
-        if not isinstance(entry, dict):
-            raise SourceError(f"world.biome_weights.{family} must be a table keyed by biome_id")
-        for biome_id in entry:
-            if biome_id not in known:
-                raise SourceError(f"world.biome_weights.{family} names unknown biome {biome_id!r}")
-    for prop in package.props:
-        for biome_id in prop.biome_weights or {}:
-            if biome_id not in known:
-                raise SourceError(f"{prop.prop_id}.biome_weights names unknown biome {biome_id!r}")
+    if doc.get("kind") != WORLD_KIND:
+        raise SourceError(f"world.toml kind must be {WORLD_KIND}")
+    unknown = sorted(set(doc) - WORLD_KEYS)
+    if unknown:
+        raise SourceError(f"world.toml has unknown keys {unknown}")
+    world = doc.get("world")
+    if not isinstance(world, dict):
+        raise SourceError("world.toml must declare a [world] table")
+    unknown = sorted(set(world) - {"seed", "size_meters"})
+    if unknown:
+        raise SourceError(f"world.toml [world] has unknown keys {unknown}")
+    seed = _count(world.get("seed", 1), field="world.seed", low=0, high=2**31 - 1)
+    size = _number(world.get("size_meters"), field="world.size_meters", low=64.0, high=1024.0)
+    landmass_raw = doc.get("landmass", {})
+    if not isinstance(landmass_raw, dict):
+        raise SourceError("world.toml [landmass] must be a table")
+    unknown = sorted(
+        set(landmass_raw)
+        - {
+            "land_share",
+            "coast_noise_lattice",
+            "coast_crinkle",
+            "shore_margin_meters",
+            "height_octave_lattice",
+            "height_octave_weight",
+        }
+    )
+    if unknown:
+        raise SourceError(f"world.toml [landmass] has unknown keys {unknown}")
+    landmass = Landmass(
+        land_share=_number(
+            landmass_raw.get("land_share", 0.6), field="landmass.land_share", low=0.2, high=1.0
+        ),
+        coast_noise_lattice=_count(
+            landmass_raw.get("coast_noise_lattice", 6),
+            field="landmass.coast_noise_lattice",
+            low=2,
+            high=32,
+        ),
+        coast_crinkle=_number(
+            landmass_raw.get("coast_crinkle", 0.3),
+            field="landmass.coast_crinkle",
+            low=0.0,
+            high=1.0,
+        ),
+        shore_margin_meters=_number(
+            landmass_raw.get("shore_margin_meters", 2.0),
+            field="landmass.shore_margin_meters",
+            low=0.0,
+            high=20.0,
+        ),
+        height_octave_lattice=_count(
+            landmass_raw.get("height_octave_lattice", 24),
+            field="landmass.height_octave_lattice",
+            low=0,
+            high=128,
+        ),
+        height_octave_weight=_number(
+            landmass_raw.get("height_octave_weight", 0.25),
+            field="landmass.height_octave_weight",
+            low=0.0,
+            high=1.0,
+        ),
+    )
+    biomes_raw = doc.get("biomes", {})
+    if not isinstance(biomes_raw, dict):
+        raise SourceError("world.toml [biomes] must be a table")
+    unknown = sorted(set(biomes_raw) - {"islet_lattice", "islet_share"})
+    if unknown:
+        raise SourceError(f"world.toml [biomes] has unknown keys {unknown}")
+    rules = BiomeRules(
+        islet_lattice=_count(
+            biomes_raw.get("islet_lattice", 0), field="biomes.islet_lattice", low=0, high=128
+        ),
+        islet_share=_number(
+            biomes_raw.get("islet_share", 0.0), field="biomes.islet_share", low=0.0, high=0.9
+        ),
+    )
+    spawn_raw = doc.get("spawn")
+    if not isinstance(spawn_raw, dict) or set(spawn_raw) != {"set_piece"}:
+        raise SourceError("world.toml must declare [spawn] with set_piece = <set_piece_id>")
+    spawn_id = _identifier(spawn_raw.get("set_piece"), field="spawn.set_piece")
+    rows = doc.get("set_pieces", [])
+    if not isinstance(rows, list) or not rows:
+        raise SourceError("world.toml must declare at least one [[set_pieces]] entry")
+    pieces: list[SetPiece] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            raise SourceError("[[set_pieces]] entry must be a table")
+        piece_id = _identifier(row.get("set_piece_id"), field="set_pieces[].set_piece_id")
+        if any(entry.set_piece_id == piece_id for entry in pieces):
+            raise SourceError(f"world.toml repeats set piece {piece_id!r}")
+        field_name = f"set_pieces.{piece_id}"
+        unknown = sorted(set(row) - SET_PIECE_KEYS)
+        if unknown:
+            raise SourceError(f"{field_name} has unknown keys {unknown}")
+        at_raw = row.get("at")
+        at: Literal["origin", "band"]
+        band = (0.0, 0.0)
+        if at_raw == "origin":
+            at = "origin"
+        elif isinstance(at_raw, dict) and set(at_raw) == {"distance_meters"}:
+            at = "band"
+            limits = at_raw["distance_meters"]
+            if (
+                not isinstance(limits, list)
+                or len(limits) != 2
+                or any(isinstance(v, bool) or not isinstance(v, int | float) for v in limits)
+            ):
+                raise SourceError(f"{field_name}.at.distance_meters must be [near, far]")
+            near_m, far_m = float(limits[0]), float(limits[1])
+            if not 0.0 <= near_m < far_m <= size:
+                raise SourceError(
+                    f"{field_name}.at.distance_meters must satisfy 0 <= near < far <= size_meters"
+                )
+            band = (near_m, far_m)
+        else:
+            raise SourceError(
+                f'{field_name}.at must be "origin" or {{ distance_meters = [near, far] }}'
+            )
+        biome = row.get("biome")
+        if biome is not None:
+            biome = _identifier(biome, field=f"{field_name}.biome")
+            if biome not in biome_ids:
+                raise SourceError(f"{field_name}.biome names unknown biome {biome!r}")
+        spawn_offset: tuple[float, float] | None = None
+        if "spawn" in row:
+            offset = row["spawn"]
+            if not isinstance(offset, dict) or set(offset) != {"dx", "dz"}:
+                raise SourceError(f"{field_name}.spawn must be {{ dx, dz }}")
+            spawn_offset = (
+                _number(offset["dx"], field=f"{field_name}.spawn.dx", low=-64.0, high=64.0),
+                _number(offset["dz"], field=f"{field_name}.spawn.dz", low=-64.0, high=64.0),
+            )
+        members_raw = row.get("members")
+        if not isinstance(members_raw, list) or not members_raw:
+            raise SourceError(f"{field_name}.members must list at least one member")
+        members: list[SetPieceMember] = []
+        for index, member in enumerate(members_raw):
+            if not isinstance(member, dict):
+                raise SourceError(f"{field_name}.members[{index}] must be a table")
+            unknown = sorted(set(member) - {"prop", "state", "dx", "dz", "pad_scale"})
+            if unknown:
+                raise SourceError(f"{field_name}.members[{index}] has unknown keys {unknown}")
+            members.append(
+                SetPieceMember(
+                    prop=_identifier(
+                        member.get("prop"), field=f"{field_name}.members[{index}].prop"
+                    ),
+                    state=(
+                        _identifier(member["state"], field=f"{field_name}.members[{index}].state")
+                        if "state" in member
+                        else ""
+                    ),
+                    dx=_number(
+                        member.get("dx"),
+                        field=f"{field_name}.members[{index}].dx",
+                        low=-64.0,
+                        high=64.0,
+                    ),
+                    dz=_number(
+                        member.get("dz"),
+                        field=f"{field_name}.members[{index}].dz",
+                        low=-64.0,
+                        high=64.0,
+                    ),
+                    pad_scale=(
+                        _number(
+                            member["pad_scale"],
+                            field=f"{field_name}.members[{index}].pad_scale",
+                            low=0.1,
+                            high=8.0,
+                        )
+                        if "pad_scale" in member
+                        else None
+                    ),
+                )
+            )
+        pad_decal = row.get("pad_decal")
+        if pad_decal is not None:
+            pad_decal = _identifier(pad_decal, field=f"{field_name}.pad_decal")
+        pieces.append(
+            SetPiece(
+                set_piece_id=piece_id,
+                count=_count(row.get("count", 1), field=f"{field_name}.count", low=1, high=64),
+                at=at,
+                band_meters=band,
+                biome=biome,
+                clearing_radius_meters=_number(
+                    row.get("clearing_radius_meters", 0.0),
+                    field=f"{field_name}.clearing_radius_meters",
+                    low=0.0,
+                    high=64.0,
+                ),
+                pad_decal=pad_decal,
+                spawn=spawn_offset,
+                members=tuple(members),
+            )
+        )
+    origins = [piece for piece in pieces if piece.at == "origin"]
+    if len(origins) != 1:
+        raise SourceError('world.toml must place exactly one set piece at = "origin"')
+    if origins[0].count != 1:
+        raise SourceError(f"the origin set piece {origins[0].set_piece_id!r} must have count 1")
+    if origins[0].set_piece_id != spawn_id:
+        raise SourceError(
+            f"spawn.set_piece must name the origin set piece {origins[0].set_piece_id!r}"
+        )
+    if origins[0].spawn is None:
+        raise SourceError(f"the spawn set piece {spawn_id!r} must declare spawn = {{ dx, dz }}")
+    population = doc.get("population", {})
+    if not isinstance(population, dict):
+        raise SourceError("world.toml [population] must be a table")
+    unknown = sorted(set(population) - {"order"})
+    if unknown:
+        raise SourceError(f"world.toml [population] has unknown keys {unknown}")
+    order = _identifiers(population.get("order", []), field="population.order")
+    return World(
+        seed=seed,
+        size_meters=size,
+        landmass=landmass,
+        biomes=rules,
+        spawn_set_piece=spawn_id,
+        set_pieces=tuple(pieces),
+        population_order=order,
+    )
+
+
+def _object_ids(package: Package) -> set[str]:
+    """Every id the population may name: scattered props, the mob, the sheets."""
+
+    ids = {prop.prop_id for prop in package.props if prop.placement is not None}
+    # A set piece's members stand in the world too, under their prop id: a
+    # hound may keep its distance from the campfire.
+    ids.update(member.prop for piece in package.world.set_pieces for member in piece.members)
+    if package.mob.placement is not None:
+        ids.add(package.mob.actor_id)
+    for name, sheet in _sheets(package):
+        ids.add(name)
+        for index, cell in enumerate(sheet.cells):
+            if cell.placement is not None:
+                ids.add(f"{name}/{index}")
+    return ids
+
+
+class _PlacedCell(Protocol):
+    @property
+    def placement(self) -> Placement | None: ...
+
+
+class _PlacedSheet(Protocol):
+    @property
+    def placement(self) -> Placement: ...
+
+    @property
+    def cells(self) -> Sequence[_PlacedCell]: ...
+
+
+def _sheets(package: Package) -> list[tuple[str, _PlacedSheet]]:
+    """The piece sheets the package has, by the name the population knows them as."""
+
+    out: list[tuple[str, _PlacedSheet]] = []
+    if package.clutter is not None:
+        out.append(("clutter", package.clutter))
+    if package.forage is not None:
+        out.append(("forage", package.forage))
+    if package.plants is not None:
+        out.append(("plants", package.plants))
+    return out
+
+
+def _check_placement(package: Package) -> None:
+    """A placement that names what the world does not have is a typo, not a
+    preference; a set piece that stands on nothing is a run that would refuse."""
+
+    known = _object_ids(package)
+    placements: list[tuple[str, Placement]] = [
+        (prop.prop_id, prop.placement) for prop in package.props if prop.placement is not None
+    ]
+    if package.mob.placement is not None:
+        placements.append((package.mob.actor_id, package.mob.placement))
+    for name, sheet in _sheets(package):
+        placements.append((name, sheet.placement))
+        for index, cell in enumerate(sheet.cells):
+            if cell.placement is not None:
+                placements.append((f"{name}/{index}", cell.placement))
+    for name, placement in placements:
+        if placement.near is not None:
+            if placement.near.host not in known:
+                raise SourceError(
+                    f"{name}.placement.near.host names unknown object {placement.near.host!r}"
+                )
+            if placement.near.host == name:
+                raise SourceError(f"{name}.placement.near.host names itself")
+        for rule in placement.avoid:
+            if rule.target not in known:
+                raise SourceError(f"{name}.placement.avoid names unknown object {rule.target!r}")
+    for object_id in package.world.population_order:
+        if object_id not in known:
+            raise SourceError(f"population.order names unknown object {object_id!r}")
+    pads = {decal.decal_id for decal in package.decals if decal.use == "pad"}
+    for piece in package.world.set_pieces:
+        if piece.pad_decal is not None and piece.pad_decal not in pads:
+            raise SourceError(
+                f"set_pieces.{piece.set_piece_id}.pad_decal {piece.pad_decal!r} is not a pad decal"
+            )
+        for member in piece.members:
+            prop = package.prop(member.prop)
+            if member.state and member.state not in prop.states:
+                raise SourceError(
+                    f"set_pieces.{piece.set_piece_id} member {member.prop} "
+                    f"has no state {member.state!r}"
+                )
+            if member.pad_scale is not None and piece.pad_decal is None:
+                raise SourceError(
+                    f"set_pieces.{piece.set_piece_id} member {member.prop} wants a pad "
+                    "but the set piece names no pad_decal"
+                )
 
 
 ITEM_KEYS: Final = frozenset(
@@ -1152,7 +1730,9 @@ def check_crafting(package: Package) -> None:
             reachable.update(produced.item_id for produced in prop.interaction.yields)
     if package.forage is not None:
         reachable.update(cell.item_id for cell in package.forage.cells)
-    built: set[str] = set(CAMP_PROP_IDS)
+    # The spawn set piece's members stand before anything is built: the
+    # cold firepit is a station on day one.
+    built: set[str] = {member.prop for member in package.world.spawn.members}
     stations_by_id = {station.station_id: station for station in crafting.stations}
     pending = list(crafting.recipes)
     progressed = True
@@ -1537,7 +2117,7 @@ class PieceSheetScalars(TypedDict):
     columns: int
     rows: int
     cell_meters: float
-    density: dict[str, float]
+    placement: Placement
     style_emphasis: str
     take: str | None
 
@@ -1571,15 +2151,10 @@ def _piece_sheet(
         or not (2 <= columns <= 8 and 2 <= rows <= 8)
     ):
         raise SourceError(f"{field} columns and rows must be integers within [2, 8]")
-    density_raw = block.get("density_per_100m2", {})
-    if not isinstance(density_raw, dict):
-        raise SourceError(f"{field}.density_per_100m2 must be a table keyed by biome_id")
-    density: dict[str, float] = {}
-    for biome_id, value in density_raw.items():
-        if biome_id not in biome_ids:
-            raise SourceError(f"{field} density names unknown biome {biome_id!r}")
-        density[str(biome_id)] = _number(
-            value, field=f"{field}.density_per_100m2.{biome_id}", low=0.0, high=400.0
+    if "density_per_100m2" in block:
+        raise SourceError(
+            f"{field}.density_per_100m2 is not authored any more; how the sheet is "
+            f"scattered is its [{field}.placement] block"
         )
     if "prompt" in block:
         raise SourceError(
@@ -1611,10 +2186,25 @@ def _piece_sheet(
                 "brief": _text(raw.get("brief"), field=f"{field}.cells[{index}].brief"),
                 "contact": contact,
                 "biomes": tuple(biomes),
+                "placement": _placement(
+                    raw.get("placement"),
+                    field=f"{field}.cells[{index}].placement",
+                    biome_ids=biome_ids,
+                    default_habitat={biome_id: 1.0 for biome_id in biomes},
+                ),
             }
         )
-    for biome_id in density:
-        if density[biome_id] > 0.0 and not any(biome_id in cell["biomes"] for cell in cells):
+    everywhere = {biome_id: 1.0 for cell in cells for biome_id in cell["biomes"]}
+    placement = _placement(
+        block.get("placement"),
+        field=f"{field}.placement",
+        biome_ids=biome_ids,
+        default_habitat=everywhere,
+    )
+    if placement is None:
+        raise SourceError(f"[{field}.placement] is required: how the sheet's cells are scattered")
+    for biome_id, weight in placement.habitat.items():
+        if weight > 0.0 and not any(biome_id in cell["biomes"] for cell in cells):
             raise SourceError(f"{field} wants pieces on {biome_id!r} but no cell may land there")
     scalars: PieceSheetScalars = {
         "columns": columns,
@@ -1622,7 +2212,7 @@ def _piece_sheet(
         "cell_meters": _number(
             block.get("cell_meters"), field=f"{field}.cell_meters", low=0.05, high=4.0
         ),
-        "density": density,
+        "placement": placement,
         "style_emphasis": " ".join(str(block.get("style_emphasis", "")).split()),
         "take": _take(
             block.get("take"), field=f"{field}.take", root=root, digests=digests, suffix=".png"
@@ -1645,7 +2235,10 @@ def _clutter(
     return Clutter(
         **scalars,
         cells=tuple(
-            ClutterCell(brief=c["brief"], contact=c["contact"], biomes=c["biomes"]) for c in cells
+            ClutterCell(
+                brief=c["brief"], contact=c["contact"], biomes=c["biomes"], placement=c["placement"]
+            )
+            for c in cells
         ),
     )
 
@@ -1674,7 +2267,10 @@ def _plants(
     return Plants(
         **scalars,
         cells=tuple(
-            PlantCell(brief=c["brief"], contact=c["contact"], biomes=c["biomes"]) for c in cells
+            PlantCell(
+                brief=c["brief"], contact=c["contact"], biomes=c["biomes"], placement=c["placement"]
+            )
+            for c in cells
         ),
     )
 
@@ -1712,6 +2308,7 @@ def _forage(
                     low=1.0,
                     high=3600.0,
                 ),
+                placement=raw["placement"],
             )
         )
     return Forage(**scalars, cells=tuple(out))
@@ -2275,6 +2872,11 @@ def _gameplay(block: object) -> dict[str, Any]:
             "gameplay.hunger.berry_restore is not authored any more; what a "
             "food restores is its `use` in items.toml"
         )
+    if "mob_count" in gameplay:
+        raise SourceError(
+            "gameplay.mob_count is not authored any more; how many hounds roam and "
+            "where is actors.toml [mob.placement]"
+        )
     pickup = gameplay.get("pickup", "manual")
     if pickup not in PICKUP_MODES:
         raise SourceError(f"gameplay.pickup = {pickup!r} is not one of {', '.join(PICKUP_MODES)}")
@@ -2314,6 +2916,7 @@ def load_package(root: Path) -> Package:
     sounds_doc = _load_toml(sounds_path, digests) if sounds_path.is_file() else None
     seasons_path = root / "seasons.toml"
     seasons_doc = _load_toml(seasons_path, digests) if seasons_path.is_file() else None
+    world_doc = _load_toml(root / "world.toml", digests)
 
     # The root document's own identity is the one field a schema owns rather
     # than this loader: the repository's contract table reads it off the model.
@@ -2325,6 +2928,11 @@ def load_package(root: Path) -> Package:
         ) from None
     if items_doc.get("kind") != "oblique-survival-items-v1":
         raise SourceError("items.toml kind must be oblique-survival-items-v1")
+    if "world" in survival:
+        raise SourceError(
+            "survival.toml [world] moved to world.toml; the world's extent, landmass, "
+            "biome rules and set pieces are authored there"
+        )
     if "items" in props_doc:
         raise SourceError(
             "props.toml [[items]] moved to items.toml; props.toml declares props only"
@@ -2343,6 +2951,7 @@ def load_package(root: Path) -> Package:
         *((("weather.toml", weather_doc),) if weather_doc is not None else ()),
         *((("sounds.toml", sounds_doc),) if sounds_doc is not None else ()),
         *((("seasons.toml", seasons_doc),) if seasons_doc is not None else ()),
+        ("world.toml", world_doc),
     ):
         if doc.get("package_id") != package_id:
             raise SourceError(f"{name} package_id does not match survival.toml")
@@ -2378,7 +2987,14 @@ def load_package(root: Path) -> Package:
     player_actor = _actor(
         actors.get("player"), role="player", key="player", root=root, digests=digests
     )
-    mob_actor = _actor(actors.get("mob"), role="mob", key="mob", root=root, digests=digests)
+    mob_actor = _actor(
+        actors.get("mob"),
+        role="mob",
+        key="mob",
+        root=root,
+        digests=digests,
+        biome_ids=[b.biome_id for b in biomes],
+    )
     style_reference, style_reference_digest = _png_reference(
         root, style.get("reference"), digests, field="style.reference"
     )
@@ -2399,9 +3015,14 @@ def load_package(root: Path) -> Package:
     plants = _plants(
         ground.get("plants"), biome_ids=[b.biome_id for b in biomes], root=root, digests=digests
     )
-    props = _props(props_doc.get("props"), minimum_height_units=minimum)
+    props = _props(
+        props_doc.get("props"),
+        minimum_height_units=minimum,
+        biome_ids=[b.biome_id for b in biomes],
+    )
     crafting = _crafting(crafting_doc, items=items, props=props)
     seasons = _seasons(seasons_doc, items=items, props=props)
+    world = _world(world_doc, biome_ids=[b.biome_id for b in biomes])
     # Same reason as the takes above: an ice take is digested into the ledger
     # before the package copies it.
     weather = _weather(weather_doc, decals=decals, root=root, digests=digests)
@@ -2425,7 +3046,7 @@ def load_package(root: Path) -> Package:
         ),
         minimum_height_units=minimum,
         camera=dict(_subtable(survival, "camera")),
-        world=dict(_subtable(survival, "world")),
+        world=world,
         gameplay=_gameplay(survival.get("gameplay", {})),
         facing_authored=_text(actors.get("facing_authored"), field="facing_authored"),
         player=player_actor,
@@ -2501,7 +3122,7 @@ def load_package(root: Path) -> Package:
                 f"{prop.prop_id}.interaction.fx {prop.interaction.fx!r} is not a dust cell kind"
             )
     check_crafting(package)
-    _check_biome_weights(package)
+    _check_placement(package)
     _check_seasons(package)
     return package
 

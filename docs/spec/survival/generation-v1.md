@@ -9,7 +9,7 @@
 > namespace segment in the [asset taxonomy](../asset-taxonomy.md). The
 > committed fixture package is `library/games/ember-hollow`. The ground, the
 > calendar and the crafting table have their own contracts beside this one:
-> [ground](ground.md), [seasons](seasons.md), [crafting](crafting.md).
+> [ground](ground.md), [world](world.md), [seasons](seasons.md), [crafting](crafting.md).
 
 ## What this recipe is
 
@@ -69,7 +69,8 @@ a `game.toml` closure.
 
 | File | Kind | What it says |
 | --- | --- | --- |
-| `survival.toml` | `oblique-survival-package-v1` | the root: `[presentation]`, the `[look]` contract (one light, ground-piece aim, jitter), `[style]` with the style plate, `[scale]` (player height in metres), `[camera]`, `[world]` (seed, size, landmass, densities, biome weights), `[gameplay]` (hunger, health, warmth, torch, night, mob, campfire), `[rights]` |
+| `survival.toml` | `oblique-survival-package-v2` | the root: `[presentation]`, the `[look]` contract (one light, ground-piece aim, jitter), `[style]` with the style plate, `[scale]` (player height in metres), `[camera]`, `[gameplay]` (hunger, health, warmth, torch, night, mob, campfire), `[rights]` |
+| `world.toml` | `oblique-survival-world-v1` | the world: `[world]` (seed, size), `[landmass]`, `[biomes]` (islets), `[spawn]`, `[[set_pieces]]`, `[population]` — see [world](world.md). Where each object stands is that object's own `placement` block in props.toml, actors.toml and ground.toml |
 | `actors.toml` | `oblique-survival-actors-v1` | one entry per drawn actor: role, appearance reference, motion states, the facing set, the side view |
 | `props.toml` | `oblique-survival-props-v1` | every prop, its states, its interaction verb and yield, its sheet or variants, and its per-look season overrides |
 | `ground.toml` | `oblique-survival-ground-v1` | the biome plates, the macro field, the road, the water, the litter, forage and plant sheets, the decals, and the `[blend]` mixing the consumer reads — see [ground](ground.md) |
@@ -203,6 +204,7 @@ govern what goes where, and both were earned rather than designed:
 | a prop state's prompt, an item's pickup brief, a plate's material clause, a season look's `season_prompt` | identity: the node that reads it redraws |
 | the style plate's bytes | identity for every generative image node — each digests the plate's bytes, not just its own prompt, because the prompt does not change when the picture does |
 | a summer prop state | identity for that state **and** its winter twin, which hangs off the summer's gated sprite |
+| `world.toml`, any `placement` block, a prop's `canopy_radius_meters` | the layout re-lays (`world-layout`, a local node) and the manifest follows; no provider node moves, and an edit to one object's block moves that object's points and nothing beyond one footprint of them — see [world](world.md) |
 | the scope | selects nodes; it never moves the key of a node it keeps |
 
 **The contract-version prefix is frozen.** Every node type's
@@ -325,7 +327,7 @@ invalidates it and must be regenerated in the same change.
   "fixture_ref": "library/games/ember-hollow",
   "scope": "full",
   "graph_schema_version": 1,
-  "topology_sha256": "bcdef8db4d9e28924e98ed849e35ca8a4ea5de8a0757ddbf858a8304de895bf8",
+  "topology_sha256": "df7e69d900ddf28e70d74920057e892f9f7e7de30e761376a2defd7b5c5c5a64",
   "node_count": 277,
   "terminal_node_id": "package-manifest",
   "operation_counts": {
@@ -409,8 +411,8 @@ permanent graph truth.
 - **The wall clock of a run is one retry chain, not the graph.** The scheduler
   runs wide and the graph is finished long before whichever strip is failing its
   spread gate. The lever is the prompt or the gate, never the scheduler.
-- **The camp is authored, not designed.** Its props sit at fixed offsets from
-  the world origin.
+- **Set pieces are compositions, not designs.** The camp and the boulder rings
+  are members at authored offsets, sited by the generator; nothing composes one.
 - **Generated visual output is unreviewed until a non-producer reviews it**, and
   an audio quality claim needs a separately recorded listening verdict. A run's
   own `reviews` block records the graph's semantic reviews; it is not that

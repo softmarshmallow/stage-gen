@@ -30,15 +30,19 @@ shader over the two structural plates the layout writes.
 | road, water | `[road]`, `[water]` | 2 m, 6 m | a track plate laid on the splat's red channel; a plane below the coast with its own depth |
 
 **The two structural plates the layout writes.** `world/splat.png` carries the
-road in red, the under-canopy shade in green, and the land mask in alpha.
+road in red, the under-canopy shade in green (from each prop's authored
+`canopy_radius_meters`, never a family rule), and the land mask in alpha.
 `world/biomes.png` carries one biome per channel, solved to its authored share.
 Four biomes is therefore the capacity, and the loader refuses a fifth with that
-sentence rather than emitting a plate no consumer can blend.
+sentence rather than emitting a plate no consumer can blend. Both plates cap at
+1024 cells a side and publish their `cell_meters`, so a 512 m world draws 0.5 m
+cells and no host infers the size.
 
 A biome is a continent on a coarse lattice plus islets on a finer one, both
-thresholds solved together so the authored shares still hold. The islet octave
-fades out over the camp clearing, so the spawn never lands on a patch the fine
-noise happened to drop at the world's centre.
+thresholds solved together so the authored shares still hold. Every region
+fades out over the spawn's clearing, so the spawn stands on the base biome by
+rule. The islet lattice and share are `world.toml [biomes]`; how anything is
+scattered over the plates is [world](world.md).
 
 ## The material contract
 
@@ -117,8 +121,9 @@ table as mixing.
   ribbon along the layout's polyline is the fix and is not built.
 - A real cliff side. The coast is a mask, not a polyline; the depth band on the
   water says most of what a raised slab would.
-- A heightmap. There is no low ground, so puddles are scattered rather than
-  solved, and the same hollows fill every storm.
+- Rendered relief. The world has a rules-only height now (0 at the coast, 1
+  inland; reeds read it), but no low ground is drawn, so puddles are scattered
+  rather than solved, and the same hollows fill every storm.
 
 ## Dated log
 
@@ -134,3 +139,7 @@ table as mixing.
   refused the reference itself. The mid-scale landed as `[plants]`, and the camp
   was moved onto the base biome. Fourteen audition draws; the adopted takes cost
   nothing.
+- **2026-09-06, later.** The scatter became a generator: the litter, forage and
+  plants are objects of the world generator with their own `placement` blocks,
+  the canopy shade is a prop attribute, and the world is 512 m. See
+  [world](world.md).

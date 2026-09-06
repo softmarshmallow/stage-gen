@@ -46,7 +46,8 @@ not an identity but a cache key (C-R1); its evidence is the cache-key goldens.
 | `item-content-v2` | `authored` | `stage_gen.components.platformer_content.models:ItemContentCatalog.kind` |
 | `mob-content-v2` | `authored` | `stage_gen.components.platformer_content.models:MobContentCatalog.kind` |
 | `npc-content-v3` | `authored` | `stage_gen.components.platformer_content.models:NpcContentCatalog.kind` |
-| `oblique-survival-package-v1` | `authored` | `stage_gen.recipes.oblique_survival.models:ObliqueSurvivalSource.kind` |
+| `oblique-survival-package-v2` | `authored` | `stage_gen.recipes.oblique_survival.models:ObliqueSurvivalSource.kind` |
+| `oblique-survival-world-v1` | `authored` | `stage_gen.recipes.oblique_survival.models:WORLD_KIND` |
 | `player-content-v3` | `authored` | `stage_gen.components.platformer_content.models:PlayerContentCatalog.kind` |
 | `pointclick-room-v3` | `authored` | `stage_gen.recipes.pointclick_room.models:PointClickRoom.kind` |
 | `projectile-content-v2` | `authored` | `stage_gen.components.platformer_content.models:ProjectileContentCatalog.kind` |

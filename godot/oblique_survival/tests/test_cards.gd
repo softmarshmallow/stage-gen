@@ -325,9 +325,9 @@ func _decals(h: TestHarness, manifest: Dictionary) -> void:
 			orphans += 1
 			continue
 		drawn += 1
-	h.assert_eq((layout["decals"] as Array).size(), 1608, "the run places 1608 decals")
+	h.assert_eq((layout["decals"] as Array).size(), 2686, "the run places 2686 decals")
 	h.assert_eq(orphans, 0, "full-v66 has no orphan skirts")
-	h.assert_eq(drawn, 1608, "every decal in the run is drawable")
+	h.assert_eq(drawn, 2686, "every decal in the run is drawable")
 
 
 # --- per-state playback, per-facing cells (critique C3) ----------------------
@@ -435,7 +435,7 @@ func _module(h: TestHarness, pkg: RunPackage) -> void:
 	h.assert_eq(want.size(), 16, "full-v66 places sixteen prop states")
 	for key: String in want.keys():
 		h.assert_eq(int(got.get(key, 0)), int(want[key]), "%s cards drawn" % key)
-	h.assert_eq(mobs, 12, "full-v66 places twelve mobs")
+	h.assert_eq(mobs, 11, "ember-hollow-v2 places eleven mobs")
 	h.assert_eq(drawn_mobs, mobs, "every mob has a card")
 
 	# The player is drawn where the world says it is, not at the origin.
