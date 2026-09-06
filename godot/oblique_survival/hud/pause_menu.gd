@@ -178,7 +178,8 @@ static func help_sections() -> Array:
 			+ "button to keep following the pointer. Right-click stops. The thing under the "
 			+ "pointer lifts and is named above itself; the nearest thing in reach lifts too and "
 			+ "says what %s would do to it. A thing that needs a tool you lack is still lit and "
-			+ "named with what it needs, but the key and a click pass over it. Grass, twigs, reeds and "
+			+ "named with what it needs, and the key or a click on it says so rather than walk you "
+			+ "there. Grass, twigs, reeds and "
 			+ "berries go straight into the pack; what an axe or a pick knocks loose lands on the "
 			+ "ground to be picked up. A dead snag snaps for twigs by hand and falls to an axe.") % [
 				UiKit.kbd("Space")]],

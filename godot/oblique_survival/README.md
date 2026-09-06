@@ -83,8 +83,8 @@ replaced the prompt strip that stood above the hotbar, so nothing is pinned to
 the screen for it. Focus and target are two things: the target (`world.target`)
 is the focus only when nothing refuses it. A thing that cannot be acted on yet
 is still the focus, lit and named with what it needs, but it is never the
-target — Space and a click pass over it in silence (the label has already said
-why) and the player stays put. What a thing offers is resolved from the package's list of
+target — Space and a click on it say the refusal and turn the player to it, and
+nothing more: no walk, no swing. What a thing offers is resolved from the package's list of
 interactions for it (`[[props.interactions]]`, each from the states it applies
 to, in priority order): the first whose state matches and whose tool is carried
 is the offer, so the dead snag is chopped with an axe and snapped for twigs by

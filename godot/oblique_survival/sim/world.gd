@@ -86,7 +86,7 @@ var input: Dictionary = {}
 var focus: Variant = null
 ## The target: what the key acts on. The focus when it is available, null when
 ## the focus is refused (a tool missing, the season barren) — the key and a
-## click pass over a refused thing rather than walk to it.
+## click on a refused thing say what it needs rather than walk to it.
 var target: Variant = null
 ## The one light in the frame.
 var light: Dictionary = {"x": 0.0, "z": 0.0, "radius": 6.0, "on": false}

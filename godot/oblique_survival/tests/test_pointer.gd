@@ -82,8 +82,8 @@ func _click_within_reach_starts_the_action(h: TestHarness, w: World) -> void:
 	Sim.step(w, SimFixture.STEP)
 	h.assert_true(w.player.busy != null, "a clicked pine within reach starts the swing at once")
 	h.assert_true(w.player.approach == null, "with no walk")
-	# Without the tool the click is passed over, as the key is: the pine is
-	# the focus (its label says what it needs) and not the target.
+	# Without the tool the click is refused in words, as the key is: the pine
+	# is the focus (its label says what it needs) and not the target.
 	_fresh(w)
 	var bare_pine := SimFixture.prop(w, "p4", "pine", "grown", 0.0, 0.5)
 	w.entities.append(bare_pine)
@@ -93,7 +93,7 @@ func _click_within_reach_starts_the_action(h: TestHarness, w: World) -> void:
 	h.assert_true(w.focus is Dictionary and is_same((w.focus as Dictionary)["entity"], bare_pine),
 		"the pine is the focus")
 	h.assert_true(w.target == null, "and not the target")
-	h.assert_eq(w.message, "", "and the click is ignored in silence")
+	h.assert_eq(w.message, "Needs a Flint axe.", "and the click says why")
 
 
 func _click_on_nothing_to_do_says_so(h: TestHarness, w: World) -> void:
@@ -155,7 +155,7 @@ func _a_click_on_a_thing_ends_the_walk(h: TestHarness, w: World) -> void:
 	h.assert_true(w.player.goto == null, "a refused thing clicked still ends the pointer walk")
 	h.assert_true(w.player.approach == null, "but commits no approach to it")
 	h.assert_true(w.target == null, "nor makes it the target")
-	h.assert_eq(w.message, "", "and is passed over in silence")
+	h.assert_eq(w.message, "Needs a Flint axe.", "and says what it needs")
 	Inventory.inv_add(w, "axe", 1)
 	w.input["click_point"] = {"x": 5.0, "z": 5.0}
 	Sim.step(w, SimFixture.STEP)

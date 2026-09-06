@@ -36,9 +36,7 @@ static func update(world: World, dt: float) -> void:
 		_aim(world, target)
 		if world.target == null:
 			# The thing stopped answering on the way (the season turned): the
-			# walk ends where it is, and the reason is said — the one time a
-			# refusal is spoken, because a walk ending in silence would be a
-			# mystery.
+			# walk ends where it is, and the reason is said.
 			player.approach = null
 			_refuse(world, target as Dictionary)
 			return
@@ -52,8 +50,9 @@ static func update(world: World, dt: float) -> void:
 	# A thing clicked (not the viewer's: it had no mouse) is the target at any
 	# distance: within reach the action starts, beyond it the click commits
 	# the walk the key would have. A thing with nothing to offer says so; a
-	# thing that is refused (an axe missing) is passed over — its label
-	# already says what it needs, and the focus stays with the nearest rule.
+	# thing that is refused (an axe missing) is not walked to or made the
+	# target, but the refusal is said and the player turns to it, so the click
+	# is seen to have landed. The focus stays with the nearest rule.
 	var clicked: Variant = world.input.get("click_entity", null)
 	if clicked is Dictionary:
 		var chosen_by_click: Variant = null
@@ -66,6 +65,7 @@ static func update(world: World, dt: float) -> void:
 			return
 		if (chosen_by_click as Dictionary)["disabled"] != null:
 			_aim(world, Targeting.interactable_at(world))
+			_refuse(world, chosen_by_click as Dictionary)
 			return
 		_aim(world, chosen_by_click)
 		if float((chosen_by_click as Dictionary)["edge"]) > reach \
@@ -83,20 +83,24 @@ static func update(world: World, dt: float) -> void:
 		return
 	# The focus is the nearest thing by the one rule; the target is that thing
 	# only when it can be acted on. Space over a refused focus (a tree without
-	# an axe) does nothing: the thing stays lit and named with what it needs,
-	# and the player stays where they are.
+	# an axe) walks nowhere and starts nothing: the thing stays lit and named
+	# with what it needs, the refusal is said and the player turns to it, so
+	# the press is answered rather than swallowed.
 	_aim(world, Targeting.interactable_at(world))
-	if world.target == null:
+	if world.focus == null:
 		return
 	# Each verb has its own key. Space is read as held, the others as a press
 	# good for this tick only; nothing is queued behind a busy player.
-	var chosen := world.target as Dictionary
+	var chosen := world.focus as Dictionary
 	var wanted: bool
 	if str((chosen["interaction"] as Dictionary).get("verb", "")) == "light":
 		wanted = bool(world.input["light"])
 	else:
 		wanted = bool(world.input["interact"])
 	if not wanted:
+		return
+	if world.target == null:
+		_refuse(world, chosen)
 		return
 	if float(chosen["edge"]) > reach:
 		player.approach = {"entity": chosen["entity"], "stall": 0.0}
@@ -114,8 +118,8 @@ static func _aim(world: World, focus: Variant) -> void:
 	world.target = focus if focus is Dictionary and (focus as Dictionary)["disabled"] == null else null
 
 
-## A refusal said aloud, sentence-cased and facing the thing: only for a walk
-## that ends because its thing stopped answering.
+## The refusal, said sentence-cased and facing the thing, so a press or a
+## click on a thing that cannot be acted on is answered, not swallowed.
 static func _refuse(world: World, target: Dictionary) -> void:
 	var entity: Dictionary = target["entity"]
 	var player: PlayerState = world.player

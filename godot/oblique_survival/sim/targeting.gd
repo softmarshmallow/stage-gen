@@ -314,8 +314,10 @@ static func start_interaction(world: World, target: Dictionary) -> void:
 		float(entity["x"]) - player.x, float(entity["z"]) - player.z, world.camera_yaw, player.facing
 	)
 	if target["disabled"] != null:
-		# Never a target (`SysInteract._aim`); a caller that did not look is
-		# ignored rather than served.
+		# Never a target (`SysInteract._aim`): the refusal is said in its
+		# place, and nothing starts.
+		var text := str(target["disabled"])
+		Helpers.say(world, text.substr(0, 1).to_upper() + text.substr(1) + ".")
 		return
 	if bool(target.get("item", false)):
 		# Taking a drop plays the same authored reach-and-lift as harvesting,
