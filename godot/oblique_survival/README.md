@@ -745,6 +745,20 @@ at: `01` 30 digests, 2 PRNG draws, ending summer/noon with rain at 0.4841;
 winter/night with snow at 0.5 and warmth at 76.01. Those three files are the
 host half of the gate; the web half is still to be taken.
 
+## Replay goldens
+
+`tests/goldens/<script>.godot.jsonl` is one line per `digest_every` steps of a
+scripted run: the whole simulation state, quantised and key-sorted, written by
+the parity harness below over `tools/parity/<script>.json` against
+`out/ember-hollow-v10`.
+
+They were pinned before this host moved into the one Godot project, so the
+relocation and the sealing that follows it are proved against a frozen
+instrument rather than against a claim: a line that moves is a change in the
+simulation, and `tools/parity_diff.py` names the first step and field that
+parted company. Reproduce one exactly as the parity harness section says, with
+`--out` pointed at a scratch file, and diff it against the committed line.
+
 ## What the host owns, and what it must not
 
 It owns: presentation and play — the frame order, the camera, the shaders, the
