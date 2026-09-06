@@ -1,27 +1,21 @@
 // Home (root URL).
 //
-// A consumer index over out/: the published runtime packages that can be previewed,
-// and the traced runs that can be read back. Generation happens in the headless CLI;
-// nothing on this page starts a run.
+// The viewer's index over out/: every run the pipeline published, what each
+// one is, and where to open it. Generation happens in the headless CLI;
+// nothing on this page starts a run, and nothing on it plays one.
 //
-// The per-genre sections iterate the SCENE_MODULES registry rather than being
-// hand-written per genre: the registry says which kinds this build plays and
-// where, and this page only adds how each kind lists itself. A new genre gets
-// a section by registering, not by editing this file's markup.
+// It used to ask four genre readers for their runs, each importing that
+// genre's parser for a title and a cover, which made the front page a consumer
+// of every runtime at once. It now reads one field — the document's `kind` —
+// through `listRuns`, and the table below is the only thing that knows a kind
+// can be played at all. Every genre's host is a Godot host (decision 0061), so
+// that table is a shrinking list of browser surfaces waiting for their port,
+// and it leaves with the last of them.
 
 import Link from "next/link";
 import { listReadyCases } from "@/lib/narrative/case-io";
-import { listReadyProjects } from "@/lib/shell/projects";
-import { listReadyScenes } from "@/lib/shell/dialogue-scene";
-import { listReadyRooms } from "@/lib/shell/pointclick-room";
-import { listReadyRunnerRuns } from "@/lib/shell/sideview-runner";
-import { listExecutionViewRuns } from "@/lib/shell/execution-view";
+import { listRuns, type RunIndexEntry } from "@/lib/shell/run-index";
 import { listUniverseRuns } from "@/lib/shell/universe";
-import { DIALOGUE_SCENE_BUNDLE_KIND } from "@/lib/dialogue-scene/bundle";
-import { SCENE_MODULES, type SceneModule } from "@/lib/shell/scene-modules";
-import { POINTCLICK_RUNTIME_KIND } from "@/lib/pointclick/contract";
-import { PREPARED_RUNTIME_KIND } from "@/lib/manifest/prepared-manifest";
-import { RUNNER_RUNTIME_KIND } from "@/lib/sideview-runner/contract";
 import {
   cx,
   h1,
@@ -34,201 +28,127 @@ import {
 
 export const dynamic = "force-dynamic";
 
-interface GenreRunRow {
-  readonly tag: string;
-  readonly title: string;
-  /** Run-relative asset ref for the row's thumbnail, when the run has one. */
-  readonly thumb: string | null;
-  /** Additional per-run links beside the play action (e.g. the asset explorer). */
-  readonly extraLinks?: readonly {
-    readonly label: string;
-    readonly href: string;
-  }[];
-}
-
-interface GenreSectionSpec {
-  readonly heading: string;
-  readonly action: string;
-  /** The empty state's lead-in, e.g. "Publish one with". */
-  readonly emptyLead: string;
-  /** The CLI invocation named in the empty state. */
-  readonly generateHint: string;
-  readonly load: () => Promise<readonly GenreRunRow[]>;
-}
-
 /**
- * How each registered kind lists itself. The registry owns identity and
- * route; this map owns only index presentation, so a kind missing here still
- * plays — it just has no section yet, and the render below skips it.
+ * The browser surfaces that still play a kind, by the kind's literal name.
+ *
+ * Literal strings on purpose: importing a genre's kind constant is importing
+ * that genre, which is what this page stopped doing. A row is deleted in the
+ * change that lands its Godot host and deletes its route, and when the table
+ * is empty it goes with the last row.
  */
-const GENRE_SECTIONS: Readonly<Record<string, GenreSectionSpec>> = {
-  [PREPARED_RUNTIME_KIND]: {
-    heading: "published runtime packages",
-    action: "[ ▶ open preview ]",
-    emptyLead: "Publish one with",
-    generateHint: "stage-gen generate --checkpoint integration",
-    load: async () =>
-      (await listReadyProjects()).map((project) => ({
-        tag: project.tag,
-        title: project.displayName,
-        thumb: project.conceptFile ?? null,
-        extraLinks: [
-          { label: "[ ⌕ assets ]", href: `/packages/${project.tag}` },
-        ],
-      })),
-  },
-  [POINTCLICK_RUNTIME_KIND]: {
-    heading: "point-and-click rooms",
-    action: "[ ▶ enter room ]",
-    emptyLead: "Generate one with",
-    generateHint: "stage-gen pointclick-room generate",
-    load: async () =>
-      (await listReadyRooms()).map((room) => ({
-        tag: room.tag,
-        title: room.displayName,
-        thumb: room.cover,
-      })),
-  },
-  [DIALOGUE_SCENE_BUNDLE_KIND]: {
-    heading: "visual-novel scenes",
-    action: "[ ▶ play scene ]",
-    emptyLead: "Generate one with",
-    generateHint: "stage-gen dialogue-scene generate",
-    load: async () =>
-      (await listReadyScenes()).map((scene) => ({
-        tag: scene.tag,
-        title: scene.title,
-        thumb: scene.styleReference,
-      })),
-  },
-  [RUNNER_RUNTIME_KIND]: {
-    heading: "infinite runners",
-    action: "[ ▶ run ]",
-    emptyLead: "Generate one with",
-    generateHint: "stage-gen generate --genre runner",
-    load: async () =>
-      (await listReadyRunnerRuns()).map((run) => ({
-        tag: run.tag,
-        title: `${run.displayName} · ${run.trackDisplayName}`,
-        thumb: run.cover,
-      })),
-  },
-};
+const BROWSER_PLAY_ROUTES: Readonly<Record<string, { label: string; href: (tag: string) => string }>> =
+  {
+    "prepared-game-runtime-v12": {
+      label: "[ ▶ open preview ]",
+      href: (tag) => `/preview/${encodeURIComponent(tag)}`,
+    },
+    "pointclick-room-runtime-v3": {
+      label: "[ ▶ enter room ]",
+      href: (tag) => `/room/${encodeURIComponent(tag)}`,
+    },
+    "dialogue-scene-bundle-v8": {
+      label: "[ ▶ play scene ]",
+      href: (tag) => `/scene/${encodeURIComponent(tag)}`,
+    },
+    "sideview-runner-runtime-v13": {
+      label: "[ ▶ run ]",
+      href: (tag) => `/runner/${encodeURIComponent(tag)}`,
+    },
+  };
 
-function GenreSection({
-  module,
-  spec,
-  rows,
-  first,
-}: {
-  module: SceneModule;
-  spec: GenreSectionSpec;
-  rows: readonly GenreRunRow[];
-  first: boolean;
-}) {
+/** What a run says it is, for the reader: the kind, or why there is none. */
+function identity(entry: RunIndexEntry): string {
+  if (entry.kind) {
+    return entry.schemaVersion === null
+      ? entry.kind
+      : `${entry.kind} · schema ${entry.schemaVersion}`;
+  }
+  if (entry.document) return `${entry.document} · declares no kind`;
+  return "no published document";
+}
+
+function RunRow({ entry }: { entry: RunIndexEntry }) {
+  const play = entry.kind ? BROWSER_PLAY_ROUTES[entry.kind] : undefined;
   return (
-    <section className={first ? undefined : "mt-8 border-t border-border pt-4"}>
-      <div className="mb-2 text-[13px]">
-        <span className="text-dim">{spec.heading}</span>
-        <span className="text-dim opacity-60"> · {rows.length}</span>
+    <li className="grid grid-cols-[1fr_auto] items-center gap-3 border border-border px-2.5 py-1.5 hover:border-fg">
+      <div className="min-w-0">
+        <div className="truncate text-[13px] text-fg">{entry.tag}</div>
+        <div className="mt-0.5 truncate text-[11px] text-dim">
+          {identity(entry)}
+        </div>
       </div>
-      {rows.length > 0 ? (
-        <ul className="flex list-none flex-col gap-1.5">
-          {rows.map((row) => (
-            <li
-              key={row.tag}
-              className="grid grid-cols-[64px_1fr_auto] items-center gap-3 border border-border px-2.5 py-1.5 hover:border-fg max-[480px]:grid-cols-[48px_1fr]"
-            >
-              <div className="flex h-12 w-16 items-center justify-center overflow-hidden bg-well text-dim">
-                {row.thumb ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    className="h-full w-full object-cover"
-                    src={`/api/assets/${row.tag}/${row.thumb}`}
-                    alt=""
-                    aria-hidden
-                  />
-                ) : (
-                  <span aria-hidden>·</span>
-                )}
-              </div>
-              <div className="min-w-0">
-                <div className="truncate text-[13px] text-fg">{row.title}</div>
-                <div className="mt-0.5 truncate text-[11px] text-dim">
-                  {row.tag}
-                </div>
-              </div>
-              {row.extraLinks?.length ? (
-                <div className="flex items-center gap-1.5 max-[480px]:col-span-full max-[480px]:justify-end">
-                  <Link
-                    className={cx(playActive, playSizeCompact)}
-                    href={module.route(row.tag)}
-                  >
-                    {spec.action}
-                  </Link>
-                  {row.extraLinks.map((link) => (
-                    <Link
-                      key={link.href}
-                      className={linkGhost}
-                      href={link.href}
-                    >
-                      {link.label}
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <Link
-                  className={cx(
-                    playActive,
-                    playSizeCompact,
-                    "max-[480px]:col-span-full max-[480px]:justify-self-end",
-                  )}
-                  href={module.route(row.tag)}
-                >
-                  {spec.action}
-                </Link>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className={metaLine}>
-          None yet. {spec.emptyLead} <code>{spec.generateHint}</code>.
-        </p>
-      )}
-    </section>
+      <div className="flex items-center gap-1.5">
+        {entry.hasExecutionView ? (
+          <Link
+            className={linkGhost}
+            href={`/runs/${encodeURIComponent(entry.tag)}`}
+          >
+            [ ⌕ run ]
+          </Link>
+        ) : null}
+        {entry.hasExecutionView ? (
+          <Link
+            className={linkGhost}
+            href={`/runs/${encodeURIComponent(entry.tag)}/artifacts`}
+          >
+            [ ⌕ assets ]
+          </Link>
+        ) : null}
+        {play ? (
+          <Link
+            className={cx(playActive, playSizeCompact)}
+            href={play.href(entry.tag)}
+          >
+            {play.label}
+          </Link>
+        ) : null}
+      </div>
+    </li>
   );
 }
 
 export default async function Home() {
-  const listed = SCENE_MODULES.filter(
-    (module) => module.kind in GENRE_SECTIONS,
-  );
-  const [views, cases, universes, sections] = await Promise.all([
-    listExecutionViewRuns(),
+  const [runs, cases, universes] = await Promise.all([
+    listRuns(),
     listReadyCases(),
     listUniverseRuns(),
-    Promise.all(listed.map((module) => GENRE_SECTIONS[module.kind].load())),
   ]);
+  const withView = runs.filter((entry) => entry.hasExecutionView).length;
   return (
     <main className={page}>
       <h1 className={h1}>stage-gen</h1>
       <p className={cx(metaLine, "mb-5")}>
-        consumer surfaces over <code>out/</code> · generation runs headlessly
+        the run viewer over <code>out/</code> · generation runs headlessly ·
+        games are played by their Godot host
       </p>
 
-      {listed.map((module, index) => (
-        <GenreSection
-          key={module.kind}
-          module={module}
-          spec={GENRE_SECTIONS[module.kind]}
-          rows={sections[index]}
-          first={index === 0}
-        />
-      ))}
+      <section>
+        <div className="mb-2 text-[13px]">
+          <span className="text-dim">runs</span>
+          <span className="text-dim opacity-60"> · {runs.length}</span>
+        </div>
+        <p className={cx(metaLine, "mb-2")}>
+          {withView} of {runs.length} carry a derived view.{" "}
+          <Link className={linkGhost} href="/runs">
+            [ ⌕ open the run viewer ]
+          </Link>
+        </p>
+        {runs.length > 0 ? (
+          <ul className="flex list-none flex-col gap-1.5">
+            {runs.map((entry) => (
+              <RunRow key={entry.tag} entry={entry} />
+            ))}
+          </ul>
+        ) : (
+          <p className={metaLine}>
+            None yet. Publish one with <code>stage-gen generate</code>.
+          </p>
+        )}
+      </section>
 
       {/* A case sits above the leaves: several scenarios and rooms played in
-          order at one URL, with a shared set of facts crossing between them. */}
+          order at one URL, with a shared set of facts crossing between them.
+          It is a browser surface like the four above and leaves with them. */}
       <section className="mt-8 border-t border-border pt-4">
         <div className="mb-2 text-[13px]">
           <span className="text-dim">cases</span>
@@ -272,8 +192,8 @@ export default async function Home() {
         </ul>
       </section>
 
-      {/* A universe is a world, not a scene: nothing plays it, so it lists
-          itself here rather than joining the genre sections above. */}
+      {/* A universe is a world, not a game: nothing plays it, and the gallery
+          is a viewer surface that stays. */}
       <section className="mt-8 border-t border-border pt-4">
         <div className="mb-2 text-[13px]">
           <span className="text-dim">universes</span>
@@ -309,18 +229,6 @@ export default async function Home() {
             None yet. Generate one with <code>stage-gen universe gallery</code>.
           </p>
         )}
-      </section>
-
-      <section className="mt-8 border-t border-border pt-4">
-        <div className="mb-2 text-[13px]">
-          <span className="text-dim">exported runs</span>
-          <span className="text-dim opacity-60"> · {views.length}</span>
-        </div>
-        <p className={cx(metaLine, "mb-2")}>
-          <Link className={linkGhost} href="/runs">
-            [ ⌕ open the run viewer ]
-          </Link>
-        </p>
       </section>
     </main>
   );

@@ -64,28 +64,19 @@ without copying unrelated older content into it or rerunning
 providers. Every selected byte is recorded once in `closure.artifacts` with path, SHA-256, byte
 count, media type, and image dimensions. The closure list has its own canonical digest.
 
-## Prepared asset explorer
+## The artifact inspector
 
-The asset route is `/packages/<run-tag>`. It reads the same validated `manifest.json` and projects
-every explicitly bound closure artifact exactly once into semantic map, player, mob, NPC, prop,
-item, projectile, UI, and soundtrack groups. It does not use directory scans, filename
-conventions, or pipeline events. Images open in an alpha-aware lightbox and soundtrack artifacts
-use native audio controls. The home page discovers prepared packages from this manifest alone.
+The artifact route is `/runs/<run-tag>/artifacts`. It reads the run's derived `execution-view.json`
+and lists every artifact the run's nodes declared, grouped by the engine's own display vocabulary —
+image, motion atlas, audio, data, text — with the node that produced it, the media type, the byte
+count, the digest, and whether the bytes are present. It parses no manifest and knows no genre, so
+it answers for every recipe rather than for one.
 
-The page accounts for the whole closure, each artifact under the
-[role](spec/game/generation-pipeline.md#runtime-closure-roles) the producer published it as.
-Artifacts published as `provenance` are listed as records rather than presented as content, and a
-record with nothing to render is shown as a file instead of a broken image. An `asset` no group
-claims is listed as ungrouped and counted in the header: a package that grew a family this view
-has not learned yet is this view falling behind, and the page says so rather than refusing to
-render the rest of the run. Completeness of the classification is the producer's invariant,
-enforced when the manifest is assembled; the page never has to infer a role from a path or a
-media type.
-
-This explorer is intentionally runtime-closure-only. Producer review evidence, contact sheets,
-map composites, authored references, and reports outside the published closure remain in their
-checkpoint artifact roots; they must not be copied into the gameplay closure merely to populate
-this page. A future review explorer needs its own explicit review-manifest boundary.
+It replaced `/packages/<run-tag>`, which read the platformer's runtime manifest and walked that
+genre's block names: it worked for one recipe, 404'd for the other five, and was a gameplay parser
+living in the viewer. A run that carries no execution view has nothing to group, and the page says
+so and names the command that derives one; a run whose execution plan predates this build cannot be
+re-derived, and keeps only its published document in the index.
 
 ## Consumer ownership
 
