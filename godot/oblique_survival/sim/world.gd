@@ -67,6 +67,11 @@ var hot: bool = false
 
 var craft_open: bool = false
 var craft_index: int = 0
+## A built thing on its way to the ground: `{recipe, prop_id, state, radius,
+## x, z, ok, why}` while the player is placing it (the view draws it there as
+## a tinted silhouette, green when `ok`), else null. The makings are spent
+## when it is set down, not before.
+var placing: Variant = null
 ## Props built this session; the source of the `c1, c2, …` ids.
 var built: int = 0
 
@@ -77,8 +82,9 @@ var drop_count: int = 0
 ## Drained by the view and the ear each frame.
 var events: Array = []
 
-## Held: `x`, `z`, `interact`. One-shot (cleared by `Sim` after every step):
-## everything else.
+## Held: `x`, `z`, `interact`, and `place_point` (where the pointer is on
+## the ground while a built thing is being placed, written every frame). One-
+## shot (cleared by `Sim` after every step): everything else.
 var input: Dictionary = {}
 ## The focus: the nearest thing that could be acted on, by one rule for
 ## everything (a drop, a bush, a pine that wants an axe), or null. It is lit

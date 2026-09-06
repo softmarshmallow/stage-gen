@@ -1657,8 +1657,8 @@ def _counts(raw: object, *, field: str, item_ids: set[str]) -> dict[str, int]:
 def _crafting(
     doc: Mapping[str, object], *, items: Sequence[Item], props: Sequence[Prop]
 ) -> Crafting:
-    if doc.get("kind") != "oblique-survival-crafting-v1":
-        raise SourceError("crafting.toml kind must be oblique-survival-crafting-v1")
+    if doc.get("kind") != "oblique-survival-crafting-v2":
+        raise SourceError("crafting.toml kind must be oblique-survival-crafting-v2")
     item_ids = {item.item_id for item in items}
     prop_by_id = {prop.prop_id: prop for prop in props}
     inventory = doc.get("inventory", {})
@@ -1744,6 +1744,7 @@ def _crafting(
             raise SourceError(f"{recipe_id}.product names exactly one of item_id or prop_id")
         product_item: tuple[str, int] | None = None
         product_prop: str | None = None
+        product_state: str | None = None
         if has_item:
             unknown = sorted(set(product) - {"item_id", "count"})
             if unknown:
@@ -1758,13 +1759,25 @@ def _crafting(
                 raise SourceError(f"{recipe_id} makes {item_id!r} out of itself")
             product_item = (item_id, count)
         else:
-            unknown = sorted(set(product) - {"prop_id"})
+            unknown = sorted(set(product) - {"prop_id", "state"})
             if unknown:
                 raise SourceError(f"{recipe_id}.product has unknown keys {unknown}")
             prop_id = _identifier(product.get("prop_id"), field=f"{recipe_id}.product.prop_id")
             if prop_id not in prop_by_id:
                 raise SourceError(f"{recipe_id} builds undeclared prop {prop_id!r}")
             product_prop = prop_id
+            # The look the thing is built in: a fire is built lit. The prop's
+            # baseline look when unsaid, so the consumer never has to guess.
+            built_prop = prop_by_id[prop_id]
+            product_state = _identifier(
+                product.get("state", built_prop.baseline_state),
+                field=f"{recipe_id}.product.state",
+            )
+            if product_state not in built_prop.states:
+                raise SourceError(
+                    f"{recipe_id}.product.state {product_state!r} is not one of "
+                    f"{prop_id}'s states {list(built_prop.states)}"
+                )
         station = _identifier(raw.get("station", "hand"), field=f"{recipe_id}.station")
         if station != "hand" and station not in station_ids:
             raise SourceError(f"{recipe_id} wants undeclared station {station!r}")
@@ -1775,6 +1788,7 @@ def _crafting(
                 station=station,
                 product_item=product_item,
                 product_prop=product_prop,
+                product_state=product_state,
             )
         )
     return Crafting(slots=slots, start=start, stations=tuple(stations), recipes=tuple(recipes))

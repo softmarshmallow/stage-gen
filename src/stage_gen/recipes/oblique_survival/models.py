@@ -474,13 +474,17 @@ class Station:
 
 @dataclass(frozen=True, slots=True)
 class Recipe:
-    """Ingredients in, one product out: an item with a count, or a placed prop."""
+    """Ingredients in, one product out: an item with a count, or a prop to
+    build. A built prop is placed by the player (the consumer's silhouette-and-
+    click), in ``product_state`` — the look it is built in, resolved by the
+    loader to the prop's baseline when the author said nothing."""
 
     recipe_id: str
     ingredients: Mapping[str, int]
     station: str
     product_item: tuple[str, int] | None = None
     product_prop: str | None = None
+    product_state: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

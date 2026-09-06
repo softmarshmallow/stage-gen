@@ -7,7 +7,8 @@ extends SceneTree
 ## noon (lifted, named above itself), a slot's card, the worn places, a pickup
 ## in flight, a bush gathered by hand (its twigs flying from the bush), a
 ## held-button walk, a bite's red flood and the throb of starving, the
-## crafting table, the pause menu and its how-to-play page, the whole-window
+## crafting table at the window's side, a fire on the pointer as a green
+## silhouette, the pause menu and its how-to-play page, the whole-window
 ## map, the fire at night and the heat of standing too close, the dark away
 ## from it and the frost of a near-empty bar, the death sheet,
 ## the run begun again, and the same HUD in a 2560x1440 window to show the
@@ -212,6 +213,30 @@ func _go() -> void:
 	await _save("ui-craft.png")
 	world.input["craft_toggle"] = true
 	_main.advance(STEP)
+
+	# --- building: the fire on the pointer -----------------------------------
+	# The makings are in the pack; the fire made from the table comes to the
+	# pointer as a green silhouette in front of the player. The frame is the
+	# moment before the click; then the build is let go so the pack is as it was.
+	var recipes: Array = (world.manifest["crafting"] as Dictionary)["recipes"]
+	for index: int in recipes.size():
+		if str((recipes[index] as Dictionary).get("recipe_id", "")) == "campfire":
+			_main.give("grass_tuft", 3)
+			_main.give("log", 2)
+			world.input["craft_toggle"] = true
+			_main.advance(STEP)
+			world.input["menu_select"] = index
+			_main.advance(STEP)
+			world.input["menu_confirm"] = true
+			_main.advance(STEP)
+			var spot := {"x": world.player.x + 1.4, "z": world.player.z + 1.6}
+			_main.hover_at(_screen_of(float(spot["x"]), 0.0, float(spot["z"])))
+			world.input["place_point"] = spot
+			_main.advance(STEP)
+			await _save("ui-place.png")
+			world.input["place_cancel"] = true
+			_main.advance(STEP)
+			break
 
 	# --- night by the fire --------------------------------------------------
 	var camp := _camp()

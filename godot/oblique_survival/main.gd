@@ -639,6 +639,11 @@ func _sync_ui_scale() -> void:
 		if node != null and node.has_method("set_ui_scale"):
 			node.set_ui_scale(s)
 
+## Whether the cursor is the placing cross right now (restored to the arrow
+## when the build ends).
+var _placing_cursor: bool = false
+
+
 ## Resolve the pointer against the world: the card under it, else the ground
 ## point under it. The card is lifted, and the HUD is told where the thing
 ## stands so it can name it there.
@@ -667,6 +672,15 @@ func _refresh_hover() -> void:
 ## not) lifted and named the same way, so what is in reach shows on the thing
 ## itself rather than in a strip.
 func _follow_hover() -> void:
+	# A built thing on the pointer follows the ground under it: the point is
+	# handed to the sim every frame as held input, and the cursor is a cross
+	# for as long as the build lasts.
+	if world != null:
+		var placing_now: bool = world.placing != null
+		world.input["place_point"] = _hover.get("point", null) if placing_now else null
+		if placing_now != _placing_cursor:
+			_placing_cursor = placing_now
+			Input.set_default_cursor_shape(Input.CURSOR_CROSS if placing_now else Input.CURSOR_ARROW)
 	var hud_node = modules.get("hud")
 	if hud_node == null or not hud_node.has_method("set_hover"):
 		return
@@ -760,6 +774,11 @@ func _press(screen: Vector2) -> void:
 	_drag_walk = false
 	if _pointer_blocked():
 		return
+	if world.placing != null:
+		# A built thing on the pointer: the click sets it down where the
+		# silhouette stands (the sim says whether it can).
+		world.input["place_click"] = true
+		return
 	var pick := _pick(screen)
 	if pick.is_empty():
 		return
@@ -780,7 +799,7 @@ func _press(screen: Vector2) -> void:
 ## pointer is skipped in silence (the press already said so), and the walk
 ## keeps its last land spot.
 func _drag_step() -> void:
-	if _pointer_blocked():
+	if _pointer_blocked() or world.placing != null:
 		return
 	var pick := _pick(_mouse)
 	var point: Variant = pick.get("point") if not pick.is_empty() else null
@@ -821,6 +840,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_pointer_down = true
 		_press(button.position)
 	elif button.button_index == MOUSE_BUTTON_RIGHT:
+		if world.placing != null:
+			# A built thing on the pointer is let go; the makings stay.
+			world.input["place_cancel"] = true
+			return
 		# The right button takes a walk back, pointed or committed.
 		world.player.goto = null
 		world.player.approach = null
@@ -873,7 +896,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_ESCAPE:
 			# Escape closes what is open, and pauses when nothing is.
 			var map_node = modules.get("world_map")
-			if world.craft_open:
+			if world.placing != null:
+				world.input["place_cancel"] = true
+			elif world.craft_open:
 				world.input["craft_toggle"] = true
 			elif map_node != null and bool(map_node.get("open")):
 				map_node.toggle()

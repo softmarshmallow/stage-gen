@@ -1,10 +1,12 @@
 class_name CraftPanel
 extends CanvasLayer
 
-## The crafting table as a panel: every recipe as a row with its product's
-## icon, its ingredients as have/need chips, and where it is made; the chosen
-## row outlined; a Craft button that is live only when the recipe can be made
-## here and now; a close button.
+## The crafting table as a panel at the right edge of the window, so the
+## world — and a thing being built in it — stays in view: every recipe as a
+## row with its product's icon, its ingredients as have/need chips, and where
+## it is made; the chosen row outlined; a Craft button that is live only when
+## the recipe can be made here and now; a close button. The list scrolls
+## rather than reach down over the corner buttons and the hotbar.
 ##
 ## The sim owns the table (`SysCraft`): C or Escape toggles it, W/S and Enter
 ## still work, and this panel speaks to it in the same one-shot inputs — a
@@ -12,12 +14,16 @@ extends CanvasLayer
 ## `menu_confirm`, the close button is `craft_toggle`. Nothing here crafts.
 
 const LAYER := 30
-const WIDTH := 640.0
+const WIDTH := 560.0
 const ICON := 44.0
 const CHIP_ICON := 20.0
 const ROW_HEIGHT := 64.0
-## The list scrolls past this many rows rather than growing past the window.
-const MAX_LIST_HEIGHT := 560.0
+## The panel's distance from the window's top and right edges.
+const MARGIN := 24.0
+## Kept clear under the panel: the corner buttons and the hotbar's top.
+const BOTTOM_RESERVE := 170.0
+## The header, the hint, the footer and the paddings, outside the list.
+const FRAME_HEIGHT := 150.0
 const DOUBLE_CLICK_SECONDS := 0.35
 
 var kit: UiKit = null
@@ -29,6 +35,7 @@ var _scroll: ScrollContainer = null
 var _craft_button: Button = null
 var _hint: RichTextLabel = null
 var _signature: String = ""
+var _row_count: int = 0
 var _world: Variant = null
 var _station_memo: Dictionary = {}
 var _last_click_index: int = -1
@@ -153,8 +160,7 @@ func _write(world, recipes: Array) -> void:
 			can_make = bool(state["ok"])
 		_rows.add_child(_row(world, recipe, index, index == chosen, state))
 	_craft_button.disabled = not can_make
-	var list_height := minf(MAX_LIST_HEIGHT, float(recipes.size()) * (ROW_HEIGHT + 2.0))
-	_scroll.custom_minimum_size = Vector2(WIDTH - 28.0, list_height)
+	_row_count = recipes.size()
 
 
 func _row(world, recipe: Dictionary, index: int, selected: bool, state: Dictionary) -> Control:
@@ -259,8 +265,15 @@ func _layout() -> void:
 	if _root == null:
 		return
 	var view: Vector2 = _root.size
+	# As many rows as the window has room for above the corner buttons; the
+	# rest scroll.
+	var wanted := float(maxi(1, _row_count)) * (ROW_HEIGHT + 2.0)
+	var room := maxf(ROW_HEIGHT + 2.0, view.y - MARGIN - BOTTOM_RESERVE - FRAME_HEIGHT)
+	var list_height := minf(wanted, room)
+	if _scroll.custom_minimum_size.y != list_height:
+		_scroll.custom_minimum_size = Vector2(WIDTH - 28.0, list_height)
 	UiKit.fit(_panel)
-	_panel.position = Vector2(round((view.x - _panel.size.x) * 0.5), round(maxf(24.0, (view.y - _panel.size.y) * 0.42)))
+	_panel.position = Vector2(round(view.x - _panel.size.x - MARGIN), MARGIN)
 
 
 # ===========================================================================

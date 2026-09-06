@@ -1733,7 +1733,13 @@ def test_the_manifest_carries_the_crafting_table_and_every_item_s_gameplay(
         "reach_meters": 3.0,
     }
     by_id = {recipe["recipe_id"]: recipe for recipe in crafting["recipes"]}
-    assert by_id["campfire"]["product"] == {"prop_id": "campfire"}
+    # A built prop names the look it is built in: the fire is built lit, the
+    # bench in its baseline look when the author said nothing.
+    assert by_id["campfire"]["product"] == {"prop_id": "campfire", "state": "lit"}
+    assert by_id["workbench"]["product"] == {
+        "prop_id": "workbench",
+        "state": package.prop("workbench").baseline_state,
+    }
     assert by_id["axe"]["product"] == {"item_id": "axe", "count": 1}
     assert by_id["pickaxe"]["station"] == "workbench"
     axe = document["items"]["axe"]

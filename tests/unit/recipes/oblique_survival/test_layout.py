@@ -672,6 +672,30 @@ def test_a_recipe_names_exactly_one_product_and_a_declared_station(tmp_path: Pat
     _load_refused(root, "wants undeclared station 'anvil'")
 
 
+def test_a_built_prop_names_the_look_it_is_built_in(package: Package, tmp_path: Path) -> None:
+    """`product.state` is the look a built prop takes (the fire is built lit);
+    the prop's baseline when unsaid; refused when it is not one of the prop's."""
+
+    by_id = {recipe.recipe_id: recipe for recipe in package.crafting.recipes}
+    assert by_id["campfire"].product_state == "lit"
+    assert by_id["workbench"].product_state == package.prop("workbench").baseline_state
+    assert by_id["axe"].product_state is None
+    root = _source_edit(
+        tmp_path,
+        "crafting.toml",
+        'product = { prop_id = "campfire", state = "lit" }',
+        'product = { prop_id = "campfire", state = "blazing" }',
+    )
+    _load_refused(root, "campfire.product.state 'blazing' is not one of campfire's states")
+    root = _source_edit(
+        tmp_path / "b",
+        "crafting.toml",
+        'product = { item_id = "axe", count = 1 }',
+        'product = { item_id = "axe", count = 1, state = "lit" }',
+    )
+    _load_refused(root, "axe.product has unknown keys ['state']")
+
+
 def test_a_recipe_chain_nothing_can_start_is_refused(tmp_path: Path) -> None:
     # Rope needs reeds; take the reeds away (the clump's yield) and rope, the
     # workbench, the pickaxe and the backpack all fall.

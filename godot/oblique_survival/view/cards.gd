@@ -81,6 +81,15 @@ var _lifted: Dictionary = {}
 ## Texture instance id -> a small copy of its picture, for the pick's alpha
 ## test. Read back from the GPU once per texture the pointer has crossed.
 var _pick_images: Dictionary = {}
+## The build on the pointer (`world.placing`): one card of the prop in the
+## look it will be built in, drawn blended and tinted — green where it can
+## stand, red where it cannot. Not a record: no id, no shadow, never picked.
+var _ghost: MeshInstance3D = null
+var _ghost_material: ShaderMaterial = null
+var _ghost_key: String = ""
+const GHOST_OK := Vector3(0.45, 1.0, 0.5)
+const GHOST_NO := Vector3(1.0, 0.3, 0.25)
+const GHOST_OPACITY := 0.62
 ## The camera yaw as of the last `update`; an event arriving before the first
 ## frame is signed with it.
 var _yaw: float = 0.0
@@ -109,6 +118,7 @@ func update(world, delta: float, cam: Dictionary) -> void:
 	sync_entities(world)
 	_update_player(world)
 	_update_entities(world)
+	_update_ghost(world)
 	_update_shakes()
 	_update_fallers(delta)
 	_apply_highlight()
@@ -549,6 +559,52 @@ func sync_entities(world) -> void:
 		for id: String in _records.keys():
 			if not alive.has(id):
 				_drop_record(id, true)
+
+
+## The silhouette of the thing being built, where the sim says it stands and
+## in the colour of its answer. Rebuilt only when the prop, its look or the
+## season's look changes; moved and tinted every frame.
+func _update_ghost(world) -> void:
+	var placing: Variant = field(world, "placing", null)
+	if not (placing is Dictionary):
+		if _ghost != null:
+			_ghost.visible = false
+		return
+	var block := placing as Dictionary
+	var key := "%s/%s/%s" % [str(block.get("prop_id", "")), str(block.get("state", "")), _look]
+	if key != _ghost_key:
+		_ghost_key = key
+		if _ghost != null:
+			_ghost.queue_free()
+			_ghost = null
+			_ghost_material = null
+		var built: Variant = prop_template(str(block.get("prop_id", "")), str(block.get("state", "")), _look)
+		if built == null:
+			return
+		var template: Dictionary = built
+		var spec: Dictionary = template["spec"]
+		_ghost_material = card_material(
+			package.texture(String(spec.get("image", ""))), bool(template["soft"]), "none", 0.0, "blend"
+		)
+		_ghost_material.set_shader_parameter("u_opacity", GHOST_OPACITY)
+		_ghost = MeshInstance3D.new()
+		_ghost.mesh = template["mesh"]
+		_ghost.material_override = _ghost_material
+		var layout: Dictionary = template["layout"]
+		_ghost.extra_cull_margin = maxf(float(layout["width"]), float(layout["height"]))
+		_attach(_ghost, Vector3(float(block.get("x", 0.0)), 0.0, float(block.get("z", 0.0))))
+	if _ghost == null:
+		return
+	_ghost.visible = true
+	_ghost_material.set_shader_parameter("u_tint", GHOST_OK if bool(block.get("ok", false)) else GHOST_NO)
+	_place(_ghost, Vector3(float(block.get("x", 0.0)), 0.0, float(block.get("z", 0.0))))
+
+
+## Whether the build's silhouette is drawn right now, and where.
+func ghost_status() -> Dictionary:
+	if _ghost == null or not _ghost.visible:
+		return {}
+	return {"x": _ghost.position.x, "z": _ghost.position.z, "key": _ghost_key}
 
 
 ## Alpha under this much of the card's picture is not the thing: the pointer

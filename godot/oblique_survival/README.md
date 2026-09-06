@@ -102,8 +102,9 @@ the pine behind it. A dropped item is its whole small card, and a forage piece
 a small circle round its foot. The hover is re-read when the mouse moves and,
 at most every 80 ms, while the camera moves under a still cursor. The frame
 owner hands the sim the one-shot inputs the viewer did not have:
-`click_entity`, `click_point`, `menu_select`, `equip`, `unequip`. Keyboard play
-is untouched.
+`click_entity`, `click_point`, `menu_select`, `equip`, `unequip`, `place_click`,
+`place_cancel`, and the held `place_point` (where the pointer is on the ground
+while a built thing is being placed). Keyboard play is untouched.
 
 **The HUD** (`hud/hud.gd`, `hud/craft_panel.gd`, `hud/death_screen.gd`,
 `hud/pause_menu.gd`, the shared `hud/ui_kit.gd`). The vitals stand top-left
@@ -124,10 +125,24 @@ pack; a tool still serves from the pack when no hand tool does, so a carried
 axe chops, and the hand says which axe wears first. A thing picked up **flies**
 from where it stood into the slot that took it — its icon along an arc in
 screen space, half a second, then the slot glows — while the world's truth is
-instant. The crafting table is a centred panel: a row per recipe with the
-product's icon, the ingredients as have/need chips (short ones in red), and
-where it is made; a click chooses a row, a double click or the Craft button
-makes it, W/S and Enter still work, × or Close or C or Escape closes it. Escape
+instant. The crafting table is a panel at the right edge of the window, so the
+world stays in view: a row per recipe with the product's icon, the ingredients
+as have/need chips (short ones in red), and where it is made; a click chooses a
+row, a double click or the Craft button makes it, W/S and Enter still work, ×
+or Close or C or Escape closes it; the list scrolls rather than reach down over
+the corner buttons. A made thing that is **worn** — a tool, a cloak, a pack —
+goes straight onto its place when that place is empty (`Made Flint axe, now in
+hand.`), and stays in the pack otherwise. A thing that is **built** — a fire, a
+bench — is not put down at once: making it closes the table and carries it to
+the pointer (`world.placing`) as a blended silhouette of the prop in the look
+its recipe names, tinted green where it can stand and red where it cannot (on
+land, clear of every footprint and the player's own, within the walk-to
+distance); a click sets it down there and spends the makings then, a click
+where it is red says why (`Too far to reach.`, `That is water.`, `No room
+there.`), and a right click or Escape lets the build go with nothing spent. The
+recipe's `product.state` is the look it is built in — Ember Hollow's campfire is
+built lit, and burns from the set-down as if it had just been lit — the prop's
+baseline when the author said nothing. Escape
 with nothing open (or P, or the Menu button) **pauses**: a dark sheet with
 Resume, How to play, Map, Begin again and Quit, and the how-to-play page holds
 the key legend the HUD used to print top-right, written out. The death sheet

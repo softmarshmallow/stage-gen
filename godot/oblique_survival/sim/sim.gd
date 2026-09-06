@@ -51,6 +51,10 @@ const ONE_SHOT_INPUT := {
 	# The equipment's two: the chosen slot worn, a worn kind taken off.
 	"equip": false,
 	"unequip": null,
+	# Placing a built thing: set it down where the silhouette stands, or let
+	# it go and keep the makings.
+	"place_click": false,
+	"place_cancel": false,
 }
 
 static var _scripts: Dictionary = {}

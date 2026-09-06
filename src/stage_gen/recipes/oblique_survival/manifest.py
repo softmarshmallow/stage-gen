@@ -542,11 +542,12 @@ class CraftingStationBlock(TypedDict):
 
 
 class CraftingProductBlock(TypedDict):
-    """An item with a count, or a placed prop; never both."""
+    """An item with a count, or a prop to build in a named look; never both."""
 
     item_id: NotRequired[str]
     count: NotRequired[int]
     prop_id: NotRequired[str | None]
+    state: NotRequired[str | None]
 
 
 class CraftingRecipeBlock(TypedDict):
@@ -1884,7 +1885,7 @@ def _crafting_block(package: Package) -> CraftingBlock:
                 "product": (
                     {"item_id": recipe.product_item[0], "count": recipe.product_item[1]}
                     if recipe.product_item is not None
-                    else {"prop_id": recipe.product_prop}
+                    else {"prop_id": recipe.product_prop, "state": recipe.product_state}
                 ),
             }
             for recipe in crafting.recipes

@@ -190,6 +190,14 @@ static func help_sections() -> Array:
 			+ "the body keeps the cold off, a pack on the back carries more. Use a tool, a cloak or a "
 			+ "pack to wear it; click the worn thing to take it off.") % [
 				UiKit.kbd("hand"), UiKit.kbd("body"), UiKit.kbd("back")]],
+		["Crafting",
+			("%s opens the table at the side of the screen: a row per recipe with what it costs "
+			+ "and where it is made; click a row, then double-click or %s makes it. A made tool "
+			+ "goes straight into an empty hand, a cloak onto the body, a pack onto the back. A "
+			+ "thing that is built — a fire, a bench — comes to the pointer as a green shadow: "
+			+ "click to set it down where it is green (red will not take it: water, no room, too "
+			+ "far), right-click to keep the makings. A fire is built lit.") % [
+				UiKit.kbd("C"), UiKit.kbd("Enter")]],
 		["Keys",
 			("%s / arrows move · %s %s turn · %s interact · %s light a fire · %s–%s select · "
 			% [UiKit.kbd("WASD"), UiKit.kbd("Q"), UiKit.kbd("E"), UiKit.kbd("Space"), UiKit.kbd("F"),

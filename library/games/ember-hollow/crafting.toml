@@ -7,13 +7,19 @@
 # inventory, from a prop's yield, from the forage sheet, or from a recipe
 # whose own ingredients are reachable and whose station can exist.
 #
-# A recipe has exactly one product: an item (with a count) or a prop, which
-# is placed in the world in front of the player in its baseline look. A
-# station is a prop the player must stand near, in a given look if one is
-# named; "hand" needs nothing.
+# A recipe has exactly one product: an item (with a count) or a prop to
+# build. A built prop is placed by the player: the consumer carries it to the
+# pointer as a tinted silhouette (green where it can stand, red where it
+# cannot) and a click sets it down, spending the makings then; `state` is the
+# look it is built in (a campfire is built lit), the prop's baseline look when
+# unsaid. An item that is worn (a tool, a cloak, a pack) goes straight onto
+# an empty hand, body or back when made. A station is a prop the player must
+# stand near, in a given look if one is named; "hand" needs nothing.
+# (crafting-v2, 2026-09-06: v1 placed a built prop in front of the player at
+# once, in its baseline look, and had no `state`.)
 
 schema_version = 1
-kind = "oblique-survival-crafting-v1"
+kind = "oblique-survival-crafting-v2"
 package_id = "ember-hollow"
 
 [inventory]
@@ -59,7 +65,8 @@ station = "hand"
 [[recipes]]
 recipe_id = "campfire"
 ingredients = { log = 2, grass_tuft = 3 }
-product = { prop_id = "campfire" }
+# Built lit: the maker has the makings in hand and the fire is the point.
+product = { prop_id = "campfire", state = "lit" }
 station = "hand"
 
 [[recipes]]

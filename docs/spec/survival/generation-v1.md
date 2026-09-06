@@ -75,7 +75,7 @@ a `game.toml` closure.
 | `props.toml` | `oblique-survival-props-v2` | every prop, its states, what can be done to it as `[[props.interactions]]` in priority order (each `from` the states it applies to, with its verb and yield), its sheet or variants, and its per-look season overrides |
 | `ground.toml` | `oblique-survival-ground-v1` | the biome plates, the macro field, the road, the water, the litter, forage and plant sheets, the decals, and the `[blend]` mixing the consumer reads — see [ground](ground.md) |
 | `items.toml` | `oblique-survival-items-v1` | every item, its pickup brief and its use or tool, and the `[icons]` sheet — see [crafting](crafting.md) |
-| `crafting.toml` | `oblique-survival-crafting-v1` | the pack, the start, the stations and the recipes — see [crafting](crafting.md) |
+| `crafting.toml` | `oblique-survival-crafting-v2` | the pack, the start, the stations and the recipes; a built prop names the look it is built in and is placed by the player — see [crafting](crafting.md) |
 | `seasons.toml` | `oblique-survival-seasons-v1` | the calendar and what each season holds — see [seasons](seasons.md) |
 | `weather.toml` | `oblique-survival-weather-v1` | the world conditions and the layers each one drives |
 | `music.toml` | — | one instrumental loop per clock cue, and the `[transition]` between them |
