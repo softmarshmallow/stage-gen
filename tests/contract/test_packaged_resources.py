@@ -220,7 +220,12 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # test modules, the cache-key golden and four specification pages are 1,046,465 B
         # of text and measured 8,892,585 against the previous 8,000,000 line; the ceiling
         # is 9,000,000. library/ and godot/ contribute nothing to the archive.
-        assert sum(sdist_entries.values()) < 9_200_000
+        # The Godot promotion (2026-09-07): decisions 0061 and 0062, the host
+        # contract, the promotion plan and the new Python contract tests are about
+        # 46 KiB of text and measured 9,207,769 against the 9,200,000 line; the
+        # ceiling is 9,300,000. Nothing else grew — the project the promotion moves
+        # is under godot/, which the archive does not carry.
+        assert sum(sdist_entries.values()) < 9_300_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)
