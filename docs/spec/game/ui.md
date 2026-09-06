@@ -6,25 +6,30 @@
 sibling of `gameplay.toml`: UI owns appearance, while gameplay owns inventory capacity, contents,
 pickup/use rules, input, and visibility state.
 
-The exact current identity is `game-ui-v4`. The V4 contract contains four generated roles: the
+The exact current identity is `game-ui-v5`. The V5 contract contains five generated roles: the
 fixed-layout `inventory_panel`; two nine-slice atlas roles, `panel_frame` and `button_rect`, which
-are the executable slice of the [game UI atlas taxonomy](ui-atlas.md); and the fixed-vocabulary
-`preview_icons` grid. Every role names a layout identity, an alpha policy, its references, and one
-prompt; no role authors geometry, and the icon role does not author its glyphs either.
+are the executable slice of the [game UI atlas taxonomy](ui-atlas.md); the fixed-vocabulary
+`preview_icons` grid; and the fixed-vocabulary `cursor_set`, a pointer grid whose every glyph
+carries a measured hotspot. Every role names a layout identity, an alpha policy, its references,
+and one prompt; no role authors geometry, and the two glyph roles do not author their glyphs
+either.
 
 The two atlas roles and the icon set are required of any game that has a UI document at all,
-because every genre draws panels, buttons and a few system icons. The inventory panel is optional,
-because it is one genre's fixed eight-slot furniture: a visual novel or a puzzle room that declared it would be describing a
-screen it never draws. A recipe whose runtime needs the panel refuses a document without one at
-resolve time, which is where a runtime requirement belongs.
+because every genre draws panels, buttons and a few system icons. The inventory panel and the
+cursor set are optional. The panel is one genre's fixed eight-slot furniture, and the cursors
+belong to a runtime that owns a mouse pointer: a visual novel or a puzzle room that declared
+either would be describing a screen it never draws. A recipe whose runtime needs one refuses a
+document without it at resolve time, which is where a runtime requirement belongs, and the
+mirror holds — the three browser-hosted recipes refuse a document that declares a `cursor_set`,
+because the browser draws their pointer and the sheet would be billed and never shown.
 
 `game_id` names the package the document belongs to, in whichever shape that package names
 itself: game contracts are kebab-case and rooms are snake_case, and the one document shared by
 both must be able to say which package it belongs to without renaming either.
 
 ```toml
-schema_version = 4
-kind = "game-ui-v4"
+schema_version = 5
+kind = "game-ui-v5"
 game_id = "bellweather"
 revision = 4
 
@@ -238,6 +243,61 @@ bounds, for a consumer that wants to centre a glyph optically or measure it. An 
 `button_rect` with a glyph composed onto it at runtime, exactly as the taxonomy says; the icon
 sheet publishes no button.
 
+## Cursor set
+
+`cursor_set` is the taxonomy's `cursor` family as one fixed vocabulary, built exactly like the
+preview icons and for the same reason: an image model draws a named pointer arrow, a pointing
+hand or an hourglass dependably and a bespoke pointer not, so the glyphs, their order, the grid
+and the hotspot rule per glyph belong to the layout, and the authored `prompt` is style direction
+alone. It is optional because it belongs to a runtime that owns a mouse pointer; today that is the
+survival game's Godot host, and the three browser-hosted recipes refuse a document that declares
+it.
+
+`cursor_grid_3x3_1024_v1` is one 1024 by 1024 canvas holding nine 288-pixel guide cells on a
+48-pixel gutter inside a 32-pixel margin, in reading order, each with the rule its hotspot is
+measured by:
+
+| 1 `arrow` — tip, top left | 2 `hand` — fingertip, top | 3 `grab` — centre |
+| --- | --- | --- |
+| 4 `crosshair` — centre | 5 `inspect` — centre | 6 `busy` — centre |
+| 7 `forbidden` — centre | 8 `move` — centre | 9 `text` — centre |
+
+The grid fills its canvas, and that is not a taste: the first cut was eight cells as a small
+island inside a 284-pixel margin on a 3:2 canvas, and on every one of six draws the model laid the
+pointers out on a grid of its own across the whole canvas — drawn well, registered nowhere, and
+refused by the gate each time. A template is honoured when its grid is the canvas, as the icon
+grid's is; the ninth cell is the text I-beam, the one remaining pointer every desktop knows.
+
+The template, the alpha contract (`transparent_exterior_opaque_glyph_v1`), the registration gate
+and the canonicalization are the icon grid's, on the wider canvas. The prompt states every pointer
+by name and description in order — where its pointing part goes included, because the hotspot rule
+assumes it — then the style direction, then the icon geometry rule.
+
+### Hotspot
+
+The hotspot is measured on the alpha the model actually drew, never declared and never read off
+the template. `tip_top_left` is the leftmost opaque pixel of the glyph's topmost opaque row, a
+pointer arrow's tip; `tip_top` is the middle of that row's opaque run, a raised finger's tip;
+`centre` is the centre of the glyph's detected bounds. Each is published in sheet pixels relative
+to its cell's origin. Whether the arrow reads as an arrow and points where its rule assumes is the
+review's question: the evidence draws every cell at 64 and 32 screen pixels beside its name and
+rule with the measured hotspot marked as a red cross, and the judge lists each miss as
+`cell <n> <name>: <what it shows instead>` under a `hotspot_placement` check beside the icon
+grid's identity, set, plate-free and text-free checks.
+
+### Cursor manifest projection
+
+```text
+role, layout, scale_mode = "fixed", alpha_policy, draw_scale, canvas {width, height},
+cell_size, cells[ {glyph, cell {x, y, width, height}, glyph_rect {...}, hotspot_rule, hotspot {x, y}} ],
+asset
+```
+
+A consumer cuts the published `cell`, scales it to its pointer size, and scales `hotspot` by the
+same factor, so the pointer's active pixel stays on the arrow's tip at any size. The block is the
+icon grid's with the hotspot on every cell, and a typed `CursorSetLayout` validates it beside the
+other two families.
+
 ## Pipeline and consumer contract
 
 The UI branch is independent after package resolution:
@@ -247,7 +307,7 @@ game.toml -> ui.toml + references
                     |
         +-----------+-----------------------------+
         v                                         v
-inventory-panel generate (image)     ui-{role} generate (image), role in {panel_frame, button_rect, preview_icons}
+inventory-panel generate (image)     ui-{role} generate (image), role in {panel_frame, button_rect, preview_icons, cursor_set?}
         |                                         |
         v                                         v
 layout/alpha validate (local)        admit the sheet, normalize alpha (local)
@@ -256,14 +316,17 @@ layout/alpha validate (local)        admit the sheet, normalize alpha (local)
 inventory-panel review (structured)  ui-{role} review (structured)
         |                                         |
         v                                         v
-manifest ui.inventory_panel          manifest ui.panel_frame, ui.button_rect, ui.preview_icons
+manifest ui.inventory_panel          manifest ui.panel_frame, ui.button_rect, ui.preview_icons, ui.cursor_set?
 ```
 
 The sheet triplet is one generic typed node set fanned out over the role parameter; adding a role
 is a fan-out change, not a new node type. The icon grid is the proof: a second sheet family joined
 without a new type, because a role names its family and the family supplies the template, the
 gate, the evidence and the review question, while ids, ports, cache identity and the manifest
-binding are one code path. It belongs to no genre, so it lives beside the contract
+binding are one code path. The cursor set is the third family, and the first optional sheet role:
+every host fans the triplet out over `document_roles(ui)` — the three required roles, then the
+optional ones the document declares — so a declared role is never silently left undrawn and an
+undeclared one is never billed. It belongs to no genre, so it lives beside the contract
 it serves rather than inside a recipe: the types carry the component's own taxonomy path
 (`2d/ui/atlas.generate` / `.validate` / `.review`), and every recipe that wants panels and buttons
 plans the same three nodes. A host supplies only what it alone knows — its authored `ui` document,
@@ -274,15 +337,15 @@ The prompt is composed at plan time and carried on the node card, so a reader se
 instruction the provider will be given without running anything, and a recipe that gates on full
 static prompts admits these nodes like any other.
 
-Five consumers draw from the three sheets today:
+Five consumers draw from the sheets today:
 
-| Game | `panel_frame` | `button_rect` | `preview_icons` |
-| --- | --- | --- | --- |
-| Bellweather, side-view platformer | defeat panel, NPC conversation box | return button | `home` on the return button |
-| Larkfield, visual novel | dialogue box, end card | choice list, play-again control | `retry` as the end card's icon-only button |
-| The Clockmaker's Attic, point-and-click | HUD bar, narration plate, win card | verb bar | `hand` and `search` on the Act and Look verbs |
-| Ember Hollow, oblique survival (Godot host) | every panel: vitals, hotbar, worn places, item card, message, crafting table, pause menu, death sheet | every button, the four states as the theme's styleboxes | not yet read; the pack's glyphs are its own icon sheet |
-| Iron Petal Unit, runner | not yet wired | not yet wired | not yet wired |
+| Game | `panel_frame` | `button_rect` | `preview_icons` | `cursor_set` |
+| --- | --- | --- | --- | --- |
+| Bellweather, side-view platformer | defeat panel, NPC conversation box | return button | `home` on the return button | not declared; the browser's pointer |
+| Larkfield, visual novel | dialogue box, end card | choice list, play-again control | `retry` as the end card's icon-only button | not declared; the browser's pointer |
+| The Clockmaker's Attic, point-and-click | HUD bar, narration plate, win card | verb bar | `hand` and `search` on the Act and Look verbs | not declared; the browser's pointer |
+| Ember Hollow, oblique survival (Godot host) | every panel: vitals, hotbar, worn places, item card, message, crafting table, pause menu, death sheet | every button, the four states as the theme's styleboxes | not yet read; the pack's glyphs are its own icon sheet | the mouse pointer: `arrow`, `hand` over a thing that can be acted on, `crosshair` while a built thing is placed, and the rest installed for the shapes they stand for |
+| Iron Petal Unit, runner | not yet wired | not yet wired | not yet wired | not declared |
 
 The survival host is the one consumer outside `web/`: it reads the same `ui`
 block off its run manifest, downsamples each sheet by `draw_scale` at load and
@@ -290,7 +353,10 @@ slices it with Godot's own nine-patch stylebox under the published insets and
 band fill (`godot/oblique_survival/hud/ui_kit.gd`). It draws no `inventory_panel`
 — its pack is not eight slots — and paints its slot wells from code inside the
 generated frame until a panel-plus-slot composition replaces the drawn panel
-([TODO](../../../TODO.md), "Game UI").
+([TODO](../../../TODO.md), "Game UI"). Its pointer is the `cursor_set`: each cell
+is cut and scaled to the HUD's pointer size, the published hotspot scaled with
+it, and handed to Godot as the cursor shape the glyph stands for, re-cut when
+the window's scale changes; a run without the set keeps the system pointer.
 
 The prepared asset explorer lists all four platformer artifacts in its UI group. The prepared web
 scene loads the inventory panel into the existing `InventoryHud`; every other surface above is drawn
@@ -308,7 +374,9 @@ interaction.
 
 Meters, slots, chips, declared icon families, and every other role in the
 [atlas taxonomy](ui-atlas.md) are a new identity and a dropped run set, never optional fields on
-the roles above. The preview icon set is the first thing that rule will retire: when a game needs
-a glyph the grid does not hold, the answer is a declared family under a new identity, not a
-seventeenth cell. `ui.toml` continues to
+the roles above. `game-ui-v5` is that rule applied: the cursor set joined as a new role under a
+new identity, and every document in the library moved with it. The preview icon set is the first
+thing the rule will retire: when a game needs a glyph the grid does not hold, the answer is a
+declared family under a new identity, not a seventeenth cell; the cursor set is a fixed vocabulary
+for the same reason and will go the same way. `ui.toml` continues to
 describe presentation only; `gameplay.toml` owns inventory semantics.

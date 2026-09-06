@@ -16,7 +16,7 @@ from stage_gen.components.game_ui.inventory_nodes import (
     InventoryNodeTypes,
     add_inventory_panel_nodes,
 )
-from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes
+from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes, document_roles
 from stage_gen.components.painted_terrain import (
     PaintedTerrainGround,
     PaintedTerrainLayout,
@@ -1285,6 +1285,7 @@ def _add_ui_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             ui=builder.package.ui,
             style_prompt=lambda task: visual_prompt(builder.package, task),
             direction_digests=(_visual_direction_digest(builder.package),),
+            roles=document_roles(builder.package.ui),
         ),
     ]
 

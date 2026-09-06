@@ -10,8 +10,8 @@
 # This scene holds its art direction as pixels rather than adjectives, so the roles
 # bind the same style plate every actor and backdrop is drawn against.
 
-schema_version = 4
-kind = "game-ui-v4"
+schema_version = 5
+kind = "game-ui-v5"
 game_id = "larkfield"
 revision = 2
 

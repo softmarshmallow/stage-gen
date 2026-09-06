@@ -23,7 +23,7 @@ from typing import Final, Literal
 from pydantic import BaseModel, Field
 
 from gnode import Binding, BindingTable, GraphBuilder, ModelRef, Node, NodeCard, NodeType, Port
-from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes
+from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes, document_roles
 from stage_gen.config import StageGenConfig
 from stage_gen.recipes.graph_document import RecipeGraph
 from stage_gen.recipes.oblique_survival import manifest as manifest_module
@@ -1931,6 +1931,9 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
             # the role's direction and the reference it names, and this is the
             # rest of what reaches the provider.
             direction_digests=[text_digest(prompts.ui_atlas_prompt(package, "")), *style_digests],
+            # The three roles every document carries, and the cursor set when this
+            # one declares it: the host owns a mouse pointer, so it may.
+            roles=document_roles(package.ui),
         )
 
     # --- close

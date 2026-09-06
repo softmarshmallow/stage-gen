@@ -79,7 +79,7 @@ a `game.toml` closure.
 | `seasons.toml` | `oblique-survival-seasons-v1` | the calendar and what each season holds — see [seasons](seasons.md) |
 | `weather.toml` | `oblique-survival-weather-v1` | the world conditions and the layers each one drives |
 | `music.toml` | — | one instrumental loop per clock cue, and the `[transition]` between them |
-| `ui.toml` | `game-ui-v4` | optional: the screen-fixed interface — the `panel_frame` and `button_rect` nine-slice sheets and the `preview_icons` grid the host's HUD is dressed in — the shared [authored game UI contract](../game/ui.md), planned through the game_ui component's own triplet; no `inventory_panel`, the host draws its slots as plain wells inside the generated frame |
+| `ui.toml` | `game-ui-v5` | optional: the screen-fixed interface — the `panel_frame` and `button_rect` nine-slice sheets and the `preview_icons` grid the host's HUD is dressed in, and the `cursor_set` it is played with, each pointer with the hotspot the gate measured — the shared [authored game UI contract](../game/ui.md), planned through the game_ui component's own triplet; no `inventory_panel`, the host draws its slots as plain wells inside the generated frame |
 | `sounds.toml` | — | one clip per thing the player does, with its exact duration and its playback gain |
 
 `publication_authorized` is `false` in every graph this recipe seals and in
@@ -146,9 +146,9 @@ instead of paying twice.
 | Scope | Nodes | Image | Structured | Tool loop | Music | Sound | Local |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | `minimal` | 71 | 22 | 0 | 6 | 0 | 0 | 43 |
-| `props` | 194 | 76 | 6 | 12 | 0 | 0 | 100 |
-| `actors` | 244 | 97 | 11 | 12 | 0 | 0 | 124 |
-| **`full`** | **286** | **104** | **12** | **12** | **0** | **3** | **155** |
+| `props` | 197 | 77 | 7 | 12 | 0 | 0 | 101 |
+| `actors` | 247 | 98 | 12 | 12 | 0 | 0 | 125 |
+| **`full`** | **289** | **105** | **13** | **12** | **0** | **3** | **156** |
 
 Counted from the committed fixture package with every plate, track and clip take
 adopted; the music count is zero for that reason. The `full` row is the block
@@ -158,7 +158,7 @@ below, and both are derived rather than transcribed.
 state, the state its interaction leaves behind (a chopped tree is a stump, and
 without the stump the tree would simply vanish), the items those interactions
 yield, and the items the forage sheet lets the player pick up. Everything else
-waits for `props`, the interface included: the three `ui.toml` sheets are drawn
+waits for `props`, the interface included: the four `ui.toml` sheets are drawn
 from `props` up, because the frame around the screen is part of the rest of
 what is on screen and nothing about it bears on the oblique clause `minimal`
 exists to prove.
@@ -173,9 +173,10 @@ then per-state motion strips per facing, gated, repacked and rebased against a
 judging plate; the flame-cycle paintover and the dust sheet; the weather layers;
 the season looks, one paintover per prop state; one contact sheet and one
 semantic review per family; the interface sheets, the shared game_ui triplet
-(generate, pixel gate, review) over the panel frame, the button state sheet and
-the preview icon grid, each hanging off the source lock and wrapped in this
-package's own style words with the style plate as reference image 1; the
+(generate, pixel gate, review) over the panel frame, the button state sheet, the
+preview icon grid and the cursor set, each hanging off the source lock and
+wrapped in this package's own style words with the style plate as reference
+image 1; the
 algorithmic world layout; the manifest.
 
 **One image route, not two.** The engine's binding table declares at most one
@@ -266,10 +267,12 @@ A run publishes `oblique-survival-manifest-v1` at `manifest.json`, beside the
 
 `ui` is the shared block every consumer of the game_ui component reads — one
 `ui.<role>` entry per sheet with the geometry the gate detected (cells, insets,
-content and safe rects, band fill, draw scale) and the sheet's `asset` — and it
-is `null` for a package that authors no `ui.toml`; `status.ui` says `none` then,
-and `missing` when the scope drew no sheets. The host dresses every panel and
-button from it and falls back to plain boxes when it is null.
+content and safe rects, band fill, draw scale; for the cursor set, a measured
+hotspot per glyph) and the sheet's `asset` — and it is `null` for a package
+that authors no `ui.toml`; `status.ui` says `none` then, and `missing` when the
+scope drew no sheets. The host dresses every panel and button from it, installs
+its pointers from `ui.cursor_set`, and falls back to plain boxes under the
+system pointer when it is null.
 
 Three of them carry the rules a consumer must not invent for itself.
 `ground_contact` is the authored seam between a billboard and the ground: the
@@ -343,13 +346,13 @@ invalidates it and must be regenerated in the same change.
   "fixture_ref": "library/games/ember-hollow",
   "scope": "full",
   "graph_schema_version": 1,
-  "topology_sha256": "eb1bb79206bdf286e5839ddb441cb4d5481f40435ccbe0c890e431a3a0447c97",
-  "node_count": 286,
+  "topology_sha256": "2d666274bcc47c58cb05c13011bd02af33da2b7a6b01c68f264a5c43a9726f70",
+  "node_count": 289,
   "terminal_node_id": "package-manifest",
   "operation_counts": {
-    "local": 155,
-    "image_generation": 104,
-    "structured_generation": 12,
+    "local": 156,
+    "image_generation": 105,
+    "structured_generation": 13,
     "tool_loop": 12,
     "music_generation": 0,
     "sound_effect_generation": 3

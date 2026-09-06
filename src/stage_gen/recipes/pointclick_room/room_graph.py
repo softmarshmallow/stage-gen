@@ -23,7 +23,7 @@ from gnode import (
     Port,
     PortRef,
 )
-from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes
+from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes, document_roles
 from stage_gen.recipes.graph_document import RecipeGraph
 from stage_gen.recipes.pointclick_room.room_prompts import (
     backdrop_prompt,
@@ -343,6 +343,7 @@ def build_pointclick_room_graph(
         ui=resolved.ui,
         style_prompt=lambda task: ui_atlas_prompt(room, task),
         direction_digests=(text_digest(style_clause(room)),),
+        roles=document_roles(resolved.ui),
         attempts_port=lambda node_id: attempts_port(node_id, ATTEMPT_LEDGER_KIND),
     )
 

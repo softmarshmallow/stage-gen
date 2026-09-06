@@ -40,7 +40,7 @@ not an identity but a cache key (C-R1); its evidence is the cache-key goldens.
 | `game-package-v4` | `authored` | `stage_gen.orchestration.game_package:GamePackageSelector.kind` |
 | `game-soundtrack-binding-v1` | `authored` | `stage_gen.components.game_soundtrack.models:GameSoundtrackBinding.kind` |
 | `game-soundtrack-v1` | `authored` | `stage_gen.components.game_soundtrack.models:GameSoundtrack.kind` |
-| `game-ui-v4` | `authored` | `stage_gen.components.game_ui.models:GameUi.kind` |
+| `game-ui-v5` | `authored` | `stage_gen.components.game_ui.models:GameUi.kind` |
 | `game-voices-v1` | `authored` | `stage_gen.components.game_voices.models:GameVoices.kind` |
 | `gameplay-contract-v1` | `authored` | `stage_gen.components.platformer_gameplay.models:GameplayContract.kind` |
 | `item-content-v2` | `authored` | `stage_gen.components.platformer_content.models:ItemContentCatalog.kind` |

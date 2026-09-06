@@ -1,5 +1,5 @@
-schema_version = 4
-kind = "game-ui-v4"
+schema_version = 5
+kind = "game-ui-v5"
 game_id = "bellweather"
 revision = 4
 

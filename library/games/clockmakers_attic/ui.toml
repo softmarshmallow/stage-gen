@@ -7,8 +7,8 @@
 # authors cell rectangles or insets, because the generator renders the template from
 # the declared geometry and publishes the geometry it actually detected beside the art.
 
-schema_version = 4
-kind = "game-ui-v4"
+schema_version = 5
+kind = "game-ui-v5"
 game_id = "clockmakers_attic"
 revision = 2
 

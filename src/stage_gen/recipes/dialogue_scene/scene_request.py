@@ -311,6 +311,12 @@ def resolve_dialogue_scene(document: object, *, root: Path) -> ResolvedDialogueS
     ui = load_game_ui_bytes(_read_ui_document(root))
     if ui.game_id != request.game_id:
         raise ValueError(f"scene {request.game_id} declares a UI contract for {ui.game_id}")
+    if ui.cursor_set is not None:
+        # Optional in the contract for a runtime that owns a mouse pointer; the scene leaves
+        # the pointer to the browser, so a declared set would be billed and never shown.
+        raise ValueError(
+            f"scene {request.game_id} declares a cursor_set the browser-hosted scene never draws"
+        )
     return ResolvedDialogueScene(
         request=request,
         request_bytes=request_bytes,

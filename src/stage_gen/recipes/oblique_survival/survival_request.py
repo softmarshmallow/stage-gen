@@ -119,8 +119,9 @@ from stage_gen.recipes.oblique_survival.models import (
 )
 
 SURVIVAL_DOCUMENT_NAME: Final = "survival.toml"
-#: The shared ``game-ui-v4`` document, optional like music.toml: the interface
-#: sheets the host's HUD is dressed in. Its contract is the game_ui component's.
+#: The shared ``game-ui-v5`` document, optional like music.toml: the interface
+#: sheets the host's HUD is dressed in, and the pointers it is played with. Its
+#: contract is the game_ui component's.
 UI_DOCUMENT_NAME: Final = "ui.toml"
 
 
@@ -377,7 +378,7 @@ def _ui(root: Path, digests: DigestLedger) -> tuple[GameUi, dict[str, PackageFil
     try:
         ui = load_game_ui_bytes(raw)
     except AuthoredContractLoadError as error:
-        raise SourceError(f"{UI_DOCUMENT_NAME} is not a game-ui-v4 document: {error}") from None
+        raise SourceError(f"{UI_DOCUMENT_NAME} is not a game-ui-v5 document: {error}") from None
     references: dict[str, PackageFile] = {}
     for reference in ui.references:
         field_name = f"{UI_DOCUMENT_NAME} references.{reference.reference_id}.source"

@@ -222,6 +222,14 @@ def _load_platformer_member(
         raise GamePackageValidationError(
             "invalid_game_ui_contract", "the platformer UI contract requires an inventory panel"
         )
+    if ui.cursor_set is not None:
+        # The mirror rule: the cursor set is optional for a runtime that owns a mouse
+        # pointer, and this one leaves the pointer to the browser, so a declared set would
+        # be billed and never shown.
+        raise GamePackageValidationError(
+            "invalid_game_ui_contract",
+            "the platformer UI contract must not declare a cursor_set the browser never draws",
+        )
     soundtrack = load_locked(
         capture.member(member.soundtrack.source),
         lambda data: load_game_soundtrack_bytes(data, source_suffix=".toml"),

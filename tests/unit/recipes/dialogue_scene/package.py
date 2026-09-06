@@ -340,8 +340,8 @@ def ui_toml(*, cover_sha256: str) -> str:
     """The scene's screen-fixed interface contract, drawn against the same plate."""
 
     return f"""\
-schema_version = 4
-kind = "game-ui-v4"
+schema_version = 5
+kind = "game-ui-v5"
 game_id = "seminar_hall"
 revision = 1
 

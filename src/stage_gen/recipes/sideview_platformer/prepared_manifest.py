@@ -17,7 +17,7 @@ from gnode import atomic_write_json
 from stage_gen.components.game_contract.package import PreparedScale
 from stage_gen.components.game_ui import inventory_panel_layout_contract
 from stage_gen.components.game_ui.nodes import (
-    DEFAULT_ATLAS_ROLES,
+    document_roles,
     ui_atlas_manifest_block,
 )
 from stage_gen.components.painted_terrain import (
@@ -617,6 +617,7 @@ def _ui_block(pub: _Publication) -> object:
             read_validation=pub.read,
             publish=pub.publish,
             publish_provenance=pub.publish_provenance,
+            roles=document_roles(pub.package.ui),
         )
     except ValueError as error:
         raise PreparedManifestError(str(error)) from error
@@ -1096,7 +1097,7 @@ def runtime_artifact_closure(
             for entry in package.projectiles.projectiles
         )
     closure.append(("ui/inventory_panel.png", "asset"))
-    for role in DEFAULT_ATLAS_ROLES:
+    for role in document_roles(package.ui):
         closure.append((f"ui/{role.role}.png", "asset"))
         closure.append((f"ui/{role.role}.validation.json", "provenance"))
     closure.extend(

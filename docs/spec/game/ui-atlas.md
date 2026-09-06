@@ -18,7 +18,7 @@
 ## Why a taxonomy first
 
 The repository generates exactly one interface asset, the `inventory_panel`
-of `game-ui-v4`. Every other interface element in the four consumers is drawn
+of `game-ui-v5`. Every other interface element in the four consumers is drawn
 from engine primitives with per-genre constants: the runner's readout and death
 card, the room's narration panel, verb buttons and slot frames, the visual
 novel's dialogue panel, speaker chip and choice buttons, and the platformer's
@@ -195,10 +195,10 @@ Packs are on-demand role lists assembled from the tiers, never new tiers.
   `hud-geometry.ts`: a nine-slice draw with stretch or tile bands, a state
   switch, a content rect. Genre HUDs keep deciding where a panel sits and what
   a press means.
-- A successor to `game-ui-v4` is a new identity and a dropped run set, not
+- A successor to `game-ui-v5` is a new identity and a dropped run set, not
   optional fields on the inventory role.
 
-## Executable slice v0 (promoted as `game-ui-v3`, since retired by `game-ui-v4`)
+## Executable slice v0 (promoted as the third UI identity, since retired)
 
 The first slice is intentionally two roles, because those two exercise every
 hard part of the contract: insets, content rect, state consistency, and the
@@ -210,7 +210,7 @@ text-free rule.
 | `button_rect` | `nine_slice` | normal, hover, pressed, disabled | can it hold one silhouette across states and move only value and hue |
 
 The slice was proven in an untracked spike (two mediums, two takes, sixteen
-cells) and promoted on 2026-09-02 as the `game-ui-v3` contract, since retired by `game-ui-v4`,
+cells) and promoted on 2026-09-02 as the third UI identity, since retired twice over,
 in [ui.md](ui.md). Three facts the spike settled travelled into the gate:
 `band_fill` is *admitted per sheet* rather than authored (a flat medium
 stretches, a painterly one tiles, and neither is a prompt failure); cells are
@@ -221,7 +221,7 @@ twice the guide, with every state measured under the sheet's widest insets.
 Meters, slots and every other role wait for their own promotion; nothing in
 the contract reserves fields for them.
 
-`game-ui-v4` added one deliberately narrow icon role ahead of the icon
+The fourth identity added one deliberately narrow icon role ahead of the icon
 families above: `preview_icons`, a fixed sixteen-glyph grid (`generated`,
 `baked_color`, one size) whose vocabulary belongs to the layout and whose
 authored prompt is style direction only. It exists because a model draws named
@@ -229,6 +229,14 @@ well-known symbols dependably and bespoke ones not, so a restyle-only set is
 the cheapest useful first icon sheet. It is named `preview` to say it will be
 rewritten as declared families — a new identity — once the games generated
 here need more than these sixteen; see [ui.md](ui.md).
+
+`game-ui-v5` promoted the `cursor` family the same way: `cursor_set`, a fixed
+nine-pointer grid (arrow, hand, grab, crosshair, inspect, busy, forbidden,
+move, text) whose vocabulary belongs to the layout and whose one addition over the
+icon grid is a measured hotspot per glyph, read from the drawn alpha by a rule
+the glyph names. It is the first optional sheet role, because a pointer belongs
+to a runtime that owns one — the survival game's Godot host — and the
+browser-hosted recipes refuse a document that declares it; see [ui.md](ui.md).
 
 ### Unratified: more glyphs for the same image
 

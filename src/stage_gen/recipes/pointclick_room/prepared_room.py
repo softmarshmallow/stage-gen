@@ -38,6 +38,7 @@ from stage_gen.components.game_ui.nodes import (
     UI_ATLAS_VALIDATE,
     UiAtlasHandlers,
     UiAtlasHost,
+    document_roles,
     ui_atlas_manifest_block,
 )
 from stage_gen.identity import STAGE_GEN_TOOL
@@ -388,6 +389,7 @@ class PointClickRoomNodeHandler(RecipeNodeHandler):
             read_validation=self._read,
             publish=publish_ui,
             publish_provenance=artifacts.append,
+            roles=document_roles(self._resolved.ui),
         )
         digests = {ref: content_sha256(self._read(ref)) for ref in artifacts}
         manifest = {

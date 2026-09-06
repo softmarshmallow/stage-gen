@@ -1224,9 +1224,10 @@ class Package:
     #: The takes this package declares by digest whose bytes are not on disk.
     #: Empty for a package that carries all of its own media.
     missing_takes: tuple[MissingTake, ...] = ()
-    #: ui.toml, the shared ``game-ui-v4`` document: the nine-slice panel and
-    #: button sheets and the preview icon grid the host's HUD is dressed in.
-    #: Optional like music: no ui.toml, and the host draws its plain boxes.
+    #: ui.toml, the shared ``game-ui-v5`` document: the nine-slice panel and
+    #: button sheets and the preview icon grid the host's HUD is dressed in, and
+    #: the cursor set it is played with. Optional like music: no ui.toml, and the
+    #: host draws its plain boxes under the system pointer.
     ui: GameUi | None = None
     #: The bytes behind each ui.toml reference, by its declared source path.
     ui_references: Mapping[str, PackageFile] = field(default_factory=dict)

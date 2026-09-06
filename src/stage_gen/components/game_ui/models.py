@@ -22,9 +22,10 @@ from stage_gen.components.game_ui.atlas import (
     BUTTON_RECT_LAYOUT,
     PANEL_FRAME_LAYOUT,
 )
+from stage_gen.components.game_ui.cursors import CURSOR_ALPHA_POLICY, CURSOR_SET_LAYOUT
 from stage_gen.components.game_ui.icons import ICON_ALPHA_POLICY, PREVIEW_ICONS_LAYOUT
 
-GAME_UI_SCHEMA_VERSION = 4
+GAME_UI_SCHEMA_VERSION = 5
 
 INVENTORY_PANEL_LAYOUT = "inventory_grid_4x2_v1"
 INVENTORY_PANEL_ALPHA_POLICY = "transparent_exterior_opaque_panel_v1"
@@ -139,13 +140,42 @@ class IconSetDirection(PersistedContractModel):
         return normalized_text(value, "preview_icons.prompt", multiline=True)
 
 
+class CursorSetDirection(PersistedContractModel):
+    """Presentation inputs for the fixed cursor set.
+
+    Like the icon set, the pointers, their order, the grid and the hotspot rule per pointer
+    are the layout's; the prompt is style direction only. Declared by a game whose runtime
+    owns a mouse pointer, and by no other: a touch game or one that leaves the pointer to
+    the browser would be authoring a picture it never draws.
+    """
+
+    layout: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    alpha_policy: Literal["transparent_exterior_opaque_glyph_v1"]
+    reference_ids: list[str] = Field(min_length=1, max_length=16)
+    prompt: str
+
+    @field_validator("reference_ids")
+    @classmethod
+    def validate_reference_ids(cls, value: list[str]) -> list[str]:
+        unique_values(value, "cursor_set.reference_ids")
+        return value
+
+    @field_validator("prompt")
+    @classmethod
+    def validate_prompt(cls, value: str) -> str:
+        return normalized_text(value, "cursor_set.prompt", multiline=True)
+
+
 ATLAS_ROLE_LAYOUTS: dict[str, str] = {
     "panel_frame": PANEL_FRAME_LAYOUT,
     "button_rect": BUTTON_RECT_LAYOUT,
 }
 
-#: Every sheet role the document declares, with the layout each is pinned to.
+#: Every sheet role a document must declare, with the layout each is pinned to.
 UI_SHEET_LAYOUTS: dict[str, str] = {**ATLAS_ROLE_LAYOUTS, "preview_icons": PREVIEW_ICONS_LAYOUT}
+
+#: The sheet roles a document may declare, with the layout each is pinned to.
+OPTIONAL_SHEET_LAYOUTS: dict[str, str] = {"cursor_set": CURSOR_SET_LAYOUT}
 
 
 class GameUi(PersistedContractModel):
@@ -153,14 +183,15 @@ class GameUi(PersistedContractModel):
 
     Every genre draws panels, buttons and a handful of system icons, so the two atlas
     roles and the preview icon set are required of any game that has a UI document at
-    all. The inventory panel is not: it is one genre's fixed eight-slot furniture, and a
-    visual novel or a puzzle room that declares it would be authoring a screen it never
-    draws. A recipe whose runtime needs the panel refuses a document without one at
+    all. The inventory panel and the cursor set are not: the panel is one genre's fixed
+    eight-slot furniture, and the cursors belong to a runtime that owns a mouse pointer;
+    a visual novel or a puzzle room that declared either would be authoring a screen it
+    never draws. A recipe whose runtime needs one refuses a document without it at
     resolve time, where the requirement belongs.
     """
 
-    schema_version: Literal[4]
-    kind: Literal["game-ui-v4"]
+    schema_version: Literal[5]
+    kind: Literal["game-ui-v5"]
     game_id: str = Field(pattern=PACKAGE_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     references: list[UiReference] = Field(min_length=1, max_length=32)
@@ -168,6 +199,7 @@ class GameUi(PersistedContractModel):
     panel_frame: AtlasRoleDirection
     button_rect: AtlasRoleDirection
     preview_icons: IconSetDirection
+    cursor_set: CursorSetDirection | None = None
 
     def required_inventory_panel(self) -> InventoryPanelDirection:
         """The panel, for a recipe whose runtime draws it and cannot proceed without it."""
@@ -191,6 +223,14 @@ class GameUi(PersistedContractModel):
             )
         if self.preview_icons.alpha_policy != ICON_ALPHA_POLICY:
             raise ValueError(f"preview_icons.alpha_policy must be {ICON_ALPHA_POLICY!r}")
+        if self.cursor_set is not None:
+            if self.cursor_set.layout != CURSOR_SET_LAYOUT:
+                raise ValueError(
+                    f"cursor_set.layout must be {CURSOR_SET_LAYOUT!r}, "
+                    f"got {self.cursor_set.layout!r}"
+                )
+            if self.cursor_set.alpha_policy != CURSOR_ALPHA_POLICY:
+                raise ValueError(f"cursor_set.alpha_policy must be {CURSOR_ALPHA_POLICY!r}")
         return self
 
     @model_validator(mode="after")
@@ -199,7 +239,7 @@ class GameUi(PersistedContractModel):
         unique_values((entry.source for entry in self.references), "UI reference source")
         declared = {entry.reference_id for entry in self.references}
         selected: set[str] = set()
-        for role in ("inventory_panel", *UI_SHEET_LAYOUTS):
+        for role in ("inventory_panel", *UI_SHEET_LAYOUTS, *OPTIONAL_SHEET_LAYOUTS):
             direction = getattr(self, role)
             if direction is None:
                 continue
@@ -264,8 +304,10 @@ __all__ = [
     "INVENTORY_SLOT_ROWS",
     "INVENTORY_SLOT_SIZE",
     "INVENTORY_SLOT_TOP",
+    "OPTIONAL_SHEET_LAYOUTS",
     "UI_SHEET_LAYOUTS",
     "AtlasRoleDirection",
+    "CursorSetDirection",
     "GameUi",
     "IconSetDirection",
     "InventoryPanelDirection",

@@ -13,9 +13,15 @@
 # this game's pack is twelve slots plus a worn pack's more; the host draws its
 # slots as plain dark wells inside the generated frame until a panel-plus-slot
 # composition replaces the drawn panel (TODO.md, "Game UI").
+#
+# There is a cursor_set, because this game is played with the mouse and the
+# Godot host owns the pointer: the arrow, the hand it shows over a thing it can
+# act on, the cross it shows while a built thing is being placed, and the rest
+# of the nine-pointer vocabulary, each with the hotspot the gate measured on the
+# glyph.
 
-schema_version = 4
-kind = "game-ui-v4"
+schema_version = 5
+kind = "game-ui-v5"
 game_id = "ember-hollow"
 revision = 1
 
@@ -54,3 +60,11 @@ layout = "icon_grid_4x4_1024_preview_v1"
 alpha_policy = "transparent_exterior_opaque_glyph_v1"
 reference_ids = ["style_plate"]
 prompt = "Flat inked cutout glyphs in the hollow's muted palette: each symbol one solid bone tone cut cleanly like paper, held by a single slightly wobbling ink contour of even weight, with no gradient, texture, grain or interior detail beyond the ink line."
+
+# The pointers are a fixed vocabulary too, and this prompt is style alone. The
+# host cuts a cell to its pointer size and moves the published hotspot with it.
+[cursor_set]
+layout = "cursor_grid_3x3_1024_v1"
+alpha_policy = "transparent_exterior_opaque_glyph_v1"
+reference_ids = ["style_plate"]
+prompt = "Flat inked cutout pointers in the hollow's muted palette: each cursor one solid bone-white shape cut cleanly like paper, held by a single slightly wobbling dark ink contour of even weight so it reads over the bright meadow and the black night alike, with no gradient, texture, grain or interior detail beyond the ink line."

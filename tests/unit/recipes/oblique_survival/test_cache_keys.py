@@ -31,6 +31,10 @@ Changelog
             triplet over three sheet roles, when ``ui.toml`` joined the package;
             ``source-lock`` and ``package-manifest`` moved with the source digest.
             No other key moved: the interface is new spend, not a redraw.
+2026-09-07  Three keys added per scope from ``props`` up, the same triplet over
+            the optional ``cursor_set`` role when ``ui.toml`` declared it under
+            ``game-ui-v5``; ``source-lock`` and ``package-manifest`` moved with
+            the source digest. No other key moved.
 """
 
 from __future__ import annotations
@@ -58,7 +62,7 @@ GOLDEN_PATH: Final = (
 
 #: What the four scopes plan for the committed package. A count here moves only
 #: when the recipe deliberately plans more or fewer nodes.
-SCOPE_NODE_COUNTS: Final = {"minimal": 71, "props": 194, "actors": 244, "full": 286}
+SCOPE_NODE_COUNTS: Final = {"minimal": 71, "props": 197, "actors": 247, "full": 289}
 
 #: A biome's brief is read by its own plate, by the sheet the ground review is
 #: judged from, and by the manifest that measures what was published. Nothing

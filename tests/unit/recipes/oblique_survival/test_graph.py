@@ -2007,8 +2007,9 @@ def test_the_interface_is_dressed_from_the_shared_triplet(
 ) -> None:
     """Panels and buttons are the one thing every genre draws the same way, so
     the recipe plans the game_ui triplet over its ui.toml instead of a private
-    copy: three sheets, each generated, gated and reviewed, from the props scope
-    up, hanging off the source lock like every other drawn thing."""
+    copy: the three sheets every document carries and the cursor set this one
+    declares, each generated, gated and reviewed, from the props scope up,
+    hanging off the source lock like every other drawn thing."""
 
     assert package.ui is not None
     minimal = _graph(config, package, "minimal")
@@ -2017,9 +2018,13 @@ def test_the_interface_is_dressed_from_the_shared_triplet(
     ui_nodes = {node.node_id: node for node in graph.nodes if node.type_id.startswith("2d/ui/")}
     assert set(ui_nodes) == {
         f"ui-{role}-{step}"
-        for role in ("panel_frame", "button_rect", "preview_icons")
+        for role in ("panel_frame", "button_rect", "preview_icons", "cursor_set")
         for step in ("generate", "validate", "review")
     }
+    cursors = ui_nodes["ui-cursor_set-generate"]
+    assert cursors.card is not None and cursors.card.prompt is not None
+    assert "1 arrow (a classic pointer arrow" in cursors.card.prompt
+    assert cursors.card.template_ref == "cursor_grid_3x3_1024_v1_template"
     generate = ui_nodes["ui-panel_frame-generate"]
     assert generate.depends_on == ("source-lock",)
     assert generate.operation == "image_generation"
@@ -2056,4 +2061,4 @@ def test_a_package_without_an_interface_document_plans_no_interface(
     bare = replace(package, ui=None, ui_references={})
     graph = _graph(config, bare, "full")
     assert not [node for node in graph.nodes if node.type_id.startswith("2d/ui/")]
-    assert len(graph.nodes) == len(_graph(config, package, "full").nodes) - 9
+    assert len(graph.nodes) == len(_graph(config, package, "full").nodes) - 12

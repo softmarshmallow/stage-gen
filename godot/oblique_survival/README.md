@@ -107,7 +107,7 @@ owner hands the sim the one-shot inputs the viewer did not have:
 while a built thing is being placed). Keyboard play is untouched.
 
 **The frame.** Every panel and every button is cut from the run's generated
-interface sheets — the shared `game-ui-v4` roles the manifest's `ui` block
+interface sheets — the shared `game-ui-v5` roles the manifest's `ui` block
 publishes: `panel_frame`, one body, and `button_rect`, four state bodies — and
 drawn as Godot nine-patch styleboxes under the geometry the pipeline's gate
 detected (the cell, the insets, the band fill), never a number read off the
@@ -124,6 +124,16 @@ dark boxes the viewer had. The slot wells (hotbar, worn places) are still drawn
 from code, as plain dark squares inside the generated frame: a slot is not a
 generated role yet, and the drawn `inventory_panel` is one picture of eight
 slots this pack cannot use ([TODO](../../TODO.md), "Game UI").
+
+**The pointer.** The mouse cursor is the same block's `cursor_set` when the run
+carries one: nine named glyphs on one sheet, each with the hotspot the
+pipeline's gate measured on the drawn glyph. The kit cuts a cell, scales it to
+`CURSOR_UNITS` (36) times the HUD's scale, scales the published hotspot with it,
+and hands the image to Godot as the cursor shape the glyph stands for — the
+arrow, the pointing hand the frame owner shows over a thing that can be acted
+on, the cross it shows while a built thing is placed, and the rest for any
+Control that asks for them. The pointers are re-cut when the window's scale
+changes, and a run without the set keeps the system pointer.
 
 **The HUD** (`hud/hud.gd`, `hud/craft_panel.gd`, `hud/death_screen.gd`,
 `hud/pause_menu.gd`, the shared `hud/ui_kit.gd`). The vitals stand top-left

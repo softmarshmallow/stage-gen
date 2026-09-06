@@ -11,8 +11,8 @@
 # panel on a quiet dark backdrop — it has to hold its own value separation against
 # near-black, or the narration will sit on the floor of the image and vanish.
 
-schema_version = 4
-kind = "game-ui-v4"
+schema_version = 5
+kind = "game-ui-v5"
 game_id = "motor_court"
 revision = 1
 

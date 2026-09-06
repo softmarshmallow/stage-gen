@@ -19,8 +19,9 @@ actually reads as a magnifying glass is the review's question, not the gate's.
 from __future__ import annotations
 
 import io
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import cast
+from typing import Any, cast
 
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
@@ -362,7 +363,17 @@ def canonicalize_icon_sheet(data: bytes, role: IconGridRole) -> tuple[bytes, dic
     opaque core, which is all the alpha policy promises.
     """
 
-    source_facts = validate_icon_sheet(data, role)
+    return _canonicalize_glyph_sheet(data, role, validate_icon_sheet)
+
+
+def _canonicalize_glyph_sheet(
+    data: bytes,
+    role: IconGridRole,
+    validate: Callable[[bytes, Any], dict[str, object]],
+) -> tuple[bytes, dict[str, object]]:
+    """The exterior normalization every glyph grid shares, measured by the given gate."""
+
+    source_facts = validate(data, role)
     with Image.open(io.BytesIO(data)) as opened:
         image = opened.convert("RGBA")
     alpha = image.getchannel("A").point(
@@ -372,7 +383,7 @@ def canonicalize_icon_sheet(data: bytes, role: IconGridRole) -> tuple[bytes, dic
     output = io.BytesIO()
     image.save(output, format="PNG", optimize=False)
     canonical_data = output.getvalue()
-    canonical_facts = validate_icon_sheet(canonical_data, role)
+    canonical_facts = validate(canonical_data, role)
     return canonical_data, {
         "source": source_facts,
         "canonical": canonical_facts,

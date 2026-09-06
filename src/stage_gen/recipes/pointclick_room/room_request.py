@@ -104,6 +104,13 @@ def resolve_pointclick_room(document: object, *, root: Path) -> ResolvedPointCli
     ui = load_game_ui_bytes(ui_bytes)
     if ui.game_id != room.room_id:
         raise ValueError(f"room {room.room_id} declares a UI contract for {ui.game_id}")
+    if ui.cursor_set is not None:
+        # The cursor set is optional in the contract because a runtime that owns a mouse
+        # pointer draws it; this room leaves the pointer to the browser, so a declared set
+        # would be billed and never shown. Refused here, where the requirement belongs.
+        raise ValueError(
+            f"room {room.room_id} declares a cursor_set the browser-hosted room never draws"
+        )
     return ResolvedPointClickRoom(
         room=room,
         room_bytes=canonical_json_bytes(room.model_dump(mode="json")),

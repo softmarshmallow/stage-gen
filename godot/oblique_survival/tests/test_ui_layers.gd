@@ -17,6 +17,7 @@ func run(h: TestHarness) -> void:
 		return
 	_kit_reads_items(h, w)
 	_kit_wears_the_run_frame(h, w)
+	_kit_cuts_the_pointer(h, w)
 	_kit_names_a_death(h)
 	_death_screen_follows_dead(h, w)
 	_craft_panel_follows_craft_open(h, w)
@@ -65,7 +66,7 @@ func _kit_reads_items(h: TestHarness, w: World) -> void:
 ## read at the kit's density; a manifest without the block keeps the flat boxes.
 func _kit_wears_the_run_frame(h: TestHarness, w: World) -> void:
 	var kit := UiKit.new(SimFixture.package(), w.manifest)
-	h.assert_true(kit.has_frames(), "ember-hollow-v8 dresses the HUD from its ui block")
+	h.assert_true(kit.has_frames(), "ember-hollow-v9 dresses the HUD from its ui block")
 	var ui: Dictionary = w.manifest["ui"]
 	var panel: Dictionary = ui["panel_frame"]
 	var density := float(panel["draw_scale"]) * UiKit.SHEET_DENSITY
@@ -100,6 +101,64 @@ func _kit_wears_the_run_frame(h: TestHarness, w: World) -> void:
 	h.assert_true(flat.panel_style() is StyleBoxFlat, "and the panel is the flat box")
 	h.assert_true(flat.theme.get_stylebox("normal", "Button") is StyleBoxFlat, "as is the button")
 	h.assert_eq(flat.frame_note(), "flat", "and it says so")
+
+
+## The pointer is the run's `ui.cursor_set`: a cell cut and scaled to the
+## pointer size, the published hotspot scaled with it, one Godot shape per
+## glyph. Godot's dummy display server takes the install and shows nothing.
+func _kit_cuts_the_pointer(h: TestHarness, w: World) -> void:
+	var kit := UiKit.new(SimFixture.package(), w.manifest)
+	h.assert_true(kit.has_cursors(), "ember-hollow-v9 publishes a cursor set")
+	var ui: Dictionary = w.manifest["ui"]
+	var cursors: Dictionary = ui["cursor_set"]
+	var cells: Array = cursors["cells"]
+	h.assert_eq(cells.size(), 9, "the fixed vocabulary is nine pointers")
+	h.assert_eq(kit.cursor_glyphs().size(), 9, "and the kit read every one")
+	for glyph: String in UiKit.CURSOR_SHAPES:
+		h.assert_true(kit.cursor_glyphs().has(glyph), "the set names %s" % glyph)
+	var side := UiKit.cursor_px(1.0)
+	h.assert_eq(side, int(UiKit.CURSOR_UNITS), "at scale 1 a pointer is its layout size")
+	h.assert_eq(UiKit.cursor_px(2.0), 2 * side, "and it scales with the HUD")
+	h.assert_eq(UiKit.cursor_px(100.0), UiKit.CURSOR_MAX_PX, "under Godot's cap")
+	var arrow := kit.cursor_image("arrow", side)
+	h.assert_false(arrow.is_empty(), "the arrow cuts")
+	var image: Image = arrow["image"]
+	h.assert_eq(image.get_width(), side, "to the pointer's side")
+	h.assert_eq(image.get_height(), side, "square")
+	var hotspot: Vector2 = arrow["hotspot"]
+	var published: Dictionary = {}
+	for entry: Variant in cells:
+		if str((entry as Dictionary).get("glyph", "")) == "arrow":
+			published = entry
+	var cell: Dictionary = published["cell"]
+	var spot: Dictionary = published["hotspot"]
+	var factor := float(side) / float(cell["width"])
+	h.assert_near(hotspot.x, round(float(spot["x"]) * factor), 0.51, "the hotspot is the published one, scaled with the cell")
+	h.assert_near(hotspot.y, round(float(spot["y"]) * factor), 0.51, "in y too")
+	h.assert_true(hotspot.x >= 0.0 and hotspot.x < float(side) and hotspot.y >= 0.0 and hotspot.y < float(side),
+		"and inside the image")
+	h.assert_true(hotspot.x < float(side) * 0.5 and hotspot.y < float(side) * 0.5,
+		"an arrow's tip is in its upper left (%s)" % str(hotspot))
+	var cross := kit.cursor_image("crosshair", side)
+	var cross_spot: Vector2 = cross["hotspot"]
+	h.assert_true(absf(cross_spot.x - float(side) * 0.5) <= float(side) * 0.2
+		and absf(cross_spot.y - float(side) * 0.5) <= float(side) * 0.2,
+		"a crosshair's hotspot is near its centre (%s)" % str(cross_spot))
+	h.assert_true(kit.cursor_image("nothing", side).is_empty(), "a glyph the set lacks cuts nothing")
+	var installed := kit.install_cursors(1.5)
+	h.assert_eq(installed, 11, "every glyph installs for every shape it stands for")
+	h.assert_eq(kit.install_cursors(1.5), 0, "and not twice at one scale")
+	h.assert_true(kit.install_cursors(2.0) > 0, "but again when the scale moves")
+	h.assert_true(kit.cursor_note().begins_with("9 glyphs at "), "and the kit says so: %s" % kit.cursor_note())
+	kit.uninstall_cursors()
+	h.assert_eq(kit.cursor_note(), "9 glyphs, not installed", "uninstalled, the pointer is the system's again")
+	h.assert_true(kit.install_cursors(2.0) > 0, "and can be installed afresh")
+	kit.uninstall_cursors()
+	# A run with no set keeps the system pointer.
+	var flat := UiKit.new(SimFixture.package(), {})
+	h.assert_false(flat.has_cursors(), "no set, no pointer")
+	h.assert_eq(flat.install_cursors(1.0), 0, "and nothing installs")
+	h.assert_eq(flat.cursor_note(), "system", "and it says so")
 
 
 func _kit_names_a_death(h: TestHarness) -> void:

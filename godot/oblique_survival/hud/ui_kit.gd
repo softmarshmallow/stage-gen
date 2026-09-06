@@ -7,12 +7,21 @@ extends RefCounted
 ##
 ## **The frame.** A panel and a button are cut from the run's generated
 ## interface sheets when the manifest carries a `ui` block (the shared
-## `game-ui-v4` roles: `panel_frame`, one body; `button_rect`, four state
+## `game-ui-v5` roles: `panel_frame`, one body; `button_rect`, four state
 ## bodies) and drawn as Godot nine-patch styleboxes under the geometry the
 ## pipeline's gate detected — the cell, the insets, the band fill — never a
 ## number read off the pixels here. A run without the block gets the flat
 ## boxes the viewer had. The slot wells stay drawn from code in either case:
 ## a slot is not a generated role yet (TODO.md, "Game UI").
+##
+## **The pointer.** The same block's optional `cursor_set` is the mouse
+## pointer: nine named glyphs on one sheet, each with the hotspot the gate
+## measured on the drawn glyph. The kit cuts a cell, scales it to the pointer
+## size at the HUD's scale, scales the hotspot with it, and hands the image to
+## Godot for the cursor shape the glyph stands for (`CURSOR_SHAPES`), so the
+## arrow, the hand over a thing that can be acted on and the cross while a
+## built thing is placed are the run's own art. A run without the set keeps
+## the system pointer.
 ##
 ## The layers are laid out in 1600x900 units and scaled as a whole
 ## (`apply_scale`): the frame owner hands each of them the window's height
@@ -63,6 +72,25 @@ const TITLE := 17
 const SHEET_DENSITY := 2.0
 ## The states a button sheet publishes, in the theme's names.
 const BUTTON_STATES := ["normal", "hover", "pressed", "disabled"]
+## The pointer's size in layout units (scaled with the HUD): a little over the
+## desktop's own arrow, because the glyphs carry an ink contour that needs the
+## pixels. Godot caps a custom cursor at 256 pixels a side.
+const CURSOR_UNITS := 36.0
+const CURSOR_MAX_PX := 256
+## Which Godot cursor shape each glyph of the fixed vocabulary stands for; a
+## glyph the host never asks for is still installed, so a Control that asks
+## for the shape gets the run's art.
+const CURSOR_SHAPES := {
+	"arrow": [Input.CURSOR_ARROW],
+	"hand": [Input.CURSOR_POINTING_HAND],
+	"grab": [Input.CURSOR_DRAG, Input.CURSOR_CAN_DROP],
+	"crosshair": [Input.CURSOR_CROSS],
+	"inspect": [Input.CURSOR_HELP],
+	"busy": [Input.CURSOR_BUSY, Input.CURSOR_WAIT],
+	"forbidden": [Input.CURSOR_FORBIDDEN],
+	"move": [Input.CURSOR_MOVE],
+	"text": [Input.CURSOR_IBEAM],
+}
 
 var font: Font = null
 var theme: Theme = null
@@ -78,6 +106,12 @@ var _panel_box: StyleBoxTexture = null
 var _button_boxes: Dictionary = {}
 ## What the frames were cut from, for the debug panel and the tests.
 var _frame_note: String = "flat"
+## The cursor sheet as an image, and `glyph -> {cell: Rect2i, hotspot: Vector2i}`
+## in sheet pixels; empty when the run publishes no cursor set.
+var _cursor_sheet: Image = null
+var _cursor_cells: Dictionary = {}
+## The scale the pointers were last installed at; -1 before the first.
+var _cursor_scale: float = -1.0
 
 
 func _init(package: Variant = null, manifest: Dictionary = {}) -> void:
@@ -85,6 +119,7 @@ func _init(package: Variant = null, manifest: Dictionary = {}) -> void:
 	_package = package
 	_read_icons(manifest)
 	_read_frames(manifest)
+	_read_cursors(manifest)
 	theme = make_theme(font, _button_boxes)
 
 
@@ -380,6 +415,126 @@ func _sheet_texture(ref: String, density: float) -> Texture2D:
 		made = ImageTexture.create_from_image(copy)
 	_sprites[key] = made
 	return made
+
+
+# ===========================================================================
+# The pointer
+# ===========================================================================
+
+## Read the manifest's `ui.cursor_set`: the sheet and, per glyph, the published
+## cell and the hotspot the gate measured inside it. Nothing here is read off
+## the pixels; a set a run does not carry leaves the system pointer.
+func _read_cursors(manifest: Dictionary) -> void:
+	var ui: Variant = manifest.get("ui", null)
+	if not (ui is Dictionary) or _package == null:
+		return
+	var spec: Variant = (ui as Dictionary).get("cursor_set", null)
+	if not (spec is Dictionary):
+		return
+	var block: Dictionary = spec
+	var source: Image = _package.image(str(block.get("asset", "")))
+	if source == null or source.get_width() <= 0:
+		return
+	var cells := {}
+	for entry: Variant in block.get("cells", []):
+		if not (entry is Dictionary):
+			continue
+		var row: Dictionary = entry
+		var cell: Variant = row.get("cell", null)
+		var hotspot: Variant = row.get("hotspot", null)
+		if not (cell is Dictionary) or not (hotspot is Dictionary):
+			continue
+		cells[str(row.get("glyph", ""))] = {
+			"cell": Rect2i(int((cell as Dictionary).get("x", 0)), int((cell as Dictionary).get("y", 0)),
+				int((cell as Dictionary).get("width", 0)), int((cell as Dictionary).get("height", 0))),
+			"hotspot": Vector2i(int((hotspot as Dictionary).get("x", 0)), int((hotspot as Dictionary).get("y", 0))),
+		}
+	if cells.is_empty():
+		return
+	_cursor_sheet = source
+	_cursor_cells = cells
+
+
+## True when the run publishes a cursor set the kit can install.
+func has_cursors() -> bool:
+	return _cursor_sheet != null and not _cursor_cells.is_empty()
+
+
+## The glyphs the set names, in the sheet's order.
+func cursor_glyphs() -> Array:
+	return _cursor_cells.keys()
+
+
+## One pointer cut and scaled: `{image: Image, hotspot: Vector2}`, the image
+## `size_px` a side and the hotspot the published one scaled by the same
+## factor, so it stays on the arrow's tip. Empty when the set lacks the glyph.
+func cursor_image(glyph: String, size_px: int) -> Dictionary:
+	if not has_cursors() or not _cursor_cells.has(glyph):
+		return {}
+	var spec: Dictionary = _cursor_cells[glyph]
+	var cell: Rect2i = spec["cell"]
+	var side := clampi(size_px, 8, CURSOR_MAX_PX)
+	var cut := Image.create_empty(cell.size.x, cell.size.y, false, _cursor_sheet.get_format())
+	cut.blit_rect(_cursor_sheet, cell, Vector2i.ZERO)
+	if cut.get_format() != Image.FORMAT_RGBA8:
+		cut.convert(Image.FORMAT_RGBA8)
+	cut.resize(side, side, Image.INTERPOLATE_LANCZOS)
+	var factor := float(side) / float(cell.size.x)
+	var hotspot: Vector2i = spec["hotspot"]
+	var point := Vector2(
+		clampf(round(float(hotspot.x) * factor), 0.0, float(side - 1)),
+		clampf(round(float(hotspot.y) * factor), 0.0, float(side - 1)))
+	return {"image": cut, "hotspot": point}
+
+
+## The pointer's side in window pixels at a HUD scale.
+static func cursor_px(scale_factor: float) -> int:
+	return clampi(int(round(CURSOR_UNITS * maxf(0.25, scale_factor))), 8, CURSOR_MAX_PX)
+
+
+## Hand every glyph to Godot as the cursor shapes it stands for, at the size
+## the HUD's scale asks; called again when the window changes. Returns how
+## many shapes were installed (0 when the run has no set).
+func install_cursors(scale_factor: float) -> int:
+	if not has_cursors():
+		return 0
+	if is_equal_approx(scale_factor, _cursor_scale):
+		return 0
+	_cursor_scale = scale_factor
+	var side := cursor_px(scale_factor)
+	var installed := 0
+	for glyph: String in CURSOR_SHAPES:
+		var cut := cursor_image(glyph, side)
+		if cut.is_empty():
+			continue
+		var texture := ImageTexture.create_from_image(cut["image"])
+		for shape: Variant in CURSOR_SHAPES[glyph]:
+			Input.set_custom_mouse_cursor(texture, shape as Input.CursorShape, cut["hotspot"])
+			installed += 1
+	return installed
+
+
+## Give the pointer back to the system: every shape the set stood for is
+## cleared, and the textures behind them are released while the renderer is
+## still up (a cursor texture left with Input outlives the rendering server at
+## exit and is torn down without one). Called when the HUD leaves the tree.
+func uninstall_cursors() -> void:
+	if _cursor_scale < 0.0:
+		return
+	for glyph: String in CURSOR_SHAPES:
+		for shape: Variant in CURSOR_SHAPES[glyph]:
+			Input.set_custom_mouse_cursor(null, shape as Input.CursorShape)
+	_cursor_scale = -1.0
+
+
+## What the pointer is, for the debug panel: `system`, or the set's glyph count
+## and the size it was last installed at.
+func cursor_note() -> String:
+	if not has_cursors():
+		return "system"
+	if _cursor_scale < 0.0:
+		return "%d glyphs, not installed" % _cursor_cells.size()
+	return "%d glyphs at %d px" % [_cursor_cells.size(), cursor_px(_cursor_scale)]
 
 
 # ===========================================================================

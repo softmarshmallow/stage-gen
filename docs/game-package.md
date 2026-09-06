@@ -46,7 +46,7 @@ Only these prepared-package identities are accepted by the resolver:
 | Gameplay | `gameplay-contract-v1` |
 | Map generation | `game-map-v10` |
 | Soundtrack | `game-soundtrack-v1` |
-| UI | `game-ui-v4` |
+| UI | `game-ui-v5` |
 | Player catalog | `player-content-v3` |
 | Mob catalog | `mob-content-v2` |
 | NPC catalog | `npc-content-v3` |

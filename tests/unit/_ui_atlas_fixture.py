@@ -12,7 +12,7 @@ import io
 
 from PIL import Image, ImageDraw
 
-from stage_gen.components.game_ui import AtlasRole, IconGridRole
+from stage_gen.components.game_ui import AtlasRole, CursorGridRole, IconGridRole
 from stage_gen.components.game_ui.nodes import UI_SHEET_ROLES
 
 
@@ -20,9 +20,40 @@ def ui_sheet(role: str) -> bytes:
     """A perfect sheet for the named role, whichever family it belongs to."""
 
     sheet_role = UI_SHEET_ROLES[role]
+    if isinstance(sheet_role, CursorGridRole):
+        return cursor_sheet(sheet_role)
     if isinstance(sheet_role, IconGridRole):
         return icon_sheet(sheet_role)
     return atlas_sheet(sheet_role)
+
+
+def cursor_sheet(role: CursorGridRole) -> bytes:
+    """One pointer per cell, drawn so each hotspot rule has an unambiguous answer.
+
+    A tip-top-left glyph is a right triangle whose right angle is its upper-left corner,
+    so the tip is the bounds' corner; a tip-top glyph is a narrow vertical bar, so the
+    fingertip is the middle of its top edge; a centre glyph is a ring, whose centre is
+    the bounds' centre and not a drawn pixel at all.
+    """
+
+    image = Image.new("RGBA", role.canvas, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    for index, (guide, rule) in enumerate(zip(role.guide_cells, role.hotspots, strict=True)):
+        colour = (230 - 8 * index, 220, 200, 255)
+        half = guide.width * 0.33
+        cx, cy = guide.x + guide.width / 2, guide.y + guide.height / 2
+        if rule == "tip_top_left":
+            draw.polygon(
+                [(cx - half, cy - half), (cx + half, cy - half), (cx - half, cy + half)],
+                fill=colour,
+            )
+        elif rule == "tip_top":
+            draw.rectangle((cx - half / 4, cy - half, cx + half / 4, cy + half), fill=colour)
+        else:
+            draw.ellipse((cx - half, cy - half, cx + half, cy + half), outline=colour, width=14)
+    output = io.BytesIO()
+    image.save(output, format="PNG")
+    return output.getvalue()
 
 
 def icon_sheet(

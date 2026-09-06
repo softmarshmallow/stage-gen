@@ -367,9 +367,11 @@ normalizes only already-transparent pixels to alpha 0 and the core to alpha 255;
 silhouette or perform AI background removal. One independent structured review judges style and layout. The
 runtime manifest publishes the resolved V1 geometry and alpha policy with the artifact.
 
-The two UI atlas roles run as one generic typed triplet (`ui_atlas.generate` / `.validate` /
-`.review`) fanned out over the role parameter: `panel_frame` is one nine-slice body, `button_rect`
-is a four-body state sheet (normal, hover, pressed, disabled). Each generate node renders its
+The UI atlas roles run as one generic typed triplet (`ui_atlas.generate` / `.validate` /
+`.review`) fanned out over the role parameter — the three roles every `game-ui-v5` document
+requires, then the optional ones it declares (`cursor_set`, which Bellweather does not declare and
+the platformer refuses, because the browser draws its pointer): `panel_frame` is one nine-slice
+body, `button_rect` is a four-body state sheet (normal, hover, pressed, disabled). Each generate node renders its
 geometry template from the role's declared record at run time and hands it to the provider after
 the authored references; the cache key hashes that record rather than template bytes, so a
 rasterizer change cannot re-bill an image while a geometry change must. Provider output is gated

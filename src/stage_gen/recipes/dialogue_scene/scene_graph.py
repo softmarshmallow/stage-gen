@@ -32,7 +32,7 @@ from gnode import (
     Port,
     PortRef,
 )
-from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes
+from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes, document_roles
 from stage_gen.recipes.dialogue_scene.identity import canonical_json_bytes
 from stage_gen.recipes.dialogue_scene.prompts import (
     background_prompt,
@@ -572,6 +572,7 @@ def build_dialogue_scene_graph(
             ui=scene.ui,
             style_prompt=ui_atlas_prompt,
             direction_digests=(scene.style_reference.sha256,),
+            roles=document_roles(scene.ui),
             attempts_port=lambda node_id: attempts_port(node_id, ATTEMPT_LEDGER_KIND),
         )
     )

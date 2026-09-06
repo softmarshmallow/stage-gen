@@ -29,7 +29,7 @@ from typing import Any, Final, NotRequired, Protocol, TypedDict, cast
 
 from PIL import Image
 
-from stage_gen.components.game_ui.nodes import DEFAULT_ATLAS_ROLES, ui_atlas_manifest_block
+from stage_gen.components.game_ui.nodes import document_roles, ui_atlas_manifest_block
 from stage_gen.recipes.dry_run import is_placeholder
 from stage_gen.recipes.oblique_survival.models import (
     MUSIC_CUES,
@@ -1832,7 +1832,8 @@ def _ui_block(package: Package, run_dir: Path) -> JsonRecord | None:
 
     if package.ui is None:
         return None
-    for role in DEFAULT_ATLAS_ROLES:
+    roles = document_roles(package.ui)
+    for role in roles:
         if not _present(run_dir / f"ui/{role.role}.png"):
             return None
         if not _present(run_dir / f"ui/{role.role}.validation.json"):
@@ -1841,6 +1842,7 @@ def _ui_block(package: Package, run_dir: Path) -> JsonRecord | None:
         read_validation=lambda ref: (run_dir / ref).read_bytes(),
         publish=lambda ref: ref,
         publish_provenance=lambda _ref: None,
+        roles=roles,
     )
 
 

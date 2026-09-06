@@ -29,6 +29,11 @@ Changelog
             authors a ``ui.toml``. Three images and three structured reviews per
             scope from ``props`` up; ``minimal`` is untouched, and its topology
             digest proves it. Every other node's key holds (``test_cache_keys``).
+
+2026-09-07  The pointer joins the interface: three more nodes from ``props`` up,
+            the same triplet over the optional ``cursor_set`` role Ember Hollow's
+            ``ui.toml`` declares (``game-ui-v5``). One image and one structured
+            review per scope from ``props`` up; ``minimal`` is untouched again.
 """
 
 from __future__ import annotations
@@ -73,37 +78,37 @@ IDENTITIES: Final = {
         },
     ),
     "props": ScopeIdentity(
-        node_count=194,
-        topology_sha256="0cfcd1ea7f91c7b2a89bb7ce88b4bbd84b06a17a786111acd9e762c807a45a9b",
+        node_count=197,
+        topology_sha256="2224ff515c90f6313c646bc75b77e164eb568f09d6fc5d6759086bf315861854",
         operations={
-            "local": 100,
-            "image_generation": 76,
+            "local": 101,
+            "image_generation": 77,
             "tool_loop": 12,
-            "structured_generation": 6,
+            "structured_generation": 7,
             "music_generation": 0,
             "sound_effect_generation": 0,
         },
     ),
     "actors": ScopeIdentity(
-        node_count=244,
-        topology_sha256="5a52170592400886277985f978ddf570727a327c59c2797cf836a78155c4f01f",
+        node_count=247,
+        topology_sha256="331023b69c818bb912db763e11afbd5f0a896ea26221269359f9d7c713f9c882",
         operations={
-            "local": 124,
-            "image_generation": 97,
+            "local": 125,
+            "image_generation": 98,
             "tool_loop": 12,
-            "structured_generation": 11,
+            "structured_generation": 12,
             "music_generation": 0,
             "sound_effect_generation": 0,
         },
     ),
     "full": ScopeIdentity(
-        node_count=286,
-        topology_sha256="eb1bb79206bdf286e5839ddb441cb4d5481f40435ccbe0c890e431a3a0447c97",
+        node_count=289,
+        topology_sha256="2d666274bcc47c58cb05c13011bd02af33da2b7a6b01c68f264a5c43a9726f70",
         operations={
-            "local": 155,
-            "image_generation": 104,
+            "local": 156,
+            "image_generation": 105,
             "tool_loop": 12,
-            "structured_generation": 12,
+            "structured_generation": 13,
             "music_generation": 0,
             "sound_effect_generation": 3,
         },

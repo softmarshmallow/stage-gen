@@ -178,10 +178,20 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		toggle_debug()
 
 
+func _exit_tree() -> void:
+	if kit != null:
+		kit.uninstall_cursors()
+
+
 func set_ui_scale(scale_factor: float) -> void:
 	ui_scale = maxf(0.25, scale_factor)
 	UiKit.apply_scale(self, _root, ui_scale)
 	_reflow()
+	# The pointer scales with the panels: the run's cursor set, when it has
+	# one, is re-cut at this scale and handed to Godot as the shapes the frame
+	# owner and the buttons ask for.
+	if kit != null:
+		kit.install_cursors(ui_scale)
 
 
 func set_mode(new_mode: String) -> void:
@@ -255,9 +265,9 @@ func set_debug_rows(rows: Variant) -> void:
 
 ## What this module reports into a debug panel (its own or another's).
 func status() -> Dictionary:
-	return {"hud": "%d slots, %s, scale %.2f, %d in flight, frame %s" % [
+	return {"hud": "%d slots, %s, scale %.2f, %d in flight, frame %s, pointer %s" % [
 		_slot_cells.size(), "debug" if debug_on else "play", ui_scale, _flights.size(),
-		kit.frame_note() if kit != null else "none"]}
+		kit.frame_note() if kit != null else "none", kit.cursor_note() if kit != null else "none"]}
 
 
 func update(world, delta: float, _cam: Dictionary) -> void:

@@ -42,12 +42,12 @@ from stage_gen.components.game_ui.inventory_nodes import (
     validate_inventory_panel_image,
 )
 from stage_gen.components.game_ui.nodes import (
-    DEFAULT_ATLAS_ROLES,
     UI_ATLAS_GENERATE,
     UI_ATLAS_REVIEW,
     UI_ATLAS_VALIDATE,
     UiAtlasHandlers,
     UiAtlasHost,
+    document_roles,
     validate_ui_sheet,
 )
 from stage_gen.components.platformer_content import (
@@ -1375,7 +1375,7 @@ def _coverage_matrix(package: ResolvedGamePackage) -> dict[str, object]:
             + len(package.items.items)
             + len(projectile_ids)
             + 1
-            + len(DEFAULT_ATLAS_ROLES)
+            + len(document_roles(package.ui))
         ),
         # One board-and-review pass per catalog family (props, items, inventory panel), one per
         # nine-slice atlas role, plus one per actor, plus one for the projectile catalog when the
@@ -1385,7 +1385,7 @@ def _coverage_matrix(package: ResolvedGamePackage) -> dict[str, object]:
             + len(package.mobs.mobs)
             + len(package.npcs.npcs)
             + 3
-            + len(DEFAULT_ATLAS_ROLES)
+            + len(document_roles(package.ui))
             + (1 if package.projectiles is not None else 0)
         ),
         "required_music_operations": len(package.soundtrack.tracks),

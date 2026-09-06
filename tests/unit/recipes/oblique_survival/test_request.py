@@ -27,7 +27,7 @@ PACKAGE = Path("library/games/ember-hollow")
 #: two local nodes (``source-lock`` and ``package-manifest``) and no provider
 #: operation, because every other node takes the source lock as a barrier rather
 #: than as lineage.
-SOURCE_DIGEST = "1738097e55ac6244cdd8e333fae47c3c75183bce187da8e3a839ef6652fd7ef6"
+SOURCE_DIGEST = "7761c57cb7acba37f0e7fbd0d4134cf690af7865d69110ba5f8d74fcb31f6507"
 
 #: One take that is declared by digest and whose bytes are in the package.
 FORAGE_TAKE = "ground/forage.take.png"
@@ -192,6 +192,6 @@ def test_an_interface_reference_must_match_its_declared_digest(tmp_path: Path) -
 def test_a_malformed_interface_document_is_refused_by_name(tmp_path: Path) -> None:
     root = _copy(tmp_path)
     document = root / UI_DOCUMENT
-    document.write_text(document.read_text().replace('kind = "game-ui-v4"', 'kind = "game-ui-v3"'))
-    with pytest.raises(SourceError, match="not a game-ui-v4 document"):
+    document.write_text(document.read_text().replace('kind = "game-ui-v5"', 'kind = "game-ui-v3"'))
+    with pytest.raises(SourceError, match="not a game-ui-v5 document"):
         load_package(root)

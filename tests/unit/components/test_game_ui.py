@@ -9,15 +9,21 @@ from stage_gen.components._game_input import AuthoredContractLoadError
 from stage_gen.components.game_ui import (
     ATLAS_ALPHA_POLICY,
     BUTTON_RECT_LAYOUT,
+    CURSOR_ALPHA_POLICY,
+    CURSOR_SET_LAYOUT,
     INVENTORY_PANEL_ALPHA_POLICY,
     INVENTORY_PANEL_LAYOUT,
     PANEL_FRAME_LAYOUT,
+    PREVIEW_ICONS_LAYOUT,
     inventory_panel_layout_contract,
     load_game_ui_bytes,
 )
 from stage_gen.resources import inventory_template_path
 
-PACKAGE = Path(__file__).resolve().parents[3] / "library" / "games" / "bellweather"
+GAMES = Path(__file__).resolve().parents[3] / "library" / "games"
+PACKAGE = GAMES / "bellweather"
+#: The one document that declares the optional cursor set: its host owns a mouse pointer.
+POINTER_PACKAGE = GAMES / "ember-hollow"
 
 
 def test_canonical_ui_contract_separates_presentation_from_gameplay() -> None:
@@ -39,7 +45,7 @@ def test_ui_contract_carries_both_atlas_roles_and_pins_their_layouts() -> None:
     source = (PACKAGE / "ui.toml").read_bytes()
     contract = load_game_ui_bytes(source)
 
-    assert contract.kind == "game-ui-v4"
+    assert contract.kind == "game-ui-v5"
     assert contract.panel_frame.layout == PANEL_FRAME_LAYOUT
     assert contract.button_rect.layout == BUTTON_RECT_LAYOUT
     assert contract.panel_frame.alpha_policy == ATLAS_ALPHA_POLICY
@@ -48,8 +54,37 @@ def test_ui_contract_carries_both_atlas_roles_and_pins_their_layouts() -> None:
     swapped = source.replace(BUTTON_RECT_LAYOUT.encode(), PANEL_FRAME_LAYOUT.encode())
     with pytest.raises(AuthoredContractLoadError, match=r"button_rect\.layout must be"):
         load_game_ui_bytes(swapped)
-    with pytest.raises(AuthoredContractLoadError, match="game-ui-v4"):
-        load_game_ui_bytes(source.replace(b'kind = "game-ui-v4"', b'kind = "game-ui-v1"'))
+    with pytest.raises(AuthoredContractLoadError, match="game-ui-v5"):
+        load_game_ui_bytes(source.replace(b'kind = "game-ui-v5"', b'kind = "game-ui-v1"'))
+
+
+def test_the_cursor_set_is_declared_only_by_a_game_that_owns_a_pointer() -> None:
+    """A platformer played in a browser leaves the pointer to the browser and declares
+    no cursors; the survival game's Godot host owns its pointer and does. The optional
+    role is pinned to its layout and alpha policy exactly like the required ones."""
+
+    assert load_game_ui_bytes((PACKAGE / "ui.toml").read_bytes()).cursor_set is None
+    source = (POINTER_PACKAGE / "ui.toml").read_bytes()
+    contract = load_game_ui_bytes(source)
+    assert contract.inventory_panel is None
+    cursors = contract.cursor_set
+    assert cursors is not None
+    assert cursors.layout == CURSOR_SET_LAYOUT
+    assert cursors.alpha_policy == CURSOR_ALPHA_POLICY
+    assert cursors.reference_ids == ["style_plate"]
+    assert "arrow" not in cursors.prompt, "the vocabulary is the layout's, not the prompt's"
+    swapped = source.replace(CURSOR_SET_LAYOUT.encode(), PREVIEW_ICONS_LAYOUT.encode())
+    with pytest.raises(AuthoredContractLoadError, match=r"cursor_set\.layout must be"):
+        load_game_ui_bytes(swapped)
+    with pytest.raises(AuthoredContractLoadError, match="unknown IDs"):
+        load_game_ui_bytes(
+            source.replace(
+                b'[cursor_set]\nlayout = "cursor_grid_3x3_1024_v1"\nalpha_policy = '
+                b'"transparent_exterior_opaque_glyph_v1"\nreference_ids = ["style_plate"]',
+                b'[cursor_set]\nlayout = "cursor_grid_3x3_1024_v1"\nalpha_policy = '
+                b'"transparent_exterior_opaque_glyph_v1"\nreference_ids = ["missing_plate"]',
+            )
+        )
 
 
 def test_ui_contract_rejects_unknown_and_unused_references() -> None:

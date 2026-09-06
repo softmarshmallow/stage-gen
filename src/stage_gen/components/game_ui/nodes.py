@@ -8,11 +8,12 @@ contract it serves rather than inside whichever recipe built it first, under the
 component's own taxonomy name (``2d/ui/atlas.*``), so a later promotion into a gnode
 ring is a namespace move rather than a rename.
 
-Two sheet families share the triplet. A nine-slice role (``panel_frame``, ``button_rect``)
+Three sheet families share the triplet. A nine-slice role (``panel_frame``, ``button_rect``)
 is gated by slice reconstruction and published with insets; the preview icon grid is
-gated by cell registration and published with glyph bounds. The node types, ids, ports,
-cache identity and manifest projection are one shape; only the family's own template,
-gate, evidence and review question differ, and they are looked up from the role.
+gated by cell registration and published with glyph bounds; the cursor set is the icon
+grid's gate with one measured hotspot per glyph. The node types, ids, ports, cache
+identity and manifest projection are one shape; only the family's own template, gate,
+evidence and review question differ, and they are looked up from the role.
 
 A host recipe supplies what only it knows — its authored ``ui`` document, the art
 direction that wraps the prompt, the digests that make a role cache-identifiable inside
@@ -84,6 +85,17 @@ from stage_gen.components.game_ui.atlas import (
     render_atlas_template,
     validate_atlas_image,
 )
+from stage_gen.components.game_ui.cursors import (
+    CURSOR_ALPHA_POLICY,
+    CURSOR_GLYPHS,
+    CURSOR_ROLES,
+    CURSOR_SET,
+    CursorGridRole,
+    canonicalize_cursor_sheet,
+    cursor_evidence,
+    cursor_role_contract,
+    validate_cursor_sheet,
+)
 from stage_gen.components.game_ui.icons import (
     ICON_ALPHA_POLICY,
     ICON_ROLES,
@@ -96,7 +108,12 @@ from stage_gen.components.game_ui.icons import (
     render_icon_template,
     validate_icon_sheet,
 )
-from stage_gen.components.game_ui.models import AtlasRoleDirection, GameUi, IconSetDirection
+from stage_gen.components.game_ui.models import (
+    AtlasRoleDirection,
+    CursorSetDirection,
+    GameUi,
+    IconSetDirection,
+)
 from stage_gen.media import data_url
 
 _P = "2d/ui"
@@ -155,18 +172,29 @@ UI_ATLAS_REVIEW = NodeType(
 #: Every type this module owns, for a recipe's own type census and registry checks.
 UI_ATLAS_NODE_TYPES = (UI_ATLAS_GENERATE, UI_ATLAS_VALIDATE, UI_ATLAS_REVIEW)
 
-#: Either sheet family's role: what the triplet is fanned out over.
-UiSheetRole = AtlasRole | IconGridRole
+#: Any sheet family's role: what the triplet is fanned out over.
+UiSheetRole = AtlasRole | IconGridRole | CursorGridRole
 
 #: Every role the triplet can generate, by name. A node's ``role`` param resolves here.
-UI_SHEET_ROLES: dict[str, UiSheetRole] = {**ATLAS_ROLES, **ICON_ROLES}
+UI_SHEET_ROLES: dict[str, UiSheetRole] = {**ATLAS_ROLES, **ICON_ROLES, **CURSOR_ROLES}
 
-#: The roles a `game-ui-v4` document requires, in the order a graph fans them out: the
+#: The roles a `game-ui-v5` document requires, in the order a graph fans them out: the
 #: two nine-slice roles promoted in `game-ui-v2` and the preview icon set.
 DEFAULT_ATLAS_ROLES: tuple[UiSheetRole, ...] = (PANEL_FRAME, BUTTON_RECT, PREVIEW_ICONS)
 
 #: The direction a document authors for a role, by family.
-UiSheetDirection = AtlasRoleDirection | IconSetDirection
+UiSheetDirection = AtlasRoleDirection | IconSetDirection | CursorSetDirection
+
+
+def document_roles(ui: GameUi) -> tuple[UiSheetRole, ...]:
+    """The sheet roles one document plans: the three every document requires, then the
+    optional ones it declares, in fan-out order. A host fans the triplet out over this, so
+    a declared role is never silently left undrawn and an undeclared one is never billed."""
+
+    roles: list[UiSheetRole] = list(DEFAULT_ATLAS_ROLES)
+    if ui.cursor_set is not None:
+        roles.append(CURSOR_SET)
+    return tuple(roles)
 
 
 # ------------------------------------------------------------------ prompt
@@ -313,12 +341,63 @@ def icon_review_prompt(role: IconGridRole, direction: str) -> str:
     )
 
 
+def cursor_content_task(role: CursorGridRole, direction: str) -> str:
+    """The content task for the cursor set: the fixed vocabulary with where each pointer's
+    pointing part goes, then the authored style. The placement clauses are stated because
+    the hotspot rule the gate applies assumes them."""
+
+    described = {name: text for name, text, _ in CURSOR_GLYPHS}
+    listing = ", ".join(
+        f"{index + 1} {name.replace('_', ' ')} ({described[name]})"
+        for index, name in enumerate(role.glyphs)
+    )
+    width, height = role.canvas
+    return (
+        f"Create one mouse cursor set sheet for the game's screen-fixed interface: "
+        f"{len(role.glyphs)} cursors in a {role.columns} by {role.rows} grid on one {width} by "
+        f"{height} canvas, in reading order left to right then top to bottom: {listing}. Each "
+        "cursor is one bold, instantly readable pointer shape that stays legible at 32 pixels: "
+        "simple, centred in its cell, filling about seventy percent of the cell, with the same "
+        "visual weight, stroke thickness, and size across the whole set, and its pointing part "
+        "placed exactly as described so the pointer's hotspot lands where a player expects.\n"
+        f"Style direction: {direction}\n{_ICON_GEOMETRY}"
+    )
+
+
+def cursor_review_prompt(role: CursorGridRole, direction: str) -> str:
+    """What the judge is asked about a cursor sheet: identity, the pointing part where the
+    hotspot rule assumes it, one set, and nothing else."""
+
+    return (
+        f"Review the generated {role.role} mouse cursor sheet against its style direction. "
+        "Image 1 shows the sheet over a checkerboard on the left and, on the right, one row "
+        "per cell in reading order: the cursor the cell was asked to hold with its hotspot "
+        "rule, then that cell re-drawn at the two sizes a desktop shows a pointer, with the "
+        "hotspot the validator measured marked as a small red cross. The names and red marks "
+        "on the right are annotation added by the validator for you, not part of the sheet. "
+        "Remaining images are authored visual references. Deterministic pixel validation has "
+        f"already proved a transparent canvas, exactly {len(role.glyphs)} glyphs registered to "
+        "the grid with nothing drawn between the cells, and one coherent size across the set. "
+        "Do not mistake the checkerboard for artwork. Judge: that every cell reads "
+        "unmistakably as its named cursor, listing each mismatch as an issue in the form "
+        "'cell <n> <name>: <what it shows instead>'; that the red mark sits where a player "
+        "expects the pointer to be — on the arrow's tip, on the pointing finger's tip, at the "
+        "centre of every symmetric shape — listing each miss the same way; that all cursors "
+        "share one style, stroke weight and visual density, as one set drawn by one hand; "
+        "style coherence with the references and the direction; that no cell carries a "
+        "background plate, tile, frame, badge, or shadow behind its glyph; and the absence of "
+        f"text, letters, numbers, or labels on the sheet itself. Style direction: {direction} "
+        "Uncertainty must not be called accept."
+    )
+
+
 # ------------------------------------------------------------------ family
 
 
 @dataclass(frozen=True)
 class SheetFamily:
-    """What differs between a nine-slice sheet and an icon grid, looked up from the role.
+    """What differs between a nine-slice sheet, an icon grid and a cursor set, looked up
+    from the role.
 
     Everything else about the triplet — node types, ids, ports, cache identity, provider
     request shape, manifest binding — is one code path.
@@ -407,9 +486,48 @@ ICON_GRID_FAMILY = SheetFamily(
 )
 
 
-def sheet_family(role: UiSheetRole) -> SheetFamily:
-    """The family a role belongs to; a role is one or the other by construction."""
+CURSOR_GRID_FAMILY = SheetFamily(
+    direction_type=CursorSetDirection,
+    template=render_icon_template,
+    validate=validate_cursor_sheet,
+    canonicalize=canonicalize_cursor_sheet,
+    evidence=cursor_evidence,
+    contract=cursor_role_contract,
+    content_task=cursor_content_task,
+    review_prompt=lambda role, direction, _record: cursor_review_prompt(role, direction),
+    review_checks=(
+        "style_coherence",
+        "glyph_identity",
+        "hotspot_placement",
+        "one_set",
+        "glyphs_only",
+        "text_free",
+    ),
+    alpha_policy=CURSOR_ALPHA_POLICY,
+    generate_description="generate the fixed {role} pointer grid in the authored style",
+    validate_description=(
+        "register a pointer to every cell, measure its hotspot, and normalize the exterior alpha"
+    ),
+    review_description=(
+        "review {role} pointer identity, hotspot placement, set coherence, and style"
+    ),
+    canonical_prompt=(
+        "Normalize only the admitted exterior: clear already-transparent pixels to alpha 0 "
+        "and touch nothing inside a glyph."
+    ),
+    evidence_prompt=(
+        "Composite the cursor sheet over a checkerboard and draw every cell at two pointer "
+        "sizes beside the cursor name it was asked to hold, with the measured hotspot "
+        "marked, for review evidence."
+    ),
+)
 
+
+def sheet_family(role: UiSheetRole) -> SheetFamily:
+    """The family a role belongs to; a role is exactly one of them by construction."""
+
+    if isinstance(role, CursorGridRole):
+        return CURSOR_GRID_FAMILY
     return ICON_GRID_FAMILY if isinstance(role, IconGridRole) else NINE_SLICE_FAMILY
 
 
@@ -931,8 +1049,39 @@ class IconSetLayout(PersistedContractModel):
     cells: list[IconCellLayout] = Field(min_length=1, max_length=64)
 
 
-#: Either family's published block, told apart by ``scale_mode``.
-UiSheetLayout = AtlasRoleLayout | IconSetLayout
+class AtlasHotspot(PersistedContractModel):
+    """One pixel, in sheet pixels relative to its cell's origin."""
+
+    x: int = Field(ge=0)
+    y: int = Field(ge=0)
+
+
+class CursorCellLayout(IconCellLayout):
+    """An icon cell with the pointer's hotspot: the rule it was read by and the pixel, in
+    sheet pixels relative to the cell's origin, that a consumer scales with the cell."""
+
+    hotspot_rule: Literal["tip_top_left", "tip_top", "centre"]
+    hotspot: AtlasHotspot
+
+
+class CursorSetLayout(PersistedContractModel):
+    """The resolved geometry the cursor set publishes: the icon grid's, cell by cell with a
+    measured hotspot. A consumer cuts a cell, scales it to its pointer size, and scales the
+    hotspot by the same factor."""
+
+    role: str = Field(pattern=SNAKE_ID_PATTERN, max_length=64)
+    layout: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
+    scale_mode: Literal["fixed"]
+    alpha_policy: Literal["transparent_exterior_opaque_glyph_v1"]
+    draw_scale: int = Field(ge=1)
+    canvas: AtlasCanvas
+    cell_size: int = Field(ge=1)
+    cells: list[CursorCellLayout] = Field(min_length=1, max_length=64)
+
+
+#: Any family's published block: the nine-slice and icon blocks are told apart by
+#: ``scale_mode``, the cursor block by the hotspot on every cell.
+UiSheetLayout = AtlasRoleLayout | IconSetLayout | CursorSetLayout
 
 
 def ui_atlas_manifest(
@@ -1000,14 +1149,18 @@ def _media_type(path: str) -> str:
 
 
 __all__ = [
+    "CURSOR_GRID_FAMILY",
     "DEFAULT_ATLAS_ROLES",
     "ICON_GRID_FAMILY",
     "NINE_SLICE_FAMILY",
     "AtlasCanvas",
     "AtlasCellLayout",
+    "AtlasHotspot",
     "AtlasInsets",
     "AtlasRect",
     "AtlasRoleLayout",
+    "CursorCellLayout",
+    "CursorSetLayout",
     "IconCellLayout",
     "IconSetLayout",
     "IMAGE_FEATURES",
@@ -1039,6 +1192,9 @@ __all__ = [
     "atlas_content_task",
     "atlas_node_ids",
     "atlas_review_prompt",
+    "cursor_content_task",
+    "cursor_review_prompt",
+    "document_roles",
     "icon_content_task",
     "icon_review_prompt",
     "sheet_family",
