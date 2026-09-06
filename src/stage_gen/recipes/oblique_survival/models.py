@@ -38,6 +38,12 @@ FRAME_COUNT: Final = 4
 #: The verbs an interaction may use and a tool may serve. The consumer binds
 #: each to a key; a verb outside this set has no key and is refused offline.
 INTERACTION_VERBS: Final = ("chop", "gather", "mine", "light")
+#: Where an interaction's yield goes when the last blow lands. ``hand``: straight
+#: into the pack, the way a tuft of grass or a handful of twigs is simply taken;
+#: ``ground``: dropped at the thing for the player to pick up after, the way a
+#: felled trunk's logs lie where the crown lands. Authored per prop and required
+#: whenever the interaction yields anything; a verb says nothing about it.
+YIELD_DESTINATIONS: Final = ("hand", "ground")
 #: What a press of the use key does with the selected item.
 #: What the use key does with an item. ``wear`` and ``warm`` came with the
 #: winter: a worn thing insulates while it is carried, a warm thing holds the
@@ -176,6 +182,9 @@ class Interaction:
     fx: str
     yields: tuple[Yield, ...]
     regrow_seconds: float | None
+    #: ``hand`` or ``ground`` (``YIELD_DESTINATIONS``); ``ground`` when there is
+    #: nothing to yield. Gameplay, not identity: no node digests it.
+    yield_to: str
     #: The look after hit 1, hit 2, ... before ``next_state``, clamped to the
     #: last entry. An author's binding: what these looks mean (a rock's mining
     #: progress, a tree losing its leaves) is said in the briefs, never here.

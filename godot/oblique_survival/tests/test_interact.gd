@@ -14,6 +14,9 @@ func run(h: TestHarness) -> void:
 	_barren_in_winter(h, w)
 	_progress_looks(h, w)
 	_take_a_forage_piece(h, w)
+	_gathered_by_hand(h, w)
+	_a_full_pack_lets_the_rest_fall(h, w)
+	_the_key_waits_for_the_yield(h, w)
 
 
 func _stand_at_the_pine(w: World) -> Dictionary:
@@ -139,6 +142,119 @@ func _progress_looks(h: TestHarness, w: World) -> void:
 	# ticked once by the time the test looks at it.
 	h.assert_near(float(boulder["regrow"]), 120.0, SimFixture.STEP + 1e-6,
 		"and it will come back in 120 s")
+
+
+## The authored contract, `interaction.yield_to`: what the hand gathers goes
+## straight into the pack at the blow, seen as a pickup from the bush.
+func _gathered_by_hand(h: TestHarness, w: World) -> void:
+	SimFixture.bare(w)
+	w.player.x = 0.0
+	w.player.z = 0.0
+	w.player.busy = null
+	w.dead = false
+	SimFixture.force_season(w, "summer")
+	h.assert_eq(str(((w.manifest["props"] as Dictionary)["twig_bush"]["interaction"] as Dictionary)["yield_to"]), "hand",
+		"the twig bush yields to the hand")
+	h.assert_eq(str(((w.manifest["props"] as Dictionary)["pine"]["interaction"] as Dictionary)["yield_to"]), "ground",
+		"and the pine to the ground")
+	var bush := SimFixture.prop(w, "t1", "twig_bush", "full", 0.0, 0.5)
+	w.entities.append(bush)
+	for i in 60:
+		w.input["interact"] = true
+		Sim.step(w, SimFixture.STEP)
+		if str(bush["state"]) == "cut":
+			break
+	h.assert_eq(str(bush["state"]), "cut", "the bush was gathered")
+	h.assert_eq(Inventory.count(w, "twig"), 2, "both twigs are in the pack already")
+	var on_ground := 0
+	for entity in w.entities:
+		if str((entity as Dictionary).get("kind", "")) == "item":
+			on_ground += 1
+	h.assert_eq(on_ground, 0, "and nothing fell to be picked up after")
+	var pickups := SimFixture.events_of(w, "pickup")
+	h.assert_eq(pickups.size(), 2, "two pickups were heard, one per twig")
+	h.assert_near(float((pickups[0] as Dictionary)["z"]), 0.5, 1e-9, "from where the bush stands, not the player")
+
+
+func _a_full_pack_lets_the_rest_fall(h: TestHarness, w: World) -> void:
+	SimFixture.bare(w)
+	w.player.x = 0.0
+	w.player.z = 0.0
+	w.player.busy = null
+	w.dead = false
+	SimFixture.force_season(w, "summer")
+	# Every slot full of something else: the twigs have nowhere to go.
+	for i in 400:
+		if Inventory.inv_add(w, "log", 1) > 0:
+			break
+	h.assert_true(Inventory.inv_add(w, "log", 1) == 1, "the pack is full of logs")
+	var bush := SimFixture.prop(w, "t2", "twig_bush", "full", 0.0, 0.5)
+	w.entities.append(bush)
+	w.message = ""
+	for i in 60:
+		w.input["interact"] = true
+		Sim.step(w, SimFixture.STEP)
+		if str(bush["state"]) == "cut":
+			break
+	h.assert_eq(str(bush["state"]), "cut", "the bush was still gathered")
+	h.assert_eq(Inventory.count(w, "twig"), 0, "no twig fit")
+	var fallen := 0
+	for entity in w.entities:
+		if str((entity as Dictionary).get("kind", "")) == "item" and str((entity as Dictionary)["item_id"]) == "twig":
+			fallen += 1
+	h.assert_eq(fallen, 2, "so both fell at the bush")
+	h.assert_eq(w.message, "Hands full.", "and it was said")
+
+
+## A drop on its way down is the target from the moment it flies, and the held
+## key waits for it rather than turning to the next thing: the rock just mined
+## is not lost to the bush behind the player.
+func _the_key_waits_for_the_yield(h: TestHarness, w: World) -> void:
+	SimFixture.bare(w)
+	w.player.x = 0.0
+	w.player.z = 0.0
+	w.player.busy = null
+	w.player.approach = null
+	w.dead = false
+	SimFixture.force_season(w, "summer")
+	Inventory.inv_add(w, "pickaxe", 1)
+	var boulder := SimFixture.prop(w, "r2", "moss_boulder", "whole", 0.0, 0.85)
+	w.entities.append(boulder)
+	# A bush a step behind the player: the next nearest thing once the rock
+	# is spent, and what the key used to turn to while the stones bounced.
+	var bush := SimFixture.prop(w, "t3", "twig_bush", "full", 0.0, -1.0)
+	w.entities.append(bush)
+	var stones_flew := false
+	var bush_touched := false
+	for i in 600:
+		w.input["interact"] = true
+		Sim.step(w, SimFixture.STEP)
+		if str(bush["state"]) != "full":
+			bush_touched = true
+		var target: Variant = w.target
+		for entity in w.entities:
+			if str((entity as Dictionary).get("kind", "")) == "item" and not bool((entity as Dictionary)["settled"]):
+				stones_flew = true
+				h.assert_true(target is Dictionary and bool((target as Dictionary).get("item", false)),
+					"while a stone is in the air it is the target, not the bush")
+				break
+		if Inventory.count(w, "stone") == 2:
+			break
+	h.assert_true(stones_flew, "the stones were seen in the air")
+	h.assert_eq(Inventory.count(w, "stone"), 2, "both stones were taken")
+	h.assert_false(bush_touched, "and the bush behind was left alone the whole time")
+	# A trunk's logs on their way down are waited for too: nothing is targeted
+	# while a yield is queued beside the player.
+	SimFixture.bare(w)
+	w.player.busy = null
+	w.player.approach = null
+	w.entities.append(bush)
+	w.drops.append({"at": w.time + 1.0, "yields": [{"item_id": "log", "count": 1}], "x": 1.0, "z": 0.0,
+		"dir_x": 1.0, "dir_z": 0.0, "spread": 1.0})
+	w.input["interact"] = true
+	Sim.step(w, SimFixture.STEP)
+	h.assert_true(w.target == null, "the held key waits for the crown to land")
+	h.assert_true(w.player.busy == null, "and starts nothing")
 
 
 func _take_a_forage_piece(h: TestHarness, w: World) -> void:

@@ -29,6 +29,10 @@ const SHORT := Color("#e07a5f")
 const MISSING := Color("#e2795f")
 const SWATCH := Color("#5a4a3a")
 const KBD_BG := "#2b2f38"
+## The world labels' outline: near-black, and thick enough that the monospace
+## strokes stay whole over foliage.
+const OUTLINE := Color(0.04, 0.045, 0.06, 0.92)
+const OUTLINE_SIZE := 5
 const BUTTON_BG := Color("#23262e")
 const BUTTON_HOVER := Color("#333844")
 const BUTTON_PRESSED := Color("#1a1c22")
@@ -179,6 +183,17 @@ static func rich(size: int = FONT_SIZE, min_width: float = 0.0) -> RichTextLabel
 	made.add_theme_font_size_override("bold_font_size", size)
 	made.custom_minimum_size = Vector2(min_width, 0.0)
 	made.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return made
+
+
+## A label that stands in the world with no panel behind it: the text drawn
+## over a dark outline, so it reads on the bright meadow and the black night
+## alike. What names the thing under the pointer and the thing in reach.
+static func outlined(size: int = SMALL, colour: Color = TEXT) -> RichTextLabel:
+	var made := rich(size)
+	made.add_theme_color_override("default_color", colour)
+	made.add_theme_color_override("font_outline_color", OUTLINE)
+	made.add_theme_constant_override("outline_size", OUTLINE_SIZE)
 	return made
 
 

@@ -20,11 +20,12 @@ closure proved before any of it is paid for.
 | `crafting.toml` | `[inventory]`, `[start]`, `[stations]`, `[[recipes]]` | the pack's base slots, the starting inventory, the stations (a prop, a state, a reach) and the recipes: ingredients in, exactly one product out, an item with a count or a prop to build, at a station or by hand |
 | `ground.toml` | `[forage]` | the forage sheet: a lattice of pickups lying on the ground, each cell naming the item it yields, how many, and how long the spot takes to regrow |
 | `props.toml` | `[props.interaction].tool` | the tool a verb wants: the item, the hits with it, and whether it is required |
+| `props.toml` | `[props.interaction].yield_to` | where the yield goes at the last blow: `hand` (straight into the pack, the way grass or twigs are simply taken) or `ground` (dropped at the thing, to be picked up after, the way a trunk's logs lie where the crown lands); required whenever the interaction yields anything, refused when it does not |
 
 ## Mixing versus spend
 
 `crafting.toml` in its entirety, an item's `use`, `tool` and `stack_max`, and an
-interaction's `tool` reach the manifest and **no cache key**. A recipe edit
+interaction's `tool` and `yield_to` reach the manifest and **no cache key**. A recipe edit
 re-bills nothing, the way a music fade does not. What bills is a picture: a new
 item's pickup sprite, the forage sheet, the icon sheet, a new prop.
 
@@ -83,6 +84,13 @@ different drawings on purpose.
   tool's hits; a required tool that is missing leaves the target offered with
   the prompt saying what is missing. One completed interaction wears the tool by
   one; at zero it breaks.
+- **What the hand gathers is taken; what a tool knocks loose lands.** An
+  interaction with `yield_to = "hand"` counts its yield into the pack at the
+  last blow (one pickup event per piece, from where the thing stands, so the
+  host can fly it to the slot); what does not fit falls at the thing and is
+  said. `yield_to = "ground"` drops the yield there. A drop is a target from the
+  moment it flies and is taken once it settles; while a yield is still on its
+  way down beside the player the held key waits rather than turning away.
 - Every helper answers with what it could **not** do, so a full pack leaves the
   piece on the ground and says so rather than dropping it silently.
 - **Stations are proximity**, resolved against the nearest prop with the

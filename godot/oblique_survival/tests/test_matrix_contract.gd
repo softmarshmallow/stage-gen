@@ -222,7 +222,7 @@ func _t2_layout_counts(h: TestHarness, pkg: RunPackage) -> void:
 	var layout := pkg.layout
 	h.assert_eq(int(layout.get("seed", 0)), 7, "layout seed")
 	h.assert_eq((layout.get("entities", []) as Array).size(), 2365, "entity rows")
-	h.assert_eq((layout.get("forage", []) as Array).size(), 1452, "forage rows")
+	h.assert_eq((layout.get("forage", []) as Array).size(), 1524, "forage rows")
 	h.assert_eq((layout.get("plants", []) as Array).size(), 3275, "plant rows")
 	h.assert_eq((layout.get("clutter", []) as Array).size(), 4314, "clutter rows")
 	h.assert_eq((layout.get("decals", []) as Array).size(), 2686, "decal rows")
@@ -257,8 +257,8 @@ func _t2_layout_counts(h: TestHarness, pkg: RunPackage) -> void:
 				built_forage += 1
 	h.assert_eq(built_props, 2354, "prop entities")
 	h.assert_eq(built_mobs, 11, "mob entities")
-	h.assert_eq(built_forage, 1452, "forage entities")
-	h.assert_eq(world.entities.size(), 3817, "every placed thing is an entity")
+	h.assert_eq(built_forage, 1524, "forage entities")
+	h.assert_eq(world.entities.size(), 3889, "every placed thing is an entity")
 
 
 # ---------------------------------------------------------------------------

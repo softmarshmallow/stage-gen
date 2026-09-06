@@ -75,7 +75,17 @@ walk back. The thing under the cursor lifts (a shade brighter and warmer, a
 material override on that one card) and is named above its own drawn top
 (`chop tree (1/3)`, `take Twigs ×2`, or just `pine · stump` when it offers
 nothing) rather than at the cursor, and the cursor becomes a hand over anything
-clickable. Picking is the card's rectangle projected to the screen, the nearer
+clickable. The thing **in reach** — the key's target, `world.target` — lifts
+the same way and is named in the accent colour with what Space would do to it
+(`mine boulder · needs a pickaxe`); that label replaced the prompt strip that
+stood above the hotbar, so nothing is pinned to the screen for it. Both labels
+are outlined text with no panel behind them. A drop is the target from the
+moment it leaves the thing that yielded it and is taken once it settles, and
+while a felled trunk's logs are still on their way down the held key waits for
+them rather than turning to the next tree. What the hand gathers (grass, twigs,
+reeds, berries) goes straight into the pack at the blow, seen as a flight from
+the bush; what an axe or a pick knocks loose lands on the ground to be picked
+up after — the package says which per prop (`interaction.yield_to`). Picking is the card's rectangle projected to the screen, the nearer
 foot winning where two overlap, then the card's own picture (a small copy read
 back once per texture): the empty corner of a birch's card passes through to
 the pine behind it. A dropped item is its whole small card, and a forage piece
@@ -138,7 +148,7 @@ references rather than the game's darkness (decision
 
 `tools/ui_shots.gd` is the HUD's own contact sheet: the real scene in a real
 window with the overlays on, staged into the moments above (the pack and a
-hovered tree at noon, a slot's card, the worn places, a pickup in flight, a walk
+hovered tree at noon, a slot's card, the worn places, a pickup in flight, a bush gathered by hand, a walk
 clicked, a held-button walk, the pause menu and its help, the table, the fire at
 night, the dark away from it, the death sheet, the run begun again, and the same
 HUD in a 2560x1440 window):
@@ -342,7 +352,7 @@ critique's section D3: mean absolute difference ≤ 0.02 **and** 99th percentile
 a contact sheet (reference | candidate | amplified difference, one row per
 shot), and exits non-zero when a shot fails.
 
-The HUD panel, the message line, the prompt strip, the key legend and the debug
+The HUD panel, the message line, the world labels, the key legend and the debug
 panel are masked out: those are DOM in the web viewer and `Control` nodes here,
 their typography will never match, and they must not gate. Since the harness
 hides every `CanvasLayer` by default they are usually empty on both sides, so

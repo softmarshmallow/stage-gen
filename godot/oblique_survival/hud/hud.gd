@@ -105,20 +105,22 @@ var _card_keys: RichTextLabel = null
 var _card_target: Dictionary = {}
 var _card_linger: float = 0.0
 
-var _prompt_panel: PanelContainer = null
-var _prompt: RichTextLabel = null
 var _message: Label = null
 var _message_panel: PanelContainer = null
-var _tooltip_panel: PanelContainer = null
-var _tooltip: RichTextLabel = null
+## The two labels that stand in the world, outlined and unpanelled: the thing
+## under the pointer named above itself, and the thing in reach — the key's
+## target — named with what the key would do (`chop pine (1/3)`). When they
+## are the same thing the focus label alone speaks.
+var _hover_label: RichTextLabel = null
+var _focus_label: RichTextLabel = null
 var _debug_panel: PanelContainer = null
 var _debug_grid: GridContainer = null
 var _debug_status: Label = null
 
 var _hud_signature: String = ""
 var _card_signature: String = ""
-var _prompt_signature: String = ""
-var _tooltip_signature: String = ""
+var _hover_signature: String = ""
+var _focus_signature: String = ""
 var _debug_signature: String = ""
 var _extra_rows: Array = []
 var _world: Variant = null
@@ -126,6 +128,9 @@ var _world: Variant = null
 var _hover: Dictionary = {}
 ## Where the hovered thing's label hangs, in window pixels; (-1, -1) for none.
 var _anchor: Vector2 = Vector2(-1.0, -1.0)
+## The frame owner's read of `world.target` and where its label hangs.
+var _focus: Variant = null
+var _focus_anchor: Vector2 = Vector2(-1.0, -1.0)
 var _hover_slot: int = -1
 var _hover_equip: String = ""
 ## Flights in the air: `{icon, from, to, t, slot}`, in layer units.
@@ -148,9 +153,8 @@ func setup(pkg, world, _fu) -> void:
 	_build_hotbar()
 	_build_buttons()
 	_build_card()
-	_build_prompt()
 	_build_message()
-	_build_tooltip()
+	_build_labels()
 	_build_debug()
 	if world != null:
 		_rebuild_slots(_slot_capacity(world))
@@ -205,6 +209,13 @@ func set_projector(projector: Callable) -> void:
 func set_hover(pick: Dictionary, anchor: Vector2 = Vector2(-1.0, -1.0)) -> void:
 	_hover = pick
 	_anchor = anchor
+
+
+## What the key would act on (`world.target`, or null), and where its label
+## hangs in window pixels. The frame owner reads both every frame.
+func set_focus(target: Variant, anchor: Vector2 = Vector2(-1.0, -1.0)) -> void:
+	_focus = target
+	_focus_anchor = anchor
 
 
 ## The debug panel, toggled by the backtick key.
@@ -294,8 +305,7 @@ func update(world, delta: float, _cam: Dictionary) -> void:
 	_craft_button.set_pressed_no_signal(bool(world.craft_open))
 	_settle_card_target(delta)
 	_write_card(world, playing)
-	_write_prompt(world)
-	_write_tooltip(world)
+	_write_labels(world)
 	_write_message(world)
 	_write_debug(world)
 	_advance_flights(delta)
@@ -695,26 +705,43 @@ func flights_in_air() -> int:
 
 
 # ===========================================================================
-# Prompt, tooltip, message, debug
+# World labels, message, debug
 # ===========================================================================
 
-## The nearest thing the key would act on, as the viewer's `#prompt`.
-func _write_prompt(world) -> void:
-	var target: Variant = world.target
-	var show: bool = target != null and mode == "play" and not bool(world.dead) and not bool(world.craft_open)
-	_prompt_panel.visible = show
-	if not show:
-		_prompt_signature = ""
-		return
-	var text := _describe_target(world, target as Dictionary, true)
-	if text == _prompt_signature:
-		return
-	_prompt_signature = text
-	_prompt.text = text
+## The two labels in the world. The focus label names the key's target with
+## what the key would do (the viewer's `#prompt`, moved from a strip above the
+## hotbar onto the thing itself); the hover label names the thing under the
+## pointer, unless that is the target, or a slot's card is up (the pointer is
+## on the panel then).
+func _write_labels(world) -> void:
+	var playing: bool = mode == "play" and not bool(world.dead) and not bool(world.craft_open)
+	var focus_text := ""
+	var focus_entity: Variant = null
+	if playing and _focus is Dictionary:
+		focus_entity = (_focus as Dictionary).get("entity", null)
+		focus_text = _describe_target(world, _focus as Dictionary)
+	var hover_text := ""
+	if playing and _card_target.is_empty():
+		var entity: Variant = _hover.get("entity", null)
+		var target: Variant = _hover.get("target", null)
+		if entity is Dictionary and not is_same(entity, focus_entity):
+			if target is Dictionary:
+				hover_text = _describe_target(world, target as Dictionary)
+			else:
+				hover_text = _describe_idle(world, entity as Dictionary)
+	_focus_label.visible = focus_text != ""
+	if focus_text != _focus_signature:
+		_focus_signature = focus_text
+		_focus_label.text = focus_text
+	_hover_label.visible = hover_text != ""
+	if hover_text != _hover_signature:
+		_hover_signature = hover_text
+		_hover_label.text = hover_text
 
 
-## What a target offers, in words: `walk & chop pine (1/3)`, `take twigs ×2`.
-func _describe_target(world, block: Dictionary, with_keys: bool) -> String:
+## What a target offers, in words: `walk & chop pine (1/3)`, `take twigs ×2`,
+## `mine boulder · needs a pickaxe`.
+func _describe_target(world, block: Dictionary) -> String:
 	var player: Variant = world.player
 	var walking: bool = _field(player, "approach", null) != null
 	var reach := float((world.manifest as Dictionary).get("gameplay", {}).get("interact_reach_meters", 0.6))
@@ -726,14 +753,12 @@ func _describe_target(world, block: Dictionary, with_keys: bool) -> String:
 		var many := ""
 		if int(entity.get("count", 1)) > 1:
 			many = " ×%d" % int(entity["count"])
-		var body := "%stake %s%s" % [lead, item_name, many]
-		return body if (walking or not with_keys) else "%s %s" % [UiKit.kbd("Space"), body]
+		return "%stake %s%s" % [lead, item_name, many]
 	var props: Dictionary = (world.manifest as Dictionary).get("props", {})
 	var prop_id := str(entity.get("prop_id", ""))
 	var prop: Dictionary = props.get(prop_id, {})
 	var interaction: Dictionary = block.get("interaction", {})
 	var verb := str(interaction.get("verb", ""))
-	var key_name := "F" if verb == "light" else "Space"
 	var hits := int(block.get("hits", 0))
 	if hits == 0:
 		hits = int(interaction.get("hits", 1))
@@ -743,28 +768,7 @@ func _describe_target(world, block: Dictionary, with_keys: bool) -> String:
 		subject = prop_id.replace("_", " ")
 	if block.get("disabled", null) != null:
 		return "%s %s · %s" % [verb, subject, str(block["disabled"])]
-	var body := "%s%s %s%s" % [lead, verb, subject, count]
-	return body if (walking or not with_keys) else "%s %s" % [UiKit.kbd(key_name), body]
-
-
-## The thing under the pointer, named above itself in the world (the frame
-## owner hands the anchor). Nothing while a slot's card is up: the pointer is
-## on the panel then.
-func _write_tooltip(world) -> void:
-	var text := ""
-	if _card_target.is_empty() and mode == "play" and not bool(world.dead) and not bool(world.craft_open):
-		var entity: Variant = _hover.get("entity", null)
-		var target: Variant = _hover.get("target", null)
-		if entity is Dictionary:
-			if target is Dictionary:
-				text = _describe_target(world, target as Dictionary, false)
-			else:
-				text = _describe_idle(world, entity as Dictionary)
-	_tooltip_panel.visible = text != ""
-	if text == _tooltip_signature:
-		return
-	_tooltip_signature = text
-	_tooltip.text = text
+	return "%s%s %s%s" % [lead, verb, subject, count]
 
 
 ## A thing under the pointer that offers nothing right now: its name alone.
@@ -958,14 +962,6 @@ func _build_card() -> void:
 	buttons.add_child(_card_keys)
 
 
-func _build_prompt() -> void:
-	_prompt_panel = UiKit.panel(false, 12.0)
-	_prompt_panel.visible = false
-	_root.add_child(_prompt_panel)
-	_prompt = UiKit.rich(UiKit.FONT_SIZE, 120.0)
-	_prompt_panel.add_child(_prompt)
-
-
 func _build_message() -> void:
 	_message_panel = UiKit.panel(false, 12.0)
 	_root.add_child(_message_panel)
@@ -974,12 +970,15 @@ func _build_message() -> void:
 	_message.modulate.a = 0.0
 
 
-func _build_tooltip() -> void:
-	_tooltip_panel = UiKit.panel(false, 8.0)
-	_tooltip_panel.visible = false
-	_root.add_child(_tooltip_panel)
-	_tooltip = UiKit.rich(UiKit.SMALL)
-	_tooltip_panel.add_child(_tooltip)
+func _build_labels() -> void:
+	_hover_label = UiKit.outlined(UiKit.SMALL, UiKit.TEXT)
+	_hover_label.name = "hover_label"
+	_hover_label.visible = false
+	_root.add_child(_hover_label)
+	_focus_label = UiKit.outlined(UiKit.FONT_SIZE, UiKit.ACCENT)
+	_focus_label.name = "focus_label"
+	_focus_label.visible = false
+	_root.add_child(_focus_label)
 
 
 func _build_debug() -> void:
@@ -1116,27 +1115,30 @@ func _reflow() -> void:
 		at.x = clampf(at.x, MARGIN, maxf(MARGIN, view.x - _card_panel.size.x - MARGIN))
 		_card_panel.position = at.round()
 
-	UiKit.fit(_prompt_panel)
-	var above := minf(_hotbar_panel.position.y, _equip_panel.position.y) if _hotbar_panel.visible else view.y - 78.0
-	if _card_panel.visible:
-		above = minf(above, _card_panel.position.y)
-	_prompt_panel.position = Vector2(round((view.x - _prompt_panel.size.x) * 0.5), round(above - 12.0 - _prompt_panel.size.y))
-
 	UiKit.fit(_message_panel)
 	_message_panel.modulate.a = _message.modulate.a
 	_message_panel.position = Vector2(round((view.x - _message_panel.size.x) * 0.5), MARGIN)
 	UiKit.fit(_debug_panel)
 	_debug_panel.position = Vector2(view.x - _debug_panel.size.x - MARGIN, MARGIN)
 
-	if _tooltip_panel.visible:
-		UiKit.fit(_tooltip_panel)
-		var at := _anchor / ui_scale
-		if _anchor.x < 0.0:
-			at = view * 0.5
-		at = Vector2(at.x - _tooltip_panel.size.x * 0.5, at.y - _tooltip_panel.size.y - LABEL_LIFT)
-		at.x = clampf(at.x, MARGIN, maxf(MARGIN, view.x - _tooltip_panel.size.x - MARGIN))
-		at.y = clampf(at.y, MARGIN, maxf(MARGIN, view.y - _tooltip_panel.size.y - MARGIN))
-		_tooltip_panel.position = at.round()
+	_place_label(_focus_label, _focus_anchor, view)
+	_place_label(_hover_label, _anchor, view)
+
+
+## A world label centred over its anchor (window pixels), lifted clear of the
+## card's top, kept inside the view. An anchor behind the camera puts it
+## mid-screen rather than nowhere.
+func _place_label(label: RichTextLabel, anchor: Vector2, view: Vector2) -> void:
+	if not label.visible:
+		return
+	UiKit.fit(label)
+	var at := anchor / ui_scale
+	if anchor.x < 0.0:
+		at = view * 0.5
+	at = Vector2(at.x - label.size.x * 0.5, at.y - label.size.y - LABEL_LIFT)
+	at.x = clampf(at.x, MARGIN, maxf(MARGIN, view.x - label.size.x - MARGIN))
+	at.y = clampf(at.y, MARGIN, maxf(MARGIN, view.y - label.size.y - MARGIN))
+	label.position = at.round()
 
 
 # ===========================================================================

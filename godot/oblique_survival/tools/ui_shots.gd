@@ -4,7 +4,8 @@ extends SceneTree
 ## The HUD's own contact sheet: the real scene in a real window, overlays on,
 ## staged into the moments a player meets — the pack and a hovered tree at
 ## noon (lifted, named above itself), a slot's card, the worn places, a pickup
-## in flight, a held-button walk, the crafting table, the pause menu and its
+## in flight, a bush gathered by hand (its twigs flying from the bush), a
+## held-button walk, the crafting table, the pause menu and its
 ## how-to-play page, the fire at night, the dark away from it, the death sheet,
 ## the run begun again, and the same HUD in a 2560x1440 window to show the
 ## scale following the window.
@@ -111,6 +112,25 @@ func _go() -> void:
 		_main.advance(0.16)
 		await _save("ui-pickup-flight.png")
 		_main.advance(1.0)
+
+	# A thing gathered by hand (`yield_to = "hand"`): a twig bush a step away,
+	# clicked, its two twigs caught on their way from the bush into the slot.
+	var bush: Variant = _nearest_prop("twig_bush", "full")
+	if bush != null:
+		_teleport(float(bush["x"]) + 0.9, float(bush["z"]) + 0.4)
+		_main.advance(STEP)
+		_main.hover_at(_screen_of(float(bush["x"]), 0.5, float(bush["z"])))
+		_main.click_at(_screen_of(float(bush["x"]), 0.5, float(bush["z"])))
+		for i in 360:
+			_main.advance(STEP)
+			if int(hud.flights_in_air()) > 0:
+				break
+		_main.advance(0.12)
+		await _save("ui-hand-gather.png")
+		_main.advance(1.0)
+		_teleport(camp_x(), camp_z() + 2.0)
+		_main.hover_at(Vector2(-1.0, -1.0))
+		_main.advance(0.3)
 
 	# A click on the ground four metres to the right: the walk is seen in the
 	# next shot as a moved player and the walk's message.
@@ -253,6 +273,14 @@ func _nearest_forage() -> Variant:
 func _screen_of(x: float, y: float, z: float) -> Vector2:
 	var camera: Camera3D = _main.rig.camera
 	return camera.unproject_position(Vector3(x, y, z))
+
+
+func camp_x() -> float:
+	return _camp().x
+
+
+func camp_z() -> float:
+	return _camp().z
 
 
 func _camp() -> Vector3:

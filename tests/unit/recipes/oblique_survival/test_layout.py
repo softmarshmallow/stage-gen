@@ -675,7 +675,10 @@ def test_a_recipe_chain_nothing_can_start_is_refused(tmp_path: Path) -> None:
     # Rope needs reeds; take the reeds away (the clump's yield) and rope, the
     # workbench, the pickaxe and the backpack all fall.
     root = _source_edit(
-        tmp_path, "props.toml", 'yields = [{ item_id = "reed", count = 2 }]', "yields = []"
+        tmp_path,
+        "props.toml",
+        'yield_to = "hand"\nyields = [{ item_id = "reed", count = 2 }]',
+        "yields = []",
     )
     _load_refused(root, "recipes nothing can ever make: rope, workbench, pickaxe, backpack")
 
@@ -706,6 +709,51 @@ def test_items_no_longer_live_in_props_toml(tmp_path: Path) -> None:
         append=True,
     )
     _load_refused(root, "props.toml [[items]] moved to items.toml")
+
+
+def test_a_yield_says_where_it_goes(tmp_path: Path) -> None:
+    """``yield_to`` is required with a yield, one of two words, and meaningless without one."""
+
+    root = _source_edit(
+        tmp_path,
+        "props.toml",
+        'yield_to = "hand"\nyields = [{ item_id = "grass_tuft", count = 1 }]',
+        'yields = [{ item_id = "grass_tuft", count = 1 }]',
+    )
+    _load_refused(root, "grass_tuft.interaction yields something and must say where it goes")
+    root = _source_edit(
+        tmp_path / "b",
+        "props.toml",
+        'yield_to = "hand"\nyields = [{ item_id = "grass_tuft", count = 1 }]',
+        'yield_to = "sky"\nyields = [{ item_id = "grass_tuft", count = 1 }]',
+    )
+    _load_refused(root, "grass_tuft.interaction.yield_to must be one of ['hand', 'ground']")
+    root = _source_edit(tmp_path / "c", "props.toml", "yields = []", 'yield_to = "hand"\nyields = []')
+    _load_refused(root, "campfire.interaction yields nothing; yield_to has no meaning")
+
+
+def test_hand_gathering_fills_the_pack_and_a_tool_drops_its_yield(package: Package) -> None:
+    """The authored contract: what the hand gathers is taken; what a tool knocks loose lands."""
+
+    where = {
+        prop.prop_id: prop.interaction.yield_to
+        for prop in package.props
+        if prop.interaction is not None and prop.interaction.yields
+    }
+    assert {k for k, v in where.items() if v == "hand"} == {
+        "thorn_bush",
+        "grass_tuft",
+        "twig_bush",
+        "reed_clump",
+    }
+    assert {k for k, v in where.items() if v == "ground"} == {
+        "pine",
+        "moss_boulder",
+        "birch",
+        "dead_snag",
+    }
+    campfire = package.prop("campfire")
+    assert campfire.interaction is not None and campfire.interaction.yield_to == "ground"
 
 
 def test_a_tool_must_serve_the_verb_that_wants_it(tmp_path: Path) -> None:

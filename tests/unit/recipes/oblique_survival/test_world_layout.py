@@ -368,7 +368,7 @@ def test_the_world_identity_is_pinned(world: Layout) -> None:
     assert digest == WORLD_DIGEST
 
 
-WORLD_DIGEST: Final = "a0bc895eb6231aa6a546b03de967f6076fd1dee4ab5e8939df46a7b83c528c03"
+WORLD_DIGEST: Final = "7c761b93ad3842f95a554375d67aaa66ae361f86f45d1606b462aca1d7ebb3c6"
 
 
 # --- the loader: world.toml and the placement block ------------------------------------

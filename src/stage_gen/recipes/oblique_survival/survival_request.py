@@ -37,6 +37,7 @@ from stage_gen.recipes.oblique_survival.models import (
     GROUND_MATERIALS,
     HIT_REACTIONS,
     INTERACTION_VERBS,
+    YIELD_DESTINATIONS,
     ITEM_USES,
     LOOK_LIGHTS,
     MAX_BIOMES,
@@ -543,6 +544,23 @@ def _interaction(block: object, *, prop_id: str, states: Sequence[str]) -> Inter
         raise SourceError(
             f"{prop_id}.interaction.verb must be one of {list(INTERACTION_VERBS)}, got {verb!r}"
         )
+    raw_yield_to = block.get("yield_to")
+    if yields:
+        if raw_yield_to is None:
+            raise SourceError(
+                f"{prop_id}.interaction yields something and must say where it goes: "
+                f"yield_to = {' | '.join(repr(d) for d in YIELD_DESTINATIONS)}"
+            )
+        yield_to = _text(raw_yield_to, field=f"{prop_id}.interaction.yield_to")
+        if yield_to not in YIELD_DESTINATIONS:
+            raise SourceError(
+                f"{prop_id}.interaction.yield_to must be one of {list(YIELD_DESTINATIONS)}, "
+                f"got {yield_to!r}"
+            )
+    elif raw_yield_to is not None:
+        raise SourceError(f"{prop_id}.interaction yields nothing; yield_to has no meaning")
+    else:
+        yield_to = "ground"
     raw_tool = block.get("tool")
     tool: ToolSpec | None = None
     if raw_tool is not None:
@@ -581,6 +599,7 @@ def _interaction(block: object, *, prop_id: str, states: Sequence[str]) -> Inter
             if regrow is None
             else _number(regrow, field=f"{prop_id}.regrow_seconds", low=1.0, high=600.0)
         ),
+        yield_to=yield_to,
         progress=progress,
         tool=tool,
     )

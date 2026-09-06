@@ -345,16 +345,21 @@ on; the shadow tone one step darker than the lit tone.
 """
 cell_meters = 0.5
 # The forage keeps its density: it is gameplay, and the pieces are cheap.
-# Two mushroom cells below override the sheet and grow under the pines.
+# Two mushroom cells below override the sheet and grow under the pines, and
+# the flint chips lie at the foot of the boulders (2026-09-06: the first axe
+# wants a flint, and a first world put the nearest one seventeen metres from
+# the camp with five inside thirty; a stone is now where flint is looked for).
+# The nodule lies on the forest floor too, so the camp's own biome carries
+# three flint cells of eleven rather than two of ten.
 placement.density_per_100m2 = 1.0
 placement.habitat = { forest_floor = 1.0, grey_scree = 0.88, mossy_bog = 0.75, dry_meadow = 0.63 }
 cells = [
   { brief = "a loose bundle of three dry twigs", contact = "fallen", biomes = ["forest_floor", "dry_meadow", "mossy_bog"], item_id = "twig", count = 2, regrow_seconds = 240.0 },
   { brief = "a single forked dry branch, arm long", contact = "fallen", biomes = ["forest_floor", "dry_meadow"], item_id = "twig", count = 1, regrow_seconds = 240.0 },
   { brief = "a few pale snapped sticks lying across each other", contact = "fallen", biomes = ["forest_floor", "mossy_bog", "grey_scree"], item_id = "twig", count = 2, regrow_seconds = 240.0 },
-  { brief = "a dark glassy flint nodule with one chipped face", contact = "pressed", biomes = ["grey_scree", "dry_meadow"], item_id = "flint", count = 1, regrow_seconds = 300.0 },
+  { brief = "a dark glassy flint nodule with one chipped face", contact = "pressed", biomes = ["grey_scree", "dry_meadow", "forest_floor"], item_id = "flint", count = 1, regrow_seconds = 300.0 },
   { brief = "a flat flake of dark flint with sharp edges", contact = "fallen", biomes = ["grey_scree", "dry_meadow", "forest_floor"], item_id = "flint", count = 1, regrow_seconds = 300.0 },
-  { brief = "two small dark flint chips side by side", contact = "fallen", biomes = ["grey_scree"], item_id = "flint", count = 2, regrow_seconds = 300.0 },
+  { brief = "two small dark flint chips side by side", contact = "fallen", biomes = ["grey_scree", "dry_meadow", "forest_floor", "mossy_bog"], item_id = "flint", count = 2, regrow_seconds = 300.0, placement = { near = { host = "moss_boulder", radius_meters = 1.4, mean = 0.6, chance = 0.7 } } },
   { brief = "a loose fist-sized grey stone, whole", contact = "fallen", biomes = ["grey_scree", "dry_meadow", "forest_floor"], item_id = "stone", count = 1, regrow_seconds = 300.0 },
   { brief = "a pair of rounded grey stones touching", contact = "pressed", biomes = ["grey_scree", "mossy_bog"], item_id = "stone", count = 2, regrow_seconds = 300.0 },
   { brief = "a plump brown-capped mushroom, whole", contact = "growing", biomes = ["forest_floor", "mossy_bog"], item_id = "mushroom", count = 1, regrow_seconds = 180.0, placement = { near = { host = "pine", radius_meters = 2.2, mean = 0.5, chance = 0.5 } } },

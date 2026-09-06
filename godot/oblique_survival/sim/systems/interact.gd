@@ -36,6 +36,9 @@ static func update(world: World, dt: float) -> void:
 		world.target = target
 		if float((target as Dictionary)["edge"]) > reach:
 			return
+		if not bool((target as Dictionary).get("ready", true)):
+			# Within reach of a drop still moving: stand and wait for it.
+			return
 		Targeting.start_interaction(world, target as Dictionary)
 		return
 	# A thing clicked (not the viewer's: it had no mouse) is the target at any
@@ -52,10 +55,18 @@ static func update(world: World, dt: float) -> void:
 			Helpers.say(world, "Nothing to be done with that.")
 			return
 		world.target = chosen_by_click
-		if float((chosen_by_click as Dictionary)["edge"]) > reach:
+		if float((chosen_by_click as Dictionary)["edge"]) > reach \
+				or not bool((chosen_by_click as Dictionary).get("ready", true)):
+			# The walk, or the wait for a drop still moving: the approach is
+			# both, and starts the take when the drop has settled in reach.
 			player.approach = {"entity": (chosen_by_click as Dictionary)["entity"], "stall": 0.0}
 			return
 		Targeting.start_interaction(world, chosen_by_click as Dictionary)
+		return
+	if Targeting.yield_pending(world):
+		# A trunk's logs are on their way down beside the player: the held
+		# key waits for them rather than turning to the next tree.
+		world.target = null
 		return
 	world.target = Targeting.interactable_at(world)
 	if world.target == null:
@@ -73,25 +84,34 @@ static func update(world: World, dt: float) -> void:
 	if float(chosen["edge"]) > reach:
 		player.approach = {"entity": chosen["entity"], "stall": 0.0}
 		return
+	if not bool(chosen.get("ready", true)):
+		# The nearest thing is a drop still bouncing at the feet: wait for it.
+		return
 	Targeting.start_interaction(world, chosen)
 
 
 static func _advance_busy(world: World, player: PlayerState, states: Dictionary, dt: float) -> void:
-	world.target = null
 	var busy := player.busy as Dictionary
+	var entity: Variant = busy["entity"]
+	# The thing being worked stays the target through the swing (the viewer
+	# blanked it, and its prompt strip with it; here the lift and the label
+	# are on the thing, and would blink at every blow).
+	world.target = null
+	if entity is Dictionary and Targeting.index_of(world.entities, entity) >= 0:
+		world.target = Targeting.target_for(world, entity as Dictionary)
 	busy["elapsed"] = float(busy["elapsed"]) + dt
 	if float(busy["elapsed"]) < Targeting.state_duration(states.get(str(busy["state"]), null)):
 		return
-	var entity: Variant = busy["entity"]
 	var interaction: Variant = busy["interaction"]
 	var spec: Variant = busy["spec"]
 	if bool(busy.get("take", false)):
 		_finish_take(world, player, entity as Dictionary)
-		player.busy = null
-		return
-	if entity != null and Targeting.index_of(world.entities, entity) >= 0:
+	elif entity != null and Targeting.index_of(world.entities, entity) >= 0:
 		_land_blow(world, player, entity as Dictionary, interaction as Dictionary, spec, int(busy["hits"]), int(busy["tool_slot"]))
 	player.busy = null
+	# The same tick: what the key would turn to now — the yield just thrown,
+	# before anything else — so the focus never blanks between blow and drop.
+	world.target = null if Targeting.yield_pending(world) else Targeting.interactable_at(world)
 
 
 static func _finish_take(world: World, player: PlayerState, entity: Dictionary) -> void:
@@ -163,7 +183,12 @@ static func _land_blow(
 			var authored := float((spec as Dictionary).get("height_meters", 0.0))
 			if authored != 0.0:
 				height = authored
-		if str(interaction.get("verb", "")) == "chop" and family == "tree":
+		if str(interaction.get("yield_to", "")) == "hand":
+			# The authored contract for a thing gathered by hand: the yield
+			# goes straight into the pack, seen as a flight from the thing to
+			# the slot; what does not fit falls at the thing, and is said.
+			_take_in_hand(world, player, entity, interaction["yields"], -away_x, -away_z)
+		elif str(interaction.get("verb", "")) == "chop" and family == "tree":
 			# The trunk topples away from the player, in the screen plane, and
 			# its yield appears where the crown lands, when it lands.
 			var toppling := -1.0 if Targeting.screen_right_component(away_x, away_z, world.camera_yaw) < 0.0 else 1.0
@@ -186,9 +211,39 @@ static func _land_blow(
 				-away_x, -away_z, 1.0
 			)
 		return
+	_progress_look(entity, interaction, hits)
+
+
+## The yield of a hand-gathered thing, counted into the pack at the blow. Each
+## piece that went is a `pickup` from where the thing stands (the HUD flies
+## it to the slot); the ones the pack could not take fall toward the player.
+static func _take_in_hand(
+	world: World, _player: PlayerState, entity: Dictionary, yields: Variant, dir_x: float, dir_z: float
+) -> void:
+	if yields == null:
+		return
+	var fallen: Array = []
+	for produced in (yields as Array):
+		var block := produced as Dictionary
+		var wanted := int(block.get("count", 0))
+		if wanted == 0:
+			wanted = 1
+		var left := Inventory.inv_add(world, str(block["item_id"]), wanted)
+		for n in wanted - left:
+			Helpers.emit(world, {
+				"type": "pickup", "item": str(block["item_id"]), "x": entity["x"], "z": entity["z"],
+			})
+		if left > 0:
+			fallen.append({"item_id": str(block["item_id"]), "count": left})
+	if not fallen.is_empty():
+		Helpers.say(world, "Hands full.")
+		SysDrops.spawn_drops(world, fallen, float(entity["x"]), float(entity["z"]), dir_x, dir_z, 1.0)
+
+
+## The author's look for this many hits: a cracked rock, a split one.
+static func _progress_look(entity: Dictionary, interaction: Dictionary, hits: int) -> void:
 	var progress: Variant = interaction.get("progress", null)
 	if progress != null and (progress as Array).size() > 0:
-		# The author's look for this many hits: a cracked rock, a split one.
 		var step: int = mini(hits - 1, (progress as Array).size() - 1)
 		var look: Variant = (progress as Array)[step]
 		if look != entity["state"]:

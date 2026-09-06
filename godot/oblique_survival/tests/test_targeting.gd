@@ -95,11 +95,17 @@ func _offers_nothing(h: TestHarness, w: World) -> void:
 	h.assert_true(Targeting.target_for(w, lit) != null, "an unlit fire offers a light")
 	lit["state"] = "lit"
 	h.assert_true(Targeting.target_for(w, lit) == null, "a lit fire offers nothing")
-	# A mob is not a target; an unsettled drop is not one yet.
+	# A mob is not a target; an unsettled drop is one from the moment it flies
+	# (the eye and the held key follow it), but not ready until it settles.
 	var hound := SimFixture.mob(w, "m1", "grub_hound", 0.0, 1.0)
 	h.assert_true(Targeting.target_for(w, hound) == null, "a mob offers nothing")
 	SysDrops.spawn_drops(w, [{"item_id": "log", "count": 1}], 0.0, 1.0, 0.0, 1.0, 1.0)
 	var drop: Dictionary = w.entities[w.entities.size() - 1]
-	h.assert_true(Targeting.target_for(w, drop) == null, "a bouncing drop is not takeable")
+	var bouncing: Variant = Targeting.target_for(w, drop)
+	h.assert_true(bouncing != null, "a bouncing drop is a target already")
+	h.assert_false(bool((bouncing as Dictionary)["ready"]), "but not ready to be taken")
+	Targeting.start_interaction(w, bouncing as Dictionary)
+	h.assert_true(w.player.busy == null and not bool(drop["taken"]), "and starting the take waits")
 	drop["settled"] = true
-	h.assert_true(Targeting.target_for(w, drop) != null, "a settled drop is")
+	var settled: Variant = Targeting.target_for(w, drop)
+	h.assert_true(settled != null and bool((settled as Dictionary)["ready"]), "a settled drop is ready")

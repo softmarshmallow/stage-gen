@@ -71,6 +71,9 @@ var _mode: String = "play"
 ## "". Re-applied every frame, because a card that was rebuilt (a state change,
 ## a season) comes back without its override.
 var _highlight_id: String = ""
+## The entity id the key would act on (`world.target`), lifted the same way so
+## the player sees what is in reach without a prompt strip saying so.
+var _focus_id: String = ""
 ## Template material instance id -> its lifted twin, made once per template
 ## the pointer has ever rested on and registered for the frame uniforms.
 var _lifted: Dictionary = {}
@@ -929,8 +932,22 @@ func _tilt(node: Node3D, radians: float) -> void:
 func set_highlight(entity_id: String) -> void:
 	if entity_id == _highlight_id:
 		return
-	_let_down(_records.get(_highlight_id))
+	var was := _highlight_id
 	_highlight_id = entity_id
+	if was != _focus_id:
+		_let_down(_records.get(was))
+	_apply_highlight()
+
+
+## Lift the card of the thing in reach (the key's target), and let the last one
+## down. The same lift as the hover: the two coincide more often than not.
+func set_focus(entity_id: String) -> void:
+	if entity_id == _focus_id:
+		return
+	var was := _focus_id
+	_focus_id = entity_id
+	if was != _highlight_id:
+		_let_down(_records.get(was))
 	_apply_highlight()
 
 
@@ -947,9 +964,15 @@ func _let_down(record: Variant) -> void:
 
 
 func _apply_highlight() -> void:
-	if _highlight_id == "":
+	_lift(_highlight_id)
+	if _focus_id != _highlight_id:
+		_lift(_focus_id)
+
+
+func _lift(entity_id: String) -> void:
+	if entity_id == "":
 		return
-	var record: Variant = _records.get(_highlight_id)
+	var record: Variant = _records.get(entity_id)
 	if not (record is Dictionary):
 		return
 	var node: Variant = (record as Dictionary).get("node")
@@ -976,6 +999,10 @@ func _apply_highlight() -> void:
 
 func highlighted() -> String:
 	return _highlight_id
+
+
+func focused() -> String:
+	return _focus_id
 
 
 ## Where a label for an entity hangs in the world: the top of its card, a hand

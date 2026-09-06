@@ -198,19 +198,38 @@ func _hud_builds_the_pack(h: TestHarness, w: World) -> void:
 	hud._on_map_button()
 	hud._on_menu_button()
 	h.assert_eq(asked, ["map", "menu"], "Map and Menu ask the frame owner")
-	# The hover names the thing under the pointer, above the thing.
+	# The hover names the thing under the pointer, above the thing, in an
+	# outlined label with no panel behind it.
 	var pine := SimFixture.prop(w, "p2", "pine", "grown", 0.0, 1.0)
 	w.entities.append(pine)
 	hud.set_hover({"entity": pine, "target": Targeting.target_for(w, pine), "point": null}, Vector2(800.0, 300.0))
 	hud.update(w, 0.0, {})
-	h.assert_true(hud._tooltip_panel.visible, "a hovered pine shows its name")
-	h.assert_true(hud._tooltip.text.find("chop") >= 0, "naming the chop (%s)" % hud._tooltip.text)
-	var centre := hud._tooltip_panel.position.x + hud._tooltip_panel.size.x * 0.5
+	h.assert_true(hud._hover_label.visible, "a hovered pine shows its name")
+	h.assert_true(hud._hover_label.text.find("chop") >= 0, "naming the chop (%s)" % hud._hover_label.text)
+	h.assert_true(hud._hover_label.get_theme_constant("outline_size") >= 3, "outlined")
+	h.assert_true(hud._hover_label.get_parent() == hud._root, "with no panel behind it")
+	var centre := hud._hover_label.position.x + hud._hover_label.size.x * 0.5
 	h.assert_near(centre, 800.0, 1.0, "centred on the anchor")
-	h.assert_true(hud._tooltip_panel.position.y + hud._tooltip_panel.size.y < 300.0, "and standing above it")
+	h.assert_true(hud._hover_label.position.y + hud._hover_label.size.y < 300.0, "and standing above it")
 	hud.set_hover({})
 	hud.update(w, 0.0, {})
-	h.assert_false(hud._tooltip_panel.visible, "and none off the world")
+	h.assert_false(hud._hover_label.visible, "and none off the world")
+	# The key's target is named the same way, with what the key would do, and
+	# the hover label yields to it when they are the same thing.
+	var target: Variant = Targeting.target_for(w, pine)
+	hud.set_focus(target, Vector2(640.0, 420.0))
+	hud.update(w, 0.0, {})
+	h.assert_true(hud._focus_label.visible, "the thing in reach is named")
+	h.assert_true(hud._focus_label.text.find("chop") >= 0, "with the verb (%s)" % hud._focus_label.text)
+	h.assert_true(hud._focus_label.position.y + hud._focus_label.size.y < 420.0, "above its anchor")
+	hud.set_hover({"entity": pine, "target": target, "point": null}, Vector2(640.0, 420.0))
+	hud.update(w, 0.0, {})
+	h.assert_false(hud._hover_label.visible, "the hover says nothing twice")
+	h.assert_false("prompt" in hud, "and there is no prompt strip any more")
+	hud.set_focus(null)
+	hud.set_hover({})
+	hud.update(w, 0.0, {})
+	h.assert_false(hud._focus_label.visible, "no target, no label")
 	w.dead = true
 	hud.update(w, 0.0, {})
 	h.assert_false(hud._hotbar_panel.visible, "the dead have no hotbar")

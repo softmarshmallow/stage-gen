@@ -165,15 +165,20 @@ static func target_for(world: World, entity: Dictionary) -> Variant:
 	var player: PlayerState = world.player
 	var kind := str(entity.get("kind", ""))
 	if kind == "item":
-		# A settled drop is taken by hand, on the key.
+		# A drop is taken by hand, on the key. One still in the air is a
+		# target from the moment it leaves the thing that yielded it (the eye
+		# follows it, and so does the held key), and is taken once it has
+		# settled: `ready` says which.
 		var pickup := str((world.manifest["gameplay"] as Dictionary).get("pickup", ""))
 		if pickup == "":
 			pickup = "manual"
 		if pickup != "manual":
 			return null
-		if not bool(entity.get("settled", false)) or bool(entity.get("taken", false)):
+		if bool(entity.get("taken", false)):
 			return null
-		return _take_target(entity, _centre_distance(player, entity), false)
+		var target := _take_target(entity, _centre_distance(player, entity), false)
+		target["ready"] = bool(entity.get("settled", false))
+		return target
 	if kind == "forage":
 		# A piece on the ground is taken by hand like a drop; not while the
 		# season hides it.
@@ -229,9 +234,17 @@ static func target_for(world: World, entity: Dictionary) -> Variant:
 	}
 
 
+## Seconds after a drop settles during which it is still "the yield": taken
+## before anything else in the notice radius. `age` is zeroed when it settles.
+const FRESH_SECONDS := 1.5
+
+
 ## The nearest thing the key would act on, within the notice radius, or null.
 ## The nearest wins, drop or prop, so a log at the feet is taken before the
-## stump behind it is chopped.
+## stump behind it is chopped — except that a yield on its way down, or one
+## that has just landed, comes first whatever stands nearer: the stone the
+## player has just mined is the thing they are looking at, and the held key
+## must not turn to the bush behind them while it bounces.
 static func interactable_at(world: World) -> Variant:
 	var notice := maxf(reach_of(world), approach_of(world))
 	var player: PlayerState = world.player
@@ -239,6 +252,7 @@ static func interactable_at(world: World) -> Variant:
 	var pz := player.z
 	var best: Variant = null
 	var best_edge := INF
+	var best_fresh := false
 	for entity in world.entities:
 		# Broad phase, and exactly the test below: every kind that can answer
 		# with a target reports `edge` as the centre distance less the entity's
@@ -257,8 +271,15 @@ static func interactable_at(world: World) -> Variant:
 		var edge := float((target as Dictionary)["edge"])
 		if edge > notice:
 			continue
-		# The nearest edge wins, ties to the earlier entity in list order.
-		if edge < best_edge:
+		var fresh := bool((target as Dictionary).get("item", false)) and not bool((target as Dictionary).get("forage", false)) \
+				and (not bool((target as Dictionary).get("ready", true)) or float(entity.get("age", INF)) < FRESH_SECONDS)
+		# A fresh yield first; then the nearest edge, ties to the earlier
+		# entity in list order.
+		if fresh and not best_fresh:
+			best_fresh = true
+			best_edge = edge
+			best = target
+		elif fresh == best_fresh and edge < best_edge:
 			best_edge = edge
 			best = target
 	return best
@@ -281,7 +302,10 @@ static func start_interaction(world: World, target: Dictionary) -> void:
 		return
 	if bool(target.get("item", false)):
 		# Taking a drop plays the same authored reach-and-lift as harvesting,
-		# and the drop goes when the lift ends.
+		# and the drop goes when the lift ends. One still bouncing is waited
+		# for, not reached after.
+		if not bool(target.get("ready", true)):
+			return
 		entity["taken"] = true
 		player.busy = {
 			"state": "gather", "elapsed": 0.0, "entity": entity, "interaction": null,
@@ -339,4 +363,19 @@ static func _take_target(entity: Dictionary, edge: float, forage: bool) -> Dicti
 	return {
 		"entity": entity, "interaction": {"verb": "take"}, "spec": null, "item": true,
 		"forage": forage, "edge": edge, "hits": 1, "disabled": null, "tool_slot": -1,
+		"ready": true,
 	}
+
+
+## Whether a yield is still on its way to the ground near the player: a drop
+## in the air or sliding, or a trunk's logs waiting for the crown to land.
+## The held key waits for it rather than turning to the next thing.
+static func yield_pending(world: World) -> bool:
+	var notice := maxf(reach_of(world), approach_of(world))
+	var player: PlayerState = world.player
+	for queued in world.drops:
+		var dx: float = player.x - float(queued["x"])
+		var dz: float = player.z - float(queued["z"])
+		if sqrt(dx * dx + dz * dz) <= notice:
+			return true
+	return false

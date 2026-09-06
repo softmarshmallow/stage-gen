@@ -209,6 +209,8 @@ class PropInteraction(TypedDict):
     regrow_seconds: float | None
     progress: list[str]
     yields: list[PropYield]
+    #: ``hand`` (into the pack at the last blow) or ``ground`` (dropped there).
+    yield_to: str
     tool: PropTool | None
 
 
@@ -1158,6 +1160,8 @@ def _prop_block(package: Package, run_dir: Path, prop: Prop) -> PropBlock | None
                 {"item_id": produced.item_id, "count": produced.count}
                 for produced in prop.interaction.yields
             ],
+            # Gameplay: where the yield goes when the last blow lands.
+            "yield_to": prop.interaction.yield_to,
             # Gameplay: the tool the verb wants, and what the bare hand may do.
             "tool": (
                 {

@@ -11,6 +11,15 @@ motion_hint_allowed = ["sway_top", "bob", "flicker", "none"]
 # motion_hint is idle motion in the wind; this is the answer to a hit. They are
 # authored apart because a dead trunk does not sway but does shudder.
 hit_reaction_allowed = ["shake", "none"]
+# Where the yield goes when the last blow lands, authored per prop and required
+# whenever the interaction yields anything:
+#   hand    straight into the pack, the way a tuft of grass or a handful of
+#           twigs is simply taken; what does not fit falls at the thing
+#   ground  dropped at the thing, for the player to pick up after, the way a
+#           felled trunk's logs lie where the crown lands
+# The verb says nothing about it: gathering by hand is `hand`, anything a tool
+# knocks loose is `ground`. (The contract came 2026-09-06; before it every
+# yield dropped.)
 
 # height_units are multiples of the player's height. edge = "soft" turns on
 # alpha-to-coverage in the viewer for foliage that a hard 0.5 cutoff chews up.
@@ -105,6 +114,7 @@ next_state = "stump"
 fx = "chips"
 # An axe fells it in two blows; without one it cannot be felled at all.
 tool = { item_id = "axe", hits = 2, required = true }
+yield_to = "ground"
 yields = [{ item_id = "log", count = 2 }]
 
 [props.season_prompt.winter]
@@ -148,6 +158,7 @@ hits = 1
 next_state = "picked"
 fx = "leaves"
 regrow_seconds = 45.0
+yield_to = "hand"
 yields = [{ item_id = "berry", count = 2 }]
 
 [props.season_prompt.winter]
@@ -210,6 +221,7 @@ regrow_seconds = 120.0
 # Stone comes off the boulder only under a pick; loose stone lies on the
 # ground (ground.toml [forage]) for the player who has none yet.
 tool = { item_id = "pickaxe", hits = 3, required = true }
+yield_to = "ground"
 yields = [{ item_id = "stone", count = 2 }]
 
 [props.season_prompt.winter]
@@ -250,6 +262,7 @@ hits = 1
 next_state = "cut"
 fx = "leaves"
 regrow_seconds = 60.0
+yield_to = "hand"
 yields = [{ item_id = "grass_tuft", count = 1 }]
 
 [props.season_prompt.winter]
@@ -381,6 +394,7 @@ next_state = "stump"
 fx = "chips"
 # An axe fells it in two blows; without one it cannot be felled at all.
 tool = { item_id = "axe", hits = 2, required = true }
+yield_to = "ground"
 yields = [{ item_id = "log", count = 2 }]
 
 [props.season_prompt.winter]
@@ -442,6 +456,7 @@ progress = ["broken"]
 next_state = "stump"
 fx = "chips"
 tool = { item_id = "axe", hits = 2, required = true }
+yield_to = "ground"
 yields = [{ item_id = "log", count = 1 }]
 
 [props.season_prompt.winter]
@@ -519,6 +534,7 @@ hits = 1
 next_state = "cut"
 fx = "leaves"
 regrow_seconds = 90.0
+yield_to = "hand"
 yields = [{ item_id = "twig", count = 2 }]
 
 [[props]]
@@ -561,6 +577,7 @@ hits = 1
 next_state = "cut"
 fx = "leaves"
 regrow_seconds = 75.0
+yield_to = "hand"
 yields = [{ item_id = "reed", count = 2 }]
 
 [props.season_prompt.winter]

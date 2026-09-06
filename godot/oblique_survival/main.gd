@@ -659,28 +659,44 @@ func _refresh_hover() -> void:
 
 
 ## Every frame: the hovered thing's label anchor, projected afresh (the camera
-## follows the player, so the point moves under a still cursor), and the hover
-## dropped when the thing has left the world (a piece just taken).
+## follows the player, so the point moves under a still cursor), the hover
+## dropped when the thing has left the world (a piece just taken), and the
+## key's target (`world.target`) lifted and named the same way, so what is in
+## reach shows on the thing itself rather than in a strip.
 func _follow_hover() -> void:
 	var hud_node = modules.get("hud")
 	if hud_node == null or not hud_node.has_method("set_hover"):
 		return
+	var cards_node = modules.get("cards")
 	var entity: Variant = _hover.get("entity")
 	if entity is Dictionary and Targeting.index_of(world.entities, entity) < 0:
 		_hover = {}
 		entity = null
-		var cards_node = modules.get("cards")
 		if cards_node != null and cards_node.has_method("set_highlight"):
 			cards_node.set_highlight("")
 		Input.set_default_cursor_shape(Input.CURSOR_ARROW)
-	var anchor := Vector2(-1.0, -1.0)
-	if entity is Dictionary:
-		var cards_node = modules.get("cards")
-		var point := Vector3(float((entity as Dictionary).get("x", 0.0)), 0.5, float((entity as Dictionary).get("z", 0.0)))
-		if cards_node != null and cards_node.has_method("label_anchor"):
-			point = cards_node.label_anchor(entity, rig.card_basis.y if rig != null else Vector3.UP)
-		anchor = _project(point)
-	hud_node.set_hover(_hover, anchor)
+	elif entity is Dictionary:
+		# What the thing offers is re-read every frame: a bush gathered under a
+		# still cursor is `bush · cut` now, not `gather bush` until the mouse moves.
+		_hover["target"] = Targeting.target_for(world, entity as Dictionary)
+	hud_node.set_hover(_hover, _label_anchor(entity, cards_node))
+	var target: Variant = world.target if world != null and not world.dead else null
+	var focus: Variant = (target as Dictionary).get("entity") if target is Dictionary else null
+	if cards_node != null and cards_node.has_method("set_focus"):
+		cards_node.set_focus(String((focus as Dictionary).get("id", "")) if focus is Dictionary else "")
+	if hud_node.has_method("set_focus"):
+		hud_node.set_focus(target, _label_anchor(focus, cards_node))
+
+
+## Where an entity's label hangs on the screen: the drawn top of its card
+## along the camera's up, projected; (-1, -1) for no entity.
+func _label_anchor(entity: Variant, cards_node) -> Vector2:
+	if not (entity is Dictionary):
+		return Vector2(-1.0, -1.0)
+	var point := Vector3(float((entity as Dictionary).get("x", 0.0)), 0.5, float((entity as Dictionary).get("z", 0.0)))
+	if cards_node != null and cards_node.has_method("label_anchor"):
+		point = cards_node.label_anchor(entity, rig.card_basis.y if rig != null else Vector3.UP)
+	return _project(point)
 
 
 ## A world point on the screen, in window pixels, or (-1, -1) behind the
