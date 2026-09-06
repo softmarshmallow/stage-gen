@@ -8,7 +8,8 @@ extends RefCounted
 ##   Godot --path godot/oblique_survival -- --run <absolute run dir> \
 ##       [--mode play|gallery|verdict] [--time noon|night] \
 ##       [--season auto|<season_id>] [--weather auto|clear|rain|storm|snow] \
-##       [--seed <int>] [--capture <shot>] [--out <png path>] [--frames <n>]
+##       [--seed <int>] [--capture <shot>] [--out <png path>] [--frames <n>] \
+##       [--night-floor <0..1>] [--ui-scale <factor>] [--fullscreen]
 ##
 ## These mirror the web viewer's query string (`?run=&mode=&time=&season=`),
 ## plus the capture harness's three. `--reach` / `--approach` are deliberately
@@ -31,6 +32,14 @@ var seed_value: int = 0
 var capture: String = ""
 var out: String = ""
 var frames: int = 0
+## How much of the daylight colour the deep night keeps away from a fire. The
+## game's default is 0 (dark is dark); the viewer's was 0.38, which the
+## capture harness passes so the picture gate keeps measuring parity.
+var night_floor: float = 0.0
+## A multiplier on the HUD's automatic scale (the window's height over 900).
+var ui_scale: float = 1.0
+## Start in a borderless fullscreen window. F11 toggles it either way.
+var fullscreen: bool = false
 ## Arguments that were not understood, kept so a host can complain about them.
 var unknown: PackedStringArray = PackedStringArray()
 
@@ -70,6 +79,13 @@ static func parse(argv: PackedStringArray) -> RunArgs:
 				args.out = value
 			"--frames":
 				args.frames = int(value)
+			"--night-floor":
+				args.night_floor = clampf(float(value), 0.0, 1.0)
+			"--ui-scale":
+				args.ui_scale = float(value)
+			"--fullscreen":
+				# A bare flag; `--fullscreen=false` turns it off explicitly.
+				args.fullscreen = value == "" or value == "1" or value == "true"
 			_:
 				known = false
 		if not known:
@@ -98,6 +114,9 @@ func _normalise() -> void:
 		weather = "auto"
 	if run != "":
 		run = run.rstrip("/")
+	if ui_scale <= 0.0:
+		push_warning("--ui-scale must be positive; using 1")
+		ui_scale = 1.0
 
 ## The option bag `World.create` takes.
 func world_options() -> Dictionary:

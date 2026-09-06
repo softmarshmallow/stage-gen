@@ -38,6 +38,25 @@ static func update(world: World, dt: float) -> void:
 			return
 		Targeting.start_interaction(world, target as Dictionary)
 		return
+	# A thing clicked (not the viewer's: it had no mouse) is the target at any
+	# distance: within reach the action starts, beyond it the click commits
+	# the walk the key would have. A thing with nothing to offer says so.
+	var clicked: Variant = world.input.get("click_entity", null)
+	if clicked is Dictionary:
+		var chosen_by_click: Variant = null
+		if Targeting.index_of(world.entities, clicked) >= 0:
+			chosen_by_click = Targeting.target_for(world, clicked as Dictionary)
+		player.goto = null
+		if chosen_by_click == null:
+			world.target = Targeting.interactable_at(world)
+			Helpers.say(world, "Nothing to be done with that.")
+			return
+		world.target = chosen_by_click
+		if float((chosen_by_click as Dictionary)["edge"]) > reach:
+			player.approach = {"entity": (chosen_by_click as Dictionary)["entity"], "stall": 0.0}
+			return
+		Targeting.start_interaction(world, chosen_by_click as Dictionary)
+		return
 	world.target = Targeting.interactable_at(world)
 	if world.target == null:
 		return

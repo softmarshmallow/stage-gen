@@ -4,8 +4,9 @@ extends RefCounted
 ## Reads `input`, `inventory_use`, `collision`; writes `craft_menu`, `built`.
 ## viewer/index.html 692-786 (the helpers) and 1315-1328 (the system).
 ##
-## The crafting table: C opens it, W/S choose, Enter makes. Recipes, stations
-## and products are the manifest's; nothing here knows a recipe by name.
+## The crafting table: C opens it, W/S (or a click on a row) choose, Enter (or
+## the Craft button) makes. Recipes, stations and products are the manifest's;
+## nothing here knows a recipe by name.
 
 ## The headings tried around the player's facing when a prop is built.
 const PLACE_OFFSETS := [0.0, 0.7, -0.7, 1.4, -1.4, 2.1, -2.1, PI]
@@ -23,6 +24,10 @@ static func update(world: World, _dt: float) -> void:
 	var move := int(world.input["menu_move"])
 	if move != 0:
 		world.craft_index = (world.craft_index + move + recipes.size()) % recipes.size()
+	# A row clicked in the panel: the pointer's spelling of W/S.
+	var picked: Variant = world.input.get("menu_select", null)
+	if picked != null:
+		world.craft_index = clampi(int(picked), 0, recipes.size() - 1)
 	if bool(world.input["menu_confirm"]):
 		craft_recipe(world, recipes[world.craft_index])
 

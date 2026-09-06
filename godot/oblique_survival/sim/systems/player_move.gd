@@ -5,6 +5,8 @@ extends RefCounted
 
 ## A committed walk gives up after this long without closing on its target.
 const APPROACH_STALL_SECONDS := 0.6
+## A pointer walk is over once the player stands this close to the spot.
+const GOTO_ARRIVE_METERS := 0.12
 
 
 static func update(world: World, dt: float) -> void:
@@ -15,6 +17,7 @@ static func update(world: World, dt: float) -> void:
 		player.vx = 0.0
 		player.vz = 0.0
 		player.approach = null
+		player.goto = null
 		return
 	if player.busy != null:
 		# A busy player is frozen; movement during an interaction is
@@ -22,6 +25,12 @@ static func update(world: World, dt: float) -> void:
 		player.vx = 0.0
 		player.vz = 0.0
 		return
+	# A click on the ground starts a pointer walk (not the viewer's: it had no
+	# mouse). It takes the place of any earlier walk, committed or pointed.
+	var clicked: Variant = world.input.get("click_point", null)
+	if clicked is Dictionary:
+		player.goto = {"x": float(clicked["x"]), "z": float(clicked["z"]), "stall": 0.0}
+		player.approach = null
 	var speed := float((world.manifest["gameplay"] as Dictionary).get("player_speed_meters_per_second", 0.0))
 	if speed == 0.0:
 		speed = 3.2
@@ -37,6 +46,25 @@ static func update(world: World, dt: float) -> void:
 	var s := sin(world.camera_yaw)
 	player.vx = (x * c + z * s) * speed
 	player.vz = (-x * s + z * c) * speed
+	if player.approach != null:
+		player.goto = null
+	if player.goto != null:
+		# The pointer walk: straight at the spot, until a key takes it back or
+		# the player is standing on it.
+		if length > 0.0:
+			player.goto = null
+		else:
+			var goto := player.goto as Dictionary
+			var to_x: float = float(goto["x"]) - player.x
+			var to_z: float = float(goto["z"]) - player.z
+			var far := sqrt(to_x * to_x + to_z * to_z)
+			if far <= GOTO_ARRIVE_METERS:
+				player.goto = null
+			else:
+				# The last step lands on the spot rather than past it.
+				var pace := minf(speed, far / dt)
+				player.vx = (to_x / far) * pace
+				player.vz = (to_z / far) * pace
 	if player.approach != null:
 		# The key committed the player to a target out of reach. Any movement
 		# key takes the walk back.
@@ -80,3 +108,15 @@ static func update(world: World, dt: float) -> void:
 			approach["stall"] = 0.0
 		if float(approach["stall"]) >= APPROACH_STALL_SECONDS:
 			player.approach = null
+	if player.goto != null:
+		# The same rule for the pointer walk: a shore or a footprint in the way
+		# ends it rather than leaving the player pushing at it.
+		var dx := player.x - from_x
+		var dz := player.z - from_z
+		var goto := player.goto as Dictionary
+		if sqrt(dx * dx + dz * dz) < speed * dt * 0.25:
+			goto["stall"] = float(goto["stall"]) + dt
+		else:
+			goto["stall"] = 0.0
+		if float(goto["stall"]) >= APPROACH_STALL_SECONDS:
+			player.goto = null

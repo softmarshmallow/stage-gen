@@ -104,6 +104,7 @@ The contract is [oblique-survival](docs/spec/survival/generation-v1.md); the hos
 - [ ] Re-brief the road plate the way the two field plates were re-briefed, or give it a torn edge: the dirt track's stub now reads as a soft pale band against the darker turf ([survival ground](docs/spec/survival/ground.md)).
 - [ ] Semantic review of an oblique-survival run's ground, props and actors by someone other than their producer, and a separately recorded listening verdict on its music and sound takes ([VERIFICATION.md](VERIFICATION.md)).
 - [ ] Draw a mob a `back` facing, or keep `single_mirrored` as the admitted coverage for a mob and stop treating it as a gap ([oblique-survival](docs/spec/survival/generation-v1.md)).
+- [ ] Alpha-test the pointer pick: a click in the empty corner of a card's rectangle still picks that card; reading the hit texel needs the card images kept CPU-side or a per-template mask ([host README](godot/oblique_survival/README.md), "Playing it").
 
 ## Future genres
 

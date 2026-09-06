@@ -26,6 +26,8 @@ static func from_manifest(manifest: Dictionary, resolution: Vector2) -> FrameUni
 	var blend: Dictionary = manifest.get("ground", {}).get("splat", {}).get("blend", {})
 	fu.static_values = {
 		"u_night_tint": _vec3(night.get("tint", [0.35, 0.42, 0.70])),
+		# Not the manifest's: the frame owner writes it from `--night-floor`.
+		"u_night_floor": 0.0,
 		"u_light_color": _vec3(campfire.get("light_color", [1.0, 0.72, 0.40])),
 		"u_rain_tint": _vec3(rain.get("tint", [1.0, 1.0, 1.0])),
 		"u_rain_desaturate": float(rain.get("desaturate", 0.0)),

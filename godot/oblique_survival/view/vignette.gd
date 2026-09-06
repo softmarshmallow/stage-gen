@@ -38,11 +38,18 @@ void fragment() {
 """
 
 var rect: ColorRect = null
+## Whether the layer paints at all: over the game's black night (no floor,
+## `--night-floor 0`) a tinted gradient can only lift the black to blue, so
+## the vignette stands down and the fire's pool is the only light. The
+## viewer's picture (floor 0.38, the gate) keeps it.
+var active: bool = true
 
 var _material: ShaderMaterial = null
 
-func setup(_pkg, _world, _fu) -> void:
+func setup(_pkg, _world, fu) -> void:
 	layer = 20
+	if fu != null and float(fu.static_values.get("u_night_floor", 0.0)) <= 0.001:
+		active = false
 	var shader := Shader.new()
 	shader.code = SHADER
 	_material = ShaderMaterial.new()
@@ -63,6 +70,9 @@ func setup(_pkg, _world, _fu) -> void:
 
 func update(world, _delta: float, _cam: Dictionary) -> void:
 	if world == null:
+		return
+	if not active:
+		set_opacity(0.0)
 		return
 	set_opacity(float(world.night) * 0.85 * (1.0 - flash_of(world)))
 

@@ -65,7 +65,19 @@ Godot --path godot/oblique_survival -- --run <run directory>
 asset in a row at true relative scale beside a height ruler, which is where
 scale drift is actually visible; `verdict` pins the camera on a fixed frame so
 two runs compare), and `--time`, `--season` and `--weather` force the conditions
-the calendar and the clock would otherwise roll. The project pins Godot 4.7. Its
+the calendar and the clock would otherwise roll. `--fullscreen` starts in a
+borderless fullscreen window (F11 toggles it), `--ui-scale` multiplies the HUD's
+automatic scale, and `--night-floor` is how much daylight the deep night keeps
+away from a fire — 0 in play, so the night is black, and the viewer's 0.38 under
+the picture gate ([decision 0058](decisions/0058-the-night-is-black-and-the-gate-keeps-the-viewers.md)).
+
+The game is played with the mouse as much as the keys: a click on a thing acts
+on it or walks to it, a click on the ground walks there, the hover names what
+is under the cursor, the pack is a clickable hotbar with the chosen item's card
+and its Use and Drop buttons, the crafting table and the death sheet are
+panels with buttons, and every panel is scaled by the window's height so a
+fullscreen reads like the 1600x900 window. The host README's "Playing it"
+section is the full account. The project pins Godot 4.7. Its
 `.godot/` import cache and any export presets are derived or machine-specific and
 are ignored; the per-file `*.import` records are committed, because they are the
 import contract and a missing one makes a headless build non-reproducible.

@@ -61,7 +61,13 @@ var _water_hook: Callable = Callable()
 var _decal_hook: Callable = Callable()
 var _wet_hook: Callable = Callable()
 
+var _night_keep: float = 1.0
+
 func setup(pkg, world, fu) -> void:
+	# The drops keep their 55% at night only while the night keeps a floor;
+	# in the game's black night they go dark with everything else.
+	if fu != null and float(fu.static_values.get("u_night_floor", 0.0)) <= 0.001:
+		_night_keep = 0.0
 	var manifest: Dictionary = pkg.manifest
 	var camera: Dictionary = manifest.get("camera", {}) if manifest.get("camera") is Dictionary else {}
 	_fov = float(camera.get("fov_degrees", 35.0))
@@ -107,6 +113,7 @@ func _build_fall(pkg, spec_value: Variant, narrow: float, opacity: float,
 	material.set_shader_parameter("u_opacity", opacity)
 	material.set_shader_parameter("u_sway", sway)
 	material.set_shader_parameter("u_rain", 0.0)
+	material.set_shader_parameter("u_night_keep", _night_keep)
 	material.set_shader_parameter("u_weights", Vector4(
 		LAYER_WEIGHTS[0], LAYER_WEIGHTS[1], LAYER_WEIGHTS[2], LAYER_WEIGHTS[3]))
 	var sheet_width := float(spec.get("width_px", 1024))

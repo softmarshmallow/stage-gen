@@ -9,6 +9,12 @@
 // standing in for three's shared uniform objects.
 uniform float u_night = 0.0;
 uniform vec3  u_night_tint = vec3(0.35, 0.42, 0.70);
+// How much of the washed daylight colour the deep night keeps where no fire
+// reaches. The viewer hard-coded 0.38 (its night was a blue dusk); the game
+// wants the dark to be dark, so the host owns the number: 0 by default, and
+// the capture harness sets the viewer's 0.38 so the picture gate still
+// measures parity (`--night-floor`).
+uniform float u_night_floor = 0.0;
 uniform vec3  u_light_pos = vec3(0.0);
 uniform float u_light_radius = 6.0;
 uniform vec3  u_light_color = vec3(1.0, 0.72, 0.40);
@@ -93,12 +99,17 @@ vec3 apply_weather(vec3 colour) {
 // interpolated world vertex position straight in. `frag` is FRAGCOORD.xy.
 vec3 apply_night(vec3 colour, vec3 world_position, vec2 frag) {
 	vec3 washed = apply_weather(apply_day_light(colour, world_position, frag));
-	vec3 dark = washed * u_night_tint * 0.38;
+	vec3 dark = washed * u_night_tint * u_night_floor;
 	float to_light = distance(world_position.xz, u_light_pos.xz);
 	float fall = smoothstep(u_light_radius, u_light_radius * 0.18, to_light) * u_light_intensity;
 	fall *= 0.90 + 0.10 * sin(u_time * 11.0 + world_position.x * 2.7);
 	vec3 lit = mix(dark, washed * u_light_color, clamp(fall, 0.0, 1.0));
 	vec3 result = apply_grade(mix(washed, lit, u_night), frag);
+	// With no floor the grade's lift and paper would still raise the unlit
+	// night to a grey haze: past the light's reach the deep night is black.
+	// A floor above zero (the viewer's picture) keeps everything as graded.
+	float reach = smoothstep(u_light_radius * 1.1, u_light_radius * 0.5, to_light) * u_light_intensity;
+	result *= mix(1.0, max(clamp(reach, 0.0, 1.0), step(0.001, u_night_floor)), u_night);
 	// The flash is light, and light is what the night and the rain take away:
 	// it lifts the unwashed daylight colour past white for a few frames.
 	return mix(result, colour * 1.15 + vec3(0.10, 0.10, 0.08), u_flash);

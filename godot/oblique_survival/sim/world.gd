@@ -171,6 +171,9 @@ static func fresh_input() -> Dictionary:
 		"drop": false,
 		"select": null,
 		"cycle": 0,
+		"menu_select": null,
+		"click_entity": null,
+		"click_point": null,
 	}
 
 ## Whether a point may be walked on. Until a run's splat is read, and for a run

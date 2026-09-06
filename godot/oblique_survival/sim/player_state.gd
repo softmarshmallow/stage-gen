@@ -21,6 +21,10 @@ var elapsed: float = 0.0
 var busy: Variant = null
 ## `{entity, stall}` — a committed walk — or null.
 var approach: Variant = null
+## `{x, z, stall}` — a pointer walk to a spot on the ground — or null. Not the
+## viewer's: it had no mouse. Any movement key, a click on a thing, or a
+## committed approach takes it back.
+var goto: Variant = null
 var health: float = 100.0
 var hunger: float = 100.0
 ## The third vital: the cold takes it, a fire gives it back.

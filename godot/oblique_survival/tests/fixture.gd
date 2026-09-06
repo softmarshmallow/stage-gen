@@ -55,6 +55,9 @@ static func release(w: World) -> void:
 	w.input["drop"] = false
 	w.input["select"] = null
 	w.input["cycle"] = 0
+	w.input["menu_select"] = null
+	w.input["click_entity"] = null
+	w.input["click_point"] = null
 
 
 ## A prop entity in the shape `World.create` builds (viewer 484-503).

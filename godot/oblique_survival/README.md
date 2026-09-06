@@ -30,6 +30,9 @@ Everything after the bare `--` belongs to the host; Godot swallows the rest.
 | `--season` | `auto` \| a `season_id` | `auto` lets the calendar run |
 | `--weather` | `auto` \| `clear` \| `rain` \| `storm` \| `snow` \| `hold` | the master weather control |
 | `--seed` | integer | overrides the layout's own seed |
+| `--night-floor` | 0..1, default 0 | how much daylight colour the deep night keeps away from a fire; the game's night is black, the viewer's was 0.38 (the picture gate passes that) |
+| `--ui-scale` | factor, default 1 | multiplies the HUD's automatic scale (the window's height over 900) |
+| `--fullscreen` | flag | start in a borderless fullscreen window; F11 toggles either way |
 | `--capture`, `--out`, `--frames`, `--dpr`, `--overlays` | see below | the capture harness only |
 | `--seconds`, `--timing-frames` | see below | the play smoke only |
 
@@ -50,7 +53,73 @@ it poll rather than listen; a test or a capture can feed it keys instead.
 
 Keys, as in the viewer: WASD move, Q/E turn a detent, Space interact, C craft,
 F light, X use, Z drop, 1-0 and `,` `.` select, G gallery, V verdict, P pause,
-T weather, K season, L strike, N night, `-`/`=` zoom.
+T weather, K season, L strike, N night, `-`/`=` zoom. And the host's own: R
+begins again, F11 toggles fullscreen, and the mouse does everything below.
+
+## Playing it
+
+The viewer had no mouse; the game has one, and every panel is built for it.
+
+**The pointer.** A left click on a thing does what the key would — take a drop
+or a forage piece, chop, mine, gather, light — at any distance: within reach the
+action starts, beyond it the click commits the walk Space commits, and a thing
+with nothing to offer says so in the message strip. A left click on the ground
+walks there in a straight line until the player stands on the spot, a movement
+key takes it back, or the shore or a footprint stalls it for 0.6 s (the same
+rule as the committed walk). A right click takes any walk back. The hover names
+the thing under the cursor (`chop tree (1/3)`, `take Twigs ×2`, or just `pine ·
+stump` when it offers nothing) and the cursor becomes a hand over anything
+clickable. Picking is the card's rectangle projected to the screen, the nearer
+foot winning where two overlap, and a small circle round a forage piece's foot;
+it is not alpha-tested, so the empty corner of a birch's card is still the
+birch. The frame owner resolves the pick once per frame the mouse moved and
+hands the sim three one-shot inputs it did not have before: `click_entity`,
+`click_point`, `menu_select`. Keyboard play is untouched.
+
+**The HUD** (`hud/hud.gd`, `hud/craft_panel.gd`, `hud/death_screen.gd`, the
+shared `hud/ui_kit.gd`). The vitals stand top-left with the title, the day and
+the season; the pack is a hotbar along the bottom — left click selects a slot,
+right click uses it, the number keys still work and are printed in each slot's
+corner — with the chosen item's card beside it: icon, name, what it does
+(`chops · 25 uses left`, `+45 hunger · +10 warmth`), and Use and Drop buttons
+that are live only when the item can be used or dropped. Craft and Map buttons
+sit under the vitals. The crafting table is a centred panel: a row per recipe
+with the product's icon, the ingredients as have/need chips (short ones in red),
+and where it is made; a click chooses a row, a double click or the Craft button
+makes it, W/S and Enter still work, × or Close or C or Escape closes it. The
+death sheet dims the world, names the cause (`You froze.`, `You starved.`, `You
+did not last.`) with a line about what would have helped, says how long the run
+lasted, and has one button, Begin again, which is R: a fresh world on the next
+seed, the ground masks and the weather mode kept, every module rebuilt.
+
+**The scale.** Every 2D layer is laid out in 1600x900 units and scaled as a
+whole by the window's height over 900 (never below 1), times `--ui-scale`. A
+2560x1440 window draws the panels at 1.6; a Retina fullscreen at 2.5. The
+window's own pixels are what the text is measured in, so a fullscreen that used
+to shrink the HUD to a third now reads the same as the 1600x900 window. The
+base sizes are also up from the viewer's — 15 px text, 56 px slots, 13 px bars.
+
+**The dark.** The viewer's deep night kept 38 % of the daylight colour under a
+blue tint, so the whole world stayed legible at midnight. The game keeps none:
+where no fire or torch reaches, the night is black, and the grade's black lift,
+the paper grain, the rain's 55 % and the night vignette all stand down with it
+(each would otherwise raise the black to a haze). A lit campfire is a pool of
+6 m, a torch 3.5 m, and lightning still lights everything for its flash. The
+number is `--night-floor`, 0 by default; the capture harness passes the
+viewer's 0.38 so the picture gate still measures the port against the
+references rather than the game's darkness (decision
+[0058](../../docs/decisions/0058-the-night-is-black-and-the-gate-keeps-the-viewers.md)).
+
+`tools/ui_shots.gd` is the HUD's own contact sheet: the real scene in a real
+window with the overlays on, staged into the moments above (the pack and a
+hovered tree at noon, a walk clicked, the table, the fire at night, the dark
+away from it, the death sheet, the run begun again, and the same HUD in a
+2560x1440 window):
+
+```
+Godot --path godot/oblique_survival --rendering-driver metal \
+      -s res://tools/ui_shots.gd -- --run <absolute run dir> --out <directory>
+```
 
 ## The layout
 
@@ -629,6 +698,25 @@ Recorded here because parity with the viewer is the acceptance test.
   prompt's `.12s` and the message's `.3s` opacity transitions are snaps.
 - **The map draws no entity dots**, because `drawMap` draws none: the plate, the
   camp triangle, the player's dot and heading wedge, and the scale bar.
+
+### The game's own (not ports)
+
+- **The mouse.** The viewer had none. The three one-shot inputs it adds
+  (`click_entity`, `click_point`, `menu_select`), the pointer walk
+  (`PlayerState.goto`) and the hover are the host's, and no parity script uses
+  them; keyboard play is byte-identical.
+- **The night floor.** The viewer's `* 0.38` in `NIGHT_CHUNK` is the uniform
+  `u_night_floor`, 0 in the game and 0.38 under the capture harness, with the
+  grade, the paper, the rain's night factor and the vignette gated on it so a
+  black night is black. Every night shot in the gate is rendered at 0.38.
+- **The HUD is not the viewer's DOM overlay any more.** The panels were rebuilt
+  for the pointer and for a screen (hotbar, item card, crafting rows, death
+  sheet, buttons), and scaled by the window; the viewer's `#hud`, `#craft` and
+  `#keys` positions and 13 px type are gone. Hidden by the overlay switch as
+  before, so no reference frame sees them.
+- **R is wired.** The viewer's reset rebuilt the world in place; the host tears
+  every module down and boots them on `World.reset`'s world, which is simpler
+  than teaching eighteen modules to forget one and costs a second.
 
 ## Verified against the run
 

@@ -43,6 +43,11 @@ const ONE_SHOT_INPUT := {
 	"drop": false,
 	"select": null,
 	"cycle": 0,
+	# The pointer's three (not the viewer's, which had no mouse): a recipe row
+	# clicked, a thing in the world clicked, a spot on the ground clicked.
+	"menu_select": null,
+	"click_entity": null,
+	"click_point": null,
 }
 
 static var _scripts: Dictionary = {}

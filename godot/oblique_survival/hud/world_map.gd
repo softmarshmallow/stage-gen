@@ -55,7 +55,10 @@ func setup(pkg, world, _fu) -> void:
 	(_font as SystemFont).font_names = PackedStringArray(["ui-monospace", "SF Mono", "Menlo",
 		"Monaco", "DejaVu Sans Mono", "monospace"])
 	_root = Control.new()
-	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# Sized by `set_ui_scale`, not by anchors: a full-rect anchor would follow
+	# the viewport's pixels and ignore the layer's scale.
+	_root.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_root.size = Vector2(1600.0, 900.0)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var theme := Theme.new()
 	theme.default_font = _font
@@ -84,6 +87,18 @@ func set_look(_look: String) -> void:
 
 func handle_event(_event: Dictionary) -> void:
 	pass
+
+
+## The HUD's scale (the window's height over 900, times `--ui-scale`): the
+## layer is scaled as a whole and its root shrunk to match, so the panel's own
+## arithmetic stays in 1600x900 units.
+func set_ui_scale(scale_factor: float) -> void:
+	var s := maxf(0.25, scale_factor)
+	transform = Transform2D(0.0, Vector2.ZERO).scaled(Vector2(s, s))
+	if _root != null:
+		var viewport := get_viewport()
+		if viewport != null:
+			_root.size = viewport.get_visible_rect().size / s
 
 
 func set_open(value: bool) -> void:

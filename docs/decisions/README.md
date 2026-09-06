@@ -73,3 +73,4 @@ it. A ruling that is overturned gets a new record that says so.
 | [0055](0055-a-calibrated-actor-is-measured-by-its-alpha.md) | A calibrated actor is measured by its alpha, not its body | Deferred until a second actor carries a tail |
 | [0056](0056-the-style-plate-is-split-not-swapped.md) | The style plate is split, not swapped | A swap would leave the actor's identity binding pointing at nobody |
 | [0057](0057-the-survival-game-runs-on-godot.md) | The survival game runs on Godot, not on the web preview | A ground-plane genre needs a perspective camera and per-billboard depth the browser host never had |
+| [0058](0058-the-night-is-black-and-the-gate-keeps-the-viewers.md) | The night is black, and the picture gate keeps the viewer's | One uniform: 0 in play so the dark is dark, the viewer's 0.38 under the capture harness so the gate stays a parity gate |

@@ -536,6 +536,75 @@ func sync_entities(world) -> void:
 				_drop_record(id, true)
 
 
+## The thing under a screen point, for the pointer (not the viewer's: it had
+## no mouse). Every card is a billboard perpendicular to the view axis, so its
+## four corners project to an axis-aligned screen rectangle; the foot row's
+## screen height orders the hits (the nearer card is drawn in front). Forage
+## has no card — it is instanced from the sheet — so a piece is hit within a
+## small circle round its foot. The player is never a hit. Returns the world's
+## own entity Dictionary, or null.
+func pick_entity(screen: Vector2, camera: Camera3D, world, forage_radius_px: float = 26.0) -> Variant:
+	if camera == null or world == null:
+		return null
+	var entities: Array = field(world, "entities", [])
+	var best: Variant = null
+	var best_foot_y := -INF
+	for entity: Variant in entities:
+		var kind: Variant = field(entity, "kind", "")
+		var foot := Vector3(float(field(entity, "x", 0.0)), float(field(entity, "y", 0.0)) if kind == "item" else 0.0, float(field(entity, "z", 0.0)))
+		if camera.is_position_behind(foot):
+			continue
+		var foot_s := camera.unproject_position(foot)
+		if kind == "forage":
+			if bool(field(entity, "picked", false)) or bool(field(entity, "hidden", false)):
+				continue
+			if foot_s.distance_to(screen) > forage_radius_px:
+				continue
+			if foot_s.y > best_foot_y:
+				best_foot_y = foot_s.y
+				best = entity
+			continue
+		# Broad phase on the foot alone: a card's rectangle stands on its foot
+		# and no card is wider than about 8 m, so a foot far to the side or far
+		# below the point cannot own it.
+		if absf(foot_s.x - screen.x) > 600.0 or foot_s.y < screen.y - 40.0 or foot_s.y > screen.y + 1400.0:
+			continue
+		var record: Variant = _records.get(String(field(entity, "id", "")))
+		if not (record is Dictionary):
+			continue
+		var node: Node3D = (record as Dictionary).get("node")
+		if node == null or not (node is MeshInstance3D) or (node as MeshInstance3D).mesh == null:
+			continue
+		var quad := (node as MeshInstance3D).mesh as QuadMesh
+		if quad == null:
+			continue
+		var half_w := quad.size.x * 0.5
+		var top := quad.center_offset.y + quad.size.y * 0.5
+		var bottom := quad.center_offset.y - quad.size.y * 0.5
+		var basis := node.global_transform.basis
+		var origin := node.global_transform.origin
+		var rect := Rect2(foot_s, Vector2.ZERO)
+		var first := true
+		for corner: Vector3 in [
+			origin + basis.x * -half_w + basis.y * bottom,
+			origin + basis.x * half_w + basis.y * bottom,
+			origin + basis.x * -half_w + basis.y * top,
+			origin + basis.x * half_w + basis.y * top,
+		]:
+			var p := camera.unproject_position(corner)
+			if first:
+				rect = Rect2(p, Vector2.ZERO)
+				first = false
+			else:
+				rect = rect.expand(p)
+		if not rect.has_point(screen):
+			continue
+		if foot_s.y > best_foot_y:
+			best_foot_y = foot_s.y
+			best = entity
+	return best
+
+
 ## Stand a card in the world and hand it to the rendering server.
 ##
 ## `force_update_transform` is not decoration. Setting `position` -- or entering

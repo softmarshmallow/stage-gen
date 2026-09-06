@@ -73,6 +73,8 @@ const STRIKE_AGE := 2.0 / 60.0
 ## **0.0085 at +5.00**, 0.0185 at +5.50. Simulating those seconds for real (so
 ## the mobs, the snow and the fire move too) reproduces the swept frame to four
 ## digits: 0.0133 and 0.0083.
+## The viewer's hard-coded deep-night floor (index.html NIGHT_CHUNK, `* 0.38`).
+const VIEWER_NIGHT_FLOOR := 0.38
 const WINTER_TEXTURE_WAIT := {"winter-noon": 3.0, "winter-night": 5.0, "winter-coast": 5.0}
 
 ## Every shot, with the page it is taken on: the mode `main` boots into and the
@@ -153,6 +155,11 @@ func _capture_one(shot: String, out_path: String) -> bool:
 		"run": _run,
 		"mode": String(spec.get("mode", "verdict")),
 		"time": String(spec.get("time", "noon")),
+		# The references were rendered by the viewer, whose deep night kept
+		# 0.38 of the daylight colour; the game's own night keeps none
+		# (`--night-floor`, default 0). The gate measures the port, not the
+		# game's darkness, so it renders the viewer's number.
+		"night_floor": VIEWER_NIGHT_FLOOR,
 	}
 	main.autostep = false
 	viewport.add_child(main)

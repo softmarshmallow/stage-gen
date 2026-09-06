@@ -19,6 +19,11 @@ render_mode unshaded, cull_disabled, depth_draw_never, depth_test_disabled,
 uniform sampler2D u_map : source_color, filter_linear_mipmap;
 uniform float u_time = 0.0;
 uniform float u_night = 0.0;
+// 1 while the night keeps a floor (the viewer's 0.38, the picture gate); 0
+// when the game's night is black, where a lit drop far from the fire would
+// be the only thing in the frame. WeatherView writes it once from
+// `--night-floor`.
+uniform float u_night_keep = 1.0;
 uniform float u_flash = 0.0;
 // The density gate: a drop falls only while its index is below this.
 uniform float u_rain = 0.0;
@@ -95,7 +100,7 @@ void fragment() {
 	if (texel.a < 0.05) {
 		discard;
 	}
-	vec3 colour = texel.rgb * mix(1.0, 0.55, u_night);
+	vec3 colour = texel.rgb * mix(1.0, 0.55 * u_night_keep, u_night);
 	colour = mix(colour, vec3(1.0), u_flash);
 	ALBEDO = colour;
 	ALPHA = texel.a * u_opacity * v_alpha;
