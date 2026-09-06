@@ -7,6 +7,14 @@ extends RefCounted
 ## worn thing takes from it, a lit torch scales it, a warm stone holds it off,
 ## and a lit fire within its heat radius gives warmth back. At zero the cold
 ## takes health.
+##
+## The dark is its own cold (the host's, not the viewer's): at night, out of
+## every light — no torch lit, no lit fire within its light radius — warmth
+## goes at `gameplay.warmth.dark_drain_per_second` times the night, in any
+## season, under the same cloak, torch and warm-stone rules. A summer night
+## away from the fire costs most of the bar; the second one freezes. And the
+## other way: at full warmth inside a fire's heat there is nothing to gain, and
+## `world.hot` says so for the screen.
 
 
 static func update(world: World, dt: float) -> void:
@@ -37,6 +45,31 @@ static func update(world: World, dt: float) -> void:
 	if warmth.get("night_scale", null) != null:
 		night_scale = float(warmth["night_scale"])
 	var drain := warmth_drain * cold * (1.0 + world.night * night_scale)
+	var fire: Dictionary = rules.get("campfire", {})
+	var heat := 0.0
+	var heat_radius := float(fire.get("heat_radius_meters", 0.0))
+	var light_radius := float(fire.get("light_radius_meters", 0.0))
+	if light_radius == 0.0:
+		light_radius = 6.0
+	# Whether the player stands in a light: a lit torch, or a lit fire within
+	# its light radius. Read here rather than from `world.light` so the vitals
+	# are whole on their own (a test runs this system alone).
+	var lit := float(world.torch["remaining"]) > 0.0
+	if heat_radius > 0.0 or not lit:
+		for entity in world.entities:
+			# Variant compares: two `str()` calls an entity was the whole cost
+			# of a scan that finds at most one lit fire.
+			if entity.get("state", "") != "lit" or entity.get("kind", "") != "prop":
+				continue
+			var dx: float = float(entity["x"]) - player.x
+			var dz: float = float(entity["z"]) - player.z
+			var distance := sqrt(dx * dx + dz * dz)
+			if distance <= light_radius:
+				lit = true
+			if heat_radius > 0.0 and distance <= heat_radius:
+				heat = float(fire.get("heat_per_second", 0.0))
+	if world.night > 0.0 and not lit:
+		drain += float(warmth.get("dark_drain_per_second", 0.0)) * world.night
 	drain *= 1.0 - Inventory.insulation(world)
 	if float(world.torch["remaining"]) > 0.0:
 		var heat_scale := 0.7
@@ -47,22 +80,13 @@ static func update(world: World, dt: float) -> void:
 	if float(world.warm["remaining"]) > 0.0:
 		# A warm stone stops the cold dead.
 		drain = 0.0
-	var fire: Dictionary = rules.get("campfire", {})
-	var heat := 0.0
-	var heat_radius := float(fire.get("heat_radius_meters", 0.0))
-	if heat_radius > 0.0:
-		for entity in world.entities:
-			# Variant compares: two `str()` calls an entity was the whole cost
-			# of a scan that finds at most one lit fire.
-			if entity.get("state", "") != "lit" or entity.get("kind", "") != "prop":
-				continue
-			var dx: float = float(entity["x"]) - player.x
-			var dz: float = float(entity["z"]) - player.z
-			if sqrt(dx * dx + dz * dz) <= heat_radius:
-				heat = float(fire.get("heat_per_second", 0.0))
-				break
 	player.warmth = maxf(0.0, minf(warmth_max, player.warmth + (heat - drain) * dt))
-	var freezing := cold > 0.0 and player.warmth <= 0.0 and heat <= 0.0
+	# Too hot: the fire's heat with a full bar to put it in.
+	world.hot = heat > 0.0 and player.warmth >= warmth_max
+	# Freezing is an empty bar with something still draining it and no heat:
+	# the winter's cold, or the dark's (the viewer's test was the season's
+	# cold alone, so a summer night could never freeze).
+	var freezing := drain > 0.0 and player.warmth <= 0.0 and heat <= 0.0
 	if freezing:
 		var freeze_damage := float(warmth.get("freeze_damage_per_second", 0.0))
 		if freeze_damage == 0.0:

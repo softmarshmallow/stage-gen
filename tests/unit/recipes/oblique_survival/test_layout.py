@@ -854,6 +854,19 @@ def test_a_cold_season_needs_a_fire_that_warms(tmp_path: Path) -> None:
     _load_refused(root, "gameplay.warmth.drain_per_second is missing or zero")
 
 
+def test_the_darks_cold_is_a_bounded_number(tmp_path: Path) -> None:
+    """`gameplay.warmth.dark_drain_per_second` is optional, and a rate, not a death."""
+
+    package = load_package(PACKAGE)
+    assert package.gameplay["warmth"]["dark_drain_per_second"] == 0.4
+    root = _source_edit(
+        tmp_path, "survival.toml", "dark_drain_per_second = 0.4\n", "dark_drain_per_second = 40.0\n"
+    )
+    _load_refused(root, "gameplay.warmth.dark_drain_per_second")
+    root = _source_edit(tmp_path / "b", "survival.toml", "dark_drain_per_second = 0.4\n", "")
+    assert "dark_drain_per_second" not in load_package(root).gameplay["warmth"]
+
+
 def test_a_season_prompt_names_a_look_a_season_shows(tmp_path: Path) -> None:
     root = _source_edit(
         tmp_path,

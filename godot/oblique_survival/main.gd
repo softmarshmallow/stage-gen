@@ -48,6 +48,7 @@ const MODULE_FILES := [
 	"res://view/weather_view.gd",
 	"res://view/gallery.gd",
 	"res://view/hurt_flash.gd",
+	"res://view/warmth_veil.gd",
 	"res://hud/hud.gd",
 	"res://hud/craft_panel.gd",
 	"res://hud/death_screen.gd",
@@ -64,7 +65,7 @@ const UPDATE_ORDER := [
 	"music", "sfx",
 	"weather_view", "water", "splashes", "decals", "ground", "strikes",
 	"cards", "pieces", "plants", "leaves", "puffs", "shadows",
-	"fire", "gallery", "hurt_flash", "hud", "craft_panel", "death_screen", "world_map", "pause_menu",
+	"fire", "gallery", "hurt_flash", "warmth_veil", "hud", "craft_panel", "death_screen", "world_map", "pause_menu",
 ]
 
 ## The HUD is laid out in 1600x900 units and scaled to the window: this height

@@ -135,6 +135,13 @@ size, the biome colours, the camp and player marks, and how to close it. M,
 Escape or a click anywhere on it closes it. The viewer stood the same plate in
 a panel `min(72vh, 72vw)` wide over the running game.
 
+**The dark is cold.** At night, out of every light — no torch lit, no lit fire
+within its light radius — warmth goes at `gameplay.warmth.dark_drain_per_second`
+times the night, in any season, under the same cloak, torch and warm-stone rules
+as the winter cold. A summer night away from the fire costs most of the bar;
+the second one freezes. Nothing but a fire or a warm food gives warmth back, so
+the fire is what the night is for.
+
 **Hurt** (`view/hurt_flash.gd`, layer 21). When health falls the screen says
 so: a hound's bite — the sim's `hurt` event, or any drop of three points or
 more in one frame — floods the edges red and fades in 0.7 s; health going a
@@ -145,6 +152,14 @@ added to the sim later shows without a view change. It sits above the night
 vignette, so it reads over the black night, and under the HUD. There is no
 asset: the shape is an ellipse ramp in the shader, and `set_mask` takes a
 generated overlay's alpha in its place when one is made.
+
+**Too cold, too hot** (`view/warmth_veil.gd`, layer 22, the same pattern).
+A pale frost creeps in from the edges as warmth falls under 35 % of the bar and
+is whole at none, where the cold takes health and the hurt flash throbs under
+it; an amber heat rises over two seconds while the player stands at a full bar
+inside a fire's heat (`world.hot`, the sim's fact) and lets go a step back. Both
+move with time constants rather than snapping, and both take a generated
+overlay through `set_mask` later.
 
 **The scale.** Every 2D layer is laid out in 1600x900 units and scaled as a
 whole by the window's height over 900 (never below 1), times `--ui-scale`. A
@@ -169,8 +184,9 @@ window with the overlays on, staged into the moments above (the pack and a
 hovered tree at noon, a slot's card, the worn places, a pickup in flight, a bush
 gathered by hand, a walk clicked, a held-button walk, a bite's red flood and the
 throb of starving, the pause menu and its help, the whole-window map, the table,
-the fire at night, the dark away from it, the death sheet, the run begun again,
-and the same HUD in a 2560x1440 window):
+the fire at night and the heat of standing too close, the dark away from it and
+the frost of a near-empty bar, the death sheet, the run begun again, and the
+same HUD in a 2560x1440 window):
 
 ```
 Godot --path godot/oblique_survival --rendering-driver metal \
@@ -780,7 +796,12 @@ Recorded here because parity with the viewer is the acceptance test.
   black night is black. Every night shot in the gate is rendered at 0.38.
 - **The screen bleeds when health does.** The viewer's hurt was a camera shake
   and a dust puff; the host adds `view/hurt_flash.gd`, a red flood for a blow
-  and a slow red border while health drains, read off the health itself.
+  and a slow red border while health drains, read off the health itself; and
+  `view/warmth_veil.gd`, a frost under 35 % warmth and an amber heat at a full
+  bar inside a fire's heat.
+- **The dark is cold.** `gameplay.warmth.dark_drain_per_second` is the host's
+  rule, not the viewer's: the viewer's night only scaled the season's cold, so
+  a summer night cost nothing.
 - **The HUD is not the viewer's DOM overlay any more.** The panels were rebuilt
   for the pointer and for a screen (hotbar, item card, crafting rows, death
   sheet, buttons), and scaled by the window; the viewer's `#hud`, `#craft` and

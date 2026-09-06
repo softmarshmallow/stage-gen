@@ -7,7 +7,8 @@ extends SceneTree
 ## in flight, a bush gathered by hand (its twigs flying from the bush), a
 ## held-button walk, a bite's red flood and the throb of starving, the
 ## crafting table, the pause menu and its how-to-play page, the whole-window
-## map, the fire at night, the dark away from it, the death sheet,
+## map, the fire at night and the heat of standing too close, the dark away
+## from it and the frost of a near-empty bar, the death sheet,
 ## the run begun again, and the same HUD in a 2560x1440 window to show the
 ## scale following the window.
 ##
@@ -204,11 +205,23 @@ func _go() -> void:
 	_main.advance(0.5)
 	await _save("ui-night-fire.png")
 
+	# --- too hot: a full bar at the fire, two seconds in --------------------
+	world.player.warmth = 100.0
+	_main.advance(2.2)
+	await _save("ui-night-hot.png")
+
 	# --- the dark: the fire out, twelve metres off -------------------------
 	_light_campfire(false)
 	_teleport(camp.x + 12.0, camp.z + 6.0)
-	_main.advance(0.5)
+	_main.advance(2.0)
 	await _save("ui-night-dark.png")
+
+	# --- too cold: the bar nearly empty in the dark ------------------------
+	world.player.warmth = 6.0
+	_main.advance(1.5)
+	await _save("ui-night-cold.png")
+	world.player.warmth = 100.0
+	_main.advance(1.5)
 
 	# --- the end, and the beginning again ----------------------------------
 	world.player.warmth = 0.0

@@ -2914,6 +2914,17 @@ def _gameplay(block: object) -> dict[str, Any]:
     )
     gameplay["interact_reach_meters"] = reach
     gameplay["approach_meters"] = approach
+    warmth = gameplay.get("warmth", {})
+    if not isinstance(warmth, Mapping):
+        raise SourceError("gameplay.warmth must be a table")
+    if "dark_drain_per_second" in warmth:
+        # The dark's own cold, in every season; a number, never a killer.
+        _number(
+            warmth["dark_drain_per_second"],
+            field="gameplay.warmth.dark_drain_per_second",
+            low=0.0,
+            high=10.0,
+        )
     return gameplay
 
 

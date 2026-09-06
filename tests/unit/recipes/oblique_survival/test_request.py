@@ -27,7 +27,7 @@ PACKAGE = Path("library/games/ember-hollow")
 #: two local nodes (``source-lock`` and ``package-manifest``) and no provider
 #: operation, because every other node takes the source lock as a barrier rather
 #: than as lineage.
-SOURCE_DIGEST = "c80471e10723ec30dea8dbcffb99c0425160bc7803c8de8cafc31c65e1030378"
+SOURCE_DIGEST = "e0294826d166962869dfc39c838754b4bacd9bb35562f3b33aca1018e78ee6b0"
 
 #: One take that is declared by digest and whose bytes are in the package.
 FORAGE_TAKE = "ground/forage.take.png"

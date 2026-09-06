@@ -176,10 +176,17 @@ heat_per_second = 8.0
 # The cold. A season's `cold` (seasons.toml) scales the drain; the night adds
 # to it; a carried cloak's insulation takes from it; a lit warm stone holds it
 # off; at zero the cold takes health at the starving rate's shape.
+#
+# The dark is a cold of its own, in every season: at night, out of every light
+# (no torch lit, no lit fire within its light radius), warmth goes at
+# `dark_drain_per_second` times the night. A summer night is 182 s; 0.4 a
+# second costs 73 of the bar, so one night away from the fire is survived and
+# the second is not. Nothing but a fire or a warm food gives warmth back.
 [gameplay.warmth]
 max = 100.0
 drain_per_second = 0.5
 night_scale = 0.6
+dark_drain_per_second = 0.4
 freeze_damage_per_second = 2.0
 
 # A lit torch is a small heat: it scales the drain.

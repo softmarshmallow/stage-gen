@@ -196,9 +196,12 @@ static func help_sections() -> Array:
 				UiKit.kbd("R"), UiKit.kbd("F11")])],
 		["Staying alive",
 			"The belly empties; berries and mushrooms grow back, and a lit fire stews them. The cold "
-			+ "comes with winter and the night: a fire, a torch, a cloak or a warm stone holds it off. "
-			+ "Hounds keep to their ground until you cross it. When health is going the edges of the "
-			+ "screen bleed: a flood for a bite, a slow throb while you starve or freeze."],
+			+ "comes with winter, and the dark itself is cold in any season: away from a fire or a "
+			+ "torch the night takes warmth, and nothing but a fire or a warm food gives it back. A "
+			+ "cloak or a warm stone holds the cold off. Hounds keep to their ground until you cross "
+			+ "it. The screen says how you are: its edges bleed when health is going (a flood for a "
+			+ "bite, a slow throb while you starve or freeze), frost over when warmth runs low, and "
+			+ "glow amber when you stand at a fire with nothing left to warm."],
 		["Dev keys",
 			("%s gallery · %s verdict · %s night · %s season · %s weather · %s strike · %s music · "
 			% [UiKit.kbd("G"), UiKit.kbd("V"), UiKit.kbd("N"), UiKit.kbd("K"), UiKit.kbd("T"),

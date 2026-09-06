@@ -62,6 +62,8 @@ var season: Dictionary = {}
 var look: String = ""
 ## Edge latch for the freezing message.
 var freezing: bool = false
+## At full warmth inside a fire's heat: nothing to gain, and the screen says so.
+var hot: bool = false
 
 var craft_open: bool = false
 var craft_index: int = 0

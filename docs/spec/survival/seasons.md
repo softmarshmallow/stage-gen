@@ -27,7 +27,7 @@ the day that is night, how fast anything regrows, and what the ground offers.
 | `seasons.toml` | `[calendar]` | the seasons in order and how many days each lasts; the world begins on day 1 in the first and goes round |
 | `seasons.toml` | `[[seasons]]` | per season: `snow` (the factor the snow condition is held at), `cold` (scales the warmth drain), `night_share`, `regrow_scale`, `hidden_forage`, `barren` (props whose gather is refused), and an optional `[seasons.look]` naming the look after the season |
 | `props.toml` | `[props.season_prompt.<look>]` | per state, a brief that replaces the look's shared clause for that one paintover; read by the look prompt alone, never by the summer prompt |
-| `survival.toml` | `[gameplay.warmth]`, `[gameplay.torch]`, `[gameplay.campfire]` | the cold's drain, the night's addition, the freeze damage, the torch's scale, the fire's heat radius and rate |
+| `survival.toml` | `[gameplay.warmth]`, `[gameplay.torch]`, `[gameplay.campfire]` | the cold's drain, the night's addition, the dark's own drain (`dark_drain_per_second`, optional, 0–10), the freeze damage, the torch's scale, the fire's heat radius and rate |
 | `items.toml` | `use = { kind = "wear" }`, `{ kind = "warm" }`, `consume.warmth` | insulation while carried, heat seconds once lit, warmth a food gives |
 | `weather.toml` | the ice condition and the wind sound | the frozen water — a look on the water route, adoptable by `take` — and the ambience |
 | `sounds.toml` | a snow footstep cue | the walk under snow, cut at its onsets like the ordinary footstep |
@@ -41,10 +41,17 @@ condition to hold; and ice declared on rain.
 ## Warmth: the third vital
 
 The cold drains warmth at the authored rate times the season's `cold`, and more
-by night. A worn item takes its insulation off the drain; a lit torch scales it;
-a lit warm item holds it off for its heat seconds; a lit campfire within its heat
-radius gives warmth back. At zero, the cold takes health at the freeze rate and
-the death names its cause. A package with no calendar never shows the bar.
+by night. The dark is a cold of its own, in every season: at night, out of every
+light — no torch lit, no lit fire within its light radius — warmth goes at
+`dark_drain_per_second` times the night, so a summer night away from the fire
+costs most of the bar and the fire is the night's answer. A worn item takes its
+insulation off the drain; a lit torch scales it; a lit warm item holds it off for
+its heat seconds; a lit campfire within its heat radius gives warmth back. At
+zero, whatever is still draining the bar — the winter's cold or the dark's — takes
+health at the freeze rate, and the death names its cause; an empty bar under a
+summer sun costs nothing and comes back only at a fire. At
+a full bar inside a fire's heat there is nothing to gain, and the world says so
+(`hot`) for the screen. A package with no calendar never shows the bar.
 
 ## The look: a paintover per prop state
 

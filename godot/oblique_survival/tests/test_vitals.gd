@@ -1,6 +1,7 @@
 extends RefCounted
 
-## Vitals: hunger, the cold, the fire's heat, freezing, and the one death.
+## Vitals: hunger, the cold, the dark's cold, the fire's heat, too hot,
+## freezing, and the one death.
 ##
 ## The formulas are exercised through `SysVitals.update` directly so that one
 ## condition is measured at a time; the clock and the calendar are held still
@@ -15,7 +16,9 @@ func run(h: TestHarness) -> void:
 	_hunger(h, w)
 	_a_day_of_hunger_starves(h, w)
 	_winter_cold(h, w)
+	_the_dark_is_cold(h, w)
 	_a_fire_gives_warmth_back(h, w)
+	_too_hot_at_a_full_bar(h, w)
 	_freezing_takes_health(h, w)
 	_death_fires_once(h, w)
 
@@ -32,6 +35,7 @@ func _reset(w: World, season_id: String) -> void:
 	w.warm = {"remaining": 0.0}
 	w.night = 0.0
 	w.freezing = false
+	w.hot = false
 	w.dead = false
 	w.message = ""
 	SimFixture.force_season(w, season_id)
@@ -76,7 +80,12 @@ func _winter_cold(h: TestHarness, w: World) -> void:
 	_reset(w, "winter")
 	w.night = 1.0
 	_run_seconds(w, 10.0)
-	h.assert_near(w.player.warmth, 92.0, 0.01, "deep winter night costs 0.8 a second")
+	h.assert_near(w.player.warmth, 88.0, 0.01, "deep winter night in the dark costs 0.8 and the dark's 0.4 a second")
+	_reset(w, "winter")
+	w.night = 1.0
+	w.torch = {"remaining": 60.0, "radius": 3.5}
+	_run_seconds(w, 10.0)
+	h.assert_near(w.player.warmth, 100.0 - 0.8 * 0.7 * 10.0, 0.01, "under a torch the night costs the cold's 0.8 scaled by 0.7, and no dark")
 
 	_reset(w, "winter")
 	Inventory.inv_add(w, "grass_cloak", 1)
@@ -101,6 +110,94 @@ func _winter_cold(h: TestHarness, w: World) -> void:
 	_reset(w, "summer")
 	_run_seconds(w, 10.0)
 	h.assert_near(w.player.warmth, 100.0, 1e-9, "summer has no cold at all")
+
+
+func _the_dark_is_cold(h: TestHarness, w: World) -> void:
+	# gameplay.warmth.dark_drain_per_second is 0.4: at night, out of every
+	# light, in any season. A summer day costs nothing; a summer night in the
+	# dark 0.4 a second; a lit torch or a lit fire within its 6 m light stops
+	# it; a worn cloak halves it; a warm stone stops it dead.
+	_reset(w, "summer")
+	var rules: Dictionary = (w.manifest["gameplay"] as Dictionary)["warmth"]
+	h.assert_near(float(rules["dark_drain_per_second"]), 0.4, 1e-9, "the authored dark drain")
+	_run_seconds(w, 10.0)
+	h.assert_near(w.player.warmth, 100.0, 1e-9, "a summer day costs nothing")
+	_reset(w, "summer")
+	w.night = 1.0
+	_run_seconds(w, 10.0)
+	h.assert_near(w.player.warmth, 96.0, 0.01, "a summer night in the dark costs 0.4 a second")
+	_reset(w, "summer")
+	w.night = 0.5
+	_run_seconds(w, 10.0)
+	h.assert_near(w.player.warmth, 98.0, 0.01, "dusk costs half of it")
+	_reset(w, "summer")
+	w.night = 1.0
+	w.torch = {"remaining": 60.0, "radius": 3.5}
+	_run_seconds(w, 10.0)
+	h.assert_near(w.player.warmth, 100.0, 1e-9, "a lit torch is a light: no dark")
+	_reset(w, "summer")
+	w.night = 1.0
+	var fire := SimFixture.prop(w, "c3", "campfire", "unlit", 0.0, 5.0)
+	fire["state"] = "lit"
+	w.entities.append(fire)
+	_run_seconds(w, 10.0)
+	h.assert_near(w.player.warmth, 100.0, 1e-9, "a lit fire 5 m off is within its 6 m light: no dark, and no heat either")
+	_reset(w, "summer")
+	w.night = 1.0
+	var far := SimFixture.prop(w, "c4", "campfire", "unlit", 0.0, 7.0)
+	far["state"] = "lit"
+	w.entities.append(far)
+	_run_seconds(w, 10.0)
+	h.assert_near(w.player.warmth, 96.0, 0.01, "7 m off is past the light: the dark again")
+	_reset(w, "summer")
+	w.night = 1.0
+	Inventory.inv_add(w, "grass_cloak", 1)
+	Inventory.equip(w, 0)
+	_run_seconds(w, 10.0)
+	h.assert_near(w.player.warmth, 98.0, 0.01, "a worn cloak halves the dark's drain")
+	_reset(w, "summer")
+	w.night = 1.0
+	w.warm = {"remaining": 120.0}
+	_run_seconds(w, 10.0)
+	h.assert_near(w.player.warmth, 100.0, 1e-9, "a warm stone stops the dark dead")
+	# A whole summer night in the dark: 0.38 of 480 s is 182 s, so 73 of the bar.
+	_reset(w, "summer")
+	w.night = 1.0
+	_run_seconds(w, 0.38 * 480.0)
+	h.assert_near(w.player.warmth, 100.0 - 0.4 * 0.38 * 480.0, 0.1, "one summer night in the dark costs 73")
+	h.assert_false(w.freezing, "and is survived")
+	_run_seconds(w, 0.38 * 480.0)
+	h.assert_true(w.freezing, "the second is not: an empty bar the dark still drains is freezing, in summer too")
+	h.assert_true(w.player.health < 100.0, "and the cold takes health")
+	# The day after: nothing drains, nothing hurts, and nothing comes back.
+	w.night = 0.0
+	w.freezing = false
+	var health_after := w.player.health
+	_run_seconds(w, 10.0)
+	h.assert_false(w.freezing, "an empty bar under the summer sun is not freezing")
+	h.assert_near(w.player.health, health_after, 1e-6, "and costs nothing")
+	h.assert_near(w.player.warmth, 0.0, 1e-9, "but the bar stays empty until a fire")
+
+
+func _too_hot_at_a_full_bar(h: TestHarness, w: World) -> void:
+	# `world.hot`: inside the fire's heat with nothing to gain.
+	_reset(w, "summer")
+	var fire := SimFixture.prop(w, "c5", "campfire", "unlit", 0.0, 2.0)
+	fire["state"] = "lit"
+	w.entities.append(fire)
+	_run_seconds(w, 1.0)
+	h.assert_true(w.hot, "at full warmth inside the heat radius is too hot")
+	w.player.warmth = 50.0
+	_run_seconds(w, 1.0)
+	h.assert_false(w.hot, "with warmth to gain it is not")
+	w.player.warmth = 100.0
+	w.player.z = 7.0
+	_run_seconds(w, 1.0)
+	h.assert_false(w.hot, "nor 5 m off, past the heat")
+	fire["state"] = "unlit"
+	w.player.z = 0.0
+	_run_seconds(w, 1.0)
+	h.assert_false(w.hot, "nor at an unlit fire")
 
 
 func _a_fire_gives_warmth_back(h: TestHarness, w: World) -> void:

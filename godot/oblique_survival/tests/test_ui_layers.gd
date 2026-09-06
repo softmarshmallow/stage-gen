@@ -21,6 +21,7 @@ func run(h: TestHarness) -> void:
 	_hud_flies_a_pickup(h, w)
 	_pause_menu_shows_the_help(h, w)
 	_hurt_flash_bleeds_with_health(h, w)
+	_warmth_veil_frosts_and_heats(h, w)
 	_map_fills_the_window(h, w)
 	_layers_take_a_scale(h, w)
 	_args_carry_the_new_flags(h)
@@ -347,6 +348,64 @@ func _hurt_flash_bleeds_with_health(h: TestHarness, w: World) -> void:
 	w.dead = false
 	w.player.health = 100.0
 	flash.free()
+
+
+## The frost creeps in under 35 % warmth and is whole at none; the heat rises
+## while `world.hot` holds and lets go after; a warm player in the open shows
+## nothing; the dead show nothing.
+func _warmth_veil_frosts_and_heats(h: TestHarness, w: World) -> void:
+	var veil := WarmthVeil.new()
+	veil.setup(SimFixture.package(), w, null)
+	h.assert_eq(veil.layer, 22, "above the hurt flash (21), under the HUD (30)")
+	w.player.warmth = 100.0
+	w.hot = false
+	for i in 60:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.cold(), 0.0, 1e-6, "a warm player in the open: no frost")
+	h.assert_near(veil.hot(), 0.0, 1e-6, "and no heat")
+	w.player.warmth = 40.0
+	for i in 60:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.cold(), 0.0, 1e-6, "40 warmth is above the onset")
+	w.player.warmth = 17.5
+	for i in 120:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.cold(), 0.5, 0.02, "17.5 of 100 is half way to none: half the frost")
+	w.player.warmth = 0.0
+	for i in 120:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.cold(), 1.0, 1e-6, "no warmth is the whole frost")
+	var rect := veil.rect as ColorRect
+	var cold_alpha := float((rect.material as ShaderMaterial).get_shader_parameter("u_cold"))
+	h.assert_true(cold_alpha > 0.5, "and the shader is handed it (%.2f)" % cold_alpha)
+	w.player.warmth = 100.0
+	veil.update(w, 1.0 / 60.0, {})
+	h.assert_true(veil.cold() < 1.0 and veil.cold() > 0.9, "a bar refilled thaws over time, not at once (%.2f)" % veil.cold())
+	for i in 120:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.cold(), 0.0, 1e-6, "and is clear two seconds later")
+	w.hot = true
+	for i in 30:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.hot(), 0.25, 0.02, "half a second at the fire is a quarter of the heat")
+	for i in 120:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.hot(), 1.0, 1e-6, "two seconds is all of it")
+	w.hot = false
+	for i in 120:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.hot(), 0.0, 1e-6, "a step back cools in a second and a half")
+	w.player.warmth = 0.0
+	w.hot = true
+	w.dead = true
+	for i in 120:
+		veil.update(w, 1.0 / 60.0, {})
+	h.assert_near(veil.cold(), 0.0, 1e-6, "the dead are not cold")
+	h.assert_near(veil.hot(), 0.0, 1e-6, "nor hot")
+	w.dead = false
+	w.hot = false
+	w.player.warmth = 100.0
+	veil.free()
 
 
 ## The map is the whole window: a scrim over it that takes the mouse, the map

@@ -81,7 +81,9 @@ hovered slot with its Use, Drop or Take off, a pickup flies into its slot,
 Escape opens a pause menu whose how-to-play page holds the key legend, the
 crafting table and the death sheet are panels with buttons, the map is the whole
 window under a scrim, the screen's edges bleed red when health falls (a flood
-for a blow, a slow border while it drains), and every panel is
+for a blow, a slow border while it drains), frost over when warmth runs low and
+glow amber at a fire with a full bar, the dark itself costs warmth at night in
+any season (`gameplay.warmth.dark_drain_per_second`), and every panel is
 scaled by the window's height so a fullscreen reads like the 1600x900 window. The host README's "Playing it"
 section is the full account. The world it plays is 512 m across, laid by the
 [world generator](spec/survival/world.md): the host reads the record's
