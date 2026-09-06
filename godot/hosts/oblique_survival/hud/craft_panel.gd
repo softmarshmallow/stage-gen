@@ -37,6 +37,9 @@ var _hint: RichTextLabel = null
 var _signature: String = ""
 var _row_count: int = 0
 var _world: Variant = null
+## The input latch, handed over by the frame owner. A panel's button is a
+## one-shot like a key, and goes the same way.
+var _latch: Variant = null
 var _station_memo: Dictionary = {}
 var _last_click_index: int = -1
 var _last_click_at: float = -10.0
@@ -290,20 +293,20 @@ func _on_row_input(event: InputEvent, index: int) -> void:
 	var twice: bool = index == _last_click_index and now - _last_click_at <= DOUBLE_CLICK_SECONDS
 	_last_click_index = index
 	_last_click_at = now
-	_world.input["menu_select"] = index
+	_latch_one("menu_select", index)
 	if twice or button.double_click:
-		_world.input["menu_confirm"] = true
+		_latch_one("menu_confirm", true)
 	_root.accept_event()
 
 
 func _on_craft() -> void:
 	if _world != null:
-		_world.input["menu_confirm"] = true
+		_latch_one("menu_confirm", true)
 
 
 func _on_close() -> void:
 	if _world != null and bool(_world.craft_open):
-		_world.input["craft_toggle"] = true
+		_latch_one("craft_toggle", true)
 
 
 ## The same reading of a recipe the HUD and the sim make.
@@ -384,3 +387,14 @@ class CraftRow:
 		else:
 			box.bg_color = Color(0, 0, 0, 0)
 		draw_style_box(box, Rect2(Vector2.ZERO, size))
+
+
+## One-shot through the latch, never into the world: a view reads.
+func _latch_one(key: String, value: Variant) -> void:
+	if _latch != null:
+		_latch.latch(key, value)
+
+
+## The frame owner hands the latch over at setup.
+func set_latch(latch: Variant) -> void:
+	_latch = latch

@@ -133,6 +133,9 @@ var _focus_signature: String = ""
 var _debug_signature: String = ""
 var _extra_rows: Array = []
 var _world: Variant = null
+## The input latch, handed over by the frame owner. A panel's button is a
+## one-shot like a key, and goes the same way.
+var _latch: Variant = null
 ## The frame owner's last pick: `{entity, target, point}`, or empty.
 var _hover: Dictionary = {}
 ## Where the hovered thing's label hangs, in window pixels; (-1, -1) for none.
@@ -626,11 +629,11 @@ func _on_slot_input(event: InputEvent, index: int) -> void:
 	if button == null or not button.pressed or _world == null:
 		return
 	if button.button_index == MOUSE_BUTTON_LEFT:
-		_world.input["select"] = index
+		_latch_one("select", index)
 	elif button.button_index == MOUSE_BUTTON_RIGHT:
 		# Select and use in one step: the sim's select runs before its use.
-		_world.input["select"] = index
-		_world.input["use"] = true
+		_latch_one("select", index)
+		_latch_one("use", true)
 	else:
 		return
 	_root.accept_event()
@@ -643,7 +646,7 @@ func _on_equip_input(event: InputEvent, key: String) -> void:
 		return
 	if button.button_index != MOUSE_BUTTON_LEFT and button.button_index != MOUSE_BUTTON_RIGHT:
 		return
-	_world.input["unequip"] = key
+	_latch_one("unequip", key)
 	_root.accept_event()
 
 
@@ -668,22 +671,22 @@ func _on_use() -> void:
 	if _world == null or _card_target.is_empty():
 		return
 	if str(_card_target["kind"]) == "equip":
-		_world.input["unequip"] = str(_card_target["key"])
+		_latch_one("unequip", str(_card_target["key"]))
 		return
-	_world.input["select"] = int(_card_target["index"])
-	_world.input["use"] = true
+	_latch_one("select", int(_card_target["index"]))
+	_latch_one("use", true)
 
 
 func _on_drop() -> void:
 	if _world == null or _card_target.is_empty() or str(_card_target["kind"]) != "slot":
 		return
-	_world.input["select"] = int(_card_target["index"])
-	_world.input["drop"] = true
+	_latch_one("select", int(_card_target["index"]))
+	_latch_one("drop", true)
 
 
 func _on_craft_button() -> void:
 	if _world != null:
-		_world.input["craft_toggle"] = true
+		_latch_one("craft_toggle", true)
 
 
 func _on_map_button() -> void:
@@ -1403,3 +1406,14 @@ class WearBar:
 	func _draw() -> void:
 		draw_rect(Rect2(Vector2.ZERO, size), SurvivalUiKit.WEAR_TRACK)
 		draw_rect(Rect2(0.0, 0.0, size.x * clampf(fraction, 0.0, 1.0), size.y), SurvivalUiKit.WEAR_FILL)
+
+
+## One-shot through the latch, never into the world: a view reads.
+func _latch_one(key: String, value: Variant) -> void:
+	if _latch != null:
+		_latch.latch(key, value)
+
+
+## The frame owner hands the latch over at setup.
+func set_latch(latch: Variant) -> void:
+	_latch = latch

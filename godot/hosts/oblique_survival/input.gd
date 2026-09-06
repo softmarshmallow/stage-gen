@@ -284,6 +284,22 @@ func sample(world, held_keys: Variant = null) -> void:
 	_pending.clear()
 
 
+## Latch a one-shot the way a key press does, for an interface control that
+## means one.
+##
+## A view reads; it never writes a world slice (the host contract). A panel
+## button that wrote `world.input` directly was doing the sampler's job, and
+## doing it at a different moment in the frame — so a click and the key that
+## means the same thing took two paths through the loop. They take one now, and
+## a scripted replay can press a button by the same call a player's click makes.
+func latch(key: String, value: Variant) -> void:
+	_fed = true
+	if not started:
+		started = true
+		first_input.emit()
+	_pending[key] = value
+
+
 func _craft_open() -> bool:
 	if _world == null:
 		return false

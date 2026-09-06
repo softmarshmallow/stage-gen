@@ -30,6 +30,7 @@ func run(h: TestHarness) -> void:
 	_map_fills_the_window(h, w)
 	_layers_take_a_scale(h, w)
 	_args_carry_the_new_flags(h)
+	_no_layer_writes_the_world(h)
 
 
 func _kit_reads_items(h: TestHarness, w: SurvivalWorld) -> void:
@@ -194,6 +195,7 @@ func _craft_panel_follows_craft_open(h: TestHarness, w: SurvivalWorld) -> void:
 	w.dead = false
 	var panel := SurvivalCraftPanel.new()
 	panel.setup(TestFixtures.package(), w, null)
+	var panel_latch: Variant = _latched(panel, w)
 	h.assert_false(panel.visible, "the table is closed")
 	w.craft_open = true
 	panel.update(w, 0.0, {})
@@ -201,17 +203,21 @@ func _craft_panel_follows_craft_open(h: TestHarness, w: SurvivalWorld) -> void:
 	var recipes: Array = (w.manifest["crafting"] as Dictionary)["recipes"]
 	h.assert_eq(panel._rows.get_child_count(), recipes.size(), "one row per recipe")
 	panel._on_craft()
+	_pump(panel_latch, w)
 	h.assert_true(bool(w.input["menu_confirm"]), "the Craft button is the sim's confirm")
 	panel._on_close()
+	_pump(panel_latch, w)
 	h.assert_true(bool(w.input["craft_toggle"]), "the close button is the sim's toggle")
 	TestFixtures.release(w)
 	var click := InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_LEFT
 	click.pressed = true
 	panel._on_row_input(click, 3)
+	_pump(panel_latch, w)
 	h.assert_eq(w.input["menu_select"], 3, "a clicked row is the sim's select")
 	h.assert_false(bool(w.input["menu_confirm"]), "one click does not make")
 	panel._on_row_input(click, 3)
+	_pump(panel_latch, w)
 	h.assert_true(bool(w.input["menu_confirm"]), "the second click on the same row makes")
 	TestFixtures.release(w)
 	w.craft_open = false
@@ -229,6 +235,7 @@ func _hud_builds_the_pack(h: TestHarness, w: SurvivalWorld) -> void:
 	w.selected = 0
 	var hud := SurvivalHud.new()
 	hud.setup(TestFixtures.package(), w, null)
+	var hud_latch: Variant = _latched(hud, w)
 	h.assert_eq(hud._slot_cells.size(), 12, "a slot per pack slot")
 	h.assert_eq(hud._equip_cells.size(), 3, "and a cell per worn place")
 	h.assert_false(hud._card_panel.visible, "no slot hovered, no card")
@@ -247,10 +254,12 @@ func _hud_builds_the_pack(h: TestHarness, w: SurvivalWorld) -> void:
 	h.assert_eq(hud._use_button.text, "Wear", "and the button says so")
 	h.assert_false(hud._drop_button.disabled, "and can be dropped")
 	hud._on_use()
+	_pump(hud_latch, w)
 	h.assert_eq(w.input["select"], 1, "the card's Use selects its slot")
 	h.assert_true(bool(w.input["use"]), "and uses it")
 	TestFixtures.release(w)
 	hud._on_drop()
+	_pump(hud_latch, w)
 	h.assert_eq(w.input["select"], 1, "the card's Drop selects its slot")
 	h.assert_true(bool(w.input["drop"]), "and drops it")
 	TestFixtures.release(w)
@@ -270,12 +279,14 @@ func _hud_builds_the_pack(h: TestHarness, w: SurvivalWorld) -> void:
 	h.assert_eq(hud._use_button.text, "Take off", "with Take off")
 	h.assert_false(hud._drop_button.visible, "and no Drop")
 	hud._on_use()
+	_pump(hud_latch, w)
 	h.assert_eq(w.input["unequip"], "hand", "Take off is the sim's unequip")
 	TestFixtures.release(w)
 	var click := InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_LEFT
 	click.pressed = true
 	hud._on_equip_input(click, "hand")
+	_pump(hud_latch, w)
 	h.assert_eq(w.input["unequip"], "hand", "a click on the worn thing takes it off")
 	TestFixtures.release(w)
 	hud._on_equip_hover("hand", false)
@@ -296,10 +307,12 @@ func _hud_builds_the_pack(h: TestHarness, w: SurvivalWorld) -> void:
 	h.assert_eq(hud._slot_cells.size(), 16, "a pack worn on the back grows the hotbar")
 	click.button_index = MOUSE_BUTTON_RIGHT
 	hud._on_slot_input(click, 0)
+	_pump(hud_latch, w)
 	h.assert_eq(w.input["select"], 0, "a right-click selects the slot")
 	h.assert_true(bool(w.input["use"]), "and uses it")
 	TestFixtures.release(w)
 	hud._on_craft_button()
+	_pump(hud_latch, w)
 	h.assert_true(bool(w.input["craft_toggle"]), "the Craft button is the sim's toggle")
 	TestFixtures.release(w)
 	var asked: Array = []
@@ -623,3 +636,47 @@ func _args_carry_the_new_flags(h: TestHarness) -> void:
 	var off := HostArgs.parse(PackedStringArray(["--fullscreen=false", "--run", "/tmp/r"]))
 	h.assert_false(off.fullscreen, "--fullscreen=false")
 	h.assert_eq(off.run, "/tmp/r", "and the run still parses after it")
+
+
+## The input latch, wired to a panel the way the frame owner wires it, plus the
+## pump that moves a latched one-shot into the world.
+##
+## A panel button is a one-shot like a key: it is latched when clicked and
+## written into `world.input` when the loop next samples. A test that clicks and
+## then reads the world has to sample in between, exactly as a frame does.
+func _latched(panel: Variant, w: SurvivalWorld) -> Variant:
+	var latch := SurvivalInput.new()
+	latch.bind(w)
+	panel.set_latch(latch)
+	return latch
+
+
+func _pump(latch: Variant, w: SurvivalWorld) -> void:
+	latch.sample(w)
+
+
+## No 2D layer writes a world slice.
+##
+## A view reads; it never writes a slice and never emits (the host contract).
+## Two panels broke that rule from the port until the latch landed: their
+## buttons wrote `world.input` straight from a Control callback, at a different
+## moment in the frame from the key that meant the same thing. The rule is
+## cheap to check and expensive to rediscover, so it is checked.
+func _no_layer_writes_the_world(h: TestHarness) -> void:
+	var offenders := PackedStringArray()
+	var dir := DirAccess.open("res://hosts/oblique_survival/hud")
+	if dir == null:
+		h.fail("the hud directory is not in the project")
+		return
+	for name in dir.get_files():
+		var script_name := name.trim_suffix(".remap")
+		if not script_name.ends_with(".gd"):
+			continue
+		var source := FileAccess.get_file_as_string("res://hosts/oblique_survival/hud/%s" % script_name)
+		if source.contains("_world.input[") or source.contains("world.input["):
+			offenders.append(script_name)
+	h.assert_eq(
+		offenders,
+		PackedStringArray(),
+		"a 2D layer writes world.input instead of latching a one-shot",
+	)

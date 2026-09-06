@@ -195,6 +195,11 @@ func _boot(next_world: SurvivalWorld) -> void:
 		add_child(node)
 		if node.has_method("setup"):
 			node.setup(package, world, frame_uniforms)
+		# A panel whose buttons mean a one-shot gets the input latch, so a click
+		# and the key that means the same thing take one path into the world
+		# rather than two (the host contract: a view reads).
+		if node.has_method("set_latch"):
+			node.set_latch(_input_sampler)
 		# A layer that wants the run started over (the death screen's button)
 		# says so through this signal; the frame owner is the only one who can.
 		if node.has_signal("restart_requested"):
