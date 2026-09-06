@@ -661,7 +661,7 @@ func pick_entity(screen: Vector2, camera: Camera3D, world, forage_radius_px: flo
 		var half_w := quad.size.x * 0.5
 		var top := quad.center_offset.y + quad.size.y * 0.5
 		var bottom := quad.center_offset.y - quad.size.y * 0.5
-		var basis := node.global_transform.basis
+		var basis := drawn_basis(node as MeshInstance3D, camera)
 		var origin := node.global_transform.origin
 		var rect := Rect2(foot_s, Vector2.ZERO)
 		var first := true
@@ -693,6 +693,25 @@ func pick_entity(screen: Vector2, camera: Camera3D, world, forage_radius_px: flo
 		best_foot_y = foot_s.y
 		best = entity
 	return best
+
+
+## The basis a card is drawn with, which is what its corners must be projected
+## through: the shader stands a billboarded card in the CAMERA's basis times
+## the node's own (`card_body.gdshaderinc`, `cam * model`), so the node's basis
+## alone is the un-billboarded quad — right at the screen's centre, where the
+## two rectangles nearly coincide, and wrong by the perspective lean towards
+## the edges, which is how a pointer over a side tree missed it. A card whose
+## material leaves `u_billboard` off is drawn in its own basis.
+static func drawn_basis(node: MeshInstance3D, camera: Camera3D) -> Basis:
+	var basis := node.global_transform.basis
+	var material: Variant = node.material_override
+	if material == null and node.mesh != null:
+		material = node.mesh.surface_get_material(0)
+	if material is ShaderMaterial:
+		var flag: Variant = (material as ShaderMaterial).get_shader_parameter("u_billboard")
+		if flag != null and float(flag) > 0.5 and camera != null:
+			return camera.global_transform.basis * basis
+	return basis
 
 
 ## The alpha of a card's picture at a quad UV, through the material's window

@@ -9,8 +9,22 @@ extends SceneTree
 
 const TESTS_DIR := "res://tests"
 
-func _init() -> void:
+## The suite runs on the first frame, not in `_init` or `_initialize`: a test
+## that stands a camera under the root to unproject a point needs the root
+## window live in the tree, and it is not until the loop's first iteration
+## (under `_initialize` the root is still outside the tree at 100 by 100).
+var _ran := false
+
+func _process(_delta: float) -> bool:
+	if _ran:
+		return false
+	_ran = true
+	_run_all()
+	return false
+
+func _run_all() -> void:
 	var harness := TestHarness.new()
+	harness.tree = self
 	var files := _test_files()
 	if files.is_empty():
 		push_error("no tests found under %s" % TESTS_DIR)

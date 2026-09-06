@@ -15,6 +15,10 @@ const DEFAULT_RUN_DIR := "/Users/universe/Documents/shared/stage-gen/out/ember-h
 ## `-- --run` on the command line.
 static var RUN_DIR: String = DEFAULT_RUN_DIR
 
+## The scene tree the suite runs in, for a test that must stand a node in a
+## viewport (a camera cannot unproject outside one). Set by the runner.
+var tree: SceneTree = null
+
 static func _static_init() -> void:
 	var argv := OS.get_cmdline_user_args()
 	for i in range(argv.size()):

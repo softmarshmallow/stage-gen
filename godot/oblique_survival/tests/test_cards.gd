@@ -30,6 +30,7 @@ func run(h: TestHarness) -> void:
 	_decals(h, manifest)
 	_playback_modes(h, manifest)
 	_module(h, pkg)
+	_pick_follows_the_billboard(h, pkg)
 
 
 # --- props ------------------------------------------------------------------
@@ -466,6 +467,90 @@ func _module(h: TestHarness, pkg: RunPackage) -> void:
 			wrong += 1
 	h.assert_eq(wrong, 0, "every winter card carries its own prop's winter picture")
 	cards.free()
+
+
+# --- the pick and the billboard ----------------------------------------------
+
+## The pointer hits a card where the card is drawn. The shader stands every
+## card in the camera's basis (`cam * model`, a billboard perpendicular to the
+## view axis); the pick projected its corners through the node's own basis,
+## which is identity for a standing card, so it tested the un-billboarded quad.
+## The two rectangles share the foot and nearly coincide at the screen's
+## centre, and lean apart by the perspective towards the edges: a pointer over
+## a side tree missed the tree. The camera stands where the game's does (the
+## rig at the package's pitch and yaw) and the card is one far from the centre.
+func _pick_follows_the_billboard(h: TestHarness, pkg: RunPackage) -> void:
+	var root: Window = h.tree.root
+	# The dummy display server's window is a 64-pixel square; the game's is 1600x900.
+	var window_before := root.size
+	root.size = CameraRig.VERDICT_SIZE
+	var world := World.create(pkg, 7, {})
+	var cards := Cards.new()
+	root.add_child(cards)
+	cards.setup(pkg, world, null)
+	cards.update(world, 1.0 / 60.0, {"yaw": 0.0})
+	var rig := CameraRig.new()
+	root.add_child(rig)
+	rig.setup(pkg, world, null)
+	rig.apply_rig()
+	var camera: Camera3D = rig.camera
+	var size := camera.get_viewport().get_visible_rect().size
+	var centre_x := size.x * 0.5
+	# The prop card farthest from the screen's centre line that is still on
+	# the screen and has picture at its middle.
+	var chosen: Variant = null
+	var chosen_node: MeshInstance3D = null
+	var farthest := 0.0
+	for entity: Variant in world.entities:
+		var record: Dictionary = entity
+		if String(record.get("kind", "")) != "prop":
+			continue
+		var node := cards.card_node(String(record["id"]))
+		if node == null or not (node is MeshInstance3D):
+			continue
+		var foot := Vector3(float(record["x"]), 0.0, float(record["z"]))
+		if camera.is_position_behind(foot):
+			continue
+		var foot_s := camera.unproject_position(foot)
+		if foot_s.x < 60.0 or foot_s.x > size.x - 60.0 or foot_s.y < 60.0 or foot_s.y > size.y - 60.0:
+			continue
+		var away := absf(foot_s.x - centre_x)
+		if away > farthest:
+			farthest = away
+			chosen = entity
+			chosen_node = node
+	if not h.assert_true(chosen != null, "some prop card stands off the screen's centre line (window %s)" % str(size)):
+		cards.free()
+		rig.free()
+		root.size = window_before
+		return
+	h.assert_true(farthest > 250.0, "and far enough to lean: %.0f px from the centre line" % farthest)
+	var quad := chosen_node.mesh as QuadMesh
+	var drawn := Cards.drawn_basis(chosen_node, camera)
+	h.assert_true(drawn.is_equal_approx(camera.global_transform.basis * chosen_node.global_transform.basis),
+		"a billboarded card is drawn in the camera's basis times its own")
+	var origin := chosen_node.global_transform.origin
+	# The drawn middle of the card, and where the un-billboarded quad's middle
+	# would be: the same world height up the card, along two different ups.
+	var drawn_middle := camera.unproject_position(origin + drawn.y * quad.center_offset.y)
+	var flat_middle := camera.unproject_position(origin + chosen_node.global_transform.basis.y * quad.center_offset.y)
+	h.assert_true(absf(drawn_middle.x - flat_middle.x) > 4.0,
+		"off the centre line the two quads lean apart (%.1f px)" % absf(drawn_middle.x - flat_middle.x))
+	# Aim a little below the middle, where a tree is trunk and a rock is rock,
+	# so the alpha test is not the question here.
+	var aim := camera.unproject_position(origin + drawn.y * quad.center_offset.y * 0.6)
+	var hit: Variant = cards.pick_entity(aim, camera, world)
+	var hit_id := String((hit as Dictionary).get("id", "")) if hit is Dictionary else "nothing"
+	h.assert_eq(hit_id, String((chosen as Dictionary)["id"]),
+		"the pointer over the drawn card at %s hits it (%s)" % [str(aim), String((chosen as Dictionary)["prop_id"])])
+	# And just past the drawn card's own right edge, nothing of it.
+	var right_edge := camera.unproject_position(origin + drawn.x * (quad.size.x * 0.5 + 0.35) + drawn.y * quad.center_offset.y * 0.6)
+	var beside: Variant = cards.pick_entity(right_edge, camera, world)
+	var beside_id := String((beside as Dictionary).get("id", "")) if beside is Dictionary else "nothing"
+	h.assert_true(beside_id != String((chosen as Dictionary)["id"]), "and a hand's width past its drawn edge is not it")
+	cards.free()
+	rig.free()
+	root.size = window_before
 
 
 # --- the look swap's geometry -----------------------------------------------
