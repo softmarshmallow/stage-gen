@@ -45,6 +45,12 @@ var entities: Array = []
 var slots: Array = []
 var base_slots: int = 12
 var selected: int = 0
+## What is worn rather than carried (not the viewer's, whose pack was the whole
+## body): `hand` holds the tool a verb reaches for first, `body` the one worn
+## thing whose insulation counts, `back` the one pack whose slots count. Each
+## is `{item, count, uses}` or null; `Inventory.equip` and `unequip` move
+## things between here and the slots.
+var equipment: Dictionary = {"hand": null, "body": null, "back": null}
 ## A lit torch is a light on the player, not an entity.
 var torch: Dictionary = {"remaining": 0.0, "radius": 0.0}
 ## A warm stone holds the cold off; a heat on the player, not an entity.
@@ -174,6 +180,8 @@ static func fresh_input() -> Dictionary:
 		"menu_select": null,
 		"click_entity": null,
 		"click_point": null,
+		"equip": false,
+		"unequip": null,
 	}
 
 ## Whether a point may be walked on. Until a run's splat is read, and for a run
@@ -336,6 +344,16 @@ static func _create_weather(manifest: Dictionary, mode: String) -> Dictionary:
 	var block: Dictionary = manifest.get("weather", {}) if manifest.get("weather") is Dictionary else {}
 	# "" where the viewer has null: this run has no rain condition at all.
 	var condition := "rain" if block.get("rain") is Dictionary else ""
+	# Deviation from the viewer, whose first spell was wet: `spell_ends_at` 0
+	# fell due on the first step and flipped `wet_spell` to true, so every new
+	# world opened under rain. Here the first spell is dry and lasts the
+	# authored minimum, undrawn, so the PRNG sequence is the viewer's from the
+	# first draw on and a new world opens under a clear sky.
+	var first_dry := 0.0
+	if condition != "":
+		var span: Variant = (block["rain"] as Dictionary).get("dry_spell_seconds")
+		if span is Array and not (span as Array).is_empty():
+			first_dry = float((span as Array)[0])
 	return {
 		"mode": mode if mode != "" else "auto",
 		"condition": condition,
@@ -348,7 +366,7 @@ static func _create_weather(manifest: Dictionary, mode: String) -> Dictionary:
 		"hold_snow": 0.0,
 		"wet_spell": false,
 		"peak": 0.0,
-		"spell_ends_at": 0.0,
+		"spell_ends_at": first_dry,
 		"next_strike_at": INF,
 		"flash_at": -99.0,
 		"strikes": 0,
@@ -358,8 +376,7 @@ static func _create_weather(manifest: Dictionary, mode: String) -> Dictionary:
 
 ## `invAdd` for the authored starting kit only, so world creation does not
 ## depend on the inventory module. The pack is empty here, so the two passes of
-## the real helper collapse into one fill; the carry bonus is honoured in case
-## the kit hands out a pack before the rest of the kit.
+## the real helper collapse into one fill.
 func _add_start_item(item_id: String, count: int) -> void:
 	var items: Dictionary = manifest.get("items", {})
 	var spec: Dictionary = items.get(item_id, {}) if items.get(item_id) is Dictionary else {}
@@ -384,18 +401,9 @@ func _add_start_item(item_id: String, count: int) -> void:
 		push_warning("crafting.start: %d %s did not fit the pack" % [left, item_id])
 
 func _start_capacity() -> int:
-	var capacity := base_slots
-	var items: Dictionary = manifest.get("items", {})
-	for slot: Variant in slots:
-		if slot == null:
-			continue
-		var spec: Variant = items.get(String((slot as Dictionary)["item"]))
-		if not (spec is Dictionary):
-			continue
-		var use: Variant = (spec as Dictionary).get("use")
-		if use is Dictionary and String((use as Dictionary).get("kind", "")) == "carry":
-			capacity += int((use as Dictionary).get("slots", 0)) * int((slot as Dictionary)["count"])
-	return capacity
+	# Nothing in the kit is worn, so a pack in it carries nothing yet.
+	return base_slots
+
 
 static func _positive(value: Variant, fallback: float) -> float:
 	if (value is float or value is int) and float(value) != 0.0:

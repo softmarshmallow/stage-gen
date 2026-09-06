@@ -126,9 +126,10 @@ func _stage(world: World) -> void:
 	Inventory.inv_add(world, "pickaxe", 1)
 	Inventory.inv_add(world, "berry", 4)
 	Inventory.inv_add(world, "torch", 1)
-	# The end of day 4: eighteen seconds in, winter arrives and the snow starts.
+	# The end of day 4: eighteen seconds in (a 480 s day), winter arrives and
+	# the snow starts.
 	world.day = 4
-	world.day_phase = 0.9
+	world.day_phase = 1.0 - 18.0 / 480.0
 	world.camera_yaw = 0.0
 
 

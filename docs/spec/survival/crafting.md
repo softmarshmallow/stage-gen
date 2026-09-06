@@ -68,13 +68,21 @@ different drawings on purpose.
 ## The pack
 
 - The slot list is the truth: one entry per slot holding an item, a count and a
-  tool's remaining uses, or empty. The base count is authored, plus every
-  carried pack's own slots. Stacks fill to `stack_max`; a tool never stacks and
-  carries its own wear.
-- **Tools are carried, not equipped.** The first tool in slot order that serves
-  the verb is the one used; the target shows the tool's hits; a required tool
-  that is missing leaves the target offered with the prompt saying what is
-  missing. One completed interaction wears the tool by one; at zero it breaks.
+  tool's remaining uses, or empty. The base count is authored, plus the slots of
+  the pack **worn on the back**. Stacks fill to `stack_max`; a tool never stacks
+  and carries its own wear.
+- **Three worn places** — `hand` for a tool, `body` for a `wear` use, `back` for
+  a `carry` use — hold one thing each, moved from and to the pack by the host's
+  equip and unequip inputs (using a tool, a cloak or a pack wears it). Only the
+  worn thing counts: a cloak in a slot insulates nothing, a pack in a slot
+  carries nothing, and the pack on the back comes off only once its own slots
+  are empty. (Until 2026-09-06 anything in the pack counted.)
+- **A tool serves from the hand first, then from the pack.** The tool in hand
+  that serves the verb is the one used and worn; failing that, the first tool in
+  slot order that does, so a carried axe is enough to chop. The target shows the
+  tool's hits; a required tool that is missing leaves the target offered with
+  the prompt saying what is missing. One completed interaction wears the tool by
+  one; at zero it breaks.
 - Every helper answers with what it could **not** do, so a full pack leaves the
   piece on the ground and says so rather than dropping it silently.
 - **Stations are proximity**, resolved against the nearest prop with the

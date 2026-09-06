@@ -335,20 +335,23 @@ static func inv_count(slots: Array, item_id: String) -> int:
 	return total
 
 
-static func slot_capacity(manifest: Dictionary, slots: Array, base_slots: int) -> int:
-	var extra := 0
-	for slot: Variant in slots:
-		if not (slot is Dictionary):
-			continue
-		var use: Variant = item_spec(manifest, str((slot as Dictionary)["item"])).get("use", null)
-		if use is Dictionary and str((use as Dictionary).get("kind", "")) == "carry":
-			extra += int((use as Dictionary).get("slots", 0)) * int((slot as Dictionary).get("count", 1))
-	return base_slots + extra
+## The base slots plus the pack worn on the back (`equipment.back`); a pack in
+## a slot carries nothing.
+static func slot_capacity(manifest: Dictionary, equipment: Dictionary, base_slots: int) -> int:
+	var back: Variant = equipment.get("back", null)
+	if not (back is Dictionary):
+		return base_slots
+	var use: Variant = item_spec(manifest, str((back as Dictionary)["item"])).get("use", null)
+	if use is Dictionary and str((use as Dictionary).get("kind", "")) == "carry":
+		return base_slots + int((use as Dictionary).get("slots", 0))
+	return base_slots
 
 
 ## The verb the Use button carries for an item, or "" when using it does
-## nothing (a tool, a material, a thing that works from the pack).
+## nothing (a material). A tool, a cloak or a pack is worn.
 static func use_verb(spec: Dictionary) -> String:
+	if spec.get("tool", null) is Dictionary:
+		return "wear"
 	var use: Variant = spec.get("use", null)
 	if not (use is Dictionary):
 		return ""
@@ -360,6 +363,24 @@ static func use_verb(spec: Dictionary) -> String:
 			return "light"
 		"warm":
 			return "warm"
+		"wear", "carry":
+			return "wear"
+	return ""
+
+
+## Which of the three worn places an item goes: `hand` for a tool, `body` for
+## a `wear` use, `back` for a `carry` use, "" for the rest. The sim's
+## `Inventory.equip_kind`, read off a manifest so a panel can ask.
+static func equip_kind(spec: Dictionary) -> String:
+	if spec.get("tool", null) is Dictionary:
+		return "hand"
+	var use: Variant = spec.get("use", null)
+	if use is Dictionary:
+		match str((use as Dictionary).get("kind", "")):
+			"wear":
+				return "body"
+			"carry":
+				return "back"
 	return ""
 
 
@@ -383,9 +404,9 @@ static func use_hint(spec: Dictionary, slot: Variant) -> String:
 				return "lights for %d s, %.1f m" % [
 					int(round(float(block.get("burn_seconds", 0.0)))), float(block.get("radius_meters", 0.0))]
 			"carry":
-				return "+%d slots while carried" % int(block.get("slots", 0))
+				return "+%d slots while worn on the back" % int(block.get("slots", 0))
 			"wear":
-				return "%d%% off the cold while carried" % int(round(float(block.get("insulation", 0.0)) * 100.0))
+				return "%d%% off the cold while worn" % int(round(float(block.get("insulation", 0.0)) * 100.0))
 			"warm":
 				return "holds the cold off for %d s" % int(round(float(block.get("heat_seconds", 0.0))))
 	if tool is Dictionary:

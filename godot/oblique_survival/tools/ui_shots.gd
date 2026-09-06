@@ -3,9 +3,11 @@ extends SceneTree
 
 ## The HUD's own contact sheet: the real scene in a real window, overlays on,
 ## staged into the moments a player meets — the pack and a hovered tree at
-## noon, the crafting table, the fire at night, the dark away from it, the
-## death sheet, the run begun again, and the same HUD in a 2560x1440 window
-## to show the scale following the window.
+## noon (lifted, named above itself), a slot's card, the worn places, a pickup
+## in flight, a held-button walk, the crafting table, the pause menu and its
+## how-to-play page, the fire at night, the dark away from it, the death sheet,
+## the run begun again, and the same HUD in a 2560x1440 window to show the
+## scale following the window.
 ##
 ##   Godot --path godot/oblique_survival --rendering-driver metal \
 ##       -s res://tools/ui_shots.gd -- --run <absolute run dir> --out <directory>
@@ -50,6 +52,7 @@ func _go() -> void:
 		printerr("ui_shots: the run did not open")
 		quit(1)
 		return
+	_deafen()
 	var world = _main.world
 
 	# --- noon: the pack filled, a tree under the pointer, a walk clicked ---
@@ -62,12 +65,79 @@ func _go() -> void:
 	_main.advance(STEP)
 	await _save("ui-noon-hover.png")
 
+	# A slot rested on: its card stands above it, with Eat and Drop.
+	var hud = _main.modules.get("hud")
+	_main.hover_at(Vector2(-1.0, -1.0))
+	hud._on_slot_hover(1, true)
+	_main.advance(STEP)
+	await _save("ui-slot-card.png")
+	hud._on_slot_hover(1, false)
+
+	# The worn places: the axe in hand, the cloak on, the pack on the back
+	# (the hotbar grows), and the hand's card with Take off.
+	_main.give("grass_cloak", 1)
+	_main.give("backpack", 1)
+	for item in ["axe", "grass_cloak", "backpack"]:
+		for index in world.slots.size():
+			if world.slots[index] != null and str((world.slots[index] as Dictionary)["item"]) == item:
+				world.input["select"] = index
+				_main.advance(STEP)
+				world.input["equip"] = true
+				_main.advance(STEP)
+				break
+	hud._on_equip_hover("hand", true)
+	_main.advance(STEP)
+	await _save("ui-equipment.png")
+	hud._on_equip_hover("hand", false)
+
+	# A pickup: a log dropped in the open a step from the player, clicked once
+	# it has settled, the reach-and-lift, and the log's icon caught a third of
+	# the way along its flight into the slot.
+	SysDrops.spawn_drops(world, [{"item_id": "log", "count": 1}], world.player.x + 1.2, world.player.z, 1.0, 0.0, 0.0)
+	var drop: Variant = null
+	for entity in world.entities:
+		if entity.get("kind", "") == "item":
+			drop = entity
+	if drop != null:
+		for i in 300:
+			_main.advance(STEP)
+			if bool(drop.get("settled", false)):
+				break
+		_main.click_at(_screen_of(float(drop["x"]), 0.1, float(drop["z"])))
+		for i in 360:
+			_main.advance(STEP)
+			if int(hud.flights_in_air()) > 0:
+				break
+		_main.advance(0.16)
+		await _save("ui-pickup-flight.png")
+		_main.advance(1.0)
+
 	# A click on the ground four metres to the right: the walk is seen in the
 	# next shot as a moved player and the walk's message.
 	var walk_to := Vector3(world.player.x + 4.0, 0.0, world.player.z)
 	_main.click_at(_screen_of(walk_to.x, 0.0, walk_to.z))
 	_main.advance(0.6)
 	await _save("ui-noon-walk.png")
+
+	# The button held: the walk follows the pointer as it is dragged down
+	# the screen, and is still following when the shot is taken.
+	_main.hold_at(_screen_of(world.player.x + 3.0, 0.0, world.player.z))
+	_main.advance(0.5)
+	_main.drag_to(_screen_of(world.player.x + 1.0, 0.0, world.player.z + 4.0))
+	_main.advance(0.5)
+	await _save("ui-drag-walk.png")
+	_main.release_pointer()
+	_main.advance(0.2)
+
+	# The pause menu, and its how-to-play page.
+	_main.set_paused(true)
+	_main.advance(STEP)
+	await _save("ui-pause-menu.png")
+	_main.modules.get("pause_menu").show_page("help")
+	_main.advance(STEP)
+	await _save("ui-pause-help.png")
+	_main.set_paused(false)
+	_main.advance(STEP)
 
 	# --- the world map: the recoloured plate, the camp, the set pieces ---
 	var map_node = _main.modules.get("world_map")
@@ -135,6 +205,18 @@ func _go() -> void:
 	quit(0)
 
 
+## The window takes the keyboard when it opens, and a key typed at the desk
+## while the sheet renders (an M, an R) would restage it. Nothing here listens.
+func _deafen() -> void:
+	_main.set_process_input(false)
+	_main.set_process_unhandled_input(false)
+	_main.set_process_unhandled_key_input(false)
+	for id in ["hud", "world_map", "music"]:
+		var node = _main.modules.get(id)
+		if node != null and "owns_keys" in node:
+			node.owns_keys = false
+
+
 func _fill_pack() -> void:
 	for pair in [["axe", 1], ["berry", 4], ["log", 6], ["torch", 1], ["twig", 3], ["flint", 2], ["cooked_berry", 2]]:
 		_main.give(String(pair[0]), int(pair[1]))
@@ -149,6 +231,20 @@ func _nearest_prop(prop_id: String, state: String) -> Variant:
 			continue
 		var d: float = Vector2(float(entity["x"]) - world.player.x, float(entity["z"]) - world.player.z).length()
 		if d < best_d and d > 1.5:
+			best_d = d
+			best = entity
+	return best
+
+
+func _nearest_forage() -> Variant:
+	var world = _main.world
+	var best: Variant = null
+	var best_d := INF
+	for entity in world.entities:
+		if entity.get("kind", "") != "forage" or bool(entity.get("picked", false)) or bool(entity.get("hidden", false)):
+			continue
+		var d: float = Vector2(float(entity["x"]) - world.player.x, float(entity["z"]) - world.player.z).length()
+		if d < best_d and d > 1.0:
 			best_d = d
 			best = entity
 	return best

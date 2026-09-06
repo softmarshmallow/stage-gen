@@ -48,6 +48,9 @@ const ONE_SHOT_INPUT := {
 	"menu_select": null,
 	"click_entity": null,
 	"click_point": null,
+	# The equipment's two: the chosen slot worn, a worn kind taken off.
+	"equip": false,
+	"unequip": null,
 }
 
 static var _scripts: Dictionary = {}

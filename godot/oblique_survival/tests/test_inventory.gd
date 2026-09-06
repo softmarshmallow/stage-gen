@@ -1,6 +1,7 @@
 extends RefCounted
 
-## The pack: stack_max, tool wear, backpack capacity, insulation.
+## The pack: stack_max, tool wear, the pack worn on the back, the cloak worn on
+## the body, the tool in hand.
 
 
 func run(h: TestHarness) -> void:
@@ -56,27 +57,56 @@ func _tool_wear(h: TestHarness, w: World) -> void:
 	h.assert_true(w.slots[0] == null, "the 25th use breaks the axe")
 	h.assert_eq(w.message, "The Flint axe breaks.", "and it says so by the item's display name")
 	h.assert_eq(Inventory.inv_find_tool(w, "chop"), 1, "the spare axe is found next")
+	# A tool in hand serves before any in the pack, and wears there.
+	Inventory.inv_add(w, "axe", 1)
+	h.assert_true(Inventory.equip(w, 0), "the axe goes into the hand")
+	h.assert_eq(Inventory.inv_find_tool(w, "chop"), Inventory.HAND_SLOT, "the hand's axe serves first")
+	Inventory.wear_tool(w, Inventory.HAND_SLOT)
+	h.assert_eq(int((w.equipment["hand"] as Dictionary)["uses"]), 24, "the hand's axe wore")
+	h.assert_true(Inventory.unequip(w, "hand"), "and comes off again")
+	h.assert_eq(w.equipment["hand"], null, "leaving the hand empty")
 
 
 func _backpack(h: TestHarness, w: World) -> void:
 	SimFixture.bare(w)
 	h.assert_eq(Inventory.slot_capacity(w), 12, "twelve without a pack")
 	Inventory.inv_add(w, "backpack", 1)
-	h.assert_eq(Inventory.slot_capacity(w), 16, "a carried reed pack adds four slots")
-	# The bonus slots are real: 15 * 10 = 150 now fits where 120 did.
-	SimFixture.bare(w)
-	Inventory.inv_add(w, "backpack", 1)
-	h.assert_eq(Inventory.inv_add(w, "log", 150), 0, "150 logs fit in fifteen free slots")
-	h.assert_eq(Inventory.inv_add(w, "log", 1), 1, "the 151st does not")
+	h.assert_eq(Inventory.slot_capacity(w), 12, "a reed pack in a slot carries nothing")
+	h.assert_eq(Inventory.equip_kind(w, "backpack"), "back", "a pack is worn on the back")
+	h.assert_true(Inventory.equip(w, 0), "the pack goes on")
+	h.assert_eq(w.slots[0], null, "and leaves its slot")
+	h.assert_eq(Inventory.slot_capacity(w), 16, "a worn reed pack adds four slots")
+	# The bonus slots are real: 16 * 10 = 160 fits where 120 did.
+	h.assert_eq(Inventory.inv_add(w, "log", 160), 0, "160 logs fit in sixteen free slots")
+	h.assert_eq(Inventory.inv_add(w, "log", 1), 1, "the 161st does not")
+	# The pack comes off only once its own slots are empty.
+	h.assert_false(Inventory.unequip(w, "back"), "a full pack does not come off")
+	h.assert_eq(w.message, "Empty the pack's own slots first.", "and says why")
+	Inventory.inv_remove(w, "log", 50)
+	h.assert_true(Inventory.unequip(w, "back"), "emptied, it comes off")
+	h.assert_eq(Inventory.slot_capacity(w), 12, "and the slots are twelve again")
+	h.assert_eq(w.slots.size(), 12, "the bonus slots are gone")
+	h.assert_eq(Inventory.count(w, "backpack"), 1, "the pack is back in the pack")
 
 
 func _insulation(h: TestHarness, w: World) -> void:
 	SimFixture.bare(w)
 	h.assert_near(Inventory.insulation(w), 0.0, 1e-9, "nothing worn insulates nothing")
 	Inventory.inv_add(w, "grass_cloak", 1)
-	h.assert_near(Inventory.insulation(w), 0.5, 1e-9, "a grass cloak halves the cold")
+	h.assert_near(Inventory.insulation(w), 0.0, 1e-9, "a cloak in the pack warms nothing")
+	h.assert_true(Inventory.equip(w, 0), "the cloak goes on")
+	h.assert_near(Inventory.insulation(w), 0.5, 1e-9, "a worn grass cloak halves the cold")
+	# A second cloak swaps with the first rather than stacking on it.
 	Inventory.inv_add(w, "grass_cloak", 1)
-	h.assert_near(Inventory.insulation(w), 0.9, 1e-9, "two cloaks are capped at 0.9")
+	var second := Inventory.count(w, "grass_cloak")
+	h.assert_eq(second, 1, "one cloak in the pack, one on")
+	h.assert_true(Inventory.equip(w, 0), "the second goes on")
+	h.assert_eq(Inventory.count(w, "grass_cloak"), 1, "and the first came off into the pack")
+	h.assert_near(Inventory.insulation(w), 0.5, 1e-9, "one cloak's worth, not two")
+	# A material has nowhere to be worn.
+	Inventory.inv_add(w, "log", 1)
+	h.assert_eq(Inventory.equip_kind(w, "log"), "", "a log is not worn")
+	h.assert_false(Inventory.equip(w, 1), "and is refused")
 
 
 func _remove_last_stack_first(h: TestHarness, w: World) -> void:

@@ -208,7 +208,7 @@ static func target_for(world: World, entity: Dictionary) -> Variant:
 	if tool_spec != null:
 		var tool_block := tool_spec as Dictionary
 		tool_slot = Inventory.inv_find_tool(world, verb)
-		if tool_slot >= 0:
+		if tool_slot != -1:
 			var tool_hits := int(tool_block.get("hits", 0))
 			if tool_hits != 0:
 				hits = tool_hits

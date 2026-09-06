@@ -44,23 +44,26 @@ func _run_seconds(w: World, seconds: float) -> void:
 
 
 func _hunger(h: TestHarness, w: World) -> void:
-	# gameplay.hunger.drain_per_second is 0.6, so ten seconds cost six.
+	# gameplay.hunger.drain_per_second is 0.25, so ten seconds cost two and a
+	# half; a full belly lasts 400 s of a 480 s day.
 	_reset(w, "summer")
+	var drain := float(((w.manifest["gameplay"] as Dictionary)["hunger"] as Dictionary)["drain_per_second"])
+	h.assert_near(drain, 0.25, 1e-9, "the authored hunger drain")
 	_run_seconds(w, 10.0)
-	h.assert_near(w.player.hunger, 94.0, 0.01, "hunger drains 0.6 a second")
+	h.assert_near(w.player.hunger, 100.0 - drain * 10.0, 0.01, "hunger drains 0.25 a second")
 	h.assert_near(w.player.health, 100.0, 1e-9, "a fed player takes no damage")
 	h.assert_near(w.player.warmth, 100.0, 1e-9, "and summer costs no warmth")
 
 
 func _a_day_of_hunger_starves(h: TestHarness, w: World) -> void:
-	# 0.6 a second over a 180 s day is 108: one day empties a full belly with
-	# about 13 s to spare, and the rest is 2 health a second.
+	# 0.25 a second over a 480 s day is 120: one day empties a full belly with
+	# 80 s to spare, and the rest is 2 health a second.
 	_reset(w, "summer")
 	var day_length := float((w.manifest["gameplay"] as Dictionary)["day_length_seconds"])
-	h.assert_near(day_length, 180.0, 1e-9, "the day is 180 s")
+	h.assert_near(day_length, 480.0, 1e-9, "the day is 480 s")
 	_run_seconds(w, day_length)
 	h.assert_near(w.player.hunger, 0.0, 1e-9, "one day empties the belly")
-	h.assert_near(w.player.health, 73.3, 0.3, "and the last 13 s cost 2 health a second")
+	h.assert_near(w.player.health, 100.0 - 80.0 * 2.0, 0.3, "and the last 80 s cost 2 health a second")
 
 
 func _winter_cold(h: TestHarness, w: World) -> void:
@@ -78,7 +81,12 @@ func _winter_cold(h: TestHarness, w: World) -> void:
 	_reset(w, "winter")
 	Inventory.inv_add(w, "grass_cloak", 1)
 	_run_seconds(w, 10.0)
-	h.assert_near(w.player.warmth, 97.5, 0.01, "a carried cloak halves the day drain")
+	h.assert_near(w.player.warmth, 95.0, 0.01, "a cloak in the pack does nothing for the cold")
+	_reset(w, "winter")
+	Inventory.inv_add(w, "grass_cloak", 1)
+	Inventory.equip(w, 0)
+	_run_seconds(w, 10.0)
+	h.assert_near(w.player.warmth, 97.5, 0.01, "a worn cloak halves the day drain")
 
 	_reset(w, "winter")
 	w.torch = {"remaining": 60.0, "radius": 3.5}

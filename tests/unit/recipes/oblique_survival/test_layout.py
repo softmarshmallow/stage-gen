@@ -691,8 +691,8 @@ def test_the_old_campfire_recipe_and_berry_restore_are_refused(tmp_path: Path) -
     root = _source_edit(
         tmp_path / "b",
         "survival.toml",
-        "drain_per_second = 0.6",
-        "drain_per_second = 0.6\nberry_restore = 20.0",
+        "drain_per_second = 0.25",
+        "drain_per_second = 0.25\nberry_restore = 20.0",
     )
     _load_refused(root, "gameplay.hunger.berry_restore is not authored any more")
 

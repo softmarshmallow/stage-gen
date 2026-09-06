@@ -8,8 +8,8 @@ extends RefCounted
 ## cadence.
 
 const STEP := 1.0 / 60.0
-## `100 / 0.6`: how long a full belly lasts at the authored drain.
-const SECONDS_TO_STARVE := 166.66666666666666
+## `100 / 0.25`: how long a full belly lasts at the authored drain.
+const SECONDS_TO_STARVE := 400.0
 ## `pi / 9.5`: one foot planted per half turn of the walk cycle.
 const STEP_SECONDS := PI / 9.5
 
@@ -58,14 +58,14 @@ func _vitals(world: World, seconds: float) -> void:
 # T12. The belly, and what follows it.
 # ---------------------------------------------------------------------------
 
-## 0.6 a second from 100 is 166.667 s; from there the shortfall is 2 health a
+## 0.25 a second from 100 is 400 s; from there the shortfall is 2 health a
 ## second, and the death it ends in names the hunger.
 func _t12_hunger(h: TestHarness, world: World) -> void:
 	var hunger: Dictionary = (world.manifest["gameplay"] as Dictionary)["hunger"]
 	var health: Dictionary = (world.manifest["gameplay"] as Dictionary)["health"]
-	h.assert_near(float(hunger["drain_per_second"]), 0.6, 1e-9, "the authored hunger drain")
+	h.assert_near(float(hunger["drain_per_second"]), 0.25, 1e-9, "the authored hunger drain")
 	h.assert_near(float(health["starve_damage_per_second"]), 2.0, 1e-9, "the authored starve damage")
-	h.assert_near(SECONDS_TO_STARVE, 100.0 / 0.6, 1e-9, "100 at 0.6 a second is 166.667 s")
+	h.assert_near(SECONDS_TO_STARVE, 100.0 / 0.25, 1e-9, "100 at 0.25 a second is 400 s")
 
 	# A quarter of a second short of the line the belly still holds something.
 	_reset(world, "summer")

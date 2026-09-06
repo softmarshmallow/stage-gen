@@ -67,6 +67,16 @@ var _movers_stale: bool = true
 var _fallers: Array = []
 var _look: String = ""
 var _mode: String = "play"
+## The entity id the pointer is over, whose card is lifted (`u_highlight`), or
+## "". Re-applied every frame, because a card that was rebuilt (a state change,
+## a season) comes back without its override.
+var _highlight_id: String = ""
+## Template material instance id -> its lifted twin, made once per template
+## the pointer has ever rested on and registered for the frame uniforms.
+var _lifted: Dictionary = {}
+## Texture instance id -> a small copy of its picture, for the pick's alpha
+## test. Read back from the GPU once per texture the pointer has crossed.
+var _pick_images: Dictionary = {}
 ## The camera yaw as of the last `update`; an event arriving before the first
 ## frame is signed with it.
 var _yaw: float = 0.0
@@ -97,6 +107,7 @@ func update(world, delta: float, cam: Dictionary) -> void:
 	_update_entities(world)
 	_update_shakes()
 	_update_fallers(delta)
+	_apply_highlight()
 
 
 ## The frame owner offers every drained event to every module. Only two land
@@ -536,13 +547,22 @@ func sync_entities(world) -> void:
 				_drop_record(id, true)
 
 
+## Alpha under this much of the card's picture is not the thing: the pointer
+## passes through a birch's empty corner to the pine behind it.
+const PICK_ALPHA := 0.3
+## The pick reads each card texture back once, shrunk to this many pixels a
+## side; a card is metres wide, so the test is a hand's width coarse.
+const PICK_IMAGE_SIZE := 128
+
 ## The thing under a screen point, for the pointer (not the viewer's: it had
 ## no mouse). Every card is a billboard perpendicular to the view axis, so its
-## four corners project to an axis-aligned screen rectangle; the foot row's
-## screen height orders the hits (the nearer card is drawn in front). Forage
-## has no card — it is instanced from the sheet — so a piece is hit within a
-## small circle round its foot. The player is never a hit. Returns the world's
-## own entity Dictionary, or null.
+## four corners project to an axis-aligned screen rectangle; a hit inside the
+## rectangle is then tested against the card's own picture, so the empty
+## corner of a card is not the card; the foot row's screen height orders the
+## hits (the nearer card is drawn in front). Forage has no card — it is
+## instanced from the sheet — so a piece is hit within a small circle round its
+## foot. The player is never a hit. Returns the world's own entity Dictionary,
+## or null.
 func pick_entity(screen: Vector2, camera: Camera3D, world, forage_radius_px: float = 26.0) -> Variant:
 	if camera == null or world == null:
 		return null
@@ -599,10 +619,67 @@ func pick_entity(screen: Vector2, camera: Camera3D, world, forage_radius_px: flo
 				rect = rect.expand(p)
 		if not rect.has_point(screen):
 			continue
-		if foot_s.y > best_foot_y:
-			best_foot_y = foot_s.y
-			best = entity
+		if foot_s.y <= best_foot_y:
+			continue
+		# Inside the rectangle: is there picture here? The rectangle is the
+		# card's quad, so the point's place in it is the quad's UV (the card
+		# reads its window top-down, as the quad does). A dropped item is its
+		# whole small card: its picture floats mid-card, and a hand aiming at
+		# a log on the ground should not have to hit the drawn log.
+		if kind != "item":
+			var uv := (screen - rect.position) / rect.size
+			if _alpha_at(record as Dictionary, uv) < PICK_ALPHA:
+				continue
+		best_foot_y = foot_s.y
+		best = entity
 	return best
+
+
+## The alpha of a card's picture at a quad UV, through the material's window
+## and flip. 1 when the picture cannot be read (the card is then its whole
+## rectangle, as before).
+func _alpha_at(record: Dictionary, uv: Vector2) -> float:
+	var node: Variant = record.get("node")
+	if not (node is MeshInstance3D):
+		return 1.0
+	var material: Variant = (node as MeshInstance3D).material_override
+	if material == null and (node as MeshInstance3D).mesh != null:
+		material = (node as MeshInstance3D).mesh.surface_get_material(0)
+	if not (material is ShaderMaterial):
+		return 1.0
+	var shader_material := material as ShaderMaterial
+	var texture: Variant = shader_material.get_shader_parameter("u_map")
+	if not (texture is Texture2D):
+		return 1.0
+	var image := _pick_image(texture as Texture2D)
+	if image == null:
+		return 1.0
+	var window: Variant = shader_material.get_shader_parameter("u_frame_uv")
+	var frame: Vector4 = window if window is Vector4 else Vector4(0.0, 0.0, 1.0, 1.0)
+	var flipped := float(shader_material.get_shader_parameter("u_flip")) > 0.5
+	var u := (1.0 - uv.x) if flipped else uv.x
+	var x := int(clampf(frame.x + u * frame.z, 0.0, 0.9999) * image.get_width())
+	var y := int(clampf(frame.y + uv.y * frame.w, 0.0, 0.9999) * image.get_height())
+	return image.get_pixel(x, y).a
+
+
+func _pick_image(texture: Texture2D) -> Image:
+	var key := texture.get_instance_id()
+	if _pick_images.has(key):
+		return _pick_images[key]
+	var image: Image = texture.get_image()
+	if image != null:
+		image = image.duplicate()
+		if image.is_compressed():
+			image.decompress()
+		image.convert(Image.FORMAT_RGBA8)
+		# Shrink along the longer side, so a wide strip keeps its cells.
+		var longest := maxi(image.get_width(), image.get_height())
+		if longest > PICK_IMAGE_SIZE:
+			var scale := float(PICK_IMAGE_SIZE) / float(longest)
+			image.resize(maxi(1, int(image.get_width() * scale)), maxi(1, int(image.get_height() * scale)), Image.INTERPOLATE_BILINEAR)
+	_pick_images[key] = image
+	return image
 
 
 ## Stand a card in the world and hand it to the rendering server.
@@ -839,6 +916,124 @@ func _tilt(node: Node3D, radians: float) -> void:
 		_place_basis(node, Basis.IDENTITY)
 		return
 	_place_basis(node, Basis(Vector3(0.0, 0.0, 1.0), -radians))
+
+
+# --- the pointer's hover -----------------------------------------------------
+
+## Lift the card standing for `entity_id` (the thing under the pointer), and
+## let the last one down. "" lifts nothing. A shared template card (a prop, a
+## drop) wears a lifted twin of its material as an override; an actor's own
+## material takes the uniform directly. A forage piece has no card of its own
+## (it is instanced from the sheet), so hovering one lifts nothing and the
+## label alone names it.
+func set_highlight(entity_id: String) -> void:
+	if entity_id == _highlight_id:
+		return
+	_let_down(_records.get(_highlight_id))
+	_highlight_id = entity_id
+	_apply_highlight()
+
+
+func _let_down(record: Variant) -> void:
+	if not (record is Dictionary):
+		return
+	var node: Variant = (record as Dictionary).get("node")
+	if not (node is MeshInstance3D):
+		return
+	if String((record as Dictionary).get("kind", "")) == "actor":
+		((record as Dictionary)["material"] as ShaderMaterial).set_shader_parameter("u_highlight", 0.0)
+	else:
+		(node as MeshInstance3D).material_override = null
+
+
+func _apply_highlight() -> void:
+	if _highlight_id == "":
+		return
+	var record: Variant = _records.get(_highlight_id)
+	if not (record is Dictionary):
+		return
+	var node: Variant = (record as Dictionary).get("node")
+	if not (node is MeshInstance3D):
+		return
+	var mesh_node := node as MeshInstance3D
+	if String((record as Dictionary).get("kind", "")) == "actor":
+		((record as Dictionary)["material"] as ShaderMaterial).set_shader_parameter("u_highlight", 1.0)
+		return
+	if mesh_node.material_override != null or mesh_node.mesh == null:
+		return
+	var base: Variant = mesh_node.mesh.surface_get_material(0)
+	if not (base is ShaderMaterial):
+		return
+	var key := (base as ShaderMaterial).get_instance_id()
+	if not _lifted.has(key):
+		var lifted := (base as ShaderMaterial).duplicate() as ShaderMaterial
+		lifted.set_shader_parameter("u_highlight", 1.0)
+		if uniforms != null:
+			uniforms.register(lifted)
+		_lifted[key] = lifted
+	mesh_node.material_override = _lifted[key]
+
+
+func highlighted() -> String:
+	return _highlight_id
+
+
+## Where a label for an entity hangs in the world: the top of its card, a hand
+## above its foot when it has no card (a forage piece), or a dropped item's
+## own height. `up` is the card's own up — the camera basis's, since a card is
+## a billboard in the camera plane — so the point projects straight above the
+## foot on the screen; world up would splay outward from the screen's centre.
+## The HUD projects it and stands the name there, so the name belongs to the
+## thing rather than to the cursor.
+func label_anchor(entity: Variant, up: Vector3 = Vector3.UP) -> Vector3:
+	var x := float(field(entity, "x", 0.0))
+	var z := float(field(entity, "z", 0.0))
+	var kind := String(field(entity, "kind", ""))
+	var y := float(field(entity, "y", 0.0)) if kind == "item" else 0.0
+	var foot := Vector3(x, y, z)
+	var record: Variant = _records.get(String(field(entity, "id", "")))
+	if record is Dictionary:
+		var node: Variant = (record as Dictionary).get("node")
+		if node is MeshInstance3D and (node as MeshInstance3D).mesh is QuadMesh:
+			var quad := (node as MeshInstance3D).mesh as QuadMesh
+			var top := quad.center_offset.y + quad.size.y * 0.5
+			# The drawn top, not the quad's: a card carries a transparent
+			# margin above its picture, and a name floating over that margin
+			# reads as belonging to nothing.
+			top -= quad.size.y * _empty_top(record as Dictionary)
+			return foot + up.normalized() * top
+	return foot + up.normalized() * 0.45
+
+
+## How much of a card's window, from the top, is empty (alpha under the pick
+## threshold on every column), as a fraction of the window's height. Read off
+## the pick's small copy of the picture; 0 when it cannot be read.
+func _empty_top(record: Dictionary) -> float:
+	var node: Variant = record.get("node")
+	if not (node is MeshInstance3D):
+		return 0.0
+	var material: Variant = (node as MeshInstance3D).material_override
+	if material == null and (node as MeshInstance3D).mesh != null:
+		material = (node as MeshInstance3D).mesh.surface_get_material(0)
+	if not (material is ShaderMaterial):
+		return 0.0
+	var texture: Variant = (material as ShaderMaterial).get_shader_parameter("u_map")
+	if not (texture is Texture2D):
+		return 0.0
+	var image := _pick_image(texture as Texture2D)
+	if image == null:
+		return 0.0
+	var window: Variant = (material as ShaderMaterial).get_shader_parameter("u_frame_uv")
+	var frame: Vector4 = window if window is Vector4 else Vector4(0.0, 0.0, 1.0, 1.0)
+	var x0 := int(frame.x * image.get_width())
+	var x1 := maxi(x0 + 1, int((frame.x + frame.z) * image.get_width()))
+	var y0 := int(frame.y * image.get_height())
+	var y1 := maxi(y0 + 1, int((frame.y + frame.w) * image.get_height()))
+	for y in range(y0, y1):
+		for x in range(x0, x1):
+			if image.get_pixel(x, y).a >= PICK_ALPHA:
+				return float(y - y0) / float(y1 - y0)
+	return 0.0
 
 
 # --- read-only views, for the modules that need a card's numbers ------------

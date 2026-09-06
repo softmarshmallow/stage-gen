@@ -33,7 +33,7 @@ void fragment() {
 	if (u_sway_mode > 2.5) {
 		colour *= 0.86 + 0.14 * sin(u_time * 9.0 + v_world.x);
 	}
-	ALBEDO = apply_night(colour, v_world, FRAGCOORD.xy);
+	ALBEDO = apply_night(apply_highlight(colour), v_world, FRAGCOORD.xy);
 	ALPHA = texel.a * u_opacity;
 	ALPHA_SCISSOR_THRESHOLD = 0.02;
 }

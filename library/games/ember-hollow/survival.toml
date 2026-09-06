@@ -127,7 +127,10 @@ yaw_step_degrees = 45.0
 # and where each object stands is that object's own `placement` block.
 
 [gameplay]
-day_length_seconds = 180.0
+# Eight minutes a day, the reference genre's length: long enough to walk to a
+# grove, fell a tree and carry the logs back before dusk. The first host day
+# was 180 s and turned over before a walk to the boulder ring was done.
+day_length_seconds = 480.0
 player_speed_meters_per_second = 3.2
 # Measured from the prop's footprint edge (or a drop's centre): the action
 # starts on the spot inside it. Small, as in the reference, where the character
@@ -145,7 +148,9 @@ pickup = "manual"
 # What food restores is the item's own business: items.toml `use`.
 [gameplay.hunger]
 max = 100.0
-drain_per_second = 0.6
+# A full belly lasts 400 s: most of a day, so hunger is a chore of the day and
+# not of every minute (0.6 emptied it in under three minutes of a 180 s day).
+drain_per_second = 0.25
 
 [gameplay.health]
 max = 100.0

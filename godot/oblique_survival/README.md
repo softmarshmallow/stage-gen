@@ -43,7 +43,7 @@ byte of the package is touched, and the refusal names both kinds:
 `kind oblique_survival_v0_manifest is not oblique-survival-manifest-v1`. The
 spike's own `oblique_survival_v0_manifest` was accepted while the recipe was
 being promoted and is gone — one host, one manifest identity. The run to point
-it at is `out/ember-hollow-v2`: the same art as the spike's `full-v66`, restored
+it at is `out/ember-hollow-v3`: the same art as the spike's `full-v66`, restored
 at zero provider operations, over the 512 m world the
 [world generator](../../docs/spec/survival/world.md) lays.
 
@@ -53,9 +53,10 @@ outside the scene tree and asks it for the held keys once a frame, which makes
 it poll rather than listen; a test or a capture can feed it keys instead.
 
 Keys, as in the viewer: WASD move, Q/E turn a detent, Space interact, C craft,
-F light, X use, Z drop, 1-0 and `,` `.` select, G gallery, V verdict, P pause,
-T weather, K season, L strike, N night, `-`/`=` zoom. And the host's own: R
-begins again, F11 toggles fullscreen, and the mouse does everything below.
+F light, X use (or wear), Z drop, 1-0 and `,` `.` select, G gallery, V verdict,
+T weather, K season, L strike, N night, `-`/`=` zoom. And the host's own: Escape
+(or P) opens the pause menu with the how-to-play page, R begins again, F11
+toggles fullscreen, and the mouse does everything below.
 
 ## Playing it
 
@@ -67,31 +68,55 @@ action starts, beyond it the click commits the walk Space commits, and a thing
 with nothing to offer says so in the message strip. A left click on the ground
 walks there in a straight line until the player stands on the spot, a movement
 key takes it back, or the shore or a footprint stalls it for 0.6 s (the same
-rule as the committed walk). A right click takes any walk back. The hover names
-the thing under the cursor (`chop tree (1/3)`, `take Twigs ×2`, or just `pine ·
-stump` when it offers nothing) and the cursor becomes a hand over anything
+rule as the committed walk); a button **held** keeps the walk on the pointer for
+as long as it is down, re-issuing the spot every frame, so the player follows
+the hand and never stalls at a shore while it pushes. A right click takes any
+walk back. The thing under the cursor lifts (a shade brighter and warmer, a
+material override on that one card) and is named above its own drawn top
+(`chop tree (1/3)`, `take Twigs ×2`, or just `pine · stump` when it offers
+nothing) rather than at the cursor, and the cursor becomes a hand over anything
 clickable. Picking is the card's rectangle projected to the screen, the nearer
-foot winning where two overlap, and a small circle round a forage piece's foot;
-it is not alpha-tested, so the empty corner of a birch's card is still the
-birch. The frame owner resolves the pick once per frame the mouse moved and
-hands the sim three one-shot inputs it did not have before: `click_entity`,
-`click_point`, `menu_select`. Keyboard play is untouched.
+foot winning where two overlap, then the card's own picture (a small copy read
+back once per texture): the empty corner of a birch's card passes through to
+the pine behind it. A dropped item is its whole small card, and a forage piece
+a small circle round its foot. The hover is re-read when the mouse moves and,
+at most every 80 ms, while the camera moves under a still cursor. The frame
+owner hands the sim the one-shot inputs the viewer did not have:
+`click_entity`, `click_point`, `menu_select`, `equip`, `unequip`. Keyboard play
+is untouched.
 
-**The HUD** (`hud/hud.gd`, `hud/craft_panel.gd`, `hud/death_screen.gd`, the
-shared `hud/ui_kit.gd`). The vitals stand top-left with the title, the day and
-the season; the pack is a hotbar along the bottom — left click selects a slot,
-right click uses it, the number keys still work and are printed in each slot's
-corner — with the chosen item's card beside it: icon, name, what it does
-(`chops · 25 uses left`, `+45 hunger · +10 warmth`), and Use and Drop buttons
-that are live only when the item can be used or dropped. Craft and Map buttons
-sit under the vitals. The crafting table is a centred panel: a row per recipe
-with the product's icon, the ingredients as have/need chips (short ones in red),
-and where it is made; a click chooses a row, a double click or the Craft button
-makes it, W/S and Enter still work, × or Close or C or Escape closes it. The
-death sheet dims the world, names the cause (`You froze.`, `You starved.`, `You
-did not last.`) with a line about what would have helped, says how long the run
-lasted, and has one button, Begin again, which is R: a fresh world on the next
-seed, the ground masks and the weather mode kept, every module rebuilt.
+**The HUD** (`hud/hud.gd`, `hud/craft_panel.gd`, `hud/death_screen.gd`,
+`hud/pause_menu.gd`, the shared `hud/ui_kit.gd`). The vitals stand top-left
+with the title, the day and the season. Along the bottom: the three **worn**
+places (`hand`, `body`, `back`), the pack as a hotbar — left click selects a
+slot, right click uses it, the number keys still work and are printed in each
+slot's corner — and a button cluster: Craft (a toggle that shows the table's
+state), Map, Menu. Resting on any slot raises that slot's **card** above it:
+icon, name, what it does (`chops · 25 uses left`, `+45 hunger · +10 warmth`),
+and its buttons — Use (Eat, Light, Wear…) and Drop for a pack slot, Take off
+for a worn one; the card stays while the pointer is on it and a quarter second
+after, so the buttons can be reached. A tool, a cloak or a pack is **worn**
+(`World.equipment`, `Inventory.equip` / `unequip`): X or Use or a right click
+puts it in the hand, on the body or on the back, and a click on the worn thing
+takes it off. Only the worn thing counts — the body's insulation, the back's
+slots (the hotbar grows on the spot) — where the viewer counted anything in the
+pack; a tool still serves from the pack when no hand tool does, so a carried
+axe chops, and the hand says which axe wears first. A thing picked up **flies**
+from where it stood into the slot that took it — its icon along an arc in
+screen space, half a second, then the slot glows — while the world's truth is
+instant. The crafting table is a centred panel: a row per recipe with the
+product's icon, the ingredients as have/need chips (short ones in red), and
+where it is made; a click chooses a row, a double click or the Craft button
+makes it, W/S and Enter still work, × or Close or C or Escape closes it. Escape
+with nothing open (or P, or the Menu button) **pauses**: a dark sheet with
+Resume, How to play, Map, Begin again and Quit, and the how-to-play page holds
+the key legend the HUD used to print top-right, written out. The death sheet
+dims the world, names the cause (`You froze.`, `You starved.`, `You did not
+last.`) with a line about what would have helped, says how long the run lasted,
+and has one button, Begin again, which is R: a fresh world on the next seed,
+the ground masks and the weather mode kept, every module rebuilt. A new world
+opens under a clear sky: the viewer's first spell was wet (its spell clock fell
+due on the first step), the host's first spell is dry for the authored minimum.
 
 **The scale.** Every 2D layer is laid out in 1600x900 units and scaled as a
 whole by the window's height over 900 (never below 1), times `--ui-scale`. A
@@ -113,9 +138,10 @@ references rather than the game's darkness (decision
 
 `tools/ui_shots.gd` is the HUD's own contact sheet: the real scene in a real
 window with the overlays on, staged into the moments above (the pack and a
-hovered tree at noon, a walk clicked, the table, the fire at night, the dark
-away from it, the death sheet, the run begun again, and the same HUD in a
-2560x1440 window):
+hovered tree at noon, a slot's card, the worn places, a pickup in flight, a walk
+clicked, a held-button walk, the pause menu and its help, the table, the fire at
+night, the dark away from it, the death sheet, the run begun again, and the same
+HUD in a 2560x1440 window):
 
 ```
 Godot --path godot/oblique_survival --rendering-driver metal \
@@ -352,7 +378,7 @@ shows up here rather than in a still.
 
 This is the one host run where the render loop is **on** — a picture gate that
 draws with `force_draw` says nothing about what a frame costs while somebody is
-playing. On the 512 m world (`out/ember-hollow-v2`: 2365 entities, 3275 plants, 4314
+playing. On the 512 m world (`out/ember-hollow-v3`: 2365 entities, 3275 plants, 4314
 clutter pieces, 2686 decals) the smoke reads **11.2 ms a frame (89 fps)** free-running,
 worst 13.1, with the same module split as below: a wider world at the same card
 count costs nothing here, and the plates at 1024 cells cost the same to sample.

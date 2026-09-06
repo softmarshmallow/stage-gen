@@ -153,7 +153,8 @@ static func _land_blow(
 		var regrow: Variant = interaction.get("regrow_seconds", null)
 		entity["regrow"] = float(regrow) if regrow != null else 0.0
 		# The tool wears once per thing it finishes, not per blow.
-		if tool_slot >= 0:
+		if tool_slot != -1:
+			# The one in hand (`HAND_SLOT`) or the pack slot that served.
 			Inventory.wear_tool(world, tool_slot)
 		var family := ""
 		var height := 3.0

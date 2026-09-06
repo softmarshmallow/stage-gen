@@ -34,6 +34,18 @@ uniform float u_sway_amplitude = 0.0;
 // 1 copies the camera basis onto the card; 0 keeps the node's own basis, which
 // is what a decal lying on the ground wants.
 uniform float u_billboard = 1.0;
+// The pointer's hover: 0 is the picture as drawn, 1 the lift below. The one
+// hovered card wears a duplicate of its template's material with this at 1
+// (`Cards.set_highlight`); an instance uniform would have been the natural
+// spelling, but the instance buffer overflows at this world's card count.
+// Not the viewer's; it had no mouse.
+uniform float u_highlight : hint_range(0.0, 1.0) = 0.0;
+// The hovered card reads a shade brighter and warmer, the way a thing under a
+// hand does in the reference genre; the ink line stays dark because the lift
+// is additive on the tone and the contours are near black.
+vec3 apply_highlight(vec3 colour) {
+	return mix(colour, colour * 1.18 + vec3(0.10, 0.08, 0.04), u_highlight);
+}
 
 varying vec3 v_world;
 

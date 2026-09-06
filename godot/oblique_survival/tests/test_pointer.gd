@@ -19,6 +19,7 @@ func run(h: TestHarness) -> void:
 	_a_key_takes_the_walk_back(h, w)
 	_a_click_on_a_thing_ends_the_walk(h, w)
 	_the_dead_do_not_walk(h, w)
+	_a_held_button_keeps_the_walk_on_the_pointer(h, w)
 	_menu_select_chooses_a_row(h, w)
 
 
@@ -176,3 +177,30 @@ func _menu_select_chooses_a_row(h: TestHarness, w: World) -> void:
 	w.input["craft_toggle"] = true
 	Sim.step(w, SimFixture.STEP)
 	h.assert_false(w.craft_open, "and the table closes")
+
+
+## The frame owner re-issues `click_point` every step while the button is
+## held: the walk turns with the pointer, and the stall that ends a walk into
+## the shore never accrues while the spot keeps being asked for.
+func _a_held_button_keeps_the_walk_on_the_pointer(h: TestHarness, w: World) -> void:
+	_fresh(w)
+	for i in 30:
+		w.input["click_point"] = {"x": 5.0, "z": 0.0}
+		Sim.step(w, SimFixture.STEP)
+	h.assert_true(w.player.goto != null, "half a second of holding keeps the walk")
+	h.assert_true(w.player.x > 1.0, "and the player has moved toward +x (%.2f)" % w.player.x)
+	for i in 30:
+		w.input["click_point"] = {"x": w.player.x, "z": 6.0}
+		Sim.step(w, SimFixture.STEP)
+	h.assert_true(w.player.vz > 0.0, "the walk turned with the pointer")
+	h.assert_near(w.player.vx, 0.0, 1e-6, "straight along the new heading")
+	# Against a wall the held walk pushes on rather than giving up: the
+	# stall is reset by every re-issued point.
+	_fresh(w)
+	w.player.x = 0.0
+	for i in 60:
+		w.input["click_point"] = {"x": 0.0, "z": 0.0}
+		w.player.x = 0.0
+		w.player.z = 0.0
+		Sim.step(w, SimFixture.STEP)
+	h.assert_true(w.player.goto == null, "a spot under the player is arrived at, held or not")

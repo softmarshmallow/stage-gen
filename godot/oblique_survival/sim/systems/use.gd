@@ -8,11 +8,18 @@ extends RefCounted
 static func update(world: World, _dt: float) -> void:
 	if bool(world.input["use"]):
 		use_selected(world)
+	if bool(world.input.get("equip", false)):
+		Inventory.equip(world, world.selected)
+	var off: Variant = world.input.get("unequip", null)
+	if off != null and Inventory.EQUIPMENT_KINDS.has(str(off)):
+		Inventory.unequip(world, str(off))
 	if bool(world.input["drop"]):
 		drop_selected(world)
 
 
-## X: eat or apply the selected item, or light it as a torch.
+## X: eat or apply the selected item, light it as a torch, or wear it (a
+## tool, a cloak, a pack) — not the viewer's, where a worn thing worked from
+## the pack and using it said so.
 static func use_selected(world: World) -> void:
 	var slot: Variant = null
 	if world.selected >= 0 and world.selected < world.slots.size():
@@ -21,6 +28,9 @@ static func use_selected(world: World) -> void:
 		Helpers.say(world, "Nothing selected.")
 		return
 	var entry := slot as Dictionary
+	if Inventory.equip_kind(world, str(entry["item"])) != "":
+		Inventory.equip(world, world.selected)
+		return
 	var spec: Variant = Inventory.item_spec(world, str(entry["item"]))
 	var use: Variant = (spec as Dictionary).get("use", null) if spec != null else null
 	var display := Inventory.item_name(world, str(entry["item"]))
@@ -57,10 +67,6 @@ static func use_selected(world: World) -> void:
 		_consume_one(world, entry)
 		Helpers.emit(world, {"type": "puff", "kind": "sparkle", "x": world.player.x, "z": world.player.z})
 		Helpers.say(world, "The %s catches." % display)
-	elif kind == "carry":
-		Helpers.say(world, "The %s carries while it is in the pack. Nothing to do." % display)
-	elif kind == "wear":
-		Helpers.say(world, "The %s warms while it is in the pack. Nothing to do." % display)
 	elif kind == "warm":
 		if world.warm["remaining"] > 0.0:
 			Helpers.say(world, "A stone is already warm.")
@@ -72,8 +78,8 @@ static func use_selected(world: World) -> void:
 		Helpers.say(world, "The %s's heat spreads." % display)
 
 
-## Z: one of the selected item, dropped at the feet. A pack must be empty of
-## its own slots first.
+## Z: one of the selected item, dropped at the feet. (A pack in a slot is not
+## the one on the back, so it drops like anything else.)
 static func drop_selected(world: World) -> void:
 	var slot: Variant = null
 	if world.selected >= 0 and world.selected < world.slots.size():
@@ -81,15 +87,6 @@ static func drop_selected(world: World) -> void:
 	if slot == null:
 		return
 	var entry := slot as Dictionary
-	var spec: Variant = Inventory.item_spec(world, str(entry["item"]))
-	if spec != null:
-		var use: Variant = (spec as Dictionary).get("use", null)
-		if use != null and str((use as Dictionary).get("kind", "")) == "carry":
-			var after := Inventory.slot_capacity(world) - int((use as Dictionary).get("slots", 0))
-			for i in world.slots.size():
-				if world.slots[i] != null and i >= after:
-					Helpers.say(world, "Empty the pack's own slots first.")
-					return
 	var uses: Variant = entry["uses"]
 	_consume_one(world, entry)
 	var forward := Targeting.facing_direction(world)
@@ -97,8 +94,10 @@ static func drop_selected(world: World) -> void:
 		world, [{"item_id": str(entry["item"]), "count": 1}],
 		world.player.x, world.player.z, float(forward["x"]), float(forward["z"]), 0.3, uses
 	)
+	# The same sound as a pickup; `out` tells the HUD the thing left the pack
+	# rather than arrived, so nothing flies into a slot.
 	Helpers.emit(world, {
-		"type": "pickup", "item": str(entry["item"]), "x": world.player.x, "z": world.player.z,
+		"type": "pickup", "item": str(entry["item"]), "x": world.player.x, "z": world.player.z, "out": true,
 	})
 
 

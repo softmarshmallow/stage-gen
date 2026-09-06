@@ -50,7 +50,7 @@ Produce or select a run first — a live one, or the free rehearsal:
 ```sh
 uv run stage-gen oblique-survival generate \
   --input library/games/ember-hollow \
-  --output out/ember-hollow-v2 \
+  --output out/ember-hollow-v3 \
   --scope full --cache-dir out/.oblique-survival-cache
 ```
 
@@ -72,11 +72,14 @@ away from a fire — 0 in play, so the night is black, and the viewer's 0.38 und
 the picture gate ([decision 0058](decisions/0058-the-night-is-black-and-the-gate-keeps-the-viewers.md)).
 
 The game is played with the mouse as much as the keys: a click on a thing acts
-on it or walks to it, a click on the ground walks there, the hover names what
-is under the cursor, the pack is a clickable hotbar with the chosen item's card
-and its Use and Drop buttons, the crafting table and the death sheet are
-panels with buttons, and every panel is scaled by the window's height so a
-fullscreen reads like the 1600x900 window. The host README's "Playing it"
+on it or walks to it, a click on the ground walks there and a held button keeps
+the walk on the pointer, the thing under the cursor lifts and is named above
+itself, the pack is a clickable hotbar with three worn places beside it (hand,
+body, back — only the worn cloak or pack counts) and a card that rises over the
+hovered slot with its Use, Drop or Take off, a pickup flies into its slot,
+Escape opens a pause menu whose how-to-play page holds the key legend, the
+crafting table and the death sheet are panels with buttons, and every panel is
+scaled by the window's height so a fullscreen reads like the 1600x900 window. The host README's "Playing it"
 section is the full account. The world it plays is 512 m across, laid by the
 [world generator](spec/survival/world.md): the host reads the record's
 `set_pieces` (the map marks them), each plate's `cell_meters` (its walkable

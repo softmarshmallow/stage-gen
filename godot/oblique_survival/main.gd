@@ -9,10 +9,11 @@ extends Node3D
 ## shared uniforms, audio, weather, events, entities, fire, camera, HUD.
 ##
 ## It also owns what the viewer never had: the pointer (a click on a thing
-## acts on it, a click on the ground walks there, a hover names the thing),
-## the reset the death screen asks for (R, or its button), the borderless
-## fullscreen toggle (F11), and the HUD scale that keeps the panels readable
-## at any window size.
+## acts on it, a click on the ground walks there and a held button keeps the
+## walk on the pointer, a hover lifts the thing and names it above itself),
+## the pause menu (Escape or P) with the how-to-play page, the reset the death
+## screen asks for (R, or its button), the borderless fullscreen toggle (F11),
+## and the HUD scale that keeps the panels readable at any window size.
 ##
 ## Nothing here draws. Every module is a scene-less node created with `.new()`
 ## that implements the module contract:
@@ -50,6 +51,7 @@ const MODULE_FILES := [
 	"res://hud/craft_panel.gd",
 	"res://hud/death_screen.gd",
 	"res://hud/world_map.gd",
+	"res://hud/pause_menu.gd",
 	"res://audio/music.gd",
 	"res://audio/sfx.gd",
 ]
@@ -61,7 +63,7 @@ const UPDATE_ORDER := [
 	"music", "sfx",
 	"weather_view", "water", "splashes", "decals", "ground", "strikes",
 	"cards", "pieces", "plants", "leaves", "puffs", "shadows",
-	"fire", "gallery", "hud", "craft_panel", "death_screen", "world_map",
+	"fire", "gallery", "hud", "craft_panel", "death_screen", "world_map", "pause_menu",
 ]
 
 ## The HUD is laid out in 1600x900 units and scaled to the window: this height
@@ -70,6 +72,11 @@ const UI_REFERENCE_HEIGHT := 900.0
 ## The pointer walks the world only in play, never in the gallery or the
 ## verdict framing.
 const POINTER_MODES := ["play"]
+## The hover is re-read when the mouse moved, and — because the camera follows
+## the player under a still cursor — at most this often while the camera is
+## moving. A pick walks every entity, so it is not free.
+const HOVER_FOLLOW_SECONDS := 0.08
+const HOVER_FOLLOW_METERS := 0.03
 
 ## Trauma per event, from the viewer's drain (index.html:5576-5595). A landing
 ## trunk adds 0.75 and is not an event: the module animating it calls
@@ -116,6 +123,14 @@ var _booted: bool = false
 var _mouse: Vector2 = Vector2(-1.0, -1.0)
 var _hover_stale: bool = false
 var _hover: Dictionary = {}
+## Where the camera stood at the last pick, and how long since it; the hover
+## follows the camera at `HOVER_FOLLOW_SECONDS`.
+var _hover_camera: Vector3 = Vector3.ZERO
+var _hover_clock: float = 0.0
+## The left button: down, and holding a walk on the pointer (a press that
+## landed on the ground rather than on a thing).
+var _pointer_down: bool = false
+var _drag_walk: bool = false
 var _ui_scale: float = 0.0
 var _ui_resolution: Vector2 = Vector2.ZERO
 ## How many worlds this scene has played: 1 after boot, +1 per reset.
@@ -195,6 +210,12 @@ func _boot(next_world: World) -> void:
 	add_child(vignette)
 	vignette.setup(package, world, frame_uniforms)
 
+	# The HUD flies a picked-up item from where it stood to its slot, in screen
+	# space; the frame owner lends it the camera's projection for that.
+	var hud_node = modules.get("hud")
+	if hud_node != null and hud_node.has_method("set_projector"):
+		hud_node.set_projector(_project)
+
 	_booted = true
 	_sync_ui_scale()
 	_apply_look(true)
@@ -233,6 +254,9 @@ func reset() -> void:
 	var next_world := World.reset(world)
 	_teardown()
 	_boot(next_world)
+	paused = false
+	_pointer_down = false
+	_drag_walk = false
 	if mode != "play":
 		set_mode(mode)
 	world.say("Day 1. Again.")
@@ -246,11 +270,21 @@ func frame(delta: float, _draw: bool = true) -> void:
 	if not _booted:
 		return
 	# 0. The HUD scale follows the window; the pointer's hover is re-read
-	#    once per frame it moved (never per motion event).
+	#    once per frame it moved (never per motion event), and now and then
+	#    while the camera moves under a still cursor.
 	_sync_ui_scale()
+	_hover_clock += delta
+	if not _hover_stale and _hover_clock >= HOVER_FOLLOW_SECONDS and rig != null and rig.camera != null \
+			and _mouse.x >= 0.0 and rig.camera.position.distance_to(_hover_camera) > HOVER_FOLLOW_METERS:
+		_hover_stale = true
 	if _hover_stale:
 		_hover_stale = false
 		_refresh_hover()
+	else:
+		_follow_hover()
+	# A held button keeps the walk on the pointer, wherever it has moved to.
+	if _drag_walk and _pointer_down and not paused:
+		_drag_step()
 
 	# 1. Ease toward the detent Q/E selected, and publish the yaw: the one
 	#    camera fact the simulation may know.
@@ -420,8 +454,19 @@ func set_clock(phase: float) -> void:
 	world.night = Helpers.night_factor(world.day_phase)
 	world.time_frozen = true
 
+## Pause the simulation and show the menu, or resume. The menu is the
+## picture of `paused`; nothing else reads it.
 func set_paused(value: bool) -> void:
+	if value and world != null and world.dead:
+		return
 	paused = value
+	var menu_node = modules.get("pause_menu")
+	if menu_node != null and menu_node.has_method("set_open"):
+		menu_node.set_open(value)
+	if value:
+		_pointer_down = false
+		_drag_walk = false
+		_hover_stale = true
 
 ## The viewer's `dev.status()` (index.html:5438).
 func status() -> String:
@@ -477,17 +522,26 @@ func release_all_keys() -> void:
 	if _input_sampler != null:
 		_input_sampler.clear()
 
-## A panel's button for a frame-owner key: `map` opens the overlay, `reset`
-## starts over. `craft` is the sim's own toggle and the panel writes that
-## input itself, so it is nothing to do here.
+## A panel's button for a frame-owner key: `map` opens the overlay, `menu`
+## pauses, `resume` unpauses, `reset` starts over, `quit` leaves. `craft` is
+## the sim's own toggle and the panel writes that input itself, so it is
+## nothing to do here.
 func _on_module_action(name: String) -> void:
 	match name:
 		"map":
 			var map_node = modules.get("world_map")
 			if map_node != null and map_node.has_method("toggle"):
 				map_node.toggle()
+			if paused:
+				set_paused(false)
+		"menu":
+			set_paused(true)
+		"resume":
+			set_paused(false)
 		"reset":
 			reset()
+		"quit":
+			get_tree().quit()
 
 ## The dev pack control: put items in the player's hands without crafting them
 ## (the viewer's console `inv.add`). Returns what did not fit.
@@ -503,9 +557,34 @@ func add_trauma(amount: float) -> void:
 		rig.add_trauma(amount)
 
 ## The pointer, for a test or a capture: a click at a screen point, in window
-## pixels. What the mouse button does.
+## pixels. What the mouse button does, pressed and released at once.
 func click_at(screen: Vector2) -> void:
-	_click(screen)
+	_mouse = screen
+	_press(screen)
+	_pointer_down = false
+	_drag_walk = false
+
+
+## The pointer held down at a screen point: the press, and then the walk
+## follows the pointer (`drag_to`) until `release_pointer`.
+func hold_at(screen: Vector2) -> void:
+	_mouse = screen
+	_pointer_down = true
+	_press(screen)
+
+
+func drag_to(screen: Vector2) -> void:
+	_mouse = screen
+	_hover_stale = true
+
+
+func release_pointer() -> void:
+	_pointer_down = false
+	_drag_walk = false
+
+
+func is_dragging() -> bool:
+	return _drag_walk and _pointer_down
 
 ## The pointer's hover, for a test or a capture: what a motion event does,
 ## resolved at once rather than on the next frame. Returns the pick.
@@ -559,25 +638,65 @@ func _sync_ui_scale() -> void:
 			node.set_ui_scale(s)
 
 ## Resolve the pointer against the world: the card under it, else the ground
-## point under it. The HUD is told, so it can name the thing at the cursor.
+## point under it. The card is lifted, and the HUD is told where the thing
+## stands so it can name it there.
 func _refresh_hover() -> void:
 	var before_entity: Variant = _hover.get("entity")
 	_hover = _pick(_mouse)
-	var hud_node = modules.get("hud")
-	if hud_node != null and hud_node.has_method("set_hover"):
-		hud_node.set_hover(_hover, _mouse)
+	_hover_clock = 0.0
+	if rig != null and rig.camera != null:
+		_hover_camera = rig.camera.position
 	var entity: Variant = _hover.get("entity")
+	var cards_node = modules.get("cards")
+	if cards_node != null and cards_node.has_method("set_highlight"):
+		cards_node.set_highlight(String((entity as Dictionary).get("id", "")) if entity is Dictionary else "")
+	_follow_hover()
 	if not is_same(entity, before_entity):
 		var shape := Input.CURSOR_ARROW
 		if entity != null and _hover.get("target") != null:
 			shape = Input.CURSOR_POINTING_HAND
 		Input.set_default_cursor_shape(shape)
 
+
+## Every frame: the hovered thing's label anchor, projected afresh (the camera
+## follows the player, so the point moves under a still cursor), and the hover
+## dropped when the thing has left the world (a piece just taken).
+func _follow_hover() -> void:
+	var hud_node = modules.get("hud")
+	if hud_node == null or not hud_node.has_method("set_hover"):
+		return
+	var entity: Variant = _hover.get("entity")
+	if entity is Dictionary and Targeting.index_of(world.entities, entity) < 0:
+		_hover = {}
+		entity = null
+		var cards_node = modules.get("cards")
+		if cards_node != null and cards_node.has_method("set_highlight"):
+			cards_node.set_highlight("")
+		Input.set_default_cursor_shape(Input.CURSOR_ARROW)
+	var anchor := Vector2(-1.0, -1.0)
+	if entity is Dictionary:
+		var cards_node = modules.get("cards")
+		var point := Vector3(float((entity as Dictionary).get("x", 0.0)), 0.5, float((entity as Dictionary).get("z", 0.0)))
+		if cards_node != null and cards_node.has_method("label_anchor"):
+			point = cards_node.label_anchor(entity, rig.card_basis.y if rig != null else Vector3.UP)
+		anchor = _project(point)
+	hud_node.set_hover(_hover, anchor)
+
+
+## A world point on the screen, in window pixels, or (-1, -1) behind the
+## camera. Lent to the HUD for the pickup flight.
+func _project(point: Vector3) -> Vector2:
+	if rig == null or rig.camera == null:
+		return Vector2(-1.0, -1.0)
+	if rig.camera.is_position_behind(point):
+		return Vector2(-1.0, -1.0)
+	return rig.camera.unproject_position(point)
+
 ## `{entity, target, point}` for a screen point. `target` is what the click
 ## would do to the entity (`Targeting.target_for`), null when it offers
 ## nothing; `point` is where the pointer's ray meets the ground plane.
 func _pick(screen: Vector2) -> Dictionary:
-	if not _booted or rig == null or rig.camera == null or not POINTER_MODES.has(mode):
+	if not _booted or paused or rig == null or rig.camera == null or not POINTER_MODES.has(mode):
 		return {}
 	if screen.x < 0.0 or screen.y < 0.0:
 		return {}
@@ -601,12 +720,15 @@ func _pick(screen: Vector2) -> Dictionary:
 			found["point"] = {"x": hit.x, "z": hit.z}
 	return found
 
-## The left button: a thing under the pointer is clicked (the key's action, at
-## any distance), else the ground under it is walked to. Nothing while the
-## craft panel is open, the player is dead, or the framing is not play — the
-## panels take their own clicks before this is reached.
-func _click(screen: Vector2) -> void:
-	if not _booted or world.craft_open or world.dead or not POINTER_MODES.has(mode):
+## The left button going down: a thing under the pointer is clicked (the
+## key's action, at any distance), else the ground under it is walked to and
+## the walk stays on the pointer for as long as the button is held. Nothing
+## while the craft panel is open, the menu is up, the player is dead, or the
+## framing is not play — the panels take their own clicks before this is
+## reached.
+func _press(screen: Vector2) -> void:
+	_drag_walk = false
+	if not _booted or paused or world.craft_open or world.dead or not POINTER_MODES.has(mode):
 		return
 	var pick := _pick(screen)
 	if pick.is_empty():
@@ -617,11 +739,26 @@ func _click(screen: Vector2) -> void:
 		return
 	var point: Variant = pick.get("point")
 	if point != null:
-		var land: bool = world.is_land(float(point["x"]), float(point["z"]))
-		if not land:
+		_drag_walk = true
+		if not world.is_land(float(point["x"]), float(point["z"])):
 			world.say("That is water.")
 			return
 		world.input["click_point"] = point
+
+
+## The held button: the spot under the pointer now, walked to. Water under the
+## pointer is skipped in silence (the press already said so), and the walk
+## keeps its last land spot.
+func _drag_step() -> void:
+	if not _booted or world.craft_open or world.dead or not POINTER_MODES.has(mode):
+		return
+	var pick := _pick(_mouse)
+	var point: Variant = pick.get("point") if not pick.is_empty() else null
+	if point == null:
+		return
+	if not world.is_land(float(point["x"]), float(point["z"])):
+		return
+	world.input["click_point"] = point
 
 ## Every motion, whether or not a panel is under the pointer, so the hover
 ## clears when the mouse crosses onto a panel (a Control eats the motion
@@ -633,6 +770,14 @@ func _input(event: InputEvent) -> void:
 	if motion != null:
 		_mouse = motion.position
 		_hover_stale = true
+		return
+	# The release is read here too: a Control under the pointer at release
+	# would eat it before `_unhandled_input`, and a walk must never be left
+	# following a button that is up.
+	var button := event as InputEventMouseButton
+	if button != null and button.button_index == MOUSE_BUTTON_LEFT and not button.pressed:
+		_pointer_down = false
+		_drag_walk = false
 
 ## Mouse buttons that no panel took: a click acts on the world under it.
 func _unhandled_input(event: InputEvent) -> void:
@@ -642,7 +787,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if button == null or not button.pressed:
 		return
 	if button.button_index == MOUSE_BUTTON_LEFT:
-		_click(button.position)
+		_mouse = button.position
+		_pointer_down = true
+		_press(button.position)
 	elif button.button_index == MOUSE_BUTTON_RIGHT:
 		# The right button takes a walk back, pointed or committed.
 		world.player.goto = null
@@ -677,14 +824,31 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo:
 		return
+	if paused:
+		# The menu is up: only the keys that take it down, the reset and the
+		# window's own get through, so nothing is queued into a frozen world.
+		match key.physical_keycode:
+			KEY_ESCAPE, KEY_P:
+				set_paused(false)
+			KEY_R:
+				reset()
+			KEY_F11:
+				set_fullscreen(not is_fullscreen())
+		return
 	match key.physical_keycode:
 		KEY_F:
 			world.input["light"] = true
 		KEY_C:
 			world.input["craft_toggle"] = true
 		KEY_ESCAPE:
+			# Escape closes what is open, and pauses when nothing is.
+			var map_node = modules.get("world_map")
 			if world.craft_open:
 				world.input["craft_toggle"] = true
+			elif map_node != null and bool(map_node.get("open")):
+				map_node.toggle()
+			else:
+				set_paused(true)
 		KEY_X:
 			world.input["use"] = true
 		KEY_Z:
@@ -705,7 +869,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_V:
 			set_mode("play" if mode == "verdict" else "verdict")
 		KEY_P:
-			paused = not paused
+			set_paused(not paused)
 		KEY_T:
 			_cycle_weather()
 		KEY_L:

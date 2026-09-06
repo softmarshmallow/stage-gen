@@ -1,17 +1,20 @@
 class_name Hud
 extends CanvasLayer
 
-## The HUD: the vitals, the pack, the prompt, the message strip, the legend
-## and the debug panel, as Control nodes.
+## The HUD: the vitals, the pack and what is worn, the prompt, the message
+## strip, the hovered thing's name and the debug panel, as Control nodes.
 ##
 ## Ported from viewer/index.html section 6 (`renderHud` :4705-4765, the
 ## prompt/message/debug block :5723-5771) and then rebuilt for the mouse and
-## for a screen: the vitals stand top-left with bars a hand can read, the pack
+## for a screen: the vitals stand top-left with bars a hand can read; the pack
 ## is a hotbar along the bottom whose slots are clicked (left selects, right
-## uses) with the chosen item's card and its Use and Drop buttons beside it,
-## and the thing under the pointer is named at the cursor. The craft table
-## and the death sheet are their own layers (`hud/craft_panel.gd`,
-## `hud/death_screen.gd`).
+## uses), with the three worn places — hand, body, back — beside it and a
+## button cluster (Craft, Map, Menu) at its end; resting on any slot raises
+## that slot's card (icon, name, what it does, its buttons) above it; the thing
+## under the pointer is named above itself in the world, not at the cursor;
+## and a thing picked up flies from where it stood into the slot that took it.
+## The crafting table, the death sheet and the pause menu are their own layers
+## (`hud/craft_panel.gd`, `hud/death_screen.gd`, `hud/pause_menu.gd`).
 ##
 ## Everything is a pure function of the world: the panels are built once in
 ## `setup` and their values written in `update`, and — as the viewer did with
@@ -22,8 +25,8 @@ extends CanvasLayer
 ## Colour note: Godot's 2D pipeline is sRGB pass-through (capabilities map
 ## §2g.4), so the CSS hex values are used verbatim, with no conversion.
 
-## A panel key the frame owner should act on: `map` (the craft button writes
-## the sim's own `craft_toggle` input and needs no owner).
+## A panel key the frame owner should act on: `map`, `menu` (the craft button
+## writes the sim's own `craft_toggle` input and needs no owner).
 signal action(name: String)
 
 const LAYER := 30
@@ -41,8 +44,18 @@ const BAR_TRANSITION_SECONDS := 0.12
 const MESSAGE_SECONDS := 3.0
 ## The hotbar's slots run in one row up to here, then wrap.
 const HOTBAR_COLUMNS := 12
-## Where the cursor tooltip sits, from the pointer.
-const TOOLTIP_OFFSET := Vector2(18.0, 22.0)
+## The hovered slot's card stays this long after the pointer leaves the slot
+## and the card both, so a hand can cross the gap to its buttons.
+const CARD_LINGER_SECONDS := 0.25
+## A picked-up item's flight into its slot: how long, how high the arc bows,
+## how big the flying icon starts and ends, and how long the slot glows after.
+const FLIGHT_SECONDS := 0.5
+const FLIGHT_ARC := 110.0
+const FLIGHT_ICON := 40.0
+const FLIGHT_END_SCALE := 0.65
+const FLASH_SECONDS := 0.45
+## The label stands this far above the thing's anchor.
+const LABEL_LIFT := 8.0
 
 var package: Variant = null
 var kit: UiKit = null
@@ -65,18 +78,32 @@ var _warmth_row: Control = null
 var _warmth_bar: Control = null
 var _torch: Label = null
 var _warm: Label = null
-var _craft_button: Button = null
-var _map_button: Button = null
 
 var _hotbar_panel: PanelContainer = null
 var _slot_grid: GridContainer = null
 var _slot_cells: Array = []
+var _equip_panel: PanelContainer = null
+var _equip_row: HBoxContainer = null
+## kind -> the cell, in `Inventory.EQUIPMENT_KINDS` order.
+var _equip_cells: Dictionary = {}
+var _buttons_panel: PanelContainer = null
+var _craft_button: Button = null
+var _map_button: Button = null
+var _menu_button: Button = null
+
 var _card_panel: PanelContainer = null
 var _card_icon_holder: Control = null
 var _card_name: Label = null
 var _card_hint: Label = null
 var _use_button: Button = null
 var _drop_button: Button = null
+## The X / Z reminder, shown only when the card's slot is the selected one,
+## which is the slot those keys act on.
+var _card_keys: RichTextLabel = null
+## What the card describes: `{"kind": "slot", "index": n}` or
+## `{"kind": "equip", "key": "hand"}`, or empty while no slot is hovered.
+var _card_target: Dictionary = {}
+var _card_linger: float = 0.0
 
 var _prompt_panel: PanelContainer = null
 var _prompt: RichTextLabel = null
@@ -84,7 +111,6 @@ var _message: Label = null
 var _message_panel: PanelContainer = null
 var _tooltip_panel: PanelContainer = null
 var _tooltip: RichTextLabel = null
-var _keys: PanelContainer = null
 var _debug_panel: PanelContainer = null
 var _debug_grid: GridContainer = null
 var _debug_status: Label = null
@@ -98,8 +124,15 @@ var _extra_rows: Array = []
 var _world: Variant = null
 ## The frame owner's last pick: `{entity, target, point}`, or empty.
 var _hover: Dictionary = {}
+## Where the hovered thing's label hangs, in window pixels; (-1, -1) for none.
+var _anchor: Vector2 = Vector2(-1.0, -1.0)
 var _hover_slot: int = -1
-var _mouse: Vector2 = Vector2(-1.0, -1.0)
+var _hover_equip: String = ""
+## Flights in the air: `{icon, from, to, t, slot}`, in layer units.
+var _flights: Array = []
+## The frame owner's projection of a world point to window pixels, or unset;
+## a flight starts where the thing stood.
+var _projector: Callable = Callable()
 
 
 func setup(pkg, world, _fu) -> void:
@@ -111,12 +144,13 @@ func setup(pkg, world, _fu) -> void:
 	_root = UiKit.make_root(kit.theme)
 	add_child(_root)
 	_build_hud_panel()
+	_build_equipment()
 	_build_hotbar()
+	_build_buttons()
 	_build_card()
 	_build_prompt()
 	_build_message()
 	_build_tooltip()
-	_build_keys()
 	_build_debug()
 	if world != null:
 		_rebuild_slots(_slot_capacity(world))
@@ -145,17 +179,32 @@ func set_look(new_look: String) -> void:
 	look = new_look
 
 
-## The frame owner offers every sim event to every module; the HUD reads the
-## world instead (`world.message` already carries what a death or a break says).
-func handle_event(_event: Dictionary) -> void:
-	pass
+## A pickup with a place in the world starts a flight from there into the slot
+## that took it (an `out` pickup is a drop leaving the pack, and flies nowhere).
+## Everything else the HUD reads off the world (`world.message` already carries
+## what a death or a break says).
+func handle_event(event: Dictionary) -> void:
+	if str(event.get("type", "")) != "pickup" or bool(event.get("out", false)):
+		return
+	if _world == null or not event.has("x") or not event.has("z"):
+		return
+	var from := Vector2(-1.0, -1.0)
+	if _projector.is_valid():
+		from = _projector.call(Vector3(float(event["x"]), 0.5, float(event["z"])))
+	fly_pickup(str(event.get("item", "")), from)
 
 
-## What the pointer is over, from the frame owner's pick, and where the
-## pointer is (window pixels), for the tip at the cursor.
-func set_hover(pick: Dictionary, at: Vector2 = Vector2(-1.0, -1.0)) -> void:
+## Lend the HUD the camera's projection (world point -> window pixels, or
+## (-1, -1) when behind the camera), so a flight can start where the thing was.
+func set_projector(projector: Callable) -> void:
+	_projector = projector
+
+
+## What the pointer is over, from the frame owner's pick, and where its label
+## hangs in window pixels (the top of the thing's card; (-1, -1) for none).
+func set_hover(pick: Dictionary, anchor: Vector2 = Vector2(-1.0, -1.0)) -> void:
 	_hover = pick
-	_mouse = at
+	_anchor = anchor
 
 
 ## The debug panel, toggled by the backtick key.
@@ -185,7 +234,8 @@ func set_debug_rows(rows: Variant) -> void:
 
 ## What this module reports into a debug panel (its own or another's).
 func status() -> Dictionary:
-	return {"hud": "%d slots, %s, scale %.2f" % [_slot_cells.size(), "debug" if debug_on else "play", ui_scale]}
+	return {"hud": "%d slots, %s, scale %.2f, %d in flight" % [
+		_slot_cells.size(), "debug" if debug_on else "play", ui_scale, _flights.size()]}
 
 
 func update(world, delta: float, _cam: Dictionary) -> void:
@@ -211,7 +261,7 @@ func update(world, delta: float, _cam: Dictionary) -> void:
 	if capacity != _slot_cells.size():
 		_rebuild_slots(capacity)
 
-	var signature := "%s|%d|%s|%d|%d|%d|%s|%s|%s|%d|%d|%d|%d" % [
+	var signature := "%s|%d|%s|%d|%d|%d|%s|%s|%s|%s|%d|%d|%d|%d|%s" % [
 		str(manifest.get("title", manifest.get("package_id", ""))),
 		int(world.day),
 		("%s:%s" % [_season_glyph(world), spec.get("display_name", season.get("id", ""))]) if has_calendar else "",
@@ -219,9 +269,10 @@ func update(world, delta: float, _cam: Dictionary) -> void:
 		"warmth" if (has_calendar or warmth < warmth_max) else "",
 		"cold" if (cold and not warm_running) else "",
 		_slots_signature(world),
+		_equipment_signature(world),
 		int(ceil(float((world.torch as Dictionary).get("remaining", 0.0)))),
 		int(ceil(float((world.warm as Dictionary).get("remaining", 0.0)))),
-		int(world.selected), _hover_slot,
+		int(world.selected), _hover_slot, _hover_equip,
 	]
 	if signature != _hud_signature:
 		_hud_signature = signature
@@ -237,13 +288,18 @@ func update(world, delta: float, _cam: Dictionary) -> void:
 
 	var playing: bool = mode == "play" and not bool(world.dead)
 	_hotbar_panel.visible = playing
-	_card_panel.visible = playing
+	_equip_panel.visible = playing
+	_buttons_panel.visible = playing
 	_craft_button.disabled = not playing or (manifest.get("crafting", {}) as Dictionary).get("recipes", []).is_empty()
-	_write_card(world)
+	_craft_button.set_pressed_no_signal(bool(world.craft_open))
+	_settle_card_target(delta)
+	_write_card(world, playing)
 	_write_prompt(world)
 	_write_tooltip(world)
 	_write_message(world)
 	_write_debug(world)
+	_advance_flights(delta)
+	_advance_flashes(delta)
 	_reflow()
 
 
@@ -277,6 +333,9 @@ func _write_hud_text(world, manifest: Dictionary, season: Dictionary, spec: Dict
 		var cell: Control = _slot_cells[index]
 		var slot: Variant = world.slots[index] if index < world.slots.size() else null
 		_write_slot(world, cell, slot, index == int(world.selected), index == _hover_slot)
+	var equipment: Dictionary = _equipment(world)
+	for key: String in _equip_cells:
+		_write_slot(world, _equip_cells[key], equipment.get(key, null), false, key == _hover_equip)
 
 	var torch_left: float = float((world.torch as Dictionary).get("remaining", 0.0))
 	_torch.visible = torch_left > 0.0
@@ -309,7 +368,7 @@ func _row_text(row: Control, glyph: String, label: String, value: String, cold: 
 
 
 # ===========================================================================
-# The hotbar and the item card
+# The hotbar, the worn slots and the hovered slot's card
 # ===========================================================================
 
 func _write_slot(world, cell: Control, slot: Variant, selected: bool, hovered: bool) -> void:
@@ -350,51 +409,128 @@ func _slots_signature(world) -> String:
 	var parts := PackedStringArray()
 	for index: int in _slot_cells.size():
 		var slot: Variant = world.slots[index] if index < world.slots.size() else null
-		if slot == null:
-			parts.append("-")
-			continue
-		var entry: Dictionary = slot
-		parts.append("%s:%d:%s" % [str(entry["item"]), int(entry.get("count", 1)), str(entry.get("uses", ""))])
+		parts.append(_entry_signature(slot))
 	return ",".join(parts)
 
 
-## The chosen slot's card: icon, name, what it does, the two buttons.
-func _write_card(world) -> void:
-	var index := int(world.selected)
-	var selected: Variant = world.slots[index] if index < world.slots.size() else null
-	var signature := "%d|" % index
-	if selected is Dictionary:
-		signature += "%s:%d:%s" % [str(selected["item"]), int(selected.get("count", 1)), str(selected.get("uses", ""))]
+func _equipment_signature(world) -> String:
+	var parts := PackedStringArray()
+	var equipment: Dictionary = _equipment(world)
+	for key: String in Inventory.EQUIPMENT_KINDS:
+		parts.append(_entry_signature(equipment.get(key, null)))
+	return ",".join(parts)
+
+
+static func _entry_signature(slot: Variant) -> String:
+	if not (slot is Dictionary):
+		return "-"
+	var entry: Dictionary = slot
+	return "%s:%d:%s" % [str(entry["item"]), int(entry.get("count", 1)), str(entry.get("uses", ""))]
+
+
+## What the card describes follows the pointer: the hovered slot while one is
+## hovered; the last one while the pointer is on the card itself or for a
+## moment after leaving both; nothing otherwise.
+func _settle_card_target(delta: float) -> void:
+	if _hover_slot >= 0:
+		_card_target = {"kind": "slot", "index": _hover_slot}
+		_card_linger = CARD_LINGER_SECONDS
+		return
+	if _hover_equip != "":
+		_card_target = {"kind": "equip", "key": _hover_equip}
+		_card_linger = CARD_LINGER_SECONDS
+		return
+	if _card_target.is_empty():
+		return
+	if _card_panel.visible and _pointer_on(_card_panel):
+		_card_linger = CARD_LINGER_SECONDS
+		return
+	_card_linger -= delta
+	if _card_linger <= 0.0 or delta <= 0.0:
+		_card_target = {}
+
+
+## Whether the pointer stands on a panel, in layer units. Reads the mouse
+## straight from the viewport, so no Control has to relay an enter or an exit.
+func _pointer_on(panel: Control) -> bool:
+	if not is_inside_tree():
+		return false
+	return panel.get_global_rect().has_point(_root.get_global_mouse_position())
+
+
+## The hovered slot's card: icon, name, what it does, its buttons. A pack
+## slot has Use (Eat, Light, Wear…) and Drop; a worn slot has Take off.
+func _write_card(world, playing: bool) -> void:
+	var show := playing and not bool(world.craft_open) and not _card_target.is_empty()
+	var entry: Variant = null
+	var signature := ""
+	if show:
+		if str(_card_target["kind"]) == "slot":
+			var index := int(_card_target["index"])
+			entry = world.slots[index] if index < world.slots.size() else null
+			signature = "slot%d|%s" % [index, _entry_signature(entry)]
+		else:
+			var key := str(_card_target["key"])
+			entry = _equipment(world).get(key, null)
+			signature = "equip:%s|%s" % [key, _entry_signature(entry)]
+	_card_panel.visible = show
+	if not show:
+		_card_signature = ""
+		return
 	if signature == _card_signature:
 		return
 	_card_signature = signature
 	for child in _card_icon_holder.get_children():
 		_card_icon_holder.remove_child(child)
 		child.queue_free()
-	if selected == null:
-		_card_name.text = "slot %d · empty" % (index + 1)
+	var worn: bool = str(_card_target["kind"]) == "equip"
+	_card_keys.visible = not worn and int(_card_target.get("index", -1)) == int(world.selected)
+	if entry == null:
+		if worn:
+			var key := str(_card_target["key"])
+			_card_name.text = "%s · nothing worn" % key
+			_card_hint.text = _equip_hint(key)
+		else:
+			_card_name.text = "slot %d · empty" % (int(_card_target["index"]) + 1)
+			_card_hint.text = "click a slot, or press its number"
 		_card_name.add_theme_color_override("font_color", UiKit.MUTED)
-		_card_hint.text = "click a slot, or press its number"
 		_use_button.disabled = true
 		_use_button.text = "Use"
+		_drop_button.visible = not worn
 		_drop_button.disabled = true
 		var blank := Control.new()
 		blank.custom_minimum_size = Vector2(CARD_ICON, CARD_ICON)
 		blank.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_card_icon_holder.add_child(blank)
 		return
-	var entry: Dictionary = selected
-	var item_id := str(entry["item"])
+	var item_id := str((entry as Dictionary)["item"])
 	var spec := UiKit.item_spec(world.manifest, item_id)
 	_card_icon_holder.add_child(kit.icon_rect(world.manifest, item_id, CARD_ICON))
-	var many := int(entry.get("count", 1))
+	var many := int((entry as Dictionary).get("count", 1))
 	_card_name.text = UiKit.item_name(world.manifest, item_id) + ((" ×%d" % many) if many > 1 else "")
 	_card_name.add_theme_color_override("font_color", UiKit.TEXT)
 	_card_hint.text = UiKit.use_hint(spec, entry)
+	if worn:
+		_use_button.disabled = false
+		_use_button.text = "Take off"
+		_drop_button.visible = false
+		return
 	var verb := UiKit.use_verb(spec)
 	_use_button.disabled = verb == ""
 	_use_button.text = (verb.substr(0, 1).to_upper() + verb.substr(1)) if verb != "" else "Use"
+	_drop_button.visible = true
 	_drop_button.disabled = false
+
+
+static func _equip_hint(key: String) -> String:
+	match key:
+		"hand":
+			return "a tool worn here chops or mines first"
+		"body":
+			return "a cloak worn here keeps the cold off"
+		"back":
+			return "a pack worn here carries more"
+	return ""
 
 
 func _on_slot_input(event: InputEvent, index: int) -> void:
@@ -412,6 +548,17 @@ func _on_slot_input(event: InputEvent, index: int) -> void:
 	_root.accept_event()
 
 
+## A worn slot clicked, either button: the thing comes off, back into the pack.
+func _on_equip_input(event: InputEvent, key: String) -> void:
+	var button := event as InputEventMouseButton
+	if button == null or not button.pressed or _world == null:
+		return
+	if button.button_index != MOUSE_BUTTON_LEFT and button.button_index != MOUSE_BUTTON_RIGHT:
+		return
+	_world.input["unequip"] = key
+	_root.accept_event()
+
+
 func _on_slot_hover(index: int, inside: bool) -> void:
 	if inside:
 		_hover_slot = index
@@ -419,14 +566,31 @@ func _on_slot_hover(index: int, inside: bool) -> void:
 		_hover_slot = -1
 
 
+func _on_equip_hover(key: String, inside: bool) -> void:
+	if inside:
+		_hover_equip = key
+	elif _hover_equip == key:
+		_hover_equip = ""
+
+
+## The card's first button: Use (or Eat, Light, Wear…) on the slot the card
+## describes, which is selected first so the sim's use finds it; Take off on a
+## worn thing.
 func _on_use() -> void:
-	if _world != null:
-		_world.input["use"] = true
+	if _world == null or _card_target.is_empty():
+		return
+	if str(_card_target["kind"]) == "equip":
+		_world.input["unequip"] = str(_card_target["key"])
+		return
+	_world.input["select"] = int(_card_target["index"])
+	_world.input["use"] = true
 
 
 func _on_drop() -> void:
-	if _world != null:
-		_world.input["drop"] = true
+	if _world == null or _card_target.is_empty() or str(_card_target["kind"]) != "slot":
+		return
+	_world.input["select"] = int(_card_target["index"])
+	_world.input["drop"] = true
 
 
 func _on_craft_button() -> void:
@@ -436,6 +600,98 @@ func _on_craft_button() -> void:
 
 func _on_map_button() -> void:
 	action.emit("map")
+
+
+func _on_menu_button() -> void:
+	action.emit("menu")
+
+
+# ===========================================================================
+# The pickup flight
+# ===========================================================================
+
+## An item's icon flies from a window point into the slot that holds the item
+## (the first that does), bowing upward, shrinking, and lands with a glow on
+## the slot. A start off the screen — or no projector — is just the glow.
+func fly_pickup(item_id: String, from_window: Vector2) -> void:
+	if _world == null or _root == null:
+		return
+	var slot := _slot_holding(item_id)
+	if from_window.x < 0.0 or from_window.y < 0.0 or slot < 0 or slot >= _slot_cells.size():
+		_flash_slot(slot)
+		return
+	var icon: Control = kit.icon_rect(_world.manifest, item_id, FLIGHT_ICON)
+	icon.pivot_offset = Vector2(FLIGHT_ICON, FLIGHT_ICON) * 0.5
+	icon.z_index = 10
+	_root.add_child(icon)
+	var from := from_window / ui_scale - Vector2(FLIGHT_ICON, FLIGHT_ICON) * 0.5
+	icon.position = from
+	_flights.append({"icon": icon, "from": from, "t": 0.0, "slot": slot, "item": item_id})
+
+
+func _slot_holding(item_id: String) -> int:
+	if _world == null:
+		return -1
+	var found := -1
+	for index: int in _world.slots.size():
+		var slot: Variant = _world.slots[index]
+		if slot is Dictionary and str((slot as Dictionary)["item"]) == item_id:
+			found = index
+	return found
+
+
+func _advance_flights(delta: float) -> void:
+	if _flights.is_empty():
+		return
+	for index in range(_flights.size() - 1, -1, -1):
+		var flight: Dictionary = _flights[index]
+		var icon: Control = flight["icon"]
+		flight["t"] = float(flight["t"]) + (delta / FLIGHT_SECONDS if delta > 0.0 else 1.0)
+		var t := clampf(float(flight["t"]), 0.0, 1.0)
+		var to := _slot_centre(int(flight["slot"])) - Vector2(FLIGHT_ICON, FLIGHT_ICON) * 0.5
+		var from: Vector2 = flight["from"]
+		# A quadratic arc: up and over, easing in at the slot.
+		var eased := 1.0 - (1.0 - t) * (1.0 - t)
+		var control := (from + to) * 0.5 + Vector2(0.0, -FLIGHT_ARC)
+		var u := 1.0 - eased
+		icon.position = from * u * u + control * 2.0 * u * eased + to * eased * eased
+		var s := lerpf(1.0, FLIGHT_END_SCALE, eased)
+		icon.scale = Vector2(s, s)
+		if t >= 1.0:
+			_flash_slot(int(flight["slot"]))
+			_root.remove_child(icon)
+			icon.queue_free()
+			_flights.remove_at(index)
+
+
+func _flash_slot(index: int) -> void:
+	if index < 0 or index >= _slot_cells.size():
+		return
+	var cell: Control = _slot_cells[index]
+	cell.set("flash", 1.0)
+	cell.queue_redraw()
+
+
+func _advance_flashes(delta: float) -> void:
+	for cell: Control in _slot_cells:
+		var flash := float(cell.get("flash"))
+		if flash <= 0.0:
+			continue
+		cell.set("flash", maxf(0.0, flash - (delta / FLASH_SECONDS if delta > 0.0 else 1.0)))
+		cell.queue_redraw()
+
+
+## A hotbar slot's centre in layer units, after the last reflow.
+func _slot_centre(index: int) -> Vector2:
+	if index < 0 or index >= _slot_cells.size():
+		return _hotbar_panel.position + _hotbar_panel.size * 0.5
+	var cell: Control = _slot_cells[index]
+	return _hotbar_panel.position + _slot_grid.position + cell.position + cell.size * 0.5
+
+
+## How many flights are in the air (for a test or a capture).
+func flights_in_air() -> int:
+	return _flights.size()
 
 
 # ===========================================================================
@@ -491,19 +747,12 @@ func _describe_target(world, block: Dictionary, with_keys: bool) -> String:
 	return body if (walking or not with_keys) else "%s %s" % [UiKit.kbd(key_name), body]
 
 
-## The thing under the pointer, named at the cursor. A slot's tooltip takes
-## precedence, because the pointer is on the panel then.
+## The thing under the pointer, named above itself in the world (the frame
+## owner hands the anchor). Nothing while a slot's card is up: the pointer is
+## on the panel then.
 func _write_tooltip(world) -> void:
 	var text := ""
-	if _hover_slot >= 0 and _hover_slot < world.slots.size() and _hotbar_panel.visible:
-		var slot: Variant = world.slots[_hover_slot]
-		if slot is Dictionary:
-			var item_id := str((slot as Dictionary)["item"])
-			text = "[b]%s[/b] · %s" % [UiKit.item_name(world.manifest, item_id),
-				UiKit.use_hint(UiKit.item_spec(world.manifest, item_id), slot)]
-			if UiKit.use_verb(UiKit.item_spec(world.manifest, item_id)) != "":
-				text += " · right-click to %s" % UiKit.use_verb(UiKit.item_spec(world.manifest, item_id))
-	elif mode == "play" and not bool(world.dead) and not bool(world.craft_open):
+	if _card_target.is_empty() and mode == "play" and not bool(world.dead) and not bool(world.craft_open):
 		var entity: Variant = _hover.get("entity", null)
 		var target: Variant = _hover.get("target", null)
 		if entity is Dictionary:
@@ -622,19 +871,22 @@ func _build_hud_panel() -> void:
 	box.add_child(_torch)
 	_warm = UiKit.label("", UiKit.SMALL, UiKit.ACCENT)
 	box.add_child(_warm)
-	box.add_child(UiKit.spacer(8.0))
 
-	# The two panel buttons take the mouse even though the panel does not.
-	var buttons := HBoxContainer.new()
-	buttons.add_theme_constant_override("separation", 8)
-	buttons.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_child(buttons)
-	_craft_button = UiKit.button("Craft  C", UiKit.SMALL)
-	_craft_button.pressed.connect(_on_craft_button)
-	buttons.add_child(_craft_button)
-	_map_button = UiKit.button("Map  M", UiKit.SMALL)
-	_map_button.pressed.connect(_on_map_button)
-	buttons.add_child(_map_button)
+
+## The three worn places, to the left of the hotbar, each labelled.
+func _build_equipment() -> void:
+	_equip_panel = UiKit.panel(true, 8.0)
+	_root.add_child(_equip_panel)
+	_equip_row = HBoxContainer.new()
+	_equip_row.add_theme_constant_override("separation", 5)
+	_equip_panel.add_child(_equip_row)
+	for key: String in Inventory.EQUIPMENT_KINDS:
+		var cell := _make_cell(key)
+		cell.gui_input.connect(_on_equip_input.bind(key))
+		cell.mouse_entered.connect(_on_equip_hover.bind(key, true))
+		cell.mouse_exited.connect(_on_equip_hover.bind(key, false))
+		_equip_row.add_child(cell)
+		_equip_cells[key] = cell
 
 
 func _build_hotbar() -> void:
@@ -647,9 +899,30 @@ func _build_hotbar() -> void:
 	_hotbar_panel.add_child(_slot_grid)
 
 
+## Craft (a toggle that shows the table's state), Map and Menu, stacked at
+## the hotbar's end.
+func _build_buttons() -> void:
+	_buttons_panel = UiKit.panel(true, 8.0)
+	_root.add_child(_buttons_panel)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 4)
+	_buttons_panel.add_child(column)
+	_craft_button = UiKit.button("Craft  C", UiKit.SMALL)
+	_craft_button.toggle_mode = true
+	_craft_button.pressed.connect(_on_craft_button)
+	column.add_child(_craft_button)
+	_map_button = UiKit.button("Map  M", UiKit.SMALL)
+	_map_button.pressed.connect(_on_map_button)
+	column.add_child(_map_button)
+	_menu_button = UiKit.button("Menu  Esc", UiKit.SMALL)
+	_menu_button.pressed.connect(_on_menu_button)
+	column.add_child(_menu_button)
+
+
 func _build_card() -> void:
 	_card_panel = UiKit.panel(true, 10.0)
 	_card_panel.custom_minimum_size = Vector2(CARD_WIDTH, 0.0)
+	_card_panel.visible = false
 	_root.add_child(_card_panel)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
@@ -679,10 +952,10 @@ func _build_card() -> void:
 	_drop_button = UiKit.button("Drop", UiKit.SMALL)
 	_drop_button.pressed.connect(_on_drop)
 	buttons.add_child(_drop_button)
-	var hint := UiKit.rich(UiKit.SMALL)
-	hint.text = "[color=#e8e4dc80]%s %s[/color]" % [UiKit.kbd("X"), UiKit.kbd("Z")]
-	hint.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	buttons.add_child(hint)
+	_card_keys = UiKit.rich(UiKit.SMALL)
+	_card_keys.text = "[color=#e8e4dc80]%s %s[/color]" % [UiKit.kbd("X"), UiKit.kbd("Z")]
+	_card_keys.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	buttons.add_child(_card_keys)
 
 
 func _build_prompt() -> void:
@@ -707,19 +980,6 @@ func _build_tooltip() -> void:
 	_root.add_child(_tooltip_panel)
 	_tooltip = UiKit.rich(UiKit.SMALL)
 	_tooltip_panel.add_child(_tooltip)
-
-
-func _build_keys() -> void:
-	_keys = UiKit.panel(false, 10.0)
-	_root.add_child(_keys)
-	var text := UiKit.rich(UiKit.SMALL, 560.0)
-	text.modulate.a = 0.62
-	text.text = "[right]click a thing to act on it · click the ground to walk · right-click stops\n" \
-		+ "WASD move · [b]Q[/b]/[b]E[/b] turn · [b]Space[/b] interact · [b]F[/b] light · " \
-		+ "[b]1[/b]–[b]0[/b] select · [b]X[/b] use · [b]Z[/b] drop · [b]C[/b] craft · [b]M[/b] map · [b]R[/b] reset\n" \
-		+ "[b]G[/b] gallery · [b]V[/b] verdict · [b]N[/b] night · [b]K[/b] season · " \
-		+ "[b]T[/b] weather · [b]L[/b] strike · [b]B[/b] music · [b]F11[/b] fullscreen · [b]`[/b] debug[/right]"
-	_keys.add_child(text)
 
 
 func _build_debug() -> void:
@@ -747,6 +1007,56 @@ func _build_debug() -> void:
 	box.add_child(hint)
 
 
+## One slot cell: the icon, a corner label (the key that selects a pack slot,
+## the worn place's name), the count, the wear bar.
+func _make_cell(corner: String) -> SlotCell:
+	var cell := SlotCell.new()
+	cell.custom_minimum_size = Vector2(SLOT_BOX, SLOT_BOX)
+	cell.mouse_filter = Control.MOUSE_FILTER_STOP
+	cell.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var icon := TextureRect.new()
+	icon.name = "icon"
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	icon.offset_left = 5.0
+	icon.offset_top = 5.0
+	icon.offset_right = -5.0
+	icon.offset_bottom = -5.0
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cell.add_child(icon)
+	if corner != "":
+		var key := UiKit.label(corner, 11, UiKit.MUTED)
+		key.name = "key"
+		key.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		key.offset_left = 4.0
+		key.offset_top = 1.0
+		key.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		key.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		cell.add_child(key)
+	var count := UiKit.label("", UiKit.SMALL, UiKit.ACCENT)
+	count.name = "count"
+	count.add_theme_color_override("font_shadow_color", Color.BLACK)
+	count.add_theme_constant_override("shadow_outline_size", 4)
+	count.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	count.offset_right = -4.0
+	count.offset_bottom = -2.0
+	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	count.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	cell.add_child(count)
+	var wear := WearBar.new()
+	wear.name = "wear"
+	wear.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	wear.offset_left = 5.0
+	wear.offset_right = -5.0
+	wear.offset_top = -7.0
+	wear.offset_bottom = -3.0
+	wear.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cell.add_child(wear)
+	return cell
+
+
 func _rebuild_slots(capacity: int) -> void:
 	for child in _slot_grid.get_children():
 		_slot_grid.remove_child(child)
@@ -754,97 +1064,76 @@ func _rebuild_slots(capacity: int) -> void:
 	_slot_cells.clear()
 	_hover_slot = -1
 	for index: int in capacity:
-		var cell := SlotCell.new()
-		cell.custom_minimum_size = Vector2(SLOT_BOX, SLOT_BOX)
-		cell.mouse_filter = Control.MOUSE_FILTER_STOP
-		cell.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		# The key that selects this slot, in the corner: 1-9, then 0.
+		var cell := _make_cell(str((index + 1) % 10) if index < 10 else "")
 		cell.gui_input.connect(_on_slot_input.bind(index))
 		cell.mouse_entered.connect(_on_slot_hover.bind(index, true))
 		cell.mouse_exited.connect(_on_slot_hover.bind(index, false))
-		var icon := TextureRect.new()
-		icon.name = "icon"
-		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-		icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		icon.offset_left = 5.0
-		icon.offset_top = 5.0
-		icon.offset_right = -5.0
-		icon.offset_bottom = -5.0
-		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		cell.add_child(icon)
-		# The key that selects this slot, in the corner: 1-9, then 0.
-		if index < 10:
-			var key := UiKit.label(str((index + 1) % 10), 11, UiKit.MUTED)
-			key.name = "key"
-			key.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-			key.offset_left = 4.0
-			key.offset_top = 1.0
-			key.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-			key.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-			cell.add_child(key)
-		var count := UiKit.label("", UiKit.SMALL, UiKit.ACCENT)
-		count.name = "count"
-		count.add_theme_color_override("font_shadow_color", Color.BLACK)
-		count.add_theme_constant_override("shadow_outline_size", 4)
-		count.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		count.offset_right = -4.0
-		count.offset_bottom = -2.0
-		count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		count.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-		cell.add_child(count)
-		var wear := WearBar.new()
-		wear.name = "wear"
-		wear.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-		wear.offset_left = 5.0
-		wear.offset_right = -5.0
-		wear.offset_top = -7.0
-		wear.offset_bottom = -3.0
-		wear.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		cell.add_child(wear)
 		_slot_grid.add_child(cell)
 		_slot_cells.append(cell)
 	_hud_signature = ""
 
 
 ## Panels float over the frame, so they are placed by hand once their content
-## has settled: vitals top-left, hotbar and card bottom-centre, prompt above
-## them, message top-centre, legend and debug top-right, tooltip at the cursor.
+## has settled: vitals top-left; the worn slots, the hotbar and the buttons in
+## one strip bottom-centre; the card above the slot it describes; the prompt
+## above the strip; the message top-centre; the debug panel top-right; the
+## hovered thing's name above the thing.
 func _reflow() -> void:
 	var view: Vector2 = _root.size
 	UiKit.fit(_hud_panel)
 	_hud_panel.position = Vector2(MARGIN, MARGIN)
 
+	UiKit.fit(_equip_panel)
 	UiKit.fit(_hotbar_panel)
-	UiKit.fit(_card_panel)
+	UiKit.fit(_buttons_panel)
 	var gap := 10.0
-	var strip := _hotbar_panel.size.x + gap + _card_panel.size.x
+	var strip := _equip_panel.size.x + gap + _hotbar_panel.size.x + gap + _buttons_panel.size.x
 	var left := roundf((view.x - strip) * 0.5)
 	var bottom := view.y - MARGIN
-	_hotbar_panel.position = Vector2(left, round(bottom - _hotbar_panel.size.y))
-	_card_panel.position = Vector2(left + _hotbar_panel.size.x + gap, round(bottom - _card_panel.size.y))
+	_equip_panel.position = Vector2(left, round(bottom - _equip_panel.size.y))
+	_hotbar_panel.position = Vector2(left + _equip_panel.size.x + gap, round(bottom - _hotbar_panel.size.y))
+	_buttons_panel.position = Vector2(_hotbar_panel.position.x + _hotbar_panel.size.x + gap,
+		round(bottom - _buttons_panel.size.y))
+
+	if _card_panel.visible:
+		UiKit.fit(_card_panel)
+		var cell_at := _hotbar_panel.position
+		var cell_h := 0.0
+		if str(_card_target.get("kind", "")) == "equip" and _equip_cells.has(_card_target.get("key", "")):
+			var cell: Control = _equip_cells[_card_target["key"]]
+			cell_at = _equip_panel.position + _equip_row.position + cell.position
+			cell_h = cell.size.y
+		elif int(_card_target.get("index", -1)) >= 0 and int(_card_target["index"]) < _slot_cells.size():
+			var cell: Control = _slot_cells[int(_card_target["index"])]
+			cell_at = _hotbar_panel.position + _slot_grid.position + cell.position
+			cell_h = cell.size.y
+		# Above the slot, its left edge on the slot's, flush enough that the
+		# pointer can travel up into the buttons.
+		var at := Vector2(cell_at.x, minf(_hotbar_panel.position.y, _equip_panel.position.y) - 6.0 - _card_panel.size.y)
+		if cell_h == 0.0:
+			at.y = _hotbar_panel.position.y - 6.0 - _card_panel.size.y
+		at.x = clampf(at.x, MARGIN, maxf(MARGIN, view.x - _card_panel.size.x - MARGIN))
+		_card_panel.position = at.round()
 
 	UiKit.fit(_prompt_panel)
-	var above := minf(_hotbar_panel.position.y, _card_panel.position.y) if _hotbar_panel.visible else view.y - 78.0
+	var above := minf(_hotbar_panel.position.y, _equip_panel.position.y) if _hotbar_panel.visible else view.y - 78.0
+	if _card_panel.visible:
+		above = minf(above, _card_panel.position.y)
 	_prompt_panel.position = Vector2(round((view.x - _prompt_panel.size.x) * 0.5), round(above - 12.0 - _prompt_panel.size.y))
 
-	UiKit.fit(_keys)
-	_keys.position = Vector2(view.x - _keys.size.x - MARGIN, MARGIN)
-	# Under the legend's row, so a long line in the legend never crosses it.
 	UiKit.fit(_message_panel)
 	_message_panel.modulate.a = _message.modulate.a
-	_message_panel.position = Vector2(round((view.x - _message_panel.size.x) * 0.5), _keys.position.y + _keys.size.y + 10.0)
+	_message_panel.position = Vector2(round((view.x - _message_panel.size.x) * 0.5), MARGIN)
 	UiKit.fit(_debug_panel)
-	_debug_panel.position = Vector2(view.x - _debug_panel.size.x - MARGIN, _keys.position.y + _keys.size.y + 8.0)
+	_debug_panel.position = Vector2(view.x - _debug_panel.size.x - MARGIN, MARGIN)
 
 	if _tooltip_panel.visible:
 		UiKit.fit(_tooltip_panel)
-		var at := _mouse / ui_scale + TOOLTIP_OFFSET
-		if _hover_slot >= 0 and _hover_slot < _slot_cells.size():
-			# Over the hotbar the tip stands above the slot, not under the hand.
-			var cell: Control = _slot_cells[_hover_slot]
-			var cell_at := _hotbar_panel.position + _slot_grid.position + cell.position
-			at = Vector2(cell_at.x, cell_at.y - _tooltip_panel.size.y - 8.0)
+		var at := _anchor / ui_scale
+		if _anchor.x < 0.0:
+			at = view * 0.5
+		at = Vector2(at.x - _tooltip_panel.size.x * 0.5, at.y - _tooltip_panel.size.y - LABEL_LIFT)
 		at.x = clampf(at.x, MARGIN, maxf(MARGIN, view.x - _tooltip_panel.size.x - MARGIN))
 		at.y = clampf(at.y, MARGIN, maxf(MARGIN, view.y - _tooltip_panel.size.y - MARGIN))
 		_tooltip_panel.position = at.round()
@@ -855,7 +1144,13 @@ func _reflow() -> void:
 # ===========================================================================
 
 func _slot_capacity(world) -> int:
-	return UiKit.slot_capacity(world.manifest, world.slots, int(world.base_slots))
+	return UiKit.slot_capacity(world.manifest, _equipment(world), int(world.base_slots))
+
+
+## The world's worn things, or an empty set for a stub without any.
+func _equipment(world) -> Dictionary:
+	var equipment: Variant = _field(world, "equipment", null)
+	return equipment if equipment is Dictionary else {}
 
 
 func _season_glyph(world) -> String:
@@ -945,13 +1240,14 @@ class BarView:
 
 
 ## `.slot` — the cell behind an item's icon; `.sel` outlines the selected one,
-## and the hovered one lifts.
+## the hovered one lifts, and one that just took a pickup glows for a moment.
 class SlotCell:
 	extends Control
 
 	var selected: bool = false
 	var hovered: bool = false
 	var swatch: bool = false
+	var flash: float = 0.0
 
 	func _draw() -> void:
 		var box := StyleBoxFlat.new()
@@ -960,6 +1256,14 @@ class SlotCell:
 		box.set_border_width_all(2 if selected else 1)
 		box.set_corner_radius_all(5)
 		draw_style_box(box, Rect2(Vector2.ZERO, size))
+		if flash > 0.0:
+			var glow := StyleBoxFlat.new()
+			glow.bg_color = Color(UiKit.ACCENT.r, UiKit.ACCENT.g, UiKit.ACCENT.b, 0.28 * flash)
+			glow.border_color = Color(UiKit.ACCENT.r, UiKit.ACCENT.g, UiKit.ACCENT.b, flash)
+			glow.set_border_width_all(3)
+			glow.set_corner_radius_all(6)
+			glow.set_expand_margin_all(2.0)
+			draw_style_box(glow, Rect2(Vector2.ZERO, size))
 
 
 ## `.wear` — how much of a tool is left.

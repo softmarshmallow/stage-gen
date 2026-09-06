@@ -36,6 +36,7 @@ static func world() -> World:
 static func bare(w: World) -> void:
 	w.entities.clear()
 	w.slots.clear()
+	w.equipment = {"hand": null, "body": null, "back": null}
 	w.drops.clear()
 	w.events.clear()
 	w.selected = 0
@@ -58,6 +59,8 @@ static func release(w: World) -> void:
 	w.input["menu_select"] = null
 	w.input["click_entity"] = null
 	w.input["click_point"] = null
+	w.input["equip"] = false
+	w.input["unequip"] = null
 
 
 ## A prop entity in the shape `World.create` builds (viewer 484-503).
