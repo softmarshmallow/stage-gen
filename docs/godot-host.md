@@ -1,17 +1,25 @@
-# Godot host for the survival recipe
+# Godot hosts
 
-`godot/oblique_survival` is an optional consumer of the exact-current
-`oblique-survival-manifest-v2` run. **It starts no run.** It does not plan,
-generate, review, or publish media, it never receives provider credentials, and
-it has no code path that would regenerate anything it reads.
+Godot 4.7 is the engine, and every genre's host is a Godot host
+([decision 0061](decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md)).
+This page is the operating manual for those projects: what each is handed, how
+to run one, how it is validated, and what it owns. What every host owes, in
+terms no engine supplies, is the
+[host contract](spec/game/host-contract.md); this page is its instance.
 
-It is the second host in this repository, and it exists because a ground-plane
-genre needs a perspective camera and per-billboard depth that the browser
-adapter was never built for. The ruling and its evidence are
-[decision 0057](decisions/0057-the-survival-game-runs-on-godot.md); the criteria
-it was measured against are in the
-[game-engine evaluation](game-engine-evaluation.md). The operating manual beside
-the code is [the host's own README](../godot/oblique_survival/README.md).
+A host is an optional consumer of one exact-current run. **It starts no run.**
+It does not plan, generate, review, or publish media, it never receives provider
+credentials, and it has no code path that would regenerate anything it reads.
+
+The first host was the survival recipe's, because a ground-plane genre needs a
+perspective camera and per-billboard depth the browser adapter was never built
+for; that ruling and its evidence are
+[decision 0057](decisions/0057-the-survival-game-runs-on-godot.md), and the
+criteria it was measured against are in the
+[game-engine evaluation](game-engine-evaluation.md). 0061 extended the choice to
+every genre, for a reason that is about production rather than about cameras.
+The operating manual beside the code is
+[the host's own README](../godot/oblique_survival/README.md).
 
 ## Runtime input
 
@@ -25,13 +33,15 @@ The host is handed one run directory on the command line — the directory holdi
 }
 ```
 
-Its boundary parser refuses, by name and before anything is drawn: a manifest of
-another kind, an unresolved artifact reference, an artifact path that is not a
-portable path below the selected run, an invalid digest, and a block published
-at a version this build does not read. A block whose version has moved is
-refused rather than skipped, and the refusal says which block — a consumer that
-silently ignores a block it does not understand is a consumer that plays a
-different game from the one the run describes.
+Its boundary parser refuses, by name and before anything is drawn: a document of
+another kind, a document at a schema version this build does not read, a
+required field that is missing or malformed, an unresolved artifact reference,
+a reference that is not a portable path below the selected run, and an invalid
+digest. Where a document publishes a per-block version table — the platformer's
+and the runner's do, the survival manifest does not yet — a block whose version
+has moved is refused rather than skipped and the refusal says which block. A
+consumer that silently ignores what it does not understand is a consumer that
+plays a different game from the one the run describes.
 
 The host opened the spike's pre-promotion run while its picture gate was being
 built, on the same bytes the promoted recipe later restored at zero provider
@@ -131,10 +141,10 @@ recipe's offline rehearsal rather than the host.
 
 ## What this host owns
 
-It is a host in the sense of
-[runtime composition](spec/game/runtime-composition.md): the outermost ring,
-where the ports are implemented and the loop is run. A second engine is a second
-host and nothing else moves.
+It is a host in the sense of the
+[host contract](spec/game/host-contract.md): the outermost layer, where the
+ports are implemented and the loop is run. What a host owns it owns for its own
+genre, and it is a dependency of nothing on the generating side.
 
 It owns loading, the fixed-step loop, mirroring world slices onto scene nodes,
 the perspective camera and its yaw detents, billboard depth against the ground,

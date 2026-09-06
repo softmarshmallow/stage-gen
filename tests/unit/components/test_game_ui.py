@@ -22,7 +22,8 @@ from stage_gen.resources import inventory_template_path
 
 GAMES = Path(__file__).resolve().parents[3] / "library" / "games"
 PACKAGE = GAMES / "bellweather"
-#: The one document that declares the optional cursor set: its host owns a mouse pointer.
+#: The one document that declares the optional cursor set. Every host may draw one
+#: (decision 0062); this is the package whose author asked for the art.
 POINTER_PACKAGE = GAMES / "ember-hollow"
 
 
@@ -58,10 +59,11 @@ def test_ui_contract_carries_both_atlas_roles_and_pins_their_layouts() -> None:
         load_game_ui_bytes(source.replace(b'kind = "game-ui-v5"', b'kind = "game-ui-v1"'))
 
 
-def test_the_cursor_set_is_declared_only_by_a_game_that_owns_a_pointer() -> None:
-    """A platformer played in a browser leaves the pointer to the browser and declares
-    no cursors; the survival game's Godot host owns its pointer and does. The optional
-    role is pinned to its layout and alpha policy exactly like the required ones."""
+def test_the_cursor_set_is_optional_and_pinned_when_a_game_declares_one() -> None:
+    """No recipe requires or refuses a cursor set (decision 0062): a game whose author
+    wants drawn pointers declares one and a game that does not omits it. When one is
+    declared the optional role is pinned to its layout and alpha policy exactly like the
+    required ones."""
 
     assert load_game_ui_bytes((PACKAGE / "ui.toml").read_bytes()).cursor_set is None
     source = (POINTER_PACKAGE / "ui.toml").read_bytes()

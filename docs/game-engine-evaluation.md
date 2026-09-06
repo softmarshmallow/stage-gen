@@ -1,12 +1,13 @@
 # Game-engine evaluation
 
-The evaluation this document asked for has been run **once, for one genre**, and
-its outcome is [decision 0057](decisions/0057-the-survival-game-runs-on-godot.md):
-the oblique-survival genre is played by the Godot 4.7 host under
-`godot/oblique_survival`, described at [Godot host](godot-host.md). Nothing
-about that ruling selects an engine for the repository. The browser adapter
-remains the host for the side-view, room and scene genres, and a future genre
-picks its own host on the same criteria.
+The evaluation this document asked for was run **once, for one genre**, and its
+outcome is [decision 0057](decisions/0057-the-survival-game-runs-on-godot.md):
+the oblique-survival genre is played by a Godot 4.7 host. A day later
+[decision 0061](decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md)
+extended that choice to the repository — every genre's host is a Godot host —
+and said plainly that the extension is a direction about production rather than
+a second measurement. The criteria below are what a future engine question would
+be answered with; they are not open today.
 
 Keep the distinction: a host is a consumer of published manifests. Naming one
 here does not lock any other decision, and it does not make an engine a
@@ -43,16 +44,18 @@ alternatives, migration cost, and a reversible adapter boundary. That is the
 acceptance test 0057 is written against, and it is satisfied: the record carries
 the criteria one by one, the three rejected alternatives with the reason for
 each, a measured migration cost of zero on the generating side, and the adapter
-boundary stated as a directory rule in
-[runtime composition](spec/game/runtime-composition.md) — a second engine is a
-second host and nothing else moves.
+boundary stated as a directory rule in the
+[host contract](spec/game/host-contract.md) — a host is the outermost layer and
+nothing on the generating side names it.
 
 Engine-specific claims stay out of core manifests and asset schemas. That rule
 did not soften when a host was chosen; it is the reason the choice is reversible.
 
 ## What is still open
 
-- Whether any other genre wants a second host. No evidence has been offered, and
-  a browser host that serves its genre acceptably is not a problem to be solved.
-- Whether the two hosts should ever share a published test corpus. They consume
-  different manifests today, so there is nothing to share yet.
+- Whether a genre ever wants an engine that is not Godot. 0061 settled the
+  question for the genres that exist; it did not close it forever, and the
+  criteria above are what a candidate would be measured against.
+- Whether the hosts should share a published test corpus. They consume different
+  documents, and what they share instead is the replay shape: one seed, one
+  scripted intent track, one per-step state digest.

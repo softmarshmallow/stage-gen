@@ -1,6 +1,12 @@
 # Runtime composition: the plan, and the evidence for each ruling
 
-Companion to [runtime-composition.md](../spec/game/runtime-composition.md),
+> **History.** The path was walked: the kernel, the ring-1 families and both
+> side-view genres landed on it. The browser runtime it built is retired genre by
+> genre under [decision 0061](../decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md); the Godot promotion has its own plan at
+> [godot-promotion-plan.md](../plans/godot-promotion-plan.md).
+
+
+Companion to [runtime-composition.md](runtime-composition-web.md),
 which states the end state. This document is the path, and it dies when the
 path is walked. Status: draft for sign-off.
 

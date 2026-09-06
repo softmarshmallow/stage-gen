@@ -16,7 +16,7 @@ not an identity but a cache key (C-R1); its evidence is the cache-key goldens.
 | --- | --- |
 | `authored` | a document an author writes and the pipeline validates |
 | `generated` | a document the pipeline writes and a consumer or a later node reads |
-| `manifest` | a runtime manifest a web consumer parses |
+| `manifest` | a runtime manifest a host parses |
 | `block` | one named block of a runtime manifest, versioned on its own (C-R3) |
 | `graph` | a sealed execution-graph document |
 | `mode` | a closed-vocabulary word inside a document that selects a producer |

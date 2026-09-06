@@ -1,7 +1,23 @@
-# Prepared-game web preview
+# The web viewer
 
-`web/` is an optional consumer of the exact-current prepared runtime manifest. It does not plan,
-generate, review, or publish game media and never receives provider credentials.
+`web/` is the asset viewer and inspector for a run: it lists what a run produced, shows every
+artifact with its provenance, and renders the universe gallery. It is an optional consumer of
+published contracts. It does not plan, generate, review, or publish game media, never receives
+provider credentials, and holds **no gameplay** — every genre is played by a Godot host
+([decision 0061](decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md), the
+[host contract](spec/game/host-contract.md)).
+
+What survives here is the viewer: `/` and `/runs` list runs, `/runs/<tag>` renders the run's
+derived `execution-view.json` read-only with its inspector, `/universe/<tag>` is the gallery, and
+`/api/assets/<tag>/<path>` serves an artifact below one run under five confinement checks and no
+executable media type. One more surface is planned and holds no game logic either: a slot that
+embeds a finished export by its release record, which the viewer reads for a title, a size and an
+entry point and never parses.
+
+**The play surfaces below are being retired**, one genre per change, each in the change that lands
+its Godot host and each with its own record. Until a genre's host lands, its section here
+describes a live surface; when it lands, the section leaves with the code. The retirement order is
+the runner, the platformer, then the room, the scene and the case together.
 
 ## Runtime input
 
@@ -270,7 +286,7 @@ control overrides `!` for that reason and says so in place.
 
 ## Consumer boundary
 
-`web/` starts no run. There is no HTTP route, form, or button that begins generation, and nothing
+`web/` starts no run and plays no run. There is no HTTP route, form, or button that begins generation, and nothing
 under [`lib/shell`](../web/lib/shell) may import a process-spawning API - the docs gate checks the
 absence, because a shell that can spawn is one refactor away from being a second generator. The
 prompt-launching Generate view, its `POST /api/run` start/retry/SSE routes, the scrolling

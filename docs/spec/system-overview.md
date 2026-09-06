@@ -13,8 +13,8 @@ flowchart LR
     I["Typed input manifest"] --> C["Reusable components"]
     C --> P["Headless pipeline"]
     P --> A["Artifacts + provenance"]
-    A --> W["Optional web preview adapter"]
-    A --> E["Future engine adapters"]
+    A --> W["Optional web run viewer"]
+    A --> E["Godot hosts, one template per genre"]
 ```
 
 - `gnode` ring 1 owns the provider-neutral modality service contracts and
@@ -112,13 +112,14 @@ platformer recipe: a concept root, parallax layers, terrain tiles, character/mob
 sheets, props, items, inventory, and portals. Those contracts remain useful as
 the first comprehensive integration case.
 
-The browser preview composes that recipe into a scene with a horizontal camera,
-heightmap terrain, movement, interactions, and portals. All of those choices
-stay under `web/`. A different recipe or engine can consume the same generic
-component results through a different manifest/adapter.
+A host composes that recipe into a scene with a horizontal camera, heightmap
+terrain, movement, interactions, and portals. All of those choices stay in the
+host. A different recipe consumes the same generic component results through its
+own document and its own template.
 
-See [side-view platformer asset contracts](asset-contracts.md) and the
-[web preview boundary](../web-preview.md).
+See [side-view platformer asset contracts](asset-contracts.md), the
+[host contract](game/host-contract.md) and the
+[web viewer boundary](../web-viewer.md).
 
 The `sideview-runner` sibling resolves the same prepared-package container but
 owns reaction-fair authored segment admission, structural-ground or atlas
@@ -164,15 +165,17 @@ is, deliberately built here rather than adopted from a narrative engine whose
 script is code.
 
 The Python package under `src/stage_gen/` is the sole headless implementation.
-Node and TypeScript are confined to the optional `web/` adapter.
+Node and TypeScript are confined to the optional `web/` viewer, and GDScript to
+the Godot hosts.
 
 ## Game engine
 
-No single engine is selected for the repository. Each consumer host chooses its
-own: the browser adapter hosts the side-view, room and scene genres, and the
-Godot 4.7 host under `godot/oblique_survival` hosts the survival genre. A host is
-a consumer of published manifests and never a dependency of a provider adapter, a
+Godot 4.7 is the engine for every genre. One project holds one template per
+genre; a template applied to one run gives a self-contained export. A host is a
+consumer of published documents and never a dependency of a provider adapter, a
 component contract, or an artifact schema; see
 [game-engine evaluation](../game-engine-evaluation.md),
-[decision 0057](../decisions/0057-the-survival-game-runs-on-godot.md), and the
-[Godot host boundary](../godot-host.md).
+[decision 0057](../decisions/0057-the-survival-game-runs-on-godot.md),
+[decision 0061](../decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md),
+the [host contract](game/host-contract.md) and the
+[host manual](../godot-host.md).

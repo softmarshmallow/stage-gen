@@ -37,10 +37,10 @@ src/stage_gen/orchestration/  run preparation, concrete composition, and summari
 src/stage_gen/interfaces/     argparse CLI, the only automation surface
 src/stage_gen/resources/      wheel-packaged recipe resources
 library/games/                source-checkout or external authored package workspace
-web/                          optional browser preview adapter
-godot/                        Godot 4.7 host for the oblique-survival recipe: a
-                              second consumer that loads one published run
-                              directory and starts no generation
+web/                          optional browser run viewer and asset inspector
+godot/                        Godot 4.7 hosts, one project, one template per
+                              genre: the consumer that loads a published run
+                              directory, plays it, and starts no generation
 docs/                         contracts, operations, research, and policy
 ```
 
@@ -139,36 +139,31 @@ degraded chroma fallback remain available, the latter deterministic and local. O
 The selected strategy and raw-to-derived lineage travel in manifests and
 sidecars so consumers load canonical outputs without guessing from colour.
 
-## Optional preview
+## Hosts and the viewer
 
-The current `web/` application is an optional consumer with six committed
-integration surfaces, none of which can start a run. The side-view platformer
-preview boots one published `prepared-game-runtime-v12` package; its horizontal
-camera, parallax, terrain, movement, combat, and interaction rules are local
-consumer decisions. The runner at `/runner/<tag>` plays one published
-`sideview-runner-runtime-v13` run with its own fixed-step simulation. The asset
-explorer projects the platformer manifest's closure. The deterministic
-dialogue-scene showcase consumes a committed browser fixture and schema. The
-room player at `/room/<tag>` replays one published `pointclick-room-runtime-v3`
-manifest through a pure reducer. The run viewer consumes a run's derived
-`execution-view.json` and renders it read-only. No surface owns generation or
-defines reusable component contracts.
-
-One gameplay engine is now selected, and only for one genre: the survival
-recipe's runs are played by the Godot 4.7 host under `godot/oblique_survival`
-([decision 0057](docs/decisions/0057-the-survival-game-runs-on-godot.md),
+One gameplay engine is selected, for every genre: Godot 4.7
+([decision 0061](docs/decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md),
+[decision 0057](docs/decisions/0057-the-survival-game-runs-on-godot.md),
 [engine evaluation](docs/game-engine-evaluation.md), [host
-boundary](docs/godot-host.md)). It is a second host in the sense of
-[runtime composition](docs/spec/game/runtime-composition.md): it owns scene
-composition, camera behaviour, collision, navigation, input, gameplay, and
-runtime effects for that genre, and it is a dependency of no provider adapter,
-artifact schema, or component boundary. The browser adapter remains the host for
-the other genres. Neither host defines a generator contract, and no other genre
-has selected an engine.
+contract](docs/spec/game/host-contract.md), [host manual](docs/godot-host.md)).
+A host owns scene composition, camera behaviour, collision, navigation, input,
+gameplay, the interface and runtime effects for its genre; it loads one
+published run directory, starts no generation, and is a dependency of no
+provider adapter, artifact schema, or component boundary. A game is data applied
+to a trusted template, and generated content is never accepted as engine script.
+
+The `web/` application is the run viewer and asset inspector: it lists runs,
+renders a run's derived `execution-view.json` read-only with its inspector,
+shows the universe gallery, and serves one run's artifacts under path
+confinement. It holds no gameplay and can start no run. It may embed a finished
+export by its release record without parsing it. The browser gameplay runtimes
+are being retired one genre per change, each in the change that lands its Godot
+host; until then they are live surfaces documented at
+[the web viewer](docs/web-viewer.md).
 
 The Python packages are the sole headless implementation. Node and TypeScript are
-confined to the optional `web/` adapter, which launches the public Python CLI,
-and GDScript to the optional Godot host, which launches nothing.
+confined to the optional `web/` viewer and GDScript to the Godot hosts; neither
+launches a run.
 
 ## Storage and redistribution
 

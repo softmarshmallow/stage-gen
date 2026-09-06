@@ -1,5 +1,10 @@
 # Browser side-view platformer implementation
 
+> **History.** Phaser is no longer a runtime of this repository: every genre is
+> hosted by Godot since [decision 0061](../decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md), and `web/` plays nothing. Kept
+> for what the browser renderer cost, which is part of why the ruling was taken.
+
+
 The optional `web/` adapter currently uses the `phaser` package to assemble one
 side-view platformer recipe in a browser. This is an operational note for that
 workspace, not the project's game-engine decision.
@@ -31,7 +36,7 @@ the public run contract. Browser code never receives provider credentials.
 - gravity, jump, combat, drops, inventory, and entry/exit portals.
 
 These are useful end-to-end test assumptions but are not reusable generator
-requirements. See [the preview boundary](../web-preview.md).
+requirements. See [the preview boundary](../web-viewer.md).
 
 ## Browser loading
 

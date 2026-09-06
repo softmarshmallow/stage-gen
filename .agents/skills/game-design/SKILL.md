@@ -19,8 +19,8 @@ Use these as the source of truth:
 4. [Asset contracts](../../../docs/spec/asset-contracts.md)
 5. [Dialogue and cutscene sequences](../../../docs/spec/game/dialogue-and-cutscene-sequences.md)
 6. [Soundtrack contract](../../../docs/game-soundtrack.md)
-7. [Web preview](../../../docs/web-preview.md), for what a named gameplay
-   choice actually looks like once the consumer runs it
+7. [The host contract](../../../docs/spec/game/host-contract.md), for what a
+   named gameplay choice actually becomes once a host runs it
 
 Resolve [`library/games/main.toml`](../../../library/games/main.toml) and inspect
 its selected package as the live example. Do not revive obsolete compatibility

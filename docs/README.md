@@ -13,10 +13,9 @@ its context.
   `TODO.md` had recorded and grown one record per ruling since.
 - [The engineering pass](plans/engineering-pass.md) — the standing plan: what
   each card cuts, in what order, and what it measured when it landed.
-- [Runtime composition: the plan](plans/runtime-composition-plan.md) — the path
-  from a scene that orders its own frame to families on a sealed kernel, one
-  taxonomy ruling per step, companion to
-  [runtime-composition.md](spec/game/runtime-composition.md).
+- [The Godot promotion](plans/godot-promotion-plan.md) — the path from four
+  browser games to four Godot hosts and a viewer-only web, one commit boundary
+  per genre, each with the evidence that retires the incumbent.
 
 Start here for the headless, general-purpose system:
 
@@ -183,11 +182,14 @@ Start here for the headless, general-purpose system:
   rights records and the repository approval gate.
 - [Repository storage](repository-storage.md) — generated files and Git LFS.
 - [Game-engine evaluation](game-engine-evaluation.md) — the criteria, the seam,
-  and the one genre for which the evaluation has been run.
-- [Web preview adapter](web-preview.md) — optional first consumer.
-- [Godot host](godot-host.md) — the second consumer, for the survival recipe:
-  what it is handed, how to run it, how it is validated headlessly, and what it
-  owns and must not own.
+  and how one genre's measurement became the repository's engine.
+- [The host contract](spec/game/host-contract.md) — what every host owes, in
+  terms no engine supplies: the layers, the loop rules, refusals, the run root,
+  the template, the export, the bridge.
+- [Godot hosts](godot-host.md) — the operating manual: what a host is handed,
+  how to run one, how it is validated headlessly, what it owns and must not own.
+- [The web viewer](web-viewer.md) — the run list, the run view, the inspector,
+  the gallery and the asset route; it plays nothing.
 - [Visual Novel Scene Kit asset contract](spec/dialogue-scene-assets.md) —
   the current producer/consumer boundary: one authored package contract
   (`dialogue-scene-v5`, one scene binding several scenarios, with per-actor

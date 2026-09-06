@@ -102,10 +102,16 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
     # `TODO.md` is one line per open item, each linking to the decision, plan or
     # spec that holds its context, so it is link-checked like the rest of the
     # documentation rather than only scanned for stale prose.
+    # `VERIFICATION.md` and `DESIGN.md` name the locked gate and the surfaces, and were in
+    # no list at all; `CLAUDE.md` is a symlink to `AGENTS.md` and is already governance. The
+    # Godot operating manuals are documentation like any other and are held to the same
+    # links and paths (decision 0061 makes them the manuals for every genre).
     markdown = [
         *[path for path in doctrine if path.exists()],
         *[path for path in governance if path.exists()],
+        *[path for path in (repo / "VERIFICATION.md", repo / "DESIGN.md") if path.exists()],
         *_walk_files(repo / "docs", frozenset({".md"})),
+        *_walk_files(repo / "godot", frozenset({".md"})),
         *concept_markdown,
     ]
     failures: list[str] = []
@@ -138,8 +144,15 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         if env_assignments.get(secret_name, "") != "":
             failures.append(f".env.example: {secret_name} must remain blank")
 
+    # A record and a walked plan are history: they describe what was true when they were
+    # written, and the identity contract test exempts them for the same reason. Holding
+    # them to today's tree would mean amending a ruling every time the tree moved past it,
+    # which `docs/decisions/README.md` forbids outright.
+    history_roots = ("docs/decisions/", "docs/plans/", "docs/research/", "docs/media/")
     link_pattern = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
     for markdown_file in markdown:
+        if markdown_file.relative_to(repo).as_posix().startswith(history_roots):
+            continue
         source = markdown_file.read_text(encoding="utf-8")
         for raw_target in link_pattern.findall(source):
             target = raw_target.strip()
@@ -156,14 +169,14 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
     # documents kept pointing at a recipe package deleted in a rename, and four
     # specifications named modules that never came back from a refactor; a
     # reader trusts a path in backticks more than a sentence, so a wrong one
-    # is worse than none. History under docs/research and docs/media is
-    # exempt: it describes what was.
+    # is worse than none. History is exempt — docs/research, docs/media, and
+    # the decision and plan records, which describe what was.
     source_path_pattern = re.compile(
         r"`((?:src|web|scripts|tests|library|concept-studio|godot)/[A-Za-z0-9_./-]+?)(?:::[^`]*)?`"
     )
     for markdown_file in markdown:
         relative = markdown_file.relative_to(repo).as_posix()
-        if relative.startswith(("docs/research/", "docs/media/")):
+        if relative.startswith(history_roots):
             continue
         source = markdown_file.read_text(encoding="utf-8")
         for match in source_path_pattern.findall(source):
@@ -284,9 +297,9 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
     readme = (repo / "README.md").read_text(encoding="utf-8")
     if (
         re.search(r"\bgeneral\b", readme, re.IGNORECASE) is None
-        or re.search(r"optional web-based scrolling-game\s+preview", readme, re.IGNORECASE) is None
+        or re.search(r"optional web-based run viewer", readme, re.IGNORECASE) is None
     ):
-        failures.append("README.md: missing general-core / optional-preview framing")
+        failures.append("README.md: missing general-core / optional-viewer framing")
 
     media_policy = (repo / "docs/generated-media-publication.md").read_text(encoding="utf-8")
     policy_requirements = (
@@ -364,12 +377,17 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
             "opaque exclusion",
         ),
         (
-            "docs/web-preview.md",
+            "docs/web-viewer.md",
             re.compile(
-                r"web/` (?:starts|launches) no run",
+                r"web/` (?:starts|launches|plays) no run",
                 re.IGNORECASE,
             ),
             "web is not a generation authority",
+        ),
+        (
+            "docs/web-viewer.md",
+            re.compile(r"no gameplay", re.IGNORECASE),
+            "web holds no game logic",
         ),
     )
     # `web/` consumes published contracts; it must not be able to start a run. A shell that

@@ -1,7 +1,13 @@
 # Browser scene-layer contract
 
-> **CURRENT consumer contract.** The inference rules below remain executable
-> for `prepared-game-runtime-v12`. The ratified
+> **Superseded as a runtime contract.** The browser adapter these rules were
+> written for is retired under
+> [decision 0061](decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md);
+> the platformer's Godot host resolves the same published `id`, `z_index`,
+> `parallax` and `opaque` fields, and the depth ladder is the host's one
+> ordered vocabulary. The inference rules below are the reasoning that produced
+> them, and the fallback thresholds are still executable for
+> `prepared-game-runtime-v12`. The ratified
 > [Authored map-generation contract](spec/game/map-generation-contract.md)
 > makes layer plane and order explicit per map; the implementation cutover will
 > remove browser inference from opaque/parallax thresholds and select each

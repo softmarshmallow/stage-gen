@@ -13,7 +13,7 @@ Rulings live in [decisions](docs/decisions/README.md) — one record per ruling,
 The contract is [authored game UI](docs/spec/game/ui.md); the taxonomy is [ui-atlas](docs/spec/game/ui-atlas.md).
 
 - [ ] Replace the drawn `inventory_panel` with a composition: retire the fixed `inventory_grid_4x2_v1` role (one picture of eight slots that no game outside the platformer's pack shape can use) and promote `slot_cell` from the taxonomy as a generated role beside `panel_frame`, so a pack of any slot count is the panel frame stretched around a grid of slot cells. Drop the role and its nodes, gate, evidence and review with the two Bellweather documents that declare it, re-pin the platformer's UI group and the web `InventoryHud`, and switch the survival host's code-drawn slot wells to the new cell — one contract bump, no alias. Until then the survival host draws its slots as plain dark wells inside the generated frame, on purpose.
-- [ ] Give the point-and-click room its cursors: the taxonomy's genre pack lists cursor icons for the room, and `cursor_set` (game-ui-v5) now exists as a fixed pointer vocabulary with measured hotspots, but every browser-hosted recipe refuses a document that declares it because no web consumer draws a custom pointer yet. The consumer half is a CSS `cursor: url(...) x y` from the published cell and hotspot on the room scene's canvas, the Act and Look verbs switching `hand` and `inspect`; then the room's refusal lifts and The Clockmaker's Attic declares the set. One image and one review per room document.
+- [ ] Give the point-and-click room its cursors: the taxonomy's genre pack lists cursor icons for the room, and `cursor_set` (game-ui-v5) is a fixed pointer vocabulary with measured hotspots that no recipe refuses any more ([0062](docs/decisions/0062-the-pointer-belongs-to-every-host.md)). What is left is authored and consumer work: The Clockmaker's Attic declares the set, and the room's Godot host installs the glyphs for its verbs the way the survival host does — `hand` and `inspect` on Act and Look. One image and one review per room document.
 - [ ] Re-brief Ember Hollow's `preview_icons` to the two flat tones its style plate has, or take the one-tone clause out of the role's prompt: the run `out/ember-hollow-v8` review rejected the set for the lit-and-shadow facets the package's `[style]` asks of every shape, while every glyph registered and the set reads as one hand. One image operation, and nothing reads the sheet yet — the host's glyphs are the pack's own icon sheet ([ui.toml](library/games/ember-hollow/ui.toml)).
 
 ## Scenario
@@ -22,6 +22,14 @@ The contract is [scenario](docs/spec/game/scenario.md); the component ruling is 
 
 - [ ] Split Larkfield's style plate from Nao's identity plate — authoring in one package, and it re-bills all fifteen images, so batch it with the next run that regenerates ([0056](docs/decisions/0056-the-style-plate-is-split-not-swapped.md)).
 - [ ] M2, the player shell: persistence, save slots, backlog, skip-already-read, auto-advance, preferences. Cross-genre, and the same missing substrate the champion roster is blocked on — build it once for both.
+
+## The Godot promotion
+
+The ruling is [0061](docs/decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md); the path is [the promotion plan](docs/plans/godot-promotion-plan.md), which dies when it is walked. Every genre's host is a Godot host and `web/` becomes the run viewer alone. Each line below is a step's remaining work, and each retirement carries its own record.
+
+- [ ] Walk the promotion plan: the viewer decoupled, the mono-project, the export factory, the kernel in GDScript, the suite in the locked gate, the browser instruments, then the runner, the platformer, and the room, the scene and the case.
+- [ ] Hosting is deliberately not in that plan: the upload, channel pointers, a catalogue, cache and CORS policy, and rights activation on published bytes stay in [issue 8](https://github.com/softmarshmallow/stage-gen/issues/8) until the export loop is proved end to end.
+- [ ] Three follow-ups the promotion defers by name, each provider-free with the cache-key golden as its proof: a per-block version table for the room manifest, the dialogue bundle and the survival manifest; the survival document's `schema_version`, which is pinned at 1 beside a kind that says v2; and the dialogue bundle's HTML `alt` fields, which become a host's accessibility names or leave.
 
 ## Runtime acceptance
 
@@ -105,7 +113,7 @@ The adoption and what it refuses are [0025](docs/decisions/0025-cookierun-is-ado
 
 ## Survival
 
-The contract is [oblique-survival](docs/spec/survival/generation-v1.md); the host ruling is [0057](docs/decisions/0057-the-survival-game-runs-on-godot.md). The game has no browser surface; its runs are legible at `/runs` through the registered `oblique-survival-execution-view-v1` kind, which is the only place `web/` names the recipe.
+The contract is [oblique-survival](docs/spec/survival/generation-v1.md); the host ruling is [0057](docs/decisions/0057-the-survival-game-runs-on-godot.md), extended to every genre by [0061](docs/decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md). The game has no browser surface; its runs are legible at `/runs` through the registered `oblique-survival-execution-view-v1` kind, which is how every genre's runs will be legible once the promotion is walked.
 
 - [ ] Act on the seasons review's advisory that the standing-plant sheet's thin outlines and brighter palette sit a step outside the set's muted ink: it is a re-brief of the sheet's style emphasis and one image operation, and the user's verdict comes first ([survival ground](docs/spec/survival/ground.md)).
 - [ ] Remove the snow mound the winter look clause invites under a tuft's base — the ground has its own snow, so a look must not paint it twice; one clause edit plus per-state overrides for the three pairs whose winter twin re-branches rather than caps ([survival seasons](docs/spec/survival/seasons.md)).

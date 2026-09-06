@@ -43,7 +43,7 @@ type IdentityRole = Literal[
 ROLE_MEANING: dict[IdentityRole, str] = {
     "authored": "a document an author writes and the pipeline validates",
     "generated": "a document the pipeline writes and a consumer or a later node reads",
-    "manifest": "a runtime manifest a web consumer parses",
+    "manifest": "a runtime manifest a host parses",
     "block": "one named block of a runtime manifest, versioned on its own (C-R3)",
     "graph": "a sealed execution-graph document",
     "mode": "a closed-vocabulary word inside a document that selects a producer",
@@ -150,7 +150,7 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, IdentitySource], ...] = (
     ("generated", _field("recipes.dialogue_scene.models", "IndependentReview")),
     ("generated", _field("recipes.dialogue_scene.models", "DialogueBundle")),
     ("generated", _field("recipes.universe.models", "SampleLedger")),
-    # Runtime manifests: what a web consumer parses.
+    # Runtime manifests: what a host parses.
     (
         "manifest",
         _constant("recipes.sideview_platformer.package_types", "PREPARED_RUNTIME_MANIFEST_KIND"),

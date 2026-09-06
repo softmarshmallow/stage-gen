@@ -17,11 +17,12 @@ either.
 The two atlas roles and the icon set are required of any game that has a UI document at all,
 because every genre draws panels, buttons and a few system icons. The inventory panel and the
 cursor set are optional. The panel is one genre's fixed eight-slot furniture, and the cursors
-belong to a runtime that owns a mouse pointer: a visual novel or a puzzle room that declared
-either would be describing a screen it never draws. A recipe whose runtime needs one refuses a
-document without it at resolve time, which is where a runtime requirement belongs, and the
-mirror holds — the three browser-hosted recipes refuse a document that declares a `cursor_set`,
-because the browser draws their pointer and the sheet would be billed and never shown.
+belong to a game whose host draws a pointer: a game played by touch or by a controller that
+declared one would be describing a screen it never shows. A recipe whose runtime needs a role
+refuses a document without it at resolve time, which is where a runtime requirement belongs.
+The mirror does not hold for the pointer: no recipe refuses a `cursor_set`, because every host
+can draw one ([decision 0062](../../decisions/0062-the-pointer-belongs-to-every-host.md)), and
+whether a game wants drawn pointers is the author's call.
 
 `game_id` names the package the document belongs to, in whichever shape that package names
 itself: game contracts are kebab-case and rooms are snake_case, and the one document shared by
@@ -249,9 +250,9 @@ sheet publishes no button.
 preview icons and for the same reason: an image model draws a named pointer arrow, a pointing
 hand or an hourglass dependably and a bespoke pointer not, so the glyphs, their order, the grid
 and the hotspot rule per glyph belong to the layout, and the authored `prompt` is style direction
-alone. It is optional because it belongs to a runtime that owns a mouse pointer; today that is the
-survival game's Godot host, and the three browser-hosted recipes refuse a document that declares
-it.
+alone. It is optional because a game may have no pointer to draw — a touch build, a controller
+build — not because a runtime is forbidden one. Ember Hollow is the package that declares a set
+today; any other may.
 
 `cursor_grid_3x3_1024_v1` is one 1024 by 1024 canvas holding nine 288-pixel guide cells on a
 48-pixel gutter inside a 32-pixel margin, in reading order, each with the rule its hotspot is
@@ -337,13 +338,13 @@ The prompt is composed at plan time and carried on the node card, so a reader se
 instruction the provider will be given without running anything, and a recipe that gates on full
 static prompts admits these nodes like any other.
 
-Five consumers draw from the sheets today:
+Five games draw from the sheets today, each played by its own Godot host:
 
 | Game | `panel_frame` | `button_rect` | `preview_icons` | `cursor_set` |
 | --- | --- | --- | --- | --- |
-| Bellweather, side-view platformer | defeat panel, NPC conversation box | return button | `home` on the return button | not declared; the browser's pointer |
-| Larkfield, visual novel | dialogue box, end card | choice list, play-again control | `retry` as the end card's icon-only button | not declared; the browser's pointer |
-| The Clockmaker's Attic, point-and-click | HUD bar, narration plate, win card | verb bar | `hand` and `search` on the Act and Look verbs | not declared; the browser's pointer |
+| Bellweather, side-view platformer | defeat panel, NPC conversation box | return button | `home` on the return button | not declared |
+| Larkfield, visual novel | dialogue box, end card | choice list, play-again control | `retry` as the end card's icon-only button | not declared |
+| The Clockmaker's Attic, point-and-click | HUD bar, narration plate, win card | verb bar | `hand` and `search` on the Act and Look verbs | not declared |
 | Ember Hollow, oblique survival (Godot host) | every panel: vitals, hotbar, worn places, item card, message, crafting table, pause menu, death sheet | every button, the four states as the theme's styleboxes | not yet read; the pack's glyphs are its own icon sheet | the mouse pointer: `arrow`, `hand` over a thing that can be acted on, `crosshair` while a built thing is placed, and the rest installed for the shapes they stand for |
 | Iron Petal Unit, runner | not yet wired | not yet wired | not yet wired | not declared |
 

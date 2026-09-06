@@ -582,7 +582,7 @@ This document does not:
   surface that acquires any of those has stopped being this contract;
 - restate or amend the [sequence contract](dialogue-and-cutscene-sequences.md),
   which remains the canonical semantic authority;
-- select or replace the browser engine, which stays the shared Phaser consumer;
+- select or replace the engine, which every genre's host already answers;
 - define the persistence or save-state contract, which the shell owns;
 - generate story text, choices, or outcomes — a scenario is authored; or
 - authorize any generated asset for publication.

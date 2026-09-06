@@ -1,5 +1,12 @@
 # Runtime composition: families, genres, and the sealed tick
 
+> **History.** This document described the browser runtime, whose four layers were
+> kernel, families, genres and hosts in TypeScript. Every genre is hosted by Godot
+> since [decision 0061](../decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md); the layers survive in GDScript and the contract
+> that replaced this page is [the host contract](../spec/game/host-contract.md).
+> Kept for the audits and the reasoning behind each rule, not as a current spec.
+
+
 > **Checked by:** none.
 
 Status: draft for sign-off, second pass. The first pass was a sample; this one
@@ -9,7 +16,7 @@ published contracts against the planned genres). Every claim below has a
 `file:line` behind it in the audit notes; the ones that changed a decision are
 cited inline. Nothing here is implemented beyond what "Where it stands" says,
 which is measured against the tree rather than against the audits: steps 0
-through 7 of [the plan](../../plans/runtime-composition-plan.md) landed after
+through 7 of [the plan](runtime-composition-plan.md) landed after
 this document was written, so the kernel, the ring-1 families and both
 side-view genres on them are built, and what is left open is named in the
 table.
@@ -457,7 +464,7 @@ The runner is one genre on the kernel, and one consumer is not a protocol.
 The platformer is where the contract earns or loses its name. The path — one
 taxonomy ruling per step, each with a fact, a challenge, a machine proof, a
 played artifact and a falsifier — is in
-[runtime-composition-plan.md](../../plans/runtime-composition-plan.md). In outline:
+[runtime-composition-plan.md](runtime-composition-plan.md). In outline:
 instruments and prerequisites; the kernel additions proven on the runner;
 the strangler; `clock`/`session`/`intent`/`vitals`/`screen-fx`;
 `soundtrack`/`cues`/`camera`/`particles`; the space and the actors; the

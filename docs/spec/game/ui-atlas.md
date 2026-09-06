@@ -234,9 +234,9 @@ here need more than these sixteen; see [ui.md](ui.md).
 nine-pointer grid (arrow, hand, grab, crosshair, inspect, busy, forbidden,
 move, text) whose vocabulary belongs to the layout and whose one addition over the
 icon grid is a measured hotspot per glyph, read from the drawn alpha by a rule
-the glyph names. It is the first optional sheet role, because a pointer belongs
-to a runtime that owns one — the survival game's Godot host — and the
-browser-hosted recipes refuse a document that declares it; see [ui.md](ui.md).
+the glyph names. It is the first optional sheet role, because a game may have no
+pointer to draw — a touch build, a controller build — while every host can draw
+one when a package asks for it; see [ui.md](ui.md).
 
 ### Unratified: more glyphs for the same image
 

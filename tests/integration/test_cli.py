@@ -822,11 +822,14 @@ def test_oblique_survival_cli_dry_runs_a_scope_and_exports_its_view(
     assert report["recipe"] == "oblique-survival"
     assert report["scope"] == "minimal"
     assert report["package_id"] == "ember-hollow"
-    assert report["node_count"] == 71
+    # The scope table in `docs/spec/survival/generation-v1.md` is the same count.
+    # It fell by seven nodes and one image when the litter and plant sheets went
+    # and the fern clump with them (decision 0060), and this pin was missed then.
+    assert report["node_count"] == 64
     # A rehearsal accounts for what the real run would spend, node for node, and
     # spends none of it: the dry-run handler stands in for every service.
-    assert report["provider_operation_counts"]["image_generation"] == 22
-    assert report["provider_operation_counts"]["tool_loop"] == 6
+    assert report["provider_operation_counts"]["image_generation"] == 21
+    assert report["provider_operation_counts"]["tool_loop"] == 5
 
     # A rehearsal publishes placeholders, so the run holds no manifest to report a
     # status for. Rebuilding one from what is on disk is what says so out loud.
@@ -878,10 +881,10 @@ def test_oblique_survival_plan_prices_a_scope_without_touching_a_provider(
     assert report["scope"] == "full"
     assert report["package_id"] == "ember-hollow"
     assert report["graph"]["kind"] == "oblique-survival-execution-graph-v1"
-    assert len(report["graph"]["nodes"]) == 289
+    assert len(report["graph"]["nodes"]) == 278
     # An empty cache restores nothing, and says how much that leaves to pay for.
     assert report["cache"]["restored_provider_nodes"] == 0
-    assert report["cache"]["billed_provider_nodes"] == 133
+    assert report["cache"]["billed_provider_nodes"] == 129
 
 
 def test_oblique_survival_failure_injection_is_refused_outside_a_dry_run(

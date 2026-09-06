@@ -1,9 +1,12 @@
 # The engineering pass
 
-Status: draft for sign-off. Companion to
-[runtime-composition.md](../spec/game/runtime-composition.md) (the runtime's
-end state) and [runtime-composition-plan.md](runtime-composition-plan.md)
-(the runtime's path). This document is the whole system: pipeline core,
+Status: draft for sign-off. Its runtime workstream is superseded: the browser
+runtime it planned around is being retired genre by genre under
+[decision 0061](../decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md),
+and the path is [the Godot promotion](godot-promotion-plan.md). The two
+documents it was written beside are history at
+[runtime-composition-web.md](../research/runtime-composition-web.md) and
+[runtime-composition-plan.md](../research/runtime-composition-plan.md). This document is the whole system: pipeline core,
 recipes, components, contracts, verification, library, docs, process. It was
 written after ten audits — five of the runtime, five of everything else — and
 every card below cites its evidence.
@@ -217,7 +220,13 @@ removes the most duplication first.
 
 ### E. Runtime
 
-Already planned in full. The dependency edges into this document:
+**Superseded by [the Godot promotion](godot-promotion-plan.md).** Steps 0 to 7
+landed — the kernel, the ring-1 families and both side-view genres are built —
+and the layer taxonomy they proved is what moves into GDScript rather than
+being redesigned. What does not carry: the browser host work, the remaining
+platformer extraction inside a Phaser scene, and the minigame capstone, which
+becomes a genre on the Godot kernel or nothing. The edges below are kept for
+what they say about the pipeline side, which is unchanged:
 
 - Runtime step 0 (instruments) **is** A8.
 - Runtime step 1 (kernel additions) has no pipeline dependency and can start

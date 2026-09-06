@@ -935,7 +935,7 @@ now**, with the local error falling from 0.10–0.18 to 0.010–0.027. The look'
 card geometry was never involved: `looks.winter` carries the state's own
 `width_px`, `height_px` and `px_per_meter`, so a winter card is the summer
 card's quad with a different picture on it — asserted for all twenty-nine
-looked states in `tests/test_cards.gd`'s `_look_geometry`.
+looked states in `godot/oblique_survival/tests/test_cards.gd`'s `_look_geometry`.
 
 Adding the reference recipes' real-time waits to *every* shot's advances was
 tried and rejected for the summer ones: `camp-noon` at +3 s, +5 s and +8 s of

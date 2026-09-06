@@ -95,11 +95,11 @@ not defaults for reusable components or future recipes.
 
 ## Engine status
 
-No gameplay engine decision is locked. The browser genre runtimes are useful
-for inspection today, while Godot and other dedicated 2D runtimes may be
-evaluated later. Evaluation must consider import automation, animation,
-rendering, collision, portability, licensing, and the ability to consume the
-same engine-agnostic manifests. Generation work must not wait for that choice.
+Godot 4.7 is the engine for every genre, chosen on measured criteria for one
+genre and extended to the repository by direction (decisions 0057 and 0061). A
+host consumes the same engine-agnostic manifests every other consumer reads,
+and the choice stays reversible because nothing on the generating side names
+it. Generation work never waits on a host.
 
 ## OSS and rights boundary
 

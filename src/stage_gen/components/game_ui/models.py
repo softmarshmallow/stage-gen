@@ -144,9 +144,9 @@ class CursorSetDirection(PersistedContractModel):
     """Presentation inputs for the fixed cursor set.
 
     Like the icon set, the pointers, their order, the grid and the hotspot rule per pointer
-    are the layout's; the prompt is style direction only. Declared by a game whose runtime
-    owns a mouse pointer, and by no other: a touch game or one that leaves the pointer to
-    the browser would be authoring a picture it never draws.
+    are the layout's; the prompt is style direction only. Optional for every game: one whose
+    host draws a pointer declares the set, and one played by touch or by a controller omits
+    it rather than authoring a picture nothing shows (decision 0062).
     """
 
     layout: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
