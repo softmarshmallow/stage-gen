@@ -201,17 +201,26 @@ class PropTool(TypedDict):
     required: bool
 
 
-class PropInteraction(TypedDict):
-    verb: str
-    hits: int
-    next_state: str
-    fx: str
-    regrow_seconds: float | None
-    progress: list[str]
-    yields: list[PropYield]
-    #: ``hand`` (into the pack at the last blow) or ``ground`` (dropped there).
-    yield_to: str
-    tool: PropTool | None
+#: One thing that can be done to a prop. ``from`` is the states it is on offer
+#: from (a keyword, hence the functional form); ``yield_to`` is ``hand`` (into
+#: the pack at the last blow) or ``ground`` (dropped there). A prop lists
+#: several in priority order; the consumer offers the first available one for
+#: the prop's current state.
+PropInteraction = TypedDict(
+    "PropInteraction",
+    {
+        "verb": str,
+        "from": list[str],
+        "hits": int,
+        "next_state": str,
+        "fx": str,
+        "regrow_seconds": float | None,
+        "progress": list[str],
+        "yields": list[PropYield],
+        "yield_to": str,
+        "tool": PropTool | None,
+    },
+)
 
 
 class PropDrawn(TypedDict):
@@ -239,7 +248,7 @@ class PropBlock(TypedDict):
     drawn: PropDrawn
     variants: PropVariants | None
     states: dict[str, PropState]
-    interaction: PropInteraction | None
+    interactions: list[PropInteraction]
     anchor_record: str | None
 
 
@@ -1147,32 +1156,36 @@ def _prop_block(package: Package, run_dir: Path, prop: Prop) -> PropBlock | None
     if not states:
         return None
 
-    interaction: PropInteraction | None = None
-    if prop.interaction is not None:
-        interaction = {
-            "verb": prop.interaction.verb,
-            "hits": prop.interaction.hits,
-            "next_state": prop.interaction.next_state,
-            "fx": prop.interaction.fx,
-            "regrow_seconds": prop.interaction.regrow_seconds,
-            "progress": list(prop.interaction.progress),
+    interactions: list[PropInteraction] = [
+        {
+            "verb": interaction.verb,
+            # The states this is on offer from; the consumer resolves the
+            # first available one, in this order, for the prop's state.
+            "from": list(interaction.from_states),
+            "hits": interaction.hits,
+            "next_state": interaction.next_state,
+            "fx": interaction.fx,
+            "regrow_seconds": interaction.regrow_seconds,
+            "progress": list(interaction.progress),
             "yields": [
                 {"item_id": produced.item_id, "count": produced.count}
-                for produced in prop.interaction.yields
+                for produced in interaction.yields
             ],
             # Gameplay: where the yield goes when the last blow lands.
-            "yield_to": prop.interaction.yield_to,
+            "yield_to": interaction.yield_to,
             # Gameplay: the tool the verb wants, and what the bare hand may do.
             "tool": (
                 {
-                    "item_id": prop.interaction.tool.item_id,
-                    "hits": prop.interaction.tool.hits,
-                    "required": prop.interaction.tool.required,
+                    "item_id": interaction.tool.item_id,
+                    "hits": interaction.tool.hits,
+                    "required": interaction.tool.required,
                 }
-                if prop.interaction.tool is not None
+                if interaction.tool is not None
                 else None
             ),
         }
+        for interaction in prop.interactions
+    ]
     return {
         "family": prop.family,
         "height_meters": round(height_meters, 4),
@@ -1196,7 +1209,7 @@ def _prop_block(package: Package, run_dir: Path, prop: Prop) -> PropBlock | None
             else None
         ),
         "states": states,
-        "interaction": interaction,
+        "interactions": interactions,
         "anchor_record": anchor_ref(prop.prop_id) if anchor_record else None,
     }
 

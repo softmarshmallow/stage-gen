@@ -78,7 +78,14 @@ nothing) rather than at the cursor, and the cursor becomes a hand over anything
 clickable. The thing **in reach** — the key's target, `world.target` — lifts
 the same way and is named in the accent colour with what Space would do to it
 (`mine boulder · needs a pickaxe`); that label replaced the prompt strip that
-stood above the hotbar, so nothing is pinned to the screen for it. Both labels
+stood above the hotbar, so nothing is pinned to the screen for it. A thing that
+cannot be acted on yet is still lit and named with what it needs, but neither
+Space nor a click walks the player to it: the refusal is said and the player
+stays put. What a thing offers is resolved from the package's list of
+interactions for it (`[[props.interactions]]`, each from the states it applies
+to, in priority order): the first whose state matches and whose tool is carried
+is the offer, so the dead snag is chopped with an axe and snapped for twigs by
+hand without one, and a broken snag waits for the axe. Both labels
 are outlined text with no panel behind them. A drop is the target from the
 moment it leaves the thing that yielded it and is taken once it settles, and
 while a felled trunk's logs are still on their way down the held key waits for

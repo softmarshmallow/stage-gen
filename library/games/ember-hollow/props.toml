@@ -1,5 +1,5 @@
 schema_version = 1
-kind = "oblique-survival-props-v1"
+kind = "oblique-survival-props-v2"
 package_id = "ember-hollow"
 
 motion_hint_allowed = ["sway_top", "bob", "flicker", "none"]
@@ -20,6 +20,18 @@ hit_reaction_allowed = ["shake", "none"]
 # The verb says nothing about it: gathering by hand is `hand`, anything a tool
 # knocks loose is `ground`. (The contract came 2026-09-06; before it every
 # yield dropped.)
+#
+# What can be done to a prop is a list, [[props.interactions]], each entry
+# saying the states it applies `from` (required, explicit: a fire is lit from
+# `unlit`, a boulder mined from `whole` and from every progress look, a bush
+# gathered from `full`). The consumer offers, for the prop's current state, the
+# first entry in this order whose `from` holds the state and whose tool, if
+# required, is carried; when none is available the first that applies is shown
+# with its refusal ("needs a Flint axe"), and the key will not walk to it. So the
+# order is the priority: list the tool's way first and the hand's way after, and
+# a player with the axe chops while a player without it snaps twigs. One verb
+# per state per prop. (props-v2, 2026-09-06; v1 had one `[props.interaction]`
+# whose states were inferred from next_state.)
 
 # height_units are multiples of the player's height. edge = "soft" turns on
 # alpha-to-coverage in the viewer for foliage that a hard 0.5 cutoff chews up.
@@ -107,7 +119,8 @@ face and a few chips at its base.
 states = ["sapling", "grown", "old"]
 weights = [0.2, 0.6, 0.2]
 
-[props.interaction]
+[[props.interactions]]
+from = ["sapling", "grown", "old"]
 verb = "chop"
 hits = 3
 next_state = "stump"
@@ -152,7 +165,8 @@ The same thicket stripped bare of fruit: no berries anywhere, a few empty stems
 left where clusters hung. The cane structure and overall silhouette are unchanged.
 """
 
-[props.interaction]
+[[props.interactions]]
+from = ["full"]
 verb = "gather"
 hits = 1
 next_state = "picked"
@@ -211,7 +225,8 @@ Only a low heap of broken grey stone remains, about a third the height of the
 whole rock, with the moss cap lying in pieces on top.
 """
 
-[props.interaction]
+[[props.interactions]]
+from = ["whole", "cracked", "split"]
 verb = "mine"
 hits = 3
 progress = ["cracked", "split"]
@@ -256,7 +271,8 @@ Cropped to short stubble: the same clump with the blades cut off low, leaving a
 ragged tuft no taller than an ankle. Nothing else changes.
 """
 
-[props.interaction]
+[[props.interactions]]
+from = ["standing"]
 verb = "gather"
 hits = 1
 next_state = "cut"
@@ -293,7 +309,8 @@ The wood charred and glowing at its base with hot orange embers between the logs
 but with no flame drawn above it: the flame is a separate animated element.
 """
 
-[props.interaction]
+[[props.interactions]]
+from = ["unlit"]
 verb = "light"
 hits = 1
 next_state = "lit"
@@ -387,7 +404,8 @@ than the grown tree's trunk, with a clean cut face showing pale wood.
 states = ["sapling", "grown", "old"]
 weights = [0.2, 0.6, 0.2]
 
-[props.interaction]
+[[props.interactions]]
+from = ["sapling", "grown", "old"]
 verb = "chop"
 hits = 3
 next_state = "stump"
@@ -449,7 +467,8 @@ trunk, with a ragged cut face and a strip of bark hanging off it.
 states = ["standing", "leaning"]
 weights = [0.7, 0.3]
 
-[props.interaction]
+[[props.interactions]]
+from = ["standing", "leaning", "broken"]
 verb = "chop"
 hits = 2
 progress = ["broken"]
@@ -458,6 +477,19 @@ fx = "chips"
 tool = { item_id = "axe", hits = 2, required = true }
 yield_to = "ground"
 yields = [{ item_id = "log", count = 1 }]
+
+# Without an axe the dead branches still snap off by hand: the top goes (the
+# same `broken` look the first axe blow leaves) and two twigs are taken. The
+# broken trunk then waits for an axe. Listed after the chop, so a carried axe
+# is what the key does first.
+[[props.interactions]]
+from = ["standing", "leaning"]
+verb = "gather"
+hits = 1
+next_state = "broken"
+fx = "chips"
+yield_to = "hand"
+yields = [{ item_id = "twig", count = 2 }]
 
 [props.season_prompt.winter]
 standing = "snow along every upper edge of the bare grey limbs and a cap on the broken top"
@@ -528,7 +560,8 @@ The same bush cut back hard: every twig snapped off short a hand above the
 root, a stubby fan of broken ends no taller than an ankle. Nothing else changes.
 """
 
-[props.interaction]
+[[props.interactions]]
+from = ["full"]
 verb = "gather"
 hits = 1
 next_state = "cut"
@@ -571,7 +604,8 @@ Cut down to short stubble: the same clump with the stems cut off low, leaving a
 ragged tuft of green stubs no taller than an ankle. Nothing else changes.
 """
 
-[props.interaction]
+[[props.interactions]]
+from = ["standing"]
 verb = "gather"
 hits = 1
 next_state = "cut"

@@ -1698,11 +1698,11 @@ def test_the_crafting_table_and_the_item_gameplay_are_mixing_that_no_node_reads(
         "package-manifest",
     }
     pine = package.prop("pine")
-    assert pine.interaction is not None and pine.interaction.tool is not None
+    assert pine.interactions[0].tool is not None
     bare = replace(
         package,
         props=tuple(
-            replace(prop, interaction=replace(pine.interaction, tool=None))
+            replace(prop, interactions=(replace(pine.interactions[0], tool=None),))
             if prop.prop_id == "pine"
             else prop
             for prop in package.props
@@ -1753,12 +1753,14 @@ def test_the_manifest_carries_the_crafting_table_and_every_item_s_gameplay(
     assert [cell["glyph"] for cell in icons["cells"] if "glyph" in cell] == [
         glyph.glyph for glyph in package.icons.glyphs
     ]
-    assert document["props"]["pine"]["interaction"]["tool"] == {
+    assert document["props"]["pine"]["interactions"][0]["tool"] == {
         "item_id": "axe",
         "hits": 2,
         "required": True,
     }
-    assert document["props"]["thorn_bush"]["interaction"]["tool"] is None
+    assert document["props"]["pine"]["interactions"][0]["from"] == ["sapling", "grown", "old"]
+    assert document["props"]["thorn_bush"]["interactions"][0]["tool"] is None
+    assert [i["verb"] for i in document["props"]["dead_snag"]["interactions"]] == ["chop", "gather"]
     assert "recipe" not in document["gameplay"]["campfire"]
     forage = document["ground"]["forage"]
     assert package.forage is not None

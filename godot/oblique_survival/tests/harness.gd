@@ -9,7 +9,7 @@ extends RefCounted
 ## actually emits. `out/ember-hollow-v1` is the promoted run — manifest kind
 ## `oblique-survival-manifest-v1` over a package byte-identical to the spike's
 ## `full-v66`, so every count in these tests is the same number.
-const DEFAULT_RUN_DIR := "/Users/universe/Documents/shared/stage-gen/out/ember-hollow-v5"
+const DEFAULT_RUN_DIR := "/Users/universe/Documents/shared/stage-gen/out/ember-hollow-v6"
 
 ## The run this suite is pointed at: `DEFAULT_RUN_DIR`, or the directory after
 ## `-- --run` on the command line.

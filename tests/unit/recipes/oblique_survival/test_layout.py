@@ -308,7 +308,7 @@ def test_a_placed_variant_may_not_start_spent(tmp_path: Path) -> None:
         states='["a", "b", "c"]',
         extra=(
             'variants = { states = ["a", "c"] }\n'
-            '[props.interaction]\nverb = "mine"\nhits = 2\nnext_state = "c"\n'
+            '[[props.interactions]]\nfrom = ["a", "b"]\nverb = "mine"\nhits = 2\nnext_state = "c"\n'
         ),
         needle="outcomes of its interaction",
     )
@@ -319,7 +319,7 @@ def test_progress_fits_inside_the_hits(tmp_path: Path) -> None:
         tmp_path,
         states='["a", "b", "c", "d"]',
         extra=(
-            '[props.interaction]\nverb = "mine"\n'
+            '[[props.interactions]]\nfrom = ["a", "b", "c"]\nverb = "mine"\n'
             'hits = 2\nprogress = ["b", "c"]\nnext_state = "d"\n'
         ),
         needle="only 1 hits",
@@ -380,7 +380,7 @@ def test_the_manifest_publishes_how_the_looks_were_drawn_and_bound(
     assert pine["baseline_state"] == "grown"
     assert pine["variants"] == {"states": ["sapling", "grown", "old"], "weights": [0.2, 0.6, 0.2]}
     rock = document["props"]["moss_boulder"]
-    assert rock["interaction"]["progress"] == ["cracked", "split"]
+    assert rock["interactions"][0]["progress"] == ["cracked", "split"]
     assert document["props"]["fern_clump"]["drawn"] == {"kind": "sprites"}
 
 
@@ -429,8 +429,9 @@ def test_a_look_size_must_name_a_declared_look(tmp_path: Path) -> None:
 def test_every_tree_is_chopable(package: Package) -> None:
     for prop in package.props:
         if prop.family == "tree":
-            assert prop.interaction is not None and prop.interaction.verb == "chop", prop.prop_id
-            assert prop.interaction.next_state == "stump"
+            chop = [i for i in prop.interactions if i.verb == "chop"]
+            assert chop and chop[0].next_state == "stump", prop.prop_id
+            assert chop[0].tool is not None and chop[0].tool.required, prop.prop_id
             assert prop.authored_height_units("stump") is not None
 
 
@@ -625,8 +626,8 @@ def test_the_authored_crafting_table_is_playable_from_nothing(package: Package) 
     }
     axe_tool = package.item("axe").tool
     assert axe_tool is not None and axe_tool.verb == "chop"
-    chop = package.prop("pine").interaction
-    assert chop is not None and chop.tool is not None
+    chop = package.prop("pine").interactions[0]
+    assert chop.verb == "chop" and chop.tool is not None
     assert chop.tool.required is True
 
 
@@ -720,40 +721,100 @@ def test_a_yield_says_where_it_goes(tmp_path: Path) -> None:
         'yield_to = "hand"\nyields = [{ item_id = "grass_tuft", count = 1 }]',
         'yields = [{ item_id = "grass_tuft", count = 1 }]',
     )
-    _load_refused(root, "grass_tuft.interaction yields something and must say where it goes")
+    _load_refused(root, "grass_tuft.interactions[0] yields something and must say where it goes")
     root = _source_edit(
         tmp_path / "b",
         "props.toml",
         'yield_to = "hand"\nyields = [{ item_id = "grass_tuft", count = 1 }]',
         'yield_to = "sky"\nyields = [{ item_id = "grass_tuft", count = 1 }]',
     )
-    _load_refused(root, "grass_tuft.interaction.yield_to must be one of ['hand', 'ground']")
+    _load_refused(root, "grass_tuft.interactions[0].yield_to must be one of ['hand', 'ground']")
     root = _source_edit(tmp_path / "c", "props.toml", "yields = []", 'yield_to = "hand"\nyields = []')
-    _load_refused(root, "campfire.interaction yields nothing; yield_to has no meaning")
+    _load_refused(root, "campfire.interactions[0] yields nothing; yield_to has no meaning")
 
 
 def test_hand_gathering_fills_the_pack_and_a_tool_drops_its_yield(package: Package) -> None:
     """The authored contract: what the hand gathers is taken; what a tool knocks loose lands."""
 
     where = {
-        prop.prop_id: prop.interaction.yield_to
+        (prop.prop_id, interaction.verb): interaction.yield_to
         for prop in package.props
-        if prop.interaction is not None and prop.interaction.yields
+        for interaction in prop.interactions
+        if interaction.yields
     }
     assert {k for k, v in where.items() if v == "hand"} == {
-        "thorn_bush",
-        "grass_tuft",
-        "twig_bush",
-        "reed_clump",
+        ("thorn_bush", "gather"),
+        ("grass_tuft", "gather"),
+        ("twig_bush", "gather"),
+        ("reed_clump", "gather"),
+        ("dead_snag", "gather"),
     }
     assert {k for k, v in where.items() if v == "ground"} == {
-        "pine",
-        "moss_boulder",
-        "birch",
-        "dead_snag",
+        ("pine", "chop"),
+        ("moss_boulder", "mine"),
+        ("birch", "chop"),
+        ("dead_snag", "chop"),
     }
     campfire = package.prop("campfire")
-    assert campfire.interaction is not None and campfire.interaction.yield_to == "ground"
+    assert campfire.interactions[0].yield_to == "ground"
+
+
+def test_an_interaction_says_the_states_it_applies_from(tmp_path: Path) -> None:
+    """``from`` is required and explicit; progress looks must be in it; one verb per state."""
+
+    _refused(
+        tmp_path,
+        states='["a", "b"]',
+        extra='[[props.interactions]]\nverb = "mine"\nhits = 1\nnext_state = "b"\n',
+        needle="must say the states it applies from",
+    )
+    _refused(
+        tmp_path / "b",
+        states='["a", "b"]',
+        extra='[[props.interactions]]\nfrom = ["z"]\nverb = "mine"\nhits = 1\nnext_state = "b"\n',
+        needle="from names undeclared state 'z'",
+    )
+    _refused(
+        tmp_path / "c",
+        states='["a", "b", "c"]',
+        extra=(
+            '[[props.interactions]]\nfrom = ["a"]\nverb = "mine"\nhits = 2\n'
+            'progress = ["b"]\nnext_state = "c"\n'
+        ),
+        needle="progress look 'b' is not in from",
+    )
+    _refused(
+        tmp_path / "d",
+        states='["a", "b"]',
+        extra=(
+            '[[props.interactions]]\nfrom = ["a"]\nverb = "gather"\nhits = 1\nnext_state = "b"\n'
+            '[[props.interactions]]\nfrom = ["a"]\nverb = "gather"\nhits = 2\nnext_state = "b"\n'
+        ),
+        needle="both gather from 'a'",
+    )
+    _refused(
+        tmp_path / "e",
+        states='["a", "b"]',
+        extra='[props.interaction]\nverb = "mine"\nhits = 1\nnext_state = "b"\n',
+        needle="interaction is not authored any more",
+    )
+
+
+def test_the_snag_is_chopped_with_an_axe_and_snapped_by_hand(package: Package) -> None:
+    """Two interactions on one prop, in priority order, from explicit states."""
+
+    snag = package.prop("dead_snag")
+    assert [i.verb for i in snag.interactions] == ["chop", "gather"]
+    chop, gather = snag.interactions
+    assert chop.from_states == ("standing", "leaning", "broken")
+    assert chop.tool is not None and chop.tool.required
+    assert gather.from_states == ("standing", "leaning")
+    assert gather.tool is None and gather.next_state == "broken" and gather.yield_to == "hand"
+    assert [produced.item_id for produced in gather.yields] == ["twig"]
+    fire = package.prop("campfire").interactions[0]
+    assert fire.verb == "light" and fire.from_states == ("unlit",)
+    boulder = package.prop("moss_boulder").interactions[0]
+    assert boulder.from_states == ("whole", "cracked", "split")
 
 
 def test_a_tool_must_serve_the_verb_that_wants_it(tmp_path: Path) -> None:

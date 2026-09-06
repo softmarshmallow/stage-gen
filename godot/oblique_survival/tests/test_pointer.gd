@@ -143,6 +143,16 @@ func _a_click_on_a_thing_ends_the_walk(h: TestHarness, w: World) -> void:
 	Sim.step(w, SimFixture.STEP)
 	var pine := SimFixture.prop(w, "p1", "pine", "grown", 6.0, 0.0)
 	w.entities.append(pine)
+	# Without an axe the pine is refused: the pointer walk still ends, but no
+	# approach is committed to a thing that could not be acted on.
+	w.input["click_entity"] = pine
+	Sim.step(w, SimFixture.STEP)
+	h.assert_true(w.player.goto == null, "a refused thing clicked still ends the pointer walk")
+	h.assert_true(w.player.approach == null, "but commits no approach to it")
+	h.assert_eq(w.message, "Needs a Flint axe.", "and says what it needs")
+	Inventory.inv_add(w, "axe", 1)
+	w.input["click_point"] = {"x": 5.0, "z": 5.0}
+	Sim.step(w, SimFixture.STEP)
 	w.input["click_entity"] = pine
 	Sim.step(w, SimFixture.STEP)
 	h.assert_true(w.player.goto == null, "a thing clicked ends the pointer walk")

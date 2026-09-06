@@ -248,7 +248,7 @@ def _seasons(
     if not isinstance(rows, list) or not rows:
         raise SourceError("seasons.toml must declare at least one [[seasons]] entry")
     item_ids = {item.item_id for item in items}
-    gatherable = {prop.prop_id for prop in props if prop.interaction is not None}
+    gatherable = {prop.prop_id for prop in props if prop.interactions}
     seasons: list[Season] = []
     looks: dict[str, SeasonLook] = {}
     for row in rows:
@@ -492,23 +492,45 @@ def _facings(block: object, *, role: Literal["player", "mob"], key: str) -> Faci
     return FacingSet(set=chosen, side_view=side_view)
 
 
-def _interaction(block: object, *, prop_id: str, states: Sequence[str]) -> Interaction | None:
-    if block is None:
-        return None
+def _interactions(rows: object, *, prop_id: str, states: Sequence[str]) -> tuple[Interaction, ...]:
+    """``[[props.interactions]]``: each says what it does and the states it does it from."""
+
+    if rows is None:
+        return ()
+    if not isinstance(rows, list):
+        raise SourceError(f"{prop_id}.interactions must be a list of [[props.interactions]] tables")
+    out: list[Interaction] = []
+    for index, row in enumerate(rows):
+        out.append(_interaction(row, field=f"{prop_id}.interactions[{index}]", states=states))
+    offered: dict[tuple[str, str], int] = {}
+    for index, interaction in enumerate(out):
+        for state in interaction.from_states:
+            key = (state, interaction.verb)
+            if key in offered:
+                raise SourceError(
+                    f"{prop_id}.interactions[{index}] and [{offered[key]}] both {interaction.verb} "
+                    f"from {state!r}; one verb per state, or the key could not choose"
+                )
+            offered[key] = index
+    return tuple(out)
+
+
+def _interaction(block: object, *, field: str, states: Sequence[str]) -> Interaction:
     if not isinstance(block, dict):
-        raise SourceError(f"{prop_id}.interaction must be a table")
+        raise SourceError(f"{field} must be a table")
+    prop_id = field
     next_state = _identifier(block.get("next_state"), field=f"{prop_id}.next_state")
     if next_state not in states:
         raise SourceError(
-            f"{prop_id}.interaction.next_state {next_state!r} is not a declared state"
+            f"{prop_id}.next_state {next_state!r} is not a declared state"
         )
     rows = block.get("yields", [])
     if not isinstance(rows, list):
-        raise SourceError(f"{prop_id}.interaction.yields must be a list")
+        raise SourceError(f"{prop_id}.yields must be a list")
     yields: list[Yield] = []
     for row in rows:
         if not isinstance(row, dict):
-            raise SourceError(f"{prop_id}.interaction.yields[] must be a table")
+            raise SourceError(f"{prop_id}.yields[] must be a table")
         count = row.get("count")
         if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= 99:
             raise SourceError(f"{prop_id} yield count must be an integer within [1, 99]")
@@ -517,48 +539,67 @@ def _interaction(block: object, *, prop_id: str, states: Sequence[str]) -> Inter
         )
     hits = block.get("hits", 1)
     if not isinstance(hits, int) or isinstance(hits, bool) or not 1 <= hits <= 20:
-        raise SourceError(f"{prop_id}.interaction.hits must be an integer within [1, 20]")
+        raise SourceError(f"{prop_id}.hits must be an integer within [1, 20]")
     raw_progress = block.get("progress", [])
     if not isinstance(raw_progress, list):
-        raise SourceError(f"{prop_id}.interaction.progress must be a list of states")
+        raise SourceError(f"{prop_id}.progress must be a list of states")
     progress = tuple(
-        _identifier(s, field=f"{prop_id}.interaction.progress[]") for s in raw_progress
+        _identifier(s, field=f"{prop_id}.progress[]") for s in raw_progress
     )
     for look in progress:
         if look not in states:
-            raise SourceError(f"{prop_id}.interaction.progress names undeclared state {look!r}")
+            raise SourceError(f"{prop_id}.progress names undeclared state {look!r}")
     if len(set(progress)) != len(progress):
-        raise SourceError(f"{prop_id}.interaction.progress repeats a state")
+        raise SourceError(f"{prop_id}.progress repeats a state")
     if next_state in progress:
         raise SourceError(
-            f"{prop_id}.interaction.progress may not contain next_state {next_state!r}"
+            f"{prop_id}.progress may not contain next_state {next_state!r}"
         )
     if len(progress) > hits - 1:
         raise SourceError(
-            f"{prop_id}.interaction.progress lists {len(progress)} looks but only {hits - 1} hits "
+            f"{prop_id}.progress lists {len(progress)} looks but only {hits - 1} hits "
             "come before the last one"
         )
+    raw_from = block.get("from")
+    if raw_from is None:
+        raise SourceError(
+            f"{prop_id} must say the states it applies from: from = [...] (one or more declared states)"
+        )
+    if not isinstance(raw_from, list) or not raw_from:
+        raise SourceError(f"{prop_id}.from must be a non-empty list of declared states")
+    from_states = tuple(_identifier(s, field=f"{prop_id}.from[]") for s in raw_from)
+    for state in from_states:
+        if state not in states:
+            raise SourceError(f"{prop_id}.from names undeclared state {state!r}")
+    if len(set(from_states)) != len(from_states):
+        raise SourceError(f"{prop_id}.from repeats a state")
+    for look in progress:
+        if look not in from_states:
+            raise SourceError(
+                f"{prop_id}.progress look {look!r} is not in from; the interaction could not "
+                "go on from it"
+            )
     regrow = block.get("regrow_seconds")
     verb = _identifier(block.get("verb"), field=f"{prop_id}.verb")
     if verb not in INTERACTION_VERBS:
         raise SourceError(
-            f"{prop_id}.interaction.verb must be one of {list(INTERACTION_VERBS)}, got {verb!r}"
+            f"{prop_id}.verb must be one of {list(INTERACTION_VERBS)}, got {verb!r}"
         )
     raw_yield_to = block.get("yield_to")
     if yields:
         if raw_yield_to is None:
             raise SourceError(
-                f"{prop_id}.interaction yields something and must say where it goes: "
+                f"{prop_id} yields something and must say where it goes: "
                 f"yield_to = {' | '.join(repr(d) for d in YIELD_DESTINATIONS)}"
             )
-        yield_to = _text(raw_yield_to, field=f"{prop_id}.interaction.yield_to")
+        yield_to = _text(raw_yield_to, field=f"{prop_id}.yield_to")
         if yield_to not in YIELD_DESTINATIONS:
             raise SourceError(
-                f"{prop_id}.interaction.yield_to must be one of {list(YIELD_DESTINATIONS)}, "
+                f"{prop_id}.yield_to must be one of {list(YIELD_DESTINATIONS)}, "
                 f"got {yield_to!r}"
             )
     elif raw_yield_to is not None:
-        raise SourceError(f"{prop_id}.interaction yields nothing; yield_to has no meaning")
+        raise SourceError(f"{prop_id} yields nothing; yield_to has no meaning")
     else:
         yield_to = "ground"
     raw_tool = block.get("tool")
@@ -566,30 +607,31 @@ def _interaction(block: object, *, prop_id: str, states: Sequence[str]) -> Inter
     if raw_tool is not None:
         if not isinstance(raw_tool, dict):
             raise SourceError(
-                f"{prop_id}.interaction.tool must be a table of item_id, hits, required"
+                f"{prop_id}.tool must be a table of item_id, hits, required"
             )
         unknown = sorted(set(raw_tool) - {"item_id", "hits", "required"})
         if unknown:
-            raise SourceError(f"{prop_id}.interaction.tool has unknown keys {unknown}")
+            raise SourceError(f"{prop_id}.tool has unknown keys {unknown}")
         tool_hits = raw_tool.get("hits", hits)
         if (
             not isinstance(tool_hits, int)
             or isinstance(tool_hits, bool)
             or not 1 <= tool_hits <= 20
         ):
-            raise SourceError(f"{prop_id}.interaction.tool.hits must be an integer within [1, 20]")
+            raise SourceError(f"{prop_id}.tool.hits must be an integer within [1, 20]")
         required = raw_tool.get("required", False)
         if not isinstance(required, bool):
-            raise SourceError(f"{prop_id}.interaction.tool.required must be a boolean")
+            raise SourceError(f"{prop_id}.tool.required must be a boolean")
         tool = ToolSpec(
             item_id=_identifier(
-                raw_tool.get("item_id"), field=f"{prop_id}.interaction.tool.item_id"
+                raw_tool.get("item_id"), field=f"{prop_id}.tool.item_id"
             ),
             hits=tool_hits,
             required=required,
         )
     return Interaction(
         verb=verb,
+        from_states=from_states,
         hits=hits,
         next_state=next_state,
         fx=_identifier(block.get("fx", "dust"), field=f"{prop_id}.fx"),
@@ -753,7 +795,12 @@ def _props(
                     f"{prop_id}.{moved} is not authored any more; where and how a prop "
                     "stands is its [props.placement] block"
                 )
-        interaction = _interaction(row.get("interaction"), prop_id=prop_id, states=states)
+        if "interaction" in row:
+            raise SourceError(
+                f"{prop_id}.interaction is not authored any more; list what can be done to it as "
+                "[[props.interactions]] tables, each with the states it applies `from`"
+            )
+        interactions = _interactions(row.get("interactions"), prop_id=prop_id, states=states)
         variants = _variants(row.get("variants"), prop_id=prop_id, states=states)
         raw_looks = row.get("look_height_units", {})
         if not isinstance(raw_looks, dict):
@@ -770,10 +817,10 @@ def _props(
             look_height_units[str(look)] = _number(
                 value, field=f"{prop_id}.look_height_units.{look}", low=0.01, high=20.0
             )
-        if interaction is not None:
+        for interaction in interactions:
             if baseline_state in interaction.progress:
                 raise SourceError(
-                    f"{prop_id}.interaction.progress may not contain the baseline state"
+                    f"{prop_id}.interactions.progress may not contain the baseline state"
                 )
             if variants is not None:
                 outcomes = {interaction.next_state, *interaction.progress}
@@ -804,7 +851,7 @@ def _props(
                 prompt=_text(row.get("prompt"), field=f"{prop_id}.prompt"),
                 states=states,
                 state_prompt=state_prompt,
-                interaction=interaction,
+                interactions=interactions,
                 baseline_state=baseline_state,
                 look_height_units=look_height_units,
                 placement=_placement(
@@ -1745,8 +1792,8 @@ def check_crafting(package: Package) -> None:
     items = {item.item_id for item in package.items}
     reachable: set[str] = set(crafting.start)
     for prop in package.props:
-        if prop.interaction is not None:
-            reachable.update(produced.item_id for produced in prop.interaction.yields)
+        for interaction in prop.interactions:
+            reachable.update(produced.item_id for produced in interaction.yields)
     if package.forage is not None:
         reachable.update(cell.item_id for cell in package.forage.cells)
     # The spawn set piece's members stand before anything is built: the
@@ -1784,20 +1831,20 @@ def check_crafting(package: Package) -> None:
                 f"nothing builds {station.prop_id!r}"
             )
     for prop in package.props:
-        interaction = prop.interaction
-        tool = interaction.tool if interaction is not None else None
-        if interaction is None or tool is None:
-            continue
-        item = package.item(tool.item_id) if tool.item_id in items else None
-        if item is None:
-            raise SourceError(
-                f"{prop.prop_id}.interaction.tool names undeclared item {tool.item_id!r}"
-            )
-        if item.tool is None or item.tool.verb != interaction.verb:
-            raise SourceError(
-                f"{prop.prop_id} wants {tool.item_id!r} to {interaction.verb}, but that item "
-                f"declares no tool for that verb"
-            )
+        for interaction in prop.interactions:
+            tool = interaction.tool
+            if tool is None:
+                continue
+            item = package.item(tool.item_id) if tool.item_id in items else None
+            if item is None:
+                raise SourceError(
+                    f"{prop.prop_id}.interactions.tool names undeclared item {tool.item_id!r}"
+                )
+            if item.tool is None or item.tool.verb != interaction.verb:
+                raise SourceError(
+                    f"{prop.prop_id} wants {tool.item_id!r} to {interaction.verb}, but that item "
+                    f"declares no tool for that verb"
+                )
 
 
 def _biomes(
@@ -3142,15 +3189,14 @@ def load_package(root: Path) -> Package:
                 f"{prop.prop_id} is drawn as a sheet, and a sheet cannot carry a painted base: "
                 "the feathered patch has no magenta equivalent"
             )
-        if prop.interaction is None:
-            continue
-        for produced in prop.interaction.yields:
-            if produced.item_id not in declared_items:
-                raise SourceError(f"{prop.prop_id} yields undeclared item {produced.item_id!r}")
-        if prop.interaction.fx not in package.dust.kinds:
-            raise SourceError(
-                f"{prop.prop_id}.interaction.fx {prop.interaction.fx!r} is not a dust cell kind"
-            )
+        for interaction in prop.interactions:
+            for produced in interaction.yields:
+                if produced.item_id not in declared_items:
+                    raise SourceError(f"{prop.prop_id} yields undeclared item {produced.item_id!r}")
+            if interaction.fx not in package.dust.kinds:
+                raise SourceError(
+                    f"{prop.prop_id}.interactions.fx {interaction.fx!r} is not a dust cell kind"
+                )
     check_crafting(package)
     _check_placement(package)
     _check_seasons(package)

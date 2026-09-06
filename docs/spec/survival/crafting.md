@@ -19,8 +19,9 @@ closure proved before any of it is paid for.
 | `items.toml` | `[icons]` | the inventory icon sheet: its lattice, its style emphasis, glyphs for any cell the items leave over, and an optional `take` |
 | `crafting.toml` | `[inventory]`, `[start]`, `[stations]`, `[[recipes]]` | the pack's base slots, the starting inventory, the stations (a prop, a state, a reach) and the recipes: ingredients in, exactly one product out, an item with a count or a prop to build, at a station or by hand |
 | `ground.toml` | `[forage]` | the forage sheet: a lattice of pickups lying on the ground, each cell naming the item it yields, how many, and how long the spot takes to regrow |
-| `props.toml` | `[props.interaction].tool` | the tool a verb wants: the item, the hits with it, and whether it is required |
-| `props.toml` | `[props.interaction].yield_to` | where the yield goes at the last blow: `hand` (straight into the pack, the way grass or twigs are simply taken) or `ground` (dropped at the thing, to be picked up after, the way a trunk's logs lie where the crown lands); required whenever the interaction yields anything, refused when it does not |
+| `props.toml` | `[[props.interactions]]` | what can be done to a prop, as a list in priority order; each entry names the states it applies `from` (required, explicit), its verb, hits, `next_state`, progress looks and yields. The consumer offers the first entry whose `from` holds the prop's state and whose tool, if required, is carried; with none available the first that applies is shown with its refusal, and the key does not walk to it. One verb per state per prop |
+| `props.toml` | `[[props.interactions]].tool` | the tool a verb wants: the item, the hits with it, and whether it is required |
+| `props.toml` | `[[props.interactions]].yield_to` | where the yield goes at the last blow: `hand` (straight into the pack, the way grass or twigs are simply taken) or `ground` (dropped at the thing, to be picked up after, the way a trunk's logs lie where the crown lands); required whenever the interaction yields anything, refused when it does not |
 
 ## Mixing versus spend
 
@@ -82,8 +83,11 @@ different drawings on purpose.
   that serves the verb is the one used and worn; failing that, the first tool in
   slot order that does, so a carried axe is enough to chop. The target shows the
   tool's hits; a required tool that is missing leaves the target offered with
-  the prompt saying what is missing. One completed interaction wears the tool by
-  one; at zero it breaks.
+  the label saying what is missing, and neither Space nor a click walks the
+  player to it. One completed interaction wears the tool by one; at zero it
+  breaks. A prop with several interactions offers the first, in authored order,
+  that applies from its state and whose tool is carried: the dead snag is
+  chopped with an axe and snapped for twigs by hand without one.
 - **What the hand gathers is taken; what a tool knocks loose lands.** An
   interaction with `yield_to = "hand"` counts its yield into the pack at the
   last blow (one pickup event per piece, from where the thing stands, so the

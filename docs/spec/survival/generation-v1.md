@@ -72,7 +72,7 @@ a `game.toml` closure.
 | `survival.toml` | `oblique-survival-package-v2` | the root: `[presentation]`, the `[look]` contract (one light, ground-piece aim, jitter), `[style]` with the style plate, `[scale]` (player height in metres), `[camera]`, `[gameplay]` (hunger, health, warmth, torch, night, mob, campfire), `[rights]` |
 | `world.toml` | `oblique-survival-world-v1` | the world: `[world]` (seed, size), `[landmass]`, `[biomes]` (islets), `[spawn]`, `[[set_pieces]]`, `[population]` — see [world](world.md). Where each object stands is that object's own `placement` block in props.toml, actors.toml and ground.toml |
 | `actors.toml` | `oblique-survival-actors-v1` | one entry per drawn actor: role, appearance reference, motion states, the facing set, the side view |
-| `props.toml` | `oblique-survival-props-v1` | every prop, its states, its interaction verb and yield, its sheet or variants, and its per-look season overrides |
+| `props.toml` | `oblique-survival-props-v2` | every prop, its states, what can be done to it as `[[props.interactions]]` in priority order (each `from` the states it applies to, with its verb and yield), its sheet or variants, and its per-look season overrides |
 | `ground.toml` | `oblique-survival-ground-v1` | the biome plates, the macro field, the road, the water, the litter, forage and plant sheets, the decals, and the `[blend]` mixing the consumer reads — see [ground](ground.md) |
 | `items.toml` | `oblique-survival-items-v1` | every item, its pickup brief and its use or tool, and the `[icons]` sheet — see [crafting](crafting.md) |
 | `crafting.toml` | `oblique-survival-crafting-v1` | the pack, the start, the stations and the recipes — see [crafting](crafting.md) |

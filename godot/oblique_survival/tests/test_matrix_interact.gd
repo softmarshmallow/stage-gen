@@ -33,7 +33,9 @@ func run(h: TestHarness) -> void:
 ## `moss_boulder`'s three looks are `test_interact`'s.
 func _t17_dead_snag(h: TestHarness, world: World) -> void:
 	var spec: Dictionary = (world.manifest["props"] as Dictionary)["dead_snag"]
-	var interaction: Dictionary = spec["interaction"]
+	# The snag lists two interactions; the chop is the first, the axe's.
+	var interaction: Dictionary = (spec["interactions"] as Array)[0]
+	h.assert_eq(str(interaction["verb"]), "chop", "the snag's first interaction is the chop")
 	h.assert_eq(interaction["progress"], ["broken"], "the snag has one progress look")
 	h.assert_eq(str(interaction["next_state"]), "stump", "and ends as a stump")
 

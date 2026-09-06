@@ -190,20 +190,34 @@ static func target_for(world: World, entity: Dictionary) -> Variant:
 	var spec: Variant = prop_spec(world, entity)
 	if spec == null:
 		return null
-	var interaction: Variant = (spec as Dictionary).get("interaction", null)
-	if interaction == null:
+	var rows: Variant = (spec as Dictionary).get("interactions", null)
+	if rows == null or (rows as Array).is_empty():
 		return null
-	var block := interaction as Dictionary
-	var verb := str(block.get("verb", ""))
-	if verb == "light":
-		if str(entity.get("state", "")) != "unlit":
-			return null
-	elif block.get("next_state", null) != entity.get("baseline", null) \
-			and entity.get("state", null) == block.get("next_state", null):
-		# An interaction that leaves the prop in the look it was placed with
-		# repeats; one that spends it waits for the regrow timer.
-		return null
+	# The package lists what can be done to the prop in priority order, each
+	# entry from the states it applies to. The offer is the first available
+	# one for the prop's state; when none is, the first that applies is
+	# offered with its refusal, so the label says what the thing needs and
+	# the key knows not to walk there.
+	var state := str(entity.get("state", ""))
 	var edge := _centre_distance(player, entity) - float(entity.get("radius", 0.0))
+	var refused: Variant = null
+	for row in (rows as Array):
+		var block := row as Dictionary
+		var from: Variant = block.get("from", null)
+		if from == null or not (from as Array).has(state):
+			continue
+		var target := _prop_target(world, entity, spec, block, edge)
+		if target["disabled"] == null:
+			return target
+		if refused == null:
+			refused = target
+	return refused
+
+
+## One interaction weighed against the pack and the season: its hits with the
+## tool in hand, or the refusal that stands in the way.
+static func _prop_target(world: World, entity: Dictionary, spec: Variant, block: Dictionary, edge: float) -> Dictionary:
+	var verb := str(block.get("verb", ""))
 	var hits := int(block.get("hits", 0))
 	if hits == 0:
 		hits = 1

@@ -176,7 +176,20 @@ class ToolSpec:
 
 @dataclass(frozen=True, slots=True)
 class Interaction:
+    """One thing that can be done to a prop, from the states it applies to.
+
+    A prop lists several (``[[props.interactions]]``); the consumer resolves
+    the one on offer for the prop's current state — the first, in authored
+    order, whose ``from`` holds the state and whose tool (if required) is
+    carried; when none is available the first that applies is offered with
+    its refusal, so the player learns what the thing needs.
+    """
+
     verb: str
+    #: The states this applies from. Explicit, never inferred from
+    #: ``next_state``: a fire is lit from ``unlit``, a boulder mined from
+    #: ``whole`` and every progress look, a bush gathered from ``full``.
+    from_states: tuple[str, ...]
     hits: int
     next_state: str
     fx: str
@@ -331,7 +344,10 @@ class Prop:
     prompt: str
     states: tuple[str, ...]
     state_prompt: Mapping[str, str]
-    interaction: Interaction | None
+    #: What can be done to it, in authored order (the order is the priority
+    #: when more than one applies from a state). Empty for a thing that only
+    #: stands.
+    interactions: tuple[Interaction, ...]
     #: The look every other look is measured against: its painted height is
     #: ``height_units``, its sprite is the one the anchor loop places, and the
     #: layout falls back to it. Defaults to the first declared state.

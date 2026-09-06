@@ -34,6 +34,12 @@ static func update(world: World, dt: float) -> void:
 			world.target = null
 			return
 		world.target = target
+		if (target as Dictionary)["disabled"] != null:
+			# The thing stopped answering on the way (the season turned, the
+			# tool broke): the walk ends where it is, and the reason is said.
+			player.approach = null
+			_refuse(world, target as Dictionary)
+			return
 		if float((target as Dictionary)["edge"]) > reach:
 			return
 		if not bool((target as Dictionary).get("ready", true)):
@@ -55,6 +61,11 @@ static func update(world: World, dt: float) -> void:
 			Helpers.say(world, "Nothing to be done with that.")
 			return
 		world.target = chosen_by_click
+		if (chosen_by_click as Dictionary)["disabled"] != null:
+			# A thing that cannot be acted on is not walked to: the label
+			# says what it needs, and so does the strip.
+			_refuse(world, chosen_by_click as Dictionary)
+			return
 		if float((chosen_by_click as Dictionary)["edge"]) > reach \
 				or not bool((chosen_by_click as Dictionary).get("ready", true)):
 			# The walk, or the wait for a drop still moving: the approach is
@@ -81,6 +92,11 @@ static func update(world: World, dt: float) -> void:
 		wanted = bool(world.input["interact"])
 	if not wanted:
 		return
+	if chosen["disabled"] != null:
+		# Space does not walk to a thing it could not act on (a tree without
+		# an axe): the thing stays lit and named with what it needs.
+		_refuse(world, chosen)
+		return
 	if float(chosen["edge"]) > reach:
 		player.approach = {"entity": chosen["entity"], "stall": 0.0}
 		return
@@ -88,6 +104,18 @@ static func update(world: World, dt: float) -> void:
 		# The nearest thing is a drop still bouncing at the feet: wait for it.
 		return
 	Targeting.start_interaction(world, chosen)
+
+
+## The refusal, said the way `start_interaction` says it: sentence-cased, and
+## facing the thing, so the player is seen to have tried.
+static func _refuse(world: World, target: Dictionary) -> void:
+	var entity: Dictionary = target["entity"]
+	var player: PlayerState = world.player
+	player.facing = Targeting.facing_for(
+		float(entity["x"]) - player.x, float(entity["z"]) - player.z, world.camera_yaw, player.facing
+	)
+	var text := str(target["disabled"])
+	Helpers.say(world, text.substr(0, 1).to_upper() + text.substr(1) + ".")
 
 
 static func _advance_busy(world: World, player: PlayerState, states: Dictionary, dt: float) -> void:

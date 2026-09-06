@@ -11,6 +11,7 @@ func run(h: TestHarness) -> void:
 		return
 	_fell_a_pine(h, w)
 	_refused_without_an_axe(h, w)
+	_the_snag_offers_what_the_pack_allows(h, w)
 	_barren_in_winter(h, w)
 	_progress_looks(h, w)
 	_take_a_forage_piece(h, w)
@@ -90,6 +91,85 @@ func _refused_without_an_axe(h: TestHarness, w: World) -> void:
 	h.assert_eq(str(pine["state"]), "grown", "and the pine is untouched")
 	h.assert_eq(SimFixture.events_of(w, "hit").size(), 0, "no blow landed")
 	h.assert_true(w.player.busy == null, "and no swing was started")
+	# Three metres off, the held key does not walk to a thing it could not act
+	# on: the pine stays the lit, named target, the refusal is said, and the
+	# player stands where they were.
+	pine["z"] = 3.5
+	w.player.approach = null
+	w.message = ""
+	for i in 60:
+		w.input["interact"] = true
+		Sim.step(w, SimFixture.STEP)
+	h.assert_true(w.player.approach == null, "no walk is committed to a refused thing")
+	h.assert_near(w.player.x, 0.0, 1e-6, "the player has not moved (x)")
+	h.assert_near(w.player.z, 0.0, 1e-6, "the player has not moved (z)")
+	h.assert_true(w.target != null and is_same((w.target as Dictionary)["entity"], pine),
+		"but the pine is still the target, lit and named with what it needs")
+	h.assert_eq(w.message, "Needs a Flint axe.", "and the refusal is said")
+	# Nor does a click on it.
+	w.input["interact"] = false
+	w.message = ""
+	w.input["click_entity"] = pine
+	Sim.step(w, SimFixture.STEP)
+	h.assert_true(w.player.approach == null, "a click on a refused thing commits no walk either")
+	h.assert_eq(w.message, "Needs a Flint axe.", "it says what is needed")
+	w.input["click_entity"] = null
+	# With the axe in the pack the same key walks there and fells it.
+	Inventory.inv_add(w, "axe", 1)
+	for i in 240:
+		w.input["interact"] = true
+		Sim.step(w, SimFixture.STEP)
+		if str(pine["state"]) == "stump":
+			break
+	h.assert_eq(str(pine["state"]), "stump", "with the axe the key walks up and fells it")
+	w.input["interact"] = false
+
+
+## Two interactions on one prop, resolved by state and by what is carried:
+## the dead snag is chopped with an axe (listed first) and snapped for twigs
+## by hand without one; a broken snag waits for the axe.
+func _the_snag_offers_what_the_pack_allows(h: TestHarness, w: World) -> void:
+	SimFixture.bare(w)
+	w.player.x = 0.0
+	w.player.z = 0.0
+	w.player.busy = null
+	w.player.approach = null
+	w.dead = false
+	var snag := SimFixture.prop(w, "s2", "dead_snag", "standing", 0.0, 0.8)
+	w.entities.append(snag)
+	var bare: Variant = Targeting.target_for(w, snag)
+	h.assert_eq(str(((bare as Dictionary)["interaction"] as Dictionary)["verb"]), "gather",
+		"without an axe the snag offers the hand's snap")
+	h.assert_true((bare as Dictionary)["disabled"] == null, "which nothing refuses")
+	Inventory.inv_add(w, "axe", 1)
+	var armed: Variant = Targeting.target_for(w, snag)
+	h.assert_eq(str(((armed as Dictionary)["interaction"] as Dictionary)["verb"]), "chop",
+		"with an axe the snag offers the chop, listed first")
+	h.assert_eq(int((armed as Dictionary)["hits"]), 2, "at the axe's two blows")
+	# Drop the axe and snap the top off by hand.
+	w.slots[0] = null
+	for i in 120:
+		w.input["interact"] = true
+		Sim.step(w, SimFixture.STEP)
+		if str(snag["state"]) == "broken":
+			break
+	w.input["interact"] = false
+	h.assert_eq(str(snag["state"]), "broken", "the snap leaves the broken look")
+	h.assert_eq(UiKit.inv_count(w.slots, "twig"), 2, "and two twigs went into the pack")
+	var broken: Variant = Targeting.target_for(w, snag)
+	h.assert_true(broken != null, "a broken snag is still a target")
+	h.assert_eq(str(((broken as Dictionary)["interaction"] as Dictionary)["verb"]), "chop",
+		"but only the chop applies from `broken`")
+	h.assert_eq(str((broken as Dictionary)["disabled"]), "needs a Flint axe", "which the bare hand is refused")
+	Inventory.inv_add(w, "axe", 1)
+	for i in 240:
+		w.input["interact"] = true
+		Sim.step(w, SimFixture.STEP)
+		if str(snag["state"]) == "stump":
+			break
+	w.input["interact"] = false
+	h.assert_eq(str(snag["state"]), "stump", "the axe finishes the broken snag")
+	h.assert_true(Targeting.target_for(w, snag) == null, "and a stump offers nothing")
 
 
 func _barren_in_winter(h: TestHarness, w: World) -> void:

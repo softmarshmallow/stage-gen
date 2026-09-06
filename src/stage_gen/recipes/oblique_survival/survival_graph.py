@@ -427,8 +427,9 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
         minimal = prop.prop_id in MINIMAL_PROPS
         if rank < 1 and not minimal:
             continue
-        if rank < 1 and prop.interaction is not None:
-            minimal_items.update(produced.item_id for produced in prop.interaction.yields)
+        if rank < 1:
+            for interaction in prop.interactions:
+                minimal_items.update(produced.item_id for produced in interaction.yields)
         if prop.sheet is not None:
             # A sheet is one op for every look, in every scope: there is no
             # narrower way to draw it. The validate node splits it into the
@@ -520,8 +521,8 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
             # look each interaction leaves and passes through, and the looks
             # the layout may place.
             wanted: list[str] = []
-            if prop.interaction is not None:
-                wanted.extend([*prop.interaction.progress, prop.interaction.next_state])
+            for interaction in prop.interactions:
+                wanted.extend([*interaction.progress, interaction.next_state])
             if prop.variants is not None:
                 wanted.extend(prop.variants.states)
             for candidate in wanted:

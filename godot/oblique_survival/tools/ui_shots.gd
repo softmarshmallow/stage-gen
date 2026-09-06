@@ -2,7 +2,8 @@ class_name UiShots
 extends SceneTree
 
 ## The HUD's own contact sheet: the real scene in a real window, overlays on,
-## staged into the moments a player meets — the pack and a hovered tree at
+## staged into the moments a player meets — a tree that needs an axe, named
+## and refused with the key held, the pack and a hovered tree at
 ## noon (lifted, named above itself), a slot's card, the worn places, a pickup
 ## in flight, a bush gathered by hand (its twigs flying from the bush), a
 ## held-button walk, a bite's red flood and the throb of starving, the
@@ -57,6 +58,17 @@ func _go() -> void:
 		return
 	_deafen()
 	var world = _main.world
+
+	# --- a thing that cannot be acted on: no axe, a pine clicked from afar ---
+	# The click makes the pine the target: it is lit and named with what it
+	# needs, the refusal is said in the strip, and half a second later the
+	# player has not moved toward it.
+	var far_pine: Variant = _nearest_prop("pine", "grown")
+	if far_pine != null:
+		_main.click_at(_screen_of(float(far_pine["x"]), 2.2, float(far_pine["z"])))
+		_main.advance(0.5)
+		await _save("ui-noon-refused.png")
+		_main.advance(0.3)
 
 	# --- noon: the pack filled, a tree under the pointer, a walk clicked ---
 	_fill_pack()

@@ -177,8 +177,10 @@ static func help_sections() -> Array:
 			+ "beyond reach the walk comes first. Click the ground to walk there, and hold the "
 			+ "button to keep following the pointer. Right-click stops. The thing under the "
 			+ "pointer lifts and is named above itself; the thing in reach lifts too and says "
-			+ "what %s would do to it. Grass, twigs, reeds and berries go straight into the "
-			+ "pack; what an axe or a pick knocks loose lands on the ground to be picked up.") % [
+			+ "what %s would do to it. A thing that needs a tool you lack is still named with "
+			+ "what it needs, but the key will not walk you to it. Grass, twigs, reeds and "
+			+ "berries go straight into the pack; what an axe or a pick knocks loose lands on the "
+			+ "ground to be picked up. A dead snag snaps for twigs by hand and falls to an axe.") % [
 				UiKit.kbd("Space")]],
 		["The pack",
 			("The hotbar along the bottom is the pack: left-click a slot to select it, right-click "
