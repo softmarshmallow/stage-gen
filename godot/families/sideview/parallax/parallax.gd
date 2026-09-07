@@ -18,9 +18,7 @@ const SPACE_SCREEN := "screen"
 const SPACE_WORLD := "world"
 
 ## Back to front. A genre may skip a rung; it may never invert two.
-const DEPTH_LADDER: PackedStringArray = PackedStringArray(
-	["background", "world", "actors", "foreground", "actorHud", "hud", "overlay"]
-)
+const DEPTH_LADDER := ["background", "world", "actors", "foreground", "actorHud", "hud", "overlay"]
 
 
 ## Where one band lands. Returns the layout, or an empty dictionary when the

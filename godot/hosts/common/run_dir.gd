@@ -11,27 +11,12 @@ extends RefCounted
 ## the rest; here the manifest and the layout are read eagerly (they are the
 ## contract) and images and audio are cached on first use.
 ##
-## **Not yet split.** This is the shared half of a host — opening a root,
-## confining a reference, reading JSON, decoding media — with one genre's
-## document contract still inside it: the kind, the schema, the layout
-## reference and the field refusals below belong to
-## `genres/oblique_survival/parser.gd`, and the raw readers to
-## `run_media.gd`. The split lands with the kernel, where the boundary test
-## that demands it lands too; naming it here is what stops it being forgotten.
-
-## The one manifest this host reads: the promoted recipe's, emitted by runs
-## under `out/`. The spike's `oblique_survival_v0_manifest` was accepted while
-## the recipe was being promoted and is gone; a run that still carries it is
-## refused by name rather than half-read.
-const MANIFEST_KIND := "oblique-survival-manifest-v3"
-## The version of that contract. One document, one identity: a manifest that
-## names the kind but not this version is a different document.
-const MANIFEST_SCHEMA_VERSION := 1
-const LAYOUT_REF := "package/world/layout.json"
-const MOTION_HINTS := ["sway_top", "bob", "flicker", "none"]
-const HIT_REACTIONS := ["shake", "none"]
-## `assertManifest` reports only the first eight problems (viewer index.html:227).
-const MAX_PROBLEMS := 8
+## **Genre-neutral, and that is the whole point.** Opening a root, confining a
+## reference, reading JSON and decoding media are the same in every genre; what
+## a document *is* is not. So a caller hands in the checker for its own document
+## and the reference its own layout sits behind, and this file names no manifest
+## kind. It used to name survival's, which meant the second host to use it would
+## have inherited the first one's contract.
 
 var run_dir: String = ""
 var manifest: Dictionary = {}
@@ -45,7 +30,16 @@ var _videos: Dictionary = {}
 
 ## Open a run directory. Returns null (after pushing an error) when the
 ## manifest is missing, unreadable, or refused.
-static func open(dir: String) -> HostRunDir:
+##
+## `checker` is the genre's document contract: it takes the parsed manifest and
+## answers with the problems, empty for none. Omitting it opens any JSON
+## manifest, which is what a caller that parses the document itself wants.
+##
+## `layout_ref` is a second document a genre keeps beside the manifest; a genre
+## with none omits it.
+static func open(
+	dir: String, checker: Callable = Callable(), layout_ref: String = ""
+) -> HostRunDir:
 	var pkg := HostRunDir.new()
 	pkg.run_dir = dir.rstrip("/")
 	var manifest_path := pkg.run_dir + "/manifest.json"
@@ -54,11 +48,14 @@ static func open(dir: String) -> HostRunDir:
 		push_error("run package: no readable manifest at %s" % manifest_path)
 		return null
 	pkg.manifest = parsed
-	var problems := check_manifest(pkg.manifest)
-	if not problems.is_empty():
-		push_error("manifest refused:\n  %s" % "\n  ".join(problems))
-		return null
-	var layout_path := pkg.path(LAYOUT_REF)
+	if checker.is_valid():
+		var problems: PackedStringArray = checker.call(pkg.manifest)
+		if not problems.is_empty():
+			push_error("manifest refused:\n  %s" % "\n  ".join(problems))
+			return null
+	if layout_ref.is_empty():
+		return pkg
+	var layout_path := pkg.path(layout_ref)
 	var layout_parsed: Variant = _read_json(layout_path)
 	if layout_parsed is Dictionary:
 		pkg.layout = layout_parsed
@@ -70,68 +67,6 @@ static func open(dir: String) -> HostRunDir:
 		push_error("run package: no layout at %s and none in the manifest" % layout_path)
 		return null
 	return pkg
-
-## The refusals of the viewer's `assertManifest` (index.html:200-228), in order.
-static func check_manifest(m: Dictionary) -> PackedStringArray:
-	var problems := PackedStringArray()
-	if m.get("kind", "") != MANIFEST_KIND:
-		problems.append("kind %s is not %s" % [m.get("kind", ""), MANIFEST_KIND])
-	elif int(m.get("schema_version", 0)) != MANIFEST_SCHEMA_VERSION:
-		problems.append("schema_version %s is not %d" % [m.get("schema_version", 0), MANIFEST_SCHEMA_VERSION])
-	var scale: Dictionary = m.get("scale", {})
-	if not _truthy(scale.get("player_height_meters")):
-		problems.append("scale.player_height_meters missing")
-	var ground: Dictionary = m.get("ground", {})
-	if not _truthy(ground.get("size_meters")):
-		problems.append("ground.size_meters missing")
-	# Since manifest-v2 every forage cell is calibrated: the painted box it is
-	# drawn through and the ruler that sizes it (decision 0060). A cell without
-	# them is a piece this host would have to size by guessing, so it refuses.
-	var forage: Variant = ground.get("forage")
-	if forage is Dictionary:
-		var cells: Array = (forage as Dictionary).get("cells", [])
-		for index in cells.size():
-			var cell: Dictionary = cells[index]
-			if not (cell.get("box") is Dictionary):
-				problems.append("ground.forage.cells[%d].box missing" % index)
-			if not _truthy(cell.get("px_per_meter")):
-				problems.append("ground.forage.cells[%d].px_per_meter missing" % index)
-			if not _truthy(cell.get("size_meters")):
-				problems.append("ground.forage.cells[%d].size_meters missing" % index)
-	for decoration in ["clutter", "plants"]:
-		if ground.has(decoration):
-			problems.append("ground.%s is not a layer this host draws: the world places nothing the player cannot act on" % decoration)
-	for id: String in m.get("actors", {}).keys():
-		var actor: Dictionary = m["actors"][id]
-		for state: String in actor.get("states", {}).keys():
-			var spec: Dictionary = actor["states"][state]
-			if not _truthy(spec.get("px_per_meter")):
-				problems.append("actors.%s.%s.px_per_meter missing" % [id, state])
-			if not _truthy(spec.get("columns")):
-				problems.append("actors.%s.%s.columns missing" % [id, state])
-			var rows: int = int(spec.get("rows", 0)) if _truthy(spec.get("rows")) else 1
-			var cells: int = int(spec.get("columns", 0)) * rows
-			for index: int in spec.get("canonical_frame_indices", []):
-				if index < 0 or index >= cells:
-					problems.append("actors.%s.%s frame %d out of range" % [id, state, index])
-			if spec.get("mode", "") != "hold" and not _truthy(spec.get("fps")):
-				problems.append("actors.%s.%s.fps missing" % [id, state])
-	for id: String in m.get("props", {}).keys():
-		var prop: Dictionary = m["props"][id]
-		for state: String in prop.get("states", {}).keys():
-			var spec: Dictionary = prop["states"][state]
-			if not _truthy(spec.get("px_per_meter")):
-				problems.append("props.%s.%s.px_per_meter missing" % [id, state])
-			var contact: Variant = spec.get("ground_contact_y_normalized")
-			if not (contact is float or contact is int):
-				problems.append("props.%s.%s.ground_contact_y_normalized missing" % [id, state])
-		if not MOTION_HINTS.has(prop.get("motion_hint")):
-			problems.append("props.%s.motion_hint %s is not a known hint" % [id, prop.get("motion_hint")])
-		if not HIT_REACTIONS.has(prop.get("hit_reaction")):
-			problems.append("props.%s.hit_reaction %s is not a known reaction" % [id, prop.get("hit_reaction")])
-	if problems.size() > MAX_PROBLEMS:
-		problems = problems.slice(0, MAX_PROBLEMS)
-	return problems
 
 ## An absolute path for a package-relative reference. Refuses anything that
 ## would leave the run directory; returns "" and pushes an error.
@@ -224,11 +159,3 @@ static func _read_json(absolute: String) -> Variant:
 
 ## JavaScript truthiness for the numbers `assertManifest` tests: a missing key,
 ## null, and 0 all fail.
-static func _truthy(value: Variant) -> bool:
-	if value == null:
-		return false
-	if value is float or value is int:
-		return value != 0
-	if value is String:
-		return value != ""
-	return true

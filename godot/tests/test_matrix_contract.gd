@@ -66,11 +66,11 @@ func run(h: TestHarness) -> void:
 ## keys, two prop-state keys, and the two prop enums. Each one is provoked on
 ## its own so nothing else can mask it.
 func _t1_manifest_refusals(h: TestHarness, pkg: HostRunDir) -> void:
-	h.assert_true(HostRunDir.check_manifest(pkg.manifest).is_empty(), "the run is accepted")
-	h.assert_eq(pkg.manifest.get("kind"), HostRunDir.MANIFEST_KIND, "the run's kind")
+	h.assert_true(SurvivalDocument.check_manifest(pkg.manifest).is_empty(), "the run is accepted")
+	h.assert_eq(pkg.manifest.get("kind"), SurvivalDocument.MANIFEST_KIND, "the run's kind")
 
 	# Exactly one kind is accepted. The spike's runs are no longer among them.
-	_refuses(h, _with_kind(pkg, "oblique_survival_v0_manifest"), HostRunDir.MANIFEST_KIND,
+	_refuses(h, _with_kind(pkg, "oblique_survival_v0_manifest"), SurvivalDocument.MANIFEST_KIND,
 		"the spike's kind")
 	_refuses(h, _with_kind(pkg, "oblique_survival_v99"), "kind", "an unknown kind")
 	_refuses(h, _with_scale(pkg, null), "scale.player_height_meters", "no player height")
@@ -90,7 +90,7 @@ func _t1_manifest_refusals(h: TestHarness, pkg: HostRunDir) -> void:
 	# ...but a `hold` state needs none: the exemption is part of the rule.
 	var held := _with_actor_state(pkg, "fps", 0.0)
 	((held["actors"] as Dictionary)["wren"] as Dictionary)["states"]["idle"]["mode"] = "hold"
-	h.assert_true(HostRunDir.check_manifest(held).is_empty(), "a `hold` state may carry no fps")
+	h.assert_true(SurvivalDocument.check_manifest(held).is_empty(), "a `hold` state may carry no fps")
 
 	_refuses(h, _with_prop_state(pkg, "px_per_meter", 0.0), "props.pine.grown.px_per_meter",
 		"a prop state with no px_per_meter")
@@ -100,7 +100,7 @@ func _t1_manifest_refusals(h: TestHarness, pkg: HostRunDir) -> void:
 	# A contact of 0 is a real value (the card's foot at its bottom row) and
 	# must survive, unlike the truthiness the other keys are read with.
 	var zero_contact := _with_prop_state(pkg, "ground_contact_y_normalized", 0.0)
-	h.assert_true(HostRunDir.check_manifest(zero_contact).is_empty(),
+	h.assert_true(SurvivalDocument.check_manifest(zero_contact).is_empty(),
 		"a ground contact of 0 is a number, not a missing key")
 
 	_refuses(h, _with_prop(pkg, "motion_hint", "wobble"), "props.pine.motion_hint",
@@ -114,13 +114,13 @@ func _t1_manifest_refusals(h: TestHarness, pkg: HostRunDir) -> void:
 	wrecked.erase("scale")
 	wrecked.erase("ground")
 	wrecked["props"] = _broken_props(pkg)
-	var many := HostRunDir.check_manifest(wrecked)
+	var many := SurvivalDocument.check_manifest(wrecked)
 	h.assert_true(many.size() > 0, "a wrecked manifest raises something")
-	h.assert_eq(many.size(), HostRunDir.MAX_PROBLEMS, "the report is capped at eight problems")
+	h.assert_eq(many.size(), SurvivalDocument.MAX_PROBLEMS, "the report is capped at eight problems")
 
 
 func _refuses(h: TestHarness, manifest: Dictionary, needle: String, what: String) -> void:
-	var problems := HostRunDir.check_manifest(manifest)
+	var problems := SurvivalDocument.check_manifest(manifest)
 	var found := false
 	for problem: String in problems:
 		if problem.contains(needle):

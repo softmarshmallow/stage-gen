@@ -13,7 +13,7 @@ static var _package: HostRunDir = null
 ## The full-v66 package, opened once for the whole suite.
 static func package() -> HostRunDir:
 	if _package == null:
-		_package = HostRunDir.open(TestHarness.RUN_DIR)
+		_package = HostRunDir.open(TestHarness.RUN_DIR, Callable(SurvivalDocument, "check_manifest"), SurvivalDocument.LAYOUT_REF)
 	return _package
 
 

@@ -89,7 +89,7 @@ func _init() -> void:
 
 	# The world `main.gd` builds, built the same way: the package's layout, the
 	# layout's seed unless one was named, and the four start options.
-	var pkg := HostRunDir.open(run)
+	var pkg := HostRunDir.open(run, Callable(SurvivalDocument, "check_manifest"), SurvivalDocument.LAYOUT_REF)
 	if pkg == null:
 		push_error("parity: could not open the run at %s" % run)
 		quit(2)

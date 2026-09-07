@@ -207,7 +207,7 @@ func _t29_boot_budget(h: TestHarness, pkg: HostRunDir) -> void:
 	var best := INF
 	for _i in 3:
 		var at := Time.get_ticks_usec()
-		var opened := HostRunDir.open(TestHarness.RUN_DIR)
+		var opened := HostRunDir.open(TestHarness.RUN_DIR, Callable(SurvivalDocument, "check_manifest"), SurvivalDocument.LAYOUT_REF)
 		var took := float(Time.get_ticks_usec() - at) / 1000.0
 		if opened == null:
 			h.fail("the run did not reopen")

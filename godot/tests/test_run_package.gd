@@ -10,13 +10,13 @@ func run(h: TestHarness) -> void:
 	if not h.assert_true(pkg != null, "the run did not open"):
 		return
 
-	h.assert_eq(pkg.manifest.get("kind"), HostRunDir.MANIFEST_KIND, "manifest kind")
+	h.assert_eq(pkg.manifest.get("kind"), SurvivalDocument.MANIFEST_KIND, "manifest kind")
 	h.assert_eq(
 		int(pkg.manifest.get("schema_version", 0)),
-		HostRunDir.MANIFEST_SCHEMA_VERSION,
+		SurvivalDocument.MANIFEST_SCHEMA_VERSION,
 		"manifest schema_version",
 	)
-	h.assert_true(HostRunDir.check_manifest(pkg.manifest).is_empty(), "the run was refused")
+	h.assert_true(SurvivalDocument.check_manifest(pkg.manifest).is_empty(), "the run was refused")
 
 	# The layout comes from package/world/layout.json, and the manifest embeds
 	# the same document.
@@ -63,18 +63,18 @@ func run(h: TestHarness) -> void:
 	# The spike's kind is no longer accepted: one host, one manifest identity.
 	var legacy: Dictionary = pkg.manifest.duplicate()
 	legacy["kind"] = "oblique_survival_v0_manifest"
-	var legacy_problems := HostRunDir.check_manifest(legacy)
+	var legacy_problems := SurvivalDocument.check_manifest(legacy)
 	h.assert_eq(legacy_problems.size(), 1, "the spike kind raised more than the kind refusal")
 	h.assert_true(
 		String(legacy_problems[0]).contains("oblique_survival_v0_manifest")
-			and String(legacy_problems[0]).contains(HostRunDir.MANIFEST_KIND),
+			and String(legacy_problems[0]).contains(SurvivalDocument.MANIFEST_KIND),
 		"the refusal does not name the kind it got and the kind it wants",
 	)
 
 	# So is the right kind under the wrong schema version.
 	var versioned: Dictionary = pkg.manifest.duplicate()
 	versioned["schema_version"] = 2
-	var version_problems := HostRunDir.check_manifest(versioned)
+	var version_problems := SurvivalDocument.check_manifest(versioned)
 	h.assert_eq(version_problems.size(), 1, "a wrong schema_version raised more than one problem")
 	h.assert_true(
 		String(version_problems[0]).contains("schema_version"),
@@ -85,15 +85,15 @@ func run(h: TestHarness) -> void:
 	var broken: Dictionary = pkg.manifest.duplicate()
 	broken["kind"] = "something_else"
 	broken.erase("scale")
-	var problems := HostRunDir.check_manifest(broken)
+	var problems := SurvivalDocument.check_manifest(broken)
 	h.assert_true(problems.size() >= 2, "a broken manifest was not refused")
 	h.assert_true(String(problems[0]).contains("kind"), "the kind refusal is not first")
-	h.assert_true(problems.size() <= HostRunDir.MAX_PROBLEMS, "more than eight problems reported")
+	h.assert_true(problems.size() <= SurvivalDocument.MAX_PROBLEMS, "more than eight problems reported")
 
 	h.note("the ERROR lines below are the refusal test's own; they are expected")
 	_write_bad_run({"kind": "something_else", "ground": {"size_meters": 256.0}})
-	h.assert_true(HostRunDir.open(BAD_RUN) == null, "open() accepted a refused manifest")
-	h.assert_true(HostRunDir.open("user://test_no_such_run") == null, "open() accepted a missing run")
+	h.assert_true(HostRunDir.open(BAD_RUN, Callable(SurvivalDocument, "check_manifest"), SurvivalDocument.LAYOUT_REF) == null, "open() accepted a refused manifest")
+	h.assert_true(HostRunDir.open("user://test_no_such_run", Callable(SurvivalDocument, "check_manifest"), SurvivalDocument.LAYOUT_REF) == null, "open() accepted a missing run")
 	_clear_bad_run()
 
 func _write_bad_run(manifest: Dictionary) -> void:

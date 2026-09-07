@@ -45,7 +45,7 @@ static var _package: HostRunDir = null
 ## The shared run package, opened once for the whole suite.
 func package() -> HostRunDir:
 	if _package == null:
-		_package = HostRunDir.open(RUN_DIR)
+		_package = HostRunDir.open(RUN_DIR, Callable(SurvivalDocument, "check_manifest"), SurvivalDocument.LAYOUT_REF)
 	return _package
 
 func assert_true(condition: bool, message: String) -> bool:
