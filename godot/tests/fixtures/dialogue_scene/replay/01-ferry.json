@@ -1,0 +1,88 @@
+{
+  "name": "01-ferry",
+  "genre": "dialogue_scene",
+  "steps": 25,
+  "notes": "The browser scene's own replay golden, as a script the Godot host can be driven by. Transcribed from SCRIPT in web/lib/dialogue-scene/replay.test.ts: one run that rings the bell, takes the token and crosses, then a restart and a second run that asks the fare, waits by the door, and finds out what the branch does when neither flag holds. No seed and no step \u2014 a scenario has no clock, so a replay is a list of actions. The digest hashes the view as well as the state, because what is drawn is a pure function of the state and a change that moved one without the other would be a change in this genre's whole contract with its consumers. `.web-frames.txt` carries an `opening` line before step 0: the settle that reaches the first moment is a transition like any other and is hashed like one.",
+  "script": [
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "choose",
+      "option": 0
+    },
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "choose",
+      "option": 0
+    },
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "choose",
+      "option": 0
+    },
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "restart"
+    },
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "choose",
+      "option": 1
+    },
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "choose",
+      "option": 1
+    },
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "advance"
+    },
+    {
+      "kind": "advance"
+    }
+  ]
+}

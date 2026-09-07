@@ -82,6 +82,19 @@ if [ "$SKIP_TESTS" -eq 0 ]; then
     && echo "   14 of 14 clicks identical"
   python3 "$PROJECT/tools/runner_parity_diff.py" \
       "$ROOM_REPLAY/01-room.web.jsonl" "$OUT/room.godot.jsonl"
+
+  echo "== scenario parity against the browser's own golden"
+  # The machine the dialogue scene and the case both play. Its digest hashes the
+  # view as well as the state, because what is drawn here is a pure function of
+  # the state rather than a host's opinion.
+  SCENE_REPLAY="$PROJECT/tests/fixtures/dialogue_scene/replay"
+  "$GODOT" --headless --path "$PROJECT" --quit-after 1000 \
+      -s res://tools/scene_parity.gd -- \
+      --script "$SCENE_REPLAY/01-ferry.json" --out "$OUT/scene.godot.jsonl"
+  diff "$OUT/scene.godot-frames.txt" "$SCENE_REPLAY/01-ferry.web-frames.txt" \
+    && echo "   26 of 26 actions identical"
+  python3 "$PROJECT/tools/runner_parity_diff.py" \
+      "$SCENE_REPLAY/01-ferry.web.jsonl" "$OUT/scene.godot.jsonl"
 fi
 
 echo "== capture ($SHOTS, dpr $DPR)"

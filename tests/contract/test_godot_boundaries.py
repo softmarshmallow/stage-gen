@@ -33,7 +33,7 @@ GODOT_ROOT = REPOSITORY_ROOT / "godot"
 INNER_LAYERS = ("kernel", "families", "genres")
 
 #: The prefix every class in a layer carries, so a reference is legible without a path.
-LAYER_PREFIX = {"kernel": "Kernel", "hosts/common": "Host"}
+LAYER_PREFIX = {"kernel": "Kernel", "families": "Family", "hosts/common": "Host"}
 
 #: One recipe, one word. A genre and its host share it.
 RECIPE_PREFIX = {
