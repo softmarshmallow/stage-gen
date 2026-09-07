@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "kind": "case-runtime-v1",
+  "case_id": "demo_case",
+  "display_name": "A demonstration case",
+  "entry": "demo_supper",
+  "facts": [
+    {
+      "fact_id": "heard_the_toast",
+      "establishment": "defaults_false",
+      "summary": "Somebody said something before the soup went cold."
+    },
+    {
+      "fact_id": "saw_the_card",
+      "establishment": "defaults_false",
+      "summary": "The card on the console was read."
+    },
+    {
+      "fact_id": "asked_about_the_bell",
+      "establishment": "defaults_false",
+      "summary": "The service bell was looked at."
+    },
+    {
+      "fact_id": "left_the_room",
+      "establishment": "required",
+      "summary": "The room was left by its own door."
+    }
+  ],
+  "beats": [
+    {
+      "beat_id": "demo_supper",
+      "kind": "scenario",
+      "run_tag": "larkfield-ui-v1",
+      "display_name": "The table",
+      "writes": [
+        "heard_the_toast"
+      ],
+      "edges": [
+        {
+          "outcome": "to_the_room",
+          "to": "demo_room"
+        }
+      ]
+    },
+    {
+      "beat_id": "demo_room",
+      "kind": "room",
+      "run_tag": "larkfield-ui-v1",
+      "display_name": "The broadcast room",
+      "writes": [
+        "saw_the_card",
+        "asked_about_the_bell",
+        "left_the_room"
+      ],
+      "edges": [
+        {
+          "outcome": "win",
+          "to": "demo_close"
+        }
+      ]
+    },
+    {
+      "beat_id": "demo_close",
+      "kind": "scenario",
+      "run_tag": "larkfield-ui-v1",
+      "display_name": "After",
+      "reads": [
+        "heard_the_toast",
+        "saw_the_card",
+        "asked_about_the_bell"
+      ],
+      "terminal": true,
+      "edges": []
+    }
+  ]
+}
