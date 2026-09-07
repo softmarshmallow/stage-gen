@@ -44,8 +44,11 @@ var started: bool = false
 
 var _pending: Dictionary = {}
 var _world: Variant = null
-## True once a key has been handed to `press`/`release`, which means somebody is
-## feeding this node and the keyboard must not be polled behind their back.
+## True once a HELD key has been handed to `press`/`release`, which means
+## somebody is feeding this node and the keyboard must not be polled behind
+## their back. A one-shot through `latch` is not that: a panel button feeds no
+## held key, and a frame owner that polls must keep polling after one is
+## clicked, or the walk keys go dead for the rest of the run.
 var _fed: bool = false
 
 ## The viewer's `event.key` names for the keys that are not a single character.
@@ -293,7 +296,6 @@ func sample(world, held_keys: Variant = null) -> void:
 ## means the same thing took two paths through the loop. They take one now, and
 ## a scripted replay can press a button by the same call a player's click makes.
 func latch(key: String, value: Variant) -> void:
-	_fed = true
 	if not started:
 		started = true
 		first_input.emit()

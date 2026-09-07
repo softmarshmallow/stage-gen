@@ -18,6 +18,7 @@ func run(h: TestHarness) -> void:
 		return
 	_held_keys(h, world)
 	_one_shots(h, world)
+	_panel_buttons(h, world)
 	_actions(h)
 
 
@@ -120,6 +121,29 @@ func _one_shots(h: TestHarness, world: SurvivalWorld) -> void:
 	input.press("z", true)
 	input.sample(world)
 	h.assert_false(bool(world.input["drop"]), "a key repeat does not drop again")
+	input.free()
+
+
+## A panel button is a one-shot, and nothing else. `main.gd` keeps this node
+## out of the scene tree and polls the keyboard for the held keys, so a latch
+## that claimed somebody was feeding the key set left WASD dead for the rest of
+## the run: the craft button was clicked once and the player never walked again.
+func _panel_buttons(h: TestHarness, world: SurvivalWorld) -> void:
+	var input := SurvivalInput.new()
+	input.bind(world)
+	h.assert_true(input.polling(), "a sampler outside the tree polls the keyboard for held keys")
+	world.craft_open = true
+	input.latch("menu_confirm", true)
+	h.assert_true(input.polling(), "and still does after the Craft button is clicked")
+	input.latch("craft_toggle", true)
+	input.sample(world)
+	h.assert_true(bool(world.input["craft_toggle"]), "the close button reaches the sim as a one-shot")
+	SurvivalSim.clear_one_shots(world)
+	world.craft_open = false
+	h.assert_true(input.polling(), "closing the panel leaves the keyboard polled")
+	input.press("w")
+	h.assert_false(input.polling(), "a fed held key is what stops the polling")
+	input.release("w")
 	input.free()
 
 
