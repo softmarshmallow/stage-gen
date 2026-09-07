@@ -194,7 +194,12 @@ the modality, and both refused while planning:
 | `clip_seconds_step` | 1 | expensive: 4.5 was truncated to 4 by the adapter, the route answered four seconds correctly, and the caller's length gate refused the answer against the 4.5 nobody had asked for — six attempts at full price |
 
 The adapter now refuses a duration it cannot express rather than rounding one.
-Pricing is per second of output: 360p $0.03, 720p $0.10, 1080p $0.15, 4K $0.30.
+
+`clip_seconds_step` is about what the API accepts, **not** about billing, and the
+two are worth keeping apart. Billing is per second of output with no minimum
+and no rounding — 360p $0.03, 720p $0.10, 1080p $0.15, 4K $0.30, so fal's own
+example is a 10-second 1080p clip at $1.50. A longer clip therefore costs
+strictly more; there is no block to fill up and no length that comes free.
 
 The response is h264 in mp4. The pinned Godot host plays only Ogg Theora, so a
 clip is transcoded before publication — see [the shell spec](../spec/game/shell.md)
