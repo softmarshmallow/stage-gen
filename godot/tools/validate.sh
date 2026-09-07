@@ -57,6 +57,20 @@ if [ "$SKIP_TESTS" -eq 0 ]; then
   # --quit-after is the hang guard the capabilities map asks for.
   "$GODOT" --headless --path "$PROJECT" -s res://tests/run_tests.gd \
       --quit-after 3000 -- --run "$RUN"
+
+  echo "== runner parity against the browser's own golden"
+  # The runner's simulation replays the browser's scripted seed and must agree
+  # with it on every one of six hundred frames. It reads a serialised fixture
+  # rather than $RUN, because that is the manifest the golden was captured
+  # against; nothing here touches the survival run.
+  RUNNER_REPLAY="$PROJECT/tests/fixtures/sideview_runner/replay"
+  "$GODOT" --headless --path "$PROJECT" --quit-after 100000 \
+      -s res://tools/runner_parity.gd -- \
+      --script "$RUNNER_REPLAY/01-golden-600.json" --out "$OUT/runner.godot.jsonl"
+  diff "$OUT/runner.godot-frames.txt" "$RUNNER_REPLAY/01-golden-600.web-frames.txt" \
+    && echo "   600 of 600 frames identical"
+  python3 "$PROJECT/tools/runner_parity_diff.py" \
+      "$RUNNER_REPLAY/01-golden-600.web.jsonl" "$OUT/runner.godot.jsonl"
 fi
 
 echo "== capture ($SHOTS, dpr $DPR)"
