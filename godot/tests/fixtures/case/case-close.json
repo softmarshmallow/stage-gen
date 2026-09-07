@@ -1,0 +1,232 @@
+{
+  "schema_version": 2,
+  "kind": "scenario-program-v2",
+  "scenario_id": "demo_close",
+  "display_name": "After",
+  "entry": "after",
+  "cast": [
+    {
+      "actor_id": "nao",
+      "display_name": "Nao",
+      "expressions": [
+        "composed",
+        "pleased"
+      ]
+    },
+    {
+      "actor_id": "haruki",
+      "display_name": "Haruki",
+      "expressions": [
+        "composed",
+        "pleased"
+      ]
+    },
+    {
+      "actor_id": "sayaka",
+      "display_name": "Sayaka",
+      "expressions": [
+        "composed",
+        "pleased"
+      ]
+    },
+    {
+      "actor_id": "mari",
+      "display_name": "Mari",
+      "expressions": [
+        "composed",
+        "pleased"
+      ]
+    },
+    {
+      "actor_id": "kenji",
+      "display_name": "Kenji",
+      "expressions": [
+        "composed",
+        "pleased"
+      ]
+    },
+    {
+      "actor_id": "you",
+      "display_name": "You",
+      "expressions": []
+    }
+  ],
+  "stages": [
+    {
+      "stage_id": "supper_room"
+    },
+    {
+      "stage_id": "after_dark"
+    }
+  ],
+  "tracks": [],
+  "flags": [
+    {
+      "flag_id": "heard_the_toast",
+      "origin": "imported"
+    },
+    {
+      "flag_id": "saw_the_card",
+      "origin": "imported"
+    },
+    {
+      "flag_id": "asked_about_the_bell",
+      "origin": "imported"
+    }
+  ],
+  "endings": [
+    {
+      "outcome_id": "closed_with_the_card",
+      "label": "You told them about the card"
+    },
+    {
+      "outcome_id": "closed_quietly",
+      "label": "You kept it"
+    }
+  ],
+  "blocks": [
+    {
+      "label": "after",
+      "statements": [
+        {
+          "kind": "stage",
+          "stage": "after_dark"
+        },
+        {
+          "kind": "show",
+          "actor": "haruki",
+          "expression": "composed",
+          "slot": "left"
+        },
+        {
+          "kind": "show",
+          "actor": "nao",
+          "expression": "composed",
+          "slot": "right"
+        },
+        {
+          "kind": "line",
+          "speaker": "haruki",
+          "expression": null,
+          "text": "They will want to know what you looked at down there."
+        },
+        {
+          "kind": "branch",
+          "edges": [
+            {
+              "target": "you_saw_it",
+              "condition": {
+                "requires": [
+                  "saw_the_card"
+                ],
+                "forbids": []
+              }
+            }
+          ],
+          "default": "you_did_not"
+        }
+      ]
+    },
+    {
+      "label": "you_saw_it",
+      "statements": [
+        {
+          "kind": "line",
+          "speaker": "you",
+          "expression": null,
+          "text": "The card on the console had a name on it, and it was not the one on the door."
+        },
+        {
+          "kind": "line",
+          "speaker": "nao",
+          "expression": "pleased",
+          "text": "Then you were paying attention after all."
+        },
+        {
+          "kind": "jump",
+          "target": "the_bell"
+        }
+      ]
+    },
+    {
+      "label": "you_did_not",
+      "statements": [
+        {
+          "kind": "line",
+          "speaker": "you",
+          "expression": null,
+          "text": "Not enough. I went down and I came back."
+        },
+        {
+          "kind": "line",
+          "speaker": "haruki",
+          "expression": null,
+          "text": "That is the answer of a man who wants his supper."
+        },
+        {
+          "kind": "jump",
+          "target": "the_bell"
+        }
+      ]
+    },
+    {
+      "label": "the_bell",
+      "statements": [
+        {
+          "kind": "branch",
+          "edges": [
+            {
+              "target": "close_with_the_card",
+              "condition": {
+                "requires": [
+                  "asked_about_the_bell"
+                ],
+                "forbids": []
+              }
+            },
+            {
+              "target": "close_quietly",
+              "condition": {
+                "requires": [
+                  "heard_the_toast"
+                ],
+                "forbids": []
+              }
+            }
+          ],
+          "default": "close_quietly"
+        }
+      ]
+    },
+    {
+      "label": "close_with_the_card",
+      "statements": [
+        {
+          "kind": "line",
+          "speaker": null,
+          "expression": null,
+          "text": "You tell them about the bell, and then about the card, and the table goes quiet in the right order."
+        },
+        {
+          "kind": "end",
+          "outcome": "closed_with_the_card"
+        }
+      ]
+    },
+    {
+      "label": "close_quietly",
+      "statements": [
+        {
+          "kind": "line",
+          "speaker": null,
+          "expression": null,
+          "text": "You keep it. The evening closes over the top of it."
+        },
+        {
+          "kind": "end",
+          "outcome": "closed_quietly"
+        }
+      ]
+    }
+  ]
+}

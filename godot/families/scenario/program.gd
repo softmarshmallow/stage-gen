@@ -116,8 +116,11 @@ static func parse(document: Variant) -> Variant:
 		"flags": _ids(doc.get("flags"), "flag_id"),
 		"endings": _endings(doc.get("endings")),
 		# A scenario played inside a case may be handed facts an earlier beat
-		# set; a scenario played alone imports none.
-		"importedFlags": _strings(doc.get("imported_flags")),
+		# set; a scenario played alone imports none. Which flags those are is a
+		# property of each flag's own declaration — `origin = "imported"` — rather
+		# than a second list, so a flag cannot be importable in one place and not
+		# in another.
+		"importedFlags": _imported(doc.get("flags")),
 	}
 
 
@@ -217,6 +220,16 @@ static func _endings(value: Variant) -> Array:
 				"label": String(ending.get("label", "")),
 			}
 		)
+	return made
+
+
+## The flags this scenario opens holding, when a case hands them to it.
+static func _imported(value: Variant) -> PackedStringArray:
+	var made := PackedStringArray()
+	for entry: Variant in _array(value):
+		var flag: Dictionary = entry
+		if String(flag.get("origin", "local")) == "imported":
+			made.append(String(flag.get("flag_id", "")))
 	return made
 
 

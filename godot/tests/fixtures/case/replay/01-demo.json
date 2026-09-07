@@ -1,0 +1,43 @@
+{
+  "name": "01-demo",
+  "genre": "case",
+  "tag": "demo",
+  "at": "2026-09-08T04:00:00.000Z",
+  "notes": "The browser case's own replay golden, as a script the Godot host can be driven by. Transcribed from web/lib/narrative/replay.test.ts: the demo document opened cold, its two scenario leaves played for real through the scenario runtime, and its room beat finished by the flags the case declares it writes. The leaves are played rather than their actions replayed from the dump, which would be reading the answer's inputs out of the answer; the room is finished by its writes because the room's own reducer has its own golden and what the case does with the flags it is handed is what this one measures. `at` is fixed because a save's `updated_at` is the one field here that is not a function of the game.",
+  "leaves": {
+    "demo_supper": "case-supper.json",
+    "demo_close": "case-close.json"
+  },
+  "script": [
+    {
+      "kind": "opened",
+      "saved": null
+    },
+    {
+      "kind": "play-leaf",
+      "beatId": "demo_supper"
+    },
+    {
+      "kind": "finish-leaf",
+      "beatId": "demo_supper"
+    },
+    {
+      "kind": "finish",
+      "beatId": "demo_room",
+      "outcome": "win",
+      "flags": [
+        "saw_the_card",
+        "asked_about_the_bell",
+        "left_the_room"
+      ]
+    },
+    {
+      "kind": "play-leaf",
+      "beatId": "demo_close"
+    },
+    {
+      "kind": "finish-leaf",
+      "beatId": "demo_close"
+    }
+  ]
+}

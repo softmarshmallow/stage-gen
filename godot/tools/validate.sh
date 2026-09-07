@@ -95,6 +95,18 @@ if [ "$SKIP_TESTS" -eq 0 ]; then
     && echo "   26 of 26 actions identical"
   python3 "$PROJECT/tools/runner_parity_diff.py" \
       "$SCENE_REPLAY/01-ferry.web.jsonl" "$OUT/scene.godot.jsonl"
+
+  echo "== case parity against the browser's own golden"
+  # The layer above the leaves: the beat order, the facts crossing between them,
+  # and the save written the moment a beat is entered.
+  CASE_REPLAY="$PROJECT/tests/fixtures/case/replay"
+  "$GODOT" --headless --path "$PROJECT" --quit-after 1000 \
+      -s res://tools/case_parity.gd -- \
+      --script "$CASE_REPLAY/01-demo.json" --out "$OUT/case.godot.jsonl"
+  diff "$OUT/case.godot-frames.txt" "$CASE_REPLAY/01-demo.web-frames.txt" \
+    && echo "   20 of 20 actions identical"
+  python3 "$PROJECT/tools/runner_parity_diff.py" \
+      "$CASE_REPLAY/01-demo.web.jsonl" "$OUT/case.godot.jsonl"
 fi
 
 echo "== capture ($SHOTS, dpr $DPR)"

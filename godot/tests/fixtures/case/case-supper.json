@@ -1,0 +1,246 @@
+{
+  "schema_version": 2,
+  "kind": "scenario-program-v2",
+  "scenario_id": "demo_supper",
+  "display_name": "The table",
+  "entry": "table",
+  "cast": [
+    {
+      "actor_id": "nao",
+      "display_name": "Nao",
+      "expressions": [
+        "composed",
+        "pleased"
+      ]
+    },
+    {
+      "actor_id": "haruki",
+      "display_name": "Haruki",
+      "expressions": [
+        "composed",
+        "pleased"
+      ]
+    },
+    {
+      "actor_id": "sayaka",
+      "display_name": "Sayaka",
+      "expressions": [
+        "composed",
+        "pleased"
+      ]
+    },
+    {
+      "actor_id": "mari",
+      "display_name": "Mari",
+      "expressions": [
+        "composed",
+        "pleased"
+      ]
+    },
+    {
+      "actor_id": "kenji",
+      "display_name": "Kenji",
+      "expressions": [
+        "composed",
+        "pleased"
+      ]
+    },
+    {
+      "actor_id": "you",
+      "display_name": "You",
+      "expressions": []
+    }
+  ],
+  "stages": [
+    {
+      "stage_id": "supper_room"
+    },
+    {
+      "stage_id": "after_dark"
+    }
+  ],
+  "tracks": [],
+  "flags": [
+    {
+      "flag_id": "heard_the_toast",
+      "origin": "local"
+    }
+  ],
+  "endings": [
+    {
+      "outcome_id": "to_the_room",
+      "label": "You went down to the room"
+    }
+  ],
+  "blocks": [
+    {
+      "label": "table",
+      "statements": [
+        {
+          "kind": "stage",
+          "stage": "supper_room"
+        },
+        {
+          "kind": "line",
+          "speaker": null,
+          "expression": null,
+          "text": "Five of them are already seated when you come in, and the sixth chair is yours."
+        },
+        {
+          "kind": "show",
+          "actor": "mari",
+          "expression": "composed",
+          "slot": "far_left"
+        },
+        {
+          "kind": "show",
+          "actor": "nao",
+          "expression": "composed",
+          "slot": "left"
+        },
+        {
+          "kind": "show",
+          "actor": "haruki",
+          "expression": "composed",
+          "slot": "center"
+        },
+        {
+          "kind": "show",
+          "actor": "sayaka",
+          "expression": "composed",
+          "slot": "right"
+        },
+        {
+          "kind": "show",
+          "actor": "kenji",
+          "expression": "composed",
+          "slot": "far_right"
+        },
+        {
+          "kind": "line",
+          "speaker": "haruki",
+          "expression": null,
+          "text": "Sit down. Nobody has said anything worth repeating yet."
+        },
+        {
+          "kind": "line",
+          "speaker": "nao",
+          "expression": "pleased",
+          "text": "That is not true. Mari said something about the card."
+        },
+        {
+          "kind": "line",
+          "speaker": "mari",
+          "expression": null,
+          "text": "I said the eighth one was turned the wrong way round. That is all I said."
+        },
+        {
+          "kind": "line",
+          "speaker": "kenji",
+          "expression": null,
+          "text": "From where I am sitting you can see it perfectly well."
+        },
+        {
+          "kind": "jump",
+          "target": "the_toast"
+        }
+      ]
+    },
+    {
+      "label": "the_toast",
+      "statements": [
+        {
+          "kind": "line",
+          "speaker": "sayaka",
+          "expression": null,
+          "text": "Somebody should say something before the soup goes cold."
+        },
+        {
+          "kind": "choice",
+          "options": [
+            {
+              "text": "Let Sayaka give the toast.",
+              "target": "toast_given"
+            },
+            {
+              "text": "Say nothing, and watch the card.",
+              "target": "toast_skipped"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "toast_given",
+      "statements": [
+        {
+          "kind": "hide",
+          "actor": "kenji"
+        },
+        {
+          "kind": "hide",
+          "actor": "mari"
+        },
+        {
+          "kind": "show",
+          "actor": "sayaka",
+          "expression": "pleased",
+          "slot": "center"
+        },
+        {
+          "kind": "hide",
+          "actor": "haruki"
+        },
+        {
+          "kind": "line",
+          "speaker": "sayaka",
+          "expression": null,
+          "text": "To the ones who came, and to the one who did not."
+        },
+        {
+          "kind": "set",
+          "flag": "heard_the_toast",
+          "value": true
+        },
+        {
+          "kind": "jump",
+          "target": "downstairs"
+        }
+      ]
+    },
+    {
+      "label": "toast_skipped",
+      "statements": [
+        {
+          "kind": "line",
+          "speaker": null,
+          "expression": null,
+          "text": "You say nothing. The eighth card stays turned inward, and nobody moves it."
+        },
+        {
+          "kind": "jump",
+          "target": "downstairs"
+        }
+      ]
+    },
+    {
+      "label": "downstairs",
+      "statements": [
+        {
+          "kind": "stage",
+          "stage": "after_dark"
+        },
+        {
+          "kind": "line",
+          "speaker": null,
+          "expression": null,
+          "text": "The telephone goes at nine, and it is for you. The room it means is downstairs."
+        },
+        {
+          "kind": "end",
+          "outcome": "to_the_room"
+        }
+      ]
+    }
+  ]
+}
