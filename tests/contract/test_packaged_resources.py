@@ -256,7 +256,12 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # family and tests), the video slice 26,656 B across seven modules, and the
         # storefront 6,503 B; the rest is drift spread across the tree. The ceiling is
         # 9,700,000, sized for the clip gate, the transcode component and their tests.
-        assert sum(sdist_entries.values()) < 9_700_000
+        # Adopting a clip (2026-09-08) takes it by 13,155 B: the adopt node and its
+        # loader binding, the two audition commands, the review-sampling module moved
+        # out of the shell into the clip component, decision 0064 and about 250 lines of
+        # new tests. The ceiling is 9,800,000. The adopted clips themselves are under
+        # library/ and are not even in git, let alone the archive.
+        assert sum(sdist_entries.values()) < 9_800_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)

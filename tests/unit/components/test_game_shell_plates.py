@@ -223,8 +223,8 @@ def test_the_evidence_outlines_every_measured_region_without_covering_it() -> No
 DIGEST = "a" * 64
 FONT = "b" * 64
 DOCUMENT = f"""
-schema_version = 2
-kind = "game-shell-v2"
+schema_version = 3
+kind = "game-shell-v3"
 game_id = "ember-hollow"
 revision = 1
 

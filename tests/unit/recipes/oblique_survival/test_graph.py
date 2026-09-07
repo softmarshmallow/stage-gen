@@ -24,7 +24,8 @@ from typing import Any, Final, cast
 
 import pytest
 
-from gnode import LOCAL_OPERATION, BinaryArtifact, Node
+from gnode import LOCAL_OPERATION, BinaryArtifact, CapabilityError, Node
+from stage_gen.components.game_shell import ShellClip
 from stage_gen.config import StageGenConfig
 from stage_gen.recipes.oblique_survival import survival_prompts, survival_request
 from stage_gen.recipes.oblique_survival.layout import build_layout
@@ -638,9 +639,11 @@ def test_redrawing_the_plate_rebills_the_nodes_that_carry_it(
     # So are the screens around the game, through shell.toml: the first thing a
     # player sees is the last place that should be allowed to keep the old look.
     assert "shell-title_backdrop_far-generate" in moved
-    # Including the clip: a filmed shot is drawn against the same plate as a painted
-    # one, so repainting the look re-buys the film too.
-    assert "shell-opening_the_cold-clip-generate" in moved
+    # But not the clips, because this package adopts them. A filmed shot that is drawn
+    # in the run carries the plate like every other picture; an adopted one is a file
+    # somebody already watched and kept, and repainting the look does not change what is
+    # in it. Dropping a shot's `take` puts it back on the route -- and back in this set.
+    assert "shell-opening_the_cold-clip-adopt" not in moved
     # ... and the paintovers, which never see the plate, did not.
     assert "fx-fire-generate" not in moved
     assert "ground-macro-generate" not in moved
@@ -2052,3 +2055,163 @@ def test_a_package_without_an_interface_document_plans_no_interface(
     graph = _graph(config, bare, "full")
     assert not [node for node in graph.nodes if node.type_id.startswith("2d/ui/")]
     assert len(graph.nodes) == len(_graph(config, package, "full").nodes) - 12
+
+
+# --- the opening's clips: drawn in the run, or adopted into it -------------------------
+
+
+def _shell_with(package: Package, **clip_fields: object) -> Package:
+    """The package's shell with the same edit applied to every opening clip."""
+
+    shell = package.shell
+    assert shell is not None and shell.opening is not None
+    opening = shell.opening.model_copy(
+        update={
+            "shots": [
+                shot.model_copy(update={"plate": shot.plate.model_copy(update=clip_fields)})
+                if isinstance(shot.plate, ShellClip)
+                else shot
+                for shot in shell.opening.shots
+            ]
+        }
+    )
+    return replace(package, shell=shell.model_copy(update={"opening": opening}))
+
+
+def test_a_clip_is_adopted_or_drawn_and_the_chain_below_it_cannot_tell(
+    config: StageGenConfig, package: Package
+) -> None:
+    """Both paths are first-class. Only the first node differs; the gate does not."""
+
+    prefix = "2d/shell"
+    adopted = _graph(config, package, "full")
+    by_type = Counter(node.type_id for node in adopted.nodes)
+    assert by_type[f"{prefix}/clip.adopt"] == 3
+    assert by_type[f"{prefix}/clip.generate"] == 0
+    assert adopted.operation_counts().get("video_generation", 0) == 0
+
+    drawn = _graph(config, _shell_with(package, take=None), "full")
+    drawn_types = Counter(node.type_id for node in drawn.nodes)
+    assert drawn_types[f"{prefix}/clip.generate"] == 3
+    assert drawn_types[f"{prefix}/clip.adopt"] == 0
+    assert drawn.operation_counts()["video_generation"] == 3
+
+    # The same number of nodes either way, and the same chain under the first one:
+    # gate, publish, review all read a raw mp4 and never ask where it came from.
+    assert len(adopted.nodes) == len(drawn.nodes)
+    for graph, step in ((adopted, "adopt"), (drawn, "generate")):
+        first = graph.node(f"shell-opening_the_cold-clip-{step}")
+        validate = graph.node("shell-opening_the_cold-clip-validate")
+        assert first.depends_on == ("source-lock",)
+        assert validate.depends_on == (first.node_id,)
+        assert first.port("clip").artifact_ref == "shell/opening_the_cold.raw.mp4"
+
+
+def test_one_opening_may_mix_an_adopted_shot_with_a_drawn_one(
+    config: StageGenConfig, package: Package
+) -> None:
+    """The choice is per shot: audition the one that matters, let the rest draw."""
+
+    shell = package.shell
+    assert shell is not None and shell.opening is not None
+    shots = list(shell.opening.shots)
+    first = shots[0]
+    assert isinstance(first.plate, ShellClip)
+    shots[0] = first.model_copy(update={"plate": first.plate.model_copy(update={"take": None})})
+    opening = shell.opening.model_copy(update={"shots": shots})
+    mixed = _graph(
+        config, replace(package, shell=shell.model_copy(update={"opening": opening})), "full"
+    )
+    types = Counter(node.type_id for node in mixed.nodes)
+    assert types["2d/shell/clip.generate"] == 1
+    assert types["2d/shell/clip.adopt"] == 2
+    assert mixed.operation_counts()["video_generation"] == 1
+
+
+def test_an_adopted_shot_is_not_held_to_the_routes_ceiling(
+    config: StageGenConfig, package: Package
+) -> None:
+    """The refusal is about an ask, and an adopted shot asks the route for nothing.
+
+    A route that answers ten whole seconds at most cannot make a twenty-five second
+    sequence; somebody cutting one together outside the pipeline can, and adopting it is
+    how it gets in. The same shot drawn is refused while planning, offline, as it was.
+    """
+
+    long_shot = _shell_with(package, take=None)
+    shell = long_shot.shell
+    assert shell is not None and shell.opening is not None
+    stretched = shell.opening.model_copy(
+        update={
+            "shots": [
+                shot.model_copy(update={"seconds": 25.0})
+                if isinstance(shot.plate, ShellClip)
+                else shot
+                for shot in shell.opening.shots
+            ]
+        }
+    )
+    drawn = replace(long_shot, shell=shell.model_copy(update={"opening": stretched}))
+    with pytest.raises(CapabilityError, match="clip_seconds_max"):
+        _graph(config, drawn, "full")
+
+    adopted_shell = package.shell
+    assert adopted_shell is not None and adopted_shell.opening is not None
+    adopted = replace(
+        package,
+        shell=adopted_shell.model_copy(
+            update={
+                "opening": adopted_shell.opening.model_copy(
+                    update={
+                        "shots": [
+                            shot.model_copy(update={"seconds": 25.0})
+                            if isinstance(shot.plate, ShellClip)
+                            else shot
+                            for shot in adopted_shell.opening.shots
+                        ]
+                    }
+                )
+            }
+        ),
+    )
+    graph = _graph(config, adopted, "full")
+    assert graph.operation_counts().get("video_generation", 0) == 0
+
+
+def test_swapping_a_take_moves_the_clip_and_nothing_else(
+    config: StageGenConfig, package: Package
+) -> None:
+    """The file is the answer, so the digest is the identity.
+
+    Two takes of one brief are two different films. If the adopt node keyed on the ask,
+    swapping the file would restore the previous clip's gate record out of the cache and
+    the run would publish one clip under another's measurements.
+    """
+
+    def keys(pkg: Package) -> dict[str, str]:
+        return {
+            node.node_id: node.cache_key
+            for node in _graph(config, pkg, "full").nodes
+            if node.node_id.startswith("shell-opening_the_cold-")
+        }
+
+    shell = package.shell
+    assert shell is not None and shell.opening is not None
+    baseline = keys(package)
+    first = shell.opening.shots[0]
+    assert isinstance(first.plate, ShellClip) and first.plate.take is not None
+    swapped_take = first.plate.take.model_copy(update={"sha256": "b" * 64})
+    swapped_plate = first.plate.model_copy(update={"take": swapped_take})
+    shots = [first.model_copy(update={"plate": swapped_plate})]
+    shots.extend(shell.opening.shots[1:])
+    swapped = keys(
+        replace(
+            package,
+            shell=shell.model_copy(
+                update={"opening": shell.opening.model_copy(update={"shots": shots})}
+            ),
+        )
+    )
+    assert swapped != baseline
+    for node_id in baseline:
+        assert swapped[node_id] != baseline[node_id], node_id

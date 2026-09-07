@@ -102,6 +102,26 @@ uv run stage-gen remove-background \
   --input ./input.png --output ./out/subject.png
 ```
 
+Video is the most expensive route here — a ten-second 720p clip is $1.00 — and it takes no
+seed, so an identical brief is a fresh draw at full price. It is therefore drawn and judged
+outside a run, and the file that wins is linked into a package rather than re-bought on
+every cold cache:
+
+```sh
+uv run stage-gen generate-video --output ./explore/clip-audition/a1.mp4 \
+  --duration 10 --resolution 720p --aspect-ratio 16:9 \
+  --reference ./library/games/ember-hollow/references/style-plate.png \
+  "the brief, verbatim"
+uv run stage-gen inspect-video --input ./explore/clip-audition/a1.mp4 \
+  --output ./explore/clip-audition/a1.contact.png
+```
+
+`inspect-video` makes no provider call: it measures the clip and lays its frames out on a
+contact sheet, sampled exactly as the pipeline's own reviewer samples them, so a clip is
+judged by looking at it. See [the shell contract](docs/spec/game/shell.md) for how a package
+adopts the winner, and note that drawing a clip inside a run stays fully supported for any
+shot that does not name one.
+
 The dry-run directory contains `package.json`, `execution-plan.json`,
 `execution-projection.json`, `execution-trace.jsonl`, and `execution-summary.json`. See the
 [canonical generation pipeline](docs/spec/game/generation-pipeline.md) for the executable graph,
@@ -429,7 +449,9 @@ bun run dev
 ```
 
 `ffmpeg` and `ffprobe` must be on `PATH` for generated-music normalization and
-inspection, and for generated sound-effect level admission. Verify the optional adapter with:
+inspection, for generated sound-effect level admission, and for every clip measurement —
+`inspect-video`, the admission gate, and the contact sheets both of them build. Verify the
+optional adapter with:
 
 ```sh
 cd web

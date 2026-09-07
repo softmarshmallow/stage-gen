@@ -1,4 +1,4 @@
-"""The `game-shell-v2` authored contract, and the refusals that are its point.
+"""The `game-shell-v3` authored contract, and the refusals that are its point.
 
 Most of these are not shape tests. Each names a decision the contract makes — text is
 composited rather than drawn, a typeface is an input, a backdrop is ordered far to near —
@@ -31,8 +31,8 @@ DIGEST = "a" * 64
 FONT_DIGEST = "b" * 64
 
 HEADER = f"""
-schema_version = 2
-kind = "game-shell-v2"
+schema_version = 3
+kind = "game-shell-v3"
 game_id = "ember-hollow"
 revision = 1
 
@@ -414,7 +414,7 @@ def test_a_clip_shot_is_a_second_kind_of_plate_not_a_flag_on_the_first() -> None
     # And it is absent from plates(), which everything downstream joins to a PNG.
     assert shell.plates() == ()
     clip = shell.clips()[0][1]
-    assert (clip.mode, clip.take) == ("clip", 1)
+    assert (clip.mode, clip.draw, clip.take) == ("clip", 1, None)
     # A clip carries no alpha policy: video has no alpha.
     assert not hasattr(clip, "alpha_policy")
 
@@ -448,12 +448,51 @@ def test_a_clip_prompt_may_not_ask_for_lettering_either() -> None:
     assert "shell clip prompt" in _refusal(lettering)
 
 
-def test_a_take_is_the_reroll_because_a_video_route_takes_no_seed() -> None:
+def test_a_draw_is_the_reroll_because_a_video_route_takes_no_seed() -> None:
     assert (
-        _load(CLIP_OPENING.replace('mode = "clip"', 'mode = "clip"\ntake = 3')).clips()[0][1].take
+        _load(CLIP_OPENING.replace('mode = "clip"', 'mode = "clip"\ndraw = 3')).clips()[0][1].draw
         == 3
     )
-    assert "take" in _refusal(CLIP_OPENING.replace('mode = "clip"', 'mode = "clip"\ntake = 0'))
+    assert "draw" in _refusal(CLIP_OPENING.replace('mode = "clip"', 'mode = "clip"\ndraw = 0'))
+
+
+_TAKE = 'take = {{ path = "shell/{name}.take.mp4", sha256 = "{digest}" }}'
+_DIGEST = "a" * 64
+
+
+def test_a_clip_may_name_the_file_instead_of_asking_for_one() -> None:
+    """The expensive route's manual gate: draw it outside a run, then link the winner."""
+
+    adopted = _load(
+        CLIP_OPENING.replace(
+            'mode = "clip"', 'mode = "clip"\n' + _TAKE.format(name="walk", digest=_DIGEST)
+        )
+    )
+    take = adopted.clips()[0][1].take
+    assert take is not None
+    assert (take.path, take.sha256) == ("shell/walk.take.mp4", _DIGEST)
+
+
+def test_a_take_stays_inside_the_package_and_is_the_format_the_gate_expects() -> None:
+    outside = CLIP_OPENING.replace(
+        'mode = "clip"', 'mode = "clip"\n' + _TAKE.format(name="../walk", digest=_DIGEST)
+    )
+    assert "shell clip take path" in _refusal(outside)
+    wrong_format = CLIP_OPENING.replace(
+        'mode = "clip"',
+        'mode = "clip"\n' + _TAKE.format(name="walk", digest=_DIGEST).replace(".mp4", ".ogv"),
+    )
+    assert ".mp4" in _refusal(wrong_format)
+
+
+def test_adopting_a_take_and_asking_for_another_draw_are_contradictory() -> None:
+    """A reroll counter asks the route for another clip; an adopted shot asks for none."""
+
+    both = CLIP_OPENING.replace(
+        'mode = "clip"',
+        'mode = "clip"\ndraw = 2\n' + _TAKE.format(name="walk", digest=_DIGEST),
+    )
+    assert "cannot also raise draw" in _refusal(both)
 
 
 # --- how the opening ends -----------------------------------------------------

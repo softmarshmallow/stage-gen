@@ -75,6 +75,16 @@ Changelog
             a document that declares one plans four nodes for it and one video
             operation, and a shot longer than the route's declared ceiling is
             refused while planning rather than counted.
+
+2026-09-08  A clip may name the file instead of asking for one. Ember Hollow's three
+            opening shots adopt the takes they were already drawn as, so three
+            provider nodes become three local ones: the node counts do not move
+            at all, ``video_generation`` goes to zero, ``local`` gains three, and
+            every topology digest from ``props`` up shifts because a node's type
+            is part of the shape. ``minimal`` is untouched, which is the proof
+            that nothing but the clip family moved. The drawn path is unchanged
+            and still planned for any shot without a take; what this row records
+            is one package's choice, not a change of default.
 """
 
 from __future__ import annotations
@@ -121,41 +131,41 @@ IDENTITIES: Final = {
     ),
     "props": ScopeIdentity(
         node_count=202,
-        topology_sha256="8193f32c43d5b8da20e0db427ec4d9624bc3173da260e0797584d34f08ceb87a",
+        topology_sha256="ff9cdad9ada5682302c55f36703a842e8ab55b3b3b17f7429e30f13fd0d0148c",
         operations={
-            "local": 102,
+            "local": 105,
             "image_generation": 75,
             "tool_loop": 11,
             "structured_generation": 11,
             "music_generation": 0,
             "sound_effect_generation": 0,
-            "video_generation": 3,
+            "video_generation": 0,
         },
     ),
     "actors": ScopeIdentity(
         node_count=252,
-        topology_sha256="f17686374c644d1f08fa08e18cffa694317a455ce90771ae52bee810e2a457ec",
+        topology_sha256="c5bf4cdb3110718109d1206de6261515d00d3ee61e5f217f15491231b71b8e85",
         operations={
-            "local": 126,
+            "local": 129,
             "image_generation": 96,
             "tool_loop": 11,
             "structured_generation": 16,
             "music_generation": 0,
             "sound_effect_generation": 0,
-            "video_generation": 3,
+            "video_generation": 0,
         },
     ),
     "full": ScopeIdentity(
         node_count=294,
-        topology_sha256="2296dcdbf01fa6b5048c788e7e877a397c3b2b5dc1bc58f74c1a2aebd9ee1b90",
+        topology_sha256="9ac43e50a9f2664357eea4b378d45da83c145d43bcd801f68a5dbf835c0633aa",
         operations={
-            "local": 157,
+            "local": 160,
             "image_generation": 103,
             "tool_loop": 11,
             "structured_generation": 17,
             "music_generation": 0,
             "sound_effect_generation": 3,
-            "video_generation": 3,
+            "video_generation": 0,
         },
     ),
 }

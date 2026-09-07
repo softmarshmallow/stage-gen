@@ -26,11 +26,14 @@ from stage_gen.application import (
     write_report,
 )
 from stage_gen.capabilities import (
+    VIDEO_RESOLUTIONS,
     HeadlessRuntime,
     generate_image_artifact,
     generate_music,
     generate_sound_effect,
     generate_speech,
+    generate_video,
+    inspect_video,
     remove_background,
 )
 from stage_gen.components._secure_fs import SecurePathError, read_absolute_regular_file
@@ -630,6 +633,34 @@ def build_parser() -> argparse.ArgumentParser:
         "--yes",
         action="store_true",
         help="confirm a paid provider call when stdin is not a terminal",
+    )
+
+    # The audition pair. Video is the most expensive route this CLI reaches and it takes
+    # no seed, so drawing a brief twice costs twice and answers differently. These two
+    # exist so the drawing and the choosing happen outside a run, where the frames can be
+    # looked at and only the chosen file is carried into a package.
+    video_parser = commands.add_parser("generate-video")
+    video_parser.add_argument("--output", required=True)
+    video_parser.add_argument("--duration", required=True, type=float, dest="duration")
+    video_parser.add_argument("--resolution", choices=VIDEO_RESOLUTIONS, default="720p")
+    video_parser.add_argument("--aspect-ratio", default="16:9", dest="aspect_ratio")
+    video_parser.add_argument("--reference", action="append", default=[])
+    video_parser.add_argument("prompt", nargs="+")
+    video_parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="confirm a paid provider call when stdin is not a terminal",
+    )
+
+    inspect_parser = commands.add_parser("inspect-video")
+    inspect_parser.add_argument("--input", required=True, dest="input_path")
+    inspect_parser.add_argument("--output", required=True, help="where to write the contact sheet")
+    inspect_parser.add_argument(
+        "--duration",
+        type=float,
+        default=None,
+        dest="duration",
+        help="the length to hold the clip to; defaults to the length it actually is",
     )
 
     speech_parser = commands.add_parser("generate-speech")
@@ -1536,6 +1567,17 @@ async def _dispatch_async(
                 dry_run_result, run_dir=output_path, genre=genre, invocation_id=invocation_id
             ),
         )
+    if args.command == "inspect-video":
+        # No provider, no spend, and so no confirmation: this is the free half of the
+        # audition pair, and it is what somebody reads before deciding whether the
+        # expensive half was worth it.
+        report = await inspect_video(
+            input_path=args.input_path,
+            output_path=args.output,
+            expected_seconds=args.duration,
+        )
+        stdout.write(f"{json.dumps(report, separators=(',', ':'))}\n")
+        return 0
     # One paid call, no plan, no cache: the only spend in this CLI that nothing
     # prices first. A person at a terminal has typed the prompt they are paying
     # for; a script has not, so it says so with --yes or is refused.
@@ -1580,6 +1622,17 @@ async def _dispatch_async(
             duration_seconds=args.duration,
             prompt_influence=args.prompt_influence,
             loop=args.loop,
+            config=config,
+            runtime=runtime,
+        )
+    elif args.command == "generate-video":
+        result = await generate_video(
+            prompt=" ".join(args.prompt).strip(),
+            output_path=args.output,
+            duration_seconds=args.duration,
+            resolution=args.resolution,
+            aspect_ratio=args.aspect_ratio,
+            reference_paths=args.reference,
             config=config,
             runtime=runtime,
         )

@@ -62,8 +62,8 @@ from stage_gen.components.game_shell.layouts import (
     TITLE_SCREEN_LAYOUT,
 )
 
-GAME_SHELL_SCHEMA_VERSION = 2
-GAME_SHELL_KIND = "game-shell-v2"
+GAME_SHELL_SCHEMA_VERSION = 3
+GAME_SHELL_KIND = "game-shell-v3"
 
 #: Licences whose terms permit redistributing the font file itself, which is what
 #: publishing a run does. A face under any other licence is refused offline rather than
@@ -73,9 +73,10 @@ REDISTRIBUTABLE_FONT_LICENSES: tuple[str, ...] = ("OFL-1.1", "Apache-2.0", "CC0-
 FONT_SUFFIXES = frozenset({".otf", ".ttf"})
 #: A clip's reroll counter. A video route accepts no seed, so the only way to ask for a
 #: second draw of the same brief is to say so, and the ceiling keeps a typo from buying
-#: a hundred of them.
-FIRST_SHELL_TAKE = 1
-MAX_SHELL_TAKE = 12
+#: a hundred of them. Named ``draw`` rather than ``take`` because in this repository's
+#: packages a take is the file that was kept, not the attempt that produced it.
+FIRST_SHELL_DRAW = 1
+MAX_SHELL_DRAW = 12
 REFERENCE_SUFFIXES = frozenset({".jpeg", ".jpg", ".png", ".webp"})
 
 #: A prompt that asks for lettering gets lettering, and a model's lettering is the one
@@ -227,23 +228,56 @@ class ShellPlate(PersistedContractModel):
         return _clean_prompt(value, "shell plate prompt")
 
 
+class ShellClipTake(PersistedContractModel):
+    """An auditioned clip kept in the package and adopted instead of drawn.
+
+    Video is the most expensive thing a run buys and the route accepts no seed, so a
+    brief is a draw rather than a picture: asking twice costs twice and answers
+    differently. A take is the answer somebody already looked at, bound by digest and
+    republished through the clip gate at no provider cost - the lever ``sounds.toml``,
+    ``music.toml`` and ``ground.toml`` all reach for, spelled the same way.
+
+    The digest is what the package's identity reads, not the bytes. A ten-second clip is
+    megabytes, so the file is kept beside the package rather than committed, and a
+    package whose takes are absent still loads, still plans and still prices the run --
+    the adopt node is where the absence is finally paid for.
+    """
+
+    path: str
+    sha256: str = Field(pattern=SHA256_PATTERN)
+
+    @field_validator("path")
+    @classmethod
+    def validate_path(cls, value: str) -> str:
+        path = portable_relative_path(value, "shell clip take path")
+        if not path.startswith("shell/"):
+            raise ValueError("shell clip takes must live under shell/")
+        if PurePosixPath(path).suffix.lower() != ".mp4":
+            raise ValueError("a shell clip take must be an .mp4 file")
+        return path
+
+
 class ShellClip(PersistedContractModel):
-    """One generated moving picture, standing where a still would.
+    """One moving picture, standing where a still would.
 
     It carries no ``alpha_policy`` because video has no alpha, and no resolution because a
     package names a layout and never writes a rectangle. It carries no length either: how
     long the shot runs is the shot's business, and how long a clip the bound route will
     make is that route's, declared on its binding and refused while planning.
 
-    ``take`` is the reroll. A video route accepts no seed, so two identical asks are
-    independent draws and a second one is bought deliberately - the same audition-then-adopt
-    lever the soundtrack and the sound effects already use.
+    Two ways to fill it, both first-class. Without ``take`` the run buys the brief from the
+    bound route, and ``draw`` is the reroll counter that asks for another one - a video
+    route accepts no seed, so a second draw of the same brief is bought deliberately.
+    With ``take`` the run adopts a clip somebody already auditioned and judged, buys
+    nothing, and is no longer bound by what length the route can answer.
     """
 
     mode: Literal["clip"]
     reference_ids: list[str] = Field(min_length=1, max_length=16)
     prompt: str
-    take: int = Field(default=FIRST_SHELL_TAKE, ge=FIRST_SHELL_TAKE, le=MAX_SHELL_TAKE)
+    #: The auditioned clip to adopt. Absent means the run draws the brief itself.
+    take: ShellClipTake | None = None
+    draw: int = Field(default=FIRST_SHELL_DRAW, ge=FIRST_SHELL_DRAW, le=MAX_SHELL_DRAW)
 
     @field_validator("reference_ids")
     @classmethod
@@ -255,6 +289,16 @@ class ShellClip(PersistedContractModel):
     @classmethod
     def validate_prompt(cls, value: str) -> str:
         return _clean_prompt(value, "shell clip prompt")
+
+    @model_validator(mode="after")
+    def validate_take_and_draw(self) -> ShellClip:
+        if self.take is not None and self.draw != FIRST_SHELL_DRAW:
+            raise ValueError(
+                "a shell clip that adopts a take cannot also raise draw: the reroll counter "
+                "asks the route for another draw, and an adopted shot asks the route for "
+                "nothing. Drop the take to draw again, or drop draw to keep the take"
+            )
+        return self
 
 
 #: What an opening shot may put on the screen. Discriminated on ``mode`` so a reader
@@ -437,8 +481,8 @@ class GameShell(PersistedContractModel):
     game's name — must declare the typeface it is set in.
     """
 
-    schema_version: Literal[2]
-    kind: Literal["game-shell-v2"]
+    schema_version: Literal[3]
+    kind: Literal["game-shell-v3"]
     game_id: str = Field(pattern=PACKAGE_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     references: list[ShellReference] = Field(min_length=1, max_length=32)
@@ -565,7 +609,7 @@ def load_game_shell_bytes(data: bytes) -> GameShell:
 
 __all__ = [
     "BackdropLayer",
-    "FIRST_SHELL_TAKE",
+    "FIRST_SHELL_DRAW",
     "FONT_SUFFIXES",
     "GAME_SHELL_KIND",
     "GAME_SHELL_SCHEMA_VERSION",
@@ -574,12 +618,13 @@ __all__ = [
     "LOADING_SCREEN_LAYOUT",
     "LoadingBackdropBinding",
     "LoadingScreen",
-    "MAX_SHELL_TAKE",
+    "MAX_SHELL_DRAW",
     "Opening",
     "OPENING_LAYOUT",
     "OpeningShot",
     "REDISTRIBUTABLE_FONT_LICENSES",
     "ShellClip",
+    "ShellClipTake",
     "ShellPlate",
     "ShellReference",
     "ShellTypeface",

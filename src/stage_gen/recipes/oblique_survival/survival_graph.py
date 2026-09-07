@@ -1800,6 +1800,13 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
         # scope. Costs a message; the provider's own 422 is only the backstop for a
         # route whose ceiling moved since it was last verified.
         for clip_role in document_clip_roles(package.shell):
+            if clip_role.clip.take is not None:
+                # An adopted shot asks the route for nothing, so the route's ceiling is not
+                # its business: a twenty-five second sequence cut together outside the
+                # pipeline is a legal shot even though this route answers ten whole seconds
+                # at most. Its length is still measured, by the same gate, against the
+                # seconds the shot itself declares.
+                continue
             subject = f"the opening's {clip_role.shot_id} shot"
             binding = bindings.require_within(
                 ObliqueSurvivalOperationKind.VIDEO_GENERATION,

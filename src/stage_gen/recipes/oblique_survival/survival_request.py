@@ -27,6 +27,7 @@ from pydantic import ValidationError
 from stage_gen.canonical import content_sha256
 from stage_gen.components._game_input import AuthoredContractLoadError
 from stage_gen.components.game_shell import GameShell, load_game_shell_bytes
+from stage_gen.components.game_shell.nodes import document_clip_roles
 from stage_gen.components.game_ui import GameUi, load_game_ui_bytes
 from stage_gen.recipes.oblique_survival.models import (
     DECAL_USES,
@@ -122,7 +123,7 @@ SURVIVAL_DOCUMENT_NAME: Final = "survival.toml"
 #: sheets the host's HUD is dressed in, and the pointers it is played with. Its
 #: contract is the game_ui component's.
 UI_DOCUMENT_NAME: Final = "ui.toml"
-#: The shared ``game-shell-v2`` document, optional the same way: the screens the
+#: The shared ``game-shell-v3`` document, optional the same way: the screens the
 #: player meets around the game. Its contract is the game_shell component's.
 SHELL_DOCUMENT_NAME: Final = "shell.toml"
 
@@ -415,7 +416,7 @@ def _shell(
         shell = load_game_shell_bytes(raw)
     except AuthoredContractLoadError as error:
         raise SourceError(
-            f"{SHELL_DOCUMENT_NAME} is not a game-shell-v2 document: {error}"
+            f"{SHELL_DOCUMENT_NAME} is not a game-shell-v3 document: {error}"
         ) from None
 
     references: dict[str, PackageFile] = {}
@@ -431,6 +432,30 @@ def _shell(
         references[source] = PackageFile(
             data=(root / Path(*PurePosixPath(source).parts)).read_bytes(), sha256=digest
         )
+
+    # An adopted clip is bound the way every other take in this package is: the digest the
+    # document declares enters the ledger, the bytes are verified when they are here, and
+    # an absence is recorded rather than raised. Video is megabytes, so a package's clips
+    # live beside the repository rather than in it, and a plan has to be a function of the
+    # committed text alone. The adopt node is where an absence is finally paid for.
+    for clip_role in document_clip_roles(shell):
+        take = clip_role.clip.take
+        if take is None:
+            continue
+        field_name = f"{SHELL_DOCUMENT_NAME} opening.shots.{clip_role.shot_id}.plate.take"
+        take_path = root / Path(*PurePosixPath(take.path).parts)
+        if take_path.is_file():
+            found = content_sha256(take_path.read_bytes())
+            if found != take.sha256:
+                raise SourceError(
+                    f"{field_name} {take.path!r} does not match its declared sha256: "
+                    f"declared {take.sha256}, found {found}"
+                )
+        elif take_path.exists():
+            raise SourceError(f"{field_name} {take.path!r} is not a file inside the package")
+        else:
+            digests.missing.append(MissingTake(path=take.path, sha256=take.sha256))
+        digests[take.path] = take.sha256
 
     typeface: PackageFile | None = None
     if shell.typeface is not None:

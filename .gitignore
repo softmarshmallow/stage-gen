@@ -195,6 +195,7 @@ local/
 /library/games/ember-hollow/weather/*.take.png
 /library/games/ember-hollow/music/*.take.mp3
 /library/games/ember-hollow/sounds/*.take.mp3
+/library/games/ember-hollow/shell/*.take.mp4
 
 # The Godot project: the editor's import cache is derived and an export is a
 # build, so neither is tracked. The project ships no media, so there are no
@@ -211,3 +212,4 @@ local/
 /library/games/ember-hollow/weather/*.take.png.meta.json
 /library/games/ember-hollow/music/*.take.mp3.meta.json
 /library/games/ember-hollow/sounds/*.take.mp3.meta.json
+/library/games/ember-hollow/shell/*.take.mp4.meta.json

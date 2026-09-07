@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Final, Literal
 
 from pydantic import BaseModel, ConfigDict
@@ -1196,7 +1196,7 @@ class Package:
     ui: GameUi | None = None
     #: The bytes behind each ui.toml reference, by its declared source path.
     ui_references: Mapping[str, PackageFile] = field(default_factory=dict)
-    #: shell.toml, the shared ``game-shell-v2`` document: the opening cinematic,
+    #: shell.toml, the shared ``game-shell-v3`` document: the opening cinematic,
     #: the title screen and the loading screen. Optional like ui.toml, and a
     #: package without one boots straight into the world.
     shell: GameShell | None = None
@@ -1250,6 +1250,26 @@ class Package:
             return self.shell_references[source]
         except KeyError:
             raise SourceError(f"shell.toml declares no reference at {source!r}") from None
+
+    def shell_take(self, take: str) -> PackageFile:
+        """One adopted shell clip's bytes, by the take path the document declares.
+
+        Unlike a reference, a take is bound by digest rather than loaded with the package:
+        it is video, it is kept beside the repository rather than in it, and a package
+        whose takes are absent still loads, still digests and still prices its run. This
+        is where the absence is finally paid for.
+        """
+
+        absent = self.missing_take(take)
+        if absent is not None:
+            raise SourceError(
+                f"shell.toml adopts the take {take!r}, which the package declares by digest "
+                f"(sha256 {absent.sha256}) but does not carry; fetch the take, or drop it "
+                "from the shot to draw the clip in the run instead"
+            )
+        path = self.root / Path(*PurePosixPath(take).parts)
+        data = path.read_bytes()
+        return PackageFile(data=data, sha256=content_sha256(data))
 
     def source_digest(self) -> str:
         """One digest over every authored file, in a fixed order."""

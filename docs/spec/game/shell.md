@@ -12,7 +12,7 @@
 
 `shell.toml` is the game-global source of truth for the screens a player meets **around**
 the game: the opening cinematic, the title screen, and the loading screen. It is a root
-sibling of `ui.toml` and `fx.toml`, and the exact current identity is `game-shell-v2`.
+sibling of `ui.toml` and `fx.toml`, and the exact current identity is `game-shell-v3`.
 
 It owns those screens and nothing else. Its two neighbours own the parts it is composed
 from, and the split is the point:
@@ -103,7 +103,7 @@ route, gated on things a picture has no answer for, and played rather than drawn
 [opening.shots.plate]
 mode = "clip"
 reference_ids = ["style_plate"]
-prompt = "..."          # take = 2 buys a second draw; there is no seed
+prompt = "..."          # draw = 2 buys a second draw; there is no seed
 ```
 
 A clip carries no `alpha_policy` — video has no alpha — and no resolution, because a
@@ -122,6 +122,90 @@ binding a route with a different ceiling needs no edit to any document.
 
 A clip shot is always `move = "hold"`. It brings its own camera, and a host moving over
 one would be fighting it.
+
+### A clip may be drawn in the run, or adopted into it
+
+Video is the most expensive thing this pipeline buys — a ten-second clip at 720p is a
+dollar, about what forty images cost — and the route accepts no seed. So a brief is a
+lottery ticket rather than a picture: asking twice costs twice and answers differently,
+and a run that draws its clips re-buys the whole opening every time a cache goes cold.
+
+A shot may therefore name the clip instead of the brief:
+
+```toml
+[opening.shots.plate]
+mode = "clip"
+reference_ids = ["style_plate", "player_appearance"]
+take = { path = "shell/the_cold.take.mp4", sha256 = "4baa0fde…" }
+prompt = "..."          # kept: it is what was asked for, and what a re-draw would use
+```
+
+**Both are first-class and neither is deprecated.** Without `take` the graph plans
+`clip.generate` and buys the brief, exactly as before. With `take` it plans `clip.adopt`,
+copies the file in, and buys nothing — and the two nodes write the same `.raw.mp4` port,
+so the admission gate, the transcode and the review downstream cannot tell which one
+filled it. Deleting a `take` line puts the shot back on the route, at a dollar. An author
+may mix them inside one opening: audition the shot that matters, let a simpler one draw
+itself.
+
+Adoption is the recommended default, and it is recommended by arithmetic rather than by a
+flag. `oblique-survival plan` on Ember Hollow reports **134 billable operations and
+$25.56** with its three clips adopted, against **137 and $28.56** with them drawn. There
+is no warning to silence and no confirmation to pass.
+
+Three consequences worth stating:
+
+- **An adopted shot is not bound by the route's ceiling.** `clip_seconds_max` and
+  `clip_seconds_step` are refusals about an ask, and an adopted shot asks nothing, so
+  they are skipped for it. A twenty-five second sequence cut together outside the
+  pipeline is a legal shot where the bound route answers ten whole seconds at most. Its
+  length is still measured, by the same gate, against the `seconds` the shot declares.
+- **The gate does not soften.** The adopted file is admitted on length, the layout's
+  rectangle, 16:9, codec, motion and luma — everything a fresh draw meets. Nothing is
+  adoptable that the graph would have thrown away.
+- **The review still runs.** It costs about a hundredth of the clip and it is the step
+  that actually reads the frames, so an adopted clip is judged against its published
+  `.ogv` exactly as a drawn one is.
+
+The take is bound by digest and **not committed**: video is megabytes, so a package's
+clips live beside the repository rather than in it (`.gitignore` carries the rule the way
+it already does for adopted plates, music and sound effects). The declared digest is what
+enters the package's identity, so a clone that does not carry the bytes still loads,
+still plans and still prices the run; the adopt node is where an absence is finally paid
+for, after planning has already said what the run would cost.
+
+### Drawing and judging a clip outside a run
+
+The two commands that make the loop practical. Neither knows anything about a package:
+
+```bash
+uv run stage-gen generate-video --output explore/clip-audition/the_cold-a1.mp4 \
+  --duration 10 --resolution 720p --aspect-ratio 16:9 \
+  --reference library/games/ember-hollow/references/style-plate.png \
+  --reference library/games/ember-hollow/references/player-appearance.png \
+  "the brief, verbatim"
+```
+
+```bash
+uv run stage-gen inspect-video --input explore/clip-audition/the_cold-a1.mp4 \
+  --output explore/clip-audition/the_cold-a1.contact.png
+```
+
+`generate-video` gates its draw exactly as the pipeline does, minus the layout's
+rectangle — which is a shot's business rather than a clip's, and is checked again when a
+package adopts it. So a draw refused at audition would have been refused in a run, which
+is the point.
+
+`inspect-video` makes no provider call and costs nothing. It measures the clip and lays
+its frames out on a contact sheet, sampled by the **same** constants the pipeline's own
+reviewer uses (`components/video_clip/review.py`), so a verdict formed by looking here
+and a verdict formed in a run are about the same pictures. A clip the gate would refuse
+still gets its sheet, with the refusal reported beside the facts: the reason to look at a
+refused clip is to find out what is wrong with it.
+
+Reading the frames is how a clip is judged. No measurement answers whether the beats the
+brief asked for are on the screen, and both a person and a model can answer it from a
+sheet — which is the whole reason the expensive step is worth doing by hand.
 
 ### The codec, measured
 
@@ -149,8 +233,8 @@ libtheora 1.2.0) named by `THEORA_FFMPEG`. It never shadows the ffmpeg on `PATH`
 ## The authored document
 
 ```toml
-schema_version = 2
-kind = "game-shell-v2"
+schema_version = 3
+kind = "game-shell-v3"
 game_id = "ember-hollow"
 revision = 1
 
@@ -224,6 +308,9 @@ describes something the player never sees. What the document refuses offline:
 | a plate naming an undeclared reference | an input that reaches a provider is never invisible |
 | backdrop layers out of far-to-near order, or a far layer that is not opaque | the far layer *is* the picture |
 | an emblem that is not a cut-out, an opening shot that is not opaque | each is what its role means |
+| a clip that adopts a take and also raises `draw` | the counter asks the route for another draw; an adopted shot asks the route for nothing |
+| a take outside `shell/`, or one that is not an `.mp4` | a package's media stays inside it, and the route's own format is what the gate expects |
+| a take whose bytes are present but do not match the declared sha256 | the package would be describing a clip nobody has |
 | two shots sharing an id | a shot is addressable |
 
 ## Screen geometry
@@ -418,8 +505,17 @@ contracts state.
 
 The clip plate is the first case it caught, and it was caught by this paragraph. `mode`
 went in as required on both branches rather than defaulted onto the existing one, the
-identity became `game-shell-v2`, and the manifest went to
+document's identity was bumped, and the manifest went to
 `oblique-survival-manifest-v3` in the same change — a v2 host reading a v3 run would
 have handed an Ogg to its texture loader and drawn a black frame with no warning. Runs
 published before that are dropped, which is the price the rule names and the reason it
 is worth having: the four shell plates re-bill, and nothing else in the graph moves.
+
+The adopted take is the second case. It arrived with a rename — a clip's reroll counter
+was called `take`, and every other package file in this repository spells the *kept file*
+`take = { path, sha256 }`. Two meanings for one word across files an author reads side by
+side is worse than a version bump, so the counter became `draw`, the file took the name,
+and the identity became `game-shell-v3`. The manifest did not move: what the host reads
+is a published `.ogv` either way, and which node produced it is the run's business, not
+the player's. Nothing re-bills — the plate contract is versioned separately from the
+clip's, and an adopted clip is a local copy.

@@ -80,7 +80,7 @@ a `game.toml` closure.
 | `weather.toml` | `oblique-survival-weather-v1` | the world conditions and the layers each one drives |
 | `music.toml` | — | one instrumental loop per clock cue, and the `[transition]` between them |
 | `ui.toml` | `game-ui-v5` | optional: the screen-fixed interface — the `panel_frame` and `button_rect` nine-slice sheets and the `preview_icons` grid the host's HUD is dressed in, and the `cursor_set` it is played with, each pointer with the hotspot the gate measured — the shared [authored game UI contract](../game/ui.md), planned through the game_ui component's own triplet; no `inventory_panel`, the host draws its slots as plain wells inside the generated frame |
-| `shell.toml` | `game-shell-v2` | optional: the screens around the game — the opening cinematic's shot list, each shot drawn as a still or filmed as a clip, the title screen's backdrop and text-free emblem, and the loading screen — the shared [authored game shell contract](../game/shell.md), planned through the game_shell component's own triplet. Every string on them is composited by the host in the package's declared typeface, never drawn into a plate |
+| `shell.toml` | `game-shell-v3` | optional: the screens around the game — the opening cinematic's shot list, each shot drawn as a still or filmed as a clip, the title screen's backdrop and text-free emblem, and the loading screen — the shared [authored game shell contract](../game/shell.md), planned through the game_shell component's own triplet. Every string on them is composited by the host in the package's declared typeface, never drawn into a plate |
 | `sounds.toml` | — | one clip per thing the player does, with its exact duration and its playback gain |
 
 `publication_authorized` is `false` in every graph this recipe seals and in
@@ -147,13 +147,16 @@ instead of paying twice.
 | Scope | Nodes | Image | Structured | Tool loop | Music | Sound | Video | Local |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | `minimal` | 64 | 21 | 0 | 5 | 0 | 0 | 0 | 38 |
-| `props` | 202 | 75 | 11 | 11 | 0 | 0 | 3 | 102 |
-| `actors` | 252 | 96 | 16 | 11 | 0 | 0 | 3 | 126 |
-| **`full`** | **294** | **103** | **17** | **11** | **0** | **3** | **3** | **157** |
+| `props` | 202 | 75 | 11 | 11 | 0 | 0 | 0 | 105 |
+| `actors` | 252 | 96 | 16 | 11 | 0 | 0 | 0 | 129 |
+| **`full`** | **294** | **103** | **17** | **11** | **0** | **3** | **0** | **160** |
 
 Counted from the committed fixture package with every plate, track and clip take
-adopted; the music count is zero for that reason. The `full` row is the block
-below, and both are derived rather than transcribed.
+adopted; the music and video counts are zero for that reason. Video is where that
+matters most — a ten-second clip is a dollar, so the three adopted opening shots are
+the difference between 134 billable operations and 137, and between $25.56 and $28.56.
+Drop a shot's `take` and it goes back to being filmed in the run. The `full` row is the
+block below, and both are derived rather than transcribed.
 
 `minimal` draws what a played demo needs on screen: each minimal prop's baseline
 state, the state its interaction leaves behind (a chopped tree is a stump, and
@@ -360,17 +363,17 @@ invalidates it and must be regenerated in the same change.
   "fixture_ref": "library/games/ember-hollow",
   "scope": "full",
   "graph_schema_version": 1,
-  "topology_sha256": "2296dcdbf01fa6b5048c788e7e877a397c3b2b5dc1bc58f74c1a2aebd9ee1b90",
+  "topology_sha256": "9ac43e50a9f2664357eea4b378d45da83c145d43bcd801f68a5dbf835c0633aa",
   "node_count": 294,
   "terminal_node_id": "package-manifest",
   "operation_counts": {
-    "local": 157,
+    "local": 160,
     "image_generation": 103,
     "structured_generation": 17,
     "tool_loop": 11,
     "music_generation": 0,
     "sound_effect_generation": 3,
-    "video_generation": 3
+    "video_generation": 0
   },
   "resources": [
     {

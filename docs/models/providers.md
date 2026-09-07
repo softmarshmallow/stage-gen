@@ -209,6 +209,36 @@ The response is h264 in mp4. The pinned Godot host plays only Ogg Theora, so a
 clip is transcoded before publication — see [the shell spec](../spec/game/shell.md)
 for that leg and the encoder it needs.
 
+### Audition this route before you plan a run on it
+
+Video is the most expensive route this repository binds — a ten-second 720p clip is
+$1.00, about what forty images cost — and, like every other seedless route here, it
+answers the same brief differently every time. Drawing inside a pipeline run therefore
+re-buys the whole opening whenever a cache goes cold, and buys a *different* opening.
+
+So the recommended shape is the one the soundtrack and the sound effects already use:
+draw outside a run, look at the frames, and link the winner.
+
+```sh
+uv run stage-gen generate-video --output ./explore/clip-audition/a1.mp4 \
+  --duration 10 --resolution 720p --aspect-ratio 16:9 \
+  --reference ./library/games/ember-hollow/references/style-plate.png \
+  "the brief, verbatim"
+uv run stage-gen inspect-video --input ./explore/clip-audition/a1.mp4 \
+  --output ./explore/clip-audition/a1.contact.png
+```
+
+`generate-video` applies the pipeline's own admission gate, so a draw refused at
+audition would have been refused in a run. `inspect-video` costs nothing, makes no
+provider call, and lays the clip's frames out exactly as the pipeline's reviewer sees
+them — reading the frames is how a clip is judged, and no measurement answers whether
+the beats a brief asked for are actually on the screen.
+
+A package then names the file instead of the brief; see [the shell spec](../spec/game/shell.md)
+for the `take` contract. Adopting costs zero provider operations and is not held to
+`clip_seconds_max`, because nothing is being asked of the route. Drawing in the run
+stays fully supported for any shot that does not declare a take.
+
 Success requires an `image` object with a URL and media metadata. Download the
 result inside the retry attempt, verify that it is non-empty decodable media,
 and persist both request and returned metadata. A hosted URL alone is not the

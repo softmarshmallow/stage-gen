@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import shutil
 from pathlib import Path
+from typing import Final
 
 import pytest
 
@@ -37,7 +38,7 @@ PACKAGE = Path("library/games/ember-hollow")
 #: And a fourth time when the opening's establishing shot became a clip -- the
 #: one shot whose subject is something moving. Its still is dropped and its clip
 #: is bought; every other node in the graph holds.
-SOURCE_DIGEST = "50dabcdddfacd7e7658c9cc8f63a0e660a8f3ab316a1ae87bfa12f668a188ba2"
+SOURCE_DIGEST = "9769d7db872bf0fab13f72cae27a95dae226cd1d4a638cf7b737619230fea62a"
 
 #: One take that is declared by digest and whose bytes are in the package.
 FORAGE_TAKE = "ground/forage.take.png"
@@ -77,7 +78,7 @@ def test_every_declared_take_digest_is_the_file_it_names() -> None:
         for name, digest in package.digests.items()
         if ".take." in name and (PACKAGE / name).is_file()
     }
-    assert len(takes) == 16
+    assert len(takes) == 19
     for name, digest in takes.items():
         assert hashlib.sha256((PACKAGE / name).read_bytes()).hexdigest() == digest
 
@@ -114,6 +115,42 @@ def test_an_absent_take_is_refused_where_its_bytes_are_needed(tmp_path: Path) ->
         take_path(package, FORAGE_TAKE)
 
     assert take_path(load_package(PACKAGE), FORAGE_TAKE) == PACKAGE / FORAGE_TAKE
+
+
+CLIP_TAKE: Final = "shell/the_cold.take.mp4"
+
+
+def test_an_adopted_clip_plans_without_its_bytes_and_is_refused_where_they_are_needed(
+    tmp_path: Path,
+) -> None:
+    """A clip take follows the same rule as every other, for a much bigger file.
+
+    Ten seconds of video is megabytes, so a package's clips are kept beside the
+    repository rather than in it. The plan has to be a function of the committed text
+    either way, which is exactly what makes the plan trustworthy about what a run costs
+    before anybody goes looking for the media.
+    """
+
+    root = _copy(tmp_path)
+    (root / CLIP_TAKE).unlink()
+    package = load_package(root)
+
+    assert package.source_digest() == SOURCE_DIGEST
+    assert CLIP_TAKE in [entry.path for entry in package.missing_takes]
+    with pytest.raises(SourceError, match=r"does not carry"):
+        package.shell_take(CLIP_TAKE)
+
+    present = load_package(PACKAGE)
+    assert present.shell_take(CLIP_TAKE).sha256 == present.digests[CLIP_TAKE]
+
+
+def test_an_adopted_clip_whose_bytes_disagree_with_its_digest_is_refused(
+    tmp_path: Path,
+) -> None:
+    root = _copy(tmp_path)
+    (root / CLIP_TAKE).write_bytes(b"\x00\x00\x00 ftypisom not the clip that was adopted")
+    with pytest.raises(SourceError, match="does not match its declared sha256"):
+        load_package(root)
 
 
 def test_a_take_whose_bytes_disagree_with_its_declared_digest_is_refused(

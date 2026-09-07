@@ -26,7 +26,10 @@ from gnode import (
     SpeechGenerationService,
     StructuredGenerationService,
     ToolLoopService,
+    VideoGenerationRequest,
     VideoGenerationService,
+    VideoReference,
+    VideoResolution,
     inspect_image,
 )
 from gnode.providers.elevenlabs import ElevenLabsSoundEffectBackend, ElevenLabsSpeechBackend
@@ -44,6 +47,7 @@ from stage_gen.components.audio_normalization import (
 )
 from stage_gen.components.sound_effect import admit_sound_effect_bytes
 from stage_gen.components.speech import admit_speech_bytes
+from stage_gen.components.video_clip import admit_clip_bytes
 from stage_gen.config import StageGenConfig, TransparencyMode
 from stage_gen.identity import (
     BACKGROUND_REMOVAL_COMPONENT,
@@ -223,6 +227,7 @@ class DefaultHeadlessRuntime:
         music_service: MusicGenerationService | None = None,
         sound_effect_service: SoundEffectGenerationService | None = None,
         speech_service: SpeechGenerationService | None = None,
+        video_service: VideoGenerationService | None = None,
     ) -> None:
         self._config = config
         openrouter_url = config.open_router_base_url or "https://openrouter.ai/api/v1"
@@ -252,6 +257,15 @@ class DefaultHeadlessRuntime:
                 base_url=config.elevenlabs_base_url or "https://api.elevenlabs.io/v1",
             )
             if config.elevenlabs_api_key
+            else None
+        )
+        self._video = video_service or (
+            create_video_service(
+                api_key=config.fal_key,
+                model=config.video_model,
+                base_url=config.fal_base_url or "https://fal.run",
+            )
+            if config.fal_key
             else None
         )
         self._background = background_service or (
@@ -284,6 +298,7 @@ class DefaultHeadlessRuntime:
             self._music,
             self._sound_effect,
             self._speech,
+            self._video,
         )
         closed: set[int] = set()
         first_error: BaseException | None = None
@@ -476,6 +491,76 @@ class DefaultHeadlessRuntime:
                 else {"source": "stage-gen-headless"},
                 rights=_unreviewed_generated_music_rights(),
                 validate=lambda artifact: admit_sound_effect_bytes(artifact.data),
+            )
+        )
+        return _result(
+            str(output),
+            generated.provenance_path,
+            generated.media_type,
+            len(generated.data),
+            generated.attempts,
+        )
+
+    async def generate_video(
+        self,
+        *,
+        prompt: str,
+        output_path: str,
+        duration_seconds: float,
+        resolution: str,
+        aspect_ratio: str,
+        reference_paths: Sequence[str] = (),
+        metadata: Mapping[str, object] | None = None,
+    ) -> CapabilityArtifactResult:
+        """One clip, drawn outside any run and admitted by the gate a run would use.
+
+        This is the audition tool for the most expensive thing the pipeline buys. Video
+        routes take no seed, so a brief is a lottery ticket rather than a picture: the way
+        to get a clip worth keeping is to draw a few, look at their frames, and keep one -
+        and then to adopt that file into the package rather than paying for the lottery
+        again on every run.
+
+        It gates exactly as the pipeline does, minus the layout's rectangle, which is a
+        shot's business rather than a clip's. A draw refused here would have been refused
+        in a run, which is the point: nothing should be adoptable that the graph will
+        later throw away.
+        """
+
+        service = self._video or _missing("FAL_KEY")
+        output = await asyncio.to_thread(Path(output_path).resolve)
+        if output.suffix.lower() != ".mp4":
+            raise ValueError("generate-video output must use a .mp4 extension")
+        references: list[VideoReference] = []
+        for reference in reference_paths:
+            path = await asyncio.to_thread(Path(reference).resolve)
+            data = await asyncio.to_thread(path.read_bytes)
+            facts = inspect_image(data)
+            references.append(
+                VideoReference(url=data_url(data, facts.media_type), provenance_ref=str(path))
+            )
+        generated = await service.generate(
+            VideoGenerationRequest(
+                prompt=prompt,
+                artifact_path=output,
+                references=tuple(references),
+                duration_seconds=duration_seconds,
+                resolution=cast(VideoResolution, resolution),
+                aspect_ratio=aspect_ratio,
+                output_format="mp4",
+                # A video attempt is minutes, not seconds, and the capability timeout is
+                # sized for a picture. Six of those attempts is what the retry owner may
+                # spend, so one of them gets the whole of this.
+                timeout_seconds=600.0,
+                metadata=dict(metadata)
+                if metadata is not None
+                else {"source": "stage-gen-headless"},
+                rights=_unreviewed_generated_music_rights(),
+                # No expected size: the rung and the aspect say what shape this is, and
+                # which layout it will eventually stand in is a shot's business, checked
+                # again when a package adopts it.
+                validate=lambda artifact: admit_clip_bytes(
+                    artifact.data, expected_seconds=duration_seconds
+                ),
             )
         )
         return _result(

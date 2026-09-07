@@ -586,22 +586,24 @@ def test_swapping_the_appearance_picture_moves_every_node_drawn_against_it(
 ) -> None:
     """The picture is part of the answer, so it is part of the node identity.
 
-    Two families read it now: the actor's concept, and the opening's clips, which are
-    filmed against the same authored picture because prose cannot hold a character. A
-    swap has to move both, and it has to move the digest the document binds it by --
-    the shell refuses a reference whose bytes are not the ones it named.
+    The actor's concept is drawn against it, so a swap re-bills it. The opening's clips
+    name the same picture and are *not* re-billed, because this package adopts them: an
+    adopted clip is a file, and a file does not change when the brief it was drawn from
+    does. That is the point of adopting one -- and it is why the reference swap still has
+    to be declared, since the shell refuses a reference whose bytes are not the ones it
+    named whether or not anything is drawn from it.
     """
 
     def keys(root: Path) -> dict[str, str]:
         package = load_package(root)
         built = build_graph(StageGenConfig(), package, "actors")
-        wanted = ("actor-wren-concept", "shell-opening_the_cold-clip-generate")
+        wanted = ("actor-wren-concept", "shell-opening_the_cold-clip-adopt")
         return {n.node_id: n.cache_key for n in built.nodes if n.node_id in wanted}
 
     root = tmp_path / "source"
     shutil.copytree(PACKAGE, root)
     before = keys(root)
-    assert set(before) == {"actor-wren-concept", "shell-opening_the_cold-clip-generate"}
+    assert set(before) == {"actor-wren-concept", "shell-opening_the_cold-clip-adopt"}
 
     picture = root / "references" / "player-appearance.png"
     data = bytearray(picture.read_bytes())
@@ -623,9 +625,8 @@ def test_swapping_the_appearance_picture_moves_every_node_drawn_against_it(
     after = keys(root)
     assert after["actor-wren-concept"] != before["actor-wren-concept"]
     assert (
-        after["shell-opening_the_cold-clip-generate"]
-        != before["shell-opening_the_cold-clip-generate"]
-    )
+        after["shell-opening_the_cold-clip-adopt"] == before["shell-opening_the_cold-clip-adopt"]
+    ), "an adopted clip is a file; re-briefing the picture it was drawn from re-buys nothing"
 
 
 def test_the_approach_radius_never_falls_inside_the_reach(tmp_path: Path) -> None:

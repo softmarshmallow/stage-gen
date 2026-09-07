@@ -884,7 +884,10 @@ def test_oblique_survival_plan_prices_a_scope_without_touching_a_provider(
     assert len(report["graph"]["nodes"]) == 294
     # An empty cache restores nothing, and says how much that leaves to pay for.
     assert report["cache"]["restored_provider_nodes"] == 0
-    assert report["cache"]["billed_provider_nodes"] == 137
+    # 134, not 137: the opening's three clips adopt takes the package already carries,
+    # so they are local copies rather than a dollar each. Dropping a shot's `take` puts
+    # it back on the video route and this number back up.
+    assert report["cache"]["billed_provider_nodes"] == 134
 
 
 def test_oblique_survival_failure_injection_is_refused_outside_a_dry_run(

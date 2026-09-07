@@ -50,6 +50,7 @@ from gnode import (
 )
 from stage_gen.canonical import content_sha256
 from stage_gen.components.game_shell.nodes import (
+    SHELL_CLIP_ADOPT,
     SHELL_CLIP_GENERATE,
     SHELL_CLIP_REVIEW,
     SHELL_CLIP_TRANSCODE,
@@ -710,6 +711,7 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
             (SHELL_PLATE_VALIDATE, self._shell_validate),
             (SHELL_PLATE_REVIEW, self._shell_review),
             (SHELL_CLIP_GENERATE, self._shell_clip_generate),
+            (SHELL_CLIP_ADOPT, self._shell_clip_adopt),
             (SHELL_CLIP_VALIDATE, self._shell_clip_validate),
             (SHELL_CLIP_TRANSCODE, self._shell_clip_publish),
             (SHELL_CLIP_REVIEW, self._shell_clip_review),
@@ -894,6 +896,7 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
                     component=OBLIQUE_SURVIVAL_COMPONENT,
                     tool=STAGE_GEN_TOOL,
                     typeface=self._shell_typeface_file,
+                    take=self.package.shell_take,
                 ),
                 graph=self._graph,
                 image_service=self._require_images(),
@@ -915,6 +918,9 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
 
     async def _shell_clip_generate(self, node: Node) -> NodeExecutionResult:
         return await self._shell_handlers().generate_clip(node)
+
+    async def _shell_clip_adopt(self, node: Node) -> NodeExecutionResult:
+        return await self._shell_handlers().adopt_clip(node)
 
     async def _shell_clip_validate(self, node: Node) -> NodeExecutionResult:
         return await self._shell_handlers().validate_clip(node)

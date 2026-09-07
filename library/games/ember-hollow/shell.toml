@@ -1,5 +1,5 @@
 # The screens around the game: the opening cinematic, the title screen, the
-# loading screen. The shared `game-shell-v2` contract, whose rules live in
+# loading screen. The shared `game-shell-v3` contract, whose rules live in
 # docs/spec/game/shell.md and whose component is src/stage_gen/components/game_shell/.
 #
 # Nothing here asks for lettering, and the loader refuses a prompt that does.
@@ -7,10 +7,10 @@
 # is set by the host in the typeface below, never drawn into a plate. That is
 # what keeps the name spelled correctly and translatable.
 
-schema_version = 2
-kind = "game-shell-v2"
+schema_version = 3
+kind = "game-shell-v3"
 game_id = "ember-hollow"
-revision = 4
+revision = 5
 
 # The art direction of record, the same plate every other generated image in
 # this package is drawn against. The shell is the first thing a player sees, so
@@ -74,6 +74,19 @@ ending = "fade_to_black"
 # which is what a shot list already is.
 #
 # No `move` on any of them: a clip brings its own camera.
+#
+# All three are adopted rather than drawn. A ten-second clip is a dollar and the route
+# takes no seed, so a run that draws these buys three dollars of lottery tickets every
+# time the cache is cold, and gets three different films. The `take` on each shot is the
+# draw that was watched and kept (from out/shell-clip-v2, 2026-09-07): it is copied into
+# the run and admitted by the same gate the route's answer would have met, at no
+# provider cost. The briefs stay because they are what was asked for and what a re-draw
+# would use -- delete a shot's `take` line and that shot goes back to being filmed in
+# the run, at a dollar.
+#
+# The takes themselves are not in git: they are megabytes of first-party video, so they
+# sit beside the package and are bound here by sha256. A clone that does not carry them
+# still loads, still plans and still prices the run; only the adopt node needs the bytes.
 
 [[opening.shots]]
 shot_id = "the_cold"
@@ -83,6 +96,7 @@ out_transition = "cut"
 [opening.shots.plate]
 mode = "clip"
 reference_ids = ["style_plate", "player_appearance"]
+take = { path = "shell/the_cold.take.mp4", sha256 = "4baa0fde85a70be76429856b7fd4d2fd3a427dd7b1bf5a253a5cb6813e6a5534" }
 prompt = """
 Four shots, hard cuts between them, no dissolves.
 
@@ -111,6 +125,7 @@ out_transition = "cut"
 [opening.shots.plate]
 mode = "clip"
 reference_ids = ["style_plate", "player_appearance"]
+take = { path = "shell/the_dark.take.mp4", sha256 = "51668873ed024a0632d0d84036c2708e5327955dcaf3952b245a45f293b41ef4" }
 prompt = """
 Six shots, hard cuts, no dissolves. The cuts come fast, about one a second, faster
 than an ordinary scene.
@@ -147,6 +162,7 @@ out_transition = "dissolve"
 [opening.shots.plate]
 mode = "clip"
 reference_ids = ["style_plate", "player_appearance"]
+take = { path = "shell/the_fire.take.mp4", sha256 = "15b6803f0ce32d2700ff4ee2987729b572e7a352c1f35beaab6297bc79483648" }
 prompt = """
 Five shots, hard cuts, no dissolves.
 
@@ -199,7 +215,7 @@ only warm accent.
 # does not need it — the game's name is composited in the package's own face over
 # a backdrop that measured 9.18 against a 12.0 ceiling — so the badge waits for a
 # brief written from a drawn reference rather than from adjectives. `title.emblem`
-# stays optional in `game-shell-v2` for exactly this case.
+# stays optional in `game-shell-v3` for exactly this case.
 
 # --- the loading screen ------------------------------------------------------
 #

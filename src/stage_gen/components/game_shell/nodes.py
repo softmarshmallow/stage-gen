@@ -65,10 +65,7 @@ from stage_gen.components._node_kit import (
     record_port,
 )
 from stage_gen.components.game_shell.clips import (
-    CLIP_REVIEW_CELL_WIDTH,
-    CLIP_REVIEW_COLUMNS,
     SHELL_CLIP_VALIDATION_VERSION,
-    clip_sample_times,
     match_title_verdict,
     shell_clip_record,
 )
@@ -82,7 +79,7 @@ from stage_gen.components.game_shell.layouts import (
     ShellLayout,
 )
 from stage_gen.components.game_shell.models import (
-    FIRST_SHELL_TAKE,
+    FIRST_SHELL_DRAW,
     GameShell,
     ShellClip,
     ShellPlate,
@@ -93,7 +90,13 @@ from stage_gen.components.game_shell.plates import (
     shell_plate_evidence,
     validate_shell_plate,
 )
-from stage_gen.components.video_clip import admit_clip_bytes, admit_clip_file
+from stage_gen.components.video_clip import (
+    CLIP_REVIEW_CELL_WIDTH,
+    CLIP_REVIEW_COLUMNS,
+    admit_clip_bytes,
+    admit_clip_file,
+    clip_sample_times,
+)
 from stage_gen.media import (
     contact_sheet,
     data_url,
@@ -198,6 +201,10 @@ def clip_resolution(layout: ShellLayout) -> VideoResolution:
 #: bought from different routes and asked for different things, and bumping one must
 #: not re-bill the other.
 SHELL_CLIP_CONTRACT_VERSION = "shell-clip-v1"
+#: The adopt node's own cache contract, separate from the draw's for the reason the draw's
+#: is separate from the plate's: the two nodes read different things, and bumping the one
+#: that copies a file must never re-buy the one that films a shot.
+SHELL_CLIP_ADOPT_CONTRACT_VERSION = "shell-clip-adopt-v1"
 SHELL_CLIP_REVIEW_VERSION = "shell-clip-review-v2"
 SHELL_CLIP_REVIEW_SCHEMA_NAME = "shell_clip_review"
 
@@ -222,6 +229,18 @@ SHELL_CLIP_GENERATE = NodeType(
     features=VIDEO_FEATURES,
     policy=_PROVIDER,
     contract_version="shell-clip-v1",
+)
+
+#: The clip a package already owns, copied into the run instead of bought. Local, and
+#: deliberately the same archetype as the draw it replaces: what a reader is looking at is
+#: a video either way, and only the price differs. It writes the same raw port, so the gate,
+#: the transcode and the review downstream cannot tell which one filled it.
+SHELL_CLIP_ADOPT = NodeType(
+    type_id=f"{_P}/clip.adopt",
+    title="Shell clip adoption",
+    archetype=ViewArchetype.VIDEO,
+    operation="local",
+    contract_version="shell-clip-adopt-v1",
 )
 
 SHELL_CLIP_VALIDATE = NodeType(
@@ -271,6 +290,7 @@ SHELL_NODE_TYPES = (
     SHELL_PLATE_VALIDATE,
     SHELL_PLATE_REVIEW,
     SHELL_CLIP_GENERATE,
+    SHELL_CLIP_ADOPT,
     SHELL_CLIP_VALIDATE,
     SHELL_CLIP_TRANSCODE,
     SHELL_CLIP_REVIEW,
@@ -431,8 +451,8 @@ class ShellClipRole:
 
         ``reference_ids`` keeps its order: a video route reads the first picture as the
         art direction the rest are judged against, so re-ordering them is a different
-        ask. ``take`` enters only above the first draw, so an existing key is undisturbed
-        until somebody asks for another one.
+        ask. ``draw`` enters only above the first one, so an existing key is undisturbed
+        until somebody asks for another.
 
         Out: the shot's move, its card, its transition, and the opening's ending. They
         change how the clip is presented or what it is checked against, not what was
@@ -446,9 +466,22 @@ class ShellClipRole:
             "seconds": self.seconds,
             "output_format": "mp4",
         }
-        if self.clip.take != FIRST_SHELL_TAKE:
-            identity["take"] = self.clip.take
+        if self.clip.draw != FIRST_SHELL_DRAW:
+            identity["draw"] = self.clip.draw
         return identity
+
+    def adoption_identity(self) -> dict[str, object]:
+        """What an adopted clip's local copy is, and the length it is admitted against.
+
+        Deliberately not the generation identity: nothing is being asked of a route, so
+        the brief, the references and the reroll counter decide nothing here. The file is
+        the answer, and the digest is the whole of it - re-briefing an adopted shot
+        re-runs a free local node and buys nothing.
+        """
+
+        if self.clip.take is None:
+            raise ValueError(f"the {self.shot_id} shot adopts no take")
+        return {"take": self.clip.take.sha256, "seconds": self.seconds}
 
 
 def document_clip_roles(shell: GameShell) -> tuple[ShellClipRole, ...]:
@@ -614,11 +647,17 @@ def shell_node_ids(role: ShellPlateRole, *, prefix: str = "shell") -> tuple[str,
 
 
 def shell_clip_node_ids(role: ShellClipRole, *, prefix: str = "shell") -> tuple[str, ...]:
-    """The four ids one clip occupies in a host graph."""
+    """The four ids one clip occupies in a host graph.
 
+    The first is named for how the clip arrives - drawn from the route, or adopted from a
+    take the package already carries - because a run's node list is the clearest place to
+    read which shots were bought and which were not.
+    """
+
+    first = "clip-adopt" if role.clip.take is not None else "clip-generate"
     return tuple(
         f"{prefix}-{role.role}-{stage}"
-        for stage in ("clip-generate", "clip-validate", "clip-publish", "clip-review")
+        for stage in (first, "clip-validate", "clip-publish", "clip-review")
     )
 
 
@@ -782,7 +821,17 @@ def add_shell_nodes(
             for reference_id in clip_role.clip.reference_ids
         )
         geometry_digest = object_digest(clip_role.geometry_record())
-        identity_digest = object_digest(clip_role.generation_identity())
+        # What this shot IS, for everything downstream of the first node. A drawn clip is
+        # its ask; an adopted one is the file, because two takes of one brief are two
+        # different pictures and the gate's record has to move with them. Reading the ask
+        # for an adopted shot would let a swapped take restore the previous clip's record
+        # out of the cache.
+        adopted = clip_role.clip.take
+        identity_digest = object_digest(
+            clip_role.adoption_identity()
+            if adopted is not None
+            else clip_role.generation_identity()
+        )
         prompt = style_prompt(clip_content_task(clip_role))
 
         clip_generate_ports: list[Port] = [artifact_port("clip", raw_ref, SHELL_CLIP_RAW_KIND)]
@@ -793,25 +842,47 @@ def add_shell_nodes(
             clip_generate_ports.append(attempts_port(generate_id))
             clip_review_ports.append(attempts_port(review_id))
 
-        generated = builder.add(
-            SHELL_CLIP_GENERATE,
-            generate_id,
-            domain=domain,
-            description=f"Film the opening's {clip_role.shot_id} shot",
-            depends_on=(root,),
-            cache_depends_on=(),
-            params={"role": clip_role.role},
-            input_digests=(
-                *direction_digests,
-                object_digest({"contract": SHELL_CLIP_CONTRACT_VERSION}),
-                identity_digest,
-                *(entry.sha256 for entry in authored),
-                geometry_digest,
-            ),
-            ports=tuple(clip_generate_ports),
-            card=NodeCard(prompt=prompt, authored_inputs=authored),
-            duration_seconds=180.0,
-        )
+        if adopted is not None:
+            # Zero operations, and no reference reaches a provider: the picture is already
+            # made. The brief still travels on the card, because a reader of the run wants
+            # to know what this shot was asked to be even when nobody asked for it here.
+            generated = builder.add(
+                SHELL_CLIP_ADOPT,
+                generate_id,
+                domain=domain,
+                description=f"Adopt the auditioned {clip_role.shot_id} clip, chosen by eye",
+                depends_on=(root,),
+                cache_depends_on=(),
+                params={"role": clip_role.role},
+                input_digests=(
+                    object_digest({"contract": SHELL_CLIP_ADOPT_CONTRACT_VERSION}),
+                    identity_digest,
+                    geometry_digest,
+                ),
+                ports=tuple(clip_generate_ports),
+                card=NodeCard(prompt=prompt, authored_inputs=authored),
+                duration_seconds=5.0,
+            )
+        else:
+            generated = builder.add(
+                SHELL_CLIP_GENERATE,
+                generate_id,
+                domain=domain,
+                description=f"Film the opening's {clip_role.shot_id} shot",
+                depends_on=(root,),
+                cache_depends_on=(),
+                params={"role": clip_role.role},
+                input_digests=(
+                    *direction_digests,
+                    object_digest({"contract": SHELL_CLIP_CONTRACT_VERSION}),
+                    identity_digest,
+                    *(entry.sha256 for entry in authored),
+                    geometry_digest,
+                ),
+                ports=tuple(clip_generate_ports),
+                card=NodeCard(prompt=prompt, authored_inputs=authored),
+                duration_seconds=180.0,
+            )
         validated = builder.add(
             SHELL_CLIP_VALIDATE,
             validate_id,
@@ -950,6 +1021,12 @@ class ShellHost:
     #: visual reference: it never reaches a provider, and it is republished rather than
     #: attached. Required exactly when the document declares one.
     typeface: Callable[[], _PackageFile] | None = None
+    #: An adopted clip's bytes, by the take path the document declared. Separate from
+    #: ``file`` because a take is bound by digest rather than loaded with the package: it
+    #: may legitimately be absent while the package still loads and plans, and the refusal
+    #: for that belongs to whoever knows where the package keeps its media. Required
+    #: exactly when some shot declares a take.
+    take: Callable[[str], _PackageFile] | None = None
 
 
 class ShellHandlers:
@@ -1100,6 +1177,73 @@ class ShellHandlers:
             node, f"shell-clip-{role.role}", prompt, lambda: video.generate(request)
         )
         return self._result(node, provider_operations=1, attempts=result.attempts)
+
+    async def adopt_clip(self, node: Node) -> NodeExecutionResult:
+        """Copy an auditioned clip into the run through the gate the route's answer meets.
+
+        Nothing is asked of a provider: this shot was drawn once, outside a run, and
+        somebody looked at its frames and kept it. What makes that safe is that the copy
+        is admitted exactly as a fresh draw is - length, rectangle, codec, motion - so an
+        adopted clip cannot enter a run through a door the drawn one could not.
+
+        The one check a draw does not need: the file must match the digest the package
+        declared, or the package is describing a clip nobody has.
+        """
+
+        role = self._clip_role(node)
+        take = role.clip.take
+        if take is None:
+            raise ValueError(f"the {role.shot_id} shot adopts no take")
+        if self._host.take is None:
+            raise ValueError("this host was built without a way to read adopted takes")
+        package_file = self._host.take(take.path)
+        if package_file.sha256 != take.sha256:
+            raise ValueError(
+                f"the {role.shot_id} take does not match its declared sha256: "
+                f"declared {take.sha256}, found {package_file.sha256}"
+            )
+        facts = await admit_clip_bytes(
+            package_file.data,
+            expected_seconds=role.seconds,
+            expected_size=role.layout.canvas,
+            expected_codec=CLIP_SOURCE_CODEC,
+            ffmpeg=self._ffmpeg,
+            ffprobe=self._ffprobe,
+        )
+        ref = f"package://{self._host.package_id}/{take.path}#sha256={package_file.sha256}"
+        await write_artifact_with_provenance_async(
+            self._host.run_dir / node.port("clip").artifact_ref,
+            BinaryArtifact(data=package_file.data, media_type="video/mp4"),
+            ProvenanceInput(
+                provider="local",
+                model=SHELL_CLIP_ADOPT_CONTRACT_VERSION,
+                prompt=card_prompt(node),
+                refs=[take.path],
+                inputs=[
+                    InputProvenance(
+                        ref=ref,
+                        sha256=package_file.sha256,
+                        source="content",
+                        bytes=len(package_file.data),
+                        media_type="video/mp4",
+                    )
+                ],
+                params={"role": role.role, "shot_id": role.shot_id},
+                validation={
+                    "adopted_from": take.path,
+                    "adopted_sha256": package_file.sha256,
+                    # The pick was made over audition draws of this brief, by somebody
+                    # reading the frames; the gate only confirms the file is a clip of the
+                    # shape asked for.
+                    "accepted_by": "audition_pick",
+                    **facts,
+                },
+                component=self._host.component,
+                tool=self._host.tool,
+                attempts=1,
+            ),
+        )
+        return self._result(node, provider_operations=0)
 
     async def validate_clip(self, node: Node) -> NodeExecutionResult:
         """Re-state the admission over the persisted response, as a record.
