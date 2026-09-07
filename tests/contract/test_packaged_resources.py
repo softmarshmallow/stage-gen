@@ -64,12 +64,18 @@ MEDIA_SUFFIXES = {
     ".mp3",
     ".mp4",
     ".ogg",
+    ".otf",
     ".png",
+    ".ttf",
     ".wav",
     ".webm",
     ".webp",
 }
 IMAGE_MEDIA_SUFFIXES = {".gif", ".jpeg", ".jpg", ".png", ".webp"}
+#: A typeface is media, and until decision 0063 it was in no suffix set this gate
+#: reads: two committed faces were outside both the aggregate ceiling and the
+#: per-root location rules. They are counted here like every other binary.
+FONT_MEDIA_SUFFIXES = {".otf", ".ttf"}
 CONCEPT_GALLERY_PREFIX = ("concept-studio", "gallery")
 CONCEPT_STYLE_DICTIONARY_PREFIX = ("concept-studio", "style-dictionary")
 CONCEPT_MEDIA_PREFIXES = {
@@ -91,6 +97,7 @@ STYLE_DICTIONARY_REVIEWERS = {
 }
 GIT_MEDIA_LIMITS = {
     "audio": 20 * 1024 * 1024,
+    "font": 2 * 1024 * 1024,
     "image": 5 * 1024 * 1024,
     "video": 25 * 1024 * 1024,
 }
@@ -404,8 +411,26 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
                 and len(relative.parts) == 6
                 and relative.suffix.lower() == ".mp3"
             )
+            # A package's typeface sits at `library/games/<game_id>/fonts/`, the
+            # second and last place a package may hold a binary. Publishing a run
+            # copies the file, so the licence that permits it is committed beside
+            # the face and this gate checks that it is actually there; see
+            # docs/decisions/0063-a-typeface-is-a-package-input.md.
+            is_package_font = (
+                relative.parts[3] == "fonts"
+                and len(relative.parts) == 5
+                and relative.suffix.lower() in FONT_MEDIA_SUFFIXES
+            )
             if is_pinned_take:
                 assert relative.with_suffix(".mp3.meta.json").as_posix() in tracked_files
+            elif is_package_font:
+                licences = {
+                    name
+                    for name in tracked_files
+                    if name.startswith(f"{relative.parent.as_posix()}/")
+                    and PurePosixPath(name).suffix.lower() in {".md", ".txt"}
+                }
+                assert licences, f"{relative} has no licence text committed beside it"
             else:
                 assert relative.parts[3] == "references" or (
                     relative.parts[3] == "rooms"
@@ -589,6 +614,8 @@ def _media_family(suffix: str) -> str:
         return "audio"
     if suffix in {".mp4", ".webm"}:
         return "video"
+    if suffix in FONT_MEDIA_SUFFIXES:
+        return "font"
     return "image"
 
 

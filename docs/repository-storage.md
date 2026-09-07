@@ -3,8 +3,9 @@
 Generated run output belongs below the configured output directory and stays
 gitignored. Commit only small, deliberate fixtures needed to build, test, or
 explain a contract. A canonical prepared game may also commit its explicitly
-digest-bound image inputs under `library/games/<game_id>/references/`; those
-are authored package members, not generated run output.
+digest-bound image inputs under `library/games/<game_id>/references/` and its
+digest-bound typefaces under `library/games/<game_id>/fonts/`; those are authored
+package members, not generated run output.
 
 README-only repository marketing assets live under `.github/assets/readme/`.
 That directory contains efficient WebP presentation copies rather than
@@ -28,6 +29,7 @@ replaced.
 The repository gates enforce these binary-media limits:
 
 - audio: 20 MiB per file;
+- font: 2 MiB per file;
 - image: 5 MiB per file;
 - video: 25 MiB per file; and
 - all tracked/generated media combined: 100 MiB.
@@ -79,6 +81,12 @@ does not move older blobs automatically.
   `library/games/<game_id>/references/`. Their owning TOML contracts must bind
   exact digests and inline rights basis, while `game.toml` binds the selected
   evidence and reviews. They do not use generated-output `.meta.json` sidecars.
+- A prepared-package typeface is allowed only beneath
+  `library/games/<game_id>/fonts/`, with the face's licence file committed beside
+  it, and its owning TOML contract binds the exact digest and the licence the same
+  way. A face is a third-party input with a rights basis, not provider output
+  published as art: it carries no inventory entry and no `.meta.json` sidecar.
+  See [decision 0063](decisions/0063-a-typeface-is-a-package-input.md).
 - Generated media in declared publication roots must be enumerated in
   [`generated-media-inventory.json`](generated-media-inventory.json) and pass
   the [generated-media publication gate](generated-media-publication.md). The

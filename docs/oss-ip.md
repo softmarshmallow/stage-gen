@@ -30,6 +30,14 @@ Do not commit a reference merely because it was used transiently in research.
 Where a test can use geometry, synthetic color fields, or repository-authored
 material, prefer that.
 
+A **typeface** is such an input, and it carries one extra obligation: publishing
+a run copies the font file, so the face's licence must permit redistributing the
+file itself. The authored contract records family, copyright, licence, licence
+file, upstream source, retrieval date and SHA-256, and the licence text is
+committed beside the face. A face whose record is incomplete is refused offline
+rather than shipped on trust. See
+[decision 0063](decisions/0063-a-typeface-is-a-package-input.md).
+
 ## Outputs
 
 Generated does not mean automatically cleared. Before committing or shipping
@@ -72,6 +80,8 @@ existence does not establish training-data provenance or downstream clearance.
 
 - [ ] Prompt is neutral and requests original work.
 - [ ] Every input/reference has a recorded rights basis.
+- [ ] Every committed typeface has its licence text beside it, and that licence
+      permits redistributing the font file.
 - [ ] Every committed generated-media file is enumerated and has matching
       provenance plus a repository-approved rights status and basis.
 - [ ] Output was reviewed for protected names, marks, characters, text, and
