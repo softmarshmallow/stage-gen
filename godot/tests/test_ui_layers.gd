@@ -22,6 +22,7 @@ func run(h: TestHarness) -> void:
 	_death_screen_follows_dead(h, w)
 	_craft_panel_follows_craft_open(h, w)
 	_hud_builds_the_pack(h, w)
+	_hud_reads_the_vitals(h, w)
 	_hud_tells_the_time(h, w)
 	_hud_flies_a_pickup(h, w)
 	_pause_menu_shows_the_help(h, w)
@@ -363,6 +364,56 @@ func _hud_builds_the_pack(h: TestHarness, w: SurvivalWorld) -> void:
 ## The clock: the hour from the phase (sunrise at 06:00, midnight at 0.75),
 ## the part of the day, and what comes next in how long — the season's dusk,
 ## so winter says dusk earlier.
+## The vitals are a corner cluster: a glyph, a bar and a number to a line, the
+## warmth line turning cold with the season, and the whole thing small enough
+## that it reads as a corner meter and not as a panel — the ceiling is the
+## point of the test, since the cluster grew past it once.
+func _hud_reads_the_vitals(h: TestHarness, w: SurvivalWorld) -> void:
+	TestFixtures.bare(w)
+	w.dead = false
+	w.craft_open = false
+	TestFixtures.force_season(w, "summer")
+	w.player["health"] = 73.0
+	w.player["hunger"] = 41.0
+	w.player["warmth"] = 100.0
+	var hud := SurvivalHud.new()
+	hud.setup(TestFixtures.package(), w, null)
+	hud.update(w, 0.0, {})
+	h.assert_eq((hud._health_row.get_node("value") as Label).text, "73", "health by the number")
+	h.assert_eq((hud._hunger_row.get_node("value") as Label).text, "41", "hunger by the number")
+	h.assert_eq((hud._warmth_row.get_node("value") as Label).text, "100", "warmth by the number")
+	var heart: TextureRect = hud._health_row.get_node("glyph")
+	h.assert_true(heart.texture != null, "the run's own glyph heads the line")
+	h.assert_false((hud._health_row.get_node("word") as Label).visible,
+		"so the word it falls back to stays down")
+	h.assert_true(hud._health_bar.get_parent() == hud._health_row,
+		"the bar rides in the line, not under it")
+	# Summer: nothing cold about the warmth line.
+	var flame: TextureRect = hud._warmth_row.get_node("glyph")
+	var amount: Label = hud._warmth_row.get_node("value")
+	h.assert_true(flame.modulate.is_equal_approx(Color.WHITE), "summer leaves the flame alone")
+	h.assert_true(amount.get_theme_color("font_color").is_equal_approx(SurvivalUiKit.TEXT),
+		"and the number plain")
+	TestFixtures.force_season(w, "winter")
+	hud.update(w, 0.0, {})
+	h.assert_true(flame.modulate.is_equal_approx(SurvivalUiKit.COLD),
+		"a cold season turns the line cold")
+	h.assert_true(amount.get_theme_color("font_color").is_equal_approx(SurvivalUiKit.COLD),
+		"number and all — where the row's \"cold\" went")
+	TestFixtures.force_season(w, "summer")
+	hud.update(w, 0.0, {})
+	# The layers are laid out in 1600x900 units, so the cluster's own box is a
+	# fraction of the screen whatever the window is. It is the box the content
+	# asks for; the run's drawn frame adds its inset around it on screen, which
+	# is why the ceiling is not the picture's own measurement.
+	var box: Vector2 = hud._hud_panel.size
+	h.assert_true(box.x <= 0.18 * 1600.0,
+		"the cluster's box keeps under a sixth of the width (%.0f units)" % box.x)
+	h.assert_true(box.y <= 0.17 * 900.0,
+		"and a sixth of the height (%.0f units)" % box.y)
+	hud.free()
+
+
 func _hud_tells_the_time(h: TestHarness, w: SurvivalWorld) -> void:
 	var length := float((w.manifest["gameplay"] as Dictionary)["day_length_seconds"])
 	h.assert_near(length, 480.0, 1e-9, "the authored day")

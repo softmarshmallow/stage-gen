@@ -142,8 +142,13 @@ The pointers are re-cut only when the window lands on a display of another
 pixel scale, and a run without the set keeps the system pointer.
 
 **The HUD** (`hud/hud.gd`, `hud/craft_panel.gd`, `hud/death_screen.gd`,
-`hud/pause_menu.gd`, the shared `hud/ui_kit.gd`). The vitals stand top-left
-with the title, the day and the season, and under them the **clock**: the hour
+`hud/pause_menu.gd`, the shared `hud/ui_kit.gd`). The **vitals** stand top-left
+as a corner cluster: the title, the day and the season on one small line, the
+**clock** under it, and then health, hunger and warmth a line each — a glyph, a
+slim bar, a number, and no word, because at the size a corner meter should be
+the glyph and its colour say what the word did while the word costs the line.
+A cold season turns the warmth line cold, the snowflake standing where the
+flame does, which is where the old row's `❄ cold` went. The clock reads the hour
 (phase 0 is sunrise, 06:00; midnight is three quarters through), the part of the
 day, and what comes next in how long — `dusk in 3:03` through the day, `dark in`
 while dusk falls, `dawn in` through the night, `day in` while dawn breaks — over

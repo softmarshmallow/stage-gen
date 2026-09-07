@@ -6,7 +6,8 @@ extends CanvasLayer
 ##
 ## Ported from viewer/index.html section 6 (`renderHud` :4705-4765, the
 ## prompt/message/debug block :5723-5771) and then rebuilt for the mouse and
-## for a screen: the vitals stand top-left with bars a hand can read; the pack
+## for a screen: the vitals are a corner cluster top-left, a glyph, a slim bar
+## and a number to a line, sized to be read at a glance and not studied; the pack
 ## is a hotbar along the bottom whose slots are clicked (left selects, right
 ## uses), with the three worn places — hand, body, back — beside it and a
 ## button cluster (Craft, Map, Menu) at its end; resting on any slot raises
@@ -33,12 +34,22 @@ const LAYER := 30
 const SLOT_BOX := 56.0
 const SLOT_ICON := 46.0
 const CARD_ICON := 52.0
-const GLYPH := 16.0
-const HUD_WIDTH := 320.0
-const BAR_HEIGHT := 13.0
+const GLYPH := 13.0
+## The vitals stand in the top-left corner and are read at a glance, not
+## studied, so they are laid out as a corner cluster rather than a panel of
+## rows: a sixth of the frame's width and a sixth of its height, against the
+## quarter of each the labelled version took. A vital is one line — its glyph, a slim bar, its number — and
+## the word is gone, because at this size the glyph and the colour say it and
+## the word costs a line of height each.
+const HUD_WIDTH := 204.0
+const BAR_HEIGHT := 9.0
+## The glyph box at the head of a vital's line, and the column its number is
+## right-aligned in (three digits at `SMALL`).
+const VITAL_GLYPH := 14.0
+const VITAL_VALUE := 26.0
 ## The day drawn as a strip under the clock: light, dusk, night, dawn, and a
 ## tick where the hour stands.
-const DAY_STRIP_HEIGHT := 7.0
+const DAY_STRIP_HEIGHT := 5.0
 ## Phase 0 is sunrise, so the hour reads 06:00 there and midnight at 0.75.
 const SUNRISE_HOUR := 6.0
 const CARD_WIDTH := 300.0
@@ -300,8 +311,7 @@ func update(world, delta: float, _cam: Dictionary) -> void:
 	_day_strip.phase = float(world.day_phase)
 	_day_strip.dusk = float(clock["dusk"])
 	_day_strip.queue_redraw()
-	var signature := "%s|%d|%s|%s|%d|%d|%d|%s|%s|%s|%s|%d|%d|%d|%d|%s" % [
-		str(manifest.get("title", manifest.get("package_id", ""))),
+	var signature := "%d|%s|%s|%d|%d|%d|%s|%s|%s|%s|%d|%d|%d|%d|%s" % [
 		int(world.day),
 		"%s%s%d" % [clock["hour"], clock["word"], int(ceil(float(clock["seconds"])))],
 		("%s:%s" % [_season_glyph(world), spec.get("display_name", season.get("id", ""))]) if has_calendar else "",
@@ -316,7 +326,7 @@ func update(world, delta: float, _cam: Dictionary) -> void:
 	]
 	if signature != _hud_signature:
 		_hud_signature = signature
-		_write_hud_text(world, manifest, season, spec, has_calendar, cold, warm_running,
+		_write_hud_text(world, season, spec, has_calendar, cold, warm_running,
 			health, hunger, warmth)
 		_write_clock(clock)
 
@@ -324,8 +334,8 @@ func update(world, delta: float, _cam: Dictionary) -> void:
 	_bar_target(_health_bar, health / maxf(1.0, health_max), delta)
 	_bar_target(_hunger_bar, hunger / maxf(1.0, hunger_max), delta)
 	_bar_target(_warmth_bar, warmth / maxf(1.0, warmth_max), delta)
+	# The bar rides inside its row now, so hiding the row hides both.
 	_warmth_row.visible = has_calendar or warmth < warmth_max
-	_warmth_bar.visible = _warmth_row.visible
 
 	var playing: bool = mode == "play" and not bool(world.dead)
 	_hotbar_panel.visible = playing
@@ -347,15 +357,15 @@ func update(world, delta: float, _cam: Dictionary) -> void:
 # The vitals panel
 # ===========================================================================
 
-func _write_hud_text(world, manifest: Dictionary, season: Dictionary, spec: Dictionary,
+func _write_hud_text(world, season: Dictionary, spec: Dictionary,
 		has_calendar: bool, cold: bool, warm_running: bool,
 		health: float, hunger: float, warmth: float) -> void:
-	var title := str(manifest.get("title", manifest.get("package_id", "")))
+	# The day and the season, and not the game's name: the name is on the
+	# window and in the pause menu, and it was the widest thing in the corner.
 	_title.clear()
 	_title.push_bold()
-	_title.append_text(title)
+	_title.append_text("day %d" % int(world.day))
 	_title.pop()
-	_title.append_text(" · day %d" % int(world.day))
 	if has_calendar:
 		_title.append_text(" · ")
 		var glyph := kit.glyph_texture(_season_glyph(world))
@@ -365,9 +375,9 @@ func _write_hud_text(world, manifest: Dictionary, season: Dictionary, spec: Dict
 		_title.append_text(str(spec.get("display_name", season.get("id", ""))))
 	_title.pop_all()
 
-	_row_text(_health_row, "heart", "health", "%d" % int(round(health)), false)
-	_row_text(_hunger_row, "bowl", "hunger", "%d" % int(round(hunger)), false)
-	_row_text(_warmth_row, "flame", "warmth", "%d" % int(round(warmth)), cold and not warm_running)
+	_vital_text(_health_row, "heart", "%d" % int(round(health)), false)
+	_vital_text(_hunger_row, "bowl", "%d" % int(round(hunger)), false)
+	_vital_text(_warmth_row, "flame", "%d" % int(round(warmth)), cold and not warm_running)
 
 	for index: int in _slot_cells.size():
 		var cell: Control = _slot_cells[index]
@@ -388,7 +398,7 @@ func _write_hud_text(world, manifest: Dictionary, season: Dictionary, spec: Dict
 ## The clock row: `☀ 08:52 · day` on the left, `dusk in 3:02` on the right.
 func _write_clock(clock: Dictionary) -> void:
 	_row_text(_clock_row, str(clock["glyph"]), "%s · %s" % [clock["hour"], clock["word"]],
-		"%s in %s" % [clock["next"], clock_countdown(float(clock["seconds"]))], false)
+		"%s in %s" % [clock["next"], clock_countdown(float(clock["seconds"]))])
 
 
 ## The clock read off the world: the hour (phase 0 is sunrise, 06:00), the
@@ -436,7 +446,30 @@ static func clock_countdown(seconds: float) -> String:
 	return "%d:%02d" % [whole / 60, whole % 60]
 
 
-func _row_text(row: Control, glyph: String, label: String, value: String, cold: bool) -> void:
+## A vital's line. The cold season used to append "\u2744 cold" to the word;
+## with the words gone the line itself turns cold — the snowflake stands where
+## the flame did and the number takes the cold colour — which is the same
+## reading in none of the width.
+func _vital_text(row: Control, glyph: String, value: String, cold: bool) -> void:
+	var icon: TextureRect = row.get_node("glyph")
+	var word: Label = row.get_node("word")
+	var amount: Label = row.get_node("value")
+	var texture := kit.glyph_texture("snowflake" if cold else glyph)
+	if texture == null:
+		texture = kit.glyph_texture(glyph)
+	icon.texture = texture
+	icon.modulate = SurvivalUiKit.COLD if cold else Color.WHITE
+	icon.visible = texture != null
+	word.visible = texture == null
+	word.add_theme_color_override("font_color",
+		SurvivalUiKit.COLD if cold else SurvivalUiKit.MUTED)
+	amount.text = value
+	amount.add_theme_color_override("font_color",
+		SurvivalUiKit.COLD if cold else SurvivalUiKit.TEXT)
+
+
+## The clock line: a glyph and a phrase on the left, a phrase on the right.
+func _row_text(row: Control, glyph: String, label: String, value: String) -> void:
 	var text: RichTextLabel = row.get_node("text")
 	var amount: Label = row.get_node("value")
 	text.clear()
@@ -445,15 +478,6 @@ func _row_text(row: Control, glyph: String, label: String, value: String, cold: 
 		text.add_image(icon, int(GLYPH), int(GLYPH), Color.WHITE, INLINE_ALIGNMENT_CENTER)
 		text.append_text(" ")
 	text.append_text(label)
-	if cold:
-		text.append_text(" ")
-		var flake := kit.glyph_texture("snowflake")
-		if flake != null:
-			text.add_image(flake, int(GLYPH), int(GLYPH), SurvivalUiKit.COLD, INLINE_ALIGNMENT_CENTER)
-			text.append_text(" ")
-		text.push_color(SurvivalUiKit.COLD)
-		text.append_text("cold")
-		text.pop()
 	text.pop_all()
 	amount.text = value
 
@@ -935,7 +959,7 @@ func _build_hud_panel() -> void:
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud_panel.add_child(box)
 
-	_title = SurvivalUiKit.rich(SurvivalUiKit.TITLE, HUD_WIDTH - 24.0)
+	_title = SurvivalUiKit.rich(SurvivalUiKit.SMALL, HUD_WIDTH - 24.0)
 	box.add_child(_title)
 	_clock_row = _bar_row()
 	box.add_child(_clock_row)
@@ -945,18 +969,15 @@ func _build_hud_panel() -> void:
 	box.add_child(_day_strip)
 	box.add_child(SurvivalUiKit.spacer(6.0))
 
-	_health_row = _bar_row()
+	_health_row = _vital_row(SurvivalUiKit.HEALTH, "health")
 	box.add_child(_health_row)
-	_health_bar = _bar(SurvivalUiKit.HEALTH)
-	box.add_child(_health_bar)
-	_hunger_row = _bar_row()
+	_health_bar = _health_row.get_node("bar")
+	_hunger_row = _vital_row(SurvivalUiKit.HUNGER, "hunger")
 	box.add_child(_hunger_row)
-	_hunger_bar = _bar(SurvivalUiKit.HUNGER)
-	box.add_child(_hunger_bar)
-	_warmth_row = _bar_row()
+	_hunger_bar = _hunger_row.get_node("bar")
+	_warmth_row = _vital_row(SurvivalUiKit.WARMTH, "warmth")
 	box.add_child(_warmth_row)
-	_warmth_bar = _bar(SurvivalUiKit.WARMTH)
-	box.add_child(_warmth_bar)
+	_warmth_bar = _warmth_row.get_node("bar")
 
 	_torch = SurvivalUiKit.label("", SurvivalUiKit.SMALL, SurvivalUiKit.ACCENT)
 	box.add_child(_torch)
@@ -1278,28 +1299,67 @@ func _bar_target(bar: Control, fraction: float, delta: float) -> void:
 	bar.queue_redraw()
 
 
+## The clock's line: the hour on the left, what comes next on the right.
 func _bar_row() -> Control:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
+	# The line is what makes the cluster as wide as it is, so the two halves
+	# stand at their own ends with this much between them and no more.
+	row.add_theme_constant_override("separation", 16)
 	row.custom_minimum_size = Vector2(HUD_WIDTH - 24.0, 0.0)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var text := SurvivalUiKit.rich(SurvivalUiKit.FONT_SIZE)
+	var text := SurvivalUiKit.rich(SurvivalUiKit.SMALL)
 	text.name = "text"
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(text)
-	var value := SurvivalUiKit.label("", SurvivalUiKit.FONT_SIZE)
+	var value := SurvivalUiKit.label("", SurvivalUiKit.SMALL, SurvivalUiKit.MUTED)
 	value.name = "value"
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(value)
 	return row
 
 
-func _bar(fill: Color) -> Control:
+## One vital on one line: its glyph, a bar that takes whatever the line has
+## left, and its number in a fixed column at the right. `word` is the fallback
+## the line shows when the run's atlas carries no such glyph, so the cluster is
+## never three anonymous bars.
+func _vital_row(fill: Color, word: String) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row.custom_minimum_size = Vector2(HUD_WIDTH - 24.0, 0.0)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var icon := TextureRect.new()
+	icon.name = "glyph"
+	icon.custom_minimum_size = Vector2(VITAL_GLYPH, VITAL_GLYPH)
+	# Without this the line is as tall as the atlas cell the glyph was cut from.
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(icon)
+
+	var fallback := SurvivalUiKit.label(word, SurvivalUiKit.SMALL, SurvivalUiKit.MUTED)
+	fallback.name = "word"
+	fallback.visible = false
+	fallback.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(fallback)
+
 	var bar := BarView.new()
+	bar.name = "bar"
 	bar.fill = fill
-	bar.custom_minimum_size = Vector2(HUD_WIDTH - 24.0, BAR_HEIGHT)
+	bar.custom_minimum_size = Vector2(0.0, BAR_HEIGHT)
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return bar
+	row.add_child(bar)
+
+	var value := SurvivalUiKit.label("", SurvivalUiKit.SMALL)
+	value.name = "value"
+	value.custom_minimum_size = Vector2(VITAL_VALUE, 0.0)
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	value.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(value)
+	return row
 
 
 # ===========================================================================
