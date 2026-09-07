@@ -35,7 +35,7 @@ isometric, interface, animation, music, and other 2D production workflows.
   run.
 
 Provider-specific setup is intentionally isolated and documented in
-[docs/providers.md](docs/providers.md). The initial adapters use OpenRouter and
+[docs/models/providers.md](docs/models/providers.md). The initial adapters use OpenRouter and
 fal, including the Lyria music route, because those are current operational
 requirements. They are not endorsement claims and do not define component
 interfaces.

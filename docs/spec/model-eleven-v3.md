@@ -9,7 +9,7 @@ verdict is the task owner's, and the sample sizes are small enough that each
 finding says so.
 
 This page records the model-specific boundary. General provider procedure lives
-in [../providers.md](../providers.md); the sibling sound-effect boundary, whose
+in [../models/providers.md](../models/providers.md); the sibling sound-effect boundary, whose
 findings do **not** transfer, is
 [model-eleven-text-to-sound-v2.md](model-eleven-text-to-sound-v2.md); the
 authored contract that consumes this route is

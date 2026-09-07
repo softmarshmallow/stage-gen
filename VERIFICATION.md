@@ -72,7 +72,7 @@ subject to the semantic and audio acceptance rules above.
 When an accepted runner run must be admitted under a newer cache or validator
 contract without creating another semantic candidate, use the audited
 provider-free replay procedure in
-[Provider operations](docs/providers.md#accepted-run-provider-free-cache-replay).
+[Provider operations](docs/models/providers.md#accepted-run-cache-replay-retired).
 Its current-graph trace must prove provider cache hits and zero provider
 operations; its audit must bind the preserved provider bytes, complete request
 identities, current validators, attempt ledgers, and any content-addressed

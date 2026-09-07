@@ -9,7 +9,7 @@ listening review by the task owner; nothing here was judged by an agent. Sample
 sizes are given because most of them are small.
 
 This page records the model-specific boundary. General provider procedure lives
-in [../providers.md](../providers.md); the component contract lives in
+in [../models/providers.md](../models/providers.md); the component contract lives in
 [../component-contract.md](../component-contract.md); the authored contract that
 consumes this route, and the gates it applies, is
 [../game-sound-effects.md](../game-sound-effects.md).

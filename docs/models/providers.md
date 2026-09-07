@@ -1,10 +1,15 @@
 # Provider operations
 
 The direct GPT Image 2 transparency contract was verified against OpenAI's
-official image-generation guide on 2026-08-25. The OpenRouter image,
-background-removal, and music contracts were last verified on 2026-08-14, and
-the structured GPT-5.6 route was exercised on 2026-08-20. Hosted capabilities
-can drift; repeat the scoped smoke tests before widening an adapter contract.
+official image-generation guide on 2026-08-25. The fal and OpenRouter GPT Image
+2 routes were rechecked on 2026-09-07; the separate fal background-removal and
+OpenRouter music contracts were last verified on 2026-08-14, and the structured
+GPT-5.6 route was exercised on 2026-08-20. Hosted capabilities can drift; repeat
+the scoped smoke tests before widening an adapter contract.
+
+GPT Image 2 route capabilities and their verification history are maintained in
+[the GPT Image 2 model record](gpt-image-2.md). All model records are indexed in
+[Models](index.md).
 
 ## Configuration
 
@@ -44,8 +49,10 @@ nothing from this provider, so `doctor` reports the key without gating overall
 readiness on it. The route bills in characters and reports the charge in a
 `character-cost` header, recorded as `usage.character_cost` in provenance. The
 measured model boundary — what this route can and cannot be asked for — is
-recorded in [spec/model-eleven-text-to-sound-v2.md](spec/model-eleven-text-to-sound-v2.md);
-the authoring contract that consumes it is [game-sound-effects.md](game-sound-effects.md).
+recorded in
+[model-eleven-text-to-sound-v2.md](../spec/model-eleven-text-to-sound-v2.md);
+the authoring contract that consumes it is
+[game-sound-effects.md](../game-sound-effects.md).
 
 The same key authenticates the `speech_generation` operation:
 `POST https://api.elevenlabs.io/v1/text-to-speech/{voice}` with the `xi-api-key`
@@ -59,8 +66,8 @@ voice is the provider's own reference, resolved from the game's `voices.toml`
 by the recipe and never authored beside gameplay. A seed is never sent:
 measured, it pins the length of a read and not its waveform. The route bills
 in characters and reports the charge in the same `character-cost` header. The
-measured model boundary is [spec/model-eleven-v3.md](spec/model-eleven-v3.md);
-the authoring contract is [game-voice.md](game-voice.md).
+measured model boundary is [model-eleven-v3.md](../spec/model-eleven-v3.md);
+the authoring contract is [game-voice.md](../game-voice.md).
 
 Provider code stays behind adapters. Pipelines depend on the repository's
 component contract, not a vendor SDK response type.
@@ -237,7 +244,7 @@ SynthID. This repository has not independently verified that watermark on the
 preview loop. The expectation is provenance metadata only: it does not prove
 ownership, originality, clearance, or permission to redistribute an artifact.
 Repository publication still requires the independent
-[generated-media approval gate](generated-media-publication.md).
+[generated-media approval gate](../generated-media-publication.md).
 
 The key-backed CLI path is:
 

@@ -1,13 +1,14 @@
 # Documentation
 
-Three kinds of document live here. A **spec** under [`spec/`](spec/) states a
+Four kinds of document live here. A **spec** under [`spec/`](spec/) states a
 contract and opens by naming what checks it. A **decision** under
 [`decisions/`](decisions/README.md) records one ruling — fact, challenge,
 ruling, evidence, and the observation that would overturn it. A **plan** under
 [`plans/`](plans/) is a path rather than a contract: steps, evidence lines and
-rulings in progress, and it dies when the path is walked. Open work is one line
-per item in [`TODO.md`](../TODO.md), linking to whichever of the three holds
-its context.
+rulings in progress, and it dies when the path is walked. A **model record**
+under [`models/`](models/index.md) captures a time-sensitive hosted request
+surface without declaring a runtime binding. Open work is one line per item in
+[`TODO.md`](../TODO.md), linking to whichever document holds its context.
 
 - [Decisions](decisions/README.md) — the indexed decision log, seeded from what
   `TODO.md` had recorded and grown one record per ruling since.
@@ -165,8 +166,8 @@ Start here for the headless, general-purpose system:
 - [Testing stage-gen](testing.md) — focused, full, live, and web gates.
 - [Verification rules](../VERIFICATION.md) — evidence and independent media
   verification requirements.
-- [Provider operations](providers.md) — credentials, verified endpoints, and
-  experimental boundaries.
+- [Models and providers](models/index.md) — verified hosted request surfaces,
+  credentials, endpoints, and experimental boundaries.
 - [Benchmarking and research](benchmarking.md) — evidence and evaluation.
 - [Asset scale study](research/asset-scale-study.md) — measurements behind the asset unit: what a
   generated subject's pixels do and do not encode, the units that were rejected and why each one

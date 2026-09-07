@@ -88,7 +88,7 @@ attempt records non-secret diagnostics. Deterministic post-processing is
 separate from provider retries and is safe to rerun.
 
 See [the component contract](../component-contract.md) and
-[provider operations](../providers.md).
+[provider operations](../models/providers.md).
 
 ## Provenance
 

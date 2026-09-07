@@ -38,7 +38,7 @@ shared state is `TODO.md`; the public product and operational contracts live in
 - The public command is `uv run stage-gen <args>`; the Python package is the
   authoritative backend.
 - Provider adapters are configured at the headless application boundary.
-  Operational OpenRouter/fal/Lyria details belong in `docs/providers.md`, not
+  Operational OpenRouter/fal/Lyria details belong in `docs/models/providers.md`, not
   in generic component contracts.
 - Every AI call has one bounded retry owner covering transport and silent
   contract failures. Do not stack hidden SDK retries.

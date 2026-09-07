@@ -92,7 +92,7 @@ never import providers, recipes, orchestration, interfaces, or `web/`.
 The initial hosted adapters use OpenRouter for structured text/vision, image
 generation, and experimental music generation, and fal for background
 removal. Exact model identifiers, request envelopes, environment variables,
-and verification status are documented in [Provider operations](docs/providers.md).
+and verification status are documented in [Provider operations](docs/models/providers.md).
 Those names are operational configuration, not architectural dependencies:
 recipes consume capability interfaces and provenance records rather than raw
 provider response types.

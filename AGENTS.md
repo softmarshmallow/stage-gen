@@ -2,7 +2,7 @@
 
 Repository-specific guardrails. [README.md](README.md) owns setup, [ARCHITECTURE.md](ARCHITECTURE.md) boundaries,
 [CONTRIBUTING.md](CONTRIBUTING.md) contribution policy, and [VERIFICATION.md](VERIFICATION.md) gates. Focused procedures
-live in [providers](docs/providers.md), [publication](docs/generated-media-publication.md), [storage](docs/repository-storage.md),
+live in [providers](docs/models/providers.md), [publication](docs/generated-media-publication.md), [storage](docs/repository-storage.md),
 and [IP](docs/oss-ip.md). This file controls applicability; focused docs control procedure and must be reconciled on conflict.
 
 ## Architecture

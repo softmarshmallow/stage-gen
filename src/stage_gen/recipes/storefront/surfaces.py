@@ -3,7 +3,7 @@
 A store surface is defined by an exact pixel canvas that a storefront will refuse
 if it is off by one. A provider is not that kind of instrument: the image route
 advertises aspect ratios and a handful of sizes, and what comes back has to be
-inspected rather than assumed (docs/spec/model-gpt-image-2.md). So every surface
+inspected rather than assumed (docs/models/gpt-image-2.md). So every surface
 carries two canvases, and they are different columns on purpose:
 
 ``draw`` is what the provider is asked for — sized to what the route draws well,

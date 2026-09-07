@@ -74,7 +74,7 @@ ratio would make the cut a recomposition rather than a trim.
 **The two canvases are different columns on purpose.** A storefront refuses a
 picture that is off by one pixel; a provider is not that kind of instrument. The
 image route advertises aspect ratios and inspects what comes back
-([gpt-image-2](../model-gpt-image-2.md)), so the draw canvas is sized to what the
+([gpt-image-2](../../models/gpt-image-2.md)), so the draw canvas is sized to what the
 route draws well at the ship canvas's own ratio, and a deterministic local
 normalization the recipe owns cuts it to exact. When the two are equal that step
 is a re-encode and its provenance says so.

@@ -12,7 +12,7 @@ side-view vocabulary explicitly.
 > through the direct OpenAI image route. Exact canvas sizes are normalized output contracts, not a claim that every
 > route accepts arbitrary pixel dimensions. Current endpoint capabilities,
 > alpha behavior, and deterministic normalization requirements are documented in
-> [model-gpt-image-2.md](model-gpt-image-2.md). Revalidate every recipe contract
+> [GPT Image 2 model record](../models/gpt-image-2.md). Revalidate every recipe contract
 > when changing models.
 
 ---

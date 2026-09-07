@@ -4,8 +4,8 @@ The quality-first route is OpenAI's Images API using `gpt-image-2` with native
 alpha. OpenRouter remains the image route for explicit `ai` and `chroma`
 compatibility modes. See the authoritative repository notes:
 
-- [Provider operations](../providers.md)
-- [Model adapter contract](../spec/model-gpt-image-2.md)
+- [Provider operations](../models/providers.md)
+- [Model adapter contract](../models/gpt-image-2.md)
 - [Component contract](../component-contract.md)
 
 ## Implementation checklist

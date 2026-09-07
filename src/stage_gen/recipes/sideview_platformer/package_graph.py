@@ -147,7 +147,7 @@ def package_graph_profile(config: StageGenConfig) -> BindingTable:
 
     Each entry is one ``model@provider`` route with the features it is known to
     support. ``verified_on`` records when that claim was last checked against
-    the provider; see docs/providers.md.
+    the provider; see docs/models/providers.md.
     """
 
     return BindingTable(

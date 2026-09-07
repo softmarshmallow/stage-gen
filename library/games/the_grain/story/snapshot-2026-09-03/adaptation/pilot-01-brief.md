@@ -19,7 +19,7 @@ Read first, in this order, before anything else runs:
 2. `spikes/pointclick-murder-mystery-story/adaptation/episode-01-the-winter-room.md` — the episode, movement by movement, with the board.
 3. `spikes/pointclick-murder-mystery-story/packet/` — chronology, evidence ledger, knowledge map, cast bible. Bible.
 4. `spikes/pointclick-murder-mystery-story/script/chapter-01..06-*.fountain` — the novel's Scenes 1–14. Lift from here.
-5. `docs/spec/game/scenario.md`, `docs/spec/game/pointclick-room.md`, `docs/spec/game/dialogue-and-cutscene-sequences.md`, `library/games/AGENTS.md`, `AGENTS.md`, `docs/providers.md`, `VERIFICATION.md`.
+5. `docs/spec/game/scenario.md`, `docs/spec/game/pointclick-room.md`, `docs/spec/game/dialogue-and-cutscene-sequences.md`, `library/games/AGENTS.md`, `AGENTS.md`, `docs/models/providers.md`, `VERIFICATION.md`.
 6. `library/games/larkfield/` — the shape of a VN package that runs today. `library/games/the_grain/` — the placeholder you are replacing.
 
 ## Non-negotiables

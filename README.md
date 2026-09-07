@@ -471,7 +471,7 @@ read from the process environment.
   passes the documented key-backed contract smoke.
 
 Provider and model contracts can change independently of this repository.
-Review [Provider operations](docs/providers.md) before changing an adapter.
+Review [Provider operations](docs/models/providers.md) before changing an adapter.
 
 ## Reliability and provenance
 

@@ -1,11 +1,12 @@
-# Image-model adapter contract
+# GPT Image 2 adapter contract
 
 > **Checked by:** none.
 
-Direct native alpha verified from official OpenAI documentation on 2026-08-25;
-the compatibility OpenRouter route was verified on 2026-08-14. This page
-records the model-specific boundary used by the side-view platformer recipe. The
-general component contract lives in
+OpenAI released transparent backgrounds for GPT Image 2 in preview on
+2026-08-20, and the direct native-alpha contract was verified from official
+documentation on 2026-08-25. The fal and OpenRouter routes were rechecked on
+2026-09-07. This page records the model-specific boundary used by the image
+recipes. The general component contract lives in
 [../component-contract.md](../component-contract.md).
 
 ## Direct OpenAI route
@@ -24,6 +25,39 @@ merely an alpha-capable container. Canonicalization promotes near-opaque values
 constraints; deterministic recipe normalization still owns exact final
 geometry. GPT Image 2 automatically uses high fidelity for edit inputs, so this
 adapter does not send an `input_fidelity` field.
+
+Primary sources:
+
+- [OpenAI August 2026 changelog](https://developers.openai.com/api/docs/changelog#august-2026)
+- [OpenAI image generation guide](https://developers.openai.com/api/docs/guides/image-generation)
+- [GPT Image 2 model](https://developers.openai.com/api/docs/models/gpt-image-2)
+
+## fal native-alpha candidate
+
+- Candidate binding: `openai/gpt-image-2@fal`.
+- Endpoint: `POST https://fal.run/openai/gpt-image-2`.
+- Credential: `FAL_KEY`.
+- Verified inputs: text prompt, `background`, `quality`, `image_size`,
+  `num_images`, `output_format`, and `sync_mode`.
+- Transparent output: `background="transparent"` with PNG or WebP.
+
+fal now advertises `auto`, `transparent`, and `opaque` background values. A
+bounded high-quality 1024-by-1024 PNG canary decoded as RGBA with 76.63% fully
+transparent pixels and four fully transparent corners. The fal model record
+was updated on 2026-09-01, but that timestamp is not feature-specific and does
+not establish the exact transparency release date.
+
+The exposed fal schema proves transparent text-to-image generation only. It
+does not expose reference-image or masked-edit inputs required by the current
+recipe image nodes. Stage Gen therefore has no fal image-generation adapter or
+binding, direct OpenAI remains the native route, and separate background
+removal remains available. Do not add automatic fallback when this candidate
+is integrated.
+
+Primary sources:
+
+- [fal GPT Image 2 API](https://fal.ai/models/openai/gpt-image-2/api)
+- [fal live model record](https://api.fal.ai/v1/models?endpoint_id=openai%2Fgpt-image-2&expand=openapi-3.0)
 
 ## OpenRouter compatibility route
 
@@ -52,6 +86,14 @@ Current endpoint metadata advertises:
 The endpoint record does not advertise arbitrary pixel `size`, `resolution`,
 transparent background, output format, or seed. Treat absent capabilities as
 unsupported. Query the endpoint record before expanding the adapter.
+
+On 2026-09-07, a request carrying `background="transparent"` was rejected
+before generation. OpenRouter remains a compatibility route and does not
+provide native alpha under the verified contract.
+
+Primary source:
+
+- [OpenRouter GPT Image 2 endpoints](https://openrouter.ai/api/v1/images/models/openai/gpt-image-2/endpoints)
 
 Reference images are hosted/data URLs in `input_references`. Their order is an
 explicit part of the prompt contract.
@@ -88,4 +130,19 @@ retryable. Record the exact slug, endpoint capability snapshot/version when
 available, prompt, references/hashes, request parameters, returned media type,
 usage, attempts, normalization, and final hash.
 
-Primary source links are maintained in [provider operations](../providers.md).
+Provider credentials, shared retry procedure, and further primary source links
+are maintained in [provider operations](providers.md).
+
+## Deferred integration documentation
+
+If fal route selection changes dependencies, asset fan-out, provider operation
+counts, or scheduling, update the
+[canonical generation pipeline](../spec/game/generation-pipeline.md) and its
+executable graph contract in the same implementation change. Also review the
+[repository overview](../../README.md), [architecture](../../ARCHITECTURE.md),
+[gnode rings](../spec/gnode-rings.md),
+[asset contracts](../spec/asset-contracts.md), and the
+[survival](../spec/survival/generation-v1.md),
+[universe](../spec/universe/generation-v1.md), and
+[storefront](../spec/storefront/generation-v1.md) recipe contracts. None of
+those current-topology documents changed in this documentation move.
