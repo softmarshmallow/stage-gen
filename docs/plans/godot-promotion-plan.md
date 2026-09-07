@@ -1,6 +1,6 @@
 # The Godot promotion: the path
 
-Status: in flight. Steps 0 to 3 and the kernel have landed; the table marks them. Companion to [the host contract](../spec/game/host-contract.md)
+Status: in flight. Steps 0 to 3, the kernel and the runner have landed; the table marks them. Companion to [the host contract](../spec/game/host-contract.md)
 (the end state) and
 [decision 0061](../decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md)
 (the ruling). This document is the path, and it dies when the path is walked.
@@ -38,7 +38,7 @@ channel, a catalogue, a URL — is out of scope and stays in
 | 5 ✔ | F | The kernel in GDScript, and survival sealed: declarations, a derived order equal to the pasted one, the event queue, refusals as values, the interface writing through the latch | the goldens unchanged line for line |
 | 6 | G | The suite enters the locked gate: a supervisor per test file, fixtures with synthesised media, the CI job | `check.py` fails without the engine; an injected error and an injected hang both turn it red |
 | 7 ◐ | H | The browser instruments: the platformer's slice list, every fixture and reference committed, stills taken | the references reproduce; the fixtures carry current identities |
-| 8 | I | **The runner**, and the browser runner is deleted | parity N/N, sealed order equal to the documented one, stills, smoke, export |
+| 8 ✔ | I | **The runner**, and the browser runner is deleted | 600/600 frames and 30/30 digests, sealed order equal to the documented one, the host run and shot; no browser still, and [0065](../decisions/0065-the-runner-is-retired-from-the-browser.md) says why |
 | 9 | J | **The platformer**, and the browser platformer is deleted | the same, per map, plus the map-scope reset |
 | 10 | K | **The room, the scene and the case**, and their browser surfaces are deleted together | the same, plus an episode played end to end with a save and a resume |
 | 11 | L | The sweep: the last web references, the census rows, the identities regenerated | `check.py` green; no `phaser` anywhere under `web/` |
@@ -55,6 +55,14 @@ suite that runs in CI needs a media-free fixture document, a small world, and
 synthesised media at the sizes that document declares, with the real-run count
 pins moving to tier 2 behind `--run`. That is a restructuring of the suite rather
 than a wrapper around it, and it is why the step is its own commit.
+
+**What step 8 turned out to owe, and did not pay.** The rules above ask a
+retirement for a picture sheet as well as a parity count. The runner's parity is
+the strongest kind — six hundred frames, equal rather than close — but no browser
+still was taken, so the picture evidence is one-sided. Decision 0065 states that
+in full rather than quietly meeting a weaker bar, and carries the falsifier. The
+platformer's own stills are already committed, so step 9 does not inherit the
+gap.
 
 **Step 7 is half done.** The runner's and the platformer's references are
 committed, and the platformer's exclusion list is settled and measured: 103 leaf

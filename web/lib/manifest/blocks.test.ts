@@ -2,8 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { parseBlockTable } from "./blocks";
 import { parsePreparedRuntimeManifest, PREPARED_RUNTIME_BLOCKS } from "./prepared-manifest";
 import { preparedRuntimeManifestFixture } from "@/lib/shell/prepared-runtime.fixture";
-import { parseRunnerRuntimeManifest, RUNNER_BLOCKS } from "@/lib/sideview-runner/contract";
-import { runnerManifestFixture } from "@/lib/sideview-runner/fixture";
 
 describe("parseBlockTable", () => {
   test("accepts every expected block at its version and keeps unknown extras", () => {
@@ -48,14 +46,7 @@ describe("per-block refusal through the genre parsers", () => {
     );
   });
 
-  test("the runner refuses one moved block by name; fx may be absent", () => {
-    const manifest = runnerManifestFixture();
-    const parsed = parseRunnerRuntimeManifest(manifest);
-    expect(parsed.blocks.ground).toBe(RUNNER_BLOCKS.ground);
-    const { fx: _fx, ...withoutFx } = RUNNER_BLOCKS;
-    expect(() => parseRunnerRuntimeManifest({ ...manifest, blocks: withoutFx })).not.toThrow();
-    expect(() =>
-      parseRunnerRuntimeManifest({ ...manifest, blocks: { ...RUNNER_BLOCKS, ground: "runner-ground-block-v2" } }),
-    ).toThrow('manifest block "ground" is published as runner-ground-block-v2');
-  });
+  // The runner's half of this went with the browser runner (decision 0065). The
+  // same two refusals are checked on the Godot side, against the same block
+  // table, in `godot/tests/test_runner_roster.gd`.
 });

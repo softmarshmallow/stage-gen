@@ -125,8 +125,9 @@ The `sideview-runner` sibling resolves the same prepared-package container but
 owns reaction-fair authored segment admission, structural-ground or atlas
 presentation, a combined avatar state machine, auto-run difficulty, pickups,
 hazards, and runner audio. It emits `sideview-runner-runtime-v13`; the fixed-step
-consumer under `web/lib/sideview-runner/` owns camera, collision, streaming,
-and play presentation. Its [runner specification](game/runner.md) owns the
+consumer under `godot/genres/sideview_runner/` owns the simulation and its host
+under `godot/hosts/sideview_runner/` owns camera, collision, streaming, and play
+presentation. Its [runner specification](game/runner.md) owns the
 exact contracts and machine-checked graph snapshot.
 
 The `dialogue-scene` sibling recipe packages one caller-directed appearance

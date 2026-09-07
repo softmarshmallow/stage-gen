@@ -51,10 +51,6 @@ const BROWSER_PLAY_ROUTES: Readonly<Record<string, { label: string; href: (tag: 
       label: "[ ▶ play scene ]",
       href: (tag) => `/scene/${encodeURIComponent(tag)}`,
     },
-    "sideview-runner-runtime-v13": {
-      label: "[ ▶ run ]",
-      href: (tag) => `/runner/${encodeURIComponent(tag)}`,
-    },
   };
 
 /** What a run says it is, for the reader: the kind, or why there is none. */
