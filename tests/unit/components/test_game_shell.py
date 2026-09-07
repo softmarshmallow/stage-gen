@@ -1,0 +1,383 @@
+"""The `game-shell-v1` authored contract, and the refusals that are its point.
+
+Most of these are not shape tests. Each names a decision the contract makes — text is
+composited rather than drawn, a typeface is an input, a backdrop is ordered far to near —
+and proves the document refuses the authoring that would break it, offline and before any
+provider is called.
+"""
+
+from __future__ import annotations
+
+from typing import cast
+
+import pytest
+
+from stage_gen.components._game_input import AuthoredContractLoadError
+from stage_gen.components.game_shell import (
+    LOADING_SCREEN,
+    OPENING_SHOT,
+    REDISTRIBUTABLE_FONT_LICENSES,
+    SHELL_CANVAS,
+    TITLE_SCREEN,
+    GameShell,
+    LoadingBackdropBinding,
+    Rect,
+    ShellLayout,
+    ShellPlate,
+    load_game_shell_bytes,
+)
+
+DIGEST = "a" * 64
+FONT_DIGEST = "b" * 64
+
+HEADER = f"""
+schema_version = 1
+kind = "game-shell-v1"
+game_id = "ember-hollow"
+revision = 1
+
+[[references]]
+reference_id = "cover_style"
+source = "references/style-plate.png"
+source_sha256 = "{DIGEST}"
+rights_status = "redistribution-approved"
+rights_basis = ["Digest-bound reviewed package evidence."]
+
+[typeface]
+family = "Fredoka"
+source = "fonts/fredoka-variable.ttf"
+source_sha256 = "{FONT_DIGEST}"
+license = "OFL-1.1"
+license_source = "fonts/OFL.txt"
+copyright = "Copyright 2016 The Fredoka Project Authors"
+upstream_source = "google/fonts, ofl/fredoka/Fredoka[wdth,wght].ttf"
+retrieved = "2026-08-24"
+"""
+
+TITLE = """
+[title]
+layout = "title_screen_16x9_v1"
+
+[[title.backdrop]]
+depth = "far"
+
+[title.backdrop.plate]
+alpha_policy = "fully_opaque_v1"
+reference_ids = ["cover_style"]
+prompt = "The hollow at dusk, the fire a small warm point among cold blue firs."
+"""
+
+OPENING = """
+[opening]
+layout = "opening_16x9_v1"
+skippable = true
+music_track = "main_theme"
+
+[[opening.shots]]
+shot_id = "the_hollow"
+move = "push_in"
+seconds = 4.0
+card = "Some fires are older than the people who tend them."
+out_transition = "dissolve"
+
+[opening.shots.plate]
+alpha_policy = "fully_opaque_v1"
+reference_ids = ["cover_style"]
+prompt = "A wide cold valley under low cloud, one thread of smoke rising from the trees."
+"""
+
+
+def _load(*sections: str) -> GameShell:
+    return load_game_shell_bytes("".join((HEADER, *sections)).encode("utf-8"))
+
+
+def _refusal(*sections: str) -> str:
+    with pytest.raises(AuthoredContractLoadError) as error:
+        _load(*sections)
+    return str(error.value)
+
+
+# --- the document parses and says what it holds -------------------------------
+
+
+def test_a_shell_reports_the_screens_in_the_order_a_player_meets_them() -> None:
+    shell = _load(OPENING, TITLE)
+
+    assert shell.screen_names() == ("opening", "title")
+    assert shell.opening is not None and shell.opening.seconds == pytest.approx(4.0)
+    assert shell.title is not None and shell.title.backdrop[0].depth == "far"
+
+
+def test_every_declared_plate_is_enumerated_with_the_label_a_refusal_uses() -> None:
+    shell = _load(OPENING, TITLE)
+
+    assert [label for label, _ in shell.plates()] == [
+        "opening.shots.the_hollow",
+        "title.backdrop.far",
+    ]
+
+
+def test_a_title_screen_composites_the_games_own_name() -> None:
+    """The name is not in this document: the host takes it from the package."""
+
+    shell = _load(TITLE)
+
+    assert "<display_name>" in shell.composited_text()
+
+
+def test_a_shell_with_no_screen_is_refused() -> None:
+    assert "declares at least one screen" in _refusal()
+
+
+# --- text is composited, never drawn ------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "the game's title across the sky",
+        "a carved wooden logo above the trees",
+        "bold lettering cut into the stone",
+        "a banner reading the name of the settlement",
+    ],
+)
+def test_a_prompt_asking_for_lettering_is_refused_offline(phrase: str) -> None:
+    section = TITLE.replace(
+        "The hollow at dusk, the fire a small warm point among cold blue firs.", phrase
+    )
+
+    message = _refusal(section)
+    assert "composited by the host" in message
+
+
+def test_a_prompt_describing_the_frames_layout_is_refused_offline() -> None:
+    section = TITLE.replace(
+        "The hollow at dusk, the fire a small warm point among cold blue firs.",
+        "The valley on the left half and the sky on the right half.",
+    )
+
+    assert "the layout owns the geometry" in _refusal(section)
+
+
+def test_an_ordinary_picture_prompt_is_not_caught_by_the_lettering_rule() -> None:
+    section = TITLE.replace(
+        "The hollow at dusk, the fire a small warm point among cold blue firs.",
+        "A stone lintel above the door, worn smooth, no marks on it.",
+    )
+
+    assert _load(section).title is not None
+
+
+# --- a typeface is an input ---------------------------------------------------
+
+
+def test_a_shell_that_composites_text_without_a_typeface_is_refused() -> None:
+    without = HEADER.split("[typeface]")[0]
+    document = (without + TITLE).encode("utf-8")
+
+    with pytest.raises(AuthoredContractLoadError) as error:
+        load_game_shell_bytes(document)
+    assert "declares no typeface" in str(error.value)
+
+
+def test_a_typeface_licence_that_does_not_permit_redistribution_is_refused() -> None:
+    section = HEADER.replace('license = "OFL-1.1"', 'license = "UFL-1.0"')
+    document = (section + TITLE).encode("utf-8")
+
+    with pytest.raises(AuthoredContractLoadError) as error:
+        load_game_shell_bytes(document)
+    assert "permit redistributing the font file" in str(error.value)
+
+
+def test_every_licence_this_contract_accepts_is_one_that_permits_redistribution() -> None:
+    """A guard on the list itself: widening it is a rights decision, not a convenience."""
+
+    assert REDISTRIBUTABLE_FONT_LICENSES == ("OFL-1.1", "Apache-2.0", "CC0-1.0")
+
+
+def test_a_typeface_outside_the_fonts_directory_is_refused() -> None:
+    section = HEADER.replace(
+        'source = "fonts/fredoka-variable.ttf"', 'source = "references/fredoka-variable.ttf"'
+    )
+    document = (section + TITLE).encode("utf-8")
+
+    with pytest.raises(AuthoredContractLoadError) as error:
+        load_game_shell_bytes(document)
+    assert "must live under fonts/" in str(error.value)
+
+
+def test_a_typefaces_licence_text_must_sit_beside_the_face() -> None:
+    section = HEADER.replace('license_source = "fonts/OFL.txt"', 'license_source = "OFL.txt"')
+    document = (section + TITLE).encode("utf-8")
+
+    with pytest.raises(AuthoredContractLoadError) as error:
+        load_game_shell_bytes(document)
+    assert "beside the face" in str(error.value)
+
+
+# --- references and plates ----------------------------------------------------
+
+
+def test_a_plate_naming_an_undeclared_reference_is_refused() -> None:
+    section = TITLE.replace('reference_ids = ["cover_style"]', 'reference_ids = ["nothing_here"]')
+
+    assert "undeclared references" in _refusal(section)
+
+
+def test_a_backdrop_is_declared_far_to_near() -> None:
+    near_first = TITLE.replace('depth = "far"', 'depth = "near"').replace(
+        'alpha_policy = "fully_opaque_v1"', 'alpha_policy = "transparent_exterior_v1"'
+    )
+
+    assert "starts at its far layer" in _refusal(near_first)
+
+
+def test_the_far_layer_is_the_picture_and_must_be_opaque() -> None:
+    section = TITLE.replace(
+        'alpha_policy = "fully_opaque_v1"', 'alpha_policy = "transparent_exterior_v1"'
+    )
+
+    assert "must declare fully_opaque_v1" in _refusal(section)
+
+
+def test_an_emblem_is_a_shape_on_air() -> None:
+    section = (
+        TITLE
+        + """
+[title.emblem]
+alpha_policy = "fully_opaque_v1"
+reference_ids = ["cover_style"]
+prompt = "A pressed-iron ember badge, three sparks over a banked hearth."
+"""
+    )
+
+    assert "transparent exterior" in _refusal(section)
+
+
+def test_an_opening_shot_fills_the_screen() -> None:
+    section = OPENING.replace(
+        'alpha_policy = "fully_opaque_v1"', 'alpha_policy = "transparent_exterior_v1"'
+    )
+
+    assert "fully opaque" in _refusal(section)
+
+
+def test_two_shots_may_not_share_an_id() -> None:
+    twice = (
+        OPENING
+        + """
+[[opening.shots]]
+shot_id = "the_hollow"
+seconds = 2.0
+
+[opening.shots.plate]
+alpha_policy = "fully_opaque_v1"
+reference_ids = ["cover_style"]
+prompt = "The same valley, closer, the smoke gone."
+"""
+    )
+
+    assert "shot_id" in _refusal(twice)
+
+
+# --- the loading screen may cost nothing --------------------------------------
+
+
+def test_a_loading_backdrop_may_be_bound_to_art_the_run_already_publishes() -> None:
+    shell = _load(
+        TITLE,
+        """
+[loading]
+layout = "loading_screen_16x9_v1"
+tips = ["A banked fire keeps until morning."]
+
+[loading.backdrop]
+source = "run_artifact"
+artifact_role = "season_look_winter"
+""",
+    )
+
+    assert shell.loading is not None
+    assert isinstance(shell.loading.backdrop, LoadingBackdropBinding)
+    # A bound backdrop declares no plate, so it adds nothing to the generated set.
+    assert [label for label, _ in shell.plates()] == ["title.backdrop.far"]
+
+
+def test_a_generated_loading_backdrop_joins_the_generated_set() -> None:
+    shell = _load(
+        TITLE,
+        """
+[loading]
+layout = "loading_screen_16x9_v1"
+
+[loading.backdrop]
+alpha_policy = "fully_opaque_v1"
+reference_ids = ["cover_style"]
+prompt = "The hearth close up, embers banked under grey ash."
+""",
+    )
+
+    assert shell.loading is not None
+    assert isinstance(shell.loading.backdrop, ShellPlate)
+    assert [label for label, _ in shell.plates()] == [
+        "title.backdrop.far",
+        "loading.backdrop",
+    ]
+
+
+# --- layout geometry ----------------------------------------------------------
+
+
+def test_every_shell_layout_reserves_its_regions_inside_one_16x9_canvas() -> None:
+    for layout in (TITLE_SCREEN, LOADING_SCREEN, OPENING_SHOT):
+        assert layout.canvas == SHELL_CANVAS == (2560, 1440)
+        assert layout.region_names()
+
+
+def test_a_drifting_region_is_measured_over_the_range_the_host_may_move_it() -> None:
+    """The title parallaxes, so a region quiet only in the still frame is not quiet."""
+
+    band = TITLE_SCREEN.region("mark_band")
+    union = TITLE_SCREEN.drift_union("mark_band")
+
+    assert TITLE_SCREEN.drift == 96
+    assert union.width == band.width + 2 * TITLE_SCREEN.drift
+    assert union.height == band.height + 2 * TITLE_SCREEN.drift
+
+
+def test_a_still_screen_measures_the_region_itself() -> None:
+    assert LOADING_SCREEN.drift == 0
+    assert LOADING_SCREEN.drift_union("status_strip") == LOADING_SCREEN.region("status_strip")
+
+
+def test_a_drift_union_is_clamped_to_the_canvas() -> None:
+    layout = ShellLayout(
+        layout="edge_v1",
+        reserved=(("edge", Rect(x=0, y=0, width=100, height=100)),),
+        drift=32,
+    )
+
+    union = layout.drift_union("edge")
+    assert (union.x, union.y) == (0, 0)
+    assert (union.width, union.height) == (132, 132)
+
+
+def test_a_region_that_leaves_the_canvas_is_a_broken_layout() -> None:
+    with pytest.raises(ValueError, match="leaves the canvas"):
+        ShellLayout(
+            layout="broken_v1",
+            reserved=(("off", Rect(x=2500, y=0, width=400, height=100)),),
+        )
+
+
+def test_the_geometry_record_is_what_the_cache_key_hashes() -> None:
+    record = TITLE_SCREEN.geometry_record()
+
+    assert record["layout"] == "title_screen_16x9_v1"
+    assert record["drift"] == 96
+    reserved = record["reserved"]
+    assert isinstance(reserved, list)
+    assert [cast(dict[str, object], entry)["region"] for entry in reserved] == [
+        "mark_band",
+        "control_stack",
+    ]

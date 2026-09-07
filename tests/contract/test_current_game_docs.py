@@ -25,6 +25,7 @@ CURRENT_GAME_DOC_PATHS = (
     "docs/spec/game/pointclick-room.md",
     "docs/spec/game/runner.md",
     "docs/spec/game/fx.md",
+    "docs/spec/game/shell.md",
 )
 
 #: Which documents must name which identities, at whatever version is current. The
@@ -66,6 +67,7 @@ REQUIRED_FAMILIES = {
     ),
     "docs/game-voice.md": ("game-voices", "spoken_line"),
     "docs/spec/game/fx.md": ("game-fx",),
+    "docs/spec/game/shell.md": ("game-shell",),
     "docs/dialogue-character-runtime-pipeline.md": ("prepared-game-runtime",),
     "docs/spec/scene-gameplay-components.md": ("gameplay-contract",),
     "docs/spec/game/dialogue-and-cutscene-sequences.md": ("prepared-game-runtime",),

@@ -38,6 +38,7 @@ not an identity but a cache key (C-R1); its evidence is the cache-key goldens.
 | `game-fx-v2` | `authored` | `stage_gen.components.game_fx.models:GameFx.kind` |
 | `game-map-v10` | `authored` | `stage_gen.components.platformer_map.prepared:PreparedGameMap.kind` |
 | `game-package-v4` | `authored` | `stage_gen.orchestration.game_package:GamePackageSelector.kind` |
+| `game-shell-v1` | `authored` | `stage_gen.components.game_shell.models:GameShell.kind` |
 | `game-soundtrack-binding-v1` | `authored` | `stage_gen.components.game_soundtrack.models:GameSoundtrackBinding.kind` |
 | `game-soundtrack-v1` | `authored` | `stage_gen.components.game_soundtrack.models:GameSoundtrack.kind` |
 | `game-ui-v5` | `authored` | `stage_gen.components.game_ui.models:GameUi.kind` |

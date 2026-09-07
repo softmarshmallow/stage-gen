@@ -111,6 +111,7 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, IdentitySource], ...] = (
     ("authored", _field("components.platformer_gameplay.models", "GameplayContract")),
     ("authored", _field("components.game_ui.models", "GameUi")),
     ("authored", _field("components.game_fx.models", "GameFx")),
+    ("authored", _field("components.game_shell.models", "GameShell")),
     ("authored", _field("components.game_soundtrack.models", "GameSoundtrack")),
     ("authored", _field("components.game_soundtrack.models", "GameSoundtrackBinding")),
     ("authored", _field("components.game_voices.models", "GameVoices")),
