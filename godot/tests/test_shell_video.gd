@@ -27,6 +27,28 @@ func run(h: TestHarness) -> void:
 
 	_declared(h, opening, clips)
 	_opens(h, pkg, clips)
+	_optional_strings(h, opening)
+
+
+## An absent optional field is published as null, not omitted.
+##
+## `String(null)` is an invalid call that aborts its caller mid-function, and
+## `.get(key, default)` does not save you when the key is there and holds null. A
+## wordless opening — every shot carrying no card — is exactly that shape, and it broke
+## the shot transition after the clip had already been built and played, so the picture
+## looked right while shots piled up behind it.
+func _optional_strings(h: TestHarness, opening: Dictionary) -> void:
+	for entry: Variant in opening.get("shots", []):
+		var shot: Dictionary = entry
+		h.assert_true(
+			shot.has("card"),
+			"a shot publishes its card key even when it carries no card: %s" % shot.get("shot_id")
+		)
+		var card: Variant = shot.get("card")
+		h.assert_true(
+			card == null or typeof(card) == TYPE_STRING,
+			"a card is a string or null, and the host has to read both"
+		)
 
 
 ## What a host reads before it decides how to draw a shot.

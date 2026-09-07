@@ -172,7 +172,7 @@ func _advance_shot() -> void:
 			_shot_node.add_child(picture)
 			_apply_move(picture, String(shot.get("move", "hold")), float(shot.get("seconds", 4.0)))
 
-	var card := String(shot.get("card", ""))
+	var card := _text(shot.get("card"))
 	if card != "":
 		_card_node = _card_label(card)
 		_shot_node.add_child(_card_node)
@@ -496,6 +496,16 @@ func _plate_texture(plate: Variant) -> Texture2D:
 		return null
 	var ref := String((plate as Dictionary).get("asset", ""))
 	return package.texture(ref) if ref != "" else null
+
+
+## A string the manifest may publish as null rather than omit.
+##
+## `.get(key, default)` does not help when the key is present and its value is null,
+## and `String(null)` is an invalid call that aborts the caller mid-function. An
+## optional authored field — a shot with no card, a screen with no emblem — is exactly
+## that shape, and the opening that has no cards at all is what found it.
+static func _text(value: Variant, fallback: String = "") -> String:
+	return fallback if value == null else String(value)
 
 
 ## The player for a clip shot, filling the frame and silent.
