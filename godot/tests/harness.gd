@@ -6,15 +6,15 @@ extends RefCounted
 
 ## The run every test reads when the command line names none. A real run, not a
 ## fixture: the port is only worth anything if it loads what the pipeline
-## actually emits. `out/ember-hollow-v10` is the current run — manifest kind
-## `oblique-survival-manifest-v2`, the forage the only sheet of ground pieces
-## and every cell of it sized (decision 0060); the counts pinned in these
-## tests are that run's.
+## actually emits. `out/ember-hollow-v13` is the current run — manifest kind
+## `oblique-survival-manifest-v3`, the forage the only sheet of ground pieces
+## and every cell of it sized (decision 0060), and the game shell drawn; the
+## counts pinned in these tests are that run's.
 ##
 ## Found from the project rather than from a path typed on one machine:
 ## `res://` globalises to the project directory, and the repository's `out/` is
 ## one level up from it.
-const DEFAULT_RUN_REF := "../out/ember-hollow-v10"
+const DEFAULT_RUN_REF := "../out/ember-hollow-v13"
 
 ## The run this suite is pointed at: the default above, or the directory after
 ## `-- --run` on the command line.

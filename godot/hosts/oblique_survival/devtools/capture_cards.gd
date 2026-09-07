@@ -22,7 +22,7 @@ extends SceneTree
 
 ## Found from the project, not typed on one machine: `res://` globalises to
 ## the project directory and the repository's `out/` is one level up.
-const DEFAULT_RUN_REF := "../out/ember-hollow-v10"
+const DEFAULT_RUN_REF := "../out/ember-hollow-v13"
 
 static func _default_run() -> String:
 	return ProjectSettings.globalize_path("res://").path_join(DEFAULT_RUN_REF).simplify_path()
