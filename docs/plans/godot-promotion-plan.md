@@ -1,6 +1,7 @@
 # The Godot promotion: the path
 
-Status: in flight. Steps 0 to 3, the kernel and the runner have landed; the table marks them. Companion to [the host contract](../spec/game/host-contract.md)
+Status: in flight. Steps 0 to 3, the kernel and the runner have landed, and step 10's three
+simulations are ported and proved; the table marks them. Companion to [the host contract](../spec/game/host-contract.md)
 (the end state) and
 [decision 0061](../decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md)
 (the ruling). This document is the path, and it dies when the path is walked.
@@ -39,8 +40,8 @@ channel, a catalogue, a URL — is out of scope and stays in
 | 6 | G | The suite enters the locked gate: a supervisor per test file, fixtures with synthesised media, the CI job | `check.py` fails without the engine; an injected error and an injected hang both turn it red |
 | 7 ◐ | H | The browser instruments: the platformer's slice list, every fixture and reference committed, stills taken | the references reproduce; the fixtures carry current identities |
 | 8 ✔ | I | **The runner**, and the browser runner is deleted | 600/600 frames and 30/30 digests, sealed order equal to the documented one, the host run and shot; no browser still, and [0065](../decisions/0065-the-runner-is-retired-from-the-browser.md) says why |
-| 9 | J | **The platformer**, and the browser platformer is deleted | the same, per map, plus the map-scope reset |
-| 10 | K | **The room, the scene and the case**, and their browser surfaces are deleted together | the same, plus an episode played end to end with a save and a resume |
+| 9 | J | **The platformer**, and the browser platformer is deleted | the same, per map, plus the map-scope reset — and see the reordering note: this is a disentangling, not a translation |
+| 10 ◐ | K | **The room, the scene and the case**, and their browser surfaces are deleted together | the three simulations are ported and exact (14/14, 26/26, 20/20); their hosts and the deletion are what is left |
 | 11 | L | The sweep: the last web references, the census rows, the identities regenerated | `check.py` green; no `phaser` anywhere under `web/` |
 
 **Two reorderings, with their reasons.** Step 5 (the kernel) landed before step 4
@@ -74,10 +75,26 @@ long as each genre's capture precedes its own port. The stills are not taken
 yet; they need the browser's WEBGL renderer rather than its capture mode, whose
 canvas path draws no tint at all.
 
-Steps 8 to 10 each carry their retirement record. The order is the two
+Steps 8 to 10 each carry their retirement record. The order was the two
 kernel-sealed genres first, while the families port is fresh, then the three
-turn-based surfaces, which carry no floating-point state and retire together
-because the case cannot outlive the leaves it plays.
+turn-based surfaces.
+
+**A third reordering, and this one is measured rather than convenient.** Step 10
+was taken before step 9. The reason is that step 9 is not the same kind of work
+as step 8, which this plan assumed it was. The runner's simulation was written
+in modules that import no engine, so its port was a translation; sixteen of the
+platformer's files import Phaser and they include `player.ts` (1,496 lines),
+`mob.ts` (868), `portal.ts` (521) and `prepared-scene.ts` (3,729), which is the
+scene and the simulation in one file. Porting it is a disentangling and a
+re-derivation, not a translation, and that is what `PARITY_EXCLUDE` has been
+telling us: the golden hashes a Phaser scene, and 103 of its leaf fields are all
+that survive dropping what one host is allowed to have an opinion about.
+
+The three turn-based surfaces, by contrast, have one engine-bound file each and
+the case has none. They carry no floating-point state, and all three ported to
+exact parity on the first or second attempt. Taking them first means three of
+the four genres are on Godot while the platformer is still being worked out,
+rather than none of them.
 
 ## What is deliberately not here
 
