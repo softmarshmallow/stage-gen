@@ -3,6 +3,218 @@
   "genre": "sideview_platformer",
   "frames": 600,
   "digest_every": 20,
-  "notes": "The browser platformer's own replay golden, restricted to what the simulation decided. Its snapshot hashes a Phaser scene, so a mob's alpha and drawn height, the camera's device-pixel zoom, the map label, the banner and the combat text are this host's opinion and another host is allowed to disagree about them; `PARITY_EXCLUDE=1` drops exactly those, by the list committed in web/lib/sideview-platformer/replay.test.ts. What survives is 103 leaf fields at frame 300: player position, velocity, state, health, support and ladder ids and the six drop-through phases; mob position, health and state; platforms, climbables, portals; the inventory, the progression, the quests and the dialogue; the camera's scroll; the soundtrack's track ids. That is the floor the Godot port must match line for line. Pictures cover what the list removes. Reproduce with `PARITY_EXCLUDE=1 REPLAY_DUMP=<path> REPLAY_FRAMES=<path> bun test lib/sideview-platformer/replay.test.ts`.",
-  "script": "web/lib/sideview-platformer/replay.test.ts, the village run"
+  "notes": "The browser platformer's own replay golden, restricted to what the simulation decided. Its snapshot hashes a Phaser scene, so a mob's alpha and drawn height, the camera's device-pixel zoom, the map label, the banner and the combat text are this host's opinion and another host is allowed to disagree about them; `PARITY_EXCLUDE=1` drops exactly those, by the list committed in web/lib/sideview-platformer/replay.test.ts. What survives is 103 leaf fields at frame 300: player position, velocity, state, health, support and ladder ids and the six drop-through phases; mob position, health and state; platforms, climbables, portals; the inventory, the progression, the quests and the dialogue; the camera's scroll; the soundtrack's track ids. That is the floor the Godot port must match line for line. Pictures cover what the list removes. Reproduce with `PARITY_EXCLUDE=1 REPLAY_DUMP=<path> REPLAY_FRAMES=<path> bun test lib/sideview-platformer/replay.test.ts`. The intents below are the same run in the shape a host can be driven by: `hold` is a level down from `from` through `until` inclusive, `press` is one edge on exactly that frame, and `keys` are the scene-level presses the player intent does not carry. They were transcribed from `scriptedIntent` and `scriptedKeys`, whose windows are half-open \u2014 the `until` here is the browser's `to` less one, converted once at transcription rather than in every reader. `step_seconds` is 1/30: the platformer's step is not the runner's, and a host that assumed 1/60 would replay the same intents over twice the world.",
+  "script": "web/lib/sideview-platformer/replay.test.ts, the village run",
+  "step_seconds": 0.03333333333333333,
+  "intents": [
+    {
+      "from": 1,
+      "until": 59,
+      "hold": [
+        "right"
+      ]
+    },
+    {
+      "frame": 60,
+      "keys": [
+        "interact"
+      ]
+    },
+    {
+      "frame": 68,
+      "keys": [
+        "interact"
+      ]
+    },
+    {
+      "frame": 72,
+      "keys": [
+        "space"
+      ]
+    },
+    {
+      "from": 80,
+      "until": 149,
+      "hold": [
+        "right"
+      ]
+    },
+    {
+      "from": 80,
+      "until": 149,
+      "hold": [
+        "run"
+      ]
+    },
+    {
+      "frame": 150,
+      "keys": [
+        "up"
+      ]
+    },
+    {
+      "frame": 151,
+      "keys": [
+        "up"
+      ]
+    },
+    {
+      "from": 155,
+      "until": 249,
+      "hold": [
+        "right"
+      ]
+    },
+    {
+      "from": 155,
+      "until": 249,
+      "hold": [
+        "run"
+      ]
+    },
+    {
+      "frame": 200,
+      "press": [
+        "attack"
+      ]
+    },
+    {
+      "frame": 215,
+      "press": [
+        "attack"
+      ]
+    },
+    {
+      "frame": 230,
+      "press": [
+        "attack"
+      ]
+    },
+    {
+      "frame": 245,
+      "press": [
+        "attack"
+      ]
+    },
+    {
+      "from": 255,
+      "until": 374,
+      "hold": [
+        "left"
+      ]
+    },
+    {
+      "from": 255,
+      "until": 374,
+      "hold": [
+        "run"
+      ]
+    },
+    {
+      "frame": 268,
+      "press": [
+        "attack"
+      ]
+    },
+    {
+      "frame": 285,
+      "press": [
+        "attack"
+      ]
+    },
+    {
+      "frame": 300,
+      "press": [
+        "attack"
+      ]
+    },
+    {
+      "frame": 350,
+      "press": [
+        "toggleInventory"
+      ]
+    },
+    {
+      "from": 380,
+      "until": 431,
+      "hold": [
+        "up"
+      ]
+    },
+    {
+      "from": 437,
+      "until": 491,
+      "hold": [
+        "down"
+      ]
+    },
+    {
+      "frame": 470,
+      "press": [
+        "useHealing"
+      ]
+    },
+    {
+      "frame": 480,
+      "press": [
+        "toggleInventory"
+      ]
+    },
+    {
+      "frame": 493,
+      "press": [
+        "jump"
+      ]
+    },
+    {
+      "from": 495,
+      "until": 574,
+      "hold": [
+        "right"
+      ]
+    },
+    {
+      "from": 495,
+      "until": 574,
+      "hold": [
+        "run"
+      ]
+    },
+    {
+      "frame": 515,
+      "press": [
+        "attack"
+      ]
+    },
+    {
+      "frame": 530,
+      "press": [
+        "attack"
+      ]
+    },
+    {
+      "frame": 545,
+      "press": [
+        "attack"
+      ]
+    },
+    {
+      "frame": 580,
+      "keys": [
+        "enter"
+      ]
+    },
+    {
+      "frame": 588,
+      "keys": [
+        "enter"
+      ]
+    },
+    {
+      "frame": 596,
+      "keys": [
+        "enter"
+      ]
+    }
+  ]
 }

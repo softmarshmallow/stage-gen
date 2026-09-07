@@ -50,8 +50,9 @@ def walk(left: Any, right: Any, path: str = "") -> list[tuple[str, Any, Any]]:
         if len(left) != len(right):
             return [(f"{path} (length)", len(left), len(right))]
         found = []
-        for index, (a, b) in enumerate(zip(left, right, strict=True)):
-            found.extend(walk(a, b, f"{path}[{index}]"))
+        # The lengths matched above, so pairing by index is total.
+        for index, entry in enumerate(left):
+            found.extend(walk(entry, right[index], f"{path}[{index}]"))
         return found
     return [] if left == right else [(path or "/", left, right)]
 

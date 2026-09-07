@@ -4,7 +4,8 @@
   "seed": 1592594996,
   "frames": 600,
   "digest_every": 20,
-  "notes": "The browser runner's own replay golden, as a script the Godot host can be driven by. The seed is 0x5eed1234, which is 1592594996 in the decimal this file has to state it in, and the intents are read from `drive()` in web/lib/sideview-runner/replay.test.ts. Two references sit beside it, which is the pair the browser test already writes: `.web-frames.txt` is one unchained digest per frame, so \"which frame moved\" is a diff rather than a claim, and `.web.jsonl` is the whole hashed world every twentieth frame, so \"and why\" is a field diff. The full per-frame state is 1.5 MB and is not tracked; while the browser runner still exists it is one `REPLAY_DUMP=<path> bun test lib/sideview-runner/replay.test.ts` away, and after the port the Godot host's own dump is the golden.",
+  "step_seconds": 0.016666666666666666,
+  "notes": "The browser runner's own replay golden, as a script the Godot host can be driven by. The seed is 0x5eed1234, which is 1592594996 in the decimal this file has to state it in, and the intents are read from `drive()` in web/lib/sideview-runner/replay.test.ts. Two references sit beside it, which is the pair the browser test already writes: `.web-frames.txt` is one unchained digest per frame, so \"which frame moved\" is a diff rather than a claim, and `.web.jsonl` is the whole hashed world every twentieth frame, so \"and why\" is a field diff. The full per-frame state is 1.5 MB and is not tracked; while the browser runner still exists it is one `REPLAY_DUMP=<path> bun test lib/sideview-runner/replay.test.ts` away, and after the port the Godot host's own dump is the golden. `step_seconds` is 1/60, stated rather than assumed: the platformer's is 1/30, and a harness that defaulted would replay one genre's intents over the other genre's world.",
   "intents": [
     {
       "frame": 30,

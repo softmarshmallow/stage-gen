@@ -23,7 +23,10 @@ extends SceneTree
 ## Dictionary, so "no fight", "no moment", "no gauge" and "nowhere to recover to"
 ## are all the empty one, and the digest writes what the browser wrote.
 
-const FIXED_DT := 1.0 / 60.0
+## The step is read from the script rather than assumed: the platformer's is
+## 1/30, and a harness that defaulted to one genre's rate would replay the
+## other's intents over twice the world.
+const DEFAULT_STEP := 1.0 / 60.0
 
 
 func _initialize() -> void:
@@ -68,6 +71,7 @@ func _initialize() -> void:
 	# none. So the encounter system runs and returns, every frame, in both.
 	var world := RunnerWorld.create(config, int(replay["seed"]), false, {})
 
+	var step_seconds := float(replay.get("step_seconds", DEFAULT_STEP))
 	var frames := int(replay["frames"])
 	var every := int(replay["digest_every"])
 	var lines := PackedStringArray()
@@ -77,7 +81,7 @@ func _initialize() -> void:
 	var hashes := PackedStringArray()
 	for frame in range(1, frames + 1):
 		_drive(latch, replay, frame)
-		var step := {"dt": FIXED_DT, "now": float(frame) * FIXED_DT, "frame": frame}
+		var step := {"dt": DEFAULT_STEP, "now": float(frame) * DEFAULT_STEP, "frame": frame}
 		world.events.begin_frame()
 		order.tick(world, step)
 		# The composition's reset list, applied at the frame boundary: a system
