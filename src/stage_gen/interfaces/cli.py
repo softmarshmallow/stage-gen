@@ -93,6 +93,15 @@ from stage_gen.recipes.sideview_platformer.view_annotations import (
 from stage_gen.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
 from stage_gen.recipes.sideview_runner.runner_graph import RUNNER_CACHE_NAMESPACE
 from stage_gen.recipes.sideview_runner.runner_view import build_sideview_runner_view
+from stage_gen.recipes.storefront.storefront_executor import StorefrontExecutor
+from stage_gen.recipes.storefront.storefront_request import (
+    apply_rerolls,
+    empty_ledger,
+    read_draw_ledger,
+    read_storefront_document,
+    resolve_storefront,
+)
+from stage_gen.recipes.storefront.storefront_view import build_storefront_view
 from stage_gen.recipes.universe import gallery_page as universe_gallery_page
 from stage_gen.recipes.universe.universe_executor import UniverseExecutor
 from stage_gen.recipes.universe.universe_view import build_universe_view
@@ -311,6 +320,42 @@ def build_parser() -> argparse.ArgumentParser:
         help="re-render the consumer page from a finished gallery run, provider-free",
     )
     universe_page_parser.add_argument("--run", required=True, dest="run_dir")
+
+    storefront_parser = commands.add_parser(
+        "storefront",
+        description="Draw one game's storefront face: icon, preview stills, banner, listing",
+    )
+    storefront_commands = storefront_parser.add_subparsers(dest="storefront_command", required=True)
+    storefront_generate_parser = storefront_commands.add_parser(
+        "generate",
+        help="draw every declared surface and write the store listing beside them",
+    )
+    storefront_generate_parser.add_argument(
+        "--input",
+        required=True,
+        dest="input_path",
+        help="authored storefront package directory (storefront.toml plus references/)",
+    )
+    storefront_generate_parser.add_argument("--output", required=True, dest="output_path")
+    storefront_generate_parser.add_argument("--cache-dir", dest="cache_dir")
+    storefront_generate_parser.add_argument("--dry-run", action="store_true", dest="dry_run")
+    storefront_generate_parser.add_argument("--invocation-id")
+    storefront_generate_parser.add_argument(
+        "--reroll",
+        action="append",
+        default=None,
+        dest="rerolls",
+        metavar="SURFACE_ID",
+        help="redraw one surface; repeatable, everything else stays a cache hit",
+    )
+    storefront_generate_parser.add_argument(
+        "--draw-ledger",
+        dest="draw_ledger",
+        help="carry a prior run's draw-ledger.json forward before applying --reroll",
+    )
+    storefront_generate_parser.add_argument(
+        "--failure-node", dest="failure_node", help="inject one dry-run node failure"
+    )
 
     oblique_survival_parser = commands.add_parser(
         "oblique-survival",
@@ -634,6 +679,8 @@ def _build_run_view_for(run_dir: Path) -> RunView:
         return build_sideview_runner_view(run_dir)
     if declared == "universe-execution-graph-v1":
         return build_universe_view(run_dir)
+    if declared == "storefront-execution-graph-v1":
+        return build_storefront_view(run_dir)
     if declared == "oblique-survival-execution-graph-v1":
         return build_oblique_survival_view(run_dir)
     raise ValueError(
@@ -1169,6 +1216,54 @@ async def _dispatch_universe(
     return write_report(stdout, report)
 
 
+async def _dispatch_storefront(
+    args: argparse.Namespace,
+    *,
+    config: StageGenConfig,
+    stdout: TextIO,
+) -> int:
+    input_path = Path(args.input_path)
+    output_path = resolve_output_path(args.output_path)
+    cache_dir = resolve_cache_dir(args.cache_dir, config)
+    invocation_id = args.invocation_id or f"storefront-{uuid.uuid4().hex}"
+    if not args.dry_run and args.failure_node is not None:
+        raise CliUsageError("--failure-node is available only with --dry-run")
+    # The ledger is resolved before the executor so a reroll of a surface the
+    # package does not declare is refused here, by name, rather than after the
+    # run directory has already been opened.
+    source = resolve_storefront(read_storefront_document(input_path), root=input_path)
+    ledger = (
+        read_draw_ledger(Path(args.draw_ledger))
+        if args.draw_ledger
+        else empty_ledger(source.storefront_id)
+    )
+    draws = apply_rerolls(ledger, tuple(args.rerolls or ()))
+    executor = StorefrontExecutor(config, draws=draws)
+    if args.dry_run:
+        run = await executor.dry_run(
+            input_path,
+            run_dir=output_path,
+            cache_dir=cache_dir,
+            invocation_id=invocation_id,
+            failure_node_id=args.failure_node,
+        )
+    else:
+        run = await executor.run(
+            input_path,
+            run_dir=output_path,
+            cache_dir=cache_dir,
+            invocation_id=invocation_id,
+        )
+    report = run_report(
+        run,
+        run_dir=output_path,
+        recipe="storefront",
+        storefront_id=run.plan.resolved.storefront_id,
+        surfaces=run.plan.graph.surface_count,
+    )
+    return write_report(stdout, report)
+
+
 async def _dispatch_oblique_survival(
     args: argparse.Namespace,
     *,
@@ -1262,6 +1357,8 @@ async def _dispatch_async(
         return await _dispatch_pointclick_room(args, config=config, stdout=stdout)
     if args.command == "universe":
         return await _dispatch_universe(args, config=config, stdout=stdout)
+    if args.command == "storefront":
+        return await _dispatch_storefront(args, config=config, stdout=stdout)
     if args.command == "oblique-survival":
         return await _dispatch_oblique_survival(args, config=config, stdout=stdout)
     if args.command == "generate":

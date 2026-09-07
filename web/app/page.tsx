@@ -15,6 +15,7 @@
 import Link from "next/link";
 import { listReadyCases } from "@/lib/narrative/case-io";
 import { listRuns, type RunIndexEntry } from "@/lib/shell/run-index";
+import { listStorefrontRuns } from "@/lib/shell/storefront";
 import { listUniverseRuns } from "@/lib/shell/universe";
 import {
   cx,
@@ -108,10 +109,11 @@ function RunRow({ entry }: { entry: RunIndexEntry }) {
 }
 
 export default async function Home() {
-  const [runs, cases, universes] = await Promise.all([
+  const [runs, cases, universes, storefronts] = await Promise.all([
     listRuns(),
     listReadyCases(),
     listUniverseRuns(),
+    listStorefrontRuns(),
   ]);
   const withView = runs.filter((entry) => entry.hasExecutionView).length;
   return (
@@ -227,6 +229,46 @@ export default async function Home() {
         ) : (
           <p className={metaLine}>
             None yet. Generate one with <code>stage-gen universe gallery</code>.
+          </p>
+        )}
+      </section>
+
+      {/* A storefront is the face a game is listed behind, not the game: it has
+          no player either, and its own viewer surface stays. */}
+      <section className="mt-8 border-t border-border pt-4">
+        <div className="mb-2 text-[13px]">
+          <span className="text-dim">storefronts</span>
+          <span className="text-dim opacity-60"> · {storefronts.length}</span>
+        </div>
+        {storefronts.length > 0 ? (
+          <ul className="flex list-none flex-col gap-1.5">
+            {storefronts.map((entry) => (
+              <li
+                key={entry.tag}
+                className="grid grid-cols-[1fr_auto] items-center gap-3 border border-border px-2.5 py-1.5 hover:border-fg"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-[13px] text-fg">
+                    {entry.displayName}
+                  </div>
+                  <div className="mt-0.5 truncate text-[11px] text-dim">
+                    {entry.tag} · {entry.surfaceCount} surfaces ·{" "}
+                    {entry.admitted} admitted
+                  </div>
+                </div>
+                <Link
+                  className={cx(playActive, playSizeCompact)}
+                  href={`/storefront/${encodeURIComponent(entry.tag)}`}
+                >
+                  [ ▶ open storefront ]
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className={metaLine}>
+            None yet. Generate one with{" "}
+            <code>stage-gen storefront generate</code>.
           </p>
         )}
       </section>

@@ -40,10 +40,14 @@ UNIVERSE_GALLERY_CONTRACT_KIND = _writer.UNIVERSE_GALLERY_CONTRACT_KIND
 UNIVERSE_FIXTURE_REF = _writer.UNIVERSE_FIXTURE_REF
 UNIVERSE_ADMITTED_REF = _writer.UNIVERSE_ADMITTED_REF
 SURVIVAL_DOCUMENT = REPOSITORY_ROOT / "docs/spec/survival/generation-v1.md"
+STOREFRONT_DOCUMENT = REPOSITORY_ROOT / "docs/spec/storefront/generation-v1.md"
+STOREFRONT_CONTRACT_KIND = _writer.STOREFRONT_CONTRACT_KIND
+STOREFRONT_FIXTURE_REF = _writer.STOREFRONT_FIXTURE_REF
 SURVIVAL_CONTRACT_KIND = _writer.OBLIQUE_SURVIVAL_CONTRACT_KIND
 SURVIVAL_FIXTURE_REF = _writer.OBLIQUE_SURVIVAL_FIXTURE_REF
 SURVIVAL_SCOPE = _writer.OBLIQUE_SURVIVAL_SCOPE
 build_oblique_survival_graph_contract = _writer.build_oblique_survival_graph_contract
+build_storefront_graph_contract = _writer.build_storefront_graph_contract
 build_graph_contract = _writer.build_graph_contract
 build_runner_graph_contract = _writer.build_runner_graph_contract
 build_universe_semantic_graph_contract = _writer.build_universe_semantic_graph_contract
@@ -222,6 +226,35 @@ def test_survival_documents_are_discoverable_and_name_their_siblings() -> None:
         assert sibling in recipe
     # The host that plays the manifest is named by the recipe, not inferred.
     assert "godot-host.md" in recipe
+
+
+def test_storefront_document_tracks_the_executable_stage_graph() -> None:
+    assert document_contract(STOREFRONT_DOCUMENT) == build_storefront_graph_contract(
+        REPOSITORY_ROOT
+    )
+
+
+def test_storefront_contract_declares_its_identity_and_its_fixture() -> None:
+    contract = document_contract(STOREFRONT_DOCUMENT)
+    assert contract["kind"] == STOREFRONT_CONTRACT_KIND
+    assert contract["fixture_ref"] == STOREFRONT_FIXTURE_REF
+    assert (REPOSITORY_ROOT / STOREFRONT_FIXTURE_REF / "storefront.toml").is_file()
+    # One picture per declared surface, and the fan-out is what the table says it
+    # is: four images, and six structured calls for one direction, one listing and
+    # one review each.
+    assert contract["surface_count"] == 4
+    assert contract["operation_counts"]["image_generation"] == contract["surface_count"]
+    assert contract["operation_counts"]["structured_generation"] == contract["surface_count"] + 2
+
+
+def test_storefront_contract_block_is_rendered_canonically() -> None:
+    source = STOREFRONT_DOCUMENT.read_text(encoding="utf-8")
+    assert render(document_contract(STOREFRONT_DOCUMENT)) in source
+
+
+def test_storefront_document_is_discoverable_from_the_docs_index() -> None:
+    docs_index = (REPOSITORY_ROOT / "docs/README.md").read_text(encoding="utf-8")
+    assert "spec/storefront/generation-v1.md" in docs_index
 
 
 def test_universe_document_is_discoverable_from_the_docs_index() -> None:

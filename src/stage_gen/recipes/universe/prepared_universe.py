@@ -38,9 +38,14 @@ from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.media import data_url
 from stage_gen.media.codec import encode_png
 from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
+from stage_gen.recipes.structured_transport import (
+    AttemptLedger,
+    generate_structured,
+    known_cost,
+)
 from stage_gen.recipes.universe import models
 from stage_gen.recipes.universe.medium import forbidden_terms_present
-from stage_gen.recipes.universe.schema import AttemptLedger, generate_structured, known_cost
+from stage_gen.recipes.universe.schema import SYSTEM_PROMPT, schema_description
 from stage_gen.recipes.universe.universe_graph import (
     ADMISSION_REF,
     EVALUATION_REF,
@@ -338,6 +343,8 @@ EXPANSION DIRECTION (full text)
                 service,
                 model_type=models.UniverseProposal,
                 operation_id="universe.propose",
+                system=SYSTEM_PROMPT,
+                description=schema_description("universe.propose"),
                 prompt=f"{card_prompt}\n\n{self._source_section()}",
                 artifact_path=self._path(PROPOSAL_REF),
                 ledger=ledger,
@@ -396,6 +403,8 @@ EXPANSION DIRECTION (full text)
                 service,
                 model_type=models.GalleryPlan,
                 operation_id="universe.plan",
+                system=SYSTEM_PROMPT,
+                description=schema_description("universe.plan"),
                 prompt=f"{card_prompt}\n\nADMITTED UNIVERSE PROJECTION\n{_compact(projection)}",
                 artifact_path=self._path(PLAN_REF),
                 ledger=ledger,
@@ -480,6 +489,8 @@ EXPANSION DIRECTION (full text)
                 service,
                 model_type=models.SemanticReview,
                 operation_id="universe.review",
+                system=SYSTEM_PROMPT,
+                description=schema_description("universe.review"),
                 prompt=prompt,
                 artifact_path=self._path(SEMANTIC_REVIEW_REF),
                 ledger=ledger,
@@ -674,6 +685,8 @@ EXPANSION DIRECTION (full text)
                 service,
                 model_type=models.GlobalDirection,
                 operation_id="universe.direction.global",
+                system=SYSTEM_PROMPT,
+                description=schema_description("universe.direction.global"),
                 prompt=f"{card_prompt}\n\nADMITTED UNIVERSE\n{_compact(projection)}",
                 artifact_path=self._path(GLOBAL_DIRECTION_REF),
                 ledger=ledger,
@@ -714,6 +727,8 @@ EXPANSION DIRECTION (full text)
                 service,
                 model_type=models.EntityDirection,
                 operation_id=f"universe.direction.entity.{entity_id}",
+                system=SYSTEM_PROMPT,
+                description=schema_description(f"universe.direction.entity.{entity_id}"),
                 prompt=prompt,
                 artifact_path=self._path(node.port("direction").artifact_ref),
                 ledger=ledger,
@@ -868,6 +883,8 @@ EXPANSION DIRECTION (full text)
                 service,
                 model_type=models.ImageReview,
                 operation_id=f"universe.review.image.{entity_id}",
+                system=SYSTEM_PROMPT,
+                description=schema_description(f"universe.review.image.{entity_id}"),
                 prompt=prompt,
                 artifact_path=self._path(node.port("review").artifact_ref),
                 ledger=ledger,

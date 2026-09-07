@@ -59,6 +59,7 @@ not an identity but a cache key (C-R1); its evidence is the cache-key goldens.
 | `runner-track-v4` | `authored` | `stage_gen.components.runner_track.models:RunnerTrack.kind` |
 | `scenario-catalog-v1` | `authored` | `stage_gen.components.scenario.models:ScenarioCatalog.kind` |
 | `scenario-v2` | `authored` | `stage_gen.components.scenario.models:ScenarioDeclarations.kind` |
+| `storefront-source-v1` | `authored` | `stage_gen.recipes.storefront.models:StorefrontSource.kind` |
 | `universe-source-v1` | `authored` | `stage_gen.recipes.universe.models:UniverseSource.kind` |
 | `fx-block-v1` | `block` | `stage_gen.components.game_fx.block:FX_MANIFEST_BLOCK_VERSION` |
 | `platformer-closure-block-v1` | `block` | `stage_gen.recipes.sideview_platformer.prepared_manifest:PLATFORMER_MANIFEST_BLOCK_VERSIONS['closure']` |
@@ -103,12 +104,16 @@ not an identity but a cache key (C-R1); its evidence is the cache-key goldens.
 | `resolved-game-package-v6` | `generated` | `stage_gen.orchestration.package_capture:RESOLVED_GAME_PACKAGE_KIND` |
 | `scenario-admission-v1` | `generated` | `stage_gen.components.scenario.models:ScenarioAdmissionReport.kind` |
 | `scenario-program-v2` | `generated` | `stage_gen.components.scenario.models:ScenarioProgram.kind` |
+| `storefront-direction-v1` | `generated` | `stage_gen.recipes.storefront.models:StorefrontDirection.kind` |
+| `storefront-draw-ledger-v1` | `generated` | `stage_gen.recipes.storefront.models:DrawLedger.kind` |
+| `storefront-listing-v1` | `generated` | `stage_gen.recipes.storefront.models:StoreListing.kind` |
 | `universe-sample-ledger-v1` | `generated` | `stage_gen.recipes.universe.models:SampleLedger.kind` |
 | `dialogue-scene-execution-graph-v5` | `graph` | `stage_gen.recipes.dialogue_scene.scene_graph:DialogueSceneGraph.kind` |
 | `oblique-survival-execution-graph-v1` | `graph` | `stage_gen.recipes.oblique_survival.survival_graph:ObliqueSurvivalGraph.kind` |
 | `pointclick-room-execution-graph-v1` | `graph` | `stage_gen.recipes.pointclick_room.room_graph:PointClickRoomGraph.kind` |
 | `sideview-platformer-execution-graph-v1` | `graph` | `stage_gen.recipes.sideview_platformer.execution_graph:ExecutionGraph.kind` |
 | `sideview-runner-execution-graph-v1` | `graph` | `stage_gen.recipes.sideview_runner.runner_graph:SideviewRunnerGraph.kind` |
+| `storefront-execution-graph-v1` | `graph` | `stage_gen.recipes.storefront.storefront_graph:StorefrontGraph.kind` |
 | `universe-execution-graph-v1` | `graph` | `stage_gen.recipes.universe.universe_graph:UniverseGraph.kind` |
 | `oblique-survival-manifest-v2` | `manifest` | `stage_gen.recipes.oblique_survival.manifest:MANIFEST_KIND` |
 | `pointclick-room-runtime-v3` | `manifest` | `stage_gen.recipes.pointclick_room.room_types:MANIFEST_KIND` |
@@ -127,6 +132,7 @@ not an identity but a cache key (C-R1); its evidence is the cache-key goldens.
 | `sideview-platformer-content-v1` | `namespace` | `stage_gen.recipes.sideview_platformer.package_graph:CONTENT_CACHE_NAMESPACE` |
 | `sideview-platformer-world-v1` | `namespace` | `stage_gen.recipes.sideview_platformer.package_graph:WORLD_CACHE_NAMESPACE` |
 | `sideview-runner-nodes-v1` | `namespace` | `stage_gen.recipes.sideview_runner.runner_graph:RUNNER_CACHE_NAMESPACE` |
+| `storefront-nodes-v1` | `namespace` | `stage_gen.recipes.storefront.storefront_graph:STOREFRONT_CACHE_NAMESPACE` |
 | `universe-nodes-v1` | `namespace` | `stage_gen.recipes.universe.universe_graph:UNIVERSE_CACHE_NAMESPACE` |
 | `generated_clip_v1` | `realization` | `stage_gen.components.sound_effect.models:GENERATED_CLIP_REALIZATION_KIND` |
 | `oscillator_sweep_v1` | `realization` | `stage_gen.components.runner_audio.models:OscillatorSweepRealization.kind` |

@@ -29,7 +29,7 @@ Evaluation criteria include:
 - scripting/tooling fit for generated-content iteration; and
 - the cost of maintaining a thin adapter rather than coupling core components.
 
-Those conditions were met before 0057 was ruled: six recipes publish versioned
+Those conditions were met before 0057 was ruled: six recipes published versioned
 manifests that no consumer may extend, and the candidate was measured against a
 run of the recipe it would host rather than against a synthetic bundle.
 

@@ -137,6 +137,7 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, IdentitySource], ...] = (
     ("authored", _field("recipes.universe.models", "UniverseSource")),
     ("authored", _field("recipes.oblique_survival.models", "ObliqueSurvivalSource")),
     ("authored", _constant("recipes.oblique_survival.models", "WORLD_KIND")),
+    ("authored", _field("recipes.storefront.models", "StorefrontSource")),
     # Generated documents: what the pipeline writes for a consumer or a later node.
     ("generated", _field("components.platformer_map.prepared", "PreparedMapTerrain")),
     ("generated", _field("components.sideview_map_design.design", "PlatformerChunkMapDesign")),
@@ -151,6 +152,9 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, IdentitySource], ...] = (
     ("generated", _field("recipes.dialogue_scene.models", "IndependentReview")),
     ("generated", _field("recipes.dialogue_scene.models", "DialogueBundle")),
     ("generated", _field("recipes.universe.models", "SampleLedger")),
+    ("generated", _field("recipes.storefront.models", "DrawLedger")),
+    ("generated", _field("recipes.storefront.models", "StorefrontDirection")),
+    ("generated", _field("recipes.storefront.models", "StoreListing")),
     # Runtime manifests: what a host parses.
     (
         "manifest",
@@ -167,6 +171,7 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, IdentitySource], ...] = (
     ("graph", _field("recipes.dialogue_scene.scene_graph", "DialogueSceneGraph")),
     ("graph", _field("recipes.universe.universe_graph", "UniverseGraph")),
     ("graph", _field("recipes.oblique_survival.survival_graph", "ObliqueSurvivalGraph")),
+    ("graph", _field("recipes.storefront.storefront_graph", "StorefrontGraph")),
     # Mode words.
     ("mode", _field("components.sideview_stage.models", "PreparedMapGround", "mode")),
     ("mode", _field("components.painted_terrain.models", "PaintedTerrainGround", "mode")),
@@ -188,6 +193,7 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, IdentitySource], ...] = (
         "namespace",
         _constant("recipes.oblique_survival.survival_graph", "OBLIQUE_SURVIVAL_CACHE_NAMESPACE"),
     ),
+    ("namespace", _constant("recipes.storefront.storefront_graph", "STOREFRONT_CACHE_NAMESPACE")),
     # Recipe versions stamped beside a generated document's own kind.
     ("recipe", _field("recipes.dialogue_scene.models", "DialogueScenePlan", "recipe_version")),
     # Blocks a shared component builds for more than one manifest.

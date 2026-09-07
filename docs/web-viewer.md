@@ -8,7 +8,9 @@ provider credentials, and holds **no gameplay** — every genre is played by a G
 [host contract](spec/game/host-contract.md)).
 
 What survives here is the viewer: `/` and `/runs` list runs, `/runs/<tag>` renders the run's
-derived `execution-view.json` read-only with its inspector, `/universe/<tag>` is the gallery, and
+derived `execution-view.json` read-only with its inspector, `/universe/<tag>` is the gallery,
+`/storefront/<tag>` presents one storefront the way a store would show it — icon, banner, preview
+stills and listing copy, with every review grade and both canvases behind a disclosure — and
 `/api/assets/<tag>/<path>` serves an artifact below one run under five confinement checks and no
 executable media type. One more surface is planned and holds no game logic either: a slot that
 embeds a finished export by its release record, which the viewer reads for a title, a size and an

@@ -48,6 +48,14 @@ from stage_gen.recipes.sideview_runner.runner_graph import (
     runner_graph_profile,
 )
 from stage_gen.recipes.sideview_runner.runner_request import resolve_runner_package
+from stage_gen.recipes.storefront.storefront_graph import (
+    build_storefront_graph,
+    storefront_graph_profile,
+)
+from stage_gen.recipes.storefront.storefront_request import (
+    read_storefront_document,
+    resolve_storefront,
+)
 from stage_gen.recipes.universe.universe_graph import (
     build_universe_gallery_graph,
     build_universe_semantic_graph,
@@ -81,6 +89,9 @@ OBLIQUE_SURVIVAL_CONTRACT_KIND = "oblique-survival-execution-graph-contract-v1"
 #: changes nothing about the nodes it keeps, so snapshotting the widest one pins
 #: every node identity the recipe can plan.
 OBLIQUE_SURVIVAL_SCOPE = "full"
+STOREFRONT_DOCUMENT = REPOSITORY_ROOT / "docs/spec/storefront/generation-v1.md"
+STOREFRONT_FIXTURE_REF = "library/games/ember-hollow"
+STOREFRONT_CONTRACT_KIND = "storefront-execution-graph-contract-v1"
 
 
 def contract_markers(label: str | None) -> tuple[str, str, re.Pattern[str]]:
@@ -195,6 +206,30 @@ def build_universe_gallery_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[
     }
 
 
+def build_storefront_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
+    """Derive the storefront's contract from the graph the code builds.
+
+    Planned against an empty draw ledger, which is what a first run has: a reroll
+    changes one image node's identity and nothing about the shape of the graph, so
+    the snapshot would be identical and the ledger is left out of it.
+    """
+
+    root = repo / STOREFRONT_FIXTURE_REF
+    resolved = resolve_storefront(read_storefront_document(root), root=root)
+    graph = build_storefront_graph(resolved, profile=storefront_graph_profile(StageGenConfig()))
+    return {
+        "kind": STOREFRONT_CONTRACT_KIND,
+        "fixture_ref": STOREFRONT_FIXTURE_REF,
+        "surface_count": graph.surface_count,
+        "graph_schema_version": graph.schema_version,
+        "topology_sha256": graph.topology_sha256,
+        "node_count": len(graph.nodes),
+        "terminal_node_id": graph.terminal_node_id,
+        "operation_counts": graph.operation_counts(),
+        "resources": [resource.model_dump(mode="json") for resource in graph.resources],
+    }
+
+
 def build_oblique_survival_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
     """Derive the survival world's contract from the graph the code builds.
 
@@ -286,6 +321,7 @@ def main(argv: list[str] | None = None) -> int:
             build_oblique_survival_graph_contract,
             None,
         ),
+        ("storefront", STOREFRONT_DOCUMENT, build_storefront_graph_contract, None),
     )
     status = 0
     for label, document, build, marker in contracts:

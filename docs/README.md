@@ -61,14 +61,19 @@ Start here for the headless, general-purpose system:
   machine-checked current side-view platformer and runner DAGs, typed nodes, stage
   and operation contracts, internal fan-out, execution semantics, and explicitly
   separated target evolution.
-- [Point-and-click puzzle room](spec/game/pointclick-room.md) — one of six recipes
+- [Point-and-click puzzle room](spec/game/pointclick-room.md) — one of seven recipes
   (`2d/roomview/pointclick`): the authored `pointclick-room-v3` room package, its
   solvability proof, the 14-node graph, and the `pointclick-room-runtime-v3` manifest.
-- [Oblique-survival generation V1](spec/survival/generation-v1.md) — one of six
+- [Oblique-survival generation V1](spec/survival/generation-v1.md) — one of seven
   recipes (`2d/obliqueview/survival`): the authored survival package and its
   digest-declared takes, the presentation profile, the four-way facing rule, the
   one sealed graph and its four scopes, which edit re-bills which node, the
   deterministic gates, and the `oblique-survival-manifest-v2` manifest a host plays.
+- [Storefront generation V1](spec/storefront/generation-v1.md) — one of seven
+  recipes, and the only one that draws nothing playable: the authored
+  `storefront-source-v1` package, the closed surface table and its two canvases,
+  the one direction every surface inherits, the draw ledger that rerolls exactly
+  one picture, and why a still of real play is declared and refused.
 - [Survival world](spec/survival/world.md) — the world generator: `world.toml`, the
   object-owned `placement` block, four point processes over solved fields, set pieces,
   addressed draws so an edit moves one object, and a Monte-Carlo pattern gate.

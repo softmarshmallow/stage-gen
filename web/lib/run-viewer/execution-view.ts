@@ -25,6 +25,11 @@ export const UNIVERSE_EXECUTION_VIEW_KIND = "universe-execution-view-v1";
  * game itself has no browser surface (it runs on the Godot host); its run does. */
 export const SURVIVAL_EXECUTION_VIEW_KIND = "oblique-survival-execution-view-v1";
 
+/** The storefront recipe's view: identified by the storefront it drew. This is the
+ * one recipe whose output is not part of a game — it is the face the game is
+ * listed behind — so its run has a browser surface where its subject does not. */
+export const STOREFRONT_EXECUTION_VIEW_KIND = "storefront-execution-view-v1";
+
 /** Every view kind this build renders. A kind outside it is another recipe's. */
 export const EXECUTION_VIEW_KINDS = [
   PLATFORMER_EXECUTION_VIEW_KIND,
@@ -33,6 +38,7 @@ export const EXECUTION_VIEW_KINDS = [
   RUNNER_EXECUTION_VIEW_KIND,
   UNIVERSE_EXECUTION_VIEW_KIND,
   SURVIVAL_EXECUTION_VIEW_KIND,
+  STOREFRONT_EXECUTION_VIEW_KIND,
 ] as const;
 
 export type ExecutionViewKind = (typeof EXECUTION_VIEW_KINDS)[number];
@@ -306,6 +312,13 @@ export type ExecutionViewSubject =
       readonly packageId: string;
       /** Which rung of the scope ladder the run drew: minimal, props, actors or full. */
       readonly scope: string;
+    }
+  | {
+      readonly kind: typeof STOREFRONT_EXECUTION_VIEW_KIND;
+      readonly recipe: string;
+      readonly storefrontId: string;
+      /** How many surfaces the package declared, which is the whole size of the run. */
+      readonly surfaceCount: number;
     };
 
 /** The one identity a run is labelled by, whichever recipe wrote it. */
@@ -329,6 +342,8 @@ export function subjectLabel(subject: ExecutionViewSubject): string {
       // One package is drawn at four widening scopes that share every node they
       // keep, so the scope is what tells two runs of the same world apart.
       return `${subject.packageId} · ${subject.scope}`;
+    case STOREFRONT_EXECUTION_VIEW_KIND:
+      return subject.storefrontId;
   }
 }
 
@@ -672,6 +687,13 @@ function subject(
         recipe,
         packageId: text(root.package_id, "package_id"),
         scope: text(root.scope, "scope"),
+      });
+    case STOREFRONT_EXECUTION_VIEW_KIND:
+      return Object.freeze({
+        kind,
+        recipe,
+        storefrontId: text(root.storefront_id, "storefront_id"),
+        surfaceCount: count(root.surface_count, "surface_count"),
       });
   }
 }

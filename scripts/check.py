@@ -178,6 +178,16 @@ def steps(python: str = sys.executable, *, scratch: Path) -> tuple[Step, ...]:
             "library/games/ember-hollow",
             name="ember-hollow",
         ),
+        # The storefront package sits inside the survival game's directory but is
+        # its own root: it names storefront.toml and reads none of survival.toml.
+        dry_run(
+            "stage-gen",
+            "storefront",
+            "generate",
+            "--input",
+            "library/games/ember-hollow",
+            name="ember-hollow-storefront",
+        ),
         Step(("stage-gen", "scenario", "check", "--input", "library/games/bellweather")),
         Step(("stage-gen", "scenario", "check", "--input", "library/games/larkfield")),
         Step(("stage-gen", "scenario", "check", "--input", "library/games/the_grain")),

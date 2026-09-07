@@ -154,15 +154,17 @@ its own records support, and the reader judges liveness from when the trace was 
   one-axis image repetition.
 - Deterministic image/audio inspection, normalization, persistence, retries,
   cancellation, path confinement, and redaction.
-- Six recipes compiled onto that engine: `sideview-platformer` and `sideview-runner`
+- Seven recipes compiled onto that engine: `sideview-platformer` and `sideview-runner`
   build distinct prepared-game members from a `game.toml` package, `dialogue-scene`
   builds an adult, non-explicit scene bundle from an authored request,
   `pointclick-room` builds a fixed painted puzzle room from an authored room package,
   `oblique-survival` builds a billboard-sprite survival world under a fixed
   elevated-oblique perspective camera — ground material, props and their interaction
   states, four-way actors, an authored crafting table, a season calendar, weather,
-  music and sound — from an authored survival package, and `universe` builds an
-  explorable storyworld package with one concept image per admitted entity.
+  music and sound — from an authored survival package, `universe` builds an
+  explorable storyworld package with one concept image per admitted entity, and
+  `storefront` draws the outward face of a game — app icon, store preview stills,
+  feature banner and listing copy — from that game's own art.
   Each declares its own graph document kind, so no recipe can read another's plan.
 - An application-agnostic asset-graph engine, `gnode`: declared `model@provider` routes with the
   features each supports, offline projection, resource-aware scheduling, content-and-lineage cache
@@ -202,10 +204,11 @@ individual recipes. `sideview-platformer` is the side-view reference integration
 `dialogue-scene` is a separate adult, non-explicit visual-novel bundle recipe;
 `pointclick-room` is a fixed-room, cursor-driven puzzle recipe;
 `oblique-survival` is the ground-plane survival recipe under an elevated-oblique
-perspective camera. No recipe may define another's assumptions or artifact
-layout.
+perspective camera; `storefront` is the one recipe that draws nothing playable —
+the face a finished game is listed behind. No recipe may define another's
+assumptions or artifact layout.
 
-The point-and-click recipe (`2d/roomview/pointclick`) is one of the six.
+The point-and-click recipe (`2d/roomview/pointclick`) is one of the seven.
 One room is one authored package under `library/games/<game_id>/`: a
 `pointclick-room-v3` `room.toml` — a backdrop brief, hotspots carrying an
 art-direction rectangle and a separate runtime hit area, items, and interactions
@@ -252,6 +255,40 @@ rung of the ladder — a narrow scope shares every node it keeps with a wide one
 so it warms the cache rather than paying twice. See the
 [oblique-survival specification](docs/spec/survival/generation-v1.md) and the
 [Godot host](docs/godot-host.md).
+
+## The face a finished game is listed behind
+
+The storefront recipe is the seventh and the only one that draws nothing
+playable: the app icon, the store preview stills, the feature banner and the
+listing copy that sits beside them. One storefront is one authored package —
+a `storefront-source-v1` `storefront.toml` beside a positioning note and the
+game's own art — and it reads none of that game's runtime contracts, so it can
+be drawn before the game it fronts is finished.
+
+It is the cheapest recipe in the repository, because there is nothing to
+compose. Each surface is one brief drawn at one canvas. What holds the set
+together is a single *reading* of the reference art, compiled once into a
+direction all four pictures inherit; what keeps a storefront from refusing the
+output is a closed table of exact canvases and a deterministic cut to them, since
+the image route offers aspect ratios rather than pixels.
+
+```sh
+uv run stage-gen storefront generate \
+  --input library/games/ember-hollow \
+  --output out/ember-hollow-storefront-v1
+```
+
+Add `--dry-run` for the free rehearsal. A rejected picture is redrawn by
+advancing its draw index — `--draw-ledger <prior run>/draw-ledger.json --reroll
+icon` — which moves that one surface and leaves everything else a cache hit.
+
+A preview still of *real play* is declared in the package vocabulary and refused
+while planning, by name: a deterministic play-and-capture harness does not exist
+yet, and answering a package that asked for a captured frame with a drawn one
+would be a silent substitution. The screens *inside* a game — the opening
+cinematic, the title screen, the loading screen — are a different owner's: the
+[game shell](docs/spec/game/shell.md). See the
+[storefront specification](docs/spec/storefront/generation-v1.md).
 
 ## Authored dialogue in the same game
 

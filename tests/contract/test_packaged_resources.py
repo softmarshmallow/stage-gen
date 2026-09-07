@@ -147,7 +147,12 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # The oblique-survival recipe (2026-09-06): fourteen source modules, 681,720 B of
         # text, measured 5,139,148 against the previous 5,000,000 line; the ceiling is
         # 5,300,000. No media, no library package and no gitignored path is in the wheel.
-        assert sum(wheel_entries.values()) < 5_300_000
+        # The storefront recipe and the game-shell component (2026-09-07) crossed that
+        # line together: ten storefront modules are 85,147 B and three shell modules
+        # 29,458 B, and the wheel measured 5,399,739. The ceiling is 5,500,000. The
+        # storefront's authored package and its reference art live under library/,
+        # which the wheel does not carry, and its tests and specification are not in it.
+        assert sum(wheel_entries.values()) < 5_500_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
         assert {
@@ -232,7 +237,13 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # 46 KiB of text and measured 9,207,769 against the 9,200,000 line; the
         # ceiling is 9,300,000. Nothing else grew — the project the promotion moves
         # is under godot/, which the archive does not carry.
-        assert sum(sdist_entries.values()) < 9_300_000
+        # The storefront recipe and the game-shell component (2026-09-07) crossed that
+        # line together: the storefront's ten source modules, six test modules and
+        # specification page are 119,461 B, the shell's modules and page 56,986 B, and
+        # the archive measured 9,411,823. The ceiling is 9,550,000. The storefront's
+        # authored package and its reference art are under library/, which the archive
+        # does not carry.
+        assert sum(sdist_entries.values()) < 9_550_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)

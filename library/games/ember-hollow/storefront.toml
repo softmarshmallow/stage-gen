@@ -1,0 +1,92 @@
+# The authored input of the storefront recipe: the outward face of this package,
+# read by `stage-gen storefront`. Generated output remains unreviewed and
+# unpublished; [rights] below says so, and the loader refuses a package that
+# does not.
+#
+# A standalone root document, the way survival.toml is: a storefront is not a
+# member of the game contract and reads none of its runtime files, so it can be
+# drawn before the game it fronts is finished.
+#
+# There is no medium keyword here on purpose. The look is read off the reference
+# art below, once, and sealed into a direction every surface inherits — the two
+# pictures are the look, so naming it again in prose would only give the compiler
+# a second opinion to disagree with.
+
+schema_version = 1
+kind = "storefront-source-v1"
+storefront_id = "ember_hollow"
+display_name = "Ember Hollow"
+revision = 1
+
+[positioning]
+source = "storefront-positioning.md"
+
+# The game's own art, attached to every surface call in this order. Digests are
+# matched when the package is resolved: nothing is ever drawn against art that
+# changed underneath the document.
+[[references]]
+reference_id = "style_plate"
+source = "references/style-plate.png"
+source_sha256 = "0f55649bf337ab3b057e88cf6854ca23a7142ebca57438f03bbd6cd74ee6ade0"
+role = "visual_evidence_and_art_grammar_only"
+
+[[references]]
+reference_id = "player_appearance"
+source = "references/player-appearance.png"
+source_sha256 = "6bae2780aae3e8857e2e4eb95b9f930a0588108cc5ff535a77278b88b6eb76b0"
+role = "visual_evidence_and_art_grammar_only"
+
+# One brief per surface, and nothing else. This is the whole authoring surface of
+# the recipe: what to draw, said once, for a canvas the closed table already knows.
+
+[[surfaces]]
+surface_id = "icon"
+kind = "app_icon"
+source = "generated"
+brief = """
+A single lantern held at arm's length against deep winter dusk, seen close and
+straight on. The flame is the brightest thing in the frame by a wide margin and
+the only warm colour in it. Everything behind the lantern falls away into cold
+blue-grey with no readable detail — no trees, no figure, no horizon line. One
+subject, one silhouette, filling most of the square.
+"""
+
+[[surfaces]]
+surface_id = "still_portrait"
+kind = "store_still_portrait"
+source = "generated"
+brief = """
+A lone figure in a heavy coat crossing an open snowfield at dusk, seen from
+above and behind at the game's own oblique angle, small against the ground. Bare
+trees stand at the far edge. The upper third is empty sky, so a caption set over
+it has somewhere quiet to sit. Their lantern is the one warm point in the frame.
+"""
+
+[[surfaces]]
+surface_id = "still_landscape"
+kind = "store_still_landscape"
+source = "generated"
+brief = """
+The same figure at a woodpile beside a low shelter at first light, the fire
+already lit, tools and a stack of cut wood around them. Read left to right, the
+subject off centre to the left, the treeline running out past the right edge.
+Cold air, warm fire, and the day's work about to start.
+"""
+
+[[surfaces]]
+surface_id = "feature_banner"
+kind = "feature_graphic"
+source = "generated"
+brief = """
+A wide winter valley at dusk with one lit shelter at its exact centre, small and
+warm, and the land falling away to either side into quiet blue-grey. The middle
+of the frame has to survive being cropped to a square on its own, so nothing the
+picture depends on may sit near either end.
+"""
+
+[rights]
+status = "unreviewed"
+basis = [
+  "Reference art is this repository's own generated survival package art; the storefront surfaces drawn from it are exploration, not an approved product face.",
+]
+publication_authorized = false
