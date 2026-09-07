@@ -147,9 +147,9 @@ instead of paying twice.
 | Scope | Nodes | Image | Structured | Tool loop | Music | Sound | Video | Local |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | `minimal` | 64 | 21 | 0 | 5 | 0 | 0 | 0 | 38 |
-| `props` | 200 | 77 | 11 | 11 | 0 | 0 | 1 | 100 |
-| `actors` | 250 | 98 | 16 | 11 | 0 | 0 | 1 | 124 |
-| **`full`** | **292** | **105** | **17** | **11** | **0** | **3** | **1** | **155** |
+| `props` | 202 | 75 | 11 | 11 | 0 | 0 | 3 | 102 |
+| `actors` | 252 | 96 | 16 | 11 | 0 | 0 | 3 | 126 |
+| **`full`** | **294** | **103** | **17** | **11** | **0** | **3** | **3** | **157** |
 
 Counted from the committed fixture package with every plate, track and clip take
 adopted; the music count is zero for that reason. The `full` row is the block
@@ -360,17 +360,17 @@ invalidates it and must be regenerated in the same change.
   "fixture_ref": "library/games/ember-hollow",
   "scope": "full",
   "graph_schema_version": 1,
-  "topology_sha256": "efd6d2b74968546020ae96a681b2c47809f462768638fe3a36605d674a42b205",
-  "node_count": 292,
+  "topology_sha256": "2296dcdbf01fa6b5048c788e7e877a397c3b2b5dc1bc58f74c1a2aebd9ee1b90",
+  "node_count": 294,
   "terminal_node_id": "package-manifest",
   "operation_counts": {
-    "local": 155,
-    "image_generation": 105,
+    "local": 157,
+    "image_generation": 103,
     "structured_generation": 17,
     "tool_loop": 11,
     "music_generation": 0,
     "sound_effect_generation": 3,
-    "video_generation": 1
+    "video_generation": 3
   },
   "resources": [
     {

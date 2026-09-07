@@ -59,6 +59,12 @@ Changelog
             and ``package-manifest`` move a cache key (the package text grew a
             document); no paid node re-bills, which ``test_cache_keys`` shows.
 
+2026-09-07  The opening is filmed. Its three shots are clips rather than stills, so
+            three image nodes leave every scope from ``props`` up and three video
+            nodes arrive, and the family's node count rises by two per scope: a
+            clip is a four-node chain (film, gate, publish, review) where a still
+            is three. ``minimal`` is untouched again.
+
 2026-09-07  Video is promoted, and every topology digest moves without a single
             node moving with it: the node counts are the same 64, 199, 249 and
             291, and what changed is the binding table, which gained the clip
@@ -114,42 +120,42 @@ IDENTITIES: Final = {
         },
     ),
     "props": ScopeIdentity(
-        node_count=200,
-        topology_sha256="b23f5757aedf5e9f14367e3f09bca7eec5dd02016e2d483db65bb17f3e98bbb9",
+        node_count=202,
+        topology_sha256="8193f32c43d5b8da20e0db427ec4d9624bc3173da260e0797584d34f08ceb87a",
         operations={
-            "local": 100,
-            "image_generation": 77,
+            "local": 102,
+            "image_generation": 75,
             "tool_loop": 11,
             "structured_generation": 11,
             "music_generation": 0,
             "sound_effect_generation": 0,
-            "video_generation": 1,
+            "video_generation": 3,
         },
     ),
     "actors": ScopeIdentity(
-        node_count=250,
-        topology_sha256="3fa5bc7370681899e309d09693e9bf0065b6356fc3215083d285b2605c716d06",
+        node_count=252,
+        topology_sha256="f17686374c644d1f08fa08e18cffa694317a455ce90771ae52bee810e2a457ec",
         operations={
-            "local": 124,
-            "image_generation": 98,
+            "local": 126,
+            "image_generation": 96,
             "tool_loop": 11,
             "structured_generation": 16,
             "music_generation": 0,
             "sound_effect_generation": 0,
-            "video_generation": 1,
+            "video_generation": 3,
         },
     ),
     "full": ScopeIdentity(
-        node_count=292,
-        topology_sha256="efd6d2b74968546020ae96a681b2c47809f462768638fe3a36605d674a42b205",
+        node_count=294,
+        topology_sha256="2296dcdbf01fa6b5048c788e7e877a397c3b2b5dc1bc58f74c1a2aebd9ee1b90",
         operations={
-            "local": 155,
-            "image_generation": 105,
+            "local": 157,
+            "image_generation": 103,
             "tool_loop": 11,
             "structured_generation": 17,
             "music_generation": 0,
             "sound_effect_generation": 3,
-            "video_generation": 1,
+            "video_generation": 3,
         },
     ),
 }

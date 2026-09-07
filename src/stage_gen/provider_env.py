@@ -12,17 +12,22 @@ ProviderEnvKey = Literal[
     "OPENROUTER_API_KEY",
     "FAL_KEY",
     "ELEVENLABS_API_KEY",
+    "TRIPO_API_KEY",
 ]
-PROVIDER_ENV_KEYS: tuple[ProviderEnvKey, ...] = (
+REQUIRED_PROVIDER_ENV_KEYS: tuple[ProviderEnvKey, ...] = (
     "OPENAI_API_KEY",
     "OPENROUTER_API_KEY",
     "FAL_KEY",
     "ELEVENLABS_API_KEY",
 )
+PROVIDER_ENV_KEYS: tuple[ProviderEnvKey, ...] = (
+    *REQUIRED_PROVIDER_ENV_KEYS,
+    "TRIPO_API_KEY",
+)
 
 _ASSIGNMENT = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$")
 _ALLOWLIST_MENTION = re.compile(
-    r"^\s*(?:export\s+)?(OPENAI_API_KEY|OPENROUTER_API_KEY|FAL_KEY|ELEVENLABS_API_KEY)\b"
+    r"^\s*(?:export\s+)?(OPENAI_API_KEY|OPENROUTER_API_KEY|FAL_KEY|ELEVENLABS_API_KEY|TRIPO_API_KEY)\b"
 )
 
 

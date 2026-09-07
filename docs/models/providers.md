@@ -29,6 +29,10 @@ Credentials are server-side only. Do not expose them to the optional web
 client, persist them in provenance, print them in errors, or commit a populated
 env file.
 
+The credential loader also accepts optional `TRIPO_API_KEY` for direct Tripo
+experiments. Credential import includes it when present; existing imports still
+require only the four established keys. This does not add a production 3D route.
+
 The default `native` mode sends image calls directly to OpenAI and requires
 `OPENAI_API_KEY`. The scrolling recipe's structured calls still require
 `OPENROUTER_API_KEY`. The explicit compatibility modes send image calls through

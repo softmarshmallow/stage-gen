@@ -27,6 +27,7 @@ def test_offline_gate_removes_provider_credentials_and_lists_required_checks() -
             "OPENROUTER_API_KEY": "openrouter",
             "FAL_KEY": "fal",
             "ELEVENLABS_API_KEY": "elevenlabs",
+            "TRIPO_API_KEY": "tripo",
         }
     )
     assert environment == {"PATH": "/bin", "_STAGE_GEN_DISABLE_DOTENV": "1"}

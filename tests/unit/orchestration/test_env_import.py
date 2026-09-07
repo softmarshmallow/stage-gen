@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from stage_gen.orchestration.env_import import import_provider_env
+from stage_gen.provider_env import load_provider_dotenv, parse_provider_env
 
 
 def test_env_import_copies_only_allowlisted_keys_with_private_mode(tmp_path: Path) -> None:
@@ -68,3 +69,37 @@ def test_env_import_missing_key_error_never_exposes_present_value(tmp_path: Path
 
     assert present not in str(captured.value)
     assert not destination.exists()
+
+
+def test_env_import_preserves_optional_tripo_without_exposing_value(tmp_path: Path) -> None:
+    source = tmp_path / "source.env"
+    destination = tmp_path / "destination.env"
+    source.write_text(
+        "OPENAI_API_KEY=synthetic-openai\n"
+        "OPENROUTER_API_KEY=synthetic-openrouter\n"
+        "FAL_KEY=synthetic-fal\n"
+        "ELEVENLABS_API_KEY=synthetic-elevenlabs\n"
+        "TRIPO_API_KEY=synthetic-tripo-private\n"
+        "UNRELATED_SECRET=must-not-copy\n",
+        encoding="utf-8",
+    )
+    result = import_provider_env(source, destination)
+    assert load_provider_dotenv(destination)["TRIPO_API_KEY"] == "synthetic-tripo-private"
+    assert result["imported"][-1] == "TRIPO_API_KEY"
+    assert result["count"] == 5
+    assert "synthetic-tripo-private" not in json.dumps(result)
+    assert "UNRELATED_SECRET" not in destination.read_text()
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "TRIPO_API_KEY synthetic-tripo-private",
+        "TRIPO_API_KEY='synthetic-tripo-private",
+        "TRIPO_API_KEY=synthetic-tripo-private\nTRIPO_API_KEY=duplicate",
+    ],
+)
+def test_invalid_tripo_credentials_are_rejected_without_exposure(text: str) -> None:
+    with pytest.raises(ValueError, match="TRIPO_API_KEY") as captured:
+        parse_provider_env(text)
+    assert "synthetic-tripo-private" not in str(captured.value)

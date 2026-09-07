@@ -7,6 +7,7 @@ manifest's scale arithmetic, the seam policy. The layout itself is
 
 from __future__ import annotations
 
+import hashlib
 import re
 import shutil
 from collections.abc import Callable, Sequence
@@ -580,23 +581,51 @@ def test_an_appearance_reference_is_confined_and_must_be_a_png(tmp_path: Path) -
     assert "player.appearance_reference" in str(error.value)
 
 
-def test_swapping_the_appearance_picture_moves_the_concept_key(tmp_path: Path) -> None:
-    """The picture is part of the answer, so it is part of the node identity."""
+def test_swapping_the_appearance_picture_moves_every_node_drawn_against_it(
+    tmp_path: Path,
+) -> None:
+    """The picture is part of the answer, so it is part of the node identity.
 
-    def concept_key(root: Path) -> str:
+    Two families read it now: the actor's concept, and the opening's clips, which are
+    filmed against the same authored picture because prose cannot hold a character. A
+    swap has to move both, and it has to move the digest the document binds it by --
+    the shell refuses a reference whose bytes are not the ones it named.
+    """
+
+    def keys(root: Path) -> dict[str, str]:
         package = load_package(root)
         built = build_graph(StageGenConfig(), package, "actors")
-        node = next(n for n in built.nodes if n.node_id == "actor-wren-concept")
-        return node.cache_key
+        wanted = ("actor-wren-concept", "shell-opening_the_cold-clip-generate")
+        return {n.node_id: n.cache_key for n in built.nodes if n.node_id in wanted}
 
     root = tmp_path / "source"
     shutil.copytree(PACKAGE, root)
-    before = concept_key(root)
+    before = keys(root)
+    assert set(before) == {"actor-wren-concept", "shell-opening_the_cold-clip-generate"}
+
     picture = root / "references" / "player-appearance.png"
     data = bytearray(picture.read_bytes())
     data[-1] = (data[-1] + 1) % 256  # a different picture, still a PNG
     picture.write_bytes(bytes(data))
-    assert concept_key(root) != before
+
+    # The shell binds it by digest, so the document has to be told about the swap
+    # before anything can be planned at all -- which is the refusal working.
+    with pytest.raises(SourceError, match="does not match its declared sha256"):
+        load_package(root)
+
+    shell = root / "shell.toml"
+    digest = hashlib.sha256(bytes(data)).hexdigest()
+    shell.write_text(
+        shell.read_text().replace(
+            "6bae2780aae3e8857e2e4eb95b9f930a0588108cc5ff535a77278b88b6eb76b0", digest
+        )
+    )
+    after = keys(root)
+    assert after["actor-wren-concept"] != before["actor-wren-concept"]
+    assert (
+        after["shell-opening_the_cold-clip-generate"]
+        != before["shell-opening_the_cold-clip-generate"]
+    )
 
 
 def test_the_approach_radius_never_falls_inside_the_reach(tmp_path: Path) -> None:

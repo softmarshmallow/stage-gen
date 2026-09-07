@@ -22,6 +22,17 @@ source_sha256 = "0f55649bf337ab3b057e88cf6854ca23a7142ebca57438f03bbd6cd74ee6ade
 rights_status = "redistribution-approved"
 rights_basis = ["Original AI-generated art direction plate approved for redistribution by the authenticated task owner."]
 
+# Wren's authored appearance, the same picture the actor's concept node is drawn
+# against. The opening has a protagonist in it, and prose cannot hold a character:
+# it describes an outfit and the model invents the body. So the picture holds the
+# design and the plate holds the drawing, exactly as actors.toml already does it.
+[[references]]
+reference_id = "player_appearance"
+source = "references/player-appearance.png"
+source_sha256 = "6bae2780aae3e8857e2e4eb95b9f930a0588108cc5ff535a77278b88b6eb76b0"
+rights_status = "unreviewed"
+rights_basis = ["Original AI-generated concept-studio candidate, used as a generation input and never published as art."]
+
 # A placeholder, and knowingly the wrong face: Fredoka is a rounded storybook
 # text face and this game is flat inked cutout survival. It is here because it
 # is already in the repository under a licence that permits redistribution, so
@@ -48,77 +59,116 @@ retrieved = "2026-08-24"
 [opening]
 layout = "opening_16x9_v1"
 skippable = true
+music_track = "main_theme"
+# The last shot ends on a fire that has just been kept, and the title screen is a
+# hollow at dusk with a fire in it. That is a claim about the picture rather than
+# about presentation, so it would be measured -- and the two are not the same
+# frame, so it is not claimed.
+ending = "fade_to_black"
 
-# The establishing shot is a clip rather than a still. It is the one shot in the
-# opening whose whole subject is something moving — smoke rising, snow falling, the
-# light going — and a still of it has to fake that with a camera push. The rest of the
-# opening stays drawn, because a hearth and a treeline are pictures and a slow move
-# over a painting is honest for them.
+# Three filmed beats: the cold arrives, the light nearly goes, the fire is kept.
+# Wordless on purpose -- the game's premise is already in the protagonist, a robot
+# with a furnace in its chest, and a line of prose over it would be explaining what
+# the picture is doing. Each beat is ten seconds, which is the longest single clip
+# the bound route makes; the length above that comes from cutting them together,
+# which is what a shot list already is.
 #
-# No `move`: a clip brings its own camera, and the contract refuses a shot that asks
-# for one over it. Held for the same 4.5 seconds either way.
+# No `move` on any of them: a clip brings its own camera.
+
 [[opening.shots]]
-shot_id = "the_valley"
-seconds = 5.0
-card = "Winter comes early to the hollow."
+shot_id = "the_cold"
+seconds = 10.0
+out_transition = "cut"
+
+[opening.shots.plate]
+mode = "clip"
+reference_ids = ["style_plate", "player_appearance"]
+prompt = """
+Four shots, hard cuts between them, no dissolves.
+
+Shot one, four seconds: an extreme wide from directly overhead, looking straight
+down on an enormous empty snowfield, pale and almost abstract. The small salvaged
+robot of the second reference image is a single tiny amber speck near the bottom,
+walking away. The camera is locked off and does not move. Hold on the emptiness.
+
+Cut. Shot two, two seconds: an extreme close-up of the small square window set in
+the robot's chest, filling the frame. The fire behind the glass is low and
+guttering. One ember falls dark.
+
+Cut. Shot three, two seconds: a low angle from the snow itself, looking up past the
+robot's legs at a sky going out, heavy snow falling toward the camera. The last
+daylight drains away.
+
+Cut. Shot four, two seconds: a near-black frame. Only the robot's two round amber
+eyes and the faint square of its chest are visible, small and far off. They dim.
+"""
+
+[[opening.shots]]
+shot_id = "the_dark"
+seconds = 10.0
+out_transition = "cut"
+
+[opening.shots.plate]
+mode = "clip"
+reference_ids = ["style_plate", "player_appearance"]
+prompt = """
+Six shots, hard cuts, no dissolves. The cuts come fast, about one a second, faster
+than an ordinary scene.
+
+Shot one, one second: a black frame. Two pale eyeless scavenger heads push into the
+amber edge of the light from the left. Each is a low six-legged thing the size of a
+big dog, a segmented grub body on spindly insect legs, a blunt eyeless head split by
+a wide flat mandible, a ridge of stiff bristles down the back, pale underside and
+dark plates on top. The mandibles open.
+
+Cut. Shot two, one second: a very fast whip pan ending on an enormous close-up of
+one wide flat mandible snapping shut, filling the frame.
+
+Cut. Shot three, one second: low to the ground, six spindly legs crossing snow, close
+and fast.
+
+Cut. Shot four, one and a half seconds: the robot spins round toward the camera,
+amber eyes wide, the light in its chest weak.
+
+Cut. Shot five, two seconds: a high wide angle looking down as three of the
+scavengers circle the robot in a slow ring, the amber pool of its light shrinking
+under them.
+
+Cut. Shot six, three and a half seconds: the robot backs into a ring of blackened
+stones, raises its small hand axe, and holds. The camera pushes in fast on the
+raised axe and stops hard.
+"""
+
+[[opening.shots]]
+shot_id = "the_fire"
+seconds = 10.0
 out_transition = "dissolve"
 
 [opening.shots.plate]
 mode = "clip"
-reference_ids = ["style_plate"]
+reference_ids = ["style_plate", "player_appearance"]
 prompt = """
-A wide cold valley seen from its rim under a heavy overcast sky: ranks of dark conifers
-stacked as ragged flat masses down both slopes, bare ash-grey rock breaking through the
-snow along the ridge, and a thin thread of pale smoke rising from somewhere among the
-trees far below. Bone-white snow, bark brown, moss green gone grey with cold. Nobody in
-the picture. Animate it with the smallest motion that still reads as alive: the thread
-of smoke drifts and thins as it rises, the overcast moves very slowly across the sky,
-and fine snow drifts down. Nothing else moves.
+Five shots, hard cuts, no dissolves.
+
+Shot one, one second: the small hand axe in silhouette against a near-black frame,
+at the top of its swing, beginning to fall.
+
+Cut on the movement. Shot two, one second: the axe lands in a heap of kindling
+inside the ring of blackened stones. Sparks burst outward.
+
+Cut. Shot three, one and a half seconds: an extreme macro of one spark landing in
+dry tinder and catching, a small flame unfolding, filling the frame.
+
+Cut. Shot four, two and a half seconds: the fire flares hard and a wave of amber
+light blasts outward across the snow. The frame blows out to near-white amber for an
+instant. The scavengers recoil backward out of the light and are swallowed by the
+dark.
+
+Cut on the light. Shot five, four seconds: a slow wide pull back. The robot stands
+beside a steady fire in the middle of the black hollow, snow still falling, the
+window in its chest burning bright again, the one warm thing in the picture. The
+camera stops and holds until the end.
 """
-
-[[opening.shots]]
-shot_id = "the_hearth"
-move = "hold"
-seconds = 3.5
-card = "Someone banked a fire here, and left."
-out_transition = "dissolve"
-
-[opening.shots.plate]
-mode = "still"
-alpha_policy = "fully_opaque_v1"
-reference_ids = ["style_plate"]
-prompt = """
-A ring of blackened stones on frozen ground, close enough to fill the frame, holding a
-low bed of embers under grey ash: the one warm amber accent in an otherwise cold picture,
-throwing a hard-edged pool of flat amber light onto the stones and the trodden snow
-around them. A folded wool blanket lies where somebody left it. Nobody in the picture.
-"""
-
-[[opening.shots]]
-shot_id = "the_treeline"
-move = "pan_right"
-seconds = 4.0
-card = "Keep it burning."
-out_transition = "wipe"
-
-[opening.shots.plate]
-mode = "still"
-alpha_policy = "fully_opaque_v1"
-reference_ids = ["style_plate"]
-prompt = """
-The edge of a conifer wood at dusk from ground level, the trunks near and dark and the
-wood behind them closing into flat black masses, with the last cold blue daylight caught
-between them and the first snow coming down in sparse flakes. Bone, ash grey, bark brown,
-one deep green. Nobody in the picture.
-"""
-
-# --- the title screen --------------------------------------------------------
-#
-# One backdrop layer today rather than three. The parallax the layout allows for
-# is worth having, but a mid and a near layer are two more images and two more
-# reviews, and the thing worth learning first is whether the reserved bands come
-# back quiet enough to set a name and a Play button over. Adding the layers later
-# re-bills nothing that already exists.
 
 [title]
 layout = "title_screen_16x9_v1"

@@ -37,7 +37,7 @@ PACKAGE = Path("library/games/ember-hollow")
 #: And a fourth time when the opening's establishing shot became a clip -- the
 #: one shot whose subject is something moving. Its still is dropped and its clip
 #: is bought; every other node in the graph holds.
-SOURCE_DIGEST = "9a05ebe537b962f1038b479b98b4516f75a4c4e1fed3fdcfe349afde5c1cafb9"
+SOURCE_DIGEST = "50dabcdddfacd7e7658c9cc8f63a0e660a8f3ab316a1ae87bfa12f668a188ba2"
 
 #: One take that is declared by digest and whose bytes are in the package.
 FORAGE_TAKE = "ground/forage.take.png"

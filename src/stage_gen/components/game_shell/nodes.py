@@ -65,6 +65,7 @@ from stage_gen.components._node_kit import (
     record_port,
 )
 from stage_gen.components.game_shell.clips import (
+    CLIP_REVIEW_CELL_WIDTH,
     CLIP_REVIEW_COLUMNS,
     SHELL_CLIP_VALIDATION_VERSION,
     clip_sample_times,
@@ -197,7 +198,7 @@ def clip_resolution(layout: ShellLayout) -> VideoResolution:
 #: bought from different routes and asked for different things, and bumping one must
 #: not re-bill the other.
 SHELL_CLIP_CONTRACT_VERSION = "shell-clip-v1"
-SHELL_CLIP_REVIEW_VERSION = "shell-clip-review-v1"
+SHELL_CLIP_REVIEW_VERSION = "shell-clip-review-v2"
 SHELL_CLIP_REVIEW_SCHEMA_NAME = "shell_clip_review"
 
 #: The encoder a clip is published through, named rather than discovered. A plan cannot
@@ -1197,7 +1198,7 @@ class ShellHandlers:
         )
         await self._write_local_image(
             run_dir / node.port("contact").artifact_ref,
-            contact_sheet(frames, columns=CLIP_REVIEW_COLUMNS),
+            contact_sheet(frames, columns=CLIP_REVIEW_COLUMNS, cell_width=CLIP_REVIEW_CELL_WIDTH),
             prompt="Lay the published clip's own frames out in order for the reviewer.",
             inputs=((target.relative_to(run_dir).as_posix(), data),),
             validation={"frames": len(frames), "sampled_at": list(clip_sample_times(role.seconds))},

@@ -355,7 +355,9 @@ def signature_distance(left: Sequence[int], right: Sequence[int]) -> float:
     return sum(abs(a - b) for a, b in zip(left, right, strict=True)) / len(left)
 
 
-def contact_sheet(frames: Sequence[bytes], *, columns: int = 3) -> bytes:
+def contact_sheet(
+    frames: Sequence[bytes], *, columns: int = 3, cell_width: int | None = None
+) -> bytes:
     """The sampled frames as one picture, in order, for a reviewer to read.
 
     A reviewer cannot be handed a clip, so it is handed the clip's beats. The
@@ -368,7 +370,13 @@ def contact_sheet(frames: Sequence[bytes], *, columns: int = 3) -> bytes:
     if columns < 1:
         raise ValueError("a contact sheet needs at least one column")
     images = [decode_image(frame, label="contact sheet frame").convert("RGB") for frame in frames]
-    cell_width, cell_height = images[0].size
+    width, height = images[0].size
+    if cell_width is not None and cell_width < width:
+        # More samples, not bigger ones: what a reviewer needs from a cut sequence is
+        # every beat, and a beat is legible well below native size.
+        height = max(1, round(height * cell_width / width))
+        width = cell_width
+    cell_width, cell_height = width, height
     rows = math.ceil(len(images) / columns)
     sheet = Image.new("RGB", (cell_width * columns, cell_height * rows), (0, 0, 0))
     for index, image in enumerate(images):

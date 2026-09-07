@@ -640,7 +640,7 @@ def test_redrawing_the_plate_rebills_the_nodes_that_carry_it(
     assert "shell-title_backdrop_far-generate" in moved
     # Including the clip: a filmed shot is drawn against the same plate as a painted
     # one, so repainting the look re-buys the film too.
-    assert "shell-opening_the_valley-clip-generate" in moved
+    assert "shell-opening_the_cold-clip-generate" in moved
     # ... and the paintovers, which never see the plate, did not.
     assert "fx-fire-generate" not in moved
     assert "ground-macro-generate" not in moved

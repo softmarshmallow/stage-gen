@@ -9,6 +9,7 @@ from typing import TypedDict
 from gnode import atomic_write_text
 from stage_gen.provider_env import (
     PROVIDER_ENV_KEYS,
+    REQUIRED_PROVIDER_ENV_KEYS,
     ProviderEnvKey,
     parse_provider_env,
 )
@@ -28,16 +29,15 @@ def import_provider_env(
     if source == destination:
         raise ValueError("source and destination must differ")
     values = parse_provider_env(source.read_text(encoding="utf-8"), source_label="source")
-    missing = [key for key in PROVIDER_ENV_KEYS if key not in values]
+    missing = [key for key in REQUIRED_PROVIDER_ENV_KEYS if key not in values]
     if missing:
         suffix = "" if len(missing) == 1 else "s"
         raise ValueError(f"source is missing required key{suffix}: {', '.join(missing)}")
-    payload = "".join(
-        f"{key}={json.dumps(values[key], ensure_ascii=False)}\n" for key in PROVIDER_ENV_KEYS
-    )
+    imported = [key for key in PROVIDER_ENV_KEYS if key in values]
+    payload = "".join(f"{key}={json.dumps(values[key], ensure_ascii=False)}\n" for key in imported)
     atomic_write_text(destination, payload, mode=0o600)
     return {
         "destination": str(destination),
-        "imported": list(PROVIDER_ENV_KEYS),
-        "count": len(PROVIDER_ENV_KEYS),
+        "imported": imported,
+        "count": len(imported),
     }

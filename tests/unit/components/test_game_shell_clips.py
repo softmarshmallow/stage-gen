@@ -7,8 +7,11 @@ from PIL import Image
 
 from stage_gen.components.game_shell.clips import (
     CLIP_MATCH_TITLE_MAX_DISTANCE,
+    CLIP_REVIEW_FRAME_MAX,
+    CLIP_REVIEW_FRAME_MIN,
     SHELL_CLIP_VALIDATION_VERSION,
     ShellClipError,
+    clip_review_frame_count,
     clip_sample_times,
     match_title_verdict,
     shell_clip_record,
@@ -72,11 +75,29 @@ def test_a_grade_is_still_the_same_picture_and_a_repaint_is_not() -> None:
 
 
 def test_review_frames_are_sampled_evenly_and_never_on_the_last_frame() -> None:
-    assert clip_sample_times(8.0) == (1.6, 3.2, 4.8, 6.4)
     assert clip_sample_times(10.0, count=3) == (2.5, 5.0, 7.5)
     assert max(clip_sample_times(4.0)) < 4.0
     with pytest.raises(ValueError, match="positive length"):
         clip_sample_times(0.0)
+
+
+def test_a_cut_sequence_is_sampled_densely_enough_to_show_its_beats() -> None:
+    """About one frame a second, because a clip is not one held shot.
+
+    Learned by reading a verdict: four frames of a ten-second clip land at 2, 4, 6 and 8
+    seconds, and a brief whose first three shots all happen inside the first three and a
+    half never had them looked at. The reviewer reported them absent, correctly, and was
+    judging the sampling rather than the clip.
+    """
+
+    assert clip_review_frame_count(10.0) == 10
+    early = clip_sample_times(10.0)[0]
+    assert early < 1.0, "a one-second opening shot has to be sampled inside its own second"
+
+    # Bounded at both ends: a short clip still gets enough frames to read, and a long
+    # one does not turn the sheet into a wall.
+    assert clip_review_frame_count(1.0) == CLIP_REVIEW_FRAME_MIN
+    assert clip_review_frame_count(60.0) == CLIP_REVIEW_FRAME_MAX
 
 
 def test_the_record_says_which_pass_measured_what() -> None:
