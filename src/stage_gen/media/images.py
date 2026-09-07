@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass
 from hashlib import sha256
 from typing import Any
 
-from PIL import Image, ImageChops, ImageFilter
+from PIL import Image, ImageChops, ImageFilter, ImageStat
 from PIL import __version__ as pillow_version
 
 from gnode import inspect_image
@@ -40,6 +40,34 @@ MAGENTA_EDGE_MAXIMUM_RED_BLUE_DELTA = 255
 MAGENTA_EDGE_HIGH_ALPHA_THRESHOLD = 224
 MAGENTA_EDGE_DECONTAMINATION_VERSION = "rgba-magenta-transparency-boundary-v2"
 NATIVE_ALPHA_OPAQUE_THRESHOLD = 250
+
+
+@dataclass(frozen=True, slots=True)
+class RegionStats:
+    """What a rectangle measures for legibility: how busy it is, and how it contrasts."""
+
+    mean_rgb: tuple[float, float, float]
+    luma_std: float
+    contrast_vs_white: float
+    contrast_vs_black: float
+
+    @property
+    def best_text(self) -> str:
+        return "white" if self.contrast_vs_white >= self.contrast_vs_black else "black"
+
+    @property
+    def best_contrast(self) -> float:
+        return max(self.contrast_vs_white, self.contrast_vs_black)
+
+    def record(self) -> dict[str, object]:
+        return {
+            "mean_rgb": list(self.mean_rgb),
+            "luma_std": self.luma_std,
+            "contrast_vs_white": self.contrast_vs_white,
+            "contrast_vs_black": self.contrast_vs_black,
+            "best_text": self.best_text,
+            "best_contrast": round(self.best_contrast, 3),
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -543,3 +571,51 @@ def _nonnegative_integer(value: int, label: str) -> None:
 def _positive_dimension(value: int, label: str) -> None:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError(f"{label} must be a positive integer")
+
+
+#: A region's flatness ceiling and its text-contrast floor. Both are the numbers the
+#: nine-slice content rect has always been admitted against; they live here because a
+#: second family now measures the same thing, and a threshold stated in two places
+#: drifts.
+REGION_LUMA_STD_MAX = 12.0
+REGION_CONTRAST_MIN = 4.5
+
+
+def region_contrast_stats(image: Image.Image, box: tuple[int, int, int, int]) -> RegionStats:
+    """Measure one rectangle for flatness and best-case text contrast.
+
+    This is the question "can a string be read on top of this?", and it is the only
+    thing a pixel gate can settle about a surface that will host text: how busy the
+    region is (luma standard deviation) and how far its mean sits from white and from
+    black (the WCAG contrast ratio, whose 4.5 floor is the normal-text threshold).
+
+    ``game_ui.atlas.content_stats`` computes the same numbers for a nine-slice content
+    rect and predates this function. It is not called from here and this does not call
+    it: unifying them means changing a gate that is admitting real sheets today, and
+    that belongs in its own change rather than riding along with a new family.
+    """
+
+    region = image.crop(box)
+    mean_rgb = tuple(float(value) for value in ImageStat.Stat(region.convert("RGB")).mean)
+    if len(mean_rgb) != 3:
+        raise ValueError("a contrast region must decode to three colour channels")
+    luma_std = float(ImageStat.Stat(region.convert("L")).stddev[0])
+    luminance = _relative_luminance(mean_rgb[0], mean_rgb[1], mean_rgb[2])
+    against_white = (1.0 + 0.05) / (luminance + 0.05)
+    against_black = (luminance + 0.05) / 0.05
+    return RegionStats(
+        mean_rgb=(round(mean_rgb[0], 1), round(mean_rgb[1], 1), round(mean_rgb[2], 1)),
+        luma_std=round(luma_std, 3),
+        contrast_vs_white=round(against_white, 3),
+        contrast_vs_black=round(against_black, 3),
+    )
+
+
+def _relative_luminance(red: float, green: float, blue: float) -> float:
+    """WCAG relative luminance of an sRGB triple given in 0..255."""
+
+    def channel(value: float) -> float:
+        scaled = value / 255.0
+        return scaled / 12.92 if scaled <= 0.04045 else ((scaled + 0.055) / 1.055) ** 2.4
+
+    return 0.2126 * channel(red) + 0.7152 * channel(green) + 0.0722 * channel(blue)

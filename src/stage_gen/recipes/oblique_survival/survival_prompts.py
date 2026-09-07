@@ -108,6 +108,18 @@ def ui_atlas_prompt(package: Package, task: str) -> str:
     return visual_prompt(package, task, still=False)
 
 
+def shell_plate_prompt(package: Package, task: str) -> str:
+    """The package's style around one full-screen shell plate.
+
+    Same wrapper as the interface sheets, and for the same reason: a title backdrop is
+    drawn in the game's look or it is a picture from a different game. The still clause
+    is off — these screens are composed, not photographed inside the world — and the
+    style plate rides as reference image 1 exactly as it does everywhere else.
+    """
+
+    return visual_prompt(package, task, still=False)
+
+
 ASSET_PITCH_CLAUSE: Final = (
     "seen from a slightly elevated three-quarter-front game camera pitched about thirty "
     "degrees above the horizon, so a little of its top surface reads and its base sits as a "

@@ -11,6 +11,7 @@ from enum import StrEnum
 from typing import Final
 
 from gnode import LOCAL_OPERATION, NodePolicy, NodeType, ViewArchetype
+from stage_gen.components.game_shell.nodes import SHELL_NODE_TYPES
 from stage_gen.components.game_ui.nodes import UI_ATLAS_NODE_TYPES
 
 #: The recipe word: document kinds, the graph's ``recipe`` literal, the CLI verb.
@@ -301,6 +302,8 @@ OBLIQUE_SURVIVAL_NODE_TYPES: Final[tuple[NodeType, ...]] = (
     # The shared game_ui triplet: the recipe plans it over its ui.toml, so the
     # plan may carry its three types; their identity is the component's.
     *UI_ATLAS_NODE_TYPES,
+    # The shared game_shell triplet, planned over shell.toml the same way.
+    *SHELL_NODE_TYPES,
     WORLD_LAYOUT,
     PACKAGE_MANIFEST,
 )

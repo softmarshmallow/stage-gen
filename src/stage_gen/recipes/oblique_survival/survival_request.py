@@ -26,6 +26,7 @@ from pydantic import ValidationError
 
 from stage_gen.canonical import content_sha256
 from stage_gen.components._game_input import AuthoredContractLoadError
+from stage_gen.components.game_shell import GameShell, load_game_shell_bytes
 from stage_gen.components.game_ui import GameUi, load_game_ui_bytes
 from stage_gen.recipes.oblique_survival.models import (
     DECAL_USES,
@@ -121,6 +122,9 @@ SURVIVAL_DOCUMENT_NAME: Final = "survival.toml"
 #: sheets the host's HUD is dressed in, and the pointers it is played with. Its
 #: contract is the game_ui component's.
 UI_DOCUMENT_NAME: Final = "ui.toml"
+#: The shared ``game-shell-v1`` document, optional the same way: the screens the
+#: player meets around the game. Its contract is the game_shell component's.
+SHELL_DOCUMENT_NAME: Final = "shell.toml"
 
 
 @dataclass(slots=True)
@@ -391,6 +395,68 @@ def _ui(root: Path, digests: DigestLedger) -> tuple[GameUi, dict[str, PackageFil
             data=(root / Path(*PurePosixPath(source).parts)).read_bytes(), sha256=digest
         )
     return ui, references
+
+
+def _shell(
+    root: Path, digests: DigestLedger
+) -> tuple[GameShell, dict[str, PackageFile], PackageFile | None]:
+    """shell.toml, the bytes behind its references, and the typeface it declares.
+
+    The typeface is read here rather than left to the host because publishing a run
+    copies it: the digest is bound like every other authored file, and the licence text
+    the document names must actually be on disk beside the face. A face whose licence is
+    only claimed is refused offline, which is the whole point of decision 0063.
+    """
+
+    path = root / SHELL_DOCUMENT_NAME
+    raw = path.read_bytes()
+    digests[path.name] = content_sha256(raw)
+    try:
+        shell = load_game_shell_bytes(raw)
+    except AuthoredContractLoadError as error:
+        raise SourceError(
+            f"{SHELL_DOCUMENT_NAME} is not a game-shell-v1 document: {error}"
+        ) from None
+
+    references: dict[str, PackageFile] = {}
+    for reference in shell.references:
+        field_name = f"{SHELL_DOCUMENT_NAME} references.{reference.reference_id}.source"
+        source, digest = _png_reference(root, reference.source, digests, field=field_name)
+        assert source is not None and digest is not None
+        if digest != reference.source_sha256:
+            raise SourceError(
+                f"{field_name} {source!r} does not match its declared sha256: "
+                f"declared {reference.source_sha256}, found {digest}"
+            )
+        references[source] = PackageFile(
+            data=(root / Path(*PurePosixPath(source).parts)).read_bytes(), sha256=digest
+        )
+
+    typeface: PackageFile | None = None
+    if shell.typeface is not None:
+        face = shell.typeface
+        face_path = root / Path(*PurePosixPath(face.source).parts)
+        if not face_path.is_file():
+            raise SourceError(f"{SHELL_DOCUMENT_NAME} typeface.source is missing: {face.source}")
+        face_bytes = face_path.read_bytes()
+        face_digest = content_sha256(face_bytes)
+        if face_digest != face.source_sha256:
+            raise SourceError(
+                f"{SHELL_DOCUMENT_NAME} typeface.source {face.source!r} does not match its "
+                f"declared sha256: declared {face.source_sha256}, found {face_digest}"
+            )
+        licence_path = root / Path(*PurePosixPath(face.license_source).parts)
+        if not licence_path.is_file():
+            raise SourceError(
+                f"{SHELL_DOCUMENT_NAME} typeface.license_source is missing: "
+                f"{face.license_source}. Publishing a run copies the font file, so the "
+                "licence that permits it is committed beside the face."
+            )
+        digests[face.source] = face_digest
+        digests[face.license_source] = content_sha256(licence_path.read_bytes())
+        typeface = PackageFile(data=face_bytes, sha256=face_digest)
+
+    return shell, references, typeface
 
 
 def _load_toml(path: Path, digests: DigestLedger) -> dict[str, object]:
@@ -3036,6 +3102,11 @@ def load_package(root: Path) -> Package:
     ui_references: dict[str, PackageFile] = {}
     if (root / UI_DOCUMENT_NAME).is_file():
         ui, ui_references = _ui(root, digests)
+    shell: GameShell | None = None
+    shell_references: dict[str, PackageFile] = {}
+    shell_typeface: PackageFile | None = None
+    if (root / SHELL_DOCUMENT_NAME).is_file():
+        shell, shell_references, shell_typeface = _shell(root, digests)
 
     # The root document's own identity is the one field a schema owns rather
     # than this loader: the repository's contract table reads it off the model.
@@ -3094,6 +3165,8 @@ def load_package(root: Path) -> Package:
             raise SourceError(f"{name} package_id does not match survival.toml")
     if ui is not None and ui.game_id != package_id:
         raise SourceError(f"{UI_DOCUMENT_NAME} game_id does not match survival.toml")
+    if shell is not None and shell.game_id != package_id:
+        raise SourceError(f"{SHELL_DOCUMENT_NAME} game_id does not match survival.toml")
 
     style = _subtable(survival, "style")
     scale = _subtable(survival, "scale")
@@ -3222,6 +3295,9 @@ def load_package(root: Path) -> Package:
         seasons=seasons,
         missing_takes=tuple(digests.missing),
         ui=ui,
+        shell=shell,
+        shell_references=shell_references,
+        shell_typeface=shell_typeface,
         ui_references=ui_references,
     )
 

@@ -35,6 +35,13 @@ Changelog
             the optional ``cursor_set`` role when ``ui.toml`` declared it under
             ``game-ui-v5``; ``source-lock`` and ``package-manifest`` moved with
             the source digest. No other key moved.
+2026-09-07  Fifteen keys added per scope from ``props`` up, the shared game_shell
+            triplet over the five plates ``shell.toml`` declares -- three opening
+            shots, the title backdrop, the title emblem. The loading backdrop is
+            bound to a season look the run already draws, so it adds no key.
+            ``source-lock`` and ``package-manifest`` moved with the source digest,
+            which grew a document, a typeface and a licence. No other key moved:
+            the screens around the game are new spend, not a redraw.
 """
 
 from __future__ import annotations
@@ -62,7 +69,7 @@ GOLDEN_PATH: Final = (
 
 #: What the four scopes plan for the committed package. A count here moves only
 #: when the recipe deliberately plans more or fewer nodes.
-SCOPE_NODE_COUNTS: Final = {"minimal": 64, "props": 186, "actors": 236, "full": 278}
+SCOPE_NODE_COUNTS: Final = {"minimal": 64, "props": 199, "actors": 249, "full": 291}
 
 #: A biome's brief is read by its own plate, by the sheet the ground review is
 #: judged from, and by the manifest that measures what was published. Nothing

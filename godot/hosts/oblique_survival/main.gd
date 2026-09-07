@@ -69,6 +69,10 @@ const UPDATE_ORDER := [
 ## The HUD is laid out in 1600x900 units and scaled to the window: this height
 ## is scale 1, and `--ui-scale` multiplies what the window's height gives.
 const UI_REFERENCE_HEIGHT := 900.0
+## The shell sits above every world layer and below nothing: it replaces the
+## screen while it is up.
+const SHELL_FILE := "res://hosts/oblique_survival/shell/shell.gd"
+const SHELL_LAYER := 100
 ## The pointer walks the world only in play, never in the gallery or the
 ## verdict framing.
 const POINTER_MODES := ["play"]
@@ -89,6 +93,10 @@ var world: SurvivalWorld = null
 var frame_uniforms: SurvivalFrameUniforms = null
 var rig: SurvivalCameraRig = null
 var vignette: CanvasLayer = null
+## The screens around the game, up before the world exists and gone after.
+var shell: CanvasLayer = null
+var _awaiting_load: bool = false
+var _pending_seed: int = 1
 var environment_node: WorldEnvironment = null
 ## Module id ("ground", "hud", …) -> node.
 var modules: Dictionary = {}
@@ -159,7 +167,49 @@ func _ready() -> void:
 		set_fullscreen(true)
 	var layout: Dictionary = package.layout if not package.layout.is_empty() else package.manifest.get("layout", {})
 	var seed_value: int = args.seed_value if args.seed_value != 0 else int(layout.get("seed", 1))
+	_pending_seed = seed_value
+	# The screens around the game come first, and the world is not built until
+	# Play is pressed — which is what makes the loading screen a real wait rather
+	# than a bar drawn over a game that is already standing. The gallery and
+	# verdict framings are instruments and skip it.
+	if args.mode == "play" and _open_shell():
+		return
 	_boot(SurvivalWorld.create(package, seed_value, args.world_options()))
+
+
+## Stand the shell up over the run. False when the run carries no shell block,
+## in which case the caller boots straight into the world.
+func _open_shell() -> bool:
+	var script: GDScript = load(SHELL_FILE)
+	if script == null:
+		push_warning("main: the shell module did not load; booting into the world")
+		return false
+	shell = script.new()
+	shell.name = "Shell"
+	shell.layer = SHELL_LAYER
+	add_child(shell)
+	if not shell.open(package, SurvivalUiKit.new(package, package.manifest)):
+		shell.queue_free()
+		shell = null
+		return false
+	shell.play_pressed.connect(_on_shell_play)
+	return true
+
+
+## Play was pressed: show the loading screen, and stand the world up once it
+## says the run's media is warm.
+func _on_shell_play() -> void:
+	shell.begin_loading()
+	_awaiting_load = true
+
+
+func _finish_shell() -> void:
+	_awaiting_load = false
+	_boot(SurvivalWorld.create(package, _pending_seed, args.world_options()))
+	if shell != null:
+		shell.close()
+		shell.queue_free()
+		shell = null
 
 ## Stand a world up: the environment, the rig, every module, the vignette.
 ## Boot and reset both come through here.
@@ -271,6 +321,10 @@ func reset() -> void:
 	world.say("Day 1. Again.")
 
 func _process(delta: float) -> void:
+	# The shell drives itself; the world's frame does not run while it is up.
+	if _awaiting_load and shell != null and shell.loading_finished():
+		_finish_shell()
+		return
 	if _booted and autostep:
 		frame(minf(delta, MAX_FRAME_DELTA), true)
 

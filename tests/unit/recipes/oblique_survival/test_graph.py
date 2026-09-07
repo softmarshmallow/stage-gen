@@ -426,11 +426,15 @@ def test_a_dry_run_schedules_every_node_and_still_writes_a_manifest(
         "sounds",
         "seasons",
         "ui",
+        "shell",
         "layout",
     }
     # The package authors an interface and the rehearsal drew none of it.
     assert document["status"]["ui"] == "missing"
     assert document["ui"] is None
+    # And it authors a shell the rehearsal drew none of either.
+    assert document["status"]["shell"] == "missing"
+    assert document["shell"] is None
     # A dry run composes nothing, and the manifest says so rather than guessing.
     assert document["status"]["music"] == "missing"
     assert document["music"] == {}
@@ -602,14 +606,15 @@ def test_redrawing_the_plate_rebills_the_nodes_that_carry_it(
     shutil.copytree(PACKAGE, root)
     plate = root / "references" / "style-plate.png"
     plate.write_bytes(plate.read_bytes() + b"\x00")  # a different picture, same words
-    # ui.toml binds the same plate by digest, so redrawing it is re-declared there.
+    # ui.toml and shell.toml bind the same plate by digest, so redrawing it is
+    # re-declared in both -- which is what an author would have to do.
     assert package.style_reference_digest is not None
-    ui_document = root / "ui.toml"
-    ui_document.write_text(
-        ui_document.read_text().replace(
-            package.style_reference_digest, hashlib.sha256(plate.read_bytes()).hexdigest()
+    redrawn_digest = hashlib.sha256(plate.read_bytes()).hexdigest()
+    for name in ("ui.toml", "shell.toml"):
+        document = root / name
+        document.write_text(
+            document.read_text().replace(package.style_reference_digest, redrawn_digest)
         )
-    )
     redrawn = load_package(root)
     assert redrawn.style_reference_digest != package.style_reference_digest
 
@@ -630,6 +635,10 @@ def test_redrawing_the_plate_rebills_the_nodes_that_carry_it(
     assert "actor-wren-concept" in moved
     # The interface sheets are drawn against the plate too, through ui.toml.
     assert "ui-panel_frame-generate" in moved
+    # So are the screens around the game, through shell.toml: the first thing a
+    # player sees is the last place that should be allowed to keep the old look.
+    assert "shell-title_backdrop_far-generate" in moved
+    assert "shell-opening_the_valley-generate" in moved
     # ... and the paintovers, which never see the plate, did not.
     assert "fx-fire-generate" not in moved
     assert "ground-macro-generate" not in moved

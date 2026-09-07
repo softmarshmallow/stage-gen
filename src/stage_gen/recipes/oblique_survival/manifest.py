@@ -30,6 +30,11 @@ from typing import Any, Final, NotRequired, Protocol, TypedDict, cast
 
 from PIL import Image
 
+from stage_gen.components.game_shell.nodes import (
+    document_plate_roles,
+    shell_manifest_block,
+    shell_typeface_ref,
+)
 from stage_gen.components.game_ui.nodes import document_roles, ui_atlas_manifest_block
 from stage_gen.recipes.dry_run import is_placeholder
 from stage_gen.recipes.oblique_survival.models import (
@@ -632,6 +637,7 @@ class StatusBlock(TypedDict):
     seasons: str
     #: ``none`` for a package with no ui.toml, ``ok`` when every sheet is here.
     ui: str
+    shell: str
     layout: str
 
 
@@ -700,6 +706,9 @@ class Manifest(TypedDict):
     #: The screen-fixed interface sheets, the shared ``ui.<role>`` blocks every
     #: consumer of the game_ui component reads; None for a package with no ui.toml.
     ui: JsonRecord | None
+    #: The screens around the game: the opening, the title screen, the loading
+    #: screen. None for a package with no shell.toml, which boots into the world.
+    shell: JsonRecord | None
     crafting: CraftingBlock
     fx: FxBlock
     #: Keyed by cue, plus ``transition``; the cue vocabulary is closed, so the
@@ -1834,6 +1843,33 @@ def _ui_block(package: Package, run_dir: Path) -> JsonRecord | None:
     )
 
 
+def _shell_block(package: Package, run_dir: Path) -> dict[str, object] | None:
+    """The screens around the game, or None when this package declares none.
+
+    Same rule as the interface block above: every declared plate has to be on disk
+    before the block is published, so a scope that drew no shell publishes no shell
+    rather than a block full of holes.
+    """
+
+    if package.shell is None:
+        return None
+    for role in document_plate_roles(package.shell):
+        if not _present(run_dir / f"shell/{role.role}.png"):
+            return None
+        if not _present(run_dir / f"shell/{role.role}.validation.json"):
+            return None
+    if package.shell.typeface is not None and not _present(
+        run_dir / shell_typeface_ref(package.shell)
+    ):
+        return None
+    return shell_manifest_block(
+        package.shell,
+        read_validation=lambda ref: (run_dir / ref).read_bytes(),
+        publish=lambda ref: ref,
+        display_name=package.title,
+    )
+
+
 def _items_block(package: Package, run_dir: Path, icons: IconsBlock | None) -> dict[str, ItemBlock]:
     windows: dict[str, dict[str, Any]] = {}
     for cell in icons["cells"] if icons is not None else ():
@@ -2085,6 +2121,7 @@ def build_manifest(
     icons = _icons_block(package, run_dir)
     items = _items_block(package, run_dir, icons)
     ui = _ui_block(package, run_dir)
+    shell = _shell_block(package, run_dir)
     music = _music_block(package, run_dir)
     weather = _weather_block(package, run_dir)
     sounds = _sounds_block(package, run_dir)
@@ -2176,6 +2213,11 @@ def build_manifest(
             "seasons": _seasons_status(package, props),
             # No ui.toml is a HUD of plain boxes by design, not a missing family.
             "ui": "none" if package.ui is None else ("ok" if ui is not None else "missing"),
+            # No shell.toml is a game that boots straight into the world, which is
+            # what every run before the shell landed did. Not a missing family.
+            "shell": (
+                "none" if package.shell is None else ("ok" if shell is not None else "missing")
+            ),
             "layout": "ok" if layout else "missing",
         },
         "style": style,
@@ -2188,6 +2230,7 @@ def build_manifest(
         "items": items,
         "icons": icons,
         "ui": ui,
+        "shell": shell,
         "crafting": _crafting_block(package),
         "fx": fx,
         "music": music,

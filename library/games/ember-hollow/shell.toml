@@ -1,0 +1,159 @@
+# The screens around the game: the opening cinematic, the title screen, the
+# loading screen. The shared `game-shell-v1` contract, whose rules live in
+# docs/spec/game/shell.md and whose component is src/stage_gen/components/game_shell/.
+#
+# Nothing here asks for lettering, and the loader refuses a prompt that does.
+# Every string on these screens — the game's name, a shot's card, a loading tip —
+# is set by the host in the typeface below, never drawn into a plate. That is
+# what keeps the name spelled correctly and translatable.
+
+schema_version = 1
+kind = "game-shell-v1"
+game_id = "ember-hollow"
+revision = 3
+
+# The art direction of record, the same plate every other generated image in
+# this package is drawn against. The shell is the first thing a player sees, so
+# it is the last place that should be allowed to drift from the game's look.
+[[references]]
+reference_id = "style_plate"
+source = "references/style-plate.png"
+source_sha256 = "0f55649bf337ab3b057e88cf6854ca23a7142ebca57438f03bbd6cd74ee6ade0"
+rights_status = "redistribution-approved"
+rights_basis = ["Original AI-generated art direction plate approved for redistribution by the authenticated task owner."]
+
+# A placeholder, and knowingly the wrong face: Fredoka is a rounded storybook
+# text face and this game is flat inked cutout survival. It is here because it
+# is already in the repository under a licence that permits redistribution, so
+# the pipeline could be proved without a download. Swapping it is one file, one
+# digest and zero provider operations, because the wordmark is composited rather
+# than drawn. See fonts/README.md.
+[typeface]
+family = "Fredoka"
+source = "fonts/fredoka-variable.ttf"
+source_sha256 = "2ba02e68b152868aef9ba28e24b3648c7d457fe6f25c761f2c2c53fb61a73fc8"
+license = "OFL-1.1"
+license_source = "fonts/OFL.txt"
+copyright = "Copyright 2016 The Fredoka Project Authors"
+upstream_source = "google/fonts, ofl/fredoka/Fredoka[wdth,wght].ttf"
+retrieved = "2026-08-24"
+
+# --- the opening -------------------------------------------------------------
+#
+# Three shots, twelve seconds, each a still the host moves over. The cards are
+# the only prose a player reads before the world, so they say what the game is
+# about — arriving somewhere cold with one warm thing in it — and nothing about
+# rules, controls or story the game does not tell.
+
+[opening]
+layout = "opening_16x9_v1"
+skippable = true
+
+[[opening.shots]]
+shot_id = "the_valley"
+move = "push_in"
+seconds = 4.5
+card = "Winter comes early to the hollow."
+out_transition = "dissolve"
+
+[opening.shots.plate]
+alpha_policy = "fully_opaque_v1"
+reference_ids = ["style_plate"]
+prompt = """
+A wide cold valley seen from its rim under a heavy overcast sky: ranks of dark conifers
+stacked as ragged flat masses down both slopes, bare ash-grey rock breaking through the
+snow along the ridge, and a thin thread of pale smoke rising from somewhere among the
+trees far below. Bone-white snow, bark brown, moss green gone grey with cold. Nobody in
+the picture.
+"""
+
+[[opening.shots]]
+shot_id = "the_hearth"
+move = "hold"
+seconds = 3.5
+card = "Someone banked a fire here, and left."
+out_transition = "dissolve"
+
+[opening.shots.plate]
+alpha_policy = "fully_opaque_v1"
+reference_ids = ["style_plate"]
+prompt = """
+A ring of blackened stones on frozen ground, close enough to fill the frame, holding a
+low bed of embers under grey ash: the one warm amber accent in an otherwise cold picture,
+throwing a hard-edged pool of flat amber light onto the stones and the trodden snow
+around them. A folded wool blanket lies where somebody left it. Nobody in the picture.
+"""
+
+[[opening.shots]]
+shot_id = "the_treeline"
+move = "pan_right"
+seconds = 4.0
+card = "Keep it burning."
+out_transition = "wipe"
+
+[opening.shots.plate]
+alpha_policy = "fully_opaque_v1"
+reference_ids = ["style_plate"]
+prompt = """
+The edge of a conifer wood at dusk from ground level, the trunks near and dark and the
+wood behind them closing into flat black masses, with the last cold blue daylight caught
+between them and the first snow coming down in sparse flakes. Bone, ash grey, bark brown,
+one deep green. Nobody in the picture.
+"""
+
+# --- the title screen --------------------------------------------------------
+#
+# One backdrop layer today rather than three. The parallax the layout allows for
+# is worth having, but a mid and a near layer are two more images and two more
+# reviews, and the thing worth learning first is whether the reserved bands come
+# back quiet enough to set a name and a Play button over. Adding the layers later
+# re-bills nothing that already exists.
+
+[title]
+layout = "title_screen_16x9_v1"
+
+[[title.backdrop]]
+depth = "far"
+
+[title.backdrop.plate]
+alpha_policy = "fully_opaque_v1"
+reference_ids = ["style_plate"]
+prompt = """
+The hollow at blue dusk from a low rise looking down: a shallow bowl of snow ringed by
+flat black conifer masses, with one small hard-edged amber glow of a fire tucked in low
+and far over to one side, close to the frame's edge and well away from the centre. A wide
+empty overcast sky fills the top of the frame in one flat pale tone with no cloud drawing
+in it, and the snow through the centre and the bottom of the frame is one flat unbroken
+field with nothing standing on it. Cold blues and bone against bark brown, the fire the
+only warm accent.
+"""
+
+# No emblem in this revision, and the reason is worth keeping. A badge is the
+# one thing on a title screen an image model ought to be good at, and this one
+# cost more attempts than every other plate combined: first drawn as a campfire
+# scene rather than a mark (the reviewer caught it), then refused by a gate that
+# demanded one connected shape while the brief asked for a broken ring around
+# separate flames, then still not settling once both were fixed. The title screen
+# does not need it — the game's name is composited in the package's own face over
+# a backdrop that measured 9.18 against a 12.0 ceiling — so the badge waits for a
+# brief written from a drawn reference rather than from adjectives. `title.emblem`
+# stays optional in `game-shell-v1` for exactly this case.
+
+# --- the loading screen ------------------------------------------------------
+#
+# Zero provider operations: the backdrop is the winter season look this run
+# already draws and publishes. A loading screen is the least-looked-at surface in
+# the game and does not earn an image of its own.
+
+[loading]
+layout = "loading_screen_16x9_v1"
+tips = [
+  "A banked fire keeps until morning. An open one does not.",
+  "Cold drains faster in the dark than it does in the snow.",
+  "A tool wears out. Carry the makings of another.",
+  "The hollow is wider than it looks. Mark your way back.",
+]
+
+[loading.backdrop]
+source = "run_artifact"
+artifact_role = "season_look_winter"

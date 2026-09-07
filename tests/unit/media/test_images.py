@@ -358,3 +358,40 @@ def test_magenta_edge_decontamination_requires_alpha() -> None:
 
     with pytest.raises(ValueError, match="alpha-bearing"):
         decontaminate_magenta_edges(source)
+
+
+def test_region_contrast_stats_measures_flatness_and_both_text_directions() -> None:
+    """The one thing a pixel gate can settle about a surface that will host text."""
+
+    from PIL import ImageDraw
+
+    from stage_gen.media import REGION_CONTRAST_MIN, REGION_LUMA_STD_MAX, region_contrast_stats
+
+    dark = Image.new("RGB", (200, 100), (20, 24, 30))
+    stats = region_contrast_stats(dark, (0, 0, 200, 100))
+    assert stats.luma_std == 0.0
+    assert stats.best_text == "white"
+    assert stats.best_contrast > REGION_CONTRAST_MIN
+
+    pale = Image.new("RGB", (200, 100), (235, 232, 225))
+    assert region_contrast_stats(pale, (0, 0, 200, 100)).best_text == "black"
+
+    busy = Image.new("RGB", (200, 100), (20, 24, 30))
+    draw = ImageDraw.Draw(busy)
+    for x in range(0, 200, 8):
+        draw.line((x, 0, x, 100), fill=(240, 235, 225), width=4)
+    assert region_contrast_stats(busy, (0, 0, 200, 100)).luma_std > REGION_LUMA_STD_MAX
+
+
+def test_region_contrast_stats_reads_only_the_box_it_is_given() -> None:
+    from stage_gen.media import region_contrast_stats
+
+    image = Image.new("RGB", (200, 100), (20, 24, 30))
+    for x in range(100, 200):
+        for y in range(100):
+            image.putpixel((x, y), (250, 250, 250))
+
+    left = region_contrast_stats(image, (0, 0, 100, 100))
+    whole = region_contrast_stats(image, (0, 0, 200, 100))
+    assert left.luma_std == 0.0
+    assert whole.luma_std > left.luma_std

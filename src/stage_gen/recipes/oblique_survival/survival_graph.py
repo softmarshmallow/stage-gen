@@ -23,6 +23,7 @@ from typing import Final, Literal
 from pydantic import BaseModel, Field
 
 from gnode import Binding, BindingTable, GraphBuilder, ModelRef, Node, NodeCard, NodeType, Port
+from stage_gen.components.game_shell.nodes import add_shell_nodes, document_plate_roles
 from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes, document_roles
 from stage_gen.config import StageGenConfig
 from stage_gen.recipes.graph_document import RecipeGraph
@@ -1758,6 +1759,25 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
             # The three roles every document carries, and the cursor set when this
             # one declares it: the host owns a mouse pointer, so it may.
             roles=document_roles(package.ui),
+        )
+
+    # The screens around the game: the opening cinematic, the title screen and the
+    # loading screen. Same shape as the interface sheets one block up — a shared
+    # triplet fanned out over what the document declares — and the same scope gate,
+    # because a title screen is the frame around the demo rather than part of the
+    # oblique clause the minimal scope exists to prove. A package with no shell.toml
+    # boots straight into the world, which is what every run before this one did.
+    if package.shell is not None and rank >= SCOPE_RANK["props"]:
+        add_shell_nodes(
+            builder,
+            root=lock.node_id,
+            shell=package.shell,
+            style_prompt=lambda task: prompts.shell_plate_prompt(package, task),
+            direction_digests=[
+                text_digest(prompts.shell_plate_prompt(package, "")),
+                *style_digests,
+            ],
+            roles=document_plate_roles(package.shell),
         )
 
     # --- close

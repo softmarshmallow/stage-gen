@@ -80,6 +80,7 @@ a `game.toml` closure.
 | `weather.toml` | `oblique-survival-weather-v1` | the world conditions and the layers each one drives |
 | `music.toml` | — | one instrumental loop per clock cue, and the `[transition]` between them |
 | `ui.toml` | `game-ui-v5` | optional: the screen-fixed interface — the `panel_frame` and `button_rect` nine-slice sheets and the `preview_icons` grid the host's HUD is dressed in, and the `cursor_set` it is played with, each pointer with the hotspot the gate measured — the shared [authored game UI contract](../game/ui.md), planned through the game_ui component's own triplet; no `inventory_panel`, the host draws its slots as plain wells inside the generated frame |
+| `shell.toml` | `game-shell-v1` | optional: the screens around the game — the opening cinematic's shot list, the title screen's backdrop and text-free emblem, and the loading screen — the shared [authored game shell contract](../game/shell.md), planned through the game_shell component's own triplet. Every string on them is composited by the host in the package's declared typeface, never drawn into a plate |
 | `sounds.toml` | — | one clip per thing the player does, with its exact duration and its playback gain |
 
 `publication_authorized` is `false` in every graph this recipe seals and in
@@ -146,9 +147,9 @@ instead of paying twice.
 | Scope | Nodes | Image | Structured | Tool loop | Music | Sound | Local |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | `minimal` | 64 | 21 | 0 | 5 | 0 | 0 | 38 |
-| `props` | 186 | 74 | 7 | 11 | 0 | 0 | 94 |
-| `actors` | 236 | 95 | 12 | 11 | 0 | 0 | 118 |
-| **`full`** | **278** | **102** | **13** | **11** | **0** | **3** | **149** |
+| `props` | 199 | 78 | 11 | 11 | 0 | 0 | 99 |
+| `actors` | 249 | 99 | 16 | 11 | 0 | 0 | 123 |
+| **`full`** | **291** | **106** | **17** | **11** | **0** | **3** | **154** |
 
 Counted from the committed fixture package with every plate, track and clip take
 adopted; the music count is zero for that reason. The `full` row is the block
@@ -158,7 +159,8 @@ below, and both are derived rather than transcribed.
 state, the state its interaction leaves behind (a chopped tree is a stump, and
 without the stump the tree would simply vanish), the items those interactions
 yield, and the items the forage sheet lets the player pick up. Everything else
-waits for `props`, the interface included: the four `ui.toml` sheets are drawn
+waits for `props`, the interface and the shell included: the four `ui.toml`
+sheets and the four `shell.toml` plates are drawn
 from `props` up, because the frame around the screen is part of the rest of
 what is on screen and nothing about it bears on the oblique clause `minimal`
 exists to prove.
@@ -213,6 +215,7 @@ govern what goes where, and both were earned rather than designed:
 | a prop state's prompt, an item's pickup brief, a plate's material clause, a season look's `season_prompt` | identity: the node that reads it redraws |
 | the style plate's bytes | identity for every generative image node — each digests the plate's bytes, not just its own prompt, because the prompt does not change when the picture does |
 | `ui.toml`, a role's prompt or reference, the package's `[style]` words | identity for that interface sheet's triplet: the role's direction, the reference's digest and the style wrapper's words are its cache inputs, exactly as the game_ui component declares them; the slot count and the HUD's layout are the host's and re-bill nothing |
+| `shell.toml`, a plate's prompt or reference, the package's `[style]` words | identity for that plate's triplet: the plate's direction, the reference's digest, the style wrapper's words and the screen's declared geometry are its cache inputs. Moving a reserved region re-bills the plate that has to keep it quiet; the host's choreography — parallax, easing, dwell — is not an input and re-bills nothing |
 | a summer prop state | identity for that state **and** its winter twin, which hangs off the summer's gated sprite |
 | `world.toml`, any `placement` block, a prop's `canopy_radius_meters` | the layout re-lays (`world-layout`, a local node) and the manifest follows; no provider node moves, and an edit to one object's block moves that object's points and nothing beyond one footprint of them — see [world](world.md) |
 | the scope | selects nodes; it never moves the key of a node it keeps |
@@ -273,6 +276,8 @@ that authors no `ui.toml`; `status.ui` says `none` then, and `missing` when the
 scope drew no sheets. The host dresses every panel and button from it, installs
 its pointers from `ui.cursor_set`, and falls back to plain boxes under the
 system pointer when it is null.
+
+`status.shell` reads the same way, and a package that authors no `shell.toml` boots straight into the world — which is what every run before the shell landed did.
 
 `scale` is the unit and the floor: `player_height_meters`, the
 `minimum_height_units` every thing the player can act on keeps (a prop's
@@ -355,13 +360,13 @@ invalidates it and must be regenerated in the same change.
   "fixture_ref": "library/games/ember-hollow",
   "scope": "full",
   "graph_schema_version": 1,
-  "topology_sha256": "484879b1b2797be51eec8486412d6d1f72f268a7dadbd07693f1ee3230cb54ca",
-  "node_count": 278,
+  "topology_sha256": "24e648792cb67c6ea301b554477aaf279c0a3424afdd74d198fb69670dbb4f57",
+  "node_count": 291,
   "terminal_node_id": "package-manifest",
   "operation_counts": {
-    "local": 149,
-    "image_generation": 102,
-    "structured_generation": 13,
+    "local": 154,
+    "image_generation": 106,
+    "structured_generation": 17,
     "tool_loop": 11,
     "music_generation": 0,
     "sound_effect_generation": 3

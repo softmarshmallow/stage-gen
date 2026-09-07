@@ -47,6 +47,17 @@ Changelog
             ``manifest.MANIFEST_KIND`` (``oblique-survival-manifest-v2``: one
             sheet of ground pieces, each cell sized) instead of a literal, which
             is the second move of every topology digest in one day.
+
+2026-09-07  The shell joins the props scope and above: thirteen nodes, the shared
+            game_shell triplet (draw, gate, review) over the four plates Ember
+            Hollow's ``shell.toml`` declares — three opening shots, the title
+            backdrop and the title emblem. Four images and four structured
+            reviews per scope from ``props`` up; ``minimal`` is untouched and its
+            topology digest proves it, the third time that split has held. The
+            loading backdrop is bound to the winter season look the run already
+            draws, so it costs nothing and plans no node. Only ``source-lock``
+            and ``package-manifest`` move a cache key (the package text grew a
+            document); no paid node re-bills, which ``test_cache_keys`` shows.
 """
 
 from __future__ import annotations
@@ -91,37 +102,37 @@ IDENTITIES: Final = {
         },
     ),
     "props": ScopeIdentity(
-        node_count=186,
-        topology_sha256="14ef3a5a7e5382ecb3180a73c45b02206328c7fe85945997c95918bc22a5916e",
+        node_count=199,
+        topology_sha256="7772b65d3c1704d0d126c5e5a963ac397b97b327b4d4aebbb6059837595c7917",
         operations={
-            "local": 94,
-            "image_generation": 74,
+            "local": 99,
+            "image_generation": 78,
             "tool_loop": 11,
-            "structured_generation": 7,
+            "structured_generation": 11,
             "music_generation": 0,
             "sound_effect_generation": 0,
         },
     ),
     "actors": ScopeIdentity(
-        node_count=236,
-        topology_sha256="54ca7dbd5844327e19a49d0182b643197c4ec0a085f522b001d6a4f9c022f562",
+        node_count=249,
+        topology_sha256="da2ffd02cf6b2846142dc28cb5072cdd3b589896e9a388f8b63fbc3ffa9a332c",
         operations={
-            "local": 118,
-            "image_generation": 95,
+            "local": 123,
+            "image_generation": 99,
             "tool_loop": 11,
-            "structured_generation": 12,
+            "structured_generation": 16,
             "music_generation": 0,
             "sound_effect_generation": 0,
         },
     ),
     "full": ScopeIdentity(
-        node_count=278,
-        topology_sha256="484879b1b2797be51eec8486412d6d1f72f268a7dadbd07693f1ee3230cb54ca",
+        node_count=291,
+        topology_sha256="24e648792cb67c6ea301b554477aaf279c0a3424afdd74d198fb69670dbb4f57",
         operations={
-            "local": 149,
-            "image_generation": 102,
+            "local": 154,
+            "image_generation": 106,
             "tool_loop": 11,
-            "structured_generation": 13,
+            "structured_generation": 17,
             "music_generation": 0,
             "sound_effect_generation": 3,
         },

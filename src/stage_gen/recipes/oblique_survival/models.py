@@ -22,6 +22,7 @@ from typing import Any, Final, Literal
 from pydantic import BaseModel, ConfigDict
 
 from stage_gen.canonical import content_sha256
+from stage_gen.components.game_shell import GameShell
 from stage_gen.components.game_ui import GameUi
 
 MOTION_MODES: Final = frozenset({"hold", "loop", "once", "gameplay_driven"})
@@ -1195,6 +1196,16 @@ class Package:
     ui: GameUi | None = None
     #: The bytes behind each ui.toml reference, by its declared source path.
     ui_references: Mapping[str, PackageFile] = field(default_factory=dict)
+    #: shell.toml, the shared ``game-shell-v1`` document: the opening cinematic,
+    #: the title screen and the loading screen. Optional like ui.toml, and a
+    #: package without one boots straight into the world.
+    shell: GameShell | None = None
+    #: The bytes behind each shell.toml reference, by its declared source path.
+    shell_references: Mapping[str, PackageFile] = field(default_factory=dict)
+    #: The declared typeface's bytes, when the shell declares one. Published into
+    #: the run so the host sets the game's name in the face the package chose
+    #: rather than in whatever the player's machine happens to have.
+    shell_typeface: PackageFile | None = None
 
     @property
     def actors(self) -> tuple[Actor, ...]:
@@ -1231,6 +1242,14 @@ class Package:
             return self.ui_references[source]
         except KeyError:
             raise SourceError(f"ui.toml declares no reference at {source!r}") from None
+
+    def shell_reference(self, source: str) -> PackageFile:
+        """One shell.toml reference's bytes, by the source path the document declares."""
+
+        try:
+            return self.shell_references[source]
+        except KeyError:
+            raise SourceError(f"shell.toml declares no reference at {source!r}") from None
 
     def source_digest(self) -> str:
         """One digest over every authored file, in a fixed order."""

@@ -27,7 +27,11 @@ PACKAGE = Path("library/games/ember-hollow")
 #: two local nodes (``source-lock`` and ``package-manifest``) and no provider
 #: operation, because every other node takes the source lock as a barrier rather
 #: than as lineage.
-SOURCE_DIGEST = "95e3765990adeb796308a35789fc4803cfcd895ab480932f767e673283a04bf3"
+#: Moved again on 2026-09-07 when ``shell.toml``, its typeface and its licence
+#: joined the package: the digest is a function of the authored text, and the
+#: shell is authored text. Same price as every other move of it -- two local
+#: nodes, no provider operation.
+SOURCE_DIGEST = "01e6cf37315e30a86990dcccb74b8f23b70bf0c36b3b1cffba8ff56470b5d487"
 
 #: One take that is declared by digest and whose bytes are in the package.
 FORAGE_TAKE = "ground/forage.take.png"

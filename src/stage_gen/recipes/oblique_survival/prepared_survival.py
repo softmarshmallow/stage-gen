@@ -48,6 +48,14 @@ from gnode import (
     write_artifact_with_provenance_async,
 )
 from stage_gen.canonical import content_sha256
+from stage_gen.components.game_shell.nodes import (
+    SHELL_PLATE_GENERATE,
+    SHELL_PLATE_REVIEW,
+    SHELL_PLATE_VALIDATE,
+    SHELL_TYPEFACE_PUBLISH,
+    ShellHandlers,
+    ShellHost,
+)
 from stage_gen.components.game_ui.nodes import (
     UI_ATLAS_GENERATE,
     UI_ATLAS_REVIEW,
@@ -69,6 +77,7 @@ from stage_gen.recipes.oblique_survival.models import (
     Biome,
     Condition,
     Package,
+    PackageFile,
     SoundCue,
     SoundEffect,
     Track,
@@ -609,6 +618,7 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
         self.sounds = sounds
         self._plate: tuple[ImageReference, ...] | None = None
         self._ui: UiAtlasHandlers | None = None
+        self._shell: ShellHandlers | None = None
         super().__init__(
             graph,
             run_dir=run_dir,
@@ -683,6 +693,10 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
             (UI_ATLAS_GENERATE, self._ui_generate),
             (UI_ATLAS_VALIDATE, self._ui_validate),
             (UI_ATLAS_REVIEW, self._ui_review),
+            (SHELL_PLATE_GENERATE, self._shell_generate),
+            (SHELL_PLATE_VALIDATE, self._shell_validate),
+            (SHELL_PLATE_REVIEW, self._shell_review),
+            (SHELL_TYPEFACE_PUBLISH, self._shell_typeface),
             (WORLD_LAYOUT, self._world_layout),
             (PACKAGE_MANIFEST, self._package_manifest),
         )
@@ -798,15 +812,22 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
     async def _ui_provider_call(
         self, node: Node, label: str, prompt: str, call: Callable[[], Awaitable[Any]]
     ) -> Any:
-        """The triplet's provider seam: the node's declared ledger, written either way.
+        return await self._triplet_provider_call(node, f"ui-{label}", call)
 
-        The sheet gate runs inside the image service's own retry owner, so a
-        refused draw is counted by the result's attempts rather than kept here;
-        the ledger records that count, and a run that exhausted its budget
-        records that too before the failure is raised.
+    async def _triplet_provider_call(
+        self, node: Node, operation_id: str, call: Callable[[], Awaitable[Any]]
+    ) -> Any:
+        """A shared triplet's provider seam: the node's declared ledger, written either way.
+
+        The gate runs inside the service's own retry owner, so a refused draw is counted
+        by the result's attempts rather than kept here; the ledger records that count, and
+        a run that exhausted its budget records that too before the failure is raised.
+
+        Both shared triplets this recipe hosts — the interface sheets and the shell
+        plates — write the same ledger, so the rule lives once and each seam supplies
+        only its own operation prefix.
         """
 
-        operation_id = f"ui-{label}"
         try:
             result = await call()
         except RetryExhaustedError as error:
@@ -833,6 +854,62 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
             ],
         )
         return result
+
+    # -- the shell: the same shared-triplet shape, one screen family over
+
+    def _shell_handlers(self) -> ShellHandlers:
+        """The recipe-neutral shell triplet, bound to this package and this run."""
+
+        if self.package.shell is None:
+            raise NodeExecutionError(
+                "this package declares no shell.toml, so no shell node can run",
+                attempts=1,
+                provider_operations=0,
+            )
+        if self._shell is None:
+            self._shell = ShellHandlers(
+                ShellHost(
+                    shell=self.package.shell,
+                    run_dir=self._run_dir,
+                    package_id=self.package.package_id,
+                    file=self.package.shell_reference,
+                    component=OBLIQUE_SURVIVAL_COMPONENT,
+                    tool=STAGE_GEN_TOOL,
+                    typeface=self._shell_typeface_file,
+                ),
+                graph=self._graph,
+                image_service=self._require_images(),
+                structured_service=self._require_structured(),
+                provider_call=self._shell_provider_call,
+            )
+        return self._shell
+
+    async def _shell_generate(self, node: Node) -> NodeExecutionResult:
+        return await self._shell_handlers().generate(node)
+
+    async def _shell_validate(self, node: Node) -> NodeExecutionResult:
+        return await self._shell_handlers().validate(node)
+
+    async def _shell_review(self, node: Node) -> NodeExecutionResult:
+        return await self._shell_handlers().review(node)
+
+    async def _shell_typeface(self, node: Node) -> NodeExecutionResult:
+        return await self._shell_handlers().publish_typeface(node)
+
+    def _shell_typeface_file(self) -> PackageFile:
+        face = self.package.shell_typeface
+        if face is None:
+            raise NodeExecutionError(
+                "this package's shell declares no typeface", attempts=1, provider_operations=0
+            )
+        return face
+
+    async def _shell_provider_call(
+        self, node: Node, label: str, prompt: str, call: Callable[[], Awaitable[Any]]
+    ) -> Any:
+        """The shell triplet's provider seam, on the interface triplet's ledger rule."""
+
+        return await self._triplet_provider_call(node, f"shell-{label}", call)
 
     def _run_ref(self, ref: str) -> str:
         return f"run://{ref}#sha256={content_sha256(self._path(ref).read_bytes())}"

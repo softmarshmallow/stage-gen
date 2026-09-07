@@ -243,15 +243,62 @@ Every check is an existing check in a new role; no new gate vocabulary is introd
 | Asset | Gate | Borrowed from |
 | --- | --- | --- |
 | backdrop, shot still | `fully_opaque_v1`: no holes, no transparent exterior | the inverse of the atlas alpha rule |
-| title backdrop | luma standard deviation at most 12, contrast at least 4.5, inside each reserved region over its drift union | [`ui.md`](ui.md)'s `content_rect` gate |
+| title backdrop | luma standard deviation at most 12, contrast at least 4.5, inside `mark_band` over its drift union — **and only that region** (below) | [`ui.md`](ui.md)'s `content_rect` gate |
 | shot still | the same, inside `card_band`, **only when the shot carries a card** | same; gating a full-bleed shot on a band nothing is drawn in would refuse good pictures for nothing |
 | `mid` / `near` layers | `transparent_exterior_v1`, coverage bounds | [`fx.md`](fx.md)'s portrait gate |
-| emblem | one shape, opaque core at least 250, extent 30–100% of its box, nothing outside it | [`ui.md`](ui.md)'s icon-cell admission |
+| emblem | `transparent_exterior_v1`, opaque core at least 250, coverage 2–60%, at most 8 pieces, and those pieces spanning at most 0.55 of the width and 0.75 of the height | [`fx.md`](fx.md)'s piece-and-dust counting, with the connectivity rule replaced |
 | all | text-freedom, style coherence with the references | one structured review per plate |
 
 The legibility gate is the one that earns its keep: a beautiful backdrop with a busy
 centre is an unusable title screen, and it is exactly what an ungated pipeline would
 produce and accept.
+
+### Only the region a string sits *directly* on is gated
+
+A reserved region is published so the host knows where things go. It is measured only
+when a string is set straight onto the picture there. On the title screen exactly one is:
+the **wordmark**, in `mark_band`. The controls are not — they are `button_rect` bodies
+from [`ui.toml`](ui.md), and a label is legible because the opaque button is behind it,
+not because the sky is.
+
+The first cut of this family gated `control_stack` too. Measured over its drift union that
+column covers **46% to 93% of the frame height**, which straddles the horizon of any
+landscape, and it refused twelve honest paintings across two paid runs — 35.0 and then
+27.1 against a ceiling of 12.0 — before the rule was recognised as asking for a landscape
+with no horizon in it. Publishing a region and gating it are different decisions, and a
+gate that a correct picture cannot pass is a bug in the gate.
+
+The same reasoning is why an **emblem** is admitted as a *compact* mark rather than a
+connected one. A heraldic badge is normally several pieces — a broken ring around a charge
+is two — and the first cut demanded that one piece carry 90% of the painted alpha, a rule
+borrowed from the cut-in portrait gate where it is right because a portrait is one person.
+It refused six straight draws of exactly what the brief asked for. What separates a badge
+from a spray is not how many pieces it has but how far they reach, so the rule is the
+union of every piece's extent, measured per dimension: a row of blobs strung across the
+frame has a *small* bounding-box area, so area would have admitted the very thing the
+rule exists to refuse.
+
+### The authored prompt can fight the reserved region, and it wins
+
+Measured on the first paid run of this family (2026-09-07, Ember Hollow, `gpt-image-2`
+through the OpenAI route). The title backdrop's brief asked for "one small hard-edged
+amber glow of a fire down in the middle of it". `control_stack` is reserved in the middle
+of the lower half, and an amber fire on snow is about the highest local contrast the game's
+palette can produce. Every one of the six attempts came back at `luma std 35.0` against a
+ceiling of 12.0 — the same number each time, because the model was drawing what it was
+asked for. The node refused and the run stopped.
+
+This is the screen-FX shape slot's lesson in a second family: **two sentences describing
+the same part of the frame is a coin toss, and the authored one wins.** The component's
+quiet clause says where the frame must stay calm; an authored brief that puts its focal
+point there is not overridden by it. The fix is authoring, not a looser gate — the same
+brief with the fire moved off the centre passes, and the three opening shots in the same
+run passed their card band first time at luma std 2.6, 3.9 and 10.0.
+
+Two things follow for anyone authoring a screen. Read the layout's reserved regions before
+writing the brief, and put the subject somewhere else. And treat a repeated identical
+refusal as a brief that disagrees with the layout rather than as a run of bad luck: six
+attempts at the same number is not sampling noise.
 
 ## Pipeline and consumer contract *(planned)*
 

@@ -148,6 +148,16 @@ It is a host in the sense of the
 ports are implemented and the loop is run. What a host owns it owns for its own
 genre, and it is a dependency of nothing on the generating side.
 
+It owns the screens around the game — the opening cinematic, the title screen and
+the loading screen, from the manifest's `shell` block (the shared
+[game shell contract](spec/game/shell.md)) — and the world is not built until Play
+is pressed, which is what makes that loading screen a real wait rather than a bar
+drawn over a game already standing. Every string on those screens is composited
+here in the face the run publishes: no plate carries lettering, so the game's own
+name is set from `shell.strings.display_name` and swapping the face redraws no art.
+A run with no `shell` block boots straight into the world, and one that authored a
+shell the run never drew says so before it does.
+
 It owns loading, the fixed-step loop, mirroring world slices onto scene nodes,
 the perspective camera and its yaw detents, billboard depth against the ground,
 the ground and water shaders, collision, navigation, input latching, the HUD, the
