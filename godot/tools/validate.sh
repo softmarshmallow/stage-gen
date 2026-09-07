@@ -71,6 +71,17 @@ if [ "$SKIP_TESTS" -eq 0 ]; then
     && echo "   600 of 600 frames identical"
   python3 "$PROJECT/tools/runner_parity_diff.py" \
       "$RUNNER_REPLAY/01-golden-600.web.jsonl" "$OUT/runner.godot.jsonl"
+
+  echo "== room parity against the browser's own golden"
+  # A room has no clock, so this replays clicks rather than frames.
+  ROOM_REPLAY="$PROJECT/tests/fixtures/pointclick_room/replay"
+  "$GODOT" --headless --path "$PROJECT" --quit-after 1000 \
+      -s res://tools/room_parity.gd -- \
+      --script "$ROOM_REPLAY/01-room.json" --out "$OUT/room.godot.jsonl"
+  diff "$OUT/room.godot-frames.txt" "$ROOM_REPLAY/01-room.web-frames.txt" \
+    && echo "   14 of 14 clicks identical"
+  python3 "$PROJECT/tools/runner_parity_diff.py" \
+      "$ROOM_REPLAY/01-room.web.jsonl" "$OUT/room.godot.jsonl"
 fi
 
 echo "== capture ($SHOTS, dpr $DPR)"

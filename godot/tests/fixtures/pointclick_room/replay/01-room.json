@@ -1,0 +1,79 @@
+{
+  "name": "01-room",
+  "genre": "pointclick_room",
+  "steps": 14,
+  "notes": "The browser room's own replay golden, as a script the Godot host can be driven by. Transcribed from SCRIPT in web/lib/pointclick/replay.test.ts, which is the fixture room solved with misses on the way \u2014 the misses are in the script on purpose, because `interaction/refused` is an occurrence a consumer draws and a golden that only walked the happy path would never hash one. There is no seed and no step: a room has no clock, so a replay is a list of clicks rather than a number of frames. `.web.jsonl` is the state and the events after every click and `.web-frames.txt` one unchained digest per click, which is the same pair the two side-view genres carry.",
+  "script": [
+    {
+      "kind": "interact",
+      "verb": "inspect",
+      "hotspot": "bench"
+    },
+    {
+      "kind": "interact",
+      "verb": "inspect",
+      "hotspot": "bench"
+    },
+    {
+      "kind": "interact",
+      "verb": "use",
+      "hotspot": "chest"
+    },
+    {
+      "kind": "interact",
+      "verb": "use",
+      "hotspot": "prize"
+    },
+    {
+      "kind": "interact",
+      "verb": "use",
+      "hotspot": "bench"
+    },
+    {
+      "kind": "interact",
+      "verb": "use",
+      "hotspot": "bench"
+    },
+    {
+      "kind": "select",
+      "item": "key"
+    },
+    {
+      "kind": "interact",
+      "verb": "use",
+      "hotspot": "bench",
+      "item": "key"
+    },
+    {
+      "kind": "select",
+      "item": "key"
+    },
+    {
+      "kind": "interact",
+      "verb": "use",
+      "hotspot": "chest",
+      "item": "key"
+    },
+    {
+      "kind": "interact",
+      "verb": "use",
+      "hotspot": "chest",
+      "item": "key"
+    },
+    {
+      "kind": "interact",
+      "verb": "use",
+      "hotspot": "prize"
+    },
+    {
+      "kind": "interact",
+      "verb": "use",
+      "hotspot": "prize"
+    },
+    {
+      "kind": "interact",
+      "verb": "inspect",
+      "hotspot": "bench"
+    }
+  ]
+}

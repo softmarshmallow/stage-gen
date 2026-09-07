@@ -21,11 +21,22 @@ from typing import Any
 
 
 def load(path: Path) -> dict[int, Any]:
-    """One record per sampled frame, keyed by the frame it was taken on."""
+    """One record per sampled step, keyed by the step it was taken on.
+
+    Two shapes, because two genres write them. The side-view dumps put the frame
+    number in front of the JSON, because their digests are sampled every N frames
+    and the number is not in the record. A room's dump is one whole object per
+    click carrying its own `step`, because there is nothing to sample: every
+    click is a step. Both are read here rather than in two tools.
+    """
     records: dict[int, Any] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line:
+            continue
+        if line.startswith("{"):
+            record = json.loads(line)
+            records[int(record["step"])] = record
             continue
         frame, _, rest = line.partition(" ")
         records[int(frame)] = json.loads(rest)

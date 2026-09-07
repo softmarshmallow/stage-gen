@@ -1,0 +1,531 @@
+{
+  "schema_version": 3,
+  "kind": "pointclick-room-runtime-v3",
+  "room_id": "test_room",
+  "display_name": "Test Room",
+  "revision": 1,
+  "room_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "cover": "references/cover.png",
+  "scene": {
+    "width": 1280,
+    "height": 720,
+    "backdrop": "assets/backdrop.png"
+  },
+  "hotspots": [
+    {
+      "id": "bench",
+      "label": "Bench",
+      "art": "scenery",
+      "region": {
+        "x": 0.1,
+        "y": 0.5,
+        "w": 0.3,
+        "h": 0.3
+      },
+      "hidden": false,
+      "sprite": null
+    },
+    {
+      "id": "chest",
+      "label": "Chest",
+      "art": "sprite",
+      "region": {
+        "x": 0.6,
+        "y": 0.5,
+        "w": 0.2,
+        "h": 0.3
+      },
+      "hidden": false,
+      "sprite": "assets/hotspots/chest.png"
+    },
+    {
+      "id": "prize",
+      "label": "Prize",
+      "art": "sprite",
+      "region": {
+        "x": 0.65,
+        "y": 0.45,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "hidden": true,
+      "sprite": "assets/hotspots/prize.png"
+    }
+  ],
+  "items": [
+    {
+      "id": "key",
+      "label": "Key",
+      "icon": "assets/items/key.png"
+    }
+  ],
+  "interactions": [
+    {
+      "on": {
+        "verb": "inspect",
+        "hotspot": "bench",
+        "item": null
+      },
+      "requires": [],
+      "effects": [],
+      "narration": "A sturdy bench."
+    },
+    {
+      "on": {
+        "verb": "use",
+        "hotspot": "bench",
+        "item": null
+      },
+      "requires": [],
+      "effects": [
+        {
+          "grant_item": "key"
+        }
+      ],
+      "narration": "You find a key under the bench."
+    },
+    {
+      "on": {
+        "verb": "use",
+        "hotspot": "chest",
+        "item": "key"
+      },
+      "requires": [],
+      "effects": [
+        {
+          "set_flag": "chest_open"
+        },
+        {
+          "reveal_hotspot": "prize"
+        }
+      ],
+      "narration": "The chest opens."
+    },
+    {
+      "on": {
+        "verb": "use",
+        "hotspot": "prize",
+        "item": null
+      },
+      "requires": [
+        "chest_open"
+      ],
+      "effects": [
+        {
+          "set_flag": "prize_taken"
+        }
+      ],
+      "narration": "You take the prize."
+    }
+  ],
+  "win": {
+    "requires": [
+      "prize_taken"
+    ],
+    "narration": "The room is finished."
+  },
+  "ui": {
+    "panel_frame": {
+      "role": "panel_frame",
+      "layout": "nine_slice_panel_1024_v1",
+      "scale_mode": "nine_slice",
+      "alpha_policy": "transparent_exterior_opaque_body_v1",
+      "band_fill": "tile",
+      "draw_scale": 2,
+      "canvas": {
+        "width": 1024,
+        "height": 1024
+      },
+      "insets": {
+        "left": 96,
+        "top": 96,
+        "right": 96,
+        "bottom": 96
+      },
+      "cells": [
+        {
+          "state": "default",
+          "cell": {
+            "x": 33,
+            "y": 164,
+            "width": 959,
+            "height": 664
+          },
+          "content_rect": {
+            "x": 129,
+            "y": 260,
+            "width": 767,
+            "height": 472
+          },
+          "safe_rect": {
+            "x": 141,
+            "y": 272,
+            "width": 743,
+            "height": 448
+          }
+        }
+      ],
+      "asset": "ui/panel_frame.png"
+    },
+    "button_rect": {
+      "role": "button_rect",
+      "layout": "nine_slice_button_sheet_4x1024_v1",
+      "scale_mode": "nine_slice",
+      "alpha_policy": "transparent_exterior_opaque_body_v1",
+      "band_fill": "tile",
+      "draw_scale": 2,
+      "canvas": {
+        "width": 1024,
+        "height": 1024
+      },
+      "insets": {
+        "left": 72,
+        "top": 50,
+        "right": 80,
+        "bottom": 56
+      },
+      "cells": [
+        {
+          "state": "normal",
+          "cell": {
+            "x": 152,
+            "y": 132,
+            "width": 721,
+            "height": 156
+          },
+          "content_rect": {
+            "x": 224,
+            "y": 182,
+            "width": 569,
+            "height": 50
+          },
+          "safe_rect": {
+            "x": 224,
+            "y": 182,
+            "width": 569,
+            "height": 50
+          }
+        },
+        {
+          "state": "hover",
+          "cell": {
+            "x": 152,
+            "y": 326,
+            "width": 721,
+            "height": 154
+          },
+          "content_rect": {
+            "x": 224,
+            "y": 376,
+            "width": 569,
+            "height": 48
+          },
+          "safe_rect": {
+            "x": 224,
+            "y": 376,
+            "width": 569,
+            "height": 48
+          }
+        },
+        {
+          "state": "pressed",
+          "cell": {
+            "x": 152,
+            "y": 517,
+            "width": 720,
+            "height": 154
+          },
+          "content_rect": {
+            "x": 224,
+            "y": 567,
+            "width": 568,
+            "height": 48
+          },
+          "safe_rect": {
+            "x": 224,
+            "y": 567,
+            "width": 568,
+            "height": 48
+          }
+        },
+        {
+          "state": "disabled",
+          "cell": {
+            "x": 151,
+            "y": 708,
+            "width": 722,
+            "height": 155
+          },
+          "content_rect": {
+            "x": 223,
+            "y": 758,
+            "width": 570,
+            "height": 49
+          },
+          "safe_rect": {
+            "x": 223,
+            "y": 758,
+            "width": 570,
+            "height": 49
+          }
+        }
+      ],
+      "asset": "ui/button_rect.png"
+    },
+    "preview_icons": {
+      "role": "preview_icons",
+      "layout": "icon_grid_4x4_1024_preview_v1",
+      "scale_mode": "fixed",
+      "alpha_policy": "transparent_exterior_opaque_glyph_v1",
+      "draw_scale": 2,
+      "canvas": {
+        "width": 1024,
+        "height": 1024
+      },
+      "cell_size": 232,
+      "cells": [
+        {
+          "glyph": "play",
+          "cell": {
+            "x": 24,
+            "y": 24,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 68,
+            "y": 72,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "pause",
+          "cell": {
+            "x": 272,
+            "y": 24,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 317,
+            "y": 72,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "close",
+          "cell": {
+            "x": 520,
+            "y": 24,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 566,
+            "y": 72,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "menu",
+          "cell": {
+            "x": 768,
+            "y": 24,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 812,
+            "y": 72,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "gear",
+          "cell": {
+            "x": 24,
+            "y": 272,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 69,
+            "y": 320,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "home",
+          "cell": {
+            "x": 272,
+            "y": 272,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 318,
+            "y": 320,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "retry",
+          "cell": {
+            "x": 520,
+            "y": 272,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 564,
+            "y": 320,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "check",
+          "cell": {
+            "x": 768,
+            "y": 272,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 813,
+            "y": 320,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "search",
+          "cell": {
+            "x": 24,
+            "y": 520,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 70,
+            "y": 568,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "hand",
+          "cell": {
+            "x": 272,
+            "y": 520,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 316,
+            "y": 568,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "heart",
+          "cell": {
+            "x": 520,
+            "y": 520,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 565,
+            "y": 568,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "star",
+          "cell": {
+            "x": 768,
+            "y": 520,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 814,
+            "y": 568,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "arrow_left",
+          "cell": {
+            "x": 24,
+            "y": 768,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 68,
+            "y": 816,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "arrow_right",
+          "cell": {
+            "x": 272,
+            "y": 768,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 317,
+            "y": 816,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "sound_on",
+          "cell": {
+            "x": 520,
+            "y": 768,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 566,
+            "y": 816,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "sound_off",
+          "cell": {
+            "x": 768,
+            "y": 768,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 812,
+            "y": 816,
+            "width": 142,
+            "height": 136
+          }
+        }
+      ],
+      "asset": "ui/preview_icons.png"
+    }
+  }
+}
