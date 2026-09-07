@@ -47,7 +47,7 @@ offline plans of the committed Bellweather platformer member plus the selected
 Iron Petal runner — so a route the binding table cannot serve fails
 here rather than against a provider.
 The script removes `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `FAL_KEY`, and
-`ELEVENLABS_API_KEY` from every child process.
+`ELEVENLABS_API_KEY`, and `TRIPO_API_KEY` from every child process.
 It also disables cwd `.env` credential loading for those children, so it must
 pass without network access or provider credentials.
 
