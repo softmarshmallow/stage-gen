@@ -120,6 +120,11 @@ height_units = 0.36
 stack_max = 1
 prompt = "An unlit hand torch: a short stick with a fat head of dry grass bound tight around the top."
 use = { kind = "light", radius_meters = 3.5, burn_seconds = 60.0 }
+# The torch is the only fire the player can carry, so it is what the `burn`
+# verb wants, and one torch is one thing set alight: `uses = 1` spends it in
+# the striking. Lighting it as a lamp (`use`) spends it the same way, so a
+# torch is either an hour of light or one fire in the wood, never both.
+tool = { verb = "burn", uses = 1 }
 
 [[items]]
 item_id = "cooked_berry"

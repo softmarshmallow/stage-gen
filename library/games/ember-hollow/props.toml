@@ -40,6 +40,15 @@ hit_reaction_allowed = ["shake", "none"]
 # a player with the axe chops while a player without it snaps twigs. One verb
 # per state per prop. (props-v2, 2026-09-06; v1 had one `[props.interaction]`
 # whose states were inferred from next_state.)
+#
+# `burn` is the verb for fire, and the consumer gives it one meaning of its own:
+# the thing is set alight where it stands, keeps the look it has while it burns,
+# and drops to `next_state` when the fire dies. So `next_state` is what the fire
+# leaves behind — a stump, a picked bush — and every one of them is a look the
+# prop already draws, which is why setting the wood alight cost no new art. How
+# long it burns is its own height; the tool is the torch that lights it, spent
+# in the lighting. (The campfire keeps `light`, which is the other thing: a prop
+# whose lit look IS the fire.)
 
 # height_units are multiples of the player's height. edge = "soft" turns on
 # alpha-to-coverage in the viewer for foliage that a hard 0.5 cutoff chews up.
@@ -138,6 +147,18 @@ tool = { item_id = "axe", hits = 2, required = true }
 yield_to = "ground"
 yields = [{ item_id = "log", count = 2 }]
 
+# Fire does what the axe does, and leaves nothing to carry: a lit torch wedged
+# in the branches, twenty seconds of standing flame, then the stump. Which
+# states catch is the author's; that fire is what does it is the verb's.
+[[props.interactions]]
+from = ["sapling", "grown", "old"]
+verb = "burn"
+hits = 1
+next_state = "stump"
+fx = "sparkle"
+yields = []
+tool = { item_id = "torch", required = true }
+
 [props.season_prompt.winter]
 grown = "snow banked thick along the top of every tier of boughs, the green needles showing beneath each cap"
 old = "snow banked thick along the top of every tier of boughs, the green needles showing beneath each cap"
@@ -182,6 +203,18 @@ fx = "leaves"
 regrow_seconds = 45.0
 yield_to = "hand"
 yields = [{ item_id = "berry", count = 2 }]
+
+# A bush burns back to the ground and comes again, three times slower than a
+# picked one: fire costs the grove what the hand does not.
+[[props.interactions]]
+from = ["full"]
+verb = "burn"
+hits = 1
+next_state = "picked"
+fx = "sparkle"
+yields = []
+regrow_seconds = 150.0
+tool = { item_id = "torch", required = true }
 
 [props.season_prompt.winter]
 full = "bare of berries: no fruit anywhere, the same canes and leaves with snow caught along their tops"
@@ -288,6 +321,16 @@ fx = "leaves"
 regrow_seconds = 60.0
 yield_to = "hand"
 yields = [{ item_id = "grass_tuft", count = 1 }]
+
+[[props.interactions]]
+from = ["standing"]
+verb = "burn"
+hits = 1
+next_state = "cut"
+fx = "sparkle"
+yields = []
+regrow_seconds = 120.0
+tool = { item_id = "torch", required = true }
 
 [props.season_prompt.winter]
 standing = "the blades bent under a light load of snow, snow banked around the base"
@@ -423,6 +466,15 @@ tool = { item_id = "axe", hits = 2, required = true }
 yield_to = "ground"
 yields = [{ item_id = "log", count = 2 }]
 
+[[props.interactions]]
+from = ["sapling", "grown", "old"]
+verb = "burn"
+hits = 1
+next_state = "stump"
+fx = "sparkle"
+yields = []
+tool = { item_id = "torch", required = true }
+
 [props.season_prompt.winter]
 grown = "snow along the tops of the pale branches and caught in the thin crown, the leaves beneath as drawn"
 old = "snow along the tops of the pale branches and caught in the thin crown, the leaves beneath as drawn"
@@ -499,6 +551,17 @@ fx = "chips"
 yield_to = "hand"
 yields = [{ item_id = "twig", count = 2 }]
 
+# The best thing in the wood to set alight, and the only one that burns from
+# the look the hand already broke.
+[[props.interactions]]
+from = ["standing", "leaning", "broken"]
+verb = "burn"
+hits = 1
+next_state = "stump"
+fx = "sparkle"
+yields = []
+tool = { item_id = "torch", required = true }
+
 [props.season_prompt.winter]
 standing = "snow along every upper edge of the bare grey limbs and a cap on the broken top"
 leaning = "snow along every upper edge of the bare grey limbs and a cap on the broken top"
@@ -550,6 +613,16 @@ regrow_seconds = 90.0
 yield_to = "hand"
 yields = [{ item_id = "twig", count = 2 }]
 
+[[props.interactions]]
+from = ["full"]
+verb = "burn"
+hits = 1
+next_state = "cut"
+fx = "sparkle"
+yields = []
+regrow_seconds = 240.0
+tool = { item_id = "torch", required = true }
+
 [[props]]
 prop_id = "reed_clump"
 family = "grass"
@@ -593,6 +666,16 @@ fx = "leaves"
 regrow_seconds = 75.0
 yield_to = "hand"
 yields = [{ item_id = "reed", count = 2 }]
+
+[[props.interactions]]
+from = ["standing"]
+verb = "burn"
+hits = 1
+next_state = "cut"
+fx = "sparkle"
+yields = []
+regrow_seconds = 150.0
+tool = { item_id = "torch", required = true }
 
 [props.season_prompt.winter]
 standing = "the reeds bent and half buried in a drift, snow banked around the base"

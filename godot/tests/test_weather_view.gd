@@ -215,7 +215,7 @@ func _fire_placement(h: TestHarness) -> void:
 
 	# Nothing is lit in the run as it was laid out.
 	fire.update(world, 1.0 / 60.0, {})
-	h.assert_false(fire._mesh.visible, "no flame while nothing burns")
+	h.assert_eq(fire.drawn(), 0, "no flame while nothing burns")
 
 	var campfire: Dictionary = {}
 	for entity: Dictionary in world.entities:
@@ -226,17 +226,35 @@ func _fire_placement(h: TestHarness) -> void:
 		fire.free()
 		return
 	campfire["state"] = "lit"
+	campfire["burn"] = 60.0
 	fire.update(world, 1.0 / 60.0, {})
-	h.assert_true(fire._mesh.visible, "the flame is drawn once the fire is lit")
-	h.assert_near(fire._mesh.position.x, float(campfire["x"]), 1e-6,
+	h.assert_eq(fire.drawn(), 1, "the flame is drawn once the fire is lit")
+	var card: MeshInstance3D = fire.card(0)
+	h.assert_near(card.position.x, float(campfire["x"]), 1e-6,
 		"the flame stands over the lit entity, not the world origin")
-	h.assert_near(fire._mesh.position.z, float(campfire["z"]), 1e-6,
+	h.assert_near(card.position.z, float(campfire["z"]), 1e-6,
 		"the flame stands over the lit entity, not the world origin")
-	h.assert_near(fire._mesh.position.x, 1.4, 1e-6, "full-v66 puts the campfire at x 1.4")
-	h.assert_near(fire._mesh.position.z, 0.9, 1e-6, "full-v66 puts the campfire at z 0.9")
+	h.assert_near(card.position.x, 1.4, 1e-6, "full-v66 puts the campfire at x 1.4")
+	h.assert_near(card.position.z, 0.9, 1e-6, "full-v66 puts the campfire at z 0.9")
 	# (ground_contact_y_normalized 0.69043 - anchor.y 0.64) * (1024 / 642.0168).
-	h.assert_near(fire._mesh.position.y, 0.0804355, 1e-6,
+	h.assert_near(card.position.y, 0.0804355, 1e-6,
 		"the flame sits at the anchor the reviewer put on the lit card")
+	# The fireplace keeps the size the one card always had: the strip's own
+	# drawn height, because the lit look is shorter than it.
+	h.assert_near((card.mesh as QuadMesh).size.y, 0.935, 1e-3,
+		"the fireplace's flame is the strip's own height")
+
+	# A burning tree is the same card at the tree's height, and a second one
+	# does not take the first one's place.
+	var pine: Dictionary = TestFixtures.prop(world, "p1", "pine", "grown", 6.0, 0.0)
+	pine["burn"] = 20.0
+	world.entities.append(pine)
+	fire.update(world, 1.0 / 60.0, {})
+	h.assert_eq(fire.drawn(), 2, "two things burning, two flames")
+	var tree_card: MeshInstance3D = fire.card(1)
+	h.assert_near(tree_card.position.x, 6.0, 1e-6, "the second flame stands on the tree")
+	h.assert_near((tree_card.mesh as QuadMesh).size.y, 5.44, 0.01,
+		"and it is as tall as the pine it is eating")
 	fire.free()
 
 ## The bolt is stood at the strike point and held for the flash, and the twelve

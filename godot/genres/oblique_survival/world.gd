@@ -259,7 +259,11 @@ static func _build_entities(manifest: Dictionary, layout: Dictionary) -> Array:
 				"radius": radius,
 				"hits": 0,
 				"regrow": 0.0,
-				"burn": 0.0,
+				# A thing placed in its own lit look is alight from the first
+				# frame, the way a built one is: the burning is what makes it a
+				# light, a warmth and a flame, not the name of the look.
+				"burn": SurvivalHelpers.campfire_burn_seconds(manifest) \
+						if SurvivalHelpers.lit_look(prop, state) else 0.0,
 				"dirty": false,
 				# The grove or host this instance came with, and the set piece it
 				# is a member of; "" for a lone one. Carried for the map and the

@@ -41,9 +41,14 @@ static func update(world: SurvivalWorld, dt: float) -> void:
 		# every tick, so a drop someone else took ends the walk; arrival
 		# within reach starts the action whether or not the key is down.
 		var entity: Dictionary = (player.approach as Dictionary)["entity"]
+		var fire_walk := bool((player.approach as Dictionary).get("fire", false))
 		var target: Variant = null
 		if SurvivalTargeting.index_of(world.entities, entity) >= 0:
-			target = SurvivalTargeting.target_for(world, entity)
+			# A walk the fire key committed arrives asking the fire's question,
+			# not the nearest rule's: the tree it set out for is a tree it will
+			# burn, even though the axe's offer is the one on the label.
+			target = SurvivalTargeting.fire_target(world, entity) if fire_walk \
+					else SurvivalTargeting.target_for(world, entity)
 		if target == null:
 			player.approach = null
 			_aim(world, null)
@@ -107,23 +112,40 @@ static func update(world: SurvivalWorld, dt: float) -> void:
 	# Each verb has its own key. Space is read as held, the others as a press
 	# good for this tick only; nothing is queued behind a busy player.
 	var chosen := world.focus as Dictionary
-	var wanted: bool
-	if str((chosen["interaction"] as Dictionary).get("verb", "")) == "light":
-		wanted = bool(world.input["light"])
-	else:
-		wanted = bool(world.input["interact"])
-	if not wanted:
+	# The fire key asks its own question of the thing in focus. The offer the
+	# nearest rule made speaks for one interaction, and on a tree with an axe in
+	# the pack that one is the chop — so without this the torch could never
+	# answer for anything a tool already answers for.
+	if bool(world.input["light"]):
+		var fire: Variant = SurvivalTargeting.fire_target(world, chosen["entity"])
+		if fire != null:
+			_act_or_approach(world, player, fire as Dictionary, reach, true)
+			return
+	var verb := str((chosen["interaction"] as Dictionary).get("verb", ""))
+	if verb == "light" or verb == "burn":
+		# Fire is on its own key, and it has already had this tick.
 		return
-	if world.target == null:
-		_refuse(world, chosen)
+	if not bool(world.input["interact"]):
 		return
-	if float(chosen["edge"]) > reach:
-		player.approach = {"entity": chosen["entity"], "stall": 0.0}
+	_act_or_approach(world, player, chosen, reach, false)
+
+
+## Start on the spot, walk to it, or say what refuses it. `fire` marks the walk
+## as the fire key's, so arrival asks the fire's question rather than the
+## nearest rule's.
+static func _act_or_approach(
+	world: SurvivalWorld, player: SurvivalPlayerState, target: Dictionary, reach: float, fire: bool
+) -> void:
+	if target["disabled"] != null:
+		_refuse(world, target)
 		return
-	if not bool(chosen.get("ready", true)):
+	if float(target["edge"]) > reach:
+		player.approach = {"entity": target["entity"], "stall": 0.0, "fire": fire}
+		return
+	if not bool(target.get("ready", true)):
 		# The nearest thing is a drop still bouncing at the feet: wait for it.
 		return
-	SurvivalTargeting.start_interaction(world, chosen)
+	SurvivalTargeting.start_interaction(world, target)
 
 
 ## Focus and target, set together: the focus is what is offered (refused or

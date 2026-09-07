@@ -1777,7 +1777,11 @@ def test_the_manifest_carries_the_crafting_table_and_every_item_s_gameplay(
     }
     assert document["props"]["pine"]["interactions"][0]["from"] == ["sapling", "grown", "old"]
     assert document["props"]["thorn_bush"]["interactions"][0]["tool"] is None
-    assert [i["verb"] for i in document["props"]["dead_snag"]["interactions"]] == ["chop", "gather"]
+    assert [i["verb"] for i in document["props"]["dead_snag"]["interactions"]] == [
+        "chop",
+        "gather",
+        "burn",
+    ]
     assert "recipe" not in document["gameplay"]["campfire"]
     forage = document["ground"]["forage"]
     assert package.forage is not None

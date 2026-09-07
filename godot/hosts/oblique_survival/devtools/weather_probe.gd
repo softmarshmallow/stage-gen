@@ -96,6 +96,8 @@ func _init() -> void:
 	for entity: Dictionary in world.entities:
 		if str(entity.get("prop_id", "")) == "campfire":
 			entity["state"] = "lit"
+			# What draws the flame is the burning, not the look.
+			entity["burn"] = 1e6
 			world.light["x"] = float(entity["x"])
 			world.light["z"] = float(entity["z"])
 			break

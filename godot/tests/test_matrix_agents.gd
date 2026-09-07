@@ -123,8 +123,7 @@ func _t13_freezing_latch(h: TestHarness, world: SurvivalWorld) -> void:
 
 	# A fire clears the latch, and losing it sets the line again: this is an
 	# edge, not a level.
-	var fire := TestFixtures.prop(world, "c1", "campfire", "unlit", 0.0, 2.0)
-	fire["state"] = "lit"
+	var fire := TestFixtures.prop(world, "c1", "campfire", "lit", 0.0, 2.0)
 	world.entities.append(fire)
 	SurvivalVitalsSystem.update(world, STEP)
 	h.assert_eq(world.freezing, false, "a lit fire in reach is still freezing")

@@ -92,6 +92,8 @@ const SHOT_SPECS := {
 	"winter-coast": {"mode": "play", "time": "noon"},
 	"ring": {"mode": "play", "time": "noon"},
 	"gallery": {"mode": "gallery", "time": "noon"},
+	"burning-noon": {"mode": "play", "time": "noon"},
+	"burning-night": {"mode": "play", "time": "night"},
 }
 ## The shot order `--capture all` writes, which is the reference sheet's order.
 const SHOTS := [
@@ -99,6 +101,7 @@ const SHOTS := [
 	"winter-noon", "winter-night",
 	"storm-noon", "storm-strike",
 	"junction", "coast", "winter-coast", "ring", "gallery",
+	"burning-noon", "burning-night",
 ]
 ## The names the first reference set used, kept so an older command still runs.
 const SHOT_ALIASES := {"noon": "camp-noon", "night": "camp-night", "storm": "storm-noon"}
@@ -274,6 +277,21 @@ func _run_shot(main, shot: String) -> void:
 			_teleport(main, mid.x, mid.y)
 			main.advance(3.0)
 			main.advance(1.0)
+		"burning-noon":
+			# A wood set alight, at noon: the flames are the height of the
+			# things under them, and the trees still stand in their own look
+			# until the fire has finished with them.
+			_clear_weather(main)
+			_set_the_wood_alight(main)
+			main.advance(1.0)
+		"burning-night":
+			# The same wood in the dark, where the one light rule shows: the
+			# nearest burning thing is the pool everything is lit by.
+			_clear_weather(main)
+			main.set_clock(0.73)
+			main.advance(2.0)
+			_set_the_wood_alight(main)
+			main.advance(1.0)
 		"coast":
 			# The first water south of the spawn, found by walking -z on the
 			# mask; standing 1.75 m short of it puts the water, the shore rim
@@ -361,6 +379,26 @@ func _teleport(main, x: float, z: float) -> void:
 	var world = main.get_world()
 	world.player.x = x
 	world.player.z = z
+
+## Set the nearest few trees and bushes alight, the way a torch would: `burn`
+## with the seconds the thing's own height buys, its look untouched. What the
+## player does with a torch, done from here so the shot is repeatable.
+func _set_the_wood_alight(main) -> void:
+	var world = main.get_world()
+	var near: Array = []
+	for entity: Dictionary in world.entities:
+		if String(entity.get("kind", "")) != "prop":
+			continue
+		if SurvivalTargeting.fire_target(world, entity) == null:
+			continue
+		var dx: float = float(entity["x"]) - world.player.x
+		var dz: float = float(entity["z"]) - world.player.z
+		near.append({"entity": entity, "d": dx * dx + dz * dz})
+	near.sort_custom(func(a, b): return float(a["d"]) < float(b["d"]))
+	for i in mini(5, near.size()):
+		var entity: Dictionary = (near[i] as Dictionary)["entity"]
+		entity["burn"] = SurvivalTargeting.burn_seconds_for(world, entity)
+		entity["dirty"] = true
 
 ## Put the campfire out after verdict lit it: state `unlit`, burn 0.
 func _unlight_campfire(main) -> void:

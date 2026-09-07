@@ -137,15 +137,13 @@ func _the_dark_is_cold(h: TestHarness, w: SurvivalWorld) -> void:
 	h.assert_near(w.player.warmth, 100.0, 1e-9, "a lit torch is a light: no dark")
 	_reset(w, "summer")
 	w.night = 1.0
-	var fire := TestFixtures.prop(w, "c3", "campfire", "unlit", 0.0, 5.0)
-	fire["state"] = "lit"
+	var fire := TestFixtures.prop(w, "c3", "campfire", "lit", 0.0, 5.0)
 	w.entities.append(fire)
 	_run_seconds(w, 10.0)
 	h.assert_near(w.player.warmth, 100.0, 1e-9, "a lit fire 5 m off is within its 6 m light: no dark, and no heat either")
 	_reset(w, "summer")
 	w.night = 1.0
-	var far := TestFixtures.prop(w, "c4", "campfire", "unlit", 0.0, 7.0)
-	far["state"] = "lit"
+	var far := TestFixtures.prop(w, "c4", "campfire", "lit", 0.0, 7.0)
 	w.entities.append(far)
 	_run_seconds(w, 10.0)
 	h.assert_near(w.player.warmth, 96.0, 0.01, "7 m off is past the light: the dark again")
@@ -182,8 +180,7 @@ func _the_dark_is_cold(h: TestHarness, w: SurvivalWorld) -> void:
 func _too_hot_at_a_full_bar(h: TestHarness, w: SurvivalWorld) -> void:
 	# `world.hot`: inside the fire's heat with nothing to gain.
 	_reset(w, "summer")
-	var fire := TestFixtures.prop(w, "c5", "campfire", "unlit", 0.0, 2.0)
-	fire["state"] = "lit"
+	var fire := TestFixtures.prop(w, "c5", "campfire", "lit", 0.0, 2.0)
 	w.entities.append(fire)
 	_run_seconds(w, 1.0)
 	h.assert_true(w.hot, "at full warmth inside the heat radius is too hot")
@@ -194,7 +191,9 @@ func _too_hot_at_a_full_bar(h: TestHarness, w: SurvivalWorld) -> void:
 	w.player.z = 7.0
 	_run_seconds(w, 1.0)
 	h.assert_false(w.hot, "nor 5 m off, past the heat")
+	# Out: the look and the burning together, the way the clock puts it out.
 	fire["state"] = "unlit"
+	fire["burn"] = 0.0
 	w.player.z = 0.0
 	_run_seconds(w, 1.0)
 	h.assert_false(w.hot, "nor at an unlit fire")
@@ -205,8 +204,7 @@ func _a_fire_gives_warmth_back(h: TestHarness, w: SurvivalWorld) -> void:
 	# added, and the drain still applies.
 	_reset(w, "winter")
 	w.player.warmth = 50.0
-	var fire := TestFixtures.prop(w, "c1", "campfire", "unlit", 0.0, 2.0)
-	fire["state"] = "lit"
+	var fire := TestFixtures.prop(w, "c1", "campfire", "lit", 0.0, 2.0)
 	w.entities.append(fire)
 	_run_seconds(w, 1.0)
 	h.assert_near(w.player.warmth, 57.5, 0.02, "inside the heat radius warmth returns at 8 less the drain")
@@ -214,8 +212,7 @@ func _a_fire_gives_warmth_back(h: TestHarness, w: SurvivalWorld) -> void:
 	# Step outside the radius and the fire stops counting.
 	_reset(w, "winter")
 	w.player.warmth = 50.0
-	var far := TestFixtures.prop(w, "c2", "campfire", "unlit", 0.0, 4.0)
-	far["state"] = "lit"
+	var far := TestFixtures.prop(w, "c2", "campfire", "lit", 0.0, 4.0)
 	w.entities.append(far)
 	_run_seconds(w, 1.0)
 	h.assert_near(w.player.warmth, 49.5, 0.02, "4 m away is past the 3.5 m heat radius")

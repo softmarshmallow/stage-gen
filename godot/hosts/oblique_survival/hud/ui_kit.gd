@@ -699,13 +699,14 @@ static func slot_capacity(manifest: Dictionary, equipment: Dictionary, base_slot
 
 
 ## The verb the Use button carries for an item, or "" when using it does
-## nothing (a material). A tool, a cloak or a pack is worn.
+## nothing (a material). A cloak or a pack is worn, and so is a tool with
+## nothing else to do — the torch is a tool the `burn` verb wants AND a thing
+## the button lights, and what it does wins (`SurvivalInventory.equip_kind`
+## makes the same call for the hand).
 static func use_verb(spec: Dictionary) -> String:
-	if spec.get("tool", null) is Dictionary:
-		return "wear"
 	var use: Variant = spec.get("use", null)
 	if not (use is Dictionary):
-		return ""
+		return "wear" if spec.get("tool", null) is Dictionary else ""
 	var block: Dictionary = use
 	match str(block.get("kind", "")):
 		"consume":

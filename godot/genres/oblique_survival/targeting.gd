@@ -187,6 +187,10 @@ static func target_for(world: SurvivalWorld, entity: Dictionary) -> Variant:
 		return _take_target(entity, _centre_distance(player, entity), true)
 	if kind != "prop":
 		return null
+	if float(entity.get("burn", 0.0)) > 0.0:
+		# A thing on fire is nobody's target: not the axe's, and not a second
+		# torch's. It is doing the one thing it has left to do.
+		return null
 	var spec: Variant = prop_spec(world, entity)
 	if spec == null:
 		return null
@@ -235,7 +239,7 @@ static func _prop_target(world: SurvivalWorld, entity: Dictionary, spec: Variant
 			disabled = "needs a %s" % SurvivalInventory.item_name(world, str(tool_block.get("item_id", "")))
 	# The season's barren list: the bush has nothing on it while it lasts.
 	var season_spec: Dictionary = world.season["spec"]
-	if disabled == null and verb != "light":
+	if disabled == null and verb != "light" and verb != "burn":
 		var barren: Variant = season_spec.get("barren", null)
 		if barren != null and (barren as Array).has(str(entity.get("prop_id", ""))):
 			var label := str(season_spec.get("display_name", ""))
@@ -251,6 +255,59 @@ static func _prop_target(world: SurvivalWorld, entity: Dictionary, spec: Variant
 ## Seconds after a drop settles during which it is still "the yield": taken
 ## before anything else in the notice radius. `age` is zeroed when it settles.
 const FRESH_SECONDS := 1.5
+
+## How long a thing burns, per metre of the thing. Fire is the one interaction
+## whose length nobody authors: a pine is a bonfire for twenty seconds and a
+## tuft of grass flares for three, and the difference is the size the package
+## already states. The floor is there so the smallest thing still reads as
+## having caught rather than as having flickered.
+const BURN_SECONDS_PER_METRE := 4.0
+const BURN_SECONDS_FLOOR := 3.0
+
+
+## The fire offer on one entity: what the fire key would do to it, whatever
+## the general offer is. The `light` and `burn` verbs are the two ways a thing
+## takes fire, and they are on their own key because a pine that answers the
+## axe must still answer the torch — `target_for` speaks for one interaction
+## only, and on a tree that one is the chop.
+static func fire_target(world: SurvivalWorld, entity: Variant) -> Variant:
+	if not (entity is Dictionary):
+		return null
+	var row := entity as Dictionary
+	if str(row.get("kind", "")) != "prop" or float(row.get("burn", 0.0)) > 0.0:
+		return null
+	var spec: Variant = prop_spec(world, row)
+	if spec == null:
+		return null
+	var rows: Variant = (spec as Dictionary).get("interactions", null)
+	if rows == null:
+		return null
+	var state := str(row.get("state", ""))
+	var edge := _centre_distance(world.player, row) - float(row.get("radius", 0.0))
+	for block: Dictionary in (rows as Array):
+		var verb := str(block.get("verb", ""))
+		if verb != "light" and verb != "burn":
+			continue
+		var from: Variant = block.get("from", null)
+		if from == null or not (from as Array).has(state):
+			continue
+		return _prop_target(world, row, spec, block, edge)
+	return null
+
+
+## How long this thing will burn: its own height, at the rate above.
+static func burn_seconds_for(world: SurvivalWorld, entity: Dictionary) -> float:
+	var spec: Variant = prop_spec(world, entity)
+	var height := 0.0
+	if spec != null:
+		var states: Variant = (spec as Dictionary).get("states", null)
+		if states is Dictionary:
+			var look: Variant = (states as Dictionary).get(str(entity.get("state", "")), null)
+			if look is Dictionary:
+				height = float((look as Dictionary).get("height_meters", 0.0))
+		if height == 0.0:
+			height = float((spec as Dictionary).get("height_meters", 0.0))
+	return maxf(BURN_SECONDS_FLOOR, height * BURN_SECONDS_PER_METRE)
 
 
 ## The focus: the nearest thing that could be acted on, within the notice
@@ -335,9 +392,11 @@ static func start_interaction(world: SurvivalWorld, target: Dictionary) -> void:
 		world.target = null
 		return
 	var block := interaction as Dictionary
-	if str(block.get("verb", "")) == "light":
-		# Instant, no animation, and the fire consumes no fuel.
-		entity["state"] = "lit"
+	var verb := str(block.get("verb", ""))
+	if verb == "light":
+		# Instant, no animation, and the fire consumes no fuel. `light` is the
+		# prop whose lit look IS the fire: it goes to that look at the strike.
+		entity["state"] = block["next_state"]
 		entity["dirty"] = true
 		var campfire: Dictionary = (world.manifest["gameplay"] as Dictionary).get("campfire", {})
 		var burn := float(campfire.get("burn_seconds", 0.0))
@@ -346,6 +405,27 @@ static func start_interaction(world: SurvivalWorld, target: Dictionary) -> void:
 			"type": "puff", "kind": str(block.get("fx", "")), "x": entity["x"], "z": entity["z"],
 		})
 		SurvivalHelpers.say(world, "The fire catches.")
+		return
+	if verb == "burn":
+		# `burn` is the other one: the thing is fuel, not a fireplace. It keeps
+		# the look it has and stands burning for its own size; what the fire
+		# leaves behind is the interaction's `next_state`, and `timers` puts it
+		# there when the flame dies. The torch is spent in the striking.
+		entity["burn"] = burn_seconds_for(world, entity)
+		entity["dirty"] = true
+		var tool_slot := int(target.get("tool_slot", -1))
+		if tool_slot != -1:
+			SurvivalInventory.wear_tool(world, tool_slot)
+		SurvivalHelpers.emit(world, {
+			"type": "puff", "kind": str(block.get("fx", "")), "x": entity["x"], "z": entity["z"],
+		})
+		# Named the way the label over it names it: by the family the package
+		# gave it, which is the only word a prop has.
+		var spec: Variant = target["spec"]
+		var family := ""
+		if spec != null:
+			family = str((spec as Dictionary).get("family", ""))
+		SurvivalHelpers.say(world, "It catches." if family == "" else "The %s catches." % family)
 		return
 	# Every harvesting verb plays the one authored reach-and-lift.
 	var action := "gather" if states.has("gather") else str(block["verb"])

@@ -55,12 +55,37 @@ outside the scene tree and asks it for the held keys once a frame, which makes
 it poll rather than listen; a test or a capture can feed it keys instead.
 
 Keys, as in the viewer: WASD move, Q/E turn a detent, Space interact, C craft,
-F light, X use (or wear), Z drop, 1-0 and `,` `.` select, G gallery, V verdict,
+F fire (light or burn), X use (or wear), Z drop, 1-0 and `,` `.` select, G gallery, V verdict,
 T weather, K season, L strike, N night, `-`/`=` zoom. And the host's own: Escape
 (or P) opens the pause menu with the how-to-play page, R begins again, F11
 toggles fullscreen, and the mouse does everything below.
 
 ## Playing it
+
+**Fire.** Two verbs, one key. A campfire is **lit** (F): its lit look IS the
+fire, so it goes there at the strike and needs nothing to strike it. Everything
+made of wood or grass is **burned** (F, and a torch in the pack): the tree keeps
+standing and keeps its own look, a flame the height of it stands where it is,
+and when the fire dies the thing drops to what the fire left — a pine and a
+birch and a snag to their stump, a bush to its picked look, grass and reeds to
+their stubble. Every one of those looks is one the prop already draws, which is
+why fire cost the run no new art.
+
+How long a thing burns is the one number nobody authors: its own height, four
+seconds to the metre, floored at three — a pine is a bonfire for twenty-one
+seconds and a tuft flares for three (`SurvivalTargeting.BURN_SECONDS_PER_METRE`).
+A burning thing gives the light and the warmth a campfire gives, is heard as a
+campfire is heard, and is nobody's target while it burns: not the axe's, not a
+second torch's. The torch is spent in the striking — one torch, one fire — and a
+torch is a twig and two tufts of grass, so the cost is the walk.
+
+The fire key asks its own question of the thing in focus. A prop offers one
+interaction at a time and on a pine with an axe in the pack that one is the
+chop, so the label says `chop tree · F burn` and each key does its own thing.
+Which states catch, and what the fire leaves, are the package's
+(`[[props.interactions]] verb = "burn"`); that fire is what does it is the
+verb's.
+
 
 The viewer had no mouse; the game has one, and every panel is built for it.
 
@@ -388,6 +413,8 @@ one into the directory `--out` names, each file named after its shot.
 | `winter-night` | verdict, night | as above at clock 0.73 with a 5 s wait: the look swap surviving the night grade |
 | `storm-noon` | verdict, noon | force summer, `advance(140)`, clock 0.02, force storm, `advance(45)`. The rain veil, splashes, wet decals, the rain wash |
 | `ring` | play, noon | teleport to 3 m south of the first `boulder_ring` set piece in the record: a composition the generator sited, on the meadow, a walk from the camp |
+| `burning-noon` | play, noon | the five nearest burnable things at the camp set alight: a flame per burning thing, each the height of the thing under it, and the props still standing in their own look |
+| `burning-night` | play, night | the same wood in the dark: which fire wins the one light, and how far a burning pine's pool reaches beside the fireplace's |
 | `storm-strike` | verdict, noon | the storm, then `force_strike()` and `advance(2/60)` — and nothing after it, because the flash envelope is read off `time − flash_at` and one more frame would step it. The additive bolt, the sparkle, the trauma |
 | `junction` | play, noon | weather clear, `advance(30)`, the player teleported to (−11.164, −7.083), `advance(3)`, `advance(1)`. The camera settles at (−3.86, 14.74, 0.22). The road mask and its erosion, the carpet cut, the bleed and smudge fields |
 | `coast` | play, noon | as above with the player at (0, −103.5); the camera settles at (7.30, 14.74, −96.20). The coast discard, the shore rim, the water plate and the cliff ray-march |

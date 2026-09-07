@@ -206,26 +206,11 @@ static func place_prop(world: SurvivalWorld, prop_id: String, state: String, x: 
 		"seed": int(float(world.rand.call()) * 1e5), "radius": radius,
 		"hits": 0, "regrow": 0.0, "burn": 0.0, "dirty": false,
 	}
-	if _lit_by_interaction(spec, look):
-		var campfire: Dictionary = (world.manifest["gameplay"] as Dictionary).get("campfire", {})
-		var burn := float(campfire.get("burn_seconds", 0.0))
-		entity["burn"] = burn if burn != 0.0 else 60.0
+	if SurvivalHelpers.lit_look(spec, look):
+		entity["burn"] = SurvivalHelpers.campfire_burn_seconds(world.manifest)
 		SurvivalHelpers.emit(world, {"type": "puff", "kind": "sparkle", "x": x, "z": z})
 	world.entities.append(entity)
 	return entity
-
-
-## Whether a look is the one a `light` interaction leads to: built in it, the
-## thing burns as if it had just been lit.
-static func _lit_by_interaction(spec: Dictionary, look: String) -> bool:
-	var rows: Variant = spec.get("interactions", null)
-	if rows == null:
-		return false
-	for row in (rows as Array):
-		var block := row as Dictionary
-		if str(block.get("verb", "")) == "light" and str(block.get("next_state", "")) == look:
-			return true
-	return false
 
 
 ## Where a built thing's silhouette begins: in front of the player, both

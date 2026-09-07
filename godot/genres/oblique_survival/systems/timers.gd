@@ -58,6 +58,34 @@ static func update(world: SurvivalWorld, dt: float) -> void:
 		if float(entity["burn"]) > 0.0:
 			# The fire's burn is not season-scaled.
 			entity["burn"] = float(entity["burn"]) - dt
-			if float(entity["burn"]) <= 0.0 and entity["state"] == "lit":
-				entity["state"] = "unlit"
-				entity["dirty"] = true
+			if float(entity["burn"]) <= 0.0:
+				_fire_out(world, entity)
+
+
+## The flame dies. What it leaves is the `burn` interaction's `next_state` —
+## the stump under a tree, the picked look under a bush — read from the thing's
+## own contract rather than remembered on the entity, because the look it is
+## burning in is the look that interaction applies from. A prop with no such
+## interaction is the fireplace, and it goes back to unlit the way it always
+## did.
+static func _fire_out(world: SurvivalWorld, entity: Dictionary) -> void:
+	entity["burn"] = 0.0
+	entity["dirty"] = true
+	var spec: Variant = world.prop_spec(entity)
+	var state := str(entity.get("state", ""))
+	if spec != null:
+		var rows: Variant = (spec as Dictionary).get("interactions", null)
+		if rows is Array:
+			for block: Dictionary in (rows as Array):
+				if str(block.get("verb", "")) != "burn":
+					continue
+				var from: Variant = block.get("from", null)
+				if from == null or not (from as Array).has(state):
+					continue
+				entity["state"] = block["next_state"]
+				entity["hits"] = 0
+				var regrow: Variant = block.get("regrow_seconds", null)
+				entity["regrow"] = float(regrow) if regrow != null else 0.0
+				return
+	if state == "lit":
+		entity["state"] = "unlit"

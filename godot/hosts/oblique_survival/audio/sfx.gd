@@ -214,8 +214,8 @@ func play(cue: String, scale: float = 1.0) -> bool:
 	return true
 
 
-## Every frame: how near the nearest lit campfire is, as a hearing level
-## (`hearFire`, :4443-4454).
+## Every frame: how near the nearest burning thing is, as a hearing level
+## (`hearFire`, :4443-4454). A campfire and a burning tree sound the same.
 func hear_fire(world) -> void:
 	var nearest := INF
 	var px := _num(world.player, "x", 0.0)
@@ -224,7 +224,7 @@ func hear_fire(world) -> void:
 		if not (entity is Dictionary):
 			continue
 		var e: Dictionary = entity
-		if e.get("state", "") != "lit" or e.get("kind", "") != "prop":
+		if float(e.get("burn", 0.0)) <= 0.0 or e.get("kind", "") != "prop":
 			continue
 		var dx := float(e.get("x", 0.0)) - px
 		var dz := float(e.get("z", 0.0)) - pz

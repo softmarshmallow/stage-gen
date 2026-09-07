@@ -69,21 +69,27 @@ static func insulation(world: SurvivalWorld) -> float:
 	return 0.0
 
 
-## Which equipment kind an item is worn in: `hand` for a tool, `body` for a
-## `wear` use, `back` for a `carry` use, "" for everything else.
+## Which equipment kind an item is worn in: `body` for a `wear` use, `back` for
+## a `carry` use, `hand` for a tool, "" for everything else.
+##
+## What the item DOES comes first, and only a thing with nothing to do is worn
+## in the hand. The torch is both — it is used to light the way and it is the
+## tool the `burn` verb wants — and if the tool won, X would put it in the hand
+## instead of lighting it.
 static func equip_kind(world: SurvivalWorld, item_id: String) -> String:
 	var spec: Variant = item_spec(world, item_id)
 	if spec == null:
 		return ""
-	if (spec as Dictionary).get("tool", null) != null:
-		return "hand"
 	var use: Variant = (spec as Dictionary).get("use", null)
-	if use is Dictionary:
+	if use is Dictionary and str((use as Dictionary).get("kind", "")) != "":
 		match str((use as Dictionary).get("kind", "")):
 			"wear":
 				return "body"
 			"carry":
 				return "back"
+		return ""
+	if (spec as Dictionary).get("tool", null) != null:
+		return "hand"
 	return ""
 
 

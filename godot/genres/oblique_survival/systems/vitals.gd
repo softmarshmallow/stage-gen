@@ -67,12 +67,16 @@ static func update(world: SurvivalWorld, dt: float) -> void:
 		for entity in world.entities:
 			# Variant compares: two `str()` calls an entity was the whole cost
 			# of a scan that finds at most one lit fire.
-			if entity.get("state", "") != "lit" or entity.get("kind", "") != "prop":
+			if float(entity.get("burn", 0.0)) <= 0.0 or entity.get("kind", "") != "prop":
 				continue
 			var dx: float = float(entity["x"]) - player.x
 			var dz: float = float(entity["z"]) - player.z
 			var distance := sqrt(dx * dx + dz * dz)
-			if distance <= light_radius:
+			# A fire reaches as far as it is big, so a burning wood holds the
+			# dark off from further away than a hearth does.
+			if distance <= maxf(light_radius, SurvivalHelpers.fire_radius(
+					world.manifest,
+					SurvivalHelpers.look_height(world.prop_spec(entity), str(entity.get("state", ""))))):
 				lit = true
 			if heat_radius > 0.0 and distance <= heat_radius:
 				heat = float(fire.get("heat_per_second", 0.0))

@@ -778,7 +778,9 @@ def test_a_yield_says_where_it_goes(tmp_path: Path) -> None:
     root = _source_edit(
         tmp_path / "c", "props.toml", "yields = []", 'yield_to = "hand"\nyields = []'
     )
-    _load_refused(root, "campfire.interactions[0] yields nothing; yield_to has no meaning")
+    # The pine's `burn` is the first interaction in the file that yields
+    # nothing, ahead of the campfire's `light`.
+    _load_refused(root, "pine.interactions[1] yields nothing; yield_to has no meaning")
 
 
 def test_hand_gathering_fills_the_pack_and_a_tool_drops_its_yield(package: Package) -> None:
@@ -852,8 +854,8 @@ def test_the_snag_is_chopped_with_an_axe_and_snapped_by_hand(package: Package) -
     """Two interactions on one prop, in priority order, from explicit states."""
 
     snag = package.prop("dead_snag")
-    assert [i.verb for i in snag.interactions] == ["chop", "gather"]
-    chop, gather = snag.interactions
+    assert [i.verb for i in snag.interactions] == ["chop", "gather", "burn"]
+    chop, gather, _burn = snag.interactions
     assert chop.from_states == ("standing", "leaning", "broken")
     assert chop.tool is not None and chop.tool.required
     assert gather.from_states == ("standing", "leaning")

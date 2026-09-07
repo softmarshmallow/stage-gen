@@ -873,7 +873,20 @@ func _describe_target(world, block: Dictionary) -> String:
 		subject = prop_id.replace("_", " ")
 	if block.get("disabled", null) != null:
 		return "%s %s · %s" % [verb, subject, str(block["disabled"])]
-	return "%s%s %s%s" % [lead, verb, subject, count]
+	return "%s%s %s%s%s" % [lead, verb, subject, count, _fire_aside(world, entity, verb)]
+
+
+## What the fire key would do here, when it is not what the label already says.
+## The offer speaks for one interaction and on a tree with an axe that one is
+## the chop, so without this the torch would be a thing the player had to guess
+## at. Nothing is added when fire IS the offer, or when the thing refuses it.
+func _fire_aside(world, entity: Dictionary, verb: String) -> String:
+	if verb == "light" or verb == "burn":
+		return ""
+	var fire: Variant = SurvivalTargeting.fire_target(world, entity)
+	if not (fire is Dictionary) or (fire as Dictionary)["disabled"] != null:
+		return ""
+	return " · F %s" % str(((fire as Dictionary)["interaction"] as Dictionary).get("verb", ""))
 
 
 ## A thing under the pointer that offers nothing right now: its name alone.

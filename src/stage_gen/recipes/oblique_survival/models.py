@@ -38,7 +38,11 @@ MAX_BIOMES: Final = 4
 FRAME_COUNT: Final = 4
 #: The verbs an interaction may use and a tool may serve. The consumer binds
 #: each to a key; a verb outside this set has no key and is refused offline.
-INTERACTION_VERBS: Final = ("chop", "gather", "mine", "light")
+#: ``light`` sets a prop to its own lit look at the strike (a campfire); ``burn``
+#: sets it alight where it stands and leaves ``next_state`` behind when the fire
+#: dies. Two verbs because they are two things: one prop IS the fire, the other
+#: is fuel.
+INTERACTION_VERBS: Final = ("chop", "gather", "mine", "light", "burn")
 #: Where an interaction's yield goes when the last blow lands. ``hand``: straight
 #: into the pack, the way a tuft of grass or a handful of twigs is simply taken;
 #: ``ground``: dropped at the thing for the player to pick up after, the way a

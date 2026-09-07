@@ -121,3 +121,59 @@ static func describe_season(world) -> String:
 		look,
 		int(round(world.player.warmth)),
 	]
+
+
+## Whether a look is the one a `light` interaction leads to: the prop's own lit
+## look, the one that IS the fire. A thing placed or built in it is burning
+## from the first frame, which is what makes a lit fireplace a light and a
+## warmth without anyone having struck it.
+static func lit_look(spec: Variant, look: String) -> bool:
+	if not (spec is Dictionary):
+		return false
+	var rows: Variant = (spec as Dictionary).get("interactions", null)
+	if not (rows is Array):
+		return false
+	for row: Variant in (rows as Array):
+		if not (row is Dictionary):
+			continue
+		var block := row as Dictionary
+		if str(block.get("verb", "")) == "light" and str(block.get("next_state", "")) == look:
+			return true
+	return false
+
+
+## How long a fireplace burns, from the run's rules.
+static func campfire_burn_seconds(manifest: Dictionary) -> float:
+	var campfire: Variant = (manifest.get("gameplay", {}) as Dictionary).get("campfire", null)
+	var burn := 0.0
+	if campfire is Dictionary:
+		burn = float((campfire as Dictionary).get("burn_seconds", 0.0))
+	return burn if burn != 0.0 else 60.0
+
+
+## How far a burning thing throws its light: twice its own height, and never
+## less than the fireplace's authored radius. Fire is the one thing in the
+## world whose size the player sets — a torched pine is a bonfire and a tuft is
+## a flare — and a pool that ignored that would put a hearth-sized ring under a
+## burning wood. `height` is the thing's current look in metres; 0 is the
+## fireplace's own answer.
+static func fire_radius(manifest: Dictionary, height: float) -> float:
+	var campfire: Variant = (manifest.get("gameplay", {}) as Dictionary).get("campfire", null)
+	var authored := 0.0
+	if campfire is Dictionary:
+		authored = float((campfire as Dictionary).get("light_radius_meters", 0.0))
+	if authored == 0.0:
+		authored = 6.0
+	return maxf(authored, height * 2.0)
+
+
+## The height of the look a prop entity is standing in, in metres, or 0.
+static func look_height(spec: Variant, state: String) -> float:
+	if not (spec is Dictionary):
+		return 0.0
+	var states: Variant = (spec as Dictionary).get("states", null)
+	if states is Dictionary:
+		var look: Variant = (states as Dictionary).get(state, null)
+		if look is Dictionary:
+			return float((look as Dictionary).get("height_meters", 0.0))
+	return float((spec as Dictionary).get("height_meters", 0.0))
