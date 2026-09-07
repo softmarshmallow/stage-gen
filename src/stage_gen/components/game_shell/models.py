@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import re
 from pathlib import PurePosixPath
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, ValidationInfo, field_validator, model_validator
 
@@ -62,8 +62,8 @@ from stage_gen.components.game_shell.layouts import (
     TITLE_SCREEN_LAYOUT,
 )
 
-GAME_SHELL_SCHEMA_VERSION = 1
-GAME_SHELL_KIND = "game-shell-v1"
+GAME_SHELL_SCHEMA_VERSION = 2
+GAME_SHELL_KIND = "game-shell-v2"
 
 #: Licences whose terms permit redistributing the font file itself, which is what
 #: publishing a run does. A face under any other licence is refused offline rather than
@@ -71,6 +71,11 @@ GAME_SHELL_KIND = "game-shell-v1"
 REDISTRIBUTABLE_FONT_LICENSES: tuple[str, ...] = ("OFL-1.1", "Apache-2.0", "CC0-1.0")
 
 FONT_SUFFIXES = frozenset({".otf", ".ttf"})
+#: A clip's reroll counter. A video route accepts no seed, so the only way to ask for a
+#: second draw of the same brief is to say so, and the ceiling keeps a typo from buying
+#: a hundred of them.
+FIRST_SHELL_TAKE = 1
+MAX_SHELL_TAKE = 12
 REFERENCE_SUFFIXES = frozenset({".jpeg", ".jpg", ".png", ".webp"})
 
 #: A prompt that asks for lettering gets lettering, and a model's lettering is the one
@@ -199,8 +204,13 @@ class ShellPlate(PersistedContractModel):
 
     It authors no geometry and no lettering. ``alpha_policy`` says whether the plate is a
     picture with no holes or a shape on air, and the layout says where it must stay quiet.
+
+    ``mode`` is required and has no default. A clip is not a still with a flag set: it is
+    bought from a different route, gated on things a picture has no answer for, and played
+    rather than drawn, so the document says which it is before anything reads it.
     """
 
+    mode: Literal["still"]
     alpha_policy: Literal["fully_opaque_v1", "transparent_exterior_v1"]
     reference_ids: list[str] = Field(min_length=1, max_length=16)
     prompt: str
@@ -215,6 +225,41 @@ class ShellPlate(PersistedContractModel):
     @classmethod
     def validate_prompt(cls, value: str) -> str:
         return _clean_prompt(value, "shell plate prompt")
+
+
+class ShellClip(PersistedContractModel):
+    """One generated moving picture, standing where a still would.
+
+    It carries no ``alpha_policy`` because video has no alpha, and no resolution because a
+    package names a layout and never writes a rectangle. It carries no length either: how
+    long the shot runs is the shot's business, and how long a clip the bound route will
+    make is that route's, declared on its binding and refused while planning.
+
+    ``take`` is the reroll. A video route accepts no seed, so two identical asks are
+    independent draws and a second one is bought deliberately - the same audition-then-adopt
+    lever the soundtrack and the sound effects already use.
+    """
+
+    mode: Literal["clip"]
+    reference_ids: list[str] = Field(min_length=1, max_length=16)
+    prompt: str
+    take: int = Field(default=FIRST_SHELL_TAKE, ge=FIRST_SHELL_TAKE, le=MAX_SHELL_TAKE)
+
+    @field_validator("reference_ids")
+    @classmethod
+    def validate_reference_ids(cls, value: list[str]) -> list[str]:
+        unique_values(value, "shell clip reference_ids")
+        return value
+
+    @field_validator("prompt")
+    @classmethod
+    def validate_prompt(cls, value: str) -> str:
+        return _clean_prompt(value, "shell clip prompt")
+
+
+#: What an opening shot may put on the screen. Discriminated on ``mode`` so a reader
+#: never has to guess which of the two it is holding.
+type ShotPlate = Annotated[ShellPlate | ShellClip, Field(discriminator="mode")]
 
 
 class BackdropLayer(PersistedContractModel):
@@ -248,18 +293,24 @@ class OpeningShot(PersistedContractModel):
     """
 
     shot_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)
-    plate: ShellPlate
+    plate: ShotPlate
     move: Literal["hold", "push_in", "pull_out", "pan_left", "pan_right"] = "hold"
     seconds: float = Field(gt=0.4, le=30.0)
     card: str | None = None
     out_transition: Literal["cut", "dissolve", "wipe"] = "cut"
 
-    @field_validator("plate")
-    @classmethod
-    def validate_plate_is_opaque(cls, value: ShellPlate) -> ShellPlate:
-        if value.alpha_policy != OPAQUE_ALPHA_POLICY:
-            raise ValueError("an opening shot fills the screen, so its plate is fully opaque")
-        return value
+    @model_validator(mode="after")
+    def validate_plate_suits_the_shot(self) -> OpeningShot:
+        if isinstance(self.plate, ShellPlate):
+            if self.plate.alpha_policy != OPAQUE_ALPHA_POLICY:
+                raise ValueError("an opening shot fills the screen, so its plate is fully opaque")
+            return self
+        if self.move != "hold":
+            raise ValueError(
+                f"shot {self.shot_id} moves the camera over a clip that already has one; "
+                "a clip shot is held"
+            )
+        return self
 
     @field_validator("card")
     @classmethod
@@ -277,6 +328,14 @@ class Opening(PersistedContractModel):
 
     layout: Literal["opening_16x9_v1"]
     shots: list[OpeningShot] = Field(min_length=1, max_length=24)
+    #: How the last shot gives way to whatever comes next. Three of the four are
+    #: presentation the host owns and cost nothing to declare. ``match_title`` is the
+    #: one that is a claim about the picture - that the cinematic ends on the screen
+    #: the player is about to be looking at - so it is the one that is measured, and
+    #: it is refused offline when there is no title screen to match.
+    ending: Literal["cut_to_black", "fade_to_black", "hold_last_frame", "match_title"] = (
+        "cut_to_black"
+    )
     skippable: bool = True
     music_track: str | None = Field(default=None, pattern=SNAKE_ID_PATTERN, max_length=96)
 
@@ -378,8 +437,8 @@ class GameShell(PersistedContractModel):
     game's name — must declare the typeface it is set in.
     """
 
-    schema_version: Literal[1]
-    kind: Literal["game-shell-v1"]
+    schema_version: Literal[2]
+    kind: Literal["game-shell-v2"]
     game_id: str = Field(pattern=PACKAGE_ID_PATTERN, max_length=96)
     revision: int = Field(ge=1)
     references: list[ShellReference] = Field(min_length=1, max_length=32)
@@ -401,10 +460,16 @@ class GameShell(PersistedContractModel):
             raise ValueError("a shell document declares at least one screen")
 
         declared = {entry.reference_id for entry in self.references}
-        for label, plate in self.plates():
-            unknown = sorted(set(plate.reference_ids) - declared)
+        for label, reference_ids in self.reference_users():
+            unknown = sorted(set(reference_ids) - declared)
             if unknown:
                 raise ValueError(f"{label} names undeclared references {unknown}")
+
+        if self.opening is not None and self.opening.ending == "match_title" and self.title is None:
+            raise ValueError(
+                "the opening ends on match_title and this shell declares no title screen, "
+                "so there is nothing for its last frame to be measured against"
+            )
 
         if self.composited_text() and self.typeface is None:
             raise ValueError(
@@ -414,12 +479,19 @@ class GameShell(PersistedContractModel):
         return self
 
     def plates(self) -> tuple[tuple[str, ShellPlate], ...]:
-        """Every generated picture the document declares, with the label a refusal uses."""
+        """Every generated *still* the document declares, with the label a refusal uses.
+
+        Stills only, deliberately: everything downstream of this joins a role to a
+        ``shell/<role>.png``, and a clip has no such file. Clips come back from
+        ``clips()``, and anything that needs both asks ``reference_users()``.
+        """
 
         found: list[tuple[str, ShellPlate]] = []
         if self.opening is not None:
             found.extend(
-                (f"opening.shots.{shot.shot_id}", shot.plate) for shot in self.opening.shots
+                (f"opening.shots.{shot.shot_id}", shot.plate)
+                for shot in self.opening.shots
+                if isinstance(shot.plate, ShellPlate)
             )
         if self.title is not None:
             found.extend(
@@ -430,6 +502,30 @@ class GameShell(PersistedContractModel):
         if self.loading is not None and isinstance(self.loading.backdrop, ShellPlate):
             found.append(("loading.backdrop", self.loading.backdrop))
         return tuple(found)
+
+    def clips(self) -> tuple[tuple[str, ShellClip], ...]:
+        """Every generated clip the document declares, with the shot that holds it."""
+
+        if self.opening is None:
+            return ()
+        return tuple(
+            (f"opening.shots.{shot.shot_id}", shot.plate)
+            for shot in self.opening.shots
+            if isinstance(shot.plate, ShellClip)
+        )
+
+    def reference_users(self) -> tuple[tuple[str, tuple[str, ...]], ...]:
+        """Every generated thing and the references it names, stills and clips alike.
+
+        The reference check has to see both or a clip could name a reference the document
+        never declared and nothing would say so until the provider was already being paid.
+        """
+
+        named: list[tuple[str, tuple[str, ...]]] = [
+            (label, tuple(plate.reference_ids)) for label, plate in self.plates()
+        ]
+        named.extend((label, tuple(clip.reference_ids)) for label, clip in self.clips())
+        return tuple(named)
 
     def composited_text(self) -> tuple[str, ...]:
         """Every string the host sets in the typeface, in the order it would be read.
@@ -468,24 +564,28 @@ def load_game_shell_bytes(data: bytes) -> GameShell:
 
 
 __all__ = [
+    "BackdropLayer",
+    "FIRST_SHELL_TAKE",
     "FONT_SUFFIXES",
     "GAME_SHELL_KIND",
     "GAME_SHELL_SCHEMA_VERSION",
-    "LOADING_SCREEN_LAYOUT",
-    "OPENING_LAYOUT",
-    "REDISTRIBUTABLE_FONT_LICENSES",
-    "SHOT_MOVES",
-    "SHOT_TRANSITIONS",
-    "TITLE_SCREEN_LAYOUT",
-    "BackdropLayer",
     "GameShell",
+    "load_game_shell_bytes",
+    "LOADING_SCREEN_LAYOUT",
     "LoadingBackdropBinding",
     "LoadingScreen",
+    "MAX_SHELL_TAKE",
     "Opening",
+    "OPENING_LAYOUT",
     "OpeningShot",
+    "REDISTRIBUTABLE_FONT_LICENSES",
+    "ShellClip",
     "ShellPlate",
     "ShellReference",
     "ShellTypeface",
+    "SHOT_MOVES",
+    "SHOT_TRANSITIONS",
+    "ShotPlate",
+    "TITLE_SCREEN_LAYOUT",
     "TitleScreen",
-    "load_game_shell_bytes",
 ]

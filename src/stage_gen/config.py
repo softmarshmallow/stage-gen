@@ -23,6 +23,7 @@ class CapabilityName(StrEnum):
     MUSIC_GENERATION = "music_generation"
     SOUND_EFFECT_GENERATION = "sound_effect_generation"
     SPEECH_GENERATION = "speech_generation"
+    VIDEO_GENERATION = "video_generation"
 
 
 class TransparencyMode(StrEnum):
@@ -79,6 +80,12 @@ class StageGenConfig(ContractModel):
     sound_effect_model: str = "eleven_text_to_sound_v2"
     speech_model: str = "eleven_v3"
     background_removal_model: str = "fal-ai/birefnet/v2"
+    video_model: str = "google/gemini-omni-flash/v1.1/reference-to-video"
+    #: The Theora-capable encoder a clip is published through. Homebrew's
+    #: current ffmpeg does not link libtheora, and the pinned Godot host plays
+    #: no other video codec, so this names a second, keg-only build rather than
+    #: assuming whatever is first on PATH can do it.
+    theora_ffmpeg_path: str = "/opt/homebrew/opt/ffmpeg@7/bin/ffmpeg"
     transparency_mode: TransparencyMode = DEFAULT_TRANSPARENCY_MODE
     stage_timeout_ms: int = Field(default=1_800_000, gt=0)
     capability_timeout_ms: int = Field(default=600_000, gt=0)
@@ -91,6 +98,7 @@ class StageGenConfig(ContractModel):
         "sound_effect_model",
         "speech_model",
         "background_removal_model",
+        "video_model",
     )
     @classmethod
     def validate_model(cls, value: str) -> str:
@@ -153,6 +161,10 @@ def load_config(
             values, "STAGE_GEN_BACKGROUND_REMOVAL_MODEL", "BACKGROUND_REMOVAL_MODEL"
         )
         or "fal-ai/birefnet/v2",
+        video_model=_first(values, "STAGE_GEN_VIDEO_MODEL", "VIDEO_MODEL")
+        or "google/gemini-omni-flash/v1.1/reference-to-video",
+        theora_ffmpeg_path=_first(values, "STAGE_GEN_THEORA_FFMPEG", "THEORA_FFMPEG")
+        or "/opt/homebrew/opt/ffmpeg@7/bin/ffmpeg",
         transparency_mode=parse_transparency_mode(
             _first(values, "TRANSPARENCY_MODE") or DEFAULT_TRANSPARENCY_MODE,
             "TRANSPARENCY_MODE",
@@ -199,7 +211,10 @@ def assert_capabilities(
             and not config.open_router_api_key
         ):
             missing.append("OPENROUTER_API_KEY")
-        if capability is CapabilityName.BACKGROUND_REMOVAL and not config.fal_key:
+        if (
+            capability in {CapabilityName.BACKGROUND_REMOVAL, CapabilityName.VIDEO_GENERATION}
+            and not config.fal_key
+        ):
             missing.append("FAL_KEY")
         if capability is CapabilityName.NATIVE_IMAGE_GENERATION and not config.openai_api_key:
             missing.append("OPENAI_API_KEY")

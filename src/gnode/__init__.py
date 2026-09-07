@@ -113,8 +113,10 @@ from gnode.modalities.music.models import MusicOutputFormat
 from gnode.modalities.signatures import (
     assert_audio_signature,
     assert_image_signature,
+    assert_video_signature,
     normalize_audio_media_type,
     normalize_media_type,
+    normalize_video_media_type,
 )
 from gnode.modalities.sound_effect import (
     ProviderSoundEffect,
@@ -161,6 +163,16 @@ from gnode.modalities.tool_loop import (
     ToolLoopTraceEntry,
     ToolResult,
     ToolSpec,
+)
+from gnode.modalities.video import (
+    ProviderVideo,
+    VideoGenerationRequest,
+    VideoGenerationResult,
+    VideoGenerationService,
+    VideoModelV1,
+    VideoOutputFormat,
+    VideoReference,
+    VideoResolution,
 )
 from gnode.node_types import (
     NodePolicy,
@@ -269,6 +281,7 @@ __all__ = [
     "assert_media_type",
     "assert_safe_path_segment",
     "assert_text_payload",
+    "assert_video_signature",
     "atomic_write_bundle",
     "atomic_write_bytes",
     "atomic_write_json",
@@ -357,6 +370,7 @@ __all__ = [
     "normalize_artifact_media_type",
     "normalize_audio_media_type",
     "normalize_media_type",
+    "normalize_video_media_type",
     "OPERATION_PATTERN",
     "PAYLOAD_KIND_PATTERN",
     "PersistedContractModel",
@@ -376,6 +390,7 @@ __all__ = [
     "ProviderSpeech",
     "ProviderStructuredOutput",
     "ProviderToolLoopStep",
+    "ProviderVideo",
     "record_artifact_rights",
     "record_artifact_rights_async",
     "redact_secrets",
@@ -448,6 +463,13 @@ __all__ = [
     "validate_optional_number",
     "validate_optional_timeout",
     "ValidationResult",
+    "VideoGenerationRequest",
+    "VideoGenerationResult",
+    "VideoGenerationService",
+    "VideoModelV1",
+    "VideoOutputFormat",
+    "VideoReference",
+    "VideoResolution",
     "ViewArchetype",
     "write_artifact_bundle_with_provenance",
     "write_artifact_bundle_with_provenance_async",

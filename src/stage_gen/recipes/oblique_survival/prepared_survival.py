@@ -44,11 +44,17 @@ from gnode import (
     ToolLoopRequest,
     ToolLoopService,
     ToolResult,
+    VideoGenerationService,
     inspect_image,
     write_artifact_with_provenance_async,
 )
 from stage_gen.canonical import content_sha256
 from stage_gen.components.game_shell.nodes import (
+    SHELL_CLIP_GENERATE,
+    SHELL_CLIP_REVIEW,
+    SHELL_CLIP_TRANSCODE,
+    SHELL_CLIP_VALIDATE,
+    SHELL_OPENING_ENDING,
     SHELL_PLATE_GENERATE,
     SHELL_PLATE_REVIEW,
     SHELL_PLATE_VALIDATE,
@@ -609,6 +615,8 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
         tool_loop: ToolLoopService[dict[str, object]] | None = None,
         music: MusicGenerationService | None = None,
         sounds: SoundEffectGenerationService | None = None,
+        video: VideoGenerationService | None = None,
+        theora_ffmpeg: str | None = None,
     ) -> None:
         self.package = package
         self.images = images
@@ -616,6 +624,11 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
         self.tool_loop = tool_loop
         self.music = music
         self.sounds = sounds
+        self.video = video
+        #: The Theora-capable encoder a clip is published through, injected because the
+        #: build that measures a clip and the build that can write Ogg Theora are not
+        #: the same one on a current machine.
+        self.theora_ffmpeg = theora_ffmpeg
         self._plate: tuple[ImageReference, ...] | None = None
         self._ui: UiAtlasHandlers | None = None
         self._shell: ShellHandlers | None = None
@@ -696,6 +709,11 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
             (SHELL_PLATE_GENERATE, self._shell_generate),
             (SHELL_PLATE_VALIDATE, self._shell_validate),
             (SHELL_PLATE_REVIEW, self._shell_review),
+            (SHELL_CLIP_GENERATE, self._shell_clip_generate),
+            (SHELL_CLIP_VALIDATE, self._shell_clip_validate),
+            (SHELL_CLIP_TRANSCODE, self._shell_clip_publish),
+            (SHELL_CLIP_REVIEW, self._shell_clip_review),
+            (SHELL_OPENING_ENDING, self._shell_opening_ending),
             (SHELL_TYPEFACE_PUBLISH, self._shell_typeface),
             (WORLD_LAYOUT, self._world_layout),
             (PACKAGE_MANIFEST, self._package_manifest),
@@ -881,6 +899,8 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
                 image_service=self._require_images(),
                 structured_service=self._require_structured(),
                 provider_call=self._shell_provider_call,
+                video_service=self.video,
+                theora_ffmpeg=self.theora_ffmpeg,
             )
         return self._shell
 
@@ -892,6 +912,21 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
 
     async def _shell_review(self, node: Node) -> NodeExecutionResult:
         return await self._shell_handlers().review(node)
+
+    async def _shell_clip_generate(self, node: Node) -> NodeExecutionResult:
+        return await self._shell_handlers().generate_clip(node)
+
+    async def _shell_clip_validate(self, node: Node) -> NodeExecutionResult:
+        return await self._shell_handlers().validate_clip(node)
+
+    async def _shell_clip_publish(self, node: Node) -> NodeExecutionResult:
+        return await self._shell_handlers().publish_clip(node)
+
+    async def _shell_clip_review(self, node: Node) -> NodeExecutionResult:
+        return await self._shell_handlers().review_clip(node)
+
+    async def _shell_opening_ending(self, node: Node) -> NodeExecutionResult:
+        return await self._shell_handlers().measure_ending(node)
 
     async def _shell_typeface(self, node: Node) -> NodeExecutionResult:
         return await self._shell_handlers().publish_typeface(node)

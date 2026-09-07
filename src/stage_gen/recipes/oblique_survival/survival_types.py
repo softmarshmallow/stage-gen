@@ -33,6 +33,7 @@ REVIEW_FAMILIES: Final = ("props", "ground", "actors", "fx", "seasons")
 TYPE_PREFIX: Final = "2d/obliqueview/survival"
 IMAGE_FEATURES: Final = ("transparent_background", "reference_images")
 STRUCTURED_FEATURES: Final = ("structured_output", "image_input")
+VIDEO_FEATURES: Final = ("reference_images",)
 TOOL_LOOP_FEATURES: Final = ("tool_use", "image_input")
 MUSIC_FEATURES: Final = ("instrumental_loop",)
 #: The bolt sheet's four quarters have no authored meaning; a strike picks one.
@@ -57,6 +58,7 @@ class ObliqueSurvivalOperationKind(StrEnum):
     TOOL_LOOP = "tool_loop"
     MUSIC_GENERATION = "music_generation"
     SOUND_EFFECT_GENERATION = "sound_effect_generation"
+    VIDEO_GENERATION = "video_generation"
 
 
 def _local(
@@ -374,6 +376,7 @@ __all__ = [
     "SOURCE_LOCK",
     "STRIKE_CELL_KINDS",
     "STRUCTURED_FEATURES",
+    "VIDEO_FEATURES",
     "TEMPLATES_DRAW",
     "TOOL_LOOP_FEATURES",
     "TYPE_PREFIX",

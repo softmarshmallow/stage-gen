@@ -26,10 +26,11 @@ from gnode import (
     SpeechGenerationService,
     StructuredGenerationService,
     ToolLoopService,
+    VideoGenerationService,
     inspect_image,
 )
 from gnode.providers.elevenlabs import ElevenLabsSoundEffectBackend, ElevenLabsSpeechBackend
-from gnode.providers.fal import FalBackgroundRemovalBackend
+from gnode.providers.fal import FAL_VIDEO_MODEL, FalBackgroundRemovalBackend, FalVideoBackend
 from gnode.providers.openai import OpenAIImageBackend
 from gnode.providers.openrouter import (
     OpenRouterImageBackend,
@@ -53,6 +54,7 @@ from stage_gen.identity import (
     STAGE_GEN_TOOL,
     STRUCTURED_GENERATION_COMPONENT,
     TOOL_LOOP_COMPONENT,
+    VIDEO_GENERATION_COMPONENT,
 )
 from stage_gen.media import data_url
 
@@ -144,6 +146,21 @@ def create_background_removal_service(
     return BackgroundRemovalService(
         FalBackgroundRemovalBackend(api_key=api_key, model=model, base_url=base_url),
         component=BACKGROUND_REMOVAL_COMPONENT,
+        tool=STAGE_GEN_TOOL,
+        retry_policy=retry_policy,
+    )
+
+
+def create_video_service(
+    *,
+    api_key: str,
+    model: str = FAL_VIDEO_MODEL,
+    base_url: str = "https://fal.run",
+    retry_policy: RetryPolicy | None = None,
+) -> VideoGenerationService:
+    return VideoGenerationService(
+        FalVideoBackend(api_key=api_key, model=model, base_url=base_url),
+        component=VIDEO_GENERATION_COMPONENT,
         tool=STAGE_GEN_TOOL,
         retry_policy=retry_policy,
     )

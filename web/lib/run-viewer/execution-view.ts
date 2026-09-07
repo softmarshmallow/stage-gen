@@ -131,7 +131,7 @@ export const EXECUTION_NODE_STATES: readonly ExecutionNodeState[] = [
 ];
 
 export type ArtifactDisplay =
-  "image" | "audio" | "data" | "text" | "motion_atlas";
+  "image" | "audio" | "data" | "text" | "motion_atlas" | "video";
 
 export interface ExecutionViewMotion {
   readonly frameCount: number;
@@ -162,6 +162,7 @@ export type ViewArchetype =
   | "judge"
   | "music"
   | "sound"
+  | "video"
   | "matte"
   | "transform"
   | "validate"
@@ -175,6 +176,7 @@ export const VIEW_ARCHETYPES: readonly ViewArchetype[] = [
   "judge",
   "music",
   "sound",
+  "video",
   "matte",
   "transform",
   "validate",
@@ -462,7 +464,8 @@ function artifact(value: unknown, label: string): ExecutionViewArtifact {
     display !== "audio" &&
     display !== "data" &&
     display !== "text" &&
-    display !== "motion_atlas"
+    display !== "motion_atlas" &&
+    display !== "video"
   ) {
     throw new Error(`${label}.display is invalid`);
   }

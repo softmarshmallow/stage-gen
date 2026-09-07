@@ -31,6 +31,7 @@ from typing import Any, Final, NotRequired, Protocol, TypedDict, cast
 from PIL import Image
 
 from stage_gen.components.game_shell.nodes import (
+    document_clip_roles,
     document_plate_roles,
     shell_manifest_block,
     shell_typeface_ref,
@@ -47,7 +48,11 @@ from stage_gen.recipes.oblique_survival.models import (
 )
 
 SCHEMA_VERSION: Final = 1
-MANIFEST_KIND: Final = "oblique-survival-manifest-v2"
+#: Bumped to v3 by the clip plate: a shot's plate now says which kind it is, and a
+#: clip names an Ogg rather than a PNG. A v2 host would hand that to its texture
+#: loader and draw a black frame with no warning, which is what the kind check is
+#: there to stop.
+MANIFEST_KIND: Final = "oblique-survival-manifest-v3"
 #: The seam every actor gets. A billboard that moves cannot be handed a skirt
 #: decal laid at layout time or a patch of earth painted into its cutout: the
 #: first would stay behind, the second would travel with it over water and
@@ -1857,6 +1862,13 @@ def _shell_block(package: Package, run_dir: Path) -> dict[str, object] | None:
         if not _present(run_dir / f"shell/{role.role}.png"):
             return None
         if not _present(run_dir / f"shell/{role.role}.validation.json"):
+            return None
+    for clip_role in document_clip_roles(package.shell):
+        # The published clip, not the response: a block that named the mp4 would bind
+        # the host to a container it cannot open.
+        if not _present(run_dir / f"shell/{clip_role.role}.clip.ogv"):
+            return None
+        if not _present(run_dir / f"shell/{clip_role.role}.clip.validation.json"):
             return None
     if package.shell.typeface is not None and not _present(
         run_dir / shell_typeface_ref(package.shell)

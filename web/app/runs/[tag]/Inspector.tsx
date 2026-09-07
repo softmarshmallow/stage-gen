@@ -185,6 +185,10 @@ function ArtifactCard({
         </button>
       ) : artifact.display === "audio" ? (
         <audio className="mt-1 w-full" controls preload="metadata" src={url} />
+      ) : artifact.display === "video" ? (
+        // Not autoplayed and not looped: a clip is looked at deliberately, and
+        // several of them on one page playing at once is noise, not a viewer.
+        <video className="mt-1 w-full border border-border" controls preload="metadata" src={url} />
       ) : (
         <a
           className={cx(linkGhost, "mt-1 inline-block")}

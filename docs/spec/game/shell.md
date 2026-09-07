@@ -12,7 +12,7 @@
 
 `shell.toml` is the game-global source of truth for the screens a player meets **around**
 the game: the opening cinematic, the title screen, and the loading screen. It is a root
-sibling of `ui.toml` and `fx.toml`, and the exact current identity is `game-shell-v1`.
+sibling of `ui.toml` and `fx.toml`, and the exact current identity is `game-shell-v2`.
 
 It owns those screens and nothing else. Its two neighbours own the parts it is composed
 from, and the split is the point:
@@ -95,32 +95,62 @@ else — not the host's player, not the skip, not the audio binding, not the sho
 package authored. The cheap mode is therefore not a prototype of the expensive one; it is
 the same contract with a different plate.
 
-Only the still plate is contracted today. A clip plate needs a fifth artifact media
-family in the engine core (`ARTIFACT_MEDIA_FAMILIES` is `application`, `audio`, `image`,
-`text`), a ring-1 video modality with its own retry owner, a provider route, and a codec
-the host can actually play.
+Both plates are contracted. A shot declares which it is with a required `mode`, and the
+two are separate shapes rather than one shape with a flag: a clip is bought from another
+route, gated on things a picture has no answer for, and played rather than drawn.
 
-That last one is measured rather than assumed. On the pinned engine — Godot 4.7.2 stable,
-`ed1daf0bf`, probed headlessly — the only `VideoStream` subclass the class database
-carries is `VideoStreamTheora`, and the only video extension `ResourceLoader` recognises
-is `.ogv`:
-
-```text
-VideoStream subclasses: ["VideoStream", "VideoStreamTheora"]
-ResourceLoader recognises: ["ogv", "tres", "res"]
+```toml
+[opening.shots.plate]
+mode = "clip"
+reference_ids = ["style_plate"]
+prompt = "..."          # take = 2 buys a second draw; there is no seed
 ```
 
-So a generated clip must be transcoded to Ogg Theora, or the host must gain a codec
-extension — a binary dependency in a template the host contract says carries no media.
-Whether Theora at a sane bitrate is good enough to be worth the engine work is a picture
-question, and it is answered by looking at one before any of that work is written. Adding
-the family is its own record either way.
+A clip carries no `alpha_policy` — video has no alpha — and no resolution, because a
+package names a layout and never writes a rectangle. It carries no length either: the
+shot's `seconds` is what the route is asked for. **How long a clip a route will make is a
+fact about that route**, declared on its binding as `clip_seconds_max` and refused while
+planning:
+
+```text
+the opening's the_valley shot asks for 18 but
+google/gemini-omni-flash/v1.1/reference-to-video@fal declares clip_seconds_max 10
+```
+
+Offline, before a run directory exists. Nothing in the modality restates that number, so
+binding a route with a different ceiling needs no edit to any document.
+
+A clip shot is always `move = "hold"`. It brings its own camera, and a host moving over
+one would be fighting it.
+
+### The codec, measured
+
+On the pinned engine — Godot 4.7.2 stable, `ed1daf0bf` — the only `VideoStream` subclass
+the class database carries is `VideoStreamTheora`, so a clip is published as Ogg Theora.
+The response the route returns is h264 in mp4 and stays in the run as `.raw.mp4` for the
+record; the host never opens it.
+
+Whether an `.ogv` **outside** the project loads at all was the question this rested on,
+because a run's files are written long after the project is exported and nothing in one
+is imported. It does, and it is proved rather than assumed — `tools/probe_video.gd` sets
+`VideoStreamTheora.file` to a filesystem path and reads the clock back:
+
+```text
+{ "playing_after_wait": true, "stream_position": 1.4389, "resource_loader": true }
+```
+
+The structural reason: Godot ships a `ResourceImporter` for every format that genuinely
+needs importing — MP3, Ogg Vorbis, textures — and none for `.ogv`.
+
+The encoder is the awkward part. Homebrew's current ffmpeg does not link libtheora, so
+the transcode runs through a second, keg-only build (`brew install ffmpeg@7`, which links
+libtheora 1.2.0) named by `THEORA_FFMPEG`. It never shadows the ffmpeg on `PATH`.
 
 ## The authored document
 
 ```toml
-schema_version = 1
-kind = "game-shell-v1"
+schema_version = 2
+kind = "game-shell-v2"
 game_id = "ember-hollow"
 revision = 1
 
@@ -248,6 +278,37 @@ Every check is an existing check in a new role; no new gate vocabulary is introd
 | `mid` / `near` layers | `transparent_exterior_v1`, coverage bounds | [`fx.md`](fx.md)'s portrait gate |
 | emblem | `transparent_exterior_v1`, opaque core at least 250, coverage 2–60%, at most 8 pieces, and those pieces spanning at most 0.55 of the width and 0.75 of the height | [`fx.md`](fx.md)'s piece-and-dust counting, with the connectivity rule replaced |
 | all | text-freedom, style coherence with the references | one structured review per plate |
+| shot clip | one video stream, the expected codec, the layout's canvas, 16:9 to 0.005, length within 0.2 s of the ask | new; a clip has shape a still does not |
+| shot clip | **mean sample-to-sample difference at least 0.05** | new, and the one that matters (below) |
+| shot clip | mean luma inside 16–235, with at least one sampled frame inside 24–224 | the region gate's band, over time instead of area |
+| `ending = "match_title"` | last frame within 12.0 of the title's far backdrop, both at a 32×18 signature | new; the only ending that is a claim about the picture |
+
+### The gate a still never needed: does it move
+
+A video route answering a clip brief with a beautiful still is invisible to every other
+check in the tree — right codec, right size, right length, right colours. Measured on the
+spike's own files, decimated to 8 fps at 160×90 grey and blended against the previous
+sample:
+
+| sample | mean difference |
+| --- | ---: |
+| a still encoded as video, h264 | 0.0004 |
+| the same, through Theora | 0.0011 |
+| the quietest clip anyone wanted — "the smallest motion that still reads as alive" | **0.4405** |
+| a multi-beat cut trailer | 5.80 |
+
+The floor is **0.05**: 45× above the still and 8.8× below the clip that had to pass. A
+"sensible" 1.0 would have refused the good one — which is the reason the number is
+measured and the measurement is written down.
+
+The `match_title` ceiling is set the same way. The same picture through a Theora round
+trip measures **0.30**; two genuinely different plates measure **31.5** at their closest;
+this package's own last shot against its title measures 59.6. Twelve sits in the gap.
+
+Every gate runs **twice** — once on the response, inside the retry owner and before
+anything is persisted, and once on the published `.ogv`. That is what makes the transcode
+publication rather than repair: a transform that cannot hide anything from the check
+after it is not repairing anything.
 
 The legibility gate is the one that earns its keep: a beautiful backdrop with a busy
 centre is an unusable title screen, and it is exactly what an ungated pipeline would
@@ -353,5 +414,12 @@ fraction it shows must come from a real pass over the closure the manifest enume
 A pause screen, a settings screen, a results screen, a save-and-continue flow, a second
 shot move, a second transition, or a clip plate is **a new identity and a dropped run
 set** — never an optional field on the shapes above. That is the rule both neighbouring
-contracts state, and `game-shell-v1` is written to be replaced by `v2` rather than
-extended in place.
+contracts state.
+
+The clip plate is the first case it caught, and it was caught by this paragraph. `mode`
+went in as required on both branches rather than defaulted onto the existing one, the
+identity became `game-shell-v2`, and the manifest went to
+`oblique-survival-manifest-v3` in the same change — a v2 host reading a v3 run would
+have handed an Ogg to its texture loader and drawn a black frame with no warning. Runs
+published before that are dropped, which is the price the rule names and the reason it
+is worth having: the four shell plates re-bill, and nothing else in the graph moves.

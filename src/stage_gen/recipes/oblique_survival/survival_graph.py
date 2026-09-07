@@ -23,7 +23,11 @@ from typing import Final, Literal
 from pydantic import BaseModel, Field
 
 from gnode import Binding, BindingTable, GraphBuilder, ModelRef, Node, NodeCard, NodeType, Port
-from stage_gen.components.game_shell.nodes import add_shell_nodes, document_plate_roles
+from stage_gen.components.game_shell.nodes import (
+    add_shell_nodes,
+    document_clip_roles,
+    document_plate_roles,
+)
 from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes, document_roles
 from stage_gen.config import StageGenConfig
 from stage_gen.recipes.graph_document import RecipeGraph
@@ -86,6 +90,7 @@ from stage_gen.recipes.oblique_survival.survival_types import (
     STRUCTURED_FEATURES,
     TEMPLATES_DRAW,
     TOOL_LOOP_FEATURES,
+    VIDEO_FEATURES,
     WATER_CANONICALIZE,
     WATER_GENERATE,
     WEATHER_COVER_CANONICALIZE,
@@ -204,6 +209,26 @@ def oblique_survival_graph_profile(config: StageGenConfig) -> BindingTable:
                 max_in_flight=2,
                 rate_limit_owner="none",
                 verified_on="2026-09-04",
+            ),
+            # The clip route. `clip_seconds_max` is a fact about this model rather than
+            # about video, so it is declared here beside `verified_on` rather than
+            # restated in the modality or branched on in the adapter: fal answers
+            # `duration: 18` with a 422 naming `le: 10`, for free, before it renders
+            # anything, and the same refusal is made offline at plan time from this row.
+            # Cost is per second of output: 720p is USD 0.10, so a ten-second shot is a
+            # dollar and the band below is one to ten seconds.
+            Binding(
+                operation=ObliqueSurvivalOperationKind.VIDEO_GENERATION,
+                model=ModelRef(model=config.video_model, provider="fal"),
+                resource_id="survival-fal-video",
+                estimated_duration_seconds=180.0,
+                estimated_cost_low_usd=0.10,
+                estimated_cost_high_usd=1.00,
+                features=frozenset(VIDEO_FEATURES),
+                limits=(("clip_seconds_max", 10.0), ("clip_seconds_step", 1.0)),
+                max_in_flight=1,
+                rate_limit_owner="none",
+                verified_on="2026-09-07",
             ),
         ]
     )
@@ -1768,6 +1793,27 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
     # oblique clause the minimal scope exists to prove. A package with no shell.toml
     # boots straight into the world, which is what every run before this one did.
     if package.shell is not None and rank >= SCOPE_RANK["props"]:
+        # A clip shot is refused here, offline, against the ceiling its own route
+        # declares — before `open_run` has made a directory and long before a key is
+        # read. The route is the only thing that knows how long a clip it will make, and
+        # this is the one place the authored length and the binding table are both in
+        # scope. Costs a message; the provider's own 422 is only the backstop for a
+        # route whose ceiling moved since it was last verified.
+        for clip_role in document_clip_roles(package.shell):
+            subject = f"the opening's {clip_role.shot_id} shot"
+            binding = bindings.require_within(
+                ObliqueSurvivalOperationKind.VIDEO_GENERATION,
+                "clip_seconds_max",
+                clip_role.seconds,
+                subject=subject,
+                features=VIDEO_FEATURES,
+            )
+            # And the step, which cost six attempts to learn: the route counts whole
+            # seconds, so a shot asking for four and a half of them is an ask nobody
+            # can answer. Refused here, for free, rather than by a length gate measuring
+            # the four seconds that came back against the four and a half that were
+            # authored.
+            binding.aligned("clip_seconds_step", clip_role.seconds, subject=subject)
         add_shell_nodes(
             builder,
             root=lock.node_id,

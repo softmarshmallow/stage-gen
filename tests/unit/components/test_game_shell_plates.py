@@ -223,8 +223,8 @@ def test_the_evidence_outlines_every_measured_region_without_covering_it() -> No
 DIGEST = "a" * 64
 FONT = "b" * 64
 DOCUMENT = f"""
-schema_version = 1
-kind = "game-shell-v1"
+schema_version = 2
+kind = "game-shell-v2"
 game_id = "ember-hollow"
 revision = 1
 
@@ -254,6 +254,7 @@ seconds = 4.0
 card = "Winter comes early to the hollow."
 
 [opening.shots.plate]
+mode = "still"
 alpha_policy = "fully_opaque_v1"
 reference_ids = ["style_plate"]
 prompt = "A wide cold valley under low cloud."
@@ -263,6 +264,7 @@ shot_id = "silent"
 seconds = 3.0
 
 [opening.shots.plate]
+mode = "still"
 alpha_policy = "fully_opaque_v1"
 reference_ids = ["style_plate"]
 prompt = "The edge of a conifer wood at dusk."
@@ -274,6 +276,7 @@ layout = "title_screen_16x9_v1"
 depth = "far"
 
 [title.backdrop.plate]
+mode = "still"
 alpha_policy = "fully_opaque_v1"
 reference_ids = ["style_plate"]
 prompt = "The hollow at blue dusk from a low rise."

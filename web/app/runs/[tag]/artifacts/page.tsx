@@ -37,6 +37,7 @@ interface Row {
 const DISPLAY_ORDER: readonly ArtifactDisplay[] = [
   "image",
   "motion_atlas",
+  "video",
   "audio",
   "data",
   "text",
@@ -45,6 +46,7 @@ const DISPLAY_ORDER: readonly ArtifactDisplay[] = [
 const DISPLAY_HEADING: Readonly<Record<ArtifactDisplay, string>> = {
   image: "images",
   motion_atlas: "motion atlases",
+  video: "video",
   audio: "audio",
   data: "data",
   text: "text",

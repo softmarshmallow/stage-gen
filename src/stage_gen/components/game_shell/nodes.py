@@ -46,6 +46,10 @@ from gnode import (
     StructuredGenerationService,
     StructuredOutputSchema,
     StructuredReference,
+    VideoGenerationRequest,
+    VideoGenerationService,
+    VideoReference,
+    VideoResolution,
     ViewArchetype,
     atomic_write_json,
     dependency_port,
@@ -60,22 +64,43 @@ from stage_gen.components._node_kit import (
     object_digest,
     record_port,
 )
+from stage_gen.components.game_shell.clips import (
+    CLIP_REVIEW_COLUMNS,
+    SHELL_CLIP_VALIDATION_VERSION,
+    clip_sample_times,
+    match_title_verdict,
+    shell_clip_record,
+)
 from stage_gen.components.game_shell.layouts import (
     CUTOUT_ALPHA_POLICY,
     LOADING_SCREEN,
     OPAQUE_ALPHA_POLICY,
+    OPENING_CLIP,
     OPENING_SHOT,
     TITLE_SCREEN,
     ShellLayout,
 )
-from stage_gen.components.game_shell.models import GameShell, ShellPlate
+from stage_gen.components.game_shell.models import (
+    FIRST_SHELL_TAKE,
+    GameShell,
+    ShellClip,
+    ShellPlate,
+)
 from stage_gen.components.game_shell.plates import (
     SHELL_PLATE_VALIDATION_VERSION,
     canonicalize_shell_plate,
     shell_plate_evidence,
     validate_shell_plate,
 )
-from stage_gen.media import data_url
+from stage_gen.components.video_clip import admit_clip_bytes, admit_clip_file
+from stage_gen.media import (
+    contact_sheet,
+    data_url,
+    extract_frame_png,
+    run_process,
+    scratch_clip,
+    theora_transcode_args,
+)
 
 _P = "2d/shell"
 _PROVIDER = NodePolicy(max_attempts=6)
@@ -137,11 +162,118 @@ SHELL_TYPEFACE_PUBLISH = NodeType(
     contract_version="shell-typeface-v1",
 )
 
+VIDEO_FEATURES = ("reference_images",)
+
+#: The two codecs a clip wears: the response arrives as h264 in mp4 and is published as
+#: Theora in Ogg, the only video codec the pinned host plays.
+CLIP_SOURCE_CODEC = "h264"
+CLIP_PUBLISHED_CODEC = "theora"
+
+#: Which rung of the route's ladder a canvas is. Derived rather than declared beside the
+#: layout, because the two disagreeing is a gate that refuses every honest draw: ask for
+#: 720p, measure against a 1080p canvas, and six attempts die on a discrepancy nobody
+#: authored.
+_RESOLUTION_BY_HEIGHT: dict[int, VideoResolution] = {
+    360: "360p",
+    720: "720p",
+    1080: "1080p",
+    2160: "4k",
+}
+
+
+def clip_resolution(layout: ShellLayout) -> VideoResolution:
+    """The rung this layout's canvas is, refusing a canvas no route draws."""
+
+    height = layout.canvas[1]
+    if height not in _RESOLUTION_BY_HEIGHT:
+        raise ValueError(
+            f"{layout.layout} declares a {layout.canvas[0]}x{height} canvas, which is not "
+            f"a rung a video route draws ({', '.join(_RESOLUTION_BY_HEIGHT.values())})"
+        )
+    return _RESOLUTION_BY_HEIGHT[height]
+
+
+#: The clip generate node's cache contract. Separate from the plate's: the two are
+#: bought from different routes and asked for different things, and bumping one must
+#: not re-bill the other.
+SHELL_CLIP_CONTRACT_VERSION = "shell-clip-v1"
+SHELL_CLIP_REVIEW_VERSION = "shell-clip-review-v1"
+SHELL_CLIP_REVIEW_SCHEMA_NAME = "shell_clip_review"
+
+#: The encoder a clip is published through, named rather than discovered. A plan cannot
+#: be keyed on the output of ``ffmpeg -version``, so the constant is the identity and the
+#: measured version string is recorded beside the artifact. Bumping the encoder is a
+#: deliberate edit here that re-runs every transcode and re-buys no clip.
+SHELL_CLIP_ENCODER = "theora-ffmpeg7-v1"
+
+SHELL_CLIP_RAW_KIND = "shell-clip-raw-v1"
+SHELL_CLIP_KIND = "shell-clip-v1"
+SHELL_CLIP_VALIDATION_KIND = "shell-clip-validation-v1"
+SHELL_CLIP_CONTACT_KIND = "shell-clip-contact-v1"
+SHELL_CLIP_PUBLISHED_KIND = "shell-clip-published-v1"
+SHELL_OPENING_ENDING_KIND = "shell-opening-ending-v1"
+
+SHELL_CLIP_GENERATE = NodeType(
+    type_id=f"{_P}/clip.generate",
+    title="Shell clip",
+    archetype=ViewArchetype.VIDEO,
+    operation="video_generation",
+    features=VIDEO_FEATURES,
+    policy=_PROVIDER,
+    contract_version="shell-clip-v1",
+)
+
+SHELL_CLIP_VALIDATE = NodeType(
+    type_id=f"{_P}/clip.validate",
+    title="Shell clip admission",
+    archetype=ViewArchetype.VALIDATE,
+    operation="local",
+    contract_version="shell-clip-validate-v1",
+)
+
+#: The publication transcode. The pinned host plays one video codec, so a clip is
+#: republished as Ogg Theora with fixed parameters - no crop, no trim, no scale, no
+#: filter. It is a transform rather than a repair because the admission gate runs again
+#: on the result, so nothing it did can hide from the check that follows it.
+SHELL_CLIP_TRANSCODE = NodeType(
+    type_id=f"{_P}/clip.transcode",
+    title="Shell clip publication",
+    archetype=ViewArchetype.TRANSFORM,
+    operation="local",
+    contract_version="shell-clip-transcode-v1",
+)
+
+SHELL_CLIP_REVIEW = NodeType(
+    type_id=f"{_P}/clip.review",
+    title="Shell clip review",
+    archetype=ViewArchetype.JUDGE,
+    operation="structured_generation",
+    features=STRUCTURED_FEATURES,
+    policy=_PROVIDER,
+    contract_version="shell-clip-review-v1",
+)
+
+#: The one ending that is a claim about the picture rather than about presentation, so
+#: the one that is measured. Present exactly when the document declares ``match_title``,
+#: and the family's only node that reads two screens at once.
+SHELL_OPENING_ENDING = NodeType(
+    type_id=f"{_P}/opening.ending",
+    title="Opening ending",
+    archetype=ViewArchetype.VALIDATE,
+    operation="local",
+    contract_version="shell-opening-ending-v1",
+)
+
 #: Every type this module owns, for a recipe's own type census and registry checks.
 SHELL_NODE_TYPES = (
     SHELL_PLATE_GENERATE,
     SHELL_PLATE_VALIDATE,
     SHELL_PLATE_REVIEW,
+    SHELL_CLIP_GENERATE,
+    SHELL_CLIP_VALIDATE,
+    SHELL_CLIP_TRANSCODE,
+    SHELL_CLIP_REVIEW,
+    SHELL_OPENING_ENDING,
     SHELL_TYPEFACE_PUBLISH,
 )
 
@@ -155,6 +287,16 @@ def shell_typeface_ref(shell: GameShell) -> str:
         raise ValueError("this shell document declares no typeface")
     return f"shell/typeface/{PurePosixPath(shell.typeface.source).name}"
 
+
+#: What a reviewer answers about a clip that no measurement can. Deliberately not a
+#: superset of the plate's: a clip has no reserved region to keep quiet, and it has one
+#: question a still never has - whether the look survived the frames nobody drew.
+SHELL_CLIP_REVIEW_CHECKS = (
+    "style_coherence",
+    "text_free",
+    "subject_matches_brief",
+    "motion_reads_as_hand_drawn",
+)
 
 #: What a reviewer answers that the pixel gate cannot.
 SHELL_REVIEW_CHECKS = (
@@ -200,6 +342,11 @@ def document_plate_roles(shell: GameShell) -> tuple[ShellPlateRole, ...]:
     roles: list[ShellPlateRole] = []
     if shell.opening is not None:
         for shot in shell.opening.shots:
+            # A clip shot is planned by the clip family: it is bought from another
+            # route, gated on whether it moves, and published as a container this
+            # one knows nothing about.
+            if not isinstance(shot.plate, ShellPlate):
+                continue
             roles.append(
                 ShellPlateRole(
                     role=f"opening_{shot.shot_id}",
@@ -255,6 +402,72 @@ def document_plate_roles(shell: GameShell) -> tuple[ShellPlateRole, ...]:
                 alpha_policy=shell.loading.backdrop.alpha_policy,
                 measured_regions=("status_strip",),
                 plate=shell.loading.backdrop,
+            )
+        )
+    return tuple(roles)
+
+
+@dataclass(frozen=True, slots=True)
+class ShellClipRole:
+    """One clip the document declared, resolved to everything its chain needs."""
+
+    role: str
+    shot_id: str
+    #: The shot's own length. It is what the route is asked for and what the gate
+    #: measures against, which is why it is part of the clip's generation identity and
+    #: only presentation for a still.
+    seconds: float
+    clip: ShellClip
+    layout: ShellLayout = OPENING_CLIP
+    #: True when this is the last shot of an opening that ends on ``match_title``.
+    ends_the_opening: bool = False
+
+    def geometry_record(self) -> dict[str, object]:
+        return self.layout.geometry_record()
+
+    def generation_identity(self) -> dict[str, object]:
+        """The fields that decide whether this clip must be bought again.
+
+        ``reference_ids`` keeps its order: a video route reads the first picture as the
+        art direction the rest are judged against, so re-ordering them is a different
+        ask. ``take`` enters only above the first draw, so an existing key is undisturbed
+        until somebody asks for another one.
+
+        Out: the shot's move, its card, its transition, and the opening's ending. They
+        change how the clip is presented or what it is checked against, not what was
+        asked for, and putting any of them here would re-bill every clip in the document
+        when an author changed a fade.
+        """
+
+        identity: dict[str, object] = {
+            "prompt": self.clip.prompt,
+            "reference_ids": list(self.clip.reference_ids),
+            "seconds": self.seconds,
+            "output_format": "mp4",
+        }
+        if self.clip.take != FIRST_SHELL_TAKE:
+            identity["take"] = self.clip.take
+        return identity
+
+
+def document_clip_roles(shell: GameShell) -> tuple[ShellClipRole, ...]:
+    """Every clip one document plans, in the order a player meets it."""
+
+    if shell.opening is None:
+        return ()
+    shots = shell.opening.shots
+    matched = shell.opening.ending == "match_title"
+    roles: list[ShellClipRole] = []
+    for index, shot in enumerate(shots):
+        if not isinstance(shot.plate, ShellClip):
+            continue
+        roles.append(
+            ShellClipRole(
+                role=f"opening_{shot.shot_id}",
+                shot_id=shot.shot_id,
+                seconds=shot.seconds,
+                clip=shot.plate,
+                ends_the_opening=matched and index == len(shots) - 1,
             )
         )
     return tuple(roles)
@@ -337,6 +550,58 @@ def plate_review_prompt(role: ShellPlateRole, record: Mapping[str, object]) -> s
 # ------------------------------------------------------------------- graph
 
 
+def clip_content_task(role: ShellClipRole) -> str:
+    """The authored brief, plus the clauses a clip needs and a still does not.
+
+    The no-lettering clause is appended here rather than authored, exactly as it is for a
+    plate: the loader refuses a prompt that asks for text, so a document cannot say
+    "and no text" without being refused for the word.
+
+    The rest is what the spike measured. A generated clip's tell is not the drawing, it
+    is that everything moves on every frame; asking for held drawings and for motion only
+    where the shot is about something buys most of that back for nothing. And the style
+    has to be restated in full rather than referred to, because the model invents whatever
+    the references do not show it and the invented frames are where a drawn look slides
+    into a rendered one.
+    """
+
+    return (
+        f"{role.clip.prompt.strip()} "
+        f"The shot runs {role.seconds:g} seconds. "
+        "Hold the drawing exactly as the reference images have it and do not restyle, "
+        "redraw, sharpen or add detail to any shape. "
+        "Animate it as limited hand-drawn animation rather than smooth video: hold each "
+        "drawing for two or three frames so the motion steps rather than glides, and move "
+        "only the thing the shot is about. "
+        "Do not render in 3D, and use no photographic texture, gradient, soft shadow "
+        "falloff, volumetric light, lens blur or depth of field. "
+        "Add no lettering, caption, subtitle, logo or written mark of any kind anywhere in "
+        "the frame."
+    )
+
+
+def clip_review_prompt(role: ShellClipRole, record: Mapping[str, object]) -> str:
+    """What a reviewer is asked about a clip, shown its beats as one sheet.
+
+    A reviewer cannot be handed a moving picture, so it is handed an ordered contact
+    sheet of the clip's own frames - and it is the *published* clip's frames, because the
+    picture a player sees is the one that came through the encoder.
+    """
+
+    checks = ", ".join(SHELL_CLIP_REVIEW_CHECKS)
+    return (
+        f"These frames are sampled in order from one {role.seconds:g}-second clip of a "
+        f"game's opening cinematic, drawn against the reference images beside them. "
+        f"The brief was: {role.clip.prompt.strip()} "
+        f"Judge the sequence as one shot on {checks}. "
+        "The style must hold across every frame, including the ones the model invented "
+        "between the references; a frame that has slid into rendered 3D or photographic "
+        "texture fails style_coherence. Any lettering anywhere in any frame fails "
+        "text_free. Measured facts are already known and are not what you are asked "
+        f"about: {record}."
+    )
+
+
 def shell_node_ids(role: ShellPlateRole, *, prefix: str = "shell") -> tuple[str, str, str]:
     """The generate, validate and review ids one plate occupies in a host graph."""
 
@@ -344,6 +609,33 @@ def shell_node_ids(role: ShellPlateRole, *, prefix: str = "shell") -> tuple[str,
         f"{prefix}-{role.role}-generate",
         f"{prefix}-{role.role}-validate",
         f"{prefix}-{role.role}-review",
+    )
+
+
+def shell_clip_node_ids(role: ShellClipRole, *, prefix: str = "shell") -> tuple[str, ...]:
+    """The four ids one clip occupies in a host graph."""
+
+    return tuple(
+        f"{prefix}-{role.role}-{stage}"
+        for stage in ("clip-generate", "clip-validate", "clip-publish", "clip-review")
+    )
+
+
+def shell_clip_artifact_refs(role: ShellClipRole) -> tuple[str, str, str, str, str]:
+    """Every path one clip writes: response, record, published clip, sheet, and the
+    second measurement taken after the transcode.
+
+    The response keeps the ``.raw.`` marker the plate family already uses, which is what
+    keeps it out of the host's load closure: a run carries what the route answered so the
+    record means something, and the host only ever opens what it can play.
+    """
+
+    return (
+        f"shell/{role.role}.raw.mp4",
+        f"shell/{role.role}.clip.validation.json",
+        f"shell/{role.role}.clip.ogv",
+        f"shell/{role.role}.contact.png",
+        f"shell/{role.role}.clip.published.json",
     )
 
 
@@ -367,6 +659,7 @@ def add_shell_nodes(
     style_prompt: Callable[[str], str],
     direction_digests: Sequence[str] = (),
     roles: Sequence[ShellPlateRole] | None = None,
+    clip_roles: Sequence[ShellClipRole] | None = None,
     domain: str = "shell",
     prefix: str = "shell",
     attempts_port: Callable[[str], Port] | None = None,
@@ -462,6 +755,147 @@ def add_shell_nodes(
         )
         terminals.append(reviewed.node_id)
 
+    # Derived from the document unless a host overrides them. Deliberately not tied to
+    # ``roles``: a host that names its plates explicitly still means every clip the
+    # document declares, and reading one override as a decision about the other would
+    # silently drop them.
+    clips = tuple(clip_roles) if clip_roles is not None else document_clip_roles(shell)
+    ending_inputs: list[PortRef] = []
+    for clip_role in clips:
+        generate_id, validate_id, publish_id, review_id = shell_clip_node_ids(
+            clip_role, prefix=prefix
+        )
+        (
+            raw_ref,
+            validation_ref,
+            clip_ref,
+            contact_ref,
+            published_ref,
+        ) = shell_clip_artifact_refs(clip_role)
+        authored = tuple(
+            AuthoredInput(
+                label=reference_id,
+                ref=references[reference_id].source,
+                sha256=references[reference_id].source_sha256,
+            )
+            for reference_id in clip_role.clip.reference_ids
+        )
+        geometry_digest = object_digest(clip_role.geometry_record())
+        identity_digest = object_digest(clip_role.generation_identity())
+        prompt = style_prompt(clip_content_task(clip_role))
+
+        clip_generate_ports: list[Port] = [artifact_port("clip", raw_ref, SHELL_CLIP_RAW_KIND)]
+        clip_review_ports: list[Port] = [
+            artifact_port("verdict", f"shell/{clip_role.role}.clip.review.json", SHELL_VERDICT_KIND)
+        ]
+        if attempts_port is not None:
+            clip_generate_ports.append(attempts_port(generate_id))
+            clip_review_ports.append(attempts_port(review_id))
+
+        generated = builder.add(
+            SHELL_CLIP_GENERATE,
+            generate_id,
+            domain=domain,
+            description=f"Film the opening's {clip_role.shot_id} shot",
+            depends_on=(root,),
+            cache_depends_on=(),
+            params={"role": clip_role.role},
+            input_digests=(
+                *direction_digests,
+                object_digest({"contract": SHELL_CLIP_CONTRACT_VERSION}),
+                identity_digest,
+                *(entry.sha256 for entry in authored),
+                geometry_digest,
+            ),
+            ports=tuple(clip_generate_ports),
+            card=NodeCard(prompt=prompt, authored_inputs=authored),
+            duration_seconds=180.0,
+        )
+        validated = builder.add(
+            SHELL_CLIP_VALIDATE,
+            validate_id,
+            domain=domain,
+            description=f"Admit the {clip_role.shot_id} clip and measure whether it moves",
+            depends_on=(generated.node_id,),
+            params={"role": clip_role.role},
+            input_digests=(
+                object_digest({"contract": SHELL_CLIP_VALIDATION_VERSION}),
+                identity_digest,
+                geometry_digest,
+            ),
+            ports=(record_port("validation", validation_ref, SHELL_CLIP_VALIDATION_KIND),),
+            card=NodeCard(reference_inputs=(PortRef(node_id=generated.node_id, port_id="clip"),)),
+            duration_seconds=20.0,
+        )
+        published = builder.add(
+            SHELL_CLIP_TRANSCODE,
+            publish_id,
+            domain=domain,
+            description=f"Publish the {clip_role.shot_id} clip in the codec the host plays",
+            # Both: the gate for ordering, and the response for the bytes it transcodes.
+            # A handler reaches its inputs through its own dependencies, so naming only
+            # the gate leaves the file it is meant to read unreachable.
+            depends_on=(validated.node_id, generated.node_id),
+            params={"role": clip_role.role},
+            # The encoder is named rather than measured: a plan cannot be keyed on what
+            # a binary reports at run time, so the constant is the identity and the
+            # version string is recorded beside the artifact.
+            input_digests=(object_digest({"encoder": SHELL_CLIP_ENCODER}), identity_digest),
+            ports=(
+                artifact_port("clip", clip_ref, SHELL_CLIP_KIND),
+                artifact_port("contact", contact_ref, SHELL_CLIP_CONTACT_KIND),
+                # The second measurement, and the encoder that produced what it read.
+                # Declared rather than written beside the clip: an output a node does
+                # not declare is an output the cache cannot admit.
+                record_port("published", published_ref, SHELL_CLIP_PUBLISHED_KIND),
+            ),
+            card=NodeCard(reference_inputs=(PortRef(node_id=generated.node_id, port_id="clip"),)),
+            duration_seconds=30.0,
+        )
+        reviewed = builder.add(
+            SHELL_CLIP_REVIEW,
+            review_id,
+            domain=domain,
+            description=f"Review the {clip_role.shot_id} clip's own frames",
+            # The sheet it judges, and the record it is told not to re-judge.
+            depends_on=(published.node_id, validated.node_id),
+            params={"role": clip_role.role},
+            input_digests=(
+                object_digest({"contract": SHELL_CLIP_REVIEW_VERSION}),
+                identity_digest,
+            ),
+            ports=tuple(clip_review_ports),
+            card=NodeCard(
+                prompt=clip_review_prompt(clip_role, {}),
+                schema_name=SHELL_CLIP_REVIEW_SCHEMA_NAME,
+                reference_inputs=(PortRef(node_id=published.node_id, port_id="contact"),),
+                authored_inputs=authored,
+            ),
+        )
+        terminals.append(reviewed.node_id)
+        if clip_role.ends_the_opening:
+            ending_inputs.append(PortRef(node_id=published.node_id, port_id="clip"))
+
+    if ending_inputs:
+        # The family's only cross-screen edge: the last shot's published clip, and the
+        # title backdrop it claims to end on. It reads the *published* clip because the
+        # last frame a player sees is the one that came through the encoder.
+        backdrop = f"{prefix}-title_backdrop_far-validate"
+        ending_inputs.append(PortRef(node_id=backdrop, port_id="image"))
+        ended = builder.add(
+            SHELL_OPENING_ENDING,
+            f"{prefix}-opening-ending",
+            domain=domain,
+            description="Measure the opening's last frame against the title it ends on",
+            depends_on=tuple(ref.node_id for ref in ending_inputs),
+            params={"ending": "match_title"},
+            input_digests=(object_digest({"contract": SHELL_CLIP_VALIDATION_VERSION}),),
+            ports=(record_port("ending", "shell/opening.ending.json", SHELL_OPENING_ENDING_KIND),),
+            card=NodeCard(reference_inputs=tuple(ending_inputs)),
+            duration_seconds=5.0,
+        )
+        terminals.append(ended.node_id)
+
     if shell.typeface is not None:
         face = shell.typeface
         published = builder.add(
@@ -528,13 +962,25 @@ class ShellHandlers:
         image_service: ImageGenerationService,
         structured_service: StructuredGenerationService[object],
         provider_call: ProviderCall | None = None,
+        video_service: VideoGenerationService | None = None,
+        ffmpeg: str = "ffmpeg",
+        ffprobe: str = "ffprobe",
+        theora_ffmpeg: str | None = None,
     ) -> None:
         self._host = host
         self._graph = graph
         self._images = image_service
         self._structured = structured_service
         self._provider_call = provider_call
+        self._video = video_service
+        self._ffmpeg = ffmpeg
+        self._ffprobe = ffprobe
+        #: The encoder a clip is published through. Separate from ``ffmpeg`` because the
+        #: build that measures a clip and the build that can write Ogg Theora are not
+        #: the same one on a current machine.
+        self._theora_ffmpeg = theora_ffmpeg or ffmpeg
         self._roles = {role.role: role for role in document_plate_roles(host.shell)}
+        self._clip_roles = {role.role: role for role in document_clip_roles(host.shell)}
 
     async def generate(self, node: Node) -> NodeExecutionResult:
         role = self._role(node)
@@ -608,6 +1054,193 @@ class ShellHandlers:
             model=SHELL_EVIDENCE_VERSION,
         )
         return self._result(node, provider_operations=0)
+
+    # -------------------------------------------------------------- clips
+
+    async def generate_clip(self, node: Node) -> NodeExecutionResult:
+        """Film one shot, gated on whether it moves before it is ever persisted."""
+
+        role = self._clip_role(node)
+        video = self._video
+        if video is None:
+            raise ValueError("this host was built without a video route")
+        output = self._host.run_dir / node.port("clip").artifact_ref
+        prompt = card_prompt(node)
+        request = VideoGenerationRequest(
+            prompt=prompt,
+            artifact_path=output,
+            references=tuple(
+                VideoReference(url=reference.url, provenance_ref=reference.provenance_ref)
+                for reference in self._image_references(role.clip.reference_ids)
+            ),
+            duration_seconds=role.seconds,
+            resolution=clip_resolution(role.layout),
+            aspect_ratio="16:9",
+            # A video attempt is minutes, not seconds. The recipe's own node timeout has
+            # to clear six of these plus backoff or the scheduler kills the node and the
+            # failure history dies with it.
+            timeout_seconds=600,
+            metadata={
+                "checkpoint": "shell",
+                "role": role.role,
+                "screen": "opening",
+                "layout": role.layout.layout,
+            },
+            validate=lambda artifact: admit_clip_bytes(
+                artifact.data,
+                expected_seconds=role.seconds,
+                expected_size=role.layout.canvas,
+                expected_codec=CLIP_SOURCE_CODEC,
+                ffmpeg=self._ffmpeg,
+                ffprobe=self._ffprobe,
+            ),
+        )
+        result = await self._call(
+            node, f"shell-clip-{role.role}", prompt, lambda: video.generate(request)
+        )
+        return self._result(node, provider_operations=1, attempts=result.attempts)
+
+    async def validate_clip(self, node: Node) -> NodeExecutionResult:
+        """Re-state the admission over the persisted response, as a record.
+
+        The retry owner already refused anything that failed, so this cannot fail on a
+        fresh run - it exists so a cache hit clears the same gate, and so the record the
+        published pass is compared against is on disk.
+        """
+
+        role = self._clip_role(node)
+        run_dir = self._host.run_dir
+        source = run_dir / self._dependency(node, kind=SHELL_CLIP_RAW_KIND)
+        facts = await admit_clip_file(
+            source,
+            expected_seconds=role.seconds,
+            expected_size=role.layout.canvas,
+            expected_codec=CLIP_SOURCE_CODEC,
+            ffmpeg=self._ffmpeg,
+            ffprobe=self._ffprobe,
+        )
+        atomic_write_json(
+            run_dir / node.port("validation").artifact_ref,
+            {
+                "schema_version": 1,
+                "kind": SHELL_CLIP_VALIDATION_KIND,
+                "role": role.role,
+                "shot_id": role.shot_id,
+                **shell_clip_record(facts, layout=role.layout, seconds=role.seconds),
+            },
+        )
+        return self._result(node, provider_operations=0)
+
+    async def publish_clip(self, node: Node) -> NodeExecutionResult:
+        """Transcode into the one codec the host plays, then measure it again.
+
+        Measuring the result is what makes this publication rather than repair: the
+        transform is fixed - no crop, no trim, no scale, no filter - and everything the
+        gate checked before it is checked again after, so nothing it did can hide.
+        """
+
+        role = self._clip_role(node)
+        run_dir = self._host.run_dir
+        source = run_dir / self._dependency(node, kind=SHELL_CLIP_RAW_KIND)
+
+        version = await run_process(self._theora_ffmpeg, ["-version"], 60.0)
+        encoder = next((line.strip() for line in version.stdout.splitlines() if line.strip()), "")
+        if not encoder.lower().startswith("ffmpeg version"):
+            raise ValueError("the theora encoder did not report a recognizable version")
+
+        # The encoder writes to scratch, never to the published path. The artifact lands
+        # only after the second measurement passes, and it lands through the provenance
+        # writer like everything else in a run: an encoder writing the final path itself
+        # publishes a clip nothing checked, under no sidecar, and the cache is right to
+        # refuse a node whose outputs do not match the ports it declared.
+        async with scratch_clip(b"\0", suffix=".ogv") as scratch:
+            await run_process(self._theora_ffmpeg, theora_transcode_args(source, scratch), 900.0)
+            published = await admit_clip_file(
+                scratch,
+                expected_seconds=role.seconds,
+                expected_size=role.layout.canvas,
+                expected_codec=CLIP_PUBLISHED_CODEC,
+                ffmpeg=self._ffmpeg,
+                ffprobe=self._ffprobe,
+            )
+            frames = [
+                await extract_frame_png(scratch, at_seconds=at, ffmpeg=self._ffmpeg)
+                for at in clip_sample_times(role.seconds)
+            ]
+            data = scratch.read_bytes()
+
+        target = run_dir / node.port("clip").artifact_ref
+        source_bytes = source.read_bytes()
+        await write_artifact_with_provenance_async(
+            target,
+            BinaryArtifact(data=data, media_type="video/ogg"),
+            ProvenanceInput(
+                provider="local",
+                model=SHELL_CLIP_ENCODER,
+                prompt="Publish the admitted clip in the one codec the host plays.",
+                refs=[source.relative_to(run_dir).as_posix()],
+                inputs=[
+                    InputProvenance(
+                        ref=source.relative_to(run_dir).as_posix(),
+                        sha256=content_sha256(source_bytes),
+                        source="content",
+                        bytes=len(source_bytes),
+                        media_type="video/mp4",
+                    )
+                ],
+                params={"encoder": SHELL_CLIP_ENCODER, "encoder_version": encoder},
+                validation={**published, "pixel_rewrite": "theora_publication_v1"},
+                component=self._host.component,
+                tool=self._host.tool,
+                attempts=1,
+            ),
+        )
+        await self._write_local_image(
+            run_dir / node.port("contact").artifact_ref,
+            contact_sheet(frames, columns=CLIP_REVIEW_COLUMNS),
+            prompt="Lay the published clip's own frames out in order for the reviewer.",
+            inputs=((target.relative_to(run_dir).as_posix(), data),),
+            validation={"frames": len(frames), "sampled_at": list(clip_sample_times(role.seconds))},
+            model=SHELL_CLIP_ENCODER,
+        )
+        record = shell_clip_record(
+            {}, layout=role.layout, seconds=role.seconds, published_facts=published
+        )
+        atomic_write_json(
+            run_dir / node.port("published").artifact_ref,
+            {
+                "schema_version": 1,
+                "kind": SHELL_CLIP_PUBLISHED_KIND,
+                "role": role.role,
+                "encoder": SHELL_CLIP_ENCODER,
+                "encoder_version": encoder,
+                **record,
+            },
+        )
+        return self._result(node, provider_operations=0)
+
+    async def measure_ending(self, node: Node) -> NodeExecutionResult:
+        """Measure the opening's last frame against the title it claims to end on."""
+
+        run_dir = self._host.run_dir
+        clip = run_dir / self._dependency(node, kind=SHELL_CLIP_KIND)
+        backdrop = run_dir / self._dependency(node, kind=SHELL_IMAGE_KIND)
+        verdict = match_title_verdict(
+            await extract_frame_png(clip, from_end=True, ffmpeg=self._ffmpeg),
+            backdrop.read_bytes(),
+        )
+        atomic_write_json(
+            run_dir / node.port("ending").artifact_ref,
+            {"schema_version": 1, "kind": SHELL_OPENING_ENDING_KIND, **verdict},
+        )
+        return self._result(node, provider_operations=0)
+
+    def _clip_role(self, node: Node) -> ShellClipRole:
+        name = str(node.params["role"])
+        try:
+            return self._clip_roles[name]
+        except KeyError:
+            raise ValueError(f"the shell document declares no clip role {name!r}") from None
 
     async def publish_typeface(self, node: Node) -> NodeExecutionResult:
         """Copy the authored face into the run, with the provenance every artifact carries.
@@ -692,6 +1325,49 @@ class ShellHandlers:
             max_tokens=1800,
             timeout_seconds=600,
             metadata={"checkpoint": "shell", "role": role.role},
+        )
+        result = await self._call(
+            node, role.role, prompt, lambda: self._structured.generate(request)
+        )
+        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
+
+    async def review_clip(self, node: Node) -> NodeExecutionResult:
+        """Judge the clip on its own frames, as one sheet, in order.
+
+        The sheet is cut from the **published** clip. Reviewing the response would
+        accept a picture the encoder then degrades, and the picture a player sees is the
+        published one.
+        """
+
+        role = self._clip_role(node)
+        run_dir = self._host.run_dir
+        contact = run_dir / self._dependency(node, kind=SHELL_CLIP_CONTACT_KIND)
+        validation = run_dir / self._dependency(node, kind=SHELL_CLIP_VALIDATION_KIND)
+        record = cast(dict[str, object], json.loads(validation.read_bytes()))
+        selected = set(role.clip.reference_ids)
+        references = [_structured_reference_from_run(contact, run_dir)]
+        references.extend(
+            self._package_structured_reference(reference.source)
+            for reference in self._host.shell.references
+            if reference.reference_id in selected
+        )
+        prompt = clip_review_prompt(role, record)
+        request: StructuredGenerationRequest[object] = StructuredGenerationRequest(
+            prompt=prompt,
+            system=(
+                "You are a strict independent 2D game-art technical director. Return only the "
+                "requested structured review."
+            ),
+            artifact_path=run_dir / node.port("verdict").artifact_ref,
+            schema=StructuredOutputSchema(
+                name=SHELL_CLIP_REVIEW_SCHEMA_NAME,
+                json_schema=shell_review_schema(checks=SHELL_CLIP_REVIEW_CHECKS),
+            ),
+            parse=_parse_review,
+            references=tuple(references),
+            max_tokens=1800,
+            timeout_seconds=600,
+            metadata={"checkpoint": "shell", "role": role.role, "kind": "clip"},
         )
         result = await self._call(
             node, role.role, prompt, lambda: self._structured.generate(request)
@@ -787,8 +1463,13 @@ class ShellHandlers:
         )
 
 
-def shell_review_schema() -> dict[str, object]:
-    """The judge's answer shape: the questions the pixel gate cannot decide."""
+def shell_review_schema(checks: Sequence[str] = SHELL_REVIEW_CHECKS) -> dict[str, object]:
+    """The judge's answer shape: the questions the pixel gate cannot decide.
+
+    ``checks`` differs between a still and a clip - a clip has no reserved region to
+    keep quiet, and one question a still never has - so the shape is built from whichever
+    set is being asked about rather than from a union of both.
+    """
 
     return {
         "type": "object",
@@ -797,7 +1478,7 @@ def shell_review_schema() -> dict[str, object]:
             "confidence": {"type": "number"},
             "checks": {
                 "type": "object",
-                "properties": {key: {"type": "boolean"} for key in SHELL_REVIEW_CHECKS},
+                "properties": {key: {"type": "boolean"} for key in checks},
             },
             "issues": {"type": "array", "items": {"type": "string"}},
             "evidence": {"type": "string"},
@@ -838,10 +1519,16 @@ def shell_manifest_block(
     """
 
     roles = {role.role: role for role in document_plate_roles(shell)}
-    plates = {
+    plates: dict[str, dict[str, object]] = {
         name: _plate_projection(role, read_validation=read_validation, publish=publish)
         for name, role in roles.items()
     }
+    plates.update(
+        {
+            role.role: _clip_projection(role, read_validation=read_validation, publish=publish)
+            for role in document_clip_roles(shell)
+        }
+    )
 
     block: dict[str, object] = {"strings": {"display_name": display_name}}
 
@@ -860,6 +1547,10 @@ def shell_manifest_block(
             "skippable": shell.opening.skippable,
             "music_track": shell.opening.music_track,
             "seconds": round(shell.opening.seconds, 3),
+            # How the last shot gives way to what follows. Three of the four are the
+            # host's own presentation; ``match_title`` is the measured one, and the run
+            # carries its verdict beside the clip.
+            "ending": shell.opening.ending,
             "canvas": _canvas(OPENING_SHOT),
             "reserved": _reserved(OPENING_SHOT),
             "shots": [
@@ -918,6 +1609,9 @@ def _plate_projection(
     record = cast(dict[str, object], json.loads(read_validation(validation_ref)))
     return {
         "role": role.role,
+        # Both projections say which they are, so a host reads one key rather than
+        # inferring a kind from a file extension.
+        "mode": "still",
         "alpha_policy": role.alpha_policy,
         "measured_regions": [
             entry
@@ -925,6 +1619,37 @@ def _plate_projection(
             if isinstance(entry, dict)
         ],
         "asset": publish(image_ref),
+    }
+
+
+def _clip_projection(
+    role: ShellClipRole,
+    *,
+    read_validation: Callable[[str], bytes],
+    publish: Callable[[str], object],
+) -> dict[str, object]:
+    """A clip in the manifest, shaped like a plate so a shot reads the same either way.
+
+    ``mode`` is what a host branches on, and it is what stops a host that only knows
+    stills from calling its texture loader on a video file and drawing a black frame.
+    The published Ogg is the asset: the response the route returned stays in the run for
+    the record's sake and is never named here.
+    """
+
+    _raw, validation_ref, clip_ref, contact_ref, _published = shell_clip_artifact_refs(role)
+    record = cast(dict[str, object], json.loads(read_validation(validation_ref)))
+    source = record.get("source")
+    measured = source if isinstance(source, dict) else {}
+    return {
+        "role": role.role,
+        "mode": "clip",
+        "asset": publish(clip_ref),
+        "contact_sheet": publish(contact_ref),
+        "canvas": _canvas(role.layout),
+        "duration_seconds": measured.get("duration_seconds", role.seconds),
+        # Recorded so a host knows to silence it: the opening's sound is the package's
+        # own soundtrack, and the publication transcode drops the track a route made.
+        "source_audio": measured.get("source_audio"),
     }
 
 

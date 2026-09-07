@@ -69,7 +69,7 @@ GOLDEN_PATH: Final = (
 
 #: What the four scopes plan for the committed package. A count here moves only
 #: when the recipe deliberately plans more or fewer nodes.
-SCOPE_NODE_COUNTS: Final = {"minimal": 64, "props": 199, "actors": 249, "full": 291}
+SCOPE_NODE_COUNTS: Final = {"minimal": 64, "props": 200, "actors": 250, "full": 292}
 
 #: A biome's brief is read by its own plate, by the sheet the ground review is
 #: judged from, and by the manifest that measures what was published. Nothing

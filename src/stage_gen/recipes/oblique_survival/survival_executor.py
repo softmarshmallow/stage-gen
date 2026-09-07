@@ -123,8 +123,11 @@ class ObliqueSurvivalExecutor(RecipeExecutor[Package, ObliqueSurvivalGraph]):
     """Resolve, plan, and dispatch one scope of one authored survival package."""
 
     IDENTITY_DOCUMENT = "oblique-survival-identity.json"
-    #: An image node's six attempts at up to thirty minutes each outlast any stage.
-    NODE_TIMEOUT_FLOOR_S = 3_600.0
+    #: An image node's six attempts at up to thirty minutes each outlast any stage, and
+    #: a clip node's six ten-minute attempts plus backoff outlast that: 6 x 600s is
+    #: 3,600s before a single retry has waited, so the floor has to clear both or the
+    #: scheduler kills the node and its failure history dies with it.
+    NODE_TIMEOUT_FLOOR_S = 4_200.0
 
     def __init__(self, config: StageGenConfig, *, scope: str = "full") -> None:
         super().__init__(config)
@@ -222,6 +225,8 @@ class ObliqueSurvivalExecutor(RecipeExecutor[Package, ObliqueSurvivalGraph]):
                 tool_loop=services.tool_loop(),
                 music=services.music(),
                 sounds=services.sound_effect(),
+                video=services.video(),
+                theora_ffmpeg=self._config.theora_ffmpeg_path,
             )
             summary = await self.dispatch(
                 plan, handler, run_dir=run_dir, invocation_id=invocation_id

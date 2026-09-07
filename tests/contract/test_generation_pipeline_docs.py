@@ -151,7 +151,7 @@ def test_survival_contract_block_is_rendered_canonically() -> None:
 
 
 def _survival_scope_table_rows() -> list[tuple[str, list[int]]]:
-    """The seven count columns of the survival scope table, per row."""
+    """The eight count columns of the survival scope table, per row."""
 
     source = SURVIVAL_DOCUMENT.read_text(encoding="utf-8")
     body = source.split("## The graph", 1)[1]
@@ -162,7 +162,7 @@ def _survival_scope_table_rows() -> list[tuple[str, list[int]]]:
                 break
             continue
         cells = [cell.strip().strip("*` ") for cell in line.strip().strip("|").split("|")]
-        if len(cells) != 8:
+        if len(cells) != 9:
             continue
         counts = cells[1:]
         if not all(re.fullmatch(r"\d+", count) for count in counts):
@@ -197,6 +197,7 @@ def test_survival_scope_table_agrees_with_the_graphs_the_code_builds() -> None:
             operations["tool_loop"],
             operations["music_generation"],
             operations["sound_effect_generation"],
+            operations["video_generation"],
             operations["local"],
         ], name
 

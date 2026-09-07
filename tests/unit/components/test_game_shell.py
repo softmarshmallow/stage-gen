@@ -1,4 +1,4 @@
-"""The `game-shell-v1` authored contract, and the refusals that are its point.
+"""The `game-shell-v2` authored contract, and the refusals that are its point.
 
 Most of these are not shape tests. Each names a decision the contract makes — text is
 composited rather than drawn, a typeface is an input, a backdrop is ordered far to near —
@@ -31,8 +31,8 @@ DIGEST = "a" * 64
 FONT_DIGEST = "b" * 64
 
 HEADER = f"""
-schema_version = 1
-kind = "game-shell-v1"
+schema_version = 2
+kind = "game-shell-v2"
 game_id = "ember-hollow"
 revision = 1
 
@@ -62,6 +62,7 @@ layout = "title_screen_16x9_v1"
 depth = "far"
 
 [title.backdrop.plate]
+mode = "still"
 alpha_policy = "fully_opaque_v1"
 reference_ids = ["cover_style"]
 prompt = "The hollow at dusk, the fire a small warm point among cold blue firs."
@@ -81,6 +82,7 @@ card = "Some fires are older than the people who tend them."
 out_transition = "dissolve"
 
 [opening.shots.plate]
+mode = "still"
 alpha_policy = "fully_opaque_v1"
 reference_ids = ["cover_style"]
 prompt = "A wide cold valley under low cloud, one thread of smoke rising from the trees."
@@ -245,6 +247,7 @@ def test_an_emblem_is_a_shape_on_air() -> None:
         TITLE
         + """
 [title.emblem]
+mode = "still"
 alpha_policy = "fully_opaque_v1"
 reference_ids = ["cover_style"]
 prompt = "A pressed-iron ember badge, three sparks over a banked hearth."
@@ -271,6 +274,7 @@ shot_id = "the_hollow"
 seconds = 2.0
 
 [opening.shots.plate]
+mode = "still"
 alpha_policy = "fully_opaque_v1"
 reference_ids = ["cover_style"]
 prompt = "The same valley, closer, the smoke gone."
@@ -311,6 +315,7 @@ def test_a_generated_loading_backdrop_joins_the_generated_set() -> None:
 layout = "loading_screen_16x9_v1"
 
 [loading.backdrop]
+mode = "still"
 alpha_policy = "fully_opaque_v1"
 reference_ids = ["cover_style"]
 prompt = "The hearth close up, embers banked under grey ash."
@@ -381,3 +386,92 @@ def test_the_geometry_record_is_what_the_cache_key_hashes() -> None:
         "mark_band",
         "control_stack",
     ]
+
+
+# --- a clip shot: the second thing an opening shot may be ---------------------
+
+
+CLIP_OPENING = """
+[opening]
+layout = "opening_16x9_v1"
+ending = "cut_to_black"
+
+[[opening.shots]]
+shot_id = "the_walk"
+seconds = 8.0
+
+[opening.shots.plate]
+mode = "clip"
+reference_ids = ["cover_style"]
+prompt = "The small robot trudges away across an empty snowfield as its chest light dims."
+"""
+
+
+def test_a_clip_shot_is_a_second_kind_of_plate_not_a_flag_on_the_first() -> None:
+    shell = _load(CLIP_OPENING)
+
+    assert [label for label, _ in shell.clips()] == ["opening.shots.the_walk"]
+    # And it is absent from plates(), which everything downstream joins to a PNG.
+    assert shell.plates() == ()
+    clip = shell.clips()[0][1]
+    assert (clip.mode, clip.take) == ("clip", 1)
+    # A clip carries no alpha policy: video has no alpha.
+    assert not hasattr(clip, "alpha_policy")
+
+
+def test_a_document_says_which_kind_of_plate_it_means() -> None:
+    """``mode`` is required on both branches, so a v1 document is refused by name."""
+
+    assert "mode" in _refusal(CLIP_OPENING.replace('mode = "clip"\n', ""))
+    assert "mode" in _refusal(OPENING.replace('mode = "still"\n', ""))
+
+
+def test_a_clip_shot_is_held_because_it_brings_its_own_camera() -> None:
+    moved = CLIP_OPENING.replace("seconds = 8.0", 'move = "push_in"\nseconds = 8.0')
+    assert "moves the camera over a clip" in _refusal(moved)
+    # The same move over a still is exactly what the host is for.
+    assert _load(OPENING).opening is not None
+
+
+def test_a_clip_names_references_the_document_has_to_declare() -> None:
+    """The check reads clips as well as stills, or a clip could name anything."""
+
+    unknown = CLIP_OPENING.replace('["cover_style"]', '["no_such_plate"]')
+    assert "names undeclared references ['no_such_plate']" in _refusal(unknown)
+    assert dict(_load(CLIP_OPENING).reference_users()) == {
+        "opening.shots.the_walk": ("cover_style",)
+    }
+
+
+def test_a_clip_prompt_may_not_ask_for_lettering_either() -> None:
+    lettering = CLIP_OPENING.replace("as its chest light dims.", "under the title of the game.")
+    assert "shell clip prompt" in _refusal(lettering)
+
+
+def test_a_take_is_the_reroll_because_a_video_route_takes_no_seed() -> None:
+    assert (
+        _load(CLIP_OPENING.replace('mode = "clip"', 'mode = "clip"\ntake = 3')).clips()[0][1].take
+        == 3
+    )
+    assert "take" in _refusal(CLIP_OPENING.replace('mode = "clip"', 'mode = "clip"\ntake = 0'))
+
+
+# --- how the opening ends -----------------------------------------------------
+
+
+def test_an_opening_ends_on_a_cut_unless_it_says_otherwise() -> None:
+    shell = _load(OPENING)
+    assert shell.opening is not None and shell.opening.ending == "cut_to_black"
+
+
+def test_matching_the_title_needs_a_title_to_match() -> None:
+    """The one ending that is a claim about the picture, refused offline without one."""
+
+    matched = CLIP_OPENING.replace('ending = "cut_to_black"', 'ending = "match_title"')
+    assert "nothing for its last frame to be measured against" in _refusal(matched)
+    # With a title screen declared, the same document is fine.
+    assert _load(matched, TITLE).opening is not None
+
+
+def test_an_ending_outside_the_vocabulary_is_refused() -> None:
+    assert "ending" in _refusal(CLIP_OPENING.replace("cut_to_black", "flare_out"))

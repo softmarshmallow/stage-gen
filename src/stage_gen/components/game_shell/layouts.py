@@ -29,6 +29,7 @@ CUTOUT_ALPHA_POLICY = "transparent_exterior_v1"
 TITLE_SCREEN_LAYOUT = "title_screen_16x9_v1"
 LOADING_SCREEN_LAYOUT = "loading_screen_16x9_v1"
 OPENING_LAYOUT = "opening_16x9_v1"
+OPENING_CLIP_LAYOUT = "opening_clip_16x9_v1"
 
 #: How a still shot is moved over its seconds. The host owns the easing; the document
 #: owns only which move, because only the feel depends on the rest.
@@ -157,8 +158,24 @@ OPENING_SHOT = ShellLayout(
     reserved=(("card_band", Rect(x=320, y=1020, width=1920, height=300)),),
 )
 
+#: An opening shot that is a clip. The same screen and the same reserved card band as a
+#: still shot, on the canvas a video route actually draws: 1920 by 1080 rather than the
+#: 2560 by 1440 the image route uses. The proportions are identical because both are
+#: 16:9, which is why a card band published against either lands in the same place - a
+#: host scales the whole canvas to its window and every rect by the same factor. That
+#: invariant is what the clip gate's aspect check is protecting.
+#:
+#: The resolution is a property of the layout rather than of the document because a
+#: package names a layout and never writes a rectangle. A second rung on the route's
+#: ladder would be a second layout id, not a field.
+OPENING_CLIP = ShellLayout(
+    layout=OPENING_CLIP_LAYOUT,
+    reserved=(("card_band", Rect(x=160, y=510, width=960, height=150)),),
+    canvas=(1280, 720),
+)
+
 SHELL_LAYOUTS: dict[str, ShellLayout] = {
-    layout.layout: layout for layout in (TITLE_SCREEN, LOADING_SCREEN, OPENING_SHOT)
+    layout.layout: layout for layout in (TITLE_SCREEN, LOADING_SCREEN, OPENING_SHOT, OPENING_CLIP)
 }
 
 
@@ -168,14 +185,16 @@ __all__ = [
     "LOADING_SCREEN",
     "LOADING_SCREEN_LAYOUT",
     "OPAQUE_ALPHA_POLICY",
+    "OPENING_CLIP",
+    "OPENING_CLIP_LAYOUT",
     "OPENING_LAYOUT",
     "OPENING_SHOT",
+    "Rect",
     "SHELL_CANVAS",
     "SHELL_LAYOUTS",
+    "ShellLayout",
     "SHOT_MOVES",
     "SHOT_TRANSITIONS",
-    "Rect",
-    "ShellLayout",
     "TITLE_SCREEN",
     "TITLE_SCREEN_LAYOUT",
 ]

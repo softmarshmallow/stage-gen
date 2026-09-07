@@ -14,7 +14,7 @@ from typing import Literal
 #: service and therefore no signature check here: its deterministic floor
 #: (``assert_text_payload``) is enforced by the artifact write, not by a
 #: retry owner.
-MediaFamily = Literal["image", "audio", "application", "text"]
+MediaFamily = Literal["image", "audio", "application", "text", "video"]
 
 
 def normalize_media_type(value: object, family: MediaFamily) -> str:
@@ -69,3 +69,32 @@ def assert_audio_signature(data: bytes, media_type: str) -> None:
     )
     if not mp3 and not wav:
         raise ValueError(f"audio bytes do not match declared media type {media_type}")
+
+
+def normalize_video_media_type(value: str) -> str:
+    normalized = value.strip().lower().split(";", 1)[0]
+    if normalized in {"mp4", "video/x-m4v"}:
+        return "video/mp4"
+    if normalized in {"ogv", "video/x-theora+ogg", "application/ogg"}:
+        return "video/ogg"
+    if not normalized.startswith("video/"):
+        raise ValueError(f"expected video media type, received {normalized}")
+    return normalized
+
+
+def assert_video_signature(data: bytes, media_type: str) -> None:
+    """The byte floor for a video payload: container only, never codec.
+
+    ``video/ogg`` is checked against ``OggS``, which is the Ogg *container* and
+    is shared with ``audio/ogg`` - it cannot tell Theora from Vorbis, and this
+    layer must not pretend otherwise. Which codec is actually inside is an
+    ffprobe question, and it belongs to whichever local gate has to hand the
+    file to a player that supports exactly one.
+    """
+
+    media_type = normalize_video_media_type(media_type)
+    mp4 = media_type == "video/mp4" and len(data) >= 12 and data[4:8] == b"ftyp"
+    ogg = media_type == "video/ogg" and data.startswith(b"OggS")
+    webm = media_type in {"video/webm", "video/x-matroska"} and data.startswith(b"\x1a\x45\xdf\xa3")
+    if not mp4 and not ogg and not webm:
+        raise ValueError(f"video bytes do not match declared media type {media_type}")

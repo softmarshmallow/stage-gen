@@ -35,7 +35,7 @@ NodeState = Literal["pending", "running", "succeeded", "failed", "skipped"]
 #: liveness question, answered by ``trace_modified_at`` against the wall clock,
 #: and it belongs to whoever is reading — not to a document written once.
 RunState = Literal["planned", "unfinished", "canceled", "succeeded", "failed"]
-ArtifactDisplay = Literal["image", "audio", "data", "text", "motion_atlas"]
+ArtifactDisplay = Literal["image", "audio", "data", "text", "motion_atlas", "video"]
 
 _TERMINAL_STATES = ("succeeded", "failed", "skipped")
 _MEDIA_TYPES = {
@@ -45,6 +45,8 @@ _MEDIA_TYPES = {
     ".webp": "image/webp",
     ".gif": "image/gif",
     ".mp3": "audio/mpeg",
+    ".mp4": "video/mp4",
+    ".ogv": "video/ogg",
     ".json": "application/json",
     ".md": "text/markdown",
     ".txt": "text/plain",
@@ -162,6 +164,8 @@ def generic_artifact_annotation(artifact_ref: str, node: Node) -> ArtifactAnnota
         return ArtifactAnnotation(display="image")
     if media_type.startswith("audio/"):
         return ArtifactAnnotation(display="audio")
+    if media_type.startswith("video/"):
+        return ArtifactAnnotation(display="video")
     if media_type.startswith("text/"):
         return ArtifactAnnotation(display="text")
     return ArtifactAnnotation(display="data")

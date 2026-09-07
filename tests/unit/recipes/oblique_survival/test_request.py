@@ -31,7 +31,13 @@ PACKAGE = Path("library/games/ember-hollow")
 #: joined the package: the digest is a function of the authored text, and the
 #: shell is authored text. Same price as every other move of it -- two local
 #: nodes, no provider operation.
-SOURCE_DIGEST = "01e6cf37315e30a86990dcccb74b8f23b70bf0c36b3b1cffba8ff56470b5d487"
+#: Moved a third time the same day by ``game-shell-v2``: a clip plate is a new
+#: identity rather than an optional field, so every plate table in the document
+#: now says which kind it is. Same price again.
+#: And a fourth time when the opening's establishing shot became a clip -- the
+#: one shot whose subject is something moving. Its still is dropped and its clip
+#: is bought; every other node in the graph holds.
+SOURCE_DIGEST = "9a05ebe537b962f1038b479b98b4516f75a4c4e1fed3fdcfe349afde5c1cafb9"
 
 #: One take that is declared by digest and whose bytes are in the package.
 FORAGE_TAKE = "ground/forage.take.png"

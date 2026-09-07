@@ -30,7 +30,15 @@ export const DISAMBIGUATING_PARAMS: readonly string[] = [
 ] as const;
 
 /** Archetypes whose definition is a prompt: the node is told what to make. */
-const PROMPTED: readonly ViewArchetype[] = ["image", "matte", "music", "sound", "structured", "judge"];
+const PROMPTED: readonly ViewArchetype[] = [
+  "image",
+  "matte",
+  "music",
+  "sound",
+  "video",
+  "structured",
+  "judge",
+];
 
 export function isPrompted(archetype: ViewArchetype | null): boolean {
   return archetype !== null && PROMPTED.includes(archetype);

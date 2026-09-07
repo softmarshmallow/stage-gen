@@ -152,7 +152,14 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # 29,458 B, and the wheel measured 5,399,739. The ceiling is 5,500,000. The
         # storefront's authored package and its reference art live under library/,
         # which the wheel does not carry, and its tests and specification are not in it.
-        assert sum(wheel_entries.values()) < 5_500_000
+        # The video modality (2026-09-07) takes it again, and most of the growth since
+        # is the shell rather than the new work: the shell's modules went from 29,458 B
+        # to 100,713 B as its gates and node family landed, the storefront's from
+        # 85,147 B to 88,214 B, and the ring-1/ring-2 video slice adds 16,343 B across
+        # four modules. The wheel measured 5,494,920 against a 5,500,000 line with
+        # 5,080 B to spare. The ceiling is 5,600,000, which carries the clip gate,
+        # the transcode component and the shell's clip nodes still to land.
+        assert sum(wheel_entries.values()) < 5_600_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
         assert {
@@ -243,7 +250,13 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # the archive measured 9,411,823. The ceiling is 9,550,000. The storefront's
         # authored package and its reference art are under library/, which the archive
         # does not carry.
-        assert sum(sdist_entries.values()) < 9_550_000
+        # The video modality (2026-09-07) takes it again. The archive measured
+        # 9,552,204 against the 9,550,000 line - over by 2,204 B. Of the 140,381 B
+        # added since that number was written, the shell is 67,626 B (its gates, node
+        # family and tests), the video slice 26,656 B across seven modules, and the
+        # storefront 6,503 B; the rest is drift spread across the tree. The ceiling is
+        # 9,700,000, sized for the clip gate, the transcode component and their tests.
+        assert sum(sdist_entries.values()) < 9_700_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)

@@ -33,6 +33,7 @@ from gnode import (
     SpeechGenerationService,
     StructuredGenerationService,
     ToolLoopService,
+    VideoGenerationService,
     assert_safe_path_segment,
     atomic_write_json,
     project_schedule,
@@ -49,6 +50,7 @@ from stage_gen.orchestration.runtime import (
     create_speech_service,
     create_structured_service,
     create_tool_loop_service,
+    create_video_service,
 )
 from stage_gen.recipes.dry_run import DryRunNodeHandler
 
@@ -149,6 +151,15 @@ class RunServices:
             create_background_removal_service(
                 api_key=config.fal_key or "",
                 model=config.background_removal_model,
+            )
+        )
+
+    def video(self) -> VideoGenerationService:
+        config = self._config
+        return self.adopt(
+            create_video_service(
+                api_key=config.fal_key or "",
+                model=config.video_model,
             )
         )
 

@@ -1,5 +1,5 @@
 # The screens around the game: the opening cinematic, the title screen, the
-# loading screen. The shared `game-shell-v1` contract, whose rules live in
+# loading screen. The shared `game-shell-v2` contract, whose rules live in
 # docs/spec/game/shell.md and whose component is src/stage_gen/components/game_shell/.
 #
 # Nothing here asks for lettering, and the loader refuses a prompt that does.
@@ -7,10 +7,10 @@
 # is set by the host in the typeface below, never drawn into a plate. That is
 # what keeps the name spelled correctly and translatable.
 
-schema_version = 1
-kind = "game-shell-v1"
+schema_version = 2
+kind = "game-shell-v2"
 game_id = "ember-hollow"
-revision = 3
+revision = 4
 
 # The art direction of record, the same plate every other generated image in
 # this package is drawn against. The shell is the first thing a player sees, so
@@ -49,22 +49,31 @@ retrieved = "2026-08-24"
 layout = "opening_16x9_v1"
 skippable = true
 
+# The establishing shot is a clip rather than a still. It is the one shot in the
+# opening whose whole subject is something moving — smoke rising, snow falling, the
+# light going — and a still of it has to fake that with a camera push. The rest of the
+# opening stays drawn, because a hearth and a treeline are pictures and a slow move
+# over a painting is honest for them.
+#
+# No `move`: a clip brings its own camera, and the contract refuses a shot that asks
+# for one over it. Held for the same 4.5 seconds either way.
 [[opening.shots]]
 shot_id = "the_valley"
-move = "push_in"
-seconds = 4.5
+seconds = 5.0
 card = "Winter comes early to the hollow."
 out_transition = "dissolve"
 
 [opening.shots.plate]
-alpha_policy = "fully_opaque_v1"
+mode = "clip"
 reference_ids = ["style_plate"]
 prompt = """
 A wide cold valley seen from its rim under a heavy overcast sky: ranks of dark conifers
 stacked as ragged flat masses down both slopes, bare ash-grey rock breaking through the
 snow along the ridge, and a thin thread of pale smoke rising from somewhere among the
 trees far below. Bone-white snow, bark brown, moss green gone grey with cold. Nobody in
-the picture.
+the picture. Animate it with the smallest motion that still reads as alive: the thread
+of smoke drifts and thins as it rises, the overcast moves very slowly across the sky,
+and fine snow drifts down. Nothing else moves.
 """
 
 [[opening.shots]]
@@ -75,6 +84,7 @@ card = "Someone banked a fire here, and left."
 out_transition = "dissolve"
 
 [opening.shots.plate]
+mode = "still"
 alpha_policy = "fully_opaque_v1"
 reference_ids = ["style_plate"]
 prompt = """
@@ -92,6 +102,7 @@ card = "Keep it burning."
 out_transition = "wipe"
 
 [opening.shots.plate]
+mode = "still"
 alpha_policy = "fully_opaque_v1"
 reference_ids = ["style_plate"]
 prompt = """
@@ -116,6 +127,7 @@ layout = "title_screen_16x9_v1"
 depth = "far"
 
 [title.backdrop.plate]
+mode = "still"
 alpha_policy = "fully_opaque_v1"
 reference_ids = ["style_plate"]
 prompt = """
@@ -137,7 +149,7 @@ only warm accent.
 # does not need it — the game's name is composited in the package's own face over
 # a backdrop that measured 9.18 against a 12.0 ceiling — so the badge waits for a
 # brief written from a drawn reference rather than from adjectives. `title.emblem`
-# stays optional in `game-shell-v1` for exactly this case.
+# stays optional in `game-shell-v2` for exactly this case.
 
 # --- the loading screen ------------------------------------------------------
 #

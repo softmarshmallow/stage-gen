@@ -33,7 +33,7 @@ describe("the run index", () => {
       "run-index-kind",
       {
         "manifest.json": {
-          kind: "oblique-survival-manifest-v2",
+          kind: "oblique-survival-manifest-v3",
           schema_version: 1,
           ground: { size_meters: 512 },
         },
@@ -41,7 +41,7 @@ describe("the run index", () => {
       async () => {
         const entry = await readRunIdentity("run-index-kind");
         expect(entry.document).toBe("manifest.json");
-        expect(entry.kind).toBe("oblique-survival-manifest-v2");
+        expect(entry.kind).toBe("oblique-survival-manifest-v3");
         expect(entry.schemaVersion).toBe(1);
         expect(entry.hasExecutionView).toBe(false);
       },

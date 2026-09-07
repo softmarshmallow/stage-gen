@@ -23,7 +23,7 @@ extends RefCounted
 ## under `out/`. The spike's `oblique_survival_v0_manifest` was accepted while
 ## the recipe was being promoted and is gone; a run that still carries it is
 ## refused by name rather than half-read.
-const MANIFEST_KIND := "oblique-survival-manifest-v2"
+const MANIFEST_KIND := "oblique-survival-manifest-v3"
 ## The version of that contract. One document, one identity: a manifest that
 ## names the kind but not this version is a different document.
 const MANIFEST_SCHEMA_VERSION := 1
@@ -41,6 +41,7 @@ var layout: Dictionary = {}
 var _images: Dictionary = {}
 var _textures: Dictionary = {}
 var _audio: Dictionary = {}
+var _videos: Dictionary = {}
 
 ## Open a run directory. Returns null (after pushing an error) when the
 ## manifest is missing, unreadable, or refused.
@@ -191,6 +192,26 @@ func audio(ref: String) -> AudioStreamMP3:
 	else:
 		push_error("run package: cannot read audio %s" % absolute)
 	_audio[ref] = stream
+	return stream
+
+## An Ogg Theora clip from the package, cached. Null when missing.
+##
+## The third reader of run-directory media, after textures and audio, and the third to
+## reach past `ResourceLoader`: a run's files are written long after the project was
+## exported, so nothing in one is imported. `VideoStreamTheora` takes a plain filesystem
+## path in `file`, which is measured rather than assumed — `tools/probe_video.gd` plays
+## one and reads the clock back. Theora is the only video codec the engine carries.
+func video(ref: String) -> VideoStreamTheora:
+	if _videos.has(ref):
+		return _videos[ref]
+	var absolute := path(ref)
+	var stream: VideoStreamTheora = null
+	if absolute != "" and FileAccess.file_exists(absolute):
+		stream = VideoStreamTheora.new()
+		stream.file = absolute
+	else:
+		push_error("run package: cannot read video %s" % absolute)
+	_videos[ref] = stream
 	return stream
 
 static func _read_json(absolute: String) -> Variant:

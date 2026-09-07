@@ -168,6 +168,38 @@ foreground refinement, no separate mask, and `1024x1024` operating resolution.
 The endpoint also supports higher documented operating resolutions, alternate
 variants, optional masks, and `webp`/`gif` output.
 
+## Video through fal
+
+- Endpoint ID: `google/gemini-omni-flash/v1.1/reference-to-video`.
+- Direct URL: `POST https://fal.run/google/gemini-omni-flash/v1.1/reference-to-video`.
+- Authentication: `Authorization: Key $FAL_KEY`.
+- Verified on 2026-09-07.
+
+One endpoint, deliberately. The reference form also serves the single-picture
+case as a list of one, so nothing in the adapter branches on how many plates a
+clip was drawn from — and therefore nothing there names a model.
+
+Input is `prompt` plus `image_urls` (ordered; the route reads the first as the
+art direction the rest are judged against), with `aspect_ratio`, `resolution`
+and `duration`. References are inlined as base64 data URLs. The response is
+`video.url`, downloaded **without** the authorization header, exactly as the
+background route does — a hosted URL is not the artifact.
+
+Two route arithmetic facts, both declared on the binding rather than restated in
+the modality, and both refused while planning:
+
+| Limit | Value | How it was learned |
+| --- | --- | --- |
+| `clip_seconds_max` | 10 | `duration: 18` answers HTTP 422 naming `le: 10`, free, before rendering |
+| `clip_seconds_step` | 1 | expensive: 4.5 was truncated to 4 by the adapter, the route answered four seconds correctly, and the caller's length gate refused the answer against the 4.5 nobody had asked for — six attempts at full price |
+
+The adapter now refuses a duration it cannot express rather than rounding one.
+Pricing is per second of output: 360p $0.03, 720p $0.10, 1080p $0.15, 4K $0.30.
+
+The response is h264 in mp4. The pinned Godot host plays only Ogg Theora, so a
+clip is transcoded before publication — see [the shell spec](../spec/game/shell.md)
+for that leg and the encoder it needs.
+
 Success requires an `image` object with a URL and media metadata. Download the
 result inside the retry attempt, verify that it is non-empty decodable media,
 and persist both request and returned metadata. A hosted URL alone is not the

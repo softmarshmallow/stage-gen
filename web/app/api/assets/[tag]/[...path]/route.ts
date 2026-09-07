@@ -29,6 +29,8 @@ function contentTypeFor(filename: string): string {
   if (ext === ".webp") return "image/webp";
   if (ext === ".gif") return "image/gif";
   if (ext === ".mp3") return "audio/mpeg";
+  if (ext === ".mp4") return "video/mp4";
+  if (ext === ".ogv") return "video/ogg";
   if (ext === ".json") return "application/json; charset=utf-8";
   if (ext === ".txt") return "text/plain; charset=utf-8";
   return "application/octet-stream";

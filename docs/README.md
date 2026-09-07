@@ -69,7 +69,7 @@ Start here for the headless, general-purpose system:
   recipes (`2d/obliqueview/survival`): the authored survival package and its
   digest-declared takes, the presentation profile, the four-way facing rule, the
   one sealed graph and its four scopes, which edit re-bills which node, the
-  deterministic gates, and the `oblique-survival-manifest-v2` manifest a host plays.
+  deterministic gates, and the `oblique-survival-manifest-v3` manifest a host plays.
 - [Storefront generation V1](spec/storefront/generation-v1.md) — one of seven
   recipes, and the only one that draws nothing playable: the authored
   `storefront-source-v1` package, the closed surface table and its two canvases,

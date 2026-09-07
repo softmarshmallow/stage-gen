@@ -56,6 +56,7 @@ var _shot_index := -1
 var _shot_elapsed := 0.0
 var _shot_node: Control = null
 var _card_node: Label = null
+var _shot_player: VideoStreamPlayer = null
 
 # --- the title
 var _title_node: Control = null
@@ -154,11 +155,22 @@ func _advance_shot() -> void:
 	_shot_node.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_shot_node)
 
-	var plate := _plate_texture(shot.get("plate", {}))
-	if plate != null:
-		var picture := _cover_rect(plate)
-		_shot_node.add_child(picture)
-		_apply_move(picture, String(shot.get("move", "hold")), float(shot.get("seconds", 4.0)))
+	var plate: Dictionary = shot.get("plate", {}) if typeof(shot.get("plate")) == TYPE_DICTIONARY else {}
+	if String(plate.get("mode", "still")) == "clip":
+		var player := _clip_player(plate)
+		if player != null:
+			_shot_node.add_child(player)
+			player.play()
+			_shot_player = player
+		# No move: a clip brings its own camera, and the contract refuses a shot that
+		# asks for one over it. The clip is built here rather than warmed in the
+		# preload pass because the opening runs before `begin_loading()` ever does.
+	else:
+		var texture := _plate_texture(plate)
+		if texture != null:
+			var picture := _cover_rect(texture)
+			_shot_node.add_child(picture)
+			_apply_move(picture, String(shot.get("move", "hold")), float(shot.get("seconds", 4.0)))
 
 	var card := String(shot.get("card", ""))
 	if card != "":
@@ -218,10 +230,29 @@ func _enter_title() -> void:
 	if _phase == "title":
 		return
 	_phase = "title"
+	# How the opening gives way. Three of the four endings are this host's own
+	# presentation and cost nothing; `match_title` is the measured one, and by the time
+	# a run reaches a player its last frame has already been proved to be this screen —
+	# so here it plays as a hold, and the picture does the rest.
+	var ending := String((_block.get("opening", {}) as Dictionary).get("ending", "cut_to_black"))
+	var leaving := _shot_node
+	if leaving != null and ending in ["fade_to_black", "match_title"]:
+		var fade := create_tween()
+		fade.tween_property(leaving, "modulate:a", 0.0, DISSOLVE)
+		fade.tween_callback(leaving.queue_free)
+	elif leaving != null and ending == "hold_last_frame":
+		# A finished VideoStreamPlayer clears to black, so the last frame has to be
+		# held deliberately rather than left on screen.
+		if _shot_player != null:
+			_shot_player.paused = true
+		leaving.queue_free()
 	for child in _root.get_children():
+		if child == leaving and ending in ["fade_to_black", "match_title"]:
+			continue
 		(child as Node).queue_free()
 	_shot_node = null
 	_card_node = null
+	_shot_player = null
 
 	var title: Dictionary = _block.get("title", {})
 	_title_node = Control.new()
@@ -375,6 +406,10 @@ func _tick_loading(delta: float) -> void:
 		var ref := _preload_refs[_preload_cursor]
 		if ref.ends_with(".mp3"):
 			package.audio(ref)
+		elif ref.ends_with(".ogv"):
+			# Opened, not decoded: a clip streams while it plays, and warming it here
+			# only proves the file is readable before the screen needs it.
+			package.video(ref)
 		else:
 			package.texture(ref)
 		_preload_cursor += 1
@@ -463,6 +498,29 @@ func _plate_texture(plate: Variant) -> Texture2D:
 	return package.texture(ref) if ref != "" else null
 
 
+## The player for a clip shot, filling the frame and silent.
+##
+## Silent on purpose: the opening's sound is the package's own soundtrack, and the
+## publication transcode already dropped the track the route generated. `expand` is
+## honest here only because the clip gate refuses anything that is not 16:9, which is
+## the same reason a card band published against the still canvas lands correctly over
+## a clip drawn on the smaller one.
+func _clip_player(plate: Dictionary) -> VideoStreamPlayer:
+	var ref := String(plate.get("asset", ""))
+	if ref == "":
+		return null
+	var stream := package.video(ref)
+	if stream == null:
+		return null
+	var player := VideoStreamPlayer.new()
+	player.stream = stream
+	player.expand = true
+	player.set_anchors_preset(Control.PRESET_FULL_RECT)
+	player.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	player.volume_db = -80.0
+	return player
+
+
 func _loading_backdrop(loading: Dictionary) -> Texture2D:
 	var backdrop: Dictionary = loading.get("backdrop", {})
 	if String(backdrop.get("source", "")) == "generated":
@@ -521,7 +579,10 @@ func _collect_refs(value: Variant, into: Array[String]) -> void:
 		TYPE_STRING:
 			var text := String(value)
 			var drawable := (
-				text.ends_with(".png") or text.ends_with(".webp") or text.ends_with(".mp3")
+				text.ends_with(".png")
+				or text.ends_with(".webp")
+				or text.ends_with(".mp3")
+				or text.ends_with(".ogv")
 			)
 			if drawable and not text.ends_with(".raw.png") and not into.has(text):
 				into.append(text)

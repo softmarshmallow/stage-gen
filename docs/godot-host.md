@@ -30,7 +30,7 @@ A host is handed one run directory on the command line — the directory holding
 ```json
 {
   "schema_version": 1,
-  "kind": "oblique-survival-manifest-v2"
+  "kind": "oblique-survival-manifest-v3"
 }
 ```
 
@@ -157,6 +157,15 @@ here in the face the run publishes: no plate carries lettering, so the game's ow
 name is set from `shell.strings.display_name` and swapping the face redraws no art.
 A run with no `shell` block boots straight into the world, and one that authored a
 shell the run never drew says so before it does.
+
+An opening shot is a still or a clip, and the host branches on the plate's `mode`
+rather than guessing from a file extension. A clip is `VideoStreamTheora`, opened by
+setting `file` to the run-directory path — a run's assets are written long after this
+project was exported, so nothing in one is imported, and video joins textures, audio
+and the typeface in being handed to the engine rather than looked up. It plays silent
+(the opening's sound is the package's soundtrack, and the publication transcode already
+dropped the track the route generated) and it takes no camera move, because it brings
+its own. `opening.ending` says how the last shot gives way to the title.
 
 It owns loading, the fixed-step loop, mirroring world slices onto scene nodes,
 the perspective camera and its yaw detents, billboard depth against the ground,

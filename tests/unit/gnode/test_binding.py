@@ -98,3 +98,84 @@ def test_a_local_operation_cannot_be_bound_to_a_provider() -> None:
             estimated_cost_low_usd=0.0,
             estimated_cost_high_usd=0.0,
         )
+
+
+def _video_binding(*, limits: tuple[tuple[str, float], ...]) -> Binding:
+    return Binding(
+        operation="video_generation",
+        model=ModelRef(model="google/gemini-omni-flash/v1.1", provider="fal"),
+        features=frozenset({"reference_images"}),
+        limits=limits,
+        resource_id="video",
+        estimated_duration_seconds=120.0,
+        estimated_cost_low_usd=0.30,
+        estimated_cost_high_usd=1.50,
+    )
+
+
+def test_a_route_ceiling_is_declared_on_the_route_and_refused_while_planning() -> None:
+    """How long a clip a model will make is a fact about that route.
+
+    Declaring it here rather than in the modality is what lets one authored
+    document plan against a route with a different ceiling without an edit.
+    """
+
+    table = BindingTable([_video_binding(limits=(("clip_seconds_max", 10.0),))])
+
+    assert (
+        table.require_within(
+            "video_generation", "clip_seconds_max", 10.0, subject="the opening shot"
+        ).model.provider
+        == "fal"
+    )
+
+    with pytest.raises(CapabilityError, match="the opening shot asks for 18"):
+        table.require_within(
+            "video_generation", "clip_seconds_max", 18.0, subject="the opening shot"
+        )
+
+
+def test_an_undeclared_ceiling_is_refused_rather_than_waved_through() -> None:
+    """Fail-closed: forgetting the limit is a planning failure, not a 422 after spend."""
+
+    table = BindingTable([_video_binding(limits=())])
+    with pytest.raises(CapabilityError, match="declares no clip_seconds_max"):
+        table.require_within("video_generation", "clip_seconds_max", 4.0, subject="a shot")
+
+
+def test_a_route_declares_each_ceiling_once_and_positively() -> None:
+    with pytest.raises(ValueError, match="each limit at most once"):
+        _video_binding(limits=(("clip_seconds_max", 10.0), ("clip_seconds_max", 12.0)))
+    with pytest.raises(ValueError, match="positive finite"):
+        _video_binding(limits=(("clip_seconds_max", 0.0),))
+    with pytest.raises(ValueError, match="positive finite"):
+        _video_binding(limits=(("clip_seconds_max", float("inf")),))
+
+
+def test_a_missing_feature_still_refuses_before_a_ceiling_is_read() -> None:
+    table = BindingTable([_video_binding(limits=(("clip_seconds_max", 10.0),))])
+    with pytest.raises(CapabilityError, match="alpha_matte"):
+        table.require_within(
+            "video_generation", "clip_seconds_max", 4.0, subject="a shot", features=("alpha_matte",)
+        )
+
+
+def test_a_route_that_counts_in_steps_refuses_a_value_between_them() -> None:
+    """A ceiling is not the only shape a route's arithmetic takes.
+
+    Learned by spending: a route that counts whole seconds was handed 4.5, the adapter
+    truncated it to 4, the answer came back four seconds long, and the caller's length
+    gate refused it against the 4.5 nobody had actually asked for - six times, at full
+    price. The step is declared where the ceiling is, and refused in the same place.
+    """
+
+    table = BindingTable(
+        [_video_binding(limits=(("clip_seconds_max", 10.0), ("clip_seconds_step", 1.0)))]
+    )
+    binding = table.require("video_generation")
+    binding.aligned("clip_seconds_step", 5.0, subject="a shot")
+
+    with pytest.raises(CapabilityError, match=r"asks for 4\.5 .* in steps of 1"):
+        binding.aligned("clip_seconds_step", 4.5, subject="a shot")
+    with pytest.raises(CapabilityError, match="declares no clip_seconds_step"):
+        _video_binding(limits=()).aligned("clip_seconds_step", 5.0, subject="a shot")

@@ -122,7 +122,7 @@ SURVIVAL_DOCUMENT_NAME: Final = "survival.toml"
 #: sheets the host's HUD is dressed in, and the pointers it is played with. Its
 #: contract is the game_ui component's.
 UI_DOCUMENT_NAME: Final = "ui.toml"
-#: The shared ``game-shell-v1`` document, optional the same way: the screens the
+#: The shared ``game-shell-v2`` document, optional the same way: the screens the
 #: player meets around the game. Its contract is the game_shell component's.
 SHELL_DOCUMENT_NAME: Final = "shell.toml"
 
@@ -415,7 +415,7 @@ def _shell(
         shell = load_game_shell_bytes(raw)
     except AuthoredContractLoadError as error:
         raise SourceError(
-            f"{SHELL_DOCUMENT_NAME} is not a game-shell-v1 document: {error}"
+            f"{SHELL_DOCUMENT_NAME} is not a game-shell-v2 document: {error}"
         ) from None
 
     references: dict[str, PackageFile] = {}

@@ -1196,7 +1196,7 @@ class Package:
     ui: GameUi | None = None
     #: The bytes behind each ui.toml reference, by its declared source path.
     ui_references: Mapping[str, PackageFile] = field(default_factory=dict)
-    #: shell.toml, the shared ``game-shell-v1`` document: the opening cinematic,
+    #: shell.toml, the shared ``game-shell-v2`` document: the opening cinematic,
     #: the title screen and the loading screen. Optional like ui.toml, and a
     #: package without one boots straight into the world.
     shell: GameShell | None = None

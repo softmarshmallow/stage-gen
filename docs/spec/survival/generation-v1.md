@@ -80,7 +80,7 @@ a `game.toml` closure.
 | `weather.toml` | `oblique-survival-weather-v1` | the world conditions and the layers each one drives |
 | `music.toml` | — | one instrumental loop per clock cue, and the `[transition]` between them |
 | `ui.toml` | `game-ui-v5` | optional: the screen-fixed interface — the `panel_frame` and `button_rect` nine-slice sheets and the `preview_icons` grid the host's HUD is dressed in, and the `cursor_set` it is played with, each pointer with the hotspot the gate measured — the shared [authored game UI contract](../game/ui.md), planned through the game_ui component's own triplet; no `inventory_panel`, the host draws its slots as plain wells inside the generated frame |
-| `shell.toml` | `game-shell-v1` | optional: the screens around the game — the opening cinematic's shot list, the title screen's backdrop and text-free emblem, and the loading screen — the shared [authored game shell contract](../game/shell.md), planned through the game_shell component's own triplet. Every string on them is composited by the host in the package's declared typeface, never drawn into a plate |
+| `shell.toml` | `game-shell-v2` | optional: the screens around the game — the opening cinematic's shot list, each shot drawn as a still or filmed as a clip, the title screen's backdrop and text-free emblem, and the loading screen — the shared [authored game shell contract](../game/shell.md), planned through the game_shell component's own triplet. Every string on them is composited by the host in the package's declared typeface, never drawn into a plate |
 | `sounds.toml` | — | one clip per thing the player does, with its exact duration and its playback gain |
 
 `publication_authorized` is `false` in every graph this recipe seals and in
@@ -144,12 +144,12 @@ One graph serves every scope. A scope selects a subset of the nodes and changes
 nothing about the ones it keeps, so a narrow run warms the cache for a wide one
 instead of paying twice.
 
-| Scope | Nodes | Image | Structured | Tool loop | Music | Sound | Local |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `minimal` | 64 | 21 | 0 | 5 | 0 | 0 | 38 |
-| `props` | 199 | 78 | 11 | 11 | 0 | 0 | 99 |
-| `actors` | 249 | 99 | 16 | 11 | 0 | 0 | 123 |
-| **`full`** | **291** | **106** | **17** | **11** | **0** | **3** | **154** |
+| Scope | Nodes | Image | Structured | Tool loop | Music | Sound | Video | Local |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `minimal` | 64 | 21 | 0 | 5 | 0 | 0 | 0 | 38 |
+| `props` | 200 | 77 | 11 | 11 | 0 | 0 | 1 | 100 |
+| `actors` | 250 | 98 | 16 | 11 | 0 | 0 | 1 | 124 |
+| **`full`** | **292** | **105** | **17** | **11** | **0** | **3** | **1** | **155** |
 
 Counted from the committed fixture package with every plate, track and clip take
 adopted; the music count is zero for that reason. The `full` row is the block
@@ -260,7 +260,7 @@ loop and never a second provider adapter.
 
 ## Runtime manifest
 
-A run publishes `oblique-survival-manifest-v2` at `manifest.json`, beside the
+A run publishes `oblique-survival-manifest-v3` at `manifest.json`, beside the
 `package/` tree it names. Its blocks:
 
 `style`, `scale`, `camera`, `look`, `ground_contact`, `ground`, `actors`,
@@ -360,16 +360,17 @@ invalidates it and must be regenerated in the same change.
   "fixture_ref": "library/games/ember-hollow",
   "scope": "full",
   "graph_schema_version": 1,
-  "topology_sha256": "24e648792cb67c6ea301b554477aaf279c0a3424afdd74d198fb69670dbb4f57",
-  "node_count": 291,
+  "topology_sha256": "efd6d2b74968546020ae96a681b2c47809f462768638fe3a36605d674a42b205",
+  "node_count": 292,
   "terminal_node_id": "package-manifest",
   "operation_counts": {
-    "local": 154,
-    "image_generation": 106,
+    "local": 155,
+    "image_generation": 105,
     "structured_generation": 17,
     "tool_loop": 11,
     "music_generation": 0,
-    "sound_effect_generation": 3
+    "sound_effect_generation": 3,
+    "video_generation": 1
   },
   "resources": [
     {
@@ -405,6 +406,12 @@ invalidates it and must be regenerated in the same change.
     {
       "resource_id": "survival-elevenlabs-sound",
       "max_in_flight": 2,
+      "requests_per_minute": null,
+      "rate_limit_owner": "none"
+    },
+    {
+      "resource_id": "survival-fal-video",
+      "max_in_flight": 1,
       "requests_per_minute": null,
       "rate_limit_owner": "none"
     }

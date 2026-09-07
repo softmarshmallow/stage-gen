@@ -58,6 +58,17 @@ Changelog
             draws, so it costs nothing and plans no node. Only ``source-lock``
             and ``package-manifest`` move a cache key (the package text grew a
             document); no paid node re-bills, which ``test_cache_keys`` shows.
+
+2026-09-07  Video is promoted, and every topology digest moves without a single
+            node moving with it: the node counts are the same 64, 199, 249 and
+            291, and what changed is the binding table, which gained the clip
+            route and therefore a resource the scheduler gates on. ``minimal``
+            moving is the proof - it plans no shell and no clip at all, so a
+            digest that shifted there can only have come from the route list.
+            Ember Hollow authors no clip shot, so the family costs nothing here;
+            a document that declares one plans four nodes for it and one video
+            operation, and a shot longer than the route's declared ceiling is
+            refused while planning rather than counted.
 """
 
 from __future__ import annotations
@@ -91,7 +102,7 @@ class ScopeIdentity:
 IDENTITIES: Final = {
     "minimal": ScopeIdentity(
         node_count=64,
-        topology_sha256="7db3fbc94b650feecd4012cb61e9ed08181944054178372493a6d249679970a0",
+        topology_sha256="f22f834f204bee5004f72766651607f57ac9889c7d7bc803174a2d5597a04092",
         operations={
             "local": 38,
             "image_generation": 21,
@@ -99,42 +110,46 @@ IDENTITIES: Final = {
             "structured_generation": 0,
             "music_generation": 0,
             "sound_effect_generation": 0,
+            "video_generation": 0,
         },
     ),
     "props": ScopeIdentity(
-        node_count=199,
-        topology_sha256="7772b65d3c1704d0d126c5e5a963ac397b97b327b4d4aebbb6059837595c7917",
+        node_count=200,
+        topology_sha256="b23f5757aedf5e9f14367e3f09bca7eec5dd02016e2d483db65bb17f3e98bbb9",
         operations={
-            "local": 99,
-            "image_generation": 78,
+            "local": 100,
+            "image_generation": 77,
             "tool_loop": 11,
             "structured_generation": 11,
             "music_generation": 0,
             "sound_effect_generation": 0,
+            "video_generation": 1,
         },
     ),
     "actors": ScopeIdentity(
-        node_count=249,
-        topology_sha256="da2ffd02cf6b2846142dc28cb5072cdd3b589896e9a388f8b63fbc3ffa9a332c",
+        node_count=250,
+        topology_sha256="3fa5bc7370681899e309d09693e9bf0065b6356fc3215083d285b2605c716d06",
         operations={
-            "local": 123,
-            "image_generation": 99,
+            "local": 124,
+            "image_generation": 98,
             "tool_loop": 11,
             "structured_generation": 16,
             "music_generation": 0,
             "sound_effect_generation": 0,
+            "video_generation": 1,
         },
     ),
     "full": ScopeIdentity(
-        node_count=291,
-        topology_sha256="24e648792cb67c6ea301b554477aaf279c0a3424afdd74d198fb69670dbb4f57",
+        node_count=292,
+        topology_sha256="efd6d2b74968546020ae96a681b2c47809f462768638fe3a36605d674a42b205",
         operations={
-            "local": 154,
-            "image_generation": 106,
+            "local": 155,
+            "image_generation": 105,
             "tool_loop": 11,
             "structured_generation": 17,
             "music_generation": 0,
             "sound_effect_generation": 3,
+            "video_generation": 1,
         },
     ),
 }
