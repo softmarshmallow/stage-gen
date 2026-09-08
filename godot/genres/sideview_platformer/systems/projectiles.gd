@@ -34,8 +34,6 @@ static func throw_one(world: PlatformerWorld, step: Dictionary) -> void:
 	if world.hold:
 		return
 	var weapon := PlatformerWeapon.profile(world.weapon_class)
-	if String(weapon["delivery"]) != "projectile":
-		return
 	var tick := PlatformerWeapon.next_hit_tick(
 		weapon,
 		{
@@ -49,6 +47,9 @@ static func throw_one(world: PlatformerWorld, step: Dictionary) -> void:
 		return
 	world.player["attackTicksFired"] = tick + 1
 	var direction := -1 if String(world.player["facing"]) == PlatformerPlayer.FACING_LEFT else 1
+	if String(weapon["delivery"]) == "instant":
+		_swing(world, step, weapon, direction)
+		return
 	var shot := PlatformerProjectiles.launch(
 		world.projectiles,
 		world.next_shot_id,
@@ -66,6 +67,78 @@ static func throw_one(world: PlatformerWorld, step: Dictionary) -> void:
 		float(step["now"]),
 		{"x": int(round(float(world.player["x"]))), "dirSign": direction}
 	)
+
+
+## Everything one landed blow is worth: the critical it rolls, the hold it puts
+## on the frame, and — if it killed — the record, the loot, the place it frees,
+## the experience it banks and the tremor it puts in the view.
+##
+## Shared by the swing and the throw, because the two differ only in how the
+## blow reached the creature. `seed_x` is where the blow came from: the hand for
+## a swing, the point of release for a throw.
+static func _pay_out(
+	world: PlatformerWorld,
+	step: Dictionary,
+	weapon: Dictionary,
+	mob: Dictionary,
+	seed_x: float,
+	direction: int
+) -> Dictionary:
+	var map: Dictionary = (world.package["maps"] as Dictionary)[world.map_id]
+	world.blow_sequence += 1
+	var seed_value := PlatformerCombat.blow_seed(
+		world.blow_sequence, seed_x, int(mob["ladderIndex"])
+	)
+	var struck := PlatformerCombat.critical_damage(
+		float(weapon["damage"]),
+		PlatformerProgression.named(world.package["combat"], "critical_profile", "none"),
+		seed_value
+	)
+	var blow := PlatformerMob.take_hit(
+		mob, map, float(struck["amount"]), direction, float(step["now"])
+	)
+	# The hold a blow puts on the frame: forty milliseconds, seventy on a kill,
+	# and extended rather than restarted — three blows in one frame hold once,
+	# and the longest of them wins, so a combo's kill is never shortened by the
+	# blows before it.
+	world.impact = {
+		"disposed": false,
+		"enabled": true,
+		"hitstopUntilMs": maxf(
+			float(world.impact["hitstopUntilMs"]),
+			float(step["now"]) + _hold_for(bool(blow["died"]), bool(struck["critical"]))
+		),
+		"reducedMotion": false,
+	}
+	if not bool(blow["died"]):
+		return {"blow": blow, "struck": struck, "seed": seed_value}
+	PlatformerTranscript.record(
+		world,
+		"mob-defeated",
+		int(step["frame"]),
+		float(step["now"]),
+		{"ladderIndex": int(mob["ladderIndex"]), "x": int(round(float(mob["x"])))}
+	)
+	PlatformerItemsSystem.drop_loot(world, mob, direction)
+	# The director forgets a creature the moment it dies, and the world says so:
+	# an instance id is the director's name for something it is still managing.
+	mob["instanceId"] = null
+	PlatformerPopulation.record_death(
+		world.population,
+		str(mob.get("zoneId", "")),
+		int(mob.get("spawnColumn", -1)),
+		float(step["now"])
+	)
+	_award(world, mob)
+	world.shakes.append(
+		{
+			"seed": seed_value,
+			"startedMs": float(step["now"]),
+			"dirSign": direction,
+			"scale": FamilyShake.CRITICAL_SCALE if bool(struck["critical"]) else 1.0,
+		}
+	)
+	return {"blow": blow, "struck": struck, "seed": seed_value}
 
 
 ## How long one blow holds the frame. A critical holds a quarter longer, which
@@ -110,6 +183,32 @@ static func _silhouette(world: PlatformerWorld) -> String:
 	return PlatformerProjectiles.DEFAULT_ORIENTATION
 
 
+## One blow of a swing, resolved against every creature standing in the band.
+##
+## Re-resolved on every blow of an action rather than once per action, so a
+## creature killed by the second frees its slot for the third, and one that
+## wandered into the band mid-swing is struck by the blows that remain.
+static func _swing(
+	world: PlatformerWorld, step: Dictionary, weapon: Dictionary, direction: int
+) -> void:
+	var living: Array = []
+	var boxes: Array = []
+	for entry: Variant in world.mobs:
+		var mob: Dictionary = entry
+		if not bool(mob["alive"]):
+			continue
+		living.append(mob)
+		boxes.append({"x": float(mob["x"]), "footY": float(mob["y"])})
+	for index: Variant in PlatformerWeapon.instant_targets(
+		weapon,
+		float(world.player["x"]),
+		float(world.player["y"]),
+		direction,
+		boxes
+	):
+		_pay_out(world, step, weapon, living[int(index)], float(world.player["x"]), direction)
+
+
 ## Step every round and pay out what it hit.
 static func update(world: PlatformerWorld, step: Dictionary) -> void:
 	if world.hold or world.projectiles.is_empty():
@@ -143,59 +242,4 @@ static func update(world: PlatformerWorld, step: Dictionary) -> void:
 		var mob: Dictionary = living[index]
 		if not bool(mob["alive"]):
 			continue
-		# A thrown blow is drawn against its own seed exactly as a swung one is:
-		# where it left the hand, and which creature it reached.
-		world.blow_sequence += 1
-		var seed_value := PlatformerCombat.blow_seed(
-			world.blow_sequence, float(hit["spawnX"]), int(mob["ladderIndex"])
-		)
-		var struck := PlatformerCombat.critical_damage(
-			float(weapon["damage"]),
-			String((world.package["combat"] as Dictionary).get("critical_profile", "none")),
-			seed_value
-		)
-		var blow := PlatformerMob.take_hit(
-			mob, map, float(struck["amount"]), int(hit["dirSign"]), float(step["now"])
-		)
-		# The hold a blow puts on the frame: forty milliseconds, seventy on a
-		# kill, and extended rather than restarted — three blows in one frame
-		# hold once, and the longest of them wins, so a combo's kill is never
-		# shortened by the blows before it.
-		world.impact = {
-			"disposed": false,
-			"enabled": true,
-			"hitstopUntilMs": maxf(
-				float(world.impact["hitstopUntilMs"]),
-				float(step["now"]) + _hold_for(bool(blow["died"]), bool(struck["critical"]))
-			),
-			"reducedMotion": false,
-		}
-		if not bool(blow["died"]):
-			continue
-		PlatformerTranscript.record(
-			world,
-			"mob-defeated",
-			int(step["frame"]),
-			float(step["now"]),
-			{"ladderIndex": int(mob["ladderIndex"]), "x": int(round(float(mob["x"])))}
-		)
-		PlatformerItemsSystem.drop_loot(world, mob, int(hit["dirSign"]))
-		# The director forgets a creature the moment it dies, and the world says
-		# so: an instance id is the director's name for something it is still
-		# managing.
-		mob["instanceId"] = null
-		PlatformerPopulation.record_death(
-			world.population,
-			String(mob.get("zoneId", "")),
-			int(mob.get("spawnColumn", -1)),
-			float(step["now"])
-		)
-		_award(world, mob)
-		world.shakes.append(
-			{
-				"seed": seed_value,
-				"startedMs": float(step["now"]),
-				"dirSign": int(hit["dirSign"]),
-				"scale": FamilyShake.CRITICAL_SCALE if bool(struck["critical"]) else 1.0,
-			}
-		)
+		_pay_out(world, step, weapon, mob, float(hit["spawnX"]), int(hit["dirSign"]))

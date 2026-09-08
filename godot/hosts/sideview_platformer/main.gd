@@ -36,6 +36,7 @@ var world: PlatformerWorld = null
 var input: PlatformerInput = null
 var stage: PlatformerStage = null
 var actors: PlatformerActors = null
+var bars: PlatformerMobBars = null
 var hud: PlatformerHud = null
 
 var _banked: float = 0.0
@@ -77,6 +78,8 @@ func _ready() -> void:
 	_root.add_child(stage)
 	actors = PlatformerActors.of(package, package.manifest)
 	_root.add_child(actors)
+	bars = PlatformerMobBars.of()
+	_root.add_child(bars)
 	hud = PlatformerHud.of()
 	add_child(hud)
 
@@ -104,6 +107,7 @@ func _process(delta: float) -> void:
 	var scroll := Vector2(float(world.camera["scrollX"]), float(world.camera["scrollY"]))
 	stage.sync(scroll)
 	actors.sync(world, scroll, delta)
+	bars.sync(world, scroll)
 	hud.sync(world)
 
 

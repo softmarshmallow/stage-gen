@@ -44,6 +44,15 @@ const CORNER_RADIUS := 3.0
 const OUTLINE_COLOR := Color(0.043, 0.035, 0.031, 0.92)
 const OUTLINE_WIDTH := 2.0
 
+## The share of a bar's height the two borders may take between them.
+##
+## A two-pixel outline and a one-pixel rim are right on a twenty-two pixel bar
+## and absurd on a five: three pixels a side against a five pixel bar leaves no
+## bar. A creature's floating gauge is that small, so the borders are a fraction
+## of the height rather than a constant, and above the size they were authored
+## for the fraction never binds.
+const BORDER_HEIGHT_SHARE := 0.28
+
 ## Border two, the fill's own edge: a darker line just inside the outline, which
 ## is what makes the fill read as a body sitting in the track rather than as a
 ## coloured area painted on it.
@@ -109,6 +118,20 @@ static func color_at(fraction: float) -> Color:
 ## The shape both borders are measured from, and the only place the rounding
 ## lives. A point's distance from a rounded rectangle's edge is the distance
 ## from the box it is inset into, less the radius.
+## The outline this bar can afford, in pixels.
+static func outline_width(height: float) -> float:
+	return minf(OUTLINE_WIDTH, maxf(1.0, floorf(height * BORDER_HEIGHT_SHARE)))
+
+
+## The inner rim this bar can afford. Zero when the outline has taken the budget,
+## which is the honest answer for a bar too small to have two borders.
+static func inner_rim_width(height: float) -> float:
+	var outline := outline_width(height)
+	if height * BORDER_HEIGHT_SHARE - outline < 1.0:
+		return 0.0
+	return INNER_RIM_WIDTH
+
+
 static func inset_depth(
 	x: float, y: float, width: float, height: float, radius: float
 ) -> float:

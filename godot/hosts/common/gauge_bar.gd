@@ -73,7 +73,7 @@ static func _textures(width: float, height: float) -> Dictionary:
 static func _bake(width: int, height: int, is_track: bool) -> ImageTexture:
 	var image := Image.create(maxi(1, width), maxi(1, height), false, Image.FORMAT_RGBA8)
 	image.fill(Color(0.0, 0.0, 0.0, 0.0))
-	var rim_ends_at := FamilyGaugeBar.OUTLINE_WIDTH + FamilyGaugeBar.INNER_RIM_WIDTH
+	var rim_ends_at := FamilyGaugeBar.outline_width(float(height)) + FamilyGaugeBar.inner_rim_width(float(height))
 	for y in height:
 		for x in width:
 			var depth := FamilyGaugeBar.inset_depth(
@@ -89,13 +89,13 @@ static func _bake(width: int, height: int, is_track: bool) -> ImageTexture:
 			if is_track:
 				color = (
 					FamilyGaugeBar.OUTLINE_COLOR
-					if depth <= FamilyGaugeBar.OUTLINE_WIDTH
+					if depth <= FamilyGaugeBar.outline_width(float(height))
 					else FamilyGaugeBar.TRACK_FILL
 				)
 			else:
 				# The fill stops short of the outline, so the track's border is
 				# what the bar is edged with however full it is.
-				if depth <= FamilyGaugeBar.OUTLINE_WIDTH:
+				if depth <= FamilyGaugeBar.outline_width(float(height)):
 					continue
 				color = FamilyGaugeBar.color_at(float(x) / maxf(1.0, float(width - 1)))
 				var shade := FamilyGaugeBar.depth_multiplier(

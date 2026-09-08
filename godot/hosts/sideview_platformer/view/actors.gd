@@ -42,16 +42,16 @@ static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerActors:
 		made.add_child(made._player)
 	for entry: Variant in (manifest.get("mobs", []) as Array):
 		var spec: Dictionary = entry
-		made._mob_specs[String(spec.get("mob_id", ""))] = spec
+		made._mob_specs[str(spec.get("mob_id", ""))] = spec
 	for entry: Variant in (manifest.get("items", []) as Array):
 		var item: Dictionary = entry
 		made._item_textures.append(
-			package.trimmed_texture(String((item.get("asset", {}) as Dictionary).get("path", "")))
+			package.trimmed_texture(str((item.get("asset", {}) as Dictionary).get("path", "")))
 		)
 	var rounds: Array = manifest.get("projectiles", [])
 	if not rounds.is_empty():
 		made._shot_texture = package.trimmed_texture(
-			String(((rounds[0] as Dictionary).get("asset", {}) as Dictionary).get("path", ""))
+			str(((rounds[0] as Dictionary).get("asset", {}) as Dictionary).get("path", ""))
 		)
 	return made
 
@@ -64,7 +64,7 @@ func sync(world: PlatformerWorld, scroll: Vector2, dt: float) -> void:
 		_player.place(
 			float(world.player["x"]) - scroll.x, float(world.player["y"]) - scroll.y
 		)
-		_player.flip_h = String(world.player["facing"]) == PlatformerPlayer.FACING_LEFT
+		_player.flip_h = str(world.player["facing"]) == PlatformerPlayer.FACING_LEFT
 	_sync_mobs(world, scroll, dt)
 	_sync_shots(world, scroll)
 	_sync_drops(world, scroll)
@@ -73,7 +73,7 @@ func sync(world: PlatformerWorld, scroll: Vector2, dt: float) -> void:
 ## Which strip the body plays. The world's own state names it, except that a
 ## published package spells two of them differently.
 func _player_strip(world: PlatformerWorld) -> String:
-	var state := String(world.player["state"])
+	var state := str(world.player["state"])
 	match state:
 		"attack":
 			return "basic_attack"
@@ -89,7 +89,7 @@ func _sync_mobs(world: PlatformerWorld, scroll: Vector2, dt: float) -> void:
 	var seen := {}
 	for entry: Variant in world.mobs:
 		var mob: Dictionary = entry
-		var id := String(mob["instanceId"])
+		var id := str(mob["instanceId"])
 		seen[id] = true
 		if not _mobs.has(id):
 			var made := _make_mob(world, mob)
@@ -99,7 +99,7 @@ func _sync_mobs(world: PlatformerWorld, scroll: Vector2, dt: float) -> void:
 			add_child(made)
 		var actor: HostActor = _mobs[id]
 		actor.visible = bool(mob["alive"])
-		actor.show_motion(_mob_strip(String(mob["state"])))
+		actor.show_motion(_mob_strip(str(mob["state"])))
 		actor.advance(dt)
 		actor.place(float(mob["x"]) - scroll.x, float(mob["y"]) - scroll.y)
 		actor.flip_h = int(mob["facing"]) < 0
@@ -144,7 +144,7 @@ func _sync_shots(world: PlatformerWorld, scroll: Vector2) -> void:
 	var seen := {}
 	for entry: Variant in world.projectiles:
 		var shot: Dictionary = entry
-		var id := String(shot["id"])
+		var id := str(shot["id"])
 		seen[id] = true
 		if not _shots.has(id):
 			if _shot_texture == null:
@@ -175,7 +175,7 @@ func _sync_drops(world: PlatformerWorld, scroll: Vector2) -> void:
 	var seen := {}
 	for entry: Variant in world.world_items:
 		var item: Dictionary = entry
-		var id := String(item["id"])
+		var id := str(item["id"])
 		var kind := int(item["kindIndex"])
 		seen[id] = true
 		if not _drops.has(id):
@@ -211,14 +211,14 @@ static func _motions(spec: Dictionary) -> Array:
 		var rebase: Dictionary = (spec.get("calibration", {}) as Dictionary).get("state_rebase", {})
 		made.append(
 			{
-				"state": String(name),
-				"atlas": String((state.get("asset", {}) as Dictionary).get("path", "")),
+				"state": str(name),
+				"atlas": str((state.get("asset", {}) as Dictionary).get("path", "")),
 				"columns": int(state.get("columns", 1)),
 				"frames_per_second": float(playback.get("frames_per_second", 12)),
-				"playback_mode": String(playback.get("mode", "once")),
+				"playback_mode": str(playback.get("mode", "once")),
 				"canonical_frame_indices": playback.get("canonical_frame_indices", []),
-				"rebase_multiplier": float(rebase.get(String(name), 1.0)),
-				"anchor": String(state.get("anchor", "bottom")),
+				"rebase_multiplier": float(rebase.get(str(name), 1.0)),
+				"anchor": str(state.get("anchor", "bottom")),
 			}
 		)
 	return made

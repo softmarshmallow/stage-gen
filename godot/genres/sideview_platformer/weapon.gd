@@ -26,9 +26,28 @@ const CLASSES := {
 		"hitWindowToMs": 250.0,
 		"delivery": "instant",
 		"reachTiles": 1.4,
+		"verticalTiles": 1.0,
 		"maxTargetsPerAction": 1,
 		"hitsPerAction": 1,
 		"hitIntervalMs": 0.0,
+	},
+	"melee_sweep_v1":
+	{
+		"motionState": "basic_attack",
+		"pose": "attack",
+		"damage": 1.0,
+		"actionDurationMs": 333.0,
+		"hitWindowFromMs": 80.0,
+		"hitWindowToMs": 250.0,
+		"delivery": "instant",
+		"reachTiles": 3.0,
+		"verticalTiles": 1.0,
+		# A sweep is three blows inside one swing, forty-five milliseconds apart,
+		# each of which may take up to six creatures. That is the whole
+		# difference from `melee_dps_v1`: the same damage, spread over a crowd.
+		"maxTargetsPerAction": 6,
+		"hitsPerAction": 3,
+		"hitIntervalMs": 45.0,
 	},
 	"ranged_dps_v1":
 	{
@@ -43,6 +62,11 @@ const CLASSES := {
 		"hitWindowToMs": 260.0,
 		"delivery": "projectile",
 		"reachTiles": 0.0,
+		# A flat throw reaches asymmetrically — the round leaves at chest height,
+		# so it clears more above a target than below — and a rule that has to
+		# answer before anything is in the air cannot be asymmetric. This is the
+		# symmetric band inscribed in it.
+		"verticalTiles": 1.2,
 		"maxTargetsPerAction": 1,
 		"hitsPerAction": 1,
 		"hitIntervalMs": 0.0,
@@ -108,3 +132,34 @@ static func next_hit_tick(
 	if elapsed < due_at or elapsed > float(weapon["hitWindowToMs"]):
 		return -1
 	return ticks_fired
+
+
+## Which of `targets` one instant blow reaches, in the caller's own order.
+##
+## A port of `resolveInstantStrike` in `web/lib/sideview-platformer/strike.ts`.
+## The band is centred half a reach ahead of the body rather than on it, so a
+## swing covers what is in front and nothing behind — and the order is the
+## caller's rather than the nearest, because a replay that picked the
+## geometrically nearest target would diverge the moment two creatures stood at
+## one distance.
+##
+## `targets` is `[{x, footY}]`. Returns indices into it.
+static func instant_targets(
+	weapon: Dictionary, attacker_x: float, attacker_foot_y: float, dir_sign: int, targets: Array
+) -> Array:
+	if String(weapon["delivery"]) != "instant":
+		return []
+	var reach := PlatformerMaps.TILE_PX * float(weapon["reachTiles"])
+	var band_centre := attacker_x + float(dir_sign) * reach * 0.5
+	var vertical := PlatformerMaps.TILE_PX * float(weapon["verticalTiles"])
+	var hits: Array = []
+	for index in range(targets.size()):
+		var target: Dictionary = targets[index]
+		if absf(float(target["x"]) - band_centre) >= reach:
+			continue
+		if absf(attacker_foot_y - float(target["footY"])) > vertical:
+			continue
+		hits.append(index)
+		if hits.size() >= int(weapon["maxTargetsPerAction"]):
+			break
+	return hits
