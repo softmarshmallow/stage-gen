@@ -161,8 +161,9 @@ have said so. The harness now ticks the game.
 What the host now draws: the parallax bands, the ground from its own atlas with
 the browser's overscan padding, the gates, the ladders, the body and every
 creature sized from the ruler its producer published, the rounds, what is lying
-on the ground, the inventory panel, the dialogue box, the numbers that float off
-a body and a creature's own health bar.
+on the ground, the props a map stands on, the villagers with their names and the
+offer they make, the inventory panel, the dialogue box, the numbers that float
+off a body and a creature's own health bar.
 
 **What a golden cannot see.** Both runs walk on flat ground — every column of
 both fixture maps is one height — and both packages author only two of the five
@@ -183,10 +184,9 @@ already reached still counted. Every `run` now ends by saying so.
 What is left, and why: two systems this build deliberately does not run —
 `director/waves` and the four round systems behind `[score]` and `[timers]` — and
 a package that authors either block is refused by name rather than played without
-it. No package has ever published one; the recipe can. Beyond that: the props
-along a map, the NPC bodies, the per-digit stagger a number arcs with, the
-developer affordances (auto-play, the kit switch, the debug overlay), and the
-retirement record with the browser deletion.
+it. No package has ever published one; the recipe can. Beyond that: the per-digit stagger a
+number arcs with, the developer affordances (auto-play, the kit switch, the debug
+overlay), and the retirement record with the browser deletion.
 
 **What running it found that the golden could not.** The media-free fixture the
 golden was recorded against publishes every field it declares. A shipped package

@@ -23,7 +23,9 @@ const DEPTHS := {
 	"terrain": -100,
 	"portal": -50,
 	"climbable": -40,
+	"prop": -20,
 	"actors": 0,
+	"npc": 20,
 	"projectile": 40,
 	"foreground": 100,
 }

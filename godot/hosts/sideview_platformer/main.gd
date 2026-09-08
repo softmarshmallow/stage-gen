@@ -36,6 +36,7 @@ var world: PlatformerWorld = null
 var input: PlatformerInput = null
 var stage: PlatformerStage = null
 var actors: PlatformerActors = null
+var scenery: PlatformerScenery = null
 var bars: PlatformerMobBars = null
 var numbers: PlatformerCombatText = null
 var hud: PlatformerHud = null
@@ -79,6 +80,8 @@ func _ready() -> void:
 	_root.add_child(stage)
 	actors = PlatformerActors.of(package, package.manifest)
 	_root.add_child(actors)
+	scenery = PlatformerScenery.of(package, package.manifest)
+	_root.add_child(scenery)
 	bars = PlatformerMobBars.of()
 	_root.add_child(bars)
 	numbers = PlatformerCombatText.of()
@@ -110,6 +113,7 @@ func _process(delta: float) -> void:
 	var scroll := Vector2(float(world.camera["scrollX"]), float(world.camera["scrollY"]))
 	stage.sync(scroll)
 	actors.sync(world, scroll, delta)
+	scenery.sync(world, scroll, delta)
 	bars.sync(world, scroll)
 	# Raised where the blow landed, a little above the drawn top of the body it
 	# came off. The body's own height is the view's to know.

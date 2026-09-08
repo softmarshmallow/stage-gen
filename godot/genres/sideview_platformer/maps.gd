@@ -156,6 +156,10 @@ static func parse(manifest: Variant) -> Variant:
 		# world publishes, so where they stand is the package's business rather
 		# than the host's.
 		"npcPlacements": gameplay.get("npc_placements", []),
+		# And what is standing on it that nobody talks to. Where a well or a stall
+		# stands is the package's business the same way a villager is; that neither
+		# does anything is why they were the last thing drawn.
+		"propPlacements": gameplay.get("prop_placements", []),
 		# What a villager offers, what an ending is worth, and what a quest step
 		# does. Three tables read by one system, carried here rather than looked
 		# up out of the raw document by whoever needs them.
