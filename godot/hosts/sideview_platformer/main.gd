@@ -80,7 +80,7 @@ func _ready() -> void:
 	_root.add_child(actors)
 	bars = PlatformerMobBars.of()
 	_root.add_child(bars)
-	hud = PlatformerHud.of()
+	hud = PlatformerHud.of(package, package.manifest)
 	add_child(hud)
 
 	stage.open_on(world)

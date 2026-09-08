@@ -13,10 +13,14 @@ const LABEL_COLOR := Color(1.0, 1.0, 1.0, 0.82)
 
 var _bar: HostGaugeBar = null
 var _label: Label = null
+var _panel: PlatformerInventoryPanel = null
 
 
-static func of() -> PlatformerHud:
+static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerHud:
 	var made := PlatformerHud.new()
+	made._panel = PlatformerInventoryPanel.of(package, manifest)
+	if made._panel != null:
+		made.add_child(made._panel)
 	made._bar = HostGaugeBar.of(BAR_RECT.size.x, BAR_RECT.size.y)
 	made._bar.position = BAR_RECT.position
 	made.add_child(made._bar)
@@ -29,6 +33,10 @@ static func of() -> PlatformerHud:
 
 
 func sync(world: PlatformerWorld) -> void:
+	if _panel != null:
+		if bool(world.intent.get("toggleInventory", false)):
+			_panel.toggle()
+		_panel.sync(world)
 	_bar.show_gauge(float(world.player["hp"]), float(world.player["maxHp"]), false)
 	_label.text = "%s   %d / %d" % [
 		world.map_id, int(world.player["hp"]), int(world.player["maxHp"])
