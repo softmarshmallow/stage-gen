@@ -50,7 +50,6 @@ func _initialize() -> void:
 			)
 	if args.has("at_x"):
 		world.player["x"] = float(args["at_x"])
-		world.player["column"] = int(floor(float(args["at_x"]) / PlatformerMaps.TILE_PX))
 		world.camera = PlatformerCameraSystem.snapped(
 			float(world.player["x"]),
 			PlatformerCameraSystem.bounds_of(world),

@@ -34,6 +34,7 @@ func run(h: TestHarness) -> void:
 
 
 # --- props ------------------------------------------------------------------
+	h.done()
 
 func _prop_cards(h: TestHarness, manifest: Dictionary) -> void:
 	var pine: Dictionary = manifest["props"]["pine"]

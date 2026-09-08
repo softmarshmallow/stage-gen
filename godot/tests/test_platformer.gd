@@ -43,6 +43,7 @@ func run(h: TestHarness) -> void:
 
 
 ## The curve a package names, and the refusals for the ones it may not.
+	h.done()
 func _progression(h: TestHarness) -> void:
 	h.assert_eq(
 		PlatformerProgression.cost_of_next(1, "gentle_rpg_v1"),
@@ -270,7 +271,11 @@ func _gate(h: TestHarness, package: Dictionary) -> void:
 	h.assert_eq(world.map_id, "road-map", "and the world is rebuilt on the far side")
 	h.assert_eq(float(world.player["x"]), 256.0, "at the road's own entry spawn")
 	h.assert_eq(float(world.player["vx"]), 0.0, "stopped, because the body takes no step this frame")
-	h.assert_eq(int(world.player["column"]), 4, "with its column re-derived by hand from the new x")
+	h.assert_eq(
+		int(PlatformerPlayer.snapshot(world.player)["column"]),
+		4,
+		"and publishes the column its new x falls in"
+	)
 	h.assert_eq(world.soundtrack["current_track_id"], "road_theme_b", "and the road's music on")
 	# The road is tall enough to follow y, and the view clamps to the top of the
 	# authored world rather than to the ground line.
@@ -437,6 +442,7 @@ func _mobs(h: TestHarness, package: Dictionary) -> void:
 	_facing(h, map)
 	_lanes(h, map)
 	_shelves(h)
+	_body(h, package)
 
 
 ## The archetypes, and the two the golden never sees.
@@ -609,6 +615,116 @@ func _shelves(h: TestHarness) -> void:
 	)
 	h.assert_eq(float(high["laneMaxX"]), 1279.0, "with the new shelf's bounds")
 	h.assert_eq(String(high["awareness"]), "idle", "and forgets what it was hunting on the way")
+
+
+## The body's own rules that neither golden reaches.
+##
+## A drop through a deck, a pose a package never drew, and the pool a rank
+## widens. The first is scripted in neither run — both hold `down` on a ladder
+## rather than on a deck — and the other two need a package this suite has to
+## build, because the fixture draws every strip and never levels up.
+func _body(h: TestHarness, package: Dictionary) -> void:
+	var world := PlatformerWorld.create(package, _manifest())
+	world.open_on("road-map")
+	var terrain := PlatformerFrame.terrain(world)
+	var deck: Dictionary = (world.platforms as Array)[0]
+
+	# Standing on the deck and asking to go through it.
+	var body: Dictionary = world.player
+	body["x"] = (float(deck["left"]) + float(deck["right"])) / 2.0
+	body["y"] = float(deck["deckY"])
+	body["support"] = "platform"
+	body["supportId"] = deck["id"]
+	body["airborne"] = false
+	PlatformerPlayer.update(
+		body,
+		terrain,
+		1000.0 / 30.0,
+		1000.0,
+		_intent({"down": true, "jump": true}),
+		PlatformerWeapon.profile("melee_bruiser_v1")
+	)
+	h.assert_eq(
+		str(body["dropTraversalPhase"]), "drop-commanded", "pressing down commits the drop"
+	)
+	# Then falling, until the ground catches it. Six phases, and three of them had
+	# no writer at all: the two guards below used to test for a phase nothing
+	# assigned, so a drop-through stopped at the frame it started.
+	var landed := false
+	for _frame in range(90):
+		PlatformerPlayer.update(
+			body, terrain, 1000.0 / 30.0, 1000.0, _intent({}),
+			PlatformerWeapon.profile("melee_bruiser_v1")
+		)
+		if str(body["dropTraversalPhase"]) == "lower-support-landed":
+			landed = true
+			break
+	h.assert_true(landed, "and the body falls until something under the deck catches it")
+	h.assert_eq(
+		str(body["dropTraversalLowerSupport"]), "terrain", "which it records by name"
+	)
+	h.assert_eq(
+		int(body["dropTraversalStableFrames"]), 1, "counting from the frame it landed on"
+	)
+
+	# A rank widens the pool and fills it. Widening alone would leave the new
+	# capacity permanently unreachable.
+	var hurt := PlatformerWorld.create(package, _manifest())
+	hurt.player["gauge"] = KernelGauge.drain(hurt.player["gauge"], 3.0, 0.0, 0.0)["gauge"]
+	var grown := KernelGauge.grow(hurt.player["gauge"], 9)
+	h.assert_eq(int(grown["max"]), 9, "a rank widens the pool")
+	h.assert_eq(int(grown["value"]), 9, "and fills it")
+
+	# A package that drew no terminal strip lays its body down in the flinch, and
+	# one with neither leaves it in whatever pose it was already in.
+	var quiet := terrain.duplicate(true)
+	quiet["playerPoses"] = {"idle": true, "hurt": true}
+	var fallen: Dictionary = PlatformerPlayer.create(256.0, 656.0, 6)
+	fallen["defeated"] = true
+	PlatformerPlayer.update(
+		fallen, quiet, 1000.0 / 30.0, 1000.0, _intent({}),
+		PlatformerWeapon.profile("melee_bruiser_v1")
+	)
+	h.assert_eq(String(fallen["state"]), "hurt", "a package with no death strip draws its flinch")
+	quiet["playerPoses"] = {"idle": true}
+	var bare: Dictionary = PlatformerPlayer.create(256.0, 656.0, 6)
+	bare["defeated"] = true
+	PlatformerPlayer.update(
+		bare, quiet, 1000.0 / 30.0, 1000.0, _intent({}),
+		PlatformerWeapon.profile("melee_bruiser_v1")
+	)
+	h.assert_eq(String(bare["state"]), "idle", "and one with neither lies where it fell")
+
+	# Taking a ladder puts down the whole window, not just the flag: a body that
+	# grabbed a rung mid-swing used to arrive holding a spent deadline.
+	var swinging := PlatformerWorld.create(package, _manifest())
+	swinging.open_on("road-map")
+	var climber: Dictionary = swinging.player
+	var zone: Dictionary = (swinging.climbables as Array)[0]
+	climber["x"] = float(zone["centerX"])
+	climber["y"] = float(zone["lowerSurfaceY"])
+	climber["attackUntil"] = 9000.0
+	climber["attackStarted"] = 8000.0
+	climber["attackTicksFired"] = 2
+	PlatformerPlayer.update(
+		climber,
+		PlatformerFrame.terrain(swinging),
+		1000.0 / 30.0,
+		1000.0,
+		_intent({"up": true}),
+		PlatformerWeapon.profile("melee_bruiser_v1")
+	)
+	h.assert_eq(String(climber["support"]), "climbable", "the body takes the ladder")
+	h.assert_eq(float(climber["attackUntil"]), 0.0, "and puts down the whole attack window")
+	h.assert_eq(int(climber["attackTicksFired"]), 0, "the spent ticks included")
+
+
+## One intent, with the named keys down.
+func _intent(down: Dictionary) -> Dictionary:
+	var made := PlatformerWorld.neutral_intent()
+	for key: Variant in down:
+		made[String(key)] = down[key]
+	return made
 
 
 ## The fixture's road with its east half raised a tile.

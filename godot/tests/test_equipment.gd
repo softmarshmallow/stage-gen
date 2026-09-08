@@ -16,6 +16,7 @@ func run(h: TestHarness) -> void:
 	_equip_and_unequip_inputs(h, w)
 	_the_worn_tool_serves_first(h, w)
 	_a_fresh_world_is_dry(h)
+	h.done()
 
 
 func _fresh(w: SurvivalWorld) -> void:

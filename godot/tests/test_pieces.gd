@@ -40,6 +40,7 @@ func run(h: TestHarness) -> void:
 
 ## One sheet of ground pieces, the forage, one instance per layout entry; no
 ## litter and no standing plants anywhere in the run (decision 0060).
+	h.done()
 func _check_only_forage(h: TestHarness, pieces, manifest: Dictionary, layout: Dictionary) -> void:
 	var forage_entries: int = layout.get("forage", []).size()
 	h.assert_true(forage_entries > 0, "the run lays forage")

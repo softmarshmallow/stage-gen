@@ -37,6 +37,7 @@ func run(h: TestHarness) -> void:
 ## wordless opening — every shot carrying no card — is exactly that shape, and it broke
 ## the shot transition after the clip had already been built and played, so the picture
 ## looked right while shots piled up behind it.
+	h.done()
 func _optional_strings(h: TestHarness, opening: Dictionary) -> void:
 	for entry: Variant in opening.get("shots", []):
 		var shot: Dictionary = entry

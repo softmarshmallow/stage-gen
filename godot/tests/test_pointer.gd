@@ -21,6 +21,7 @@ func run(h: TestHarness) -> void:
 	_the_dead_do_not_walk(h, w)
 	_a_held_button_keeps_the_walk_on_the_pointer(h, w)
 	_menu_select_chooses_a_row(h, w)
+	h.done()
 
 
 func _fresh(w: SurvivalWorld) -> void:

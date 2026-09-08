@@ -30,6 +30,7 @@ static func terrain(world: PlatformerWorld) -> Dictionary:
 		"maximumAirJumps": PlatformerVertical.AIR_JUMPS_MAX,
 		"combatEnabled": world.package["combatEnabled"],
 		"climbArtwork": world.package["climbArtwork"],
+		"playerPoses": world.package["playerPoses"],
 	}
 
 

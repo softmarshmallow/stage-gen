@@ -31,6 +31,7 @@ func run(h: TestHarness) -> void:
 
 ## `dead_snag` takes two blows with an axe and wears `broken` after the first;
 ## `moss_boulder`'s three looks are `test_interact`'s.
+	h.done()
 func _t17_dead_snag(h: TestHarness, world: SurvivalWorld) -> void:
 	var spec: Dictionary = (world.manifest["props"] as Dictionary)["dead_snag"]
 	# The snag lists two interactions; the chop is the first, the axe's.

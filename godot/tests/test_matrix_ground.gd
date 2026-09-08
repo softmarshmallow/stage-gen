@@ -28,6 +28,7 @@ func run(h: TestHarness) -> void:
 # ---------------------------------------------------------------------------
 # T22. The land mask.
 # ---------------------------------------------------------------------------
+	h.done()
 
 func _t22_inset(h: TestHarness, pkg: HostRunDir) -> void:
 	var masks := SurvivalMasks.from_package(pkg)

@@ -25,6 +25,7 @@ func run(h: TestHarness) -> void:
 
 
 ## A bare stage at the camp, on land, facing the camera, with nothing carried.
+	h.done()
 func _stage(world: SurvivalWorld) -> void:
 	TestFixtures.bare(world)
 	world.camera_yaw = 0.0

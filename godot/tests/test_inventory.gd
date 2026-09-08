@@ -15,6 +15,7 @@ func run(h: TestHarness) -> void:
 	_backpack(h, w)
 	_insulation(h, w)
 	_remove_last_stack_first(h, w)
+	h.done()
 
 
 func _stacks(h: TestHarness, w: SurvivalWorld) -> void:

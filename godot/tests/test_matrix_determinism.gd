@@ -40,6 +40,7 @@ func run(h: TestHarness) -> void:
 # ---------------------------------------------------------------------------
 # T28. Two runs of the same script.
 # ---------------------------------------------------------------------------
+	h.done()
 
 func _t28_determinism(h: TestHarness, pkg: HostRunDir) -> void:
 	var masks := SurvivalMasks.from_package(pkg)

@@ -13,6 +13,7 @@ func run(h: TestHarness) -> void:
 	_ties_keep_list_order(h, w)
 	_facing(h, w)
 	_offers_nothing(h, w)
+	h.done()
 
 
 func _edges(h: TestHarness, w: SurvivalWorld) -> void:

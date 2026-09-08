@@ -30,6 +30,7 @@ func run(h: TestHarness) -> void:
 
 
 ## The constants above are the run's, not this file's opinion.
+	h.done()
 func _authored(h: TestHarness, pkg: HostRunDir) -> void:
 	var rain: Dictionary = (pkg.manifest["weather"] as Dictionary)["rain"]
 	var snow: Dictionary = (pkg.manifest["weather"] as Dictionary)["snow"]

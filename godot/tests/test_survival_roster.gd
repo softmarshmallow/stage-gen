@@ -43,6 +43,7 @@ func run(h: TestHarness) -> void:
 	_the_simulation_runs_the_sealed_order(h)
 	_the_pasted_order_is_also_valid(h)
 	_every_system_declares_an_id_and_a_contract(h)
+	h.done()
 
 
 func _the_roster_seals(h: TestHarness) -> void:

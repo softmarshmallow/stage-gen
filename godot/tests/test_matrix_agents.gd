@@ -25,6 +25,7 @@ func run(h: TestHarness) -> void:
 	_t24_the_blow_lands_at_the_end(h, world)
 	_t24_the_sea_turns_it_back(h, world)
 	_t27_footsteps(h)
+	h.done()
 
 
 func _reset(world: SurvivalWorld, season_id: String) -> void:

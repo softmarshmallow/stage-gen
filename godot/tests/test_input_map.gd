@@ -20,6 +20,7 @@ func run(h: TestHarness) -> void:
 	_one_shots(h, world)
 	_panel_buttons(h, world)
 	_actions(h)
+	h.done()
 
 
 func _held_keys(h: TestHarness, world: SurvivalWorld) -> void:

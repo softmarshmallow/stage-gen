@@ -59,3 +59,4 @@ func run(h: TestHarness) -> void:
 	var next := SurvivalWorld.reset(world)
 	h.assert_true(next.masks == masks, "a reset dropped the masks")
 	h.assert_eq(next.seed, 8, "a reset did not advance the seed")
+	h.done()

@@ -56,6 +56,7 @@ func run(h: TestHarness) -> void:
 # ---------------------------------------------------------------------------
 # T3. The first twelve draws of the world's stream.
 # ---------------------------------------------------------------------------
+	h.done()
 
 func _t3_prng(h: TestHarness) -> void:
 	var generator := KernelRng.new(7)

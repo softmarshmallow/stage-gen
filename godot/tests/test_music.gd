@@ -19,6 +19,7 @@ func run(h: TestHarness) -> void:
 ## mp3 decoder in the loader, so `SurvivalSfx.decode` reads the waveform back through a
 ## playback instance; if that ever stops working the slice list goes empty and
 ## a footstep would play the whole 2.5 s run at once.
+	h.done()
 func _onset_cut(h: TestHarness) -> void:
 	var pkg: Variant = h.package()
 	if pkg == null:

@@ -30,6 +30,7 @@ func run(h: TestHarness) -> void:
 			)
 			h.assert_false(empty, "%s parses" % path)
 	h.assert_true(checked > 40, "the sweep found the project's scripts (%d)" % checked)
+	h.done()
 
 
 func _walk(dir: String) -> PackedStringArray:

@@ -19,6 +19,7 @@ func run(h: TestHarness) -> void:
 	_intent(h)
 	_block_gate(h)
 	_swaps(h)
+	h.done()
 
 
 func _hash(h: TestHarness) -> void:

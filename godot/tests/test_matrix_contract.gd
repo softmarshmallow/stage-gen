@@ -65,6 +65,7 @@ func run(h: TestHarness) -> void:
 ## refusals, not the seven D1 counts: kind, two scale/ground keys, four actor
 ## keys, two prop-state keys, and the two prop enums. Each one is provoked on
 ## its own so nothing else can mask it.
+	h.done()
 func _t1_manifest_refusals(h: TestHarness, pkg: HostRunDir) -> void:
 	h.assert_true(SurvivalDocument.check_manifest(pkg.manifest).is_empty(), "the run is accepted")
 	h.assert_eq(pkg.manifest.get("kind"), SurvivalDocument.MANIFEST_KIND, "the run's kind")

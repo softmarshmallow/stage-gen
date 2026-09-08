@@ -44,6 +44,10 @@ const STATE_DEATH := "death"
 ## it is `vy != 0`, and the body reaches it by pressing exactly one of up or down.
 const CLIMB_PIXELS_PER_FRAME := 12.0
 
+## How tall the body is drawn. Every strip is scaled to it, so it is the height
+## the world may reason about even though which pixels are opaque is the host's.
+const DRAWN_HEIGHT := 154.0
+
 const FACING_LEFT := "left"
 const FACING_RIGHT := "right"
 
@@ -190,7 +194,10 @@ static func update(
 			player["vx"] = 0.0
 			player["vy"] = 0.0
 			player["x"] = zone["centerX"]
-			player["attackActive"] = false
+			# The whole window, not just the flag: a body that grabs a rung
+			# mid-swing used to arrive holding a spent window, and the next release
+			# tick fired off a deadline that belonged to the ground.
+			_clear_attack(player)
 			_continue_ladder(player, world, dt, up, down, left, right, false)
 			return
 
@@ -301,7 +308,6 @@ static func update(
 
 	# Vertical motion, and the one-way deck or terrain that catches it.
 	var column: int = int(floor(float(player["x"]) / tile_px))
-	player["column"] = column
 	var surface_y: float = PlatformerVertical.terrain_surface_y(
 		_height_at(world, column), tile_px, float(world["baselineY"])
 	)
@@ -325,7 +331,9 @@ static func update(
 		# column-locked climb. A descending column is a real ledge: the foot
 		# holds its height and the airborne branch drops it under gravity rather
 		# than teleporting it onto the new surface.
-		var step := FamilyContact.resolve_terrain_step(float(player["y"]), surface_y, 0.0)
+		var step := FamilyContact.resolve_terrain_step(
+			float(player["y"]), surface_y, PlatformerVertical.STEP_DOWN_TOLERANCE
+		)
 		player["y"] = step["footY"]
 		if String(step["support"]) == FamilyContact.SUPPORT_AIR:
 			_open_coyote(player, now_ms)
@@ -341,7 +349,12 @@ static func update(
 			next_foot_y,
 			float(player["vy"]),
 			surface_y,
-			FamilyContact.ENTRY_CROSSING,
+			# Clamped rather than crossed, which is this genre's rule and not the
+			# runner's: a sample at or below the surface while descending is pinned
+			# to it rather than passed through. The two agree on flat ground and
+			# part company at the one place it matters — a body falling into a
+			# column whose surface has already risen past its feet.
+			FamilyContact.ENTRY_CLAMP,
 			float(player["x"]),
 			world.get("platforms", []),
 			"" if ignored == null else String(ignored)
@@ -352,13 +365,22 @@ static func update(
 		if String(landing["support"]) == FamilyContact.SUPPORT_AIR or String(support_id).is_empty():
 			support_id = null
 		_set_support(player, String(landing["support"]), support_id)
+		_advance_drop_after_airborne(player, landing, support_id)
 		if (
 			String(landing["support"]) != FamilyContact.SUPPORT_AIR
 			and support_id != player["dropThroughPlatformId"]
 		):
 			_clear_drop_through(player)
 
-	_resolve_state(player, crouching, shift, now_ms, attacking, weapon)
+	_resolve_state(player, world, crouching, shift, now_ms, attacking, weapon)
+
+
+## Put down whatever the body was swinging.
+static func _clear_attack(player: Dictionary) -> void:
+	player["attackUntil"] = 0.0
+	player["attackStarted"] = 0.0
+	player["attackTicksFired"] = 0
+	player["attackActive"] = false
 
 
 ## The thirty fields the replay golden hashes.
@@ -378,6 +400,11 @@ static func snapshot(player: Dictionary) -> Dictionary:
 	var made := {}
 	for key in SNAPSHOT_FIELDS:
 		made[key] = player[key]
+	# A reading of x rather than a thing the walk stores, because the walk is not
+	# the only way a body moves: every ladder path returns before the line that
+	# used to write this, so a climbing body published the column it started
+	# climbing from until it let go.
+	made["column"] = int(floor(float(player["x"]) / PlatformerMaps.TILE_PX))
 	return made
 
 
@@ -433,18 +460,39 @@ static func blink_alpha(player: Dictionary, now_ms: float) -> float:
 
 static func _resolve_state(
 	player: Dictionary,
+	world: Dictionary,
 	crouching: bool,
 	shift: bool,
 	now_ms: float,
 	attacking: bool,
 	weapon: Dictionary
 ) -> void:
-	# Defeat and the flinch outrank locomotion. A flinch has nowhere to fall back
-	# to: not drawing one is the answer, because whatever was playing continues.
+	# Defeat and the flinch outrank locomotion, and both are *substituted* rather
+	# than assumed: a package with no terminal strip lays its body down in the
+	# flinch, and one with neither leaves it in whatever pose it was already in.
+	# A flinch itself has nowhere to fall back to for the same reason — not
+	# drawing one is the answer, because whatever was playing continues.
+	var poses: Dictionary = world.get("playerPoses", {})
+	var has_death := bool(poses.get(STATE_DEATH, false))
+	var has_hurt := bool(poses.get(STATE_HURT, false))
+	var flinching := (
+		has_hurt
+		and String(player["state"]) == STATE_HURT
+		and now_ms < float(player["hurtUntil"])
+	)
 	var next: String = ""
 	if bool(player["defeated"]):
-		next = STATE_DEATH
-	elif String(player["state"]) == STATE_HURT and now_ms < float(player["hurtUntil"]):
+		if has_death:
+			next = STATE_DEATH
+		elif has_hurt:
+			next = STATE_HURT
+		else:
+			next = (
+				STATE_JUMP
+				if String(player["support"]) == FamilyContact.SUPPORT_AIR
+				else STATE_IDLE
+			)
+	elif flinching:
 		next = STATE_HURT
 	elif attacking:
 		next = String(weapon["pose"])
@@ -598,6 +646,11 @@ static func _begin_drop(player: Dictionary, world: Dictionary, now_ms: float) ->
 	player["dropTraversalPlatformBottomY"] = (
 		float(deck["deckY"]) + PlatformerVertical.UPPER_PLATFORM_THICKNESS
 	)
+	# The rest of the slab, so the body can be asked whether it is out from under
+	# it yet. Not published: the golden hashes only the underside.
+	player["dropTraversalPlatformLeft"] = float(deck["left"])
+	player["dropTraversalPlatformRight"] = float(deck["right"])
+	player["dropTraversalPlatformDeckY"] = float(deck["deckY"])
 	player["dropTraversalPhase"] = "drop-commanded"
 	player["dropTraversalLowerSupport"] = null
 	player["dropTraversalLowerSupportId"] = null
@@ -605,6 +658,58 @@ static func _begin_drop(player: Dictionary, world: Dictionary, now_ms: float) ->
 	player["dropTraversalStableFrames"] = 0
 	_set_support(player, FamilyContact.SUPPORT_AIR, null)
 	player["vy"] = 0.0
+
+
+## The three phases a drop reaches by *falling*, as opposed to the three it
+## reaches by being asked.
+##
+## `underside-cleared` records that the body got out from under the slab before
+## it landed. Its clear test is the one place this genre reasons about a drawn
+## box, and the browser reads the sprite's: here it is the body's declared
+## height and a half-width from the same square-placeholder rule a creature's
+## envelope uses. Nothing downstream turns on the phase — the landing below
+## accepts `drop-commanded` just as readily — so the difference between a sprite
+## and a declared box is a difference in what is recorded rather than in what
+## happens.
+static func _advance_drop_after_airborne(
+	player: Dictionary, landing: Dictionary, support_id: Variant
+) -> void:
+	var phase := "" if player["dropTraversalPhase"] == null else String(player["dropTraversalPhase"])
+	if phase.is_empty():
+		return
+	var support := String(landing["support"])
+	if phase == "drop-commanded":
+		var half := DRAWN_HEIGHT / 2.0
+		var top := float(player["y"]) - DRAWN_HEIGHT
+		if (
+			float(player["x"]) + half < float(player["dropTraversalPlatformLeft"])
+			or float(player["x"]) - half > float(player["dropTraversalPlatformRight"])
+			or float(player["y"]) < float(player["dropTraversalPlatformDeckY"])
+			or top > float(player["dropTraversalPlatformBottomY"])
+		):
+			phase = "underside-cleared"
+			player["dropTraversalPhase"] = phase
+	if phase == "drop-commanded" or phase == "underside-cleared":
+		# Anything that caught the body except the deck it dropped through: the
+		# ground under it, or another deck. Landing back on the same slab is not a
+		# landing, it is the drop failing.
+		if support == FamilyContact.SUPPORT_AIR:
+			return
+		if support == FamilyContact.SUPPORT_PLATFORM and support_id == player["dropTraversalPlatformId"]:
+			return
+		player["dropTraversalPhase"] = "lower-support-landed"
+		player["dropTraversalLowerSupport"] = support
+		player["dropTraversalLowerSupportId"] = support_id
+		player["dropTraversalLowerSupportY"] = float(landing["footY"])
+		# One, not zero: the frame it landed on is the first frame it stood still.
+		player["dropTraversalStableFrames"] = 1
+		return
+	if (
+		phase == "recovery-airborne"
+		and support == FamilyContact.SUPPORT_PLATFORM
+		and support_id == player["dropTraversalPlatformId"]
+	):
+		player["dropTraversalPhase"] = "recovered"
 
 
 static func _advance_drop_settle(player: Dictionary) -> void:

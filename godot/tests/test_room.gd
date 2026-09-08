@@ -20,6 +20,7 @@ func run(h: TestHarness) -> void:
 	_contract(h, room)
 	_bag(h)
 	_reducer(h, room)
+	h.done()
 
 
 func _contract(h: TestHarness, room: Dictionary) -> void:

@@ -14,6 +14,7 @@ func run(h: TestHarness) -> void:
 
 ## `nightFactor`: 0 at midday, 1 in the deep of the night. A longer night is an
 ## earlier dusk, because dawn always ends at the day's turn.
+	h.done()
 func _night_curve(h: TestHarness) -> void:
 	# Summer (night_share 0.38): dusk at 0.50, full night from 0.62 to 0.88.
 	h.assert_near(SurvivalHelpers.night_factor(0.12, 0.38), 0.0, 1e-9, "summer noon")

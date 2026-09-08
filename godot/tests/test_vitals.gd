@@ -21,6 +21,7 @@ func run(h: TestHarness) -> void:
 	_too_hot_at_a_full_bar(h, w)
 	_freezing_takes_health(h, w)
 	_death_fires_once(h, w)
+	h.done()
 
 
 func _reset(w: SurvivalWorld, season_id: String) -> void:

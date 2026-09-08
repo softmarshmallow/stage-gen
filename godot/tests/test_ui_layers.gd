@@ -32,6 +32,7 @@ func run(h: TestHarness) -> void:
 	_layers_take_a_scale(h, w)
 	_args_carry_the_new_flags(h)
 	_no_layer_writes_the_world(h)
+	h.done()
 
 
 func _kit_reads_items(h: TestHarness, w: SurvivalWorld) -> void:

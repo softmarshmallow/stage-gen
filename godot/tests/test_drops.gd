@@ -12,6 +12,7 @@ func run(h: TestHarness) -> void:
 	_settles_on_land(h, w)
 	_friction_decides_the_skid(h, w)
 	_magnet_pickup(h, w)
+	h.done()
 
 
 func _settles_on_land(h: TestHarness, w: SurvivalWorld) -> void:

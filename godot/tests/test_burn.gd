@@ -23,6 +23,7 @@ func run(h: TestHarness) -> void:
 	_how_long_it_burns(h, w)
 	_the_fire_key_asks_its_own_question(h, w)
 	_the_fireplace_is_unchanged(h, w)
+	h.done()
 
 
 func _stand_at_the_pine(w: SurvivalWorld) -> Dictionary:

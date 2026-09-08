@@ -95,6 +95,7 @@ func run(h: TestHarness) -> void:
 	h.assert_true(HostRunDir.open(BAD_RUN, Callable(SurvivalDocument, "check_manifest"), SurvivalDocument.LAYOUT_REF) == null, "open() accepted a refused manifest")
 	h.assert_true(HostRunDir.open("user://test_no_such_run", Callable(SurvivalDocument, "check_manifest"), SurvivalDocument.LAYOUT_REF) == null, "open() accepted a missing run")
 	_clear_bad_run()
+	h.done()
 
 func _write_bad_run(manifest: Dictionary) -> void:
 	DirAccess.make_dir_recursive_absolute(BAD_RUN)

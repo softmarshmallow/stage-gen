@@ -74,6 +74,7 @@ func run(h: TestHarness) -> void:
 	var world := SurvivalWorld.create(pkg, 7, {"masks": SurvivalMasks.new()})
 	for i in SEED_7.size():
 		h.assert_near(world.rand.call(), SEED_7[i], 1e-12, "world.rand draw %d" % i)
+	h.done()
 
 func _check_stream(h: TestHarness, seed_value: int, expected: Array) -> void:
 	var generator := KernelRng.new(seed_value)

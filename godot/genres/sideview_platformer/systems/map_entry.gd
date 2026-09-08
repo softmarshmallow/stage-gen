@@ -100,14 +100,13 @@ static func apply(world: PlatformerWorld, step: Dictionary) -> void:
 ## a fresh body has a full one, and that is the whole of what a recovery costs.
 ##
 ## Everything a step would have settled is settled here instead, because the body
-## does not take one this frame: the column from the new x, and the support from
-## the ground it was put down on.
+## does not take one this frame: the support comes from the ground it was put
+## down on, and the column is a reading of the new x taken where it is published.
 static func place(world: PlatformerWorld, x: float, y: float) -> void:
 	var max_hp := int(
 		world.progression.get("maximumHealth", int(world.package["startingHealth"]))
 	)
 	world.player = PlatformerPlayer.create(x, y, max_hp)
-	world.player["column"] = int(floor(x / PlatformerMaps.TILE_PX))
 
 
 static func _pressed(world: PlatformerWorld) -> bool:

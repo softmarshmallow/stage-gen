@@ -176,7 +176,13 @@ static func _award(world: PlatformerWorld, mob: Dictionary) -> void:
 	world.progression = granted["state"]
 	if int(granted["levelsGained"]) <= 0:
 		return
-	world.player["maxHp"] = int(world.progression["maximumHealth"])
+	# A rank widens the pool *and* fills it, through the gauge. Moving the ceiling
+	# alone would leave the new capacity permanently unreachable — a level-up that
+	# arrives as an empty promise in the middle of the fight that earned it.
+	var grown := KernelGauge.grow(world.player["gauge"], int(world.progression["maximumHealth"]))
+	world.player["gauge"] = grown
+	world.player["maxHp"] = int(grown["max"])
+	world.player["hp"] = int(grown["value"])
 
 
 ## The shape the package's round is drawn as, which decides how it carries

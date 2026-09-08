@@ -49,7 +49,14 @@ func _run_all() -> void:
 		var checks := harness.checks
 		var at := Time.get_ticks_msec()
 		print("%s" % harness.current)
+		harness.finished = false
 		test.run(harness)
+		# A runtime error inside a test aborts its `run` and returns here with
+		# nothing to say, so every check it reached still passed and the file
+		# printed `ok`. The last line of a `run` is the only thing that can prove
+		# it got there.
+		if not harness.finished:
+			harness.fail("stopped before the end of run() — look for a SCRIPT ERROR above")
 		# A script that failed to compile can still be instanced and called,
 		# doing nothing at all; a file that asserts nothing has not run.
 		if harness.checks == checks:

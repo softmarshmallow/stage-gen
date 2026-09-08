@@ -14,6 +14,7 @@ func run(h: TestHarness) -> void:
 	_pack(h, world)
 	_clock_and_conditions(h, world)
 	_start_kit(h, pkg)
+	h.done()
 
 func _entity_counts(h: TestHarness, pkg: HostRunDir, world: SurvivalWorld) -> void:
 	var counts: Dictionary = pkg.layout.get("counts", {})

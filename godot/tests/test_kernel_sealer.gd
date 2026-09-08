@@ -21,6 +21,7 @@ func run(h: TestHarness) -> void:
 
 
 ## Build a one-off system script from a declaration, so a case reads as a table.
+	h.done()
 func _system(fields: Dictionary) -> GDScript:
 	var source := "extends RefCounted\n"
 	source += "static func declaration() -> KernelSystem:\n"

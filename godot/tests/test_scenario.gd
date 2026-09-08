@@ -20,6 +20,7 @@ func run(h: TestHarness) -> void:
 	_contract(h, program)
 	_settle(h, program)
 	_branching(h, program)
+	h.done()
 
 
 func _contract(h: TestHarness, program: Dictionary) -> void:

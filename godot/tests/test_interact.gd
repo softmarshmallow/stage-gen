@@ -18,6 +18,7 @@ func run(h: TestHarness) -> void:
 	_gathered_by_hand(h, w)
 	_a_full_pack_lets_the_rest_fall(h, w)
 	_the_key_waits_for_the_yield(h, w)
+	h.done()
 
 
 func _stand_at_the_pine(w: SurvivalWorld) -> Dictionary:

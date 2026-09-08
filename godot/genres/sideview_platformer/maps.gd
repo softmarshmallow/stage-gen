@@ -116,6 +116,9 @@ static func parse(manifest: Variant) -> Variant:
 	var player: Dictionary = gameplay.get("player", {})
 	return {
 		"climbArtwork": climb_artwork,
+		# Which poses this package actually drew. Two of them decide what a damaged
+		# body wears, because a strip nobody published is a strip no host can play.
+		"playerPoses": _player_poses(doc.get("player", {})),
 		"gameId": String(doc.get("game_id", "")),
 		"displayName": String(doc.get("display_name", "")),
 		"maps": maps,
@@ -173,6 +176,16 @@ static func parse(manifest: Variant) -> Variant:
 ## turns a rise into a cycle. A run whose package published a two-frame strip and
 ## whose port assumed four would climb the same ladder in a different pose.
 const CLIMB_STATE_BY_ROLE := {"ladder": "climb_ladder", "rope": "climb_rope"}
+
+
+## The authored pose names, as a set.
+static func _player_poses(player: Dictionary) -> Dictionary:
+	var made := {}
+	var states: Variant = player.get("states")
+	if states is Dictionary:
+		for name: Variant in (states as Dictionary):
+			made[String(name)] = true
+	return made
 
 
 static func _climb_artwork(player: Dictionary) -> Dictionary:

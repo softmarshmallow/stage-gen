@@ -16,6 +16,7 @@ func run(h: TestHarness) -> void:
 	_contract(h, document)
 	_facts(h, document)
 	_episode(h, document)
+	h.done()
 
 
 func _contract(h: TestHarness, document: Dictionary) -> void:

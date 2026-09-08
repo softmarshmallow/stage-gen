@@ -35,6 +35,7 @@ func run(h: TestHarness) -> void:
 	_order(h)
 	_manifest(h)
 	_arithmetic(h)
+	h.done()
 
 
 func _order(h: TestHarness) -> void:

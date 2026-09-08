@@ -26,6 +26,7 @@ func run(h: TestHarness) -> void:
 
 ## A stable per-instance phase, so a trail of coins ripples rather than turning
 ## as one slab.
+	h.done()
 func _phase(h: TestHarness) -> void:
 	h.assert_near(
 		RunnerPresentation.phase_for("6:7:lumen_seed"), 2.689949962, EPS,

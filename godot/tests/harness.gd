@@ -37,6 +37,15 @@ static func _static_init() -> void:
 
 var failures: PackedStringArray = PackedStringArray()
 var checks: int = 0
+
+## Whether the file being run reached the end of its own `run`.
+##
+## A GDScript runtime error — a null where a String was expected, an index off
+## the end of an array — aborts the function it happens in and returns to the
+## caller with nothing to say. The suite printed `ok` for a file that had
+## crashed halfway through, because every check it *had* reached still passed.
+## So each file says when it is finished, and a file that never says so fails.
+var finished: bool = false
 ## The test file currently running, for the failure lines.
 var current: String = ""
 
@@ -71,6 +80,11 @@ func assert_near(actual: float, expected: float, eps: float, message: String) ->
 		fail("%s (expected %.9f +/- %.9f, got %.9f)" % [message, expected, eps, actual])
 		return false
 	return true
+
+## Called as the last statement of every `run`. The runner reads it, not the test.
+func done() -> void:
+	finished = true
+
 
 func fail(message: String) -> void:
 	failures.append("%s: %s" % [current, message])

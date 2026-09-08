@@ -12,6 +12,7 @@ func run(h: TestHarness) -> void:
 	_approaches_and_hits(h, w)
 	_invulnerability_spaces_the_blows(h, w)
 	_out_of_aggro_it_wanders(h, w)
+	h.done()
 
 
 func _stage(w: SurvivalWorld, x: float, z: float) -> Dictionary:

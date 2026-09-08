@@ -52,6 +52,7 @@ func run(h: TestHarness) -> void:
 	_rows_are_the_whole(h)
 	_refusals(h)
 	_host_path(h)
+	h.done()
 
 
 func _neutral(h: TestHarness) -> void:

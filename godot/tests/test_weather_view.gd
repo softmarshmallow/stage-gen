@@ -13,6 +13,7 @@ func run(h: TestHarness) -> void:
 	_strike_bolt(h)
 
 ## `flashEnvelope` (index.html :442-448): two pulses and a tail.
+	h.done()
 func _flash_envelope(h: TestHarness) -> void:
 	h.assert_near(SurvivalWeatherView.flash_envelope(0.02, 0.5), 1.0, 1e-9, "flash at 0.02 s is the first pulse")
 	h.assert_near(SurvivalWeatherView.flash_envelope(0.07, 0.5), 0.3, 1e-9, "flash at 0.07 s falls between the pulses")
