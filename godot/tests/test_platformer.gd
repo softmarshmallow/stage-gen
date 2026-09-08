@@ -16,12 +16,12 @@ extends RefCounted
 
 ## Frames identical to the browser's, and what stops the next one.
 ##
-## Frame 197 is the first contact: a creature reaches the body, and the blow,
-## its knockback and the hurt it opens are underived. Raise this with each unit,
-## and never without re-running the harness.
-const EXACT_FRAMES := 196
+## Frame 200 is the first throw: the player's own attack, the round it puts in
+## the air and the bag it spends are underived. Raise this with each unit, and
+## never without re-running the harness.
+const EXACT_FRAMES := 199
 
-const FIRST_UNPORTED := "mobs/strike, at the first contact"
+const FIRST_UNPORTED := "projectiles/step, at the first throw"
 
 
 func run(h: TestHarness) -> void:
@@ -378,6 +378,24 @@ func _mobs(h: TestHarness, package: Dictionary) -> void:
 	)
 	PlatformerMob.step(far, map, 1.0 / 30.0, {"x": 100.0, "y": 656.0})
 	h.assert_eq(String(far["state"]), "wander", "a body outside its territory is not chased")
+
+	# In reach and off cooldown, a creature commits rather than closing further,
+	# and it stands still for the wind-up's length.
+	var striker := PlatformerMob.create(
+		1, "mob_1", "road-map/mob/1", 0, "hunting", 2, 1184.0, 656.0, map
+	)
+	PlatformerMob.step(striker, map, 1.0 / 30.0, {"x": 1140.0, "y": 656.0}, 1000.0)
+	h.assert_eq(String(striker["state"]), "windup", "a body inside reach is swung at")
+	h.assert_eq(float(striker["x"]), 1184.0, "and the creature stops where it stands")
+	h.assert_eq(float(striker["strikeLandsAtMs"]), 1260.0, "the blow lands after the wind-up")
+	h.assert_eq(float(striker["attackReadyAtMs"]), 2100.0, "and the next one waits out the cooldown")
+	# Backing out of range dodges the damage but never cancels the swing.
+	PlatformerMob.step(striker, map, 1.0 / 30.0, {"x": 400.0, "y": 656.0}, 1100.0)
+	h.assert_eq(String(striker["state"]), "windup", "a committed blow is not called off")
+	PlatformerMob.step(striker, map, 1.0 / 30.0, {"x": 400.0, "y": 656.0}, 1300.0)
+	h.assert_eq(
+		float(PlatformerMob.consume_strike(striker)["damage"]), 1.0, "and it lands all the same"
+	)
 
 	var shot := PlatformerMob.snapshot(first)
 	h.assert_eq(shot.size(), 10, "a creature publishes ten fields")

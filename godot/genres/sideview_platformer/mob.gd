@@ -37,6 +37,7 @@ const STATE_WANDER := "wander"
 const STATE_CHASE := "chase"
 const STATE_ATTACK_RECOVERY := "attack_recovery"
 const STATE_RETURN_HOME := "return_home"
+const STATE_WINDUP := "windup"
 
 ## How far above or below its own feet a creature may still reach, in tiles.
 const VERTICAL_REACH_TILES := 1.0
@@ -82,6 +83,11 @@ static func create(
 		# The `actor-ai` family's hysteresis: having *been* engaged is what makes
 		# losing the target a walk home rather than a shrug.
 		"awareness": "idle",
+		# The blow in flight, and when the next one may start. A wind-up already
+		# committed resolves before anything else is decided.
+		"strikeLandsAtMs": 0.0,
+		"attackReadyAtMs": 0.0,
+		"pendingStrike": {},
 		"pursuitMinX": maxf(lane["minX"], spawn_x - PlatformerMaps.TILE_PX * PURSUIT_HOME_RADIUS_TILES),
 		"pursuitMaxX": minf(lane["maxX"], spawn_x + PlatformerMaps.TILE_PX * PURSUIT_HOME_RADIUS_TILES),
 	}
@@ -95,12 +101,30 @@ static func create(
 ## the profile's numbers under the family's hysteresis, never the other way
 ## round.
 static func step(
-	mob: Dictionary, map: Dictionary, dt_seconds: float, player: Dictionary
+	mob: Dictionary, map: Dictionary, dt_seconds: float, player: Dictionary, now_ms: float = 0.0
 ) -> void:
+	mob["nowMs"] = now_ms
 	if not bool(mob["alive"]):
 		return
 	var profile := PlatformerCombat.profile(String(mob["aggression"]))
+
+	# A wind-up already in flight resolves before anything else is decided: the
+	# blow was committed when it started, so backing out of range dodges the
+	# damage — the caller re-checks distance — but never cancels the swing. A
+	# creature that snapped out of its own blow mid-frame would read as a glitch
+	# rather than as a miss.
+	if String(mob["state"]) == STATE_WINDUP:
+		if now_ms < float(mob["strikeLandsAtMs"]):
+			return
+		mob["pendingStrike"] = {
+			"damage": float(profile["damage"]), "dirSign": int(mob["facing"])
+		}
+		mob["state"] = STATE_WANDER if player.is_empty() else STATE_ATTACK_RECOVERY
+
 	var directive := _directive(mob, profile, player)
+	if directive == "strike":
+		_windup(mob, profile, now_ms, player)
+		return
 	if directive == "chase":
 		_chase(mob, map, dt_seconds, profile, player)
 		return
@@ -169,14 +193,36 @@ static func _intent(
 		absf(float(mob["y"]) - float(player["y"]))
 		<= PlatformerMaps.TILE_PX * VERTICAL_REACH_TILES
 	)
-	if distance <= float(profile["strikeRangePx"]) and reachable:
-		# The wind-up and the blow are `mobs/strike`, which the golden does not
-		# reach until the player stands inside a creature's reach. Until then a
-		# creature in range holds its pose rather than swinging at nothing.
-		return "attack_recovery"
+	# Cooldown outranks range, so a creature that has just swung keeps its
+	# committed pose rather than falling through to patrol.
+	if (
+		distance <= float(profile["strikeRangePx"])
+		and float(mob.get("nowMs", 0.0)) >= float(mob["attackReadyAtMs"])
+		and reachable
+	):
+		return "strike"
 	if distance <= float(profile["strikeRangePx"]):
 		return "attack_recovery"
 	return "chase"
+
+
+## Commit a blow. The creature stops where it stands for the wind-up's length,
+## and the next one may not start until the cooldown has run.
+static func _windup(
+	mob: Dictionary, profile: Dictionary, now_ms: float, player: Dictionary
+) -> void:
+	if float(player["x"]) != float(mob["x"]):
+		mob["facing"] = 1 if float(player["x"]) > float(mob["x"]) else -1
+	mob["state"] = STATE_WINDUP
+	mob["strikeLandsAtMs"] = now_ms + float(profile["windupMs"])
+	mob["attackReadyAtMs"] = now_ms + float(profile["cooldownMs"])
+
+
+## Take the blow this creature has landed, if it landed one this frame.
+static func consume_strike(mob: Dictionary) -> Dictionary:
+	var pending: Dictionary = mob["pendingStrike"]
+	mob["pendingStrike"] = {}
+	return pending
 
 
 ## Close on the player at the profile's own speed, bounded by where this

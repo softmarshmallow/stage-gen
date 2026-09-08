@@ -103,7 +103,7 @@ static func step(world: PlatformerWorld, frame_step: Dictionary) -> void:
 	# half-moved roster would hunt a player nobody else could see.
 	var player := {"x": float(world.player["x"]), "y": float(world.player["y"])}
 	for entry: Variant in world.mobs:
-		PlatformerMob.step(entry as Dictionary, map, dt, player)
+		PlatformerMob.step(entry as Dictionary, map, dt, player, float(frame_step["now"]))
 
 
 ## The published list, in the order the creatures stood up.
