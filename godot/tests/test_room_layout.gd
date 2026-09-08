@@ -148,8 +148,9 @@ func _verb_rule(h: TestHarness) -> void:
 	h.assert_eq(
 		RoomLayout.resolve_verb("act", true, 0.0), "inspect", "and so does a second button"
 	)
-	h.assert_eq(RoomLayout.resolve_verb("look", false, 0.0), "use" if false else "inspect",
-		"a tap in Look mode looks")
+	h.assert_eq(
+		RoomLayout.resolve_verb("look", false, 0.0), "inspect", "a tap in Look mode looks"
+	)
 
 
 func _fitting(h: TestHarness, layout: Dictionary) -> void:

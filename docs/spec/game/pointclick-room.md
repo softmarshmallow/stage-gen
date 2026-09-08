@@ -4,7 +4,7 @@
 
 > **Contract maturity: exact-current for the authored contract, the pipeline,
 > and the runtime manifest.** Executable authority:
-> `src/stage_gen/recipes/pointclick_room/` and `web/lib/pointclick/`.
+> `src/stage_gen/recipes/pointclick_room/` and `godot/genres/pointclick_room/`.
 
 The third recipe on the engine, at taxonomy path `2d/roomview/pointclick`
 (`roomview` ≜ `screen_space_room_stage_v1` in the
@@ -142,12 +142,12 @@ generated one), the win condition, the three interface roles with the geometry
 the gate measured on each sheet, and a digest-bound closure of every
 published artifact — the republished cover and all three sheets included.
 
-The web consumer (`web/lib/pointclick/`, route `/room/<tag>`) plays the room
-from this document alone, on the same Phaser engine as the platformer: one
-canvas, sized to the authored frame plus a HUD band, scaled to whatever
-viewport it lands in. Backdrop, hotspot sprites, narration panel, inventory
-and verb controls are all drawn **inside the canvas** — the page contributes
-one link back and nothing else, so the same build is a phone game and a page
+The consumer (`godot/genres/pointclick_room/` for the rules,
+`godot/hosts/pointclick_room/` for the picture) plays the room from this
+document alone: one canvas, sized to the authored frame plus a HUD band, scaled
+to whatever window it lands in. Backdrop, hotspot sprites, narration panel,
+inventory and verb controls are all drawn **inside that canvas** — nothing
+around it contributes anything, so the same build is a phone game and a page
 embed. The engine is only the view: every transition goes through the pure
 reducer over `{flags, inventory, revealed, fired}` — the same state machine
 the solvability proof searched, so a room the proof admits is a room the

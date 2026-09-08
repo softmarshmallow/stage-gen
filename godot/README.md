@@ -45,8 +45,21 @@ engine.
 Godot --path godot -- --run <absolute run directory>
 ```
 
-Everything after the bare `--` belongs to the host; Godot swallows the rest.
-Each host's own flags are in its README under `hosts/<recipe>/`.
+Everything after the bare `--` belongs to the host; Godot swallows the rest. The
+project's own main scene is the survival host, so every other host is named:
+
+| Genre | Scene | A run that opens |
+| --- | --- | --- |
+| oblique survival | (the main scene) | `out/ember-hollow-v13` |
+| sideview runner | `res://hosts/sideview_runner/main.tscn` | `out/iron-petal-c1-parity` |
+| sideview platformer | `res://hosts/sideview_platformer/main.tscn` | `out/bellweather-c6-parity` |
+| point-and-click room | `res://hosts/pointclick_room/main.tscn` | `out/the-grain-window-a4` |
+| dialogue scene | `res://hosts/dialogue_scene/main.tscn` | `out/the-grain-scene-a`, with `--scenario e1_office` |
+| the case | `res://hosts/case/main.tscn` | `out/the-grain-episode-one` |
+
+Each host's own flags are in its README under `hosts/<recipe>/`. The case plays
+the room's and the scene's leaves rather than a game of its own, which is why
+both live in `hosts/common/`.
 
 ## The suites
 

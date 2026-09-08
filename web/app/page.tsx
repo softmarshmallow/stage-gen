@@ -13,7 +13,6 @@
 // and it leaves with the last of them.
 
 import Link from "next/link";
-import { listReadyCases } from "@/lib/narrative/case-io";
 import { listRuns, type RunIndexEntry } from "@/lib/shell/run-index";
 import { listStorefrontRuns } from "@/lib/shell/storefront";
 import { listUniverseRuns } from "@/lib/shell/universe";
@@ -42,14 +41,6 @@ const BROWSER_PLAY_ROUTES: Readonly<Record<string, { label: string; href: (tag: 
     "prepared-game-runtime-v12": {
       label: "[ ▶ open preview ]",
       href: (tag) => `/preview/${encodeURIComponent(tag)}`,
-    },
-    "pointclick-room-runtime-v3": {
-      label: "[ ▶ enter room ]",
-      href: (tag) => `/room/${encodeURIComponent(tag)}`,
-    },
-    "dialogue-scene-bundle-v8": {
-      label: "[ ▶ play scene ]",
-      href: (tag) => `/scene/${encodeURIComponent(tag)}`,
     },
   };
 
@@ -105,9 +96,8 @@ function RunRow({ entry }: { entry: RunIndexEntry }) {
 }
 
 export default async function Home() {
-  const [runs, cases, universes, storefronts] = await Promise.all([
+  const [runs, universes, storefronts] = await Promise.all([
     listRuns(),
-    listReadyCases(),
     listUniverseRuns(),
     listStorefrontRuns(),
   ]);
@@ -142,52 +132,6 @@ export default async function Home() {
             None yet. Publish one with <code>stage-gen generate</code>.
           </p>
         )}
-      </section>
-
-      {/* A case sits above the leaves: several scenarios and rooms played in
-          order at one URL, with a shared set of facts crossing between them.
-          It is a browser surface like the four above and leaves with them. */}
-      <section className="mt-8 border-t border-border pt-4">
-        <div className="mb-2 text-[13px]">
-          <span className="text-dim">cases</span>
-          <span className="text-dim opacity-60"> · {cases.length + 1}</span>
-        </div>
-        <ul className="flex list-none flex-col gap-1.5">
-          {cases.map((entry) => (
-            <li
-              key={entry.tag}
-              className="grid grid-cols-[1fr_auto] items-center gap-3 border border-border px-2.5 py-1.5 hover:border-fg"
-            >
-              <div className="min-w-0">
-                <div className="truncate text-[13px] text-fg">
-                  {entry.displayName}
-                </div>
-                <div className="mt-0.5 truncate text-[11px] text-dim">
-                  {entry.tag} · {entry.beats} beats
-                </div>
-              </div>
-              <Link
-                className={cx(playActive, playSizeCompact)}
-                href={`/case/${encodeURIComponent(entry.tag)}`}
-              >
-                [ ▶ play case ]
-              </Link>
-            </li>
-          ))}
-          <li className="grid grid-cols-[1fr_auto] items-center gap-3 border border-border px-2.5 py-1.5 hover:border-fg">
-            <div className="min-w-0">
-              <div className="truncate text-[13px] text-fg">
-                A demonstration case
-              </div>
-              <div className="mt-0.5 truncate text-[11px] text-dim">
-                demo · scenario, room, scenario · hand-authored fixture
-              </div>
-            </div>
-            <Link className={cx(playActive, playSizeCompact)} href="/case/demo">
-              [ ▶ play case ]
-            </Link>
-          </li>
-        </ul>
       </section>
 
       {/* A universe is a world, not a game: nothing plays it, and the gallery

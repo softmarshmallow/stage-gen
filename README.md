@@ -468,17 +468,17 @@ bun run build --webpack
 
 `web/` starts no run and, since decision 0061, plays fewer of them each time a
 genre is promoted: the preview boots one published `prepared-game-runtime-v12`
-package, `/room/<tag>` replays one published `pointclick-room-runtime-v3` room,
-`/runs/<tag>/artifacts` lists what a run produced, and `/runs` renders exported
-run views. The runner is played by its Godot host and has no browser route. Browser
-code never receives provider credentials, and the docs gate checks that nothing
-under `web/lib/shell` can spawn a process.
+package, `/runs/<tag>/artifacts` lists what a run produced, and `/runs` renders
+exported run views. The runner, the room, the dialogue scene and the case are
+played by their Godot hosts and have no browser route; the platformer's preview
+is the last one left. Browser code never receives provider credentials, and the
+docs gate checks that nothing under `web/lib/shell` can spawn a process.
 
-`godot` is the repository's second consumer and starts no run
-either. It plays one published `oblique-survival-manifest-v3` run directory,
-named on its command line, and commits no media of its own; see
-[Godot host](docs/godot-host.md) and
-[decision 0057](docs/decisions/0057-the-survival-game-runs-on-godot.md).
+`godot` is the repository's second consumer and starts no run either. It plays
+one published run directory, named on its command line, in whichever host that
+genre has, and commits no media of its own; see [Godot host](docs/godot-host.md),
+[decision 0057](docs/decisions/0057-the-survival-game-runs-on-godot.md) and
+[decision 0061](docs/decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md).
 
 ## Configuration and providers
 

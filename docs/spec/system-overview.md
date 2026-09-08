@@ -144,7 +144,7 @@ cursor-driven hotspots, an inventory, and a puzzle declared as data and proven
 finishable before any generation is paid for. Its
 [room specification](game/pointclick-room.md) owns the authored
 `pointclick-room-v3` contract, the graph, and the `pointclick-room-runtime-v3`
-manifest the `/room/<tag>` consumer under `web/lib/pointclick/` renders from.
+manifest `godot/hosts/pointclick_room/` draws from.
 
 The `oblique-survival` sibling recipe packages one survival world seen from a
 fixed elevated-oblique perspective camera: billboard cards on a ground plane,
@@ -163,7 +163,7 @@ consumer or in-game assets.
 
 Every genre that plays a conversation walks the same machine. The village
 dialogue box in the platformer and the visual-novel scene are two presentations
-of one ordered cursor over beats, kept in `web/lib/dialogue-scene/` free of any
+of one ordered cursor over beats, kept in `godot/families/scenario/` free of any
 engine, manifest, or genre vocabulary — each consumer owns only how it draws
 the ends. That boundary is what lets a conversation become a node later without
 either genre owning the answer. The [scenario contract](game/scenario.md)

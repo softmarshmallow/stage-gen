@@ -41,7 +41,7 @@ channel, a catalogue, a URL — is out of scope and stays in
 | 7 ◐ | H | The browser instruments: the platformer's slice list, every fixture and reference committed, stills taken | the references reproduce; the fixtures carry current identities |
 | 8 ✔ | I | **The runner**, and the browser runner is deleted | 600/600 frames and 30/30 digests, sealed order equal to the documented one; the view was unproved and shipped broken, and [0066](../decisions/0066-a-state-proof-is-not-a-picture-proof.md) is the picture gate that closes it |
 | 9 ◐ | J | **The platformer**, and the browser platformer is deleted | the same, per map, plus the map-scope reset — and see the reordering note: this is a disentangling, not a translation. **In flight**: both scripted runs are 600 of 600 frames exact from the first and the host draws the whole game; what is left is the retirement — the record and the browser deletion — plus the per-digit stagger and the developer affordances |
-| 10 ◐ | K | **The room, the scene and the case**, and their browser surfaces are deleted together | the three simulations are ported and exact (14/14, 26/26, 20/20); their hosts and the deletion are what is left |
+| 10 ✔ | K | **The room, the scene and the case**, and their browser surfaces are deleted together | 14/14 clicks, 26/26 actions and 20/20 actions unmoved; three picture gates at 5 of 5, 6 of 6 and 6 of 6, and 19 of 19 deliberate breaks caught; 9,619 lines and 134 tests gone; [0067](../decisions/0067-the-room-the-scene-and-the-case-are-retired-from-the-browser.md) |
 | 11 | L | The sweep: the last web references, the census rows, the identities regenerated | `check.py` green; no `phaser` anywhere under `web/` |
 
 **Two reorderings, with their reasons.** Step 5 (the kernel) landed before step 4
@@ -77,6 +77,24 @@ shown to fail on the defect it exists to catch. Run against the build 0065
 shipped it fails every shot that build can produce; against the build now, 4 of 4
 pass. The rule this leaves for step 9 is not "take a still" but "shoot the steps
 where a defect would be visible, and prove the sheet catches one".
+
+**What step 10 turned out to be, and it was not a translation either.** The
+three simulations ported cleanly, exactly as this plan said they would. The
+*views* did not, because the browser's were wrong: its HUD constants were
+authored when its panels were drawn rectangles, the panels became generated
+nine-slice art whose corners eat `insets / draw_scale` on every side, and nothing
+was re-measured. Three visible faults in the room and one in the scene follow
+from that one cause, and a port that agreed with the reference would have shipped
+all four. So the views are corrected rather than copied, each correction carrying
+its own reading, and [0067](../decisions/0067-the-room-the-scene-and-the-case-are-retired-from-the-browser.md)
+carries the falsifier that exposure earns.
+
+Two of the runs this plan named cannot be opened by anything.
+`out/clockmakers-attic-v7` is a schema behind the room contract and the browser
+404s on it; `out/larkfield` is two generations behind the scene contract and
+cannot be brought forward by a version bump. The runs that play are The Grain's.
+And `/scene/<tag>` was dead before the deletion: it reads a bundle with no
+scenario id and every published run carries six.
 
 **Step 7 is half done, and its platformer instrument was wrong.** The runner's
 and the platformer's references are committed, but the platformer's pair

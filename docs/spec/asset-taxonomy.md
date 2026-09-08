@@ -93,9 +93,9 @@ the old names.
 | the recipe's world steps | new in the survival pass | `2d/obliqueview/survival/item_*`, `.../prop_*`, `.../season_look`, `.../weather_*`, `.../world_layout` | d — pickups and their icons, prop states and their interaction art, the season looks, the weather layers, and the algorithmic layout |
 | `godot` | new in the survival pass | consumer host for `2d/obliqueview/survival` | d |
 | `web/lib/sideview-platformer` | `web/lib/sideview-platformer` | consumer adapter for `2d/sideview/platformer` | d |
-| `web/lib/pointclick` | new in the ABI pass | consumer adapter for `2d/roomview/pointclick` | d |
-| `web/lib/dialogue-scene` | unchanged | consumer adapter for `2d/frontview/vn/scene` | d |
-| `web/lib/dialogue-scene` | new | the agnostic conversation core both genres walk | a |
+| `godot/genres/pointclick_room` | was web/lib/pointclick, retired in the Godot pass | consumer adapter for `2d/roomview/pointclick` | d |
+| `godot/genres/dialogue_scene` | was web/lib/dialogue-scene, retired in the Godot pass | consumer adapter for `2d/frontview/vn/scene` | d |
+| `godot/families/scenario` | promoted out of the scene when a second genre asked for it | the agnostic conversation core both genres walk | a |
 | `components/actor_content` | new in the runner pass | `2d/actor_content` | b — shared drawn-actor blocks (references, motion playback) |
 | `components/runner_gameplay` | new in the runner pass | `2d/sideview/runner/gameplay` | d |
 | `components/runner_track` | new in the runner pass | `2d/sideview/runner/track` | d — authored tiled segments over the shared side-view stage |
