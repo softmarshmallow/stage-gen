@@ -100,6 +100,14 @@ var shakes: Array = []
 ## than adding to it. A tremor that accumulated would walk the view off the map.
 var shake_carried: Dictionary = {"x": 0.0, "y": 0.0}
 
+## The blows this frame landed, for a host that draws numbers over them.
+##
+## Not published and not hashed: the golden records a kill and a blow on the
+## body, and says nothing about the ordinary hits between them. A view still has
+## to draw those, so they are carried on their own channel rather than smuggled
+## into the record a second runtime is compared against.
+var blows: Array = []
+
 ## The bag that decides what plays next, seeded off the package digest.
 var music: FamilyShuffleBag = null
 

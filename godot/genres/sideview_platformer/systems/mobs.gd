@@ -164,6 +164,15 @@ static func strike(world: PlatformerWorld, step: Dictionary) -> void:
 		):
 			continue
 		PlatformerPlayer.knock_back(world.player, int(pending["dirSign"]), float(step["now"]))
+		world.blows.append(
+			{
+				"amount": int(blow["amount"]),
+				"critical": bool(blow["critical"]),
+				"incoming": true,
+				"x": float(world.player["x"]),
+				"y": float(world.player["y"]),
+			}
+		)
 		PlatformerTranscript.record(
 			world,
 			"player-damaged",

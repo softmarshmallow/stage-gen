@@ -169,6 +169,15 @@ func _sync_shots(world: PlatformerWorld, scroll: Vector2) -> void:
 			_shots.erase(id)
 
 
+## How tall a body is drawn, for putting something above it.
+func drawn_height(is_player: bool) -> float:
+	if is_player and _player != null:
+		return _player.drawn_size().y
+	for id: Variant in _mobs:
+		return (_mobs[id] as HostActor).drawn_size().y
+	return PlatformerMob.DRAWN_HEIGHT
+
+
 ## What is lying on the ground, drawn to a fixed height so a thing is a size in
 ## the world rather than whatever resolution its picture was generated at.
 func _sync_drops(world: PlatformerWorld, scroll: Vector2) -> void:

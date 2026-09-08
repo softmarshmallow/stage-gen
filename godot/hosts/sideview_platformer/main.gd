@@ -37,6 +37,7 @@ var input: PlatformerInput = null
 var stage: PlatformerStage = null
 var actors: PlatformerActors = null
 var bars: PlatformerMobBars = null
+var numbers: PlatformerCombatText = null
 var hud: PlatformerHud = null
 
 var _banked: float = 0.0
@@ -80,6 +81,8 @@ func _ready() -> void:
 	_root.add_child(actors)
 	bars = PlatformerMobBars.of()
 	_root.add_child(bars)
+	numbers = PlatformerCombatText.of()
+	_root.add_child(numbers)
 	hud = PlatformerHud.of(package, package.manifest)
 	add_child(hud)
 
@@ -108,6 +111,23 @@ func _process(delta: float) -> void:
 	stage.sync(scroll)
 	actors.sync(world, scroll, delta)
 	bars.sync(world, scroll)
+	# Raised where the blow landed, a little above the drawn top of the body it
+	# came off. The body's own height is the view's to know.
+	for entry: Variant in world.blows:
+		var blow: Dictionary = entry
+		numbers.show_damage(
+			int(blow["amount"]),
+			bool(blow["critical"]),
+			bool(blow["incoming"]),
+			Vector2(
+				float(blow["x"]),
+				float(blow["y"]) - actors.drawn_height(bool(blow["incoming"]))
+					- PlatformerCombatText.RISE_ABOVE
+			),
+			_now * 1000.0
+		)
+	world.blows = []
+	numbers.sync(scroll, _now * 1000.0)
 	hud.sync(world)
 
 
@@ -120,6 +140,7 @@ func _process(delta: float) -> void:
 func _tick() -> void:
 	var step := {"dt": FIXED_STEP * 1000.0, "now": _now * 1000.0, "frame": _frame}
 	world.events.begin_frame()
+	world.blows = []
 	world.intent = input.sample()
 	for key in _forced_intent:
 		world.intent[key] = true

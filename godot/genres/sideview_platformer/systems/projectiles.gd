@@ -110,6 +110,15 @@ static func _pay_out(
 		),
 		"reducedMotion": false,
 	}
+	world.blows.append(
+		{
+			"amount": int(struck["amount"]),
+			"critical": bool(struck["critical"]),
+			"incoming": false,
+			"x": float(mob["x"]),
+			"y": float(mob["y"]),
+		}
+	)
 	if not bool(blow["died"]):
 		return {"blow": blow, "struck": struck, "seed": seed_value}
 	PlatformerTranscript.record(
