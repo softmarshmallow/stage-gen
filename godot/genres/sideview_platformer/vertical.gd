@@ -14,6 +14,10 @@ extends RefCounted
 
 ## How thick a one-way deck is, below its walking surface.
 const UPPER_PLATFORM_THICKNESS := 32.0
+
+## How tall a climbable is, in tiles. Exactly one rise and not a range: the
+## artwork is drawn to it and the reachability proof admitted routes at it.
+const CLIMBABLE_RISE_TILES := 4.0
 const CLIMBABLE_ACTIVATION_HALF_WIDTH := 30.0
 const CLIMBABLE_ENDPOINT_TOLERANCE := 12.0
 const CLIMBABLE_VISUAL_OVERSHOOT := 32.0
@@ -101,6 +105,63 @@ static func floating_platforms(
 	return platforms
 
 
+## Everything wrong with a set of derived decks, or an empty string.
+##
+## The derivation and the check are separate on purpose: the grid walk above
+## produces geometry and this decides whether that geometry is a world. A deck
+## outside the map, one whose pixels do not agree with the columns it was read
+## from, or two whose *solid bodies* intersect are all package defects, and a
+## package defect that plays is worse than one that refuses — the first is
+## discovered by a player.
+##
+## The overlap test is two-dimensional and pairwise rather than a neighbour
+## check, because decks may share columns as long as they occupy different
+## bands: that is what lets one route run above another.
+static func deck_refusal(
+	platforms: Array,
+	columns: int,
+	tile_px: float,
+	baseline_y: float,
+	top_y: float,
+	world_width: float
+) -> String:
+	var seen := {}
+	for entry: Variant in platforms:
+		var deck: Dictionary = entry
+		var id := String(deck["id"])
+		if seen.has(id):
+			return "two decks are both named %s" % id
+		seen[id] = true
+		var source: Dictionary = deck["sourceColumns"]
+		if (
+			float(deck["left"]) < 0.0
+			or float(deck["right"]) > world_width
+			or float(deck["left"]) >= float(deck["right"])
+			or float(deck["deckY"]) < top_y
+			or float(deck["deckY"]) + UPPER_PLATFORM_THICKNESS > baseline_y
+			or int(deck["tier"]) < 1
+			or int(source["start"]) < 0
+			or int(source["end"]) > columns
+			or int(source["start"]) >= int(source["end"])
+			or not is_equal_approx(float(deck["left"]), float(source["start"]) * tile_px)
+			or not is_equal_approx(float(deck["right"]), float(source["end"]) * tile_px)
+		):
+			return "deck %s lies outside its world or the columns it was read from" % id
+	for index in range(platforms.size()):
+		var a: Dictionary = platforms[index]
+		for other in range(index + 1, platforms.size()):
+			var b: Dictionary = platforms[other]
+			if float(b["left"]) >= float(a["right"]) or float(a["left"]) >= float(b["right"]):
+				continue
+			if (
+				float(b["deckY"]) >= float(a["deckY"]) + UPPER_PLATFORM_THICKNESS
+				or float(a["deckY"]) >= float(b["deckY"]) + UPPER_PLATFORM_THICKNESS
+			):
+				continue
+			return "decks %s and %s occupy the same solid space" % [a["id"], b["id"]]
+	return ""
+
+
 ## The ladders and ropes a map places, resolved against the decks they hang from.
 ##
 ## Returns the zones, or a `KernelRefusal` naming the placement that does not
@@ -128,6 +189,37 @@ static func climbable_zones(
 			lower_height = int(heights[column])
 		var lower_surface_y: float = terrain_surface_y(lower_height, tile_px, baseline_y)
 		var upper_deck_y: float = lower_surface_y - float(placement.get("rise_tiles", 0)) * tile_px
+		# The rise is not the author's to choose: a climbable is one four-tile
+		# span, because that is the height the artwork is drawn to and the height
+		# the reachability proof admitted the route at. A ladder authored five
+		# tiles long would be drawn stretched and would put a body through a deck.
+		if not is_equal_approx(lower_surface_y - upper_deck_y, tile_px * CLIMBABLE_RISE_TILES):
+			return KernelRefusal.of(
+				"platformer/climbable",
+				(
+					"climbable %s spans %d tiles; a climbable is one %d-tile rise"
+					% [climbable_id, int(placement.get("rise_tiles", 0)), int(CLIMBABLE_RISE_TILES)]
+				),
+				climbable_id
+			)
+		# And its foot has to be on real, flat ground with something to its right:
+		# a body steps *off* a ladder sideways, and a foot placed over the edge of
+		# a shelf steps into air.
+		if column < 0 or column + 1 >= heights.size():
+			return KernelRefusal.of(
+				"platformer/climbable",
+				"climbable %s stands at the edge of the map with no ground to its right"
+				% climbable_id,
+				climbable_id
+			)
+		if not is_equal_approx(
+			lower_surface_y, terrain_surface_y(int(heights[column + 1]), tile_px, baseline_y)
+		):
+			return KernelRefusal.of(
+				"platformer/climbable",
+				"climbable %s stands on a step rather than on flat ground" % climbable_id,
+				climbable_id
+			)
 		var deck := {}
 		for candidate: Variant in platforms:
 			var platform: Dictionary = candidate
@@ -162,6 +254,15 @@ static func climbable_zones(
 		var visual_width: float = climbable_visual_width(
 			float(cell.get("width", 1.0)), float(cell.get("height", 1.0)), visual_height
 		)
+		if visual_width <= 0.0 or visual_width > tile_px * CLIMBABLE_RISE_TILES:
+			return KernelRefusal.of(
+				"platformer/climbable",
+				(
+					"climbable %s is drawn %d px wide, which is not a width within four tiles"
+					% [climbable_id, int(visual_width)]
+				),
+				climbable_id
+			)
 		zones.append(
 			{
 				"id": climbable_id,
@@ -177,7 +278,18 @@ static func climbable_zones(
 				"visualBottomOvershoot": CLIMBABLE_VISUAL_OVERSHOOT,
 			}
 		)
+	# Left to right, then by id. The order is not cosmetic: an entry takes the
+	# *first* zone whose activation band contains the body, so two climbables
+	# close enough to overlap are decided by this and not by which the author
+	# happened to list first.
+	zones.sort_custom(_by_climbable)
 	return zones
+
+
+static func _by_climbable(left: Dictionary, right: Dictionary) -> bool:
+	if not is_equal_approx(float(left["centerX"]), float(right["centerX"])):
+		return float(left["centerX"]) < float(right["centerX"])
+	return String(left["id"]) < String(right["id"])
 
 
 ## How wide a climbable is drawn: its atlas cell's aspect, over the rise it spans.

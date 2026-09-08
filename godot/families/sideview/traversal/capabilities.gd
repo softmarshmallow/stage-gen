@@ -88,7 +88,10 @@ static func climb_entry_at(
 			and String(support_id) == String(geometry["deckId"])
 			and down
 			and not up
-			and is_equal_approx(foot_y, float(geometry["upperY"]))
+			# Exactly on the deck, not near it. A body that is falling past the top
+			# of a ladder is not standing on the deck it hangs from, and taking the
+			# zone from a foot that is merely close would snap it out of the air.
+			and foot_y == float(geometry["upperY"])
 		):
 			return {"zone": zone, "direction": "down"}
 	return {}

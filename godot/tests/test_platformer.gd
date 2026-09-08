@@ -443,6 +443,7 @@ func _mobs(h: TestHarness, package: Dictionary) -> void:
 	_lanes(h, map)
 	_shelves(h)
 	_body(h, package)
+	_refusals(h)
 
 
 ## The archetypes, and the two the golden never sees.
@@ -717,6 +718,102 @@ func _body(h: TestHarness, package: Dictionary) -> void:
 	h.assert_eq(String(climber["support"]), "climbable", "the body takes the ladder")
 	h.assert_eq(float(climber["attackUntil"]), 0.0, "and puts down the whole attack window")
 	h.assert_eq(int(climber["attackTicksFired"]), 0, "the spent ticks included")
+
+
+## What a package may not publish and still be a world.
+##
+## Every one of these is a refusal the browser makes and the port did not: it
+## took the authored geometry on trust, and a package with a hole in it played
+## wrong rather than saying so. None of them can fire on the fixture, which is
+## the point — a validation is only worth having if something is shown to trip
+## it.
+func _refusals(h: TestHarness) -> void:
+	# A climbable is one four-tile rise. Five would be drawn stretched and would
+	# put a body through the deck it hangs from.
+	# Asserted by the *reason* rather than by the refusal, because a bad placement
+	# usually trips more than one check and the older one — "attaches to no
+	# exposed platform" — would answer for all three without any of these
+	# existing.
+	h.assert_true(
+		_refused_because(_climbable_manifest({"rise_tiles": 5}), "is one 4-tile rise"),
+		"a climbable that spans five tiles is refused for spanning five"
+	)
+	# Its foot needs ground to its right, because a body steps off a ladder
+	# sideways and a foot over the edge of a shelf steps into air.
+	h.assert_true(
+		_refused_because(
+			_climbable_manifest({"normalized_x": 0.9875}), "no ground to its right"
+		),
+		"a climbable at the map's east edge is refused for standing at the edge"
+	)
+	# And a drawn width is bounded: a degenerate atlas cell is a refusal rather
+	# than a silent sixty-four pixels.
+	h.assert_true(
+		_refused_because(
+			_climbable_manifest({}, {"width": 4096, "height": 8}), "within four tiles"
+		),
+		"a climbable drawn wider than four tiles is refused for its width"
+	)
+
+	# Two decks in the same solid space are a world nothing can land on
+	# predictably. No occupancy grid can produce a pair — a cell with something
+	# filled directly above it is not an exposed deck — so this is a check on the
+	# derivation rather than on the author, and it is asked of the derivation.
+	var stacked: Array = [
+		{
+			"id": "a", "left": 0.0, "right": 256.0, "deckY": 400.0, "tier": 4,
+			"thickness": 32.0, "sourceColumns": {"start": 0, "end": 4},
+		},
+		{
+			"id": "b", "left": 128.0, "right": 384.0, "deckY": 416.0, "tier": 4,
+			"thickness": 32.0, "sourceColumns": {"start": 2, "end": 6},
+		},
+	]
+	h.assert_true(
+		not PlatformerVertical.deck_refusal(stacked, 40, 64.0, 720.0, 336.0, 2560.0).is_empty(),
+		"two decks in the same solid space are refused"
+	)
+	# Two that share columns but not a band are the thing that lets one route run
+	# above another, and are not refused.
+	(stacked[1] as Dictionary)["deckY"] = 200.0
+	h.assert_true(
+		PlatformerVertical.deck_refusal(stacked, 40, 64.0, 720.0, 128.0, 2560.0).is_empty(),
+		"but one route may run above another"
+	)
+	# And a deck whose pixels disagree with the columns it was read from is not a
+	# deck at all.
+	(stacked[1] as Dictionary)["left"] = 130.0
+	h.assert_true(
+		not PlatformerVertical.deck_refusal(stacked, 40, 64.0, 720.0, 128.0, 2560.0).is_empty(),
+		"nor may a deck's pixels disagree with its own columns"
+	)
+
+
+## Whether a package is refused, and refused for the stated reason.
+func _refused_because(manifest: Dictionary, reason: String) -> bool:
+	var parsed: Variant = PlatformerMaps.parse(manifest)
+	if not KernelRefusal.is_refusal(parsed):
+		return false
+	return (parsed as KernelRefusal).message.contains(reason)
+
+
+## The fixture with one climbable placement or atlas cell rewritten.
+func _climbable_manifest(placement: Dictionary, cell: Dictionary = {}) -> Dictionary:
+	var made: Dictionary = _manifest().duplicate(true)
+	for entry: Variant in (made["maps"] as Array):
+		var authored: Dictionary = entry
+		if String(authored["map_id"]) != "road-map":
+			continue
+		var climbable: Dictionary = authored["climbable"]
+		var placed: Dictionary = (climbable["placements"] as Array)[0]
+		for key: Variant in placement:
+			placed[String(key)] = placement[key]
+		if cell.is_empty():
+			continue
+		var variant: Dictionary = (climbable["variants"] as Array)[0]
+		for key: Variant in cell:
+			(variant["cell"] as Dictionary)[String(key)] = cell[key]
+	return made
 
 
 ## One intent, with the named keys down.

@@ -276,6 +276,20 @@ static func _map(authored: Dictionary) -> Variant:
 	var platforms := PlatformerVertical.floating_platforms(
 		occupancy, heights, TILE_PX, BASELINE_Y
 	)
+	# The grid walk produces geometry; this decides whether that geometry is a
+	# world. A deck outside the map, or two whose solid bodies intersect, is a
+	# package defect — and a package defect that plays is worse than one that
+	# refuses, because the first is discovered by a player.
+	var deck_defect := PlatformerVertical.deck_refusal(
+		platforms,
+		columns,
+		TILE_PX,
+		BASELINE_Y,
+		BASELINE_Y - float(occupancy.size()) * TILE_PX,
+		world_width
+	)
+	if not deck_defect.is_empty():
+		return KernelRefusal.of("platformer/maps", "%s: %s" % [map_id, deck_defect], "ground")
 	var variants := {}
 	var placements: Array = []
 	var climbable: Variant = authored.get("climbable")

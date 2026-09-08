@@ -639,6 +639,14 @@ static func _open_coyote(player: Dictionary, now_ms: float) -> void:
 static func _begin_drop(player: Dictionary, world: Dictionary, now_ms: float) -> void:
 	var deck := PlatformerVertical.platform_by_id(world.get("platforms", []), player["supportId"])
 	if deck.is_empty():
+		# The body is standing on a deck the world does not have. Swallowing the
+		# press would read as a key that sometimes does nothing; saying so names
+		# the only thing that can produce it, which is a world rebuilt out from
+		# under a body that was already on something.
+		push_warning(
+			"platformer/player: the body stands on deck %s, which this map does not publish"
+			% str(player["supportId"])
+		)
 		return
 	player["dropThroughPlatformId"] = deck["id"]
 	player["dropThroughUntil"] = now_ms + PlatformerVertical.DROP_THROUGH_MS
