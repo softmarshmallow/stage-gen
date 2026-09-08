@@ -267,6 +267,29 @@ func _gate(h: TestHarness, package: Dictionary) -> void:
 	)
 	PlatformerMapEntrySystem.ask(world)
 	h.assert_true(not world.pending_map.is_empty(), "the press asks for it")
+	# One key, and it is the climb key pressed. `interact` and `enter` belong to
+	# the conversation and to the death screen — a player standing in a doorway to
+	# talk to somebody used to be carried through it instead.
+	var talking := PlatformerWorld.create(package, _manifest())
+	talking.player["x"] = 1504.0
+	talking.intent = _intent({"interact": true, "enter": true})
+	PlatformerMapEntrySystem.ask(talking)
+	h.assert_true(
+		talking.pending_map.is_empty(), "and the keys a conversation reads do not ask for it"
+	)
+	# A gate asked for before a conversation opened waits for it to close. Taking
+	# the entry under the hold would rebuild the map out from under the panel that
+	# is still on screen.
+	var interrupted := PlatformerWorld.create(package, _manifest())
+	interrupted.pending_map = {"toSpawnId": "road_start"}
+	# The hold is the dialogue's to write, so the conversation is what puts it
+	# there: setting the flag by hand would be overwritten on the frame's first
+	# line, which is `dialogue/input`.
+	interrupted.dialogue = {"npcId": "baker", "lineIndex": 0, "choices": []}
+	PlatformerFrame.step(interrupted, {"dt": 1000.0 / 30.0, "now": 5000.0, "frame": 150})
+	h.assert_true(interrupted.hold, "the conversation holds the frame")
+	h.assert_eq(interrupted.map_id, "village-map", "a held world does not take the entry it owes")
+	h.assert_true(not interrupted.pending_map.is_empty(), "and still owes it")
 	PlatformerMapEntrySystem.apply(world, {"dt": 1000.0 / 30.0, "now": 5000.0, "frame": 150})
 	h.assert_eq(world.map_id, "road-map", "and the world is rebuilt on the far side")
 	h.assert_eq(float(world.player["x"]), 256.0, "at the road's own entry spawn")
@@ -753,6 +776,16 @@ func _refusals(h: TestHarness) -> void:
 			_climbable_manifest({}, {"width": 4096, "height": 8}), "within four tiles"
 		),
 		"a climbable drawn wider than four tiles is refused for its width"
+	)
+
+	# A round is two optional blocks this build does not run. No package has ever
+	# published one and the recipe can, so a package that authored a round and got
+	# a game without one would be a silent loss rather than a missing feature.
+	var scored: Dictionary = _manifest().duplicate(true)
+	scored["score"] = {"awards": {"mob_defeated": 1}}
+	h.assert_true(
+		_refused_because(scored, "runs no round"),
+		"a package that authors a score is refused rather than played without one"
 	)
 
 	# Two decks in the same solid space are a world nothing can land on

@@ -25,13 +25,18 @@ extends RefCounted
 ## corrected: the golden is the reference, and if it is a defect it is the
 ## incumbent's and belongs in its own record.
 
-## Which keys ask a gate to open.
+## Which key asks a gate to open. One, and it is the climb key pressed.
 ##
 ## `upPressed` and not `up`: climbing holds the key and a gate is asked once, so
 ## a body that walked into a doorway with the climb key down would be taken
 ## through it without asking. The browser reads the same key twice for the same
 ## reason — as a level for the ladder and with `JustDown` for the gate.
-const OPEN_KEYS := ["upPressed", "interact", "enter"]
+##
+## And not `interact` or `enter`, which used to be here: those two belong to the
+## conversation and to the death screen, and in the browser each press is spent
+## by exactly one reader. A player standing in a doorway to talk to somebody
+## would have been carried through it instead.
+const OPEN_KEYS := ["upPressed"]
 
 
 static func declaration() -> KernelSystem:

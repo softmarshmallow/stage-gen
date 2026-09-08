@@ -49,6 +49,24 @@ static func parse(manifest: Variant) -> Variant:
 			"schema_version"
 		)
 
+	# A round is two optional blocks — a score and a set of timers — and this
+	# build runs neither. No package has ever published one, but the recipe can,
+	# and a package that authored a round and got a game without one would be a
+	# silent loss rather than a missing feature: the score would not count, the
+	# clock would not run, and the waves a score's `wave_cleared` award turns the
+	# population into would never be sent. Refused by name until the two systems
+	# are built.
+	for block: Variant in ["score", "timers"]:
+		if doc.get(String(block)) is Dictionary:
+			return KernelRefusal.of(
+				"platformer/manifest-kind",
+				(
+					"this package authors a %s block and this build runs no round; "
+					+ "regenerate it without one or play it in a build that does"
+				) % String(block),
+				String(block)
+			)
+
 	var climb_artwork := _climb_artwork(doc.get("player", {}))
 	var maps := {}
 	for entry: Variant in _array(doc.get("maps")):

@@ -164,10 +164,31 @@ creature sized from the ruler its producer published, the rounds, what is lying
 on the ground, the inventory panel, the dialogue box, the numbers that float off
 a body and a creature's own health bar.
 
-What is left: the props along a map, the NPC bodies, the per-digit stagger a
-number arcs with, and the retirement record with the browser deletion. Seven
-gaps in the spawn director are written down rather than papered over — every one
-of them dormant on these two packages and live on others.
+**What a golden cannot see.** Both runs walk on flat ground — every column of
+both fixture maps is one height — and both packages author only two of the five
+temperaments and none of the optional blocks. So six hundred frames of parity,
+twice over, say nothing at all about a wall, a drop, the shelf a creature is
+bound to, a creature that does not fight or one that runs away, a drop through a
+deck, or a package with a hole in it. Four adversarial audits of the port against
+the browser found thirty-odd such rules; they are now ported, and each is
+measured by an assertion that was shown to fail with the rule removed. The suite
+grew ground with a step in it for the purpose — the fixture's own road with its
+east half raised a tile, parsed by the real parser.
+
+The suite also grew the ability to notice it had crashed. A GDScript runtime
+error aborts the function it happens in and returns to the caller with nothing to
+say, so a file that died halfway through printed `ok` and every check it had
+already reached still counted. Every `run` now ends by saying so.
+
+What is left, and why: two systems this build deliberately does not run —
+`director/waves` and the four round systems behind `[score]` and `[timers]` — and
+a package that authors either block is refused by name rather than played without
+it. No package has ever published one; the recipe can. Beyond that: the props
+along a map, the NPC bodies, the per-digit stagger a number arcs with, the
+developer affordances (auto-play, the kit switch, the debug overlay), and the
+retirement record with the browser deletion. Seven gaps in the spawn director are
+written down rather than papered over — every one of them dormant on these two
+packages and live on others.
 
 **What running it found that the golden could not.** The media-free fixture the
 golden was recorded against publishes every field it declares. A shipped package

@@ -48,8 +48,10 @@ static func step(world: PlatformerWorld, step_of: Dictionary) -> void:
 	PlatformerSoundtrackSystem.update(world, step_of)
 	PlatformerDialogueSystem.update(world, step_of)
 	PlatformerClockSystem.update(world, step_of)
+	# A conversation holds the world, and a gate asked for before it opened waits
+	# for it to close. Taking the entry under the hold would rebuild the map out
+	# from under the panel that is still on screen.
 	if world.hold:
-		PlatformerMapEntrySystem.apply(world, step_of)
 		return
 	PlatformerPlayer.update(
 		world.player,
