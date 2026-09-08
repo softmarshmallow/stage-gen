@@ -47,6 +47,12 @@ const HURT_DURATION_MS := 600.0
 const KNOCKBACK_PX := 80.0
 const KNOCKBACK_MS := 220.0
 
+## How long a corpse takes to fade out. When it is over the thing is gone: the
+## world is the only record of what is on the route, and a corpse that outlived
+## its fade would stand there invisible, occupying a place the director will not
+## put anything else on.
+const DEATH_FADE_MS := 280.0
+
 ## The height every creature is drawn to, whatever its own art measures.
 const DRAWN_HEIGHT := 110.0
 
@@ -114,6 +120,7 @@ static func create(
 		"hurtUntil": 0.0,
 		# The knockback in flight: where it started, where it is going, and when.
 		"hitMotion": {},
+		"diedAtMs": -1.0,
 		"pursuitMinX": maxf(lane["minX"], spawn_x - PlatformerMaps.TILE_PX * PURSUIT_HOME_RADIUS_TILES),
 		"pursuitMaxX": minf(lane["maxX"], spawn_x + PlatformerMaps.TILE_PX * PURSUIT_HOME_RADIUS_TILES),
 	}
@@ -300,6 +307,7 @@ static func take_hit(
 	if after <= 0:
 		mob["alive"] = false
 		mob["state"] = "dead"
+		mob["diedAtMs"] = now_ms
 	return {"connected": true, "died": after <= 0, "hpAfter": after}
 
 
@@ -435,3 +443,12 @@ static func _surface_at_column(map: Dictionary, column: int) -> float:
 	return PlatformerVertical.terrain_surface_y(
 		height, PlatformerMaps.TILE_PX, PlatformerMaps.BASELINE_Y
 	)
+
+
+## Has this creature finished fading out? A caller prunes on it; nothing here
+## removes anything, because a world's list is the world's.
+static func faded(mob: Dictionary, now_ms: float) -> bool:
+	if bool(mob["alive"]):
+		return false
+	var died := float(mob.get("diedAtMs", -1.0))
+	return died >= 0.0 and now_ms - died >= DEATH_FADE_MS

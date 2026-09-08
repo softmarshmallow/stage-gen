@@ -57,6 +57,7 @@ static func step_declaration() -> KernelSystem:
 static func populate(world: PlatformerWorld, step: Dictionary) -> void:
 	if world.hold or world.population.is_empty():
 		return
+	PlatformerPopulation.update_positions(world.population, world.mobs)
 	var issued := PlatformerPopulation.update(
 		world.population,
 		# Whole milliseconds, which is the clock the director's intervals are
@@ -74,6 +75,7 @@ static func populate(world: PlatformerWorld, step: Dictionary) -> void:
 		var instance := world.next_mob_instance
 		world.next_mob_instance += 1
 		var instance_id := "%s/mob/%d" % [world.map_id, instance]
+		var zone_id := String(reservation["zoneId"])
 		world.mobs.append(
 			PlatformerMob.create(
 				instance,
@@ -87,6 +89,10 @@ static func populate(world: PlatformerWorld, step: Dictionary) -> void:
 				map
 			)
 		)
+		# The place it came from and the column it stands in, so the director can
+		# be told when it is gone.
+		(world.mobs[world.mobs.size() - 1] as Dictionary)["zoneId"] = zone_id
+		(world.mobs[world.mobs.size() - 1] as Dictionary)["spawnColumn"] = int(reservation["column"])
 		PlatformerTranscript.record(
 			world,
 			"mob-spawned",
@@ -106,8 +112,13 @@ static func step(world: PlatformerWorld, frame_step: Dictionary) -> void:
 	# what the browser's `observePlayer` pass does — a creature that read a
 	# half-moved roster would hunt a player nobody else could see.
 	var player := {"x": float(world.player["x"]), "y": float(world.player["y"])}
+	var standing: Array = []
 	for entry: Variant in world.mobs:
-		PlatformerMob.step(entry as Dictionary, map, dt, player, float(frame_step["now"]))
+		var mob: Dictionary = entry
+		PlatformerMob.step(mob, map, dt, player, float(frame_step["now"]))
+		if not PlatformerMob.faded(mob, float(frame_step["now"])):
+			standing.append(mob)
+	world.mobs = standing
 
 
 ## The blows the creatures landed on the body this frame.

@@ -108,6 +108,8 @@ static func project(package: Dictionary, map_id: String) -> Dictionary:
 					)
 				),
 				"alive": [],
+				"tickets": [],
+				"respawnDelayMs": float(zone.get("respawn_delay_ms", 0)),
 				"initialized": false,
 			}
 		)
@@ -136,12 +138,24 @@ static func update(state: Dictionary, now_ms: float, player_x: float, player_y: 
 	var capacity := int(state["maxBatch"])
 	for entry: Variant in (state["zones"] as Array):
 		var zone: Dictionary = entry
-		var wanted := 0
+		var tickets: Array = zone["tickets"]
 		if not bool(zone["initialized"]):
 			zone["initialized"] = true
-			wanted = int(zone["initialPopulation"])
+			for _i in range(int(zone["initialPopulation"])):
+				tickets.append(now_ms)
 		else:
-			wanted = int(zone["targetPopulation"]) - (zone["alive"] as Array).size()
+			# A zone below its headcount with nothing already owed asks for the
+			# difference now. A death has already put its own ticket in, due
+			# when the route is meant to feel dangerous again.
+			var owed := (
+				int(zone["targetPopulation"]) - (zone["alive"] as Array).size() - tickets.size()
+			)
+			for _i in range(owed):
+				tickets.append(now_ms)
+		var wanted := 0
+		for due: Variant in tickets:
+			if float(due) <= now_ms:
+				wanted += 1
 		while wanted > 0 and capacity > 0:
 			if (zone["alive"] as Array).size() >= int(zone["populationCap"]):
 				break
@@ -150,6 +164,7 @@ static func update(state: Dictionary, now_ms: float, player_x: float, player_y: 
 				break
 			issued.append(made)
 			(zone["alive"] as Array).append(made)
+			_spend_ticket(tickets, now_ms)
 			wanted -= 1
 			capacity -= 1
 	return issued
@@ -268,3 +283,71 @@ static func _map_block(package: Dictionary, map_id: String) -> Dictionary:
 ## The director works in kebab-case ids; a package may author either.
 static func _kebab(source_id: String) -> String:
 	return source_id.replace("_", "-")
+
+
+## Where every creature it is managing now stands.
+##
+## Told rather than remembered, and told *before* it decides: a director that
+## placed against the positions creatures stood up in would keep putting new ones
+## on top of a group that has since walked away, and the clustered placement
+## would cluster around a memory.
+static func update_positions(state: Dictionary, mobs: Array) -> void:
+	if state.is_empty():
+		return
+	var standing := {}
+	for entry: Variant in mobs:
+		var mob: Dictionary = entry
+		if not bool(mob["alive"]):
+			continue
+		standing[
+			"%s/%d" % [String(mob.get("zoneId", "")), int(mob.get("spawnColumn", -1))]
+		] = mob
+	for entry: Variant in (state["zones"] as Array):
+		var zone: Dictionary = entry
+		for other: Variant in (zone["alive"] as Array):
+			var place: Dictionary = other
+			var key := "%s/%d" % [String(zone["zoneId"]), int(place["column"])]
+			if not standing.has(key):
+				continue
+			var mob: Dictionary = standing[key]
+			place["x"] = float(mob["x"])
+			place["y"] = float(mob["y"])
+
+
+## A creature the route has lost. Frees the place it stood and owes another one,
+## due when the zone's own delay has run.
+##
+## The director is told rather than asked, because only the caller knows a
+## creature died: a population that polled for corpses would replace one the
+## moment it stopped moving rather than the moment it was gone.
+static func record_death(state: Dictionary, zone_id: String, column: int, now_ms: float) -> void:
+	if state.is_empty():
+		return
+	for entry: Variant in (state["zones"] as Array):
+		var zone: Dictionary = entry
+		if String(zone["zoneId"]) != zone_id:
+			continue
+		var standing: Array = []
+		var removed := false
+		for other: Variant in (zone["alive"] as Array):
+			if not removed and int((other as Dictionary)["column"]) == column:
+				removed = true
+				continue
+			standing.append(other)
+		if not removed:
+			return
+		zone["alive"] = standing
+		(zone["tickets"] as Array).append(now_ms + float(zone["respawnDelayMs"]))
+		return
+
+
+## Take the oldest ticket that is due, which is the one that has waited longest.
+static func _spend_ticket(tickets: Array, now_ms: float) -> void:
+	var oldest := -1
+	for index in range(tickets.size()):
+		if float(tickets[index]) > now_ms:
+			continue
+		if oldest < 0 or float(tickets[index]) < float(tickets[oldest]):
+			oldest = index
+	if oldest >= 0:
+		tickets.remove_at(oldest)

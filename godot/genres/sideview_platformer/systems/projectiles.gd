@@ -181,6 +181,12 @@ static func update(world: PlatformerWorld, step: Dictionary) -> void:
 		# so: an instance id is the director's name for something it is still
 		# managing.
 		mob["instanceId"] = null
+		PlatformerPopulation.record_death(
+			world.population,
+			String(mob.get("zoneId", "")),
+			int(mob.get("spawnColumn", -1)),
+			float(step["now"])
+		)
 		_award(world, mob)
 		world.shakes.append(
 			{

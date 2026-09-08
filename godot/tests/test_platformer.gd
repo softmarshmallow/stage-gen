@@ -16,11 +16,27 @@ extends RefCounted
 
 ## Frames identical to the browser's, and what stops the next one.
 ##
-## Frame 299 is where the run parts company next. Raise this with each unit, and
-## never without re-running the harness.
-const EXACT_FRAMES := 298
+## Frame 327 is where the run parts company next, and it is **not** an unported
+## system: it is the one replacement creature the route spawns after a kill, and
+## the port puts it in a different column.
+##
+## Measured rather than guessed. At 327 the two living creatures stand at 1133.3
+## and 1231.3 and the body is at 706, and from those three numbers the eligible
+## columns are the same on both sides. What differs is which one is drawn, and a
+## sweep over the generator says the browser's answer needs two things this port
+## does not do: the spawn-column exclusion switched off, and eight, twelve,
+## thirteen, fourteen or eighteen draws already spent where this port has spent
+## ten. Both are in `spawn-director.ts` as written — `candidateColumn` is
+## compared, and the draws are two per uniform placement and four per clustered
+## one — so one of the two readings is wrong and neither the code nor the golden
+## says which.
+##
+## Left open deliberately. It is one creature's column, it is recorded here with
+## the numbers that would close it, and the frames after it are worth more than
+## the frames spent arguing with it.
+const EXACT_FRAMES := 326
 
-const FIRST_UNPORTED := "unnamed; the harness names the frame"
+const FIRST_UNPORTED := "the replacement creature's column, at frame 327"
 
 
 func run(h: TestHarness) -> void:
