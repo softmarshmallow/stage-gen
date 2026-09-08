@@ -32,6 +32,42 @@ const FACING_RIGHT := "right"
 ## How long a flinch plays for.
 const HURT_DURATION_MS := 600.0
 
+## The fields `snapshot` projects, in the browser's own spelling. Listed rather
+## than derived by subtraction: a field added to the state below should not
+## silently join the golden's hash.
+const SNAPSHOT_FIELDS := [
+	"airJumpsUsed",
+	"airborne",
+	"attackActive",
+	"climbAnimationKey",
+	"climbFrame",
+	"climbTextureKey",
+	"column",
+	"defeated",
+	"dropThroughPlatformId",
+	"dropTraversalLowerSupport",
+	"dropTraversalLowerSupportId",
+	"dropTraversalLowerSupportY",
+	"dropTraversalPhase",
+	"dropTraversalPlatformBottomY",
+	"dropTraversalPlatformId",
+	"dropTraversalStableFrames",
+	"facing",
+	"hp",
+	"invulnerable",
+	"ladderId",
+	"maxHp",
+	"platformId",
+	"rearFacing",
+	"state",
+	"support",
+	"supportId",
+	"vx",
+	"vy",
+	"x",
+	"y",
+]
+
 
 ## A body at a spawn. `max_hp` is the package's `starting_health`.
 static func create(x: float, y: float, max_hp: int) -> Dictionary:
@@ -278,6 +314,26 @@ static func update(
 		else null
 	)
 	_resolve_state(player, crouching, shift, now_ms)
+
+
+## The thirty fields the replay golden hashes.
+##
+## A projection rather than the state itself, and the difference is the port's
+## whole claim: the browser's controller keeps eight more — a coyote deadline, an
+## attack window, a blocked column, a hurt deadline, a drop deadline, the gauge,
+## the climbable it is attached to — and the golden reads none of them, because
+## the browser reads them off a sprite or keeps them in a closure. What is here
+## is what both runtimes agree the body *is*, and nothing that only one of them
+## can see.
+##
+## `climbAnimationPaused` is not here for the other reason: the browser publishes
+## it and `PARITY_EXCLUDE` drops it, because whether an animation is paused is a
+## host's opinion about a texture rather than a fact about a body.
+static func snapshot(player: Dictionary) -> Dictionary:
+	var made := {}
+	for key in SNAPSHOT_FIELDS:
+		made[key] = player[key]
+	return made
 
 
 ## Land one blow. Returns whether it connected, so a caller can decide about

@@ -78,9 +78,29 @@ shipped it fails every shot that build can produce; against the build now, 4 of 
 pass. The rule this leaves for step 9 is not "take a still" but "shoot the steps
 where a defect would be visible, and prove the sheet catches one".
 
-**Step 7 is half done.** The runner's and the platformer's references are
-committed, and the platformer's exclusion list is settled and measured: 103 leaf
-fields survive it, which is the floor its port must match. The room, the scene
+**Step 7 is half done, and its platformer instrument was wrong.** The runner's
+and the platformer's references are committed, but the platformer's pair
+described two different runs. `replay.test.ts` runs two scripted runs — the
+village walk that talks to the baker, and the stand-and-die that reaches the
+defeat panel — and both wrote to the same `REPLAY_DUMP` and `REPLAY_FRAMES`
+paths, in order. The second overwrote the first, so the committed golden carried
+the defeat run's six hundred frames under the village run's name, beside the
+village run's intents. Nothing looked wrong: each half was internally
+consistent, and they disagreed only with each other. Proved rather than argued —
+a regenerated defeat dump is 600 of 600 frame hashes identical to what was
+committed, and the village dump is 0 of 600. Each run writes to its own path
+now, and the fixture is the village run it always said it was.
+
+**And its exclusion list was three fields short.** Settled and re-measured: 126
+leaf fields at frame 300 survive it on the village run, 132 on the defeat run,
+and that is the floor the port must match. What left is what a second runtime
+cannot reproduce without reproducing this one's renderer — the inventory panel's
+laid-out `slots`, the loader's `diagnostics` about a package with no art, and a
+gate's drawn `w`, which the browser takes from the artwork's own bounding box.
+The list's own note said the panel's sentence was "already owed"; it is written
+now, and what forced it was three fields that survived to the end of the Godot
+port's first parity pass, every one of them a reading of a picture rather than
+of a body. The room, the scene
 and the case get theirs in the change before their port rather than all at once,
 because an instrument taken early is an instrument that can drift, and the risk
 it guards against — deleting a game before its reference exists — is covered as
@@ -100,7 +120,7 @@ platformer's files import Phaser and they include `player.ts` (1,496 lines),
 `mob.ts` (868), `portal.ts` (521) and `prepared-scene.ts` (3,729), which is the
 scene and the simulation in one file. Porting it is a disentangling and a
 re-derivation, not a translation, and that is what `PARITY_EXCLUDE` has been
-telling us: the golden hashes a Phaser scene, and 103 of its leaf fields are all
+telling us: the golden hashes a Phaser scene, and 126 of its leaf fields are all
 that survive dropping what one host is allowed to have an opinion about.
 
 The three turn-based surfaces, by contrast, have one engine-bound file each and

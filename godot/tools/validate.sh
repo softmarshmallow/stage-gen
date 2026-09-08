@@ -115,6 +115,26 @@ if [ "$SKIP_TESTS" -eq 0 ]; then
     && echo "   20 of 20 actions identical"
   python3 "$PROJECT/tools/runner_parity_diff.py" \
       "$CASE_REPLAY/01-demo.web.jsonl" "$OUT/case.godot.jsonl"
+
+  echo "== platformer parity against the browser's own golden (prefix)"
+  # Step 9 is in flight, so this is the one parity gate that is not a whole-file
+  # diff: the port is exact up to a frame, and the frame after it speaks to a
+  # system nobody has derived yet. The pin is asserted rather than reported, so a
+  # change that breaks a frame already earned turns this red the day it happens,
+  # and a unit that ports another system has to come back and raise it.
+  #
+  # 59 — frame 60 is the first press of `interact`, which opens the baker's
+  # conversation. `tests/test_platformer.gd` carries the same number and the
+  # same reason.
+  PLATFORMER_REPLAY="$PROJECT/tests/fixtures/sideview_platformer/replay"
+  "$GODOT" --headless --path "$PROJECT" --quit-after 100000 \
+      -s res://tools/platformer_parity.gd -- \
+      --script "$PLATFORMER_REPLAY/01-village-600.json" --out "$OUT/platformer.godot.jsonl"
+  python3 "$PROJECT/tools/frames_prefix.py" \
+      "$OUT/platformer.godot-frames.txt" \
+      "$PLATFORMER_REPLAY/01-village-600.web-frames.txt" --at-least 59
+  python3 "$PROJECT/tools/runner_parity_diff.py" \
+      "$PLATFORMER_REPLAY/01-village-600.web.jsonl" "$OUT/platformer.godot.jsonl"
 fi
 
 echo "== capture ($SHOTS, dpr $DPR)"

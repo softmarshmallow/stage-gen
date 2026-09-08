@@ -104,6 +104,14 @@ static func parse(manifest: Variant) -> Variant:
 		"startingItemIds": _strings(player.get("starting_item_ids")),
 		"startingLevel": int(player.get("starting_level", 1)),
 		"combatEnabled": bool((gameplay.get("combat", {}) as Dictionary).get("enabled", false)),
+		# The whole combat block, not just its switch: the weapon class a run is
+		# played with and the round it throws are read from it, and both are
+		# published state a digest carries.
+		"combat": gameplay.get("combat", {}),
+		# Which conversationalist stands on which map. A prompt is a thing the
+		# world publishes, so where they stand is the package's business rather
+		# than the host's.
+		"npcPlacements": gameplay.get("npc_placements", []),
 		"progression": gameplay.get("progression", {}),
 		"inventory": gameplay.get("inventory", {}),
 		"mobPopulation": gameplay.get("mob_population", []),

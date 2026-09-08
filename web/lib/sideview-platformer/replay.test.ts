@@ -216,17 +216,50 @@ const PARITY_EXCLUDE: readonly string[] = [
   // where this host's inventory panel puts a slot on screen
   "expectedPanelX",
   "expectedPanelY",
+  // The whole laid-out panel, and not only the two fields above.
+  //
+  // The note under this list used to say that `slots[].x/y` is the same kind of
+  // thing as `expectedPanelX/Y` but stayed in because the exclusion is by leaf
+  // name and `x`/`y` also name every position in the world. That was true of the
+  // leaf names and not of the key: `plain()` drops a key at any depth, so the
+  // panel goes as `slots` without touching a single world position. Every field
+  // under it is the panel's — which icon sprite landed where, and which well the
+  // bag assigned it — and the bag itself is `carried`, one line above, which no
+  // host has an opinion about.
+  "slots",
+  // The loader's complaints, measured against absent artwork.
+  //
+  // Forty of them in this fixture, every one of the form "Missing four frame
+  // strip presentation for X; using a magenta runtime placeholder". They are not
+  // a reading of the game: they are a reading of a *media-free package* by one
+  // engine's loader. A host that loads the same package's real art produces
+  // none of them, and a second engine's loader would word its own differently.
+  "diagnostics",
+  // A gate's drawn width, which follows the picture rather than the package:
+  // the browser scans the portal artwork's opaque bounding box and scales the
+  // mouth to its aspect. `h` stays in — it is 3.6 tiles by construction and any
+  // host can compute it — so what leaves is exactly the field that cannot be
+  // known without the art.
+  "w",
 ];
 
 /**
- * One question this list leaves open, deliberately.
+ * The question this list used to leave open, now closed.
  *
- * `inventory.slots[].x/y` is the same kind of thing as the two panel fields
- * above — where a slot lands on screen — but `x` and `y` also name every
- * position in the world, and the exclusion is by leaf name. They stay in, which
- * means a port either lays its slots out by the same arithmetic or amends this
- * list with a sentence when its panel changes. The `slot_cell` work in TODO.md
- * changes that panel, so the sentence is already owed.
+ * It read: `inventory.slots[].x/y` is the same kind of thing as the two panel
+ * fields above, but `x` and `y` also name every position in the world and the
+ * exclusion is by leaf name — so they stay in, and a port either lays its slots
+ * out by the same arithmetic or amends this list with a sentence. The sentence
+ * is written above, and the reason it could be written safely is that the
+ * exclusion is by *key*, not by leaf: dropping `slots` drops the panel and
+ * touches no world position at all.
+ *
+ * What forced it was the Godot port. Three fields survived to the end of the
+ * first parity pass and every one of them is a reading of a picture rather than
+ * of a body — the panel's laid-out icons, the loader's complaints about a
+ * package with no art, and a gate's width taken from the artwork's bounding
+ * box. Nothing about them is decided by the simulation, and a second runtime
+ * cannot reproduce them without reproducing this one's renderer.
  */
 
 const EXCLUDING = process.env.PARITY_EXCLUDE === "1";
@@ -318,6 +351,33 @@ const GOLDEN: Record<number, string> = {
   600: "8cd90200565e1151b508ceb089bcaa477ca2f47a13bd9c8e31ed34f8aae5d0d3",
 };
 
+/**
+ * Where one run's instruments are written.
+ *
+ * Both runs in this file used to write to `REPLAY_DUMP` and `REPLAY_FRAMES`
+ * themselves, and they run in order, so the second silently overwrote the
+ * first: the two files left on disk carried the defeat run's numbers under the
+ * village run's name. That is not a stale recording — it is two different runs
+ * mistaken for one, and it is invisible, because both files are internally
+ * consistent and only disagree with the script beside them.
+ *
+ * A run's own name is part of its path now, which is the only arrangement in
+ * which the mistake cannot be made. `REPLAY_DUMP=/tmp/x.jsonl` writes
+ * `/tmp/x.village.jsonl` and `/tmp/x.defeat.jsonl`.
+ */
+function instrumentPaths(run: string): {
+  readonly dump: string | null;
+  readonly frames: string | null;
+} {
+  const named = (value: string | undefined): string | null => {
+    if (!value) return null;
+    const dot = value.lastIndexOf(".");
+    if (dot <= value.lastIndexOf("/")) return `${value}.${run}`;
+    return `${value.slice(0, dot)}.${run}${value.slice(dot)}`;
+  };
+  return { dump: named(process.env.REPLAY_DUMP), frames: named(process.env.REPLAY_FRAMES) };
+}
+
 describe("the platformer replays to its golden", () => {
   test("six hundred fixed steps under a scripted intent hash to the pinned chain", async () => {
     const harness = await bootReplay();
@@ -337,7 +397,14 @@ describe("the platformer replays to its golden", () => {
         chain = hasher.digest("hex");
         frames.push(`${frame} ${frameDigest}`);
         if (process.env.REPLAY_DUMP) {
-          dumps.push(`${frame} ${JSON.stringify(plain({ w: snapshot, e: harness.scene.transcript }))}`);
+          dumps.push(
+            // The envelope is not walked: `plain` drops an excluded key at any
+            // depth, and one of the excluded names is `w`, which is also this
+            // record's own name for the world. The two halves are cleaned
+            // separately and wrapped afterwards, so the dump's shape is the
+            // dump's rather than something the exclusion list can reach into.
+            `${frame} ${JSON.stringify({ w: plain(snapshot), e: plain(harness.scene.transcript) })}`,
+          );
         }
         if (frame in GOLDEN) seen[frame] = chain;
         for (const event of harness.scene.transcript) {
@@ -350,9 +417,10 @@ describe("the platformer replays to its golden", () => {
       // The instruments a bug commit re-pins against. `REPLAY_FRAMES` writes one unchained digest
       // per frame, so "which frames moved" is a diff rather than a claim; `REPLAY_DUMP` writes the
       // whole hashed snapshot per frame, so "and why" is a field-level diff rather than a guess.
-      if (process.env.REPLAY_DUMP) await Bun.write(process.env.REPLAY_DUMP, `${dumps.join("\n")}\n`);
-      if (process.env.REPLAY_FRAMES) {
-        await Bun.write(process.env.REPLAY_FRAMES, `${frames.join("\n")}\n`);
+      const instruments = instrumentPaths("village");
+      if (instruments.dump) await Bun.write(instruments.dump, `${dumps.join("\n")}\n`);
+      if (instruments.frames) {
+        await Bun.write(instruments.frames, `${frames.join("\n")}\n`);
       }
       // A dropped field changes every digest by being absent, which says nothing
       // about behaviour, so the pinned chain does not apply while excluding —
@@ -429,7 +497,14 @@ describe("the platformer replays its defeat run to a golden of its own", () => {
         chain = hasher.digest("hex");
         frames.push(`${frame} ${frameDigest}`);
         if (process.env.REPLAY_DUMP) {
-          dumps.push(`${frame} ${JSON.stringify(plain({ w: snapshot, e: harness.scene.transcript }))}`);
+          dumps.push(
+            // The envelope is not walked: `plain` drops an excluded key at any
+            // depth, and one of the excluded names is `w`, which is also this
+            // record's own name for the world. The two halves are cleaned
+            // separately and wrapped afterwards, so the dump's shape is the
+            // dump's rather than something the exclusion list can reach into.
+            `${frame} ${JSON.stringify({ w: plain(snapshot), e: plain(harness.scene.transcript) })}`,
+          );
         }
         if (frame in DEFEAT_GOLDEN) seen[frame] = chain;
         for (const event of harness.scene.transcript) {
@@ -439,9 +514,10 @@ describe("the platformer replays its defeat run to a golden of its own", () => {
         const panel = snapshot.defeatPanel as { visible?: boolean } | null;
         if (panel?.visible) notes.panelUp ??= frame;
       }
-      if (process.env.REPLAY_DUMP) await Bun.write(process.env.REPLAY_DUMP, `${dumps.join("\n")}\n`);
-      if (process.env.REPLAY_FRAMES) {
-        await Bun.write(process.env.REPLAY_FRAMES, `${frames.join("\n")}\n`);
+      const instruments = instrumentPaths("defeat");
+      if (instruments.dump) await Bun.write(instruments.dump, `${dumps.join("\n")}\n`);
+      if (instruments.frames) {
+        await Bun.write(instruments.frames, `${frames.join("\n")}\n`);
       }
       if (EXCLUDING) return;
       expect(seen).toEqual(DEFEAT_GOLDEN);
