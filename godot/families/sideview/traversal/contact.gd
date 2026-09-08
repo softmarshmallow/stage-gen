@@ -81,6 +81,53 @@ static func resolve_vertical_landing(
 	return {"footY": next_foot_y, "vy": vy, "support": SUPPORT_BURIED, "supportId": ""}
 
 
+## A horizontal step across a heightfield, stopped by any column face standing
+## above the feet.
+##
+## Returns `{x, blocked, blockedColumn}`. `blockedColumn` is -1 when nothing
+## stopped the walk.
+##
+## Descents are absorbed by default and rises are not: a column that steps down
+## is a ledge the caller's gravity handles, and a column that steps up is a wall
+## whose only way over is a jump. The platformer's heightfield steps in whole
+## tiles, so in practice every rise is climbed rather than walked.
+static func resolve_terrain_walk(
+	previous_x: float,
+	next_x: float,
+	foot_y: float,
+	tile_units: float,
+	surface_at: Callable,
+	tolerance: float,
+	contact_gap: float,
+	allow_descents: bool = true
+) -> Dictionary:
+	var unblocked := {"x": next_x, "blocked": false, "blockedColumn": -1}
+	if tile_units <= 0.0:
+		return unblocked
+	var from_column := int(floor(previous_x / tile_units))
+	var to_column := int(floor(next_x / tile_units))
+	if from_column == to_column:
+		return unblocked
+	var step := 1 if to_column > from_column else -1
+	var column := from_column + step
+	while true:
+		var surface_y := float(surface_at.call(column))
+		var same_level := absf(surface_y - foot_y) <= tolerance
+		if not (same_level or (allow_descents and surface_y > foot_y)):
+			# The face of this column is above the feet. Stop just short of it,
+			# on whichever side the body came from.
+			var stopped := (
+				float(column) * tile_units - contact_gap
+				if step > 0
+				else float(column + 1) * tile_units
+			)
+			return {"x": stopped, "blocked": true, "blockedColumn": column}
+		if column == to_column:
+			break
+		column += step
+	return unblocked
+
+
 static func _by_deck(a: Variant, b: Variant) -> bool:
 	var left: Dictionary = a
 	var right: Dictionary = b

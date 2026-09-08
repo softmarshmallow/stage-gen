@@ -1,0 +1,1860 @@
+{
+  "schema_version": 12,
+  "kind": "prepared-game-runtime-v12",
+  "blocks": {
+    "presentation": "platformer-presentation-block-v1",
+    "scale": "platformer-scale-block-v1",
+    "maps": "platformer-maps-block-v1",
+    "player": "platformer-player-block-v1",
+    "mobs": "platformer-mobs-block-v1",
+    "npcs": "platformer-npcs-block-v1",
+    "props": "platformer-props-block-v1",
+    "items": "platformer-items-block-v1",
+    "projectiles": "platformer-projectiles-block-v1",
+    "ui": "platformer-ui-block-v1",
+    "soundtrack": "platformer-soundtrack-block-v1",
+    "gameplay": "platformer-gameplay-block-v1",
+    "scenarios": "platformer-scenarios-block-v1",
+    "closure": "platformer-closure-block-v1",
+    "score": "platformer-score-block-v1",
+    "timers": "platformer-timers-block-v1"
+  },
+  "game_id": "replay-route",
+  "revision": 1,
+  "display_name": "Replay Route",
+  "package_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "presentation": {
+    "view_profile": "side_view_2d",
+    "gameplay_space": "side_plane",
+    "contact_shadows": {
+      "enabled": true,
+      "opacity": 0.18,
+      "softness_screen_pixels": 6
+    }
+  },
+  "entry_map_id": "village-map",
+  "entry_spawn_id": "village_start",
+  "scale": {
+    "unit": "player_height",
+    "player_height_tiles": 2.4,
+    "minimum": 0.25,
+    "steps": [
+      0.25,
+      0.5,
+      0.75,
+      1,
+      1.5,
+      2,
+      3
+    ],
+    "ranks": {
+      "common": 0.5,
+      "uncommon": 0.65,
+      "elite": 0.85,
+      "boss": 1.5
+    }
+  },
+  "maps": [
+    {
+      "map_id": "village-map",
+      "revision": 1,
+      "display_name": "Village",
+      "role": "safe_village_hub",
+      "camera": {
+        "mode": "player_follow",
+        "follow_axes": [
+          "x"
+        ]
+      },
+      "hostile_population_enabled": false,
+      "track_ids": [
+        "village_theme"
+      ],
+      "layers": [
+        {
+          "layer_id": "blue_sky",
+          "plane": "background",
+          "order": 0,
+          "parallax": 0.1,
+          "alpha_mode": "opaque",
+          "placement": {
+            "vertical_anchor": "canvas_cover",
+            "vertical_offset": 0,
+            "vertical_offset_source": "measured",
+            "source_height": 1024,
+            "trimmed_height": 1024,
+            "trimmed_top": 0
+          },
+          "presentation": {
+            "contrast": 1,
+            "saturation": 1,
+            "atmosphere_color": "#ffffff",
+            "atmosphere_strength": 0,
+            "detail_blur_screen_pixels": 0
+          },
+          "asset": {
+            "path": "maps/village/background.png",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 128,
+            "media_type": "image/png",
+            "role": "asset",
+            "width": 1536,
+            "height": 512
+          }
+        }
+      ],
+      "ground": {
+        "mode": "terrain-atlas-3x3-minimal-v1",
+        "occupancy": [
+          "000000000000000000000000",
+          "111111111111111111111111"
+        ],
+        "vertical_fit": "floor_to_screen_bottom",
+        "walk_surface_row": 1,
+        "asset": {
+          "path": "maps/village/ground.png",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "image/png",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        }
+      },
+      "portal": {
+        "mode": "portal-pair-1x2-v1",
+        "asset": {
+          "path": "maps/village/portal.png",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "image/png",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        },
+        "endpoints": [
+          {
+            "anchor": "west_gate",
+            "normalized_x": 0.1,
+            "role": "entry"
+          },
+          {
+            "anchor": "east_gate",
+            "normalized_x": 0.97,
+            "role": "exit"
+          }
+        ]
+      }
+    },
+    {
+      "map_id": "road-map",
+      "revision": 1,
+      "display_name": "Crowncrag Road",
+      "role": "scrolling_hunting_route",
+      "camera": {
+        "mode": "player_follow",
+        "follow_axes": [
+          "x",
+          "y"
+        ]
+      },
+      "hostile_population_enabled": true,
+      "track_ids": [
+        "road_theme",
+        "road_theme_b"
+      ],
+      "layers": [
+        {
+          "layer_id": "dawn_sky",
+          "plane": "background",
+          "order": 0,
+          "parallax": 0.1,
+          "alpha_mode": "opaque",
+          "placement": {
+            "vertical_anchor": "canvas_cover",
+            "vertical_offset": 0,
+            "vertical_offset_source": "measured",
+            "source_height": 1024,
+            "trimmed_height": 1024,
+            "trimmed_top": 0
+          },
+          "presentation": {
+            "contrast": 1,
+            "saturation": 1,
+            "atmosphere_color": "#ffffff",
+            "atmosphere_strength": 0,
+            "detail_blur_screen_pixels": 0
+          },
+          "asset": {
+            "path": "maps/road/background.png",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 128,
+            "media_type": "image/png",
+            "role": "asset",
+            "width": 1536,
+            "height": 512
+          }
+        }
+      ],
+      "ground": {
+        "mode": "terrain-atlas-3x3-minimal-v1",
+        "occupancy": [
+          "0000000000000000000000000000000000000000",
+          "1111111100000000000000000000000000000000",
+          "0000000000000000000000000000000000000000",
+          "0000000000000000000000000000000000000000",
+          "0000000000000000000000000000000000000000",
+          "1111111111111111111111111111111111111111"
+        ],
+        "vertical_fit": "floor_to_screen_bottom",
+        "walk_surface_row": 5,
+        "asset": {
+          "path": "maps/road/ground.png",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "image/png",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        }
+      },
+      "climbable": {
+        "mode": "climbable-atlas-v1",
+        "asset": {
+          "path": "maps/road/climbable.png",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "image/png",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        },
+        "index_order": "left_to_right",
+        "variants": [
+          {
+            "variant_id": "road_ladder",
+            "role": "ladder",
+            "cell_index": 0,
+            "cell": {
+              "x": 0,
+              "y": 0,
+              "width": 96,
+              "height": 384
+            }
+          }
+        ],
+        "placements": [
+          {
+            "climbable_id": "road_ladder_a",
+            "variant_id": "road_ladder",
+            "normalized_x": 0.0125,
+            "bottom_surface": "terrain",
+            "rise_tiles": 4
+          }
+        ]
+      },
+      "portal": {
+        "mode": "portal-pair-1x2-v1",
+        "asset": {
+          "path": "maps/road/portal.png",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "image/png",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        },
+        "endpoints": [
+          {
+            "anchor": "west_gate",
+            "normalized_x": 0.1,
+            "role": "entry"
+          },
+          {
+            "anchor": "east_gate",
+            "normalized_x": 0.9,
+            "role": "exit"
+          }
+        ]
+      }
+    }
+  ],
+  "player": {
+    "player_id": "hero",
+    "display_name": "Hero",
+    "concept": {
+      "path": "content/player/concept.png",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "bytes": 128,
+      "media_type": "image/png",
+      "role": "asset",
+      "width": 1536,
+      "height": 512
+    },
+    "states": {
+      "idle": {
+        "source_facing": "right",
+        "runtime_mirror": true,
+        "columns": 4,
+        "rows": 1,
+        "source_frame_count": 4,
+        "anchor": "bottom",
+        "playback": {
+          "mode": "hold",
+          "canonical_frame_indices": [
+            0
+          ]
+        },
+        "asset": {
+          "path": "content/player/states/idle.png",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "image/png",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        }
+      },
+      "walk": {
+        "source_facing": "right",
+        "runtime_mirror": true,
+        "columns": 4,
+        "rows": 1,
+        "source_frame_count": 4,
+        "anchor": "bottom",
+        "playback": {
+          "mode": "loop",
+          "canonical_frame_indices": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "frames_per_second": 8
+        },
+        "asset": {
+          "path": "content/player/states/walk.png",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "image/png",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        }
+      },
+      "run": {
+        "source_facing": "right",
+        "runtime_mirror": true,
+        "columns": 4,
+        "rows": 1,
+        "source_frame_count": 4,
+        "anchor": "bottom",
+        "playback": {
+          "mode": "loop",
+          "canonical_frame_indices": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "frames_per_second": 12
+        },
+        "asset": {
+          "path": "content/player/states/run.png",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "image/png",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        }
+      },
+      "jump": {
+        "source_facing": "right",
+        "runtime_mirror": true,
+        "columns": 4,
+        "rows": 1,
+        "source_frame_count": 4,
+        "anchor": "bottom",
+        "playback": {
+          "mode": "gameplay_driven",
+          "canonical_frame_indices": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        "asset": {
+          "path": "content/player/states/jump.png",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "image/png",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        }
+      },
+      "crouch": {
+        "source_facing": "right",
+        "runtime_mirror": true,
+        "columns": 4,
+        "rows": 1,
+        "source_frame_count": 4,
+        "anchor": "bottom",
+        "playback": {
+          "mode": "loop",
+          "canonical_frame_indices": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "frames_per_second": 6
+        },
+        "asset": {
+          "path": "content/player/states/crouch.png",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "image/png",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        }
+      },
+      "climb_ladder": {
+        "source_facing": "right",
+        "runtime_mirror": true,
+        "columns": 4,
+        "rows": 1,
+        "source_frame_count": 4,
+        "anchor": "bottom",
+        "playback": {
+          "mode": "gameplay_driven",
+          "canonical_frame_indices": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        "asset": {
+          "path": "content/player/states/climb_ladder.png",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "image/png",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        }
+      },
+      "skill_cast": {
+        "source_facing": "right",
+        "runtime_mirror": true,
+        "columns": 4,
+        "rows": 1,
+        "source_frame_count": 4,
+        "anchor": "bottom",
+        "playback": {
+          "mode": "once",
+          "canonical_frame_indices": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "frames_per_second": 10
+        },
+        "asset": {
+          "path": "content/player/states/skill_cast.png",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "image/png",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        }
+      },
+      "hurt": {
+        "source_facing": "right",
+        "runtime_mirror": true,
+        "columns": 4,
+        "rows": 1,
+        "source_frame_count": 4,
+        "anchor": "bottom",
+        "playback": {
+          "mode": "once",
+          "canonical_frame_indices": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "frames_per_second": 12
+        },
+        "asset": {
+          "path": "content/player/states/hurt.png",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "image/png",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        }
+      },
+      "death": {
+        "source_facing": "right",
+        "runtime_mirror": true,
+        "columns": 4,
+        "rows": 1,
+        "source_frame_count": 4,
+        "anchor": "bottom",
+        "playback": {
+          "mode": "once",
+          "canonical_frame_indices": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "frames_per_second": 8
+        },
+        "asset": {
+          "path": "content/player/states/death.png",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "image/png",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        }
+      }
+    },
+    "dialogue": {
+      "columns": 1,
+      "rows": 1,
+      "index_order": "row_major",
+      "expressions": [
+        "neutral"
+      ],
+      "asset": {
+        "path": "content/player/dialogue.png",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 128,
+        "media_type": "image/png",
+        "role": "asset",
+        "width": 1536,
+        "height": 512
+      }
+    },
+    "calibration": {
+      "height_units": 1,
+      "height_units_source": "definition",
+      "source_px_per_unit": 600,
+      "measured_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "subject_extent_px": 600,
+      "baseline_state": "idle",
+      "state_rebase": {
+        "idle": 1,
+        "walk": 1,
+        "run": 1,
+        "jump": 1,
+        "crouch": 1,
+        "climb_ladder": 1,
+        "skill_cast": 1,
+        "hurt": 1,
+        "death": 1
+      },
+      "plate_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+  },
+  "mobs": [
+    {
+      "mob_id": "moth",
+      "display_name": "moth",
+      "rank": "common",
+      "aggression": "hunting",
+      "concept": {
+        "path": "content/mobs/moth/concept.png",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 128,
+        "media_type": "image/png",
+        "role": "asset",
+        "width": 1536,
+        "height": 512
+      },
+      "states": {
+        "idle": {
+          "source_facing": "right",
+          "runtime_mirror": true,
+          "columns": 4,
+          "rows": 1,
+          "source_frame_count": 4,
+          "anchor": "bottom",
+          "playback": {
+            "mode": "loop",
+            "canonical_frame_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "frames_per_second": 6
+          },
+          "asset": {
+            "path": "content/mobs/moth/idle.png",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 128,
+            "media_type": "image/png",
+            "role": "asset",
+            "width": 1536,
+            "height": 512
+          }
+        },
+        "hurt": {
+          "source_facing": "right",
+          "runtime_mirror": true,
+          "columns": 4,
+          "rows": 1,
+          "source_frame_count": 4,
+          "anchor": "bottom",
+          "playback": {
+            "mode": "once",
+            "canonical_frame_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "frames_per_second": 12
+          },
+          "asset": {
+            "path": "content/mobs/moth/hurt.png",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 128,
+            "media_type": "image/png",
+            "role": "asset",
+            "width": 1536,
+            "height": 512
+          }
+        },
+        "attack": {
+          "source_facing": "right",
+          "runtime_mirror": true,
+          "columns": 4,
+          "rows": 1,
+          "source_frame_count": 4,
+          "anchor": "bottom",
+          "playback": {
+            "mode": "once",
+            "canonical_frame_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "frames_per_second": 10
+          },
+          "asset": {
+            "path": "content/mobs/moth/attack.png",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 128,
+            "media_type": "image/png",
+            "role": "asset",
+            "width": 1536,
+            "height": 512
+          }
+        },
+        "death": {
+          "source_facing": "right",
+          "runtime_mirror": true,
+          "columns": 4,
+          "rows": 1,
+          "source_frame_count": 4,
+          "anchor": "bottom",
+          "playback": {
+            "mode": "once",
+            "canonical_frame_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "frames_per_second": 8
+          },
+          "asset": {
+            "path": "content/mobs/moth/death.png",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 128,
+            "media_type": "image/png",
+            "role": "asset",
+            "width": 1536,
+            "height": 512
+          }
+        }
+      },
+      "calibration": {
+        "height_units": 1,
+        "height_units_source": "definition",
+        "source_px_per_unit": 600,
+        "measured_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "subject_extent_px": 600
+      }
+    },
+    {
+      "mob_id": "page_eater",
+      "display_name": "page_eater",
+      "rank": "boss",
+      "aggression": "relentless",
+      "concept": {
+        "path": "content/mobs/page_eater/concept.png",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 128,
+        "media_type": "image/png",
+        "role": "asset",
+        "width": 1536,
+        "height": 512
+      },
+      "states": {
+        "idle": {
+          "source_facing": "right",
+          "runtime_mirror": true,
+          "columns": 4,
+          "rows": 1,
+          "source_frame_count": 4,
+          "anchor": "bottom",
+          "playback": {
+            "mode": "loop",
+            "canonical_frame_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "frames_per_second": 6
+          },
+          "asset": {
+            "path": "content/mobs/page_eater/idle.png",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 128,
+            "media_type": "image/png",
+            "role": "asset",
+            "width": 1536,
+            "height": 512
+          }
+        },
+        "hurt": {
+          "source_facing": "right",
+          "runtime_mirror": true,
+          "columns": 4,
+          "rows": 1,
+          "source_frame_count": 4,
+          "anchor": "bottom",
+          "playback": {
+            "mode": "once",
+            "canonical_frame_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "frames_per_second": 12
+          },
+          "asset": {
+            "path": "content/mobs/page_eater/hurt.png",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 128,
+            "media_type": "image/png",
+            "role": "asset",
+            "width": 1536,
+            "height": 512
+          }
+        },
+        "attack": {
+          "source_facing": "right",
+          "runtime_mirror": true,
+          "columns": 4,
+          "rows": 1,
+          "source_frame_count": 4,
+          "anchor": "bottom",
+          "playback": {
+            "mode": "once",
+            "canonical_frame_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "frames_per_second": 10
+          },
+          "asset": {
+            "path": "content/mobs/page_eater/attack.png",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 128,
+            "media_type": "image/png",
+            "role": "asset",
+            "width": 1536,
+            "height": 512
+          }
+        },
+        "death": {
+          "source_facing": "right",
+          "runtime_mirror": true,
+          "columns": 4,
+          "rows": 1,
+          "source_frame_count": 4,
+          "anchor": "bottom",
+          "playback": {
+            "mode": "once",
+            "canonical_frame_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "frames_per_second": 8
+          },
+          "asset": {
+            "path": "content/mobs/page_eater/death.png",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 128,
+            "media_type": "image/png",
+            "role": "asset",
+            "width": 1536,
+            "height": 512
+          }
+        }
+      },
+      "calibration": {
+        "height_units": 1,
+        "height_units_source": "definition",
+        "source_px_per_unit": 600,
+        "measured_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "subject_extent_px": 600
+      }
+    }
+  ],
+  "npcs": [
+    {
+      "npc_id": "baker",
+      "display_name": "Baker",
+      "role": "merchant",
+      "world": {
+        "source_facing": "right",
+        "runtime_mirror": true,
+        "columns": 4,
+        "rows": 1,
+        "source_frame_count": 4,
+        "anchor": "bottom",
+        "playback": {
+          "mode": "loop",
+          "canonical_frame_indices": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "frames_per_second": 6
+        },
+        "asset": {
+          "path": "content/npcs/baker/world.png",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "image/png",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        }
+      },
+      "dialogue": {
+        "columns": 1,
+        "rows": 1,
+        "index_order": "row_major",
+        "expressions": [
+          "neutral"
+        ],
+        "asset": {
+          "path": "content/npcs/baker/dialogue.png",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "image/png",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        }
+      },
+      "calibration": {
+        "height_units": 1,
+        "height_units_source": "definition",
+        "source_px_per_unit": 600,
+        "measured_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "subject_extent_px": 600
+      }
+    }
+  ],
+  "props": [
+    {
+      "prop_id": "village_well",
+      "display_name": "Village Well",
+      "ground_contact_y_normalized": 1,
+      "calibration": {
+        "height_units": 1,
+        "height_units_source": "definition",
+        "source_px_per_unit": 240,
+        "measured_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "subject_extent_px": 240
+      },
+      "asset": {
+        "path": "content/props/village_well.png",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 128,
+        "media_type": "image/png",
+        "role": "asset",
+        "width": 1536,
+        "height": 512
+      }
+    }
+  ],
+  "items": [
+    {
+      "item_id": "welcome_tart",
+      "display_name": "welcome_tart",
+      "item_kind": "healing_consumable",
+      "asset": {
+        "path": "content/items/welcome_tart.png",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 128,
+        "media_type": "image/png",
+        "role": "asset",
+        "width": 1536,
+        "height": 512
+      },
+      "calibration": {
+        "height_units": 1,
+        "height_units_source": "definition",
+        "source_px_per_unit": 96,
+        "measured_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "subject_extent_px": 96
+      }
+    },
+    {
+      "item_id": "paper_dart",
+      "display_name": "paper_dart",
+      "item_kind": "throwable_ammo",
+      "asset": {
+        "path": "content/items/paper_dart.png",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 128,
+        "media_type": "image/png",
+        "role": "asset",
+        "width": 1536,
+        "height": 512
+      },
+      "calibration": {
+        "height_units": 1,
+        "height_units_source": "definition",
+        "source_px_per_unit": 96,
+        "measured_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "subject_extent_px": 96
+      }
+    },
+    {
+      "item_id": "gold_coin",
+      "display_name": "gold_coin",
+      "item_kind": "currency",
+      "asset": {
+        "path": "content/items/gold_coin.png",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 128,
+        "media_type": "image/png",
+        "role": "asset",
+        "width": 1536,
+        "height": 512
+      },
+      "calibration": {
+        "height_units": 1,
+        "height_units_source": "definition",
+        "source_px_per_unit": 96,
+        "measured_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "subject_extent_px": 96
+      }
+    }
+  ],
+  "projectiles": [
+    {
+      "projectile_id": "paperwing_dart",
+      "display_name": "Paperwing Dart",
+      "silhouette": "dart",
+      "flight": "flat_fast_v1",
+      "impact": "single_target_v1",
+      "asset": {
+        "path": "content/projectiles/paperwing_dart.png",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 128,
+        "media_type": "image/png",
+        "role": "asset",
+        "width": 1536,
+        "height": 512
+      },
+      "calibration": {
+        "height_units": 1,
+        "height_units_source": "definition",
+        "source_px_per_unit": 64,
+        "measured_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "subject_extent_px": 64
+      }
+    }
+  ],
+  "ui": {
+    "inventory_panel": {
+      "layout": "inventory_grid_4x2_v1",
+      "alpha_policy": "transparent_exterior_opaque_panel_v1",
+      "canvas": {
+        "width": 1536,
+        "height": 1024
+      },
+      "panel_bounds": {
+        "x": 128,
+        "y": 160,
+        "width": 1280,
+        "height": 704
+      },
+      "slots": [
+        {
+          "slot_id": "slot_0",
+          "x": 208,
+          "y": 240,
+          "width": 256,
+          "height": 256
+        },
+        {
+          "slot_id": "slot_1",
+          "x": 496,
+          "y": 240,
+          "width": 256,
+          "height": 256
+        },
+        {
+          "slot_id": "slot_2",
+          "x": 784,
+          "y": 240,
+          "width": 256,
+          "height": 256
+        },
+        {
+          "slot_id": "slot_3",
+          "x": 1072,
+          "y": 240,
+          "width": 256,
+          "height": 256
+        },
+        {
+          "slot_id": "slot_4",
+          "x": 208,
+          "y": 528,
+          "width": 256,
+          "height": 256
+        },
+        {
+          "slot_id": "slot_5",
+          "x": 496,
+          "y": 528,
+          "width": 256,
+          "height": 256
+        },
+        {
+          "slot_id": "slot_6",
+          "x": 784,
+          "y": 528,
+          "width": 256,
+          "height": 256
+        },
+        {
+          "slot_id": "slot_7",
+          "x": 1072,
+          "y": 528,
+          "width": 256,
+          "height": 256
+        }
+      ],
+      "asset": {
+        "path": "ui/inventory_panel.png",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 128,
+        "media_type": "image/png",
+        "role": "asset",
+        "width": 1536,
+        "height": 512
+      }
+    },
+    "panel_frame": {
+      "role": "panel_frame",
+      "layout": "nine_slice_panel_1024_v1",
+      "scale_mode": "nine_slice",
+      "alpha_policy": "transparent_exterior_opaque_body_v1",
+      "band_fill": "tile",
+      "draw_scale": 2,
+      "canvas": {
+        "width": 1024,
+        "height": 1024
+      },
+      "insets": {
+        "left": 96,
+        "top": 96,
+        "right": 96,
+        "bottom": 96
+      },
+      "cells": [
+        {
+          "state": "default",
+          "cell": {
+            "x": 33,
+            "y": 164,
+            "width": 959,
+            "height": 664
+          },
+          "content_rect": {
+            "x": 129,
+            "y": 260,
+            "width": 767,
+            "height": 472
+          },
+          "safe_rect": {
+            "x": 141,
+            "y": 272,
+            "width": 743,
+            "height": 448
+          }
+        }
+      ],
+      "asset": {
+        "path": "ui/panel_frame.png",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 128,
+        "media_type": "image/png",
+        "role": "asset",
+        "width": 1536,
+        "height": 512
+      }
+    },
+    "button_rect": {
+      "role": "button_rect",
+      "layout": "nine_slice_button_sheet_4x1024_v1",
+      "scale_mode": "nine_slice",
+      "alpha_policy": "transparent_exterior_opaque_body_v1",
+      "band_fill": "tile",
+      "draw_scale": 2,
+      "canvas": {
+        "width": 1024,
+        "height": 1024
+      },
+      "insets": {
+        "left": 72,
+        "top": 50,
+        "right": 80,
+        "bottom": 56
+      },
+      "cells": [
+        {
+          "state": "normal",
+          "cell": {
+            "x": 152,
+            "y": 132,
+            "width": 721,
+            "height": 156
+          },
+          "content_rect": {
+            "x": 224,
+            "y": 182,
+            "width": 569,
+            "height": 50
+          },
+          "safe_rect": {
+            "x": 224,
+            "y": 182,
+            "width": 569,
+            "height": 50
+          }
+        },
+        {
+          "state": "hover",
+          "cell": {
+            "x": 152,
+            "y": 326,
+            "width": 721,
+            "height": 154
+          },
+          "content_rect": {
+            "x": 224,
+            "y": 376,
+            "width": 569,
+            "height": 48
+          },
+          "safe_rect": {
+            "x": 224,
+            "y": 376,
+            "width": 569,
+            "height": 48
+          }
+        },
+        {
+          "state": "pressed",
+          "cell": {
+            "x": 152,
+            "y": 517,
+            "width": 720,
+            "height": 154
+          },
+          "content_rect": {
+            "x": 224,
+            "y": 567,
+            "width": 568,
+            "height": 48
+          },
+          "safe_rect": {
+            "x": 224,
+            "y": 567,
+            "width": 568,
+            "height": 48
+          }
+        },
+        {
+          "state": "disabled",
+          "cell": {
+            "x": 151,
+            "y": 708,
+            "width": 722,
+            "height": 155
+          },
+          "content_rect": {
+            "x": 223,
+            "y": 758,
+            "width": 570,
+            "height": 49
+          },
+          "safe_rect": {
+            "x": 223,
+            "y": 758,
+            "width": 570,
+            "height": 49
+          }
+        }
+      ],
+      "asset": {
+        "path": "ui/button_rect.png",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 128,
+        "media_type": "image/png",
+        "role": "asset",
+        "width": 1536,
+        "height": 512
+      }
+    },
+    "preview_icons": {
+      "role": "preview_icons",
+      "layout": "icon_grid_4x4_1024_preview_v1",
+      "scale_mode": "fixed",
+      "alpha_policy": "transparent_exterior_opaque_glyph_v1",
+      "draw_scale": 2,
+      "canvas": {
+        "width": 1024,
+        "height": 1024
+      },
+      "cell_size": 232,
+      "cells": [
+        {
+          "glyph": "play",
+          "cell": {
+            "x": 24,
+            "y": 24,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 68,
+            "y": 72,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "pause",
+          "cell": {
+            "x": 272,
+            "y": 24,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 317,
+            "y": 72,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "close",
+          "cell": {
+            "x": 520,
+            "y": 24,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 566,
+            "y": 72,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "menu",
+          "cell": {
+            "x": 768,
+            "y": 24,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 812,
+            "y": 72,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "gear",
+          "cell": {
+            "x": 24,
+            "y": 272,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 69,
+            "y": 320,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "home",
+          "cell": {
+            "x": 272,
+            "y": 272,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 318,
+            "y": 320,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "retry",
+          "cell": {
+            "x": 520,
+            "y": 272,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 564,
+            "y": 320,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "check",
+          "cell": {
+            "x": 768,
+            "y": 272,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 813,
+            "y": 320,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "search",
+          "cell": {
+            "x": 24,
+            "y": 520,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 70,
+            "y": 568,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "hand",
+          "cell": {
+            "x": 272,
+            "y": 520,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 316,
+            "y": 568,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "heart",
+          "cell": {
+            "x": 520,
+            "y": 520,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 565,
+            "y": 568,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "star",
+          "cell": {
+            "x": 768,
+            "y": 520,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 814,
+            "y": 568,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "arrow_left",
+          "cell": {
+            "x": 24,
+            "y": 768,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 68,
+            "y": 816,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "arrow_right",
+          "cell": {
+            "x": 272,
+            "y": 768,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 317,
+            "y": 816,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "sound_on",
+          "cell": {
+            "x": 520,
+            "y": 768,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 566,
+            "y": 816,
+            "width": 142,
+            "height": 136
+          }
+        },
+        {
+          "glyph": "sound_off",
+          "cell": {
+            "x": 768,
+            "y": 768,
+            "width": 232,
+            "height": 232
+          },
+          "glyph_rect": {
+            "x": 812,
+            "y": 816,
+            "width": 142,
+            "height": 136
+          }
+        }
+      ],
+      "asset": {
+        "path": "ui/preview_icons.png",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 128,
+        "media_type": "image/png",
+        "role": "asset",
+        "width": 1536,
+        "height": 512
+      }
+    }
+  },
+  "soundtrack": {
+    "playback": {
+      "selection": "shuffle",
+      "no_immediate_repeat": true
+    },
+    "tracks": [
+      {
+        "track_id": "village_theme",
+        "display_name": "Village Theme",
+        "asset": {
+          "path": "soundtrack/village_theme.ogg",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "audio/ogg",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        }
+      },
+      {
+        "track_id": "road_theme",
+        "display_name": "Road Theme",
+        "asset": {
+          "path": "soundtrack/road_theme.ogg",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "audio/ogg",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        }
+      },
+      {
+        "track_id": "road_theme_b",
+        "display_name": "Road Theme, Reprise",
+        "asset": {
+          "path": "soundtrack/road_theme_b.ogg",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 128,
+          "media_type": "audio/ogg",
+          "role": "asset",
+          "width": 1536,
+          "height": 512
+        }
+      }
+    ]
+  },
+  "gameplay": {
+    "schema_version": 1,
+    "kind": "gameplay-contract-v1",
+    "game_id": "replay-route",
+    "revision": 3,
+    "entry_map_id": "village-map",
+    "entry_spawn_id": "village_start",
+    "navigation": {
+      "allowed_movements": [
+        "move_left",
+        "move_right",
+        "jump",
+        "crouch",
+        "climb"
+      ],
+      "logical_world_wrap": false,
+      "fall_recovery": "last_safe_ground"
+    },
+    "player": {
+      "player_id": "hero",
+      "starting_level": 1,
+      "starting_health": 6,
+      "starting_item_ids": [
+        "paper_dart",
+        "welcome_tart"
+      ]
+    },
+    "progression": {
+      "enabled": true,
+      "maximum_level": 20,
+      "experience_curve": "gentle_rpg_v1",
+      "stat_growth": "balanced_novice_v1"
+    },
+    "inventory": {
+      "currency_item_id": "gold_coin",
+      "starting_capacity": 24
+    },
+    "combat": {
+      "enabled": true,
+      "basic_action": "basic_attack",
+      "secondary_action": "skill_cast",
+      "contact_damage": true,
+      "critical_profile": "standard_v1",
+      "lethal_presentation": false,
+      "defeat_presentation": "story_beast_disperses_into_page_light",
+      "weapon_class": "ranged_dps_v1",
+      "projectile_id": "paperwing_dart",
+      "number_scale": "unit_v1"
+    },
+    "combat_text": {
+      "enabled": true
+    },
+    "map_uses": [
+      {
+        "map_id": "village-map",
+        "role": "safe_village_hub",
+        "hostile_population_enabled": false,
+        "track_ids": [
+          "village_theme"
+        ]
+      },
+      {
+        "map_id": "road-map",
+        "role": "scrolling_hunting_route",
+        "hostile_population_enabled": true,
+        "track_ids": [
+          "road_theme",
+          "road_theme_b"
+        ]
+      }
+    ],
+    "spawns": [
+      {
+        "spawn_id": "village_start",
+        "map_id": "village-map",
+        "anchor": "west_gate",
+        "normalized_x": 0.1
+      },
+      {
+        "spawn_id": "road_start",
+        "map_id": "road-map",
+        "anchor": "west_gate",
+        "normalized_x": 0.1
+      }
+    ],
+    "transitions": [
+      {
+        "transition_id": "village_to_road",
+        "from_map_id": "village-map",
+        "from_anchor": "east_gate",
+        "to_map_id": "road-map",
+        "to_spawn_id": "road_start"
+      },
+      {
+        "transition_id": "road_to_village",
+        "from_map_id": "road-map",
+        "from_anchor": "west_gate",
+        "to_map_id": "village-map",
+        "to_spawn_id": "village_start"
+      }
+    ],
+    "mob_population": {
+      "update_interval_ms": 250,
+      "max_spawn_batch_per_update": 2,
+      "maps": [
+        {
+          "map_id": "road-map",
+          "seed_salt": 7,
+          "zones": [
+            {
+              "zone_id": "road_zone",
+              "surface": "terrain",
+              "left_fraction": 0.12,
+              "right_fraction": 0.6,
+              "initial_population": 2,
+              "target_population": 3,
+              "population_cap": 4,
+              "respawn_delay_ms": 1200,
+              "spawn_table": [
+                {
+                  "mob_id": "moth",
+                  "weight": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "boss_encounters": [
+      {
+        "encounter_id": "road_boss",
+        "map_id": "road-map",
+        "anchor": "east_gate",
+        "mob_id": "page_eater",
+        "track_id": "road_theme",
+        "respawn_policy": "quest_reset_only"
+      }
+    ],
+    "loot_rules": [
+      {
+        "mob_id": "moth",
+        "item_id": "gold_coin",
+        "chance": 1,
+        "quantity_min": 1,
+        "quantity_max": 1
+      },
+      {
+        "mob_id": "moth",
+        "item_id": "paper_dart",
+        "chance": 1,
+        "quantity_min": 1,
+        "quantity_max": 2
+      }
+    ],
+    "npc_placements": [
+      {
+        "map_id": "village-map",
+        "npc_id": "baker",
+        "anchor": "bakery",
+        "normalized_x": 0.4
+      }
+    ],
+    "prop_placements": [
+      {
+        "map_id": "village-map",
+        "prop_id": "village_well",
+        "anchor": "square",
+        "normalized_x": 0.6
+      }
+    ],
+    "interactions": [
+      {
+        "interaction_id": "meet_baker",
+        "map_id": "village-map",
+        "actor_id": "baker",
+        "scenario_id": "meet_baker",
+        "outcomes": [
+          {
+            "outcome_id": "greeted",
+            "effect_ids": [
+              "grant_welcome_tart"
+            ]
+          }
+        ]
+      }
+    ],
+    "quests": [
+      {
+        "quest_id": "first_quest",
+        "display_name": "The First Quest",
+        "start_effect_id": "start_first_quest",
+        "completion_item_id": "gold_coin",
+        "completion_count": 3,
+        "completion_effect_id": "complete_first_quest"
+      }
+    ],
+    "effects": [
+      {
+        "effect_id": "start_first_quest",
+        "operation": "set_quest_state",
+        "quest_id": "first_quest",
+        "state": "active"
+      },
+      {
+        "effect_id": "complete_first_quest",
+        "operation": "set_quest_state",
+        "quest_id": "first_quest",
+        "state": "completed"
+      },
+      {
+        "effect_id": "grant_welcome_tart",
+        "operation": "grant_item",
+        "item_id": "welcome_tart",
+        "quantity": 1
+      }
+    ]
+  },
+  "scenarios": [
+    {
+      "schema_version": 2,
+      "kind": "scenario-program-v2",
+      "game_id": "replay-route",
+      "scenario_id": "meet_baker",
+      "display_name": "Meet the Baker",
+      "revision": 1,
+      "script_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "entry": "greeting",
+      "cast": [
+        {
+          "actor_id": "baker",
+          "expressions": [
+            "neutral"
+          ]
+        }
+      ],
+      "stages": [
+        {
+          "stage_id": "village",
+          "brief": "The village square"
+        }
+      ],
+      "endings": [
+        {
+          "outcome_id": "greeted",
+          "label": "You said hello"
+        }
+      ],
+      "blocks": [
+        {
+          "label": "greeting",
+          "statements": [
+            {
+              "kind": "stage",
+              "stage": "village"
+            },
+            {
+              "kind": "show",
+              "actor": "baker",
+              "expression": "neutral",
+              "slot": "center"
+            },
+            {
+              "kind": "line",
+              "speaker": "baker",
+              "text": "Fresh bread today."
+            },
+            {
+              "kind": "line",
+              "speaker": "baker",
+              "text": "Mind the road east."
+            },
+            {
+              "kind": "end",
+              "outcome": "greeted"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "closure": {
+    "artifact_count": 1,
+    "artifacts_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "artifacts": [
+      {
+        "path": "content/player/concept.png",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 128,
+        "media_type": "image/png",
+        "role": "asset",
+        "width": 1536,
+        "height": 512
+      }
+    ]
+  }
+}
