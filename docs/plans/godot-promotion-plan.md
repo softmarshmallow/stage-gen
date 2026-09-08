@@ -37,7 +37,7 @@ channel, a catalogue, a URL — is out of scope and stays in
 | 3 ✔ | D | The mono-project: one `godot/project.godot`, the layers as directories, the survival host relocated by text edits, names prefixed, paths edited | goldens byte-identical, capture sheet mean 0.0 / p99 0.0 |
 | 4 | E | The export factory proved on survival: the exporter, the release record, the run root rule, the bridge, the web shell | an export opens standalone and answers all six verbs; two exports agree on the closure digest |
 | 5 ✔ | F | The kernel in GDScript, and survival sealed: declarations, a derived order equal to the pasted one, the event queue, refusals as values, the interface writing through the latch | the goldens unchanged line for line |
-| 6 | G | The suite enters the locked gate: a supervisor per test file, fixtures with synthesised media, the CI job | `check.py` fails without the engine; an injected error and an injected hang both turn it red |
+| 6 ◐ | G | The suite enters the locked gate: a supervisor per test file, fixtures with synthesised media, the CI job | **In flight**: the supervisor is written and its two failures are proved — an injected error names its file and its assertion, an injected hang is killed at its timeout and named, and in both the other 41 files still run. A missing engine is a failure that says so. What is left is the synthesised run, without which `check.py` cannot take the step at all: `out/` is gitignored, so a fresh clone has no run to point it at |
 | 7 ◐ | H | The browser instruments: the platformer's slice list, every fixture and reference committed, stills taken | the references reproduce; the fixtures carry current identities |
 | 8 ✔ | I | **The runner**, and the browser runner is deleted | 600/600 frames and 30/30 digests, sealed order equal to the documented one; the view was unproved and shipped broken, and [0066](../decisions/0066-a-state-proof-is-not-a-picture-proof.md) is the picture gate that closes it |
 | 9 ◐ | J | **The platformer**, and the browser platformer is deleted | the same, per map, plus the map-scope reset — and see the reordering note: this is a disentangling, not a translation. **In flight**: both scripted runs are 600 of 600 frames exact from the first and the host draws the whole game; what is left is the retirement — the record and the browser deletion — plus the per-digit stagger and the developer affordances |
@@ -49,6 +49,12 @@ channel, a catalogue, a URL — is out of scope and stays in
 toolchain download, and nothing in the ports depends on the factory. Step 6 (the
 gate) is next rather than the factory, because the gate protects every port that
 follows it while the factory protects nothing until there is something to export.
+
+**What the supervisor turned out to be worth, measured.** Forty-two files in one
+process take 6.2 s; forty-two processes at four at a time take 4.6 s, so the
+isolation is free. What it buys is that the two failures a single process cannot
+report — a hard death and a hang — are now a named file each. The proofs are in
+the commit that holds them.
 
 **What step 6 turns out to cost.** Nearly every one of the twenty-nine Godot test
 files reads the real run — through `TestFixtures.world()` if not directly — so a

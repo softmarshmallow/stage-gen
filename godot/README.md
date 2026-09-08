@@ -67,6 +67,22 @@ both live in `hosts/common/`.
 Godot --headless --path godot -s res://tests/run_tests.gd -- --run <absolute run directory>
 ```
 
+One process over every file, which is how it is run by hand. Under a gate it is
+run one process *per* file instead:
+
+```sh
+python3 tools/run_suite.py --run <absolute run directory> [--timeout 180] [--jobs 4]
+```
+
+The supervisor exists because two failures are invisible to a single process. A
+file that dies hard takes the whole run with it and every file after it goes
+unreported, so the suite says nothing rather than saying which file; and a file
+that *hangs* is indistinguishable from a slow one, because `--quit-after` ends
+the process at an iteration count and names nothing. A process per file makes a
+crash cost one file's results and a hang a named, killed file. `--only` on
+`run_tests.gd` is what makes that possible, and without it the runner behaves
+exactly as it always has.
+
 Headless can never produce a picture: under the dummy renderer the frame's
 post-draw signal never fires and a viewport texture reads back as nothing, so
 every picture claim comes from the windowed capture harness instead.

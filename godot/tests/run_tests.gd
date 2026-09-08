@@ -2,12 +2,22 @@ extends SceneTree
 
 ## The headless suite:
 ##
-##   Godot --headless --path godot -s res://tests/run_tests.gd
+##   Godot --headless --path godot -s res://tests/run_tests.gd -- [--only <file>]
 ##
 ## Every `tests/test_*.gd` is instantiated and its `run(h)` called. Exit code 1
 ## on any failure.
+##
+## `--only` runs one file and nothing else. That is what makes a *supervisor*
+## possible: `tools/run_suite.py` spawns one of these per file with a timeout, so
+## a file that hangs is named and killed rather than taking the whole suite down
+## with it, and a file that dies hard costs its own results and no one else's.
+## Without `--only` this behaves exactly as it always has.
 
 const TESTS_DIR := "res://tests"
+
+## One file's name (`test_room.gd`) when a supervisor is running them one at a
+## time, empty for the whole directory.
+static var ONLY: String = ""
 
 ## The suite runs on the first frame, not in `_init` or `_initialize`: a test
 ## that stands a camera under the root to unproject a point needs the root
@@ -22,12 +32,28 @@ func _process(_delta: float) -> bool:
 	_run_all()
 	return false
 
+func _initialize() -> void:
+	var argv := OS.get_cmdline_user_args()
+	for index in argv.size():
+		if argv[index] == "--only" and index + 1 < argv.size():
+			ONLY = argv[index + 1].get_file()
+		elif String(argv[index]).begins_with("--only="):
+			ONLY = String(argv[index]).substr(7).get_file()
+
+
 func _run_all() -> void:
 	var harness := TestHarness.new()
 	harness.tree = self
 	var files := _test_files()
 	if files.is_empty():
-		push_error("no tests found under %s" % TESTS_DIR)
+		# A supervisor that names a file this build does not carry is a
+		# supervisor out of step with the tree, and saying nothing would let it
+		# report a green suite that ran nothing.
+		push_error(
+			"no tests found under %s" % TESTS_DIR
+			if ONLY.is_empty()
+			else "no test named %s under %s" % [ONLY, TESTS_DIR]
+		)
 		quit(1)
 		return
 	var started := Time.get_ticks_msec()
@@ -82,7 +108,10 @@ func _test_files() -> PackedStringArray:
 	for name in dir.get_files():
 		# Godot hands out `.remap` names in an exported build.
 		var script_name := name.trim_suffix(".remap")
-		if script_name.begins_with("test_") and script_name.ends_with(".gd"):
-			found.append("%s/%s" % [TESTS_DIR, script_name])
+		if not (script_name.begins_with("test_") and script_name.ends_with(".gd")):
+			continue
+		if not ONLY.is_empty() and script_name != ONLY:
+			continue
+		found.append("%s/%s" % [TESTS_DIR, script_name])
 	found.sort()
 	return found
