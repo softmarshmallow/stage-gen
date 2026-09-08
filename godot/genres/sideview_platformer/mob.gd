@@ -38,6 +38,26 @@ const STATE_CHASE := "chase"
 const STATE_ATTACK_RECOVERY := "attack_recovery"
 const STATE_RETURN_HOME := "return_home"
 const STATE_WINDUP := "windup"
+const STATE_HURT := "hurt"
+
+## How long a flinch holds a creature still.
+const HURT_DURATION_MS := 600.0
+
+## How far a blow pushes a creature, and over how long it eases out.
+const KNOCKBACK_PX := 80.0
+const KNOCKBACK_MS := 220.0
+
+## The height every creature is drawn to, whatever its own art measures.
+const DRAWN_HEIGHT := 110.0
+
+## The frame a creature falls back to when its strips did not resolve.
+##
+## Not a detail: the drawn envelope is what a thrown round is tested against, so
+## which creature a dart strikes depends on it. A package whose art loads gets
+## its own frames; one whose art is absent gets a square, and the golden — taken
+## against a media-free fixture — is the second case throughout. Reproducing the
+## *rule* is the port; reproducing the fixture's particular absence would not be.
+const FALLBACK_FRAME := 64.0
 
 ## How far above or below its own feet a creature may still reach, in tiles.
 const VERTICAL_REACH_TILES := 1.0
@@ -88,6 +108,9 @@ static func create(
 		"strikeLandsAtMs": 0.0,
 		"attackReadyAtMs": 0.0,
 		"pendingStrike": {},
+		"hurtUntil": 0.0,
+		# The knockback in flight: where it started, where it is going, and when.
+		"hitMotion": {},
 		"pursuitMinX": maxf(lane["minX"], spawn_x - PlatformerMaps.TILE_PX * PURSUIT_HOME_RADIUS_TILES),
 		"pursuitMaxX": minf(lane["maxX"], spawn_x + PlatformerMaps.TILE_PX * PURSUIT_HOME_RADIUS_TILES),
 	}
@@ -107,6 +130,23 @@ static func step(
 	if not bool(mob["alive"]):
 		return
 	var profile := PlatformerCombat.profile(String(mob["aggression"]))
+
+	# A blow already landed carries the body before anything it wants is asked.
+	# The ease is sampled from the clock rather than stepped, so the same run
+	# recorded twice puts a creature in the same place.
+	if not (mob["hitMotion"] as Dictionary).is_empty():
+		var motion: Dictionary = mob["hitMotion"]
+		var elapsed := maxf(0.0, now_ms - float(motion["startedMs"]))
+		var progress := clampf(elapsed / KNOCKBACK_MS, 0.0, 1.0)
+		var eased := 1.0 - pow(1.0 - progress, 3.0)
+		mob["x"] = float(motion["startX"]) + (float(motion["targetX"]) - float(motion["startX"])) * eased
+		if progress >= 1.0:
+			mob["hitMotion"] = {}
+
+	if String(mob["state"]) == STATE_HURT:
+		if now_ms < float(mob["hurtUntil"]):
+			return
+		mob["state"] = STATE_WANDER
 
 	# A wind-up already in flight resolves before anything else is decided: the
 	# blow was committed when it started, so backing out of range dodges the
@@ -218,6 +258,42 @@ static func _windup(
 	mob["attackReadyAtMs"] = now_ms + float(profile["cooldownMs"])
 
 
+## The box a round is tested against: the drawn envelope, standing on its feet.
+static func bounds(mob: Dictionary) -> Dictionary:
+	var half := envelope_half_width()
+	return {
+		"left": float(mob["x"]) - half,
+		"right": float(mob["x"]) + half,
+		"top": float(mob["y"]) - DRAWN_HEIGHT,
+		"bottom": float(mob["y"]),
+	}
+
+
+## Half the drawn body. Square, because a creature whose strips did not resolve
+## is drawn from a square placeholder scaled to the height every creature shares.
+static func envelope_half_width() -> float:
+	return FALLBACK_FRAME * (DRAWN_HEIGHT / FALLBACK_FRAME) / 2.0
+
+
+## Land one blow on this creature. Returns `{connected, died, hpAfter}`.
+static func take_hit(
+	mob: Dictionary, map: Dictionary, amount: float, direction: int, now_ms: float
+) -> Dictionary:
+	if not bool(mob["alive"]):
+		return {"connected": false, "died": false, "hpAfter": int(mob["hp"])}
+	var after := maxi(0, int(mob["hp"]) - int(amount))
+	mob["hp"] = after
+	mob["state"] = STATE_HURT
+	mob["hurtUntil"] = now_ms + HURT_DURATION_MS
+	mob["facing"] = direction
+	var target := _walk(mob, map, float(mob["x"]) + float(direction) * KNOCKBACK_PX, "world")
+	mob["hitMotion"] = {"startedMs": now_ms, "startX": float(mob["x"]), "targetX": float(target["x"])}
+	if after <= 0:
+		mob["alive"] = false
+		mob["state"] = "dead"
+	return {"connected": true, "died": after <= 0, "hpAfter": after}
+
+
 ## Take the blow this creature has landed, if it landed one this frame.
 static func consume_strike(mob: Dictionary) -> Dictionary:
 	var pending: Dictionary = mob["pendingStrike"]
@@ -289,8 +365,14 @@ static func snapshot(mob: Dictionary) -> Dictionary:
 static func _walk(
 	mob: Dictionary, map: Dictionary, next_x: float, boundary: String
 ) -> Dictionary:
-	var minimum := float(mob["patrolMinX"] if boundary == "patrol" else mob["pursuitMinX"])
-	var maximum := float(mob["patrolMaxX"] if boundary == "patrol" else mob["pursuitMaxX"])
+	var minimum := envelope_half_width()
+	var maximum := float(map["worldWidthPx"]) - envelope_half_width()
+	if boundary == "patrol":
+		minimum = float(mob["patrolMinX"])
+		maximum = float(mob["patrolMaxX"])
+	elif boundary == "pursuit":
+		minimum = float(mob["pursuitMinX"])
+		maximum = float(mob["pursuitMaxX"])
 	var bounded := clampf(next_x, minimum, maximum)
 	var stopped := bounded != next_x
 	var walk := FamilyContact.resolve_terrain_walk(

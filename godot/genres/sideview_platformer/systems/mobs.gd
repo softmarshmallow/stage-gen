@@ -25,6 +25,10 @@ const AGGRESSION_BY_RANK := {
 }
 const DEFAULT_AGGRESSION := "passive"
 
+## How far past its own reach a creature's committed blow still connects. A body
+## running through a swing is given the margin rather than dodging on a pixel.
+const STRIKE_RANGE_MARGIN := 1.35
+
 
 static func population_declaration() -> KernelSystem:
 	return KernelSystem.of(
@@ -97,13 +101,69 @@ static func step(world: PlatformerWorld, frame_step: Dictionary) -> void:
 	if world.hold:
 		return
 	var map: Dictionary = (world.package["maps"] as Dictionary)[world.map_id]
-	var dt := float(frame_step["dt"]) / 1000.0
+	var dt := world.simulation_dt / 1000.0
 	# Every creature is told where the body is before any of them moves, which is
 	# what the browser's `observePlayer` pass does — a creature that read a
 	# half-moved roster would hunt a player nobody else could see.
 	var player := {"x": float(world.player["x"]), "y": float(world.player["y"])}
 	for entry: Variant in world.mobs:
 		PlatformerMob.step(entry as Dictionary, map, dt, player, float(frame_step["now"]))
+
+
+## The blows the creatures landed on the body this frame.
+##
+## Resolved after they have moved, and re-checked for range: a creature commits
+## to its swing when it starts, so backing out of reach dodges the damage even
+## though the animation played out. Distance is measured with a third again of
+## the profile's reach, which is the margin a body running past a swing is given.
+static func strike(world: PlatformerWorld, step: Dictionary) -> void:
+	if world.hold or not bool(world.package["combatEnabled"]):
+		return
+	var combat: Dictionary = world.package["combat"]
+	if not bool(combat.get("contact_damage", false)):
+		return
+	var map: Dictionary = (world.package["maps"] as Dictionary)[world.map_id]
+	for entry: Variant in world.mobs:
+		var mob: Dictionary = entry
+		if not bool(mob["alive"]):
+			continue
+		var pending := PlatformerMob.consume_strike(mob)
+		if pending.is_empty() or float(pending["damage"]) <= 0.0:
+			continue
+		var profile := PlatformerCombat.profile(String(mob["aggression"]))
+		if (
+			absf(float(mob["x"]) - float(world.player["x"]))
+			> float(profile["strikeRangePx"]) * STRIKE_RANGE_MARGIN
+		):
+			continue
+		if (
+			absf(float(mob["y"]) - float(world.player["y"]))
+			> PlatformerMaps.TILE_PX * PlatformerMob.VERTICAL_REACH_TILES
+		):
+			continue
+		world.blow_sequence += 1
+		var seed_value := PlatformerCombat.blow_seed(
+			world.blow_sequence, float(mob["x"]), int(mob["ladderIndex"])
+		)
+		var blow := PlatformerCombat.critical_damage(
+			float(pending["damage"]), String(combat.get("critical_profile", "none")), seed_value
+		)
+		if not PlatformerPlayer.take_damage(
+			world.player, float(blow["amount"]), float(step["now"])
+		):
+			continue
+		PlatformerPlayer.knock_back(world.player, int(pending["dirSign"]), float(step["now"]))
+		PlatformerTranscript.record(
+			world,
+			"player-damaged",
+			int(step["frame"]),
+			float(step["now"]),
+			{
+				"applied": int(blow["amount"]),
+				"hp": int(world.player["hp"]),
+				"critical": bool(blow["critical"]),
+			}
+		)
 
 
 ## The published list, in the order the creatures stood up.

@@ -106,6 +106,7 @@ func _step(world: PlatformerWorld, step_seconds: float, now_ms: float, frame: in
 	var step := {"dt": step_seconds * 1000.0, "now": now_ms, "frame": frame}
 	PlatformerSoundtrackSystem.update(world, step)
 	PlatformerDialogueSystem.update(world, step)
+	PlatformerClockSystem.update(world, step)
 	if world.hold:
 		PlatformerMapEntrySystem.apply(world, step)
 		return
@@ -118,11 +119,26 @@ func _step(world: PlatformerWorld, step_seconds: float, now_ms: float, frame: in
 		"platforms": world.platforms,
 		"climbables": world.climbables,
 		"maximumAirJumps": PlatformerVertical.AIR_JUMPS_MAX,
+		"combatEnabled": world.package["combatEnabled"],
 	}
-	PlatformerPlayer.update(world.player, terrain, step_seconds * 1000.0, now_ms, world.intent)
+	PlatformerPlayer.update(
+		world.player,
+		terrain,
+		world.simulation_dt,
+		now_ms,
+		world.intent,
+		PlatformerWeapon.profile(world.weapon_class)
+	)
+	# The blow a creature committed on the frame before this one, read here rather
+	# than after the creatures move: the browser resolves contact inside
+	# `player/update`, so every creature this touches is where it stood at the end
+	# of the previous frame. Resolving it a step later lands it a frame early.
+	PlatformerMobsSystem.strike(world, step)
 	PlatformerCameraSystem.update(world, step)
+	PlatformerProjectilesSystem.throw_one(world, step)
 	PlatformerMobsSystem.populate(world, step)
 	PlatformerMobsSystem.step(world, step)
+	PlatformerProjectilesSystem.update(world, step)
 	PlatformerDialogueSystem.prompt(world, step)
 	PlatformerMapEntrySystem.ask(world)
 	PlatformerMapEntrySystem.apply(world, step)

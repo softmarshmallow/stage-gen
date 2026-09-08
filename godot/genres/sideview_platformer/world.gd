@@ -81,12 +81,24 @@ var spent_gates: Dictionary = {}
 var population: Dictionary = {}
 var next_mob_instance: int = 1
 
+## The rounds in the air, and the next one's name.
+var next_shot_id: int = 1
+
+## How many blows this run has resolved. Never reset, because a blow's seed is
+## drawn from it and two blows in one place must still differ.
+var blow_sequence: int = 0
+
 ## The bag that decides what plays next, seeded off the package digest.
 var music: FamilyShuffleBag = null
 
 ## True while a conversation holds the frame. Every system below the dialogue
 ## returns early on a held frame, which is how a run stops for a villager.
 var hold: bool = false
+
+## This frame's simulation delta, in milliseconds: the frame's own, or zero
+## while something is holding it. Written by `clock/step` and read by everything
+## that moves.
+var simulation_dt: float = 0.0
 var npc_prompts: Array = []
 var soundtrack: Dictionary = {}
 
@@ -111,16 +123,18 @@ const PORTAL_HEIGHT_TILES := 3.6
 ## The three readouts a run opens with, before anything has happened to report.
 ## They are published from the first frame because the browser builds them in
 ## `create()` and the golden hashes them from frame one.
+## The impact register at rest. Its sparks are the host's — positioned off a
+## scaled sprite's bounds, and excluded from the golden for exactly that reason —
+## so what a world carries is the hold: how long a blow stops the frame.
 const IMPACT_AT_REST := {
-	"activeCount": 0,
 	"disposed": false,
 	"enabled": true,
-	"entries": [],
 	"hitstopUntilMs": 0,
 	"reducedMotion": false,
-	"swingCount": 0,
 }
-const STAT_LOG_AT_REST := {"activeCount": 0, "enabled": true, "entries": []}
+## The stat log's own records go the same way and for the same reason: they are
+## floating numbers positioned on a sprite. What is left is whether it is on.
+const STAT_LOG_AT_REST := {"enabled": true}
 const DEFEAT_PANEL_AT_REST := {
 	"buttonLabel": "Return to safety",
 	"buttonState": "normal",
@@ -207,6 +221,7 @@ func open_on(opened: String) -> void:
 	soundtrack = _bind_music(map)
 	# A map's creatures are its own: nothing walks through a gate with the body.
 	mobs = []
+	projectiles = []
 	population = PlatformerPopulation.project(package, opened)
 
 
@@ -355,7 +370,7 @@ func snapshot() -> Dictionary:
 		"player": PlatformerPlayer.snapshot(player) if not player.is_empty() else null,
 		"portals": portals,
 		"progression": progression,
-		"projectiles": projectiles,
+		"projectiles": PlatformerProjectiles.snapshots(projectiles),
 		"questStates": quest_states,
 		"ready": ready,
 		"soundtrack": soundtrack,

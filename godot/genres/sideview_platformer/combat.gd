@@ -84,3 +84,56 @@ const PROFILES := {
 static func profile(aggression: Variant) -> Dictionary:
 	var name := DEFAULT_AGGRESSION if aggression == null else String(aggression)
 	return PROFILES.get(name, PROFILES[DEFAULT_AGGRESSION])
+
+
+## The critical profiles a package may name: how often a blow doubles, and by
+## how much.
+const CRITICAL_PROFILES := {
+	"none": {"chance": 0.0, "multiplier": 1.0},
+	"rare_v1": {"chance": 0.06, "multiplier": 2.5},
+	"standard_v1": {"chance": 0.18, "multiplier": 2.0},
+	"frequent_v1": {"chance": 0.32, "multiplier": 1.75},
+}
+
+
+## The seed one blow is drawn against: the sequence, where it was struck, and
+## who it was struck on.
+##
+## Every blow in a run draws once from a counter that never resets, so two blows
+## on the same creature at the same place still differ — which is what stops a
+## critical from being a property of a position.
+static func blow_seed(sequence: int, x: float, target_index: int) -> int:
+	return (
+		(
+			KernelHash.imul(sequence, 2654435761)
+			+ KernelHash.imul(int(x), 2246822519)
+			+ KernelHash.imul(target_index + 1, 3266489917)
+		)
+		& KernelHash.MASK
+	)
+
+
+## Whether one blow lands double, and what it lands for.
+static func critical_damage(base_amount: float, profile_name: String, seed_value: int) -> Dictionary:
+	if base_amount <= 0.0:
+		return {"amount": base_amount, "critical": false}
+	var rule: Dictionary = CRITICAL_PROFILES.get(profile_name, CRITICAL_PROFILES["none"])
+	var chance := float(rule["chance"])
+	if chance <= 0.0 or _unit_roll(seed_value) >= chance:
+		return {"amount": base_amount, "critical": false}
+	return {
+		"amount": maxf(1.0, round(base_amount * float(rule["multiplier"]))), "critical": true
+	}
+
+
+## One draw on [0, 1) from a blow's seed. Not a generator: a blow is drawn from
+## its own seed rather than from a stream, so the order blows are resolved in
+## cannot change what any one of them rolls.
+static func _unit_roll(seed_value: int) -> float:
+	var mixed := seed_value & KernelHash.MASK
+	mixed = (mixed ^ (mixed >> 16)) & KernelHash.MASK
+	mixed = KernelHash.imul(mixed, 0x7feb352d)
+	mixed = (mixed ^ (mixed >> 15)) & KernelHash.MASK
+	mixed = KernelHash.imul(mixed, 0x846ca68b)
+	mixed = (mixed ^ (mixed >> 16)) & KernelHash.MASK
+	return float(mixed) / 4294967296.0

@@ -241,6 +241,18 @@ const PARITY_EXCLUDE: readonly string[] = [
   // host can compute it — so what leaves is exactly the field that cannot be
   // known without the art.
   "w",
+  // The impact register's spark records, and the two counts of them.
+  //
+  // `hitstopUntilMs` stays in and is the reason the rest can go: the hold is
+  // what the frame reads, and it is arithmetic — forty milliseconds, seventy on
+  // a kill, extended rather than restarted. The entries beside it are sparks,
+  // and each one is positioned at `sprite.getBounds().centerY`, which is a
+  // display-height reading of a scaled sprite. A second runtime cannot produce
+  // that without reproducing this one's sprite scaling, and a spark's position
+  // decides nothing.
+  "entries",
+  "activeCount",
+  "swingCount",
 ];
 
 /**

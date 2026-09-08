@@ -16,12 +16,12 @@ extends RefCounted
 
 ## Frames identical to the browser's, and what stops the next one.
 ##
-## Frame 200 is the first throw: the player's own attack, the round it puts in
-## the air and the bag it spends are underived. Raise this with each unit, and
-## never without re-running the harness.
-const EXACT_FRAMES := 199
+## Frame 220 is the second throw, and the first round that survives long enough
+## to be drawn. Raise this with each unit, and never without re-running the
+## harness.
+const EXACT_FRAMES := 219
 
-const FIRST_UNPORTED := "projectiles/step, at the first throw"
+const FIRST_UNPORTED := "the second throw's flight"
 
 
 func run(h: TestHarness) -> void:
@@ -38,6 +38,7 @@ func run(h: TestHarness) -> void:
 	_gate(h, package as Dictionary)
 	_population(h, package as Dictionary)
 	_mobs(h, package as Dictionary)
+	_combat(h, package as Dictionary)
 
 
 ## The curve a package names, and the refusals for the ones it may not.
@@ -401,6 +402,66 @@ func _mobs(h: TestHarness, package: Dictionary) -> void:
 	h.assert_eq(shot.size(), 10, "a creature publishes ten fields")
 	h.assert_eq(String(shot["state"]), "wander", "and is wandering until something notices it")
 	h.assert_eq(int(shot["maxHp"]), 2, "with a common creature's health")
+
+
+## The round in the air, what it strikes, and the hold a blow puts on the frame.
+func _combat(h: TestHarness, package: Dictionary) -> void:
+	var map: Dictionary = (package["maps"] as Dictionary)["road-map"]
+	var shots: Array = []
+	var shot := PlatformerProjectiles.launch(shots, 1, 1174.0, 656.0, 1)
+	h.assert_eq(String(shot["id"]), "shot_1", "a round is named in the order it was thrown")
+	# Half a tile ahead of the hand, at chest height on a 154px body.
+	h.assert_eq(float(shot["x"]), 1206.0, "and leaves half a tile ahead of the body")
+	h.assert_eq(float(shot["y"]), 579.0, "at chest height")
+	h.assert_eq(float(shot["vxPx"]), 704.0, "flying eleven tiles a second")
+
+	# A creature's box is the drawn envelope, and the drawn envelope decides
+	# which creature a round strikes.
+	var near := PlatformerMob.create(2, "mob_2", "road-map/mob/2", 0, "hunting", 2, 1162.272635501, 656.0, map)
+	var far := PlatformerMob.create(3, "mob_3", "road-map/mob/3", 0, "hunting", 2, 1221.943162867, 656.0, map)
+	var hits := PlatformerProjectiles.update(
+		shots,
+		[PlatformerMob.bounds(near), PlatformerMob.bounds(far)],
+		1000.0 / 30.0,
+		{
+			"minX": 0.0,
+			"maxX": float(map["worldWidthPx"]),
+			"surfaceAt": func(x: float) -> float: return PlatformerMaps.surface_at_x(map, x),
+		}
+	)
+	h.assert_eq(hits.size(), 1, "one round strikes one creature")
+	# The nearer creature, and not the one the round's centre is closest to:
+	# first is the caller's order, which is what keeps two creatures at one
+	# distance from being a coin toss.
+	h.assert_eq(int((hits[0] as Dictionary)["targetIndex"]), 0, "the first it overlaps, in order")
+	h.assert_true(shots.is_empty(), "and a single-target round is spent on it")
+
+	var blow := PlatformerMob.take_hit(near, map, 1.0, 1, 6833.333333333)
+	h.assert_true(bool(blow["connected"]), "the blow connects")
+	h.assert_eq(int(blow["hpAfter"]), 1, "and takes a point")
+	h.assert_eq(String(near["state"]), "hurt", "the creature flinches")
+	# Eighty pixels, eased out over two hundred and twenty milliseconds, sampled
+	# from the clock rather than stepped — so it advances even while the frame
+	# is held.
+	PlatformerMob.step(near, map, 0.0, {}, 6866.666666667)
+	h.assert_true(
+		absf(float(near["x"]) - 1193.404894732) < 1e-9, "and is carried by an eased knockback"
+	)
+
+	# A critical is drawn from the blow's own seed, not from a stream, so the
+	# order blows resolve in cannot change what any one of them rolls.
+	var seed_value := PlatformerCombat.blow_seed(1, 1162.0, 0)
+	var resolved := PlatformerCombat.critical_damage(1.0, "standard_v1", seed_value)
+	h.assert_eq(
+		PlatformerCombat.critical_damage(1.0, "standard_v1", seed_value),
+		resolved,
+		"and the same seed rolls the same blow twice"
+	)
+	h.assert_eq(
+		float(PlatformerCombat.critical_damage(1.0, "none", seed_value)["amount"]),
+		1.0,
+		"a package that names no criticals never doubles one"
+	)
 
 
 func _manifest() -> Dictionary:

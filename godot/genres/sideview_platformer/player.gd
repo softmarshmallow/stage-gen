@@ -24,6 +24,11 @@ const STATE_JUMP := "jump"
 const STATE_CROUCH := "crouch"
 const STATE_CLIMB := "climb"
 const STATE_HURT := "hurt"
+## The pose a class commits to. Which strip plays is the weapon's answer, not
+## the controller's: the two states differ only in what is drawn and how long
+## the body is held to it.
+const STATE_ATTACK := "attack"
+const STATE_RANGED_ATTACK := "ranged_attack"
 const STATE_DEATH := "death"
 
 const FACING_LEFT := "left"
@@ -90,6 +95,7 @@ static func create(x: float, y: float, max_hp: int) -> Dictionary:
 		"attackActive": false,
 		"attackUntil": 0.0,
 		"attackStarted": 0.0,
+		"attackTicksFired": 0,
 		"blockedColumn": -1,
 		"hp": max_hp,
 		"maxHp": max_hp,
@@ -116,8 +122,15 @@ static func create(x: float, y: float, max_hp: int) -> Dictionary:
 ## One step. `world` carries the terrain the body walks on:
 ## `{heights, tilePx, baselineY, worldWidthPx, platforms, climbables, maximumAirJumps}`.
 static func update(
-	player: Dictionary, world: Dictionary, dt_ms: float, now_ms: float, intent: Dictionary
+	player: Dictionary,
+	world: Dictionary,
+	dt_ms: float,
+	now_ms: float,
+	intent: Dictionary,
+	weapon: Dictionary = {}
 ) -> void:
+	if weapon.is_empty():
+		weapon = PlatformerWeapon.profile(PlatformerWeapon.DEFAULT_CLASS)
 	var dt: float = dt_ms / 1000.0
 	var left := bool(intent.get("left", false))
 	var right := bool(intent.get("right", false))
@@ -125,6 +138,10 @@ static func update(
 	var up := bool(intent.get("up", false))
 	var shift := bool(intent.get("run", false))
 	var wants_jump := bool(intent.get("jump", false))
+	# Combat is gated here rather than at the source: whether a package has
+	# combat at all is a property of the package the body was built for, not of
+	# whoever is asking to swing.
+	var wants_attack := bool(intent.get("attack", false)) and bool(world.get("combatEnabled", true))
 
 	# Defeat is the only thing that locks input. Hurt blinks and flinches while
 	# ordinary movement stays live, which is what makes standing next to a
@@ -165,6 +182,26 @@ static func update(
 			return
 
 	_advance_drop_settle(player)
+
+	# The pose overrides locomotion without stopping it: a body throwing still
+	# runs, and the strip it plays is the weapon class's.
+	var window := PlatformerWeapon.step_window(
+		weapon,
+		{
+			"attackUntil": float(player["attackUntil"]),
+			"attackStarted": float(player["attackStarted"]),
+			"attackActive": bool(player["attackActive"]),
+		},
+		now_ms,
+		wants_attack,
+		controls_locked or String(player["support"]) == FamilyContact.SUPPORT_CLIMBABLE
+	)
+	player["attackUntil"] = window["attackUntil"]
+	player["attackStarted"] = window["attackStarted"]
+	player["attackActive"] = window["attackActive"]
+	if bool(window["committed"]):
+		player["attackTicksFired"] = 0
+	var attacking := bool(window["attacking"])
 
 	var target_vx: float = float(player["vx"])
 	if not controls_locked:
@@ -313,7 +350,7 @@ static func update(
 		if String(player["support"]) == FamilyContact.SUPPORT_PLATFORM
 		else null
 	)
-	_resolve_state(player, crouching, shift, now_ms)
+	_resolve_state(player, crouching, shift, now_ms, attacking, weapon)
 
 
 ## The thirty fields the replay golden hashes.
@@ -355,6 +392,26 @@ static func take_damage(player: Dictionary, amount: float, now_ms: float) -> boo
 	return true
 
 
+## What a blow does to the body besides taking its health: it is thrown back,
+## turned to face what hit it, put in the air, and taken off whatever it was
+## holding on to.
+static func knock_back(player: Dictionary, from_dir_sign: int, now_ms: float) -> void:
+	player["vx"] = float(from_dir_sign) * PlatformerCombat.PLAYER_KNOCKBACK_VX
+	player["vy"] = PlatformerCombat.PLAYER_KNOCKBACK_VY
+	player["facing"] = FACING_LEFT if from_dir_sign == 1 else FACING_RIGHT
+	_set_support(player, FamilyContact.SUPPORT_AIR, null)
+	player["activeClimbableId"] = null
+	player["ladderId"] = null
+	player["attackActive"] = false
+	player["attackUntil"] = 0.0
+	if bool(player["defeated"]):
+		player["hurtUntil"] = 0.0
+		player["state"] = STATE_DEATH
+		return
+	player["hurtUntil"] = now_ms + HURT_DURATION_MS
+	player["state"] = STATE_HURT
+
+
 ## The opacity a hurt body draws at. Presentation, and excluded from parity — but
 ## derived here because it is the gauge's rule rather than the host's.
 static func blink_alpha(player: Dictionary, now_ms: float) -> float:
@@ -367,7 +424,12 @@ static func blink_alpha(player: Dictionary, now_ms: float) -> float:
 
 
 static func _resolve_state(
-	player: Dictionary, crouching: bool, shift: bool, now_ms: float
+	player: Dictionary,
+	crouching: bool,
+	shift: bool,
+	now_ms: float,
+	attacking: bool,
+	weapon: Dictionary
 ) -> void:
 	# Defeat and the flinch outrank locomotion. A flinch has nowhere to fall back
 	# to: not drawing one is the answer, because whatever was playing continues.
@@ -376,8 +438,8 @@ static func _resolve_state(
 		next = STATE_DEATH
 	elif String(player["state"]) == STATE_HURT and now_ms < float(player["hurtUntil"]):
 		next = STATE_HURT
-	elif bool(player["attackActive"]):
-		next = String(player["state"])
+	elif attacking:
+		next = String(weapon["pose"])
 	elif String(player["support"]) == FamilyContact.SUPPORT_AIR:
 		next = STATE_JUMP
 	elif crouching:
