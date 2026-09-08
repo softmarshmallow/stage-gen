@@ -98,8 +98,12 @@ static func step(world: PlatformerWorld, frame_step: Dictionary) -> void:
 		return
 	var map: Dictionary = (world.package["maps"] as Dictionary)[world.map_id]
 	var dt := float(frame_step["dt"]) / 1000.0
+	# Every creature is told where the body is before any of them moves, which is
+	# what the browser's `observePlayer` pass does — a creature that read a
+	# half-moved roster would hunt a player nobody else could see.
+	var player := {"x": float(world.player["x"]), "y": float(world.player["y"])}
 	for entry: Variant in world.mobs:
-		PlatformerMob.wander(entry as Dictionary, map, dt)
+		PlatformerMob.step(entry as Dictionary, map, dt, player)
 
 
 ## The published list, in the order the creatures stood up.

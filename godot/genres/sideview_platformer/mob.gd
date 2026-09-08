@@ -34,6 +34,15 @@ const PURSUIT_HOME_RADIUS_TILES := 6.0
 const RENDERED_HALF_WIDTH := 24.0
 
 const STATE_WANDER := "wander"
+const STATE_CHASE := "chase"
+const STATE_ATTACK_RECOVERY := "attack_recovery"
+const STATE_RETURN_HOME := "return_home"
+
+## How far above or below its own feet a creature may still reach, in tiles.
+const VERTICAL_REACH_TILES := 1.0
+
+## How near home is near enough to stop returning to it.
+const RETURN_ARRIVAL_TILES := 0.125
 
 
 ## A creature standing up at a reservation.
@@ -69,17 +78,142 @@ static func create(
 		"patrolMaxX": minf(lane["maxX"], spawn_x + roundf(PlatformerMaps.TILE_PX * PATROL_HOME_RADIUS_TILES)),
 		"speedScale": float(variation["movementSpeedScale"]),
 		"patrolDirection": int(variation["initialDirection"]),
+		"facing": int(variation["initialDirection"]),
+		# The `actor-ai` family's hysteresis: having *been* engaged is what makes
+		# losing the target a walk home rather than a shrug.
+		"awareness": "idle",
+		"pursuitMinX": maxf(lane["minX"], spawn_x - PlatformerMaps.TILE_PX * PURSUIT_HOME_RADIUS_TILES),
+		"pursuitMaxX": minf(lane["maxX"], spawn_x + PlatformerMaps.TILE_PX * PURSUIT_HOME_RADIUS_TILES),
 	}
 
 
-## One frame of a creature nobody has noticed. Returns nothing; the body is
-## stepped in place, which is what a world of plain dictionaries is for.
+## One frame of a creature. The body is stepped in place, which is what a world
+## of plain dictionaries is for.
+##
+## `player` is `{x, y}` or an empty dictionary when nothing has been observed.
+## The order is the browser's: notice, decide, then move — and the decision is
+## the profile's numbers under the family's hysteresis, never the other way
+## round.
+static func step(
+	mob: Dictionary, map: Dictionary, dt_seconds: float, player: Dictionary
+) -> void:
+	if not bool(mob["alive"]):
+		return
+	var profile := PlatformerCombat.profile(String(mob["aggression"]))
+	var directive := _directive(mob, profile, player)
+	if directive == "chase":
+		_chase(mob, map, dt_seconds, profile, player)
+		return
+	if directive == "attack_recovery":
+		mob["state"] = STATE_ATTACK_RECOVERY
+		return
+	if directive == "return_home":
+		mob["state"] = STATE_RETURN_HOME
+		_walk_toward(mob, map, dt_seconds, float(mob["homeX"]), float(profile["chaseSpeedPx"]))
+		return
+	wander(mob, map, dt_seconds)
+
+
+## What this creature wants this frame.
+##
+## Two rules over one another: the family decides whether it is engaged, holding
+## or walking home, and the profile decides what engagement means at this
+## distance and cadence. The ladder's order is the browser's and is load
+## bearing — a cooldown outranks range, so a creature that has just swung keeps
+## its committed pose rather than falling through to patrol.
+static func _directive(mob: Dictionary, profile: Dictionary, player: Dictionary) -> String:
+	var observed := not player.is_empty()
+	var distance := 0.0
+	if observed:
+		distance = absf(float(player["x"]) - float(mob["x"]))
+	var within_territory := (
+		observed
+		and float(player["x"]) >= float(mob["pursuitMinX"])
+		and float(player["x"]) <= float(mob["pursuitMaxX"])
+	)
+	var can_engage := (
+		observed and within_territory and distance <= float(profile["aggroRadiusPx"])
+	)
+	var home_required := not (
+		float(mob["x"]) >= float(mob["patrolMinX"])
+		and float(mob["x"]) <= float(mob["patrolMaxX"])
+	)
+	var at_home := (
+		absf(float(mob["x"]) - float(mob["homeX"]))
+		<= roundf(PlatformerMaps.TILE_PX * RETURN_ARRIVAL_TILES)
+	)
+
+	if can_engage:
+		mob["awareness"] = "engaged"
+		return _intent(mob, profile, distance, player)
+	if String(mob["awareness"]) == "engaged" or home_required:
+		mob["awareness"] = "returning"
+	if String(mob["awareness"]) == "returning" and not at_home:
+		return "return_home"
+	mob["awareness"] = "idle"
+	return "hold"
+
+
+## What an engaged creature does at this distance. A strike it cannot reach is
+## not a strike: a blow across a two-tile drop lands on nothing.
+static func _intent(
+	mob: Dictionary, profile: Dictionary, distance: float, player: Dictionary
+) -> String:
+	if not bool(profile["hostile"]):
+		return "hold"
+	if distance > float(profile["aggroRadiusPx"]):
+		return "hold"
+	if bool(profile["flees"]):
+		return "flee"
+	var reachable := (
+		absf(float(mob["y"]) - float(player["y"]))
+		<= PlatformerMaps.TILE_PX * VERTICAL_REACH_TILES
+	)
+	if distance <= float(profile["strikeRangePx"]) and reachable:
+		# The wind-up and the blow are `mobs/strike`, which the golden does not
+		# reach until the player stands inside a creature's reach. Until then a
+		# creature in range holds its pose rather than swinging at nothing.
+		return "attack_recovery"
+	if distance <= float(profile["strikeRangePx"]):
+		return "attack_recovery"
+	return "chase"
+
+
+## Close on the player at the profile's own speed, bounded by where this
+## creature is allowed to hunt.
+static func _chase(
+	mob: Dictionary, map: Dictionary, dt_seconds: float, profile: Dictionary, player: Dictionary
+) -> void:
+	mob["state"] = STATE_CHASE
+	_walk_toward(mob, map, dt_seconds, float(player["x"]), float(profile["chaseSpeedPx"]))
+
+
+static func _walk_toward(
+	mob: Dictionary, map: Dictionary, dt_seconds: float, target_x: float, speed_px: float
+) -> void:
+	var direction := 0
+	if target_x > float(mob["x"]):
+		direction = 1
+	elif target_x < float(mob["x"]):
+		direction = -1
+	else:
+		direction = int(mob["facing"])
+	mob["facing"] = direction
+	var speed := speed_px * float(mob["speedScale"])
+	var next_x := float(mob["x"]) + float(direction) * speed * dt_seconds
+	var walk := _walk(mob, map, next_x, "pursuit")
+	mob["x"] = walk["x"]
+	mob["y"] = _surface_at(map, float(mob["x"]))
+
+
+## One frame of a creature nobody has noticed.
 static func wander(mob: Dictionary, map: Dictionary, dt_seconds: float) -> void:
 	if not bool(mob["alive"]):
 		return
+	mob["state"] = STATE_WANDER
 	var speed := DEFAULT_SPEED_PX * float(mob["speedScale"])
 	var next_x := float(mob["x"]) + float(mob["patrolDirection"]) * speed * dt_seconds
-	var walk := _walk(mob, map, next_x)
+	var walk := _walk(mob, map, next_x, "patrol")
 	mob["x"] = walk["x"]
 	# A face turns a patrol the same way the end of its lane does. Reversing
 	# rather than standing still is what stops a creature pressed against a rise
@@ -106,8 +240,12 @@ static func snapshot(mob: Dictionary) -> Dictionary:
 
 
 ## A step bounded by the patrol lane and then by the terrain, in that order.
-static func _walk(mob: Dictionary, map: Dictionary, next_x: float) -> Dictionary:
-	var bounded := clampf(next_x, float(mob["patrolMinX"]), float(mob["patrolMaxX"]))
+static func _walk(
+	mob: Dictionary, map: Dictionary, next_x: float, boundary: String
+) -> Dictionary:
+	var minimum := float(mob["patrolMinX"] if boundary == "patrol" else mob["pursuitMinX"])
+	var maximum := float(mob["patrolMaxX"] if boundary == "patrol" else mob["pursuitMaxX"])
+	var bounded := clampf(next_x, minimum, maximum)
 	var stopped := bounded != next_x
 	var walk := FamilyContact.resolve_terrain_walk(
 		float(mob["x"]),

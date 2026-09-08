@@ -16,13 +16,12 @@ extends RefCounted
 
 ## Frames identical to the browser's, and what stops the next one.
 ##
-## Frame 185 is the frame the first creature notices the player and gives chase
-## — the awareness node and the pursuit target are underived, so the world
-## diverges there and not before. Raise this with each unit, and never without
-## re-running the harness.
-const EXACT_FRAMES := 184
+## Frame 197 is the first contact: a creature reaches the body, and the blow,
+## its knockback and the hurt it opens are underived. Raise this with each unit,
+## and never without re-running the harness.
+const EXACT_FRAMES := 196
 
-const FIRST_UNPORTED := "the awareness node, at the first creature's notice radius"
+const FIRST_UNPORTED := "mobs/strike, at the first contact"
 
 
 func run(h: TestHarness) -> void:
@@ -359,6 +358,26 @@ func _mobs(h: TestHarness, package: Dictionary) -> void:
 	first["x"] = 1088.5
 	PlatformerMob.wander(first, map, 1.0 / 30.0)
 	h.assert_eq(int(first["patrolDirection"]), 1, "and turns at the end of its lane")
+
+	# Noticed, it closes at the profile's chase speed rather than its patrol one,
+	# and only inside the territory it is allowed to hunt.
+	var hunter := PlatformerMob.create(
+		1, "mob_1", "road-map/mob/1", 0, "hunting", 2, 1184.0, 656.0, map
+	)
+	PlatformerMob.step(hunter, map, 1.0 / 30.0, {"x": 900.0, "y": 656.0})
+	h.assert_eq(String(hunter["state"]), "chase", "a body inside the notice radius is chased")
+	h.assert_eq(int(hunter["facing"]), -1, "and the creature turns towards it")
+	# 108 px/s at this creature's tempo, a thirtieth of a second.
+	h.assert_true(
+		absf(float(hunter["x"]) - (1184.0 - 108.0 * 0.971700011846 / 30.0)) < 1e-9,
+		"closing at the profile's chase speed, not its patrol speed"
+	)
+
+	var far := PlatformerMob.create(
+		1, "mob_1", "road-map/mob/1", 0, "hunting", 2, 1184.0, 656.0, map
+	)
+	PlatformerMob.step(far, map, 1.0 / 30.0, {"x": 100.0, "y": 656.0})
+	h.assert_eq(String(far["state"]), "wander", "a body outside its territory is not chased")
 
 	var shot := PlatformerMob.snapshot(first)
 	h.assert_eq(shot.size(), 10, "a creature publishes ten fields")
