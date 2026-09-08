@@ -5,7 +5,8 @@
 #
 #   tools/validate.sh --run <absolute run dir> --out <directory> \
 #       [--ref <reference directory>] [--dpr 1] [--shots all] [--skip-tests] \
-#       [--runner-run <absolute runner run dir>] [--room-run <absolute room run dir>]
+#       [--runner-run <absolute runner run dir>] [--room-run <absolute room run dir>] \
+#       [--scene-run <absolute dialogue-scene run dir>]
 #
 # `--runner-run` adds the runner's own picture gate: four named steps captured
 # and measured. Decision 0065 retired the browser runner on a state proof and
@@ -31,6 +32,7 @@ SHOTS=all
 SKIP_TESTS=0
 RUNNER_RUN=""
 ROOM_RUN=""
+SCENE_RUN=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -41,6 +43,7 @@ while [ $# -gt 0 ]; do
     --shots) SHOTS=$2; shift 2;;
     --runner-run) RUNNER_RUN=$2; shift 2;;
     --room-run) ROOM_RUN=$2; shift 2;;
+    --scene-run) SCENE_RUN=$2; shift 2;;
     --skip-tests) SKIP_TESTS=1; shift;;
     -h|--help) sed -n '2,15p' "${BASH_SOURCE[0]}"; exit 0;;
     *) echo "validate: unknown argument $1" >&2; exit 2;;
@@ -176,6 +179,19 @@ if [ -n "$ROOM_RUN" ]; then
       --run "$ROOM_RUN" --out "$OUT/room-shots" --shots all \
     | grep -E '^.room capture.' || true
   python3 "$PROJECT/tools/room_shots_check.py" "$OUT/room-shots"
+fi
+
+if [ -n "$SCENE_RUN" ]; then
+  echo "== dialogue picture gate"
+  # Six named moments rather than named steps, two of them from a second
+  # scenario of the same bundle: the one the rest are taken in has no choice in
+  # it, and a sheet with no choice row on it is a sheet with a hole in it.
+  mkdir -p "$OUT/scene-shots"
+  "$GODOT" --path "$PROJECT" --rendering-driver metal --disable-render-loop \
+      --audio-driver Dummy --quit-after 120000 -s res://tools/dialogue_capture.gd -- \
+      --run "$SCENE_RUN" --out "$OUT/scene-shots" --shots all \
+    | grep -E '^.dialogue capture.' || true
+  python3 "$PROJECT/tools/dialogue_shots_check.py" "$OUT/scene-shots"
 fi
 
 if [ -z "$REF" ]; then

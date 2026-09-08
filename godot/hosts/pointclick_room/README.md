@@ -66,7 +66,7 @@ fixed here with the measurement that motivated it:
   on the font rather than on the label — a clipped label reports no minimum size,
   so the browser's own test would always have said it fitted — and the label
   clips, so a package with a longer line loses its tail inside the art rather
-  than across the picture. `tests/test_room_layout.gd` holds the fitting.
+  than across the picture. `godot/tests/test_room_layout.gd` holds the fitting.
 - **The control hint was drawn under inventory slot 0.** It sits in its own
   reserved row above the slots now, which is what `HUD_LABEL_BAND` always meant.
 - **A verb button's glyph drew at ten pixels.** A 132x60 button with this sheet's

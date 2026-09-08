@@ -389,3 +389,119 @@ static func _holds(condition: Variant, flags: Array) -> bool:
 		if flags.has(String(flag)):
 			return false
 	return true
+
+
+## How far through a scenario the player is, for one line of chrome.
+##
+## `total` counts the statements that *stop* — a line or a choice — because the
+## invisible ones are not moments a player passes through. Not ported when the
+## runtime was, and the readout that needs it is the one thing on the dialogue
+## panel that is neither the words nor who said them.
+static func progress(program: Dictionary, state: Dictionary) -> Dictionary:
+	var total := 0
+	for entry: Variant in (program["blocks"] as Array):
+		for raw: Variant in ((entry as Dictionary)["statements"] as Array):
+			var kind := String((raw as Dictionary)["kind"])
+			if kind == "line" or kind == "choice":
+				total += 1
+	return {"seen": (state["seen"] as Array).size(), "total": total}
+
+
+## A saved state, checked against the program it claims to be of, or null.
+##
+## A port of `restoreScenarioState`. The case shell writes a save on every
+## statement and offers a Continue when it finds one; a regenerated scenario can
+## have moved every block under it. Returning null rather than refusing is the
+## point — the player is offered a fresh scene instead of a Continue that opens
+## on an actor nobody declared, and a save that no longer fits is not an error
+## anyone can act on.
+static func restore(program: Dictionary, snapshot: Variant) -> Variant:
+	if not (snapshot is Dictionary):
+		return null
+	var saved: Dictionary = snapshot
+	var block := FamilyScenarioProgram.block_of(program, String(saved.get("label", "")))
+	if block.is_empty():
+		return null
+	var statements: Array = block["statements"]
+	var index := int(saved.get("index", -1))
+	if index < 0 or index >= statements.size():
+		return null
+
+	var outcome: Variant = saved.get("outcome")
+	if outcome != null:
+		var published := false
+		for entry: Variant in (program["endings"] as Array):
+			if String((entry as Dictionary)["outcomeId"]) == String(outcome):
+				published = true
+				break
+		if not published:
+			return null
+
+	var declared := {}
+	for flag in (program["flags"] as PackedStringArray):
+		declared[String(flag)] = true
+	var flags: Array = []
+	for flag: Variant in _array(saved.get("flags")):
+		if not declared.has(String(flag)):
+			return null
+		flags.append(String(flag))
+	flags.sort()
+
+	var stage: Variant = saved.get("stage")
+	if stage != null and not _names(program["stages"], String(stage)):
+		return null
+	var tracks: Array = []
+	for track: Variant in _array(saved.get("tracks")):
+		if not _names(program["tracks"], String(track)):
+			return null
+		tracks.append(String(track))
+
+	var actors: Array = []
+	for entry: Variant in _array(saved.get("actors")):
+		if not (entry is Dictionary):
+			return null
+		var staged: Dictionary = entry
+		var actor_id := String(staged.get("actorId", staged.get("actor_id", "")))
+		var member := _cast_member(program, actor_id)
+		if member.is_empty():
+			return null
+		var slot := String(staged.get("slot", ""))
+		if not FamilyScenarioProgram.SLOTS.has(slot):
+			return null
+		var expression: Variant = staged.get("expression")
+		if expression != null and not (member["expressions"] as PackedStringArray).has(String(expression)):
+			return null
+		actors.append({"actorId": actor_id, "expression": expression, "slot": slot})
+
+	var seen: Array = []
+	for id: Variant in _array(saved.get("seen")):
+		seen.append(String(id))
+	return {
+		"label": String(saved["label"]),
+		"index": index,
+		"flags": flags,
+		"seen": seen,
+		"stage": stage,
+		"actors": actors,
+		"tracks": tracks,
+		"outcome": outcome,
+	}
+
+
+static func _cast_member(program: Dictionary, actor_id: String) -> Dictionary:
+	for entry: Variant in (program["cast"] as Array):
+		var member: Dictionary = entry
+		if String(member["actorId"]) == actor_id:
+			return member
+	return {}
+
+
+static func _names(ids: PackedStringArray, wanted: String) -> bool:
+	for id in ids:
+		if String(id) == wanted:
+			return true
+	return false
+
+
+static func _array(value: Variant) -> Array:
+	return value if value is Array else []

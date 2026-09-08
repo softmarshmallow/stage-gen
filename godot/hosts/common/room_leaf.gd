@@ -491,43 +491,18 @@ func _render() -> void:
 ## whatever does not fit inside the art.
 func _set_narration(value: String) -> void:
 	var font := _narration.get_theme_font("font")
-	var size := HostRoomLeaf.fitted_size(
-		font, value, float(_narration_box["wrapWidth"]), float(_narration_box["height"])
+	var size := HostTextFit.fitted_size(
+		font,
+		value,
+		float(_narration_box["wrapWidth"]),
+		float(_narration_box["height"]),
+		NARRATION_SIZES,
+		NARRATION_LINE_SPACING
 	)
 	_narration.add_theme_font_size_override("font_size", size)
 	_narration.text = value
 
 
-## How tall `value` is when wrapped to `wrap` at `size`, including the extra
-## leading the plate adds between lines.
-static func wrapped_height(font: Font, value: String, size: int, wrap: float) -> float:
-	if font == null:
-		return 0.0
-	var box := font.get_multiline_string_size(
-		value,
-		HORIZONTAL_ALIGNMENT_LEFT,
-		wrap,
-		size,
-		-1,
-		TextServer.BREAK_WORD_BOUND | TextServer.BREAK_MANDATORY
-	)
-	var line_height := maxf(1.0, font.get_height(size))
-	var lines := maxi(1, int(roundf(box.y / line_height)))
-	return box.y + float(lines - 1) * float(NARRATION_LINE_SPACING)
-
-
-## The largest step of the ladder at which `value` fits `room_for`, or the floor.
-##
-## Measured on the font, never on the label. `clip_text` is what keeps a long
-## line inside the plate, and it also drives a label's own minimum size to
-## nothing — so asking the label whether it fits would always hear yes, and the
-## ladder would never take a step. The first build of this host did exactly
-## that, and cut the window room's longest sentence mid-sentence.
-static func fitted_size(font: Font, value: String, wrap: float, room_for: float) -> int:
-	for size: int in NARRATION_SIZES:
-		if wrapped_height(font, value, size, wrap) <= room_for:
-			return size
-	return int(NARRATION_SIZES[NARRATION_SIZES.size() - 1])
 
 
 func _render_inventory() -> void:

@@ -174,9 +174,9 @@ func _fitting(h: TestHarness, layout: Dictionary) -> void:
 		return
 	var wrap := float(text["wrapWidth"])
 	var room_for := float(text["height"])
-	var size := HostRoomLeaf.fitted_size(font, LONGEST, wrap, room_for)
+	var size := HostTextFit.fitted_size(font, LONGEST, wrap, room_for, HostRoomLeaf.NARRATION_SIZES, HostRoomLeaf.NARRATION_LINE_SPACING)
 	h.assert_true(
-		HostRoomLeaf.wrapped_height(font, LONGEST, size, wrap) <= room_for,
+		HostTextFit.wrapped_height(font, LONGEST, size, wrap, HostRoomLeaf.NARRATION_LINE_SPACING) <= room_for,
 		"the longest sentence a shipped room can produce fits the plate it is written on"
 	)
 	h.assert_true(
@@ -184,7 +184,7 @@ func _fitting(h: TestHarness, layout: Dictionary) -> void:
 		"and it fits at or above the ladder's floor rather than by clamping to it"
 	)
 	# The ladder is a ladder: a sentence too long for the top step comes down.
-	var short_size := HostRoomLeaf.fitted_size(font, "The Window", wrap, room_for)
+	var short_size := HostTextFit.fitted_size(font, "The Window", wrap, room_for, HostRoomLeaf.NARRATION_SIZES, HostRoomLeaf.NARRATION_LINE_SPACING)
 	h.assert_eq(
 		short_size,
 		int(HostRoomLeaf.NARRATION_SIZES[0]),

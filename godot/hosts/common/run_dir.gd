@@ -18,7 +18,14 @@ extends RefCounted
 ## kind. It used to name survival's, which meant the second host to use it would
 ## have inherited the first one's contract.
 
+## What a run's document is called when a genre does not say.
+const DEFAULT_DOCUMENT_REF := "manifest.json"
+
 var run_dir: String = ""
+## The run's own document, whatever it is called. A survival or platformer run
+## publishes `manifest.json`; a dialogue-scene run publishes `bundle.json` and a
+## case publishes `case.json`. What the file is *named* is as much the genre's
+## business as what is in it, so the caller says.
 var manifest: Dictionary = {}
 ## `package/world/layout.json`, which the manifest also embeds verbatim.
 var layout: Dictionary = {}
@@ -37,12 +44,20 @@ var _videos: Dictionary = {}
 ##
 ## `layout_ref` is a second document a genre keeps beside the manifest; a genre
 ## with none omits it.
+##
+## `document_ref` names the run's own document. It defaults to `manifest.json`,
+## which is what three of the five genres publish; a dialogue scene publishes
+## `bundle.json` and a case publishes `case.json`, and neither has a manifest at
+## all.
 static func open(
-	dir: String, checker: Callable = Callable(), layout_ref: String = ""
+	dir: String,
+	checker: Callable = Callable(),
+	layout_ref: String = "",
+	document_ref: String = DEFAULT_DOCUMENT_REF
 ) -> HostRunDir:
 	var pkg := HostRunDir.new()
 	pkg.run_dir = dir.rstrip("/")
-	var manifest_path := pkg.run_dir + "/manifest.json"
+	var manifest_path := pkg.run_dir + "/" + document_ref
 	var parsed: Variant = _read_json(manifest_path)
 	if not (parsed is Dictionary):
 		push_error("run package: no readable manifest at %s" % manifest_path)

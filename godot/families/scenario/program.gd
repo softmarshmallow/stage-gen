@@ -20,9 +20,13 @@ extends RefCounted
 const PROGRAM_KIND := "scenario-program-v2"
 const PROGRAM_SCHEMA_VERSION := 2
 
-## Where an actor may stand. A slot the document does not name is refused rather
-## than drawn somewhere the author never chose.
-const SLOTS := ["left", "center", "right"]
+## Where an actor may stand, left to right. Five, not three: the browser's
+## `SCENARIO_SLOTS` publishes `far_left` and `far_right` too, and The Grain's
+## scripts use both — `e1_statements` stands Robert at `far_left`. The constant
+## was three when it was written and nothing referenced it, so nothing was
+## refused and nothing was wrong; the moment a view laid the three out, half a
+## cast would have been drawn in the middle of the stage.
+const SLOTS := ["far_left", "left", "center", "right", "far_right"]
 
 const STATEMENT_KINDS := [
 	"line", "choice", "show", "hide", "stage", "audio", "set", "jump", "branch", "end"

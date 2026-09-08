@@ -28,6 +28,12 @@ var season: String = "auto"
 var weather: String = "auto"
 ## `0` means "the layout's seed", exactly as the viewer does it.
 var seed_value: int = 0
+## Which scenario of a dialogue-scene bundle to play. A run publishes the union
+## of every scenario its game holds, so a bundle with more than one is refused
+## rather than opened on whichever came first.
+var scenario: String = ""
+## Which beat of a case to open on, for a capture that wants a named one.
+var beat: String = ""
 ## Capture harness: which framing to shoot, where to write it, how many frames.
 var capture: String = ""
 var out: String = ""
@@ -73,6 +79,10 @@ static func parse(argv: PackedStringArray) -> HostArgs:
 				args.weather = value
 			"--seed":
 				args.seed_value = int(value)
+			"--scenario":
+				args.scenario = value
+			"--beat":
+				args.beat = value
 			"--capture":
 				args.capture = value
 			"--out":
