@@ -37,7 +37,7 @@ const BAR_MINIMUM_Y := 78.0
 const NAME_HEIGHT := 20.0
 const NAME_COLOR := Color(1.0, 0.706, 0.635)
 
-var _boss: RunnerActor = null
+var _boss: HostActor = null
 var _shots: Node2D = null
 var _shot_views: Dictionary = {}
 var _projectiles: Dictionary = {}
@@ -77,7 +77,7 @@ static func of(
 	if published.is_empty():
 		push_error("runner boss view: this run declares %s and publishes no such boss" % encounter["bossId"])
 		return null
-	var actor := RunnerActor.of(
+	var actor := HostActor.of(
 		package, published.get("motions", []), published.get("calibration", {}), config,
 		flash_shader
 	)

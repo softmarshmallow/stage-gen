@@ -178,6 +178,11 @@ func _intent_for(replay: Dictionary, frame: int) -> Dictionary:
 	# levels would walk through the gate it just arrived at.
 	for key in SCENE_KEYS:
 		made[key] = bool(held[key]) and not bool(_scene_keys_last.get(key, false))
+	# The gate reads a press; the ladder reads the same key held. Both come off
+	# the one scene key, and separating them here is what lets a body climb
+	# without walking through every doorway it passes.
+	made["upPressed"] = bool(made["up"])
+	made["up"] = bool(held["up"]) or bool(made["up"])
 	_scene_keys_last = held
 	return made
 

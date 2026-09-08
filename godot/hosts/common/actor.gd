@@ -1,15 +1,20 @@
-class_name RunnerActor
+class_name HostActor
 extends Sprite2D
 
-## A published actor on screen: the avatar, or a boss.
+## A published actor on screen: a runner's avatar, a boss, a platformer's body,
+## a creature on a route.
 ##
-## Both are the same shape of thing — a set of motion strips, one calibration,
-## a per-motion rebase multiplier and anchor — and the browser drew them with
-## the same three lines in two places. Here it is one class, because the two
-## drifted apart in this port and the avatar's half was wrong: it sized the
+## Every one of them is the same shape of thing — a set of motion strips, one
+## calibration, a per-motion rebase multiplier and anchor — and the browser drew
+## them with the same three lines in four places. Here it is one class, because
+## the copies drifted apart in this port and the avatar's was wrong: it sized the
 ## body by dividing the design height by whatever the atlas cell happened to be,
 ## which silently ignores both the calibration and the rebase multiplier, so
 ## every motion stood a slightly different height.
+##
+## Under `hosts/common` rather than one genre's view because the second side-view
+## host asked for it, which is the charter: a thing with one consumer stays that
+## genre's and is promoted when a second arrives.
 ##
 ## **Size comes from the ruler, never from the pixels.** `source_px_per_unit` is
 ## how many source pixels the producer drew one unit of height as; a strip
@@ -44,14 +49,14 @@ var _material: ShaderMaterial = null
 static func of(
 	package: HostRunDir, motions: Array, calibration: Dictionary, config: Dictionary,
 	flash_shader: Shader
-) -> RunnerActor:
-	var actor := RunnerActor.new()
+) -> HostActor:
+	var actor := HostActor.new()
 	actor.centered = false
 	for entry: Variant in motions:
 		var motion: Dictionary = entry
 		var texture := package.texture(String(motion["atlas"]))
 		if texture == null:
-			push_error("runner actor: motion %s has no atlas at %s" % [motion["state"], motion["atlas"]])
+			push_error("actor: motion %s has no atlas at %s" % [motion["state"], motion["atlas"]])
 			continue
 		var columns := maxi(1, int(motion["columns"]))
 		var frames: Array = motion.get("canonical_frame_indices", IMPLICIT_FRAME_LIST)
@@ -70,7 +75,7 @@ static func of(
 		return null
 	var per_unit := float(calibration.get("source_px_per_unit", 0.0))
 	if per_unit <= 0.0:
-		push_error("runner actor: calibration carries no source_px_per_unit to size by")
+		push_error("actor: calibration carries no source_px_per_unit to size by")
 		return null
 	actor._base_scale = (
 		float(config["playerHeightTiles"]) * float(config["tilePx"]) / per_unit
@@ -97,7 +102,7 @@ func show_motion(state: String, impulses: int = 0) -> void:
 		if _state != "" and _motions.has(_state):
 			return
 		chosen = String(_motions.keys()[0])
-		push_warning("runner actor: no strip for %s; drawing %s" % [state, chosen])
+		push_warning("actor: no strip for %s; drawing %s" % [state, chosen])
 	if chosen == _state and impulses == _impulses:
 		return
 	_state = chosen

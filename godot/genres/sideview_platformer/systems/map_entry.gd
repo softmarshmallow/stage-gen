@@ -25,9 +25,13 @@ extends RefCounted
 ## corrected: the golden is the reference, and if it is a defect it is the
 ## incumbent's and belongs in its own record.
 
-## Which keys ask a gate to open. The same two that open a conversation, which is
-## why a villager standing in a gate's mouth would be a package's problem.
-const OPEN_KEYS := ["up", "interact", "enter"]
+## Which keys ask a gate to open.
+##
+## `upPressed` and not `up`: climbing holds the key and a gate is asked once, so
+## a body that walked into a doorway with the climb key down would be taken
+## through it without asking. The browser reads the same key twice for the same
+## reason — as a level for the ladder and with `JustDown` for the gate.
+const OPEN_KEYS := ["upPressed", "interact", "enter"]
 
 
 static func declaration() -> KernelSystem:

@@ -250,7 +250,9 @@ func _gate(h: TestHarness, package: Dictionary) -> void:
 
 	world.player["x"] = 1504.0
 	world.intent = PlatformerWorld.neutral_intent()
-	world.intent["up"] = true
+	# The press, not the hold: a gate is asked once, so a body climbing past a
+	# doorway with the ladder key down is not taken through it.
+	world.intent["upPressed"] = true
 	world.events.begin_frame()
 	# The press is also the gesture that starts the music, which is what makes
 	# the road's track a *switch* rather than a first play.

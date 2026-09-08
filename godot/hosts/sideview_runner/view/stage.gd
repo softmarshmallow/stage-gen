@@ -51,7 +51,7 @@ var _config: Dictionary = {}
 var _bands: Array = []
 var _ground: Node2D = null
 var _ground_signature: String = ""
-var _avatar: RunnerActor = null
+var _avatar: HostActor = null
 var _shadow: RunnerEllipses = null
 var _hazards: Node2D = null
 var _hazard_shapes: RunnerEllipses = null
@@ -210,7 +210,7 @@ func _build_avatar(manifest: Dictionary) -> void:
 	if avatar.is_empty():
 		push_error("runner stage: this run publishes no avatar")
 		return
-	_avatar = RunnerActor.of(
+	_avatar = HostActor.of(
 		_package,
 		avatar.get("motions", []),
 		avatar.get("calibration", {}),
