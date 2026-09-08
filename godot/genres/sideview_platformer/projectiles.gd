@@ -26,6 +26,25 @@ const FLIGHT := {
 	"halfHeightTiles": 0.7,
 }
 
+## How a silhouette carries itself. A shape with a leading end is aimed along its
+## flight and mirrored to travel left, and never spun — a dart tumbling end over
+## end is a different object. A shape with no leading end is spun instead, which
+## is the only way a directionless object reads as travelling rather than
+## floating. A name this build does not know is the irregular one: something
+## tumbles more convincingly than nothing.
+const ORIENTATIONS := {
+	"radial_v1": {"aimAlongFlight": false, "mirrorWhenReversed": false, "spinDegreesPerSecond": 220.0},
+	"axial_v1": {"aimAlongFlight": true, "mirrorWhenReversed": true, "spinDegreesPerSecond": 0.0},
+	"irregular_v1": {"aimAlongFlight": false, "mirrorWhenReversed": true, "spinDegreesPerSecond": 90.0},
+}
+const DEFAULT_ORIENTATION := "irregular_v1"
+
+
+## The silhouette a package names, or the one anything unrecognised tumbles as.
+static func orientation(silhouette: String) -> Dictionary:
+	return ORIENTATIONS.get(silhouette, ORIENTATIONS[DEFAULT_ORIENTATION])
+
+
 ## `single_target_v1`: one creature, and the round is spent.
 const MAX_TARGETS := 1
 
@@ -66,12 +85,16 @@ static func launch(shots: Array, next_id: int, origin_x: float, foot_y: float, d
 ##
 ## `targets` is this frame's boxes, in the caller's order. Returns
 ## `[{targetIndex, spawnX, dirSign, impactX, impactY}]` and prunes what expired.
-static func update(shots: Array, targets: Array, dt_ms: float, world: Dictionary) -> Array:
+static func update(
+	shots: Array, targets: Array, dt_ms: float, world: Dictionary, silhouette: String = DEFAULT_ORIENTATION
+) -> Array:
+	var spin := float(orientation(silhouette)["spinDegreesPerSecond"])
 	var hits: Array = []
 	var index := shots.size() - 1
 	while index >= 0:
 		var shot: Dictionary = shots[index]
 		_advance(shot, dt_ms)
+		shot["spinDegrees"] = fmod(float(shot["spinDegrees"]) + spin * dt_ms / 1000.0, 360.0)
 		var expiry := _expiry(shot, world)
 		if expiry.is_empty():
 			var connected := false

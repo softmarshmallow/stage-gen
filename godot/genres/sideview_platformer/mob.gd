@@ -62,8 +62,11 @@ const FALLBACK_FRAME := 64.0
 ## How far above or below its own feet a creature may still reach, in tiles.
 const VERTICAL_REACH_TILES := 1.0
 
-## How near home is near enough to stop returning to it.
+## How near home is near enough to stop returning to it, and how fast a creature
+## walks back. A return is slower than a chase: it is a creature giving up, and
+## it should read as one.
 const RETURN_ARRIVAL_TILES := 0.125
+const RETURN_SPEED_TILES := 0.85
 
 
 ## A creature standing up at a reservation.
@@ -173,7 +176,9 @@ static func step(
 		return
 	if directive == "return_home":
 		mob["state"] = STATE_RETURN_HOME
-		_walk_toward(mob, map, dt_seconds, float(mob["homeX"]), float(profile["chaseSpeedPx"]))
+		_walk_toward(
+			mob, map, dt_seconds, float(mob["homeX"]), roundf(PlatformerMaps.TILE_PX * RETURN_SPEED_TILES)
+		)
 		return
 	wander(mob, map, dt_seconds)
 

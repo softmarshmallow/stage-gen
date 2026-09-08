@@ -16,12 +16,12 @@ extends RefCounted
 
 ## Frames identical to the browser's, and what stops the next one.
 ##
-## Frame 220 is the second throw, and the first round that survives long enough
-## to be drawn. Raise this with each unit, and never without re-running the
-## harness.
-const EXACT_FRAMES := 219
+## Frame 290 is the first kill and the two pickups that fall out of it — the
+## loot rules and the drop pool are underived. Raise this with each unit, and
+## never without re-running the harness.
+const EXACT_FRAMES := 289
 
-const FIRST_UNPORTED := "the second throw's flight"
+const FIRST_UNPORTED := "items/collect, at the first kill"
 
 
 func run(h: TestHarness) -> void:
@@ -461,6 +461,33 @@ func _combat(h: TestHarness, package: Dictionary) -> void:
 		float(PlatformerCombat.critical_damage(1.0, "none", seed_value)["amount"]),
 		1.0,
 		"a package that names no criticals never doubles one"
+	)
+
+	# A round tumbles at its silhouette's own rate, and a silhouette this build
+	# does not know tumbles rather than floating.
+	h.assert_eq(
+		float(PlatformerProjectiles.orientation("dart")["spinDegreesPerSecond"]),
+		90.0,
+		"an unrecognised silhouette takes the irregular one"
+	)
+	h.assert_eq(
+		float(PlatformerProjectiles.orientation("axial_v1")["spinDegreesPerSecond"]),
+		0.0,
+		"and a shape with a leading end never spins"
+	)
+
+	# Walking home is slower than giving chase: a creature that has lost you is
+	# giving up, and it reads as one.
+	var walker := PlatformerMob.create(
+		1, "mob_1", "road-map/mob/1", 0, "hunting", 2, 1184.0, 656.0, map
+	)
+	walker["x"] = 1300.0
+	walker["awareness"] = "engaged"
+	PlatformerMob.step(walker, map, 1.0 / 30.0, {}, 1000.0)
+	h.assert_eq(String(walker["state"]), "return_home", "a creature that lost you walks home")
+	h.assert_true(
+		absf(float(walker["x"]) - (1300.0 - 54.0 * 0.971700011846 / 30.0)) < 1e-9,
+		"at fifty-four pixels a second, not the hundred and eight it chased at"
 	)
 
 

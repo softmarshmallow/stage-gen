@@ -71,6 +71,7 @@ func _initialize() -> void:
 		return
 
 	var step_seconds := float(replay.get("step_seconds", DEFAULT_STEP))
+	var frame_ms := step_seconds * 1000.0
 	var frames := int(replay["frames"])
 	var every := int(replay["digest_every"])
 	var lines := PackedStringArray()
@@ -78,7 +79,12 @@ func _initialize() -> void:
 	for frame in range(1, frames + 1):
 		world.events.begin_frame()
 		world.intent = _intent_for(replay, frame)
-		_step(world, step_seconds, float(frame) * step_seconds * 1000.0, frame)
+		# `frame * frame_ms`, and the association is not incidental: the browser
+		# multiplies the frame by a millisecond step, and `(frame * seconds) *
+		# 1000` rounds differently in the last place. One ulp is enough to decide
+		# whether an attack window that ends exactly on a frame boundary is still
+		# open on it.
+		_step(world, step_seconds, float(frame) * frame_ms, frame)
 		hashes.append("%d %s" % [frame, _frame_hash(world)])
 		if frame % every == 0:
 			lines.append("%d %s" % [frame, _digest(world)])

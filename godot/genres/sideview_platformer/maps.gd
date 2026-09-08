@@ -126,6 +126,7 @@ static func parse(manifest: Variant) -> Variant:
 		"revision": int(gameplay.get("revision", 0)),
 		"mobs": doc.get("mobs", []),
 		"items": doc.get("items", []),
+		"projectiles": doc.get("projectiles", []),
 		"soundtrack": doc.get("soundtrack", {}),
 	}
 

@@ -68,6 +68,17 @@ static func throw_one(world: PlatformerWorld, step: Dictionary) -> void:
 	)
 
 
+## The shape the package's round is drawn as, which decides how it carries
+## itself in the air.
+static func _silhouette(world: PlatformerWorld) -> String:
+	var named := String((world.package["combat"] as Dictionary).get("projectile_id", ""))
+	for entry: Variant in (world.package["projectiles"] as Array):
+		var spec: Dictionary = entry
+		if String(spec.get("projectile_id", "")) == named:
+			return String(spec.get("silhouette", PlatformerProjectiles.DEFAULT_ORIENTATION))
+	return PlatformerProjectiles.DEFAULT_ORIENTATION
+
+
 ## Step every round and pay out what it hit.
 static func update(world: PlatformerWorld, step: Dictionary) -> void:
 	if world.hold or world.projectiles.is_empty():
@@ -89,7 +100,8 @@ static func update(world: PlatformerWorld, step: Dictionary) -> void:
 			"minX": 0.0,
 			"maxX": float(map["worldWidthPx"]),
 			"surfaceAt": func(x: float) -> float: return PlatformerMaps.surface_at_x(map, x),
-		}
+		},
+		_silhouette(world)
 	)
 	var weapon := PlatformerWeapon.profile(world.weapon_class)
 	for entry: Variant in hits:
