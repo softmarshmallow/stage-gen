@@ -129,31 +129,45 @@ exact parity on the first or second attempt. Taking them first means three of
 the four genres are on Godot while the platformer is still being worked out,
 rather than none of them.
 
-**Where step 9 has got to.** The port is driven by the golden frame by frame and
-the gate is a *prefix* rather than a whole-file diff — `tools/frames_prefix.py`
-asserts how far the run agrees counting from frame one, because a diff answers
-"no" for six hundred frames on the day the first fifty-nine are right. The pin
-moves with each unit and lives in three places that must agree:
+**Where step 9 has got to.** Both scripted runs agree with the browser for all
+six hundred frames, hash for hash, on every field `PARITY_EXCLUDE` leaves
+standing. The gate was a *prefix* while the port was in flight —
+`tools/frames_prefix.py` asserts how far a run agrees counting from frame one,
+because a whole-file diff answers "no" for six hundred frames on the day the
+first fifty-nine are right — and it is now a prefix of six hundred, which is the
+whole file. The number lives in three places that must agree:
 `tests/test_platformer.gd`, `tools/validate.sh`, and the commit that raised it.
+
+The second run is new and is the reason the first was not enough. It walks east
+into an authored gate, is beaten by what is standing in it, and answers its own
+death screen — the only path that reads the set-piece, the defeat card and the
+recovery at all. Four things were missing that the village walk could never have
+shown, and one of them had been sitting in the simulation the whole time.
 
 What the simulation now carries: the body and its maps, the gate between them,
 the conversation and the effects an ending is worth, the seeded soundtrack, the
 dead-zone camera and the tremor a kill puts in it, the population director and
 the creatures it stands up, their awareness and their committed blows, the
 rounds in the air, contact damage and the hold it puts on the frame, the loot
-that falls out of a kill and the experience it banks, and coming back from a
-defeat.
+that falls out of a kill and the experience it banks, the drink that spends it,
+the authored gate and the boss standing behind it, and coming back from a defeat.
+
+The frame order lives in one place, `PlatformerFrame.step`. It used to live in
+two — the host's loop and the parity harness's — and a proof against one of them
+said nothing about the other: the harness could have agreed with the browser for
+six hundred frames while the game played a different order, and nothing would
+have said so. The harness now ticks the game.
 
 What the host now draws: the parallax bands, the ground from its own atlas with
 the browser's overscan padding, the gates, the ladders, the body and every
 creature sized from the ruler its producer published, the rounds, what is lying
-on the ground, and a health bar.
+on the ground, the inventory panel, the dialogue box, the numbers that float off
+a body and a creature's own health bar.
 
-What is left: the inventory panel, the dialogue box, the numbers that float off
-a body, a creature's own health bar, the props along a map, and the retirement
-record with the browser deletion. One divergence is open and written down rather
-than papered over — the column a replacement creature spawns in at frame 327,
-measured in `tests/test_platformer.gd` with the numbers that would close it.
+What is left: the props along a map, the NPC bodies, the per-digit stagger a
+number arcs with, and the retirement record with the browser deletion. Seven
+gaps in the spawn director are written down rather than papered over — every one
+of them dormant on these two packages and live on others.
 
 **What running it found that the golden could not.** The media-free fixture the
 golden was recorded against publishes every field it declares. A shipped package
@@ -161,6 +175,16 @@ does not: `bellweather-c6-parity` publishes `aggression` as an explicit null, an
 `String(null)` in GDScript is not a cast but a constructor that does not exist —
 so the host died at its first creature while six hundred frames of parity stayed
 green. A picture gate would not have caught it either. Playing it did.
+
+**What a second run found that the first could not.** Four of the five defects
+the defeat run exposed were absences — the set-piece, the defeat card's own
+arrival, the label naming where the run resumes, and a recovery that went round
+the map entry instead of through it. The fifth was already in the simulation and
+already wrong: a creature's lane was measured against a rendered half-width of
+twenty-four where the drawn envelope is fifty-five, and the two never disagreed
+anywhere the population puts a creature down. A gate's boss stands eight tiles
+from the east edge, and thirty-one pixels of lane is the difference between
+hunting a player and walking home.
 
 ## What is deliberately not here
 

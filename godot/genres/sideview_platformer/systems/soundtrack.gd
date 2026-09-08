@@ -20,7 +20,12 @@ extends RefCounted
 
 ## The keys a player presses at the scene rather than through the body. Pressing
 ## any of them is the gesture.
-const GESTURE_KEYS := ["interact", "enter", "up", "upPressed", "space", "jump"]
+##
+## The scene keys and nothing else, because the browser hears the gesture as a
+## `keydown` and the body's levels never reach the keyboard. On a real keyboard
+## the set still covers everything: W publishes `upPressed` beside `up`, and
+## SPACE publishes `space` beside `jump`.
+const GESTURE_KEYS := ["interact", "enter", "upPressed", "space"]
 
 
 static func declaration() -> KernelSystem:

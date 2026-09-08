@@ -30,9 +30,6 @@ const DEFAULT_SPEED_PX := 36.0
 const PATROL_HOME_RADIUS_TILES := 1.5
 const PURSUIT_HOME_RADIUS_TILES := 6.0
 
-## Half the drawn body, kept off the world's edges.
-const RENDERED_HALF_WIDTH := 24.0
-
 const STATE_WANDER := "wander"
 const STATE_CHASE := "chase"
 const STATE_ATTACK_RECOVERY := "attack_recovery"
@@ -112,10 +109,19 @@ static func create(
 		# The `actor-ai` family's hysteresis: having *been* engaged is what makes
 		# losing the target a walk home rather than a shrug.
 		"awareness": "idle",
+		# Where the body was when somebody last told this creature, and whether it
+		# was still standing. Written once a frame by the contact pass and read on
+		# the next line of the same frame — which is why a creature that stood up
+		# *after* that pass hunts nothing until the frame after: nobody told it.
+		"observed": {},
 		# The blow in flight, and when the next one may start. A wind-up already
 		# committed resolves before anything else is decided.
 		"strikeLandsAtMs": 0.0,
 		"attackReadyAtMs": 0.0,
+		# The seed it was born with and how many blows it has thrown, which
+		# together decide how long the next one takes.
+		"behaviorSeed": instance,
+		"actionSequence": 0,
 		"pendingStrike": {},
 		"hurtUntil": 0.0,
 		# The knockback in flight: where it started, where it is going, and when.
@@ -212,7 +218,10 @@ static func _directive(mob: Dictionary, profile: Dictionary, player: Dictionary)
 		and float(player["x"]) <= float(mob["pursuitMaxX"])
 	)
 	var can_engage := (
-		observed and within_territory and distance <= float(profile["aggroRadiusPx"])
+		observed
+		and not bool(player.get("defeated", false))
+		and within_territory
+		and distance <= float(profile["aggroRadiusPx"])
 	)
 	var home_required := not (
 		float(mob["x"]) >= float(mob["patrolMinX"])
@@ -270,8 +279,16 @@ static func _windup(
 	if float(player["x"]) != float(mob["x"]):
 		mob["facing"] = 1 if float(player["x"]) > float(mob["x"]) else -1
 	mob["state"] = STATE_WINDUP
-	mob["strikeLandsAtMs"] = now_ms + float(profile["windupMs"])
-	mob["attackReadyAtMs"] = now_ms + float(profile["cooldownMs"])
+	var timing := PlatformerMobBehavior.action_timing(
+		int(mob["behaviorSeed"]),
+		int(mob["actionSequence"]),
+		float(profile["windupMs"]),
+		float(profile["cooldownMs"]),
+		float(profile["actionTimingVarianceRatio"])
+	)
+	mob["actionSequence"] = int(mob["actionSequence"]) + 1
+	mob["strikeLandsAtMs"] = now_ms + float(timing["windupMs"])
+	mob["attackReadyAtMs"] = now_ms + float(timing["cooldownMs"])
 
 
 ## The box a round is tested against: the drawn envelope, standing on its feet.
@@ -423,8 +440,15 @@ static func _lane(map: Dictionary, spawn_x: float) -> Dictionary:
 	var right := spawn_column
 	while right + 1 < columns and heights[right + 1] == height:
 		right += 1
-	var world_min := RENDERED_HALF_WIDTH
-	var world_max := float(map["worldWidthPx"]) - RENDERED_HALF_WIDTH
+	# The drawn envelope, not a number of its own. There used to be a second
+	# constant here — twenty-four where the envelope is fifty-five — and the two
+	# never disagreed anywhere a creature actually stood, because a lane only
+	# clamps at the edge of the world and nothing the population puts down
+	# patrols that far. A gate's boss stands eight tiles from the east edge, and
+	# thirty-one pixels of lane is the difference between hunting a player and
+	# walking home.
+	var world_min := envelope_half_width()
+	var world_max := float(map["worldWidthPx"]) - envelope_half_width()
 	return {
 		"minX": maxf(world_min, float(left) * PlatformerMaps.TILE_PX),
 		"maxX": minf(world_max, float(right + 1) * PlatformerMaps.TILE_PX - 1.0),

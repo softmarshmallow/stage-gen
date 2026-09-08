@@ -44,9 +44,13 @@ static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerInventory
 	var block: Dictionary = (manifest.get("ui", {}) as Dictionary).get("inventory_panel", {})
 	if block.is_empty():
 		return null
-	var art := package.texture(str(block.get("asset", "")))
+	# The published shape first and the bare string second, which is the order
+	# `dialogue_box.gd` already used. The other way round, an ordinary run spends
+	# its first lookup stringifying a whole asset record into a filename and
+	# reports a missing file it then goes on to find.
+	var art := package.texture(str((block.get("asset", {}) as Dictionary).get("path", "")))
 	if art == null:
-		art = package.texture(str((block.get("asset", {}) as Dictionary).get("path", "")))
+		art = package.texture(str(block.get("asset", "")))
 	if art == null:
 		push_error("platformer inventory: the run publishes a panel with no art")
 		return null

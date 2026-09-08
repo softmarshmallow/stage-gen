@@ -19,6 +19,28 @@ extends RefCounted
 ## because a player who has just died is already holding one of them.
 const CONFIRM_KEYS := ["interact", "enter", "space"]
 
+## What this genre calls a place nothing hunts. The word is the package's; that a
+## recovery goes to one is the family's.
+const SAFE_MAP_ROLE := "safe_village_hub"
+
+## The terminal strip, four frames at eight a second.
+const DEATH_STRIP_DURATION_MS := 500.0
+
+## How long a defeated body lies there before it is asked what to do next.
+##
+## Long enough for the strip to finish and register as an ending rather than a
+## stutter — a prompt raised over a still-playing death animation would be
+## talking over the one moment that artwork exists for.
+const PROMPT_DELAY_MS := DEATH_STRIP_DURATION_MS + 400.0
+
+## How long the card takes to arrive, so it reads as an arrival and not a cut.
+const PROMPT_FADE_MS := 260.0
+
+## What the button says before a run has anywhere to name. The world owns the
+## card's resting state, so the words come from there rather than from a second
+## copy that could drift from it.
+const LABEL_AT_REST := PlatformerWorld.DEFEAT_PANEL_AT_REST["buttonLabel"]
+
 
 static func declaration() -> KernelSystem:
 	return KernelSystem.of(
@@ -33,49 +55,77 @@ static func declaration() -> KernelSystem:
 
 
 ## Notice a defeat, and take the key that ends it.
-static func update(world: PlatformerWorld, step: Dictionary) -> void:
+##
+## Returns whether the rest of this frame's player pass is over. A recovery
+## rebuilds the world — a new map, a new roster, a body at full health — so
+## nothing below it may step a creature that is about to be replaced or resolve a
+## blow against a body that is no longer standing where it was hit.
+static func update(world: PlatformerWorld, step: Dictionary) -> bool:
 	if not bool(world.player["defeated"]):
 		world.defeated_at_ms = null
-		return
+		return false
 	if world.defeated_at_ms == null:
 		world.defeated_at_ms = float(step["now"])
 		PlatformerTranscript.record(
 			world, "player-defeated", int(step["frame"]), float(step["now"]), null
 		)
-		return
+	# The card is not up the instant the body goes down, and until it is, the key
+	# that would accept it does nothing. Both halves matter: the delay is what
+	# makes a death read as an ending, and refusing the key while the card is
+	# still arriving is what stops a player who was mid-jump from skipping it
+	# without ever seeing it.
+	var prompt := FamilyDefeatPrompt.prompt_state(
+		float(world.defeated_at_ms), float(step["now"]), PROMPT_DELAY_MS, PROMPT_FADE_MS
+	)
+	if not bool(prompt["visible"]):
+		return false
+	# The button names where the run resumes rather than promising "continue",
+	# and it is named the moment the card is up rather than when the body fell —
+	# the card is the only thing that could have said it.
+	world.defeat_panel["buttonLabel"] = _return_label(world)
 	if not _confirmed(world):
-		return
+		return false
 	_respawn(world, step)
+	return true
 
 
-## Put the body back where the package calls home.
+## Where a recovery goes, and what to call it.
+static func home_spawn(world: PlatformerWorld) -> Dictionary:
+	return FamilyCheckpoints.respawn_target(
+		String(world.package["entrySpawnId"]),
+		world.package["spawns"],
+		world.package["maps"],
+		SAFE_MAP_ROLE
+	)
+
+
+static func _return_label(world: PlatformerWorld) -> String:
+	var home := home_spawn(world)
+	if home.is_empty():
+		return LABEL_AT_REST
+	var map: Dictionary = (world.package["maps"] as Dictionary).get(String(home["mapId"]), {})
+	var named := String(map.get("displayName", "")).strip_edges()
+	return LABEL_AT_REST if named.is_empty() else "Return to %s" % named
+
+
+## Ask for the map entry that puts the body back where the package calls home.
+##
+## Asked rather than taken, and that is what makes a recovery cheap and safe: the
+## same transition that carries a portal rebuilds the world at the end of the
+## frame, once every system below this one has finished reading the world it
+## still has. Nothing here rebuilds anything.
 static func _respawn(world: PlatformerWorld, step: Dictionary) -> void:
-	var home := String(world.package["entrySpawnId"])
-	var spawn := PlatformerMaps.spawn_position(world.package, home)
-	if spawn.is_empty():
+	var home := home_spawn(world)
+	if home.is_empty():
 		return
 	world.defeated_at_ms = null
-	world.open_on(String(spawn["mapId"]))
-	PlatformerMapEntrySystem.place(world, float(spawn["x"]), float(spawn["y"]))
-	# The pool is refilled rather than topped up: a body that came back on one
-	# point would die to the first thing it met, which reads as a punishment for
-	# having died rather than as a second try.
-	world.player["hp"] = int(world.progression.get("maximumHealth", world.player["maxHp"]))
-	world.player["maxHp"] = int(world.player["hp"])
-	world.player["defeated"] = false
-	world.player["state"] = PlatformerPlayer.STATE_IDLE
-	world.player["gauge"] = KernelGauge.create(int(world.player["maxHp"]))
-	world.camera = PlatformerCameraSystem.snapped(
-		float(world.player["x"]),
-		PlatformerCameraSystem.bounds_of(world),
-		float(world.player["y"])
-	)
+	world.pending_map = {"toSpawnId": String(home["spawnId"])}
 	PlatformerTranscript.record(
 		world,
 		"player-respawned",
 		int(step["frame"]),
 		float(step["now"]),
-		{"mapId": world.map_id}
+		{"mapId": String(home["mapId"])}
 	)
 
 

@@ -28,6 +28,16 @@ const CONTACT_REFRACTORY_MS := 900.0
 const CONTACT_BLINK_INTERVAL_MS := 75.0
 const CONTACT_BLINK_ALPHA := 0.35
 
+## What one healing consumable restores, as a fraction of the pool it is poured
+## into.
+##
+## A fraction rather than a flat number because the pool is authored per package:
+## a starting health of six in one game and sixty in the next makes a flat "+4" a
+## lifesaver in the first and litter in the second. Two fifths means a full bar is
+## three drinks away at worst, so carrying a stack is worth doing and carrying one
+## is not a full reset.
+const HEALING_RESTORE_FRACTION := 0.4
+
 
 ## A fresh slice. `max_points` of 0 means this package has no vitals at all, and
 ## the gauge stays empty — every consequence then ends the run, which is the
@@ -92,6 +102,13 @@ static func resolve(
 			verdicts.append({"kind": VERDICT_ENDED, "source": source})
 			return verdicts
 	return verdicts
+
+
+## Points one consumable restores against `max_points`, always at least one.
+static func healing_restore_amount(max_points: int) -> float:
+	if max_points <= 0:
+		return 0.0
+	return maxf(1.0, ceilf(float(max_points) * HEALING_RESTORE_FRACTION))
 
 
 ## Is the body inside its window, and so untouchable?

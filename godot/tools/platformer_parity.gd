@@ -19,6 +19,11 @@ extends SceneTree
 ## a space after every colon and would move all six hundred hashes for a reason
 ## that is not the simulation.
 ##
+## The order it drives is `PlatformerFrame.step` — the game's own, not a copy of
+## it. That was the whole point of moving it: a harness with its own frame order
+## can agree with the browser for six hundred frames while the game plays
+## something else, and nothing would say so.
+##
 ## Why a second harness rather than the runner's: a platformer replay carries no
 ## seed and its step is 1/30 rather than 1/60, its world is a class with
 ## twenty-four slices rather than fourteen, and its scripted keys include four
@@ -30,8 +35,17 @@ extends SceneTree
 ## runner's 1/60 would replay the same intents over twice the world.
 const DEFAULT_STEP := 1.0 / 30.0
 
-## The keys the scripted run presses at the scene rather than through the body.
-const SCENE_KEYS := ["interact", "enter", "up", "space"]
+## The keys the scripted run presses at the scene rather than through the body,
+## and the intent field each one is published under. `up` is the odd one: the
+## keyboard's UP is a scene key, but the body's own `up` is a level the replay
+## drives straight through `driveWithIntent` and never through a keydown — so
+## the key publishes `upPressed` and leaves `up` alone.
+const SCENE_KEYS := {
+	"interact": "interact",
+	"enter": "enter",
+	"up": "upPressed",
+	"space": "space",
+}
 
 ## Which scene keys were down on the frame before this one, so a level can be
 ## turned back into the edge the browser reads.
@@ -77,14 +91,15 @@ func _initialize() -> void:
 	var lines := PackedStringArray()
 	var hashes := PackedStringArray()
 	for frame in range(1, frames + 1):
-		world.events.begin_frame()
 		world.intent = _intent_for(replay, frame)
 		# `frame * frame_ms`, and the association is not incidental: the browser
 		# multiplies the frame by a millisecond step, and `(frame * seconds) *
 		# 1000` rounds differently in the last place. One ulp is enough to decide
 		# whether an attack window that ends exactly on a frame boundary is still
 		# open on it.
-		_step(world, step_seconds, float(frame) * frame_ms, frame)
+		PlatformerFrame.step(
+			world, {"dt": step_seconds * 1000.0, "now": float(frame) * frame_ms, "frame": frame}
+		)
 		hashes.append("%d %s" % [frame, _frame_hash(world)])
 		if frame % every == 0:
 			lines.append("%d %s" % [frame, _digest(world)])
@@ -102,70 +117,15 @@ func _initialize() -> void:
 	quit(0)
 
 
-## One frame of the world, in the browser's own order.
-##
-## The sealed roster lands when there are enough systems for a sealer to have an
-## opinion about; until then the order is written out, and it is the order
-## `assemblePlatformerSystems` declares — the conversation before the body,
-## because a held frame is decided before it is spent.
-func _step(world: PlatformerWorld, step_seconds: float, now_ms: float, frame: int) -> void:
-	var step := {"dt": step_seconds * 1000.0, "now": now_ms, "frame": frame}
-	PlatformerSoundtrackSystem.update(world, step)
-	PlatformerDialogueSystem.update(world, step)
-	PlatformerClockSystem.update(world, step)
-	if world.hold:
-		PlatformerMapEntrySystem.apply(world, step)
-		return
-	var map: Dictionary = (world.package["maps"] as Dictionary)[world.map_id]
-	var terrain := {
-		"heights": map["heights"],
-		"tilePx": PlatformerMaps.TILE_PX,
-		"baselineY": PlatformerMaps.BASELINE_Y,
-		"worldWidthPx": map["worldWidthPx"],
-		"platforms": world.platforms,
-		"climbables": world.climbables,
-		"maximumAirJumps": PlatformerVertical.AIR_JUMPS_MAX,
-		"combatEnabled": world.package["combatEnabled"],
-	}
-	PlatformerPlayer.update(
-		world.player,
-		terrain,
-		world.simulation_dt,
-		now_ms,
-		world.intent,
-		PlatformerWeapon.profile(world.weapon_class)
-	)
-	# The blow a creature committed on the frame before this one, read here rather
-	# than after the creatures move: the browser resolves contact inside
-	# `player/update`, so every creature this touches is where it stood at the end
-	# of the previous frame. Resolving it a step later lands it a frame early.
-	PlatformerMobsSystem.strike(world, step)
-	PlatformerSessionSystem.update(world, step)
-	# The throw is the last thing `player/update` does, after the blows landing
-	# on the body have been settled.
-	PlatformerProjectilesSystem.throw_one(world, step)
-	PlatformerMobsSystem.populate(world, step)
-	PlatformerMobsSystem.step(world, step)
-	PlatformerProjectilesSystem.update(world, step)
-	PlatformerItemsSystem.update(world, step)
-	PlatformerCameraSystem.carry_shake(world, step)
-	PlatformerDialogueSystem.prompt(world, step)
-	PlatformerMapEntrySystem.ask(world)
-	PlatformerMapEntrySystem.apply(world, step)
-	# Last, and deliberately: the browser's camera is the engine's own pre-render
-	# pass, which runs after every system has written what it was going to.
-	PlatformerCameraSystem.update(world, step)
-
-
 ## The scripted intents, in the browser's own vocabulary: `hold` is a level down
 ## from `from` through `until` inclusive, `press` is one edge on exactly that
 ## frame, and `keys` are the scene-level presses the body does not carry.
 func _intent_for(replay: Dictionary, frame: int) -> Dictionary:
 	var made := PlatformerWorld.neutral_intent()
 	var held := {}
-	for key in SCENE_KEYS:
-		made[key] = false
-		held[key] = false
+	for key: Variant in SCENE_KEYS:
+		made[String(SCENE_KEYS[key])] = false
+		held[String(key)] = false
 	for entry: Variant in (replay["intents"] as Array):
 		var intent: Dictionary = entry
 		if intent.has("from"):
@@ -183,13 +143,17 @@ func _intent_for(replay: Dictionary, frame: int) -> Dictionary:
 	# The golden says so plainly — the defeat run's own comment presses `up` "on
 	# alternate frames so each press is a fresh edge" — and a harness that fed
 	# levels would walk through the gate it just arrived at.
-	for key in SCENE_KEYS:
-		made[key] = bool(held[key]) and not bool(_scene_keys_last.get(key, false))
-	# The gate reads a press; the ladder reads the same key held. Both come off
-	# the one scene key, and separating them here is what lets a body climb
-	# without walking through every doorway it passes.
-	made["upPressed"] = bool(made["up"])
-	made["up"] = bool(held["up"]) or bool(made["up"])
+	#
+	# The two channels are separate all the way down, which is the correction
+	# this line carries: the browser hands the body `script.intent(frame)` and
+	# the keyboard `script.keys(frame)`, and neither one can see the other. The
+	# body climbs on a held `up` the keyboard never knew about, and the gate
+	# opens on a pressed UP the body never reads. Folding them together stole
+	# fifty-two frames of ladder from the run.
+	for key: Variant in SCENE_KEYS:
+		made[String(SCENE_KEYS[key])] = (
+			bool(held[String(key)]) and not bool(_scene_keys_last.get(String(key), false))
+		)
 	_scene_keys_last = held
 	return made
 

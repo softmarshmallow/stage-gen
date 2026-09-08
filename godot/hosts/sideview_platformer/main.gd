@@ -131,62 +131,18 @@ func _process(delta: float) -> void:
 	hud.sync(world)
 
 
-## One frame of the world, in the order `assemblePlatformerSystems` declares it.
+## One frame of the world, in the order the genre declares it.
 ##
-## Written out rather than sealed, and the harness at `tools/platformer_parity.gd`
-## keeps the same order for the same reason: the sealer derives an order from
-## declarations, and until every system carries one, an order written down is an
-## order that can be compared with the browser's.
+## The order itself moved to `PlatformerFrame`, and the move is the point: the
+## parity harness ticks the same function, so a run that agrees with the browser
+## for six hundred frames is a claim about this game rather than about a test.
 func _tick() -> void:
-	var step := {"dt": FIXED_STEP * 1000.0, "now": _now * 1000.0, "frame": _frame}
-	world.events.begin_frame()
-	world.blows = []
 	world.intent = input.sample()
 	for key in _forced_intent:
 		world.intent[key] = true
-	PlatformerSoundtrackSystem.update(world, step)
-	PlatformerDialogueSystem.update(world, step)
-	PlatformerClockSystem.update(world, step)
-	if world.hold:
-		PlatformerMapEntrySystem.apply(world, step)
-		return
-	PlatformerPlayer.update(
-		world.player,
-		_terrain(),
-		world.simulation_dt,
-		_now * 1000.0,
-		world.intent,
-		PlatformerWeapon.profile(world.weapon_class)
+	PlatformerFrame.step(
+		world, {"dt": FIXED_STEP * 1000.0, "now": _now * 1000.0, "frame": _frame}
 	)
-	PlatformerMobsSystem.strike(world, step)
-	PlatformerSessionSystem.update(world, step)
-	PlatformerProjectilesSystem.throw_one(world, step)
-	PlatformerMobsSystem.populate(world, step)
-	PlatformerMobsSystem.step(world, step)
-	PlatformerProjectilesSystem.update(world, step)
-	PlatformerItemsSystem.update(world, step)
-	PlatformerCameraSystem.carry_shake(world, step)
-	PlatformerDialogueSystem.prompt(world, step)
-	PlatformerMapEntrySystem.ask(world)
-	PlatformerMapEntrySystem.apply(world, step)
-	# Last, and deliberately: the browser's camera is the engine's own pre-render
-	# pass, which runs after every system has written what it was going to.
-	PlatformerCameraSystem.update(world, step)
-
-
-## The ground the body walks on, for the map it is standing in.
-func _terrain() -> Dictionary:
-	var map: Dictionary = (world.package["maps"] as Dictionary)[world.map_id]
-	return {
-		"heights": map["heights"],
-		"tilePx": PlatformerMaps.TILE_PX,
-		"baselineY": PlatformerMaps.BASELINE_Y,
-		"worldWidthPx": map["worldWidthPx"],
-		"platforms": world.platforms,
-		"climbables": world.climbables,
-		"maximumAirJumps": PlatformerVertical.AIR_JUMPS_MAX,
-		"combatEnabled": world.package["combatEnabled"],
-	}
 
 
 ## The design space, scaled whole and centred, so the picture letterboxes rather

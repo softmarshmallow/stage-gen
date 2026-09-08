@@ -49,12 +49,34 @@ static func parse(manifest: Variant) -> Variant:
 			"schema_version"
 		)
 
+	var climb_artwork := _climb_artwork(doc.get("player", {}))
 	var maps := {}
 	for entry: Variant in _array(doc.get("maps")):
 		var authored: Dictionary = entry
 		var built: Variant = _map(authored)
 		if KernelRefusal.is_refusal(built):
 			return built
+		# A rope nobody drew is not a rope a body can climb. Said here, at parse,
+		# rather than discovered on the frame a player grabs one: the strip a role
+		# climbs on is the package's to publish, and a package that places a
+		# climbable it never drew has a hole in it that no host can fill.
+		for zone: Variant in ((built as Dictionary)["climbables"] as Array):
+			var role := String((zone as Dictionary).get("role", ""))
+			if climb_artwork.has(role):
+				continue
+			return KernelRefusal.of(
+				"platformer/maps",
+				(
+					"%s places the %s %s but this package publishes no %s strip"
+					% [
+						String(authored.get("map_id", "")),
+						role,
+						String((zone as Dictionary).get("id", "")),
+						String(CLIMB_STATE_BY_ROLE.get(role, role)),
+					]
+				),
+				"player.states"
+			)
 		maps[String(authored.get("map_id", ""))] = built
 
 	var gameplay: Dictionary = doc.get("gameplay", {})
@@ -93,6 +115,7 @@ static func parse(manifest: Variant) -> Variant:
 
 	var player: Dictionary = gameplay.get("player", {})
 	return {
+		"climbArtwork": climb_artwork,
 		"gameId": String(doc.get("game_id", "")),
 		"displayName": String(doc.get("display_name", "")),
 		"maps": maps,
@@ -122,6 +145,10 @@ static func parse(manifest: Variant) -> Variant:
 		"progression": gameplay.get("progression", {}),
 		"inventory": gameplay.get("inventory", {}),
 		"mobPopulation": gameplay.get("mob_population", {}),
+		# The authored gates. Four facts each — where one stands, what stands
+		# there, what plays while it does, and whether it comes back — and the
+		# runtime that came before read exactly one of them.
+		"bossEncounters": gameplay.get("boss_encounters", []),
 		# The run's own revision, which seeds every population this package
 		# spawns: two runs of one package meet the same creatures.
 		"revision": int(gameplay.get("revision", 0)),
@@ -130,6 +157,42 @@ static func parse(manifest: Variant) -> Variant:
 		"projectiles": doc.get("projectiles", []),
 		"soundtrack": doc.get("soundtrack", {}),
 	}
+
+
+## Which strip each climbable role climbs on, and how long that strip is.
+##
+## Two authored states — `climb_ladder` and `climb_rope` — resolve to the one
+## body state `climb`: the physics of the two are identical and only the drawing
+## differs, so the role selects a strip rather than the state machine carrying
+## two climbing states. That is the one entry in the published state vocabulary
+## that is not one-to-one, which is why it is resolved here rather than beside
+## the other nine.
+##
+## The frame count is load bearing rather than decorative: a body walks its climb
+## strip by *distance* rather than by time, and the count is the modulus that
+## turns a rise into a cycle. A run whose package published a two-frame strip and
+## whose port assumed four would climb the same ladder in a different pose.
+const CLIMB_STATE_BY_ROLE := {"ladder": "climb_ladder", "rope": "climb_rope"}
+
+
+static func _climb_artwork(player: Dictionary) -> Dictionary:
+	var states: Dictionary = player.get("states", {})
+	var made := {}
+	for role: Variant in CLIMB_STATE_BY_ROLE:
+		var state := String(CLIMB_STATE_BY_ROLE[role])
+		if not (states.get(state) is Dictionary):
+			continue
+		var binding: Dictionary = states[state]
+		var playback: Dictionary = binding.get("playback", {})
+		var frames := _array(playback.get("canonical_frame_indices")).size()
+		if frames <= 0:
+			continue
+		made[String(role)] = {
+			"animationKey": "player_%s" % state,
+			"textureKey": "character_%s" % state,
+			"frameCount": frames,
+		}
+	return made
 
 
 ## Where a body stands when it arrives at a spawn.
@@ -235,6 +298,11 @@ static func _map(authored: Dictionary) -> Variant:
 		"platforms": platforms,
 		"climbables": climbables,
 		"endpoints": endpoints,
+		"displayName": String(authored.get("display_name", "")),
+		# What this map is *for*, which is what a recovery reads: a settlement, a
+		# route, a dungeon. The word itself is the package's; what counts as safe
+		# is the genre's.
+		"role": String(authored.get("role", "")),
 		"hostilePopulationEnabled": bool(authored.get("hostile_population_enabled", false)),
 		# An axis is switched off by giving the camera no room to travel along
 		# it, so what a map authors is which axes it *has*, and the bounds do the

@@ -71,7 +71,12 @@ func sync(world: PlatformerWorld, scroll: Vector2, dt: float) -> void:
 
 
 ## Which strip the body plays. The world's own state names it, except that a
-## published package spells two of them differently.
+## published package spells two of them differently — and except for the climb,
+## where one state has a strip per climbable role and the world says which.
+##
+## `character_climb_ladder` is the texture key; `climb_ladder` is the authored
+## state that owns it, and the prefix is the one place the two vocabularies meet.
+## Hardcoding the ladder here worked only because nothing has authored a rope.
 func _player_strip(world: PlatformerWorld) -> String:
 	var state := str(world.player["state"])
 	match state:
@@ -80,6 +85,9 @@ func _player_strip(world: PlatformerWorld) -> String:
 		"ranged_attack":
 			return "skill_cast"
 		"climb":
+			var drawn: Variant = world.player["climbTextureKey"]
+			if drawn is String:
+				return (drawn as String).trim_prefix("character_")
 			return "climb_ladder"
 		_:
 			return state

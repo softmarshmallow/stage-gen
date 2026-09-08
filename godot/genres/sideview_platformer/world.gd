@@ -80,6 +80,20 @@ var spent_gates: Dictionary = {}
 var population: Dictionary = {}
 var next_mob_instance: int = 1
 
+## And how many it has *named*, which is not the same number. Every creature that
+## stands up gets a bot id; only the ones the director manages get an instance.
+## A gate's boss is stood up by nobody's director, so the two counters part
+## company the moment one fires — and a run that used one number for both would
+## give the next director creature the name the boss already has.
+var next_mob_bot_id: int = 1
+
+## The authored gates, by encounter id, for the life of the session rather than
+## of the map: a gate that has ended stays ended when the player walks back onto
+## the map it stood on. What *is* map-scoped is the body standing in it, which is
+## torn down with the rest of the map.
+var set_pieces: Dictionary = {}
+var set_piece_bodies: Dictionary = {}
+
 ## The rounds in the air, and the next one's name.
 var next_shot_id: int = 1
 
@@ -244,6 +258,7 @@ func open_on(opened: String) -> void:
 	projectiles = []
 	world_items = []
 	population = PlatformerPopulation.project(package, opened)
+	PlatformerSetPieceSystem.open_on(self)
 
 
 ## The gates, where they stand and how tall they are drawn.

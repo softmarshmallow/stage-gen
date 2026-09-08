@@ -116,24 +116,29 @@ if [ "$SKIP_TESTS" -eq 0 ]; then
   python3 "$PROJECT/tools/runner_parity_diff.py" \
       "$CASE_REPLAY/01-demo.web.jsonl" "$OUT/case.godot.jsonl"
 
-  echo "== platformer parity against the browser's own golden (prefix)"
-  # Step 9 is in flight, so this is the one parity gate that is not a whole-file
-  # diff: the port is exact up to a frame, and the frame after it speaks to a
-  # system nobody has derived yet. The pin is asserted rather than reported, so a
-  # change that breaks a frame already earned turns this red the day it happens,
-  # and a unit that ports another system has to come back and raise it.
+  echo "== platformer parity against the browser's own golden"
+  # Two scripted runs, both whole. The first walks the village, talks, crosses
+  # onto the road, throws, climbs and drinks; the second walks east into an
+  # authored gate, is beaten by what is standing in it, and answers its own death
+  # screen. Between them they are the only thing that reads the set-piece, the
+  # defeat panel and the recovery at all.
   #
-  # 379 — frame 380 is where the climb window opens. `tests/test_platformer.gd`
-  # carries the same number and the same reason.
+  # A whole-file diff rather than a prefix, which is what it was while step 9 was
+  # in flight. `tests/test_platformer.gd` carries the same number and the same
+  # reason.
   PLATFORMER_REPLAY="$PROJECT/tests/fixtures/sideview_platformer/replay"
-  "$GODOT" --headless --path "$PROJECT" --quit-after 100000 \
-      -s res://tools/platformer_parity.gd -- \
-      --script "$PLATFORMER_REPLAY/01-village-600.json" --out "$OUT/platformer.godot.jsonl"
-  python3 "$PROJECT/tools/frames_prefix.py" \
-      "$OUT/platformer.godot-frames.txt" \
-      "$PLATFORMER_REPLAY/01-village-600.web-frames.txt" --at-least 379
-  python3 "$PROJECT/tools/runner_parity_diff.py" \
-      "$PLATFORMER_REPLAY/01-village-600.web.jsonl" "$OUT/platformer.godot.jsonl"
+  for PLATFORMER_RUN in 01-village-600 02-defeat-600; do
+    "$GODOT" --headless --path "$PROJECT" --quit-after 100000 \
+        -s res://tools/platformer_parity.gd -- \
+        --script "$PLATFORMER_REPLAY/$PLATFORMER_RUN.json" \
+        --out "$OUT/platformer.$PLATFORMER_RUN.godot.jsonl"
+    python3 "$PROJECT/tools/frames_prefix.py" \
+        "$OUT/platformer.$PLATFORMER_RUN.godot-frames.txt" \
+        "$PLATFORMER_REPLAY/$PLATFORMER_RUN.web-frames.txt" --at-least 600
+    python3 "$PROJECT/tools/runner_parity_diff.py" \
+        "$PLATFORMER_REPLAY/$PLATFORMER_RUN.web.jsonl" \
+        "$OUT/platformer.$PLATFORMER_RUN.godot.jsonl"
+  done
 fi
 
 echo "== capture ($SHOTS, dpr $DPR)"

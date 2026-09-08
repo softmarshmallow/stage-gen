@@ -31,6 +31,19 @@ const STATE_ATTACK := "attack"
 const STATE_RANGED_ATTACK := "ranged_attack"
 const STATE_DEATH := "death"
 
+## The frame of the climb strip a body at this height is drawn on.
+##
+## Twelve pixels of rise per frame, counted from the **bottom** of the climbable
+## and wrapped by the strip's own length, so the cycle is a property of how far
+## the body has come up rather than of how long it has been climbing. Two
+## consequences, and both are the point: a run that stops halfway holds the pose
+## it stopped on, and a run that climbs the same ladder twice draws the same
+## frames both times.
+##
+## `moving` is what makes a stopped climber a held pose rather than a reset one —
+## it is `vy != 0`, and the body reaches it by pressing exactly one of up or down.
+const CLIMB_PIXELS_PER_FRAME := 12.0
+
 const FACING_LEFT := "left"
 const FACING_RIGHT := "right"
 
@@ -345,11 +358,6 @@ static func update(
 		):
 			_clear_drop_through(player)
 
-	player["platformId"] = (
-		player["supportId"]
-		if String(player["support"]) == FamilyContact.SUPPORT_PLATFORM
-		else null
-	)
 	_resolve_state(player, crouching, shift, now_ms, attacking, weapon)
 
 
@@ -406,10 +414,10 @@ static func knock_back(player: Dictionary, from_dir_sign: int, now_ms: float) ->
 	player["attackUntil"] = 0.0
 	if bool(player["defeated"]):
 		player["hurtUntil"] = 0.0
-		player["state"] = STATE_DEATH
+		_set_state(player, STATE_DEATH)
 		return
 	player["hurtUntil"] = now_ms + HURT_DURATION_MS
-	player["state"] = STATE_HURT
+	_set_state(player, STATE_HURT)
 
 
 ## The opacity a hurt body draws at. Presentation, and excluded from parity — but
@@ -448,7 +456,41 @@ static func _resolve_state(
 		next = STATE_RUN if shift else STATE_WALK
 	else:
 		next = STATE_IDLE
+	_set_state(player, next)
+
+
+static func _set_climb_frame(
+	player: Dictionary, world: Dictionary, zone: Dictionary, moving: bool
+) -> void:
+	var artwork: Dictionary = (world.get("climbArtwork", {}) as Dictionary).get(
+		String(zone.get("role", "")), {}
+	)
+	if artwork.is_empty():
+		return
+	var next := 0
+	if moving:
+		var risen := absf(float(zone["lowerSurfaceY"]) - float(player["y"]))
+		next = int(floor(risen / CLIMB_PIXELS_PER_FRAME)) % int(artwork["frameCount"])
+	elif player["climbFrame"] != null:
+		next = int(player["climbFrame"])
+	player["climbFrame"] = next
+	player["climbAnimationKey"] = artwork["animationKey"]
+	player["climbTextureKey"] = artwork["textureKey"]
+
+
+## Put the body in a state, and put down the rung it was holding if it was on one.
+##
+## The browser installs a strip and clears the climb frame in the same breath,
+## which is why leaving a ladder in any direction — up onto the deck, down onto
+## the ground, off it in a jump, or knocked off it by a blow — costs the pose
+## without any of the four having to remember to drop it.
+static func _set_state(player: Dictionary, next: String) -> void:
 	player["state"] = next
+	if next == STATE_CLIMB:
+		return
+	player["climbFrame"] = null
+	player["climbAnimationKey"] = null
+	player["climbTextureKey"] = null
 
 
 static func _continue_ladder(
@@ -484,7 +526,7 @@ static func _continue_ladder(
 		player["activeClimbableId"] = null
 		player["ladderId"] = null
 		_set_support(player, FamilyContact.SUPPORT_AIR, null)
-		player["state"] = STATE_JUMP
+		_set_state(player, STATE_JUMP)
 		return
 	var motion := FamilyTraversal.advance_climb_motion(
 		PlatformerVertical.climb_geometry(zone),
@@ -501,21 +543,36 @@ static func _continue_ladder(
 		player["activeClimbableId"] = null
 		player["ladderId"] = null
 		_set_support(player, FamilyContact.SUPPORT_PLATFORM, zone["platformId"])
-		player["state"] = STATE_IDLE
+		_set_state(player, STATE_IDLE)
 		return
 	if exit == FamilyContact.SUPPORT_TERRAIN:
 		player["activeClimbableId"] = null
 		player["ladderId"] = null
 		_set_support(player, FamilyContact.SUPPORT_TERRAIN, null)
-		player["state"] = STATE_IDLE
+		_set_state(player, STATE_IDLE)
 		return
-	player["state"] = STATE_CLIMB
+	if String(player["state"]) != STATE_CLIMB:
+		_set_state(player, STATE_CLIMB)
+	_set_climb_frame(player, world, zone, not is_zero_approx(float(player["vy"])))
 
 
 static func _set_support(player: Dictionary, support: String, support_id: Variant) -> void:
 	player["support"] = support
 	player["supportId"] = support_id
 	player["airborne"] = support == FamilyContact.SUPPORT_AIR
+	# A climbing body is drawn from behind, and that is all `rearFacing` says. The
+	# browser reaches it the long way round — it mirrors the sprite by facing
+	# everywhere except on a climbable, where it forces the mirror off, and then
+	# publishes "attached and not mirrored". The second half is never false while
+	# the first is true, so the field is exactly "attached" and carries no facing.
+	player["rearFacing"] = support == FamilyContact.SUPPORT_CLIMBABLE
+	# The deck a body is standing on, which is its support id and only while its
+	# support is a deck. Derived here rather than at the bottom of the walk,
+	# because the walk is not the only way onto one: a body that steps off the top
+	# of a ladder never reaches the bottom of that function, and used to arrive on
+	# the deck without the deck's name — then keep the name for fifty frames after
+	# it had climbed back off.
+	player["platformId"] = support_id if support == FamilyContact.SUPPORT_PLATFORM else null
 	if support != FamilyContact.SUPPORT_AIR:
 		player["airJumpsUsed"] = 0
 		player["coyoteExpiresAtMs"] = -1.0

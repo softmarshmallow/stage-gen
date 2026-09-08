@@ -1,0 +1,232 @@
+{
+ "run_id": "02-defeat-600",
+ "frames": 600,
+ "digest_every": 20,
+ "step_seconds": 0.03333333333333333,
+ "intents": [
+  {
+   "from": 1,
+   "until": 149,
+   "hold": [
+    "right",
+    "run"
+   ]
+  },
+  {
+   "from": 155,
+   "until": 299,
+   "hold": [
+    "right",
+    "run"
+   ]
+  },
+  {
+   "from": 455,
+   "until": 599,
+   "hold": [
+    "right",
+    "run"
+   ]
+  },
+  {
+   "from": 305,
+   "until": 449,
+   "hold": [
+    "left",
+    "run"
+   ]
+  },
+  {
+   "frame": 140,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 142,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 144,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 146,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 148,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 150,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 152,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 154,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 156,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 158,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 160,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 162,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 164,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 166,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 168,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 170,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 172,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 174,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 176,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 178,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 180,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 182,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 184,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 186,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 188,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 190,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 192,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 194,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 196,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 198,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 200,
+   "keys": [
+    "up"
+   ]
+  },
+  {
+   "frame": 500,
+   "keys": [
+    "enter"
+   ]
+  }
+ ]
+}

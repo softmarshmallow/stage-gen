@@ -84,33 +84,30 @@ static func apply(world: PlatformerWorld, step: Dictionary) -> void:
 		int(step["frame"]),
 		float(step["now"]),
 		# The map and where the body was put down, which is what a consumer needs
-		# to draw an arrival. The transition's own id is not in it: the browser
-		# names the destination rather than the door, and a run can reach one map
-		# through more than one.
-		{"mapId": world.map_id, "startX": float(world.player["x"])}
+		# to draw an arrival. Whole pixels, because a spawn is authored as a
+		# fraction of the map and a tenth of a village is not an integer. The
+		# transition's own id is not in it: the browser names the destination
+		# rather than the door, and a run can reach one map through more than one.
+		{"mapId": world.map_id, "startX": int(round(float(world.player["x"])))}
 	)
 
 
-## The body, put down at the spawn and stopped.
+## The body, built again at the spawn.
 ##
-## Everything a step would have settled is settled here instead, because the
-## body does not take one this frame: the column from the new x, the support
-## from the new ground, and the motion cleared so an arrival does not carry the
-## departure's run into the next map.
+## Not "moved": the browser retires the controller and constructs a new one on
+## every map entry, so an arrival carries nothing across but what the *scene*
+## holds — the bag, the quests, the progression. The pool comes back full because
+## a fresh body has a full one, and that is the whole of what a recovery costs.
+##
+## Everything a step would have settled is settled here instead, because the body
+## does not take one this frame: the column from the new x, and the support from
+## the ground it was put down on.
 static func place(world: PlatformerWorld, x: float, y: float) -> void:
-	var player: Dictionary = world.player
-	player["x"] = x
-	player["y"] = y
-	player["vx"] = 0.0
-	player["vy"] = 0.0
-	player["state"] = PlatformerPlayer.STATE_IDLE
-	player["airborne"] = false
-	player["support"] = FamilyContact.SUPPORT_TERRAIN
-	player["supportId"] = null
-	player["ladderId"] = null
-	player["platformId"] = null
-	player["airJumpsUsed"] = 0
-	player["column"] = int(floor(x / PlatformerMaps.TILE_PX))
+	var max_hp := int(
+		world.progression.get("maximumHealth", int(world.package["startingHealth"]))
+	)
+	world.player = PlatformerPlayer.create(x, y, max_hp)
+	world.player["column"] = int(floor(x / PlatformerMaps.TILE_PX))
 
 
 static func _pressed(world: PlatformerWorld) -> bool:

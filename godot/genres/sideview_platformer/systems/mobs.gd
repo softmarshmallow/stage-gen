@@ -74,16 +74,18 @@ static func populate(world: PlatformerWorld, step: Dictionary) -> void:
 			continue
 		var instance := world.next_mob_instance
 		world.next_mob_instance += 1
+		var bot_id := "mob_%d" % world.next_mob_bot_id
+		world.next_mob_bot_id += 1
 		var instance_id := "%s/mob/%d" % [world.map_id, instance]
 		var zone_id := String(reservation["zoneId"])
 		world.mobs.append(
 			PlatformerMob.create(
 				instance,
-				"mob_%d" % instance,
+				bot_id,
 				instance_id,
-				_slot_of(world, String(spec.get("mob_id", ""))),
-				_aggression(spec),
-				_health(spec),
+				slot_of(world, String(spec.get("mob_id", ""))),
+				aggression_of(spec),
+				health_of(spec),
 				float(reservation["x"]),
 				float(reservation["y"]),
 				map
@@ -108,14 +110,10 @@ static func step(world: PlatformerWorld, frame_step: Dictionary) -> void:
 		return
 	var map: Dictionary = (world.package["maps"] as Dictionary)[world.map_id]
 	var dt := world.simulation_dt / 1000.0
-	# Every creature is told where the body is before any of them moves, which is
-	# what the browser's `observePlayer` pass does — a creature that read a
-	# half-moved roster would hunt a player nobody else could see.
-	var player := {"x": float(world.player["x"]), "y": float(world.player["y"])}
 	var standing: Array = []
 	for entry: Variant in world.mobs:
 		var mob: Dictionary = entry
-		PlatformerMob.step(mob, map, dt, player, float(frame_step["now"]))
+		PlatformerMob.step(mob, map, dt, mob["observed"], float(frame_step["now"]))
 		if not PlatformerMob.faded(mob, float(frame_step["now"])):
 			standing.append(mob)
 	world.mobs = standing
@@ -128,16 +126,26 @@ static func step(world: PlatformerWorld, frame_step: Dictionary) -> void:
 ## though the animation played out. Distance is measured with a third again of
 ## the profile's reach, which is the margin a body running past a swing is given.
 static func strike(world: PlatformerWorld, step: Dictionary) -> void:
-	if world.hold or not bool(world.package["combatEnabled"]):
+	if world.hold:
 		return
 	var combat: Dictionary = world.package["combat"]
-	if not bool(combat.get("contact_damage", false)):
+	var defeated := bool(world.player["defeated"])
+	# A package with no combat, or with combat but no contact damage, still tells
+	# its creatures where the body is *not*: an empty observation is the browser's
+	# `observePlayer(null, null, …)`, and it is what makes them wander past a
+	# player they cannot hurt.
+	if not bool(world.package["combatEnabled"]) or not bool(combat.get("contact_damage", false)):
+		for entry: Variant in world.mobs:
+			(entry as Dictionary)["observed"] = {}
 		return
-	var map: Dictionary = (world.package["maps"] as Dictionary)[world.map_id]
+	var seen := {
+		"x": float(world.player["x"]), "y": float(world.player["y"]), "defeated": defeated
+	}
 	for entry: Variant in world.mobs:
 		var mob: Dictionary = entry
 		if not bool(mob["alive"]):
 			continue
+		mob["observed"] = seen
 		var pending := PlatformerMob.consume_strike(mob)
 		if pending.is_empty() or float(pending["damage"]) <= 0.0:
 			continue
@@ -228,7 +236,7 @@ static func _population_ids(world: PlatformerWorld) -> PackedStringArray:
 
 ## Where a creature sits in the package's own catalogue, which is the index the
 ## golden publishes as `ladderIndex`.
-static func _slot_of(world: PlatformerWorld, mob_id: String) -> int:
+static func slot_of(world: PlatformerWorld, mob_id: String) -> int:
 	var catalogue: Array = world.package["mobs"]
 	for index in range(catalogue.size()):
 		if String((catalogue[index] as Dictionary).get("mob_id", "")) == mob_id:
@@ -236,7 +244,7 @@ static func _slot_of(world: PlatformerWorld, mob_id: String) -> int:
 	return -1
 
 
-static func _health(spec: Dictionary) -> int:
+static func health_of(spec: Dictionary) -> int:
 	return int(HEALTH_BY_RANK.get(_rank(spec), DEFAULT_HEALTH))
 
 
@@ -246,7 +254,7 @@ static func _health(spec: Dictionary) -> int:
 ## null rather than omitting it, and `String(null)` is not a cast in GDScript —
 ## it is a constructor that does not exist, and it takes the whole run down at
 ## the first creature. A rank read the same way for the same reason.
-static func _aggression(spec: Dictionary) -> String:
+static func aggression_of(spec: Dictionary) -> String:
 	var authored: Variant = spec.get("aggression")
 	if authored is String and PlatformerCombat.PROFILES.has(authored):
 		return authored

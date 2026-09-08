@@ -20,6 +20,12 @@ const DIVISOR := 4294967296.0
 const CHANNEL_SPEED := 0x243f6a88
 const CHANNEL_SWEEP := 0x85a308d3
 const CHANNEL_DIRECTION := 0x13198a2e
+const CHANNEL_WINDUP := 0xa4093822
+const CHANNEL_COOLDOWN := 0x299f31d0
+
+## The golden ratio in 32 bits, which is what turns one creature's seed into a
+## different draw for each action it commits.
+const SEQUENCE_MIX := 0x9e3779b1
 
 
 ## The per-instance seed, when the spawner does not hand one down.
@@ -55,3 +61,25 @@ static func unit_noise(seed_value: int, channel: int) -> float:
 
 static func _symmetric(unit: float, variance: float) -> float:
 	return 1.0 + (unit * 2.0 - 1.0) * variance
+
+
+## How long the `sequence`-th action of this creature takes, counting from zero.
+##
+## Drawn once per committed action rather than once per creature, and both halves
+## come off the one draw index, so a swing and the pause after it move together.
+## Two creatures of a kind, born in different columns, never wind up in lockstep —
+## which is the whole reason the number is not simply the profile's.
+##
+## Rounded rather than floored, and the rounding is the browser's: half goes up.
+## Both delays are non-negative, so away-from-zero and towards-positive agree, and
+## the distinction only matters if a profile ever publishes a negative one.
+static func action_timing(
+	seed_value: int, sequence: int, windup_ms: float, cooldown_ms: float, variance: float
+) -> Dictionary:
+	var mixed := (seed_value ^ KernelHash.imul(sequence + 1, SEQUENCE_MIX)) & MASK
+	return {
+		"windupMs": roundf(windup_ms * _symmetric(unit_noise(mixed, CHANNEL_WINDUP), variance)),
+		"cooldownMs": roundf(
+			cooldown_ms * _symmetric(unit_noise(mixed, CHANNEL_COOLDOWN), variance)
+		),
+	}

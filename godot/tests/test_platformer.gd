@@ -1,27 +1,27 @@
 extends RefCounted
 
-## The platformer's simulation, as far as it has been derived.
+## The platformer's simulation, derived.
 ##
 ## Step 9 is a re-derivation rather than a translation — the browser's world *is*
-## a Phaser scene — so this file grows one block per unit of that derivation, and
-## the number in `EXACT_FRAMES` is the honest statement of how far it has got:
-## every frame up to it is identical to the browser's own recording, hash for
-## hash, and the frame after it is the first one that speaks to a system nobody
-## has ported yet.
+## a Phaser scene — so this file grew one block per unit of that derivation, and
+## `EXACT_FRAMES` is the honest statement of how far it got: every frame up to it
+## is identical to the browser's own recording, hash for hash.
 ##
-## The whole six hundred frames are replayed by `tools/platformer_parity.gd`,
-## which is where a divergence is named field by field. What is here is what a
-## suite can answer on its own: the rules, the world one package opens on, and
-## the prefix.
+## Both scripted runs are now whole. `tools/platformer_parity.gd` replays them
+## against `PlatformerFrame.step` — the game's own frame order rather than a copy
+## of it — and `tools/validate.sh` diffs the whole file rather than a prefix.
+## What is here is what a suite can answer on its own: the rules, the world one
+## package opens on, and the pin.
 
 ## Frames identical to the browser's, and what stops the next one.
 ##
-## Frame 380 is where the climb window opens — the body holds `up` at a ladder
-## from 380 to 431 and drops back down it from 437 to 491. Raise this with each
-## unit, and never without re-running the harness.
-const EXACT_FRAMES := 379
+## Six hundred is the whole of both scripted runs — the village walk that talks,
+## climbs, throws and drinks, and the one that walks east into a gate, is beaten
+## by what is standing in it, and answers its own death screen. Nothing stops the
+## next frame; there is no next frame.
+const EXACT_FRAMES := 600
 
-const FIRST_UNPORTED := "the climb, at frame 380"
+const FIRST_UNPORTED := ""
 
 
 func run(h: TestHarness) -> void:
@@ -128,7 +128,10 @@ func _snapshot(h: TestHarness, package: Dictionary) -> void:
 		absf(float(shot["x"]) - 153.6) < 1e-9, "and it stands where the entry spawn put it"
 	)
 	h.assert_eq(int(shot["hp"]), 6, "with the package's starting health")
-	h.assert_true(EXACT_FRAMES > 0, "the derivation is exact up to %d frames" % EXACT_FRAMES)
+	h.assert_true(
+		EXACT_FRAMES == 600 and FIRST_UNPORTED.is_empty(),
+		"the derivation is exact for all %d frames of both scripted runs" % EXACT_FRAMES
+	)
 
 
 ## The conversation the village offers, and what its ending is worth.
@@ -405,8 +408,19 @@ func _mobs(h: TestHarness, package: Dictionary) -> void:
 	PlatformerMob.step(striker, map, 1.0 / 30.0, {"x": 1140.0, "y": 656.0}, 1000.0)
 	h.assert_eq(String(striker["state"]), "windup", "a body inside reach is swung at")
 	h.assert_eq(float(striker["x"]), 1184.0, "and the creature stops where it stands")
-	h.assert_eq(float(striker["strikeLandsAtMs"]), 1260.0, "the blow lands after the wind-up")
-	h.assert_eq(float(striker["attackReadyAtMs"]), 2100.0, "and the next one waits out the cooldown")
+	# 260 ms and 1100 ms are the profile's; what this creature actually waits is
+	# drawn from its own seed, once per committed action, inside a sixth of the
+	# published figure. Asserted as the draw rather than as the base, because a
+	# port that used the base would put every creature of a kind in lockstep and
+	# would still pass a test that only checked the profile.
+	h.assert_eq(float(striker["strikeLandsAtMs"]), 1264.0, "the blow lands after the wind-up")
+	h.assert_eq(float(striker["attackReadyAtMs"]), 1972.0, "and the next one waits out the cooldown")
+	h.assert_eq(int(striker["actionSequence"]), 1, "and the creature has committed one action")
+	var next_action := PlatformerMobBehavior.action_timing(1, 1, 260.0, 1100.0, 0.16)
+	h.assert_true(
+		float(next_action["windupMs"]) != 1264.0 - 1000.0,
+		"the next action of the same creature draws its own length"
+	)
 	# Backing out of range dodges the damage but never cancels the swing.
 	PlatformerMob.step(striker, map, 1.0 / 30.0, {"x": 400.0, "y": 656.0}, 1100.0)
 	h.assert_eq(String(striker["state"]), "windup", "a committed blow is not called off")
