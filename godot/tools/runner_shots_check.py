@@ -138,12 +138,13 @@ def saturation(pixel: tuple[int, int, int]) -> float:
 
 def is_sky(pixel: tuple[int, int, int]) -> bool:
     """Blue-leading and bright: the glasshouse behind everything."""
-    red, green, blue = pixel
-    return blue > red and blue > 120
+    return pixel[2] > pixel[0] and pixel[2] > 120
 
 
 def near(pixel: tuple[int, int, int], target: tuple[int, int, int], tolerance: int) -> bool:
-    return all(abs(a - b) <= tolerance for a, b in zip(pixel, target))
+    # Indexed rather than zipped: this runs under whatever `python3` is on the
+    # path, and `zip(strict=)` — which the lint asks for — needs 3.10.
+    return all(abs(pixel[channel] - target[channel]) <= tolerance for channel in range(3))
 
 
 def mean_column_variance(shot: Shot, box: tuple[int, int, int, int]) -> float:
@@ -166,8 +167,9 @@ def check(shot: Shot) -> list[str]:
     # Nothing unpainted, anywhere. This is the band-coverage defect: the cover
     # tile is narrower than the canvas, and at the wrong wrap phase the picture
     # simply ended 200 px short of the right edge.
-    unpainted = sum(1 for pixel in shot.region((0, 0, shot.width, shot.height), 2)
-                    if near(pixel, UNPAINTED, 8))
+    unpainted = sum(
+        1 for pixel in shot.region((0, 0, shot.width, shot.height), 2) if near(pixel, UNPAINTED, 8)
+    )
     if unpainted:
         problems.append(f"{unpainted} sampled pixels are unpainted background")
 
@@ -175,8 +177,11 @@ def check(shot: Shot) -> list[str]:
         # The moment is drawn over the world it stopped. Measured at this step:
         # 13.4% of the frame is the cut-in's own interior, against 0.7% on the
         # build that ran the moment and drew nothing.
-        interior = sum(1 for pixel in shot.region((0, 0, shot.width, shot.height), 4)
-                       if near(pixel, CUT_IN_BACKDROP, 40))
+        interior = sum(
+            1
+            for pixel in shot.region((0, 0, shot.width, shot.height), 4)
+            if near(pixel, CUT_IN_BACKDROP, 40)
+        )
         total = len(range(0, shot.height, 4)) * len(range(0, shot.width, 4))
         if interior / total < 0.05:
             problems.append(
@@ -190,9 +195,7 @@ def check(shot: Shot) -> list[str]:
         window = list(shot.region(SKY_WINDOW, 2))
         sky = sum(1 for pixel in window if is_sky(pixel)) / len(window)
         if sky < SKY_WINDOW_MINIMUM:
-            problems.append(
-                f"the sky window is {sky:.1%} sky; a foreground band is oversized"
-            )
+            problems.append(f"the sky window is {sky:.1%} sky; a foreground band is oversized")
 
     if shot.name == "fight":
         # A fight with no bar drew nothing here at all, so the question is
