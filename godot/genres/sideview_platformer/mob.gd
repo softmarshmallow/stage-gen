@@ -130,11 +130,11 @@ static func step(
 	mob: Dictionary, map: Dictionary, dt_seconds: float, player: Dictionary, now_ms: float = 0.0
 ) -> void:
 	mob["nowMs"] = now_ms
-	if not bool(mob["alive"]):
-		return
-	var profile := PlatformerCombat.profile(String(mob["aggression"]))
 
-	# A blow already landed carries the body before anything it wants is asked.
+	# A blow already landed carries the body before anything it wants is asked —
+	# and before the check that it is still alive, because a corpse is carried
+	# too. That is the whole of what a kill looks like: the thing is thrown, and
+	# it goes on being thrown after it has stopped deciding anything.
 	# The ease is sampled from the clock rather than stepped, so the same run
 	# recorded twice puts a creature in the same place.
 	if not (mob["hitMotion"] as Dictionary).is_empty():
@@ -145,6 +145,10 @@ static func step(
 		mob["x"] = float(motion["startX"]) + (float(motion["targetX"]) - float(motion["startX"])) * eased
 		if progress >= 1.0:
 			mob["hitMotion"] = {}
+
+	if not bool(mob["alive"]):
+		return
+	var profile := PlatformerCombat.profile(String(mob["aggression"]))
 
 	if String(mob["state"]) == STATE_HURT:
 		if now_ms < float(mob["hurtUntil"]):

@@ -118,6 +118,7 @@ static func parse(manifest: Variant) -> Variant:
 		"interactions": gameplay.get("interactions", []),
 		"effects": gameplay.get("effects", []),
 		"quests": gameplay.get("quests", []),
+		"lootRules": gameplay.get("loot_rules", []),
 		"progression": gameplay.get("progression", {}),
 		"inventory": gameplay.get("inventory", {}),
 		"mobPopulation": gameplay.get("mob_population", {}),

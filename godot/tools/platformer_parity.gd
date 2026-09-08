@@ -140,14 +140,20 @@ func _step(world: PlatformerWorld, step_seconds: float, now_ms: float, frame: in
 	# `player/update`, so every creature this touches is where it stood at the end
 	# of the previous frame. Resolving it a step later lands it a frame early.
 	PlatformerMobsSystem.strike(world, step)
-	PlatformerCameraSystem.update(world, step)
+	# The throw is the last thing `player/update` does, after the blows landing
+	# on the body have been settled.
 	PlatformerProjectilesSystem.throw_one(world, step)
 	PlatformerMobsSystem.populate(world, step)
 	PlatformerMobsSystem.step(world, step)
 	PlatformerProjectilesSystem.update(world, step)
+	PlatformerItemsSystem.update(world, step)
+	PlatformerCameraSystem.carry_shake(world, step)
 	PlatformerDialogueSystem.prompt(world, step)
 	PlatformerMapEntrySystem.ask(world)
 	PlatformerMapEntrySystem.apply(world, step)
+	# Last, and deliberately: the browser's camera is the engine's own pre-render
+	# pass, which runs after every system has written what it was going to.
+	PlatformerCameraSystem.update(world, step)
 
 
 ## The scripted intents, in the browser's own vocabulary: `hold` is a level down

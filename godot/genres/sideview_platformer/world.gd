@@ -37,7 +37,6 @@ var player: Dictionary = {}
 var platforms: Array = []
 var climbables: Array = []
 var mobs: Array = []
-var world_items: Array = []
 var projectiles: Array = []
 var portals: Array = []
 
@@ -87,6 +86,19 @@ var next_shot_id: int = 1
 ## How many blows this run has resolved. Never reset, because a blow's seed is
 ## drawn from it and two blows in one place must still differ.
 var blow_sequence: int = 0
+
+## What is lying on the ground, and the next drop's name.
+var world_items: Array = []
+var next_drop_id: int = 0
+
+## What is shaking the view: one entry per kill, for as long as it shakes. Not
+## published — the golden drops the spark records these live beside — but the
+## offset they produce lands in the camera's own scroll, which is.
+var shakes: Array = []
+
+## The offset the view is currently carrying, so the next one replaces it rather
+## than adding to it. A tremor that accumulated would walk the view off the map.
+var shake_carried: Dictionary = {"x": 0.0, "y": 0.0}
 
 ## The bag that decides what plays next, seeded off the package digest.
 var music: FamilyShuffleBag = null
@@ -222,6 +234,7 @@ func open_on(opened: String) -> void:
 	# A map's creatures are its own: nothing walks through a gate with the body.
 	mobs = []
 	projectiles = []
+	world_items = []
 	population = PlatformerPopulation.project(package, opened)
 
 
@@ -376,7 +389,7 @@ func snapshot() -> Dictionary:
 		"soundtrack": soundtrack,
 		"statLog": stat_log,
 		"weaponClass": weapon_class,
-		"worldItems": world_items,
+		"worldItems": PlatformerItemsSystem.snapshots(self),
 	}
 
 

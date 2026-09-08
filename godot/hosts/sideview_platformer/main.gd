@@ -125,7 +125,6 @@ func _tick() -> void:
 	if world.hold:
 		PlatformerMapEntrySystem.apply(world, step)
 		return
-	PlatformerProjectilesSystem.throw_one(world, step)
 	PlatformerPlayer.update(
 		world.player,
 		_terrain(),
@@ -135,13 +134,18 @@ func _tick() -> void:
 		PlatformerWeapon.profile(world.weapon_class)
 	)
 	PlatformerMobsSystem.strike(world, step)
-	PlatformerCameraSystem.update(world, step)
+	PlatformerProjectilesSystem.throw_one(world, step)
 	PlatformerMobsSystem.populate(world, step)
 	PlatformerMobsSystem.step(world, step)
 	PlatformerProjectilesSystem.update(world, step)
+	PlatformerItemsSystem.update(world, step)
+	PlatformerCameraSystem.carry_shake(world, step)
 	PlatformerDialogueSystem.prompt(world, step)
 	PlatformerMapEntrySystem.ask(world)
 	PlatformerMapEntrySystem.apply(world, step)
+	# Last, and deliberately: the browser's camera is the engine's own pre-render
+	# pass, which runs after every system has written what it was going to.
+	PlatformerCameraSystem.update(world, step)
 
 
 ## The ground the body walks on, for the map it is standing in.

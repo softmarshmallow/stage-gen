@@ -43,12 +43,63 @@ static func declaration() -> KernelSystem:
 	)
 
 
+## The follow, which runs **last**. The browser does not step a camera at all:
+## it hands the engine a follow target and the engine moves the view in its own
+## pre-render pass, after every system has written whatever it was going to. So
+## this is last, and the tremor below is written mid-frame — the follow then
+## lerps from a scroll a blow has already nudged, which is what makes a shake
+## settle rather than what makes it move.
 static func update(world: PlatformerWorld, _step: Dictionary) -> void:
 	if world.hold:
 		return
 	world.camera = advance(
 		world.camera, float(world.player["x"]), bounds_of(world), float(world.player["y"])
 	)
+
+
+## Move the view from the tremor it is carrying to this frame's. Called where
+## the blows are resolved, not where the follow runs.
+static func carry_shake(world: PlatformerWorld, step: Dictionary) -> void:
+	if world.hold:
+		return
+	_carry_shake(world, float(step["now"]))
+
+
+## Move the view from the tremor it is carrying to this frame's.
+##
+## Written as a scroll offset rather than as an engine shake, whose direction
+## would come from an unseeded draw and differ between two recordings of one run.
+## The previous offset comes off before the next goes on, so the nudges never
+## accumulate; the follow lerp that runs before the next one pulls a fraction of
+## each back towards the target, which is what makes a shake settle rather than
+## what makes it move.
+static func _carry_shake(world: PlatformerWorld, now_ms: float) -> void:
+	var samples: Array = []
+	var living: Array = []
+	for entry: Variant in world.shakes:
+		var source: Dictionary = entry
+		var elapsed := now_ms - float(source["startedMs"])
+		if elapsed >= float(FamilyShake.KILL["durationMs"]):
+			continue
+		living.append(source)
+		samples.append(
+			FamilyShake.sample(
+				{
+					"seed": source["seed"],
+					"elapsedMs": elapsed,
+					"dirSign": source["dirSign"],
+					"scale": source["scale"],
+				},
+				FamilyShake.KILL
+			)
+		)
+	world.shakes = living
+	var next := FamilyShake.sum(
+		samples, float(FamilyShake.KILL["amplitudePx"]) * FamilyShake.CRITICAL_SCALE
+	)
+	var moved := FamilyCamera.shift_by_shake(world.camera, world.shake_carried, next)
+	world.shake_carried = next
+	world.camera = moved
 
 
 ## One frame of the follow.

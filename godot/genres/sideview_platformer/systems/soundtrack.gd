@@ -20,7 +20,7 @@ extends RefCounted
 
 ## The keys a player presses at the scene rather than through the body. Pressing
 ## any of them is the gesture.
-const GESTURE_KEYS := ["interact", "enter", "up", "space", "jump"]
+const GESTURE_KEYS := ["interact", "enter", "up", "upPressed", "space", "jump"]
 
 
 static func declaration() -> KernelSystem:

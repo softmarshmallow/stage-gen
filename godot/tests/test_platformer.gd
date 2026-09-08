@@ -16,12 +16,11 @@ extends RefCounted
 
 ## Frames identical to the browser's, and what stops the next one.
 ##
-## Frame 290 is the first kill and the two pickups that fall out of it — the
-## loot rules and the drop pool are underived. Raise this with each unit, and
+## Frame 299 is where the run parts company next. Raise this with each unit, and
 ## never without re-running the harness.
-const EXACT_FRAMES := 289
+const EXACT_FRAMES := 298
 
-const FIRST_UNPORTED := "items/collect, at the first kill"
+const FIRST_UNPORTED := "unnamed; the harness names the frame"
 
 
 func run(h: TestHarness) -> void:
@@ -39,6 +38,7 @@ func run(h: TestHarness) -> void:
 	_population(h, package as Dictionary)
 	_mobs(h, package as Dictionary)
 	_combat(h, package as Dictionary)
+	_loot(h, package as Dictionary)
 
 
 ## The curve a package names, and the refusals for the ones it may not.
@@ -258,7 +258,7 @@ func _gate(h: TestHarness, package: Dictionary) -> void:
 	# the road's track a *switch* rather than a first play.
 	PlatformerSoundtrackSystem.update(world, {"dt": 1000.0 / 30.0, "now": 5000.0, "frame": 150})
 	h.assert_eq(
-		String(world.soundtrack["current_track_id"]), "village_theme", "the village's track starts"
+		world.soundtrack["current_track_id"], "village_theme", "the village's track starts"
 	)
 	PlatformerMapEntrySystem.ask(world)
 	h.assert_true(not world.pending_map.is_empty(), "the press asks for it")
@@ -267,7 +267,7 @@ func _gate(h: TestHarness, package: Dictionary) -> void:
 	h.assert_eq(float(world.player["x"]), 256.0, "at the road's own entry spawn")
 	h.assert_eq(float(world.player["vx"]), 0.0, "stopped, because the body takes no step this frame")
 	h.assert_eq(int(world.player["column"]), 4, "with its column re-derived by hand from the new x")
-	h.assert_eq(String(world.soundtrack["current_track_id"]), "road_theme_b", "and the road's music on")
+	h.assert_eq(world.soundtrack["current_track_id"], "road_theme_b", "and the road's music on")
 	# The road is tall enough to follow y, and the view clamps to the top of the
 	# authored world rather than to the ground line.
 	h.assert_eq(float(world.camera["scrollY"]), 336.0, "the view drops to the road's own ceiling")
@@ -490,6 +490,65 @@ func _combat(h: TestHarness, package: Dictionary) -> void:
 	h.assert_true(
 		absf(float(walker["x"]) - (1300.0 - 54.0 * 0.971700011846 / 30.0)) < 1e-9,
 		"at fifty-four pixels a second, not the hundred and eight it chased at"
+	)
+
+
+## What falls out of a creature, where it lands, and what picking it up is worth.
+func _loot(h: TestHarness, package: Dictionary) -> void:
+	var rules: Array = package["lootRules"]
+	# One seed for every rule the creature carries, so a death is lucky as a
+	# whole rather than each drop being rolled apart from the others.
+	var drops := FamilyDrop.resolve(rules, "moth", 0)
+	h.assert_eq(drops.size(), 2, "a moth drops both of the things it is authored to")
+	h.assert_eq(
+		FamilyDrop.resolve(rules, "moth", 0),
+		drops,
+		"and the same seed drops the same things twice"
+	)
+	h.assert_true(
+		FamilyDrop.resolve(rules, "no_such_creature", 0).is_empty(),
+		"a creature with no rules drops nothing"
+	)
+
+	# Centred on the corpse: one lands on it, and four straddle it evenly.
+	h.assert_eq(FamilyDrop.spread(1), PackedFloat32Array([0.0]), "a stack of one lands on the body")
+	var four := FamilyDrop.spread(2)
+	h.assert_eq(four[0], -14.0, "a stack of two straddles it")
+	h.assert_eq(four[1], 14.0, "evenly")
+
+	# A drop pops, falls, bounces once and settles. The bounce is the part worth
+	# pinning: a second one would read as jitter.
+	var body := FamilyDrop.launch(1000.0, 500.0, 1, 1, 0)
+	h.assert_true(float(body["vy"]) < 0.0, "a drop is thrown upwards")
+	h.assert_true(float(body["vx"]) > 0.0, "and away from the blow")
+	var surface := func(_x: float) -> float: return 656.0
+	var bounced := false
+	for _i in 60:
+		var what := FamilyDrop.step(body, 1000.0 / 30.0, 0.0, surface, Callable())
+		if what == "bounced":
+			bounced = true
+	h.assert_true(bounced, "it bounces on the way down")
+	h.assert_true(bool(body["settled"]), "and settles")
+	h.assert_eq(int(body["bounces"]), 1, "exactly once")
+
+	# A kill is worth its rank, and the rank is the package's word.
+	h.assert_eq(PlatformerProgression.award_for_rank("common"), 6, "a common kill is worth six")
+	h.assert_eq(PlatformerProgression.award_for_rank("boss"), 90, "a boss ninety")
+	h.assert_eq(
+		PlatformerProgression.award_for_rank("no_such_rank"),
+		6,
+		"and a rank this build has not caught up with is worth the common award"
+	)
+	var banked := PlatformerProgression.grant(
+		{"level": 1, "experienceIntoLevel": 0, "experienceForNext": 24, "totalExperience": 0},
+		30,
+		{"enabled": true, "maximum_level": 20, "experience_curve": "gentle_rpg_v1"},
+		6
+	)
+	h.assert_eq(int(banked["levelsGained"]), 1, "thirty banked on a twenty-four curve buys a rank")
+	h.assert_eq(int((banked["state"] as Dictionary)["experienceIntoLevel"]), 6, "and keeps the rest")
+	h.assert_eq(
+		int((banked["state"] as Dictionary)["maximumHealth"]), 7, "which grows the pool by a fifth"
 	)
 
 

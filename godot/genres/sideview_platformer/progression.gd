@@ -25,6 +25,59 @@ const CURVES := {
 
 const DEFAULT_GROWTH := "balanced_novice_v1"
 
+## What one kill is worth, by the rank the package already publishes for it. A
+## game earns experience in proportion to what it actually fought without
+## authoring a second set of numbers, and an unrecognised rank is worth the
+## common award rather than nothing — a rank the runtime has not caught up with
+## is not a creature worth zero.
+const AWARD_BY_RANK := {"boss": 90, "elite": 30, "uncommon": 12}
+const DEFAULT_AWARD := 6
+
+
+## What killing this creature is worth.
+static func award_for_rank(rank: String) -> int:
+	return int(AWARD_BY_RANK.get(rank, DEFAULT_AWARD))
+
+
+## Bank a kill and settle whatever it buys. Returns
+## `{awarded, levelsGained, state}`; a disabled progression awards nothing and
+## hands the state back untouched.
+static func grant(state: Dictionary, amount: int, policy: Dictionary, base_health: int) -> Dictionary:
+	if not bool(policy.get("enabled", false)) or amount <= 0:
+		return {"awarded": 0, "levelsGained": 0, "state": state}
+	var maximum_level := int(policy.get("maximum_level", 1))
+	var curve := String(policy.get("experience_curve", ""))
+	var level := int(state["level"])
+	var into_level := int(state["experienceIntoLevel"]) + amount
+	var for_next: Variant = state["experienceForNext"]
+	var levels := 0
+	while for_next != null and into_level >= int(for_next) and level < maximum_level:
+		into_level -= int(for_next)
+		level += 1
+		levels += 1
+		for_next = null
+		if level < maximum_level:
+			var cost: Variant = cost_of_next(level, curve)
+			for_next = null if KernelRefusal.is_refusal(cost) else cost
+	# A body at the ceiling banks nothing towards a level it can never reach.
+	if for_next == null:
+		into_level = 0
+	var pool: Variant = maximum_health(
+		base_health, level, String(policy.get("stat_growth", DEFAULT_GROWTH))
+	)
+	return {
+		"awarded": amount,
+		"levelsGained": levels,
+		"state":
+		{
+			"level": level,
+			"experienceIntoLevel": into_level,
+			"experienceForNext": for_next,
+			"totalExperience": int(state["totalExperience"]) + amount,
+			"maximumHealth": base_health if KernelRefusal.is_refusal(pool) else int(pool),
+		},
+	}
+
 
 ## What the step from `level` to the one above it costs, or a refusal.
 static func cost_of_next(level: int, curve: String) -> Variant:

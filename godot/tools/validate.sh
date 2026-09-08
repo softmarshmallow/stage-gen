@@ -131,7 +131,7 @@ if [ "$SKIP_TESTS" -eq 0 ]; then
       --script "$PLATFORMER_REPLAY/01-village-600.json" --out "$OUT/platformer.godot.jsonl"
   python3 "$PROJECT/tools/frames_prefix.py" \
       "$OUT/platformer.godot-frames.txt" \
-      "$PLATFORMER_REPLAY/01-village-600.web-frames.txt" --at-least 289
+      "$PLATFORMER_REPLAY/01-village-600.web-frames.txt" --at-least 298
   python3 "$PROJECT/tools/runner_parity_diff.py" \
       "$PLATFORMER_REPLAY/01-village-600.web.jsonl" "$OUT/platformer.godot.jsonl"
 fi
