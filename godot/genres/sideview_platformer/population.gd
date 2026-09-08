@@ -219,7 +219,12 @@ static func _eligible(zone: Dictionary, player_x: float, player_y: float) -> Arr
 		var blocked := false
 		for other: Variant in (zone["alive"] as Array):
 			var standing: Dictionary = other
-			if int(standing["column"]) == int(candidate["column"]):
+			# The column a creature stood up in is forgotten the moment it moves.
+			# `updateInstancePosition` clears `candidateColumn` outright, so the
+			# place-is-taken rule only ever fires for a creature that has not been
+			# positioned yet — which is to say, for a reservation made earlier in
+			# this same frame.
+			if not bool(standing.get("moved", false)) and int(standing["column"]) == int(candidate["column"]):
 				blocked = true
 				break
 			if _squared(candidate, float(standing["x"]), float(standing["y"])) < separation * separation:
@@ -312,6 +317,7 @@ static func update_positions(state: Dictionary, mobs: Array) -> void:
 			var mob: Dictionary = standing[key]
 			place["x"] = float(mob["x"])
 			place["y"] = float(mob["y"])
+			place["moved"] = true
 
 
 ## A creature the route has lost. Frees the place it stood and owes another one,
