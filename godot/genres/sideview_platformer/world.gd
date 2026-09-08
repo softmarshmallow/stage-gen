@@ -410,7 +410,9 @@ static func _cost_of_next(level: int, maximum_level: int, policy: Dictionary) ->
 static func _maximum_health(package_in: Dictionary, level: int, policy: Dictionary) -> int:
 	var base_health := int(package_in["startingHealth"])
 	var pool: Variant = PlatformerProgression.maximum_health(
-		base_health, level, String(policy.get("stat_growth", PlatformerProgression.DEFAULT_GROWTH))
+		base_health,
+		level,
+		PlatformerProgression.named(policy, "stat_growth", PlatformerProgression.DEFAULT_GROWTH)
 	)
 	return base_health if KernelRefusal.is_refusal(pool) else int(pool)
 

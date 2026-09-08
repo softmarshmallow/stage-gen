@@ -34,6 +34,28 @@ func _initialize() -> void:
 		printerr("platformer shot: the host refused the run")
 		quit(1)
 		return
+	# Open on a named map rather than walking to it. A capture that had to play
+	# its way across a village to photograph a road spends four hundred frames of
+	# forced draws to answer a question about the road.
+	if args.has("map"):
+		var wanted := String(args["map"])
+		var spawn = PlatformerMaps.spawn_position(world.package, _spawn_on(world, wanted))
+		if not spawn.is_empty():
+			world.open_on(String(spawn["mapId"]))
+			PlatformerMapEntrySystem.place(world, float(spawn["x"]), float(spawn["y"]))
+			world.camera = PlatformerCameraSystem.snapped(
+				float(world.player["x"]),
+				PlatformerCameraSystem.bounds_of(world),
+				float(world.player["y"])
+			)
+	if args.has("at_x"):
+		world.player["x"] = float(args["at_x"])
+		world.player["column"] = int(floor(float(args["at_x"]) / PlatformerMaps.TILE_PX))
+		world.camera = PlatformerCameraSystem.snapped(
+			float(world.player["x"]),
+			PlatformerCameraSystem.bounds_of(world),
+			float(world.player["y"])
+		)
 	var held := PackedStringArray()
 	if args.has("hold"):
 		held = String(args["hold"]).split(",")
@@ -64,6 +86,16 @@ func _initialize() -> void:
 		]
 	)
 	quit(0)
+
+
+## The spawn a named map is entered at.
+func _spawn_on(world, map_id: String) -> String:
+	var spawns: Dictionary = world.package["spawns"]
+	for key: Variant in spawns.keys():
+		var spawn: Dictionary = spawns[key]
+		if str(spawn["mapId"]) == map_id:
+			return str(key)
+	return str(world.package["entrySpawnId"])
 
 
 func _args() -> Dictionary:

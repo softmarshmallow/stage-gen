@@ -103,7 +103,8 @@ static func _silhouette(world: PlatformerWorld) -> String:
 	for entry: Variant in (world.package["projectiles"] as Array):
 		var spec: Dictionary = entry
 		if String(spec.get("projectile_id", "")) == named:
-			return String(spec.get("silhouette", PlatformerProjectiles.DEFAULT_ORIENTATION))
+			var named: Variant = spec.get("silhouette")
+			return named if named is String else PlatformerProjectiles.DEFAULT_ORIENTATION
 	return PlatformerProjectiles.DEFAULT_ORIENTATION
 
 

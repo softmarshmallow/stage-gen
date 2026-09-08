@@ -25,6 +25,17 @@ const CURVES := {
 
 const DEFAULT_GROWTH := "balanced_novice_v1"
 
+## A published string field, or the fallback.
+##
+## `String(x)` is not a cast in GDScript — it is a constructor, and it does not
+## exist for null. A package may publish a field as null rather than omitting it,
+## and `Dictionary.get`'s default only fires on a *missing* key, so the pair took
+## a whole run down at the first creature that carried an explicit null.
+static func named(source: Dictionary, key: String, fallback: String) -> String:
+	var value: Variant = source.get(key)
+	return value if value is String else fallback
+
+
 ## What one kill is worth, by the rank the package already publishes for it. A
 ## game earns experience in proportion to what it actually fought without
 ## authoring a second set of numbers, and an unrecognised rank is worth the
@@ -63,7 +74,7 @@ static func grant(state: Dictionary, amount: int, policy: Dictionary, base_healt
 	if for_next == null:
 		into_level = 0
 	var pool: Variant = maximum_health(
-		base_health, level, String(policy.get("stat_growth", DEFAULT_GROWTH))
+		base_health, level, named(policy, "stat_growth", DEFAULT_GROWTH)
 	)
 	return {
 		"awarded": amount,

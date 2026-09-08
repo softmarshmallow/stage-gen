@@ -228,11 +228,22 @@ static func _slot_of(world: PlatformerWorld, mob_id: String) -> int:
 
 
 static func _health(spec: Dictionary) -> int:
-	return int(HEALTH_BY_RANK.get(String(spec.get("rank", "")), DEFAULT_HEALTH))
+	return int(HEALTH_BY_RANK.get(_rank(spec), DEFAULT_HEALTH))
 
 
+## The temperament a package named, or the one its rank implies.
+##
+## `str` rather than `String` throughout: a package may publish `aggression` as
+## null rather than omitting it, and `String(null)` is not a cast in GDScript —
+## it is a constructor that does not exist, and it takes the whole run down at
+## the first creature. A rank read the same way for the same reason.
 static func _aggression(spec: Dictionary) -> String:
-	var authored := String(spec.get("aggression", ""))
-	if PlatformerCombat.PROFILES.has(authored):
+	var authored: Variant = spec.get("aggression")
+	if authored is String and PlatformerCombat.PROFILES.has(authored):
 		return authored
-	return String(AGGRESSION_BY_RANK.get(String(spec.get("rank", "")), DEFAULT_AGGRESSION))
+	return str(AGGRESSION_BY_RANK.get(_rank(spec), DEFAULT_AGGRESSION))
+
+
+static func _rank(spec: Dictionary) -> String:
+	var named: Variant = spec.get("rank")
+	return named if named is String else ""
