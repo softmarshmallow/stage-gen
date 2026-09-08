@@ -18,6 +18,25 @@ const DEFAULT_AGGRESSION := "territorial"
 
 ## Every temperament a creature may be declared with.
 const PROFILES := {
+	# The one that does not fight at all, and the archetype a creature gets when
+	# its rank does not earn it another. `hostile` false is the first rung of the
+	# intent ladder, so a passive creature never chases, never swings and does no
+	# damage — and the whole roster of common things on a route is passive.
+	"passive": {
+		"aggroRadiusPx": 64.0,
+		"chaseSpeedPx": 48.0,
+		"strikeRangePx": 0.0,
+		"windupMs": 0.0,
+		"cooldownMs": 0.0,
+		"damage": 0.0,
+		"flees": false,
+		"hostile": false,
+		"inaccessibleSweepHalfWidthPx": 96.0,
+		"pursuitArrivalRadiusPx": 12.0,
+		"movementSpeedVarianceRatio": 0.1,
+		"pursuitSweepVarianceRatio": 0.2,
+		"actionTimingVarianceRatio": 0.0,
+	},
 	"skittish": {
 		"aggroRadiusPx": 192.0,
 		"chaseSpeedPx": 96.0,

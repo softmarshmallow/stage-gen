@@ -433,6 +433,196 @@ func _mobs(h: TestHarness, package: Dictionary) -> void:
 	h.assert_eq(shot.size(), 10, "a creature publishes ten fields")
 	h.assert_eq(String(shot["state"]), "wander", "and is wandering until something notices it")
 	h.assert_eq(int(shot["maxHp"]), 2, "with a common creature's health")
+	_temperaments(h, map)
+	_facing(h, map)
+	_lanes(h, map)
+	_shelves(h)
+
+
+## The archetypes, and the two the golden never sees.
+##
+## Neither package this suite reads authors a passive or a skittish creature, so
+## every rule below is measured here or nowhere: six hundred frames of parity say
+## nothing about a thing that does not fight or a thing that runs away.
+func _temperaments(h: TestHarness, map: Dictionary) -> void:
+	# The default archetype is the one a rank does not earn, and it is the whole
+	# common roster of a route. It used to resolve to `territorial`, which made
+	# every moth on the road a thing that swings at you.
+	var quiet := PlatformerCombat.profile("passive")
+	h.assert_true(not bool(quiet["hostile"]), "a passive creature is not hostile")
+	h.assert_eq(float(quiet["damage"]), 0.0, "and does no damage")
+	var moth := PlatformerMob.create(
+		4, "mob_4", "road-map/mob/4", 0, "passive", 2, 1184.0, 656.0, map
+	)
+	PlatformerMob.step(moth, map, 1.0 / 30.0, {"x": 1190.0, "y": 656.0}, 1000.0)
+	h.assert_eq(
+		String(moth["state"]), "wander", "and holds its patrol with a body six pixels away"
+	)
+	h.assert_true(
+		PlatformerMob.consume_strike(moth).is_empty(), "having committed no blow to land"
+	)
+
+	# A skittish creature is hostile and unarmed: it engages, and engaging means
+	# retreating. The directive existed and nothing handled it, so it fell through
+	# to patrol and a fleeing creature stood still.
+	var shy := PlatformerMob.create(
+		5, "mob_5", "road-map/mob/5", 0, "skittish", 2, 1184.0, 656.0, map
+	)
+	PlatformerMob.step(shy, map, 1.0 / 30.0, {"x": 1120.0, "y": 656.0}, 1000.0)
+	h.assert_eq(String(shy["state"]), "chase", "a skittish creature engages")
+	h.assert_true(float(shy["x"]) > 1184.0, "by moving away from what it noticed")
+
+
+## Which way a creature looks, which nothing in either golden publishes.
+func _facing(h: TestHarness, map: Dictionary) -> void:
+	h.assert_eq(
+		PlatformerMobBehavior.face_target(1, 100.0, 104.0),
+		1,
+		"a target inside the dead zone does not turn a creature"
+	)
+	h.assert_eq(
+		PlatformerMobBehavior.face_target(1, 100.0, 91.0),
+		-1,
+		"and a target outside it does"
+	)
+	h.assert_eq(
+		PlatformerMobBehavior.follow_movement(1, 100.0, 100.005),
+		1,
+		"a step navigation refused leaves the pose alone"
+	)
+	h.assert_eq(
+		PlatformerMobBehavior.follow_movement(1, 100.0, 99.0),
+		-1,
+		"and a step it allowed turns the creature"
+	)
+	h.assert_eq(
+		PlatformerMobBehavior.hit_facing(1), -1, "a struck creature looks at whoever swung"
+	)
+
+	var struck := PlatformerMob.create(
+		6, "mob_6", "road-map/mob/6", 0, "hunting", 4, 1184.0, 656.0, map
+	)
+	struck["facing"] = -1
+	PlatformerMob.take_hit(struck, map, 1.0, 1, 1000.0)
+	h.assert_eq(int(struck["facing"]), -1, "which is the opposite of the way it was thrown")
+
+	# Only the first blow of an action shoves. A combo that pushed on every tick
+	# would walk its own target out of the band that is hitting it.
+	var combo := PlatformerMob.create(
+		7, "mob_7", "road-map/mob/7", 0, "hunting", 4, 1184.0, 656.0, map
+	)
+	PlatformerMob.take_hit(combo, map, 1.0, 1, 1000.0, 0.0)
+	h.assert_eq(
+		float((combo["hitMotion"] as Dictionary)["targetX"]),
+		1184.0,
+		"a blow with no shove in it moves nothing"
+	)
+
+
+## The lane a creature is bound to, and the two ways out of it.
+func _lanes(h: TestHarness, map: Dictionary) -> void:
+	# A creature already outside its lane may walk back in at full stride and is
+	# not reported blocked; only one already inside is stopped at the edge. A
+	# plain clamp would teleport a knocked-out creature back on its next step,
+	# which is worse than the displacement.
+	var displaced := PlatformerMob.create(
+		8, "mob_8", "road-map/mob/8", 0, "hunting", 2, 1184.0, 656.0, map
+	)
+	displaced["x"] = float(displaced["patrolMaxX"]) + 40.0
+	PlatformerMob.wander(displaced, map, 1.0 / 30.0)
+	h.assert_true(
+		float(displaced["x"]) > float(displaced["patrolMaxX"]),
+		"a displaced creature is not snapped back into its lane"
+	)
+
+
+	# A walk home never overshoots home, which is what stops a fast creature
+	# oscillating around its own doorstep for the rest of the run.
+	var going := PlatformerMobBehavior.return_home_step(100.0, 90.0, 8.0, 5000.0, 1.0, 1.0 / 30.0)
+	h.assert_eq(float(going["targetX"]), 100.0, "a step home stops at home")
+	h.assert_true(bool(going["arrived"]), "and says it arrived")
+
+	# A creature that cannot reach the body's foot level sweeps a corridor around
+	# it rather than walking at the one coordinate it can never arrive at.
+	var pursuit := {"side": null, "blocked": {}}
+	var away := PlatformerMobBehavior.pursuit_target(pursuit, 100.0, 300.0, false, 1, 96.0, 12.0)
+	h.assert_eq(float(away["targetX"]), 396.0, "the corridor's far side, past the body")
+	h.assert_true(bool(away["sweeping"]), "and it says it is sweeping")
+	var near := PlatformerMobBehavior.pursuit_target(pursuit, 390.0, 300.0, false, 1, 96.0, 12.0)
+	h.assert_eq(float(near["targetX"]), 204.0, "arriving takes the other side")
+	var reachable := PlatformerMobBehavior.pursuit_target(
+		pursuit, 100.0, 300.0, true, 1, 96.0, 12.0
+	)
+	h.assert_eq(
+		float(reachable["targetX"]), 300.0, "and a body it can reach is walked straight at"
+	)
+	h.assert_true(pursuit["side"] == null, "which forgets the corridor")
+
+
+## The rules that need ground with a step in it.
+##
+## Both scripted runs walk on flat ground — every column of both fixture maps is
+## the same height — so six hundred frames of parity say nothing about a wall, a
+## drop, or the shelf a creature is bound to. The map here is the fixture's own
+## road with one half of it raised a tile, parsed by the real parser, because a
+## hand-written `heights` array would be testing the test.
+func _shelves(h: TestHarness) -> void:
+	var stepped: Variant = PlatformerMaps.parse(_stepped_manifest())
+	h.assert_true(not KernelRefusal.is_refusal(stepped), "the stepped package parses")
+	if KernelRefusal.is_refusal(stepped):
+		return
+	var map: Dictionary = ((stepped as Dictionary)["maps"] as Dictionary)["road-map"]
+	h.assert_eq(int((map["heights"] as PackedInt32Array)[10]), 1, "the west half is one tile deep")
+	h.assert_eq(int((map["heights"] as PackedInt32Array)[30]), 2, "and the east half is two")
+
+	# A lane ends where the shelf does, and a creature on the low half may not
+	# walk up the face at the middle of the map.
+	var low := PlatformerMob.create(
+		1, "mob_1", "road-map/mob/1", 0, "hunting", 2, 1216.0, 0.0, map
+	)
+	h.assert_eq(float(low["laneMaxX"]), 1279.0, "the west shelf ends at the face")
+	low["x"] = 1279.0
+	var walled := PlatformerMob.step_to(low, map, 1400.0, "world")
+	h.assert_true(walled, "a creature's own legs are stopped by a rise")
+	h.assert_true(
+		float(low["x"]) <= 1279.0, "and it is left standing on the side it started on"
+	)
+
+	# Knockback is the one movement allowed over a drop. A creature on the high
+	# half, thrown west, crosses the same edge its legs could not.
+	var high := PlatformerMob.create(
+		2, "mob_2", "road-map/mob/2", 0, "hunting", 4, 1312.0, 0.0, map
+	)
+	h.assert_eq(float(high["laneMinX"]), 1280.0, "the east shelf begins at the face")
+	var home_before := float(high["homeX"])
+	PlatformerMob.take_hit(high, map, 1.0, -1, 1000.0)
+	high["x"] = float((high["hitMotion"] as Dictionary)["targetX"])
+	h.assert_true(float(high["x"]) < 1280.0, "a blow throws it off the shelf")
+
+	# And once the flinch is over it takes the shelf it landed on, because its old
+	# home is somewhere it can neither jump nor climb back to.
+	high["hurtUntil"] = 0.0
+	PlatformerMob.step(high, map, 1.0 / 30.0, {}, 2000.0)
+	h.assert_true(
+		float(high["homeX"]) != home_before,
+		"a creature thrown off its shelf adopts the one it landed on"
+	)
+	h.assert_eq(float(high["laneMaxX"]), 1279.0, "with the new shelf's bounds")
+	h.assert_eq(String(high["awareness"]), "idle", "and forgets what it was hunting on the way")
+
+
+## The fixture's road with its east half raised a tile.
+func _stepped_manifest() -> Dictionary:
+	var made: Dictionary = _manifest().duplicate(true)
+	for entry: Variant in (made["maps"] as Array):
+		var authored: Dictionary = entry
+		if String(authored["map_id"]) != "road-map":
+			continue
+		var ground: Dictionary = authored["ground"]
+		var rows: Array = ground["occupancy"]
+		var raised := String(rows[rows.size() - 2])
+		rows[rows.size() - 2] = raised.substr(0, 20) + "1".repeat(raised.length() - 20)
+	return made
 
 
 ## The round in the air, what it strikes, and the hold a blow puts on the frame.

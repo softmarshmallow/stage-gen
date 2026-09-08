@@ -83,3 +83,131 @@ static func action_timing(
 			cooldown_ms * _symmetric(unit_noise(mixed, CHANNEL_COOLDOWN), variance)
 		),
 	}
+
+
+## Which way a creature is looking, and what may change it.
+##
+## Two ways in, and they are not the same. A *deliberate* turn — a swing, a
+## flinch — comes with a target and has a dead zone: a body crossing the
+## creature's own x does not flip it every frame. An *incidental* turn follows
+## the displacement navigation actually allowed, so a step a terrain face refused
+## leaves the pose untouched while a step that moved the body turns it.
+const FACING_TARGET_DEADZONE_PX := 8.0
+const FACING_MOVEMENT_EPSILON_PX := 0.01
+
+
+## Turn towards a target, unless it is inside the dead zone.
+static func face_target(facing: int, from_x: float, target_x: float) -> int:
+	var delta := target_x - from_x
+	if absf(delta) > FACING_TARGET_DEADZONE_PX:
+		return 1 if delta > 0.0 else -1
+	return facing
+
+
+## Turn with the movement that survived navigation.
+static func follow_movement(facing: int, previous_x: float, current_x: float) -> int:
+	var delta := current_x - previous_x
+	if absf(delta) > FACING_MOVEMENT_EPSILON_PX:
+		return 1 if delta > 0.0 else -1
+	return facing
+
+
+## Which way a struck creature looks: at whoever swung, which is the opposite of
+## the way the blow threw it.
+static func hit_facing(knockback_direction: int) -> int:
+	return -1 if knockback_direction == 1 else 1
+
+
+## Where a creature walking home goes this step, never past home.
+##
+## `{targetX, direction, arrived}`. The overshoot clamp is what stops a fast
+## creature oscillating around its own doorstep for the rest of the run.
+static func return_home_step(
+	home_x: float, mob_x: float, arrival_radius: float, speed_px: float, speed_scale: float,
+	dt_seconds: float
+) -> Dictionary:
+	var delta := home_x - mob_x
+	var direction := 1 if delta >= 0.0 else -1
+	if absf(delta) <= arrival_radius:
+		return {"targetX": home_x, "direction": direction, "arrived": true}
+	var distance := minf(absf(delta), speed_px * speed_scale * dt_seconds)
+	return {
+		"targetX": mob_x + float(direction) * distance,
+		"direction": direction,
+		"arrived": is_equal_approx(distance, absf(delta)),
+	}
+
+
+## Where a chasing creature actually walks to.
+##
+## A creature that cannot reach the player's foot level must not seek the
+## player's exact x: doing so crosses that one coordinate every step and reverses
+## the pose every frame. Instead it remembers one side of a corridor around the
+## player, walks *through* the player to that endpoint, and takes the other side
+## on arrival. The side it starts on is its own current facing, so a group
+## arriving together does not collapse onto one flank.
+##
+## `pursuit` is the creature's own memory — `{side, blocked}` — and is written in
+## place. Returns `{targetX, direction, sweeping}`.
+static func pursuit_target(
+	pursuit: Dictionary,
+	mob_x: float,
+	player_x: float,
+	attack_level_reachable: bool,
+	facing: int,
+	half_width: float,
+	arrival_radius: float
+) -> Dictionary:
+	if attack_level_reachable:
+		reset_pursuit(pursuit)
+		return {
+			"targetX": player_x,
+			"direction": _toward(mob_x, player_x, facing),
+			"sweeping": false,
+		}
+	if pursuit.get("side") == null:
+		pursuit["side"] = facing
+	var side := int(pursuit["side"])
+	var target := player_x + float(side) * half_width
+	var reached := (
+		mob_x >= target - arrival_radius if side == 1 else mob_x <= target + arrival_radius
+	)
+	if reached:
+		side = -side
+		pursuit["side"] = side
+		target = player_x + float(side) * half_width
+	return {
+		"targetX": target,
+		"direction": _toward(mob_x, target, facing),
+		"sweeping": true,
+	}
+
+
+## A terrain face invalidates the endpoint the creature was walking to: mark this
+## side, take the alternate once, and hold rather than oscillate when both fail.
+static func report_pursuit_blocked(pursuit: Dictionary) -> void:
+	if pursuit.get("side") == null:
+		return
+	var side := int(pursuit["side"])
+	var blocked: Dictionary = pursuit["blocked"]
+	blocked[side] = true
+	if not blocked.has(-side):
+		pursuit["side"] = -side
+
+
+## Travel that actually happened proves the current side is viable again.
+static func report_pursuit_progress(pursuit: Dictionary) -> void:
+	if pursuit.get("side") == null:
+		return
+	(pursuit["blocked"] as Dictionary).erase(int(pursuit["side"]))
+
+
+static func reset_pursuit(pursuit: Dictionary) -> void:
+	pursuit["side"] = null
+	pursuit["blocked"] = {}
+
+
+static func _toward(from_x: float, target_x: float, fallback: int) -> int:
+	if is_equal_approx(target_x, from_x):
+		return fallback
+	return 1 if target_x > from_x else -1

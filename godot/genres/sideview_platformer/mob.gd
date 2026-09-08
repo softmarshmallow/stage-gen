@@ -65,6 +65,12 @@ const FALLBACK_FRAME := 64.0
 ## How far above or below its own feet a creature may still reach, in tiles.
 const VERTICAL_REACH_TILES := 1.0
 
+## A rise this small is a step rather than a wall, and a foot stopped by a face is
+## left this far clear of it — so the column lookup still resolves to the side the
+## creature is standing on rather than to the wall it is touching.
+const TERRAIN_STEP_UP_TOLERANCE := 1.0
+const TERRAIN_WALL_CONTACT_GAP := 1.0
+
 ## How near home is near enough to stop returning to it, and how fast a creature
 ## walks back. A return is slower than a chase: it is a creature giving up, and
 ## it should read as one.
@@ -101,6 +107,10 @@ static func create(
 		# Not published, and not hashed: the lane it patrols, the tempo it was
 		# born with, and which way it set off.
 		"homeX": spawn_x,
+		# The shelf it stands on, kept so a creature thrown off the end of it can be
+		# asked whether where it landed is still part of the shelf.
+		"laneMinX": lane["minX"],
+		"laneMaxX": lane["maxX"],
 		"patrolMinX": maxf(lane["minX"], spawn_x - roundf(PlatformerMaps.TILE_PX * PATROL_HOME_RADIUS_TILES)),
 		"patrolMaxX": minf(lane["maxX"], spawn_x + roundf(PlatformerMaps.TILE_PX * PATROL_HOME_RADIUS_TILES)),
 		"speedScale": float(variation["movementSpeedScale"]),
@@ -122,6 +132,14 @@ static func create(
 		# together decide how long the next one takes.
 		"behaviorSeed": instance,
 		"actionSequence": 0,
+		# Which flank of an unreachable player it is walking to, and which flanks a
+		# terrain face has already refused.
+		"pursuit": {"side": null, "blocked": {}},
+		# How wide that corridor is for this creature: the profile's, scaled by the
+		# same seed that gave it its tempo, so a group does not sweep in unison.
+		"sweepHalfWidthPx": (
+			float(profile["inaccessibleSweepHalfWidthPx"]) * float(variation["pursuitSweepScale"])
+		),
 		"pendingStrike": {},
 		"hurtUntil": 0.0,
 		# The knockback in flight: where it started, where it is going, and when.
@@ -166,6 +184,7 @@ static func step(
 	if String(mob["state"]) == STATE_HURT:
 		if now_ms < float(mob["hurtUntil"]):
 			return
+		_adopt_forced_landing(mob, map)
 		mob["state"] = STATE_WANDER
 
 	# A wind-up already in flight resolves before anything else is decided: the
@@ -188,16 +207,64 @@ static func step(
 	if directive == "chase":
 		_chase(mob, map, dt_seconds, profile, player)
 		return
+	if directive == "flee":
+		_flee(mob, map, dt_seconds, profile, player)
+		return
 	if directive == "attack_recovery":
+		PlatformerMobBehavior.reset_pursuit(mob["pursuit"])
 		mob["state"] = STATE_ATTACK_RECOVERY
 		return
 	if directive == "return_home":
+		PlatformerMobBehavior.reset_pursuit(mob["pursuit"])
 		mob["state"] = STATE_RETURN_HOME
-		_walk_toward(
-			mob, map, dt_seconds, float(mob["homeX"]), roundf(PlatformerMaps.TILE_PX * RETURN_SPEED_TILES)
+		var going := PlatformerMobBehavior.return_home_step(
+			float(mob["homeX"]),
+			float(mob["x"]),
+			roundf(PlatformerMaps.TILE_PX * RETURN_ARRIVAL_TILES),
+			roundf(PlatformerMaps.TILE_PX * RETURN_SPEED_TILES),
+			float(mob["speedScale"]),
+			dt_seconds
 		)
+		_walk_to(mob, map, float(going["targetX"]), "pursuit")
 		return
+	PlatformerMobBehavior.reset_pursuit(mob["pursuit"])
 	wander(mob, map, dt_seconds)
+
+
+## Take the shelf a blow threw this creature onto, if it is not the one it left.
+##
+## Knockback may deliberately carry a creature over a drop, and once it has
+## landed on a disconnected shelf its old home is unreachable — a creature can
+## neither jump nor climb. Re-homing only in that case keeps ordinary knockback
+## on the same shelf free of consequences while stopping a return that can never
+## arrive.
+static func _adopt_forced_landing(mob: Dictionary, map: Dictionary) -> void:
+	var landing := float(mob["x"])
+	if landing >= float(mob["laneMinX"]) and landing <= float(mob["laneMaxX"]):
+		return
+	var half := envelope_half_width()
+	var home := clampf(landing, half, float(map["worldWidthPx"]) - half)
+	var lane := _lane(map, home)
+	mob["laneMinX"] = lane["minX"]
+	mob["laneMaxX"] = lane["maxX"]
+	mob["homeX"] = home
+	mob["patrolMinX"] = maxf(
+		lane["minX"], home - roundf(PlatformerMaps.TILE_PX * PATROL_HOME_RADIUS_TILES)
+	)
+	mob["patrolMaxX"] = minf(
+		lane["maxX"], home + roundf(PlatformerMaps.TILE_PX * PATROL_HOME_RADIUS_TILES)
+	)
+	mob["pursuitMinX"] = maxf(
+		lane["minX"], home - PlatformerMaps.TILE_PX * PURSUIT_HOME_RADIUS_TILES
+	)
+	mob["pursuitMaxX"] = minf(
+		lane["maxX"], home + PlatformerMaps.TILE_PX * PURSUIT_HOME_RADIUS_TILES
+	)
+	# It has arrived somewhere it did not choose: whatever it was hunting and
+	# whichever flank it was sweeping describe a place it is no longer standing.
+	mob["awareness"] = "idle"
+	PlatformerMobBehavior.reset_pursuit(mob["pursuit"])
+	mob["y"] = _surface_at(map, float(mob["x"]))
 
 
 ## What this creature wants this frame.
@@ -254,18 +321,19 @@ static func _intent(
 		return "hold"
 	if bool(profile["flees"]):
 		return "flee"
-	var reachable := (
-		absf(float(mob["y"]) - float(player["y"]))
-		<= PlatformerMaps.TILE_PX * VERTICAL_REACH_TILES
-	)
 	# Cooldown outranks range, so a creature that has just swung keeps its
 	# committed pose rather than falling through to patrol.
 	if (
 		distance <= float(profile["strikeRangePx"])
 		and float(mob.get("nowMs", 0.0)) >= float(mob["attackReadyAtMs"])
-		and reachable
 	):
-		return "strike"
+		# A blow it cannot reach is not a blow it holds still for: the swing
+		# becomes a chase, and the chase is what closes the gap in *height*. Folding
+		# the reach into the rung above instead would leave a creature standing in
+		# recovery under a deck it could have walked round to.
+		if reachable(mob, player):
+			return "strike"
+		return "chase"
 	if distance <= float(profile["strikeRangePx"]):
 		return "attack_recovery"
 	return "chase"
@@ -310,7 +378,12 @@ static func envelope_half_width() -> float:
 
 ## Land one blow on this creature. Returns `{connected, died, hpAfter}`.
 static func take_hit(
-	mob: Dictionary, map: Dictionary, amount: float, direction: int, now_ms: float
+	mob: Dictionary,
+	map: Dictionary,
+	amount: float,
+	direction: int,
+	now_ms: float,
+	knockback_scale: float = 1.0
 ) -> Dictionary:
 	if not bool(mob["alive"]):
 		return {"connected": false, "died": false, "hpAfter": int(mob["hp"])}
@@ -318,8 +391,15 @@ static func take_hit(
 	mob["hp"] = after
 	mob["state"] = STATE_HURT
 	mob["hurtUntil"] = now_ms + HURT_DURATION_MS
-	mob["facing"] = direction
-	var target := _walk(mob, map, float(mob["x"]) + float(direction) * KNOCKBACK_PX, "world")
+	# At whoever swung, which is the opposite of the way the blow throws it.
+	mob["facing"] = PlatformerMobBehavior.hit_facing(direction)
+	var target := _walk(
+		mob,
+		map,
+		float(mob["x"]) + float(direction) * KNOCKBACK_PX * knockback_scale,
+		"world",
+		true
+	)
 	mob["hitMotion"] = {"startedMs": now_ms, "startX": float(mob["x"]), "targetX": float(target["x"])}
 	if after <= 0:
 		mob["alive"] = false
@@ -335,31 +415,85 @@ static func consume_strike(mob: Dictionary) -> Dictionary:
 	return pending
 
 
-## Close on the player at the profile's own speed, bounded by where this
-## creature is allowed to hunt.
+## Whether this creature could land a blow on the body from where both stand.
+static func reachable(mob: Dictionary, player: Dictionary) -> bool:
+	if player.is_empty():
+		return false
+	return (
+		absf(float(mob["y"]) - float(player["y"]))
+		<= PlatformerMaps.TILE_PX * VERTICAL_REACH_TILES
+	)
+
+
+## Close on the player at the profile's own speed, bounded by where this creature
+## is allowed to hunt — and sweeping a corridor around a player it cannot reach
+## rather than walking at the one coordinate it can never arrive at.
 static func _chase(
 	mob: Dictionary, map: Dictionary, dt_seconds: float, profile: Dictionary, player: Dictionary
 ) -> void:
 	mob["state"] = STATE_CHASE
-	_walk_toward(mob, map, dt_seconds, float(player["x"]), float(profile["chaseSpeedPx"]))
-
-
-static func _walk_toward(
-	mob: Dictionary, map: Dictionary, dt_seconds: float, target_x: float, speed_px: float
-) -> void:
-	var direction := 0
-	if target_x > float(mob["x"]):
-		direction = 1
-	elif target_x < float(mob["x"]):
-		direction = -1
+	var pursuit: Dictionary = mob["pursuit"]
+	var decision := PlatformerMobBehavior.pursuit_target(
+		pursuit,
+		float(mob["x"]),
+		float(player["x"]),
+		reachable(mob, player),
+		int(mob["facing"]),
+		float(mob["sweepHalfWidthPx"]),
+		float(profile["pursuitArrivalRadiusPx"])
+	)
+	var speed := float(profile["chaseSpeedPx"]) * float(mob["speedScale"])
+	var blocked := _step_by(
+		mob, map, float(decision["direction"]) * speed * dt_seconds, "pursuit"
+	)
+	if not bool(decision["sweeping"]):
+		return
+	if blocked:
+		PlatformerMobBehavior.report_pursuit_blocked(pursuit)
 	else:
-		direction = int(mob["facing"])
-	mob["facing"] = direction
-	var speed := speed_px * float(mob["speedScale"])
-	var next_x := float(mob["x"]) + float(direction) * speed * dt_seconds
-	var walk := _walk(mob, map, next_x, "pursuit")
+		PlatformerMobBehavior.report_pursuit_progress(pursuit)
+
+
+## Back away from the body at the same speed a chase closes with, still bounded
+## by where this creature is allowed to go. It reads as `chase` while it does —
+## the state names the engagement, not the direction.
+static func _flee(
+	mob: Dictionary, map: Dictionary, dt_seconds: float, profile: Dictionary, player: Dictionary
+) -> void:
+	PlatformerMobBehavior.reset_pursuit(mob["pursuit"])
+	var away := -1.0 if float(player["x"]) >= float(mob["x"]) else 1.0
+	var speed := float(profile["chaseSpeedPx"]) * float(mob["speedScale"])
+	_step_by(mob, map, away * speed * dt_seconds, "pursuit")
+	mob["state"] = STATE_CHASE
+
+
+## Walk to a place, and let the pose follow the displacement that survived.
+## Returns whether something stopped it. Public because it is the one way to ask
+## the terrain a question — a wall, a drop, the end of a lane — without a whole
+## frame of behaviour around it.
+static func step_to(
+	mob: Dictionary, map: Dictionary, target_x: float, boundary: String
+) -> bool:
+	return _walk_to(mob, map, target_x, boundary)
+
+
+static func _walk_to(
+	mob: Dictionary, map: Dictionary, target_x: float, boundary: String
+) -> bool:
+	var previous := float(mob["x"])
+	var walk := _walk(mob, map, target_x, boundary)
 	mob["x"] = walk["x"]
+	mob["facing"] = PlatformerMobBehavior.follow_movement(
+		int(mob["facing"]), previous, float(mob["x"])
+	)
 	mob["y"] = _surface_at(map, float(mob["x"]))
+	return bool(walk["blocked"])
+
+
+static func _step_by(
+	mob: Dictionary, map: Dictionary, delta_x: float, boundary: String
+) -> bool:
+	return _walk_to(mob, map, float(mob["x"]) + delta_x, boundary)
 
 
 ## One frame of a creature nobody has noticed.
@@ -368,15 +502,11 @@ static func wander(mob: Dictionary, map: Dictionary, dt_seconds: float) -> void:
 		return
 	mob["state"] = STATE_WANDER
 	var speed := DEFAULT_SPEED_PX * float(mob["speedScale"])
-	var next_x := float(mob["x"]) + float(mob["patrolDirection"]) * speed * dt_seconds
-	var walk := _walk(mob, map, next_x, "patrol")
-	mob["x"] = walk["x"]
 	# A face turns a patrol the same way the end of its lane does. Reversing
 	# rather than standing still is what stops a creature pressed against a rise
 	# for the rest of the run, which reads as stuck rather than as bounded.
-	if bool(walk["blocked"]):
+	if _step_by(mob, map, float(mob["patrolDirection"]) * speed * dt_seconds, "patrol"):
 		mob["patrolDirection"] = -int(mob["patrolDirection"])
-	mob["y"] = _surface_at(map, float(mob["x"]))
 
 
 ## The eight fields the golden hashes.
@@ -395,9 +525,17 @@ static func snapshot(mob: Dictionary) -> Dictionary:
 	}
 
 
-## A step bounded by the patrol lane and then by the terrain, in that order.
+## A step bounded by the lane and then by the terrain, in that order.
+##
+## `allow_descents` is the one thing knockback is allowed that a creature's own
+## legs are not: a raised face stops a blow's throw the same way it stops a walk,
+## but a drop does not — a thing knocked off a ledge falls off it.
 static func _walk(
-	mob: Dictionary, map: Dictionary, next_x: float, boundary: String
+	mob: Dictionary,
+	map: Dictionary,
+	next_x: float,
+	boundary: String,
+	allow_descents: bool = false
 ) -> Dictionary:
 	var minimum := envelope_half_width()
 	var maximum := float(map["worldWidthPx"]) - envelope_half_width()
@@ -407,21 +545,47 @@ static func _walk(
 	elif boundary == "pursuit":
 		minimum = float(mob["pursuitMinX"])
 		maximum = float(mob["pursuitMaxX"])
-	var bounded := clampf(next_x, minimum, maximum)
-	var stopped := bounded != next_x
+	var step := _boundary_step(float(mob["x"]), next_x, minimum, maximum)
 	var walk := FamilyContact.resolve_terrain_walk(
 		float(mob["x"]),
-		bounded,
+		float(step["x"]),
 		_surface_at(map, float(mob["x"])),
 		PlatformerMaps.TILE_PX,
 		func(column: int) -> float: return _surface_at_column(map, column),
-		0.0,
-		0.0,
-		false
+		TERRAIN_STEP_UP_TOLERANCE,
+		TERRAIN_WALL_CONTACT_GAP,
+		allow_descents
 	)
-	if bool(walk["blocked"]) or not stopped:
+	if bool(walk["blocked"]) or not bool(step["blocked"]):
 		return walk
 	return {"x": walk["x"], "blocked": true, "blockedColumn": -1}
+
+
+## A lane boundary, enforced without snapping a creature that is already outside
+## it back in.
+##
+## Knockback and a shelf a creature was thrown onto both leave one standing
+## outside its own lane. A plain clamp would teleport it back on the next step,
+## which is worse than the displacement. So: already outside may step *inward* at
+## full size and is not reported blocked, may not step further outward, and only
+## one already inside is stopped at the edge.
+static func _boundary_step(
+	previous_x: float, next_x: float, minimum: float, maximum: float
+) -> Dictionary:
+	if previous_x < minimum:
+		if next_x < previous_x:
+			return {"x": previous_x, "blocked": true}
+		if next_x > maximum:
+			return {"x": maximum, "blocked": true}
+		return {"x": next_x, "blocked": false}
+	if previous_x > maximum:
+		if next_x > previous_x:
+			return {"x": previous_x, "blocked": true}
+		if next_x < minimum:
+			return {"x": minimum, "blocked": true}
+		return {"x": next_x, "blocked": false}
+	var bounded := clampf(next_x, minimum, maximum)
+	return {"x": bounded, "blocked": bounded != next_x}
 
 
 ## The shelf a creature was spawned on: the run of columns at its own height.

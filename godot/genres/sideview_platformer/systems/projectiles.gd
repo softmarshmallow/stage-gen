@@ -48,7 +48,7 @@ static func throw_one(world: PlatformerWorld, step: Dictionary) -> void:
 	world.player["attackTicksFired"] = tick + 1
 	var direction := -1 if String(world.player["facing"]) == PlatformerPlayer.FACING_LEFT else 1
 	if String(weapon["delivery"]) == "instant":
-		_swing(world, step, weapon, direction)
+		_swing(world, step, weapon, direction, tick)
 		return
 	var shot := PlatformerProjectiles.launch(
 		world.projectiles,
@@ -82,7 +82,8 @@ static func _pay_out(
 	weapon: Dictionary,
 	mob: Dictionary,
 	seed_x: float,
-	direction: int
+	direction: int,
+	knockback_scale: float = 1.0
 ) -> Dictionary:
 	var map: Dictionary = (world.package["maps"] as Dictionary)[world.map_id]
 	world.blow_sequence += 1
@@ -95,7 +96,7 @@ static func _pay_out(
 		seed_value
 	)
 	var blow := PlatformerMob.take_hit(
-		mob, map, float(struck["amount"]), direction, float(step["now"])
+		mob, map, float(struck["amount"]), direction, float(step["now"]), knockback_scale
 	)
 	# The hold a blow puts on the frame: forty milliseconds, seventy on a kill,
 	# and extended rather than restarted — three blows in one frame hold once,
@@ -198,7 +199,7 @@ static func _silhouette(world: PlatformerWorld) -> String:
 ## creature killed by the second frees its slot for the third, and one that
 ## wandered into the band mid-swing is struck by the blows that remain.
 static func _swing(
-	world: PlatformerWorld, step: Dictionary, weapon: Dictionary, direction: int
+	world: PlatformerWorld, step: Dictionary, weapon: Dictionary, direction: int, tick: int
 ) -> void:
 	var living: Array = []
 	var boxes: Array = []
@@ -215,7 +216,18 @@ static func _swing(
 		direction,
 		boxes
 	):
-		_pay_out(world, step, weapon, living[int(index)], float(world.player["x"]), direction)
+		# Only the first blow of an action shoves. A combo that pushed on every
+		# tick would walk its own target out of the band that is hitting it, so the
+		# second and third blows land on a creature the first one already moved.
+		_pay_out(
+			world,
+			step,
+			weapon,
+			living[int(index)],
+			float(world.player["x"]),
+			direction,
+			1.0 if tick == 0 else 0.0
+		)
 
 
 ## Step every round and pay out what it hit.
