@@ -20,9 +20,6 @@ extends Node2D
 ## keypress, the whole runtime is a reducer over a finite graph, and the view
 ## redraws when the reducer moves.
 
-const BUNDLE_REF := "bundle.json"
-
-var package: HostRunDir = null
 var leaf: HostDialogueLeaf = null
 ## Which scenario to play, when a capture chooses one per shot rather than the
 ## command line choosing one for the process.
@@ -37,19 +34,12 @@ func _ready() -> void:
 		_refuse("dialogue host: pass the run directory after `-- --run <dir>`")
 		return
 	# A scene run has no `manifest.json` at all: its document is the bundle, and
-	# it is read and refused by the genre rather than by the loader.
-	package = HostRunDir.open(args.run, Callable(), "", BUNDLE_REF)
-	if package == null:
-		_refuse("dialogue host: %s has no readable %s" % [args.run, BUNDLE_REF])
-		return
+	# opening it, reading it and refusing it are all the leaf's, which is the one
+	# thing that knows this genre.
 	var wanted := scenario_override if scenario_override != "" else args.scenario
-	var parsed: Variant = DialogueBundle.parse(package.manifest, wanted)
-	if KernelRefusal.is_refusal(parsed):
-		_refuse((parsed as KernelRefusal).line())
-		return
-	var built: Variant = HostDialogueLeaf.of(package, parsed as Dictionary)
+	var built: Variant = HostDialogueLeaf.open(args.run, wanted)
 	if KernelRefusal.is_refusal(built):
-		_refuse((built as KernelRefusal).line())
+		_refuse("dialogue host: %s" % (built as KernelRefusal).line())
 		return
 
 	leaf = built

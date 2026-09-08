@@ -73,6 +73,10 @@ static func parse(document: Variant) -> Variant:
 			{
 				"beatId": beat_id,
 				"kind": kind,
+				# What the chrome calls this beat. Carried because the container's
+				# one line of chrome names it, and a beat identified by its id is a
+				# player reading a database key.
+				"displayName": String(beat.get("display_name", beat_id)),
 				"runTag": String(beat.get("run_tag", "")),
 				"scenarioId": beat.get("scenario_id"),
 				"writes": _strings(beat.get("writes")),

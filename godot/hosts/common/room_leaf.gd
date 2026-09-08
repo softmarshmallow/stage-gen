@@ -76,6 +76,32 @@ var _verbs: Dictionary = {}
 var _hint_button: HostAtlasButton = null
 
 
+## What a room run's document is called.
+const DOCUMENT_REF := "manifest.json"
+
+
+## Open a room run and build the leaf that plays it, or refuse.
+##
+## The parse is behind this door rather than in front of it, and that is the
+## layering rather than a convenience: `hosts/case/` may not name `RoomContract`,
+## because a host naming another recipe's classes is how two hosts grow into one.
+## What a case may name is a leaf player, and a leaf player knows its own genre.
+static func open(
+	run_dir: String,
+	carried: PackedStringArray = PackedStringArray(),
+	resume: Variant = null
+) -> Variant:
+	var package := HostRunDir.open(run_dir, Callable(), "", DOCUMENT_REF)
+	if package == null:
+		return KernelRefusal.of(
+			"room/run", "%s is not a readable room run" % run_dir, run_dir
+		)
+	var parsed: Variant = RoomContract.parse(package.manifest)
+	if KernelRefusal.is_refusal(parsed):
+		return parsed
+	return of(package, parsed as Dictionary, carried, resume)
+
+
 ## Build one room over an opened run. Returns a `KernelRefusal` when the document
 ## does not carry what a picture needs — a host that drew an untextured
 ## rectangle instead would be reporting a package fault as a rendering one.
@@ -132,6 +158,12 @@ func canvas() -> Dictionary:
 
 func state() -> Dictionary:
 	return _state
+
+
+## Say the state that is already on screen. A shell that connects after the leaf
+## was built asks for it once, so its first save is the room as it opens.
+func report() -> void:
+	changed.emit(_state, [])
 
 
 ## Play one click from a script rather than from a pointer, for a capture. The

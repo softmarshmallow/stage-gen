@@ -74,6 +74,33 @@ var _players: Dictionary = {}
 var _playing: PackedStringArray = PackedStringArray()
 
 
+## What a dialogue-scene run's document is called. Not `manifest.json`: a scene
+## run has no manifest at all.
+const DOCUMENT_REF := "bundle.json"
+
+
+## Open a scene run, choose one of its scenarios, and build the leaf, or refuse.
+##
+## The parse is behind this door for the same reason the room's is: a case host
+## may not name `DialogueBundle`, and what it may name is a leaf player that
+## knows its own genre.
+static func open(
+	run_dir: String,
+	scenario_id: String = "",
+	carried: PackedStringArray = PackedStringArray(),
+	resume: Variant = null
+) -> Variant:
+	var package := HostRunDir.open(run_dir, Callable(), "", DOCUMENT_REF)
+	if package == null:
+		return KernelRefusal.of(
+			"dialogue/run", "%s has no readable %s" % [run_dir, DOCUMENT_REF], run_dir
+		)
+	var parsed: Variant = DialogueBundle.parse(package.manifest, scenario_id)
+	if KernelRefusal.is_refusal(parsed):
+		return parsed
+	return of(package, parsed as Dictionary, carried, resume)
+
+
 ## Build one scene over an opened run. `document` is the parsed bundle,
 ## `carried` the facts an earlier beat set, `resume` a saved playback or null.
 static func of(
@@ -145,6 +172,12 @@ func canvas() -> Dictionary:
 
 func state() -> Dictionary:
 	return _state
+
+
+## Say the moment that is already on screen. A shell that connects after the
+## leaf was built asks for it once, so its first save is its first line.
+func report() -> void:
+	_report(view())
 
 
 func view() -> Dictionary:

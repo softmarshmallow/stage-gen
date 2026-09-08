@@ -24,7 +24,6 @@ extends Node2D
 ## this build does not read, or a package with no interface art is a card with a
 ## sentence on it rather than a black window.
 
-var package: HostRunDir = null
 var leaf: HostRoomLeaf = null
 
 var _root: Control = null
@@ -35,17 +34,9 @@ func _ready() -> void:
 	if args.run.is_empty():
 		_refuse("room host: pass the run directory after `-- --run <dir>`")
 		return
-	package = HostRunDir.open(args.run)
-	if package == null:
-		_refuse("room host: %s is not a readable run" % args.run)
-		return
-	var parsed: Variant = RoomContract.parse(package.manifest)
-	if KernelRefusal.is_refusal(parsed):
-		_refuse((parsed as KernelRefusal).line())
-		return
-	var built: Variant = HostRoomLeaf.of(package, parsed as Dictionary)
+	var built: Variant = HostRoomLeaf.open(args.run)
 	if KernelRefusal.is_refusal(built):
-		_refuse((built as KernelRefusal).line())
+		_refuse("room host: %s" % (built as KernelRefusal).line())
 		return
 
 	leaf = built

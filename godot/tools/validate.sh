@@ -6,7 +6,7 @@
 #   tools/validate.sh --run <absolute run dir> --out <directory> \
 #       [--ref <reference directory>] [--dpr 1] [--shots all] [--skip-tests] \
 #       [--runner-run <absolute runner run dir>] [--room-run <absolute room run dir>] \
-#       [--scene-run <absolute dialogue-scene run dir>]
+#       [--scene-run <absolute dialogue-scene run dir>] [--case-run <absolute case run dir>]
 #
 # `--runner-run` adds the runner's own picture gate: four named steps captured
 # and measured. Decision 0065 retired the browser runner on a state proof and
@@ -33,6 +33,7 @@ SKIP_TESTS=0
 RUNNER_RUN=""
 ROOM_RUN=""
 SCENE_RUN=""
+CASE_RUN=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -44,6 +45,7 @@ while [ $# -gt 0 ]; do
     --runner-run) RUNNER_RUN=$2; shift 2;;
     --room-run) ROOM_RUN=$2; shift 2;;
     --scene-run) SCENE_RUN=$2; shift 2;;
+    --case-run) CASE_RUN=$2; shift 2;;
     --skip-tests) SKIP_TESTS=1; shift;;
     -h|--help) sed -n '2,15p' "${BASH_SOURCE[0]}"; exit 0;;
     *) echo "validate: unknown argument $1" >&2; exit 2;;
@@ -192,6 +194,20 @@ if [ -n "$SCENE_RUN" ]; then
       --run "$SCENE_RUN" --out "$OUT/scene-shots" --shots all \
     | grep -E '^.dialogue capture.' || true
   python3 "$PROJECT/tools/dialogue_shots_check.py" "$OUT/scene-shots"
+fi
+
+if [ -n "$CASE_RUN" ]; then
+  echo "== case picture gate"
+  # The container rather than any game: the bar that says where you are, the
+  # Continue a finished beat offers, the backlog, and the card that closes it.
+  # Each shot opens on a cleared save, so the sheet says the same thing however
+  # many times it is taken.
+  mkdir -p "$OUT/case-shots"
+  "$GODOT" --path "$PROJECT" --rendering-driver metal --disable-render-loop \
+      --audio-driver Dummy --quit-after 200000 -s res://tools/case_capture.gd -- \
+      --run "$CASE_RUN" --out "$OUT/case-shots" --shots all \
+    | grep -E '^.case capture.' || true
+  python3 "$PROJECT/tools/case_shots_check.py" "$OUT/case-shots"
 fi
 
 if [ -z "$REF" ]; then

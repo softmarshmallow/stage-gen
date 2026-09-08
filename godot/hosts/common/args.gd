@@ -34,6 +34,9 @@ var seed_value: int = 0
 var scenario: String = ""
 ## Which beat of a case to open on, for a capture that wants a named one.
 var beat: String = ""
+## Where the runs a case's beats name live. A case run sits beside them, so the
+## default is its own parent.
+var runs: String = ""
 ## Capture harness: which framing to shoot, where to write it, how many frames.
 var capture: String = ""
 var out: String = ""
@@ -83,6 +86,8 @@ static func parse(argv: PackedStringArray) -> HostArgs:
 				args.scenario = value
 			"--beat":
 				args.beat = value
+			"--runs":
+				args.runs = value
 			"--capture":
 				args.capture = value
 			"--out":
