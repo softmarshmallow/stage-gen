@@ -72,7 +72,7 @@ static func apply(world: PlatformerWorld, step: Dictionary) -> void:
 	if spawn.is_empty():
 		return
 	world.open_on(String(spawn["mapId"]))
-	_place(world, float(spawn["x"]), float(spawn["y"]))
+	place(world, float(spawn["x"]), float(spawn["y"]))
 	world.camera = PlatformerCameraSystem.snapped(
 		float(world.player["x"]),
 		PlatformerCameraSystem.bounds_of(world),
@@ -97,7 +97,7 @@ static func apply(world: PlatformerWorld, step: Dictionary) -> void:
 ## body does not take one this frame: the column from the new x, the support
 ## from the new ground, and the motion cleared so an arrival does not carry the
 ## departure's run into the next map.
-static func _place(world: PlatformerWorld, x: float, y: float) -> void:
+static func place(world: PlatformerWorld, x: float, y: float) -> void:
 	var player: Dictionary = world.player
 	player["x"] = x
 	player["y"] = y

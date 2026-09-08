@@ -134,6 +134,7 @@ func _tick() -> void:
 		PlatformerWeapon.profile(world.weapon_class)
 	)
 	PlatformerMobsSystem.strike(world, step)
+	PlatformerSessionSystem.update(world, step)
 	PlatformerProjectilesSystem.throw_one(world, step)
 	PlatformerMobsSystem.populate(world, step)
 	PlatformerMobsSystem.step(world, step)

@@ -33,6 +33,7 @@ var _atlas: Dictionary = {}
 var _bands: Array = []
 var _terrain: Node2D = null
 var _portals: Node2D = null
+var _climbables: Node2D = null
 var _map_id: String = ""
 
 
@@ -46,6 +47,9 @@ static func of(package: HostRunDir, atlas: Dictionary) -> PlatformerStage:
 	made._portals = Node2D.new()
 	made._portals.z_index = DEPTHS["portal"]
 	made.add_child(made._portals)
+	made._climbables = Node2D.new()
+	made._climbables.z_index = DEPTHS["climbable"]
+	made.add_child(made._climbables)
 	return made
 
 
@@ -63,6 +67,7 @@ func open_on(world: PlatformerWorld) -> void:
 	_build_bands(authored, "background")
 	_build_terrain(authored)
 	_build_portals(world, authored)
+	_build_climbables(world, authored)
 	_build_bands(authored, "foreground")
 
 
@@ -70,6 +75,7 @@ func open_on(world: PlatformerWorld) -> void:
 func sync(scroll: Vector2) -> void:
 	_terrain.position = -scroll
 	_portals.position = -scroll
+	_climbables.position = -scroll
 	for entry: Variant in _bands:
 		var band: Dictionary = entry
 		var sprite: Sprite2D = band["node"]
@@ -225,6 +231,48 @@ func _build_portals(world: PlatformerWorld, authored: Dictionary) -> void:
 		_portals.add_child(sprite)
 
 
+## The ladders and ropes, each cut from the map's own climbable sheet.
+##
+## A climbable is drawn taller than the rise it spans: it overshoots the deck it
+## reaches by half a tile and the ground it stands on by the same, so it reads as
+## fixed to both rather than as floating between them.
+func _build_climbables(world: PlatformerWorld, authored: Dictionary) -> void:
+	var block: Dictionary = authored.get("climbable", {})
+	var sheet := _package.texture(String((block.get("asset", {}) as Dictionary).get("path", "")))
+	if sheet == null:
+		return
+	var cells := {}
+	for entry: Variant in (block.get("variants", []) as Array):
+		var variant: Dictionary = entry
+		cells[String(variant.get("variant_id", ""))] = variant.get("cell", {})
+	var map: Dictionary = (world.package["maps"] as Dictionary)[_map_id]
+	for entry: Variant in (map["climbables"] as Array):
+		var zone: Dictionary = entry
+		var cell: Dictionary = cells.get(String(zone["variantId"]), {})
+		if cell.is_empty():
+			push_error(
+				"platformer stage: climbable %s names a variant this map does not publish"
+				% zone["id"]
+			)
+			continue
+		var top := float(zone["upperDeckY"]) - float(zone["visualTopOvershoot"])
+		var bottom := float(zone["lowerSurfaceY"]) + float(zone["visualBottomOvershoot"])
+		var width := float(zone["visualWidth"])
+		var sprite := Sprite2D.new()
+		sprite.texture = sheet
+		sprite.centered = false
+		sprite.region_enabled = true
+		sprite.region_rect = Rect2(
+			float(cell["x"]), float(cell["y"]), float(cell["width"]), float(cell["height"])
+		)
+		sprite.position = Vector2(float(zone["centerX"]) - width / 2.0, top)
+		sprite.scale = Vector2(
+			width / maxf(1.0, float(cell["width"])),
+			(bottom - top) / maxf(1.0, float(cell["height"]))
+		)
+		_climbables.add_child(sprite)
+
+
 ## The screen line the ground meets, which is what a `walk_surface` band is
 ## anchored to.
 func _walk_surface_y(authored: Dictionary) -> float:
@@ -249,4 +297,6 @@ func _clear() -> void:
 	for child in _terrain.get_children():
 		child.queue_free()
 	for child in _portals.get_children():
+		child.queue_free()
+	for child in _climbables.get_children():
 		child.queue_free()

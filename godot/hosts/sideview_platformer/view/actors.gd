@@ -23,6 +23,8 @@ var _mobs: Dictionary = {}
 var _shots: Dictionary = {}
 var _mob_specs: Dictionary = {}
 var _shot_texture: Texture2D = null
+var _item_textures: Array = []
+var _drops: Dictionary = {}
 
 
 static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerActors:
@@ -41,6 +43,11 @@ static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerActors:
 	for entry: Variant in (manifest.get("mobs", []) as Array):
 		var spec: Dictionary = entry
 		made._mob_specs[String(spec.get("mob_id", ""))] = spec
+	for entry: Variant in (manifest.get("items", []) as Array):
+		var item: Dictionary = entry
+		made._item_textures.append(
+			package.trimmed_texture(String((item.get("asset", {}) as Dictionary).get("path", "")))
+		)
 	var rounds: Array = manifest.get("projectiles", [])
 	if not rounds.is_empty():
 		made._shot_texture = package.trimmed_texture(
@@ -60,6 +67,7 @@ func sync(world: PlatformerWorld, scroll: Vector2, dt: float) -> void:
 		_player.flip_h = String(world.player["facing"]) == PlatformerPlayer.FACING_LEFT
 	_sync_mobs(world, scroll, dt)
 	_sync_shots(world, scroll)
+	_sync_drops(world, scroll)
 
 
 ## Which strip the body plays. The world's own state names it, except that a
@@ -159,6 +167,39 @@ func _sync_shots(world: PlatformerWorld, scroll: Vector2) -> void:
 		if not seen.has(id):
 			(_shots[id] as Node).queue_free()
 			_shots.erase(id)
+
+
+## What is lying on the ground, drawn to a fixed height so a thing is a size in
+## the world rather than whatever resolution its picture was generated at.
+func _sync_drops(world: PlatformerWorld, scroll: Vector2) -> void:
+	var seen := {}
+	for entry: Variant in world.world_items:
+		var item: Dictionary = entry
+		var id := String(item["id"])
+		var kind := int(item["kindIndex"])
+		seen[id] = true
+		if not _drops.has(id):
+			if kind < 0 or kind >= _item_textures.size() or _item_textures[kind] == null:
+				continue
+			var texture: Texture2D = _item_textures[kind]
+			var sprite := Sprite2D.new()
+			sprite.texture = texture
+			sprite.centered = false
+			sprite.z_index = PlatformerStage.DEPTHS["projectile"] - 1
+			var drawn := PlatformerMaps.TILE_PX * 0.7
+			sprite.scale = Vector2.ONE * (drawn / maxf(1.0, float(texture.get_height())))
+			_drops[id] = sprite
+			add_child(sprite)
+		var node: Sprite2D = _drops[id]
+		var drawn_size := node.texture.get_size() * node.scale
+		var body: Dictionary = item["body"]
+		node.position = Vector2(
+			float(body["x"]) - scroll.x - drawn_size.x / 2.0, float(body["y"]) - scroll.y - drawn_size.y
+		)
+	for id: Variant in _drops.keys():
+		if not seen.has(id):
+			(_drops[id] as Node).queue_free()
+			_drops.erase(id)
 
 
 ## A published `states` block, in the shape `HostActor` reads motions in.

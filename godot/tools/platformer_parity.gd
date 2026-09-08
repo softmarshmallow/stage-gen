@@ -140,6 +140,7 @@ func _step(world: PlatformerWorld, step_seconds: float, now_ms: float, frame: in
 	# `player/update`, so every creature this touches is where it stood at the end
 	# of the previous frame. Resolving it a step later lands it a frame early.
 	PlatformerMobsSystem.strike(world, step)
+	PlatformerSessionSystem.update(world, step)
 	# The throw is the last thing `player/update` does, after the blows landing
 	# on the body have been settled.
 	PlatformerProjectilesSystem.throw_one(world, step)
