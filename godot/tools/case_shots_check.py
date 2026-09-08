@@ -42,6 +42,11 @@ from shot_png import (
 #: bar and passed a build whose title was blank, because the toggle's own word is
 #: ink too — the region was wrong, not the threshold.
 BAR = (0, 0, 1200, 44)
+#: The part of that strip *after* the case's own name, where the beat and "beat N
+#: of M" are written. The case name alone clears the whole-strip floor with room
+#: to spare, so a container that never says which of eight beats you are in
+#: passed a first sheet.
+BAR_BEAT = (320, 0, 880, 44)
 STAGE = (0, 44, 1672, 980)
 #: The left of the stage. A scene draws 1672x941 and fills it edge to edge; a
 #: room draws 1280x1214 and letterboxes to 1033 wide, leaving this strip the
@@ -52,6 +57,21 @@ STAGE_LEFT = (0, 60, 260, 940)
 CONTINUE = (700, 944, 280, 60)
 #: The middle of a curtain, where its heading and its line are.
 CURTAIN_TEXT = (400, 400, 872, 200)
+#: The whole middle of a curtain, for finding its buttons in. Not a band under
+#: the words: the curtain centres its column, so taking the buttons away moves
+#: the words *down into* any fixed band beneath them — measured, an ink reading
+#: there went **up** when the buttons were removed.
+#:
+#: What a button has and a word does not is a border: `CaseChromeButton.BORDER`
+#: is the foreground at 0.7 alpha, which over the curtain's black reads as a mid
+#: grey no label is drawn in.
+CURTAIN_CONTROLS = (400, 380, 872, 300)
+#: `Color(0.902, 0.902, 0.902, 0.7)` over `Color(0, 0, 0, 0.85)` on black.
+CURTAIN_BORDER = (161, 161, 161)
+#: The backlog's list, under its heading. A first sheet measured only how dark
+#: the stage went behind the overlay, so a backlog drawn with not one line in it
+#: read *better* than the real one.
+BACKLOG_LINES = (40, 130, 1600, 680)
 
 #: The container's own ground, and the bar's. Pure black, because the chrome
 #: belongs to the case rather than to any package it plays.
@@ -93,6 +113,22 @@ COVERED_MAXIMUM_LUMA = 12.0
 #: continue and 4.9% on the closing card.
 CURTAIN_INK_MINIMUM = 0.01
 
+#: How much of a curtain's middle must be button border. Measured: 0.43% on the
+#: offer to continue and 0.28% on the closing card, against 0.11% and 0.07% with
+#: the buttons taken away — the remainder being the labels' own anti-aliasing,
+#: which passes through the same grey on its way from black to white.
+CURTAIN_CONTROL_MINIMUM = 0.0018
+
+#: How much of the bar *after* the case's own name must be ink. Measured: 4.0% to
+#: 5.6% across all six shots, with the beat's name and "beat N of M" on it.
+BAR_BEAT_INK_MINIMUM = 0.005
+
+#: How much of the backlog's list must be lines. Measured: 3.2% with eight lines
+#: in it against nothing at all when the list is empty, which a first sheet read
+#: as an *improvement*, because the only thing it asked of the backlog was how
+#: dark the stage went behind it.
+BACKLOG_INK_MINIMUM = 0.01
+
 #: The moments a leaf is on screen and uncovered.
 PLAYING = ("boot", "room", "crossing")
 #: The moments something the container drew is over the beat.
@@ -113,6 +149,11 @@ def measure(shots: dict[str, Shot]) -> dict[str, float]:
         read[f"{name}.letterbox"] = fraction_near(shot, STAGE_LEFT, GROUND, 3, 4)
         read[f"{name}.stage_luma"] = mean_luma(shot, STAGE, 4)
         read[f"{name}.curtain_ink"] = ink_fraction(shot, CURTAIN_TEXT, GROUND, 40, 2)
+        read[f"{name}.curtain_control_ink"] = fraction_near(
+            shot, CURTAIN_CONTROLS, CURTAIN_BORDER, 14
+        )
+        read[f"{name}.bar_beat_ink"] = ink_fraction(shot, BAR_BEAT, GROUND, 24, 2)
+        read[f"{name}.backlog_ink"] = ink_fraction(shot, BACKLOG_LINES, GROUND, 40, 4)
     if "room" in shots and "crossing" in shots:
         read["crossing.continue"] = mean_difference(shots["room"], shots["crossing"], CONTINUE)
     return read
@@ -129,6 +170,11 @@ def check(shots: dict[str, Shot], read: dict[str, float]) -> list[str]:
             problems.append(
                 f"{name}: the chrome bar is {read[f'{name}.bar_ink']:.1%} ink; "
                 "nothing names where the player is"
+            )
+        if read[f"{name}.bar_beat_ink"] < BAR_BEAT_INK_MINIMUM:
+            problems.append(
+                f"{name}: the bar after the case's name is "
+                f"{read[f'{name}.bar_beat_ink']:.1%} ink; it never says which beat this is"
             )
     for name in PLAYING:
         if name not in shots:
@@ -168,6 +214,17 @@ def check(shots: dict[str, Shot], read: dict[str, float]) -> list[str]:
             problems.append(
                 f"{name}: the curtain is {read[f'{name}.curtain_ink']:.1%} ink; it says nothing"
             )
+        if read[f"{name}.curtain_control_ink"] < CURTAIN_CONTROL_MINIMUM:
+            problems.append(
+                f"{name}: the curtain's middle is "
+                f"{read[f'{name}.curtain_control_ink']:.2%} button border; "
+                "there is nothing to press"
+            )
+    if "backlog" in shots and read["backlog.backlog_ink"] < BACKLOG_INK_MINIMUM:
+        problems.append(
+            f"backlog: the list is {read['backlog.backlog_ink']:.1%} ink; "
+            "the backlog is open and holds nothing"
+        )
     return problems
 
 

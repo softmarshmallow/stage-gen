@@ -7,6 +7,8 @@ widening an adapter contract.
 
 ## Model records
 
+- [GPT Image 2.5](gpt-image-2.5.md) — Sunburst and Flare capabilities across
+  direct OpenAI, fal, and OpenRouter, including native-alpha evidence.
 - [GPT Image 2](gpt-image-2.md) — direct OpenAI, fal, and OpenRouter image-route
   capabilities and native-alpha evidence.
 - [Eleven Text to Sound v2](../spec/model-eleven-text-to-sound-v2.md) — measured

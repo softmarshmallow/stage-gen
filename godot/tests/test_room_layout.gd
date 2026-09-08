@@ -22,15 +22,24 @@ const BUTTON_INSETS := {"left": 40.0, "top": 24.0, "right": 37.0, "bottom": 26.0
 const SCENE := {"width": 1280.0, "height": 720.0}
 
 ## The longest narration either shipped room produces on a single click is 516
-## characters — `the-grain-window-a4`, the second reading of `mr_bell`. This
-## stands in for it at the same length, so the assertion is about the arithmetic
-## rather than about one game's prose.
+## characters — `the-grain-window-a4`, `inspect stage_door`, which requires
+## nothing and so is reachable on the first click. This stands in for it at no
+## less than that length, so the assertion is about the arithmetic rather than
+## about one game's prose.
+##
+## The first draft of this was 435 characters and named the wrong interaction,
+## which is how a plate two pixels too short for the real sentence passed the one
+## test written to catch exactly that.
+## The measurement the stand-in stands in for.
+const WORST_NARRATION_CHARS := 516
+
 const LONGEST := (
 	"The keeper is perhaps sixty and has forgotten his cap. He is asked to say what happened "
 	+ "when the man came downstairs, and he says the man came out of the lift with his sister, "
 	+ "and that he gave him the carton because he needed both hands, and that she took the key "
 	+ "from him at the door and went back up alone, and that he did not see either of them again "
-	+ "until the bell rang in the receiving room and the whole floor went quiet at once."
+	+ "until the bell rang in the receiving room and the whole floor went quiet at once, after "
+	+ "which nobody went up or down again for a full quarter of an hour or a little more."
 )
 
 
@@ -47,18 +56,18 @@ func run(h: TestHarness) -> void:
 func _band(h: TestHarness, layout: Dictionary) -> void:
 	var canvas: Dictionary = layout["canvas"]
 	h.assert_eq(float(canvas["width"]), 1280.0, "the canvas is as wide as the room")
-	# 720 + 12 + (168 + 96) + 12 + (110 + 96).
-	h.assert_eq(float(canvas["height"]), 1214.0, "and taller by exactly the HUD band")
+	# 720 + 12 + (184 + 96) + 12 + (110 + 96).
+	h.assert_eq(float(canvas["height"]), 1230.0, "and taller by exactly the HUD band")
 
 	var narration: Dictionary = layout["narration"]
 	h.assert_eq(float(narration["y"]), 732.0, "the narration plate opens below the room")
 	h.assert_eq(
 		float(narration["height"]),
-		264.0,
+		280.0,
 		"and is its interior plus the art's own insets, not a fixed height"
 	)
 	var bar: Dictionary = layout["bar"]
-	h.assert_eq(float(bar["y"]), 1008.0, "the control bar follows it")
+	h.assert_eq(float(bar["y"]), 1024.0, "the control bar follows it")
 	h.assert_eq(float(bar["height"]), 206.0, "and is sized the same way")
 	h.assert_eq(
 		float(bar["y"]) + float(bar["height"]),
@@ -71,7 +80,7 @@ func _band(h: TestHarness, layout: Dictionary) -> void:
 	# with anything carried, the slot frame painted over the sentence.
 	var hint: Dictionary = layout["hint"]
 	var slots: Array = layout["slots"]
-	h.assert_eq(float(hint["y"]), 1056.0, "the control hint sits at the bar's interior top")
+	h.assert_eq(float(hint["y"]), 1072.0, "the control hint sits at the bar's interior top")
 	h.assert_true(not slots.is_empty(), "the bar reserves inventory slots")
 	if not slots.is_empty():
 		var first: Dictionary = slots[0]
@@ -173,6 +182,13 @@ func _fitting(h: TestHarness, layout: Dictionary) -> void:
 	h.assert_true(font != null, "the suite has a font to measure with")
 	if font == null:
 		return
+	# The stand-in is held to the measurement it stands in for, because a comment
+	# saying "516 characters" is exactly what was wrong the first time: the string
+	# under it was 435, and the plate it proved was two pixels too short.
+	h.assert_true(
+		LONGEST.length() >= WORST_NARRATION_CHARS,
+		"the stand-in is at least as long as the longest sentence a shipped room produces"
+	)
 	var wrap := float(text["wrapWidth"])
 	var room_for := float(text["height"])
 	var size := HostTextFit.fitted_size(font, LONGEST, wrap, room_for, HostRoomLeaf.NARRATION_SIZES, HostRoomLeaf.NARRATION_LINE_SPACING)
@@ -180,9 +196,13 @@ func _fitting(h: TestHarness, layout: Dictionary) -> void:
 		HostTextFit.wrapped_height(font, LONGEST, size, wrap, HostRoomLeaf.NARRATION_LINE_SPACING) <= room_for,
 		"the longest sentence a shipped room can produce fits the plate it is written on"
 	)
+	# Strictly above the floor, not merely at it. `fitted_size` *returns* the floor
+	# when nothing fits, so "it fits at the floor" is exactly what a plate too
+	# small for its own worst sentence also reports — which is how the first draft
+	# of this file passed while the last line of that sentence was clipped.
 	h.assert_true(
-		size >= int(HostRoomLeaf.NARRATION_SIZES[HostRoomLeaf.NARRATION_SIZES.size() - 1]),
-		"and it fits at or above the ladder's floor rather than by clamping to it"
+		size > int(HostRoomLeaf.NARRATION_SIZES[HostRoomLeaf.NARRATION_SIZES.size() - 1]),
+		"with a step of the ladder still in reserve, rather than clamped against its floor"
 	)
 	# The ladder is a ladder: a sentence too long for the top step comes down.
 	var short_size := HostTextFit.fitted_size(font, "The Window", wrap, room_for, HostRoomLeaf.NARRATION_SIZES, HostRoomLeaf.NARRATION_LINE_SPACING)

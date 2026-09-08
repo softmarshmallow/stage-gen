@@ -29,7 +29,11 @@ const SHOTS := [
 	["boot", []],
 	["look", [{"mode": "look"}]],
 	["hints", [{"hints": true}]],
-	["narrated", [{"click": "mr_bell"}]],
+	# `stage_door` and not a middling one: at 516 characters it is the longest
+	# sentence either shipped room can produce on a click, it requires nothing so
+	# it is reachable first, and it is the one that did not fit the plate this
+	# host first shipped.
+	["narrated", [{"click": "stage_door"}]],
 	["solved", [{"click": "the_man"}, {"click": "service_lift"}]],
 ]
 

@@ -218,6 +218,11 @@ func _enter_beat() -> void:
 		return
 	var beat := CaseDocument.beat(document, _beat_id)
 	if beat.is_empty():
+		# The document's own parse refuses an edge that lands nowhere, so reaching
+		# here means the progress came from somewhere else — a save written by an
+		# older build, or `open_on` naming a beat that has since gone. Either way
+		# it is a sentence rather than a bare stage.
+		_refuse("case host: this case publishes no beat %s" % _beat_id)
 		return
 	var built: Variant = _build_leaf(beat)
 	if KernelRefusal.is_refusal(built):

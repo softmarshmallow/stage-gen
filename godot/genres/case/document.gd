@@ -91,6 +91,31 @@ static func parse(document: Variant) -> Variant:
 			"the case enters at %s, which it does not publish" % entry_beat,
 			"entry"
 		)
+
+	# Every edge lands somewhere, and somewhere ends. Both are checked here and
+	# neither was: `advance` happily returns a beat id nobody published, the host
+	# finds no beat to build, and the player is left on a bare stage with a save
+	# that offers a Continue straight back into it. The browser refused both at
+	# load and drew the reason.
+	var terminal := false
+	for entry: Variant in beats:
+		var beat_record: Dictionary = entry
+		var edges: Array = beat_record["edges"]
+		if edges.is_empty():
+			terminal = true
+		for raw: Variant in edges:
+			var edge: Dictionary = raw
+			if not seen.has(String(edge["to"])):
+				return KernelRefusal.of(
+					"case/beats",
+					"%s has an edge to %s, which this case does not publish"
+					% [beat_record["beatId"], edge["to"]],
+					"beats"
+				)
+	if not terminal:
+		return KernelRefusal.of(
+			"case/beats", "this case has no beat that ends it", "beats"
+		)
 	return {
 		"caseId": String(doc.get("case_id", "")),
 		"displayName": String(doc.get("display_name", "")),

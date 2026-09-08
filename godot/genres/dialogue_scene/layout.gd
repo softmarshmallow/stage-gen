@@ -32,7 +32,12 @@ const PANEL_MARGIN_BOTTOM := 30.0
 ## the other two rendered past the panel.
 const PANEL_BODY_LINES := 3.0
 const PANEL_INTERIOR := (
-	BOX_PADDING_Y + BOX_NAME_ROW_HEIGHT + BOX_BODY_GAP + 150.0 + BOX_PADDING_Y
+	BOX_PADDING_Y
+	+ BOX_NAME_ROW_HEIGHT
+	+ BOX_BODY_GAP
+	+ 150.0
+	+ BOX_PROGRESS_ROW_HEIGHT
+	+ BOX_PADDING_Y
 )
 
 ## A plate is fitted into this much of the frame before the placement scales it.
@@ -84,6 +89,10 @@ const BOX_PADDING_X := 10.0
 const BOX_PADDING_Y := 6.0
 const BOX_NAME_ROW_HEIGHT := 30.0
 const BOX_BODY_GAP := 6.0
+## The row the progress readout sits in, reserved so the line does not run under
+## it. The browser declared this knob and never read it, and its readout printed
+## over the tail of any line long enough to reach the bottom of the box.
+const BOX_PROGRESS_ROW_HEIGHT := 20.0
 
 
 static func stage_size() -> Dictionary:
@@ -263,7 +272,7 @@ static func box_layout(safe: Dictionary) -> Variant:
 	var top := float(safe["y"]) + BOX_PADDING_Y
 	var right := float(safe["x"]) + float(safe["width"]) - BOX_PADDING_X
 	var bottom := float(safe["y"]) + float(safe["height"]) - BOX_PADDING_Y
-	if right <= left or bottom <= top + BOX_NAME_ROW_HEIGHT:
+	if right <= left or bottom <= top + BOX_NAME_ROW_HEIGHT + BOX_PROGRESS_ROW_HEIGHT:
 		return KernelRefusal.of(
 			"dialogue/box",
 			"this package's panel art leaves no room for a speaker and a line",
@@ -273,6 +282,10 @@ static func box_layout(safe: Dictionary) -> Variant:
 		"name": {"x": left, "y": top},
 		"body": {"x": left, "y": top + BOX_NAME_ROW_HEIGHT + BOX_BODY_GAP},
 		"bodyWrapWidth": maxf(1.0, right - left),
-		"bodyHeight": maxf(1.0, bottom - (top + BOX_NAME_ROW_HEIGHT + BOX_BODY_GAP)),
+		# The body stops above the readout's row rather than sharing it.
+		"bodyHeight": maxf(
+			1.0,
+			bottom - BOX_PROGRESS_ROW_HEIGHT - (top + BOX_NAME_ROW_HEIGHT + BOX_BODY_GAP)
+		),
 		"progress": {"x": right, "y": bottom},
 	}

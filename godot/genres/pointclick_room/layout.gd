@@ -42,14 +42,19 @@ const HUD_GAP := 12.0
 
 ## What the narration plate must hold *inside its art*.
 ##
-## Measured rather than chosen: the longest sentence either shipped room can
-## produce on one click is 516 characters (`the-grain-window-a4`, the interaction
-## on `bell_booth`), and the widest plate a 1280-wide room gives is 1136 px of
-## interior. At the step-down ladder's floor that is four wrapped lines; this
-## holds five with room to spare, and the host clips to it so that a package with
-## a longer line loses the tail inside the plate rather than painting it across
-## the picture.
-const NARRATION_INTERIOR := 168.0
+## Measured rather than chosen, and re-measured once because the first number was
+## wrong. The longest sentence either shipped room can produce on one click is
+## 516 characters — `the-grain-window-a4`, `inspect stage_door`, which is
+## reachable on the first click — and the widest plate a 1280-wide room gives is
+## 1124 px of wrap. Run through the host's own fitting against the font it draws
+## with, that sentence needs 256 px at the top of the ladder, 232, 172, and 162
+## at the floor. The first draft of this constant was 168, which is a 160 px box:
+## the sentence came down all four steps and was still two pixels too tall, so
+## `clip_text` ate the bottom of its last line and nothing said so.
+##
+## 184 is a 176 px box, which holds it at 20 px — one step of ladder still in
+## reserve, rather than clamped against the floor.
+const NARRATION_INTERIOR := 184.0
 
 ## What the control bar must hold inside its art: the hint band, then the slots.
 const HUD_LABEL_BAND := 26.0

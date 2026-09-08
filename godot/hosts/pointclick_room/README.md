@@ -59,14 +59,18 @@ was re-measured. Three visible faults follow from that one cause, and each is
 fixed here with the measurement that motivated it:
 
 - **The narration ran off its plate.** A 156px plate has a 52px interior; the
-  window room's longest single-click sentence is 516 characters, which is four
-  wrapped lines at the step-down ladder's floor. The browser's ladder stopped and
-  the tail rendered onto the backdrop and the control bar. Here the plate's
-  height is its *interior* plus the package's own insets, the ladder is measured
-  on the font rather than on the label — a clipped label reports no minimum size,
-  so the browser's own test would always have said it fitted — and the label
-  clips, so a package with a longer line loses its tail inside the art rather
-  than across the picture. `godot/tests/test_room_layout.gd` holds the fitting.
+  window room's longest single-click sentence is 516 characters — `inspect
+  stage_door`, reachable on the first click — and it needs 162px at the ladder's
+  floor. The browser's ladder stopped and the tail rendered past the plate, over
+  its own bottom border art and into the canvas below. Here the plate's height is
+  its *interior* plus the package's own insets, the ladder is measured on the
+  font rather than on the label — a clipped label reports no minimum size, so the
+  browser's own test would always have said it fitted — and the label clips, so a
+  package with a longer line loses its tail inside the art rather than across the
+  picture. The interior is 184px, which holds that sentence at 20px with a step
+  of ladder in reserve; the first build of this host shipped 168 and clipped it
+  by two pixels. `godot/tests/test_room_layout.gd` holds the fitting, and at 168
+  it reports both of its assertions failing.
 - **The control hint was drawn under inventory slot 0.** It sits in its own
   reserved row above the slots now, which is what `HUD_LABEL_BAND` always meant.
 - **A verb button's glyph drew at ten pixels.** A 132x60 button with this sheet's

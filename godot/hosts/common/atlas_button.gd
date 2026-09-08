@@ -23,9 +23,11 @@ const CONTENT_GAP := 10.0
 const ICON_SCALE := 1.0
 
 const LABEL_SIZE := 23
-## Offered first, then the ink end of the range if the drawn face makes it
-## unreadable. `mostReadable`'s candidate order, as the browser writes it.
-const LIGHT_INK := Color(1.0, 1.0, 1.0)
+## The light and dark ends of the range, offered in that order. Defaults only:
+## each genre draws its own paper — the room's `#f2f3f5`, the scene's `#f4f1ee` —
+## and hands them in, because what the measurement chooses *between* is the
+## genre's palette rather than pure white.
+const LIGHT_INK := Color(0.949, 0.953, 0.961)
 const DARK_INK := Color(0.078, 0.09, 0.149)
 
 var _frame: HostPanelFrame = null
@@ -35,12 +37,20 @@ var _hovered := false
 var _held := false
 var _selected := false
 var _enabled := true
+## Whether this button's words are laid out as a wrapped block rather than
+## placed beside a glyph.
+var _wrapped := false
 
 
 ## Build one button from a run's sheets. Returns null when the package
 ## publishes no button art.
 static func of(
-	sheets: HostUiSheets, rect: Dictionary, label: String, glyph: String = ""
+	sheets: HostUiSheets,
+	rect: Dictionary,
+	label: String,
+	glyph: String = "",
+	light: Color = LIGHT_INK,
+	dark: Color = DARK_INK
 ) -> HostAtlasButton:
 	var made := HostAtlasButton.new()
 	made._frame = HostPanelFrame.of(sheets, "button_rect", {"x": 0.0, "y": 0.0, "width": float(rect["width"]), "height": float(rect["height"])}, "normal")
@@ -78,14 +88,12 @@ static func of(
 		var choice := FamilyContrast.most_readable(
 			face,
 			[
-				[LIGHT_INK.r * 255.0, LIGHT_INK.g * 255.0, LIGHT_INK.b * 255.0],
-				[DARK_INK.r * 255.0, DARK_INK.g * 255.0, DARK_INK.b * 255.0],
+				[light.r * 255.0, light.g * 255.0, light.b * 255.0],
+				[dark.r * 255.0, dark.g * 255.0, dark.b * 255.0],
 			]
 		)
 		if choice >= 0:
-			made._label.add_theme_color_override(
-				"font_color", LIGHT_INK if choice == 0 else DARK_INK
-			)
+			made._label.add_theme_color_override("font_color", light if choice == 0 else dark)
 	made.mouse_entered.connect(made._on_entered)
 	made.mouse_exited.connect(made._on_exited)
 	made._place()
@@ -120,11 +128,35 @@ func set_label(text: String) -> void:
 	_place()
 
 
+## The same, wrapped and centred inside the button's own drawn interior.
+##
+## A label with no wrap answers `get_minimum_size` with its whole single-line
+## width, and `_place` centres *that* — so a long option runs off both ends of
+## the art. A wrapped label cannot be placed by its measured width either: the
+## first version of this asked `_place` to centre a label whose minimum size it
+## had just forced to the full interior, and put both options in the top-right
+## corner of the frame. So a wrapped label is given the interior as its rectangle
+## and centres itself in it, and `_place` leaves it alone.
+func set_wrapped_label(text: String) -> void:
+	_wrapped = true
+	var safe := _frame.safe_rect()
+	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_label.clip_text = true
+	_label.text = text
+	_label.position = Vector2(float(safe["x"]), float(safe["y"]))
+	_label.size = Vector2(float(safe["width"]), float(safe["height"]))
+
+
 ## Move and resize, keeping the content placed on the new safe interior.
 func set_rect(rect: Dictionary) -> void:
 	position = Vector2(float(rect["x"]), float(rect["y"]))
 	size = Vector2(float(rect["width"]), float(rect["height"]))
 	_frame.set_rect({"x": 0.0, "y": 0.0, "width": size.x, "height": size.y})
+	if _wrapped:
+		set_wrapped_label(_label.text)
+		return
 	_place()
 
 
@@ -173,6 +205,8 @@ func _state() -> String:
 ## A glyph beside words is one centred group: the glyph, a gap, then the words
 ## drawn from their left edge. A glyph alone or words alone sit at the centre.
 func _place() -> void:
+	if _wrapped:
+		return
 	var safe := _frame.safe_rect()
 	var centre_x := float(safe["x"]) + float(safe["width"]) / 2.0
 	var centre_y := float(safe["y"]) + float(safe["height"]) / 2.0

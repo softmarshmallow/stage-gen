@@ -142,3 +142,52 @@ def ink_fraction(shot: Shot, box, ground, tolerance: int, step: int = 1) -> floa
     if not sampled:
         return 0.0
     return sum(1 for pixel in sampled if not near(pixel, ground, tolerance)) / len(sampled)
+
+
+def difference_mask(first: Shot, second: Shot, box, threshold: int = 8, step: int = 2):
+    """Every sampled point in a region where two shots differ.
+
+    Yields `(x, y)`. What a *state change* looks like is a set of points, and
+    where those points are is the difference between a marker on the thing it
+    names and a marker beside it.
+    """
+    x0, y0, w, h = box
+    for y in range(max(0, y0), min(y0 + h, first.height, second.height), step):
+        for x in range(max(0, x0), min(x0 + w, first.width, second.width), step):
+            here, there = first.at(x, y), second.at(x, y)
+            if max(abs(here[c] - there[c]) for c in range(3)) > threshold:
+                yield (x, y)
+
+
+def inside_any(point, boxes, slack: int = 0) -> bool:
+    """Whether a point falls in any of a list of rectangles, with a margin."""
+    x, y = point
+    for x0, y0, w, h in boxes:
+        if x0 - slack <= x <= x0 + w + slack and y0 - slack <= y <= y0 + h + slack:
+            return True
+    return False
+
+
+def variety(shot: Shot, box, step: int = 4) -> float:
+    """How many distinct coarse colours a region holds, as a fraction of its
+    samples. A painting is many; a flat fill is one.
+    """
+    sampled = list(shot.region(box, step))
+    if not sampled:
+        return 0.0
+    coarse = {(p[0] // 16, p[1] // 16, p[2] // 16) for p in sampled}
+    return len(coarse) / len(sampled)
+
+
+def mean_coolness(shot: Shot, box, step: int = 2) -> float:
+    """How blue a region is against how red, per pixel, -255..255.
+
+    A listener in a dialogue scene is drawn under a cool tint and a speaker is
+    not, so this is the one reading that can tell which of the two an actor is —
+    where brightness cannot, because one actor's coat is simply lighter than
+    another's.
+    """
+    sampled = list(shot.region(box, step))
+    if not sampled:
+        return 0.0
+    return sum(p[2] - p[0] for p in sampled) / len(sampled)

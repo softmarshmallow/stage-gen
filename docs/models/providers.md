@@ -1,15 +1,19 @@
 # Provider operations
 
-The direct GPT Image 2 transparency contract was verified against OpenAI's
-official image-generation guide on 2026-08-25. The fal and OpenRouter GPT Image
-2 routes were rechecked on 2026-09-07; the separate fal background-removal and
-OpenRouter music contracts were last verified on 2026-08-14, and the structured
-GPT-5.6 route was exercised on 2026-08-20. Hosted capabilities can drift; repeat
-the scoped smoke tests before widening an adapter contract.
+The GPT Image 2.5 provider surfaces were checked on 2026-09-09, including live
+fal native-alpha canaries for both variants. The direct GPT Image 2 transparency
+contract was verified against OpenAI's official image-generation guide on
+2026-08-25, and its fal and OpenRouter routes were rechecked on 2026-09-07. The
+separate fal background-removal and OpenRouter music contracts were last
+verified on 2026-08-14, and the structured GPT-5.6 route was exercised on
+2026-08-20. Hosted capabilities can drift; repeat the scoped smoke tests before
+widening an adapter contract.
 
-GPT Image 2 route capabilities and their verification history are maintained in
-[the GPT Image 2 model record](gpt-image-2.md). All model records are indexed in
-[Models](index.md).
+Image-route capabilities and their verification histories are maintained in
+the [GPT Image 2.5](gpt-image-2.5.md) and
+[GPT Image 2](gpt-image-2.md) model records. All model records are indexed in
+[Models](index.md). GPT Image 2.5 is a survey only: no runtime default, adapter,
+or binding selects it yet.
 
 ## Configuration
 

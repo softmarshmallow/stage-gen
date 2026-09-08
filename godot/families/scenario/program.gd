@@ -98,6 +98,22 @@ static func parse(document: Variant) -> Variant:
 					% [label, kind],
 					"blocks"
 				)
+			# A slot is a place on the stage, and one this build does not publish
+			# is not a place. Taken silently it defaults to the centre's offset
+			# *and* the centre's stacking, so a mistyped `far-left` stands an
+			# actor over whoever is genuinely in the middle — the same fault the
+			# three-valued slot constant would have caused, reached by another
+			# road. The browser refused it at parse; this constant existed here
+			# and was referenced by nothing.
+			if kind == "show" and not SLOTS.has(String(statement.get("slot", ""))):
+				return KernelRefusal.of(
+					"scenario/blocks",
+					(
+						"%s stages an actor at %s, which is not one of the five slots "
+						+ "this build publishes"
+					) % [label, statement.get("slot", "(none)")],
+					"blocks"
+				)
 			statements.append(_statement(statement, kind))
 		blocks.append({"label": label, "statements": statements})
 

@@ -53,9 +53,11 @@ reference is wrong cannot be proved by agreeing with it.
 
 ## Evidence
 
-**The simulations did not move.** 14/14 clicks, 26/26 actions and 20/20 actions,
-byte-identical, before and after. Adding a beat's display name to the case
-document does not reach them: the digest hashes state and events.
+**The simulations did not move.** Fourteen clicks, twenty-five actions and
+nineteen actions, byte-identical before and after — 14, 26 and 20 hashes,
+because a scene's and a case's frame files open with the state before the first
+action and a room's do not. Adding a beat's display name to the case document
+does not reach them: the digest hashes state and events.
 
 **Three picture gates, each falsified.** Seventeen named states, `boot` through
 `finished`, taken against `out/the-grain-window-a4`,
@@ -66,8 +68,9 @@ document does not reach them: the digest hashes state and events.
     case      6 of 6
 
 Every threshold carries the reading that set it, and every check but one was
-shown to fail by breaking the host on purpose and re-shooting the whole sheet —
-nineteen deliberate breaks, nineteen caught:
+shown to fail by breaking the host on purpose and re-shooting the whole sheet.
+Nineteen breaks at first; thirty-two after an adversarial pass showed how much
+the first nineteen were not looking at (see below):
 
     room      no canvas ground, no panels, ink the colour of the plate,
               no selected verb, no hotspot markers, no end card      (6 of 6)
@@ -76,13 +79,19 @@ nineteen deliberate breaks, nineteen caught:
     case      no ground, a blank bar, no leaf, a stretched leaf,
               no Continue, a blank curtain                           (6 of 6)
 
-The exception is named in its own file: on both published room packages the
-narration plate's interior is 168px and the longest sentence either can produce
-is four lines at the top of the ladder, so the words cannot leave the plate
-however badly the fitting is done. It is a guard, it says so, and it would fire
-on a package with heavier border art.
+The exception is the room's "ink beside the plate", and it is a guard rather
+than a discriminator: `clip_text` keeps the words inside the art by
+construction, so on any package the ink cannot reach the canvas whatever the
+fitting does. It would fire on a build that removed the clip, which is the
+browser's own state.
 
-**Three of the seventeen cost a correction rather than a threshold**, and the
+The first draft of this record justified that exception differently and was
+wrong: it said the longest sentence either room can produce is four lines at the
+top of the ladder and so cannot escape. It is six lines at the top and five at
+the floor, and at the plate this port first shipped it did not fit at all — see
+below.
+
+**Several checks cost a correction rather than a threshold**, and the
 corrections are the reason to trust the rest. The first draft of the room's
 clipping check looked *inside* the text box for a cut glyph, and the build with
 the ladder defeated passed it — a paragraph cut cleanly between two lines looks
@@ -103,9 +112,11 @@ the browser's own plate sizes both report:
 **Four faults corrected, with their measurements.**
 
 - The room's narration plate is 156px with a 52px interior; the window room's
-  longest single-click sentence is 516 characters, which is four wrapped lines at
-  the ladder's floor. The tail rendered past the plate onto the backdrop and the
-  control bar.
+  longest single-click sentence is 516 characters — `inspect stage_door`, which
+  requires nothing and is reachable on the first click — and it needs 162px at
+  the ladder's floor. The tail rendered past the plate, over its own bottom
+  border art and down into the canvas beneath it. (Not upward onto the backdrop:
+  the browser anchored its narration at the plate's top and grew downward only.)
 - The room's control hint is placed on the bar panel's interior, which is inside
   inventory slot 0.
 - A 132x60 verb button under the published sheet's insets has a 55x10 interior,
@@ -131,20 +142,103 @@ have put half a cast in the middle of the stage. And `restoreScenarioState` and
 
 **Two runs the plan named cannot be played by anything.**
 `out/clockmakers-attic-v7` is `pointclick-room-runtime-v2` where the contract
-demands v3 at `schema_version` 3; the browser 404s on it and on every other
-`clockmakers-attic-*`. `out/larkfield` is `dialogue-scene-bundle-v6`, two
-generations behind: its `scene_data` publishes a single `scenario` object where
-v8 requires a `scenarios` array, and it carries no `ui` block, so no version bump
-reaches it. The runs that play are `the-grain-window-a4`,
-`the-grain-motor-court-a4`, `the-grain-scene-a` and `the-grain-episode-one`.
+demands v3 at `schema_version` 3, so the browser 404s on it — as it does on
+`clockmakers-attic-v1` through `-v6`. Thirteen further rooms declare kind v3 at
+`schema_version` 1, which passes the kind guard and throws inside the parser, so
+those were a 500 rather than a 404: `clockmakers-attic-ui-v1`, six
+`the-grain-window*` and six `the-grain-motor-court*`. `out/larkfield` is
+`dialogue-scene-bundle-v6`, two generations behind: its `scene_data` publishes a
+single `scenario` object where v8 requires a `scenarios` array, and it carries no
+`ui` block, so no version bump reaches it.
+
+Six runs play: the rooms `the-grain-window-a4` and `the-grain-motor-court-a4`,
+the scenes `the-grain-scene-a`, `-4` and `-5`, and the case
+`the-grain-episode-one`. The gates use the first, the third and the last.
 
 **And one route was dead before this record.** `/scene/<tag>` reads a run's
 bundle with no scenario id, and all three v8 runs publish six scenarios, so it
 throws on every run that exists. The Godot host takes the pair.
 
-**Check counts.** The Godot suite is 14,236 checks in 42 files, up from 14,125 in
-40. The web suite is 1,387 tests across 130 files, down from 1,521 across 144 —
-the 134 the deleted surfaces carried, and no others.
+**Check counts.** The Godot suite is 14,237 checks in 42 files, up from 14,123
+in 40, and the three picture sheets carry thirty-two measurements between them. The web suite is 1,387 tests across 130 files, down from 1,521 across
+144 — the 134 the deleted surfaces carried, and no others.
+
+## What an adversarial pass found after this record was first written
+
+Five independent readings of the three hosts, the three gates and this record,
+each asked to refute rather than confirm. What they returned is the reason this
+section exists rather than a second record.
+
+**The room's plate was two pixels too short, and the test written to catch that
+used a stand-in eighty-one characters short of the sentence it named.** The
+window room's longest single-click narration is 516 characters; at the plate
+this port first shipped it needed 162px in a 160px box, came all the way down
+the ladder, and `clip_text` ate the bottom of its last line — silently, because
+that is what clipping is for. The stand-in in `test_room_layout.gd` was 435
+characters and named the wrong interaction, so the assertion passed.
+
+The plate is 184px of interior now, which holds that sentence at 20px with a step
+of the ladder still in reserve; the test's stand-in is held to the measured
+length by an assertion rather than by a comment, and the size it fits at must be
+*strictly above* the floor — because `fitted_size` returns the floor when nothing
+fits, so "it fits at the floor" is exactly what a plate too small also reports.
+At the plate that shipped, the corrected test reports both:
+
+    test_room_layout.gd: the longest sentence a shipped room can produce fits
+                         the plate it is written on
+    test_room_layout.gd: with a step of the ladder still in reserve, rather than
+                         clamped against its floor
+
+And the sheet's `narrated` shot is that sentence now, rather than a middling one.
+
+**A track with no sound would have silenced the scene.** `_players` caches a
+null against a track whose mp3 is missing, and `stop` on that aborts the
+function before it records what is playing — so the dead track stays in the set
+and nothing sounds again. The browser skipped a missing source and kept the rest
+of the soundtrack.
+
+**Three refusals the browser had and the port had dropped.** A `show` at a slot
+outside the published five was taken silently and drawn at the centre's offset
+*and* the centre's stacking — the same fault the three-valued slot constant would
+have caused, by another road. A case edge naming a beat the document does not
+publish left the player on a bare stage with a save that offered a Continue back
+into it. And a case with no terminal beat was admitted. All three refuse now, and
+the host says so rather than drawing nothing.
+
+**Three smaller differences from the browser, none of them deliberate.** The
+scene's progress readout measured contrast at 3.0, which is the *room's* number
+for its control hint; a choice option's label did not wrap, so a long one would
+have hung off both ends of its button; and an atlas button offered pure white as
+the light end of its range where each genre draws its own paper. All three are
+the browser's values now.
+
+**And the sheets themselves were the larger finding.** A lens asked only to
+break the *gates* rebuilt each sheet with a defect in it and showed what still
+passed: a room with no backdrop at all; an overlay outlining empty wall beside
+each of the fourteen things it names, which read *higher* than the correct one;
+an inverted emphasis rule cooling the speaker and lighting the listener, which
+read identically because the check measured how far two frames differ and not
+which way; a backlog open and holding nothing, which read *better*, because the
+only thing asked of it was how dark the stage went; two choice buttons with no
+words on them; an end card drawn blank; a control bar that never says which of
+eight beats you are in; a curtain with nothing to press; and a narration cut to
+its opening line.
+
+Thirteen measurements were added and every one was shown to fail on the defect
+it exists to catch — thirty-two breaks now, thirty-two caught. Three of the
+thirteen cost a second attempt, and those are the ones worth reading: brightness
+cannot tell a speaker from a listener, because one actor's coat is lighter than
+another's, so the reading is the *cool tint* a listener carries and the sign of
+its change between two frames. A fixed band under a curtain cannot find its
+buttons, because taking the buttons away lets the centred column move the words
+down into the band — the reading went **up** — so it is the buttons' own border
+colour instead. And a narrow band across a choice button passed a build whose
+labels had flown off the buttons entirely, which was a regression this pass
+introduced and this pass then caught: the band has to be the whole interior.
+
+None of this moved the simulations: fourteen clicks, twenty-five actions and
+nineteen actions still replay byte for byte, and the three sheets still read
+5 of 5, 6 of 6 and 6 of 6.
 
 ## Falsifier
 

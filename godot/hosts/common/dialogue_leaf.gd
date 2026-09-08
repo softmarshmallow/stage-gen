@@ -36,7 +36,11 @@ const BODY_LINE_SPACING := 12
 const SPEAKER_SIZE := 24
 const META_SIZE := 20
 const CHOICE_SIZE := 28
-const TITLE_SIZE := 38
+## The end card's own ladder. An outcome label is authored prose in a fixed card:
+## `first_bell` is "The first person who thinks this dinner is about them", which
+## is two rows at 38 in a box that holds one, and the second row was simply not
+## drawn.
+const TITLE_SIZES := [38, 32, 26]
 
 ## Depth rungs: the world, the cast above it by its own stacking, then the
 ## furniture, then whatever ends the scene.
@@ -298,9 +302,13 @@ func _build_panel() -> Variant:
 	_body.z_index = DEPTH_TEXT
 	add_child(_body)
 
-	# The readout is deliberately quiet, so its dim grey is offered first and
-	# only replaced when the drawn panel makes it unreadable rather than subtle.
-	_progress = _label(META_SIZE, _readable(_panel, [DIM, INK, PAPER], 3.0, DIM))
+	# Dim grey first, then ink, then paper — the browser's candidate order, at the
+	# browser's own threshold. A first draft asked for 3.0 here, which is the
+	# *room's* number for its control hint; the scene's readout was always
+	# measured at the body-text ratio like everything else on this panel.
+	_progress = _label(
+		META_SIZE, _readable(_panel, [DIM, INK, PAPER], FamilyContrast.BODY_TEXT_RATIO, DIM)
+	)
 	_progress.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_progress.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	_progress.z_index = DEPTH_TEXT
@@ -333,7 +341,7 @@ func _build_complete() -> void:
 	_complete.add_child(frame)
 	var safe := frame.safe_rect()
 	var control_rect := DialogueLayout.complete_control_rect(card)
-	_complete_title = _label(TITLE_SIZE, _readable(frame, [PAPER, INK], 4.5, PAPER))
+	_complete_title = _label(int(TITLE_SIZES[0]), _readable(frame, [PAPER, INK], 4.5, PAPER))
 	_complete_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_complete_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_complete_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -345,7 +353,7 @@ func _build_complete() -> void:
 	_complete_title.position = Vector2(float(safe["x"]), float(safe["y"]))
 	_complete_title.size = Vector2(
 		float(safe["width"]),
-		maxf(float(TITLE_SIZE), float(control_rect["y"]) - float(safe["y"]) - 10.0)
+		maxf(float(TITLE_SIZES[0]), float(control_rect["y"]) - float(safe["y"]) - 10.0)
 	)
 	# Explicitly above the frame it sits on. The browser left this label at the
 	# default depth while its siblings were at 200, so whether the words drew over
@@ -423,7 +431,7 @@ func _render() -> void:
 	_complete.visible = showing_end
 
 	if showing_end:
-		_complete_title.text = String(current.get("label", ""))
+		_set_title(String(current.get("label", "")))
 		_hide_choices()
 		return
 	if showing_choice:
@@ -538,7 +546,10 @@ func _render_choices(options: Array) -> void:
 		if not shown:
 			continue
 		button.set_rect(rects[index])
-		button.set_label(String((options[index] as Dictionary).get("text", "")))
+		# Wrapped to the button's own interior. An option is authored prose in a
+		# fixed rectangle, and the browser broke a long one onto a second line
+		# rather than letting its ends hang off the art on both sides.
+		button.set_wrapped_label(String((options[index] as Dictionary).get("text", "")))
 
 
 func _hide_choices() -> void:
@@ -558,7 +569,12 @@ func _apply_tracks() -> void:
 	for entry: Variant in (_state["tracks"] as Array):
 		wanted.append(String(entry))
 	for playing in _playing:
-		if not wanted.has(playing) and _players.has(playing):
+		# A track whose mp3 is missing caches a null player, and calling `stop` on
+		# that aborts this function — which would leave `_playing` holding the
+		# dead track and silence every track after it for the rest of the scene.
+		# The browser skipped a missing source and kept the rest of the
+		# soundtrack; so does this.
+		if not wanted.has(playing) and _players.get(playing) != null:
 			(_players[playing] as AudioStreamPlayer).stop()
 	_playing = wanted
 	_start_tracks()
@@ -610,6 +626,20 @@ func _insets() -> Dictionary:
 		"right": float(insets.get("right", 0)) / factor,
 		"bottom": float(insets.get("bottom", 0)) / factor,
 	}
+
+
+## Put the ending's own words on the card, whole.
+func _set_title(value: String) -> void:
+	var size := HostTextFit.fitted_size(
+		_complete_title.get_theme_font("font"),
+		value,
+		_complete_title.size.x,
+		_complete_title.size.y,
+		TITLE_SIZES,
+		0
+	)
+	_complete_title.add_theme_font_size_override("font_size", size)
+	_complete_title.text = value
 
 
 ## Put the line in the box, and keep it in it.
