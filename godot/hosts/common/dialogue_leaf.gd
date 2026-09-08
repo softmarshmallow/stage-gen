@@ -361,7 +361,10 @@ func _build_complete() -> void:
 	_complete_title.z_index = 1
 	_complete.add_child(_complete_title)
 
-	_complete_control = HostAtlasButton.of(_sheets, control_rect, "", "retry")
+	# This genre's own paper and ink, rather than the button's defaults, which are
+	# the room's. What the measurement chooses between is the palette the scene
+	# was drawn in.
+	_complete_control = HostAtlasButton.of(_sheets, control_rect, "", "retry", PAPER, INK)
 	if _complete_control != null:
 		_complete_control.z_index = 1
 		_complete_control.pressed.connect(advance)
@@ -532,7 +535,7 @@ func _render_choices(options: Array) -> void:
 	var rects := DialogueLayout.choice_rects(options.size(), _insets())
 	while _choices.size() < rects.size():
 		var index := _choices.size()
-		var button := HostAtlasButton.of(_sheets, rects[index], "")
+		var button := HostAtlasButton.of(_sheets, rects[index], "", "", PAPER, INK)
 		if button == null:
 			break
 		button.pressed.connect(func() -> void: choose(index))
