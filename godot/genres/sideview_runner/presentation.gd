@@ -26,6 +26,9 @@ const FLIP_MINIMUM_FACE := 0.16
 const CUE_RANGE_COLUMNS := 8.0
 ## The cue's own heartbeat, in cycles per second.
 const CUE_PULSES_PER_SECOND := 2.2
+## How far past the bottom of the canvas a body falling into a pit is followed.
+## Far enough that it has plainly left rather than stopped in mid-air.
+const FALL_OFF_SCREEN_ROWS := 4.0
 
 
 ## A stable per-instance phase, so a trail of coins ripples instead of moving as
@@ -86,3 +89,34 @@ static func hazard_cue_alpha(distance_ahead_columns: float, elapsed_ms: float) -
 		0.75 + sin((elapsed_ms / 1000.0) * TAU_TURNS * CUE_PULSES_PER_SECOND) * 0.25
 	)
 	return (0.12 + proximity * 0.24) * pulse
+
+
+## Where a body is drawn after the run has ended.
+##
+## The simulation stops stepping the avatar on the frame the run ends — the
+## phase is `dead`, and the body's row never changes again — so a player shot
+## out of a climb hung in the air over the arena until the card came up, playing
+## a death animation in mid-flight.
+##
+## It lives here rather than in the avatar system on purpose. Nothing in the
+## world reads where a corpse is, and moving the body in the simulation would
+## move the parity digest for the sake of a picture. `floor_row` is the surface
+## under the body, or nothing at all when the body died over a pit — in which
+## case it keeps falling, which is what dying in a hole looks like.
+static func death_fall_row(
+	elapsed_ms: float,
+	from_row: float,
+	floor_row: float,
+	gravity_rows_per_second_squared: float,
+	rows: float
+) -> float:
+	if not is_finite(elapsed_ms) or elapsed_ms <= 0.0 or not is_finite(from_row):
+		return from_row
+	if not is_finite(gravity_rows_per_second_squared) or gravity_rows_per_second_squared <= 0.0:
+		return from_row
+	var seconds := elapsed_ms / 1000.0
+	var fallen := from_row + 0.5 * gravity_rows_per_second_squared * seconds * seconds
+	var floor_at: float = (
+		rows + FALL_OFF_SCREEN_ROWS if not is_finite(floor_row) else maxf(from_row, floor_row)
+	)
+	return minf(floor_at, fallen)

@@ -38,15 +38,28 @@ UNPAINTED = (255, 0, 255)
 #: The cut-in's interior. `HostCutInView.BACKDROP_COLOR`, as bytes.
 CUT_IN_BACKDROP = (255, 74, 28)
 
-#: Where the boss's bar is, from `RunnerHud.boss_bar_rect` at the design width.
-BOSS_BAR = (1280 - 24 - 320, 26, 320, 14)
+#: Where the boss's bar is at this step. The bar rides the boss now rather than
+#: sitting in the corner of the interface, so this is a position in the picture
+#: rather than a published rectangle — read off the host at the gate frame, where
+#: the boss is at its stand-off ten columns ahead (screen x 960) and its bar is
+#: held at `RunnerBossView.BAR_MINIMUM_Y`. Both are stable there: the stand-off
+#: is where the fight is fought from, and the clamp does not move with the bob.
+BOSS_BAR = (850, 78, 220, 12)
 
-#: A gauge bar is one colour down each of its columns; foliage is not. Measured
-#: over the bar's rectangle: 100.8 mean per-column variance with the bar drawn,
-#: 671.1 with the canopy showing through where it should have been. An earlier
-#: draft of this check only asked whether the region was *saturated*, and the
-#: build with no bar at all passed it, because the leaves behind it were.
-BOSS_BAR_COLUMN_VARIANCE = 300.0
+#: A gauge bar changes slowly across its width — a column and the one beside it
+#: are all but the same pixels — and foliage does not. Measured over the
+#: rectangle above: 3.6 mean neighbouring-column difference with the bar drawn,
+#: against 16.0 and 18.6 over the same rectangle forty pixels higher and lower,
+#: which is the canopy this bar is drawn against.
+#:
+#: Two earlier drafts of this check are worth keeping in mind. The first only
+#: asked whether the region was *saturated*, and the build with no bar at all
+#: passed it, because the leaves behind it were. The second asked for uniformity
+#: *down* each column, which was true of a flat capsule and false the moment the
+#: bar was given a border and a lift down its height — the bar now reads 2792
+#: there, above the canopy it is drawn against. Across is the axis a gauge is
+#: smooth along whatever it is made of.
+BOSS_BAR_NEIGHBOUR_DIFFERENCE = 8.0
 
 #: The window of sky the oversized canopy used to fill. Measured on the two
 #: builds: with the band scaled by its own trimmed height, 0.0% of this region
@@ -147,17 +160,15 @@ def near(pixel: tuple[int, int, int], target: tuple[int, int, int], tolerance: i
     return all(abs(pixel[channel] - target[channel]) <= tolerance for channel in range(3))
 
 
-def mean_column_variance(shot: Shot, box: tuple[int, int, int, int]) -> float:
-    """How much each column of a region varies down its own height."""
+def mean_neighbour_difference(shot: Shot, box: tuple[int, int, int, int]) -> float:
+    """How much each column of a region differs from the column beside it."""
     x0, y0, width, height = box
     total = 0.0
-    for x in range(x0, x0 + width):
-        column = [shot.at(x, y) for y in range(y0, y0 + height)]
-        for channel in range(3):
-            values = [pixel[channel] for pixel in column]
-            mean = sum(values) / len(values)
-            total += sum((value - mean) ** 2 for value in values) / len(values)
-    return total / (width * 3)
+    for x in range(x0, x0 + width - 1):
+        for y in range(y0, y0 + height):
+            here, next_along = shot.at(x, y), shot.at(x + 1, y)
+            total += sum(abs(here[c] - next_along[c]) for c in range(3)) / 3.0
+    return total / ((width - 1) * height)
 
 
 def check(shot: Shot) -> list[str]:
@@ -200,12 +211,13 @@ def check(shot: Shot) -> list[str]:
     if shot.name == "fight":
         # A fight with no bar drew nothing here at all, so the question is
         # whether what is here is a *gauge*. Two things say so and neither is
-        # true of scenery: every column is one colour, and the colours run warm
-        # to cool along it.
-        variance = mean_column_variance(shot, BOSS_BAR)
-        if variance > BOSS_BAR_COLUMN_VARIANCE:
+        # true of scenery: it changes smoothly across its width, and the colours
+        # run warm to cool along it.
+        across = mean_neighbour_difference(shot, BOSS_BAR)
+        if across > BOSS_BAR_NEIGHBOUR_DIFFERENCE:
             problems.append(
-                f"the boss bar region varies {variance:.0f} down its columns; no bar is drawn"
+                f"the boss bar region jumps {across:.1f} between neighbouring "
+                "columns; no bar is drawn"
             )
         else:
             vivid = [pixel for pixel in shot.region(BOSS_BAR) if saturation(pixel) > 0.5]

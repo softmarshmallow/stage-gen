@@ -138,6 +138,13 @@ func place(x: float, y: float) -> void:
 	position = Vector2(x - drawn.x / 2.0, y - drawn.y if _anchor == "bottom" else y)
 
 
+## How big the actor is drawn, in screen pixels. What a caller needs to put
+## something else — a bar, a name — against the body rather than against the row
+## the body's feet are on.
+func drawn_size() -> Vector2:
+	return _cell_size() * scale
+
+
 ## Fill the silhouette white, or stop.
 func set_flash(on: bool) -> void:
 	if _material != null:

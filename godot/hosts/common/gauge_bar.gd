@@ -1,8 +1,8 @@
 class_name HostGaugeBar
 extends Node2D
 
-## The drawn half of `FamilyGaugeBar`: a capsule track with a gradient fill
-## revealed by a crop.
+## The drawn half of `FamilyGaugeBar`: a rounded-rectangle track with a gradient
+## fill revealed by a crop, and a border on each of them.
 ##
 ## A crop, not a scale. Scaling would drag the whole spectrum along with the fill
 ## and paint a half-empty bar in the same green as a full one, which is the one
@@ -62,33 +62,55 @@ static func _textures(width: float, height: float) -> Dictionary:
 	return made
 
 
-## One capsule. The track is a dark rounded box with a rim; the fill is the
-## spectrum across the same shape.
+## One bar. The track is the dark box with the outline around it; the fill is
+## the spectrum inside the same shape, with its own darker edge and a lift down
+## its height.
 ##
 ## The rounding is measured rather than drawn with a style box, because the crop
 ## has to reveal the leading pixels of a *texture* — a style box would have no
-## pixels to crop.
+## pixels to crop. Both borders come off one distance, so they can never drift
+## apart or leave a seam between them.
 static func _bake(width: int, height: int, is_track: bool) -> ImageTexture:
 	var image := Image.create(maxi(1, width), maxi(1, height), false, Image.FORMAT_RGBA8)
 	image.fill(Color(0.0, 0.0, 0.0, 0.0))
-	var radius := float(height) / 2.0
+	var rim_ends_at := FamilyGaugeBar.OUTLINE_WIDTH + FamilyGaugeBar.INNER_RIM_WIDTH
 	for y in height:
 		for x in width:
-			# Distance to the capsule's spine: the segment between the two
-			# centres the rounded ends turn about.
-			var point := Vector2(float(x) + 0.5, float(y) + 0.5)
-			var spine_x := clampf(point.x, radius, float(width) - radius)
-			var distance := point.distance_to(Vector2(spine_x, radius))
-			if distance > radius:
+			var depth := FamilyGaugeBar.inset_depth(
+				float(x) + 0.5,
+				float(y) + 0.5,
+				float(width),
+				float(height),
+				FamilyGaugeBar.CORNER_RADIUS
+			)
+			if depth <= 0.0:
 				continue
 			var color: Color
 			if is_track:
 				color = (
-					FamilyGaugeBar.TRACK_RIM
-					if distance > radius - FamilyGaugeBar.RIM_WIDTH
+					FamilyGaugeBar.OUTLINE_COLOR
+					if depth <= FamilyGaugeBar.OUTLINE_WIDTH
 					else FamilyGaugeBar.TRACK_FILL
 				)
 			else:
+				# The fill stops short of the outline, so the track's border is
+				# what the bar is edged with however full it is.
+				if depth <= FamilyGaugeBar.OUTLINE_WIDTH:
+					continue
 				color = FamilyGaugeBar.color_at(float(x) / maxf(1.0, float(width - 1)))
+				var shade := FamilyGaugeBar.depth_multiplier(
+					(float(y) + 0.5) / maxf(1.0, float(height))
+				)
+				if depth <= rim_ends_at:
+					shade *= FamilyGaugeBar.INNER_RIM_SHADE
+				color = Color(
+					minf(1.0, color.r * shade),
+					minf(1.0, color.g * shade),
+					minf(1.0, color.b * shade),
+					color.a
+				)
+			# A pixel the shape only partly covers is only partly drawn, which is
+			# what keeps a three-pixel corner a corner rather than a staircase.
+			color.a *= minf(1.0, depth)
 			image.set_pixel(x, y, color)
 	return ImageTexture.create_from_image(image)

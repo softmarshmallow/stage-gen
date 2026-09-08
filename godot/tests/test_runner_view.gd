@@ -20,6 +20,8 @@ func run(h: TestHarness) -> void:
 	_hazard(h)
 	_dust(h)
 	_gauge(h)
+	_death_fall(h)
+	_boss_bar(h)
 
 
 ## A stable per-instance phase, so a trail of coins ripples rather than turning
@@ -188,6 +190,105 @@ func _gauge(h: TestHarness) -> void:
 	)
 	h.assert_false(
 		FamilyGaugeBar.revealed_by_change(3.0, 3.0), "and a full one does not"
+	)
+	# The shape both borders are measured from. A rounded rectangle, not a pill:
+	# the middle of a 220x12 bar is six pixels in from its nearest edge, which a
+	# capsule of that height could not be.
+	h.assert_near(
+		FamilyGaugeBar.inset_depth(110.0, 6.0, 220.0, 12.0, 3.0), 6.0, EPS,
+		"the middle of the bar is half its height from the edge"
+	)
+	h.assert_near(
+		FamilyGaugeBar.inset_depth(110.0, 1.5, 220.0, 12.0, 3.0), 1.5, EPS,
+		"and a point under the top edge is its own distance in"
+	)
+	h.assert_true(
+		FamilyGaugeBar.inset_depth(0.5, 0.5, 220.0, 12.0, 3.0) < 0.0,
+		"a corner pixel is outside a rounded rectangle"
+	)
+	h.assert_true(
+		FamilyGaugeBar.inset_depth(0.5, 6.0, 220.0, 12.0, 3.0) > 0.0,
+		"and the middle of the left edge is inside it"
+	)
+	# The lift down the fill, which is what gives a flat colour a direction.
+	h.assert_near(FamilyGaugeBar.depth_multiplier(0.0), 1.28, EPS, "the top edge is lifted")
+	h.assert_near(FamilyGaugeBar.depth_multiplier(1.0), 0.68, EPS, "the bottom edge is shaded")
+	h.assert_near(FamilyGaugeBar.depth_multiplier(0.5), 0.98, EPS, "and the middle is near flat")
+
+
+## What a body does once the run has ended.
+##
+## Not a port of anything: the browser left the corpse where it died too. These
+## are this port's own numbers, and what they are held to is the shape of a
+## fall — it starts where the body was, it accelerates, and it stops on the
+## floor and stays there.
+func _death_fall(h: TestHarness) -> void:
+	# A body that died standing on the ground does not move at all.
+	h.assert_near(
+		RunnerPresentation.death_fall_row(600.0, 11.0, 11.0, 32.0, 13.0), 11.0, EPS,
+		"a body killed on its feet stays on them"
+	)
+	# One shot out of a climb falls the rest of the way, under gravity.
+	h.assert_near(
+		RunnerPresentation.death_fall_row(0.0, 4.0, 11.0, 32.0, 13.0), 4.0, EPS,
+		"the fall starts where the body was"
+	)
+	h.assert_near(
+		RunnerPresentation.death_fall_row(250.0, 4.0, 11.0, 32.0, 13.0), 5.0, EPS,
+		"a quarter second in it has fallen one row"
+	)
+	h.assert_near(
+		RunnerPresentation.death_fall_row(500.0, 4.0, 11.0, 32.0, 13.0), 8.0, EPS,
+		"and four by half a second"
+	)
+	# And stops on the floor rather than through it, however long the card is up.
+	h.assert_near(
+		RunnerPresentation.death_fall_row(5000.0, 4.0, 11.0, 32.0, 13.0), 11.0, EPS,
+		"it comes to rest on the ground"
+	)
+	# A pit has no floor to come to rest on, so the body goes on down it.
+	h.assert_near(
+		RunnerPresentation.death_fall_row(5000.0, 4.0, INF, 32.0, 13.0), 17.0, EPS,
+		"a body that died over a pit falls out of the picture"
+	)
+	# A floor already above the body is not a floor, and never lifts it.
+	h.assert_near(
+		RunnerPresentation.death_fall_row(250.0, 11.0, 4.0, 32.0, 13.0), 11.0, EPS,
+		"a surface above the body does not pull it up"
+	)
+	h.assert_near(
+		RunnerPresentation.death_fall_row(NAN, 4.0, 11.0, 32.0, 13.0), 4.0, EPS,
+		"a time that is not a time leaves the body where it is"
+	)
+	h.assert_near(
+		RunnerPresentation.death_fall_row(250.0, 4.0, 11.0, 0.0, 13.0), 4.0, EPS,
+		"and so does a gravity of nothing"
+	)
+
+
+## Where the fight's gauge sits over the boss it is about.
+func _boss_bar(h: TestHarness) -> void:
+	var over := RunnerBossView.bar_rect(640.0, 300.0, 1280.0)
+	h.assert_near(
+		over.position.x, 640.0 - RunnerBossView.BAR_SIZE.x / 2.0, EPS, "it centres on the body"
+	)
+	h.assert_near(
+		over.position.y + over.size.y, 300.0 - RunnerBossView.BAR_GAP, EPS,
+		"and hangs its own gap above the head"
+	)
+	# A boss climbing to the ceiling stops pushing its bar into the interface.
+	h.assert_near(
+		RunnerBossView.bar_rect(640.0, 20.0, 1280.0).position.y, RunnerBossView.BAR_MINIMUM_Y, EPS,
+		"a boss at the ceiling holds its bar below the run's own gauge"
+	)
+	# And one walking out to either edge keeps the whole bar in the picture.
+	h.assert_near(
+		RunnerBossView.bar_rect(1270.0, 300.0, 1280.0).position.x,
+		1280.0 - RunnerBossView.BAR_SIZE.x - 8.0, EPS,
+		"a boss at the right edge keeps its bar on screen"
+	)
+	h.assert_near(
+		RunnerBossView.bar_rect(10.0, 300.0, 1280.0).position.x, 8.0, EPS, "and at the left"
 	)
 
 

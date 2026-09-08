@@ -17,7 +17,9 @@ extends CanvasLayer
 ## children to a parent's drawn alpha, so the plate *is* the mask — no eraser
 ## texture, no inverse-alpha canvas, and no dynamic texture to keep in step with
 ## a resize. The plate is then drawn once more on top in multiply, so its ink rim
-## stays over the face rather than under it.
+## stays over the face rather than under it — through `ink.gdshader`, because
+## Godot's multiply and the browser's are not the same arithmetic and the
+## difference blacked out the whole world behind the moment.
 ##
 ## Nothing drew this before. The moment ran on schedule — the world froze for its
 ## ninety-eight frames and then released — against a picture that was not there.
@@ -161,9 +163,9 @@ func _build(plate: Texture2D) -> void:
 	_ink = Sprite2D.new()
 	_ink.texture = plate
 	_ink.centered = true
-	var multiply := CanvasItemMaterial.new()
-	multiply.blend_mode = CanvasItemMaterial.BLEND_MODE_MUL
-	_ink.material = multiply
+	var ink := ShaderMaterial.new()
+	ink.shader = load("res://hosts/common/shaders/ink.gdshader")
+	_ink.material = ink
 	_group.add_child(_ink)
 
 	_banner = Node2D.new()

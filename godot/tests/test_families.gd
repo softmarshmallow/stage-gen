@@ -12,6 +12,7 @@ func run(h: TestHarness) -> void:
 	_gauge(h)
 	_noise(h)
 	_cut_in(h)
+	_transition(h)
 	_traversal(h)
 	_score(h)
 	_vitals(h)
@@ -79,6 +80,67 @@ func _cut_in(h: TestHarness) -> void:
 	h.assert_true(not bool(FamilyCutIn.frame(1599.0, ch)["finished"]), "and is not over yet")
 	h.assert_true(bool(FamilyCutIn.frame(1900.0, ch)["finished"]), "the moment ends at 1900 ms")
 	h.assert_true(FamilyCutIn.frame(-1.0, ch).is_empty(), "a negative elapsed time is refused")
+	# The plate's own entry and exit are the browser's: it still slides off to
+	# the left over the last three hundred milliseconds.
+	h.assert_near(
+		float(FamilyCutIn.frame(1900.0, ch)["ripX"]), -1.15, 1e-12, "the plate leaves to the left"
+	)
+	# The scrim is the part that changed. It comes up over a quarter second
+	# instead of appearing between two frames...
+	h.assert_near(
+		float(FamilyCutIn.frame(600.0, ch)["dim"]), 0.0, 1e-12, "the scrim starts from nothing"
+	)
+	h.assert_near(
+		float(FamilyCutIn.frame(860.0, ch)["dim"]), FamilyCutIn.CUT_IN_DIM, 1e-12,
+		"and is fully up a quarter second later"
+	)
+	h.assert_near(
+		float(FamilyCutIn.frame(1600.0, ch)["dim"]), FamilyCutIn.CUT_IN_DIM, 1e-12,
+		"it is still up when the world is let go"
+	)
+	# ...and then goes quickly, and well before the plate carrying it has left:
+	# an eighth of its strength sixty milliseconds in, and nothing at all while
+	# the plate is still barely moving.
+	h.assert_near(
+		float(FamilyCutIn.frame(1660.0, ch)["dim"]), FamilyCutIn.CUT_IN_DIM * 0.125, 1e-12,
+		"sixty milliseconds later it is nearly gone"
+	)
+	h.assert_near(float(FamilyCutIn.frame(1720.0, ch)["dim"]), 0.0, 1e-12, "and then it is gone")
+	h.assert_true(
+		float(FamilyCutIn.frame(1720.0, ch)["ripX"]) > -0.1,
+		"with the plate it used to travel with still on screen"
+	)
+
+
+
+## The cover a restart is cut under.
+##
+## Not a port of anything — the browser cut between runs in the open. It is a
+## placeholder for a transition a run will one day publish, so what it is held
+## to is the shape of a cover: opaque while the swap happens, gone by the end,
+## and nothing at all for a choreography nobody described.
+func _transition(h: TestHarness) -> void:
+	var ch := FamilyTransition.choreography(FamilyTransition.FADE_BLACK)
+	h.assert_true(
+		FamilyTransition.choreography("wipe_v1").is_empty(),
+		"a choreography this build does not know is refused"
+	)
+	h.assert_near(float(FamilyTransition.frame(0.0, ch)["cover"]), 1.0, 1e-12, "the cut is covered")
+	h.assert_near(
+		float(FamilyTransition.frame(90.0, ch)["cover"]), 1.0, 1e-12,
+		"and stays covered through the hold"
+	)
+	# Seven eighths clear by the half-way point of the fade.
+	h.assert_near(
+		float(FamilyTransition.frame(245.0, ch)["cover"]), 0.125, 1e-12,
+		"half way through the fade the run is mostly back"
+	)
+	h.assert_near(
+		float(FamilyTransition.frame(400.0, ch)["cover"]), 0.0, 1e-12, "and then it is gone"
+	)
+	h.assert_false(bool(FamilyTransition.frame(399.0, ch)["finished"]), "the cut is not over yet")
+	h.assert_true(bool(FamilyTransition.frame(400.0, ch)["finished"]), "and is over at 400 ms")
+	h.assert_true(FamilyTransition.frame(-1.0, ch).is_empty(), "a negative elapsed time is refused")
 
 
 func _traversal(h: TestHarness) -> void:

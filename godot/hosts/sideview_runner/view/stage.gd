@@ -32,6 +32,7 @@ const DEPTHS := {
 	"avatar": 30,
 	"shot": 32,
 	"foreground": 40,
+	"boss_bar": 50,
 }
 
 ## The cell a collectible is fitted into, as a fraction of a tile. A coin drawn
@@ -69,6 +70,13 @@ var _now_ms: float = 0.0
 ## columns with different chunks, so a sprite cached by (column, id) would alias
 ## stale geometry across it.
 var _worn_seed: int = -1
+## When the run ended on the frame clock, and the row the body was at. Negative
+## while a run is still being played.
+var _death_at_ms: float = -1.0
+var _death_row: float = 0.0
+## The gravity a body falls under once the run is over: the arc's own, so a
+## death reads as the game letting go rather than as a second set of physics.
+var _fall_gravity: float = 0.0
 
 
 func build(package: HostRunDir, config: Dictionary) -> void:
@@ -76,6 +84,7 @@ func build(package: HostRunDir, config: Dictionary) -> void:
 	_config = config
 	var manifest := package.manifest
 	_flash_shader = load("res://hosts/common/shaders/fill.gdshader")
+	_fall_gravity = float(RunnerAvatarSystem.jump_arc(config)["gravityPerSecondSquared"])
 	_build_bands(manifest, "background")
 	_ground = Node2D.new()
 	_ground.z_index = DEPTHS["ground"]
@@ -95,7 +104,7 @@ func build(package: HostRunDir, config: Dictionary) -> void:
 	_hazards.add_child(_hazard_shapes)
 	_build_avatar(manifest)
 	_boss = RunnerBossView.of(
-		package, config, DEPTHS["boss"], DEPTHS["shot"], _flash_shader
+		package, config, DEPTHS["boss"], DEPTHS["shot"], DEPTHS["boss_bar"], _flash_shader
 	)
 	if _boss != null:
 		add_child(_boss)
@@ -276,7 +285,7 @@ func _sync_avatar(world: RunnerWorld, dt: float) -> void:
 		return
 	_avatar.show_motion(String(world.avatar["motion"]), int(world.avatar["jumpImpulses"]))
 	_avatar.advance(dt)
-	var feet := RunnerContract.row_to_screen_y(float(world.avatar["y"]), _config)
+	var feet := RunnerContract.row_to_screen_y(_body_row(world), _config)
 	_avatar.place(float(_config["avatarScreenX"]), feet)
 	# The contracted hurt representation: while the gauge is refusing contact the
 	# body blinks, and the phase is arithmetic on the gauge's own clock rather
@@ -286,6 +295,33 @@ func _sync_avatar(world: RunnerWorld, dt: float) -> void:
 		world.vitals, FamilyVitals.CONTACT_BLINK_INTERVAL_MS, FamilyVitals.CONTACT_BLINK_ALPHA
 	)
 	_sync_shadow(world)
+
+
+## The row the body is drawn at.
+##
+## While the run is being played that is simply the row the simulation says. Once
+## it has ended the simulation stops moving the body at all, so a player shot out
+## of a climb played a death animation in mid-air over the arena; here it falls
+## the rest of the way under the arc's own gravity and stays where it lands.
+func _body_row(world: RunnerWorld) -> float:
+	var row := float(world.avatar["y"])
+	if String(world.run["phase"]) != "dead":
+		_death_at_ms = -1.0
+		return row
+	if _death_at_ms < 0.0:
+		_death_at_ms = _now_ms
+		_death_row = row
+	var support := RunnerSegments.surface_row_at(
+		world.segments, int(floor(float(world.avatar["distanceColumns"])))
+	)
+	# No surface under the body is a pit, and a body that died over one goes on
+	# down it rather than stopping at the lip.
+	var floor_row := INF
+	if support >= 0:
+		floor_row = float(support)
+	return RunnerPresentation.death_fall_row(
+		_now_ms - _death_at_ms, _death_row, floor_row, _fall_gravity, float(_config["rows"])
+	)
 
 
 ## The contact shadow on the support under the body, thinning with air.
