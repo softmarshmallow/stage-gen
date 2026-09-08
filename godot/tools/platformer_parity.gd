@@ -121,6 +121,8 @@ func _step(world: PlatformerWorld, step_seconds: float, now_ms: float, frame: in
 	}
 	PlatformerPlayer.update(world.player, terrain, step_seconds * 1000.0, now_ms, world.intent)
 	PlatformerCameraSystem.update(world, step)
+	PlatformerMobsSystem.populate(world, step)
+	PlatformerMobsSystem.step(world, step)
 	PlatformerDialogueSystem.prompt(world, step)
 	PlatformerMapEntrySystem.ask(world)
 	PlatformerMapEntrySystem.apply(world, step)

@@ -75,6 +75,12 @@ var pending_map: Dictionary = {}
 ## nothing for the rest of the run — see `PlatformerMapEntrySystem`.
 var spent_gates: Dictionary = {}
 
+## The director for the map the run is on, and how many creatures it has stood
+## up. The instance number is the seed a creature's own tempo comes from, so it
+## counts across the whole run rather than per map.
+var population: Dictionary = {}
+var next_mob_instance: int = 1
+
 ## The bag that decides what plays next, seeded off the package digest.
 var music: FamilyShuffleBag = null
 
@@ -199,6 +205,9 @@ func open_on(opened: String) -> void:
 	portals = _portals(map)
 	npc_prompts = _prompts(opened)
 	soundtrack = _bind_music(map)
+	# A map's creatures are its own: nothing walks through a gate with the body.
+	mobs = []
+	population = PlatformerPopulation.project(package, opened)
 
 
 ## The gates, where they stand and how tall they are drawn.
@@ -340,7 +349,7 @@ func snapshot() -> Dictionary:
 		"inventory": inventory,
 		"loading": loading,
 		"mapId": map_id,
-		"mobs": mobs,
+		"mobs": PlatformerMobsSystem.snapshots(self),
 		"npcPrompts": npc_prompts,
 		"platforms": platforms,
 		"player": PlatformerPlayer.snapshot(player) if not player.is_empty() else null,

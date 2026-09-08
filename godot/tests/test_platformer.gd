@@ -16,12 +16,13 @@ extends RefCounted
 
 ## Frames identical to the browser's, and what stops the next one.
 ##
-## Frame 151 is the road map's first two creatures — `mobs/population` is
-## underived, so the world diverges there and not before. Raise this with each
-## unit, and never without re-running the harness.
-const EXACT_FRAMES := 150
+## Frame 185 is the frame the first creature notices the player and gives chase
+## — the awareness node and the pursuit target are underived, so the world
+## diverges there and not before. Raise this with each unit, and never without
+## re-running the harness.
+const EXACT_FRAMES := 184
 
-const FIRST_UNPORTED := "mobs/population, on arriving at the road"
+const FIRST_UNPORTED := "the awareness node, at the first creature's notice radius"
 
 
 func run(h: TestHarness) -> void:
@@ -37,6 +38,7 @@ func run(h: TestHarness) -> void:
 	_music(h, package as Dictionary)
 	_gate(h, package as Dictionary)
 	_population(h, package as Dictionary)
+	_mobs(h, package as Dictionary)
 
 
 ## The curve a package names, and the refusals for the ones it may not.
@@ -315,6 +317,53 @@ func _population(h: TestHarness, package: Dictionary) -> void:
 	h.assert_eq(
 		int((repeated[0] as Dictionary)["column"]), 18, "a second run draws the same first column"
 	)
+
+
+## The creatures themselves: what they are, and how they patrol.
+func _mobs(h: TestHarness, package: Dictionary) -> void:
+	var map: Dictionary = (package["maps"] as Dictionary)["road-map"]
+	# The instance number, not the spawn column: the population director passes
+	# it, and it is what gives a creature its tempo. The two seeds differ in the
+	# ninth decimal of the first step, which is exactly what the golden pins.
+	var first := PlatformerMob.create(
+		1, "mob_1", "road-map/mob/1", 0, "hunting", 2, 1184.0, 656.0, map
+	)
+	h.assert_eq(int(first["patrolDirection"]), -1, "the first creature sets off west")
+	h.assert_true(
+		absf(float(first["speedScale"]) - 0.971700011846) < 1e-9,
+		"at the tempo its instance number gives it"
+	)
+	PlatformerMob.wander(first, map, 1.0 / 30.0)
+	h.assert_true(
+		absf(float(first["x"]) - 1182.833959986) < 1e-9,
+		"and its first step is the browser's, to nine decimals"
+	)
+
+	var second := PlatformerMob.create(
+		2, "mob_2", "road-map/mob/2", 0, "hunting", 2, 1248.0, 656.0, map
+	)
+	PlatformerMob.wander(second, map, 1.0 / 30.0)
+	h.assert_true(
+		absf(float(second["x"]) - 1246.872008362) < 1e-9, "and so is the second creature's"
+	)
+
+	# A patrol is bounded by home rather than by the world: a tile and a half
+	# either way, and the lane it stood up on.
+	h.assert_true(
+		absf(float(first["patrolMinX"]) - 1088.0) < 1e-9, "it wanders a tile and a half west"
+	)
+	h.assert_true(
+		absf(float(first["patrolMaxX"]) - 1280.0) < 1e-9, "and a tile and a half east"
+	)
+	# Walked into its own western bound, it turns rather than standing there.
+	first["x"] = 1088.5
+	PlatformerMob.wander(first, map, 1.0 / 30.0)
+	h.assert_eq(int(first["patrolDirection"]), 1, "and turns at the end of its lane")
+
+	var shot := PlatformerMob.snapshot(first)
+	h.assert_eq(shot.size(), 10, "a creature publishes ten fields")
+	h.assert_eq(String(shot["state"]), "wander", "and is wandering until something notices it")
+	h.assert_eq(int(shot["maxHp"]), 2, "with a common creature's health")
 
 
 func _manifest() -> Dictionary:
