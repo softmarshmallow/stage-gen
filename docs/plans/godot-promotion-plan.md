@@ -39,7 +39,7 @@ channel, a catalogue, a URL — is out of scope and stays in
 | 5 ✔ | F | The kernel in GDScript, and survival sealed: declarations, a derived order equal to the pasted one, the event queue, refusals as values, the interface writing through the latch | the goldens unchanged line for line |
 | 6 | G | The suite enters the locked gate: a supervisor per test file, fixtures with synthesised media, the CI job | `check.py` fails without the engine; an injected error and an injected hang both turn it red |
 | 7 ◐ | H | The browser instruments: the platformer's slice list, every fixture and reference committed, stills taken | the references reproduce; the fixtures carry current identities |
-| 8 ✔ | I | **The runner**, and the browser runner is deleted | 600/600 frames and 30/30 digests, sealed order equal to the documented one, the host run and shot; no browser still, and [0065](../decisions/0065-the-runner-is-retired-from-the-browser.md) says why |
+| 8 ✔ | I | **The runner**, and the browser runner is deleted | 600/600 frames and 30/30 digests, sealed order equal to the documented one; the view was unproved and shipped broken, and [0066](../decisions/0066-a-state-proof-is-not-a-picture-proof.md) is the picture gate that closes it |
 | 9 | J | **The platformer**, and the browser platformer is deleted | the same, per map, plus the map-scope reset — and see the reordering note: this is a disentangling, not a translation |
 | 10 ◐ | K | **The room, the scene and the case**, and their browser surfaces are deleted together | the three simulations are ported and exact (14/14, 26/26, 20/20); their hosts and the deletion are what is left |
 | 11 | L | The sweep: the last web references, the census rows, the identities regenerated | `check.py` green; no `phaser` anywhere under `web/` |
@@ -57,13 +57,26 @@ synthesised media at the sizes that document declares, with the real-run count
 pins moving to tier 2 behind `--run`. That is a restructuring of the suite rather
 than a wrapper around it, and it is why the step is its own commit.
 
-**What step 8 turned out to owe, and did not pay.** The rules above ask a
+**What step 8 owed, did not pay, and has now paid.** The rules above ask a
 retirement for a picture sheet as well as a parity count. The runner's parity is
 the strongest kind — six hundred frames, equal rather than close — but no browser
-still was taken, so the picture evidence is one-sided. Decision 0065 states that
-in full rather than quietly meeting a weaker bar, and carries the falsifier. The
-platformer's own stills are already committed, so step 9 does not inherit the
-gap.
+still was taken, so the picture evidence was one-sided. 0065 stated that in full
+rather than quietly meeting a weaker bar, and carried the falsifier.
+
+Stating it was not enough. Played, the port drew no cut-in, no boss, no boss
+projectiles and no boss bar; it scaled a trimmed foreground band 3.58x too tall,
+left 200 px of bare engine grey down the right of every frame, read none of the
+five depth fields every band publishes, threw no dust, played no sound and turned
+no coins — and every one of those is invisible to a frame hash. A falsifier that
+is written down and then not acted on is documentation, not a gate.
+
+`tools/runner_shots_check.py` is the measurement, and
+[0066](../decisions/0066-a-state-proof-is-not-a-picture-proof.md) is the record:
+a genre is not ported until its picture is measured, and the measurement must be
+shown to fail on the defect it exists to catch. Run against the build 0065
+shipped it fails every shot that build can produce; against the build now, 4 of 4
+pass. The rule this leaves for step 9 is not "take a still" but "shoot the steps
+where a defect would be visible, and prove the sheet catches one".
 
 **Step 7 is half done.** The runner's and the platformer's references are
 committed, and the platformer's exclusion list is settled and measured: 103 leaf
