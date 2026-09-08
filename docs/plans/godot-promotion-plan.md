@@ -186,9 +186,7 @@ a package that authors either block is refused by name rather than played withou
 it. No package has ever published one; the recipe can. Beyond that: the props
 along a map, the NPC bodies, the per-digit stagger a number arcs with, the
 developer affordances (auto-play, the kit switch, the debug overlay), and the
-retirement record with the browser deletion. Seven gaps in the spawn director are
-written down rather than papered over — every one of them dormant on these two
-packages and live on others.
+retirement record with the browser deletion.
 
 **What running it found that the golden could not.** The media-free fixture the
 golden was recorded against publishes every field it declares. A shipped package

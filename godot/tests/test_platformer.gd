@@ -37,6 +37,7 @@ func run(h: TestHarness) -> void:
 	_music(h, package as Dictionary)
 	_gate(h, package as Dictionary)
 	_population(h, package as Dictionary)
+	_director(h)
 	_mobs(h, package as Dictionary)
 	_combat(h, package as Dictionary)
 	_loot(h, package as Dictionary)
@@ -365,6 +366,157 @@ func _population(h: TestHarness, package: Dictionary) -> void:
 	h.assert_eq(
 		int((repeated[0] as Dictionary)["column"]), 18, "a second run draws the same first column"
 	)
+
+
+## The six director rules the fixture cannot reach.
+##
+## One zone, one species, terrain only, no props: the authored population this
+## suite reads exercises none of the arithmetic below, and neither golden does
+## either. Every package here is the fixture's own block rewritten and parsed by
+## the real projection.
+func _director(h: TestHarness) -> void:
+	# A place is held, not taken. Until the caller says it built a body, the
+	# reservation is a claim on a column and not a creature — and a caller that
+	# could not build one gives the place back rather than keeping it for the run.
+	var one := _population_package({})
+	var held := PlatformerPopulation.update(one, 0.0, 0.0, 0.0)
+	var zone: Dictionary = (one["zones"] as Array)[0]
+	h.assert_eq(held.size(), 2, "the initial fill issues two")
+	h.assert_eq((zone["alive"] as Array).size(), 0, "and neither is a creature yet")
+	h.assert_eq((zone["reservations"] as Array).size(), 2, "both are places held")
+	PlatformerPopulation.confirm(
+		one, String((held[0] as Dictionary)["reservationId"]), "road-map/mob/1"
+	)
+	h.assert_eq((zone["alive"] as Array).size(), 1, "a confirmed place becomes a creature")
+	PlatformerPopulation.reject(one, String((held[1] as Dictionary)["reservationId"]), 0.0)
+	h.assert_eq((zone["reservations"] as Array).size(), 0, "and a rejected one is given back")
+	h.assert_eq((zone["tickets"] as Array).size(), 1, "as a ticket the zone still owes")
+
+	# A ticket that finds nowhere to stand does not end the zone's batch: it waits
+	# out the retry delay and the next due one is tried, and each has already
+	# spent its draw on which creature. Standing a prop on every candidate is how
+	# nowhere is arranged — and it is the same rule as the one two blocks down,
+	# which is why the two are asserted from opposite ends.
+	var crowded := _population_package({})
+	var crowded_zone: Dictionary = (crowded["zones"] as Array)[0]
+	var everywhere: Array = []
+	for entry: Variant in (crowded_zone["candidates"] as Array):
+		everywhere.append(
+			{"x": float((entry as Dictionary)["x"]), "y": float((entry as Dictionary)["y"])}
+		)
+	var nothing := PlatformerPopulation.update(crowded, 0.0, 0.0, 0.0, everywhere)
+	h.assert_eq(nothing.size(), 0, "a zone with nowhere to stand issues nothing")
+	h.assert_eq((crowded_zone["tickets"] as Array).size(), 2, "and still owes both tickets")
+	for entry: Variant in (crowded_zone["tickets"] as Array):
+		h.assert_eq(
+			int((entry as Dictionary)["attemptCount"]), 1, "each having been tried once"
+		)
+
+	# Two zones share one budget and are visited in turn, so a scarce budget
+	# rotates rather than always feeding the zone the author listed first.
+	var pair := _population_package({"zones": 2, "max_spawn_batch_per_update": 1})
+	var first := PlatformerPopulation.update(pair, 0.0, 0.0, 0.0)
+	var second := PlatformerPopulation.update(pair, 1000.0, 0.0, 0.0)
+	h.assert_eq(first.size(), 1, "one zone gets the whole budget")
+	h.assert_eq(second.size(), 1, "and one the next update")
+	h.assert_true(
+		String((first[0] as Dictionary)["zoneId"]) != String((second[0] as Dictionary)["zoneId"]),
+		"and it is the other zone's turn"
+	)
+
+	# A kind already at its ceiling is not in the bag at all: the weights are
+	# summed over the admissible pool, so a ticket is never lost to a draw that
+	# picked a creature the zone may not have.
+	var two_kinds := _population_package({"species": 2})
+	var kinds_zone: Dictionary = (two_kinds["zones"] as Array)[0]
+	h.assert_eq(
+		(kinds_zone["spawnTable"] as Array).size(), 2, "a zone may send two kinds"
+	)
+	h.assert_eq(
+		int(((kinds_zone["spawnTable"] as Array)[0] as Dictionary)["mobSlot"]),
+		0,
+		"numbered by the map's own sorted table"
+	)
+	# A kind at its ceiling is not in the bag, and one below its floor is the only
+	# thing in it. Asked of the rule rather than of an update, because the
+	# projection this genre ships gives every kind the zone's own cap as its
+	# ceiling — so the ceiling and the cap fall together and a whole update can
+	# never show the difference.
+	var table: Array = kinds_zone["spawnTable"]
+	(table[0] as Dictionary)["maxAlive"] = 1
+	for roll in [0.0, 0.49, 0.5, 0.99]:
+		h.assert_eq(
+			PlatformerPopulation.admissible_slot(table, {0: 1}, roll),
+			1,
+			"a kind at its ceiling is never drawn, at roll %.2f" % roll
+		)
+	(table[1] as Dictionary)["minAlive"] = 1
+	for roll in [0.0, 0.99]:
+		h.assert_eq(
+			PlatformerPopulation.admissible_slot(table, {}, roll),
+			1,
+			"and a kind below its floor is the only one drawn, at roll %.2f" % roll
+		)
+	h.assert_eq(
+		PlatformerPopulation.admissible_slot(table, {0: 1, 1: 4}, 0.0),
+		-1,
+		"a table with nothing admissible answers with no kind at all"
+	)
+
+	# A prop the director does not manage is still in the way.
+	var open_zone := _population_package({})
+	var free := PlatformerPopulation.update(open_zone, 0.0, 0.0, 0.0)
+	var blocked_zone := _population_package({})
+	var candidate: Dictionary = ((blocked_zone["zones"] as Array)[0]["candidates"] as Array)[0]
+	var around: Array = []
+	for entry: Variant in ((blocked_zone["zones"] as Array)[0]["candidates"] as Array):
+		around.append({"x": float((entry as Dictionary)["x"]), "y": float((entry as Dictionary)["y"])})
+	var _unused := candidate
+	var blocked := PlatformerPopulation.update(blocked_zone, 0.0, 0.0, 0.0, around)
+	h.assert_true(not free.is_empty(), "an unobstructed zone stands creatures up")
+	h.assert_true(blocked.is_empty(), "and a zone full of props stands none")
+
+	# A storey adds footings rather than replacing the one below it: the ground
+	# under a deck stays a place to stand, and the pair of column and deck is what
+	# makes the two different places.
+	var storeys := _population_package({"surface": "terrain_and_decks"})
+	var ground := (one["zones"] as Array)[0]["candidates"] as Array
+	var layered := (storeys["zones"] as Array)[0]["candidates"] as Array
+	h.assert_eq(
+		layered.size(), ground.size() + 1, "the road's one deck adds one place to stand"
+	)
+	var on_deck := 0
+	for entry: Variant in layered:
+		if not String((entry as Dictionary)["deckId"]).is_empty():
+			on_deck += 1
+	h.assert_eq(on_deck, 1, "and that place names the deck it stands on")
+
+
+## The fixture's authored population, rewritten and projected.
+##
+## `zones` duplicates the authored zone that many times with distinct ids,
+## `species` gives the zone that many kinds, `surface` sets the zone's surface,
+## and `max_spawn_batch_per_update` sets the map's budget.
+func _population_package(shape: Dictionary) -> Dictionary:
+	var made: Dictionary = _manifest().duplicate(true)
+	var block: Dictionary = made["gameplay"]["mob_population"]
+	if shape.has("max_spawn_batch_per_update"):
+		block["max_spawn_batch_per_update"] = shape["max_spawn_batch_per_update"]
+	var authored: Dictionary = (block["maps"] as Array)[0]
+	var zone: Dictionary = (authored["zones"] as Array)[0]
+	if shape.has("surface"):
+		zone["surface"] = shape["surface"]
+	if int(shape.get("species", 1)) > 1:
+		# `page_eater` sorts before `moth`, so the two kinds are slots 0 and 1 in
+		# that order and the assertion above is about the sort rather than about
+		# the order the author wrote them in.
+		(zone["spawn_table"] as Array).append({"mob_id": "page_eater", "weight": 1})
+	for index in range(1, int(shape.get("zones", 1))):
+		var extra: Dictionary = zone.duplicate(true)
+		extra["zone_id"] = "road_zone_%d" % index
+		(authored["zones"] as Array).append(extra)
+	var package: Variant = PlatformerMaps.parse(made)
+	return PlatformerPopulation.project(package as Dictionary, "road-map")
 
 
 ## The creatures themselves: what they are, and how they patrol.

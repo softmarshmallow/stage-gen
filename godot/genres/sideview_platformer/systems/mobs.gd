@@ -64,13 +64,20 @@ static func populate(world: PlatformerWorld, step: Dictionary) -> void:
 		# measured against.
 		float(int(float(step["now"]))),
 		float(world.player["x"]),
-		float(world.player["y"])
+		float(world.player["y"]),
+		_occupied(world)
 	)
 	var map: Dictionary = (world.package["maps"] as Dictionary)[world.map_id]
 	for entry: Variant in issued:
 		var reservation: Dictionary = entry
 		var spec := _spec(world, int(reservation["mobSlot"]))
 		if spec.is_empty():
+			# The place is given back rather than kept: a reservation the caller
+			# could not build into a body would otherwise hold that column for the
+			# rest of the run and cost the route a creature.
+			PlatformerPopulation.reject(
+				world.population, String(reservation["reservationId"]), float(step["now"])
+			)
 			continue
 		var instance := world.next_mob_instance
 		world.next_mob_instance += 1
@@ -95,6 +102,11 @@ static func populate(world: PlatformerWorld, step: Dictionary) -> void:
 		# be told when it is gone.
 		(world.mobs[world.mobs.size() - 1] as Dictionary)["zoneId"] = zone_id
 		(world.mobs[world.mobs.size() - 1] as Dictionary)["spawnColumn"] = int(reservation["column"])
+		# And the held place becomes a creature, which is the only thing that moves
+		# it out of the director's reservations and into its roster.
+		PlatformerPopulation.confirm(
+			world.population, String(reservation["reservationId"]), instance_id
+		)
 		PlatformerTranscript.record(
 			world,
 			"mob-spawned",
@@ -102,6 +114,21 @@ static func populate(world: PlatformerWorld, step: Dictionary) -> void:
 			float(step["now"]),
 			{"instanceId": instance_id, "column": int(reservation["column"])}
 		)
+
+
+## What else is in the way that the director does not manage.
+##
+## The creatures that are dead but still fading, which stand where they fell
+## until they are gone: a route that spawned inside a corpse would put a new
+## creature on top of the one the player just killed.
+static func _occupied(world: PlatformerWorld) -> Array:
+	var made: Array = []
+	for entry: Variant in world.mobs:
+		var mob: Dictionary = entry
+		if bool(mob["alive"]):
+			continue
+		made.append({"x": float(mob["x"]), "y": float(mob["y"])})
+	return made
 
 
 ## Move everything standing.
@@ -208,7 +235,12 @@ static func snapshots(world: PlatformerWorld) -> Array:
 ## catalogue's are the order the package published them. They are not the same
 ## numbering and one is translated into the other here rather than assumed equal.
 static func _spec(world: PlatformerWorld, mob_slot: int) -> Dictionary:
-	var ids := _population_ids(world)
+	# The slot is the *map's*, not a position in the zone that issued it: the
+	# director numbers every kind any zone of the map can spawn, sorted once, so
+	# two zones that both send moths name the same number. Rebuilding the table
+	# out of one zone's own rows gave a second zone a different numbering for the
+	# same creature.
+	var ids: PackedStringArray = world.population.get("mobIdBySlot", PackedStringArray())
 	if mob_slot < 0 or mob_slot >= ids.size():
 		return {}
 	var mob_id := ids[mob_slot]
@@ -217,21 +249,6 @@ static func _spec(world: PlatformerWorld, mob_slot: int) -> Dictionary:
 		if String(spec.get("mob_id", "")) == mob_id:
 			return spec
 	return {}
-
-
-## Every mob id this map's zones can spawn, sorted, which is the director's slot
-## order.
-static func _population_ids(world: PlatformerWorld) -> PackedStringArray:
-	var seen := {}
-	for entry: Variant in (world.population.get("zones", []) as Array):
-		var zone: Dictionary = entry
-		for row: Variant in (zone["spawnTable"] as Array):
-			seen[String((row as Dictionary).get("mob_id", ""))] = true
-	var made := PackedStringArray()
-	for key: Variant in seen:
-		made.append(String(key))
-	made.sort()
-	return made
 
 
 ## Where a creature sits in the package's own catalogue, which is the index the
