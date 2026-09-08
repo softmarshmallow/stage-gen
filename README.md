@@ -395,22 +395,25 @@ Python is the sole headless implementation, split into an application and the
 asset-graph engine it runs on. Node and TypeScript are confined to `web/`.
 
 ```text
-src/gnode/              the engine: an asset graph and its scheduler
+src/gnode/              the ringed asset-graph SDK
   graph.py             typed nodes, declared resources, content identity
+  node_types.py        node type declarations, policies, and registry dispatch
+  build.py             typed graph construction and template stamping
   schedule.py          offline projection and the live scheduler
   trace.py             append-only run trace and post-run summary
   view.py              derived read-only run view for a client
   binding.py           model@provider routes and their declared features
   contracts/           persisted contract bases and provenance records
   reliability/         retries, cancellation, redaction, paths, persistence
+  modalities/          provider-neutral model protocols and retry-owning services
+  providers/           OpenAI, OpenRouter, fal, and ElevenLabs adapters
 src/stage_gen/          the application, consuming `gnode`
-  components/          provider-neutral image, structured, removal, music,
-                       and verified single-axis image-repeat operations
-  providers/           OpenAI, OpenRouter, and FAL HTTP adapters
+  components/          application components and capability-specific processing
+  providers/           adapters for application-owned component protocols
+                       (the masked image-repeat edit)
   media/               deterministic image/audio inspection and normalization
   recipes/             application compositions and exported manifests; the
-                       recipe substrate (graph document, ports, node handler,
-                       executor, provider-free dry run) lives at its root
+                       recipe executor and provider-free dry run live at its root
   orchestration/       package resolution, execution documents, composition
   interfaces/          the argparse CLI, the only automation surface
   resources/           wheel-packaged templates and approved fallback music
@@ -418,13 +421,16 @@ web/                    optional browser preview consumer
 library/games/          source-checkout or external authored package workspace
 ```
 
-`gnode` is the only import surface its consumers touch: `from gnode import X`,
-never a submodule, and the engine imports no application package. A contract
-test enforces both directions.
+Consumers import rings 0 and 1 through `from gnode import X`, and provider
+adapters through the declared `gnode.providers.openai`,
+`gnode.providers.openrouter`, `gnode.providers.fal`, and
+`gnode.providers.elevenlabs` surfaces. Other engine submodules are private, and
+the engine imports no application package. A contract test enforces both
+directions.
 
-Dependencies point inward: providers implement component protocols, recipes
-compose components, and `orchestration.runtime` joins concrete providers to
-recipes for the interfaces. Components and recipes do not import providers or
+Dependencies point inward: providers implement modality or application component
+protocols, recipes compose components, and `orchestration.runtime` joins concrete
+providers to recipes for the interfaces. Components and recipes do not import providers or
 the web preview. The Python `image_repeat` service admits unchanged sources or
 performs an explicitly requested endpoint-conditioned repair. Repair keeps the
 provider-owned RGB appearance, deterministically reconstructs alpha topology

@@ -26,8 +26,8 @@ src/gnode/                    ringed asset-graph SDK — ring 0: engine core
                               ring 1 gnode/modalities/: per-modality model
                               specs and retry-owning services, including the
                               bounded tool-loop agent; ring 2
-                              gnode/providers/: OpenAI, OpenRouter, and fal
-                              adapters behind declared per-provider surfaces
+                              gnode/providers/: OpenAI, OpenRouter, fal, and
+                              ElevenLabs behind declared per-provider surfaces
 src/stage_gen/components/     application components and capability processing
 src/stage_gen/providers/      adapters for application-owned component
                               protocols (the masked image-repeat edit)
@@ -56,8 +56,8 @@ gnode         --imports----------> nothing in stage_gen; ring N only rings < N
 ```
 
 The last two lines are the engine boundary, and they are enforced mechanically
-by `tests/contract/test_import_boundaries.py` in both directions. One import
-surface keeps the engine free to move its modules; importing no application
+by `tests/contract/test_import_boundaries.py` in both directions. Declared import
+surfaces keep the engine free to move its modules; importing no application
 keeps it usable without one.
 
 Optional consumers invoke an interface through its CLI or HTTP contract; they
