@@ -186,6 +186,10 @@ spikes/
 # Session workspaces, never tracked (was only in .git/info/exclude, which a clone does not see).
 local/
 
+# Private game workspaces; only the shared boundary notice belongs in Git.
+/library/private/*
+!/library/private/README.md
+
 # Ember Hollow's adopted takes stay local: first-party draws that exceed the tracked-media
 # policy (docs/repository-storage.md) in size and in location, and are declared by sha256 in
 # the package TOMLs, so planning and graph identity need only the digest. The two reference

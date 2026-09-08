@@ -184,3 +184,16 @@ static func boxes_overlap(a: Dictionary, b: Dictionary) -> bool:
 ## The idle bob, which is presentation and is excluded from the hit box.
 static func boss_bob_rows(now_ms: float) -> float:
 	return sin((now_ms / 1000.0) * (TAU / BOB_PERIOD_SECONDS)) * BOB_ROWS
+
+
+## Where a column offset from the avatar lands on screen.
+##
+## Everything in a fight is measured from the body rather than from the world,
+## because the body is the one thing pinned to a screen position: the boss is
+## `offsetColumns` ahead of the avatar, and a shot's `x` is in that same frame.
+## So a fight needs no scroll at all, which is why the arena reads the same at
+## column 128 and column 1,280.
+static func offset_screen_x(
+	offset_columns: float, avatar_screen_x: float, tile_px: float
+) -> float:
+	return avatar_screen_x + offset_columns * tile_px

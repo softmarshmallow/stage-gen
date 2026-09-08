@@ -111,6 +111,38 @@ func texture(ref: String, mipmaps: bool = true) -> ImageTexture:
 	_textures[key] = made
 	return made
 
+## A texture cropped to its subject's alpha bounding box, cached.
+##
+## A catalogue sprite is painted on a canvas larger than the thing on it, and a
+## calibration is measured against the *subject* rather than against the canvas
+## it floats in. So a caller that sizes by the ruler and places by an edge has
+## to be handed the subject: drawn untrimmed, a prop stands on its own padding
+## instead of on the ground, and a coin fitted into a readable cell is fitted by
+## the width of its empty margins.
+##
+## Alpha zero marks the exterior, which is the same rule the browser's
+## `extractCellsBbox` used and what the published alpha policy guarantees. A
+## blank or unreadable subject keeps the whole canvas rather than collapsing to
+## nothing.
+func trimmed_texture(ref: String) -> ImageTexture:
+	var key := ref + "#trim"
+	if _textures.has(key):
+		return _textures[key]
+	var source := image(ref)
+	var made: ImageTexture = null
+	if source != null:
+		var copy := Image.new()
+		copy.copy_from(source)
+		if copy.get_format() != Image.FORMAT_RGBA8:
+			copy.convert(Image.FORMAT_RGBA8)
+		var used := copy.get_used_rect()
+		if used.size.x > 1 and used.size.y > 1:
+			copy = copy.get_region(used)
+		copy.generate_mipmaps()
+		made = ImageTexture.create_from_image(copy)
+	_textures[key] = made
+	return made
+
 ## An mp3 clip from the package, cached. Null when missing.
 func audio(ref: String) -> AudioStreamMP3:
 	if _audio.has(ref):

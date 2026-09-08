@@ -116,7 +116,7 @@ func _process(delta: float) -> void:
 	if steps >= MAX_SUBSTEPS:
 		# The bank is dropped rather than carried: see MAX_SUBSTEPS.
 		_banked = fmod(_banked, FIXED_STEP)
-	stage.sync(world)
+	stage.sync(world, delta)
 	hud.sync(world)
 
 
