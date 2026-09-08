@@ -1,6 +1,6 @@
 """Model bindings: which route serves an operation, and what that route can do.
 
-Three levels are kept apart deliberately.
+The following concepts are kept separate.
 
 * **Capability** — the operation a node declares it needs. Stable, engine-side
   vocabulary owned by the consumer's node types.

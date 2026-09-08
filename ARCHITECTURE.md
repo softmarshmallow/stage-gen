@@ -113,7 +113,7 @@ uv run stage-gen <args>
 ```
 
 The CLI is the only automation surface: there is no HTTP service, and no
-process outside it starts a run. Six recipes compile onto the one engine —
+process outside it starts a run. Seven recipes compile onto the one engine —
 `sideview-platformer` and `sideview-runner` build distinct prepared-game
 members from a `game.toml` package, `dialogue-scene` builds a scene bundle from
 an authored request document, `pointclick-room` builds a fixed painted
@@ -122,10 +122,11 @@ puzzle room from an authored package whose puzzle is proven finishable before ge
 --output out/<tag>`), `oblique-survival` builds a billboard-sprite survival
 world on a ground plane under a fixed elevated-oblique perspective camera from
 its own authored package (`stage-gen oblique-survival generate --input
-library/games/<id> --output out/<tag> --scope full`), and `universe` builds an
+library/games/<id> --output out/<tag> --scope full`), `universe` builds an
 explorable storyworld package — typed entities and one concept image each —
-from a poster, a synopsis, and an expansion direction. Each declares its own
-graph document kind, so no recipe can read another's plan.
+from a poster, a synopsis, and an expansion direction, and `storefront` builds
+store images and listing copy from an authored brief and the game's own art.
+Each declares its own graph document kind, so no recipe can read another's plan.
 
 Generated runs live below the configured output directory. Recipe-specific
 names and file layouts belong in recipe manifests, not in generic

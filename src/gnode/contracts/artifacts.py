@@ -25,7 +25,11 @@ class PersistedContractModel(ContractModel):
 
 @dataclass(frozen=True, slots=True)
 class BinaryArtifact:
-    """Validated artifact bytes waiting to be atomically persisted."""
+    """In-memory bytes and their declared media type.
+
+    Construction performs no media validation or persistence. The producing
+    service or caller must validate the payload before accepting it as an artifact.
+    """
 
     data: bytes
     media_type: str
@@ -38,7 +42,12 @@ class BinaryArtifact:
 
 
 class ArtifactResult(PersistedContractModel):
-    """Provider-neutral public result for an artifact operation."""
+    """Provider-neutral public result record for an artifact operation.
+
+    Construction validates the record's fields, not the referenced files or
+    media. The producer owns media validation and artifact/sidecar persistence
+    before reporting this record as a successful result.
+    """
 
     component: str
     artifact_path: str = Field(alias="artifactPath")

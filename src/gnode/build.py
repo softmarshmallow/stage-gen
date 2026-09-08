@@ -1,18 +1,8 @@
-"""One graph builder for every recipe: typed construction, cache keys, barriers.
+"""Typed graph construction with offline bindings, cache lineage, and barriers.
 
-Every recipe used to carry a private builder that wired dependency order,
-cache keys, and binding resolution the same way. This is that builder, once,
-consuming ``NodeType`` declarations: a provider type resolves its route and
-features against the binding table offline (a missing feature is refused
-before any spend), a local type runs on the local resource, and the cache
-contract version comes from the type instead of a per-family constant.
-
-A subgraph template is a parameterized expansion — a callable that adds a
-cluster of typed nodes through this builder. ``within_template`` stamps every
-node added inside it with the template's identity, so an instantiated cluster
-stays visible as one construct in the plan and the viewer, while the
-parameters that make each instance different (the measured residue of an
-asset type) stay in the nodes' digests and cards.
+Subgraph templates are callables that add clusters of nodes. ``within_template``
+stamps their identity for the plan and viewer; instance-specific inputs remain
+in each node's digests and cards.
 """
 
 from __future__ import annotations
@@ -35,7 +25,11 @@ DEFAULT_LOCAL_DURATION_SECONDS = 0.25
 
 
 class GraphBuilder:
-    """Accumulate typed nodes in dependency order for one sealed graph."""
+    """Plan typed nodes using a binding profile and a shared local resource.
+
+    Pass ``nodes`` and ``resources()`` to ``seal_graph`` when ready. Construction
+    resolves provider routes offline; it does not execute nodes or persist files.
+    """
 
     def __init__(
         self,
@@ -100,11 +94,23 @@ class GraphBuilder:
         card: NodeCard | None = None,
         duration_seconds: float | None = None,
     ) -> Node:
-        """Add one instance of a type; dependencies must already be added.
+        """Return and retain a planned node; dependencies must already be added.
 
-        ``cache_depends_on`` selects which dependencies contribute cache
-        lineage; the rest become barrier edges — ordering without identity.
-        ``None`` means every dependency carries lineage.
+        Provider types resolve their operation and features against the profile;
+        local types use the local resource. ``duration_seconds`` overrides the
+        default local estimate or the binding's estimate.
+
+        ``cache_depends_on`` selects a subset of ``depends_on`` for cache lineage.
+        ``None`` includes all; an empty sequence makes all edges ordering barriers.
+        Cache identity includes node/type IDs, route, operation, contract version,
+        input digests, and dependency cache keys. Parameters and presentation
+        metadata are not hashed directly: include output-affecting configuration
+        in ``input_digests``. Duplicate input digests are removed in order.
+
+        Raises:
+            CapabilityError: No binding supports the operation or its features.
+            ValueError: Duplicate ID, missing dependency, invalid cache dependency
+                subset, or invalid node fields.
         """
 
         if node_id in self._by_id:

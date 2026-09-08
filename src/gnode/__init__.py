@@ -5,9 +5,10 @@ persistent, content-addressed artifacts that are validated before they are
 accepted, correctness does not depend on execution order, and failed generation
 is retried by exactly one owner.
 
-This module is the engine's **only** import surface. Consumers import from
-``gnode`` directly and never from a submodule, so the internal layout stays free
-to move. The engine imports no application package.
+This module is the public import surface for the engine core and modality
+services (rings 0 and 1). Consumers import provider adapters from their declared
+``gnode.providers.<name>`` packages (ring 2). Other submodules are internal, so
+their layout stays free to move. The engine imports no application package.
 """
 
 from gnode.binding import Binding, BindingTable, CapabilityError, ModelRef

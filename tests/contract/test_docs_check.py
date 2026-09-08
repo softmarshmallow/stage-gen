@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+from gnode import ArtifactResult
 from stage_gen.identities import current_versions
 
 
@@ -28,6 +29,19 @@ def test_repository_documentation_and_publication_contract() -> None:
     # The soundtrack loop and the concept cover. Documentation media is not a
     # publication root, so nothing under docs/ is counted here.
     assert result.media_count == 2
+
+
+def test_component_contract_artifact_example_runs() -> None:
+    """Execute the documented result example against the public Python API."""
+
+    document = Path(__file__).parents[2] / "docs/component-contract.md"
+    section = document.read_text(encoding="utf-8").split("## Artifact result\n", 1)[1]
+    section = section.split("\n## ", 1)[0]
+    examples = re.findall(r"```python\n(.*?)\n```", section, re.DOTALL)
+    assert len(examples) == 1
+    namespace: dict[str, object] = {}
+    exec(compile(examples[0], str(document), "exec"), namespace)
+    assert isinstance(namespace["result"], ArtifactResult)
 
 
 def test_every_spec_names_a_true_checker(tmp_path: Path) -> None:

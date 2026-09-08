@@ -188,6 +188,20 @@ class Scheduler:
         trace_sink: TraceSink | None = None,
         target_node_ids: Sequence[str] | None = None,
     ) -> RunSummary:
+        """Execute targets and their ancestors, returning one trace per selected node.
+
+        ``target_node_ids=None`` selects the whole graph. ``invocation_id`` labels
+        contexts, events, and the summary; the default trace sink is memory-only.
+        Resource IDs must match the graph in order; concurrency limits come from
+        this scheduler. Empty or unknown targets and mismatched IDs raise ValueError.
+
+        Handlers run at most once, with timeout starting after slot acquisition.
+        Cache and artifact admission belong to the handler. Ordinary exceptions and
+        timeouts mark nodes failed and dependents skipped; independent branches
+        continue. The returned summary's ``ok`` requires all targets to succeed.
+        Caller cancellation propagates as ``asyncio.CancelledError``.
+        """
+
         if tuple(self._resources) != tuple(resource.resource_id for resource in graph.resources):
             raise ValueError("executor resources must exactly match the execution graph")
         selected_nodes = node_closure(graph, target_node_ids)

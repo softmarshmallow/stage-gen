@@ -1,11 +1,13 @@
 """Ring 1 — the bounded tool-loop agent.
 
 A tool loop is one *episode*: a chat model with image input is handed
-caller-supplied pure tools, a system prompt, instructions, and a budget, and
+caller-supplied tools, a system prompt, instructions, and a budget, and
 must end by calling the reserved ``submit`` tool with a payload the caller
 parses and admits. The model decides; the caller's tools render and the
-caller's admission judges. Nothing here names a provider, touches a network,
-or reads a path — the sandbox is exactly the tool list.
+caller's admission judges. The model can select only registered tools and
+``submit``. Handlers are Python callables executed in the host process; the
+service does not isolate their filesystem, network, or other side effects.
+The caller owns handler permissions and any required isolation.
 """
 
 from __future__ import annotations

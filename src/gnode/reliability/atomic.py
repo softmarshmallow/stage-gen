@@ -142,7 +142,12 @@ def build_artifact_provenance(
     secrets: Sequence[str] = (),
     now: datetime | None = None,
 ) -> ArtifactProvenance:
-    """Validate and sanitize a provenance-v2 record before any write."""
+    """Build sanitized provenance-v2 without writing files.
+
+    An artifact requires non-empty bytes, a supported media type, and valid text
+    when applicable. Other media validation belongs to the caller. ``None`` omits
+    the artifact digest; ``now`` supplies a missing timestamp; ``secrets`` is redacted.
+    """
 
     references = [sanitize_reference(reference) for reference in provenance.refs]
     inputs = [
@@ -222,7 +227,15 @@ def write_artifact_with_provenance(
     now: datetime | None = None,
     operations: FileOperations | None = None,
 ) -> Path:
-    """Commit artifact and adjacent sidecar as one rollback-protected pair."""
+    """Write an artifact and adjacent ``.meta.json`` sidecar; return the sidecar path.
+
+    Validate provenance, stage sibling files, then replace destinations. Caught
+    commit failures trigger rollback; ``AtomicWriteError`` reports failures and
+    backups remain if restoration fails. Replacements are atomic individually,
+    not simultaneous. There is no writer coordination or process-crash recovery.
+    Callers own path confinement and media validation beyond provenance checks.
+    ``operations`` optionally replaces local filesystem operations.
+    """
 
     raw_path = os.fspath(artifact_path)
     if not raw_path or not raw_path.strip():
@@ -298,6 +311,12 @@ async def write_artifact_with_provenance_async(
     now: datetime | None = None,
     operations: FileOperations | None = None,
 ) -> Path:
+    """Write the pair in a worker thread, preserving spend on persistence failure.
+
+    ``AtomicWriteError.provider_operations`` comes from ``provenance.attempts``.
+    Cancellation propagates but does not stop work already running in the thread.
+    """
+
     try:
         return await asyncio.to_thread(
             write_artifact_with_provenance,
@@ -326,13 +345,13 @@ def atomic_write_bundle(
     secrets: Sequence[str] = (),
     operations: FileOperations | None = None,
 ) -> tuple[Path, ...]:
-    """Publish ordered same-directory files or restore the complete prior bundle.
+    """Publish same-directory files; return destination paths in input order.
 
-    Callers construct and validate every payload before entering this filesystem
-    transaction. All existing destinations are moved to sibling recovery backups
-    before the first new file is installed. A failure restores every prior file,
-    removes newly introduced destinations, and retains only backups whose restore
-    itself failed.
+    Callers validate payloads first. Existing files move to sibling backups before
+    installation. Caught failures trigger rollback and raise ``AtomicWriteError``;
+    backups remain if restoration fails. Replacements are atomic individually,
+    so readers may observe a partial bundle. Callers own path confinement and writer
+    coordination; there is no automatic recovery after process termination.
     """
 
     if not entries:

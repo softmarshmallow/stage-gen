@@ -99,10 +99,11 @@ debugging and reproducibility; it is not an IP license.
 
 ## Recipes and preview
 
-Six recipes compile onto the one engine: `sideview-platformer`,
-`sideview-runner`, `dialogue-scene`, `pointclick-room`, `oblique-survival`, and
-`universe`. The first five produce something to play; `universe` produces
-something to read.
+Seven recipes compile onto the one engine: `sideview-platformer`,
+`sideview-runner`, `dialogue-scene`, `pointclick-room`, `oblique-survival`,
+`universe`, and `storefront`. The first five produce something to play;
+`universe` produces something to read, and `storefront` produces store images
+and listing copy.
 Each declares its
 own graph document kind, so no recipe can read another's plan, and none may
 define another's assumptions or artifact layout.
@@ -153,6 +154,12 @@ spend, a season calendar, weather, music and sound. Its
 `oblique-survival-package-v2` package, the one sealed graph and its scopes, and
 the `oblique-survival-manifest-v3` manifest. Its consumer is not a browser
 surface: the [Godot host](../godot-host.md) plays it.
+
+The `storefront` sibling recipe produces an app icon, preview stills, a feature
+banner, and listing copy from an authored brief and the game's own art. Its
+[generation specification](storefront/generation-v1.md) owns the source package,
+surface requirements, and graph. These outputs are for a store, with no runtime
+consumer or in-game assets.
 
 Every genre that plays a conversation walks the same machine. The village
 dialogue box in the platformer and the visual-novel scene are two presentations

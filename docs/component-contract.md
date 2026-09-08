@@ -1,27 +1,36 @@
 # Component contract
 
-A component is one independently testable media operation beneath
-`src/stage_gen/components/`. Examples include image generation, background
-removal, structured generation, or music generation. Deterministic media
-inspection and transformation live under `src/stage_gen/media/`. A recipe is
-an ordered or parallel composition of components; a runtime or preview is a
-consumer of its artifacts.
+A Stage Gen component is an independently testable application capability under
+`src/stage_gen/components/`, such as sprite-sheet processing, soundtrack assembly,
+or an authored game contract. Components use the provider-neutral modality services
+exported from `gnode`: image generation, background removal, structured generation,
+and music generation live in ring 1 under `src/gnode/modalities/`. Provider adapters
+live in ring 2. See the [gnode rings](spec/gnode-rings.md) for their import boundaries.
+
+Shared, recipe-neutral media inspection and transforms live under
+`src/stage_gen/media/`; capability-specific processing stays with its component,
+and recipe-specific canonicalization stays with its recipe. A recipe composes
+components into a graph; a runtime or preview consumes its artifacts.
 
 ## Required properties
 
-Every component must:
+Artifact-producing components must:
 
 1. accept typed or schema-validated input;
 2. write only below the caller-provided output directory;
 3. return an artifact manifest rather than relying on implicit filenames;
 4. validate media before reporting success;
-5. give every provider/network call one initial attempt plus five blind retries
-   with capped backoff (six attempts at most);
-6. retry silent contract failures such as empty media or malformed JSON;
+5. use one retry owner per provider operation, with at most six attempts
+   (one initial attempt plus five retries) and capped backoff;
+6. include silent contract failures such as empty media or malformed JSON
+   within that same retry boundary;
 7. persist provenance and a content hash beside the artifact;
 8. make deterministic post-processing explicit and independently testable;
 9. support cancellation/timeouts without leaving a success marker; and
 10. expose enough information for a headless benchmark.
+
+When a component uses a gnode modality service, that service owns provider retries;
+the component and provider adapter must not add nested retry loops.
 
 ## Structure
 
@@ -75,16 +84,18 @@ manifests and may translate them into browser-engine textures or scene state.
 ## Artifact result
 
 A successful result should provide this information, directly or through a
-manifest:
+manifest. This offline example constructs only an in-memory result record with
+illustrative paths, digest, and media facts. It does not generate, validate, or
+persist an artifact:
 
 ```python
-from stage_gen.contracts import ArtifactResult
+from gnode import ArtifactResult
 
 result = ArtifactResult(
     component="image-generation",
-    artifactPath="out/concept.png",
-    provenancePath="out/concept.png.meta.json",
-    mediaType="image/png",
+    artifact_path="out/concept.png",
+    provenance_path="out/concept.png.meta.json",
+    media_type="image/png",
     sha256="0" * 64,
     bytes=1,
     attempts=1,

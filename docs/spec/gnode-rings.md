@@ -80,7 +80,7 @@ Each modality package owns three things and nothing else:
   the engine ships no brand.
 
 **The tool loop is the one service that loops.** `ToolLoopService.run` owns an
-*episode*: the model is handed caller-supplied pure tools (JSON-schema'd, executed by
+*episode*: the model is handed caller-supplied tools (JSON-schema'd, executed by
 the caller's handlers), a system prompt, instructions, references, and a budget, and
 must end by calling the reserved `submit` tool with a payload the caller parses and
 admits. The service seeds the transcript, calls the model one turn at a time through
@@ -90,9 +90,11 @@ admission failure as a tool error the model may correct, and stops on the first
 admitted submit or when the step or token budget is spent, in which case it refuses
 rather than guesses. The artifact is the admitted record; the sidecar's `response`
 carries the per-step trace (tool, arguments, outcome — never image bytes), and
-`attempts` counts episodes, which is one. The sandbox is exactly the tool list: no
-filesystem, no network, no path the caller did not hand over. Its first consumer is
-the cut-in placement agent (`docs/spec/game/fx.md`).
+`attempts` counts episodes, which is one. The model can select only registered
+tools and `submit`. This limits tool selection; handlers are Python callables
+executed in the host process, with no filesystem, network, or process isolation
+provided by the service. The caller owns their permissions and side effects.
+Its first consumer is the cut-in placement agent (`docs/spec/game/fx.md`).
 
 `BackgroundRemovalModelV1` is the honest wart of the set: its request
 transcribes one vendor's matting surface rather than a neutral matting

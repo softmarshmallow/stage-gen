@@ -113,6 +113,13 @@ class NodeCard(PersistedContractModel):
 
 
 class Node(PersistedContractModel):
+    """A planned operation instance with dependencies, route, and output ports.
+
+    Construction validates fields; ``Graph`` validates references and DAG structure.
+    ``NodeHandler`` supplies execution and artifact acceptance. Input digests and
+    the cache key describe identity, not proof of valid reusable files.
+    """
+
     node_id: str = Field(pattern=NODE_ID_PATTERN, max_length=192)
     type_id: str = Field(pattern=TYPE_ID_PATTERN, max_length=192)
     domain: str = Field(pattern=NODE_ID_PATTERN, max_length=96)
@@ -428,12 +435,23 @@ class NodeExecutionError(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class NodeExecutionContext:
+    """Run identity and successful direct-dependency results, including barriers."""
+
     invocation_id: str
     graph_sha256: str
     dependency_results: Mapping[str, NodeExecutionResult]
 
 
 class NodeHandler(Protocol):
+    """Execute a ready node and return only after artifact acceptance and persistence.
+
+    Own cache validation and dispatch to local operations or retry-owning services.
+    The scheduler calls at most once per selected node and trusts artifact validation.
+    Report attempts, provider operations, and known cost; ``NodeExecutionError``
+    preserves those fields on failure. Downstream handlers receive only successful
+    dependency results.
+    """
+
     async def __call__(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult: ...
 
 
