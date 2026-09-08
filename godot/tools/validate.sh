@@ -4,7 +4,13 @@
 # picture shot, then the diff against the web-viewer references.
 #
 #   tools/validate.sh --run <absolute run dir> --out <directory> \
-#       [--ref <reference directory>] [--dpr 1] [--shots all] [--skip-tests]
+#       [--ref <reference directory>] [--dpr 1] [--shots all] [--skip-tests] \
+#       [--runner-run <absolute runner run dir>]
+#
+# `--runner-run` adds the runner's own picture gate: four named steps captured
+# and measured. Decision 0065 retired the browser runner on a state proof and
+# recorded that the picture was one measurement short; everything the port then
+# shipped broken was in that gap, and none of it could move a frame hash.
 #
 # Nothing here is credentialed and nothing reaches a provider: it reads a run
 # directory and writes PNGs. With no --ref the shots are captured and the diff
@@ -23,6 +29,7 @@ REF=""
 DPR=1
 SHOTS=all
 SKIP_TESTS=0
+RUNNER_RUN=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -31,6 +38,7 @@ while [ $# -gt 0 ]; do
     --ref) REF=$2; shift 2;;
     --dpr) DPR=$2; shift 2;;
     --shots) SHOTS=$2; shift 2;;
+    --runner-run) RUNNER_RUN=$2; shift 2;;
     --skip-tests) SKIP_TESTS=1; shift;;
     -h|--help) sed -n '2,15p' "${BASH_SOURCE[0]}"; exit 0;;
     *) echo "validate: unknown argument $1" >&2; exit 2;;
@@ -116,6 +124,19 @@ echo "== capture ($SHOTS, dpr $DPR)"
     --audio-driver Dummy -s res://tools/capture.gd -- \
     --run "$RUN" --capture "$SHOTS" --out "$OUT" --dpr "$DPR" \
   | grep -E '^\[capture\]' || true
+
+if [ -n "$RUNNER_RUN" ]; then
+  echo "== runner picture gate"
+  # The runner draws at its own design size and has no reference set to diff
+  # against, so this asks a different question from the survival compare: not
+  # "is this the same picture" but "does this picture carry what it must".
+  mkdir -p "$OUT/runner-shots"
+  "$GODOT" --path "$PROJECT" --rendering-driver metal --disable-render-loop \
+      --audio-driver Dummy --quit-after 120000 -s res://tools/runner_capture.gd -- \
+      --run "$RUNNER_RUN" --seed 1234 --out "$OUT/runner-shots" --shots all \
+    | grep -E '^.runner capture.' || true
+  python3 "$PROJECT/tools/runner_shots_check.py" "$OUT/runner-shots"
+fi
 
 if [ -z "$REF" ]; then
   echo "== compare skipped (no --ref); shots are in $OUT"

@@ -51,6 +51,7 @@ func run(h: TestHarness) -> void:
 	_blur(h)
 	_rows_are_the_whole(h)
 	_refusals(h)
+	_host_path(h)
 
 
 func _neutral(h: TestHarness) -> void:
@@ -191,3 +192,79 @@ func _source() -> PackedByteArray:
 	for value: Variant in SOURCE:
 		made.append(int(value))
 	return made
+
+
+## The host path that carries the transform to a texture.
+##
+## `present_pixels` being right is not the same as it being *called*: the runner
+## published these five fields on every band from the first run and read none of
+## them, so the far glazing drew at full strength behind a ground plate it should
+## have sat well behind. This walks the whole way from a package on disk to the
+## texture a band is drawn with.
+func _host_path(h: TestHarness) -> void:
+	var root := OS.get_user_data_dir().path_join("test-layer-presentation")
+	DirAccess.make_dir_recursive_absolute(root)
+	var source := Image.create(16, 8, false, Image.FORMAT_RGBA8)
+	for y in 8:
+		for x in 16:
+			# A saturated ramp, so a loss of saturation is unmistakable.
+			source.set_pixel(x, y, Color(float(x) / 15.0, 1.0 - float(y) / 7.0, 0.2, 1.0))
+	source.save_png(root.path_join("band.png"))
+	var manifest := FileAccess.open(root.path_join("manifest.json"), FileAccess.WRITE)
+	manifest.store_string('{"kind": "test"}')
+	manifest.close()
+
+	var package := HostRunDir.open(root)
+	if not h.assert_true(package != null, "a package of one band opens"):
+		return
+	var texture := HostLayerTexture.band(package, "band.png", PRESENTATION, 16, 8)
+	if not h.assert_true(texture != null, "and its band presents to a texture"):
+		return
+	# Byte for byte the family's answer, which is what makes the host a carrier
+	# of the transform rather than a second opinion about it. The base level
+	# only: a band texture carries a mip chain, and the levels below the first
+	# are the renderer's arithmetic rather than this one's.
+	h.assert_eq(
+		Array(_base_level(texture, 16, 8)),
+		Array(
+			FamilyLayerPresentation.present_pixels(source.get_data(), 16, 8, PRESENTATION, 1.0)
+		),
+		"the drawn texture is the family's transform, byte for byte"
+	)
+	# And in the direction a reader cares about: further back reads quieter.
+	var graded := Image.create_from_data(
+		16, 8, false, Image.FORMAT_RGBA8, _base_level(texture, 16, 8)
+	)
+	h.assert_true(
+		_mean_saturation(graded) < _mean_saturation(source),
+		"a graded band is less saturated than the band it was made from"
+	)
+	# A band asking for nothing is carried through untouched.
+	var neutral := {
+		"contrast": 1.0,
+		"saturation": 1.0,
+		"atmosphere_color": "#000000",
+		"atmosphere_strength": 0.0,
+		"detail_blur_screen_pixels": 0.0,
+	}
+	h.assert_eq(
+		Array(_base_level(HostLayerTexture.band(package, "band.png", neutral, 16, 8), 16, 8)),
+		Array(source.get_data()),
+		"and a neutral band is the band"
+	)
+
+
+## The first mip level of a band texture, which is the picture it was made from.
+static func _base_level(texture: ImageTexture, width: int, height: int) -> PackedByteArray:
+	return texture.get_image().get_data().slice(0, width * height * 4)
+
+
+static func _mean_saturation(image: Image) -> float:
+	var total := 0.0
+	for y in image.get_height():
+		for x in image.get_width():
+			var pixel := image.get_pixel(x, y)
+			var high := maxf(pixel.r, maxf(pixel.g, pixel.b))
+			var low := minf(pixel.r, minf(pixel.g, pixel.b))
+			total += 0.0 if high <= 0.0 else (high - low) / high
+	return total / float(image.get_width() * image.get_height())
