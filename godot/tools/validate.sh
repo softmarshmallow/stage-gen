@@ -5,7 +5,7 @@
 #
 #   tools/validate.sh --run <absolute run dir> --out <directory> \
 #       [--ref <reference directory>] [--dpr 1] [--shots all] [--skip-tests] \
-#       [--runner-run <absolute runner run dir>]
+#       [--runner-run <absolute runner run dir>] [--room-run <absolute room run dir>]
 #
 # `--runner-run` adds the runner's own picture gate: four named steps captured
 # and measured. Decision 0065 retired the browser runner on a state proof and
@@ -30,6 +30,7 @@ DPR=1
 SHOTS=all
 SKIP_TESTS=0
 RUNNER_RUN=""
+ROOM_RUN=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -39,6 +40,7 @@ while [ $# -gt 0 ]; do
     --dpr) DPR=$2; shift 2;;
     --shots) SHOTS=$2; shift 2;;
     --runner-run) RUNNER_RUN=$2; shift 2;;
+    --room-run) ROOM_RUN=$2; shift 2;;
     --skip-tests) SKIP_TESTS=1; shift;;
     -h|--help) sed -n '2,15p' "${BASH_SOURCE[0]}"; exit 0;;
     *) echo "validate: unknown argument $1" >&2; exit 2;;
@@ -160,6 +162,20 @@ if [ -n "$RUNNER_RUN" ]; then
       --run "$RUNNER_RUN" --seed 1234 --out "$OUT/runner-shots" --shots all \
     | grep -E '^.runner capture.' || true
   python3 "$PROJECT/tools/runner_shots_check.py" "$OUT/runner-shots"
+fi
+
+if [ -n "$ROOM_RUN" ]; then
+  echo "== room picture gate"
+  # A room has no frames, so this shoots five named *states* rather than named
+  # steps: the room as it opens, the two verb modes, the hotspot overlay, a full
+  # paragraph of narration, and the end card. Decision 0066 is the bar and the
+  # checker carries the reading that set every threshold in it.
+  mkdir -p "$OUT/room-shots"
+  "$GODOT" --path "$PROJECT" --rendering-driver metal --disable-render-loop \
+      --audio-driver Dummy --quit-after 120000 -s res://tools/room_capture.gd -- \
+      --run "$ROOM_RUN" --out "$OUT/room-shots" --shots all \
+    | grep -E '^.room capture.' || true
+  python3 "$PROJECT/tools/room_shots_check.py" "$OUT/room-shots"
 fi
 
 if [ -z "$REF" ]; then
