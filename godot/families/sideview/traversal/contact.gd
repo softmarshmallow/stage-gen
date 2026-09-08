@@ -19,6 +19,9 @@ extends RefCounted
 ## Verdicts a step can return.
 const SUPPORT_TERRAIN := "terrain"
 const SUPPORT_PLATFORM := "platform"
+## A body attached to a ladder or a rope. The runner has no such support and the
+## platformer does, which is why the constant lives here rather than in either.
+const SUPPORT_CLIMBABLE := "climbable"
 const SUPPORT_AIR := "air"
 const SUPPORT_BURIED := "buried"
 
