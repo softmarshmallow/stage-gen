@@ -92,10 +92,18 @@ func _initialize() -> void:
 	quit(0)
 
 
-## One frame of the world. The sealed roster lands with the systems it orders;
-## until then this is the body alone, which is as far as the golden can be
-## walked.
-func _step(world: PlatformerWorld, step_seconds: float, now_ms: float, _frame: int) -> void:
+## One frame of the world, in the browser's own order.
+##
+## The sealed roster lands when there are enough systems for a sealer to have an
+## opinion about; until then the order is written out, and it is the order
+## `assemblePlatformerSystems` declares — the conversation before the body,
+## because a held frame is decided before it is spent.
+func _step(world: PlatformerWorld, step_seconds: float, now_ms: float, frame: int) -> void:
+	var step := {"dt": step_seconds * 1000.0, "now": now_ms, "frame": frame}
+	PlatformerSoundtrackSystem.update(world, step)
+	PlatformerDialogueSystem.update(world, step)
+	if world.hold:
+		return
 	var map: Dictionary = (world.package["maps"] as Dictionary)[world.map_id]
 	var terrain := {
 		"heights": map["heights"],
@@ -107,6 +115,8 @@ func _step(world: PlatformerWorld, step_seconds: float, now_ms: float, _frame: i
 		"maximumAirJumps": PlatformerVertical.AIR_JUMPS_MAX,
 	}
 	PlatformerPlayer.update(world.player, terrain, step_seconds * 1000.0, now_ms, world.intent)
+	PlatformerCameraSystem.update(world, step)
+	PlatformerDialogueSystem.prompt(world, step)
 
 
 ## The scripted intents, in the browser's own vocabulary: `hold` is a level down

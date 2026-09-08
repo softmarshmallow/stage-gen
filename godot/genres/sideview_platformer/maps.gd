@@ -112,6 +112,12 @@ static func parse(manifest: Variant) -> Variant:
 		# world publishes, so where they stand is the package's business rather
 		# than the host's.
 		"npcPlacements": gameplay.get("npc_placements", []),
+		# What a villager offers, what an ending is worth, and what a quest step
+		# does. Three tables read by one system, carried here rather than looked
+		# up out of the raw document by whoever needs them.
+		"interactions": gameplay.get("interactions", []),
+		"effects": gameplay.get("effects", []),
+		"quests": gameplay.get("quests", []),
 		"progression": gameplay.get("progression", {}),
 		"inventory": gameplay.get("inventory", {}),
 		"mobPopulation": gameplay.get("mob_population", []),

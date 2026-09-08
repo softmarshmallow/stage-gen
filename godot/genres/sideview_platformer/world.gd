@@ -53,7 +53,24 @@ var defeat_panel: Dictionary = {}
 var defeated_at_ms: Variant = null
 var progression: Dictionary = {}
 var quest_states: Array = []
+## The conversation on screen, or null. `dialogue_state` is the runtime session
+## behind it and `scenario` the program it walks; neither is published, because
+## a session carries bookkeeping only the runtime reads.
 var dialogue: Variant = null
+var dialogue_state: Dictionary = {}
+var scenario: Dictionary = {}
+
+## Every scenario the package publishes, by id. Read when a conversation opens
+## and never after.
+var scenarios: Dictionary = {}
+
+## The bag behind `inventory.carried`: counts by item id, which is the shape
+## `FamilyBag` works in. The published pairs are a reading of it.
+var bag: Dictionary = {}
+
+## True while a conversation holds the frame. Every system below the dialogue
+## returns early on a held frame, which is how a run stops for a villager.
+var hold: bool = false
 var npc_prompts: Array = []
 var soundtrack: Dictionary = {}
 
@@ -136,10 +153,15 @@ static func create(package_in: Dictionary, manifest_in: Dictionary) -> Platforme
 	made.ready = true
 	made.loading = false
 	made._open_on(made.map_id)
+	made.camera = PlatformerCameraSystem.snapped(
+		float(made.player["x"]), PlatformerCameraSystem.bounds_of(made)
+	)
 	made.weapon_class = String(
 		(package_in["combat"] as Dictionary).get("weapon_class", DEFAULT_WEAPON_CLASS)
 	)
-	made.inventory = {"carried": _bag(package_in["startingItemIds"])}
+	made.bag = _counts(package_in["startingItemIds"])
+	made.inventory = {"carried": bag_as_pairs(made.bag)}
+	made.scenarios = _scenarios(manifest_in)
 	made.progression = _progression(package_in)
 	made.impact = IMPACT_AT_REST.duplicate(true)
 	made.stat_log = STAT_LOG_AT_REST.duplicate(true)
@@ -211,17 +233,36 @@ func _first_track(map: Dictionary) -> Dictionary:
 	}
 
 
+## What the run opens carrying, counted by kind.
+static func _counts(item_ids: PackedStringArray) -> Dictionary:
+	var made := {}
+	for item_id in item_ids:
+		made[item_id] = int(made.get(item_id, 0)) + 1
+	return made
+
+
 ## The bag as the golden writes it: one `[id, count]` pair per kind, sorted by
 ## id, because the browser's is a Map walked in sorted key order.
-static func _bag(item_ids: PackedStringArray) -> Array:
-	var counts := {}
-	for item_id in item_ids:
-		counts[item_id] = int(counts.get(item_id, 0)) + 1
+static func bag_as_pairs(counts: Dictionary) -> Array:
 	var keys := counts.keys()
 	keys.sort()
 	var made: Array = []
 	for key: Variant in keys:
 		made.append([String(key), int(counts[key])])
+	return made
+
+
+## Every scenario the package publishes, parsed once. A program that refuses is
+## left out rather than half-read, and the conversation that names it simply is
+## not offered — which is the honest answer for a villager with nothing to say.
+static func _scenarios(manifest_in: Dictionary) -> Dictionary:
+	var made := {}
+	for entry: Variant in (manifest_in.get("scenarios", []) as Array):
+		var parsed: Variant = FamilyScenarioProgram.parse(entry)
+		if KernelRefusal.is_refusal(parsed):
+			push_warning("platformer world: %s" % (parsed as KernelRefusal).line())
+			continue
+		made[String((parsed as Dictionary)["scenarioId"])] = parsed
 	return made
 
 

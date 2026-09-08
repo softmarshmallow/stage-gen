@@ -16,13 +16,13 @@ extends RefCounted
 
 ## Frames identical to the browser's, and what stops the next one.
 ##
-## Frame 60 is the first press of `interact`, which opens the baker's
-## conversation — `dialogue/input` and the scenario it plays are unported, so the
-## world diverges there and not before. Raise this with each unit, and never
-## without re-running the harness.
-const EXACT_FRAMES := 59
+## Frame 150 is the first press of `up` inside the east gate's mouth, which asks
+## for the road map — `map/entry` is underived, so the world diverges there and
+## not before. Raise this with each unit, and never without re-running the
+## harness.
+const EXACT_FRAMES := 149
 
-const FIRST_UNPORTED := "dialogue/input, at the baker's conversation"
+const FIRST_UNPORTED := "map/entry, at the east gate"
 
 
 func run(h: TestHarness) -> void:
@@ -33,6 +33,8 @@ func run(h: TestHarness) -> void:
 		return
 	_world(h, package as Dictionary)
 	_snapshot(h, package as Dictionary)
+	_dialogue(h, package as Dictionary)
+	_camera(h, package as Dictionary)
 
 
 ## The curve a package names, and the refusals for the ones it may not.
@@ -122,6 +124,81 @@ func _snapshot(h: TestHarness, package: Dictionary) -> void:
 	)
 	h.assert_eq(int(shot["hp"]), 6, "with the package's starting health")
 	h.assert_true(EXACT_FRAMES > 0, "the derivation is exact up to %d frames" % EXACT_FRAMES)
+
+
+## The conversation the village offers, and what its ending is worth.
+func _dialogue(h: TestHarness, package: Dictionary) -> void:
+	var world := PlatformerWorld.create(package, _manifest())
+	h.assert_eq(
+		PlatformerDialogueSystem.nearest_speaker(world),
+		"",
+		"nobody is close enough to talk to at the spawn"
+	)
+	# Where the golden's body stands when it presses `interact`, two thirds of a
+	# tile short of the baker.
+	world.player["x"] = 546.933333333
+	h.assert_eq(
+		PlatformerDialogueSystem.nearest_speaker(world), "baker", "and the baker is, further east"
+	)
+
+	var step := {"dt": 1000.0 / 30.0, "now": 2000.0, "frame": 60}
+	world.intent = PlatformerWorld.neutral_intent()
+	world.intent["interact"] = true
+	world.events.begin_frame()
+	PlatformerDialogueSystem.update(world, step)
+	h.assert_true(
+		not world.hold, "the frame a conversation opens on is not the frame it holds"
+	)
+	PlatformerDialogueSystem.prompt(world, step)
+	var opened: Dictionary = world.dialogue
+	h.assert_eq(String(opened["interaction"]), "meet_baker", "pressing interact opens her scenario")
+	# The runtime settles past the stage and the show to the first line, which is
+	# the browser's index too.
+	h.assert_eq(int(opened["index"]), 2, "settled to the first line it can speak")
+
+	# Two advances reach the ending, which grants the tart. The first of them is
+	# also the frame that proves the hold: it is on before the key is read.
+	for frame in [68, 72]:
+		step["frame"] = frame
+		world.events.begin_frame()
+		PlatformerDialogueSystem.update(world, step)
+		if frame == 68:
+			h.assert_true(world.hold, "and every frame after it is held while she talks")
+	h.assert_eq(world.dialogue, null, "the second advance ends it")
+	h.assert_eq(
+		world.inventory["carried"],
+		[["paper_dart", 1], ["welcome_tart", 2]],
+		"and the ending's effect puts a second tart in the bag"
+	)
+	h.assert_eq(
+		PlatformerTranscript.of_kind(world, "dialogue-closed").size(),
+		1,
+		"which is said once, not every frame"
+	)
+
+
+## The dead-zone follow, which is Phaser's arithmetic rather than a scene's.
+func _camera(h: TestHarness, package: Dictionary) -> void:
+	var world := PlatformerWorld.create(package, _manifest())
+	h.assert_eq(
+		float(world.camera["scrollX"]),
+		0.0,
+		"the view opens clamped to the left edge, not at the body's centre"
+	)
+	var bounds := PlatformerCameraSystem.bounds_of(world)
+	# Inside the dead zone the view does not move at all, which is the whole
+	# point of having one.
+	var still := PlatformerCameraSystem.advance({"scrollX": 0.0, "scrollY": 0.0}, 700.0, bounds)
+	h.assert_eq(float(still["scrollX"]), 0.0, "a body inside the dead zone moves nothing")
+	var pushed := PlatformerCameraSystem.advance({"scrollX": 0.0, "scrollY": 0.0}, 800.0, bounds)
+	# 800 is ten past the zone's right edge, and one frame closes 12% of it.
+	h.assert_true(
+		absf(float(pushed["scrollX"]) - 1.2) < 1e-9, "and one past it closes an eighth of the gap"
+	)
+	var clamped := PlatformerCameraSystem.advance({"scrollX": 250.0, "scrollY": 0.0}, 5000.0, bounds)
+	h.assert_eq(
+		float(clamped["scrollX"]), 256.0, "the view never leaves the map, however far the body runs"
+	)
 
 
 func _manifest() -> Dictionary:
