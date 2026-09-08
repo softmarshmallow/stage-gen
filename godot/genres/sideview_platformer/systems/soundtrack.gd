@@ -43,9 +43,10 @@ static func update(world: PlatformerWorld, _step: Dictionary) -> void:
 	for key: Variant in GESTURE_KEYS:
 		if not bool(world.intent.get(String(key), false)):
 			continue
+		var playing := world.music.take()
 		world.soundtrack = {
-			"current_track_id": queued,
-			"next_track_id": null,
+			"current_track_id": null if playing.is_empty() else playing,
+			"next_track_id": PlatformerWorld._or_null(world.music.planned()),
 			"started": true,
 		}
 		return

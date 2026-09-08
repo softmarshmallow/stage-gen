@@ -33,6 +33,10 @@ const DEFAULT_STEP := 1.0 / 30.0
 ## The keys the scripted run presses at the scene rather than through the body.
 const SCENE_KEYS := ["interact", "enter", "up", "space"]
 
+## Which scene keys were down on the frame before this one, so a level can be
+## turned back into the edge the browser reads.
+var _scene_keys_last: Dictionary = {}
+
 
 func _initialize() -> void:
 	var args := _args()
@@ -103,6 +107,7 @@ func _step(world: PlatformerWorld, step_seconds: float, now_ms: float, frame: in
 	PlatformerSoundtrackSystem.update(world, step)
 	PlatformerDialogueSystem.update(world, step)
 	if world.hold:
+		PlatformerMapEntrySystem.apply(world, step)
 		return
 	var map: Dictionary = (world.package["maps"] as Dictionary)[world.map_id]
 	var terrain := {
@@ -117,6 +122,8 @@ func _step(world: PlatformerWorld, step_seconds: float, now_ms: float, frame: in
 	PlatformerPlayer.update(world.player, terrain, step_seconds * 1000.0, now_ms, world.intent)
 	PlatformerCameraSystem.update(world, step)
 	PlatformerDialogueSystem.prompt(world, step)
+	PlatformerMapEntrySystem.ask(world)
+	PlatformerMapEntrySystem.apply(world, step)
 
 
 ## The scripted intents, in the browser's own vocabulary: `hold` is a level down
@@ -124,8 +131,10 @@ func _step(world: PlatformerWorld, step_seconds: float, now_ms: float, frame: in
 ## frame, and `keys` are the scene-level presses the body does not carry.
 func _intent_for(replay: Dictionary, frame: int) -> Dictionary:
 	var made := PlatformerWorld.neutral_intent()
+	var held := {}
 	for key in SCENE_KEYS:
 		made[key] = false
+		held[key] = false
 	for entry: Variant in (replay["intents"] as Array):
 		var intent: Dictionary = entry
 		if intent.has("from"):
@@ -136,7 +145,16 @@ func _intent_for(replay: Dictionary, frame: int) -> Dictionary:
 			for key: Variant in (intent.get("press", []) as Array):
 				made[String(key)] = true
 			for key: Variant in (intent.get("keys", []) as Array):
-				made[String(key)] = true
+				held[String(key)] = true
+	# A scene key is an **edge**, not a level. The browser reads them with
+	# `JustDown`, and the script's `keys` are levels: two consecutive frames both
+	# listing `up` is one press held across two frames, and it opens one gate.
+	# The golden says so plainly — the defeat run's own comment presses `up` "on
+	# alternate frames so each press is a fresh edge" — and a harness that fed
+	# levels would walk through the gate it just arrived at.
+	for key in SCENE_KEYS:
+		made[key] = bool(held[key]) and not bool(_scene_keys_last.get(key, false))
+	_scene_keys_last = held
 	return made
 
 

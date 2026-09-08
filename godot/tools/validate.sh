@@ -123,16 +123,15 @@ if [ "$SKIP_TESTS" -eq 0 ]; then
   # change that breaks a frame already earned turns this red the day it happens,
   # and a unit that ports another system has to come back and raise it.
   #
-  # 149 — frame 150 is the first press of `up` inside the east gate's mouth,
-  # which asks for the road map. `tests/test_platformer.gd` carries the same
-  # number and the same reason.
+  # 150 — frame 151 is the road map's first two creatures. `mobs/population` is
+  # underived. `tests/test_platformer.gd` carries the same number and reason.
   PLATFORMER_REPLAY="$PROJECT/tests/fixtures/sideview_platformer/replay"
   "$GODOT" --headless --path "$PROJECT" --quit-after 100000 \
       -s res://tools/platformer_parity.gd -- \
       --script "$PLATFORMER_REPLAY/01-village-600.json" --out "$OUT/platformer.godot.jsonl"
   python3 "$PROJECT/tools/frames_prefix.py" \
       "$OUT/platformer.godot-frames.txt" \
-      "$PLATFORMER_REPLAY/01-village-600.web-frames.txt" --at-least 149
+      "$PLATFORMER_REPLAY/01-village-600.web-frames.txt" --at-least 150
   python3 "$PROJECT/tools/runner_parity_diff.py" \
       "$PLATFORMER_REPLAY/01-village-600.web.jsonl" "$OUT/platformer.godot.jsonl"
 fi

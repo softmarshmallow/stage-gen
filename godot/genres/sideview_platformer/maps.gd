@@ -231,6 +231,11 @@ static func _map(authored: Dictionary) -> Variant:
 		"climbables": climbables,
 		"endpoints": endpoints,
 		"hostilePopulationEnabled": bool(authored.get("hostile_population_enabled", false)),
+		# An axis is switched off by giving the camera no room to travel along
+		# it, so what a map authors is which axes it *has*, and the bounds do the
+		# rest. The village follows x alone; the road is tall enough to follow
+		# both.
+		"followsY": _strings((authored.get("camera", {}) as Dictionary).get("follow_axes")).has("y"),
 		"trackIds": _strings(authored.get("track_ids")),
 	}
 

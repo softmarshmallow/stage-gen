@@ -16,13 +16,12 @@ extends RefCounted
 
 ## Frames identical to the browser's, and what stops the next one.
 ##
-## Frame 150 is the first press of `up` inside the east gate's mouth, which asks
-## for the road map — `map/entry` is underived, so the world diverges there and
-## not before. Raise this with each unit, and never without re-running the
-## harness.
-const EXACT_FRAMES := 149
+## Frame 151 is the road map's first two creatures — `mobs/population` is
+## underived, so the world diverges there and not before. Raise this with each
+## unit, and never without re-running the harness.
+const EXACT_FRAMES := 150
 
-const FIRST_UNPORTED := "map/entry, at the east gate"
+const FIRST_UNPORTED := "mobs/population, on arriving at the road"
 
 
 func run(h: TestHarness) -> void:
@@ -35,6 +34,8 @@ func run(h: TestHarness) -> void:
 	_snapshot(h, package as Dictionary)
 	_dialogue(h, package as Dictionary)
 	_camera(h, package as Dictionary)
+	_music(h, package as Dictionary)
+	_gate(h, package as Dictionary)
 
 
 ## The curve a package names, and the refusals for the ones it may not.
@@ -198,6 +199,75 @@ func _camera(h: TestHarness, package: Dictionary) -> void:
 	var clamped := PlatformerCameraSystem.advance({"scrollX": 250.0, "scrollY": 0.0}, 5000.0, bounds)
 	h.assert_eq(
 		float(clamped["scrollX"]), 256.0, "the view never leaves the map, however far the body runs"
+	)
+
+
+## The bag that decides what plays, which is seeded rather than random.
+func _music(h: TestHarness, package: Dictionary) -> void:
+	var world := PlatformerWorld.create(package, _manifest())
+	h.assert_eq(
+		String(world.soundtrack["next_track_id"]),
+		"village_theme",
+		"the village plans its one track"
+	)
+	# A one-track pool is finished after one play: a repeat-free cycle is
+	# impossible for it, which is the policy's stated contract.
+	world.music.take()
+	h.assert_eq(world.music.planned(), "", "and plans nothing after it has played")
+
+	# The road's pool is two, and the order is the package digest's rather than
+	# the clock's — the browser picks the same one.
+	var road := PlatformerWorld.create(package, _manifest())
+	road.music.take()
+	road.music.bind_pool(PackedStringArray(["road_theme", "road_theme_b"]))
+	h.assert_eq(road.music.planned(), "road_theme_b", "the road's first track is the seed's")
+	h.assert_eq(road.music.take(), "road_theme_b", "taken rather than re-drawn")
+	h.assert_eq(road.music.planned(), "road_theme", "and the other follows it")
+
+	var again := PlatformerWorld.create(package, _manifest())
+	again.music.take()
+	again.music.bind_pool(PackedStringArray(["road_theme", "road_theme_b"]))
+	h.assert_eq(
+		again.music.planned(), "road_theme_b", "two runs of one package hear the same order"
+	)
+
+
+## The gate, and the edge that opens it.
+func _gate(h: TestHarness, package: Dictionary) -> void:
+	var world := PlatformerWorld.create(package, _manifest())
+	# The east gate's mouth is one tile wide, centred on 0.97 of the map.
+	h.assert_true(
+		PlatformerMaps.transition_at(package, "village-map", 1504.0).is_empty() == false,
+		"standing in the east gate's mouth offers the road"
+	)
+	h.assert_true(
+		PlatformerMaps.transition_at(package, "village-map", 1400.0).is_empty(),
+		"and standing a tile and a half short of it offers nothing"
+	)
+
+	world.player["x"] = 1504.0
+	world.intent = PlatformerWorld.neutral_intent()
+	world.intent["up"] = true
+	world.events.begin_frame()
+	# The press is also the gesture that starts the music, which is what makes
+	# the road's track a *switch* rather than a first play.
+	PlatformerSoundtrackSystem.update(world, {"dt": 1000.0 / 30.0, "now": 5000.0, "frame": 150})
+	h.assert_eq(
+		String(world.soundtrack["current_track_id"]), "village_theme", "the village's track starts"
+	)
+	PlatformerMapEntrySystem.ask(world)
+	h.assert_true(not world.pending_map.is_empty(), "the press asks for it")
+	PlatformerMapEntrySystem.apply(world, {"dt": 1000.0 / 30.0, "now": 5000.0, "frame": 150})
+	h.assert_eq(world.map_id, "road-map", "and the world is rebuilt on the far side")
+	h.assert_eq(float(world.player["x"]), 256.0, "at the road's own entry spawn")
+	h.assert_eq(float(world.player["vx"]), 0.0, "stopped, because the body takes no step this frame")
+	h.assert_eq(int(world.player["column"]), 4, "with its column re-derived by hand from the new x")
+	h.assert_eq(String(world.soundtrack["current_track_id"]), "road_theme_b", "and the road's music on")
+	# The road is tall enough to follow y, and the view clamps to the top of the
+	# authored world rather than to the ground line.
+	h.assert_eq(float(world.camera["scrollY"]), 336.0, "the view drops to the road's own ceiling")
+	h.assert_eq(
+		PlatformerTranscript.of_kind(world, "map-entered").size(), 1, "said once, on arrival"
 	)
 
 

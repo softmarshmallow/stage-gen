@@ -46,21 +46,38 @@ static func declaration() -> KernelSystem:
 static func update(world: PlatformerWorld, _step: Dictionary) -> void:
 	if world.hold:
 		return
-	world.camera = advance(world.camera, float(world.player["x"]), bounds_of(world))
+	world.camera = advance(
+		world.camera, float(world.player["x"]), bounds_of(world), float(world.player["y"])
+	)
 
 
 ## One frame of the follow.
-static func advance(camera: Dictionary, target_x: float, bounds: Dictionary) -> Dictionary:
-	var scroll := float(camera["scrollX"])
-	var follow_x := target_x - FOLLOW_OFFSET_X
-	var middle := scroll + VIEW_WIDTH / 2.0
-	var left := middle - DEADZONE_WIDTH / 2.0
-	var right := middle + DEADZONE_WIDTH / 2.0
-	if follow_x > right:
-		scroll = _linear(scroll, scroll + (follow_x - right), LERP)
-	elif follow_x < left:
-		scroll = _linear(scroll, scroll - (left - follow_x), LERP)
-	return {"scrollX": _clamped(scroll, bounds), "scrollY": float(camera["scrollY"])}
+static func advance(
+	camera: Dictionary, target_x: float, bounds: Dictionary, target_y: float = 0.0
+) -> Dictionary:
+	var scroll_x := _axis(
+		float(camera["scrollX"]), target_x - FOLLOW_OFFSET_X, VIEW_WIDTH, DEADZONE_WIDTH
+	)
+	var scroll_y := _axis(
+		float(camera["scrollY"]), target_y - FOLLOW_OFFSET_Y, VIEW_HEIGHT, DEADZONE_HEIGHT
+	)
+	return {
+		"scrollX": _clamped(scroll_x, bounds, "x", "width", VIEW_WIDTH),
+		"scrollY": _clamped(scroll_y, bounds, "y", "height", VIEW_HEIGHT),
+	}
+
+
+## One axis of the dead-zone follow: the zone sits on the view's midpoint, and
+## a target outside it pushes the scroll by however far outside it is.
+static func _axis(scroll: float, follow: float, view: float, deadzone: float) -> float:
+	var middle := scroll + view / 2.0
+	var near := middle - deadzone / 2.0
+	var far := middle + deadzone / 2.0
+	if follow > far:
+		return _linear(scroll, scroll + (follow - far), LERP)
+	if follow < near:
+		return _linear(scroll, scroll - (near - follow), LERP)
+	return scroll
 
 
 ## Where the view lands the moment a map opens: the body centred, then clamped.
@@ -68,30 +85,42 @@ static func advance(camera: Dictionary, target_x: float, bounds: Dictionary) -> 
 ## Phaser's own snap on follow start is midpoint-based too, so this is what the
 ## first frame of a map would settle to rather than a place the dead zone would
 ## then drag the view away from over the following half second.
-static func snapped(target_x: float, bounds: Dictionary) -> Dictionary:
+static func snapped(target_x: float, bounds: Dictionary, target_y: float = 0.0) -> Dictionary:
 	return {
-		"scrollX": _clamped(target_x - FOLLOW_OFFSET_X - VIEW_WIDTH / 2.0, bounds),
-		# The maps this genre publishes follow x only, so the view never leaves
-		# the ground line. A map that followed y would take its scroll from the
-		# same family call the bounds come from.
-		"scrollY": 0.0,
+		"scrollX": _clamped(target_x - FOLLOW_OFFSET_X - VIEW_WIDTH / 2.0, bounds, "x", "width", VIEW_WIDTH),
+		# A map that does not follow y is pinned to zero and then clamped, which
+		# is the browser's own two lines: the snap centres both axes and the
+		# scene puts y back before the first frame is drawn.
+		"scrollY": _clamped(
+			target_y - FOLLOW_OFFSET_Y - VIEW_HEIGHT / 2.0, bounds, "y", "height", VIEW_HEIGHT
+		),
 	}
 
 
 ## The rectangle the view may not leave, for the map the run is on.
 static func bounds_of(world: PlatformerWorld) -> Dictionary:
 	var map: Dictionary = (world.package["maps"] as Dictionary)[world.map_id]
+	var follows_y := bool(map["followsY"])
+	# The top of the authored world: the ground line less however many rows of
+	# occupancy the map drew above it.
+	var top_y := PlatformerMaps.BASELINE_Y - float(map["rows"]) * PlatformerMaps.TILE_PX
 	return FamilyCamera.follow_bounds(
-		float(map["worldWidthPx"]), 0.0, PlatformerMaps.BASELINE_Y, VIEW_HEIGHT, false
+		float(map["worldWidthPx"]),
+		top_y if follows_y else 0.0,
+		PlatformerMaps.BASELINE_Y,
+		VIEW_HEIGHT,
+		follows_y
 	)
 
 
-static func _clamped(scroll: float, bounds: Dictionary) -> float:
+static func _clamped(
+	scroll: float, bounds: Dictionary, origin: String, span: String, view: float
+) -> float:
 	if bounds.is_empty():
 		return scroll
-	var left := float(bounds["x"])
-	var right := maxf(left, left + float(bounds["width"]) - VIEW_WIDTH)
-	return clampf(scroll, left, right)
+	var near := float(bounds[origin])
+	var far := maxf(near, near + float(bounds[span]) - view)
+	return clampf(scroll, near, far)
 
 
 static func _linear(from: float, to: float, t: float) -> float:

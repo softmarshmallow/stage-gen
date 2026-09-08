@@ -68,6 +68,16 @@ var scenarios: Dictionary = {}
 ## `FamilyBag` works in. The published pairs are a reading of it.
 var bag: Dictionary = {}
 
+## The gate this frame asked for, taken at the end of it. Empty when none was.
+var pending_map: Dictionary = {}
+
+## Every gate this run has already walked through. A door fired once offers
+## nothing for the rest of the run — see `PlatformerMapEntrySystem`.
+var spent_gates: Dictionary = {}
+
+## The bag that decides what plays next, seeded off the package digest.
+var music: FamilyShuffleBag = null
+
 ## True while a conversation holds the frame. Every system below the dialogue
 ## returns early on a held frame, which is how a run stops for a villager.
 var hold: bool = false
@@ -152,9 +162,14 @@ static func create(package_in: Dictionary, manifest_in: Dictionary) -> Platforme
 	)
 	made.ready = true
 	made.loading = false
-	made._open_on(made.map_id)
+	made.music = FamilyShuffleBag.of(
+		_track_ids(manifest_in), String(manifest_in.get("package_sha256", ""))
+	)
+	made.open_on(made.map_id)
 	made.camera = PlatformerCameraSystem.snapped(
-		float(made.player["x"]), PlatformerCameraSystem.bounds_of(made)
+		float(made.player["x"]),
+		PlatformerCameraSystem.bounds_of(made),
+		float(made.player["y"])
 	)
 	made.weapon_class = String(
 		(package_in["combat"] as Dictionary).get("weapon_class", DEFAULT_WEAPON_CLASS)
@@ -174,7 +189,7 @@ static func create(package_in: Dictionary, manifest_in: Dictionary) -> Platforme
 ##
 ## Called at construction and again at every transition, because a map entry is
 ## the one moment in this genre where most of the world is replaced at once.
-func _open_on(opened: String) -> void:
+func open_on(opened: String) -> void:
 	var map: Dictionary = (package["maps"] as Dictionary).get(opened, {})
 	if map.is_empty():
 		return
@@ -183,7 +198,7 @@ func _open_on(opened: String) -> void:
 	climbables = map["climbables"]
 	portals = _portals(map)
 	npc_prompts = _prompts(opened)
-	soundtrack = _first_track(map)
+	soundtrack = _bind_music(map)
 
 
 ## The gates, where they stand and how tall they are drawn.
@@ -221,16 +236,39 @@ func _prompts(opened: String) -> Array:
 	return made
 
 
-## What this map asks for, queued rather than started: a track begins when the
-## audio system is told to begin it, and a world with no sound still says which
-## one it would have played.
-func _first_track(map: Dictionary) -> Dictionary:
+## What this map asks for. The bag is narrowed to the map's own pool and the
+## next track is planned rather than started: a track begins when something
+## starts it, and a world with no sound still says which one it would have
+## played.
+##
+## A map that has already started the music takes its new track at once, because
+## the pool it was playing from is no longer the pool it is standing in.
+func _bind_music(map: Dictionary) -> Dictionary:
 	var tracks: PackedStringArray = map["trackIds"]
+	if tracks.is_empty():
+		return soundtrack
+	music.bind_pool(tracks)
+	if not bool(soundtrack.get("started", false)):
+		return {
+			"current_track_id": null,
+			"next_track_id": _or_null(music.planned()),
+			"started": false,
+		}
+	var playing := music.take()
 	return {
-		"current_track_id": null,
-		"next_track_id": null if tracks.is_empty() else tracks[0],
-		"started": false,
+		"current_track_id": _or_null(playing),
+		"next_track_id": _or_null(music.planned()),
+		"started": true,
 	}
+
+
+## Every track the package publishes, in the order it published them.
+static func _track_ids(manifest_in: Dictionary) -> PackedStringArray:
+	var made := PackedStringArray()
+	var block: Dictionary = manifest_in.get("soundtrack", {})
+	for entry: Variant in (block.get("tracks", []) as Array):
+		made.append(String((entry as Dictionary).get("track_id", "")))
+	return made
 
 
 ## What the run opens carrying, counted by kind.
@@ -338,3 +376,9 @@ static func _maximum_health(package_in: Dictionary, level: int, policy: Dictiona
 		base_health, level, String(policy.get("stat_growth", PlatformerProgression.DEFAULT_GROWTH))
 	)
 	return base_health if KernelRefusal.is_refusal(pool) else int(pool)
+
+
+## An exhausted bag plans nothing, and the golden writes that as `null` rather
+## than as an empty name. A one-track pool exhausts after one play by design.
+static func _or_null(track_id: String) -> Variant:
+	return null if track_id.is_empty() else track_id

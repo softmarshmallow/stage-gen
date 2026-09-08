@@ -1,8 +1,9 @@
 # Models
 
-These records capture verified hosted-model and provider request surfaces. They
-do not declare runtime bindings; re-check current metadata and live behavior
-before widening an adapter contract.
+These records capture hosted-model and provider request surfaces. Individual
+records distinguish measured evidence from documentation research. They do not
+declare runtime bindings; re-check current metadata and live behavior before
+widening an adapter contract.
 
 ## Model records
 
@@ -16,6 +17,12 @@ before widening an adapter contract.
 
 - [Provider operations](providers.md) — credentials, endpoints, retry ownership,
   response handling, and experimental boundaries shared by provider adapters.
+
+## Capability surveys
+
+- [3D AI capabilities](3d-capabilities.md) — generation, existing-mesh editing,
+  texturing, parts, topology, rigging and motion across direct APIs, fal,
+  app features and local research models; checked 2026-09-09, without inference.
 
 Model records describe observed external capabilities. The binding table and
 executable graph remain authoritative for what Stage Gen currently uses.
