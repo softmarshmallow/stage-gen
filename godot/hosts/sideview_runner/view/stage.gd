@@ -75,13 +75,12 @@ func sync(world: RunnerWorld) -> void:
 	for entry: Variant in _bands:
 		var band: Dictionary = entry
 		var sprite := band["node"] as Sprite2D
-		var offset := FamilyParallax.band_tile_position(
-			scroll, float(band["parallax"]), float(band["scale"])
-		)
-		# A band repeats, so only the remainder of the scroll is drawn; without
-		# the wrap a long run walks the texture off the screen.
-		var width := float(band["width"])
-		sprite.position.x = float(band["originX"]) - fposmod(offset * float(band["scale"]), width)
+		# The band's texture was built at the size it is drawn, so texture space
+		# and screen space are the same space and the family's conversion is by
+		# one. A band repeats, so only the remainder of the scroll is drawn;
+		# without the wrap a long run walks the texture off the screen.
+		var offset := FamilyParallax.band_tile_position(scroll, float(band["parallax"]), 1.0)
+		sprite.position.x = float(band["originX"]) - fposmod(offset, float(band["width"]))
 	_sync_ground(world, scroll)
 	_sync_avatar(world, scroll)
 	_sync_hazards(world, scroll)
@@ -90,21 +89,18 @@ func sync(world: RunnerWorld) -> void:
 
 func _build_bands(manifest: Dictionary, plane: String) -> void:
 	var walk_surface_y := RunnerContract.ground_line_y(_config)
-	for entry: Variant in (manifest.get("layers", []) as Array):
+	var layers: Array = manifest.get("layers", [])
+	for entry: Variant in layers:
 		var layer: Dictionary = entry
 		if String(layer["plane"]) != plane:
-			continue
-		var texture := _package.texture(String(layer["image"]))
-		if texture == null:
-			# A band this run did not publish is a gap in the picture and is
-			# said out loud, rather than drawn as a hole nobody can explain.
-			push_error("runner stage: layer %s has no image at %s" % [layer["layer_id"], layer["image"]])
 			continue
 		var offset_raw: Variant = layer.get("vertical_offset")
 		var layout := FamilyParallax.layer_layout(
 			String(layer["vertical_anchor"]),
 			0.0 if offset_raw == null else float(offset_raw),
-			float(layer["height"]),
+			# The frame the band was painted against, which for a trimmed band
+			# is not its own height. See `RunnerContract.layer_frame_height`.
+			RunnerContract.layer_frame_height(layer, layers),
 			float(layer["height"]),
 			RunnerContract.VIEW_HEIGHT,
 			walk_surface_y,
@@ -113,19 +109,38 @@ func _build_bands(manifest: Dictionary, plane: String) -> void:
 		if layout.is_empty():
 			push_error("runner stage: layer %s does not describe a band" % layer["layer_id"])
 			continue
+		var scale_factor := float(layout["scale"])
+		var tile_width := maxi(1, int(round(float(layer["width"]) * scale_factor)))
+		var tile_height := maxi(1, int(round(float(layer["height"]) * scale_factor)))
+		var texture := HostLayerTexture.band(
+			_package,
+			String(layer["image"]),
+			layer.get("presentation", {}),
+			tile_width,
+			tile_height
+		)
+		if texture == null:
+			# A band this run did not publish is a gap in the picture and is
+			# said out loud, rather than drawn as a hole nobody can explain.
+			push_error(
+				"runner stage: layer %s has no image at %s" % [layer["layer_id"], layer["image"]]
+			)
+			continue
 		var sprite := Sprite2D.new()
 		sprite.texture = texture
 		sprite.centered = false
 		sprite.region_enabled = true
-		# Three screens wide so a band never runs out mid-scroll.
-		var scale_factor := float(layout["scale"])
-		var tile_width := float(layer["width"]) * scale_factor
+		# Enough whole repeats to cover the viewport from wherever the wrap has
+		# put the left edge, which is anywhere within one tile to the left of the
+		# origin. Counting *screens* instead of tiles is what left a bare strip
+		# down the right of the picture whenever a tile was narrower than the
+		# canvas — and at this design width, the cover band is.
+		var repeats := 1 + int(ceil(RunnerContract.VIEW_WIDTH / float(tile_width)))
 		sprite.region_rect = Rect2(
-			0.0, 0.0, float(layer["width"]) * 3.0, float(layer["height"])
+			0.0, 0.0, float(tile_width * repeats), float(tile_height)
 		)
 		sprite.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-		sprite.scale = Vector2(scale_factor, scale_factor)
-		sprite.position = Vector2(-tile_width, float(layout["topY"]))
+		sprite.position = Vector2(0.0, float(layout["topY"]))
 		sprite.z_index = (
 			DEPTHS["background"] if plane == "background" else DEPTHS["foreground"]
 		) + int(layer["order"])
@@ -135,8 +150,8 @@ func _build_bands(manifest: Dictionary, plane: String) -> void:
 				"node": sprite,
 				"parallax": float(layer["parallax"]),
 				"scale": scale_factor,
-				"width": tile_width,
-				"originX": -tile_width,
+				"width": float(tile_width),
+				"originX": 0.0,
 			}
 		)
 

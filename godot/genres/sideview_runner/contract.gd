@@ -183,6 +183,38 @@ static func ground_line_y(config: Dictionary) -> float:
 	return row_to_screen_y(float(config["walkSurfaceRow"]), config)
 
 
+## The painted-frame height a band is scaled by, which is not its own height.
+##
+## Every layer in one runner track is painted against the same full-height
+## canvas, and the transparent ones are then trimmed to the rows they actually
+## use. So a band's own height is evidence of how much of the frame it fills,
+## never of how big the frame was — and scaling a 286-row canopy strip as though
+## it were the whole picture stretches it to the full screen, which is exactly
+## what this repository shipped until it was measured.
+##
+## The opaque `canvas_cover` band is the one that was never trimmed, so it
+## carries the datum for all of them. A track without one falls back to the
+## band's own height, which is the same answer for an untrimmed band.
+##
+## This is the runner's fact, not the parallax family's: the family resolves an
+## anchor against a datum it is handed, and where the datum *comes from* is a
+## question only a genre that trims its bands has to answer.
+static func layer_frame_height(layer: Dictionary, layers: Array) -> float:
+	if (
+		String(layer.get("alpha_mode", "")) == "opaque"
+		or String(layer.get("vertical_anchor", "")) == FamilyParallax.ANCHOR_CANVAS_COVER
+	):
+		return float(layer["height"])
+	for entry: Variant in layers:
+		var candidate: Dictionary = entry
+		if (
+			String(candidate.get("alpha_mode", "")) == "opaque"
+			and String(candidate.get("vertical_anchor", "")) == FamilyParallax.ANCHOR_CANVAS_COVER
+		):
+			return float(candidate["height"])
+	return float(layer["height"])
+
+
 static func _gameplay(gameplay: Dictionary) -> Variant:
 	var jump_profile := String(gameplay.get("jump_profile", ""))
 	if not JUMP_PROFILES.has(jump_profile):
