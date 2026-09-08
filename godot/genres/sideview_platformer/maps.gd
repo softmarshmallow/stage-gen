@@ -120,7 +120,10 @@ static func parse(manifest: Variant) -> Variant:
 		"quests": gameplay.get("quests", []),
 		"progression": gameplay.get("progression", {}),
 		"inventory": gameplay.get("inventory", {}),
-		"mobPopulation": gameplay.get("mob_population", []),
+		"mobPopulation": gameplay.get("mob_population", {}),
+		# The run's own revision, which seeds every population this package
+		# spawns: two runs of one package meet the same creatures.
+		"revision": int(gameplay.get("revision", 0)),
 		"mobs": doc.get("mobs", []),
 		"items": doc.get("items", []),
 		"soundtrack": doc.get("soundtrack", {}),

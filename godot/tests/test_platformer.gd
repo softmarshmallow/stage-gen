@@ -36,6 +36,7 @@ func run(h: TestHarness) -> void:
 	_camera(h, package as Dictionary)
 	_music(h, package as Dictionary)
 	_gate(h, package as Dictionary)
+	_population(h, package as Dictionary)
 
 
 ## The curve a package names, and the refusals for the ones it may not.
@@ -268,6 +269,51 @@ func _gate(h: TestHarness, package: Dictionary) -> void:
 	h.assert_eq(float(world.camera["scrollY"]), 336.0, "the view drops to the road's own ceiling")
 	h.assert_eq(
 		PlatformerTranscript.of_kind(world, "map-entered").size(), 1, "said once, on arrival"
+	)
+
+
+## Where the road's creatures stand up, and the draws that decide it.
+func _population(h: TestHarness, package: Dictionary) -> void:
+	h.assert_true(
+		PlatformerPopulation.project(package, "village-map").is_empty(),
+		"the village authors no population at all"
+	)
+	var state := PlatformerPopulation.project(package, "road-map")
+	h.assert_true(not state.is_empty(), "the road authors one")
+	var zone: Dictionary = (state["zones"] as Array)[0]
+	h.assert_eq(String(zone["zoneId"]), "road-zone", "whose id is normalised to kebab-case")
+
+	# 0.12 and 0.6 of forty columns, by column centre: five to twenty-three. The
+	# wander radius then takes a tile and a half off each end, because a body
+	# needs room to wander inside its own zone.
+	var columns: Array = []
+	for entry: Variant in (zone["candidates"] as Array):
+		columns.append(int((entry as Dictionary)["column"]))
+	h.assert_eq(columns.front(), 6, "the first place to stand is column six")
+	h.assert_eq(columns.back(), 21, "and the last is twenty-one")
+	h.assert_eq(columns.size(), 16, "sixteen in all")
+
+	# The body has just arrived at the road's west spawn, which is where the
+	# golden's first two creatures are drawn against.
+	var issued := PlatformerPopulation.update(state, 5033.0, 256.0, 656.0)
+	h.assert_eq(issued.size(), 2, "the zone's initial fill is two")
+	h.assert_eq(int((issued[0] as Dictionary)["column"]), 18, "the first stands at column eighteen")
+	# The second joins the first rather than spreading: a group already standing
+	# pulls the next one towards it seven times in ten.
+	h.assert_eq(int((issued[1] as Dictionary)["column"]), 19, "and the second joins it, next door")
+
+	# Nothing more until the interval has elapsed, however often it is asked.
+	h.assert_eq(
+		PlatformerPopulation.update(state, 5100.0, 256.0, 656.0).size(),
+		0,
+		"and the director is quiet until its interval has passed"
+	)
+
+	# Two runs of one package meet the same creatures in the same places.
+	var again := PlatformerPopulation.project(package, "road-map")
+	var repeated := PlatformerPopulation.update(again, 5033.0, 256.0, 656.0)
+	h.assert_eq(
+		int((repeated[0] as Dictionary)["column"]), 18, "a second run draws the same first column"
 	)
 
 
