@@ -16,27 +16,12 @@ extends RefCounted
 
 ## Frames identical to the browser's, and what stops the next one.
 ##
-## Frame 327 is where the run parts company next, and it is **not** an unported
-## system: it is the one replacement creature the route spawns after a kill, and
-## the port puts it in a different column.
-##
-## Measured rather than guessed. At 327 the two living creatures stand at 1133.3
-## and 1231.3 and the body is at 706, and from those three numbers the eligible
-## columns are the same on both sides. What differs is which one is drawn, and a
-## sweep over the generator says the browser's answer needs two things this port
-## does not do: the spawn-column exclusion switched off, and eight, twelve,
-## thirteen, fourteen or eighteen draws already spent where this port has spent
-## ten. Both are in `spawn-director.ts` as written — `candidateColumn` is
-## compared, and the draws are two per uniform placement and four per clustered
-## one — so one of the two readings is wrong and neither the code nor the golden
-## says which.
-##
-## Left open deliberately. It is one creature's column, it is recorded here with
-## the numbers that would close it, and the frames after it are worth more than
-## the frames spent arguing with it.
-const EXACT_FRAMES := 326
+## Frame 380 is where the climb window opens — the body holds `up` at a ladder
+## from 380 to 431 and drops back down it from 437 to 491. Raise this with each
+## unit, and never without re-running the harness.
+const EXACT_FRAMES := 379
 
-const FIRST_UNPORTED := "the replacement creature's column, at frame 327"
+const FIRST_UNPORTED := "the climb, at frame 380"
 
 
 func run(h: TestHarness) -> void:
@@ -309,9 +294,23 @@ func _population(h: TestHarness, package: Dictionary) -> void:
 	var columns: Array = []
 	for entry: Variant in (zone["candidates"] as Array):
 		columns.append(int((entry as Dictionary)["column"]))
-	h.assert_eq(columns.front(), 6, "the first place to stand is column six")
+	# Column six would be a place to stand on the wander rule alone; the west
+	# gate's own margin takes it, which is the rule working rather than a gap.
+	h.assert_eq(columns.front(), 7, "the first place to stand is past the gate's margin")
 	h.assert_eq(columns.back(), 21, "and the last is twenty-one")
-	h.assert_eq(columns.size(), 16, "sixteen in all")
+	h.assert_eq(columns.size(), 15, "fifteen in all")
+
+	# Six columns at each end of a map and two either side of every gate are
+	# kept clear: nothing stands up in the strip a body walks in on, and a
+	# doorway can always be left by the way it was entered.
+	var reserved := PlatformerPopulation.reserved_columns(40, PackedFloat32Array([0.1, 0.9]))
+	for column in [0, 1, 2, 3, 4, 5, 34, 35, 36, 37, 38, 39]:
+		h.assert_true(reserved.has(column), "column %d is a margin" % column)
+	for column in [2, 3, 4, 5, 6]:
+		h.assert_true(reserved.has(column), "and the west gate keeps %d clear" % column)
+	for column in [34, 35, 36, 37, 38]:
+		h.assert_true(reserved.has(column), "as the east gate keeps %d" % column)
+	h.assert_true(not reserved.has(20), "the middle of the route is free")
 
 	# The body has just arrived at the road's west spawn, which is where the
 	# golden's first two creatures are drawn against.

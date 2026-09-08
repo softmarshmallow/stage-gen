@@ -36,6 +36,36 @@ const WANDER_RADIUS_TILES := 1.5
 ## How often a group already standing pulls the next one towards it.
 const CLUSTER_JOIN_CHANCE := 0.7
 
+## Columns nothing may stand up in.
+##
+## Six at each end of a map, and two either side of every gate. The first keeps
+## creatures off the strip a body walks in on, where a spawn would be a fight
+## nobody chose; the second keeps a doorway clear, so a route can always be left
+## by the way it was entered.
+##
+## Not decoration: it narrows the candidate list, and the candidate list is what
+## a placement draws against. Leaving it out moves every column a route ever
+## spawns in.
+const EDGE_MARGIN_COLUMNS := 6
+const PORTAL_MARGIN_COLUMNS := 2
+
+
+## The columns a map keeps clear, by index.
+static func reserved_columns(world_columns: int, portal_fractions: PackedFloat32Array) -> Dictionary:
+	var made := {}
+	for column in range(mini(EDGE_MARGIN_COLUMNS, world_columns)):
+		made[column] = true
+	for column in range(maxi(0, world_columns - EDGE_MARGIN_COLUMNS), world_columns):
+		made[column] = true
+	for fraction in portal_fractions:
+		var anchor := int(floor(fraction * float(world_columns)))
+		for offset in range(-PORTAL_MARGIN_COLUMNS, PORTAL_MARGIN_COLUMNS + 1):
+			var column := anchor + offset
+			if column >= 0 and column < world_columns:
+				made[column] = true
+	return made
+
+
 ## The generator's substitute for a seed of zero, so a zero-seeded zone still
 ## draws rather than repeating one value.
 const ZERO_SEED_SUBSTITUTE := 0x6D2B79F5
@@ -51,6 +81,10 @@ static func project(package: Dictionary, map_id: String) -> Dictionary:
 	var map: Dictionary = (package["maps"] as Dictionary)[map_id]
 	var heights: PackedInt32Array = map["heights"]
 	var world_columns := heights.size()
+	var gates := PackedFloat32Array()
+	for entry: Variant in (map["endpoints"] as Array):
+		gates.append(float((entry as Dictionary)["normalizedX"]))
+	var reserved := reserved_columns(world_columns, gates)
 	var tile := PlatformerMaps.TILE_PX
 	var wander := roundi(tile * WANDER_RADIUS_TILES)
 
@@ -73,7 +107,7 @@ static func project(package: Dictionary, map_id: String) -> Dictionary:
 		var right_px := float(right) * tile
 		var candidates: Array = []
 		for column in range(left, right):
-			if heights[column] <= 0:
+			if heights[column] <= 0 or reserved.has(column):
 				continue
 			var x := float(column) * tile + tile / 2.0
 			# A body needs room to wander inside its own zone, so a column whose
