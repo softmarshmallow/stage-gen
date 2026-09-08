@@ -14,6 +14,7 @@ const LABEL_COLOR := Color(1.0, 1.0, 1.0, 0.82)
 var _bar: HostGaugeBar = null
 var _label: Label = null
 var _panel: PlatformerInventoryPanel = null
+var _dialogue: PlatformerDialogueBox = null
 
 
 static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerHud:
@@ -21,6 +22,9 @@ static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerHud:
 	made._panel = PlatformerInventoryPanel.of(package, manifest)
 	if made._panel != null:
 		made.add_child(made._panel)
+	made._dialogue = PlatformerDialogueBox.of(package, manifest)
+	if made._dialogue != null:
+		made.add_child(made._dialogue)
 	made._bar = HostGaugeBar.of(BAR_RECT.size.x, BAR_RECT.size.y)
 	made._bar.position = BAR_RECT.position
 	made.add_child(made._bar)
@@ -33,6 +37,8 @@ static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerHud:
 
 
 func sync(world: PlatformerWorld) -> void:
+	if _dialogue != null:
+		_dialogue.sync(world)
 	if _panel != null:
 		if bool(world.intent.get("toggleInventory", false)):
 			_panel.toggle()
