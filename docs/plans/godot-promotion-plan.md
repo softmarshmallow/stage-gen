@@ -40,7 +40,7 @@ channel, a catalogue, a URL — is out of scope and stays in
 | 6 | G | The suite enters the locked gate: a supervisor per test file, fixtures with synthesised media, the CI job | `check.py` fails without the engine; an injected error and an injected hang both turn it red |
 | 7 ◐ | H | The browser instruments: the platformer's slice list, every fixture and reference committed, stills taken | the references reproduce; the fixtures carry current identities |
 | 8 ✔ | I | **The runner**, and the browser runner is deleted | 600/600 frames and 30/30 digests, sealed order equal to the documented one; the view was unproved and shipped broken, and [0066](../decisions/0066-a-state-proof-is-not-a-picture-proof.md) is the picture gate that closes it |
-| 9 | J | **The platformer**, and the browser platformer is deleted | the same, per map, plus the map-scope reset — and see the reordering note: this is a disentangling, not a translation |
+| 9 ◐ | J | **The platformer**, and the browser platformer is deleted | the same, per map, plus the map-scope reset — and see the reordering note: this is a disentangling, not a translation. **In flight**: the simulation is 326 of 600 frames exact from the first and the host draws; what is left is the panels, the numbers over a body, and the retirement |
 | 10 ◐ | K | **The room, the scene and the case**, and their browser surfaces are deleted together | the three simulations are ported and exact (14/14, 26/26, 20/20); their hosts and the deletion are what is left |
 | 11 | L | The sweep: the last web references, the census rows, the identities regenerated | `check.py` green; no `phaser` anywhere under `web/` |
 
@@ -128,6 +128,39 @@ the case has none. They carry no floating-point state, and all three ported to
 exact parity on the first or second attempt. Taking them first means three of
 the four genres are on Godot while the platformer is still being worked out,
 rather than none of them.
+
+**Where step 9 has got to.** The port is driven by the golden frame by frame and
+the gate is a *prefix* rather than a whole-file diff — `tools/frames_prefix.py`
+asserts how far the run agrees counting from frame one, because a diff answers
+"no" for six hundred frames on the day the first fifty-nine are right. The pin
+moves with each unit and lives in three places that must agree:
+`tests/test_platformer.gd`, `tools/validate.sh`, and the commit that raised it.
+
+What the simulation now carries: the body and its maps, the gate between them,
+the conversation and the effects an ending is worth, the seeded soundtrack, the
+dead-zone camera and the tremor a kill puts in it, the population director and
+the creatures it stands up, their awareness and their committed blows, the
+rounds in the air, contact damage and the hold it puts on the frame, the loot
+that falls out of a kill and the experience it banks, and coming back from a
+defeat.
+
+What the host now draws: the parallax bands, the ground from its own atlas with
+the browser's overscan padding, the gates, the ladders, the body and every
+creature sized from the ruler its producer published, the rounds, what is lying
+on the ground, and a health bar.
+
+What is left: the inventory panel, the dialogue box, the numbers that float off
+a body, a creature's own health bar, the props along a map, and the retirement
+record with the browser deletion. One divergence is open and written down rather
+than papered over — the column a replacement creature spawns in at frame 327,
+measured in `tests/test_platformer.gd` with the numbers that would close it.
+
+**What running it found that the golden could not.** The media-free fixture the
+golden was recorded against publishes every field it declares. A shipped package
+does not: `bellweather-c6-parity` publishes `aggression` as an explicit null, and
+`String(null)` in GDScript is not a cast but a constructor that does not exist —
+so the host died at its first creature while six hundred frames of parity stayed
+green. A picture gate would not have caught it either. Playing it did.
 
 ## What is deliberately not here
 
