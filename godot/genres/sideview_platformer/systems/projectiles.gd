@@ -99,12 +99,14 @@ static func _award(world: PlatformerWorld, mob: Dictionary) -> void:
 ## The shape the package's round is drawn as, which decides how it carries
 ## itself in the air.
 static func _silhouette(world: PlatformerWorld) -> String:
-	var named := String((world.package["combat"] as Dictionary).get("projectile_id", ""))
+	var wanted := PlatformerProgression.named(world.package["combat"], "projectile_id", "")
 	for entry: Variant in (world.package["projectiles"] as Array):
 		var spec: Dictionary = entry
-		if String(spec.get("projectile_id", "")) == named:
-			var named: Variant = spec.get("silhouette")
-			return named if named is String else PlatformerProjectiles.DEFAULT_ORIENTATION
+		if PlatformerProgression.named(spec, "projectile_id", "") != wanted:
+			continue
+		return PlatformerProgression.named(
+			spec, "silhouette", PlatformerProjectiles.DEFAULT_ORIENTATION
+		)
 	return PlatformerProjectiles.DEFAULT_ORIENTATION
 
 
