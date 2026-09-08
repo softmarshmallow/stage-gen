@@ -75,7 +75,7 @@ func build(package: HostRunDir, config: Dictionary) -> void:
 	_package = package
 	_config = config
 	var manifest := package.manifest
-	_flash_shader = load("res://hosts/sideview_runner/view/shaders/actor.gdshader")
+	_flash_shader = load("res://hosts/common/shaders/fill.gdshader")
 	_build_bands(manifest, "background")
 	_ground = Node2D.new()
 	_ground.z_index = DEPTHS["ground"]

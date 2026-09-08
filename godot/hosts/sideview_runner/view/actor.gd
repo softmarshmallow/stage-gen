@@ -141,7 +141,7 @@ func place(x: float, y: float) -> void:
 ## Fill the silhouette white, or stop.
 func set_flash(on: bool) -> void:
 	if _material != null:
-		_material.set_shader_parameter("flash", 1.0 if on else 0.0)
+		_material.set_shader_parameter("amount", 1.0 if on else 0.0)
 
 
 func _apply_region() -> void:

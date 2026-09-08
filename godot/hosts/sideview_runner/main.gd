@@ -23,6 +23,8 @@ const MAX_SUBSTEPS := 5
 ## A frame delta longer than this is not gameplay time. A breakpoint, a window
 ## drag or a swapped-out process is not something the world should catch up on.
 const MAX_FRAME_DELTA := 0.25
+## The cut-in paints over the interface, so it sits a layer above it.
+const CUT_IN_LAYER := 2
 
 var args: HostArgs = null
 var package: HostRunDir = null
@@ -33,6 +35,9 @@ var latch: FamilyIntent = null
 var input: RunnerInput = null
 var stage: RunnerStage = null
 var hud: RunnerHud = null
+var cut_in: HostCutInView = null
+var dust: RunnerDustView = null
+var audio: RunnerAudioView = null
 
 var _banked: float = 0.0
 var _now: float = 0.0
@@ -84,6 +89,35 @@ func _ready() -> void:
 	_root.add_child(stage)
 	hud = RunnerHud.new()
 	add_child(hud)
+	cut_in = HostCutInView.of(
+		package, RunnerContract.VIEW_WIDTH, RunnerContract.VIEW_HEIGHT, CUT_IN_LAYER
+	)
+	if cut_in != null:
+		add_child(cut_in)
+
+	# Three systems carry a view hook and are wired here, because each of them
+	# reads the frame's *events* — a moment asked for, a foot landing, a coin
+	# taken. Events live one frame, and the loop below may take several
+	# simulation steps per rendered frame, so a view driven from the render
+	# instead of from the roster sees only the last step's and silently drops
+	# the rest.
+	#
+	# The stage and the interface are not wired, and that is the other half of
+	# the same rule rather than an omission: both are mirrors of whatever the
+	# world says now, they read no event, and drawing them once per picture is
+	# both correct and four fewer passes.
+	#
+	# Every one of the five was null before this. Nothing played a sound, threw
+	# a puff, or drew a cut-in — the moment still ran, on schedule, over a
+	# picture that was not there.
+	RunnerFxSystem.view = cut_in
+	dust = RunnerDustView.of(package, RunnerStage.DEPTHS["dust"])
+	_root.add_child(dust)
+	RunnerDustSystem.view = dust
+	audio = RunnerAudioView.of(package)
+	if audio != null:
+		add_child(audio)
+	RunnerAudioSystem.view = audio
 
 	# A boss needs a measured atlas before it can have a hit box, so a run whose
 	# boss cannot be measured plays without fights rather than with a guessed
@@ -92,6 +126,7 @@ func _ready() -> void:
 	world = RunnerWorld.create(config, _boot_seed(), not (config["introMoment"] as Dictionary).is_empty(), binding)
 	stage.build(package, config)
 	hud.build(config)
+	_name_boss()
 	_scale_to_window()
 	get_viewport().size_changed.connect(_scale_to_window)
 	set_process(true)
@@ -145,6 +180,22 @@ func _scale_to_window() -> void:
 		)
 	if hud != null:
 		hud.transform = Transform2D(0.0, Vector2(factor, factor), 0.0, _root.position)
+	if cut_in != null:
+		cut_in.transform = Transform2D(0.0, Vector2(factor, factor), 0.0, _root.position)
+
+
+## Tell the interface which boss its bar is about. A display name is for a
+## reader, so it comes off the manifest rather than the parsed config, which
+## carries only what a rule depends on.
+func _name_boss() -> void:
+	var encounter: Dictionary = config.get("encounter", {})
+	if encounter.is_empty():
+		return
+	for entry: Variant in (package.manifest.get("bosses", []) as Array):
+		var boss: Dictionary = entry
+		if String(boss["boss_id"]) == String(encounter["bossId"]):
+			hud.name_boss(String(boss.get("display_name", boss["boss_id"])))
+			return
 
 
 ## The two numbers only a loaded boss atlas can supply.

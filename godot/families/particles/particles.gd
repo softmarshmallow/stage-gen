@@ -31,3 +31,33 @@ static func ease_out_cubic(progress: float) -> float:
 
 static func unit_progress(value: float) -> float:
 	return maxf(0.0, minf(1.0, value))
+
+
+## The hardest cap a ring will take, whatever a caller asks for. A run that lays
+## thousands of puffs must cost a bounded amount of memory and a bounded amount
+## of drawing, or a long run is a slower run.
+const RING_CEILING := 256
+
+
+## Add one record to a bounded ring, oldest first, evicting while over the cap.
+##
+## The ring is a plain Array and is mutated in place, which is the port of the
+## browser's `ParticleRing.remember`. Records are read oldest-first, so an
+## eviction takes from the front.
+static func ring_remember(live: Array, record: Dictionary, max_records: int) -> void:
+	live.append(record)
+	var cap := maxi(1, mini(RING_CEILING, max_records))
+	while live.size() > cap:
+		live.remove_at(0)
+
+
+## Drop every record `spent` answers true for.
+##
+## Walked backwards so an index stays valid across a removal — the same reason
+## the browser's version counts down.
+static func ring_prune(live: Array, spent: Callable) -> void:
+	var index := live.size() - 1
+	while index >= 0:
+		if bool(spent.call(live[index])):
+			live.remove_at(index)
+		index -= 1
