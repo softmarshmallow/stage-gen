@@ -227,8 +227,7 @@ async def test_openai_edit_uses_multipart_image_files() -> None:
     assert b'name="size"' in request.content
     assert b'name="quality"' in request.content
     assert b'name="background"' in request.content
-    assert b'name="input_fidelity"' in request.content
-    assert b"high" in request.content
+    assert b'name="input_fidelity"' not in request.content
     assert b'name="moderation"' in request.content
     assert b"low" in request.content
     assert request.content.count(b'name="image[]"') == 2
@@ -244,7 +243,6 @@ async def test_openai_edit_uses_multipart_image_files() -> None:
         "size": "auto",
         "quality": "max",
         "background": "transparent",
-        "input_fidelity": "high",
         "moderation": "low",
     }
 

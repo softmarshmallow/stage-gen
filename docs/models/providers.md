@@ -106,9 +106,12 @@ substantially opaque visible interior. A PNG container or RGBA colour mode alone
 is not enough. The observed predecessor output peaked at alpha 254, so the
 provider validator accepts a near-opaque maximum of at least 250 and the local
 canonicalizer deterministically promotes 250–254 to 255. Opaque concepts and
-designated opaque backdrops still request opaque output. Sunburst multipart
-edits explicitly request and record `input_fidelity="high"`; text-only
-generations omit that edit-only field.
+designated opaque backdrops still request opaque output. Sunburst multipart edits
+send no `input_fidelity`. The field was requested for every native-alpha model
+until a live run on 2026-09-09 returned HTTP 400 `invalid_input_fidelity_model`,
+"The model 'gpt-image-2.5-sunburst' does not support the 'input_fidelity'
+parameter", on every reference-conditioned request. Verified the same day: an
+otherwise identical multipart edit succeeds with the field removed.
 
 Sunburst accepts flexible sizes within its documented pixel, alignment, and
 aspect-ratio bounds. Recipe target geometry remains a separate local contract:

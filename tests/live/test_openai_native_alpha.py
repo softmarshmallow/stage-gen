@@ -72,10 +72,7 @@ async def test_openai_sunburst_returns_nontrivial_native_alpha(
     assert result.applied_params["quality"] == "max"
     assert result.applied_params["operation"] == ("edit" if with_reference else "generation")
     assert result.applied_params["moderation"] == "low"
-    if with_reference:
-        assert result.applied_params["input_fidelity"] == "high"
-    else:
-        assert "input_fidelity" not in result.applied_params
+    assert "input_fidelity" not in result.applied_params
 
 
 def _reference_image() -> ImageReference:

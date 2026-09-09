@@ -21,7 +21,7 @@ authoritative repository notes:
 - Apply exact-dimension normalization as a deterministic recipe step.
 - For direct native-alpha work, request `background="transparent"` and PNG,
   then validate decoded nontrivial alpha before persistence.
-- Add and record `input_fidelity="high"` only for direct multipart edits.
+- Never send `input_fidelity`; Sunburst rejects it with HTTP 400.
 - For OpenRouter, refuse transparent and masked-edit requests before spend;
   request opaque output for its selected roles and pace starts at the configured
   `STAGE_GEN_OPENROUTER_IMAGE_IPM` ceiling.

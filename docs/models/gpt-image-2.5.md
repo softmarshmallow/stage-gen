@@ -155,8 +155,8 @@ Primary sources:
 ## Repository boundary
 
 The quality-first repository model is Sunburst only. Direct native-alpha
-generation and edits bind `gpt-image-2.5-sunburst@openai`; direct multipart
-edits additionally request and record `input_fidelity="high"`. Designated
+generation and edits bind `gpt-image-2.5-sunburst@openai`; neither sends
+`input_fidelity`, which this route refuses (see Direct OpenAI). Designated
 opaque and reference-conditioned roles bind
 `openai/gpt-image-2.5-sunburst@openrouter`. Both routes request
 `quality="max"`. Flare is deliberately not a fallback.

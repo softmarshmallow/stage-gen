@@ -150,8 +150,15 @@ class OpenAIImageBackend:
             if len(request.input_references) > 16:
                 raise ValueError("OpenAI image edits support at most 16 input references")
             endpoint = "images/edits"
-            if supports_openai_native_alpha_model(self.model):
-                body["input_fidelity"] = "high"
+            # No `input_fidelity` here. The field was sent for every native-alpha model,
+            # but that predicate answers "can this route produce alpha", not "does this
+            # route accept input_fidelity", and the two stopped agreeing when the
+            # allowlist moved to 2.5. GPT Image 2.5 refuses it outright - HTTP 400
+            # `invalid_input_fidelity_model`, "The model 'gpt-image-2.5-sunburst' does
+            # not support the 'input_fidelity' parameter" - and refuses it identically
+            # on all six attempts, so every reference-conditioned node in a recipe dies
+            # before it draws anything. Reintroduce it only behind its own verified
+            # per-route predicate.
             files = [
                 _multipart_reference(reference.url, index=index)
                 for index, reference in enumerate(request.input_references, start=1)
