@@ -51,6 +51,15 @@ with its timing and exits non-zero if any failed. The fast half (formatting,
 lint, the web suite, the contract tests) also runs as a pre-push hook once
 `git config core.hooksPath .githooks` is set.
 
+That hook gates **the commits being pushed, not the working tree**: it checks
+each pushed sha out into a throwaway worktree and runs the four steps there, so
+the answer describes what will land rather than what happens to be on disk. It
+reads the working tree not at all — no stash, no staging — which is what makes
+it safe to push while another agent is editing the same checkout, and what
+stops a commit that is red on a fresh clone from passing because its fix is
+sitting uncommitted beside it. Budget about twenty seconds, most of it the
+contract suite.
+
 ## Live provider tests
 
 Live tests are opt-in and must use only documented allowlisted names from
