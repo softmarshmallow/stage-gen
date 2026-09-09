@@ -185,6 +185,11 @@ static func neutral_intent() -> Dictionary:
 		"up": false,
 		"down": false,
 		"run": false,
+		# Which way to face, regardless of which direction is pressed, or null to
+		# follow the movement — which is what every key press asks for. A level and
+		# not a boolean, because a policy that backs out of contact must keep the
+		# target in front of it and pressing away would otherwise turn it around.
+		"face": null,
 		"jump": false,
 		"attack": false,
 		"useHealing": false,

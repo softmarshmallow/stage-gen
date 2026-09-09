@@ -14,6 +14,12 @@ extends RefCounted
 ## a tile and a half and is over in a third of a second; a throw commits for four
 ## tenths and the object leaves the hand on the release frame, which is why its
 ## window opens twice as late.
+##
+## Two of the fields are read by nothing that fights: `standOffTiles` is where an
+## automated policy stands to use the class and `ammoKind` is what one action
+## spends, and both are here rather than in the policy because the reach a bot
+## aims for and the reach the runtime resolves are the same number and must not
+## become two.
 
 const CLASSES := {
 	"melee_dps_v1":
@@ -30,6 +36,12 @@ const CLASSES := {
 		"maxTargetsPerAction": 1,
 		"hitsPerAction": 1,
 		"hitIntervalMs": 0.0,
+		"ammoKind": "",
+		# Deliberately shorter than the swing's own 1.4-tile band: a policy walks
+		# to a comfortable distance rather than standing at the very edge of its
+		# reach and missing whenever the target drifts. A minimum of zero is what
+		# keeps it walking all the way in — no distance is too close for a swing.
+		"standOffTiles": {"minimum": 0.0, "approach": 0.65625, "maximum": 1.3125},
 	},
 	"melee_sweep_v1":
 	{
@@ -48,6 +60,10 @@ const CLASSES := {
 		"maxTargetsPerAction": 6,
 		"hitsPerAction": 3,
 		"hitIntervalMs": 45.0,
+		"ammoKind": "",
+		# Wider in step with the reach, so a policy swings from where the band
+		# actually connects rather than walking into contact first.
+		"standOffTiles": {"minimum": 0.0, "approach": 1.4, "maximum": 2.6},
 	},
 	"ranged_dps_v1":
 	{
@@ -70,6 +86,17 @@ const CLASSES := {
 		"maxTargetsPerAction": 1,
 		"hitsPerAction": 1,
 		"hitIntervalMs": 0.0,
+		# Empty in this revision. The selector, the spend and the automated
+		# decline are all built, but arming them needs a package whose loot rules
+		# actually sustain a throw.
+		"ammoKind": "",
+		# 2.5 tiles is 160px, outside the longest strike range any aggression
+		# archetype has once the targeting tolerance is applied, so a policy
+		# holding this band stands beyond every creature's swing. `approach`
+		# equals `maximum` on purpose: a throw does not improve by walking closer,
+		# so a target anywhere in the band is attacked from where the character
+		# already stands.
+		"standOffTiles": {"minimum": 2.5, "approach": 5.5, "maximum": 5.5},
 	},
 }
 

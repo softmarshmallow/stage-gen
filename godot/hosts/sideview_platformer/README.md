@@ -39,6 +39,24 @@ Everything after the bare `--` belongs to this one; Godot swallows the rest.
 | `Q` | drink |
 | `I` | the bag |
 | `E`, `Enter` | talk, and answer the death screen |
+| `P` | auto-play on and off |
+
+## Auto-play
+
+`P` hands the character to the hunter — six behaviours bidding for each frame at
+descending priorities: stand down when defeated, drink when low, attack what is in
+the weapon's band, walk over what fell out of the last kill, go to the cheapest mob
+that can actually be reached, and if there is nothing at all, patrol so the
+character does not read as a hung frame. Where it can reach is
+`families/navigation`'s: one graph derived from the map, whose jump links are
+admitted by the same integrator the controller steps, so a route the bot believes
+in is a route the body can fly.
+
+There is no mode to leave. Touching any key is a takeover that lasts a second and
+a half after the last press, and walking away from the keyboard hands control back
+on its own; a badge says so on screen while the bot is driving. The bot takes no
+gate — nothing in the roster asks a portal to open — so it plays the map it is
+standing on.
 
 ## What it refuses
 

@@ -49,6 +49,18 @@ var _root: Node2D = null
 ## for a person, who is holding the keys themselves.
 var _forced_intent: PackedStringArray = PackedStringArray()
 
+## Auto-play: the hunter, whether it is switched on, the graph it walks, and the
+## map that graph was derived for. The graph is a property of the map, so it is
+## rebuilt when a gate moves the body and never per frame.
+var _bot: PlatformerBot = null
+var _bot_on: bool = false
+var _bot_graph: Dictionary = {}
+var _bot_map_id: String = ""
+## When a person last touched the keys, so a takeover lasts as long as it takes
+## to think. Negative is "not this session".
+var _human_input_at_ms: float = PlatformerBot.NEVER
+var _bot_badge: Label = null
+
 
 func _ready() -> void:
 	var args := HostArgs.parse(OS.get_cmdline_user_args())
@@ -73,6 +85,7 @@ func _ready() -> void:
 		_refuse("platformer host: this package opens on no spawn")
 		return
 	input = PlatformerInput.new()
+	_bot = PlatformerBot.of(PlatformerBotHunter.profile())
 
 	_root = Node2D.new()
 	add_child(_root)
@@ -92,6 +105,18 @@ func _ready() -> void:
 	stage.open_on(world)
 	_scale_to_window()
 	get_viewport().size_changed.connect(_scale_to_window)
+	_bot_badge = Label.new()
+	_bot_badge.add_theme_font_size_override("font_size", 16)
+	# Said on screen rather than only in a log. A switch that looks like it did
+	# nothing is indistinguishable from a broken one, and the key is the only way
+	# to find out the bot is driving.
+	_bot_badge.text = "AUTO-PLAY  ·  P to take over"
+	_bot_badge.position = Vector2(16.0, PlatformerStage.VIEW_HEIGHT - 32.0)
+	_bot_badge.visible = false
+	var badge_layer := CanvasLayer.new()
+	badge_layer.add_child(_bot_badge)
+	add_child(badge_layer)
+
 	set_process(true)
 
 
@@ -141,12 +166,47 @@ func _process(delta: float) -> void:
 ## parity harness ticks the same function, so a run that agrees with the browser
 ## for six hundred frames is a claim about this game rather than about a test.
 func _tick() -> void:
+	var now_ms := _now * 1000.0
+	if bool(input.host_edges()["toggleBot"]):
+		_bot_on = not _bot_on
+		if not _bot_on:
+			_bot.suspend()
+		_bot_badge.visible = _bot_on
 	world.intent = input.sample()
 	for key in _forced_intent:
 		world.intent[key] = true
-	PlatformerFrame.step(
-		world, {"dt": FIXED_STEP * 1000.0, "now": _now * 1000.0, "frame": _frame}
+	# Whatever is in the record at this point is a person's: the keys they are
+	# holding, or the keys a capture is holding on their behalf. Either way it
+	# outranks the bot, which is the whole rule — a touch of anything is a takeover
+	# that lasts as long as it takes to think, and walking away hands control back
+	# on its own.
+	var control := PlatformerBot.resolve_control(
+		world.intent, _bot_on, now_ms, _human_input_at_ms
 	)
+	_human_input_at_ms = float(control["humanInputAtMs"])
+	if String(control["source"]) == PlatformerBot.SOURCE_BOT:
+		world.intent = _bot_intent(now_ms)
+	elif _bot_on:
+		# It did not drive this frame, so it must not remember driving one.
+		_bot.suspend()
+	PlatformerFrame.step(
+		world, {"dt": FIXED_STEP * 1000.0, "now": now_ms, "frame": _frame}
+	)
+
+
+## One frame of the hunter's thought, in the record the body reads.
+func _bot_intent(now_ms: float) -> Dictionary:
+	var terrain := PlatformerFrame.terrain(world)
+	if world.map_id != _bot_map_id:
+		_bot_map_id = world.map_id
+		_bot_graph = PlatformerBotAdapter.nav_graph(
+			terrain, PlatformerBotNavigation.capabilities()
+		)
+		_bot.reset()
+	var view := PlatformerBotAdapter.world_view(
+		world, terrain, _bot_graph, now_ms, FIXED_STEP * 1000.0
+	)
+	return _bot.decide(view)["intent"]
 
 
 ## The design space, scaled whole and centred, so the picture letterboxes rather

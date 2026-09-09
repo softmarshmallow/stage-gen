@@ -1,7 +1,8 @@
 class_name PlatformerInput
 extends RefCounted
 
-## The keyboard, as the nine booleans the body reads and the four the scene does.
+## The keyboard, as the ten fields the body reads, the four the scene does, and
+## the one the host keeps for itself.
 ##
 ## Levels are sampled — held is held — and requests are edges: a jump, a throw, a
 ## drink and the inventory toggle are spent on the frame they are pressed and not
@@ -35,6 +36,16 @@ const SCENE_KEYS := {
 	"space": [KEY_SPACE],
 }
 
+## Keys the host answers itself, and the body never hears.
+##
+## Deliberately not in the intent record. Intent is what the character is trying
+## to do, and handing the auto-play switch to it would say the body has an action
+## called `toggleBot` — it does not, and a record that claimed so would be read by
+## the controller, hashed by a golden, and published to a second runtime.
+const HOST_KEYS := {
+	"toggleBot": [KEY_P],
+}
+
 var _down: Dictionary = {}
 
 
@@ -51,6 +62,14 @@ func sample() -> Dictionary:
 	# The gate reads `up` as a press rather than as a hold, or walking into a
 	# doorway with the climb key down would take it before the player asked.
 	made["upPressed"] = _edge("upPressed", _any(LEVELS["up"]))
+	return made
+
+
+## This frame's host keys, as edges. Read by the host, never by the world.
+func host_edges() -> Dictionary:
+	var made := {}
+	for name: Variant in HOST_KEYS:
+		made[String(name)] = _edge(String(name), _any(HOST_KEYS[name]))
 	return made
 
 

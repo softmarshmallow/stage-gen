@@ -71,3 +71,73 @@ static func jump_arc_from_admission(
 		"peakUnits": peak_units,
 		"airtimeSeconds": airtime,
 	}
+
+
+## Prove an arc: semi-implicit Euler in the controller's own step order.
+##
+## A port of `simulateJumpArc` in
+## `web/lib/families/sideview/traversal/jump.ts`. Returns
+## `{reachable, rise, gap, apexRise, landingStep, horizontalRange, airJumpStep}`,
+## or an empty dictionary for values outside the supported range — a refusal,
+## because an arc at zero gravity never lands and there is no partial answer to
+## give.
+##
+## `air_jump_velocity` proves a double jump; pass a negative number for a
+## character with one jump, the same "no window" convention `resolve_jump_request`
+## uses for its coyote expiry, because GDScript has no nullable float. The
+## impulse is spent on the first step the arc stops rising, which is both the
+## height-optimal moment and the one a player naturally hits, so a route proved
+## here is a route a player can fly. Landing still requires a descending foot,
+## so the second arc cannot "land" on a deck it is passing on the way up.
+##
+## `landingStep` and `horizontalRange` are `-1` when the arc never lands, and
+## `airJumpStep` is `-1` when no mid-air impulse was spent.
+static func simulate_jump_arc(
+	rise: float,
+	gap: float,
+	horizontal_speed: float,
+	jump_velocity: float,
+	air_jump_velocity: float,
+	gravity: float,
+	step_seconds: float,
+	maximum_steps: int
+) -> Dictionary:
+	if rise < 0.0 or gap < 0.0 or horizontal_speed < 0.0:
+		return {}
+	if jump_velocity <= 0.0 or gravity <= 0.0 or step_seconds <= 0.0 or maximum_steps < 1:
+		return {}
+	var target_y := -rise
+	var y := 0.0
+	var vy := -jump_velocity
+	var apex_rise := 0.0
+	var air_jump_step := -1
+	var air_jump_pending := air_jump_velocity > 0.0
+	for step in range(1, maximum_steps + 1):
+		var previous_y := y
+		vy += gravity * step_seconds
+		if air_jump_pending and vy >= 0.0:
+			vy = -air_jump_velocity
+			air_jump_pending = false
+			air_jump_step = step
+		y += vy * step_seconds
+		apex_rise = maxf(apex_rise, -y)
+		if vy >= 0.0 and previous_y <= target_y and y >= target_y:
+			var horizontal_range := horizontal_speed * step_seconds * float(step)
+			return {
+				"reachable": gap <= horizontal_range,
+				"rise": rise,
+				"gap": gap,
+				"apexRise": apex_rise,
+				"landingStep": step,
+				"horizontalRange": horizontal_range,
+				"airJumpStep": air_jump_step,
+			}
+	return {
+		"reachable": false,
+		"rise": rise,
+		"gap": gap,
+		"apexRise": apex_rise,
+		"landingStep": -1,
+		"horizontalRange": -1.0,
+		"airJumpStep": air_jump_step,
+	}
