@@ -13,12 +13,12 @@
 > remove browser inference from opaque/parallax thresholds and select each
 > map's own generated layer bundle.
 
-The optional Phaser preview composes generated art through a typed semantic
-layer contract in `web/lib/sideview-platformer/layers.ts`. Generation still publishes the
-portable `id`, `z_index`, `parallax`, and `opaque` fields; the browser adapter
+The host composes generated art through a typed semantic layer contract in
+`godot/families/sideview/presentation/layer_presentation.gd`. Generation still
+publishes the portable `id`, `z_index`, `parallax`, and `opaque` fields; the host
 validates those fields and resolves their complete presentation contract before
 creating a texture. A manifest may carry the same resolved contract as
-`scene_layer`, but it must match the adapter's canonical result exactly.
+`scene_layer`, but it must match the host's canonical result exactly.
 
 This is a browser-consumer rule. It is not part of the Python component or
 provider APIs.

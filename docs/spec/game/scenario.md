@@ -4,7 +4,7 @@
 
 > **Contract maturity: exact-current for the authored contract, the script
 > surface, the admission proof, and the runtime that walks it.** Executable
-> authority: `src/stage_gen/components/scenario/`, `web/lib/scenario/`, the
+> authority: `src/stage_gen/components/scenario/`, `godot/families/scenario/`, the
 > authored `library/games/larkfield/scenarios/last_class.toml` beside its script, and
 > `stage-gen scenario check`. The choice recorded under [Decision](#decision) is
 > settled and should not be re-litigated without new evidence.
@@ -513,7 +513,7 @@ the run, the way `puzzle.validation.json` already is.
 ## Runtime
 
 The runtime is a pure reducer over `(block, statement index, flags, seen)`
-(`web/lib/scenario/runtime.ts`). It owns no drawing, no asset paths, no engine
+(`godot/families/scenario/runtime.gd`). It owns no drawing, no asset paths, no engine
 types, and no genre vocabulary. Both genres walk it: the visual novel stages a
 cast against generated backdrops, and the side-view platformer plays the same
 programs in a portrait panel over its map.

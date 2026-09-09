@@ -119,12 +119,18 @@ def test_lookup_has_47_unique_and_reachable_masks() -> None:
     assert observed == set(lookup.by_mask)
 
 
-def test_web_consumer_lookup_matches_the_authoritative_packaged_contract() -> None:
+def test_host_consumer_lookup_matches_the_authoritative_packaged_contract() -> None:
     # Byte equality, not JSON equality: nothing generates one file from the
     # other, so the only affordable sync proof is that there is exactly one
     # sequence of bytes on both sides of the language boundary.
+    #
+    # The consumer used to be the browser's `web/lib/sideview/`, which was
+    # deleted with the rest of the browser platformer in decision 0069. The
+    # copy did not go with it: the Godot host reads the same table from its
+    # own project, so the drift this guards against is exactly as possible as
+    # it was, and the assertion only changed which file it points at.
     repository = Path(__file__).parents[4]
-    consumer = (repository / "web/lib/sideview/terrain-atlas-lookup.json").read_bytes()
+    consumer = (repository / "godot/families/sideview/terrain/lookup.json").read_bytes()
     authoritative = terrain_atlas_lookup_path().read_bytes()
     assert consumer == authoritative
 

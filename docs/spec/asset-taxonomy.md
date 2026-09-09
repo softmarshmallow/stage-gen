@@ -92,7 +92,7 @@ the old names.
 | the recipe's actor steps | new in the survival pass | `2d/obliqueview/survival/actor_concept`, `.../motion_atlas`, `.../motion_rebase` | c — the four-way facing set, billboard strip geometry, ground-contact measurement |
 | the recipe's world steps | new in the survival pass | `2d/obliqueview/survival/item_*`, `.../prop_*`, `.../season_look`, `.../weather_*`, `.../world_layout` | d — pickups and their icons, prop states and their interaction art, the season looks, the weather layers, and the algorithmic layout |
 | `godot` | new in the survival pass | consumer host for `2d/obliqueview/survival` | d |
-| `web/lib/sideview-platformer` | `web/lib/sideview-platformer` | consumer adapter for `2d/sideview/platformer` | d |
+| `godot/genres/sideview_platformer` | was web/lib/sideview-platformer, retired in the Godot pass | consumer adapter for `2d/sideview/platformer` | d |
 | `godot/genres/pointclick_room` | was web/lib/pointclick, retired in the Godot pass | consumer adapter for `2d/roomview/pointclick` | d |
 | `godot/genres/dialogue_scene` | was web/lib/dialogue-scene, retired in the Godot pass | consumer adapter for `2d/frontview/vn/scene` | d |
 | `godot/families/scenario` | promoted out of the scene when a second genre asked for it | the agnostic conversation core both genres walk | a |
@@ -104,8 +104,8 @@ the old names.
 | `components/sideview_actor` | lifted from the platformer recipe | `2d/sideview/actor` | c — magnitude, strip geometry, rebase admission |
 | `components/sideview_stage` | lifted from `platformer_map` in the engineering pass | `2d/sideview/stage` | c — the view, continuity, reference, layer and ground blocks both side-view genres author; the runner stopped importing the platformer's map for them |
 | `components/sideview_layers` | lifted from the platformer recipe | `2d/sideview/loop_x` | c — the horizontal-loop layer contract |
-| `web/lib/kernel` | new in the vitals pass; `game-systems` until runtime step 1 | the agnostic runtime substrate every genre may seal against | a — sealed system protocol, frame event queue, and the bounded-resource gauge; no genre, no engine, and deliberately not named after health |
-| `web/lib/families/hud/gauge-bar.ts` | new in the vitals pass; `sideview/gauge-bar.ts` until runtime step 6 | shared side-view presentation | c — one capsule widget, placed by its caller in world or screen space |
+| `godot/kernel` | was web/lib/kernel, retired in the Godot pass; `game-systems` until runtime step 1 | the agnostic runtime substrate every genre may seal against | a — sealed system protocol, frame event queue, and the bounded-resource gauge; no genre, no engine, and deliberately not named after health |
+| `godot/families/hud/gauge_bar.gd` | was web/lib/families/hud/gauge-bar.ts, retired in the Godot pass; `sideview/gauge-bar.ts` until runtime step 6 | shared side-view presentation | c — one capsule widget, placed by its caller in world or screen space |
 
 The modality components (image, structured, music, background removal) left
 this table in the same change series: they are `gnode` ring-1 material — see

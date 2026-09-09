@@ -67,8 +67,8 @@ defect, caught by proportion review rather than by scale admission.
 - `stage_gen.recipes.sideview_platformer.asset_unit` owns resolution, subject
   measurement, the plate's step ladder, admission, and the published
   calibration record.
-- `web/lib/sideview-platformer` owns the projection from calibration to screen pixels and
-  the registration of a scaled subject against the walk surface.
+- `godot/hosts/common/actor.gd` owns the projection from calibration to screen
+  pixels and the registration of a scaled subject against the walk surface.
 
 No generic component imports side-view or gameplay scale semantics. The image
 model owns appearance only. Deterministic code owns measurement, arithmetic,

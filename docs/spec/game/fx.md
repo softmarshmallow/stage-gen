@@ -4,8 +4,9 @@
 
 > **Contract maturity: exact-current authored contract.** Executable authority:
 > `src/stage_gen/components/game_fx/` (contract, plate gates, placement admission, and the
-> recipe-neutral node set) and `web/lib/families/screen-fx/` (the pure choreography, the generic moment
-> system, the Phaser view). The runner is the first host (`docs/spec/game/runner.md`);
+> recipe-neutral node set), `godot/families/screen_fx/` (the pure choreography and the generic
+> moment system) and `godot/hosts/common/cut_in_view.gd` (the view that draws it).
+> The runner is the first host (`docs/spec/game/runner.md`);
 > every other genre adopts the family through the two host contracts at the end of this page.
 
 `fx.toml` is the game-global source of truth for generated **screen FX**: the plates a game
@@ -69,7 +70,7 @@ fade. Separating it afterwards is a segmentation problem, not a transform.
 | `portrait` — one die-cut close-up | actor-scoped, bound to the digest-locked references the actor uses or to the concept plate the run drew for it | soft edge admitted | the image model |
 | backdrop, stripes, lettering | runtime | — | the consumer |
 | placement — where the portrait sits inside the frame's opening | judged once per portrait | — | the tool-loop agent (below) |
-| choreography | consumer | — | `web/lib/families/screen-fx/cut-in.ts` |
+| choreography | consumer | — | `godot/families/screen_fx/cut_in.gd` |
 
 The frame plate does three jobs at runtime: its silhouette is the mask, drawn as-is it is
 the white rim, filled black and offset it is the shadow. Drawn once more on top in multiply,
@@ -248,16 +249,17 @@ fx = null | {
 }
 ```
 
-The block is identical in every consumer's manifest, so every genre parses it with the one
-module `web/lib/manifest/fx.ts`. `mask_polygon` is a portable convenience for a consumer that
-clips by geometry and can accept an approximation; it is `null` for a shape no single outline
-describes. The shape a consumer clips with is the plate's alpha — the Phaser view erases the
-composed interior with the plate's inverse alpha and never reads the outline at all. `asset` paths are run artifacts; the plates and their validation
-records are published like any other.
+The block is identical in every consumer's manifest, and the genre that plays a moment reads it
+where its own contract is parsed — `godot/genres/sideview_runner/contract.gd` for the first host.
+`mask_polygon` is a portable convenience for a consumer that clips by geometry and can accept an
+approximation; it is `null` for a shape no single outline describes. The shape a consumer clips
+with is the plate's alpha: Godot clips children to their parent's drawn alpha, so the plate *is*
+the mask, and the outline is never read at all. `asset` paths are run artifacts; the plates and
+their validation records are published like any other.
 
 ## Choreography
 
-`tear_reveal_v1` is the served choreography. Its beats live in `web/lib/families/screen-fx/cut-in.ts` as a
+`tear_reveal_v1` is the served choreography. Its beats live in `godot/families/screen_fx/cut_in.gd` as a
 pure function of elapsed milliseconds, so a fixed-step replay draws the same frame on the
 same tick: the rip sweeps in over 180 ms and settles from 1.12× scale; the portrait slides in
 from 30 % left with a back-ease overshoot between 100 and 400 ms and pushes in 4 % over the

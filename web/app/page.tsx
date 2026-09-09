@@ -7,10 +7,12 @@
 // It used to ask four genre readers for their runs, each importing that
 // genre's parser for a title and a cover, which made the front page a consumer
 // of every runtime at once. It now reads one field — the document's `kind` —
-// through `listRuns`, and the table below is the only thing that knows a kind
-// can be played at all. Every genre's host is a Godot host (decision 0061), so
-// that table is a shrinking list of browser surfaces waiting for their port,
-// and it leaves with the last of them.
+// through `listRuns`, and knows nothing else about what a run contains.
+//
+// It also used to hold a table of the kinds a browser surface could still
+// play, which shrank as each genre landed its Godot host (decision 0061). The
+// platformer was the last row, and the table left with it: no run is playable
+// from here, and a reader who wants to play one runs the host.
 
 import Link from "next/link";
 import { listRuns, type RunIndexEntry } from "@/lib/shell/run-index";
@@ -28,22 +30,6 @@ import {
 
 export const dynamic = "force-dynamic";
 
-/**
- * The browser surfaces that still play a kind, by the kind's literal name.
- *
- * Literal strings on purpose: importing a genre's kind constant is importing
- * that genre, which is what this page stopped doing. A row is deleted in the
- * change that lands its Godot host and deletes its route, and when the table
- * is empty it goes with the last row.
- */
-const BROWSER_PLAY_ROUTES: Readonly<Record<string, { label: string; href: (tag: string) => string }>> =
-  {
-    "prepared-game-runtime-v12": {
-      label: "[ ▶ open preview ]",
-      href: (tag) => `/preview/${encodeURIComponent(tag)}`,
-    },
-  };
-
 /** What a run says it is, for the reader: the kind, or why there is none. */
 function identity(entry: RunIndexEntry): string {
   if (entry.kind) {
@@ -56,7 +42,6 @@ function identity(entry: RunIndexEntry): string {
 }
 
 function RunRow({ entry }: { entry: RunIndexEntry }) {
-  const play = entry.kind ? BROWSER_PLAY_ROUTES[entry.kind] : undefined;
   return (
     <li className="grid grid-cols-[1fr_auto] items-center gap-3 border border-border px-2.5 py-1.5 hover:border-fg">
       <div className="min-w-0">
@@ -80,14 +65,6 @@ function RunRow({ entry }: { entry: RunIndexEntry }) {
             href={`/runs/${encodeURIComponent(entry.tag)}/artifacts`}
           >
             [ ⌕ assets ]
-          </Link>
-        ) : null}
-        {play ? (
-          <Link
-            className={cx(playActive, playSizeCompact)}
-            href={play.href(entry.tag)}
-          >
-            {play.label}
           </Link>
         ) : null}
       </div>

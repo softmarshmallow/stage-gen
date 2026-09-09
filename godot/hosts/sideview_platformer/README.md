@@ -5,7 +5,9 @@ directory holding `manifest.json` beside a `package/` tree, loaded at runtime an
 drawn, sounded and simulated. The host ships no media — a run is named on the
 command line every time.
 
-It is a re-derivation of `web/lib/sideview-platformer/`, not a translation: the
+It is a re-derivation of the browser runtime this repository used to carry
+(deleted in [0069](../../../docs/decisions/0069-the-platformer-is-retired-and-web-is-only-the-viewer.md)),
+not a translation: the
 browser's world *is* a Phaser scene, sixteen of its files import the engine, and
 what the simulation was doing had to be pulled out of the drawing first. The
 proof is `tools/platformer_parity.gd`, which replays two scripted runs against
