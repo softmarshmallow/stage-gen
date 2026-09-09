@@ -36,6 +36,12 @@ removal, face-crop atlases, gaze, brows, head/body motion, IK, and video generat
 are outside this capability. The sample timeline demonstrates speaking-like
 mouth changes; it does not infer phonemes, align audio, or supply a full viseme set.
 
+The agreed N-card baseline promotion is complete. Face-crop atlases, bald donors,
+foreground restoration, and stricter visual-fidelity research are deliberately
+deferred; they are not unfinished promotion tasks. Do not resume those experiments
+or spend on them as automatic follow-up to this promotion. They require a new
+explicit request for that work.
+
 Ownership follows the existing [component contract](../component-contract.md):
 
 - [`components/portrait_motion`](../../src/stage_gen/components/portrait_motion/__init__.py)
