@@ -221,19 +221,18 @@ func _broken_props(pkg: HostRunDir) -> Dictionary:
 
 func _t2_layout_counts(h: TestHarness, pkg: HostRunDir) -> void:
 	var layout := pkg.layout
+	var rows := (layout.get("entities", []) as Array).size()
+	var forage_rows := (layout.get("forage", []) as Array).size()
 	h.assert_eq(int(layout.get("seed", 0)), 7, "layout seed")
-	h.assert_eq((layout.get("entities", []) as Array).size(), 2271, "entity rows")
-	h.assert_eq((layout.get("forage", []) as Array).size(), 1533, "forage rows")
 	# The world places nothing the player cannot act on (decision 0060): the
 	# forage is the only sheet of pieces the layout lays.
 	h.assert_true(not layout.has("plants") and not layout.has("clutter"), "no plant or litter rows")
-	h.assert_eq((layout.get("decals", []) as Array).size(), 2592, "decal rows")
 	# `road.points` is the polyline itself, not a count.
 	var road: Dictionary = layout.get("road", {})
-	h.assert_eq((road.get("points", []) as Array).size(), 101, "road points")
+	h.assert_true((road.get("points", []) as Array).size() >= 2, "the road is a polyline")
 	h.assert_eq(str(road.get("road_id", "")), "dirt_track", "the road's id")
 
-	# 2260 props and 11 mobs, and every one of them becomes an entity.
+	# Every placed row becomes an entity, whatever the numbers are.
 	var props := 0
 	var mobs := 0
 	for raw: Dictionary in layout.get("entities", []):
@@ -242,8 +241,7 @@ func _t2_layout_counts(h: TestHarness, pkg: HostRunDir) -> void:
 				props += 1
 			"mob":
 				mobs += 1
-	h.assert_eq(props, 2260, "prop rows")
-	h.assert_eq(mobs, 11, "mob rows")
+	h.assert_eq(props + mobs, rows, "a row is a prop or a mob and nothing else")
 
 	var world := SurvivalWorld.create(pkg, 7, {"masks": SurvivalMasks.new()})
 	var built_props := 0
@@ -257,10 +255,20 @@ func _t2_layout_counts(h: TestHarness, pkg: HostRunDir) -> void:
 				built_mobs += 1
 			"forage":
 				built_forage += 1
-	h.assert_eq(built_props, 2260, "prop entities")
-	h.assert_eq(built_mobs, 11, "mob entities")
-	h.assert_eq(built_forage, 1533, "forage entities")
-	h.assert_eq(world.entities.size(), 3804, "every placed thing is an entity")
+	h.assert_eq(built_props, props, "every prop row became a prop entity")
+	h.assert_eq(built_mobs, mobs, "every mob row became a mob entity")
+	h.assert_eq(built_forage, forage_rows, "every forage row became a forage entity")
+	h.assert_eq(world.entities.size(), rows + forage_rows, "every placed thing is an entity")
+
+	# What only the promoted run can say: how much it laid down.
+	if h.pinned("out/ember-hollow-v13's placement counts"):
+		h.assert_eq(rows, 2271, "entity rows")
+		h.assert_eq(forage_rows, 1533, "forage rows")
+		h.assert_eq((layout.get("decals", []) as Array).size(), 2592, "decal rows")
+		h.assert_eq((road.get("points", []) as Array).size(), 101, "road points")
+		h.assert_eq(props, 2260, "prop rows")
+		h.assert_eq(mobs, 11, "mob rows")
+		h.assert_eq(world.entities.size(), 3804, "3804 entities in all")
 
 
 # ---------------------------------------------------------------------------

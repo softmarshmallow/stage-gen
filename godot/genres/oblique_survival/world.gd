@@ -224,29 +224,49 @@ func prop_spec(entity: Dictionary) -> Dictionary:
 	var spec: Variant = props.get(String(entity.get("prop_id", "")))
 	return spec if spec is Dictionary else {}
 
+## One field of a layout row, as text.
+##
+## An inline `String(raw.get("cluster", ""))` on a row whose `cluster` is
+## published as `null` is an invalid constructor call, and it aborts the
+## function it is written in — `_build_entities` returned nothing, and the world
+## came up with no entities at all and no error anyone would connect to the row
+## that caused it. The producer omits an optional field rather than writing
+## null, but the layout is JSON and a null is what the next one will write, so
+## it is read here as the absence it means. (The explicit test is belt: a
+## `String(...)` inside a function *declared* `-> String` converts rather than
+## refusing. Not a rule to lean on.)
+static func _text(value: Variant) -> String:
+	return "" if value == null else String(value)
+
+
+## The same for a whole number: a null `seed` is no seed.
+static func _whole(value: Variant) -> int:
+	return 0 if value == null else int(value)
+
+
 static func _build_entities(manifest: Dictionary, layout: Dictionary) -> Array:
 	var entities: Array = []
 	var props: Dictionary = manifest.get("props", {})
 	var actors: Dictionary = manifest.get("actors", {})
 	for raw: Dictionary in layout.get("entities", []):
-		var kind := String(raw.get("kind", ""))
+		var kind := _text(raw.get("kind"))
 		if kind == "prop":
-			var prop_id := String(raw.get("prop", ""))
+			var prop_id := _text(raw.get("prop"))
 			if not props.has(prop_id):
 				# A prop the manifest lost is dropped silently.
 				continue
 			var prop: Dictionary = props[prop_id]
 			var states: Dictionary = prop.get("states", {})
-			var state := String(raw.get("state", ""))
+			var state := _text(raw.get("state"))
 			if not states.has(state):
-				state = String(prop.get("baseline_state", ""))
+				state = _text(prop.get("baseline_state"))
 			var radius := 0.0
 			if raw.get("footprint_radius_meters") != null:
 				radius = float(raw["footprint_radius_meters"])
 			elif prop.get("footprint_radius_meters") != null:
 				radius = float(prop["footprint_radius_meters"])
 			entities.append({
-				"id": String(raw.get("id", "")),
+				"id": _text(raw.get("id")),
 				"kind": "prop",
 				"prop_id": prop_id,
 				# The look this instance was placed with: what regrowing
@@ -255,7 +275,7 @@ static func _build_entities(manifest: Dictionary, layout: Dictionary) -> Array:
 				"baseline": state,
 				"x": float(raw.get("x", 0.0)),
 				"z": float(raw.get("z", 0.0)),
-				"seed": int(raw.get("seed", 0)),
+				"seed": _whole(raw.get("seed")),
 				"radius": radius,
 				"hits": 0,
 				"regrow": 0.0,
@@ -268,18 +288,18 @@ static func _build_entities(manifest: Dictionary, layout: Dictionary) -> Array:
 				# The grove or host this instance came with, and the set piece it
 				# is a member of; "" for a lone one. Carried for the map and the
 				# tools; the sim reads neither.
-				"cluster": String(raw.get("cluster", "")),
-				"set_piece": String(raw.get("set_piece", "")),
+				"cluster": _text(raw.get("cluster")),
+				"set_piece": _text(raw.get("set_piece")),
 			})
 		elif kind == "mob":
-			var actor_id := String(raw.get("actor", ""))
+			var actor_id := _text(raw.get("actor"))
 			if not actors.has(actor_id):
 				continue
 			var actor: Dictionary = actors[actor_id]
 			var x := float(raw.get("x", 0.0))
 			var z := float(raw.get("z", 0.0))
 			entities.append({
-				"id": String(raw.get("id", "")),
+				"id": _text(raw.get("id")),
 				"kind": "mob",
 				"actor_id": actor_id,
 				"state": "idle",
@@ -292,7 +312,7 @@ static func _build_entities(manifest: Dictionary, layout: Dictionary) -> Array:
 				"facing": "right",
 				"elapsed": 0.0,
 				"cooldown": 0.0,
-				"seed": int(raw.get("seed", 0)),
+				"seed": _whole(raw.get("seed")),
 				"radius": _positive(actor.get("footprint_radius_meters"), 0.3),
 				"dirty": false,
 			})

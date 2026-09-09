@@ -261,7 +261,15 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # out of the shell into the clip component, decision 0064 and about 250 lines of
         # new tests. The ceiling is 9,800,000. The adopted clips themselves are under
         # library/ and are not even in git, let alone the archive.
-        assert sum(sdist_entries.values()) < 9_800_000
+        # The Godot suite entering the locked gate (2026-09-09) takes it by 4,359 B: the
+        # archive measured 9,804,359. Of the 88,802 B added, 57,732 B is
+        # godot/tools/make_fixture_run.py - the hand-authored survival package the gate
+        # writes for the suite to read, media and all, because out/ is gitignored and a
+        # fresh clone has no run - 8,936 B is decision 0068, and the rest is the two
+        # tiers across sixteen test files. The ceiling is 9,900,000. Nothing the
+        # generator writes is in the archive: it writes into the gate's scratch
+        # directory and is deleted with it.
+        assert sum(sdist_entries.values()) < 9_900_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)

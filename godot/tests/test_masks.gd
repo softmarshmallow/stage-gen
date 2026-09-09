@@ -9,7 +9,12 @@ func run(h: TestHarness) -> void:
 	if not h.assert_true(pkg != null, "full-v66 did not open"):
 		return
 	var masks := SurvivalMasks.from_package(pkg)
-	h.assert_near(masks.size, 512.0, 1e-9, "mask world size")
+	# The size is the document's, not a number typed here: the check is that the
+	# mask took it, and the suite reads more than one world.
+	var declared := float((pkg.manifest["ground"] as Dictionary).get("size_meters", 0.0))
+	h.assert_near(masks.size, declared, 1e-9, "mask world size")
+	if h.pinned("out/ember-hollow-v13 is 512 m across"):
+		h.assert_near(masks.size, 512.0, 1e-9, "the promoted run's world size")
 
 	# The camp and the player's spawn are on land; so is the clearing around
 	# them (0.7 m of erosion, in metres, whatever the plate's cell size).

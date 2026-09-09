@@ -47,9 +47,10 @@ func _prop_cards(h: TestHarness, manifest: Dictionary) -> void:
 	var expected_width := float(grown["width_px"]) / per_meter
 	var expected_height := float(grown["height_px"]) / per_meter
 	var expected_foot := float(grown["ground_contact_y_normalized"])
-	h.assert_near(per_meter, 77.5735, 1e-4, "pine grown px_per_meter")
-	h.assert_near(expected_width, 6.600193, 1e-5, "pine grown card width (metres)")
-	h.assert_near(expected_foot, 0.91406, 1e-9, "pine grown foot")
+	if h.pinned("out/ember-hollow-v13's own pine plate"):
+		h.assert_near(per_meter, 77.5735, 1e-4, "pine grown px_per_meter")
+		h.assert_near(expected_width, 6.600193, 1e-5, "pine grown card width (metres)")
+		h.assert_near(expected_foot, 0.91406, 1e-9, "pine grown foot")
 
 	var layout := SurvivalCards.card_layout(grown)
 	h.assert_near(float(layout["width"]), expected_width, EPS, "card_layout width")
@@ -77,7 +78,16 @@ func _prop_cards(h: TestHarness, manifest: Dictionary) -> void:
 	# field of the summer spec survives.
 	var winter := SurvivalCards.state_spec(pine, "grown", "winter")
 	h.assert_eq(String(winter["image"]), "package/props/pine/grown.winter.png", "winter picture")
-	h.assert_near(float(winter["ground_contact_y_normalized"]), 0.91211, 1e-9, "winter foot")
+	# The look's own contact wins over the summer one, and is not it: a second
+	# drawing stands on the ground in its own place.
+	var authored_winter: Dictionary = grown["looks"]["winter"]
+	h.assert_near(float(winter["ground_contact_y_normalized"]),
+		float(authored_winter["ground_contact_y_normalized"]), 1e-9, "winter foot")
+	h.assert_true(float(winter["ground_contact_y_normalized"]) != expected_foot,
+		"the winter card took the summer card's foot")
+	if h.pinned("where out/ember-hollow-v13's winter pine stands"):
+		h.assert_near(float(winter["ground_contact_y_normalized"]), 0.91211, 1e-9,
+			"the promoted run's winter foot")
 	h.assert_eq(winter["family"] if winter.has("family") else null, null, "look does not invent fields")
 	h.assert_near(float(winter["drawn_height_meters"]), float(grown["drawn_height_meters"]), EPS, "summer field survives")
 	h.assert_true(SurvivalCards.has_look(pine, "grown", "winter"), "pine grown has a winter look")
@@ -123,7 +133,8 @@ func _actor_cards(h: TestHarness, manifest: Dictionary) -> void:
 	h.assert_near(float(layout["height"]), expected_height, EPS, "wren idle front height")
 	h.assert_near(float(layout["foot"]), expected_foot, EPS, "wren idle front foot")
 	h.assert_eq(int(layout["columns"]), 4, "wren idle front columns")
-	h.assert_near(expected_foot, 1.0 - 12.0 / 675.0, 1e-12, "wren idle front gutter arithmetic")
+	if h.pinned("out/ember-hollow-v13's idle cell and its gutter"):
+		h.assert_near(expected_foot, 1.0 - 12.0 / 675.0, 1e-12, "wren idle front gutter arithmetic")
 
 	# The strip window. The run's strips are 4 x 1, so the viewer's flipY
 	# compensation `1 - (row + 1)/rows` and Godot's `row/rows` agree exactly at
@@ -299,10 +310,21 @@ func _shadows(h: TestHarness, manifest: Dictionary) -> void:
 
 
 func _decals(h: TestHarness, manifest: Dictionary) -> void:
-	# The decal tint is the base plate's level gain times [blend] decal_gain.
+	# The decal tint is the base plate's level gain times [blend] decal_gain, and
+	# the gain is that plate's authored target over its measured mean, both in
+	# linear light — read off the document rather than typed here.
+	var ground: Dictionary = manifest["ground"]
+	var base: Dictionary = (ground["biomes"] as Dictionary)[String(ground["base_biome"])]
+	var levels: Dictionary = (ground["splat"] as Dictionary).get("blend", {}).get("level", {})
+	var target: float = float(levels.get(String(ground["base_biome"]), base["value_target"]))
 	var level := SurvivalDecals.ground_level(manifest)
-	var expected := SurvivalDecals.to_linear(0.34) / SurvivalDecals.to_linear(0.2668)
+	var expected := clampf(
+		SurvivalDecals.to_linear(target) / SurvivalDecals.to_linear(float(base["luma_mean"])),
+		0.5, 2.5)
 	h.assert_near(level, expected, 1e-9, "the base plate's level gain")
+	if h.pinned("out/ember-hollow-v13's base plate"):
+		h.assert_near(level, SurvivalDecals.to_linear(0.34) / SurvivalDecals.to_linear(0.2668),
+			1e-9, "the promoted run's level gain")
 	h.assert_near(SurvivalDecals.decal_gain(manifest), 0.62, EPS, "[blend] decal_gain")
 	h.assert_true(level * SurvivalDecals.decal_gain(manifest) > 0.5, "the decal tint is a lift, not a stain")
 	h.assert_near(SurvivalDecals.to_linear(0.0), 0.0, EPS, "sRGB 0 is linear 0")
@@ -327,9 +349,11 @@ func _decals(h: TestHarness, manifest: Dictionary) -> void:
 			orphans += 1
 			continue
 		drawn += 1
-	h.assert_eq((layout["decals"] as Array).size(), 2592, "the run places 2592 decals")
-	h.assert_eq(orphans, 0, "full-v66 has no orphan skirts")
-	h.assert_eq(drawn, 2592, "every decal in the run is drawable")
+	var rows := (layout["decals"] as Array).size()
+	h.assert_eq(orphans, 0, "every skirt is under a thing that was placed")
+	h.assert_eq(drawn, rows, "every decal in the run is drawable")
+	if h.pinned("how many decals out/ember-hollow-v13 places"):
+		h.assert_eq(rows, 2592, "the run places 2592 decals")
 
 
 # --- per-state playback, per-facing cells (critique C3) ----------------------
@@ -379,11 +403,13 @@ func _playback_modes(h: TestHarness, manifest: Dictionary) -> void:
 	var cells := {
 		"front": [398, 666], "back": [377, 682], "left": [390, 688], "right": [365, 631],
 	}
+	var pin_cells := h.pinned("the size out/ember-hollow-v13 drew each walk facing at")
 	var sizes: Dictionary = {}
 	for facing: String in cells.keys():
 		var spec: Dictionary = walk[facing]
-		h.assert_eq(int(spec["cell_width"]), int(cells[facing][0]), "wren walk %s cell width" % facing)
-		h.assert_eq(int(spec["cell_height"]), int(cells[facing][1]), "wren walk %s cell height" % facing)
+		if pin_cells:
+			h.assert_eq(int(spec["cell_width"]), int(cells[facing][0]), "wren walk %s cell width" % facing)
+			h.assert_eq(int(spec["cell_height"]), int(cells[facing][1]), "wren walk %s cell height" % facing)
 		var layout := SurvivalCards.card_layout(spec, int(spec["columns"]))
 		sizes[facing] = Vector2(float(layout["width"]), float(layout["height"]))
 	h.assert_eq(sizes.values().size(), 4, "four walk facings")
@@ -434,10 +460,13 @@ func _module(h: TestHarness, pkg: HostRunDir) -> void:
 		h.assert_eq(node.get_parent(), cards, "%s is not under the cards module" % id)
 		h.assert_near(node.position.x, float((entity as Dictionary)["x"]), 1e-5, "%s x" % id)
 		h.assert_near(node.position.z, float((entity as Dictionary)["z"]), 1e-5, "%s z" % id)
-	h.assert_eq(want.size(), 15, "the run places fifteen prop states (the fern clump went with decision 0060)")
+	h.assert_true(want.size() > 0, "the run places no prop state at all")
 	for key: String in want.keys():
 		h.assert_eq(int(got.get(key, 0)), int(want[key]), "%s cards drawn" % key)
-	h.assert_eq(mobs, 11, "ember-hollow-v9 places eleven mobs")
+	if h.pinned("how many prop states and mobs out/ember-hollow-v13 places"):
+		h.assert_eq(want.size(), 15,
+			"the run places fifteen prop states (the fern clump went with decision 0060)")
+		h.assert_eq(mobs, 11, "ember-hollow-v9 places eleven mobs")
 	h.assert_eq(drawn_mobs, mobs, "every mob has a card")
 
 	# The player is drawn where the world says it is, not at the origin.
@@ -610,4 +639,6 @@ func _look_geometry(h: TestHarness, manifest: Dictionary) -> void:
 					<= LOOK_FOOT_TOLERANCE_METERS,
 				"props.%s winter foot moved more than %.2f m" % [where, LOOK_FOOT_TOLERANCE_METERS],
 			)
-	h.assert_eq(compared, 28, "the run draws a winter look for twenty-eight prop states")
+	h.assert_true(compared > 0, "not one prop state carries a winter look")
+	if h.pinned("how many winter looks out/ember-hollow-v13 draws"):
+		h.assert_eq(compared, 28, "the run draws a winter look for twenty-eight prop states")

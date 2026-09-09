@@ -32,12 +32,20 @@ func run(h: TestHarness) -> void:
 
 func _t22_inset(h: TestHarness, pkg: HostRunDir) -> void:
 	var masks := SurvivalMasks.from_package(pkg)
-	h.assert_near(masks.size, 512.0, 1e-9, "the plate covers 512 m")
+	var ground: Dictionary = pkg.manifest["ground"]
+	var splat_block: Dictionary = ground.get("splat", {})
+	h.assert_near(masks.size, float(ground.get("size_meters", 0.0)), 1e-9,
+		"the plate covers the world the document declares")
 	var splat := pkg.image("package/world/splat.png")
 	if not h.assert_true(splat != null, "splat.png did not decode"):
 		return
-	h.assert_eq(splat.get_width(), 1024, "the splat is 1024 cells across")
-	h.assert_near(masks._cell_meters, 0.5, 1e-9, "the manifest's cell_meters reached the mask")
+	h.assert_eq(splat.get_width(), int(splat_block.get("resolution", 0)),
+		"the splat is as many cells across as it says it is")
+	h.assert_near(masks._cell_meters, float(splat_block.get("cell_meters", 0.0)), 1e-9,
+		"the manifest's cell_meters reached the mask")
+	if h.pinned("out/ember-hollow-v13 is 512 m on a 1024-cell plate"):
+		h.assert_near(masks.size, 512.0, 1e-9, "the promoted run covers 512 m")
+		h.assert_eq(splat.get_width(), 1024, "on a 1024-cell splat")
 	h.assert_near(masks._inset_meters, SurvivalMasks.DEFAULT_INSET_METERS, 1e-9, "the inset is in metres")
 
 	# The rule: a point is land only if it and the four points 0.7 m away are.
@@ -89,11 +97,13 @@ func _t22_land_share(h: TestHarness, pkg: HostRunDir) -> void:
 			land += 1
 		index += 4
 	var share := float(land) / float(total)
-	h.assert_near(share, EXPECTED_LAND_SHARE, LAND_SHARE_TOLERANCE,
-		"the share of splat.a over 127 is %.4f" % share)
-	# The layout carries the pipeline's own measurement of the same plate.
-	h.assert_near(float(pkg.layout.get("land_share", 0.0)), EXPECTED_LAND_SHARE, LAND_SHARE_TOLERANCE,
+	# The layout carries the producer's own measurement of the same plate, and
+	# the two agreeing is the check that holds on any world.
+	h.assert_near(float(pkg.layout.get("land_share", 0.0)), share, LAND_SHARE_TOLERANCE,
 		"layout.land_share disagrees with the plate")
+	if h.pinned("out/ember-hollow-v13's land share"):
+		h.assert_near(share, EXPECTED_LAND_SHARE, LAND_SHARE_TOLERANCE,
+			"the share of splat.a over 127 is %.4f" % share)
 
 
 func _alpha(bytes: PackedByteArray, cells: int, column: int, row: int) -> int:

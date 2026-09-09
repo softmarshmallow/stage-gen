@@ -15,14 +15,18 @@ All routine verification is credential-free. Provider-backed tests carry the
 | CLI boundary | `uv run pytest tests/integration -q` |
 | Wheel-packaged resources | `uv run pytest tests/contract/test_packaged_resources.py -q` |
 | Import architecture | `uv run pytest tests/contract/test_import_boundaries.py -q` |
-| Godot hosts | `Godot --headless --path godot -s res://tests/run_tests.gd` |
+| Godot hosts | `python3 godot/tools/run_suite.py --run <run directory>` |
 | Formatting and lint | `uv run ruff format --check . && uv run ruff check .` |
 | Strict typing | `uv run mypy --strict src tests scripts` |
 
-The Godot host's row is the one command outside the locked gate below: it needs
-the engine on `PATH`, it is GDScript, and it proves the host's simulation only —
-never a picture, which the host's own capture harness produces instead. See
-[Godot host](godot-host.md).
+The Godot row runs inside the locked gate below too, against a fixture run the
+gate writes itself with `godot/tools/make_fixture_run.py` — `out/` is not in the
+repository, so a fresh clone has no run to point it at. Naming a real run with
+`--run` adds the assertions pinned to that run's own counts, which the fixture
+cannot carry and which the suite names rather than drops. It proves the host's
+simulation only — never a picture, which the host's own capture harness produces
+instead. See [Godot host](godot-host.md) and
+[decision 0068](decisions/0068-the-suite-reads-a-world-the-repository-can-write.md).
 
 The survival recipe's cache-key golden,
 `tests/contract/fixtures/oblique_survival/ember-hollow.cache-keys.json`, pins every
@@ -39,7 +43,8 @@ uv run python scripts/check.py
 It removes provider credentials from child-process environments, disables cwd
 `.env` credential loading for those children, and runs every step whether or
 not an earlier one failed - formatting, lint, strict typing, `pytest -m "not
-live"`, the web suite (`bun run check`, `bun test`), the docs check, both
+live"`, the web suite (`bun run check`, `bun test`), the Godot suite against
+the fixture run it writes, the docs check, both
 distribution builds, the library package validation, and an offline plan of
 every package in `library/games/` - then prints one PASS/FAIL line per step
 with its timing and exits non-zero if any failed. The fast half (formatting,

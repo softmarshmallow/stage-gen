@@ -102,10 +102,11 @@ func _wet(h: TestHarness) -> void:
 	for pool: Dictionary in weather.wet_pools:
 		built += (pool["multimesh"] as MultiMesh).instance_count
 	h.assert_eq(built, expected, "every conditional decal is in the standing-water pool")
-	h.assert_eq(built, 1311, "ember-hollow-v9 authors 1311 puddles")
-	# groundLevel(forest_floor: 0.2668 -> 0.34) * decal_gain 0.62.
-	h.assert_near(SurvivalWeatherView._decal_gain(pkg.manifest), 1.0139539, 1e-6,
-		"the decal tint is the ground's level times the authored dimming")
+	if h.pinned("out/ember-hollow-v13's puddles and its base plate's level"):
+		h.assert_eq(built, 1311, "ember-hollow-v9 authors 1311 puddles")
+		# groundLevel(forest_floor: 0.2668 -> 0.34) * decal_gain 0.62.
+		h.assert_near(SurvivalWeatherView._decal_gain(pkg.manifest), 1.0139539, 1e-6,
+			"the decal tint is the ground's level times the authored dimming")
 	weather.free()
 
 ## Exactly one module draws the puddles, and the wet they come up with is the
@@ -235,14 +236,23 @@ func _fire_placement(h: TestHarness) -> void:
 		"the flame stands over the lit entity, not the world origin")
 	h.assert_near(card.position.z, float(campfire["z"]), 1e-6,
 		"the flame stands over the lit entity, not the world origin")
-	h.assert_near(card.position.x, 1.4, 1e-6, "full-v66 puts the campfire at x 1.4")
-	h.assert_near(card.position.z, 0.9, 1e-6, "full-v66 puts the campfire at z 0.9")
-	# (ground_contact_y_normalized 0.69043 - anchor.y 0.64) * (1024 / 642.0168).
-	h.assert_near(card.position.y, 0.0804355, 1e-6,
+	# (ground_contact_y_normalized - anchor.y) * (height_px / px_per_meter), off
+	# the lit card's own record: what is being checked is that the flame is put
+	# where the reviewer's anchor says, not that one run's number is that number.
+	var lit: Dictionary = ((pkg.manifest["props"] as Dictionary)["campfire"] as Dictionary)["states"]["lit"]
+	var anchor: Array = lit.get("anchor", [0.5, 0.0])
+	var lift := (float(lit["ground_contact_y_normalized"]) - float(anchor[1])) \
+			* (float(lit["height_px"]) / float(lit["px_per_meter"]))
+	h.assert_near(card.position.y, lift, 1e-6,
 		"the flame sits at the anchor the reviewer put on the lit card")
+	if h.pinned("out/ember-hollow-v13's campfire, and where it stands"):
+		h.assert_near(card.position.x, 1.4, 1e-6, "full-v66 puts the campfire at x 1.4")
+		h.assert_near(card.position.z, 0.9, 1e-6, "full-v66 puts the campfire at z 0.9")
+		h.assert_near(card.position.y, 0.0804355, 1e-6, "which lifts the flame 0.0804 m")
 	# The fireplace keeps the size the one card always had: the strip's own
 	# drawn height, because the lit look is shorter than it.
-	h.assert_near((card.mesh as QuadMesh).size.y, 0.935, 1e-3,
+	var strip: Dictionary = (pkg.manifest["fx"] as Dictionary).get("fire", {})
+	h.assert_near((card.mesh as QuadMesh).size.y, float(strip.get("height_meters", 0.0)), 1e-3,
 		"the fireplace's flame is the strip's own height")
 
 	# A burning tree is the same card at the tree's height, and a second one

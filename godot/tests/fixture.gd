@@ -104,6 +104,50 @@ static func forage(w: SurvivalWorld, id: String, cell_index: int, x: float, z: f
 	}
 
 
+## The index of the forage cell that yields `item_id`, or -1.
+##
+## A cell's *number* belongs to the sheet a producer laid out, and the suite
+## runs against two packages; what a test means is "the moss one".
+static func forage_cell(w: SurvivalWorld, item_id: String) -> int:
+	var cells: Array = ((w.manifest["ground"] as Dictionary)["forage"] as Dictionary)["cells"]
+	for index in cells.size():
+		if str((cells[index] as Dictionary).get("item_id", "")) == item_id:
+			return index
+	return -1
+
+
+## A world position standing in a flat run of one biome, or one off the map.
+##
+## Same reason as `forage_cell`: a friction check means "somewhere on the
+## scree", and where the scree is belongs to the plate a producer painted. The
+## neighbourhood is walked too, so the point is never on a seam where the
+## answer could be either biome.
+static func biome_patch(w: SurvivalWorld, biome_id: String) -> Vector2:
+	var ground: Dictionary = w.manifest["ground"]
+	var biomes: Dictionary = ground.get("biomes", {})
+	if not biomes.has(biome_id):
+		return Vector2(INF, INF)
+	var friction := float((biomes[biome_id] as Dictionary).get("friction", 0.0))
+	var side := float(ground.get("size_meters", 0.0))
+	var half := side * 0.5
+	var step := maxf(0.5, side / 64.0)
+	var x := -half + step
+	while x < half - step:
+		var z := -half + step
+		while z < half - step:
+			var flat := true
+			for dx: float in [-step, 0.0, step]:
+				for dz: float in [-step, 0.0, step]:
+					if not bool(w.is_land.call(x + dx, z + dz)) \
+							or absf(w.friction_at(x + dx, z + dz) - friction) > 1e-6:
+						flat = false
+			if flat:
+				return Vector2(x, z)
+			z += step
+		x += step
+	return Vector2(INF, INF)
+
+
 ## The authored season spec by id (summer / winter in full-v66).
 static func season_spec(w: SurvivalWorld, season_id: String) -> Dictionary:
 	for spec in ((w.manifest["seasons"] as Dictionary)["seasons"] as Array):

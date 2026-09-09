@@ -9,12 +9,58 @@ func run(h: TestHarness) -> void:
 		return
 	var world := SurvivalWorld.create(pkg, int(pkg.layout.get("seed", 1)), {"masks": SurvivalMasks.new()})
 
+	_a_null_is_an_absence(h, pkg)
 	_entity_counts(h, pkg, world)
 	_player(h, pkg, world)
 	_pack(h, world)
 	_clock_and_conditions(h, world)
 	_start_kit(h, pkg)
 	h.done()
+
+
+## An optional field written as `null` rather than left out.
+##
+## The producer omits `cluster` and `set_piece` where a thing has none, so both
+## documents in the suite omit them — but the layout is JSON, and `String(null)`
+## is an invalid call that aborts the whole build. The world came back with no
+## entities in it and nothing said why. One row of each kind, with every
+## optional field explicitly null, has to build like any other.
+func _a_null_is_an_absence(h: TestHarness, pkg: HostRunDir) -> void:
+	var props: Dictionary = pkg.manifest.get("props", {})
+	var actors: Dictionary = pkg.manifest.get("actors", {})
+	var prop_id := ""
+	for id: String in props.keys():
+		prop_id = id
+		break
+	var mob_id := ""
+	for id: String in actors.keys():
+		if String((actors[id] as Dictionary).get("role", "")) != "player":
+			mob_id = id
+			break
+	if not h.assert_true(prop_id != "" and mob_id != "", "the run has a prop and a mob to place"):
+		return
+	var layout := {
+		"seed": 7,
+		"size_meters": pkg.layout.get("size_meters", 32.0),
+		"player_spawn": {"x": 0.0, "z": 0.0},
+		"entities": [
+			{"id": "n0", "kind": "prop", "prop": prop_id, "state": null,
+			 "x": 0.0, "z": 0.0, "seed": null, "cluster": null, "set_piece": null,
+			 "footprint_radius_meters": null},
+			{"id": "n1", "kind": "mob", "actor": mob_id, "x": 1.0, "z": 1.0,
+			 "seed": null, "cluster": null, "set_piece": null},
+		],
+		"forage": [],
+	}
+	var built: Array = SurvivalWorld._build_entities(pkg.manifest, layout)
+	h.assert_eq(built.size(), 2, "a row with null optionals built nothing")
+	if built.size() == 2:
+		h.assert_eq(String((built[0] as Dictionary)["state"]),
+			String((props[prop_id] as Dictionary).get("baseline_state", "")),
+			"a null state did not fall back to the baseline look")
+		h.assert_eq(String((built[0] as Dictionary)["set_piece"]), "", "a null set piece is not empty")
+		h.assert_eq(String((built[1] as Dictionary)["actor_id"]), mob_id, "the mob row was lost")
+
 
 func _entity_counts(h: TestHarness, pkg: HostRunDir, world: SurvivalWorld) -> void:
 	var counts: Dictionary = pkg.layout.get("counts", {})

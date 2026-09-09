@@ -21,7 +21,7 @@ func _edges(h: TestHarness, w: SurvivalWorld) -> void:
 	# and a dropped item measure from their centre.
 	TestFixtures.bare(w)
 	var pine := TestFixtures.prop(w, "p1", "pine", "grown", 0.0, 3.0)
-	var moss := TestFixtures.forage(w, "f1", 11, 0.0, 2.8)
+	var moss := TestFixtures.forage(w, "f1", TestFixtures.forage_cell(w, "moss"), 0.0, 2.8)
 	w.entities.append(pine)
 	w.entities.append(moss)
 	h.assert_near(float(pine["radius"]), 0.374, 1e-6, "the pine footprint is the authored one")
@@ -40,7 +40,7 @@ func _nearest_wins(h: TestHarness, w: SurvivalWorld) -> void:
 	# nearer, and the edge is what the scan compares.
 	TestFixtures.bare(w)
 	var pine := TestFixtures.prop(w, "p1", "pine", "grown", 0.0, 3.0)
-	var moss := TestFixtures.forage(w, "f1", 11, 0.0, 2.8)
+	var moss := TestFixtures.forage(w, "f1", TestFixtures.forage_cell(w, "moss"), 0.0, 2.8)
 	w.entities.append(moss)
 	w.entities.append(pine)
 	var best: Variant = SurvivalTargeting.interactable_at(w)

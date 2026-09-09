@@ -91,6 +91,13 @@ func _run_all() -> void:
 		print("  %s (%d ms)" % ["ok" if passed else "FAILED", Time.get_ticks_msec() - at])
 	var seconds := float(Time.get_ticks_msec() - started) / 1000.0
 	print("")
+	# What the run this suite was pointed at could not be asked. Named rather
+	# than counted: a tier that silently empties reads as a green gate.
+	if not TestHarness.SKIPPED.is_empty():
+		print("%d pinned to a real run, not read here:" % TestHarness.SKIPPED.size())
+		for entry in TestHarness.SKIPPED:
+			print("  %s" % entry)
+		print("")
 	if harness.failures.is_empty():
 		print("%d checks in %d files passed (%.1f s)" % [harness.checks, files.size(), seconds])
 		quit(0)

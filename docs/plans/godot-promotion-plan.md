@@ -1,7 +1,7 @@
 # The Godot promotion: the path
 
-Status: in flight. Steps 0 to 3, the kernel and the runner have landed, and step 10's three
-simulations are ported and proved; the table marks them. Companion to [the host contract](../spec/game/host-contract.md)
+Status: in flight. Steps 0 to 3, the kernel, the runner, the gate and step 10's
+three hosts have landed; the table marks them. Companion to [the host contract](../spec/game/host-contract.md)
 (the end state) and
 [decision 0061](../decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md)
 (the ruling). This document is the path, and it dies when the path is walked.
@@ -37,7 +37,7 @@ channel, a catalogue, a URL — is out of scope and stays in
 | 3 ✔ | D | The mono-project: one `godot/project.godot`, the layers as directories, the survival host relocated by text edits, names prefixed, paths edited | goldens byte-identical, capture sheet mean 0.0 / p99 0.0 |
 | 4 | E | The export factory proved on survival: the exporter, the release record, the run root rule, the bridge, the web shell | an export opens standalone and answers all six verbs; two exports agree on the closure digest |
 | 5 ✔ | F | The kernel in GDScript, and survival sealed: declarations, a derived order equal to the pasted one, the event queue, refusals as values, the interface writing through the latch | the goldens unchanged line for line |
-| 6 ◐ | G | The suite enters the locked gate: a supervisor per test file, fixtures with synthesised media, the CI job | **In flight**: the supervisor is written and its two failures are proved — an injected error names its file and its assertion, an injected hang is killed at its timeout and named, and in both the other 41 files still run. A missing engine is a failure that says so. What is left is the synthesised run, without which `check.py` cannot take the step at all: `out/` is gitignored, so a fresh clone has no run to point it at |
+| 6 ✔ | G | The suite enters the locked gate: a supervisor per test file, an authored fixture run with synthesised media, the CI job | the suite runs in `check.py` against a run the gate writes itself — 3,081 checks in 42 files on the fixture, 14,274 on `out/ember-hollow-v13`, with 30 producer-decided counts in 16 named blocks behind `TestHarness.pinned()` and named rather than counted when they are not read; a missing engine is exit 1, not a skip; eight planted defects across all four layers all caught by the fixture alone — two of them only after the check they needed was written — and the one break only a real run can see measured and recorded; the fixture's first draft found a null-optional abort that emptied the world in silence; [0068](../decisions/0068-the-suite-reads-a-world-the-repository-can-write.md) |
 | 7 ◐ | H | The browser instruments: the platformer's slice list, every fixture and reference committed, stills taken | the references reproduce; the fixtures carry current identities |
 | 8 ✔ | I | **The runner**, and the browser runner is deleted | 600/600 frames and 30/30 digests, sealed order equal to the documented one; the view was unproved and shipped broken, and [0066](../decisions/0066-a-state-proof-is-not-a-picture-proof.md) is the picture gate that closes it |
 | 9 ◐ | J | **The platformer**, and the browser platformer is deleted | the same, per map, plus the map-scope reset — and see the reordering note: this is a disentangling, not a translation. **In flight**: both scripted runs are 600 of 600 frames exact from the first and the host draws the whole game; what is left is the retirement — the record and the browser deletion — plus the per-digit stagger and the developer affordances |
@@ -56,12 +56,17 @@ isolation is free. What it buys is that the two failures a single process cannot
 report — a hard death and a hang — are now a named file each. The proofs are in
 the commit that holds them.
 
-**What step 6 turns out to cost.** Nearly every one of the twenty-nine Godot test
-files reads the real run — through `TestFixtures.world()` if not directly — so a
-suite that runs in CI needs a media-free fixture document, a small world, and
-synthesised media at the sizes that document declares, with the real-run count
-pins moving to tier 2 behind `--run`. That is a restructuring of the suite rather
-than a wrapper around it, and it is why the step is its own commit.
+**What step 6 cost, in the end.** Twenty-nine of the forty-two Godot test files
+read a run — through `TestFixtures.world()` if not directly — so the suite could
+not enter CI until the repository could *write* a run. It can now:
+`tools/make_fixture_run.py` authors a thirty-two-metre survival package, media
+and all, from the standard library alone. Assertions that named one run's number
+now read the document instead, or find their own patch of scree on whatever
+plate they were handed, which made them better checks; the thirty that could not
+be rewritten sit behind `TestHarness.pinned()` in sixteen named blocks and are
+read only when the suite is pointed at a real run. That was a
+restructuring of the suite rather than a wrapper around it, which is why the
+step is its own commit.
 
 **What step 8 owed, did not pay, and has now paid.** The rules above ask a
 retirement for a picture sheet as well as a parity count. The runner's parity is

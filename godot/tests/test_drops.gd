@@ -47,20 +47,37 @@ func _settles_on_land(h: TestHarness, w: SurvivalWorld) -> void:
 
 func _friction_decides_the_skid(h: TestHarness, w: SurvivalWorld) -> void:
 	# Same throw, two surfaces. The slide brakes at the biome's friction times
-	# g, sampled under the drop, so a stone runs on scree (0.45) and stops
-	# short in the bog (1.1). Both patches are flat runs of one biome, on land,
-	# taken from the run's own biome plate.
-	h.assert_near(float(w.friction_at(24.0, -200.0)), 0.45, 1e-6, "the scree patch is scree")
-	h.assert_near(float(w.friction_at(-88.0, -200.0)), 1.1, 1e-6, "the bog patch is bog")
-	var scree := _skid(w, 24.0, -200.0)
-	var bog := _skid(w, -88.0, -200.0)
+	# g, sampled under the drop, so a stone runs on the scree and stops short in
+	# the bog. Both patches are found on the run's own plate rather than typed
+	# in: where a biome lies is a producer's business, and the suite reads two
+	# different worlds.
+	var scree_friction := _friction_of(w, "grey_scree")
+	var bog_friction := _friction_of(w, "mossy_bog")
+	var scree_at := TestFixtures.biome_patch(w, "grey_scree")
+	var bog_at := TestFixtures.biome_patch(w, "mossy_bog")
+	if not h.assert_true(is_finite(scree_at.x) and is_finite(bog_at.x),
+			"the plate carries a flat patch of scree and one of bog"):
+		return
+	h.assert_near(float(w.friction_at(scree_at.x, scree_at.y)), scree_friction, 1e-6,
+		"the scree patch is scree")
+	h.assert_near(float(w.friction_at(bog_at.x, bog_at.y)), bog_friction, 1e-6,
+		"the bog patch is bog")
+	h.assert_true(scree_friction < bog_friction, "the scree is the looser of the two")
+	var scree := _skid(w, scree_at.x, scree_at.y)
+	var bog := _skid(w, bog_at.x, bog_at.y)
 	h.assert_true(scree > bog,
 		"a low-friction surface carries the drop farther (%.3f m on scree vs %.3f m in the bog)" % [scree, bog])
 	# v^2 / (2 * friction * g), within a step of the discrete slide.
-	h.assert_near(scree, 9.0 / (2.0 * 0.45 * SurvivalDropsSystem.SLIDE_GRAVITY), 0.06,
+	h.assert_near(scree, 9.0 / (2.0 * scree_friction * SurvivalDropsSystem.SLIDE_GRAVITY), 0.06,
 		"the scree skid matches the closed-form slide")
-	h.assert_near(bog, 9.0 / (2.0 * 1.1 * SurvivalDropsSystem.SLIDE_GRAVITY), 0.06,
+	h.assert_near(bog, 9.0 / (2.0 * bog_friction * SurvivalDropsSystem.SLIDE_GRAVITY), 0.06,
 		"the bog skid matches it too")
+
+
+## One biome's authored friction.
+func _friction_of(w: SurvivalWorld, biome_id: String) -> float:
+	var biomes: Dictionary = (w.manifest["ground"] as Dictionary).get("biomes", {})
+	return float((biomes.get(biome_id, {}) as Dictionary).get("friction", 0.0))
 
 
 ## A stone laid on the ground at (x, z) with 3 m/s along +x, slid until it

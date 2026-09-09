@@ -26,6 +26,8 @@ const STAGE_ENTITIES := 160
 ## Budgets, from D1 T29.
 const PARSE_BUDGET_MS := 60.0
 const DECODE_BUDGET_MS := 500.0
+## How many PNGs the promoted run names. A count a producer decided, so it is
+## read only when the suite is pointed at that run.
 const EXPECTED_PNGS := 119
 
 
@@ -219,7 +221,9 @@ func _t29_boot_budget(h: TestHarness, pkg: HostRunDir) -> void:
 		"parsing the manifest and layout took %.1f ms, over the %.0f ms budget" % [best, PARSE_BUDGET_MS])
 
 	var refs := _png_refs(pkg.manifest)
-	h.assert_eq(refs.size(), EXPECTED_PNGS, "the manifest names %d PNGs" % refs.size())
+	h.assert_true(refs.size() > 0, "the manifest names no images at all")
+	if h.pinned("how many PNGs out/ember-hollow-v13 names"):
+		h.assert_eq(refs.size(), EXPECTED_PNGS, "the manifest names %d PNGs" % refs.size())
 	_paths = PackedStringArray()
 	for ref: String in refs:
 		var absolute := pkg.path(ref)

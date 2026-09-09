@@ -136,10 +136,17 @@ requires review by someone other than its producer, and an audio quality claim
 still needs a separately recorded listening verdict — see
 [verification rules](../VERIFICATION.md).
 
-GDScript is outside the locked offline gate `uv run python scripts/check.py`,
-which runs the Python, web and documentation checks. The host is verified by the
-two commands above, run deliberately, and the gate's own survival step is the
-recipe's offline rehearsal rather than the host.
+The headless suite is **inside** the locked offline gate `uv run python
+scripts/check.py`, which runs it one process per file against a run the gate
+writes itself. `out/` is not in the repository, so a fresh clone has nothing to
+point the suite at; `tools/make_fixture_run.py` authors a small survival package
+— a media-free document at the contract's floor, with synthesised plates at the
+sizes it declares — into the gate's scratch directory, and the suite reads that.
+A count a producer decided (how many things a world placed, how wide its plates
+came out) is guarded by `TestHarness.pinned()` and read only when the suite is
+pointed at a real run by hand; the guard prints what it did not read rather than
+dropping it silently. The picture gates are not in the gate and cannot be: they
+need a window.
 
 ## What this host owns
 

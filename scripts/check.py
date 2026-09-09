@@ -92,6 +92,17 @@ def steps(python: str = sys.executable, *, scratch: Path) -> tuple[Step, ...]:
         # its suite runs in under a second and was in no gate at all.
         Step(("bun", "run", "check"), cwd=WEB_ROOT),
         Step(("bun", "test"), cwd=WEB_ROOT),
+        # The Godot suite. `out/` is gitignored, so a fresh clone has no run to
+        # point it at and the suite could not be gated at all: the fixture is
+        # authored into scratch first and the suite reads that. Every count a
+        # producer decided is behind `TestHarness.pinned()` and is read only
+        # when the suite is pointed at a real run by hand.
+        #
+        # A missing engine is a failure here, not a skip. That is the whole
+        # point of the step: a gate that quietly does nothing when the tool is
+        # absent is the gate that let a port ship undrawn.
+        Step((python, "godot/tools/make_fixture_run.py", str(scratch / "godot-run"))),
+        Step((python, "godot/tools/run_suite.py", "--run", str(scratch / "godot-run"))),
         Step((python, "scripts/check_docs.py")),
         Step((python, "-m", "build", "--no-isolation")),
         Step((python, "scripts/validate_game_package.py", "--root", ".")),

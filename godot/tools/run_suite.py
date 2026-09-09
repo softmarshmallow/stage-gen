@@ -16,6 +16,13 @@ own timeout and named. That is what decision 0061's plan means by the suite
 entering the locked gate: a gate that cannot tell a hang from a slow test is not
 one.
 
+`--run` names the world the suite reads. Without one it reads the promoted run
+under `out/`, which a fresh clone does not have; `tools/make_fixture_run.py`
+writes the small authored package the locked gate points it at instead. An
+assertion pinned to a producer's own counts is read only on the promoted run,
+and every guarded block the run could not answer is listed at the end — a tier
+that is invisible under the supervisor is a tier that empties unnoticed.
+
 `GODOT` overrides the engine binary; the default is the macOS app bundle. A
 missing engine is a failure and says so — never a silent skip, because a gate
 that quietly does nothing is worse than one that is red.
@@ -47,6 +54,10 @@ DEFAULT_TIMEOUT = 180.0
 
 SUMMARY = re.compile(r"^(\d+) checks in (\d+) files passed", re.MULTILINE)
 FAILURES = re.compile(r"^(\d+) of (\d+) checks failed", re.MULTILINE)
+#: The runner's own header for the assertions it did not read, and the lines
+#: under it. A process per file means each child prints its own list, and only
+#: the supervisor's output is read, so it gathers them.
+PINNED = re.compile(r"^\d+ pinned to a real run, not read here:\n((?:  .*\n)*)", re.MULTILINE)
 
 
 def engine() -> str:
@@ -57,8 +68,10 @@ def test_files() -> list[str]:
     return sorted(path.name for path in TESTS.glob("test_*.gd"))
 
 
-def run_one(name: str, run_dir: str | None, timeout: float) -> tuple[str, bool, str, float]:
-    """One file in its own process. Returns (name, passed, note, seconds)."""
+def run_one(
+    name: str, run_dir: str | None, timeout: float
+) -> tuple[str, bool, str, float, list[str]]:
+    """One file in its own process. Returns (name, passed, note, seconds, pinned)."""
     command = [
         engine(),
         "--headless",
@@ -84,11 +97,14 @@ def run_one(name: str, run_dir: str | None, timeout: float) -> tuple[str, bool, 
             check=False,
         )
     except subprocess.TimeoutExpired:
-        return (name, False, f"hung: killed after {timeout:.0f}s", time.monotonic() - started)
+        return (name, False, f"hung: killed after {timeout:.0f}s", time.monotonic() - started, [])
     except FileNotFoundError:
-        return (name, False, f"no engine at {engine()}", time.monotonic() - started)
+        return (name, False, f"no engine at {engine()}", time.monotonic() - started, [])
     seconds = time.monotonic() - started
     output = done.stdout + done.stderr
+    pinned = [
+        line.strip() for block in PINNED.findall(output) for line in block.splitlines() if line
+    ]
     if done.returncode != 0:
         failed = FAILURES.search(output)
         if failed:
@@ -98,12 +114,12 @@ def run_one(name: str, run_dir: str | None, timeout: float) -> tuple[str, bool, 
                 if line.startswith("  ") and ": " in line
             ]
             first = lines[0] if lines else "see the output"
-            return (name, False, f"{failed.group(1)} checks failed — {first}", seconds)
+            return (name, False, f"{failed.group(1)} checks failed — {first}", seconds, pinned)
         # No summary line at all: the process did not reach the end of the suite.
         # That is the crash case, and naming the file is the whole point.
-        return (name, False, f"died with exit {done.returncode}", seconds)
+        return (name, False, f"died with exit {done.returncode}", seconds, pinned)
     passed = SUMMARY.search(output)
-    return (name, True, f"{passed.group(1)} checks" if passed else "ok", seconds)
+    return (name, True, f"{passed.group(1)} checks" if passed else "ok", seconds, pinned)
 
 
 def main(argv: list[str]) -> int:
@@ -134,14 +150,20 @@ def main(argv: list[str]) -> int:
 
     checks = 0
     failures = []
-    for name, passed, note, seconds in results:
+    pinned: list[str] = []
+    for name, passed, note, seconds, skipped in results:
         mark = "ok    " if passed else "FAILED"
         print(f"   {mark} {name:34s} {note}  ({seconds:.1f}s)")
         if passed and note.endswith("checks"):
             checks += int(note.split()[0])
         if not passed:
             failures.append(name)
+        pinned.extend(skipped)
     seconds = time.monotonic() - started
+    if pinned:
+        print(f"   {len(pinned)} pinned to a real run, not read here:")
+        for entry in pinned:
+            print(f"     {entry}")
     if failures:
         print(
             f"run_suite: {len(failures)} of {len(results)} files failed "

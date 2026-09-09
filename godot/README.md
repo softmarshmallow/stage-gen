@@ -83,6 +83,23 @@ crash cost one file's results and a hang a named, killed file. `--only` on
 `run_tests.gd` is what makes that possible, and without it the runner behaves
 exactly as it always has.
 
+Both forms want a run, and `out/` is not in the repository — so the repository
+writes one:
+
+```sh
+python3 tools/make_fixture_run.py <directory>
+```
+
+A hand-authored survival package thirty-two metres across, with its plates
+synthesised at the sizes its own manifest declares, from the standard library
+alone. That is what the locked offline gate `uv run python scripts/check.py`
+points the suite at, and it is the only run a fresh clone has. A count a
+*producer* decided — how many things a world placed, how wide its plates came
+out — is guarded by `TestHarness.pinned()` and read only when the suite is
+pointed at a real run; every guarded block that goes unread is named at the end
+of the output rather than passed over. See
+[decision 0068](../docs/decisions/0068-the-suite-reads-a-world-the-repository-can-write.md).
+
 Headless can never produce a picture: under the dummy renderer the frame's
 post-draw signal never fires and a viewport texture reads back as nothing, so
 every picture claim comes from the windowed capture harness instead.

@@ -14,6 +14,10 @@ func run(h: TestHarness) -> void:
 		return
 	var shell: Dictionary = pkg.manifest.get("shell", {})
 	if shell.is_empty():
+		# A run with no shell is not a failure — but it is not silence either,
+		# and `run` still has to reach its end or the runner calls it a crash.
+		h.assert_true(true, "this run publishes no shell, so there is no clip to open")
+		h.done()
 		return
 	var opening: Dictionary = shell.get("opening", {})
 	var clips: Array = []
@@ -23,6 +27,8 @@ func run(h: TestHarness) -> void:
 		if String(plate.get("mode", "still")) == "clip":
 			clips.append(plate)
 	if clips.is_empty():
+		h.assert_true(true, "this run's opening is stills, so there is no clip to open")
+		h.done()
 		return
 
 	_declared(h, opening, clips)

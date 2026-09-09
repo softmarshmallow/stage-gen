@@ -23,7 +23,9 @@ func run(h: TestHarness) -> void:
 	var embedded: Dictionary = pkg.manifest.get("layout", {})
 	h.assert_true(not pkg.layout.is_empty(), "layout is empty")
 	h.assert_eq(int(pkg.layout.get("seed", 0)), 7, "layout seed")
-	h.assert_near(float(pkg.layout.get("size_meters", 0.0)), 512.0, 1e-9, "layout size_meters")
+	h.assert_near(float(pkg.layout.get("size_meters", 0.0)),
+		float((pkg.manifest["ground"] as Dictionary).get("size_meters", 0.0)), 1e-9,
+		"the layout and the manifest disagree about how big the world is")
 	h.assert_eq(pkg.layout.keys(), embedded.keys(), "layout.json and manifest.layout differ in shape")
 	h.assert_eq(
 		pkg.layout.get("entities", []).size(),
@@ -40,8 +42,10 @@ func run(h: TestHarness) -> void:
 	h.assert_eq(tallied.size(), counts.size(), "counted a different set of ids")
 	for id: String in counts.keys():
 		h.assert_eq(tallied.get(id, 0), counts[id], "layout count for %s" % id)
-	h.assert_eq(pkg.layout.get("entities", []).size(), 2271, "entity rows")
-	h.assert_eq(pkg.layout.get("forage", []).size(), 1533, "forage rows")
+	if h.pinned("out/ember-hollow-v13's own rows"):
+		h.assert_near(float(pkg.layout.get("size_meters", 0.0)), 512.0, 1e-9, "layout size_meters")
+		h.assert_eq(pkg.layout.get("entities", []).size(), 2271, "entity rows")
+		h.assert_eq(pkg.layout.get("forage", []).size(), 1533, "forage rows")
 
 	# Package-relative references resolve; anything that would leave the run
 	# directory does not.
@@ -57,7 +61,9 @@ func run(h: TestHarness) -> void:
 	# The plates decode, and the same reference is handed back from the cache.
 	var splat := pkg.image("package/world/splat.png")
 	if h.assert_true(splat != null, "splat.png did not decode"):
-		h.assert_eq(splat.get_width(), 1024, "splat width")
+		h.assert_eq(splat.get_width(),
+			int(((pkg.manifest["ground"] as Dictionary)["splat"] as Dictionary).get("resolution", 0)),
+			"splat width")
 		h.assert_true(pkg.image("package/world/splat.png") == splat, "image() did not cache")
 
 	# The spike's kind is no longer accepted: one host, one manifest identity.

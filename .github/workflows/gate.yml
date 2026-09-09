@@ -41,6 +41,22 @@ jobs:
       - run: uv sync --frozen
       - run: bun install --frozen-lockfile
         working-directory: web
+      # The engine the Godot suite runs on. The gate treats a missing engine as
+      # a failure rather than a skip, so this step is not optional: without it
+      # the job goes red, which is the behaviour we want and not a surprise.
+      - name: Install Godot
+        env:
+          GODOT_VERSION: 4.7.2
+        run: |
+          set -euo pipefail
+          archive="Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          curl -fsSL -o "$archive" \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${archive}"
+          unzip -q "$archive"
+          mkdir -p "$HOME/.local/bin"
+          mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" "$HOME/.local/bin/godot"
+          chmod +x "$HOME/.local/bin/godot"
+          echo "GODOT=$HOME/.local/bin/godot" >> "$GITHUB_ENV"
       # The whole credential-free gate. It strips provider keys by construction,
       # so a runner with secrets configured still cannot spend.
       - run: uv run python scripts/check.py

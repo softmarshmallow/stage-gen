@@ -16,6 +16,25 @@ extends RefCounted
 ## one level up from it.
 const DEFAULT_RUN_REF := "../out/ember-hollow-v13"
 
+## The package the counts pinned in these tests were measured against.
+##
+## A pin is a number a *producer* decided — how many things a world placed, how
+## wide its plates came out, how many recipes it authored — and it can only be
+## true of one run. The suite has to be green on two documents: this one, and
+## the small authored fixture `tools/make_fixture_run.py` writes, which is the
+## only run a fresh clone has (`out/` is gitignored) and so the only one CI can
+## read. So a pin is guarded by `pinned()` and read on the real run alone.
+##
+## What is *not* a pin, and stays in tier one, is everything the document
+## declares and the port must obey: a stack size, a frame rate, an onset, the
+## vocabulary of a `use` block. The fixture publishes those at the same values,
+## because they belong to the contract rather than to a run.
+##
+## The match is the promoted run and no other: an older `ember-hollow` carries
+## the same `package_id` and different counts, and reading v13's numbers against
+## it would be a red suite saying the wrong thing.
+const PINNED_PACKAGE := "ember-hollow"
+
 ## The run this suite is pointed at: the default above, or the directory after
 ## `-- --run` on the command line.
 static var RUN_DIR: String = ""
@@ -50,6 +69,32 @@ var finished: bool = false
 var current: String = ""
 
 static var _package: HostRunDir = null
+
+## What `pinned()` refused, in the order it was asked, so a skipped tier is a
+## line in the output rather than a silence. Static: the count belongs to the
+## suite, not to one file's harness.
+static var SKIPPED: PackedStringArray = PackedStringArray()
+
+## True when the suite is reading the run the pinned counts were measured
+## against, so a block of them may run.
+##
+##     if h.pinned("the run's own placement"):
+##         h.assert_eq(world.entities.size(), 3804, "...")
+##
+## False on any other package — the fixture included — and the label is
+## recorded and printed at the end. A gate that quietly drops half its
+## assertions is worse than one that is red.
+func pinned(what: String) -> bool:
+	var package_id := ""
+	var opened := package()
+	if opened != null:
+		package_id = String((opened.manifest as Dictionary).get("package_id", ""))
+	if package_id == PINNED_PACKAGE and RUN_DIR.get_file() == DEFAULT_RUN_REF.get_file():
+		return true
+	var line := "%s: %s" % [current, what]
+	if not SKIPPED.has(line):
+		SKIPPED.append(line)
+	return false
 
 ## The shared run package, opened once for the whole suite.
 func package() -> HostRunDir:
