@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -39,6 +40,43 @@ def _walk_files(path: Path, suffixes: frozenset[str]) -> list[Path]:
 
 
 CHECKED_BY_PATTERN = re.compile(r"^> \*\*Checked by:\*\* (.+)$", re.MULTILINE)
+
+
+def ignored_paths(repo: Path, candidates: set[str]) -> frozenset[str]:
+    """Which of these repository-relative paths git deliberately ignores.
+
+    One `check-ignore` for the whole set rather than one per path. Anything that
+    goes wrong — no git, no repository, a tarball rather than a checkout —
+    answers "none are ignored", which is the strict reading this rule had
+    before the exemption existed. A gate that cannot tell should refuse rather
+    than wave things through.
+    """
+    if not candidates:
+        return frozenset()
+    # Each candidate is asked about twice, as a file and as a directory. A
+    # pattern that ends in "/" ignores directories only, and `check-ignore`
+    # answers for a bare name by looking at what is actually on disk — so
+    # `concept-studio/workspaces` matched on the machine that had the directory
+    # and not in a fresh clone, which is the very machine-dependence this
+    # exemption was added to remove.
+    probes = sorted({candidate for candidate in candidates} | {f"{c}/" for c in candidates})
+    try:
+        completed = subprocess.run(
+            ["git", "check-ignore", "--stdin"],
+            cwd=repo,
+            input="\n".join(probes),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return frozenset()
+    # 0 = some ignored, 1 = none ignored, anything else = git could not answer.
+    if completed.returncode not in (0, 1):
+        return frozenset()
+    return frozenset(
+        line.strip().rstrip("/") for line in completed.stdout.splitlines() if line.strip()
+    )
 
 
 def check_spec_checkers(repo: Path) -> list[str]:
@@ -171,9 +209,20 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
     # reader trusts a path in backticks more than a sentence, so a wrong one
     # is worse than none. History is exempt — docs/research, docs/media, and
     # the decision and plan records, which describe what was.
+    #
+    # A path the repository deliberately ignores is exempt too, and it is not
+    # the same exemption. `concept-studio/gallery/README.md` says exploratory
+    # candidates belong under the *ignored* `concept-studio/workspaces/` tree,
+    # and a published review record cites the local files it judged by digest;
+    # both are correct, and neither can exist in a fresh clone. Requiring them
+    # made this gate pass only on the machine that happened to hold somebody's
+    # workspace — which is the failure this rule exists to prevent, pointed the
+    # other way. A deleted module is never gitignored, so nothing the rule was
+    # written for escapes through here.
     source_path_pattern = re.compile(
         r"`((?:src|web|scripts|tests|library|concept-studio|godot)/[A-Za-z0-9_./-]+?)(?:::[^`]*)?`"
     )
+    named: list[tuple[str, str, str]] = []
     for markdown_file in markdown:
         relative = markdown_file.relative_to(repo).as_posix()
         if relative.startswith(history_roots):
@@ -183,8 +232,13 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
             candidate = match.rstrip("/")
             if "*" in candidate or "<" in candidate or "{" in candidate:
                 continue
-            if not (repo / candidate).exists():
-                failures.append(f"{relative}: names missing path `{match}`")
+            named.append((relative, match, candidate))
+    ignored = ignored_paths(repo, {candidate for _, _, candidate in named})
+    for relative, match, candidate in named:
+        if candidate in ignored:
+            continue
+        if not (repo / candidate).exists():
+            failures.append(f"{relative}: names missing path `{match}`")
 
     failures.extend(check_spec_checkers(repo))
 
