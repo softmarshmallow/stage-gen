@@ -144,9 +144,12 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
         terrain_atlas_topology_reference_path().read_bytes()
     ).hexdigest()
     assert template_digest in graph.node("map-sunpetal-crossing-ground-generate").input_sha256
+    # The Godot topology reference is documentation now, not an input. The packed paint
+    # target the node actually sends carries the same topology, and digesting a file the
+    # node does not read would re-bill both ground draws when only a document changed.
     assert (
         topology_reference_digest
-        in graph.node("map-sunpetal-crossing-ground-generate").input_sha256
+        not in graph.node("map-sunpetal-crossing-ground-generate").input_sha256
     )
     assert template_digest in graph.node("map-sunpetal-crossing-ground-validate").input_sha256
 

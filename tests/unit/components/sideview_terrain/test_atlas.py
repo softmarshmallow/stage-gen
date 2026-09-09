@@ -12,14 +12,22 @@ from PIL import Image, ImageDraw
 
 from stage_gen.components.sideview_terrain.atlas import (
     CANONICAL_CELL_PX,
-    MAXIMUM_CONNECTOR_ALPHA_MISMATCH,
+    GRID_COLUMNS,
+    GUIDE_INSET_PX,
+    GUIDE_RGB,
+    PAINT_CANVAS_HEIGHT,
+    PAINT_CANVAS_WIDTH,
+    PLACEHOLDER_CELL,
+    SOURCE_CELL_PX,
     assemble_terrain_atlas,
     cells_from_canonical_atlas,
     compose_canonical_terrain,
     load_terrain_atlas_lookup,
     peering_mask,
     require_terrain_atlas_source,
+    terrain_atlas_cells,
     terrain_atlas_generation_prompt,
+    terrain_atlas_paint_target,
 )
 from stage_gen.recipes.sideview_platformer.climbable_atlas import (
     ClimbableRole,
@@ -43,24 +51,58 @@ def _png(image: Image.Image) -> bytes:
     return stream.getvalue()
 
 
-def _paintover_source(
+def _paint_source(
     *,
     base: tuple[int, int, int] = (132, 86, 50),
-    coordinate_variation: bool = True,
+    patchwork: int = 0,
 ) -> bytes:
-    with Image.open(BytesIO(_template())) as opened:
+    """A synthetic draw at the provider canvas: the paint target restated in one material.
+
+    Structure is carried by the target's own luminance, so a cap stays lighter than the
+    fill it sits on and the sheet exercises the real slicing path. ``patchwork`` offsets
+    alternating cells, which is exactly the defect the join-tone gate exists to catch.
+    """
+
+    with Image.open(BytesIO(terrain_atlas_paint_target())) as opened:
         image = opened.convert("RGB")
     pixels = image.load()
     assert pixels is not None
     for y in range(image.height):
         for x in range(image.width):
             red, green, blue = cast(tuple[int, int, int], pixels[x, y])
-            is_magenta = red > 180 and blue > 180 and green < 80
-            is_cyan = red < 80 and green > 170 and blue > 170
-            if is_magenta or is_cyan:
-                continue
-            variation = ((x // 19 + y // 23) % 9) - 4 if coordinate_variation else 0
-            pixels[x, y] = tuple(max(0, min(255, channel + variation)) for channel in base)
+            shade = 0.55 + 0.75 * (red * 0.299 + green * 0.587 + blue * 0.114) / 255.0
+            variation = ((x // 19 + y // 23) % 9) - 4
+            step = 0
+            if patchwork:
+                cell = (x // SOURCE_CELL_PX + y // SOURCE_CELL_PX) % 2
+                step = patchwork if cell else -patchwork
+            pixels[x, y] = cast(
+                tuple[int, int, int],
+                tuple(
+                    max(0, min(255, round(channel * shade) + variation + step)) for channel in base
+                ),
+            )
+    return _png(image)
+
+
+def _flat_source(base: tuple[int, int, int] = (100, 80, 60)) -> bytes:
+    return _png(Image.new("RGB", (PAINT_CANVAS_WIDTH, PAINT_CANVAS_HEIGHT), base))
+
+
+def _busy_source() -> bytes:
+    """One pebble in the middle of every cell: the lattice a repeated tile makes."""
+
+    with Image.open(BytesIO(_paint_source())) as opened:
+        image = opened.convert("RGB")
+    draw = ImageDraw.Draw(image)
+    for row in range(4):
+        for column in range(12):
+            left = column * SOURCE_CELL_PX + SOURCE_CELL_PX // 8
+            top = row * SOURCE_CELL_PX + SOURCE_CELL_PX // 8
+            draw.ellipse(
+                (left, top, left + (SOURCE_CELL_PX * 3) // 4, top + (SOURCE_CELL_PX * 3) // 4),
+                fill=(226, 218, 198),
+            )
     return _png(image)
 
 
@@ -157,7 +199,7 @@ def test_missing_or_duplicate_lookup_entries_fail_closed(mutation: str) -> None:
     ),
 )
 def test_composes_solid_floating_steps_concavities_and_holes(rows: tuple[str, ...]) -> None:
-    canonical, report = assemble_terrain_atlas(_paintover_source())
+    canonical, report = assemble_terrain_atlas(_paint_source())
     assert report["classification"] == "direct_pass"
     composed, composition = compose_canonical_terrain(canonical, rows)
     with Image.open(BytesIO(composed)) as image:
@@ -167,33 +209,84 @@ def test_composes_solid_floating_steps_concavities_and_holes(rows: tuple[str, ..
         line.count("1") for line in rows
     )
     metrics = cast(dict[str, float], composition["connector_metrics"])
-    assert metrics["connector_alpha_mismatch_fraction"] <= MAXIMUM_CONNECTOR_ALPHA_MISMATCH
+    # Every published tile is opaque, so a join can no longer disagree about coverage.
+    assert metrics["connector_alpha_mismatch_fraction"] == 0.0
 
 
-def test_paintover_is_locally_canonicalized_into_locked_direct_pass_atlas() -> None:
-    source = _paintover_source()
+def test_draw_is_locally_canonicalized_into_locked_direct_pass_atlas() -> None:
+    source = _paint_source()
     source_report = require_terrain_atlas_source(source)
     canonical, report = assemble_terrain_atlas(source)
 
-    assert source_report["contract"] == "terrain-atlas-paintover-source-v4"
-    assert report["canonicalizer"] == "terrain-atlas-paintover-canonicalization-v5"
+    assert source_report["contract"] == "terrain-atlas-paintover-source-v9"
+    assert source_report["registration"] == "fixed-pitch-exact-canvas-v1"
+    assert report["canonicalizer"] == "terrain-atlas-paintover-canonicalization-v10"
     assert report["classification"] == "direct_pass"
-    assert cast(float, report["template_alpha_mismatch_fraction"]) <= 0.10
-    assert report["maximum_direct_connector_alpha_mismatch"] == 0.0
-    assert cast(float, report["maximum_direct_connector_rgb_mean"]) <= 3.0
+    # The connector figure is a fact now, not a gate. It used to be measured after a
+    # three-pixel median blend had overwritten the very pixels it samples, so it read zero
+    # on every draw; the blend is gone because it stamped a pale lattice down every join.
+    assert cast(float, report["connector_rgb_mean"]) >= 0.0
+    assert cast(dict[str, object], report["construction"])["connector_harmonization"] == "none"
     assert report["template_sha256"] == sha256(_template()).hexdigest()
+    assert report["paint_target_sha256"] == sha256(terrain_atlas_paint_target()).hexdigest()
     assert report["lookup_sha256"] == sha256(terrain_atlas_lookup_path().read_bytes()).hexdigest()
     cells = cells_from_canonical_atlas(canonical)
     assert cells[(10, 1)].getchannel("A").getextrema() == (0, 0)
     lookup = load_terrain_atlas_lookup()
+    # The published sheet carries no holes at all. The magenta chroma key it replaces was
+    # eating the template's own pale-pink rock highlights, and every atlas published under
+    # it carried 31,701 transparent pixels through solid ground.
+    assert cast(dict[str, object], report["canonical"])["published_transparent_pixels"] == 0
     for coordinate in lookup.by_mask.values():
-        cell = cells[coordinate]
-        assert cell.getchannel("A").getextrema()[1] == 255
+        assert cells[coordinate].getchannel("A").getextrema() == (255, 255)
 
 
-def test_material_appearance_changes_canonical_rgb_without_changing_locked_alpha() -> None:
-    first, _ = assemble_terrain_atlas(_paintover_source())
-    second, _ = assemble_terrain_atlas(_paintover_source(base=(76, 62, 118)))
+def test_paint_target_packs_the_locked_template_behind_a_hairline_fence() -> None:
+    target = terrain_atlas_paint_target()
+    assert target == terrain_atlas_paint_target(_template())
+    with Image.open(BytesIO(target)) as opened:
+        packed = opened.convert("RGB")
+    assert packed.size == (PAINT_CANVAS_WIDTH, PAINT_CANVAS_HEIGHT)
+    pixels = cast("list[tuple[int, int, int]]", list(packed.get_flattened_data()))
+    # Magenta is gone for good: it was never a keep-out marker, only art the chroma key ate.
+    for red, green, blue in pixels:
+        assert not (red > 180 and blue > 180 and green < 80), "magenta survived packing"
+    # The fence is there, and only on the boundaries.
+    for column in range(GRID_COLUMNS + 1):
+        x = min(max(column * SOURCE_CELL_PX, 1), PAINT_CANVAS_WIDTH - 2)
+        assert packed.getpixel((x, PAINT_CANVAS_HEIGHT // 2)) == GUIDE_RGB
+    middle = packed.getpixel((SOURCE_CELL_PX // 2, SOURCE_CELL_PX // 2))
+    assert middle != GUIDE_RGB, "a cell interior is fenced"
+    # The reserved cell goes to the provider as ordinary buried ground. A grey checker is
+    # the universal picture of transparency, and handed one the model painted that cell in
+    # a different material from every other cell on the sheet.
+    filler = load_terrain_atlas_lookup().by_mask[(1,) * 9]
+
+    def target_cell(coordinate: tuple[int, int]) -> bytes:
+        column, row = coordinate
+        return packed.crop(
+            (
+                column * SOURCE_CELL_PX + GUIDE_INSET_PX,
+                row * SOURCE_CELL_PX + GUIDE_INSET_PX,
+                (column + 1) * SOURCE_CELL_PX - GUIDE_INSET_PX,
+                (row + 1) * SOURCE_CELL_PX - GUIDE_INSET_PX,
+            )
+        ).tobytes()
+
+    assert target_cell(PLACEHOLDER_CELL) == target_cell(filler), (
+        "the checker placeholder reached the paint target"
+    )
+    # And the published cell is cut inside it, so no fence pixel is ever published.
+    for cell in terrain_atlas_cells(target).values():
+        for red, green, blue, _alpha in cast(
+            "list[tuple[int, int, int, int]]", list(cell.get_flattened_data())
+        ):
+            assert not (red < 80 and green > 170 and blue > 170), "a fence pixel was published"
+
+
+def test_material_appearance_changes_canonical_rgb_without_opening_the_silhouette() -> None:
+    first, _ = assemble_terrain_atlas(_paint_source())
+    second, _ = assemble_terrain_atlas(_paint_source(base=(76, 62, 118)))
     with Image.open(BytesIO(first)) as opened:
         first_image = opened.convert("RGBA")
     with Image.open(BytesIO(second)) as opened:
@@ -203,42 +296,33 @@ def test_material_appearance_changes_canonical_rgb_without_changing_locked_alpha
     assert first_image.convert("RGB").tobytes() != second_image.convert("RGB").tobytes()
 
 
-def test_paintover_source_rejects_missing_lattice_topology_drift_and_uniformity() -> None:
-    missing_lattice = Image.new("RGB", (1600, 900), (100, 80, 60))
-    with pytest.raises(ValueError, match="guide lattice count mismatch"):
-        require_terrain_atlas_source(_png(missing_lattice))
+def test_source_refuses_a_wrong_canvas_flat_material_and_cell_to_cell_tone_drift() -> None:
+    wrong_canvas = Image.new("RGB", (1600, 900), (100, 80, 60))
+    with pytest.raises(ValueError, match="must be exactly 2880x960"):
+        require_terrain_atlas_source(_png(wrong_canvas))
 
-    # The real drift a model produces is not "everything turned magenta" - it is material
-    # painted straight through the keep-out bands, which is what GPT Image 2.5 does to
-    # every exposed side in the set. Flooding the magenta with material reproduces that.
-    with Image.open(BytesIO(_paintover_source())) as opened:
-        topology_drift = opened.convert("RGB")
-    drift_pixels = topology_drift.load()
-    assert drift_pixels is not None
-    for y in range(topology_drift.height):
-        for x in range(topology_drift.width):
-            red, green, blue = cast(tuple[int, int, int], drift_pixels[x, y])
-            if red > 180 and blue > 180 and green < 80:
-                drift_pixels[x, y] = (110 + (x % 9), 84 + (y % 7), 58)
-    # Topology drift is now recorded rather than refused. The canonicalizer imposes the
-    # template's silhouette, so a paintover that floods every keep-out band still
-    # publishes the locked shape - which is what makes a model that ignores the magenta
-    # bands usable at all. Checked on the published artifact, not trusted from the source.
-    drifted = _png(topology_drift)
-    drift_facts = require_terrain_atlas_source(drifted)
-    assert drift_facts["shape_alpha_is_advisory"] is True
-    assert cast(float, drift_facts["global_alpha_mismatch_fraction"]) > 0.0
-    drifted_cells = cells_from_canonical_atlas(assemble_terrain_atlas(drifted)[0])
-    clean_cells = cells_from_canonical_atlas(assemble_terrain_atlas(_paintover_source())[0])
-    for coordinate, clean_cell in clean_cells.items():
-        assert (
-            drifted_cells[coordinate].getchannel("A").tobytes()
-            == clean_cell.getchannel("A").tobytes()
-        )
-
-    uniform = _paintover_source(base=(100, 80, 60), coordinate_variation=False)
     with pytest.raises(ValueError, match="lacks usable painted material variation"):
-        require_terrain_atlas_source(uniform)
+        require_terrain_atlas_source(_flat_source())
+
+    # The defect that survives every structural check: forty-seven separate paintings of
+    # one material that do not agree on its value, which composes as visible patchwork.
+    # Measured on published atlases rather than invented -- the two whose material a
+    # reviewer accepted score 26.3, the one the reviewer complained about scores 84.6.
+    admitted = require_terrain_atlas_source(_paint_source())
+    assert cast(float, admitted["worst_join_tone_step"]) < 65.0
+    with pytest.raises(ValueError, match="do not share one tone"):
+        require_terrain_atlas_source(_paint_source(patchwork=60))
+
+    # How much of the repeated hillside tile reads as an object is recorded, never refused.
+    # Three thresholds were tried and none ordered the corpus: the atlas a reviewer liked
+    # scores 0.157 on its largest region, a hillside visibly chained with repeated boulders
+    # scores 0.179, and a sheet that reads well scores 0.345. Whether a repeat is legible is
+    # a judgement for the semantic review, not a statistic.
+    assert 0.0 <= cast(float, admitted["hillside_tile_object_share"]) <= 1.0
+    busy = require_terrain_atlas_source(_busy_source())
+    assert cast(float, busy["hillside_tile_object_share"]) > cast(
+        float, admitted["hillside_tile_object_share"]
+    )
 
 
 def test_portal_presentation_is_repacked_from_native_alpha() -> None:
@@ -306,16 +390,20 @@ def test_climbable_rejects_a_sheet_carrying_more_subjects_than_declared() -> Non
 
 
 def test_validation_report_is_portable_and_prompt_is_material_neutral() -> None:
-    _, report = assemble_terrain_atlas(_paintover_source())
+    _, report = assemble_terrain_atlas(_paint_source())
     serialized = json.dumps(report, sort_keys=True)
     assert "/private/" not in serialized
     assert "/tmp/" not in serialized
     assert "authorization" not in serialized.lower()
     assert "signature=" not in serialized.lower()
     prompt = terrain_atlas_generation_prompt("thin mineral cap, layered crystalline fill")
-    assert "reference image 1 as a strict production terrain-atlas paintover" in prompt
-    assert "image 2 redundantly defines the exact 3x3-minimal" in prompt
-    assert "cap and fill" in prompt
+    assert "Repaint reference image 1 completely" in prompt
+    assert "thin mineral cap, layered crystalline fill" in prompt
     assert "GRASS CAP" not in prompt
     assert "DIRT FILL" not in prompt
     assert "mirrored repetition" in prompt
+    # The sheet is not a landscape, and the draws that forgot it capped the wrong row.
+    assert "There is no skyline and no ground level on this sheet" in prompt
+    # The fence is load-bearing: without it the model paints the sheet as one canvas
+    # and a side that should terminate never gets a face.
+    assert "cyan lines are the fence" in prompt

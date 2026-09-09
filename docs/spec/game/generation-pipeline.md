@@ -311,23 +311,29 @@ closure whose only additional spend is those two structured operations. Neither 
 cast, catalog, soundtrack, gameplay-binding, or manifest node. Each layer, ground, climbable, and portal generation writes a retained `*.raw.png`;
 only its dependent validator may write the canonical runtime-facing PNG.
 
-Each ground image operation receives the attributed 12-by-4 topology template as its strict first
-edit target, the attributed Godot grid crop as redundant topology-only input, and its map-authorized
-visual references as appearance-only inputs. The request asks the
-model to paint contextual cap, fill, exposed sides, bevels, corners, and concavities inside all 47
-terrain cells while preserving the cyan lattice, magenta empty regions, and checker placeholder.
-Cap and fill are biome roles rather than hard-coded grass and dirt. The retry-owning image component
-validates the fitted guide lattice and painted variation; topology drift and direct connector alpha
-are measured and published as facts rather than refusals.
-Its dependent local node extracts deterministic magenta chroma alpha to
-**deterministically assemble 47-mask atlas** cells, takes each cell's silhouette from the
-template so a paintover that floods the magenta keep-out bands still publishes the locked
-shapes, harmonizes legal connector
-edges, clears the placeholder, validates direct connectors, and emits the canonical
-1440-by-480 atlas plus `ground.evidence.png` composed from that map's authored occupancy. The current
-local compositor is `terrain-atlas-paintover-canonicalization-v5`. Its identity and the template,
-topology-reference, and lookup digests participate in generation and local assembly cache keys;
-occupancy changes the local
+Each ground image operation receives one conditioning image and its map-authorized visual
+references as appearance-only inputs. The conditioning image is `terrain-atlas-paint-target-v1`:
+the attributed 12-by-4 template's own 48 cells packed at the exact 2880-by-960 canvas the request
+asks for, behind a three-pixel cyan hairline at every cell boundary and with the magenta surround
+removed. The fence is not registration, which the exact canvas settles; it marks where a tile ends,
+without which the model paints the sheet as one canvas and a side that should terminate never gets
+a face. The request asks
+the model to repaint that sheet in the authored material while keeping each tile's structure --
+which sides are finished faces, which are interior cuts, which corners are turned. Cap and fill are
+biome roles rather than hard-coded grass and dirt. The retry-owning image component validates the
+exact canvas, painted variation, and cell-to-cell tone agreement across every join the validation
+maps can make. How much of the one tile a filled mass repeats reads as a distinct object is recorded
+beside them, not refused.
+Its dependent local node slices the canvas on fixed cell boundaries twelve pixels inside the fence
+and replaces any fence colour that survives the cut from the material around it, to
+**deterministically assemble 47-mask atlas** cells, clears the placeholder, and emits the canonical
+1440-by-480 atlas plus `ground.evidence.png` composed from that map's authored occupancy. Published
+cells are fully opaque: a 3x3-minimal tile fills its cell, so nothing is keyed and nothing is
+cut out. The current
+local compositor is `terrain-atlas-paintover-canonicalization-v8`. Its identity and the template
+and lookup digests participate in generation and local assembly cache keys; the separate Godot
+topology reference no longer does, because the packed paint target carries the same topology and
+the node does not read that file. Occupancy changes the local
 evidence, composite, review, bindings, and manifest projection without invalidating the
 appearance-only paintover call.
 

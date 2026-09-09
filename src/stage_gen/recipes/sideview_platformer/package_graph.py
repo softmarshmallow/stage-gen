@@ -53,6 +53,7 @@ from stage_gen.components.sideview_layers.nodes import (
 from stage_gen.components.sideview_terrain.atlas import (
     MATERIAL_ASSEMBLER_ID,
     MATERIAL_SOURCE_CONTRACT_ID,
+    terrain_atlas_generation_prompt,
 )
 from stage_gen.config import StageGenConfig
 from stage_gen.orchestration.game_package import ResolvedGamePackage
@@ -113,7 +114,6 @@ from stage_gen.resources import (
     inventory_template_path,
     terrain_atlas_lookup_path,
     terrain_atlas_template_path,
-    terrain_atlas_topology_reference_path,
 )
 
 #: The cache trees this recipe's checkpoint handlers write under. Renaming one
@@ -429,10 +429,21 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                     object_digest(ground_direction),
                     *_reference_digests(references, game_map.ground.reference_ids),
                     hashlib.sha256(terrain_atlas_template_path().read_bytes()).hexdigest(),
-                    hashlib.sha256(
-                        terrain_atlas_topology_reference_path().read_bytes()
-                    ).hexdigest(),
-                    object_digest({"generation_contract": MATERIAL_SOURCE_CONTRACT_ID}),
+                    # The prompt text itself, not just the contract id. The authored
+                    # material reaches this digest through map and ground direction, but
+                    # the atlas contract wrapped around it did not reach it at all: a
+                    # reworded HARD CONTRACT changed what the model was asked for and the
+                    # cache went on serving the draw made under the old wording. The runner
+                    # branch has always digested its whole prompt; this one now does too,
+                    # with the material slot held constant so only the contract moves it.
+                    object_digest(
+                        {
+                            "generation_contract": MATERIAL_SOURCE_CONTRACT_ID,
+                            "generation_prompt": terrain_atlas_generation_prompt(
+                                "authored material direction"
+                            ),
+                        }
+                    ),
                 ),
                 ports=(
                     artifact_port(

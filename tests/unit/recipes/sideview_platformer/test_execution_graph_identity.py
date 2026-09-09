@@ -47,6 +47,11 @@ BELLWEATHER_NODE_COUNT = 230
 # The GPT Image 2.5 Sunburst/max migration deliberately moved 220 of 230 keys:
 # all 96 image operations, the 22 structured reviews that consume their output,
 # and 102 local descendants. Topology and the other 10 keys are unchanged.
+# The terrain-atlas redesign moved 9: both ground draws (new source contract, new paint
+# target, exact canvas, and the prompt text itself now in the digest), both
+# canonicalizations, and the composites, reviews and manifest downstream of them. Four
+# provider operations re-bill, about USD 0.37-0.66. Topology is unchanged - the graph lost
+# an input, not a node.
 BELLWEATHER_TOPOLOGY_SHA256 = "61af6a11d4b4fcb2eb2d91c48b00e820353a7d251b80e7bc5c127263d71a4fdb"
 
 

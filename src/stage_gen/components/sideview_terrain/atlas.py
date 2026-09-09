@@ -1,4 +1,21 @@
-"""Locked 47-mask terrain-atlas recipe and deterministic compositor."""
+"""Locked 47-mask terrain-atlas recipe and deterministic compositor.
+
+The sheet is requested at an exact canvas and sliced on fixed boundaries. GPT Image 2.5
+honours an exact ``size`` up to 3840 px and 3:1, and a 12-by-4 atlas is exactly 3:1, so a
+2880-by-960 request comes back at 2880 by 960 and every cell edge is known before the
+draw. That retires the cyan guide lattice, the fitted-residual admission and the
+asymmetric crop inset, none of which were ever about the art.
+
+It also retires magenta. The keep-out convention was designed before native alpha existed
+and it had been quietly destroying the sheet: the locked template paints its rock
+highlights in a pale pink that satisfies the chroma key, so every published atlas carried
+holes where the key had eaten solid ground -- 31,701 transparent pixels, 4.68 per cent of
+the forty-seven tiles, up to 19.2 per cent of one of them. The per-cell alpha that the
+old admission compared against was that damage, not a silhouette: it is anti-correlated
+with exposure, open along tops that are *covered* and closed along tops that are exposed,
+and it collapses to six distinct shapes across forty-seven masks. A 3x3-minimal terrain
+tile fills its cell. There is nothing to key, so the sheet is drawn and published opaque.
+"""
 
 from __future__ import annotations
 
@@ -7,18 +24,14 @@ import math
 import statistics
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from functools import lru_cache
 from hashlib import sha256
 from io import BytesIO
 from typing import Final, cast
 
-from PIL import Image, ImageChops
+from PIL import Image, ImageChops, ImageDraw
 
-from stage_gen.media.guide_lattice import (
-    GuideLattice,
-    extract_guided_cells,
-    magenta_chroma_alpha,
-    png_bytes,
-)
+from stage_gen.media.guide_lattice import detect_guide_lattice, png_bytes
 from stage_gen.resources import terrain_atlas_lookup_path, terrain_atlas_template_path
 
 GRID_COLUMNS: Final = 12
@@ -27,18 +40,64 @@ CANONICAL_CELL_PX: Final = 120
 PLACEHOLDER_CELL: Final = (10, 1)
 MASK_ORDER: Final = ("nw", "n", "ne", "w", "center", "e", "sw", "s", "se")
 TOPOLOGY_ID: Final = "terrain-atlas-3x3-minimal-v1"
-MATERIAL_SOURCE_CONTRACT_ID: Final = "terrain-atlas-paintover-source-v4"
-MATERIAL_ASSEMBLER_ID: Final = "terrain-atlas-paintover-canonicalization-v5"
-#: How far material is bled inward over a model's leftover magenta before the locked
-#: silhouette is applied. Eight-neighbour, so one pass covers one pixel in any direction.
-_MAGENTA_BLEED_PASSES: Final = 8
-_BLEED_OFFSETS: Final = ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1))
+MATERIAL_SOURCE_CONTRACT_ID: Final = "terrain-atlas-paintover-source-v9"
+MATERIAL_ASSEMBLER_ID: Final = "terrain-atlas-paintover-canonicalization-v10"
+PAINT_TARGET_ID: Final = "terrain-atlas-paint-target-v3"
+#: A hairline fence at every cell boundary, in a colour that cannot be terrain. Not for
+#: registration - the exact canvas settles that - but to tell the brush where a tile ends.
+#: Removing it was the largest non-model change between the atlas that worked and the one
+#: that did not: without it the model paints the sheet as one canvas, and a cell whose side
+#: should terminate never gets a face at all. Measured on the sheet it replaces, colour
+#: right across a boundary differed by 2.78 where half a cell apart differed by 8.35, and
+#: cells whose bottom is exposed sat 2.13 from the cell below - their undersides were the
+#: neighbour's material, not an underside. Three pixels, not the sixteen a grey channel was
+#: tried at: a hairline in an impossible colour reads as a line to keep, a wide neutral
+#: channel reads as a gap between objects and the model frames every tile.
+GUIDE_RGB: Final = (0, 255, 255)
+GUIDE_WIDTH_PX: Final = 3
+#: Cut inside the fence rather than through it. The line sits at a known coordinate, so
+#: this is arithmetic, not detection. Twelve, not the three the fence is drawn at: the
+#: model returns the line thickened to roughly eight pixels with a soft skirt, and a
+#: four-pixel cut published 11,047 fence-coloured pixels into the tiles. Measured on the
+#: returned sheet, fence colour falls away by twelve.
+GUIDE_INSET_PX: Final = 12
+#: Anything of the fence that survives the cut is replaced from its neighbours rather than
+#: published. Eight-neighbour, so one pass covers one pixel in any direction.
+_DEFRINGE_PASSES: Final = 6
+_DEFRINGE_OFFSETS: Final = ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1))
+#: The provider canvas. Twice the publication pitch, so every cell is supersampled once
+#: on the way down, and exactly 3:1 -- the widest ratio the OpenAI image route accepts.
+SOURCE_CELL_PX: Final = 240
+PAINT_CANVAS_WIDTH: Final = GRID_COLUMNS * SOURCE_CELL_PX
+PAINT_CANVAS_HEIGHT: Final = GRID_ROWS * SOURCE_CELL_PX
+PAINT_CANVAS_SIZE: Final = f"{PAINT_CANVAS_WIDTH}x{PAINT_CANVAS_HEIGHT}"
 MINIMUM_PAINTED_MATERIAL_STANDARD_DEVIATION: Final = 2.0
-MAXIMUM_LATTICE_RESIDUAL_PX: Final = 1.5
-MAXIMUM_RECTIFIABLE_LATTICE_RESIDUAL_FRACTION: Final = 0.025
-MAXIMUM_SOURCE_ALPHA_MISMATCH: Final = 0.10
-MAXIMUM_CONNECTOR_ALPHA_MISMATCH: Final = 0.005
-MAXIMUM_DIRECT_CONNECTOR_RGB_MEAN_ERROR: Final = 3.0
+#: How deep either side of a join the tone comparison reads.
+JOIN_TONE_STRIP_PX: Final = 12
+#: The scale a repeated feature becomes countable at. The tile is read in blocks this size,
+#: so grain survives as material and a pebble survives as an object.
+QUIET_BLOCK_PX: Final = 10
+#: How far a block must sit from the tile's own median colour to count as an object rather
+#: than as material. Mean channel distance, so a grey boulder on brown earth counts: a
+#: luminance-only reading missed exactly that, because the two are thirteen units apart in
+#: brightness and a whole hillside came back chained with boulders under a gate that passed.
+_OBJECT_BLOCK_DISTANCE: Final = 12.0
+#: Recorded, never refused. Three attempts to make this a gate produced two regressions
+#: and no working threshold. At 0.10 it refused the published atlas whose material reads
+#: best (0.194) and the contract came back asking for gravel: largest feature 20 px of a
+#: 120 px tile against 52 in the atlas it replaced. At 0.45 it fought the fabric the prompt
+#: now asks for and exhausted a node's whole retry budget on a material that draws big
+#: slabs. And the ordering never worked: the atlas a reviewer liked scores 0.157 on its
+#: largest region, a hillside visibly chained with repeated boulders scores 0.179, and a
+#: sheet that reads well scores 0.345. Whether a repeat is legible is an aesthetic
+#: judgement - a course of slabs reads as a wall, one boulder reads as a copy - and no
+#: statistic tried here separates them. The number stays in the record because it is worth
+#: comparing across runs; the judgement belongs to the semantic review.
+#: The worst mean-channel tone step allowed across any join the validation maps can make.
+#: Calibrated on published atlases rather than on a new draw: the two whose material a
+#: semantic reviewer accepted measure 26.3, the one the reviewer complained about measures
+#: 84.6, and a repeat draw that came back visibly patchy measures 92.8.
+MAXIMUM_JOIN_TONE_STEP: Final = 65.0
 
 Mask = tuple[int, int, int, int, int, int, int, int, int]
 Coordinate = tuple[int, int]
@@ -162,96 +221,255 @@ def _reachable_masks() -> tuple[Mask, ...]:
     return tuple(sorted(masks))
 
 
+@lru_cache(maxsize=4)
+def _paint_target(template_bytes: bytes) -> bytes:
+    with Image.open(BytesIO(template_bytes)) as opened:
+        template = opened.convert("RGB")
+    lattice = detect_guide_lattice(template, expected_columns=GRID_COLUMNS, expected_rows=GRID_ROWS)
+    packed = Image.new("RGB", (GRID_COLUMNS * CANONICAL_CELL_PX, GRID_ROWS * CANONICAL_CELL_PX))
+    # The reserved cell is packed as ordinary buried ground, not as the template's checker.
+    # A grey checker is the universal picture of transparency, and the model reads it that
+    # way: handed one, it painted that cell in a different material from every other cell on
+    # the sheet. Nothing needs it - the coordinate is reserved, the lookup never selects it,
+    # and the compositor clears it - so it never reaches the provider.
+    filler = load_terrain_atlas_lookup().by_mask[(1,) * 9]
+    for row in range(GRID_ROWS):
+        for column in range(GRID_COLUMNS):
+            source_column, source_row = (
+                filler if (column, row) == PLACEHOLDER_CELL else (column, row)
+            )
+            crop = template.crop(
+                (
+                    lattice.x_lines[source_column][1] + 3,
+                    lattice.y_lines[source_row][1] + 3,
+                    lattice.x_lines[source_column + 1][0] - 2,
+                    lattice.y_lines[source_row + 1][0] - 2,
+                )
+            ).resize((CANONICAL_CELL_PX, CANONICAL_CELL_PX), Image.Resampling.LANCZOS)
+            packed.paste(crop, (column * CANONICAL_CELL_PX, row * CANONICAL_CELL_PX))
+    # Nearest on the way up, not Lanczos: the source is pixel art, and a crisp doubling
+    # reads to the model as one drawing where a blurred one reads as a photograph of one.
+    sheet = packed.resize((PAINT_CANVAS_WIDTH, PAINT_CANVAS_HEIGHT), Image.Resampling.NEAREST)
+    draw = ImageDraw.Draw(sheet)
+    half = GUIDE_WIDTH_PX // 2
+    for column in range(GRID_COLUMNS + 1):
+        x = min(max(column * SOURCE_CELL_PX, half), PAINT_CANVAS_WIDTH - half - 1)
+        draw.line([(x, 0), (x, PAINT_CANVAS_HEIGHT - 1)], fill=GUIDE_RGB, width=GUIDE_WIDTH_PX)
+    for row in range(GRID_ROWS + 1):
+        y = min(max(row * SOURCE_CELL_PX, half), PAINT_CANVAS_HEIGHT - half - 1)
+        draw.line([(0, y), (PAINT_CANVAS_WIDTH - 1, y)], fill=GUIDE_RGB, width=GUIDE_WIDTH_PX)
+    return png_bytes(sheet)
+
+
+def terrain_atlas_paint_target(template: bytes | None = None) -> bytes:
+    """The locked template's 48 cells, packed edge to edge at the provider canvas.
+
+    Derived rather than committed, so the packed sheet cannot drift from the template it
+    comes from and the Godot documentation lineage stays attached to one file.
+
+    Four rounds of a locally drawn block guide -- flat cap and rim bands standing for
+    which of a cell's faces meet air -- were measured against this, and every one of them
+    invented a literalism from the legend: a rim darker than the fill came back painted as
+    a shadow gap between blocks, a corner mark as a stone cube sitting in the cell, a rim
+    lighter than the fill as a cream frame drawn around every tile. The template needs no
+    legend. It is already the answer -- all forty-seven finishes, corner turns included --
+    drawn in the wrong style, and restyling a correct picture is the thing an image model
+    is reliably good at.
+    """
+
+    return _paint_target(
+        terrain_atlas_template_path().read_bytes() if template is None else template
+    )
+
+
 def terrain_atlas_generation_prompt(material_direction: str) -> str:
-    """Bind biome direction to a strict model-painted 47-mask atlas contract."""
+    """Bind biome direction to a strict model-painted 47-mask atlas contract.
+
+    Structure comes from the paint target and nothing else; every word here is spent on
+    the art. Two paid rounds established the split. Asked to hold the topology in words
+    instead - once as a table of all forty-eight cells, once as sixteen prose runs over an
+    exposure-ordered sheet - GPT Image 2.5 followed the wording closely and drew the
+    wording: grooves where the prompt said "grid", marks where it said "notched", and, on
+    the prose run, sky-blue showing through wherever it read "exposed underside", because
+    a sheet described in words composes as a picture. Nine and four of the fifty-two faces
+    that must be finished came back unfinished, against one for the same material drawn
+    over the target. The same precision spent on the painting instead took every one of
+    those fifty-two faces (0 unfinished), the worst join tone step from 22.5 to 19.4 and
+    the mean from 5.9 to 4.9.
+    """
 
     material = " ".join(material_direction.split())
     if not material:
         raise ValueError("terrain material direction must not be empty")
     return (
         "Use case: stylized-concept\n"
-        "Asset type: production 2D side-view terrain atlas\n\n"
-        "Edit reference image 1 as a strict production terrain-atlas paintover. Reference "
-        "image 2 redundantly defines the exact 3x3-minimal 12-column by 4-row topology. Every "
-        "remaining image is an appearance reference only: use its rendering quality, palette, "
-        "material language, world scale, and lighting restraint without copying its scene "
-        "composition. Create original, "
-        f"brand-neutral terrain with this authored direction: {material}\n\n"
-        "HARD CONTRACT:\n"
-        "- Output the same aspect ratio and atlas layout as reference image 1.\n"
-        "- Preserve all 13 vertical and 5 horizontal cyan guide lines exactly straight and "
-        "regularly spaced.\n"
-        "- Preserve pure magenta outside the atlas and in every empty part of every cell.\n"
-        "- Preserve all 48 cell positions and each cell's terrain-versus-empty silhouette, "
-        "including exposed tops, side walls, bottom edges, outer corners, concave corners, "
-        "notches, holes, and the checker placeholder at column 10 row 1.\n"
-        "- Paint only inside cell interiors. Paint cap and fill contextually inside each "
-        "existing silhouette. Cap and fill are "
-        "visual roles, not fixed substances: infer their biome materials from the authored "
-        "direction and appearance references. Keep the cap shallow enough for a genuinely "
-        "one-cell-high floating platform.\n"
-        "- At shared connectors, continue material color, value, lighting, and silhouette at "
-        "the same grid-relative coordinate. Each cell must remain independently sliceable.\n"
-        "- Use polished hand-painted 2D game art with purposeful edge bevels, restrained local "
-        "variation, broad quiet areas, and one consistent side-view light direction.\n"
-        "- Do not merge cells, move guides, paint across guide lines, add frames, or turn the "
-        "atlas into one complete platform illustration. Avoid flat texture stamping, mirrored "
-        "repetition, generic repeated boulder rows, pixel art, and large objects spanning "
-        "multiple cells.\n"
-        "- No characters, buildings, scenery, text, labels, UI, logos, signatures, or watermarks."
+        "Asset type: production 2D side-view terrain tile atlas\n\n"
+        "Repaint reference image 1 completely. It is a working terrain tile sheet: 12 "
+        "columns by 4 rows of equal square tiles filling the canvas edge to edge, already "
+        "correct in every structural respect and wrong only in its art. Every remaining "
+        "image is an appearance reference: take its rendering quality, palette, material "
+        "language, world scale and lighting restraint, never its scene composition. Create "
+        f"original, brand-neutral terrain with this authored direction: {material}\n\n"
+        "WHAT THIS SHEET IS\n"
+        "Forty-eight cut-out tiles of one single ground material, not one picture and not a "
+        "landscape. There is no skyline and no ground level on this sheet. Each tile is "
+        "lifted out on its own and butted against any other tile, so two tiles that were "
+        "never neighbours here will be neighbours in the game.\n\n"
+        "WHAT TO KEEP FROM REFERENCE IMAGE 1\n"
+        "The thin cyan lines are the fence between one tile and the next. Keep every one of "
+        "them exactly where it is, straight, unbroken and the same width. Paint only inside "
+        "the cells they enclose. Never paint over a line, never let anything cross one, and "
+        "never let a tile's material run through into the tile beyond.\n"
+        "And the structure, exactly: which of each tile's four sides is a finished face, "
+        "which is a cut through solid ground running to the fence, and which corners the "
+        "finish turns. Keep the 12 by 4 grid exactly where it is and do not move, rescale, "
+        "rotate or crop it. Take nothing else from it - not its palette, its pixel-art "
+        "finish, its dithering, nor the places it puts tufts, sprigs, highlights and "
+        "speckles.\n\n"
+        "WHAT TO PAINT\n"
+        "Every cell is filled with terrain to all four of its edges. There is no sky, no "
+        "background, no empty space and no transparency anywhere on the canvas.\n"
+        "A finished top is the walk surface the player stands on. A finished side or bottom "
+        "is where the mass ends in mid-air: paint a terminating edge with its own bevel and "
+        "the shadow it casts. Light comes from the upper left, everywhere on the sheet, with "
+        "no exception.\n"
+        "A side that is not finished is a cut through solid ground. The material runs off "
+        "that edge mid-stride, stopping at the fence. Nothing happens there: no surface, no "
+        "cap, no growth, no bevel, no rim, no outline and no change of tone. Keep the "
+        "material calm and even along every one of those edges, at the same brightness in "
+        "every tile, so any two of them can meet and no one can see where.\n"
+        "The cyan fence is the only thing that marks a tile boundary. Do not add one of your "
+        "own anywhere: no groove, no seam, no frame, no moulding, no aligned row of stones "
+        "and no tick at a corner.\n"
+        "Every cell shows the same material at the same scale, under the same light, at the "
+        "same overall brightness. Cells differ only in which of their sides are finished. "
+        "Never give a cell its own substance, palette, value or composition.\n"
+        "One cell is about 1.2 metres of ground, and it is built from a regular fabric: "
+        "slabs, courses, cobbles, strata, whatever the direction calls for. Work at a size "
+        "you could stand on - the biggest slab or stone about half a cell across. Gravel and "
+        "scattered pebbles read as ground seen from far away and leave the body flat and "
+        "empty. Nothing spans a cell boundary.\n"
+        "Cells with no finished face are buried ground, laid side by side and stacked to "
+        "fill whole hillsides, so the same square appears many times on one screen. Give "
+        "them the same fabric as everywhere else, worked evenly across the whole square: a "
+        "repeated course of slabs reads as a wall, which is right, while a repeated single "
+        "flower or a lone bright pebble reads as a copy. Save the growth and the litter for "
+        "the finished tops, sparingly.\n\n"
+        "FINISH\n"
+        "Polished hand-painted 2D game art with purposeful edge bevels, restrained local "
+        "variation and broad quiet areas. Avoid flat texture stamping, mirrored repetition, "
+        "repeated boulder rows and pixel art. No characters, buildings, scenery, text, "
+        "labels, UI, logos, signatures or watermarks."
     )
 
 
-def _alpha_mismatch_facts(
-    generated: Mapping[Coordinate, Image.Image],
-    expected: Mapping[Coordinate, Image.Image],
-) -> tuple[float, float]:
-    mismatches = samples = 0
-    per_cell: list[float] = []
-    for coordinate in sorted(expected, key=lambda value: (value[1], value[0])):
-        if coordinate == PLACEHOLDER_CELL:
-            continue
-        generated_alpha = generated[coordinate].getchannel("A")
-        expected_alpha = expected[coordinate].getchannel("A")
-        cell_mismatches = sum(
-            (left > 128) != (right > 128)
-            for left, right in zip(
-                cast(Iterable[int], generated_alpha.get_flattened_data()),
-                cast(Iterable[int], expected_alpha.get_flattened_data()),
-                strict=True,
-            )
+def terrain_atlas_cells(painted_source: bytes) -> dict[Coordinate, Image.Image]:
+    """Slice the provider canvas on fixed boundaries into opaque publication cells."""
+
+    with Image.open(BytesIO(painted_source)) as opened:
+        source = opened.convert("RGB")
+    if source.size != (PAINT_CANVAS_WIDTH, PAINT_CANVAS_HEIGHT):
+        raise ValueError(
+            "terrain atlas source must be exactly "
+            f"{PAINT_CANVAS_WIDTH}x{PAINT_CANVAS_HEIGHT}, got {source.width}x{source.height}"
         )
-        cell_samples = generated_alpha.width * generated_alpha.height
-        mismatches += cell_mismatches
-        samples += cell_samples
-        per_cell.append(cell_mismatches / cell_samples)
-    ordered = sorted(per_cell)
-    percentile_index = min(len(ordered) - 1, math.ceil(len(ordered) * 0.95) - 1)
-    return mismatches / max(1, samples), ordered[percentile_index]
+    cells: dict[Coordinate, Image.Image] = {}
+    for row in range(GRID_ROWS):
+        for column in range(GRID_COLUMNS):
+            if (column, row) == PLACEHOLDER_CELL:
+                cells[(column, row)] = Image.new(
+                    "RGBA", (CANONICAL_CELL_PX, CANONICAL_CELL_PX), (0, 0, 0, 0)
+                )
+                continue
+            cell = (
+                source.crop(
+                    (
+                        column * SOURCE_CELL_PX + GUIDE_INSET_PX,
+                        row * SOURCE_CELL_PX + GUIDE_INSET_PX,
+                        (column + 1) * SOURCE_CELL_PX - GUIDE_INSET_PX,
+                        (row + 1) * SOURCE_CELL_PX - GUIDE_INSET_PX,
+                    )
+                )
+                .resize((CANONICAL_CELL_PX, CANONICAL_CELL_PX), Image.Resampling.LANCZOS)
+                .convert("RGBA")
+            )
+            cells[(column, row)], _cleaned = _defringe(cell)
+    return cells
 
 
-def _painted_standard_deviation(
-    generated: Mapping[Coordinate, Image.Image],
-    expected: Mapping[Coordinate, Image.Image],
-) -> float:
+#: How far in from a cell edge the fence can still have tinted the paint. Measured on the
+#: published sheets: every cyan-cast pixel sat within seven.
+_FENCE_MARGIN_PX: Final = 9
+
+
+def _is_fence(pixel: tuple[int, int, int], *, near_edge: bool) -> bool:
+    """Fence colour, read strictly in a cell's middle and by cast near its edge.
+
+    The strict reading alone published 1,611 tinted pixels into one atlas. Saturated fence
+    over cream terrain lands around (180, 215, 210) - a pale teal, nothing like the line it
+    came from, and a red channel far above any threshold that would catch the line itself.
+    Near an edge the test is therefore the cast rather than the colour: green and blue both
+    well above red is cyan, which this palette's foliage (green over red, blue below) and
+    its stone, soil and brass never are. Away from an edge the strict reading stands, so a
+    turquoise the direction actually asked for survives in the middle of a tile.
+    """
+
+    red, green, blue = pixel[0], pixel[1], pixel[2]
+    if near_edge:
+        return green - red > 25 and blue - red > 25
+    return red < 90 and green > 150 and blue > 150
+
+
+def _defringe(cell: Image.Image) -> tuple[Image.Image, int]:
+    """Replace any surviving fence colour from the material around it."""
+
+    rgba = cell.convert("RGBA")
+    edge = CANONICAL_CELL_PX - 1
+    mask = [
+        0
+        if _is_fence(
+            pixel[:3],
+            near_edge=min(
+                index % CANONICAL_CELL_PX,
+                edge - index % CANONICAL_CELL_PX,
+                index // CANONICAL_CELL_PX,
+                edge - index // CANONICAL_CELL_PX,
+            )
+            < _FENCE_MARGIN_PX,
+        )
+        else 255
+        for index, pixel in enumerate(
+            cast(Iterable[tuple[int, int, int, int]], rgba.get_flattened_data())
+        )
+    ]
+    cleaned = sum(1 for value in mask if value == 0)
+    if not cleaned:
+        return rgba, 0
+    alpha = Image.new("L", rgba.size)
+    alpha.putdata(mask)
+    holed = rgba.copy()
+    holed.putalpha(alpha)
+    for _ in range(_DEFRINGE_PASSES):
+        extrema = cast(tuple[int, int], holed.getchannel("A").getextrema())
+        if extrema[0] > 0:
+            break
+        for offset in _DEFRINGE_OFFSETS:
+            holed = Image.alpha_composite(ImageChops.offset(holed, *offset), holed)
+    filled = holed.convert("RGB").convert("RGBA")
+    filled.putalpha(rgba.getchannel("A"))
+    return filled, cleaned
+
+
+def _painted_standard_deviation(cells: Mapping[Coordinate, Image.Image]) -> float:
+    """Mean per-channel spread over every published pixel: does this sheet carry paint."""
+
     totals = [0.0, 0.0, 0.0]
     squared = [0.0, 0.0, 0.0]
     samples = 0
-    for coordinate, expected_cell in expected.items():
+    for coordinate, cell in cells.items():
         if coordinate == PLACEHOLDER_CELL:
             continue
-        generated_cell = generated[coordinate].convert("RGBA")
-        for pixel, generated_alpha, expected_alpha in zip(
-            cast(
-                Iterable[tuple[int, int, int]],
-                generated_cell.convert("RGB").get_flattened_data(),
-            ),
-            cast(Iterable[int], generated_cell.getchannel("A").get_flattened_data()),
-            cast(Iterable[int], expected_cell.getchannel("A").get_flattened_data()),
-            strict=True,
-        ):
-            if generated_alpha <= 128 or expected_alpha <= 128:
-                continue
+        for pixel in cast(Iterable[tuple[int, int, int]], cell.convert("RGB").get_flattened_data()):
             for channel, value in enumerate(pixel):
                 totals[channel] += value
                 squared[channel] += value * value
@@ -265,96 +483,148 @@ def _painted_standard_deviation(
     return sum(deviations) / len(deviations)
 
 
+def _object_share(cell: Image.Image) -> float:
+    """The share of a tile that reads as a distinct object rather than as its material."""
+
+    edge = CANONICAL_CELL_PX // QUIET_BLOCK_PX
+    blocks = [
+        tuple(block)
+        for block in cast(
+            Iterable[tuple[int, int, int]],
+            cell.convert("RGB").resize((edge, edge), Image.Resampling.BOX).get_flattened_data(),
+        )
+    ]
+    median = [statistics.median(block[channel] for block in blocks) for channel in range(3)]
+    distant = sum(
+        1
+        for block in blocks
+        if sum(abs(block[channel] - median[channel]) for channel in range(3)) / 3
+        > _OBJECT_BLOCK_DISTANCE
+    )
+    return distant / len(blocks)
+
+
+def _buried_quiet_facts(
+    cells: Mapping[Coordinate, Image.Image],
+    lookup: TerrainAtlasLookup,
+) -> tuple[float, float]:
+    """The hillside tile's object share, and the mean over the whole buried family."""
+
+    by_coordinate = {coordinate: mask for mask, coordinate in lookup.by_mask.items()}
+    buried = [
+        _object_share(cell)
+        for coordinate, cell in cells.items()
+        if coordinate != PLACEHOLDER_CELL
+        and all(by_coordinate[coordinate][bit] for bit in (1, 3, 5, 7))
+    ]
+    hillside = _object_share(cells[lookup.by_mask[(1,) * 9]])
+    return hillside, sum(buried) / len(buried)
+
+
+def _strip_mean(cell: Image.Image, side: str) -> tuple[float, float, float]:
+    boxes = {
+        "left": (0, 0, JOIN_TONE_STRIP_PX, CANONICAL_CELL_PX),
+        "right": (CANONICAL_CELL_PX - JOIN_TONE_STRIP_PX, 0, CANONICAL_CELL_PX, CANONICAL_CELL_PX),
+        "top": (0, 0, CANONICAL_CELL_PX, JOIN_TONE_STRIP_PX),
+        "bottom": (0, CANONICAL_CELL_PX - JOIN_TONE_STRIP_PX, CANONICAL_CELL_PX, CANONICAL_CELL_PX),
+    }
+    pixels = list(
+        cast(
+            Iterable[tuple[int, int, int]],
+            cell.convert("RGB").crop(boxes[side]).get_flattened_data(),
+        )
+    )
+    return cast(
+        tuple[float, float, float],
+        tuple(sum(pixel[channel] for pixel in pixels) / len(pixels) for channel in range(3)),
+    )
+
+
+def _join_tone_metrics(
+    cells: Mapping[Coordinate, Image.Image],
+    lookup: TerrainAtlasLookup,
+) -> tuple[float, float]:
+    """The worst and mean tone step over every join the validation maps can make.
+
+    Deliberately not the per-pixel connector comparison. On hand-painted material that one
+    is dominated by texture -- a pale flagstone meeting a dark mortar line reads as a large
+    error while the two tiles are in fact the same material at the same value -- and it is
+    computed after the connector harmoniser has overwritten the very pixels it samples, so
+    it reads zero on every draw including the patchy ones. What a player sees is whole-cell
+    tone drift, so the strip either side of a join is averaged before it is compared.
+    """
+
+    steps: list[float] = []
+    for rows in _VALIDATION_MAPS.values():
+        occupied = parse_binary_rows(rows)
+        height, width = len(occupied), len(occupied[0])
+        for y in range(height):
+            for x in range(width):
+                if not occupied[y][x]:
+                    continue
+                here = lookup.by_mask[peering_mask(occupied, x, y)]
+                for neighbour, near, far in (
+                    ((x + 1, y), "right", "left"),
+                    ((x, y + 1), "bottom", "top"),
+                ):
+                    nx, ny = neighbour
+                    if not (nx < width and ny < height and occupied[ny][nx]):
+                        continue
+                    other = lookup.by_mask[peering_mask(occupied, nx, ny)]
+                    if PLACEHOLDER_CELL in (here, other):
+                        continue
+                    first = _strip_mean(cells[here], near)
+                    second = _strip_mean(cells[other], far)
+                    steps.append(sum(abs(a - b) for a, b in zip(first, second, strict=True)) / 3)
+    if not steps:
+        return 0.0, 0.0
+    return max(steps), sum(steps) / len(steps)
+
+
 def require_terrain_atlas_source(
     raw: bytes,
     *,
     template: bytes | None = None,
 ) -> dict[str, object]:
-    """Reject a model paintover that cannot be safely sliced and canonicalized."""
+    """Reject a model draw that cannot be safely sliced and published."""
 
-    template_bytes = terrain_atlas_template_path().read_bytes() if template is None else template
-    with Image.open(BytesIO(raw)) as opened:
-        source = opened.convert("RGB")
-    with Image.open(BytesIO(template_bytes)) as opened:
-        template_image = opened.convert("RGB")
-    generated_cells, lattice = extract_guided_cells(
-        source,
-        columns=GRID_COLUMNS,
-        rows=GRID_ROWS,
-        canonical_cell_px=CANONICAL_CELL_PX,
-    )
-    template_cells, _ = extract_guided_cells(
-        template_image,
-        columns=GRID_COLUMNS,
-        rows=GRID_ROWS,
-        canonical_cell_px=CANONICAL_CELL_PX,
-    )
-    maximum_lattice_residual = max(
-        lattice.x_maximum_residual_px,
-        lattice.y_maximum_residual_px,
-    )
-    maximum_lattice_residual_fraction = max(
-        lattice.x_maximum_residual_px / lattice.x_spacing_px,
-        lattice.y_maximum_residual_px / lattice.y_spacing_px,
-    )
-    lattice_classification = (
-        "direct_regular"
-        if maximum_lattice_residual <= MAXIMUM_LATTICE_RESIDUAL_PX
-        else "rectified_regular"
-    )
-    mismatch, p95_mismatch = _alpha_mismatch_facts(generated_cells, template_cells)
-    material_standard_deviation = _painted_standard_deviation(generated_cells, template_cells)
+    target = terrain_atlas_paint_target(template)
+    cells = terrain_atlas_cells(raw)
     lookup = load_terrain_atlas_lookup()
-    maximum_direct_connector_alpha_mismatch = 0.0
-    for rows in _VALIDATION_MAPS.values():
-        occupied = parse_binary_rows(rows)
-        direct, _ = compose_terrain(occupied, generated_cells, lookup)
-        metrics = _connector_metrics(direct, occupied)
-        maximum_direct_connector_alpha_mismatch = max(
-            maximum_direct_connector_alpha_mismatch,
-            cast(float, metrics["connector_alpha_mismatch_fraction"]),
-        )
-    if (
-        maximum_lattice_residual > MAXIMUM_LATTICE_RESIDUAL_PX
-        and maximum_lattice_residual_fraction > MAXIMUM_RECTIFIABLE_LATTICE_RESIDUAL_FRACTION
-    ):
-        raise ValueError("terrain atlas source guide lattice is irregular")
-    # Neither alpha figure refuses a paintover any more. Both asked whether the model had
-    # reproduced the template's silhouette, and `assemble_terrain_atlas` now imposes that
-    # silhouette instead of requesting it: the model owns the material, the template owns
-    # the shape. GPT Image 2.5 paints straight through the magenta keep-out bands - 0.72
-    # connector mismatch against a 0.005 limit, identically on all six attempts - while
-    # scoring better than its predecessor on both lattice registration (0.55px vs 0.87)
-    # and topology alpha (0.051 vs 0.086). Refusing that meant refusing a better paintover
-    # over a shape this pipeline can supply deterministically. Both numbers stay in the
-    # record below: how far a model drifts is worth reading even when it no longer decides.
+    material_standard_deviation = _painted_standard_deviation(cells)
+    worst_join, mean_join = _join_tone_metrics(cells, lookup)
+    hillside_share, buried_share = _buried_quiet_facts(cells, lookup)
     if material_standard_deviation < MINIMUM_PAINTED_MATERIAL_STANDARD_DEVIATION:
         raise ValueError("terrain atlas source lacks usable painted material variation")
+    if worst_join > MAXIMUM_JOIN_TONE_STEP:
+        raise ValueError(
+            "terrain atlas source tiles do not share one tone: worst join step "
+            f"{worst_join:.1f} exceeds {MAXIMUM_JOIN_TONE_STEP}"
+        )
     return {
         "schema_version": 1,
         "kind": "terrain-atlas-paintover-source-validation-v1",
         "contract": MATERIAL_SOURCE_CONTRACT_ID,
         "source": {
             "sha256": sha256(raw).hexdigest(),
-            "width": source.width,
-            "height": source.height,
+            "width": PAINT_CANVAS_WIDTH,
+            "height": PAINT_CANVAS_HEIGHT,
             "mode": "RGB",
         },
-        "lattice": _lattice_report(lattice),
-        "lattice_classification": lattice_classification,
-        "maximum_lattice_residual_fraction": maximum_lattice_residual_fraction,
-        "global_alpha_mismatch_fraction": mismatch,
-        "p95_cell_alpha_mismatch_fraction": p95_mismatch,
-        "maximum_direct_connector_alpha_mismatch": maximum_direct_connector_alpha_mismatch,
+        "paint_target": {
+            "id": PAINT_TARGET_ID,
+            "sha256": sha256(target).hexdigest(),
+            "cell_px": SOURCE_CELL_PX,
+        },
+        "registration": "fixed-pitch-exact-canvas-v1",
+        "worst_join_tone_step": round(worst_join, 4),
+        "mean_join_tone_step": round(mean_join, 4),
+        "hillside_tile_object_share": round(hillside_share, 4),
+        "buried_tile_object_share_mean": round(buried_share, 4),
         "painted_material_mean_standard_deviation": round(material_standard_deviation, 6),
-        "silhouette_source": "template",
-        "shape_alpha_is_advisory": True,
         "thresholds": {
-            "maximum_lattice_residual_px": MAXIMUM_LATTICE_RESIDUAL_PX,
-            "maximum_rectifiable_lattice_residual_fraction": (
-                MAXIMUM_RECTIFIABLE_LATTICE_RESIDUAL_FRACTION
-            ),
-            "maximum_source_alpha_mismatch": MAXIMUM_SOURCE_ALPHA_MISMATCH,
+            "paint_canvas": PAINT_CANVAS_SIZE,
+            "maximum_join_tone_step": MAXIMUM_JOIN_TONE_STEP,
             "minimum_painted_material_standard_deviation": (
                 MINIMUM_PAINTED_MATERIAL_STANDARD_DEVIATION
             ),
@@ -466,213 +736,36 @@ def _connector_metrics(image: Image.Image, occupied: Occupancy) -> dict[str, flo
     }
 
 
-def _lattice_report(lattice: GuideLattice) -> dict[str, object]:
-    return {
-        "detected_vertical_guides": len(lattice.x_lines),
-        "detected_horizontal_guides": len(lattice.y_lines),
-        "x_spacing_px": lattice.x_spacing_px,
-        "y_spacing_px": lattice.y_spacing_px,
-        "x_maximum_residual_px": lattice.x_maximum_residual_px,
-        "y_maximum_residual_px": lattice.y_maximum_residual_px,
-    }
-
-
-def _median_color(values: Sequence[tuple[int, int, int]]) -> tuple[int, int, int]:
-    return cast(
-        tuple[int, int, int],
-        tuple(round(statistics.median(color[channel] for color in values)) for channel in range(3)),
-    )
-
-
-def _harmonize_connector_edges(
-    cells: Mapping[Coordinate, Image.Image],
-    masks_by_coordinate: Mapping[Coordinate, Mask],
-) -> dict[Coordinate, Image.Image]:
-    """Make every legal connector byte-continuous without flattening cell interiors."""
-
-    result = {coordinate: cell.copy().convert("RGBA") for coordinate, cell in cells.items()}
-    vertical_profiles: dict[int, tuple[int, int, int]] = {}
-    horizontal_profiles: dict[int, tuple[int, int, int]] = {}
-    for y in range(CANONICAL_CELL_PX):
-        samples: list[tuple[int, int, int]] = []
-        for coordinate, cell in result.items():
-            if coordinate == PLACEHOLDER_CELL:
-                continue
-            mask = masks_by_coordinate[coordinate]
-            for connected, x in ((mask[3], 12), (mask[5], CANONICAL_CELL_PX - 13)):
-                pixel = cast(tuple[int, int, int, int], cell.getpixel((x, y)))
-                if connected and pixel[3] > 128:
-                    samples.append(pixel[:3])
-        if samples:
-            vertical_profiles[y] = _median_color(samples)
-    for x in range(CANONICAL_CELL_PX):
-        samples = []
-        for coordinate, cell in result.items():
-            if coordinate == PLACEHOLDER_CELL:
-                continue
-            mask = masks_by_coordinate[coordinate]
-            for connected, y in ((mask[1], 12), (mask[7], CANONICAL_CELL_PX - 13)):
-                pixel = cast(tuple[int, int, int, int], cell.getpixel((x, y)))
-                if connected and pixel[3] > 128:
-                    samples.append(pixel[:3])
-        if samples:
-            horizontal_profiles[x] = _median_color(samples)
-
-    blend_width = 3
-    for coordinate, cell in result.items():
-        if coordinate == PLACEHOLDER_CELL:
-            continue
-        mask = masks_by_coordinate[coordinate]
-        for connected, edge, direction in (
-            (mask[3], 0, 1),
-            (mask[5], CANONICAL_CELL_PX - 1, -1),
-        ):
-            if not connected:
-                continue
-            for y, target in vertical_profiles.items():
-                for depth in range(blend_width):
-                    x = edge + direction * depth
-                    original = cast(tuple[int, int, int, int], cell.getpixel((x, y)))
-                    if original[3] <= 0:
-                        continue
-                    target_weight = (blend_width - depth) / blend_width
-                    mixed = tuple(
-                        round(
-                            target[channel] * target_weight
-                            + original[channel] * (1 - target_weight)
-                        )
-                        for channel in range(3)
-                    )
-                    cell.putpixel((x, y), (*mixed, original[3]))
-        for connected, edge, direction in (
-            (mask[1], 0, 1),
-            (mask[7], CANONICAL_CELL_PX - 1, -1),
-        ):
-            if not connected:
-                continue
-            for x, target in horizontal_profiles.items():
-                for depth in range(blend_width):
-                    y = edge + direction * depth
-                    original = cast(tuple[int, int, int, int], cell.getpixel((x, y)))
-                    if original[3] <= 0:
-                        continue
-                    target_weight = (blend_width - depth) / blend_width
-                    mixed = tuple(
-                        round(
-                            target[channel] * target_weight
-                            + original[channel] * (1 - target_weight)
-                        )
-                        for channel in range(3)
-                    )
-                    cell.putpixel((x, y), (*mixed, original[3]))
-    return result
-
-
-def _with_template_silhouette(
-    generated: Image.Image,
-    template: Image.Image,
-) -> Image.Image:
-    """Keep the model's material, take the cell's shape from the locked template.
-
-    The 47 masks are the contract, not a suggestion the paintover happens to honour. A
-    model that fills a magenta keep-out band does not produce a differently-styled tile,
-    it produces a solid square where an exposed side belongs, and every silhouette in the
-    set collapses. Asking each new model to rediscover the same shape by hand was always
-    the weaker half of this component: the shape is already known exactly, so it is
-    published exactly, and the provider is left the one job it is actually good at.
-
-    Keying the shape back on is not enough on its own. Wherever the model stopped short of
-    a cell edge it left a hot-magenta hairline, and the template calls that pixel solid -
-    so a naive silhouette swap publishes an opaque magenta rim around every tile instead of
-    the transparent gap it used to publish. Measured at 28,300 contaminated pixels against
-    the predecessor's zero, and the map reviewer named it unprompted. So magenta is bled
-    away first, from its neighbours, and only then is the locked alpha applied.
-    """
-
-    cell = generated.copy().convert("RGBA")
-    holed = cell.copy()
-    holed.putalpha(magenta_chroma_alpha(cell.convert("RGB")))
-    for _ in range(_MAGENTA_BLEED_PASSES):
-        if holed.getchannel("A").getextrema()[0] > 0:
-            break
-        for offset in _BLEED_OFFSETS:
-            holed = Image.alpha_composite(ImageChops.offset(holed, *offset), holed)
-    filled = holed.convert("RGB").convert("RGBA")
-    filled.putalpha(template.getchannel("A"))
-    return filled
-
-
-def _exact_alpha_mismatch(
-    generated: Mapping[Coordinate, Image.Image],
-    expected: Mapping[Coordinate, Image.Image],
-) -> float:
-    mismatches = samples = 0
-    for coordinate in sorted(expected, key=lambda value: (value[1], value[0])):
-        if coordinate == PLACEHOLDER_CELL:
-            continue
-        generated_alpha = generated[coordinate].getchannel("A").tobytes()
-        expected_alpha = expected[coordinate].getchannel("A").tobytes()
-        mismatches += sum(
-            left != right for left, right in zip(generated_alpha, expected_alpha, strict=True)
-        )
-        samples += len(expected_alpha)
-    return mismatches / max(1, samples)
-
-
 def assemble_terrain_atlas(
     painted_source: bytes,
     *,
     template: bytes | None = None,
     lookup_data: bytes | None = None,
 ) -> tuple[bytes, dict[str, object]]:
-    """Canonicalize a model-painted atlas while restoring locked topology and connectors."""
+    """Canonicalize a model-painted atlas: fixed-pitch slice, harmonized connectors."""
 
     template_bytes = terrain_atlas_template_path().read_bytes() if template is None else template
     lookup_bytes = terrain_atlas_lookup_path().read_bytes() if lookup_data is None else lookup_data
     source_validation = require_terrain_atlas_source(painted_source, template=template_bytes)
     lookup = load_terrain_atlas_lookup(lookup_bytes)
-    with Image.open(BytesIO(painted_source)) as opened:
-        source = opened.convert("RGB")
-    with Image.open(BytesIO(template_bytes)) as opened:
-        template_image = opened.convert("RGB")
-    generated_cells, lattice = extract_guided_cells(
-        source,
-        columns=GRID_COLUMNS,
-        rows=GRID_ROWS,
-        canonical_cell_px=CANONICAL_CELL_PX,
-    )
-    template_cells, _ = extract_guided_cells(
-        template_image,
-        columns=GRID_COLUMNS,
-        rows=GRID_ROWS,
-        canonical_cell_px=CANONICAL_CELL_PX,
-    )
-    masks_by_coordinate = {coordinate: mask for mask, coordinate in lookup.by_mask.items()}
-    cells: dict[Coordinate, Image.Image] = {}
-    for coordinate in template_cells:
-        if coordinate == PLACEHOLDER_CELL:
-            cells[coordinate] = Image.new(
-                "RGBA", (CANONICAL_CELL_PX, CANONICAL_CELL_PX), (0, 0, 0, 0)
-            )
-            continue
-        cells[coordinate] = _with_template_silhouette(
-            generated_cells[coordinate], template_cells[coordinate]
-        )
-    cells = _harmonize_connector_edges(cells, masks_by_coordinate)
+    # No connector harmonisation. The three-pixel median-profile blend that used to run
+    # here was written for a chroma-keyed repaint of one template, where every cell shared
+    # a colour and forcing the outermost pixels to a common profile was invisible. On a
+    # hand-painted sheet the common profile is a colour no cell actually has, so it stamped
+    # a pale lattice down every join - plainly visible in a composed map, and absent from
+    # the same map composed straight from the slice. It also wrote the exact pixels the
+    # direct-connector check then sampled, so that check read zero on every draw including
+    # the patchy ones. Both are gone; the join-tone gate measures unrepaired cells.
+    cells = terrain_atlas_cells(painted_source)
 
-    exact_alpha_mismatch = _exact_alpha_mismatch(cells, template_cells)
-    direct_alpha_max = direct_rgb_max = 0.0
+    connector_rgb_max = 0.0
     map_reports: dict[str, object] = {}
     for name, rows in _VALIDATION_MAPS.items():
         occupied = parse_binary_rows(rows)
         direct, coordinates = compose_terrain(occupied, cells, lookup)
         metrics = _connector_metrics(direct, occupied)
-        direct_alpha_max = max(
-            direct_alpha_max,
-            cast(float, metrics["connector_alpha_mismatch_fraction"]),
-        )
-        direct_rgb_max = max(
-            direct_rgb_max,
+        connector_rgb_max = max(
+            connector_rgb_max,
             cast(float, metrics["connector_mean_absolute_rgb_error"]),
         )
         map_reports[name] = {
@@ -699,13 +792,14 @@ def assemble_terrain_atlas(
                 (column * CANONICAL_CELL_PX, row * CANONICAL_CELL_PX),
             )
     canonical = png_bytes(atlas)
-    direct_pass = (
-        cast(str, source_validation["lattice_classification"])
-        in {"direct_regular", "rectified_regular"}
-        and exact_alpha_mismatch <= MAXIMUM_SOURCE_ALPHA_MISMATCH
-        and direct_alpha_max <= MAXIMUM_CONNECTOR_ALPHA_MISMATCH
-        and direct_rgb_max <= MAXIMUM_DIRECT_CONNECTOR_RGB_MEAN_ERROR
+    published_holes = sum(
+        1
+        for coordinate, cell in cells.items()
+        if coordinate != PLACEHOLDER_CELL
+        for value in cast(Iterable[int], cell.getchannel("A").get_flattened_data())
+        if value <= 128
     )
+    direct_pass = published_holes == 0
     report: dict[str, object] = {
         "schema_version": 1,
         "kind": "terrain-atlas-paintover-canonicalization-validation-v1",
@@ -717,6 +811,7 @@ def assemble_terrain_atlas(
         "source": cast(dict[str, object], source_validation["source"]),
         "source_validation": source_validation,
         "template_sha256": sha256(template_bytes).hexdigest(),
+        "paint_target_sha256": sha256(terrain_atlas_paint_target(template_bytes)).hexdigest(),
         "lookup_sha256": sha256(lookup_bytes).hexdigest(),
         "lookup_masks": len(lookup.by_mask),
         "canonical": {
@@ -728,26 +823,21 @@ def assemble_terrain_atlas(
             "placeholder_transparent_in_canonical": (
                 cells[PLACEHOLDER_CELL].getchannel("A").getextrema() == (0, 0)
             ),
+            "published_transparent_pixels": published_holes,
         },
         "construction": {
             "appearance_owner": "image-model-cell-paintover",
             "topology_owner": "locked-packaged-template-comparison-and-lookup",
-            "alpha_extraction": "deterministic-magenta-chroma-v1",
-            "connector_harmonization": "three-pixel-interior-median-profile-v2",
-            "lattice_normalization": "detected-cell-independent-120px-resampling-v1",
+            "registration": "fixed-pitch-exact-canvas-v1",
+            "connector_harmonization": "none",
         },
-        "lattice": _lattice_report(lattice),
-        "template_alpha_mismatch_fraction": exact_alpha_mismatch,
-        "maximum_direct_connector_alpha_mismatch": direct_alpha_max,
-        "maximum_direct_connector_rgb_mean": direct_rgb_max,
+        "worst_join_tone_step": source_validation["worst_join_tone_step"],
+        "mean_join_tone_step": source_validation["mean_join_tone_step"],
+        "hillside_tile_object_share": source_validation["hillside_tile_object_share"],
+        "connector_rgb_mean": connector_rgb_max,
         "thresholds": {
-            "maximum_lattice_residual_px": MAXIMUM_LATTICE_RESIDUAL_PX,
-            "maximum_rectifiable_lattice_residual_fraction": (
-                MAXIMUM_RECTIFIABLE_LATTICE_RESIDUAL_FRACTION
-            ),
-            "maximum_source_alpha_mismatch": MAXIMUM_SOURCE_ALPHA_MISMATCH,
-            "maximum_connector_alpha_mismatch": MAXIMUM_CONNECTOR_ALPHA_MISMATCH,
-            "maximum_direct_connector_rgb_mean": MAXIMUM_DIRECT_CONNECTOR_RGB_MEAN_ERROR,
+            "paint_canvas": PAINT_CANVAS_SIZE,
+            "maximum_join_tone_step": MAXIMUM_JOIN_TONE_STEP,
         },
         "maps": map_reports,
         "smooth_slopes_supported": False,
@@ -804,14 +894,19 @@ def compose_canonical_terrain(
 __all__ = [
     "CANONICAL_CELL_PX",
     "GRID_COLUMNS",
+    "GUIDE_INSET_PX",
+    "GUIDE_RGB",
+    "GUIDE_WIDTH_PX",
     "GRID_ROWS",
     "MATERIAL_ASSEMBLER_ID",
     "MATERIAL_SOURCE_CONTRACT_ID",
-    "MAXIMUM_CONNECTOR_ALPHA_MISMATCH",
-    "MAXIMUM_DIRECT_CONNECTOR_RGB_MEAN_ERROR",
-    "MAXIMUM_LATTICE_RESIDUAL_PX",
-    "MAXIMUM_RECTIFIABLE_LATTICE_RESIDUAL_FRACTION",
+    "MAXIMUM_JOIN_TONE_STEP",
+    "PAINT_CANVAS_HEIGHT",
+    "PAINT_CANVAS_SIZE",
+    "PAINT_CANVAS_WIDTH",
+    "PAINT_TARGET_ID",
     "PLACEHOLDER_CELL",
+    "SOURCE_CELL_PX",
     "TOPOLOGY_ID",
     "TerrainAtlasLookup",
     "assemble_terrain_atlas",
@@ -822,5 +917,7 @@ __all__ = [
     "parse_binary_rows",
     "peering_mask",
     "require_terrain_atlas_source",
+    "terrain_atlas_cells",
     "terrain_atlas_generation_prompt",
+    "terrain_atlas_paint_target",
 ]

@@ -153,7 +153,6 @@ from stage_gen.recipes.sideview_runner.runner_types import (
 from stage_gen.resources import (
     terrain_atlas_lookup_path,
     terrain_atlas_template_path,
-    terrain_atlas_topology_reference_path,
 )
 
 if TYPE_CHECKING:
@@ -577,9 +576,6 @@ def build_runner_execution_graph(
         terrain_template_sha256 = hashlib.sha256(
             terrain_atlas_template_path().read_bytes()
         ).hexdigest()
-        terrain_topology_sha256 = hashlib.sha256(
-            terrain_atlas_topology_reference_path().read_bytes()
-        ).hexdigest()
         ground_generate = builder.add(
             TRACK_GROUND_GENERATE,
             "track-ground-generate",
@@ -592,7 +588,6 @@ def build_runner_execution_graph(
                 direction_digest,
                 text_digest(ground_prompt(resolved, track)),
                 terrain_template_sha256,
-                terrain_topology_sha256,
                 *(entry.sha256 for entry in ground_references),
             ),
             ports=(

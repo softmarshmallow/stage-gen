@@ -61,7 +61,6 @@ class PreparedIntegrationNodeHandler:
         cache_dir: Path,
         output_dir: Path,
         terrain_template_path: Path,
-        terrain_topology_reference_path: Path,
         artifact_roots: Sequence[Path] = (),
         replace_output: bool = False,
     ) -> None:
@@ -78,7 +77,6 @@ class PreparedIntegrationNodeHandler:
             image_service=create_provider_free_image_service(PROVIDER_FREE_REASON),
             structured_service=create_provider_free_structured_service(PROVIDER_FREE_REASON),
             terrain_template_path=terrain_template_path,
-            terrain_topology_reference_path=terrain_topology_reference_path,
         )
         self._content = PreparedContentNodeHandler(
             graph,

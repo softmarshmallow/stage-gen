@@ -128,8 +128,11 @@ from stage_gen.components.sideview_layers.pipeline import (
     layer_repeat_policies,
 )
 from stage_gen.components.sideview_terrain import (
+    PAINT_CANVAS_SIZE,
+    PAINT_TARGET_ID,
     assemble_terrain_atlas,
     require_terrain_atlas_source,
+    terrain_atlas_paint_target,
 )
 from stage_gen.components.sound_effect import (
     DURATION_TOLERANCE_SECONDS,
@@ -216,7 +219,6 @@ from stage_gen.recipes.sideview_runner.runner_types import (
 )
 from stage_gen.resources import (
     terrain_atlas_template_path,
-    terrain_atlas_topology_reference_path,
 )
 
 if TYPE_CHECKING:
@@ -998,24 +1000,17 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
         output = self._run_dir / self._provider_output_ref(node)
         if node.type_id == TRACK_GROUND_GENERATE.type_id:
             template = terrain_atlas_template_path().read_bytes()
-            topology = terrain_atlas_topology_reference_path().read_bytes()
+            paint_target = terrain_atlas_paint_target(template)
             return ImageGenerationRequest(
                 prompt=self._card_prompt(node),
                 artifact_path=output,
                 input_references=(
                     ImageReference(
-                        data_url(template, "image/png"),
+                        data_url(paint_target, "image/png"),
                         (
                             "resource://image_gen_templates/terrain_atlas_12x4_template.png"
-                            f"#sha256={content_sha256(template)}"
-                        ),
-                    ),
-                    ImageReference(
-                        data_url(topology, "image/png"),
-                        (
-                            "resource://image_gen_templates/"
-                            "terrain_atlas_godot_topology_reference.png"
-                            f"#sha256={content_sha256(topology)}"
+                            f"?packed={PAINT_TARGET_ID}"
+                            f"#sha256={content_sha256(paint_target)}"
                         ),
                     ),
                     *self._authored_references(node),
@@ -1023,7 +1018,7 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
                 quality="max",
                 background="opaque",
                 output_format="png",
-                size="auto",
+                size=PAINT_CANVAS_SIZE,
                 timeout_seconds=600,
                 metadata={"track_id": self._track().track_id, "operation": "ground_atlas"},
                 validate=lambda artifact: require_terrain_atlas_source(
@@ -1639,9 +1634,9 @@ class SideviewRunnerNodeHandler(RecipeNodeHandler):
             self._run_dir / node.port("image").artifact_ref,
             canonical,
             prompt=(
-                "Slice the model-painted 12x4 guide lattice, extract deterministic chroma alpha, "
-                "apply the authoritative 47-mask lookup, harmonize only legal connector edges, "
-                "and assemble the canonical atlas deterministically."
+                "Slice the model-painted 12x4 sheet on fixed cell boundaries, apply the "
+                "authoritative 47-mask lookup, harmonize only legal connector edges, and "
+                "assemble the canonical atlas deterministically."
             ),
             inputs=[(source_ref, raw)],
             validation=validation,

@@ -36,7 +36,6 @@ from stage_gen.recipes.sideview_platformer.prepared_world import (
 from stage_gen.recipes.sideview_platformer.validation import ResolvedGamePackage
 from stage_gen.resources import (
     terrain_atlas_template_path,
-    terrain_atlas_topology_reference_path,
 )
 
 PreparedPackagePlan = RecipePlan[ResolvedGamePackage, ExecutionGraph]
@@ -97,7 +96,6 @@ class PreparedPackageExecutor(RecipeExecutor[ResolvedGamePackage, ExecutionGraph
             cache_dir=cache_dir,
             output_dir=output_dir,
             terrain_template_path=terrain_atlas_template_path(),
-            terrain_topology_reference_path=terrain_atlas_topology_reference_path(),
             artifact_roots=artifact_roots,
             replace_output=replace_output,
         )
@@ -141,7 +139,6 @@ class PreparedPackageExecutor(RecipeExecutor[ResolvedGamePackage, ExecutionGraph
                 image_service=services.image(),
                 structured_service=services.structured(),
                 terrain_template_path=terrain_atlas_template_path(),
-                terrain_topology_reference_path=terrain_atlas_topology_reference_path(),
             )
             summary = await self.dispatch(
                 plan,

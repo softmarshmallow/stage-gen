@@ -59,10 +59,13 @@ from stage_gen.components.sideview_layers.pipeline import (
 from stage_gen.components.sideview_map_design import DesignBrief, design_chunks
 from stage_gen.components.sideview_terrain.atlas import (
     MATERIAL_ASSEMBLER_ID,
+    PAINT_CANVAS_SIZE,
+    PAINT_TARGET_ID,
     assemble_terrain_atlas,
     compose_canonical_terrain,
     require_terrain_atlas_source,
     terrain_atlas_generation_prompt,
+    terrain_atlas_paint_target,
 )
 from stage_gen.media import (
     AlphaComponentRepackContract,
@@ -131,13 +134,11 @@ class PreparedWorldNodeHandler(RecipeNodeHandler):
         image_service: ImageGenerationService,
         structured_service: StructuredGenerationService[object],
         terrain_template_path: Path,
-        terrain_topology_reference_path: Path,
     ) -> None:
         self._package = package
         self._images = image_service
         self._structured = structured_service
         self._terrain_template_path = terrain_template_path
-        self._terrain_topology_reference_path = terrain_topology_reference_path
         self._layers = LayerHandlers(
             LayerHost(
                 run_dir=run_dir,
@@ -365,21 +366,17 @@ class PreparedWorldNodeHandler(RecipeNodeHandler):
         )
         prompt = terrain_atlas_generation_prompt(material_direction)
         template = self._terrain_template_path.read_bytes()
-        topology_reference = self._terrain_topology_reference_path.read_bytes()
+        # One reference where there were two. The packed target carries the topology the
+        # separate Godot reference used to restate, and restating it cost input tokens to
+        # tell the model something the paint target already says.
+        paint_target = terrain_atlas_paint_target(template)
         references = (
             ImageReference(
-                url=data_url(template, "image/png"),
+                url=data_url(paint_target, "image/png"),
                 provenance_ref=(
                     "resource://image_gen_templates/terrain_atlas_12x4_template.png"
-                    f"#sha256={hashlib.sha256(template).hexdigest()}"
-                ),
-            ),
-            ImageReference(
-                url=data_url(topology_reference, "image/png"),
-                provenance_ref=(
-                    "resource://image_gen_templates/"
-                    "terrain_atlas_godot_topology_reference.png"
-                    f"#sha256={hashlib.sha256(topology_reference).hexdigest()}"
+                    f"?packed={PAINT_TARGET_ID}"
+                    f"#sha256={hashlib.sha256(paint_target).hexdigest()}"
                 ),
             ),
             *self._image_references(game_map, game_map.ground.reference_ids),
@@ -392,7 +389,7 @@ class PreparedWorldNodeHandler(RecipeNodeHandler):
                 quality="max",
                 background="opaque",
                 output_format="png",
-                size="auto",
+                size=PAINT_CANVAS_SIZE,
                 timeout_seconds=600,
                 metadata={
                     "checkpoint": "world",
@@ -465,9 +462,9 @@ class PreparedWorldNodeHandler(RecipeNodeHandler):
             canonical,
             model=MATERIAL_ASSEMBLER_ID,
             prompt=(
-                "Slice the model-painted 12x4 guide lattice, extract deterministic chroma alpha, "
-                "apply the authoritative 47-mask lookup, harmonize only legal connector edges, "
-                "and assemble the canonical atlas deterministically."
+                "Slice the model-painted 12x4 sheet on fixed cell boundaries, apply the "
+                "authoritative 47-mask lookup, harmonize only legal connector edges, and "
+                "assemble the canonical atlas deterministically."
             ),
             source_ref=source_port.artifact_ref,
             source_data=raw,

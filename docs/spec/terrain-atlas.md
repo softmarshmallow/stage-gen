@@ -8,10 +8,10 @@ atlas. It is not a 9-slice and it does not encode true smooth slopes.
 
 ## Ownership
 
-- `stage_gen.media.guide_lattice` owns reusable guide detection and cell
-  extraction for the attributed topology template and provider paintovers.
-- `stage_gen.recipes.sideview_platformer.terrain_atlas` owns strict paintover
-  prompting and admission, deterministic chroma-alpha extraction and connector
+- `stage_gen.media.guide_lattice` owns reusable guide detection, used once to
+  read the attributed template's own cells when the paint target is packed.
+- `stage_gen.components.sideview_terrain.atlas` owns the paint target, strict
+  paintover prompting and admission, fixed-pitch slicing and connector
   harmonization, 47-mask lookup admission, and structural previews.
 - `maps/<map_id>.toml` owns the exact top-to-bottom binary occupancy matrix.
 - `godot/families/sideview/terrain/atlas.gd` owns eight-neighbor peering,
@@ -20,24 +20,48 @@ atlas. It is not a 9-slice and it does not encode true smooth slopes.
 
 No generic component imports side-view terrain semantics. The image model owns
 biome material and rendering appearance only. Deterministic code owns topology,
-alpha, packing, validation, lookup, and composition.
+registration, packing, validation, lookup, and composition.
 
 ## Provider paintover contract
 
-The provider receives the attributed 12-by-4 template as the strict first edit
-target, the attributed Godot grid crop as redundant topology-only input, and
-then map-authorized concept images as appearance references. This exact ordering
-is part of the generation contract. It produces one opaque atlas paintover:
+The provider receives `terrain-atlas-paint-target-v1` as the strict first edit
+target, and then map-authorized concept images as appearance references. This
+exact ordering is part of the generation contract. The request pins an exact
+2880-by-960 canvas: twelve by four cells of 240 pixels, twice the publication
+pitch, and exactly the 3:1 maximum the image route accepts. It produces one
+opaque repaint:
 
-- all 13 vertical and 5 horizontal cyan guides remain regular;
-- pure magenta remains outside terrain silhouettes;
-- all 48 cells retain their topology role and checker placeholder;
+- the 12-by-4 grid stays where it is, edge to edge, with no margin or frame;
+- every cell is filled with terrain to all four of its edges;
+- each tile keeps the structure the target has -- which sides are finished
+  faces, which are interior cuts, which corners are turned;
+- every cell shows one material at one scale, light and brightness, so any
+  continuing edge may be joined to any other;
 - cap and fill are biome roles rather than hard-coded grass and dirt; and
 - cell interiors receive contextual hand-painted edges, corners, bevels, and
   restrained material variation at one scale and light direction.
 
-The image model owns RGB appearance inside the cells. It does not own final
-alpha, packing, lookup, placeholder transparency, or connector admission.
+The image model owns RGB appearance inside the cells. It does not own packing,
+lookup, placeholder transparency, or connector admission.
+
+The paint target is the template's 48 cells packed at the provider pitch behind a
+three-pixel cyan hairline at every cell boundary, and it is derived from the locked
+template rather than committed beside it, so the packed sheet cannot drift from the
+template it comes from. The fence is not registration -- the exact canvas settles that,
+and the line sits at a known coordinate, so the cut is arithmetic and nothing is detected.
+It is there to tell the brush where a tile ends. Published without it, the model paints
+the sheet as one canvas: colour right across a boundary differed by 2.78 where half a cell
+apart differed by 8.35, and cells whose bottom is exposed sat 2.13 from the cell below,
+their undersides being the neighbour's material rather than an underside. Restoring it
+took those figures to 43.1 and 82.9. Three pixels, in a colour that cannot be terrain: a
+hairline reads as a line to keep, while a sixteen-pixel neutral channel -- the width this
+was first tried at -- reads as a gap between objects and the model frames every tile.
+Four rounds of a locally drawn block guide -- flat bands standing for which of a
+cell's faces meet air -- were measured against it and each invented a literalism
+from the legend: a rim darker than the fill came back as a shadow gap between
+blocks, a corner mark as a stone cube sitting in the cell, a rim lighter than the
+fill as a cream frame around every tile. The template needs no legend because it
+already carries all forty-seven finishes; only its art is wrong.
 
 ## Local topology and assembly contract
 
@@ -51,23 +75,40 @@ documentation terrain example and retains CC BY 3.0 attribution in
   peering masks; and
 - a checker placeholder at zero-based coordinate `(10, 1)`.
 
-Local code detects and extracts both lattices, preserves the provider-painted
-cell interiors, bleeds neighbouring material over any magenta the provider left
-inside a cell so the imposed silhouette cannot publish a magenta rim,
-harmonizes three pixels
-at legal connector edges, clears the placeholder, and packs 120-by-120 RGBA
-cells without gutters into the canonical 1440-by-480 runtime atlas. Missing or
-irregular guides fail closed.
-Cell silhouettes come from the template, not from the paintover. The compositor
-copies the provider's RGB and takes each cell's alpha from the corresponding
-template cell, so a model that paints through the magenta keep-out bands still
-publishes the locked 47-mask shapes. Topology drift and connector alpha are
-measured and recorded, but no longer refuse a paintover: GPT Image 2.5 floods
-those bands on every attempt while registering the lattice more accurately than
-its predecessor, and the shape it was being asked to reproduce is one this
-component already knows exactly.
+Local code packs that template into the paint target, slices the returned canvas
+on fixed cell boundaries four pixels inside the fence, clears the placeholder, and packs
+120-by-120
+RGBA cells without gutters into the canonical 1440-by-480 runtime atlas. A canvas
+that is not exactly 2880-by-960 fails closed.
+
+Fence colour is read strictly in a cell's middle and by cast within nine pixels of its
+edge. The strict reading alone published 1,611 tinted pixels into one atlas: saturated
+fence over cream terrain lands around (180, 215, 210), a pale teal nothing like the line
+it came from and with a red channel far above any threshold that would catch the line
+itself. Near an edge the test is the cast rather than the colour -- green and blue both
+well above red -- which this palette's foliage, stone, soil and brass never are, while the
+strict reading away from an edge leaves a turquoise the direction asked for untouched.
+
+Nothing is blended at the joins. The three-pixel median-profile harmonisation
+this replaces was written for a chroma-keyed repaint of one template, where every
+cell shared a colour and forcing the outermost pixels onto a common profile was
+invisible. On a hand-painted sheet that common profile is a colour no cell
+actually has, so it stamped a pale lattice down every join, plainly visible in a
+composed map and absent from the same map composed straight from the slice.
+
+Published cells are fully opaque. A 3x3-minimal terrain tile fills its cell: the
+forty-seven tiles differ in how their sides and corners are finished, not in
+shape, so there is no silhouette to key and no keep-out to preserve. The magenta
+convention this replaces predates native alpha and had been destroying the sheet:
+the locked template paints rock highlights in a pale pink that satisfies the
+chroma key, so every atlas published under it carried 31,701 transparent pixels
+-- 4.68 per cent of the forty-seven tiles, up to 19.2 per cent of one of them --
+punched through solid ground. The per-cell alpha the old admission compared
+against was that damage. It is anti-correlated with exposure, open along tops
+that are covered and closed along tops that are exposed, and collapses to six
+distinct shapes across forty-seven masks.
 The current deterministic assembly identity is
-`terrain-atlas-paintover-canonicalization-v5`; any output-affecting compositor
+`terrain-atlas-paintover-canonicalization-v8`; any output-affecting compositor
 change must advance that identity so cached paintovers cannot mask stale atlases.
 
 The machine-readable lookup in
@@ -92,19 +133,58 @@ failed media:
 
 | Measurement | Threshold |
 | --- | --- |
-| Provider fitted-guide residual | at most 1.5 px |
-| Rectifiable guide residual | at most 0.025 of fitted spacing; cells are independently normalized before the unchanged direct-pass checks |
-| Provider topology alpha mismatch | recorded, not refused; the silhouette is imposed from the template |
-| Provider connector alpha mismatch | recorded, not refused, for the same reason |
+| Provider canvas | exactly 2880-by-960 |
 | Painted material variation | at least 2.0 mean RGB standard-deviation units |
-| Paintover/template alpha mismatch | at most 0.10 globally |
-| Connector alpha mismatch | at most 0.005 over the central 20% band |
-| Direct connector mean RGB error | at most 3.0 channel values |
+| Worst join tone step | at most 65.0 mean channel values |
+| Hillside-tile object share | recorded, not refused |
+| Buried-tile object share mean | recorded, not refused |
+| Mean join tone step | recorded, not refused |
+| Connector mean RGB error | recorded, not refused |
+| Published transparent pixels outside the placeholder | exactly 0 |
+
+The join tone step averages the twelve-pixel strip either side of every join the
+validation maps can make, and compares those averages. The per-pixel connector
+comparison stays in the record but does not decide: on hand-painted material it
+is dominated by texture, and while the harmoniser existed it was computed after
+that blend had overwritten the pixels it samples, so it read zero on every draw
+including the patchy ones. The join threshold
+is calibrated on published atlases rather than on a new draw -- the two whose
+material a semantic reviewer accepted measure 26.3, the one the reviewer
+complained about measures 84.6, and a repeat draw that came back visibly patchy
+measures 92.8.
+
+The hillside-tile object share reads the one tile a filled mass is built from -- the
+all-neighbours mask -- in ten-pixel blocks, and counts the share of them sitting more than
+twelve mean channel values from the tile's own median. That square is stamped at the same
+place in every repeat, so anything countable inside it becomes a visible lattice, and the
+figure is worth comparing across runs.
+
+It is recorded and never refused. Three attempts to gate it produced two regressions and
+no working threshold. At 0.10 it refused the published atlas whose material reads best,
+0.194, and the contract came back asking for gravel: the largest feature in a 120-pixel
+tile fell to 20 pixels against 52 in the atlas it replaced, and a flat body then shows
+every join a busy one hides. At 0.45 it fought the fabric the prompt asks for and
+exhausted a node's whole retry budget on a material that draws large slabs. And the
+ordering never held: the atlas a reviewer liked scores 0.157 on its largest region, a
+hillside visibly chained with repeated boulders scores 0.179, and a sheet that reads well
+scores 0.345. Whether a repeat is legible -- a course of slabs reads as a wall, one
+boulder reads as a copy -- is an aesthetic judgement, and it belongs to the semantic
+review rather than to a statistic.
+
+Topology is not stated in the prompt, and two paid rounds establish why. Asked to hold
+it in words instead of taking it from the paint target -- once as a table of all
+forty-eight cells, once as sixteen prose runs over an exposure-ordered sheet -- the
+model followed the wording closely and drew the wording: grooves where the prompt said
+"grid", marks where it said "notched", and sky showing through wherever it read
+"exposed underside", because a sheet described in words composes as a picture. Nine and
+four of the fifty-two faces that must be finished came back unfinished, against one for
+the same material drawn over the target. The prompt owns the art; the target owns the
+structure.
 
 Runtime classification is deterministic: `direct_pass` only when every source,
-template-alpha, placeholder, and direct-connector check passes; otherwise
-`reject`. There is no generated-atlas repair fallback. Dynamic engine tilemaps
-require `direct_pass`.
+placeholder, and opacity check passes; otherwise `reject`.
+There is no generated-atlas repair fallback. Dynamic engine tilemaps require
+`direct_pass`.
 
 ## Consumer behavior
 
@@ -120,7 +200,7 @@ visual inset.
 
 At finite world boundaries, the prepared runtime repeats one visual-only occupancy column beyond
 each horizontal edge and one visual-only row below the map before resolving peering masks. This
-moves the atlas's transparent side and bottom contours outside the camera while leaving authored
+moves the atlas's painted side and bottom terminations outside the camera while leaving authored
 occupancy, collision, world dimensions, and camera bounds unchanged. The top contour remains
 authored terrain because it defines the visible walk surface.
 

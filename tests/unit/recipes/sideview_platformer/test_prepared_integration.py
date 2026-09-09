@@ -20,7 +20,6 @@ from stage_gen.recipes.sideview_platformer.prepared_integration import (
 )
 from stage_gen.resources import (
     terrain_atlas_template_path,
-    terrain_atlas_topology_reference_path,
 )
 from tests.unit.recipes.sideview_platformer.test_prepared_content import (
     BELLWEATHER,
@@ -76,7 +75,6 @@ async def _integrate(
         cache_dir=cache_dir,
         output_dir=tmp_path / "published",
         terrain_template_path=terrain_atlas_template_path(),
-        terrain_topology_reference_path=terrain_atlas_topology_reference_path(),
         artifact_roots=artifact_roots,
     )
     summary = await Scheduler(prepared.graph.resources, node_timeout_seconds=120).run(
@@ -153,7 +151,6 @@ def test_the_manifest_node_is_registered_by_the_integration_handler() -> None:
         cache_dir=Path("/nonexistent"),
         output_dir=Path("/nonexistent"),
         terrain_template_path=terrain_atlas_template_path(),
-        terrain_topology_reference_path=terrain_atlas_topology_reference_path(),
     )
     owned = handler._world.registered_type_ids | handler._content.registered_type_ids
     declared = {node.type_id for node in prepared.graph.nodes}

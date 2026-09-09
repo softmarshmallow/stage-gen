@@ -1,8 +1,8 @@
 """The tiled-segment ground discipline shared by side-view genres.
 
 The 47-mask terrain atlas (`terrain-atlas-3x3-minimal-v1`) is camera-scoped,
-not genre-scoped: a platformer map and a runner track paint the same locked
-template and canonicalize through the same admission. Genre-specific terrain
+not genre-scoped: a platformer map and a runner track paint the same packed
+target and canonicalize through the same admission. Genre-specific terrain
 *rules* (escape floors, pits) stay with their genre contracts.
 """
 
@@ -13,6 +13,8 @@ from stage_gen.components.sideview_terrain.atlas import (
     MASK_ORDER,
     MATERIAL_ASSEMBLER_ID,
     MATERIAL_SOURCE_CONTRACT_ID,
+    PAINT_CANVAS_SIZE,
+    PAINT_TARGET_ID,
     PLACEHOLDER_CELL,
     TOPOLOGY_ID,
     TerrainAtlasLookup,
@@ -24,7 +26,9 @@ from stage_gen.components.sideview_terrain.atlas import (
     parse_binary_rows,
     peering_mask,
     require_terrain_atlas_source,
+    terrain_atlas_cells,
     terrain_atlas_generation_prompt,
+    terrain_atlas_paint_target,
 )
 
 __all__ = [
@@ -34,6 +38,8 @@ __all__ = [
     "MASK_ORDER",
     "MATERIAL_ASSEMBLER_ID",
     "MATERIAL_SOURCE_CONTRACT_ID",
+    "PAINT_CANVAS_SIZE",
+    "PAINT_TARGET_ID",
     "PLACEHOLDER_CELL",
     "TOPOLOGY_ID",
     "TerrainAtlasLookup",
@@ -45,5 +51,7 @@ __all__ = [
     "parse_binary_rows",
     "peering_mask",
     "require_terrain_atlas_source",
+    "terrain_atlas_cells",
     "terrain_atlas_generation_prompt",
+    "terrain_atlas_paint_target",
 ]
