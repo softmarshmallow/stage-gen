@@ -175,8 +175,8 @@ def test_paintover_is_locally_canonicalized_into_locked_direct_pass_atlas() -> N
     source_report = require_terrain_atlas_source(source)
     canonical, report = assemble_terrain_atlas(source)
 
-    assert source_report["contract"] == "terrain-atlas-paintover-source-v3"
-    assert report["canonicalizer"] == "terrain-atlas-paintover-canonicalization-v3"
+    assert source_report["contract"] == "terrain-atlas-paintover-source-v4"
+    assert report["canonicalizer"] == "terrain-atlas-paintover-canonicalization-v5"
     assert report["classification"] == "direct_pass"
     assert cast(float, report["template_alpha_mismatch_fraction"]) <= 0.10
     assert report["maximum_direct_connector_alpha_mismatch"] == 0.0
@@ -208,6 +208,9 @@ def test_paintover_source_rejects_missing_lattice_topology_drift_and_uniformity(
     with pytest.raises(ValueError, match="guide lattice count mismatch"):
         require_terrain_atlas_source(_png(missing_lattice))
 
+    # The real drift a model produces is not "everything turned magenta" - it is material
+    # painted straight through the keep-out bands, which is what GPT Image 2.5 does to
+    # every exposed side in the set. Flooding the magenta with material reproduces that.
     with Image.open(BytesIO(_paintover_source())) as opened:
         topology_drift = opened.convert("RGB")
     drift_pixels = topology_drift.load()
@@ -215,12 +218,23 @@ def test_paintover_source_rejects_missing_lattice_topology_drift_and_uniformity(
     for y in range(topology_drift.height):
         for x in range(topology_drift.width):
             red, green, blue = cast(tuple[int, int, int], drift_pixels[x, y])
-            if red < 80 and green > 170 and blue > 170:
-                continue
-            if not (red > 180 and blue > 180 and green < 80):
-                drift_pixels[x, y] = (255, 0, 255)
-    with pytest.raises(ValueError, match="changed too much locked topology"):
-        require_terrain_atlas_source(_png(topology_drift))
+            if red > 180 and blue > 180 and green < 80:
+                drift_pixels[x, y] = (110 + (x % 9), 84 + (y % 7), 58)
+    # Topology drift is now recorded rather than refused. The canonicalizer imposes the
+    # template's silhouette, so a paintover that floods every keep-out band still
+    # publishes the locked shape - which is what makes a model that ignores the magenta
+    # bands usable at all. Checked on the published artifact, not trusted from the source.
+    drifted = _png(topology_drift)
+    drift_facts = require_terrain_atlas_source(drifted)
+    assert drift_facts["shape_alpha_is_advisory"] is True
+    assert cast(float, drift_facts["global_alpha_mismatch_fraction"]) > 0.0
+    drifted_cells = cells_from_canonical_atlas(assemble_terrain_atlas(drifted)[0])
+    clean_cells = cells_from_canonical_atlas(assemble_terrain_atlas(_paintover_source())[0])
+    for coordinate, clean_cell in clean_cells.items():
+        assert (
+            drifted_cells[coordinate].getchannel("A").tobytes()
+            == clean_cell.getchannel("A").tobytes()
+        )
 
     uniform = _paintover_source(base=(100, 80, 60), coordinate_variation=False)
     with pytest.raises(ValueError, match="lacks usable painted material variation"):

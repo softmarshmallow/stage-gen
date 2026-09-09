@@ -317,12 +317,15 @@ visual references as appearance-only inputs. The request asks the
 model to paint contextual cap, fill, exposed sides, bevels, corners, and concavities inside all 47
 terrain cells while preserving the cyan lattice, magenta empty regions, and checker placeholder.
 Cap and fill are biome roles rather than hard-coded grass and dirt. The retry-owning image component
-validates the fitted guide lattice, topology drift, painted variation, and direct connector alpha.
+validates the fitted guide lattice and painted variation; topology drift and direct connector alpha
+are measured and published as facts rather than refusals.
 Its dependent local node extracts deterministic magenta chroma alpha to
-**deterministically assemble 47-mask atlas** cells, harmonizes legal connector
+**deterministically assemble 47-mask atlas** cells, takes each cell's silhouette from the
+template so a paintover that floods the magenta keep-out bands still publishes the locked
+shapes, harmonizes legal connector
 edges, clears the placeholder, validates direct connectors, and emits the canonical
 1440-by-480 atlas plus `ground.evidence.png` composed from that map's authored occupancy. The current
-local compositor is `terrain-atlas-paintover-canonicalization-v3`. Its identity and the template,
+local compositor is `terrain-atlas-paintover-canonicalization-v5`. Its identity and the template,
 topology-reference, and lookup digests participate in generation and local assembly cache keys;
 occupancy changes the local
 evidence, composite, review, bindings, and manifest projection without invalidating the

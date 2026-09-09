@@ -51,14 +51,23 @@ documentation terrain example and retains CC BY 3.0 attribution in
   peering masks; and
 - a checker placeholder at zero-based coordinate `(10, 1)`.
 
-Local code detects and extracts both lattices, rejects excessive provider
-topology drift, preserves the provider-painted cell interiors, deterministically
-derives alpha from the provider-painted magenta chroma, harmonizes three pixels
+Local code detects and extracts both lattices, preserves the provider-painted
+cell interiors, bleeds neighbouring material over any magenta the provider left
+inside a cell so the imposed silhouette cannot publish a magenta rim,
+harmonizes three pixels
 at legal connector edges, clears the placeholder, and packs 120-by-120 RGBA
 cells without gutters into the canonical 1440-by-480 runtime atlas. Missing or
 irregular guides fail closed.
+Cell silhouettes come from the template, not from the paintover. The compositor
+copies the provider's RGB and takes each cell's alpha from the corresponding
+template cell, so a model that paints through the magenta keep-out bands still
+publishes the locked 47-mask shapes. Topology drift and connector alpha are
+measured and recorded, but no longer refuse a paintover: GPT Image 2.5 floods
+those bands on every attempt while registering the lattice more accurately than
+its predecessor, and the shape it was being asked to reproduce is one this
+component already knows exactly.
 The current deterministic assembly identity is
-`terrain-atlas-paintover-canonicalization-v3`; any output-affecting compositor
+`terrain-atlas-paintover-canonicalization-v5`; any output-affecting compositor
 change must advance that identity so cached paintovers cannot mask stale atlases.
 
 The machine-readable lookup in
@@ -85,7 +94,8 @@ failed media:
 | --- | --- |
 | Provider fitted-guide residual | at most 1.5 px |
 | Rectifiable guide residual | at most 0.025 of fitted spacing; cells are independently normalized before the unchanged direct-pass checks |
-| Provider topology alpha mismatch | at most 0.10 globally |
+| Provider topology alpha mismatch | recorded, not refused; the silhouette is imposed from the template |
+| Provider connector alpha mismatch | recorded, not refused, for the same reason |
 | Painted material variation | at least 2.0 mean RGB standard-deviation units |
 | Paintover/template alpha mismatch | at most 0.10 globally |
 | Connector alpha mismatch | at most 0.005 over the central 20% band |

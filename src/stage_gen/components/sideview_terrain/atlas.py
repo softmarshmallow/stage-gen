@@ -11,11 +11,12 @@ from hashlib import sha256
 from io import BytesIO
 from typing import Final, cast
 
-from PIL import Image
+from PIL import Image, ImageChops
 
 from stage_gen.media.guide_lattice import (
     GuideLattice,
     extract_guided_cells,
+    magenta_chroma_alpha,
     png_bytes,
 )
 from stage_gen.resources import terrain_atlas_lookup_path, terrain_atlas_template_path
@@ -26,8 +27,12 @@ CANONICAL_CELL_PX: Final = 120
 PLACEHOLDER_CELL: Final = (10, 1)
 MASK_ORDER: Final = ("nw", "n", "ne", "w", "center", "e", "sw", "s", "se")
 TOPOLOGY_ID: Final = "terrain-atlas-3x3-minimal-v1"
-MATERIAL_SOURCE_CONTRACT_ID: Final = "terrain-atlas-paintover-source-v3"
-MATERIAL_ASSEMBLER_ID: Final = "terrain-atlas-paintover-canonicalization-v3"
+MATERIAL_SOURCE_CONTRACT_ID: Final = "terrain-atlas-paintover-source-v4"
+MATERIAL_ASSEMBLER_ID: Final = "terrain-atlas-paintover-canonicalization-v5"
+#: How far material is bled inward over a model's leftover magenta before the locked
+#: silhouette is applied. Eight-neighbour, so one pass covers one pixel in any direction.
+_MAGENTA_BLEED_PASSES: Final = 8
+_BLEED_OFFSETS: Final = ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1))
 MINIMUM_PAINTED_MATERIAL_STANDARD_DEVIATION: Final = 2.0
 MAXIMUM_LATTICE_RESIDUAL_PX: Final = 1.5
 MAXIMUM_RECTIFIABLE_LATTICE_RESIDUAL_FRACTION: Final = 0.025
@@ -314,10 +319,15 @@ def require_terrain_atlas_source(
         and maximum_lattice_residual_fraction > MAXIMUM_RECTIFIABLE_LATTICE_RESIDUAL_FRACTION
     ):
         raise ValueError("terrain atlas source guide lattice is irregular")
-    if mismatch > MAXIMUM_SOURCE_ALPHA_MISMATCH:
-        raise ValueError("terrain atlas source changed too much locked topology")
-    if maximum_direct_connector_alpha_mismatch > MAXIMUM_CONNECTOR_ALPHA_MISMATCH:
-        raise ValueError("terrain atlas source has incompatible direct connector alpha")
+    # Neither alpha figure refuses a paintover any more. Both asked whether the model had
+    # reproduced the template's silhouette, and `assemble_terrain_atlas` now imposes that
+    # silhouette instead of requesting it: the model owns the material, the template owns
+    # the shape. GPT Image 2.5 paints straight through the magenta keep-out bands - 0.72
+    # connector mismatch against a 0.005 limit, identically on all six attempts - while
+    # scoring better than its predecessor on both lattice registration (0.55px vs 0.87)
+    # and topology alpha (0.051 vs 0.086). Refusing that meant refusing a better paintover
+    # over a shape this pipeline can supply deterministically. Both numbers stay in the
+    # record below: how far a model drifts is worth reading even when it no longer decides.
     if material_standard_deviation < MINIMUM_PAINTED_MATERIAL_STANDARD_DEVIATION:
         raise ValueError("terrain atlas source lacks usable painted material variation")
     return {
@@ -337,6 +347,8 @@ def require_terrain_atlas_source(
         "p95_cell_alpha_mismatch_fraction": p95_mismatch,
         "maximum_direct_connector_alpha_mismatch": maximum_direct_connector_alpha_mismatch,
         "painted_material_mean_standard_deviation": round(material_standard_deviation, 6),
+        "silhouette_source": "template",
+        "shape_alpha_is_advisory": True,
         "thresholds": {
             "maximum_lattice_residual_px": MAXIMUM_LATTICE_RESIDUAL_PX,
             "maximum_rectifiable_lattice_residual_fraction": (
@@ -556,6 +568,40 @@ def _harmonize_connector_edges(
     return result
 
 
+def _with_template_silhouette(
+    generated: Image.Image,
+    template: Image.Image,
+) -> Image.Image:
+    """Keep the model's material, take the cell's shape from the locked template.
+
+    The 47 masks are the contract, not a suggestion the paintover happens to honour. A
+    model that fills a magenta keep-out band does not produce a differently-styled tile,
+    it produces a solid square where an exposed side belongs, and every silhouette in the
+    set collapses. Asking each new model to rediscover the same shape by hand was always
+    the weaker half of this component: the shape is already known exactly, so it is
+    published exactly, and the provider is left the one job it is actually good at.
+
+    Keying the shape back on is not enough on its own. Wherever the model stopped short of
+    a cell edge it left a hot-magenta hairline, and the template calls that pixel solid -
+    so a naive silhouette swap publishes an opaque magenta rim around every tile instead of
+    the transparent gap it used to publish. Measured at 28,300 contaminated pixels against
+    the predecessor's zero, and the map reviewer named it unprompted. So magenta is bled
+    away first, from its neighbours, and only then is the locked alpha applied.
+    """
+
+    cell = generated.copy().convert("RGBA")
+    holed = cell.copy()
+    holed.putalpha(magenta_chroma_alpha(cell.convert("RGB")))
+    for _ in range(_MAGENTA_BLEED_PASSES):
+        if holed.getchannel("A").getextrema()[0] > 0:
+            break
+        for offset in _BLEED_OFFSETS:
+            holed = Image.alpha_composite(ImageChops.offset(holed, *offset), holed)
+    filled = holed.convert("RGB").convert("RGBA")
+    filled.putalpha(template.getchannel("A"))
+    return filled
+
+
 def _exact_alpha_mismatch(
     generated: Mapping[Coordinate, Image.Image],
     expected: Mapping[Coordinate, Image.Image],
@@ -609,7 +655,9 @@ def assemble_terrain_atlas(
                 "RGBA", (CANONICAL_CELL_PX, CANONICAL_CELL_PX), (0, 0, 0, 0)
             )
             continue
-        cells[coordinate] = generated_cells[coordinate].copy().convert("RGBA")
+        cells[coordinate] = _with_template_silhouette(
+            generated_cells[coordinate], template_cells[coordinate]
+        )
     cells = _harmonize_connector_edges(cells, masks_by_coordinate)
 
     exact_alpha_mismatch = _exact_alpha_mismatch(cells, template_cells)
