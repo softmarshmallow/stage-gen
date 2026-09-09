@@ -49,6 +49,16 @@ surface from an unmaintained project, to avoid writing a reducer, is a bad
 trade. Monogatari is web-native but DOM-based with its own format, which is the
 shape the scene consumer was deliberately moved off.
 
+**Two of those premises have since moved, and the rejection still holds.**
+[Decision 0061](../../decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md)
+made Godot the engine for every genre, so there is no single Phaser consumer left
+to forfeit, no `/scene/<tag>` canvas, and no instant-play embedding of a run at a
+URL: this repository now ships exactly the "second engine hosted beside the site"
+that the Ren'Py paragraph counted against it. What remains is the argument that
+was load-bearing anyway — a `.rpy` file is code, and a pipeline that emits code
+cannot be admitted, gated or diffed the way this repository admits packages. The
+rejection stands on that alone.
+
 **What is genuinely trivial, and what is not.** The interpreter is trivial: it
 is the conversation core in `godot/families/scenario/` generalized from one statement
 kind to about ten. What is engine-shaped is the *shell* — save slots, backlog,

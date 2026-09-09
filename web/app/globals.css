@@ -31,28 +31,6 @@
     "Liberation Mono", monospace;
 }
 
-/* "Signal at Blue Hour" — the palette of the demo-only visual-novel consumer.
- * It is a showcase theme for one route and deliberately does not obey the
- * terminal language above.
- */
-@theme {
-  --color-vn-night: #08142c;
-  --color-vn-stage: #08162d;
-  --color-vn-panel: #131d42;
-  --color-vn-paper: #fff9fc;
-  --color-vn-ink: #28203f;
-  --color-vn-teal: #75ddd8;
-  --color-vn-amber: #ffd69b;
-  --color-vn-rose: #f29abb;
-  --color-vn-magenta: #a6507f;
-  --color-vn-muted: #b3bfd9;
-  --color-vn-glass: #091633;
-  --color-vn-edge: #ffe1ef;
-
-  --font-vn-display: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-  --font-vn-body: ui-rounded, "Avenir Next", "Segoe UI", sans-serif;
-}
-
 /* Transparent artwork is shown over a checkerboard so alpha reads as alpha
  * and not as the page ground. Utility rather than markup because it is four
  * stacked gradients with paired sizes and offsets.
@@ -66,23 +44,4 @@
     linear-gradient(-45deg, transparent 75%, #252525 75%);
   background-size: 16px 16px;
   background-position: 0 0, 0 8px, 8px -8px, -8px 0;
-}
-
-/* The night sky behind the visual-novel demo: three coloured washes over a
- * vertical gradient, plus a sparse star field. Same reason as above.
- */
-@utility vn-sky {
-  background:
-    radial-gradient(circle at 12% 0%, rgba(74, 187, 194, 0.18), transparent 34%),
-    radial-gradient(circle at 91% 4%, rgba(213, 104, 163, 0.2), transparent 31%),
-    radial-gradient(circle at 72% 84%, rgba(242, 154, 187, 0.09), transparent 35%),
-    linear-gradient(180deg, #142d56 0%, var(--color-vn-night) 52%, #060c1c 100%);
-}
-
-@utility vn-stars {
-  background-image:
-    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.7) 0 1px, transparent 1.5px),
-    radial-gradient(circle at 78% 9%, rgba(255, 213, 138, 0.7) 0 1px, transparent 1.5px),
-    radial-gradient(circle at 54% 22%, rgba(255, 255, 255, 0.5) 0 1px, transparent 1.5px);
-  background-size: 260px 180px, 340px 240px, 420px 300px;
 }

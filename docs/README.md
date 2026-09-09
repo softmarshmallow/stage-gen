@@ -200,7 +200,7 @@ Start here for the headless, general-purpose system:
   the current producer/consumer boundary: one authored package contract
   (`dialogue-scene-v5`, one scene binding several scenarios, with per-actor
   authored expressions) produced by recipe `dialogue-scene-v8` into
-  `dialogue-scene-bundle-v8`, read by the scene consumer at `/scene/<tag>`.
+  `dialogue-scene-bundle-v8`, read by the Godot dialogue-scene host.
 - [Dialogue-scene framing control](dialogue-scene-framing.md) — implemented
   deterministic consumer mapping and prompt research.
 - [Dialogue-scene animation research](dialogue-scene-animation.md) — deferred

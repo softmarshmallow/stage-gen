@@ -238,8 +238,8 @@ room's reachable state space and refuses a room that cannot reach its win
 condition, so the puzzle is proven finishable before a cent is spent; generation
 supplies art and narration only, and the art direction arrives as an authored
 image rather than an adjective. The run publishes a `pointclick-room-runtime-v3`
-manifest that the `/room/<tag>` browser consumer replays with the same state
-machine the proof searched.
+manifest that the Godot room host replays with the same state machine the
+proof searched.
 
 ```sh
 uv run stage-gen pointclick-room generate \

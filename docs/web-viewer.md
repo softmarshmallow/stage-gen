@@ -264,10 +264,11 @@ sequence produces the same intents.
 The shell is styled with [Tailwind CSS](https://tailwindcss.com) v4 and carries no hand-written
 stylesheet. [`app/globals.css`](../web/app/globals.css) is the Tailwind configuration, not a
 theme: it imports Tailwind, names the source globs, declares the design tokens
-(`--color-bg`, `--color-fg`, `--color-dim`, `--color-accent`, `--color-error`, `--color-border`,
-plus the `vn-` palette of the demo-only visual-novel route), and defines the three patterns no
-utility class can spell — the alpha checkerboard and that route's sky and star field. Everything
-else is written on the element that wears it, so a rule cannot outlive its markup.
+(`--color-bg`, `--color-fg`, `--color-dim`, `--color-accent`, `--color-error`, `--color-border`),
+and defines the one pattern no utility class can spell — the alpha checkerboard the inspector
+shows transparent artwork over. Everything else is written on the element that wears it, so a
+rule cannot outlive its markup: the visual-novel route's palette, sky and star field left with
+the route in [0067](decisions/0067-the-room-the-scene-and-the-case-are-retired-from-the-browser.md).
 
 [`app/ui.ts`](../web/app/ui.ts) holds the class strings shared by more than one file: the page
 frame, the bracket-button, the Play CTA, the asset slot and its states. They are values, not a
