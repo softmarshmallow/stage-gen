@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 
 from stage_gen.concept_studio.profiles import (
-    GPT_IMAGE_2,
+    GPT_IMAGE_2_5_SUNBURST,
     GROK_IMAGINE_IMAGE_2,
     model_report,
     resolve_execution,
@@ -16,8 +16,9 @@ from stage_gen.concept_studio.profiles import (
 @pytest.mark.parametrize(
     ("alias", "expected"),
     [
-        ("gpt", GPT_IMAGE_2),
-        (" GPT-IMAGE-2 ", GPT_IMAGE_2),
+        ("gpt", GPT_IMAGE_2_5_SUNBURST),
+        (" SUNBURST ", GPT_IMAGE_2_5_SUNBURST),
+        (" GPT-IMAGE-2.5-SUNBURST ", GPT_IMAGE_2_5_SUNBURST),
         ("grok", GROK_IMAGINE_IMAGE_2),
         ("grok-imagine-image-2.0", GROK_IMAGINE_IMAGE_2),
     ],
@@ -42,7 +43,11 @@ def test_resolve_execution_applies_model_specific_defaults() -> None:
         reference_count=3,
     )
 
-    assert (gpt.profile.model, gpt.quality, gpt.resolution) == (GPT_IMAGE_2, "high", None)
+    assert (gpt.profile.model, gpt.quality, gpt.resolution) == (
+        GPT_IMAGE_2_5_SUNBURST,
+        "max",
+        None,
+    )
     assert (grok.profile.model, grok.quality, grok.resolution) == (
         GROK_IMAGINE_IMAGE_2,
         "low",
@@ -56,6 +61,9 @@ def test_model_report_has_current_public_contract_identity() -> None:
     assert report["schema_version"] == 1
     assert report["kind"] == "game_concept_image_model_report_v1"
     assert isinstance(report["models"], list)
+    sunburst = next(item for item in report["models"] if item["model"] == GPT_IMAGE_2_5_SUNBURST)
+    assert sunburst["default_quality"] == "max"
+    assert {"xhigh", "max"} <= set(sunburst["qualities"])
 
 
 @pytest.mark.parametrize(

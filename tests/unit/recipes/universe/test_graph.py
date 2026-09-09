@@ -221,7 +221,7 @@ def test_concept_images_bind_the_opaque_route_and_the_capability_that_serves_it(
     # so a run could pass its key check and then fail on the route it actually used.
     assert GALLERY_IMAGE_ROUTE.capability is CapabilityName.IMAGE_GENERATION
     assert NATIVE_TRANSPARENCY_IMAGE_ROUTE.capability is CapabilityName.NATIVE_IMAGE_GENERATION
-    assert GALLERY_IMAGE_ROUTE.model(StageGenConfig()) == "openai/gpt-image-2"
+    assert GALLERY_IMAGE_ROUTE.model(StageGenConfig()) == "openai/gpt-image-2.5-sunburst"
 
 
 def test_every_provider_node_can_persist_what_it_was_refused() -> None:

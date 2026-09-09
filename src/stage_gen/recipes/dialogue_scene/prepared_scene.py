@@ -805,7 +805,7 @@ class DialogueSceneNodeHandler(RecipeNodeHandler):
             artifact_path=self._run_dir / output,
             input_references=tuple(_image_reference(data, path) for data, path in references),
             aspect_ratio="2:3" if sprite else "auto",
-            quality="high",
+            quality="max",
             background="transparent" if sprite and native else "opaque",
             output_format="png" if native else None,
             size=f"{provider_width}x{provider_height}" if native else None,

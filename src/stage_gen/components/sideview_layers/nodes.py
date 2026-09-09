@@ -86,7 +86,7 @@ LAYER_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=NodePolicy(max_attempts=6),
-    contract_version="sideview-layer-v1",
+    contract_version="sideview-layer-v2",
 )
 LAYER_LOOP_PAINT = NodeType(
     type_id=f"{_P}.loop_paint",
@@ -95,7 +95,7 @@ LAYER_LOOP_PAINT = NodeType(
     operation="image_generation",
     features=IMAGE_EDIT_FEATURES,
     policy=NodePolicy(max_attempts=6),
-    contract_version="sideview-layer-loop-paint-v1",
+    contract_version="sideview-layer-loop-paint-v2",
 )
 LAYER_LOOP_CONSTRUCT = NodeType(
     type_id=f"{_P}.loop_construct",
@@ -475,7 +475,7 @@ class LayerHandlers:
             prompt=prompt,
             artifact_path=host.run_dir / node.port("image").artifact_ref,
             input_references=host.references(node),
-            quality="high",
+            quality="max",
             background="transparent" if transparent else "opaque",
             output_format="png",
             size=f"{LAYER_CANVAS[0]}x{LAYER_CANVAS[1]}",
@@ -519,7 +519,7 @@ class LayerHandlers:
                 mask_reference=ImageReference(
                     data_url(conditioning.mask_png, "image/png"), "loop-mask"
                 ),
-                quality="high",
+                quality="max",
                 background="transparent" if layer.alpha_mode == "transparent" else "opaque",
                 output_format="png",
                 size=f"{conditioning.width}x{conditioning.height}",

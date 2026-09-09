@@ -72,9 +72,10 @@ class StageGenConfig(ContractModel):
     open_router_base_url: str | None = None
     fal_base_url: str | None = None
     elevenlabs_base_url: str | None = None
-    openai_image_model: str = "gpt-image-2"
+    openai_image_model: str = "gpt-image-2.5-sunburst"
     openai_image_ipm: int = Field(default=150, ge=1)
-    image_model: str = "openai/gpt-image-2"
+    image_model: str = "openai/gpt-image-2.5-sunburst"
+    openrouter_image_ipm: int = Field(default=150, ge=1)
     text_model: str = "openai/gpt-5.6-sol"
     music_model: str = "google/lyria-3-pro-preview"
     sound_effect_model: str = "eleven_text_to_sound_v2"
@@ -144,13 +145,20 @@ def load_config(
         open_router_base_url=_first(values, "OPENROUTER_BASE_URL"),
         fal_base_url=_first(values, "FAL_BASE_URL"),
         elevenlabs_base_url=_first(values, "ELEVENLABS_BASE_URL"),
-        openai_image_model=_first(values, "STAGE_GEN_OPENAI_IMAGE_MODEL") or "gpt-image-2",
+        openai_image_model=_first(values, "STAGE_GEN_OPENAI_IMAGE_MODEL")
+        or "gpt-image-2.5-sunburst",
         openai_image_ipm=_positive_integer(
             values.get("STAGE_GEN_OPENAI_IMAGE_IPM"),
             "STAGE_GEN_OPENAI_IMAGE_IPM",
             150,
         ),
-        image_model=_first(values, "STAGE_GEN_IMAGE_MODEL", "IMAGE_MODEL") or "openai/gpt-image-2",
+        image_model=_first(values, "STAGE_GEN_IMAGE_MODEL", "IMAGE_MODEL")
+        or "openai/gpt-image-2.5-sunburst",
+        openrouter_image_ipm=_positive_integer(
+            values.get("STAGE_GEN_OPENROUTER_IMAGE_IPM"),
+            "STAGE_GEN_OPENROUTER_IMAGE_IPM",
+            150,
+        ),
         text_model=_first(values, "STAGE_GEN_TEXT_MODEL", "TEXT_MODEL") or "openai/gpt-5.6-sol",
         music_model=_first(values, "STAGE_GEN_MUSIC_MODEL", "MUSIC_MODEL")
         or "google/lyria-3-pro-preview",

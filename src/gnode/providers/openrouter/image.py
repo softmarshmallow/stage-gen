@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import ClassVar, Literal
 
 import httpx
@@ -18,7 +19,14 @@ from gnode.providers._http import (
 from gnode.reliability import decode_base64_strict
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-OPENROUTER_IMAGE_MODEL = "openai/gpt-image-2"
+OPENROUTER_IMAGE_MODEL = "openai/gpt-image-2.5-sunburst"
+OPENROUTER_IMAGE_IPM_DEFAULT = 150
+
+
+def supports_openrouter_sunburst_model(model: str) -> bool:
+    """Return whether ``model`` is the verified OpenRouter Sunburst route."""
+
+    return model.strip() == OPENROUTER_IMAGE_MODEL
 
 
 class OpenRouterImageBackend:
@@ -33,17 +41,27 @@ class OpenRouterImageBackend:
         model: str = OPENROUTER_IMAGE_MODEL,
         base_url: str = OPENROUTER_BASE_URL,
         client: httpx.AsyncClient | None = None,
+        images_per_minute: int = OPENROUTER_IMAGE_IPM_DEFAULT,
     ) -> None:
         if not api_key.strip():
             raise ValueError("OpenRouter api_key must be non-empty")
         if not model.strip():
             raise ValueError("OpenRouter image model must be non-empty")
+        if (
+            isinstance(images_per_minute, bool)
+            or not isinstance(images_per_minute, int)
+            or images_per_minute <= 0
+        ):
+            raise ValueError("OpenRouter image images_per_minute must be a positive integer")
         self._api_key = api_key
         self.secrets: tuple[str, ...] = (api_key,)
         self.model = model.strip()
         self._base_url = normalized_base_url(base_url, "OpenRouter base_url")
         self._client = client or httpx.AsyncClient(timeout=None)
         self._owns_client = client is None
+        self._request_interval_seconds = 60.0 / images_per_minute
+        self._request_start_lock = asyncio.Lock()
+        self._next_request_start = 0.0
 
     async def aclose(self) -> None:
         if self._owns_client:
@@ -54,19 +72,31 @@ class OpenRouterImageBackend:
             raise ValueError(
                 "OpenRouter image generation has no masked-edit route; use the OpenAI backend"
             )
+        if request.background == "transparent":
+            raise ValueError(
+                "OpenRouter image generation does not support transparent backgrounds; "
+                "use the OpenAI backend"
+            )
         body: dict[str, object] = {"model": self.model, "prompt": request.prompt, "n": 1}
+        applied_params: dict[str, object] = {"operation": "generation", "n": 1}
         if request.size is not None:
             body["size"] = request.size
+            applied_params["size"] = request.size
         if request.aspect_ratio is not None:
             body["aspect_ratio"] = request.aspect_ratio
+            applied_params["aspect_ratio"] = request.aspect_ratio
         if request.resolution is not None:
             body["resolution"] = request.resolution
+            applied_params["resolution"] = request.resolution
         if request.quality is not None:
             body["quality"] = request.quality
+            applied_params["quality"] = request.quality
         if request.background is not None:
             body["background"] = request.background
+            applied_params["background"] = request.background
         if request.output_compression is not None:
             body["output_compression"] = request.output_compression
+            applied_params["output_compression"] = request.output_compression
         if request.input_references:
             body["input_references"] = [
                 {"type": "image_url", "image_url": {"url": reference.url}}
@@ -74,6 +104,8 @@ class OpenRouterImageBackend:
             ]
         if request.moderation is not None:
             body["provider"] = {"options": {"openai": {"moderation": request.moderation}}}
+            applied_params["moderation"] = request.moderation
+        await self._pace_request_start()
         response = await self._client.post(
             f"{self._base_url}/images",
             headers={
@@ -99,7 +131,18 @@ class OpenRouterImageBackend:
             data=image_data,
             media_type=media_type,
             response_metadata=response_metadata(response, payload),
+            applied_params=applied_params,
         )
+
+    async def _pace_request_start(self) -> None:
+        """Pace starts to the configured OpenRouter image-route allowance."""
+
+        loop = asyncio.get_running_loop()
+        async with self._request_start_lock:
+            now = loop.time()
+            if self._next_request_start > now:
+                await asyncio.sleep(self._next_request_start - now)
+            self._next_request_start = loop.time() + self._request_interval_seconds
 
 
 def _openrouter_image_media_type(value: object) -> str:

@@ -62,8 +62,9 @@ async def test_image_retries_invalid_success_and_persists_provenance(tmp_path: P
                 artifact_path=output,
                 aspect_ratio="1:1",
                 resolution="2K",
-                quality="high",
+                quality="max",
                 background="opaque",
+                output_format="png",
                 input_references=(
                     ImageReference(
                         "data:image/png;base64," + base64.b64encode(image).decode(),
@@ -80,6 +81,9 @@ async def test_image_retries_invalid_success_and_persists_provenance(tmp_path: P
     sidecar = json.loads(sidecar_text)
     assert sidecar["attempts"] == 2
     assert sidecar["params"]["resolution"] == "2K"
+    assert sidecar["params"]["quality"] == "max"
+    assert sidecar["params"]["operation"] == "generation"
+    assert "output_format" not in sidecar["params"]
     assert sidecar["response"]["media_type"] == "image/png"
     assert sidecar["validation"]["decoded_bytes"] == len(image)
     assert "image-secret" not in sidecar_text
@@ -144,6 +148,27 @@ def test_image_request_rejects_noncanonical_resolution(resolution: Any) -> None:
         )
 
 
+@pytest.mark.parametrize("quality", ["auto", "low", "medium", "high", "xhigh", "max"])
+def test_image_request_accepts_supported_quality(quality: Any) -> None:
+    request = ImageGenerationRequest(
+        prompt="neutral icon",
+        artifact_path="unused",
+        quality=quality,
+    )
+
+    assert request.quality == quality
+
+
+@pytest.mark.parametrize("quality", ["", "highest", "ultra", 1, True])
+def test_image_request_rejects_unsupported_quality(quality: Any) -> None:
+    with pytest.raises(ValueError, match="quality must be auto, low, medium, high, xhigh, or max"):
+        ImageGenerationRequest(
+            prompt="neutral icon",
+            artifact_path="unused",
+            quality=quality,
+        )
+
+
 @pytest.mark.asyncio
 async def test_openrouter_image_omits_unset_optional_fields() -> None:
     image = png_bytes()
@@ -171,11 +196,12 @@ async def test_openrouter_image_omits_unset_optional_fields() -> None:
     assert result.media_type == "image/png"
     assert bodies == [
         {
-            "model": "openai/gpt-image-2",
+            "model": "openai/gpt-image-2.5-sunburst",
             "prompt": "neutral icon",
             "n": 1,
         }
     ]
+    assert result.applied_params == {"operation": "generation", "n": 1}
 
 
 @pytest.mark.asyncio
@@ -248,6 +274,38 @@ async def test_image_service_owns_exactly_six_attempts(tmp_path: Path) -> None:
             )
     assert calls == 6
     assert not (tmp_path / "x.png").exists()
+
+
+@pytest.mark.asyncio
+async def test_image_service_refuses_unavailable_native_alpha_before_retry(
+    tmp_path: Path,
+) -> None:
+    calls = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        raise AssertionError("unsupported transparency must not reach transport")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        service = ImageGenerationService(
+            OpenRouterImageBackend(api_key="secret", client=client),
+            component=IMAGE_GENERATION_COMPONENT,
+            tool=STAGE_GEN_TOOL,
+            retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
+        )
+        with pytest.raises(ValueError, match="does not support transparent backgrounds"):
+            await service.generate(
+                ImageGenerationRequest(
+                    prompt="transparent icon",
+                    artifact_path=tmp_path / "transparent.png",
+                    background="transparent",
+                    output_format="png",
+                )
+            )
+
+    assert calls == 0
+    assert not (tmp_path / "transparent.png").exists()
 
 
 @pytest.mark.asyncio

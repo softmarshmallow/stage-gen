@@ -413,7 +413,7 @@ def _generated_concept_cover_record() -> dict[str, Any]:
                 "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
                 "prompt_hash_scope": "full_exact_utf8_string",
                 "provider": "OpenRouter",
-                "model": "openai/gpt-image-2",
+                "model": "openai/gpt-image-2.5-sunburst",
                 "attempt_count": 2,
                 "retry_count": 1,
                 "n": 1,

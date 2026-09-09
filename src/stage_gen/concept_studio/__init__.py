@@ -2,7 +2,7 @@
 
 from .image import generate_concept_image, load_concept_config
 from .profiles import (
-    GPT_IMAGE_2,
+    GPT_IMAGE_2_5_SUNBURST,
     GROK_IMAGINE_IMAGE_2,
     ConceptImageExecution,
     ConceptImageModelProfile,
@@ -18,7 +18,7 @@ from .workspace import (
 )
 
 __all__ = [
-    "GPT_IMAGE_2",
+    "GPT_IMAGE_2_5_SUNBURST",
     "GROK_IMAGINE_IMAGE_2",
     "ConceptImageExecution",
     "ConceptImageModelProfile",

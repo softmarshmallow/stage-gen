@@ -46,7 +46,9 @@ def build_parser() -> argparse.ArgumentParser:
     image_parser.add_argument("--workspace", required=True, dest="concept_id")
     image_parser.add_argument("--name", required=True, dest="image_name")
     image_parser.add_argument("--model", required=True)
-    image_parser.add_argument("--quality", choices=("auto", "low", "medium", "high"))
+    image_parser.add_argument(
+        "--quality", choices=("auto", "low", "medium", "high", "xhigh", "max")
+    )
     image_parser.add_argument("--resolution", choices=("512", "1K", "2K", "4K"))
     image_parser.add_argument("--aspect-ratio", default="16:9")
     image_parser.add_argument("--reference", action="append", default=[])

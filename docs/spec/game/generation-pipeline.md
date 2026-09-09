@@ -60,7 +60,8 @@ a runner-only root, and then builds `sideview-runner-execution-graph-v1`.
 `runner-track-v4` has a closed ground union. The atlas branch retains its one
 paintover plus local canonicalization. The `runner-structural-ground-v1` branch
 fans each authored segment into local occupancy-guide composition, one native-
-alpha GPT Image 2 paintover, and local exact-occupancy canonicalization. One
+alpha GPT Image 2.5 Sunburst paintover at maximum quality, and local
+exact-occupancy canonicalization. One
 additional local node extracts the first segment's generated right two-column
 apron as a canonical shared seam bridge. Every segment canonicalizer consumes
 that same bridge: its right edge receives bridge column 0 and its left edge
@@ -72,8 +73,8 @@ fixture fan-out and provider-operation counts are machine-checked in
 [`runner.md`](runner.md); changing that fan-out requires regenerating its
 embedded contract in this same change.
 
-Runner planning refuses an image model outside the verified GPT Image 2 native-alpha model
-family before graph execution. Its generative loop node additionally requires the route's
+Runner planning refuses an image model outside the verified GPT Image 2.5
+Sunburst native-alpha model family before graph execution. Its generative loop node additionally requires the route's
 `masked_edit` capability; a binding that only advertises reference images cannot plan that node.
 Runner soundtrack nodes compile the shared soundtrack contract together with a recipe-owned
 `soundtrack_direction`: the first beat establishes the rhythmic engine, short action cells and
@@ -170,6 +171,13 @@ topology. A changed prompt, image byte, or selected model changes node cache key
 `graph_sha256`, but not `topology_sha256`. Adding a map, entity, state, or dependency changes the
 topology and therefore this checked snapshot.
 
+The GPT Image 2.5 Sunburst migration changed the direct and opaque provider
+model identities, moved active requests to `quality="max"`, added high input
+fidelity to direct multipart edits, and bumped the paid image-node cache
+contracts. It did not change this graph's fan-out, dependencies, resources,
+operation counts, or scheduling, so the embedded topology block remains
+unchanged while the content-sensitive identity and cache-key goldens move.
+
 <!-- pipeline-graph-contract:start -->
 ```json
 {
@@ -216,7 +224,7 @@ topology and therefore this checked snapshot.
 <!-- pipeline-graph-contract:end -->
 
 For this exact captured Bellweather closure, the content-sensitive execution-plan identity is
-`graph_sha256 = e9d00e67e346cc36035f2a07bf5e791b9a0704ddd2eabf73c689c7f1cb379cb5`.
+`graph_sha256 = 3c215365de2183d485a50614de7eaf13a67135a2d2901f4bc622821fbaa0cb4a`.
 Unlike the embedded topology contract, that value changes when prompt, reference, model, or other
 cache-key input bytes change without adding or removing a node.
 
@@ -458,7 +466,7 @@ The resource-aware Bellweather projection uses planning assumptions of 120 secon
 adapter-owned 150 image starts per minute, the projected terminal offset is **311.05 seconds
 (5m 11.05s)**. This is a scheduling estimate, not a live latency claim.
 
-The graph carries a broad **USD 4.26–23.52 budgetary allowance**: USD 0.04–0.20 per image,
+The graph carries a broad **USD 17.70–28.32 budgetary allowance**: USD 0.18–0.25 per maximum-quality image,
 USD 0.005–0.08 per structured operation, and USD 0.10–0.80 per music operation. These are
 conservative planning inputs, not a canonical provider price sheet. Current provider pricing and
 returned usage remain operational evidence and must be refreshed at the live-provider gate.

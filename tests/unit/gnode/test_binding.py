@@ -8,27 +8,30 @@ from gnode import Binding, BindingTable, CapabilityError, ModelRef
 def test_model_reference_keeps_the_vendor_namespace_with_the_model() -> None:
     """The route is the suffix; a vendor prefix stays part of the model id."""
 
-    direct = ModelRef.parse("gpt-image-2@openai")
-    assert (direct.model, direct.provider) == ("gpt-image-2", "openai")
+    direct = ModelRef.parse("gpt-image-2.5-sunburst@openai")
+    assert (direct.model, direct.provider) == ("gpt-image-2.5-sunburst", "openai")
 
-    routed = ModelRef.parse("openai/gpt-image-2@openrouter")
-    assert (routed.model, routed.provider) == ("openai/gpt-image-2", "openrouter")
+    routed = ModelRef.parse("openai/gpt-image-2.5-sunburst@openrouter")
+    assert (routed.model, routed.provider) == (
+        "openai/gpt-image-2.5-sunburst",
+        "openrouter",
+    )
 
     nested = ModelRef.parse("fal-ai/birefnet/v2@fal")
     assert (nested.model, nested.provider) == ("fal-ai/birefnet/v2", "fal")
 
-    assert str(routed) == "openai/gpt-image-2@openrouter"
+    assert str(routed) == "openai/gpt-image-2.5-sunburst@openrouter"
 
 
 def test_model_reference_rejects_a_bare_identifier() -> None:
     with pytest.raises(ValueError, match="model@provider"):
-        ModelRef.parse("gpt-image-2")
+        ModelRef.parse("gpt-image-2.5-sunburst")
 
 
 def _image_binding(*, provider: str, features: frozenset[str]) -> Binding:
     return Binding(
         operation="image_generation",
-        model=ModelRef(model="gpt-image-2", provider=provider),
+        model=ModelRef(model="gpt-image-2.5-sunburst", provider=provider),
         features=features,
         resource_id="image",
         estimated_duration_seconds=120.0,
@@ -71,7 +74,7 @@ def test_bindings_declare_the_resources_the_scheduler_gates_on() -> None:
         [
             Binding(
                 operation="image_generation",
-                model=ModelRef(model="gpt-image-2", provider="openai"),
+                model=ModelRef(model="gpt-image-2.5-sunburst", provider="openai"),
                 resource_id="openai-image",
                 estimated_duration_seconds=120.0,
                 estimated_cost_low_usd=0.04,
@@ -92,7 +95,7 @@ def test_a_local_operation_cannot_be_bound_to_a_provider() -> None:
     with pytest.raises(ValueError, match="without a provider route"):
         Binding(
             operation="local",
-            model=ModelRef(model="gpt-image-2", provider="openai"),
+            model=ModelRef(model="gpt-image-2.5-sunburst", provider="openai"),
             resource_id="local",
             estimated_duration_seconds=0.0,
             estimated_cost_low_usd=0.0,

@@ -82,7 +82,7 @@ export function executionViewFixture(): Record<string, unknown> {
     run_state: "succeeded",
     trace_modified_at: "2026-08-30T12:00:00Z",
     duration_ms: 4200,
-    known_cost_usd: 0.12,
+    known_cost_usd: 0.21,
     state_counts: { pending: 0, running: 0, succeeded: 4, failed: 0, skipped: 0 },
     resources: [],
     nodes: [
@@ -99,10 +99,10 @@ export function executionViewFixture(): Record<string, unknown> {
         operation: "image_generation",
         resource_id: "openai-image",
         provider: "openai",
-        model: "gpt-image-2",
+        model: "gpt-image-2.5-sunburst",
         retry_owner: "component",
         max_attempts: 6,
-        known_cost_usd: 0.12,
+        known_cost_usd: 0.21,
         ports: [
           {
             port_id: "image",
@@ -356,7 +356,7 @@ export function dialogueExecutionViewFixture(): Record<string, unknown> {
     operation: "image_generation",
     resource_id: "openai-image",
     provider: "openai",
-    model: "gpt-image-2",
+    model: "gpt-image-2.5-sunburst",
     retry_owner: "component",
     max_attempts: 6,
     ports: [
@@ -467,7 +467,7 @@ export function dialogueExecutionViewFixture(): Record<string, unknown> {
     run_state: "succeeded",
     trace_modified_at: "2026-08-30T12:00:00Z",
     duration_ms: 2100,
-    known_cost_usd: 0.08,
+    known_cost_usd: 0.21,
     state_counts: { pending: 0, running: 0, succeeded: 4, failed: 0, skipped: 0 },
     resources: [],
     nodes: [request, concept, matte, bundle],

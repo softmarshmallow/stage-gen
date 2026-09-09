@@ -789,7 +789,7 @@ EXPANSION DIRECTION (full text)
                 artifact_path=self._path(node.port("image").artifact_ref),
                 input_references=(),
                 mask_reference=None,
-                quality="high",
+                quality="max",
                 background="opaque",
                 output_format="png",
                 size=size,

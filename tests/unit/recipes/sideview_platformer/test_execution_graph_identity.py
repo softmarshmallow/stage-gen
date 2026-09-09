@@ -44,6 +44,9 @@ BELLWEATHER_NODE_COUNT = 230
 # port kinds and the construction stamped in the loop's params are the family's; every node
 # keeps this recipe's cache identity and contracts, the admission's included because the map
 # reviews depend on it. No cache key moved.
+# The GPT Image 2.5 Sunburst/max migration deliberately moved 220 of 230 keys:
+# all 96 image operations, the 22 structured reviews that consume their output,
+# and 102 local descendants. Topology and the other 10 keys are unchanged.
 BELLWEATHER_TOPOLOGY_SHA256 = "61af6a11d4b4fcb2eb2d91c48b00e820353a7d251b80e7bc5c127263d71a4fdb"
 
 

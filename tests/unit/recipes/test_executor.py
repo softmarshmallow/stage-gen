@@ -51,13 +51,23 @@ def test_configured_services_compose_from_the_config_alone() -> None:
     config = StageGenConfig(openai_api_key="openai", open_router_api_key="openrouter")
     services = RunServices(config)
     image = services.image()
+    opaque_image = services.opaque_image()
     structured = services.structured()
     music = services.music()
-    assert {type(image).__name__, type(structured).__name__, type(music).__name__} == {
+    assert {
+        type(image).__name__,
+        type(opaque_image).__name__,
+        type(structured).__name__,
+        type(music).__name__,
+    } == {
         "ImageGenerationService",
         "StructuredGenerationService",
         "MusicGenerationService",
     }
+    assert image.provider == "openai"
+    assert image.model == "gpt-image-2.5-sunburst"
+    assert opaque_image.provider == "openrouter"
+    assert opaque_image.model == "openai/gpt-image-2.5-sunburst"
     asyncio.run(services.aclose())
 
 

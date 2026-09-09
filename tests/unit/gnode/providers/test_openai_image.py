@@ -20,8 +20,12 @@ def test_openai_backend_declares_native_alpha_capability() -> None:
 
 
 def test_openai_native_alpha_model_support_is_explicit() -> None:
-    assert supports_openai_native_alpha_model("gpt-image-2") is True
-    assert supports_openai_native_alpha_model("gpt-image-2-2026-04-21") is True
+    assert supports_openai_native_alpha_model("gpt-image-2.5-sunburst") is True
+    assert supports_openai_native_alpha_model("gpt-image-2.5-sunburst-2026-09-08") is True
+    assert supports_openai_native_alpha_model("gpt-image-2.5-sunburst-2026-09-09") is False
+    assert supports_openai_native_alpha_model("gpt-image-2") is False
+    assert supports_openai_native_alpha_model("gpt-image-2-2026-04-21") is False
+    assert supports_openai_native_alpha_model("gpt-image-2.5-flare") is False
     assert supports_openai_native_alpha_model("gpt-image-1") is False
     assert supports_openai_native_alpha_model("unverified-image-model") is False
 
@@ -35,7 +39,7 @@ async def test_openai_native_alpha_capability_is_model_specific() -> None:
         assert (
             OpenAIImageBackend(
                 api_key="secret",
-                model="gpt-image-2-2026-04-21",
+                model="gpt-image-2.5-sunburst-2026-09-08",
                 client=client,
             ).supports_native_alpha
             is True
@@ -80,7 +84,7 @@ async def test_openai_generation_uses_native_alpha_payload_and_retains_metadata(
                 aspect_ratio="3:2",
                 resolution="2K",
                 size="1536x1024",
-                quality="high",
+                quality="max",
                 background="transparent",
                 moderation="low",
             )
@@ -92,12 +96,12 @@ async def test_openai_generation_uses_native_alpha_payload_and_retains_metadata(
     assert request.headers["authorization"] == "Bearer openai-secret"
     assert request.headers["content-type"] == "application/json"
     assert json.loads(request.content) == {
-        "model": "gpt-image-2",
+        "model": "gpt-image-2.5-sunburst",
         "prompt": "One isolated hand-painted sprite.",
         "n": 1,
         "output_format": "png",
         "size": "1536x1024",
-        "quality": "high",
+        "quality": "max",
         "background": "transparent",
         "moderation": "low",
     }
@@ -112,7 +116,7 @@ async def test_openai_generation_uses_native_alpha_payload_and_retains_metadata(
         "n": 1,
         "output_format": "png",
         "size": "1536x1024",
-        "quality": "high",
+        "quality": "max",
         "background": "transparent",
         "moderation": "low",
     }
@@ -204,6 +208,7 @@ async def test_openai_edit_uses_multipart_image_files() -> None:
                     ImageReference(reference_data_url, "inline-reference-2"),
                 ),
                 size="auto",
+                quality="max",
                 background="transparent",
                 moderation="low",
             )
@@ -214,14 +219,18 @@ async def test_openai_edit_uses_multipart_image_files() -> None:
     assert request.url.path == "/v1/images/edits"
     assert request.headers["content-type"].startswith("multipart/form-data; boundary=")
     assert b'name="model"' in request.content
-    assert b"gpt-image-2" in request.content
+    assert b"gpt-image-2.5-sunburst" in request.content
     assert b'name="prompt"' in request.content
     assert b"Preserve the character identity and change the pose." in request.content
     assert b'name="n"' in request.content
     assert b'name="output_format"' in request.content
     assert b'name="size"' in request.content
+    assert b'name="quality"' in request.content
     assert b'name="background"' in request.content
-    assert b'name="moderation"' not in request.content
+    assert b'name="input_fidelity"' in request.content
+    assert b"high" in request.content
+    assert b'name="moderation"' in request.content
+    assert b"low" in request.content
     assert request.content.count(b'name="image[]"') == 2
     assert b'filename="reference-01.png"' in request.content
     assert b'filename="reference-02.png"' in request.content
@@ -233,7 +242,10 @@ async def test_openai_edit_uses_multipart_image_files() -> None:
         "n": 1,
         "output_format": "png",
         "size": "auto",
+        "quality": "max",
         "background": "transparent",
+        "input_fidelity": "high",
+        "moderation": "low",
     }
 
 
@@ -299,7 +311,7 @@ async def test_openai_output_format_selects_and_validates_returned_media() -> No
         ("256x768", "between 655360 and 8294400"),
     ],
 )
-async def test_openai_rejects_unsupported_gpt_image_2_size_before_transport(
+async def test_openai_rejects_unsupported_image_size_before_transport(
     size: str,
     message: str,
 ) -> None:

@@ -154,7 +154,8 @@ instead of paying twice.
 Counted from the committed fixture package with every plate, track and clip take
 adopted; the music and video counts are zero for that reason. Video is where that
 matters most — a ten-second clip is a dollar, so the three adopted opening shots are
-the difference between 134 billable operations and 137, and between $25.56 and $28.56.
+the difference between 134 billable operations and 137, and between
+$18.91–30.71 and $21.91–33.71.
 Drop a shot's `take` and it goes back to being filmed in the run. The `full` row is the
 block below, and both are derived rather than transcribed.
 
@@ -336,7 +337,7 @@ uv run stage-gen oblique-survival generate --input library/games/ember-hollow \
   --output out/ember-hollow-v1 --scope full --cache-dir out/.oblique-survival-cache
 ```
 
-Budget the widest scope at roughly **USD 4–25** for the committed fixture, from
+Budget the widest scope at roughly **USD 18–30** for the committed fixture, from
 the planner's own low and high estimates. That is a planning allowance, not a
 quote: retries and deliberate semantic regenerations change the charge, and a
 semantic regeneration is not a provider retry.

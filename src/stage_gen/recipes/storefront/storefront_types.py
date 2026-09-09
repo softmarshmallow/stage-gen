@@ -77,7 +77,7 @@ SURFACE_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="storefront-surface-generate-v1",
+    contract_version="storefront-surface-generate-v2",
 )
 
 SURFACE_NORMALIZE = NodeType(

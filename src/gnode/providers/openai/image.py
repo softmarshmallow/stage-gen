@@ -22,7 +22,7 @@ from gnode.providers._http import (
 from gnode.reliability import decode_base64_strict
 
 OPENAI_BASE_URL = "https://api.openai.com/v1"
-OPENAI_IMAGE_MODEL = "gpt-image-2"
+OPENAI_IMAGE_MODEL = "gpt-image-2.5-sunburst"
 OPENAI_IMAGE_IPM_DEFAULT = 150
 
 _SIZE_RE = re.compile(r"^([1-9]\d*)x([1-9]\d*)$")
@@ -51,12 +51,18 @@ _SIZE_BY_ASPECT_RATIO = {
     "9:16": "1152x2048",
     "21:9": "2688x1152",
 }
+_NATIVE_ALPHA_MODELS = frozenset(
+    {
+        "gpt-image-2.5-sunburst",
+        "gpt-image-2.5-sunburst-2026-09-08",
+    }
+)
 
 
 def supports_openai_native_alpha_model(model: str) -> bool:
     """Return whether ``model`` has a verified native-alpha GPT Image route."""
 
-    return bool(re.fullmatch(r"gpt-image-2(?:-\d{4}-\d{2}-\d{2})?", model.strip()))
+    return model.strip() in _NATIVE_ALPHA_MODELS
 
 
 class OpenAIImageBackend:
@@ -121,20 +127,17 @@ class OpenAIImageBackend:
                 size = _SIZE_BY_ASPECT_RATIO[aspect_ratio]
             except KeyError as error:
                 raise ValueError(
-                    f"OpenAI GPT Image 2 has no verified size mapping for "
+                    f"OpenAI image generation has no verified size mapping for "
                     f"aspect ratio {aspect_ratio}"
                 ) from error
         if size is not None:
-            _validate_gpt_image_2_size(size)
+            _validate_openai_image_size(size)
             body["size"] = size
         if request.quality is not None:
             body["quality"] = request.quality
         if request.background is not None:
             body["background"] = request.background
-        # The direct generations schema supports moderation. The edits schema does not;
-        # provider-neutral callers may still carry the intent, so omit it at this adapter
-        # boundary instead of sending an undocumented multipart field.
-        if request.moderation is not None and not request.input_references:
+        if request.moderation is not None:
             body["moderation"] = request.moderation
         if request.output_compression is not None:
             if output_format == "png":
@@ -147,12 +150,14 @@ class OpenAIImageBackend:
             if len(request.input_references) > 16:
                 raise ValueError("OpenAI image edits support at most 16 input references")
             endpoint = "images/edits"
+            if supports_openai_native_alpha_model(self.model):
+                body["input_fidelity"] = "high"
             files = [
                 _multipart_reference(reference.url, index=index)
                 for index, reference in enumerate(request.input_references, start=1)
             ]
             if request.mask_reference is not None:
-                # The real masked-edit field. GPT Image 2 treats it as a strong hint rather than a
+                # The real masked-edit field. GPT Image treats it as a strong hint rather than a
                 # protected region, so callers must still reimpose anything they need preserved.
                 _, mask_part = _multipart_reference(request.mask_reference.url, index=0)
                 files.append(("mask", mask_part))
@@ -195,7 +200,7 @@ class OpenAIImageBackend:
         )
 
     async def _pace_request_start(self) -> None:
-        """Pace starts to the configured GPT Image 2 project IPM allowance."""
+        """Pace starts to the configured OpenAI image project IPM allowance."""
 
         loop = asyncio.get_running_loop()
         async with self._request_start_lock:
@@ -226,7 +231,7 @@ def _multipart_reference(url: str, *, index: int) -> tuple[str, tuple[str, bytes
     )
 
 
-def _validate_gpt_image_2_size(value: str) -> None:
+def _validate_openai_image_size(value: str) -> None:
     if value == "auto":
         return
     match = _SIZE_RE.fullmatch(value)
@@ -234,14 +239,14 @@ def _validate_gpt_image_2_size(value: str) -> None:
         raise ValueError("OpenAI image size must be auto or WIDTHxHEIGHT")
     width, height = (int(edge) for edge in match.groups())
     if width % 16 != 0 or height % 16 != 0:
-        raise ValueError("OpenAI GPT Image 2 size edges must be multiples of 16")
+        raise ValueError("OpenAI image size edges must be multiples of 16")
     if max(width, height) > _MAX_EDGE:
-        raise ValueError("OpenAI GPT Image 2 size edges must not exceed 3840 pixels")
+        raise ValueError("OpenAI image size edges must not exceed 3840 pixels")
     if max(width, height) > _MAX_ASPECT_RATIO * min(width, height):
-        raise ValueError("OpenAI GPT Image 2 size aspect ratio must not exceed 3:1")
+        raise ValueError("OpenAI image size aspect ratio must not exceed 3:1")
     pixels = width * height
     if not _MIN_PIXELS <= pixels <= _MAX_PIXELS:
-        raise ValueError("OpenAI GPT Image 2 size must contain between 655360 and 8294400 pixels")
+        raise ValueError("OpenAI image size must contain between 655360 and 8294400 pixels")
 
 
 __all__ = [

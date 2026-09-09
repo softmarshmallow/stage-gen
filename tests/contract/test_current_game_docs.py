@@ -162,7 +162,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     assert "spec/model-eleven-text-to-sound-v2.md" in sound_effects
 
     runner = documents["docs/spec/game/runner.md"]
-    assert "native-alpha GPT Image 2" in runner
+    assert "native-alpha GPT Image 2.5 Sunburst" in runner
     voice = documents["docs/game-voice.md"]
     assert "generate-speech" in voice
 

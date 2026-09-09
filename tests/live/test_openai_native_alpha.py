@@ -18,7 +18,7 @@ pytestmark = [pytest.mark.live, pytest.mark.asyncio]
 
 
 @pytest.mark.parametrize("with_reference", [False, True])
-async def test_openai_gpt_image_2_returns_nontrivial_native_alpha(
+async def test_openai_sunburst_returns_nontrivial_native_alpha(
     tmp_path: Path,
     openai_settings: OpenAILiveSettings,
     with_reference: bool,
@@ -42,7 +42,7 @@ async def test_openai_gpt_image_2_returns_nontrivial_native_alpha(
                     artifact_path=output,
                     input_references=references,
                     aspect_ratio="1:1",
-                    quality="high",
+                    quality="max",
                     background="transparent",
                     output_format="png",
                     moderation="low",
@@ -69,12 +69,13 @@ async def test_openai_gpt_image_2_returns_nontrivial_native_alpha(
     assert result.applied_params is not None
     assert result.applied_params["background"] == "transparent"
     assert result.applied_params["output_format"] == "png"
-    assert result.applied_params["quality"] == "high"
+    assert result.applied_params["quality"] == "max"
     assert result.applied_params["operation"] == ("edit" if with_reference else "generation")
+    assert result.applied_params["moderation"] == "low"
     if with_reference:
-        assert "moderation" not in result.applied_params
+        assert result.applied_params["input_fidelity"] == "high"
     else:
-        assert result.applied_params["moderation"] == "low"
+        assert "input_fidelity" not in result.applied_params
 
 
 def _reference_image() -> ImageReference:

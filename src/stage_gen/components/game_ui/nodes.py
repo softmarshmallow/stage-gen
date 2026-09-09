@@ -148,7 +148,7 @@ UI_ATLAS_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="ui-atlas-v1",
+    contract_version="ui-atlas-v2",
 )
 
 UI_ATLAS_VALIDATE = NodeType(
@@ -759,7 +759,7 @@ class UiAtlasHandlers:
             prompt=prompt,
             artifact_path=output,
             input_references=references,
-            quality="high",
+            quality="max",
             background="transparent",
             output_format="png",
             size=f"{role.canvas[0]}x{role.canvas[1]}",

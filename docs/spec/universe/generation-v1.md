@@ -148,14 +148,19 @@ restore the pictures a reviewer had already rejected.
 ## Image route
 
 Concept images are opaque compositions, so they bind the opaque route
-(`openai/gpt-image-2@openrouter`, with the native pixel `size` passed through).
+(`openai/gpt-image-2.5-sunburst@openrouter`, at `quality="max"`, with the native
+pixel `size` passed through). The route was verified live at every current
+Universe canvas on 2026-09-09: 2560 by 1440, 2560 by 1712, and 1712 by 2560.
 The OpenAI route is reserved for work that needs native alpha. The model is the
 same on both; what differs is alpha support and that OpenRouter reports the
 upstream cost, which the OpenAI images API does not.
 
-Budget **USD 0.30 per high-quality 2560-class image on either route**. A
-36-image gallery is about USD 12. Runs before this was measured reported only
-their structured calls and looked like USD 2.
+Budget **USD 0.22–0.30 per maximum-quality OpenRouter image** across the current
+Universe dimensions. The exact canaries ranged from $0.227414 to $0.294423;
+other prompts and reference payloads can change token use. Image output for a
+36-image gallery is therefore roughly USD 8–11 before its structured review
+calls. The predecessor whole-run evidence was about USD 12; earlier reporting
+that omitted image usage made the same run look like USD 2.
 
 ## Running it
 

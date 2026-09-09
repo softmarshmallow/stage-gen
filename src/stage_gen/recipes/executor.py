@@ -44,6 +44,7 @@ from gnode import (
 from stage_gen.config import CapabilityName, StageGenConfig, assert_capabilities
 from stage_gen.orchestration.runtime import (
     create_background_removal_service,
+    create_image_service,
     create_music_service,
     create_openai_image_service,
     create_sound_effect_service,
@@ -112,6 +113,19 @@ class RunServices:
                 model=config.openai_image_model,
                 base_url=config.openai_base_url or OPENAI_BASE_URL,
                 images_per_minute=config.openai_image_ipm,
+            )
+        )
+
+    def opaque_image(self) -> ImageGenerationService:
+        """The configured OpenRouter image route for opaque/reference work."""
+
+        config = self._config
+        return self.adopt(
+            create_image_service(
+                api_key=config.open_router_api_key or "",
+                model=config.image_model,
+                base_url=config.open_router_base_url or OPENROUTER_BASE_URL,
+                images_per_minute=config.openrouter_image_ipm,
             )
         )
 

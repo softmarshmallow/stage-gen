@@ -71,7 +71,7 @@ class OpenRouterMaskedImageEditBackend:
                 # lets the provider infer the reference geometry; this adapter then normalizes
                 # the returned raster to the component's exact conditioning dimensions.
                 aspect_ratio="auto",
-                quality="high",
+                quality="max",
                 background="auto",
                 moderation="auto",
                 metadata={

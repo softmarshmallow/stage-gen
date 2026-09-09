@@ -42,6 +42,12 @@ Changelog
             ``source-lock`` and ``package-manifest`` moved with the source digest,
             which grew a document, a typeface and a licence. No other key moved:
             the screens around the game are new spend, not a redraw.
+2026-09-09  GPT Image 2.5 Sunburst at maximum quality replaced GPT Image 2 for
+            every paid image request. This deliberately moved 48/64, 173/202,
+            223/252, and 239/294 keys across minimal, props, actors, and full:
+            all image calls, every provider review that consumes their output,
+            and their local descendants. No node was added or removed and every
+            topology digest stayed fixed.
 """
 
 from __future__ import annotations

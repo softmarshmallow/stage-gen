@@ -17,11 +17,12 @@ The following concepts are kept separate.
 
 ``model@provider`` is used rather than ``provider/model`` because a model
 identifier already carries its own namespace and that namespace belongs to
-whoever routes it: ``gpt-image-2@openai`` and ``openai/gpt-image-2@openrouter``
-are the same model reached two ways, and a leading ``vendor/`` cannot say which
-of the two is meant. The two halves are persisted as separate ``provider`` and
-``model`` fields, so this form is a surface for configuration and display only —
-no record's identity depends on it.
+whoever routes it: ``gpt-image-2.5-sunburst@openai`` and
+``openai/gpt-image-2.5-sunburst@openrouter`` are the same model reached two
+ways, and a leading ``vendor/`` cannot say which of the two is meant. The two
+halves are persisted as separate ``provider`` and ``model`` fields, so this form
+is a surface for configuration and display only — no record's identity depends
+on it.
 """
 
 from __future__ import annotations

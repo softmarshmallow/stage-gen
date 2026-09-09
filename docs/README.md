@@ -231,9 +231,10 @@ into the active fixture without generating or inventing copy. The
 original anime showcase once kept under web/public/dialogue-scene/demo/anime has
 been removed; it was never an accepted portable-bundle example.
 
-Provider facts in this repository were last verified on 2026-08-14. Re-check
-capability metadata before changing adapters because hosted model contracts
-can change independently of this source tree.
+Hosted-provider facts are dated individually in the
+[models and providers index](models/index.md). Re-check the selected route there
+before changing an adapter because hosted model contracts can change
+independently of this source tree.
 
 Run the documentation checks with:
 

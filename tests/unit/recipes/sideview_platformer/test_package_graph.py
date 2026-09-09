@@ -468,8 +468,8 @@ def test_projection_applies_the_adapter_owned_image_start_rate() -> None:
 
     assert projection.duration_ms == 311_050
     assert projection.operation_counts == graph.operation_counts()
-    assert projection.estimated_cost_low_usd == 4.26
-    assert projection.estimated_cost_high_usd == 23.52
+    assert projection.estimated_cost_low_usd == 17.70
+    assert projection.estimated_cost_high_usd == 28.32
     assert projection.critical_path[0] == "package-resolve"
     assert projection.critical_path[-1] == "manifest-assemble"
 

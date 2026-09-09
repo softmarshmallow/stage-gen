@@ -128,7 +128,7 @@ CONCEPT_IMAGE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="universe-concept-image-v1",
+    contract_version="universe-concept-image-v2",
 )
 
 CONCEPT_PROXY = NodeType(

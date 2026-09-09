@@ -174,9 +174,9 @@ presentation a closed union:
   it remains the appropriate economical mode for deliberately tiled ground.
 - `runner-structural-ground-v1` generates one bespoke native-alpha painting per
   authored segment. A local node first renders the exact occupancy plus common
-  seam aprons into a 1536-by-1024 guide. A native-alpha GPT Image 2 edit paints
+  seam aprons into a 1536-by-1024 guide. A native-alpha GPT Image 2.5 Sunburst edit paints
   that guide with `background = "transparent"`; planning refuses any image
-  model not explicitly verified as a GPT Image 2 native-alpha route, and the
+  model not explicitly verified as the Sunburst native-alpha route, and the
   generative layer-loop route separately requires masked-edit capability. No
   chroma key or background-removal fallback exists. One shared local node takes
   the first authored segment's already generated right two-column apron,
@@ -657,9 +657,11 @@ mode, a layer, a motion state, a catalog entry, a soundtrack member, or a
 generated-clip or spoken-line effect changes the topology and therefore this
 checked snapshot. So does a binding-table route, because declared resources are
 part of the topology; the `elevenlabs-sound-effect` and `elevenlabs-speech`
-resources below serve Iron Petal's generated clips and its spoken stage start. So does a node type's contract version: the manifest
-assembly moved to v8 when the audio block gained the music transitions, which
-re-keyed this snapshot with no new node. The checked runner fixture is
+resources below serve Iron Petal's generated clips and its spoken stage start.
+A node type's contract version instead re-keys caches and `graph_sha256`
+without changing `topology_sha256`: manifest assembly moved to v8 when the
+audio block gained music transitions, which re-keyed the graph with no new
+node. The checked runner fixture is
 Iron Petal Unit so the snapshot covers the per-segment structural-ground fan-out
 rather than only the atlas branch. Regenerate with
 `uv run python scripts/write_pipeline_graph_contract.py --write`; the gate is
@@ -731,7 +733,7 @@ rather than only the atlas branch. Regenerate with
 ```
 <!-- pipeline-graph-contract:end -->
 
-For the exact Iron Petal Unit fixture, the normal graph contains 52 first-pass
+For the exact Iron Petal Unit fixture, the normal graph contains 53 first-pass
 provider operations. Provider transport retries and later semantic
 regenerations are reported by their owning node and are not extra graph nodes.
 Two of those operations are *tool loops*: a bounded episode in which the

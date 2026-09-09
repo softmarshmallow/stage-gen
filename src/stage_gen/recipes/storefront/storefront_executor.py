@@ -87,7 +87,7 @@ class StorefrontExecutor(RecipeExecutor[ResolvedStorefront, StorefrontGraph]):
                 plan.resolved,
                 run_dir=run_dir,
                 cache_dir=cache_dir,
-                image_service=services.image(),
+                image_service=services.opaque_image(),
                 structured_service=services.structured(),
             )
             summary = await self.dispatch(

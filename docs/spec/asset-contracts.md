@@ -8,11 +8,11 @@ its sheet grid. It is not the global definition of `stage-gen`. Reusable compone
 genre-, camera-, gameplay-, and engine-agnostic; this recipe supplies the
 side-view vocabulary explicitly.
 
-> **Provider note.** Prepared native-alpha image operations use `gpt-image-2`
-> through the direct OpenAI image route. Exact canvas sizes are normalized output contracts, not a claim that every
+> **Provider note.** Prepared native-alpha image operations use
+> `gpt-image-2.5-sunburst` through the direct OpenAI image route. Exact canvas sizes are normalized output contracts, not a claim that every
 > route accepts arbitrary pixel dimensions. Current endpoint capabilities,
 > alpha behavior, and deterministic normalization requirements are documented in
-> [GPT Image 2 model record](../models/gpt-image-2.md). Revalidate every recipe contract
+> [GPT Image 2.5 model record](../models/gpt-image-2.5.md). Revalidate every recipe contract
 > when changing models.
 
 ---
@@ -95,9 +95,9 @@ owner around one backend attempt and caller validation.
 
 | Concern | Current contract | Notes |
 |---|---|---|
-| Model and route | `gpt-image-2` through direct OpenAI for `native`; `openai/gpt-image-2` through OpenRouter for `ai`/`chroma` compatibility | Re-check the selected route before expanding its adapter contract. |
-| Request surface | Provider-neutral prompt, ordered references, quality, background intent, target geometry, and `n=1`; adapters translate only supported route-specific fields | Direct OpenAI native requests transparent PNG; OpenRouter compatibility requests aspect ratio and opaque output. |
-| Scrolling-recipe request | `quality="high"`; transparent background for native cutouts, opaque output for concepts/backdrops and compatibility modes | Deterministic alpha-safe PNG normalization owns exact final dimensions; target geometry does not establish native provider support. |
+| Model and route | `gpt-image-2.5-sunburst` through direct OpenAI for `native`; `openai/gpt-image-2.5-sunburst` through OpenRouter for `ai`/`chroma` compatibility | Sunburst is the only selected 2.5 variant; Flare and fal are not fallbacks. Re-check the selected route before expanding its adapter contract. |
+| Request surface | Provider-neutral prompt, ordered references, quality, background intent, target geometry, and `n=1`; adapters translate only supported route-specific fields | Direct OpenAI native requests transparent PNG and adds `input_fidelity="high"` to multipart edits; OpenRouter roles request opaque output and refuse transparent or masked-edit requests offline. |
+| Scrolling-recipe request | `quality="max"`; transparent background for native cutouts, opaque output for concepts/backdrops and compatibility modes | Deterministic alpha-safe PNG normalization owns exact final dimensions; target geometry does not establish native provider support. |
 | Retry owner | One initial attempt plus five blind retries in `ImageGenerationService.generate` | Transport, response-envelope, media, and caller-validation failures remain inside this one boundary. Recipes and backends must not stack SDK, outer, or per-stage retry loops. |
 | Accepted response | Exactly one nonempty image with strict base64, media-type, signature, and caller validation | The inspected provider artifact and deterministic normalized artifact retain bound provenance. |
 
@@ -873,4 +873,3 @@ behavior. `gameplay.toml` transition relationships resolve the endpoint's
 stable `anchor`; visual role never implies a destination.
 
 ---
-

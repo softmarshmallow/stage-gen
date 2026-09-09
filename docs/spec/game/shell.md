@@ -126,7 +126,7 @@ one would be fighting it.
 ### A clip may be drawn in the run, or adopted into it
 
 Video is the most expensive thing this pipeline buys — a ten-second clip at 720p is a
-dollar, about what forty images cost — and the route accepts no seed. So a brief is a
+dollar, about four to six maximum-quality images — and the route accepts no seed. So a brief is a
 lottery ticket rather than a picture: asking twice costs twice and answers differently,
 and a run that draws its clips re-buys the whole opening every time a cache goes cold.
 
@@ -150,7 +150,7 @@ itself.
 
 Adoption is the recommended default, and it is recommended by arithmetic rather than by a
 flag. `oblique-survival plan` on Ember Hollow reports **134 billable operations and
-$25.56** with its three clips adopted, against **137 and $28.56** with them drawn. There
+$18.91–30.71** with its three clips adopted, against **137 and $21.91–33.71** with them drawn. There
 is no warning to silence and no confirmation to pass.
 
 Three consequences worth stating:

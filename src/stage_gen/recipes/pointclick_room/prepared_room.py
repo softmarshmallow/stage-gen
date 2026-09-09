@@ -485,7 +485,7 @@ class PointClickRoomNodeHandler(RecipeNodeHandler):
                 )
                 for reference in self._resolved.style_references
             ),
-            quality="high",
+            quality="max",
             background="transparent" if transparent else "opaque",
             output_format="png",
             size=f"{width}x{height}",

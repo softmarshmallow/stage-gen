@@ -78,7 +78,7 @@ uv run stage-gen generate \
   --output /tmp/iron-petal-unit-dry-run
 ```
 
-The plan expands Iron Petal Unit into the exact 70-node structural-ground, layer, avatar,
+The plan expands Iron Petal Unit into the exact 109-node structural-ground, layer, avatar,
 catalog, soundtrack, validation, review, and manifest DAG. `--dry-run` executes it with
 deterministic fake operations and writes a sanitized trace. There is no bare-prompt fallback.
 Without `--dry-run`, an invalid package or unsupported route fails before provider execution;
@@ -94,7 +94,10 @@ creative brief cannot regenerate reviewed art, `--checkpoint world-review` and
 holds, and `--checkpoint integration` runs the terminal manifest node over the cache with
 every provider backend refusing, publishing `prepared-game-runtime-v12` without spending.
 
-GPT Image 2 native alpha is the quality-first live image route. The standalone compatibility
+GPT Image 2.5 Sunburst at `quality="max"` is the quality-first live image route. Native-alpha
+generation and edits use direct OpenAI; the established OpenRouter-backed
+opaque/reference roles stay on OpenRouter. The standalone
+compatibility
 background-removal command remains available:
 
 ```sh
@@ -131,18 +134,20 @@ resource limits, cache lineage, retry ownership, and operation counts. `stage-ge
 
 ## Generation cost
 
-Budget approximately **USD 7** for a complete first generation of Iron Petal Unit. The
+Budget approximately **USD 13** for a complete first generation of Iron Petal Unit. The
 provider-free planner exposes the current estimate before any live request is made:
 
 | Iron Petal Unit runner | Planned amount |
 | --- | ---: |
-| Planned graph | 70 nodes |
-| Local validation and assembly | 39 operations |
-| GPT Image 2 generation | 27 operations |
-| Structured generation and review | 2 operations |
+| Planned graph | 109 nodes |
+| Local validation and assembly | 56 operations |
+| GPT Image 2.5 Sunburst generation | 39 operations |
+| Structured generation and review | 7 operations |
+| Tool-loop review | 2 operations |
 | Music generation | 2 operations |
-| Estimated provider spend | **USD 1.19–6.56** |
-| Practical first-run budget | **About USD 6–7** |
+| Sound-effect generation | 3 operations |
+| Estimated provider spend | **USD 7.20–12.81** |
+| Practical first-run budget | **About USD 8–13** |
 
 This is a conservative planning allowance, not a provider quote. Active model pricing, retries,
 and deliberate semantic regenerations can change the final charge. Valid cache hits do not repeat
@@ -490,8 +495,9 @@ read from the process environment.
 
 - The direct OpenAI Images route backs the default `native` mode and returns
   provider-generated alpha.
-- OpenRouter backs structured generation, experimental music generation, and
-  image generation for the explicit compatibility modes.
+- OpenRouter backs structured generation, experimental music generation,
+  explicit image-compatibility modes, and the designated opaque/reference
+  image roles in Universe and Storefront.
 - FAL backs the explicit recipe `ai` compatibility mode and the standalone
   `remove-background` capability.
 - `chroma` is an explicit degraded local-keying fallback, never an automatic

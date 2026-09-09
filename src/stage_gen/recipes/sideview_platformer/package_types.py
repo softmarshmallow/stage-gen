@@ -51,8 +51,8 @@ PACKAGE_RESOLVE = NodeType(
 #: twice. Admission is local and converged on the family's.
 _LAYERS = layer_node_types(
     identity_prefix=f"{_P}/map_layer",
-    generate_version="map-layer-v2",
-    loop_paint_version="map-layer-loop-v2",
+    generate_version="map-layer-v3",
+    loop_paint_version="map-layer-loop-v3",
     loop_construct_version="map-layer-loop-v1",
     # The map reviews depend on the admissions; converging this key would re-bill them.
     validate_version="map-layer-validate-v1",
@@ -92,7 +92,7 @@ MAP_GROUND_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="map-ground-atlas-v1",
+    contract_version="map-ground-atlas-v2",
 )
 
 MAP_GROUND_VALIDATE = NodeType(
@@ -110,7 +110,7 @@ MAP_CLIMBABLE_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="map-climbable-v1",
+    contract_version="map-climbable-v2",
 )
 
 MAP_CLIMBABLE_VALIDATE = NodeType(
@@ -128,7 +128,7 @@ MAP_PORTAL_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="map-portal-v1",
+    contract_version="map-portal-v2",
 )
 
 MAP_PORTAL_VALIDATE = NodeType(
@@ -164,7 +164,7 @@ ACTOR_CONCEPT_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="actor-concept-v1",
+    contract_version="actor-concept-v2",
 )
 
 MOTION_ATLAS_GENERATE = NodeType(
@@ -174,7 +174,7 @@ MOTION_ATLAS_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="motion-atlas-v1",
+    contract_version="motion-atlas-v2",
 )
 
 MOTION_ATLAS_VALIDATE = NodeType(
@@ -192,7 +192,7 @@ DIALOGUE_ATLAS_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="dialogue-atlas-v1",
+    contract_version="dialogue-atlas-v2",
 )
 
 DIALOGUE_ATLAS_VALIDATE = NodeType(
@@ -210,7 +210,7 @@ WORLD_SPRITE_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="world-sprite-v1",
+    contract_version="world-sprite-v2",
 )
 
 WORLD_SPRITE_VALIDATE = NodeType(
@@ -252,7 +252,7 @@ CATALOG_ASSET_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="catalog-asset-v1",
+    contract_version="catalog-asset-v2",
 )
 
 CATALOG_ASSET_VALIDATE = NodeType(

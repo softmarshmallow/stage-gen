@@ -113,7 +113,7 @@ TRACK_GROUND_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="runner-ground-atlas-v3",
+    contract_version="runner-ground-atlas-v4",
 )
 
 TRACK_GROUND_VALIDATE = NodeType(
@@ -139,7 +139,7 @@ TRACK_STRUCTURAL_GROUND_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="runner-structural-ground-generate-v3",
+    contract_version="runner-structural-ground-generate-v4",
 )
 
 TRACK_STRUCTURAL_GROUND_SEAM_BRIDGE = NodeType(
@@ -163,8 +163,8 @@ TRACK_STRUCTURAL_GROUND_VALIDATE = NodeType(
 #: twice. Admission is local and converged on the family's.
 _LAYERS = layer_node_types(
     identity_prefix=f"{_P}/layer",
-    generate_version="runner-layer-v3",
-    loop_paint_version="runner-layer-loop-v4",
+    generate_version="runner-layer-v4",
+    loop_paint_version="runner-layer-loop-v5",
     loop_construct_version="runner-layer-loop-v1",
 )
 LAYER_GENERATE = _LAYERS.generate
@@ -179,7 +179,7 @@ AVATAR_CONCEPT_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="runner-avatar-concept-v4",
+    contract_version="runner-avatar-concept-v5",
 )
 
 AVATAR_MOTION_GENERATE = NodeType(
@@ -189,7 +189,7 @@ AVATAR_MOTION_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="runner-avatar-motion-v4",
+    contract_version="runner-avatar-motion-v5",
 )
 
 AVATAR_MOTION_VALIDATE = NodeType(
@@ -211,7 +211,7 @@ BOSS_CONCEPT_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="runner-boss-concept-v1",
+    contract_version="runner-boss-concept-v2",
 )
 
 BOSS_MOTION_GENERATE = NodeType(
@@ -221,7 +221,7 @@ BOSS_MOTION_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="runner-boss-motion-v1",
+    contract_version="runner-boss-motion-v2",
 )
 
 BOSS_MOTION_VALIDATE = NodeType(
@@ -249,7 +249,7 @@ CATALOG_ASSET_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="runner-catalog-asset-v3",
+    contract_version="runner-catalog-asset-v4",
 )
 
 CATALOG_ASSET_VALIDATE = NodeType(

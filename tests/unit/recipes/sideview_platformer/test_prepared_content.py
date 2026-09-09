@@ -282,6 +282,7 @@ async def test_complete_content_handler_dispatches_exact_closure(tmp_path: Path)
     assert images.calls == 79
     assert structured.calls == 20
     assert music.calls == 3
+    assert {request.quality for request in images.requests} == {"max"}
     ui_request = next(
         request for request in images.requests if request.metadata.get("role") == "inventory_panel"
     )

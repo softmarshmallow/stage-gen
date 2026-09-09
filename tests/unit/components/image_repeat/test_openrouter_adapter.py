@@ -39,7 +39,7 @@ async def test_openrouter_masked_edit_is_one_call_and_normalizes_exact_geometry(
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         backend = OpenRouterMaskedImageEditBackend(
             api_key="repeat-secret",
-            model="openai/gpt-image-2",
+            model="openai/gpt-image-2.5-sunburst",
             client=client,
         )
         result = await backend.edit_once(
@@ -58,9 +58,9 @@ async def test_openrouter_masked_edit_is_one_call_and_normalizes_exact_geometry(
 
     assert len(request_bodies) == 1
     body = request_bodies[0]
-    assert body["model"] == "openai/gpt-image-2"
+    assert body["model"] == "openai/gpt-image-2.5-sunburst"
     assert body["aspect_ratio"] == "auto"
-    assert body["quality"] == "high"
+    assert body["quality"] == "max"
     assert body["background"] == "auto"
     references = body["input_references"]
     assert isinstance(references, list) and len(references) == 2

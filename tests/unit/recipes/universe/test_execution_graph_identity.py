@@ -14,6 +14,10 @@ Changelog
             forbidden-direction vocabulary and display name. All four now ride
             input digests. No node was added or removed, so both topology
             digests are unchanged — which is the point of the split.
+2026-09-09  Gallery only re-pinned for the GPT Image 2.5 Sunburst/max route.
+            The semantic graph and both topology digests are unchanged.
+2026-09-09  Gallery only re-pinned again after exact current-canvas canaries
+            calibrated its OpenRouter image planning range. Topology is unchanged.
 """
 
 from __future__ import annotations
@@ -43,7 +47,7 @@ SEMANTIC_GRAPH_SHA256 = "c72927dfaf2dad70cbf24c23489676b742a5e94e4e25963a4451da0
 SEMANTIC_TOPOLOGY_SHA256 = "ef67f5dfad878dd308ce7a481b0f68cdf53b6626355dd186c42e29d6b9831e22"
 
 GALLERY_NODE_COUNT = 42
-GALLERY_GRAPH_SHA256 = "2c8d3c3392382af272b13f6617e7fce9eab109eaeb6b19990c0ff05e594a98d8"
+GALLERY_GRAPH_SHA256 = "b1fe1e95df172d443e7b403e7ab22a50af25b7cbb6680be4554d628cfa5bfd19"
 GALLERY_TOPOLOGY_SHA256 = "3cdc982dcad3f7bd6b0433bb50c5e61097559e6768fb02eb63d2d41799c2d62c"
 
 

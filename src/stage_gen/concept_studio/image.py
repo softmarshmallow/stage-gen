@@ -102,6 +102,7 @@ async def generate_concept_image(
             api_key=api_key,
             model=execution.profile.model,
             base_url=active_config.open_router_base_url or "https://openrouter.ai/api/v1",
+            images_per_minute=active_config.openrouter_image_ipm,
         )
     active_service = service or owned_service
     assert active_service is not None

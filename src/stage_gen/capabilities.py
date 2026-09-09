@@ -15,7 +15,7 @@ from stage_gen.components.video_clip import (
     clip_admission_facts,
     clip_sample_times,
 )
-from stage_gen.config import StageGenConfig, assert_capabilities
+from stage_gen.config import CapabilityName, StageGenConfig, TransparencyMode, assert_capabilities
 from stage_gen.media import (
     contact_sheet,
     extract_frame_png,
@@ -110,7 +110,12 @@ async def generate_image_artifact(
     reference_paths: Sequence[str] = (),
     runtime: HeadlessRuntime | None = None,
 ) -> CapabilityArtifactResult:
-    assert_capabilities(config, ("image_generation",))
+    capability = (
+        CapabilityName.NATIVE_IMAGE_GENERATION
+        if config.transparency_mode is TransparencyMode.NATIVE
+        else CapabilityName.IMAGE_GENERATION
+    )
+    assert_capabilities(config, (capability,))
     if not output_path.lower().endswith(".png"):
         raise ValueError("generate-image output must use a .png extension")
     owned = None

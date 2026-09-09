@@ -1,22 +1,24 @@
 # GPT Image 2.5 provider contract
 
-> **Checked by:** none.
+> **Checked by:** `tests/unit/gnode/providers/test_openai_image.py`,
+> `tests/unit/gnode/providers/test_openrouter_image.py`.
 
 OpenAI released GPT Image 2.5 on 2026-09-08 as two distinct models:
 `gpt-image-2.5-sunburst` and `gpt-image-2.5-flare`. There is no documented bare
 `gpt-image-2.5` model ID. This record was checked on 2026-09-09 KST and keeps
 provider documentation, live artifact evidence, and repository integration
-status separate. It does not declare a runtime binding.
+status separate. The binding table remains the runtime authority.
 
 ## Provider status
 
 | Provider | External route | Generation and editing | Transparent background | Evidence this check |
 | --- | --- | --- | --- | --- |
-| OpenAI | `gpt-image-2.5-sunburst` | Both documented | Documented | Live request refused before generation by the account's organization-verification gate |
+| OpenAI | `gpt-image-2.5-sunburst` | Both documented; repository default | Documented | Adapter contract verified offline; live request refused before generation by the account's organization-verification gate |
 | OpenAI | `gpt-image-2.5-flare` | Both documented | Documented | Live request refused before generation by the account's organization-verification gate |
 | fal | `openai/gpt-image-2.5/sunburst/text-to-image` and `openai/gpt-image-2.5/sunburst/edit` | Separate active routes | Advertised by both schemas | High-quality text-to-image output decoded with native alpha |
 | fal | `openai/gpt-image-2.5/flare/text-to-image` and `openai/gpt-image-2.5/flare/edit` | Separate active routes | Advertised by both schemas | High-quality text-to-image output decoded with native alpha |
-| OpenRouter | none | Both upstream model IDs absent | No contract | Catalogs and exact endpoint lookups checked 2026-09-09 05:42 KST |
+| OpenRouter | `openai/gpt-image-2.5-sunburst` | Generation plus up to 16 references; repository opaque route | `auto` or `opaque` only | `max` square and reference-conditioned wide generations passed live; transparent request returned HTTP 400 |
+| OpenRouter | `openai/gpt-image-2.5-flare` | Listed, not selected | `auto` or `opaque` only | Catalog only; no repository canary |
 
 ## Direct OpenAI
 
@@ -31,6 +33,7 @@ precision. Flare is the faster variant for everyday generation. Both support:
 - `background`: `auto`, `opaque`, or `transparent`;
 - `output_format`: `png`, `jpeg`, or `webp`;
 - `quality`: `auto`, `low`, `medium`, `high`, `xhigh`, or `max`;
+- `moderation`: `auto` or `low` for generation and edits;
 - standard 1024-by-1024, 1536-by-1024, and 1024-by-1536 canvases, plus custom
   dimensions aligned to 16 pixels, within a 1:3 to 3:1 aspect ratio, no edge
   above 3840 pixels, and 655,360 to 8,294,400 total pixels; dimensions above
@@ -73,11 +76,11 @@ The text-to-image schemas expose:
 
 | Field | Contract |
 | --- | --- |
-| `prompt` | required, 2 to 32,000 characters |
+| `prompt` | required, 1 to 32,000 characters |
 | `image_size` | preset or custom dimensions; default `landscape_4_3` |
 | `background` | `auto`, `transparent`, or `opaque`; default `auto` |
 | `quality` | `auto`, `low`, `medium`, `high`, `xhigh`, or `max`; default `high` |
-| `num_images` | 1 through 4; default 1 |
+| `num_images` | 1 through 10; default 1 |
 | `output_format` | `jpeg`, `png`, or `webp`; default `png` |
 | `output_compression` | 0 through 100 for JPEG or WebP |
 | `sync_mode` | boolean; default false |
@@ -96,9 +99,12 @@ were fully transparent. Both responses omitted width and height, so byte-level
 decoding remains mandatory. These canaries prove native alpha for generation;
 the edit routes remain schema-advertised only.
 
-fal's pricing surfaces disagreed immediately after release. Do not encode a
-price from this snapshot; recheck the canonical billing surface before an
-integration or cost estimate.
+fal currently publishes the same token rates and size/quality tables for Flare
+and Sunburst. At `quality="max"`, both list $0.21072 for 1024 by 1024 and
+$0.16464 for 1536 by 1024 or 1024 by 1536 before variable input/context use.
+Those maximum-tier output prices match GPT Image 2 at its former highest
+quality. Recheck the canonical billing surface before an integration or cost
+estimate.
 
 Primary sources:
 
@@ -110,12 +116,34 @@ Primary sources:
 
 ## OpenRouter
 
-At 2026-09-09 05:42 KST, neither `openai/gpt-image-2.5-sunburst` nor
-`openai/gpt-image-2.5-flare` appeared in OpenRouter's image-model or general
-model catalog. Exact endpoint lookups returned HTTP 404. OpenRouter therefore
-has no route, supported-parameter record, or transparency contract for either
-model in this snapshot. Do not declare a binding or probe an undocumented
-`background` field until a route appears.
+At 2026-09-09 05:42 KST, neither exact 2.5 model appeared in OpenRouter's
+catalog and exact endpoint lookups returned HTTP 404. Both appeared later that
+morning: OpenRouter records Flare at 10:12:30 KST and Sunburst at 10:12:48 KST.
+This rollout history matters: absence immediately after an upstream release is
+not evidence that a slug will remain unavailable.
+
+The current Sunburst endpoint advertises `aspect_ratio`, all six quality
+levels through `max`, `background`, `n`, `input_references`, and
+`output_compression`, with provider-specific `moderation` passthrough. Its
+`background` enum is `auto | opaque`; it does not advertise transparent output
+or masked editing. A paid `background="transparent"` request returned HTTP 400
+before generation, so the repository refuses that request locally rather than
+silently accepting an opaque artifact.
+
+Two paid Sunburst canaries passed at `quality="max"` on 2026-09-09: a
+text-only square request returned an exact 1024-by-1024 RGB PNG, and a request
+with one input reference returned an exact 2560-by-1440 RGB PNG. They consumed
+7,024 and 7,370 image-output tokens and cost $0.210835 and $0.227414
+respectively. Exact `size` is not listed in the endpoint's current capability
+descriptor, so these canaries support the repository's bounded current route;
+they do not justify projecting arbitrary size support onto other OpenRouter
+models. Decode and inspect returned bytes in all cases.
+
+Five additional one-reference canaries covered the remaining exact Storefront
+and Universe canvases. All returned the requested PNG dimensions:
+1152-by-2496 and 2496-by-1152 cost $0.154773 each, 2064-by-1008 cost $0.138393,
+and 2560-by-1712 and 1712-by-2560 cost $0.294423 each. No canary image or
+credential was persisted.
 
 Primary sources:
 
@@ -126,23 +154,27 @@ Primary sources:
 
 ## Repository boundary
 
-None of these routes is integrated. A future binding must use the exact model
-and provider identity. Direct OpenAI can be named
-`gpt-image-2.5-flare@openai`; fal's two concrete Flare identities are
-`openai/gpt-image-2.5/flare/text-to-image@fal` and
-`openai/gpt-image-2.5/flare/edit@fal`. How those two fal endpoints map onto the
-repository's current operation table — as separate operations or one
-adapter-owned route family — is an unresolved implementation decision, not a
-documentation assumption. Any binding must independently declare the
-applicable `transparent_background`, `reference_images`, and `masked_edit`
-features. Do not add an automatic provider fallback.
+The quality-first repository model is Sunburst only. Direct native-alpha
+generation and edits bind `gpt-image-2.5-sunburst@openai`; direct multipart
+edits additionally request and record `input_fidelity="high"`. Designated
+opaque and reference-conditioned roles bind
+`openai/gpt-image-2.5-sunburst@openrouter`. Both routes request
+`quality="max"`. Flare is deliberately not a fallback.
 
-fal's separate edit routes make this family a broader candidate than its GPT
-Image 2 text-to-image route, but live evidence currently proves native alpha
-only for generation; both edit routes remain schema-only. Any later change to
-dependencies, asset fan-out, provider operation counts, or scheduling must
-update the [canonical generation pipeline](../spec/game/generation-pipeline.md)
-and its executable graph contract in the same implementation change.
+fal is verified as a possible native-transparency provider but is not
+integrated into image generation. Its concrete identities remain
+`openai/gpt-image-2.5/sunburst/text-to-image@fal` and
+`openai/gpt-image-2.5/sunburst/edit@fal`; their split endpoint design would
+still need an explicit adapter and operation-mapping decision. Live evidence
+currently proves native alpha only for generation, while the edit route is
+schema-only. Do not add an automatic provider fallback.
+
+This successor migration changes binding and cache identity but not node
+fan-out, dependencies, provider-operation counts, resources, or graph
+scheduling. The OpenRouter adapter now honors the request-start pacing its
+unchanged resource declaration already required. A future topology change must update the
+[canonical generation pipeline](../spec/game/generation-pipeline.md) and its
+executable graph contract in the same implementation change.
 
 General credentials, retry ownership, response handling, and artifact rules
 remain in [provider operations](providers.md).

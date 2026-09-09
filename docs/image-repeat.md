@@ -87,8 +87,10 @@ Transport, decoding, malformed media, and deterministic candidate failures are
 inside the single six-attempt repair owner. A well-formed semantic rejection is
 final and is not a provider retry.
 
-The OpenRouter adapter implements `masked-image-edit` with `gpt-image-2` image
-references. It submits the conditioning canvas and mask once, normalizes the
+The OpenRouter adapter implements `masked-image-edit` with
+`openai/gpt-image-2.5-sunburst` image references at maximum quality. This is
+reference-conditioned repair, not OpenAI's native masked-edit route: it submits
+the conditioning canvas and mask as two references once, normalizes the
 provider raster to the declared conditioning geometry, and leaves context
 restoration, deterministic alpha-topology reconstruction, endpoint anchoring,
 and acceptance to the component. Alpha reconstruction is not a semantic repair:

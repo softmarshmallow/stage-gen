@@ -8,7 +8,7 @@ from typing import Any, cast
 import pytest
 
 from stage_gen.concept_studio.cli import main
-from stage_gen.concept_studio.profiles import GPT_IMAGE_2, GROK_IMAGINE_IMAGE_2
+from stage_gen.concept_studio.profiles import GPT_IMAGE_2_5_SUNBURST, GROK_IMAGINE_IMAGE_2
 
 
 def _run(argv: list[str]) -> tuple[int, dict[str, Any] | None, str]:
@@ -46,7 +46,7 @@ def test_cli_models_init_and_draft_check(
     assert models["schema_version"] == 1
     assert models["kind"] == "game_concept_image_model_report_v1"
     assert {item["model"] for item in models["models"]} == {
-        GPT_IMAGE_2,
+        GPT_IMAGE_2_5_SUNBURST,
         GROK_IMAGINE_IMAGE_2,
     }
     assert (init_code, init_error) == (0, "")
@@ -89,5 +89,5 @@ def test_cli_rejects_model_specific_invalid_combination_before_provider_access(
 
     assert code == 1
     assert payload is None
-    assert "openai/gpt-image-2 resolution must be one of: none" in error
+    assert "openai/gpt-image-2.5-sunburst resolution must be one of: none" in error
     assert "OPENROUTER_API_KEY" not in error

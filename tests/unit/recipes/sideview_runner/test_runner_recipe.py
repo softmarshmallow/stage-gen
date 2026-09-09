@@ -48,25 +48,37 @@ def _select_structural_ground(package: Path) -> Path:
     return package
 
 
-def test_plan_refuses_an_image_model_without_verified_native_alpha(tmp_path: Path) -> None:
-    executor = SideviewRunnerExecutor(StageGenConfig(openai_image_model="gpt-image-1"))
+@pytest.mark.parametrize(
+    "model",
+    (
+        "gpt-image-1",
+        "gpt-image-2",
+        "gpt-image-2.5-flare",
+    ),
+)
+def test_plan_refuses_an_image_model_without_verified_sunburst_native_alpha(
+    tmp_path: Path,
+    model: str,
+) -> None:
+    executor = SideviewRunnerExecutor(StageGenConfig(openai_image_model=model))
 
     with pytest.raises(ValueError, match="native transparent-background support"):
         executor.plan(two_genre_package(tmp_path))
 
 
-def test_plan_accepts_a_dated_gpt_image_2_native_alpha_route(tmp_path: Path) -> None:
-    executor = SideviewRunnerExecutor(StageGenConfig(openai_image_model="gpt-image-2-2026-04-21"))
+def test_plan_accepts_a_dated_sunburst_native_alpha_route(tmp_path: Path) -> None:
+    model = "gpt-image-2.5-sunburst-2026-09-08"
+    executor = SideviewRunnerExecutor(StageGenConfig(openai_image_model=model))
 
     plan = executor.plan(two_genre_package(tmp_path))
 
-    assert plan.graph.node("track-ground-generate").model == "gpt-image-2-2026-04-21"
+    assert plan.graph.node("track-ground-generate").model == model
 
 
 def test_runner_image_profile_declares_the_masked_edit_capability() -> None:
     binding = runner_graph_profile(StageGenConfig()).require("image_generation", "masked_edit")
 
-    assert binding.model.model == "gpt-image-2"
+    assert binding.model.model == "gpt-image-2.5-sunburst"
 
 
 def test_generative_layer_loop_keys_the_declared_fallback(tmp_path: Path) -> None:

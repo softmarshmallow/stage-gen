@@ -62,7 +62,7 @@ FX_SPRITE_DUST_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="fx-sprite-dust-v1",
+    contract_version="fx-sprite-dust-v2",
 )
 
 FX_SPRITE_DUST_VALIDATE = NodeType(
@@ -222,7 +222,7 @@ def sprite_dust_generate_request(host: FxCutInHost, node: Node) -> ImageGenerati
         prompt=card_prompt(node),
         artifact_path=host.run_dir / node.port("image").artifact_ref,
         input_references=_authored_references(host, dust.reference_ids),
-        quality="high",
+        quality="max",
         background="transparent",
         output_format="png",
         size=f"{SPRITE_CANVAS[0]}x{SPRITE_CANVAS[1]}",

@@ -6,6 +6,8 @@ import asyncio
 import json
 from pathlib import Path
 
+import pytest
+
 from stage_gen.config import StageGenConfig
 from stage_gen.recipes.storefront.storefront_executor import StorefrontExecutor
 from stage_gen.recipes.storefront.storefront_request import apply_rerolls, empty_ledger
@@ -57,3 +59,63 @@ def test_the_identity_document_names_the_package_and_refuses_publication(
     assert identity["storefront_id"] == "test_world"
     assert identity["surface_ids"] == ["icon", "banner"]
     assert identity["publication_authorized"] is False
+
+
+@pytest.mark.asyncio
+async def test_live_execution_composes_the_declared_opaque_image_route(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    package = write_package(tmp_path / "package")
+    opaque_service_sentinel = object()
+    structured_service_sentinel = object()
+    calls: list[str] = []
+
+    class FakeServices:
+        async def __aenter__(self) -> FakeServices:
+            return self
+
+        async def __aexit__(self, *_exc: object) -> None:
+            return None
+
+        def opaque_image(self) -> object:
+            calls.append("opaque_image")
+            return opaque_service_sentinel
+
+        def image(self) -> object:
+            raise AssertionError("Storefront must not compose the direct OpenAI image route")
+
+        def structured(self) -> object:
+            return structured_service_sentinel
+
+    class FakeHandler:
+        def __init__(
+            self,
+            *_args: object,
+            image_service: object,
+            structured_service: object,
+            **_kwargs: object,
+        ) -> None:
+            assert image_service is opaque_service_sentinel
+            assert structured_service is structured_service_sentinel
+
+    executor = StorefrontExecutor(
+        StageGenConfig(open_router_api_key="openrouter", openai_api_key=None)
+    )
+    monkeypatch.setattr(executor, "services", lambda: FakeServices())
+    monkeypatch.setattr(
+        "stage_gen.recipes.storefront.storefront_executor.StorefrontNodeHandler",
+        FakeHandler,
+    )
+
+    async def fake_dispatch(*_args: object, **_kwargs: object) -> object:
+        return object()
+
+    monkeypatch.setattr(executor, "dispatch", fake_dispatch)
+    await executor.run(
+        package,
+        run_dir=tmp_path / "run",
+        cache_dir=tmp_path / "cache",
+        invocation_id="opaque-route-test",
+    )
+    assert calls == ["opaque_image"]

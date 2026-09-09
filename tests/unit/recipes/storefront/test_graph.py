@@ -49,6 +49,10 @@ def test_the_graph_is_one_direction_one_listing_and_a_branch_per_surface(
     assert graph.terminal_node_id == "storefront-close"
     assert graph.surface_count == 2
     assert graph.publication_authorized is False
+    image_binding = next(
+        binding for binding in PROFILE.bindings if binding.operation == "image_generation"
+    )
+    assert str(image_binding.model) == "openai/gpt-image-2.5-sunburst@openrouter"
 
 
 def test_every_surface_gets_the_whole_chain(tmp_path: Path) -> None:

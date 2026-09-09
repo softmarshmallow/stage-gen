@@ -23,7 +23,7 @@ def _node(
         operation=OperationKind.IMAGE_GENERATION,
         resource_id="openai-image",
         provider="openai",
-        model="gpt-image-2",
+        model="gpt-image-2.5-sunburst",
         retry_owner=RetryOwner.COMPONENT,
         max_attempts=6,
         cache_key="0" * 64,

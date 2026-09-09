@@ -71,7 +71,7 @@ Every card is priced in four units, because "ROI" is meaningless without
 saying what is being spent.
 
 - **Provider operations.** Full regeneration of the library is **~326 ops**:
-  Bellweather 123 (96 image, 24 structured, 3 music; $4–24 cold), Iron Petal
+  Bellweather 123 (96 image, 24 structured, 3 music; $17.70–28.32 cold), Iron Petal
   53, the_grain 81, larkfield 28, lantern_ferry 28, clockmakers_attic 13. A
   breaking change is priced as the ops it re-bills, from the plan, before it
   is taken.

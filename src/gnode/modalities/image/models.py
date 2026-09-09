@@ -13,7 +13,7 @@ from gnode.modalities._types import (
 )
 from gnode.reliability import CancellationToken
 
-ImageQuality = Literal["auto", "low", "medium", "high"]
+ImageQuality = Literal["auto", "low", "medium", "high", "xhigh", "max"]
 ImageBackground = Literal["auto", "opaque", "transparent"]
 ImageOutputFormat = Literal["png", "jpeg", "webp"]
 ImageModeration = Literal["auto", "low"]
@@ -115,8 +115,8 @@ class ImageGenerationRequest:
             raise ValueError("output_compression must be an integer from 0 to 100")
         if self.resolution not in (None, "512", "1K", "2K", "4K"):
             raise ValueError("resolution must be 512, 1K, 2K, or 4K")
-        if self.quality not in {None, "auto", "low", "medium", "high"}:
-            raise ValueError("quality must be auto, low, medium, or high")
+        if self.quality not in {None, "auto", "low", "medium", "high", "xhigh", "max"}:
+            raise ValueError("quality must be auto, low, medium, high, xhigh, or max")
         if self.background not in {None, "auto", "opaque", "transparent"}:
             raise ValueError("background must be auto, opaque, or transparent")
         if self.output_format not in {None, "png", "jpeg", "webp"}:

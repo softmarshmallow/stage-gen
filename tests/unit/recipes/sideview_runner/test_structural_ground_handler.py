@@ -59,7 +59,7 @@ def _provider_sidecar(*, request: ImageGenerationRequest, data: bytes) -> dict[s
     return {
         "schema_version": 2,
         "provider": "openai",
-        "model": "gpt-image-2",
+        "model": "gpt-image-2.5-sunburst",
         "seed": None,
         "prompt": request.prompt,
         "prompt_sha256": hashlib.sha256(request.prompt.encode("utf-8")).hexdigest(),
@@ -306,6 +306,7 @@ async def test_guide_generate_validate_chain_uses_native_alpha_and_exact_provena
     await handler._validate_structural_ground(second_validated)
 
     request = images.requests[0]
+    assert request.quality == "max"
     assert request.background == "transparent"
     assert request.output_format == "png"
     assert request.size == "1536x1024"

@@ -82,15 +82,15 @@ def _layer(**overrides: object) -> PreparedMapLayer:
 def test_a_recipe_keeps_its_shipped_identity_and_contracts() -> None:
     types = layer_node_types(
         identity_prefix="2d/sideview/runner/layer",
-        generate_version="runner-layer-v3",
-        loop_paint_version="runner-layer-loop-v4",
+        generate_version="runner-layer-v4",
+        loop_paint_version="runner-layer-loop-v5",
         loop_construct_version="runner-layer-loop-v1",
     )
     assert types.generate.type_id == LAYER_GENERATE.type_id == "2d/sideview/loop_x.generate"
     assert types.generate.cache_identity == "2d/sideview/runner/layer.generate"
-    assert types.generate.contract_version == "runner-layer-v3"
+    assert types.generate.contract_version == "runner-layer-v4"
     assert types.loop_paint.cache_identity == "2d/sideview/runner/layer.loop_paint"
-    assert types.loop_paint.contract_version == "runner-layer-loop-v4"
+    assert types.loop_paint.contract_version == "runner-layer-loop-v5"
     assert types.loop_construct.contract_version == "runner-layer-loop-v1"
     # Admission converges unless the host keeps it.
     assert types.validate.contract_version == LAYER_VALIDATE.contract_version
@@ -98,6 +98,8 @@ def test_a_recipe_keeps_its_shipped_identity_and_contracts() -> None:
     assert kept.validate.contract_version == "map-layer-validate-v1"
     assert kept.validate.cache_identity == "p/map_layer.validate"
     plain = layer_node_types()
+    assert plain.generate.contract_version == "sideview-layer-v2"
+    assert plain.loop_paint.contract_version == "sideview-layer-loop-paint-v2"
     assert plain.loop("mirror_repeat") is LAYER_LOOP_CONSTRUCT
     assert plain.loop("seam_repaint") is LAYER_LOOP_PAINT
 

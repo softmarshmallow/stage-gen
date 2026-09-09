@@ -7,11 +7,11 @@ from typing import Literal, cast
 
 from gnode import ImageQuality, ImageResolution
 
-GPT_IMAGE_2: Literal["openai/gpt-image-2"] = "openai/gpt-image-2"
+GPT_IMAGE_2_5_SUNBURST: Literal["openai/gpt-image-2.5-sunburst"] = "openai/gpt-image-2.5-sunburst"
 GROK_IMAGINE_IMAGE_2: Literal["x-ai/grok-imagine-image-2.0"] = "x-ai/grok-imagine-image-2.0"
 
 ConceptImageModel = Literal[
-    "openai/gpt-image-2",
+    "openai/gpt-image-2.5-sunburst",
     "x-ai/grok-imagine-image-2.0",
 ]
 
@@ -38,15 +38,22 @@ class ConceptImageExecution:
 
 _PROFILES = (
     ConceptImageModelProfile(
-        model=GPT_IMAGE_2,
-        aliases=frozenset({GPT_IMAGE_2, "gpt", "gpt-image-2"}),
-        qualities=frozenset({"auto", "low", "medium", "high"}),
+        model=GPT_IMAGE_2_5_SUNBURST,
+        aliases=frozenset(
+            {
+                GPT_IMAGE_2_5_SUNBURST,
+                "gpt",
+                "sunburst",
+                "gpt-image-2.5-sunburst",
+            }
+        ),
+        qualities=frozenset({"auto", "low", "medium", "high", "xhigh", "max"}),
         resolutions=frozenset(),
         aspect_ratios=frozenset(
             {"auto", "1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "9:16", "21:9"}
         ),
         maximum_references=16,
-        default_quality="high",
+        default_quality="max",
         default_resolution=None,
     ),
     ConceptImageModelProfile(

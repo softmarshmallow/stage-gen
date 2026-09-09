@@ -31,6 +31,7 @@ from gnode import (
     Port,
     PortRef,
 )
+from gnode.providers.openrouter import supports_openrouter_sunburst_model
 from stage_gen.recipes.graph_document import RecipeGraph
 from stage_gen.recipes.ports import artifact_port, attempts_port, record_port, text_digest
 from stage_gen.recipes.storefront.storefront_prompts import (
@@ -120,6 +121,9 @@ STRUCTURED_FEATURES = ("structured_output", "image_input")
 def storefront_graph_profile(config: StageGenConfig) -> BindingTable:
     """Declare the provider routes a storefront plan may use, credentials untouched."""
 
+    if not supports_openrouter_sunburst_model(config.image_model):
+        raise ValueError("storefront requires the verified GPT Image 2.5 Sunburst OpenRouter route")
+
     return BindingTable(
         [
             Binding(
@@ -127,15 +131,15 @@ def storefront_graph_profile(config: StageGenConfig) -> BindingTable:
                 # Every surface is opaque, so the route is the opaque one. Native
                 # alpha is the reason to reach for the direct provider, and no
                 # storefront surface has any use for it.
-                model=ModelRef(model=config.openai_image_model, provider="openrouter"),
+                model=ModelRef(model=config.image_model, provider="openrouter"),
                 features=frozenset(IMAGE_FEATURES),
                 resource_id="openrouter-image",
                 estimated_duration_seconds=120.0,
-                estimated_cost_low_usd=0.04,
-                estimated_cost_high_usd=0.20,
-                requests_per_minute=config.openai_image_ipm,
+                estimated_cost_low_usd=0.14,
+                estimated_cost_high_usd=0.25,
+                requests_per_minute=config.openrouter_image_ipm,
                 rate_limit_owner="provider_adapter",
-                verified_on="2026-09-07",
+                verified_on="2026-09-09",
             ),
             Binding(
                 operation=StorefrontOperationKind.STRUCTURED_GENERATION,

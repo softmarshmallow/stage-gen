@@ -97,7 +97,7 @@ BACKDROP_GENERATE = NodeType(
     operation="image_generation",
     features=("transparent_background", "reference_images"),
     policy=_PROVIDER_POLICY,
-    contract_version="dialogue-backdrop-v1",
+    contract_version="dialogue-backdrop-v2",
 )
 
 EXPRESSION_GENERATE = NodeType(
@@ -107,7 +107,7 @@ EXPRESSION_GENERATE = NodeType(
     operation="image_generation",
     features=("transparent_background", "reference_images"),
     policy=_PROVIDER_POLICY,
-    contract_version="dialogue-expression-source-v1",
+    contract_version="dialogue-expression-source-v2",
 )
 
 EXPRESSION_DERIVE = NodeType(
@@ -117,7 +117,7 @@ EXPRESSION_DERIVE = NodeType(
     operation="image_generation",
     features=("transparent_background", "reference_images"),
     policy=_PROVIDER_POLICY,
-    contract_version="dialogue-expression-derive-v1",
+    contract_version="dialogue-expression-derive-v2",
 )
 
 SPRITE_MATTE = NodeType(

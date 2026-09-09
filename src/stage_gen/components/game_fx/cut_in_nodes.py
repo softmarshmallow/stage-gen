@@ -126,7 +126,7 @@ FX_CUT_IN_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="fx-cut-in-v1",
+    contract_version="fx-cut-in-v2",
 )
 
 FX_CUT_IN_DRAW = NodeType(
@@ -682,7 +682,7 @@ def cut_in_generate_request(
             *subject_references,
             *_authored_references(host, direction.reference_ids),
         ),
-        quality="high",
+        quality="max",
         background="transparent",
         output_format="png",
         size=f"{plate.canvas[0]}x{plate.canvas[1]}",

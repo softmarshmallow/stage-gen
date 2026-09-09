@@ -110,7 +110,7 @@ PAINTED_TERRAIN_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="painted-terrain-generate-v1",
+    contract_version="painted-terrain-generate-v2",
 )
 
 PAINTED_TERRAIN_CANONICALIZE = NodeType(
@@ -457,7 +457,7 @@ class PaintedTerrainHandlers:
                 ),
                 *material.image_references,
             ),
-            quality="high",
+            quality="max",
             background="transparent",
             output_format="png",
             size=f"{PAINTED_TERRAIN_GUIDE_WIDTH}x{PAINTED_TERRAIN_GUIDE_HEIGHT}",

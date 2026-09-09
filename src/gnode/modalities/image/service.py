@@ -77,6 +77,11 @@ class ImageGenerationService:
         return bool(getattr(self._backend, "supports_native_alpha", False))
 
     async def generate(self, request: ImageGenerationRequest) -> ImageGenerationResult:
+        if request.background == "transparent" and not self.supports_native_alpha:
+            raise ValueError(
+                f"{self._backend.provider} image generation does not support "
+                "transparent backgrounds"
+            )
         attempts = 0
         provider_request = request
         anchor_binding: dict[str, object] | None = None

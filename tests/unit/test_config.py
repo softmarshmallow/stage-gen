@@ -25,6 +25,7 @@ def test_config_precedence_defaults_and_timeout_conversion() -> None:
             "STAGE_GEN_IMAGE_MODEL": "new/image",
             "STAGE_GEN_CAPABILITY_TIMEOUT_MS": "1250",
             "STAGE_GEN_OPENAI_IMAGE_IPM": "150",
+            "STAGE_GEN_OPENROUTER_IMAGE_IPM": "120",
             "STAGE_GEN_GAME_LIBRARY_ROOT": "/workspace/games",
         }
     )
@@ -34,12 +35,17 @@ def test_config_precedence_defaults_and_timeout_conversion() -> None:
     assert config.music_model == "google/lyria-3-pro-preview"
     assert config.transparency_mode is TransparencyMode.NATIVE
     assert config.openai_image_ipm == 150
+    assert config.openrouter_image_ipm == 120
     assert config.capability_timeout_s == 1.25
     assert config.game_library_root == Path("/workspace/games")
 
 
 def test_authored_library_roots_are_unset_by_default() -> None:
-    assert load_config(env={}).game_library_root is None
+    config = load_config(env={})
+
+    assert config.game_library_root is None
+    assert config.openai_image_model == "gpt-image-2.5-sunburst"
+    assert config.image_model == "openai/gpt-image-2.5-sunburst"
 
 
 def test_capability_errors_name_variables_but_not_present_values() -> None:
@@ -75,15 +81,26 @@ def test_timeout_env_accepts_integer_valued_numeric_text() -> None:
     assert load_config(env={"STAGE_GEN_STAGE_TIMEOUT_MS": " 1000.0 "}).stage_timeout_ms == 1000
 
 
-def test_openai_image_ipm_is_tier_four_by_default_and_configurable() -> None:
+def test_sunburst_image_ipm_is_tier_four_by_default_and_configurable() -> None:
     assert load_config(env={}).openai_image_ipm == 150
     assert load_config(env={"STAGE_GEN_OPENAI_IMAGE_IPM": "50"}).openai_image_ipm == 50
+
+
+def test_openrouter_image_ipm_is_defaulted_and_configurable() -> None:
+    assert load_config(env={}).openrouter_image_ipm == 150
+    assert load_config(env={"STAGE_GEN_OPENROUTER_IMAGE_IPM": "45"}).openrouter_image_ipm == 45
 
 
 @pytest.mark.parametrize("value", ["0", "-1", "1.5", "not-a-number"])
 def test_openai_image_ipm_requires_a_positive_integer(value: str) -> None:
     with pytest.raises(ValueError, match="STAGE_GEN_OPENAI_IMAGE_IPM"):
         load_config(env={"STAGE_GEN_OPENAI_IMAGE_IPM": value})
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "1.5", "not-a-number"])
+def test_openrouter_image_ipm_requires_a_positive_integer(value: str) -> None:
+    with pytest.raises(ValueError, match="STAGE_GEN_OPENROUTER_IMAGE_IPM"):
+        load_config(env={"STAGE_GEN_OPENROUTER_IMAGE_IPM": value})
 
 
 def test_config_loads_only_allowlisted_provider_values_from_cwd_dotenv(
@@ -114,7 +131,7 @@ def test_config_loads_only_allowlisted_provider_values_from_cwd_dotenv(
     assert config.open_router_api_key == "file-openrouter"
     assert config.fal_key == "file-fal"
     assert config.elevenlabs_api_key == "file-elevenlabs"
-    assert config.image_model == "openai/gpt-image-2"
+    assert config.image_model == "openai/gpt-image-2.5-sunburst"
     assert "file-openai" not in repr(config)
     assert "file-openrouter" not in repr(config)
     assert "file-fal" not in repr(config)

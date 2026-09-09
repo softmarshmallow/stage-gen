@@ -1,16 +1,18 @@
 # Models
 
 These records capture hosted-model and provider request surfaces. Individual
-records distinguish measured evidence from documentation research. They do not
-declare runtime bindings; re-check current metadata and live behavior before
-widening an adapter contract.
+records distinguish measured evidence from documentation research and summarize
+the repository route that consumes a model. The binding table remains runtime
+authority; re-check current metadata and live behavior before widening an
+adapter contract.
 
 ## Model records
 
-- [GPT Image 2.5](gpt-image-2.5.md) — Sunburst and Flare capabilities across
-  direct OpenAI, fal, and OpenRouter, including native-alpha evidence.
-- [GPT Image 2](gpt-image-2.md) — direct OpenAI, fal, and OpenRouter image-route
-  capabilities and native-alpha evidence.
+- [GPT Image 2.5](gpt-image-2.5.md) — the current Stage Gen image family;
+  Sunburst is selected at maximum quality through direct OpenAI for native
+  transparency and through OpenRouter for designated opaque/reference work.
+- [GPT Image 2](gpt-image-2.md) — legacy provider capabilities and measured
+  native-alpha evidence retained as historical record.
 - [Eleven Text to Sound v2](../spec/model-eleven-text-to-sound-v2.md) — measured
   sound-effect generation boundary.
 - [Eleven v3](../spec/model-eleven-v3.md) — measured speech-generation boundary.
@@ -19,6 +21,8 @@ widening an adapter contract.
 
 - [Provider operations](providers.md) — credentials, endpoints, retry ownership,
   response handling, and experimental boundaries shared by provider adapters.
+- [Image adapter quick reference](../tech/gpt-image-2.5.md) — the current
+  Sunburst route split and implementation checklist.
 
 ## Capability surveys
 

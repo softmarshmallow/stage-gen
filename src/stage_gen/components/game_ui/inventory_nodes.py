@@ -102,7 +102,7 @@ UI_INVENTORY_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=NodePolicy(max_attempts=6),
-    contract_version="ui-inventory-v1",
+    contract_version="ui-inventory-v2",
 )
 UI_INVENTORY_VALIDATE = NodeType(
     type_id=f"{_P}/inventory.validate",
@@ -445,7 +445,7 @@ class InventoryPanelHandlers:
             prompt=prompt,
             artifact_path=output,
             input_references=references,
-            quality="high",
+            quality="max",
             background="transparent",
             output_format="png",
             size="1536x1024",

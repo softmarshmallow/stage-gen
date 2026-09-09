@@ -75,7 +75,8 @@ completed manifest into an engine's textures or import settings, and they own
 runtime camera, scene, engine, movement, combat, and gameplay rules.
 
 Provider routes are declared, not scattered. A `gnode` binding table names each
-route as `model@provider` — `gpt-image-2@openai`, `openai/gpt-image-2@openrouter`
+route as `model@provider` — `gpt-image-2.5-sunburst@openai`,
+`openai/gpt-image-2.5-sunburst@openrouter`
 — with the features that route is known to support and the date the claim was
 last verified. A node type asks for a capability plus features; a route that does
 not declare one is refused while planning, offline, before any spend. The two

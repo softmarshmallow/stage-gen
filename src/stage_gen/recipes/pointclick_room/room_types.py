@@ -66,7 +66,7 @@ BACKDROP_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="room-backdrop-v1",
+    contract_version="room-backdrop-v2",
 )
 
 HOTSPOT_SPRITE_GENERATE = NodeType(
@@ -76,7 +76,7 @@ HOTSPOT_SPRITE_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="room-hotspot-sprite-v1",
+    contract_version="room-hotspot-sprite-v2",
 )
 
 HOTSPOT_SPRITE_VALIDATE = NodeType(
@@ -94,7 +94,7 @@ ITEM_ICON_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="room-item-icon-v1",
+    contract_version="room-item-icon-v2",
 )
 
 ITEM_ICON_VALIDATE = NodeType(

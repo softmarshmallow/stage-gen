@@ -30,6 +30,9 @@ IRON_PETAL_NODE_COUNT = 109
 # the port kinds are the family's; the paid nodes keep this recipe's cache identity and
 # contracts, and the three admissions converged on the family's - three local keys moved
 # (and the manifest downstream), no provider key.
+# The GPT Image 2.5 Sunburst/max migration deliberately moved 84 of 109 keys:
+# all 39 image operations, seven structured and two tool-loop consumers, and 36
+# local descendants. Topology and the other 25 keys are unchanged.
 IRON_PETAL_TOPOLOGY_SHA256 = "3f422fd796608aa3ed379023446019c0700d5e41ef417714877baa615bfc3700"
 
 

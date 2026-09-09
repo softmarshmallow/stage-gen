@@ -55,7 +55,7 @@ def test_the_draw_canvas_reaches_the_ship_canvas_exactly(kind: SurfaceKind) -> N
 
 
 def test_every_draw_edge_is_one_the_image_route_will_accept() -> None:
-    """The rule that cost a live run: GPT Image 2 refuses an edge off the grid.
+    """The rule the verified Sunburst image route applies to custom dimensions.
 
     The route reports it only once the request is in flight, so a table entry
     that breaks it burns six attempts on every surface before anything says why.

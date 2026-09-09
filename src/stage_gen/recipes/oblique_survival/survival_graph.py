@@ -23,6 +23,7 @@ from typing import Final, Literal
 from pydantic import BaseModel, Field
 
 from gnode import Binding, BindingTable, GraphBuilder, ModelRef, Node, NodeCard, NodeType, Port
+from gnode.providers.openai import supports_openai_native_alpha_model
 from stage_gen.components.game_shell.nodes import (
     add_shell_nodes,
     document_clip_roles,
@@ -148,6 +149,12 @@ REJECTS_ROOT: Final = "production/rejected"
 def oblique_survival_graph_profile(config: StageGenConfig) -> BindingTable:
     """Every provider route this plan may use, declared before anything runs."""
 
+    if not supports_openai_native_alpha_model(config.openai_image_model):
+        raise ValueError(
+            "oblique-survival requires the verified GPT Image 2.5 Sunburst "
+            "OpenAI native-alpha route"
+        )
+
     return BindingTable(
         [
             Binding(
@@ -155,12 +162,12 @@ def oblique_survival_graph_profile(config: StageGenConfig) -> BindingTable:
                 model=ModelRef(model=config.openai_image_model, provider="openai"),
                 resource_id="survival-openai-image",
                 estimated_duration_seconds=90.0,
-                estimated_cost_low_usd=0.04,
-                estimated_cost_high_usd=0.20,
+                estimated_cost_low_usd=0.18,
+                estimated_cost_high_usd=0.25,
                 features=frozenset(IMAGE_FEATURES),
                 requests_per_minute=config.openai_image_ipm,
                 rate_limit_owner="provider_adapter",
-                verified_on="2026-09-03",
+                verified_on="2026-09-09",
             ),
             Binding(
                 operation=ObliqueSurvivalOperationKind.STRUCTURED_GENERATION,

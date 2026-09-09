@@ -32,6 +32,7 @@ from gnode import (
     Port,
     PortRef,
 )
+from gnode.providers.openai import supports_openai_native_alpha_model
 from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes, document_roles
 from stage_gen.recipes.dialogue_scene.identity import canonical_json_bytes
 from stage_gen.recipes.dialogue_scene.prompts import (
@@ -129,6 +130,11 @@ def dialogue_graph_profile(config: StageGenConfig) -> BindingTable:
     while planning - offline, before any spend.
     """
 
+    if not supports_openai_native_alpha_model(config.openai_image_model):
+        raise ValueError(
+            "dialogue-scene requires the verified GPT Image 2.5 Sunburst OpenAI native-alpha route"
+        )
+
     bindings = [
         Binding(
             operation=DialogueOperationKind.IMAGE_GENERATION,
@@ -136,11 +142,11 @@ def dialogue_graph_profile(config: StageGenConfig) -> BindingTable:
             features=frozenset(IMAGE_FEATURES),
             resource_id="openai-image",
             estimated_duration_seconds=120.0,
-            estimated_cost_low_usd=0.04,
-            estimated_cost_high_usd=0.20,
+            estimated_cost_low_usd=0.18,
+            estimated_cost_high_usd=0.25,
             requests_per_minute=config.openai_image_ipm,
             rate_limit_owner="provider_adapter",
-            verified_on="2026-08-25",
+            verified_on="2026-09-09",
         ),
         Binding(
             operation=DialogueOperationKind.STRUCTURED_GENERATION,

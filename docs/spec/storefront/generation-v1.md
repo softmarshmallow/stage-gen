@@ -73,8 +73,9 @@ ratio would make the cut a recomposition rather than a trim.
 
 **The two canvases are different columns on purpose.** A storefront refuses a
 picture that is off by one pixel; a provider is not that kind of instrument. The
-image route advertises aspect ratios and inspects what comes back
-([gpt-image-2](../../models/gpt-image-2.md)), so the draw canvas is sized to what the
+image route advertises aspect ratios, and its Sunburst route was verified live
+to honor the requested 1024- and 2560-class dimensions
+([GPT Image 2.5](../../models/gpt-image-2.5.md)), so the draw canvas is sized to what the
 route draws well at the ship canvas's own ratio, and a deterministic local
 normalization the recipe owns cuts it to exact. When the two are equal that step
 is a re-encode and its provenance says so.
@@ -178,7 +179,7 @@ chain below it. Nothing downstream changes; the change is one node type.
 
 | Operation | Route | Why |
 | --- | --- | --- |
-| `image_generation` | `gpt-image-2@openrouter`, feature `reference_images` | every surface is opaque, and native alpha is the only reason to reach for the direct provider |
+| `image_generation` | `openai/gpt-image-2.5-sunburst@openrouter`, feature `reference_images` | every surface is opaque; the route was verified at `quality="max"` with an input reference, and native alpha remains the reason to reach for direct OpenAI |
 | `structured_generation` | the text model at `openrouter`, features `structured_output` and `image_input` | the direction compiler and the reviewer are both handed pictures |
 
 A full first run of the fixture package is four images and six structured calls.

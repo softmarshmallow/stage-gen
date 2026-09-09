@@ -1049,7 +1049,7 @@ class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
                     prompt=node.card.prompt,
                     artifact_path=self._path(node.port("image").artifact_ref),
                     input_references=references,
-                    quality="high",
+                    quality="max",
                     background=background,
                     output_format="png",
                     size=f"{size[0]}x{size[1]}",

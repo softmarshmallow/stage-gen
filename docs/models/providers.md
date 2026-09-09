@@ -12,8 +12,8 @@ widening an adapter contract.
 Image-route capabilities and their verification histories are maintained in
 the [GPT Image 2.5](gpt-image-2.5.md) and
 [GPT Image 2](gpt-image-2.md) model records. All model records are indexed in
-[Models](index.md). GPT Image 2.5 is a survey only: no runtime default, adapter,
-or binding selects it yet.
+[Models](index.md). GPT Image 2.5 Sunburst is the current runtime default;
+GPT Image 2 is retained only as historical evidence.
 
 ## Configuration
 
@@ -22,9 +22,10 @@ OPENAI_API_KEY=
 OPENROUTER_API_KEY=
 FAL_KEY=
 ELEVENLABS_API_KEY=
-STAGE_GEN_OPENAI_IMAGE_MODEL=gpt-image-2
+STAGE_GEN_OPENAI_IMAGE_MODEL=gpt-image-2.5-sunburst
 STAGE_GEN_OPENAI_IMAGE_IPM=150
-STAGE_GEN_IMAGE_MODEL=openai/gpt-image-2
+STAGE_GEN_IMAGE_MODEL=openai/gpt-image-2.5-sunburst
+STAGE_GEN_OPENROUTER_IMAGE_IPM=150
 STAGE_GEN_MUSIC_MODEL=google/lyria-3-pro-preview
 STAGE_GEN_BACKGROUND_REMOVAL_MODEL=fal-ai/birefnet/v2
 ```
@@ -37,9 +38,10 @@ The credential loader also accepts optional `TRIPO_API_KEY` for direct Tripo
 experiments. Credential import includes it when present; existing imports still
 require only the four established keys. This does not add a production 3D route.
 
-The default `native` mode sends image calls directly to OpenAI and requires
-`OPENAI_API_KEY`. The scrolling recipe's structured calls still require
-`OPENROUTER_API_KEY`. The explicit compatibility modes send image calls through
+The default `native` mode sends transparent image calls directly to OpenAI and
+requires `OPENAI_API_KEY`. The scrolling recipe's structured calls still
+require `OPENROUTER_API_KEY`. Explicit compatibility modes and designated
+opaque/reference roles in Universe and Storefront send images through
 OpenRouter; `ai` additionally requires `FAL_KEY`, while `chroma` keys locally.
 Missing credentials or failed native alpha never cause an automatic strategy
 change.
@@ -89,7 +91,7 @@ smoke test as a release gate for recipes that require structured generation.
 
 ## Native-alpha image generation through OpenAI
 
-- Model: `gpt-image-2`.
+- Model: `gpt-image-2.5-sunburst`.
 - Text-only endpoint: `POST https://api.openai.com/v1/images/generations`.
 - Reference-edit endpoint: `POST https://api.openai.com/v1/images/edits` with repeated
   multipart `image[]` fields.
@@ -97,57 +99,75 @@ smoke test as a release gate for recipes that require structured generation.
 - Transparency request: `background: "transparent"`.
 - Output: PNG so alpha is preserved.
 
-Native alpha is the quality-first default for transparency-producing assets.
+Native alpha at `quality="max"` is the quality-first default for
+transparency-producing assets.
 The provider output must decode with fully transparent exterior pixels and a
 substantially opaque visible interior. A PNG container or RGBA colour mode alone
-is not enough. The observed GPT Image 2 output peaks at alpha 254, so the
+is not enough. The observed predecessor output peaked at alpha 254, so the
 provider validator accepts a near-opaque maximum of at least 250 and the local
 canonicalizer deterministically promotes 250–254 to 255. Opaque concepts and
-designated opaque backdrops still request opaque output. GPT Image 2 applies high
-input fidelity automatically; the edits request deliberately omits the
-unsupported `input_fidelity` field.
+designated opaque backdrops still request opaque output. Sunburst multipart
+edits explicitly request and record `input_fidelity="high"`; text-only
+generations omit that edit-only field.
 
-GPT Image 2 accepts flexible sizes within its documented pixel, alignment, and
+Sunburst accepts flexible sizes within its documented pixel, alignment, and
 aspect-ratio bounds. Recipe target geometry remains a separate local contract:
 request one valid provider size, inspect the result, then normalize it with
 premultiplied-alpha, aspect-preserving cover/crop resampling to the exact sprite
 sheet or layer dimensions. The direct adapter paces request starts to
 `STAGE_GEN_OPENAI_IMAGE_IPM`. This deployment defaults to 150 IPM, matching its
-OpenAI Tier 4 project. Set the value to the active project's documented GPT
-Image 2 limit; it is not a universal model constant. Requests already in flight
+OpenAI Tier 4 project. Set the value to the active project's documented
+Sunburst limit; it is not a universal model constant. Requests already in flight
 remain concurrent, and orchestration adds no separate remote-operation
 concurrency ceiling.
+
+Direct-image recipe profiles currently budget $0.18–0.25 per maximum-quality
+image. This is a route-level planning allowance calibrated against the exact
+runner mix and prior request usage, not a per-call price ceiling or a quote for
+arbitrary reference payloads.
 
 Primary sources:
 
 - [OpenAI image generation guide](https://developers.openai.com/api/docs/guides/image-generation)
-- [GPT Image 2 model](https://developers.openai.com/api/docs/models/gpt-image-2)
+- [GPT Image 2.5 Sunburst model](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst)
 
 ## Compatibility image generation through OpenRouter
 
-- Model slug: `openai/gpt-image-2`.
+- Model slug: `openai/gpt-image-2.5-sunburst`.
 - Image endpoint: `POST https://openrouter.ai/api/v1/images`.
 - Discovery: `GET https://openrouter.ai/api/v1/images/models`.
 - Endpoint capabilities:
-  `GET https://openrouter.ai/api/v1/images/models/openai/gpt-image-2/endpoints`.
+  `GET https://openrouter.ai/api/v1/images/models/openai/gpt-image-2.5-sunburst/endpoints`.
 
 The verified endpoint advertises text/image input and image output. Supported
-request fields include `aspect_ratio`, `quality`, `background`, `n`,
-`input_references`, `output_compression`, and `stream`. `background` currently
-allows `auto` or `opaque`, not transparent. The endpoint record does not
-advertise arbitrary `size`, `resolution`, `seed`, or `output_format`; do not
-pass a generic API field merely because another image model supports it.
+request fields include `aspect_ratio`, quality through `max`, `background`,
+`n`, `input_references`, `output_compression`, and `stream`, plus OpenAI
+`moderation` passthrough. `background` currently allows `auto` or `opaque`, not
+transparent. A paid transparent-background request returned HTTP 400, and the
+adapter refuses it locally before spend. The endpoint record does not advertise
+arbitrary `size`, `resolution`, `seed`, or `output_format`; do not project a
+generic API field merely because another image model supports it. Bounded live
+canaries returned every exact canvas currently requested by the Storefront and
+Universe routes: 1024 by 1024, 1152 by 2496, 2496 by 1152, 2064 by 1008, 2560
+by 1440, 2560 by 1712, and 1712 by 2560. Reference-conditioned maximum-quality
+costs ranged from $0.138393 to $0.294423 across those sizes. This is
+route-specific evidence, not a generic OpenRouter contract.
 
 Reference images use data URLs or hosted URLs in `input_references`. Buffered
 responses contain base64 media in `data[].b64_json`, with `media_type` when it
 can be identified. Decode, inspect, validate, and normalize the output before
 writing a successful artifact record.
 
-The side-view platformer recipe historically asked the model for exact canvases.
+`STAGE_GEN_OPENROUTER_IMAGE_IPM` paces request starts inside the image adapter;
+its default is 150. It is a configurable local ceiling, not a claim about a
+universal OpenRouter account limit. Storefront budgets $0.14–0.25 for its
+verified size mix; Universe budgets $0.22–0.30 for its larger mix.
+
 The provider adapter must separate provider-supported aspect/quality requests
-from deterministic output normalization. This route is used only by explicit
-`ai` and `chroma` compatibility modes and does not provide native alpha under
-the repository's verified contract.
+from deterministic output normalization. This route serves explicit `ai` and
+`chroma` compatibility modes plus designated opaque/reference image roles. It
+does not provide native alpha or masked editing under the repository's verified
+contract.
 
 For `ai`, the prompt asks for a neutral grey or naturally isolated background;
 the raw opaque result is retained and background removal produces canonical
@@ -157,7 +177,7 @@ Primary sources:
 
 - [OpenRouter image generation](https://openrouter.ai/docs/guides/overview/multimodal/image-generation)
 - [Image model discovery](https://openrouter.ai/docs/api/api-reference/images/list-image-models)
-- [Model page](https://openrouter.ai/openai/gpt-image-2)
+- [Model page](https://openrouter.ai/openai/gpt-image-2.5-sunburst)
 - [OpenRouter AI SDK provider](https://openrouter.ai/docs/guides/community/vercel-ai-sdk)
 
 ## Background removal through fal
@@ -216,7 +236,7 @@ for that leg and the encoder it needs.
 ### Audition this route before you plan a run on it
 
 Video is the most expensive route this repository binds — a ten-second 720p clip is
-$1.00, about what forty images cost — and, like every other seedless route here, it
+$1.00, about four to six maximum-quality images — and, like every other seedless route here, it
 answers the same brief differently every time. Drawing inside a pipeline run therefore
 re-buys the whole opening whenever a cache goes cold, and buys a *different* opening.
 
@@ -268,7 +288,7 @@ uv run stage-gen generate \
 ```
 
 The runner genre is connected as one single-shot prepared-game execution. A live runner run uses
-direct OpenAI GPT Image 2 generation for its image nodes, including native transparent output for
+direct OpenAI GPT Image 2.5 Sunburst generation at maximum quality for its image nodes, including native transparent output for
 structural ground, transparent layers, avatar sheets, props, and items; OpenRouter owns its
 structured rebase and optional music nodes. The platformer retains its separately bounded
 checkpoint workflow. Compatibility background removal remains an explicit standalone capability

@@ -33,6 +33,7 @@ from gnode import (
     Port,
     PortRef,
 )
+from gnode.providers.openrouter import supports_openrouter_sunburst_model
 from stage_gen.canonical import canonical_json_bytes, content_sha256
 from stage_gen.config import CapabilityName, StageGenConfig
 from stage_gen.orchestration.runtime import create_image_service, create_openai_image_service
@@ -153,7 +154,7 @@ class UniverseGraph(RecipeGraph):
 class ImageRoute:
     """Which provider route an image capability binds to.
 
-    The model is the same on both routes; what differs is whether the route can
+    The model family is the same on both routes; what differs is whether the route can
     return native alpha. Work that does not need transparency binds the opaque
     route, which this recipe sends through OpenRouter — the same picture at the
     same price, but with the upstream cost actually reported, which is how a
@@ -184,6 +185,7 @@ class ImageRoute:
                 api_key=config.open_router_api_key or "",
                 model=config.image_model,
                 base_url=config.open_router_base_url or "https://openrouter.ai/api/v1",
+                images_per_minute=config.openrouter_image_ipm,
             )
         return create_openai_image_service(
             api_key=config.openai_api_key or "",
@@ -223,6 +225,11 @@ def universe_graph_profile(config: StageGenConfig, *, images: bool) -> BindingTa
     entirely rather than declaring a capability it will never call.
     """
 
+    if images and not supports_openrouter_sunburst_model(config.image_model):
+        raise ValueError(
+            "universe gallery requires the verified GPT Image 2.5 Sunburst OpenRouter route"
+        )
+
     routes = [
         Binding(
             operation=UniverseOperationKind.STRUCTURED_GENERATION,
@@ -249,13 +256,14 @@ def universe_graph_profile(config: StageGenConfig, *, images: bool) -> BindingTa
                 features=frozenset(IMAGE_FEATURES),
                 resource_id=f"universe-{GALLERY_IMAGE_ROUTE.provider}-image",
                 max_in_flight=4,
-                requests_per_minute=config.openai_image_ipm,
+                requests_per_minute=config.openrouter_image_ipm,
                 rate_limit_owner="provider_adapter",
                 estimated_duration_seconds=240.0,
-                # A measured 2560-class high-quality frame, not an estimate.
-                estimated_cost_low_usd=0.30,
-                estimated_cost_high_usd=0.34,
-                verified_on="2026-09-03",
+                # Exact max-quality Sunburst route canaries measured $0.227 at
+                # 2560x1440 and $0.294 at 2560x1712/1712x2560.
+                estimated_cost_low_usd=0.22,
+                estimated_cost_high_usd=0.30,
+                verified_on="2026-09-09",
             )
         )
     return BindingTable(routes)

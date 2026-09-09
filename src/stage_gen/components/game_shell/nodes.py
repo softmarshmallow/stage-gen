@@ -133,7 +133,7 @@ SHELL_PLATE_GENERATE = NodeType(
     operation="image_generation",
     features=IMAGE_FEATURES,
     policy=_PROVIDER,
-    contract_version="shell-plate-v1",
+    contract_version="shell-plate-v2",
 )
 
 SHELL_PLATE_VALIDATE = NodeType(
@@ -1068,7 +1068,7 @@ class ShellHandlers:
             prompt=prompt,
             artifact_path=output,
             input_references=self._image_references(role.plate.reference_ids),
-            quality="high",
+            quality="max",
             background=("transparent" if role.alpha_policy == CUTOUT_ALPHA_POLICY else "opaque"),
             output_format="png",
             size=f"{role.layout.canvas[0]}x{role.layout.canvas[1]}",

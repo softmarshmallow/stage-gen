@@ -7,6 +7,7 @@ from collections.abc import Iterable, Sequence
 from typing import Any
 
 from gnode import Binding, BindingTable, GraphBuilder, ModelRef, NodeCard, PortRef
+from gnode.providers.openai import supports_openai_native_alpha_model
 from stage_gen.components.game_soundtrack.nodes import (
     SoundtrackNodeTypes,
     add_soundtrack_nodes,
@@ -150,6 +151,12 @@ def package_graph_profile(config: StageGenConfig) -> BindingTable:
     the provider; see docs/models/providers.md.
     """
 
+    if not supports_openai_native_alpha_model(config.openai_image_model):
+        raise ValueError(
+            "sideview-platformer requires the verified GPT Image 2.5 Sunburst "
+            "OpenAI native-alpha route"
+        )
+
     return BindingTable(
         [
             Binding(
@@ -158,11 +165,11 @@ def package_graph_profile(config: StageGenConfig) -> BindingTable:
                 features=frozenset(IMAGE_EDIT_FEATURES),
                 resource_id="openai-image",
                 estimated_duration_seconds=120.0,
-                estimated_cost_low_usd=0.04,
-                estimated_cost_high_usd=0.20,
+                estimated_cost_low_usd=0.18,
+                estimated_cost_high_usd=0.25,
                 requests_per_minute=config.openai_image_ipm,
                 rate_limit_owner="provider_adapter",
-                verified_on="2026-08-25",
+                verified_on="2026-09-09",
             ),
             Binding(
                 operation=OperationKind.STRUCTURED_GENERATION,

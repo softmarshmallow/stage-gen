@@ -1,5 +1,9 @@
 # GPT Image 2 adapter contract
 
+> **Integration status:** legacy. Stage Gen's active defaults and bindings moved
+> to GPT Image 2.5 Sunburst on 2026-09-09. The measurements below remain the
+> record of the bytes and provider behavior observed with GPT Image 2.
+
 > **Checked by:** none.
 
 OpenAI released transparent backgrounds for GPT Image 2 in preview on
@@ -18,13 +22,13 @@ recipes. The general component contract lives in
 - Inputs: text and optional reference images.
 - Transparency-producing output: `background="transparent"`, PNG.
 
-This is the default `native` strategy. Success requires fully transparent
+This was the predecessor `native` strategy. Success required fully transparent
 exterior pixels and a visible interior whose maximum alpha is at least 250, not
 merely an alpha-capable container. Canonicalization promotes near-opaque values
 250–254 to 255. Provider request dimensions must obey OpenAI's current size
 constraints; deterministic recipe normalization still owns exact final
-geometry. GPT Image 2 automatically uses high fidelity for edit inputs, so this
-adapter does not send an `input_fidelity` field.
+geometry. GPT Image 2 automatically used high fidelity for edit inputs, so the
+legacy adapter request did not send an `input_fidelity` field.
 
 Primary sources:
 
@@ -144,5 +148,6 @@ executable graph contract in the same implementation change. Also review the
 [asset contracts](../spec/asset-contracts.md), and the
 [survival](../spec/survival/generation-v1.md),
 [universe](../spec/universe/generation-v1.md), and
-[storefront](../spec/storefront/generation-v1.md) recipe contracts. None of
-those current-topology documents changed in this documentation move.
+[storefront](../spec/storefront/generation-v1.md) recipe contracts. The
+Sunburst successor migration updated those current-route documents without
+changing their declared topology.

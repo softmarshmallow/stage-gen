@@ -75,12 +75,18 @@ class _AsyncClosable(Protocol):
 def create_image_service(
     *,
     api_key: str,
-    model: str = "openai/gpt-image-2",
+    model: str = "openai/gpt-image-2.5-sunburst",
     base_url: str = "https://openrouter.ai/api/v1",
+    images_per_minute: int = 150,
     retry_policy: RetryPolicy | None = None,
 ) -> ImageGenerationService:
     return ImageGenerationService(
-        OpenRouterImageBackend(api_key=api_key, model=model, base_url=base_url),
+        OpenRouterImageBackend(
+            api_key=api_key,
+            model=model,
+            base_url=base_url,
+            images_per_minute=images_per_minute,
+        ),
         component=IMAGE_GENERATION_COMPONENT,
         tool=STAGE_GEN_TOOL,
         retry_policy=retry_policy,
@@ -90,12 +96,12 @@ def create_image_service(
 def create_openai_image_service(
     *,
     api_key: str,
-    model: str = "gpt-image-2",
+    model: str = "gpt-image-2.5-sunburst",
     base_url: str = "https://api.openai.com/v1",
     images_per_minute: int = 150,
     retry_policy: RetryPolicy | None = None,
 ) -> ImageGenerationService:
-    """Compose the direct OpenAI GPT Image backend behind the shared retry owner."""
+    """Compose the direct OpenAI image backend behind the shared retry owner."""
 
     return ImageGenerationService(
         OpenAIImageBackend(
@@ -352,7 +358,7 @@ class DefaultHeadlessRuntime:
                 artifact_path=output_path,
                 aspect_ratio=aspect_ratio,
                 input_references=tuple(references),
-                quality="high",
+                quality="max",
                 background="opaque",
                 output_format="png",
                 moderation="low",
@@ -652,6 +658,7 @@ def _configured_image_service(config: StageGenConfig) -> ImageGenerationService 
         api_key=config.open_router_api_key,
         model=config.image_model,
         base_url=config.open_router_base_url or "https://openrouter.ai/api/v1",
+        images_per_minute=config.openrouter_image_ipm,
     )
 
 

@@ -81,7 +81,7 @@ def _image(module: str, step: str, title: str) -> NodeType:
         operation="image_generation",
         features=IMAGE_FEATURES,
         policy=NodePolicy(max_attempts=6),
-        contract_version=f"{CONTRACT_VERSION_PREFIX}-image-1",
+        contract_version=f"{CONTRACT_VERSION_PREFIX}-image-2",
     )
 
 
