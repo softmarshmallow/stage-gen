@@ -13,6 +13,13 @@ extends Control
 ## Screen space, over everything: a death screen is furniture, and it is the one
 ## piece of furniture that must not be scrolled away from.
 ##
+## The frame and the button are `HostPanelFrame`'s, which is what makes them the
+## right size. A block's insets are in *sheet* pixels and the sheet is laid out at
+## `draw_scale` times the density it is drawn at, so reading them straight onto a
+## `NinePatchRect` draws a hundred-and-twelve-pixel corner ornament a hundred and
+## twelve screen pixels wide — and a card that is all corner. The shared widget
+## lays the slices out at the sheet's own density and scales the whole thing back.
+##
 ## The words are the world's rather than this file's. `buttonLabel` names where
 ## the run resumes — "Return to Bellweather", not a promise of "continue" — and it
 ## is written by the system that knows where home is.
@@ -39,12 +46,10 @@ const LABEL_COLOR := Color(0.976, 0.965, 0.945)
 const VEIL_COLOR := Color(0.043, 0.035, 0.047, 0.72)
 
 var _veil: ColorRect = null
-var _frame: NinePatchRect = null
-var _button: NinePatchRect = null
+var _frame: HostPanelFrame = null
+var _button: HostPanelFrame = null
 var _title: Label = null
 var _label: Label = null
-## The sheet's four states, by name, as regions into one texture.
-var _button_cells: Dictionary = {}
 
 
 ## Build from a run's `ui` block, or nothing when it publishes no panel frame.
@@ -53,74 +58,74 @@ var _button_cells: Dictionary = {}
 ## drawing nothing: a placeholder is a claim that the generated frame is not
 ## needed, and this panel is exactly the moment the generated frame is the point.
 static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerDefeatCard:
-	var ui: Dictionary = manifest.get("ui", {})
-	var panel: Dictionary = ui.get("panel_frame", {})
-	if panel.is_empty():
+	var sheets := HostUiSheets.of(package, manifest.get("ui", {}))
+	var left := (PlatformerStage.VIEW_WIDTH - CARD_WIDTH) / 2.0
+	var top := (PlatformerStage.VIEW_HEIGHT - CARD_HEIGHT) / 2.0
+	var frame := HostPanelFrame.of(
+		sheets, "panel_frame", {"x": left, "y": top, "width": CARD_WIDTH, "height": CARD_HEIGHT}
+	)
+	if frame == null:
 		push_warning(
 			"platformer host: this package publishes no ui.panel_frame, so a defeated player is shown nothing"
 		)
 		return null
-	var art := _texture_of(package, panel)
-	if art == null:
-		# A block that names art the run does not carry is a package problem, and a
-		# silent no-op reads as a bug in the host. Say which file, so the answer is
-		# in the sentence rather than in a bisect.
-		push_warning(
-			"platformer host: ui.panel_frame names %s and the run does not carry it, so a defeated player is shown nothing"
-			% str((panel.get("asset", {}) as Dictionary).get("path", "(no path)"))
-		)
-		return null
 
 	var made := PlatformerDefeatCard.new()
-	var left := (PlatformerStage.VIEW_WIDTH - CARD_WIDTH) / 2.0
-	var top := (PlatformerStage.VIEW_HEIGHT - CARD_HEIGHT) / 2.0
-
+	made.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	made._veil = ColorRect.new()
+	made._veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	made._veil.color = VEIL_COLOR
 	made._veil.position = Vector2.ZERO
 	made._veil.size = Vector2(PlatformerStage.VIEW_WIDTH, PlatformerStage.VIEW_HEIGHT)
 	made.add_child(made._veil)
+	made._frame = frame
+	made.add_child(frame)
 
-	made._frame = _nine_slice(art, panel, _first_cell(panel))
-	made._frame.position = Vector2(left, top)
-	made._frame.size = Vector2(CARD_WIDTH, CARD_HEIGHT)
-	made.add_child(made._frame)
+	# Same division as the browser's: a title row across the top of the interior
+	# and a centred button below it, both inside the ornament's own curl. The
+	# button's size is what the interior allows rather than a number the art may
+	# not fit.
+	var safe := frame.safe_rect()
+	var safe_x := float(safe["x"])
+	var safe_y := float(safe["y"])
+	var safe_w := float(safe["width"])
+	var safe_h := float(safe["height"])
 
 	made._title = Label.new()
+	made._title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	made._title.add_theme_font_size_override("font_size", TITLE_SIZE)
 	made._title.add_theme_color_override("font_color", TITLE_COLOR)
 	made._title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	made._title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	made._title.position = Vector2(left + PADDING, top + PADDING)
-	made._title.size = Vector2(CARD_WIDTH - PADDING * 2.0, TITLE_ROW_HEIGHT)
+	made._title.position = Vector2(safe_x, safe_y)
+	made._title.size = Vector2(safe_w, TITLE_ROW_HEIGHT)
 	made.add_child(made._title)
 
-	var button_top := top + PADDING + TITLE_ROW_HEIGHT + ROW_GAP
-	var button_left := left + (CARD_WIDTH - BUTTON_WIDTH) / 2.0
-	var button_block: Dictionary = ui.get("button_rect", {})
-	var button_art := _texture_of(package, button_block)
-	if button_art == null:
+	var button_w := minf(BUTTON_WIDTH, safe_w)
+	var button_h := minf(BUTTON_HEIGHT, maxf(0.0, safe_h - TITLE_ROW_HEIGHT - ROW_GAP))
+	var button_left := safe_x + (safe_w - button_w) / 2.0
+	var button_top := safe_y + TITLE_ROW_HEIGHT + ROW_GAP
+	made._button = HostPanelFrame.of(
+		sheets,
+		"button_rect",
+		{"x": button_left, "y": button_top, "width": button_w, "height": button_h},
+		"normal"
+	)
+	if made._button == null:
 		push_warning(
-			"platformer host: this package publishes no readable ui.button_rect, so the defeat card's button is words on the frame"
+			"platformer host: this package publishes no ui.button_rect, so the defeat card's button is words on the frame"
 		)
 	else:
-		for entry: Variant in (button_block.get("cells", []) as Array):
-			var cell: Dictionary = entry
-			made._button_cells[str(cell.get("state", ""))] = cell.get("cell", {})
-		made._button = _nine_slice(
-			button_art, button_block, made._button_cells.get("normal", {})
-		)
-		made._button.position = Vector2(button_left, button_top)
-		made._button.size = Vector2(BUTTON_WIDTH, BUTTON_HEIGHT)
 		made.add_child(made._button)
 
 	made._label = Label.new()
+	made._label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	made._label.add_theme_font_size_override("font_size", LABEL_SIZE)
 	made._label.add_theme_color_override("font_color", LABEL_COLOR)
 	made._label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	made._label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	made._label.position = Vector2(button_left, button_top)
-	made._label.size = Vector2(BUTTON_WIDTH, BUTTON_HEIGHT)
+	made._label.size = Vector2(button_w, button_h)
 	made.add_child(made._label)
 
 	made.visible = false
@@ -151,56 +156,6 @@ func sync(world: PlatformerWorld, now_ms: float) -> void:
 	_label.text = str(world.defeat_panel.get("buttonLabel", ""))
 	if _button == null:
 		return
-	# The state is the world's word, and the sheet was drawn with four of them.
-	# Falling back to `normal` rather than to nothing: a state this build has not
-	# caught up with should still draw a button.
-	var state := str(world.defeat_panel.get("buttonState", "normal"))
-	var cell: Dictionary = _button_cells.get(state, _button_cells.get("normal", {}))
-	if not cell.is_empty():
-		_button.region_rect = Rect2(
-			float(cell.get("x", 0)),
-			float(cell.get("y", 0)),
-			float(cell.get("width", 0)),
-			float(cell.get("height", 0))
-		)
-
-
-static func _texture_of(package: HostRunDir, block: Dictionary) -> Texture2D:
-	if block.is_empty():
-		return null
-	var art := package.texture(str((block.get("asset", {}) as Dictionary).get("path", "")))
-	if art == null:
-		art = package.texture(str(block.get("asset", "")))
-	return art
-
-
-static func _first_cell(block: Dictionary) -> Dictionary:
-	var cells: Array = block.get("cells", [])
-	if cells.is_empty():
-		return {}
-	return (cells[0] as Dictionary).get("cell", {})
-
-
-## One published sheet as a nine-slice: the ornament at its own size in the
-## corners, the bands stretched or tiled between them the way the block says.
-static func _nine_slice(art: Texture2D, block: Dictionary, cell: Dictionary) -> NinePatchRect:
-	var made := NinePatchRect.new()
-	made.texture = art
-	if not cell.is_empty():
-		made.region_rect = Rect2(
-			float(cell.get("x", 0)),
-			float(cell.get("y", 0)),
-			float(cell.get("width", art.get_width())),
-			float(cell.get("height", art.get_height()))
-		)
-	var insets: Dictionary = block.get("insets", {})
-	made.patch_margin_left = int(insets.get("left", 0))
-	made.patch_margin_top = int(insets.get("top", 0))
-	made.patch_margin_right = int(insets.get("right", 0))
-	made.patch_margin_bottom = int(insets.get("bottom", 0))
-	# `stretch` and `tile` are the two the block may name, and a band drawn the
-	# wrong way is the one thing a nine-slice can get visibly wrong.
-	if str(block.get("band_fill", "stretch")) == "tile":
-		made.axis_stretch_horizontal = NinePatchRect.AXIS_STRETCH_MODE_TILE
-		made.axis_stretch_vertical = NinePatchRect.AXIS_STRETCH_MODE_TILE
-	return made
+	# The state is the world's word, and the sheet was drawn with four of them, so
+	# a hover and a pressed look are the producer's own pixels rather than a tint.
+	_button.set_frame_state(str(world.defeat_panel.get("buttonState", "normal")))

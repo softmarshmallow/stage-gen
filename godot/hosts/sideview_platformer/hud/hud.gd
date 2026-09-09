@@ -1,15 +1,21 @@
 class_name PlatformerHud
 extends CanvasLayer
 
-## What a run is read by: the health it has left, the place it is in, and the
-## card that names that place as it is entered.
+## What a run is read by: the place it is in, and the card that names it on the way
+## in.
+##
+## The health is deliberately not here any more. It was a three-hundred-pixel bar
+## pinned to the top left, which is a different game's interface; this one reads its
+## health at the body, under the feet, where the eye already is during a fight. See
+## `PlatformerBodyBars`.
 ##
 ## Deliberately small otherwise. A panel a published `ui` block would furnish and
 ## this build does not draw is better left undrawn than filled with a placeholder:
 ## a plain box is a claim that the generated frame is not needed.
 
-const BAR_RECT := Rect2(28.0, 24.0, 320.0, 22.0)
 const LABEL_COLOR := Color(1.0, 1.0, 1.0, 0.82)
+## Where the map's name sits when the banner has gone.
+const LABEL_AT := Vector2(28.0, 24.0)
 
 ## The banner, across the upper third rather than the middle: a place is named
 ## over the sky it is entered under, not over the body walking into it.
@@ -18,7 +24,6 @@ const BANNER_SIZE := 44
 const BANNER_COLOR := Color(1.0, 0.945, 0.855)
 const BANNER_OUTLINE := Color(0.063, 0.055, 0.078, 0.9)
 
-var _bar: HostGaugeBar = null
 var _label: Label = null
 var _panel: PlatformerInventoryPanel = null
 var _dialogue: PlatformerDialogueBox = null
@@ -37,13 +42,10 @@ static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerHud:
 	made._dialogue = PlatformerDialogueBox.of(package, manifest)
 	if made._dialogue != null:
 		made.add_child(made._dialogue)
-	made._bar = HostGaugeBar.of(BAR_RECT.size.x, BAR_RECT.size.y)
-	made._bar.position = BAR_RECT.position
-	made.add_child(made._bar)
 	made._label = Label.new()
 	made._label.add_theme_font_size_override("font_size", 18)
 	made._label.add_theme_color_override("font_color", LABEL_COLOR)
-	made._label.position = Vector2(BAR_RECT.position.x, BAR_RECT.end.y + 6.0)
+	made._label.position = LABEL_AT
 	made.add_child(made._label)
 	made._banner = Label.new()
 	made._banner.add_theme_font_size_override("font_size", BANNER_SIZE)
@@ -64,6 +66,18 @@ static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerHud:
 ## Controls under it rather than inherited — which is also why this is a method and
 ## not a field: forgetting one is how a panel ends up in a different typeface from
 ## the panel beside it.
+## Open or close the bag.
+##
+## Called from the *simulation* tick rather than read off the intent here, and
+## that is the whole fix: `sync` runs once per drawn frame and the world steps
+## thirty times a second, so on any display faster than that the same edge was
+## seen several times and the bag opened and shut again before it was ever drawn.
+## An edge belongs to the tick that produced it.
+func toggle_inventory() -> void:
+	if _panel != null:
+		_panel.toggle()
+
+
 func wear(run_theme: Theme) -> void:
 	if run_theme == null:
 		return
@@ -77,22 +91,10 @@ func sync(world: PlatformerWorld, now_ms: float) -> void:
 	if _dialogue != null:
 		_dialogue.sync(world)
 	if _panel != null:
-		if bool(world.intent.get("toggleInventory", false)):
-			_panel.toggle()
 		_panel.sync(world)
-	# The third argument flashes the whole bar, so a blow that connected is
-	# visible on the readout itself and not only on the body. It was passed
-	# `false` unconditionally, which drew the flash never.
-	_bar.show_gauge(
-		float(world.player["hp"]),
-		float(world.player["maxHp"]),
-		bool(world.player.get("invulnerable", false))
-	)
 	# The name the package published, not the id it files the map under. A player
 	# reading `road-map` in the corner is reading a database key.
-	_label.text = "%s   %d / %d" % [
-		_map_name(world), int(world.player["hp"]), int(world.player["maxHp"])
-	]
+	_label.text = _map_name(world)
 
 
 ## Raise the card when the run enters somewhere, and take it down on its own

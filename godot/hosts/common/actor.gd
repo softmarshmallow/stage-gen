@@ -19,8 +19,17 @@ extends Sprite2D
 ## **Size comes from the ruler, never from the pixels.** `source_px_per_unit` is
 ## how many source pixels the producer drew one unit of height as; a strip
 ## redrawn at another resolution carries a different one and stands exactly as
-## tall. `rebase_multiplier` is the per-strip correction on top of it, because
-## the strips were rebased against each other after they were drawn.
+## tall. The per-strip correction on top of it is the rebase, because the strips
+## were rebased against each other after they were drawn — and a producer judged
+## every atlas against the baseline on one plate, so this multiplies rather than
+## re-measuring. It is a ratio the pixels cannot yield.
+##
+## The rebase is published in **two** places and this reads both. A motion may
+## carry its own `rebase_multiplier`; a package may instead publish the whole
+## table as `calibration.state_rebase`, keyed by state. Only the first was read,
+## and the bellweather package publishes only the second — so every strip but the
+## two whose ratio is one was drawn at the wrong size, and `climb_ladder` at 0.35
+## was drawn nearly three times too tall.
 ##
 ## The clock is the caller's. Nothing here reads a wall clock, so a capture that
 ## hands it fixed steps draws the same frame every time — which is the whole
@@ -52,6 +61,8 @@ static func of(
 ) -> HostActor:
 	var actor := HostActor.new()
 	actor.centered = false
+	# The table a package publishes when its motions carry no ratio of their own.
+	var table: Dictionary = calibration.get("state_rebase", {})
 	for entry: Variant in motions:
 		var motion: Dictionary = entry
 		var texture := package.texture(String(motion["atlas"]))
@@ -68,7 +79,9 @@ static func of(
 			"fps": float(motion.get("frames_per_second", 12)),
 			"loop": String(motion.get("playback_mode", "once")) == "loop",
 			"frames": frames,
-			"rebase": float(motion.get("rebase_multiplier", 1.0)),
+			"rebase": float(
+				motion.get("rebase_multiplier", table.get(String(motion["state"]), 1.0))
+			),
 			"anchor": String(motion.get("anchor", "bottom")),
 		}
 	if actor._motions.is_empty():
@@ -136,11 +149,21 @@ func advance(dt: float) -> void:
 	_apply_region()
 
 
-## Put the actor's anchor point at `x`, `y`. For a `bottom` anchor that is where
-## the feet stand; for a `top` anchor, where the head hangs from.
+## Put the actor's feet at `x`, `y`.
+##
+## The published `anchor` is deliberately not branched on, and the reason is the
+## renderer rather than the contract. The browser drew each frame as a *tight
+## alpha crop*, so frames of one strip had different heights and two registrations
+## were needed: a standing pose stands on its own lowest pixel, while a pose
+## hanging by its hands has to keep its top edge fixed or the head swings as the
+## feet stay pinned. A region into a uniform grid cell has no such spread — every
+## frame of a strip is the same height — so both registrations put the cell's
+## bottom on the same line, and the `top` branch was drawing the whole cell
+## *downward* from the feet instead. On a climb strip more than a body tall that
+## put the character under the ground.
 func place(x: float, y: float) -> void:
 	var drawn := _cell_size() * scale
-	position = Vector2(x - drawn.x / 2.0, y - drawn.y if _anchor == "bottom" else y)
+	position = Vector2(x - drawn.x / 2.0, y - drawn.y)
 
 
 ## How big the actor is drawn, in screen pixels. What a caller needs to put

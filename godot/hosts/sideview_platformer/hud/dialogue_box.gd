@@ -1,42 +1,49 @@
 class_name PlatformerDialogueBox
 extends Control
 
-## What a villager is saying, on the panel the run published art for.
+## What a villager is saying, on the panel and the faces the run published art for.
 ##
-## A nine-slice frame across the bottom of the design space: the generated art's
-## corners are drawn at their own size and its bands stretch or tile between
-## them, so the same sheet fits a panel of any width without smearing an
-## ornament. The insets and the band rule come from the run's `ui` block, never
-## from a number measured off the pixels here.
+## The frame is `HostPanelFrame`'s, and that is the substance of this file rather
+## than a tidying. This box used to build its own `NinePatchRect` and read the
+## block's insets straight onto it, which drops `draw_scale`: the sheet is laid out
+## at twice the density it is drawn at, so a hundred-and-twelve-pixel corner
+## ornament was drawn a hundred and twelve *screen* pixels wide. Two of them plus
+## two ninety-six-pixel bands left eighteen pixels of panel in a two-hundred-and-
+## ten-pixel box, which is why the panel came out crushed and the words in it
+## landed nowhere near the middle. The shared widget lays the slices out at the
+## sheet's own density and scales the whole thing back, which is the only way a
+## generated ornament keeps its drawn proportion to the body it frames.
+##
+## Words sit in the frame's `safe_rect` — the interior less the measured curl of
+## the ornament — rather than in a rectangle this file guesses at, so a package
+## whose frame has a heavier flourish gets narrower text instead of text under it.
 ##
 ## Screen space, above everything the world draws. A conversation is furniture.
 ##
-## The portrait slot down the left was reserved and empty. Every villager the
-## generator draws publishes a `dialogue` sheet — a grid of expressions, named in
-## the order they are laid out — and the scenario stages which one is on by name,
-## so both halves were published and neither was drawn. A conversation with a
-## blank slot beside it is the one place a package's character art was supposed to
-## be the point.
+## The portrait slot down the left is the other half. Every villager the generator
+## draws publishes a `dialogue` sheet — a grid of expressions, named in the order
+## they are laid out — and the scenario stages which one is on by name, so both
+## halves were published and neither was drawn. A conversation with a blank slot
+## beside it is the one place a package's character art was supposed to be the
+## point.
 
 ## The panel, in the 1280x720 the manifest publishes its rectangles in.
 const PANEL_INSET_X := 40.0
-const PANEL_HEIGHT := 210.0
-const PANEL_CENTRE_Y := 592.0
+const PANEL_HEIGHT := 220.0
+const PANEL_BOTTOM_GAP := 24.0
 
-## Where the words sit inside it: a slot down the left a portrait would stand in,
-## a row for the speaker's name, and the body under both.
-const PORTRAIT_SLOT_WIDTH := 210.0
-const COLUMN_GAP := 24.0
+## How much of the interior the portrait takes down its left, and the gap after it.
+const PORTRAIT_SLOT_SHARE := 0.24
+const COLUMN_GAP := 20.0
 const NAME_ROW_HEIGHT := 34.0
-const ROW_GAP := 10.0
-const PADDING := 8.0
+const ROW_GAP := 8.0
 
 const NAME_SIZE := 26
 const BODY_SIZE := 22
 const NAME_COLOR := Color(1.0, 0.867, 0.639)
 const BODY_COLOR := Color(0.965, 0.953, 0.929)
 
-var _frame: NinePatchRect = null
+var _frame: HostPanelFrame = null
 var _portrait: TextureRect = null
 var _name: Label = null
 var _body: Label = null
@@ -46,73 +53,66 @@ var _sheets: Dictionary = {}
 
 ## Build from a run's `ui` block, or nothing when it publishes no panel frame.
 static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerDialogueBox:
-	var block: Dictionary = (manifest.get("ui", {}) as Dictionary).get("panel_frame", {})
-	if block.is_empty():
-		return null
-	var art := package.texture(str((block.get("asset", {}) as Dictionary).get("path", "")))
-	if art == null:
-		art = package.texture(str(block.get("asset", "")))
-	if art == null:
+	var sheets := HostUiSheets.of(package, manifest.get("ui", {}))
+	var width := PlatformerStage.VIEW_WIDTH - PANEL_INSET_X * 2.0
+	var top := PlatformerStage.VIEW_HEIGHT - PANEL_BOTTOM_GAP - PANEL_HEIGHT
+	var frame := HostPanelFrame.of(
+		sheets,
+		"panel_frame",
+		{"x": PANEL_INSET_X, "y": top, "width": width, "height": PANEL_HEIGHT}
+	)
+	if frame == null:
+		push_warning(
+			"platformer host: this package publishes no ui.panel_frame, so a conversation has no panel"
+		)
 		return null
 
 	var made := PlatformerDialogueBox.new()
-	var cells: Array = block.get("cells", [])
-	var cell: Dictionary = (cells[0] as Dictionary).get("cell", {}) if not cells.is_empty() else {}
-	var insets: Dictionary = block.get("insets", {})
-
-	made._frame = NinePatchRect.new()
-	made._frame.texture = art
-	if not cell.is_empty():
-		made._frame.region_rect = Rect2(
-			float(cell.get("x", 0)),
-			float(cell.get("y", 0)),
-			float(cell.get("width", art.get_width())),
-			float(cell.get("height", art.get_height()))
-		)
-	made._frame.patch_margin_left = int(insets.get("left", 0))
-	made._frame.patch_margin_top = int(insets.get("top", 0))
-	made._frame.patch_margin_right = int(insets.get("right", 0))
-	made._frame.patch_margin_bottom = int(insets.get("bottom", 0))
-	# `stretch` and `tile` are the two the block may name, and a band drawn the
-	# wrong way is the one thing a nine-slice can get visibly wrong.
-	if str(block.get("band_fill", "stretch")) == "tile":
-		made._frame.axis_stretch_horizontal = NinePatchRect.AXIS_STRETCH_MODE_TILE
-		made._frame.axis_stretch_vertical = NinePatchRect.AXIS_STRETCH_MODE_TILE
-	var width := PlatformerStage.VIEW_WIDTH - PANEL_INSET_X * 2.0
-	made._frame.position = Vector2(PANEL_INSET_X, PANEL_CENTRE_Y - PANEL_HEIGHT / 2.0)
-	made._frame.size = Vector2(width, PANEL_HEIGHT)
-	made.add_child(made._frame)
-
+	made.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	made._frame = frame
+	made.add_child(frame)
 	made._sheets = _dialogue_sheets(package, manifest)
+
+	# The interior the ornament leaves, which is what everything below is laid out
+	# in. Measured off the sheet rather than assumed, so a package with a heavier
+	# flourish gets narrower text instead of text under it.
+	var safe := frame.safe_rect()
+	var safe_x := float(safe["x"])
+	var safe_y := float(safe["y"])
+	var safe_w := float(safe["width"])
+	var safe_h := float(safe["height"])
+	var portrait_w := safe_w * PORTRAIT_SLOT_SHARE
+
 	made._portrait = TextureRect.new()
+	made._portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	made._portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	# Aspect kept and anchored to the bottom of the slot, so a tall portrait sits
-	# on the panel floor the way a person stands on the ground rather than
-	# floating in the middle of a box.
-	made._portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	made._portrait.position = Vector2(
-		PANEL_INSET_X + PADDING, PANEL_CENTRE_Y - PANEL_HEIGHT / 2.0 + PADDING
-	)
-	made._portrait.size = Vector2(PORTRAIT_SLOT_WIDTH, PANEL_HEIGHT - PADDING * 2.0)
+	# Aspect kept and pinned to the bottom of the slot, so a portrait stands on the
+	# panel floor the way a person stands on the ground rather than floating.
+	made._portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	made._portrait.clip_contents = true
+	made._portrait.position = Vector2(safe_x, safe_y)
+	made._portrait.size = Vector2(portrait_w, safe_h)
 	made.add_child(made._portrait)
 
-	var text_left := PANEL_INSET_X + PORTRAIT_SLOT_WIDTH + COLUMN_GAP + PADDING
-	var text_top := PANEL_CENTRE_Y - PANEL_HEIGHT / 2.0 + PADDING
+	var text_left := safe_x + portrait_w + COLUMN_GAP
+	var text_width := safe_x + safe_w - text_left
 	made._name = Label.new()
+	made._name.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	made._name.add_theme_font_size_override("font_size", NAME_SIZE)
 	made._name.add_theme_color_override("font_color", NAME_COLOR)
-	made._name.position = Vector2(text_left, text_top)
+	made._name.position = Vector2(text_left, safe_y)
+	made._name.size = Vector2(text_width, NAME_ROW_HEIGHT)
 	made.add_child(made._name)
+
 	made._body = Label.new()
+	made._body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	made._body.add_theme_font_size_override("font_size", BODY_SIZE)
 	made._body.add_theme_color_override("font_color", BODY_COLOR)
-	made._body.position = Vector2(text_left, text_top + NAME_ROW_HEIGHT + ROW_GAP)
-	made._body.size = Vector2(
-		PlatformerStage.VIEW_WIDTH - text_left - PANEL_INSET_X - PADDING,
-		PANEL_HEIGHT - NAME_ROW_HEIGHT - ROW_GAP - PADDING * 2.0
-	)
+	made._body.position = Vector2(text_left, safe_y + NAME_ROW_HEIGHT + ROW_GAP)
+	made._body.size = Vector2(text_width, safe_h - NAME_ROW_HEIGHT - ROW_GAP)
 	made._body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	made.add_child(made._body)
+
 	made.visible = false
 	return made
 

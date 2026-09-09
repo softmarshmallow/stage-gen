@@ -37,7 +37,7 @@ var input: PlatformerInput = null
 var stage: PlatformerStage = null
 var actors: PlatformerActors = null
 var scenery: PlatformerScenery = null
-var bars: PlatformerMobBars = null
+var bars: PlatformerBodyBars = null
 var numbers: PlatformerCombatText = null
 var impacts: PlatformerImpacts = null
 var hud: PlatformerHud = null
@@ -113,7 +113,7 @@ func _ready() -> void:
 	_root.add_child(actors)
 	scenery = PlatformerScenery.of(package, package.manifest)
 	_root.add_child(scenery)
-	bars = PlatformerMobBars.of()
+	bars = PlatformerBodyBars.of()
 	_root.add_child(bars)
 	impacts = PlatformerImpacts.of()
 	_root.add_child(impacts)
@@ -229,6 +229,10 @@ func _tick() -> void:
 	elif _bot_on:
 		# It did not drive this frame, so it must not remember driving one.
 		_bot.suspend()
+	# Before the step, because the step is what the intent was sampled for and the
+	# bag is the host's rather than the body's.
+	if bool(world.intent.get("toggleInventory", false)):
+		hud.toggle_inventory()
 	PlatformerFrame.step(
 		world, {"dt": FIXED_STEP * 1000.0, "now": now_ms, "frame": _frame}
 	)

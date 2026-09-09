@@ -1,13 +1,23 @@
-class_name PlatformerMobBars
+class_name PlatformerBodyBars
 extends Node2D
 
-## A small gauge under every creature that has been hurt.
+## A small gauge under every body: the player's own, and every creature that has
+## been hurt.
 ##
 ## World space, not screen furniture: it scrolls and zooms with the camera, and
-## it hangs from the creature's own foot line rather than from the bottom of its
-## drawn art. It is drawn above the near foreground so a readout is not hidden
-## behind the foliage its owner walks through, and above every other creature so
-## bodies do not occlude each other's.
+## it hangs from the body's own foot line rather than from the bottom of its drawn
+## art. It is drawn above the near foreground so a readout is not hidden behind the
+## foliage its owner walks through, and above every other creature so bodies do not
+## occlude each other's.
+##
+## **The player's belongs here and not in a corner.** It was drawn as a
+## three-hundred-pixel bar pinned to the top left, which is a different game's
+## interface: this one is read at the body, where the eye already is during a
+## fight, and a readout across the room is a readout nobody looks at while
+## something is hitting them. The player's capsule is deliberately larger than a
+## creature's — several are on screen at once and one of them is the player's own,
+## so the size difference is what keeps "how am I doing" separable from "how is
+## that one doing" without colour-coding the two apart and losing the spectrum.
 ##
 ## **Never at spawn.** A creature starts undamaged, and an undamaged creature has
 ## nothing to report. The bar arrives with the first point of damage and leaves
@@ -21,20 +31,24 @@ extends Node2D
 ## tall and gets the same bar: the size is what keeps "how is that one doing"
 ## from competing with "how am I doing".
 const BAR_SIZE := Vector2(46.0, 5.0)
+const PLAYER_BAR_SIZE := Vector2(72.0, 8.0)
 
 ## How far below the foot line the bar's centre sits.
 const FOOT_GAP := 8.0
+const PLAYER_FOOT_GAP := 11.0
 
 var _bars: Dictionary = {}
+var _player: HostGaugeBar = null
 
 
-static func of() -> PlatformerMobBars:
-	var made := PlatformerMobBars.new()
+static func of() -> PlatformerBodyBars:
+	var made := PlatformerBodyBars.new()
 	made.z_index = PlatformerStage.DEPTHS["foreground"] + 10
 	return made
 
 
 func sync(world: PlatformerWorld, scroll: Vector2) -> void:
+	_sync_player(world, scroll)
 	var seen := {}
 	for entry: Variant in world.mobs:
 		var mob: Dictionary = entry
@@ -73,3 +87,27 @@ static func _shown(mob: Dictionary) -> bool:
 	if maximum <= 0.0:
 		return false
 	return float(mob["hp"]) < maximum
+
+
+## The player's own, under their feet and always up.
+##
+## Always, unlike a creature's: a creature at full health has nothing to report and
+## a bar over every idle body is noise, but the player's own health is the one
+## number they are steering by and it should not appear only once it is too late to
+## act on.
+func _sync_player(world: PlatformerWorld, scroll: Vector2) -> void:
+	if _player == null:
+		_player = HostGaugeBar.of(PLAYER_BAR_SIZE.x, PLAYER_BAR_SIZE.y)
+		add_child(_player)
+	_player.visible = not bool(world.player.get("defeated", false))
+	if not _player.visible:
+		return
+	_player.position = Vector2(
+		float(world.player["x"]) - scroll.x - PLAYER_BAR_SIZE.x / 2.0,
+		float(world.player["y"]) - scroll.y + PLAYER_FOOT_GAP
+	)
+	_player.show_gauge(
+		float(world.player["hp"]),
+		float(world.player["maxHp"]),
+		bool(world.player.get("invulnerable", false))
+	)
