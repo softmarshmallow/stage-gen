@@ -58,6 +58,20 @@ static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerHud:
 	return made
 
 
+## Set every string this layer draws in the run's own face.
+##
+## A CanvasLayer is not a Control and carries no theme, so it is handed down to the
+## Controls under it rather than inherited — which is also why this is a method and
+## not a field: forgetting one is how a panel ends up in a different typeface from
+## the panel beside it.
+func wear(run_theme: Theme) -> void:
+	if run_theme == null:
+		return
+	for child in get_children():
+		if child is Control:
+			(child as Control).theme = run_theme
+
+
 func sync(world: PlatformerWorld, now_ms: float) -> void:
 	_sync_banner(world, now_ms)
 	if _dialogue != null:

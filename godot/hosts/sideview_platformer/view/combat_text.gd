@@ -31,11 +31,16 @@ var _live: Array = []
 ## jitter, the column's sideways nudge — so two blows in the same place never
 ## agree, and the same blow always displaces the same way.
 var _next_event_id: int = 1
+## The face the package set its numerals in, or null for the engine's own.
+## Decision 0017: a stroke eats a glyph's counters from both sides, so the face a
+## double-outlined numeral is drawn in is a constraint and not a preference.
+var _face: FontFile = null
 
 
-static func of() -> PlatformerCombatText:
+static func of(face: FontFile = null) -> PlatformerCombatText:
 	var made := PlatformerCombatText.new()
 	made.z_index = PlatformerStage.DEPTHS["foreground"] + 20
+	made._face = face
 	return made
 
 
@@ -68,6 +73,8 @@ func show_damage(
 	for index in range(text.length()):
 		var label := Label.new()
 		label.text = text[index]
+		if _face != null:
+			label.add_theme_font_override("font", _face)
 		label.add_theme_font_size_override("font_size", int(size))
 		label.add_theme_color_override("font_color", color)
 		label.add_theme_color_override("font_outline_color", OUTLINE_COLOR)

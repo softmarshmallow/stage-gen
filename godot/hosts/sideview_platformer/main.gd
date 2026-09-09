@@ -64,6 +64,10 @@ var _bot_map_id: String = ""
 var _human_input_at_ms: float = PlatformerBot.NEVER
 var _bot_badge: Label = null
 
+## The faces the package published, or null for the engine's own.
+var _run_theme: Theme = null
+var _numeral_face: FontFile = null
+
 
 func _ready() -> void:
 	var args := HostArgs.parse(OS.get_cmdline_user_args())
@@ -88,6 +92,17 @@ func _ready() -> void:
 		_refuse("platformer host: this package opens on no spawn")
 		return
 	input = PlatformerInput.new()
+	# The face the package published, applied once to the whole host rather than
+	# per label. A package that declares none draws in the engine's default and
+	# says which role it was missing — see decision 0063.
+	var faces := HostTypeface.of(
+		package, package.manifest.get("ui", {}), "platformer host"
+	)
+	# A theme reaches Controls and a Node2D is not one, so it is applied to the
+	# screen furniture and the numbers take their face directly. Two places rather
+	# than thirty overrides.
+	_run_theme = HostTypeface.theme_of(faces["text"])
+	_numeral_face = faces["numeral"]
 	_bot = PlatformerBot.of(PlatformerBotHunter.profile())
 
 	_root = Node2D.new()
@@ -102,14 +117,17 @@ func _ready() -> void:
 	_root.add_child(bars)
 	impacts = PlatformerImpacts.of()
 	_root.add_child(impacts)
-	numbers = PlatformerCombatText.of()
+	numbers = PlatformerCombatText.of(_numeral_face)
 	_root.add_child(numbers)
 	hud = PlatformerHud.of(package, package.manifest)
+	hud.wear(_run_theme)
 	add_child(hud)
 	stat_log = PlatformerStatLog.of()
+	stat_log.theme = _run_theme
 	add_child(stat_log)
 	defeat_card = PlatformerDefeatCard.of(package, package.manifest)
 	if defeat_card != null:
+		defeat_card.theme = _run_theme
 		add_child(defeat_card)
 
 	stage.open_on(world)
@@ -122,6 +140,7 @@ func _ready() -> void:
 	# to find out the bot is driving.
 	_bot_badge.text = "AUTO-PLAY  ·  P to take over"
 	_bot_badge.position = Vector2(16.0, PlatformerStage.VIEW_HEIGHT - 32.0)
+	_bot_badge.theme = _run_theme
 	_bot_badge.visible = false
 	var badge_layer := CanvasLayer.new()
 	badge_layer.add_child(_bot_badge)
