@@ -37,6 +37,25 @@ const JUMP_VELOCITY := 520.0
 ## load-bearing in the platform graph instead of decorative.
 const AIR_JUMP_VELOCITY := 440.0
 const AIR_JUMPS_MAX := 1
+
+## What a second jump is worth, and when pressing it stops mattering.
+##
+## `sustained` rather than the browser's `impulse`, and it is a deliberate
+## divergence rather than a port gap. Replacing the vertical velocity throws away
+## whatever rise the first jump had left, so the height a player reached was
+## decided by their timing — the apex was the only correct moment and pressing a
+## fraction early cost them height they could not see themselves losing. Keeping
+## the remaining rise and adding a constant on top makes the apex the same
+## wherever the press lands.
+##
+## Named here rather than inlined because it is the kind of thing a game wants to
+## turn: a package that wants the stricter, more punishing arcade feel asks for
+## `FamilyJump.AIR_JUMP_IMPULSE` and gets exactly the browser's rule back.
+##
+## Neither scripted run ever leaves the ground twice, so both goldens are silent
+## about this and the change costs no parity — which is also why the browser's
+## flaw survived the port unnoticed.
+const AIR_JUMP_MODE := FamilyJump.AIR_JUMP_SUSTAINED
 ## Grace after leaving a support during which a jump still counts as grounded.
 ## Terrain step-downs are real falls here, so without this every jump pressed at
 ## a ledge silently spends the air jump instead of the ground one.

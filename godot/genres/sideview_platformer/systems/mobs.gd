@@ -95,7 +95,11 @@ static func populate(world: PlatformerWorld, step: Dictionary) -> void:
 				health_of(spec, PlatformerNumberScale.profile_of(world.package["combat"])),
 				float(reservation["x"]),
 				float(reservation["y"]),
-				map
+				map,
+				# The storey the director stood it up on. Passed through rather
+				# than re-derived: the reservation is the only record of which of
+				# the several places over one column was taken.
+				str(reservation.get("deckId", ""))
 			)
 		)
 		# The place it came from and the column it stands in, so the director can

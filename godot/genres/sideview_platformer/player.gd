@@ -268,7 +268,10 @@ static func update(
 			crouching,
 			int(world.get("maximumAirJumps", PlatformerVertical.AIR_JUMPS_MAX)),
 			PlatformerVertical.JUMP_VELOCITY,
-			PlatformerVertical.AIR_JUMP_VELOCITY
+			PlatformerVertical.AIR_JUMP_VELOCITY,
+			float(player["vy"]),
+			PlatformerVertical.GRAVITY,
+			PlatformerVertical.AIR_JUMP_MODE
 		)
 		if String(jump["kind"]) != FamilyJump.KIND_NONE:
 			_begin_drop_recovery(player)

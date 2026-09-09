@@ -218,6 +218,46 @@ func _traversal(h: TestHarness) -> void:
 	h.assert_eq(String(air["kind"]), "air", "the first air jump is spent from the budget")
 	h.assert_eq(int(air["airJumpsUsed"]), 1, "and counted")
 	var spent := FamilyJump.resolve_jump_request("air", 1, 0.0, -1.0, false, 1, 9.0, 9.0)
+	# The second jump's two modes. `impulse` replaces the velocity, so a body still
+	# rising loses the rise it had left and the apex depends on when the key went
+	# down; `sustained` keeps that rise and adds the same gain on top, so it does
+	# not. Both agree on a body already falling, which has no rise to keep.
+	h.assert_near(
+		FamilyJump.air_jump_speed(9.0, -4.0, 10.0, FamilyJump.AIR_JUMP_IMPULSE),
+		9.0,
+		1e-9,
+		"an impulse jump is worth its own velocity whenever it is pressed"
+	)
+	h.assert_near(
+		FamilyJump.air_jump_speed(9.0, -4.0, 10.0, FamilyJump.AIR_JUMP_SUSTAINED),
+		sqrt(97.0),
+		1e-9,
+		"a sustained one keeps the rise the body still had and adds its own on top"
+	)
+	h.assert_near(
+		FamilyJump.air_jump_speed(9.0, 4.0, 10.0, FamilyJump.AIR_JUMP_SUSTAINED),
+		9.0,
+		1e-9,
+		"and agrees with the impulse on a body already falling, which has no rise left"
+	)
+	# The property the whole change exists for: press it anywhere on the way up and
+	# the apex is the same.
+	var gravity := 10.0
+	var apexes: PackedFloat64Array = PackedFloat64Array()
+	for tenth in range(1, 10):
+		var vy := -9.0 * float(tenth) / 10.0
+		# Where the body is when it presses, measured as the rise it has already
+		# made from the launch, plus everything the second jump then buys.
+		var risen := (81.0 - vy * vy) / (2.0 * gravity)
+		var speed := FamilyJump.air_jump_speed(9.0, vy, gravity, FamilyJump.AIR_JUMP_SUSTAINED)
+		apexes.append(risen + speed * speed / (2.0 * gravity))
+	for index in range(1, apexes.size()):
+		h.assert_near(
+			apexes[index],
+			apexes[0],
+			1e-9,
+			"a sustained second jump reaches one apex however early it is pressed"
+		)
 	h.assert_eq(String(spent["kind"]), "none", "a budget spent refuses rather than errors")
 	# The runner never crouches into a jump, but the platformer does, and the
 	# refusal lives here rather than in either genre.

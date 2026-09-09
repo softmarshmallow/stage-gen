@@ -96,13 +96,20 @@ static func create(
 	starting_health: int,
 	spawn_x: float,
 	spawn_y: float,
-	map: Dictionary
+	map: Dictionary,
+	deck_id: String = ""
 ) -> Dictionary:
 	var profile := PlatformerCombat.profile(aggression)
 	var variation := PlatformerMobBehavior.variation(instance, profile)
-	var lane := _lane(map, spawn_x)
+	var lane := _deck_lane(map, deck_id)
+	if lane.is_empty():
+		lane = _lane(map, spawn_x)
 	return {
 		"instanceId": instance_id,
+		# The deck this creature stands on, or `""` for the ground. A storey adds
+		# footings rather than replacing the one below it, so where a creature was
+		# stood up is a fact about it and not about the column it is over.
+		"deckId": deck_id,
 		"botId": bot_id,
 		"ladderIndex": slot,
 		"aggression": aggression,
@@ -252,7 +259,9 @@ static func _adopt_forced_landing(mob: Dictionary, map: Dictionary) -> void:
 		return
 	var half := envelope_half_width()
 	var home := clampf(landing, half, float(map["worldWidthPx"]) - half)
-	var lane := _lane(map, home)
+	var lane := _deck_lane(map, str(mob.get("deckId", "")))
+	if lane.is_empty():
+		lane = _lane(map, home)
 	mob["laneMinX"] = lane["minX"]
 	mob["laneMaxX"] = lane["maxX"]
 	mob["homeX"] = home
@@ -272,7 +281,7 @@ static func _adopt_forced_landing(mob: Dictionary, map: Dictionary) -> void:
 	# whichever flank it was sweeping describe a place it is no longer standing.
 	mob["awareness"] = "idle"
 	PlatformerMobBehavior.reset_pursuit(mob["pursuit"])
-	mob["y"] = _surface_at(map, float(mob["x"]))
+	mob["y"] = _surface_at(map, float(mob["x"]), str(mob.get("deckId", "")))
 
 
 ## What this creature wants this frame.
@@ -494,7 +503,7 @@ static func _walk_to(
 	mob["facing"] = PlatformerMobBehavior.follow_movement(
 		int(mob["facing"]), previous, float(mob["x"])
 	)
-	mob["y"] = _surface_at(map, float(mob["x"]))
+	mob["y"] = _surface_at(map, float(mob["x"]), str(mob.get("deckId", "")))
 	return bool(walk["blocked"])
 
 
@@ -557,7 +566,7 @@ static func _walk(
 	var walk := FamilyContact.resolve_terrain_walk(
 		float(mob["x"]),
 		float(step["x"]),
-		_surface_at(map, float(mob["x"])),
+		_surface_at(map, float(mob["x"]), str(mob.get("deckId", ""))),
 		PlatformerMaps.TILE_PX,
 		func(column: int) -> float: return _surface_at_column(map, column),
 		TERRAIN_STEP_UP_TOLERANCE,
@@ -627,8 +636,44 @@ static func _lane(map: Dictionary, spawn_x: float) -> Dictionary:
 	}
 
 
-static func _surface_at(map: Dictionary, x: float) -> float:
+## The height a body stands at, on the deck it was stood up on or on the ground.
+##
+## A creature reserved onto a deck used to be created there and then walked
+## straight off it: every step re-read the *terrain* height under its feet, so it
+## dropped to the floor on the first frame it moved and the deck population read as
+## a ground population. The deck it belongs to is carried on the creature, because
+## which storey it is on is a fact about the creature and not about the column.
+static func _surface_at(map: Dictionary, x: float, deck_id: String = "") -> float:
+	if not deck_id.is_empty():
+		var deck := _deck(map, deck_id)
+		if not deck.is_empty():
+			return float(deck["deckY"])
 	return _surface_at_column(map, int(floor(x / PlatformerMaps.TILE_PX)))
+
+
+static func _deck(map: Dictionary, deck_id: String) -> Dictionary:
+	if deck_id.is_empty():
+		return {}
+	for entry: Variant in (map["platforms"] as Array):
+		var deck: Dictionary = entry
+		if String(deck["id"]) == deck_id:
+			return deck
+	return {}
+
+
+## The span a deck creature patrols: the deck itself, and never off the end of it.
+##
+## The ledge *is* the lane, which is the same rule the terrain shelf follows — a
+## creature never patrols off the thing it stood up on — and the reason it can be
+## simpler is that a deck already knows where it ends.
+static func _deck_lane(map: Dictionary, deck_id: String) -> Dictionary:
+	var deck := _deck(map, deck_id)
+	if deck.is_empty():
+		return {}
+	return {
+		"minX": float(deck["left"]) + envelope_half_width(),
+		"maxX": float(deck["right"]) - envelope_half_width(),
+	}
 
 
 static func _surface_at_column(map: Dictionary, column: int) -> float:
