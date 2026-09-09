@@ -107,6 +107,7 @@ def steps(python: str = sys.executable, *, scratch: Path) -> tuple[Step, ...]:
         Step((python, "-m", "build", "--no-isolation")),
         Step((python, "scripts/validate_game_package.py", "--root", ".")),
         Step(("stage-gen", "--help")),
+        Step(("stage-gen-portrait-motion", "--help")),
         # Every package in the library plans offline: a route the binding table
         # cannot serve, or an authored input a resolver refuses, fails here
         # rather than against a provider. The two game-contract packages plan

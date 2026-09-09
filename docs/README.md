@@ -156,6 +156,9 @@ Start here for the headless, general-purpose system:
 - [Sprite-sheet slicing and instance recovery](spec/sprite-sheet-processing.md) — implemented
   alpha-component repacking default, its accepted loss modes, evidence contract, and planned
   geometry and ownership improvements.
+- [Fixed-portrait eye and mouth motion](spec/portrait-motion.md) — the promoted
+  N-card atlas component, four-card blink/mouth example, independent feature
+  composition, bounded CLI, and retained baseline quality limits.
 - [Horizontal loop construction](loop-construction.md) — how a scrolling map layer is admitted or
   constructed into a repeat unit, the mirror and generated-bridge methods, why a provider mask is
   not sufficient on its own, and the period consequences every consumer must carry.

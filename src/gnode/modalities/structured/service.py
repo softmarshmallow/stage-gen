@@ -55,6 +55,16 @@ class StructuredGenerationService[T]:
     async def aclose(self) -> None:
         await self._backend.aclose()
 
+    @property
+    def provider(self) -> str:
+        """Stable provider identity used by composition and cache contracts."""
+        return self._backend.provider
+
+    @property
+    def model(self) -> str:
+        """Stable model identity used by composition and cache contracts."""
+        return self._backend.model
+
     async def generate(
         self, request: StructuredGenerationRequest[T]
     ) -> StructuredGenerationResult[T]:

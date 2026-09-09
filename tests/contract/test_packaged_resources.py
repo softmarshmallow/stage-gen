@@ -162,7 +162,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # The GPT Image 2.5 Sunburst migration (2026-09-09) adds route validation,
         # OpenRouter pacing, and provenance fields without adding packaged media.
         # The wheel measured 5,605,983; the narrowly re-pinned ceiling is 5,650,000.
-        assert sum(wheel_entries.values()) < 5_650_000
+        # Portrait motion (2026-09-10) promotes nine source modules (128,908 B),
+        # provider request policy and service identity accessors. The inspected
+        # wheel is 5,752,229 B unpacked, with no experimental media or spike paths.
+        assert sum(wheel_entries.values()) < 5_800_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
         assert {
@@ -272,7 +275,11 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # tiers across sixteen test files. The ceiling is 9,900,000. Nothing the
         # generator writes is in the archive: it writes into the gate's scratch
         # directory and is deleted with it.
-        assert sum(sdist_entries.values()) < 9_900_000
+        # Portrait motion adds its component/CLI, provider policy, synthetic tests,
+        # four-card JSON example and specification. The inspected source archive
+        # is 10,151,315 B unpacked; the compressed 4 MB ceiling and all media,
+        # ignored-path and secret exclusions remain unchanged.
+        assert sum(sdist_entries.values()) < 10_200_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)

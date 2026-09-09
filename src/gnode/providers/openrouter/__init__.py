@@ -6,7 +6,11 @@ from .image import (
     supports_openrouter_sunburst_model,
 )
 from .music import OpenRouterMusicBackend
-from .structured import OpenRouterStructuredBackend
+from .structured import (
+    OpenRouterProviderRouting,
+    OpenRouterStructuredBackend,
+    OpenRouterStructuredRequestPolicy,
+)
 from .tool_loop import OpenRouterToolLoopBackend
 
 __all__ = [
@@ -15,7 +19,9 @@ __all__ = [
     "OPENROUTER_IMAGE_MODEL",
     "OpenRouterImageBackend",
     "OpenRouterMusicBackend",
+    "OpenRouterProviderRouting",
     "OpenRouterStructuredBackend",
+    "OpenRouterStructuredRequestPolicy",
     "OpenRouterToolLoopBackend",
     "supports_openrouter_sunburst_model",
 ]

@@ -14,6 +14,8 @@ dependencies = [
   "httpx>=0.28,<1",
   "pillow>=11,<13",
   "pydantic>=2.11,<3",
+  "numpy>=2.2,<3",
+  "scipy>=1.15,<2",
 ]
 
 [project.optional-dependencies]
@@ -23,6 +25,7 @@ server = [
 ]
 
 [project.scripts]
+stage-gen-portrait-motion = "stage_gen.interfaces.portrait_motion:entrypoint"
 stage-gen = "stage_gen.interfaces.cli:entrypoint"
 stage-gen-py = "stage_gen.interfaces.cli:entrypoint"
 stage-gen-concept = "stage_gen.concept_studio.cli:entrypoint"
@@ -105,4 +108,8 @@ files = ["src", "tests", "scripts"]
 
 [[tool.mypy.overrides]]
 module = ["PIL.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["scipy.*"]
 ignore_missing_imports = true
