@@ -37,12 +37,14 @@ static func terrain(world: PlatformerWorld) -> Dictionary:
 ## Step the world once. `step` is `{dt, now, frame}` — milliseconds, milliseconds,
 ## and the ordinal of this frame counting from one.
 static func step(world: PlatformerWorld, step_of: Dictionary) -> void:
-	# Both of these live one frame, and both are the caller's business only to the
+	# All three live one frame, and all three are the caller's business only to the
 	# extent that the caller must not forget them — so they are not the caller's
-	# business. `blows` is what the interface draws numbers from and `events` is
-	# what the systems talk to each other with.
+	# business. `blows` is what the interface draws numbers and sparks from,
+	# `notices` what it says the player gained in, and `events` what the systems
+	# talk to each other with.
 	world.events.begin_frame()
 	world.blows = []
+	world.notices = []
 	# The conversation before the body, because a held frame is decided before it
 	# is spent.
 	PlatformerSoundtrackSystem.update(world, step_of)

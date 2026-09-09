@@ -188,8 +188,22 @@ static func _award(world: PlatformerWorld, mob: Dictionary) -> void:
 	if int(granted["awarded"]) <= 0:
 		return
 	world.progression = granted["state"]
+	world.notices.append(
+		{"kind": FamilyStatLog.KIND_EXPERIENCE, "amount": int(granted["awarded"]), "level": 0}
+	)
 	if int(granted["levelsGained"]) <= 0:
 		return
+	# One line per level, because two levels in one kill is two things that
+	# happened and a single line saying the higher number would lose the first.
+	var reached := int(world.progression["level"])
+	for step in range(int(granted["levelsGained"])):
+		world.notices.append(
+			{
+				"kind": FamilyStatLog.KIND_LEVEL_UP,
+				"amount": 0,
+				"level": reached - int(granted["levelsGained"]) + step + 1,
+			}
+		)
 	# A rank widens the pool *and* fills it, through the gauge. Moving the ceiling
 	# alone would leave the new capacity permanently unreachable — a level-up that
 	# arrives as an empty promise in the middle of the fight that earned it.

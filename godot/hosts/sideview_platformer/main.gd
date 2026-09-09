@@ -42,6 +42,7 @@ var numbers: PlatformerCombatText = null
 var impacts: PlatformerImpacts = null
 var hud: PlatformerHud = null
 var defeat_card: PlatformerDefeatCard = null
+var stat_log: PlatformerStatLog = null
 
 var _banked: float = 0.0
 var _now: float = 0.0
@@ -105,6 +106,8 @@ func _ready() -> void:
 	_root.add_child(numbers)
 	hud = PlatformerHud.of(package, package.manifest)
 	add_child(hud)
+	stat_log = PlatformerStatLog.of()
+	add_child(stat_log)
 	defeat_card = PlatformerDefeatCard.of(package, package.manifest)
 	if defeat_card != null:
 		add_child(defeat_card)
@@ -144,7 +147,7 @@ func _process(delta: float) -> void:
 	stage.open_on(world)
 	var scroll := Vector2(float(world.camera["scrollX"]), float(world.camera["scrollY"]))
 	stage.sync(scroll)
-	actors.sync(world, scroll, delta)
+	actors.sync(world, scroll, delta, _now * 1000.0)
 	scenery.sync(world, scroll, delta)
 	bars.sync(world, scroll)
 	# Raised where the blow landed, a little above the drawn top of the body it
@@ -165,10 +168,15 @@ func _process(delta: float) -> void:
 	# The sparks take the same list, and take it before it is cleared: a blow is
 	# one event, and the number and the spark it throws are two readings of it.
 	impacts.take(world.blows, _now * 1000.0)
+	impacts.set_swing(world)
 	world.blows = []
 	impacts.sync(scroll, _now * 1000.0)
 	numbers.sync(scroll, _now * 1000.0)
-	hud.sync(world)
+	# The lines the player gained, taken before the world clears them at the top
+	# of the next frame.
+	stat_log.say(world.notices, _now * 1000.0)
+	stat_log.sync(_now * 1000.0)
+	hud.sync(world, _now * 1000.0)
 	if defeat_card != null:
 		defeat_card.sync(world, _now * 1000.0)
 

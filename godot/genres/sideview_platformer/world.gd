@@ -114,6 +114,14 @@ var shakes: Array = []
 ## than adding to it. A tremor that accumulated would walk the view off the map.
 var shake_carried: Dictionary = {"x": 0.0, "y": 0.0}
 
+## What the player gained this frame, for a host that says so on the screen:
+## `{kind, amount, level}` per line.
+##
+## Not published and not hashed, for the same reason the blows are not: the
+## golden records the progression the award landed in, and a line of text about it
+## is a second reading of the same fact rather than a fact of its own.
+var notices: Array = []
+
 ## The blows this frame landed, for a host that draws numbers and sparks over
 ## them.
 ##

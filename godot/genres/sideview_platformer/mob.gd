@@ -50,6 +50,14 @@ const KNOCKBACK_MS := 220.0
 ## put anything else on.
 const DEATH_FADE_MS := 280.0
 
+## How long a freshly placed creature takes to fade in, so a spawn in view reads
+## as arriving.
+##
+## The population policy prefers off-screen columns, but a crowded zone falls back
+## to whatever is free, and a body that simply appears at full opacity reads as a
+## glitch rather than as a creature.
+const SPAWN_FADE_MS := 240.0
+
 ## The height every creature is drawn to, whatever its own art measures.
 const DRAWN_HEIGHT := 110.0
 
@@ -631,6 +639,31 @@ static func _surface_at_column(map: Dictionary, column: int) -> float:
 	return PlatformerVertical.terrain_surface_y(
 		height, PlatformerMaps.TILE_PX, PlatformerMaps.BASELINE_Y
 	)
+
+
+## How solid a creature is drawn, on the way in and on the way out.
+##
+## Both are timing rather than art, so they belong beside the constant the prune
+## rule already reads: a view that derived its own fade from its own clock would be
+## a second answer to a question this file has been answering all along, and the
+## two would part company the first time a hitstop held one of them.
+static func spawn_alpha(placed_at_ms: float, now_ms: float) -> float:
+	if placed_at_ms < 0.0:
+		return 1.0
+	return clampf((now_ms - placed_at_ms) / SPAWN_FADE_MS, 0.0, 1.0)
+
+
+## A dying creature's opacity. One while it lives, falling to nothing over the
+## same window `faded` prunes it on — so it is gone from the screen on the frame
+## it is gone from the world, rather than blinking out early and leaving an
+## invisible corpse in the list.
+static func death_alpha(mob: Dictionary, now_ms: float) -> float:
+	if bool(mob["alive"]):
+		return 1.0
+	var died := float(mob.get("diedAtMs", -1.0))
+	if died < 0.0:
+		return 0.0
+	return clampf(1.0 - (now_ms - died) / DEATH_FADE_MS, 0.0, 1.0)
 
 
 ## Has this creature finished fading out? A caller prunes on it; nothing here

@@ -20,6 +20,8 @@ const MOB_HEIGHT_TILES := 110.0 / 64.0
 var _package: HostRunDir = null
 var _player: HostActor = null
 var _mobs: Dictionary = {}
+## When this view first drew each creature, for the fade in.
+var _placed_at: Dictionary = {}
 var _shots: Dictionary = {}
 var _mob_specs: Dictionary = {}
 var _shot_texture: Texture2D = null
@@ -57,7 +59,7 @@ static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerActors:
 
 
 ## Put every living thing where the world says it is.
-func sync(world: PlatformerWorld, scroll: Vector2, dt: float) -> void:
+func sync(world: PlatformerWorld, scroll: Vector2, dt: float, now_ms: float) -> void:
 	if _player != null:
 		_player.show_motion(_player_strip(world), int(world.player["airJumpsUsed"]))
 		_player.advance(dt)
@@ -65,7 +67,7 @@ func sync(world: PlatformerWorld, scroll: Vector2, dt: float) -> void:
 			float(world.player["x"]) - scroll.x, float(world.player["y"]) - scroll.y
 		)
 		_player.flip_h = str(world.player["facing"]) == PlatformerPlayer.FACING_LEFT
-	_sync_mobs(world, scroll, dt)
+	_sync_mobs(world, scroll, dt, now_ms)
 	_sync_shots(world, scroll)
 	_sync_drops(world, scroll)
 
@@ -93,7 +95,7 @@ func _player_strip(world: PlatformerWorld) -> String:
 			return state
 
 
-func _sync_mobs(world: PlatformerWorld, scroll: Vector2, dt: float) -> void:
+func _sync_mobs(world: PlatformerWorld, scroll: Vector2, dt: float, now_ms: float) -> void:
 	var seen := {}
 	for entry: Variant in world.mobs:
 		var mob: Dictionary = entry
@@ -104,9 +106,22 @@ func _sync_mobs(world: PlatformerWorld, scroll: Vector2, dt: float) -> void:
 			if made == null:
 				continue
 			_mobs[id] = made
+			# When this view first saw it, which is what a fade-in is measured
+			# from. A view fact rather than a world one: the world knows when a
+			# creature was stood up, and the screen knows when it first drew it.
+			_placed_at[id] = now_ms
 			add_child(made)
 		var actor: HostActor = _mobs[id]
-		actor.visible = bool(mob["alive"])
+		# A killed creature used to be hidden on the frame it died, which threw
+		# away the death strip the package drew and left an invisible corpse
+		# standing in the list until the prune caught up with it. It fades out
+		# over the same window the prune reads, and a fresh one fades in, so a
+		# spawn inside the view reads as arriving rather than as a glitch.
+		actor.visible = true
+		actor.modulate.a = minf(
+			PlatformerMob.spawn_alpha(float(_placed_at.get(id, -1.0)), now_ms),
+			PlatformerMob.death_alpha(mob, now_ms)
+		)
 		actor.show_motion(_mob_strip(str(mob["state"])))
 		actor.advance(dt)
 		actor.place(float(mob["x"]) - scroll.x, float(mob["y"]) - scroll.y)
@@ -118,6 +133,7 @@ func _sync_mobs(world: PlatformerWorld, scroll: Vector2, dt: float) -> void:
 		if not seen.has(id):
 			(_mobs[id] as Node).queue_free()
 			_mobs.erase(id)
+			_placed_at.erase(id)
 
 
 ## Creature strips are published under the creature's own name.
