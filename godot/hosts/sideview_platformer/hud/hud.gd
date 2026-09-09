@@ -66,7 +66,14 @@ func sync(world: PlatformerWorld, now_ms: float) -> void:
 		if bool(world.intent.get("toggleInventory", false)):
 			_panel.toggle()
 		_panel.sync(world)
-	_bar.show_gauge(float(world.player["hp"]), float(world.player["maxHp"]), false)
+	# The third argument flashes the whole bar, so a blow that connected is
+	# visible on the readout itself and not only on the body. It was passed
+	# `false` unconditionally, which drew the flash never.
+	_bar.show_gauge(
+		float(world.player["hp"]),
+		float(world.player["maxHp"]),
+		bool(world.player.get("invulnerable", false))
+	)
 	# The name the package published, not the id it files the map under. A player
 	# reading `road-map` in the corner is reading a database key.
 	_label.text = "%s   %d / %d" % [
