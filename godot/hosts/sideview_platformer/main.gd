@@ -40,6 +40,7 @@ var scenery: PlatformerScenery = null
 var bars: PlatformerMobBars = null
 var numbers: PlatformerCombatText = null
 var hud: PlatformerHud = null
+var defeat_card: PlatformerDefeatCard = null
 
 var _banked: float = 0.0
 var _now: float = 0.0
@@ -101,6 +102,9 @@ func _ready() -> void:
 	_root.add_child(numbers)
 	hud = PlatformerHud.of(package, package.manifest)
 	add_child(hud)
+	defeat_card = PlatformerDefeatCard.of(package, package.manifest)
+	if defeat_card != null:
+		add_child(defeat_card)
 
 	stage.open_on(world)
 	_scale_to_window()
@@ -158,6 +162,8 @@ func _process(delta: float) -> void:
 	world.blows = []
 	numbers.sync(scroll, _now * 1000.0)
 	hud.sync(world)
+	if defeat_card != null:
+		defeat_card.sync(world, _now * 1000.0)
 
 
 ## One frame of the world, in the order the genre declares it.
