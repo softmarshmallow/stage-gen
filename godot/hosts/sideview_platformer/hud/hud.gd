@@ -1,5 +1,5 @@
 class_name PlatformerHud
-extends CanvasLayer
+extends Control
 
 ## What a run is read by: the place it is in, and the card that names it on the way
 ## in.
@@ -36,6 +36,7 @@ var _banner_at_ms: float = -1.0
 
 static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerHud:
 	var made := PlatformerHud.new()
+	made.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	made._panel = PlatformerInventoryPanel.of(package, manifest)
 	if made._panel != null:
 		made.add_child(made._panel)

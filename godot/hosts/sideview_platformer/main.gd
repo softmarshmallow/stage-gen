@@ -44,6 +44,7 @@ var hud: PlatformerHud = null
 var defeat_card: PlatformerDefeatCard = null
 var stat_log: PlatformerStatLog = null
 var loading: PlatformerLoadingCard = null
+var music: PlatformerMusic = null
 ## The map the stage has actually been built for, which is not the map the
 ## world is on during the frame the card goes up.
 var _built_map_id: String = ""
@@ -60,6 +61,16 @@ var _banked: float = 0.0
 var _now: float = 0.0
 var _frame: int = 0
 var _root: Node2D = null
+## Everything drawn on the screen rather than in the world, under the same
+## letterbox as the world.
+##
+## The furniture used to hang off the host directly, so it was laid out in the
+## 1280x720 the manifest publishes rectangles in and *drawn* in whatever pixels the
+## window happened to have. At the design size nothing looked wrong; at any other
+## the banner sat left of centre, the conversation panel ran off its own frame and
+## the veil behind the death card stopped short of the edge. Scaled with the world
+## rather than beside it, one rectangle means one thing everywhere.
+var _screen: Node2D = null
 ## A capture's held keys, so one picture can be taken of a body in motion. Empty
 ## for a person, who is holding the keys themselves.
 var _forced_intent: PackedStringArray = PackedStringArray()
@@ -131,19 +142,27 @@ func _ready() -> void:
 	_root.add_child(impacts)
 	numbers = PlatformerCombatText.of(_numeral_face)
 	_root.add_child(numbers)
+	_screen = Node2D.new()
+	# Above every layer the world draws on, so a panel is never behind the fight it
+	# is reporting on.
+	_screen.z_index = 1000
+	add_child(_screen)
 	hud = PlatformerHud.of(package, package.manifest)
 	hud.wear(_run_theme)
-	add_child(hud)
+	_screen.add_child(hud)
 	stat_log = PlatformerStatLog.of()
 	stat_log.theme = _run_theme
-	add_child(stat_log)
+	_screen.add_child(stat_log)
 	loading = PlatformerLoadingCard.of()
 	loading.theme = _run_theme
-	add_child(loading)
+	_screen.add_child(loading)
+	music = PlatformerMusic.of(package, package.manifest)
+	if music != null:
+		add_child(music)
 	defeat_card = PlatformerDefeatCard.of(package, package.manifest)
 	if defeat_card != null:
 		defeat_card.theme = _run_theme
-		add_child(defeat_card)
+		_screen.add_child(defeat_card)
 
 	stage.open_on(world)
 	_scale_to_window()
@@ -157,9 +176,7 @@ func _ready() -> void:
 	_bot_badge.position = Vector2(16.0, PlatformerStage.VIEW_HEIGHT - 32.0)
 	_bot_badge.theme = _run_theme
 	_bot_badge.visible = false
-	var badge_layer := CanvasLayer.new()
-	badge_layer.add_child(_bot_badge)
-	add_child(badge_layer)
+	_screen.add_child(_bot_badge)
 
 	set_process(true)
 
@@ -198,6 +215,11 @@ func _process(delta: float) -> void:
 		# steps the moment the card comes down.
 		_banked = 0.0
 	loading.sync(_wall_ms)
+	# Before the card's early return, because music is furniture: it keeps running
+	# while the simulation is held, and a silence behind a loading card is exactly
+	# where one would be most obvious.
+	if music != null:
+		music.sync(world, _wall_ms)
 	# Nothing steps behind the card. A player who cannot see the game cannot play
 	# it, and a creature that walked up and hit them during a load landed a blow
 	# they had no way to answer.
@@ -310,12 +332,18 @@ func _bot_intent(now_ms: float) -> Dictionary:
 func _scale_to_window() -> void:
 	var size := Vector2(get_viewport().get_visible_rect().size)
 	var factor := minf(size.x / PlatformerStage.VIEW_WIDTH, size.y / PlatformerStage.VIEW_HEIGHT)
-	if _root != null:
-		_root.scale = Vector2(factor, factor)
-		_root.position = Vector2(
-			(size.x - PlatformerStage.VIEW_WIDTH * factor) / 2.0,
-			(size.y - PlatformerStage.VIEW_HEIGHT * factor) / 2.0
-		)
+	var origin := Vector2(
+		(size.x - PlatformerStage.VIEW_WIDTH * factor) / 2.0,
+		(size.y - PlatformerStage.VIEW_HEIGHT * factor) / 2.0
+	)
+	# The world and the furniture take the same letterbox. They did not, and that
+	# is why every rectangle the manifest publishes landed somewhere else on any
+	# window that was not exactly the design size.
+	for layer: Node2D in [_root, _screen]:
+		if layer == null:
+			continue
+		layer.scale = Vector2(factor, factor)
+		layer.position = origin
 
 
 func _read_json(path: String) -> Variant:

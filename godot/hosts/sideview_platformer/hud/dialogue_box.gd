@@ -149,10 +149,8 @@ func sync(world: PlatformerWorld) -> void:
 
 ## The speaker's face, at the expression the scenario has them staged in.
 ##
-## Nothing is drawn for a speaker with no published sheet, and that is the right
-## answer rather than a placeholder: the player character is a member of the cast
-## with no villager record, so narration and the player's own lines leave the slot
-## empty exactly as they should.
+## Nothing is drawn for a speaker with no published sheet, which leaves narration —
+## a line nobody said — with an empty slot, exactly as it should.
 func _show_portrait(world: PlatformerWorld, speaker: Variant) -> void:
 	_portrait.visible = false
 	if speaker == null:
@@ -184,28 +182,39 @@ func _show_portrait(world: PlatformerWorld, speaker: Variant) -> void:
 	_portrait.visible = true
 
 
-## Every villager's expression sheet, by the id the scenario stages them under.
+## Every face in the cast, by the id the scenario stages them under.
 ##
-## `npc_id` and the scenario's `actor_id` are the same name, which is what lets a
-## line find its face without a second table binding them.
+## `npc_id`, `player_id` and the scenario's `actor_id` are one name, which is what
+## lets a line find its face without a second table binding them.
+##
+## **The player is in the cast.** Only the villagers were read here, so a
+## conversation showed whoever was being spoken to and an empty slot whenever the
+## character being played answered — which is half of every conversation. The
+## player publishes the same block in the same shape, one level up in the document
+## because there is one of them; it is a face like any other and the only thing
+## special about it is where it is filed.
 static func _dialogue_sheets(package: HostRunDir, manifest: Dictionary) -> Dictionary:
 	var made := {}
-	for entry: Variant in (manifest.get("npcs", []) as Array):
-		var npc: Dictionary = entry
-		var block: Dictionary = npc.get("dialogue", {})
+	var cast: Array = (manifest.get("npcs", []) as Array).duplicate()
+	var player: Dictionary = manifest.get("player", {})
+	if not player.is_empty():
+		cast.append({"npc_id": player.get("player_id", ""), "dialogue": player.get("dialogue", {})})
+	for entry: Variant in cast:
+		var member: Dictionary = entry
+		var block: Dictionary = member.get("dialogue", {})
 		if block.is_empty():
 			continue
 		var art := package.texture(str((block.get("asset", {}) as Dictionary).get("path", "")))
 		if art == null:
 			push_warning(
 				"platformer host: %s publishes a dialogue sheet the run does not carry, so it speaks faceless"
-				% str(npc.get("npc_id", "(unnamed)"))
+				% str(member.get("npc_id", "(unnamed)"))
 			)
 			continue
 		var names := PackedStringArray()
 		for name: Variant in (block.get("expressions", []) as Array):
 			names.append(str(name))
-		made[str(npc.get("npc_id", ""))] = {
+		made[str(member.get("npc_id", ""))] = {
 			"texture": art,
 			"columns": int(block.get("columns", 1)),
 			"rows": int(block.get("rows", 1)),

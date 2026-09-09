@@ -62,7 +62,14 @@ static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerActors:
 func sync(world: PlatformerWorld, scroll: Vector2, dt: float, now_ms: float) -> void:
 	if _player != null:
 		_player.show_motion(_player_strip(world), int(world.player["airJumpsUsed"]))
-		_player.advance(dt)
+		# The climb is `gameplay_driven`: the world already works out which rung
+		# the body is on, from the distance it has actually climbed, so the strip
+		# is told rather than clocked. Everything else keeps its own tempo.
+		var rung: Variant = world.player["climbFrame"]
+		if str(world.player["state"]) == "climb" and rung != null:
+			_player.show_frame(int(rung))
+		else:
+			_player.advance(dt)
 		_player.place(
 			float(world.player["x"]) - scroll.x, float(world.player["y"]) - scroll.y
 		)

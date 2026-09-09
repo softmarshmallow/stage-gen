@@ -58,6 +58,22 @@ on its own; a badge says so on screen while the bot is driving. The bot takes no
 gate — nothing in the roster asks a portal to open — so it plays the map it is
 standing on.
 
+## What it plays
+
+The soundtrack the package publishes, following the world rather than choosing:
+which track is on is simulation state, off a shuffle bag seeded from the package
+digest, rebound on map entry and swapped for the length of a gate's fight. The
+host crossfades and nothing else.
+
+One divergence, deliberate. The world holds the first track back until a key is
+pressed, because a page may not open an audio context without a gesture and both
+goldens hash the frame `started` turns true — so the *state* keeps the browser's
+rule. The host does not: it plays the track the world has queued while it waits,
+because obeying a browser's restriction here would mean a player who walks off on
+the arrow keys hears nothing for as long as they play.
+
+This package publishes no sound effects, so there are none to play.
+
 ## What it refuses
 
 A refusal is a sentence on screen rather than a black window. The host refuses a

@@ -131,6 +131,32 @@ func show_motion(state: String, impulses: int = 0) -> void:
 	_apply_region()
 
 
+## Show one frame of the current strip, chosen by the caller rather than by a clock.
+##
+## The playback mode a package publishes has three answers and this is the third.
+## `hold` shows one frame forever, `loop` runs on its own time — and
+## `gameplay_driven` means the *world* decides, because the motion is a reading of
+## something the simulation is doing rather than a performance with a tempo of its
+## own. A climb is the case: its frame comes from how far up the ladder the body
+## has actually travelled, so it stops when the body stops and reverses when it
+## goes back down. Clocked instead, it ran to the last frame of a two-frame strip
+## and stayed there, which is a body sliding up a ladder without moving.
+func show_frame(index: int) -> void:
+	if _state == "":
+		return
+	var frames: Array = (_motions[_state] as Dictionary)["frames"]
+	if frames.is_empty():
+		return
+	var wanted := posmod(index, frames.size())
+	if wanted == _frame:
+		return
+	_frame = wanted
+	# The clock is reset with it: a strip the world is driving must not also be
+	# carrying a fraction of a step from the last time something advanced it.
+	_clock = 0.0
+	_apply_region()
+
+
 ## Advance the strip by `dt` seconds of the caller's clock.
 func advance(dt: float) -> void:
 	if _state == "":
