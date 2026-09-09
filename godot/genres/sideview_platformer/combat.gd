@@ -138,7 +138,7 @@ static func critical_damage(base_amount: float, profile_name: String, seed_value
 		return {"amount": base_amount, "critical": false}
 	var rule: Dictionary = CRITICAL_PROFILES.get(profile_name, CRITICAL_PROFILES["none"])
 	var chance := float(rule["chance"])
-	if chance <= 0.0 or _unit_roll(seed_value) >= chance:
+	if chance <= 0.0 or unit_roll(seed_value) >= chance:
 		return {"amount": base_amount, "critical": false}
 	return {
 		"amount": maxf(1.0, round(base_amount * float(rule["multiplier"]))), "critical": true
@@ -148,7 +148,7 @@ static func critical_damage(base_amount: float, profile_name: String, seed_value
 ## One draw on [0, 1) from a blow's seed. Not a generator: a blow is drawn from
 ## its own seed rather than from a stream, so the order blows are resolved in
 ## cannot change what any one of them rolls.
-static func _unit_roll(seed_value: int) -> float:
+static func unit_roll(seed_value: int) -> float:
 	var mixed := seed_value & KernelHash.MASK
 	mixed = (mixed ^ (mixed >> 16)) & KernelHash.MASK
 	mixed = KernelHash.imul(mixed, 0x7feb352d)

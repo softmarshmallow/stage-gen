@@ -9,8 +9,8 @@ extends RefCounted
 ## every creature *is* before deciding where the next one may go, and a step
 ## folded into the same system would have it reading half-moved bodies.
 ##
-## The health a creature carries is its rank's, and its temperament is the
-## package's word or its rank's default. Both are the scene's table rather than
+## The health a creature carries is its rank's, at the package's number scale, and
+## its temperament is the package's word or its rank's default. Both are the scene's table rather than
 ## the package's, which is the same division the population policy keeps: the
 ## package names species and populations, and what those words are worth is the
 ## consumer's.
@@ -92,7 +92,7 @@ static func populate(world: PlatformerWorld, step: Dictionary) -> void:
 				instance_id,
 				slot_of(world, String(spec.get("mob_id", ""))),
 				aggression_of(spec),
-				health_of(spec),
+				health_of(spec, PlatformerNumberScale.profile_of(world.package["combat"])),
 				float(reservation["x"]),
 				float(reservation["y"]),
 				map
@@ -261,8 +261,11 @@ static func slot_of(world: PlatformerWorld, mob_id: String) -> int:
 	return -1
 
 
-static func health_of(spec: Dictionary) -> int:
-	return int(HEALTH_BY_RANK.get(_rank(spec), DEFAULT_HEALTH))
+static func health_of(spec: Dictionary, scale: Dictionary = {}) -> int:
+	var base := int(HEALTH_BY_RANK.get(_rank(spec), DEFAULT_HEALTH))
+	if scale.is_empty():
+		return base
+	return PlatformerNumberScale.mob_health(base, scale)
 
 
 ## The temperament a package named, or the one its rank implies.

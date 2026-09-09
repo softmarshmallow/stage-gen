@@ -5,7 +5,8 @@ extends RefCounted
 ## The port shipped the run — a punch, a rise, a fade — and left out the four
 ## things that make a number read as a struck object rather than as text: the
 ## knock, the critical's extra reach, the per-digit arrival, and the column two
-## blows in one place stack into. This is the proof of those four.
+## blows in one place stack into. This is the proof of those four, and of the
+## fifth thing a number needs before any of them matter: how big it is.
 
 
 func run(h: TestHarness) -> void:
@@ -14,6 +15,7 @@ func run(h: TestHarness) -> void:
 	_the_digits(h)
 	_the_row(h)
 	_the_column(h)
+	_the_scale(h)
 	h.done()
 
 
@@ -254,4 +256,72 @@ func _the_column(h: TestHarness) -> void:
 		-size * FamilyCombatText.STACK_STEP_SHARE * 2.0,
 		1e-9,
 		"the column steps once per number already standing in it"
+	)
+
+
+## How big the numbers are.
+##
+## The gap the goldens could not see. Both parity fixtures are published at
+## `unit_v1`, where the scale is the identity and every arithmetic is unchanged —
+## so six hundred frames of exact agreement said nothing at all about a package
+## that names `arcade_v1`, which is what the game the port exists for actually
+## publishes.
+func _the_scale(h: TestHarness) -> void:
+	var unit := PlatformerNumberScale.profile(PlatformerNumberScale.UNIT)
+	var arcade := PlatformerNumberScale.profile(PlatformerNumberScale.ARCADE)
+	h.assert_eq(
+		PlatformerNumberScale.profile("no_such_scale_v9"),
+		unit,
+		"a scale this build does not know plays at unit rather than refusing"
+	)
+	h.assert_eq(
+		PlatformerNumberScale.profile_of({}),
+		unit,
+		"and a package that publishes none is every package that predates the field"
+	)
+	h.assert_eq(
+		PlatformerNumberScale.profile_of({"number_scale": PlatformerNumberScale.ARCADE}),
+		arcade,
+		"a package that names one gets it"
+	)
+
+	h.assert_eq(
+		PlatformerNumberScale.outgoing_damage(1.0, unit, 12345),
+		1.0,
+		"at unit scale a blow is worth exactly what the weapon said"
+	)
+	h.assert_eq(
+		PlatformerNumberScale.mob_health(3, unit), 3, "and a creature carries exactly its rank's"
+	)
+	h.assert_eq(
+		PlatformerNumberScale.mob_health(3, arcade),
+		300,
+		"at arcade scale the pool is exact, so the ladder between ranks is preserved"
+	)
+
+	var seen := {}
+	var lowest := 1000.0
+	var highest := 0.0
+	for seed_value in range(400):
+		var amount := PlatformerNumberScale.outgoing_damage(1.0, arcade, seed_value)
+		seen[amount] = true
+		lowest = minf(lowest, amount)
+		highest = maxf(highest, amount)
+		h.assert_eq(
+			amount,
+			PlatformerNumberScale.outgoing_damage(1.0, arcade, seed_value),
+			"the same blow is worth the same twice, because it is a hash and not a draw"
+		)
+	h.assert_true(
+		seen.size() > 8,
+		"a column of arcade numbers is a column of different numbers (%d distinct)" % seen.size()
+	)
+	h.assert_true(
+		lowest >= 88.0 and highest <= 112.0,
+		"varying around a hundred by the twelve per cent it declares (%d..%d)"
+			% [int(lowest), int(highest)]
+	)
+	h.assert_true(
+		PlatformerNumberScale.outgoing_damage(0.0, arcade, 7) <= 0.0,
+		"a blow worth nothing is still worth nothing, rather than scaled up into one"
 	)

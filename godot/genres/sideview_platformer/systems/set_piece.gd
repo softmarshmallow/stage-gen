@@ -153,7 +153,9 @@ static func _place(
 		"",
 		slot,
 		PlatformerMobsSystem.aggression_of(spec),
-		PlatformerMobsSystem.health_of(spec),
+		PlatformerMobsSystem.health_of(
+			spec, PlatformerNumberScale.profile_of(world.package["combat"])
+		),
 		float(column) * PlatformerMaps.TILE_PX + PlatformerMaps.TILE_PX / 2.0,
 		PlatformerVertical.terrain_surface_y(
 			heights[column], PlatformerMaps.TILE_PX, PlatformerMaps.BASELINE_Y

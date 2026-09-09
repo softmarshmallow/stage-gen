@@ -90,8 +90,16 @@ static func _pay_out(
 	var seed_value := PlatformerCombat.blow_seed(
 		world.blow_sequence, seed_x, int(mob["ladderIndex"])
 	)
+	# The scale before the critical, which is the browser's order and the one that
+	# matters: a critical is a multiple of what the blow was already worth, so
+	# scaling after it would round the doubling away at unit scale and compound it
+	# at arcade.
 	var struck := PlatformerCombat.critical_damage(
-		float(weapon["damage"]),
+		PlatformerNumberScale.outgoing_damage(
+			float(weapon["damage"]),
+			PlatformerNumberScale.profile_of(world.package["combat"]),
+			seed_value
+		),
 		PlatformerProgression.named(world.package["combat"], "critical_profile", "none"),
 		seed_value
 	)
