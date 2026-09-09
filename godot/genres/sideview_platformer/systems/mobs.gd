@@ -206,6 +206,9 @@ static func strike(world: PlatformerWorld, step: Dictionary) -> void:
 				"incoming": true,
 				"x": float(world.player["x"]),
 				"y": float(world.player["y"]),
+				"died": bool(world.player["defeated"]),
+				"dirSign": int(pending["dirSign"]),
+				"seed": seed_value,
 			}
 		)
 		PlatformerTranscript.record(

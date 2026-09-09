@@ -39,6 +39,7 @@ var actors: PlatformerActors = null
 var scenery: PlatformerScenery = null
 var bars: PlatformerMobBars = null
 var numbers: PlatformerCombatText = null
+var impacts: PlatformerImpacts = null
 var hud: PlatformerHud = null
 var defeat_card: PlatformerDefeatCard = null
 
@@ -98,6 +99,8 @@ func _ready() -> void:
 	_root.add_child(scenery)
 	bars = PlatformerMobBars.of()
 	_root.add_child(bars)
+	impacts = PlatformerImpacts.of()
+	_root.add_child(impacts)
 	numbers = PlatformerCombatText.of()
 	_root.add_child(numbers)
 	hud = PlatformerHud.of(package, package.manifest)
@@ -159,7 +162,11 @@ func _process(delta: float) -> void:
 			),
 			_now * 1000.0
 		)
+	# The sparks take the same list, and take it before it is cleared: a blow is
+	# one event, and the number and the spark it throws are two readings of it.
+	impacts.take(world.blows, _now * 1000.0)
 	world.blows = []
+	impacts.sync(scroll, _now * 1000.0)
 	numbers.sync(scroll, _now * 1000.0)
 	hud.sync(world)
 	if defeat_card != null:

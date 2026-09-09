@@ -126,6 +126,12 @@ static func _pay_out(
 			"incoming": false,
 			"x": float(mob["x"]),
 			"y": float(mob["y"]),
+			# What the presentation needs and the number does not: whether the
+			# blow killed, which way it came from, and the seed its sparks are
+			# thrown from — so a replayed run throws the same ones.
+			"died": bool(blow["died"]),
+			"dirSign": direction,
+			"seed": seed_value,
 		}
 	)
 	if not bool(blow["died"]):

@@ -114,7 +114,8 @@ var shakes: Array = []
 ## than adding to it. A tremor that accumulated would walk the view off the map.
 var shake_carried: Dictionary = {"x": 0.0, "y": 0.0}
 
-## The blows this frame landed, for a host that draws numbers over them.
+## The blows this frame landed, for a host that draws numbers and sparks over
+## them.
 ##
 ## Not published and not hashed: the golden records a kill and a blow on the
 ## body, and says nothing about the ordinary hits between them. A view still has
