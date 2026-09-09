@@ -255,3 +255,21 @@ static func _motions(spec: Dictionary) -> Array:
 			}
 		)
 	return made
+
+
+## Decode every strip this map can ask for, before it asks.
+##
+## A creature's atlas is read the first time one of its kind stands up, and a
+## hunting ground stands twenty-eight of them up over the first few seconds — so
+## the map opened at full speed and then stuttered its way through the population,
+## a decode at a time, exactly where the fight was starting. The work is the same
+## either way; what changes is whether it happens behind a card that says so or
+## underneath a player who is being chased.
+##
+## Cheap to call twice: the run package caches by reference, so a strip already
+## read costs a dictionary lookup.
+func warm(world: PlatformerWorld) -> void:
+	for entry: Variant in (world.package["mobs"] as Array):
+		var spec: Dictionary = entry
+		for motion: Variant in _motions(spec):
+			_package.texture(String((motion as Dictionary)["atlas"]))

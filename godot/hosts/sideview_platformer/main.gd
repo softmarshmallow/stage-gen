@@ -43,6 +43,18 @@ var impacts: PlatformerImpacts = null
 var hud: PlatformerHud = null
 var defeat_card: PlatformerDefeatCard = null
 var stat_log: PlatformerStatLog = null
+var loading: PlatformerLoadingCard = null
+## The map the stage has actually been built for, which is not the map the
+## world is on during the frame the card goes up.
+var _built_map_id: String = ""
+## Wall time since the host opened, in milliseconds.
+##
+## The loading card's own clock, and it has to be a different one from the world's:
+## the card stops the simulation while it is up, so the simulation's clock is
+## frozen for exactly as long as the card needs to time itself against. Fed from
+## the frame delta rather than read off the system, so it stays a number this file
+## owns.
+var _wall_ms: float = 0.0
 
 var _banked: float = 0.0
 var _now: float = 0.0
@@ -125,6 +137,9 @@ func _ready() -> void:
 	stat_log = PlatformerStatLog.of()
 	stat_log.theme = _run_theme
 	add_child(stat_log)
+	loading = PlatformerLoadingCard.of()
+	loading.theme = _run_theme
+	add_child(loading)
 	defeat_card = PlatformerDefeatCard.of(package, package.manifest)
 	if defeat_card != null:
 		defeat_card.theme = _run_theme
@@ -152,6 +167,42 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if world == null:
 		return
+	_wall_ms += delta * 1000.0
+	var now_ms := _now * 1000.0
+	# A map the stage has not been built for yet. The card goes up first and this
+	# frame ends there: putting the new map up takes tens of milliseconds with the
+	# textures warm and longer without, and doing it on the same frame the card was
+	# created would draw the card for the first time only after the stall it exists
+	# to explain.
+	if world.map_id != _built_map_id:
+		if not loading.settled():
+			loading.raise_for(_place_name(), _wall_ms)
+			loading.sync(_wall_ms)
+			return
+		stage.open_on(world)
+		# Behind the card rather than during play. The stage itself is quick; what
+		# is not is every strip and prop the new map will ask for, which used to be
+		# decoded one at a time as each thing first appeared — so a map opened at
+		# full speed and then stuttered its way through its own population, right
+		# where the fight was starting.
+		var warm_scroll := Vector2(
+			float(world.camera["scrollX"]), float(world.camera["scrollY"])
+		)
+		actors.warm(world)
+		actors.sync(world, warm_scroll, 0.0, _now * 1000.0)
+		scenery.sync(world, warm_scroll, 0.0)
+		_built_map_id = world.map_id
+		loading.release(_wall_ms)
+		# The stall is not gameplay time. Dropping the bank rather than banking it
+		# is what stops the world spending the next frame in a burst of catch-up
+		# steps the moment the card comes down.
+		_banked = 0.0
+	loading.sync(_wall_ms)
+	# Nothing steps behind the card. A player who cannot see the game cannot play
+	# it, and a creature that walked up and hit them during a load landed a blow
+	# they had no way to answer.
+	if loading.showing():
+		return
 	_banked += minf(delta, MAX_FRAME_DELTA)
 	var steps := 0
 	while _banked >= FIXED_STEP and steps < MAX_SUBSTEPS:
@@ -163,9 +214,10 @@ func _process(delta: float) -> void:
 	if steps >= MAX_SUBSTEPS:
 		# The bank is dropped rather than carried: see MAX_SUBSTEPS.
 		_banked = fmod(_banked, FIXED_STEP)
+	now_ms = _now * 1000.0
 	stage.open_on(world)
 	var scroll := Vector2(float(world.camera["scrollX"]), float(world.camera["scrollY"]))
-	stage.sync(scroll)
+	stage.sync(world, scroll)
 	actors.sync(world, scroll, delta, _now * 1000.0)
 	scenery.sync(world, scroll, delta)
 	bars.sync(world, scroll)
@@ -287,3 +339,10 @@ func _refuse(line: String) -> void:
 	var layer := CanvasLayer.new()
 	layer.add_child(label)
 	add_child(layer)
+
+
+## The name of the map the world is on, as a player should read it.
+func _place_name() -> String:
+	var map: Dictionary = (world.package["maps"] as Dictionary).get(world.map_id, {})
+	var named := str(map.get("displayName", "")).strip_edges()
+	return world.map_id if named.is_empty() else named

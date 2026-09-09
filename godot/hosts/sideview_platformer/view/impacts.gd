@@ -24,6 +24,11 @@ const BURST_COLOR := Color(1.0, 0.965, 0.816)
 const ACTIVE_CAP := 48
 
 const SWING_COLOR := Color(1.0, 0.941, 0.651)
+## How wide the glare is at the head of the sweep, as a share of its radius, and
+## how many segments the ribbon is built from. Sixteen is enough that a seventy-
+## degree arc reads as a curve rather than as a fan of chords.
+const SWING_THICKNESS_SHARE := 0.16
+const SWING_SEGMENTS := 16
 
 var _live: Array = []
 ## The swing being drawn, or empty. One at a time, because a body has one arm and
@@ -111,17 +116,7 @@ func _draw() -> void:
 			_now_ms - float(_swing["startedMs"])
 		)
 		if not arc.is_empty():
-			var tint := SWING_COLOR
-			tint.a = float(arc["alpha"])
-			draw_arc(
-				Vector2(float(arc["x"]), float(arc["y"])) - _scroll,
-				float(arc["radius"]),
-				float(arc["startAngle"]),
-				float(arc["endAngle"]),
-				24,
-				tint,
-				float(arc["width"])
-			)
+			_draw_glare(arc)
 	for entry: Variant in _live:
 		var record: Dictionary = entry
 		var elapsed := _now_ms - float(record["startedMs"])
@@ -160,3 +155,54 @@ func _draw() -> void:
 				float(shard["radius"]),
 				tint
 			)
+
+
+## The path a blade has swept, as a ribbon rather than a line.
+##
+## `draw_arc` gives one stroke at one width and one colour, which is a wire and not
+## a glare: the swing read as a thin ring appearing beside the character for four
+## frames. What a swing actually leaves is bright and wide at the edge that is
+## still moving and thins to nothing behind it — so this is a polygon between two
+## radii, tapering and fading toward the tail, and the head carries a hot inner
+## core over it.
+##
+## Built from the same sampled arc; nothing about the geometry is decided here. The
+## family says where the sweep has got to and this says what a sweep looks like.
+func _draw_glare(arc: Dictionary) -> void:
+	var centre := Vector2(float(arc["x"]), float(arc["y"])) - _scroll
+	var radius := float(arc["radius"])
+	var start := float(arc["startAngle"])
+	var finish := float(arc["endAngle"])
+	var alpha := float(arc["alpha"])
+	var widest := radius * SWING_THICKNESS_SHARE
+	var outer := PackedVector2Array()
+	var inner := PackedVector2Array()
+	var colours := PackedColorArray()
+	for step in range(SWING_SEGMENTS + 1):
+		var along := float(step) / float(SWING_SEGMENTS)
+		var angle := lerpf(start, finish, along)
+		var facing := Vector2(cos(angle), sin(angle))
+		# The tail is where the blade *was*, so it is both thinner and fainter;
+		# squaring the taper keeps the widest part close to the head rather than
+		# spreading the ribbon evenly along its length.
+		var half := widest * along * along / 2.0
+		outer.append(centre + facing * (radius + half))
+		inner.append(centre + facing * (radius - half))
+		var tint := SWING_COLOR
+		tint.a = alpha * along
+		colours.append(tint)
+	# One ring of points: out along the leading edge and back along the trailing
+	# one, so the polygon is the band between the two radii.
+	var ribbon := PackedVector2Array()
+	var ribbon_colours := PackedColorArray()
+	for step in range(outer.size()):
+		ribbon.append(outer[step])
+		ribbon_colours.append(colours[step])
+	for step in range(inner.size() - 1, -1, -1):
+		ribbon.append(inner[step])
+		ribbon_colours.append(colours[step])
+	draw_polygon(ribbon, ribbon_colours)
+	# A hot line down the middle of the sweep, so the leading edge reads even where
+	# the ribbon is at its thinnest.
+	var core := Color(1.0, 1.0, 1.0, alpha * 0.7)
+	draw_arc(centre, radius, lerpf(start, finish, 0.55), finish, SWING_SEGMENTS, core, 2.0)

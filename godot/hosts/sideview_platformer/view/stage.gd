@@ -34,7 +34,20 @@ var _package: HostRunDir = null
 var _atlas: Dictionary = {}
 var _bands: Array = []
 var _terrain: Node2D = null
+## The offer a gate makes. `▲` is the key it is asking for, which is the same
+## glyph the villagers ask with — one gesture, said the same way twice.
+const GATE_PROMPT_TEXT := "▲ Enter"
+const GATE_PROMPT_SIZE := 18
+const GATE_PROMPT_WIDTH := 320.0
+## How far above the feet the offer floats: clear of the body, under the numbers.
+const GATE_PROMPT_LIFT := 210.0
+const GATE_PROMPT_COLOR := Color(1.0, 0.874, 0.541)
+const GATE_PROMPT_OUTLINE := Color(0.063, 0.055, 0.078, 0.9)
+
 var _portals: Node2D = null
+## The offer a gate makes when the body is standing in its mouth, and the gate it
+## is currently made over.
+var _gate_prompt: Label = null
 var _climbables: Node2D = null
 var _map_id: String = ""
 
@@ -49,6 +62,18 @@ static func of(package: HostRunDir, atlas: Dictionary) -> PlatformerStage:
 	made._portals = Node2D.new()
 	made._portals.z_index = DEPTHS["portal"]
 	made.add_child(made._portals)
+	# Over the gates rather than among them, so a mouth drawn behind the body does
+	# not take its own offer with it.
+	made._gate_prompt = Label.new()
+	made._gate_prompt.z_index = DEPTHS["foreground"] + 30
+	made._gate_prompt.add_theme_font_size_override("font_size", GATE_PROMPT_SIZE)
+	made._gate_prompt.add_theme_color_override("font_color", GATE_PROMPT_COLOR)
+	made._gate_prompt.add_theme_color_override("font_outline_color", GATE_PROMPT_OUTLINE)
+	made._gate_prompt.add_theme_constant_override("outline_size", 5)
+	made._gate_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	made._gate_prompt.size = Vector2(GATE_PROMPT_WIDTH, float(GATE_PROMPT_SIZE) * 1.4)
+	made._gate_prompt.visible = false
+	made.add_child(made._gate_prompt)
 	made._climbables = Node2D.new()
 	made._climbables.z_index = DEPTHS["climbable"]
 	made.add_child(made._climbables)
@@ -73,10 +98,12 @@ func open_on(world: PlatformerWorld) -> void:
 	_build_bands(authored, "foreground")
 
 
-## Move everything that scrolls. `scroll` is the camera's, in world pixels.
-func sync(scroll: Vector2) -> void:
+## Move everything that scrolls, and make the offer a gate makes when the body is
+## standing in one. `scroll` is the camera's, in world pixels.
+func sync(world: PlatformerWorld, scroll: Vector2) -> void:
 	_terrain.position = -scroll
 	_portals.position = -scroll
+	_sync_gate_prompt(world, scroll)
 	_climbables.position = -scroll
 	for entry: Variant in _bands:
 		var band: Dictionary = entry
@@ -302,3 +329,44 @@ func _clear() -> void:
 		child.queue_free()
 	for child in _climbables.get_children():
 		child.queue_free()
+
+
+## The offer a gate makes, when the body is standing in its mouth.
+##
+## A door that opens on a key press and says nothing is a door a player walks past.
+## The villagers have said what they want pressed since the port began; the gates
+## out of a map never did, and they are the one affordance a player cannot discover
+## by bumping into it — walking into a gate does nothing at all, which reads as a
+## wall rather than as a door waiting to be asked.
+##
+## The question is the *simulation's* own, asked one frame early: the same
+## `transition_at` the entry system reads decides both whether a press would work
+## and whether the offer is shown, so the label can never appear over a mouth that
+## would refuse it, or stay hidden over one that would not.
+func _sync_gate_prompt(world: PlatformerWorld, scroll: Vector2) -> void:
+	if world.hold:
+		_gate_prompt.visible = false
+		return
+	var standing := PlatformerMaps.transition_at(
+		world.package, world.map_id, float(world.player["x"])
+	)
+	if standing.is_empty():
+		_gate_prompt.visible = false
+		return
+	# The place it leads, so a player knows what they are agreeing to rather than
+	# only that a key does something here.
+	var going: Dictionary = (world.package["spawns"] as Dictionary).get(
+		String(standing["toSpawnId"]), {}
+	)
+	var named := ""
+	if not going.is_empty():
+		var map: Dictionary = (world.package["maps"] as Dictionary).get(
+			String(going["mapId"]), {}
+		)
+		named = str(map.get("displayName", "")).strip_edges()
+	_gate_prompt.text = GATE_PROMPT_TEXT if named.is_empty() else "%s %s" % [GATE_PROMPT_TEXT, named]
+	_gate_prompt.visible = true
+	_gate_prompt.position = Vector2(
+		float(world.player["x"]) - scroll.x - GATE_PROMPT_WIDTH / 2.0,
+		float(world.player["y"]) - scroll.y - GATE_PROMPT_LIFT
+	)
