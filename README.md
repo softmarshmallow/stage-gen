@@ -358,6 +358,29 @@ Profiles describe durable identity only; per-shot direction, pose conditioning,
 image observation, and consistency reports remain
 [future research](docs/research/dialogue-character-direction.md).
 
+## Blink and mouth states for a fixed sprite
+
+The standalone portrait-motion CLI authors half-blink, closed-eye, smile, and
+A-mouth drawings in one atlas. Face-crop mode locates the face in an original
+RGB or RGBA sprite, then returns local facial patches and full-size playback
+while retaining the original alpha and pixels outside those patches.
+
+Prepare offline using your PNG and its matching provenance sidecar:
+
+```sh
+uv run stage-gen-portrait-motion prepare --face-crop \
+  --source /path/to/character.png \
+  --spec docs/examples/portrait-motion/face-four-card.json \
+  --run /path/to/new-face-run
+```
+
+The [portrait-motion walkthrough](docs/portrait-motion.md) covers source
+provenance, explicit paid execution, verification, and reading the output.
+Feature admission may return a partial result, such as blinking eyes with the
+mouth left unchanged. Playback reuses the generated states locally. Omitting
+`--face-crop` retains the existing opaque-portrait workflow. This capability is
+available on its own and does not attach the character to a game or runtime.
+
 ## Authored game contracts
 
 A profile says who the player is. The

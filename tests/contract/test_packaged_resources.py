@@ -12,6 +12,14 @@ from pathlib import Path, PurePosixPath
 
 MODEL_POLICY_SNAPSHOT_RESOURCE = "stage_gen/model_policy_snapshot.json"
 MODEL_POLICY_SNAPSHOT_UNPACKED_LIMIT = 750_000
+PORTRAIT_FACE_MODULES = {
+    "stage_gen/components/portrait_motion/face_crop.py",
+    "stage_gen/components/portrait_motion/face_location.py",
+    "stage_gen/components/portrait_motion/face_patches.py",
+    "stage_gen/components/portrait_motion/face_playback.py",
+    "stage_gen/orchestration/portrait_face.py",
+    "stage_gen/orchestration/portrait_face_location.py",
+}
 
 WHEEL_RESOURCES = {
     MODEL_POLICY_SNAPSHOT_RESOURCE,
@@ -176,10 +184,13 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # policy evidence cannot hide unrelated source or resource growth.
         # The final route preflight, lifecycle, and maintenance checks add 32,423 B,
         # bringing that non-snapshot slice to 6,003,473 B; keep 46 KB of headroom.
+        # Face motion (2026-09-11) adds six modules (78,130 B) and their wiring.
+        # The inspected non-snapshot slice is 6,111,687 B, without new media or spikes.
         model_policy_snapshot_size = wheel_entries[MODEL_POLICY_SNAPSHOT_RESOURCE]
         assert model_policy_snapshot_size < MODEL_POLICY_SNAPSHOT_UNPACKED_LIMIT
-        assert sum(wheel_entries.values()) - model_policy_snapshot_size < 6_050_000
+        assert sum(wheel_entries.values()) - model_policy_snapshot_size < 6_150_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
+        assert wheel_entries.keys() >= PORTRAIT_FACE_MODULES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
         assert {
             "gnode/__init__.py",
@@ -302,10 +313,13 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # The terminal OpenAI/Fal live-canary verdicts and their provider/model
         # documentation bring that slice to 10,750,706 B. The archive still contains
         # no live artifacts or ignored evidence; retain about 59 KB of text headroom.
+        # Face-motion source, tests and user documentation bring the inspected slice
+        # to 10,913,760 B; retain about 36 KB. Compressed and media limits stay fixed.
         sdist_snapshot_size = sdist_entries[f"src/{MODEL_POLICY_SNAPSHOT_RESOURCE}"]
         assert sdist_snapshot_size < MODEL_POLICY_SNAPSHOT_UNPACKED_LIMIT
-        assert sum(sdist_entries.values()) - sdist_snapshot_size < 10_810_000
+        assert sum(sdist_entries.values()) - sdist_snapshot_size < 10_950_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
+        assert sdist_entries.keys() >= {f"src/{name}" for name in PORTRAIT_FACE_MODULES}
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)
         assert all(sdist_entries[name] > 0 for name in SDIST_RESOURCES)
@@ -337,6 +351,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
     )
 
     probe = """
+import importlib
 from pathlib import Path
 from stage_gen.resources import (
     bundled_music_path,
@@ -373,6 +388,28 @@ assert Path(f"{music}.meta.json").is_file()
 snapshot = load_active_model_policy_snapshot()
 assert snapshot.kind == "stage-gen-model-policy-snapshot-v1"
 assert snapshot.routes and snapshot.policies and snapshot.recipes
+face_surfaces = {
+    "stage_gen.components.portrait_motion.face_crop": ("create_working_crop", "restore_feature"),
+    "stage_gen.components.portrait_motion.face_location": (
+        "locator_node_type", "validate_location"
+    ),
+    "stage_gen.components.portrait_motion.face_patches": (
+        "make_face_input", "isolate_patch", "apply_offset_patch"
+    ),
+    "stage_gen.components.portrait_motion.face_playback": (
+        "build_face_combinations", "encode_face_preview"
+    ),
+    "stage_gen.orchestration.portrait_face": (
+        "prepare_face_run", "run_face_pipeline", "verify_face_run"
+    ),
+    "stage_gen.orchestration.portrait_face_location": (
+        "prepare_locator", "run_locator", "verify_locator", "load_locator_plan"
+    ),
+}
+for name, names in face_surfaces.items():
+    module = importlib.import_module(name)
+    assert Path(module.__file__).resolve().is_relative_to(Path("installed").resolve())
+    assert all(callable(getattr(module, name)) for name in names)
 """
     probe_environment = environment | {"PYTHONPATH": str(installed)}
     subprocess.run(

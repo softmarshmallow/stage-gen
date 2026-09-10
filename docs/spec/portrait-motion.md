@@ -1,4 +1,4 @@
-# Fixed-portrait eye and mouth motion
+# Fixed-source eye and mouth motion
 
 > **Checked by:** `tests/unit/components/portrait_motion/test_models.py`.
 
@@ -9,6 +9,14 @@ image job, register the cards, and replace only localized facial regions over th
 original. The current bounded contract supports one to four cards. The
 [four-card example](../examples/portrait-motion/four-card.json) supplies a half
 blink, closed eyes, a smile, and an A-mouth in a 2×2 grid.
+
+The optional face-crop workflow first locates a face in an original RGB or RGBA
+sprite, applies the same component to an opaque working crop, then restores
+native face patches onto the unchanged full sprite. Use the
+[user walkthrough](../portrait-motion.md) and the square
+[face-crop example](../examples/portrait-motion/face-four-card.json) for that
+workflow. Omitting `prepare --face-crop` keeps the existing opaque-portrait
+workflow and its source-canvas requirements.
 
 This is a standalone headless capability and CLI. It does not add a stage to the
 [game-generation graph](game/generation-pipeline.md), bind a character into a game,
@@ -32,15 +40,17 @@ limits must be recorded by the review rather than silently relabeled as perfect
 source fidelity. Wrong states, identity changes, substantial surviving open-eye
 art, displaced features, severe seams, and changes to excluded features remain
 failures. Source restoration, hidden-anatomy reconstruction, bald donors, hair
-removal, face-crop atlases, gaze, brows, head/body motion, IK, and video generation
+removal, gaze, brows, head/body motion, IK, and video generation
 are outside this capability. The sample timeline demonstrates speaking-like
 mouth changes; it does not infer phonemes, align audio, or supply a full viseme set.
 
-The agreed N-card baseline promotion is complete. Face-crop atlases, bald donors,
-foreground restoration, and stricter visual-fidelity research are deliberately
-deferred; they are not unfinished promotion tasks. Do not resume those experiments
-or spend on them as automatic follow-up to this promotion. They require a new
-explicit request for that work.
+The N-card baseline and optional face-crop workflow are promoted. Bald donors,
+foreground restoration, stricter visual-fidelity research, and the experimental
+context-registration continuation remain deferred. The face-crop workflow keeps
+the component's existing registration and semantic refusal rules. Configurable
+VLM controls and reference optimization are tracked in
+[issue #12](https://github.com/softmarshmallow/stage-gen/issues/12) as follow-up
+work, not as unfinished promotion tasks.
 
 Ownership follows the existing [component contract](../component-contract.md):
 
@@ -52,6 +62,10 @@ Ownership follows the existing [component contract](../component-contract.md):
 - [`orchestration/portrait_motion.py`](../../src/stage_gen/orchestration/portrait_motion.py)
   owns the image route catalog/policy, structured binding, provider construction, durable spend
   accounting, preparation, execution, and verification.
+- [`orchestration/portrait_face.py`](../../src/stage_gen/orchestration/portrait_face.py)
+  owns the optional original-sprite wrapper, its contained locator and portrait
+  runs, crop lineage, and native patch outputs. Deterministic crop, patch, and
+  playback helpers remain in the portrait-motion component.
 - [`interfaces/portrait_motion.py`](../../src/stage_gen/interfaces/portrait_motion.py)
   exposes `stage-gen-portrait-motion prepare`, `run`, and `verify`.
 
@@ -76,6 +90,12 @@ The normal path therefore has one atlas image job and three structured jobs.
 An earlier refusal skips dependent work. A valid semantic refusal is a terminal
 decision, not an invalid response to retry. There is no semantic regeneration
 loop and no hand-authored coordinate correction in this pipeline.
+
+Face-crop mode adds one spatial face-location job before these eight stages.
+Its usual successful path has five provider operations: locator, admission,
+one atlas edit, geometry, and still-image quality. Cropping, patch restoration,
+full-sprite assembly, and playback are local. Repeated blinks reuse the authored
+states and incur no additional provider operation.
 
 Difference heatmaps are evidence for localization, not the masks themselves.
 The semantic stage assigns anatomical ownership; bright differences in hair,
@@ -116,6 +136,47 @@ softer than its surroundings. One image job also does not imply exactly one
 quarter of the monetary cost of four separate images: reference payloads,
 resolution, retries, and structured review all contribute.
 
+## Face-crop boundary
+
+With `prepare --face-crop`, the supplied PNG is the original full sprite. It
+may use RGB or RGBA pixels, including partial transparency; its dimensions need
+not match the specification. Each original axis must fit the full-resolution
+WebP limit of 16383 pixels. The face specification instead declares the square
+working crop and atlas. The supplied face example uses 1024×1024 with four
+512×512 cards in a 2×2 grid. Both the working canvas and each card must be square:
+`width == height` and `columns == rows`. Given the four-card limit, this permits
+a 1×1 single-card grid or a 2×2 four-card grid. Rectangular cards refuse offline
+before localization. Direct-portrait mode keeps its general N-card grid contract.
+
+The locator answers only where the principal face is. Its box uses normalized
+whole-image coordinates from 0 through 1000, covering forehead, cheeks, and chin.
+It does not decide animation suitability. A located face proceeds to the existing
+feature admission stage; a valid `not_locatable` result stops the wrapper.
+
+The crop adds context equal to 35 percent of the longest face dimension on each
+side and rounds out to a square. Areas beyond the original canvas are padded.
+The working reference is flattened over a neutral background and resized once
+for the atlas pipeline. This internal opaque representation never replaces the
+full source.
+
+After the eight stages accept features, registered raw donors and their masks
+are mapped into the exact native padded face crop. Edge blending is applied
+there once. The resulting patches carry binary replacement support and the
+already blended RGB. The outer operation places those pixels using only the
+recorded integer crop offset: no second resize or feather is applied, and the
+original alpha is retained. Alpha, rest/rest, and pixels outside active support
+are checked against the original. Fully transparent source pixels retain their
+hidden RGB in PNG states; WebP may normalize invisible RGB during encoding.
+
+The parent writes a `portrait-face-motion-plan-v1` plan. It owns the original and
+two contained subruns: `locator/` and `portrait/`. Their plans, receipts, request
+policies, ledgers, and lineage remain
+inspectable. Parent verification checks the contained work and reconstructed
+full-source artifacts. The operation adds no runtime host or game consumer.
+The locator verdict is `locator/locator/location.json`; `crop/transform.json`
+records the source-to-work transform, and `crop/work.png` is the derived opaque
+working reference.
+
 ## CLI workflow
 
 Use an original opaque PNG with a matching canonical
@@ -125,6 +186,10 @@ and preserves the original provenance in the new run. The supplied example
 requires a 1024×1536 PNG. The run directory must not already exist; source and
 run paths must not traverse symlinks. No generated character media is bundled
 with the text example.
+
+These commands describe direct opaque-portrait mode. For an arbitrary RGB/RGBA
+full sprite, use `--face-crop` and the face example as shown in the
+[walkthrough](../portrait-motion.md).
 
 From a repository checkout:
 
@@ -164,6 +229,11 @@ with dollar-cost metadata settle to that reported cost; absent dollar cost or an
 interrupted attempt retains the reservation. `budget_charged_usd` is therefore
 conservative local accounting, not an invoice or guaranteed provider price cap.
 
+Face-crop mode retains that $6 allowance for its portrait subrun and adds a
+separate locator allowance of $3, reserving $0.50 per locator attempt. The two
+ledgers account for distinct operations. Neither their limits nor retained
+reservations are quoted image prices; actual cost depends on usage and retries.
+
 Verify all retained outputs or replay validated checkpoints without providers:
 
 ```sh
@@ -183,6 +253,15 @@ submission. Injected services remain caller-owned: the caller must configure
 the recorded request policy and manage the services' lifetime. Request metadata
 records intended settings, not an attestation about an injected backend. The
 normal live CLI constructs and configures its own backends from the profile.
+
+The same `run` and `verify` CLI commands recognize the prepared face-crop plan
+and operate on its wrapper and contained runs. Replaying accepted local outputs
+does not repeat face localization or atlas generation.
+Programmatic preparation uses `prepare_run(..., face_crop=True)`. Its async
+`run_pipeline` also accepts an optional `locator_service`; when omitted in an
+injected run, localization uses the supplied `structured_service`. Both must
+match the planned route and policy. Direct-portrait mode rejects a locator
+service because it has no localization stage.
 
 ## Results and evidence
 
@@ -204,6 +283,31 @@ nine independent combinations, including rest/rest, and an eight-second loop.
 `quality/quality.json` records the artifact-specific still verdict. Diagnostics,
 rejected candidates, masks, heatmaps, and registration fits remain inspectable
 even when the terminal result grants no accepted output.
+
+For an accepted face-crop result, the parent `terminal/result.json` and returned
+JSON select `render/manifest.json`, whose kind is `portrait-face-motion-v1`.
+The manifest records native face patches, their placement, full-source state
+combinations, and the authored `timeline`; `playback` holds encoding facts.
+Each patch maps a `state_id` to a `feature_id`: mouth is the mouth group and
+both canvas-side eyes are the eyes group. `render/animation.webp` plays at the
+original full canvas size;
+`render/states/` holds full-source PNG states, and `render/patches/` holds native
+padded-face patches. Paths are relative to the parent run. Consumers must keep
+the manifest's `offset_xy` and
+`patch_application: "replace_selected_rgb_preserve_original_alpha"` semantics.
+`feather_already_baked: true` means the patch RGB already includes its edge
+transition; a second alpha blend would change it. Parent acceptance is inherited
+from the face still review, while native reconstruction is checked
+deterministically. It does not grant an additional full-canvas semantic verdict.
+The public component helper `apply_offset_patch` implements this placement
+without changing original alpha. The [walkthrough](../portrait-motion.md#select-a-state-from-native-patches)
+shows independent patch selection from a verified manifest.
+
+A source with a wide-open mouth can yield an accepted blink and an unsupported
+mouth. That is a `partial` result: mouth selections retain the source drawing.
+The retained full-body face-crop demonstration accepted both eyes under that
+condition. It is evidence for that artifact, not a guarantee that every fresh
+source passes or a new live validation of this promotion.
 
 Every required stage has a validated receipt, complete expected file set,
 canonical provenance, and dependency/content hashes. Writes are confined and

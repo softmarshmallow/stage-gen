@@ -159,6 +159,9 @@ Start here for the headless, general-purpose system:
 - [Sprite-sheet slicing and instance recovery](spec/sprite-sheet-processing.md) — implemented
   alpha-component repacking default, its accepted loss modes, evidence contract, and planned
   geometry and ownership improvements.
+- [Blink and mouth animation walkthrough](portrait-motion.md) — prepare a sprite,
+  run the contained face-crop atlas workflow, and use original-resolution states
+  or native patches through the CLI and Python API.
 - [Fixed-portrait eye and mouth motion](spec/portrait-motion.md) — the promoted
   N-card atlas component, four-card blink/mouth example, independent feature
   composition, bounded CLI, and retained baseline quality limits.

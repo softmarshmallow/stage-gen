@@ -196,6 +196,7 @@ def implementation() -> dict[str, str]:
         application_root / "image_product.py",
         application_root / "model_routes.py",
         application_root / "orchestration/image_routing.py",
+        *sorted((application_root / "orchestration").glob("portrait_face*.py")),
         application_root / "provider_env.py",
         application_root / "identity.py",
         *sorted((application_root / "media").rglob("*.py")),
@@ -272,7 +273,12 @@ def prepare_run(
     profile: RuntimeProfile | None = None,
     *,
     config: StageGenConfig | None = None,
+    face_crop: bool = False,
 ) -> dict[str, Any]:
+    if face_crop:
+        from .portrait_face import prepare_face_run
+
+        return prepare_face_run(source, run_dir, spec, profile, config=config)
     profile = profile or RuntimeProfile()
     config = config or StageGenConfig()
     if source.is_symlink() or source.absolute().resolve() != source.absolute():
@@ -647,6 +653,7 @@ async def run_pipeline(
     structured_service: StructuredGenerationService[dict[str, Any]] | None = None,
     live: bool = False,
     dotenv: Path | None = None,
+    locator_service: StructuredGenerationService[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Run the graph; injected services are caller-owned and must match planned routes.
 
@@ -654,6 +661,19 @@ async def run_pipeline(
     backends. Request metadata records intended settings, not a backend attestation.
     The live composition below constructs and configures both backends itself.
     """
+    from .portrait_face import is_face_run, run_face_pipeline
+
+    if is_face_run(run_dir):
+        return await run_face_pipeline(
+            run_dir,
+            image_service=image_service,
+            structured_service=structured_service,
+            locator_service=locator_service,
+            live=live,
+            dotenv=dotenv,
+        )
+    if locator_service is not None:
+        raise ValueError("A locator service requires a face-crop run")
     store, plan, graph = load_plan(run_dir)
     profile = RuntimeProfile.model_validate(plan["profile"])
     planned_image = graph.resolved_route_for("atlas")
@@ -761,6 +781,10 @@ async def run_pipeline(
 
 
 def verify_run(run_dir: Path) -> dict[str, Any]:
+    from .portrait_face import is_face_run, verify_face_run
+
+    if is_face_run(run_dir):
+        return verify_face_run(run_dir)
     store, plan, graph = load_plan(run_dir)
     handlers = PortraitMotionHandlers(_host(store, plan, graph, None, None))
     receipts = []

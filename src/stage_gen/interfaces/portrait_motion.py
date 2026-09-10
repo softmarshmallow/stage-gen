@@ -25,6 +25,11 @@ def entrypoint() -> None:
     prepare.add_argument("--spec", type=Path, required=True)
     prepare.add_argument("--profile", type=Path)
     prepare.add_argument("--run", type=Path, required=True)
+    prepare.add_argument(
+        "--face-crop",
+        action="store_true",
+        help="Locate a face, animate its crop, and restore patches to the original canvas",
+    )
     run = commands.add_parser("run", help="Execute the prepared graph or reuse validated artifacts")
     run.add_argument("--run", type=Path, required=True)
     run.add_argument(
@@ -41,7 +46,14 @@ def entrypoint() -> None:
         profile = (
             RuntimeProfile.model_validate_json(args.profile.read_bytes()) if args.profile else None
         )
-        result = prepare_run(args.source, args.run, spec, profile, config=load_config())
+        result = prepare_run(
+            args.source,
+            args.run,
+            spec,
+            profile,
+            config=load_config(),
+            face_crop=args.face_crop,
+        )
     elif args.command == "run":
         result = asyncio.run(run_pipeline(args.run, live=args.live, dotenv=args.dotenv))
     else:

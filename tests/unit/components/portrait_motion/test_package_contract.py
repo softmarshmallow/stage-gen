@@ -18,6 +18,14 @@ REQUIRED = {
     "PortraitMotionHandlers",
     "PortraitMotionHost",
     "add_portrait_motion_nodes",
+    "FaceMotionFrames",
+    "create_working_crop",
+    "restore_feature",
+    "make_face_input",
+    "isolate_patch",
+    "apply_offset_patch",
+    "build_face_combinations",
+    "encode_face_preview",
 }
 
 
@@ -43,6 +51,10 @@ def test_public_component_surface_is_complete_without_loading_experiments() -> N
         "review",
         "nodes",
         "storage",
+        "face_crop",
+        "face_patches",
+        "face_playback",
+        "face_location",
     ],
 )
 def test_capability_modules_are_ordinary_package_imports(module: str) -> None:
