@@ -36,6 +36,7 @@ def test_offline_gate_removes_provider_credentials_and_lists_required_checks() -
     assert ("ruff", "format", "--check", ".") in commands
     assert ("mypy", "--strict", "src", "tests", "scripts") in commands
     assert ("python", "scripts/check_docs.py") in commands
+    assert ("python", "scripts/write_model_policy_snapshot.py") in commands
     # Both reference members and the selected Iron Petal runner plan offline in
     # the gate, so a broken binding table or refused authored input fails here
     # rather than against a provider.

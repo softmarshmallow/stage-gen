@@ -11,9 +11,11 @@ from stage_gen.config import (
     TransparencyMode,
     assert_capabilities,
     load_config,
+    parse_image_provider,
     parse_transparency_mode,
     transparency_capabilities,
 )
+from stage_gen.image_product import ImageProvider
 
 
 def test_config_precedence_defaults_and_timeout_conversion() -> None:
@@ -44,8 +46,21 @@ def test_authored_library_roots_are_unset_by_default() -> None:
     config = load_config(env={})
 
     assert config.game_library_root is None
-    assert config.openai_image_model == "gpt-image-2.5-sunburst"
-    assert config.image_model == "openai/gpt-image-2.5-sunburst"
+    assert config.openai_image_model is None
+    assert config.image_model is None
+    assert config.image_provider_override is None
+
+
+def test_image_provider_override_is_one_explicit_optional_switch() -> None:
+    assert parse_image_provider(None) is None
+    assert parse_image_provider("openai") is ImageProvider.OPENAI
+    assert parse_image_provider("fal") is ImageProvider.FAL
+    assert parse_image_provider("openrouter") is ImageProvider.OPENROUTER
+    assert load_config(env={"STAGE_GEN_IMAGE_PROVIDER": "fal"}).image_provider_override is (
+        ImageProvider.FAL
+    )
+    with pytest.raises(ValueError, match="must be openai, fal, or openrouter"):
+        parse_image_provider("auto")
 
 
 def test_capability_errors_name_variables_but_not_present_values() -> None:
@@ -55,7 +70,7 @@ def test_capability_errors_name_variables_but_not_present_values() -> None:
     assert "FAL_KEY" in str(captured.value)
     assert "secret-value" not in str(captured.value)
 
-    with pytest.raises(ConfigError, match="OPENAI_API_KEY"):
+    with pytest.raises(ValueError, match="exact resolved route"):
         assert_capabilities(config, [CapabilityName.NATIVE_IMAGE_GENERATION])
 
 
@@ -64,9 +79,7 @@ def test_transparency_validation_and_conditional_capability() -> None:
     assert parse_transparency_mode("chroma") is TransparencyMode.CHROMA
     with pytest.raises(ValueError, match="must be native, ai, or chroma"):
         parse_transparency_mode("AI")
-    assert transparency_capabilities(TransparencyMode.NATIVE) == (
-        CapabilityName.NATIVE_IMAGE_GENERATION,
-    )
+    assert transparency_capabilities(TransparencyMode.NATIVE) == ()
     assert transparency_capabilities(TransparencyMode.AI) == (CapabilityName.BACKGROUND_REMOVAL,)
     assert transparency_capabilities(TransparencyMode.CHROMA) == ()
 
@@ -131,7 +144,7 @@ def test_config_loads_only_allowlisted_provider_values_from_cwd_dotenv(
     assert config.open_router_api_key == "file-openrouter"
     assert config.fal_key == "file-fal"
     assert config.elevenlabs_api_key == "file-elevenlabs"
-    assert config.image_model == "openai/gpt-image-2.5-sunburst"
+    assert config.image_model is None
     assert "file-openai" not in repr(config)
     assert "file-openrouter" not in repr(config)
     assert "file-fal" not in repr(config)

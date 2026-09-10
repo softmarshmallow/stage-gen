@@ -13,16 +13,19 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.config import CapabilityName, StageGenConfig
+from gnode import RouteResolutionError
+from stage_gen.config import StageGenConfig
+from stage_gen.image_product import ImageProvider
+from stage_gen.model_routes import (
+    FAL_IMAGE_GENERATION_ROUTE_ID,
+    IMAGE_OPAQUE_GENERATION_POLICY_ID,
+    OPENROUTER_IMAGE_GENERATION_ROUTE_ID,
+)
 from stage_gen.recipes.universe.medium import ANIME_2D
 from stage_gen.recipes.universe.universe_graph import (
-    GALLERY_IMAGE_ROUTE,
-    NATIVE_TRANSPARENCY_IMAGE_ROUTE,
-    OPAQUE_IMAGE_ROUTE,
     UniverseGraph,
     build_universe_gallery_graph,
     build_universe_semantic_graph,
-    image_route,
     universe_graph_profile,
 )
 from stage_gen.recipes.universe.universe_request import (
@@ -38,6 +41,7 @@ from stage_gen.recipes.universe.universe_types import universe_type_index
 
 FIXTURE = Path("library/games/lantern_ferry")
 ADMITTED = Path("tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json")
+CONFIG = StageGenConfig()
 
 
 def _resolved() -> ResolvedUniverseSource:
@@ -48,7 +52,12 @@ def _admitted(resolved: ResolvedUniverseSource) -> AdmittedUniverse:
     return admitted_universe_from_document(ADMITTED, poster_sha256=resolved.poster_sha256)
 
 
-def _gallery(*, rerolls: tuple[str, ...] = (), tmp_path: Path | None = None) -> UniverseGraph:
+def _gallery(
+    *,
+    rerolls: tuple[str, ...] = (),
+    tmp_path: Path | None = None,
+    config: StageGenConfig = CONFIG,
+) -> UniverseGraph:
     resolved = _resolved()
     admitted = _admitted(resolved)
     prior: Path | None = None
@@ -73,7 +82,8 @@ def _gallery(*, rerolls: tuple[str, ...] = (), tmp_path: Path | None = None) -> 
         resolved,
         admitted,
         samples=samples,
-        profile=universe_graph_profile(StageGenConfig(), images=True),
+        config=config,
+        profile=universe_graph_profile(config, images=True),
     )
 
 
@@ -193,7 +203,8 @@ def test_the_gallery_refuses_an_admission_from_another_universe() -> None:
             resolved,
             foreign,
             samples=samples,
-            profile=universe_graph_profile(StageGenConfig(), images=True),
+            config=CONFIG,
+            profile=universe_graph_profile(CONFIG, images=True),
         )
 
 
@@ -208,20 +219,62 @@ def test_the_gallery_refuses_an_admission_compiled_for_another_medium() -> None:
             resolved,
             admitted,
             samples=samples,
-            profile=universe_graph_profile(StageGenConfig(), images=True),
+            config=CONFIG,
+            profile=universe_graph_profile(CONFIG, images=True),
         )
 
 
-def test_concept_images_bind_the_opaque_route_and_the_capability_that_serves_it() -> None:
-    assert image_route(transparency_required=False) is OPAQUE_IMAGE_ROUTE
-    assert image_route(transparency_required=True) is NATIVE_TRANSPARENCY_IMAGE_ROUTE
-    assert GALLERY_IMAGE_ROUTE.route_id == "opaque"
-    assert GALLERY_IMAGE_ROUTE.provider == "openrouter"
-    # The spike asked for the native-alpha capability while binding OpenRouter,
-    # so a run could pass its key check and then fail on the route it actually used.
-    assert GALLERY_IMAGE_ROUTE.capability is CapabilityName.IMAGE_GENERATION
-    assert NATIVE_TRANSPARENCY_IMAGE_ROUTE.capability is CapabilityName.NATIVE_IMAGE_GENERATION
-    assert GALLERY_IMAGE_ROUTE.model(StageGenConfig()) == "openai/gpt-image-2.5-sunburst"
+def test_concept_images_bind_exact_opaque_generation_workloads() -> None:
+    graph = _gallery()
+    image_nodes = [node for node in graph.nodes if node.operation == "image_generation"]
+    assert len(image_nodes) == graph.entity_count
+    assert all(
+        binding.operation != "image_generation"
+        for binding in universe_graph_profile(CONFIG, images=True).bindings
+    )
+
+    for node in image_nodes:
+        route = graph.resolved_route_for(node)
+        assert route.route_id == OPENROUTER_IMAGE_GENERATION_ROUTE_ID
+        assert route.policy_id == IMAGE_OPAQUE_GENERATION_POLICY_ID
+        assert route.provider == "openrouter"
+        assert route.operation_variant == "generation"
+        assert "text_to_image" in route.required_features
+        assert "exact_size" in route.required_features
+        assert "flexible_size" not in route.required_features
+        assert "reference_images" not in route.required_features
+        assert "masked_edit" not in route.required_features
+        assert route.required_limits == ()
+        assert route.effective_output_options == {
+            "background": "opaque",
+            "mask_present": False,
+            "moderation": "low",
+            "moderation_goal": "low_when_supported",
+            "operation_variant": "generation",
+            "output_format": "png",
+            "prompt_policy": "authored_verbatim",
+            "quality": "max",
+            "quality_goal": "maximum_verified",
+            "reference_count": 0,
+            "size": str(node.params["size"]),
+        }
+
+
+def test_one_provider_override_moves_every_gallery_image_without_fallback() -> None:
+    graph = _gallery(config=StageGenConfig(image_provider_override=ImageProvider.FAL))
+
+    image_nodes = [node for node in graph.nodes if node.operation == "image_generation"]
+    assert image_nodes
+    for node in image_nodes:
+        route = graph.resolved_route_for(node)
+        assert route.route_id == FAL_IMAGE_GENERATION_ROUTE_ID
+        assert route.provider == "fal"
+        assert "moderation" not in route.effective_output_options
+
+
+def test_unregistered_gallery_image_model_refuses_during_offline_planning() -> None:
+    with pytest.raises(RouteResolutionError, match="unregistered Sunburst model override"):
+        _gallery(config=StageGenConfig(image_model="openai/gpt-image-unregistered"))
 
 
 def test_every_provider_node_can_persist_what_it_was_refused() -> None:
@@ -268,5 +321,6 @@ def test_an_entity_may_not_take_the_global_direction_node_name() -> None:
             resolved,
             admitted,
             samples=samples,
-            profile=universe_graph_profile(StageGenConfig(), images=True),
+            config=CONFIG,
+            profile=universe_graph_profile(CONFIG, images=True),
         )

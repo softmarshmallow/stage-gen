@@ -39,7 +39,11 @@ class DialogueSceneExecutor(RecipeExecutor[ResolvedDialogueScene, DialogueSceneG
         return resolve_dialogue_scene(read_scene_document(root), root=root)
 
     def _build(self, resolved: ResolvedDialogueScene) -> DialogueSceneGraph:
-        return build_dialogue_scene_graph(resolved, profile=dialogue_graph_profile(self._config))
+        return build_dialogue_scene_graph(
+            resolved,
+            profile=dialogue_graph_profile(self._config),
+            config=self._config,
+        )
 
     def _type_index(self) -> Mapping[str, NodeType]:
         return dialogue_type_index()
@@ -55,8 +59,9 @@ class DialogueSceneExecutor(RecipeExecutor[ResolvedDialogueScene, DialogueSceneG
         """Execute the whole scene, including the terminal bundle."""
 
         assert_safe_path_segment(invocation_id, "invocation_id")
-        self.require(CapabilityName.NATIVE_IMAGE_GENERATION, CapabilityName.STRUCTURED_GENERATION)
+        self.require(CapabilityName.STRUCTURED_GENERATION)
         plan = self.plan(package_root)
+        self.require_route_credentials(plan.graph)
         await self.open_run(plan, run_dir=run_dir)
         # The AI matte route is bound only when the request asks for it and a key exists;
         # without one the scene falls back to the local matte, as the profile declares.

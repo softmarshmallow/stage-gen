@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 import pytest
 
 from stage_gen.config import StageGenConfig, load_config
+from stage_gen.image_product import QUALITY_IMAGE_PRODUCT
 
 _LIVE_FLAG = "STAGE_GEN_RUN_LIVE"
 
@@ -64,7 +65,7 @@ def openrouter_settings(live_config: StageGenConfig) -> OpenRouterLiveSettings:
     return OpenRouterLiveSettings(
         api_key=api_key,
         base_url=live_config.open_router_base_url or "https://openrouter.ai/api/v1",
-        image_model=live_config.image_model,
+        image_model=live_config.image_model or QUALITY_IMAGE_PRODUCT.openrouter_model,
         text_model=live_config.text_model,
         music_model=live_config.music_model,
         timeout_seconds=live_config.capability_timeout_s,
@@ -79,7 +80,7 @@ def openai_settings(live_config: StageGenConfig) -> OpenAILiveSettings:
     return OpenAILiveSettings(
         api_key=api_key,
         base_url=live_config.openai_base_url or "https://api.openai.com/v1",
-        image_model=live_config.openai_image_model,
+        image_model=live_config.openai_image_model or QUALITY_IMAGE_PRODUCT.openai_model,
         timeout_seconds=live_config.capability_timeout_s,
     )
 

@@ -43,6 +43,7 @@ from gnode import (
     ImageGenerationRequest,
     ImageGenerationService,
     ImageReference,
+    ImageRouteRequirementsV1,
     InputProvenance,
     Node,
     NodeCard,
@@ -59,6 +60,7 @@ from gnode import (
     StructuredOutputSchema,
     StructuredReference,
     ViewArchetype,
+    WorkloadRequestV1,
     atomic_write_json,
     dependency_port,
     write_artifact_with_provenance_async,
@@ -577,6 +579,7 @@ def add_ui_atlas_nodes(
     domain: str = "ui",
     prefix: str = "ui",
     attempts_port: Callable[[str], Port] | None = None,
+    image_workload: Callable[[ImageRouteRequirementsV1], WorkloadRequestV1] | None = None,
 ) -> list[str]:
     """Add one generic sheet triplet per role, fanned out over the role parameter.
 
@@ -629,6 +632,19 @@ def add_ui_atlas_nodes(
                 geometry_digest,
             ),
             ports=tuple(generate_ports),
+            workload=(
+                None
+                if image_workload is None
+                else image_workload(
+                    ImageRouteRequirementsV1(
+                        operation_variant="edit",
+                        background="transparent",
+                        output_format="png",
+                        size=f"{role.canvas[0]}x{role.canvas[1]}",
+                        reference_count=len(authored) + 1,
+                    )
+                )
+            ),
             card=NodeCard(
                 prompt=style_prompt(family.content_task(role, direction.prompt)),
                 template_ref=f"{role.layout}_template",

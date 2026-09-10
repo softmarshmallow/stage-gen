@@ -28,6 +28,7 @@ from stage_gen.components.game_ui.nodes import (
     UI_ATLAS_REVIEW,
     UI_ATLAS_VALIDATE,
 )
+from stage_gen.components.painted_terrain import PAINTED_TERRAIN_NODE_TYPES
 from stage_gen.components.sideview_actor.motion_rebase_nodes import motion_rebase_node_types
 from stage_gen.components.sideview_layers.nodes import layer_node_types
 
@@ -35,6 +36,7 @@ _P = "2d/sideview/platformer"
 _PROVIDER = NodePolicy(max_attempts=6)
 
 IMAGE_FEATURES = ("transparent_background", "reference_images")
+OPAQUE_IMAGE_FEATURES = ("opaque_background", "reference_images")
 STRUCTURED_FEATURES = ("structured_output", "image_input")
 MUSIC_FEATURES = ("instrumental_loop",)
 
@@ -90,7 +92,7 @@ MAP_GROUND_GENERATE = NodeType(
     title="Ground atlas paintover",
     archetype=ViewArchetype.IMAGE,
     operation="image_generation",
-    features=IMAGE_FEATURES,
+    features=OPAQUE_IMAGE_FEATURES,
     policy=_PROVIDER,
     contract_version="map-ground-atlas-v2",
 )
@@ -331,6 +333,7 @@ PLATFORMER_NODE_TYPES: tuple[NodeType, ...] = (
     MAP_CLIMBABLE_VALIDATE,
     MAP_PORTAL_GENERATE,
     MAP_PORTAL_VALIDATE,
+    *PAINTED_TERRAIN_NODE_TYPES,
     MAP_COMPOSITE,
     MAP_REVIEW,
     ACTOR_CONCEPT_GENERATE,

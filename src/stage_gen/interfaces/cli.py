@@ -12,9 +12,9 @@ import tomllib
 import uuid
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Never, TextIO, cast
+from typing import Literal, Never, TextIO, cast
 
-from gnode import RunView, write_run_view
+from gnode import ImageRouteRequirementsV1, RouteResolutionError, RunView, write_run_view
 from stage_gen.application import (
     UsageError as CliUsageError,
 )
@@ -59,6 +59,22 @@ from stage_gen.config import (
     TransparencyMode,
     load_config,
     parse_transparency_mode,
+)
+from stage_gen.model_policy_maintenance import (
+    build_repository_model_policy_projection,
+    diff_model_policy_snapshots,
+    find_model_policy_repository_root,
+    image_provider_capability_gaps,
+    load_active_model_policy_snapshot,
+    load_model_policy_snapshot,
+    model_route_report,
+)
+from stage_gen.model_routes import (
+    OPENAI_SUNBURST_MODEL,
+    OPENROUTER_SUNBURST_MODEL,
+    SUNBURST_PRODUCT_ID,
+    image_policy_id_for,
+    resolve_configured_image_route,
 )
 from stage_gen.orchestration.case_binding import BoundCase, bind_case
 from stage_gen.orchestration.case_bundle import publish_case
@@ -682,6 +698,38 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_parser = commands.add_parser("doctor")
     doctor_parser.add_argument("--transparency", choices=("native", "ai", "chroma"))
     doctor_parser.add_argument("--json", action="store_true", dest="json_output")
+
+    models_parser = commands.add_parser(
+        "models",
+        description="Inspect checked-in model routes and policy changes entirely offline",
+    )
+    models_commands = models_parser.add_subparsers(dest="models_command", required=True)
+    models_commands.add_parser(
+        "routes",
+        help="print the active route catalog, policy selections, and recipe summaries",
+    )
+    models_diff_parser = models_commands.add_parser(
+        "diff",
+        help="compare a prior model-policy snapshot with the active application snapshot",
+    )
+    models_diff_parser.add_argument(
+        "--base",
+        required=True,
+        dest="base_path",
+        help="prior stage-gen-model-policy-snapshot-v1 JSON document",
+    )
+    models_diff_parser.add_argument(
+        "--recipe",
+        default=None,
+        dest="recipe_id",
+        help="limit graph, cache, count, and cost analysis to one canonical recipe id",
+    )
+    models_diff_parser.add_argument(
+        "--image-provider",
+        choices=("openai", "fal", "openrouter"),
+        default=None,
+        help="replan canonical recipe graphs under this explicit provider policy",
+    )
     return parser
 
 
@@ -697,22 +745,37 @@ def _build_run_view_for(run_dir: Path) -> RunView:
     if not plan_path.is_file():
         raise ValueError(f"run directory has no execution-plan.json: {run_dir.name}")
     declared = json.loads(plan_path.read_text(encoding="utf-8")).get("kind")
-    if declared == "dialogue-scene-execution-graph-v5":
+    if (
+        declared == "dialogue-scene-execution-graph-v6"
+        or declared == "dialogue-scene-execution-graph-v5"
+    ):
         return build_dialogue_scene_view(run_dir)
-    if declared == "pointclick-room-execution-graph-v1":
+    if (
+        declared == "pointclick-room-execution-graph-v2"
+        or declared == "pointclick-room-execution-graph-v1"
+    ):
         return build_pointclick_room_view(run_dir)
-    if declared == "sideview-platformer-execution-graph-v1":
+    if (
+        declared == "sideview-platformer-execution-graph-v2"
+        or declared == "sideview-platformer-execution-graph-v1"
+    ):
         return build_execution_view(
             run_dir,
             annotators={"sideview-platformer": annotate_sideview_platformer_artifact},
         )
-    if declared == "sideview-runner-execution-graph-v1":
+    if (
+        declared == "sideview-runner-execution-graph-v2"
+        or declared == "sideview-runner-execution-graph-v1"
+    ):
         return build_sideview_runner_view(run_dir)
-    if declared == "universe-execution-graph-v1":
+    if declared == "universe-execution-graph-v2" or declared == "universe-execution-graph-v1":
         return build_universe_view(run_dir)
-    if declared == "storefront-execution-graph-v1":
+    if declared == "storefront-execution-graph-v2" or declared == "storefront-execution-graph-v1":
         return build_storefront_view(run_dir)
-    if declared == "oblique-survival-execution-graph-v1":
+    if (
+        declared == "oblique-survival-execution-graph-v2"
+        or declared == "oblique-survival-execution-graph-v1"
+    ):
         return build_oblique_survival_view(run_dir)
     raise ValueError(
         f"unsupported execution plan kind: {declared!r}; re-export this run with a current "
@@ -724,20 +787,50 @@ def create_doctor_report(
     config: StageGenConfig, requested_mode: TransparencyMode | None = None
 ) -> dict[str, object]:
     mode = requested_mode or config.transparency_mode
-    requires_openai = mode is TransparencyMode.NATIVE
+    background: Literal["opaque", "transparent"] = (
+        "transparent" if mode is TransparencyMode.NATIVE else "opaque"
+    )
+    image_requirements = ImageRouteRequirementsV1(
+        operation_variant="generation",
+        background=background,
+        output_format="png",
+        size="1024x1024",
+        reference_count=0,
+    )
+    image_policy_id = image_policy_id_for(image_requirements)
+    try:
+        image_binding = resolve_configured_image_route(
+            config,
+            image_requirements,
+            policy_id=image_policy_id,
+        )
+    except RouteResolutionError:
+        image_binding = None
     requires_background = mode is TransparencyMode.AI
+    image_route_provider = image_binding.route.model.provider if image_binding else None
+    image_provider_ready = bool(
+        image_binding
+        and {
+            "openai": config.openai_api_key,
+            "fal": config.fal_key,
+            "openrouter": config.open_router_api_key,
+        }[image_binding.route.model.provider]
+    )
     ready = bool(
         config.open_router_api_key
-        and (not requires_openai or config.openai_api_key)
+        and image_provider_ready
         and (not requires_background or config.fal_key)
     )
     return {
         "ok": ready,
-        "transparencyMode": mode,
+        "transparency_mode": mode,
         "requirements": {
-            "openai": requires_openai,
+            "image_policy_id": image_policy_id,
+            "image_route_id": image_binding.route.route_id if image_binding else None,
+            "image_route_provider": image_route_provider,
+            "image_route_supported": image_binding is not None,
             "openrouter": True,
-            "backgroundRemoval": requires_background,
+            "background_removal": requires_background,
         },
         "capabilities": {
             "openai": bool(config.openai_api_key),
@@ -746,15 +839,16 @@ def create_doctor_report(
             "elevenlabs": bool(config.elevenlabs_api_key),
         },
         "models": {
-            "nativeImage": config.openai_image_model,
-            "image": config.image_model,
+            "image_product": SUNBURST_PRODUCT_ID,
+            "openai_image_assertion": config.openai_image_model or OPENAI_SUNBURST_MODEL,
+            "openrouter_image_assertion": config.image_model or OPENROUTER_SUNBURST_MODEL,
             "text": config.text_model,
             "music": config.music_model,
-            "soundEffect": config.sound_effect_model,
+            "sound_effect": config.sound_effect_model,
             "speech": config.speech_model,
-            "backgroundRemoval": config.background_removal_model,
+            "background_removal": config.background_removal_model,
         },
-        "outDir": str(config.out_dir),
+        "out_dir": str(config.out_dir),
     }
 
 
@@ -804,6 +898,39 @@ def _dispatch(
     stdout: TextIO,
 ) -> int:
     command: str = args.command
+    if command == "models":
+        active = load_active_model_policy_snapshot()
+        repository_root = find_model_policy_repository_root()
+        if args.models_command == "routes":
+            report = model_route_report(active, repository_root=repository_root)
+        else:
+            current = active
+            provider_gaps: list[dict[str, object]] = []
+            if args.image_provider is not None:
+                if repository_root is None:
+                    raise ValueError(
+                        "models diff --image-provider requires a stage-gen source checkout"
+                    )
+                provider_gaps = image_provider_capability_gaps(
+                    active,
+                    image_provider=args.image_provider,
+                    recipe_id=args.recipe_id,
+                )
+                if not provider_gaps:
+                    current = build_repository_model_policy_projection(
+                        repository_root,
+                        image_provider=args.image_provider,
+                        recipe_id=args.recipe_id,
+                    ).model_copy(update={"generated_files": active.generated_files})
+            report = diff_model_policy_snapshots(
+                load_model_policy_snapshot(Path(args.base_path)),
+                current,
+                recipe_id=args.recipe_id,
+                repository_root=repository_root,
+                additional_capability_gaps=provider_gaps,
+            )
+        stdout.write(f"{json.dumps(report, sort_keys=True, separators=(',', ':'))}\n")
+        return 0
     if command == "character-profile":
         resolved = _resolve_cli_character_profile(
             input_path=Path(args.input_path),
@@ -905,12 +1032,15 @@ def _dispatch(
             assert isinstance(requirements, dict) and isinstance(capabilities, dict)
             fal = (
                 ("configured" if capabilities["fal"] else "missing")
-                if requirements["backgroundRemoval"]
+                if requirements["background_removal"]
+                or requirements["image_route_provider"] == "fal"
                 else "not-required"
             )
             stdout.write(
                 f"stage-gen: {'ready' if report['ok'] else 'incomplete'}; "
-                f"transparency={report['transparencyMode']}; "
+                f"transparency={report['transparency_mode']}; "
+                f"image-policy={requirements['image_policy_id']}; "
+                f"image-provider={requirements['image_route_provider']}; "
                 f"openrouter={'configured' if capabilities['openrouter'] else 'missing'}; "
                 f"fal={fal}\n"
             )

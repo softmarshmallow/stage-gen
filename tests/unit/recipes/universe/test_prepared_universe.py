@@ -43,12 +43,13 @@ from stage_gen.recipes.universe.universe_request import (
 )
 
 FIXTURE = Path("library/games/lantern_ferry")
+CONFIG = StageGenConfig()
 
 
 def _plan() -> tuple[ResolvedUniverseSource, UniverseGraph]:
     resolved = resolve_universe_source(read_universe_document(FIXTURE), root=FIXTURE)
     graph = build_universe_semantic_graph(
-        resolved, profile=universe_graph_profile(StageGenConfig(), images=False)
+        resolved, profile=universe_graph_profile(CONFIG, images=False)
     )
     return resolved, graph
 
@@ -295,7 +296,8 @@ async def test_the_record_and_inventory_close_a_gallery_without_a_provider(
         resolved,
         admitted,
         samples=samples,
-        profile=universe_graph_profile(StageGenConfig(), images=True),
+        config=CONFIG,
+        profile=universe_graph_profile(CONFIG, images=True),
     )
     run_dir = tmp_path / "run"
     run_dir.mkdir()
@@ -367,7 +369,8 @@ async def test_a_record_refuses_a_review_that_binds_different_image_bytes(
         resolved,
         admitted,
         samples=samples,
-        profile=universe_graph_profile(StageGenConfig(), images=True),
+        config=CONFIG,
+        profile=universe_graph_profile(CONFIG, images=True),
     )
     run_dir = tmp_path / "run"
     run_dir.mkdir()

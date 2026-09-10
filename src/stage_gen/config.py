@@ -11,6 +11,7 @@ from pathlib import Path
 from pydantic import Field, field_validator
 
 from gnode import ContractModel
+from stage_gen.image_product import ImageProvider
 from stage_gen.provider_env import load_provider_dotenv
 
 
@@ -72,9 +73,12 @@ class StageGenConfig(ContractModel):
     open_router_base_url: str | None = None
     fal_base_url: str | None = None
     elevenlabs_base_url: str | None = None
-    openai_image_model: str = "gpt-image-2.5-sunburst"
+    #: Optional exact-identity assertion for legacy deployments. The checked-in
+    #: route catalog owns the selected image product when this is omitted.
+    openai_image_model: str | None = None
     openai_image_ipm: int = Field(default=150, ge=1)
-    image_model: str = "openai/gpt-image-2.5-sunburst"
+    #: Optional OpenRouter image identity assertion; not a route-selection escape hatch.
+    image_model: str | None = None
     openrouter_image_ipm: int = Field(default=150, ge=1)
     text_model: str = "openai/gpt-5.6-sol"
     music_model: str = "google/lyria-3-pro-preview"
@@ -82,6 +86,7 @@ class StageGenConfig(ContractModel):
     speech_model: str = "eleven_v3"
     background_removal_model: str = "fal-ai/birefnet/v2"
     video_model: str = "google/gemini-omni-flash/v1.1/reference-to-video"
+    image_provider_override: ImageProvider | None = None
     #: The Theora-capable encoder a clip is published through. Homebrew's
     #: current ffmpeg does not link libtheora, and the pinned Godot host plays
     #: no other video codec, so this names a second, keg-only build rather than
@@ -92,8 +97,6 @@ class StageGenConfig(ContractModel):
     capability_timeout_ms: int = Field(default=600_000, gt=0)
 
     @field_validator(
-        "openai_image_model",
-        "image_model",
         "text_model",
         "music_model",
         "sound_effect_model",
@@ -105,6 +108,15 @@ class StageGenConfig(ContractModel):
     def validate_model(cls, value: str) -> str:
         if not value.strip():
             raise ValueError("model identifiers must be non-empty")
+        return value.strip()
+
+    @field_validator("openai_image_model", "image_model")
+    @classmethod
+    def validate_optional_image_model(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if not value.strip():
+            raise ValueError("image model assertions must be non-empty when set")
         return value.strip()
 
     @property
@@ -145,15 +157,13 @@ def load_config(
         open_router_base_url=_first(values, "OPENROUTER_BASE_URL"),
         fal_base_url=_first(values, "FAL_BASE_URL"),
         elevenlabs_base_url=_first(values, "ELEVENLABS_BASE_URL"),
-        openai_image_model=_first(values, "STAGE_GEN_OPENAI_IMAGE_MODEL")
-        or "gpt-image-2.5-sunburst",
+        openai_image_model=_first(values, "STAGE_GEN_OPENAI_IMAGE_MODEL"),
         openai_image_ipm=_positive_integer(
             values.get("STAGE_GEN_OPENAI_IMAGE_IPM"),
             "STAGE_GEN_OPENAI_IMAGE_IPM",
             150,
         ),
-        image_model=_first(values, "STAGE_GEN_IMAGE_MODEL", "IMAGE_MODEL")
-        or "openai/gpt-image-2.5-sunburst",
+        image_model=_first(values, "STAGE_GEN_IMAGE_MODEL", "IMAGE_MODEL"),
         openrouter_image_ipm=_positive_integer(
             values.get("STAGE_GEN_OPENROUTER_IMAGE_IPM"),
             "STAGE_GEN_OPENROUTER_IMAGE_IPM",
@@ -171,6 +181,10 @@ def load_config(
         or "fal-ai/birefnet/v2",
         video_model=_first(values, "STAGE_GEN_VIDEO_MODEL", "VIDEO_MODEL")
         or "google/gemini-omni-flash/v1.1/reference-to-video",
+        image_provider_override=parse_image_provider(
+            _first(values, "STAGE_GEN_IMAGE_PROVIDER"),
+            "STAGE_GEN_IMAGE_PROVIDER",
+        ),
         theora_ffmpeg_path=_first(values, "STAGE_GEN_THEORA_FFMPEG", "THEORA_FFMPEG")
         or "/opt/homebrew/opt/ffmpeg@7/bin/ffmpeg",
         transparency_mode=parse_transparency_mode(
@@ -208,12 +222,16 @@ def assert_capabilities(
     missing: list[str] = []
     for raw_capability in capabilities:
         capability = CapabilityName(raw_capability)
+        if capability in {
+            CapabilityName.IMAGE_GENERATION,
+            CapabilityName.NATIVE_IMAGE_GENERATION,
+        }:
+            raise ValueError("image credentials must be admitted from an exact resolved route")
         if (
             capability
             in {
                 CapabilityName.STRUCTURED_GENERATION,
                 CapabilityName.TOOL_LOOP,
-                CapabilityName.IMAGE_GENERATION,
                 CapabilityName.MUSIC_GENERATION,
             }
             and not config.open_router_api_key
@@ -224,8 +242,6 @@ def assert_capabilities(
             and not config.fal_key
         ):
             missing.append("FAL_KEY")
-        if capability is CapabilityName.NATIVE_IMAGE_GENERATION and not config.openai_api_key:
-            missing.append("OPENAI_API_KEY")
         if (
             capability in {CapabilityName.SOUND_EFFECT_GENERATION, CapabilityName.SPEECH_GENERATION}
             and not config.elevenlabs_api_key
@@ -244,9 +260,27 @@ def parse_transparency_mode(value: object, label: str = "transparency mode") -> 
         raise ValueError(f"{label} must be native, ai, or chroma") from error
 
 
+def parse_image_provider(
+    value: object | None,
+    label: str = "image provider",
+) -> ImageProvider | None:
+    """Parse the optional exact provider override; absence keeps host policy."""
+
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{label} must be openai, fal, or openrouter")
+    try:
+        return ImageProvider(value)
+    except ValueError as error:
+        raise ValueError(f"{label} must be openai, fal, or openrouter") from error
+
+
 def transparency_capabilities(mode: TransparencyMode) -> tuple[CapabilityName, ...]:
     if mode is TransparencyMode.NATIVE:
-        return (CapabilityName.NATIVE_IMAGE_GENERATION,)
+        # Native transparency is admitted by the selected route, not by a
+        # provider-coded global capability credential.
+        return ()
     if mode is TransparencyMode.AI:
         return (CapabilityName.BACKGROUND_REMOVAL,)
     return ()

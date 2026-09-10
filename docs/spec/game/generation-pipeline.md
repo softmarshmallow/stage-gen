@@ -29,7 +29,10 @@ plus the `params` that distinguish one instance of that type from another, the t
 publishes (each an artifact reference, its payload kind, and its provenance sidecar), and the
 `card` a reader needs to see what the node is told: its static prompt or packaged template, and
 the derived reference inputs it pulls from upstream ports. Nodes emitted by a subgraph template
-also stamp the `template_id` that produced them. Dispatch is a registry lookup over `type_id`
+also stamp the `template_id` that produced them. A provider-backed image node additionally carries
+`binding_ref`, which resolves through the graph's `resolved_routes` table to the exact product,
+provider, model, API surface, endpoint action, adapter behavior, admitted capabilities and exact
+canvas, and effective output options sealed during planning. Dispatch is a registry lookup over `type_id`
 ([`package_types.py`](../../../src/stage_gen/recipes/sideview_platformer/package_types.py) declares
 the recipe's whole type census); it is not a regex over node identifiers, and no reader recovers a
 node's kind from an output path convention.
@@ -40,11 +43,12 @@ node's kind from an output path convention.
 | --- | --- |
 | Authored package capture, membership, and closure | [`game_package.py`](../../../src/stage_gen/orchestration/game_package.py) over [`package_capture.py`](../../../src/stage_gen/orchestration/package_capture.py) |
 | The platformer member's resolution and cross-contract rules | [`validation.py`](../../../src/stage_gen/recipes/sideview_platformer/validation.py) |
-| Asset-level fan-out, dependencies, typed ports, cache inputs, and provider routes | [`package_graph.py`](../../../src/stage_gen/recipes/sideview_platformer/package_graph.py) |
+| Asset-level fan-out, dependencies, typed ports, cache inputs, and provider-neutral image workload requirements | [`package_graph.py`](../../../src/stage_gen/recipes/sideview_platformer/package_graph.py) |
 | The recipe's node-type census: `type_id`, view archetype, capability and features, attempt policy, per-type cache contract version | [`package_types.py`](../../../src/stage_gen/recipes/sideview_platformer/package_types.py) |
 | Dependency scheduling, resource gates, result contracts, and trace | [`gnode`](../../../src/gnode/) — [`graph.py`](../../../src/gnode/graph.py), [`schedule.py`](../../../src/gnode/schedule.py), [`trace.py`](../../../src/gnode/trace.py) |
 | Prepared-game document vocabulary over that engine | [`execution_graph.py`](../../../src/stage_gen/recipes/sideview_platformer/execution_graph.py) |
-| Provider routes a plan may use, and the features each declares | [`package_graph.py`](../../../src/stage_gen/recipes/sideview_platformer/package_graph.py) via [`binding.py`](../../../src/gnode/binding.py) |
+| Sunburst provider routes, capability policies, and the optional scalar provider override | [`model_routes.py`](../../../src/stage_gen/model_routes.py) over [`routes.py`](../../../src/gnode/routes.py) and [`route_constraints.py`](../../../src/gnode/route_constraints.py) |
+| Per-node route admission and portable `resolved_routes` snapshots | [`build.py`](../../../src/gnode/build.py) and [`graph.py`](../../../src/gnode/graph.py) |
 | Side-view platformer resolve/plan/dispatch composition | [`package_executor.py`](../../../src/stage_gen/recipes/sideview_platformer/package_executor.py) |
 | Prepared-package map execution, canonicalization, cache, and review | [`prepared_world.py`](../../../src/stage_gen/recipes/sideview_platformer/prepared_world.py) |
 | Prepared-package cast, catalog, UI, soundtrack, binding, and review execution | [`prepared_content.py`](../../../src/stage_gen/recipes/sideview_platformer/prepared_content.py) |
@@ -55,8 +59,22 @@ The side-view platformer executor is deliberately thin. It resolves one director
 recipe to construct the graph, and gives that graph to generic orchestration. It does not plan a
 game, hide asset fan-outs inside a coarse stage, or implement provider retry loops.
 
+Image selection is capability-first and happens entirely while the graph is built. Each node asks
+for generation or edit, background intent, references or a real mask, concrete reference-delivery
+shape (portable data URL, hosted URL, or both), output format, maximum
+verified quality, and an exact canvas when one is required. Checked-in policy then names one exact
+Sunburst route. `STAGE_GEN_IMAGE_PROVIDER` may replan all image workloads onto OpenAI, fal, or
+OpenRouter, but the selected route must prove every requirement offline. Credentials are checked
+only after selection and cannot influence it. There is no runtime discovery or provider fallback.
+OpenAI Images and fal expose native transparency, references, real masks, and custom exact sizes;
+OpenRouter is limited to opaque generation/reference conditioning and its verified exact-size set.
+The direct OpenAI edit route admits data-URL references only. fal and OpenRouter also declare hosted
+reference delivery, so a hosted input cannot accidentally reach OpenAI multipart transport and fail
+inside the paid retry boundary.
+Flare and the Responses image tool are outside this catalog.
+
 The runner uses the same genre-neutral captured-package boundary, including for
-a runner-only root, and then builds `sideview-runner-execution-graph-v1`.
+a runner-only root, and then builds `sideview-runner-execution-graph-v2`.
 `runner-track-v4` has a closed ground union. The atlas branch retains its one
 paintover plus local canonicalization. The `runner-structural-ground-v1` branch
 fans each authored segment into local occupancy-guide composition, one native-
@@ -73,9 +91,11 @@ fixture fan-out and provider-operation counts are machine-checked in
 [`runner.md`](runner.md); changing that fan-out requires regenerating its
 embedded contract in this same change.
 
-Runner planning refuses an image model outside the verified GPT Image 2.5
-Sunburst native-alpha model family before graph execution. Its generative loop node additionally requires the route's
-`masked_edit` capability; a binding that only advertises reference images cannot plan that node.
+Runner planning refuses an image route outside the verified GPT Image 2.5
+Sunburst product before graph execution. Its native-alpha workloads require transparency and its
+generative loop node additionally requires `masked_edit`; OpenAI is the checked-in default and fal
+is an explicit whole-graph provider override. A route that only advertises opaque reference images
+cannot plan either workload.
 Runner soundtrack nodes compile the shared soundtrack contract together with a recipe-owned
 `soundtrack_direction`: the first beat establishes the rhythmic engine, short action cells and
 clear transients sustain forward motion, and RPG exploration, town-theme, pastoral, cinematic,
@@ -171,20 +191,19 @@ topology. A changed prompt, image byte, or selected model changes node cache key
 `graph_sha256`, but not `topology_sha256`. Adding a map, entity, state, or dependency changes the
 topology and therefore this checked snapshot.
 
-The GPT Image 2.5 Sunburst migration changed the direct and opaque provider
-model identities, moved active requests to `quality="max"`, added high input
-fidelity to direct multipart edits, and bumped the paid image-node cache
-contracts. It did not change this graph's fan-out, dependencies, resources,
-operation counts, or scheduling, so the embedded topology block remains
-unchanged while the content-sensitive identity and cache-key goldens move.
+The GPT Image 2.5 Sunburst migration moved active requests to `quality="max"`. The subsequent
+provider-capability refactor leaves node fan-out and provider-operation counts unchanged, but seals
+the exact route and effective output contract into every image node. Provider, model, surface,
+endpoint action, adapter behavior, capability constraints, or effective image options therefore
+move content-sensitive graph and cache identities even when the DAG shape does not change.
 
 <!-- pipeline-graph-contract:start -->
 ```json
 {
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "library/games/bellweather",
-  "graph_schema_version": 1,
-  "topology_sha256": "61af6a11d4b4fcb2eb2d91c48b00e820353a7d251b80e7bc5c127263d71a4fdb",
+  "graph_schema_version": 2,
+  "topology_sha256": "952aa5d0d1f2e059cb512544a84495c7a2bec0bfe596aedb46f8e00aa72b8b6f",
   "node_count": 230,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
@@ -201,12 +220,6 @@ unchanged while the content-sensitive identity and cache-key goldens move.
       "rate_limit_owner": "none"
     },
     {
-      "resource_id": "openai-image",
-      "max_in_flight": null,
-      "requests_per_minute": 150,
-      "rate_limit_owner": "provider_adapter"
-    },
-    {
       "resource_id": "openrouter-structured",
       "max_in_flight": null,
       "requests_per_minute": null,
@@ -217,6 +230,12 @@ unchanged while the content-sensitive identity and cache-key goldens move.
       "max_in_flight": null,
       "requests_per_minute": null,
       "rate_limit_owner": "none"
+    },
+    {
+      "resource_id": "openai-image",
+      "max_in_flight": null,
+      "requests_per_minute": 150,
+      "rate_limit_owner": "provider_adapter"
     }
   ]
 }
@@ -228,10 +247,11 @@ For this exact captured Bellweather closure, the content-sensitive execution-pla
 Unlike the embedded topology contract, that value changes when prompt, reference, model, or other
 cache-key input bytes change without adding or removing a node.
 
-Remote provider resources have no scheduler concurrency ceiling. The direct OpenAI adapter owns
-the configured 150-IPM request-start pacing for this Tier 4 deployment and intentionally allows
-earlier slow requests to remain in flight. Other deployments must set their active project tier;
-the value is not a universal model constant.
+Remote provider resources have no scheduler concurrency ceiling. OpenAI and OpenRouter image
+adapters own their configured request-start pacing and intentionally allow earlier slow requests
+to remain in flight; fal's route currently declares no local pacing owner. Other deployments must
+set their active project tier. A pacing value is operational metadata, not a model capability or
+output identity input.
 
 ## Bellweather operation topology
 
@@ -482,9 +502,17 @@ returned usage remain operational evidence and must be refreshed at the live-pro
 
 ## Cache identity and retry ownership
 
-Every node cache key includes its stable ID and operation contract version, selected provider and
-model, ingest-computed digests of validated authored inputs, the authored digests of their
-references, and ordered prerequisite cache keys.
+Every node cache key includes its stable ID and operation contract version, ingest-computed digests
+of validated authored inputs, the authored digests of their references, and ordered prerequisite
+cache keys. An image node also includes its resolved route output fingerprint: provider, model,
+surface, endpoint action, adapter behavior, and normalized effective output options. Capability
+and exact-size facts are preserved in the route snapshot and revalidated at load and dispatch;
+prices, pacing, evidence dates, and verification notes do not change output identity.
+New plans write the route-bearing graph contract as version 2 (dialogue scene writes version 6
+after its prior version 5). The reader still accepts the immediately preceding graph identity only
+when it carries no resolved-route fields, so historical runs remain viewable without making a new
+route-bearing document look compatible with an old strict reader. Historical plans are never
+rewritten.
 Consumer-only presentation is an explicit exception at the paid boundary: root contact-shadow
 settings and per-layer contrast, saturation, atmospheric wash, and detail blur are excluded from
 generation, local layer admission, map composite, and semantic-review cache identities. They enter
@@ -519,7 +547,7 @@ artifact and invalidating child lineage.
 ## Persisted execution evidence
 
 The recipe this pipeline belongs to is persisted as `recipe: "sideview-platformer"`, and its
-execution documents declare the matching kinds: `sideview-platformer-execution-graph-v1` for the
+execution documents declare the matching kinds: `sideview-platformer-execution-graph-v2` for the
 plan, `-event-v1` for each trace record, `-summary-v1`, `-projection-v1`, and
 `-view-v1` at `schema_version` 3 for the derived run view. The sibling recipes declare their own
 kinds, so a reader never has to infer which recipe wrote a run directory.
@@ -527,7 +555,7 @@ kinds, so a reader never has to infer which recipe wrote a run directory.
 | File | Contract |
 | --- | --- |
 | `package.json` | Captured package identity, stable IDs, and the closure digest |
-| `execution-plan.json` | Typed nodes (`type_id`, `params`, `ports`, `card`, `template_id`), dependencies, resources, cache keys, models, and estimates |
+| `execution-plan.json` | Typed nodes (`type_id`, `params`, `ports`, `card`, `template_id`, optional `binding_ref`), resolved route snapshots, dependencies, resources, cache keys, models, and estimates |
 | `execution-projection.json` | Resource spans, critical path, call counts, time, and budget range |
 | `execution-trace.jsonl` | Immutable run/node events with queue, duration, cache, attempts, calls, and errors |
 | `execution-summary.json` | Terminal status and per-node result projection |
@@ -623,8 +651,10 @@ uv run stage-gen generate \
 
 `--failure-node <node_id>` injects a deterministic dry-run failure. Reusing `--cache-dir` proves
 content-and-lineage validated warm-cache behavior. Package planning and dry-run do not call a
-provider. `--checkpoint world` requires direct OpenAI image and OpenRouter structured
-capabilities. `--checkpoint content` additionally requires OpenRouter music generation and local
+provider. Paid checkpoints require only the credentials for the exact image routes sealed in their
+selected graph plus their non-image routes; the default Bellweather plan uses OpenAI image and
+OpenRouter structured capabilities, while a provider override must be replanned before execution.
+`--checkpoint content` additionally requires OpenRouter music generation and local
 `ffprobe` technical inspection. Listening acceptance remains a separate human verdict and is
 never inferred from a valid audio container. `--checkpoint integration` runs the terminal
 `manifest-assemble` node's whole dependency closure as a graph run over the cache: every node

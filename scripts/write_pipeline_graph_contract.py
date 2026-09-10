@@ -112,10 +112,12 @@ CONTRACT_PATTERN = contract_markers(None)[2]
 def build_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
     """Derive the contract from the graph the code builds. Key order is the document's order."""
 
+    config = StageGenConfig()
     package = resolve_game_package(repo / FIXTURE_REF)
     graph = build_package_execution_graph(
         package,
-        profile=package_graph_profile(StageGenConfig()),
+        profile=package_graph_profile(config),
+        config=config,
     )
     return {
         "kind": CONTRACT_KIND,
@@ -132,8 +134,13 @@ def build_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
 def build_runner_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
     """Derive the runner member's contract from the graph the code builds."""
 
+    config = StageGenConfig()
     resolved = resolve_runner_package(repo / RUNNER_FIXTURE_REF)
-    graph = build_runner_execution_graph(resolved, profile=runner_graph_profile(StageGenConfig()))
+    graph = build_runner_execution_graph(
+        resolved,
+        profile=runner_graph_profile(config),
+        config=config,
+    )
     return {
         "kind": RUNNER_CONTRACT_KIND,
         "fixture_ref": RUNNER_FIXTURE_REF,
@@ -182,6 +189,7 @@ def build_universe_semantic_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict
 
 def build_universe_gallery_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
     resolved, admitted = _universe_inputs(repo)
+    config = StageGenConfig()
     samples = resolve_sample_ledger(
         universe_id=admitted.universe_id, entity_ids=admitted.entity_ids()
     )
@@ -189,7 +197,8 @@ def build_universe_gallery_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[
         resolved,
         admitted,
         samples=samples,
-        profile=universe_graph_profile(StageGenConfig(), images=True),
+        profile=universe_graph_profile(config, images=True),
+        config=config,
     )
     return {
         "kind": UNIVERSE_GALLERY_CONTRACT_KIND,
@@ -214,9 +223,14 @@ def build_storefront_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, A
     the snapshot would be identical and the ledger is left out of it.
     """
 
+    config = StageGenConfig()
     root = repo / STOREFRONT_FIXTURE_REF
     resolved = resolve_storefront(read_storefront_document(root), root=root)
-    graph = build_storefront_graph(resolved, profile=storefront_graph_profile(StageGenConfig()))
+    graph = build_storefront_graph(
+        resolved,
+        profile=storefront_graph_profile(config),
+        config=config,
+    )
     return {
         "kind": STOREFRONT_CONTRACT_KIND,
         "fixture_ref": STOREFRONT_FIXTURE_REF,

@@ -29,6 +29,7 @@ from gnode import (
     ImageGenerationRequest,
     ImageGenerationService,
     ImageReference,
+    ImageRouteRequirementsV1,
     Node,
     NodeCard,
     NodeExecutionResult,
@@ -37,6 +38,7 @@ from gnode import (
     PortRef,
     SoftwareIdentity,
     ViewArchetype,
+    WorkloadRequestV1,
     atomic_write_json,
     dependency_port,
 )
@@ -209,6 +211,8 @@ def add_painted_terrain_nodes(
     material_direction: str,
     layout: PaintedTerrainLayout,
     params: Mapping[str, str] | None = None,
+    image_workload: Callable[[ImageRouteRequirementsV1], WorkloadRequestV1] | None = None,
+    material_reference_count: int = 0,
 ) -> str:
     """Fan one map out into its derived segments; returns the node that composes them.
 
@@ -272,6 +276,19 @@ def add_painted_terrain_nodes(
                 params=segment_params,
                 depends_on=(guide.node_id,),
                 input_digests=(text_digest(prompt),),
+                workload=(
+                    None
+                    if image_workload is None
+                    else image_workload(
+                        ImageRouteRequirementsV1(
+                            operation_variant="edit",
+                            background="transparent",
+                            output_format="png",
+                            size=(f"{PAINTED_TERRAIN_GUIDE_WIDTH}x{PAINTED_TERRAIN_GUIDE_HEIGHT}"),
+                            reference_count=1 + material_reference_count,
+                        )
+                    )
+                ),
                 ports=(
                     artifact_port(
                         "image", layout.raw(segment.segment_id), PAINTED_TERRAIN_RAW_KIND

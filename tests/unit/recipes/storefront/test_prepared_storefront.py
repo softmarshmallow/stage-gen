@@ -24,7 +24,8 @@ from stage_gen.recipes.storefront.storefront_graph import (
 from stage_gen.recipes.storefront.surfaces import SurfaceKind, surface
 from tests.unit.recipes.storefront._fixture import resolved, solid_png, write_package
 
-PROFILE = storefront_graph_profile(StageGenConfig())
+CONFIG = StageGenConfig()
+PROFILE = storefront_graph_profile(CONFIG)
 
 
 def rgba_png(width: int, height: int, alpha: int) -> bytes:
@@ -39,7 +40,7 @@ def handler_for(tmp_path: Path) -> tuple[StorefrontNodeHandler, Path]:
     run_dir.mkdir()
     plan = resolved(package)
     handler = StorefrontNodeHandler(
-        build_storefront_graph(plan, profile=PROFILE),
+        build_storefront_graph(plan, config=CONFIG, profile=PROFILE),
         plan,
         run_dir=run_dir,
         cache_dir=tmp_path / "cache",

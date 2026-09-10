@@ -18,6 +18,7 @@ from gnode import (
     ImageGenerationRequest,
     ImageGenerationService,
     ImageReference,
+    ImageRouteRequirementsV1,
     Node,
     NodeCard,
     NodeExecutionContext,
@@ -27,11 +28,13 @@ from gnode import (
     NodeType,
     NodeTypeRegistry,
     PortRef,
+    ResolvedBindingV1,
     StructuredGenerationRequest,
     StructuredGenerationService,
     StructuredOutputSchema,
     StructuredReference,
     ViewArchetype,
+    WorkloadRequestV1,
 )
 from stage_gen.components._node_kit import artifact_port, node_result
 from stage_gen.media import data_url
@@ -75,7 +78,7 @@ def portrait_motion_node_types(max_attempts: int = 6) -> tuple[NodeType, ...]:
             else "local"
         )
         features = (
-            ("reference_inputs",)
+            ("reference_images",)
             if stage == "atlas"
             else ("structured_output", "image_input")
             if stage in _PROVIDER_STAGES
@@ -107,6 +110,7 @@ def add_portrait_motion_nodes(
     source_sha256: str,
     max_attempts: int = 6,
     prefix: str = "",
+    image_workload: Callable[[ImageRouteRequirementsV1], WorkloadRequestV1] | None = None,
 ) -> tuple[str, ...]:
     """Add every required stage; semantic refusal still produces a terminal result."""
     added: list[str] = []
@@ -141,6 +145,19 @@ def add_portrait_motion_nodes(
             depends_on=added[-1:],
             input_digests=input_digests,
             params={"stage": stage},
+            workload=(
+                image_workload(
+                    ImageRouteRequirementsV1(
+                        operation_variant="edit",
+                        background="opaque",
+                        output_format="png",
+                        size=f"{spec.width}x{spec.height}",
+                        reference_count=1,
+                    )
+                )
+                if stage == "atlas" and image_workload is not None
+                else None
+            ),
             ports=tuple(
                 artifact_port(
                     port_ids[stage][name],
@@ -200,6 +217,7 @@ def _stage_files(spec: PortraitMotionSpec, stage: str, eligible: list[str]) -> l
 class PortraitMotionHost(Protocol):
     store: RunStore
     spec: PortraitMotionSpec
+    image_binding: ResolvedBindingV1
     image_service: ImageGenerationService | None
     structured_service: StructuredGenerationService[dict[str, Any]] | None
     request_policy: dict[str, Any]
@@ -207,6 +225,12 @@ class PortraitMotionHost(Protocol):
     max_tokens: int
     timeout_seconds: float
     operation_count: Callable[[], int] | None
+
+    def bind_image_request(
+        self,
+        request: ImageGenerationRequest,
+        binding: ResolvedBindingV1,
+    ) -> ImageGenerationRequest: ...
 
 
 @dataclass
@@ -552,7 +576,7 @@ class PortraitMotionHandlers:
             return {"exact_canvas": True, "opaque": True}
 
         target = f"{node.node_id}/atlas.png"
-        result = await service.generate(
+        provider_request = self.host.bind_image_request(
             ImageGenerationRequest(
                 prompt=prompt,
                 artifact_path=self.store.path(target),
@@ -568,8 +592,11 @@ class PortraitMotionHandlers:
                 validate=validate,
                 timeout_seconds=self.host.timeout_seconds,
                 metadata={**self._params(node), "request_sha256": self.store.digest(request_ref)},
-            )
+                resolved_binding=self.host.image_binding,
+            ),
+            self.host.image_binding,
         )
+        result = await service.generate(provider_request)
         return StageOutput("passed", "One atlas authored", [request_ref, target], result.attempts)
 
     async def _registration(self, node: Node) -> StageOutput:

@@ -7,8 +7,14 @@ from typing import Any, cast
 
 import pytest
 
-from gnode import Scheduler
+from gnode import ImageGenerationRequest, ImageRouteRequirementsV1, Scheduler
 from stage_gen.config import StageGenConfig
+from stage_gen.image_product import ImageProvider
+from stage_gen.media import inspect_image
+from stage_gen.model_routes import (
+    configured_image_route_catalog,
+    configured_image_workload_resolver,
+)
 from stage_gen.recipes.dialogue_scene.identity import content_sha256
 from stage_gen.recipes.dialogue_scene.models import (
     AttemptLedger,
@@ -17,6 +23,7 @@ from stage_gen.recipes.dialogue_scene.models import (
 )
 from stage_gen.recipes.dialogue_scene.prepared_scene import DialogueSceneNodeHandler
 from stage_gen.recipes.dialogue_scene.scene_graph import (
+    DialogueSceneGraph,
     build_dialogue_scene_graph,
     dialogue_graph_profile,
 )
@@ -36,11 +43,17 @@ async def run_scene(
     cache_dir: Path,
     images: FakeImages | None = None,
     structured: FakeStructured | None = None,
-) -> tuple[Any, FakeImages, FakeStructured]:
+    config: StageGenConfig | None = None,
+) -> tuple[Any, FakeImages, FakeStructured, DialogueSceneGraph]:
     """Execute the whole dialogue graph against provider-free fakes."""
 
     scene = resolve_dialogue_scene(read_scene_document(package), root=package)
-    graph = build_dialogue_scene_graph(scene, profile=dialogue_graph_profile(StageGenConfig()))
+    config = config or StageGenConfig()
+    graph = build_dialogue_scene_graph(
+        scene,
+        profile=dialogue_graph_profile(config),
+        config=config,
+    )
     image_service = images or FakeImages()
     structured_service = structured or FakeStructured()
     await asyncio.to_thread(run_dir.mkdir, parents=True, exist_ok=True)
@@ -53,22 +66,46 @@ async def run_scene(
         structured_service=cast("Any", structured_service),
     )
     summary = await Scheduler(graph.resources).run(graph, handler, invocation_id="test-invocation")
-    return summary, image_service, structured_service
+    return summary, image_service, structured_service, graph
+
+
+def _assert_image_requests_match_plan(
+    graph: DialogueSceneGraph,
+    requests: list[ImageGenerationRequest],
+    config: StageGenConfig,
+) -> None:
+    catalog = configured_image_route_catalog(config)
+    resolve_workload = configured_image_workload_resolver(config, catalog=catalog)
+    for request in requests:
+        raw_node = request.metadata.get("node")
+        if isinstance(raw_node, str):
+            node_id = raw_node
+        else:
+            role = request.metadata.get("role")
+            assert isinstance(role, str)
+            node_id = f"ui-{role}-generate"
+        workload = resolve_workload(ImageRouteRequirementsV1.from_request(request))
+        planned = graph.resolved_route_for(node_id)
+        assert planned.policy_id == workload.policy_id
+        assert set(planned.required_features) == workload.required_features
+        assert planned.required_limits == workload.required_limits
+        assert planned.effective_output_options == dict(workload.output_options)
 
 
 @pytest.mark.asyncio
 async def test_whole_scene_graph_runs_and_writes_the_portable_bundle(tmp_path: Path) -> None:
     package = write_scene_package(tmp_path / "package")
-    summary, images, structured = await run_scene(
+    summary, images, structured, graph = await run_scene(
         package, run_dir=tmp_path / "run", cache_dir=tmp_path / "cache"
     )
 
     assert summary.ok
-    # Five structured calls (one style anchor, one plan per actor, one judge per interface
-    # role) and eleven images: one backdrop per stage, four expressions for each of two
-    # actors, and the two nine-slice sheets. The style plate is authored, so nothing buys it.
+    # Six structured calls (one style anchor, one plan per actor, one judge per interface
+    # role) and twelve images: one backdrop per stage, four expressions for each of two
+    # actors, and three interface sheets. The style plate is authored, so nothing buys it.
     assert len(structured.calls) == 6
     assert len(images.requests) == 12
+    _assert_image_requests_match_plan(graph, images.requests, StageGenConfig())
     bundle = DialogueBundle.model_validate_json((tmp_path / "run/bundle.json").read_bytes())
     assert bundle.style_reference_source == "references/cover.png"
     assert bundle.style_reference.sha256 == content_sha256(
@@ -120,7 +157,7 @@ async def test_a_landscape_style_plate_runs_and_bundles(tmp_path: Path) -> None:
     """
 
     package = write_scene_package(tmp_path / "package", landscape_plate=True)
-    summary, _images, _structured = await run_scene(
+    summary, _images, _structured, _graph = await run_scene(
         package, run_dir=tmp_path / "run", cache_dir=tmp_path / "cache"
     )
     assert summary.ok
@@ -132,6 +169,37 @@ async def test_a_landscape_style_plate_runs_and_bundles(tmp_path: Path) -> None:
     background = next(artifact for artifact in bundle.assets if artifact.role == "background")
     assert isinstance(background.media, MediaFacts)
     assert (background.media.width, background.media.height) == (1672, 941)
+
+
+@pytest.mark.asyncio
+async def test_fal_override_uses_exact_provider_canvases_before_canonicalization(
+    tmp_path: Path,
+) -> None:
+    package = write_scene_package(tmp_path / "package")
+    config = StageGenConfig(image_provider_override=ImageProvider.FAL)
+    run_dir = tmp_path / "run"
+    summary, images, _structured, graph = await run_scene(
+        package,
+        run_dir=run_dir,
+        cache_dir=tmp_path / "cache",
+        config=config,
+    )
+
+    assert summary.ok
+    assert {route.provider for route in graph.resolved_routes} == {"fal"}
+    _assert_image_requests_match_plan(graph, images.requests, config)
+    background_request = next(
+        request for request in images.requests if request.metadata.get("role") == "background"
+    )
+    assert background_request.size == "1680x944"
+    assert background_request.output_format == "png"
+    assert background_request.aspect_ratio == "auto"
+    assert len(background_request.input_references) == 1
+
+    provider = inspect_image((run_dir / "raw/stage-lounge-provider.png").read_bytes())
+    canonical = inspect_image((run_dir / "assets/stage-lounge.png").read_bytes())
+    assert (provider.width, provider.height) == (1680, 944)
+    assert (canonical.width, canonical.height) == (1672, 941)
 
 
 @pytest.mark.asyncio
@@ -200,7 +268,7 @@ async def test_a_second_run_restores_every_node_from_the_validated_cache(
     cache_dir = tmp_path / "cache"
     package = write_scene_package(tmp_path / "package")
     await run_scene(package, run_dir=tmp_path / "first", cache_dir=cache_dir)
-    summary, images, structured = await run_scene(
+    summary, images, structured, _graph = await run_scene(
         package, run_dir=tmp_path / "second", cache_dir=cache_dir
     )
 
@@ -218,7 +286,7 @@ async def test_the_graph_resolves_the_authored_character_before_any_art(
     tmp_path: Path,
 ) -> None:
     package = write_scene_package(tmp_path / "package")
-    summary, _images, _structured = await run_scene(
+    summary, _images, _structured, _graph = await run_scene(
         package, run_dir=tmp_path / "run", cache_dir=tmp_path / "cache"
     )
 

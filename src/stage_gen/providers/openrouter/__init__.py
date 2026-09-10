@@ -1,3 +1,3 @@
-from .image_repeat import OpenRouterMaskedImageEditBackend
+"""No application-owned provider adapter is selected from this namespace."""
 
-__all__ = ["OpenRouterMaskedImageEditBackend"]
+__all__: list[str] = []

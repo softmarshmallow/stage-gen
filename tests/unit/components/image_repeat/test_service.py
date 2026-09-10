@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 from collections.abc import Sequence
+from dataclasses import replace
 from io import BytesIO
 from pathlib import Path
 from typing import Literal, cast
@@ -15,9 +16,12 @@ from pydantic import ValidationError
 from gnode import (
     ArtifactProvenance,
     BinaryArtifact,
+    ExactSizeConstraints2DV1,
     ProvenanceInput,
     ProviderResponseMetadata,
+    ResolvedRouteSnapshotV1,
     RetryPolicy,
+    RouteCatalog,
     SoftwareIdentity,
     write_artifact_with_provenance,
 )
@@ -25,6 +29,8 @@ from stage_gen.components.image_repeat import (
     INTENDED_LOOP_MIN_ACCEPT_CONFIDENCE,
     INTENDED_LOOP_REVIEW_PROMPT_VERSION,
     THREE_REPEAT_PREVIEW_VERSION,
+    ImageConditionedRepairRequest,
+    ImageConditionedRepairTransport,
     ImageRepeatAdmissionRequest,
     ImageRepeatDeterministicValidationError,
     ImageRepeatFailureCode,
@@ -38,12 +44,19 @@ from stage_gen.components.image_repeat import (
     ImageRepeatValidationPolicy,
     IntendedLoopReview,
     IntendedLoopReviewRequest,
-    MaskedImageEditRequest,
     ProviderImageRepeatEdit,
     build_three_repeat_preview,
     canonical_intended_loop_criteria,
     validate_image_repeat,
     verify_image_repeat_artifact,
+)
+from stage_gen.config import StageGenConfig
+from stage_gen.image_product import ImageProvider
+from stage_gen.model_routes import (
+    IMAGE_CONDITIONED_REPAIR_OPERATION,
+    configured_conditioned_repair_route_contract,
+    image_route_catalog,
+    resolve_configured_conditioned_repair_route,
 )
 
 type Color = tuple[int, int, int, int]
@@ -133,10 +146,8 @@ class FakeIntendedLoopReviewer:
         return 0.96 if self.verdict == "accept" else 0.72
 
 
-class FakeMaskedImageEditBackend:
-    provider = "fake-edit"
-    model = "fake-mask-v2"
-    capability: Literal["masked-image-edit"] = "masked-image-edit"
+class FakeImageConditionedRepairBackend:
+    capability: Literal["image.conditioned.repair"] = "image.conditioned.repair"
     secrets: tuple[str, ...] = ("edit-secret",)
 
     def __init__(
@@ -144,15 +155,50 @@ class FakeMaskedImageEditBackend:
         outcomes: Sequence[Outcome] = ("good",),
         *,
         mutate_context: bool = True,
+        provider: ImageProvider = ImageProvider.OPENAI,
     ) -> None:
+        self.config = StageGenConfig(image_provider_override=provider)
+        self.catalog = RouteCatalog(
+            tuple(
+                replace(route, exact_size_constraints=ExactSizeConstraints2DV1())
+                if route.operation == IMAGE_CONDITIONED_REPAIR_OPERATION
+                else route
+                for route in image_route_catalog().routes
+            )
+        )
+        route = configured_conditioned_repair_route_contract(
+            self.config,
+            catalog=self.catalog,
+        )
+        self.provider = route.model.provider
+        self.model = route.model.model
+        self.transport: ImageConditionedRepairTransport = (
+            "native_mask_edit"
+            if route.operation_variant == "native_mask_edit"
+            else "reference_conditioned_edit"
+        )
+        self.last_resolved_route: ResolvedRouteSnapshotV1 | None = None
         self.outcomes = tuple(outcomes)
         self.mutate_context = mutate_context
         self.calls = 0
-        self.requests: list[MaskedImageEditRequest] = []
+        self.requests: list[ImageConditionedRepairRequest] = []
         self.outputs: list[bytes] = []
         self.closed = False
 
-    async def edit_once(self, request: MaskedImageEditRequest) -> ProviderImageRepeatEdit:
+    def resolve_route(self, *, width: int, height: int) -> ResolvedRouteSnapshotV1:
+        route = resolve_configured_conditioned_repair_route(
+            self.config,
+            width=width,
+            height=height,
+            catalog=self.catalog,
+        ).to_snapshot()
+        self.last_resolved_route = route
+        return route
+
+    async def edit_once(
+        self,
+        request: ImageConditionedRepairRequest,
+    ) -> ProviderImageRepeatEdit:
         self.calls += 1
         self.requests.append(request)
         outcome = self.outcomes[min(self.calls - 1, len(self.outcomes) - 1)]
@@ -164,14 +210,28 @@ class FakeMaskedImageEditBackend:
             mutate_context=self.mutate_context,
         )
         self.outputs.append(data)
+        resolved_route = self.resolve_route(width=request.width, height=request.height)
         return ProviderImageRepeatEdit(
             data=data,
             media_type="image/png",
+            resolved_route=resolved_route,
             response_metadata=ProviderResponseMetadata(request_id=f"edit-{self.calls}"),
         )
 
     async def aclose(self) -> None:
         self.closed = True
+
+
+@pytest.mark.asyncio
+async def test_repair_backend_identity_must_match_its_sealed_route(tmp_path: Path) -> None:
+    backend = FakeImageConditionedRepairBackend()
+    backend.model = "different-model"
+    source = _source_with_provenance(tmp_path / "source", axis="x", seamless=False)
+
+    service = ImageRepeatService(FakeIntendedLoopReviewer(), repair_backend=backend)
+    with pytest.raises(ValueError, match="does not match its resolved route"):
+        await service.repair(_repair_request(source, tmp_path / "out", axis="x"))
+    assert backend.calls == 0
 
 
 @pytest.mark.asyncio
@@ -264,7 +324,7 @@ async def test_admit_rejects_bad_wrap_without_reviewer_or_automatic_repair(
 ) -> None:
     source = _source_with_provenance(tmp_path / "source", axis="x", seamless=False)
     reviewer = FakeIntendedLoopReviewer()
-    repair_backend = FakeMaskedImageEditBackend()
+    repair_backend = FakeImageConditionedRepairBackend()
     output_dir = tmp_path / "out"
     with pytest.raises(ImageRepeatDeterministicValidationError) as captured:
         await ImageRepeatService(reviewer, repair_backend=repair_backend).admit(
@@ -377,7 +437,7 @@ async def test_explicit_repair_retries_deterministic_failure_preserves_source_an
 ) -> None:
     source = _source_with_provenance(tmp_path / "source", axis=axis, seamless=False)
     reviewer = FakeIntendedLoopReviewer()
-    backend = FakeMaskedImageEditBackend(("bad", "good"), mutate_context=True)
+    backend = FakeImageConditionedRepairBackend(("bad", "good"), mutate_context=True)
     result = await ImageRepeatService(
         reviewer,
         repair_backend=backend,
@@ -385,8 +445,8 @@ async def test_explicit_repair_retries_deterministic_failure_preserves_source_an
     ).repair(_repair_request(source, tmp_path / "out", axis=axis))
 
     assert result.decision == "repaired"
-    assert result.provider == "fake-edit"
-    assert result.model == "fake-mask-v2"
+    assert result.provider == "openai"
+    assert result.model == "gpt-image-2.5-sunburst"
     assert result.attempts == backend.calls == 2
     assert reviewer.calls == 1
     request = backend.requests[-1]
@@ -431,6 +491,8 @@ async def test_explicit_repair_retries_deterministic_failure_preserves_source_an
     assert construction.alpha_topology_reconstructed is True
     assert construction.provider_rgb_interior_preserved is True
     assert construction.deterministically_reconstructible is True
+    assert construction.repair_transport == "native_mask_edit"
+    assert construction.resolved_route == backend.last_resolved_route
     assert manifest.validation.deterministic.verdict == "pass"
 
     candidate_path = Path(cast(str, result.provider_candidate_path))
@@ -472,6 +534,7 @@ async def test_explicit_repair_retries_deterministic_failure_preserves_source_an
     assert lineage.repair_sha256 == hashlib.sha256(verified.repair_png).hexdigest()
 
     candidate_record = ArtifactProvenance.model_validate_json(candidate_sidecar)
+    assert construction.resolved_route is not None
     assert candidate_record.provider == construction.provider
     assert candidate_record.model == construction.model
     assert candidate_record.attempts == construction.attempts
@@ -487,6 +550,8 @@ async def test_explicit_repair_retries_deterministic_failure_preserves_source_an
         "context_span_px": construction.context_span_px,
         "repair_span_px": construction.repair_span_px,
         "mask_semantics": construction.mask_semantics,
+        "repair_transport": construction.repair_transport,
+        "resolved_route": construction.resolved_route.model_dump(mode="json"),
         "alpha_reconstruction_algorithm": construction.alpha_reconstruction_algorithm,
         "provider_responsibility": "rgb_appearance",
         "component_responsibility": "alpha_topology_and_endpoint_continuity",
@@ -501,6 +566,8 @@ async def test_explicit_repair_retries_deterministic_failure_preserves_source_an
     assert candidate_record.response == {
         "media_type": "image/png",
         "bytes": len(candidate_data),
+        "usage": None,
+        "cost_complete": False,
         "request_id": "edit-2",
     }
 
@@ -520,6 +587,10 @@ async def test_explicit_repair_retries_deterministic_failure_preserves_source_an
     assert repeat_record.params["alpha_topology_reconstructed"] is True
     assert repeat_record.params["provider_rgb_interior_preserved"] is True
     assert repeat_record.params["deterministically_reconstructible"] is True
+    assert repeat_record.params["repair_transport"] == "native_mask_edit"
+    assert repeat_record.params["resolved_route"] == construction.resolved_route.model_dump(
+        mode="json"
+    )
     assert repeat_record.params["provider_candidate"] == construction.provider_candidate.model_dump(
         mode="json"
     )
@@ -565,6 +636,43 @@ async def test_explicit_repair_retries_deterministic_failure_preserves_source_an
     legacy_v3.pop("deterministically_reconstructible")
     with pytest.raises(ValidationError):
         ImageRepeatRepairConstruction.model_validate(legacy_v3)
+
+    historical_v4 = construction.model_dump(mode="json")
+    historical_v4.pop("repair_transport")
+    historical_v4.pop("resolved_route")
+    migrated = ImageRepeatRepairConstruction.model_validate(historical_v4)
+    assert migrated.repair_transport == "reference_conditioned_edit"
+    assert migrated.resolved_route is None
+
+
+@pytest.mark.asyncio
+async def test_openrouter_repair_persists_reference_conditioning_not_a_mask_claim(
+    tmp_path: Path,
+) -> None:
+    source = _source_with_provenance(tmp_path / "source", axis="x", seamless=False)
+    backend = FakeImageConditionedRepairBackend(provider=ImageProvider.OPENROUTER)
+    result = await ImageRepeatService(
+        FakeIntendedLoopReviewer(),
+        repair_backend=backend,
+        retry_policy=RetryPolicy(initial_delay_s=0, max_delay_s=0),
+    ).repair(_repair_request(source, tmp_path / "out", axis="x"))
+
+    manifest = ImageRepeatManifest.model_validate_json(await _read_text(result.manifest_path))
+    construction = cast(ImageRepeatRepairConstruction, manifest.construction)
+    assert construction.provider == "openrouter"
+    assert construction.repair_transport == "reference_conditioned_edit"
+    assert construction.resolved_route is not None
+    assert construction.resolved_route.effective_output_options["mask_present"] is False
+    assert construction.resolved_route.effective_output_options["reference_count"] == 2
+    assert "reference_guidance" in construction.resolved_route.required_features
+    assert "native_mask_input" not in construction.resolved_route.required_features
+    candidate_record = ArtifactProvenance.model_validate_json(
+        await _read_bytes(cast(str, result.provider_candidate_provenance_path))
+    )
+    assert candidate_record.params["repair_transport"] == "reference_conditioned_edit"
+    assert candidate_record.params["resolved_route"] == construction.resolved_route.model_dump(
+        mode="json"
+    )
 
 
 def test_deterministic_alpha_and_coverage_policies_reject_transparent_discontinuity() -> None:
@@ -703,7 +811,7 @@ async def test_repaired_bundle_rolls_back_provider_candidate_and_all_success_fil
     with pytest.raises(RuntimeError, match="provider-candidate persistence failure"):
         await ImageRepeatService(
             FakeIntendedLoopReviewer(),
-            repair_backend=FakeMaskedImageEditBackend(),
+            repair_backend=FakeImageConditionedRepairBackend(),
             persistence_checkpoint=fail_after_provider_candidate_provenance,
         ).repair(_repair_request(source, output_dir, axis="x"))
 
@@ -729,7 +837,7 @@ async def test_repair_bounds_derived_provider_candidate_name(tmp_path: Path) -> 
 
     result = await ImageRepeatService(
         FakeIntendedLoopReviewer(),
-        repair_backend=FakeMaskedImageEditBackend(),
+        repair_backend=FakeImageConditionedRepairBackend(),
     ).repair(request)
 
     candidate = Path(cast(str, result.provider_candidate_path))
@@ -883,7 +991,7 @@ def _source_with_provenance(
 
 
 def _provider_candidate(
-    request: MaskedImageEditRequest,
+    request: ImageConditionedRepairRequest,
     *,
     outcome: Literal["good", "bad"],
     mutate_context: bool,

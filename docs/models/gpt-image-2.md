@@ -9,8 +9,8 @@
 OpenAI released transparent backgrounds for GPT Image 2 in preview on
 2026-08-20, and the direct native-alpha contract was verified from official
 documentation on 2026-08-25. The fal and OpenRouter routes were rechecked on
-2026-09-07. This page records the model-specific boundary used by the image
-recipes. The general component contract lives in
+2026-09-07. This page records the model-specific boundary formerly used by the
+image recipes. The general component contract lives in
 [../component-contract.md](../component-contract.md).
 
 ## Direct OpenAI route
@@ -53,10 +53,12 @@ not establish the exact transparency release date.
 
 The exposed fal schema proves transparent text-to-image generation only. It
 does not expose reference-image or masked-edit inputs required by the current
-recipe image nodes. Stage Gen therefore has no fal image-generation adapter or
-binding, direct OpenAI remains the native route, and separate background
-removal remains available. Do not add automatic fallback when this candidate
-is integrated.
+recipe image nodes. At the time this predecessor record was written, Stage Gen
+therefore had no fal image-generation adapter or binding, direct OpenAI was the
+native route, and separate background removal remained available. That status
+is historical: the current GPT Image 2.5 route catalog includes explicit fal
+generation, edit, and conditioned-repair routes. No provider is an automatic
+fallback.
 
 Primary sources:
 

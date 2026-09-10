@@ -27,6 +27,7 @@ from gnode import (
     ImageGenerationRequest,
     ImageGenerationService,
     ImageReference,
+    ImageRouteRequirementsV1,
     Node,
     NodeCard,
     NodeExecutionResult,
@@ -36,6 +37,7 @@ from gnode import (
     PortRef,
     SoftwareIdentity,
     ViewArchetype,
+    WorkloadRequestV1,
     atomic_write_bytes,
     atomic_write_json,
     dependency_port,
@@ -202,6 +204,8 @@ def add_layer_nodes(
     loop_prompt: str | None = None,
     attempts_port: Callable[[str], Port] | None = None,
     validate_digests: Sequence[str] | None = None,
+    image_workload: Callable[[ImageRouteRequirementsV1], WorkloadRequestV1] | None = None,
+    generate_reference_count: int | None = None,
 ) -> str:
     """Paint, loop, admit; returns the admission node id, the family's terminal.
 
@@ -232,6 +236,31 @@ def add_layer_nodes(
         cache_depends_on=(),
         input_digests=tuple(generate_digests),
         ports=tuple(generate_ports),
+        workload=(
+            None
+            if image_workload is None
+            else image_workload(
+                ImageRouteRequirementsV1(
+                    operation_variant=(
+                        "edit"
+                        if (
+                            len(authored_inputs)
+                            if generate_reference_count is None
+                            else generate_reference_count
+                        )
+                        else "generation"
+                    ),
+                    background=("transparent" if layer.alpha_mode == "transparent" else "opaque"),
+                    output_format="png",
+                    size=f"{LAYER_CANVAS[0]}x{LAYER_CANVAS[1]}",
+                    reference_count=(
+                        len(authored_inputs)
+                        if generate_reference_count is None
+                        else generate_reference_count
+                    ),
+                )
+            )
+        ),
         card=NodeCard(prompt=generate_prompt, authored_inputs=authored_inputs),
     )
     generative = LOOP_METHODS[construction].is_generative
@@ -267,6 +296,20 @@ def add_layer_nodes(
         # a repainted layer must never be served a loop derived from the discarded image.
         depends_on=(generated.node_id,),
         input_digests=tuple(loop_digests),
+        workload=(
+            None
+            if image_workload is None or not generative
+            else image_workload(
+                ImageRouteRequirementsV1(
+                    operation_variant="edit",
+                    background=("transparent" if layer.alpha_mode == "transparent" else "opaque"),
+                    output_format="png",
+                    size=f"{LAYER_CANVAS[0]}x{LAYER_CANVAS[1]}",
+                    reference_count=1,
+                    mask_present=True,
+                )
+            )
+        ),
         ports=tuple(loop_ports),
         card=NodeCard(
             prompt=loop_prompt if generative else None,

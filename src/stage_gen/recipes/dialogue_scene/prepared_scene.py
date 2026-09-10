@@ -89,8 +89,14 @@ from stage_gen.recipes.dialogue_scene.models import (
 from stage_gen.recipes.dialogue_scene.policy import POLICY_DIGEST
 from stage_gen.recipes.dialogue_scene.prompts import base_plate_prompt, expression_prompt
 from stage_gen.recipes.dialogue_scene.scene_graph import (
+    BACKGROUND_HEIGHT,
+    BACKGROUND_WIDTH,
     DIALOGUE_CACHE_NAMESPACE,
     DIALOGUE_CACHE_RECORD_KIND,
+    PROVIDER_BACKGROUND_HEIGHT,
+    PROVIDER_BACKGROUND_WIDTH,
+    SPRITE_HEIGHT,
+    SPRITE_WIDTH,
     DialogueSceneGraph,
 )
 from stage_gen.recipes.dialogue_scene.scene_request import (
@@ -134,13 +140,6 @@ if TYPE_CHECKING:
     from stage_gen.recipes.dialogue_scene.models import DialoguePlan
 
 _COMPONENT = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="5")
-
-SPRITE_WIDTH = 1024
-SPRITE_HEIGHT = 1536
-BACKGROUND_WIDTH = 1672
-BACKGROUND_HEIGHT = 941
-NATIVE_BACKGROUND_WIDTH = 1680
-NATIVE_BACKGROUND_HEIGHT = 944
 
 
 def scene_target_node_ids(graph: DialogueSceneGraph) -> tuple[str, ...]:
@@ -425,10 +424,8 @@ class DialogueSceneNodeHandler(RecipeNodeHandler):
         return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
 
     async def _backdrop_generate(self, node: Node) -> NodeExecutionResult:
-        scene = self._scene
-        native = scene.request.transparency_mode == "native"
         published = node.port("image").artifact_ref
-        provider_output = node.port("provider_raw").artifact_ref if native else published
+        provider_output = node.port("provider_raw").artifact_ref
         prompt = self._card_prompt(node)
         # Every room is drawn against the same authored plate the cast is, so a
         # backdrop and the people standing in it cannot disagree about the light.
@@ -439,8 +436,6 @@ class DialogueSceneNodeHandler(RecipeNodeHandler):
         result = await self._image(
             node, "background", prompt, provider_output, references, alpha=False
         )
-        if not native:
-            return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
         normalized, record = normalize_png(
             result.data, width=BACKGROUND_WIDTH, height=BACKGROUND_HEIGHT
         )
@@ -788,8 +783,8 @@ class DialogueSceneNodeHandler(RecipeNodeHandler):
             else (SPRITE_WIDTH, SPRITE_HEIGHT)
         )
         provider_width, provider_height = (
-            (NATIVE_BACKGROUND_WIDTH, NATIVE_BACKGROUND_HEIGHT)
-            if native and role == "background"
+            (PROVIDER_BACKGROUND_WIDTH, PROVIDER_BACKGROUND_HEIGHT)
+            if role == "background"
             else (width, height)
         )
         asset_kind: ImageAssetKind = (
@@ -807,19 +802,16 @@ class DialogueSceneNodeHandler(RecipeNodeHandler):
             aspect_ratio="2:3" if sprite else "auto",
             quality="max",
             background="transparent" if sprite and native else "opaque",
-            output_format="png" if native else None,
-            size=f"{provider_width}x{provider_height}" if native else None,
+            output_format="png",
+            size=f"{provider_width}x{provider_height}",
             metadata={
                 "recipe": scene.recipe_version,
                 "node": node.node_id,
                 "role": role,
                 "width": width,
                 "height": height,
-                **(
-                    {"provider_width": provider_width, "provider_height": provider_height}
-                    if native
-                    else {}
-                ),
+                "provider_width": provider_width,
+                "provider_height": provider_height,
                 **(
                     {}
                     if node.params.get("actor") is None

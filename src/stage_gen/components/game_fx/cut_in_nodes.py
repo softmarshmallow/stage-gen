@@ -20,6 +20,7 @@ from gnode import (
     ImageGenerationRequest,
     ImageGenerationService,
     ImageReference,
+    ImageRouteRequirementsV1,
     Node,
     NodeCard,
     NodeExecutionResult,
@@ -37,6 +38,7 @@ from gnode import (
     ToolLoopService,
     ToolResult,
     ViewArchetype,
+    WorkloadRequestV1,
     atomic_write_json,
     dependency_port,
 )
@@ -378,6 +380,7 @@ def add_cut_in_nodes(
     prefix: str = "fx",
     attempts_port: Callable[[str], Port] | None = None,
     subject_reference: Callable[[CutInPortraitSubject], PortRef] | None = None,
+    image_workload: Callable[[ImageRouteRequirementsV1], WorkloadRequestV1] | None = None,
 ) -> list[str]:
     """Add the frame and every portrait the document declares.
 
@@ -440,6 +443,19 @@ def add_cut_in_nodes(
                 frame_geometry,
             ),
             ports=tuple(ports),
+            workload=(
+                None
+                if image_workload is None
+                else image_workload(
+                    ImageRouteRequirementsV1(
+                        operation_variant="edit" if authored else "generation",
+                        background="transparent",
+                        output_format="png",
+                        size=f"{CUT_IN_FRAME.canvas[0]}x{CUT_IN_FRAME.canvas[1]}",
+                        reference_count=len(authored),
+                    )
+                )
+            ),
             card=NodeCard(
                 prompt=style_prompt(frame_content_task(frame.prompt or "", frame.shape)),
                 authored_inputs=authored,
@@ -552,6 +568,21 @@ def add_cut_in_nodes(
                 portrait_geometry,
             ),
             ports=tuple(ports),
+            workload=(
+                None
+                if image_workload is None
+                else image_workload(
+                    ImageRouteRequirementsV1(
+                        operation_variant=(
+                            "edit" if authored or subject_port is not None else "generation"
+                        ),
+                        background="transparent",
+                        output_format="png",
+                        size=f"{CUT_IN_PORTRAIT.canvas[0]}x{CUT_IN_PORTRAIT.canvas[1]}",
+                        reference_count=len(authored) + (1 if subject_port is not None else 0),
+                    )
+                )
+            ),
             card=NodeCard(
                 prompt=style_prompt(
                     portrait_content_task(portrait.prompt)

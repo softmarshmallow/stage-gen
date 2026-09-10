@@ -16,6 +16,7 @@ from gnode import (
     ImageGenerationRequest,
     ImageGenerationService,
     ImageReference,
+    ImageRouteRequirementsV1,
     MusicGenerationRequest,
     MusicGenerationService,
     MusicOutputFormat,
@@ -48,7 +49,7 @@ from stage_gen.components.audio_normalization import (
 from stage_gen.components.sound_effect import admit_sound_effect_bytes
 from stage_gen.components.speech import admit_speech_bytes
 from stage_gen.components.video_clip import admit_clip_bytes
-from stage_gen.config import StageGenConfig, TransparencyMode
+from stage_gen.config import StageGenConfig
 from stage_gen.identity import (
     BACKGROUND_REMOVAL_COMPONENT,
     IMAGE_GENERATION_COMPONENT,
@@ -61,6 +62,12 @@ from stage_gen.identity import (
     VIDEO_GENERATION_COMPONENT,
 )
 from stage_gen.media import data_url
+from stage_gen.model_routes import (
+    image_policy_id_for,
+    resolve_configured_image_route,
+    sunburst_exact_size_for_aspect_ratio,
+)
+from stage_gen.orchestration.image_routing import RoutedImageGenerationService
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -75,7 +82,7 @@ class _AsyncClosable(Protocol):
 def create_image_service(
     *,
     api_key: str,
-    model: str = "openai/gpt-image-2.5-sunburst",
+    model: str,
     base_url: str = "https://openrouter.ai/api/v1",
     images_per_minute: int = 150,
     retry_policy: RetryPolicy | None = None,
@@ -96,7 +103,8 @@ def create_image_service(
 def create_openai_image_service(
     *,
     api_key: str,
-    model: str = "gpt-image-2.5-sunburst",
+    model: str,
+    supports_native_alpha: bool,
     base_url: str = "https://api.openai.com/v1",
     images_per_minute: int = 150,
     retry_policy: RetryPolicy | None = None,
@@ -107,6 +115,7 @@ def create_openai_image_service(
         OpenAIImageBackend(
             api_key=api_key,
             model=model,
+            supports_native_alpha=supports_native_alpha,
             base_url=base_url,
             images_per_minute=images_per_minute,
         ),
@@ -327,11 +336,9 @@ class DefaultHeadlessRuntime:
         aspect_ratio: str,
         reference_paths: Sequence[str],
     ) -> CapabilityArtifactResult:
-        service = self._image or _missing(
-            "OPENAI_API_KEY"
-            if self._config.transparency_mode is TransparencyMode.NATIVE
-            else "OPENROUTER_API_KEY"
-        )
+        service = self._image
+        if service is None:  # Injected legacy configurations may still omit image support.
+            _missing("configured image provider credential")
         references: list[ImageReference] = []
         for reference in reference_paths:
             path = await asyncio.to_thread(Path(reference).resolve)
@@ -352,11 +359,26 @@ class DefaultHeadlessRuntime:
                 raise ValueError(f"expected image/png, received {media_type}")
             return {"width": facts.width, "height": facts.height}
 
+        exact_size = sunburst_exact_size_for_aspect_ratio(aspect_ratio)
+        requirements = ImageRouteRequirementsV1(
+            operation_variant="edit" if references else "generation",
+            background="opaque",
+            output_format="png",
+            size=exact_size,
+            aspect_ratio=aspect_ratio,
+            reference_count=len(references),
+        )
+        binding = resolve_configured_image_route(
+            self._config,
+            requirements,
+            policy_id=image_policy_id_for(requirements),
+        )
         result = await service.generate(
             ImageGenerationRequest(
                 prompt=prompt,
                 artifact_path=output_path,
                 aspect_ratio=aspect_ratio,
+                size=exact_size,
                 input_references=tuple(references),
                 quality="max",
                 background="opaque",
@@ -365,6 +387,7 @@ class DefaultHeadlessRuntime:
                 timeout_seconds=self._config.capability_timeout_ms / 1000,
                 metadata={"source": "stage-gen-headless"},
                 validate=validate,
+                resolved_binding=binding,
             )
         )
         return _result(
@@ -643,23 +666,7 @@ def create_headless_runtime(
 
 
 def _configured_image_service(config: StageGenConfig) -> ImageGenerationService | None:
-    if config.transparency_mode is TransparencyMode.NATIVE:
-        if config.openai_api_key is None:
-            return None
-        return create_openai_image_service(
-            api_key=config.openai_api_key,
-            model=config.openai_image_model,
-            base_url=config.openai_base_url or "https://api.openai.com/v1",
-            images_per_minute=config.openai_image_ipm,
-        )
-    if config.open_router_api_key is None:
-        return None
-    return create_image_service(
-        api_key=config.open_router_api_key,
-        model=config.image_model,
-        base_url=config.open_router_base_url or "https://openrouter.ai/api/v1",
-        images_per_minute=config.openrouter_image_ipm,
-    )
+    return RoutedImageGenerationService(config)
 
 
 def _minimum_audio_size(data: bytes) -> dict[str, object]:
@@ -714,11 +721,16 @@ class _RefusingBackend:
     spec_version: ClassVar[Literal[1]] = 1
     provider = "none"
     model = "provider-free"
+    adapter_id = "provider-free"
+    adapter_behavior_version = "1"
     secrets: tuple[str, ...] = ()
     supports_native_alpha = True
 
     def __init__(self, reason: str) -> None:
         self._reason = reason
+
+    def endpoint_for(self, _request: object) -> str:
+        return "https://provider-free.invalid/images"
 
     async def generate_once(self, request: object) -> NoReturn:
         raise ProviderFreeRefusal(self._reason)

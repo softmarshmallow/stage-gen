@@ -79,6 +79,7 @@ class ProviderResponseMetadata:
     request_id: str | None = None
     created: int | float | None = None
     usage: JsonObject | None = None
+    revised_prompt: str | None = None
 
 
 async def run_validator(

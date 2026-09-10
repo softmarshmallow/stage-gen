@@ -1,11 +1,4 @@
-"""The model a cache key records is the model the call is made with (D11).
-
-A node's ``model`` comes from the recipe profile's binding table; the request goes to
-the service ``RunServices`` composes. Both read the config, and this is the test that
-keeps them reading the same field: a profile that binds ``config.text_model`` while
-the run composes a service on some other default would key every artifact on a model
-that never generated it.
-"""
+"""Planned route identity is the provider/model identity the run can call (D11)."""
 
 from __future__ import annotations
 
@@ -16,6 +9,14 @@ import pytest
 
 from gnode import BindingTable
 from stage_gen.config import StageGenConfig
+from stage_gen.image_product import ImageProvider
+from stage_gen.model_routes import (
+    FAL_SUNBURST_MODEL,
+    OPENAI_SUNBURST_MODEL,
+    OPENROUTER_SUNBURST_MODEL,
+    SUNBURST_PRODUCT_ID,
+    configured_image_route_catalog,
+)
 from stage_gen.recipes.dialogue_scene.scene_graph import dialogue_graph_profile
 from stage_gen.recipes.executor import RunServices
 from stage_gen.recipes.oblique_survival.survival_graph import oblique_survival_graph_profile
@@ -23,7 +24,7 @@ from stage_gen.recipes.pointclick_room.room_graph import room_graph_profile
 from stage_gen.recipes.sideview_platformer.package_graph import package_graph_profile
 from stage_gen.recipes.sideview_runner.runner_graph import runner_graph_profile
 from stage_gen.recipes.storefront.storefront_graph import storefront_graph_profile
-from stage_gen.recipes.universe.universe_graph import GALLERY_IMAGE_ROUTE, universe_graph_profile
+from stage_gen.recipes.universe.universe_graph import universe_graph_profile
 
 CONFIG = StageGenConfig(
     openai_api_key="openai",
@@ -34,7 +35,6 @@ CONFIG = StageGenConfig(
 
 #: Which ``RunServices`` accessor serves each bound operation.
 SERVICE_FOR_OPERATION: dict[str, Callable[[RunServices], object]] = {
-    "image_generation": lambda services: services.image(),
     "structured_generation": lambda services: services.structured(),
     "tool_loop": lambda services: services.tool_loop(),
     "music_generation": lambda services: services.music(),
@@ -50,6 +50,8 @@ PROFILES: tuple[tuple[str, Callable[[StageGenConfig], BindingTable]], ...] = (
     ("pointclick-room", room_graph_profile),
     ("dialogue-scene", dialogue_graph_profile),
     ("oblique-survival", oblique_survival_graph_profile),
+    ("storefront", storefront_graph_profile),
+    ("universe", lambda config: universe_graph_profile(config, images=True)),
 )
 
 
@@ -74,68 +76,26 @@ def test_every_bound_model_is_the_model_the_run_calls(
         asyncio.run(services.aclose())
 
 
-def test_the_universe_gallery_route_binds_the_model_it_calls() -> None:
-    profile = universe_graph_profile(CONFIG, images=True)
-    image = next(b for b in profile.bindings if b.operation == "image_generation")
-    service = GALLERY_IMAGE_ROUTE.service(CONFIG)
-    try:
-        assert _backend_model(service) == image.model.model
-        assert image.model.provider == GALLERY_IMAGE_ROUTE.provider
-    finally:
-        asyncio.run(service.aclose())
-
-
-def test_the_storefront_opaque_route_binds_the_model_it_calls() -> None:
-    profile = storefront_graph_profile(CONFIG)
-    image = next(b for b in profile.bindings if b.operation == "image_generation")
+def test_image_runtime_is_request_routed_instead_of_bound_to_an_ambient_provider() -> None:
     services = RunServices(CONFIG)
     try:
-        service = services.opaque_image()
-        assert _backend_model(service) == image.model.model
-        assert image.model.provider == "openrouter"
-        assert image.model.model == "openai/gpt-image-2.5-sunburst"
+        image = services.image()
+        assert services.opaque_image() is image
+        assert image.provider == "routed"
+        assert image.model == SUNBURST_PRODUCT_ID
     finally:
         asyncio.run(services.aclose())
 
 
-def test_default_image_bindings_have_no_gpt_image_2_route() -> None:
-    profiles = [profile(CONFIG) for _, profile in PROFILES]
-    profiles.extend(
-        (
-            storefront_graph_profile(CONFIG),
-            universe_graph_profile(CONFIG, images=True),
-        )
-    )
-    image_bindings = [
-        binding
-        for profile in profiles
-        for binding in profile.bindings
-        if binding.operation == "image_generation"
-    ]
-    assert image_bindings
-    assert {str(binding.model) for binding in image_bindings} <= {
-        "gpt-image-2.5-sunburst@openai",
-        "openai/gpt-image-2.5-sunburst@openrouter",
+def test_registered_image_routes_are_sunburst_only_and_provider_exact() -> None:
+    catalog = configured_image_route_catalog(CONFIG)
+    expected_models = {
+        ImageProvider.OPENAI.value: OPENAI_SUNBURST_MODEL,
+        ImageProvider.FAL.value: FAL_SUNBURST_MODEL,
+        ImageProvider.OPENROUTER.value: OPENROUTER_SUNBURST_MODEL,
     }
-
-
-@pytest.mark.parametrize(("recipe", "profile"), PROFILES)
-def test_direct_image_profiles_refuse_unverified_model_overrides(
-    recipe: str, profile: Callable[[StageGenConfig], BindingTable]
-) -> None:
-    with pytest.raises(ValueError, match=r"GPT Image 2\.5 Sunburst"):
-        profile(CONFIG.model_copy(update={"openai_image_model": "gpt-image-2"}))
-
-
-@pytest.mark.parametrize(
-    "profile",
-    (
-        lambda config: storefront_graph_profile(config),
-        lambda config: universe_graph_profile(config, images=True),
-    ),
-)
-def test_opaque_recipe_profiles_refuse_unverified_model_overrides(
-    profile: Callable[[StageGenConfig], BindingTable],
-) -> None:
-    with pytest.raises(ValueError, match=r"GPT Image 2\.5 Sunburst"):
-        profile(CONFIG.model_copy(update={"image_model": "openai/gpt-image-2"}))
+    assert catalog.routes
+    assert {route.product_id for route in catalog.routes} == {SUNBURST_PRODUCT_ID}
+    assert {route.model.provider for route in catalog.routes} == set(expected_models)
+    for route in catalog.routes:
+        assert route.model.model == expected_models[route.model.provider]

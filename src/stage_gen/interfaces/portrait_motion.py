@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 
 from stage_gen.components.portrait_motion import PortraitMotionSpec
+from stage_gen.config import load_config
 from stage_gen.orchestration.portrait_motion import (
     RuntimeProfile,
     prepare_run,
@@ -40,7 +41,7 @@ def entrypoint() -> None:
         profile = (
             RuntimeProfile.model_validate_json(args.profile.read_bytes()) if args.profile else None
         )
-        result = prepare_run(args.source, args.run, spec, profile)
+        result = prepare_run(args.source, args.run, spec, profile, config=load_config())
     elif args.command == "run":
         result = asyncio.run(run_pipeline(args.run, live=args.live, dotenv=args.dotenv))
     else:

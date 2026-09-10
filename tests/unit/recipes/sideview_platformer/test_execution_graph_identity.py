@@ -52,7 +52,12 @@ BELLWEATHER_NODE_COUNT = 230
 # canonicalizations, and the composites, reviews and manifest downstream of them. Four
 # provider operations re-bill, about USD 0.37-0.66. Topology is unchanged - the graph lost
 # an input, not a node.
-BELLWEATHER_TOPOLOGY_SHA256 = "61af6a11d4b4fcb2eb2d91c48b00e820353a7d251b80e7bc5c127263d71a4fdb"
+# Re-pinned for capability-first image routing: all 96 image nodes now seal exact route and
+# output-option identity, and their cache descendants move with that intentional provenance.
+# Re-pinned after exact-size admission stopped treating arbitrary custom canvases as verified
+# OpenRouter sizes. Bellweather's image routes are now all OpenAI, so the used resource set and
+# binding references move with the truthful plan; node count and dependency fan-out do not.
+BELLWEATHER_TOPOLOGY_SHA256 = "952aa5d0d1f2e059cb512544a84495c7a2bec0bfe596aedb46f8e00aa72b8b6f"
 
 
 def _bellweather_graph() -> ExecutionGraph:
@@ -75,7 +80,7 @@ def test_the_plan_document_keeps_its_declared_vocabulary() -> None:
 
     graph = _bellweather_graph()
 
-    assert graph.kind == "sideview-platformer-execution-graph-v1"
+    assert graph.kind == "sideview-platformer-execution-graph-v2"
     assert graph.recipe == "sideview-platformer"
     assert graph.game_id == "bellweather"
     assert graph.identity_header()["recipe"] == "sideview-platformer"

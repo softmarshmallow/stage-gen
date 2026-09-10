@@ -62,7 +62,7 @@ def test_the_identity_document_names_the_package_and_refuses_publication(
 
 
 @pytest.mark.asyncio
-async def test_live_execution_composes_the_declared_opaque_image_route(
+async def test_live_execution_composes_the_binding_driven_image_router(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -78,12 +78,9 @@ async def test_live_execution_composes_the_declared_opaque_image_route(
         async def __aexit__(self, *_exc: object) -> None:
             return None
 
-        def opaque_image(self) -> object:
-            calls.append("opaque_image")
-            return opaque_service_sentinel
-
         def image(self) -> object:
-            raise AssertionError("Storefront must not compose the direct OpenAI image route")
+            calls.append("image")
+            return opaque_service_sentinel
 
         def structured(self) -> object:
             return structured_service_sentinel
@@ -118,4 +115,4 @@ async def test_live_execution_composes_the_declared_opaque_image_route(
         cache_dir=tmp_path / "cache",
         invocation_id="opaque-route-test",
     )
-    assert calls == ["opaque_image"]
+    assert calls == ["image"]

@@ -10,44 +10,62 @@ import pytest
 from PIL import Image
 
 from gnode import ImageGenerationRequest, ImageReference
-from gnode.providers.openai import OpenAIImageBackend, supports_openai_native_alpha_model
+from gnode.providers.openai import OpenAIImageBackend
 
 from .._helpers import png_bytes
 
-
-def test_openai_backend_declares_native_alpha_capability() -> None:
-    assert OpenAIImageBackend.supports_native_alpha is True
+_MODEL = "fixture-image-v1"
 
 
-def test_openai_native_alpha_model_support_is_explicit() -> None:
-    assert supports_openai_native_alpha_model("gpt-image-2.5-sunburst") is True
-    assert supports_openai_native_alpha_model("gpt-image-2.5-sunburst-2026-09-08") is True
-    assert supports_openai_native_alpha_model("gpt-image-2.5-sunburst-2026-09-09") is False
-    assert supports_openai_native_alpha_model("gpt-image-2") is False
-    assert supports_openai_native_alpha_model("gpt-image-2-2026-04-21") is False
-    assert supports_openai_native_alpha_model("gpt-image-2.5-flare") is False
-    assert supports_openai_native_alpha_model("gpt-image-1") is False
-    assert supports_openai_native_alpha_model("unverified-image-model") is False
+def _backend(
+    *,
+    api_key: str = "secret",
+    model: str = _MODEL,
+    supports_native_alpha: bool = True,
+    **kwargs: Any,
+) -> OpenAIImageBackend:
+    return OpenAIImageBackend(
+        api_key=api_key,
+        model=model,
+        supports_native_alpha=supports_native_alpha,
+        **kwargs,
+    )
+
+
+def test_openai_backend_requires_model_and_capability_route_facts() -> None:
+    with pytest.raises(TypeError):
+        OpenAIImageBackend(api_key="secret")  # type: ignore[call-arg]
+
+
+def test_openai_native_alpha_capability_is_not_inferred_from_model() -> None:
+    assert _backend(model="same-model", supports_native_alpha=True).supports_native_alpha is True
+    assert _backend(model="same-model", supports_native_alpha=False).supports_native_alpha is False
+    with pytest.raises(ValueError, match="supports_native_alpha must be a boolean"):
+        OpenAIImageBackend(
+            api_key="secret",
+            model=_MODEL,
+            supports_native_alpha=1,  # type: ignore[arg-type]
+        )
 
 
 @pytest.mark.asyncio
-async def test_openai_native_alpha_capability_is_model_specific() -> None:
+async def test_openai_native_alpha_capability_is_factory_supplied() -> None:
     async with httpx.AsyncClient(
         transport=httpx.MockTransport(lambda _request: httpx.Response(500))
     ) as client:
-        assert OpenAIImageBackend(api_key="secret", client=client).supports_native_alpha is True
+        assert _backend(client=client, supports_native_alpha=True).supports_native_alpha is True
         assert (
-            OpenAIImageBackend(
-                api_key="secret",
-                model="gpt-image-2.5-sunburst-2026-09-08",
+            _backend(
+                model="any-image-model",
+                supports_native_alpha=True,
                 client=client,
             ).supports_native_alpha
             is True
         )
         assert (
-            OpenAIImageBackend(
-                api_key="secret",
-                model="unverified-image-model",
+            _backend(
+                model="any-image-model",
+                supports_native_alpha=False,
                 client=client,
             ).supports_native_alpha
             is False
@@ -56,7 +74,7 @@ async def test_openai_native_alpha_capability_is_model_specific() -> None:
 
 def test_openai_rate_limit_must_be_positive() -> None:
     with pytest.raises(ValueError, match="images_per_minute"):
-        OpenAIImageBackend(api_key="secret", images_per_minute=0)
+        _backend(images_per_minute=0)
 
 
 @pytest.mark.asyncio
@@ -72,12 +90,17 @@ async def test_openai_generation_uses_native_alpha_payload_and_retains_metadata(
             json={
                 "created": 731,
                 "usage": {"total_tokens": 42},
-                "data": [{"b64_json": base64.b64encode(image).decode("ascii")}],
+                "data": [
+                    {
+                        "b64_json": base64.b64encode(image).decode("ascii"),
+                        "revised_prompt": "One isolated hand-painted sprite on transparency.",
+                    }
+                ],
             },
         )
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        result = await OpenAIImageBackend(api_key="openai-secret", client=client).generate_once(
+        result = await _backend(api_key="openai-secret", client=client).generate_once(
             ImageGenerationRequest(
                 prompt="One isolated hand-painted sprite.",
                 artifact_path="unused.png",
@@ -96,7 +119,7 @@ async def test_openai_generation_uses_native_alpha_payload_and_retains_metadata(
     assert request.headers["authorization"] == "Bearer openai-secret"
     assert request.headers["content-type"] == "application/json"
     assert json.loads(request.content) == {
-        "model": "gpt-image-2.5-sunburst",
+        "model": _MODEL,
         "prompt": "One isolated hand-painted sprite.",
         "n": 1,
         "output_format": "png",
@@ -111,8 +134,13 @@ async def test_openai_generation_uses_native_alpha_payload_and_retains_metadata(
     assert result.response_metadata.request_id == "openai-image-1"
     assert result.response_metadata.created == 731
     assert result.response_metadata.usage == {"total_tokens": 42}
+    assert (
+        result.response_metadata.revised_prompt
+        == "One isolated hand-painted sprite on transparency."
+    )
     assert result.applied_params == {
         "operation": "generation",
+        "endpoint": "https://api.openai.com/v1/images/generations",
         "n": 1,
         "output_format": "png",
         "size": "1536x1024",
@@ -151,7 +179,7 @@ async def test_openai_maps_verified_aspect_ratio_to_provider_size(
         )
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        await OpenAIImageBackend(api_key="secret", client=client).generate_once(
+        await _backend(client=client).generate_once(
             ImageGenerationRequest(
                 prompt="Mapped aspect ratio canary.",
                 artifact_path="unused.png",
@@ -174,7 +202,7 @@ async def test_openai_rejects_unmapped_aspect_ratio_before_transport() -> None:
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         with pytest.raises(ValueError, match="no verified size mapping for aspect ratio 5:4"):
-            await OpenAIImageBackend(api_key="secret", client=client).generate_once(
+            await _backend(client=client).generate_once(
                 ImageGenerationRequest(
                     prompt="Unmapped aspect ratio canary.",
                     artifact_path="unused.png",
@@ -199,7 +227,7 @@ async def test_openai_edit_uses_multipart_image_files() -> None:
         )
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        result = await OpenAIImageBackend(api_key="secret", client=client).generate_once(
+        result = await _backend(client=client).generate_once(
             ImageGenerationRequest(
                 prompt="Preserve the character identity and change the pose.",
                 artifact_path="unused.png",
@@ -219,7 +247,7 @@ async def test_openai_edit_uses_multipart_image_files() -> None:
     assert request.url.path == "/v1/images/edits"
     assert request.headers["content-type"].startswith("multipart/form-data; boundary=")
     assert b'name="model"' in request.content
-    assert b"gpt-image-2.5-sunburst" in request.content
+    assert _MODEL.encode() in request.content
     assert b'name="prompt"' in request.content
     assert b"Preserve the character identity and change the pose." in request.content
     assert b'name="n"' in request.content
@@ -238,13 +266,95 @@ async def test_openai_edit_uses_multipart_image_files() -> None:
     assert result.media_type == "image/png"
     assert result.applied_params == {
         "operation": "edit",
+        "endpoint": "https://api.openai.com/v1/images/edits",
         "n": 1,
         "output_format": "png",
         "size": "auto",
         "quality": "max",
         "background": "transparent",
         "moderation": "low",
+        "input_reference_count": 2,
+        "reference_delivery": "data_url",
     }
+
+
+@pytest.mark.asyncio
+async def test_openai_masked_edit_uses_one_image_and_the_native_mask_field() -> None:
+    requests: list[httpx.Request] = []
+    image = png_bytes(size=(16, 16), color=(20, 40, 80, 255))
+    mask = png_bytes(size=(16, 16), color=(255, 255, 255, 0))
+    image_url = "data:image/png;base64," + base64.b64encode(image).decode("ascii")
+    mask_url = "data:image/png;base64," + base64.b64encode(mask).decode("ascii")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200,
+            json={"data": [{"b64_json": base64.b64encode(image).decode("ascii")}]},
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await _backend(client=client).generate_once(
+            ImageGenerationRequest(
+                prompt="Repaint only the white-guided seam and preserve the supplied context.",
+                artifact_path="unused.png",
+                input_references=(ImageReference(image_url, "conditioning-1"),),
+                mask_reference=ImageReference(mask_url, "mask-1"),
+                size="1024x1024",
+                quality="max",
+                background="auto",
+                output_format="png",
+                moderation="low",
+            )
+        )
+
+    assert len(requests) == 1
+    request = requests[0]
+    assert request.url.path == "/v1/images/edits"
+    assert request.headers["content-type"].startswith("multipart/form-data; boundary=")
+    assert request.content.count(b'name="image[]"') == 1
+    assert request.content.count(b'name="mask"') == 1
+    assert b'filename="reference-01.png"' in request.content
+    assert b'filename="reference-00.png"' in request.content
+    assert image_url.encode("ascii") not in request.content
+    assert mask_url.encode("ascii") not in request.content
+    assert result.applied_params == {
+        "operation": "edit",
+        "endpoint": "https://api.openai.com/v1/images/edits",
+        "n": 1,
+        "output_format": "png",
+        "size": "1024x1024",
+        "quality": "max",
+        "background": "auto",
+        "moderation": "low",
+        "input_reference_count": 1,
+        "reference_delivery": "data_url",
+        "mask_present": True,
+    }
+
+
+@pytest.mark.asyncio
+async def test_openai_mask_without_input_refuses_before_transport() -> None:
+    calls = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        raise AssertionError("mask-only request must not reach transport")
+
+    mask = png_bytes(size=(16, 16), color=(255, 255, 255, 0))
+    mask_url = "data:image/png;base64," + base64.b64encode(mask).decode("ascii")
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(ValueError, match="masked edits require at least one input reference"):
+            await _backend(client=client).generate_once(
+                ImageGenerationRequest(
+                    prompt="Never dispatch a mask without a conditioning image.",
+                    artifact_path="unused.png",
+                    mask_reference=ImageReference(mask_url, "mask-only"),
+                )
+            )
+
+    assert calls == 0
 
 
 @pytest.mark.asyncio
@@ -258,7 +368,7 @@ async def test_openai_edit_rejects_remote_references_before_transport() -> None:
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         with pytest.raises(ValueError, match="require base64 image data URL references"):
-            await OpenAIImageBackend(api_key="secret", client=client).generate_once(
+            await _backend(client=client).generate_once(
                 ImageGenerationRequest(
                     prompt="Remote reference canary.",
                     artifact_path="unused.png",
@@ -284,7 +394,7 @@ async def test_openai_output_format_selects_and_validates_returned_media() -> No
         )
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        result = await OpenAIImageBackend(api_key="secret", client=client).generate_once(
+        result = await _backend(client=client).generate_once(
             ImageGenerationRequest(
                 prompt="Opaque landscape study.",
                 artifact_path="unused.jpeg",
@@ -322,7 +432,7 @@ async def test_openai_rejects_unsupported_image_size_before_transport(
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         with pytest.raises(ValueError, match=message):
-            await OpenAIImageBackend(api_key="secret", client=client).generate_once(
+            await _backend(client=client).generate_once(
                 ImageGenerationRequest(
                     prompt="Invalid size canary.", artifact_path="unused.png", size=size
                 )
@@ -347,7 +457,7 @@ async def test_openai_requires_exactly_one_strict_base64_image(payload: object) 
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         with pytest.raises(ValueError):
-            await OpenAIImageBackend(api_key="secret", client=client).generate_once(
+            await _backend(client=client).generate_once(
                 ImageGenerationRequest(prompt="Strict response canary.", artifact_path="unused.png")
             )
 
@@ -364,7 +474,7 @@ async def test_openai_rejects_media_that_disagrees_with_requested_format() -> No
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         with pytest.raises(ValueError, match="does not match image/png"):
-            await OpenAIImageBackend(api_key="secret", client=client).generate_once(
+            await _backend(client=client).generate_once(
                 ImageGenerationRequest(prompt="Wrong media canary.", artifact_path="unused.png")
             )
 
@@ -379,8 +489,8 @@ async def test_openai_rejects_png_compression_before_transport() -> None:
         raise AssertionError("invalid compression must not reach transport")
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        with pytest.raises(ValueError, match="PNG output does not support output_compression"):
-            await OpenAIImageBackend(api_key="secret", client=client).generate_once(
+        with pytest.raises(ValueError, match="requires explicit jpeg or webp"):
+            await _backend(client=client).generate_once(
                 ImageGenerationRequest(
                     prompt="PNG compression canary.",
                     artifact_path="unused.png",
@@ -408,12 +518,30 @@ async def test_openai_safe_error_does_not_leak_api_key() -> None:
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         with pytest.raises(ValueError) as raised:
-            await OpenAIImageBackend(api_key="openai-secret", client=client).generate_once(
+            await _backend(api_key="openai-secret", client=client).generate_once(
                 ImageGenerationRequest(prompt="Safe error canary.", artifact_path="unused.png")
             )
 
     assert "unsupported parameter" in str(raised.value)
     assert "openai-secret" not in str(raised.value)
+
+
+@pytest.mark.asyncio
+async def test_openai_backend_does_not_retry_a_failed_provider_request() -> None:
+    calls = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(500)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(ValueError, match="HTTP 500"):
+            await _backend(client=client).generate_once(
+                ImageGenerationRequest(prompt="One attempt.", artifact_path="unused.png")
+            )
+
+    assert calls == 1
 
 
 def _encoded_image(format_name: str) -> bytes:

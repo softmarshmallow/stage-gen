@@ -98,7 +98,7 @@ the scenario says who exists and what they may wear on their face, and never
 which profile or plate supplies it, because the same scenario is meant to be
 staged by more than one consumer. The profile's age is `18..120`.
 `transparency_mode` is quality-first `native`, explicit compatibility `ai`, or
-the explicit degraded `chroma` path.
+the explicit degraded `chroma` path. It selects alpha processing, not an image provider.
 
 ### Expressions are authored, per actor
 
@@ -251,6 +251,22 @@ The exact stages are:
     narrative nor the art: music owes nothing to a style plate, so its own brief
     and intent are the whole of its cache key.
 11. `bundle`: validate all bindings and write the portable bundle.
+
+### Image routing
+
+Each backdrop, base plate, expression edit, and shared UI sheet declares provider-neutral image
+requirements: generation or edit, opaque or transparent background, ordered references, maximum
+quality, and its exact provider canvas. Planning resolves those requirements through the Sunburst
+catalog and records one exact route snapshot per used binding before any key is checked. The
+current 1680x944 backdrop canvas and 1024x1536 face canvas select OpenAI by default; the backdrop
+is normalized locally to 1672x941 for the bundle. `STAGE_GEN_IMAGE_PROVIDER=fal` replans the image
+nodes onto fal's native generation/edit routes. An OpenRouter override cannot plan native
+transparent sprites, and no failed or uncredentialed provider is replaced automatically.
+
+`native`, `ai`, and `chroma` remain explicit alpha strategies after routing. `native` requires a
+route with provider-generated transparency. `ai` requests opaque image output and separately uses
+fal background removal. `chroma` keys locally. Neither compatibility mode silently changes the
+selected image provider.
 
 Every provider operation owns one initial attempt plus at most five retries.
 Transport, decoding, schema/media, dimension, chroma, and alpha failures remain

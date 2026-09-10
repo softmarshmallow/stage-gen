@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, cast
+from typing import cast
 
 from gnode import ImageQuality, ImageResolution
+from stage_gen.image_product import QUALITY_IMAGE_PRODUCT
 
-GPT_IMAGE_2_5_SUNBURST: Literal["openai/gpt-image-2.5-sunburst"] = "openai/gpt-image-2.5-sunburst"
-GROK_IMAGINE_IMAGE_2: Literal["x-ai/grok-imagine-image-2.0"] = "x-ai/grok-imagine-image-2.0"
+GPT_IMAGE_2_5_SUNBURST = QUALITY_IMAGE_PRODUCT.openrouter_model
+GROK_IMAGINE_IMAGE_2 = "x-ai/grok-imagine-image-2.0"
 
-ConceptImageModel = Literal[
-    "openai/gpt-image-2.5-sunburst",
-    "x-ai/grok-imagine-image-2.0",
-]
+type ConceptImageModel = str
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,7 +42,7 @@ _PROFILES = (
                 GPT_IMAGE_2_5_SUNBURST,
                 "gpt",
                 "sunburst",
-                "gpt-image-2.5-sunburst",
+                QUALITY_IMAGE_PRODUCT.product_id,
             }
         ),
         qualities=frozenset({"auto", "low", "medium", "high", "xhigh", "max"}),

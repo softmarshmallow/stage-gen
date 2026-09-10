@@ -38,7 +38,11 @@ class SideviewRunnerExecutor(RecipeExecutor[ResolvedRunnerPackage, SideviewRunne
         return resolve_runner_package(input_path)
 
     def _build(self, resolved: ResolvedRunnerPackage) -> SideviewRunnerGraph:
-        return build_runner_execution_graph(resolved, profile=runner_graph_profile(self._config))
+        return build_runner_execution_graph(
+            resolved,
+            profile=runner_graph_profile(self._config),
+            config=self._config,
+        )
 
     def _type_index(self) -> Mapping[str, NodeType]:
         return runner_type_index()
@@ -54,8 +58,9 @@ class SideviewRunnerExecutor(RecipeExecutor[ResolvedRunnerPackage, SideviewRunne
         """Execute the whole runner member, including the terminal manifest."""
 
         assert_safe_path_segment(invocation_id, "invocation_id")
-        self.require(CapabilityName.NATIVE_IMAGE_GENERATION, CapabilityName.STRUCTURED_GENERATION)
+        self.require(CapabilityName.STRUCTURED_GENERATION)
         plan = self.plan(input_path)
+        self.require_route_credentials(plan.graph)
         audio = plan.resolved.runner.audio
         needs_sound_effects = bool(audio.bought_generated_effects())
         needs_speech = bool(audio.bought_spoken_lines())

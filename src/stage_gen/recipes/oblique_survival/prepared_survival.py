@@ -119,6 +119,7 @@ from stage_gen.recipes.oblique_survival.survival_types import (
     FORAGE_VALIDATE,
     GROUND_ADOPT,
     GROUND_CANONICALIZE,
+    GROUND_CANVAS,
     GROUND_GENERATE,
     ICONS_ADOPT,
     ICONS_GENERATE,
@@ -154,7 +155,9 @@ from stage_gen.recipes.oblique_survival.survival_types import (
     SOUND_GENERATE,
     SOUND_VALIDATE,
     SOURCE_LOCK,
+    SPRITE_CANVAS,
     STRIKE_CELL_KINDS,
+    STRIP_CANVAS,
     TEMPLATES_DRAW,
     WATER_CANONICALIZE,
     WATER_GENERATE,
@@ -330,11 +333,6 @@ def _jpeg(image: Image.Image, quality: int = 88) -> bytes:
     buffer = BytesIO()
     image.convert("RGB").save(buffer, format="JPEG", quality=quality, optimize=True)
     return buffer.getvalue()
-
-
-SPRITE_CANVAS: Final = (1024, 1024)
-STRIP_CANVAS: Final = (1536, 1024)
-GROUND_CANVAS: Final = (1024, 1024)
 
 
 def plate_busyness_max(biome: Biome) -> float:

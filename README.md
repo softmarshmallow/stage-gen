@@ -94,11 +94,15 @@ creative brief cannot regenerate reviewed art, `--checkpoint world-review` and
 holds, and `--checkpoint integration` runs the terminal manifest node over the cache with
 every provider backend refusing, publishing `prepared-game-runtime-v12` without spending.
 
-GPT Image 2.5 Sunburst at `quality="max"` is the quality-first live image route. Native-alpha
-generation and edits use direct OpenAI; the established OpenRouter-backed
-opaque/reference roles stay on OpenRouter. The standalone
-compatibility
-background-removal command remains available:
+GPT Image 2.5 Sunburst at `quality="max"` is the quality-first image product. Each image node
+declares its capability and exact-canvas requirements before planning seals one provider route.
+The checked-in defaults use OpenAI Images for native alpha, masks, and exact sizes outside the
+OpenRouter canary set, while admitted opaque/reference roles use OpenRouter. Setting
+`STAGE_GEN_IMAGE_PROVIDER=openai`, `fal`, or `openrouter` replans those nodes onto that provider;
+an unsupported combination is refused offline and never falls through to another route. OpenAI
+and fal both provide native-alpha generation and masked editing. Flare and the Responses image
+tool are not registered. The standalone compatibility background-removal command remains
+available:
 
 ```sh
 uv run stage-gen remove-background \
@@ -295,7 +299,7 @@ compose. Each surface is one brief drawn at one canvas. What holds the set
 together is a single *reading* of the reference art, compiled once into a
 direction all four pictures inherit; what keeps a storefront from refusing the
 output is a closed table of exact canvases and a deterministic cut to them, since
-the image route offers aspect ratios rather than pixels.
+each draw canvas is admitted as an exact route requirement before a provider can run.
 
 ```sh
 uv run stage-gen storefront generate \
@@ -407,15 +411,19 @@ src/gnode/              the ringed asset-graph SDK
   schedule.py          offline projection and the live scheduler
   trace.py             append-only run trace and post-run summary
   view.py              derived read-only run view for a client
-  binding.py           model@provider routes and their declared features
+  binding.py           legacy operation bindings used outside the image-route catalog
+  routes.py            exact product policies, provider routes, and portable route snapshots
+  route_constraints.py generic exact-canvas admission constraints
   contracts/           persisted contract bases and provenance records
   reliability/         retries, cancellation, redaction, paths, persistence
   modalities/          provider-neutral model protocols and retry-owning services
   providers/           OpenAI, OpenRouter, fal, and ElevenLabs adapters
 src/stage_gen/          the application, consuming `gnode`
+  image_product.py     active image-product identities and provider endpoint spellings
+  model_routes.py      checked-in Sunburst route catalog and capability policies
   components/          application components and capability-specific processing
   providers/           adapters for application-owned component protocols
-                       (the masked image-repeat edit)
+                       (the provider-neutral conditioned image-repeat repair)
   media/               deterministic image/audio inspection and normalization
   recipes/             application compositions and exported manifests; the
                        recipe executor and provider-free dry run live at its root
@@ -489,17 +497,22 @@ genre has, and commits no media of its own; see [Godot host](docs/godot-host.md)
 
 `.env.example` is the configuration reference. The Python application imports
 only the allowlisted provider keys from a root `.env`; existing process
-environment values take precedence. Endpoints, model overrides, output paths,
-timeouts, force mode, transparency mode, and the optional web executable are
-read from the process environment.
+environment values take precedence. Endpoints, registered model overrides, the optional scalar
+image-provider override, output paths, timeouts, force mode, transparency mode, and the optional
+web executable are read from the process environment.
 
-- The direct OpenAI Images route backs the default `native` mode and returns
-  provider-generated alpha.
+- Image workloads are resolved from capability first and provider second. The graph records one
+  exact route snapshot per used binding, and runtime dispatch must match it.
+- OpenAI Images is the default for native-alpha generation, masked edits, and custom exact sizes
+  that are not in the OpenRouter canary set.
 - OpenRouter backs structured generation, experimental music generation,
-  explicit image-compatibility modes, and the designated opaque/reference
-  image roles in Universe and Storefront.
-- FAL backs the explicit recipe `ai` compatibility mode and the standalone
-  `remove-background` capability.
+  and the designated opaque/reference image roles whose exact sizes were verified.
+- fal is an explicit selectable Sunburst image provider with native transparency and masks, and
+  separately backs the `ai` transparency strategy's removal step and `remove-background`.
+- `STAGE_GEN_IMAGE_PROVIDER` changes the selected image provider only when the requested
+  capabilities and exact size are admitted; changing it requires a new plan. Credentials are
+  checked only after planning has selected and sealed the route. A missing key refuses dispatch
+  of that route, and no provider is an automatic fallback for another.
 - `chroma` is an explicit degraded local-keying fallback, never an automatic
   replacement for failed AI removal.
 - Music generation remains experimental until its current provider envelope
@@ -516,8 +529,9 @@ empty media, malformed JSON, schema mismatch, invalid base64, unsupported
 media, and failed caller validation—remain inside that single retry owner.
 
 An artifact succeeds only after contract validation and rollback-safe
-artifact-plus-sidecar persistence. Provenance records provider/model identity,
-sanitized prompts and parameters, input hashes, attempts, validation,
+artifact-plus-sidecar persistence. Provenance records the sealed route, provider/model and API
+surface identity, effective output options, sanitized prompts and parameters, input hashes,
+attempts, validation,
 tool/component identity, deterministic post-processing, output digests, and any
 explicit rights decision. It never persists credentials, authorization headers,
 signed URLs, temporary paths, or embedded media. Provenance supports

@@ -122,7 +122,7 @@ def test_every_scope_builds(config: StageGenConfig, package: Package) -> None:
     for scope in SCOPES:
         graph = _graph(config, package, scope)
         assert graph.scope == scope
-        assert graph.kind == "oblique-survival-execution-graph-v1"
+        assert graph.kind == "oblique-survival-execution-graph-v2"
         assert graph.presentation_profile == "elevated_oblique_perspective_ground_plane_v1"
         assert graph.publication_authorized is False
 

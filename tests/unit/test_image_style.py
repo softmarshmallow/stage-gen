@@ -108,11 +108,16 @@ class _RecordingBackend:
     spec_version: ClassVar[Literal[1]] = 1
     provider = "test"
     model = "test-image"
+    adapter_id = "test-image-adapter"
+    adapter_behavior_version = "1"
     supports_native_alpha = False
     secrets: tuple[str, ...] = ()
 
     def __init__(self) -> None:
         self.requests: list[ImageGenerationRequest] = []
+
+    def endpoint_for(self, _request: ImageGenerationRequest) -> str:
+        return "https://example.test/images"
 
     async def generate_once(self, request: ImageGenerationRequest) -> ProviderImage:
         self.requests.append(request)

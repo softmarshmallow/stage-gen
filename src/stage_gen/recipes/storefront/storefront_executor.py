@@ -50,7 +50,11 @@ class StorefrontExecutor(RecipeExecutor[ResolvedStorefront, StorefrontGraph]):
         )
 
     def _build(self, resolved: ResolvedStorefront) -> StorefrontGraph:
-        return build_storefront_graph(resolved, profile=storefront_graph_profile(self._config))
+        return build_storefront_graph(
+            resolved,
+            config=self._config,
+            profile=storefront_graph_profile(self._config),
+        )
 
     def _type_index(self) -> Mapping[str, NodeType]:
         return storefront_type_index()
@@ -78,8 +82,9 @@ class StorefrontExecutor(RecipeExecutor[ResolvedStorefront, StorefrontGraph]):
         """Execute the whole storefront, including the terminal package."""
 
         assert_safe_path_segment(invocation_id, "invocation_id")
-        self.require(CapabilityName.IMAGE_GENERATION, CapabilityName.STRUCTURED_GENERATION)
+        self.require(CapabilityName.STRUCTURED_GENERATION)
         plan = self.plan(input_path)
+        self.require_route_credentials(plan.graph)
         await self.open_run(plan, run_dir=run_dir)
         async with self.services() as services:
             handler = StorefrontNodeHandler(
@@ -87,7 +92,7 @@ class StorefrontExecutor(RecipeExecutor[ResolvedStorefront, StorefrontGraph]):
                 plan.resolved,
                 run_dir=run_dir,
                 cache_dir=cache_dir,
-                image_service=services.opaque_image(),
+                image_service=services.image(),
                 structured_service=services.structured(),
             )
             summary = await self.dispatch(

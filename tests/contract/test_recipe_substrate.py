@@ -102,9 +102,11 @@ def test_document_kinds_derive_from_the_recipe_word(
     assert f"{recipe}-execution-view-v1" == graph_type.VIEW_KIND
     assert graph_type.VIEW_SCHEMA_VERSION == Graph.VIEW_SCHEMA_VERSION == 3
     assert graph_type.TRACE_SCHEMA_VERSION == 1
-    # The exported constant and the pinned literal are one number.
+    # The exported constant is the only write version; field literals also admit
+    # named legacy identities for read compatibility.
     literal = graph_type.model_fields["schema_version"].annotation
-    assert literal is not None and literal.__args__ == (schema_version,)
+    assert literal is not None and schema_version in literal.__args__
+    assert schema_version == graph_type.CURRENT_SCHEMA_VERSION
     assert graph_type.model_fields["recipe"].annotation.__args__ == (recipe,)  # type: ignore[union-attr]
 
 

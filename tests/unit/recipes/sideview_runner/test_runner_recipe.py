@@ -11,8 +11,10 @@ from pathlib import Path
 import pytest
 from PIL import Image, ImageDraw
 
+from gnode import CapabilityError
 from stage_gen.components.sideview_layers.nodes import admit_layer_candidate
 from stage_gen.config import StageGenConfig
+from stage_gen.image_product import ImageProvider
 from stage_gen.recipes.sideview_runner.prepared_runner import (
     RUNNER_LAYER_GATE,
     _validate_catalog_candidate,
@@ -54,31 +56,67 @@ def _select_structural_ground(package: Path) -> Path:
         "gpt-image-1",
         "gpt-image-2",
         "gpt-image-2.5-flare",
+        "gpt-image-2.5-sunburst-2026-09-08",
     ),
 )
-def test_plan_refuses_an_image_model_without_verified_sunburst_native_alpha(
+def test_plan_refuses_an_unregistered_image_model_identity(
     tmp_path: Path,
     model: str,
 ) -> None:
     executor = SideviewRunnerExecutor(StageGenConfig(openai_image_model=model))
 
-    with pytest.raises(ValueError, match="native transparent-background support"):
+    with pytest.raises(ValueError, match="unregistered Sunburst model override"):
         executor.plan(two_genre_package(tmp_path))
 
 
-def test_plan_accepts_a_dated_sunburst_native_alpha_route(tmp_path: Path) -> None:
-    model = "gpt-image-2.5-sunburst-2026-09-08"
-    executor = SideviewRunnerExecutor(StageGenConfig(openai_image_model=model))
-
-    plan = executor.plan(two_genre_package(tmp_path))
-
-    assert plan.graph.node("track-ground-generate").model == model
+def test_runner_image_routes_are_not_legacy_profile_bindings() -> None:
+    with pytest.raises(CapabilityError, match="no binding declares the image_generation"):
+        runner_graph_profile(StageGenConfig()).require("image_generation")
 
 
-def test_runner_image_profile_declares_the_masked_edit_capability() -> None:
-    binding = runner_graph_profile(StageGenConfig()).require("image_generation", "masked_edit")
+def test_runner_plan_seals_exact_image_requirements(tmp_path: Path) -> None:
+    graph = _executor().plan(two_genre_package(tmp_path)).graph
 
-    assert binding.model.model == "gpt-image-2.5-sunburst"
+    image_nodes = [node for node in graph.nodes if node.operation == "image_generation"]
+    assert image_nodes
+    assert all(node.binding_ref is not None for node in image_nodes)
+
+    ground = graph.resolved_route_for("track-ground-generate")
+    assert ground.route_id == "image.sunburst.openai.images.edit"
+    assert ground.effective_output_options == {
+        "background": "opaque",
+        "input_fidelity": "omitted",
+        "mask_present": False,
+        "moderation": "low",
+        "moderation_goal": "low_when_supported",
+        "operation_variant": "edit",
+        "output_format": "png",
+        "prompt_policy": "authored_verbatim",
+        "quality": "max",
+        "quality_goal": "maximum_verified",
+        "reference_count": 2,
+        "reference_delivery": "data_url",
+        "size": "2880x960",
+    }
+
+    avatar = graph.resolved_route_for("avatar-run-generate")
+    assert avatar.route_id == "image.sunburst.openai.images.edit"
+    assert avatar.effective_output_options["background"] == "transparent"
+    assert avatar.effective_output_options["size"] == "1536x1024"
+    assert avatar.effective_output_options["reference_count"] == 1
+
+
+def test_runner_scalar_provider_override_switches_every_image_route_to_fal(
+    tmp_path: Path,
+) -> None:
+    config = StageGenConfig(image_provider_override=ImageProvider.FAL)
+    graph = SideviewRunnerExecutor(config).plan(two_genre_package(tmp_path)).graph
+
+    assert {
+        graph.resolved_route_for(node).provider
+        for node in graph.nodes
+        if node.operation == "image_generation"
+    } == {"fal"}
 
 
 def test_generative_layer_loop_keys_the_declared_fallback(tmp_path: Path) -> None:
@@ -91,9 +129,14 @@ def test_generative_layer_loop_keys_the_declared_fallback(tmp_path: Path) -> Non
         )
     )
 
-    node = _executor().plan(package).graph.node("layer-meadow_sky-loop")
+    graph = _executor().plan(package).graph
+    node = graph.node("layer-meadow_sky-loop")
 
     assert hashlib.sha256(b"mirror_repeat").hexdigest() in node.input_sha256
+    route = graph.resolved_route_for(node)
+    assert route.route_id == "image.sunburst.openai.images.edit"
+    assert route.effective_output_options["background"] == "opaque"
+    assert route.effective_output_options["mask_present"] is True
 
 
 def test_persisted_track_identity_rekeys_provider_nodes(tmp_path: Path) -> None:
@@ -235,7 +278,7 @@ def test_the_plan_states_the_exact_graph_the_member_implies(tmp_path: Path) -> N
     plan = _executor().plan(two_genre_package(tmp_path))
 
     graph = plan.graph
-    assert graph.kind == "sideview-runner-execution-graph-v1"
+    assert graph.kind == "sideview-runner-execution-graph-v2"
     assert graph.recipe == "sideview-runner"
     assert graph.track_id == "meadow-dash"
     assert graph.terminal_node_id == "manifest-assemble"
@@ -672,7 +715,7 @@ async def test_a_dry_run_executes_the_whole_graph_and_exports_a_view(tmp_path: P
 
     assert result.summary.ok
     plan_document = json.loads((run_dir / "execution-plan.json").read_text(encoding="utf-8"))
-    assert plan_document["kind"] == "sideview-runner-execution-graph-v1"
+    assert plan_document["kind"] == "sideview-runner-execution-graph-v2"
     view = build_sideview_runner_view(run_dir)
     assert view.recipe == "sideview-runner"
     assert view.track_id == "meadow-dash"

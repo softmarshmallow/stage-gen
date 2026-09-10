@@ -36,17 +36,17 @@ from gnode import (
     VideoGenerationService,
     assert_safe_path_segment,
     atomic_write_json,
+    node_closure,
     project_schedule,
     validate_plan_types,
     write_graph,
     write_run_summary,
 )
-from stage_gen.config import CapabilityName, StageGenConfig, assert_capabilities
+from stage_gen.config import CapabilityName, ConfigError, StageGenConfig, assert_capabilities
+from stage_gen.orchestration.image_routing import RoutedImageGenerationService
 from stage_gen.orchestration.runtime import (
     create_background_removal_service,
-    create_image_service,
     create_music_service,
-    create_openai_image_service,
     create_sound_effect_service,
     create_speech_service,
     create_structured_service,
@@ -98,36 +98,23 @@ class RunServices:
     def __init__(self, config: StageGenConfig) -> None:
         self._config = config
         self._opened: list[_Closable] = []
+        self._routed_image: RoutedImageGenerationService | None = None
 
     def adopt[S: _Closable](self, service: S) -> S:
         self._opened.append(service)
         return service
 
     def image(self) -> ImageGenerationService:
-        """The direct OpenAI image route: the only one that returns native alpha."""
+        """The binding-driven router shared by every image node in this run."""
 
-        config = self._config
-        return self.adopt(
-            create_openai_image_service(
-                api_key=config.openai_api_key or "",
-                model=config.openai_image_model,
-                base_url=config.openai_base_url or OPENAI_BASE_URL,
-                images_per_minute=config.openai_image_ipm,
-            )
-        )
+        if self._routed_image is None:
+            self._routed_image = self.adopt(RoutedImageGenerationService(self._config))
+        return self._routed_image
 
     def opaque_image(self) -> ImageGenerationService:
-        """The configured OpenRouter image route for opaque/reference work."""
+        """Compatibility alias; opacity is a request capability, not a provider."""
 
-        config = self._config
-        return self.adopt(
-            create_image_service(
-                api_key=config.open_router_api_key or "",
-                model=config.image_model,
-                base_url=config.open_router_base_url or OPENROUTER_BASE_URL,
-                images_per_minute=config.openrouter_image_ipm,
-            )
-        )
+        return self.image()
 
     def structured(self) -> StructuredGenerationService[object]:
         config = self._config
@@ -199,6 +186,7 @@ class RunServices:
 
     async def aclose(self) -> None:
         opened, self._opened = self._opened, []
+        self._routed_image = None
         for service in reversed(opened):
             await service.aclose()
 
@@ -257,6 +245,42 @@ class RecipeExecutor[R: Identified, G: Graph](ABC):
         """Refuse before opening a run when a needed credential is absent."""
 
         assert_capabilities(self._config, capabilities)
+
+    def require_route_credentials(
+        self,
+        graph: Graph,
+        *,
+        target_node_ids: Sequence[str] | None = None,
+    ) -> None:
+        """Require credentials for routes in the selected execution closure.
+
+        Credentials admit an already-planned route. They never select a route,
+        and an unused registered route or unselected graph branch therefore
+        never becomes a run requirement. ``None`` preserves whole-graph
+        admission for recipes that do not expose target slices.
+        """
+
+        credential_by_provider = {
+            "openai": ("OPENAI_API_KEY", self._config.openai_api_key),
+            "fal": ("FAL_KEY", self._config.fal_key),
+            "openrouter": ("OPENROUTER_API_KEY", self._config.open_router_api_key),
+        }
+        selected_nodes = node_closure(graph, target_node_ids)
+        providers = dict.fromkeys(
+            graph.resolved_route_for(node).provider
+            for node in selected_nodes
+            if node.binding_ref is not None
+        )
+        missing: list[str] = []
+        for provider in providers:
+            credential = credential_by_provider.get(provider)
+            if credential is None:
+                raise ValueError(f"no application credential mapping for provider {provider}")
+            name, value = credential
+            if value is None or not value.strip():
+                missing.append(name)
+        if missing:
+            raise ConfigError(missing)
 
     def services(self) -> RunServices:
         return RunServices(self._config)

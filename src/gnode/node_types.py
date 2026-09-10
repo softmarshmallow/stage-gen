@@ -82,7 +82,12 @@ class NodePolicy:
 
 @dataclass(frozen=True, slots=True)
 class NodeType:
-    """One node type: the declaration dispatch, caching, and rendering derive from."""
+    """One node type: the declaration dispatch, caching, and rendering derive from.
+
+    ``features`` remains the fixed requirement set for legacy binding-table
+    planning. Route-catalog planning takes its capability requirements from the
+    instance workload and uses this declaration only to verify the operation.
+    """
 
     type_id: str
     title: str
@@ -121,6 +126,17 @@ class NodeType:
         """What the cache key calls this type: ``identity`` when declared, else ``type_id``."""
 
         return self.type_id if self.identity is None else self.identity
+
+    def validate_workload_operation(self, operation: str) -> None:
+        """Check a catalog workload's operation without reusing legacy features."""
+
+        if self.is_local:
+            raise NodeTypeError(f"local node type {self.type_id} cannot carry a provider workload")
+        if operation != self.operation:
+            raise NodeTypeError(
+                f"workload operation {operation} does not match node type "
+                f"{self.type_id} operation {self.operation}"
+            )
 
 
 def validate_plan_types(nodes: Sequence[Node], types: Mapping[str, NodeType]) -> None:

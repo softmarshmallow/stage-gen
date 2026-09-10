@@ -39,7 +39,11 @@ class PointClickRoomExecutor(RecipeExecutor[ResolvedPointClickRoom, PointClickRo
         return resolve_pointclick_room(read_room_document(input_path), root=input_path)
 
     def _build(self, resolved: ResolvedPointClickRoom) -> PointClickRoomGraph:
-        return build_pointclick_room_graph(resolved, profile=room_graph_profile(self._config))
+        return build_pointclick_room_graph(
+            resolved,
+            profile=room_graph_profile(self._config),
+            config=self._config,
+        )
 
     def _type_index(self) -> Mapping[str, NodeType]:
         return pointclick_type_index()
@@ -55,8 +59,9 @@ class PointClickRoomExecutor(RecipeExecutor[ResolvedPointClickRoom, PointClickRo
         """Execute the whole room, including the terminal bundle."""
 
         assert_safe_path_segment(invocation_id, "invocation_id")
-        self.require(CapabilityName.NATIVE_IMAGE_GENERATION, CapabilityName.STRUCTURED_GENERATION)
+        self.require(CapabilityName.STRUCTURED_GENERATION)
         plan = self.plan(input_path)
+        self.require_route_credentials(plan.graph)
         await self.open_run(plan, run_dir=run_dir)
         async with self.services() as services:
             handler = PointClickRoomNodeHandler(

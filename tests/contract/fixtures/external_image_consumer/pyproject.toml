@@ -1,0 +1,12 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gnode-external-image-consumer-fixture"
+version = "0.0.0"
+requires-python = ">=3.13"
+dependencies = ["stage-gen"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/external_image_consumer"]

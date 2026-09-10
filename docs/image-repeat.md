@@ -87,10 +87,25 @@ Transport, decoding, malformed media, and deterministic candidate failures are
 inside the single six-attempt repair owner. A well-formed semantic rejection is
 final and is not a provider retry.
 
-The OpenRouter adapter implements `masked-image-edit` with
-`openai/gpt-image-2.5-sunburst` image references at maximum quality. This is
-reference-conditioned repair, not OpenAI's native masked-edit route: it submits
-the conditioning canvas and mask as two references once, normalizes the
+The application resolves one provider-neutral `image.conditioned.repair`
+policy at maximum-quality GPT Image 2.5 Sunburst. It preserves the existing
+OpenRouter route by default;
+the explicit `STAGE_GEN_IMAGE_PROVIDER` switch may instead seal OpenAI or Fal,
+and no credential or failure can trigger fallback. The repair
+manifest and provenance retain the exact resolved route and transport:
+
+- `image.sunburst.openai.images.conditioned_repair` and
+  `image.sunburst.fal.conditioned_repair` seal the `native_mask_edit` variant:
+  one conditioning canvas plus the provider's real mask field. OpenAI's alpha
+  mask is compiled from the component's canonical white-edit/black-preserve
+  guide; Fal receives that canonical guide directly. All conditioning and mask
+  inputs are sealed as inline PNG data URLs.
+- `image.sunburst.openrouter.images.conditioned_repair` seals the
+  `reference_conditioned_edit` variant. OpenRouter has no masked-edit route, so
+  it receives the conditioning canvas and mask guide as two ordinary
+  inline PNG data-URL references and is never described as enforcing the mask.
+
+Every adapter makes one provider call per shared retry attempt, normalizes the
 provider raster to the declared conditioning geometry, and leaves context
 restoration, deterministic alpha-topology reconstruction, endpoint anchoring,
 and acceptance to the component. Alpha reconstruction is not a semantic repair:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 import pytest
 
@@ -60,24 +61,45 @@ def test_configured_services_compose_from_the_config_alone() -> None:
         type(structured).__name__,
         type(music).__name__,
     } == {
-        "ImageGenerationService",
+        "RoutedImageGenerationService",
         "StructuredGenerationService",
         "MusicGenerationService",
     }
-    assert image.provider == "openai"
+    assert image is opaque_image
+    assert image.provider == "routed"
     assert image.model == "gpt-image-2.5-sunburst"
-    assert opaque_image.provider == "openrouter"
-    assert opaque_image.model == "openai/gpt-image-2.5-sunburst"
     asyncio.run(services.aclose())
 
 
-def test_a_missing_credential_is_a_value_error_naming_the_variable() -> None:
+def test_image_capability_credentials_require_an_exact_resolved_route() -> None:
     from stage_gen.recipes.pointclick_room.room_executor import PointClickRoomExecutor
 
     executor = PointClickRoomExecutor(StageGenConfig(open_router_api_key="openrouter"))
-    with pytest.raises(ConfigError, match="OPENAI_API_KEY") as raised:
+    with pytest.raises(ValueError, match="exact resolved route"):
         executor.require(
             CapabilityName.NATIVE_IMAGE_GENERATION, CapabilityName.STRUCTURED_GENERATION
         )
-    assert isinstance(raised.value, ValueError)
-    assert raised.value.missing == ("OPENAI_API_KEY",)
+
+
+def test_route_credentials_are_scoped_to_the_selected_target_closure() -> None:
+    from stage_gen.image_product import ImageProvider
+    from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
+    from stage_gen.recipes.sideview_platformer.prepared_content import (
+        soundtrack_target_node_ids,
+    )
+
+    executor = PreparedPackageExecutor(
+        StageGenConfig(
+            open_router_api_key="openrouter",
+            image_provider_override=ImageProvider.FAL,
+        )
+    )
+    plan = executor.plan(Path("library/games/bellweather"))
+    soundtrack_targets = soundtrack_target_node_ids(plan.graph)
+
+    executor.require_route_credentials(
+        plan.graph,
+        target_node_ids=soundtrack_targets,
+    )
+    with pytest.raises(ConfigError, match="FAL_KEY"):
+        executor.require_route_credentials(plan.graph)

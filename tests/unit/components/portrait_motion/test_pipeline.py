@@ -16,6 +16,7 @@ from typing import Any, ClassVar, Literal
 import numpy as np
 import pytest
 from PIL import Image, ImageDraw
+from pydantic import ValidationError
 from scipy.ndimage import gaussian_filter
 
 from gnode import (
@@ -29,8 +30,10 @@ from gnode import (
     ProviderResponseMetadata,
     ProviderStructuredOutput,
     RetryPolicy,
+    RouteResolutionError,
     StructuredGenerationRequest,
     StructuredGenerationService,
+    seal_graph,
     write_artifact_with_provenance,
 )
 from stage_gen.components.portrait_motion import PortraitMotionSpec
@@ -38,8 +41,22 @@ from stage_gen.components.portrait_motion.models import PortraitMotionResult
 from stage_gen.components.portrait_motion.nodes import STAGES
 from stage_gen.components.portrait_motion.processing import png_bytes
 from stage_gen.components.portrait_motion.storage import COMPONENT
+from stage_gen.config import ConfigError, StageGenConfig
+from stage_gen.image_product import ImageProvider
+from stage_gen.model_routes import (
+    FAL_IMAGE_EDIT_ROUTE_ID,
+    FAL_SUNBURST_MODEL,
+    IMAGE_NATIVE_EDIT_POLICY_ID,
+    OPENAI_IMAGE_EDIT_ROUTE_ID,
+    OPENAI_SUNBURST_MODEL,
+)
 from stage_gen.orchestration.portrait_motion import (
+    PORTRAIT_MOTION_GRAPH_KIND,
+    PORTRAIT_MOTION_GRAPH_SCHEMA_VERSION,
+    PORTRAIT_MOTION_PLAN_KIND,
+    PORTRAIT_MOTION_PLAN_SCHEMA_VERSION,
     TOOL,
+    PortraitMotionGraph,
     RuntimeProfile,
     load_plan,
     prepare_run,
@@ -121,17 +138,30 @@ def admission_document(mode: str) -> dict[str, Any]:
 
 class ImageBackend:
     spec_version: ClassVar[Literal[1]] = 1
-    provider = "openai"
     supports_native_alpha = False
     secrets: tuple[str, ...] = ()
 
-    def __init__(self, profile: RuntimeProfile, eligible: list[str]) -> None:
-        self.model: str = profile.image_model
+    def __init__(self, provider: str, model: str, eligible: list[str]) -> None:
+        self.provider = provider
+        self.model = model
+        self.adapter_id = {
+            "openai": "gnode-openai-image-v1",
+            "fal": "gnode-fal-image-v1",
+            "openrouter": "gnode-openrouter-image-v1",
+        }[provider]
+        self.adapter_behavior_version = "3" if provider == "openrouter" else "1"
         self.eligible = eligible
         self.calls = 0
+        self.last_request: ImageGenerationRequest | None = None
+
+    def endpoint_for(self, request: ImageGenerationRequest) -> str:
+        assert request.resolved_binding is not None
+        return request.resolved_binding.route.endpoint
 
     async def generate_once(self, request: ImageGenerationRequest) -> ProviderImage:
         self.calls += 1
+        self.last_request = request
+        assert request.resolved_binding is not None
         assert len(request.input_references) == 1
         encoded = request.input_references[0].url.partition(",")[2]
         with Image.open(io.BytesIO(base64.b64decode(encoded))) as supplied:
@@ -158,6 +188,17 @@ class ImageBackend:
             response_metadata=ProviderResponseMetadata(
                 request_id="offline-image", usage={"cost": 0}
             ),
+            applied_params={
+                "operation": "edit",
+                "endpoint": request.resolved_binding.route.endpoint,
+                "quality": request.quality,
+                "background": request.background,
+                "output_format": request.output_format,
+                "size": request.size,
+                "input_reference_count": len(request.input_references),
+                "reference_delivery": "data_url",
+                **({"moderation": request.moderation} if request.moderation is not None else {}),
+            },
         )
 
     async def aclose(self) -> None:
@@ -264,7 +305,12 @@ class Case:
         )
 
 
-def prepare_case(tmp_path: Path, mode: str = "complete") -> Case:
+def prepare_case(
+    tmp_path: Path,
+    mode: str = "complete",
+    *,
+    config: StageGenConfig | None = None,
+) -> Case:
     profile = RuntimeProfile()
     noise = gaussian_filter(np.random.default_rng(901).normal(size=(CANVAS_SIZE, CANVAS_SIZE)), 1.4)
     plane = np.clip(np.rint(128 + noise / noise.std() * 32), 0, 255).astype(np.uint8)
@@ -283,9 +329,11 @@ def prepare_case(tmp_path: Path, mode: str = "complete") -> Case:
         ),
     )
     run_dir = tmp_path / "run"
-    prepare_run(source, run_dir, specification(), profile)
+    prepare_run(source, run_dir, specification(), profile, config=config)
+    _, _, graph = load_plan(run_dir)
+    image_route = graph.resolved_route_for("atlas")
     structured = StructuredBackend(profile, mode)
-    image = ImageBackend(profile, structured.eligible)
+    image = ImageBackend(image_route.provider, image_route.model, structured.eligible)
     retry = RetryPolicy(initial_delay_s=0, max_delay_s=0)
     return Case(
         run_dir,
@@ -318,6 +366,219 @@ def test_source_import_preserves_rights_and_attribution_on_unchanged_image(tmp_p
     assert json.loads((run_dir / "inputs/source-origin.json").read_bytes())["rights"] == (
         rights.model_dump(mode="json")
     )
+
+
+def test_graph_seals_truthful_default_image_edit_route(tmp_path: Path) -> None:
+    case = prepare_case(
+        tmp_path,
+        config=StageGenConfig(
+            openai_api_key="offline-openai-secret",
+            open_router_api_key="offline-openrouter-secret",
+            fal_key="offline-fal-secret",
+        ),
+    )
+    _, plan, graph = load_plan(case.run_dir)
+    atlas = graph.node("atlas")
+    route = graph.resolved_route_for(atlas)
+
+    assert (graph.schema_version, graph.kind) == (
+        PORTRAIT_MOTION_GRAPH_SCHEMA_VERSION,
+        PORTRAIT_MOTION_GRAPH_KIND,
+    )
+    assert (plan["schema_version"], plan["kind"]) == (
+        PORTRAIT_MOTION_PLAN_SCHEMA_VERSION,
+        PORTRAIT_MOTION_PLAN_KIND,
+    )
+    assert atlas.binding_ref == route.binding_ref
+    assert (atlas.provider, atlas.model) == ("openai", OPENAI_SUNBURST_MODEL)
+    assert route.route_id == OPENAI_IMAGE_EDIT_ROUTE_ID
+    assert route.policy_id == IMAGE_NATIVE_EDIT_POLICY_ID
+    assert route.operation_variant == "edit"
+    assert route.required_features == (
+        "authored_prompt_passthrough",
+        "data_url_reference_input",
+        "exact_size",
+        "maximum_quality",
+        "opaque_background",
+        "png_output",
+        "reference_images",
+    )
+    assert route.required_limits == (("reference_count_max", 1.0),)
+    assert route.effective_output_options == {
+        "operation_variant": "edit",
+        "quality_goal": "maximum_verified",
+        "background": "opaque",
+        "output_format": "png",
+        "reference_count": 1,
+        "reference_delivery": "data_url",
+        "mask_present": False,
+        "prompt_policy": "authored_verbatim",
+        "size": "1024x1024",
+        "moderation_goal": "low_when_supported",
+        "quality": "max",
+        "moderation": "low",
+        "input_fidelity": "omitted",
+    }
+    assert plan["image_routing"]["image_provider_override"] is None
+    assert not ({"openai_api_key", "open_router_api_key", "fal_key"} & set(plan["image_routing"]))
+    assert b"offline-" not in (case.run_dir / "plan.json").read_bytes()
+
+
+def test_portrait_motion_graph_dual_reads_route_free_v1_only(tmp_path: Path) -> None:
+    case = prepare_case(tmp_path)
+    _, _, current = load_plan(case.run_dir)
+    legacy_nodes = tuple(node.model_copy(update={"binding_ref": None}) for node in current.nodes)
+    legacy = seal_graph(
+        PortraitMotionGraph,
+        resources=current.resources,
+        nodes=legacy_nodes,
+        terminal_node_id=current.terminal_node_id,
+        schema_version=1,
+        kind="portrait-motion-v1",
+    )
+
+    assert PortraitMotionGraph.model_validate_json(legacy.model_dump_json()) == legacy
+    with pytest.raises(ValidationError, match="cannot carry resolved routes"):
+        seal_graph(
+            PortraitMotionGraph,
+            resources=current.resources,
+            resolved_routes=current.resolved_routes,
+            nodes=current.nodes,
+            terminal_node_id=current.terminal_node_id,
+            schema_version=1,
+            kind="portrait-motion-v1",
+        )
+    with pytest.raises(ValidationError, match="must form a declared identity"):
+        seal_graph(
+            PortraitMotionGraph,
+            resources=current.resources,
+            resolved_routes=current.resolved_routes,
+            nodes=current.nodes,
+            terminal_node_id=current.terminal_node_id,
+            schema_version=1,
+            kind=PORTRAIT_MOTION_GRAPH_KIND,
+        )
+
+
+@pytest.mark.parametrize(
+    ("schema_version", "kind"),
+    (
+        (1, PORTRAIT_MOTION_PLAN_KIND),
+        (PORTRAIT_MOTION_PLAN_SCHEMA_VERSION, "portrait-motion-plan-v1"),
+    ),
+)
+def test_portrait_motion_plan_refuses_mismatched_identity_pairs(
+    tmp_path: Path,
+    schema_version: int,
+    kind: str,
+) -> None:
+    case = prepare_case(tmp_path)
+    plan_path = case.run_dir / "plan.json"
+    plan = json.loads(plan_path.read_bytes())
+    plan.update(schema_version=schema_version, kind=kind)
+    plan_path.write_text(json.dumps(plan), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="unsupported identity"):
+        load_plan(case.run_dir)
+
+
+def test_portrait_motion_plan_keeps_v1_as_nonresumable_route_free_history(
+    tmp_path: Path,
+) -> None:
+    case = prepare_case(tmp_path)
+    plan_path = case.run_dir / "plan.json"
+    current = json.loads(plan_path.read_bytes())
+    route_bearing_legacy = {
+        **current,
+        "schema_version": 1,
+        "kind": "portrait-motion-plan-v1",
+    }
+    plan_path.write_text(json.dumps(route_bearing_legacy), encoding="utf-8")
+    with pytest.raises(ValueError, match="cannot carry image routing"):
+        load_plan(case.run_dir)
+
+    route_free_legacy = dict(route_bearing_legacy)
+    route_free_legacy.pop("image_routing")
+    plan_path.write_text(json.dumps(route_free_legacy), encoding="utf-8")
+    with pytest.raises(ValueError, match="readable history but cannot be resumed"):
+        load_plan(case.run_dir)
+
+
+def test_route_refusal_leaves_no_partial_portrait_motion_run(tmp_path: Path) -> None:
+    spec = specification().model_copy(update={"height": 1536})
+    source = tmp_path / "source.png"
+    source_bytes = png_bytes(Image.new("RGB", (spec.width, spec.height), (61, 73, 89)))
+    write_artifact_with_provenance(
+        source,
+        BinaryArtifact(source_bytes, "image/png"),
+        ProvenanceInput(
+            provider="local",
+            model="synthetic-test",
+            prompt="Original flat test portrait.",
+            component=COMPONENT,
+            tool=TOOL,
+            attempts=1,
+        ),
+    )
+    run_dir = tmp_path / "refused-run"
+
+    with pytest.raises(RouteResolutionError, match="not an allowed exact size"):
+        prepare_run(
+            source,
+            run_dir,
+            spec,
+            config=StageGenConfig(image_provider_override=ImageProvider.OPENROUTER),
+        )
+
+    assert not run_dir.exists()
+
+
+@pytest.mark.asyncio
+async def test_scalar_fal_override_replans_and_dispatches_only_the_sealed_route(
+    tmp_path: Path,
+) -> None:
+    case = prepare_case(
+        tmp_path,
+        config=StageGenConfig(image_provider_override=ImageProvider.FAL),
+    )
+    _, plan, graph = load_plan(case.run_dir)
+    route = graph.resolved_route_for("atlas")
+    assert plan["image_routing"]["image_provider_override"] == "fal"
+    assert (route.route_id, route.provider, route.model) == (
+        FAL_IMAGE_EDIT_ROUTE_ID,
+        "fal",
+        FAL_SUNBURST_MODEL,
+    )
+
+    result = await case.run()
+
+    assert result["status"] == "complete"
+    assert case.image_backend.calls == 1
+    assert case.image_backend.last_request is not None
+    assert case.image_backend.last_request.resolved_binding == route.to_resolved_binding()
+    assert case.image_backend.last_request.moderation is None
+
+
+@pytest.mark.asyncio
+async def test_live_fal_plan_refuses_missing_fal_key_without_openai_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = prepare_case(
+        tmp_path,
+        config=StageGenConfig(image_provider_override=ImageProvider.FAL),
+    )
+    monkeypatch.setenv("STAGE_GEN_RUN_LIVE", "1")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "offline-openrouter-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "offline-openai-key")
+    monkeypatch.delenv("FAL_KEY", raising=False)
+
+    with pytest.raises(ConfigError) as raised:
+        await run_pipeline(case.run_dir, live=True)
+
+    assert raised.value.missing == ("FAL_KEY",)
+    assert not (case.run_dir / "budget.json").exists()
+    assert not list(case.run_dir.rglob("submission.json"))
 
 
 @pytest.mark.asyncio

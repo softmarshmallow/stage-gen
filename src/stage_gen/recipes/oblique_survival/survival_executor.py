@@ -55,7 +55,6 @@ from stage_gen.recipes.oblique_survival.survival_types import (
 #: The operation each provider capability answers for, so a run asks for exactly the
 #: credentials its own plan will spend and no more.
 _CAPABILITY_BY_OPERATION: Mapping[str, CapabilityName] = {
-    "image_generation": CapabilityName.NATIVE_IMAGE_GENERATION,
     "structured_generation": CapabilityName.STRUCTURED_GENERATION,
     "tool_loop": CapabilityName.TOOL_LOOP,
     "music_generation": CapabilityName.MUSIC_GENERATION,
@@ -213,6 +212,7 @@ class ObliqueSurvivalExecutor(RecipeExecutor[Package, ObliqueSurvivalGraph]):
         # Credentials are checked against this plan before a run directory exists, so a
         # missing key costs nothing and leaves nothing behind.
         self.require(*self.required_capabilities(plan.graph))
+        self.require_route_credentials(plan.graph)
         await self.open_run(plan, run_dir=run_dir)
         async with self.services() as services:
             handler = ObliqueSurvivalNodeHandler(

@@ -85,6 +85,11 @@ Changelog
             that nothing but the clip family moved. The drawn path is unchanged
             and still planned for any shot without a take; what this row records
             is one package's choice, not a change of default.
+
+2026-09-10  Every image instance now carries a capability-admitted route reference.
+            The four scopes keep their nodes and dependencies, while topology records
+            the used route/resource facts and the cache golden records the intentional
+            one-time output-identity rekey.
 """
 
 from __future__ import annotations
@@ -118,7 +123,7 @@ class ScopeIdentity:
 IDENTITIES: Final = {
     "minimal": ScopeIdentity(
         node_count=64,
-        topology_sha256="f22f834f204bee5004f72766651607f57ac9889c7d7bc803174a2d5597a04092",
+        topology_sha256="6effaf66c6791460de07cc7fd47921483856efd37c9712b1760bfe391ab9339d",
         operations={
             "local": 38,
             "image_generation": 21,
@@ -131,7 +136,7 @@ IDENTITIES: Final = {
     ),
     "props": ScopeIdentity(
         node_count=202,
-        topology_sha256="ff9cdad9ada5682302c55f36703a842e8ab55b3b3b17f7429e30f13fd0d0148c",
+        topology_sha256="428e0afb2bec342bd5a1e43f4bc4ac735d46960ec2ad5ea19c4deef1ee414bee",
         operations={
             "local": 105,
             "image_generation": 75,
@@ -144,7 +149,7 @@ IDENTITIES: Final = {
     ),
     "actors": ScopeIdentity(
         node_count=252,
-        topology_sha256="c5bf4cdb3110718109d1206de6261515d00d3ee61e5f217f15491231b71b8e85",
+        topology_sha256="b00ace3898eeef4875ffe7be3b40f41a9eddc8fbfbcef36930eaaafd2eadbe98",
         operations={
             "local": 129,
             "image_generation": 96,
@@ -157,7 +162,7 @@ IDENTITIES: Final = {
     ),
     "full": ScopeIdentity(
         node_count=294,
-        topology_sha256="9ac43e50a9f2664357eea4b378d45da83c145d43bcd801f68a5dbf835c0633aa",
+        topology_sha256="4243f56f7115d9ad6c733e70d677fea16e62ab524a883c80780935f243e381a2",
         operations={
             "local": 160,
             "image_generation": 103,
@@ -206,7 +211,7 @@ def test_every_plan_keeps_the_recipe_vocabulary_it_declares() -> None:
     for scope in SCOPES:
         graph = _plan(scope)
         assert graph.schema_version == OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION
-        assert graph.kind == "oblique-survival-execution-graph-v1"
+        assert graph.kind == "oblique-survival-execution-graph-v2"
         assert graph.recipe == "oblique-survival"
         assert graph.TRACE_EVENT_KIND == "oblique-survival-execution-event-v1"
         assert graph.RUN_SUMMARY_KIND == "oblique-survival-execution-summary-v1"

@@ -49,7 +49,6 @@ from stage_gen.recipes.universe.schema import SYSTEM_PROMPT, schema_description
 from stage_gen.recipes.universe.universe_graph import (
     ADMISSION_REF,
     EVALUATION_REF,
-    GALLERY_IMAGE_ROUTE,
     GLOBAL_DIRECTION_REF,
     INPUT_POSTER_PROXY_REF,
     PLAN_REF,
@@ -776,6 +775,7 @@ EXPANSION DIRECTION (full text)
             medium=self._resolved.medium,
         )
         width, height = (int(value) for value in size.split("x", 1))
+        resolved_binding = self._graph.resolved_route_for(node).to_resolved_binding()
 
         def validate(artifact: BinaryArtifact) -> dict[str, object]:
             facts = inspect_image(artifact.data, expected_media_type="image/png")
@@ -799,7 +799,7 @@ EXPANSION DIRECTION (full text)
                     "invocation_id": self.invocation_id,
                     "entity_id": entity_id,
                     "medium_id": self._resolved.medium.medium_id,
-                    "image_route": GALLERY_IMAGE_ROUTE.route_id,
+                    "image_route": resolved_binding.route.route_id,
                     "sample": str(node.params.get("sample", "0")),
                     "direction_ref": self._run_ref(direction_ref),
                     "global_direction_ref": self._run_ref(GLOBAL_DIRECTION_REF),
@@ -810,6 +810,7 @@ EXPANSION DIRECTION (full text)
                 timeout_seconds=1_800,
                 validate=validate,
                 provenance_schema_version=2,
+                resolved_binding=resolved_binding,
             )
         )
         return self._result(

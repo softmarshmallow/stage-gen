@@ -104,6 +104,7 @@ def steps(python: str = sys.executable, *, scratch: Path) -> tuple[Step, ...]:
         Step((python, "godot/tools/make_fixture_run.py", str(scratch / "godot-run"))),
         Step((python, "godot/tools/run_suite.py", "--run", str(scratch / "godot-run"))),
         Step((python, "scripts/check_docs.py")),
+        Step((python, "scripts/write_model_policy_snapshot.py")),
         Step((python, "-m", "build", "--no-isolation")),
         Step((python, "scripts/validate_game_package.py", "--root", ".")),
         Step(("stage-gen", "--help")),

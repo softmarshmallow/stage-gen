@@ -468,7 +468,7 @@ def _constrain_provider_repair(
     expected_size = (prepared.conditioning_width, prepared.conditioning_height)
     if (facts.width, facts.height) != expected_size:
         raise ValueError(
-            "masked edit output dimensions changed: "
+            "conditioned repair output dimensions changed: "
             f"received {facts.width}x{facts.height}, expected {expected_size[0]}x{expected_size[1]}"
         )
     conditioned = _decode_rgba(prepared.conditioning_png)

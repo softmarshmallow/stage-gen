@@ -22,7 +22,8 @@ is one application on top of the SDK.
 ```text
 src/gnode/                    ringed asset-graph SDK — ring 0: engine core
                               (topology, scheduling, trace, run view, model
-                              bindings, reliability, provenance; media-free);
+                              bindings, exact route snapshots, reliability,
+                              provenance; media-free);
                               ring 1 gnode/modalities/: per-modality model
                               specs and retry-owning services, including the
                               bounded tool-loop agent; ring 2
@@ -30,7 +31,7 @@ src/gnode/                    ringed asset-graph SDK — ring 0: engine core
                               ElevenLabs behind declared per-provider surfaces
 src/stage_gen/components/     application components and capability processing
 src/stage_gen/providers/      adapters for application-owned component
-                              protocols (the masked image-repeat edit)
+                              protocols; never provider-route authority
 src/stage_gen/media/          shared recipe-neutral inspection and transforms
 src/stage_gen/recipes/        recipe-specific composition, processing, and manifests
 src/stage_gen/orchestration/  run preparation, concrete composition, and summaries
@@ -49,7 +50,8 @@ Arrows below point from an importer to the layer it imports:
 ```text
 interfaces    --imports----------> orchestration
 orchestration --imports/composes-> recipes   --imports----------> components
-orchestration --imports/composes-> providers --implements-------> gnode ring-1 model specs
+orchestration --imports/composes-> gnode/providers --implements-> gnode ring-1 model specs
+stage_gen/providers --implements-----------> component-owned protocols
 components    --imports----------> media
 everything in stage_gen -------->  gnode (declared surfaces only)
 gnode         --imports----------> nothing in stage_gen; ring N only rings < N
@@ -74,14 +76,22 @@ sheet-layout, artifact, and validation constraints. Consumers may translate a
 completed manifest into an engine's textures or import settings, and they own
 runtime camera, scene, engine, movement, combat, and gameplay rules.
 
-Provider routes are declared, not scattered. A `gnode` binding table names each
-route as `model@provider` — `gpt-image-2.5-sunburst@openai`,
-`openai/gpt-image-2.5-sunburst@openrouter`
-— with the features that route is known to support and the date the claim was
-last verified. A node type asks for a capability plus features; a route that does
-not declare one is refused while planning, offline, before any spend. The two
-halves are persisted as separate `provider` and `model` fields, so the combined
-form is a configuration surface and never an identity.
+Provider routes are declared, not scattered. Ring 0 supplies provider-neutral
+route, workload, policy, resolution, and exact-size contract shapes; the
+application owns their actual catalog and capability vocabulary. A workload
+policy names one exact route rather than a preference list. Each node instance
+declares its real operation and requirements, and the selected route must admit
+every feature, numeric limit, and `exact_size` constraint while planning,
+offline, before any spend.
+
+Planning seals an admitted route as a `ResolvedRouteSnapshotV1` in the execution
+graph and stores its `binding_ref` on each routed node. That snapshot carries the
+material provider/model/surface/endpoint/adapter identity, exact output options,
+and supported and required capability facts, with fingerprints for route
+behavior, contract, and output. Credentials, prices, pacing, and mutable
+evidence dates are excluded. Runtime dispatch revalidates the snapshot against
+the configured catalog and constructs only its selected backend; it never
+discovers or falls back by credential availability.
 
 `stage_gen.orchestration.runtime` is the application composition root. It may
 import both provider-neutral component services and concrete providers; those
@@ -90,13 +100,23 @@ never import providers, recipes, orchestration, interfaces, or `web/`.
 
 ## Operational capabilities
 
-The initial hosted adapters use OpenRouter for structured text/vision, image
-generation, and experimental music generation, and fal for background
-removal. Exact model identifiers, request envelopes, environment variables,
-and verification status are documented in [Provider operations](docs/models/providers.md).
-Those names are operational configuration, not architectural dependencies:
-recipes consume capability interfaces and provenance records rather than raw
-provider response types.
+The hosted adapters use OpenRouter for structured text/vision, image generation
+and reference work without native-alpha requirements, and experimental music
+generation; OpenAI Images and fal both provide explicitly selectable Sunburst
+generation, reference edit, native transparency, and masked edit routes; fal
+also provides background removal and video. Exact model identifiers, request
+envelopes, environment variables, and verification status are documented in
+[Provider operations](docs/models/providers.md). Those names are operational
+configuration, not architectural dependencies: recipes consume capability
+interfaces and provenance records rather than raw provider response types.
+
+Image routing is quality-first and Sunburst-only. Checked-in capability policies
+choose an exact provider route, and the optional scalar
+`STAGE_GEN_IMAGE_PROVIDER=openai|fal|openrouter` replans all image workloads
+onto one provider without changing their requirements. An unsupported
+combination is refused; no Flare, Responses API, or automatic provider fallback
+is registered. Only credentials for image providers actually sealed into the
+graph are required.
 
 Every AI operation has one retry owner. Transport failures and silent contract
 failures—empty media, malformed JSON, schema mismatch, invalid containers, or
@@ -135,11 +155,15 @@ orchestration. Shared, capability-specific, and recipe-specific deterministic
 processing stays at its owning boundary, remains independently testable, and
 is recorded in provenance.
 
-Transparency is a recipe input, not a provider-global toggle. Native
-provider alpha is the default; validated AI background removal and an explicit
-degraded chroma fallback remain available, the latter deterministic and local. Opaque artifacts bypass both paths.
-The selected strategy and raw-to-derived lineage travel in manifests and
-sidecars so consumers load canonical outputs without guessing from colour.
+Transparency is a per-node requirement, not a provider-global toggle. OpenAI
+Images and fal can satisfy native transparent generation/edit routes;
+OpenRouter declares no native-alpha capability and is admitted only for `auto`
+or explicitly opaque generation and reference conditioning inside its verified
+size envelope. Validated AI background removal and an explicit degraded chroma
+fallback remain separate recipe strategies, the latter deterministic and local.
+Opaque artifacts bypass both paths. The selected route or strategy and
+raw-to-derived lineage travel in plans, manifests, and sidecars so consumers
+load canonical outputs without guessing from colour.
 
 ## Hosts and the viewer
 

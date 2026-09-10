@@ -6,8 +6,17 @@ import hashlib
 from collections.abc import Iterable, Sequence
 from typing import Any
 
-from gnode import Binding, BindingTable, GraphBuilder, ModelRef, NodeCard, PortRef
-from gnode.providers.openai import supports_openai_native_alpha_model
+from gnode import (
+    Binding,
+    BindingTable,
+    GraphBuilder,
+    ImageBackground,
+    ImageRouteRequirementsV1,
+    ModelRef,
+    NodeCard,
+    PortRef,
+    WorkloadRequestV1,
+)
 from stage_gen.components.game_soundtrack.nodes import (
     SoundtrackNodeTypes,
     add_soundtrack_nodes,
@@ -53,11 +62,18 @@ from stage_gen.components.sideview_layers.nodes import (
 from stage_gen.components.sideview_terrain.atlas import (
     MATERIAL_ASSEMBLER_ID,
     MATERIAL_SOURCE_CONTRACT_ID,
+    PAINT_CANVAS_SIZE,
     terrain_atlas_generation_prompt,
 )
 from stage_gen.config import StageGenConfig
+from stage_gen.model_routes import (
+    configured_image_route_catalog,
+    configured_image_workload_resolver,
+    image_workload_policies,
+)
 from stage_gen.orchestration.game_package import ResolvedGamePackage
 from stage_gen.recipes.ports import artifact_port, object_digest, record_port
+from stage_gen.recipes.sideview_platformer.climbable_atlas import plan_climbable_atlas
 from stage_gen.recipes.sideview_platformer.execution_graph import (
     ExecutionGraph,
     OperationKind,
@@ -79,7 +95,6 @@ from stage_gen.recipes.sideview_platformer.package_types import (
     DIALOGUE_ATLAS_GENERATE,
     DIALOGUE_ATLAS_VALIDATE,
     GAMEPLAY_BINDINGS_VALIDATE,
-    IMAGE_EDIT_FEATURES,
     MANIFEST_ASSEMBLE,
     MAP_CLIMBABLE_GENERATE,
     MAP_CLIMBABLE_VALIDATE,
@@ -151,26 +166,8 @@ def package_graph_profile(config: StageGenConfig) -> BindingTable:
     the provider; see docs/models/providers.md.
     """
 
-    if not supports_openai_native_alpha_model(config.openai_image_model):
-        raise ValueError(
-            "sideview-platformer requires the verified GPT Image 2.5 Sunburst "
-            "OpenAI native-alpha route"
-        )
-
     return BindingTable(
         [
-            Binding(
-                operation=OperationKind.IMAGE_GENERATION,
-                model=ModelRef(model=config.openai_image_model, provider="openai"),
-                features=frozenset(IMAGE_EDIT_FEATURES),
-                resource_id="openai-image",
-                estimated_duration_seconds=120.0,
-                estimated_cost_low_usd=0.18,
-                estimated_cost_high_usd=0.25,
-                requests_per_minute=config.openai_image_ipm,
-                rate_limit_owner="provider_adapter",
-                verified_on="2026-09-09",
-            ),
             Binding(
                 operation=OperationKind.STRUCTURED_GENERATION,
                 model=ModelRef(model=config.text_model, provider="openrouter"),
@@ -199,10 +196,11 @@ def build_package_execution_graph(
     package: ResolvedGamePackage,
     *,
     profile: BindingTable,
+    config: StageGenConfig | None = None,
 ) -> ExecutionGraph:
     """Expand every authored map and content entry into stable executable nodes."""
 
-    builder = _GraphBuilder(package, profile)
+    builder = _GraphBuilder(package, profile, config or StageGenConfig())
     package_node = builder.add(
         PACKAGE_RESOLVE,
         "package-resolve",
@@ -277,6 +275,7 @@ def build_package_execution_graph(
     return ExecutionGraph.seal(
         resources=builder.resources(),
         nodes=builder.nodes,
+        resolved_routes=builder.resolved_routes(),
         terminal_node_id=manifest.node_id,
         game_id=package.game.game_id,
         package_sha256=package.package_sha256,
@@ -353,6 +352,8 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                         repeat_preview=f"{layer_root}.repeat.png",
                     ),
                     params={"map_id": game_map.map_id, "layer_id": layer.layer_id},
+                    image_workload=builder.resolve_image_workload,
+                    generate_reference_count=len(layer.reference_ids),
                     # This recipe's admission key as it shipped: the map reviews depend on it.
                     validate_digests=(
                         object_digest(
@@ -450,6 +451,11 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                         "image", f"maps/{game_map.map_id}/ground.raw.png", "ground-atlas-raw-v1"
                     ),
                 ),
+                workload=builder.image_workload(
+                    background="opaque",
+                    size=PAINT_CANVAS_SIZE,
+                    reference_count=len(game_map.ground.reference_ids) + 1,
+                ),
                 card=NodeCard(template_ref="terrain_atlas_12x4_template_v1"),
             )
             ground_validation = builder.add(
@@ -516,6 +522,11 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                         "climbable-atlas-raw-v1",
                     ),
                 ),
+                workload=builder.image_workload(
+                    background="transparent",
+                    size=plan_climbable_atlas(len(game_map.climbable.variants)).size,
+                    reference_count=len(game_map.climbable.reference_ids),
+                ),
             )
             # The validator keeps the whole block, placements included. It is local and free, and
             # it is the last map-local node a moved climbable reaches before the review that
@@ -568,6 +579,11 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                     artifact_port(
                         "image", f"maps/{game_map.map_id}/portal.raw.png", "portal-pair-raw-v1"
                     ),
+                ),
+                workload=builder.image_workload(
+                    background="transparent",
+                    size="1536x1024",
+                    reference_count=len(game_map.portal.reference_ids),
                 ),
             )
             portal_validation = builder.add(
@@ -659,6 +675,11 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             cache_depends_on=(),
             input_digests=identity,
             ports=(artifact_port("image", f"{actor_root}/concept.png", "actor-concept-v1"),),
+            workload=builder.image_workload(
+                background="transparent",
+                size="1024x1536",
+                reference_count=len(player.reference_ids),
+            ),
         )
         concept_ref = PortRef(node_id=concept.node_id, port_id="image")
         validations: list[str] = []
@@ -680,6 +701,11 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                     artifact_port(
                         "image", f"{actor_root}/states/{state}.source.png", "motion-source-v1"
                     ),
+                ),
+                workload=builder.image_workload(
+                    background="transparent",
+                    size=motion_atlas_geometry("player", state).provider_size,
+                    reference_count=1,
                 ),
                 card=NodeCard(reference_inputs=(concept_ref,)),
             )
@@ -726,6 +752,11 @@ def _add_player_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             ),
             ports=(
                 artifact_port("image", f"{actor_root}/dialogue.source.png", "dialogue-source-v1"),
+            ),
+            workload=builder.image_workload(
+                background="transparent",
+                size="1536x1024",
+                reference_count=1,
             ),
             card=NodeCard(reference_inputs=(concept_ref,)),
         )
@@ -861,6 +892,11 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             cache_depends_on=(),
             input_digests=identity,
             ports=(artifact_port("image", f"{actor_root}/concept.png", "actor-concept-v1"),),
+            workload=builder.image_workload(
+                background="transparent",
+                size="1024x1536",
+                reference_count=len(mob.reference_ids),
+            ),
         )
         concept_ref = PortRef(node_id=concept.node_id, port_id="image")
         validations: list[str] = []
@@ -885,6 +921,11 @@ def _add_mob_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                     artifact_port(
                         "image", f"{actor_root}/states/{state}.source.png", "motion-source-v1"
                     ),
+                ),
+                workload=builder.image_workload(
+                    background="transparent",
+                    size=motion_atlas_geometry("mob", state).provider_size,
+                    reference_count=1,
                 ),
                 card=NodeCard(reference_inputs=(concept_ref,)),
             )
@@ -978,6 +1019,11 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             cache_depends_on=(),
             input_digests=identity,
             ports=(artifact_port("image", f"{actor_root}/concept.png", "actor-concept-v1"),),
+            workload=builder.image_workload(
+                background="transparent",
+                size="1024x1536",
+                reference_count=len(npc.reference_ids),
+            ),
         )
         concept_ref = PortRef(node_id=concept.node_id, port_id="image")
         world = builder.add(
@@ -1000,6 +1046,11 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 ),
             ),
             ports=(artifact_port("image", f"{actor_root}/world.source.png", "motion-source-v1"),),
+            workload=builder.image_workload(
+                background="transparent",
+                size=motion_atlas_geometry("npc", "idle").provider_size,
+                reference_count=1,
+            ),
             card=NodeCard(reference_inputs=(concept_ref,)),
         )
         world_validation = builder.add(
@@ -1035,6 +1086,11 @@ def _add_npc_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             ),
             ports=(
                 artifact_port("image", f"{actor_root}/dialogue.source.png", "dialogue-source-v1"),
+            ),
+            workload=builder.image_workload(
+                background="transparent",
+                size="1536x1024",
+                reference_count=1,
             ),
             card=NodeCard(reference_inputs=(concept_ref,)),
         )
@@ -1137,6 +1193,11 @@ def _add_catalog_family(
                     artifact_port(
                         "image", f"content/{plural}/{entity_id}.png", "catalog-sprite-v1"
                     ),
+                ),
+                workload=builder.image_workload(
+                    background="transparent",
+                    size="1024x1024",
+                    reference_count=len(_entry_reference_ids(entry)),
                 ),
             )
             validations.append(
@@ -1304,6 +1365,7 @@ def _add_ui_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             style_prompt=lambda task: visual_prompt(builder.package, task),
             direction_digests=(_visual_direction_digest(builder.package),),
             roles=document_roles(builder.package.ui),
+            image_workload=builder.resolve_image_workload,
         ),
     ]
 
@@ -1322,15 +1384,49 @@ def _add_inventory_panel_nodes(builder: _GraphBuilder, package_root: str) -> str
         depends_on=(package_root,),
         direction_digest=_visual_direction_digest(package),
         template_sha256=hashlib.sha256(inventory_template_path().read_bytes()).hexdigest(),
+        image_workload=builder.resolve_image_workload,
     )
 
 
 class _GraphBuilder(GraphBuilder):
     """The engine builder plus this recipe's package handle."""
 
-    def __init__(self, package: ResolvedGamePackage, profile: BindingTable) -> None:
-        super().__init__(profile=profile, local_max_in_flight=32)
+    def __init__(
+        self,
+        package: ResolvedGamePackage,
+        profile: BindingTable,
+        config: StageGenConfig,
+    ) -> None:
+        catalog = configured_image_route_catalog(config)
+        super().__init__(
+            profile=profile,
+            route_catalog=catalog,
+            workload_policies=image_workload_policies(config.image_provider_override),
+            local_max_in_flight=32,
+        )
         self.package = package
+        self.resolve_image_workload = configured_image_workload_resolver(config, catalog=catalog)
+
+    def image_workload(
+        self,
+        *,
+        background: ImageBackground,
+        size: str,
+        reference_count: int,
+        mask_present: bool = False,
+    ) -> WorkloadRequestV1:
+        """Resolve one exact provider-neutral image request into the configured route."""
+
+        return self.resolve_image_workload(
+            ImageRouteRequirementsV1(
+                operation_variant="edit" if reference_count else "generation",
+                background=background,
+                output_format="png",
+                size=size,
+                reference_count=reference_count,
+                mask_present=mask_present,
+            )
+        )
 
 
 def _add_painted_terrain_nodes(
@@ -1365,6 +1461,8 @@ def _add_painted_terrain_nodes(
             *_reference_digests(references, game_map.ground.reference_ids),
         ),
         material_direction=_painted_terrain_material_direction(builder.package, game_map),
+        image_workload=builder.resolve_image_workload,
+        material_reference_count=len(game_map.ground.reference_ids),
         layout=PaintedTerrainLayout(
             directory=f"maps/{game_map.map_id}/ground",
             evidence=f"maps/{game_map.map_id}/ground.evidence.png",

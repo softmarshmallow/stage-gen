@@ -15,7 +15,9 @@ from collections.abc import Sequence
 from enum import StrEnum
 from typing import Any, ClassVar, Self, get_args
 
-from gnode import Graph, Node, Resource, seal_graph
+from pydantic import model_validator
+
+from gnode import Graph, Node, ResolvedRouteSnapshotV1, Resource, seal_graph
 
 
 def _literal_of(cls: type[Graph], field: str) -> Any:
@@ -29,8 +31,10 @@ def _literal_of(cls: type[Graph], field: str) -> Any:
 class RecipeGraph(Graph):
     """One recipe's plan of record, bound to the authored input that produced it.
 
-    A subclass pins ``schema_version``, ``kind`` and ``recipe`` as one-value ``Literal``
-    fields - the identity table reads them there - and names its operation vocabulary.
+    A subclass pins ``recipe`` as a one-value ``Literal`` and declares its current
+    graph identity explicitly. Its ``schema_version`` and ``kind`` fields may also
+    admit named legacy pairs so existing run records remain readable while every
+    newly sealed plan uses only the current identity.
     ``VIEW_FIELDS`` are the header fields copied onto the run view; ``IDENTITY_FIELDS``
     are the ones that also participate in topology identity, which is almost none: a
     field that changes what the graph draws moves ``graph_sha256`` through the nodes,
@@ -40,6 +44,10 @@ class RecipeGraph(Graph):
     OPERATIONS: ClassVar[type[StrEnum]]
     VIEW_FIELDS: ClassVar[tuple[str, ...]] = ()
     IDENTITY_FIELDS: ClassVar[tuple[str, ...]] = ()
+    CURRENT_SCHEMA_VERSION: ClassVar[int | None] = None
+    CURRENT_KIND: ClassVar[str | None] = None
+    LEGACY_GRAPH_IDENTITIES: ClassVar[frozenset[tuple[int, str]]] = frozenset()
+    ROUTED_OPERATIONS: ClassVar[frozenset[str]] = frozenset()
 
     recipe: str
 
@@ -53,23 +61,69 @@ class RecipeGraph(Graph):
         cls.VIEW_KIND = f"{recipe}-execution-view-v1"
 
     @classmethod
+    def current_graph_identity(cls) -> tuple[int, str]:
+        """Return the only graph identity new plans may seal."""
+
+        schema_version = cls.CURRENT_SCHEMA_VERSION
+        kind = cls.CURRENT_KIND
+        if schema_version is None:
+            schema_version = _literal_of(cls, "schema_version")
+        if kind is None:
+            kind = _literal_of(cls, "kind")
+        if not isinstance(schema_version, int) or isinstance(schema_version, bool):
+            raise TypeError(f"{cls.__name__}.CURRENT_SCHEMA_VERSION must be an integer")
+        if not isinstance(kind, str) or not kind:
+            raise TypeError(f"{cls.__name__}.CURRENT_KIND must be a non-empty string")
+        return schema_version, kind
+
+    @model_validator(mode="after")
+    def validate_recipe_graph_identity(self) -> Self:
+        current = self.current_graph_identity()
+        identity = (self.schema_version, self.kind)
+        if identity not in {current, *self.LEGACY_GRAPH_IDENTITIES}:
+            raise ValueError(
+                "recipe graph schema_version and kind must form a declared current or "
+                "legacy identity pair"
+            )
+
+        routed_nodes = tuple(
+            node for node in self.nodes if node.operation in self.ROUTED_OPERATIONS
+        )
+        if identity in self.LEGACY_GRAPH_IDENTITIES:
+            if self.resolved_routes or any(node.binding_ref is not None for node in self.nodes):
+                raise ValueError("legacy recipe graph identities cannot carry resolved routes")
+            return self
+
+        missing = sorted(node.node_id for node in routed_nodes if node.binding_ref is None)
+        if missing:
+            raise ValueError(
+                "current recipe graph routed nodes require resolved route bindings: "
+                + ", ".join(missing)
+            )
+        return self
+
+    @classmethod
     def seal(
         cls,
         *,
         resources: Sequence[Resource],
+        resolved_routes: Sequence[ResolvedRouteSnapshotV1] = (),
         nodes: Sequence[Node],
         terminal_node_id: str,
         **header: object,
     ) -> Self:
-        """Seal a graph of this class; the pinned literals fill themselves in."""
+        """Seal a graph of this class with its current write identity."""
+
+        schema_version, kind = cls.current_graph_identity()
 
         return seal_graph(
             cls,
             resources=resources,
+            resolved_routes=resolved_routes,
             nodes=nodes,
             terminal_node_id=terminal_node_id,
-            schema_version=_literal_of(cls, "schema_version"),
-            kind=_literal_of(cls, "kind"),
+            schema_version=schema_version,
+            kind=kind,
             recipe=_literal_of(cls, "recipe"),
             **header,
         )

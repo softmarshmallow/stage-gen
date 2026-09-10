@@ -11,6 +11,7 @@ import httpx
 from gnode.modalities.image import (
     ImageGenerationRequest,
     ProviderImage,
+    classify_image_reference_delivery,
     inspect_image,
 )
 from gnode.providers._http import (
@@ -22,8 +23,9 @@ from gnode.providers._http import (
 from gnode.reliability import decode_base64_strict
 
 OPENAI_BASE_URL = "https://api.openai.com/v1"
-OPENAI_IMAGE_MODEL = "gpt-image-2.5-sunburst"
 OPENAI_IMAGE_IPM_DEFAULT = 150
+OPENAI_IMAGE_ADAPTER_ID = "gnode-openai-image-v1"
+OPENAI_IMAGE_ADAPTER_BEHAVIOR_VERSION = "1"
 
 _SIZE_RE = re.compile(r"^([1-9]\d*)x([1-9]\d*)$")
 _MIN_PIXELS = 655_360
@@ -51,18 +53,6 @@ _SIZE_BY_ASPECT_RATIO = {
     "9:16": "1152x2048",
     "21:9": "2688x1152",
 }
-_NATIVE_ALPHA_MODELS = frozenset(
-    {
-        "gpt-image-2.5-sunburst",
-        "gpt-image-2.5-sunburst-2026-09-08",
-    }
-)
-
-
-def supports_openai_native_alpha_model(model: str) -> bool:
-    """Return whether ``model`` has a verified native-alpha GPT Image route."""
-
-    return model.strip() in _NATIVE_ALPHA_MODELS
 
 
 class OpenAIImageBackend:
@@ -75,13 +65,16 @@ class OpenAIImageBackend:
     spec_version: ClassVar[Literal[1]] = 1
 
     provider = "openai"
-    supports_native_alpha = True
+    adapter_id = OPENAI_IMAGE_ADAPTER_ID
+    adapter_behavior_version = OPENAI_IMAGE_ADAPTER_BEHAVIOR_VERSION
+    supports_native_alpha: bool
 
     def __init__(
         self,
         *,
         api_key: str,
-        model: str = OPENAI_IMAGE_MODEL,
+        model: str,
+        supports_native_alpha: bool,
         base_url: str = OPENAI_BASE_URL,
         client: httpx.AsyncClient | None = None,
         images_per_minute: int = OPENAI_IMAGE_IPM_DEFAULT,
@@ -90,6 +83,8 @@ class OpenAIImageBackend:
             raise ValueError("OpenAI api_key must be non-empty")
         if not model.strip():
             raise ValueError("OpenAI image model must be non-empty")
+        if not isinstance(supports_native_alpha, bool):
+            raise ValueError("OpenAI image supports_native_alpha must be a boolean")
         if (
             isinstance(images_per_minute, bool)
             or not isinstance(images_per_minute, int)
@@ -99,7 +94,7 @@ class OpenAIImageBackend:
         self._api_key = api_key
         self.secrets: tuple[str, ...] = (api_key,)
         self.model = model.strip()
-        self.supports_native_alpha = supports_openai_native_alpha_model(self.model)
+        self.supports_native_alpha = supports_native_alpha
         self._base_url = normalized_base_url(base_url, "OpenAI base_url")
         self._client = client or httpx.AsyncClient(timeout=None)
         self._owns_client = client is None
@@ -111,7 +106,13 @@ class OpenAIImageBackend:
         if self._owns_client:
             await self._client.aclose()
 
+    def endpoint_for(self, request: ImageGenerationRequest) -> str:
+        suffix = "images/edits" if request.input_references else "images/generations"
+        return f"{self._base_url}/{suffix}"
+
     async def generate_once(self, request: ImageGenerationRequest) -> ProviderImage:
+        if request.mask_reference is not None and not request.input_references:
+            raise ValueError("OpenAI masked edits require at least one input reference")
         output_format = request.output_format or "png"
         media_type = _OUTPUT_MEDIA_TYPES[output_format]
         body: dict[str, object] = {
@@ -173,13 +174,13 @@ class OpenAIImageBackend:
         await self._pace_request_start()
         if files is None:
             response = await self._client.post(
-                f"{self._base_url}/{endpoint}",
+                self.endpoint_for(request),
                 headers={**headers, "Content-Type": "application/json"},
                 json=body,
             )
         else:
             response = await self._client.post(
-                f"{self._base_url}/{endpoint}",
+                self.endpoint_for(request),
                 headers=headers,
                 data={key: str(value) for key, value in body.items()},
                 files=files,
@@ -196,14 +197,26 @@ class OpenAIImageBackend:
             raise ValueError("OpenAI image generation returned no single image")
         image_data = decode_base64_strict(data[0].get("b64_json"), "OpenAI image b64_json")
         inspect_image(image_data, expected_media_type=media_type)
+        applied_params = {
+            "operation": "edit" if files is not None else "generation",
+            "endpoint": f"{self._base_url}/{endpoint}",
+            **{key: value for key, value in body.items() if key not in {"model", "prompt"}},
+        }
+        if request.input_references:
+            applied_params["input_reference_count"] = len(request.input_references)
+            applied_params["reference_delivery"] = classify_image_reference_delivery(
+                (
+                    *request.input_references,
+                    *((request.mask_reference,) if request.mask_reference is not None else ()),
+                )
+            )
+        if request.mask_reference is not None:
+            applied_params["mask_present"] = True
         return ProviderImage(
             data=image_data,
             media_type=media_type,
             response_metadata=response_metadata(response, payload),
-            applied_params={
-                "operation": "edit" if files is not None else "generation",
-                **{key: value for key, value in body.items() if key not in {"model", "prompt"}},
-            },
+            applied_params=applied_params,
         )
 
     async def _pace_request_start(self) -> None:
@@ -258,7 +271,8 @@ def _validate_openai_image_size(value: str) -> None:
 
 __all__ = [
     "OPENAI_BASE_URL",
-    "OPENAI_IMAGE_MODEL",
+    "OPENAI_IMAGE_ADAPTER_BEHAVIOR_VERSION",
+    "OPENAI_IMAGE_ADAPTER_ID",
     "OPENAI_IMAGE_IPM_DEFAULT",
     "OpenAIImageBackend",
 ]

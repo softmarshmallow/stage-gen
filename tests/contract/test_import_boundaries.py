@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import re
 from importlib.util import resolve_name
 from pathlib import Path
 
@@ -100,6 +101,58 @@ def test_components_import_across_genres_only_through_neutral_homes() -> None:
 
 
 RECIPE_ROOT = SOURCE_ROOT / "stage_gen" / "recipes"
+
+_ACTIVE_IMAGE_MODEL_ID = re.compile(r"^(?:(?:openai|fal-ai)/)?gpt-image-[0-9][A-Za-z0-9._/-]*$")
+_CONCRETE_PROVIDER_IMPORT_PREFIXES = (
+    "gnode.providers",
+    "stage_gen.providers",
+)
+
+
+def test_active_image_routes_have_one_application_authority() -> None:
+    """Deployment identities belong to the application's route catalog.
+
+    The product module is the sole production home for provider model spellings,
+    so a same-spec promotion cannot require a source sweep. Recipes and
+    components may describe semantic image intent but cannot construct provider
+    adapters. Historical prose and fixture data live outside these production
+    Python roots.
+    """
+
+    violations: list[str] = []
+    image_product_source = SOURCE_ROOT / "stage_gen" / "image_product.py"
+    for path in _python_sources(SOURCE_ROOT / "stage_gen"):
+        if path == image_product_source:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        relative = path.relative_to(SOURCE_ROOT.parent)
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                and _ACTIVE_IMAGE_MODEL_ID.fullmatch(node.value)
+            ):
+                violations.append(
+                    f"{relative}:{node.lineno} owns active image model {node.value!r}"
+                )
+
+    for root in (RECIPE_ROOT, COMPONENT_ROOT):
+        for path in _python_sources(root):
+            package = _package_for(path)
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            relative = path.relative_to(SOURCE_ROOT.parent)
+            for node in ast.walk(tree):
+                if not isinstance(node, (ast.Import, ast.ImportFrom)):
+                    continue
+                for imported in _imported_modules(node, package):
+                    if any(
+                        imported == prefix or imported.startswith(f"{prefix}.")
+                        for prefix in _CONCRETE_PROVIDER_IMPORT_PREFIXES
+                    ):
+                        violations.append(
+                            f"{relative}:{node.lineno} imports concrete provider {imported}"
+                        )
+    assert not violations, "active image routes escaped the catalog:\n" + "\n".join(violations)
 
 
 def test_recipes_do_not_import_each_other() -> None:
@@ -242,6 +295,8 @@ ENGINE_RINGS = {
     "graph": 0,
     "node_types": 0,
     "reliability": 0,
+    "route_constraints": 0,
+    "routes": 0,
     "schedule": 0,
     "trace": 0,
     "view": 0,

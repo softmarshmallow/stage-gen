@@ -8,7 +8,12 @@ from pathlib import Path
 
 import pytest
 
-from gnode import Node, project_schedule
+from gnode import CapabilityError, Node, project_schedule
+from stage_gen.components.painted_terrain import (
+    PAINTED_TERRAIN_GENERATE,
+    PAINTED_TERRAIN_NODE_TYPES,
+    PaintedTerrainGround,
+)
 from stage_gen.components.platformer_map import PreparedGameMap, PreparedMapClimbable
 from stage_gen.components.sideview_layers import contract as layer_contract
 from stage_gen.config import StageGenConfig
@@ -19,6 +24,7 @@ from stage_gen.recipes.sideview_platformer.package_graph import (
     build_package_execution_graph,
     package_graph_profile,
 )
+from stage_gen.recipes.sideview_platformer.package_types import platformer_type_index
 from stage_gen.resources import (
     terrain_atlas_template_path,
     terrain_atlas_topology_reference_path,
@@ -166,6 +172,64 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     assert {b for node in graph.nodes for b in node.barrier_only} == {"package-resolve"}
     loop = graph.node("map-sunpetal-crossing-layer-clear_sky-loop")
     assert loop.barrier_only == ()
+
+
+def test_platformer_plan_seals_truthful_exact_image_routes() -> None:
+    graph = _graph()
+
+    with pytest.raises(CapabilityError, match="no binding declares the image_generation"):
+        package_graph_profile(StageGenConfig()).require("image_generation")
+
+    image_nodes = [node for node in graph.nodes if node.operation == OperationKind.IMAGE_GENERATION]
+    assert image_nodes
+    assert all(node.binding_ref is not None for node in image_nodes)
+
+    ground = graph.resolved_route_for("map-sunpetal-crossing-ground-generate")
+    assert ground.route_id == "image.sunburst.openai.images.edit"
+    assert ground.effective_output_options["background"] == "opaque"
+    assert ground.effective_output_options["size"] == "2880x960"
+    assert ground.effective_output_options["reference_count"] == 2
+    assert ground.effective_output_options["mask_present"] is False
+
+    loop = graph.resolved_route_for("map-sunpetal-crossing-layer-clear_sky-loop")
+    assert loop.route_id == "image.sunburst.openai.images.edit"
+    assert loop.effective_output_options["background"] == "opaque"
+    assert loop.effective_output_options["reference_count"] == 1
+    assert loop.effective_output_options["mask_present"] is True
+
+    climbable = graph.resolved_route_for("map-crowncrag-road-climbable-generate")
+    assert climbable.route_id == "image.sunburst.openai.images.edit"
+    assert climbable.effective_output_options["background"] == "transparent"
+    assert climbable.effective_output_options["size"] == "1536x1536"
+    assert climbable.effective_output_options["reference_count"] == 1
+
+
+def test_painted_terrain_is_registered_and_routes_its_real_guide_edit() -> None:
+    package = resolve_game_package(BELLWEATHER)
+    first_map = package.maps[0]
+    ground = PaintedTerrainGround.model_validate(
+        {**first_map.ground.model_dump(mode="json"), "mode": "painted-terrain-v1"}
+    )
+    painted_package = replace(
+        package,
+        maps=(first_map.model_copy(update={"ground": ground}), *package.maps[1:]),
+    )
+    graph = build_package_execution_graph(
+        painted_package,
+        profile=package_graph_profile(StageGenConfig()),
+    )
+
+    registered = platformer_type_index()
+    assert all(node_type.type_id in registered for node_type in PAINTED_TERRAIN_NODE_TYPES)
+    generated = next(
+        node for node in graph.nodes if node.type_id == PAINTED_TERRAIN_GENERATE.type_id
+    )
+    route = graph.resolved_route_for(generated)
+    assert route.route_id == "image.sunburst.openai.images.edit"
+    assert route.effective_output_options["background"] == "transparent"
+    assert route.effective_output_options["size"] == "1536x1024"
+    assert route.effective_output_options["reference_count"] == 2
+    assert route.effective_output_options["mask_present"] is False
 
 
 def test_authored_anchor_reruns_only_the_motion_whose_registration_changed() -> None:
@@ -471,17 +535,16 @@ def test_projection_applies_the_adapter_owned_image_start_rate() -> None:
 
     assert projection.duration_ms == 311_050
     assert projection.operation_counts == graph.operation_counts()
-    assert projection.estimated_cost_low_usd == 17.70
+    assert projection.estimated_cost_low_usd == 17.7
     assert projection.estimated_cost_high_usd == 28.32
     assert projection.critical_path[0] == "package-resolve"
     assert projection.critical_path[-1] == "manifest-assemble"
 
-    image_starts = sorted(
-        span.started_offset_ms
-        for span in projection.spans
-        if span.operation == OperationKind.IMAGE_GENERATION
-    )
-    assert all(current - previous >= 400 for previous, current in pairwise(image_starts))
+    for resource_id in ("openai-image",):
+        image_starts = sorted(
+            span.started_offset_ms for span in projection.spans if span.resource_id == resource_id
+        )
+        assert all(current - previous >= 400 for previous, current in pairwise(image_starts))
 
 
 def test_remote_provider_resources_have_no_scheduler_concurrency_ceiling() -> None:
@@ -489,6 +552,7 @@ def test_remote_provider_resources_have_no_scheduler_concurrency_ceiling() -> No
 
     assert resources["local"].max_in_flight == 32
     assert resources["openai-image"].max_in_flight is None
+    assert "openrouter-image" not in resources
     assert resources["openrouter-structured"].max_in_flight is None
     assert resources["openrouter-music"].max_in_flight is None
     assert resources["openai-image"].requests_per_minute == 150

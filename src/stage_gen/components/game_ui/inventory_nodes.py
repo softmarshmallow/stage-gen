@@ -24,6 +24,7 @@ from gnode import (
     ImageGenerationRequest,
     ImageGenerationService,
     ImageReference,
+    ImageRouteRequirementsV1,
     Node,
     NodeCard,
     NodeExecutionResult,
@@ -36,6 +37,7 @@ from gnode import (
     StructuredOutputSchema,
     StructuredReference,
     ViewArchetype,
+    WorkloadRequestV1,
     atomic_write_json,
     dependency_port,
 )
@@ -159,6 +161,7 @@ def add_inventory_panel_nodes(
         "ui-inventory-panel-review",
     ),
     attempts_port: Callable[[str], Port] | None = None,
+    image_workload: Callable[[ImageRouteRequirementsV1], WorkloadRequestV1] | None = None,
 ) -> str:
     """Generate, validate, review; returns the review node id, the family's terminal."""
 
@@ -183,6 +186,19 @@ def add_inventory_panel_nodes(
             template_sha256,
         ),
         ports=tuple(generate_ports),
+        workload=(
+            None
+            if image_workload is None
+            else image_workload(
+                ImageRouteRequirementsV1(
+                    operation_variant="edit",
+                    background="transparent",
+                    output_format="png",
+                    size="1536x1024",
+                    reference_count=len(panel.reference_ids) + 1,
+                )
+            )
+        ),
         card=NodeCard(template_ref=INVENTORY_TEMPLATE_REF),
     )
     validated = builder.add(

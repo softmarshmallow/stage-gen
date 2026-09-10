@@ -10,7 +10,9 @@ from pathlib import Path
 import pytest
 
 from stage_gen.capabilities import CapabilityArtifactResult
-from stage_gen.interfaces.cli import build_parser, main
+from stage_gen.config import StageGenConfig, TransparencyMode
+from stage_gen.image_product import ImageProvider
+from stage_gen.interfaces.cli import build_parser, create_doctor_report, main
 
 
 def test_cli_offline_surfaces_require_a_prepared_package() -> None:
@@ -435,11 +437,65 @@ def test_doctor_consumes_cwd_dotenv_without_exposing_credentials(
         "fal": True,
         "elevenlabs": True,
     }
-    assert report["models"]["soundEffect"] == "eleven_text_to_sound_v2"
+    assert report["models"]["sound_effect"] == "eleven_text_to_sound_v2"
     assert "doctor-openai" not in rendered
     assert "doctor-openrouter" not in rendered
     assert "doctor-fal" not in rendered
     assert "doctor-elevenlabs" not in rendered
+
+
+@pytest.mark.parametrize(
+    ("mode", "provider", "expected_provider", "expected_ok"),
+    (
+        (TransparencyMode.NATIVE, None, ImageProvider.OPENAI, True),
+        (TransparencyMode.NATIVE, ImageProvider.FAL, ImageProvider.FAL, True),
+        (TransparencyMode.NATIVE, ImageProvider.OPENROUTER, ImageProvider.OPENROUTER, False),
+        (TransparencyMode.AI, None, ImageProvider.OPENROUTER, True),
+        (TransparencyMode.CHROMA, ImageProvider.FAL, ImageProvider.FAL, True),
+    ),
+)
+def test_doctor_reports_the_selected_image_provider_and_native_admission(
+    mode: TransparencyMode,
+    provider: ImageProvider | None,
+    expected_provider: ImageProvider,
+    expected_ok: bool,
+) -> None:
+    report = create_doctor_report(
+        StageGenConfig(
+            openai_api_key="openai",
+            open_router_api_key="openrouter",
+            fal_key="fal",
+            image_provider_override=provider,
+        ),
+        mode,
+    )
+
+    assert report["ok"] is expected_ok
+    requirements = report["requirements"]
+    assert isinstance(requirements, dict)
+    assert requirements["image_route_provider"] == (
+        expected_provider.value
+        if not (mode is TransparencyMode.NATIVE and provider is ImageProvider.OPENROUTER)
+        else None
+    )
+    assert requirements["image_route_supported"] is not (
+        mode is TransparencyMode.NATIVE and provider is ImageProvider.OPENROUTER
+    )
+
+
+def test_doctor_requires_fal_when_it_is_the_selected_image_provider() -> None:
+    report = create_doctor_report(
+        StageGenConfig(
+            open_router_api_key="openrouter",
+            image_provider_override=ImageProvider.FAL,
+        ),
+        TransparencyMode.CHROMA,
+    )
+
+    assert report["ok"] is False
+    requirements = report["requirements"]
+    assert isinstance(requirements, dict)
+    assert requirements["image_route_provider"] == "fal"
 
 
 def test_generate_sound_effect_passes_the_verbatim_prompt_and_route_parameters(
@@ -880,7 +936,7 @@ def test_oblique_survival_plan_prices_a_scope_without_touching_a_provider(
     assert report["recipe"] == "oblique-survival"
     assert report["scope"] == "full"
     assert report["package_id"] == "ember-hollow"
-    assert report["graph"]["kind"] == "oblique-survival-execution-graph-v1"
+    assert report["graph"]["kind"] == "oblique-survival-execution-graph-v2"
     assert len(report["graph"]["nodes"]) == 294
     # An empty cache restores nothing, and says how much that leaves to pay for.
     assert report["cache"]["restored_provider_nodes"] == 0

@@ -10,7 +10,11 @@ import zipfile
 from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 
+MODEL_POLICY_SNAPSHOT_RESOURCE = "stage_gen/model_policy_snapshot.json"
+MODEL_POLICY_SNAPSHOT_UNPACKED_LIMIT = 750_000
+
 WHEEL_RESOURCES = {
+    MODEL_POLICY_SNAPSHOT_RESOURCE,
     "stage_gen/resources/fixtures/image_gen_templates/inventory_template.png",
     "stage_gen/resources/fixtures/image_gen_templates/terrain_atlas_12x4_template.png",
     "stage_gen/resources/fixtures/image_gen_templates/terrain_atlas_godot_topology_reference.png",
@@ -165,7 +169,16 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # Portrait motion (2026-09-10) promotes nine source modules (128,908 B),
         # provider request policy and service identity accessors. The inspected
         # wheel is 5,752,229 B unpacked, with no experimental media or spike paths.
-        assert sum(wheel_entries.values()) < 5_800_000
+        # Provider-neutral routing (2026-09-10) brings the wheel excluding its
+        # executable policy snapshot to 5,971,050 B. The snapshot is 713,729 B
+        # unpacked (129,093 B in the wheel), for a measured 6,684,779 B unpacked
+        # and 2,728,794 B compressed. Bound it separately so growth in generated
+        # policy evidence cannot hide unrelated source or resource growth.
+        # The final route preflight, lifecycle, and maintenance checks add 32,423 B,
+        # bringing that non-snapshot slice to 6,003,473 B; keep 46 KB of headroom.
+        model_policy_snapshot_size = wheel_entries[MODEL_POLICY_SNAPSHOT_RESOURCE]
+        assert model_policy_snapshot_size < MODEL_POLICY_SNAPSHOT_UNPACKED_LIMIT
+        assert sum(wheel_entries.values()) - model_policy_snapshot_size < 6_050_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
         assert {
@@ -279,7 +292,19 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # four-card JSON example and specification. The inspected source archive
         # is 10,151,315 B unpacked; the compressed 4 MB ceiling and all media,
         # ignored-path and secret exclusions remain unchanged.
-        assert sum(sdist_entries.values()) < 10_200_000
+        # Provider-neutral routing (2026-09-10) and its tests/docs bring the archive excluding
+        # the executable model-policy snapshot to 10,611,868 B. The same 713,729 B
+        # snapshot makes the inspected archive 11,325,597 B unpacked and 3,831,638 B
+        # compressed. Keep the snapshot on its own 750 KB budget and retain a narrow
+        # independent ceiling for every other source-archive member. Final route,
+        # lifecycle, and maintenance proofs bring the non-snapshot slice to
+        # 10,690,903 B; keep 59 KB of headroom.
+        # The terminal OpenAI/Fal live-canary verdicts and their provider/model
+        # documentation bring that slice to 10,750,706 B. The archive still contains
+        # no live artifacts or ignored evidence; retain about 59 KB of text headroom.
+        sdist_snapshot_size = sdist_entries[f"src/{MODEL_POLICY_SNAPSHOT_RESOURCE}"]
+        assert sdist_snapshot_size < MODEL_POLICY_SNAPSHOT_UNPACKED_LIMIT
+        assert sum(sdist_entries.values()) - sdist_snapshot_size < 10_810_000
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert not any(name.startswith("library/") for name in sdist_entries)
         assert not any(name.startswith("concept-studio/") for name in sdist_entries)
@@ -325,6 +350,7 @@ from stage_gen.resources import (
     terrain_atlas_topology_reference_path,
 )
 from stage_gen.image_prompting import load_image_style_resources
+from stage_gen.model_policy_maintenance import load_active_model_policy_snapshot
 
 paths = required_resource_paths()
 assert len(paths) == 11
@@ -344,6 +370,9 @@ assert image_style_resource_digests() == {
 }
 music = bundled_music_path()
 assert Path(f"{music}.meta.json").is_file()
+snapshot = load_active_model_policy_snapshot()
+assert snapshot.kind == "stage-gen-model-policy-snapshot-v1"
+assert snapshot.routes and snapshot.policies and snapshot.recipes
 """
     probe_environment = environment | {"PYTHONPATH": str(installed)}
     subprocess.run(

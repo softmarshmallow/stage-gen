@@ -22,12 +22,14 @@ from gnode import (
     Binding,
     BindingTable,
     GraphBuilder,
+    ImageBackground,
+    ImageRouteRequirementsV1,
     ModelRef,
     Node,
     NodeCard,
     PortRef,
+    WorkloadRequestV1,
 )
-from gnode.providers.openai import supports_openai_native_alpha_model
 from stage_gen.components.game_fx import CutInPortraitSubject
 from stage_gen.components.game_fx.nodes import (
     TOOL_LOOP_FEATURES,
@@ -47,13 +49,16 @@ from stage_gen.components.runner_content import (
 )
 from stage_gen.components.runner_track import (
     STRUCTURAL_GROUND_CANONICALIZER_ID,
+    STRUCTURAL_GROUND_GUIDE_HEIGHT,
     STRUCTURAL_GROUND_GUIDE_ID,
+    STRUCTURAL_GROUND_GUIDE_WIDTH,
     STRUCTURAL_GROUND_SEAM_BRIDGE_CANONICALIZER_ID,
     RunnerSegmentChunk,
     RunnerStructuralGround,
     structural_ground_material_identity,
     structural_ground_occupancy_sha256,
 )
+from stage_gen.components.sideview_actor.motion_geometry import DEFAULT_MOTION_ATLAS_GEOMETRY
 from stage_gen.components.sideview_actor.motion_rebase import (
     MOTION_REBASE_SCHEMA_NAME,
 )
@@ -67,8 +72,15 @@ from stage_gen.components.sideview_layers.nodes import (
     LayerNodeTypes,
     add_layer_nodes,
 )
+from stage_gen.components.sideview_terrain import PAINT_CANVAS_SIZE
 from stage_gen.components.sound_effect import GeneratedClipRealization, PinnedTake
 from stage_gen.components.speech import SpokenLineRealization
+from stage_gen.config import StageGenConfig
+from stage_gen.model_routes import (
+    configured_image_route_catalog,
+    configured_image_workload_resolver,
+    image_workload_policies,
+)
 from stage_gen.recipes.graph_document import RecipeGraph
 from stage_gen.recipes.ports import (
     artifact_port,
@@ -156,12 +168,12 @@ from stage_gen.resources import (
 )
 
 if TYPE_CHECKING:
-    from stage_gen.config import StageGenConfig
     from stage_gen.media import LoopConstruction
     from stage_gen.recipes.sideview_runner.runner_request import ResolvedRunnerPackage
     from stage_gen.recipes.sideview_runner.validation import ResolvedRunnerMember
 
-RUNNER_GRAPH_SCHEMA_VERSION = 1
+RUNNER_GRAPH_SCHEMA_VERSION = 2
+RUNNER_GRAPH_KIND = "sideview-runner-execution-graph-v2"
 RUNNER_TRACE_SCHEMA_VERSION = 1
 RUNNER_CACHE_NAMESPACE = "sideview-runner-nodes-v1"
 RUNNER_CACHE_RECORD_KIND = "sideview-runner-node-cache-v1"
@@ -195,9 +207,16 @@ class SideviewRunnerGraph(RecipeGraph):
 
     OPERATIONS = RunnerOperationKind
     VIEW_FIELDS = ("game_id", "track_id")
+    CURRENT_SCHEMA_VERSION = RUNNER_GRAPH_SCHEMA_VERSION
+    CURRENT_KIND = RUNNER_GRAPH_KIND
+    LEGACY_GRAPH_IDENTITIES = frozenset({(1, "sideview-runner-execution-graph-v1")})
+    ROUTED_OPERATIONS = frozenset({RunnerOperationKind.IMAGE_GENERATION.value})
 
-    schema_version: Literal[1]
-    kind: Literal["sideview-runner-execution-graph-v1"]
+    schema_version: Literal[1, 2]
+    kind: Literal[
+        "sideview-runner-execution-graph-v1",
+        "sideview-runner-execution-graph-v2",
+    ]
     recipe: Literal["sideview-runner"]
     game_id: str
     track_id: str
@@ -207,26 +226,8 @@ class SideviewRunnerGraph(RecipeGraph):
 def runner_graph_profile(config: StageGenConfig) -> BindingTable:
     """Declare the provider routes a runner plan may use, credentials untouched."""
 
-    if not supports_openai_native_alpha_model(config.openai_image_model):
-        raise ValueError(
-            "sideview-runner requires a verified GPT Image 2.5 Sunburst OpenAI model with "
-            "native transparent-background support"
-        )
-
     return BindingTable(
         [
-            Binding(
-                operation=RunnerOperationKind.IMAGE_GENERATION,
-                model=ModelRef(model=config.openai_image_model, provider="openai"),
-                features=frozenset(("transparent_background", "reference_images", "masked_edit")),
-                resource_id="openai-image",
-                estimated_duration_seconds=120.0,
-                estimated_cost_low_usd=0.18,
-                estimated_cost_high_usd=0.25,
-                requests_per_minute=config.openai_image_ipm,
-                rate_limit_owner="provider_adapter",
-                verified_on="2026-09-09",
-            ),
             Binding(
                 operation=RunnerOperationKind.STRUCTURED_GENERATION,
                 model=ModelRef(model=config.text_model, provider="openrouter"),
@@ -375,6 +376,7 @@ def build_runner_execution_graph(
     resolved: ResolvedRunnerPackage,
     *,
     profile: BindingTable,
+    config: StageGenConfig | None = None,
 ) -> SideviewRunnerGraph:
     """Compile one package's runner member into the exact node graph it implies."""
 
@@ -384,7 +386,33 @@ def build_runner_execution_graph(
     runner = resolved.runner
     track = runner.track
     direction_digest = visual_direction_digest(resolved)
-    builder = GraphBuilder(profile=profile, local_max_in_flight=32)
+    planning_config = config or StageGenConfig()
+    image_catalog = configured_image_route_catalog(planning_config)
+    image_workload = configured_image_workload_resolver(planning_config, catalog=image_catalog)
+    builder = GraphBuilder(
+        profile=profile,
+        route_catalog=image_catalog,
+        workload_policies=image_workload_policies(planning_config.image_provider_override),
+        local_max_in_flight=32,
+    )
+
+    def resolve_image_workload(
+        *,
+        background: ImageBackground,
+        size: str,
+        reference_count: int,
+        mask_present: bool = False,
+    ) -> WorkloadRequestV1:
+        return image_workload(
+            ImageRouteRequirementsV1(
+                operation_variant="edit" if reference_count else "generation",
+                background=background,
+                output_format="png",
+                size=size,
+                reference_count=reference_count,
+                mask_present=mask_present,
+            )
+        )
 
     def reference_inputs(
         reference_ids: list[str], sources: dict[str, str]
@@ -482,6 +510,11 @@ def build_runner_execution_graph(
                             STRUCTURAL_GROUND_RAW_KIND,
                         ),
                         attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
+                    ),
+                    workload=resolve_image_workload(
+                        background="transparent",
+                        size=(f"{STRUCTURAL_GROUND_GUIDE_WIDTH}x{STRUCTURAL_GROUND_GUIDE_HEIGHT}"),
+                        reference_count=len(ground_references) + 1,
                     ),
                     card=NodeCard(
                         prompt=prompt,
@@ -594,6 +627,11 @@ def build_runner_execution_graph(
                 artifact_port("image", "world/ground.raw.png", GROUND_RAW_KIND),
                 attempts_port("track-ground-generate", ATTEMPT_LEDGER_KIND),
             ),
+            workload=resolve_image_workload(
+                background="opaque",
+                size=PAINT_CANVAS_SIZE,
+                reference_count=len(ground_references) + 1,
+            ),
             card=NodeCard(
                 prompt=ground_prompt(resolved, track),
                 authored_inputs=ground_references,
@@ -679,6 +717,7 @@ def build_runner_execution_graph(
                     authored_inputs=layer_references,
                     loop_prompt=layer_loop_prompt(layer.prompt) if generative else None,
                     attempts_port=lambda node_id: attempts_port(node_id, ATTEMPT_LEDGER_KIND),
+                    image_workload=image_workload,
                 )
             )
 
@@ -701,6 +740,11 @@ def build_runner_execution_graph(
         ports=(
             artifact_port("image", "avatar/concept.png", AVATAR_CONCEPT_KIND),
             attempts_port("avatar-concept-generate", ATTEMPT_LEDGER_KIND),
+        ),
+        workload=resolve_image_workload(
+            background="transparent",
+            size="1024x1536",
+            reference_count=len(avatar_references),
         ),
         card=NodeCard(
             prompt=avatar_concept_prompt(resolved, avatar), authored_inputs=avatar_references
@@ -731,6 +775,11 @@ def build_runner_execution_graph(
                 ports=(
                     artifact_port("image", f"avatar/{state}.raw.png", MOTION_RAW_KIND),
                     attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
+                ),
+                workload=resolve_image_workload(
+                    background="transparent",
+                    size=DEFAULT_MOTION_ATLAS_GEOMETRY.provider_size,
+                    reference_count=1,
                 ),
                 card=NodeCard(
                     prompt=prompt,
@@ -813,6 +862,11 @@ def build_runner_execution_graph(
                     artifact_port("image", f"boss/{boss.boss_id}/concept.png", BOSS_CONCEPT_KIND),
                     attempts_port(f"boss-{boss.boss_id}-concept-generate", ATTEMPT_LEDGER_KIND),
                 ),
+                workload=resolve_image_workload(
+                    background="transparent",
+                    size="1024x1536",
+                    reference_count=len(boss_references),
+                ),
                 card=NodeCard(prompt=boss_concept_text, authored_inputs=boss_references),
             )
             boss_motion_validations: list[str] = []
@@ -840,6 +894,11 @@ def build_runner_execution_graph(
                                 MOTION_RAW_KIND,
                             ),
                             attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
+                        ),
+                        workload=resolve_image_workload(
+                            background="transparent",
+                            size=DEFAULT_MOTION_ATLAS_GEOMETRY.provider_size,
+                            reference_count=1,
                         ),
                         card=NodeCard(
                             prompt=prompt,
@@ -964,6 +1023,11 @@ def build_runner_execution_graph(
                             "image", f"catalog/{family}s/{entity_id}.raw.png", CATALOG_RAW_KIND
                         ),
                         attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
+                    ),
+                    workload=resolve_image_workload(
+                        background="transparent",
+                        size="1024x1024",
+                        reference_count=len(entity_references),
                     ),
                     card=NodeCard(prompt=prompt, authored_inputs=entity_references),
                 )
@@ -1176,6 +1240,7 @@ def build_runner_execution_graph(
             direction_digests=(direction_digest,),
             attempts_port=lambda node_id: attempts_port(node_id, ATTEMPT_LEDGER_KIND),
             subject_reference=runner_subject_reference(runner),
+            image_workload=image_workload,
         )
         # World-space sprites are the same family's nodes and the same art direction;
         # they answer to the runtime rather than to a moment, so they bind no moment.
@@ -1187,6 +1252,7 @@ def build_runner_execution_graph(
                 style_prompt=lambda task: fx_plate_prompt(resolved, task),
                 direction_digests=(direction_digest,),
                 attempts_port=lambda node_id: attempts_port(node_id, ATTEMPT_LEDGER_KIND),
+                image_workload=image_workload,
             )
         )
 
@@ -1238,6 +1304,7 @@ def build_runner_execution_graph(
     return SideviewRunnerGraph.seal(
         resources=builder.resources(),
         nodes=builder.nodes,
+        resolved_routes=builder.resolved_routes(),
         terminal_node_id="manifest-assemble",
         game_id=package.game.game_id,
         track_id=track.track_id,
@@ -1249,6 +1316,7 @@ __all__ = [
     "RUNNER_CACHE_NAMESPACE",
     "RUNNER_CACHE_RECORD_KIND",
     "RUNNER_GRAPH_SCHEMA_VERSION",
+    "RUNNER_GRAPH_KIND",
     "RUNNER_MOTION_STATES",
     "RUNNER_TRACE_SCHEMA_VERSION",
     "RunnerOperationKind",

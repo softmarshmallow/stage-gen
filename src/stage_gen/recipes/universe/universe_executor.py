@@ -22,7 +22,6 @@ from stage_gen.recipes.universe.manifest import finalize_gallery
 from stage_gen.recipes.universe.models import SampleLedger
 from stage_gen.recipes.universe.prepared_universe import UniverseNodeHandler
 from stage_gen.recipes.universe.universe_graph import (
-    GALLERY_IMAGE_ROUTE,
     INPUT_POSTER_PROXY_REF,
     INPUT_UNIVERSE_REF,
     SAMPLE_LEDGER_REF,
@@ -104,6 +103,7 @@ class UniverseExecutor(RecipeExecutor[ResolvedUniverseSource, UniverseGraph]):
             resolved,
             admitted,
             samples=samples,
+            config=self._config,
             profile=universe_graph_profile(self._config, images=True),
         )
         plan = self.plan_graph(resolved, graph)
@@ -212,15 +212,14 @@ class UniverseExecutor(RecipeExecutor[ResolvedUniverseSource, UniverseGraph]):
         sample_ledger: Path | None = None,
     ) -> UniverseRun:
         assert_safe_path_segment(invocation_id, "invocation_id")
-        # The image capability follows the bound route rather than being assumed:
-        # the opaque route needs an OpenRouter key, the native-alpha route OpenAI.
-        self.require(CapabilityName.STRUCTURED_GENERATION, GALLERY_IMAGE_ROUTE.capability)
+        self.require(CapabilityName.STRUCTURED_GENERATION)
         plan = self.plan_gallery(
             input_path,
             semantic_run=semantic_run,
             rerolls=rerolls,
             sample_ledger=sample_ledger,
         )
+        self.require_route_credentials(plan.graph)
         await self.open_run(plan, run_dir=run_dir)
         async with self.services() as services:
             handler = UniverseNodeHandler(
@@ -229,7 +228,7 @@ class UniverseExecutor(RecipeExecutor[ResolvedUniverseSource, UniverseGraph]):
                 run_dir=run_dir,
                 cache_dir=cache_dir,
                 structured_service=services.structured(),
-                image_service=services.adopt(GALLERY_IMAGE_ROUTE.service(self._config)),
+                image_service=services.image(),
                 admitted=plan.admitted,
             )
             summary = await self.dispatch(

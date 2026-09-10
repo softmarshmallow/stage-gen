@@ -24,6 +24,9 @@ Start here for the headless, general-purpose system:
 - [gnode rings](spec/gnode-rings.md) — the engine's ringed SDK structure:
   core, modality disciplines, first-party providers, and the standard-node
   promotion bar.
+- [Provider-neutral image node example](examples/provider-neutral-image-node.md) — host route
+  registration, exact workload policy selection, and a component node that seals a portable route
+  binding without naming a provider.
 - [Asset taxonomy](spec/asset-taxonomy.md) — the module namespace
   (`<space>/<camera>/<genre>/<module>`), its profile-bound camera aliases,
   the module census, and the system-vs-author ownership rule.

@@ -10,7 +10,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+from gnode import RouteResolutionError
 from stage_gen.config import StageGenConfig
+from stage_gen.image_product import ImageProvider
+from stage_gen.model_routes import (
+    FAL_IMAGE_EDIT_ROUTE_ID,
+    IMAGE_OPAQUE_EDIT_POLICY_ID,
+    OPENROUTER_IMAGE_REFERENCE_ROUTE_ID,
+)
 from stage_gen.recipes.storefront.storefront_graph import (
     StorefrontGraph,
     build_storefront_graph,
@@ -19,11 +28,12 @@ from stage_gen.recipes.storefront.storefront_graph import (
 from stage_gen.recipes.storefront.storefront_request import apply_rerolls, empty_ledger
 from tests.unit.recipes.storefront._fixture import resolved, solid_png, write_package
 
-PROFILE = storefront_graph_profile(StageGenConfig())
+CONFIG = StageGenConfig()
+PROFILE = storefront_graph_profile(CONFIG)
 
 
 def graph_of(root: Path, **kwargs: object) -> StorefrontGraph:
-    return build_storefront_graph(resolved(root, **kwargs), profile=PROFILE)
+    return build_storefront_graph(resolved(root, **kwargs), config=CONFIG, profile=PROFILE)
 
 
 def keys(graph: StorefrontGraph) -> dict[str, str]:
@@ -49,10 +59,66 @@ def test_the_graph_is_one_direction_one_listing_and_a_branch_per_surface(
     assert graph.terminal_node_id == "storefront-close"
     assert graph.surface_count == 2
     assert graph.publication_authorized is False
-    image_binding = next(
-        binding for binding in PROFILE.bindings if binding.operation == "image_generation"
+    assert all(binding.operation != "image_generation" for binding in PROFILE.bindings)
+    image_nodes = [node for node in graph.nodes if node.operation == "image_generation"]
+    assert len(image_nodes) == 2
+    for node in image_nodes:
+        route = graph.resolved_route_for(node)
+        assert route.route_id == OPENROUTER_IMAGE_REFERENCE_ROUTE_ID
+        assert route.policy_id == IMAGE_OPAQUE_EDIT_POLICY_ID
+        assert route.provider == "openrouter"
+        assert route.operation_variant == "edit"
+        assert "reference_images" in route.required_features
+        assert "exact_size" in route.required_features
+        assert "flexible_size" not in route.required_features
+        assert "masked_edit" not in route.required_features
+        assert route.required_limits == (("reference_count_max", 1.0),)
+        assert route.effective_output_options == {
+            "background": "opaque",
+            "input_fidelity": "omitted",
+            "mask_present": False,
+            "moderation": "low",
+            "moderation_goal": "low_when_supported",
+            "operation_variant": "edit",
+            "output_format": "png",
+            "prompt_policy": "authored_verbatim",
+            "quality": "max",
+            "quality_goal": "maximum_verified",
+            "reference_count": 1,
+            "reference_delivery": "data_url",
+            "size": str(node.params["draw_size"]),
+        }
+
+
+def test_one_provider_override_moves_every_storefront_image_without_fallback(
+    tmp_path: Path,
+) -> None:
+    config = StageGenConfig(image_provider_override=ImageProvider.FAL)
+    graph = build_storefront_graph(
+        resolved(write_package(tmp_path)),
+        config=config,
+        profile=storefront_graph_profile(config),
     )
-    assert str(image_binding.model) == "openai/gpt-image-2.5-sunburst@openrouter"
+
+    image_nodes = [node for node in graph.nodes if node.operation == "image_generation"]
+    assert image_nodes
+    for node in image_nodes:
+        route = graph.resolved_route_for(node)
+        assert route.route_id == FAL_IMAGE_EDIT_ROUTE_ID
+        assert route.provider == "fal"
+        assert "moderation" not in route.effective_output_options
+
+
+def test_unregistered_storefront_image_model_refuses_during_offline_planning(
+    tmp_path: Path,
+) -> None:
+    config = StageGenConfig(image_model="openai/gpt-image-unregistered")
+    with pytest.raises(RouteResolutionError, match="unregistered Sunburst model override"):
+        build_storefront_graph(
+            resolved(write_package(tmp_path)),
+            config=config,
+            profile=storefront_graph_profile(config),
+        )
 
 
 def test_every_surface_gets_the_whole_chain(tmp_path: Path) -> None:

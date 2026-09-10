@@ -440,6 +440,7 @@ class StorefrontNodeHandler(RecipeNodeHandler):
                 timeout_seconds=IMAGE_TIMEOUT_S,
                 validate=validate,
                 provenance_schema_version=2,
+                resolved_binding=self._graph.resolved_route_for(node).to_resolved_binding(),
             )
         )
         return self._result(

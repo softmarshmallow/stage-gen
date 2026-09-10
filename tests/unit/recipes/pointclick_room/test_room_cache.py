@@ -49,7 +49,12 @@ def _cache_keys(document: object) -> dict[str, tuple[str, str]]:
     """Every node's cache key and operation, for one authored document."""
 
     resolved = resolve_pointclick_room(document, root=ATTIC)
-    graph = build_pointclick_room_graph(resolved, profile=room_graph_profile(StageGenConfig()))
+    config = StageGenConfig()
+    graph = build_pointclick_room_graph(
+        resolved,
+        profile=room_graph_profile(config),
+        config=config,
+    )
     return {node.node_id: (node.cache_key, node.operation) for node in graph.nodes}
 
 
@@ -159,7 +164,11 @@ def _edit_document(package: Path, mutate: Any) -> None:
 def _run(package: Path, *, run_dir: Path, cache_dir: Path, nonce: int) -> Any:
     config = StageGenConfig()
     resolved = resolve_pointclick_room(read_room_document(package), root=package)
-    graph = build_pointclick_room_graph(resolved, profile=room_graph_profile(config))
+    graph = build_pointclick_room_graph(
+        resolved,
+        profile=room_graph_profile(config),
+        config=config,
+    )
     run_dir.mkdir(parents=True, exist_ok=True)
     images = FakeRoomImages(nonce=nonce)
     structured = FakeRoomStructured()

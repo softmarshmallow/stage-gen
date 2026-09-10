@@ -23,6 +23,10 @@ RECIPE: Final = "oblique-survival"
 CONTRACT_VERSION_PREFIX: Final = "oblique-survival-v0"
 #: The presentation the whole recipe draws for; woven into the graph header.
 PRESENTATION_PROFILE: Final = "elevated_oblique_perspective_ground_plane_v1"
+#: Provider canvas contracts shared by planning and runtime request construction.
+SPRITE_CANVAS: Final = (1024, 1024)
+STRIP_CANVAS: Final = (1536, 1024)
+GROUND_CANVAS: Final = (1024, 1024)
 #: The scope ladder, narrowest first. A scope selects a subset of nodes and changes
 #: nothing about the ones it keeps.
 SCOPES: Final = ("minimal", "props", "actors", "full")
@@ -332,6 +336,7 @@ __all__ = [
     "GROUND_ADOPT",
     "GROUND_CANONICALIZE",
     "GROUND_GENERATE",
+    "GROUND_CANVAS",
     "ICONS_ADOPT",
     "ICONS_GENERATE",
     "ICONS_VALIDATE",
@@ -372,10 +377,12 @@ __all__ = [
     "SOUND_DURATION_TOLERANCE_SECONDS",
     "SOUND_FEATURES",
     "SOUND_GENERATE",
+    "SPRITE_CANVAS",
     "SOUND_VALIDATE",
     "SOURCE_LOCK",
     "STRIKE_CELL_KINDS",
     "STRUCTURED_FEATURES",
+    "STRIP_CANVAS",
     "VIDEO_FEATURES",
     "TEMPLATES_DRAW",
     "TOOL_LOOP_FEATURES",

@@ -28,6 +28,7 @@ async def test_openai_sunburst_returns_nontrivial_native_alpha(
     backend = OpenAIImageBackend(
         api_key=openai_settings.api_key,
         model=openai_settings.image_model,
+        supports_native_alpha=True,
         base_url=openai_settings.base_url,
     )
     try:

@@ -17,7 +17,7 @@ drawn.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import TYPE_CHECKING, Final, Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field
 
@@ -27,16 +27,19 @@ from gnode import (
     Binding,
     BindingTable,
     GraphBuilder,
-    ImageGenerationService,
+    ImageRouteRequirementsV1,
     ModelRef,
     NodeCard,
     Port,
     PortRef,
 )
-from gnode.providers.openrouter import supports_openrouter_sunburst_model
 from stage_gen.canonical import canonical_json_bytes, content_sha256
-from stage_gen.config import CapabilityName, StageGenConfig
-from stage_gen.orchestration.runtime import create_image_service, create_openai_image_service
+from stage_gen.config import StageGenConfig
+from stage_gen.model_routes import (
+    configured_image_route_catalog,
+    configured_image_workload_resolver,
+    image_workload_policies,
+)
 from stage_gen.recipes.graph_document import RecipeGraph
 from stage_gen.recipes.ports import artifact_port, attempts_port, text_digest
 from stage_gen.recipes.universe.models import GalleryPlan, SampleLedger, UniverseProposal
@@ -89,7 +92,8 @@ if TYPE_CHECKING:
         ResolvedUniverseSource,
     )
 
-UNIVERSE_GRAPH_SCHEMA_VERSION = 1
+UNIVERSE_GRAPH_SCHEMA_VERSION = 2
+UNIVERSE_GRAPH_KIND = "universe-execution-graph-v2"
 UNIVERSE_TRACE_SCHEMA_VERSION = 1
 UNIVERSE_CACHE_NAMESPACE = "universe-nodes-v1"
 UNIVERSE_CACHE_RECORD_KIND = "universe-node-cache-v1"
@@ -135,9 +139,13 @@ class UniverseGraph(RecipeGraph):
     # the graph, and the checked doc snapshot should not move for it.
     IDENTITY_FIELDS = ("phase",)
     VIEW_FIELDS = ("phase", "universe_id", "medium_id", "entity_count")
+    CURRENT_SCHEMA_VERSION = UNIVERSE_GRAPH_SCHEMA_VERSION
+    CURRENT_KIND = UNIVERSE_GRAPH_KIND
+    LEGACY_GRAPH_IDENTITIES = frozenset({(1, "universe-execution-graph-v1")})
+    ROUTED_OPERATIONS = frozenset({UniverseOperationKind.IMAGE_GENERATION.value})
 
-    schema_version: Literal[1]
-    kind: Literal["universe-execution-graph-v1"]
+    schema_version: Literal[1, 2]
+    kind: Literal["universe-execution-graph-v1", "universe-execution-graph-v2"]
     recipe: Literal["universe"]
     phase: Literal["semantic", "gallery"]
     universe_id: str
@@ -151,84 +159,13 @@ class UniverseGraph(RecipeGraph):
     publication_authorized: Literal[False]
 
 
-class ImageRoute:
-    """Which provider route an image capability binds to.
-
-    The model family is the same on both routes; what differs is whether the route can
-    return native alpha. Work that does not need transparency binds the opaque
-    route, which this recipe sends through OpenRouter — the same picture at the
-    same price, but with the upstream cost actually reported, which is how a
-    36-image gallery turned out to cost eleven dollars rather than the two the
-    structured calls alone had been showing. Work that needs alpha binds OpenAI
-    direct, which is the only route that returns it.
-    """
-
-    __slots__ = ("capability", "provider", "route_id")
-
-    def __init__(
-        self,
-        *,
-        route_id: Literal["opaque", "native_transparency"],
-        provider: Literal["openrouter", "openai"],
-        capability: CapabilityName,
-    ) -> None:
-        self.route_id = route_id
-        self.provider = provider
-        self.capability = capability
-
-    def model(self, config: StageGenConfig) -> str:
-        return config.image_model if self.provider == "openrouter" else config.openai_image_model
-
-    def service(self, config: StageGenConfig) -> ImageGenerationService:
-        if self.provider == "openrouter":
-            return create_image_service(
-                api_key=config.open_router_api_key or "",
-                model=config.image_model,
-                base_url=config.open_router_base_url or "https://openrouter.ai/api/v1",
-                images_per_minute=config.openrouter_image_ipm,
-            )
-        return create_openai_image_service(
-            api_key=config.openai_api_key or "",
-            model=config.openai_image_model,
-            base_url=config.openai_base_url or "https://api.openai.com/v1",
-            images_per_minute=config.openai_image_ipm,
-        )
-
-
-OPAQUE_IMAGE_ROUTE: Final = ImageRoute(
-    route_id="opaque",
-    provider="openrouter",
-    capability=CapabilityName.IMAGE_GENERATION,
-)
-NATIVE_TRANSPARENCY_IMAGE_ROUTE: Final = ImageRoute(
-    route_id="native_transparency",
-    provider="openai",
-    capability=CapabilityName.NATIVE_IMAGE_GENERATION,
-)
-
-
-def image_route(*, transparency_required: bool) -> ImageRoute:
-    return NATIVE_TRANSPARENCY_IMAGE_ROUTE if transparency_required else OPAQUE_IMAGE_ROUTE
-
-
-#: Concept images are opaque compositions; nothing in the gallery needs alpha.
-GALLERY_IMAGE_ROUTE: Final = image_route(transparency_required=False)
-
 STRUCTURED_FEATURES = ("structured_output", "image_input")
-IMAGE_FEATURES = ("flexible_size",)
 
 
 def universe_graph_profile(config: StageGenConfig, *, images: bool) -> BindingTable:
-    """Declare the provider routes a universe plan may use, credentials untouched.
+    """Declare only the universe's non-image legacy provider route."""
 
-    The semantic phase draws nothing, so its table omits the image route
-    entirely rather than declaring a capability it will never call.
-    """
-
-    if images and not supports_openrouter_sunburst_model(config.image_model):
-        raise ValueError(
-            "universe gallery requires the verified GPT Image 2.5 Sunburst OpenRouter route"
-        )
+    del images
 
     routes = [
         Binding(
@@ -245,27 +182,6 @@ def universe_graph_profile(config: StageGenConfig, *, images: bool) -> BindingTa
             verified_on="2026-09-02",
         )
     ]
-    if images:
-        routes.append(
-            Binding(
-                operation=UniverseOperationKind.IMAGE_GENERATION,
-                model=ModelRef(
-                    model=GALLERY_IMAGE_ROUTE.model(config),
-                    provider=GALLERY_IMAGE_ROUTE.provider,
-                ),
-                features=frozenset(IMAGE_FEATURES),
-                resource_id=f"universe-{GALLERY_IMAGE_ROUTE.provider}-image",
-                max_in_flight=4,
-                requests_per_minute=config.openrouter_image_ipm,
-                rate_limit_owner="provider_adapter",
-                estimated_duration_seconds=240.0,
-                # Exact max-quality Sunburst route canaries measured $0.227 at
-                # 2560x1440 and $0.294 at 2560x1712/1712x2560.
-                estimated_cost_low_usd=0.22,
-                estimated_cost_high_usd=0.30,
-                verified_on="2026-09-09",
-            )
-        )
     return BindingTable(routes)
 
 
@@ -470,6 +386,7 @@ def build_universe_gallery_graph(
     admitted: AdmittedUniverse,
     *,
     samples: SampleLedger,
+    config: StageGenConfig,
     profile: BindingTable,
 ) -> UniverseGraph:
     """Compile one admitted universe into the exact per-entity gallery it implies."""
@@ -496,7 +413,14 @@ def build_universe_gallery_graph(
             f"entity id {reserved[0]!r} collides with the gallery's global direction node; "
             "rename the entity in the admitted universe"
         )
-    builder = GraphBuilder(profile=profile, local_max_in_flight=4)
+    image_catalog = configured_image_route_catalog(config)
+    image_workload = configured_image_workload_resolver(config, catalog=image_catalog)
+    builder = GraphBuilder(
+        profile=profile,
+        route_catalog=image_catalog,
+        workload_policies=image_workload_policies(config.image_provider_override),
+        local_max_in_flight=4,
+    )
     compile_digest = medium.compile_digest()
     render_digest = medium.render_digest()
     review_digest = medium.review_digest()
@@ -609,6 +533,16 @@ def build_universe_gallery_graph(
                     text_digest(size),
                     _sample_digest(entity_id, samples.sample(entity_id)),
                 ),
+                workload=image_workload(
+                    ImageRouteRequirementsV1(
+                        operation_variant="generation",
+                        background="opaque",
+                        output_format="png",
+                        size=size,
+                        reference_count=0,
+                        mask_present=False,
+                    )
+                ),
                 ports=(
                     artifact_port("image", f"package/entities/{entity_id}.png", CONCEPT_IMAGE_KIND),
                 ),
@@ -710,6 +644,7 @@ def build_universe_gallery_graph(
     )
     return UniverseGraph.seal(
         resources=builder.resources(),
+        resolved_routes=builder.resolved_routes(),
         nodes=builder.nodes,
         terminal_node_id="gallery-close",
         phase="gallery",
@@ -725,14 +660,11 @@ def build_universe_gallery_graph(
 __all__ = [
     "ADMISSION_REF",
     "EVALUATION_REF",
-    "GALLERY_IMAGE_ROUTE",
     "GLOBAL_DIRECTION_REF",
     "INPUT_POSTER_PROXY_REF",
     "INPUT_UNIVERSE_REF",
     "INVENTORY_REF",
     "MANIFEST_REF",
-    "NATIVE_TRANSPARENCY_IMAGE_ROUTE",
-    "OPAQUE_IMAGE_ROUTE",
     "PLAN_REF",
     "POSTER_PROXY_LONG_EDGE",
     "POSTER_PROXY_REF",
@@ -744,14 +676,13 @@ __all__ = [
     "UNIVERSE_CACHE_NAMESPACE",
     "UNIVERSE_CACHE_RECORD_KIND",
     "UNIVERSE_GRAPH_SCHEMA_VERSION",
+    "UNIVERSE_GRAPH_KIND",
     "UNIVERSE_REF",
     "UNIVERSE_TRACE_SCHEMA_VERSION",
-    "ImageRoute",
     "UniverseGraph",
     "UniverseOperationKind",
     "build_universe_gallery_graph",
     "build_universe_semantic_graph",
-    "image_route",
     "node_safe",
     "universe_graph_profile",
 ]

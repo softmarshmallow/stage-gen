@@ -50,12 +50,16 @@ Ownership follows the existing [component contract](../component-contract.md):
   consumes public `gnode` interfaces and contains no provider credentials or
   model selection.
 - [`orchestration/portrait_motion.py`](../../src/stage_gen/orchestration/portrait_motion.py)
-  owns the binding table, provider construction, request policy, durable spend
+  owns the image route catalog/policy, structured binding, provider construction, durable spend
   accounting, preparation, execution, and verification.
 - [`interfaces/portrait_motion.py`](../../src/stage_gen/interfaces/portrait_motion.py)
   exposes `stage-gen-portrait-motion prepare`, `run`, and `verify`.
 
 ## Eight-stage graph
+
+New preparations write the route-bearing `portrait-motion-plan-v2` plan and
+`portrait-motion-v2` graph documents. Readers recognize route-free v1 records as
+historical data and never rewrite them; a v1 run must be freshly prepared before resume.
 
 | Stage | Work and retained evidence | Provider job |
 | --- | --- | --- |
@@ -131,8 +135,10 @@ uv run stage-gen-portrait-motion prepare \
   --run /path/to/new-portrait-run
 ```
 
-Preparation is offline. Paid execution requires both `--live` and
-`STAGE_GEN_RUN_LIVE=1`, plus `OPENAI_API_KEY` and `OPENROUTER_API_KEY` from the
+Preparation is offline and seals the current image-provider selection into the plan. Paid
+execution requires both `--live` and `STAGE_GEN_RUN_LIVE=1`, plus
+`OPENROUTER_API_KEY` for the structured jobs and the key for the image provider named by that
+plan (`OPENAI_API_KEY` by default or `FAL_KEY` after a fal override). Keys come from the
 environment or the optional existing allowlisted dotenv file:
 
 ```sh
@@ -140,13 +146,15 @@ STAGE_GEN_RUN_LIVE=1 uv run stage-gen-portrait-motion run \
   --run /path/to/new-portrait-run --live --dotenv .env
 ```
 
-The current application profile binds GPT Image 2.5 Sunburst through OpenAI for
-the opaque atlas and GPT-6 Astra through OpenRouter for admission, polygons, and
-review. Its structured request policy uses high reasoning and image detail,
-restricts routing to OpenAI, and disables provider fallback. This opaque-source
-workflow requires no native-transparency generation. The runtime binding is
-independent of other recipes' default text model; provider details remain in
-[Provider operations](../models/providers.md).
+The current application profile binds the opaque Sunburst atlas edit through OpenAI by default and
+GPT-6 Astra through OpenRouter for admission, polygons, and review. Set
+`STAGE_GEN_IMAGE_PROVIDER=fal` while preparing to seal fal's equivalent reference-edit route;
+an OpenRouter image override is refused because this atlas canvas is outside its verified
+exact-size set. Its structured request policy uses high reasoning and image detail, restricts the
+upstream structured route to OpenAI, and disables provider fallback. The image route is likewise
+exact and has no fallback. This opaque-source workflow requires no native-transparency generation.
+The runtime bindings are independent of other recipes' default text model; provider details remain
+in [Provider operations](../models/providers.md).
 
 `prepare --profile /path/to/profile.json` accepts a strict `RuntimeProfile`.
 The default run allowance is $6, with $1.50 reserved before every dispatched
@@ -165,8 +173,8 @@ uv run stage-gen-portrait-motion run --run /path/to/new-portrait-run
 
 An incomplete run without supplied services fails rather than making a provider
 call. A fully verified run reuses all stages with zero new provider operations.
-Prepared plans bind the source, specification, model policy, implementation
-source hashes, and runtime dependency versions. Changing any of these requires
+Prepared plans bind the source, specification, resolved image route snapshot and effective output
+options, model policy, implementation source hashes, and runtime dependency versions. Changing any of these requires
 a fresh preparation rather than replaying an old run under different code.
 
 Programmatic callers can inject ordinary gnode services into `run_pipeline`.

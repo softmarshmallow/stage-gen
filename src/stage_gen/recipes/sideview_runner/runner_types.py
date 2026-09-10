@@ -39,6 +39,7 @@ _P = "2d/sideview/runner"
 _PROVIDER = NodePolicy(max_attempts=6)
 
 IMAGE_FEATURES = ("transparent_background", "reference_images")
+OPAQUE_IMAGE_FEATURES = ("opaque_background", "reference_images")
 IMAGE_EDIT_FEATURES = (*IMAGE_FEATURES, "masked_edit")
 STRUCTURED_FEATURES = ("structured_output", "image_input")
 MUSIC_FEATURES = ("instrumental_loop",)
@@ -111,7 +112,7 @@ TRACK_GROUND_GENERATE = NodeType(
     title="Ground atlas paintover",
     archetype=ViewArchetype.IMAGE,
     operation="image_generation",
-    features=IMAGE_FEATURES,
+    features=OPAQUE_IMAGE_FEATURES,
     policy=_PROVIDER,
     contract_version="runner-ground-atlas-v4",
 )

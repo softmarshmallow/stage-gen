@@ -62,7 +62,7 @@ nothing grants. The proof, with one shortest solution as evidence, is
 persisted into the run as `puzzle.validation.json`
 (`pointclick-solvability-v1`).
 
-## Pipeline — `pointclick-room-execution-graph-v1`
+## Pipeline — `pointclick-room-execution-graph-v2`
 
 `stage-gen pointclick-room generate --input library/games/<id>
 --output out/<tag>` (add `--dry-run` for the free rehearsal). The graph for
@@ -132,6 +132,17 @@ names the cover as an `authored_inputs` entry — label, package path, digest �
 so the file that will be attached to the call is legible in the plan and in
 the viewer rather than hiding inside a cache key, the way a derived input is
 legible through its upstream port.
+
+### Image routing
+
+The recipe states image intent without naming a provider. Its backdrop is an opaque reference edit
+at the authored exact frame; hotspot sprites, item icons, and shared UI sheets require transparent
+reference edits at their declared canvases. Planning resolves each workload to GPT Image 2.5
+Sunburst at maximum quality, checks the exact-size envelope, and seals the route in the graph. The
+current defaults use OpenAI. `STAGE_GEN_IMAGE_PROVIDER=fal` replans all image nodes onto fal. A
+full room cannot be planned with the OpenRouter override because its image surface does not provide
+native transparency or real masks. Missing credentials and provider failures never trigger a
+fallback route.
 
 ## Runtime manifest — `pointclick-room-runtime-v3`
 

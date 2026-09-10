@@ -23,7 +23,13 @@ from stage_gen.capabilities import (
 from stage_gen.components.audio_normalization import (
     AudioNormalizationRequest,
 )
-from stage_gen.config import StageGenConfig, TransparencyMode
+from stage_gen.config import ConfigError, StageGenConfig, TransparencyMode
+from stage_gen.image_product import ImageProvider
+from stage_gen.model_routes import (
+    FAL_IMAGE_GENERATION_ROUTE_ID,
+    OPENAI_IMAGE_GENERATION_ROUTE_ID,
+    OPENROUTER_IMAGE_GENERATION_ROUTE_ID,
+)
 from stage_gen.orchestration.runtime import DefaultHeadlessRuntime
 
 
@@ -115,15 +121,25 @@ async def test_fal_only_standalone_background_removal_needs_no_openrouter(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("mode", "credentials"),
+    "config",
     [
-        (TransparencyMode.NATIVE, {"openai_api_key": "openai-only"}),
-        (TransparencyMode.CHROMA, {"open_router_api_key": "openrouter-only"}),
+        StageGenConfig(
+            transparency_mode=TransparencyMode.NATIVE,
+            open_router_api_key="openrouter-only",
+        ),
+        StageGenConfig(
+            transparency_mode=TransparencyMode.CHROMA,
+            image_provider_override=ImageProvider.OPENAI,
+            openai_api_key="openai-only",
+        ),
+        StageGenConfig(
+            image_provider_override=ImageProvider.FAL,
+            fal_key="fal-only",
+        ),
     ],
 )
-async def test_standalone_image_capability_tracks_transparency_mode(
-    mode: TransparencyMode,
-    credentials: dict[str, str],
+async def test_standalone_image_admission_uses_selected_opaque_route_credential(
+    config: StageGenConfig,
     tmp_path: Path,
 ) -> None:
     class FakeStandaloneRuntime:
@@ -149,7 +165,7 @@ async def test_standalone_image_capability_tracks_transparency_mode(
     result = await generate_image_artifact(
         prompt="A neutral icon.",
         output_path=str(tmp_path / "output.png"),
-        config=StageGenConfig(transparency_mode=mode, **credentials),
+        config=config,
         runtime=cast(HeadlessRuntime, FakeStandaloneRuntime()),
     )
 
@@ -157,7 +173,53 @@ async def test_standalone_image_capability_tracks_transparency_mode(
 
 
 @pytest.mark.asyncio
-async def test_headless_image_generation_requests_max_quality(tmp_path: Path) -> None:
+async def test_standalone_image_admission_refuses_missing_selected_provider_credential(
+    tmp_path: Path,
+) -> None:
+    class UncalledRuntime:
+        async def generate_image(
+            self,
+            *,
+            prompt: str,
+            output_path: str,
+            aspect_ratio: str,
+            reference_paths: Sequence[str],
+        ) -> CapabilityArtifactResult:
+            raise AssertionError("runtime must not run before route credential admission")
+
+    with pytest.raises(ConfigError) as exc_info:
+        await generate_image_artifact(
+            prompt="A neutral icon.",
+            output_path=str(tmp_path / "output.png"),
+            config=StageGenConfig(
+                transparency_mode=TransparencyMode.NATIVE,
+                openai_api_key="unselected-openai-key",
+            ),
+            runtime=cast(HeadlessRuntime, UncalledRuntime()),
+        )
+
+    assert exc_info.value.missing == ("OPENROUTER_API_KEY",)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("config", "aspect_ratio", "route_id"),
+    [
+        (StageGenConfig(), "1:1", OPENROUTER_IMAGE_GENERATION_ROUTE_ID),
+        (StageGenConfig(), "16:9", OPENAI_IMAGE_GENERATION_ROUTE_ID),
+        (
+            StageGenConfig(image_provider_override=ImageProvider.FAL),
+            "16:9",
+            FAL_IMAGE_GENERATION_ROUTE_ID,
+        ),
+    ],
+)
+async def test_headless_image_generation_resolves_exact_opaque_route(
+    config: StageGenConfig,
+    aspect_ratio: str,
+    route_id: str,
+    tmp_path: Path,
+) -> None:
     requests: list[ImageGenerationRequest] = []
 
     class CapturingImageService:
@@ -174,14 +236,14 @@ async def test_headless_image_generation_requests_max_quality(tmp_path: Path) ->
             return None
 
     runtime = DefaultHeadlessRuntime(
-        StageGenConfig(transparency_mode=TransparencyMode.NATIVE),
+        config,
         image_service=CapturingImageService(),  # type: ignore[arg-type]
     )
     try:
         result = await runtime.generate_image(
             prompt="A neutral icon.",
             output_path=str(tmp_path / "output.png"),
-            aspect_ratio="1:1",
+            aspect_ratio=aspect_ratio,
             reference_paths=(),
         )
     finally:
@@ -191,3 +253,5 @@ async def test_headless_image_generation_requests_max_quality(tmp_path: Path) ->
     assert len(requests) == 1
     assert requests[0].quality == "max"
     assert requests[0].background == "opaque"
+    assert requests[0].resolved_binding is not None
+    assert requests[0].resolved_binding.route.route_id == route_id

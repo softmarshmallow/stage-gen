@@ -9,14 +9,14 @@ import io
 import math
 import os
 import uuid
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal, Self
 
 from PIL import Image
-from pydantic import Field
+from pydantic import Field, model_validator
 
 import gnode
 from gnode import (
@@ -28,24 +28,32 @@ from gnode import (
     GraphBuilder,
     ImageGenerationRequest,
     ImageGenerationService,
+    ImageModelV1,
+    ImageRouteRequirementsV1,
     JsonlTraceSink,
     ModelRef,
     NodeTypeRegistry,
     ProviderImage,
     ProviderStructuredOutput,
+    ResolvedBindingV1,
     RetryPolicy,
+    RouteContractV1,
     Scheduler,
     SoftwareIdentity,
     StructuredGenerationRequest,
     StructuredGenerationService,
+    WorkloadRequestV1,
     atomic_write_json,
     seal_graph,
     sha256_hex,
     write_graph,
     write_run_summary,
 )
-from gnode.providers.openai import OpenAIImageBackend
+from gnode.providers.fal import FalImageBackend
+from gnode.providers.openai import OPENAI_BASE_URL, OpenAIImageBackend
 from gnode.providers.openrouter import (
+    OPENROUTER_BASE_URL,
+    OpenRouterImageBackend,
     OpenRouterProviderRouting,
     OpenRouterStructuredBackend,
     OpenRouterStructuredRequestPolicy,
@@ -59,13 +67,67 @@ from stage_gen.components.portrait_motion import (
 from stage_gen.components.portrait_motion.models import Contract, PortraitMotionResult
 from stage_gen.components.portrait_motion.nodes import STAGES
 from stage_gen.components.portrait_motion.storage import COMPONENT, RunStore, json_bytes
+from stage_gen.config import ConfigError, StageGenConfig
+from stage_gen.model_routes import (
+    FAL_SUNBURST_EDIT_ENDPOINT,
+    FAL_SUNBURST_TEXT_TO_IMAGE_ENDPOINT,
+    IMAGE_NATIVE_EDIT_POLICY_ID,
+    configured_image_route_catalog,
+    image_workload_policies,
+    resolve_configured_image_route,
+)
+from stage_gen.orchestration.image_routing import (
+    RoutedImageGenerationService,
+    apply_stage_gen_image_binding,
+)
 from stage_gen.provider_env import load_provider_dotenv
 
 TOOL = SoftwareIdentity(name="stage-gen", version="0.0.0")
 
+PORTRAIT_MOTION_GRAPH_SCHEMA_VERSION = 2
+PORTRAIT_MOTION_GRAPH_KIND = "portrait-motion-v2"
+PORTRAIT_MOTION_PLAN_SCHEMA_VERSION = 2
+PORTRAIT_MOTION_PLAN_KIND = "portrait-motion-plan-v2"
+
+
+class PortraitMotionGraph(Graph):
+    """Versioned standalone graph document for one portrait-motion run."""
+
+    LEGACY_GRAPH_IDENTITIES: ClassVar[frozenset[tuple[int, str]]] = frozenset(
+        {(1, "portrait-motion-v1")}
+    )
+
+    schema_version: Literal[1, 2]
+    kind: Literal["portrait-motion-v1", "portrait-motion-v2"]
+
+    @model_validator(mode="after")
+    def validate_route_identity_version(self) -> Self:
+        identity = (self.schema_version, self.kind)
+        if identity not in {
+            (PORTRAIT_MOTION_GRAPH_SCHEMA_VERSION, PORTRAIT_MOTION_GRAPH_KIND),
+            *self.LEGACY_GRAPH_IDENTITIES,
+        }:
+            raise ValueError(
+                "portrait-motion graph schema_version and kind must form a declared identity"
+            )
+        if identity in self.LEGACY_GRAPH_IDENTITIES:
+            if self.resolved_routes or any(node.binding_ref is not None for node in self.nodes):
+                raise ValueError("legacy portrait-motion graphs cannot carry resolved routes")
+            return self
+        missing = sorted(
+            node.node_id
+            for node in self.nodes
+            if node.operation == "image_generation" and node.binding_ref is None
+        )
+        if missing:
+            raise ValueError(
+                "current portrait-motion image nodes require resolved route bindings: "
+                + ", ".join(missing)
+            )
+        return self
+
 
 class RuntimeProfile(Contract):
-    image_model: Literal["gpt-image-2.5-sunburst"] = "gpt-image-2.5-sunburst"
     structured_model: Literal["openai/gpt-6-astra"] = "openai/gpt-6-astra"
     max_provider_operations: Literal[24] = 24
     max_tokens: int = Field(default=12000, ge=1000, le=16000)
@@ -80,6 +142,38 @@ def request_policy() -> OpenRouterStructuredRequestPolicy:
         image_detail="high",
         provider=OpenRouterProviderRouting(only=("openai",), allow_fallbacks=False),
     )
+
+
+_IMAGE_ROUTING_FIELDS = (
+    "image_provider_override",
+    "openai_base_url",
+    "openai_image_ipm",
+    "openai_image_model",
+    "open_router_base_url",
+    "openrouter_image_ipm",
+    "image_model",
+    "fal_base_url",
+)
+
+
+def _image_routing_snapshot(config: StageGenConfig) -> dict[str, object]:
+    """Persist only non-secret route inputs needed to reproduce the exact graph."""
+
+    dumped = config.model_dump(mode="json", include=set(_IMAGE_ROUTING_FIELDS))
+    return {field: dumped[field] for field in _IMAGE_ROUTING_FIELDS}
+
+
+def _image_config(
+    plan: Mapping[str, object],
+    *,
+    credentials: Mapping[str, str | None] | None = None,
+) -> StageGenConfig:
+    raw = plan.get("image_routing")
+    if not isinstance(raw, dict) or set(raw) != set(_IMAGE_ROUTING_FIELDS):
+        raise ValueError("Prepared image routing configuration is incomplete")
+    values = dict(raw)
+    values.update(credentials or {})
+    return StageGenConfig.model_validate(values)
 
 
 def implementation() -> dict[str, str]:
@@ -98,6 +192,10 @@ def implementation() -> dict[str, str]:
     application_root = Path(__file__).parents[1]
     helpers = [
         application_root / "components/_node_kit.py",
+        application_root / "config.py",
+        application_root / "image_product.py",
+        application_root / "model_routes.py",
+        application_root / "orchestration/image_routing.py",
         application_root / "provider_env.py",
         application_root / "identity.py",
         *sorted((application_root / "media").rglob("*.py")),
@@ -109,9 +207,10 @@ def implementation() -> dict[str, str]:
     return files
 
 
-def graph_for(plan: dict[str, Any]) -> Graph:
+def graph_for(plan: dict[str, Any]) -> PortraitMotionGraph:
     profile = RuntimeProfile.model_validate(plan["profile"])
     spec = PortraitMotionSpec.model_validate(plan["spec"])
+    image_config = _image_config(plan)
     if (
         spec.width % 16
         or spec.height % 16
@@ -121,16 +220,6 @@ def graph_for(plan: dict[str, Any]) -> Graph:
         raise ValueError("Declared atlas canvas is outside the verified image route contract")
     bindings = BindingTable(
         (
-            Binding(
-                "image_generation",
-                ModelRef(profile.image_model, "openai"),
-                "portrait_image",
-                180,
-                0.0,
-                profile.attempt_reservation_usd,
-                features=frozenset({"reference_inputs"}),
-                max_in_flight=1,
-            ),
             Binding(
                 "structured_generation",
                 ModelRef(profile.structured_model, "openrouter"),
@@ -143,27 +232,49 @@ def graph_for(plan: dict[str, Any]) -> Graph:
             ),
         )
     )
-    builder = GraphBuilder(profile=bindings)
+    image_catalog = configured_image_route_catalog(image_config)
+
+    def image_workload(requirements: ImageRouteRequirementsV1) -> WorkloadRequestV1:
+        return resolve_configured_image_route(
+            image_config,
+            requirements,
+            policy_id=IMAGE_NATIVE_EDIT_POLICY_ID,
+            catalog=image_catalog,
+        ).request
+
+    builder = GraphBuilder(
+        profile=bindings,
+        route_catalog=image_catalog,
+        workload_policies=image_workload_policies(image_config.image_provider_override),
+    )
     ids = add_portrait_motion_nodes(
         builder,
         input_digests=(sha256_hex(json_bytes(plan)),),
         spec=PortraitMotionSpec.model_validate(plan["spec"]),
         source_sha256=plan["source"]["sha256"],
+        image_workload=image_workload,
     )
     return seal_graph(
-        Graph,
+        PortraitMotionGraph,
         resources=builder.resources(),
+        resolved_routes=builder.resolved_routes(),
         nodes=builder.nodes,
         terminal_node_id=ids[-1],
-        schema_version=1,
-        kind="portrait-motion-v1",
+        schema_version=PORTRAIT_MOTION_GRAPH_SCHEMA_VERSION,
+        kind=PORTRAIT_MOTION_GRAPH_KIND,
     )
 
 
 def prepare_run(
-    source: Path, run_dir: Path, spec: PortraitMotionSpec, profile: RuntimeProfile | None = None
+    source: Path,
+    run_dir: Path,
+    spec: PortraitMotionSpec,
+    profile: RuntimeProfile | None = None,
+    *,
+    config: StageGenConfig | None = None,
 ) -> dict[str, Any]:
     profile = profile or RuntimeProfile()
+    config = config or StageGenConfig()
     if source.is_symlink() or source.absolute().resolve() != source.absolute():
         raise ValueError("Source must not traverse a symlink")
     original = source.read_bytes()
@@ -171,7 +282,8 @@ def prepare_run(
     if sidecar_path.is_symlink():
         raise ValueError("Source provenance must not be a symlink")
     original_meta = ArtifactProvenance.model_validate_json(sidecar_path.read_bytes())
-    if original_meta.artifact is None or original_meta.artifact.sha256 != sha256_hex(original):
+    source_sha256 = sha256_hex(original)
+    if original_meta.artifact is None or original_meta.artifact.sha256 != source_sha256:
         raise ValueError("Source must have matching canonical provenance")
     with Image.open(io.BytesIO(original)) as picture:
         picture.load()
@@ -179,29 +291,14 @@ def prepare_run(
             raise ValueError("Source must match the declared PNG canvas")
         if picture.convert("RGBA").getchannel("A").getextrema() != (255, 255):
             raise ValueError("This component requires an opaque source portrait")
-    store = RunStore(run_dir, tool=TOOL)
-    store.root.mkdir(parents=True, exist_ok=False)
-    store.write_json(
-        "inputs/source-origin.json",
-        original_meta.model_dump(mode="json"),
-        inputs=[],
-        params={"source_sha256": sha256_hex(original)},
-        prompt="Preserve the source's original canonical provenance and rights.",
-    )
-    store.write(
-        "inputs/source.png",
-        original,
-        "image/png",
-        inputs=["inputs/source-origin.json"],
-        params={"original_sha256": sha256_hex(original), "ownership": "run_input_import"},
-        prompt="Import unchanged source pixels into the portable run ownership boundary.",
-        rights=original_meta.rights,
-    )
+    origin_document = original_meta.model_dump(mode="json")
+    origin_sha256 = sha256_hex(json_bytes(origin_document))
     plan = {
-        "schema_version": 1,
-        "kind": "portrait-motion-plan-v1",
+        "schema_version": PORTRAIT_MOTION_PLAN_SCHEMA_VERSION,
+        "kind": PORTRAIT_MOTION_PLAN_KIND,
         "spec": spec.model_dump(mode="json"),
         "profile": profile.model_dump(mode="json"),
+        "image_routing": _image_routing_snapshot(config),
         "request_policy": request_policy().snapshot(),
         "implementation": implementation(),
         "dependencies": {
@@ -210,8 +307,8 @@ def prepare_run(
         },
         "source": {
             "ref": "inputs/source.png",
-            "sha256": store.digest("inputs/source.png"),
-            "origin_sha256": store.digest("inputs/source-origin.json"),
+            "sha256": source_sha256,
+            "origin_sha256": origin_sha256,
         },
         "required_stages": list(STAGES),
         "image_jobs": 1,
@@ -221,8 +318,30 @@ def prepare_run(
         "cost_policy": "Reserve before every attempt; unknown cost retains the whole reserve",
         "publication_authorized": False,
     }
+    # Resolve and seal every provider route before claiming the immutable run
+    # directory. A capability refusal therefore leaves no partial preparation
+    # that blocks a corrected retry at the caller-selected path.
+    graph = graph_for(plan)
+    store = RunStore(run_dir, tool=TOOL)
+    store.root.mkdir(parents=True, exist_ok=False)
+    store.write_json(
+        "inputs/source-origin.json",
+        origin_document,
+        inputs=[],
+        params={"source_sha256": source_sha256},
+        prompt="Preserve the source's original canonical provenance and rights.",
+    )
+    store.write(
+        "inputs/source.png",
+        original,
+        "image/png",
+        inputs=["inputs/source-origin.json"],
+        params={"original_sha256": source_sha256, "ownership": "run_input_import"},
+        prompt="Import unchanged source pixels into the portable run ownership boundary.",
+        rights=original_meta.rights,
+    )
     atomic_write_json(store.path("plan.json"), plan)
-    write_graph(store.path("graph.json"), graph_for(plan))
+    write_graph(store.path("graph.json"), graph)
     return {
         "status": "prepared",
         "required_stages": list(STAGES),
@@ -231,11 +350,24 @@ def prepare_run(
     }
 
 
-def load_plan(run_dir: Path) -> tuple[RunStore, dict[str, Any], Graph]:
+def load_plan(run_dir: Path) -> tuple[RunStore, dict[str, Any], PortraitMotionGraph]:
     store = RunStore(run_dir, tool=TOOL)
     plan = store.read("plan.json")
+    identity = (plan.get("schema_version"), plan.get("kind"))
+    if identity not in {
+        (1, "portrait-motion-plan-v1"),
+        (PORTRAIT_MOTION_PLAN_SCHEMA_VERSION, PORTRAIT_MOTION_PLAN_KIND),
+    }:
+        raise ValueError("Prepared portrait-motion plan has an unsupported identity")
+    if identity == (1, "portrait-motion-plan-v1") and "image_routing" in plan:
+        raise ValueError("Legacy portrait-motion plans cannot carry image routing")
     if plan["implementation"] != implementation():
         raise ValueError("Implementation changed after preparation; prepare a fresh run")
+    if identity == (1, "portrait-motion-plan-v1"):
+        raise ValueError(
+            "Legacy portrait-motion plans are readable history but cannot be resumed after "
+            "route binding; prepare a fresh run"
+        )
     if plan["request_policy"] != request_policy().snapshot() or plan["required_stages"] != list(
         STAGES
     ):
@@ -251,7 +383,7 @@ def load_plan(run_dir: Path) -> tuple[RunStore, dict[str, Any], Graph]:
     ):
         raise ValueError("Prepared input changed")
     graph = graph_for(plan)
-    if Graph.model_validate_json(store.path("graph.json").read_bytes()) != graph:
+    if PortraitMotionGraph.model_validate_json(store.path("graph.json").read_bytes()) != graph:
         raise ValueError("Prepared graph changed")
     return store, plan, graph
 
@@ -260,6 +392,7 @@ def load_plan(run_dir: Path) -> tuple[RunStore, dict[str, Any], Graph]:
 class _Host:
     store: RunStore
     spec: PortraitMotionSpec
+    image_binding: ResolvedBindingV1
     image_service: ImageGenerationService | None
     structured_service: StructuredGenerationService[dict[str, Any]] | None
     request_policy: dict[str, Any]
@@ -268,23 +401,32 @@ class _Host:
     timeout_seconds: float
     operation_count: Callable[[], int] | None = None
 
+    def bind_image_request(
+        self,
+        request: ImageGenerationRequest,
+        binding: ResolvedBindingV1,
+    ) -> ImageGenerationRequest:
+        return apply_stage_gen_image_binding(request, binding)
+
 
 def _host(
     store: RunStore,
     plan: dict[str, Any],
+    graph: PortraitMotionGraph,
     image_service: ImageGenerationService | None,
     structured_service: StructuredGenerationService[dict[str, Any]] | None,
 ) -> _Host:
     profile = RuntimeProfile.model_validate(plan["profile"])
     return _Host(
-        store,
-        PortraitMotionSpec.model_validate(plan["spec"]),
-        image_service,
-        structured_service,
-        plan["request_policy"],
-        profile.max_provider_operations,
-        profile.max_tokens,
-        profile.timeout_seconds,
+        store=store,
+        spec=PortraitMotionSpec.model_validate(plan["spec"]),
+        image_binding=graph.resolved_route_for("atlas").to_resolved_binding(),
+        image_service=image_service,
+        structured_service=structured_service,
+        request_policy=plan["request_policy"],
+        max_provider_operations=profile.max_provider_operations,
+        max_tokens=profile.max_tokens,
+        timeout_seconds=profile.timeout_seconds,
     )
 
 
@@ -385,16 +527,103 @@ class _Budget:
         atomic_write_json(self.store.path("budget.json"), ledger)
 
 
-class _BudgetedImage(OpenAIImageBackend):
-    def __init__(self, *, budget: _Budget, api_key: str, model: str) -> None:
-        super().__init__(api_key=api_key, model=model)
+class _BudgetedImage:
+    """Reserve one durable budget entry around one provider adapter attempt."""
+
+    spec_version: ClassVar[Literal[1]] = 1
+
+    def __init__(self, *, budget: _Budget, backend: ImageModelV1) -> None:
         self.budget = budget
+        self.backend = backend
+        self.provider = backend.provider
+        self.model = backend.model
+        self.adapter_id = backend.adapter_id
+        self.adapter_behavior_version = backend.adapter_behavior_version
+        self.secrets = backend.secrets
+        self.supports_native_alpha = backend.supports_native_alpha
+
+    def endpoint_for(self, request: ImageGenerationRequest) -> str:
+        return self.backend.endpoint_for(request)
 
     async def generate_once(self, request: ImageGenerationRequest) -> ProviderImage:
         index = self.budget.reserve("image_generation")
-        result = await super().generate_once(request)
+        result = await self.backend.generate_once(request)
         self.budget.settle(index, result.response_metadata.usage)
         return result
+
+    async def aclose(self) -> None:
+        await self.backend.aclose()
+
+
+def _image_backend(route: RouteContractV1, config: StageGenConfig) -> ImageModelV1:
+    """Compose only the one-attempt adapter named by the sealed route."""
+
+    if route.model.provider == "openai":
+        assert config.openai_api_key is not None
+        return OpenAIImageBackend(
+            api_key=config.openai_api_key,
+            model=route.model.model,
+            supports_native_alpha="transparent_background" in route.features,
+            base_url=config.openai_base_url or OPENAI_BASE_URL,
+            images_per_minute=config.openai_image_ipm,
+        )
+    if route.model.provider == "fal":
+        assert config.fal_key is not None
+        return FalImageBackend(
+            api_key=config.fal_key,
+            model=route.model.model,
+            supports_native_alpha="transparent_background" in route.features,
+            base_url=config.fal_base_url or "https://fal.run",
+            text_to_image_endpoint=FAL_SUNBURST_TEXT_TO_IMAGE_ENDPOINT,
+            edit_endpoint=FAL_SUNBURST_EDIT_ENDPOINT,
+        )
+    if route.model.provider == "openrouter":
+        assert config.open_router_api_key is not None
+        return OpenRouterImageBackend(
+            api_key=config.open_router_api_key,
+            model=route.model.model,
+            base_url=config.open_router_base_url or OPENROUTER_BASE_URL,
+            images_per_minute=config.openrouter_image_ipm,
+        )
+    raise ValueError(f"Unsupported portrait image provider: {route.model.provider}")
+
+
+def _budgeted_image_service_factory(
+    budget: _Budget,
+    retry: RetryPolicy,
+) -> Callable[[RouteContractV1, StageGenConfig], ImageGenerationService]:
+    def create(route: RouteContractV1, config: StageGenConfig) -> ImageGenerationService:
+        return ImageGenerationService(
+            _BudgetedImage(budget=budget, backend=_image_backend(route, config)),
+            component=COMPONENT,
+            tool=TOOL,
+            retry_policy=retry,
+        )
+
+    return create
+
+
+def _require_live_credentials(graph: PortraitMotionGraph, config: StageGenConfig) -> None:
+    credential_by_provider = {
+        "openai": ("OPENAI_API_KEY", config.openai_api_key),
+        "fal": ("FAL_KEY", config.fal_key),
+        "openrouter": ("OPENROUTER_API_KEY", config.open_router_api_key),
+    }
+    # Structured judging is still an explicit OpenRouter binding. Image keys are
+    # derived only from the exact catalog routes carried by this prepared graph.
+    providers = dict.fromkeys(
+        ("openrouter", *(snapshot.provider for snapshot in graph.resolved_routes))
+    )
+    missing: list[str] = []
+    for provider in providers:
+        credential = credential_by_provider.get(provider)
+        if credential is None:
+            raise ValueError(f"No portrait credential mapping for provider {provider}")
+        name, value = credential
+        if value is None or not value.strip():
+            missing.append(name)
+    if missing:
+        raise ConfigError(missing)
 
 
 class _BudgetedStructured(OpenRouterStructuredBackend):
@@ -427,9 +656,10 @@ async def run_pipeline(
     """
     store, plan, graph = load_plan(run_dir)
     profile = RuntimeProfile.model_validate(plan["profile"])
+    planned_image = graph.resolved_route_for("atlas")
     if image_service is not None and (image_service.provider, image_service.model) != (
-        "openai",
-        profile.image_model,
+        planned_image.provider,
+        planned_image.model,
     ):
         raise ValueError("Injected image service route must match the prepared binding")
     if structured_service is not None and (
@@ -445,32 +675,36 @@ async def run_pipeline(
             if image_service is not None or structured_service is not None:
                 raise ValueError("Live composition cannot mix caller-injected services")
             credentials = load_provider_dotenv(dotenv) if dotenv is not None else {}
-            image_key = os.environ.get("OPENAI_API_KEY") or credentials.get("OPENAI_API_KEY", "")
-            judge_key = os.environ.get("OPENROUTER_API_KEY") or credentials.get(
-                "OPENROUTER_API_KEY", ""
+            image_config = _image_config(
+                plan,
+                credentials={
+                    "openai_api_key": os.environ.get("OPENAI_API_KEY")
+                    or credentials.get("OPENAI_API_KEY"),
+                    "open_router_api_key": os.environ.get("OPENROUTER_API_KEY")
+                    or credentials.get("OPENROUTER_API_KEY"),
+                    "fal_key": os.environ.get("FAL_KEY") or credentials.get("FAL_KEY"),
+                },
             )
-            if not image_key or not judge_key:
-                raise ValueError(
-                    "Both configured provider credentials are required for live execution"
-                )
+            _require_live_credentials(graph, image_config)
             budget = _Budget(store, profile)
             retry = RetryPolicy(attempt_timeout_s=profile.timeout_seconds)
-            image_service = ImageGenerationService(
-                _BudgetedImage(budget=budget, api_key=image_key, model=profile.image_model),
-                component=COMPONENT,
-                tool=TOOL,
-                retry_policy=retry,
+            image_service = RoutedImageGenerationService(
+                image_config,
+                service_factory=_budgeted_image_service_factory(budget, retry),
             )
+            assert image_config.open_router_api_key is not None
             structured_service = StructuredGenerationService(
                 _BudgetedStructured(
-                    budget=budget, api_key=judge_key, model=profile.structured_model
+                    budget=budget,
+                    api_key=image_config.open_router_api_key,
+                    model=profile.structured_model,
                 ),
                 component=COMPONENT,
                 tool=TOOL,
                 retry_policy=retry,
             )
             owned = True
-        host = _host(store, plan, image_service, structured_service)
+        host = _host(store, plan, graph, image_service, structured_service)
         if owned:
             host.operation_count = lambda: (
                 len(budget._read()["attempts"]) if store.path("budget.json").exists() else 0
@@ -528,7 +762,7 @@ async def run_pipeline(
 
 def verify_run(run_dir: Path) -> dict[str, Any]:
     store, plan, graph = load_plan(run_dir)
-    handlers = PortraitMotionHandlers(_host(store, plan, None, None))
+    handlers = PortraitMotionHandlers(_host(store, plan, graph, None, None))
     receipts = []
     for node in graph.nodes:
         receipt = store.receipt(node)

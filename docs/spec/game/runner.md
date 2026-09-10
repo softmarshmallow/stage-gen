@@ -74,6 +74,14 @@ component of 32 pixels or more may be discarded. A disconnected visible rider, m
 propulsion assembly fails provider admission instead of being silently dropped from the runtime
 frame.
 
+These are provider-neutral image requirements, not recipe-owned model choices. Planning seals one
+exact GPT Image 2.5 Sunburst route per image node at maximum quality. OpenAI is the checked-in
+default for the runner's transparent and masked workloads; setting
+`STAGE_GEN_IMAGE_PROVIDER=fal` replans the graph onto fal's equivalent native-alpha routes. An
+OpenRouter override is refused offline because its opaque reference-conditioned surface cannot
+serve transparency or real masks. Credentials never select a route, and a failed provider is never
+replaced automatically.
+
 ## Gameplay: named profiles
 
 `runner-gameplay-v4` declares `track_id`, `[run]` (`speed_profile`,
@@ -175,9 +183,9 @@ presentation a closed union:
 - `runner-structural-ground-v1` generates one bespoke native-alpha painting per
   authored segment. A local node first renders the exact occupancy plus common
   seam aprons into a 1536-by-1024 guide. A native-alpha GPT Image 2.5 Sunburst edit paints
-  that guide with `background = "transparent"`; planning refuses any image
-  model not explicitly verified as the Sunburst native-alpha route, and the
-  generative layer-loop route separately requires masked-edit capability. No
+  that guide with `background = "transparent"`; planning refuses any selected
+  route that lacks Sunburst native alpha, and the generative layer-loop route
+  separately requires masked-edit capability. No
   chroma key or background-removal fallback exists. One shared local node takes
   the first authored segment's already generated right two-column apron,
   preserves its left-to-right painting, and
@@ -655,8 +663,8 @@ topology: a changed prompt or reference re-keys node cache identities and
 `graph_sha256`, not `topology_sha256`. Adding a segment in structural-ground
 mode, a layer, a motion state, a catalog entry, a soundtrack member, or a
 generated-clip or spoken-line effect changes the topology and therefore this
-checked snapshot. So does a binding-table route, because declared resources are
-part of the topology; the `elevenlabs-sound-effect` and `elevenlabs-speech`
+checked snapshot. So does a selected route when it changes the declared resource;
+the `elevenlabs-sound-effect` and `elevenlabs-speech`
 resources below serve Iron Petal's generated clips and its spoken stage start.
 A node type's contract version instead re-keys caches and `graph_sha256`
 without changing `topology_sha256`: manifest assembly moved to v8 when the
@@ -672,8 +680,8 @@ rather than only the atlas branch. Regenerate with
 {
   "kind": "sideview-runner-execution-graph-contract-v1",
   "fixture_ref": "library/games/iron-petal-unit",
-  "graph_schema_version": 1,
-  "topology_sha256": "3f422fd796608aa3ed379023446019c0700d5e41ef417714877baa615bfc3700",
+  "graph_schema_version": 2,
+  "topology_sha256": "f634afc9c267d21b68e091c09eebaeafcae85b5b713ac3fa3b2a63b4105f6ff9",
   "node_count": 109,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
@@ -691,12 +699,6 @@ rather than only the atlas branch. Regenerate with
       "max_in_flight": 32,
       "requests_per_minute": null,
       "rate_limit_owner": "none"
-    },
-    {
-      "resource_id": "openai-image",
-      "max_in_flight": null,
-      "requests_per_minute": 150,
-      "rate_limit_owner": "provider_adapter"
     },
     {
       "resource_id": "openrouter-structured",
@@ -727,6 +729,12 @@ rather than only the atlas branch. Regenerate with
       "max_in_flight": null,
       "requests_per_minute": null,
       "rate_limit_owner": "none"
+    },
+    {
+      "resource_id": "openai-image",
+      "max_in_flight": null,
+      "requests_per_minute": 150,
+      "rate_limit_owner": "provider_adapter"
     }
   ]
 }

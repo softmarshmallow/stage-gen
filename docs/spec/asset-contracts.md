@@ -8,10 +8,11 @@ its sheet grid. It is not the global definition of `stage-gen`. Reusable compone
 genre-, camera-, gameplay-, and engine-agnostic; this recipe supplies the
 side-view vocabulary explicitly.
 
-> **Provider note.** Prepared native-alpha image operations use
-> `gpt-image-2.5-sunburst` through the direct OpenAI image route. Exact canvas sizes are normalized output contracts, not a claim that every
-> route accepts arbitrary pixel dimensions. Current endpoint capabilities,
-> alpha behavior, and deterministic normalization requirements are documented in
+> **Provider note.** Prepared image nodes declare capabilities and exact canvas requirements, then
+> resolve one GPT Image 2.5 Sunburst route before execution. OpenAI is the default for the
+> platformer's native-alpha/masked and custom-exact-size workloads; fal is an explicit equivalent
+> provider override. OpenRouter serves only admitted opaque/reference workloads. Current endpoint capabilities,
+> alpha behavior, exact-size constraints, and deterministic normalization requirements are documented in the
 > [GPT Image 2.5 model record](../models/gpt-image-2.5.md). Revalidate every recipe contract
 > when changing models.
 
@@ -95,9 +96,10 @@ owner around one backend attempt and caller validation.
 
 | Concern | Current contract | Notes |
 |---|---|---|
-| Model and route | `gpt-image-2.5-sunburst` through direct OpenAI for `native`; `openai/gpt-image-2.5-sunburst` through OpenRouter for `ai`/`chroma` compatibility | Sunburst is the only selected 2.5 variant; Flare and fal are not fallbacks. Re-check the selected route before expanding its adapter contract. |
-| Request surface | Provider-neutral prompt, ordered references, quality, background intent, target geometry, and `n=1`; adapters translate only supported route-specific fields | Direct OpenAI native requests transparent PNG and sends no `input_fidelity` (GPT Image 2.5 refuses the field); OpenRouter roles request opaque output and refuse transparent or masked-edit requests offline. |
-| Scrolling-recipe request | `quality="max"`; transparent background for native cutouts, opaque output for concepts/backdrops and compatibility modes | Deterministic alpha-safe PNG normalization owns exact final dimensions; target geometry does not establish native provider support. |
+| Product and route | `gpt-image-2.5-sunburst`, resolved from the node's workload through a checked-in exact route policy | Sunburst is the only selected 2.5 variant; Flare and the Responses image tool are not registered. OpenAI and fal support native alpha/real masks; OpenRouter is opaque/reference only. |
+| Provider choice | Checked-in defaults, or one scalar `STAGE_GEN_IMAGE_PROVIDER` override applied while planning | Provider is secondary to capability. An override replans every image node; unsupported combinations refuse offline and no route falls back automatically. |
+| Request surface | Provider-neutral prompt, ordered references plus their data-URL/hosted delivery shape, quality, background intent, target geometry, and `n=1`; adapters translate only supported route-specific fields | OpenAI/fal may request transparent PNG; OpenAI multipart edits require data URLs, while fal and OpenRouter can admit hosted references. OpenRouter requests opaque output and refuses transparent or masked-edit requests offline. GPT Image 2.5 edits omit `input_fidelity`. |
+| Scrolling-recipe request | `quality="max"`; transparent background for native cutouts, opaque output for concepts/backdrops and compatibility modes; exact canvas when required | The route's edge-multiple, area, longest-edge, aspect, and optional allowlist constraints are checked while planning. Deterministic alpha-safe PNG normalization still owns canonical dimensions and packing. |
 | Retry owner | One initial attempt plus five blind retries in `ImageGenerationService.generate` | Transport, response-envelope, media, and caller-validation failures remain inside this one boundary. Recipes and backends must not stack SDK, outer, or per-stage retry loops. |
 | Accepted response | Exactly one nonempty image with strict base64, media-type, signature, and caller validation | The inspected provider artifact and deterministic normalized artifact retain bound provenance. |
 
@@ -152,10 +154,10 @@ draw from; each prepared section declares which one it uses.
 | 256 × 1024 | 1:4 (tall strip) | 0.26 Mpx | One complete runtime ladder |
 | 256 × 128 | 2:1 (four cells) | 0.03 Mpx | Four-frame character climb strip |
 
-These dimensions are not provider-native size requests or evidence of a model
-pixel-area cap. The recipe derives an aspect-ratio request value from target
-geometry, leaves acceptance to provider/model validation, inspects the
-returned image, and normalizes it deterministically. Each of the five character
+These dimensions describe canonical outputs and, for generation canvases, may also feed exact
+route requirements; locally assembled or repacked outputs are not provider requests. Planning
+checks any requested provider canvas against the selected route's declared constraints, then the
+recipe inspects the returned image and normalizes it deterministically. Each of the five character
 state sources is a 2400 x 800, one-row-by-four-cell strip. The local compositor
 remaps every cell into a 2400 x 688 row with the eight-pixel gutter and bottom
 anchor preserved, then stacks the five rows into the 2400 x 3440 master. The
@@ -169,10 +171,12 @@ Every transparency-producing asset declares one run-level strategy:
 
 - `native` (default): ask the image model to produce alpha directly, validate
   decoded nontrivial alpha, and retain provider output as direct lineage. This
-  avoids quality loss from estimating a second matte after generation.
+  avoids quality loss from estimating a second matte after generation. The
+  current catalog admits this only on OpenAI or fal.
 - `ai` (explicit compatibility): generate on neutral grey or a naturally
   isolated background, then require validated background removal. The remover's
-  alpha-bearing PNG is canonical; the raw opaque artifact remains lineage.
+  alpha-bearing PNG is canonical; the raw opaque artifact remains lineage. This
+  strategy does not itself choose the image-generation provider.
 - `chroma` (explicit degraded fallback): generate an exact `#FF00FF` exterior
   and deterministically key it to alpha without calling the remover.
 
@@ -195,7 +199,7 @@ alpha normally; they do not infer strategy from colour. The manifest records
 the actual processor chain, so native provider alpha, background removal, and
 local keying never masquerade as one another. The world concept and the one
 designated opaque parallax backdrop bypass transparency unchanged. A failure
-never silently changes the selected strategy.
+never silently changes the selected strategy or provider.
 
 ### Runtime publication gate
 

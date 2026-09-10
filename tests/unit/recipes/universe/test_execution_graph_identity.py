@@ -18,6 +18,15 @@ Changelog
             The semantic graph and both topology digests are unchanged.
 2026-09-09  Gallery only re-pinned again after exact current-canvas canaries
             calibrated its OpenRouter image planning range. Topology is unchanged.
+2026-09-10  Gallery re-pinned when each image node moved from a legacy model
+            row to a capability-admitted exact route snapshot. The node count is
+            unchanged; topology now records each node's binding reference.
+2026-09-10  Gallery graph identity re-pinned once more when route snapshots gained
+            generic exact-size constraints. Output and topology identity stay fixed;
+            the persisted capability evidence becomes stricter.
+2026-09-10  Gallery graph identity re-pinned when reference-conditioned image
+            bindings began sealing their concrete data-URL delivery capability.
+            Node count and topology remain unchanged.
 """
 
 from __future__ import annotations
@@ -41,20 +50,21 @@ from stage_gen.recipes.universe.universe_view import UNIVERSE_VIEW_KIND
 
 FIXTURE = Path("library/games/lantern_ferry")
 ADMITTED = Path("tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json")
+CONFIG = StageGenConfig()
 
 SEMANTIC_NODE_COUNT = 6
-SEMANTIC_GRAPH_SHA256 = "c72927dfaf2dad70cbf24c23489676b742a5e94e4e25963a4451da0f40aa8567"
-SEMANTIC_TOPOLOGY_SHA256 = "ef67f5dfad878dd308ce7a481b0f68cdf53b6626355dd186c42e29d6b9831e22"
+SEMANTIC_GRAPH_SHA256 = "581db57e5c1145e590e935c360f82f9f8df86085563639437121341ab96be563"
+SEMANTIC_TOPOLOGY_SHA256 = "e135e32f015b8418165a50fb0211ae81f0262a3c4656f810d05130fb59464027"
 
 GALLERY_NODE_COUNT = 42
-GALLERY_GRAPH_SHA256 = "b1fe1e95df172d443e7b403e7ab22a50af25b7cbb6680be4554d628cfa5bfd19"
-GALLERY_TOPOLOGY_SHA256 = "3cdc982dcad3f7bd6b0433bb50c5e61097559e6768fb02eb63d2d41799c2d62c"
+GALLERY_GRAPH_SHA256 = "5ecfaf3a65370277325e59f0c8e0a45d9cab40390febee553822dcd9d4297be9"
+GALLERY_TOPOLOGY_SHA256 = "504d8dac5ee971ddf7eb600c5c3f7390c9d84b03f883df4ed3e42ffa5a54025d"
 
 
 def _semantic() -> UniverseGraph:
     resolved = resolve_universe_source(read_universe_document(FIXTURE), root=FIXTURE)
     return build_universe_semantic_graph(
-        resolved, profile=universe_graph_profile(StageGenConfig(), images=False)
+        resolved, profile=universe_graph_profile(CONFIG, images=False)
     )
 
 
@@ -68,7 +78,8 @@ def _gallery() -> UniverseGraph:
         resolved,
         admitted,
         samples=samples,
-        profile=universe_graph_profile(StageGenConfig(), images=True),
+        config=CONFIG,
+        profile=universe_graph_profile(CONFIG, images=True),
     )
 
 
@@ -88,7 +99,7 @@ def test_planning_the_gallery_phase_reproduces_its_pinned_identity() -> None:
 
 def test_both_plans_keep_the_recipe_vocabulary_they_declare() -> None:
     for graph in (_semantic(), _gallery()):
-        assert graph.kind == "universe-execution-graph-v1"
+        assert graph.kind == "universe-execution-graph-v2"
         assert graph.recipe == "universe"
         assert graph.TRACE_EVENT_KIND == "universe-execution-event-v1"
         assert graph.RUN_SUMMARY_KIND == "universe-execution-summary-v1"

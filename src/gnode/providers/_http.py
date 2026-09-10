@@ -4,7 +4,9 @@ import json
 import math
 import re
 from collections.abc import Sequence
+from ipaddress import ip_address
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -116,11 +118,57 @@ def response_metadata(
     )
     usage_raw = payload.get("usage") if payload else None
     usage = dict(usage_raw) if isinstance(usage_raw, dict) else None
-    return ProviderResponseMetadata(request_id=request_id, created=created, usage=usage)
+    revised_prompt_raw: object | None = payload.get("revised_prompt") if payload else None
+    if revised_prompt_raw is None and payload:
+        data = payload.get("data")
+        if isinstance(data, list) and len(data) == 1 and isinstance(data[0], dict):
+            revised_prompt_raw = data[0].get("revised_prompt")
+    if revised_prompt_raw is None:
+        revised_prompt = None
+    elif (
+        isinstance(revised_prompt_raw, str)
+        and revised_prompt_raw.strip()
+        and len(revised_prompt_raw) <= 20_000
+    ):
+        revised_prompt = revised_prompt_raw
+    else:
+        raise ValueError("provider revised_prompt must be a non-empty bounded string")
+    return ProviderResponseMetadata(
+        request_id=request_id,
+        created=created,
+        usage=usage,
+        revised_prompt=revised_prompt,
+    )
 
 
 def normalized_base_url(value: str, label: str) -> str:
     normalized = value.strip().rstrip("/")
-    if not normalized:
-        raise ValueError(f"{label} must be non-empty")
+    parsed = urlsplit(normalized)
+    if (
+        not normalized
+        or parsed.scheme not in {"http", "https"}
+        or not parsed.netloc
+        or parsed.hostname is None
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError(f"{label} must be an HTTP(S) URL without credentials, query, or fragment")
+    try:
+        _ = parsed.port
+    except ValueError as error:
+        raise ValueError(f"{label} must use a valid network port") from error
+    if parsed.scheme == "http" and not _is_loopback_host(parsed.hostname):
+        raise ValueError(f"{label} must use HTTPS unless it targets a loopback host")
     return normalized
+
+
+def _is_loopback_host(host: str) -> bool:
+    normalized = host.rstrip(".").lower()
+    if normalized == "localhost":
+        return True
+    try:
+        return ip_address(normalized).is_loopback
+    except ValueError:
+        return False

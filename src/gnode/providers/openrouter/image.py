@@ -5,7 +5,11 @@ from typing import ClassVar, Literal
 
 import httpx
 
-from gnode.modalities.image import ImageGenerationRequest, ProviderImage
+from gnode.modalities.image import (
+    ImageGenerationRequest,
+    ProviderImage,
+    classify_image_reference_delivery,
+)
 from gnode.modalities.signatures import (
     assert_image_signature,
     normalize_media_type,
@@ -19,26 +23,28 @@ from gnode.providers._http import (
 from gnode.reliability import decode_base64_strict
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-OPENROUTER_IMAGE_MODEL = "openai/gpt-image-2.5-sunburst"
 OPENROUTER_IMAGE_IPM_DEFAULT = 150
-
-
-def supports_openrouter_sunburst_model(model: str) -> bool:
-    """Return whether ``model`` is the verified OpenRouter Sunburst route."""
-
-    return model.strip() == OPENROUTER_IMAGE_MODEL
+OPENROUTER_IMAGE_ADAPTER_ID = "gnode-openrouter-image-v1"
+OPENROUTER_IMAGE_ADAPTER_BEHAVIOR_VERSION = "3"
+_OUTPUT_MEDIA_TYPES = {
+    "jpeg": "image/jpeg",
+    "png": "image/png",
+    "webp": "image/webp",
+}
 
 
 class OpenRouterImageBackend:
     spec_version: ClassVar[Literal[1]] = 1
     provider = "openrouter"
+    adapter_id = OPENROUTER_IMAGE_ADAPTER_ID
+    adapter_behavior_version = OPENROUTER_IMAGE_ADAPTER_BEHAVIOR_VERSION
     supports_native_alpha = False
 
     def __init__(
         self,
         *,
         api_key: str,
-        model: str = OPENROUTER_IMAGE_MODEL,
+        model: str,
         base_url: str = OPENROUTER_BASE_URL,
         client: httpx.AsyncClient | None = None,
         images_per_minute: int = OPENROUTER_IMAGE_IPM_DEFAULT,
@@ -67,6 +73,9 @@ class OpenRouterImageBackend:
         if self._owns_client:
             await self._client.aclose()
 
+    def endpoint_for(self, _request: ImageGenerationRequest) -> str:
+        return f"{self._base_url}/images"
+
     async def generate_once(self, request: ImageGenerationRequest) -> ProviderImage:
         if request.mask_reference is not None:
             raise ValueError(
@@ -77,37 +86,59 @@ class OpenRouterImageBackend:
                 "OpenRouter image generation does not support transparent backgrounds; "
                 "use the OpenAI backend"
             )
-        body: dict[str, object] = {"model": self.model, "prompt": request.prompt, "n": 1}
-        applied_params: dict[str, object] = {"operation": "generation", "n": 1}
+        if request.resolution is not None:
+            raise ValueError("OpenRouter Sunburst has no verified resolution request field")
+        if request.output_format not in {None, "png"}:
+            raise ValueError("OpenRouter Sunburst has only verified PNG output")
+        if request.output_compression is not None:
+            raise ValueError("OpenRouter Sunburst has no verified compressible output format")
+        body: dict[str, object] = {
+            "model": self.model,
+            "prompt": request.prompt,
+            "n": 1,
+            "provider": {"allow_fallbacks": False},
+        }
+        applied_params: dict[str, object] = {
+            "operation": "edit" if request.input_references else "generation",
+            "endpoint": self.endpoint_for(request),
+            "n": 1,
+            "allow_fallbacks": False,
+        }
         if request.size is not None:
             body["size"] = request.size
             applied_params["size"] = request.size
         if request.aspect_ratio is not None:
             body["aspect_ratio"] = request.aspect_ratio
             applied_params["aspect_ratio"] = request.aspect_ratio
-        if request.resolution is not None:
-            body["resolution"] = request.resolution
-            applied_params["resolution"] = request.resolution
         if request.quality is not None:
             body["quality"] = request.quality
             applied_params["quality"] = request.quality
         if request.background is not None:
             body["background"] = request.background
             applied_params["background"] = request.background
-        if request.output_compression is not None:
-            body["output_compression"] = request.output_compression
-            applied_params["output_compression"] = request.output_compression
+        if request.output_format is not None:
+            # PNG is a canary-backed route guarantee validated below. The
+            # endpoint descriptor does not expose an output-format field, so
+            # do not project one onto the provider request.
+            applied_params["output_format"] = request.output_format
         if request.input_references:
             body["input_references"] = [
                 {"type": "image_url", "image_url": {"url": reference.url}}
                 for reference in request.input_references
             ]
+            applied_params["input_reference_count"] = len(request.input_references)
+            applied_params["reference_delivery"] = classify_image_reference_delivery(
+                tuple(request.input_references)
+            )
         if request.moderation is not None:
-            body["provider"] = {"options": {"openai": {"moderation": request.moderation}}}
+            body["provider"] = {
+                "allow_fallbacks": False,
+                "options": {"openai": {"moderation": request.moderation}},
+            }
             applied_params["moderation"] = request.moderation
         await self._pace_request_start()
         response = await self._client.post(
-            f"{self._base_url}/images",
+            self.endpoint_for(request),
             headers={
                 "Authorization": f"Bearer {self._api_key}",
                 "Content-Type": "application/json",
@@ -127,6 +158,13 @@ class OpenRouterImageBackend:
             else _infer_openrouter_image_media_type(image_data)
         )
         assert_image_signature(image_data, media_type)
+        if request.output_format is not None:
+            expected_media_type = _OUTPUT_MEDIA_TYPES[request.output_format]
+            if media_type != expected_media_type:
+                raise ValueError(
+                    f"OpenRouter output type {media_type} does not match requested "
+                    f"{expected_media_type}"
+                )
         return ProviderImage(
             data=image_data,
             media_type=media_type,

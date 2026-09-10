@@ -1,10 +1,5 @@
-"""Application-side provider adapters.
+"""Application-owned adapters that compose provider-neutral component protocols."""
 
-The first-party adapters live in the engine (`gnode.providers.*`, ring 2).
-What remains here implements application-owned component protocols — today
-the masked image-repeat edit backend.
-"""
+from .image_repeat import ImageRepeatModelFactory, RoutedImageRepeatRepairBackend
 
-from .openrouter import OpenRouterMaskedImageEditBackend
-
-__all__ = ["OpenRouterMaskedImageEditBackend"]
+__all__ = ["ImageRepeatModelFactory", "RoutedImageRepeatRepairBackend"]

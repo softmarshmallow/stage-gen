@@ -16,12 +16,20 @@ from gnode import (
     ImageGenerationRequest,
     ImageGenerationResult,
     ProviderResponseMetadata,
+    RouteResolutionError,
 )
 from stage_gen.concept_studio.image import generate_concept_image
 from stage_gen.concept_studio.profiles import GROK_IMAGINE_IMAGE_2
 from stage_gen.concept_studio.workspace import create_workspace
 from stage_gen.config import StageGenConfig
+from stage_gen.image_product import ImageProvider
 from stage_gen.media import inspect_image
+from stage_gen.model_routes import (
+    FAL_IMAGE_GENERATION_ROUTE_ID,
+    FAL_SUNBURST_MODEL,
+    OPENAI_IMAGE_GENERATION_ROUTE_ID,
+    OPENAI_SUNBURST_MODEL,
+)
 
 
 def _jpeg() -> bytes:
@@ -67,6 +75,198 @@ class _FakeJpegService:
 
     async def aclose(self) -> None:
         self.closed = True
+
+
+class _FakeSunburstService(_FakeJpegService):
+    def __init__(
+        self,
+        data: bytes,
+        *,
+        provider: str = "fal",
+        model: str = FAL_SUNBURST_MODEL,
+        usage: dict[str, object] | None = None,
+    ) -> None:
+        super().__init__(data)
+        self.provider = provider
+        self.model = model
+        self.usage = usage
+
+    async def generate(self, request: ImageGenerationRequest) -> ImageGenerationResult:
+        self.requests.append(request)
+        return ImageGenerationResult(
+            data=self.data,
+            media_type="image/png",
+            provider=self.provider,
+            model=self.model,
+            attempts=1,
+            provenance_path="/private/provider/provider-output.png.meta.json",
+            response_metadata=ProviderResponseMetadata(usage=self.usage),
+        )
+
+
+async def test_sunburst_concept_uses_exact_capability_route_with_fal_override(
+    concept_repository: Path,
+) -> None:
+    create_workspace(
+        concept_repository,
+        concept_id="fal-sunburst",
+        title="Fal Sunburst",
+        brief="Prove provider-neutral concept image routing.",
+    )
+    service = _FakeSunburstService(_png())
+
+    result = await generate_concept_image(
+        repository_root=concept_repository,
+        concept_id="fal-sunburst",
+        image_name="candidate-01",
+        prompt="An original moonlit observatory game scene",
+        model="sunburst",
+        quality=None,
+        resolution=None,
+        aspect_ratio="16:9",
+        service=service,
+        config=StageGenConfig(image_provider_override=ImageProvider.FAL),
+    )
+
+    request = service.requests[0]
+    assert request.size == "2048x1152"
+    assert request.background == "opaque"
+    assert request.quality == "max"
+    assert request.resolved_binding is not None
+    assert request.resolved_binding.route.route_id == FAL_IMAGE_GENERATION_ROUTE_ID
+    assert result["provider"] == "fal"
+    assert result["model"] == FAL_SUNBURST_MODEL
+    provenance_path = Path(str(result["provenance_path"]))
+    record = ArtifactProvenance.model_validate_json(
+        await asyncio.to_thread(provenance_path.read_bytes)
+    )
+    assert record.params["source_artifact_sha256"] == hashlib.sha256(service.data).hexdigest()
+    assert record.params["route_binding"] == request.resolved_binding.to_snapshot().model_dump(
+        mode="json",
+        exclude_none=True,
+    )
+    route_binding = record.params["route_binding"]
+    assert isinstance(route_binding, dict)
+    assert route_binding["effective_output_options"] == {
+        "aspect_ratio": "16:9",
+        "background": "opaque",
+        "mask_present": False,
+        "moderation_goal": "low_when_supported",
+        "operation_variant": "generation",
+        "output_format": "png",
+        "prompt_policy": "authored_verbatim",
+        "quality": "max",
+        "quality_goal": "maximum_verified",
+        "reference_count": 0,
+        "size": "2048x1152",
+    }
+    assert record.response is not None
+    assert record.response["cost_complete"] is False
+    assert "/private/provider" not in await asyncio.to_thread(provenance_path.read_text)
+
+
+async def test_sunburst_concept_default_non_square_uses_native_openai_route(
+    concept_repository: Path,
+) -> None:
+    create_workspace(
+        concept_repository,
+        concept_id="native-sunburst",
+        title="Native Sunburst",
+        brief="Select the capability-admitting route for a non-square canvas.",
+    )
+    service = _FakeSunburstService(
+        _png(),
+        provider="openai",
+        model=OPENAI_SUNBURST_MODEL,
+        usage={"cost": 0.21072, "images": 1},
+    )
+
+    result = await generate_concept_image(
+        repository_root=concept_repository,
+        concept_id="native-sunburst",
+        image_name="candidate-01",
+        prompt="An original panoramic floating garden game scene",
+        model="sunburst",
+        quality=None,
+        resolution=None,
+        aspect_ratio="16:9",
+        service=service,
+        config=StageGenConfig(),
+    )
+
+    request = service.requests[0]
+    assert request.resolved_binding is not None
+    assert request.resolved_binding.route.route_id == OPENAI_IMAGE_GENERATION_ROUTE_ID
+    assert result["provider"] == "openai"
+    assert result["model"] == OPENAI_SUNBURST_MODEL
+    record = ArtifactProvenance.model_validate_json(
+        await asyncio.to_thread(Path(str(result["provenance_path"])).read_bytes)
+    )
+    assert record.response is not None
+    assert record.response["usage"] == {"cost": 0.21072, "images": 1}
+    assert record.response["cost_complete"] is True
+
+
+async def test_sunburst_concept_explicit_openrouter_refuses_unverified_non_square_size(
+    concept_repository: Path,
+) -> None:
+    create_workspace(
+        concept_repository,
+        concept_id="openrouter-sunburst",
+        title="OpenRouter Sunburst",
+        brief="Refuse an unverified exact canvas before dispatch.",
+    )
+    service = _FakeSunburstService(_png())
+
+    with pytest.raises(RouteResolutionError, match="exact size"):
+        await generate_concept_image(
+            repository_root=concept_repository,
+            concept_id="openrouter-sunburst",
+            image_name="candidate-01",
+            prompt="An original panoramic brass observatory game scene",
+            model="sunburst",
+            quality=None,
+            resolution=None,
+            aspect_ratio="16:9",
+            service=service,
+            config=StageGenConfig(image_provider_override=ImageProvider.OPENROUTER),
+        )
+
+    assert service.requests == []
+
+
+async def test_sunburst_concept_refuses_route_provider_mismatch_before_persistence(
+    concept_repository: Path,
+) -> None:
+    created = create_workspace(
+        concept_repository,
+        concept_id="provider-mismatch",
+        title="Provider Mismatch",
+        brief="Keep persisted route identity aligned with the producing provider.",
+    )
+    workspace = Path(str(created["workspace"]))
+    service = _FakeSunburstService(
+        _png(),
+        provider="fal",
+        model=OPENAI_SUNBURST_MODEL,
+    )
+
+    with pytest.raises(ValueError, match="unexpected provider or model identity"):
+        await generate_concept_image(
+            repository_root=concept_repository,
+            concept_id="provider-mismatch",
+            image_name="candidate-01",
+            prompt="An original square observatory badge",
+            model="sunburst",
+            quality=None,
+            resolution=None,
+            aspect_ratio="16:9",
+            service=service,
+            config=StageGenConfig(),
+        )
+
+    assert not (workspace / "images/candidate-01.png").exists()
+    assert not (workspace / "images/candidate-01.png.meta.json").exists()
 
 
 async def test_generate_jpeg_normalizes_to_portable_png_provenance_without_leaks(

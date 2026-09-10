@@ -11,6 +11,7 @@ from types import ModuleType
 from stage_gen.identities import (
     RETIRED_FAMILIES,
     RETIRED_STRINGS,
+    accepted_legacy_graph_identities,
     contract_identities,
     current_versions,
 )
@@ -94,6 +95,20 @@ def test_every_identity_resolves_to_one_authority() -> None:
     assert set(doubled) <= {"dialogue-scene", "scenario-program"}, doubled
     live_families = set(current_versions())
     assert live_families.isdisjoint(family for family, _ in RETIRED_FAMILIES)
+
+
+def test_accepted_legacy_graph_identities_are_distinct_reader_owned_predecessors() -> None:
+    legacy = accepted_legacy_graph_identities()
+    assert legacy
+    assert len({entry.identity for entry in legacy}) == len(legacy)
+    current = {entry.identity for entry in contract_identities()}
+    versions = current_versions()
+    for entry in legacy:
+        assert entry.identity not in current
+        assert (entry.schema_version, entry.identity) in entry.source.resolve_legacy()
+        assert entry.schema_version == entry.version
+        assert entry.family in versions
+        assert entry.version < min(versions[entry.family])
 
 
 def test_current_documents_cite_only_current_identities() -> None:

@@ -29,6 +29,7 @@ from gnode import (
     resolve_relative_path_within_root,
 )
 from stage_gen.canonical import content_sha256
+from stage_gen.orchestration.route_context import node_route_context
 from stage_gen.recipes.node_cache import NodeArtifactCache
 
 #: One node type's implementation: the node alone, because the run-level context the
@@ -91,7 +92,8 @@ class RecipeNodeHandler(ABC):
             # It comes back byte-for-byte; cache disposition belongs to the trace.
             return cached
         try:
-            result = await self._dispatch(node, context)
+            with node_route_context(self._graph, node):
+                result = await self._dispatch(node, context)
         except CancellationError as error:
             self._cancelled(node, error)
             raise

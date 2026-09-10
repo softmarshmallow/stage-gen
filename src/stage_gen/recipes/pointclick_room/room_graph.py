@@ -18,13 +18,18 @@ from gnode import (
     Binding,
     BindingTable,
     GraphBuilder,
+    ImageRouteRequirementsV1,
     ModelRef,
     NodeCard,
     Port,
     PortRef,
 )
-from gnode.providers.openai import supports_openai_native_alpha_model
 from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes, document_roles
+from stage_gen.model_routes import (
+    configured_image_route_catalog,
+    configured_image_workload_resolver,
+    image_workload_policies,
+)
 from stage_gen.recipes.graph_document import RecipeGraph
 from stage_gen.recipes.pointclick_room.room_prompts import (
     backdrop_prompt,
@@ -66,7 +71,8 @@ if TYPE_CHECKING:
     from stage_gen.config import StageGenConfig
     from stage_gen.recipes.pointclick_room.room_request import ResolvedPointClickRoom
 
-POINTCLICK_GRAPH_SCHEMA_VERSION = 1
+POINTCLICK_GRAPH_SCHEMA_VERSION = 2
+POINTCLICK_GRAPH_KIND = "pointclick-room-execution-graph-v2"
 POINTCLICK_TRACE_SCHEMA_VERSION = 1
 POINTCLICK_CACHE_NAMESPACE = "pointclick-room-nodes-v1"
 POINTCLICK_CACHE_RECORD_KIND = "pointclick-room-node-cache-v1"
@@ -85,15 +91,21 @@ class PointClickRoomGraph(RecipeGraph):
 
     OPERATIONS = RoomOperationKind
     VIEW_FIELDS = ("room_id",)
+    CURRENT_SCHEMA_VERSION = POINTCLICK_GRAPH_SCHEMA_VERSION
+    CURRENT_KIND = POINTCLICK_GRAPH_KIND
+    LEGACY_GRAPH_IDENTITIES = frozenset({(1, "pointclick-room-execution-graph-v1")})
+    ROUTED_OPERATIONS = frozenset({RoomOperationKind.IMAGE_GENERATION.value})
 
-    schema_version: Literal[1]
-    kind: Literal["pointclick-room-execution-graph-v1"]
+    schema_version: Literal[1, 2]
+    kind: Literal[
+        "pointclick-room-execution-graph-v1",
+        "pointclick-room-execution-graph-v2",
+    ]
     recipe: Literal["pointclick-room"]
     room_id: str
     room_sha256: str = Field(pattern=SHA256_PATTERN)
 
 
-IMAGE_FEATURES = ("transparent_background", "reference_images")
 #: What the bound route can do, which is not the same as what any one node asks of it:
 #: narration needs only structured output, while the UI atlas judge is handed the evidence
 #: sheet and so needs image input from the same model.
@@ -101,27 +113,10 @@ STRUCTURED_FEATURES = ("structured_output", "image_input")
 
 
 def room_graph_profile(config: StageGenConfig) -> BindingTable:
-    """Declare the provider routes a room plan may use, credentials untouched."""
-
-    if not supports_openai_native_alpha_model(config.openai_image_model):
-        raise ValueError(
-            "pointclick-room requires the verified GPT Image 2.5 Sunburst OpenAI native-alpha route"
-        )
+    """Declare legacy non-image routes; image workloads use the route catalog."""
 
     return BindingTable(
         [
-            Binding(
-                operation=RoomOperationKind.IMAGE_GENERATION,
-                model=ModelRef(model=config.openai_image_model, provider="openai"),
-                features=frozenset(IMAGE_FEATURES),
-                resource_id="openai-image",
-                estimated_duration_seconds=120.0,
-                estimated_cost_low_usd=0.18,
-                estimated_cost_high_usd=0.25,
-                requests_per_minute=config.openai_image_ipm,
-                rate_limit_owner="provider_adapter",
-                verified_on="2026-09-09",
-            ),
             Binding(
                 operation=RoomOperationKind.STRUCTURED_GENERATION,
                 model=ModelRef(model=config.text_model, provider="openrouter"),
@@ -140,11 +135,18 @@ def build_pointclick_room_graph(
     resolved: ResolvedPointClickRoom,
     *,
     profile: BindingTable,
+    config: StageGenConfig,
 ) -> PointClickRoomGraph:
     """Compile one authored room into the exact node graph it implies."""
 
     room = resolved.room
-    builder = GraphBuilder(profile=profile)
+    route_catalog = configured_image_route_catalog(config)
+    image_workload = configured_image_workload_resolver(config, catalog=route_catalog)
+    builder = GraphBuilder(
+        profile=profile,
+        route_catalog=route_catalog,
+        workload_policies=image_workload_policies(config.image_provider_override),
+    )
     anchor_ref = PortRef(node_id="room-style-select", port_id="anchor")
 
     builder.add(
@@ -187,6 +189,7 @@ def build_pointclick_room_graph(
         AuthoredInput(label=reference.reference_id, ref=reference.source, sha256=reference.sha256)
         for reference in resolved.style_references
     )
+    style_reference_count = len(resolved.style_references)
 
     builder.add(
         BACKDROP_GENERATE,
@@ -202,6 +205,17 @@ def build_pointclick_room_graph(
         ports=(
             artifact_port("image", "assets/backdrop.png", BACKDROP_KIND),
             attempts_port("room-backdrop", ATTEMPT_LEDGER_KIND),
+        ),
+        workload=image_workload(
+            ImageRouteRequirementsV1(
+                operation_variant="edit",
+                background="opaque",
+                output_format="png",
+                size=f"{room.scene.width}x{room.scene.height}",
+                reference_count=style_reference_count,
+                mask_present=False,
+                quality_goal="maximum_verified",
+            )
         ),
         card=NodeCard(
             prompt=backdrop_prompt(room),
@@ -232,6 +246,17 @@ def build_pointclick_room_graph(
                         "image", f"assets/hotspots/{hotspot.hotspot_id}.png", HOTSPOT_SPRITE_KIND
                     ),
                     attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
+                ),
+                workload=image_workload(
+                    ImageRouteRequirementsV1(
+                        operation_variant="edit",
+                        background="transparent",
+                        output_format="png",
+                        size="1024x1024",
+                        reference_count=style_reference_count,
+                        mask_present=False,
+                        quality_goal="maximum_verified",
+                    )
                 ),
                 card=NodeCard(
                     prompt=hotspot_sprite_prompt(room, hotspot),
@@ -278,6 +303,17 @@ def build_pointclick_room_graph(
                 ports=(
                     artifact_port("image", f"assets/items/{item.item_id}.png", ITEM_ICON_KIND),
                     attempts_port(generate_id, ATTEMPT_LEDGER_KIND),
+                ),
+                workload=image_workload(
+                    ImageRouteRequirementsV1(
+                        operation_variant="edit",
+                        background="transparent",
+                        output_format="png",
+                        size="1024x1024",
+                        reference_count=style_reference_count,
+                        mask_present=False,
+                        quality_goal="maximum_verified",
+                    )
                 ),
                 card=NodeCard(
                     prompt=item_icon_prompt(room, item),
@@ -351,6 +387,7 @@ def build_pointclick_room_graph(
         direction_digests=(text_digest(style_clause(room)),),
         roles=document_roles(resolved.ui),
         attempts_port=lambda node_id: attempts_port(node_id, ATTEMPT_LEDGER_KIND),
+        image_workload=image_workload,
     )
 
     builder.add(
@@ -385,6 +422,7 @@ def build_pointclick_room_graph(
 
     return PointClickRoomGraph.seal(
         resources=builder.resources(),
+        resolved_routes=builder.resolved_routes(),
         nodes=builder.nodes,
         terminal_node_id="room-bundle",
         room_id=room.room_id,
@@ -396,6 +434,7 @@ __all__ = [
     "POINTCLICK_CACHE_NAMESPACE",
     "POINTCLICK_CACHE_RECORD_KIND",
     "POINTCLICK_GRAPH_SCHEMA_VERSION",
+    "POINTCLICK_GRAPH_KIND",
     "POINTCLICK_TRACE_SCHEMA_VERSION",
     "PointClickRoomGraph",
     "RoomOperationKind",

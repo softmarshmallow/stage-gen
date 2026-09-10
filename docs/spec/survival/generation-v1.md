@@ -185,11 +185,15 @@ wrapped in this package's own style words with the style plate as reference
 image 1; the
 algorithmic world layout; the manifest.
 
-**One image route, not two.** The engine's binding table declares at most one
-route per operation, so a transparent route beside an opaque one would mean two
-operation names, two services and two retry owners for one modality. Every image
-goes through the OpenAI route — the only one with native alpha — and the ground
-plates and the flame strip ask that same route for an opaque background.
+**One image service, exact routes per node.** Image nodes declare generation or edit, background,
+references or a real mask, and exact canvas without naming a provider. Planning resolves each
+workload through the checked-in Sunburst catalog and seals its route snapshot into the graph. The
+current survival defaults select OpenAI for native-alpha/masked work and for opaque canvases not in
+OpenRouter's verified exact-size set. `STAGE_GEN_IMAGE_PROVIDER=fal` replans both transparent and
+opaque workloads onto fal without adding a second recipe service or retry owner. An OpenRouter
+override refuses this complete graph offline because that surface cannot serve transparent or
+masked nodes. Credentials are checked only for providers already selected, and there is no
+automatic fallback.
 
 **Reviews succeed whether they admit or reject.** A rejection is a recorded
 result, not a failure, so the scheduler still reaches the manifest and a run that
@@ -197,8 +201,11 @@ is refused is still readable.
 
 ## Identity: what re-bills what
 
-A node's cache key hashes its id, its type id, its operation, its route, its
-sorted input digests, its dependency keys and its contract version. Two rules
+A node's cache key hashes its id, its type id, its operation, its sorted input digests, its
+dependency keys and its contract version. An image node additionally binds the resolved route's
+output fingerprint, covering provider, model, surface, endpoint action, adapter behavior and
+effective output options; the portable route snapshot retains the capability and exact-size proof.
+Two rules
 govern what goes where, and both were earned rather than designed:
 
 - **Anything that decides what a node produces is an input digest, not a
@@ -329,8 +336,10 @@ before any spend. `--dry-run` writes node stubs rather than artifacts: it proves
 the graph, not the art.
 
 Live is simply the absence of `--dry-run`. The executor asks for the
-capabilities the resolved package actually needs and refuses on missing
-credentials before a run directory exists:
+capabilities the resolved package actually needs, then asks only for credentials named by the
+sealed routes and refuses on a missing key before a run directory exists. Set
+`STAGE_GEN_IMAGE_PROVIDER` while planning and executing to select a non-default image provider;
+changing it means producing a new plan, not changing dispatch underneath an existing one:
 
 ```bash
 uv run stage-gen oblique-survival generate --input library/games/ember-hollow \
@@ -363,8 +372,8 @@ invalidates it and must be regenerated in the same change.
   "kind": "oblique-survival-execution-graph-contract-v1",
   "fixture_ref": "library/games/ember-hollow",
   "scope": "full",
-  "graph_schema_version": 1,
-  "topology_sha256": "9ac43e50a9f2664357eea4b378d45da83c145d43bcd801f68a5dbf835c0633aa",
+  "graph_schema_version": 2,
+  "topology_sha256": "4243f56f7115d9ad6c733e70d677fea16e62ab524a883c80780935f243e381a2",
   "node_count": 294,
   "terminal_node_id": "package-manifest",
   "operation_counts": {
@@ -382,12 +391,6 @@ invalidates it and must be regenerated in the same change.
       "max_in_flight": null,
       "requests_per_minute": null,
       "rate_limit_owner": "none"
-    },
-    {
-      "resource_id": "survival-openai-image",
-      "max_in_flight": null,
-      "requests_per_minute": 150,
-      "rate_limit_owner": "provider_adapter"
     },
     {
       "resource_id": "survival-openrouter-structured",
@@ -418,6 +421,18 @@ invalidates it and must be regenerated in the same change.
       "max_in_flight": 1,
       "requests_per_minute": null,
       "rate_limit_owner": "none"
+    },
+    {
+      "resource_id": "openai-image",
+      "max_in_flight": null,
+      "requests_per_minute": 150,
+      "rate_limit_owner": "provider_adapter"
+    },
+    {
+      "resource_id": "openrouter-image",
+      "max_in_flight": null,
+      "requests_per_minute": 150,
+      "rate_limit_owner": "provider_adapter"
     }
   ]
 }

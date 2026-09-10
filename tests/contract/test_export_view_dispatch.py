@@ -19,26 +19,48 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import get_args
+from typing import Protocol, cast
 
 import pytest
-from pydantic import BaseModel
 
 from stage_gen.recipes.dialogue_scene.scene_graph import DialogueSceneGraph
+from stage_gen.recipes.oblique_survival.survival_graph import ObliqueSurvivalGraph
 from stage_gen.recipes.pointclick_room.room_graph import PointClickRoomGraph
+from stage_gen.recipes.sideview_platformer.execution_graph import ExecutionGraph
 from stage_gen.recipes.sideview_runner.runner_graph import SideviewRunnerGraph
+from stage_gen.recipes.storefront.storefront_graph import StorefrontGraph
+from stage_gen.recipes.universe.universe_graph import UniverseGraph
 
 CLI_SOURCE = Path(__file__).resolve().parents[2] / "src" / "stage_gen" / "interfaces" / "cli.py"
 
 
-def declared_kind(model: type[BaseModel]) -> str:
-    """The single value of a model's `kind: Literal[...]` field."""
-    annotation = model.model_fields["kind"].annotation
-    args = get_args(annotation)
-    assert len(args) == 1, f"{model.__name__}.kind is not a single literal: {annotation!r}"
-    value = args[0]
-    assert isinstance(value, str)
-    return value
+class RecipeGraphModel(Protocol):
+    CURRENT_KIND: str
+    LEGACY_GRAPH_IDENTITIES: frozenset[tuple[int, str]]
+    VIEW_SCHEMA_VERSION: int
+
+
+GRAPH_MODELS = cast(
+    tuple[type[RecipeGraphModel], ...],
+    (
+        DialogueSceneGraph,
+        ObliqueSurvivalGraph,
+        PointClickRoomGraph,
+        ExecutionGraph,
+        SideviewRunnerGraph,
+        StorefrontGraph,
+        UniverseGraph,
+    ),
+)
+
+
+def declared_kinds(model: type[RecipeGraphModel]) -> set[str]:
+    """Every current or named legacy graph kind this reader accepts."""
+
+    current = model.CURRENT_KIND
+    assert isinstance(current, str)
+    legacy = {kind for _schema_version, kind in model.LEGACY_GRAPH_IDENTITIES}
+    return {current, *legacy}
 
 
 def dispatched_kinds() -> set[str]:
@@ -51,35 +73,24 @@ def dispatched_kinds() -> set[str]:
 
 @pytest.mark.parametrize(
     "model",
-    [DialogueSceneGraph, PointClickRoomGraph, SideviewRunnerGraph],
+    GRAPH_MODELS,
     ids=lambda model: model.__name__,
 )
-def test_export_view_dispatch_covers_every_recipe_graph_kind(model: type[BaseModel]) -> None:
-    kind = declared_kind(model)
-    assert kind in dispatched_kinds(), (
-        f"{model.__name__} declares {kind!r}, which `stage-gen export-view` does not dispatch. "
+def test_export_view_dispatch_covers_every_recipe_graph_kind(
+    model: type[RecipeGraphModel],
+) -> None:
+    missing = declared_kinds(model) - dispatched_kinds()
+    assert not missing, (
+        f"{model.__name__} declares undispatched kinds {sorted(missing)!r}. "
         "Runs of this recipe cannot be exported and will not appear in the run viewer. "
-        f"Add the kind to _build_run_view_for in {CLI_SOURCE.name}."
+        f"Add every accepted kind to _build_run_view_for in {CLI_SOURCE.name}."
     )
 
 
 def test_dispatch_names_no_kind_no_recipe_declares() -> None:
     """A stale literal left behind after a bump is dead dispatch, and hides the live one."""
-    declared = {
-        declared_kind(model)
-        for model in (
-            DialogueSceneGraph,
-            PointClickRoomGraph,
-            SideviewRunnerGraph,
-        )
-    }
-    # The two graphs this test does not import are covered by the reverse direction only.
-    orphans = {
-        kind
-        for kind in dispatched_kinds()
-        if kind.startswith(("dialogue-scene-", "pointclick-room-", "sideview-runner-"))
-        and kind not in declared
-    }
+    declared = set().union(*(declared_kinds(model) for model in GRAPH_MODELS))
+    orphans = dispatched_kinds() - declared
     assert orphans == set(), f"dispatch names kinds no recipe declares any more: {sorted(orphans)}"
 
 
@@ -92,10 +103,7 @@ def test_every_recipe_exports_the_run_viewer_document_version() -> None:
     still writes, and only the listing quietly drops the recipe. That is what happened when
     dialogue-scene went to graph v5 and took the view version to 5 with it.
     """
-    versions = {
-        model.__name__: model.VIEW_SCHEMA_VERSION
-        for model in (DialogueSceneGraph, PointClickRoomGraph, SideviewRunnerGraph)
-    }
+    versions = {model.__name__: model.VIEW_SCHEMA_VERSION for model in GRAPH_MODELS}
     assert len(set(versions.values())) == 1, (
         "recipes disagree on the run-view document version, so the run viewer can only read "
         f"some of them: {versions}. Bump the viewer and every recipe together, or leave this "

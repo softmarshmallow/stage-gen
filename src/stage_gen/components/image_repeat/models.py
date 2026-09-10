@@ -16,6 +16,7 @@ from gnode import (
     CancellationToken,
     PersistedContractModel,
     ProviderResponseMetadata,
+    ResolvedRouteSnapshotV1,
     RightsStatus,
     assert_safe_path_segment,
     redact_secrets,
@@ -42,7 +43,9 @@ INTENDED_LOOP_REVIEW_CONTRACT_VERSION: Literal["intended-loop-review-v1"] = (
 )
 INTENDED_LOOP_REVIEW_PROMPT_VERSION: Literal["intended-loop-rubric-v3"] = "intended-loop-rubric-v3"
 INTENDED_LOOP_MIN_ACCEPT_CONFIDENCE = 0.90
-MASKED_IMAGE_EDIT_CAPABILITY = "masked-image-edit"
+IMAGE_CONDITIONED_REPAIR_CAPABILITY: Literal["image.conditioned.repair"] = (
+    "image.conditioned.repair"
+)
 MAX_IMAGE_REPEAT_SOURCE_BYTES = 32 * 1024 * 1024
 MAX_IMAGE_REPEAT_PROVIDER_BYTES = 64 * 1024 * 1024
 MAX_IMAGE_REPEAT_DIMENSION = 8192
@@ -55,6 +58,10 @@ type ImageRepeatAlphaPolicy = Literal["preserve", "require_opaque"]
 type ImageRepeatCoveragePolicy = Literal["continuous", "sparse_allowed"]
 type ImageRepeatDecision = Literal["admitted", "repaired"]
 type ImageRepeatReviewVerdict = Literal["accept", "reject", "uncertain"]
+type ImageConditionedRepairTransport = Literal[
+    "native_mask_edit",
+    "reference_conditioned_edit",
+]
 type ImageRepeatFailureCode = Literal[
     "visible_boundary_pop",
     "clipped_or_disconnected_form",
@@ -213,8 +220,13 @@ class ImageRepeatRepairRequest:
 
 
 @dataclass(frozen=True, slots=True)
-class MaskedImageEditRequest:
-    """Exact provider boundary for an axis-aware masked repair operation."""
+class ImageConditionedRepairRequest:
+    """Provider-neutral intent for one axis-aware, endpoint-conditioned repair.
+
+    ``mask_image`` is the component's canonical white-edit/black-preserve guide.
+    A route adapter may compile it into a provider-native mask or submit it as
+    an ordinary visual reference, but may not claim the latter enforces a mask.
+    """
 
     prompt: str
     conditioning_image: bytes
@@ -232,16 +244,23 @@ class MaskedImageEditRequest:
 class ProviderImageRepeatEdit:
     data: bytes
     media_type: str
+    resolved_route: ResolvedRouteSnapshotV1
     response_metadata: ProviderResponseMetadata = field(default_factory=ProviderResponseMetadata)
 
 
-class MaskedImageEditBackend(Protocol):
+class ImageConditionedRepairBackend(Protocol):
     provider: str
     model: str
-    capability: Literal["masked-image-edit"]
+    capability: Literal["image.conditioned.repair"]
+    transport: ImageConditionedRepairTransport
     secrets: tuple[str, ...]
 
-    async def edit_once(self, request: MaskedImageEditRequest) -> ProviderImageRepeatEdit: ...
+    def resolve_route(self, *, width: int, height: int) -> ResolvedRouteSnapshotV1: ...
+
+    async def edit_once(
+        self,
+        request: ImageConditionedRepairRequest,
+    ) -> ProviderImageRepeatEdit: ...
 
     async def aclose(self) -> None: ...
 
@@ -479,6 +498,8 @@ class ImageRepeatRepairConstruction(PersistedContractModel):
     provider_candidate: ImageRepeatAssetBinding
     provider: str
     model: str
+    repair_transport: ImageConditionedRepairTransport = "reference_conditioned_edit"
+    resolved_route: ResolvedRouteSnapshotV1 | None = None
     attempts: int = Field(ge=1, le=6)
 
     @field_validator("provider", "model")
@@ -492,6 +513,34 @@ class ImageRepeatRepairConstruction(PersistedContractModel):
             raise ValueError(
                 "repair span must leave at least two provider RGB interior pixels after anchors"
             )
+        route = self.resolved_route
+        if route is not None:
+            if (route.provider, route.model) != (self.provider, self.model):
+                raise ValueError("image-repeat resolved route must match repair provider identity")
+            if route.operation != "image_conditioned_repair":
+                raise ValueError("image-repeat repair requires its dedicated route operation")
+            if route.operation_variant != self.repair_transport:
+                raise ValueError("image-repeat repair transport must match its route variant")
+            if "conditioned_repair" not in route.required_features:
+                raise ValueError("image-repeat route must require conditioned_repair")
+            options = route.effective_output_options
+            mask_present = options.get("mask_present")
+            reference_count = options.get("reference_count")
+            if self.repair_transport == "native_mask_edit":
+                if mask_present is not True or reference_count != 1:
+                    raise ValueError("native image-repeat repair requires one reference and a mask")
+                if "native_mask_input" not in route.required_features:
+                    raise ValueError(
+                        "native image-repeat repair route must require native_mask_input"
+                    )
+            elif mask_present is not False or reference_count != 2:
+                raise ValueError(
+                    "reference-conditioned image-repeat repair requires two references and no mask"
+                )
+            elif "reference_guidance" not in route.required_features:
+                raise ValueError(
+                    "reference-conditioned repair route must require reference_guidance"
+                )
         return self
 
 

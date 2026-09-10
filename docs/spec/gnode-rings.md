@@ -18,7 +18,7 @@ the SDK grows above it.
 
 | Ring | Name | Contents | Media-aware? |
 | --- | --- | --- | --- |
-| 0 | engine core | graph topology, the node ABI (typed node types, registry dispatch, ports, cards, policy, the graph builder and its subgraph-template stamping), scheduling, trace, run view, model bindings, reliability, provenance contracts | no — media-free by lint |
+| 0 | engine core | graph topology, the node ABI (typed node types, registry dispatch, ports, cards, policy, the graph builder and its subgraph-template stamping), scheduling, trace, run view, model bindings, provider-neutral route-catalog and exact-size contract shapes, reliability, provenance contracts | no — media-free by lint |
 | 1 | modality disciplines | per-modality model specs and their retry-owning services: image, structured, tool loop, music, sound effect, speech, background removal, video (`gnode/modalities/`) | yes — modality-generic only |
 | 2 | first-party providers | vendor adapters implementing ring-1 specs: `openai`, `openrouter`, `fal`, `elevenlabs` (`gnode/providers/`) | yes |
 | 3 | standard nodes | individually promoted, cross-domain node types | empty by policy (see below) |
@@ -111,27 +111,63 @@ layering — pure specs below, providers implementing them, applications above �
 and the versioned-spec naming. It diverges deliberately:
 
 - **Plan-time refusal beats call-time warnings.** ai-sdk reports an
-  unsupported option as a warning on the result. gnode declares features per
-  route in the [binding table](../../src/gnode/binding.py) and refuses a
-  missing feature while planning, offline, before any spend.
+  unsupported option as a warning on the result. gnode admits a workload only
+  when the exact route selected by its application policy declares every
+  required feature, limit, and exact-size constraint. A mismatch is refused
+  while planning, offline, before any spend.
 - **Results are provenance-bearing artifacts, not transient bytes.** A ring-1
   service persists the artifact and its sidecar atomically or reports failure;
   there is no "the caller got bytes and walked away" path.
 - **No streaming in v1.** Every current consumer is a build step.
+
+### Exact route binding
+
+Ring 0 owns only provider-neutral resolution shapes. `RouteContractV1`
+describes one material route — product, operation variant, provider/model,
+surface, endpoint, adapter behavior, resource, features, numeric limits, and
+optional `exact_size_constraints`. `WorkloadRequestV1` describes one node
+instance's requirements. `WorkloadPolicyV1` names exactly one route. A
+`RouteCatalog` proves that one selection or refuses it; it never discovers,
+ranks, or falls through to another route.
+
+Exact 2D geometry uses the generic `ExactSize2DV1` and
+`ExactSizeConstraints2DV1` contracts. The workload field is `exact_size`, the
+route field is `exact_size_constraints`, and persisted snapshots expose them as
+`required_exact_size` and `supported_exact_size_constraints`. The generic
+constraint can express edge multiples, area bounds, longest-edge and
+aspect-ratio ceilings, and a closed allowlist of sizes without teaching ring 0
+what an image or provider is.
+
+An admitted `ResolvedBindingV1` produces separate fingerprints for material
+route behavior, its capability contract, and the exact output options. The
+graph seals it as `ResolvedRouteSnapshotV1`; an image or other routed node stores
+only the snapshot's `binding_ref`. The snapshot carries the exact policy,
+provider/model/surface/endpoint/adapter identity, required and supported facts,
+and effective output options. It deliberately omits credentials, prices,
+pacing, and verification evidence because those are operational facts, not
+portable output identity. Graph validation rejects dangling, unused, stale, or
+node-disagreeing route snapshots.
+
+Applications own product names, route catalogs, capability vocabulary, and
+policy. At dispatch they rehydrate the node's snapshot, validate it against the
+configured catalog, apply the sealed options, and construct exactly the selected
+adapter. Credentials may admit that route only after planning; they never select
+a route or authorize fallback.
 
 ## Ring 2 — first-party providers
 
 A provider adapter belongs in the engine when it is **essential and actively
 dogfooded** — used in production by this repository's own application. The
 current set is OpenAI (direct image route), OpenRouter (image, structured, tool
-loop, music), fal (background removal, video), and ElevenLabs (sound effect,
-speech). Adapters are one attempt by contract — for the tool loop, one *turn* —
+loop, music), fal (image, background removal, video), and ElevenLabs (sound
+effect, speech). Adapters are one attempt by contract — for the tool loop, one *turn* —
 and retry, caller validation, and persistence live in the ring-1 service.
 Adapters never read the environment; every constructor takes its key explicitly,
 and credential loading stays with the application.
 
-An adapter for an application-owned component protocol (today: the masked
-image-repeat edit backend) stays in the application beside its protocol.
+An adapter for an application-owned component protocol stays in the application
+beside its protocol; registering a provider in ring 2 does not move
+recipe-specific admission or repair semantics into the engine.
 
 ## Ring 3 — the promotion bar
 

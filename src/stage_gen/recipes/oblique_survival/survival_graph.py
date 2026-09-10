@@ -6,11 +6,9 @@ narrow run's artifacts restore into a wider one instead of being paid for twice.
 the whole reason the ladder exists: minimal proves the oblique prop clause for about a
 dollar, and everything after it builds on the run that proved it.
 
-One image route, not two. gnode's binding table declares at most one route per
-operation, so binding a transparent route and an opaque route would mean two operation
-names, two services and two retry owners for one modality. Instead every image goes
-through OpenAI direct, which is the only route with native alpha, and the ground and the
-flame strip ask it for an opaque background.
+Image intent is sealed per node before execution. The application policy selects one
+exact route for that intent, and a scalar provider override replans the same graph
+through another capable route without changing recipe logic or enabling fallback.
 """
 
 from __future__ import annotations
@@ -22,8 +20,18 @@ from typing import Final, Literal
 
 from pydantic import BaseModel, Field
 
-from gnode import Binding, BindingTable, GraphBuilder, ModelRef, Node, NodeCard, NodeType, Port
-from gnode.providers.openai import supports_openai_native_alpha_model
+from gnode import (
+    Binding,
+    BindingTable,
+    GraphBuilder,
+    ImageRouteRequirementsV1,
+    ModelRef,
+    Node,
+    NodeCard,
+    NodeType,
+    Port,
+    WorkloadRequestV1,
+)
 from stage_gen.components.game_shell.nodes import (
     add_shell_nodes,
     document_clip_roles,
@@ -31,6 +39,11 @@ from stage_gen.components.game_shell.nodes import (
 )
 from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes, document_roles
 from stage_gen.config import StageGenConfig
+from stage_gen.model_routes import (
+    configured_image_route_catalog,
+    configured_image_workload_resolver,
+    image_workload_policies,
+)
 from stage_gen.recipes.graph_document import RecipeGraph
 from stage_gen.recipes.oblique_survival import manifest as manifest_module
 from stage_gen.recipes.oblique_survival import survival_prompts as prompts
@@ -49,11 +62,11 @@ from stage_gen.recipes.oblique_survival.survival_types import (
     FORAGE_VALIDATE,
     GROUND_ADOPT,
     GROUND_CANONICALIZE,
+    GROUND_CANVAS,
     GROUND_GENERATE,
     ICONS_ADOPT,
     ICONS_GENERATE,
     ICONS_VALIDATE,
-    IMAGE_FEATURES,
     ITEM_GENERATE,
     ITEM_VALIDATE,
     MACRO_CANONICALIZE,
@@ -88,6 +101,8 @@ from stage_gen.recipes.oblique_survival.survival_types import (
     SOUND_GENERATE,
     SOUND_VALIDATE,
     SOURCE_LOCK,
+    SPRITE_CANVAS,
+    STRIP_CANVAS,
     STRUCTURED_FEATURES,
     TEMPLATES_DRAW,
     TOOL_LOOP_FEATURES,
@@ -113,7 +128,8 @@ from stage_gen.recipes.oblique_survival.survival_types import (
 from stage_gen.recipes.ports import artifact_port, attempts_port, text_digest
 
 #: The graph document's own version, read by the recipe-substrate contract test.
-OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION = 1
+OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION = 2
+OBLIQUE_SURVIVAL_GRAPH_KIND = "oblique-survival-execution-graph-v2"
 OBLIQUE_SURVIVAL_CACHE_NAMESPACE = "oblique-survival-nodes-v1"
 OBLIQUE_SURVIVAL_CACHE_RECORD_KIND = "oblique-survival-node-cache-v1"
 #: The kind every attempt ledger carries, structured and image alike.
@@ -147,28 +163,10 @@ REJECTS_ROOT: Final = "production/rejected"
 
 
 def oblique_survival_graph_profile(config: StageGenConfig) -> BindingTable:
-    """Every provider route this plan may use, declared before anything runs."""
-
-    if not supports_openai_native_alpha_model(config.openai_image_model):
-        raise ValueError(
-            "oblique-survival requires the verified GPT Image 2.5 Sunburst "
-            "OpenAI native-alpha route"
-        )
+    """Legacy non-image provider routes this plan may use."""
 
     return BindingTable(
         [
-            Binding(
-                operation=ObliqueSurvivalOperationKind.IMAGE_GENERATION,
-                model=ModelRef(model=config.openai_image_model, provider="openai"),
-                resource_id="survival-openai-image",
-                estimated_duration_seconds=90.0,
-                estimated_cost_low_usd=0.18,
-                estimated_cost_high_usd=0.25,
-                features=frozenset(IMAGE_FEATURES),
-                requests_per_minute=config.openai_image_ipm,
-                rate_limit_owner="provider_adapter",
-                verified_on="2026-09-09",
-            ),
             Binding(
                 operation=ObliqueSurvivalOperationKind.STRUCTURED_GENERATION,
                 model=ModelRef(model=config.text_model, provider="openrouter"),
@@ -266,6 +264,7 @@ class _LedgerGraphBuilder(GraphBuilder):
         ports: Sequence[Port] = (),
         card: NodeCard | None = None,
         duration_seconds: float | None = None,
+        workload: WorkloadRequestV1 | None = None,
     ) -> Node:
         declared = tuple(ports)
         if not node_type.is_local:
@@ -285,6 +284,7 @@ class _LedgerGraphBuilder(GraphBuilder):
             ports=declared,
             card=card,
             duration_seconds=duration_seconds,
+            workload=workload,
         )
 
 
@@ -299,9 +299,16 @@ class ObliqueSurvivalGraph(RecipeGraph):
     # base class exists to stop.
     IDENTITY_FIELDS = ("scope",)
     VIEW_FIELDS = ("scope", "package_id", "presentation_profile", "source_digest")
+    CURRENT_SCHEMA_VERSION = OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION
+    CURRENT_KIND = OBLIQUE_SURVIVAL_GRAPH_KIND
+    LEGACY_GRAPH_IDENTITIES = frozenset({(1, "oblique-survival-execution-graph-v1")})
+    ROUTED_OPERATIONS = frozenset({ObliqueSurvivalOperationKind.IMAGE_GENERATION.value})
 
-    schema_version: Literal[1]
-    kind: Literal["oblique-survival-execution-graph-v1"]
+    schema_version: Literal[1, 2]
+    kind: Literal[
+        "oblique-survival-execution-graph-v1",
+        "oblique-survival-execution-graph-v2",
+    ]
     recipe: Literal["oblique-survival"]
     package_id: str
     scope: str
@@ -373,7 +380,13 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
 
     rank = SCOPE_RANK[scope]
     bindings = oblique_survival_graph_profile(config)
-    builder = _LedgerGraphBuilder(profile=bindings)
+    image_catalog = configured_image_route_catalog(config)
+    image_workload = configured_image_workload_resolver(config, catalog=image_catalog)
+    builder = _LedgerGraphBuilder(
+        profile=bindings,
+        route_catalog=image_catalog,
+        workload_policies=image_workload_policies(config.image_provider_override),
+    )
     source_digest = package.source_digest()
     # Every node that carries the style plate digests its bytes, not just its
     # prompt: redrawing the plate must re-bill them, and the prompt text does
@@ -384,6 +397,24 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
         else []
     )
     fire = package.fire
+
+    def planned_image(
+        *,
+        background: Literal["opaque", "transparent"],
+        size: tuple[int, int],
+        reference_count: int,
+        mask_present: bool = False,
+    ) -> WorkloadRequestV1:
+        return image_workload(
+            ImageRouteRequirementsV1(
+                operation_variant="edit" if reference_count else "generation",
+                background=background,
+                output_format="png",
+                size=f"{size[0]}x{size[1]}",
+                reference_count=reference_count,
+                mask_present=mask_present,
+            )
+        )
 
     lock = builder.add(
         SOURCE_LOCK,
@@ -473,6 +504,14 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
                 depends_on=[lock.node_id],
                 cache_depends_on=(),
                 input_digests=[text_digest(prompt), *style_digests],
+                workload=planned_image(
+                    background="transparent",
+                    size=(
+                        prop.sheet.columns * templates.SHEET_CELL_PX,
+                        prop.sheet.rows * templates.SHEET_CELL_PX,
+                    ),
+                    reference_count=len(style_digests),
+                ),
                 card=NodeCard(prompt=prompt),
                 ports=[
                     artifact_port(
@@ -565,6 +604,11 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
                 depends_on=[lock.node_id],
                 cache_depends_on=(),
                 input_digests=[text_digest(prompt), *style_digests],
+                workload=planned_image(
+                    background="transparent",
+                    size=SPRITE_CANVAS,
+                    reference_count=len(style_digests),
+                ),
                 card=NodeCard(prompt=prompt),
                 ports=[
                     artifact_port(
@@ -646,6 +690,11 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
                         params=params,
                         depends_on=[summer],
                         input_digests=[text_digest(prompt), *style_digests],
+                        workload=planned_image(
+                            background="transparent",
+                            size=SPRITE_CANVAS,
+                            reference_count=1 + len(style_digests),
+                        ),
                         card=NodeCard(prompt=prompt),
                         ports=[
                             artifact_port(
@@ -704,6 +753,11 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
             depends_on=[lock.node_id],
             cache_depends_on=(),
             input_digests=[text_digest(prompt), *style_digests],
+            workload=planned_image(
+                background="transparent",
+                size=SPRITE_CANVAS,
+                reference_count=len(style_digests),
+            ),
             card=NodeCard(prompt=prompt),
             ports=[
                 artifact_port(
@@ -765,6 +819,11 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
             description=f"Paint {icons.cell_count} inventory icons into the lattice",
             depends_on=[icons_template.node_id],
             input_digests=[text_digest(icons_prompt), icons_template_digest],
+            workload=planned_image(
+                background="transparent" if templates.LATTICE_TRANSPARENT else "opaque",
+                size=(icons.columns * icons.cell_px, icons.rows * icons.cell_px),
+                reference_count=1,
+            ),
             card=NodeCard(
                 prompt=icons_prompt,
                 template_ref=templates.template_id(icons.columns, icons.rows, icons.cell_px),
@@ -826,6 +885,11 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
                 depends_on=[lock.node_id],
                 cache_depends_on=(),
                 input_digests=[text_digest(prompt), *style_digests],
+                workload=planned_image(
+                    background="opaque",
+                    size=GROUND_CANVAS,
+                    reference_count=len(style_digests),
+                ),
                 card=NodeCard(prompt=prompt),
                 ports=[source_port],
             )
@@ -863,6 +927,11 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
             depends_on=[lock.node_id],
             cache_depends_on=(),
             input_digests=[text_digest(prompt)],
+            workload=planned_image(
+                background="opaque",
+                size=GROUND_CANVAS,
+                reference_count=0,
+            ),
             card=NodeCard(prompt=prompt),
             ports=[
                 artifact_port(
@@ -900,6 +969,11 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
             depends_on=[lock.node_id],
             cache_depends_on=(),
             input_digests=[text_digest(prompt), *style_digests],
+            workload=planned_image(
+                background="opaque",
+                size=GROUND_CANVAS,
+                reference_count=len(style_digests),
+            ),
             card=NodeCard(prompt=prompt),
             ports=[
                 artifact_port(
@@ -938,6 +1012,11 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
             depends_on=[lock.node_id],
             cache_depends_on=(),
             input_digests=[text_digest(prompt), *style_digests],
+            workload=planned_image(
+                background="opaque",
+                size=GROUND_CANVAS,
+                reference_count=len(style_digests),
+            ),
             card=NodeCard(prompt=prompt),
             ports=[
                 artifact_port(
@@ -998,6 +1077,14 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
                 description=f"Paint {forage.cell_count} forage pickups into the lattice",
                 depends_on=[template.node_id],
                 input_digests=[text_digest(prompt), forage_template_digest],
+                workload=planned_image(
+                    background="transparent" if templates.LATTICE_TRANSPARENT else "opaque",
+                    size=(
+                        forage.columns * templates.LATTICE_CELL_PX,
+                        forage.rows * templates.LATTICE_CELL_PX,
+                    ),
+                    reference_count=1,
+                ),
                 card=NodeCard(
                     prompt=prompt, template_ref=templates.template_id(forage.columns, forage.rows)
                 ),
@@ -1035,6 +1122,11 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
                 depends_on=[lock.node_id],
                 cache_depends_on=(),
                 input_digests=[text_digest(prompt), *style_digests],
+                workload=planned_image(
+                    background="transparent",
+                    size=SPRITE_CANVAS,
+                    reference_count=len(style_digests),
+                ),
                 card=NodeCard(prompt=prompt),
                 ports=[
                     artifact_port(
@@ -1088,6 +1180,13 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
                         else []
                     ),
                 ],
+                workload=planned_image(
+                    background="transparent",
+                    size=SPRITE_CANVAS,
+                    reference_count=(
+                        len(style_digests) + (1 if actor.appearance_reference_digest else 0)
+                    ),
+                ),
                 card=NodeCard(prompt=concept_prompt),
                 ports=[
                     artifact_port(
@@ -1123,6 +1222,11 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
                     params=strip_params,
                     depends_on=upstream,
                     input_digests=[text_digest(prompt)],
+                    workload=planned_image(
+                        background="transparent",
+                        size=STRIP_CANVAS,
+                        reference_count=(1 if facing in (None, "front") else 2),
+                    ),
                     card=NodeCard(prompt=prompt),
                     ports=[
                         artifact_port(
@@ -1236,6 +1340,14 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
             description=f"Paint a {fire.frames}-frame flame cycle into the lattice",
             depends_on=[template.node_id],
             input_digests=[text_digest(fire_prompt), template_digest],
+            workload=planned_image(
+                background=("transparent" if templates.LATTICE_TRANSPARENT else "opaque"),
+                size=(
+                    fire.columns * templates.LATTICE_CELL_PX,
+                    fire.rows * templates.LATTICE_CELL_PX,
+                ),
+                reference_count=1,
+            ),
             card=NodeCard(
                 prompt=fire_prompt, template_ref=templates.template_id(fire.columns, fire.rows)
             ),
@@ -1263,6 +1375,11 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
             depends_on=[lock.node_id],
             cache_depends_on=(),
             input_digests=[text_digest(dust_prompt), *style_digests],
+            workload=planned_image(
+                background="transparent",
+                size=SPRITE_CANVAS,
+                reference_count=len(style_digests),
+            ),
             card=NodeCard(prompt=dust_prompt),
             ports=[artifact_port("image", "production/fx/dust.source.png", "fx-dust-source-v1")],
         )
@@ -1374,6 +1491,11 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
                     depends_on=[lock.node_id],
                     cache_depends_on=(),
                     input_digests=[text_digest(drops_prompt)],
+                    workload=planned_image(
+                        background="transparent",
+                        size=SPRITE_CANVAS,
+                        reference_count=0,
+                    ),
                     card=NodeCard(prompt=drops_prompt),
                     ports=[
                         artifact_port(
@@ -1421,6 +1543,11 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
                     depends_on=[lock.node_id],
                     cache_depends_on=(),
                     input_digests=[text_digest(cover_prompt), *style_digests],
+                    workload=planned_image(
+                        background="opaque",
+                        size=GROUND_CANVAS,
+                        reference_count=len(style_digests),
+                    ),
                     card=NodeCard(prompt=cover_prompt),
                     ports=[
                         artifact_port(
@@ -1494,6 +1621,11 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
                         depends_on=[lock.node_id],
                         cache_depends_on=(),
                         input_digests=[text_digest(ice_prompt), *style_digests],
+                        workload=planned_image(
+                            background="opaque",
+                            size=GROUND_CANVAS,
+                            reference_count=len(style_digests),
+                        ),
                         card=NodeCard(prompt=ice_prompt),
                         ports=[ice_port],
                     )
@@ -1534,6 +1666,11 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
                     depends_on=[lock.node_id],
                     cache_depends_on=(),
                     input_digests=[text_digest(splash_prompt), *style_digests],
+                    workload=planned_image(
+                        background="transparent",
+                        size=SPRITE_CANVAS,
+                        reference_count=len(style_digests),
+                    ),
                     card=NodeCard(prompt=splash_prompt),
                     ports=[
                         artifact_port(
@@ -1578,6 +1715,11 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
                     depends_on=[lock.node_id],
                     cache_depends_on=(),
                     input_digests=[text_digest(bolt_prompt), *style_digests],
+                    workload=planned_image(
+                        background="transparent",
+                        size=SPRITE_CANVAS,
+                        reference_count=len(style_digests),
+                    ),
                     card=NodeCard(prompt=bolt_prompt),
                     ports=[
                         artifact_port(
@@ -1791,6 +1933,7 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
             # The three roles every document carries, and the cursor set when this
             # one declares it: the host owns a mouse pointer, so it may.
             roles=document_roles(package.ui),
+            image_workload=image_workload,
         )
 
     # The screens around the game: the opening cinematic, the title screen and the
@@ -1838,6 +1981,7 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
                 *style_digests,
             ],
             roles=document_plate_roles(package.shell),
+            image_workload=image_workload,
         )
 
     # --- close
@@ -1935,6 +2079,7 @@ def build_graph(config: StageGenConfig, package: Package, scope: str) -> Oblique
 
     return ObliqueSurvivalGraph.seal(
         resources=builder.resources(),
+        resolved_routes=builder.resolved_routes(),
         nodes=builder.nodes,
         terminal_node_id=terminal.node_id,
         package_id=package.package_id,
@@ -1951,6 +2096,7 @@ __all__ = [
     "OBLIQUE_SURVIVAL_CACHE_NAMESPACE",
     "OBLIQUE_SURVIVAL_CACHE_RECORD_KIND",
     "OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION",
+    "OBLIQUE_SURVIVAL_GRAPH_KIND",
     "REJECTS_ROOT",
     "SOURCE_LOCK_REF",
     "AnchorPlacement",

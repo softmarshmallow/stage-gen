@@ -10,7 +10,14 @@ from typing import Any
 
 import pytest
 
-from stage_gen.config import StageGenConfig
+from gnode import RouteResolutionError
+from stage_gen.components.game_ui.nodes import UI_SHEET_ROLES
+from stage_gen.config import ConfigError, StageGenConfig
+from stage_gen.image_product import ImageProvider
+from stage_gen.model_routes import (
+    IMAGE_NATIVE_EDIT_POLICY_ID,
+    IMAGE_TRANSPARENT_EDIT_POLICY_ID,
+)
 from stage_gen.recipes.pointclick_room.models import (
     PointClickRoom,
     prove_room_solvable,
@@ -109,7 +116,12 @@ def test_win_flags_must_be_settable() -> None:
 
 def test_the_plan_carries_full_static_prompts_on_every_generation_card() -> None:
     resolved = _resolved_attic()
-    graph = build_pointclick_room_graph(resolved, profile=room_graph_profile(StageGenConfig()))
+    config = StageGenConfig()
+    graph = build_pointclick_room_graph(
+        resolved,
+        profile=room_graph_profile(config),
+        config=config,
+    )
     types = pointclick_type_index()
     for node in graph.nodes:
         assert node.type_id in types
@@ -133,6 +145,89 @@ def test_the_plan_carries_full_static_prompts_on_every_generation_card() -> None
     assert all(node.node_id != "hotspot-workbench-generate" for node in graph.nodes)
 
 
+def test_every_image_node_seals_its_exact_capability_first_route() -> None:
+    resolved = _resolved_attic()
+    config = StageGenConfig()
+    profile = room_graph_profile(config)
+    graph = build_pointclick_room_graph(resolved, profile=profile, config=config)
+
+    assert [binding.operation for binding in profile.bindings] == ["structured_generation"]
+    image_nodes = [node for node in graph.nodes if node.operation == "image_generation"]
+    assert image_nodes
+    assert {node.binding_ref for node in image_nodes} == {
+        snapshot.binding_ref for snapshot in graph.resolved_routes
+    }
+
+    for node in image_nodes:
+        assert node.binding_ref is not None
+        route = graph.resolved_route_for(node)
+        options = route.effective_output_options
+        assert route.operation_variant == "edit"
+        assert options["operation_variant"] == "edit"
+        assert options["quality"] == "max"
+        assert options["quality_goal"] == "maximum_verified"
+        assert options["output_format"] == "png"
+        assert options["mask_present"] is False
+        if node.node_id == "room-backdrop":
+            assert route.policy_id == IMAGE_NATIVE_EDIT_POLICY_ID
+            assert (route.provider, route.model) == (
+                "openai",
+                "gpt-image-2.5-sunburst",
+            )
+            assert options["background"] == "opaque"
+            assert options["size"] == (f"{resolved.room.scene.width}x{resolved.room.scene.height}")
+            assert options["reference_count"] == len(resolved.style_references)
+        elif node.node_id.startswith("ui-"):
+            role = UI_SHEET_ROLES[node.params["role"]]
+            direction = getattr(resolved.ui, role.role)
+            assert route.policy_id == IMAGE_TRANSPARENT_EDIT_POLICY_ID
+            assert (route.provider, route.model) == (
+                "openai",
+                "gpt-image-2.5-sunburst",
+            )
+            assert options["background"] == "transparent"
+            assert options["size"] == f"{role.canvas[0]}x{role.canvas[1]}"
+            assert options["reference_count"] == len(direction.reference_ids) + 1
+        else:
+            assert route.policy_id == IMAGE_TRANSPARENT_EDIT_POLICY_ID
+            assert (route.provider, route.model) == (
+                "openai",
+                "gpt-image-2.5-sunburst",
+            )
+            assert options["background"] == "transparent"
+            assert options["size"] == "1024x1024"
+            assert options["reference_count"] == len(resolved.style_references)
+
+
+def test_one_provider_override_moves_every_image_route_to_fal() -> None:
+    resolved = _resolved_attic()
+    config = StageGenConfig(image_provider_override=ImageProvider.FAL)
+    graph = build_pointclick_room_graph(
+        resolved,
+        profile=room_graph_profile(config),
+        config=config,
+    )
+
+    image_nodes = [node for node in graph.nodes if node.operation == "image_generation"]
+    assert {node.provider for node in image_nodes} == {"fal"}
+    assert {node.model for node in image_nodes} == {"openai/gpt-image-2.5/sunburst"}
+    assert {graph.resolved_route_for(node).route_id for node in image_nodes} == {
+        "image.sunburst.fal.edit"
+    }
+
+
+def test_an_unsupported_provider_override_refuses_without_fallback() -> None:
+    resolved = _resolved_attic()
+    config = StageGenConfig(image_provider_override=ImageProvider.OPENROUTER)
+
+    with pytest.raises(RouteResolutionError, match="not an allowed exact size"):
+        build_pointclick_room_graph(
+            resolved,
+            profile=room_graph_profile(config),
+            config=config,
+        )
+
+
 def test_the_authored_cover_conditions_every_generated_image() -> None:
     """The art direction is an authored file, not a picture the room paints itself.
 
@@ -146,7 +241,12 @@ def test_the_authored_cover_conditions_every_generated_image() -> None:
     cover = resolved.style_references[0]
     assert cover.source == "references/cover.png"
     assert cover.data[:8] == b"\x89PNG\r\n\x1a\n"
-    graph = build_pointclick_room_graph(resolved, profile=room_graph_profile(StageGenConfig()))
+    config = StageGenConfig()
+    graph = build_pointclick_room_graph(
+        resolved,
+        profile=room_graph_profile(config),
+        config=config,
+    )
     assert all("cover" not in node.type_id for node in graph.nodes)
     image_nodes = [node for node in graph.nodes if node.operation == "image_generation"]
     assert image_nodes, "the room generates images"
@@ -203,5 +303,23 @@ def test_dry_run_and_view_round_trip(tmp_path: Path) -> None:
     assert by_id["room-backdrop"].card is not None
     assert by_id["room-puzzle-validate"].archetype == "validate"
     plan = json.loads((run_dir / "execution-plan.json").read_text(encoding="utf-8"))
-    assert plan["kind"] == "pointclick-room-execution-graph-v1"
+    assert plan["kind"] == "pointclick-room-execution-graph-v2"
     assert plan["recipe"] == "pointclick-room"
+    assert plan["resolved_routes"]
+
+
+def test_live_run_requires_the_image_provider_sealed_by_the_plan(tmp_path: Path) -> None:
+    executor = PointClickRoomExecutor(StageGenConfig(open_router_api_key="structured-test-key"))
+    run_dir = tmp_path / "run"
+
+    with pytest.raises(ConfigError, match="OPENAI_API_KEY"):
+        asyncio.run(
+            executor.run(
+                ATTIC,
+                run_dir=run_dir,
+                cache_dir=tmp_path / "cache",
+                invocation_id="room-route-credential-test",
+            )
+        )
+
+    assert not run_dir.exists(), "credential refusal must happen before opening the run"

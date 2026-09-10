@@ -147,20 +147,25 @@ restore the pictures a reviewer had already rejected.
 
 ## Image route
 
-Concept images are opaque compositions, so they bind the opaque route
-(`openai/gpt-image-2.5-sunburst@openrouter`, at `quality="max"`, with the native
-pixel `size` passed through). The route was verified live at every current
-Universe canvas on 2026-09-09: 2560 by 1440, 2560 by 1712, and 1712 by 2560.
-The OpenAI route is reserved for work that needs native alpha. The model is the
-same on both; what differs is alpha support and that OpenRouter reports the
-upstream cost, which the OpenAI images API does not.
+Concept images declare opaque text-to-image, no references or masks, maximum quality, and their
+exact canvas. The checked-in policy therefore selects the OpenRouter Sunburst generation route for
+the current sizes. That surface was verified live on 2026-09-09 at 2560 by 1440, 2560 by 1712, and
+1712 by 2560, and those sizes are in its explicit admission set.
 
-Budget **USD 0.22–0.30 per maximum-quality OpenRouter image** across the current
+Provider is a second, explicit choice. `STAGE_GEN_IMAGE_PROVIDER=openai` or `fal` replans every
+gallery image onto that provider's custom-exact-size Sunburst route; the graph snapshot records the
+chosen surface and effective options, and changing it moves the affected image/cache identities.
+An unsupported provider/size pair is refused before credentials or spend, and runtime never falls
+back to another provider. OpenAI and fal also expose native alpha and masked edits, but Universe
+does not request those capabilities.
+
+For the default route, budget **USD 0.22–0.30 per maximum-quality OpenRouter image** across the current
 Universe dimensions. The exact canaries ranged from $0.227414 to $0.294423;
 other prompts and reference payloads can change token use. Image output for a
 36-image gallery is therefore roughly USD 8–11 before its structured review
 calls. The predecessor whole-run evidence was about USD 12; earlier reporting
-that omitted image usage made the same run look like USD 2.
+that omitted image usage made the same run look like USD 2. An OpenAI or fal override uses that
+route's planner estimate instead of these OpenRouter canary numbers.
 
 ## Running it
 
@@ -222,8 +227,8 @@ semantic run. Regenerate with
   "kind": "universe-semantic-execution-graph-contract-v1",
   "fixture_ref": "library/games/lantern_ferry",
   "phase": "semantic",
-  "graph_schema_version": 1,
-  "topology_sha256": "ef67f5dfad878dd308ce7a481b0f68cdf53b6626355dd186c42e29d6b9831e22",
+  "graph_schema_version": 2,
+  "topology_sha256": "e135e32f015b8418165a50fb0211ae81f0262a3c4656f810d05130fb59464027",
   "node_count": 6,
   "terminal_node_id": "universe-admit",
   "operation_counts": {
@@ -257,8 +262,8 @@ semantic run. Regenerate with
   "admitted_ref": "tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json",
   "phase": "gallery",
   "entity_count": 8,
-  "graph_schema_version": 1,
-  "topology_sha256": "3cdc982dcad3f7bd6b0433bb50c5e61097559e6768fb02eb63d2d41799c2d62c",
+  "graph_schema_version": 2,
+  "topology_sha256": "504d8dac5ee971ddf7eb600c5c3f7390c9d84b03f883df4ed3e42ffa5a54025d",
   "node_count": 42,
   "terminal_node_id": "gallery-close",
   "operation_counts": {
@@ -280,8 +285,8 @@ semantic run. Regenerate with
       "rate_limit_owner": "provider_adapter"
     },
     {
-      "resource_id": "universe-openrouter-image",
-      "max_in_flight": 4,
+      "resource_id": "openrouter-image",
+      "max_in_flight": null,
       "requests_per_minute": 150,
       "rate_limit_owner": "provider_adapter"
     }

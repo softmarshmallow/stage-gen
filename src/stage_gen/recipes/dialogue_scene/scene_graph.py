@@ -27,13 +27,18 @@ from gnode import (
     Binding,
     BindingTable,
     GraphBuilder,
+    ImageRouteRequirementsV1,
     ModelRef,
     NodeCard,
     Port,
     PortRef,
 )
-from gnode.providers.openai import supports_openai_native_alpha_model
 from stage_gen.components.game_ui.nodes import add_ui_atlas_nodes, document_roles
+from stage_gen.model_routes import (
+    configured_image_route_catalog,
+    configured_image_workload_resolver,
+    image_workload_policies,
+)
 from stage_gen.recipes.dialogue_scene.identity import canonical_json_bytes
 from stage_gen.recipes.dialogue_scene.prompts import (
     background_prompt,
@@ -80,13 +85,21 @@ if TYPE_CHECKING:
     from stage_gen.config import StageGenConfig
     from stage_gen.recipes.dialogue_scene.scene_request import ResolvedDialogueScene
 
-DIALOGUE_GRAPH_SCHEMA_VERSION = 5
+DIALOGUE_GRAPH_SCHEMA_VERSION = 6
+DIALOGUE_GRAPH_KIND = "dialogue-scene-execution-graph-v6"
 DIALOGUE_TRACE_SCHEMA_VERSION = 1
 #: The cache tree this recipe's node artifacts live under. Renaming it is the
 #: whole-recipe invalidation lever; per-type levers are the types' own
 #: ``contract_version`` values.
 DIALOGUE_CACHE_NAMESPACE = "dialogue-scene-nodes-v2"
 DIALOGUE_CACHE_RECORD_KIND = "dialogue-scene-node-cache-v2"
+
+SPRITE_WIDTH = 1024
+SPRITE_HEIGHT = 1536
+BACKGROUND_WIDTH = 1672
+BACKGROUND_HEIGHT = 941
+PROVIDER_BACKGROUND_WIDTH = 1680
+PROVIDER_BACKGROUND_HEIGHT = 944
 
 
 class DialogueOperationKind(StrEnum):
@@ -104,16 +117,22 @@ class DialogueSceneGraph(RecipeGraph):
 
     OPERATIONS = DialogueOperationKind
     VIEW_FIELDS = ("game_id", "scene_id")
+    CURRENT_SCHEMA_VERSION = DIALOGUE_GRAPH_SCHEMA_VERSION
+    CURRENT_KIND = DIALOGUE_GRAPH_KIND
+    LEGACY_GRAPH_IDENTITIES = frozenset({(5, "dialogue-scene-execution-graph-v5")})
+    ROUTED_OPERATIONS = frozenset({DialogueOperationKind.IMAGE_GENERATION.value})
 
-    schema_version: Literal[5]
-    kind: Literal["dialogue-scene-execution-graph-v5"]
+    schema_version: Literal[5, 6]
+    kind: Literal[
+        "dialogue-scene-execution-graph-v5",
+        "dialogue-scene-execution-graph-v6",
+    ]
     recipe: Literal["dialogue-scene"]
     game_id: str
     scene_id: str
     request_sha256: str = Field(pattern=SHA256_PATTERN)
 
 
-IMAGE_FEATURES = ("transparent_background", "reference_images")
 #: What the bound route can do, which is not the same as what any one node asks of it:
 #: the plan compiler needs only structured output, while the UI atlas judge is handed the
 #: evidence sheet and so needs image input from the same model.
@@ -123,31 +142,14 @@ MUSIC_FEATURES = ("instrumental_loop",)
 
 
 def dialogue_graph_profile(config: StageGenConfig) -> BindingTable:
-    """Declare the provider routes this plan may use, credentials untouched.
+    """Declare the legacy non-image provider routes this plan may use.
 
     Each entry is one ``model@provider`` route with the features it is known to
     support. A capability whose route does not declare a required feature is refused
     while planning - offline, before any spend.
     """
 
-    if not supports_openai_native_alpha_model(config.openai_image_model):
-        raise ValueError(
-            "dialogue-scene requires the verified GPT Image 2.5 Sunburst OpenAI native-alpha route"
-        )
-
     bindings = [
-        Binding(
-            operation=DialogueOperationKind.IMAGE_GENERATION,
-            model=ModelRef(model=config.openai_image_model, provider="openai"),
-            features=frozenset(IMAGE_FEATURES),
-            resource_id="openai-image",
-            estimated_duration_seconds=120.0,
-            estimated_cost_low_usd=0.18,
-            estimated_cost_high_usd=0.25,
-            requests_per_minute=config.openai_image_ipm,
-            rate_limit_owner="provider_adapter",
-            verified_on="2026-09-09",
-        ),
         Binding(
             operation=DialogueOperationKind.STRUCTURED_GENERATION,
             model=ModelRef(model=config.text_model, provider="openrouter"),
@@ -224,6 +226,7 @@ def build_dialogue_scene_graph(
     scene: ResolvedDialogueScene,
     *,
     profile: BindingTable,
+    config: StageGenConfig,
 ) -> DialogueSceneGraph:
     """Compile one authored request into the exact node graph it implies.
 
@@ -242,7 +245,13 @@ def build_dialogue_scene_graph(
     named by three scenarios is one node, drawn once, and cached once.
     """
 
-    builder = GraphBuilder(profile=profile)
+    route_catalog = configured_image_route_catalog(config)
+    image_workload = configured_image_workload_resolver(config, catalog=route_catalog)
+    builder = GraphBuilder(
+        profile=profile,
+        route_catalog=route_catalog,
+        workload_policies=image_workload_policies(config.image_provider_override),
+    )
     request = scene.request
     style_plate = scene.style_reference
     # The authored plate's digest rides every image node's cache identity, so
@@ -349,6 +358,26 @@ def build_dialogue_scene_graph(
     )
 
     native = request.transparency_mode == "native"
+    backdrop_workload = image_workload(
+        ImageRouteRequirementsV1(
+            operation_variant="edit",
+            background="opaque",
+            output_format="png",
+            size=f"{PROVIDER_BACKGROUND_WIDTH}x{PROVIDER_BACKGROUND_HEIGHT}",
+            aspect_ratio="auto",
+            reference_count=1,
+        )
+    )
+    expression_workload = image_workload(
+        ImageRouteRequirementsV1(
+            operation_variant="edit",
+            background="transparent" if native else "opaque",
+            output_format="png",
+            size=f"{SPRITE_WIDTH}x{SPRITE_HEIGHT}",
+            aspect_ratio="2:3",
+            reference_count=1,
+        )
+    )
     terminal_ids: list[str] = []
 
     # ------------------------------------------------------------------ stages
@@ -363,18 +392,13 @@ def build_dialogue_scene_graph(
             params={"stage": stage.stage_id},
             depends_on=("scene-style-plate",),
             input_digests=(*digests, _brief_digest(stage.brief)),
+            workload=backdrop_workload,
             ports=(
                 artifact_port("image", f"assets/{node_id}.png", BACKDROP_KIND),
-                *(
-                    (
-                        artifact_port(
-                            "provider_raw",
-                            f"raw/{node_id}-provider.png",
-                            PROVIDER_RAW_KIND,
-                        ),
-                    )
-                    if native
-                    else ()
+                artifact_port(
+                    "provider_raw",
+                    f"raw/{node_id}-provider.png",
+                    PROVIDER_RAW_KIND,
                 ),
                 attempts_port(node_id, ATTEMPT_LEDGER_KIND),
             ),
@@ -454,6 +478,7 @@ def build_dialogue_scene_graph(
             params={"actor": actor.actor_id, "state": base.expression_id},
             depends_on=(plan_node, "scene-style-plate"),
             input_digests=actor_digests,
+            workload=expression_workload,
             ports=(
                 artifact_port(
                     "source",
@@ -480,6 +505,7 @@ def build_dialogue_scene_graph(
                 params={"actor": actor.actor_id, "state": expression.expression_id},
                 depends_on=(base_node,),
                 input_digests=actor_digests,
+                workload=expression_workload,
                 ports=(
                     artifact_port("source", f"raw/{slug}-{state}.png", EXPRESSION_SOURCE_KIND),
                     attempts_port(f"actor-{slug}-{state}", ATTEMPT_LEDGER_KIND),
@@ -580,6 +606,7 @@ def build_dialogue_scene_graph(
             direction_digests=(scene.style_reference.sha256,),
             roles=document_roles(scene.ui),
             attempts_port=lambda node_id: attempts_port(node_id, ATTEMPT_LEDGER_KIND),
+            image_workload=image_workload,
         )
     )
 
@@ -603,6 +630,7 @@ def build_dialogue_scene_graph(
 
     return DialogueSceneGraph.seal(
         resources=builder.resources(),
+        resolved_routes=builder.resolved_routes(),
         nodes=builder.nodes,
         terminal_node_id="scene-bundle",
         game_id=request.game_id,
@@ -615,6 +643,7 @@ __all__ = [
     "DIALOGUE_CACHE_NAMESPACE",
     "DIALOGUE_CACHE_RECORD_KIND",
     "DIALOGUE_GRAPH_SCHEMA_VERSION",
+    "DIALOGUE_GRAPH_KIND",
     "DIALOGUE_TRACE_SCHEMA_VERSION",
     "DialogueOperationKind",
     "DialogueSceneGraph",

@@ -9,9 +9,12 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from stage_gen.config import StageGenConfig
+from gnode import RouteResolutionError
+from stage_gen.config import ConfigError, StageGenConfig
+from stage_gen.image_product import ImageProvider
 from stage_gen.recipes.dialogue_scene.identity import canonical_json_bytes, canonical_sha256
 from stage_gen.recipes.dialogue_scene.models import DialogueBundle, DialogueSceneDocument
+from stage_gen.recipes.dialogue_scene.scene_executor import DialogueSceneExecutor
 from stage_gen.recipes.dialogue_scene.scene_graph import (
     DialogueSceneGraph,
     build_dialogue_scene_graph,
@@ -36,8 +39,9 @@ def _resolved(root: Path) -> ResolvedDialogueScene:
 
 
 def _graph(root: Path) -> DialogueSceneGraph:
+    config = StageGenConfig()
     return build_dialogue_scene_graph(
-        _resolved(root), profile=dialogue_graph_profile(StageGenConfig())
+        _resolved(root), profile=dialogue_graph_profile(config), config=config
     )
 
 
@@ -369,6 +373,149 @@ def test_the_authored_plate_is_published_not_generated(tmp_path: Path) -> None:
     assert mio.card is not None and ren.card is not None
     assert len(mio.card.authored_inputs) == 2
     assert len(ren.card.authored_inputs) == 1
+
+
+def test_every_image_node_seals_its_exact_capability_first_route(tmp_path: Path) -> None:
+    """The graph records what runtime sends, including references and UI geometry."""
+
+    root = write_scene_package(tmp_path / "pkg")
+    config = StageGenConfig()
+    profile = dialogue_graph_profile(config)
+    assert "image_generation" not in {str(binding.operation) for binding in profile.bindings}
+
+    graph = build_dialogue_scene_graph(_resolved(root), profile=profile, config=config)
+    images = [node for node in graph.nodes if node.operation == "image_generation"]
+    assert images
+    assert all(node.binding_ref is not None for node in images)
+    assert {node.binding_ref for node in images} == {
+        route.binding_ref for route in graph.resolved_routes
+    }
+
+    backdrop = graph.resolved_route_for("stage-lounge")
+    assert backdrop.provider == "openai"
+    assert backdrop.operation_variant == "edit"
+    assert set(backdrop.required_features) == {
+        "authored_prompt_passthrough",
+        "data_url_reference_input",
+        "exact_size",
+        "maximum_quality",
+        "opaque_background",
+        "png_output",
+        "reference_images",
+    }
+    assert backdrop.required_limits == (("reference_count_max", 1.0),)
+    assert backdrop.effective_output_options == {
+        "aspect_ratio": "auto",
+        "background": "opaque",
+        "input_fidelity": "omitted",
+        "mask_present": False,
+        "moderation": "low",
+        "moderation_goal": "low_when_supported",
+        "operation_variant": "edit",
+        "output_format": "png",
+        "prompt_policy": "authored_verbatim",
+        "quality": "max",
+        "quality_goal": "maximum_verified",
+        "reference_count": 1,
+        "reference_delivery": "data_url",
+        "size": "1680x944",
+    }
+
+    expression_routes = {
+        graph.node(node_id).binding_ref
+        for node_id in (
+            "actor-mio-steady",
+            "actor-mio-glad",
+            "actor-ren-gruff",
+            "actor-ren-amused",
+        )
+    }
+    assert len(expression_routes) == 1
+    expression = graph.resolved_route_for("actor-mio-steady")
+    assert expression.provider == "openai"
+    assert expression.operation_variant == "edit"
+    assert expression.required_limits == (("reference_count_max", 1.0),)
+    assert expression.effective_output_options["aspect_ratio"] == "2:3"
+    assert expression.effective_output_options["background"] == "opaque"
+    assert expression.effective_output_options["size"] == "1024x1536"
+    assert expression.effective_output_options["quality"] == "max"
+    assert expression.effective_output_options["reference_count"] == 1
+    assert expression.effective_output_options["reference_delivery"] == "data_url"
+    assert expression.effective_output_options["mask_present"] is False
+
+    ui_routes = {
+        graph.node(f"ui-{role}-generate").binding_ref
+        for role in ("panel_frame", "button_rect", "preview_icons")
+    }
+    assert len(ui_routes) == 1
+    ui = graph.resolved_route_for("ui-panel_frame-generate")
+    assert ui.provider == "openai"
+    assert ui.operation_variant == "edit"
+    assert ui.required_limits == (("reference_count_max", 2.0),)
+    assert set(ui.required_features) == {
+        "authored_prompt_passthrough",
+        "data_url_reference_input",
+        "exact_size",
+        "maximum_quality",
+        "png_output",
+        "reference_images",
+        "transparent_background",
+    }
+    assert ui.effective_output_options["size"] == "1024x1024"
+    assert ui.effective_output_options["background"] == "transparent"
+    assert ui.effective_output_options["quality"] == "max"
+    assert ui.effective_output_options["reference_count"] == 2
+    assert ui.effective_output_options["reference_delivery"] == "data_url"
+    assert ui.effective_output_options["mask_present"] is False
+
+
+def test_native_image_routes_pin_provider_canvas_and_alpha(tmp_path: Path) -> None:
+    root = write_scene_package(tmp_path / "pkg", transparency_mode="native")
+    graph = _graph(root)
+
+    backdrop = graph.resolved_route_for("stage-lounge")
+    assert backdrop.provider == "openai"
+    assert backdrop.effective_output_options["background"] == "opaque"
+    assert backdrop.effective_output_options["size"] == "1680x944"
+    assert "exact_size" in backdrop.required_features
+
+    for node_id in ("actor-mio-steady", "actor-mio-glad", "actor-ren-gruff"):
+        expression = graph.resolved_route_for(node_id)
+        assert expression.provider == "openai"
+        assert expression.operation_variant == "edit"
+        assert expression.effective_output_options["background"] == "transparent"
+        assert expression.effective_output_options["size"] == "1024x1536"
+        assert expression.effective_output_options["aspect_ratio"] == "2:3"
+        assert expression.effective_output_options["quality"] == "max"
+
+
+def test_executor_requires_the_selected_image_provider_credentials(tmp_path: Path) -> None:
+    root = write_scene_package(tmp_path / "pkg")
+    config = StageGenConfig(
+        open_router_api_key="structured-test-key",
+        image_provider_override=ImageProvider.FAL,
+    )
+    executor = DialogueSceneExecutor(config)
+    plan = executor.plan(root)
+
+    assert {route.provider for route in plan.graph.resolved_routes} == {"fal"}
+    with pytest.raises(ConfigError) as refusal:
+        executor.require_route_credentials(plan.graph)
+    assert refusal.value.missing == ("FAL_KEY",)
+
+
+def test_openrouter_override_refuses_the_first_unsupported_image_without_fallback(
+    tmp_path: Path,
+) -> None:
+    root = write_scene_package(tmp_path / "pkg", transparency_mode="native")
+    config = StageGenConfig(image_provider_override=ImageProvider.OPENROUTER)
+
+    with pytest.raises(RouteResolutionError, match="not an allowed exact size"):
+        build_dialogue_scene_graph(
+            _resolved(root),
+            profile=dialogue_graph_profile(config),
+            config=config,
+        )
 
 
 def test_each_derived_expression_is_its_own_node_off_the_base_plate(tmp_path: Path) -> None:

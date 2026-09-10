@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+from gnode import ImageRouteRequirementsV1
 from stage_gen.components.video_clip import (
     CLIP_REVIEW_CELL_WIDTH,
     CLIP_REVIEW_COLUMNS,
@@ -15,7 +16,7 @@ from stage_gen.components.video_clip import (
     clip_admission_facts,
     clip_sample_times,
 )
-from stage_gen.config import CapabilityName, StageGenConfig, TransparencyMode, assert_capabilities
+from stage_gen.config import StageGenConfig, assert_capabilities
 from stage_gen.media import (
     contact_sheet,
     extract_frame_png,
@@ -23,6 +24,12 @@ from stage_gen.media import (
     measure_motion,
     probe_video,
 )
+from stage_gen.model_routes import (
+    image_policy_id_for,
+    resolve_configured_image_route,
+    sunburst_exact_size_for_aspect_ratio,
+)
+from stage_gen.orchestration.image_routing import require_image_route_credential
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,14 +117,22 @@ async def generate_image_artifact(
     reference_paths: Sequence[str] = (),
     runtime: HeadlessRuntime | None = None,
 ) -> CapabilityArtifactResult:
-    capability = (
-        CapabilityName.NATIVE_IMAGE_GENERATION
-        if config.transparency_mode is TransparencyMode.NATIVE
-        else CapabilityName.IMAGE_GENERATION
-    )
-    assert_capabilities(config, (capability,))
     if not output_path.lower().endswith(".png"):
         raise ValueError("generate-image output must use a .png extension")
+    requirements = ImageRouteRequirementsV1(
+        operation_variant="edit" if reference_paths else "generation",
+        background="opaque",
+        output_format="png",
+        size=sunburst_exact_size_for_aspect_ratio(aspect_ratio),
+        aspect_ratio=aspect_ratio,
+        reference_count=len(reference_paths),
+    )
+    binding = resolve_configured_image_route(
+        config,
+        requirements,
+        policy_id=image_policy_id_for(requirements),
+    )
+    require_image_route_credential(config, binding.route.model.provider)
     owned = None
     if runtime is None:
         from stage_gen.orchestration.runtime import create_headless_runtime

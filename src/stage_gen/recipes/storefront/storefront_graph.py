@@ -26,12 +26,17 @@ from gnode import (
     Binding,
     BindingTable,
     GraphBuilder,
+    ImageRouteRequirementsV1,
     ModelRef,
     NodeCard,
     Port,
     PortRef,
 )
-from gnode.providers.openrouter import supports_openrouter_sunburst_model
+from stage_gen.model_routes import (
+    configured_image_route_catalog,
+    configured_image_workload_resolver,
+    image_workload_policies,
+)
 from stage_gen.recipes.graph_document import RecipeGraph
 from stage_gen.recipes.ports import artifact_port, attempts_port, record_port, text_digest
 from stage_gen.recipes.storefront.storefront_prompts import (
@@ -80,7 +85,8 @@ if TYPE_CHECKING:
     from stage_gen.config import StageGenConfig
     from stage_gen.recipes.storefront.storefront_request import ResolvedStorefront
 
-STOREFRONT_GRAPH_SCHEMA_VERSION = 1
+STOREFRONT_GRAPH_SCHEMA_VERSION = 2
+STOREFRONT_GRAPH_KIND = "storefront-execution-graph-v2"
 STOREFRONT_TRACE_SCHEMA_VERSION = 1
 STOREFRONT_CACHE_NAMESPACE = "storefront-nodes-v1"
 STOREFRONT_CACHE_RECORD_KIND = "storefront-node-cache-v1"
@@ -103,9 +109,13 @@ class StorefrontGraph(RecipeGraph):
 
     OPERATIONS = StorefrontOperationKind
     VIEW_FIELDS = ("storefront_id", "surface_count")
+    CURRENT_SCHEMA_VERSION = STOREFRONT_GRAPH_SCHEMA_VERSION
+    CURRENT_KIND = STOREFRONT_GRAPH_KIND
+    LEGACY_GRAPH_IDENTITIES = frozenset({(1, "storefront-execution-graph-v1")})
+    ROUTED_OPERATIONS = frozenset({StorefrontOperationKind.IMAGE_GENERATION.value})
 
-    schema_version: Literal[1]
-    kind: Literal["storefront-execution-graph-v1"]
+    schema_version: Literal[1, 2]
+    kind: Literal["storefront-execution-graph-v1", "storefront-execution-graph-v2"]
     recipe: Literal["storefront"]
     storefront_id: str
     storefront_sha256: str = Field(pattern=SHA256_PATTERN)
@@ -114,33 +124,14 @@ class StorefrontGraph(RecipeGraph):
     publication_authorized: Literal[False]
 
 
-IMAGE_FEATURES = ("reference_images",)
 STRUCTURED_FEATURES = ("structured_output", "image_input")
 
 
 def storefront_graph_profile(config: StageGenConfig) -> BindingTable:
-    """Declare the provider routes a storefront plan may use, credentials untouched."""
-
-    if not supports_openrouter_sunburst_model(config.image_model):
-        raise ValueError("storefront requires the verified GPT Image 2.5 Sunburst OpenRouter route")
+    """Declare only the storefront's non-image legacy provider routes."""
 
     return BindingTable(
         [
-            Binding(
-                operation=StorefrontOperationKind.IMAGE_GENERATION,
-                # Every surface is opaque, so the route is the opaque one. Native
-                # alpha is the reason to reach for the direct provider, and no
-                # storefront surface has any use for it.
-                model=ModelRef(model=config.image_model, provider="openrouter"),
-                features=frozenset(IMAGE_FEATURES),
-                resource_id="openrouter-image",
-                estimated_duration_seconds=120.0,
-                estimated_cost_low_usd=0.14,
-                estimated_cost_high_usd=0.25,
-                requests_per_minute=config.openrouter_image_ipm,
-                rate_limit_owner="provider_adapter",
-                verified_on="2026-09-09",
-            ),
             Binding(
                 operation=StorefrontOperationKind.STRUCTURED_GENERATION,
                 model=ModelRef(model=config.text_model, provider="openrouter"),
@@ -162,12 +153,20 @@ def node_safe(surface_id: str) -> str:
 def build_storefront_graph(
     resolved: ResolvedStorefront,
     *,
+    config: StageGenConfig,
     profile: BindingTable,
 ) -> StorefrontGraph:
     """Compile one authored storefront package into the exact node graph it implies."""
 
     source = resolved.source
-    builder = GraphBuilder(profile=profile, local_max_in_flight=4)
+    image_catalog = configured_image_route_catalog(config)
+    image_workload = configured_image_workload_resolver(config, catalog=image_catalog)
+    builder = GraphBuilder(
+        profile=profile,
+        route_catalog=image_catalog,
+        workload_policies=image_workload_policies(config.image_provider_override),
+        local_max_in_flight=4,
+    )
     direction_ref = PortRef(node_id="storefront-direction", port_id="direction")
 
     # The references are the whole look. Their digests ride the direction's identity
@@ -285,6 +284,16 @@ def build_storefront_graph(
                     ),
                     text_digest(f"draw:{surface_id}:{draw}"),
                     *reference_digests,
+                ),
+                workload=image_workload(
+                    ImageRouteRequirementsV1(
+                        operation_variant="edit",
+                        background="opaque",
+                        output_format="png",
+                        size=declared.draw_size,
+                        reference_count=len(resolved.references),
+                        mask_present=False,
+                    )
                 ),
                 ports=(artifact_port("image", drawn, DRAWN_SURFACE_KIND),),
                 card=NodeCard(
@@ -412,6 +421,7 @@ def build_storefront_graph(
 
     return StorefrontGraph.seal(
         resources=builder.resources(),
+        resolved_routes=builder.resolved_routes(),
         nodes=builder.nodes,
         terminal_node_id="storefront-close",
         storefront_id=resolved.storefront_id,
@@ -429,6 +439,7 @@ __all__ = [
     "STOREFRONT_CACHE_NAMESPACE",
     "STOREFRONT_CACHE_RECORD_KIND",
     "STOREFRONT_GRAPH_SCHEMA_VERSION",
+    "STOREFRONT_GRAPH_KIND",
     "STOREFRONT_TRACE_SCHEMA_VERSION",
     "StorefrontGraph",
     "StorefrontOperationKind",

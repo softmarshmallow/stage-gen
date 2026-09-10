@@ -167,7 +167,12 @@ class Binding:
 
 
 class BindingTable:
-    """Every provider route one plan is allowed to use, declared in one place."""
+    """Legacy pre-resolved profile with one fixed route per operation.
+
+    New applications that need several provider routes for one product use the
+    route catalog. This table remains the v1 compatibility surface and keeps its
+    one-binding-per-operation behavior.
+    """
 
     def __init__(self, bindings: Sequence[Binding]) -> None:
         operations = [binding.operation for binding in bindings]

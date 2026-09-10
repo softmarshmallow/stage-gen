@@ -62,7 +62,11 @@ class PreparedPackageExecutor(RecipeExecutor[ResolvedGamePackage, ExecutionGraph
         return resolve_game_package(input_path)
 
     def _build(self, resolved: ResolvedGamePackage) -> ExecutionGraph:
-        return build_package_execution_graph(resolved, profile=package_graph_profile(self._config))
+        return build_package_execution_graph(
+            resolved,
+            profile=package_graph_profile(self._config),
+            config=self._config,
+        )
 
     def _type_index(self) -> Mapping[str, NodeType]:
         return platformer_type_index()
@@ -127,8 +131,10 @@ class PreparedPackageExecutor(RecipeExecutor[ResolvedGamePackage, ExecutionGraph
         """Execute exactly the named world targets and their dependency closure."""
 
         assert_safe_path_segment(invocation_id, "invocation_id")
-        self.require(CapabilityName.NATIVE_IMAGE_GENERATION, CapabilityName.STRUCTURED_GENERATION)
+        self.require(CapabilityName.STRUCTURED_GENERATION)
         plan = self.plan(input_path)
+        target_node_ids = targets(plan.graph)
+        self.require_route_credentials(plan.graph, target_node_ids=target_node_ids)
         await self.open_run(plan, run_dir=run_dir)
         async with self.services() as services:
             handler = PreparedWorldNodeHandler(
@@ -145,7 +151,7 @@ class PreparedPackageExecutor(RecipeExecutor[ResolvedGamePackage, ExecutionGraph
                 handler,
                 run_dir=run_dir,
                 invocation_id=invocation_id,
-                targets=targets(plan.graph),
+                targets=target_node_ids,
             )
         return RecipeRun(plan=plan, summary=summary, run_dir=run_dir)
 
@@ -167,8 +173,10 @@ class PreparedPackageExecutor(RecipeExecutor[ResolvedGamePackage, ExecutionGraph
         """
 
         assert_safe_path_segment(invocation_id, "invocation_id")
-        self.require(CapabilityName.NATIVE_IMAGE_GENERATION, CapabilityName.STRUCTURED_GENERATION)
+        self.require(CapabilityName.STRUCTURED_GENERATION)
         plan = self.plan(input_path)
+        target_node_ids = targets(plan.graph)
+        self.require_route_credentials(plan.graph, target_node_ids=target_node_ids)
         await self.open_run(plan, run_dir=run_dir)
         async with self.services() as services:
             handler = PreparedContentNodeHandler(
@@ -185,7 +193,7 @@ class PreparedPackageExecutor(RecipeExecutor[ResolvedGamePackage, ExecutionGraph
                 handler,
                 run_dir=run_dir,
                 invocation_id=invocation_id,
-                targets=targets(plan.graph),
+                targets=target_node_ids,
             )
         return RecipeRun(plan=plan, summary=summary, run_dir=run_dir)
 

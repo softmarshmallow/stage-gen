@@ -5,9 +5,10 @@ from __future__ import annotations
 import asyncio
 import base64
 import hashlib
+import math
 import os
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Protocol, cast
 
@@ -18,15 +19,24 @@ from gnode import (
     ImageGenerationResult,
     ImageGenerationService,
     ImageReference,
+    ImageRouteRequirementsV1,
     InputProvenance,
     ProvenanceInput,
     ProviderResponseMetadata,
+    ResolvedBindingV1,
     SoftwareIdentity,
     build_artifact_provenance,
     serialize_provenance,
 )
-from stage_gen.config import CapabilityName, StageGenConfig, load_config
+from stage_gen.config import StageGenConfig, load_config
 from stage_gen.media import ImageNormalizationRecord, inspect_image, normalize_image_to_png
+from stage_gen.model_routes import (
+    OPENROUTER_SUNBURST_MODEL,
+    image_policy_id_for,
+    resolve_configured_image_route,
+    sunburst_exact_size_for_aspect_ratio,
+)
+from stage_gen.orchestration.image_routing import RoutedImageGenerationService
 from stage_gen.orchestration.runtime import create_image_service
 from stage_gen.provider_env import load_provider_dotenv
 
@@ -59,7 +69,7 @@ def load_concept_config(repository_root: str | Path, *, model: str) -> StageGenC
         values.update(cast(dict[str, str | None], load_provider_dotenv(root / ".env")))
     values.update(os.environ)
     values["STAGE_GEN_IMAGE_MODEL"] = model
-    return load_config(env=values, require=(CapabilityName.IMAGE_GENERATION,))
+    return load_config(env=values)
 
 
 async def generate_concept_image(
@@ -93,17 +103,21 @@ async def generate_concept_image(
         repository_root,
         model=execution.profile.model,
     )
+    sunburst = execution.profile.model == OPENROUTER_SUNBURST_MODEL
     owned_service: ImageGenerationService | None = None
     if service is None:
-        api_key = active_config.open_router_api_key
-        if api_key is None:
-            raise ValueError("missing required environment variable: OPENROUTER_API_KEY")
-        owned_service = create_image_service(
-            api_key=api_key,
-            model=execution.profile.model,
-            base_url=active_config.open_router_base_url or "https://openrouter.ai/api/v1",
-            images_per_minute=active_config.openrouter_image_ipm,
-        )
+        if sunburst:
+            owned_service = RoutedImageGenerationService(active_config)
+        else:
+            api_key = active_config.open_router_api_key
+            if api_key is None:
+                raise ValueError("missing required environment variable: OPENROUTER_API_KEY")
+            owned_service = create_image_service(
+                api_key=api_key,
+                model=execution.profile.model,
+                base_url=active_config.open_router_base_url or "https://openrouter.ai/api/v1",
+                images_per_minute=active_config.openrouter_image_ipm,
+            )
     active_service = service or owned_service
     assert active_service is not None
     try:
@@ -115,13 +129,35 @@ async def generate_concept_image(
             )
             with tempfile.TemporaryDirectory(prefix="stage-gen-concept-image-") as temporary:
                 provider_path = Path(temporary) / "provider-output"
+                binding = None
+                exact_size = None
+                if sunburst:
+                    if execution.quality != "max":
+                        raise ValueError("quality-first Sunburst generation requires quality max")
+                    exact_size = sunburst_exact_size_for_aspect_ratio(execution.aspect_ratio)
+                    requirements = ImageRouteRequirementsV1(
+                        operation_variant="edit" if references else "generation",
+                        background="opaque",
+                        output_format="png",
+                        size=exact_size,
+                        aspect_ratio=execution.aspect_ratio,
+                        reference_count=len(references),
+                    )
+                    binding = resolve_configured_image_route(
+                        active_config,
+                        requirements,
+                        policy_id=image_policy_id_for(requirements),
+                    )
                 request = ImageGenerationRequest(
                     prompt=clean_prompt,
                     artifact_path=provider_path,
                     input_references=references,
                     aspect_ratio=execution.aspect_ratio,
+                    size=exact_size,
                     resolution=execution.resolution,
                     quality=execution.quality,
+                    background="opaque" if sunburst else None,
+                    output_format="png" if sunburst else None,
                     metadata={
                         "contract": "game_concept_image_v1",
                         "concept_id": concept_id,
@@ -130,10 +166,18 @@ async def generate_concept_image(
                     timeout_seconds=active_config.capability_timeout_s,
                     validate=_validate_provider_image,
                     provenance_schema_version=2,
+                    resolved_binding=binding,
                 )
                 generated = await active_service.generate(request)
-                if generated.model != execution.profile.model:
-                    raise ValueError("concept image provider returned an unexpected model identity")
+                expected_identity = (
+                    (binding.route.model.provider, binding.route.model.model)
+                    if binding is not None
+                    else (generated.provider, execution.profile.model)
+                )
+                if (generated.provider, generated.model) != expected_identity:
+                    raise ValueError(
+                        "concept image provider returned an unexpected provider or model identity"
+                    )
                 normalized, normalization = normalize_image_to_png(generated.data)
                 output_facts = inspect_image(normalized, expected_media_type="image/png")
                 source_facts = inspect_image(
@@ -160,6 +204,8 @@ async def generate_concept_image(
                         concept_id,
                         candidate_name,
                         normalization,
+                        source_artifact=source_input,
+                        binding=binding,
                     ),
                     validation={
                         "output_nonempty": True,
@@ -178,11 +224,7 @@ async def generate_concept_image(
                     rights=_unreviewed_rights(),
                 )
                 artifact = BinaryArtifact(data=normalized, media_type="image/png")
-                secrets = (
-                    (active_config.open_router_api_key,)
-                    if active_config.open_router_api_key
-                    else ()
-                )
+                secrets = active_config.secret_values()
                 record = build_artifact_provenance(artifact, provenance, secrets=secrets)
                 _artifact_path, provenance_path = await asyncio.to_thread(
                     _publish_image_pair,
@@ -259,11 +301,15 @@ def _provenance_params(
     concept_id: str,
     candidate_name: str,
     normalization: ImageNormalizationRecord,
+    *,
+    source_artifact: InputProvenance,
+    binding: ResolvedBindingV1 | None,
 ) -> dict[str, object]:
     params: dict[str, object] = {
         "n": 1,
         "aspect_ratio": execution.aspect_ratio,
         "quality": execution.quality,
+        "source_artifact_sha256": source_artifact.sha256,
         "concept_image": {
             "schema_version": 1,
             "concept_id": concept_id,
@@ -273,6 +319,11 @@ def _provenance_params(
     }
     if execution.resolution is not None:
         params["resolution"] = execution.resolution
+    if binding is not None:
+        params["route_binding"] = binding.to_snapshot().model_dump(
+            mode="json",
+            exclude_none=True,
+        )
     return params
 
 
@@ -283,14 +334,28 @@ def _response_record(
     response: dict[str, object] = {
         "media_type": generated.media_type,
         "bytes": len(generated.data),
+        "usage": metadata.usage,
     }
     if metadata.request_id:
         response["request_id"] = metadata.request_id
     if metadata.created is not None:
         response["created"] = metadata.created
-    if metadata.usage is not None:
-        response["usage"] = metadata.usage
+    if metadata.revised_prompt is not None:
+        response["revised_prompt"] = metadata.revised_prompt
+    response["cost_complete"] = _has_complete_cost(metadata.usage)
     return response
+
+
+def _has_complete_cost(usage: object) -> bool:
+    if not isinstance(usage, Mapping):
+        return False
+    cost = usage.get("cost")
+    return (
+        not isinstance(cost, bool)
+        and isinstance(cost, (int, float))
+        and math.isfinite(cost)
+        and cost >= 0
+    )
 
 
 def _unreviewed_rights() -> ArtifactRights:

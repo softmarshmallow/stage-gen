@@ -32,6 +32,7 @@ from gnode import (
     ImageGenerationRequest,
     ImageGenerationService,
     ImageReference,
+    ImageRouteRequirementsV1,
     InputProvenance,
     Node,
     NodeCard,
@@ -51,6 +52,7 @@ from gnode import (
     VideoReference,
     VideoResolution,
     ViewArchetype,
+    WorkloadRequestV1,
     atomic_write_json,
     dependency_port,
     write_artifact_with_provenance_async,
@@ -703,6 +705,7 @@ def add_shell_nodes(
     domain: str = "shell",
     prefix: str = "shell",
     attempts_port: Callable[[str], Port] | None = None,
+    image_workload: Callable[[ImageRouteRequirementsV1], WorkloadRequestV1] | None = None,
 ) -> list[str]:
     """Add one generate/validate/review chain per declared plate.
 
@@ -752,6 +755,21 @@ def add_shell_nodes(
                 geometry_digest,
             ),
             ports=tuple(generate_ports),
+            workload=(
+                None
+                if image_workload is None
+                else image_workload(
+                    ImageRouteRequirementsV1(
+                        operation_variant="edit" if authored else "generation",
+                        background=(
+                            "transparent" if role.alpha_policy == CUTOUT_ALPHA_POLICY else "opaque"
+                        ),
+                        output_format="png",
+                        size=f"{role.layout.canvas[0]}x{role.layout.canvas[1]}",
+                        reference_count=len(authored),
+                    )
+                )
+            ),
             card=NodeCard(prompt=prompt, authored_inputs=authored),
         )
         validated = builder.add(

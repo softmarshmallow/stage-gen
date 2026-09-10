@@ -10,12 +10,14 @@ from gnode import (
     Graph,
     GraphBuilder,
     ImageGenerationRequest,
+    ImageRouteRequirementsV1,
     Node,
     NodeCard,
     NodeType,
     Port,
     PortRef,
     ViewArchetype,
+    WorkloadRequestV1,
     atomic_write_json,
     dependency_port,
 )
@@ -140,6 +142,7 @@ def add_sprite_nodes(
     domain: str = "fx",
     prefix: str = "fx",
     attempts_port: Callable[[str], Port] | None = None,
+    image_workload: Callable[[ImageRouteRequirementsV1], WorkloadRequestV1] | None = None,
 ) -> list[str]:
     """Add the world-space sprite atlases the document declares.
 
@@ -184,6 +187,19 @@ def add_sprite_nodes(
             *(entry.sha256 for entry in authored),
         ),
         ports=tuple(ports),
+        workload=(
+            None
+            if image_workload is None
+            else image_workload(
+                ImageRouteRequirementsV1(
+                    operation_variant="edit" if authored else "generation",
+                    background="transparent",
+                    output_format="png",
+                    size=f"{SPRITE_CANVAS[0]}x{SPRITE_CANVAS[1]}",
+                    reference_count=len(authored),
+                )
+            )
+        ),
         card=NodeCard(
             prompt=style_prompt(dust_content_task(dust.prompt)),
             authored_inputs=authored,

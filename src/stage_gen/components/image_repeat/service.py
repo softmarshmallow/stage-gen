@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 import stat
 import unicodedata
@@ -19,6 +20,7 @@ from gnode import (
     BinaryArtifact,
     InputProvenance,
     ProvenanceInput,
+    ResolvedRouteSnapshotV1,
     RetryContext,
     RetryPolicy,
     SoftwareIdentity,
@@ -36,10 +38,13 @@ from .models import (
     ALPHA_RECONSTRUCTION_ALGORITHM,
     DIRECT_WRAP_ADMISSION_ALGORITHM,
     ENDPOINT_CONDITIONED_REPAIR_ALGORITHM,
+    IMAGE_CONDITIONED_REPAIR_CAPABILITY,
     INTENDED_LOOP_MIN_ACCEPT_CONFIDENCE,
-    MASKED_IMAGE_EDIT_CAPABILITY,
     MAX_IMAGE_REPEAT_PROVIDER_BYTES,
     MAX_IMAGE_REPEAT_SOURCE_BYTES,
+    ImageConditionedRepairBackend,
+    ImageConditionedRepairRequest,
+    ImageConditionedRepairTransport,
     ImageRepeatAdmissionConstruction,
     ImageRepeatAdmissionLineage,
     ImageRepeatAdmissionRequest,
@@ -63,8 +68,6 @@ from .models import (
     IntendedLoopReview,
     IntendedLoopReviewer,
     IntendedLoopReviewRequest,
-    MaskedImageEditBackend,
-    MaskedImageEditRequest,
     ProviderImageRepeatEdit,
     validate_backend_label,
 )
@@ -153,7 +156,7 @@ class ImageRepeatService:
         self,
         reviewer: IntendedLoopReviewer | None = None,
         *,
-        repair_backend: MaskedImageEditBackend | None = None,
+        repair_backend: ImageConditionedRepairBackend | None = None,
         retry_policy: RetryPolicy | None = None,
         tool: SoftwareIdentity = DEFAULT_TOOL,
         now: datetime | None = None,
@@ -166,6 +169,7 @@ class ImageRepeatService:
         self._reviewer_secrets: tuple[str, ...] = ()
         self._repair_provider: str | None = None
         self._repair_model: str | None = None
+        self._repair_transport: ImageConditionedRepairTransport | None = None
         self._repair_secrets: tuple[str, ...] = ()
         if reviewer is not None:
             provider, model, secrets = _validated_backend_identity(reviewer, "reviewer")
@@ -181,10 +185,12 @@ class ImageRepeatService:
                 capability = repair_backend.capability
             except Exception:
                 raise ValueError("image-repeat repair backend capability is invalid") from None
-            if capability != MASKED_IMAGE_EDIT_CAPABILITY:
-                raise ValueError("image-repeat repair requires a masked-image-edit backend")
+            if capability != IMAGE_CONDITIONED_REPAIR_CAPABILITY:
+                raise ValueError("image-repeat repair requires an image.conditioned.repair backend")
+            transport = _validated_repair_transport(repair_backend)
             self._repair_provider = provider
             self._repair_model = model
+            self._repair_transport = transport
             self._repair_secrets = secrets
         self._secrets = tuple(dict.fromkeys((*self._reviewer_secrets, *self._repair_secrets)))
         self._retry_policy = retry_policy
@@ -275,9 +281,13 @@ class ImageRepeatService:
 
         if self._repair_backend is None:
             raise ImageRepeatRepairUnavailableError(
-                "explicit image-repeat repair requires a masked-image-edit backend"
+                "explicit image-repeat repair requires an image.conditioned.repair backend"
             )
-        if self._repair_provider is None or self._repair_model is None:
+        if (
+            self._repair_provider is None
+            or self._repair_model is None
+            or self._repair_transport is None
+        ):
             raise ImageRepeatRepairUnavailableError("image-repeat repair backend is unavailable")
         repair_backend = self._repair_backend
         outputs = await asyncio.to_thread(_resolve_outputs, request)
@@ -299,6 +309,17 @@ class ImageRepeatService:
         attempts = 0
         conditioning_hash = sha256_hex(prepared.conditioning_png)
         mask_hash = sha256_hex(prepared.mask_png)
+        resolved_route = _validated_repair_route(
+            repair_backend.resolve_route(
+                width=prepared.conditioning_width,
+                height=prepared.conditioning_height,
+            ),
+            provider=self._repair_provider,
+            model=self._repair_model,
+            transport=self._repair_transport,
+            width=prepared.conditioning_width,
+            height=prepared.conditioning_height,
+        )
 
         async def attempt(
             context: RetryContext,
@@ -306,7 +327,7 @@ class ImageRepeatService:
             nonlocal attempts
             attempts = context.attempt
             edited = await repair_backend.edit_once(
-                MaskedImageEditRequest(
+                ImageConditionedRepairRequest(
                     prompt=prompt,
                     conditioning_image=prepared.conditioning_png,
                     mask_image=prepared.mask_png,
@@ -329,6 +350,8 @@ class ImageRepeatService:
                     cancellation=context.cancellation,
                 )
             )
+            if edited.resolved_route != resolved_route:
+                raise ValueError("image-repeat provider applied a different resolved route")
             _validate_provider_envelope(edited)
             accepted = await asyncio.to_thread(
                 accept_repair_candidate,
@@ -375,6 +398,8 @@ class ImageRepeatService:
             provider_prompt=prompt,
             provider=self._repair_provider,
             model=self._repair_model,
+            repair_transport=self._repair_transport,
+            resolved_route=resolved_route,
             attempts=attempts,
             rights=rights,
             safe_metadata=safe_metadata,
@@ -402,6 +427,8 @@ class ImageRepeatService:
             provider_candidate=provider_candidate.binding,
             provider=self._repair_provider,
             model=self._repair_model,
+            repair_transport=self._repair_transport,
+            resolved_route=resolved_route,
             attempts=attempts,
         )
         return await self._persist_success(
@@ -858,6 +885,65 @@ def _validated_backend_identity(resource: object, label: str) -> tuple[str, str,
     )
 
 
+def _validated_repair_transport(
+    backend: ImageConditionedRepairBackend,
+) -> ImageConditionedRepairTransport:
+    try:
+        transport = backend.transport
+    except Exception:
+        raise ValueError("image-repeat repair transport is invalid") from None
+    if transport not in {"native_mask_edit", "reference_conditioned_edit"}:
+        raise ValueError("image-repeat repair transport is invalid")
+    return transport
+
+
+def _validated_repair_route(
+    route: ResolvedRouteSnapshotV1,
+    *,
+    provider: str,
+    model: str,
+    transport: ImageConditionedRepairTransport,
+    width: int,
+    height: int,
+) -> ResolvedRouteSnapshotV1:
+    if not isinstance(route, ResolvedRouteSnapshotV1):
+        raise ValueError("image-repeat repair resolved route is invalid")
+    if (route.provider, route.model) != (provider, model):
+        raise ValueError("image-repeat repair backend does not match its resolved route")
+    if route.operation != "image_conditioned_repair":
+        raise ValueError("image-repeat repair requires its dedicated route operation")
+    if route.operation_variant != transport:
+        raise ValueError("image-repeat repair transport must match its route variant")
+    if "conditioned_repair" not in route.required_features:
+        raise ValueError("image-repeat repair route must require conditioned_repair")
+    options = route.effective_output_options
+    if (
+        options.get("quality") != "max"
+        or options.get("background") != "auto"
+        or options.get("output_format") != "png"
+        or options.get("prompt_policy") != "authored_verbatim"
+        or options.get("size") != f"{width}x{height}"
+    ):
+        raise ValueError("image-repeat repair route does not seal the required output policy")
+    exact_size = route.required_exact_size
+    if exact_size is None or (exact_size.width, exact_size.height) != (width, height):
+        raise ValueError("image-repeat repair route does not seal the exact provider canvas")
+    mask_present = options.get("mask_present")
+    reference_count = options.get("reference_count")
+    if transport == "native_mask_edit":
+        if mask_present is not True or reference_count != 1:
+            raise ValueError("native image-repeat repair requires one reference and a mask")
+        if "native_mask_input" not in route.required_features:
+            raise ValueError("native image-repeat repair route must require native_mask_input")
+    elif mask_present is not False or reference_count != 2:
+        raise ValueError(
+            "reference-conditioned image-repeat repair requires two references and no mask"
+        )
+    elif "reference_guidance" not in route.required_features:
+        raise ValueError("reference-conditioned repair route must require reference_guidance")
+    return route
+
+
 def _resolve_rights(
     source_rights: ArtifactRights | None,
     requested: ArtifactRights | None,
@@ -894,10 +980,10 @@ def _safe_metadata(metadata: Mapping[str, object], secrets: tuple[str, ...]) -> 
 def _validate_provider_envelope(edited: ProviderImageRepeatEdit) -> None:
     if not edited.data or len(edited.data) > MAX_IMAGE_REPEAT_PROVIDER_BYTES:
         raise ValueError(
-            f"masked edit output must be from 1 to {MAX_IMAGE_REPEAT_PROVIDER_BYTES} bytes"
+            f"conditioned repair output must be from 1 to {MAX_IMAGE_REPEAT_PROVIDER_BYTES} bytes"
         )
     if edited.media_type.strip().lower() != "image/png":
-        raise ValueError("masked edit provider must return exact image/png")
+        raise ValueError("conditioned repair provider must return exact image/png")
 
 
 def _provider_candidate_evidence(
@@ -909,6 +995,8 @@ def _provider_candidate_evidence(
     provider_prompt: str,
     provider: str,
     model: str,
+    repair_transport: ImageConditionedRepairTransport,
+    resolved_route: ResolvedRouteSnapshotV1,
     attempts: int,
     rights: ArtifactRights,
     safe_metadata: Mapping[str, object],
@@ -951,6 +1039,8 @@ def _provider_candidate_evidence(
                 "context_span_px": request.context_span_px,
                 "repair_span_px": request.repair_span_px,
                 "mask_semantics": "white_edit_black_preserve",
+                "repair_transport": repair_transport,
+                "resolved_route": resolved_route.model_dump(mode="json"),
                 "alpha_reconstruction_algorithm": ALPHA_RECONSTRUCTION_ALGORITHM,
                 "provider_responsibility": "rgb_appearance",
                 "component_responsibility": "alpha_topology_and_endpoint_continuity",
@@ -987,17 +1077,32 @@ def _provider_candidate_evidence(
 
 
 def _provider_response(generation: ProviderImageRepeatEdit) -> dict[str, object]:
+    usage = generation.response_metadata.usage
     response: dict[str, object] = {
         "media_type": "image/png",
         "bytes": len(generation.data),
+        "usage": usage,
+        "cost_complete": _has_complete_cost(usage),
     }
     if generation.response_metadata.request_id:
         response["request_id"] = generation.response_metadata.request_id
     if generation.response_metadata.created is not None:
         response["created"] = generation.response_metadata.created
-    if generation.response_metadata.usage is not None:
-        response["usage"] = generation.response_metadata.usage
+    if generation.response_metadata.revised_prompt is not None:
+        response["revised_prompt"] = generation.response_metadata.revised_prompt
     return response
+
+
+def _has_complete_cost(usage: object) -> bool:
+    if not isinstance(usage, Mapping):
+        return False
+    cost = usage.get("cost")
+    return (
+        not isinstance(cost, bool)
+        and isinstance(cost, (int, float))
+        and math.isfinite(cost)
+        and cost >= 0
+    )
 
 
 def _repair_prompt(request: ImageRepeatRepairRequest) -> str:
@@ -1005,14 +1110,16 @@ def _repair_prompt(request: ImageRepeatRepairRequest) -> str:
     tail = "right" if request.axis == "x" else "bottom"
     head = "left" if request.axis == "x" else "top"
     return (
-        f"Fill only the white-masked middle span of this {direction} conditioning canvas. "
-        f"The black-masked source-{tail} context before it and source-{head} context after it "
-        "are immutable. Paint a complete RGB appearance across every masked pixel, continuing "
+        f"This {direction} conditioning canvas contains source-{tail} context, one middle repair "
+        f"span, and source-{head} context in that order. Its accompanying binary guide uses white "
+        "for the repair span and black for context. Paint a complete RGB appearance through the "
+        "white-guided span, continuing "
         "structures, lighting, texture, orientation, and gravity naturally across both boundaries. "
-        "The provider owns RGB appearance; downstream deterministic processing owns alpha topology "
-        "and exact endpoint continuity, so provider alpha is not authoritative. Do not blur, "
-        "crossfade, mirror, reverse, copy, add borders, rotate, or modify context. Return one PNG "
-        "at the exact input dimensions.\n"
+        "The black-guided context is restored from source pixels after generation. The provider "
+        "owns RGB appearance; downstream deterministic processing owns alpha topology and exact "
+        "endpoint continuity, so provider alpha is not authoritative. Do not blur, crossfade, "
+        "mirror, reverse, copy, add borders, rotate, or deliberately redraw context. Return one "
+        "PNG at the exact input dimensions.\n"
         f"Creative direction: {request.prompt.strip()}"
     )
 
@@ -1226,6 +1333,12 @@ def _repeat_unit_provenance(
                 "context_span_px": construction.context_span_px,
                 "repair_span_px": construction.repair_span_px,
                 "mask_semantics": construction.mask_semantics,
+                "repair_transport": construction.repair_transport,
+                "resolved_route": (
+                    construction.resolved_route.model_dump(mode="json")
+                    if construction.resolved_route is not None
+                    else None
+                ),
                 "endpoint_anchor_algorithm": construction.endpoint_anchor_algorithm,
                 "endpoint_anchor_span_px": construction.endpoint_anchor_span_px,
                 "endpoint_anchors_reimposed": construction.endpoint_anchors_reimposed,

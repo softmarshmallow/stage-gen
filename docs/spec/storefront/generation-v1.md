@@ -63,18 +63,18 @@ pixels.
 | `feature_graphic` | 1024×500 | 2064×1008 | opaque | 8 MiB |
 
 **Every draw edge is a multiple of sixteen**, and the table refuses one that is
-not, at import. The image route requires it and reports it only once a request
-is already in flight, so a bad entry costs six attempts per surface before
-anything explains why — which is what happened the first time this recipe ran
-live. The universe recipe's canvases all satisfy the rule by their own
+not, at import. The generic route contract independently checks edge multiples, area, longest
+edge, aspect, and any provider-specific exact-size allowlist while planning. A bad entry is now
+refused before credentials or spend; the earlier live-only discovery is why both checks exist.
+The universe recipe's canvases all satisfy the rule by their own
 arithmetic, so copying their magnitude without their remainder was not enough.
 The same check bounds ratio drift: a draw canvas more than 0.1% off its ship
 ratio would make the cut a recomposition rather than a trim.
 
 **The two canvases are different columns on purpose.** A storefront refuses a
-picture that is off by one pixel; a provider is not that kind of instrument. The
-image route advertises aspect ratios, and its Sunburst route was verified live
-to honor the requested 1024- and 2560-class dimensions
+picture that is off by one pixel; a provider is not that kind of instrument. Each
+Sunburst route declares its exact-size envelope, and the default OpenRouter surface was verified
+live to honor these requested 1024- and 2560-class dimensions
 ([GPT Image 2.5](../../models/gpt-image-2.5.md)), so the draw canvas is sized to what the
 route draws well at the ship canvas's own ratio, and a deterministic local
 normalization the recipe owns cuts it to exact. When the two are equal that step
@@ -179,10 +179,13 @@ chain below it. Nothing downstream changes; the change is one node type.
 
 | Operation | Route | Why |
 | --- | --- | --- |
-| `image_generation` | `openai/gpt-image-2.5-sunburst@openrouter`, feature `reference_images` | every surface is opaque; the route was verified at `quality="max"` with an input reference, and native alpha remains the reason to reach for direct OpenAI |
+| `image_generation` | GPT Image 2.5 Sunburst, opaque reference-conditioned generation at `quality="max"`; OpenRouter by default | every draw size is in OpenRouter's verified exact-size set; OpenAI or fal may be selected for the same provider-neutral workload with `STAGE_GEN_IMAGE_PROVIDER` |
 | `structured_generation` | the text model at `openrouter`, features `structured_output` and `image_input` | the direction compiler and the reviewer are both handed pictures |
 
-A full first run of the fixture package is four images and six structured calls.
+The provider switch is applied while building a new plan, and every image node records the exact
+route snapshot it will dispatch. Unsupported capability/size combinations fail offline; a missing
+key or provider failure never triggers fallback. A full first run of the fixture package is four
+images and six structured calls.
 
 ## Executable graph contract
 
@@ -195,8 +198,8 @@ after any change to the surface table, the fan-out or the routes.
   "kind": "storefront-execution-graph-contract-v1",
   "fixture_ref": "library/games/ember-hollow",
   "surface_count": 4,
-  "graph_schema_version": 1,
-  "topology_sha256": "8d942f3197cf2c2b269fad13bb20c746b074106d2aec0b5ddfab79a91ed7d30b",
+  "graph_schema_version": 2,
+  "topology_sha256": "96938313988c40bfd9bed3e94bb7434d0eeb3c7f53cb23d403ffa374d5260b32",
   "node_count": 28,
   "terminal_node_id": "storefront-close",
   "operation_counts": {
@@ -212,16 +215,16 @@ after any change to the surface table, the fan-out or the routes.
       "rate_limit_owner": "none"
     },
     {
-      "resource_id": "openrouter-image",
-      "max_in_flight": null,
-      "requests_per_minute": 150,
-      "rate_limit_owner": "provider_adapter"
-    },
-    {
       "resource_id": "openrouter-structured",
       "max_in_flight": null,
       "requests_per_minute": null,
       "rate_limit_owner": "none"
+    },
+    {
+      "resource_id": "openrouter-image",
+      "max_in_flight": null,
+      "requests_per_minute": 150,
+      "rate_limit_owner": "provider_adapter"
     }
   ]
 }

@@ -33,7 +33,11 @@ IRON_PETAL_NODE_COUNT = 109
 # The GPT Image 2.5 Sunburst/max migration deliberately moved 84 of 109 keys:
 # all 39 image operations, seven structured and two tool-loop consumers, and 36
 # local descendants. Topology and the other 25 keys are unchanged.
-IRON_PETAL_TOPOLOGY_SHA256 = "3f422fd796608aa3ed379023446019c0700d5e41ef417714877baa615bfc3700"
+# Re-pinned for capability-first image routing: all 39 image nodes now seal exact route and
+# output-option identity, and their cache descendants move with that intentional provenance.
+# Re-pinned when generic exact-size admission refused to claim that OpenRouter accepts the
+# runner's custom production canvases. Those nodes now bind the checked OpenAI route.
+IRON_PETAL_TOPOLOGY_SHA256 = "f634afc9c267d21b68e091c09eebaeafcae85b5b713ac3fa3b2a63b4105f6ff9"
 
 
 def test_planning_iron_petal_reproduces_its_pinned_identity() -> None:
