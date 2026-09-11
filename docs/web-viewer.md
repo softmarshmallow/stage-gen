@@ -25,7 +25,7 @@ the scene and the case together, and
 which was the last and by far the largest. What each of those sections described — the runtime
 manifest a genre parses, its scene, its rules, its bot — is now the business of that genre's host
 and is documented with it; the platformer's is
-[`godot/hosts/sideview_platformer/README.md`](../godot/hosts/sideview_platformer/README.md).
+[`godot/runtime/hosts/sideview_platformer/README.md`](../godot/runtime/hosts/sideview_platformer/README.md).
 
 Nothing under `web/` imports a game engine, and `package.json` names none. Publishing a run — tag
 immutability, `--replace-output`, cache authority and the closure record — belongs to the pipeline

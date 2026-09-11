@@ -77,7 +77,7 @@ it removes the spelling failure mode entirely.
 A package that composites any string declares the face it is set in, and a title screen
 always composites one, because it carries the game's own name. Without a declared face
 the host sets that name in whatever the player's machine happens to have: today
-`godot/hosts/oblique_survival/hud/ui_kit.gd` builds a `SystemFont` over a monospace
+`godot/runtime/hosts/oblique_survival/hud/ui_kit.gd` builds a `SystemFont` over a monospace
 stack, and nothing under `godot/` loads a `FontFile` at all.
 
 The face lives at `library/games/<game_id>/fonts/`, its licence text beside it, and its
@@ -492,7 +492,7 @@ directly. And a loading tip is chosen with the **seeded generator**, never the w
 so a replay of the same seed shows the same tip.
 
 The loading screen has one honest prerequisite: a host-side preload pass. Today
-`godot/hosts/common/run_dir.gd` caches "images and audio on first use", so a run's
+`godot/runtime/hosts/common/run_dir.gd` caches "images and audio on first use", so a run's
 textures decode during play. A progress bar drawn over a lazy loader is a fake, and the
 fraction it shows must come from a real pass over the closure the manifest enumerates.
 

@@ -126,8 +126,8 @@ The `sideview-runner` sibling resolves the same prepared-package container but
 owns reaction-fair authored segment admission, structural-ground or atlas
 presentation, a combined avatar state machine, auto-run difficulty, pickups,
 hazards, and runner audio. It emits `sideview-runner-runtime-v13`; the fixed-step
-consumer under `godot/genres/sideview_runner/` owns the simulation and its host
-under `godot/hosts/sideview_runner/` owns camera, collision, streaming, and play
+consumer under `godot/runtime/genres/sideview_runner/` owns the simulation and its host
+under `godot/runtime/hosts/sideview_runner/` owns camera, collision, streaming, and play
 presentation. Its [runner specification](game/runner.md) owns the
 exact contracts and machine-checked graph snapshot.
 
@@ -144,7 +144,7 @@ cursor-driven hotspots, an inventory, and a puzzle declared as data and proven
 finishable before any generation is paid for. Its
 [room specification](game/pointclick-room.md) owns the authored
 `pointclick-room-v3` contract, the graph, and the `pointclick-room-runtime-v3`
-manifest `godot/hosts/pointclick_room/` draws from.
+manifest `godot/runtime/hosts/pointclick_room/` draws from.
 
 The `oblique-survival` sibling recipe packages one survival world seen from a
 fixed elevated-oblique perspective camera: billboard cards on a ground plane,
@@ -163,7 +163,7 @@ consumer or in-game assets.
 
 Every genre that plays a conversation walks the same machine. The village
 dialogue box in the platformer and the visual-novel scene are two presentations
-of one ordered cursor over beats, kept in `godot/families/scenario/` free of any
+of one ordered cursor over beats, kept in `godot/runtime/families/scenario/` free of any
 engine, manifest, or genre vocabulary — each consumer owns only how it draws
 the ends. That boundary is what lets a conversation become a node later without
 either genre owning the answer. The [scenario contract](game/scenario.md)

@@ -172,7 +172,7 @@ def test_host_consumer_lookup_matches_the_authoritative_packaged_contract() -> N
     # own project, so the drift this guards against is exactly as possible as
     # it was, and the assertion only changed which file it points at.
     repository = Path(__file__).parents[4]
-    consumer = (repository / "godot/families/sideview/terrain/lookup.json").read_bytes()
+    consumer = (repository / "godot/runtime/families/sideview/terrain/lookup.json").read_bytes()
     authoritative = terrain_atlas_lookup_path().read_bytes()
     assert consumer == authoritative
 

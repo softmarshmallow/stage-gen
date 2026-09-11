@@ -18,7 +18,7 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).parents[2]
 HOST_CONTRACT = REPOSITORY_ROOT / "docs/spec/game/host-contract.md"
 HOST_MANUAL = REPOSITORY_ROOT / "docs/godot-host.md"
-GODOT_ROOT = REPOSITORY_ROOT / "godot"
+GODOT_ROOT = REPOSITORY_ROOT / "godot/runtime"
 
 
 def _templates() -> list[Path]:

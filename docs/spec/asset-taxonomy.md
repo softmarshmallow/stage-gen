@@ -92,10 +92,10 @@ the old names.
 | the recipe's actor steps | new in the survival pass | `2d/obliqueview/survival/actor_concept`, `.../motion_atlas`, `.../motion_rebase` | c — the four-way facing set, billboard strip geometry, ground-contact measurement |
 | the recipe's world steps | new in the survival pass | `2d/obliqueview/survival/item_*`, `.../prop_*`, `.../season_look`, `.../weather_*`, `.../world_layout` | d — pickups and their icons, prop states and their interaction art, the season looks, the weather layers, and the algorithmic layout |
 | `godot` | new in the survival pass | consumer host for `2d/obliqueview/survival` | d |
-| `godot/genres/sideview_platformer` | was web/lib/sideview-platformer, retired in the Godot pass | consumer adapter for `2d/sideview/platformer` | d |
-| `godot/genres/pointclick_room` | was web/lib/pointclick, retired in the Godot pass | consumer adapter for `2d/roomview/pointclick` | d |
-| `godot/genres/dialogue_scene` | was web/lib/dialogue-scene, retired in the Godot pass | consumer adapter for `2d/frontview/vn/scene` | d |
-| `godot/families/scenario` | promoted out of the scene when a second genre asked for it | the agnostic conversation core both genres walk | a |
+| `godot/runtime/genres/sideview_platformer` | was web/lib/sideview-platformer, retired in the Godot pass | consumer adapter for `2d/sideview/platformer` | d |
+| `godot/runtime/genres/pointclick_room` | was web/lib/pointclick, retired in the Godot pass | consumer adapter for `2d/roomview/pointclick` | d |
+| `godot/runtime/genres/dialogue_scene` | was web/lib/dialogue-scene, retired in the Godot pass | consumer adapter for `2d/frontview/vn/scene` | d |
+| `godot/runtime/families/scenario` | promoted out of the scene when a second genre asked for it | the agnostic conversation core both genres walk | a |
 | `components/actor_content` | new in the runner pass | `2d/actor_content` | b — shared drawn-actor blocks (references, motion playback) |
 | `components/runner_gameplay` | new in the runner pass | `2d/sideview/runner/gameplay` | d |
 | `components/runner_track` | new in the runner pass | `2d/sideview/runner/track` | d — authored tiled segments over the shared side-view stage |
@@ -104,8 +104,8 @@ the old names.
 | `components/sideview_actor` | lifted from the platformer recipe | `2d/sideview/actor` | c — magnitude, strip geometry, rebase admission |
 | `components/sideview_stage` | lifted from `platformer_map` in the engineering pass | `2d/sideview/stage` | c — the view, continuity, reference, layer and ground blocks both side-view genres author; the runner stopped importing the platformer's map for them |
 | `components/sideview_layers` | lifted from the platformer recipe | `2d/sideview/loop_x` | c — the horizontal-loop layer contract |
-| `godot/kernel` | was web/lib/kernel, retired in the Godot pass; `game-systems` until runtime step 1 | the agnostic runtime substrate every genre may seal against | a — sealed system protocol, frame event queue, and the bounded-resource gauge; no genre, no engine, and deliberately not named after health |
-| `godot/families/hud/gauge_bar.gd` | was web/lib/families/hud/gauge-bar.ts, retired in the Godot pass; `sideview/gauge-bar.ts` until runtime step 6 | shared side-view presentation | c — one capsule widget, placed by its caller in world or screen space |
+| `godot/runtime/kernel` | was web/lib/kernel, retired in the Godot pass; `game-systems` until runtime step 1 | the agnostic runtime substrate every genre may seal against | a — sealed system protocol, frame event queue, and the bounded-resource gauge; no genre, no engine, and deliberately not named after health |
+| `godot/runtime/families/hud/gauge_bar.gd` | was web/lib/families/hud/gauge-bar.ts, retired in the Godot pass; `sideview/gauge-bar.ts` until runtime step 6 | shared side-view presentation | c — one capsule widget, placed by its caller in world or screen space |
 
 The modality components (image, structured, music, background removal) left
 this table in the same change series: they are `gnode` ring-1 material — see

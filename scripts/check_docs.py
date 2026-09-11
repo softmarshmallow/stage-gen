@@ -149,7 +149,15 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         *[path for path in governance if path.exists()],
         *[path for path in (repo / "VERIFICATION.md", repo / "DESIGN.md") if path.exists()],
         *_walk_files(repo / "docs", frozenset({".md"})),
-        *_walk_files(repo / "godot", frozenset({".md"})),
+        # `godot/games/playground` is the presentation workspace that predates the
+        # monorepo tiers. Its guardrails require absolute launch commands and its
+        # records cite local workspace files; it was never in this walk and is not
+        # promoted documentation. The runtime and the packages are.
+        *[
+            path
+            for path in _walk_files(repo / "godot", frozenset({".md"}))
+            if "godot/games/playground/" not in path.as_posix()
+        ],
         *concept_markdown,
     ]
     failures: list[str] = []

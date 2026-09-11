@@ -45,11 +45,11 @@ runtime adapter; generated runs never silently become schema authority.
 
 ### Code-authored visual novels
 
-The [Game Presentation SDK](presentation-playground/addons/game_presentation/README.md)
+The [Game Presentation SDK](godot/games/playground/addons/game_presentation/README.md)
 is a separate Godot canary toolkit for camera, actor, Manpu, particle, text and
-audio presentation. Its [starter and complete examples](presentation-playground/README.md)
+audio presentation. Its [starter and complete examples](godot/games/playground/README.md)
 use ordinary Godot code and host-owned UI. The source-only starter works without
-generation or example artwork; [packaging instructions](presentation-playground/PACKAGING.md)
+generation or example artwork; [packaging instructions](godot/games/playground/PACKAGING.md)
 cover installation and external prepared content. Scenario support remains an
 experimental secondary path.
 

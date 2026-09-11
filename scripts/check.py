@@ -101,8 +101,8 @@ def steps(python: str = sys.executable, *, scratch: Path) -> tuple[Step, ...]:
         # A missing engine is a failure here, not a skip. That is the whole
         # point of the step: a gate that quietly does nothing when the tool is
         # absent is the gate that let a port ship undrawn.
-        Step((python, "godot/tools/make_fixture_run.py", str(scratch / "godot-run"))),
-        Step((python, "godot/tools/run_suite.py", "--run", str(scratch / "godot-run"))),
+        Step((python, "godot/runtime/tools/make_fixture_run.py", str(scratch / "godot-run"))),
+        Step((python, "godot/runtime/tools/run_suite.py", "--run", str(scratch / "godot-run"))),
         Step((python, "scripts/check_docs.py")),
         Step((python, "scripts/write_model_policy_snapshot.py")),
         Step((python, "-m", "build", "--no-isolation")),

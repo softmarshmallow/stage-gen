@@ -86,7 +86,7 @@ src/stage_gen/recipes/sideview_platformer/
   review_criteria.py                   recipe-owned actor-facing criteria
   executor.py                          canonicalization, facing review, regeneration
 
-godot/hosts/sideview_platformer/                    consumer-owned runtime geometry and placement
+godot/runtime/hosts/sideview_platformer/                    consumer-owned runtime geometry and placement
 ```
 
 The current actor-facing review deliberately reuses `StructuredGenerationService`; the generic
@@ -94,7 +94,7 @@ component knows only the strict schema, prompt, references, persistence, and pro
 `review_criteria.py` owns the side-view platformer meanings of `right`, `front`, and which stages
 carry a facing requirement.
 
-Runtime-specific measurements remain in `godot/hosts/sideview_platformer/`. They are consumer decisions and are
+Runtime-specific measurements remain in `godot/runtime/hosts/sideview_platformer/`. They are consumer decisions and are
 not promoted into the recipe-neutral media or component layers.
 
 ### Future topology

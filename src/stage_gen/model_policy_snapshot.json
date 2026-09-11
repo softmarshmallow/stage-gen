@@ -38,7 +38,7 @@
     {
       "check_id": "runner_graph_contract",
       "expected_state_sha256": "b007767c8ed097d1d6f8e656a3d078007cf4da84cd22003f6cbd130ff16c6974",
-      "file_sha256": "2bb4f790db047778e9506bc913b8155d656b0d8e2c1a418736a041a161b73f12",
+      "file_sha256": "608ef283e5fad142746fee2c648406360d61dc2f699d38ca06399cecbacd3608",
       "observed_state_sha256": "b007767c8ed097d1d6f8e656a3d078007cf4da84cd22003f6cbd130ff16c6974",
       "path": "docs/spec/game/runner.md"
     },

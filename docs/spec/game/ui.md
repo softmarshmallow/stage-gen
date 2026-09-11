@@ -351,7 +351,7 @@ Five games draw from the sheets today, each played by its own Godot host:
 The survival host is the one consumer outside `web/`: it reads the same `ui`
 block off its run manifest, downsamples each sheet by `draw_scale` at load and
 slices it with Godot's own nine-patch stylebox under the published insets and
-band fill (`godot/hosts/oblique_survival/hud/ui_kit.gd`). It draws no `inventory_panel`
+band fill (`godot/runtime/hosts/oblique_survival/hud/ui_kit.gd`). It draws no `inventory_panel`
 — its pack is not eight slots — and paints its slot wells from code inside the
 generated frame until a panel-plus-slot composition replaces the drawn panel
 ([TODO](../../../TODO.md), "Game UI"). Its pointer is the `cursor_set`: each cell

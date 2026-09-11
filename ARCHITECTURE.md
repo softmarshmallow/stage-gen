@@ -39,18 +39,19 @@ src/stage_gen/interfaces/     argparse CLI, the only automation surface
 src/stage_gen/resources/      wheel-packaged recipe resources
 library/games/                source-checkout or external authored package workspace
 web/                          optional browser run viewer and asset inspector
-godot/                        Godot 4.7 hosts, one project, one template per
-                              genre: the consumer that loads a published run
-                              directory, plays it, and starts no generation
-docs/                         contracts, operations, research, and policy
-presentation-playground/      code-authored presentation SDK development and examples
-  addons/game_presentation/   independent Godot canary SDK; no game or provider imports
-  starter_source/             source-only host template; assembled with the same addon
+godot/                        Godot 4.7 monorepo: packages, templates, games
+  runtime/                    the run consumer: one project, one host per genre,
+                              loads a published run directory, starts no generation
+  packages/game_presentation/ the presentation SDK as an addon project; consumers
+                              link its addons/game_presentation into their own
+  games/playground/           Afterlight, Command Link and the Lab in one project,
+                              consuming the SDK through that link; starter_source
+                              is assembled with the same payload
 ```
 
 Arrows below point from an importer to the layer it imports:
 
-The [Game Presentation SDK](presentation-playground/addons/game_presentation/README.md)
+The [Game Presentation SDK](godot/games/playground/addons/game_presentation/README.md)
 is Godot-native and separate from gnode and the generated-run runtime families.
 Its hosts own story, complete UI, content policy and choreography. Its optional
 local loader accepts prepared media without invoking generation. Scenario is

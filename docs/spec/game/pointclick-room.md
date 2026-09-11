@@ -4,7 +4,7 @@
 
 > **Contract maturity: exact-current for the authored contract, the pipeline,
 > and the runtime manifest.** Executable authority:
-> `src/stage_gen/recipes/pointclick_room/` and `godot/genres/pointclick_room/`.
+> `src/stage_gen/recipes/pointclick_room/` and `godot/runtime/genres/pointclick_room/`.
 
 The third recipe on the engine, at taxonomy path `2d/roomview/pointclick`
 (`roomview` ≜ `screen_space_room_stage_v1` in the
@@ -153,8 +153,8 @@ generated one), the win condition, the three interface roles with the geometry
 the gate measured on each sheet, and a digest-bound closure of every
 published artifact — the republished cover and all three sheets included.
 
-The consumer (`godot/genres/pointclick_room/` for the rules,
-`godot/hosts/pointclick_room/` for the picture) plays the room from this
+The consumer (`godot/runtime/genres/pointclick_room/` for the rules,
+`godot/runtime/hosts/pointclick_room/` for the picture) plays the room from this
 document alone: one canvas, sized to the authored frame plus a HUD band, scaled
 to whatever window it lands in. Backdrop, hotspot sprites, narration panel,
 inventory and verb controls are all drawn **inside that canvas** — nothing

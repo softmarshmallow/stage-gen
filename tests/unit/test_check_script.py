@@ -65,10 +65,12 @@ def test_offline_gate_removes_provider_credentials_and_lists_required_checks() -
     fixture = [
         command
         for command in commands
-        if command[:2] == ("python", "godot/tools/make_fixture_run.py")
+        if command[:2] == ("python", "godot/runtime/tools/make_fixture_run.py")
     ]
     suite = [
-        command for command in commands if command[:2] == ("python", "godot/tools/run_suite.py")
+        command
+        for command in commands
+        if command[:2] == ("python", "godot/runtime/tools/run_suite.py")
     ]
     assert len(fixture) == 1, "the gate no longer writes the Godot fixture run"
     assert len(suite) == 1, "the Godot suite is no longer in the gate"

@@ -1,0 +1,17 @@
+; Development project for the Game Presentation SDK package alone.
+; The installable payload is addons/game_presentation; consumers install that
+; directory, or link it, never this project.
+config_version=5
+
+[application]
+config/name="Game Presentation SDK"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/description="Package project for the game_presentation addon: payload, checks and tests."
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=900
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

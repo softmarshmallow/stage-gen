@@ -1,4 +1,4 @@
-"""The Godot project's layers point inward, and only a host touches the engine.
+"""The runtime project's layers point inward, and only a host touches the engine.
 
 `docs/spec/game/host-contract.md` states the rule; this is what makes it true. The
 browser runtime it replaced called an equivalent test "the whole enforcement" and never
@@ -27,7 +27,10 @@ import re
 from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-GODOT_ROOT = REPOSITORY_ROOT / "godot"
+#: The run consumer. The tiers beside it (`packages/`, `templates/`, `games/`) are
+#: separate projects; only the link rule below applies to them.
+GODOT_TREE = REPOSITORY_ROOT / "godot"
+GODOT_ROOT = GODOT_TREE / "runtime"
 
 #: Directories that hold simulation, in the order they may be named from.
 INNER_LAYERS = ("kernel", "families", "genres")
@@ -248,3 +251,41 @@ def test_every_script_carries_its_uid() -> None:
         if not path.with_suffix(".gd.uid").exists()
     ]
     assert not missing, f"scripts with no .uid sidecar: {missing}"
+
+
+def test_a_project_links_only_package_payloads() -> None:
+    """A game or template never contains a package. It links `addons/<name>` to
+    `packages/<name>/addons/<name>`; anything else under `addons/` is either a real
+    directory the project owns or a link that would smuggle one project into another."""
+
+    offences: list[str] = []
+    for tier in ("games", "templates"):
+        tier_root = GODOT_TREE / tier
+        if not tier_root.is_dir():
+            continue
+        for project in sorted(p for p in tier_root.iterdir() if p.is_dir()):
+            addons = project / "addons"
+            if not addons.is_dir():
+                continue
+            for entry in sorted(addons.iterdir()):
+                if not entry.is_symlink():
+                    continue
+                expected = GODOT_TREE / "packages" / entry.name / "addons" / entry.name
+                if entry.resolve() != expected.resolve() or not expected.is_dir():
+                    offences.append(
+                        f"{entry.relative_to(GODOT_TREE).as_posix()} -> {entry.readlink()}"
+                    )
+    assert not offences, f"links that do not point at a package payload: {offences}"
+
+
+def test_a_package_carries_its_payload_and_project() -> None:
+    """A package is an addon project: `project.godot` beside `addons/<name>/`, so the
+    payload can be opened and checked without any game."""
+
+    packages = GODOT_TREE / "packages"
+    missing = []
+    for package in sorted(p for p in packages.iterdir() if p.is_dir()):
+        for required in ("project.godot", f"addons/{package.name}"):
+            if not (package / required).exists():
+                missing.append(f"{package.name}/{required}")
+    assert not missing, f"packages missing their project or payload: {missing}"

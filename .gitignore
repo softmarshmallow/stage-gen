@@ -207,10 +207,9 @@ local/
 # tracked file and belongs in the tree with it. Signing identities and
 # encryption keys live in export_credentials.cfg, which is machine-specific;
 # the presets themselves declare the build and are tracked with it.
-/godot/.godot/
 /godot/**/.godot/
-/godot/build/
-/godot/export_credentials.cfg
+/godot/**/build/
+/godot/**/export_credentials.cfg
 /library/games/ember-hollow/ground/*.take.png.meta.json
 /library/games/ember-hollow/items/*.take.png.meta.json
 /library/games/ember-hollow/weather/*.take.png.meta.json

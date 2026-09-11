@@ -225,8 +225,8 @@ Start here for the headless, general-purpose system:
   — unratified COCO-based sparse landmark vocabulary, face region, image/crop
   geometry, explicit scale references and consumer ownership; VLM-only evaluation
   proposed, with implementation and annotation deliberately deferred.
-- [Game Presentation SDK](../presentation-playground/addons/game_presentation/README.md)
-  — implemented code-first Godot canary addon, with [starter and packaging](../presentation-playground/PACKAGING.md).
+- [Game Presentation SDK](../godot/games/playground/addons/game_presentation/README.md)
+  — implemented code-first Godot canary addon, with [starter and packaging](../godot/games/playground/PACKAGING.md).
   Complete example UI/story remain host-owned; Scenario is experimental.
 - [Game Presentation SDK — successor design](research/game-presentation-sdk-design.md)
   — code-first portable Godot SDK, starter/example ownership, 36 feature groups,

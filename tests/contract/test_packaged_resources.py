@@ -201,7 +201,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         } <= wheel_entries.keys()
         assert any(name.endswith(".dist-info/METADATA") for name in wheel_entries)
         assert any(name.endswith(".dist-info/entry_points.txt") for name in wheel_entries)
-        assert not any(name.startswith("presentation-playground/") for name in wheel_entries)
+        assert not any(name.startswith("godot/") for name in wheel_entries)
         assert not any(name.startswith("tests/") for name in wheel_entries)
         assert not any(name.startswith("library/") for name in wheel_entries)
         assert not any(name.startswith("concept-studio/") for name in wheel_entries)
@@ -294,7 +294,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # library/ and are not even in git, let alone the archive.
         # The Godot suite entering the locked gate (2026-09-09) takes it by 4,359 B: the
         # archive measured 9,804,359. Of the 88,802 B added, 57,732 B is
-        # godot/tools/make_fixture_run.py - the hand-authored survival package the gate
+        # godot/runtime/tools/make_fixture_run.py - the hand-authored survival package the gate
         # writes for the suite to read, media and all, because out/ is gitignored and a
         # fresh clone has no run - 8,936 B is decision 0068, and the rest is the two
         # tiers across sixteen test files. The ceiling is 9,900,000. Nothing the
@@ -324,7 +324,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # starter, assets and its scoped tests remain outside this Python sdist;
         # retain the compressed/media caps and about 49 KB of text headroom.
         assert sum(sdist_entries.values()) - sdist_snapshot_size < 11_070_000
-        assert not any(name.startswith("presentation-playground/") for name in sdist_entries)
+        assert not any(name.startswith("godot/") for name in sdist_entries)
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert sdist_entries.keys() >= {f"src/{name}" for name in PORTRAIT_FACE_MODULES}
         assert not any(name.startswith("library/") for name in sdist_entries)

@@ -9,8 +9,8 @@
 > `src/stage_gen/components/runner_audio/`, and the runner member resolution
 > in `src/stage_gen/recipes/sideview_runner/validation.py`. The generation
 > recipe lives in `src/stage_gen/recipes/sideview_runner/`, the playable
-> simulation in `godot/genres/sideview_runner/` and its host in
-> `godot/hosts/sideview_runner/` (decision 0065). The browser runner it replaced
+> simulation in `godot/runtime/genres/sideview_runner/` and its host in
+> `godot/runtime/hosts/sideview_runner/` (decision 0065). The browser runner it replaced
 > is gone; `web/` lists and inspects a runner run and plays none.
 
 The infinite runner is a genre member of the `game-contract-v9` container

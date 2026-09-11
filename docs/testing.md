@@ -15,12 +15,12 @@ All routine verification is credential-free. Provider-backed tests carry the
 | CLI boundary | `uv run pytest tests/integration -q` |
 | Wheel-packaged resources | `uv run pytest tests/contract/test_packaged_resources.py -q` |
 | Import architecture | `uv run pytest tests/contract/test_import_boundaries.py -q` |
-| Godot hosts | `python3 godot/tools/run_suite.py --run <run directory>` |
+| Godot hosts | `python3 godot/runtime/tools/run_suite.py --run <run directory>` |
 | Formatting and lint | `uv run ruff format --check . && uv run ruff check .` |
 | Strict typing | `uv run mypy --strict src tests scripts` |
 
 The Godot row runs inside the locked gate below too, against a fixture run the
-gate writes itself with `godot/tools/make_fixture_run.py` — `out/` is not in the
+gate writes itself with `godot/runtime/tools/make_fixture_run.py` — `out/` is not in the
 repository, so a fresh clone has no run to point it at. Naming a real run with
 `--run` adds the assertions pinned to that run's own counts, which the fixture
 cannot carry and which the suite names rather than drops. It proves the host's
