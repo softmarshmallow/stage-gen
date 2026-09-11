@@ -1,0 +1,27 @@
+# Game source is tracked; generated working files and media bytes stay local.
+/.godot/
+/build/
+/export_credentials.cfg
+/art/
+/captures/
+*.import
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.mp4
+*.webm
+*.ogv
+*.ogv.uid
+*.wav
+*.mp3
+*.ogg
+
+# Keep repeatable suites and review notes, not captures or run output.
+/tests/**
+!/tests/**/
+!/tests/**/*.gd
+!/tests/**/*.gd.uid
+!/tests/**/*.md
+!/tests/.gdignore
+!/tests/python/*.py

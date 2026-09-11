@@ -3,8 +3,8 @@
 > **Status: P106 design, implemented as a local canary package in P107.**
 > Reviewed 2026-09-11 against the exact P01–P106 request archive, current Godot
 > source and component contracts. P106 was documentation-only; see the current
-> [SDK](../../godot/games/playground/addons/game_presentation/README.md) and
-> [packaging](../../godot/games/playground/PACKAGING.md) for P107 implementation.
+> [SDK](../../godot/packages/game_presentation/addons/game_presentation/README.md) and
+> [packaging](../../godot/packages/game_presentation/docs/PACKAGING.md) for P107 implementation.
 > The development folder keeps its existing name; addon installation uses the
 > proposed fixed path. No stable/public release or anatomy ratification is claimed.
 
@@ -116,18 +116,18 @@ template ownership. These are design dispositions, not completed migrations.
 | F35 | Story, cast, camera direction and emotional sequences | **Host/example**. | All approved scenes and alternate replies remain Afterlight content. Villain arrival and the transmission are compositions of F01–F34, not modules named after scenes. |
 | F36 | Generation, budgets, art approval and request history | **Tooling/assets/history**, outside the runtime package. | Manual CLI preparation and provenance remain useful; the SDK imports no provider, generation recipe or secret loader. |
 
-Current source anchors: [animation](../../godot/games/playground/presentation/animation/README.md),
-[focus](../../godot/games/playground/presentation/focus/README.md),
-[Manpu](../../godot/games/playground/presentation/manpu/README.md),
-[exits](../../godot/games/playground/presentation/transitions/README.md),
-[handoff](../../godot/games/playground/presentation/transitions/CAST_TRANSITIONS.md),
-[camera contracts](../../godot/games/playground/TOPOLOGY.md#component-contracts),
-[fields](../../godot/games/playground/presentation/effects/SCREEN_FIELDS.md),
-[particles](../../godot/games/playground/presentation/effects/SPRITE_PARTICLE_EMITTER.md),
-[burst](../../godot/games/playground/presentation/effects/SPRITE_BURST.md),
-[audio](../../godot/games/playground/presentation/narrative/TEXT_REVEAL_AUDIO.md),
-[voice processing](../../godot/games/playground/presentation/audio/VOICE_PROCESSING.md),
-[contact](../../godot/games/playground/presentation/interaction/README.md).
+Current source anchors: [animation](../../godot/packages/game_presentation/addons/game_presentation/motion/ANIMATION.md),
+[focus](../../godot/packages/game_presentation/addons/game_presentation/actors/ACTOR_FOCUS.md),
+[Manpu](../../godot/packages/game_presentation/addons/game_presentation/actors/MANPU.md),
+[exits](../../godot/packages/game_presentation/addons/game_presentation/actors/CHARACTER_EXIT.md),
+[handoff](../../godot/packages/game_presentation/addons/game_presentation/actors/CAST_TRANSITIONS.md),
+[camera contracts](../../godot/packages/game_presentation/history/TOPOLOGY.md#component-contracts),
+[fields](../../godot/packages/game_presentation/addons/game_presentation/effects/SCREEN_FIELDS.md),
+[particles](../../godot/packages/game_presentation/addons/game_presentation/effects/particles/SPRITE_PARTICLE_EMITTER.md),
+[burst](../../godot/packages/game_presentation/addons/game_presentation/effects/particles/SPRITE_BURST.md),
+[audio](../../godot/packages/game_presentation/addons/game_presentation/audio/TEXT_REVEAL_AUDIO.md),
+[voice processing](../../godot/packages/game_presentation/addons/game_presentation/audio/VOICE_PROCESSING.md),
+[contact](../../godot/packages/game_presentation/addons/game_presentation/interaction/POINT_CONTACT.md).
 These describe implemented local contracts, not already-installed SDK exports.
 
 ## 4. Package topology and dependency direction
@@ -213,10 +213,10 @@ the implementation is distributed as source.
 
 ### What stays outside the SDK payload
 
-The existing integrated [stage](../../godot/games/playground/presentation/stage.gd),
-[stage profile](../../godot/games/playground/presentation/stage_profile.gd),
-[actor overlay](../../godot/games/playground/presentation/actor_overlay.gd),
-[opening](../../godot/games/playground/presentation/opening.gd), tactical theme,
+The existing integrated [stage](../../godot/games/command_link/presentation/stage.gd),
+[stage profile](../../godot/games/command_link/presentation/stage_profile.gd),
+[actor overlay](../../godot/games/command_link/presentation/actor_overlay.gd),
+[opening](../../godot/games/command_link/presentation/opening.gd), tactical theme,
 curve-graph widget, menus and QA capture adapters are concrete consumers.
 Their current directory name does not make them reusable SDK code. Stage Profile
 mixes art, dialogue, preview copy and tactical roles; it is not the universal
@@ -324,9 +324,9 @@ registry belongs in this first SDK.
 
 Current adaptations needed before packaging are concrete:
 
-1. Replace hardcoded example media roots in [Afterlight's root](../../godot/games/playground/games/bishoujo_afterlight/root.gd)
+1. Replace hardcoded example media roots in [Afterlight's root](../../godot/games/afterlight/root.gd)
    with supplied bindings; keep the cast/story choices in that host.
-2. Remove the fixed shared-art catalog dependency from the [cast presenter](../../godot/games/playground/games/bishoujo_afterlight/cast_stage.gd).
+2. Remove the fixed shared-art catalog dependency from the [cast presenter](../../godot/games/afterlight/cast_stage.gd).
    Do not disguise named sigh/gloom attachment offsets as universal anatomy.
 3. Let any retained example loader accept the selected content backend instead
    of requiring every catalog texture to be a project-local PNG.
@@ -410,7 +410,7 @@ logic remains outside its scope.
 
 P106 identified the following bounded implementation sequence. P107 implements
 steps 1–4 and the SDK entry-point/support-record part of step 5; the current
-[verification record](../../godot/games/playground/QA.md#sdk-package-and-content-boundary-p107)
+[verification record](../../godot/packages/game_presentation/history/QA.md#sdk-package-and-content-boundary-p107)
 records actual evidence. Legacy retirement is still a separate change.
 
 1. **Package existing mechanisms.** Move eligible code with shaders/includes,

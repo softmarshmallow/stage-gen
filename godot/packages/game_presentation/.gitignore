@@ -1,0 +1,10 @@
+/.godot/
+/build/
+# Keep repeatable suites and review notes, not captures or run output.
+/tests/**
+!/tests/**/
+!/tests/**/*.gd
+!/tests/**/*.gd.uid
+!/tests/**/*.md
+!/tests/.gdignore
+!/tests/python/*.py

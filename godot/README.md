@@ -1,21 +1,26 @@
 # The Godot tree
 
-One directory of Godot 4.7 projects, in three tiers. The rule is in the
-[topology proposal](../docs/research/game-presentation-sdk-topology.md); this
-tree is its first enforcement, dogfooded by the next game rather than by
-rebuilding the existing ones.
+One directory of Godot 4.7 projects in three tiers, plus the legacy run consumer.
+The rule is in the [topology proposal](../docs/research/game-presentation-sdk-topology.md).
 
 ```text
-packages/    shared code. Each package is an addon project: project.godot,
-             the payload at addons/<name>/, its own tests and tools.
-templates/   agnostic starting points, one per recipe; each plays a run of
-             its recipe and is what a branded game is copied from. (none yet)
-games/       branded games. Complete, free to consume any package, consumed
-             by nothing.
-runtime/     the existing run consumer, moved here intact: one project with a
-             host per genre. Its README is the operating manual. It will be
-             carved into packages/game_runtime and templates/<recipe> later.
+packages/    shared code. Each package is an addon project: project.godot, the
+             payload at addons/<name>/, its own tests, tools and history.
+templates/   agnostic starting points, one per recipe. A branded game is copied
+             from one; each plays that recipe's content and nothing branded.
+games/       branded games. Complete, free to consume any package, consumed by
+             nothing.
+runtime/     legacy: the generated-run consumer, one project with a host per
+             recipe, moved here intact. Its README is its manual.
 ```
+
+| Project | What it is | Run it |
+| --- | --- | --- |
+| [`packages/game_presentation/`](packages/game_presentation/README.md) | the presentation SDK: camera, actors, Manpu, transitions, effects, text, audio and contact for staged 2D scenes | `python3 godot/packages/game_presentation/tools/check_sdk_package.py` |
+| [`templates/vn/`](templates/vn/README.md) | The Signal Room: the agnostic visual-novel starting point, one editable `main.gd` | `Godot --path godot/templates/vn` |
+| [`games/afterlight/`](games/afterlight/README.md) | Bishōjo: Afterlight, *The Address Beyond*: a 57-beat ensemble adventure with its own Lab | `Godot --path godot/games/afterlight -- --language ko` |
+| [`games/command_link/`](games/command_link/README.md) | Command Link: a tactical commander-led story with a video opening and its own Lab | `Godot --path godot/games/command_link` |
+| [`runtime/`](runtime/README.md) | legacy run consumer | `Godot --path godot/runtime -- --run <absolute run directory>` |
 
 A game or template never contains a package. It links the payload into its own
 `addons/` directory:
@@ -25,12 +30,11 @@ games/<id>/addons/<name> -> ../../../packages/<name>/addons/<name>
 ```
 
 Godot follows the link and Git tracks it; a checkout on Windows needs symlink
-support. The starter assembler copies real bytes at the ship boundary, so a
-shipped project carries no link. `tests/contract/test_godot_boundaries.py`
-refuses a link that points anywhere but a package payload.
+support. The package's assembler copies real bytes when it builds a new project
+from a template, so a shipped project carries no link.
+`tests/contract/test_godot_boundaries.py` refuses a link that points anywhere but
+a package payload and requires every package to carry its project and payload.
 
-| Project | Run it |
-| --- | --- |
-| `runtime/` | `Godot --path godot/runtime -- --run <absolute run directory>`; see [runtime/README.md](runtime/README.md) |
-| `games/playground/` | `Godot --path godot/games/playground -- --game bishoujo_afterlight --language ko`; see [games/playground/README.md](games/playground/README.md) |
-| `packages/game_presentation/` | `python3 godot/packages/game_presentation/tools/check_sdk_package.py`; see [its README](packages/game_presentation/README.md) |
+Every project owns its `project.godot`, canvas, renderer and main scene; suites
+sit in each project's `tests/` and run with
+`Godot --headless --path <project> --script res://tests/<suite>.gd`.

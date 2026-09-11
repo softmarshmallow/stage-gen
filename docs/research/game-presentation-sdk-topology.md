@@ -34,10 +34,10 @@ godot/                                   not a Godot project; a directory of pro
 │   ├── game_presentation/               the presentation SDK
 │   │   ├── project.godot
 │   │   ├── README.md  API.md  sdk.json  LICENSE
-│   │   ├── addons/game_presentation/    (godot/games/playground/addons/game_presentation) unchanged payload:
+│   │   ├── addons/game_presentation/    (godot/packages/game_presentation/addons/game_presentation) unchanged payload:
 │   │   │                                motion, actors, camera, transitions, effects, text, audio,
 │   │   │                                interaction, content; component contracts beside their scripts
-│   │   ├── tests/                       (godot/games/playground/qa) the controller suites only:
+│   │   ├── tests/                       (godot/games/command_link/tests) the controller suites only:
 │   │   │                                actor_focus, cast_transition, character_exit, eye_transition,
 │   │   │                                manpu, layer_pan, sprite burst, emitter, halo, corruption, contact,
 │   │   │                                local_content, hologram defaults …
@@ -51,7 +51,7 @@ godot/                                   not a Godot project; a directory of pro
 │       └── tests/                       (godot/runtime/tests) world, matrix_*, survival_roster, drops, craft, weather …
 │
 ├── templates/                           agnostic; one per recipe; plays a run of its recipe; copy one to brand it
-│   ├── vn/                              (godot/games/playground/starter_source) The Signal Room
+│   ├── vn/                              (godot/templates/vn/) The Signal Room
 │   │   ├── project.godot                1280×900, GL Compatibility
 │   │   ├── addons/game_presentation → ../../../packages/game_presentation/addons/game_presentation
 │   │   ├── main.tscn  main.gd           one master composition, editable
@@ -80,7 +80,7 @@ godot/                                   not a Godot project; a directory of pro
 │   └── case/                            plays the room's and the scene's leaves from game_runtime; case_capture, case_parity
 │
 └── games/                               branded; complete; free to consume any package; nothing else may consume them
-    ├── afterlight/                      (godot/games/playground/games/bishoujo_afterlight)
+    ├── afterlight/                      (godot/games/afterlight)
     │   ├── project.godot                1280×900, GL Compatibility; the game owns its canvas and renderer
     │   ├── README.md  AUTOPLAY.md  ACTOR_BLOCKING.md  CAST_PAN.md  CONTENT.md
     │   ├── addons/game_presentation → ../../../packages/game_presentation/addons/game_presentation
@@ -89,18 +89,18 @@ godot/                                   not a Godot project; a directory of pro
     │   ├── text/                        en.json, ko.json, STORY_REVIEW.md
     │   ├── voice/                       voice_policy.gd, cast.json, voices.json, manifest.json, reports; no clips
     │   ├── assets/                      catalog.json, placeholders.json; image bytes ignored
-    │   ├── content/                     (godot/games/playground/art) rounds, prompts, records, REVIEW.md,
+    │   ├── content/                     (godot/games/command_link/art/) rounds, prompts, records, REVIEW.md,
     │   │                                ACTIVE.json tracked; raw, previews, voiceovers-p95/clips ignored
     │   ├── lab/                         (games/presentation_lab/afterlight) the thirteen studies, a --lab route
     │   ├── tests/                       afterlight_*, autoplay, *_integration, external_content checks
     │   └── tools/                       prepare_afterlight_voice.py, prepare_example_content.py, AFTERLIGHT_VOICE_PREPARATION.md
-    ├── command_link/                    (godot/games/playground/games/command_link)
+    ├── command_link/                    (godot/games/command_link)
     │   ├── project.godot
     │   ├── addons/game_presentation → …
     │   ├── main.tscn  root.gd  game.gd  menu.gd  menu.tscn
     │   ├── stage.gd  stage_profile.gd  actor_overlay.gd  opening.gd  opening.tscn  motion_curve_graph.gd
-    │   │                                (godot/games/playground/presentation) its integration code
-    │   ├── assets/                      (godot/games/playground/assets) layout.json, locations/, manpu/, opening/; bytes ignored
+    │   │                                (godot/games/command_link/presentation/) its integration code
+    │   ├── assets/                      (godot/games/command_link/assets/) layout.json, locations/, manpu/, opening/; bytes ignored
     │   ├── lab/                         (games/presentation_lab tactical + demos/) the eleven studies
     │   └── tests/                       route_checks, route_option_checks, command_link_content_checks, composition_checks
     └── ember_hollow/                    the branded survival game
@@ -120,7 +120,7 @@ web/                      the run viewer for recipes without a host (universe, s
 docs/spec/game/           host contract: governs templates/ and the survival package
 docs/spec/presentation/   composition, terminology, character effects, content root, packaging
 tests/contract/           test_godot_boundaries.py rescoped per tier; test_packaged_resources.py renamed path
-godot/games/playground/  dissolved into packages, templates and games
+godot/games/command_link/  dissolved into packages, templates and games
 ```
 
 ## 2. Anatomy of a project, by tier
@@ -163,7 +163,7 @@ packages/*   --> declared packages             never a template, never a game
 1. Move today's `godot/` project down to `godot/runtime/` intact; repoint the
    boundary test and run commands. `godot/` stops being a project.
 2. Land `packages/game_presentation`, `templates/vn`, `games/afterlight`,
-   `games/command_link` from `godot/games/playground/`; delete it. Commit the
+   `games/command_link` from `godot/games/command_link/`; delete it. Commit the
    staged P107 work first.
 3. Carve `packages/game_runtime` out of `runtime/`; give each template its
    own project; `runtime/` disappears.

@@ -3,7 +3,7 @@
 > **Checked by:** `tests/contract/test_host_docs.py`, `tests/contract/test_godot_boundaries.py`
 
 **Applicability:** this contract governs the generated-run runtime under `godot/runtime/`.
-The separate [Game Presentation SDK](../../../godot/games/playground/addons/game_presentation/README.md)
+The separate [Game Presentation SDK](../../../godot/packages/game_presentation/addons/game_presentation/README.md)
 and its code-authored example hosts have their own Godot-native boundary. They do
 not enter the engine-free family layer or require a published-run document. That
 separate SDK does not change these runtime contracts or generation recipes.
