@@ -1,0 +1,17 @@
+{
+  "touch_point": [
+    0.712890625,
+    0.517578125
+  ],
+  "touch_radius": 0.027994791666666668,
+  "touch_image_size": [
+    1536,
+    1024
+  ],
+  "touch_point_pixels": [
+    1095,
+    530
+  ],
+  "touch_radius_pixels": 43,
+  "note": "Measured on the bare index fingertip pad in the tactical-v2 Mira contact sprite."
+}

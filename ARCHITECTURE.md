@@ -43,9 +43,18 @@ godot/                        Godot 4.7 hosts, one project, one template per
                               genre: the consumer that loads a published run
                               directory, plays it, and starts no generation
 docs/                         contracts, operations, research, and policy
+presentation-playground/      code-authored presentation SDK development and examples
+  addons/game_presentation/   independent Godot canary SDK; no game or provider imports
+  starter_source/             source-only host template; assembled with the same addon
 ```
 
 Arrows below point from an importer to the layer it imports:
+
+The [Game Presentation SDK](presentation-playground/addons/game_presentation/README.md)
+is Godot-native and separate from gnode and the generated-run runtime families.
+Its hosts own story, complete UI, content policy and choreography. Its optional
+local loader accepts prepared media without invoking generation. Scenario is
+secondary and experimental; it does not define the SDK's behavior vocabulary.
 
 ```text
 interfaces    --imports----------> orchestration

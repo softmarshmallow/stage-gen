@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "presets": [
+    {"id": "none", "label": "None", "duration_seconds": 0, "tracks": {}},
+    {
+      "id": "shake",
+      "label": "Shake",
+      "duration_seconds": 0.36,
+      "tracks": {"offset_y_ratio": [[0, 0], [0.12, -0.08], [0.28, 0.07], [0.44, -0.05], [0.6, 0.035], [0.76, -0.02], [0.9, 0.01], [1, 0]]}
+    },
+    {
+      "id": "scale_pulse",
+      "label": "Scale pulse",
+      "duration_seconds": 0.3,
+      "tracks": {"scale": [[0, 1], [0.45, 1.12], [1, 1]]}
+    },
+    {
+      "id": "fade_in",
+      "label": "Fade in",
+      "duration_seconds": 0.2,
+      "tracks": {"opacity": [[0, 0], [1, 1]]}
+    },
+    {
+      "id": "sigh_puff",
+      "label": "Sigh Puff",
+      "duration_seconds": 0.65,
+      "tracks": {
+        "offset_x_ratio": [[0.0, 0.0], [1.0, 0.8]],
+        "offset_y_ratio": [[0.0, 0.0], [1.0, -0.35]],
+        "scale": [[0.0, 0.65], [0.22, 1.05], [1.0, 1.05]],
+        "opacity": [[0.0, 0.0], [0.1, 1.0], [0.38, 0.95], [1.0, 0.0]]
+      }
+    },
+    {
+      "id": "step_loop",
+      "label": "Stepped transform loop",
+      "duration_seconds": 0.8,
+      "playback": "loop",
+      "interpolation": "step",
+      "tracks": {
+        "rotation_degrees": [[0.0, 0.0], [0.5, 30.0], [1.0, 0.0]],
+        "scale": [[0.0, 1.0], [0.5, 0.8], [1.0, 1.0]]
+      }
+    },
+    {
+      "id": "frame_loop",
+      "label": "Sprite frame loop",
+      "duration_seconds": 0.6,
+      "playback": "loop",
+      "interpolation": "step",
+      "tracks": {}
+    },
+    {
+      "id": "sweat_drop_fall",
+      "label": "Sweat Drop Fall",
+      "duration_seconds": 0.75,
+      "tracks": {
+        "offset_y_ratio": [[0.0, 0.0], [1.0, 0.95]],
+        "scale": [[0.0, 0.65], [0.15, 0.85], [1.0, 0.85]],
+        "opacity": [[0.0, 0.0], [0.1, 1.0], [0.45, 1.0], [1.0, 0.0]]
+      }
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "manpu": [
+    {
+      "id": "surprise",
+      "label": "Surprise",
+      "file": "res://assets/manpu/surprise.png",
+      "meaning": "A sudden realization or unexpected arrival."
+    },
+    {
+      "id": "confusion",
+      "label": "Confusion",
+      "file": "res://assets/manpu/confusion.png",
+      "meaning": "Uncertainty or a puzzled question."
+    },
+    {
+      "id": "sweat_drop",
+      "label": "Sweat drop",
+      "file": "res://assets/manpu/sweat_drop.png",
+      "meaning": "Awkwardness, embarrassment, or a nervous admission."
+    },
+    {
+      "id": "anger_vein",
+      "label": "Anger vein",
+      "file": "res://assets/manpu/anger_vein.png",
+      "meaning": "Comic irritation or restrained frustration."
+    },
+    {
+      "id": "sparkle",
+      "label": "Sparkle",
+      "file": "res://assets/manpu/sparkle.png",
+      "meaning": "Delight, admiration, or eager attention."
+    },
+    {
+      "id": "heart",
+      "label": "Heart",
+      "file": "res://assets/manpu/heart.png",
+      "meaning": "Warm affection or heartfelt appreciation."
+    },
+    {
+      "id": "gloom_lines",
+      "label": "Gloom lines",
+      "file": "res://assets/manpu/gloom_lines.png",
+      "meaning": "Dismay, dejection, or a rueful realization."
+    },
+    {
+      "id": "sigh",
+      "label": "Sigh",
+      "file": "res://assets/manpu/sigh.png",
+      "meaning": "A small exhale of relief or resignation."
+    },
+    {
+      "id": "sigh_puff",
+      "label": "Sigh Puff",
+      "file": "res://assets/manpu/sigh_puff.png",
+      "meaning": "A brief breath of relief or resignation; persistent artwork or an explicitly emitted one-shot."
+    }
+  ]
+}

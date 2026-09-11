@@ -1,0 +1,362 @@
+{
+  "schema_version": 1,
+  "name": "game_presentation",
+  "version": "0.1.0-canary.1",
+  "channel": "canary",
+  "install_path": "addons/game_presentation",
+  "engine": "Godot",
+  "tested_engine_version": "4.7.2",
+  "tested_renderer": "gl_compatibility",
+  "public_scripts": [
+    {
+      "path": "actors/actor_focus.gd",
+      "public_methods": [
+        "initialize",
+        "configure",
+        "set_focus",
+        "replay",
+        "clear",
+        "advance",
+        "sample",
+        "get_presets"
+      ]
+    },
+    {
+      "path": "actors/cast_transition.gd",
+      "public_methods": [
+        "initialize",
+        "configure",
+        "start",
+        "reset",
+        "advance",
+        "sample",
+        "is_busy",
+        "get_settings",
+        "get_state"
+      ]
+    },
+    {
+      "path": "actors/character_exit.gd",
+      "public_methods": [
+        "initialize",
+        "configure",
+        "exit_actor",
+        "show_actor",
+        "clear",
+        "advance",
+        "sample",
+        "is_visible",
+        "is_exiting",
+        "get_presets",
+        "get_state"
+      ]
+    },
+    {
+      "path": "actors/manpu_animation.gd",
+      "public_methods": [
+        "initialize",
+        "configure",
+        "sync",
+        "advance",
+        "sample",
+        "sample_with",
+        "emit_one_shot",
+        "one_shots",
+        "cancel_one_shots",
+        "clear",
+        "replay",
+        "get_presets",
+        "get_state"
+      ]
+    },
+    {
+      "path": "audio/text_reveal_audio.gd",
+      "public_methods": [
+        "configure",
+        "begin",
+        "update_reveal",
+        "sync_reveal",
+        "set_paused",
+        "stop",
+        "get_state",
+        "create_default_typing_stream"
+      ]
+    },
+    {
+      "path": "audio/voice_effects.gd",
+      "public_methods": [
+        "configure",
+        "get_output_bus",
+        "set_bypassed",
+        "set_strength",
+        "reset",
+        "cleanup",
+        "get_state"
+      ]
+    },
+    {
+      "path": "camera/camera_drift.gd",
+      "public_methods": [
+        "start",
+        "advance",
+        "sample",
+        "is_active",
+        "clear",
+        "get_state",
+        "restore",
+        "can_cover",
+        "constrain_offset"
+      ]
+    },
+    {
+      "path": "camera/dialogue_camera.gd",
+      "public_methods": [
+        "initialize",
+        "focus",
+        "wide",
+        "clear",
+        "advance",
+        "is_moving",
+        "sample",
+        "get_state",
+        "restore"
+      ]
+    },
+    {
+      "path": "camera/establishing_shot.gd",
+      "public_methods": [
+        "configure",
+        "start",
+        "advance",
+        "skip",
+        "clear",
+        "is_active",
+        "get_settings",
+        "get_state",
+        "restore",
+        "sample"
+      ]
+    },
+    {
+      "path": "camera/impact_shake.gd",
+      "public_methods": [
+        "start",
+        "advance",
+        "sample",
+        "is_active",
+        "clear",
+        "compose",
+        "can_compose",
+        "get_state",
+        "restore"
+      ]
+    },
+    {
+      "path": "camera/walking_approach.gd",
+      "public_methods": [
+        "initialize",
+        "configure",
+        "start",
+        "advance",
+        "is_active",
+        "sample",
+        "skip",
+        "clear",
+        "get_settings",
+        "get_state",
+        "restore"
+      ]
+    },
+    {
+      "path": "content/local_content.gd",
+      "public_methods": [
+        "configure",
+        "get_settings",
+        "resolve",
+        "read_bytes",
+        "read_json",
+        "load_texture",
+        "load_audio",
+        "load_video"
+      ]
+    },
+    {
+      "path": "effects/actor_halo.gd",
+      "public_methods": [
+        "configure",
+        "set_source",
+        "set_rect",
+        "set_strength",
+        "get_strength",
+        "get_settings",
+        "get_source_rect",
+        "clear"
+      ]
+    },
+    {
+      "path": "effects/ominous_corruption.gd",
+      "public_methods": [
+        "configure",
+        "set_source",
+        "set_rect",
+        "set_pattern_transform",
+        "reset_pattern_transform",
+        "get_pattern_transform",
+        "set_time",
+        "set_strength",
+        "clear",
+        "get_settings",
+        "get_source",
+        "get_source_rect",
+        "get_strength",
+        "get_time"
+      ]
+    },
+    {
+      "path": "effects/particles/ambient_particles.gd",
+      "public_methods": [
+        "start",
+        "advance",
+        "seek",
+        "stop",
+        "clear",
+        "set_textures",
+        "present",
+        "checkpoint",
+        "restore_time",
+        "get_state",
+        "fallback_textures"
+      ]
+    },
+    {
+      "path": "effects/particles/sprite_burst.gd",
+      "public_methods": [
+        "emit_burst",
+        "advance",
+        "present",
+        "cancel",
+        "clear",
+        "get_state"
+      ]
+    },
+    {
+      "path": "effects/refraction_field.gd",
+      "public_methods": [
+        "configure",
+        "set_rect",
+        "set_time",
+        "set_strength",
+        "clear",
+        "get_settings",
+        "get_source_rect",
+        "get_strength",
+        "get_time"
+      ]
+    },
+    {
+      "path": "interaction/point_contact.gd",
+      "public_methods": [
+        "hit_test",
+        "confirm_at",
+        "is_confirmed",
+        "reset"
+      ]
+    },
+    {
+      "path": "motion/layer_pan.gd",
+      "public_methods": [
+        "pan_to",
+        "advance",
+        "sample_transform",
+        "get_state",
+        "is_moving",
+        "clear"
+      ]
+    },
+    {
+      "path": "motion/motion_curve.gd",
+      "public_methods": [
+        "validate",
+        "sample"
+      ]
+    },
+    {
+      "path": "motion/presentation_animation.gd",
+      "public_methods": [
+        "sample",
+        "evaluate",
+        "track_value",
+        "valid_id",
+        "finite_number",
+        "validate_catalog",
+        "validate_tracks"
+      ]
+    },
+    {
+      "path": "text/intertitle.gd",
+      "public_methods": [
+        "start",
+        "advance",
+        "request_advance",
+        "sample",
+        "is_active",
+        "clear",
+        "get_state",
+        "restore"
+      ]
+    },
+    {
+      "path": "text/text_set.gd",
+      "public_methods": [
+        "configure",
+        "set_language",
+        "get_language",
+        "text",
+        "text_in_language",
+        "missing_keys"
+      ]
+    },
+    {
+      "path": "transitions/background_blackout.gd",
+      "public_methods": [
+        "fade_to",
+        "advance",
+        "clear",
+        "get_state",
+        "is_active"
+      ]
+    },
+    {
+      "path": "transitions/eye_transition.gd",
+      "public_methods": [
+        "configure",
+        "start",
+        "advance",
+        "sample",
+        "is_active",
+        "skip",
+        "clear",
+        "get_settings",
+        "get_state",
+        "restore"
+      ]
+    }
+  ],
+  "public_shaders": [
+    {
+      "path": "effects/shaders/character_hologram.gdshader",
+      "uniforms": [
+        "strength",
+        "effect_time"
+      ]
+    },
+    {
+      "path": "effects/shaders/location_lens_flare.gdshader",
+      "uniforms": [
+        "light_position",
+        "strength",
+        "aspect_ratio"
+      ]
+    }
+  ]
+}

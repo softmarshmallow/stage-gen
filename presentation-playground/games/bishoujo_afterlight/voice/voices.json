@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "speakers": {
+    "protagonist": {
+      "voice_policy": "none"
+    },
+    "nami": {
+      "voice_policy": "generated"
+    },
+    "yuzu": {
+      "voice_policy": "generated"
+    },
+    "sena": {
+      "voice_policy": "generated"
+    },
+    "riko": {
+      "voice_policy": "generated"
+    },
+    "eira": {
+      "voice_policy": "generated"
+    },
+    "keeper": {
+      "voice_policy": "generated"
+    }
+  },
+  "line_overrides": {
+    "episode.a_hand_to_hold": {
+      "speaker": "protagonist",
+      "voice_policy": "none",
+      "reason": "The actor identifies the portrait; this line is the courier's narration."
+    },
+    "episode.nami_beyond_the_wall": {
+      "speaker": "nami",
+      "reason": "Nami speaks from beyond the seal without a visible actor."
+    }
+  },
+  "speech_scripts": {
+    "en": {
+      "episode.no_forwarding_address": "[sighs] Of course it does. The one room we sealed this morning.\nCouldn't it have wanted the kitchen?",
+      "episode.the_warning": "[whispers] This is no memory in the glass. It's an invitation.\nThe old records call its sender the Keeper of Unclaimed Names.",
+      "episode.the_signal": "[excited] Two green. Eira's channel and Nami's bypass are holding.\nSteady... steady... now, Sena!",
+      "episode.the_price_of_return": "[mischievously] Leave your name in my ledger, and I will open the way home.\nOne signature. A small price for a door.",
+      "episode.only_a_second": "[exhales] You were gone for a second. One second!\nNext time a letter tries to steal you, at least let me come along.",
+      "episode.a_proper_hello": "[mischievously] Riko. Let's try that again, with fewer emergencies.\nYou picked a good day to visit. Usually we make guests wait until after tea for the trouble.",
+      "episode.a_touch_that_stays": "Just your fingertip. Right here.\n[short pause] If that letter pulls you away again, I'll pull you back."
+    },
+    "ko": {
+      "episode.no_forwarding_address": "[sighs] 그럴 줄 알았어. 하필 오늘 아침에 봉쇄한 그 방이네.\n부엌으로 오면 어디 덧나나?",
+      "episode.the_warning": "[whispers] 유리 속에 든 건 기억이 아니야. 초대장이지.\n옛 기록에는 그 발신자를 ‘주인 없는 이름의 문지기’라고 부르더라.",
+      "episode.the_signal": "[excited] 둘 다 초록. 에이라의 통신로도 나미의 우회 회로도 안정적이야.\n그대로… 그대로… 지금이야, 세나!",
+      "episode.the_price_of_return": "[mischievously] 내 장부에 네 이름을 남기면 돌아갈 문을 열어 주마.\n서명 하나. 문 하나의 값으로는 싸지 않느냐?",
+      "episode.only_a_second": "[exhales] 일 초였어. 딱 일 초 동안 사라졌다고!\n다음에 편지가 널 훔쳐 가려고 하면, 적어도 나도 같이 가게 해 줘.",
+      "episode.a_proper_hello": "[mischievously] 리코야. 이번에는 비상사태 빼고 다시 인사할게.\n날 잘 골랐네. 보통 손님들한테는 차부터 대접하고 소동을 보여 주거든.",
+      "episode.a_touch_that_stays": "손끝만, 여기.\n[short pause] 편지가 또 널 끌고 가면, 이번엔 내가 더 세게 잡아당길 거야."
+    }
+  }
+}

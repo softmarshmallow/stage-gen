@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "voices": {
+    "nami": {
+      "en": {
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "provider_voice": "cgSgspJ2msm6clMCkdW9",
+        "language_code": "en",
+        "stability": 0.5,
+        "output_format": "mp3_44100_192",
+        "display_name": "Jessica - Playful, Bright, Warm",
+        "casting": "Warm, bright and reassuring; playful affection under pressure.",
+        "verified_on": "2026-09-11",
+        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
+        "listening_verdict": "not_performed"
+      },
+      "ko": {
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "provider_voice": "6awt6FKyZGV0HyQEwisX",
+        "language_code": "ko",
+        "stability": 0.5,
+        "output_format": "mp3_44100_192",
+        "display_name": "Suzu - Cute, Clear & Calm",
+        "casting": "Warm, bright and reassuring; playful affection under pressure.",
+        "verified_on": "2026-09-11",
+        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
+        "listening_verdict": "not_performed"
+      }
+    },
+    "yuzu": {
+      "en": {
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "provider_voice": "EXAVITQu4vr4xnSDxMaL",
+        "language_code": "en",
+        "stability": 0.5,
+        "output_format": "mp3_44100_192",
+        "display_name": "Sarah - Mature, Reassuring, Confident",
+        "casting": "Composed, precise and quietly observant; dry humor.",
+        "verified_on": "2026-09-11",
+        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
+        "listening_verdict": "not_performed"
+      },
+      "ko": {
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "provider_voice": "EXAVITQu4vr4xnSDxMaL",
+        "language_code": "ko",
+        "stability": 0.5,
+        "output_format": "mp3_44100_192",
+        "display_name": "Sarah - Mature, Reassuring, Confident",
+        "casting": "Composed, precise and quietly observant; dry humor.",
+        "verified_on": "2026-09-11",
+        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
+        "listening_verdict": "not_performed"
+      }
+    },
+    "sena": {
+      "en": {
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "provider_voice": "FGY2WhTYpPnrIDTdsKH5",
+        "language_code": "en",
+        "stability": 0.5,
+        "output_format": "mp3_44100_192",
+        "display_name": "Laura - Enthusiast, Quirky Attitude",
+        "casting": "Lively, capable and quick-witted; confident practical energy.",
+        "verified_on": "2026-09-11",
+        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
+        "listening_verdict": "not_performed"
+      },
+      "ko": {
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "provider_voice": "FGY2WhTYpPnrIDTdsKH5",
+        "language_code": "ko",
+        "stability": 0.5,
+        "output_format": "mp3_44100_192",
+        "display_name": "Laura - Enthusiast, Quirky Attitude",
+        "casting": "Lively, capable and quick-witted; confident practical energy.",
+        "verified_on": "2026-09-11",
+        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
+        "listening_verdict": "not_performed"
+      }
+    },
+    "riko": {
+      "en": {
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "provider_voice": "W3C2vBPukr5b5jvoXhPK",
+        "language_code": "en",
+        "stability": 0.5,
+        "output_format": "mp3_44100_192",
+        "display_name": "Kira - Video Game, Bold & Cinematic",
+        "casting": "Bold, cinematic and teasing; decisive in an emergency.",
+        "verified_on": "2026-09-11",
+        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
+        "listening_verdict": "not_performed"
+      },
+      "ko": {
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "provider_voice": "W3C2vBPukr5b5jvoXhPK",
+        "language_code": "ko",
+        "stability": 0.5,
+        "output_format": "mp3_44100_192",
+        "display_name": "Kira - Video Game, Bold & Cinematic",
+        "casting": "Bold, cinematic and teasing; decisive in an emergency.",
+        "verified_on": "2026-09-11",
+        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
+        "listening_verdict": "not_performed"
+      }
+    },
+    "eira": {
+      "en": {
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "provider_voice": "XrExE9yKIg1WjnnlVkGX",
+        "language_code": "en",
+        "stability": 0.5,
+        "output_format": "mp3_44100_192",
+        "display_name": "Matilda - Knowledgable, Professional",
+        "casting": "Clear, measured researcher; composed and helpful over the relay.",
+        "verified_on": "2026-09-11",
+        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
+        "listening_verdict": "not_performed"
+      },
+      "ko": {
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "provider_voice": "XrExE9yKIg1WjnnlVkGX",
+        "language_code": "ko",
+        "stability": 0.5,
+        "output_format": "mp3_44100_192",
+        "display_name": "Matilda - Knowledgable, Professional",
+        "casting": "Clear, measured researcher; composed and helpful over the relay.",
+        "verified_on": "2026-09-11",
+        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
+        "listening_verdict": "not_performed"
+      }
+    },
+    "keeper": {
+      "en": {
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "provider_voice": "pFZP5JQG7iQjIQuC4Bku",
+        "language_code": "en",
+        "stability": 0.5,
+        "output_format": "mp3_44100_192",
+        "display_name": "Lily - Velvety Actress",
+        "casting": "Velvety and self-assured; quiet menace rather than shouting.",
+        "verified_on": "2026-09-11",
+        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
+        "listening_verdict": "not_performed"
+      },
+      "ko": {
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "provider_voice": "pFZP5JQG7iQjIQuC4Bku",
+        "language_code": "ko",
+        "stability": 0.5,
+        "output_format": "mp3_44100_192",
+        "display_name": "Lily - Velvety Actress",
+        "casting": "Velvety and self-assured; quiet menace rather than shouting.",
+        "verified_on": "2026-09-11",
+        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
+        "listening_verdict": "not_performed"
+      }
+    }
+  }
+}

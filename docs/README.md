@@ -221,6 +221,20 @@ Start here for the headless, general-purpose system:
 - [Game Concept Studio](../concept-studio/README.md) — the pre-production concept
   document and exploratory-cover workflow before game-package authoring, governed
   by the root [`game-concept-studio` skill](../.agents/skills/game-concept-studio/SKILL.md).
+- [Canonical actor anatomy and visual geometry — proposal](research/actor-anatomy-visual-geometry.md)
+  — unratified COCO-based sparse landmark vocabulary, face region, image/crop
+  geometry, explicit scale references and consumer ownership; VLM-only evaluation
+  proposed, with implementation and annotation deliberately deferred.
+- [Game Presentation SDK](../presentation-playground/addons/game_presentation/README.md)
+  — implemented code-first Godot canary addon, with [starter and packaging](../presentation-playground/PACKAGING.md).
+  Complete example UI/story remain host-owned; Scenario is experimental.
+- [Game Presentation SDK — successor design](research/game-presentation-sdk-design.md)
+  — code-first portable Godot SDK, starter/example ownership, 36 feature groups,
+  dependency and lifecycle boundaries, and [complete P01–P106 request triage](research/game-presentation-sdk-triage.md).
+  Design only; packaging and runtime promotion have not been performed.
+- [Game Presentation SDK — post-promotion topology](research/game-presentation-sdk-topology.md)
+  — unratified proposal: one `godot/` monorepo of `packages/`, agnostic `templates/`
+  and branded `games/`, with today's tree placed and the move ordered.
 - [Dialogue character direction and observation](research/dialogue-character-direction.md)
   — proposed semantic per-shot direction, optional pose conditioning, and
   digest-bound observation contracts; research-only and not implemented.

@@ -1,0 +1,55 @@
+{
+  "locations": [
+    {
+      "id": "forward_command",
+      "name": "Forward Command",
+      "detail": "Sector 07 \u00b7 Morning readiness",
+      "background": "res://assets/locations/forward_command.png",
+      "establishing_shot": {
+        "duration_seconds": 3.2,
+        "pan_amount": 42,
+        "zoom_amount": 0.08,
+        "flare_enabled": false,
+        "flare_strength": 0.45,
+        "flare_source_uv": [
+          0.772,
+          0.122
+        ]
+      }
+    },
+    {
+      "id": "perimeter_overlook",
+      "name": "Perimeter Overlook",
+      "detail": "Coast Road \u00b7 Overwatch",
+      "background": "res://assets/locations/perimeter_overlook.png",
+      "establishing_shot": {
+        "duration_seconds": 3.8,
+        "pan_amount": -68,
+        "zoom_amount": 0.08,
+        "flare_enabled": false,
+        "flare_strength": 0.45,
+        "flare_source_uv": [
+          0.772,
+          0.122
+        ]
+      }
+    },
+    {
+      "id": "coastal_staging",
+      "name": "Coastal Staging",
+      "detail": "South Apron \u00b7 Deployment",
+      "background": "res://assets/locations/coastal_staging.png",
+      "establishing_shot": {
+        "duration_seconds": 4.0,
+        "pan_amount": 78,
+        "zoom_amount": 0.08,
+        "flare_enabled": true,
+        "flare_strength": 0.45,
+        "flare_source_uv": [
+          0.772,
+          0.122
+        ]
+      }
+    }
+  ]
+}

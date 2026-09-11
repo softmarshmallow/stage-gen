@@ -1,0 +1,577 @@
+{
+  "version": 1,
+  "generation_pass": "P51-P52, P59-P60, P63, P75-P76, P77-P78, P81, P82 + P94 fingertip contact addition",
+  "scope": "manually prepared Afterlight runtime assets; independent from production generation contracts",
+  "cast_balance": {
+    "flat": 2,
+    "exaggerated_feminine": 2
+  },
+  "numeric_ages": "unspecified",
+  "age_presentation": "adult",
+  "budget": {
+    "authorized_usd": 10.0,
+    "provider_reported_usd": 7.9661,
+    "remaining_usd": 2.0339,
+    "submissions": 29,
+    "retries": 0,
+    "current_cast_pass_usd": 2.8587,
+    "receipt_ledger": "res://art/rounds/afterlight-transmission-v2/budget.json",
+    "scope": "Known FAL receipt accounting; builtin generation cost is not exposed and excluded.",
+    "current_detail_pass_usd": 0.4432,
+    "current_keeper_pass_usd": 0.3954,
+    "current_transmission_pass_usd": 1.1677
+  },
+  "reference_rights": "User-supplied visual direction for this local pass. Redistribution rights not established; reference inputs remain private.",
+  "assets": [
+    {
+      "file": "characters/nami_standing.png",
+      "role": "standing",
+      "sha256": "d7bbf1e2b801495192a02992aaa7240e97a5f05d963407e694a851d60db8ff88",
+      "bytes": 5549087,
+      "size": [
+        2048,
+        3072
+      ],
+      "mode": "RGBA",
+      "source_record": "res://art/rounds/afterlight-cast-v3/records/nami-standing.json",
+      "prompt_file": "res://art/rounds/afterlight-cast-v3/prompts/nami-standing.txt",
+      "prompt_sha256": "34555e932ce631983eed67a18d175c771882decbc00602c9e723689688f66249",
+      "provider": "fal",
+      "model_endpoint": "openai/gpt-image-2.5/sunburst/edit",
+      "source_sha256": "d7bbf1e2b801495192a02992aaa7240e97a5f05d963407e694a851d60db8ff88",
+      "preparation": "unchanged_copy",
+      "receipt_usd": 0.3942,
+      "visual_review": {
+        "status": "user_approved_for_local_runtime",
+        "reviewer": "cast_v3_review",
+        "independent": true,
+        "report": "res://art/rounds/afterlight-cast-v3/REVIEW.md",
+        "report_sha256": "1f89950a0ad23ce1df3e8ae66564ba85d07b0c3b86c2e76906f14c3ff3bb2d26",
+        "user_approval_request": "P61"
+      },
+      "publication_authorized": false,
+      "guest_id": "nami",
+      "proportion_style": "flat",
+      "active": true,
+      "quality": "max",
+      "activation_pass": "P61"
+    },
+    {
+      "file": "characters/yuzu_standing.png",
+      "role": "standing",
+      "sha256": "93729e7e24748d731f4e8d1765aeb669888f13b688a3b72228c68bc2ad071a13",
+      "bytes": 4860988,
+      "size": [
+        2048,
+        3072
+      ],
+      "mode": "RGBA",
+      "source_record": "res://art/rounds/afterlight-cast-v3/records/yuzu-standing-flat-edit.json",
+      "prompt_file": "res://art/rounds/afterlight-cast-v3/prompts/yuzu-standing-flat-edit.txt",
+      "prompt_sha256": "80ce39ec66e4cc37b2c7ce5b189a187c96915d24e4745a25fd49333ced8bbfda",
+      "provider": "fal",
+      "model_endpoint": "openai/gpt-image-2.5/sunburst/edit",
+      "source_sha256": "93729e7e24748d731f4e8d1765aeb669888f13b688a3b72228c68bc2ad071a13",
+      "preparation": "unchanged_copy",
+      "receipt_usd": 0.3964,
+      "visual_review": {
+        "status": "user_approved_for_local_runtime",
+        "reviewer": "cast_v3_review",
+        "independent": true,
+        "report": "res://art/rounds/afterlight-cast-v3/REVIEW.md",
+        "report_sha256": "1f89950a0ad23ce1df3e8ae66564ba85d07b0c3b86c2e76906f14c3ff3bb2d26",
+        "user_approval_request": "P61"
+      },
+      "publication_authorized": false,
+      "guest_id": "yuzu",
+      "proportion_style": "flat",
+      "active": true,
+      "quality": "max",
+      "activation_pass": "P61"
+    },
+    {
+      "file": "characters/sena_standing.png",
+      "role": "standing",
+      "sha256": "89e2d281aa96aa171f305cd0593cfa655005fb06f63ab1da29383db023d68323",
+      "bytes": 5358560,
+      "size": [
+        2048,
+        3072
+      ],
+      "mode": "RGBA",
+      "source_record": "res://art/rounds/afterlight-cast-v3/records/sena-standing.json",
+      "prompt_file": "res://art/rounds/afterlight-cast-v3/prompts/sena-standing.txt",
+      "prompt_sha256": "018095bb5eeced3a317def0e296a21e7ccf7ffafae45cf52a53045dd453f6d6e",
+      "provider": "fal",
+      "model_endpoint": "openai/gpt-image-2.5/sunburst/edit",
+      "source_sha256": "89e2d281aa96aa171f305cd0593cfa655005fb06f63ab1da29383db023d68323",
+      "preparation": "unchanged_copy",
+      "receipt_usd": 0.3942,
+      "visual_review": {
+        "status": "user_approved_for_local_runtime",
+        "reviewer": "cast_v3_review",
+        "independent": true,
+        "report": "res://art/rounds/afterlight-cast-v3/REVIEW.md",
+        "report_sha256": "1f89950a0ad23ce1df3e8ae66564ba85d07b0c3b86c2e76906f14c3ff3bb2d26",
+        "user_approval_request": "P61"
+      },
+      "publication_authorized": false,
+      "guest_id": "sena",
+      "proportion_style": "exaggerated_feminine",
+      "active": true,
+      "quality": "max",
+      "activation_pass": "P61"
+    },
+    {
+      "file": "characters/riko_standing.png",
+      "role": "standing",
+      "sha256": "2b59e61f70db9bf88ae4089fef1deccbc87f9a15bad7f07b758e7b87f207807c",
+      "bytes": 5557968,
+      "size": [
+        2048,
+        3072
+      ],
+      "mode": "RGBA",
+      "source_record": "res://art/rounds/afterlight-cast-v3/records/riko-standing.json",
+      "prompt_file": "res://art/rounds/afterlight-cast-v3/prompts/riko-standing.txt",
+      "prompt_sha256": "26fe4dda9b3ded10355b62a95c89f762aeed3e1a5941ac8f321218a0ca4382d7",
+      "provider": "fal",
+      "model_endpoint": "openai/gpt-image-2.5/sunburst/edit",
+      "source_sha256": "2b59e61f70db9bf88ae4089fef1deccbc87f9a15bad7f07b758e7b87f207807c",
+      "preparation": "unchanged_copy",
+      "receipt_usd": 0.3943,
+      "visual_review": {
+        "status": "user_approved_for_local_runtime",
+        "reviewer": "cast_v3_review",
+        "independent": true,
+        "report": "res://art/rounds/afterlight-cast-v3/REVIEW.md",
+        "report_sha256": "1f89950a0ad23ce1df3e8ae66564ba85d07b0c3b86c2e76906f14c3ff3bb2d26",
+        "user_approval_request": "P61"
+      },
+      "publication_authorized": false,
+      "guest_id": "riko",
+      "proportion_style": "exaggerated_feminine",
+      "active": true,
+      "quality": "max",
+      "activation_pass": "P61"
+    },
+    {
+      "file": "characters/nami_close.png",
+      "role": "close_portrait",
+      "sha256": "235b9426fc9e26e5ddacc97791366393274d7fab21fe70f1a57d4b3fd8862d4a",
+      "bytes": 5440380,
+      "size": [
+        2048,
+        2048
+      ],
+      "mode": "RGBA",
+      "source_record": "res://art/rounds/afterlight-close-fix-v1/records/nami-close-flat-edit.json",
+      "prompt_file": "res://art/rounds/afterlight-close-fix-v1/prompts/nami-close-flat-edit.txt",
+      "prompt_sha256": "372e835f95d1e29535ce21009fb780347310e20babb2b4422038be06d3239dc1",
+      "provider": "fal",
+      "model_endpoint": "openai/gpt-image-2.5/sunburst/edit",
+      "source_sha256": "235b9426fc9e26e5ddacc97791366393274d7fab21fe70f1a57d4b3fd8862d4a",
+      "preparation": "unchanged_copy",
+      "receipt_usd": 0.4423,
+      "visual_review": {
+        "status": "user_approved_for_local_runtime",
+        "reviewer": "cast_v3_review",
+        "independent": true,
+        "report": "res://art/rounds/afterlight-cast-v3/REVIEW.md",
+        "report_sha256": "1f89950a0ad23ce1df3e8ae66564ba85d07b0c3b86c2e76906f14c3ff3bb2d26",
+        "user_approval_request": "P61"
+      },
+      "publication_authorized": false,
+      "guest_id": "nami",
+      "proportion_style": "flat",
+      "active": true,
+      "quality": "max",
+      "activation_pass": "P61"
+    },
+    {
+      "file": "locations/garden_walk.png",
+      "role": "background",
+      "sha256": "fb02ab6cb24eace7d01e58b3bb10ea8ec526ebc210100094ed91f407f7b296de",
+      "bytes": 4890600,
+      "size": [
+        2048,
+        1152
+      ],
+      "mode": "RGB",
+      "source_record": "res://art/rounds/afterlight-locations-v1/records/garden-walk.json",
+      "prompt_file": "res://art/rounds/afterlight-locations-v1/prompts/garden-walk.txt",
+      "prompt_sha256": "05801deef22459b231b6258ac182c093465c2ff6c0a65915ad58b35d9d8349ba",
+      "provider": "fal",
+      "model_endpoint": "openai/gpt-image-2.5/sunburst/text-to-image",
+      "source_sha256": "fb02ab6cb24eace7d01e58b3bb10ea8ec526ebc210100094ed91f407f7b296de",
+      "preparation": "unchanged_copy",
+      "receipt_usd": 0.1712,
+      "visual_review": {
+        "status": "accepted_for_local_prototype",
+        "reviewer": "afterlight_generation_route",
+        "independent": true,
+        "report": "res://art/rounds/afterlight-locations-v1/REVIEW.md",
+        "report_sha256": "2920bcf50336d56933ced70fac612ed5c9b9ebecb7834e2699fd8b5d8abde446"
+      },
+      "publication_authorized": false,
+      "active": false
+    },
+    {
+      "file": "locations/conservatory_lounge.png",
+      "role": "background",
+      "sha256": "d4c6e73fd9c44acea1812c5ff5f6f75a07d5df984d7035b89950074c6bc2864c",
+      "bytes": 4866991,
+      "size": [
+        2048,
+        1152
+      ],
+      "mode": "RGB",
+      "source_record": "res://art/rounds/afterlight-locations-v1/records/conservatory-lounge.json",
+      "prompt_file": "res://art/rounds/afterlight-locations-v1/prompts/conservatory-lounge.txt",
+      "prompt_sha256": "e416bdfe14e184b68b6aeba27dcbc877770e96c9f8acd9bd77a1fc97ecf6748b",
+      "provider": "fal",
+      "model_endpoint": "openai/gpt-image-2.5/sunburst/edit",
+      "source_sha256": "d4c6e73fd9c44acea1812c5ff5f6f75a07d5df984d7035b89950074c6bc2864c",
+      "preparation": "unchanged_copy",
+      "receipt_usd": 0.1833,
+      "visual_review": {
+        "status": "accepted_for_local_prototype",
+        "reviewer": "afterlight_generation_route",
+        "independent": true,
+        "report": "res://art/rounds/afterlight-locations-v1/REVIEW.md",
+        "report_sha256": "2920bcf50336d56933ced70fac612ed5c9b9ebecb7834e2699fd8b5d8abde446"
+      },
+      "publication_authorized": false,
+      "active": true
+    },
+    {
+      "file": "locations/reading_lounge.png",
+      "role": "background",
+      "sha256": "8fd481d96ffda6b648c7602f9b068fa96ed6f9fc904fc27024421bedb69671ae",
+      "bytes": 4459976,
+      "size": [
+        2048,
+        1152
+      ],
+      "mode": "RGB",
+      "source_record": "res://art/rounds/afterlight-locations-v1/records/reading-lounge.json",
+      "prompt_file": "res://art/rounds/afterlight-locations-v1/prompts/reading-lounge.txt",
+      "prompt_sha256": "fa4c6e78aef31da4f2769b09b538bbe3956a98d404bdb4521cb740ceccad7d3a",
+      "provider": "fal",
+      "model_endpoint": "openai/gpt-image-2.5/sunburst/edit",
+      "source_sha256": "8fd481d96ffda6b648c7602f9b068fa96ed6f9fc904fc27024421bedb69671ae",
+      "preparation": "unchanged_copy",
+      "receipt_usd": 0.1837,
+      "visual_review": {
+        "status": "accepted_for_local_prototype",
+        "reviewer": "afterlight_generation_route",
+        "independent": true,
+        "report": "res://art/rounds/afterlight-locations-v1/REVIEW.md",
+        "report_sha256": "2920bcf50336d56933ced70fac612ed5c9b9ebecb7834e2699fd8b5d8abde446"
+      },
+      "publication_authorized": false,
+      "active": true
+    },
+    {
+      "file": "characters/nami_detail.png",
+      "role": "portrait_detail",
+      "guest_id": "nami",
+      "proportion_style": "flat",
+      "sha256": "8bef7a08ed67fbfc0de3933810266659f68e3dcaf54567a1e0dd650297ce1db5",
+      "bytes": 5852117,
+      "size": [
+        2048,
+        2048
+      ],
+      "mode": "RGBA",
+      "source_record": "res://art/rounds/afterlight-detail-v1/records/nami-detail.json",
+      "prompt_file": "res://art/rounds/afterlight-detail-v1/prompts/nami-detail.txt",
+      "prompt_sha256": "13f18c7b14a8ecaf699be61201f3ef573008fb795b51e6cc5eabe017ca8c71ba",
+      "provider": "fal",
+      "model_endpoint": "openai/gpt-image-2.5/sunburst/edit",
+      "source_sha256": "8bef7a08ed67fbfc0de3933810266659f68e3dcaf54567a1e0dd650297ce1db5",
+      "preparation": "unchanged_copy",
+      "receipt_usd": 0.4432,
+      "quality": "max",
+      "active": true,
+      "activation_pass": "P66",
+      "publication_authorized": false,
+      "visual_review": {
+        "status": "user_approved_for_local_runtime",
+        "reviewer": "independent_actor_halo_effect_agent",
+        "independent": true,
+        "report": "res://art/rounds/afterlight-detail-v1/reviews/nami-detail.json",
+        "report_sha256": "c76da7e59c30e33bc00df0c52c1186276f5c9e4ef466ecec8c20993f318b4777",
+        "user_approval_request": "P66"
+      }
+    },
+    {
+      "file": "characters/keeper_standing.png",
+      "role": "antagonist_standing",
+      "actor_id": "keeper",
+      "sha256": "ede7653b47134ef0565682935216f6aee31a63d1cefff82e387d8343d5daebc1",
+      "bytes": 6727592,
+      "size": [
+        2048,
+        3072
+      ],
+      "mode": "RGBA",
+      "source_record": "res://art/rounds/afterlight-keeper-v1/records/keeper-standing.json",
+      "prompt_file": "res://art/rounds/afterlight-keeper-v1/prompts/keeper-standing.txt",
+      "prompt_sha256": "78ac9f05fc2b9bad4fcfe84a3e2ea0b19f5871e03deeefd03ed98eb6edf7aa49",
+      "provider": "fal",
+      "model_endpoint": "openai/gpt-image-2.5/sunburst/edit",
+      "source_sha256": "ede7653b47134ef0565682935216f6aee31a63d1cefff82e387d8343d5daebc1",
+      "preparation": "unchanged_copy",
+      "quality": "max",
+      "receipt_usd": 0.3954,
+      "lineage_record": "res://art/rounds/afterlight-keeper-v1/builtin-provenance.json",
+      "visual_review": {
+        "status": "independent_pass_for_requested_local_addition",
+        "reviewer": "demo_game_extraction",
+        "independent": true,
+        "report": "res://art/rounds/afterlight-keeper-v1/REVIEW.md",
+        "report_sha256": "0bf16e89c9ee216a913dd480c3945eb00f895b66c42d4675ff971a795fc0f257",
+        "user_addition_request": "P75",
+        "user_expression_request": "P76",
+        "user_quality_approval": null
+      },
+      "publication_authorized": false,
+      "active": true,
+      "activation_pass": "P75-P76"
+    },
+    {
+      "file": "locations/keeper_hall.png",
+      "role": "background",
+      "location_id": "keeper_hall",
+      "sha256": "76737122f882cf65fb6ed5423a1af25be9d2539d62d6a094de4151db2ca32876",
+      "bytes": 2493618,
+      "size": [
+        1496,
+        1051
+      ],
+      "mode": "RGB",
+      "source_record": "res://art/rounds/afterlight-keeper-hall-v1/generation.json",
+      "prompt_file": "res://art/rounds/afterlight-keeper-hall-v1/prompts/keeper-hall-infernal.txt",
+      "prompt_sha256": "f3585ec920008889416828dabbae52a0007fa7d5743ddf35b5790a1e8c308201",
+      "provider": "builtin_image_gen",
+      "model_endpoint": null,
+      "source_sha256": "76737122f882cf65fb6ed5423a1af25be9d2539d62d6a094de4151db2ca32876",
+      "preparation": "unchanged_copy",
+      "receipt_usd": null,
+      "cost_note": "Builtin tool does not expose image cost; existing FAL receipt accounting unchanged.",
+      "visual_review": {
+        "status": "independent_pass_for_requested_local_addition",
+        "reviewer": "demo_game_extraction",
+        "independent": true,
+        "report": "res://art/rounds/afterlight-keeper-hall-v1/REVIEW.md",
+        "report_sha256": "48dcb14b0f65494571063f2cd708d062f6862bf084f31fd05c82024d2cc8ec60",
+        "user_addition_request": "P77",
+        "user_direction_request": "P78",
+        "user_quality_approval": null
+      },
+      "reference_rights": "Original generated environment from text; infernal edit uses only the generated initial hall from this pass.",
+      "publication_authorized": false,
+      "active": true,
+      "activation_pass": "P77-P78"
+    },
+    {
+      "file": "characters/eira_standing.png",
+      "role": "transmission_standing",
+      "sha256": "e0610e7f19111cb6d850ce2c854a6ba807fc9f0594e85ea6d32d01782d25780b",
+      "bytes": 4920701,
+      "size": [
+        2048,
+        3072
+      ],
+      "mode": "RGBA",
+      "source_record": "res://art/rounds/afterlight-transmission-v1/records/eira-standing.json",
+      "prompt_file": "res://art/rounds/afterlight-transmission-v1/prompts/eira-standing.txt",
+      "prompt_sha256": "4ca76d43825f76190dd1851bd347f4f1c6ce269dd2103709b40a5f56d9299510",
+      "provider": "fal",
+      "model_endpoint": "openai/gpt-image-2.5/sunburst/edit",
+      "source_sha256": "e0610e7f19111cb6d850ce2c854a6ba807fc9f0594e85ea6d32d01782d25780b",
+      "preparation": "unchanged_copy",
+      "receipt_usd": 0.3974,
+      "visual_review": {
+        "status": "independent_pass_for_requested_local_addition",
+        "reviewer": "transmission_art_review",
+        "independent": true,
+        "report": "res://art/rounds/afterlight-transmission-v1/REVIEW.md",
+        "report_sha256": "f4a5f7dc385a6443e1e995ec7c1b12b87080600e4e794ca7a53e2a8d900b8fe3",
+        "user_addition_request": "P81",
+        "user_quality_approval": null
+      },
+      "publication_authorized": false,
+      "active": false,
+      "quality": "max",
+      "activation_pass": "P81",
+      "supporting_cast_id": "eira",
+      "framing_note": "One fine flyaway reaches the top edge; face, body, hands and boots remain intact.",
+      "superseded_by": "P82 framed transmission portrait and scientific lab",
+      "scope": "Initial P81 local draft; superseded during the active user-directed pass"
+    },
+    {
+      "file": "locations/relay_alcove.png",
+      "role": "background",
+      "sha256": "70807c8584ad97b4f728773418b381679bafdaee8e043543c3d469e15c7871e3",
+      "bytes": 4185836,
+      "size": [
+        2048,
+        1440
+      ],
+      "mode": "RGB",
+      "source_record": "res://art/rounds/afterlight-transmission-v1/records/relay-alcove.json",
+      "prompt_file": "res://art/rounds/afterlight-transmission-v1/prompts/relay-alcove.txt",
+      "prompt_sha256": "ebf9ee404af7c0c662bdf2be0965c0a67533b80e7c8958752643db58af6068ce",
+      "provider": "fal",
+      "model_endpoint": "openai/gpt-image-2.5/sunburst/text-to-image",
+      "source_sha256": "70807c8584ad97b4f728773418b381679bafdaee8e043543c3d469e15c7871e3",
+      "preparation": "unchanged_copy",
+      "receipt_usd": 0.2441,
+      "visual_review": {
+        "status": "independent_pass_for_requested_local_addition",
+        "reviewer": "transmission_art_review",
+        "independent": true,
+        "report": "res://art/rounds/afterlight-transmission-v1/REVIEW.md",
+        "report_sha256": "f4a5f7dc385a6443e1e995ec7c1b12b87080600e4e794ca7a53e2a8d900b8fe3",
+        "user_addition_request": "P81",
+        "user_quality_approval": null
+      },
+      "publication_authorized": false,
+      "active": false,
+      "quality": "max",
+      "activation_pass": "P81",
+      "superseded_by": "P82 framed transmission portrait and scientific lab",
+      "scope": "Initial P81 local draft; superseded during the active user-directed pass"
+    },
+    {
+      "file": "characters/eira_portrait.png",
+      "role": "transmission_portrait",
+      "sha256": "629acc77c6ef9d4ecbf4e93503f20c1dce3007fe7d44112f677f82d649c2336f",
+      "bytes": 4135519,
+      "size": [
+        2048,
+        1536
+      ],
+      "mode": "RGB",
+      "source_record": "res://art/rounds/afterlight-transmission-v2/records/eira-portrait.json",
+      "prompt_file": "res://art/rounds/afterlight-transmission-v2/prompts/eira-portrait.txt",
+      "prompt_sha256": "8f39e4b3cba6cea24853c8f9c2ea64a2b8ec48ba03bfceec2bdad5d1ca97ccde",
+      "provider": "fal",
+      "model_endpoint": "openai/gpt-image-2.5/sunburst/edit",
+      "source_sha256": "629acc77c6ef9d4ecbf4e93503f20c1dce3007fe7d44112f677f82d649c2336f",
+      "preparation": "unchanged_copy",
+      "receipt_usd": 0.2821,
+      "visual_review": {
+        "status": "independent_pass_for_requested_local_addition",
+        "reviewer": "transmission_story",
+        "independent": true,
+        "report": "res://art/rounds/afterlight-transmission-v2/REVIEW.md",
+        "report_sha256": "dc34feda324dcbbd2486368740cd38624ad482244d3aae6dc4acb605335c42cf",
+        "user_addition_request": "P81",
+        "user_direction_request": "P82",
+        "user_quality_approval": null
+      },
+      "publication_authorized": false,
+      "active": true,
+      "quality": "max",
+      "activation_pass": "P82",
+      "supporting_cast_id": "eira",
+      "framing_note": "Topmost hair tuft touches image boundary; visible face and technical outfit remain intact. TV frame and shader are runtime only."
+    },
+    {
+      "file": "locations/relay_lab.png",
+      "role": "background",
+      "sha256": "913c8a86e08266d9394c578361b47652d57a6f599281deadec1c1e1cbed8233a",
+      "bytes": 3288093,
+      "size": [
+        2048,
+        1440
+      ],
+      "mode": "RGB",
+      "source_record": "res://art/rounds/afterlight-transmission-v2/records/relay-lab.json",
+      "prompt_file": "res://art/rounds/afterlight-transmission-v2/prompts/relay-lab.txt",
+      "prompt_sha256": "d5114478ac754f2ba9454ca76b6003921647f13dccc58f5a3e8db34d960d4341",
+      "provider": "fal",
+      "model_endpoint": "openai/gpt-image-2.5/sunburst/text-to-image",
+      "source_sha256": "913c8a86e08266d9394c578361b47652d57a6f599281deadec1c1e1cbed8233a",
+      "preparation": "unchanged_copy",
+      "receipt_usd": 0.2441,
+      "visual_review": {
+        "status": "independent_pass_for_requested_local_addition",
+        "reviewer": "transmission_story",
+        "independent": true,
+        "report": "res://art/rounds/afterlight-transmission-v2/REVIEW.md",
+        "report_sha256": "dc34feda324dcbbd2486368740cd38624ad482244d3aae6dc4acb605335c42cf",
+        "user_addition_request": "P81",
+        "user_direction_request": "P82",
+        "user_quality_approval": null
+      },
+      "publication_authorized": false,
+      "active": true,
+      "quality": "max",
+      "activation_pass": "P82"
+    },
+    {
+      "file": "characters/nami_contact.png",
+      "role": "fingertip_contact",
+      "guest_id": "nami",
+      "proportion_style": "flat",
+      "sha256": "867fa1903e83bf2ff2231e5dcbdcf8b09e1ddf45af3de6421c92633be56a6e3a",
+      "bytes": 4011242,
+      "size": [
+        2048,
+        1536
+      ],
+      "mode": "RGBA",
+      "source_record": "res://art/rounds/afterlight-contact-v1/records/nami-contact.json",
+      "prompt_file": "res://art/rounds/afterlight-contact-v1/prompts/nami-contact.txt",
+      "prompt_sha256": "6e4a82c4a1a116b65456303d3d9ee658221a7226f0306a9578adaa53cb157d49",
+      "provider": "fal",
+      "model_endpoint": "openai/gpt-image-2.5/sunburst/edit",
+      "source_sha256": "867fa1903e83bf2ff2231e5dcbdcf8b09e1ddf45af3de6421c92633be56a6e3a",
+      "preparation": "unchanged_copy",
+      "receipt_usd": 0.2822,
+      "quality": "max",
+      "visual_review": {
+        "status": "independent_pass_for_requested_local_addition",
+        "reviewer": "background_blackout_core",
+        "independent": true,
+        "report": "res://art/rounds/afterlight-contact-v1/REVIEW.md",
+        "report_sha256": "1172074515b40c1373e381e1ffb819127a395e636713253602439792d8efcc11",
+        "user_addition_request": "P94",
+        "user_quality_approval": null
+      },
+      "contact_landmark": {
+        "source_pixel": [
+          948,
+          882
+        ],
+        "uv": [
+          0.462890625,
+          0.57421875
+        ],
+        "radius_source_pixels": 54,
+        "radius_height_ratio": 0.03515625
+      },
+      "framing_note": "Upper hood touches the top; retain y=0 close-shot framing. Soft pink edge glow and alpha maximum254 belong to the source art, not the runtime Actor Halo.",
+      "active": true,
+      "activation_pass": "P94",
+      "publication_authorized": false
+    }
+  ],
+  "activation_pass": "P66",
+  "user_approval_request": "P66",
+  "additional_pass_budgets": [
+    {
+      "request": "P94",
+      "authorized_usd": 5.0,
+      "provider_reported_spend_usd": 0.2822,
+      "remaining_usd": 4.7178,
+      "submission_count": 1,
+      "separate_from_prior_passes": true,
+      "record": "res://art/rounds/afterlight-contact-v1/budget.json"
+    }
+  ]
+}

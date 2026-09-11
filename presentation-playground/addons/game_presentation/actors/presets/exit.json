@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "presets": [
+    {
+      "id": "silhouette_fade",
+      "label": "Silhouette fade",
+      "duration_seconds": 0.9,
+      "tracks": {
+        "brightness": [[0.0, 1.0], [0.55, 0.0], [1.0, 0.0]],
+        "opacity": [[0.0, 1.0], [0.55, 1.0], [1.0, 0.0]]
+      }
+    },
+    {
+      "id": "opacity_fade",
+      "label": "Opacity fade",
+      "duration_seconds": 0.9,
+      "tracks": {
+        "opacity": [[0.0, 1.0], [1.0, 0.0]]
+      }
+    },
+    {
+      "id": "walk_away",
+      "label": "Walk-Away · Left",
+      "duration_seconds": 1.8,
+      "tracks": {
+        "offset_x_ratio": [[0.0, 0.0], [1.0, -1.8]],
+        "offset_y_ratio": [[0.0, 0.0], [0.125, -0.016], [0.25, 0.0], [0.375, -0.016], [0.5, 0.0], [0.625, -0.016], [0.75, 0.0], [0.875, -0.016], [1.0, 0.0]],
+        "opacity": [[0.0, 1.0], [0.99, 1.0], [1.0, 0.0]]
+      }
+    },
+    {
+      "id": "walk_away_right",
+      "label": "Walk-Away · Right",
+      "duration_seconds": 1.8,
+      "tracks": {
+        "offset_x_ratio": [[0.0, 0.0], [1.0, 1.8]],
+        "offset_y_ratio": [[0.0, 0.0], [0.125, -0.016], [0.25, 0.0], [0.375, -0.016], [0.5, 0.0], [0.625, -0.016], [0.75, 0.0], [0.875, -0.016], [1.0, 0.0]],
+        "opacity": [[0.0, 1.0], [0.99, 1.0], [1.0, 0.0]]
+      }
+    }
+  ]
+}

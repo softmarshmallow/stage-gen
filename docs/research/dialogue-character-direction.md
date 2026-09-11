@@ -6,6 +6,14 @@
 > Direction, conditioning, observation, consistency, and web changes remain
 > research-only. Nothing here adds a provider capability or authorizes publication.
 
+The canonical proposal for generic per-view anatomical landmarks and visual
+geometry now lives in [Actor anatomy and visual geometry](actor-anatomy-visual-geometry.md).
+Its COCO-based sparse vocabulary, explicit missing-data meanings and VLM-only
+acquisition recommendation supersede this document's illustrative geometry
+sketch **as a proposal**, without ratifying a wire format. The broader intent,
+conditioning and consistency discussion below remains separate historical
+research; no runtime or generation integration is introduced.
+
 ## Decision
 
 The public vocabulary is:

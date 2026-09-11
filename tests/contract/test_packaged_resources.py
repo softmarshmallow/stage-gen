@@ -201,6 +201,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         } <= wheel_entries.keys()
         assert any(name.endswith(".dist-info/METADATA") for name in wheel_entries)
         assert any(name.endswith(".dist-info/entry_points.txt") for name in wheel_entries)
+        assert not any(name.startswith("presentation-playground/") for name in wheel_entries)
         assert not any(name.startswith("tests/") for name in wheel_entries)
         assert not any(name.startswith("library/") for name in wheel_entries)
         assert not any(name.startswith("concept-studio/") for name in wheel_entries)
@@ -317,7 +318,13 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # to 10,913,760 B; retain about 36 KB. Compressed and media limits stay fixed.
         sdist_snapshot_size = sdist_entries[f"src/{MODEL_POLICY_SNAPSHOT_RESOURCE}"]
         assert sdist_snapshot_size < MODEL_POLICY_SNAPSHOT_UNPACKED_LIMIT
-        assert sum(sdist_entries.values()) - sdist_snapshot_size < 10_950_000
+        # Actor anatomy and the Game Presentation SDK design/triage add 96,120 B
+        # of research documentation (2026-09-11), plus README/boundary updates.
+        # The inspected non-snapshot slice is about 11.02 MB. The Godot addon,
+        # starter, assets and its scoped tests remain outside this Python sdist;
+        # retain the compressed/media caps and about 49 KB of text headroom.
+        assert sum(sdist_entries.values()) - sdist_snapshot_size < 11_070_000
+        assert not any(name.startswith("presentation-playground/") for name in sdist_entries)
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
         assert sdist_entries.keys() >= {f"src/{name}" for name in PORTRAIT_FACE_MODULES}
         assert not any(name.startswith("library/") for name in sdist_entries)

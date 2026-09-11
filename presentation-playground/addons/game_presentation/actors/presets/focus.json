@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "presets": [
+    {
+      "id": "none",
+      "label": "None",
+      "duration_seconds": 0,
+      "focused": {},
+      "listeners": {}
+    },
+    {
+      "id": "listener_dim",
+      "label": "Listener dim",
+      "duration_seconds": 0.22,
+      "focused": {},
+      "listeners": {"brightness": [[0, 0.76], [1, 0.76]]}
+    },
+    {
+      "id": "listener_fade",
+      "label": "Listener fade",
+      "duration_seconds": 0.22,
+      "focused": {},
+      "listeners": {"opacity": [[0, 0.6], [1, 0.6]]}
+    },
+    {
+      "id": "bounce",
+      "label": "Bounce",
+      "duration_seconds": 0.42,
+      "focused": {"offset_y_ratio": [[0, 0], [0.32, -0.015], [0.7, 0.006], [1, 0]]},
+      "listeners": {}
+    },
+    {
+      "id": "scale_pulse",
+      "label": "Scale pulse",
+      "duration_seconds": 0.42,
+      "focused": {"scale": [[0, 1], [0.45, 1.035], [1, 1]]},
+      "listeners": {}
+    },
+    {
+      "id": "restless_bounce",
+      "label": "Restless Bounce",
+      "duration_seconds": 1.2,
+      "focused": {"offset_y_ratio": [[0.0, 0.0], [0.125, -0.016], [0.25, 0.0], [0.375, -0.016], [0.5, 0.0], [0.625, -0.016], [0.75, 0.0], [0.875, -0.016], [1.0, 0.0]]},
+      "listeners": {}
+    }
+  ]
+}

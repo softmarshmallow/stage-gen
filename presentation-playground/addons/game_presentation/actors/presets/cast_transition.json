@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "slots": {"left": 410.0, "right": 890.0},
+  "exit_preset": "silhouette_fade",
+  "entrance_tracks": {"opacity": [[0.0, 0.0], [1.0, 1.0]]},
+  "defaults": {
+    "pattern": "shift_and_replace",
+    "curve": "spring",
+    "frequency": 1.5,
+    "damping_ratio": 0.55,
+    "motion_duration_seconds": 0.8,
+    "travel_distance": 100.0
+  }
+}
