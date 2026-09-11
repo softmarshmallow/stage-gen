@@ -44,6 +44,10 @@ removal, gaze, brows, head/body motion, IK, and video generation
 are outside this capability. The sample timeline demonstrates speaking-like
 mouth changes; it does not infer phonemes, align audio, or supply a full viseme set.
 
+The [portrait viseme contract](portrait-visemes.md) records the proposed
+canonical nine-state mouth vocabulary and future audio-timing boundary. It is
+an unimplemented evolution target, not part of this promoted contract.
+
 The N-card baseline and optional face-crop workflow are promoted. Bald donors,
 foreground restoration, stricter visual-fidelity research, and the experimental
 context-registration continuation remain deferred. The face-crop workflow keeps

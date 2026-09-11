@@ -165,6 +165,9 @@ Start here for the headless, general-purpose system:
 - [Fixed-portrait eye and mouth motion](spec/portrait-motion.md) — the promoted
   N-card atlas component, four-card blink/mouth example, independent feature
   composition, bounded CLI, and retained baseline quality limits.
+- [Portrait visemes](spec/portrait-visemes.md) — proposed canonical nine-state
+  mouth profile, external vocabulary mapping, atlas batching, and audio-relative
+  playback contract; an unimplemented extension of portrait motion.
 - [Horizontal loop construction](loop-construction.md) — how a scrolling map layer is admitted or
   constructed into a repeat unit, the mirror and generated-bridge methods, why a provider mask is
   not sufficient on its own, and the period consequences every consumer must carry.
