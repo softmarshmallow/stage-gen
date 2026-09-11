@@ -859,3 +859,15 @@ Reply to the explicit question approving installation of the linked Nami detail 
 > treat legacy as legacy, I'm not talking about them. Im talking about ours.
 > games/playground? what is that
 > pakcages/game_presentation ? what is that. names are not clear what the fuck are each. game runs, but I cannot identify what is going on.
+
+## P118
+
+> Good. Actually, the revised topology, the games being our own demo, are we putting the assets into Git as well? And should we? And if we do, do we want to zip it or similar or just do it or use LFS?
+
+## P119
+
+> I think the I think the default experience should be clone and play. .. Well, it doesn't necessarily need to be playable, but if you keep develop only on our machine, and certain contracts are heavily tied to assets, and without them, it's actually kind of hard to tell why they are in that way. And exactly the games, which we originally considered the name examples for the directory, should serve that role. And I think, I think it just simply should be there, but what we're losing is that even that will rapidly change and bloat our Git. And quite, that's the only thing I am concerned about. But also, that's kind of the nature of the game development and our, our repository being the tool for game developers. Yeah, you have to come up with certain discipline how we treat things.
+
+## P120
+
+> I kind of would defer that, but um, we should have some anchor document that how we keep things currently. I don't want to, I don't want to start committing the assets we have. Maybe, maybe once when our game is completely landed, but just not now. And... And yeah, I just don't know how things should be working. I have no idea.

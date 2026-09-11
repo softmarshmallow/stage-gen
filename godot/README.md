@@ -9,7 +9,7 @@ packages/    shared code. Each package is an addon project: project.godot, the
 templates/   agnostic starting points, one per recipe. A branded game is copied
              from one; each plays that recipe's content and nothing branded.
 games/       branded games. Complete, free to consume any package, consumed by
-             nothing.
+             nothing. How their media is kept: games/README.md.
 runtime/     legacy: the generated-run consumer, one project with a host per
              recipe, moved here intact. Its README is its manual.
 ```

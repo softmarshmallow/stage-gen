@@ -69,6 +69,13 @@ Before enabling LFS, verify remote upload/download access and quota for public
 contributors. Migrate existing matching history deliberately; adding a pattern
 does not move older blobs automatically.
 
+## Game media under `godot/games/`
+
+The branded example games keep their image, audio and video bytes out of Git
+and describe them through tracked catalogs, manifests and digests. The present
+arrangement, what a fresh clone can do, and the deferred discipline for adopting
+media into Git are anchored in [`godot/games/README.md`](../godot/games/README.md).
+
 ## Hygiene
 
 - Do not commit `.DS_Store` or editor metadata.

@@ -235,6 +235,8 @@ Start here for the headless, general-purpose system:
   — code-first portable Godot SDK, starter/example ownership, 36 feature groups,
   dependency and lifecycle boundaries, and [complete P01–P106 request triage](research/game-presentation-sdk-triage.md).
   Design only; packaging and runtime promotion have not been performed.
+- [Game media under `godot/games/`](../godot/games/README.md) — how the example
+  games keep their media today, what a clone can do, and the deferred adoption discipline.
 - [Game Presentation SDK — post-promotion topology](research/game-presentation-sdk-topology.md)
   — unratified proposal: one `godot/` monorepo of `packages/`, agnostic `templates/`
   and branded `games/`, with today's tree placed and the move ordered.
