@@ -1,11 +1,11 @@
 """Nine-slice atlas roles: geometry, layout templates, the pixel gate, and the runtime draw.
 
 The two roles here are the ``game-ui-v2`` executable slice of the atlas taxonomy in
-``docs/spec/game/ui-atlas.md``: a ``panel_frame`` (one body) and a ``button_rect`` state
-sheet (four bodies stacked in reading order). Everything a consumer needs to draw them is
-*resolved* here and published in the manifest — detected cell rectangles, per-side insets,
-content rects, and the band fill the artwork was admitted under — so no runtime ever
-rediscovers geometry from pixels.
+``godot/games/_shared/docs/formats/ui-atlas.md``: a ``panel_frame`` (one body)
+and a ``button_rect`` state sheet (four bodies stacked in reading order). Everything
+a consumer needs to draw them is *resolved* here and published in the manifest:
+detected cell rectangles, per-side insets, content rects, and the band fill the
+artwork was admitted under. No runtime rediscovers geometry from pixels.
 
 The gate proves what the format promises. A nine-slice is its four corners plus five
 repeatable regions; so each cell is rebuilt from those regions the way a runtime draws it

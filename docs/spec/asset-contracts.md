@@ -211,7 +211,7 @@ soundtrack, gameplay, and sequence bindings. Ladder placement and portal endpoin
 anchors remain inside their owning map record, while climb permission and transition
 relationships remain in gameplay. There is no run-global prepared ladder or portal.
 Every closure artifact declares an `asset` or `provenance` role at publication; see
-[runtime closure roles](game/generation-pipeline.md#runtime-closure-roles) for the partition and
+[runtime closure roles](../../godot/games/bellweather/docs/generation-pipeline.md#runtime-closure-roles) for the partition and
 the invariant integration enforces over it.
 Every published prop also carries `ground_contact_y_normalized`, deterministically measured
 from meaningful native-alpha components. This keeps authored transparent padding intact while
@@ -258,7 +258,7 @@ Two things are load-bearing for prior + prompt to actually steer output:
 
 ## Pipeline orchestration
 
-The [canonical game-generation pipeline](game/generation-pipeline.md) owns the current prepared
+The [canonical game-generation pipeline](../../godot/games/bellweather/docs/generation-pipeline.md) owns the current prepared
 package graph, conditional composition, operation counts, and execution semantics. Prepared
 packages do not use numbered waves: package resolution fans out map-local layers, 47-mask ground,
 optional ladder and portal presentation, actors, catalogs, UI, soundtrack, and bindings according
@@ -298,7 +298,7 @@ brushwork, lighting, and mood. No grid or removable exterior field.
 Each authored map source owns its layer records: digest-locked image-reference
 bindings, authored `prompt`, explicit background/foreground plane, order,
 parallax, and alpha mode. The
-[authored contract schema](game/authored-contract-schema.md) is authoritative
+[authored contract schema](../../godot/games/_shared/docs/formats/authored-contract-schema.md) is authoritative
 for that shape; this section documents what the producer draws from it.
 
 | | |

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from stage_gen_legacy.recipes.dialogue_scene.identity import (
+from the_grain_pipeline.dialogue_scene.identity import (
     RECIPE_VERSION,
     canonical_sha256,
     run_identity,
     stage_identity,
 )
-from stage_gen_legacy.recipes.dialogue_scene.scene_request import read_scene_document
+from the_grain_pipeline.dialogue_scene.scene_request import read_scene_document
 
 from .package import write_scene_package
 

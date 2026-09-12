@@ -1,4 +1,4 @@
-"""Thin CLI adapters for optional asset recipes, independent of legacy games."""
+"""Thin CLI adapters for optional asset recipes, independent of maintained game consumers."""
 
 from __future__ import annotations
 

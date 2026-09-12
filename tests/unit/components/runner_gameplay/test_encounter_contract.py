@@ -17,8 +17,7 @@ import dataclasses
 
 import pytest
 
-from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen_legacy.components.runner_gameplay import (
+from iron_petal_unit_pipeline.gameplay import (
     BOSS_PROFILES,
     MIN_ENCOUNTER_INTERVAL_COLUMNS,
     PLACEMENT_PROFILES,
@@ -30,7 +29,8 @@ from stage_gen_legacy.components.runner_gameplay import (
     load_runner_gameplay_bytes,
     thrust_traverse_seconds,
 )
-from stage_gen_legacy.components.runner_track import MAX_SEGMENT_COLUMNS
+from iron_petal_unit_pipeline.track import MAX_SEGMENT_COLUMNS
+from stage_gen.components._game_input import AuthoredContractLoadError
 
 ENCOUNTER = """
 [encounter]

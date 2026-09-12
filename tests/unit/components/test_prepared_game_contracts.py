@@ -4,23 +4,23 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen.components.scenario import (
-    load_scenario_catalog_bytes,
-    resolve_scenario_bytes,
-)
-from stage_gen_legacy.components.game_contract import load_prepared_game_contract_bytes
-from stage_gen_legacy.components.game_ui import load_game_ui_bytes
-from stage_gen_legacy.components.platformer_content import (
+from bellweather_pipeline.gameplay import load_gameplay_contract_bytes
+from bellweather_pipeline.maps import load_prepared_game_map_bytes
+from demo_game_tools.input_formats.game_contract import load_prepared_game_contract_bytes
+from demo_game_tools.input_formats.sideview_content import (
     load_mob_content_bytes,
     load_npc_content_bytes,
     load_player_content_bytes,
     load_projectile_content_bytes,
 )
-from stage_gen_legacy.components.platformer_gameplay import load_gameplay_contract_bytes
-from stage_gen_legacy.components.platformer_map import load_prepared_game_map_bytes
+from demo_game_tools.media.ui import load_game_ui_bytes
+from stage_gen.components._game_input import AuthoredContractLoadError
+from stage_gen.components.scenario import (
+    load_scenario_catalog_bytes,
+    resolve_scenario_bytes,
+)
 
-PACKAGE = Path(__file__).resolve().parents[3] / "godot" / "legacy" / "inputs" / "bellweather"
+PACKAGE = Path(__file__).resolve().parents[3] / "godot/games/bellweather/inputs/default"
 
 
 def _bytes(relative: str) -> bytes:

@@ -25,14 +25,14 @@ from typing import Any, Final, cast
 import pytest
 from PIL import Image
 
+from ember_hollow_pipeline import layout as layout_module
+from ember_hollow_pipeline.layout import Layout
+from ember_hollow_pipeline.manifest import manifest_bytes
+from ember_hollow_pipeline.models import ClusterRule, Package, SourceError
+from ember_hollow_pipeline.survival_request import load_package
 from stage_gen.components.worldgen import PointIndex, plate_cells
-from stage_gen_legacy.recipes.oblique_survival import layout as layout_module
-from stage_gen_legacy.recipes.oblique_survival.layout import Layout
-from stage_gen_legacy.recipes.oblique_survival.manifest import manifest_bytes
-from stage_gen_legacy.recipes.oblique_survival.models import ClusterRule, Package, SourceError
-from stage_gen_legacy.recipes.oblique_survival.survival_request import load_package
 
-PACKAGE: Final = Path("godot/legacy/inputs/ember-hollow")
+PACKAGE: Final = Path("godot/games/ember_hollow/inputs")
 #: The card count the world is authored to, and the tolerance a density edit
 #: may drift it by before the host sees a different game.
 ENTITY_BUDGET: Final = 2471

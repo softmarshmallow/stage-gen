@@ -94,7 +94,7 @@ carries the per-step trace (tool, arguments, outcome — never image bytes), and
 tools and `submit`. This limits tool selection; handlers are Python callables
 executed in the host process, with no filesystem, network, or process isolation
 provided by the service. The caller owns their permissions and side effects.
-Its first consumer is the cut-in placement agent (`docs/spec/game/fx.md`).
+Its first consumer is the cut-in placement agent (`godot/games/iron_petal_unit/docs/fx.md`).
 
 `BackgroundRemovalModelV1` is the honest wart of the set: its request
 transcribes one vendor's matting surface rather than a neutral matting

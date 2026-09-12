@@ -10,6 +10,15 @@ from typing import cast
 import pytest
 from PIL import Image, ImageDraw
 
+from bellweather_pipeline.climbable_atlas import (
+    ClimbableRole,
+    nominal_cell_box,
+    plan_climbable_atlas,
+)
+from bellweather_pipeline.prepared_world import (
+    _canonicalize_map_presentation,
+    _validate_map_presentation_source,
+)
 from stage_gen.components.sideview_terrain.atlas import (
     CANONICAL_CELL_PX,
     GRID_COLUMNS,
@@ -30,15 +39,6 @@ from stage_gen.components.sideview_terrain.atlas import (
     terrain_atlas_paint_target,
 )
 from stage_gen.resources import terrain_atlas_lookup_path, terrain_atlas_template_path
-from stage_gen_legacy.recipes.sideview_platformer.climbable_atlas import (
-    ClimbableRole,
-    nominal_cell_box,
-    plan_climbable_atlas,
-)
-from stage_gen_legacy.recipes.sideview_platformer.prepared_world import (
-    _canonicalize_map_presentation,
-    _validate_map_presentation_source,
-)
 
 
 def _template() -> bytes:
@@ -173,7 +173,7 @@ def test_host_consumer_lookup_matches_the_authoritative_packaged_contract() -> N
     # it was, and the assertion only changed which file it points at.
     repository = Path(__file__).parents[4]
     consumer = (
-        repository / "godot/legacy/runtime/families/sideview/terrain/lookup.json"
+        repository / "godot/games/bellweather/gameplay/support/sideview/terrain/lookup.json"
     ).read_bytes()
     authoritative = terrain_atlas_lookup_path().read_bytes()
     assert consumer == authoritative

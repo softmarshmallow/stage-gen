@@ -19,6 +19,7 @@ from typing import Any
 
 from PIL import Image
 
+from demo_game_tools.media.ui.nodes import UI_SHEET_ROLES
 from gnode import (
     BinaryArtifact,
     ImageGenerationRequest,
@@ -30,7 +31,6 @@ from gnode import (
     StructuredGenerationResult,
     write_artifact_with_provenance,
 )
-from stage_gen_legacy.components.game_ui.nodes import UI_SHEET_ROLES
 from tests.unit._ui_atlas_fixture import ui_sheet
 
 _NARRATION_ID = re.compile(r'- id "([a-z0-9_-]+)"')

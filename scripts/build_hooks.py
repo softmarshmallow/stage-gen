@@ -25,7 +25,7 @@ def standalone_pyproject(contents: str) -> str:
             section = match.group(1)
         if section in excluded_sections:
             continue
-        if section == "dependency-groups" and re.match(r"(?:legacy|apps)\s*=", line):
+        if section == "dependency-groups" and re.match(r"(?:games|apps)\s*=", line):
             continue
         lines.append(line)
     return "".join(lines)

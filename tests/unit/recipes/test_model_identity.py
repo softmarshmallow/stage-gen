@@ -7,7 +7,10 @@ from collections.abc import Callable
 
 import pytest
 
+from bellweather_pipeline.package_graph import package_graph_profile
+from ember_hollow_pipeline.survival_graph import oblique_survival_graph_profile
 from gnode import BindingTable
+from iron_petal_unit_pipeline.runner_graph import runner_graph_profile
 from stage_gen.config import StageGenConfig
 from stage_gen.image_product import ImageProvider
 from stage_gen.model_routes import (
@@ -20,11 +23,8 @@ from stage_gen.model_routes import (
 from stage_gen.recipes.executor import RunServices
 from stage_gen.recipes.storefront.storefront_graph import storefront_graph_profile
 from stage_gen.recipes.universe.universe_graph import universe_graph_profile
-from stage_gen_legacy.recipes.dialogue_scene.scene_graph import dialogue_graph_profile
-from stage_gen_legacy.recipes.oblique_survival.survival_graph import oblique_survival_graph_profile
-from stage_gen_legacy.recipes.pointclick_room.room_graph import room_graph_profile
-from stage_gen_legacy.recipes.sideview_platformer.package_graph import package_graph_profile
-from stage_gen_legacy.recipes.sideview_runner.runner_graph import runner_graph_profile
+from the_grain_pipeline.dialogue_scene.scene_graph import dialogue_graph_profile
+from the_grain_pipeline.pointclick_room.room_graph import room_graph_profile
 
 CONFIG = StageGenConfig(
     openai_api_key="openai",

@@ -26,23 +26,23 @@ from typing import Any, cast
 
 from gnode import JsonlTraceSink, Scheduler
 from stage_gen.config import StageGenConfig
-from stage_gen_legacy.recipes.pointclick_room.prepared_room import PointClickRoomNodeHandler
-from stage_gen_legacy.recipes.pointclick_room.room_graph import (
+from tests.unit.recipes.pointclick_room.fakes import FakeRoomImages, FakeRoomStructured
+from the_grain_pipeline.pointclick_room.prepared_room import PointClickRoomNodeHandler
+from the_grain_pipeline.pointclick_room.room_graph import (
     build_pointclick_room_graph,
     room_graph_profile,
 )
-from stage_gen_legacy.recipes.pointclick_room.room_prompts import (
+from the_grain_pipeline.pointclick_room.room_prompts import (
     backdrop_prompt,
     hotspot_sprite_prompt,
 )
-from stage_gen_legacy.recipes.pointclick_room.room_request import (
+from the_grain_pipeline.pointclick_room.room_request import (
     read_room_document,
     resolve_pointclick_room,
 )
-from tests.unit.recipes.pointclick_room.fakes import FakeRoomImages, FakeRoomStructured
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
-ROOM = REPOSITORY_ROOT / "godot/legacy/inputs/the_grain/rooms/window"
+ROOM = REPOSITORY_ROOT / "godot/games/the_grain/inputs/rooms/window"
 
 
 # --------------------------------------------------------------- plan identity

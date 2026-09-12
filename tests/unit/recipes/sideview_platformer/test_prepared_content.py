@@ -9,6 +9,28 @@ from typing import cast
 import pytest
 from PIL import Image, ImageDraw
 
+from bellweather_pipeline.motion_contract import (
+    motion_semantic_direction,
+    motion_source_facing,
+)
+from bellweather_pipeline.package_executor import PreparedPackageExecutor
+from bellweather_pipeline.package_types import SOUNDTRACK_VALIDATE
+from bellweather_pipeline.prepared_content import (
+    PreparedContentNodeHandler,
+    _validate_atlas,
+    _validate_transparent_image,
+    content_review_target_node_ids,
+    content_target_node_ids,
+    soundtrack_target_node_ids,
+)
+from demo_game_collection.resources import bundled_music_path
+from demo_game_tools.media.ui import (
+    INVENTORY_PANEL_HEIGHT,
+    INVENTORY_PANEL_LEFT,
+    INVENTORY_PANEL_TOP,
+    INVENTORY_PANEL_WIDTH,
+)
+from demo_game_tools.media.ui.nodes import UI_SHEET_ROLES
 from gnode import (
     LOCAL_OPERATION,
     ImageGenerationRequest,
@@ -21,32 +43,10 @@ from stage_gen.components.sideview_actor.motion_geometry import (
     runtime_mirrors_source,
 )
 from stage_gen.config import StageGenConfig
-from stage_gen_legacy.components.game_ui import (
-    INVENTORY_PANEL_HEIGHT,
-    INVENTORY_PANEL_LEFT,
-    INVENTORY_PANEL_TOP,
-    INVENTORY_PANEL_WIDTH,
-)
-from stage_gen_legacy.components.game_ui.nodes import UI_SHEET_ROLES
-from stage_gen_legacy.recipes.sideview_platformer.motion_contract import (
-    motion_semantic_direction,
-    motion_source_facing,
-)
-from stage_gen_legacy.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
-from stage_gen_legacy.recipes.sideview_platformer.package_types import SOUNDTRACK_VALIDATE
-from stage_gen_legacy.recipes.sideview_platformer.prepared_content import (
-    PreparedContentNodeHandler,
-    _validate_atlas,
-    _validate_transparent_image,
-    content_review_target_node_ids,
-    content_target_node_ids,
-    soundtrack_target_node_ids,
-)
-from stage_gen_legacy.resources import bundled_music_path
 from tests.unit._ui_atlas_fixture import ui_sheet
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
-BELLWEATHER = REPOSITORY_ROOT / "godot/legacy/inputs/bellweather"
+BELLWEATHER = REPOSITORY_ROOT / "godot/games/bellweather/inputs/default"
 
 
 def _atlas(*, missing_cell: int | None = None) -> bytes:

@@ -116,6 +116,26 @@ GIT_MEDIA_LIMITS = {
 }
 GIT_MEDIA_TOTAL_LIMIT = 100 * 1024 * 1024
 SECRET_SUFFIXES = {".key", ".p12", ".pem", ".pfx"}
+GAME_MODULES = {
+    "demo_game_tools",
+    "demo_game_collection",
+    "bellweather_pipeline",
+    "iron_petal_unit_pipeline",
+    "ember_hollow_pipeline",
+    "the_grain_pipeline",
+}
+GAME_INPUT_ROOTS = tuple(
+    map(
+        PurePosixPath,
+        (
+            "godot/games/bellweather/inputs/default",
+            "godot/games/bellweather/inputs/waves",
+            "godot/games/iron_petal_unit/inputs",
+            "godot/games/ember_hollow/inputs",
+            "godot/games/the_grain/inputs",
+        ),
+    )
+)
 
 
 def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Path) -> None:
@@ -170,7 +190,14 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         assert any(name.endswith(".dist-info/METADATA") for name in wheel_entries)
         assert any(name.endswith(".dist-info/entry_points.txt") for name in wheel_entries)
         assert not any(
-            name.startswith(("godot/", "stage_gen_legacy/", "concept_studio/"))
+            name.startswith(
+                (
+                    "godot/",
+                    "stage_gen_legacy/",
+                    "concept_studio/",
+                    *(f"{module}/" for module in GAME_MODULES),
+                )
+            )
             for name in wheel_entries
         )
         assert not any(name.startswith("tests/") for name in wheel_entries)
@@ -286,7 +313,16 @@ from pathlib import Path
 
 class NoConsumerImports(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        if fullname.split(".")[0] in {"stage_gen_legacy", "concept_studio"}:
+        if fullname.split(".")[0] in {
+            "stage_gen_legacy",
+            "concept_studio",
+            "demo_game_tools",
+            "demo_game_collection",
+            "bellweather_pipeline",
+            "iron_petal_unit_pipeline",
+            "ember_hollow_pipeline",
+            "the_grain_pipeline",
+        }:
             raise AssertionError(f"core installation imports consumer: {fullname}")
         return None
 
@@ -430,15 +466,13 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
             assert contract["poster"]["rights_status"] == "unreviewed"
             assert contract["poster"]["rights_basis"]
             assert contract["rights"]["publication_authorized"] is False
-        is_legacy_resource = relative.parts[:5] == (
-            "godot",
-            "legacy",
-            "python",
-            "stage_gen_legacy",
-            "resources",
+        is_game_resource = relative.is_relative_to(
+            "godot/tools/python/src/demo_game_collection/resources"
         )
-        if is_legacy_resource:
-            assert relative.parts[5:] == ("music", "preview-loop.mp3")
+        if is_game_resource:
+            assert relative.relative_to(
+                "godot/tools/python/src/demo_game_collection/resources"
+            ).parts == ("music", "preview-loop.mp3")
             artifact = repository / relative
             sidecar = json.loads(Path(f"{artifact}.meta.json").read_text())
             assert (
@@ -447,10 +481,13 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
             assert sidecar["artifact"]["bytes"] == artifact.stat().st_size
             assert sidecar["rights"]["status"] == "redistribution-approved"
             assert sidecar["rights"]["basis"]
-        if relative.parts[0] == "godot" and not is_legacy_resource:
-            assert relative.parts[:3] == ("godot", "legacy", "inputs")
-            assert len(relative.parts) >= 6
-            package_parts = relative.parts[4:]
+        if relative.parts[0] == "godot" and not is_game_resource:
+            input_root = next(
+                (root for root in GAME_INPUT_ROOTS if relative.is_relative_to(root)), None
+            )
+            assert input_root is not None, f"{relative} is outside approved game input roots"
+            package_parts = relative.relative_to(input_root).parts
+            assert len(package_parts) >= 2
             is_pinned_take = (
                 package_parts[:2] == ("runner", "audio")
                 and len(package_parts) == 3

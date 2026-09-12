@@ -4,7 +4,7 @@
 >
 > This document is the canonical description of how a scrolling map layer is made to repeat on its
 > horizontal axis. The authored field is `continuity.loop_construction` in
-> [`maps/<map_id>.toml`](spec/game/map-generation-contract.md); the deterministic constructions live
+> [`maps/<map_id>.toml`](../godot/games/bellweather/docs/map-generation-contract.md); the deterministic constructions live
 > in [`media/loop_construction.py`](../src/stage_gen/media/loop_construction.py); the graph node and
 > admission policy live in the scrolling recipe.
 >
@@ -283,7 +283,7 @@ to treat the period as a per-layer fact:
 
 Vertical placement is unaffected. Loop construction only ever appends horizontally, and the vertical
 trim and placement measurement described in the
-[map-generation contract](spec/game/map-generation-contract.md) run afterwards on the constructed
+[map-generation contract](../godot/games/bellweather/docs/map-generation-contract.md) run afterwards on the constructed
 unit.
 
 ## Authored surface
@@ -368,9 +368,9 @@ business, and its `looping_continuity` check is the gate that speaks to them.
 
 ## Related
 
-- [Authored map-generation contract](spec/game/map-generation-contract.md) — the map surface and the
+- [Authored map-generation contract](../godot/games/bellweather/docs/map-generation-contract.md) — the map surface and the
   layer placement contract that runs after construction.
-- [Canonical game-generation pipeline](spec/game/generation-pipeline.md) — the executable graph the
+- [Canonical game-generation pipeline](../godot/games/bellweather/docs/generation-pipeline.md) — the executable graph the
   loop node belongs to.
 - [Verified single-axis image repeat](image-repeat.md) — the provider-neutral admission, repair,
   and review component whose deterministic validator this contract uses.

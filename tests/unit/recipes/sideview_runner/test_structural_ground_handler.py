@@ -14,6 +14,7 @@ from typing import Any
 import pytest
 from PIL import Image, ImageDraw
 
+from demo_game_collection.executors import SideviewRunnerExecutor
 from gnode import (
     AbortError,
     AtomicWriteError,
@@ -25,9 +26,8 @@ from gnode import (
     NodeExecutionResult,
     hash_input_reference,
 )
+from iron_petal_unit_pipeline.prepared_runner import SideviewRunnerNodeHandler
 from stage_gen.config import StageGenConfig
-from stage_gen_legacy.recipes.sideview_runner.prepared_runner import SideviewRunnerNodeHandler
-from stage_gen_legacy.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
 
 from ..._runner_fixture import painted_over_guide, two_genre_package
 

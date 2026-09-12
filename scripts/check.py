@@ -66,62 +66,85 @@ def commands(
     return tuple(step.command for step in steps(python, scratch=Path("/dev/null"), scope=scope))
 
 
-def _legacy_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
-    """Preserved game readers and plans; no provider services are constructed."""
+# Source roots are explicit: checking each game wrapper named prepare.py in one
+# mypy invocation would invent duplicate top-level modules. Their typed behavior
+# lives in these packages; the wrappers are exercised by the local smoke commands.
+GAME_PYTHON_ROOTS = (
+    "godot/games/_shared/python/src",
+    "godot/games/bellweather/pipeline/src",
+    "godot/games/iron_petal_unit/pipeline/src",
+    "godot/games/ember_hollow/pipeline/src",
+    "godot/games/the_grain/pipeline/src",
+    "godot/tools/python/src",
+)
+GAME_TYPED_TOOLS = (
+    "godot/games/bellweather/tools/author_terrain.py",
+    "godot/games/bellweather/tools/design_map.py",
+    "godot/games/bellweather/tools/prove_climbable_bands.py",
+    "godot/games/bellweather/tools/render_asset_scale_figures.py",
+    "godot/games/ember_hollow/tools/write_oblique_survival_cache_keys.py",
+    "godot/tools/parity_diff.py",
+    "godot/tools/validate_game_package.py",
+    "godot/tools/write_game_contract_identities.py",
+    "godot/tools/write_game_graph_contract.py",
+    "godot/tools/write_game_model_policy_snapshot.py",
+)
+
+
+def _game_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
+    """Exercise game-owned preparation entry points without provider work."""
+    plans = (
+        ("bellweather", ()),
+        ("bellweather", ("--variant", "waves")),
+        ("iron_petal_unit", ()),
+        ("ember_hollow", ()),
+        ("the_grain", ("--mode", "case")),
+        ("the_grain", ("--mode", "room")),
+        ("the_grain", ("--mode", "dialogue")),
+    )
     result = [
-        Step(
-            (
-                "stage-gen",
-                "legacy",
-                "package",
-                "plan",
-                "--input",
-                f"godot/legacy/inputs/{name}",
-                "--genre",
-                genre,
-            )
-        )
-        for name, genre in (
-            ("bellweather", "platformer"),
-            ("bellweather-waves", "platformer"),
-            ("iron-petal-unit", "runner"),
-        )
+        Step((python, f"godot/games/{game}/pipeline/prepare.py", "--plan", *options))
+        for game, options in plans
     ]
-    for family, name in (
-        ("pointclick-room", "the_grain/rooms/window"),
-        ("dialogue-scene", "the_grain"),
-        ("oblique-survival", "ember-hollow"),
+    for game, label, options in (
+        ("the_grain", "room", ("--mode", "room")),
+        ("the_grain", "dialogue", ("--mode", "dialogue")),
+        ("ember_hollow", "survival", ()),
     ):
         result.append(
             Step(
                 (
-                    "stage-gen",
-                    "legacy",
-                    family,
-                    "generate",
-                    "--input",
-                    f"godot/legacy/inputs/{name}",
+                    python,
+                    f"godot/games/{game}/pipeline/prepare.py",
+                    *options,
                     "--dry-run",
                     "--cache-dir",
-                    str(scratch / "legacy-cache"),
+                    str(scratch / "game-cache"),
                     "--output",
-                    str(scratch / f"{family}-{Path(name).name}"),
+                    str(scratch / f"{game}-{label}"),
                 )
             )
         )
     result.extend(
-        Step(("stage-gen", "legacy", "scenario", "check", "--input", f"godot/legacy/inputs/{name}"))
-        for name in ("bellweather", "the_grain")
+        Step((python, "godot/tools/validate_game_package.py", "--input", input_path))
+        for input_path in (
+            "godot/games/bellweather/inputs/default",
+            "godot/games/bellweather/inputs/waves",
+            "godot/games/iron_petal_unit/inputs",
+        )
+    )
+    result.extend(
+        Step(("demo-games", "scenario", "check", "--input", input_path))
+        for input_path in (
+            "godot/games/bellweather/inputs/default",
+            "godot/games/the_grain/inputs",
+        )
     )
     result.extend(
         (
-            Step(
-                ("stage-gen", "legacy", "case", "check", "--input", "godot/legacy/inputs/the_grain")
-            ),
-            Step(("stage-gen", "legacy", "case", "bundle", "--help")),
-            Step(("stage-gen", "legacy", "oblique-survival", "import-run", "--help")),
-            Step((python, "godot/legacy/tools/validate_game_package.py", "--root", ".")),
-            Step((python, "godot/legacy/tools/write_model_policy_snapshot.py")),
+            Step(("demo-games", "case", "bundle", "--help")),
+            Step(("demo-games", "oblique-survival", "import-run", "--help")),
+            Step((python, "godot/tools/write_game_model_policy_snapshot.py")),
         )
     )
     return tuple(result)
@@ -210,14 +233,14 @@ def steps(
             Step(
                 (
                     python,
-                    "godot/legacy/runtime/tools/make_fixture_run.py",
+                    "godot/games/ember_hollow/tools/make_fixture_run.py",
                     str(scratch / "godot-run"),
                 )
             ),
             Step(
                 (
                     python,
-                    "godot/legacy/runtime/tools/run_suite.py",
+                    "godot/tools/run_native_suite.py",
                     "--run",
                     str(scratch / "godot-run"),
                 )
@@ -225,9 +248,9 @@ def steps(
             Step((python, "godot/packages/game_presentation/tools/check_sdk_package.py")),
             Step(("pytest", "-m", "not live", *paths_for(REPOSITORY_ROOT, "godot"))),
         ),
-        "legacy": (
-            Step(("pytest", "-m", "not live", *paths_for(REPOSITORY_ROOT, "legacy"))),
-            *_legacy_steps(python, scratch=scratch),
+        "games": (
+            Step(("pytest", "-m", "not live", *paths_for(REPOSITORY_ROOT, "games"))),
+            *_game_steps(python, scratch=scratch),
         ),
         "apps": (Step(("pytest", "-m", "not live", *paths_for(REPOSITORY_ROOT, "apps"))),),
         "docs": (Step((python, "scripts/check_docs.py")),),
@@ -243,8 +266,8 @@ def steps(
                     "src",
                     "tests",
                     "scripts",
-                    "godot/legacy/python/stage_gen_legacy",
-                    "godot/legacy/tools",
+                    *GAME_PYTHON_ROOTS,
+                    *GAME_TYPED_TOOLS,
                     "godot/templates/asset_consumer/prepare.py",
                     "apps/concept_studio/src",
                     "examples",
@@ -254,7 +277,7 @@ def steps(
             *groups["viewer"][:2],
             *groups["godot"][:-1],
             *groups["docs"],
-            *groups["legacy"][1:],
+            *groups["games"][1:],
             *_asset_steps(python, scratch=scratch),
             Step((python, "-m", "build", "--no-isolation")),
             Step(("stage-gen", "--help")),
@@ -298,7 +321,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run credential-free checks for an owned surface")
     parser.add_argument(
         "--scope",
-        choices=("product", "viewer", "godot", "legacy", "apps", "docs", "all"),
+        choices=("product", "viewer", "godot", "games", "apps", "docs", "all"),
         default="product",
     )
     args = parser.parse_args()
@@ -308,7 +331,8 @@ def main() -> int:
     )
     with tempfile.TemporaryDirectory(prefix="stage-gen-gate-") as scratch:
         outcomes = [
-            run_step(step, environment) for step in steps(scratch=Path(scratch), scope=args.scope)
+            run_step(step, environment)
+            for step in steps(scratch=Path(scratch).resolve(), scope=args.scope)
         ]
     print()
     print(report(outcomes), flush=True)

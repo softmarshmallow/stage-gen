@@ -50,7 +50,7 @@ billable operations and $25.56 with its three clips adopted, against 137 and $28
 with them drawn. That number is in front of anyone who prices a run.
 
 **Two commands make the loop practical**, and neither knows anything about a
-package: `stage-gen generate-video` draws one clip and applies the pipeline's own
+package: `demo-games generate-video` draws one clip and applies the pipeline's own
 admission gate to it, so a draw refused at audition would have been refused in a
 run; `stage-gen inspect-video` costs nothing, makes no provider call, and lays the
 clip's frames out on a contact sheet sampled by the same constants the pipeline's

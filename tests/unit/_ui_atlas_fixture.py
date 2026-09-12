@@ -12,8 +12,8 @@ import io
 
 from PIL import Image, ImageDraw
 
-from stage_gen_legacy.components.game_ui import AtlasRole, CursorGridRole, IconGridRole
-from stage_gen_legacy.components.game_ui.nodes import UI_SHEET_ROLES
+from demo_game_tools.media.ui import AtlasRole, CursorGridRole, IconGridRole
+from demo_game_tools.media.ui.nodes import UI_SHEET_ROLES
 
 
 def ui_sheet(role: str) -> bytes:

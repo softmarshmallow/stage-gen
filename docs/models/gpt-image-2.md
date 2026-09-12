@@ -143,12 +143,12 @@ are maintained in [provider operations](providers.md).
 
 If fal route selection changes dependencies, asset fan-out, provider operation
 counts, or scheduling, update the
-[canonical generation pipeline](../spec/game/generation-pipeline.md) and its
+[canonical generation pipeline](../../godot/games/bellweather/docs/generation-pipeline.md) and its
 executable graph contract in the same implementation change. Also review the
 [repository overview](../../README.md), [architecture](../../ARCHITECTURE.md),
 [gnode rings](../spec/gnode-rings.md),
 [asset contracts](../spec/asset-contracts.md), and the
-[survival](../spec/survival/generation-v1.md),
+[survival](../../godot/games/ember_hollow/docs/generation-v1.md),
 [universe](../spec/universe/generation-v1.md), and
 [storefront](../spec/storefront/generation-v1.md) recipe contracts. The
 Sunburst successor migration updated those current-route documents without

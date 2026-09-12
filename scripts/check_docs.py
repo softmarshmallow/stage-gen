@@ -39,6 +39,28 @@ def _walk_files(path: Path, suffixes: frozenset[str]) -> list[Path]:
     return files
 
 
+CONSUMER_SPECS = (
+    "godot/games/ember_hollow/docs/generation-v1.md",
+    "godot/games/ember_hollow/docs/crafting.md",
+    "godot/games/ember_hollow/docs/ground.md",
+    "godot/games/ember_hollow/docs/world.md",
+    "godot/games/ember_hollow/docs/seasons.md",
+    "godot/games/_shared/docs/formats/ui-atlas.md",
+    "godot/games/_shared/docs/formats/view-and-style-taxonomy.md",
+    "godot/games/the_grain/docs/case.md",
+    "godot/games/the_grain/docs/pointclick-room.md",
+    "godot/games/_shared/docs/formats/host-contract.md",
+    "godot/games/_shared/docs/formats/dialogue-and-cutscene-sequences.md",
+    "godot/games/_shared/docs/formats/authored-contract-schema.md",
+    "godot/games/iron_petal_unit/docs/fx.md",
+    "godot/games/iron_petal_unit/docs/runner.md",
+    "godot/games/bellweather/docs/map-generation-contract.md",
+    "godot/games/bellweather/docs/generation-pipeline.md",
+    "godot/games/_shared/docs/formats/ui.md",
+    "godot/games/ember_hollow/docs/shell.md",
+    "godot/games/the_grain/docs/dialogue-scene-assets.md",
+)
+
 CHECKED_BY_PATTERN = re.compile(r"^> \*\*Checked by:\*\* (.+)$", re.MULTILINE)
 
 
@@ -90,7 +112,12 @@ def check_spec_checkers(repo: Path) -> list[str]:
     """
 
     failures: list[str] = []
-    for spec in sorted(_walk_files(repo / "docs/spec", frozenset({".md"}))):
+    for spec in sorted(
+        [
+            *_walk_files(repo / "docs/spec", frozenset({".md"})),
+            *(repo / ref for ref in CONSUMER_SPECS if (repo / ref).is_file()),
+        ]
+    ):
         relative = spec.relative_to(repo).as_posix()
         source = spec.read_text(encoding="utf-8")
         match = CHECKED_BY_PATTERN.search(source)
@@ -103,7 +130,7 @@ def check_spec_checkers(repo: Path) -> list[str]:
         named = re.findall(r"`([^`]+)`", claim)
         if not named:
             failures.append(f"{relative}: Checked by names no test in backticks")
-        spec_ref = relative[len("docs/") :]
+        spec_ref = relative.removeprefix("docs/")
         for test_ref in named:
             is_test = (test_ref.startswith("tests/") and test_ref.endswith(".py")) or (
                 test_ref.startswith("web/lib/") and test_ref.endswith(".test.ts")
@@ -201,8 +228,11 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         "docs/plans/",
         "docs/research/",
         "docs/media/",
-        "godot/legacy/inputs/the_grain/story/snapshot-",
-        "godot/legacy/inputs/the_grain/PILOT.md",
+        # Authored input documents move unchanged with their digest-bound closures.
+        *(
+            f"godot/games/{game}/inputs/"
+            for game in ("bellweather", "iron_petal_unit", "ember_hollow", "the_grain")
+        ),
     )
     link_pattern = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
     # A link to a path the repository deliberately ignores is not broken: a
@@ -301,7 +331,9 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         ("legacy gateway shorthand", re.compile(r"vercel[-\s]+ai[-\s]+gateway", re.IGNORECASE)),
         (
             "legacy pipeline workspace",
-            re.compile(r"(?<![a-z_/-])pipeline/(?:src|package\.json|node_modules)"),
+            re.compile(
+                r"(?<![a-z_/-])pipeline/(?:package\.json|node_modules|src/[^\s`]*\.[cm]?[jt]sx?)"
+            ),
         ),
         ("legacy recording directory", re.compile(r"fixtures/bgm", re.IGNORECASE)),
         ("legacy curated recording claim", re.compile(r"BGM\s+is\s+curated", re.IGNORECASE)),
@@ -422,12 +454,12 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
 
     required_contracts = (
         (
-            "godot/legacy/README.md",
+            "godot/games/_shared/docs/game-package.md",
             re.compile(r"directory or ZIP whose root contains `game\.toml`", re.IGNORECASE),
             "prepared-package CLI input",
         ),
         (
-            "godot/legacy/README.md",
+            "godot/games/_shared/docs/game-package.md",
             re.compile(
                 r"--dry-run.{0,200}deterministic fake operations",
                 re.IGNORECASE | re.DOTALL,
@@ -435,12 +467,12 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
             "provider-free execution dry run",
         ),
         (
-            "godot/legacy/README.md",
+            "godot/games/_shared/docs/game-package.md",
             re.compile(r"There is no bare-prompt fallback", re.IGNORECASE),
             "removed prompt fallback",
         ),
         (
-            "godot/legacy/README.md",
+            "godot/games/_shared/docs/game-package.md",
             re.compile(
                 r"without `--dry-run`.{0,160}fails before provider",
                 re.IGNORECASE | re.DOTALL,

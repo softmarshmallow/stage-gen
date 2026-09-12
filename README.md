@@ -50,12 +50,12 @@ Godot consumers live under [godot](godot/README.md). The
 preparation script and GDScript loading an explicit asset. Games own their scenes,
 controls, combat, narrative binding and asset-to-game wiring.
 
-Existing demos and their old TOML builders are isolated under
-[godot/legacy](godot/legacy/README.md). Install them only when working on those demos:
+Each [example game](godot/games/README.md) owns its inputs, preparation script and
+Godot project. Install the optional game tooling when preparing those games:
 
 ```sh
-uv sync --frozen --group legacy
-uv run --group legacy stage-gen legacy package plan --input godot/legacy/inputs/bellweather --genre platformer
+uv sync --frozen --group games
+uv run --group games python godot/games/bellweather/pipeline/prepare.py
 ```
 
 Concept Studio is an optional application in [apps/concept_studio](apps/concept_studio/README.md).
@@ -72,6 +72,6 @@ Start with the [directory preview](docs/repository-layout.md),
 uv run python scripts/check.py
 ```
 
-[Verification](VERIFICATION.md) defines separate product, viewer, Godot, legacy,
+[Verification](VERIFICATION.md) defines separate product, viewer, Godot, game,
 application and documentation gates, plus the aggregate gate. Source code licensing
 is distinct from asset rights; see [media publication](docs/generated-media-publication.md).

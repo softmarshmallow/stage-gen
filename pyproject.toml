@@ -33,14 +33,22 @@ dev = [
   "pytest-timeout>=2.3,<3",
   "ruff>=0.11,<1",
 ]
-legacy = ["stage-gen-legacy"]
+games = ["demo-game-collection"]
 apps = ["stage-gen-concept"]
 
 [tool.uv.workspace]
-members = ["godot/legacy/python", "apps/concept_studio"]
+members = [
+  "godot/games/_shared/python",
+  "godot/games/bellweather/pipeline",
+  "godot/games/iron_petal_unit/pipeline",
+  "godot/games/ember_hollow/pipeline",
+  "godot/games/the_grain/pipeline",
+  "godot/tools/python",
+  "apps/concept_studio",
+]
 
 [tool.uv.sources]
-stage-gen-legacy = { workspace = true }
+demo-game-collection = { workspace = true }
 stage-gen-concept = { workspace = true }
 
 [tool.hatch.build]
@@ -113,7 +121,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "RUF"]
 ignore = ["RUF022"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["gnode", "stage_gen", "stage_gen_legacy", "concept_studio"]
+known-first-party = ["gnode", "stage_gen", "demo_game_tools", "demo_game_collection", "bellweather_pipeline", "iron_petal_unit_pipeline", "ember_hollow_pipeline", "the_grain_pipeline", "concept_studio"]
 
 [tool.mypy]
 python_version = "3.12"

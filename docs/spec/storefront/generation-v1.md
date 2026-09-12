@@ -4,7 +4,7 @@
 
 > **Contract maturity: exact-current authored contracts.** Executable authority:
 > `src/stage_gen/recipes/storefront/`. The committed fixture package is
-> `godot/legacy/inputs/ember-hollow`, whose `storefront.toml` sits beside the survival
+> `godot/games/ember_hollow/inputs`, whose `storefront.toml` sits beside the survival
 > package's own root document and reads none of it.
 
 ## What this recipe is
@@ -23,7 +23,7 @@ mechanism: one look, one brief per surface, one independent branch each.
 
 **This recipe produces no in-game asset.** The screens around a game — the
 opening cinematic, the title screen, the loading screen — are in-game brand
-presentation and belong to the [game shell](../game/shell.md), a component under
+presentation and belong to the [game shell](../../../godot/games/ember_hollow/docs/shell.md), a component under
 `2d/shell` that a genre's own recipe plans into its run. Nothing here draws one,
 and the two never meet: a shell is read by the host that plays the game, and a
 storefront is read by a store.
@@ -125,7 +125,7 @@ again — the same key restores the same image. The draw index in
 enters only the image node's identity:
 
 ```bash
-stage-gen storefront generate --input godot/legacy/inputs/ember-hollow \
+stage-gen storefront generate --input godot/games/ember_hollow/inputs \
   --output out/storefront-v2 --draw-ledger out/storefront-v1/draw-ledger.json \
   --reroll icon
 ```
@@ -189,14 +189,14 @@ images and six structured calls.
 
 ## Executable graph contract
 
-Derived by `godot/legacy/tools/write_pipeline_graph_contract.py`; regenerate with `--write`
+Derived by `godot/tools/write_game_graph_contract.py`; regenerate with `--write`
 after any change to the surface table, the fan-out or the routes.
 
 <!-- pipeline-graph-contract:start -->
 ```json
 {
   "kind": "storefront-execution-graph-contract-v1",
-  "fixture_ref": "godot/legacy/inputs/ember-hollow",
+  "fixture_ref": "godot/games/ember_hollow/inputs",
   "surface_count": 4,
   "graph_schema_version": 2,
   "topology_sha256": "96938313988c40bfd9bed3e94bb7434d0eeb3c7f53cb23d403ffa374d5260b32",

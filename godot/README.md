@@ -1,50 +1,89 @@
 # The Godot tree
 
-Godot owns playable consumers, runtime integration, and consumer templates. The Python product
-provides asset pipelines and the SDK; a game decides which outputs it uses and how they become
-scenes, animation, presentation, or gameplay. There is no canonical whole-game contract for new
-consumers.
+Godot owns playable consumers, runtime integration and consumer templates. The
+Python product supplies asset pipelines and the SDK. Each game decides how those
+assets become scenes, animation and gameplay.
 
 ```text
-packages/    reusable Godot SDK packages, each with its own addon, tests, and tools
-templates/   editable project starting points with consumer-owned preparation and bindings
-games/       complete authored games with their own content and behavior
-demos/       small independent consumer demonstrations; currently only an ownership README
-legacy/     preserved generated-game builders, inputs, tooling, and the shared runtime
+godot/
+├── games/                            # Named games, maintained as peers
+│   ├── afterlight/
+│   ├── command_link/
+│   ├── bellweather/                   # Platformer, including Waves inputs
+│   ├── iron_petal_unit/               # Runner
+│   ├── ember_hollow/                  # Survival
+│   ├── the_grain/                     # Investigation, rooms and dialogue
+│   └── _shared/                       # Private support used by several games
+│       ├── runtime/addons/demo_support/
+│       ├── python/src/demo_game_tools/
+│       └── docs/
+├── packages/game_presentation/        # Independent presentation SDK
+├── templates/
+│   ├── asset_consumer/                # Explicit PNG preparation and display
+│   └── vn/                            # Copyable presentation project
+└── tools/                             # Workspace verification and collection CLI
 ```
 
-| Project | Responsibility | Entry point |
-| --- | --- | --- |
-| [game_presentation](packages/game_presentation/README.md) | Presentation SDK: camera, actors, transitions, effects, text, audio, and contact for staged scenes | `python godot/packages/game_presentation/tools/check_sdk_package.py` |
-| [asset_consumer](templates/asset_consumer/README.md) | Minimal image consumer; its own script prepares a supplied PNG and its own scene displays it | `godot --path godot/templates/asset_consumer` |
-| [vn](templates/vn/README.md) | The Signal Room, an editable visual-novel starter using the presentation SDK | `godot --path godot/templates/vn` |
-| [afterlight](games/afterlight/README.md) | Bishōjo: Afterlight, The Address Beyond, an authored adventure and Lab | `godot --path godot/games/afterlight -- --language ko` |
-| [command_link](games/command_link/README.md) | Command Link, an authored tactical story and Lab | `godot --path godot/games/command_link` |
-| [legacy runtime](legacy/runtime/README.md) | Historical generated-run hosts and their shared simulation families | `godot --path godot/legacy/runtime -- --run <absolute run directory>` |
+## Play a game
 
-## Legacy ownership
+Run these commands from the repository root. The four run-consuming games require
+an already prepared absolute run directory. Starting a game performs no generation.
+Use each game's README for input preparation, controls and supported run formats.
 
-`godot/legacy/python/stage_gen_legacy` contains the historical game builders, components, and
-contracts. `godot/legacy/inputs` preserves their existing TOML packages. `godot/legacy/runtime`
-contains the shared Godot kernel, families, genres, and hosts. [Legacy tools](legacy/tools/README.md)
-maintain their input packages, graph snapshots, and parity evidence. These retain old demos
-without making their gameplay schemas requirements of the product or of a new game.
+After cloning or moving scripts, import the selected project once so Godot builds
+its local script-class cache. For example:
 
-## Package and project boundaries
-
-A project can link a package's addon payload during development, for example:
-
-```text
-games/<id>/addons/<name> -> ../../../packages/<name>/addons/<name>
+```sh
+godot --headless --editor --path godot/games/bellweather --quit
 ```
 
-The package assembler copies real bytes into a distributable project. The boundary test allows
-only links to package payloads and requires each package to own its project and payload. This is
-a code-sharing rule; media crosses a real consumer boundary by copying, with its provenance and
-rights intact.
+Use the same project path for its launch below. This step discovers scripts and
+imports existing local resources; it makes no provider calls.
 
-Every project owns its renderer, canvas, main scene, configuration, preparation scripts, and
-runtime bindings. Tests live with that project and run with
-`godot --headless --path <project> --script res://tests/<suite>.gd`. A template may consume one
-asset without linking any package. A game may compose several packages without requiring an
-asset-generation recipe to understand its behavior.
+| Game | Launch |
+| --- | --- |
+| [Afterlight](games/afterlight/README.md) | `godot --path godot/games/afterlight -- --language en` |
+| [Command Link](games/command_link/README.md) | `godot --path godot/games/command_link` |
+| [Bellweather](games/bellweather/README.md) | `godot --path godot/games/bellweather -- --run "$PWD/out/bellweather-c6-parity"` |
+| [Iron Petal Unit](games/iron_petal_unit/README.md) | `godot --path godot/games/iron_petal_unit -- --run "$PWD/out/iron-petal-c1-parity"` |
+| [Ember Hollow](games/ember_hollow/README.md) | `godot --path godot/games/ember_hollow -- --run "$PWD/out/ember-hollow-v13"` |
+| [The Grain](games/the_grain/README.md) | `godot --path godot/games/the_grain -- --run /absolute/path/to/case-run` |
+
+The example `out/` paths name existing local runs; they are not included in a fresh
+checkout. Afterlight and Command Link likewise need their separately held bound
+media. The game READMEs describe their refusal behavior when content is missing.
+
+## Prepare assets
+
+Each game owns its preparation entry point and its input selection. Bellweather's
+`default` and `waves` inputs are variants of the same game. No root selector chooses
+a game for the repository.
+
+```sh
+uv sync --frozen --group games
+uv run --group games python godot/games/bellweather/pipeline/prepare.py
+uv run --group games python godot/games/iron_petal_unit/pipeline/prepare.py
+uv run --group games python godot/games/ember_hollow/pipeline/prepare.py
+uv run --group games python godot/games/the_grain/pipeline/prepare.py
+```
+
+These defaults plan or validate inputs offline. Run `--help` on the selected
+script for generation, deterministic rehearsal and output options. The collection
+CLI, `uv run --group games demo-games --help`, maintains existing format inspection
+and authoring commands without making those formats part of the public asset SDK.
+
+## Packages and templates
+
+[game_presentation](packages/game_presentation/README.md) provides independently
+usable presentation mechanisms. [asset_consumer](templates/asset_consumer/README.md)
+and [vn](templates/vn/README.md) are copyable starting projects. A game chooses the
+packages it needs; it need not consume all packages or use a particular game schema.
+
+During development, projects link the addon payload of an independent package or
+`games/_shared/runtime/addons/demo_support`. Assemblers copy real source files
+into distributable projects. Shared support imports no named game. Media crosses
+an application boundary through explicit copies with its provenance and rights.
+
+Every game owns its renderer, main scene, configuration and gameplay. Native tests
+live with their owner; [workspace tools](tools/README.md) run them together. See the
+[detailed layout](../docs/plans/godot-consumer-layout.md) for the ownership map.

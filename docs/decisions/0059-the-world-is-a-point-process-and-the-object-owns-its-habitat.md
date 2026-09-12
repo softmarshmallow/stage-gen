@@ -40,7 +40,7 @@ The world is a marked point process over solved fields, laid by a component
 with no vocabulary (`src/stage_gen/components/worldgen/`): regions are
 integers, objects are ids, and everything else is a number. **The object owns
 its habitat.** A prop, the mob and each ground sheet carry a `placement`
-block (`docs/spec/survival/world.md`); a biome never lists a roster. The
+block (`godot/games/ember_hollow/docs/world.md`); a biome never lists a roster. The
 world's extent, coast, biome rules, set pieces and spawn are `world.toml`, and
 the free `[world]` table, `density_share`, `biome_weights`, `mob_count` and a
 sheet's density map are refused by name. The package kind is

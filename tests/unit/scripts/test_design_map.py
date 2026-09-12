@@ -9,18 +9,18 @@ from types import ModuleType
 
 import pytest
 
-from stage_gen_legacy.components.platformer_map import PreparedGameMap, load_prepared_game_map_bytes
-from stage_gen_legacy.components.platformer_map.prepared import (
+from bellweather_pipeline.maps import PreparedGameMap, load_prepared_game_map_bytes
+from bellweather_pipeline.maps.prepared import (
     load_prepared_map_terrain_bytes,
     validate_generated_terrain,
 )
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-LIBRARY_ROOT = REPOSITORY_ROOT / "godot" / "legacy" / "inputs"
+INPUT_ROOT = REPOSITORY_ROOT / "godot/games/bellweather/inputs/default"
 
 
 def _load_script() -> ModuleType:
-    path = REPOSITORY_ROOT / "godot/legacy/tools/design_map.py"
+    path = REPOSITORY_ROOT / "godot/games/bellweather/tools/design_map.py"
     spec = importlib.util.spec_from_file_location("design_map", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -33,9 +33,7 @@ SCRIPT = _load_script()
 
 
 def _map(map_id: str) -> PreparedGameMap:
-    return load_prepared_game_map_bytes(
-        (LIBRARY_ROOT / "bellweather" / "maps" / f"{map_id}.toml").read_bytes()
-    )
+    return load_prepared_game_map_bytes((INPUT_ROOT / "maps" / f"{map_id}.toml").read_bytes())
 
 
 def test_the_profile_is_derived_from_the_authored_map_rather_than_restated() -> None:
@@ -66,10 +64,10 @@ def test_a_map_without_a_climbable_atlas_gets_no_climbable_words() -> None:
 
 def test_the_profile_restates_the_consumers_own_traversal_constants() -> None:
     # This is what stops the designer's idea of the game drifting from the runtime's.
-    from stage_gen_legacy.components.platformer_map.prepared import (
+    from bellweather_pipeline import terrain_design
+    from bellweather_pipeline.maps.prepared import (
         MAX_UNASSISTED_TERRAIN_RISE_TILES,
     )
-    from stage_gen_legacy.recipes.sideview_platformer import terrain_design
 
     profile = SCRIPT.terrain_profile(_map("crowncrag-road"))
     movement = profile.movement
@@ -92,7 +90,7 @@ def test_the_floor_band_is_a_shallow_relief_around_the_walk_surface_datum() -> N
     # The reference hunting map keeps its ground as one nearly level lane and hangs the level
     # above it, so the floor is fenced to the datum the painted scenery meets rather than left
     # free to climb the grid as terrain. Measured from the map's own declaration, not restated.
-    from stage_gen_legacy.recipes.sideview_platformer.terrain_design import (
+    from bellweather_pipeline.terrain_design import (
         TERRAIN_CLIMBABLE_RISE_TILES,
         TERRAIN_FLOOR_RELIEF_TILES,
         floor_depth_band,
@@ -118,7 +116,7 @@ def test_the_framing_ceiling_comes_from_the_declared_camera() -> None:
     # The one place the camera reaches into generation. A map whose camera cannot follow the
     # player upward may only build as high as the viewport can hold a standing figure; a map whose
     # camera can gets the whole authored grid, less the same headroom at the top.
-    from stage_gen_legacy.recipes.sideview_platformer.terrain_design import (
+    from bellweather_pipeline.terrain_design import (
         TERRAIN_TILE_PX,
         TERRAIN_VIEWPORT_HEIGHT_PX,
         framing_ceiling,
@@ -149,7 +147,7 @@ def test_a_fixed_camera_ceiling_keeps_a_standing_player_inside_the_viewport() ->
     # The bound this replaced was a hand-written 12, which put the top of the figure roughly a
     # tile above the viewport with no camera able to bring it back. Assert the property rather
     # than the number so a retune of either constant has to stay honest.
-    from stage_gen_legacy.recipes.sideview_platformer.terrain_design import (
+    from bellweather_pipeline.terrain_design import (
         TERRAIN_PLAYER_STANDING_HEIGHT_PX,
         TERRAIN_TILE_PX,
         TERRAIN_VIEWPORT_HEIGHT_PX,
@@ -234,7 +232,7 @@ def test_compile_writes_a_terrain_artifact_the_map_accepts(tmp_path: Path) -> No
 def test_compile_never_writes_into_the_authored_library(tmp_path: Path) -> None:
     # Terrain is a run artifact. Nothing this script does may edit a map document.
     library = tmp_path / "games"
-    shutil.copytree(LIBRARY_ROOT, library)
+    shutil.copytree(INPUT_ROOT, library)
     before = {path: path.read_bytes() for path in sorted(library.rglob("*")) if path.is_file()}
     assert (
         SCRIPT.main(
@@ -245,7 +243,7 @@ def test_compile_never_writes_into_the_authored_library(tmp_path: Path) -> None:
                 "--example",
                 "--run-dir",
                 str(tmp_path / "run"),
-                "--library-root",
+                "--input",
                 str(library),
             ]
         )
@@ -278,7 +276,7 @@ def test_the_example_sentence_stays_valid_for_the_shipped_road() -> None:
 
 def test_the_shipped_maps_carry_a_terrain_request_and_no_geometry() -> None:
     for map_id in ("crowncrag-road", "sunpetal-crossing"):
-        text = (LIBRARY_ROOT / "bellweather" / "maps" / f"{map_id}.toml").read_text()
+        text = (INPUT_ROOT / "maps" / f"{map_id}.toml").read_text()
         assert "occupancy = [" not in text
         assert "[[climbable.placements]]" not in text
         assert '[terrain]\nmode = "platformer-chunk-map-v1"' in text

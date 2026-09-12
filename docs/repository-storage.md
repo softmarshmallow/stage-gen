@@ -3,9 +3,10 @@
 Generated run output belongs below the configured output directory and stays
 gitignored. Commit only small, deliberate fixtures needed to build, test, or
 explain a contract. A canonical prepared game may also commit its explicitly
-digest-bound image inputs under `godot/legacy/inputs/<game_id>/references/` and its
-digest-bound typefaces under `godot/legacy/inputs/<game_id>/fonts/`; those are authored
-package members, not generated run output.
+digest-bound image inputs within each `godot/games/<game>/inputs/` closure and its
+digest-bound typefaces within that closure; those are authored
+package members, not generated run output. Bellweather keeps complete closures
+under `inputs/default/` and `inputs/waves/`; the other prepared games use `inputs/`.
 
 README-only repository marketing assets live under `.github/assets/readme/`.
 That directory contains efficient WebP presentation copies rather than
@@ -71,7 +72,7 @@ does not move older blobs automatically.
 
 ## Game media under `godot/games/`
 
-The branded example games keep their image, audio and video bytes out of Git
+Afterlight and Command Link keep their playable image, audio and video bytes out of Git
 and describe them through tracked catalogs, manifests and digests. The present
 arrangement, what a fresh clone can do, and the deferred discipline for adopting
 media into Git are anchored in [`godot/games/README.md`](../godot/games/README.md).
@@ -85,11 +86,11 @@ media into Git are anchored in [`godot/games/README.md`](../godot/games/README.m
   as WebP, and keep their use limited to repository presentation.
 - Every committed binary needs a reason, provenance, and rights status.
 - Prepared-package image inputs are allowed only beneath
-  `godot/legacy/inputs/<game_id>/references/`. Their owning TOML contracts must bind
+  the owning game input closure's `references/` directory. Their owning TOML contracts must bind
   exact digests and inline rights basis, while `game.toml` binds the selected
   evidence and reviews. They do not use generated-output `.meta.json` sidecars.
 - A prepared-package typeface is allowed only beneath
-  `godot/legacy/inputs/<game_id>/fonts/`, with the face's licence file committed beside
+  the owning game input closure's `fonts/` directory, with the face's licence file committed beside
   it, and its owning TOML contract binds the exact digest and the licence the same
   way. A face is a third-party input with a rights basis, not provider output
   published as art: it carries no inventory entry and no `.meta.json` sidecar.

@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ember-hollow-pipeline"
+version = "0.0.0"
+description = "Preparation implementation for ember hollow pipeline"
+requires-python = ">=3.12"
+dependencies = ["stage-gen", "demo-game-tools"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ember_hollow_pipeline"]
+
+[tool.uv.sources]
+stage-gen = { workspace = true }
+demo-game-tools = { workspace = true }

@@ -14,9 +14,19 @@ from importlib.util import resolve_name
 from pathlib import Path
 from typing import Literal, cast
 
-TestOwner = Literal["product", "legacy", "godot", "viewer", "apps"]
-_OWNERS: tuple[TestOwner, ...] = ("product", "legacy", "viewer", "godot", "apps")
-_MARKER = re.compile(r"^# test-owner: (product|legacy|godot|viewer|apps)$", re.MULTILINE)
+TestOwner = Literal["product", "games", "godot", "viewer", "apps"]
+_OWNERS: tuple[TestOwner, ...] = ("product", "games", "viewer", "godot", "apps")
+_MARKER = re.compile(r"^# test-owner: (product|games|godot|viewer|apps)$", re.MULTILINE)
+GAME_MODULES = frozenset(
+    {
+        "demo_game_tools",
+        "demo_game_collection",
+        "bellweather_pipeline",
+        "iron_petal_unit_pipeline",
+        "ember_hollow_pipeline",
+        "the_grain_pipeline",
+    }
+)
 
 
 def _module(path: Path, root: Path) -> str:
@@ -60,8 +70,8 @@ def _declared_owner(path: Path, root: Path, source: str, modules: set[str]) -> T
     # An explicit marker cannot hide imports that require an optional distribution.
     if any(module.split(".")[0] == "concept_studio" for module in modules):
         owners.add("apps")
-    if any(module.split(".")[0] == "stage_gen_legacy" for module in modules):
-        owners.add("legacy")
+    if any(module.split(".")[0] in GAME_MODULES for module in modules):
+        owners.add("games")
     if explicit is None:
         relative = path.relative_to(root).as_posix()
         if "concept_studio" in relative:
@@ -70,8 +80,8 @@ def _declared_owner(path: Path, root: Path, source: str, modules: set[str]) -> T
             owners.add("godot")
         elif path.name == "test_web_node_boundary.py":
             owners.add("viewer")
-        elif "godot/legacy/" in source or '"godot" / "legacy"' in source:
-            owners.add("legacy")
+        elif "godot/games/" in source or "godot/tools/" in source or '"godot" / "games"' in source:
+            owners.add("games")
     return _strongest(owners)
 
 

@@ -29,9 +29,10 @@ as repeating layers or sprite playback without acquiring gameplay responsibility
 
 A Godot game imports selected assets through its own preparation script and GDScript.
 Use [the consumer template](../../../godot/templates/asset_consumer/README.md) as a
-starting point. Do not import `stage_gen_legacy` from the product or new recipes.
+starting point. The product and new asset recipes must not import game pipeline packages,
+`demo_game_tools` or `demo_game_collection`.
 
 Verify the public boundary with credential-free `uv run python scripts/check.py`.
-Run the viewer, Godot, legacy or app scope when changing those consumers. Follow
+Run the viewer, Godot, games or app scope when changing those consumers. Follow
 [VERIFICATION.md](../../../VERIFICATION.md) for the aggregate gate and live checks.
 Never claim generation, visual acceptance or gameplay proof from planning alone.

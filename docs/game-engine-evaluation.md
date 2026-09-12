@@ -45,7 +45,7 @@ acceptance test 0057 is written against, and it is satisfied: the record carries
 the criteria one by one, the three rejected alternatives with the reason for
 each, a measured migration cost of zero on the generating side, and the adapter
 boundary stated as a directory rule in the
-[host contract](spec/game/host-contract.md) — a host is the outermost layer and
+[host contract](../godot/games/_shared/docs/formats/host-contract.md) — a host is the outermost layer and
 nothing on the generating side names it.
 
 Engine-specific claims stay out of core manifests and asset schemas. That rule

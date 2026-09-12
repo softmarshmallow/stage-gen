@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "roots": [
-    "godot/legacy/python/stage_gen_legacy/resources/music",
+    "godot/tools/python/src/demo_game_collection/resources/music",
     "concept-studio/gallery"
   ],
   "media": [
     {
-      "path": "godot/legacy/python/stage_gen_legacy/resources/music/preview-loop.mp3",
+      "path": "godot/tools/python/src/demo_game_collection/resources/music/preview-loop.mp3",
       "reviewStatus": "repository-approved",
       "synthId": {
         "expected": true,

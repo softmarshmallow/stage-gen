@@ -8,7 +8,7 @@ import json
 import pytest
 from PIL import Image, ImageDraw
 
-from stage_gen_legacy.components.game_fx import (
+from iron_petal_unit_pipeline.fx import (
     CUT_IN_CANVAS,
     CUT_IN_FRAME,
     CUT_IN_PORTRAIT,

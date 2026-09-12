@@ -12,8 +12,8 @@ from typing import cast
 
 import pytest
 
-from stage_gen_legacy.components.runner_audio import load_runner_audio_bytes
-from stage_gen_legacy.components.runner_gameplay import (
+from iron_petal_unit_pipeline.audio import load_runner_audio_bytes
+from iron_petal_unit_pipeline.gameplay import (
     COLLISION_BOXES,
     JUMP_PROFILES,
     SPEED_PROFILES,
@@ -21,7 +21,7 @@ from stage_gen_legacy.components.runner_gameplay import (
     jump_arc,
     load_runner_gameplay_bytes,
 )
-from stage_gen_legacy.recipes.sideview_runner.prepared_runner import (
+from iron_petal_unit_pipeline.prepared_runner import (
     manifest_audio,
     manifest_gameplay,
 )

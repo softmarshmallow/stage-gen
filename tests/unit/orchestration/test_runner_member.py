@@ -18,15 +18,15 @@ from typing import Any
 import pytest
 from PIL import Image
 
-from stage_gen_legacy.interfaces.cli import main
-from stage_gen_legacy.orchestration.game_package import (
+from demo_game_collection.cli import main
+from demo_game_collection.game_package import (
     GamePackageValidationError,
     resolve_game_package,
     resolve_prepared_package,
     validate_game_package,
 )
-from stage_gen_legacy.recipes.sideview_runner.runner_request import resolve_runner_package
-from stage_gen_legacy.recipes.sideview_runner.validation import ResolvedRunnerMember
+from iron_petal_unit_pipeline.runner_request import resolve_runner_package
+from iron_petal_unit_pipeline.validation import ResolvedRunnerMember
 
 from .._runner_fixture import (
     ARC_PICKUPS,
@@ -161,19 +161,10 @@ def test_runner_only_directory_and_zip_have_the_same_closure(tmp_path: Path) -> 
 def test_repository_package_validation_accepts_a_runner_only_selection(tmp_path: Path) -> None:
     authored = runner_only_package(tmp_path / "authored")
     workspace = tmp_path / "workspace"
-    package = workspace / "godot" / "legacy" / "inputs" / "bellweather"
+    package = workspace / "godot" / "games" / "bellweather" / "inputs" / "default"
     package.parent.mkdir(parents=True)
     shutil.copytree(authored, package)
-    (package.parent / "main.toml").write_text(
-        """schema_version = 4
-kind = "game-package-v4"
-game_id = "bellweather"
-package_ref = "godot/legacy/inputs/bellweather/game.toml"
-""",
-        encoding="utf-8",
-    )
-
-    report = validate_game_package(workspace)
+    report = validate_game_package(package)
 
     assert report["valid"] is True
     assert report["schema_version"] == 6
@@ -319,7 +310,7 @@ def test_a_pit_stays_illegal_in_the_platformer_family() -> None:
 
     import pydantic
 
-    from stage_gen_legacy.components.platformer_map.prepared import PreparedMapTerrain
+    from bellweather_pipeline.maps.prepared import PreparedMapTerrain
 
     holed = ["000000000000"] * 5 + ["111111111111"] * 2 + ["111111111110"]
     with pytest.raises(pydantic.ValidationError, match="bottom-supported escape floor"):

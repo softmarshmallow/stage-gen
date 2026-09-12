@@ -52,7 +52,7 @@ also refused anywhere in a custom base URL. Credentials may be sent only over
 HTTPS; plain HTTP is accepted solely for an exact loopback host such as
 `localhost`, `127.0.0.1`, or `::1` in local tests.
 
-The two image-model fields are optional exact-identity assertions for legacy
+The two image-model fields are optional exact-identity assertions for the maintained game
 deployments, not free-form selection. Leave them blank to use the application
 product and route catalog; any non-matching value is refused offline. The
 active provider spellings and fal endpoint IDs have one executable authority in
@@ -98,7 +98,7 @@ measured model boundary — what this route can and cannot be asked for — is
 recorded in
 [model-eleven-text-to-sound-v2.md](../spec/model-eleven-text-to-sound-v2.md);
 the authoring contract that consumes it is
-[game-sound-effects.md](../game-sound-effects.md).
+[game-sound-effects.md](../../godot/games/iron_petal_unit/docs/audio.md).
 
 The same key authenticates the `speech_generation` operation:
 `POST https://api.elevenlabs.io/v1/text-to-speech/{voice}` with the `xi-api-key`
@@ -113,7 +113,7 @@ by the recipe and never authored beside gameplay. A seed is never sent:
 measured, it pins the length of a read and not its waveform. The route bills
 in characters and reports the charge in the same `character-cost` header. The
 measured model boundary is [model-eleven-v3.md](../spec/model-eleven-v3.md);
-the authoring contract is [game-voice.md](../game-voice.md).
+the authoring contract is [game-voice.md](../../godot/games/iron_petal_unit/docs/voices.md).
 
 Provider code stays behind adapters. Pipelines depend on the repository's
 component contract, not a vendor SDK response type.
@@ -424,7 +424,7 @@ example is a 10-second 1080p clip at $1.50. A longer clip therefore costs
 strictly more; there is no block to fill up and no length that comes free.
 
 The response is h264 in mp4. The pinned Godot host plays only Ogg Theora, so a
-clip is transcoded before publication — see [the shell spec](../spec/game/shell.md)
+clip is transcoded before publication — see [the shell spec](../../godot/games/ember_hollow/docs/shell.md)
 for that leg and the encoder it needs.
 
 ### Audition this route before you plan a run on it
@@ -438,9 +438,9 @@ So the recommended shape is the one the soundtrack and the sound effects already
 draw outside a run, look at the frames, and link the winner.
 
 ```sh
-uv run stage-gen generate-video --output ./explore/clip-audition/a1.mp4 \
+uv run --group games demo-games generate-video --output ./explore/clip-audition/a1.mp4 \
   --duration 10 --resolution 720p --aspect-ratio 16:9 \
-  --reference ./godot/legacy/inputs/ember-hollow/references/style-plate.png \
+  --reference ./godot/games/ember_hollow/inputs/references/style-plate.png \
   "the brief, verbatim"
 uv run stage-gen inspect-video --input ./explore/clip-audition/a1.mp4 \
   --output ./explore/clip-audition/a1.contact.png
@@ -452,7 +452,7 @@ provider call, and lays the clip's frames out exactly as the pipeline's reviewer
 them — reading the frames is how a clip is judged, and no measurement answers whether
 the beats a brief asked for are actually on the screen.
 
-A package then names the file instead of the brief; see [the shell spec](../spec/game/shell.md)
+A package then names the file instead of the brief; see [the shell spec](../../godot/games/ember_hollow/docs/shell.md)
 for the `take` contract. Adopting costs zero provider operations and is not held to
 `clip_seconds_max`, because nothing is being asked of the route. Drawing in the run
 stays fully supported for any shot that does not declare a take.
@@ -474,9 +474,9 @@ uv run stage-gen remove-background --input ./input.png --output ./out/subject.pn
 Prepared-game planning is separate and provider-free:
 
 ```sh
-uv run stage-gen package plan --input godot/legacy/inputs/bellweather
-uv run stage-gen generate \
-  --input godot/legacy/inputs/bellweather \
+uv run --group games demo-games package plan --input godot/games/bellweather/inputs/default
+uv run --group games demo-games generate \
+  --input godot/games/bellweather/inputs/default \
   --dry-run \
   --output /tmp/bellweather-dry-run
 ```
@@ -499,7 +499,7 @@ bytes after the recipe's validators tightened, because a tightening inside a
 paid node could only be expressed as "redraw everything". It was retired in
 the engineering pass: a paid node's contract version now moves only when its
 request does, acceptance lives in the free validate node downstream and in
-every checkpoint's cache-admission callback, and `stage-gen package plan
+every checkpoint's cache-admission callback, and `demo-games package plan
 --cache-dir` says what a run would bill before it runs. What the tool
 preserved - historical bytes exactly, under a current request identity - is
 what the cache does by construction when the request has not changed.
@@ -542,7 +542,7 @@ Repository publication still requires the independent
 The key-backed CLI path is:
 
 ```sh
-uv run stage-gen generate-music --output ./out/theme.mp3 --format mp3 "original instrumental exploration loop with a gentle pulse"
+uv run --group games demo-games generate-music --output ./out/theme.mp3 --format mp3 "original instrumental exploration loop with a gentle pulse"
 ```
 
 Primary sources:
@@ -566,7 +566,7 @@ route is declared as `openrouter-tool-loop` with the `tool_use` and
 ledger; the provenance sidecar's `response.trace` lists every tool call with
 its arguments and outcome, and never an image.
 
-The first consumer is the cut-in placement agent (`docs/spec/game/fx.md`),
+The first consumer is the cut-in placement agent (`godot/games/iron_petal_unit/docs/fx.md`),
 bounded at six looks per portrait.
 
 ## Retry policy

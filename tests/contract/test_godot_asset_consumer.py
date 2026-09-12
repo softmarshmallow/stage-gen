@@ -1,4 +1,4 @@
-"""The small Godot template consumes an image without any legacy game contract."""
+"""The small Godot template consumes an image without any complete-game contract."""
 
 from __future__ import annotations
 

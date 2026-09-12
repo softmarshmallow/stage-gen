@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen_legacy.orchestration.game_package import (
+from demo_game_collection.game_package import (
     GamePackageValidationError,
     invalid_game_package_report,
     resolve_game_package,
@@ -17,7 +17,7 @@ from stage_gen_legacy.orchestration.game_package import (
 )
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-SOURCE_PACKAGE = REPOSITORY_ROOT / "godot" / "legacy" / "inputs" / "bellweather"
+SOURCE_PACKAGE = REPOSITORY_ROOT / "godot" / "games" / "bellweather" / "inputs" / "default"
 
 
 def _copy_package(tmp_path: Path) -> Path:
@@ -48,7 +48,9 @@ def test_resolve_bellweather_directory_captures_complete_exact_current_package()
     assert identity["kind"] == "resolved-game-package-v6"
     assert package.game.game_id == "bellweather"
     assert package.package_sha256 == _sha256(SOURCE_PACKAGE / "game.toml")
-    assert len(package.files) == sum(1 for path in SOURCE_PACKAGE.rglob("*") if path.is_file())
+    assert len(package.files) == sum(
+        1 for path in SOURCE_PACKAGE.rglob("*") if path.is_file() and path.name != ".gdignore"
+    )
     assert [entry.map_id for entry in package.maps] == [
         "sunpetal-crossing",
         "crowncrag-road",
@@ -79,82 +81,41 @@ def test_directory_and_zip_resolve_to_the_same_canonical_identity(
     ]
 
 
-def test_validate_repository_selector_resolves_iron_petal_unit() -> None:
-    report = validate_game_package(REPOSITORY_ROOT)
+def test_validate_explicit_input_resolves_iron_petal_unit() -> None:
+    report = validate_game_package(REPOSITORY_ROOT / "godot/games/iron_petal_unit/inputs")
 
     assert report["valid"] is True
     assert report["schema_version"] == 6
     assert report["kind"] == "game-package-validation-v6"
     assert report["game_id"] == "iron-petal-unit"
     assert report["generated_status"] == "not_checked"
-    selected = REPOSITORY_ROOT / "godot" / "legacy" / "inputs" / "iron-petal-unit"
-    assert report["file_count"] == sum(1 for path in selected.rglob("*") if path.is_file())
-
-
-def test_rejects_the_retired_digest_pinning_selector(tmp_path: Path) -> None:
-    """The v3 selector pinned game.toml by digest. Its shape is retired, not tolerated."""
-
-    workspace = tmp_path / "workspace"
-    package = workspace / "godot" / "legacy" / "inputs" / "bellweather"
-    package.parent.mkdir(parents=True)
-    shutil.copytree(SOURCE_PACKAGE, package)
-    selector = workspace / "godot" / "legacy" / "inputs" / "main.toml"
-    selector.write_text(
-        f'''schema_version = 3
-kind = "game-package-v3"
-game_id = "bellweather"
-package_ref = "godot/legacy/inputs/bellweather/game.toml"
-package_sha256 = "{_sha256(package / "game.toml")}"
-''',
-        encoding="utf-8",
+    selected = REPOSITORY_ROOT / "godot" / "games" / "iron_petal_unit" / "inputs"
+    assert report["file_count"] == sum(
+        1 for path in selected.rglob("*") if path.is_file() and path.name != ".gdignore"
     )
 
+
+def test_input_requires_no_global_selector(tmp_path: Path) -> None:
+    package = _copy_package(tmp_path)
+    assert validate_game_package(package)["valid"] is True
+    assert not (tmp_path / "main.toml").exists()
+
+
+def test_explicit_git_checks_require_a_repository(tmp_path: Path) -> None:
+    package = _copy_package(tmp_path)
+    with pytest.raises(GamePackageValidationError, match="repository_root is required"):
+        validate_game_package(package, require_tracked=True)
+
+
+def test_explicit_git_root_confines_the_input(tmp_path: Path) -> None:
+    package = _copy_package(tmp_path)
     with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(workspace)
-
-    assert caught.value.code == "invalid_selector"
-
-
-def test_rejects_a_selector_that_reintroduces_the_package_digest(tmp_path: Path) -> None:
-    """A current selector carrying the removed field is refused rather than ignored."""
-
-    workspace = tmp_path / "workspace"
-    package = workspace / "godot" / "legacy" / "inputs" / "bellweather"
-    package.parent.mkdir(parents=True)
-    shutil.copytree(SOURCE_PACKAGE, package)
-    selector = workspace / "godot" / "legacy" / "inputs" / "main.toml"
-    selector.write_text(
-        f'''schema_version = 4
-kind = "game-package-v4"
-game_id = "bellweather"
-package_ref = "godot/legacy/inputs/bellweather/game.toml"
-package_sha256 = "{_sha256(package / "game.toml")}"
-''',
-        encoding="utf-8",
-    )
-
-    with pytest.raises(GamePackageValidationError) as caught:
-        validate_game_package(workspace)
-
-    assert caught.value.code == "invalid_selector"
-    assert "extra_forbidden" in str(caught.value)
+        validate_game_package(package, repository_root=tmp_path / "elsewhere")
+    assert caught.value.code == "outside_repository"
 
 
 def test_editing_a_member_needs_no_bookkeeping_anywhere_else(tmp_path: Path) -> None:
-    """The point of the change: a member edit resolves without touching game.toml or main.toml."""
-
-    workspace = tmp_path / "workspace"
-    package = workspace / "godot" / "legacy" / "inputs" / "bellweather"
-    package.parent.mkdir(parents=True)
-    shutil.copytree(SOURCE_PACKAGE, package)
-    (workspace / "godot" / "legacy" / "inputs" / "main.toml").write_text(
-        """schema_version = 4
-kind = "game-package-v4"
-game_id = "bellweather"
-package_ref = "godot/legacy/inputs/bellweather/game.toml"
-""",
-        encoding="utf-8",
-    )
+    package = _copy_package(tmp_path)
     gameplay = package / "gameplay.toml"
     original = resolve_game_package(package).closure_sha256
     gameplay.write_text(
@@ -163,9 +124,7 @@ package_ref = "godot/legacy/inputs/bellweather/game.toml"
         ),
         encoding="utf-8",
     )
-
-    report = validate_game_package(workspace)
-
+    report = validate_game_package(package)
     assert report["valid"] is True
     assert report["closure_sha256"] != original
 
@@ -499,3 +458,26 @@ def test_a_swinging_package_names_no_projectile_and_still_resolves() -> None:
     assert resolved.gameplay.combat.weapon_class == "melee_sweep_v1"
     assert resolved.gameplay.combat.projectile_id is None
     assert resolved.player.players[0].equipment == "hand_weapon_v1"
+
+
+def test_empty_engine_ignore_marker_preserves_input_identity(tmp_path: Path) -> None:
+    package = _copy_package(tmp_path)
+    before = resolve_game_package(package).closure_sha256
+    (package / ".gdignore").touch()
+    assert resolve_game_package(package).closure_sha256 == before
+
+
+def test_engine_ignore_marker_cannot_hide_authored_bytes(tmp_path: Path) -> None:
+    package = _copy_package(tmp_path)
+    (package / ".gdignore").write_text("unaccounted input")
+    with pytest.raises(GamePackageValidationError) as caught:
+        resolve_game_package(package)
+    assert caught.value.code == "invalid_package_metadata"
+
+
+def test_engine_ignore_marker_cannot_be_a_symlink(tmp_path: Path) -> None:
+    package = _copy_package(tmp_path)
+    (package / ".gdignore").symlink_to(package / "game.toml")
+    with pytest.raises(GamePackageValidationError) as caught:
+        resolve_game_package(package)
+    assert caught.value.code == "symlink_escape"

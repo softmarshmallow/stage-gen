@@ -3,7 +3,7 @@
 This is the smallest architecture pattern for an external `gnode` consumer. The component states
 what image it needs; its host registers provider routes and selects one exact route in policy. The
 executable package at
-[`tests/contract/fixtures/external_image_consumer/`](../../tests/contract/fixtures/external_image_consumer/)
+[`tests/contract/fixtures/external_image_consumer/`](../../tests/contract/fixtures/external_image_consumer)
 proves the complete flow using only public `gnode` imports and a consumer-owned fake backend.
 
 ## 1. Register routes in the host

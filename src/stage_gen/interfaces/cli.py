@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import importlib
 import json
 import sys
 from collections.abc import Sequence
@@ -47,9 +46,6 @@ def build_parser() -> argparse.ArgumentParser:
         "storefront", help="optional promotional asset recipe; use storefront --help"
     )
     commands.add_parser("models", help="inspect the application-owned route catalog")
-    commands.add_parser(
-        "legacy", help="optional legacy game tools; install the legacy workspace group"
-    )
     return parser
 
 
@@ -68,16 +64,6 @@ def main(
         parser.print_help(output)
         return 0
     try:
-        if arguments[0] == "legacy":
-            try:
-                adapter = importlib.import_module("stage_gen_legacy.interfaces.cli")
-            except ModuleNotFoundError as error:
-                if error.name != "stage_gen_legacy":
-                    raise
-                raise ValueError(
-                    "legacy tools are optional; install stage-gen-legacy or uv sync --group legacy"
-                ) from error
-            return int(adapter.main(arguments[1:], stdout=output, stderr=errors))
         if arguments[0] in {"universe", "storefront"}:
             from stage_gen.interfaces.asset_recipes import main as recipe_main
 
@@ -90,8 +76,8 @@ def main(
 
             if arguments[1:] not in ([], ["routes"]):
                 raise ValueError(
-                    "use stage-gen models routes; legacy fixture projections belong to "
-                    "stage-gen legacy models"
+                    "use stage-gen models routes; game fixture projections belong to "
+                    "demo-games models"
                 )
             output.write(
                 json.dumps(model_route_report(load_active_model_policy_snapshot()), indent=2) + "\n"

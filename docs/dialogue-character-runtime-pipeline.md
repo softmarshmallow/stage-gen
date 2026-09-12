@@ -85,6 +85,6 @@ identities resolve, and runtime bytes are complete. Semantic review separately
 judges whether generated expressions and motion states visually match their
 authored intent. Publication still requires its own authorization.
 
-See [Dialogue and cutscene sequences](spec/game/dialogue-and-cutscene-sequences.md)
-for graph semantics and [Canonical game-generation pipeline](spec/game/generation-pipeline.md)
+See [Dialogue and cutscene sequences](../godot/games/_shared/docs/formats/dialogue-and-cutscene-sequences.md)
+for graph semantics and [Canonical game-generation pipeline](../godot/games/bellweather/docs/generation-pipeline.md)
 for the executable asset fan-out.

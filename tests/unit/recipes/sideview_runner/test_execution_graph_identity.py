@@ -1,6 +1,6 @@
 """Iron Petal's planned graph is pinned the way Bellweather's is.
 
-The topology digest is also embedded in ``docs/spec/game/runner.md`` by the
+The topology digest is also embedded in ``godot/games/iron_petal_unit/docs/runner.md`` by the
 graph-contract writer; this test is the one that names a moved node.
 """
 
@@ -8,12 +8,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from iron_petal_unit_pipeline.runner_executor import SideviewRunnerExecutor
 from stage_gen.config import StageGenConfig
-from stage_gen_legacy.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
 from tests.unit.recipes._cache_key_golden import assert_cache_keys_match_golden
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
-IRON_PETAL = REPOSITORY_ROOT / "godot/legacy/inputs/iron-petal-unit"
+IRON_PETAL = REPOSITORY_ROOT / "godot/games/iron_petal_unit/inputs"
 IRON_PETAL_CACHE_KEYS = Path(__file__).with_name("iron-petal-unit.cache-keys.json")
 
 IRON_PETAL_NODE_COUNT = 109

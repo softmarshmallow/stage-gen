@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import pytest
 
+from iron_petal_unit_pipeline.track import load_runner_track_bytes, seam_profile
 from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen_legacy.components.runner_track import load_runner_track_bytes, seam_profile
 from tests.unit._runner_fixture import chunk_toml, runner_track_toml
 
 #: The fixture grid: eight rows, walk surface at row five.

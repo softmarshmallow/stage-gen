@@ -15,23 +15,23 @@ All routine verification is credential-free. Provider-backed tests carry the
 | CLI boundary | `uv run pytest tests/integration -q` |
 | Wheel-packaged resources | `uv run pytest tests/contract/test_packaged_resources.py -q` |
 | Import architecture | `uv run pytest tests/contract/test_import_boundaries.py -q` |
-| Godot hosts | `python3 godot/legacy/runtime/tools/run_suite.py --run <run directory>` |
+| Godot hosts | `python3 godot/tools/run_native_suite.py --run <run directory>` |
 | Formatting and lint | `uv run ruff format --check . && uv run ruff check .` |
 | Strict typing | `uv run mypy --strict src tests scripts` |
 
 The Godot row runs inside the locked gate below too, against a fixture run the
-gate writes itself with `godot/legacy/runtime/tools/make_fixture_run.py` — `out/` is not in the
+gate writes itself with `godot/games/ember_hollow/tools/make_fixture_run.py` — `out/` is not in the
 repository, so a fresh clone has no run to point it at. Naming a real run with
 `--run` adds the assertions pinned to that run's own counts, which the fixture
 cannot carry and which the suite names rather than drops. It proves the host's
 simulation only — never a picture, which the host's own capture harness produces
-instead. See [Godot host](godot-host.md) and
+instead. See [Godot host](../godot/games/ember_hollow/docs/runtime.md) and
 [decision 0068](decisions/0068-the-suite-reads-a-world-the-repository-can-write.md).
 
 The survival recipe's cache-key golden,
 `tests/contract/fixtures/oblique_survival/ember-hollow.cache-keys.json`, pins every
 node's cache key per scope for the committed package; after a deliberate identity
-change, regenerate it with `uv run python godot/legacy/tools/write_oblique_survival_cache_keys.py --write`
+change, regenerate it with `uv run python godot/games/ember_hollow/tools/write_oblique_survival_cache_keys.py --write`
 and read the diff before committing, because a moved provider key is a re-bill.
 
 The product gate is `uv run python scripts/check.py`. It needs no Bun or Godot.
@@ -108,8 +108,8 @@ reader can act on rather than a pointer that rotted.
 audio inspection. Component tests inject process runners where possible, but a
 real music pipeline should fail clearly when those tools are unavailable.
 
-The wheel includes immutable layout templates and the approved fallback music
-with its provenance under `stage_gen.resources`. The contract test builds a
+The core wheel includes immutable layout templates under `stage_gen.resources`.
+Game-only music and its provenance belong to the optional game tooling distribution. The contract test builds a
 wheel in isolation, inspects its entries, extracts it away from the checkout,
 and resolves every required resource through the installed helper API. Do not
 restore checkout-relative resource lookup or symlink fixtures into a build.

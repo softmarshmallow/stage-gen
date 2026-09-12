@@ -61,11 +61,18 @@ retain readable metadata rather than disappearing.
 projects whose preparation scripts import assets explicitly. A game's configuration
 is local to that game. No runtime package has to depend on all other packages.
 
-`godot/legacy/` owns the old game recipes, game contracts, input packages and runtime
-hosts in the optional `stage-gen-legacy` distribution. Old IDs, readers and runtime
-behavior remain compatibility concerns of these demos. Additions to the product
-must not import this package. The old game specifications document these readers;
-they no longer define the product's authoring contract.
+Each named game in `godot/games/` owns its authored inputs, optional Python
+preparation package, Godot project, gameplay and asset bindings. Existing TOML
+readers remain supported game formats; GDScript and resources can replace them
+when that game's needs warrant it. No repository-wide selected game exists.
+
+`godot/games/_shared/` holds private implementation with multiple game consumers:
+bounded simulation and IO support, input readers and media binding helpers. Shared
+code imports no named game. Cross-game CLI dispatch and fixture maintenance live
+under `godot/tools/`; the optional `games` installation group supplies that tooling
+and the individual game preparation packages. The public product imports none of
+these packages. Game formats are documented with their owning game or shared
+reader, independently of the asset SDK's authoring contract.
 
 `apps/concept_studio/` is a separately installable concept-authoring application.
 Examples live beside the SDK, component or recipe they demonstrate. Documentation
@@ -73,13 +80,13 @@ indexes them; `library/` is removed because it has no remaining distinct owner.
 
 ## Enforcing the boundary
 
-Import tests enforce GNode rings and the absence of product-to-legacy dependencies.
+Import tests enforce GNode rings and the absence of product-to-game dependencies.
 Package tests verify installed use outside the checkout. Product verification
-runs without optional consumers; the aggregate gate additionally verifies legacy
+runs without optional consumers; the aggregate gate additionally verifies game
 readers, Godot, viewer and applications. Per-recipe graph contracts remain with the
 recipe or demo that owns them. There is no repository-wide canonical game graph.
 
 Cache identity, route preflight, retry ownership, atomic persistence, provenance,
 path confinement and media review rules survive the reshape. Moving code does not
-license changes to existing cache keys or accepted legacy bytes. See
+license changes to existing cache keys or accepted input bytes. See
 [verification](VERIFICATION.md) and the [directory preview](docs/repository-layout.md).

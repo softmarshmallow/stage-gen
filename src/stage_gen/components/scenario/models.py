@@ -4,7 +4,7 @@ Two documents, split by what the content *is*. `scenario.toml` carries everythin
 with a digest, a rights basis, or a generation brief - cast, stages, tracks, flags,
 endings - because those are package facts. The `.scenario` script carries only
 narrative, because that is the part a person writes. See
-`docs/spec/game/scenario.md`.
+`docs/spec/scenario.md`.
 
 The statement vocabulary is closed. A statement kind outside `Statement` is
 refused; it is never passed through and never interpreted. Conditions are flag
@@ -339,7 +339,7 @@ class FlagDeclaration(ScenarioModel):
     admission exempts it from the "read but nothing sets it" refusal and instead
     proves the scenario from every assignment of the imported flags. The identifier
     is the same on both sides of the boundary, which is the whole of the crossing
-    mechanism; see `docs/spec/game/case.md`.
+    mechanism; see `godot/games/the_grain/docs/case.md`.
     """
 
     flag_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=96)

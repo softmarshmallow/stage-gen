@@ -3,7 +3,7 @@
 > **History.** This document described the browser runtime, whose four layers were
 > kernel, families, genres and hosts in TypeScript. Every genre is hosted by Godot
 > since [decision 0061](../decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md); the layers survive in GDScript and the contract
-> that replaced this page is [the host contract](../spec/game/host-contract.md).
+> that replaced this page is [the host contract](../../godot/games/_shared/docs/formats/host-contract.md).
 > Kept for the audits and the reasoning behind each rule, not as a current spec.
 
 

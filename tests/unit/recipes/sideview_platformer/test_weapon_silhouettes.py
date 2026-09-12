@@ -4,14 +4,14 @@ from typing import get_args
 
 import pytest
 
-from stage_gen_legacy.components.platformer_content.models import (
-    WEAPON_CLASSES_BY_PLAYER_EQUIPMENT,
-    PlayerEquipment,
-)
-from stage_gen_legacy.components.platformer_gameplay.models import WeaponClass
-from stage_gen_legacy.recipes.sideview_platformer.weapon_silhouettes import (
+from bellweather_pipeline.gameplay.models import WeaponClass
+from bellweather_pipeline.weapon_silhouettes import (
     PLAYER_EQUIPMENT_ART,
     player_equipment_art,
+)
+from demo_game_tools.input_formats.sideview_content.models import (
+    WEAPON_CLASSES_BY_PLAYER_EQUIPMENT,
+    PlayerEquipment,
 )
 
 

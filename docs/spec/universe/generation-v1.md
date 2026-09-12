@@ -305,7 +305,7 @@ semantic run. Regenerate with
 - An entity may not be called `global`: entity node ids share a namespace with
   the fixed `direction-global` node, and the gallery refuses the collision at
   plan time rather than failing on a duplicate node id.
-- `universe.toml` is a package root of its own kind under `godot/legacy/inputs/`. It
+- `universe.toml` is an independent recipe input supplied from an explicit directory. It
   is never a member of a `game.toml` closure — taxonomy V0 declines to ratify
   that question, and the selected prepared-game closure must not carry
   universe-only files.

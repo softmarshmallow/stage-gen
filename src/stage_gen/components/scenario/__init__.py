@@ -3,7 +3,7 @@
 Recipe-neutral on purpose. A scenario carries no genre, no engine, and no
 generation vocabulary, because the visual novel and the platformer's village
 dialogue are meant to consume the same authored shape rather than each keeping a
-parallel one that can drift. See `docs/spec/game/scenario.md`.
+parallel one that can drift. See `docs/spec/scenario.md`.
 """
 
 from .admission import (

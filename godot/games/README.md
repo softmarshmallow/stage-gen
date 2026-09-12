@@ -1,25 +1,45 @@
-# The games tier
+# Example games
 
-Branded games built on the packages. Each is its own Godot project with its own
-`project.godot`, shell, Lab, tests and tools, and each links the presentation
-package at `addons/game_presentation`. They are the examples of the line: a
-contract's dependence on its assets is visible here and nowhere else, which is
-why they exist in the tree at all.
+Every named game is a maintained consumer of the asset product. A game owns its
+Godot project, content, gameplay, preparation and tests. It may use an independent
+package or private support shared with the other games. It does not need to adopt
+another game's input format or project organization.
 
-| Game | What it is | Run |
+| Game | What it demonstrates | Inputs and preparation |
 | --- | --- | --- |
-| [`afterlight/`](afterlight/README.md) | Bishōjo: Afterlight, *The Address Beyond*: a 57-beat ensemble adventure | `Godot --path godot/games/afterlight -- --language ko` |
-| [`command_link/`](command_link/README.md) | Command Link: a tactical, commander-led story with a video opening | `Godot --path godot/games/command_link` |
+| [Afterlight](afterlight/README.md) | Authored ensemble adventure and presentation Lab | Game-owned catalogs, story, bindings and tools |
+| [Command Link](command_link/README.md) | Tactical story, video opening and presentation Lab | Game-owned catalogs, story, bindings and tools |
+| [Bellweather](bellweather/README.md) | Side-view platformer | `inputs/default/`, `inputs/waves/`; `pipeline/prepare.py` |
+| [Iron Petal Unit](iron_petal_unit/README.md) | Side-view runner | `inputs/`; `pipeline/prepare.py` |
+| [Ember Hollow](ember_hollow/README.md) | Ground-plane survival | `inputs/`; `pipeline/prepare.py` |
+| [The Grain](the_grain/README.md) | Investigation combining rooms and dialogue | `inputs/`; `pipeline/prepare.py` |
 
-This document is the anchor for how a game's files are kept. It describes the
-present arrangement, states what a fresh clone can and cannot do, and records
-the deferred decision about committing media, so nobody has to rediscover any
-of it.
+[Launch commands](../README.md#play-a-game) live in the Godot workspace guide.
+Existing generated runs remain outside these project roots and are selected with
+`--run`. Each preparation script defaults to offline planning or validation;
+starting Godot never invokes generation.
+
+`_shared/` holds private code with several game consumers. The public asset product
+never imports game packages. Shared runtime and Python code never import a named
+game; collection dispatch belongs to `godot/tools/`.
+
+## Inputs and formats
+
+The complete authored TOML and reference closure lives under its game's `inputs/`.
+Bellweather keeps its two variants as intact closures. Persisted IDs and member
+paths remain unchanged. A game's future changes may replace configuration with
+GDScript or resources without introducing a repository-wide game contract.
+
+Tracked, digest-bound input references and fonts retain their existing storage
+and rights rules. Generated runs, caches and unreviewed media remain ignored.
+The following media inventory and deferred storage decision concern Afterlight
+and Command Link specifically; they are not a prohibition on the other games'
+authored input references.
 
 ## What Git holds, and what stays on the machine
 
-Git holds everything authored and everything that describes the media. It holds
-no media bytes.
+For Afterlight and Command Link, Git holds authored code and the catalogs that
+describe their playable media. Their bound image, audio and video bytes remain local.
 
 | In Git | Local only, ignored |
 | --- | --- |
@@ -45,7 +65,7 @@ Two gaps in this arrangement are known and accepted for now:
 
 ## What a fresh clone can do
 
-Open either project, read every contract, run every suite that needs no media,
+Open Afterlight or Command Link, read every contract, run every suite that needs no media,
 and see the game refuse cleanly. Without its media a game does not show an empty
 stage: Afterlight lists every missing binding in its dialogue line and Command
 Link disables its stage and prints the bindings in its hint bar. Both come from
@@ -78,7 +98,7 @@ under `art/`.
 
 ## The decision, and what is deferred
 
-The bound media will live in Git as plain objects, like any Godot project's,
+The recorded proposal for those two games is to hold bound media as plain Git objects,
 with no LFS, no `.meta.json` sidecars, no inventory entries and no rights
 records: whatever a game ships is its own asset. Git LFS was tried and
 rejected, because GitHub meters LFS downloads to the repository owner with no

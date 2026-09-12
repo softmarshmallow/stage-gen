@@ -15,7 +15,7 @@ from stage_gen.components.scenario.resolve import read_scenario_declarations
 from .package import DEFAULT_SCRIPT, write_scenario_package
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
-THE_GRAIN = REPOSITORY_ROOT / "godot/legacy/inputs/the_grain"
+THE_GRAIN = REPOSITORY_ROOT / "godot/games/the_grain/inputs"
 
 
 def test_the_shipped_scenario_is_admitted_and_its_ending_is_reachable() -> None:

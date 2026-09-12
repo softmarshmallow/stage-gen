@@ -36,7 +36,7 @@ machine's monospace fallback is not a title screen.
 There is also a quieter fact. `.ttf` and `.otf` appear in neither `MEDIA_SUFFIXES`
 nor `_media_family` (`tests/contract/test_packaged_resources.py:57`, `:587`), and
 `docs/repository-storage.md` names one location for package binaries —
-`godot/legacy/inputs/<game_id>/references/` — with no arm for a face. The two committed
+`godot/games/<game>/inputs/references/` — with no arm for a face. The two committed
 faces are 232,504 bytes that the aggregate media ceiling does not count and the
 location assertions never see. Nothing is wrong with those two files; the gate
 simply has a hole where fonts are, and a policy that counts every PNG while a
@@ -65,7 +65,7 @@ across packages today for exactly the same reason.
 reference, and republished into the run as an artifact the host resolves below
 the run root.**
 
-1. **Location.** A face lives at `godot/legacy/inputs/<game_id>/fonts/<face>.ttf` or
+1. **Location.** A face lives at `godot/games/<game>/inputs/fonts/<face>.ttf` or
    `.otf`, with its licence file beside it. The storage policy's package-binary
    rule gains that arm; it is the second place a package may hold a binary, and
    like the first it is named rather than inferred.

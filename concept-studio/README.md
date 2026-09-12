@@ -35,7 +35,7 @@ workspaces/<concept_id>/images/cover.png
 
 This is currently a human handoff, not an accepted `sideview-platformer` input. The planned
 digest-bound concept-package import is labelled `TARGET` in the
-[canonical game-generation pipeline](../docs/spec/game/generation-pipeline.md); until it ships,
+[canonical game-generation pipeline](../godot/games/bellweather/docs/generation-pipeline.md); until it ships,
 the generation recipe still starts from its normal prompt-driven concept stage.
 
 From the repository root, the deterministic workspace and image commands are:

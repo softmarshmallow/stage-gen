@@ -52,7 +52,7 @@ request = EffectsArt(
 )
 ```
 
-Music, speech, and sound requests describe assets. Gain, event-strength pitch changes, death/restart routing, and playlist selection belong to consumer playback configuration. Their legacy demo models remain under the separately installed `stage_gen_legacy` package.
+Music, speech, and sound requests describe assets. Gain, event-strength pitch changes, death/restart routing, and playlist selection belong to consumer playback configuration. The named Godot games own their corresponding models and preparation packages; shared soundtrack binding lives in `demo_game_tools`. These optional game packages are not product dependencies.
 
 `AssetScale(target_pixels_per_unit=80.0)` defines a visual ruler without choosing a player, tile size, or camera controller. Sprite measurement and calibration use that ruler; a game can derive it from its own units in its adapter.
 

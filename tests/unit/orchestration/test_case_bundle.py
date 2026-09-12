@@ -13,13 +13,13 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen_legacy.orchestration.case_binding import bind_case
-from stage_gen_legacy.orchestration.case_bundle import (
+from tests.unit.components.case.package import write_case_package
+from the_grain_pipeline.case_binding import bind_case
+from the_grain_pipeline.case_bundle import (
     CaseBundleError,
     build_case_runtime,
     publish_case,
 )
-from tests.unit.components.case.package import write_case_package
 
 RUN_TAGS = {
     "b_office": "the-grain-office",

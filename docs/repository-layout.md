@@ -18,9 +18,7 @@ stage-gen/
 ├── godot/
 │   ├── packages/                      # Reusable, bounded runtime SDKs
 │   ├── templates/                     # Copyable application starting points
-│   ├── demos/                         # Consumer-demo guidance; no project yet
-│   ├── games/                         # Independently authored playable consumers
-│   ├── legacy/                        # Old game contracts, builders, inputs and hosts
+│   ├── games/                         # Named games and their private shared support
 │   └── tools/                         # Godot workspace/package operations
 ├── apps/
 │   └── concept_studio/                # Optional concept-authoring Python application
@@ -35,7 +33,7 @@ stage-gen/
 ```
 
 `library/` is gone. Its private folder held no private implementation or assets.
-The old game inputs now belong to their legacy Godot consumers; the independent
+The game inputs belong to their individual Godot games; the independent
 universe example belongs to its recipe. Users supply external input, output and
 cache directories rather than registering projects inside this checkout.
 
@@ -118,8 +116,8 @@ complete game's combat, quests, camera controller or runtime state.
 
 The structural ground algorithm was promoted out of the runner. Actor scale now
 accepts an explicit pixels-per-unit contract, with old player/tile calibration in
-the legacy adapter. UI, effects, screens, music and voices were split from their
-former game aggregates. Legacy readers still supply game-specific role sets,
+the game-owned adapter. UI, effects, screens, music and voices were split from their
+former game aggregates. Game readers still supply game-specific role sets,
 event triggers and playback bindings to those independent capabilities.
 
 The `.scenario` contract survives independently. Its events can be bound by a
@@ -174,85 +172,104 @@ web/
     └── run-viewer/                    # Generic graphs, media and bounded inspectors
 
 godot/
-├── packages/
-│   └── game_presentation/             # Existing independent presentation addon
-├── templates/
-│   ├── asset_consumer/                # Explicit PNG import + local GDScript display
-│   └── vn/                            # Existing presentation starter
 ├── games/
-│   ├── afterlight/                    # Game-owned scripts, scenes, bindings and tools
-│   └── command_link/                  # Game-owned scripts, scenes, bindings and tools
-├── demos/                             # Guidance for small future consumer demos
-└── tools/                             # Workspace/package tooling
+│   ├── afterlight/                    # Existing project, authored story and Lab
+│   ├── command_link/                  # Existing project, authored story and Lab
+│   ├── bellweather/                   # Own project, gameplay and prepared-run binding
+│   │   ├── inputs/
+│   │   │   ├── default/               # Complete original input closure
+│   │   │   └── waves/                 # Complete variant closure
+│   │   ├── gameplay/                 # Platformer simulation and exclusive support
+│   │   ├── scenes/                   # Camera, controls, rendering and HUD
+│   │   ├── pipeline/
+│   │   │   ├── prepare.py            # Explicit input/variant selection
+│   │   │   └── src/bellweather_pipeline/
+│   │   ├── tools/                    # Map and terrain authoring, captures and parity
+│   │   ├── tests/                    # Native game regression checks
+│   │   └── docs/                     # Map formats and asset build graph
+│   ├── iron_petal_unit/
+│   │   ├── inputs/                   # Runner authored closure
+│   │   ├── gameplay/                 # Runner rules and exclusive support
+│   │   ├── scenes/                   # Runner presentation
+│   │   ├── pipeline/src/iron_petal_unit_pipeline/
+│   │   ├── tools/
+│   │   ├── tests/
+│   │   └── docs/                     # Track, audio, voice and effect bindings
+│   ├── ember_hollow/
+│   │   ├── inputs/                   # Survival authored closure
+│   │   ├── gameplay/                 # Survival simulation and exclusive support
+│   │   ├── scenes/                   # World, camera and UI
+│   │   ├── pipeline/src/ember_hollow_pipeline/
+│   │   ├── tools/                    # Fixture, capture and cache-golden maintenance
+│   │   ├── tests/
+│   │   └── docs/                     # World, seasons, crafting, ground and generation
+│   ├── the_grain/
+│   │   ├── inputs/                   # Case, rooms, scenarios and story together
+│   │   ├── gameplay/
+│   │   │   ├── case/
+│   │   │   ├── dialogue_scene/
+│   │   │   └── pointclick_room/
+│   │   ├── scenes/                   # Case shell and its room/dialogue leaves
+│   │   ├── pipeline/src/the_grain_pipeline/
+│   │   ├── tools/
+│   │   ├── tests/
+│   │   └── docs/
+│   └── _shared/                      # Private reuse among the named games
+│       ├── runtime/
+│       │   ├── addons/demo_support/
+│       │   │   ├── simulation/       # Reused deterministic kernel and families
+│       │   │   ├── io/               # Common loading and confinement
+│       │   │   └── testing/          # Game-independent native test harness
+│       │   └── tests/
+│       ├── python/src/demo_game_tools/
+│       │   ├── input_formats/        # Shared readers with actual callers
+│       │   ├── media/                # Shared game UI and soundtrack binding helpers
+│       │   ├── io/                   # Package capture
+│       │   └── application/          # Shared preparation services
+│       └── docs/                     # Shared input and manifest format references
+├── packages/
+│   └── game_presentation/            # Independent presentation addon and its tests
+├── templates/
+│   ├── asset_consumer/               # Explicit PNG import and local GDScript display
+│   └── vn/                           # Copyable presentation starter
+└── tools/
+    └── python/src/demo_game_collection/
+                                        # Collection CLI and cross-game fixture census
 ```
+
+Each of the four run-consuming games has `project.godot`, its own `main.tscn`,
+`pipeline/prepare.py` and a separately packaged Python builder. The tree expands
+Bellweather's preparation entry point once to avoid repeating identical mechanics.
+Afterlight and Command Link keep their working project organization and game-local
+Labs; this is not a mandatory directory schema for a new game.
+
+Inputs live with each game. There is no root `main.toml` selector and no `library`,
+`legacy` or empty `demos` ownership tier. Existing TOML member paths, identities and
+cache semantics remain supported by the same consuming game. Gameplay parameters
+may move into GDScript or resources later, independently for each game.
+
+`_shared` is private implementation with actual multiple-game callers. Single-game
+rules, rendering and builders stay with their game. Shared code imports no named
+game. The collection CLI under `godot/tools/` can import all game preparation
+packages; its `demo-games` commands support existing format inspection and fixture
+maintenance. The optional `games` installation group keeps all of this outside the
+public product's default environment and distributions.
 
 The viewer accepts the public pipeline envelope with arbitrary pipeline identity.
-It retains existing persisted readers, displays unknown metadata, and supports
-application-owned preview annotations. Parallax is one inspector, not a gameplay
-host. Generic MIME handling permits unfamiliar assets without adding a recipe enum.
+It retains persisted readers, displays unknown metadata and supports application
+preview annotations. Parallax is one inspector. Generic MIME handling permits
+unfamiliar assets without adding a recipe enum.
 
-The asset-consumer template's own preparation script copies a selected asset and
-its verified provenance. Its GDScript loads that local content. A complete game
-can extend this script to create resources, bind animation names or wire scenes;
-those choices belong to that game. Stage Gen does not emit its gameplay from a
-canonical TOML document.
+The asset-consumer template copies a selected asset and its verified provenance;
+its GDScript loads that local content. A game can extend preparation to create
+resources, bind animations and wire scenes. Starting Godot reads prepared assets
+and does not start a provider operation. Existing `out/` runs remain at their
+current locations and are selected explicitly.
 
-## Retained demo system
-
-```text
-godot/legacy/
-├── inputs/
-│   ├── bellweather/
-│   ├── bellweather-waves/
-│   ├── iron-petal-unit/
-│   ├── ember-hollow/
-│   └── the_grain/
-├── python/
-│   └── stage_gen_legacy/
-│       ├── components/
-│       │   ├── game_contract/         # Existing membership/schema and scale adapter
-│       │   ├── platformer_gameplay/   # Game rule vocabulary
-│       │   ├── runner_gameplay/       # Game rule vocabulary
-│       │   ├── platformer_map/        # Demo map binding and authored closure
-│       │   ├── platformer_content/    # Demo asset-to-game closure
-│       │   ├── runner_content/        # Demo asset-to-game closure
-│       │   ├── runner_track/          # Demo track composition
-│       │   ├── runner_audio/          # Triggers and playback realization
-│       │   ├── sideview_stage/        # Complete stage composition
-│       │   ├── game_ui/               # Demo role-set adapter over ui_art
-│       │   ├── game_fx/               # Trigger adapter over effects_art
-│       │   ├── game_shell/            # Shell adapter over screen_art
-│       │   ├── game_soundtrack/       # Catalog/playback adapter over music
-│       │   ├── game_voices/           # Cast adapter over voice_profile
-│       │   └── case/                  # Specific investigation-game composition
-│       ├── recipes/
-│       │   ├── sideview_platformer/
-│       │   ├── sideview_runner/
-│       │   ├── oblique_survival/
-│       │   ├── dialogue_scene/
-│       │   └── pointclick_room/
-│       ├── orchestration/             # Package selection, capture and case binding
-│       ├── interfaces/                # stage-gen legacy / stage-gen-legacy
-│       └── application/               # Legacy genre/application helpers
-├── runtime/
-│   ├── kernel/                        # Existing demo simulation utilities
-│   ├── families/                      # Existing runtime families
-│   ├── genres/                        # Existing genre logic
-│   ├── hosts/                         # Existing Godot bindings
-│   ├── tests/                         # Retained regression suite
-│   └── tools/                         # Fixture, capture, export and test tools
-└── tools/                             # Game authoring and contract maintenance
-```
-
-Existing inputs and runtime hosts were relocated without converting every old TOML
-to GDScript. The optional legacy package imports public asset capabilities. No
-public product package imports it. Its full fixture/model-policy census is also
-legacy-owned; the core catalog no longer loads complete games to inspect routes.
-
-Game specifications remain in the documentation reference collection, explicitly
-marked as legacy where they describe complete-game contracts. Historical decisions
-are records, not instructions to expand those contracts. The root architecture,
-new asset-authoring skill and public SDK guide control new work.
+Maintained game format documents live under their game or `_shared/docs`.
+Independent scenario and side-view map design specifications remain in
+`docs/spec/`. Historical decisions remain records of their original context. The
+[Godot ownership record](plans/godot-consumer-layout.md) details the migration.
 
 ## Choosing the owner of a new change
 
@@ -268,7 +285,7 @@ new asset-authoring skill and public SDK guide control new work.
 | A specialized preview | Viewer inspector or bounded runtime package |
 | Resource import and asset-to-scene binding | Consumer's preparation script |
 | Combat, progression, quest state or scene control | Consumer's code |
-| Existing game TOML or demo graph maintenance | Godot legacy package |
+| Existing game TOML or whole-game build maintenance | Named game preparation package; shared reader only where reused |
 
 The gates follow these owners. The default gate verifies the product without
 installing or invoking Godot and Bun. Optional scopes verify their consumers, and

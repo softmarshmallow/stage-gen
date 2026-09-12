@@ -1,0 +1,24 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "demo-game-collection"
+version = "0.0.0"
+description = "Preparation implementation for demo game collection"
+requires-python = ">=3.12"
+dependencies = ["stage-gen", "demo-game-tools", "bellweather-pipeline", "iron-petal-unit-pipeline", "ember-hollow-pipeline", "the-grain-pipeline"]
+
+[project.scripts]
+demo-games = "demo_game_collection.cli:entrypoint"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/demo_game_collection"]
+
+[tool.uv.sources]
+stage-gen = { workspace = true }
+demo-game-tools = { workspace = true }
+bellweather-pipeline = { workspace = true }
+iron-petal-unit-pipeline = { workspace = true }
+ember-hollow-pipeline = { workspace = true }
+the-grain-pipeline = { workspace = true }

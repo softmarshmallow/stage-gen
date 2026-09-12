@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import pytest
 
-from stage_gen_legacy.components.game_soundtrack import TrackGenerationIntent
-from stage_gen_legacy.components.game_soundtrack.prompt import (
+from demo_game_tools.media.soundtrack import TrackGenerationIntent
+from demo_game_tools.media.soundtrack.prompt import (
     ORIGINALITY_CLAUSE,
     music_track_prompt,
 )

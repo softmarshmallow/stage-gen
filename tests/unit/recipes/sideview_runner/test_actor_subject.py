@@ -16,16 +16,16 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.config import StageGenConfig
-from stage_gen_legacy.components.runner_content import (
+from demo_game_collection.executors import SideviewRunnerExecutor
+from iron_petal_unit_pipeline.content import (
     RUNNER_BOSS_BASELINE_STATE,
     RUNNER_BOSS_MOTION_ORDER,
 )
-from stage_gen_legacy.recipes.sideview_runner.prepared_runner import (
+from iron_petal_unit_pipeline.prepared_runner import (
     RUNNER_BASELINE_STATE,
     SideviewRunnerNodeHandler,
 )
-from stage_gen_legacy.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
+from stage_gen.config import StageGenConfig
 
 from ..._runner_fixture import (
     ENCOUNTER_CHUNKS,

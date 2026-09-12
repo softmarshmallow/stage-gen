@@ -1,6 +1,6 @@
 """Admission is a proof: every refusal the contract promises, with a fixture each.
 
-The refusals in `docs/spec/game/scenario.md` are the contract's actual value - a
+The refusals in `docs/spec/scenario.md` are the contract's actual value - a
 scenario that cannot be finished must cost nothing, and it must be refused here
 rather than discovered by a player. One test per refusal, all of them negative on
 purpose.

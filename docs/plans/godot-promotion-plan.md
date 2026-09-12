@@ -1,7 +1,7 @@
 # The Godot promotion: the path
 
 Status: in flight. Steps 0 to 3, the kernel, the runner, the gate and step 10's
-three hosts have landed; the table marks them. Companion to [the host contract](../spec/game/host-contract.md)
+three hosts have landed; the table marks them. Companion to [the host contract](../../godot/games/_shared/docs/formats/host-contract.md)
 (the end state) and
 [decision 0061](../decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md)
 (the ruling). This document is the path, and it dies when the path is walked.

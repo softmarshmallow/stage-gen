@@ -1,7 +1,9 @@
 # Repository reshape: asset product and independently owned games
 
 Implemented under the repository-wide authorization of 2026-09-12. The current
-layout is [the directory preview](../repository-layout.md). The product is the
+layout is [the directory preview](../repository-layout.md). The subsequent
+[game ownership migration](godot-consumer-layout.md) replaces the temporary legacy
+category with named game roots; the checks below record the earlier split. The product is the
 asset pipeline and SDK; complete games are consumers. Existing TOML readers,
 media bytes and paid-node cache identities remain supported under legacy ownership.
 

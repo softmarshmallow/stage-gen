@@ -13,23 +13,21 @@ import pytest
 from PIL import Image
 
 from gnode import PortRef
-from stage_gen.config import StageGenConfig
-from stage_gen_legacy.components.game_fx import CutInPortraitSubject
-from stage_gen_legacy.components.game_fx.cut_in import admit_cut_in_placement
-from stage_gen_legacy.components.game_fx.nodes import (
+from iron_petal_unit_pipeline.fx import CutInPortraitSubject
+from iron_petal_unit_pipeline.fx.cut_in import admit_cut_in_placement
+from iron_petal_unit_pipeline.fx.nodes import (
     FX_CUT_IN_PLACE,
     FX_CUT_IN_PLACE_MAX_STEPS,
     FX_CUT_IN_REVIEW,
     FX_CUT_IN_VALIDATE,
     cut_in_node_ids,
 )
-from stage_gen_legacy.recipes.sideview_runner.prepared_runner import SideviewRunnerNodeHandler
-from stage_gen_legacy.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
-from stage_gen_legacy.recipes.sideview_runner.runner_graph import runner_subject_reference
+from iron_petal_unit_pipeline.prepared_runner import SideviewRunnerNodeHandler
+from iron_petal_unit_pipeline.runner_executor import SideviewRunnerExecutor
+from iron_petal_unit_pipeline.runner_graph import runner_subject_reference
+from stage_gen.config import StageGenConfig
 
-IRON_PETAL = (
-    Path(__file__).resolve().parents[3].parent / "godot" / "legacy" / "inputs" / "iron-petal-unit"
-)
+IRON_PETAL = Path(__file__).resolve().parents[3].parent / "godot/games/iron_petal_unit/inputs"
 
 
 def _plan() -> Any:

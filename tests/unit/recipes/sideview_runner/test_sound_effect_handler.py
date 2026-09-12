@@ -10,6 +10,7 @@ from typing import Any, ClassVar, Literal, cast
 
 import pytest
 
+from demo_game_collection.executors import SideviewRunnerExecutor
 from gnode import (
     ProviderResponseMetadata,
     ProviderSoundEffect,
@@ -17,14 +18,13 @@ from gnode import (
     SoundEffectGenerationRequest,
     SoundEffectGenerationService,
 )
-from stage_gen.config import StageGenConfig
-from stage_gen.identity import SOUND_EFFECT_GENERATION_COMPONENT, STAGE_GEN_TOOL
-from stage_gen.media import run_process
-from stage_gen_legacy.recipes.sideview_runner.prepared_runner import (
+from iron_petal_unit_pipeline.prepared_runner import (
     SideviewRunnerNodeHandler,
     manifest_audio,
 )
-from stage_gen_legacy.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
+from stage_gen.config import StageGenConfig
+from stage_gen.identity import SOUND_EFFECT_GENERATION_COMPONENT, STAGE_GEN_TOOL
+from stage_gen.media import run_process
 
 from ..._runner_fixture import RUNNER_AUDIO, two_genre_package
 

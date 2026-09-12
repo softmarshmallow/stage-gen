@@ -1,36 +1,37 @@
 ---
 name: game-design
-description: Maintain existing legacy Godot demo input packages. Use only for the retained game-specific TOML readers and their demos, never as the canonical Stage Gen asset-authoring contract.
+description: Maintain game-owned authored inputs and their existing TOML readers under Godot games. Keep gameplay configuration local to its consumer and use the public asset SDK for generation.
 ---
 
-# Legacy Demo Game Design
+# Game Consumer Design
 
-This skill applies only to existing demos under `godot/legacy/`. New asset pipelines use
-[asset-pipeline](../asset-pipeline/SKILL.md). New games own their GDScript, scenes and
-asset preparation under their own Godot project; they need no universal game TOML.
-Preserve old readers while maintaining an existing demo. Do not migrate every legacy
-input or add new gameplay vocabulary to the public SDK.
+This skill maintains authored inputs for named games under `godot/games/`.
+New asset pipelines use [asset-pipeline](../asset-pipeline/SKILL.md). Each game
+owns its GDScript, scenes, preparation and input format. Preserve existing readers
+without making their TOML a universal game language.
 
-Author the input under `godot/legacy/inputs/<game_id>/`. Read the repository
-[`AGENTS.md`](../../../AGENTS.md) and [`godot/legacy/inputs/AGENTS.md`](../../../godot/legacy/inputs/AGENTS.md) first. For idea exploration or cover selection, use
-[`game-concept-studio`](../game-concept-studio/SKILL.md) instead.
+Read the repository [`AGENTS.md`](../../../AGENTS.md), the
+[game ownership instructions](../../../godot/games/AGENTS.md), and the selected
+game's README. Author inputs under that game's own `inputs/` directory;
+Bellweather has separate `default/` and `waves/` closures. For idea exploration
+or cover selection, use [game-concept-studio](../game-concept-studio/SKILL.md).
 
 ## Read the contract
 
 Use these as the source of truth:
 
-1. [Game package](../../../docs/game-package.md)
-2. [Game contract](../../../docs/game-contract.md)
-3. [Map generation contract](../../../docs/spec/game/map-generation-contract.md)
+1. [Game package](../../../godot/games/_shared/docs/game-package.md)
+2. [Game contract](../../../godot/games/_shared/docs/game-contract.md)
+3. [Map generation contract](../../../godot/games/bellweather/docs/map-generation-contract.md)
 4. [Asset contracts](../../../docs/spec/asset-contracts.md)
-5. [Dialogue and cutscene sequences](../../../docs/spec/game/dialogue-and-cutscene-sequences.md)
-6. [Soundtrack contract](../../../docs/game-soundtrack.md)
-7. [The host contract](../../../docs/spec/game/host-contract.md), for what a
+5. [Dialogue and cutscene sequences](../../../godot/games/_shared/docs/formats/dialogue-and-cutscene-sequences.md)
+6. [Soundtrack contract](../../../godot/games/_shared/docs/soundtrack.md)
+7. [The host contract](../../../godot/games/_shared/docs/formats/host-contract.md), for what a
    named gameplay choice actually becomes once a host runs it
 
-Resolve [`godot/legacy/inputs/main.toml`](../../../godot/legacy/inputs/main.toml) and inspect
-its selected package as the live example. Do not revive obsolete compatibility
-shapes.
+Select the game and its input closure explicitly. There is no repository-wide
+selected game. The contracts below describe existing readers; apply only the
+ones used by the game being edited.
 
 ## Keep ownership clear
 
@@ -101,15 +102,15 @@ cover: the validator compares two closed names and cannot read prose, so prose
 that contradicts the declaration passes closure and fails in the pixels.
 Record the required independent semantic review for accepted generated media.
 
-Run the legacy demo closure validator from the repository root:
+Validate an existing prepared package explicitly from the repository root:
 
 ```sh
-uv run --group legacy python godot/legacy/tools/validate_game_package.py --root .
+uv run --group games python godot/tools/validate_game_package.py --input godot/games/bellweather/inputs/default
 ```
 
 It verifies TOML parsing, confined paths, exact path membership, the authored
 evidence and reference image digests, resolvable references, and orphaned
 entries. Before serving a committed canonical demo, also run it with
 `--require-committed`. Report reader and document mismatches as demo-local maintenance issues. Existing
-TOML is legacy compatibility, not a requirement for new asset workflows. Stop at a complete authored input package: do not implement
+TOML belongs to its game and is not required for new asset workflows. Stop at a complete authored input package: do not implement
 the pipeline or claim that the game has been generated.

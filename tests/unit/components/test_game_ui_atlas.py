@@ -5,7 +5,7 @@ import io
 import pytest
 from PIL import Image
 
-from stage_gen_legacy.components.game_ui import (
+from demo_game_tools.media.ui import (
     ATLAS_ALPHA_POLICY,
     ATLAS_ROLES,
     BUTTON_RECT,

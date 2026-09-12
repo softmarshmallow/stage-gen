@@ -9,6 +9,7 @@ from typing import Literal
 import pytest
 from PIL import Image, ImageDraw
 
+from demo_game_tools.input_formats.sideview_stage import PreparedMapLayer
 from gnode import Binding, BindingTable, GraphBuilder, ModelRef
 from stage_gen.components._node_kit import text_digest
 from stage_gen.components.sideview_layers.nodes import (
@@ -25,7 +26,6 @@ from stage_gen.components.sideview_layers.nodes import (
     publish_layer,
 )
 from stage_gen.recipes.graph_document import RecipeGraph
-from stage_gen_legacy.components.sideview_stage import PreparedMapLayer
 
 
 class _Ops(StrEnum):

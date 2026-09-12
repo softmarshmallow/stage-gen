@@ -8,13 +8,13 @@
 > ordered vocabulary. The inference rules below are the reasoning that produced
 > them, and the fallback thresholds are still executable for
 > `prepared-game-runtime-v12`. The ratified
-> [Authored map-generation contract](spec/game/map-generation-contract.md)
+> [Authored map-generation contract](../godot/games/bellweather/docs/map-generation-contract.md)
 > makes layer plane and order explicit per map; the implementation cutover will
 > remove browser inference from opaque/parallax thresholds and select each
 > map's own generated layer bundle.
 
 The host composes generated art through a typed semantic layer contract in
-`godot/legacy/runtime/families/sideview/presentation/layer_presentation.gd`. Generation still
+`godot/games/_shared/runtime/addons/demo_support/simulation/families/sideview/presentation/layer_presentation.gd`. Generation still
 publishes the portable `id`, `z_index`, `parallax`, and `opaque` fields; the host
 validates those fields and resolves their complete presentation contract before
 creating a texture. A manifest may carry the same resolved contract as

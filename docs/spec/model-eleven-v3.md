@@ -13,7 +13,7 @@ in [../models/providers.md](../models/providers.md); the sibling sound-effect bo
 findings do **not** transfer, is
 [model-eleven-text-to-sound-v2.md](model-eleven-text-to-sound-v2.md); the
 authored contract that consumes this route is
-[../game-voice.md](../game-voice.md).
+[../game-voice.md](../../godot/games/iron_petal_unit/docs/voices.md).
 
 ## Route
 

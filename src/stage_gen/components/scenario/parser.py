@@ -1,7 +1,7 @@
 """Parse one `.scenario` script into statements. Syntax only, no name resolution.
 
 The surface is deliberately Ren'Py-shaped, for one concrete reason recorded in
-`docs/spec/game/scenario.md`: a language model has seen vastly more `.rpy` than it
+`docs/spec/scenario.md`: a language model has seen vastly more `.rpy` than it
 will ever see of a schema we invent, so idiomatic Ren'Py should land inside our
 subset by default. Where it departs from Ren'Py it is because that part of Ren'Py
 is code - there is no `$`, no `python:` block, and no statement outside the closed

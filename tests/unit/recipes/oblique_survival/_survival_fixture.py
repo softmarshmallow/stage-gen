@@ -24,8 +24,8 @@ from typing import Any, Final
 
 from PIL import Image, ImageDraw, ImageFilter
 
-from stage_gen_legacy.recipes.oblique_survival.layout import Layout
-from stage_gen_legacy.recipes.oblique_survival.manifest import (
+from ember_hollow_pipeline.layout import Layout
+from ember_hollow_pipeline.manifest import (
     FIXTURE_CANVAS,
     FIXTURE_STRIP,
     MOTION_BOTTOM_GUTTER_PX,
@@ -52,7 +52,7 @@ from stage_gen_legacy.recipes.oblique_survival.manifest import (
     water_ref,
     weather_ref,
 )
-from stage_gen_legacy.recipes.oblique_survival.models import Package
+from ember_hollow_pipeline.models import Package
 
 _INK = (36, 30, 28, 255)
 

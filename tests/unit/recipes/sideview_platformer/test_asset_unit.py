@@ -5,7 +5,11 @@ from io import BytesIO
 import pytest
 from PIL import Image
 
-from stage_gen_legacy.components.game_contract.asset_scale import (
+from bellweather_pipeline.asset_unit import (
+    admit_rank_ladder,
+    resolve_rank_magnitude,
+)
+from demo_game_tools.input_formats.game_contract.asset_scale import (
     AssetUnitError,
     ResolvedMagnitude,
     admit_entity_consistency,
@@ -16,11 +20,7 @@ from stage_gen_legacy.components.game_contract.asset_scale import (
     resolve_player_magnitude,
     sprite_scale,
 )
-from stage_gen_legacy.components.game_contract.package import PreparedScale
-from stage_gen_legacy.recipes.sideview_platformer.asset_unit import (
-    admit_rank_ladder,
-    resolve_rank_magnitude,
-)
+from demo_game_tools.input_formats.game_contract.package import PreparedScale
 
 TILE_PX = 64
 

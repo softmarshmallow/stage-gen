@@ -8,7 +8,7 @@ def test_map_contract_documents_the_exact_v10_terrain_camera_climbable_and_porta
     None
 ):
     repository = Path(__file__).parents[2]
-    document = (repository / "docs/spec/game/map-generation-contract.md").read_text(
+    document = (repository / "godot/games/bellweather/docs/map-generation-contract.md").read_text(
         encoding="utf-8"
     )
 

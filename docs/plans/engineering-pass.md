@@ -1,6 +1,7 @@
 # The engineering pass
 
-Status: draft for sign-off. Its runtime workstream is superseded: the browser
+Status: historical engineering audit. Current product and game ownership are
+recorded in [the repository layout](../repository-layout.md). Its runtime workstream is superseded: the browser
 runtime it planned around is being retired genre by genre under
 [decision 0061](../decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md),
 and the path is [the Godot promotion](godot-promotion-plan.md). The two
@@ -57,7 +58,7 @@ change that would is out of scope by definition.
 | Offline admission inside the provider's own retry budget | `painted_terrain/validate.py`, `scenario/admission.py`, `case/proof.py`, `platformer_map_design/design.py` |
 | Closed vocabularies; numbers on the side a refusal reads | `runner_gameplay/models.py:99-374` |
 | Evidence artifacts judged provider-free | atlas/icon/cut-in/silhouette/ground evidence |
-| Exact-current, fail-closed consumers with no translation layer | `docs/game-contract.md:324-349` |
+| Exact-current, fail-closed consumers with no translation layer | `godot/games/_shared/docs/game-contract.md:324-349` |
 | The map contract's image-identity exclusions (camera, loop construction, anchor, presentation) | `map-generation-contract.md:650-664` |
 | Refusal-bearing comments recording the measured value that moved a threshold | `structural_ground.py:53-155` |
 | The import-boundary test and the ring architecture | `tests/contract/test_import_boundaries.py` |
@@ -329,7 +330,7 @@ exemption granted and scoped to `audio.toml`).
 | A4 | The sdist and wheel entry counts are gone; what they guarded is asserted by name, and nothing Git ignores may ship |
 | A5 | `.github/workflows/gate.yml` (web, lint, python); `bun run check` + `bun test`, `validate_game_package.py`, and an offline plan or proof of all six library packages are gate steps |
 | A6 | `bellweather.cache-keys.json` and `iron-petal-unit.cache-keys.json` replace the whole-graph digest; a failure names the moved nodes and prices them |
-| A7 | `stage-gen package plan --cache-dir <dir>` adds a `cache` block: restored vs billed provider nodes, billed operation counts, cost band. On Iron Petal's real cache: 53 restored, 0 billed |
+| A7 | `demo-games package plan --cache-dir <dir>` adds a `cache` block: restored vs billed provider nodes, billed operation counts, cost band. On Iron Petal's real cache: 53 restored, 0 billed |
 | A8 | The runner's replay golden: 600 fixed steps under a scripted intent, a digest chain pinned at frames 60/300/600 (`replay.test.ts`). The platformer's half waits for the strangler |
 | A9 | Guide rasters pinned by sha256 in both terrain components; the five PNG encoders pinned on a probe image — two byte streams at two compression levels, which is B3's evidence |
 | A10 | `local/` in `.gitignore`; ffmpeg in the workflow |
@@ -350,7 +351,7 @@ manifest that binds them, paid on the next regeneration.
 
 | Card | Landed as |
 | --- | --- |
-| B1 / C-R2 | Rule written into `docs/game-contract.md`; mechanism is B4 plus the free validate nodes |
+| B1 / C-R2 | Rule written into `godot/games/_shared/docs/game-contract.md`; mechanism is B4 plus the free validate nodes |
 | B2 | `NodeType.identity`, defaulting to `type_id`; both goldens unchanged |
 | B3 | `media/codec.py`; five encoders and six decoders delegate to it at their own level |
 | B4 | World cache admission re-runs each image's gate; 17/17 admitted on the real cache |
@@ -883,7 +884,7 @@ that carries it rather than a path convention. The platformer's `prepared_world.
 lost its six painted methods for one `PaintedTerrainHandlers` beside its layer kit;
 `package_graph.py`'s helper is a thirty-line host call. Measured: no shipped map
 declares `painted-terrain-v1`, so the Bellweather platformer plan is byte-identical
-before and after (`stage-gen package plan`, compared whole); the family gained the test
+before and after (`demo-games package plan`, compared whole); the family gained the test
 the platformer path never had - the helper over a 56-column map (19/19/18) and the four
 handlers driven end to end on the fixture map through a fake image service, the
 provider gate included. `GRAPH_HELPER_DEPARTURES` is empty; the structure test keeps
@@ -925,7 +926,7 @@ score vocabulary a story game never pays. Five systems joined the platformer ros
 quiet for both shipped packages: **both platformer goldens byte-identical, nothing
 re-pinned**; the runner's `10` / `500` preserved, E1 zero diff. Ordering cost: one new
 `after` edge and one new undeclared feedback read (the step-2 list is now ten). The
-variant `godot/legacy/inputs/bellweather-waves/` is Bellweather file for file except
+variant `godot/games/bellweather/inputs/waves/` is Bellweather file for file except
 `gameplay.toml` (entry on Crowncrag Road, `[score]`, `[timers]`); its plan shares all
 230 node ids with Bellweather's and moves exactly three cache keys, all local. Assembled
 provider-free: `ok`, zero provider operations in every count, 109 artifacts, 122 of 230

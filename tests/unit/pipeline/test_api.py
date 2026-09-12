@@ -333,7 +333,7 @@ async def test_provider_opt_in_is_refused_before_any_writes_and_scoped_to_target
     assert projected.critical_path == ("provider",)
 
 
-def test_core_pipeline_does_not_import_application_composition_or_legacy_contracts() -> None:
+def test_core_pipeline_does_not_import_application_composition_or_game_contracts() -> None:
     import ast
 
     import stage_gen.pipeline
@@ -343,7 +343,12 @@ def test_core_pipeline_does_not_import_application_composition_or_legacy_contrac
         "stage_gen.orchestration",
         "stage_gen.recipes",
         "stage_gen.components",
-        "stage_gen_legacy",
+        "demo_game_tools",
+        "demo_game_collection",
+        "bellweather_pipeline",
+        "iron_petal_unit_pipeline",
+        "ember_hollow_pipeline",
+        "the_grain_pipeline",
     )
     for source in root.glob("*.py"):
         for node in ast.walk(ast.parse(source.read_text())):

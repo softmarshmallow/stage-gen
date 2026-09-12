@@ -11,9 +11,9 @@ uv sync --frozen
 uv run python scripts/check.py                    # product: Python SDK, tests, build
 uv run python scripts/check.py --scope viewer     # Bun checks and viewer boundary tests
 uv run python scripts/check.py --scope docs       # links, policy and media inventory
-uv run --group legacy python scripts/check.py --scope legacy
+uv run --group games python scripts/check.py --scope games
 uv run --group apps python scripts/check.py --scope apps
-uv run --group legacy python scripts/check.py --scope godot
+uv run --group games python scripts/check.py --scope godot
 ```
 
 The default product gate requires Python tools only. The viewer scope requires
@@ -31,7 +31,7 @@ uv run --all-groups python scripts/check.py --scope all
 ```
 
 `all` retains full offline Python collection, formatting, type checking, packaging,
-viewer, Godot, docs, legacy input plans and optional application checks. Tests are
+viewer, Godot, docs, game input plans and optional application checks. Tests are
 assigned before collection so a product-only environment need not import the
 optional demo or concept distributions. The partition is tested for completeness.
 

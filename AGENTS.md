@@ -23,12 +23,13 @@ and [IP](docs/oss-ip.md). This file controls applicability; focused docs control
   recipes compose useful asset outcomes. Their inputs never require a complete game, selected demo or gameplay schema.
   Consumer adapters own runtime camera, scene, engine and gameplay assumptions. `web/` consumes public run/artifact
   contracts and is not a second generator. Bounded animation, terrain, spatial and scenario contracts may remain optional.
-- Complete game builders, canonical game schemas and their existing input/readers belong to Godot legacy ownership.
-  Preserve old formats and supported reader/input pairs; do not rewrite all legacy TOML as a migration prerequisite.
-  Legacy code may import the public asset product; public components and pipeline code must not import legacy code.
+- Complete game builders, gameplay schemas and their existing inputs/readers belong to their Godot game under
+  `godot/games/`. Each game owns its project, preparation and bindings. Share only dependencies used by multiple
+  games under `godot/games/_shared/`; shared code never imports a named game. Preserve supported reader/input pairs
+  without requiring a TOML rewrite. Game code may import the public asset product; the product never imports games.
 - Each supported asset recipe/example owns its graph documentation and executable contract. Changes to its stages,
   asset dependencies, consumed inputs, operation counts or cache/scheduling semantics update that evidence together.
-  Historical whole-game graph specifications apply only to their legacy consumers, not every future asset pipeline.
+  Whole-game graph specifications apply only to their owning game consumers, not every future asset pipeline.
 
 ## Schema naming
 

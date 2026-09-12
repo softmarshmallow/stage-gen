@@ -19,24 +19,24 @@ from typing import Any, Final, cast
 import pytest
 from PIL import Image, ImageDraw
 
-from stage_gen.config import StageGenConfig
-from stage_gen_legacy.recipes.oblique_survival import layout as layout_module
-from stage_gen_legacy.recipes.oblique_survival import survival_request
-from stage_gen_legacy.recipes.oblique_survival.layout import Layout
-from stage_gen_legacy.recipes.oblique_survival.manifest import measure_sprite
-from stage_gen_legacy.recipes.oblique_survival.models import (
+from ember_hollow_pipeline import layout as layout_module
+from ember_hollow_pipeline import survival_request
+from ember_hollow_pipeline.layout import Layout
+from ember_hollow_pipeline.manifest import measure_sprite
+from ember_hollow_pipeline.models import (
     Forage,
     ItemUse,
     Package,
     Road,
     SourceError,
 )
-from stage_gen_legacy.recipes.oblique_survival.survival_graph import build_graph
-from stage_gen_legacy.recipes.oblique_survival.survival_prompts import actor_concept_prompt
-from stage_gen_legacy.recipes.oblique_survival.survival_request import load_package
+from ember_hollow_pipeline.survival_graph import build_graph
+from ember_hollow_pipeline.survival_prompts import actor_concept_prompt
+from ember_hollow_pipeline.survival_request import load_package
+from stage_gen.config import StageGenConfig
 from tests.unit.recipes.oblique_survival._survival_fixture import write_fixture
 
-PACKAGE: Final = Path("godot/legacy/inputs/ember-hollow")
+PACKAGE: Final = Path("godot/games/ember_hollow/inputs")
 
 
 def _document(package: Package, run_dir: Path, world: Layout) -> dict[str, Any]:

@@ -24,12 +24,9 @@ from typing import Any, Final, cast
 
 import pytest
 
-from gnode import LOCAL_OPERATION, BinaryArtifact, CapabilityError, Node
-from stage_gen.config import StageGenConfig
-from stage_gen_legacy.components.game_shell import ShellClip
-from stage_gen_legacy.recipes.oblique_survival import survival_prompts, survival_request
-from stage_gen_legacy.recipes.oblique_survival.layout import build_layout
-from stage_gen_legacy.recipes.oblique_survival.manifest import (
+from ember_hollow_pipeline import survival_prompts, survival_request
+from ember_hollow_pipeline.layout import build_layout
+from ember_hollow_pipeline.manifest import (
     MANIFEST_KIND,
     Manifest,
     _music_block,
@@ -38,7 +35,7 @@ from stage_gen_legacy.recipes.oblique_survival.manifest import (
     prop_ref,
     state_ref,
 )
-from stage_gen_legacy.recipes.oblique_survival.models import (
+from ember_hollow_pipeline.models import (
     DEFAULT_MUSIC_TRANSITION,
     FOUR_WAY_FACINGS,
     SOUND_CUES,
@@ -52,21 +49,24 @@ from stage_gen_legacy.recipes.oblique_survival.models import (
     SourceError,
     Track,
 )
-from stage_gen_legacy.recipes.oblique_survival.prepared_survival import ObliqueSurvivalNodeHandler
-from stage_gen_legacy.recipes.oblique_survival.survival_executor import ObliqueSurvivalExecutor
-from stage_gen_legacy.recipes.oblique_survival.survival_graph import (
+from ember_hollow_pipeline.prepared_survival import ObliqueSurvivalNodeHandler
+from ember_hollow_pipeline.shell import ShellClip
+from ember_hollow_pipeline.survival_executor import ObliqueSurvivalExecutor
+from ember_hollow_pipeline.survival_graph import (
     MINIMAL_PROPS,
     ObliqueSurvivalGraph,
     _safe,
     build_graph,
 )
-from stage_gen_legacy.recipes.oblique_survival.survival_request import DigestLedger, load_package
-from stage_gen_legacy.recipes.oblique_survival.survival_types import (
+from ember_hollow_pipeline.survival_request import DigestLedger, load_package
+from ember_hollow_pipeline.survival_types import (
     REVIEW_FAMILIES,
     SCOPES,
     STRIKE_CELL_KINDS,
     TYPE_PREFIX,
 )
+from gnode import LOCAL_OPERATION, BinaryArtifact, CapabilityError, Node
+from stage_gen.config import StageGenConfig
 from tests.unit.recipes.oblique_survival._survival_fixture import (
     _fixture_drops,
     _fixture_splash,
@@ -74,7 +74,7 @@ from tests.unit.recipes.oblique_survival._survival_fixture import (
     write_fixture,
 )
 
-PACKAGE: Final = Path("godot/legacy/inputs/ember-hollow")
+PACKAGE: Final = Path("godot/games/ember_hollow/inputs")
 
 
 def _forage(package: Package) -> Forage:

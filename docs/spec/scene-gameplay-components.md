@@ -218,6 +218,6 @@ population, inventory, dialogue, and teardown. Browser evidence proves selected
 integration paths, but a screenshot alone does not establish simulation or
 contract correctness.
 
-See [Authored game maps](../game-maps.md),
-[Canonical prepared game package](../game-package.md), and
-[Canonical game-generation pipeline](game/generation-pipeline.md).
+See [Authored game maps](../../godot/games/bellweather/docs/maps.md),
+[Canonical prepared game package](../../godot/games/_shared/docs/game-package.md), and
+[Canonical game-generation pipeline](../../godot/games/bellweather/docs/generation-pipeline.md).

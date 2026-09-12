@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen_legacy.components.runner_content import (
+from iron_petal_unit_pipeline.content import (
     RUNNER_AVATAR_SCHEMA_VERSION,
     load_runner_avatar_bytes,
 )
+from stage_gen.components._game_input import AuthoredContractLoadError
 
 from ..._runner_fixture import RUNNER_AVATAR
 

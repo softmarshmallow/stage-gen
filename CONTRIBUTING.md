@@ -13,8 +13,10 @@ pipeline with optional consumers.
   recipe.
 - Compose them through the public `stage_gen.pipeline` harness and bounded
   `src/stage_gen/recipes/`. Keep examples beside the surface they demonstrate.
-- Existing complete game recipes and their TOML readers belong to the optional
-  `stage-gen-legacy` package under `godot/legacy/`. The product imports none of it.
+- Complete games own their preparation packages, input formats, gameplay and
+  bindings under `godot/games/<game>/`. Share implementations under
+  `godot/games/_shared/` only when multiple games use them. The optional `games`
+  installation group provides game tooling; the product imports none of it.
 - Keep generation-specific genre, composition, projection, framing, layout,
   artifact, and validation assumptions in recipes. Keep runtime camera, scene,
   engine, movement, combat, and gameplay assumptions in consumer adapters under `godot/`. The web viewer owns inspection only.

@@ -340,7 +340,7 @@ def test_repository_sample_is_strict_original_and_reference_free() -> None:
     """The shipped profile is a member of the game package that binds it."""
 
     repository = Path(__file__).resolve().parents[4]
-    path = repository / "godot/legacy/inputs/the_grain/characters/lydia.toml"
+    path = repository / "godot/games/the_grain/inputs/characters/lydia.toml"
     profile = load_character_profile(path)
     assert profile.profile_id == "lydia-shaw"
     assert profile.rights.status == "unreviewed"

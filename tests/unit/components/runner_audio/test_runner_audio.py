@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen_legacy.components.runner_audio import (
+from iron_petal_unit_pipeline.audio import (
     GeneratedClipRealization,
     RunnerAudioContract,
     SpokenLineRealization,
@@ -13,6 +12,7 @@ from stage_gen_legacy.components.runner_audio import (
     load_runner_audio_bytes,
     runner_audio_sha256,
 )
+from stage_gen.components._game_input import AuthoredContractLoadError
 
 
 def _source(*, reverse: bool = False) -> str:

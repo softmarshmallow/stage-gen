@@ -19,7 +19,7 @@ workflow. Omitting `prepare --face-crop` keeps the existing opaque-portrait
 workflow and its source-canvas requirements.
 
 This is a standalone headless capability and CLI. It does not add a stage to the
-[game-generation graph](game/generation-pipeline.md), bind a character into a game,
+[game-generation graph](../../godot/games/bellweather/docs/generation-pipeline.md), bind a character into a game,
 or publish generated art. A consumer can choose the eye and mouth states
 independently from the resulting composition manifest.
 

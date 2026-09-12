@@ -93,7 +93,7 @@ neither is a port defect.
 
 The first is the numeral face. [0063](0063-a-typeface-is-a-package-input.md) made
 a typeface a package input; the host half landed and resolves a published face,
-but `godot/legacy/inputs/bellweather` declares no `fonts/` and the platformer recipe
+but `godot/games/bellweather/inputs/default` declares no `fonts/` and the platformer recipe
 publishes no typeface block, so the damage numbers are still drawn in a system
 fallback. That is pipeline work, not host work.
 

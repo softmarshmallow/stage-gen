@@ -1,0 +1,129 @@
+# Survival crafting and items
+
+> **Scope: game consumers.** This document describes the formats used by these Godot games.
+> The public asset SDK and new games do not require this authoring format.
+
+> **Checked by:** `tests/contract/test_generation_pipeline_docs.py`.
+
+> **Contract maturity: exact-current authored contracts.** Executable
+> authority: `godot/games/ember_hollow/pipeline/src/ember_hollow_pipeline/survival_request.py`; the
+> authored files are `items.toml` and `crafting.toml` in an
+> [oblique-survival package](generation-v1.md).
+
+The mechanism the genre is named for: an author-defined crafting table, two
+pictures for every item, a slot inventory, tools that wear, stations, and a
+closure proved before any of it is paid for.
+
+## What is authored, and where
+
+| File | Table | What it says |
+| --- | --- | --- |
+| `items.toml` | `[[items]]` | every item: its pickup brief (the one field a node digests), `display_name`, `height_units`, `stack_max`, an optional `use` (a consumable that moves hunger, health or warmth; a light that burns; a carried pack that adds slots; worn insulation; a warm item that holds the cold off once lit), an optional `tool` (the verb it serves and how many uses it lasts), an optional icon brief |
+| `items.toml` | `[icons]` | the inventory icon sheet: its lattice, its style emphasis, glyphs for any cell the items leave over, and an optional `take` |
+| `crafting.toml` | `[inventory]`, `[start]`, `[stations]`, `[[recipes]]` | the pack's base slots, the starting inventory, the stations (a prop, a state, a reach) and the recipes: ingredients in, exactly one product out, an item with a count or a prop to build, at a station or by hand. A made item that is worn (a tool, a cloak, a pack) goes straight onto an empty hand, body or back |
+| `crafting.toml` | `[[recipes]].product.state` | the look a built prop is placed in (Ember Hollow's campfire is built `lit`); one of the prop's declared states, the prop's baseline look when unsaid, and always written to the manifest resolved. The consumer builds by **placing**: the thing is carried to the pointer as a tinted silhouette — green where it can stand (land, clear of every footprint, within the walk-to distance), red where it cannot — and a click sets it down, spending the makings then; a right click keeps them. Nothing is spent for a spot that refuses |
+| `ground.toml` | `[forage]` | the forage sheet: a lattice of pickups lying on the ground, each cell naming the item it yields, how many, and how long the spot takes to regrow |
+| `props.toml` | `[[props.interactions]]` | what can be done to a prop, as a list in priority order; each entry names the states it applies `from` (required, explicit), its verb, hits, `next_state`, progress looks and yields. The consumer offers the first entry whose `from` holds the prop's state and whose tool, if required, is carried; with none available the first that applies is the focus with its refusal (lit and labelled by the same nearest rule as anything else) but never the target: the key and a click say the refusal rather than walk to it. One verb per state per prop |
+| `props.toml` | `[[props.interactions]].tool` | the tool a verb wants: the item, the hits with it, and whether it is required |
+| `props.toml` | `[[props.interactions]].yield_to` | where the yield goes at the last blow: `hand` (straight into the pack, the way grass or twigs are simply taken) or `ground` (dropped at the thing, to be picked up after, the way a trunk's logs lie where the crown lands); required whenever the interaction yields anything, refused when it does not |
+
+## Mixing versus spend
+
+`crafting.toml` in its entirety, an item's `use`, `tool` and `stack_max`, and an
+interaction's `tool` and `yield_to` reach the manifest and **no cache key**. A recipe edit
+re-bills nothing, the way a music fade does not. What bills is a picture: a new
+item's pickup sprite, the forage sheet, the icon sheet, a new prop.
+
+`display_name` is the exception, and it is not one: names are painted into the
+icon sheet, so changing one moves the icons.
+
+## The reachability closure
+
+The loader refuses, offline and before any spend: an unknown key on an item or a
+recipe; a recipe with two products, or a station nobody declared; a station whose
+prop nobody can build; a tool whose item serves another verb; an icon lattice
+the items and glyphs do not fill exactly; and **any item nothing reaches**.
+
+Reachable means: in the start inventory, yielded by a prop, lying on the forage
+sheet, or the product of a recipe whose ingredients are all reachable and whose
+station either stands in the camp or is itself a reachable product.
+
+This is the same discipline the room recipe applies to a puzzle: an unreachable
+item is art nobody can obtain, and the cheapest place to find that out is before
+the first image is drawn.
+
+## Two pictures for one item
+
+An item has a world representation and an inventory representation, and they are
+different drawings on purpose.
+
+- **In the world**, a per-item pickup sprite at `package/items/<id>.png`, drawn a
+  size up from the real thing with a bold closed contour, a step brighter than
+  the scenery — seen bouncing out of a gathered prop and lying where it was
+  dropped. A forageable item is also a cell of the **forage sheet**, scattered
+  flat by the layout with the ground pieces' contacts and light, hidden while
+  its spot regrows, and sized by its cell's own `size_units` above the package
+  floor ([ground](ground.md)). Nothing lies on the ground that cannot be taken
+  ([decision 0060](../../../../docs/decisions/0060-the-world-places-nothing-the-player-cannot-act-on.md)),
+  so a twig on the turf is always a twig to pick up.
+- **In the pack**, one **icon sheet**: every item in order, then the glyphs,
+  painted together on one lattice so the set shares one scale and one contour
+  weight. The pickup sprites are drawn one at a time and never quite agree with
+  each other; that is the reason the sheet exists rather than a crop of the
+  sprites. The manifest publishes each item's window on the sheet under
+  `items.<id>.icon`.
+
+## The pack
+
+- The slot list is the truth: one entry per slot holding an item, a count and a
+  tool's remaining uses, or empty. The base count is authored, plus the slots of
+  the pack **worn on the back**. Stacks fill to `stack_max`; a tool never stacks
+  and carries its own wear.
+- **Three worn places** — `hand` for a tool, `body` for a `wear` use, `back` for
+  a `carry` use — hold one thing each, moved from and to the pack by the host's
+  equip and unequip inputs (using a tool, a cloak or a pack wears it). Only the
+  worn thing counts: a cloak in a slot insulates nothing, a pack in a slot
+  carries nothing, and the pack on the back comes off only once its own slots
+  are empty. (Until 2026-09-06 anything in the pack counted.)
+- **A tool serves from the hand first, then from the pack.** The tool in hand
+  that serves the verb is the one used and worn; failing that, the first tool in
+  slot order that does, so a carried axe is enough to chop. The target shows the
+  tool's hits; a required tool that is missing leaves the target offered with
+  the label saying what is missing, and neither Space nor a click walks the
+  player to it. One completed interaction wears the tool by one; at zero it
+  breaks. A prop with several interactions offers the first, in authored order,
+  that applies from its state and whose tool is carried: the dead snag is
+  chopped with an axe and snapped for twigs by hand without one.
+- **What the hand gathers is taken; what a tool knocks loose lands.** An
+  interaction with `yield_to = "hand"` counts its yield into the pack at the
+  last blow (one pickup event per piece, from where the thing stands, so the
+  host can fly it to the slot); what does not fit falls at the thing and is
+  said. `yield_to = "ground"` drops the yield there. A drop is a target from the
+  moment it flies and is taken once it settles; while a yield is still on its
+  way down beside the player the held key waits rather than turning away.
+- Every helper answers with what it could **not** do, so a full pack leaves the
+  piece on the ground and says so rather than dropping it silently.
+- **Stations are proximity**, resolved against the nearest prop with the
+  station's id and state within its authored reach — so a fire cooks only while
+  it is lit.
+- A built prop is placed clear of the player and of every footprint; a made item
+  that does not fit falls at the feet.
+
+## Non-goals
+
+- **An authored craft time nobody reads.** Recipes are instant. An authored
+  field with no consumer is what this repository refuses, so there is no
+  `craft_seconds`.
+- Storage beyond the pack; the pack's rules would carry over to a chest
+  unchanged.
+- A held item that follows the selection — the drawn tool in an actor's hand is
+  part of the actor's art, not a socket.
+- Combat and hunting, and therefore hides and meat.
+
+## Dated log
+
+- **2026-09-06.** The table, the two pictures per item, the slot pack, tools
+  that wear, stations, the torch and the reachability closure landed in one
+  pass, with the forage and icon nodes sharing the recipe's lattice template.
+  The prior pickup keys and the litter's adopt key held: the plan listed exactly
+  the new nodes before the spend.

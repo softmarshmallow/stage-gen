@@ -23,7 +23,7 @@
 > consumer, but it does not define a serialized schema, root filename, node
 > registry, execution graph, provider operation, persisted manifest shape,
 > route implementation, or migration plan. The current
-> [prepared-game contracts](../../game-contract.md) and recipes remain
+> [prepared-game contracts](../../../godot/games/_shared/docs/game-contract.md) and recipes remain
 > unchanged.
 
 ## Purpose
@@ -152,16 +152,12 @@ gallery position is not semantic identity.
 generated media has passed semantic review, been accepted for publication, or
 been activated by a public consumer.
 
-## Ownership and library boundary
+## Ownership and input boundary
 
-Future authored universe inputs will live under `godot/legacy/inputs/<project_id>/`
-as requested for the shared project library. The directory is an ownership and
-discovery boundary; it does not assert that every project is playable.
-
-V0 does not ratify the package root filename or allow universe-only files to be
-added to the currently selected prepared-game closure. The current
-`game.toml`-rooted validator, selector, and runtime manifest continue to own
-prepared games until a separate executable universe contract is implemented.
+Universe inputs belong to their caller or to an example beside the independent
+universe recipe. They do not live in the games collection unless a particular
+game explicitly chooses to consume them. The executable recipe now accepts its
+own `universe.toml`; the format is independent of prepared `game.toml` closures.
 
 The universe contract will own semantic subjects, entity concept images, and
 text-explanation requirements. A future consumer will own browsing, layout,

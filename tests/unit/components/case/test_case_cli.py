@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen_legacy.interfaces.cli import build_parser, main
+from demo_game_collection.cli import build_parser, main
 
 from .package import write_case_package
 

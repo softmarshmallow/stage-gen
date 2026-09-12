@@ -9,14 +9,14 @@ from typing import Final
 
 import pytest
 
-from stage_gen_legacy.recipes.oblique_survival.models import Package, SourceError
-from stage_gen_legacy.recipes.oblique_survival.survival_request import (
+from ember_hollow_pipeline.models import Package, SourceError
+from ember_hollow_pipeline.survival_request import (
     load_package,
     resolve_survival_source,
     take_path,
 )
 
-PACKAGE = Path("godot/legacy/inputs/ember-hollow")
+PACKAGE = Path("godot/games/ember_hollow/inputs")
 
 #: The committed package's identity, pinned so an unnoticed authored edit is a
 #: test failure rather than a surprise on the next run. Only the ten authored

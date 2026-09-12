@@ -12,7 +12,7 @@ This page records the model-specific boundary. General provider procedure lives
 in [../models/providers.md](../models/providers.md); the component contract lives in
 [../component-contract.md](../component-contract.md); the authored contract that
 consumes this route, and the gates it applies, is
-[../game-sound-effects.md](../game-sound-effects.md).
+[../game-sound-effects.md](../../godot/games/iron_petal_unit/docs/audio.md).
 
 ## Route
 
@@ -203,7 +203,7 @@ post-processing. Repairing a bad draw is forbidden even though the fix is trivia
 
 **The 0.5 second floor is a hard wall.** Cues shorter than half a second cannot
 be served, because reaching them would require trimming.
-`godot/legacy/inputs/iron-petal-unit/runner/audio.toml` declares 90–170 ms envelopes
+`godot/games/iron_petal_unit/inputs/runner/audio.toml` declares 90–170 ms envelopes
 for its short cues, all under the floor. Those cues stay synthesized. This is
 not a temporary gap — a synthesized 90 ms servo sweep is both cheaper and more
 precise than anything this route could return, and it is a stylized cue besides,

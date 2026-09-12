@@ -20,19 +20,19 @@ from typing import Any, Final, cast
 import pytest
 from PIL import Image, ImageDraw, ImageFilter
 
-from stage_gen.media import measure_alpha_ground_contact
-from stage_gen.media.guide_lattice import detect_guide_lattice
-from stage_gen_legacy.recipes.oblique_survival import gates, templates
-from stage_gen_legacy.recipes.oblique_survival.manifest import alpha_bbox
-from stage_gen_legacy.recipes.oblique_survival.prepared_survival import (
+from ember_hollow_pipeline import gates, templates
+from ember_hollow_pipeline.manifest import alpha_bbox
+from ember_hollow_pipeline.prepared_survival import (
     _look_drift,
     _normalise_look,
     plate_busyness_max,
     plate_gate_kwargs,
 )
-from stage_gen_legacy.recipes.oblique_survival.survival_request import load_package
+from ember_hollow_pipeline.survival_request import load_package
+from stage_gen.media import measure_alpha_ground_contact
+from stage_gen.media.guide_lattice import detect_guide_lattice
 
-PACKAGE: Final = Path("godot/legacy/inputs/ember-hollow")
+PACKAGE: Final = Path("godot/games/ember_hollow/inputs")
 CANVAS: Final = (1024, 1024)
 
 

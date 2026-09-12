@@ -19,7 +19,7 @@ The optional `web/` consumer reads persisted execution records and asset metadat
 Godot packages provide bounded runtime capabilities, while games and templates own
 their local GDScript and preparation scripts.
 
-The former canonical game-generation system is preserved under `godot/legacy/`.
-Its [game graph](game/generation-pipeline.md) describes that demo family only.
+Whole-game builders and input readers belong to their named `godot/games/` consumers.
+Its [game graph](../../godot/games/bellweather/docs/generation-pipeline.md) describes that demo family only.
 New asset pipelines can use independent scenario, sprite, parallax, portrait,
 terrain and other contracts without combining them into a gameplay language.

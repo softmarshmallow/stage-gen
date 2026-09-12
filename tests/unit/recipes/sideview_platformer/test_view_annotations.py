@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from gnode import Node, Port, RetryOwner
-from stage_gen_legacy.recipes.sideview_platformer.execution_graph import OperationKind
-from stage_gen_legacy.recipes.sideview_platformer.view_annotations import (
+from bellweather_pipeline.execution_graph import OperationKind
+from bellweather_pipeline.view_annotations import (
     annotate_sideview_platformer_artifact,
 )
+from gnode import Node, Port, RetryOwner
 
 
 def _node(

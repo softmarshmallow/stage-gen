@@ -35,7 +35,7 @@ it is authored, and it belongs to [Asset unit](asset-unit.md).
 
 ![All forty frames of one actor at one uniform source scale: on the left the shipped per-state scale, on the right the same frames rebased onto the idle baseline, with each panel's baseline crown drawn across every state](../media/motion-rebase-ab.webp)
 
-*Composited by `godot/legacy/tools/render_asset_scale_figures.py` from the
+*Composited by `godot/games/bellweather/tools/render_asset_scale_figures.py` from the
 `bellweather-prepared-v11-bound` package; the manifest digest it was rendered
 from is recorded in
 [Reproducing the measurements](../research/asset-scale-study.md#reproducing-the-measurements).
@@ -47,9 +47,9 @@ authored declaration.*
 - `stage_gen.media.comparison_plate` owns deterministic plate composition and
   the structured judging call. It is provider-neutral and knows nothing about
   actors, states, or games.
-- `stage_gen_legacy.recipes.sideview_platformer.motion_rebase` owns the baseline rule,
+- `bellweather_pipeline.motion_rebase` owns the baseline rule,
   the judging atlas layout, admission, and the published rebase record.
-- `godot/legacy/runtime/hosts/common/actor.gd` owns composition of the rebase with the actor's magnitude.
+- `godot/games/_shared/runtime/addons/demo_support/io/actor.gd` owns composition of the rebase with the actor's magnitude.
 
 The image model owns appearance only. Deterministic code owns plate assembly,
 admission, and arithmetic. A vision model owns one judgement: a multiplier per

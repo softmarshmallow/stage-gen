@@ -11,11 +11,9 @@ from pathlib import Path
 import pytest
 from PIL import Image, ImageDraw
 
+from demo_game_collection.executors import SideviewRunnerExecutor
 from gnode import CapabilityError
-from stage_gen.components.sideview_layers.nodes import admit_layer_candidate
-from stage_gen.config import StageGenConfig
-from stage_gen.image_product import ImageProvider
-from stage_gen_legacy.recipes.sideview_runner.prepared_runner import (
+from iron_petal_unit_pipeline.prepared_runner import (
     RUNNER_LAYER_GATE,
     _validate_catalog_candidate,
     _validate_motion_candidate,
@@ -25,9 +23,11 @@ from stage_gen_legacy.recipes.sideview_runner.prepared_runner import (
     manifest_ground,
     manifest_rebase_multipliers,
 )
-from stage_gen_legacy.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
-from stage_gen_legacy.recipes.sideview_runner.runner_graph import runner_graph_profile
-from stage_gen_legacy.recipes.sideview_runner.runner_view import build_sideview_runner_view
+from iron_petal_unit_pipeline.runner_graph import runner_graph_profile
+from iron_petal_unit_pipeline.runner_view import build_sideview_runner_view
+from stage_gen.components.sideview_layers.nodes import admit_layer_candidate
+from stage_gen.config import StageGenConfig
+from stage_gen.image_product import ImageProvider
 
 from ..._runner_fixture import two_genre_package
 
@@ -246,7 +246,7 @@ def test_soundtrack_generation_adds_runner_specific_kinetic_staging(tmp_path: Pa
 def test_ground_validation_keys_the_topology_lookup_resource(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from stage_gen_legacy.recipes.sideview_runner import runner_graph
+    from iron_petal_unit_pipeline import runner_graph
 
     package = two_genre_package(tmp_path / "package")
     lookup = tmp_path / "lookup.json"
@@ -320,12 +320,12 @@ def test_the_motion_vocabulary_is_declared_exactly_once() -> None:
     band order are all one declaration; editing one without the others emits
     strips no contract admits, or refuses avatars no node serves."""
 
-    from stage_gen_legacy.components.runner_content import (
+    from iron_petal_unit_pipeline.content import (
         RUNNER_AVATAR_BASE_MOTION_STATES,
         RUNNER_AVATAR_MOTION_STATES,
         RUNNER_MOTION_ORDER,
     )
-    from stage_gen_legacy.recipes.sideview_runner.runner_graph import RUNNER_MOTION_STATES
+    from iron_petal_unit_pipeline.runner_graph import RUNNER_MOTION_STATES
 
     assert RUNNER_MOTION_STATES is RUNNER_MOTION_ORDER
     assert frozenset(RUNNER_MOTION_ORDER) == RUNNER_AVATAR_MOTION_STATES

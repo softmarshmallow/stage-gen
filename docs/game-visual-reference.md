@@ -32,7 +32,7 @@ Camera and framing are indexed here because they help find comparable games,
 but they are not rendering style. Likewise, genre, setting, subject matter, UI
 layout, and production role remain separate from style facets.
 
-The proposed [game view and style taxonomy](spec/game/view-and-style-taxonomy.md)
+The proposed [game view and style taxonomy](../godot/games/_shared/docs/formats/view-and-style-taxonomy.md)
 owns canonical technical definitions for projection, camera pose, gameplay
 space, asset view, framing, and typed visual-style facets. This reference
 catalog inventories evidence and routes ambiguous aliases toward those axes; it

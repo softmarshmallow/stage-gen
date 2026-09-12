@@ -6,8 +6,8 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+from demo_game_collection.identities import current_versions
 from gnode import ArtifactResult
-from stage_gen_legacy.identities import current_versions
 
 
 def _load_docs_checker() -> ModuleType:
@@ -106,9 +106,9 @@ def test_character_profile_workflow_is_discoverable_and_version_accurate() -> No
     docs_index = (repository_root / "docs/README.md").read_text(encoding="utf-8")
 
     for required in (
-        "stage-gen legacy character-profile validate",
-        "stage-gen legacy character-profile digest",
-        "godot/legacy/inputs/the_grain",
+        "demo-games character-profile validate",
+        "demo-games character-profile digest",
+        "godot/games/the_grain/inputs",
         "--package-root",
         _current("dialogue-scene-bundle"),
     ):
@@ -163,7 +163,7 @@ def test_terrain_atlas_documentation_matches_runtime_contract() -> None:
 
 
 def test_game_contract_authorities_are_discoverable_and_match_the_live_models() -> None:
-    """The master and executable game contracts remain distinct and discoverable.
+    """The retained design and executable game formats remain distinct and discoverable.
 
     Modelled on the character-profile discoverability test above, and extended with the checks
     that keep the prepared package-root schema from drifting from its live model and exact current
@@ -172,32 +172,39 @@ def test_game_contract_authorities_are_discoverable_and_match_the_live_models() 
 
     repository_root = Path(__file__).parents[2]
     readme = (repository_root / "README.md").read_text(encoding="utf-8")
-    master_doc = (repository_root / "docs/game-contract.md").read_text(encoding="utf-8")
-    schema_doc = (repository_root / "docs/spec/game/authored-contract-schema.md").read_text(
+    master_doc = (repository_root / "godot/games/_shared/docs/game-contract.md").read_text(
         encoding="utf-8"
     )
-    sequence_doc = (
-        repository_root / "docs/spec/game/dialogue-and-cutscene-sequences.md"
+    schema_doc = (
+        repository_root / "godot/games/_shared/docs/formats/authored-contract-schema.md"
     ).read_text(encoding="utf-8")
-    package_doc = (repository_root / "docs/game-package.md").read_text(encoding="utf-8")
+    sequence_doc = (
+        repository_root / "godot/games/_shared/docs/formats/dialogue-and-cutscene-sequences.md"
+    ).read_text(encoding="utf-8")
+    taxonomy_doc = (
+        repository_root / "godot/games/_shared/docs/formats/view-and-style-taxonomy.md"
+    ).read_text(encoding="utf-8")
+    package_doc = (repository_root / "godot/games/_shared/docs/game-package.md").read_text(
+        encoding="utf-8"
+    )
     docs_index = (repository_root / "docs/README.md").read_text(encoding="utf-8")
     discoverable_docs = (readme, master_doc, schema_doc, sequence_doc, package_doc, docs_index)
 
     for required in (
-        "stage-gen package validate",
-        "stage-gen package digest",
-        "stage-gen package plan",
-        "godot/legacy/inputs/<game_id>/game.toml",
-        _current("game-package"),
+        "demo-games package validate",
+        "demo-games package digest",
+        "demo-games package plan",
+        "godot/games/bellweather/inputs/default",
+        "godot/games/iron_petal_unit/inputs",
         _current("game-contract"),
         _current("prepared-game-runtime"),
     ):
         assert any(required in document for document in discoverable_docs)
 
     for required in (
-        "spec/game/authored-contract-schema.md",
-        "spec/game/view-and-style-taxonomy.md",
-        "spec/game/dialogue-and-cutscene-sequences.md",
+        "formats/authored-contract-schema.md",
+        "formats/view-and-style-taxonomy.md",
+        "formats/dialogue-and-cutscene-sequences.md",
         "Visible gameplay requires visual coverage",
         "player `hurt` motion coverage",
         "Sequence control is explicit",
@@ -213,7 +220,12 @@ def test_game_contract_authorities_are_discoverable_and_match_the_live_models() 
     ):
         assert required in sequence_doc
 
-    from stage_gen_legacy.components.game_contract import (
+    # Proposed vocabulary must not advertise itself as an implemented public format.
+    assert "proposed TO-BE for the vocabulary" in taxonomy_doc
+    assert "`side_view_2d` remains the only accepted projection" in taxonomy_doc
+    assert "The public asset SDK and new games do not require this authoring format" in taxonomy_doc
+
+    from demo_game_tools.input_formats.game_contract import (
         PREPARED_GAME_CONTRACT_SCHEMA_VERSION,
         PreparedGameContract,
     )

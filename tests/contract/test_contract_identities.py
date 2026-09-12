@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
-from stage_gen_legacy.identities import (
+from demo_game_collection.identities import (
     RETIRED_FAMILIES,
     RETIRED_STRINGS,
     accepted_legacy_graph_identities,
@@ -26,7 +26,7 @@ HISTORY_FILES = ("TODO.md",)
 
 
 def _load_writer() -> ModuleType:
-    path = REPOSITORY_ROOT / "godot/legacy/tools/write_contract_identities.py"
+    path = REPOSITORY_ROOT / "godot/tools/write_game_contract_identities.py"
     spec = importlib.util.spec_from_file_location("stage_gen_contract_identities_writer", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -81,7 +81,7 @@ def test_the_identity_document_is_derived_from_the_code() -> None:
     writer = _load_writer()
     assert DOCUMENT.read_text(encoding="utf-8") == writer.render(), (
         "docs/contract-identities.md is stale; run "
-        "`uv run python godot/legacy/tools/write_contract_identities.py --write`"
+        "`uv run python godot/tools/write_game_contract_identities.py --write`"
     )
 
 

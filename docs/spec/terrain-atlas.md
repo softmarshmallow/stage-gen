@@ -14,7 +14,7 @@ atlas. It is not a 9-slice and it does not encode true smooth slopes.
   paintover prompting and admission, fixed-pitch slicing and connector
   harmonization, 47-mask lookup admission, and structural previews.
 - `maps/<map_id>.toml` owns the exact top-to-bottom binary occupancy matrix.
-- `godot/legacy/runtime/families/sideview/terrain/atlas.gd` owns eight-neighbor peering,
+- `godot/games/bellweather/gameplay/support/sideview/terrain/atlas.gd` owns eight-neighbor peering,
   atlas-coordinate selection, collision identity, engine import metadata, and
   dynamic-versus-baked behavior for that authored matrix.
 

@@ -12,7 +12,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 def _load_script() -> ModuleType:
-    path = REPOSITORY_ROOT / "godot/legacy/tools/validate_game_package.py"
+    path = REPOSITORY_ROOT / "godot/tools/validate_game_package.py"
     spec = importlib.util.spec_from_file_location("validate_game_package", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -27,7 +27,9 @@ SCRIPT = _load_script()
 def test_validate_game_package_script_prints_the_machine_report(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    assert SCRIPT.main(["--root", str(REPOSITORY_ROOT)]) == 0
+    assert (
+        SCRIPT.main(["--input", str(REPOSITORY_ROOT / "godot/games/iron_petal_unit/inputs")]) == 0
+    )
 
     captured = capsys.readouterr()
     report = json.loads(captured.out)
@@ -37,15 +39,17 @@ def test_validate_game_package_script_prints_the_machine_report(
     assert report["game_id"] == "iron-petal-unit"
     assert report["schema_version"] == 6
     assert report["kind"] == "game-package-validation-v6"
-    package = REPOSITORY_ROOT / "godot" / "legacy" / "inputs" / "iron-petal-unit"
-    assert report["file_count"] == sum(1 for path in package.rglob("*") if path.is_file())
+    package = REPOSITORY_ROOT / "godot" / "games" / "iron_petal_unit" / "inputs"
+    assert report["file_count"] == sum(
+        1 for path in package.rglob("*") if path.is_file() and path.name != ".gdignore"
+    )
 
 
 def test_validate_game_package_script_rejects_an_invalid_root(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    assert SCRIPT.main(["--root", str(tmp_path)]) == 1
+    assert SCRIPT.main(["--input", str(tmp_path)]) == 1
 
     captured = capsys.readouterr()
     report = json.loads(captured.out)
@@ -55,4 +59,4 @@ def test_validate_game_package_script_rejects_an_invalid_root(
     assert report["source_status"] == "invalid"
     assert report["generated_status"] == "not_checked"
     assert report["disposition"] == "drop_or_repair_source"
-    assert report["errors"][0]["code"] == "invalid_selector"
+    assert report["errors"][0]["code"] == "missing_package_file"

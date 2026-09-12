@@ -15,7 +15,22 @@ from types import ModuleType
 
 import pytest
 
+from bellweather_pipeline.execution_graph import (
+    EXECUTION_GRAPH_SCHEMA_VERSION,
+    ExecutionGraph,
+)
+from bellweather_pipeline.package_executor import PreparedPackageExecutor
+from ember_hollow_pipeline.survival_executor import ObliqueSurvivalExecutor
+from ember_hollow_pipeline.survival_graph import (
+    OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION,
+    ObliqueSurvivalGraph,
+)
 from gnode import Graph
+from iron_petal_unit_pipeline.runner_executor import SideviewRunnerExecutor
+from iron_petal_unit_pipeline.runner_graph import (
+    RUNNER_GRAPH_SCHEMA_VERSION,
+    SideviewRunnerGraph,
+)
 from stage_gen.recipes.executor import RecipeExecutor
 from stage_gen.recipes.graph_document import RecipeGraph
 from stage_gen.recipes.node_handler import RecipeNodeHandler
@@ -29,30 +44,15 @@ from stage_gen.recipes.universe.universe_graph import (
     UNIVERSE_GRAPH_SCHEMA_VERSION,
     UniverseGraph,
 )
-from stage_gen_legacy.recipes.dialogue_scene.scene_executor import DialogueSceneExecutor
-from stage_gen_legacy.recipes.dialogue_scene.scene_graph import (
+from the_grain_pipeline.dialogue_scene.scene_executor import DialogueSceneExecutor
+from the_grain_pipeline.dialogue_scene.scene_graph import (
     DIALOGUE_GRAPH_SCHEMA_VERSION,
     DialogueSceneGraph,
 )
-from stage_gen_legacy.recipes.oblique_survival.survival_executor import ObliqueSurvivalExecutor
-from stage_gen_legacy.recipes.oblique_survival.survival_graph import (
-    OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION,
-    ObliqueSurvivalGraph,
-)
-from stage_gen_legacy.recipes.pointclick_room.room_executor import PointClickRoomExecutor
-from stage_gen_legacy.recipes.pointclick_room.room_graph import (
+from the_grain_pipeline.pointclick_room.room_executor import PointClickRoomExecutor
+from the_grain_pipeline.pointclick_room.room_graph import (
     POINTCLICK_GRAPH_SCHEMA_VERSION,
     PointClickRoomGraph,
-)
-from stage_gen_legacy.recipes.sideview_platformer.execution_graph import (
-    EXECUTION_GRAPH_SCHEMA_VERSION,
-    ExecutionGraph,
-)
-from stage_gen_legacy.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
-from stage_gen_legacy.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
-from stage_gen_legacy.recipes.sideview_runner.runner_graph import (
-    RUNNER_GRAPH_SCHEMA_VERSION,
-    SideviewRunnerGraph,
 )
 
 SOURCE_ROOT = Path(__file__).resolve().parents[2] / "src" / "stage_gen"

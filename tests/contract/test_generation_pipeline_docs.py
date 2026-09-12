@@ -6,16 +6,16 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
-from stage_gen.config import StageGenConfig
-from stage_gen_legacy.orchestration.game_package import ResolvedGamePackage, resolve_game_package
-from stage_gen_legacy.recipes.sideview_platformer.execution_graph import ExecutionGraph
-from stage_gen_legacy.recipes.sideview_platformer.package_graph import (
+from bellweather_pipeline.execution_graph import ExecutionGraph
+from bellweather_pipeline.package_graph import (
     build_package_execution_graph,
     package_graph_profile,
 )
+from demo_game_collection.game_package import ResolvedGamePackage, resolve_game_package
+from stage_gen.config import StageGenConfig
 
 REPOSITORY_ROOT = Path(__file__).parents[2]
-PIPELINE_DOCUMENT = REPOSITORY_ROOT / "docs/spec/game/generation-pipeline.md"
+PIPELINE_DOCUMENT = REPOSITORY_ROOT / "godot/games/bellweather/docs/generation-pipeline.md"
 
 
 def _load_contract_writer(relative: str, name: str) -> ModuleType:
@@ -28,18 +28,16 @@ def _load_contract_writer(relative: str, name: str) -> ModuleType:
     return module
 
 
-_writer = _load_contract_writer(
-    "godot/legacy/tools/write_pipeline_graph_contract.py", "legacy_graph_contract"
-)
+_writer = _load_contract_writer("godot/tools/write_game_graph_contract.py", "game_graph_contract")
 _asset_writer = _load_contract_writer(
     "scripts/write_pipeline_graph_contract.py", "asset_graph_contract"
 )
 CONTRACT_KIND = _writer.CONTRACT_KIND
 FIXTURE_REF = _writer.FIXTURE_REF
-RUNNER_PIPELINE_DOCUMENT = REPOSITORY_ROOT / "docs/spec/game/runner.md"
+RUNNER_PIPELINE_DOCUMENT = REPOSITORY_ROOT / "godot/games/iron_petal_unit/docs/runner.md"
 RUNNER_CONTRACT_KIND = _writer.RUNNER_CONTRACT_KIND
 RUNNER_FIXTURE_REF = _writer.RUNNER_FIXTURE_REF
-SURVIVAL_DOCUMENT = REPOSITORY_ROOT / "docs/spec/survival/generation-v1.md"
+SURVIVAL_DOCUMENT = REPOSITORY_ROOT / "godot/games/ember_hollow/docs/generation-v1.md"
 STOREFRONT_DOCUMENT = REPOSITORY_ROOT / "docs/spec/storefront/generation-v1.md"
 STOREFRONT_CONTRACT_KIND = _writer.STOREFRONT_CONTRACT_KIND
 STOREFRONT_FIXTURE_REF = _writer.STOREFRONT_FIXTURE_REF
@@ -55,7 +53,7 @@ render = _asset_writer.render
 
 
 def test_generation_pipeline_document_tracks_the_executable_stage_graphs() -> None:
-    # The snapshot is derived by godot/legacy/tools/write_pipeline_graph_contract.py,
+    # The snapshot is derived by godot/tools/write_game_graph_contract.py,
     # so the writer and this check cannot drift. Regenerate with `--write` after any graph change.
     assert document_contract(PIPELINE_DOCUMENT) == build_graph_contract(REPOSITORY_ROOT)
 
@@ -143,9 +141,9 @@ def test_survival_scope_table_agrees_with_the_graphs_the_code_builds() -> None:
     reader budgets a narrow run from, and nothing else recomputes it.
     """
 
+    from ember_hollow_pipeline.survival_graph import build_graph
+    from ember_hollow_pipeline.survival_request import resolve_survival_source
     from stage_gen.config import StageGenConfig
-    from stage_gen_legacy.recipes.oblique_survival.survival_graph import build_graph
-    from stage_gen_legacy.recipes.oblique_survival.survival_request import resolve_survival_source
 
     package = resolve_survival_source(REPOSITORY_ROOT / SURVIVAL_FIXTURE_REF)
     config = StageGenConfig()
@@ -166,31 +164,44 @@ def test_survival_scope_table_agrees_with_the_graphs_the_code_builds() -> None:
         ], name
 
 
+def _linked_files(document: Path) -> set[Path]:
+    """Resolve local Markdown links so ownership moves cannot weaken discoverability."""
+
+    targets = re.findall(r"\]\(([^()\s]+)\)", document.read_text(encoding="utf-8"))
+    return {
+        (document.parent / target.partition("#")[0]).resolve()
+        for target in targets
+        if not target.startswith("#") and ":" not in target
+    }
+
+
 def test_survival_documents_are_discoverable_and_name_their_siblings() -> None:
     """Every survival contract is reachable from the index and from the recipe.
 
     This is also the Checked-by anchor for the three sibling contracts:
-    spec/survival/generation-v1.md, spec/survival/ground.md,
-    spec/survival/seasons.md and spec/survival/crafting.md each name this file,
+    godot/games/ember_hollow/docs/generation-v1.md, godot/games/ember_hollow/docs/ground.md,
+    godot/games/ember_hollow/docs/seasons.md and
+    godot/games/ember_hollow/docs/crafting.md each name this file,
     and the rule in scripts/check_docs.py requires the named test to contain the
     document's own path.
     """
 
-    docs_index = (REPOSITORY_ROOT / "docs/README.md").read_text(encoding="utf-8")
-    recipe = SURVIVAL_DOCUMENT.read_text(encoding="utf-8")
+    indexed_files = _linked_files(REPOSITORY_ROOT / "docs/README.md")
+    recipe_links = _linked_files(SURVIVAL_DOCUMENT)
     for relative in (
-        "spec/survival/generation-v1.md",
-        "spec/survival/ground.md",
-        "spec/survival/seasons.md",
-        "spec/survival/crafting.md",
-        "spec/survival/world.md",
+        "godot/games/ember_hollow/docs/generation-v1.md",
+        "godot/games/ember_hollow/docs/ground.md",
+        "godot/games/ember_hollow/docs/seasons.md",
+        "godot/games/ember_hollow/docs/crafting.md",
+        "godot/games/ember_hollow/docs/world.md",
     ):
-        assert relative in docs_index, relative
-        assert (REPOSITORY_ROOT / "docs" / relative).is_file()
+        target = REPOSITORY_ROOT / relative
+        assert target in indexed_files, relative
+        assert target.is_file()
     for sibling in ("ground.md", "seasons.md", "crafting.md", "world.md"):
-        assert sibling in recipe
-    # The host that plays the manifest is named by the recipe, not inferred.
-    assert "godot-host.md" in recipe
+        assert SURVIVAL_DOCUMENT.parent / sibling in recipe_links
+    # The host that plays the manifest is linked by the recipe, not inferred.
+    assert SURVIVAL_DOCUMENT.parent / "runtime.md" in recipe_links
 
 
 def test_storefront_document_tracks_the_executable_stage_graph() -> None:
@@ -223,18 +234,13 @@ def test_storefront_document_is_discoverable_from_the_docs_index() -> None:
 
 
 def test_generation_pipeline_document_is_discoverable_from_game_authorities() -> None:
-    required_link = "generation-pipeline.md"
-    same_directory_authority = (
-        REPOSITORY_ROOT / "docs/spec/game/authored-contract-schema.md"
-    ).read_text(encoding="utf-8")
-    docs_index = (REPOSITORY_ROOT / "docs/README.md").read_text(encoding="utf-8")
-    game_contract = (REPOSITORY_ROOT / "docs/game-contract.md").read_text(encoding="utf-8")
-    game_package = (REPOSITORY_ROOT / "docs/game-package.md").read_text(encoding="utf-8")
-
-    assert required_link in same_directory_authority
-    assert "spec/game/generation-pipeline.md" in docs_index
-    assert "spec/game/generation-pipeline.md" in game_contract
-    assert "spec/game/generation-pipeline.md" in game_package
+    for authority in (
+        "docs/README.md",
+        "godot/games/_shared/docs/formats/authored-contract-schema.md",
+        "godot/games/_shared/docs/game-contract.md",
+        "godot/games/_shared/docs/game-package.md",
+    ):
+        assert PIPELINE_DOCUMENT in _linked_files(REPOSITORY_ROOT / authority), authority
 
 
 def _topology_table_rows() -> list[tuple[str, list[int]]]:
@@ -334,10 +340,10 @@ def test_checkpoint_closure_paragraphs_state_the_real_closure_sizes() -> None:
     recomputes by hand. A reader sizing a paid run off either was under-budgeting.
     """
 
-    from stage_gen_legacy.recipes.sideview_platformer.prepared_content import (
+    from bellweather_pipeline.prepared_content import (
         content_target_node_ids,
     )
-    from stage_gen_legacy.recipes.sideview_platformer.prepared_world import world_target_node_ids
+    from bellweather_pipeline.prepared_world import world_target_node_ids
 
     _package, graph = _bellweather_graph()
     source = PIPELINE_DOCUMENT.read_text(encoding="utf-8")
@@ -359,13 +365,13 @@ def test_every_required_runtime_artifact_is_produced_by_a_checkpoint_closure() -
     the property they protect.
     """
 
-    from stage_gen_legacy.recipes.sideview_platformer.prepared_content import (
+    from bellweather_pipeline.prepared_content import (
         content_target_node_ids,
     )
-    from stage_gen_legacy.recipes.sideview_platformer.prepared_manifest import (
+    from bellweather_pipeline.prepared_manifest import (
         runtime_artifact_paths,
     )
-    from stage_gen_legacy.recipes.sideview_platformer.prepared_world import world_target_node_ids
+    from bellweather_pipeline.prepared_world import world_target_node_ids
 
     package, graph = _bellweather_graph()
     by_id = {node.node_id: node for node in graph.nodes}

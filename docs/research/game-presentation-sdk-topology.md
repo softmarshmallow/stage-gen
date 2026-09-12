@@ -1,9 +1,9 @@
 # Godot monorepo: the final shape
 
-> **Status: P114 proposal, unratified.** Nothing has moved. P109–P111 arrived
-> at three tiers under `godot/`, P113 named the middle tier `templates`; this
-> document is the complete directory after the rule is enforced everywhere,
-> including the later steps. Names in parentheses are what the files are today.
+> **Status: historical P114 proposal.** This records the earlier three-tier
+> discussion and its directory assumptions. The implemented consumer ownership
+> and current tree are in [Godot game ownership](../plans/godot-consumer-layout.md).
+> The layouts and deferred steps below are historical context.
 
 ## 1. The whole tree
 
@@ -21,7 +21,7 @@ godot/                                   not a Godot project; a directory of pro
 │   │   ├── project.godot                dev project for the package alone
 │   │   ├── README.md  sdk.json  LICENSE
 │   │   ├── addons/game_runtime/         the payload; the only thing consumers install
-│   │   │   ├── kernel/                  (godot/legacy/runtime/kernel) events, fixed step, gauge, hash, rng, sealer, system
+│   │   │   ├── kernel/                  (godot/games/_shared/runtime/addons/demo_support/simulation/kernel) events, fixed step, gauge, hash, rng, sealer, system
 │   │   │   ├── families/                (godot/legacy/runtime/families) actor_ai, camera, checkpoints, clock, cues, director,
 │   │   │   │                            effects, hud, intent, interaction, inventory, loot, navigation, particles,
 │   │   │   │                            scenario, score, screen_fx, session, sideview, ui, vitals, block_gate
@@ -45,7 +45,7 @@ godot/                                   not a Godot project; a directory of pro
 │   │   └── history/                     USER_PROMPTS.md, REQUESTS.md, QA.md, promotion reviews, HANDOFF.md
 │   └── survival/                        the oblique-survival simulation and view, shared by its template and its game
 │       ├── project.godot
-│       ├── addons/survival/             (godot/legacy/runtime/genres/oblique_survival + godot/legacy/runtime/hosts/oblique_survival):
+│       ├── addons/survival/             (godot/games/ember_hollow/gameplay + godot/legacy/runtime/hosts/oblique_survival):
 │       │   ├── sim/                     world, roster, sim, systems/, inventory, targeting, masks, document
 │       │   └── view/  hud/  audio/  shell/  devtools/
 │       └── tests/                       (godot/legacy/runtime/tests) world, matrix_*, survival_roster, drops, craft, weather …
@@ -62,14 +62,14 @@ godot/                                   not a Godot project; a directory of pro
 │   │   ├── project.godot
 │   │   ├── addons/game_runtime → …      addons/survival → ../../../packages/survival/addons/survival
 │   │   ├── main.tscn  main.gd  input.gd README.md
-│   │   ├── fixtures/                    (godot/legacy/runtime/tests/fixtures/oblique_survival)
+│   │   ├── fixtures/                    (godot/games/ember_hollow/tests/fixtures/oblique_survival)
 │   │   ├── tests/                       the host-level checks that need this project
 │   │   └── tools/                       capture.gd, parity.gd, smoke.gd
 │   ├── sideview_runner/
 │   │   ├── project.godot  README.md
 │   │   ├── addons/game_runtime → …
 │   │   ├── main.tscn  main.gd  input.gd
-│   │   ├── sim/                         (godot/legacy/runtime/genres/sideview_runner) contract, world, roster, segments,
+│   │   ├── sim/                         (godot/games/iron_petal_unit/gameplay) contract, world, roster, segments,
 │   │   │                                encounter_state, dust, presentation, systems/
 │   │   ├── view/  hud/  audio/          (godot/legacy/runtime/hosts/sideview_runner)
 │   │   ├── fixtures/  tests/            runner_roster, runner_view, matrix_agents, music, mob, mobs …

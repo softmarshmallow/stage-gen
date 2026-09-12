@@ -2,7 +2,7 @@
 """Check or write the provider-free core route and policy snapshot.
 
 Fixture plans belong to their consuming project. The complete historical game
-census lives in godot/legacy/tools/write_model_policy_snapshot.py.
+census lives in godot/tools/write_game_model_policy_snapshot.py.
 """
 
 from __future__ import annotations

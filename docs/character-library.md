@@ -6,7 +6,7 @@ of the game package that binds it**, named by exact relative path and exact
 bytes, the same way that package names every other authored member:
 
 ```text
-godot/legacy/inputs/<game_id>/character.toml
+godot/games/<game>/inputs/character.toml
 ```
 
 There is no separate global character tree. A profile that no package names is a
@@ -35,7 +35,7 @@ from stage_gen.components.character_profile import (
     load_character_profile,
 )
 
-profile = load_character_profile("godot/legacy/inputs/the_grain/characters/edwin.toml")
+profile = load_character_profile("godot/games/the_grain/inputs/characters/edwin.toml")
 artifact_bytes = canonical_character_profile_json(profile)
 artifact_sha256 = character_profile_sha256(profile)
 ```
@@ -77,12 +77,12 @@ From the repository root, validate the contract and print the authored-source
 digest required by that binding without calling a provider or writing output:
 
 ```sh
-uv run --group legacy stage-gen legacy character-profile validate \
-  --input godot/legacy/inputs/the_grain/characters/edwin.toml \
-  --package-root godot/legacy/inputs/the_grain
-uv run --group legacy stage-gen legacy character-profile digest \
-  --input godot/legacy/inputs/the_grain/characters/edwin.toml \
-  --package-root godot/legacy/inputs/the_grain
+uv run --group games demo-games character-profile validate \
+  --input godot/games/the_grain/inputs/characters/edwin.toml \
+  --package-root godot/games/the_grain/inputs
+uv run --group games demo-games character-profile digest \
+  --input godot/games/the_grain/inputs/characters/edwin.toml \
+  --package-root godot/games/the_grain/inputs
 ```
 
 `validate` emits deterministic compact lower_snake_case JSON containing stable
@@ -94,8 +94,8 @@ prints only the lowercase authored-source SHA-256 used as `source_sha256`.
 The recipe takes a package directory, and the package names its own members:
 
 ```sh
-uv run --group legacy stage-gen legacy dialogue-scene generate \
-  --input godot/legacy/inputs/the_grain \
+uv run --group games demo-games dialogue-scene generate \
+  --input godot/games/the_grain/inputs \
   --output out/the-grain-scene-dry-run \
   --dry-run
 ```

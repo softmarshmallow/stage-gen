@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen_legacy.components.game_soundtrack import (
+from demo_game_tools.media.soundtrack import (
     GameSoundtrack,
     GameSoundtrackLoadError,
     canonical_game_soundtrack_json,
@@ -63,7 +63,7 @@ def _load(source: str) -> GameSoundtrack:
 
 
 def _source(root: Path, *, game_id: str = "test-game") -> Path:
-    source = root / f"godot/legacy/inputs/{game_id}/soundtrack.toml"
+    source = root / "inputs/default/soundtrack.toml"
     source.parent.mkdir(parents=True)
     source.write_text(_soundtrack_source(game_id=game_id, reverse=True), encoding="utf-8")
     return source
@@ -73,7 +73,7 @@ def _binding(source: Path, *, game_id: str = "test-game") -> dict[str, object]:
     return {
         "schema_version": 1,
         "kind": "game-soundtrack-binding-v1",
-        "ref": f"godot/legacy/inputs/{game_id}/soundtrack.toml",
+        "ref": "inputs/default/soundtrack.toml",
         "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
     }
 
@@ -179,11 +179,11 @@ def test_resolver_binds_source_canonical_identity_and_provenance(tmp_path: Path)
         "selection": "shuffle",
         "no_immediate_repeat": True,
     }
-    assert resolved.source_provenance.ref == "godot/legacy/inputs/test-game/soundtrack.toml"
+    assert resolved.source_provenance.ref == "inputs/default/soundtrack.toml"
     assert resolved.source_provenance.media_type == "application/toml"
 
 
-def test_resolver_rejects_digest_drift_and_misfiled_game_id(tmp_path: Path) -> None:
+def test_resolver_rejects_digest_drift_and_explicit_identity_mismatch(tmp_path: Path) -> None:
     source = _source(tmp_path)
     with pytest.raises(ValueError, match="source_sha256 mismatch"):
         resolve_game_soundtrack_binding(
@@ -191,27 +191,28 @@ def test_resolver_rejects_digest_drift_and_misfiled_game_id(tmp_path: Path) -> N
             game_library_root=tmp_path,
         )
 
-    misplaced = tmp_path / "godot/legacy/inputs/renamed/soundtrack.toml"
+    misplaced = tmp_path / "variants/renamed/soundtrack.toml"
     misplaced.parent.mkdir(parents=True)
     misplaced.write_bytes(source.read_bytes())
-    with pytest.raises(ValueError, match="must match its library directory"):
+    with pytest.raises(ValueError, match="must match expected_game_id"):
         resolve_game_soundtrack_binding(
-            _binding(misplaced, game_id="renamed"),
+            {**_binding(misplaced), "ref": "variants/renamed/soundtrack.toml"},
             game_library_root=tmp_path,
+            expected_game_id="renamed",
         )
 
 
 @pytest.mark.parametrize(
     "ref",
     [
-        "godot/legacy/inputs/test-game/game.toml",
+        "inputs/default/game.toml",
         "library/soundtracks/test-game/soundtrack.toml",
-        "godot/legacy/inputs/soundtrack.toml",
-        "../godot/legacy/inputs/test-game/soundtrack.toml",
-        "/godot/legacy/inputs/test-game/soundtrack.toml",
+        "missing/soundtrack.toml",
+        "../inputs/default/soundtrack.toml",
+        "/inputs/default/soundtrack.toml",
     ],
 )
-def test_resolver_accepts_only_the_game_owned_soundtrack_path(tmp_path: Path, ref: str) -> None:
+def test_resolver_rejects_missing_or_escaping_soundtrack_paths(tmp_path: Path, ref: str) -> None:
     source = _source(tmp_path)
     with pytest.raises(ValueError):
         resolve_game_soundtrack_binding(

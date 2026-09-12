@@ -221,9 +221,9 @@ verifies that:
    digests are present.
 
 Validator behavior is covered by synthetic JSON fixtures in
-[`check-fixtures/`](check-fixtures/) and does not need a media fixture.
+[`check-fixtures/`](check-fixtures) and does not need a media fixture.
 
-The legacy demo preview loop under `godot/legacy/python/stage_gen_legacy/resources/music/`
+The game collection's demo preview loop under `godot/tools/python/src/demo_game_collection/resources/music/`
 is `repository-approved` after an
 artifact-specific maintainer rights decision and listening review. Its rights
 basis is recorded with the generated-output provenance. This approval applies

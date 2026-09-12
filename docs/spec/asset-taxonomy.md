@@ -24,7 +24,7 @@ A module's taxonomy path is:
   exists in the grammar so `2d` is a statement, not a default).
 - **camera** — a human-readable alias **bound to a canonical presentation
   profile family** in the
-  [view and style taxonomy](game/view-and-style-taxonomy.md). Aliases never
+  [view and style taxonomy](../../godot/games/_shared/docs/formats/view-and-style-taxonomy.md). Aliases never
   carry their own authority; the bound profile does.
 - **genre** — the gameplay composition profile the module assumes
   (`platformer`, `vn`, later `rpg`, `runner`, …).
@@ -92,10 +92,10 @@ the old names.
 | the recipe's actor steps | new in the survival pass | `2d/obliqueview/survival/actor_concept`, `.../motion_atlas`, `.../motion_rebase` | c — the four-way facing set, billboard strip geometry, ground-contact measurement |
 | the recipe's world steps | new in the survival pass | `2d/obliqueview/survival/item_*`, `.../prop_*`, `.../season_look`, `.../weather_*`, `.../world_layout` | d — pickups and their icons, prop states and their interaction art, the season looks, the weather layers, and the algorithmic layout |
 | `godot` | new in the survival pass | consumer host for `2d/obliqueview/survival` | d |
-| `godot/legacy/runtime/genres/sideview_platformer` | was web/lib/sideview-platformer, retired in the Godot pass | consumer adapter for `2d/sideview/platformer` | d |
-| `godot/legacy/runtime/genres/pointclick_room` | was web/lib/pointclick, retired in the Godot pass | consumer adapter for `2d/roomview/pointclick` | d |
-| `godot/legacy/runtime/genres/dialogue_scene` | was web/lib/dialogue-scene, retired in the Godot pass | consumer adapter for `2d/frontview/vn/scene` | d |
-| `godot/legacy/runtime/families/scenario` | promoted out of the scene when a second genre asked for it | the agnostic conversation core both genres walk | a |
+| `godot/games/bellweather/gameplay` | was web/lib/sideview-platformer, retired in the Godot pass | consumer adapter for `2d/sideview/platformer` | d |
+| `godot/games/the_grain/gameplay/pointclick_room` | was web/lib/pointclick, retired in the Godot pass | consumer adapter for `2d/roomview/pointclick` | d |
+| `godot/games/the_grain/gameplay/dialogue_scene` | was web/lib/dialogue-scene, retired in the Godot pass | consumer adapter for `2d/frontview/vn/scene` | d |
+| `godot/games/_shared/runtime/addons/demo_support/simulation/families/scenario` | promoted out of the scene when a second genre asked for it | the agnostic conversation core both genres walk | a |
 | `components/actor_content` | new in the runner pass | `2d/actor_content` | b — shared drawn-actor blocks (references, motion playback) |
 | `components/runner_gameplay` | new in the runner pass | `2d/sideview/runner/gameplay` | d |
 | `components/runner_track` | new in the runner pass | `2d/sideview/runner/track` | d — authored tiled segments over the shared side-view stage |
@@ -104,8 +104,8 @@ the old names.
 | `components/sideview_actor` | lifted from the platformer recipe | `2d/sideview/actor` | c — magnitude, strip geometry, rebase admission |
 | `components/sideview_stage` | lifted from `platformer_map` in the engineering pass | `2d/sideview/stage` | c — the view, continuity, reference, layer and ground blocks both side-view genres author; the runner stopped importing the platformer's map for them |
 | `components/sideview_layers` | lifted from the platformer recipe | `2d/sideview/loop_x` | c — the horizontal-loop layer contract |
-| `godot/legacy/runtime/kernel` | was web/lib/kernel, retired in the Godot pass; `game-systems` until runtime step 1 | the agnostic runtime substrate every genre may seal against | a — sealed system protocol, frame event queue, and the bounded-resource gauge; no genre, no engine, and deliberately not named after health |
-| `godot/legacy/runtime/families/hud/gauge_bar.gd` | was web/lib/families/hud/gauge-bar.ts, retired in the Godot pass; `sideview/gauge-bar.ts` until runtime step 6 | shared side-view presentation | c — one capsule widget, placed by its caller in world or screen space |
+| `godot/games/_shared/runtime/addons/demo_support/simulation/kernel` | was web/lib/kernel, retired in the Godot pass; `game-systems` until runtime step 1 | the agnostic runtime substrate every genre may seal against | a — sealed system protocol, frame event queue, and the bounded-resource gauge; no genre, no engine, and deliberately not named after health |
+| `godot/games/_shared/runtime/addons/demo_support/simulation/families/hud/gauge_bar.gd` | was web/lib/families/hud/gauge-bar.ts, retired in the Godot pass; `sideview/gauge-bar.ts` until runtime step 6 | shared side-view presentation | c — one capsule widget, placed by its caller in world or screen space |
 
 The modality components (image, structured, music, background removal) left
 this table in the same change series: they are `gnode` ring-1 material — see
@@ -144,7 +144,7 @@ later:
 2. **Runner vs jumper**: the asset-facing difference is the loop axis —
    horizontal for a runner, vertical for an infinite jumper. The horizontal
    runner now exists at its reserved home: `runner` is a `game-contract-v9`
-   genre member (`docs/spec/game/runner.md`) over the shared `2d/sideview`
+   genre member (`godot/games/iron_petal_unit/docs/runner.md`) over the shared `2d/sideview`
    modules. Loop admission is still single-axis, so an infinite-jumper demo
    remains impossible until `2d/sideview/loop_y` has a caller.
 3. **Settlements on terrain** (side-view RPG maps that do not loop):

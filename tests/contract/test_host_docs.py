@@ -1,9 +1,8 @@
 """The host contract is true of the hosts in the tree.
 
-`spec/game/host-contract.md` states what every host owes, engine-neutrally, and
-`docs/godot-host.md` is the operating manual for the projects that owe it. Neither is
-allowed to describe a host that is not there, or to omit one that is: a boundary document
-that has drifted from the tree is worse than none, because the reader trusts it.
+The shared format documentation describes the existing run-consuming games.
+Each game's operating manual must point to source that exists; prose must not
+silently validate an empty glob over a retired monolithic project.
 
 The host layers themselves are checked by `tests/contract/test_godot_boundaries.py`; this
 module checks only the prose against the tree.
@@ -11,25 +10,23 @@ module checks only the prose against the tree.
 
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).parents[2]
-HOST_CONTRACT = REPOSITORY_ROOT / "docs/spec/game/host-contract.md"
-HOST_MANUAL = REPOSITORY_ROOT / "docs/godot-host.md"
-GODOT_ROOT = REPOSITORY_ROOT / "godot/legacy/runtime"
+HOST_CONTRACT = REPOSITORY_ROOT / "godot/games/_shared/docs/formats/host-contract.md"
+HOST_MANUAL = REPOSITORY_ROOT / "godot/games/ember_hollow/docs/runtime.md"
+GODOT_GAMES = REPOSITORY_ROOT / "godot/games"
+GAME_NAMES = ("bellweather", "iron_petal_unit", "ember_hollow", "the_grain")
+GAME_INDEX = REPOSITORY_ROOT / "godot/README.md"
 
 
-def _templates() -> list[Path]:
-    """Every template declaration in the tree, in path order.
-
-    A template is one genre's code at one commit; it declares the document kind it plays.
-    Before the mono-project lands there are none, and the assertions below are vacuous on
-    purpose: they start holding the moment the first one is written.
-    """
-
-    return sorted(GODOT_ROOT.glob("**/template.json"))
+def _linked_files(document: Path) -> set[Path]:
+    return {
+        (document.parent / target.split("#", 1)[0]).resolve()
+        for target in re.findall(r"\]\(([^)]+)\)", document.read_text(encoding="utf-8"))
+        if "://" not in target and not target.startswith("#")
+    }
 
 
 def test_the_host_contract_states_the_seam_the_engine_evaluation_set() -> None:
@@ -59,34 +56,34 @@ def test_the_host_contract_states_the_rules_a_replay_rests_on() -> None:
     assert "never a partial result" in source
 
 
-def test_every_template_in_the_tree_is_named_by_the_host_manual() -> None:
-    """One manual, every host. A project the manual does not name is a project nobody
-    reviews, and a manual that names a project which is gone sends the reader nowhere."""
+def test_every_maintained_game_has_a_documented_project() -> None:
+    """The index and game-owned README describe actual source projects."""
 
-    manual = HOST_MANUAL.read_text(encoding="utf-8")
-    for template in _templates():
-        relative = template.relative_to(REPOSITORY_ROOT).as_posix()
-        host_directory = template.parent.relative_to(REPOSITORY_ROOT).as_posix()
-        assert host_directory in manual, f"{relative}: the host manual never names {host_directory}"
+    index = GAME_INDEX.read_text(encoding="utf-8")
+    for name in GAME_NAMES:
+        project = GODOT_GAMES / name
+        assert (project / "project.godot").is_file()
+        assert f"games/{name}" in index, f"the Godot index omits {name}"
+        manual = (project / "README.md").read_text(encoding="utf-8")
+        assert f"godot --path godot/games/{name}" in manual
+        assert "--run" in manual
 
 
-def test_every_template_declares_a_document_kind_and_a_scene() -> None:
-    """A template is selected by the kind it plays; the boot has nothing else to match on."""
+def test_each_documented_main_scene_belongs_to_its_game() -> None:
+    """Each project's ordinary Godot settings select its own entry scene."""
 
-    for template in _templates():
-        declared = json.loads(template.read_text(encoding="utf-8"))
-        relative = template.relative_to(REPOSITORY_ROOT).as_posix()
-        for field in ("kind", "document", "recipe", "main_scene", "design_space"):
-            assert field in declared, f"{relative}: no {field}"
-        scene_ref = declared["main_scene"].removeprefix("res://")
-        scene = GODOT_ROOT / scene_ref
-        assert scene.is_file(), (
-            f"{relative}: main_scene {declared['main_scene']} is not in the tree"
-        )
+    for name in GAME_NAMES:
+        project = GODOT_GAMES / name
+        source = (project / "project.godot").read_text(encoding="utf-8")
+        match = re.search(r'run/main_scene="res://([^"\n]+)"', source)
+        assert match, f"{name} has no main scene"
+        scene = (project / match.group(1)).resolve()
+        assert scene.is_relative_to(project.resolve()), f"{name} escapes its project"
+        assert scene.is_file(), f"{name} selects a missing scene"
 
 
 def test_the_host_manual_and_the_contract_point_at_each_other() -> None:
     """The manual is one instance of the contract; a reader who lands on either finds both."""
 
-    assert "spec/game/host-contract.md" in HOST_MANUAL.read_text(encoding="utf-8")
-    assert "godot-host.md" in HOST_CONTRACT.read_text(encoding="utf-8")
+    assert HOST_CONTRACT.resolve() in _linked_files(HOST_MANUAL)
+    assert HOST_MANUAL.resolve() in _linked_files(HOST_CONTRACT)

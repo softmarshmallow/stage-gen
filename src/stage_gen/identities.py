@@ -4,7 +4,7 @@ Fields and constants remain owned by their capability packages; this inventory
 reads them without importing the optional demo workspace. It is not a registry
 that caller-defined pipelines must join. The public pipeline envelopes live in
 ``stage_gen.pipeline``; the complete historical game census belongs to
-``stage_gen_legacy.identities`` under ``godot/legacy/python``.
+``demo_game_collection.identities`` under ``godot/tools/python``.
 """
 
 from __future__ import annotations

@@ -51,7 +51,7 @@ def painted_over_guide(guide: bytes) -> bytes:
     return output.getvalue()
 
 
-SOURCE_PACKAGE = Path(__file__).resolve().parents[2] / "godot" / "legacy" / "inputs" / "bellweather"
+SOURCE_PACKAGE = Path(__file__).resolve().parents[2] / "godot/games/bellweather/inputs/default"
 
 COVER_SHA256 = "e8d27ab2d83210fe2bf8e4f072588614fbe293de75dae51677a96079f1e9f6a5"
 

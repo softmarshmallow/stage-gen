@@ -81,12 +81,12 @@ src/gnode/modalities/structured/
 src/gnode/providers/openrouter/structured.py
   OpenRouterStructuredBackend          current structured-output transport
 
-godot/legacy/python/stage_gen_legacy/recipes/sideview_platformer/
+godot/games/bellweather/pipeline/src/bellweather_pipeline/
   raster_contracts.py                  deterministic alpha and grid contracts
   review_criteria.py                   recipe-owned actor-facing criteria
   executor.py                          canonicalization, facing review, regeneration
 
-godot/legacy/runtime/hosts/sideview_platformer/                    consumer-owned runtime geometry and placement
+godot/games/bellweather/scenes/                    consumer-owned runtime geometry and placement
 ```
 
 The current actor-facing review deliberately reuses `StructuredGenerationService`; the generic
@@ -94,7 +94,7 @@ component knows only the strict schema, prompt, references, persistence, and pro
 `review_criteria.py` owns the side-view platformer meanings of `right`, `front`, and which stages
 carry a facing requirement.
 
-Runtime-specific measurements remain in `godot/legacy/runtime/hosts/sideview_platformer/`. They are consumer decisions and are
+Runtime-specific measurements remain in `godot/games/bellweather/scenes/`. They are consumer decisions and are
 not promoted into the recipe-neutral media or component layers.
 
 ### Future topology
@@ -196,7 +196,7 @@ remains a possible future policy, not a current contract.
 
 The current acceptance slice specified here is recipe-specific and covers actor facing. The
 exact identifiers in the recipe's former `review_criteria.py` (the facing vocabulary now
-lives in `godot/legacy/python/stage_gen_legacy/recipes/sideview_platformer/motion_contract.py`) were:
+lives in `godot/games/bellweather/pipeline/src/bellweather_pipeline/motion_contract.py`) were:
 
 | identifier | current value or role |
 |---|---|

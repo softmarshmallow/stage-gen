@@ -7,7 +7,7 @@ from typing import cast
 import pytest
 from PIL import Image
 
-from stage_gen_legacy.components.game_ui import (
+from demo_game_tools.media.ui import (
     ICON_ALPHA_POLICY,
     PREVIEW_ICON_GLYPHS,
     PREVIEW_ICONS,
@@ -19,7 +19,7 @@ from stage_gen_legacy.components.game_ui import (
     render_icon_template,
     validate_icon_sheet,
 )
-from stage_gen_legacy.components.game_ui.nodes import (
+from demo_game_tools.media.ui.nodes import (
     ICON_GRID_FAMILY,
     NINE_SLICE_FAMILY,
     icon_content_task,

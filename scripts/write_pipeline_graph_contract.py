@@ -2,7 +2,7 @@
 """Check or rewrite graph snapshots for the independent universe recipe.
 
 The document block helpers here are recipe-neutral. Historical gameplay graph
-snapshots have their own writer under godot/legacy/tools.
+snapshots have their own writer under godot/tools.
 
     python scripts/write_pipeline_graph_contract.py
     python scripts/write_pipeline_graph_contract.py --write

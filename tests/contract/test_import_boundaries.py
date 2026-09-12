@@ -7,8 +7,22 @@ from pathlib import Path
 
 # test-owner: product
 SOURCE_ROOT = Path(__file__).resolve().parents[2] / "src"
-LEGACY_SOURCE_ROOT = SOURCE_ROOT.parent / "godot/legacy/python"
-LEGACY_ROOT = LEGACY_SOURCE_ROOT / "stage_gen_legacy"
+GAME_SOURCE_ROOTS = (
+    SOURCE_ROOT.parent / "godot/games/_shared/python/src",
+    SOURCE_ROOT.parent / "godot/tools/python/src",
+    *(
+        SOURCE_ROOT.parent / f"godot/games/{game}/pipeline/src"
+        for game in ("bellweather", "iron_petal_unit", "ember_hollow", "the_grain")
+    ),
+)
+GAME_MODULES = (
+    "demo_game_tools",
+    "demo_game_collection",
+    "bellweather_pipeline",
+    "iron_petal_unit_pipeline",
+    "ember_hollow_pipeline",
+    "the_grain_pipeline",
+)
 COMPONENT_ROOT = SOURCE_ROOT / "stage_gen" / "components"
 FORBIDDEN_COMPONENT_DEPENDENCIES = (
     "stage_gen.providers",
@@ -21,7 +35,7 @@ FORBIDDEN_COMPONENT_DEPENDENCIES = (
 def _package_for(path: Path) -> str:
     root = next(
         root
-        for root in (SOURCE_ROOT, LEGACY_SOURCE_ROOT, SOURCE_ROOT.parent)
+        for root in (SOURCE_ROOT, *GAME_SOURCE_ROOTS, SOURCE_ROOT.parent)
         if path.is_relative_to(root)
     )
     parts = path.relative_to(root).with_suffix("").parts
@@ -215,6 +229,7 @@ CONSUMER_ROOTS = (
     SOURCE_ROOT / "stage_gen",
     SOURCE_ROOT.parent / "tests",
     SOURCE_ROOT.parent / "scripts",
+    *GAME_SOURCE_ROOTS,
 )
 
 
@@ -233,7 +248,7 @@ def test_engine_does_not_import_the_application() -> None:
             if not isinstance(node, (ast.Import, ast.ImportFrom)):
                 continue
             for imported in _imported_modules(node, package):
-                if imported.split(".")[0] in {"stage_gen", "stage_gen_legacy", "concept_studio"}:
+                if imported.split(".")[0] in {"stage_gen", "concept_studio", *GAME_MODULES}:
                     relative = path.relative_to(SOURCE_ROOT.parent)
                     violations.append(f"{relative}:{node.lineno} imports {imported}")
     assert not violations, "engine import boundary violations:\n" + "\n".join(violations)
@@ -408,8 +423,24 @@ def test_product_source_never_statically_imports_optional_consumers() -> None:
         SOURCE_ROOT.parent / "examples",
     ):
         for path in _python_sources(root):
-            violations.extend(_import_violations(path, ("stage_gen_legacy", "concept_studio")))
+            violations.extend(_import_violations(path, (*GAME_MODULES, "concept_studio")))
     assert not violations, "product imports an optional consumer:\n" + "\n".join(violations)
+
+
+def test_shared_game_code_has_no_named_game_or_collection_dependencies() -> None:
+    violations: list[str] = []
+    for path in _python_sources(GAME_SOURCE_ROOTS[0] / "demo_game_tools"):
+        violations.extend(_import_violations(path, GAME_MODULES[1:]))
+    assert not violations, "shared code imports its consumer:\n" + "\n".join(violations)
+
+
+def test_game_pipelines_do_not_import_other_games_or_collection_tooling() -> None:
+    violations: list[str] = []
+    for root, own_module in zip(GAME_SOURCE_ROOTS[2:], GAME_MODULES[2:], strict=True):
+        forbidden = tuple(module for module in GAME_MODULES[1:] if module != own_module)
+        for path in _python_sources(root):
+            violations.extend(_import_violations(path, forbidden))
+    assert not violations, "game imports a sibling consumer:\n" + "\n".join(violations)
 
 
 def test_pipeline_mechanics_have_no_component_recipe_or_host_dependencies() -> None:

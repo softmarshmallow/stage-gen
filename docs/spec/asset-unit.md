@@ -19,7 +19,7 @@
 
 ![The same map, camera and artwork rendered twice: above, a per-class pixel constant applied to each untrimmed canvas; below, each subject's declared height_units projected through the asset unit, with a ruler marking one, two and three player heights](../media/asset-unit-calibration.webp)
 
-*Composited by `godot/legacy/tools/render_asset_scale_figures.py` from the
+*Composited by `godot/games/bellweather/tools/render_asset_scale_figures.py` from the
 `bellweather-prepared-v11-bound` package; the manifest digest it was rendered
 from is recorded in
 [Reproducing the measurements](../research/asset-scale-study.md#reproducing-the-measurements).*
@@ -57,17 +57,17 @@ defect, caught by proportion review rather than by scale admission.
 
 ## Ownership
 
-- `stage_gen_legacy.components.game_contract` owns the `[scale]` vocabulary, the step
+- `demo_game_tools.input_formats.game_contract` owns the `[scale]` vocabulary, the step
   ladder, the floor, and validation that every declared class resolves.
 - `stage_gen.components.game_content` owns the per-entity declaration fields
   and their bounds.
 - `stage_gen.media.comparison_plate` owns deterministic plate composition and
   the structured judging call. It is provider-neutral and is shared with
   [Motion rebase](motion-rebase.md).
-- `stage_gen_legacy.recipes.sideview_platformer.asset_unit` owns resolution, subject
+- `bellweather_pipeline.asset_unit` owns resolution, subject
   measurement, the plate's step ladder, admission, and the published
   calibration record.
-- `godot/legacy/runtime/hosts/common/actor.gd` owns the projection from calibration to screen
+- `godot/games/_shared/runtime/addons/demo_support/io/actor.gd` owns the projection from calibration to screen
   pixels and the registration of a scaled subject against the walk surface.
 
 No generic component imports side-view or gameplay scale semantics. The image
@@ -304,7 +304,7 @@ separate concern from the asset unit.
   component extraction and ground-contact measurement.
 - [Side-view platformer terrain atlas](terrain-atlas.md) — the grid the unit
   projects onto.
-- [Authored game contract schema](game/authored-contract-schema.md) — currently
+- [Authored game contract schema](../../godot/games/_shared/docs/formats/authored-contract-schema.md) — currently
   executable authored fields.
 - [Actor boundary and semantic review](actor-boundary-and-semantic-review.md) —
   the geometry-versus-semantics boundary this contract observes.

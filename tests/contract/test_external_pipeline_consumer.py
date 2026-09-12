@@ -26,7 +26,16 @@ def _install_wheel(repository: Path, tmp_path: Path, environment: dict[str, str]
     installed = tmp_path / "site-packages"
     with zipfile.ZipFile(next(wheels.glob("*.whl"))) as archive:
         archive.extractall(installed)
-    assert not (installed / "stage_gen_legacy").exists()
+    for module in (
+        "stage_gen_legacy",
+        "demo_game_tools",
+        "demo_game_collection",
+        "bellweather_pipeline",
+        "iron_petal_unit_pipeline",
+        "ember_hollow_pipeline",
+        "the_grain_pipeline",
+    ):
+        assert not (installed / module).exists()
     assert not (installed / "concept_studio").exists()
     return installed
 
@@ -57,7 +66,16 @@ from pathlib import Path
 sys.path.insert(0, sys.argv.pop(1))
 class NoOptionalConsumers(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        if fullname.split('.')[0] in {'stage_gen_legacy', 'concept_studio'}:
+        if fullname.split('.')[0] in {
+            'concept_studio',
+            'demo_game_collection',
+            'demo_game_tools',
+            'iron_petal_unit_pipeline',
+            'bellweather_pipeline',
+            'stage_gen_legacy',
+            'ember_hollow_pipeline',
+            'the_grain_pipeline',
+        }:
             raise AssertionError('Public pipeline imported an optional consumer: ' + fullname)
 sys.meta_path.insert(0, NoOptionalConsumers())
 from stage_gen.interfaces.cli import main
@@ -149,7 +167,16 @@ import pkgutil
 import sys
 class NoConsumers(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        if fullname.split('.')[0] in {'stage_gen_legacy', 'concept_studio'}:
+        if fullname.split('.')[0] in {
+            'concept_studio',
+            'demo_game_collection',
+            'demo_game_tools',
+            'iron_petal_unit_pipeline',
+            'bellweather_pipeline',
+            'stage_gen_legacy',
+            'ember_hollow_pipeline',
+            'the_grain_pipeline',
+        }:
             raise AssertionError('Public surface imported optional consumer: ' + fullname)
 sys.meta_path.insert(0, NoConsumers())
 import stage_gen.interfaces.cli
@@ -160,7 +187,14 @@ import stage_gen.components
 for module in pkgutil.iter_modules(stage_gen.components.__path__):
     if module.ispkg and not module.name.startswith('_'):
         importlib.import_module('stage_gen.components.' + module.name)
-assert not any(name.startswith(('stage_gen_legacy', 'concept_studio')) for name in sys.modules)
+assert not any(
+    name.split('.')[0] in {
+        'stage_gen_legacy', 'concept_studio', 'demo_game_tools', 'demo_game_collection',
+        'bellweather_pipeline', 'iron_petal_unit_pipeline',
+        'ember_hollow_pipeline', 'the_grain_pipeline',
+    }
+    for name in sys.modules
+)
 print('public imports have no optional consumers')
 """
     completed = subprocess.run(
@@ -191,7 +225,16 @@ sys.path[:0] = [str(installed), str(repository)]
 attempted = set()
 class NoConsumers(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        if fullname.split('.')[0] in {'stage_gen_legacy', 'concept_studio'}:
+        if fullname.split('.')[0] in {
+            'concept_studio',
+            'demo_game_collection',
+            'demo_game_tools',
+            'iron_petal_unit_pipeline',
+            'bellweather_pipeline',
+            'stage_gen_legacy',
+            'ember_hollow_pipeline',
+            'the_grain_pipeline',
+        }:
             attempted.add(fullname)
             raise AssertionError('Product collection attempted an optional import: ' + fullname)
 sys.meta_path.insert(0, NoConsumers())

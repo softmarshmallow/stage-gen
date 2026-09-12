@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "iron-petal-unit-pipeline"
+version = "0.0.0"
+description = "Preparation implementation for iron petal unit pipeline"
+requires-python = ">=3.12"
+dependencies = ["stage-gen", "demo-game-tools"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/iron_petal_unit_pipeline"]
+
+[tool.uv.sources]
+stage-gen = { workspace = true }
+demo-game-tools = { workspace = true }

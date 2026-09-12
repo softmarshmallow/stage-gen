@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scope: [legacy, apps, docs]
+        scope: [games, apps, docs]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -48,7 +48,27 @@ jobs:
       - run: uv sync --all-groups --frozen
       - run: uv run --all-groups ruff format --check .
       - run: uv run --all-groups ruff check .
-      - run: uv run --all-groups mypy --strict src tests scripts godot/legacy/python/stage_gen_legacy godot/legacy/tools godot/templates/asset_consumer/prepare.py apps/concept_studio/src examples
+      - name: Typecheck product and optional consumers
+        run: >-
+          uv run --all-groups mypy --strict src tests scripts
+          godot/games/_shared/python/src
+          godot/games/bellweather/pipeline/src
+          godot/games/iron_petal_unit/pipeline/src
+          godot/games/ember_hollow/pipeline/src
+          godot/games/the_grain/pipeline/src
+          godot/tools/python/src
+          godot/games/bellweather/tools/author_terrain.py
+          godot/games/bellweather/tools/design_map.py
+          godot/games/bellweather/tools/prove_climbable_bands.py
+          godot/games/bellweather/tools/render_asset_scale_figures.py
+          godot/games/ember_hollow/tools/write_oblique_survival_cache_keys.py
+          godot/tools/parity_diff.py
+          godot/tools/validate_game_package.py
+          godot/tools/write_game_contract_identities.py
+          godot/tools/write_game_graph_contract.py
+          godot/tools/write_game_model_policy_snapshot.py
+          godot/templates/asset_consumer/prepare.py
+          apps/concept_studio/src examples
 
   godot:
     runs-on: ubuntu-latest

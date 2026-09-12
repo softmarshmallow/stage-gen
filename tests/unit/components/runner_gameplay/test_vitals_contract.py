@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import pytest
 
-from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen_legacy.components.runner_gameplay import (
+from iron_petal_unit_pipeline.gameplay import (
     COLLISION_BOXES,
     DRAINING_CONSEQUENCES,
     VITALS_PROFILES,
     load_runner_gameplay_bytes,
 )
+from stage_gen.components._game_input import AuthoredContractLoadError
 
 BASE = """schema_version = 4
 kind = "runner-gameplay-v4"

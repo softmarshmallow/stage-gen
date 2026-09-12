@@ -16,7 +16,6 @@ from typing import Any
 
 import pytest
 
-from stage_gen_legacy.orchestration.case_binding import CaseBindingError, bind_case
 from tests.unit.components.case.package import (
     OFFICE_SCRIPT,
     STATEMENTS_SCRIPT,
@@ -26,6 +25,7 @@ from tests.unit.components.case.package import (
     statements_declarations,
     write_case_package,
 )
+from the_grain_pipeline.case_binding import CaseBindingError, bind_case
 
 
 def _office(script: str = OFFICE_SCRIPT, **overrides: Any) -> dict[str, Any]:

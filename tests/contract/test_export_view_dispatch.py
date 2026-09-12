@@ -1,7 +1,7 @@
-"""Every historical recipe graph kind is one legacy `export-view` can still read.
+"""Every historical recipe graph kind is the collection `export-view` can still read.
 
 The viewer at `/runs` lists only runs that carry a derived `execution-view.json`, and that
-document is produced by `stage-gen legacy export-view`, which picks its builder from the kind the
+document is produced by `demo-games export-view`, which picks its builder from the kind the
 run's own plan declares. The dispatch is a list of string literals, so bumping a recipe's
 graph contract without touching it does not fail: `export-view` simply refuses every run of
 that recipe from then on, and the recipe quietly disappears from the run list.
@@ -23,22 +23,16 @@ from typing import Protocol, cast
 
 import pytest
 
+from bellweather_pipeline.execution_graph import ExecutionGraph
+from ember_hollow_pipeline.survival_graph import ObliqueSurvivalGraph
+from iron_petal_unit_pipeline.runner_graph import SideviewRunnerGraph
 from stage_gen.recipes.storefront.storefront_graph import StorefrontGraph
 from stage_gen.recipes.universe.universe_graph import UniverseGraph
-from stage_gen_legacy.recipes.dialogue_scene.scene_graph import DialogueSceneGraph
-from stage_gen_legacy.recipes.oblique_survival.survival_graph import ObliqueSurvivalGraph
-from stage_gen_legacy.recipes.pointclick_room.room_graph import PointClickRoomGraph
-from stage_gen_legacy.recipes.sideview_platformer.execution_graph import ExecutionGraph
-from stage_gen_legacy.recipes.sideview_runner.runner_graph import SideviewRunnerGraph
+from the_grain_pipeline.dialogue_scene.scene_graph import DialogueSceneGraph
+from the_grain_pipeline.pointclick_room.room_graph import PointClickRoomGraph
 
 CLI_SOURCE = (
-    Path(__file__).resolve().parents[2]
-    / "godot"
-    / "legacy"
-    / "python"
-    / "stage_gen_legacy"
-    / "interfaces"
-    / "cli.py"
+    Path(__file__).resolve().parents[2] / "godot/tools/python/src/demo_game_collection/cli.py"
 )
 
 

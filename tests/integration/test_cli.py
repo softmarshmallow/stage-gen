@@ -9,10 +9,10 @@ from pathlib import Path
 
 import pytest
 
+from demo_game_collection.cli import build_parser, create_doctor_report, main
 from stage_gen.capabilities import CapabilityArtifactResult
 from stage_gen.config import StageGenConfig, TransparencyMode
 from stage_gen.image_product import ImageProvider
-from stage_gen_legacy.interfaces.cli import build_parser, create_doctor_report, main
 
 
 def test_cli_offline_surfaces_require_a_prepared_package() -> None:
@@ -23,7 +23,7 @@ def test_cli_offline_surfaces_require_a_prepared_package() -> None:
 
 def test_prepared_package_cli_validates_and_digests_directory_and_zip(tmp_path: Path) -> None:
     repository = Path(__file__).resolve().parents[2]
-    package = repository / "godot/legacy/inputs/bellweather"
+    package = repository / "godot/games/bellweather/inputs/default"
     validate_output = StringIO()
 
     assert (
@@ -36,7 +36,9 @@ def test_prepared_package_cli_validates_and_digests_directory_and_zip(tmp_path: 
     report = json.loads(validate_output.getvalue())
     assert report["valid"] is True
     assert report["game_id"] == "bellweather"
-    assert report["file_count"] == sum(1 for path in package.rglob("*") if path.is_file())
+    assert report["file_count"] == sum(
+        1 for path in package.rglob("*") if path.is_file() and path.name != ".gdignore"
+    )
 
     digest_output = StringIO()
     assert (
@@ -51,7 +53,7 @@ def test_prepared_package_cli_validates_and_digests_directory_and_zip(tmp_path: 
     archive = tmp_path / "bellweather.zip"
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as output:
         for source in sorted(package.rglob("*")):
-            if source.is_file():
+            if source.is_file() and source.name != ".gdignore":
                 output.write(source, Path("bellweather", source.relative_to(package)).as_posix())
     zip_output = StringIO()
     assert (
@@ -87,7 +89,7 @@ def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
 ) -> None:
     monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
     repository = Path(__file__).resolve().parents[2]
-    package = repository / "godot/legacy/inputs/bellweather"
+    package = repository / "godot/games/bellweather/inputs/default"
     output = StringIO()
 
     assert (
@@ -169,7 +171,7 @@ def test_character_profile_cli_validate_digest_help_and_errors(
     capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
     repository = Path(__file__).resolve().parents[2]
-    package = repository / "godot/legacy/inputs/the_grain"
+    package = repository / "godot/games/the_grain/inputs"
     profile = package / "characters/ruth.toml"
     validate_output = StringIO()
     assert (
@@ -308,7 +310,7 @@ target_duration_seconds = 120
 
 
 def test_soundtrack_cli_validate_and_digest_use_the_game_library_binding(tmp_path: Path) -> None:
-    soundtrack = tmp_path / "godot/legacy/inputs/test-game/soundtrack.toml"
+    soundtrack = tmp_path / "godot/games/test_game/inputs/soundtrack.toml"
     soundtrack.parent.mkdir(parents=True)
     soundtrack.write_text(_soundtrack_toml(), encoding="utf-8")
     expected_source_sha256 = hashlib.sha256(soundtrack.read_bytes()).hexdigest()
@@ -341,7 +343,7 @@ def test_soundtrack_cli_validate_and_digest_use_the_game_library_binding(tmp_pat
     assert validated["binding"] == {
         "schema_version": 1,
         "kind": "game-soundtrack-binding-v1",
-        "ref": "godot/legacy/inputs/test-game/soundtrack.toml",
+        "ref": "godot/games/test_game/inputs/soundtrack.toml",
         "source_sha256": expected_source_sha256,
     }
 
@@ -364,9 +366,10 @@ def test_soundtrack_cli_validate_and_digest_use_the_game_library_binding(tmp_pat
 
 
 def test_soundtrack_cli_rejects_a_source_outside_the_game_owned_path(tmp_path: Path) -> None:
-    soundtrack = tmp_path / "library/soundtracks/test-game/soundtrack.toml"
+    soundtrack = tmp_path / "outside/soundtrack.toml"
     soundtrack.parent.mkdir(parents=True)
     soundtrack.write_text(_soundtrack_toml(), encoding="utf-8")
+    (tmp_path / "game-inputs").mkdir()
     error_output = StringIO()
 
     assert (
@@ -377,15 +380,13 @@ def test_soundtrack_cli_rejects_a_source_outside_the_game_owned_path(tmp_path: P
                 "--input",
                 str(soundtrack),
                 "--game-library-root",
-                str(tmp_path),
+                str(tmp_path / "game-inputs"),
             ],
             stderr=error_output,
         )
         == 1
     )
-    assert (
-        "game soundtrack input must equal ROOT/godot/legacy/inputs/<game_id>/soundtrack.toml"
-    ) in error_output.getvalue()
+    assert "game soundtrack input must be inside game library root" in error_output.getvalue()
 
 
 def test_generate_help_exposes_package_dry_run_controls(
@@ -654,7 +655,7 @@ def test_generate_speech_refuses_a_non_mp3_output_before_any_runtime(
 
 def test_scenario_cli_proves_the_shipped_scenario_without_touching_a_provider() -> None:
     repository = Path(__file__).resolve().parents[2]
-    package = repository / "godot/legacy/inputs/the_grain"
+    package = repository / "godot/games/the_grain/inputs"
     output = StringIO()
 
     assert main(["scenario", "check", "--input", str(package)], stdout=output) == 0
@@ -684,7 +685,7 @@ def test_scenario_cli_refuses_a_script_that_drifted_from_its_digest(
 ) -> None:
     repository = Path(__file__).resolve().parents[2]
     package = tmp_path / "the_grain"
-    shutil.copytree(repository / "godot/legacy/inputs/the_grain", package)
+    shutil.copytree(repository / "godot/games/the_grain/inputs", package)
     script = package / "scenarios/e1_way_in.scenario"
     script.write_text(script.read_text(encoding="utf-8") + '\n"Extra."\n', encoding="utf-8")
 
@@ -699,7 +700,7 @@ def test_scenario_cli_repairs_the_digest_but_still_proves_the_narrative(
 
     repository = Path(__file__).resolve().parents[2]
     package = tmp_path / "the_grain"
-    shutil.copytree(repository / "godot/legacy/inputs/the_grain", package)
+    shutil.copytree(repository / "godot/games/the_grain/inputs", package)
     script = package / "scenarios/e1_way_in.scenario"
     original = script.read_text(encoding="utf-8")
 
@@ -858,7 +859,7 @@ def test_oblique_survival_cli_dry_runs_a_scope_and_exports_its_view(
 
     monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
     repository = Path(__file__).resolve().parents[2]
-    package = repository / "godot/legacy/inputs/ember-hollow"
+    package = repository / "godot/games/ember_hollow/inputs"
     run_dir = tmp_path / "run"
 
     stdout = StringIO()
@@ -888,7 +889,7 @@ def test_oblique_survival_cli_dry_runs_a_scope_and_exports_its_view(
     assert report["recipe"] == "oblique-survival"
     assert report["scope"] == "minimal"
     assert report["package_id"] == "ember-hollow"
-    # The scope table in `docs/spec/survival/generation-v1.md` is the same count.
+    # The scope table in `godot/games/ember_hollow/docs/generation-v1.md` is the same count.
     # It fell by seven nodes and one image when the litter and plant sheets went
     # and the fern clump with them (decision 0060), and this pin was missed then.
     assert report["node_count"] == 64
@@ -932,7 +933,7 @@ def test_oblique_survival_plan_prices_a_scope_without_touching_a_provider(
                 "oblique-survival",
                 "plan",
                 "--input",
-                str(repository / "godot/legacy/inputs/ember-hollow"),
+                str(repository / "godot/games/ember_hollow/inputs"),
                 "--scope",
                 "full",
                 "--cache-dir",
@@ -967,7 +968,7 @@ def test_oblique_survival_failure_injection_is_refused_outside_a_dry_run(
             "oblique-survival",
             "generate",
             "--input",
-            str(repository / "godot/legacy/inputs/ember-hollow"),
+            str(repository / "godot/games/ember_hollow/inputs"),
             "--output",
             str(tmp_path / "run"),
             "--scope",
@@ -994,7 +995,7 @@ def test_oblique_survival_import_run_refuses_a_run_whose_provider_keys_have_move
 
     monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
     repository = Path(__file__).resolve().parents[2]
-    package = repository / "godot/legacy/inputs/ember-hollow"
+    package = repository / "godot/games/ember_hollow/inputs"
     prior = tmp_path / "prior"
     assert (
         main(
@@ -1084,7 +1085,7 @@ def test_a_dry_run_accepts_a_run_and_cache_root_under_a_symlinked_directory(
     real.mkdir()
     link = tmp_path / "link"
     link.symlink_to(real, target_is_directory=True)
-    room = Path(__file__).resolve().parents[2] / "godot/legacy/inputs/the_grain/rooms/motor_court"
+    room = Path(__file__).resolve().parents[2] / "godot/games/the_grain/inputs/rooms/motor_court"
     stdout = StringIO()
     assert (
         main(

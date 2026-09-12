@@ -9,12 +9,12 @@ from pathlib import Path
 
 import pytest
 
+from demo_game_collection.cli import main
 from gnode import ArtifactProvenance
 from stage_gen.components import CharacterProfile, canonical_character_profile_json
-from stage_gen_legacy.interfaces.cli import main
-from stage_gen_legacy.recipes.dialogue_scene.identity import content_sha256
-from stage_gen_legacy.recipes.dialogue_scene.models import DialogueBundle, IndependentReview
-from stage_gen_legacy.recipes.dialogue_scene.review import (
+from the_grain_pipeline.dialogue_scene.identity import content_sha256
+from the_grain_pipeline.dialogue_scene.models import DialogueBundle, IndependentReview
+from the_grain_pipeline.dialogue_scene.review import (
     _validate_profile_artifact,
     transition_dialogue_review,
 )

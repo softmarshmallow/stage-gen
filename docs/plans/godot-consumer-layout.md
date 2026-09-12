@@ -1,201 +1,224 @@
-# Godot consumer layout proposal
+# Godot game ownership layout
 
-Status: proposed, 2026-09-12. This document describes the next topology; source
-directories and launch commands have not been changed by this proposal.
+Implementation record, 2026-09-13. The named games own their inputs, preparation,
+Godot projects and gameplay. This completes the ownership change proposed on
+2026-09-12; the former `legacy` grouping and the empty `demos` tier are removed.
+Verification results belong to the validation record below, separately from this
+description of the source layout.
 
-The games are maintained consumers of the asset SDK. Their location should express
-that ownership. The previous move into `godot/legacy` established the product
-boundary, but incorrectly made an implementation's history its permanent category.
-Remove that category. Existing TOML readers can remain ordinary implementation
-details of the games that use them.
+The asset product remains GNode, Stage Gen capabilities, recipes and authoring
+harness. Games consume it. Existing TOML is maintained input for those games; it
+is neither deprecated solely because of its age nor a required contract for a
+new game. The earlier product split and its evidence remain recorded in
+[the repository reshape](repository-reshape.md).
 
-## The proposed tree
+## The Godot tree
 
 ```text
 godot/
-├── README.md                          # Project list, launch commands, preparation needs
-│
-├── games/                             # All named example games, maintained as peers
-│   ├── afterlight/                    # Existing standalone project and its own Lab
-│   ├── command_link/                  # Existing standalone project and its own Lab
-│   ├── bellweather/                   # Platformer; includes the Waves variant
+├── README.md                          # Projects, launch and preparation entry points
+├── games/                             # Named games, maintained as peers
+│   ├── README.md                      # Game ownership and media availability
+│   ├── TODO.md                        # Game work, separate from the product roadmap
+│   ├── afterlight/                    # Existing authored adventure and its own Lab
+│   ├── command_link/                  # Existing tactical story and its own Lab
+│   ├── bellweather/                   # Platformer, including Waves
 │   ├── iron_petal_unit/               # Runner
 │   ├── ember_hollow/                  # Survival
-│   ├── the_grain/                     # Investigation: case, rooms and dialogue together
-│   └── _shared/                       # Private implementation used by these games
+│   ├── the_grain/                     # Case, rooms and dialogue together
+│   └── _shared/                       # Private code with several game consumers
 │       ├── runtime/
-│       │   ├── addons/demo_support/   # Dependency-closed shared Godot code
-│       │   │   ├── simulation/        # Reused deterministic primitives and systems
-│       │   │   └── io/                # Shared media loading and path confinement
-│       │   ├── project.godot          # Test project for the shared implementation
-│       │   └── tests/
+│       │   ├── project.godot          # Shared-support development and test project
+│       │   ├── addons/demo_support/
+│       │   │   ├── simulation/
+│       │   │   │   ├── kernel/        # Reused deterministic primitives
+│       │   │   │   └── families/      # Reused simulation and presentation mechanisms
+│       │   │   ├── io/                # Media loading, paths and common runtime adapters
+│       │   │   └── testing/           # Shared test harness; game fixtures are injected
+│       │   ├── tests/
+│       │   └── tools/
 │       ├── python/
-│       │   ├── pyproject.toml         # Optional demo tooling; depends on Stage Gen
+│       │   ├── pyproject.toml
 │       │   └── src/demo_game_tools/
-│       │       ├── input_formats/     # Retained TOML/package readers used by these games
-│       │       ├── builders/          # Only build stages with actual shared callers
-│       │       ├── io/                # Shared capture, packing and artifact handling
-│       │       └── validation/        # Shared checks for those particular input formats
-│       ├── tests/                     # Shared Python and integration regression checks
-│       └── tools/                     # Cross-game fixture and identity maintenance
-│
-├── packages/                          # Independently usable Godot SDKs
-│   └── game_presentation/
-│       ├── addons/game_presentation/  # Existing reusable presentation implementation
-│       ├── project.godot             # Package development and checks
+│       │       ├── input_formats/     # Captured game sources and shared readers
+│       │       ├── media/             # Shared UI and soundtrack binding helpers
+│       │       ├── io/                # Confined package capture
+│       │       └── application/       # Preparation services used by several games
+│       └── docs/                     # Formats shared by the existing game consumers
+│           └── formats/
+├── packages/
+│   └── game_presentation/             # Independent presentation SDK
+│       ├── addons/game_presentation/
+│       ├── project.godot
 │       ├── tests/
 │       ├── tools/
 │       ├── docs/
-│       └── history/                   # Existing design and request records
-│
-├── templates/                         # Copyable starting projects
-│   ├── asset_consumer/                # Minimal image import and display
-│   └── vn/                            # The Signal Room starter
-│
-└── tools/                             # Workspace checks, assembly and asset inspection
+│       └── history/                   # Original request and design records
+├── templates/
+│   ├── asset_consumer/                # Minimal explicit asset preparation and display
+│   └── vn/                            # Copyable presentation project
+└── tools/
+    ├── run_native_suite.py            # Native suites dispatched to their owning project
+    ├── validate_game_package.py       # Explicit game input closure selection
+    └── python/
+        ├── pyproject.toml
+        └── src/demo_game_collection/  # Collection CLI and cross-game fixture maintenance
 ```
 
-These are proposed owners, not a requirement to create every illustrated folder.
-The `_shared` subfolders are destinations for verified shared dependencies; a
-module with one game consumer stays with that game. The optional Python package
-name is a working name, not a new public SDK commitment.
-
-`games/` is the single collection for playable examples and games in development.
-Remove the empty `demos/` placeholder. Small examples for an independent package
-can live under that package's `examples/` when they exist. A study that uses
-Afterlight's cast, bindings or story state stays in Afterlight's `lab/`; the same
-applies to Command Link. A template is retained because its purpose is to be
-copied as a new project, even when it is also playable.
-
-Afterlight and Command Link are the maintained standalone presentation examples.
-The Grain owns the retained room/dialogue compositions; that behavior does not
-belong in `_shared` merely because its implementation currently uses separate hosts.
+`games/` is the single collection for named examples and games in development.
+Afterlight and Command Link retain their working structure, including their
+own Labs. A study that uses a game's cast, bindings or story state belongs to
+that game. Package-specific examples can live with the package when they exist.
+Templates remain distinct because they are intended to be copied.
 
 ## Inside a game
 
-Bellweather illustrates the desired ownership. It is an example layout, not a
-mandatory game schema or a requirement to rearrange the working Afterlight and
-Command Link projects into identical folders.
+The four run-consuming games now have a project and preparation package of their
+own. Bellweather illustrates the ownership in detail:
 
 ```text
 games/bellweather/
-├── README.md                          # Play, prepare, controls and known limits
-├── project.godot                      # This game's main scene, renderer and settings
+├── README.md                          # Play, preparation and controls
+├── project.godot                      # Renderer, main scene and local settings
 ├── main.tscn
-├── main.gd                            # Composition and explicit content selection
-├── gameplay/                          # Platformer simulation and game-specific systems
-├── scenes/                            # Rendering, camera, HUD and interaction
-├── content/                           # Game-owned interpretation and asset bindings
-├── addons/                            # Installed shared code actually used by this game
-│
+├── main.gd                            # This game's entry point
+├── gameplay/                          # Platformer simulation
+│   └── support/                       # Exclusive gameplay dependencies
+├── scenes/                            # Rendering, camera, controls and HUD
+│   └── common/                        # Former shared-host leaves used only here
+├── addons/
+│   └── demo_support/                  # Installed/linkable private dependency closure
 ├── inputs/
-│   ├── default/                       # Existing Bellweather input closure, kept intact
-│   └── waves/                         # Existing Waves closure, kept intact
+│   ├── default/                       # Complete original Bellweather input closure
+│   └── waves/                         # Complete original variant closure
 ├── pipeline/
-│   ├── prepare.py                     # This game's explicit asset preparation entry point
-│   ├── build.py                       # Composes Stage Gen capabilities for this game
-│   └── adapters/                      # Retained input readers and Godot resource mapping
-├── tools/                             # Map/terrain authoring and game-specific captures
-├── assets/                            # Prepared local assets, under existing storage policy
-├── tests/                             # Game simulation, preparation and native checks
-└── docs/                              # This game's formats, decisions and authoring guide
+│   ├── prepare.py                     # Offline plan by default, explicit variant/output
+│   ├── pyproject.toml                 # Game-owned optional preparation package
+│   └── src/bellweather_pipeline/
+│       └── gameplay/                  # Retained Python gameplay input and validation
+├── tools/                             # Map and terrain authoring, capture and parity
+├── tests/                             # Native regression tests
+└── docs/                              # Map formats, runtime and asset build graph
 ```
 
-`prepare.py` is a discoverable script convention. It does not introduce a required
-Python base class, game registry, global selector or shared gameplay manifest.
-Its command-line options belong to the game. It can invoke the public asset SDK,
-reuse existing builders, or import already generated assets. Gameplay runs from
-GDScript and prepared content; starting a game never initiates generation.
+Iron Petal Unit and Ember Hollow likewise own their gameplay, scenes, inputs,
+Python preparation package, tools, tests and docs. The Grain owns
+`gameplay/{case,dialogue_scene,pointclick_room}` and the matching scene leaves
+under its one project. The case main scene composes those leaves; room and
+dialogue scenes remain explicitly launchable for focused work.
 
-The current TOML closures stay intact during relocation, including their relative
-member paths and source identity rules. Their gameplay parameters are game-owned
-configuration. A later game change may move those values into GDScript, resources
-or simpler files. There is no required conversion pass and no new universal
-replacement format. A shared reader can support an existing file format without
-making it the authoring contract for future games.
+These directories describe existing ownership, not a mandatory schema for new
+games. A simple game can use one GDScript and one preparation script. It need not
+install the collection tools, adopt a base class or declare a universal manifest.
 
-Existing media and outputs can be consumed at their current locations through
-explicit game-local launch/preparation options. Moving ownership does not require
-regeneration, copying all `out/` runs into game folders, or committing ignored media.
+## Inputs and preparation
 
-## Where the existing content goes
+| Input owner before this change | Current owner |
+| --- | --- |
+| `legacy/inputs/bellweather` | `games/bellweather/inputs/default` |
+| `legacy/inputs/bellweather-waves` | `games/bellweather/inputs/waves` |
+| `legacy/inputs/iron-petal-unit` | `games/iron_petal_unit/inputs` |
+| `legacy/inputs/ember-hollow` | `games/ember_hollow/inputs` |
+| `legacy/inputs/the_grain` | `games/the_grain/inputs` |
+| Repository `legacy/inputs/main.toml` | Removed; each game selects its inputs |
 
-| Existing owner under `godot/` | Proposed owner | Treatment |
-|---|---|---|
-| `games/afterlight`, `games/command_link` | Same game roots | Keep their working project structure and game-local Labs |
-| `legacy/inputs/bellweather` | `games/bellweather/inputs/default` | Preserve the complete authored closure |
-| `legacy/inputs/bellweather-waves` | `games/bellweather/inputs/waves` | Same game identity; retain as a variant, without inventing a merge format |
-| `legacy/inputs/iron-petal-unit` | `games/iron_petal_unit/inputs` | Runner inputs and bindings |
-| `legacy/inputs/ember-hollow` | `games/ember_hollow/inputs` | Survival inputs and bindings |
-| `legacy/inputs/the_grain` | `games/the_grain/inputs` | Keep its case, rooms, scenarios and story together |
-| `legacy/inputs/main.toml` | Game-local selection in preparation scripts | Retire the global selected-game file after callers move |
-| `legacy/runtime/genres/sideview_platformer`, matching host | `games/bellweather/gameplay` and game scenes | Game-owned simulation, renderer, camera and controls |
-| `legacy/runtime/genres/sideview_runner`, matching host | `games/iron_petal_unit/gameplay` and game scenes | Runner-owned simulation and rendering |
-| `legacy/runtime/genres/oblique_survival`, matching host | `games/ember_hollow/gameplay` and game scenes | Survival-owned simulation and rendering |
-| Room and dialogue genres/hosts and their exclusive leaves | `games/the_grain/gameplay` and game scenes | The Grain is their remaining named game consumer; only dependencies used by other games belong in `_shared` |
-| Case host and case orchestration | `games/the_grain` | The Grain owns episode progression and composition |
-| `legacy/runtime/kernel`, `families`, common host utilities | `_shared/runtime` or the sole consuming game | Preserve algorithms and deterministic behavior; place by actual imports |
-| `legacy/python/stage_gen_legacy` | Game `pipeline/` modules plus `_shared/python` | Move whole-game builders to their consumers; retain one copy of shared implementations |
-| `legacy/tools` | Owning game's `tools/`, or `_shared/tools` | Platformer authoring follows Bellweather; survival goldens follow Ember Hollow |
-| Game contract and host specifications | Game docs or `_shared` format documentation | Describe maintained consumer formats and their callers |
-| `packages`, `templates`, `tools` | Same top-level owners | Keep independent responsibilities |
-| Empty `demos` and emptied `legacy` | Removed | No placeholder or historical-status bucket remains |
+The input closures move together, including references, fonts, scripts, evidence
+and internal relative paths. Persisted game IDs, schema identities and authored
+source bytes do not change because the outer directory moved. Bellweather's
+variants remain separate complete closures; no variant merge format is introduced.
 
-Directory names use the existing Godot convention, such as `iron_petal_unit`.
-Persisted game IDs, node identities, schema versions and artifact digests do not
-change merely because a directory uses underscores.
+From the repository root:
 
-## Reuse without another whole-game framework
+```sh
+uv sync --frozen --group games
+uv run --group games python godot/games/bellweather/pipeline/prepare.py
+uv run --group games python godot/games/bellweather/pipeline/prepare.py --variant waves
+uv run --group games python godot/games/iron_petal_unit/pipeline/prepare.py
+uv run --group games python godot/games/ember_hollow/pipeline/prepare.py
+uv run --group games python godot/games/the_grain/pipeline/prepare.py
+```
 
-`packages/game_presentation` remains an independently usable SDK. It has its own
-public APIs, dependency closure and tests. A future runtime package earns the same
-position through clear independent inputs and behavior.
+The defaults plan or validate offline. `--dry-run --output <directory>` is an
+explicit deterministic rehearsal for generation entry points. The Grain's default
+case mode validates composition; room and dialogue preparation have their own
+mode options, and case assembly takes explicit prepared leaf runs. Consult the
+game's `--help` for its options. Paid generation requires explicit live opt-in.
 
-`games/_shared` has a narrower audience: the games in this repository. Existing
-shared gameplay code is useful and can remain maintained there. That does not make
-its player model, genre list, package schema or UI a requirement of either Stage
-Gen or a new Godot game. Keep the room/dialogue implementations with The Grain,
-and extract only dependencies that the current graph proves other games use. Do
-not promote the entire former runtime into a public `game_engine` package as part
-of this move.
+Existing TOML readers preserve their input pairs. A later game change can replace
+particular gameplay values with GDScript, resources or simpler local formats. That
+change belongs to the game and does not require changing the asset SDK. Existing
+`out/` runs stay where they are; `--run` selects one for play. Relocation requires
+no new provider output and no promotion of ignored media.
 
-Each game imports shared code it needs. Shared code never imports a named game.
-The Python game tooling imports the public Stage Gen SDK; the product imports no
-game tooling. No game depends on another game's project root or mutable state.
-Godot project assembly installs dependency-closed addon payloads. Development
-links, if used for private addons, need an explicit extension of the current
-package-link boundary check; distributable projects contain real source files.
+## What is shared and what is independent
 
-## Making the move safely
+`packages/game_presentation` retains an independent public API, dependency closure
+and checks. A future package earns the same position through bounded inputs and
+behavior useful outside these games.
 
-This is more than removing the word `legacy`. The current runtime has one
-`project.godot`, a shared global script-class namespace and fixed `res://` paths.
-The Grain's Case host composes room and dialogue leaves. Splitting directories
-alone would break those references and the existing test harness.
+`games/_shared` serves the games in this repository. It contains reused simulation,
+IO, input readers and media binding helpers. Single-game code moved to its caller:
+platformer rules to Bellweather; runner rules, effects, voice and audio bindings to
+Iron Petal Unit; survival and shell preparation to Ember Hollow; case and narrative
+leaf builders to The Grain. No named game's project is another game's dependency.
 
-1. Establish the named game roots and move each complete input closure. Replace
-   the global input selector with explicit game-local preparation entry points.
-   Preserve existing readers and identify actual shared Python dependencies.
-2. Separate the shared Godot dependency closure from each game's runtime code.
-   Introduce a game-owned project and main scene for each migrated consumer,
-   update resource paths and class discovery, and split regression suites by owner.
-   Preserve the deterministic simulation layer where it already supplies useful
-   parity guarantees; new game scripts are free to use ordinary Godot APIs.
-3. Route existing generated runs through the corresponding game's adapter and
-   verify them before retiring the single multi-genre project. Do not require
-   fresh provider output to demonstrate that a relocation works.
-4. Rename the optional Python package, installation group, CLI references and
-   check scopes with the move. Use a `games` group for Python demo preparation,
-   retain `godot` for native projects, and keep both out of the product default.
-   Old command/import spellings may briefly forward during migration, but the
-   published launch instructions point to game-local entry points.
-5. Update current documentation, skills, path checks, packaging and CI together.
-   Move maintained game-format documentation to its consumer owner. Preserve
-   historical decision records as history. Remove the empty directories and
-   temporary forwarding entry points after their remaining callers are gone.
+The dependency direction is explicit:
 
-Completion means Bellweather, Iron Petal Unit, Ember Hollow and The Grain keep
-their existing working runs; Afterlight and Command Link keep their current
-behavior; game preparation and native regression checks pass; and an installed
-Stage Gen product still operates without any Godot game or optional game-tooling
-package.
+- A game imports the public asset SDK, its own preparation code and private shared support.
+- Shared support imports no named game.
+- Collection tooling may import the named games for explicit dispatch and cross-game maintenance.
+- The product imports no game or collection tooling.
+
+Godot development links target the shared addon payload or an independent package
+payload. Distribution assembly copies real files. Native resource paths and class
+registration are updated for the split; the shared support project does not load
+a game simply to discover a class.
+
+The optional `games` Python group installs the preparation packages and collection
+CLI, `demo-games`. Native engine verification remains the `godot` scope. The
+product's default install and wheel do not acquire those optional dependencies.
+
+## Documentation and verification ownership
+
+Bellweather owns its generation/map format references; Iron Petal Unit owns runner,
+audio, voice and effect references; Ember Hollow owns world/survival/shell/runtime
+references; The Grain owns case, room and dialogue framing references. Shared game
+input formats live in `_shared/docs`. Independent scenario and side-view map design
+contracts remain in the product's `docs/spec` collection. Historical decisions and
+research retain their original context, with links to the current owners.
+
+Use [the owned gates](../../VERIFICATION.md) for Python game preparation, native
+projects, the viewer, documentation and installed product isolation. The dedicated
+native runner dispatches suites to the project that owns each implementation.
+
+## Validation record
+
+Native migration checks completed independently:
+
+- 4,595 checks passed across 53 native test files in their owning projects.
+- 1,860 replay frames matched the previous implementation's digests across platformer, runner, room, dialogue and case runs; sampled JSON fields also matched.
+- Six existing-content boot paths completed: the four game main scenes plus The Grain's separate room and dialogue scenes.
+- Four portable source-project assemblies imported independently with real addon files, outside the development links.
+- Fourteen Python boundary/source dependency checks passed for the split native projects.
+- All 204 tracked input files retained their original bytes after the move.
+- Six optional Python wheels built offline. Each of the four game wheels planned from an isolated installed copy with sibling imports and network access blocked; each depends only on the product and shared game support.
+
+Fresh projects require the one-time editor import documented in the
+[launch guide](../../godot/README.md#play-a-game) before bare command-line launch.
+These checks establish native behavior and packaging continuity. They do not
+authorize new media or establish a new visual or listening verdict.
+
+Final offline verification completed on the implemented layout:
+
+- The standalone product gate passed all 14 steps, including installed-core isolation, public pipeline execution, cache reuse and distribution builds.
+- The aggregate gate passed 39 of 40 steps. Its Python step passed 2,909 tests and found five UI tests still pointing to the moved input root. Those fixture paths were corrected; all five passed with `pytest --last-failed`, and the two affected files passed all 11 tests. The complete 2,914-test coverage therefore includes that focused rerun; the aggregate command was not rerun in full afterward.
+- Strict mypy passed all 741 Python source files; Ruff formatting and lint passed.
+- The viewer checks passed, with 168 Bun tests passing.
+- All 18 game preparation/inspection commands passed, covering seven local plan/proof paths and three deterministic dry runs.
+- The native suite passed again with 4,595 checks across 53 files. The presentation SDK package check passed.
+- The documentation gate passed 301 Markdown files, 226 public text files and both declared generated-media entries.
+
+No provider generation was performed. Existing local runs supplied the runtime
+continuity evidence; media files were relocated without changing their bytes.
+The earlier reshape's counts remain historical evidence and are not reused as
+proof of this move.

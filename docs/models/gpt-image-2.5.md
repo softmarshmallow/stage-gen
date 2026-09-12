@@ -267,7 +267,7 @@ Bound image provenance preserves raw returned usage when present and writes
 The routing refactor changes route, graph, provenance, and cache identity while
 leaving each recipe's node fan-out and scheduling semantics with the recipe. A
 future topology change must update the [canonical generation
-pipeline](../spec/game/generation-pipeline.md) and its executable graph contract
+pipeline](../../godot/games/bellweather/docs/generation-pipeline.md) and its executable graph contract
 in the same implementation change.
 
 General credentials, retry ownership, response handling, and artifact rules

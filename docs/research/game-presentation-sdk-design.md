@@ -448,7 +448,7 @@ this design does not authorize media publication or regenerate anything.
 See [Godot UID guidance](https://godotengine.org/article/uid-changes-coming-to-godot-4-4/)
 and [version-control guidance](https://docs.godotengine.org/en/stable/tutorials/best_practices/version_control_systems.html).
 
-The existing [host contract](../spec/game/host-contract.md) requires generated-run
+The existing [host contract](../../godot/games/_shared/docs/formats/host-contract.md) requires generated-run
 documents and restricts engine behavior to its host layer. This SDK deliberately
 supports Godot-native presentation and code-authored games. It should not be
 placed in the incumbent pure family layer merely to acquire canonical status.

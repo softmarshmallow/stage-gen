@@ -7,17 +7,17 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
-from stage_gen.recipes.manifest_blocks import present_blocks
-from stage_gen_legacy.components.platformer_gameplay.models import (
+from bellweather_pipeline.gameplay.models import (
     ScorePolicy,
     TimerEntry,
     TimersPolicy,
 )
-from stage_gen_legacy.recipes.sideview_platformer.prepared_manifest import (
+from bellweather_pipeline.prepared_manifest import (
     PLATFORMER_MANIFEST_BLOCK_VERSIONS,
     _score_block,
     _timers_block,
 )
+from stage_gen.recipes.manifest_blocks import present_blocks
 
 
 def test_a_score_names_closed_events_with_bounded_points() -> None:
