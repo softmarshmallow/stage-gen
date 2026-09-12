@@ -200,6 +200,13 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
     # which `docs/decisions/README.md` forbids outright.
     history_roots = ("docs/decisions/", "docs/plans/", "docs/research/", "docs/media/")
     link_pattern = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+    # A link to a path the repository deliberately ignores is not broken: a
+    # game's review notes link the captures they judged and its README the art
+    # rounds behind its images, and neither exists in a fresh clone by design.
+    # The same exemption the source-path rule below carries, for the same
+    # reason; the pre-push hook found 91 such links the first time it gated a
+    # clean worktree. A missing tracked target still fails.
+    unresolved: list[tuple[str, str, str | None]] = []
     for markdown_file in markdown:
         if markdown_file.relative_to(repo).as_posix().startswith(history_roots):
             continue
@@ -211,9 +218,22 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
             if target.startswith("<") and target.endswith(">"):
                 target = target[1:-1]
             target = unquote(target.split("#", 1)[0].split("?", 1)[0])
-            if not (markdown_file.parent / target).resolve().exists():
+            resolved = (markdown_file.parent / target).resolve()
+            if not resolved.exists():
                 relative = markdown_file.relative_to(repo).as_posix()
-                failures.append(f"{relative}: missing link {raw_target}")
+                candidate = (
+                    resolved.relative_to(repo.resolve()).as_posix()
+                    if resolved.is_relative_to(repo.resolve())
+                    else None
+                )
+                unresolved.append((relative, raw_target, candidate))
+    ignored_targets = ignored_paths(
+        repo, {candidate for _, _, candidate in unresolved if candidate is not None}
+    )
+    for relative, raw_target, candidate in unresolved:
+        if candidate is not None and candidate in ignored_targets:
+            continue
+        failures.append(f"{relative}: missing link {raw_target}")
 
     # Prose that names a source path names one that exists. Two root doctrine
     # documents kept pointing at a recipe package deleted in a rename, and four
