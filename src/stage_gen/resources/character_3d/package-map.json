@@ -1,0 +1,32 @@
+{
+  "aliases": {
+    "models/openrouter-gpt-6-astra-2026-09-11.json": "stage_gen/resources/character_3d/models/openrouter-gpt-6-astra-2026-09-11.json",
+    "models/tripo-api-pricing-2026-09-10.json": "stage_gen/resources/character_3d/models/tripo-api-pricing-2026-09-10.json",
+    "pipeline/launch.py": "stage_gen/orchestration/character_3d/launch.py",
+    "profiles/sd_cat.json": "stage_gen/resources/character_3d/profiles/sd_cat.json",
+    "profiles/sd_human.json": "stage_gen/resources/character_3d/profiles/sd_human.json",
+    "profiles/sd_human_fixed.json": "stage_gen/resources/character_3d/profiles/sd_human_fixed.json",
+    "prompts/assemble.md": "stage_gen/resources/character_3d/prompts/assemble.md",
+    "prompts/plan_references.md": "stage_gen/resources/character_3d/prompts/plan_references.md",
+    "prompts/review_assembly.md": "stage_gen/resources/character_3d/prompts/review_assembly.md",
+    "prompts/review_references.md": "stage_gen/resources/character_3d/prompts/review_references.md",
+    "prompts/review_rig.md": "stage_gen/resources/character_3d/prompts/review_rig.md",
+    "prompts/rig.md": "stage_gen/resources/character_3d/prompts/rig.md",
+    "worker/__init__.py": "stage_gen/components/character_3d/worker/__init__.py",
+    "worker/assemble.py": "stage_gen/components/character_3d/worker/assemble.py",
+    "worker/blender_io.py": "stage_gen/components/character_3d/worker/blender_io.py",
+    "worker/contract.py": "stage_gen/components/character_3d/worker/contract.py",
+    "worker/geometry.py": "stage_gen/components/character_3d/worker/geometry.py",
+    "worker/main.py": "stage_gen/components/character_3d/worker/main.py",
+    "worker/provider_rig.py": "stage_gen/components/character_3d/worker/provider_rig.py",
+    "worker/provider_rig_cli.py": "stage_gen/components/character_3d/worker/provider_rig_cli.py",
+    "worker/rendering.py": "stage_gen/components/character_3d/worker/rendering.py",
+    "worker/rig_cli.py": "stage_gen/components/character_3d/worker/rig_cli.py",
+    "worker/rig_contract.py": "stage_gen/components/character_3d/worker/rig_contract.py",
+    "worker/rig_glb.py": "stage_gen/components/character_3d/worker/rig_glb.py",
+    "worker/rig_metrics.py": "stage_gen/components/character_3d/worker/rig_metrics.py",
+    "worker/rigging.py": "stage_gen/components/character_3d/worker/rigging.py",
+    "worker/runtime_probe.py": "stage_gen/components/character_3d/worker/runtime_probe.py"
+  },
+  "schema_version": 1
+}

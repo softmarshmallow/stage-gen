@@ -11,6 +11,7 @@ requires-python = ">=3.12"
 license = { file = "LICENSE" }
 authors = [{ name = "stage-gen contributors" }]
 dependencies = [
+  "jsonschema>=4.26,<5",
   "httpx>=0.28,<1",
   "pillow>=11,<13",
   "pydantic>=2.11,<3",
@@ -19,12 +20,14 @@ dependencies = [
 ]
 
 [project.scripts]
+stage-gen-character = "stage_gen.interfaces.character_3d:main"
 stage-gen-portrait-motion = "stage_gen.interfaces.portrait_motion:entrypoint"
 stage-gen = "stage_gen.interfaces.cli:entrypoint"
 stage-gen-py = "stage_gen.interfaces.cli:entrypoint"
 
 [dependency-groups]
 dev = [
+  "types-jsonschema>=4.26,<5",
   "build>=1.2,<2",
   "hatchling>=1.27,<2",
   "mypy>=1.15,<2",

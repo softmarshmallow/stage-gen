@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "provider": "tripo",
+  "checked_on": "2026-09-10",
+  "api_root": "https://openapi.tripo3d.ai/v3",
+  "route": "P2-20260801@tripo",
+  "usd_per_credit": "0.01",
+  "value_basis": "standard_api_usage_value",
+  "sources": [
+    {
+      "url": "https://developers.tripo3d.ai/en/pricing",
+      "verified_fact": "The production API standard rate is 1 credit = 0.01 USD."
+    },
+    {
+      "url": "https://developers.tripo3d.ai/en/docs/task-query",
+      "verified_fact": "Task queries report credits_consumed as a number with up to two decimal places."
+    },
+    {
+      "url": "https://developers.tripo3d.ai/en/docs/billing",
+      "verified_fact": "Successful tasks formally deduct frozen credits; account usage lists per-task credits."
+    }
+  ],
+  "limitations": [
+    "This is standard API usage value, not a cash invoice, tax calculation, discount, prepaid purchase price, or account balance.",
+    "Applies only to a matching successful terminal task and its validated collected outputs.",
+    "Missing or invalid usage remains unknown; this record does not reconcile historical or interrupted holds."
+  ]
+}

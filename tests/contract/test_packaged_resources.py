@@ -176,7 +176,13 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # Budgets exclude the independently bounded route snapshot.
         model_policy_snapshot_size = wheel_entries[MODEL_POLICY_SNAPSHOT_RESOURCE]
         assert model_policy_snapshot_size < MODEL_POLICY_SNAPSHOT_UNPACKED_LIMIT
-        assert sum(wheel_entries.values()) - model_policy_snapshot_size < 3_500_000
+        # Character candidate final-m1-28 (2026-09-13): non-snapshot wheel slice
+        # measured 3,727,974 B, of which the character capability is 967,681 B
+        # across 85 Python/data files. No new media; the executable model snapshot
+        # retains its separate unchanged cap. The compressed wheel (1,140,885 B),
+        # the sdist (2,091,676 B) and the sdist slice (8,069,738 B) stay under
+        # their incumbent limits. The raised cap leaves about 170 KB for growth.
+        assert sum(wheel_entries.values()) - model_policy_snapshot_size < 3_900_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert wheel_entries.keys() >= PORTRAIT_FACE_MODULES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
