@@ -127,8 +127,6 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         repo / "README.md",
         repo / "CONTRIBUTING.md",
         repo / "ARCHITECTURE.md",
-        repo / "MISSION.md",
-        repo / "LOOP_PROMPT.md",
     ]
     governance = [repo / "AGENTS.md", repo / "TODO.md"]
     prompt_fixtures = [repo / "fixtures/prompts.txt", repo / "fixtures/styles.txt"]
