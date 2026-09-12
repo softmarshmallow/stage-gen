@@ -36,20 +36,20 @@ from stage_gen_legacy.recipes.pointclick_room.room_types import pointclick_type_
 from stage_gen_legacy.recipes.pointclick_room.room_view import build_pointclick_room_view
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
-ATTIC = REPOSITORY_ROOT / "godot/legacy/inputs/clockmakers_attic"
+ROOM = REPOSITORY_ROOT / "godot/legacy/inputs/the_grain/rooms/window"
 
 
-def _attic_document() -> dict[str, Any]:
-    return tomllib.loads((ATTIC / "room.toml").read_text(encoding="utf-8"))
+def _room_document() -> dict[str, Any]:
+    return tomllib.loads((ROOM / "room.toml").read_text(encoding="utf-8"))
 
 
-def _resolved_attic() -> ResolvedPointClickRoom:
-    return resolve_pointclick_room(read_room_document(ATTIC), root=ATTIC)
+def _resolved_room() -> ResolvedPointClickRoom:
+    return resolve_pointclick_room(read_room_document(ROOM), root=ROOM)
 
 
 def test_the_shipped_room_is_valid_and_provably_finishable() -> None:
-    resolved = _resolved_attic()
-    assert resolved.room.room_id == "clockmakers_attic"
+    resolved = _resolved_room()
+    assert resolved.room.room_id == "e1_window"
     report = resolved.solvability
     assert report.solvable
     assert report.solution, "the proof carries one shortest finishing sequence"
@@ -60,22 +60,25 @@ def test_the_shipped_room_is_valid_and_provably_finishable() -> None:
 
 
 def test_an_unwinnable_room_is_refused_before_any_art_is_planned() -> None:
-    document = _attic_document()
-    # Sever the chain: the clock no longer yields the gear the music box needs.
+    document = _room_document()
+    # The exit flag is declared and settable, but now requires itself to be set.
     for interaction in document["interactions"]:
-        effects = interaction.get("effects", [])
-        interaction["effects"] = [
-            effect for effect in effects if effect.get("grant_item") != "small_gear"
-        ]
-    with pytest.raises(ValueError, match=r"obtainable|cannot be finished"):
-        resolve_pointclick_room(document, root=ATTIC)
+        if {"set_flag": "left_the_room"} in interaction.get("effects", []):
+            interaction["requires"] = ["left_the_room"]
+    with pytest.raises(ValueError, match="cannot be finished"):
+        resolve_pointclick_room(document, root=ROOM)
+
+
+def test_an_unobtainable_item_is_refused_before_any_art_is_planned() -> None:
+    document = _room_document()
+    document["items"] = [{"item_id": "key", "label": "Key", "brief": "A plain brass key."}]
+    with pytest.raises(ValueError, match="obtainable"):
+        resolve_pointclick_room(document, root=ROOM)
 
 
 def test_a_hidden_hotspot_nothing_reveals_is_refused() -> None:
-    document = _attic_document()
-    for interaction in document["interactions"]:
-        effects = interaction.get("effects", [])
-        interaction["effects"] = [effect for effect in effects if "reveal_hotspot" not in effect]
+    document = _room_document()
+    document["hotspots"][0]["hidden"] = True
     with pytest.raises(ValueError, match="revealable"):
         PointClickRoom.model_validate(document)
 
@@ -89,33 +92,33 @@ def test_the_proof_searches_the_runtime_machine_not_a_more_permissive_one() -> N
     branched on both would admit a room no player can finish.
     """
 
-    document = _attic_document()
+    document = _room_document()
     document["hotspots"] = [document["hotspots"][0]]
     document["items"] = []
     document["interactions"] = [
         {
-            "on": {"verb": "use", "hotspot": "workbench"},
+            "on": {"verb": "use", "hotspot": "six_figures"},
             "narration": "You rummage, but your mind wanders.",
         },
         {
-            "on": {"verb": "use", "hotspot": "workbench"},
+            "on": {"verb": "use", "hotspot": "six_figures"},
             "effects": [{"set_flag": "found_it"}],
         },
     ]
     document["win"] = {"requires": ["found_it"]}
     with pytest.raises(ValueError, match=r"cannot be finished|never fire"):
-        resolve_pointclick_room(document, root=ATTIC)
+        resolve_pointclick_room(document, root=ROOM)
 
 
 def test_win_flags_must_be_settable() -> None:
-    document = _attic_document()
+    document = _room_document()
     document["win"] = {"requires": ["flag_nothing_sets"]}
     with pytest.raises(ValueError, match="no interaction sets"):
         PointClickRoom.model_validate(document)
 
 
 def test_the_plan_carries_full_static_prompts_on_every_generation_card() -> None:
-    resolved = _resolved_attic()
+    resolved = _resolved_room()
     config = StageGenConfig()
     graph = build_pointclick_room_graph(
         resolved,
@@ -133,20 +136,20 @@ def test_the_plan_carries_full_static_prompts_on_every_generation_card() -> None
     assert backdrop.card is not None and backdrop.card.prompt is not None
     # Scenery hotspots are painted into the backdrop at stated regions; sprite
     # hotspots never appear in it by name — their clearance zones are anonymous.
-    assert "Great brass clock" in backdrop.card.prompt
-    assert "Tin lantern" in backdrop.card.prompt
-    assert "Dust sheet" not in backdrop.card.prompt
-    assert "music box" not in backdrop.card.prompt.lower()
-    sprite = graph.node("hotspot-dust_sheet-generate")
-    assert sprite.params == {"hotspot_id": "dust_sheet"}
+    assert "The paper moon" in backdrop.card.prompt
+    assert "The red button" in backdrop.card.prompt
+    assert "The carton on the gallery" not in backdrop.card.prompt
+    assert "cardboard carton" not in backdrop.card.prompt.lower()
+    sprite = graph.node("hotspot-gallery_carton-generate")
+    assert sprite.params == {"hotspot_id": "gallery_carton"}
     assert sprite.template_id == "hotspot-pipeline@v1"
-    assert sprite.port("image").artifact_ref == "assets/hotspots/dust_sheet.png"
+    assert sprite.port("image").artifact_ref == "assets/hotspots/gallery_carton.png"
     # Scenery hotspots get no sprite nodes at all.
-    assert all(node.node_id != "hotspot-workbench-generate" for node in graph.nodes)
+    assert all(node.node_id != "hotspot-six_figures-generate" for node in graph.nodes)
 
 
 def test_every_image_node_seals_its_exact_capability_first_route() -> None:
-    resolved = _resolved_attic()
+    resolved = _resolved_room()
     config = StageGenConfig()
     profile = room_graph_profile(config)
     graph = build_pointclick_room_graph(resolved, profile=profile, config=config)
@@ -200,7 +203,7 @@ def test_every_image_node_seals_its_exact_capability_first_route() -> None:
 
 
 def test_one_provider_override_moves_every_image_route_to_fal() -> None:
-    resolved = _resolved_attic()
+    resolved = _resolved_room()
     config = StageGenConfig(image_provider_override=ImageProvider.FAL)
     graph = build_pointclick_room_graph(
         resolved,
@@ -217,7 +220,7 @@ def test_one_provider_override_moves_every_image_route_to_fal() -> None:
 
 
 def test_an_unsupported_provider_override_refuses_without_fallback() -> None:
-    resolved = _resolved_attic()
+    resolved = _resolved_room()
     config = StageGenConfig(image_provider_override=ImageProvider.OPENROUTER)
 
     with pytest.raises(RouteResolutionError, match="not an allowed exact size"):
@@ -237,7 +240,7 @@ def test_the_authored_cover_conditions_every_generated_image() -> None:
     assets drawn against a reference that no longer exists.
     """
 
-    resolved = _resolved_attic()
+    resolved = _resolved_room()
     cover = resolved.style_references[0]
     assert cover.source == "references/cover.png"
     assert cover.data[:8] == b"\x89PNG\r\n\x1a\n"
@@ -266,14 +269,14 @@ def test_the_authored_cover_conditions_every_generated_image() -> None:
 def test_a_reference_that_no_longer_matches_its_digest_is_refused(tmp_path: Path) -> None:
     package = tmp_path / "room"
     (package / "references").mkdir(parents=True)
-    (package / "room.toml").write_bytes((ATTIC / "room.toml").read_bytes())
+    (package / "room.toml").write_bytes((ROOM / "room.toml").read_bytes())
     (package / "references/cover.png").write_bytes(b"\x89PNG\r\n\x1a\nnot the reviewed bytes")
     with pytest.raises(ValueError, match="does not match its authored digest"):
         resolve_pointclick_room(read_room_document(package), root=package)
 
 
 def test_a_style_naming_an_undeclared_reference_is_refused() -> None:
-    document = _attic_document()
+    document = _room_document()
     document["style"]["reference_ids"] = ["some_other_concept"]
     with pytest.raises(ValueError, match="unknown reference ids"):
         PointClickRoom.model_validate(document)
@@ -284,7 +287,7 @@ def test_dry_run_and_view_round_trip(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     run = asyncio.run(
         executor.dry_run(
-            ATTIC,
+            ROOM,
             run_dir=run_dir,
             cache_dir=tmp_path / "cache",
             invocation_id="room-test",
@@ -295,7 +298,7 @@ def test_dry_run_and_view_round_trip(tmp_path: Path) -> None:
     assert view.kind == "pointclick-room-execution-view-v1"
     assert view.schema_version == 3
     assert view.recipe == "pointclick-room"
-    assert view.room_id == "clockmakers_attic"
+    assert view.room_id == "e1_window"
     assert view.run_state == "succeeded"
     assert view.gaps == ()
     by_id = {node.node_id: node for node in view.nodes}
@@ -315,7 +318,7 @@ def test_live_run_requires_the_image_provider_sealed_by_the_plan(tmp_path: Path)
     with pytest.raises(ConfigError, match="OPENAI_API_KEY"):
         asyncio.run(
             executor.run(
-                ATTIC,
+                ROOM,
                 run_dir=run_dir,
                 cache_dir=tmp_path / "cache",
                 invocation_id="room-route-credential-test",

@@ -242,7 +242,7 @@ def test_registered_component_cli_surfaces_reject_symlinked_sources(
 
 def test_character_profile_cli_rejects_a_symlinked_source(tmp_path: Path) -> None:
     repository = Path(__file__).resolve().parents[2]
-    external_profile = repository / "godot/legacy/inputs/larkfield/characters/nao.toml"
+    external_profile = repository / "godot/legacy/inputs/the_grain/characters/lydia.toml"
     workspace = tmp_path / "workspace"
     source = workspace / "character.toml"
     source.parent.mkdir(parents=True)

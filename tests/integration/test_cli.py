@@ -169,8 +169,8 @@ def test_character_profile_cli_validate_digest_help_and_errors(
     capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
     repository = Path(__file__).resolve().parents[2]
-    package = repository / "godot/legacy/inputs/larkfield"
-    profile = package / "characters/nao.toml"
+    package = repository / "godot/legacy/inputs/the_grain"
+    profile = package / "characters/ruth.toml"
     validate_output = StringIO()
     assert (
         main(
@@ -190,14 +190,14 @@ def test_character_profile_cli_validate_digest_help_and_errors(
     assert validated == {
         "binding": {
             "kind": "character-profile-binding-v1",
-            "ref": "characters/nao.toml",
+            "ref": "characters/ruth.toml",
             "schema_version": 1,
             "source_sha256": validated["source_sha256"],
         },
         "canonical_bytes": validated["canonical_bytes"],
         "canonical_sha256": validated["canonical_sha256"],
         "kind": "resolved-character-profile-v1",
-        "profile_id": "nao-kirishima",
+        "profile_id": "ruth-ellery",
         "resolution_version": "character-profile-library-resolution-v1",
         "revision": 1,
         "rights_status": "unreviewed",
@@ -654,30 +654,38 @@ def test_generate_speech_refuses_a_non_mp3_output_before_any_runtime(
 
 def test_scenario_cli_proves_the_shipped_scenario_without_touching_a_provider() -> None:
     repository = Path(__file__).resolve().parents[2]
-    package = repository / "godot/legacy/inputs/larkfield"
+    package = repository / "godot/legacy/inputs/the_grain"
     output = StringIO()
 
     assert main(["scenario", "check", "--input", str(package)], stdout=output) == 0
 
     report = json.loads(output.getvalue())
-    # The catalog is checked whole; larkfield holds one scenario today.
-    assert report["game_id"] == "larkfield"
-    assert [entry["scenario_id"] for entry in report["scenarios"]] == ["last_class"]
-    scenario = report["scenarios"][0]
-    assert scenario["admitted"] is True
-    # Four endings, each with one shortest route as evidence.
-    assert set(scenario["endings"]) == {"broadcast", "talked", "listened", "locked_out"}
-    assert scenario["endings"]["broadcast"][0] == "arrival"
-    assert scenario["endings"]["broadcast"][-1] == "ending_broadcast"
+    # Admission covers the retained game's whole catalog, including every ending.
+    assert report["game_id"] == "the_grain"
+    scenarios = {entry["scenario_id"]: entry for entry in report["scenarios"]}
+    assert set(scenarios) == {
+        "e1_office",
+        "e1_way_in",
+        "e1_table",
+        "e1_coffee",
+        "e1_the_court",
+        "e1_statements",
+    }
+    assert all(scenario["admitted"] for scenario in scenarios.values())
+    assert all(scenario["endings"] for scenario in scenarios.values())
+    way_in = scenarios["e1_way_in"]
+    assert set(way_in["endings"]) == {"first_bell"}
+    assert way_in["endings"]["first_bell"][0] == "the_service_door"
+    assert way_in["endings"]["first_bell"][-1] == "the_first_bell"
 
 
 def test_scenario_cli_refuses_a_script_that_drifted_from_its_digest(
     capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
     repository = Path(__file__).resolve().parents[2]
-    package = tmp_path / "larkfield"
-    shutil.copytree(repository / "godot/legacy/inputs/larkfield", package)
-    script = package / "scenarios/last_class.scenario"
+    package = tmp_path / "the_grain"
+    shutil.copytree(repository / "godot/legacy/inputs/the_grain", package)
+    script = package / "scenarios/e1_way_in.scenario"
     script.write_text(script.read_text(encoding="utf-8") + '\n"Extra."\n', encoding="utf-8")
 
     assert main(["scenario", "check", "--input", str(package)], stdout=StringIO()) != 0
@@ -690,12 +698,12 @@ def test_scenario_cli_repairs_the_digest_but_still_proves_the_narrative(
     """Repairing a digest must not be a way to bless prose the proof would refuse."""
 
     repository = Path(__file__).resolve().parents[2]
-    package = tmp_path / "larkfield"
-    shutil.copytree(repository / "godot/legacy/inputs/larkfield", package)
-    script = package / "scenarios/last_class.scenario"
+    package = tmp_path / "the_grain"
+    shutil.copytree(repository / "godot/legacy/inputs/the_grain", package)
+    script = package / "scenarios/e1_way_in.scenario"
     original = script.read_text(encoding="utf-8")
 
-    script.write_text(original + "\n\nlabel orphan:\n    end talked\n", encoding="utf-8")
+    script.write_text(original + "\n\nlabel orphan:\n    end first_bell\n", encoding="utf-8")
     assert (
         main(
             ["scenario", "check", "--input", str(package), "--write-digest"],
@@ -705,14 +713,16 @@ def test_scenario_cli_repairs_the_digest_but_still_proves_the_narrative(
     )
     assert "labels no path reaches: orphan" in capsys.readouterr().err
 
-    script.write_text(original.replace("hot dust", "dust"), encoding="utf-8")
+    script.write_text(
+        original.replace("one clean note at a time", "one clear note at a time"), encoding="utf-8"
+    )
     output = StringIO()
     assert (
         main(["scenario", "check", "--input", str(package), "--write-digest"], stdout=output) == 0
     )
     repaired = json.loads(output.getvalue())
-    declarations = (package / "scenarios/last_class.toml").read_text(encoding="utf-8")
-    assert repaired["last_class"] in declarations
+    declarations = (package / "scenarios/e1_way_in.toml").read_text(encoding="utf-8")
+    assert repaired["e1_way_in"] in declarations
 
 
 def test_universe_cli_dry_runs_both_phases_and_re_renders_its_page(
@@ -1074,7 +1084,7 @@ def test_a_dry_run_accepts_a_run_and_cache_root_under_a_symlinked_directory(
     real.mkdir()
     link = tmp_path / "link"
     link.symlink_to(real, target_is_directory=True)
-    room = Path(__file__).resolve().parents[2] / "godot" / "legacy" / "inputs" / "clockmakers_attic"
+    room = Path(__file__).resolve().parents[2] / "godot/legacy/inputs/the_grain/rooms/motor_court"
     stdout = StringIO()
     assert (
         main(
@@ -1087,7 +1097,7 @@ def test_a_dry_run_accepts_a_run_and_cache_root_under_a_symlinked_directory(
                 "--cache-dir",
                 str(link / "cache"),
                 "--output",
-                str(link / "attic"),
+                str(link / "room"),
             ],
             stdout=stdout,
         )
@@ -1095,5 +1105,5 @@ def test_a_dry_run_accepts_a_run_and_cache_root_under_a_symlinked_directory(
     )
     report = json.loads(stdout.getvalue())
     assert report["ok"] is True
-    assert report["run_dir"] == str((real / "attic").resolve())
+    assert report["run_dir"] == str((real / "room").resolve())
     assert (real / "cache").is_dir()

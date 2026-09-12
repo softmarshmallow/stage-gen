@@ -90,20 +90,13 @@ def test_offline_gate_removes_provider_credentials_and_lists_required_checks() -
     assert suite[0][2] == "--run", "the Godot suite is not pointed at the fixture"
     assert suite[0][3] == fixture[0][2], "the suite reads a different run than the gate wrote"
     assert ("python", "godot/legacy/tools/validate_game_package.py", "--root", ".") in commands
-    # Every other package in the library plans offline too, as a dry run into
+    # Every remaining demo family plans offline too, as a dry run into
     # scratch, or as the offline proof its recipe offers.
     joined = [" ".join(command) for command in commands]
     assert any(
         c.startswith(
             "stage-gen legacy pointclick-room generate --input "
-            "godot/legacy/inputs/clockmakers_attic --dry-run"
-        )
-        for c in joined
-    )
-    assert any(
-        c.startswith(
-            "stage-gen legacy dialogue-scene generate --input "
-            "godot/legacy/inputs/larkfield --dry-run"
+            "godot/legacy/inputs/the_grain/rooms/window --dry-run"
         )
         for c in joined
     )

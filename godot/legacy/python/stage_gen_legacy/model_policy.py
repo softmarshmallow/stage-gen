@@ -52,9 +52,9 @@ def build_repository_model_policy_projection(
     provider = ImageProvider(image_provider)
     config = StageGenConfig(image_provider_override=provider)
     fixture_by_recipe = {
-        "dialogue_scene": "godot/legacy/inputs/larkfield",
+        "dialogue_scene": "godot/legacy/inputs/the_grain",
         "oblique_survival": "godot/legacy/inputs/ember-hollow",
-        "pointclick_room": "godot/legacy/inputs/clockmakers_attic",
+        "pointclick_room": "godot/legacy/inputs/the_grain/rooms/window",
         "sideview_platformer": "godot/legacy/inputs/bellweather",
         "sideview_runner": "godot/legacy/inputs/iron-petal-unit",
         "storefront": "godot/legacy/inputs/ember-hollow",

@@ -423,17 +423,17 @@
           "route_id": "image.sunburst.openai.images.edit"
         }
       ],
-      "estimated_cost_high_usd": 7.46,
-      "estimated_cost_low_usd": 3.575,
-      "fixture_ref": "godot/legacy/inputs/larkfield",
+      "estimated_cost_high_usd": 15.91,
+      "estimated_cost_low_usd": 8.92,
+      "fixture_ref": "godot/legacy/inputs/the_grain",
       "graph_kind": "dialogue-scene-execution-graph-v6",
       "graph_schema_version": 6,
-      "graph_sha256": "f3e44ecd6ee0be0e7a70ca0e0d02c928ab92afcb29c0150ce8e436fb486f1372",
+      "graph_sha256": "697f8a78ae0cdd807924caa4615687a258c2b07f0e571cae3b7cf7dd0792506d",
       "nodes": [
         {
           "binding_ref": null,
           "cache_depends_on": [],
-          "cache_key": "191403675170ddd8c2dac38cc6f6eb1053793998fcdafd140c17f7f723cde615",
+          "cache_key": "c5cda0caeaac3a4dad40b2e753e206dd64df28e7a977203ac4bade6f53a8c9c7",
           "consumer_structure_fingerprint": "f1b07380d9f1b2bb85dd8f6111f8eae00dfbc34473c6bed007c48b2fca57d5b4",
           "depends_on": [],
           "estimated_cost_high_usd": 0.0,
@@ -447,21 +447,101 @@
           "cache_depends_on": [
             "scene-request"
           ],
-          "cache_key": "dd163e17eef23a12267aeb9859c9724d029bba1f6f739b5ef9832a2bb1f0a670",
-          "consumer_structure_fingerprint": "973570f714f290d9bc9c0d1f990987fadaccf65fae921d6e0b48e32f9ae8a4e4",
+          "cache_key": "3cbe1ab0c51e72d921124c4df12648d9a68a6e03b8843521189808bc49779a17",
+          "consumer_structure_fingerprint": "5f33c723da5bb2d54afc59abe2622e0388055efa4ce2497f3bdfb6bf861afef2",
           "depends_on": [
             "scene-request"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "scenario-last-class",
+          "node_id": "scenario-e1-office",
           "operation": "local",
-          "structural_fingerprint": "b10bf58478c40e78b97d64658ac7bbd71ae6a75a2d635310444786c4f30189a3"
+          "structural_fingerprint": "0850ca08c9640bffa314c3a1ee3b3f96094bb5da54e693538bd061bfaa9ea0b7"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "scene-request"
+          ],
+          "cache_key": "03751870aae98469435619504145046b7338a2aea5f0dd9e3dbcede78a713251",
+          "consumer_structure_fingerprint": "57b13a59da3aa8c67f0cab029cd7e4748892a23b4afd6b712ee42cfcdb17ad3f",
+          "depends_on": [
+            "scene-request"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "scenario-e1-way-in",
+          "operation": "local",
+          "structural_fingerprint": "62db08c47097bae3d190ae56790fa02a5edb695cf4e09844b6a1e8c1b3d095d9"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "scene-request"
+          ],
+          "cache_key": "812f29d8e4de14bbbe3ece2edc0e05af414e0df2d7e68a567e7e9241572c9a76",
+          "consumer_structure_fingerprint": "44c45003da3a08bdbde4607d5a3064b4e19b1e302bd021d079a4f17dfe2d5dc2",
+          "depends_on": [
+            "scene-request"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "scenario-e1-table",
+          "operation": "local",
+          "structural_fingerprint": "2bfc9db00d53389f81a1785e67139e73f712cb2d1e8007e0a4e28aca504cd982"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "scene-request"
+          ],
+          "cache_key": "92056c57d8430e45c6b771ada81c54ea798247f5a1165b17b287cd0296b00b9f",
+          "consumer_structure_fingerprint": "d85f0013defa7134a0f662f0352d9fd1bc54959fb058073fd53797f2c1154cf4",
+          "depends_on": [
+            "scene-request"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "scenario-e1-coffee",
+          "operation": "local",
+          "structural_fingerprint": "08cf6eef4c20ce723c5bdc30be0fd626c0d31163b1a631aa321b7fefcb99121f"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "scene-request"
+          ],
+          "cache_key": "fb94d6086c5df728115d0081324b714064921e0808529f3642cd795f9c5342ef",
+          "consumer_structure_fingerprint": "8344ba8ca510c4ff8e5782db9a8a2842a87c4c00f340525f10576669f6e52a57",
+          "depends_on": [
+            "scene-request"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "scenario-e1-the-court",
+          "operation": "local",
+          "structural_fingerprint": "3fecf302005897bb3df81ab38f07780e5a70f207a1ddac6356cfd5e28b319a69"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "scene-request"
+          ],
+          "cache_key": "f92f7f04a258c212761353611ce14daf2d884e16d8cef9a7dd1c4d06c6c80685",
+          "consumer_structure_fingerprint": "d6370c2fd0d254492bf41c562e1b457f32fba559d56aff1b1f4a447b68c946df",
+          "depends_on": [
+            "scene-request"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "scenario-e1-statements",
+          "operation": "local",
+          "structural_fingerprint": "d87e7a83173b73490d06b716e61a4cc9c2930870200587723063f92c6e28a90c"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [],
-          "cache_key": "9077be8c94a5907b8721e3ef1d51f084f3aaeb95c8c2227e32399c5065f5488a",
+          "cache_key": "ce1cf9768831da9e114b6ee8fd1a47c01478346a5f57fccf80a19c3290ed1f73",
           "consumer_structure_fingerprint": "c950df5f75226074b6d1d58eea06358f46d7224dedd2c907d4fd4f9158af2a6c",
           "depends_on": [
             "scene-request"
@@ -477,7 +557,7 @@
           "cache_depends_on": [
             "scene-style-select"
           ],
-          "cache_key": "517f3179f659329c6713a901d650ae187a495038df755ab65126dac39f04e275",
+          "cache_key": "252fe81bb0e4a9dcf54993124f899ff8c9bf61b3ebd8db2c7b5fa883128ee164",
           "consumer_structure_fingerprint": "299c7cad7157ba9e106371c905b716766cb0b18f33b4e5ee247c5e5087d7b4d4",
           "depends_on": [
             "scene-style-select"
@@ -493,587 +573,1565 @@
           "cache_depends_on": [
             "scene-style-plate"
           ],
-          "cache_key": "fe9951f51e3f5f29da1dace6fc07360673db262f08c0dc0f71f9d330ec841201",
-          "consumer_structure_fingerprint": "6d981c274024e26ba1349c4d4ee0c26aca01d2288ed637b211700bc2808c9650",
+          "cache_key": "c1377d50ad6a938d2a97c912cdc6a28cc62e6031bcc3db3cba96795df9392f2f",
+          "consumer_structure_fingerprint": "57e8888ca294067e4c558e80caeb607b78d3728efadca9e20e49e09ce1702668",
           "depends_on": [
             "scene-style-plate"
           ],
           "estimated_cost_high_usd": 0.25,
           "estimated_cost_low_usd": 0.18,
-          "node_id": "stage-classroom-day",
+          "node_id": "stage-calder-office-late-afternoon",
           "operation": "image_generation",
-          "structural_fingerprint": "add5f1a3dff14885e28e46ccf351ebec8b8d5e4cf87c66c3c6bfd850b796a2ba"
+          "structural_fingerprint": "57e93b236bfc68b38c1a2d7b318220f95701bf04cebb2724154a2ac838b92b8c"
         },
         {
           "binding_ref": "d73ffbe9b9b7587c94c2275cfd3cc57e3bc3700518fadda716e695061b917980",
           "cache_depends_on": [
             "scene-style-plate"
           ],
-          "cache_key": "4970f8dd6a239b8eb0e7c3163c90ec182697ea94f7dec9a4b2deb442f90ce7d9",
-          "consumer_structure_fingerprint": "6beb5a262e235c133e996fe38a174a1a94e7cfa6309307f2d06bd526103c83c8",
+          "cache_key": "63e86fb5b8ff7a4058fb8c0cc0bb32d1c3f1f0ed83375500c0918babbe0a65e6",
+          "consumer_structure_fingerprint": "c46730d7db660b2b733934cf442be30f1b8012f23bb876707912d791711a5365",
           "depends_on": [
             "scene-style-plate"
           ],
           "estimated_cost_high_usd": 0.25,
           "estimated_cost_low_usd": 0.18,
-          "node_id": "stage-classroom-dusk",
+          "node_id": "stage-tollands-motor-court",
           "operation": "image_generation",
-          "structural_fingerprint": "654741128d37097d21d6cd4728ff3252349ead8135e9f0f78f67119af6937053"
+          "structural_fingerprint": "b32b667221144c4b6ea49a39d04bc7e0252dfb6643a09edca51dab79c8453f2f"
         },
         {
           "binding_ref": "d73ffbe9b9b7587c94c2275cfd3cc57e3bc3700518fadda716e695061b917980",
           "cache_depends_on": [
             "scene-style-plate"
           ],
-          "cache_key": "a95a8268c0b2613c9e5ceec9a2d934c3808a08cafaaa069cbae95da53049ae49",
-          "consumer_structure_fingerprint": "6b4cb88e033900a8095172ebe25e1007508bdffca8b2a03f8ed200b6faaaba4b",
+          "cache_key": "c42ca316b9bcd1f641f5216c967383ddd482bf6361d72af1a2701f35b1213c31",
+          "consumer_structure_fingerprint": "07e2585b72e4ecc34b5732df12ea362c7f9f117c1b198f7f8fb29511004245f9",
           "depends_on": [
             "scene-style-plate"
           ],
           "estimated_cost_high_usd": 0.25,
           "estimated_cost_low_usd": 0.18,
-          "node_id": "stage-radio-room",
+          "node_id": "stage-tollands-cosmetics-floor",
           "operation": "image_generation",
-          "structural_fingerprint": "d1eca1275f8b871567529f1b29cc51ce0b70b87a3e4bfd3625cf5d5880d9e3d7"
+          "structural_fingerprint": "5d99ded2bceb59af793942e381a361410294a3394d945bf62b3f54f4f2e0d6d4"
+        },
+        {
+          "binding_ref": "d73ffbe9b9b7587c94c2275cfd3cc57e3bc3700518fadda716e695061b917980",
+          "cache_depends_on": [
+            "scene-style-plate"
+          ],
+          "cache_key": "4612a898b6eee90e5f0b3a5242f34b88538be8e9a796395e7f46a149b63659f1",
+          "consumer_structure_fingerprint": "6eac14257539b7aa36026532c14f5e63f911ec090bd1cd002e3e23f30d63ff35",
+          "depends_on": [
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "stage-service-lift",
+          "operation": "image_generation",
+          "structural_fingerprint": "f365e6c670f7e5590ba9ea275194e985ec47e7cbc0e7aff56feeb11faba2b98d"
+        },
+        {
+          "binding_ref": "d73ffbe9b9b7587c94c2275cfd3cc57e3bc3700518fadda716e695061b917980",
+          "cache_depends_on": [
+            "scene-style-plate"
+          ],
+          "cache_key": "a69f59004d2066baf4e1c6859fd769150eb289e1c8bb0af880f8d4fde333aadd",
+          "consumer_structure_fingerprint": "6a53a3704b4975d70a1af68c3d569cba788a75a8c1d13ecc7d14babdec979c3f",
+          "depends_on": [
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "stage-winter-room-evening",
+          "operation": "image_generation",
+          "structural_fingerprint": "6869eb87e00efe742f29e58efcc0b8b947690a650930017eb5f641372b02a69f"
+        },
+        {
+          "binding_ref": "d73ffbe9b9b7587c94c2275cfd3cc57e3bc3700518fadda716e695061b917980",
+          "cache_depends_on": [
+            "scene-style-plate"
+          ],
+          "cache_key": "13e30c1b7ae2a6e7ec49d7bf21f43306f5d2045ef84f8893a102c884921851de",
+          "consumer_structure_fingerprint": "2dec0436aa0fd82062d2e1b0df33566299158eda2555065e9893ee7a0284ff3a",
+          "depends_on": [
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "stage-winter-room-roof-panel",
+          "operation": "image_generation",
+          "structural_fingerprint": "7a4d5943a8d34b3188209bb1713ba96142d775fa4e7ee4ae3d7699a96f70b725"
+        },
+        {
+          "binding_ref": "d73ffbe9b9b7587c94c2275cfd3cc57e3bc3700518fadda716e695061b917980",
+          "cache_depends_on": [
+            "scene-style-plate"
+          ],
+          "cache_key": "9ffb86b62862e84c276e2070c1e6f7da785c3513afd965356782973b063affe2",
+          "consumer_structure_fingerprint": "3e510cdf2780f3e0bf56cb5a77e993cb8f2ba50b6e45af26a28b586baecf0fe9",
+          "depends_on": [
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "stage-service-bar",
+          "operation": "image_generation",
+          "structural_fingerprint": "3900ef8713cee3ef53407f3b3da7d0684113939a4a595300a0abc696ebaca9b9"
+        },
+        {
+          "binding_ref": "d73ffbe9b9b7587c94c2275cfd3cc57e3bc3700518fadda716e695061b917980",
+          "cache_depends_on": [
+            "scene-style-plate"
+          ],
+          "cache_key": "a9d3c22c7efc63183f3a3e9071bd702710ab409000aa342db2addf874aba3c1a",
+          "consumer_structure_fingerprint": "269c7097ca2752932c526198caf94b00891551323936743f8f7b9a8bf140e401",
+          "depends_on": [
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "stage-motor-court-police",
+          "operation": "image_generation",
+          "structural_fingerprint": "ad241ec42ee259f3ce4ce020b3112aa1d5e20caabcbbd6b4cfce354ffe708ade"
+        },
+        {
+          "binding_ref": "d73ffbe9b9b7587c94c2275cfd3cc57e3bc3700518fadda716e695061b917980",
+          "cache_depends_on": [
+            "scene-style-plate"
+          ],
+          "cache_key": "103e8af38d6a27e941c7310ffcafaa31867d79e99459a6e80485f0922810880b",
+          "consumer_structure_fingerprint": "6d290b66e04e2b54df1d6a0d067fd367457eaac29d5ded950f89657b94da7b57",
+          "depends_on": [
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "stage-winter-room-after-police",
+          "operation": "image_generation",
+          "structural_fingerprint": "61f8a6fb8bceb1c5415dafc8ae78098a1af0d1e97cd83c88c0eb4baa95af01fc"
+        },
+        {
+          "binding_ref": "d73ffbe9b9b7587c94c2275cfd3cc57e3bc3700518fadda716e695061b917980",
+          "cache_depends_on": [
+            "scene-style-plate"
+          ],
+          "cache_key": "663244534d21c9b61837812df64872cf9548921b94340322921017656ef808a2",
+          "consumer_structure_fingerprint": "8f49127ced4ef1575ed5838ba718f4964c3b324777a51ea8e94bad21c3d5c041",
+          "depends_on": [
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "stage-private-dining-room",
+          "operation": "image_generation",
+          "structural_fingerprint": "9f45cd364dbfc461c1a53fb365bea28cd7095dbc6a87f3718e302c227ce7c9a8"
+        },
+        {
+          "binding_ref": "d73ffbe9b9b7587c94c2275cfd3cc57e3bc3700518fadda716e695061b917980",
+          "cache_depends_on": [
+            "scene-style-plate"
+          ],
+          "cache_key": "1bc4ea2974ef5e941e3e809c55a7b47a66e42a29ac18bc00e93a13e2c8a8b7f2",
+          "consumer_structure_fingerprint": "3b2848d4be141eecd7d706b158cbce7977788b9deddb2a70f127b49310dcc9ec",
+          "depends_on": [
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "stage-passenger-elevators",
+          "operation": "image_generation",
+          "structural_fingerprint": "06f4e686a85810709868ac8147fdc8d5ceabbc81f0ad8dc581d2136b6de101b1"
+        },
+        {
+          "binding_ref": "d73ffbe9b9b7587c94c2275cfd3cc57e3bc3700518fadda716e695061b917980",
+          "cache_depends_on": [
+            "scene-style-plate"
+          ],
+          "cache_key": "c1630ec397821130cb8baf7d351300bbcca5c7a3cd7885fdc642012a06c374c7",
+          "consumer_structure_fingerprint": "2d7e9cfd5d9a2cb0fc978c8af8f0cb02000567ccab3145e96f81b5c049feffaa",
+          "depends_on": [
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "stage-motor-court-screened",
+          "operation": "image_generation",
+          "structural_fingerprint": "8feb5be47d8d97d5ba651ef3c4b084d2372f7c723fd5f599bc5c2eac24053d0c"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
             "scene-style-plate"
           ],
-          "cache_key": "44f65ab07aa5bc1a528eba0d1c1e7a8b32a8686a4980abb1c4900579a94fce03",
-          "consumer_structure_fingerprint": "30ca80a30975e43f9b293b4641268c86838631cd806c9901f2eecb6f1eab450b",
+          "cache_key": "3fe3fd11ebcf3d3e1ee5d2e3cc1059541c87835457404bbfa424453319f9c4a4",
+          "consumer_structure_fingerprint": "8dfcd4e81dee10e79d6e7b29429c645b42479e9cb6af35f8b29a58dcc529532d",
           "depends_on": [
             "scene-style-plate"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "actor-nao-profile",
+          "node_id": "actor-ruth-profile",
           "operation": "local",
-          "structural_fingerprint": "1fbf005091a9392ecca27154369b3f280f2ac1d509b090a5f4436776298d6eed"
+          "structural_fingerprint": "4dc424b99754ddf75416edecb76380b01ce30ccaf99dd2d6bddb1b6a52f69f0a"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "actor-nao-profile",
+            "actor-ruth-profile",
             "scene-style-plate"
           ],
-          "cache_key": "75be999b6428790f9765837d3102b37ce4e671effa366487e60afb20ec0b5420",
-          "consumer_structure_fingerprint": "871385c8f8f8e66cea1bd73333adcc73d5e79536a63cc36848f15026748a4177",
+          "cache_key": "7af5976119a99e45c7ed54abba522dca76c8e5c61c492fe0a4fe0a7625a612b0",
+          "consumer_structure_fingerprint": "99e97c40d3caa14e56965cceb34ea70d1f999e2d8ebb379913dc4e32a89c8205",
           "depends_on": [
-            "actor-nao-profile",
+            "actor-ruth-profile",
             "scene-style-plate"
           ],
           "estimated_cost_high_usd": 0.08,
           "estimated_cost_low_usd": 0.005,
-          "node_id": "actor-nao-plan",
+          "node_id": "actor-ruth-plan",
           "operation": "structured_generation",
-          "structural_fingerprint": "ed06e12df57e7e384e06f3167e36f9a7247b9d3c8fdf2041ca496aa4b90580c5"
+          "structural_fingerprint": "62eba72c9e5bc6e745a681d79a4d03aa684f4a41a7c8fc2f6104cd71bb680564"
         },
         {
           "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
           "cache_depends_on": [
-            "actor-nao-plan",
+            "actor-ruth-plan",
             "scene-style-plate"
           ],
-          "cache_key": "896b3162b1e4fe803285ae03f0e2e7dbd017e6d407ac97ae7a28e41e92e0a123",
-          "consumer_structure_fingerprint": "15b7beefa9eeb52cb52270a46cbac064a0952353cc4b2dd179b7711024ed849c",
+          "cache_key": "cc87f6ec677caf9c2b01b463ae89b6d7aa9da95fb90401c4bdac905f72844721",
+          "consumer_structure_fingerprint": "21b10de301ef50e42a13064abef3b6971f3258d0f728342c08fde236b3ee913e",
           "depends_on": [
-            "actor-nao-plan",
+            "actor-ruth-plan",
             "scene-style-plate"
           ],
           "estimated_cost_high_usd": 0.25,
           "estimated_cost_low_usd": 0.18,
-          "node_id": "actor-nao-neutral",
+          "node_id": "actor-ruth-composed",
           "operation": "image_generation",
-          "structural_fingerprint": "1eb838b22ac3165db93a39f3b990949755cd7e586cf9cac12c7bdb7724f4e173"
+          "structural_fingerprint": "a3719a126ce185f8b99100c7ad9ef38fb001adfb01d35682e8cd75f6971ea4c9"
         },
         {
           "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
           "cache_depends_on": [
-            "actor-nao-neutral"
+            "actor-ruth-composed"
           ],
-          "cache_key": "4025a52a8eca1095f5966aaec16c2e68afb144effdb8fc93a402929560cd47dd",
-          "consumer_structure_fingerprint": "e6bb2ec4a21f1f76a3025f2eef12a780f6f62d49b09bf6314edcb6bfc83d404d",
+          "cache_key": "b6321ec4c824a2b3d66a159f0dfbe397adec41e8837047d149bf1005f1e8f6c2",
+          "consumer_structure_fingerprint": "39038ec2c5bd106fbdd4e3af2762f868e16c36c3b9f7087f9f1035f867c1bf1f",
           "depends_on": [
-            "actor-nao-neutral"
+            "actor-ruth-composed"
           ],
           "estimated_cost_high_usd": 0.25,
           "estimated_cost_low_usd": 0.18,
-          "node_id": "actor-nao-delighted",
+          "node_id": "actor-ruth-dry",
           "operation": "image_generation",
-          "structural_fingerprint": "8fc412b8bfabe4c0107c1c5f66a7c45735e60f017b664bc897744eb82ee3d89a"
+          "structural_fingerprint": "68147c1ed4c04e6291b3ded27294306551f81e21d09a1fca1b2b8a6c28d36b95"
         },
         {
           "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
           "cache_depends_on": [
-            "actor-nao-neutral"
+            "actor-ruth-composed"
           ],
-          "cache_key": "5df15b2537a597cf6f9a0f8d1a1a224a3b04d7aa3e93142fba23f07287fb7fba",
-          "consumer_structure_fingerprint": "4d987cc475ac096b17574e7fc347b060f35a0e2fbab623a420c1d9d25632cdec",
+          "cache_key": "41462595f5bddb7f8e85de5821af27a1c58b22bfbfc961dca643fd1de51597ba",
+          "consumer_structure_fingerprint": "73787deb32f7a361c680f26e174faf624798f58b290b8cf40a194c8e817221e9",
           "depends_on": [
-            "actor-nao-neutral"
+            "actor-ruth-composed"
           ],
           "estimated_cost_high_usd": 0.25,
           "estimated_cost_low_usd": 0.18,
-          "node_id": "actor-nao-flustered",
+          "node_id": "actor-ruth-exposed",
           "operation": "image_generation",
-          "structural_fingerprint": "8e695f738a58881952c017ce989154a39f53e0618a08c063242a1a539acaf077"
+          "structural_fingerprint": "84037e5c398d34f78c8ef248c501eae94ebab2151c39446562c4c273191ec386"
         },
         {
           "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
           "cache_depends_on": [
-            "actor-nao-neutral"
+            "actor-ruth-composed"
           ],
-          "cache_key": "39a3a34e8f31d446ba69b461e1a4dac3d699f432e936e2c32c13c86a0603f1d3",
-          "consumer_structure_fingerprint": "80ecf60eeef1e13ccb9633afa278df2121ab948d18e1be2fffa3091c8700adad",
+          "cache_key": "61df9d90a5f3fdeeff7d0dfd0331fe7958de1ade0afbabb055020d48a7f09b73",
+          "consumer_structure_fingerprint": "a6fefb4fd5d5cea55d29ae588327449fd0a8913cc62a21819b868654fd775010",
           "depends_on": [
-            "actor-nao-neutral"
+            "actor-ruth-composed"
           ],
           "estimated_cost_high_usd": 0.25,
           "estimated_cost_low_usd": 0.18,
-          "node_id": "actor-nao-concerned",
+          "node_id": "actor-ruth-shut",
           "operation": "image_generation",
-          "structural_fingerprint": "4797bb72925955bdcdc694b7d0664e3bb04c2d9ee3195fbf16083529097f5ccc"
+          "structural_fingerprint": "d0531ebd7ebdc2537caa9e7909a7ca74051e7b0c68d627f8fc0e5f58034b71f2"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "actor-nao-neutral"
+            "actor-ruth-composed"
           ],
-          "cache_key": "b157759f6dfe2f5d416e50acc4e05198bfd82a4e56c36318d37587ed1e40f123",
-          "consumer_structure_fingerprint": "58847fc256cb1d428a2bc19c853257ed1cdb509c7bd898e35f9bc101cea37f91",
+          "cache_key": "c7eb9bd50a5d06c179f6c5dc29c798559238bccd1e6d6898e079d6f773d8c7a5",
+          "consumer_structure_fingerprint": "6bc56d804a911d80bd137f995df2d6f6387b936b37be13427c30dc2bb3c34d0e",
           "depends_on": [
-            "actor-nao-neutral"
+            "actor-ruth-composed"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "actor-nao-canonicalize-neutral",
+          "node_id": "actor-ruth-canonicalize-composed",
           "operation": "local",
-          "structural_fingerprint": "88193a5f19f26b49bf4ff4518cb4606a625ec682f735b3a53ea07bf204957554"
+          "structural_fingerprint": "415c9b2f5ffda84993df57fc1772ac0c502eb5541992d40e3db66a4f747f6010"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "actor-nao-delighted"
+            "actor-ruth-dry"
           ],
-          "cache_key": "580b1078c4bd011522e6aef0d2a743296f7f7ce25676b5317066cfb6aa3e87a0",
-          "consumer_structure_fingerprint": "68f39700256e420792865ceefe825cc88e51c762896c94841799399038018591",
+          "cache_key": "6219d86765ec95aa13cfc69eca8a58f7df74379d78eb0d686fb81fb11e055f49",
+          "consumer_structure_fingerprint": "d2269d74cf6ede60a21f12967528852555b05a3926fbfd9514428e74ce5f234d",
           "depends_on": [
-            "actor-nao-delighted"
+            "actor-ruth-dry"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "actor-nao-canonicalize-delighted",
+          "node_id": "actor-ruth-canonicalize-dry",
           "operation": "local",
-          "structural_fingerprint": "baac2697d1e65c32682747fdc98e0c10419fbe3369963109ce086f0b25375ae4"
+          "structural_fingerprint": "ab4d1aafdec113f0913a4d5af7f909759684ee4e484b3760382705bed4ff969b"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "actor-nao-flustered"
+            "actor-ruth-exposed"
           ],
-          "cache_key": "823f5ebbf9eb75636a731ae6005fa9c8a677f4ff610a24c0ddef337e689388ed",
-          "consumer_structure_fingerprint": "ad7c65af71338567d9b35dcdb34bb6db7577a417a7418e6a4d26779e5ddca523",
+          "cache_key": "3cf26e03facfdfb7085528984637419ef5b443f3c23a4f312ea999e10dcd9e26",
+          "consumer_structure_fingerprint": "a09ee4d23e08dc76871fb3101ad6ee4a0d08ea6861b3928fd620d756d1ba4520",
           "depends_on": [
-            "actor-nao-flustered"
+            "actor-ruth-exposed"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "actor-nao-canonicalize-flustered",
+          "node_id": "actor-ruth-canonicalize-exposed",
           "operation": "local",
-          "structural_fingerprint": "b433ceba2275c60a8f06a0c7991445c6ee58066ddc805408e3b156f33123b874"
+          "structural_fingerprint": "551d3e559c728f0d3eb0e526a6c1b9e6946e0a30edfea5a0b57358284c6ceb5f"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "actor-nao-concerned"
+            "actor-ruth-shut"
           ],
-          "cache_key": "df6215ca0ae4ba4e842cb6705e6f61fd3c25984347d2424293322301af96dd86",
-          "consumer_structure_fingerprint": "4dddc7474565356610e69463226179143843463d3d2b0c8bf9fa8e3839f70d86",
+          "cache_key": "fdbb5c55598debb5eb6fa568f903f3e1ddcde8f10264730eb5b30e3b8a560cda",
+          "consumer_structure_fingerprint": "7578fc80133d97cd2be565f531bbc0add0aa5afb4f1c2d791d8fcdb567d7ac45",
           "depends_on": [
-            "actor-nao-concerned"
+            "actor-ruth-shut"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "actor-nao-canonicalize-concerned",
+          "node_id": "actor-ruth-canonicalize-shut",
           "operation": "local",
-          "structural_fingerprint": "c7d0f1e8c2ca5515e3cf424599aac9d27977fc20511cd311897ef9c58f5d8bcc"
+          "structural_fingerprint": "563f668628909514c78b969f4e18ef1d2ca6093d3bdf1ebe26287fe1e1f57af9"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
             "scene-style-plate"
           ],
-          "cache_key": "2d6cdc3dc29acc41663730a8e8705c78574c8ca0a251d652d95ee32922cafd2b",
-          "consumer_structure_fingerprint": "c01d8a673401ee39b52968e4f4b0a3916b34aa35308828d9fc41764271d94cc2",
+          "cache_key": "5d42076de55cc646a8dc040b345908556fd5e054b25baddb86319845de0143d5",
+          "consumer_structure_fingerprint": "4a99670d0b0bbc12f64170f4d5e8cf48340e6edac7a13d8d5330893daa9b868d",
           "depends_on": [
             "scene-style-plate"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "actor-haruki-profile",
+          "node_id": "actor-edwin-profile",
           "operation": "local",
-          "structural_fingerprint": "9d53705eb5e2c18592beb983c7d0d88ffb3d6f9a804ad987a23d446cb135322b"
+          "structural_fingerprint": "8b7e5f378a7d1a6523b00a558858fb4a2ec7dd2dd514faadfeb2fd7bda49bff0"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "actor-haruki-profile",
+            "actor-edwin-profile",
             "scene-style-plate"
           ],
-          "cache_key": "953e9fb0bb53fa3cbdbf2e195f68e7dd793f5586379571189a7a143bbe8e6f77",
-          "consumer_structure_fingerprint": "e97f64aab70359952be40aa42182fb8e58f88656f3a40dd49f0dd08bae8cfa35",
+          "cache_key": "95473d3ffcce69d880d53f48bd8dde3f9c0c35e09d462aec4afffa1ac1d2f38c",
+          "consumer_structure_fingerprint": "d4fa3ed1418d437f69de7b2b87ae5d7748ed23694f0fde2ebcf2dab953ce6f08",
           "depends_on": [
-            "actor-haruki-profile",
+            "actor-edwin-profile",
             "scene-style-plate"
           ],
           "estimated_cost_high_usd": 0.08,
           "estimated_cost_low_usd": 0.005,
-          "node_id": "actor-haruki-plan",
+          "node_id": "actor-edwin-plan",
           "operation": "structured_generation",
-          "structural_fingerprint": "bc41c2236cec398167e50bc24880ff99547f7769bf83f124cf0449bb61ebcf33"
+          "structural_fingerprint": "4d5f0ef3c0a3124b533477ff8d4e476a2f06de763d519885d4da6f4cfe8a0fff"
         },
         {
           "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
           "cache_depends_on": [
-            "actor-haruki-plan",
+            "actor-edwin-plan",
             "scene-style-plate"
           ],
-          "cache_key": "77c6befb4c1d819d2bca760105c602dee4c4e7df2be7fd9d9ff2c5a3512e5e9d",
-          "consumer_structure_fingerprint": "c9ca4131b85978d75f4a959a20b301bfaaa02096b0cb94ae8ccf95163ef978f2",
+          "cache_key": "bc66c2c8c9c31038f4c1436f88c92ddb96cf4641712d0bea6968a36e68314d0e",
+          "consumer_structure_fingerprint": "d93dc797eb90ccb87b807132ba3f2867dafc1b797f0673d320eb8860927ac75e",
           "depends_on": [
-            "actor-haruki-plan",
+            "actor-edwin-plan",
             "scene-style-plate"
           ],
           "estimated_cost_high_usd": 0.25,
           "estimated_cost_low_usd": 0.18,
-          "node_id": "actor-haruki-neutral",
+          "node_id": "actor-edwin-formal",
           "operation": "image_generation",
-          "structural_fingerprint": "6ced6319f1947f4ae4bdcee924534f9be46d19e66ceab836aae4b4107554cd98"
+          "structural_fingerprint": "466c8a1063a3582f80371864af11e8cb0c7f1855b146257b00b35e7c2bb452ab"
         },
         {
           "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
           "cache_depends_on": [
-            "actor-haruki-neutral"
+            "actor-edwin-formal"
           ],
-          "cache_key": "e5d82f406e175411aed621e4f3c63245da6d008c7a492ff3b4dc4f1a4c4a09ba",
-          "consumer_structure_fingerprint": "48f34bf75b948cf63bd17fe0e175aba51a7eee79bd8f59ba8e0823ef23c1ad47",
+          "cache_key": "cdc87fec5f663ae950f9a22553ac3ad8e3edf8285c0ed5272df852a8fa098eb4",
+          "consumer_structure_fingerprint": "ef62f1d12934c8db85bc95d4bd79ee6ca9281eb776b48c094baee3ab2b5acf4d",
           "depends_on": [
-            "actor-haruki-neutral"
+            "actor-edwin-formal"
           ],
           "estimated_cost_high_usd": 0.25,
           "estimated_cost_low_usd": 0.18,
-          "node_id": "actor-haruki-delighted",
+          "node_id": "actor-edwin-dry",
           "operation": "image_generation",
-          "structural_fingerprint": "f6fe201e1576013b79d422e6ad5652086aea4addd7dc27a84c520d283eb262ce"
+          "structural_fingerprint": "58b2ebca5265659686168c836a502dd2f0ca1a1a6b110f6dc6000f4f65d86ada"
         },
         {
           "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
           "cache_depends_on": [
-            "actor-haruki-neutral"
+            "actor-edwin-formal"
           ],
-          "cache_key": "532fec4ffab2a3a4dbdc1a7a7c2c06c5f06e15d48c4d11d6b424b9a9fcc702b9",
-          "consumer_structure_fingerprint": "7fcf12a8fc4b0ed1ab2c694b01895cab0b43bcae8304d6fe75eafffdc865f558",
+          "cache_key": "9e14b7d4de91e0492167005c3cff8784367cd57f99795583214e395bf745c762",
+          "consumer_structure_fingerprint": "66cd655ec5f9065b8f42db3a2289523258a5ef60cb9aed0486771d909f5a8080",
           "depends_on": [
-            "actor-haruki-neutral"
+            "actor-edwin-formal"
           ],
           "estimated_cost_high_usd": 0.25,
           "estimated_cost_low_usd": 0.18,
-          "node_id": "actor-haruki-flustered",
+          "node_id": "actor-edwin-grave",
           "operation": "image_generation",
-          "structural_fingerprint": "eee272a1515b1e304ea3ded67af73ba155f68c218f659a4ca58113fc6316d1fd"
+          "structural_fingerprint": "6e2bb114b199995ecc8e941a012489e6f07e589098e814d5505f53395811d19f"
         },
         {
           "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
           "cache_depends_on": [
-            "actor-haruki-neutral"
+            "actor-edwin-formal"
           ],
-          "cache_key": "a0053fe691578596a18e1fd087c892672462d8e361f5160465e094cc492bfab0",
-          "consumer_structure_fingerprint": "e4f3a91357c2978c85863f9c17b14afb59fd5d90013b8b8653dc707e84d5a684",
+          "cache_key": "7c90cb7cda61c1fc288399574e903d0db8a3585d695da47c113874bebc7b9e7c",
+          "consumer_structure_fingerprint": "1131a36e1cd698773cc54521d87801ed64a851c191a9d76c0430ed8632ce51bf",
           "depends_on": [
-            "actor-haruki-neutral"
+            "actor-edwin-formal"
           ],
           "estimated_cost_high_usd": 0.25,
           "estimated_cost_low_usd": 0.18,
-          "node_id": "actor-haruki-concerned",
+          "node_id": "actor-edwin-no-keys",
           "operation": "image_generation",
-          "structural_fingerprint": "11e994af50353c3d8cca2a3b4d2f0ba1c95eda98f84af1785199cae9113b8e61"
+          "structural_fingerprint": "bc3e81ef56a1de08dcf828894a25c7b21924224bc016378df2403dd5f7c2ef3e"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "actor-haruki-neutral"
+            "actor-edwin-formal"
           ],
-          "cache_key": "cad29dd7724c996655cd636965d32d42e2190eb8620318cff46dd10299c96fb1",
-          "consumer_structure_fingerprint": "712bd959b392d27893ab72354f6e4d3111e5b15cb9d2cb6c58e639b9cacab889",
+          "cache_key": "ce3b3e184fef2ecdf20b040e80d936adc9fdc433c57fd9dfff9d8ade7f588900",
+          "consumer_structure_fingerprint": "bdd805c9e58de7e660f4d2deafd0a34634ce2f23c2ae0afebd85609cdf48bda6",
           "depends_on": [
-            "actor-haruki-neutral"
+            "actor-edwin-formal"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "actor-haruki-canonicalize-neutral",
+          "node_id": "actor-edwin-canonicalize-formal",
           "operation": "local",
-          "structural_fingerprint": "f792a5105ae2ad1eed2d8296fbea1844b140a5e2d9944c7b1c1cb69286a274a9"
+          "structural_fingerprint": "71d825b5a32d41ba7f0966ca7e13e75221f572ea40252a2a9711bc8fa70dde2b"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "actor-haruki-delighted"
+            "actor-edwin-dry"
           ],
-          "cache_key": "dc3bccd0ced50946f59976402c438dd274cd0cd5a4c39f9eddc62fa97601a7c8",
-          "consumer_structure_fingerprint": "fc27686fe970389c22a54d19aeb983140f52df698dacbfa83e76154f1cece6c8",
+          "cache_key": "2302db37bcebb3b2e8ebdfb03a2796e1cfcefd33e5f171711b328c8205c8e607",
+          "consumer_structure_fingerprint": "f899c761941c8c7e1eea7aad2b5dcd8101f0495df408006b82a5b343b3408887",
           "depends_on": [
-            "actor-haruki-delighted"
+            "actor-edwin-dry"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "actor-haruki-canonicalize-delighted",
+          "node_id": "actor-edwin-canonicalize-dry",
           "operation": "local",
-          "structural_fingerprint": "d16652a24af1b54f6e38dfb7c7263c0b100dc7da6a9c23aafca3e1a021591d74"
+          "structural_fingerprint": "10d98a32067e9706d4dc54d6b0ab25e04aeecdac9083423e30d872aa56d5911a"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "actor-haruki-flustered"
+            "actor-edwin-grave"
           ],
-          "cache_key": "ad7200b593800e3e97703483a5dcdcfbdf30281e90ab6577504ec4f6729e1f50",
-          "consumer_structure_fingerprint": "cc9b8a9f827b829d0dff7b46cdee8f6b5b89e9c9655e52a4415d7fd166722771",
+          "cache_key": "9f8d3796815af111a63014f956c122bd294f9cc26ef0ed37ab3d2238456833a4",
+          "consumer_structure_fingerprint": "57608cf0c2b86061d8f7b49eb7c3462edb8ddf95b754f7148838ab6e3003943f",
           "depends_on": [
-            "actor-haruki-flustered"
+            "actor-edwin-grave"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "actor-haruki-canonicalize-flustered",
+          "node_id": "actor-edwin-canonicalize-grave",
           "operation": "local",
-          "structural_fingerprint": "c66e1e77fda203ff40cbbdf417e722cddac7edaee270d57da60351a957f67228"
+          "structural_fingerprint": "e9d619a2ccbb41c7bf2e9b3ede3af8da1a571cf39495ec4a54008e2036d165a3"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "actor-haruki-concerned"
+            "actor-edwin-no-keys"
           ],
-          "cache_key": "7f156ef4a019f9ac202e31cf8419e24b3090a59628d0551b3fa9bcc821860e2c",
-          "consumer_structure_fingerprint": "824ce29caf4d8186d0958a57e7d53af77df1118f4f0173ddd34d19115a340082",
+          "cache_key": "e73c0cdfc95ad2b77e939f92d9a8bb36529b9815dea357f32a07dde336a13a8e",
+          "consumer_structure_fingerprint": "7238b19a82e710e0ae89662311915ee0f74a46b4912297f043644fe1611205bb",
           "depends_on": [
-            "actor-haruki-concerned"
+            "actor-edwin-no-keys"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "actor-haruki-canonicalize-concerned",
+          "node_id": "actor-edwin-canonicalize-no-keys",
           "operation": "local",
-          "structural_fingerprint": "6203435a16d39e2c6f4e89bfca5d4732519c38a1e4a7f6bd417d54361fd9b6b7"
+          "structural_fingerprint": "0f0ba64b468fcaf750702efd6232fece9139a5dfed0695ac1e5452deff4e38a8"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
             "scene-style-plate"
           ],
-          "cache_key": "453b8bbd0c8eaf35946eb1c54dffa9e2df8c4734cb9d129ee19d7e179f691eef",
-          "consumer_structure_fingerprint": "d0e84c91a7c4c962f4d70139e62444b56787f353ed2b6820db6a975723b3b3f4",
+          "cache_key": "24649f099e40412a75cbf7aea98a163016d300aabb6720e031c61423b6f7fe61",
+          "consumer_structure_fingerprint": "b3a4b15ed2c5b0a219e4443cdea26ddd2daca0706c5a615bbd056116cc37fc32",
           "depends_on": [
             "scene-style-plate"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "actor-sayaka-profile",
+          "node_id": "actor-lydia-profile",
           "operation": "local",
-          "structural_fingerprint": "c470e1c4957ff8d02b2122b774cde7d6d0cb7aedbdbe9aeca2a700e7d959d546"
+          "structural_fingerprint": "d8f8c61e5ec9f1eb90bd3bd00592fdad98bb2cc18d1309cb697457cc2a601fda"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "actor-sayaka-profile",
+            "actor-lydia-profile",
             "scene-style-plate"
           ],
-          "cache_key": "105126f8de390f2f45c156792a051d2f8d30a1a7dd11db8711b63e2bd7d968b2",
-          "consumer_structure_fingerprint": "cec6582d05b007bb72c10501499077b1280f622c685101308a1a22459fdbfb35",
+          "cache_key": "ae316750dde0a92bc997a50904925407f76cdd0ea5a769d5d553b6959ae54d88",
+          "consumer_structure_fingerprint": "cf0a82849055b205bc73a3ea4166f8823f0754ff6fadf7314781167f5fb683e9",
           "depends_on": [
-            "actor-sayaka-profile",
+            "actor-lydia-profile",
             "scene-style-plate"
           ],
           "estimated_cost_high_usd": 0.08,
           "estimated_cost_low_usd": 0.005,
-          "node_id": "actor-sayaka-plan",
+          "node_id": "actor-lydia-plan",
           "operation": "structured_generation",
-          "structural_fingerprint": "b0a0dd6cef007d4f724dfaa2f91cb2540bf9cec931ca32c12ecf3856eb848ac6"
+          "structural_fingerprint": "3b550f09f42799a4f8f5bf922a0d5d3b273d147c1eb05fdcf786e4ea0d6d94e5"
         },
         {
           "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
           "cache_depends_on": [
-            "actor-sayaka-plan",
+            "actor-lydia-plan",
             "scene-style-plate"
           ],
-          "cache_key": "03cfcf774d23f3207800c42d85d9f7db652f6b0f470417d4def8f9ffbb69d487",
-          "consumer_structure_fingerprint": "08dc06c50f3930e6b0550a7090a575ef0ed3a9f337665297f3b74d7f0719d1ef",
+          "cache_key": "c35d8ed303e641dd39eeae83671bf034e75f42d8eac6f21bfa0d3147d4879c0e",
+          "consumer_structure_fingerprint": "d25b4c7ce531e978259bde5ebdadfaab7501342c00805052e43d3ce8c3d57a2f",
           "depends_on": [
-            "actor-sayaka-plan",
+            "actor-lydia-plan",
             "scene-style-plate"
           ],
           "estimated_cost_high_usd": 0.25,
           "estimated_cost_low_usd": 0.18,
-          "node_id": "actor-sayaka-neutral",
+          "node_id": "actor-lydia-composed",
           "operation": "image_generation",
-          "structural_fingerprint": "ece5d15a290c503baf2d3155cc97931a3c0f64e4f71aecbc2fbe629f3f6eb619"
+          "structural_fingerprint": "e6bfb1f7db07056d6358771ac2457997ed519acaf7c39321a1a0e2a852939251"
         },
         {
           "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
           "cache_depends_on": [
-            "actor-sayaka-neutral"
+            "actor-lydia-composed"
           ],
-          "cache_key": "c7b41821062a6b6cfb82c0a63593e44f540edef3195caeec3a85215cbd88d256",
-          "consumer_structure_fingerprint": "f20b77f999d0ea0f430c89585d406591d4fd98841f5df8cae5864e5452079979",
+          "cache_key": "b074e70605881224d3d31073323af5c75c5cae3e6e9ab9ac1fb6e8dbe91fc83a",
+          "consumer_structure_fingerprint": "df6700d7c6e5096cf6e52d6b10f8989adb74a78b69112be6333b74b66b198505",
           "depends_on": [
-            "actor-sayaka-neutral"
+            "actor-lydia-composed"
           ],
           "estimated_cost_high_usd": 0.25,
           "estimated_cost_low_usd": 0.18,
-          "node_id": "actor-sayaka-delighted",
+          "node_id": "actor-lydia-work",
           "operation": "image_generation",
-          "structural_fingerprint": "2617eb258474ac622afd64cfb5cfbc9989825e1018e3e9d40309993d3b3aedd3"
+          "structural_fingerprint": "1c4827a1b651d203a2e463e3cf5566cc5e233f9adc96b1673f2862a836facf56"
         },
         {
           "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
           "cache_depends_on": [
-            "actor-sayaka-neutral"
+            "actor-lydia-composed"
           ],
-          "cache_key": "10d6eddbec224bc8e219828e372027b445bbb3a748c5bf21f5b94b4e06dce15d",
-          "consumer_structure_fingerprint": "fc6b399d10fac98a58c50eb14c4a44e842fa5749bcb212ddae7473ff761d4953",
+          "cache_key": "84bc4523d1ebc6399ab3936039ed23c5592dbc12d6f1d3e2a90d0a488558485e",
+          "consumer_structure_fingerprint": "15dee6dd8cde4426fab1f4f4f1e9c803a9a27f5ddd5930aadd1cea29679503e4",
           "depends_on": [
-            "actor-sayaka-neutral"
+            "actor-lydia-composed"
           ],
           "estimated_cost_high_usd": 0.25,
           "estimated_cost_low_usd": 0.18,
-          "node_id": "actor-sayaka-flustered",
+          "node_id": "actor-lydia-cut-off",
           "operation": "image_generation",
-          "structural_fingerprint": "8b54823245f886bda2216e206343bd8316a7acce7ad1b099b043e48ae75433e3"
+          "structural_fingerprint": "de7088498bb7705b1256879cd3f19c02326e99cb095286fb6b39b70c5773ee9c"
         },
         {
           "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
           "cache_depends_on": [
-            "actor-sayaka-neutral"
+            "actor-lydia-composed"
           ],
-          "cache_key": "a048c88f44af523b2736f6dac43c0eb7f233c7d24e7085f26b8b93418a6d83d6",
-          "consumer_structure_fingerprint": "1df0451aa5f11760ad0afbf626f751d77244056ac994f2c753cd7628588ca343",
+          "cache_key": "c2a4f7e3167155123ffd436e1895d2eaeb5286fd145ebde8702bc8dda9edbea3",
+          "consumer_structure_fingerprint": "0f96719f7dbefe4382509ba956c0efcbf93969c26b1802d47ed4a68d54a49a6d",
           "depends_on": [
-            "actor-sayaka-neutral"
+            "actor-lydia-composed"
           ],
           "estimated_cost_high_usd": 0.25,
           "estimated_cost_low_usd": 0.18,
-          "node_id": "actor-sayaka-concerned",
+          "node_id": "actor-lydia-lowered",
           "operation": "image_generation",
-          "structural_fingerprint": "8e41e2cbbf6d1434382e7ddd940f397c6a362ebed2d7dc31ca3dab7cdbe1a227"
+          "structural_fingerprint": "6710203b1c6305323efafa54556a2c8c6a1950620e9b7496bf8172fb607d550c"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "actor-sayaka-neutral"
+            "actor-lydia-composed"
           ],
-          "cache_key": "e9e9651ead2bcc1050e1606041c6996ab36881650bbe7995a6874139c0bd9da1",
-          "consumer_structure_fingerprint": "1249b069f1c2693ed470a340502187ef3c3f1bbe7ee4e652d0ca879a696babc7",
+          "cache_key": "3687aa38691e417bd6b7f2cab2866158299d3d54fe4857d7be23efb895dd4c95",
+          "consumer_structure_fingerprint": "81a614f245c3335d5d018ca749fa2f0183bb66ad909478c50ed9e14b241b2837",
           "depends_on": [
-            "actor-sayaka-neutral"
+            "actor-lydia-composed"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "actor-sayaka-canonicalize-neutral",
+          "node_id": "actor-lydia-canonicalize-composed",
           "operation": "local",
-          "structural_fingerprint": "e75c8526a64ea961228961c4877af53462b242a1dcad58b37861b0f104036041"
+          "structural_fingerprint": "667bb02c03d12ffce3b8f284488dce69394a163dd9a1fc2cca1fc603bfae6b91"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "actor-sayaka-delighted"
+            "actor-lydia-work"
           ],
-          "cache_key": "f0647bd1f2be310aa32f5de617657698f66e9ea458c2ca0afdaad73a65a29a71",
-          "consumer_structure_fingerprint": "5f8a34e257dafef65747387b45a8daf68165bccd55e45da150fbf41b0ae8ec9f",
+          "cache_key": "e114d07173176daf47d452b433f8cffc5714b654944dadf893ba92826a2dd0f6",
+          "consumer_structure_fingerprint": "a81876e4f35e713cab7caebb46c95e91f689f3f5f9fece4aa14391d91f9b9c93",
           "depends_on": [
-            "actor-sayaka-delighted"
+            "actor-lydia-work"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "actor-sayaka-canonicalize-delighted",
+          "node_id": "actor-lydia-canonicalize-work",
           "operation": "local",
-          "structural_fingerprint": "4de935fe3f8d613a7a38470aafda26058f115e13497d0bbbf2e0b291bccc959e"
+          "structural_fingerprint": "eb1dcf016c55fa592e82a7471241e529f602281a3003cc2122ea87a51f6777c9"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "actor-sayaka-flustered"
+            "actor-lydia-cut-off"
           ],
-          "cache_key": "5c7e2a168623453678ef2f75f7c59de50ba89b4f38b96424ad988eb0d5233762",
-          "consumer_structure_fingerprint": "17d7d101fbfb6379e333a29ecd9dcf9ee0f5a95ad1e67557640ce5a8746cb5fd",
+          "cache_key": "0264eb9ff84ea3a6918a12348996eb0b55d0488db103ce610555c7de8ac084d1",
+          "consumer_structure_fingerprint": "ff73e33a5d99c665f5239395d6e9eb00f97f20282eefd790517d7febbc5df157",
           "depends_on": [
-            "actor-sayaka-flustered"
+            "actor-lydia-cut-off"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "actor-sayaka-canonicalize-flustered",
+          "node_id": "actor-lydia-canonicalize-cut-off",
           "operation": "local",
-          "structural_fingerprint": "bc3c621eaf9443334c6f8f9b057af8d49cfe345d0d6707e640cfad79373824c1"
+          "structural_fingerprint": "9bdeadc4dd4545c6591b63e499a546235ddb6f76c43e2dc58ca0a98a7d9a363e"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "actor-sayaka-concerned"
+            "actor-lydia-lowered"
           ],
-          "cache_key": "ce04f99753e6613a10746a9a7e3a445f4bd3b6342e0020eadeb6d1124f6b26d7",
-          "consumer_structure_fingerprint": "a72c74732816ad62f66fdd06bb47ef2f4fafaaf5b03b7af967b64ed29d4d1c9c",
+          "cache_key": "ab90d993d4a92f1c23f6c921fbcf6213ccb2e00ab89b4a7858f32380c636d108",
+          "consumer_structure_fingerprint": "8bff6fff9e45ed9e3309d10801959ac1ff2543bf07fddc492cf97b1ba4b86f16",
           "depends_on": [
-            "actor-sayaka-concerned"
+            "actor-lydia-lowered"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "actor-sayaka-canonicalize-concerned",
+          "node_id": "actor-lydia-canonicalize-lowered",
           "operation": "local",
-          "structural_fingerprint": "366e9cf7b2771b38442a193911ce2480feede9790c79995c9828e31ca0fe5520"
+          "structural_fingerprint": "912128b108d6c3b5d219b76c1ce0e5a09540f2f16ff7a2e0fa6dad20dd34c384"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "scene-style-plate"
+          ],
+          "cache_key": "3d92baf2f749917223bf5a16498cb22a9725f0c66b285a2316d959abb7e7ba48",
+          "consumer_structure_fingerprint": "0904cb29c912ba98758c5cc821e597cc665c48632f6fabc2bea1e30a284f7ce3",
+          "depends_on": [
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-nell-profile",
+          "operation": "local",
+          "structural_fingerprint": "8c389946eb1719f09339f6a53d1823d71c6f9688fb347402647a432d74fc225f"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-nell-profile",
+            "scene-style-plate"
+          ],
+          "cache_key": "94474f8e27cd2fa44409fb59e88781af92b48062274b1daf7587bda135bee5f5",
+          "consumer_structure_fingerprint": "db201c5ea748ebb428eb89ea384e525675c8ab1c69094b450dd75b7fe11366e2",
+          "depends_on": [
+            "actor-nell-profile",
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.08,
+          "estimated_cost_low_usd": 0.005,
+          "node_id": "actor-nell-plan",
+          "operation": "structured_generation",
+          "structural_fingerprint": "04708a03fb5ef45f4218348fd13003782873ca76b0778358aea561f909bcf6b7"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-nell-plan",
+            "scene-style-plate"
+          ],
+          "cache_key": "853a6ada6c57017241b7fd829c70d19671adc02daa4737376e688275518919f0",
+          "consumer_structure_fingerprint": "88e1aa1b54fc05348340f94c542b9dbfd8740cc1be1e7e5a10ac690a660e6b04",
+          "depends_on": [
+            "actor-nell-plan",
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-nell-flat",
+          "operation": "image_generation",
+          "structural_fingerprint": "c8e57d7dc0ad54df190a3fb1a32b311c69e1fd28fb55881c41e1fba1f53a6b4f"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-nell-flat"
+          ],
+          "cache_key": "997c53852accf1ffb2eee26bedf12363987a19d36223404f4099a54ca77c40b7",
+          "consumer_structure_fingerprint": "b64474a40c646e3b3973497f10597dbba7010582b77ce4bd889c70c605de8712",
+          "depends_on": [
+            "actor-nell-flat"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-nell-hungry",
+          "operation": "image_generation",
+          "structural_fingerprint": "344c3c6d8b9433b9ef9a635cfe7599ee9814faff5e7903f2d41041f027bbda0d"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-nell-flat"
+          ],
+          "cache_key": "951f7075edbb4a74b49d576a879aa2cb60679e1d9c842421cf506d88bc7a9a00",
+          "consumer_structure_fingerprint": "392abae072442bb5aee0c496cc491d754dff1b2a90b4e7306eef02bef26d51f4",
+          "depends_on": [
+            "actor-nell-flat"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-nell-hearing",
+          "operation": "image_generation",
+          "structural_fingerprint": "e9c84c9ad955789d3f4d18e29207e2f21a9fe0e3a875f41ba21b13630b878086"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-nell-flat"
+          ],
+          "cache_key": "ba672a443d85fd647cbc9c41998ddd904c6365d1510ddf94d92a84acd451b2c0",
+          "consumer_structure_fingerprint": "be5b4e2561e56354bc8d074ae791a303a567a2200f1a66b0ca9ad198c0708b27",
+          "depends_on": [
+            "actor-nell-flat"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-nell-gone",
+          "operation": "image_generation",
+          "structural_fingerprint": "e7d99203c0b58dfc50fd2438a0c70662376d361f3221f3b629bc749f4d687a1f"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-nell-flat"
+          ],
+          "cache_key": "23b6d66f019c4bca1c2eb102b10ab7f37f55dd4c0bfddeb9daf50ed98cb38c38",
+          "consumer_structure_fingerprint": "9e8cba708bb10d9cba4ef1893c5b59b920300d455461f530a54b64c4d2d0ccbe",
+          "depends_on": [
+            "actor-nell-flat"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-nell-canonicalize-flat",
+          "operation": "local",
+          "structural_fingerprint": "40aeb32b882099bad684f8a4065995652cf80f90033ac999ed83d5708f60d091"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-nell-hungry"
+          ],
+          "cache_key": "7b13931e3d0391fd600fc266b52751cca15c0d938591890a33b159b43853613e",
+          "consumer_structure_fingerprint": "e3782c290cb9c42b0e83e3e74edd885bb49a6ba44b327da3c96a7f8f7b9a5e7f",
+          "depends_on": [
+            "actor-nell-hungry"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-nell-canonicalize-hungry",
+          "operation": "local",
+          "structural_fingerprint": "3d39441f5af135d2fc70937973019eac1661b07dfab91982193cd19a466c75d9"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-nell-hearing"
+          ],
+          "cache_key": "b176d5c9a33976f02ac6db7e06194f2b9fb7676bbcf4764a31c9e505bc70870b",
+          "consumer_structure_fingerprint": "df9ba6c82e0e938cdd9e403748b29fd92a9b755befce126a680d8d8152896067",
+          "depends_on": [
+            "actor-nell-hearing"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-nell-canonicalize-hearing",
+          "operation": "local",
+          "structural_fingerprint": "9c0d91128886968085370ce5aa20521b16eff6e68236821c17f999481a6c8f4a"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-nell-gone"
+          ],
+          "cache_key": "2259648e22909585bcf5e71dfe0d6591b4ccb5ac31a756dbbc6a1c66e77b46e2",
+          "consumer_structure_fingerprint": "03dc9e45ddad1fd65cc283dff463490aca57ff81252ff5335f88f330b66f7944",
+          "depends_on": [
+            "actor-nell-gone"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-nell-canonicalize-gone",
+          "operation": "local",
+          "structural_fingerprint": "2c77c3de40d18c079f6d588fff18f42751773dec2af6b60f0efdf8ff3a291588"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "scene-style-plate"
+          ],
+          "cache_key": "db204b3e9f09d3bc5f1054a3cd2a9d1f58f4fb36f1e42eea8e1f801f514d9621",
+          "consumer_structure_fingerprint": "2664292b8a9c93e726bbbfa36241e4a2ee20070be917594b6e84e1dd812a789f",
+          "depends_on": [
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-marian-profile",
+          "operation": "local",
+          "structural_fingerprint": "8c9b23118aa905cc9b2f6b0cc06144bbe7249a9efc29db15f91d5f1513f13ad2"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-marian-profile",
+            "scene-style-plate"
+          ],
+          "cache_key": "ca9990b2019bb25d4c424049f3ff8305b7b6a9d8383fcc5777de3716470841a2",
+          "consumer_structure_fingerprint": "6469a835d3c6dc240c4ac1ecf39c47910d23ce44f0bd711576ac63385e8a2b17",
+          "depends_on": [
+            "actor-marian-profile",
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.08,
+          "estimated_cost_low_usd": 0.005,
+          "node_id": "actor-marian-plan",
+          "operation": "structured_generation",
+          "structural_fingerprint": "1b12fca7e63f16efd4cf5832ebb26b64fa985a6c76eee71a49a8cc8ead456e32"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-marian-plan",
+            "scene-style-plate"
+          ],
+          "cache_key": "8456141c87be35b54de484ee192c269eaa61241fe98276869d9b76862a9ec5bf",
+          "consumer_structure_fingerprint": "442816cf885a696153242c8f5f3781a85a14f1422826bbea88b18648daf40e84",
+          "depends_on": [
+            "actor-marian-plan",
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-marian-correcting",
+          "operation": "image_generation",
+          "structural_fingerprint": "e10eddbe0f0bc5f4d9d96645c4bf351594c4132e721804d7b9f76251807b9637"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-marian-correcting"
+          ],
+          "cache_key": "fa0d169a429d4de8d37a31bf184bb7eaf1fb92b9e111b656c5d0bb9728603275",
+          "consumer_structure_fingerprint": "86a7b5fe28636a936711955330a62f611cdad37b3edea82529b689dcbe232353",
+          "depends_on": [
+            "actor-marian-correcting"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-marian-warm",
+          "operation": "image_generation",
+          "structural_fingerprint": "3df0291e91fc67bdd11b2d0ec27f321693a74e90742d782362bd2f3b0d317ce3"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-marian-correcting"
+          ],
+          "cache_key": "686a8d748c97337265cf26d128a52c668c602ba956b98039668b03f46be80a00",
+          "consumer_structure_fingerprint": "247d3982802babfad7d2264144ccfea042dcceb367798e84c06d3e94f8b6bfd0",
+          "depends_on": [
+            "actor-marian-correcting"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-marian-still",
+          "operation": "image_generation",
+          "structural_fingerprint": "6ec897f00ef7ec20d8354e2a6610ab1307850d2f91972512ae36ec6e910bfed0"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-marian-correcting"
+          ],
+          "cache_key": "2d4348a7b070f2e5a7ca931dd62de050521672e84033e9e03d68e2ec04d4fd3f",
+          "consumer_structure_fingerprint": "8338796edbd6514daa79925a70ece7a094371fc4d5ffd743ce6d110e1131ab29",
+          "depends_on": [
+            "actor-marian-correcting"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-marian-nothing-to-correct",
+          "operation": "image_generation",
+          "structural_fingerprint": "ad5723fd19f8ce7cc16709616108c6e6c1f356373ee67cbdcd97b21d46c32601"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-marian-correcting"
+          ],
+          "cache_key": "258b02cece87dc30fb5a1ec37f6f31f5a7bd96c1ea5463a3aa17280c208cd85d",
+          "consumer_structure_fingerprint": "550f317d25587f9e2f0700d417845dd0b94670f320ff52bbda8e7f95bb31214e",
+          "depends_on": [
+            "actor-marian-correcting"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-marian-canonicalize-correcting",
+          "operation": "local",
+          "structural_fingerprint": "c05ce78925c8b9351df4fd667946fc3d313e912430cd28aaf9cf0bdd4ab1627d"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-marian-warm"
+          ],
+          "cache_key": "408cd3527a188970aa0dbe012d051df82dc13c2c57701d1997bd06a8af8eb496",
+          "consumer_structure_fingerprint": "b21e5fe41d34661c578d8e28f05f72d0c3dbc784b7ea3bd038fc006a540c9097",
+          "depends_on": [
+            "actor-marian-warm"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-marian-canonicalize-warm",
+          "operation": "local",
+          "structural_fingerprint": "5a9b9c01a0ac3d0511722ecb5697dd14ce6ee41d971dcf0d2fdeba93d29ca410"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-marian-still"
+          ],
+          "cache_key": "7d4d29cc85fed8ba15a48af92e2cfaa425610807ee002be4aa80eb30f55f737c",
+          "consumer_structure_fingerprint": "a4b912147d7a65dac512db8c311d6cd642afc7b218d8ad24030ea20a93535d44",
+          "depends_on": [
+            "actor-marian-still"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-marian-canonicalize-still",
+          "operation": "local",
+          "structural_fingerprint": "ab27d9bfb49b01f1f7431b9098d0ff38393189ee2dcd14599bc24ef270508248"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-marian-nothing-to-correct"
+          ],
+          "cache_key": "0bc40e61426a0b54b5809cebd19ad0bdc6758b30b80b969a54fab873643430b1",
+          "consumer_structure_fingerprint": "d697e9d550560129fb20f5ed670bff0756d1d6ae45fb553297a52f2dc8a5c95c",
+          "depends_on": [
+            "actor-marian-nothing-to-correct"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-marian-canonicalize-nothing-to-correct",
+          "operation": "local",
+          "structural_fingerprint": "7723fe97f87aaf1b054038e3c2f6cce2f82b02634f35252adfc95ec3147bf518"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "scene-style-plate"
+          ],
+          "cache_key": "da1d1abace68e0c5b0a952f304f03a4cd95409019aaceb62e795e0dfe0eaef1e",
+          "consumer_structure_fingerprint": "1b8ac8ae236bf84b61881dbc0bb2e258d7baf1837e15f94a7afd4f7dfec97a06",
+          "depends_on": [
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-robert-profile",
+          "operation": "local",
+          "structural_fingerprint": "67b7aa8d93e4ff77f3695aedbd6e56f311ce4883cf1e5cafc6645474a4671754"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-robert-profile",
+            "scene-style-plate"
+          ],
+          "cache_key": "a79f897c62bb5d4bc40e60aed8bc591211b864bd75f521194e1d6fe03b837508",
+          "consumer_structure_fingerprint": "194aed3b342a40bd85471e97d877aee03dee41304482f6ab4ad7aba33344d28e",
+          "depends_on": [
+            "actor-robert-profile",
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.08,
+          "estimated_cost_low_usd": 0.005,
+          "node_id": "actor-robert-plan",
+          "operation": "structured_generation",
+          "structural_fingerprint": "f7dae8296b2b169e36eabfc068c46cee6a081a41e708973bd84cfc0a80fc87b5"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-robert-plan",
+            "scene-style-plate"
+          ],
+          "cache_key": "353e20f0988c7a81b2777443a4e92b7c0ea6dc150da94e537d7c280e3ac0392d",
+          "consumer_structure_fingerprint": "ec75e89aa9e7c76ef097ddf65a57f88d385b833cce939d7e98192d8131c98399",
+          "depends_on": [
+            "actor-robert-plan",
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-robert-rambling",
+          "operation": "image_generation",
+          "structural_fingerprint": "d182a8c86610572b38b473968dbfa9eb049099233cdd68d90e6dca2bc16ab2b1"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-robert-rambling"
+          ],
+          "cache_key": "e3ad7f7df10371e1ef01b72312e3c5907b5d14b4e2c214f77806a94b8b7b3cb2",
+          "consumer_structure_fingerprint": "ef72f93a09de77c0b9b7d24ed0bce778786d81f2e855b02522fce904d48e4f49",
+          "depends_on": [
+            "actor-robert-rambling"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-robert-sorry",
+          "operation": "image_generation",
+          "structural_fingerprint": "ec78f35e04ce40133ac0e002161858dd0050b05a010340c4b05c6edec1c78c08"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-robert-rambling"
+          ],
+          "cache_key": "642b388cb304b535f1ca27262e8dd7a5ef99f7ee37c125a7d0a946fdeda2f6c0",
+          "consumer_structure_fingerprint": "6f9f1234a25ab7e4b6c57d962dbf728be565ea84f0c4bab30ac9ddf2313ab59a",
+          "depends_on": [
+            "actor-robert-rambling"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-robert-water",
+          "operation": "image_generation",
+          "structural_fingerprint": "c26e793923b9b9cc2a8ce439c7eecb25ce3cb1b4ca036369039a0dae793d5703"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-robert-rambling"
+          ],
+          "cache_key": "cee48f11f265ecce4cd88a1ff0c4b00ca35c68cabe08ff41d8c93c5b5f73149a",
+          "consumer_structure_fingerprint": "6b653b83e2b4d83ee5300fa54a9b7f61ddd9a64a1c4de6c07cd25ddeb149b07f",
+          "depends_on": [
+            "actor-robert-rambling"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-robert-waiting",
+          "operation": "image_generation",
+          "structural_fingerprint": "d81b5bf1d9b8baaa93bd2f7e2199a52c8c096d756436528af0bf30be5ef7bb04"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-robert-rambling"
+          ],
+          "cache_key": "212ba2bd7411c7cc426e93d547ff3aaf07c694b9d18da1b171a500f604c47719",
+          "consumer_structure_fingerprint": "a1216a230c9c4167f5be74f19a84e3b1423afcdad9f713e59fed46f79f184bd0",
+          "depends_on": [
+            "actor-robert-rambling"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-robert-canonicalize-rambling",
+          "operation": "local",
+          "structural_fingerprint": "b424c3ec1bba2f9d173ce27d44bcadf3929565052236042be7ca4d5d31b1d37d"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-robert-sorry"
+          ],
+          "cache_key": "0d9e026728a239f9847472329fe9944911b9bed796df90b75f75dc504e0690fb",
+          "consumer_structure_fingerprint": "291d70375db2fcbe4244dad7992e5e5206ea6681423a382f8e4fefd488e4fce8",
+          "depends_on": [
+            "actor-robert-sorry"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-robert-canonicalize-sorry",
+          "operation": "local",
+          "structural_fingerprint": "c17e414073ad44b86fd9d713f9956c5cb0960a39338c92ae5d84a6550c2b5426"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-robert-water"
+          ],
+          "cache_key": "127dcf4b7eb1d835e545636937db656ea79033af89806593abeeba74366121bd",
+          "consumer_structure_fingerprint": "9704ef241f693b96343fce0584aaf45078770ce735ed59b33420c3eb8ec1301d",
+          "depends_on": [
+            "actor-robert-water"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-robert-canonicalize-water",
+          "operation": "local",
+          "structural_fingerprint": "e625696d6095ff80bd034bc41b638ab6b3edb9b618f78b7ff9ab5c84b14cdae3"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-robert-waiting"
+          ],
+          "cache_key": "35a73adcb4d29949298990106cfc824129286b7c828f777cc5e94312f98a6b4e",
+          "consumer_structure_fingerprint": "b416633bb181734813ac212de531f89a4cd8f7b11382a2de06ea35f22f5fc94e",
+          "depends_on": [
+            "actor-robert-waiting"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-robert-canonicalize-waiting",
+          "operation": "local",
+          "structural_fingerprint": "fafd2d994db32b3ee2d859344bb4b2c86a4a586e43a181fa5957e574135c2350"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "scene-style-plate"
+          ],
+          "cache_key": "f9bdfe6c22e16f90502c4f23e9089c2b16aa15ab724747b09f086edfeaad34c2",
+          "consumer_structure_fingerprint": "5a009c46527bc8bdcf7d93e3e292e48c00bc72044f9c1d616d91f136472174b9",
+          "depends_on": [
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-paul-profile",
+          "operation": "local",
+          "structural_fingerprint": "47d74a18e2204d2af8a7a120b4340f789509a9febaca7cfaac26e5bc91e4d02e"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-paul-profile",
+            "scene-style-plate"
+          ],
+          "cache_key": "88721520a22536488771eda769c3dd8d946dfd300e2dc1b05135c0a471c06b82",
+          "consumer_structure_fingerprint": "d4ea40aac119fb313421f495cd759ffa19c1d8d5fcef092cd8f9429eca66ef26",
+          "depends_on": [
+            "actor-paul-profile",
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.08,
+          "estimated_cost_low_usd": 0.005,
+          "node_id": "actor-paul-plan",
+          "operation": "structured_generation",
+          "structural_fingerprint": "499c3b2bf7369e07704e0b055a95ba0a6a4387b69e3861149591cc2dbafbc04e"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-paul-plan",
+            "scene-style-plate"
+          ],
+          "cache_key": "c668b1c74f81141c188f1250c3f2ba703454c78382945fb51bc94809d86cef3b",
+          "consumer_structure_fingerprint": "3d4ee9deac228194056c40c2c51a4c012edbea20012cd87799a702da0526d930",
+          "depends_on": [
+            "actor-paul-plan",
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-paul-younger",
+          "operation": "image_generation",
+          "structural_fingerprint": "29704cfe1e0226b8e66ca3e70772fe0a12ff7d825e0861493bdc85323394245c"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-paul-younger"
+          ],
+          "cache_key": "e7bceb375d09810d0a4a4f2e3ca65c3e21b62d4d33a695c5ffc601d693611e40",
+          "consumer_structure_fingerprint": "d5215bb67130c6649921cdea306cf1d0e50c4fd41e0ea68159923b05567b7edd",
+          "depends_on": [
+            "actor-paul-younger"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-paul-pleased",
+          "operation": "image_generation",
+          "structural_fingerprint": "1dac190e5dd12b6c568fd532fd7f181e6604f5db5e631526413637f3e59b4ce2"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-paul-younger"
+          ],
+          "cache_key": "c4204fe29933e6b8a27cddd88c1c6139de465fcf66d38abdb4f4005543ffa1c0",
+          "consumer_structure_fingerprint": "272230109d7948f0dabf4a710619364c52e2e7f142e81313b88cdf8ae62c0361",
+          "depends_on": [
+            "actor-paul-younger"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-paul-stopped",
+          "operation": "image_generation",
+          "structural_fingerprint": "27beff0318c223b80fc9f7b12f663ec3b2c540d3de1b046c89dc1d1a3c634867"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-paul-younger"
+          ],
+          "cache_key": "61c3794d66e9b49720907c48bb335889a7fa87a6ac8e82211a81a37487da1071",
+          "consumer_structure_fingerprint": "daba312174447a56f05caf66f8efdf544537f8b182e5dbdc7dc688e87021170e",
+          "depends_on": [
+            "actor-paul-younger"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-paul-all-right",
+          "operation": "image_generation",
+          "structural_fingerprint": "c4eef5d33724f4938c1c8374a151b7b821e4b1bf2909549ec75a85ef34e2a142"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-paul-younger"
+          ],
+          "cache_key": "c3c80bef86e97f48a5f2063cba9e6f4acf4d8e8e4027b2e2b1641f955eed3bd9",
+          "consumer_structure_fingerprint": "3b2db12115f430cb9a67c9d00d8c0f9ce77b9ea97b816aa887b6f84e7dba4081",
+          "depends_on": [
+            "actor-paul-younger"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-paul-canonicalize-younger",
+          "operation": "local",
+          "structural_fingerprint": "bba68942306e265d1183ac728a82afab79c1834173e36cbbf773688e70302fd3"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-paul-pleased"
+          ],
+          "cache_key": "cd405c5074eb5d4ee2ea239bcdb67a5248c2959f44c02ed77eb9fca4d92e9823",
+          "consumer_structure_fingerprint": "9fe7af497f2f88d20699571fd8304e432e8aa6bafe6a73e9086939265d3dbc0e",
+          "depends_on": [
+            "actor-paul-pleased"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-paul-canonicalize-pleased",
+          "operation": "local",
+          "structural_fingerprint": "d4d7b8434d62f469fc22af4582d9706d568fb5642fcdbee0c909e6d4810b13c3"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-paul-stopped"
+          ],
+          "cache_key": "6b4a77c13e512e674ca7f751e3cc49489ae907f7ddae55425c237569285fd412",
+          "consumer_structure_fingerprint": "125c8b8c46da788e0ff61ccc1c5efc545e68279fd55fd603021dbe2a4eaf0ceb",
+          "depends_on": [
+            "actor-paul-stopped"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-paul-canonicalize-stopped",
+          "operation": "local",
+          "structural_fingerprint": "d2477a5f9b356e29bac23490b06b734cce792e058f22776fa96bedca4c5ed20e"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-paul-all-right"
+          ],
+          "cache_key": "2c8e90fb96d6986a844f8f57245258b6cd6d64d2b381e9cac75a0739363ebbf5",
+          "consumer_structure_fingerprint": "b4b1376c4d787ec5ff94d765473c43114ddf26951bd6c6e960e736e5b26265b3",
+          "depends_on": [
+            "actor-paul-all-right"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-paul-canonicalize-all-right",
+          "operation": "local",
+          "structural_fingerprint": "1608ef2eaa97480b6f3be5e725c1d90b090206ff0852b233b1bf6744add2a6c0"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "scene-style-plate"
+          ],
+          "cache_key": "402a6849cbab7e83a7b5c67835ad33aeb3d653ebaea8e04250a5c19885e6a941",
+          "consumer_structure_fingerprint": "f3692eaf72b42936c60484a9f5b4a201c91af76e8e36ce6d16482029022b2aad",
+          "depends_on": [
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-ward-profile",
+          "operation": "local",
+          "structural_fingerprint": "922bc292804440419b0118213ff3336e50749177330eff51e6f0d05910b68e6f"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-ward-profile",
+            "scene-style-plate"
+          ],
+          "cache_key": "f7b3ccfbd16e70d1cb770bf1fe2b8365bb6d34f64452fee302698787d22fd0e4",
+          "consumer_structure_fingerprint": "063de099d73721824e70c74b57ab6c246f88ff5f9411bc7b3951144af978cca2",
+          "depends_on": [
+            "actor-ward-profile",
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.08,
+          "estimated_cost_low_usd": 0.005,
+          "node_id": "actor-ward-plan",
+          "operation": "structured_generation",
+          "structural_fingerprint": "09c5f57f8f03703a2cd2c817cf2ee3a20a70cad01a93877b1f865095235ce80f"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-ward-plan",
+            "scene-style-plate"
+          ],
+          "cache_key": "54162a80af2f9d0d5ac44c4b4ecb45722d612de2a125358c0ecffdc3c1b99646",
+          "consumer_structure_fingerprint": "8240f3697eadc4f9a8d06172fe8783da503d66ed1ad7f98048df0c872f808d08",
+          "depends_on": [
+            "actor-ward-plan",
+            "scene-style-plate"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-ward-blunt",
+          "operation": "image_generation",
+          "structural_fingerprint": "a27408cd5556893dcdbadca984329840601318b6ee248cefadbdd8c376d0bc4f"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-ward-blunt"
+          ],
+          "cache_key": "7c2fc8f248bbf8c369fecfb6f0560a52c30cb3fc0fba72b03754e41cc7d30501",
+          "consumer_structure_fingerprint": "e2192bcb44cba9913ae6a70c5fda8fec03ccd6582eaad774371cb94554e40b24",
+          "depends_on": [
+            "actor-ward-blunt"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-ward-writing",
+          "operation": "image_generation",
+          "structural_fingerprint": "f90ae27b5b9265b32029d03de4d1de0b00fa3053fc54dde7295c118b37b7e5c4"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-ward-blunt"
+          ],
+          "cache_key": "d29a2e96b8ee24c8aaa7f4ff35b77c21c786e4f462f8fa4fa789b89dd197af1d",
+          "consumer_structure_fingerprint": "59fe58fbe97da1a387dac76f536370268ebc2faa3f22cc93201b2b762ff5aab4",
+          "depends_on": [
+            "actor-ward-blunt"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-ward-closed-notebook",
+          "operation": "image_generation",
+          "structural_fingerprint": "fd2d55c41d1123ba90d4c5c83894c1e62157227a27223f499676735f9337c6b4"
+        },
+        {
+          "binding_ref": "06ddeb0bd2c8659e380ea85889e743073767208a1b2ab7e4c1b116dcfbee45aa",
+          "cache_depends_on": [
+            "actor-ward-blunt"
+          ],
+          "cache_key": "31192d412b0f5439cd8823a56e7795c1555ffa7d127019f61779dc1d212fa815",
+          "consumer_structure_fingerprint": "3dd0b5b311ac85ff6f8212171236e8484fdc27110911e20b9ccef399a78b498c",
+          "depends_on": [
+            "actor-ward-blunt"
+          ],
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
+          "node_id": "actor-ward-one-joke",
+          "operation": "image_generation",
+          "structural_fingerprint": "022e47d843322c353503b020cf0e8bac38d8af31fa7dfda7c52e9b16a6847485"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-ward-blunt"
+          ],
+          "cache_key": "bc5caee42d1559219f3ca991f2dbcc7e4eabd0bf7c90239372dbea1b0dc2b3a7",
+          "consumer_structure_fingerprint": "0b0e11de4ab7ad1d3e9879c9bc3fd856ea029b7db104b274872db8a15950bb28",
+          "depends_on": [
+            "actor-ward-blunt"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-ward-canonicalize-blunt",
+          "operation": "local",
+          "structural_fingerprint": "d8b25cb6e4ea429378a1d0c49d4a1aded4b8c0af888bf07d87acfe5f2768fe65"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-ward-writing"
+          ],
+          "cache_key": "7e325a4785301825d4bfae824ae39a1931f5b4c0c7ef4c5f7b80bd9eb1c1e958",
+          "consumer_structure_fingerprint": "559769adfed82f070079a159ddc8c3ca1a4f0670e7503f5ff6a5ffa13a707afb",
+          "depends_on": [
+            "actor-ward-writing"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-ward-canonicalize-writing",
+          "operation": "local",
+          "structural_fingerprint": "d8d0b38a20ef7429c7c3437b88ade10e421d4733027e1cb8df9b2be7000a347c"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-ward-closed-notebook"
+          ],
+          "cache_key": "72702dd5a44af6e7050990a2e21582fbf58099bec44d798bb0bbd957542c0d24",
+          "consumer_structure_fingerprint": "40589789fe90c9701fe26648e1d27fd3a684c70b3be77e95ca977781378e267b",
+          "depends_on": [
+            "actor-ward-closed-notebook"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-ward-canonicalize-closed-notebook",
+          "operation": "local",
+          "structural_fingerprint": "fcb887e425c26c737102b8665e7087bdbf6f27c5675e54d4c9be8d7bee6ad800"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [
+            "actor-ward-one-joke"
+          ],
+          "cache_key": "6fe70997ab9a6cde8a6db82a3c6b650e8c3d7419ae6b72854f4adec9d54fc31b",
+          "consumer_structure_fingerprint": "c90df8a1b8001a9604f92a05813adef10012b7bb60d190747105b6466669e073",
+          "depends_on": [
+            "actor-ward-one-joke"
+          ],
+          "estimated_cost_high_usd": 0.0,
+          "estimated_cost_low_usd": 0.0,
+          "node_id": "actor-ward-canonicalize-one-joke",
+          "operation": "local",
+          "structural_fingerprint": "fcc98368296a774ff4011585fc30df21feb20e33b641f34c0a406e179c0f3cb5"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [],
-          "cache_key": "6d339e6234fefce4d3905ebeb252cf959929bc24e19c68c79df9866c513aa61d",
-          "consumer_structure_fingerprint": "db2a6800a907dddc2db4943ca880965e215a76eaf8bdc2f33407a6c7ae3e4d30",
+          "cache_key": "3bc7e324c1a814155ba579f5c0cf3ab780de02511d1f0ae8e9f75641daaa3c70",
+          "consumer_structure_fingerprint": "f57994f3719d38cf280c7b469a544ebd8d9d532154c80335c374d3098335e777",
           "depends_on": [
             "scene-request"
           ],
           "estimated_cost_high_usd": 0.8,
           "estimated_cost_low_usd": 0.1,
-          "node_id": "track-summer-room",
+          "node_id": "track-office",
           "operation": "music_generation",
-          "structural_fingerprint": "c3c84aef00ae1f201f754a54a547cf9a3f5c4b912952b1ed8c923285d15b9a6c"
+          "structural_fingerprint": "0c352495a2c4cc6912ff694ce6d4db71809562b81b31be57d2eb436cd216258d"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [],
-          "cache_key": "b07c046c4c2b390aeda2c5a6c58824a4d1271d9bca4ac603fdd5db0a8abb101b",
-          "consumer_structure_fingerprint": "216c180dfe5e33df178dfc169a174d5a3022692bb24d27c13b76d38398831ee2",
+          "cache_key": "7102afd9ecef4a05008e275832194cd14e84875a8f5f8286459074b261c72b78",
+          "consumer_structure_fingerprint": "efdd2ac877a4f1a043168366362504121f99c64a48694f7be11525dde348723c",
           "depends_on": [
             "scene-request"
           ],
           "estimated_cost_high_usd": 0.8,
           "estimated_cost_low_usd": 0.1,
-          "node_id": "track-dusk-signal",
+          "node_id": "track-supper",
           "operation": "music_generation",
-          "structural_fingerprint": "7434c97c4d3db9fbc1bb388187fe5c299147283d063b64d152043f9f9c4194f2"
+          "structural_fingerprint": "82e1457f18b348b910d57011822854b7831cd1003ee171086f701ad729998c12"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [],
-          "cache_key": "4c2759c08cd0d702be74c5d7becba5321411c125a55f567122e09a414f10aac5",
-          "consumer_structure_fingerprint": "51b4b4331f1dd26cd017ad34e1904d6ccf9a41f60ed52da38c33cd07fc4825e3",
+          "cache_key": "bdb5baccf1d3faee412537256f9936bfe19d5f79eba5ae5c4b69b2feb4f51e9b",
+          "consumer_structure_fingerprint": "df741d315486e855aa5b26c8c14287454ad19d2c393bff46466ee484f9132c00",
           "depends_on": [
             "scene-request"
           ],
           "estimated_cost_high_usd": 0.8,
           "estimated_cost_low_usd": 0.1,
-          "node_id": "track-under-the-stairs",
+          "node_id": "track-window",
           "operation": "music_generation",
-          "structural_fingerprint": "6deafdc0fb5e56bb83578d6be2ffdbc63e2c38fc07343a84e192d24c0420b9e4"
+          "structural_fingerprint": "57d0b7510d64e76599f91b78f1c0239188f6bd4b2153fa2e3e1f0167b1296fc4"
+        },
+        {
+          "binding_ref": null,
+          "cache_depends_on": [],
+          "cache_key": "d650284cef2fd6d4a417dbd7952dd769eef39b10b04452926c6b993c552f449e",
+          "consumer_structure_fingerprint": "59ca875f218548d55059ffec147e11cb13789841e827d016860395f3be1dcb97",
+          "depends_on": [
+            "scene-request"
+          ],
+          "estimated_cost_high_usd": 0.8,
+          "estimated_cost_low_usd": 0.1,
+          "node_id": "track-statements",
+          "operation": "music_generation",
+          "structural_fingerprint": "dad5c381b9e1200dd5b25ac550088b42f93f82ac4a87679c61557b394e057807"
         },
         {
           "binding_ref": "28c9be298ad8f422e797ac0ef53cb97d131f2e81675879117ac2d7baab395af5",
           "cache_depends_on": [],
-          "cache_key": "b064254bced3e8935ecf2ef10cb63b9691643beb8c0fe9a05ecc469b8ac7d623",
+          "cache_key": "15e5bc890f0cffc58456c02a6e6bb3a7a60e0dc878abd700eed7576e09d90b01",
           "consumer_structure_fingerprint": "6cdc5e80076d217b42d76de50997184d2bacfb826a38b9cb135f1f9c617c4eda",
           "depends_on": [
             "scene-style-plate"
@@ -1089,7 +2147,7 @@
           "cache_depends_on": [
             "ui-panel_frame-generate"
           ],
-          "cache_key": "4939073c5cde584ac7ba0aa6a82db321a1e9c3c5f6a262ce2ced4ad16cfe6aa2",
+          "cache_key": "b2b7263575ab50427021c02aa46c5a2dd06999979592dea0f8a44c80b2423178",
           "consumer_structure_fingerprint": "628f162e440f8b13a916f7f21c7ab4f2458a93268d9793b530e1ff4231d0a3fb",
           "depends_on": [
             "ui-panel_frame-generate"
@@ -1105,7 +2163,7 @@
           "cache_depends_on": [
             "ui-panel_frame-validate"
           ],
-          "cache_key": "2a633ca9bc1c77eda519d0e082ec8facba41c0d8b46a4d0495aff03e5c9e809a",
+          "cache_key": "0d72bb0e63f53e9c88241ab030eba5b9c8e1f66d0987c0efda7b25a8893b6059",
           "consumer_structure_fingerprint": "802b425f06c94d4b2e4b453eebf156f3531da7f6ec5fe7a1e941ce8764a22757",
           "depends_on": [
             "ui-panel_frame-validate"
@@ -1119,7 +2177,7 @@
         {
           "binding_ref": "28c9be298ad8f422e797ac0ef53cb97d131f2e81675879117ac2d7baab395af5",
           "cache_depends_on": [],
-          "cache_key": "370e313ba4201592008a7f3a11a1b387a34e4286c6f20b256bdbaabc76846c36",
+          "cache_key": "72b8de97870a44985dc6d925cbf5d4bbaab9ab14a7d42251d6ed7724deec09ed",
           "consumer_structure_fingerprint": "c01be8a1c958833e40ef8bc81ac52241e2cc2a02f92b7baf9e7d99af2084a294",
           "depends_on": [
             "scene-style-plate"
@@ -1135,7 +2193,7 @@
           "cache_depends_on": [
             "ui-button_rect-generate"
           ],
-          "cache_key": "3e01b18bc302b7bb622b3eacecc8900bcd05cf07e26a80fd3817f93c2093877e",
+          "cache_key": "3013e6ec13e1aa90b41477f6ae4c041ac61f6ac6e66ce1d4ed3118691f1477c5",
           "consumer_structure_fingerprint": "9f4eaabbf961f3929acf77c3d0f973adb3ede802eb0cb0c38f04d5d42fbb4a5d",
           "depends_on": [
             "ui-button_rect-generate"
@@ -1151,7 +2209,7 @@
           "cache_depends_on": [
             "ui-button_rect-validate"
           ],
-          "cache_key": "fe32a45ede8ef2ad783b10743da1221a1128fd83df1d2b0e063e7bc3ab7093df",
+          "cache_key": "3d92cfa8a78fe5a777799a1911c55116b1996da60e4121a82790451d92441563",
           "consumer_structure_fingerprint": "cc77141e490a7ffd43292ea00a0d120a92d8fd5be39ff685f164ef20ae2cbbc3",
           "depends_on": [
             "ui-button_rect-validate"
@@ -1165,7 +2223,7 @@
         {
           "binding_ref": "28c9be298ad8f422e797ac0ef53cb97d131f2e81675879117ac2d7baab395af5",
           "cache_depends_on": [],
-          "cache_key": "b537fecca0aa226e8784e103c0a97b6950f33ede1b930a4907087702989e78e7",
+          "cache_key": "79c01d0ce7b773cf207fa97d0a628e4da70a4417ee7ce433c7adb2abf71e4124",
           "consumer_structure_fingerprint": "e9eae834eb93678c419a32d182e0a0485cfc33a7e0efa6665704d19d4f19e8c3",
           "depends_on": [
             "scene-style-plate"
@@ -1181,7 +2239,7 @@
           "cache_depends_on": [
             "ui-preview_icons-generate"
           ],
-          "cache_key": "6cd0bb2457dabf12b044715d1bede55a5cd2539b4ac2ce4c9126b456503d648b",
+          "cache_key": "023b6b42bdb18f49c7255f0866299a339c29dcdcf7a0ea2fc49931b56cd7b32d",
           "consumer_structure_fingerprint": "187a3ff1be8ca81985c06208a5ac474c481bf3e70fef29eaa47e6c11451e1f9f",
           "depends_on": [
             "ui-preview_icons-generate"
@@ -1197,7 +2255,7 @@
           "cache_depends_on": [
             "ui-preview_icons-validate"
           ],
-          "cache_key": "6ea63a7da9002d5fa9919e717fe933c3651df8065faa48d0ae10664239fb8092",
+          "cache_key": "9bb8ba9de4edbd418ee5f4f986916c3d4ffb5d8a24054ed71403ae9b8e02798d",
           "consumer_structure_fingerprint": "084f4ee78502c51a4d722453a0524c51ada7f1672fcfa9962f1f5b58901a0c56",
           "depends_on": [
             "ui-preview_icons-validate"
@@ -1211,51 +2269,121 @@
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "scenario-last-class",
-            "stage-classroom-day",
-            "stage-classroom-dusk",
-            "stage-radio-room",
-            "actor-nao-canonicalize-neutral",
-            "actor-nao-canonicalize-delighted",
-            "actor-nao-canonicalize-flustered",
-            "actor-nao-canonicalize-concerned",
-            "actor-haruki-canonicalize-neutral",
-            "actor-haruki-canonicalize-delighted",
-            "actor-haruki-canonicalize-flustered",
-            "actor-haruki-canonicalize-concerned",
-            "actor-sayaka-canonicalize-neutral",
-            "actor-sayaka-canonicalize-delighted",
-            "actor-sayaka-canonicalize-flustered",
-            "actor-sayaka-canonicalize-concerned",
-            "track-summer-room",
-            "track-dusk-signal",
-            "track-under-the-stairs",
+            "scenario-e1-office",
+            "scenario-e1-way-in",
+            "scenario-e1-table",
+            "scenario-e1-coffee",
+            "scenario-e1-the-court",
+            "scenario-e1-statements",
+            "stage-calder-office-late-afternoon",
+            "stage-tollands-motor-court",
+            "stage-tollands-cosmetics-floor",
+            "stage-service-lift",
+            "stage-winter-room-evening",
+            "stage-winter-room-roof-panel",
+            "stage-service-bar",
+            "stage-motor-court-police",
+            "stage-winter-room-after-police",
+            "stage-private-dining-room",
+            "stage-passenger-elevators",
+            "stage-motor-court-screened",
+            "actor-ruth-canonicalize-composed",
+            "actor-ruth-canonicalize-dry",
+            "actor-ruth-canonicalize-exposed",
+            "actor-ruth-canonicalize-shut",
+            "actor-edwin-canonicalize-formal",
+            "actor-edwin-canonicalize-dry",
+            "actor-edwin-canonicalize-grave",
+            "actor-edwin-canonicalize-no-keys",
+            "actor-lydia-canonicalize-composed",
+            "actor-lydia-canonicalize-work",
+            "actor-lydia-canonicalize-cut-off",
+            "actor-lydia-canonicalize-lowered",
+            "actor-nell-canonicalize-flat",
+            "actor-nell-canonicalize-hungry",
+            "actor-nell-canonicalize-hearing",
+            "actor-nell-canonicalize-gone",
+            "actor-marian-canonicalize-correcting",
+            "actor-marian-canonicalize-warm",
+            "actor-marian-canonicalize-still",
+            "actor-marian-canonicalize-nothing-to-correct",
+            "actor-robert-canonicalize-rambling",
+            "actor-robert-canonicalize-sorry",
+            "actor-robert-canonicalize-water",
+            "actor-robert-canonicalize-waiting",
+            "actor-paul-canonicalize-younger",
+            "actor-paul-canonicalize-pleased",
+            "actor-paul-canonicalize-stopped",
+            "actor-paul-canonicalize-all-right",
+            "actor-ward-canonicalize-blunt",
+            "actor-ward-canonicalize-writing",
+            "actor-ward-canonicalize-closed-notebook",
+            "actor-ward-canonicalize-one-joke",
+            "track-office",
+            "track-supper",
+            "track-window",
+            "track-statements",
             "ui-panel_frame-review",
             "ui-button_rect-review",
             "ui-preview_icons-review"
           ],
-          "cache_key": "75d5d25e3f057df6858cf82ada178c2863f7664d69660bd29de9cb3886b0105a",
-          "consumer_structure_fingerprint": "c50e6b5952e8686c249fd9e4cffef47b29d677ee2e559adbce04b152b60324b6",
+          "cache_key": "dc852f76daad2e2bc652ff720996fc7ede3a4ccd82f3f05ea0745ba16d71fcf3",
+          "consumer_structure_fingerprint": "7e20412465a9d2099f986e2e9bbd347d4ce733250a31913c32e5e02f2e683957",
           "depends_on": [
-            "scenario-last-class",
-            "stage-classroom-day",
-            "stage-classroom-dusk",
-            "stage-radio-room",
-            "actor-nao-canonicalize-neutral",
-            "actor-nao-canonicalize-delighted",
-            "actor-nao-canonicalize-flustered",
-            "actor-nao-canonicalize-concerned",
-            "actor-haruki-canonicalize-neutral",
-            "actor-haruki-canonicalize-delighted",
-            "actor-haruki-canonicalize-flustered",
-            "actor-haruki-canonicalize-concerned",
-            "actor-sayaka-canonicalize-neutral",
-            "actor-sayaka-canonicalize-delighted",
-            "actor-sayaka-canonicalize-flustered",
-            "actor-sayaka-canonicalize-concerned",
-            "track-summer-room",
-            "track-dusk-signal",
-            "track-under-the-stairs",
+            "scenario-e1-office",
+            "scenario-e1-way-in",
+            "scenario-e1-table",
+            "scenario-e1-coffee",
+            "scenario-e1-the-court",
+            "scenario-e1-statements",
+            "stage-calder-office-late-afternoon",
+            "stage-tollands-motor-court",
+            "stage-tollands-cosmetics-floor",
+            "stage-service-lift",
+            "stage-winter-room-evening",
+            "stage-winter-room-roof-panel",
+            "stage-service-bar",
+            "stage-motor-court-police",
+            "stage-winter-room-after-police",
+            "stage-private-dining-room",
+            "stage-passenger-elevators",
+            "stage-motor-court-screened",
+            "actor-ruth-canonicalize-composed",
+            "actor-ruth-canonicalize-dry",
+            "actor-ruth-canonicalize-exposed",
+            "actor-ruth-canonicalize-shut",
+            "actor-edwin-canonicalize-formal",
+            "actor-edwin-canonicalize-dry",
+            "actor-edwin-canonicalize-grave",
+            "actor-edwin-canonicalize-no-keys",
+            "actor-lydia-canonicalize-composed",
+            "actor-lydia-canonicalize-work",
+            "actor-lydia-canonicalize-cut-off",
+            "actor-lydia-canonicalize-lowered",
+            "actor-nell-canonicalize-flat",
+            "actor-nell-canonicalize-hungry",
+            "actor-nell-canonicalize-hearing",
+            "actor-nell-canonicalize-gone",
+            "actor-marian-canonicalize-correcting",
+            "actor-marian-canonicalize-warm",
+            "actor-marian-canonicalize-still",
+            "actor-marian-canonicalize-nothing-to-correct",
+            "actor-robert-canonicalize-rambling",
+            "actor-robert-canonicalize-sorry",
+            "actor-robert-canonicalize-water",
+            "actor-robert-canonicalize-waiting",
+            "actor-paul-canonicalize-younger",
+            "actor-paul-canonicalize-pleased",
+            "actor-paul-canonicalize-stopped",
+            "actor-paul-canonicalize-all-right",
+            "actor-ward-canonicalize-blunt",
+            "actor-ward-canonicalize-writing",
+            "actor-ward-canonicalize-closed-notebook",
+            "actor-ward-canonicalize-one-joke",
+            "track-office",
+            "track-supper",
+            "track-window",
+            "track-statements",
             "ui-panel_frame-review",
             "ui-button_rect-review",
             "ui-preview_icons-review"
@@ -1264,15 +2392,15 @@
           "estimated_cost_low_usd": 0.0,
           "node_id": "scene-bundle",
           "operation": "local",
-          "structural_fingerprint": "a815d2a03981a0b41da81e312bfce3bc286ff76e6f2eaf5d2af4b55a59c31f5c"
+          "structural_fingerprint": "640d41937f113815491effd9f6993c7c082491d3c567802c577038fb5e9de841"
         }
       ],
       "operation_counts": {
         "background_removal": 0,
-        "image_generation": 18,
-        "local": 22,
-        "music_generation": 3,
-        "structured_generation": 7
+        "image_generation": 47,
+        "local": 52,
+        "music_generation": 4,
+        "structured_generation": 12
       },
       "recipe_id": "dialogue_scene",
       "resources": [
@@ -1302,7 +2430,7 @@
         }
       ],
       "terminal_node_id": "scene-bundle",
-      "topology_sha256": "2b99d88c0c5b22786541e642d11d7116a9d7a18b5b6aaba1ab68bebd0a246b98"
+      "topology_sha256": "60cd299d6a6ea816c57d685f5e12909523384329b78eed7efbf0dff0b60fbf20"
     },
     {
       "bindings": [
@@ -7215,17 +8343,17 @@
           "route_id": "image.sunburst.openai.images.edit"
         }
       ],
-      "estimated_cost_high_usd": 2.4,
-      "estimated_cost_low_usd": 1.465,
-      "fixture_ref": "godot/legacy/inputs/clockmakers_attic",
+      "estimated_cost_high_usd": 1.82,
+      "estimated_cost_low_usd": 1.1,
+      "fixture_ref": "godot/legacy/inputs/the_grain/rooms/window",
       "graph_kind": "pointclick-room-execution-graph-v2",
       "graph_schema_version": 2,
-      "graph_sha256": "d4caf26e7aa72f59a34c9597cfa6883afd7a55f429c86bec640a2b383513ac58",
+      "graph_sha256": "73079ffcfc4a2a50a2ece2c16fed1697d2ada494a879e5fb2fdaa8fe008f28c9",
       "nodes": [
         {
           "binding_ref": null,
           "cache_depends_on": [],
-          "cache_key": "39199d70591d18dc00beebcd30dd7fa44cb7875efa0b385c7bae1f4a24280f56",
+          "cache_key": "217b546ebc3821f29da082240f2049ada533d9785a52bb3f4db91800d813d5e3",
           "consumer_structure_fingerprint": "3de87bdbfc97a51b2878cb86d65e63d0ea701e484fffab4f6e0493c3a6cb5bb4",
           "depends_on": [],
           "estimated_cost_high_usd": 0.0,
@@ -7237,7 +8365,7 @@
         {
           "binding_ref": null,
           "cache_depends_on": [],
-          "cache_key": "bc4740a1a9c9c934826ee239fdeea8c73a839cba1a44ccaf0e76e9619df209e0",
+          "cache_key": "e7b2d7900d81e9eaf8903c1060c8b996356e3d94c7f3ee4b07f954bcb0ba5467",
           "consumer_structure_fingerprint": "4d4e146c8069480d4ba56e31e53389edb79436629aca3be69c02923f2d76db7a",
           "depends_on": [
             "room-resolve"
@@ -7253,7 +8381,7 @@
           "cache_depends_on": [
             "room-style-select"
           ],
-          "cache_key": "7be234953fbdf2f53090be96b584ad396b7b354b31692fdc13fec5a9bc0c9015",
+          "cache_key": "03908d28929d13362511caee337ad79309ec6eb9266eee46125688e490c0ec68",
           "consumer_structure_fingerprint": "5e3964be93c633bcd888c571521472d700fcaa985929a9c2664ca6afd28308ab",
           "depends_on": [
             "room-style-select"
@@ -7269,149 +8397,71 @@
           "cache_depends_on": [
             "room-style-select"
           ],
-          "cache_key": "bb686280cccb6a61d605a07a28bf464111c6c9771a9ea17306e1e3678147b4f8",
-          "consumer_structure_fingerprint": "fa31406958abdef22eee9446e1872665002b5fced7bc83356c18c042af60f5ea",
+          "cache_key": "6abd6fd160f8e5a0faca4637489a0261febcf37a12daf5c45315b4c3f4135ab7",
+          "consumer_structure_fingerprint": "bf91b11c1f53451ed95cc8928b9b49fc9266c1201ea4e9e31416226aec3c9ea1",
           "depends_on": [
             "room-style-select"
           ],
           "estimated_cost_high_usd": 0.25,
           "estimated_cost_low_usd": 0.18,
-          "node_id": "hotspot-dust_sheet-generate",
+          "node_id": "hotspot-torn_piece-generate",
           "operation": "image_generation",
-          "structural_fingerprint": "da7555bfd12ee6b424118ba571da59477f9e5f41679d9cfb28fc39c0dd0e8b13"
+          "structural_fingerprint": "c1eff3d88dc0d516346fc11f47c46e7c90169ea20f457695dc3b5e046ae009bc"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "hotspot-dust_sheet-generate"
+            "hotspot-torn_piece-generate"
           ],
-          "cache_key": "9a00b0927e41a24afc20d031f19e01a1f58809924a5fc6e655a90e26d0eeebb4",
-          "consumer_structure_fingerprint": "dcdd652d776f73fb5beb55c48e5453498a2ee2774cff5532530e5f0c5168e24f",
+          "cache_key": "f9c881d8c020404e94b6a5eb3a7a371a24b886ec2334ad52b7695023f58c5e1b",
+          "consumer_structure_fingerprint": "b999e8ff63caa24568c76b32e809ce425f71cb58d1cc9bc60058a666fb62dbab",
           "depends_on": [
-            "hotspot-dust_sheet-generate"
+            "hotspot-torn_piece-generate"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "hotspot-dust_sheet-validate",
+          "node_id": "hotspot-torn_piece-validate",
           "operation": "local",
-          "structural_fingerprint": "ddeca9342b6bbfb37bc2337cd272afb5c62c06f13b35369aa8faf7546a97cfd3"
+          "structural_fingerprint": "34a0b111da967bcd8ecb80559e3e92dfa09435df7e5bc2d3ede97fedf1ed0ecb"
         },
         {
           "binding_ref": "8d062cd5a2e388480994df06f8fe0b2c5353f08ebc1b1111570140d76b4b03cb",
           "cache_depends_on": [
             "room-style-select"
           ],
-          "cache_key": "377e012a00e5c11189ee2dae071d7a2f38362fdabbb6a1da38c891404cf717c5",
-          "consumer_structure_fingerprint": "170844edd38e6e136e49419a6e1351ddb1d2c0702314c13fc145361663f45bc4",
+          "cache_key": "03b2df0cedeb410102fbfd807c7442adbaa48105d539530eb532039b883d5a9d",
+          "consumer_structure_fingerprint": "a2b98cc2d56069bff668ce767118eac402fd5c2d63756c7fc0147cf70c5aee2b",
           "depends_on": [
             "room-style-select"
           ],
           "estimated_cost_high_usd": 0.25,
           "estimated_cost_low_usd": 0.18,
-          "node_id": "hotspot-music_box-generate",
+          "node_id": "hotspot-gallery_carton-generate",
           "operation": "image_generation",
-          "structural_fingerprint": "1ee2f103f507c735169e263e9ad985ee94108ae0e054a71e5a4b36e16837a5a5"
+          "structural_fingerprint": "1b0910875ea4d0b7e36a38f1dcffd81fbee4b2c9a70491e274c844077fcf4d15"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
-            "hotspot-music_box-generate"
+            "hotspot-gallery_carton-generate"
           ],
-          "cache_key": "7792761a73304acc8221b39146ae077821b39dc6ffe757969b3ea959714c7e2a",
-          "consumer_structure_fingerprint": "c528252e2028f60f93369c9e8353712dbc9ad86a74c529d6100cbd6e010eaeb2",
+          "cache_key": "a982951107c67c1f4f3055072702372d0cc5e94ca948e4b87ac03b9341e6abc2",
+          "consumer_structure_fingerprint": "dcaad6eab0f7afed03a351519235fefcfda06c3eb20392cec5b573f49d552c59",
           "depends_on": [
-            "hotspot-music_box-generate"
+            "hotspot-gallery_carton-generate"
           ],
           "estimated_cost_high_usd": 0.0,
           "estimated_cost_low_usd": 0.0,
-          "node_id": "hotspot-music_box-validate",
+          "node_id": "hotspot-gallery_carton-validate",
           "operation": "local",
-          "structural_fingerprint": "64281c36d619d80fe55bf95e125928a646bcf1e7a476b009f44474cb9755d12b"
-        },
-        {
-          "binding_ref": "8d062cd5a2e388480994df06f8fe0b2c5353f08ebc1b1111570140d76b4b03cb",
-          "cache_depends_on": [
-            "room-style-select"
-          ],
-          "cache_key": "0090b54f98db642485232c118b8ad0e0f631a623d613ceeb85bfd9895ff49d40",
-          "consumer_structure_fingerprint": "76bd87cebd3b0c756311d586883db825e3d02965c0434a34cb13b97d668a6851",
-          "depends_on": [
-            "room-style-select"
-          ],
-          "estimated_cost_high_usd": 0.25,
-          "estimated_cost_low_usd": 0.18,
-          "node_id": "item-winding_key-generate",
-          "operation": "image_generation",
-          "structural_fingerprint": "d13771693419a032d04f74d0907c1dc8d733b63beca841fa2b7aaf5c1d34de25"
-        },
-        {
-          "binding_ref": null,
-          "cache_depends_on": [
-            "item-winding_key-generate"
-          ],
-          "cache_key": "227a032972700bd83b4f7bf425771e2d58c0a9691de129a62dc7128580c0adfb",
-          "consumer_structure_fingerprint": "0be656765e9019f7063c83570f54a531b206f2d2df24d92c14734cdce609affe",
-          "depends_on": [
-            "item-winding_key-generate"
-          ],
-          "estimated_cost_high_usd": 0.0,
-          "estimated_cost_low_usd": 0.0,
-          "node_id": "item-winding_key-validate",
-          "operation": "local",
-          "structural_fingerprint": "557863fbc01324d7a0e037ee43ee2a374d7c82a9139fef390173b10e358e2ca6"
-        },
-        {
-          "binding_ref": "8d062cd5a2e388480994df06f8fe0b2c5353f08ebc1b1111570140d76b4b03cb",
-          "cache_depends_on": [
-            "room-style-select"
-          ],
-          "cache_key": "87f32d0064dd71509da28d2fb3c05f77ad790d0029e1a8b1ae8bda809c845e08",
-          "consumer_structure_fingerprint": "2b401bc04619293bf8626f05daf380c26047d6bf0eab76b02548c33cd6c47bfb",
-          "depends_on": [
-            "room-style-select"
-          ],
-          "estimated_cost_high_usd": 0.25,
-          "estimated_cost_low_usd": 0.18,
-          "node_id": "item-small_gear-generate",
-          "operation": "image_generation",
-          "structural_fingerprint": "ad25b0f4731448f0b77849f31685e0ffa6e27b7af349db4de822c110242eff19"
-        },
-        {
-          "binding_ref": null,
-          "cache_depends_on": [
-            "item-small_gear-generate"
-          ],
-          "cache_key": "2c0ec119a1064c7d91fde9e13573727325e12e6107cee23277b5f26d8d3b4369",
-          "consumer_structure_fingerprint": "5f150a504bc9704ec211abec19a31528d647869b3d77b4d0de7f6469fc75147c",
-          "depends_on": [
-            "item-small_gear-generate"
-          ],
-          "estimated_cost_high_usd": 0.0,
-          "estimated_cost_low_usd": 0.0,
-          "node_id": "item-small_gear-validate",
-          "operation": "local",
-          "structural_fingerprint": "a21b7e469f88a384e2895666fa4101596961a5b90962bd8b164e7a835e1d706f"
-        },
-        {
-          "binding_ref": null,
-          "cache_depends_on": [],
-          "cache_key": "17165e184ad6e987188e66949067bb78fa03ddc70375514dfdc7bcd471f5a17f",
-          "consumer_structure_fingerprint": "adb29669108bb653f750392a4d17a6f30500f40678d8987e6d9860e70a953668",
-          "depends_on": [
-            "room-resolve"
-          ],
-          "estimated_cost_high_usd": 0.08,
-          "estimated_cost_low_usd": 0.005,
-          "node_id": "room-narration",
-          "operation": "structured_generation",
-          "structural_fingerprint": "e6109da2e9e0a9163b13cb94b12ee69e8c5a8cba33c45fafe9c4ac0a8358de7d"
+          "structural_fingerprint": "8f3d5459aeffe53e9d183c9322803848899657cd68d778598ad959a3f0b58f77"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
             "room-resolve"
           ],
-          "cache_key": "c674ab1030bcd5fe42b594c45dd342a73153883794b4a1a450aa1b7ad7a9ea12",
+          "cache_key": "4546bc632321ecfd4be5602d5efcc3040dc5bf131c0900500303cef55ea6e2fa",
           "consumer_structure_fingerprint": "5d0262a95363468c23519d9060435ed637fe14ad8b1fe799b790a04dd091919a",
           "depends_on": [
             "room-resolve"
@@ -7425,7 +8475,7 @@
         {
           "binding_ref": "28c9be298ad8f422e797ac0ef53cb97d131f2e81675879117ac2d7baab395af5",
           "cache_depends_on": [],
-          "cache_key": "0f5ffda342139d8497d7a096e0520fd6ac1fdbc53e6d6ef671e3337c39862d9d",
+          "cache_key": "d0d30f51895a59cbeb146e95c3c7d5d7dfc3b7312552fa5e93d63486775920f0",
           "consumer_structure_fingerprint": "49a4e1f8bc9fb419e9e12e75eba8866f1a95ceb363906e955b30ca28568ced41",
           "depends_on": [
             "room-resolve"
@@ -7441,7 +8491,7 @@
           "cache_depends_on": [
             "ui-panel_frame-generate"
           ],
-          "cache_key": "74d4b6900f06e89de7f75ad4e03b66e293ef9b48a81a6b1dbc22f99045d9d87a",
+          "cache_key": "b5a3777bd23cd9bad1e639755ddbe0bdd562be3782544a416480301e6af4e453",
           "consumer_structure_fingerprint": "628f162e440f8b13a916f7f21c7ab4f2458a93268d9793b530e1ff4231d0a3fb",
           "depends_on": [
             "ui-panel_frame-generate"
@@ -7457,7 +8507,7 @@
           "cache_depends_on": [
             "ui-panel_frame-validate"
           ],
-          "cache_key": "2c4e861b2c118e79f0260b3dd6b1a219ec5e1b231934ec4b317501e25c8459f5",
+          "cache_key": "687a1315da033a7238bd44f404f84039d3e3b309774f6d800b36e2b0b015cf72",
           "consumer_structure_fingerprint": "802b425f06c94d4b2e4b453eebf156f3531da7f6ec5fe7a1e941ce8764a22757",
           "depends_on": [
             "ui-panel_frame-validate"
@@ -7471,7 +8521,7 @@
         {
           "binding_ref": "28c9be298ad8f422e797ac0ef53cb97d131f2e81675879117ac2d7baab395af5",
           "cache_depends_on": [],
-          "cache_key": "b822804abea7c3c95cefa527452576467d5a148df1f5d3bd67add9d3aada563d",
+          "cache_key": "685aa02e2901c3fe75b20a16a86668a3afbd9a5b12fdb61a656706bce0c60a5d",
           "consumer_structure_fingerprint": "b035717364b920b452a6d395caaff5bd87405d389c7db45e5222a9c6bdc27f06",
           "depends_on": [
             "room-resolve"
@@ -7487,7 +8537,7 @@
           "cache_depends_on": [
             "ui-button_rect-generate"
           ],
-          "cache_key": "5631a0efc43e182e9418e521e6c176e5940f5d27e91e387e371a681015bd5309",
+          "cache_key": "755e311092e045442653f85dbaf3716b189d3321b4677322c78d4b52f009d2d2",
           "consumer_structure_fingerprint": "9f4eaabbf961f3929acf77c3d0f973adb3ede802eb0cb0c38f04d5d42fbb4a5d",
           "depends_on": [
             "ui-button_rect-generate"
@@ -7503,7 +8553,7 @@
           "cache_depends_on": [
             "ui-button_rect-validate"
           ],
-          "cache_key": "be0ba2fb25b16b20fde7be4a67c111dc385f3f9d2c1b7ce7b9df284a1b1f042e",
+          "cache_key": "07e9096496d3189981a80b17e13eec46abdd2455f5953064b831ee9b62018301",
           "consumer_structure_fingerprint": "cc77141e490a7ffd43292ea00a0d120a92d8fd5be39ff685f164ef20ae2cbbc3",
           "depends_on": [
             "ui-button_rect-validate"
@@ -7517,7 +8567,7 @@
         {
           "binding_ref": "28c9be298ad8f422e797ac0ef53cb97d131f2e81675879117ac2d7baab395af5",
           "cache_depends_on": [],
-          "cache_key": "4178eb4a318ac3d6a2a818c1e9fa1a54d6336fc78a1194775ce1bee486feb796",
+          "cache_key": "f56cfb2a4b6cc31bfb9d2009569be5d40611a34116dffaab2bab4fec9f7560e2",
           "consumer_structure_fingerprint": "8f54bab28d28269161b9540ed9783d0c3f96f1a4f657734175e31eff48343073",
           "depends_on": [
             "room-resolve"
@@ -7533,7 +8583,7 @@
           "cache_depends_on": [
             "ui-preview_icons-generate"
           ],
-          "cache_key": "616a7849af2f1551c4cc48f3422e9d399f96b4d2249af0c6c7a47a533a6ce75c",
+          "cache_key": "71985de183877f1cd2599af6fb2eeb0ad68386af9a541d01802dae7085ceebed",
           "consumer_structure_fingerprint": "187a3ff1be8ca81985c06208a5ac474c481bf3e70fef29eaa47e6c11451e1f9f",
           "depends_on": [
             "ui-preview_icons-generate"
@@ -7549,7 +8599,7 @@
           "cache_depends_on": [
             "ui-preview_icons-validate"
           ],
-          "cache_key": "8e50f44e4f6c3bf9f4c47112098ca437579e225121749d41bf4712d563952318",
+          "cache_key": "2d61387d0414efb8b7e1c7077838b75edd68778484e0414c3ecae1b44094a272",
           "consumer_structure_fingerprint": "084f4ee78502c51a4d722453a0524c51ada7f1672fcfa9962f1f5b58901a0c56",
           "depends_on": [
             "ui-preview_icons-validate"
@@ -7564,25 +8614,19 @@
           "binding_ref": null,
           "cache_depends_on": [
             "room-backdrop",
-            "hotspot-dust_sheet-validate",
-            "hotspot-music_box-validate",
-            "item-winding_key-validate",
-            "item-small_gear-validate",
-            "room-narration",
+            "hotspot-torn_piece-validate",
+            "hotspot-gallery_carton-validate",
             "room-puzzle-validate",
             "ui-panel_frame-review",
             "ui-button_rect-review",
             "ui-preview_icons-review"
           ],
-          "cache_key": "4c6167ca49737585648e51768fe01c6d9a12d104c8525ac0c5199a3f2e45fda7",
-          "consumer_structure_fingerprint": "d5e2b58a8e9fc153c71fa5b745a3bb8cf9438ac7ef25cfb4ba1befee85eaeacf",
+          "cache_key": "841a9b14a9ccd3d893013fe8248ca7209f226aecd07d72f5ebd10f17a71a9f52",
+          "consumer_structure_fingerprint": "547ccb8c8976ef8ee32563364a630971080569e67707f2c86d58b84f38ad15f6",
           "depends_on": [
             "room-backdrop",
-            "hotspot-dust_sheet-validate",
-            "hotspot-music_box-validate",
-            "item-winding_key-validate",
-            "item-small_gear-validate",
-            "room-narration",
+            "hotspot-torn_piece-validate",
+            "hotspot-gallery_carton-validate",
             "room-puzzle-validate",
             "ui-panel_frame-review",
             "ui-button_rect-review",
@@ -7592,13 +8636,13 @@
           "estimated_cost_low_usd": 0.0,
           "node_id": "room-bundle",
           "operation": "local",
-          "structural_fingerprint": "c4cf92a10b0b34a54c4b4c178e16dee4222cec9842befa5b910cdd0006d1512a"
+          "structural_fingerprint": "9332b3b78e1fab6972492572fbd3689eaab7d5c9af3be87add9a87c1bea60331"
         }
       ],
       "operation_counts": {
-        "image_generation": 8,
-        "local": 10,
-        "structured_generation": 5
+        "image_generation": 6,
+        "local": 8,
+        "structured_generation": 4
       },
       "recipe_id": "pointclick_room",
       "resources": [
@@ -7622,7 +8666,7 @@
         }
       ],
       "terminal_node_id": "room-bundle",
-      "topology_sha256": "68a1405d53075089e20b188b07282c19f426e72f2babb8a489abe7bf25539cf4"
+      "topology_sha256": "5dc5d2279449d737b79efa453730d4340af8da83038ff7296cde220d038ff51c"
     },
     {
       "bindings": [

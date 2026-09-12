@@ -30,7 +30,7 @@
     {
       "beat_id": "demo_supper",
       "kind": "scenario",
-      "run_tag": "larkfield-ui-v1",
+      "run_tag": "demo-scene",
       "display_name": "The table",
       "writes": [
         "heard_the_toast"
@@ -45,7 +45,7 @@
     {
       "beat_id": "demo_room",
       "kind": "room",
-      "run_tag": "larkfield-ui-v1",
+      "run_tag": "demo-room",
       "display_name": "The broadcast room",
       "writes": [
         "saw_the_card",
@@ -62,7 +62,7 @@
     {
       "beat_id": "demo_close",
       "kind": "scenario",
-      "run_tag": "larkfield-ui-v1",
+      "run_tag": "demo-scene",
       "display_name": "After",
       "reads": [
         "heard_the_toast",

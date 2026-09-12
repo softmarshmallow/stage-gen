@@ -5,8 +5,8 @@
 > **Contract maturity: exact-current for the authored contract, the script
 > surface, the admission proof, and the runtime that walks it.** Executable
 > authority: `src/stage_gen/components/scenario/`, `godot/legacy/runtime/families/scenario/`, the
-> authored `godot/legacy/inputs/larkfield/scenarios/last_class.toml` beside its script, and
-> `stage-gen scenario check`. The choice recorded under [Decision](#decision) is
+> authored `godot/legacy/inputs/the_grain/scenarios/e1_way_in.toml` beside its script, and
+> `stage-gen legacy scenario check`. The choice recorded under [Decision](#decision) is
 > settled and should not be re-litigated without new evidence.
 > [The shell is not Scenario](#the-shell-is-not-scenario) is partly built: the
 > consumer now autosaves and keeps a backlog, and there are still no save slots
@@ -336,89 +336,48 @@ conditional that guards a few statements inline.
 
 ### Worked example
 
+The Grain's [The Way In scenario](../../../godot/legacy/inputs/the_grain/scenarios/e1_way_in.toml)
+binds its [script](../../../godot/legacy/inputs/the_grain/scenarios/e1_way_in.scenario)
+by exact source digest. This excerpt shows the opening stage and speaker placement:
+
 ```renpy
-label arrival:
-    stage classroom_day
-    play summer_room
+label the_service_door:
+    stage tollands_motor_court
 
-    "The last bell went twenty minutes ago. The room still smells of chalk."
+    show ruth composed at center
 
-    show nao neutral at center
+    henry "Is that Lydia's work?"
 
-    nao "Everyone's gone home. I wanted to record the room before they lock up."
-
-    menu:
-        "Say nothing, and listen with her.":
-            jump listening
-        "Ask what she's recording.":
-            jump asking
-
-
-label listening:
-    set stayed_quiet
-
-    "So you say nothing. The cicadas fill the gap where the answer would have been."
-
-    nao delighted "Thank you. Most people start talking the second I hold this up."
-
-    jump recording
-
-
-label recording:
-    stage classroom_dusk
-
-    nao neutral "That's the building settling. It does that every evening."
-
-    if stayed_quiet and not asked_about_recorder:
-        jump ending_quiet
-
-    jump ending_talked
-
-
-label ending_quiet:
-    nao delighted "You heard it too. I could tell. You went still."
-
-    hide nao
-    stop summer_room
-    end listened
+    ruth "No."
 ```
 
-with the names it uses declared beside it:
+The corresponding declarations include:
 
 ```toml
 schema_version = 2
 kind = "scenario-v2"
-scenario_id = "last_class"
-script = "scenarios/last_class.scenario"
-script_sha256 = "<sha256 of the exact script bytes>"
-entry = "arrival"
+game_id = "the_grain"
+scenario_id = "e1_way_in"
+display_name = "The Way In"
+revision = 1
+script = "scenarios/e1_way_in.scenario"
+script_sha256 = "<sha256 of the exact complete script bytes>"
+entry = "the_service_door"
+
+# An actor without expressions speaks but is never drawn.
+[[cast]]
+actor_id = "henry"
+display_name = "Henry"
 
 [[cast]]
-actor_id = "nao"
-profile = "character.toml"
-expressions = ["neutral", "delighted", "flustered", "concerned"]
-
-# An actor with no profile speaks but is never shown: the protagonist
-# convention, and the reason `you` needs no generated plates.
-[[cast]]
-actor_id = "you"
-display_name = "You"
-
-[[stages]]
-stage_id = "classroom_day"
-brief = "An original empty classroom in late afternoon, warm light, no people"
-
-[[tracks]]
-track_id = "summer_room"
-brief = "Sparse piano over cicadas, unhurried, a little hollow"
-
-[[flags]]
-flag_id = "stayed_quiet"
-
-[[endings]]
-outcome_id = "listened"
-label = "You listened"
+actor_id = "ruth"
+display_name = "Ruth"
+expressions = ["composed", "dry", "exposed", "shut"]
 ```
+
+These are excerpts, not a second runnable copy. The linked scenario also declares
+its other cast members, stages, flags and endings; its scene package supplies
+character-profile bindings. The complete files are the executable example.
 
 ### The parser
 

@@ -30,10 +30,9 @@ play.
 
 **Which runs open.** The contract is `dialogue-scene-bundle-v8` at
 `schema_version` 8: `out/the-grain-scene-a`, `out/the-grain-scene-4` and
-`out/the-grain-scene-5`. `out/larkfield` is `v6` and two contract generations
-behind — its `scene_data` publishes a single `scenario` object where v8 requires
-a `scenarios` array, and it carries no `ui` block at all, so it cannot be brought
-forward by a version bump.
+`out/the-grain-scene-5`. The Grain is the retained game consumer of this host.
+Older bundle schemas remain unsupported; changing only their version field does
+not supply the required scenario array or UI bindings.
 
 ## The controls
 

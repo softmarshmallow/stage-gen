@@ -88,8 +88,7 @@ def _legacy_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
         )
     ]
     for family, name in (
-        ("pointclick-room", "clockmakers_attic"),
-        ("dialogue-scene", "larkfield"),
+        ("pointclick-room", "the_grain/rooms/window"),
         ("dialogue-scene", "the_grain"),
         ("oblique-survival", "ember-hollow"),
     ):
@@ -106,13 +105,13 @@ def _legacy_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
                     "--cache-dir",
                     str(scratch / "legacy-cache"),
                     "--output",
-                    str(scratch / name),
+                    str(scratch / f"{family}-{Path(name).name}"),
                 )
             )
         )
     result.extend(
         Step(("stage-gen", "legacy", "scenario", "check", "--input", f"godot/legacy/inputs/{name}"))
-        for name in ("bellweather", "larkfield", "the_grain")
+        for name in ("bellweather", "the_grain")
     )
     result.extend(
         (

@@ -43,35 +43,39 @@ One scene is one directory under `godot/legacy/inputs/`, holding `scene.toml` be
 the members it names by exact relative path: the scenarios it plays, the
 character profiles it binds, and the `references/` its art is drawn against. The
 document is strict TOML: every key is lower_snake_case; camelCase, unknown keys,
-and implicit aliases are rejected. The contract is temporary by intent - the
-standing goal is for every game kind to be declared through `game.toml`.
+and implicit aliases are rejected. This format belongs to the demo builders that
+read it. It is not a required input format for other games or asset pipelines.
+
+The following excerpt shows one scenario binding and one profile from
+[The Grain](../../godot/legacy/inputs/the_grain/scene.toml). The complete file owns
+the remaining scenarios and cast; this excerpt is not an independently runnable
+package. The style reference supplies the look, not an actor identity.
 
 ```json
 {
   "schema_version": 5,
   "kind": "dialogue-scene-v5",
-  "game_id": "larkfield",
-  "display_name": "Larkfield",
-  "revision": 2,
-  "scene_brief": "A student records an empty classroom after the last class of summer",
+  "game_id": "the_grain",
+  "display_name": "The Grain — Episode One",
+  "revision": 1,
+  "scene_brief": "Flat-ink screen print, never photography: a 1972 farewell supper in a closed department store",
   "style_reference_id": "cover",
   "scenarios": [
     {
       "schema_version": 1,
       "kind": "scenario-binding-v1",
-      "ref": "scenarios/last_class.toml",
+      "ref": "scenarios/e1_way_in.toml",
       "source_sha256": "<sha256 of the authored scenario document>"
     }
   ],
   "cast": [
     {
-      "actor_id": "nao",
-      "reference_id": "cover",
+      "actor_id": "edwin",
       "character_profile": {
         "schema_version": 1,
         "kind": "character-profile-binding-v1",
-        "ref": "characters/nao.toml",
-        "source_sha256": "<sha256-of-the-exact-nao.toml-bytes>"
+        "ref": "characters/edwin.toml",
+        "source_sha256": "<sha256-of-the-exact-edwin.toml-bytes>"
       }
     }
   ],

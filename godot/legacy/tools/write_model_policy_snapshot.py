@@ -61,8 +61,8 @@ SNAPSHOT_PATH = (
 
 PLATFORMER_FIXTURE = "godot/legacy/inputs/bellweather"
 RUNNER_FIXTURE = "godot/legacy/inputs/iron-petal-unit"
-DIALOGUE_FIXTURE = "godot/legacy/inputs/larkfield"
-POINTCLICK_FIXTURE = "godot/legacy/inputs/clockmakers_attic"
+DIALOGUE_FIXTURE = "godot/legacy/inputs/the_grain"
+POINTCLICK_FIXTURE = "godot/legacy/inputs/the_grain/rooms/window"
 STOREFRONT_FIXTURE = "godot/legacy/inputs/ember-hollow"
 SURVIVAL_FIXTURE = "godot/legacy/inputs/ember-hollow"
 UNIVERSE_FIXTURE = "src/stage_gen/recipes/universe/examples/lantern_ferry"

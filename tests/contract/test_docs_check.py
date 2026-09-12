@@ -106,9 +106,9 @@ def test_character_profile_workflow_is_discoverable_and_version_accurate() -> No
     docs_index = (repository_root / "docs/README.md").read_text(encoding="utf-8")
 
     for required in (
-        "stage-gen character-profile validate",
-        "stage-gen character-profile digest",
-        "godot/legacy/inputs/larkfield",
+        "stage-gen legacy character-profile validate",
+        "stage-gen legacy character-profile digest",
+        "godot/legacy/inputs/the_grain",
         "--package-root",
         _current("dialogue-scene-bundle"),
     ):

@@ -341,13 +341,14 @@ The prompt is composed at plan time and carried on the node card, so a reader se
 instruction the provider will be given without running anything, and a recipe that gates on full
 static prompts admits these nodes like any other.
 
-Five games draw from the sheets today, each played by its own Godot host:
+Four retained games use this UI contract through the Godot hosts. The Grain
+composes the room and dialogue hosts:
 
 | Game | `panel_frame` | `button_rect` | `preview_icons` | `cursor_set` |
 | --- | --- | --- | --- | --- |
 | Bellweather, side-view platformer | defeat panel, NPC conversation box | return button | `home` on the return button | not declared |
-| Larkfield, visual novel | dialogue box, end card | choice list, play-again control | `retry` as the end card's icon-only button | not declared |
-| The Clockmaker's Attic, point-and-click | HUD bar, narration plate, win card | verb bar | `hand` and `search` on the Act and Look verbs | not declared |
+| The Grain, dialogue scenes | dialogue box, end card | choice list, play-again control | `retry` as the end card's icon-only button | not declared |
+| The Grain, point-and-click rooms | HUD bar, narration plate, win card | verb bar | `hand` and `search` on the Act and Look verbs | not declared |
 | Ember Hollow, oblique survival (Godot host) | every panel: vitals, hotbar, worn places, item card, message, crafting table, pause menu, death sheet | every button, the four states as the theme's styleboxes | not yet read; the pack's glyphs are its own icon sheet | the mouse pointer: `arrow`, `hand` over a thing that can be acted on, `crosshair` while a built thing is placed, and the rest installed for the shapes they stand for |
 | Iron Petal Unit, runner | not yet wired | not yet wired | not yet wired | not declared |
 

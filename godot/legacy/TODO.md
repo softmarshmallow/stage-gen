@@ -16,14 +16,12 @@ Rulings live in [decisions](../../docs/decisions/README.md) — one record per r
 The contract is [authored game UI](../../docs/spec/game/ui.md); the taxonomy is [ui-atlas](../../docs/spec/game/ui-atlas.md).
 
 - [ ] Replace the drawn `inventory_panel` with a composition: retire the fixed `inventory_grid_4x2_v1` role (one picture of eight slots that no game outside the platformer's pack shape can use) and promote `slot_cell` from the taxonomy as a generated role beside `panel_frame`, so a pack of any slot count is the panel frame stretched around a grid of slot cells. Drop the role and its nodes, gate, evidence and review with the two Bellweather documents that declare it, re-pin the platformer's UI group and the web `InventoryHud`, and switch the survival host's code-drawn slot wells to the new cell — one contract bump, no alias. Until then the survival host draws its slots as plain dark wells inside the generated frame, on purpose.
-- [ ] Give the point-and-click room its cursors: the taxonomy's genre pack lists cursor icons for the room, and `cursor_set` (game-ui-v5) is a fixed pointer vocabulary with measured hotspots that no recipe refuses any more ([0062](../../docs/decisions/0062-the-pointer-belongs-to-every-host.md)). What is left is authored and consumer work: The Clockmaker's Attic declares the set, and the room's Godot host installs the glyphs for its verbs the way the survival host does — `hand` and `inspect` on Act and Look. One image and one review per room document.
 - [ ] Re-brief Ember Hollow's `preview_icons` to the two flat tones its style plate has, or take the one-tone clause out of the role's prompt: the run `out/ember-hollow-v8` review rejected the set for the lit-and-shadow facets the package's `[style]` asks of every shape, while every glyph registered and the set reads as one hand. One image operation, and nothing reads the sheet yet — the host's glyphs are the pack's own icon sheet ([ui.toml](inputs/ember-hollow/ui.toml)).
 
 ## Scenario
 
 The contract is [scenario](../../docs/spec/game/scenario.md); the component ruling is [0001](../../docs/decisions/0001-scenario-is-a-component.md).
 
-- [ ] Split Larkfield's style plate from Nao's identity plate — authoring in one package, and it re-bills all fifteen images, so batch it with the next run that regenerates ([0056](../../docs/decisions/0056-the-style-plate-is-split-not-swapped.md)).
 - [ ] M2, the player shell: persistence, save slots, backlog, skip-already-read, auto-advance, preferences. Cross-genre, and the same missing substrate the champion roster is blocked on — build it once for both.
 
 ## The Godot promotion

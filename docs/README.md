@@ -11,6 +11,7 @@ The product is the asset pipeline; complete games are consumers.
 - [Viewer](web-viewer.md): generic persisted-run inspection and optional inspectors.
 - [Providers](models/providers.md): bindings, credentials and live-operation boundaries.
 - [Godot consumers](../godot/README.md): packages, games and templates.
+- [Proposed Godot layout](plans/godot-consumer-layout.md): named game ownership and the removal of the legacy category.
 - [Asset consumer template](../godot/templates/asset_consumer/README.md): explicit file import and GDScript display.
 - [Concept Studio](../apps/concept_studio/README.md): optional concept application.
 - [Verification](../VERIFICATION.md): owned gates and aggregate checks.

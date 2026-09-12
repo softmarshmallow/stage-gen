@@ -15,28 +15,42 @@ from stage_gen.components.scenario.resolve import read_scenario_declarations
 from .package import DEFAULT_SCRIPT, write_scenario_package
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
-LARKFIELD = REPOSITORY_ROOT / "godot/legacy/inputs/larkfield"
+THE_GRAIN = REPOSITORY_ROOT / "godot/legacy/inputs/the_grain"
 
 
-def test_the_shipped_scenario_is_admitted_and_both_endings_are_reachable() -> None:
+def test_the_shipped_scenario_is_admitted_and_its_ending_is_reachable() -> None:
     """The package in the tree is the happy path; a fixture cannot stand in for it."""
 
-    resolved = resolve_scenario(LARKFIELD, "last_class")
-    assert resolved.declarations.scenario_id == "last_class"
-    assert resolved.program.entry == "arrival"
+    resolved = resolve_scenario(THE_GRAIN, "e1_coffee")
+    assert resolved.declarations.scenario_id == "e1_coffee"
+    assert resolved.program.entry == "coffee_opens"
     labels = [block.label for block in resolved.program.blocks]
-    assert labels[:3] == ["arrival", "listening", "asking"]
-    assert len(labels) == 20
+    assert labels[:3] == ["coffee_opens", "place_service_bar", "bar_june_sentence"]
+    assert len(labels) == 23
     witnesses = {witness.outcome_id: witness.path for witness in resolved.admission.witnesses}
-    # Four endings, each with one shortest route as evidence.
-    assert set(witnesses) == {"broadcast", "talked", "listened", "locked_out"}
-    assert witnesses["broadcast"][:3] == ["arrival", "listening", "the_playback"]
-    assert witnesses["broadcast"][-1] == "ending_broadcast"
+    assert set(witnesses) == {"the_call"}
+    assert witnesses["the_call"][:3] == [
+        "coffee_opens",
+        "place_edwins_end",
+        "coffee_convergence",
+    ]
+    assert witnesses["the_call"][-1] == "the_call"
+
+
+def test_conditional_endings_have_distinct_reachable_witnesses(tmp_path: Path) -> None:
+    write_scenario_package(tmp_path)
+    resolved = resolve_scenario(tmp_path, "last_class")
+    witnesses = {witness.outcome_id: witness.path for witness in resolved.admission.witnesses}
+
+    assert witnesses == {
+        "listened": ["arrival", "quiet", "closing", "ending_quiet"],
+        "talked": ["arrival", "spoken", "closing", "ending_talked"],
+    }
 
 
 def test_the_shipped_scenario_declares_the_digest_of_its_own_script() -> None:
-    declarations = read_scenario_declarations(LARKFIELD, "last_class")
-    assert script_digest(LARKFIELD, declarations) == declarations.script_sha256
+    declarations = read_scenario_declarations(THE_GRAIN, "e1_coffee")
+    assert script_digest(THE_GRAIN, declarations) == declarations.script_sha256
 
 
 def test_a_script_that_no_longer_matches_its_digest_is_refused(tmp_path: Path) -> None:

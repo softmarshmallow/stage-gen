@@ -10,7 +10,7 @@ from stage_gen.config import StageGenConfig
 from stage_gen.recipes.dry_run import DRY_RUN_CACHE_NAMESPACE, is_placeholder
 from stage_gen_legacy.recipes.pointclick_room.room_executor import PointClickRoomExecutor
 
-ROOM = Path(__file__).resolve().parents[3] / "godot" / "legacy" / "inputs" / "clockmakers_attic"
+ROOM = Path(__file__).resolve().parents[3] / "godot/legacy/inputs/the_grain/rooms/motor_court"
 
 
 @pytest.mark.asyncio

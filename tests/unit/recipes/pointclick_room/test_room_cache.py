@@ -42,7 +42,7 @@ from stage_gen_legacy.recipes.pointclick_room.room_request import (
 from tests.unit.recipes.pointclick_room.fakes import FakeRoomImages, FakeRoomStructured
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
-ATTIC = REPOSITORY_ROOT / "godot/legacy/inputs/clockmakers_attic"
+ROOM = REPOSITORY_ROOT / "godot/legacy/inputs/the_grain/rooms/window"
 
 
 # --------------------------------------------------------------- plan identity
@@ -51,7 +51,7 @@ ATTIC = REPOSITORY_ROOT / "godot/legacy/inputs/clockmakers_attic"
 def _cache_keys(document: object) -> dict[str, tuple[str, str]]:
     """Every node's cache key and operation, for one authored document."""
 
-    resolved = resolve_pointclick_room(document, root=ATTIC)
+    resolved = resolve_pointclick_room(document, root=ROOM)
     config = StageGenConfig()
     graph = build_pointclick_room_graph(
         resolved,
@@ -71,7 +71,7 @@ def _provider_nodes(keys: dict[str, tuple[str, str]], node_ids: set[str]) -> set
 
 
 def test_moving_a_hit_area_rekeys_no_provider_node() -> None:
-    document = read_room_document(ATTIC)
+    document = read_room_document(ROOM)
     base = _cache_keys(document)
 
     moved = copy.deepcopy(document)
@@ -90,7 +90,7 @@ def test_moving_a_hit_area_rekeys_no_provider_node() -> None:
 def test_moving_the_art_direction_rekeys_the_backdrop() -> None:
     """The other half: the rectangle the backdrop is told about still pays."""
 
-    document = read_room_document(ATTIC)
+    document = read_room_document(ROOM)
     base = _cache_keys(document)
 
     moved = copy.deepcopy(document)
@@ -102,7 +102,7 @@ def test_moving_the_art_direction_rekeys_the_backdrop() -> None:
 
 
 def test_rewording_a_hotspot_brief_rekeys_its_own_sprite() -> None:
-    document = read_room_document(ATTIC)
+    document = read_room_document(ROOM)
     base = _cache_keys(document)
 
     reworded = copy.deepcopy(document)
@@ -112,7 +112,9 @@ def test_rewording_a_hotspot_brief_rekeys_its_own_sprite() -> None:
         for index, entry in enumerate(reworded["hotspots"])
         if entry.get("art") == "sprite"
     )
-    reworded["hotspots"][index]["brief"] = "a heavy indigo dust sheet over a squat, boxy shape"
+    reworded["hotspots"][index]["brief"] = (
+        "a torn pale-blue sheet with a folded corner and a narrow strip of typed marks"
+    )
     changed = _provider_nodes(base, _rekeyed(base, _cache_keys(reworded)))
 
     assert f"hotspot-{hotspot['hotspot_id']}-generate" in changed, "a brief is the sprite's subject"
@@ -126,7 +128,7 @@ def test_no_image_prompt_reads_the_hit_area() -> None:
     art it was measured from, and this fails.
     """
 
-    resolved = resolve_pointclick_room(read_room_document(ATTIC), root=ATTIC)
+    resolved = resolve_pointclick_room(read_room_document(ROOM), root=ROOM)
     room = resolved.room
     moved = room.model_copy(
         update={
@@ -152,7 +154,7 @@ def _package(tmp_path: Path) -> Path:
     import shutil
 
     target = tmp_path / "room-package"
-    shutil.copytree(ATTIC, target)
+    shutil.copytree(ROOM, target)
     return target
 
 
@@ -223,13 +225,13 @@ def test_correcting_a_hit_area_reuses_every_image_and_bills_nothing(tmp_path: Pa
     _edit_document(
         package,
         lambda text: text.replace(
-            "\nregion = { x = 0.02, y = 0.52, w = 0.30, h = 0.34 }",
+            "\nregion = { x = 0.4688, y = 0.4097, w = 0.0781, h = 0.3681 }",
             "\nregion = { x = 0.05, y = 0.55, w = 0.33, h = 0.30 }",
         ),
     )
     document = tomllib.loads((package / "room.toml").read_text(encoding="utf-8"))
-    workbench = document["hotspots"][0]
-    assert workbench["region"] != workbench["art_region"], "the hit area moved off the guess"
+    six_figures = document["hotspots"][0]
+    assert six_figures["region"] == {"x": 0.05, "y": 0.55, "w": 0.33, "h": 0.30}
 
     second = _run(package, run_dir=tmp_path / "run-2", cache_dir=cache_dir, nonce=0x2222)
 
@@ -238,11 +240,13 @@ def test_correcting_a_hit_area_reuses_every_image_and_bills_nothing(tmp_path: Pa
 
     # And the player receives the correction: the manifest carries the new rect.
     manifest = json.loads((tmp_path / "run-2" / "manifest.json").read_text(encoding="utf-8"))
-    workbench_entry = next(entry for entry in manifest["hotspots"] if entry["id"] == "workbench")
-    assert workbench_entry["region"] == {"x": 0.05, "y": 0.55, "w": 0.33, "h": 0.30}
+    six_figures_entry = next(
+        entry for entry in manifest["hotspots"] if entry["id"] == "six_figures"
+    )
+    assert six_figures_entry["region"] == {"x": 0.05, "y": 0.55, "w": 0.33, "h": 0.30}
     # The runtime is told the hit area and nothing about the art direction: the
     # composition rectangle is an authoring-time input, not a playable field.
-    assert "art_region" not in workbench_entry
+    assert "art_region" not in six_figures_entry
 
 
 def test_rewording_a_brief_redraws_that_object_and_nothing_else(tmp_path: Path) -> None:
@@ -254,14 +258,15 @@ def test_rewording_a_brief_redraws_that_object_and_nothing_else(tmp_path: Path) 
     first = _run(package, run_dir=tmp_path / "run-1", cache_dir=cache_dir, nonce=0x3333)
     assert _provider_operations(first) > 0
     backdrop_before = _digest(tmp_path / "run-1", "assets/backdrop.png")
-    sprite_ref = "assets/hotspots/dust_sheet.png"
+    sprite_ref = "assets/hotspots/torn_piece.png"
     sprite_before = _digest(tmp_path / "run-1", sprite_ref)
 
     _edit_document(
         package,
         lambda text: text.replace(
-            "a heavy cream dust sheet draped over a small, boxy shape, hem pooling on the floor",
-            "a heavy indigo dust sheet thrown over a squat shape, hem loose on the boards",
+            "a small torn piece of typed script paper, creased where a hand closed on it, "
+            "one edge visible beneath curled fingers",
+            "a torn pale-blue sheet with a folded corner and a narrow strip of typed marks",
         ),
     )
 

@@ -206,8 +206,6 @@ godot/legacy/
 │   ├── bellweather-waves/
 │   ├── iron-petal-unit/
 │   ├── ember-hollow/
-│   ├── clockmakers_attic/
-│   ├── larkfield/
 │   └── the_grain/
 ├── python/
 │   └── stage_gen_legacy/

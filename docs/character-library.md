@@ -15,7 +15,7 @@ alongside its own.
 
 `profile_id` is a stable logical identity. Increment `revision` whenever any
 semantic profile value, rights statement, or reference binding changes. The
-shipped `nao-kirishima` profile is intentionally `unreviewed` and has no media
+shipped `edwin-price` profile is intentionally `unreviewed` and has no media
 references. It demonstrates the contract without implying generated artwork,
 redistribution permission, or publication approval.
 
@@ -35,7 +35,7 @@ from stage_gen.components.character_profile import (
     load_character_profile,
 )
 
-profile = load_character_profile("godot/legacy/inputs/larkfield/characters/nao.toml")
+profile = load_character_profile("godot/legacy/inputs/the_grain/characters/edwin.toml")
 artifact_bytes = canonical_character_profile_json(profile)
 artifact_sha256 = character_profile_sha256(profile)
 ```
@@ -57,9 +57,9 @@ descriptor-confined reader. Callers supplying a custom `reference_reader` own
 that reader's filesystem policy. A reference has its own explicit rights
 statement; profile rights never silently grant rights to external bytes.
 
-The authored library is external workspace content, not Python package data.
-The repository sample remains available in a source checkout, but neither wheels
-nor source distributions bundle `library/`. An installed CLI receives the package
+Authored profiles are workspace content, not Python package data. The repository
+sample remains available in a source checkout; the public Stage Gen distribution
+does not bundle Godot game inputs. An installed CLI receives the package
 directory explicitly with `--package-root PATH`. Profile-aware recipes use the
 exact shared binding below; the source digest binds authored bytes while the
 shared resolver computes canonical profile identity only after loader
@@ -77,12 +77,12 @@ From the repository root, validate the contract and print the authored-source
 digest required by that binding without calling a provider or writing output:
 
 ```sh
-uv run stage-gen character-profile validate \
-  --input godot/legacy/inputs/larkfield/characters/nao.toml \
-  --package-root godot/legacy/inputs/larkfield
-uv run stage-gen character-profile digest \
-  --input godot/legacy/inputs/larkfield/characters/nao.toml \
-  --package-root godot/legacy/inputs/larkfield
+uv run --group legacy stage-gen legacy character-profile validate \
+  --input godot/legacy/inputs/the_grain/characters/edwin.toml \
+  --package-root godot/legacy/inputs/the_grain
+uv run --group legacy stage-gen legacy character-profile digest \
+  --input godot/legacy/inputs/the_grain/characters/edwin.toml \
+  --package-root godot/legacy/inputs/the_grain
 ```
 
 `validate` emits deterministic compact lower_snake_case JSON containing stable
@@ -94,19 +94,15 @@ prints only the lowercase authored-source SHA-256 used as `source_sha256`.
 The recipe takes a package directory, and the package names its own members:
 
 ```sh
-uv run stage-gen dialogue-scene generate \
-  --input godot/legacy/inputs/larkfield \
-  --output out/larkfield
+uv run --group legacy stage-gen legacy dialogue-scene generate \
+  --input godot/legacy/inputs/the_grain \
+  --output out/the-grain-scene-dry-run \
+  --dry-run
 ```
 
-The same public CLI is available through the stable web forwarding script:
-
-```sh
-cd web
-bun run stage-gen -- dialogue-scene generate \
-  --input ../godot/legacy/inputs/larkfield \
-  --output ../out/larkfield
-```
+The optional game tool owns this preparation command. The web application only
+inspects its outputs. Remove `--dry-run` only for explicitly authorized provider
+execution.
 
 A prepared game binds its cast in `game.toml` rather than in a request document,
 so the `sideview-platformer` recipe reads authored profiles through the package it

@@ -24,9 +24,8 @@ Everything after the bare `--` belongs to this one; Godot swallows the rest.
 
 **Which runs open.** The contract is `pointclick-room-runtime-v3` at
 `schema_version` 3, and exactly two published runs are at it:
-`out/the-grain-window-a4` and `out/the-grain-motor-court-a4`. Every
-`clockmakers-attic-*` run predates the schema and is refused by name — as it is
-by the browser, which 404s on all of them.
+`out/the-grain-window-a4` and `out/the-grain-motor-court-a4`. The Grain is the
+retained game consumer of this host. Runs at older schemas remain unsupported.
 
 ## The controls
 
