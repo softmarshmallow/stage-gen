@@ -20,7 +20,6 @@ from typing import Final, Literal
 
 from pydantic import BaseModel, Field
 
-from demo_game_tools.media.ui.nodes import add_ui_atlas_nodes, document_roles
 from ember_hollow_pipeline import manifest as manifest_module
 from ember_hollow_pipeline import survival_prompts as prompts
 from ember_hollow_pipeline import templates
@@ -118,6 +117,7 @@ from gnode import (
     Port,
     WorkloadRequestV1,
 )
+from stage_gen.components.ui_art.nodes import add_ui_atlas_nodes, document_roles
 from stage_gen.config import StageGenConfig
 from stage_gen.model_routes import (
     configured_image_route_catalog,

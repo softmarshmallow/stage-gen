@@ -23,7 +23,7 @@ static func world() -> SurvivalWorld:
 	var pkg := package()
 	if pkg == null:
 		return null
-	var w := SurvivalWorld.create(pkg, 7, {})
+	var w := SurvivalWorldFactory.create(pkg, 7, {})
 	w.camera_yaw = 0.0
 	w.player.x = 0.0
 	w.player.z = 0.0

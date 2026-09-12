@@ -29,26 +29,11 @@ from ember_hollow_pipeline.shell.clips import (
     match_title_verdict,
     shell_clip_record,
 )
-from ember_hollow_pipeline.shell.layouts import (
-    CUTOUT_ALPHA_POLICY,
-    LOADING_SCREEN,
-    OPAQUE_ALPHA_POLICY,
-    OPENING_CLIP,
-    OPENING_SHOT,
-    TITLE_SCREEN,
-    ShellLayout,
-)
 from ember_hollow_pipeline.shell.models import (
     FIRST_SHELL_DRAW,
     GameShell,
     ShellClip,
     ShellPlate,
-)
-from ember_hollow_pipeline.shell.plates import (
-    SHELL_PLATE_VALIDATION_VERSION,
-    canonicalize_shell_plate,
-    shell_plate_evidence,
-    validate_shell_plate,
 )
 from gnode import (
     AuthoredInput,
@@ -86,11 +71,23 @@ from gnode import (
 from stage_gen.canonical import content_sha256
 from stage_gen.components._node_kit import (
     ProviderCall,
-    artifact_port,
     card_prompt,
     node_result,
-    object_digest,
-    record_port,
+)
+from stage_gen.components.screen_art.layouts import (
+    CUTOUT_ALPHA_POLICY,
+    LOADING_SCREEN,
+    OPAQUE_ALPHA_POLICY,
+    OPENING_CLIP,
+    OPENING_SHOT,
+    TITLE_SCREEN,
+    ShellLayout,
+)
+from stage_gen.components.screen_art.plates import (
+    SHELL_PLATE_VALIDATION_VERSION,
+    canonicalize_shell_plate,
+    shell_plate_evidence,
+    validate_shell_plate,
 )
 from stage_gen.components.video_clip import (
     CLIP_REVIEW_CELL_WIDTH,
@@ -107,6 +104,7 @@ from stage_gen.media import (
     scratch_clip,
     theora_transcode_args,
 )
+from stage_gen.pipeline import artifact_port, object_digest, record_port
 
 _P = "2d/shell"
 _PROVIDER = NodePolicy(max_attempts=6)

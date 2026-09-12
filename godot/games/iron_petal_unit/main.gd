@@ -29,7 +29,7 @@ const CUT_IN_LAYER := 2
 ## moment is still a restart.
 const TRANSITION_LAYER := 3
 
-var args: HostArgs = null
+var args: RunnerOptions = null
 var package: HostRunDir = null
 var config: Dictionary = {}
 var world: RunnerWorld = null
@@ -51,7 +51,7 @@ var _root: Node2D = null
 
 
 func _ready() -> void:
-	args = HostArgs.parse(OS.get_cmdline_user_args())
+	args = RunnerOptions.parse(OS.get_cmdline_user_args())
 	var run_dir := args.run
 	if run_dir.is_empty():
 		_refuse("runner host: pass the run directory after `-- --run <dir>`")

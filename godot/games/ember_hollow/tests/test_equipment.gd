@@ -110,7 +110,7 @@ func _the_worn_tool_serves_first(h: TestHarness, w: SurvivalWorld) -> void:
 
 
 func _a_fresh_world_is_dry(h: TestHarness) -> void:
-	var world := SurvivalWorld.create(TestFixtures.package(), 7, {"masks": SurvivalMasks.new()})
+	var world := SurvivalWorldFactory.create(TestFixtures.package(), 7, {"masks": SurvivalMasks.new()})
 	world.entities = []
 	var rain_spec: Dictionary = (world.manifest["weather"] as Dictionary)["rain"]
 	var dry_low := float((rain_spec["dry_spell_seconds"] as Array)[0])

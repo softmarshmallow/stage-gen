@@ -29,10 +29,18 @@ ENGINE_DENY = (
     ("an engine vector", re.compile(r"\bVector[234]i?\s*\(|\bTransform[23]D\s*\(")),
     ("a scene node", re.compile(r"^extends\s+(Node|Control|Canvas|Camera|Audio|Sprite|Mesh)")),
 )
-# Ember Hollow's decoded masks and world still receive its run loader directly.
-# Preserve these visible exceptions while retaining every other simulation rule.
-ENGINE_EXEMPT = {"ember_hollow/gameplay/masks.gd"}
-DIRECTION_EXEMPT = ENGINE_EXEMPT | {"ember_hollow/gameplay/world.gd"}
+# Ember Hollow's world still reads admitted manifest/layout data from its run
+# wrapper. Mask decoding and world composition now belong to scene adapters.
+DIRECTION_EXEMPT = {"ember_hollow/gameplay/world.gd"}
+PURE_PACKAGE_MEMBERS = {
+    "scenario_runtime": ("program.gd", "runtime.gd", "refusal.gd"),
+    # image_baker.gd intentionally owns engine Image/WorkerThreadPool operations;
+    # simulations may only consume the independent data-only modules.
+    "sideview_rendering": ("parallax.gd", "pixels.gd", "refusal.gd"),
+}
+PURE_PRELOAD = re.compile(
+    r'preload\("res://addons/(scenario_runtime|sideview_rendering)/([a-z_]+\.gd)"\)'
+)
 
 
 def _scripts() -> list[Path]:
@@ -154,12 +162,41 @@ def test_a_simulation_never_touches_the_engine() -> None:
     failures: list[str] = []
     for path in _scripts():
         relative = path.relative_to(GAMES).as_posix()
-        if not _simulation(path) or relative in ENGINE_EXEMPT:
+        if not _simulation(path):
             continue
+        code = _code(path)
+        # Package dependencies remain explicit source loads; their code is checked
+        # below against the same deterministic boundary, not exempted wholesale.
+        for package, member in PURE_PRELOAD.findall(code):
+            package_root = GODOT_TREE / "packages" / package / "addons" / package
+            assert member in PURE_PACKAGE_MEMBERS[package], (
+                f"non-pure dependency: {package}/{member}"
+            )
+            assert (package_root / member).is_file(), f"missing pure dependency: {member}"
+            assert (GAMES / _owner(path) / "addons" / package / member).resolve() == (
+                package_root / member
+            ).resolve(), f"{relative}: pure package binding does not match its declared owner"
+        code = PURE_PRELOAD.sub("PURE_PACKAGE_DEPENDENCY", code)
         for label, pattern in ENGINE_DENY:
-            if pattern.search(_code(path)):
+            if pattern.search(code):
                 failures.append(f"{relative}: a simulation reads {label}")
     assert not failures, "simulation must not touch the engine:\n  " + "\n  ".join(failures)
+
+
+def test_declared_pure_runtime_package_has_only_pure_local_dependencies() -> None:
+    local_preload = re.compile(r'preload\("([a-z_]+\.gd)"\)')
+    for package, members in PURE_PACKAGE_MEMBERS.items():
+        package_root = GODOT_TREE / "packages" / package / "addons" / package
+        for name in members:
+            source = package_root / name
+            assert source.is_file(), f"declared pure package source is absent: {package}/{name}"
+            code = _code(source)
+            for member in local_preload.findall(code):
+                assert member in members, f"{source.name}: non-pure dependency {member}"
+                assert (package_root / member).is_file(), f"{source.name}: missing {member}"
+            code = local_preload.sub("PURE_PACKAGE_DEPENDENCY", code)
+            for label, pattern in ENGINE_DENY:
+                assert not pattern.search(code), f"{source.name}: pure package reads {label}"
 
 
 def test_every_script_carries_its_uid() -> None:
@@ -181,11 +218,14 @@ def test_a_project_links_only_closed_addon_payloads() -> None:
             for entry in sorted(addons.iterdir()):
                 if not entry.is_symlink():
                     continue
-                expected = (
-                    SHARED_ADDON
-                    if entry.name == "demo_support" and project.name in GAME_NAMES
-                    else GODOT_TREE / "packages" / entry.name / "addons" / entry.name
-                )
+                private_users = {
+                    "demo_support": GAME_NAMES,
+                    "scene_navigation": ("afterlight", "command_link"),
+                }
+                if project.name in private_users.get(entry.name, ()):
+                    expected = SHARED_ROOT / "addons" / entry.name
+                else:
+                    expected = GODOT_TREE / "packages" / entry.name / "addons" / entry.name
                 if entry.resolve() != expected.resolve() or not expected.is_dir():
                     offences.append(f"{entry.relative_to(GODOT_TREE)} -> {entry.readlink()}")
     assert not offences, f"links outside declared addon payloads: {offences}"

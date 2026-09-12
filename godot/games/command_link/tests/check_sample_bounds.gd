@@ -3,7 +3,6 @@ extends SceneTree
 ## A deliberately abrupt valid catalog exercises residual overshoot after a
 ## retarget. Run headlessly; its temporary catalog is removed after loading.
 const ENGINE = preload("res://addons/game_presentation/actors/actor_focus.gd")
-const TEMP_CATALOG := "res://presentation/focus/.sample-bounds-test.json"
 var failures: Array[String] = []
 
 
@@ -18,7 +17,15 @@ func _initialize() -> void:
 			"focused": {"opacity": [[0, 0], [0.05, 1], [1, 1]],
 				"brightness": [[0, 0], [0.05, 1], [1, 1]]}, "listeners": {}},
 	]}
-	var file := FileAccess.open(TEMP_CATALOG, FileAccess.WRITE)
+	# The former presentation/focus directory is not tracked after the SDK move.
+	# Keep this fixture private to its process and independent of checkout leftovers.
+	var temporary_directory := DirAccess.create_temp("sample-bounds")
+	if temporary_directory == null:
+		printerr("FAIL: cannot create the temporary bounds-test directory")
+		quit(1)
+		return
+	var temporary_catalog := temporary_directory.get_current_dir().path_join("catalog.json")
+	var file := FileAccess.open(temporary_catalog, FileAccess.WRITE)
 	if file == null:
 		printerr("FAIL: cannot create the temporary bounds-test catalog")
 		quit(1)
@@ -27,8 +34,8 @@ func _initialize() -> void:
 	file.close()
 	var engine := ENGINE.new()
 	var actors: Array[String] = ["mira", "lena", "sera"]
-	var errors := engine.initialize(actors, TEMP_CATALOG)
-	DirAccess.remove_absolute(TEMP_CATALOG)
+	var errors := engine.initialize(actors, temporary_catalog)
+	DirAccess.remove_absolute(temporary_catalog)
 	_check(errors.is_empty(), "The custom catalog must be valid.")
 	if errors.is_empty():
 		_check(engine.set_focus("mira", false).is_empty(), "Seed focus must succeed.")
@@ -40,7 +47,7 @@ func _initialize() -> void:
 		_check(low["opacity"] == 0.0 and low["brightness"] == 0.0, "Negative residual alpha/brightness must clamp to zero.")
 		_check(is_equal_approx(low["scale"], engine.MIN_SCALE), "Negative residual scale must clamp to 0.001.")
 		engine.advance(1.0)
-		_check(engine.sample("mira") == {"offset_x_ratio": 0.0, "offset_y_ratio": 0.0, "scale": 1.0, "opacity": 0.0, "brightness": 0.0}, "The authored ending must remain exact.")
+		_check(engine.sample("mira") == {"offset_x_ratio": 0.0, "offset_y_ratio": 0.0, "scale": 1.0, "opacity": 0.0, "brightness": 0.0, "rotation_degrees": 0.0}, "The authored ending must remain exact across all six numeric channels.")
 		engine.clear()
 		_check(engine.configure("rise").is_empty(), "Rising preset must succeed.")
 		_check(engine.set_focus("mira").is_empty(), "Rising focus must succeed.")

@@ -230,22 +230,7 @@ def steps(
             Step(("pytest", "-m", "not live", *paths_for(REPOSITORY_ROOT, "viewer"))),
         ),
         "godot": (
-            Step(
-                (
-                    python,
-                    "godot/games/ember_hollow/tools/make_fixture_run.py",
-                    str(scratch / "godot-run"),
-                )
-            ),
-            Step(
-                (
-                    python,
-                    "godot/tools/run_native_suite.py",
-                    "--run",
-                    str(scratch / "godot-run"),
-                )
-            ),
-            Step((python, "godot/packages/game_presentation/tools/check_sdk_package.py")),
+            Step((python, "godot/tools/check.py")),
             Step(("pytest", "-m", "not live", *paths_for(REPOSITORY_ROOT, "godot"))),
         ),
         "games": (

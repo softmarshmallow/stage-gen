@@ -568,10 +568,9 @@ func _load_typeface() -> FontFile:
 	return file
 
 
-## Every artifact the manifest binds, which is what the loading screen is
-## actually waiting for. Derived from the document rather than from a directory
-## walk: a consumer never classifies by filename, and this warms exactly what the
-## run says it is made of.
+## Warm drawable media referenced by this game's document. Audio `take` fields
+## record preparation sources; only the published `audio` binding is playable.
+## Intermediate sources need not be distributed with a prepared run.
 func _closure_refs() -> Array[String]:
 	var found: Array[String] = []
 	_collect_refs(package.manifest, found)
@@ -582,6 +581,8 @@ func _collect_refs(value: Variant, into: Array[String]) -> void:
 	match typeof(value):
 		TYPE_DICTIONARY:
 			for key: Variant in (value as Dictionary).keys():
+				if key == "take":
+					continue
 				_collect_refs((value as Dictionary)[key], into)
 		TYPE_ARRAY:
 			for entry: Variant in value as Array:

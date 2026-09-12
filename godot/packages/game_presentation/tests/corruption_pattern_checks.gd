@@ -30,6 +30,8 @@ func _run() -> void:
 func _fixture(factor: int) -> void:
 	var holder := Control.new()
 	root.add_child(holder)
+	# Keep the authored canvas fixed while rasterizing it at the native window scale.
+	holder.scale = Vector2.ONE * factor
 	var background := ColorRect.new()
 	background.color = Color(0.01, 0.01, 0.01)
 	background.size = Vector2(1280, 900)
@@ -46,6 +48,7 @@ func _fixture(factor: int) -> void:
 	ui.position = Vector2(24, 24)
 	ui.size = Vector2(220, 54)
 	holder.add_child(ui)
+	_expect(ui.get_global_rect() == Rect2(Vector2(24, 24) * factor, Vector2(220, 54) * factor), "The fixture must scale its logical UI geometry with the native window.")
 	field.set_pattern_transform(Transform2D.IDENTITY)
 	var base := await _frame("identity-" + str(factor))
 	var translation := Vector2(48, 32)

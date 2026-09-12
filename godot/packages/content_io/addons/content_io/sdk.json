@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "name": "content_io",
+  "install_path": "addons/content_io",
+  "dependencies": [],
+  "entry_point": "local_content.gd"
+}

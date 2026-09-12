@@ -9,10 +9,9 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TextIO
 
+from stage_gen.application import UsageError as CliUsageError
 from stage_gen.application import resolve_cache_dir, resolve_output_path, run_report, write_report
 from stage_gen.config import StageGenConfig, load_config
-
-CliUsageError = ValueError
 
 
 def main(argv: Sequence[str], *, stdout: TextIO, stderr: TextIO) -> int:

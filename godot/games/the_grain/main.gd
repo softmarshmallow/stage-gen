@@ -38,7 +38,7 @@ var _beat_id: String = ""
 
 
 func _ready() -> void:
-	var args := HostArgs.parse(OS.get_cmdline_user_args())
+	var args := GrainOptions.parse(OS.get_cmdline_user_args())
 	if args.run.is_empty():
 		_refuse("case host: pass the case run directory after `-- --run <dir>`")
 		return

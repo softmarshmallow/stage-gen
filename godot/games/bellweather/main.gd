@@ -93,7 +93,7 @@ var _numeral_face: FontFile = null
 
 
 func _ready() -> void:
-	var args := HostArgs.parse(OS.get_cmdline_user_args())
+	var args := BellweatherOptions.parse(OS.get_cmdline_user_args())
 	if args.run.is_empty():
 		_refuse("platformer host: pass the run directory after `-- --run <dir>`")
 		return

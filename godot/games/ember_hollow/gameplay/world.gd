@@ -128,7 +128,7 @@ static func create(pkg: HostRunDir, seed_value: int, opts: Dictionary = {}) -> S
 	world.seed = seed_value
 	world.rng = KernelRng.new(seed_value)
 	world.rand = Callable(world.rng, "next")
-	world.masks = opts["masks"] if opts.get("masks") is SurvivalMasks else SurvivalMasks.from_package(pkg)
+	world.masks = opts["masks"] if opts.get("masks") is SurvivalMasks else SurvivalMasks.new()
 
 	world.entities = _build_entities(manifest, layout)
 

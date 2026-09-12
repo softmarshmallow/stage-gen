@@ -3,6 +3,11 @@
 Contributions should preserve `stage-gen` as a headless, general asset
 pipeline with optional consumers.
 
+The [Godot example project](godot/README.md) is a separately owned consumer product
+within this repository. Read its [charter](godot/CHARTER.md) before changing its
+organization or shared game systems. Such work stays in that project unless a
+separate, game-independent asset capability belongs in Stage Gen.
+
 ## Boundaries
 
 - Put reusable asset capabilities in `src/stage_gen/components/`, modality services
@@ -17,6 +22,10 @@ pipeline with optional consumers.
   bindings under `godot/games/<game>/`. Share implementations under
   `godot/games/_shared/` only when multiple games use them. The optional `games`
   installation group provides game tooling; the product imports none of it.
+- Independently reusable Godot runtime capabilities and optional game frameworks
+  belong in `godot/packages/`, with their own contracts and checks. Review package
+  extraction within the Godot project's scope; no common engine is required of
+  every example game.
 - Keep generation-specific genre, composition, projection, framing, layout,
   artifact, and validation assumptions in recipes. Keep runtime camera, scene,
   engine, movement, combat, and gameplay assumptions in consumer adapters under `godot/`. The web viewer owns inspection only.

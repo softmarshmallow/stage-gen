@@ -32,7 +32,8 @@ from the_grain_pipeline.dialogue_scene.scene_graph import DialogueSceneGraph
 from the_grain_pipeline.pointclick_room.room_graph import PointClickRoomGraph
 
 CLI_SOURCE = (
-    Path(__file__).resolve().parents[2] / "godot/tools/python/src/demo_game_collection/cli.py"
+    Path(__file__).resolve().parents[2]
+    / "godot/tools/python/src/demo_game_collection/commands/views.py"
 )
 
 

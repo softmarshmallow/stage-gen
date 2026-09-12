@@ -1,5 +1,9 @@
 extends SceneTree
 
+const ScenarioRefusal = preload("res://addons/scenario_runtime/refusal.gd")
+const ScenarioProgram = preload("res://addons/scenario_runtime/program.gd")
+const ScenarioRuntime = preload("res://addons/scenario_runtime/runtime.gd")
+
 ## The case runtime's state-level parity harness.
 ##
 ##   Godot --headless --path godot/games/the_grain --quit-after 1000 -s res://tools/case_parity.gd -- \
@@ -40,11 +44,11 @@ func _initialize() -> void:
 
 	var leaves := {}
 	for key: Variant in (replay_doc["leaves"] as Dictionary):
-		var program: Variant = FamilyScenarioProgram.parse(
+		var program: Variant = ScenarioProgram.parse(
 			_read_json(root.path_join(String((replay_doc["leaves"] as Dictionary)[key])))
 		)
-		if KernelRefusal.is_refusal(program):
-			printerr("case parity: %s" % (program as KernelRefusal).line())
+		if ScenarioRefusal.is_refusal(program):
+			printerr("case parity: %s" % ScenarioRefusal.line(program))
 			quit(2)
 			return
 		leaves[String(key)] = program
@@ -66,11 +70,15 @@ func _initialize() -> void:
 			"play-leaf":
 				var beat_id := String(step["beatId"])
 				var program: Dictionary = leaves[beat_id]
-				var scenario := FamilyScenarioRuntime.initial_state(
+				var scenario := ScenarioRuntime.initial_state(
 					program, (state["progress"] as Dictionary)["facts"]
 				)
 				for _guard in 200:
-					var view := FamilyScenarioRuntime.view(program, scenario)
+					if ScenarioRefusal.is_refusal(scenario):
+						printerr("case parity: %s" % ScenarioRefusal.line(scenario))
+						quit(2)
+						return
+					var view := ScenarioRuntime.view(program, scenario)
 					var line: Variant = null
 					if String(view.get("kind", "")) == "line":
 						line = {"speaker": view["speakerLabel"], "text": view["text"]}
@@ -79,7 +87,7 @@ func _initialize() -> void:
 						"statementId": (
 							null
 							if scenario["outcome"] != null
-							else FamilyScenarioRuntime.statement_id(
+							else ScenarioRuntime.statement_id(
 								String(scenario["label"]), int(scenario["index"])
 							)
 						),
@@ -97,7 +105,7 @@ func _initialize() -> void:
 					# A choice is answered with its first option: this golden is
 					# about the layer above the leaf, so the route only has to be
 					# one a player could take and the same one every run.
-					scenario = FamilyScenarioRuntime.reduce(
+					scenario = ScenarioRuntime.reduce(
 						program,
 						scenario,
 						(

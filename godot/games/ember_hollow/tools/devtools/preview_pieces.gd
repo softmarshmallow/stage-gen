@@ -18,7 +18,7 @@ const OUT_DEFAULT := "/tmp/pieces.png"
 const SIZE := Vector2i(1600, 900)
 
 func _init() -> void:
-	var args := HostArgs.parse(OS.get_cmdline_user_args())
+	var args := EmberOptions.parse(OS.get_cmdline_user_args())
 	var extra := _extra(OS.get_cmdline_user_args())
 	var out: String = args.out if args.out != "" else OUT_DEFAULT
 	var pkg := HostRunDir.open(args.run)
@@ -139,7 +139,7 @@ func _world_stub(pkg, yaw: float, look: String) -> Dictionary:
 		"manifest": pkg.manifest, "entities": entities,
 	}
 
-## The two knobs `HostArgs` does not carry, so the preview stays a builder's tool.
+## The two knobs `EmberOptions` does not carry, so the preview stays a builder's tool.
 func _extra(argv: PackedStringArray) -> Dictionary:
 	var extra: Dictionary = {}
 	for index in argv.size():

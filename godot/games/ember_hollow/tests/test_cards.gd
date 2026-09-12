@@ -427,7 +427,7 @@ func _playback_modes(h: TestHarness, manifest: Dictionary) -> void:
 ## Builds the real module against the real run. Headless: no shader is compiled
 ## and nothing is drawn, but every mesh, material and transform is made.
 func _module(h: TestHarness, pkg: HostRunDir) -> void:
-	var world := SurvivalWorld.create(pkg, 7, {})
+	var world := SurvivalWorldFactory.create(pkg, 7, {})
 	var cards := SurvivalCards.new()
 	cards.setup(pkg, world, null)
 	cards.update(world, 1.0 / 60.0, {"yaw": 0.0})
@@ -514,7 +514,7 @@ func _pick_follows_the_billboard(h: TestHarness, pkg: HostRunDir) -> void:
 	# The dummy display server's window is a 64-pixel square; the game's is 1600x900.
 	var window_before := root.size
 	root.size = SurvivalCameraRig.VERDICT_SIZE
-	var world := SurvivalWorld.create(pkg, 7, {})
+	var world := SurvivalWorldFactory.create(pkg, 7, {})
 	var cards := SurvivalCards.new()
 	root.add_child(cards)
 	cards.setup(pkg, world, null)

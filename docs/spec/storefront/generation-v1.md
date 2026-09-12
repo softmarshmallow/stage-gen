@@ -4,8 +4,8 @@
 
 > **Contract maturity: exact-current authored contracts.** Executable authority:
 > `src/stage_gen/recipes/storefront/`. The committed fixture package is
-> `godot/games/ember_hollow/inputs`, whose `storefront.toml` sits beside the survival
-> package's own root document and reads none of it.
+> `src/stage_gen/recipes/storefront/examples/minimal/make_inputs.py`, which authors
+> original geometric reference art and a standalone request without reading any game.
 
 ## What this recipe is
 
@@ -87,7 +87,9 @@ that it had to.
 
 ## The graph
 
-One phase, twenty-eight nodes for four surfaces.
+One phase, ten nodes for the independent one-surface example. Each additional
+surface adds six nodes. The existing four-surface Ember Hollow integration has
+[separate game-owned evidence](../../../godot/games/ember_hollow/docs/storefront-integration.md).
 
 ```
 storefront-resolve                    local — canonicalize and digest-bind the package
@@ -125,12 +127,15 @@ again — the same key restores the same image. The draw index in
 enters only the image node's identity:
 
 ```bash
-stage-gen storefront generate --input godot/games/ember_hollow/inputs \
-  --output out/storefront-v2 --draw-ledger out/storefront-v1/draw-ledger.json \
-  --reroll icon
+python src/stage_gen/recipes/storefront/examples/minimal/make_inputs.py out/storefront-input
+stage-gen storefront generate --input out/storefront-input --dry-run \
+  --output out/storefront-v1 --cache-dir out/storefront-cache
+stage-gen storefront generate --input out/storefront-input --dry-run \
+  --output out/storefront-v2 --cache-dir out/storefront-cache \
+  --draw-ledger out/storefront-v1/draw-ledger.json --reroll app_icon
 ```
 
-The direction, the listing and the other three surfaces stay cache hits. Each run
+The direction, the listing and any other surfaces stay cache hits. Each run
 writes the ledger it was planned against, because reconstructing one by hand is
 how a redraw silently becomes a cache hit.
 
@@ -184,28 +189,28 @@ chain below it. Nothing downstream changes; the change is one node type.
 
 The provider switch is applied while building a new plan, and every image node records the exact
 route snapshot it will dispatch. Unsupported capability/size combinations fail offline; a missing
-key or provider failure never triggers fallback. A full first run of the fixture package is four
-images and six structured calls.
+key or provider failure never triggers fallback. A full first run of the independent fixture package is one
+image and three structured calls.
 
 ## Executable graph contract
 
-Derived by `godot/tools/write_game_graph_contract.py`; regenerate with `--write`
+Derived by `scripts/write_pipeline_graph_contract.py`; regenerate with `--write`
 after any change to the surface table, the fan-out or the routes.
 
 <!-- pipeline-graph-contract:start -->
 ```json
 {
   "kind": "storefront-execution-graph-contract-v1",
-  "fixture_ref": "godot/games/ember_hollow/inputs",
-  "surface_count": 4,
+  "fixture_ref": "src/stage_gen/recipes/storefront/examples/minimal",
+  "surface_count": 1,
   "graph_schema_version": 2,
-  "topology_sha256": "96938313988c40bfd9bed3e94bb7434d0eeb3c7f53cb23d403ffa374d5260b32",
-  "node_count": 28,
+  "topology_sha256": "59f4553950d4dd2e618e932afafdb85676f9447fb92b64b1466c90c278833fe7",
+  "node_count": 10,
   "terminal_node_id": "storefront-close",
   "operation_counts": {
-    "local": 18,
-    "image_generation": 4,
-    "structured_generation": 6
+    "local": 6,
+    "image_generation": 1,
+    "structured_generation": 3
   },
   "resources": [
     {

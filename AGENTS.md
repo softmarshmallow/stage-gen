@@ -8,7 +8,11 @@ and [IP](docs/oss-ip.md). This file controls applicability; focused docs control
 ## Architecture
 
 - Keep identifiers, comments, logs, tests, and user-facing source strings in English.
-- Python is the headless implementation. The public product has two layers: `src/gnode/` is the ringed asset-graph
+- This repository has two separately owned products: the main Stage Gen asset product and the maintained Godot
+  example project. [The Godot charter](godot/CHARTER.md) owns the latter's purpose and internal evolution.
+  Further runtime, shared game-system or visual-novel refactors belong within Godot; reuse by multiple games
+  does not by itself justify moving them into the asset product.
+- Python is the headless implementation. Stage Gen's asset product has two layers: `src/gnode/` is the ringed asset-graph
   SDK and `src/stage_gen/` is the application that consumes it. gnode's rings (`docs/spec/gnode-rings.md`):
   ring 0 the agnostic engine core (topology, scheduling, trace, run view, model bindings, reliability,
   provenance — media-free), ring 1 per-modality model specs and retry-owning services, ring 2 first-party
@@ -24,8 +28,9 @@ and [IP](docs/oss-ip.md). This file controls applicability; focused docs control
   Consumer adapters own runtime camera, scene, engine and gameplay assumptions. `web/` consumes public run/artifact
   contracts and is not a second generator. Bounded animation, terrain, spatial and scenario contracts may remain optional.
 - Complete game builders, gameplay schemas and their existing inputs/readers belong to their Godot game under
-  `godot/games/`. Each game owns its project, preparation and bindings. Share only dependencies used by multiple
-  games under `godot/games/_shared/`; shared code never imports a named game. Preserve supported reader/input pairs
+  `godot/games/`. Each game owns its project, preparation and bindings. Private reuse by multiple games belongs
+  under `godot/games/_shared/`; independently usable runtime packages belong under `godot/packages/`.
+  Shared support and packages never import a named game. Preserve supported reader/input pairs
   without requiring a TOML rewrite. Game code may import the public asset product; the product never imports games.
 - Each supported asset recipe/example owns its graph documentation and executable contract. Changes to its stages,
   asset dependencies, consumed inputs, operation counts or cache/scheduling semantics update that evidence together.

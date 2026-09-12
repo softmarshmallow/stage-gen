@@ -6,16 +6,14 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
-from demo_game_tools.media.ui.atlas import (
-    ATLAS_ALPHA_POLICY,
-)
-from demo_game_tools.media.ui.cursors import CURSOR_ALPHA_POLICY, CURSOR_SET_LAYOUT
-from demo_game_tools.media.ui.icons import ICON_ALPHA_POLICY, PREVIEW_ICONS_LAYOUT
 from stage_gen.components._game_input import (
     PACKAGE_ID_PATTERN,
     parse_toml_contract,
     unique_values,
 )
+from stage_gen.components.ui_art.atlas import ATLAS_ALPHA_POLICY
+from stage_gen.components.ui_art.cursors import CURSOR_ALPHA_POLICY, CURSOR_SET_LAYOUT
+from stage_gen.components.ui_art.icons import ICON_ALPHA_POLICY, PREVIEW_ICONS_LAYOUT
 from stage_gen.components.ui_art.models import (
     ATLAS_ROLE_LAYOUTS as ATLAS_ROLE_LAYOUTS,
 )

@@ -1,16 +1,22 @@
 extends Control
 
 ## Bishōjo: Afterlight's application shell: the story root and the game's own Lab root.
+const NAVIGATION = preload("res://addons/scene_navigation/scene_navigation.gd")
 const ROOTS = preload("res://roots.gd")
 const LAB_STUDIES := ["approach_study", "eye_study", "effects_menu", "intertitle_study", "drift_study", "halo_study"]
 var selected_game_id := "afterlight"
 var game_root
 var current_route := ""
-var active_scene: Control
+var _navigation = NAVIGATION.new()
+var active_scene: Control:
+	get:
+		return _navigation.active_scene
 var game_state: Dictionary = {}
 var options: Dictionary = {}
 var _game_roots: Dictionary = {}
-var _game_states: Dictionary = {}
+var _game_states: Dictionary:
+	get:
+		return _navigation.checkpoints
 
 
 func _ready() -> void:
@@ -76,27 +82,19 @@ func open_route(route_id: String) -> bool:
 	if scene == null:
 		printerr("Cannot load route: " + path)
 		return false
-	if current_route == "game" and active_scene != null and active_scene.has_method("save_game"):
-		_game_states[selected_game_id] = active_scene.save_game().duplicate(true)
-	if new_game:
-		_game_states.erase(target_id)
-	get_viewport().gui_release_focus()
-	if active_scene != null:
-		# Stop old input listeners immediately, before deferred freeing.
-		remove_child(active_scene)
-		active_scene.queue_free()
-	selected_game_id = target_id
-	game_root = target_root
-	_game_roots[target_id] = target_root
-	game_state = _game_states.get(target_id, {}).duplicate(true)
-	get_window().title = game_root.title()
-	current_route = destination
-	active_scene = scene.instantiate()
-	game_root.prepare_scene(active_scene, destination, destination_options, game_state)
-	active_scene.navigate.connect(_request_route)
-	add_child(active_scene)
-	active_scene.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	return true
+	return _navigation.replace_scene(
+		self, scene, selected_game_id if current_route == "game" else "", target_id, new_game,
+		func(saved: Dictionary) -> void:
+			selected_game_id = target_id
+			game_root = target_root
+			_game_roots[target_id] = target_root
+			game_state = saved
+			get_window().title = game_root.title()
+			current_route = destination,
+		func(next_scene: Control, saved: Dictionary) -> void:
+			target_root.prepare_scene(next_scene, destination, destination_options, saved),
+		_request_route
+	)
 
 
 func _request_route(route_id: String) -> void:

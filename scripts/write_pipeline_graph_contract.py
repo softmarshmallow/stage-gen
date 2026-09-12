@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Check or rewrite graph snapshots for the independent universe recipe.
+"""Check or rewrite graph snapshots for independent product asset recipes.
 
-The document block helpers here are recipe-neutral. Historical gameplay graph
-snapshots have their own writer under godot/tools.
+Game integration snapshots have their own writer under godot/tools. Shared
+document formatting belongs to scripts.graph_contracts.
 
     python scripts/write_pipeline_graph_contract.py
     python scripts/write_pipeline_graph_contract.py --write
@@ -11,16 +11,21 @@ snapshots have their own writer under godot/tools.
 from __future__ import annotations
 
 import argparse
-import json
-import re
 import sys
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from scripts.graph_contracts import document_contract as document_contract
+from scripts.graph_contracts import render as render
+from scripts.graph_contracts import write_contract as write_contract
 from stage_gen.config import StageGenConfig
+from stage_gen.recipes.storefront.examples.minimal.make_inputs import write_inputs
+from stage_gen.recipes.storefront.storefront_executor import StorefrontExecutor
 from stage_gen.recipes.universe.universe_graph import (
     build_universe_gallery_graph,
     build_universe_semantic_graph,
@@ -34,28 +39,11 @@ from stage_gen.recipes.universe.universe_request import (
 )
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_START = "<!-- pipeline-graph-contract:start -->"
-CONTRACT_END = "<!-- pipeline-graph-contract:end -->"
 UNIVERSE_DOCUMENT = REPOSITORY_ROOT / "docs/spec/universe/generation-v1.md"
 UNIVERSE_FIXTURE_REF = "src/stage_gen/recipes/universe/examples/lantern_ferry"
 UNIVERSE_ADMITTED_REF = "tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json"
 UNIVERSE_SEMANTIC_CONTRACT_KIND = "universe-semantic-execution-graph-contract-v1"
 UNIVERSE_GALLERY_CONTRACT_KIND = "universe-gallery-execution-graph-contract-v1"
-
-
-def contract_markers(label: str | None) -> tuple[str, str, re.Pattern[str]]:
-    """Delimiters for one block. A label lets one document carry several."""
-
-    start = CONTRACT_START if label is None else f"<!-- pipeline-graph-contract:{label}:start -->"
-    end = CONTRACT_END if label is None else f"<!-- pipeline-graph-contract:{label}:end -->"
-    pattern = re.compile(
-        rf"{re.escape(start)}\s*```json\s*(.*?)\s*```\s*{re.escape(end)}",
-        re.DOTALL,
-    )
-    return start, end, pattern
-
-
-CONTRACT_PATTERN = contract_markers(None)[2]
 
 
 def _universe_inputs(repo: Path) -> tuple[Any, Any]:
@@ -120,39 +108,30 @@ def build_universe_gallery_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[
     }
 
 
-def document_contract(document: Path, *, label: str | None = None) -> dict[str, Any]:
-    """Read the snapshot currently written into the document."""
-
-    start, end, pattern = contract_markers(label)
-    source = document.read_text(encoding="utf-8")
-    if source.count(start) != 1 or source.count(end) != 1:
-        raise ValueError(f"the document must carry exactly one {label or 'graph'}-contract block")
-    matches = pattern.findall(source)
-    if len(matches) != 1:
-        raise ValueError("the graph-contract block is malformed")
-    value = json.loads(matches[0])
-    if not isinstance(value, dict):
-        raise ValueError("the graph-contract block must be a JSON object")
-    return value
+STOREFRONT_DOCUMENT = REPOSITORY_ROOT / "docs/spec/storefront/generation-v1.md"
+STOREFRONT_FIXTURE_REF = "src/stage_gen/recipes/storefront/examples/minimal"
+STOREFRONT_CONTRACT_KIND = "storefront-execution-graph-contract-v1"
 
 
-def render(contract: dict[str, Any], *, label: str | None = None) -> str:
-    start, end, _ = contract_markers(label)
-    return f"{start}\n```json\n{json.dumps(contract, indent=2)}\n```\n{end}"
-
-
-def write_contract(contract: dict[str, Any], document: Path, *, label: str | None = None) -> bool:
-    """Replace the block in place. Returns True when the document changed."""
-
-    start, end, pattern = contract_markers(label)
-    source = document.read_text(encoding="utf-8")
-    if source.count(start) != 1 or source.count(end) != 1:
-        raise ValueError(f"the document must carry exactly one {label or 'graph'}-contract block")
-    updated = pattern.sub(lambda _: render(contract, label=label), source, count=1)
-    if updated == source:
-        return False
-    document.write_text(updated, encoding="utf-8")
-    return True
+def build_storefront_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
+    """Plan the independent procedural example without reading a game input."""
+    if not (repo / STOREFRONT_FIXTURE_REF / "make_inputs.py").is_file():
+        raise ValueError("the independent storefront fixture author is missing")
+    with TemporaryDirectory(prefix="storefront-graph-contract-") as directory:
+        root = Path(directory)
+        write_inputs(root)
+        graph = StorefrontExecutor(StageGenConfig()).plan(root).graph
+    return {
+        "kind": STOREFRONT_CONTRACT_KIND,
+        "fixture_ref": STOREFRONT_FIXTURE_REF,
+        "surface_count": graph.surface_count,
+        "graph_schema_version": graph.schema_version,
+        "topology_sha256": graph.topology_sha256,
+        "node_count": len(graph.nodes),
+        "terminal_node_id": graph.terminal_node_id,
+        "operation_counts": graph.operation_counts(),
+        "resources": [resource.model_dump(mode="json") for resource in graph.resources],
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -165,6 +144,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     contracts: tuple[tuple[str, Path, Any, str | None], ...] = (
+        ("storefront", STOREFRONT_DOCUMENT, build_storefront_graph_contract, None),
         (
             "universe-semantic",
             UNIVERSE_DOCUMENT,

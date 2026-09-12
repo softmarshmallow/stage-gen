@@ -31,7 +31,7 @@ func run(h: TestHarness) -> void:
 	h.done()
 
 func _t22_inset(h: TestHarness, pkg: HostRunDir) -> void:
-	var masks := SurvivalMasks.from_package(pkg)
+	var masks := SurvivalMaskLoader.from_package(pkg)
 	var ground: Dictionary = pkg.manifest["ground"]
 	var splat_block: Dictionary = ground.get("splat", {})
 	h.assert_near(masks.size, float(ground.get("size_meters", 0.0)), 1e-9,
@@ -80,7 +80,7 @@ func _t22_inset(h: TestHarness, pkg: HostRunDir) -> void:
 			floori((found_z + size * 0.5) / size * float(rows))) > 127,
 		"the sampled cell is not land in the plate",
 	)
-	h.assert_true(SurvivalMasks.from_package(pkg, 0.0).is_land(found_x, found_z),
+	h.assert_true(SurvivalMaskLoader.from_package(pkg, 0.0).is_land(found_x, found_z),
 		"a zero inset does not read the plate as it is")
 
 

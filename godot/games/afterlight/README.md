@@ -17,7 +17,7 @@ The old `dating_sim` launch selector survives only as a compatibility alias.
 Brown Dust 2's central-story presentation was the requested reference, not its
 plot or characters ([official Story Pack description](https://browndust2.gitbook.io/guide_en/game-guideline/pack/story-pack)).
 This original episode primarily demonstrates presentation mechanisms naturally.
-The project-wide [current status](../../packages/game_presentation/history/CURRENT_STATUS.md) separates implemented
+The presentation package's [current status](../../packages/game_presentation/docs/STATUS.md) separates implemented
 mechanisms from open work and provisional module terminology.
 
 ## Play
@@ -70,6 +70,11 @@ while she is projected; other voices and typing are dry. Both effects have
 independent Lab studies. Standing framing remains explicitly deferred.
 
 ## Direction and ownership
+
+The application shell uses the private [scene lifecycle](../_shared/runtime/addons/scene_navigation/README.md)
+through `addons/scene_navigation`, also selected by Command Link. Route aliases,
+language, story preparation and the meaning of episode checkpoints remain local.
+The shared helper only replaces scenes and hands off opaque in-session state.
 
 [root.gd](root.gd) is the discoverable composition root: routes, installed art,
 effect settings, text sets, and [story_beats.gd](story_beats.gd). The latter is

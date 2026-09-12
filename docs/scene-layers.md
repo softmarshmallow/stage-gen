@@ -14,7 +14,7 @@
 > map's own generated layer bundle.
 
 The host composes generated art through a typed semantic layer contract in
-`godot/games/_shared/runtime/addons/demo_support/simulation/families/sideview/presentation/layer_presentation.gd`. Generation still
+`godot/packages/sideview_rendering/addons/sideview_rendering/pixels.gd`. Generation still
 publishes the portable `id`, `z_index`, `parallax`, and `opaque` fields; the host
 validates those fields and resolves their complete presentation contract before
 creating a texture. A manifest may carry the same resolved contract as

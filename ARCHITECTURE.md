@@ -4,6 +4,20 @@ Stage Gen provides asset-pipeline authoring, execution and inspection. Consumers
 what those assets mean in a complete application. Dependencies point from consumers
 to recipes and components, then to GNode; the product never imports its demos.
 
+## Two products in one repository
+
+Stage Gen is the main asset-generation product. The Godot example project is a
+separately owned consumer product, demonstrating asset use in complete games and
+developing its own runtime packages, templates and tools. Its continuing purpose
+and internal review criteria are defined in the [Godot project charter](godot/CHARTER.md).
+
+The Godot directory serves as engine-specific examples for Stage Gen. Internally,
+it can evolve as its own project: sharing game systems, extracting packages or
+reviewing visual-novel implementations does not expand the main product's scope.
+The asset product remains useful without Godot. GNode and the Stage Gen application
+are layers of that main product; this is distinct from the two-product ownership
+boundary. Co-location does not require common game formats or synchronized releases.
+
 ## GNode: execution and model capabilities
 
 `src/gnode/` retains its three rings. Ring 0 owns media-independent topology,
@@ -73,6 +87,11 @@ under `godot/tools/`; the optional `games` installation group supplies that tool
 and the individual game preparation packages. The public product imports none of
 these packages. Game formats are documented with their owning game or shared
 reader, independently of the asset SDK's authoring contract.
+
+The current division between game-local code, private shared support and runtime
+packages may change through review within the Godot project. Reuse between games
+alone does not make a mechanism an asset SDK capability. Moving functionality to
+Stage Gen requires a separate, game-independent asset-pipeline responsibility.
 
 `apps/concept_studio/` is a separately installable concept-authoring application.
 Examples live beside the SDK, component or recipe they demonstrate. Documentation

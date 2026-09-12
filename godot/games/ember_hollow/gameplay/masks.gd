@@ -32,48 +32,22 @@ var _biome_ids: Dictionary = {}
 ## Channel key -> friction coefficient.
 var _biome_friction: Dictionary = {}
 
-## Build both masks from a run package. Always returns a SurvivalMasks: a run with no
-## plate gets the viewer's placeholders (everything is land, friction 0.6).
-static func from_package(pkg: HostRunDir, inset_meters: float = DEFAULT_INSET_METERS) -> SurvivalMasks:
+## Construct sampling state from already decoded game-owned plates.
+## The caller supplies admitted RGBA8 buffers and matching dimensions.
+static func from_data(world_size: float, land: Dictionary, biome: Dictionary,
+		inset_meters: float = DEFAULT_INSET_METERS) -> SurvivalMasks:
 	var masks := SurvivalMasks.new()
-	if pkg == null:
-		return masks
-	var ground: Dictionary = pkg.manifest.get("ground", {})
-	masks.size = float(ground.get("size_meters", 0.0))
-	var splat: Dictionary = ground.get("splat", {}) if ground.get("splat") != null else {}
-	if masks.size > 0.0 and splat.has("image"):
-		var image := pkg.image(String(splat["image"]))
-		if image != null:
-			masks._land_cells = image.get_width()
-			masks._land_rows = image.get_height()
-			masks._land = _rgba8_bytes(image)
-			masks._inset_meters = inset_meters
-			var cell: Variant = splat.get("cell_meters")
-			if cell is float or cell is int:
-				masks._cell_meters = float(cell)
-			else:
-				masks._cell_meters = masks.size / float(masks._land_cells)
-	var biome_splat: Variant = ground.get("biome_splat")
-	var biomes: Variant = ground.get("biomes")
-	if masks.size > 0.0 and biome_splat is Dictionary and biomes is Dictionary:
-		for id: String in (biomes as Dictionary).keys():
-			var biome: Dictionary = biomes[id]
-			var channel: String = "base"
-			if biome.get("weight_channel") != null:
-				channel = String(biome["weight_channel"])
-			masks._biome_ids[channel] = id
-			var friction: Variant = biome.get("friction")
-			var value := DEFAULT_FRICTION
-			if friction is float or friction is int:
-				value = float(friction)
-			masks._biome_friction[channel] = value
-		var ref: Variant = (biome_splat as Dictionary).get("image")
-		if ref != null:
-			var image := pkg.image(String(ref))
-			if image != null:
-				masks._biome_cells = image.get_width()
-				masks._biome_rows = image.get_height()
-				masks._biome = _rgba8_bytes(image)
+	masks.size = world_size
+	masks._land = land.get("pixels", PackedByteArray()).duplicate()
+	masks._land_cells = int(land.get("width", 0))
+	masks._land_rows = int(land.get("height", 0))
+	masks._cell_meters = float(land.get("cell_meters", 0.0))
+	masks._inset_meters = inset_meters
+	masks._biome = biome.get("pixels", PackedByteArray()).duplicate()
+	masks._biome_cells = int(biome.get("width", 0))
+	masks._biome_rows = int(biome.get("height", 0))
+	masks._biome_ids = biome.get("ids", {}).duplicate()
+	masks._biome_friction = biome.get("friction", {}).duplicate()
 	return masks
 
 ## Land only if this point and the four points `_inset_meters` away are land:
@@ -131,10 +105,3 @@ func _channel_at(x: float, z: float) -> String:
 	if _biome[offset + 2] > 127:
 		return "b"
 	return "base"
-
-static func _rgba8_bytes(image: Image) -> PackedByteArray:
-	var copy := Image.new()
-	copy.copy_from(image)
-	if copy.get_format() != Image.FORMAT_RGBA8:
-		copy.convert(Image.FORMAT_RGBA8)
-	return copy.get_data()

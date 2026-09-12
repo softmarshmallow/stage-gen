@@ -1,6 +1,9 @@
 class_name PlatformerDialogueSystem
 extends RefCounted
 
+const ScenarioRefusal = preload("res://addons/scenario_runtime/refusal.gd")
+const ScenarioRuntime = preload("res://addons/scenario_runtime/runtime.gd")
+
 ## The conversation a villager offers, and the hold it puts on the frame.
 ##
 ## A port of `updateInteractionPrompt`, `openInteraction`, `updateDialogueInput`
@@ -9,7 +12,7 @@ extends RefCounted
 ## question asked at three moments: is anyone worth talking to, what did the
 ## player just say, and what does the ending mean.
 ##
-## The machine itself is `FamilyScenarioRuntime`, already proved against the
+## The machine itself is `ScenarioRuntime`, already proved against the
 ## browser at twenty-six of twenty-six digests. Nothing about branching, flags or
 ## endings is decided here; what is here is who can be spoken to, which key
 ## opens and advances a conversation, and what the world does with the outcome.
@@ -102,8 +105,12 @@ static func _offer(world: PlatformerWorld, step: Dictionary) -> void:
 	if bound.is_empty():
 		return
 	var program: Dictionary = bound["program"]
+	var opening := ScenarioRuntime.initial_state(program)
+	if ScenarioRefusal.is_refusal(opening):
+		push_warning("platformer dialogue: %s" % ScenarioRefusal.line(opening))
+		return
 	world.scenario = program
-	world.dialogue_state = FamilyScenarioRuntime.initial_state(program)
+	world.dialogue_state = opening
 	world.dialogue = _published(String(bound["interactionId"]), world.dialogue_state)
 	PlatformerTranscript.record(
 		world,
@@ -119,15 +126,18 @@ static func _advance(world: PlatformerWorld, step: Dictionary) -> void:
 	if not _pressed(world, ADVANCE_KEYS):
 		return
 	var state: Dictionary = world.dialogue_state
-	var next: Dictionary = FamilyScenarioRuntime.reduce(
-		world.scenario, state, {"kind": FamilyScenarioRuntime.ACTION_ADVANCE}
+	var next: Dictionary = ScenarioRuntime.reduce(
+		world.scenario, state, {"kind": ScenarioRuntime.ACTION_ADVANCE}
 	)
+	if ScenarioRefusal.is_refusal(next):
+		push_warning("platformer dialogue: %s" % ScenarioRefusal.line(next))
+		return
 	# "The key did nothing" is not "it advanced": a conversation that redrew on
 	# every key it does not answer is a panel that flickers.
 	if next == state:
 		return
 	var interaction := String((world.dialogue as Dictionary)["interaction"])
-	if not FamilyScenarioRuntime.is_finished(next):
+	if not ScenarioRuntime.is_finished(next):
 		world.dialogue_state = next
 		world.dialogue = _published(interaction, next)
 		return

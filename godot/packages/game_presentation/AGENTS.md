@@ -1,16 +1,24 @@
-# Presentation Playground development
+# game_presentation package
+
+The [Godot project charter](../../CHARTER.md) defines this package's consumer-project
+scope. This file governs the existing presentation addon and its supporting project;
+it does not impose its package boundary on sibling games or future packages.
+Restrictions on complete UI and game frameworks below protect this addon's bounded
+role. A separately owned Godot framework may be reviewed under the charter.
+Game-specific integration notes apply when changing those integrations; each game's
+own guidance controls its composition.
 
 P106 establishes the [SDK successor design](../../../docs/research/game-presentation-sdk-design.md)
 and [historical request triage](../../../docs/research/game-presentation-sdk-triage.md).
 P107 implements the canonical code-first addon at `addons/game_presentation/`.
-Keep it dependency-closed, including shaders, catalogs, documentation and source
-UIDs. SDK code must not import game roots, complete UI, Scenario, assets or provider
+Keep its declared addon closure complete, including the independent `content_io`
+dependency, shaders, catalogs, documentation and source UIDs. SDK code must not
+import game roots, complete UI, Scenario, assets or provider
 code. The source-only starter and complete games consume that one implementation.
-The folder name is retained for launch compatibility; do not reintroduce duplicate
-controllers under the former presentation directories.
+Do not reintroduce duplicate controllers under the former presentation directories.
 
-Read [CURRENT_STATUS.md](history/CURRENT_STATUS.md), [TOPOLOGY.md](history/TOPOLOGY.md), and
-[PACKAGING.md](docs/PACKAGING.md) for current responsibilities and clean-copy checks.
+Read [current status](docs/STATUS.md), the [Godot architecture](../../docs/architecture.md),
+and [PACKAGING.md](docs/PACKAGING.md) for current responsibilities and clean-copy checks.
 Scenario is experimental and secondary. No universal host UI or effect lifecycle
 is implied. P100 anatomy and standing framing remain deferred; upstream generation
 and engine-free gameplay contracts are separate. No release is authorized merely
@@ -63,8 +71,8 @@ by changing the local SDK or its canary metadata.
   deferred. Add behavior and necessary integration
   together, with a focused demonstration and appropriate checks. Preserve both
   stories and the independent Presentation Lab.
-- Record exact requests in USER_PROMPTS.md and short outcomes in REQUESTS.md.
-  Keep CURRENT_STATUS.md aligned with the implemented source and remaining work;
+- Keep current package status and owning contracts aligned with source changes.
+  Historical request ledgers remain evidence of the original shared presentation line;
   distinguish deferred requirements from optional ideas and superseded directions.
   Maintain TERMINOLOGY.md with each new effect's name, scope, example use case,
   and demonstrated/deferred status; do not infer module boundaries from names.

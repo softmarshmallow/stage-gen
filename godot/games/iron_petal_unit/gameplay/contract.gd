@@ -1,6 +1,8 @@
 class_name RunnerContract
 extends RefCounted
 
+const Parallax = preload("res://addons/sideview_rendering/parallax.gd")
+
 ## What a runner manifest says, and what this build refuses to read.
 ##
 ## A port of the simulation's half of `web/lib/sideview-runner/contract.ts`.
@@ -202,14 +204,14 @@ static func ground_line_y(config: Dictionary) -> float:
 static func layer_frame_height(layer: Dictionary, layers: Array) -> float:
 	if (
 		String(layer.get("alpha_mode", "")) == "opaque"
-		or String(layer.get("vertical_anchor", "")) == FamilyParallax.ANCHOR_CANVAS_COVER
+		or String(layer.get("vertical_anchor", "")) == Parallax.ANCHOR_CANVAS_COVER
 	):
 		return float(layer["height"])
 	for entry: Variant in layers:
 		var candidate: Dictionary = entry
 		if (
 			String(candidate.get("alpha_mode", "")) == "opaque"
-			and String(candidate.get("vertical_anchor", "")) == FamilyParallax.ANCHOR_CANVAS_COVER
+			and String(candidate.get("vertical_anchor", "")) == Parallax.ANCHOR_CANVAS_COVER
 		):
 			return float(candidate["height"])
 	return float(layer["height"])

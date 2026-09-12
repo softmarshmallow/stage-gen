@@ -72,7 +72,7 @@ PLATFORMER_DOCUMENT = "godot/games/bellweather/docs/generation-pipeline.md"
 RUNNER_DOCUMENT = "godot/games/iron_petal_unit/docs/runner.md"
 UNIVERSE_DOCUMENT = "docs/spec/universe/generation-v1.md"
 SURVIVAL_DOCUMENT = "godot/games/ember_hollow/docs/generation-v1.md"
-STOREFRONT_DOCUMENT = "docs/spec/storefront/generation-v1.md"
+STOREFRONT_DOCUMENT = "godot/games/ember_hollow/docs/storefront-integration.md"
 
 PLATFORMER_CACHE_GOLDEN = "tests/unit/recipes/sideview_platformer/bellweather.cache-keys.json"
 RUNNER_CACHE_GOLDEN = "tests/unit/recipes/sideview_runner/iron-petal-unit.cache-keys.json"

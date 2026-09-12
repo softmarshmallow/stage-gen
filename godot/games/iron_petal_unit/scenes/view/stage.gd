@@ -1,6 +1,10 @@
 class_name RunnerStage
 extends Node2D
 
+const Parallax = preload("res://addons/sideview_rendering/parallax.gd")
+const ImageBaker = preload("res://addons/sideview_rendering/image_baker.gd")
+const SideviewRefusal = preload("res://addons/sideview_rendering/refusal.gd")
+
 ## Everything the runner draws: the parallax bands, the streamed ground, the
 ## avatar and its shadow, the hazards and the pickups, and the fight.
 ##
@@ -19,8 +23,7 @@ extends Node2D
 ## which is what makes a picture of this game comparable with another picture of
 ## it, and is a property the first port did not have.
 
-## Back to front. A genre may skip a rung of the family's ladder; it may never
-## invert two, and `FamilyParallax.seal_depth_ladder` refuses one that does.
+## This game owns its back-to-front ordering and the gaps between its layers.
 const DEPTHS := {
 	"background": 0,
 	"ground": 20,
@@ -126,8 +129,11 @@ func sync(world: RunnerWorld, dt: float) -> void:
 		# and screen space are the same space and the family's conversion is by
 		# one. A band repeats, so only the remainder of the scroll is drawn;
 		# without the wrap a long run walks the texture off the screen.
-		var offset := FamilyParallax.band_tile_position(scroll, float(band["parallax"]), 1.0)
-		sprite.position.x = float(band["originX"]) - fposmod(offset, float(band["width"]))
+		var offset: Variant = Parallax.band_tile_position(scroll, float(band["parallax"]), 1.0)
+		if SideviewRefusal.is_refusal(offset):
+			push_error("runner stage: %s" % SideviewRefusal.line(offset))
+			continue
+		sprite.position.x = float(band["originX"]) - fposmod(float(offset), float(band["width"]))
 	_sync_ground(world, scroll)
 	_sync_avatar(world, dt)
 	_sync_hazards(world, scroll)
@@ -144,7 +150,7 @@ func _build_bands(manifest: Dictionary, plane: String) -> void:
 		if String(layer["plane"]) != plane:
 			continue
 		var offset_raw: Variant = layer.get("vertical_offset")
-		var layout := FamilyParallax.layer_layout(
+		var layout := Parallax.layer_layout(
 			String(layer["vertical_anchor"]),
 			0.0 if offset_raw == null else float(offset_raw),
 			# The frame the band was painted against, which for a trimmed band
@@ -155,24 +161,23 @@ func _build_bands(manifest: Dictionary, plane: String) -> void:
 			walk_surface_y,
 			float(layer["parallax"])
 		)
-		if layout.is_empty():
-			push_error("runner stage: layer %s does not describe a band" % layer["layer_id"])
+		if SideviewRefusal.is_refusal(layout):
+			push_error("runner stage: layer %s: %s" % [layer["layer_id"], SideviewRefusal.line(layout)])
 			continue
 		var scale_factor := float(layout["scale"])
 		var tile_width := maxi(1, int(round(float(layer["width"]) * scale_factor)))
 		var tile_height := maxi(1, int(round(float(layer["height"]) * scale_factor)))
-		var texture := HostLayerTexture.band(
-			_package,
-			String(layer["image"]),
+		var texture: Variant = ImageBaker.texture(
+			_package.image(String(layer["image"])),
 			layer.get("presentation", {}),
 			tile_width,
 			tile_height
 		)
-		if texture == null:
+		if SideviewRefusal.is_refusal(texture):
 			# A band this run did not publish is a gap in the picture and is
 			# said out loud, rather than drawn as a hole nobody can explain.
 			push_error(
-				"runner stage: layer %s has no image at %s" % [layer["layer_id"], layer["image"]]
+				"runner stage: layer %s: %s" % [layer["layer_id"], SideviewRefusal.line(texture)]
 			)
 			continue
 		var sprite := Sprite2D.new()
@@ -189,7 +194,7 @@ func _build_bands(manifest: Dictionary, plane: String) -> void:
 			0.0, 0.0, float(tile_width * repeats), float(tile_height)
 		)
 		sprite.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-		sprite.position = Vector2(0.0, float(layout["topY"]))
+		sprite.position = Vector2(0.0, float(layout["top_y"]))
 		sprite.z_index = (
 			DEPTHS["background"] if plane == "background" else DEPTHS["foreground"]
 		) + int(layer["order"])

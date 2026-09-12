@@ -15,15 +15,6 @@ from typing import TYPE_CHECKING, Any
 
 from PIL import Image
 
-from demo_game_tools.media.ui.nodes import (
-    UI_ATLAS_GENERATE,
-    UI_ATLAS_REVIEW,
-    UI_ATLAS_VALIDATE,
-    UiAtlasHandlers,
-    UiAtlasHost,
-    document_roles,
-    ui_atlas_manifest_block,
-)
 from gnode import (
     ArtifactRights,
     BinaryArtifact,
@@ -41,6 +32,15 @@ from gnode import (
     write_artifact_with_provenance_async,
 )
 from stage_gen.canonical import content_sha256
+from stage_gen.components.ui_art.nodes import (
+    UI_ATLAS_GENERATE,
+    UI_ATLAS_REVIEW,
+    UI_ATLAS_VALIDATE,
+    UiAtlasHandlers,
+    UiAtlasHost,
+    document_roles,
+    ui_atlas_manifest_block,
+)
 from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.image_prompting import build_image_style_compiler_request
 from stage_gen.image_style import (

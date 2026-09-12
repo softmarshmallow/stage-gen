@@ -71,7 +71,7 @@ func run(h: TestHarness) -> void:
 	if pkg == null:
 		h.fail("run package did not open")
 		return
-	var world := SurvivalWorld.create(pkg, 7, {"masks": SurvivalMasks.new()})
+	var world := SurvivalWorldFactory.create(pkg, 7, {"masks": SurvivalMasks.new()})
 	for i in SEED_7.size():
 		h.assert_near(world.rand.call(), SEED_7[i], 1e-12, "world.rand draw %d" % i)
 	h.done()

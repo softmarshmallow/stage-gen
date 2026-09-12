@@ -58,3 +58,46 @@ def test_universe_document_is_discoverable_from_the_docs_index() -> None:
     taxonomy = (REPOSITORY_ROOT / "docs/spec/universe/taxonomy-v0.md").read_text(encoding="utf-8")
     assert "spec/universe/generation-v1.md" in docs_index
     assert "generation-v1.md" in taxonomy
+
+
+def test_storefront_document_uses_the_independent_example() -> None:
+    from scripts.write_pipeline_graph_contract import (
+        STOREFRONT_CONTRACT_KIND,
+        STOREFRONT_DOCUMENT,
+        STOREFRONT_FIXTURE_REF,
+        build_storefront_graph_contract,
+    )
+
+    contract = document_contract(STOREFRONT_DOCUMENT)
+    assert contract == build_storefront_graph_contract(REPOSITORY_ROOT)
+    assert contract["kind"] == STOREFRONT_CONTRACT_KIND
+    assert contract["fixture_ref"] == STOREFRONT_FIXTURE_REF
+    assert (REPOSITORY_ROOT / STOREFRONT_FIXTURE_REF / "make_inputs.py").is_file()
+    assert contract["surface_count"] == 1
+    assert contract["operation_counts"] == {
+        "local": 6,
+        "image_generation": 1,
+        "structured_generation": 3,
+    }
+    assert render(contract) in STOREFRONT_DOCUMENT.read_text(encoding="utf-8")
+
+
+def test_product_graph_writer_runs_without_game_inputs(tmp_path: Path) -> None:
+    import shutil
+
+    from scripts.write_pipeline_graph_contract import (
+        STOREFRONT_FIXTURE_REF,
+        build_storefront_graph_contract,
+    )
+
+    # The writer's only declared storefront source is the independent example author.
+    fixture = tmp_path / STOREFRONT_FIXTURE_REF
+    fixture.mkdir(parents=True)
+    shutil.copyfile(
+        REPOSITORY_ROOT / STOREFRONT_FIXTURE_REF / "make_inputs.py",
+        fixture / "make_inputs.py",
+    )
+    assert build_storefront_graph_contract(tmp_path) == build_storefront_graph_contract(
+        REPOSITORY_ROOT
+    )
+    assert not (tmp_path / "godot").exists()

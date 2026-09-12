@@ -43,6 +43,11 @@ def test_assembly_copies_the_actual_sdk_without_demo_dependencies(tmp_path: Path
     assert str(PROJECT) not in serialized
     assert json.loads(serialized) == report
     assert (destination / "addons/game_presentation/actors/presets/manpu.json").is_file()
+    assert (destination / "addons/content_io/local_content.gd").is_file()
+    assert (destination / "addons/content_io/LICENSE").is_file()
+    for relative, expected in report["dependency_files"]["content_io"].items():
+        copied = destination / "addons/content_io" / relative
+        assert hashlib.sha256(copied.read_bytes()).hexdigest() == expected
 
 
 @pytest.mark.parametrize("existing_content", [False, True])
@@ -61,6 +66,26 @@ def test_starter_cannot_be_assembled_inside_the_development_project() -> None:
     with pytest.raises(ValueError, match="outside the development project"):
         SCRIPT.assemble(PROJECT / "never-created-starter-test-output")
     assert not (PROJECT / "never-created-starter-test-output").exists()
+
+
+def test_starter_cannot_be_assembled_inside_a_linked_dependency(tmp_path: Path) -> None:
+    package = tmp_path / "package"
+    sdk = package / "addons/game_presentation"
+    sdk.mkdir(parents=True)
+    (sdk / "sdk.json").write_text(json.dumps({"dependencies": ["content_io"]}))
+    dependency = tmp_path / "shared-content"
+    dependency.mkdir()
+    (dependency / "content.gd").write_text("extends RefCounted\n")
+    (package / "addons/content_io").symlink_to(dependency, target_is_directory=True)
+    template = tmp_path / "template"
+    template.mkdir()
+    (template / "project.godot").write_text("config_version=5\n")
+    (template / "main.gd").write_text("extends Control\n")
+    output = dependency / "assembled"
+    with pytest.raises(ValueError, match="outside the development project"):
+        SCRIPT.assemble(output, package, template)
+    assert not output.exists()
+    assert {path.name for path in dependency.iterdir()} == {"content.gd"}
 
 
 def test_source_links_are_refused_and_output_remains_absent(tmp_path: Path) -> None:

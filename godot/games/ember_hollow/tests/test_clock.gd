@@ -71,7 +71,7 @@ func _calendar(h: TestHarness) -> void:
 ## The live turn: a summer day rolls into day 5 and winter arrives, hiding the
 ## forage the season covers.
 func _season_turn(h: TestHarness, pkg: HostRunDir) -> void:
-	var world := SurvivalWorld.create(pkg, 7, {"masks": SurvivalMasks.new()})
+	var world := SurvivalWorldFactory.create(pkg, 7, {"masks": SurvivalMasks.new()})
 	SurvivalSim.step(world, SurvivalSim.FIXED_STEP)
 	h.assert_eq(world.season["id"], "summer", "the first tick is not summer")
 	h.assert_eq(int(world.season["turns"]), 1, "the first tick did not count a turn")
@@ -111,7 +111,7 @@ func _season_turn(h: TestHarness, pkg: HostRunDir) -> void:
 ## Snow is the season's, not a spell: it arrives over the authored onset (60 s)
 ## and leaves over the decay (120 s).
 func _snow_onset_and_decay(h: TestHarness, pkg: HostRunDir) -> void:
-	var world := SurvivalWorld.create(pkg, 7, {"masks": SurvivalMasks.new()})
+	var world := SurvivalWorldFactory.create(pkg, 7, {"masks": SurvivalMasks.new()})
 	# The onset and the decay do not read the entity list; dropping it keeps
 	# 190 s of simulation (11 400 fixed steps) inside a test run.
 	world.entities = []

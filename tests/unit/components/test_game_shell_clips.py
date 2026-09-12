@@ -12,7 +12,7 @@ from ember_hollow_pipeline.shell.clips import (
     match_title_verdict,
     shell_clip_record,
 )
-from ember_hollow_pipeline.shell.layouts import OPENING_CLIP, OPENING_SHOT
+from stage_gen.components.screen_art.layouts import OPENING_CLIP, OPENING_SHOT
 from stage_gen.media.codec import encode_png
 
 

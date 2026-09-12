@@ -82,13 +82,14 @@ against another implementation of itself.
 
 ## A refusal is a value
 
-A parser returns the parsed value or a refusal — a code, a message and the path
-that failed — and never a partial result. The host shows the refusal before it
-draws anything, and reports it through the bridge. A document of another kind,
-a block published at a version this build does not read, an unresolved
-reference, a reference that escapes the run root, an invalid digest: each is
-refused by name. A consumer that silently ignores what it does not understand
-plays a different game from the one the run describes.
+Game document readers own their schema and reference refusals. The run-directory
+adapter reports loading errors and returns null when the initial document is
+refused. Its shared `content_io` dependency rejects unsafe references, symbolic
+links, missing files and decoding failures; it does not interpret game manifests.
+Digest checking is explicit when an expected source digest is supplied to the
+content loader. The run-directory adapter does not perform blanket artifact
+digest or lineage validation. Producer validation and a fresh consumer check are
+different evidence. Keep each reader's actual refusal shape documented with it.
 
 Degrading is a refusal too, and says so. A missing interface sheet draws the
 plain fallback **and** reports the role that was missing; silence there reads

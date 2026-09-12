@@ -243,7 +243,7 @@ func _t2_layout_counts(h: TestHarness, pkg: HostRunDir) -> void:
 				mobs += 1
 	h.assert_eq(props + mobs, rows, "a row is a prop or a mob and nothing else")
 
-	var world := SurvivalWorld.create(pkg, 7, {"masks": SurvivalMasks.new()})
+	var world := SurvivalWorldFactory.create(pkg, 7, {"masks": SurvivalMasks.new()})
 	var built_props := 0
 	var built_mobs := 0
 	var built_forage := 0
@@ -331,6 +331,6 @@ func _t30_advance(h: TestHarness, pkg: HostRunDir) -> void:
 
 
 func _bare(pkg: HostRunDir) -> SurvivalWorld:
-	var world := SurvivalWorld.create(pkg, 7, {"masks": SurvivalMasks.new()})
+	var world := SurvivalWorldFactory.create(pkg, 7, {"masks": SurvivalMasks.new()})
 	world.entities.clear()
 	return world

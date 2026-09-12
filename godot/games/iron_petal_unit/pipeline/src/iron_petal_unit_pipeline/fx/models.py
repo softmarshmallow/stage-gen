@@ -19,21 +19,17 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from gnode import PersistedContractModel
-from iron_petal_unit_pipeline.fx.cut_in import (
-    CUT_IN_FRAME_LAYOUT,
-    CUT_IN_PORTRAIT_LAYOUT,
-    FRAME_ALPHA_POLICY,
-    PORTRAIT_ALPHA_POLICY,
-)
-from iron_petal_unit_pipeline.fx.sprite import (
-    DUST_ALPHA_POLICY,
-    DUST_ATLAS_LAYOUT,
-)
 from stage_gen.components._game_input import (
     PACKAGE_ID_PATTERN,
     SNAKE_ID_PATTERN,
     parse_toml_contract,
     unique_values,
+)
+from stage_gen.components.effects_art.cut_in import (
+    CUT_IN_FRAME_LAYOUT,
+    CUT_IN_PORTRAIT_LAYOUT,
+    FRAME_ALPHA_POLICY,
+    PORTRAIT_ALPHA_POLICY,
 )
 from stage_gen.components.effects_art.models import (
     CutInDirection,
@@ -45,6 +41,7 @@ from stage_gen.components.effects_art.models import (
     FxReference,
     SpriteDirection,
 )
+from stage_gen.components.effects_art.sprite import DUST_ALPHA_POLICY, DUST_ATLAS_LAYOUT
 
 GAME_FX_SCHEMA_VERSION = 2
 GAME_FX_KIND = "game-fx-v2"

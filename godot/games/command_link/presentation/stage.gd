@@ -11,7 +11,8 @@ signal navigate(route_id: String)
 @export var character_exit_preset := "silhouette_fade"
 
 const HOLOGRAM_SHADER = preload("res://addons/game_presentation/effects/shaders/character_hologram.gdshader")
-const LOCAL_CONTENT = preload("res://addons/game_presentation/content/local_content.gd")
+const STAGE_ASSETS = preload("res://presentation/stage_assets.gd")
+const STAGE_CONTROLS = preload("res://presentation/stage_controls.gd")
 const ACTOR_OVERLAY_SCRIPT = preload("res://presentation/actor_overlay.gd")
 const ACTOR_FOCUS_SCRIPT = preload("res://addons/game_presentation/actors/actor_focus.gd")
 const ACTOR_FOCUS_CATALOG := "res://addons/game_presentation/actors/presets/focus.json"
@@ -60,19 +61,56 @@ var _effect_target_button: Button
 var _effect_toggle_button: Button
 var _effect_strength_slider: HSlider
 var _effect_strength_label: Label
-var _textures: Dictionary = {}
-var _images: Dictionary = {}
-var _manpu_catalog: Dictionary = {}
-var _manpu_textures: Dictionary = {}
-var _locations: Dictionary = {}
-var _location_textures: Dictionary = {}
+var _assets = STAGE_ASSETS.new()
+var _textures: Dictionary:
+	get:
+		return _assets.textures
+	set(value):
+		_assets.textures = value
+var _images: Dictionary:
+	get:
+		return _assets.images
+	set(value):
+		_assets.images = value
+var _manpu_catalog: Dictionary:
+	get:
+		return _assets.manpu_catalog
+	set(value):
+		_assets.manpu_catalog = value
+var _manpu_textures: Dictionary:
+	get:
+		return _assets.manpu_textures
+	set(value):
+		_assets.manpu_textures = value
+var _locations: Dictionary:
+	get:
+		return _assets.locations
+	set(value):
+		_assets.locations = value
+var _location_textures: Dictionary:
+	get:
+		return _assets.location_textures
+	set(value):
+		_assets.location_textures = value
 var _location_rng := RandomNumberGenerator.new()
 var _location_id := ""
 var _location_title_elapsed := 0.0
 var _load_errors: Array[String] = []
-var _touch_point := Vector2(0.5, 0.5)
-var _touch_radius := 0.034
-var _layout_loaded := false
+var _touch_point: Vector2:
+	get:
+		return _assets.touch_point
+	set(value):
+		_assets.touch_point = value
+var _touch_radius: float:
+	get:
+		return _assets.touch_radius
+	set(value):
+		_assets.touch_radius = value
+var _layout_loaded: bool:
+	get:
+		return _assets.layout_loaded
+	set(value):
+		_assets.layout_loaded = value
 var _mode := "full_body"
 var _dialogue_index := 0
 var _manual_closed := false
@@ -483,112 +521,39 @@ func _actor_visual_sample(actor_id: String) -> Dictionary:
 	return _character_exit.sample(actor_id)
 
 
+func _bind_assets() -> void:
+	_assets.profile = stage_profile
+	_assets.errors = _load_errors
+
+
 func _load_assets() -> void:
-	for key: String in stage_profile.asset_paths:
-		var path: String = stage_profile.asset_paths[key]
-		var picture := _load_content_image(path, "Actor image " + key)
-		if picture == null:
-			continue
-		_images[key] = picture
-		picture.generate_mipmaps()
-		_textures[key] = ImageTexture.create_from_image(picture)
-	if stage_profile.contact_actor_id.is_empty():
-		return
-	var parsed: Variant = _read_content_json(stage_profile.contact_layout_path)
-	if parsed is Dictionary:
-		var point: Variant = parsed.get("touch_point")
-		var radius: Variant = parsed.get("touch_radius")
-		if point is Array and point.size() == 2 and (radius is float or radius is int):
-			if (point[0] is float or point[0] is int) and (point[1] is float or point[1] is int):
-				_touch_point = Vector2(float(point[0]), float(point[1]))
-				_touch_radius = float(radius)
-				_layout_loaded = _touch_point.is_finite() and is_finite(_touch_radius) and _touch_radius > 0.0
-	if not _layout_loaded:
-		_load_errors.append("Missing fingertip coordinates for contact actor: " + stage_profile.contact_actor_id)
+	_bind_assets()
+	_assets.load_assets()
 
 
 func _content() -> RefCounted:
-	if stage_profile.content_loader == null:
-		stage_profile.content_loader = LOCAL_CONTENT.new()
-	return stage_profile.content_loader
+	_bind_assets()
+	return _assets.content()
 
 
 func _read_content_json(path: String) -> Variant:
-	# Historical project bindings are interpreted by the example, not the SDK.
-	var result: Dictionary = _content().read_json(path.trim_prefix("res://"))
-	_load_errors.append_array(result.errors)
-	return result.value
+	_bind_assets()
+	return _assets.read_json(path)
 
 
 func _load_content_image(path: String, label: String) -> Image:
-	var result: Dictionary = _content().load_texture(path.trim_prefix("res://"), true)
-	for issue: String in result.errors:
-		_load_errors.append(label + ": " + issue)
-	var texture: Texture2D = result.resource
-	return texture.get_image() if texture != null else null
+	_bind_assets()
+	return _assets.load_image(path, label)
 
 
 func _load_manpu() -> void:
-	if stage_profile.manpu_catalog_path.is_empty():
-		return
-	var parsed: Variant = _read_content_json(stage_profile.manpu_catalog_path)
-	if not (parsed is Dictionary) or not (parsed.get("manpu") is Array):
-		_load_errors.append("The manpu catalog must contain a manpu array.")
-		return
-	for entry: Variant in parsed["manpu"]:
-		if not (entry is Dictionary):
-			_load_errors.append("A manpu catalog entry is not a record.")
-			continue
-		var id := String(entry.get("id", ""))
-		var path := String(entry.get("file", ""))
-		if not stage_profile.manpu_ids.has(id) or _manpu_catalog.has(id):
-			_load_errors.append("Unknown or duplicate manpu: " + id)
-			continue
-		var picture := _load_content_image(path, "Manpu " + id)
-		if picture == null:
-			continue
-		if picture.get_width() != picture.get_height():
-			_load_errors.append("The manpu image must have a square canvas: " + id)
-			continue
-		picture.generate_mipmaps()
-		_manpu_catalog[id] = entry
-		_manpu_textures[id] = ImageTexture.create_from_image(picture)
-	for id: String in stage_profile.manpu_ids:
-		if not _manpu_textures.has(id):
-			_load_errors.append("The manpu catalog does not provide " + id)
+	_bind_assets()
+	_assets.load_manpu()
 
 
 func _load_locations() -> void:
-	if stage_profile.location_catalog_path.is_empty():
-		return
-	var parsed: Variant = _read_content_json(stage_profile.location_catalog_path)
-	if not (parsed is Dictionary) or not (parsed.get("locations") is Array):
-		_load_errors.append("The location catalog must contain a locations array.")
-		return
-	for entry: Variant in parsed["locations"]:
-		if not (entry is Dictionary):
-			_load_errors.append("A location catalog entry is not a record.")
-			continue
-		var id := String(entry.get("id", ""))
-		var path := String(entry.get("background", ""))
-		if not stage_profile.location_ids.has(id) or _locations.has(id):
-			_load_errors.append("Unknown or duplicate location: " + id)
-			continue
-		if String(entry.get("name", "")).is_empty() or String(entry.get("detail", "")).is_empty():
-			_load_errors.append("A location needs its name and detail: " + id)
-			continue
-		var picture := _load_content_image(path, "Location " + id)
-		if picture == null:
-			continue
-		if picture.detect_alpha() != Image.ALPHA_NONE:
-			_load_errors.append("A location background must be opaque: " + id)
-			continue
-		picture.generate_mipmaps()
-		_locations[id] = entry
-		_location_textures[id] = ImageTexture.create_from_image(picture)
-	for id: String in stage_profile.location_ids:
-		if not _locations.has(id):
-			_load_errors.append("The location catalog does not provide " + id)
+	_bind_assets()
+	_assets.load_locations()
 
 
 func _random_location_id(exclude_current: bool = false) -> String:
@@ -811,67 +776,16 @@ func _update_character_layers() -> void:
 
 
 func _build_interface() -> void:
-	_title = _label(stage_profile.display_title, 27, PAPER)
-	_subtitle = _label("A moment, at your own pace.", 13, MUTED)
-	_location_title = _label("", 27, PAPER)
-	_location_detail = _label("", 13, WARM)
-	_line = _label("", 25, PAPER, HORIZONTAL_ALIGNMENT_CENTER)
-	_speaker = _label("", 15, WARM, HORIZONTAL_ALIGNMENT_CENTER)
-	_hint = _label("", 14, MUTED, HORIZONTAL_ALIGNMENT_CENTER)
-	_footer = _label("", 12, MUTED, HORIZONTAL_ALIGNMENT_CENTER)
-	_full_button = _button("Full body", func() -> void: _set_mode("full_body"))
-	_reach_button = _button("Reach out", func() -> void: _set_mode("reach_out"))
-	_dialogue_button = _button("Dialogue", func() -> void: _set_mode("dialogue"))
-	_manpu_button = _button("Manpu gallery", func() -> void: _set_mode("manpu_gallery"))
-	_next_button = _button("Next →", _advance_dialogue)
-	_blink_button = _button("Close eyes", _toggle_eyes)
-	_auto_button = _button("Auto blink · on", _toggle_natural_blink)
-	_restart_button = _button("Restart", _restart)
-	_scene_button = _button("Change scene", _change_scene)
-	_effect_target_button = _button("", _cycle_effect_target)
-	_effect_toggle_button = _button("", _toggle_character_effect)
-	_effect_strength_slider = HSlider.new()
-	_effect_strength_slider.min_value = 0.0
-	_effect_strength_slider.max_value = 100.0
-	_effect_strength_slider.step = 5.0
-	_effect_strength_slider.value_changed.connect(_set_effect_strength)
-	_effect_strength_slider.tooltip_text = "Character effect strength. Zero restores the original appearance."
-	add_child(_effect_strength_slider)
-	_effect_strength_label = _label("80%", 13, MUTED)
-	_effect_target_button.tooltip_text = "Choose which actor to adjust. Keyboard: T"
-	_effect_toggle_button.tooltip_text = "Toggle the selected actor between Normal and Hologram. Keyboard: E"
-	_blink_button.tooltip_text = "Open or close her eyes. Keyboard: B"
-	_auto_button.tooltip_text = "Allow a gentle automatic blink. Keyboard: N"
-	_full_button.tooltip_text = "Full-body view. Keyboard: 1"
-	_reach_button.tooltip_text = "Reach-out view. Keyboard: 2"
-	_dialogue_button.tooltip_text = "Multi-actor dialogue. Keyboard: 3"
-	_manpu_button.tooltip_text = "Static manpu / emanata marks. Keyboard: 4"
-	_next_button.tooltip_text = "Next line. Keyboard: Space or Enter"
-	_restart_button.tooltip_text = "Begin again. Keyboard: R"
-	_scene_button.tooltip_text = "Visit another place. Keyboard: L"
+	STAGE_CONTROLS.build_interface(self)
 
 
 func _label(value: String, font_size: int, colour: Color,
 		alignment: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT) -> Label:
-	var made := Label.new()
-	made.text = value
-	made.add_theme_font_size_override("font_size", font_size)
-	made.add_theme_color_override("font_color", colour)
-	made.horizontal_alignment = alignment
-	made.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	made.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	made.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(made)
-	return made
+	return STAGE_CONTROLS.label(self, value, font_size, colour, alignment)
 
 
 func _button(value: String, pressed: Callable) -> Button:
-	var made := Button.new()
-	made.text = value
-	made.add_theme_font_size_override("font_size", 14)
-	made.pressed.connect(pressed)
-	add_child(made)
-	return made
+	return STAGE_CONTROLS.button(self, value, pressed)
 
 
 func _button_style(hovered: bool, selected: bool) -> StyleBoxFlat:
@@ -885,59 +799,7 @@ func _focus_style() -> StyleBoxFlat:
 func _layout_interface() -> void:
 	if _title == null:
 		return
-	_title.position = Vector2(32, 22)
-	_title.size = Vector2(size.x - 296, 40)
-	_title.add_theme_font_size_override("font_size", 27)
-	_subtitle.position = Vector2(33, 62)
-	_subtitle.size = Vector2(size.x - 297, 24)
-	_location_title.position = _title.position
-	_location_title.size = _title.size
-	_location_title.add_theme_font_size_override("font_size", 27)
-	_location_detail.position = _subtitle.position
-	_location_detail.size = _subtitle.size
-	_restart_button.position = Vector2(size.x - 126, 32)
-	_restart_button.size = Vector2(94, 36)
-	_scene_button.position = Vector2(size.x - 258, 32)
-	_scene_button.size = Vector2(120, 36)
-	_line.position = Vector2(32, size.y - 197)
-	_line.size = Vector2(size.x - 64, 54)
-	_line.add_theme_font_size_override("font_size", 25)
-	_speaker.position = Vector2(32, size.y - 222)
-	_speaker.size = Vector2(size.x - 64, 25)
-	_hint.position = Vector2(32, size.y - 142)
-	_hint.size = Vector2(size.x - 64, 30)
-	var left := (size.x - 556.0) * 0.5
-	for button: Button in [_full_button, _reach_button, _dialogue_button, _manpu_button]:
-		button.position = Vector2(left, size.y - 99)
-		button.size = Vector2(130.0, 38)
-		left += 142.0
-	var secondary: Array[Button] = []
-	if _mode in ["full_body", "dialogue"]:
-		secondary.assign([_blink_button, _auto_button])
-	if _mode == "dialogue":
-		secondary.append(_next_button)
-	var total := 0.0
-	for button: Button in secondary:
-		total += 136.0 if button == _auto_button else 116.0
-	total += maxf(0.0, secondary.size() - 1) * 12.0
-	left = (size.x - total) * 0.5
-	for button: Button in secondary:
-		var width := 136.0 if button == _auto_button else 116.0
-		button.position = Vector2(left, size.y - 48)
-		button.size = Vector2(width, 32)
-		button.add_theme_font_size_override("font_size", 13)
-		left += width + 12.0
-	var effect_left := (size.x - 470.0) * 0.5
-	_effect_target_button.position = Vector2(effect_left, size.y - 139)
-	_effect_target_button.size = Vector2(112, 28)
-	_effect_toggle_button.position = Vector2(effect_left + 122, size.y - 139)
-	_effect_toggle_button.size = Vector2(142, 28)
-	_effect_strength_slider.position = Vector2(effect_left + 280, size.y - 136)
-	_effect_strength_slider.size = Vector2(130, 22)
-	_effect_strength_label.position = Vector2(effect_left + 424, size.y - 139)
-	_effect_strength_label.size = Vector2(46, 28)
-	_footer.position = Vector2(32, size.y - 46)
-	_footer.size = Vector2(size.x - 64, 25)
+	STAGE_CONTROLS.layout_interface(self)
 	_update_character_layers()
 	queue_redraw()
 

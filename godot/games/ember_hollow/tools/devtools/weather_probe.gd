@@ -76,7 +76,7 @@ func _init() -> void:
 	camera.transform = Transform3D(basis, position)
 	viewport.add_child(camera)
 
-	var world: SurvivalWorld = SurvivalWorld.create(pkg, int(pkg.layout.get("seed", 7)), {
+	var world: SurvivalWorld = SurvivalWorldFactory.create(pkg, int(pkg.layout.get("seed", 7)), {
 		"time": "noon", "weather": "storm", "season": "auto",
 	})
 	if world == null:

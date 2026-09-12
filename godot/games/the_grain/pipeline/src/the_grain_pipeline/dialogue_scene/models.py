@@ -9,9 +9,9 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from demo_game_tools.media.ui.nodes import AtlasRoleLayout, IconSetLayout
 from stage_gen.components.character_profile import CharacterProfileBinding
 from stage_gen.components.scenario import ScenarioProgram
+from stage_gen.components.ui_art.nodes import AtlasRoleLayout, IconSetLayout
 
 
 class PersistedContractModel(BaseModel):

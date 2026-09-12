@@ -1,6 +1,8 @@
 class_name PlatformerDialogueBox
 extends Control
 
+const ScenarioRuntime = preload("res://addons/scenario_runtime/runtime.gd")
+
 ## What a villager is saying, on the panel and the faces the run published art for.
 ##
 ## The frame is `HostPanelFrame`'s, and that is the substance of this file rather
@@ -122,7 +124,7 @@ func sync(world: PlatformerWorld) -> void:
 	if not (world.dialogue is Dictionary):
 		visible = false
 		return
-	var view := FamilyScenarioRuntime.view(world.scenario, world.dialogue_state)
+	var view := ScenarioRuntime.view(world.scenario, world.dialogue_state)
 	if view.is_empty():
 		visible = false
 		return
@@ -158,7 +160,7 @@ func _show_portrait(world: PlatformerWorld, speaker: Variant) -> void:
 	var sheet: Dictionary = _sheets.get(str(speaker), {})
 	if sheet.is_empty():
 		return
-	var staged := FamilyScenarioRuntime.actor(world.dialogue_state, str(speaker))
+	var staged := ScenarioRuntime.actor(world.dialogue_state, str(speaker))
 	var expression := str(staged.get("expression", ""))
 	var art: Texture2D = sheet["texture"]
 	var columns: int = maxi(1, int(sheet["columns"]))

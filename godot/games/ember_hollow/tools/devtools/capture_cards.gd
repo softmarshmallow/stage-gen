@@ -34,7 +34,7 @@ const CAMERA_TARGET := Vector3(5.0, 0.0, 5.0)
 
 
 func _init() -> void:
-	var args := HostArgs.from_command_line()
+	var args := EmberOptions.from_command_line()
 	var run_dir := args.run if args.run != "" else _default_run()
 	var out := args.out if args.out != "" else "/tmp/cards.png"
 	var pkg := HostRunDir.open(run_dir)

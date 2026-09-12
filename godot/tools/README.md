@@ -6,6 +6,8 @@ for commands that import game preparation packages.
 
 | Tool | Responsibility |
 | --- | --- |
+| `check.py` | Coordinate every maintained owner with explicit offline, prepared-media and native-rendering coverage |
+| `check_suites.py` | Declare suite execution conventions and enforce complete discovery |
 | `run_native_suite.py` | Run native regression suites in their owning game or shared-support project |
 | `write_game_contract_identities.py` | Derive the identity census from the game readers |
 | `write_game_model_policy_snapshot.py` | Maintain the game collection's routing snapshot |
@@ -20,6 +22,19 @@ ladder proofs and platformer capture. Ember Hollow owns survival fixtures and ca
 goldens. Iron Petal Unit and The Grain own their captures and parity scripts.
 Collection input validation lives at
 [`validate_game_package.py`](validate_game_package.py), with an explicit `--input` root.
+
+Run the credential-free Godot checks from this workspace:
+
+```sh
+cd godot
+../.venv/bin/python tools/check.py
+../.venv/bin/python tools/check.py --list
+../.venv/bin/python tools/check.py --owner command_link --only manpu_loop_checks
+```
+
+The [verification guide](../docs/verification.md) owns coverage, prerequisite
+reporting and the opt-in commands for prepared media and native rendering. The
+default summary lists deferred suites explicitly; it is an offline verdict.
 
 Each script supports `--help`. Read-only checks remain offline. A `--write` option
 updates a maintained snapshot; provider-backed authoring retains explicit opt-in.

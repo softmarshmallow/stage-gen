@@ -1,6 +1,7 @@
-"""Every asset a game or template under godot/ tracks is reached by its code.
+"""Every runtime asset a game or template tracks is reached by its code.
 
-A game ships only what it plays. This runs godot/tools/unused_assets.py over
+A runtime ships only what it plays; game-owned generation inputs are separate.
+This runs godot/tools/unused_assets.py over
 every project under godot/games/ and godot/templates/ and fails on anything it
 lists. The package payload is not a game: its JSON files are component
 contracts beside their scripts, reached by readers rather than by name.

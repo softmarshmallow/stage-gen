@@ -2,7 +2,8 @@
 
 P107 implements the code-first successor at
 [addons/game_presentation](../addons/game_presentation/README.md). Copy that entire
-directory into any Godot project's `addons/` directory. It includes behavior,
+directory and the declared [content_io addon](../../content_io/README.md) into any
+Godot project's `addons/` directory. The presentation payload includes behavior,
 shaders/includes, neutral motion catalogs, API inventory, source UIDs and license.
 It has no dependency on the development workspace, game media or Python. The
 local canary version records the initial package contract; it is not a release.
@@ -11,8 +12,8 @@ local canary version records the initial package contract; it is not a release.
 
 The [starter](../../../templates/vn/README.md) has one editable `main.gd` composition,
 its own complete UI, original procedural placeholder art and a small choice/contact
-story. Assembly copies this host and the unchanged addon into a new directory,
-records file hashes and refuses to overwrite an existing destination. It makes no
+story. Assembly copies this host and its declared addon closure into a new directory,
+records source and dependency hashes and refuses to overwrite an existing destination. It makes no
 provider calls. The `.gdignore` in starter source prevents duplicate editor imports
 inside the development workspace and is omitted from the assembled project.
 

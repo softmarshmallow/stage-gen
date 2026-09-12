@@ -27,6 +27,12 @@ def test_portable_game_has_real_closed_source(tmp_path: Path, name: str) -> None
     assert (destination / "gameplay").is_dir()
     assert not any(path.is_symlink() for path in destination.rglob("*"))
     assert (destination / "addons/demo_support/io/run_dir.gd").is_file()
+    assert (destination / "addons/content_io/local_content.gd").is_file()
+    assert (destination / "LICENSE").is_file()
+    if name in {"bellweather", "the_grain"}:
+        assert (destination / "addons/scenario_runtime/runtime.gd").is_file()
+    if name in {"bellweather", "iron_petal_unit"}:
+        assert (destination / "addons/sideview_rendering/image_baker.gd").is_file()
     for unowned in ("inputs", "pipeline", "tests", "assets", "addons/demo_support/testing"):
         assert not (destination / unowned).exists()
     for path in destination.rglob("*.gd"):

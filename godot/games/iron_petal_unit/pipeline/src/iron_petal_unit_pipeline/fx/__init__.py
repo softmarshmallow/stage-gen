@@ -1,7 +1,24 @@
 """Authored screen-FX contracts: transitions and overlays, generated as plates."""
 
 from iron_petal_unit_pipeline.fx.block import FX_MANIFEST_BLOCK_VERSION
-from iron_petal_unit_pipeline.fx.cut_in import (
+from iron_petal_unit_pipeline.fx.models import (
+    CUT_IN_CHOREOGRAPHIES,
+    FX_EFFECTS,
+    FX_MOMENTS,
+    FX_RESERVED_MOMENTS,
+    GAME_FX_KIND,
+    GAME_FX_SCHEMA_VERSION,
+    CutInDirection,
+    CutInFrameDirection,
+    CutInMomentBinding,
+    CutInPortraitDirection,
+    CutInPortraitSubject,
+    FxMoment,
+    FxReference,
+    GameFx,
+    load_game_fx_bytes,
+)
+from stage_gen.components.effects_art.cut_in import (
     CUT_IN_CANVAS,
     CUT_IN_FRAME,
     CUT_IN_FRAME_LAYOUT,
@@ -28,23 +45,6 @@ from iron_petal_unit_pipeline.fx.cut_in import (
     trace_mask_polygon,
     validate_frame_plate,
     validate_portrait_plate,
-)
-from iron_petal_unit_pipeline.fx.models import (
-    CUT_IN_CHOREOGRAPHIES,
-    FX_EFFECTS,
-    FX_MOMENTS,
-    FX_RESERVED_MOMENTS,
-    GAME_FX_KIND,
-    GAME_FX_SCHEMA_VERSION,
-    CutInDirection,
-    CutInFrameDirection,
-    CutInMomentBinding,
-    CutInPortraitDirection,
-    CutInPortraitSubject,
-    FxMoment,
-    FxReference,
-    GameFx,
-    load_game_fx_bytes,
 )
 
 __all__ = [

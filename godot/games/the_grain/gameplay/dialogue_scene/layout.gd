@@ -62,7 +62,7 @@ const CHOICE_WIDTH_RATIO := 0.68
 const CHOICE_TOP_FLOOR := 18.0
 
 ## Where each slot stands, as an offset in frame widths, and how far back it is.
-## Five, left to right, exactly as `FamilyScenarioProgram.SLOTS` publishes them.
+## Five, left to right, exactly as `ScenarioProgram.SLOTS` publishes them.
 const SLOT_OFFSET := {
 	"far_left": -0.33,
 	"left": -0.19,

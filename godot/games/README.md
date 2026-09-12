@@ -5,6 +5,9 @@ Godot project, content, gameplay, preparation and tests. It may use an independe
 package or private support shared with the other games. It does not need to adopt
 another game's input format or project organization.
 
+The [Godot project charter](../CHARTER.md) defines the example project's purpose
+and governs future changes to shared support, packages and game frameworks.
+
 | Game | What it demonstrates | Inputs and preparation |
 | --- | --- | --- |
 | [Afterlight](afterlight/README.md) | Authored ensemble adventure and presentation Lab | Game-owned catalogs, story, bindings and tools |

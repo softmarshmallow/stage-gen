@@ -33,7 +33,7 @@ from iron_petal_unit_pipeline.runner_graph import (
     runner_graph_profile,
 )
 from iron_petal_unit_pipeline.runner_request import resolve_runner_package
-from scripts.write_pipeline_graph_contract import document_contract, write_contract
+from scripts.graph_contracts import document_contract, write_contract
 from stage_gen.config import StageGenConfig
 from stage_gen.recipes.storefront.storefront_graph import (
     build_storefront_graph,
@@ -57,7 +57,7 @@ OBLIQUE_SURVIVAL_CONTRACT_KIND = "oblique-survival-execution-graph-contract-v1"
 OBLIQUE_SURVIVAL_SCOPE = "full"
 
 
-STOREFRONT_DOCUMENT = REPOSITORY_ROOT / "docs/spec/storefront/generation-v1.md"
+STOREFRONT_DOCUMENT = REPOSITORY_ROOT / "godot/games/ember_hollow/docs/storefront-integration.md"
 STOREFRONT_FIXTURE_REF = "godot/games/ember_hollow/inputs"
 STOREFRONT_CONTRACT_KIND = "storefront-execution-graph-contract-v1"
 

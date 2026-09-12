@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Independent integration proof for two hosts and the routed laboratory.
+## Independent integration proof for Afterlight and the routed laboratory.
 ## Uses prepared artwork, explicit clocks, and optional native 1x/2x captures.
 const SIZE := Vector2(1280, 900)
 const ART_ROOT = preload("res://root.gd")
@@ -36,8 +36,6 @@ func _run() -> void:
 	_check_afterlight_exits(stage)
 	_check_afterlight_bounce(stage)
 	stage.queue_free()
-	await _check_integrated_exits()
-	await _check_integrated_bounce()
 	await _check_handoff_resume()
 	_check_story_restless()
 	await _check_lab_controls()
@@ -143,68 +141,6 @@ func _check_afterlight_bounce(stage: Control) -> void:
 	print("PASS Walk-Away group 2: Y-only multi-hop cue, manpu attachment, independent actors, camera composition and frozen rendering")
 
 
-func _check_integrated_exits() -> void:
-	var scene := await _open("game:lab/demos/dialogue")
-	_legacy_neutral(scene)
-	for mode: String in EXITS:
-		for index in scene.stage_profile.actors.size():
-			var id := str(scene.stage_profile.actors[index]["id"])
-			scene._character_exit.clear()
-			scene._update_character_layers()
-			var base: Rect2 = scene._dialogue_rect(SIZE, index)
-			_expect(scene.set_character_exit_preset(mode).is_empty() and scene.exit_actor(id).is_empty(), "The integrated renderer must accept " + mode)
-			var duration := _duration(scene.CHARACTER_EXIT_CATALOG, mode)
-			var samples: Array = []
-			var previous := 0.0
-			for phase: float in [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 0.99]:
-				scene._character_exit.advance((phase - previous) * duration)
-				previous = phase
-				scene._update_character_layers()
-				var sprite: TextureRect = scene._actor_nodes[id]
-				samples.append(_rect(sprite))
-				_expect(sprite.visible and sprite.modulate.is_equal_approx(Color.WHITE) and sprite.material == null, "Integrated departure stays fully colored and opaque through 99%.")
-				var motion: Dictionary = scene._character_exit.sample(id)
-				_expect(is_equal_approx(sprite.position.x, base.position.x + base.size.y * float(motion["offset_x_ratio"])), "The integrated renderer must apply X travel exactly once.")
-			_check_path(samples, mode, "Integrated " + id)
-			_expect(_offscreen(samples.back()), "The full prepared integrated actor rectangle must leave before terminal fade: " + id + "/" + mode)
-			scene._character_exit.advance(duration)
-			scene._update_character_layers()
-			_expect(not scene._actor_nodes[id].visible, "The integrated exit must end hidden.")
-			scene.show_actor(id)
-			_expect(_rect(scene._actor_nodes[id]).is_equal_approx(base) and scene._actor_nodes[id].visible, "Integrated show must restore its exact base rectangle.")
-	print("PASS Walk-Away group 3: all three integrated prepared actors, both directions, opaque motion and one-time spatial composition")
-
-
-func _check_integrated_bounce() -> void:
-	var scene := await _open("game:lab/demos/actor_focus")
-	_legacy_neutral(scene)
-	scene.set_manpu_animation_preset("none")
-	scene.set_actor_focus_preset("restless_bounce")
-	scene._actor_focus.set_focus("mira")
-	scene._actor_focus.replay()
-	scene._update_character_layers()
-	var actor: TextureRect = scene._actor_nodes["mira"]
-	var base := _rect(actor)
-	var duration := _duration(scene.ACTOR_FOCUS_CATALOG, "restless_bounce")
-	var ys: Array[float] = []
-	var previous := 0.0
-	var cues: Array = scene._active_manpu()
-	var mark_id := ""
-	for cue: Dictionary in cues:
-		if str(cue["actor"]) == "mira": mark_id = str(cue["id"])
-	_expect(not mark_id.is_empty(), "The integrated fixture must supply Mira's prepared manpu cue.")
-	var mark_base: Rect2 = scene._manpu_rect(SIZE, "mira", mark_id) if not mark_id.is_empty() else Rect2()
-	for phase: float in [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0]:
-		scene._actor_focus.advance((phase - previous) * duration)
-		previous = phase
-		scene._update_character_layers()
-		ys.append(actor.position.y)
-		_expect(actor.visible and is_equal_approx(actor.position.x, base.position.x), "Integrated Restless Bounce must preserve X and visibility.")
-		if not mark_id.is_empty():
-			var current: Rect2 = scene._manpu_rect(SIZE, "mira", mark_id)
-			_expect(is_equal_approx(current.position.y - mark_base.position.y, actor.position.y - base.position.y), "Integrated manpu must follow the same Y offset.")
-	_expect(_turn_count(ys) >= 6 and _rect(actor).is_equal_approx(base), "Integrated Restless Bounce must make multiple hops and settle.")
-	print("PASS Walk-Away group 4: integrated Restless Bounce and prepared manpu attachment")
 
 
 func _check_handoff_resume() -> void:
@@ -247,6 +183,7 @@ func _check_story_restless() -> void:
 	_expect(str(game.current_beat()["id"]) == "riko_on_the_glass" and game._cast._focus.preset_id == "restless_bounce", "Riko's impatient physical entrance must select Restless Bounce.")
 	var sprite: TextureRect = game._cast._sprites["riko"]
 	var baseline := _rect(sprite)
+	var local_baseline: Rect2 = game._cast._posed_rect("riko")
 	var material := sprite.material
 	_expect(material == null and not bool(game._cast._projection["riko"]), "Riko must remain physical during her impatient entrance.")
 	var observer := _sprite_state(game._cast._sprites["yuzu"])
@@ -254,7 +191,10 @@ func _check_story_restless() -> void:
 	_expect(sprite.visible and sprite.position.y < baseline.position.y and is_equal_approx(sprite.position.x, baseline.position.x), "The authored entrance must bounce Riko vertically without moving her sideways.")
 	_expect(sprite.material == material and _same(observer, _sprite_state(game._cast._sprites["yuzu"])), "Riko's motion must preserve her physical appearance and leave Yuzu independent.")
 	game._process(2.0)
-	_expect(sprite.visible and _rect(sprite).is_equal_approx(baseline) and sprite.material == material, "The physical actor must settle visibly at baseline.")
+	# The authored cast pan begins after 0.35s; local bounce settles while
+	# that independent camera composition moves the entire cast on screen.
+	_expect(sprite.visible and game._cast._posed_rect("riko").is_equal_approx(local_baseline) and sprite.material == material, "The physical actor must settle at its local bounce baseline.")
+	_expect(_rect(sprite).is_equal_approx(game._cast_transform() * local_baseline), "The settled actor must retain the separately authored cast pan exactly once.")
 	print("PASS Walk-Away group 6: authored physical Riko cue, independent Y-only motion and unchanged observer")
 
 
@@ -310,20 +250,6 @@ func _capture_native() -> void:
 		lab._process(2.0)
 		await _capture("afterlight-restless-settled", lab)
 		_check_ui_bounds(lab._ui)
-		var scene := await _open("game:lab/demos/actor_focus")
-		_legacy_neutral(scene)
-		scene.set_character_exit_preset("walk_away_right")
-		scene.exit_actor("lena")
-		scene._character_exit.advance(_duration(scene.CHARACTER_EXIT_CATALOG, "walk_away_right") * 0.125)
-		scene._update_interface()
-		await _capture("integrated-walk-right-hop", scene)
-		scene.show_actor("lena")
-		scene.set_actor_focus_preset("restless_bounce")
-		scene._actor_focus.set_focus("mira")
-		scene._actor_focus.replay()
-		scene._actor_focus.advance(_duration(scene.ACTOR_FOCUS_CATALOG, "restless_bounce") * 0.125)
-		scene._update_interface()
-		await _capture("integrated-restless-hop", scene)
 		var menu := await _open("game:lab/effects_menu")
 		menu.set_language("ko")
 		await _capture("afterlight-effects-menu", menu)
@@ -344,18 +270,6 @@ func _check_path(samples: Array, mode: String, label: String) -> void:
 	for rect: Rect2 in samples: serialized.append(_rect_array(rect))
 	_paths.append({"renderer_actor": label, "preset": mode, "rects": serialized})
 
-
-func _legacy_neutral(scene: Control) -> void:
-	scene._capture_frozen = true
-	scene._entry = 1.0
-	scene._natural_blink = false
-	scene._blink_remaining = 0.0
-	scene._dialogue_camera.clear()
-	scene._character_exit.clear()
-	scene._actor_focus.clear()
-	scene.set_actor_focus_preset("none")
-	for id: String in scene._character_effects: scene._character_effects[id]["enabled"] = false
-	scene._update_character_layers()
 
 
 func _handoff_state(game: Control) -> Dictionary:
@@ -482,6 +396,6 @@ func _finish() -> void:
 		record.store_string(JSON.stringify({"paths": _paths, "errors": _errors, "capture_count": _capture_count}, "\t"))
 	for issue: String in _errors: printerr("FAIL Walk-Away: " + issue)
 	if _errors.is_empty():
-		print("PASS Walk-Away integration: both renderers, all prepared casts, left/right travel, repeated Y motion, terminal visibility, manpu composition, actual story/Lab resume and laboratory controls")
+		print("PASS Walk-Away integration: Afterlight renderer, all prepared actors, left/right travel, repeated Y motion, terminal visibility, manpu composition, actual story/Lab resume and laboratory controls")
 		if _capture_count > 0: print("Walk-Away native captures: " + str(_capture_count))
 	quit(0 if _errors.is_empty() else 1)

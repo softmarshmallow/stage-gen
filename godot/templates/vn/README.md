@@ -62,5 +62,6 @@ composition, supplied voice precedence, end state and independent instances.
 `--capture` saves native frames in `user://starter-checks/`; headless checks do
 not claim visual review. `assembly.json` records the copied source hashes.
 
-Keep the addon as one payload. Its README identifies supported APIs and limits;
+Keep the presentation addon and its declared `content_io` dependency complete.
+Their READMEs identify supported APIs and limits;
 private helpers do not become a compatibility guarantee merely by being visible.

@@ -1,22 +1,13 @@
 class_name HostRunDir
 extends RefCounted
 
-## A run directory, opened once and read lazily.
-##
-## The host owns no media: everything it draws and plays comes from a run the
-## pipeline emitted (`manifest.json` beside a `package/` tree). This is the one
-## place that touches that directory, so every path is checked here.
-##
-## Port note: the web viewer fetches `manifest.json` and lets the browser cache
-## the rest; here the manifest and the layout are read eagerly (they are the
-## contract) and images and audio are cached on first use.
-##
-## **Genre-neutral, and that is the whole point.** Opening a root, confining a
-## reference, reading JSON and decoding media are the same in every genre; what
-## a document *is* is not. So a caller hands in the checker for its own document
-## and the reference its own layout sits behind, and this file names no manifest
-## kind. It used to name survival's, which meant the second host to use it would
-## have inherited the first one's contract.
+## Game-owned run-document adapter and decoded-media caches.
+## Content I/O owns confined file access and decoding; this adapter owns the
+## selected document, layout fallback, MP3/Theora choices and alpha trimming.
+const Content = preload("res://addons/content_io/local_content.gd")
+
+var _content := Content.new()
+var _configured_root := ""
 
 ## What a run's document is called when a genre does not say.
 const DEFAULT_DOCUMENT_REF := "manifest.json"
@@ -57,10 +48,10 @@ static func open(
 ) -> HostRunDir:
 	var pkg := HostRunDir.new()
 	pkg.run_dir = dir.rstrip("/")
-	var manifest_path := pkg.run_dir + "/" + document_ref
-	var parsed: Variant = _read_json(manifest_path)
+	if not pkg._configure_content(): return null
+	var parsed: Variant = pkg._read_json(document_ref)
 	if not (parsed is Dictionary):
-		push_error("run package: no readable manifest at %s" % manifest_path)
+		push_error("run package: no readable document %s" % document_ref)
 		return null
 	pkg.manifest = parsed
 	if checker.is_valid():
@@ -71,7 +62,8 @@ static func open(
 	if layout_ref.is_empty():
 		return pkg
 	var layout_path := pkg.path(layout_ref)
-	var layout_parsed: Variant = _read_json(layout_path)
+	if layout_path.is_empty(): return null
+	var layout_parsed: Variant = pkg._read_json(layout_ref)
 	if layout_parsed is Dictionary:
 		pkg.layout = layout_parsed
 	elif pkg.manifest.has("layout"):
@@ -86,28 +78,20 @@ static func open(
 ## An absolute path for a package-relative reference. Refuses anything that
 ## would leave the run directory; returns "" and pushes an error.
 func path(ref: String) -> String:
-	if ref == "":
-		return ""
-	if ref.begins_with("/") or ref.begins_with("res://") or ref.begins_with("user://") or ref.contains(":\\"):
-		push_error("run package: absolute reference refused: %s" % ref)
-		return ""
-	if ref.split("/").has(".."):
-		push_error("run package: traversing reference refused: %s" % ref)
-		return ""
-	return run_dir + "/" + ref
+	if ref.is_empty() or not _configure_content(): return ""
+	var result: Dictionary = _content.resolve(ref, false)
+	_report(result.errors)
+	return result.path
+
 
 ## The decoded image behind a package reference, cached. Null when missing.
 func image(ref: String) -> Image:
-	if _images.has(ref):
-		return _images[ref]
-	var absolute := path(ref)
-	var loaded: Image = null
-	if absolute != "":
-		loaded = Image.load_from_file(absolute)
-		if loaded == null:
-			push_error("run package: cannot read image %s" % absolute)
-	_images[ref] = loaded
-	return loaded
+	if _images.has(ref): return _images[ref]
+	if not _configure_content(): return null
+	var result: Dictionary = _content.load_image(ref)
+	_report(result.errors)
+	_images[ref] = result.resource
+	return result.resource
 
 ## A texture for a package reference, cached. Colour images get mipmaps; data
 ## plates (splat, biomes, masks) must pass `mipmaps = false` and stay linear.
@@ -160,49 +144,47 @@ func trimmed_texture(ref: String) -> ImageTexture:
 
 ## An mp3 clip from the package, cached. Null when missing.
 func audio(ref: String) -> AudioStreamMP3:
-	if _audio.has(ref):
-		return _audio[ref]
-	var absolute := path(ref)
-	var stream: AudioStreamMP3 = null
-	if absolute != "" and FileAccess.file_exists(absolute):
-		var bytes := FileAccess.get_file_as_bytes(absolute)
-		if bytes.is_empty():
-			push_error("run package: empty audio %s" % absolute)
-		else:
-			stream = AudioStreamMP3.new()
-			stream.data = bytes
-	else:
-		push_error("run package: cannot read audio %s" % absolute)
+	if _audio.has(ref): return _audio[ref]
+	if not _configure_content(): return null
+	var result: Dictionary = _content.load_audio(ref)
+	_report(result.errors)
+	var stream := result.resource as AudioStreamMP3
 	_audio[ref] = stream
 	return stream
 
-## An Ogg Theora clip from the package, cached. Null when missing.
-##
-## The third reader of run-directory media, after textures and audio, and the third to
-## reach past `ResourceLoader`: a run's files are written long after the project was
-## exported, so nothing in one is imported. `VideoStreamTheora` takes a plain filesystem
-## path in `file`, which is measured rather than assumed — `tools/probe_video.gd` plays
-## one and reads the clock back. Theora is the only video codec the engine carries.
+
+## An Ogg Theora clip from the package, cached. Playback remains a host check.
 func video(ref: String) -> VideoStreamTheora:
-	if _videos.has(ref):
-		return _videos[ref]
-	var absolute := path(ref)
-	var stream: VideoStreamTheora = null
-	if absolute != "" and FileAccess.file_exists(absolute):
-		stream = VideoStreamTheora.new()
-		stream.file = absolute
-	else:
-		push_error("run package: cannot read video %s" % absolute)
+	if _videos.has(ref): return _videos[ref]
+	if not _configure_content(): return null
+	var result: Dictionary = _content.load_video(ref)
+	_report(result.errors)
+	var stream := result.resource as VideoStreamTheora
 	_videos[ref] = stream
 	return stream
 
-static func _read_json(absolute: String) -> Variant:
-	if not FileAccess.file_exists(absolute):
-		return null
-	var text := FileAccess.get_file_as_string(absolute)
-	if text == "":
-		return null
-	return JSON.parse_string(text)
 
-## JavaScript truthiness for the numbers `assertManifest` tests: a missing key,
-## null, and 0 all fail.
+func _read_json(ref: String) -> Variant:
+	if not _configure_content(): return null
+	var result: Dictionary = _content.read_json(ref)
+	_report(result.errors)
+	return result.value
+
+
+func _configure_content() -> bool:
+	if _configured_root == run_dir and not run_dir.is_empty(): return true
+	var root := run_dir
+	var backend := "resources" if root.begins_with("res://") else "files"
+	if root.begins_with("user://"):
+		root = ProjectSettings.globalize_path(root)
+	elif backend == "files" and not root.is_absolute_path():
+		root = ProjectSettings.globalize_path("res://".path_join(root)).simplify_path()
+	var errors: Array[String] = _content.configure(root, backend)
+	_report(errors)
+	if not errors.is_empty(): return false
+	_configured_root = run_dir
+	return true
+
+
+static func _report(errors: Array) -> void:
+	for error: String in errors: push_error("run package: " + error)

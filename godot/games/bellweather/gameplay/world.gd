@@ -1,6 +1,9 @@
 class_name PlatformerWorld
 extends RefCounted
 
+const ScenarioRefusal = preload("res://addons/scenario_runtime/refusal.gd")
+const ScenarioProgram = preload("res://addons/scenario_runtime/program.gd")
+
 ## Everything one frame of the platformer is, and the shape the golden hashes.
 ##
 ## The browser has no object like this: its world *is* a Phaser scene, and the
@@ -370,9 +373,9 @@ static func bag_as_pairs(counts: Dictionary) -> Array:
 static func _scenarios(manifest_in: Dictionary) -> Dictionary:
 	var made := {}
 	for entry: Variant in (manifest_in.get("scenarios", []) as Array):
-		var parsed: Variant = FamilyScenarioProgram.parse(entry)
-		if KernelRefusal.is_refusal(parsed):
-			push_warning("platformer world: %s" % (parsed as KernelRefusal).line())
+		var parsed: Variant = ScenarioProgram.parse(entry)
+		if ScenarioRefusal.is_refusal(parsed):
+			push_warning("platformer world: %s" % ScenarioRefusal.line(parsed))
 			continue
 		made[String((parsed as Dictionary)["scenarioId"])] = parsed
 	return made

@@ -45,9 +45,9 @@
     {
       "check_id": "storefront_graph_contract",
       "expected_state_sha256": "4fd7181691bb3e794c17fe84c76326a42f4d1c01148f44318dd43e24b2d43348",
-      "file_sha256": "3ace745abbed7d70f84c6ccbc63edf0e4720f5240c7311aaaf31e69aa7dcea24",
+      "file_sha256": "0cdafb199f9af3cbab44e5acb8eb7187c3bacb4d7b8400ca9ccefd1feb7db0de",
       "observed_state_sha256": "4fd7181691bb3e794c17fe84c76326a42f4d1c01148f44318dd43e24b2d43348",
-      "path": "docs/spec/storefront/generation-v1.md"
+      "path": "godot/games/ember_hollow/docs/storefront-integration.md"
     },
     {
       "check_id": "universe_gallery_graph_contract",

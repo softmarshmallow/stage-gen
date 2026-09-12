@@ -1,5 +1,7 @@
 extends RefCounted
 
+const ScenarioProgram = preload("res://addons/scenario_runtime/program.gd")
+
 ## The dialogue scene's arithmetic: its framing, its slots and its box.
 ##
 ## The scenario runtime this scene plays is already exact against the browser
@@ -104,7 +106,7 @@ func _slots(h: TestHarness) -> void:
 		float(far_left["y"]) > float(left["y"]), "and lower down, which is this genre's depth"
 	)
 	h.assert_eq(
-		FamilyScenarioProgram.SLOTS.size(),
+		ScenarioProgram.SLOTS.size(),
 		5,
 		"and the program publishes exactly those five"
 	)

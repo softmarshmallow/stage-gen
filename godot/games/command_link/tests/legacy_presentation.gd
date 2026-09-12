@@ -246,7 +246,9 @@ func _validate_manpu() -> Array[String]:
 		for cue: Dictionary in beat["manpu"]:
 			covered[cue["id"]] = true
 	for id: String in stage_profile.manpu_ids:
-		if not covered.has(id):
+		# Sigh Puff is an optional emitted event, covered by this game's
+		# one_shot_manpu_integration_checks, rather than a persistent line mark.
+		if id != "sigh_puff" and not covered.has(id):
 			errors.append("The authored demonstration never uses " + id)
 	for viewport_size in [DESIGN_SIZE]:
 		var stage := _manpu_stage(viewport_size)

@@ -29,7 +29,7 @@ Two clean populations with a 3.5x gap, and the ceiling sits in it.
 
 from __future__ import annotations
 
-from ember_hollow_pipeline.shell.layouts import ShellLayout
+from stage_gen.components.screen_art.layouts import ShellLayout
 from stage_gen.media import frame_signature, signature_distance
 
 SHELL_CLIP_VALIDATION_VERSION = "shell-clip-validation-v1"

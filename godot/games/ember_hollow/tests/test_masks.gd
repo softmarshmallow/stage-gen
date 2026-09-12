@@ -8,7 +8,7 @@ func run(h: TestHarness) -> void:
 	var pkg := h.package()
 	if not h.assert_true(pkg != null, "full-v66 did not open"):
 		return
-	var masks := SurvivalMasks.from_package(pkg)
+	var masks := SurvivalMaskLoader.from_package(pkg)
 	# The size is the document's, not a number typed here: the check is that the
 	# mask took it, and the suite reads more than one world.
 	var declared := float((pkg.manifest["ground"] as Dictionary).get("size_meters", 0.0))
@@ -57,7 +57,7 @@ func run(h: TestHarness) -> void:
 
 	# The world delegates to the masks it was created with, and keeps them
 	# across a reset (the viewer lost both on R).
-	var world := SurvivalWorld.create(pkg, 7, {"masks": masks})
+	var world := SurvivalWorldFactory.create(pkg, 7, {"masks": masks})
 	h.assert_true(world.is_land(0.0, 0.0), "world.is_land disagrees at the camp")
 	h.assert_false(world.is_land(-250.0, -250.0), "world.is_land disagrees in the water")
 	h.assert_near(world.friction_at(0.0, 0.0), 0.7, 1e-6, "world.friction_at at the camp")

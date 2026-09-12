@@ -8,6 +8,7 @@ from typing import Never
 
 import pytest
 
+import stage_gen.config
 from demo_game_collection import cli
 from demo_game_collection.model_policy import load_active_model_policy_snapshot
 from gnode.providers.fal import FalImageBackend
@@ -25,7 +26,7 @@ def _unexpected(*_args: object, **_kwargs: object) -> Never:
 def test_models_routes_is_credential_network_and_adapter_free(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(cli, "load_config", _unexpected)
+    monkeypatch.setattr(stage_gen.config, "load_config", _unexpected)
     monkeypatch.setattr(OpenAIImageBackend, "__init__", _unexpected)
     monkeypatch.setattr(FalImageBackend, "__init__", _unexpected)
     monkeypatch.setattr(OpenRouterImageBackend, "__init__", _unexpected)

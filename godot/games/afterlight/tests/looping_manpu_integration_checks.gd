@@ -23,10 +23,9 @@ func _run() -> void:
 		root.size = Vector2i(DESIGN_SIZE) * factor
 		await _story_loop(factor)
 		await _afterlight_loop(factor)
-		await _tactical_loop(factor)
 		await _laboratory_loop(factor)
 	var sources := {}
-	for path: String in ["res://addons/game_presentation/motion/presentation_animation.gd", "res://addons/game_presentation/actors/manpu_animation.gd", "res://addons/game_presentation/actors/presets/manpu.json", "res://presentation/stage.gd", "res://cast_stage.gd", "res://root.gd", "res://story.gd", "res://story_beats.gd", "res://lab/sigh_puff_study.gd", "res://lab/billboard_puff_preview.gd"]:
+	for path: String in ["res://addons/game_presentation/motion/presentation_animation.gd", "res://addons/game_presentation/actors/manpu_animation.gd", "res://addons/game_presentation/actors/presets/manpu.json", "res://cast_stage.gd", "res://root.gd", "res://story.gd", "res://story_beats.gd", "res://lab/sigh_puff_study.gd", "res://lab/billboard_puff_preview.gd"]:
 		sources[path] = FileAccess.get_sha256(path)
 	var manifest := FileAccess.open(LOOP_OUTPUT.path_join("manifest.json"), FileAccess.WRITE)
 	manifest.store_string(JSON.stringify({"sources": sources, "captures": _loop_captures, "metrics": _loop_metrics, "errors": _errors}, "\t"))
@@ -35,7 +34,7 @@ func _run() -> void:
 	for frame in 3: await process_frame
 	for issue: String in _errors: printerr("FAIL Looping Manpu integration: " + issue)
 	if _errors.is_empty():
-		print("PASS Looping Manpu integration: native 1x/2x stepped poses and raster frames, both 2D renderers, centered camera composition, atomic art validation, story continuity, loop/event independence and camera-facing 3D rotation")
+		print("PASS Looping Manpu integration: native 1x/2x stepped poses and raster frames, Afterlight 2D renderer, centered camera composition, atomic art validation, story continuity, loop/event independence and camera-facing 3D rotation")
 	quit(0 if _errors.is_empty() else 1)
 
 
@@ -103,31 +102,6 @@ func _afterlight_loop(factor: int) -> void:
 	_expect(cast._manpu.get_state()["states"].is_empty() and not node.visible, "Replacing the cast must clear looping marks and their render visibility.")
 	_loop_metrics.append({"factor": factor, "centered_sample": sample, "camera": camera})
 
-
-func _tactical_loop(factor: int) -> void:
-	var stage := await _open("game:lab/demos/manpu")
-	stage._capture_frozen = true
-	stage._entry = 1.0
-	stage._natural_blink = false
-	stage._mode = "dialogue"
-	var cue := {"actor": "mira", "id": "surprise", "preset": "step_loop", "frames": ["surprise", "sparkle"]}
-	stage.stage_profile.dialogue[stage._dialogue_index]["manpu"] = [cue]
-	stage._update_character_layers()
-	var initial := await _frame_image()
-	stage._manpu_animation.advance(0.45)
-	stage._update_character_layers()
-	var sample: Dictionary = stage._manpu_animation.sample("mira", "surprise")
-	_expect(sample["sprite_id"] == "sparkle" and is_equal_approx(float(sample["rotation_degrees"]), 30.0), "The tactical presenter must receive the same selected raster and stepped pose.")
-	var rotated := await _frame_image()
-	var region: Rect2 = stage._manpu_rect(DESIGN_SIZE, "mira", "surprise").grow(30.0)
-	_expect(_different_pixels(initial, rotated, root.get_final_transform() * region) > 20, "The native tactical draw path must visibly change the raster and pose.")
-	var frozen: Dictionary = stage._manpu_animation.get_state()
-	for redraw in 4: stage._update_character_layers()
-	_expect(_same_loop(frozen, stage._manpu_animation.get_state()), "Repeated tactical synchronization must not restart the selected loop.")
-	await _record_loop("tactical-frame-rotation-" + str(factor), sample)
-	_expect(not stage._manpu_cue_errors([{"actor": "mira", "id": "surprise", "frames": ["surprise", "missing_raster"]}]).is_empty(), "Tactical authored cues must reject unavailable frame art.")
-	stage.exit_actor("mira")
-	_expect(not stage._manpu_animation.get_state()["states"].has("mira:surprise"), "A departing tactical owner must remove its looping mark.")
 
 
 func _laboratory_loop(factor: int) -> void:

@@ -7,7 +7,7 @@ import io
 import pytest
 from PIL import Image, ImageDraw
 
-from iron_petal_unit_pipeline.fx.sprite import (
+from stage_gen.components.effects_art.sprite import (
     DUST_CELL_FILL_MIN,
     DUST_CELL_KINDS,
     DUST_CELL_MIN_SIDE,

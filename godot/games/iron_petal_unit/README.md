@@ -25,6 +25,7 @@ Authored inputs live in `inputs/` and asset preparation starts with
 - `scenes/` owns rendering, input, camera, audio and interface code.
 - `tests/` and `tools/` own this game's regressions, replay and capture helpers.
 - `addons/demo_support` links to the private shared implementation used by these games.
+- `addons/sideview_rendering` selects independent [layer layout and image presentation](../../packages/sideview_rendering/README.md); run-file interpretation and depth ordering stay here.
 
 Run this game's native regressions from the repository root:
 

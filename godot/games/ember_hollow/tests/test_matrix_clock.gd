@@ -86,7 +86,7 @@ func _t5_night_curve(h: TestHarness) -> void:
 ## are summer, 5-8 winter, 9-12 summer again, and `day_in_season` cycles 1..4
 ## the whole way.
 func _t6_calendar(h: TestHarness, pkg: HostRunDir) -> void:
-	var world := SurvivalWorld.create(pkg, 7, {"masks": SurvivalMasks.new()})
+	var world := SurvivalWorldFactory.create(pkg, 7, {"masks": SurvivalMasks.new()})
 	var season := world.season
 	var expected_ids := ["summer", "summer", "summer", "summer", "winter", "winter",
 		"winter", "winter", "summer", "summer", "summer", "summer"]

@@ -1,6 +1,8 @@
 class_name CaseSave
 extends RefCounted
 
+const ScenarioRuntime = preload("res://addons/scenario_runtime/runtime.gd")
+
 ## What a stopped episode holds, and what it leaves behind when it finishes.
 ##
 ## A port of the save-shaping half of `web/lib/narrative/case-save.ts`. The
@@ -37,7 +39,7 @@ static func of_scenario(
 		"runTag": run_tag,
 		"beatId": beat_id,
 		"facts": facts,
-		"statementId": FamilyScenarioRuntime.statement_id(
+		"statementId": ScenarioRuntime.statement_id(
 			String(scenario["label"]), int(scenario["index"])
 		),
 		"scenario": scenario,

@@ -678,14 +678,14 @@ func _layers_take_a_scale(h: TestHarness, w: SurvivalWorld) -> void:
 
 
 func _args_carry_the_new_flags(h: TestHarness) -> void:
-	var args := HostArgs.parse(PackedStringArray(["--run", "/tmp/r", "--night-floor", "0.38", "--ui-scale", "1.5", "--fullscreen"]))
+	var args := EmberOptions.parse(PackedStringArray(["--run", "/tmp/r", "--night-floor", "0.38", "--ui-scale", "1.5", "--fullscreen"]))
 	h.assert_near(args.night_floor, 0.38, 1e-9, "--night-floor")
 	h.assert_near(args.ui_scale, 1.5, 1e-9, "--ui-scale")
 	h.assert_true(args.fullscreen, "--fullscreen as a bare flag")
-	var plain := HostArgs.parse(PackedStringArray(["--run", "/tmp/r"]))
+	var plain := EmberOptions.parse(PackedStringArray(["--run", "/tmp/r"]))
 	h.assert_near(plain.night_floor, 0.0, 1e-9, "the game's night keeps nothing by default")
 	h.assert_false(plain.fullscreen, "windowed by default")
-	var off := HostArgs.parse(PackedStringArray(["--fullscreen=false", "--run", "/tmp/r"]))
+	var off := EmberOptions.parse(PackedStringArray(["--fullscreen=false", "--run", "/tmp/r"]))
 	h.assert_false(off.fullscreen, "--fullscreen=false")
 	h.assert_eq(off.run, "/tmp/r", "and the run still parses after it")
 

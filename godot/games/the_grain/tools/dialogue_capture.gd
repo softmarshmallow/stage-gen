@@ -1,5 +1,7 @@
 extends SceneTree
 
+const ScenarioRuntime = preload("res://addons/scenario_runtime/runtime.gd")
+
 ## The dialogue scene's gate sheet: six named moments, photographed.
 ##
 ##   Godot --path godot/games/the_grain --rendering-driver metal --disable-render-loop \
@@ -130,7 +132,7 @@ func _write(viewport: SubViewport, leaf, name: String, target: String) -> bool:
 		% [
 			name,
 			String(view.get("kind", "-")),
-			FamilyScenarioRuntime.statement_id(String(state["label"]), int(state["index"])),
+			ScenarioRuntime.statement_id(String(state["label"]), int(state["index"])),
 			str(view.get("speaker")),
 			", ".join(staged),
 			str(state["stage"]),

@@ -9,6 +9,7 @@
 ## a failure.
 
 func run(h: TestHarness) -> void:
+	_preload_bindings(h)
 	var pkg: HostRunDir = h.package()
 	if not h.assert_true(pkg != null, "the run package opened"):
 		return
@@ -34,16 +35,26 @@ func run(h: TestHarness) -> void:
 	_declared(h, opening, clips)
 	_opens(h, pkg, clips)
 	_optional_strings(h, opening)
+	h.done()
+
+
+func _preload_bindings(h: TestHarness) -> void:
+	var shell := SurvivalShell.new()
+	var refs: Array[String] = []
+	shell._collect_refs({
+		"music": {"day": {"audio": "package/music/day.mp3", "take": "music/source.mp3"}},
+		"sounds": {"bell": {"audio": "package/music/day.mp3", "take": "sounds/original.mp3"}},
+		"shell": {"shots": [{"plate": {"asset": "shell/opening.ogv"}}]},
+		"image": "package/title.png",
+	}, refs)
+	h.assert_eq(refs, ["package/music/day.mp3", "shell/opening.ogv", "package/title.png"], "loading warms unique published media, not preparation takes")
+	shell.free()
 
 
 ## An absent optional field is published as null, not omitted.
 ##
-## `String(null)` is an invalid call that aborts its caller mid-function, and
-## `.get(key, default)` does not save you when the key is there and holds null. A
-## wordless opening — every shot carrying no card — is exactly that shape, and it broke
-## the shot transition after the clip had already been built and played, so the picture
-## looked right while shots piled up behind it.
-	h.done()
+## `String(null)` aborts its caller, and `.get(key, default)` does not handle a
+## present null. Wordless shots exposed this by piling up after the clip played.
 func _optional_strings(h: TestHarness, opening: Dictionary) -> void:
 	for entry: Variant in opening.get("shots", []):
 		var shot: Dictionary = entry

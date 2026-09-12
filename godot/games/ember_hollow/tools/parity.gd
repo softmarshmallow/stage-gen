@@ -96,7 +96,7 @@ func _init() -> void:
 		return
 	var layout: Dictionary = pkg.layout if not pkg.layout.is_empty() else pkg.manifest.get("layout", {})
 	var seed_value: int = seed_flag if seed_flag != 0 else int(layout.get("seed", 1))
-	var world := SurvivalWorld.create(pkg, seed_value, {
+	var world := SurvivalWorldFactory.create(pkg, seed_value, {
 		"mode": mode, "time": time, "season": season, "weather": weather,
 	})
 	# The camera's yaw is the simulation's only camera input: `main.gd` writes

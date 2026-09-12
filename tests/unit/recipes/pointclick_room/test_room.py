@@ -10,8 +10,8 @@ from typing import Any
 
 import pytest
 
-from demo_game_tools.media.ui.nodes import UI_SHEET_ROLES
 from gnode import RouteResolutionError
+from stage_gen.components.ui_art.nodes import UI_SHEET_ROLES
 from stage_gen.config import ConfigError, StageGenConfig
 from stage_gen.image_product import ImageProvider
 from stage_gen.model_routes import (

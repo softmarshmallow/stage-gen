@@ -26,6 +26,7 @@ func _run() -> void:
 	_app.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	await _settle()
 	_expect(_app.selected_game_id == "afterlight", "Use --game afterlight.")
+	_sources["check_source_sha256"] = get_script().source_code.sha256_text()
 	_sources["root_source_sha256"] = _app.game_root.get_script().source_code.sha256_text()
 	_sources["story_source_sha256"] = _active().get_script().source_code.sha256_text()
 	_sources["beats_source_sha256"] = load("res://story_beats.gd").source_code.sha256_text()
@@ -40,7 +41,7 @@ func _run() -> void:
 	var output := FileAccess.open(folder.path_join("manifest.json"), FileAccess.WRITE)
 	output.store_string(JSON.stringify({"phase": _phase, "sources": _sources, "captures": _intensity_captures, "errors": _errors}, "\t"))
 	for issue: String in _errors: printerr("FAIL Keeper intensity: " + issue)
-	if _errors.is_empty(): print("PASS Keeper intensity " + _phase + ": seven fixed encounter samples and both realm waking sequences at 1x/2x, world-bound patterns, active-shake background coverage, live VFX/eyelid EN/KO/pause/Lab restore, unchanged UI geometry/materials, and complete return cleanup")
+	if _errors.is_empty(): print("PASS Keeper intensity " + _phase + ": seven fixed encounter samples and both realm waking sequences at 1x/2x, world-bound patterns, active-shake background coverage, live VFX/eyelid EN/KO/pause/Lab restore, unchanged UI geometry/materials, persistent transport accessibility, full-pixel black scene coverage, and complete return cleanup")
 	quit(0 if _errors.is_empty() else 1)
 
 
@@ -141,16 +142,57 @@ func _check_waking_scene(game: Control, id: String, window_size: Vector2i) -> vo
 	game._process(closed_start + float(settings["closed_hold_seconds"]) * 0.5 - game._elapsed)
 	_expect(game._eye.sample()["phase"] == "closed" and float(game._eye.sample()["openness"]) == 0.0, "The brief waking blink must completely close: " + id)
 	var closed_image := await _capture_intensity(game, id, window_size, "closed")
-	for y in range(0, window_size.y, 29):
-		for x in range(0, window_size.x, 29):
-			var color := closed_image.get_pixel(x, y)
-			_expect(color.r + color.g + color.b < 0.004, "Closed eyes must cover world effects and scene UI: " + id)
+	await _check_closed_coverage(game, id, window_size, closed_image)
 	await _language_and_detour(game, id)
 	game = _active()
 	game._process(opening_start + minf(0.25, float(settings["opening_seconds"]) * 0.2) - game._elapsed)
 	_expect(game._eye.sample()["phase"] == "opening" and float(game._eye.sample()["openness"]) > 0.0, "The waking blink must reopen into its held scene: " + id)
 	_check_pattern_binding(game, id)
 	await _capture_intensity(game, id, window_size, "reopening")
+
+
+## P97 keeps the user's transport control above cinematic black. Verify the
+## actual composed frame around that exact control, then hide only the control
+## for a second capture that proves every underlying pixel is black too.
+func _check_closed_coverage(game: Control, id: String, window_size: Vector2i, picture: Image) -> void:
+	var toggle: Button = game.get("_autoplay_button")
+	_expect(toggle != null and toggle.is_visible_in_tree(), "The persistent autoplay control must remain reachable during waking closure: " + id)
+	if toggle == null: return
+	var logical := toggle.get_global_rect()
+	_expect(Rect2(Vector2.ZERO, DESIGN_SIZE).encloses(logical) and logical.size.x <= 240.0 and logical.size.y <= 60.0 and logical.end.y <= 100.0, "The transport exception must stay confined to its small top control: " + id)
+	var native: Rect2 = root.get_final_transform() * logical
+	var first := Vector2i(native.position.floor())
+	var last := Vector2i(native.end.ceil())
+	var control := Rect2i(first, last - first)
+	var canvas := Rect2i(Vector2i.ZERO, window_size)
+	_expect(canvas.encloses(control), "The transport control must stay inside the native capture: " + id)
+	if not canvas.encloses(control): return
+	# These four rectangles cover every pixel outside the control, with no
+	# sparse sampling and no broad header exclusion that could conceal a leak.
+	for region: Rect2i in [
+		Rect2i(0, 0, window_size.x, control.position.y),
+		Rect2i(0, control.position.y, control.position.x, control.size.y),
+		Rect2i(control.end.x, control.position.y, window_size.x - control.end.x, control.size.y),
+		Rect2i(0, control.end.y, window_size.x, window_size.y - control.end.y),
+	]:
+		_expect_black(picture, region, "Closed eyes must cover all scene pixels outside persistent transport: " + id)
+	_intensity_captures[-1]["persistent_transport_rect"] = [control.position.x, control.position.y, control.size.x, control.size.y]
+	var before := _world_snapshot(game)
+	var autoplay: Dictionary = game.get_autoplay_state()
+	toggle.hide()
+	var underlying := await _capture_intensity(game, id, window_size, "closed-world")
+	toggle.show()
+	_expect_black(underlying, canvas, "Closed eyes must cover the complete world and scene UI beneath transport: " + id)
+	_expect(_same(before, _world_snapshot(game)) and _same(autoplay, game.get_autoplay_state()), "The isolated black capture must not advance or alter playback: " + id)
+	_expect(toggle.is_visible_in_tree(), "The transport control must be restored after its isolated capture: " + id)
+
+
+func _expect_black(picture: Image, region: Rect2i, context: String) -> void:
+	if not region.has_area(): return
+	var actual := picture.get_region(region)
+	var black := Image.create(region.size.x, region.size.y, false, actual.get_format())
+	black.fill(Color.BLACK)
+	_expect(actual.get_data() == black.get_data(), context)
 
 
 func _check_pattern_binding(game: Control, id: String) -> void:

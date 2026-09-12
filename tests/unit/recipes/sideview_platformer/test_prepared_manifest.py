@@ -19,7 +19,7 @@ from bellweather_pipeline.prepared_manifest import (
     verify_prepared_runtime,
 )
 from demo_game_collection.game_package import ResolvedGamePackage, resolve_game_package
-from demo_game_tools.media.ui.nodes import UI_SHEET_ROLES, sheet_family
+from stage_gen.components.ui_art.nodes import UI_SHEET_ROLES, sheet_family
 from tests.unit._ui_atlas_fixture import ui_sheet
 
 REPOSITORY_ROOT = Path(__file__).parents[4]

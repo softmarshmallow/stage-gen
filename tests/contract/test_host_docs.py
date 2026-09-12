@@ -53,7 +53,10 @@ def test_the_host_contract_states_the_rules_a_replay_rests_on() -> None:
     assert "never writes a slice" in source
     assert "latch" in source
     assert "A refusal is a value" in source
-    assert "never a partial result" in source
+    prose = " ".join(source.split())
+    assert "returns null when the initial document is refused" in prose
+    assert "rejects unsafe references, symbolic links, missing files and decoding failures" in prose
+    assert "does not perform blanket artifact digest or lineage validation" in prose
 
 
 def test_every_maintained_game_has_a_documented_project() -> None:

@@ -25,7 +25,7 @@ from ember_hollow_pipeline.shell.nodes import (
     document_plate_roles,
     plate_content_task,
 )
-from ember_hollow_pipeline.shell.plates import (
+from stage_gen.components.screen_art.plates import (
     ShellPlateError,
     canonicalize_shell_plate,
     shell_plate_evidence,

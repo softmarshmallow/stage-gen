@@ -65,16 +65,7 @@ from demo_game_tools.input_formats.sideview_content import (
     ContentReference,
     MotionPresentation,
 )
-from demo_game_tools.media.soundtrack.nodes import (
-    SoundtrackNodeTypes,
-    add_soundtrack_nodes,
-)
 from demo_game_tools.media.soundtrack.prompt import music_track_prompt
-from demo_game_tools.media.ui.inventory_nodes import (
-    InventoryNodeTypes,
-    add_inventory_panel_nodes,
-)
-from demo_game_tools.media.ui.nodes import add_ui_atlas_nodes, document_roles
 from gnode import (
     Binding,
     BindingTable,
@@ -86,6 +77,7 @@ from gnode import (
     PortRef,
     WorkloadRequestV1,
 )
+from stage_gen.components.music.nodes import SoundtrackNodeTypes, add_soundtrack_nodes
 from stage_gen.components.painted_terrain import (
     PaintedTerrainGround,
     PaintedTerrainLayout,
@@ -118,6 +110,11 @@ from stage_gen.components.sideview_terrain.atlas import (
     PAINT_CANVAS_SIZE,
     terrain_atlas_generation_prompt,
 )
+from stage_gen.components.ui_art.inventory_nodes import (
+    InventoryNodeTypes,
+    add_inventory_panel_nodes,
+)
+from stage_gen.components.ui_art.nodes import add_ui_atlas_nodes, document_roles
 from stage_gen.config import StageGenConfig
 from stage_gen.model_routes import (
     configured_image_route_catalog,

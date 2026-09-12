@@ -1,60 +1,5 @@
 """Authored game user-interface presentation contracts."""
 
-from demo_game_tools.media.ui.atlas import (
-    ATLAS_ALPHA_POLICY,
-    ATLAS_ROLES,
-    ATLAS_SCALE_MODE,
-    BUTTON_RECT,
-    BUTTON_RECT_LAYOUT,
-    PANEL_FRAME,
-    PANEL_FRAME_LAYOUT,
-    AtlasAdmissionError,
-    AtlasRole,
-    atlas_evidence,
-    atlas_role_contract,
-    canonicalize_atlas_image,
-    render_atlas_template,
-    validate_atlas_image,
-)
-from demo_game_tools.media.ui.cursors import (
-    CURSOR_ALPHA_POLICY,
-    CURSOR_GLYPHS,
-    CURSOR_ROLES,
-    CURSOR_SET,
-    CURSOR_SET_LAYOUT,
-    HOTSPOT_RULES,
-    CursorGridRole,
-    canonicalize_cursor_sheet,
-    cursor_evidence,
-    cursor_role_contract,
-    measure_hotspot,
-    validate_cursor_sheet,
-)
-from demo_game_tools.media.ui.icons import (
-    ICON_ALPHA_POLICY,
-    ICON_ROLES,
-    ICON_SCALE_MODE,
-    PREVIEW_ICON_GLYPHS,
-    PREVIEW_ICONS,
-    PREVIEW_ICONS_LAYOUT,
-    IconAdmissionError,
-    IconGridRole,
-    canonicalize_icon_sheet,
-    icon_evidence,
-    icon_role_contract,
-    render_icon_template,
-    validate_icon_sheet,
-)
-from demo_game_tools.media.ui.inventory_nodes import (
-    InventoryNodeTypes,
-    InventoryPanelHandlers,
-    InventoryPanelHost,
-    add_inventory_panel_nodes,
-    canonicalize_inventory_panel_image,
-    inventory_node_types,
-    inventory_panel_evidence,
-    validate_inventory_panel_image,
-)
 from demo_game_tools.media.ui.models import (
     GAME_UI_SCHEMA_VERSION,
     INVENTORY_CANVAS_HEIGHT,
@@ -81,6 +26,61 @@ from demo_game_tools.media.ui.models import (
     UiReference,
     inventory_panel_layout_contract,
     load_game_ui_bytes,
+)
+from stage_gen.components.ui_art.atlas import (
+    ATLAS_ALPHA_POLICY,
+    ATLAS_ROLES,
+    ATLAS_SCALE_MODE,
+    BUTTON_RECT,
+    BUTTON_RECT_LAYOUT,
+    PANEL_FRAME,
+    PANEL_FRAME_LAYOUT,
+    AtlasAdmissionError,
+    AtlasRole,
+    atlas_evidence,
+    atlas_role_contract,
+    canonicalize_atlas_image,
+    render_atlas_template,
+    validate_atlas_image,
+)
+from stage_gen.components.ui_art.cursors import (
+    CURSOR_ALPHA_POLICY,
+    CURSOR_GLYPHS,
+    CURSOR_ROLES,
+    CURSOR_SET,
+    CURSOR_SET_LAYOUT,
+    HOTSPOT_RULES,
+    CursorGridRole,
+    canonicalize_cursor_sheet,
+    cursor_evidence,
+    cursor_role_contract,
+    measure_hotspot,
+    validate_cursor_sheet,
+)
+from stage_gen.components.ui_art.icons import (
+    ICON_ALPHA_POLICY,
+    ICON_ROLES,
+    ICON_SCALE_MODE,
+    PREVIEW_ICON_GLYPHS,
+    PREVIEW_ICONS,
+    PREVIEW_ICONS_LAYOUT,
+    IconAdmissionError,
+    IconGridRole,
+    canonicalize_icon_sheet,
+    icon_evidence,
+    icon_role_contract,
+    render_icon_template,
+    validate_icon_sheet,
+)
+from stage_gen.components.ui_art.inventory_nodes import (
+    InventoryNodeTypes,
+    InventoryPanelHandlers,
+    InventoryPanelHost,
+    add_inventory_panel_nodes,
+    canonicalize_inventory_panel_image,
+    inventory_node_types,
+    inventory_panel_evidence,
+    validate_inventory_panel_image,
 )
 
 __all__ = [

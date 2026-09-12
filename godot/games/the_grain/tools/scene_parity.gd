@@ -1,5 +1,9 @@
 extends SceneTree
 
+const ScenarioRefusal = preload("res://addons/scenario_runtime/refusal.gd")
+const ScenarioProgram = preload("res://addons/scenario_runtime/program.gd")
+const ScenarioRuntime = preload("res://addons/scenario_runtime/runtime.gd")
+
 ## The dialogue scene's state-level parity harness.
 ##
 ##   Godot --headless --path godot/games/the_grain --quit-after 1000 -s res://tools/scene_parity.gd -- \
@@ -29,14 +33,16 @@ func _initialize() -> void:
 		quit(2)
 		return
 	var program_path := script_path.get_base_dir().path_join("../program.json").simplify_path()
-	var parsed: Variant = FamilyScenarioProgram.parse(_read_json(program_path))
-	if KernelRefusal.is_refusal(parsed):
-		printerr("scene parity: %s" % (parsed as KernelRefusal).line())
+	var parsed: Variant = ScenarioProgram.parse(_read_json(program_path))
+	if ScenarioRefusal.is_refusal(parsed):
+		printerr("scene parity: %s" % ScenarioRefusal.line(parsed))
 		quit(2)
 		return
 	var program: Dictionary = parsed
 
-	var opening := FamilyScenarioRuntime.initial_turn(program)
+	var opening := ScenarioRuntime.initial_turn(program)
+	if _failed(opening):
+		return
 	var state: Dictionary = opening["state"]
 	var lines := PackedStringArray()
 	var hashes := PackedStringArray()
@@ -44,15 +50,17 @@ func _initialize() -> void:
 	# is hashed like one, before any action is taken.
 	hashes.append(
 		"opening %s"
-		% _hash(state, opening["events"], FamilyScenarioRuntime.view(program, state))
+		% _hash(state, opening["events"], ScenarioRuntime.view(program, state))
 	)
 
 	var index := 0
 	for entry: Variant in ((replay as Dictionary)["script"] as Array):
 		var action: Dictionary = entry
-		var turn := FamilyScenarioRuntime.reduce_turn(program, state, action)
+		var turn := ScenarioRuntime.reduce_turn(program, state, action)
+		if _failed(turn):
+			return
 		state = turn["state"]
-		var view := FamilyScenarioRuntime.view(program, state)
+		var view := ScenarioRuntime.view(program, state)
 		hashes.append("%d %s" % [index, _hash(state, turn["events"], view)])
 		lines.append(
 			_json(
@@ -173,3 +181,11 @@ func _read_json(path: String) -> Variant:
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
 	return parsed
+
+
+func _failed(value: Dictionary) -> bool:
+	if not ScenarioRefusal.is_refusal(value):
+		return false
+	printerr("scene parity: %s" % ScenarioRefusal.line(value))
+	quit(2)
+	return true

@@ -358,5 +358,8 @@
         "aspect_ratio"
       ]
     }
+  ],
+  "dependencies": [
+    "content_io"
   ]
 }

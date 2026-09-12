@@ -1,6 +1,11 @@
 extends RefCounted
 
-## The scenario runtime: the machine both the dialogue scene and the case play.
+const ScenarioRefusal = preload("res://addons/scenario_runtime/refusal.gd")
+const ScenarioProgram = preload("res://addons/scenario_runtime/program.gd")
+const ScenarioRuntime = preload("res://addons/scenario_runtime/runtime.gd")
+
+## Game integration over the independent scenario runtime and this game's fixture.
+## Synthetic mechanism/admission checks live with the scenario_runtime package.
 ##
 ## Like the room, a scenario has no clock — a transition is a keypress, not a
 ## step — so there is no roster and no sealed order to assert. What there is
@@ -12,9 +17,9 @@ extends RefCounted
 ## replays the browser's own twenty-five actions and every digest is identical.
 
 func run(h: TestHarness) -> void:
-	var parsed: Variant = FamilyScenarioProgram.parse(_fixture())
-	h.assert_true(not KernelRefusal.is_refusal(parsed), "the ferry program parses")
-	if KernelRefusal.is_refusal(parsed):
+	var parsed: Variant = ScenarioProgram.parse(_fixture())
+	h.assert_true(not ScenarioRefusal.is_refusal(parsed), "the ferry program parses")
+	if ScenarioRefusal.is_refusal(parsed):
 		return
 	var program: Dictionary = parsed
 	_contract(h, program)
@@ -31,30 +36,30 @@ func _contract(h: TestHarness, program: Dictionary) -> void:
 	var wrong := raw.duplicate(true)
 	wrong["kind"] = "pointclick-room-runtime-v3"
 	h.assert_true(
-		KernelRefusal.is_refusal(FamilyScenarioProgram.parse(wrong)),
+		ScenarioRefusal.is_refusal(ScenarioProgram.parse(wrong)),
 		"a document of another kind is refused rather than half-read"
 	)
 	# A scenario that enters a block it does not publish would settle nowhere and
 	# draw nothing, so it is refused by name at the door.
 	var lost := raw.duplicate(true)
 	lost["entry"] = "nowhere"
-	var refusal: Variant = FamilyScenarioProgram.parse(lost)
-	h.assert_true(KernelRefusal.is_refusal(refusal), "an entry nothing publishes is refused")
-	if KernelRefusal.is_refusal(refusal):
-		h.assert_eq((refusal as KernelRefusal).path, "entry", "and the refusal names the field")
+	var refusal: Variant = ScenarioProgram.parse(lost)
+	h.assert_true(ScenarioRefusal.is_refusal(refusal), "an entry nothing publishes is refused")
+	if ScenarioRefusal.is_refusal(refusal):
+		h.assert_eq(refusal["error"]["path"], "entry", "and the refusal names the field")
 
 
 func _settle(h: TestHarness, program: Dictionary) -> void:
-	var opening := FamilyScenarioRuntime.initial_turn(program)
+	var opening := ScenarioRuntime.initial_turn(program)
 	var state: Dictionary = opening["state"]
 	# The opening block begins with a stage, an audio cue and a line. Only the
 	# line stops, and the two invisible statements before it have already run.
 	h.assert_eq(String(state["stage"]), "pier_dusk", "the settle staged the pier")
 	h.assert_true((state["tracks"] as Array).has("harbor_wind"), "and started the wind")
-	var view := FamilyScenarioRuntime.view(program, state)
+	var view := ScenarioRuntime.view(program, state)
 	h.assert_eq(String(view["kind"]), "line", "and stopped on a line")
 	h.assert_true(
-		(state["seen"] as Array).has(FamilyScenarioRuntime.statement_id("opening", int(state["index"]))),
+		(state["seen"] as Array).has(ScenarioRuntime.statement_id("opening", int(state["index"]))),
 		"the line it stopped on is marked seen"
 	)
 	# Every invisible statement it walked through is an occurrence, so a consumer
@@ -71,33 +76,33 @@ func _settle(h: TestHarness, program: Dictionary) -> void:
 	# An action a moment does not offer moves nothing and says nothing, which is
 	# what makes "nothing happened" checkable rather than an unchanged object a
 	# caller has to notice by identity.
-	var stray := FamilyScenarioRuntime.reduce_turn(program, state, {"kind": "choose", "option": 0})
+	var stray := ScenarioRuntime.reduce_turn(program, state, {"kind": "choose", "option": 0})
 	h.assert_eq((stray["events"] as Array).size(), 0, "a choice at a line reports nothing")
 
 	# Two advances: the opening is a stage, a cue, a line, a `show`, a second
 	# line and then the choice, and only the two lines stop.
-	var once: Dictionary = FamilyScenarioRuntime.reduce(program, state, {"kind": "advance"})
+	var once: Dictionary = ScenarioRuntime.reduce(program, state, {"kind": "advance"})
 	h.assert_eq(
-		String(FamilyScenarioRuntime.view(program, once)["kind"]),
+		String(ScenarioRuntime.view(program, once)["kind"]),
 		"line",
 		"the first advance reaches the second line, walking the `show` on the way"
 	)
-	var at_choice: Dictionary = FamilyScenarioRuntime.reduce(program, once, {"kind": "advance"})
-	var choice := FamilyScenarioRuntime.view(program, at_choice)
+	var at_choice: Dictionary = ScenarioRuntime.reduce(program, once, {"kind": "advance"})
+	var choice := ScenarioRuntime.view(program, at_choice)
 	h.assert_eq(String(choice["kind"]), "choice", "and the second reaches the choice")
 	h.assert_eq((choice["options"] as Array).size(), 2, "with both options offered")
 	# A line that names an expression re-dresses its speaker; a `show` staged her.
-	var mara := FamilyScenarioRuntime.actor(at_choice, "mara")
+	var mara := ScenarioRuntime.actor(at_choice, "mara")
 	h.assert_true(not mara.is_empty(), "Mara is on stage by the time she speaks")
 	h.assert_eq(String(mara["slot"]), "center", "where the author put her")
 
 
 func _branching(h: TestHarness, program: Dictionary) -> void:
-	var state := FamilyScenarioRuntime.initial_state(program)
-	state = FamilyScenarioRuntime.reduce(program, state, {"kind": "advance"})
-	state = FamilyScenarioRuntime.reduce(program, state, {"kind": "advance"})
+	var state := ScenarioRuntime.initial_state(program)
+	state = ScenarioRuntime.reduce(program, state, {"kind": "advance"})
+	state = ScenarioRuntime.reduce(program, state, {"kind": "advance"})
 	# Ring the bell: the first option, which sets a flag the ending reads.
-	var rang := FamilyScenarioRuntime.reduce_turn(program, state, {"kind": "choose", "option": 0})
+	var rang := ScenarioRuntime.reduce_turn(program, state, {"kind": "choose", "option": 0})
 	var after: Dictionary = rang["state"]
 	h.assert_eq(String(after["label"]), "ringing", "choosing the bell goes to the bell")
 	var causes := PackedStringArray()
@@ -116,24 +121,24 @@ func _branching(h: TestHarness, program: Dictionary) -> void:
 	# ending.
 	var walked := after
 	for _step in 60:
-		if FamilyScenarioRuntime.is_finished(walked):
+		if ScenarioRuntime.is_finished(walked):
 			break
-		var showing := FamilyScenarioRuntime.view(program, walked)
+		var showing := ScenarioRuntime.view(program, walked)
 		var action := (
 			{"kind": "choose", "option": 0}
 			if String(showing.get("kind", "")) == "choice"
 			else {"kind": "advance"}
 		)
-		walked = FamilyScenarioRuntime.reduce(program, walked, action)
-	h.assert_true(FamilyScenarioRuntime.is_finished(walked), "the run reaches an ending")
-	var end_view := FamilyScenarioRuntime.view(program, walked)
+		walked = ScenarioRuntime.reduce(program, walked, action)
+	h.assert_true(ScenarioRuntime.is_finished(walked), "the run reaches an ending")
+	var end_view := ScenarioRuntime.view(program, walked)
 	h.assert_eq(String(end_view["kind"]), "end", "and draws the end card")
 	h.assert_true(String(end_view["label"]) != "", "which is labelled")
-	var past := FamilyScenarioRuntime.reduce_turn(program, walked, {"kind": "advance"})
+	var past := ScenarioRuntime.reduce_turn(program, walked, {"kind": "advance"})
 	h.assert_eq((past["events"] as Array).size(), 0, "and nothing happens after it")
 
 	# A restart is the opening again, whatever was set before it.
-	var restarted := FamilyScenarioRuntime.reduce(program, walked, {"kind": "restart"})
+	var restarted := ScenarioRuntime.reduce(program, walked, {"kind": "restart"})
 	h.assert_eq(String(restarted["label"]), String(program["entry"]), "a restart re-enters")
 	h.assert_true(restarted["outcome"] == null, "and the outcome is gone")
 	h.assert_eq((restarted["flags"] as Array).size(), 0, "and so are the flags")

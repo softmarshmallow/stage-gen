@@ -137,7 +137,7 @@ func _story_pause_and_checkpoint() -> void:
 		await _click(_bound_button(game, "episode.ui.lab", "_ui_bindings", game._pause_menu))
 		_expect(_app.selected_game_id == "lab", "The pause menu must reach the independently owned laboratory.")
 		_expect(_app._game_states["afterlight"] == saved, "The menu detour must preserve the current narrative checkpoint.")
-		await _click(_active()._story_buttons["afterlight"])
+		await _click(_active()._return_button)
 		game = _active()
 		_expect(game._load_errors.is_empty() and game.current_beat()["id"] == "eyes_on_nami" and not game._paused, "Returning must resume the same playable waking beat.")
 		_expect(game.get_language() == "ko" and _same_pose(before, _eye_pose(game)), "Checkpoint reconstruction must preserve Korean text and the exact preliminary/final opening phase.")
@@ -168,8 +168,14 @@ func _story_frames(window_size: Vector2i) -> void:
 
 func _laboratory(window_size: Vector2i) -> void:
 	var story := _active()
-	var saved: Dictionary = story.save_game()
+	var sampled_at := Time.get_ticks_usec()
+	var before_route: Dictionary = story.save_game()
 	_expect(_app.open_route("game:lab/eye_study"), "The independent eye laboratory must be reachable.")
+	# This is the exact checkpoint navigation captured, not another sampling of
+	# the live audio device. Keep a deep copy as the immutable Lab baseline.
+	var saved: Dictionary = _app._game_states["afterlight"].duplicate(true)
+	_expect(_same_story_checkpoint(before_route, saved), "Navigation must capture every narrative, reveal and effect field unchanged.")
+	_expect_voice_clock(before_route, saved, sampled_at, "Navigation capture")
 	await _settle()
 	var study := _active()
 	_expect(study._load_errors.is_empty(), "The eye laboratory must load its prepared portrait and controls: " + str(study._load_errors))
@@ -209,8 +215,11 @@ func _laboratory(window_size: Vector2i) -> void:
 	await _capture("lab-reopening-" + str(window_size.x))
 	await _click(study._skip_button)
 	await _capture("lab-open-" + str(window_size.x))
+	var resumed_at := Time.get_ticks_usec()
 	await _click(study._return_button)
-	_expect(_app.selected_game_id == "afterlight" and _active().save_game() == saved, "Returning from tuned study must restore the story checkpoint unchanged.")
+	var restored: Dictionary = _active().save_game()
+	_expect_voice_clock(saved, restored, resumed_at, "Story resume")
+	_expect(_app.selected_game_id == "afterlight" and _same_story_checkpoint(restored, saved), "Returning from tuned study must restore narrative, reveal and effect state unchanged.")
 
 
 func _capture(label: String, closed_story: bool = false) -> void:
@@ -226,3 +235,24 @@ func _capture(label: String, closed_story: bool = false) -> void:
 		var center := picture.get_pixel(picture.get_width() / 2, picture.get_height() / 2)
 		_expect(maxf(center.r, maxf(center.g, center.b)) < 0.01, "The waking reclosure must fully mask the central portrait before its final opening.")
 	_expect(picture.save_png(CAPTURE_DIRECTORY.path_join(label + ".png")) == OK, "Native waking capture must save: " + label)
+
+
+func _same_story_checkpoint(left: Dictionary, right: Dictionary) -> bool:
+	var first := left.duplicate(true)
+	var second := right.duplicate(true)
+	first.erase("voice_position_seconds")
+	second.erase("voice_position_seconds")
+	return first == second
+
+
+func _expect_voice_clock(before: Dictionary, after: Dictionary, started_at: int, context: String) -> void:
+	# Scene ticks are frozen, but the audio device mixes independently. Bound
+	# its separate observation by measured wall time plus the actual mix period.
+	var elapsed := float(Time.get_ticks_usec() - started_at) / 1000000.0
+	var mix_period := AudioServer.get_time_since_last_mix() + AudioServer.get_time_to_next_mix()
+	var first := float(before["voice_position_seconds"])
+	var second := float(after["voice_position_seconds"])
+	if first < 0.0 or second < 0.0:
+		_expect(first == second, context + " must preserve the completed-recording sentinel.")
+	else:
+		_expect(is_finite(second) and absf(second - first) <= elapsed + mix_period, context + " must preserve the recording position within measured elapsed time and one audio mix period.")

@@ -63,24 +63,9 @@ from demo_game_tools.input_formats.sideview_content import (
     PropContent,
     projectile_silhouette_art,
 )
-from demo_game_tools.media.soundtrack.nodes import SoundtrackHandlers, SoundtrackHost
 from demo_game_tools.media.ui import (
     AtlasRole,
     UiReference,
-)
-from demo_game_tools.media.ui.inventory_nodes import (
-    InventoryPanelHandlers,
-    InventoryPanelHost,
-    validate_inventory_panel_image,
-)
-from demo_game_tools.media.ui.nodes import (
-    UI_ATLAS_GENERATE,
-    UI_ATLAS_REVIEW,
-    UI_ATLAS_VALIDATE,
-    UiAtlasHandlers,
-    UiAtlasHost,
-    document_roles,
-    validate_ui_sheet,
 )
 from gnode import (
     BinaryArtifact,
@@ -102,6 +87,7 @@ from gnode import (
     dependency_port,
     write_artifact_with_provenance_async,
 )
+from stage_gen.components.music.nodes import SoundtrackHandlers, SoundtrackHost
 from stage_gen.components.sideview_actor.motion_geometry import (
     MOTION_ATLAS_HEIGHT,
     MOTION_ATLAS_WIDTH,
@@ -116,6 +102,20 @@ from stage_gen.components.sideview_actor.motion_rebase_nodes import (
     MotionRebaseHandlers,
     MotionRebaseHost,
     RebaseSubject,
+)
+from stage_gen.components.ui_art.inventory_nodes import (
+    InventoryPanelHandlers,
+    InventoryPanelHost,
+    validate_inventory_panel_image,
+)
+from stage_gen.components.ui_art.nodes import (
+    UI_ATLAS_GENERATE,
+    UI_ATLAS_REVIEW,
+    UI_ATLAS_VALIDATE,
+    UiAtlasHandlers,
+    UiAtlasHost,
+    document_roles,
+    validate_ui_sheet,
 )
 from stage_gen.media import (
     AlphaComponentRepackContract,

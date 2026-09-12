@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal, cast
 
-from demo_game_tools.media.ui.nodes import ui_atlas_manifest_block
 from gnode import (
     ArtifactProvenance,
     ArtifactRights,
@@ -27,6 +26,7 @@ from stage_gen.components.scenario import (
     StageDeclaration,
     TrackDeclaration,
 )
+from stage_gen.components.ui_art.nodes import ui_atlas_manifest_block
 from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.image_style import CanonicalStyleAnchor, canonical_style_anchor_digest
 from stage_gen.media import inspect_image, probe_audio

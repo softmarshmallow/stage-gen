@@ -4,6 +4,10 @@ extends "res://tests/afterlight_ensemble_checks.gd"
 const BLACKOUT_OUTPUT := "res://tests/background-blackout"
 const BLACKOUT_BEAT := "the_warning"
 const BACKGROUND_SAMPLE := Rect2i(40, 210, 180, 350)
+const EFFECTS_CARDS := [
+	"intertitle", "drift", "halo", "motion", "puff", "burst", "blackout",
+	"cast_pan", "ambient", "transmission_voice",
+]
 var _blackout_captures: Array[Dictionary] = []
 var _blackout_metrics: Array[Dictionary] = []
 
@@ -274,15 +278,21 @@ func _effects_menu_frames(factor: int) -> void:
 	for language: String in ["ko", "en"]:
 		menu.set_language(language)
 		await _settle()
-		var cards := 0
+		var cards: Array[String] = []
+		var explore_buttons := 0
 		for binding: Dictionary in menu._text_bindings:
 			var key := str(binding["key"])
+			if key == "ui.explore": explore_buttons += 1
 			if not key.begins_with("study.") or not key.ends_with(".description") or key == "study.effects.description":
 				continue
 			var description: Label = binding["node"]
 			_expect(description.size.x <= 354.01 and description.get_line_count() <= 3, "Effects-menu descriptions must fit their column without crossing Explore controls: " + language + " / " + key)
-			cards += 1
-		_expect(cards == 7, "All seven effects cards must remain readable in the new two-column menu.")
+			_expect(description.is_visible_in_tree() and Rect2(Vector2.ZERO, menu.DESIGN_SIZE).encloses(description.get_rect()), "Every effects-menu description must remain visible inside the menu: " + language + " / " + key)
+			cards.append(key.trim_prefix("study.").trim_suffix(".description"))
+		var expected := EFFECTS_CARDS.duplicate()
+		cards.sort()
+		expected.sort()
+		_expect(cards == expected and explore_buttons == EFFECTS_CARDS.size(), "All ten current effects cards and their Explore controls must remain readable in the two-column menu: " + language + " / " + str(cards))
 		await _blackout_frame("lab-effects-menu-" + ("en-" if language == "en" else "") + str(factor))
 
 

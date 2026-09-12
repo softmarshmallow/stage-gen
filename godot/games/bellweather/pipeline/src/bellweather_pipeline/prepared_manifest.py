@@ -44,10 +44,6 @@ from demo_game_tools.input_formats.game_contract.asset_scale import (
 from demo_game_tools.input_formats.game_contract.package import PreparedScale
 from demo_game_tools.input_formats.sideview_content import MotionPresentation, PropContent
 from demo_game_tools.media.ui import inventory_panel_layout_contract
-from demo_game_tools.media.ui.nodes import (
-    document_roles,
-    ui_atlas_manifest_block,
-)
 from gnode import atomic_write_json
 from stage_gen.components.painted_terrain import (
     PAINTED_TERRAIN_CELL_PX,
@@ -59,6 +55,7 @@ from stage_gen.components.sideview_actor.motion_geometry import (
     dialogue_atlas_grid,
     runtime_mirrors_source,
 )
+from stage_gen.components.ui_art.nodes import document_roles, ui_atlas_manifest_block
 from stage_gen.media import measure_alpha_ground_contact
 from stage_gen.media.sprite_sheets import split_atlas_columns
 from stage_gen.recipes.manifest_blocks import (

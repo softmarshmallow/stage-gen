@@ -9,6 +9,7 @@ var _errors: Array[String] = []
 var _capture_enabled := false
 var _capture_count := 0
 var _replies := {}
+var _typing_fixture := true
 
 
 func _initialize() -> void:
@@ -31,6 +32,8 @@ func _run() -> void:
 	if _app.selected_game_id == "afterlight":
 		await _input_at_size(Vector2i(1280, 900), "help_first")
 		await _input_at_size(Vector2i(2560, 1800), "tea_first")
+	_typing_fixture = false
+	await _ready_voice_inputs()
 	_expect(_replies.size() == 2 and _replies.get("help_first") != _replies.get("tea_first"), "The two authored responses must differ before merging into the same episode.")
 	for issue: String in _errors: printerr("FAIL Afterlight input: " + issue)
 	if _errors.is_empty():
@@ -247,6 +250,12 @@ func _id(game: Control) -> String:
 
 func _freeze_route(node: Node) -> void:
 	if node.has_method("current_beat"):
+		if _typing_fixture:
+			# Exercise typing policy explicitly even when local voice recordings exist.
+			# Per-beat overrides survive language refresh and checkpoint reconstruction.
+			node.beats = node.beats.duplicate(true)
+			for beat: Dictionary in node.beats:
+				beat["text_audio"] = {"mode": "typing"}
 		node.set_process(false)
 		node.ready.connect(node.set_process.bind(false), CONNECT_ONE_SHOT)
 
@@ -259,3 +268,23 @@ func _settle() -> void:
 
 func _expect(condition: bool, message: String) -> void:
 	if not condition: _errors.append(message)
+
+
+func _ready_voice_inputs() -> void:
+	_expect(_app.open_route("game:afterlight/new_game"), "The ready-voice input fixture must start a fresh episode.")
+	await _settle()
+	var game: Control = _app.active_scene
+	for step in 12:
+		if _id(game) == "no_ordinary_post": break
+		game._process(30.0)
+		game._next()
+	_expect(_id(game) == "no_ordinary_post" and game.get_voice_state()["status"] == "ready", "This integration fixture requires the prepared ready recording.")
+	_expect(game._reveal.sample()["phase"] == "holding" and game._ready_dot.visible, "Ready voice must expose its complete subtitle immediately.")
+	await _background_click()
+	_expect(_id(game) == "a_glass_record", "One pointer action advances a voiced line exactly once.")
+	await _touch(Vector2(300, 780))
+	_expect(_id(game) == "no_forwarding_address", "One touch advances a voiced line exactly once.")
+	await _key(KEY_SPACE)
+	_expect(_id(game) == "courier_offer" and game._choice_pending() and _visible_choices(game).size() == 2, "A voiced choice reveals its options but does not choose on the advancing key.")
+	await _key(KEY_ENTER)
+	_expect(_id(game) == "courier_offer" and game._choices.is_empty(), "A ready voiced choice still requires an explicit answer.")

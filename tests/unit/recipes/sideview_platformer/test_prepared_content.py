@@ -30,7 +30,6 @@ from demo_game_tools.media.ui import (
     INVENTORY_PANEL_TOP,
     INVENTORY_PANEL_WIDTH,
 )
-from demo_game_tools.media.ui.nodes import UI_SHEET_ROLES
 from gnode import (
     LOCAL_OPERATION,
     ImageGenerationRequest,
@@ -42,6 +41,7 @@ from stage_gen.components.sideview_actor.motion_geometry import (
     dialogue_atlas_grid,
     runtime_mirrors_source,
 )
+from stage_gen.components.ui_art.nodes import UI_SHEET_ROLES
 from stage_gen.config import StageGenConfig
 from tests.unit._ui_atlas_fixture import ui_sheet
 

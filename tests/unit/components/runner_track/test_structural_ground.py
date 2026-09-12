@@ -27,10 +27,8 @@ from iron_petal_unit_pipeline.track import (
     validate_structural_ground_seam_bridge,
     validate_structural_ground_source,
 )
-from iron_petal_unit_pipeline.track.structural_ground import (
-    diagonal_family_lean_degrees,
-)
 from stage_gen.components._game_input import AuthoredContractLoadError
+from stage_gen.components.painted_terrain.structural_ground import diagonal_family_lean_degrees
 
 from ..._runner_fixture import (
     WIDE_FLAT_ROWS,

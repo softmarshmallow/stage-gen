@@ -297,6 +297,6 @@ func _t10_strikes_in_a_storm(h: TestHarness, pkg: HostRunDir) -> void:
 ## A world with the run's masks and nothing standing in it: the weather does
 ## not read the entity list, and 3520 entities would cost 90 s of test time.
 func _bare(pkg: HostRunDir) -> SurvivalWorld:
-	var world := SurvivalWorld.create(pkg, 7, {"masks": SurvivalMasks.from_package(pkg)})
+	var world := SurvivalWorldFactory.create(pkg, 7, {"masks": SurvivalMaskLoader.from_package(pkg)})
 	world.entities.clear()
 	return world

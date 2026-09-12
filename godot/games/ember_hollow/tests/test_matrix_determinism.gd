@@ -45,7 +45,7 @@ func run(h: TestHarness) -> void:
 	h.done()
 
 func _t28_determinism(h: TestHarness, pkg: HostRunDir) -> void:
-	var masks := SurvivalMasks.from_package(pkg)
+	var masks := SurvivalMaskLoader.from_package(pkg)
 	var first := _scripted_run(pkg, masks)
 	var second := _scripted_run(pkg, masks)
 	h.assert_eq(first.size(), CHECKPOINTS.size(), "the run did not reach every checkpoint")
@@ -85,7 +85,7 @@ var _last_world_summary: Dictionary = {}
 
 ## One scripted run. Returns the digest at each checkpoint.
 func _scripted_run(pkg: HostRunDir, masks: SurvivalMasks, seed_value: int = 7) -> PackedStringArray:
-	var world := SurvivalWorld.create(pkg, seed_value, {"masks": masks})
+	var world := SurvivalWorldFactory.create(pkg, seed_value, {"masks": masks})
 	_stage(world)
 	var digests := PackedStringArray()
 	var events := 0

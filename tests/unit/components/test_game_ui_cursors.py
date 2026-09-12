@@ -18,7 +18,7 @@ from demo_game_tools.media.ui import (
     render_icon_template,
     validate_cursor_sheet,
 )
-from demo_game_tools.media.ui.nodes import (
+from stage_gen.components.ui_art.nodes import (
     CURSOR_GRID_FAMILY,
     ICON_GRID_FAMILY,
     CursorSetLayout,

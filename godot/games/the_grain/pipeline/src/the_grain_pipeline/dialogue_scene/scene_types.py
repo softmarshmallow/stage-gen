@@ -13,8 +13,8 @@ author supplied is a different kind of work from asking a provider for them.
 
 from __future__ import annotations
 
-from demo_game_tools.media.ui.nodes import UI_ATLAS_NODE_TYPES
 from gnode import NodePolicy, NodeType, ViewArchetype
+from stage_gen.components.ui_art.nodes import UI_ATLAS_NODE_TYPES
 
 _PROVIDER_POLICY = NodePolicy(max_attempts=6)
 

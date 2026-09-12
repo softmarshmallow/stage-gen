@@ -16,7 +16,7 @@ from demo_game_tools.media.ui import (
     INVENTORY_SLOT_SIZE,
     INVENTORY_SLOT_TOP,
 )
-from demo_game_tools.media.ui.inventory_nodes import (
+from stage_gen.components.ui_art.inventory_nodes import (
     canonicalize_inventory_panel_image,
     validate_inventory_panel_image,
 )

@@ -87,7 +87,7 @@ const HOVER_FOLLOW_METERS := 0.03
 ## `add_trauma` instead.
 const EVENT_TRAUMA := {"hit": 0.18, "hurt": 0.3, "strike": 0.35, "thunder": 0.12}
 
-var args: HostArgs = null
+var args: EmberOptions = null
 var package: HostRunDir = null
 var world: SurvivalWorld = null
 var frame_uniforms: SurvivalFrameUniforms = null
@@ -148,8 +148,16 @@ var _ui_resolution: Vector2 = Vector2.ZERO
 ## How many worlds this scene has played: 1 after boot, +1 per reset.
 var generation: int = 0
 
+func _notification(what: int) -> void:
+	# The sampler stays outside the tree to poll held keys. Its frame owner
+	# therefore also owns its destruction; freeing the scene cannot do that for us.
+	if what == NOTIFICATION_PREDELETE and is_instance_valid(_input_sampler):
+		_input_sampler.free()
+		_input_sampler = null
+
+
 func _ready() -> void:
-	args = HostArgs.from_command_line()
+	args = EmberOptions.from_command_line()
 	for key: String in arg_overrides:
 		args.set(key, arg_overrides[key])
 	if args.run == "":
@@ -174,7 +182,7 @@ func _ready() -> void:
 	# verdict framings are instruments and skip it.
 	if args.mode == "play" and _open_shell():
 		return
-	_boot(SurvivalWorld.create(package, seed_value, args.world_options()))
+	_boot(SurvivalWorldFactory.create(package, seed_value, args.world_options()))
 
 
 ## Stand the shell up over the run. False when the run carries no shell block,
@@ -205,7 +213,7 @@ func _on_shell_play() -> void:
 
 func _finish_shell() -> void:
 	_awaiting_load = false
-	_boot(SurvivalWorld.create(package, _pending_seed, args.world_options()))
+	_boot(SurvivalWorldFactory.create(package, _pending_seed, args.world_options()))
 	if shell != null:
 		shell.close()
 		shell.queue_free()
@@ -450,7 +458,7 @@ func get_world() -> SurvivalWorld:
 	return world
 
 func set_mode(next: String) -> void:
-	if not HostArgs.MODES.has(next):
+	if not EmberOptions.MODES.has(next):
 		push_warning("main: unknown mode %s" % next)
 		return
 	mode = next
@@ -473,8 +481,8 @@ func _broadcast_mode(next: String) -> void:
 
 ## The master weather control (index.html:4906-4911).
 func force_weather(next: String) -> void:
-	if not HostArgs.WEATHER_MODES.has(next):
-		push_warning("main: weather mode must be one of %s" % ", ".join(HostArgs.WEATHER_MODES))
+	if not EmberOptions.WEATHER_MODES.has(next):
+		push_warning("main: weather mode must be one of %s" % ", ".join(EmberOptions.WEATHER_MODES))
 		return
 	world.weather["mode"] = next
 	if next == "auto":
@@ -1021,7 +1029,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		world.input["select"] = 9 if digit == 0 else digit - 1
 
 func _cycle_weather() -> void:
-	var modes := HostArgs.WEATHER_MODES
+	var modes := EmberOptions.WEATHER_MODES
 	var index: int = modes.find(String(world.weather.get("mode", "auto")))
 	force_weather(modes[(index + 1) % modes.size()])
 

@@ -8,9 +8,9 @@ from typing import cast
 import pytest
 from PIL import Image
 
-from demo_game_tools.media.ui.nodes import UI_SHEET_ROLES, sheet_family
 from gnode import BinaryArtifact, ProvenanceInput, SoftwareIdentity, write_artifact_with_provenance
 from stage_gen.components import canonical_character_profile_json
+from stage_gen.components.ui_art.nodes import UI_SHEET_ROLES, sheet_family
 from stage_gen.image_prompting import load_image_style_resources, materialize_style_anchor
 from stage_gen.image_style import StyleModeSelection
 from tests.unit._ui_atlas_fixture import ui_sheet

@@ -7,7 +7,7 @@ func run(h: TestHarness) -> void:
 	var pkg := h.package()
 	if not h.assert_true(pkg != null, "full-v66 did not open"):
 		return
-	var world := SurvivalWorld.create(pkg, int(pkg.layout.get("seed", 1)), {"masks": SurvivalMasks.new()})
+	var world := SurvivalWorldFactory.create(pkg, int(pkg.layout.get("seed", 1)), {"masks": SurvivalMasks.new()})
 
 	_a_null_is_an_absence(h, pkg)
 	_entity_counts(h, pkg, world)
@@ -171,7 +171,7 @@ func _clock_and_conditions(h: TestHarness, world: SurvivalWorld) -> void:
 
 	# The start modes the host's `--time` and `--season` reach.
 	var pkg := h.package()
-	var night_world := SurvivalWorld.create(pkg, 7, {"masks": SurvivalMasks.new(), "time": "night", "season": "winter"})
+	var night_world := SurvivalWorldFactory.create(pkg, 7, {"masks": SurvivalMasks.new(), "time": "night", "season": "winter"})
 	h.assert_near(night_world.day_phase, 0.72, 1e-9, "--time night day phase")
 	h.assert_near(night_world.night, 1.0, 1e-9, "--time night is not night")
 	h.assert_eq(night_world.season["force"], "winter", "--season winter was not forced")
@@ -188,7 +188,7 @@ func _start_kit(h: TestHarness, pkg: HostRunDir) -> void:
 	# An empty layout: this is about the pack, not the world.
 	kit.layout = {"entities": [], "forage": [], "player_spawn": {"x": 0.0, "z": 0.0}}
 
-	var world := SurvivalWorld.create(kit, 7, {"masks": SurvivalMasks.new()})
+	var world := SurvivalWorldFactory.create(kit, 7, {"masks": SurvivalMasks.new()})
 	h.assert_eq(world.entities.size(), 0, "the empty layout placed entities")
 	if not h.assert_true(world.slots.size() >= 3, "the starting kit did not fill three slots"):
 		return

@@ -32,3 +32,10 @@ assets through this game's Godot scripts.
 The installable Python source lives under `src/`. It depends on the public asset
 product and the private shared game input/media tools. It does not import another
 named game or the collection's developer CLI.
+
+`preparation_media.py` owns deterministic seasonal alignment, review rasters and
+biome gate policy; `cache_admission.py` owns restored-image canvas checks.
+`manifest.py` continues to own the runtime document. The preparation handler
+composes these operations and retains provider execution and publication.
+See the [Python dependency review](../../../docs/python-dependencies.md) for the
+remaining private Stage Gen calls and their ownership decisions.

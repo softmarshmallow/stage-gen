@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field
 
-from demo_game_tools.media.ui.nodes import add_ui_atlas_nodes, document_roles
 from gnode import (
     SHA256_PATTERN,
     AuthoredInput,
@@ -25,6 +24,7 @@ from gnode import (
     Port,
     PortRef,
 )
+from stage_gen.components.ui_art.nodes import add_ui_atlas_nodes, document_roles
 from stage_gen.model_routes import (
     configured_image_route_catalog,
     configured_image_workload_resolver,

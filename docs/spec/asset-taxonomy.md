@@ -95,7 +95,7 @@ the old names.
 | `godot/games/bellweather/gameplay` | was web/lib/sideview-platformer, retired in the Godot pass | consumer adapter for `2d/sideview/platformer` | d |
 | `godot/games/the_grain/gameplay/pointclick_room` | was web/lib/pointclick, retired in the Godot pass | consumer adapter for `2d/roomview/pointclick` | d |
 | `godot/games/the_grain/gameplay/dialogue_scene` | was web/lib/dialogue-scene, retired in the Godot pass | consumer adapter for `2d/frontview/vn/scene` | d |
-| `godot/games/_shared/runtime/addons/demo_support/simulation/families/scenario` | promoted out of the scene when a second genre asked for it | the agnostic conversation core both genres walk | a |
+| `godot/packages/scenario_runtime/addons/scenario_runtime` | promoted out of the scene when a second genre asked for it | the agnostic conversation core both genres walk | a |
 | `components/actor_content` | new in the runner pass | `2d/actor_content` | b — shared drawn-actor blocks (references, motion playback) |
 | `components/runner_gameplay` | new in the runner pass | `2d/sideview/runner/gameplay` | d |
 | `components/runner_track` | new in the runner pass | `2d/sideview/runner/track` | d — authored tiled segments over the shared side-view stage |

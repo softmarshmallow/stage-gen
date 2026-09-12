@@ -12,7 +12,7 @@ func run(h: TestHarness) -> void:
 	if pkg == null:
 		h.fail("the run package did not open")
 		return
-	var world: SurvivalWorld = SurvivalWorld.create(pkg, 7)
+	var world: SurvivalWorld = SurvivalWorldFactory.create(pkg, 7)
 	if world == null:
 		h.fail("the world did not build")
 		return
@@ -20,6 +20,7 @@ func run(h: TestHarness) -> void:
 	_one_shots(h, world)
 	_panel_buttons(h, world)
 	_actions(h)
+	_owner_lifetime(h)
 	h.done()
 
 
@@ -65,6 +66,16 @@ func _held_keys(h: TestHarness, world: SurvivalWorld) -> void:
 	input.release("w")
 	input.sample(world)
 	input.free()
+
+
+func _owner_lifetime(h: TestHarness) -> void:
+	var host: Node3D = load("res://main.gd").new()
+	var input := SurvivalInput.new()
+	host.set("_input_sampler", input)
+	h.assert_true(input.polling(), "the frame owner keeps its sampler outside the tree for polling")
+	var sampler_ref: WeakRef = weakref(input)
+	host.free()
+	h.assert_eq(sampler_ref.get_ref(), null, "destroying the frame owner frees its detached input sampler")
 
 
 func _one_shots(h: TestHarness, world: SurvivalWorld) -> void:

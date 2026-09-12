@@ -1,6 +1,10 @@
 class_name HostDialogueLeaf
 extends Control
 
+const ScenarioRefusal = preload("res://addons/scenario_runtime/refusal.gd")
+const ScenarioProgram = preload("res://addons/scenario_runtime/program.gd")
+const ScenarioRuntime = preload("res://addons/scenario_runtime/runtime.gd")
+
 ## A dialogue scene, drawn and played.
 ##
 ## A port of `web/lib/dialogue-scene/scene-game.ts`. The stage, the cast, the
@@ -113,9 +117,9 @@ static func of(
 	carried: PackedStringArray = PackedStringArray(),
 	resume: Variant = null
 ) -> Variant:
-	var parsed: Variant = FamilyScenarioProgram.parse(document["scenario"])
-	if KernelRefusal.is_refusal(parsed):
-		return parsed
+	var parsed: Variant = ScenarioProgram.parse(document["scenario"])
+	if ScenarioRefusal.is_refusal(parsed):
+		return _scenario_refusal(parsed)
 	var sheets := HostUiSheets.of(package, document.get("ui"))
 	if not sheets.has("panel_frame") or not sheets.has("button_rect"):
 		return KernelRefusal.of(
@@ -145,12 +149,16 @@ static func of(
 	# A save that no longer fits its program is not a save. The player is opened
 	# fresh rather than resumed onto an actor nobody declares.
 	var restored: Variant = (
-		null if resume == null else FamilyScenarioRuntime.restore(parsed, resume)
+		null if resume == null else ScenarioRuntime.restore(parsed, resume)
 	)
 	if restored is Dictionary:
 		made._state = restored
 	else:
-		made._state = FamilyScenarioRuntime.initial_state(parsed, carried)
+		var opening := ScenarioRuntime.initial_state(parsed, carried)
+		if ScenarioRefusal.is_refusal(opening):
+			made.free()
+			return _scenario_refusal(opening)
+		made._state = opening
 
 	var built: Variant = made._build()
 	if KernelRefusal.is_refusal(built):
@@ -185,7 +193,7 @@ func report() -> void:
 
 
 func view() -> Dictionary:
-	return FamilyScenarioRuntime.view(program, _state)
+	return ScenarioRuntime.view(program, _state)
 
 
 ## One transition. `advance` at an ending hands over to a listening shell
@@ -200,8 +208,11 @@ func act(action: Dictionary) -> void:
 				flags.append(String(flag))
 			finished.emit(String(current["outcome"]), flags)
 			return
-		action = {"kind": FamilyScenarioRuntime.ACTION_RESTART}
-	var turn := FamilyScenarioRuntime.reduce_turn(program, _state, action)
+		action = {"kind": ScenarioRuntime.ACTION_RESTART}
+	var turn := ScenarioRuntime.reduce_turn(program, _state, action)
+	if ScenarioRefusal.is_refusal(turn):
+		push_warning("dialogue scene: %s" % ScenarioRefusal.line(turn))
+		return
 	# A turn that moved nothing raises nothing, which is how "nothing happened"
 	# is a checkable answer rather than an object a caller compares by identity.
 	if (turn["events"] as Array).is_empty():
@@ -212,11 +223,11 @@ func act(action: Dictionary) -> void:
 
 
 func advance() -> void:
-	act({"kind": FamilyScenarioRuntime.ACTION_ADVANCE})
+	act({"kind": ScenarioRuntime.ACTION_ADVANCE})
 
 
 func choose(option: int) -> void:
-	act({"kind": FamilyScenarioRuntime.ACTION_CHOOSE, "option": option})
+	act({"kind": ScenarioRuntime.ACTION_CHOOSE, "option": option})
 
 
 ## Stop every track. A shell leaving this beat owes the next one silence.
@@ -444,7 +455,7 @@ func _render() -> void:
 	if not showing_line:
 		return
 	_set_body(String(current.get("text", "")))
-	var seen := FamilyScenarioRuntime.progress(program, _state)
+	var seen := ScenarioRuntime.progress(program, _state)
 	_progress.text = "%d / %d · tap to continue" % [int(seen["seen"]), int(seen["total"])]
 	var label: Variant = current.get("speakerLabel")
 	_name.text = "" if label == null else String(label)
@@ -456,7 +467,7 @@ func _report(current: Dictionary) -> void:
 	var statement: Variant = (
 		null
 		if kind == "end" or kind == ""
-		else FamilyScenarioRuntime.statement_id(String(_state["label"]), int(_state["index"]))
+		else ScenarioRuntime.statement_id(String(_state["label"]), int(_state["index"]))
 	)
 	var line: Dictionary = {}
 	if kind == "line":
@@ -669,3 +680,9 @@ func _readable(panel: HostPanelFrame, candidates: Array, ratio: float, fallback:
 		channels.append([colour.r * 255.0, colour.g * 255.0, colour.b * 255.0])
 	var choice := FamilyContrast.most_readable(face, channels, ratio)
 	return fallback if choice < 0 else candidates[choice]
+
+
+## Adapt package failures to this game's existing load-error boundary.
+static func _scenario_refusal(value: Dictionary) -> KernelRefusal:
+	var error: Dictionary = value["error"]
+	return KernelRefusal.of(error["code"], error["message"], error["path"])

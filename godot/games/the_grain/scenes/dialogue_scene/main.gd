@@ -29,7 +29,7 @@ var _root: Control = null
 
 
 func _ready() -> void:
-	var args := HostArgs.parse(OS.get_cmdline_user_args())
+	var args := GrainOptions.parse(OS.get_cmdline_user_args())
 	if args.run.is_empty():
 		_refuse("dialogue host: pass the run directory after `-- --run <dir>`")
 		return

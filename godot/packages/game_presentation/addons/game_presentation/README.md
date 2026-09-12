@@ -1,10 +1,11 @@
 # Game Presentation SDK
 
 A code-first Godot presentation toolkit extracted directly from the existing game
-implementation. Copy this directory to `res://addons/game_presentation/` in a
-Godot project. No editor plugin activation, Python runtime, provider credentials,
+implementation. Copy this directory to `res://addons/game_presentation/` and its
+declared `content_io` dependency to `res://addons/content_io/` in a Godot project.
+No editor plugin activation, Python runtime, provider credentials,
 Scenario parser, example assets, or shared game UI is required. The directory and
-its BSD license are the complete SDK payload.
+its BSD license are the presentation payload; each dependency includes its license.
 
 This initial package is **0.1.0-canary.1**, a local development version, not a
 published release. The [API inventory](API.md) names the supported canary script and shader
@@ -67,7 +68,7 @@ inventory links every public method to its owning source.
 | `text/` | Stable-ID text lookup and intertitle reveal state | Languages, font/layout, monologue intent and navigation |
 | `audio/` | Supplied voice/typing playback and isolated voice-processing bus | Voice policy, line binding, stale-audio decisions and advancement |
 | `interaction/` | Point Contact hit testing and one-shot confirmation | Gesture, target location, UI feedback and story outcome |
-| `content/` | Optional local JSON/texture/audio/video access | Catalog shape, IDs, directory layout, approval and freshness policy |
+| `content/` | Compatibility facade over the `content_io` addon | Catalog shape, IDs, directory layout, approval and freshness policy |
 
 Automatic sprite blinking, location labels, looping title videos, Quick Approach,
 Cast Pan, autoplay, story decisions and whole UI remain host compositions.

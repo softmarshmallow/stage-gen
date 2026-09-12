@@ -32,3 +32,9 @@ assets through this game's Godot scripts.
 The installable Python source lives under `src/`. It depends on the public asset
 product and the private shared game input/media tools. It does not import another
 named game or the collection's developer CLI.
+
+`manifest.py` owns the runtime projection of gameplay, audio, ground, calibration
+and prepared validation records. `prepared_runner.py` owns node execution,
+reference republishing and the final atomic manifest write. Existing helper
+imports remain compatible. See the [Python dependency review](../../../docs/python-dependencies.md)
+for the remaining private Stage Gen calls and their ownership decisions.

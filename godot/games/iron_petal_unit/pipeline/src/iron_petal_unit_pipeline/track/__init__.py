@@ -1,25 +1,6 @@
 """Runner track contracts and structural-ground raster canonicalization."""
 
-from .models import (
-    DEFAULT_GROUND_PROJECTION,
-    MAX_SEGMENT_COLUMNS,
-    MIN_SEGMENT_COLUMNS,
-    RUNNER_TRACK_SCHEMA_VERSION,
-    GroundProjection,
-    GroundProjectionMode,
-    RunnerGround,
-    RunnerHazard,
-    RunnerPickup,
-    RunnerSegmentChunk,
-    RunnerSegments,
-    RunnerStructuralGround,
-    RunnerTrack,
-    SegmentRole,
-    load_runner_track_bytes,
-    runner_track_sha256,
-    seam_profile,
-)
-from .structural_ground import (
+from stage_gen.components.painted_terrain.structural_ground import (
     STRUCTURAL_GROUND_APRON_COLUMNS,
     STRUCTURAL_GROUND_CANONICALIZER_ID,
     STRUCTURAL_GROUND_CELL_PX,
@@ -44,6 +25,26 @@ from .structural_ground import (
     validate_structural_ground_material_references,
     validate_structural_ground_seam_bridge,
     validate_structural_ground_source,
+)
+
+from .models import (
+    DEFAULT_GROUND_PROJECTION,
+    MAX_SEGMENT_COLUMNS,
+    MIN_SEGMENT_COLUMNS,
+    RUNNER_TRACK_SCHEMA_VERSION,
+    GroundProjection,
+    GroundProjectionMode,
+    RunnerGround,
+    RunnerHazard,
+    RunnerPickup,
+    RunnerSegmentChunk,
+    RunnerSegments,
+    RunnerStructuralGround,
+    RunnerTrack,
+    SegmentRole,
+    load_runner_track_bytes,
+    runner_track_sha256,
+    seam_profile,
 )
 
 __all__ = [

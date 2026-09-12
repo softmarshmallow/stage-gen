@@ -53,23 +53,11 @@ def test_offline_gate_removes_provider_credentials_and_lists_required_checks() -
     assert ("python", "scripts/write_model_policy_snapshot.py") in commands
     assert ("python", "godot/tools/write_game_model_policy_snapshot.py") in commands
     assert ("bun", "test") in commands
-    # The Godot suite runs against a fixture the gate writes itself, because
-    # `out/` is gitignored and a fresh clone has no run to point it at. Both
-    # halves are asserted here so neither can be dropped quietly.
-    fixture = [
-        command
-        for command in commands
-        if command[:2] == ("python", "godot/games/ember_hollow/tools/make_fixture_run.py")
-    ]
-    suite = [
-        command
-        for command in commands
-        if command[:2] == ("python", "godot/tools/run_native_suite.py")
-    ]
-    assert len(fixture) == 1, "the gate no longer writes the Godot fixture run"
-    assert len(suite) == 1, "the Godot suite is no longer in the gate"
-    assert suite[0][2] == "--run", "the Godot suite is not pointed at the fixture"
-    assert suite[0][3] == fixture[0][2], "the suite reads a different run than the gate wrote"
+    # Godot owns discovery, fixture preparation and the different native adapters.
+    # The root gate delegates without maintaining a second project/test roster.
+    assert commands.count(("python", "godot/tools/check.py")) == 1
+    assert not any("godot/tools/run_native_suite.py" in command for command in commands)
+    assert check.commands("python", scope="godot")[0] == ("python", "godot/tools/check.py")
 
 
 def test_games_gate_exercises_local_defaults_variants_and_explicit_sources() -> None:

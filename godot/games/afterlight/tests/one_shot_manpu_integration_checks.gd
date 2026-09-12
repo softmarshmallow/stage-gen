@@ -34,13 +34,12 @@ func _run() -> void:
 		return
 	await _check_menu()
 	await _check_afterlight_renderer()
-	await _check_tactical_renderer()
 	await _check_story_events()
 	for window_size: Vector2i in [Vector2i(1280, 900), Vector2i(2560, 1800)]:
 		await _check_lab_controls_and_views(window_size)
 	for issue: String in _errors: printerr("FAIL One-Shot Manpu integration: " + issue)
 	if _errors.is_empty():
-		print("PASS One-Shot Manpu integration: both 2D hosts, proportional camera composition, expired/hidden-owner cleanup, natural story emissions with mid-event Lab restore, static/shake/event controls, mouse/F6/pause/reset, same-instance 2D/3D camera-facing sprites and native 1x/2x output")
+		print("PASS One-Shot Manpu integration: Afterlight 2D host, proportional camera composition, expired/hidden-owner cleanup, natural story emissions with mid-event Lab restore, static/shake/event controls, mouse/F6/pause/reset, same-instance 2D/3D camera-facing sprites and native 1x/2x output")
 		if _capture_count > 0: print("One-shot Manpu captures: " + str(_capture_count))
 	quit(0 if _errors.is_empty() else 1)
 
@@ -91,42 +90,6 @@ func _check_afterlight_renderer() -> void:
 	cast.present(Transform2D.IDENTITY)
 	_expect(cast._one_shot_nodes.is_empty() and cast._manpu.one_shots().is_empty(), "Natural expiry must reclaim Afterlight event nodes.")
 
-
-func _check_tactical_renderer() -> void:
-	var stage := await _open("game:lab/demos/manpu")
-	if not _healthy(stage): return
-	stage._capture_frozen = true
-	stage._entry = 1.0
-	stage._natural_blink = false
-	stage._mode = "dialogue"
-	stage._update_character_layers()
-	var event: Dictionary = stage.emit_manpu("mira", "sigh_puff")
-	_expect(event["errors"].is_empty(), "The tactical presenter must consume the same one-shot contract and puff raster.")
-	if not event["errors"].is_empty(): return
-	stage._manpu_animation.advance(0.2)
-	stage._update_character_layers()
-	var sample: Dictionary = stage._manpu_animation.one_shots()[0]["sample"]
-	var attached: Rect2 = stage._manpu_world_rect(DESIGN_SIZE, "mira", "sigh_puff")
-	var posed: Rect2 = stage._composed_manpu_rect(DESIGN_SIZE, "mira", "sigh_puff", sample)
-	var delta_center: Vector2 = posed.get_center() - attached.get_center()
-	_expect(delta_center.is_equal_approx(attached.size.y * Vector2(float(sample["offset_x_ratio"]), float(sample["offset_y_ratio"]))), "Tactical puff drift must use original mark height in world space.")
-	var before: Dictionary = stage._manpu_animation.get_state()
-	for redraw in 5: stage._update_character_layers()
-	_expect(stage._manpu_animation.get_state() == before, "Repeated tactical synchronization/redraw must preserve event instances and clocks.")
-	await _capture("tactical-puff-1280")
-	if _capture_enabled:
-		var visible := await _frame_image()
-		stage._manpu_animation.cancel_one_shots()
-		stage._update_character_layers()
-		var absent := await _frame_image()
-		_expect(_different_pixels(visible, absent, root.get_final_transform() * posed) > 20, "The tactical draw path must visibly render the puff raster, not only update its controller.")
-	stage.emit_manpu("mira", "sigh_puff")
-	stage.emit_manpu("mira", "sigh_puff")
-	_expect(stage._manpu_animation.one_shots().size() >= 2, "The tactical draw path must preserve overlapping events.")
-	stage.exit_actor("mira")
-	_expect(stage._manpu_animation.one_shots().is_empty(), "A departing tactical actor must cancel attached events.")
-	var refused: Dictionary = stage.emit_manpu("mira", "sigh_puff")
-	_expect(not refused["errors"].is_empty(), "A departing tactical actor must not create another puff.")
 
 
 func _check_story_events() -> void:

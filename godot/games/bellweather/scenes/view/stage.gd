@@ -1,6 +1,10 @@
 class_name PlatformerStage
 extends Node2D
 
+const Parallax = preload("res://addons/sideview_rendering/parallax.gd")
+const ImageBaker = preload("res://addons/sideview_rendering/image_baker.gd")
+const SideviewRefusal = preload("res://addons/sideview_rendering/refusal.gd")
+
 ## The map, drawn: the bands behind it, the ground it stands on, and the gates
 ## out of it.
 ##
@@ -111,16 +115,19 @@ func sync(world: PlatformerWorld, scroll: Vector2) -> void:
 		# The band wraps rather than scrolls: the region is a whole number of
 		# repeats and only its origin moves, so a map wider than its own artwork
 		# never runs out of picture.
-		var origin := FamilyParallax.band_tile_position(
+		var origin: Variant = Parallax.band_tile_position(
 			scroll.x, float(band["parallax"]), float(band["scale"])
 		)
+		if SideviewRefusal.is_refusal(origin):
+			push_error("platformer stage: %s" % SideviewRefusal.line(origin))
+			continue
 		sprite.region_rect = Rect2(
-			fposmod(origin, float(band["sourceWidth"])),
+			fposmod(float(origin), float(band["sourceWidth"])),
 			0.0,
 			sprite.region_rect.size.x,
 			sprite.region_rect.size.y
 		)
-		if String(band["space"]) == FamilyParallax.SPACE_WORLD:
+		if String(band["space"]) == Parallax.SPACE_WORLD:
 			sprite.position.y = float(band["topY"]) - scroll.y
 		else:
 			sprite.position.y = float(band["topY"]) - scroll.y * float(band["parallax"])
@@ -134,7 +141,7 @@ func _build_bands(authored: Dictionary, plane: String) -> void:
 			continue
 		var placement: Dictionary = layer.get("placement", {})
 		var asset: Dictionary = layer.get("asset", {})
-		var layout := FamilyParallax.layer_layout(
+		var layout := Parallax.layer_layout(
 			String(placement.get("vertical_anchor", "")),
 			float(placement.get("vertical_offset", 0.0)),
 			float(placement.get("source_height", 1.0)),
@@ -143,26 +150,25 @@ func _build_bands(authored: Dictionary, plane: String) -> void:
 			walk_surface_y,
 			float(layer.get("parallax", 0.0))
 		)
-		if layout.is_empty():
+		if SideviewRefusal.is_refusal(layout):
 			push_error(
-				"platformer stage: layer %s does not describe a band" % layer.get("layer_id", "?")
+				"platformer stage: layer %s: %s" % [layer.get("layer_id", "?"), SideviewRefusal.line(layout)]
 			)
 			continue
 		var scale_factor := float(layout["scale"])
 		var tile_width := maxi(1, int(round(float(asset.get("width", 1)) * scale_factor)))
 		var tile_height := maxi(1, int(round(float(asset.get("height", 1)) * scale_factor)))
-		var texture := HostLayerTexture.band(
-			_package,
-			String(asset.get("path", "")),
+		var texture: Variant = ImageBaker.texture(
+			_package.image(String(asset.get("path", ""))),
 			layer.get("presentation", {}),
 			tile_width,
 			tile_height
 		)
-		if texture == null:
+		if SideviewRefusal.is_refusal(texture):
 			push_error(
 				(
-					"platformer stage: layer %s has no image at %s"
-					% [layer.get("layer_id", "?"), asset.get("path", "")]
+					"platformer stage: layer %s: %s"
+					% [layer.get("layer_id", "?"), SideviewRefusal.line(texture)]
 				)
 			)
 			continue
@@ -176,7 +182,7 @@ func _build_bands(authored: Dictionary, plane: String) -> void:
 		var repeats := 1 + int(ceil(VIEW_WIDTH / float(tile_width)))
 		sprite.region_rect = Rect2(0.0, 0.0, float(tile_width * repeats), float(tile_height))
 		sprite.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-		sprite.position = Vector2(0.0, float(layout["topY"]))
+		sprite.position = Vector2(0.0, float(layout["top_y"]))
 		sprite.z_index = (
 			(DEPTHS["background"] if plane == "background" else DEPTHS["foreground"])
 			+ int(layer.get("order", 0))
@@ -188,7 +194,7 @@ func _build_bands(authored: Dictionary, plane: String) -> void:
 				"parallax": float(layer.get("parallax", 0.0)),
 				"scale": scale_factor,
 				"sourceWidth": float(tile_width),
-				"topY": float(layout["topY"]),
+				"topY": float(layout["top_y"]),
 				"space": String(layout["space"]),
 			}
 		)
@@ -235,7 +241,10 @@ func _build_terrain(authored: Dictionary) -> void:
 func _build_portals(world: PlatformerWorld, authored: Dictionary) -> void:
 	var portal: Dictionary = authored.get("portal", {})
 	var asset: Dictionary = portal.get("asset", {})
-	var sheet := _package.texture(String(asset.get("path", "")))
+	var path := String(asset.get("path", ""))
+	if path.is_empty():
+		return
+	var sheet := _package.texture(path)
 	if sheet == null:
 		return
 	# A pair sheet holds both mouths side by side: the entry on the left, the
@@ -267,7 +276,10 @@ func _build_portals(world: PlatformerWorld, authored: Dictionary) -> void:
 ## fixed to both rather than as floating between them.
 func _build_climbables(world: PlatformerWorld, authored: Dictionary) -> void:
 	var block: Dictionary = authored.get("climbable", {})
-	var sheet := _package.texture(String((block.get("asset", {}) as Dictionary).get("path", "")))
+	var path := String((block.get("asset", {}) as Dictionary).get("path", ""))
+	if path.is_empty():
+		return
+	var sheet := _package.texture(path)
 	if sheet == null:
 		return
 	var cells := {}

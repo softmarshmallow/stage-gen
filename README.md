@@ -9,6 +9,13 @@ The product accepts caller-owned Python pipeline definitions and explicit input,
 output and cache directories. TOML may describe the assets of a particular recipe;
 there is no universal gameplay document required by the public SDK.
 
+This repository houses two separately owned products: **Stage Gen**, the main
+asset product described here, and the **[Godot example project](godot/README.md)**,
+a maintained consumer project with its own games, runtime packages, templates and
+tools. Godot demonstrates ways to use Stage Gen; its gameplay architecture can
+evolve within that project without becoming part of the asset SDK's contract.
+The [Godot project charter](godot/CHARTER.md) defines that continuing boundary.
+
 ## Start with a local asset pipeline
 
 Python 3.12 or newer is required. From this checkout:

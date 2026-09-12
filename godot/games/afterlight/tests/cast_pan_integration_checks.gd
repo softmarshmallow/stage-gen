@@ -1,7 +1,7 @@
 extends "res://tests/afterlight_ensemble_checks.gd"
 
-## Native group-pan proof: background/UI stay put while actor-local behavior
-## continues beneath an independently sampled layer transform.
+## Native group-pan proof: scenery/UI stay put while actor-local behavior and
+## world atmosphere continue beneath their independently sampled transforms.
 const PAN_OUTPUT := "res://tests/cast-pan"
 const FIRST_PAN_BEAT := "riko_on_the_glass"
 const BACKGROUND_REGION := Rect2i(0, 200, 1280, 410)
@@ -64,14 +64,14 @@ func _story_pan(factor: int) -> void:
 	var local := _local_rects(stage)
 	var world: Transform2D = game._world_transform()
 	_expect(world.is_equal_approx(Transform2D.IDENTITY), "The physical conversation must retain the wide, unpanned world camera.")
-	var background := await _background_pixels(stage, factor)
+	var background := await _background_pixels(stage, factor, game)
 	game._process(delay - 0.01)
 	_expect(game._cast_pan.sample_transform().is_equal_approx(Transform2D.IDENTITY), "The first cast pan must wait for its authored delay.")
 	await _pan_frame("story-before-" + str(factor), game._cast_pan, stage, game)
 	game._process(0.01 + duration * 0.5)
 	_expect(game._load_errors.is_empty() and game._cast_pan.is_moving(), "The first actor target must start a valid group pan.")
 	_assert_story_group(game, local, world)
-	_expect(background == await _background_pixels(stage, factor), "Native background pixels must remain fixed while the cast moves.")
+	_expect(background == await _background_pixels(stage, factor, game), "Native scenery pixels must remain fixed while the cast moves and atmosphere advances independently.")
 	await _pan_frame("story-riko-midpoint-" + str(factor), game._cast_pan, stage, game)
 	await _language_and_detour(game, FIRST_PAN_BEAT)
 	game = _active()
@@ -91,7 +91,7 @@ func _story_pan(factor: int) -> void:
 	game._process(duration * 0.5 + 0.01)
 	_assert_story_group(game, local, world)
 	_expect(is_equal_approx(stage._sprites["yuzu"].get_rect().get_center().x, 640.0), "The opposite-side actor must also reach the same anchor without background panning.")
-	_expect(background == await _background_pixels(stage, factor), "The background must remain pixel-identical after panning in the opposite direction.")
+	_expect(background == await _background_pixels(stage, factor, game), "Scenery must remain pixel-identical after panning in the opposite direction.")
 	await _pan_frame("story-yuzu-centered-" + str(factor), game._cast_pan, stage, game)
 	game._continue_story()
 	_expect(str(game.current_beat()["id"]) == "waiting_for_the_signal", "The final existing line must retarget Riko again.")
@@ -117,6 +117,8 @@ func _assert_story_group(game: Control, local: Dictionary, world: Transform2D) -
 	_expect(_same(local, _local_rects(stage)), "Group pan must not modify actor-local blocking positions, scale or pair spacing.")
 	_expect(game._world_transform().is_equal_approx(world), "Group pan must not change the camera/background transform.")
 	_expect(game._cast_transform().is_equal_approx(world * game._cast_pan.sample_transform()), "Cast framing must compose the world and group transforms in order.")
+	for emitter: Control in game._ambient_emitters:
+		_expect(emitter._camera.is_equal_approx(world), "Atmosphere must retain world framing without inheriting the cast pan: " + str(emitter.name))
 	var delta: float = game._cast_transform().origin.x
 	for actor_id: String in stage.visible_ids():
 		var actual: Rect2 = stage._sprites[actor_id].get_rect()
@@ -147,14 +149,27 @@ func _world_snapshot(game: Control) -> Dictionary:
 	return result
 
 
-func _background_pixels(stage: Control, factor: int) -> PackedByteArray:
+func _background_pixels(stage: Control, factor: int, game: Control = null) -> PackedByteArray:
 	var was_visible := stage.visible
+	var atmosphere_was_visible := false
+	var atmosphere := {}
+	if game != null:
+		# Particles deliberately advance with the story clock. Isolate the fixed
+		# scenery for this pixel comparison, then restore the untouched atmosphere
+		# for the full scene captures and independent world-transform assertions.
+		atmosphere = game.get_atmosphere_state()
+		atmosphere_was_visible = game._atmosphere_layer.visible
+		game._atmosphere_layer.hide()
 	stage.hide()
 	await _settle()
 	RenderingServer.force_draw(false)
 	var pixels := root.get_texture().get_image().get_region(Rect2i(BACKGROUND_REGION.position * factor, BACKGROUND_REGION.size * factor)).get_data()
 	stage.visible = was_visible
+	if game != null:
+		game._atmosphere_layer.visible = atmosphere_was_visible
 	await _settle()
+	if game != null:
+		_expect(atmosphere == game.get_atmosphere_state(), "Scenery sampling must preserve every atmosphere clock and particle sample exactly.")
 	return pixels
 
 
