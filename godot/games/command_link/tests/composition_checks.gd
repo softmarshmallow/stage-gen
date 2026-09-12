@@ -60,7 +60,7 @@ func _game_roots() -> void:
 	_expect(command_link != other_command_link, "Root factories must not return shared mutable singletons.")
 	_expect(command_link.call("id") == "command_link" and laboratory.call("id") == "lab", "Roots must retain distinct identities.")
 	_expect(command_link.call("entry_route") == "opening", "Command Link must begin with its opening.")
-	_expect((command_link.call("validate_options", {"opening-variant": "b"}) as Array).is_empty(), "Command Link must retain its authored opening variants.")
+	_expect((command_link.call("validate_options", {}) as Array).is_empty(), "Command Link must accept a launch without options.")
 	_expect(String(command_link.call("scene_path", "demos/manpu")).is_empty(), "Command Link must not own technical study routes.")
 	_expect(not String(laboratory.call("scene_path", "demos/manpu")).is_empty(), "The Lab must own the focused studies.")
 	var command_scene: Control = _root_scene(command_link, "game")

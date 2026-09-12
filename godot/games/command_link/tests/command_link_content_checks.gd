@@ -103,7 +103,7 @@ func _opening(game: RefCounted, options: Dictionary) -> void:
 	opening.queue_free()
 	await process_frame
 	var missing = OPENING.new()
-	game.prepare_scene(missing, "opening", {"content-root": _fixture_root, "opening-variant": "b"}, {})
+	game.prepare_scene(missing, "opening", {"content-root": _fixture_root}, {})
 	missing.navigate.connect(func(_route: String): navigations.count += 1)
 	root.add_child(missing)
 	await process_frame

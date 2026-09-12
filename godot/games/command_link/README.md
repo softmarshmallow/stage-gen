@@ -12,7 +12,7 @@ Godot --path godot/games/command_link
 
 | Here | What it is |
 | --- | --- |
-| `main.tscn`, `main.gd`, `roots.gd` | the shell: `--game command_link` (default) or `--game lab`, `--content-root`, `--opening-variant a` or `b` |
+| `main.tscn`, `main.gd`, `roots.gd` | the shell: `--game command_link` (default) or `--game lab`, `--content-root` |
 | `root.gd`, `game.gd`, `menu.gd`, `stage_profile.gd` | the mission composition, its game scene and menu |
 | `presentation/` | the integration code the mission is staged with: stage, profile, actor overlay, opening, tactical theme, curve graph |
 | `assets/` | the game's art, contact layout, Manpu marks and opening video; catalogs tracked, bytes local |

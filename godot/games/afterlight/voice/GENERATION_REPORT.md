@@ -52,8 +52,8 @@ generation settings. A credential-free preparation inspection reports all 80
 ready, zero pending/blocked, and skips all 36 intentional-none entries. The
 game's separate status export classifies authored freshness and media integrity.
 
-[preparation_report.json](preparation_report.json) records the counts, source
-text hashes, manifest digest, durations, and usage reconciliation.
+The pass journal under the ignored `art/voiceovers-p95/` records the counts,
+source text hashes, manifest digest, durations, and usage reconciliation.
 [Playback QA](../tests/voiceovers/REVIEW.md) records the runtime lifecycle and
 native mixer checks. The helper's six provider-free test groups verify explicit
 none, lineage-aware reuse, charged rejection accounting, uncertain-outcome

@@ -87,11 +87,7 @@ func open_route(route_id: String) -> bool:
 	if target_root == null:
 		printerr("Unknown game: " + target_id)
 		return false
-	# Opening selection belongs to the mission; the Lab ignores it. Keep the
-	# original launch options so returning retains the selected variant.
 	var destination_options := options.duplicate()
-	if target_id != "command_link":
-		destination_options.erase("opening-variant")
 	var option_errors: Array[String] = target_root.validate_options(destination_options)
 	if not option_errors.is_empty():
 		for issue in option_errors: printerr(issue)

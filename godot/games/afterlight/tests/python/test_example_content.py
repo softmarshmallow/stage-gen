@@ -26,18 +26,16 @@ def fixture_project(root: Path) -> Path:
                 "lines": {
                     "line": {
                         "en": {
-                            "path": "res://clips/line.mp3",
-                            "provenance_path": "clips/line.mp3.meta.json",
+                            "path": "res://voice/clips/line.mp3",
                         }
                     }
                 }
             }
         )
     )
-    clips = root / "clips"
+    clips = voice / "clips"
     clips.mkdir()
     (clips / "line.mp3").write_bytes(b"prepared bytes")
-    (clips / "line.mp3.meta.json").write_text('{"rights":"fixture"}')
     assets = root / "assets"
     assets.mkdir()
     (assets / "art.png").write_bytes(b"prepared image")
@@ -46,15 +44,14 @@ def fixture_project(root: Path) -> Path:
     return root
 
 
-def test_copy_preserves_bound_content_and_provenance_without_code(tmp_path: Path) -> None:
+def test_copy_preserves_bound_content_without_code(tmp_path: Path) -> None:
     source = fixture_project(tmp_path / "source")
     output = tmp_path / "content"
     result = content.prepare(output, source)
     assert set(result["files"]) == {
         "assets/art.png",
         "voice/manifest.json",
-        "clips/line.mp3",
-        "clips/line.mp3.meta.json",
+        "voice/clips/line.mp3",
     }
     for relative in result["files"]:
         assert (output / relative).read_bytes() == (source / relative).read_bytes()
@@ -84,7 +81,7 @@ def test_recording_bindings_cannot_escape(tmp_path: Path, binding: str) -> None:
 
 def test_symlink_content_is_rejected(tmp_path: Path) -> None:
     source = fixture_project(tmp_path / "source")
-    original = source / "clips/line.mp3"
+    original = source / "voice/clips/line.mp3"
     original.unlink()
     original.symlink_to(source / "assets/art.png")
     with pytest.raises(ValueError, match="symbolic link"):
@@ -94,7 +91,7 @@ def test_symlink_content_is_rejected(tmp_path: Path) -> None:
 
 def test_missing_recording_has_no_partial_destination(tmp_path: Path) -> None:
     source = fixture_project(tmp_path / "source")
-    (source / "clips/line.mp3").unlink()
+    (source / "voice/clips/line.mp3").unlink()
     with pytest.raises(FileNotFoundError):
         content.prepare(tmp_path / "output", source)
     assert not (tmp_path / "output").exists()

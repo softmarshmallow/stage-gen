@@ -45,7 +45,7 @@ content_root/
     games/bishoujo_afterlight/assets/      portraits and backgrounds
     games/bishoujo_afterlight/text/        English and Korean display text
     games/bishoujo_afterlight/voice/       policy, casts, speech overrides, manifest
-    art/voiceovers-p95/clips/{en,ko}/       bound recordings and provenance
+    voice/clips/{en,ko}/       bound recordings and provenance
 ```
 
 A provider-free helper copies the prepared local files, retaining selected

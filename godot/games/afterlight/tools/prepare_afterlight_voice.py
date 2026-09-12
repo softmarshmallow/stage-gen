@@ -216,7 +216,8 @@ class PassJournal:
     def artifact(self, line: dict[str, Any]) -> Path:
         return confined(
             self.project,
-            self.directory
+            self.project
+            / "voice"
             / "clips"
             / line["language"]
             / f"{line['line_id']}-{line['preparation_revision'][:16]}.mp3",
@@ -334,8 +335,6 @@ def verified_clip(
         "path": "res://" + path.relative_to(journal.project).as_posix(),
         **expected,
         "audio_sha256": audio_digest,
-        "provenance_path": sidecar.relative_to(journal.project).as_posix(),
-        "provenance_sha256": hashlib.sha256(sidecar.read_bytes()).hexdigest(),
         "duration_seconds": facts["duration_seconds"],
         "speaker_id": line["speaker_id"],
         "provider": meta.provider,

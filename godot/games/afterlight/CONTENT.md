@@ -25,11 +25,11 @@ text/ko.json
 voice/voices.json
 voice/cast.json
 voice/manifest.json
-art/voiceovers-p95/clips/{en,ko}/       # selected manifest recording paths
+voice/clips/{en,ko}/                   # manifest recording paths
 ```
 
-Use the workspace's `tools/prepare_example_content.py` to assemble the current
-selection and preserve its provenance. The exporter does not generate new media.
+Use the project's `tools/prepare_example_content.py` to assemble the current
+selection. The exporter does not generate new media.
 When replacing media for another game, its host bindings can name different
 supported extensions and geometry. The SDK does not depend on these paths,
 Afterlight IDs, the manpu catalog schema or this voice manifest.

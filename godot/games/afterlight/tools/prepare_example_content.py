@@ -17,7 +17,6 @@ from pathlib import Path
 PROJECT = Path(__file__).resolve().parents[1]
 CONTENT_DIRECTORIES = (
     "assets",
-    "assets",
     "text",
     "voice",
 )
@@ -55,7 +54,7 @@ def content_files(project: Path) -> list[Path]:
     def recordings(value: object) -> None:
         if isinstance(value, dict):
             for key, entry in value.items():
-                if key in {"path", "provenance_path"} and isinstance(entry, str):
+                if key == "path" and isinstance(entry, str):
                     files.add(_confined_file(project, entry.removeprefix("res://")))
                 else:
                     recordings(entry)

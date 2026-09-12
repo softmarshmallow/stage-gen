@@ -8,7 +8,7 @@ const SCENES := {
 	"menu": "res://menu.tscn",
 	"opening": "res://presentation/opening.tscn",
 }
-const OPENING_VIDEOS := {"a": "res://assets/opening/title.ogv", "b": "res://assets/opening/title_b.ogv"}
+const OPENING_VIDEO := "res://assets/opening/title.ogv"
 
 
 func id() -> String:
@@ -28,8 +28,6 @@ func scene_path(route_id: String) -> String:
 
 
 func validate_options(options: Dictionary) -> Array[String]:
-	if not OPENING_VIDEOS.has(str(options.get("opening-variant", "a"))):
-		return ["Unknown opening variant. Use --opening-variant a or --opening-variant b."]
 	if options.has("content-root") and not options["content-root"] is String:
 		return ["--content-root requires an absolute local directory."]
 	var content = LOCAL_CONTENT.new()
@@ -44,7 +42,7 @@ func prepare_scene(scene: Control, route_id: String, options: Dictionary, saved_
 		"menu":
 			scene.has_saved_game = not saved_state.is_empty()
 		"opening":
-			scene.video_path = OPENING_VIDEOS[str(options.get("opening-variant", "a"))]
+			scene.video_path = OPENING_VIDEO
 			var content = LOCAL_CONTENT.new()
 			scene.content_loader = content
 			scene.content_errors.assign(content.configure(String(options.get("content-root", "res://")), "files" if options.has("content-root") else "resources"))
