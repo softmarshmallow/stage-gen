@@ -871,3 +871,59 @@ Reply to the explicit question approving installation of the linked Nami detail 
 ## P120
 
 > I kind of would defer that, but um, we should have some anchor document that how we keep things currently. I don't want to, I don't want to start committing the assets we have. Maybe, maybe once when our game is completely landed, but just not now. And... And yeah, I just don't know how things should be working. I have no idea.
+
+## P121
+
+> You know what? It only makes sense when you do have the assets in the repository. It should be a full runnable example. And that is just the nature of the game. We should treat any assets just like any code changes. That is expected. And LFS should simply bind any asset types so we don't have to manage them manually. Plus, whatever goes under the games are treated like just regular Godot project. Does this close the tricky half of the part?
+
+## P122
+
+> The game only ships the final one and just don't care about anything else. We don't need the meta JSON or the license tracking. We don't need nothing of them. Just, just treat this as regular project, just under the certain directory. Don't make anything complicated as it don't need to be. Just don't. I'm not saying that we should include everything. Obviously, the part you said, the art directory, which is, which the name was just an arbitrary folder that, that we worked to make some game assets of our own. But whatever, th those inputs and iterations can be completely ignored. I mean, removed at the first place. But whatever it is used in the game asset, assume there are good to go already and just don't much care about them. That is not our project's goal. That is not our project's goal at all.
+
+## P123
+
+> I think the assets from Afterlight still contains the legacy duplicate assets from command link. which should be cleaned up. Can you can you list them? Uh, also, is there a way we can automatically list the assets we are not in use?
+
+## P124
+
+> all clean, ready to commit (push) ?
+
+## P125
+
+> Do I forever pay for payload (other people downloads), even if its OSS?
+
+## P126
+
+> how much am I likely to pay when this project goes well
+
+## P127
+
+> and whenever I decide LFS go away, with extra work, I can do that right ? what if specific commit had, e.g. 500GB file and hacker just with no purpose keeps cloning that - is that as well possible ?
+
+## P128
+
+> what do game studio do? do they just use LFS or other? (not OSS, just regular game projects)
+
+## P129
+
+> list all lfs included assets and size - our current
+
+## P130
+
+> what goes terribly wrong if we not use LFS for now, and just commit them? (as github does allow that size)
+
+## P131
+
+> if we rewrite in the future, do commit count go back to 1 ?
+
+## P132
+
+> I think vanilla git is the right move. and we can also optionally consider having 2 repo one other just for that games, and submodule it from stage-gen. thoughts ?
+
+## P133
+
+> this is the right one to do: 1. stage-gen (this repo) 2. stage-gen-examples (the new repo, game and content rich) we still need to decide if the entire godot becomes the examples or the games. but if only the games, the SDK lives under here (which only examples consumes) so things dont align. but I think the repo split is the right move, but not sure with the exact how and exact topology. can you suggest
+
+## P134
+
+> You know what? This is too much responsibility to plan and execute properly now. For now, I just wanted to open an issue around it and then defer any actions. And the only action we will take now is that we commit and push things without asset as we discussed a few turns earlier.

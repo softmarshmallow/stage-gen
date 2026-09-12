@@ -29,8 +29,8 @@ no media bytes.
 | reviews and records that already sit outside `art/` | `tests/**` outputs other than suites and review notes |
 | suites (`tests/*.gd`), review notes (`tests/**/*.md`), Python tests | `.godot/` import caches |
 
-Afterlight's bound set is 13 active images, placeholders, the Manpu marks and 80
-recordings, about 110 MB. Command Link's is 20 images plus two opening videos,
+Afterlight's bound set is 13 active images, the Manpu marks and 80 recordings
+under `voice/clips/`, about 90 MB. Command Link's is 20 images plus two opening videos,
 about 119 MB, of which the videos are 98 MB. Generation rounds and evidence add
 roughly 740 MB more that will never be candidates for Git.
 
@@ -65,8 +65,8 @@ python3 godot/games/afterlight/tools/prepare_example_content.py --output /privat
 Godot --path godot/games/afterlight -- --language ko --content-root /private/tmp/afterlight-content
 ```
 
-The content root mirrors the project layout: `assets/`, `text/`, `voice/` and
-`art/voiceovers-p95/clips/`. It is a host convention, not a package schema. The
+The content root mirrors the project layout: `assets/`, `text/` and `voice/`
+with `voice/clips/`. It is a host convention, not a package schema. The
 files backend never falls back to the project's own media, so a wrong root is a
 refusal, not a silent mix.
 
@@ -76,37 +76,21 @@ rendered previews, and are adopted by replacing the bound file and updating the
 catalog digest. Provenance for every adopted file lives in its round record
 under `art/`.
 
-## The deferred decision: media in Git
+## The decision, and what is deferred
 
-The user's direction is that the bound media should eventually live in Git so
-that a clone plays and a contract's asset dependence is visible in the tree.
-The concern is history bloat, because game media is replaced often. Committing
-is deferred until the game has landed; nothing is adopted now.
+The bound media will live in Git as plain objects, like any Godot project's,
+with no LFS, no `.meta.json` sidecars, no inventory entries and no rights
+records: whatever a game ships is its own asset. Git LFS was tried and
+rejected, because GitHub meters LFS downloads to the repository owner with no
+exemption for public repositories, while plain Git clones are free.
 
-When it happens, this is the discipline, in the order it applies:
-
-1. **Only bound bytes.** A binary is tracked only when a tracked catalog,
-   manifest or scene references it. A closure test enforces both directions:
-   every referenced file exists, every tracked binary is referenced. Rounds,
-   candidates, previews, captures and raw returns stay under `art/` and ignored.
-2. **Replacement, never accumulation.** A revised file lands at the same path,
-   one commit per review round, after candidates were compared outside the tree.
-3. **Written budgets.** 8 MiB per file, 150 MiB per game's bound set, enforced by
-   a gate and changed only by a commit that says why.
-4. **The opening video stays external.** The selected variant alone is 51 MB and
-   Command Link already falls back to a title without it.
-5. **Lossless, optimized once at adoption.** PNG through an optimizer or lossless
-   WebP; recordings as delivered; `.import` sidecars tracked with the bytes.
-6. **Rights ride with the bytes.** The game's `assets/` becomes a declared
-   publication root; a sidecar is generated from the round record and the review
-   verdict; the redistribution decision is attested by the user, once per round.
-   ElevenLabs redistribution terms are confirmed before recordings go public.
-7. **LFS is decided once, before the first public push.** Plain Git keeps clones
-   dependency-free, which [the storage policy](../../docs/repository-storage.md)
-   chose on purpose. Migrating a media family to LFS rewrites history, cheap
-   before publication and painful after, so the media share of history is
-   measured then and the question closed.
-
-Until then, the storage policy's rules apply unchanged: no media bytes in Git,
-every committed binary needs a reason, provenance and rights status, and the
-publication gate governs any generated file that does enter a declared root.
+What is deferred is where that Git history lives. About 160 MB of media per
+art round does not belong in the generator's history, so the Godot line, the
+presentation SDK with its template and games, is proposed to move to its own
+repository; the topology and the steps are in
+[issue #14](https://github.com/softmarshmallow/stage-gen/issues/14). Until
+that is settled, the media stays on the authoring machine and this repository
+tracks only code, catalogs and digests, with the storage policy unchanged.
+Only what a game reaches is tracked: `python3 godot/tools/unused_assets.py
+godot/games/*` lists any tracked asset or catalog no scene, script or catalog
+names, and a contract test fails when it lists anything.
