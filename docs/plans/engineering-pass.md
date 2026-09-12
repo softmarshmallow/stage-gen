@@ -251,7 +251,7 @@ what they say about the pipeline side, which is unchanged:
 
 | # | Fact | Buys | Effort | ROI |
 | --- | --- | --- | --- | --- |
-| G1 | `library/games/` is not a media publication root: the rights gate walks two files and no game asset; four of six packages carry `unreviewed` media | Declare the root; the policy binds what it was written for; A1 stops recurring | M | H |
+| G1 | `godot/legacy/inputs/` is not a media publication root: the rights gate walks two files and no game asset; four of six packages carry `unreviewed` media | Declare the root; the policy binds what it was written for; A1 stops recurring | M | H |
 | G2 | `main.toml` selects one game; `validate_game_package.py` validates only it; `the_grain` (81 ops, the largest package) has zero tests reading its source | Loop validation over the library in the gate | S | H |
 | G3 | History is sliced from a large worktree after the fact; mixed-thread commits are the norm; the gate is run by memory | One workstream per short-lived branch, merged green through CI, one card per commit. This changes the standing "everything on `main`, nothing pushed" habit and is flagged as a decision below | — | H |
 | G4 | Regeneration policy is "drop rather than translate" at every layer | Keep it at the document boundary (it is why there are no compat shims); replace it at the node boundary with C-R2, and at the manifest boundary with C-R3 | — | H |
@@ -308,7 +308,7 @@ machine:
 6. The two shipped games replay to a golden; the runtime kernel refuses two
    owners of a slice and an undeclared write; the platformer is on the
    sealed roster.
-7. `library/games/` is a media publication root and all six packages plan
+7. `godot/legacy/inputs/` is a media publication root and all six packages plan
    and validate in the gate.
 8. `TODO.md` is under 150 lines; decisions live in `docs/decisions/`; no
    doc names a `src/` path that does not exist.
@@ -896,7 +896,7 @@ thirty-two specs, and the runtime lane's step 7 branch is editing one of the fiv
 "proposed TO-BE" documents F2 moves (`runtime-composition-plan.md`, its evidence
 lines); the pass lands after that branch fast-forwards, on a clean tree, so the move
 and the merge cannot fight. **G1** is measured smaller than the card and blocked on a
-person: under `library/games/` the eighteen binaries are authored inputs whose digest,
+person: under `godot/legacy/inputs/` the eighteen binaries are authored inputs whose digest,
 origin and rights sit in the game contract - already outside the publication gate by
 the policy's own words - plus exactly one generated artifact, the pinned take
 `iron-petal-unit/runner/audio/mira_go.mp3`, whose sidecar says `unreviewed`. Declaring
@@ -925,7 +925,7 @@ score vocabulary a story game never pays. Five systems joined the platformer ros
 quiet for both shipped packages: **both platformer goldens byte-identical, nothing
 re-pinned**; the runner's `10` / `500` preserved, E1 zero diff. Ordering cost: one new
 `after` edge and one new undeclared feedback read (the step-2 list is now ten). The
-variant `library/games/bellweather-waves/` is Bellweather file for file except
+variant `godot/legacy/inputs/bellweather-waves/` is Bellweather file for file except
 `gameplay.toml` (entry on Crowncrag Road, `[score]`, `[timers]`); its plan shares all
 230 node ids with Bellweather's and moves exactly three cache keys, all local. Assembled
 provider-free: `ok`, zero provider operations in every count, 109 artifacts, 122 of 230

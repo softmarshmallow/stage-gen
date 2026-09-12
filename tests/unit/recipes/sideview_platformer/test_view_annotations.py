@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from gnode import Node, Port, RetryOwner
-from stage_gen.recipes.sideview_platformer.execution_graph import OperationKind
-from stage_gen.recipes.sideview_platformer.view_annotations import (
+from stage_gen_legacy.recipes.sideview_platformer.execution_graph import OperationKind
+from stage_gen_legacy.recipes.sideview_platformer.view_annotations import (
     annotate_sideview_platformer_artifact,
 )
 
@@ -44,7 +44,7 @@ def test_motion_ports_get_frame_geometry_from_the_declared_type() -> None:
     annotation = annotate_sideview_platformer_artifact(ref, node)
     assert annotation.display == "motion_atlas"
     assert annotation.motion is not None
-    assert annotation.motion.frame_count == 4
+    assert annotation.motion["frame_count"] == 4
     # Ports killed the path-convention guess; only the playback gap remains.
     assert {gap.gap_id for gap in annotation.gaps} == {"motion-playback-not-in-run-documents"}
 
@@ -57,7 +57,7 @@ def test_player_climb_states_use_the_two_cell_geometry() -> None:
     )
     annotation = annotate_sideview_platformer_artifact(ref, node)
     assert annotation.motion is not None
-    assert annotation.motion.frame_count == 2
+    assert annotation.motion["frame_count"] == 2
 
 
 def test_npc_world_sprites_are_motion_atlases_with_default_geometry() -> None:
@@ -71,7 +71,7 @@ def test_npc_world_sprites_are_motion_atlases_with_default_geometry() -> None:
     annotation = annotate_sideview_platformer_artifact(ref, node)
     assert annotation.display == "motion_atlas"
     assert annotation.motion is not None
-    assert annotation.motion.frame_count == 4
+    assert annotation.motion["frame_count"] == 4
 
 
 def test_everything_else_falls_back_to_media_type() -> None:

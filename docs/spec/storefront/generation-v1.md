@@ -4,7 +4,7 @@
 
 > **Contract maturity: exact-current authored contracts.** Executable authority:
 > `src/stage_gen/recipes/storefront/`. The committed fixture package is
-> `library/games/ember-hollow`, whose `storefront.toml` sits beside the survival
+> `godot/legacy/inputs/ember-hollow`, whose `storefront.toml` sits beside the survival
 > package's own root document and reads none of it.
 
 ## What this recipe is
@@ -125,7 +125,7 @@ again — the same key restores the same image. The draw index in
 enters only the image node's identity:
 
 ```bash
-stage-gen storefront generate --input library/games/ember-hollow \
+stage-gen storefront generate --input godot/legacy/inputs/ember-hollow \
   --output out/storefront-v2 --draw-ledger out/storefront-v1/draw-ledger.json \
   --reroll icon
 ```
@@ -189,14 +189,14 @@ images and six structured calls.
 
 ## Executable graph contract
 
-Derived by `scripts/write_pipeline_graph_contract.py`; regenerate with `--write`
+Derived by `godot/legacy/tools/write_pipeline_graph_contract.py`; regenerate with `--write`
 after any change to the surface table, the fan-out or the routes.
 
 <!-- pipeline-graph-contract:start -->
 ```json
 {
   "kind": "storefront-execution-graph-contract-v1",
-  "fixture_ref": "library/games/ember-hollow",
+  "fixture_ref": "godot/legacy/inputs/ember-hollow",
   "surface_count": 4,
   "graph_schema_version": 2,
   "topology_sha256": "96938313988c40bfd9bed3e94bb7434d0eeb3c7f53cb23d403ffa374d5260b32",

@@ -19,9 +19,9 @@ from gnode import (
     Port,
 )
 from stage_gen.components._node_kit import object_digest
-from stage_gen.components.game_soundtrack import SoundtrackTrack, TrackGenerationIntent
-from stage_gen.components.game_soundtrack import nodes as family
-from stage_gen.components.game_soundtrack.nodes import (
+from stage_gen.components.music import SoundtrackTrack, TrackGenerationIntent
+from stage_gen.components.music import nodes as family
+from stage_gen.components.music.nodes import (
     SOUNDTRACK_GENERATE,
     SOUNDTRACK_VALIDATE,
     SoundtrackHandlers,

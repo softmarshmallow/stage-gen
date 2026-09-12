@@ -1,12 +1,6 @@
-"""Port and digest helpers every recipe's graph builder writes the same way.
+"""Compatibility imports for portable pipeline graph helpers."""
 
-The implementations live in ``components._node_kit`` so a shared node family can use them
-too; this module is the recipes' name for them.
-"""
-
-from __future__ import annotations
-
-from stage_gen.components._node_kit import (
+from stage_gen.pipeline.ports import (
     artifact_port,
     attempts_port,
     object_digest,

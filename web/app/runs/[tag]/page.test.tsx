@@ -4,6 +4,7 @@ import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   dialogueExecutionViewFixture,
+  pipelineExecutionViewFixture,
   executionViewFixture,
   failedExecutionViewFixture,
   unfinishedExecutionViewFixture,
@@ -15,6 +16,7 @@ import {
 import { runDirFor } from "@/lib/shell/runs";
 import NodeInspector from "./Inspector";
 import MotionPlayer from "./MotionPlayer";
+import { parallaxFixture } from "@/lib/run-viewer/artifact-preview.fixture";
 import RunPage from "./page";
 import RunViewer from "./RunViewer";
 
@@ -51,6 +53,25 @@ async function writeRun(tag: string, document: Record<string, unknown>): Promise
 }
 
 describe("run view route", () => {
+  test("renders a custom pipeline and its supplied parallax layers without a game manifest", async () => {
+    const document = pipelineExecutionViewFixture();
+    const nodes = document.nodes as Record<string, unknown>[];
+    const artifact = (nodes[0].artifacts as Record<string, unknown>[])[0];
+    artifact.preview = parallaxFixture();
+    const tag = `run-view-custom-${process.pid}`;
+    await writeRun(tag, document);
+    const markup = renderToStaticMarkup(await RunPage({ params: Promise.resolve({ tag }) }));
+    expect(markup).toContain("Material study");
+    expect(markup).toContain("user.tools-material-set");
+    expect(markup).not.toContain(">game<");
+    const view = parseExecutionView(document);
+    const inspector = inspect(view.nodes, view.nodes[0].nodeId, tag);
+    expect(inspector).toContain("Supplied parallax layers");
+    expect(inspector).toContain("Horizontal offset");
+    expect(inspector).toContain(`/api/assets/${tag}/layers/sky.png`);
+    expect(inspector).toContain("repeat-x");
+  });
+
   test("renders the graph chips, states, and run facts for a finished run", async () => {
     const tag = `run-view-page-${process.pid}`;
     await writeRun(tag, executionViewFixture());

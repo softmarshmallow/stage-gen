@@ -10,6 +10,7 @@ step now runs, every step is timed, and the verdict is a table.
 
 from __future__ import annotations
 
+import argparse
 import os
 import subprocess
 import sys
@@ -20,6 +21,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
 WEB_ROOT = REPOSITORY_ROOT / "web"
 CREDENTIAL_VARIABLES = (
     "OPENAI_API_KEY",
@@ -55,162 +58,212 @@ def sanitized_environment(source: dict[str, str] | None = None) -> dict[str, str
     return environment
 
 
-def commands(python: str = sys.executable) -> tuple[tuple[str, ...], ...]:
+def commands(
+    python: str = sys.executable, *, scope: str = "product"
+) -> tuple[tuple[str, ...], ...]:
     """The repository-rooted command list, kept for callers that read it as data."""
 
-    return tuple(step.command for step in steps(python, scratch=Path("/dev/null")))
+    return tuple(step.command for step in steps(python, scratch=Path("/dev/null"), scope=scope))
 
 
-def steps(python: str = sys.executable, *, scratch: Path) -> tuple[Step, ...]:
-    """Every step of the gate, in the order it runs.
-
-    ``scratch`` receives the dry-run outputs: each recipe insists on a new
-    immutable output directory, so an offline plan of a package is a fake run
-    into a directory nobody keeps.
-    """
-
-    def dry_run(*command: str, name: str) -> Step:
-        # A dry run writes its own fake cache; it goes to scratch, never to the real
-        # cache root every paid checkpoint restores from.
-        return Step(
+def _legacy_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
+    """Preserved game readers and plans; no provider services are constructed."""
+    result = [
+        Step(
             (
-                *command,
-                "--dry-run",
-                "--cache-dir",
-                str(scratch / "cache"),
-                "--output",
-                str(scratch / name),
+                "stage-gen",
+                "legacy",
+                "package",
+                "plan",
+                "--input",
+                f"godot/legacy/inputs/{name}",
+                "--genre",
+                genre,
             )
         )
+        for name, genre in (
+            ("bellweather", "platformer"),
+            ("bellweather-waves", "platformer"),
+            ("iron-petal-unit", "runner"),
+        )
+    ]
+    for family, name in (
+        ("pointclick-room", "clockmakers_attic"),
+        ("dialogue-scene", "larkfield"),
+        ("dialogue-scene", "the_grain"),
+        ("oblique-survival", "ember-hollow"),
+    ):
+        result.append(
+            Step(
+                (
+                    "stage-gen",
+                    "legacy",
+                    family,
+                    "generate",
+                    "--input",
+                    f"godot/legacy/inputs/{name}",
+                    "--dry-run",
+                    "--cache-dir",
+                    str(scratch / "legacy-cache"),
+                    "--output",
+                    str(scratch / name),
+                )
+            )
+        )
+    result.extend(
+        Step(("stage-gen", "legacy", "scenario", "check", "--input", f"godot/legacy/inputs/{name}"))
+        for name in ("bellweather", "larkfield", "the_grain")
+    )
+    result.extend(
+        (
+            Step(
+                ("stage-gen", "legacy", "case", "check", "--input", "godot/legacy/inputs/the_grain")
+            ),
+            Step(("stage-gen", "legacy", "case", "bundle", "--help")),
+            Step(("stage-gen", "legacy", "oblique-survival", "import-run", "--help")),
+            Step((python, "godot/legacy/tools/validate_game_package.py", "--root", ".")),
+            Step((python, "godot/legacy/tools/write_model_policy_snapshot.py")),
+        )
+    )
+    return tuple(result)
 
+
+def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
+    """Execute a real local recipe and plan retained independent asset recipes."""
+    parallax = "src/stage_gen/recipes/looping_parallax/examples/supplied_layers"
+    storefront = "src/stage_gen/recipes/storefront/examples/minimal"
+    inputs = scratch / "parallax-inputs"
+    run = scratch / "parallax-run"
     return (
-        Step(("ruff", "format", "--check", ".")),
-        Step(("ruff", "check", ".")),
-        Step(("mypy", "--strict", "src", "tests", "scripts")),
-        Step(("pytest", "-m", "not live")),
-        # The web runtime is a consumer of every manifest the pipeline publishes;
-        # its suite runs in under a second and was in no gate at all.
-        Step(("bun", "run", "check"), cwd=WEB_ROOT),
-        Step(("bun", "test"), cwd=WEB_ROOT),
-        # The Godot suite. `out/` is gitignored, so a fresh clone has no run to
-        # point it at and the suite could not be gated at all: the fixture is
-        # authored into scratch first and the suite reads that. Every count a
-        # producer decided is behind `TestHarness.pinned()` and is read only
-        # when the suite is pointed at a real run by hand.
-        #
-        # A missing engine is a failure here, not a skip. That is the whole
-        # point of the step: a gate that quietly does nothing when the tool is
-        # absent is the gate that let a port ship undrawn.
-        Step((python, "godot/runtime/tools/make_fixture_run.py", str(scratch / "godot-run"))),
-        Step((python, "godot/runtime/tools/run_suite.py", "--run", str(scratch / "godot-run"))),
-        Step((python, "scripts/check_docs.py")),
+        Step((python, f"{parallax}/make_inputs.py", str(inputs))),
+        Step(
+            (
+                "stage-gen",
+                "pipeline",
+                "run",
+                f"{parallax}/pipeline.py",
+                "--input",
+                str(inputs),
+                "--output",
+                str(run),
+                "--cache-dir",
+                str(scratch / "asset-cache"),
+            )
+        ),
+        Step(("stage-gen", "pipeline", "inspect", str(run))),
+        Step((python, f"{storefront}/make_inputs.py", str(scratch / "storefront-inputs"))),
+        Step(
+            (
+                "stage-gen",
+                "storefront",
+                "generate",
+                "--input",
+                str(scratch / "storefront-inputs"),
+                "--dry-run",
+                "--cache-dir",
+                str(scratch / "asset-cache"),
+                "--output",
+                str(scratch / "storefront-run"),
+            )
+        ),
+        Step(
+            (
+                "stage-gen",
+                "universe",
+                "semantic",
+                "--input",
+                "src/stage_gen/recipes/universe/examples/lantern_ferry",
+                "--dry-run",
+                "--cache-dir",
+                str(scratch / "asset-cache"),
+                "--output",
+                str(scratch / "lantern-ferry"),
+            )
+        ),
         Step((python, "scripts/write_model_policy_snapshot.py")),
-        Step((python, "-m", "build", "--no-isolation")),
-        Step((python, "scripts/validate_game_package.py", "--root", ".")),
         Step(("stage-gen", "--help")),
         Step(("stage-gen-portrait-motion", "--help")),
-        # Every package in the library plans offline: a route the binding table
-        # cannot serve, or an authored input a resolver refuses, fails here
-        # rather than against a provider. The two game-contract packages plan
-        # through the package selector; the room, scene, universe and case
-        # packages plan from their own roots, as a dry run into scratch.
-        Step(
-            (
-                "stage-gen",
-                "package",
-                "plan",
-                "--input",
-                "library/games/bellweather",
-                "--genre",
-                "platformer",
-            )
-        ),
-        # The wave variant plans too, and it is the one package in the library whose
-        # gameplay contract carries the two optional round tables: a `[score]` or
-        # `[timers]` the resolver would refuse never reaches a runtime family.
-        Step(
-            (
-                "stage-gen",
-                "package",
-                "plan",
-                "--input",
-                "library/games/bellweather-waves",
-                "--genre",
-                "platformer",
-            )
-        ),
-        Step(
-            (
-                "stage-gen",
-                "package",
-                "plan",
-                "--input",
-                "library/games/iron-petal-unit",
-                "--genre",
-                "runner",
-            )
-        ),
-        dry_run(
-            "stage-gen",
-            "pointclick-room",
-            "generate",
-            "--input",
-            "library/games/clockmakers_attic",
-            name="clockmakers-attic",
-        ),
-        dry_run(
-            "stage-gen",
-            "dialogue-scene",
-            "generate",
-            "--input",
-            "library/games/larkfield",
-            name="larkfield",
-        ),
-        dry_run(
-            "stage-gen",
-            "dialogue-scene",
-            "generate",
-            "--input",
-            "library/games/the_grain",
-            name="the-grain-scene",
-        ),
-        dry_run(
-            "stage-gen",
-            "universe",
-            "semantic",
-            "--input",
-            "library/games/lantern_ferry",
-            name="lantern-ferry",
-        ),
-        # The survival package is its own root too, and the widest scope is the
-        # one that plans every node the recipe can build.
-        dry_run(
-            "stage-gen",
-            "oblique-survival",
-            "generate",
-            "--input",
-            "library/games/ember-hollow",
-            name="ember-hollow",
-        ),
-        # The storefront package sits inside the survival game's directory but is
-        # its own root: it names storefront.toml and reads none of survival.toml.
-        dry_run(
-            "stage-gen",
-            "storefront",
-            "generate",
-            "--input",
-            "library/games/ember-hollow",
-            name="ember-hollow-storefront",
-        ),
-        Step(("stage-gen", "scenario", "check", "--input", "library/games/bellweather")),
-        Step(("stage-gen", "scenario", "check", "--input", "library/games/larkfield")),
-        Step(("stage-gen", "scenario", "check", "--input", "library/games/the_grain")),
-        Step(("stage-gen", "case", "check", "--input", "library/games/the_grain")),
-        Step(("stage-gen", "case", "bundle", "--help")),
-        Step(("stage-gen", "universe", "gallery", "--help")),
-        # The two provider-free survival commands the dry run does not reach.
-        Step(("stage-gen", "oblique-survival", "import-run", "--help")),
     )
+
+
+def steps(
+    python: str = sys.executable, *, scratch: Path, scope: str = "product"
+) -> tuple[Step, ...]:
+    """Owned gates; the default product gate needs neither Bun nor Godot."""
+    from scripts.test_ownership import paths_for
+
+    product_tests = paths_for(REPOSITORY_ROOT, "product")
+    groups: dict[str, tuple[Step, ...]] = {
+        "product": (
+            Step(("ruff", "format", "--check", "src", "scripts", "examples", *product_tests)),
+            Step(("ruff", "check", "src", "scripts", "examples", *product_tests)),
+            Step(("mypy", "--strict", "src")),
+            Step(("pytest", "-m", "not live", *product_tests)),
+            Step((python, "-m", "build", "--no-isolation")),
+            *_asset_steps(python, scratch=scratch),
+        ),
+        "viewer": (
+            Step(("bun", "run", "check"), WEB_ROOT),
+            Step(("bun", "test"), WEB_ROOT),
+            Step(("pytest", "-m", "not live", *paths_for(REPOSITORY_ROOT, "viewer"))),
+        ),
+        "godot": (
+            Step(
+                (
+                    python,
+                    "godot/legacy/runtime/tools/make_fixture_run.py",
+                    str(scratch / "godot-run"),
+                )
+            ),
+            Step(
+                (
+                    python,
+                    "godot/legacy/runtime/tools/run_suite.py",
+                    "--run",
+                    str(scratch / "godot-run"),
+                )
+            ),
+            Step((python, "godot/packages/game_presentation/tools/check_sdk_package.py")),
+            Step(("pytest", "-m", "not live", *paths_for(REPOSITORY_ROOT, "godot"))),
+        ),
+        "legacy": (
+            Step(("pytest", "-m", "not live", *paths_for(REPOSITORY_ROOT, "legacy"))),
+            *_legacy_steps(python, scratch=scratch),
+        ),
+        "apps": (Step(("pytest", "-m", "not live", *paths_for(REPOSITORY_ROOT, "apps"))),),
+        "docs": (Step((python, "scripts/check_docs.py")),),
+    }
+    if scope == "all":
+        return (
+            Step(("ruff", "format", "--check", ".")),
+            Step(("ruff", "check", ".")),
+            Step(
+                (
+                    "mypy",
+                    "--strict",
+                    "src",
+                    "tests",
+                    "scripts",
+                    "godot/legacy/python/stage_gen_legacy",
+                    "godot/legacy/tools",
+                    "godot/templates/asset_consumer/prepare.py",
+                    "apps/concept_studio/src",
+                    "examples",
+                )
+            ),
+            Step(("pytest", "-m", "not live")),
+            *groups["viewer"][:2],
+            *groups["godot"][:-1],
+            *groups["docs"],
+            *groups["legacy"][1:],
+            *_asset_steps(python, scratch=scratch),
+            Step((python, "-m", "build", "--no-isolation")),
+            Step(("stage-gen", "--help")),
+            Step(("stage-gen-concept", "models")),
+        )
+    if scope not in groups:
+        raise ValueError(f"unknown verification scope: {scope}")
+    return groups[scope]
 
 
 def run_step(step: Step, environment: dict[str, str]) -> Outcome:
@@ -243,9 +296,21 @@ def report(outcomes: Sequence[Outcome]) -> str:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Run credential-free checks for an owned surface")
+    parser.add_argument(
+        "--scope",
+        choices=("product", "viewer", "godot", "legacy", "apps", "docs", "all"),
+        default="product",
+    )
+    args = parser.parse_args()
     environment = sanitized_environment()
+    environment["PATH"] = (
+        str(Path(sys.executable).parent) + os.pathsep + environment.get("PATH", "")
+    )
     with tempfile.TemporaryDirectory(prefix="stage-gen-gate-") as scratch:
-        outcomes = [run_step(step, environment) for step in steps(scratch=Path(scratch))]
+        outcomes = [
+            run_step(step, environment) for step in steps(scratch=Path(scratch), scope=args.scope)
+        ]
     print()
     print(report(outcomes), flush=True)
     return 0 if all(outcome.passed for outcome in outcomes) else 1

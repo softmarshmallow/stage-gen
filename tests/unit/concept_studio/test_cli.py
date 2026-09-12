@@ -7,8 +7,8 @@ from typing import Any, cast
 
 import pytest
 
-from stage_gen.concept_studio.cli import main
-from stage_gen.concept_studio.profiles import GPT_IMAGE_2_5_SUNBURST, GROK_IMAGINE_IMAGE_2
+from concept_studio.cli import main
+from concept_studio.profiles import GPT_IMAGE_2_5_SUNBURST, GROK_IMAGINE_IMAGE_2
 
 
 def _run(argv: list[str]) -> tuple[int, dict[str, Any] | None, str]:

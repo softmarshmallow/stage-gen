@@ -21,12 +21,12 @@ from gnode import (
 from stage_gen.config import StageGenConfig
 from stage_gen.identity import SPEECH_GENERATION_COMPONENT, STAGE_GEN_TOOL
 from stage_gen.media import run_process
-from stage_gen.orchestration.game_package import GamePackageValidationError
-from stage_gen.recipes.sideview_runner.prepared_runner import (
+from stage_gen_legacy.orchestration.game_package import GamePackageValidationError
+from stage_gen_legacy.recipes.sideview_runner.prepared_runner import (
     SideviewRunnerNodeHandler,
     manifest_audio,
 )
-from stage_gen.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
+from stage_gen_legacy.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
 
 from ..._runner_fixture import RUNNER_AUDIO_SPOKEN, RUNNER_VOICES, two_genre_package
 

@@ -7,7 +7,7 @@ from pathlib import Path
 from types import ModuleType
 
 from gnode import ArtifactResult
-from stage_gen.identities import current_versions
+from stage_gen_legacy.identities import current_versions
 
 
 def _load_docs_checker() -> ModuleType:
@@ -108,7 +108,7 @@ def test_character_profile_workflow_is_discoverable_and_version_accurate() -> No
     for required in (
         "stage-gen character-profile validate",
         "stage-gen character-profile digest",
-        "library/games/larkfield",
+        "godot/legacy/inputs/larkfield",
         "--package-root",
         _current("dialogue-scene-bundle"),
     ):
@@ -187,7 +187,7 @@ def test_game_contract_authorities_are_discoverable_and_match_the_live_models() 
         "stage-gen package validate",
         "stage-gen package digest",
         "stage-gen package plan",
-        "library/games/<game_id>/game.toml",
+        "godot/legacy/inputs/<game_id>/game.toml",
         _current("game-package"),
         _current("game-contract"),
         _current("prepared-game-runtime"),
@@ -213,7 +213,7 @@ def test_game_contract_authorities_are_discoverable_and_match_the_live_models() 
     ):
         assert required in sequence_doc
 
-    from stage_gen.components.game_contract import (
+    from stage_gen_legacy.components.game_contract import (
         PREPARED_GAME_CONTRACT_SCHEMA_VERSION,
         PreparedGameContract,
     )

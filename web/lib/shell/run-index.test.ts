@@ -81,7 +81,8 @@ describe("the run index", () => {
       const listed = await listRuns();
       const entry = listed.find((row) => row.tag === "run-index-viewonly");
       expect(entry).toBeDefined();
-      expect(entry?.document).toBeNull();
+      expect(entry?.document).toBe("execution-view.json");
+      expect(entry?.kind).toBe("x");
       expect(entry?.hasExecutionView).toBe(true);
     });
   });

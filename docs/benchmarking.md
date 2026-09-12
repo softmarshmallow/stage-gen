@@ -14,8 +14,8 @@ The offline evidence a change is expected to produce is the plan and the dry
 run, both provider-free:
 
 ```sh
-uv run stage-gen package plan --input library/games/bellweather
-uv run stage-gen generate --input library/games/bellweather --dry-run \
+uv run stage-gen package plan --input godot/legacy/inputs/bellweather
+uv run stage-gen generate --input godot/legacy/inputs/bellweather --dry-run \
   --output out/plan-check --cache-dir .cache/plan-check
 ```
 

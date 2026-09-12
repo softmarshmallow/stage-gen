@@ -1,5 +1,8 @@
 # Game UI atlas taxonomy
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Checked by:** none.
 
 > **Contract maturity: proposed TO-BE, except the slice that shipped.** Scope:

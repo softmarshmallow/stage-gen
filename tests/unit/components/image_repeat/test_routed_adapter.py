@@ -32,7 +32,7 @@ from stage_gen.model_routes import (
     OPENAI_IMAGE_CONDITIONED_REPAIR_ROUTE_ID,
     OPENROUTER_IMAGE_CONDITIONED_REPAIR_ROUTE_ID,
 )
-from stage_gen.providers import RoutedImageRepeatRepairBackend
+from stage_gen.orchestration.image_repeat import RoutedImageRepeatRepairBackend
 
 from .._helpers import png_bytes
 

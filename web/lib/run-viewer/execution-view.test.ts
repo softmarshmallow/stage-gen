@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   dialogueExecutionViewFixture,
+  pipelineExecutionViewFixture,
   executionViewFixture,
   failedExecutionViewFixture,
   unfinishedExecutionViewFixture,
@@ -15,6 +16,36 @@ import {
 } from "./execution-view";
 
 describe("parseExecutionView", () => {
+  test("renders an unfamiliar pipeline identity without a recipe registration", () => {
+    const document = pipelineExecutionViewFixture();
+    const view = parseExecutionView(document);
+    expect(view.subject.kind).toBe("pipeline-execution-view-v1");
+    expect(subjectLabel(view.subject)).toBe("Material study");
+    expect(view.subject.recipe).toBe("user.tools-material-set");
+    expect(document.recipe).toBeUndefined();
+    expect(document.game_id).toBeUndefined();
+    expect(isExecutionViewKind("pipeline-execution-view-v1")).toBe(true);
+  });
+
+  test.each([undefined, "", "  ", "../pipeline", "pipeline/id", 5])("refuses malformed generic pipeline identity %s", (identity) => {
+    expect(() => parseExecutionView({ ...pipelineExecutionViewFixture(), pipeline_id: identity })).toThrow("pipeline_id");
+  });
+
+  test("generic fallback accepts unknown artifact display hints but refuses malformed artifacts", () => {
+    const document = pipelineExecutionViewFixture();
+    const nodes = document.nodes as Record<string, unknown>[];
+    const artifact = (nodes[0].artifacts as Record<string, unknown>[])[0];
+    artifact.display = "user-volume";
+    artifact.media_type = "model/gltf-binary";
+    expect(parseExecutionView(document).nodes[0].artifacts[0].display).toBe("data");
+    artifact.present = "true";
+    expect(() => parseExecutionView(document)).toThrow("present must be a boolean");
+    artifact.present = true;
+    artifact.artifact_ref = "../secret.json";
+    expect(() => parseExecutionView(document)).toThrow("portable run-local");
+    expect(() => parseExecutionView({ ...pipelineExecutionViewFixture(), graph_sha256: "bad" })).toThrow("SHA-256");
+  });
+
   test("parses a finished run into camelCase runtime shapes", () => {
     const view = parseExecutionView(executionViewFixture());
     expect(view.subject.kind).toBe("sideview-platformer-execution-view-v1");

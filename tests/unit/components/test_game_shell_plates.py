@@ -14,18 +14,18 @@ from typing import cast
 import pytest
 from PIL import Image, ImageDraw
 
-from stage_gen.components.game_shell import (
+from stage_gen_legacy.components.game_shell import (
     LOADING_SCREEN,
     OPENING_SHOT,
     SHELL_CANVAS,
     TITLE_SCREEN,
     load_game_shell_bytes,
 )
-from stage_gen.components.game_shell.nodes import (
+from stage_gen_legacy.components.game_shell.nodes import (
     document_plate_roles,
     plate_content_task,
 )
-from stage_gen.components.game_shell.plates import (
+from stage_gen_legacy.components.game_shell.plates import (
     ShellPlateError,
     canonicalize_shell_plate,
     shell_plate_evidence,

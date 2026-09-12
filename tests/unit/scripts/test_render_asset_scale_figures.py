@@ -12,7 +12,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 def _load_script() -> ModuleType:
-    path = REPOSITORY_ROOT / "scripts/render_asset_scale_figures.py"
+    path = REPOSITORY_ROOT / "godot/legacy/tools/render_asset_scale_figures.py"
     spec = importlib.util.spec_from_file_location("render_asset_scale_figures", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)

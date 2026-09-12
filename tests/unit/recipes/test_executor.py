@@ -72,7 +72,7 @@ def test_configured_services_compose_from_the_config_alone() -> None:
 
 
 def test_image_capability_credentials_require_an_exact_resolved_route() -> None:
-    from stage_gen.recipes.pointclick_room.room_executor import PointClickRoomExecutor
+    from stage_gen_legacy.recipes.pointclick_room.room_executor import PointClickRoomExecutor
 
     executor = PointClickRoomExecutor(StageGenConfig(open_router_api_key="openrouter"))
     with pytest.raises(ValueError, match="exact resolved route"):
@@ -83,8 +83,10 @@ def test_image_capability_credentials_require_an_exact_resolved_route() -> None:
 
 def test_route_credentials_are_scoped_to_the_selected_target_closure() -> None:
     from stage_gen.image_product import ImageProvider
-    from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
-    from stage_gen.recipes.sideview_platformer.prepared_content import (
+    from stage_gen_legacy.recipes.sideview_platformer.package_executor import (
+        PreparedPackageExecutor,
+    )
+    from stage_gen_legacy.recipes.sideview_platformer.prepared_content import (
         soundtrack_target_node_ids,
     )
 
@@ -94,7 +96,7 @@ def test_route_credentials_are_scoped_to_the_selected_target_closure() -> None:
             image_provider_override=ImageProvider.FAL,
         )
     )
-    plan = executor.plan(Path("library/games/bellweather"))
+    plan = executor.plan(Path("godot/legacy/inputs/bellweather"))
     soundtrack_targets = soundtrack_target_node_ids(plan.graph)
 
     executor.require_route_credentials(

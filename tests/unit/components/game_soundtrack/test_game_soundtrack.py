@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.components.game_soundtrack import (
+from stage_gen_legacy.components.game_soundtrack import (
     GameSoundtrack,
     GameSoundtrackLoadError,
     canonical_game_soundtrack_json,
@@ -63,7 +63,7 @@ def _load(source: str) -> GameSoundtrack:
 
 
 def _source(root: Path, *, game_id: str = "test-game") -> Path:
-    source = root / f"library/games/{game_id}/soundtrack.toml"
+    source = root / f"godot/legacy/inputs/{game_id}/soundtrack.toml"
     source.parent.mkdir(parents=True)
     source.write_text(_soundtrack_source(game_id=game_id, reverse=True), encoding="utf-8")
     return source
@@ -73,7 +73,7 @@ def _binding(source: Path, *, game_id: str = "test-game") -> dict[str, object]:
     return {
         "schema_version": 1,
         "kind": "game-soundtrack-binding-v1",
-        "ref": f"library/games/{game_id}/soundtrack.toml",
+        "ref": f"godot/legacy/inputs/{game_id}/soundtrack.toml",
         "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
     }
 
@@ -179,7 +179,7 @@ def test_resolver_binds_source_canonical_identity_and_provenance(tmp_path: Path)
         "selection": "shuffle",
         "no_immediate_repeat": True,
     }
-    assert resolved.source_provenance.ref == "library/games/test-game/soundtrack.toml"
+    assert resolved.source_provenance.ref == "godot/legacy/inputs/test-game/soundtrack.toml"
     assert resolved.source_provenance.media_type == "application/toml"
 
 
@@ -191,7 +191,7 @@ def test_resolver_rejects_digest_drift_and_misfiled_game_id(tmp_path: Path) -> N
             game_library_root=tmp_path,
         )
 
-    misplaced = tmp_path / "library/games/renamed/soundtrack.toml"
+    misplaced = tmp_path / "godot/legacy/inputs/renamed/soundtrack.toml"
     misplaced.parent.mkdir(parents=True)
     misplaced.write_bytes(source.read_bytes())
     with pytest.raises(ValueError, match="must match its library directory"):
@@ -204,11 +204,11 @@ def test_resolver_rejects_digest_drift_and_misfiled_game_id(tmp_path: Path) -> N
 @pytest.mark.parametrize(
     "ref",
     [
-        "library/games/test-game/game.toml",
+        "godot/legacy/inputs/test-game/game.toml",
         "library/soundtracks/test-game/soundtrack.toml",
-        "library/games/soundtrack.toml",
-        "../library/games/test-game/soundtrack.toml",
-        "/library/games/test-game/soundtrack.toml",
+        "godot/legacy/inputs/soundtrack.toml",
+        "../godot/legacy/inputs/test-game/soundtrack.toml",
+        "/godot/legacy/inputs/test-game/soundtrack.toml",
     ],
 )
 def test_resolver_accepts_only_the_game_owned_soundtrack_path(tmp_path: Path, ref: str) -> None:

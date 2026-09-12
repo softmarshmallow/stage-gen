@@ -50,7 +50,8 @@ from stage_gen.model_routes import (
     OPENAI_IMAGE_EDIT_ROUTE_ID,
     OPENAI_SUNBURST_MODEL,
 )
-from stage_gen.orchestration.portrait_motion import (
+from stage_gen.orchestration.portrait_services import ConfiguredPortraitServices
+from stage_gen.recipes.portrait_motion.pipeline import (
     PORTRAIT_MOTION_GRAPH_KIND,
     PORTRAIT_MOTION_GRAPH_SCHEMA_VERSION,
     PORTRAIT_MOTION_PLAN_KIND,
@@ -574,7 +575,7 @@ async def test_live_fal_plan_refuses_missing_fal_key_without_openai_fallback(
     monkeypatch.delenv("FAL_KEY", raising=False)
 
     with pytest.raises(ConfigError) as raised:
-        await run_pipeline(case.run_dir, live=True)
+        await run_pipeline(case.run_dir, live=True, service_factory=ConfiguredPortraitServices())
 
     assert raised.value.missing == ("FAL_KEY",)
     assert not (case.run_dir / "budget.json").exists()

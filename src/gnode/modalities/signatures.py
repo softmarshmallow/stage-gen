@@ -10,7 +10,8 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-#: Mirrors ring 0's ``ARTIFACT_MEDIA_FAMILIES``. ``text`` has no modality
+#: Families understood by the existing modality signature validators, independent
+#: of ring 0's syntax-only artifact MIME persistence. ``text`` has no modality
 #: service and therefore no signature check here: its deterministic floor
 #: (``assert_text_payload``) is enforced by the artifact write, not by a
 #: retry owner.

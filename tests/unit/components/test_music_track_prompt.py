@@ -11,8 +11,11 @@ from __future__ import annotations
 
 import pytest
 
-from stage_gen.components.game_soundtrack import TrackGenerationIntent
-from stage_gen.components.game_soundtrack.prompt import ORIGINALITY_CLAUSE, music_track_prompt
+from stage_gen_legacy.components.game_soundtrack import TrackGenerationIntent
+from stage_gen_legacy.components.game_soundtrack.prompt import (
+    ORIGINALITY_CLAUSE,
+    music_track_prompt,
+)
 
 
 def _intent(*, instrumental: bool = True, seamless_loop: bool = True) -> TrackGenerationIntent:

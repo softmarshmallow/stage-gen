@@ -8,7 +8,7 @@ and [IP](docs/oss-ip.md). This file controls applicability; focused docs control
 ## Architecture
 
 - Keep identifiers, comments, logs, tests, and user-facing source strings in English.
-- Python is the sole headless implementation, split in two: `src/gnode/` is the ringed asset-graph
+- Python is the headless implementation. The public product has two layers: `src/gnode/` is the ringed asset-graph
   SDK and `src/stage_gen/` is the application that consumes it. gnode's rings (`docs/spec/gnode-rings.md`):
   ring 0 the agnostic engine core (topology, scheduling, trace, run view, model bindings, reliability,
   provenance — media-free), ring 1 per-modality model specs and retry-owning services, ring 2 first-party
@@ -19,12 +19,16 @@ and [IP](docs/oss-ip.md). This file controls applicability; focused docs control
   implement the ring-1 protocols, and orchestration is the composition root. Shared recipe-neutral media
   inspection and transforms belong in `media`; capability-specific processing stays with its component, and
   recipe-specific canonicalization with its recipe.
-- Recipes own generation-specific genre, composition, layout, artifact, and validation assumptions; consumer adapters
-  own runtime camera, scene, engine, and gameplay assumptions. Neither may leak them into generic components. `web/`
-  consumes public headless CLI and manifest contracts; it is not a second generator.
-- `docs/spec/game/generation-pipeline.md` is the canonical human overview of the game-generation graph. Changes to
-  recipe stages, asset fan-out or dependencies, input composition, provider operation counts, cache/manifest boundaries,
-  or scheduling semantics must update that document and its executable graph contract in the same change.
+- The product owns asset-pipeline authoring, execution, artifacts and inspection. Components own bounded capabilities;
+  recipes compose useful asset outcomes. Their inputs never require a complete game, selected demo or gameplay schema.
+  Consumer adapters own runtime camera, scene, engine and gameplay assumptions. `web/` consumes public run/artifact
+  contracts and is not a second generator. Bounded animation, terrain, spatial and scenario contracts may remain optional.
+- Complete game builders, canonical game schemas and their existing input/readers belong to Godot legacy ownership.
+  Preserve old formats and supported reader/input pairs; do not rewrite all legacy TOML as a migration prerequisite.
+  Legacy code may import the public asset product; public components and pipeline code must not import legacy code.
+- Each supported asset recipe/example owns its graph documentation and executable contract. Changes to its stages,
+  asset dependencies, consumed inputs, operation counts or cache/scheduling semantics update that evidence together.
+  Historical whole-game graph specifications apply only to their legacy consumers, not every future asset pipeline.
 
 ## Schema naming
 

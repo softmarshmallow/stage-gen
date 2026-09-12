@@ -7,12 +7,11 @@ import { promises as fs } from "node:fs";
 import {
   type ExecutionRunState,
   type ExecutionView,
-  isExecutionViewKind,
   parseExecutionView,
   subjectLabel,
 } from "@/lib/run-viewer/execution-view";
 import { readRunDocument } from "./run-json";
-import { artifactPathFor, assertSafeOutRoot, isSafeRunTag, OUT_ROOT } from "./runs";
+import { assertSafeOutRoot, isSafeRunTag, OUT_ROOT } from "./runs";
 
 export const EXECUTION_VIEW_FILENAME = "execution-view.json";
 
@@ -30,16 +29,6 @@ export async function readExecutionView(tag: string): Promise<ExecutionView | nu
   return parseExecutionView(read.document);
 }
 
-async function isRenderableExecutionView(tag: string): Promise<boolean> {
-  try {
-    const raw = await fs.readFile(artifactPathFor(tag, EXECUTION_VIEW_FILENAME), "utf8");
-    const kind = (JSON.parse(raw) as { kind?: unknown }).kind;
-    return typeof kind !== "string" || isExecutionViewKind(kind);
-  } catch {
-    return true;
-  }
-}
-
 export interface ExecutionViewRunListEntry {
   readonly tag: string;
   /** What the run's records say; null for a document this build refuses. */
@@ -48,7 +37,7 @@ export interface ExecutionViewRunListEntry {
   readonly traceModifiedAt: string | null;
   /** true when execution-view.json exists but this build refuses it. */
   readonly unreadable: boolean;
-  /** What the run was for: a game id or a scene id, whichever its header carries. */
+  /** What the run was for: the pipeline title or a historical subject identity. */
   readonly label: string | null;
   readonly nodeCount: number;
   readonly stateCounts: Readonly<Record<string, number>> | null;
@@ -67,11 +56,6 @@ export async function listExecutionViewRuns(): Promise<ExecutionViewRunListEntry
       const tag = entry.name;
       if (!isSafeRunTag(tag)) return;
       try {
-        // A run belonging to a recipe this build does not carry declares a view
-        // kind outside the list. It is a valid document this viewer does not
-        // render, not a stale one, so it is skipped rather than reported as
-        // needing re-export.
-        if (!(await isRenderableExecutionView(tag))) return;
         const view = await readExecutionView(tag);
         if (!view) return;
         out.push({

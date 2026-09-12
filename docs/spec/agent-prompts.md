@@ -4,7 +4,7 @@
 
 This page documents how the recipe assembles prompts. It is a recipe-specific
 contract, not a reusable component default. The executable prompt builders
-under `src/stage_gen/recipes/sideview_platformer/` are the source of truth.
+under `godot/legacy/python/stage_gen_legacy/recipes/sideview_platformer/` are the source of truth.
 
 ## Shared rules
 

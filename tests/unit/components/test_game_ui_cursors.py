@@ -6,7 +6,7 @@ from typing import cast
 import pytest
 from PIL import Image
 
-from stage_gen.components.game_ui import (
+from stage_gen_legacy.components.game_ui import (
     CURSOR_ALPHA_POLICY,
     CURSOR_GLYPHS,
     CURSOR_SET,
@@ -18,7 +18,7 @@ from stage_gen.components.game_ui import (
     render_icon_template,
     validate_cursor_sheet,
 )
-from stage_gen.components.game_ui.nodes import (
+from stage_gen_legacy.components.game_ui.nodes import (
     CURSOR_GRID_FAMILY,
     ICON_GRID_FAMILY,
     CursorSetLayout,

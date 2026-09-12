@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from pydantic import JsonValue
+
 from gnode import (
     LOCAL_OPERATION,
     Node,
     RetryOwner,
+    RunViewArtifact,
     artifact_media_type,
     generic_artifact_annotation,
 )
@@ -47,3 +50,27 @@ def test_generic_annotation_displays_text_as_text() -> None:
     # link for something it could show.
     assert generic_artifact_annotation("shell/the_valley.raw.mp4", node).display == "video"
     assert generic_artifact_annotation("shell/the_valley.clip.ogv", node).display == "video"
+
+
+def test_view_carries_consumer_preview_json_without_a_media_contract() -> None:
+    preview: dict[str, JsonValue] = {"kind": "user-volume-v1", "shape": [32, 16, 8]}
+    artifact = RunViewArtifact(
+        artifact_ref="volume.bin",
+        sha256="a" * 64,
+        bytes=12,
+        media_type="model/gltf-binary",
+        present=True,
+        display="user-volume",
+        preview=preview,
+        motion={"frame_count": 4},
+    )
+    restored = RunViewArtifact.model_validate_json(artifact.model_dump_json())
+    assert restored.preview == preview
+    assert restored.motion == {"frame_count": 4}
+    assert restored.display == "user-volume"
+
+
+def test_model_artifacts_retain_mime_without_implying_a_model_renderer() -> None:
+    assert artifact_media_type("scene.glb") == "model/gltf-binary"
+    assert artifact_media_type("scene.gltf") == "model/gltf+json"
+    assert generic_artifact_annotation("scene.glb", _node()).display == "data"

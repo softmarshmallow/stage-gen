@@ -27,7 +27,7 @@ the stages and the tracks between them, and the fan-out follows the union.
 
 | Location                                | Responsibility                                                                                                                                                                        |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/stage_gen/recipes/dialogue_scene/` | Adult/non-explicit policy, expression taxonomy, prompts, strict v3 models, stage graph, cache identity, validation, and bundle assembly.                                              |
+| `godot/legacy/python/stage_gen_legacy/recipes/dialogue_scene/` | Adult/non-explicit policy, expression taxonomy, prompts, strict v3 models, stage graph, cache identity, validation, and bundle assembly.                                              |
 | `src/stage_gen/components/`             | Provider-neutral structured generation, image generation, music generation, and background removal with one six-attempt retry owner. `scenario/` owns the narrative contract and its proof; `game_soundtrack/` owns authored track intent and the one music prompt compiler both recipes use. |
 | `src/stage_gen/media/`                  | Shared deterministic image inspection and transforms.                                                                                                                                 |
 | `src/stage_gen/orchestration/`          | Provider composition and generic recipe dispatch.                                                                                                                                     |
@@ -39,7 +39,7 @@ camera, UI, and gameplay assumptions do not enter the producer bundle.
 
 ## Authored package: `dialogue-scene-v5`
 
-One scene is one directory under `library/games/`, holding `scene.toml` beside
+One scene is one directory under `godot/legacy/inputs/`, holding `scene.toml` beside
 the members it names by exact relative path: the scenarios it plays, the
 character profiles it binds, and the `references/` its art is drawn against. The
 document is strict TOML: every key is lower_snake_case; camelCase, unknown keys,

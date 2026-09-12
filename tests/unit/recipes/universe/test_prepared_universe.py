@@ -42,7 +42,7 @@ from stage_gen.recipes.universe.universe_request import (
     resolve_universe_source,
 )
 
-FIXTURE = Path("library/games/lantern_ferry")
+FIXTURE = Path("src/stage_gen/recipes/universe/examples/lantern_ferry")
 CONFIG = StageGenConfig()
 
 

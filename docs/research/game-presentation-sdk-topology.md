@@ -21,14 +21,14 @@ godot/                                   not a Godot project; a directory of pro
 │   │   ├── project.godot                dev project for the package alone
 │   │   ├── README.md  sdk.json  LICENSE
 │   │   ├── addons/game_runtime/         the payload; the only thing consumers install
-│   │   │   ├── kernel/                  (godot/runtime/kernel) events, fixed step, gauge, hash, rng, sealer, system
-│   │   │   ├── families/                (godot/runtime/families) actor_ai, camera, checkpoints, clock, cues, director,
+│   │   │   ├── kernel/                  (godot/legacy/runtime/kernel) events, fixed step, gauge, hash, rng, sealer, system
+│   │   │   ├── families/                (godot/legacy/runtime/families) actor_ai, camera, checkpoints, clock, cues, director,
 │   │   │   │                            effects, hud, intent, interaction, inventory, loot, navigation, particles,
 │   │   │   │                            scenario, score, screen_fx, session, sideview, ui, vitals, block_gate
-│   │   │   └── host/                    (godot/runtime/hosts/common) run_dir, args, actor, layer_texture, typeface,
+│   │   │   └── host/                    (godot/legacy/runtime/hosts/common) run_dir, args, actor, layer_texture, typeface,
 │   │   │                                ui_sheets, atlas_button, panel_frame, gauge_bar, text_fit, outline,
 │   │   │                                transition_view, cut_in_view, dialogue_leaf, room_leaf, shaders/
-│   │   └── tests/                       (godot/runtime/tests) kernel, families, prng, ui_layers, input_map, masks …
+│   │   └── tests/                       (godot/legacy/runtime/tests) kernel, families, prng, ui_layers, input_map, masks …
 │   │       ├── harness.gd  fixture.gd  run_tests.gd
 │   │       └── fixtures/
 │   ├── game_presentation/               the presentation SDK
@@ -45,10 +45,10 @@ godot/                                   not a Godot project; a directory of pro
 │   │   └── history/                     USER_PROMPTS.md, REQUESTS.md, QA.md, promotion reviews, HANDOFF.md
 │   └── survival/                        the oblique-survival simulation and view, shared by its template and its game
 │       ├── project.godot
-│       ├── addons/survival/             (godot/runtime/genres/oblique_survival + godot/runtime/hosts/oblique_survival):
+│       ├── addons/survival/             (godot/legacy/runtime/genres/oblique_survival + godot/legacy/runtime/hosts/oblique_survival):
 │       │   ├── sim/                     world, roster, sim, systems/, inventory, targeting, masks, document
 │       │   └── view/  hud/  audio/  shell/  devtools/
-│       └── tests/                       (godot/runtime/tests) world, matrix_*, survival_roster, drops, craft, weather …
+│       └── tests/                       (godot/legacy/runtime/tests) world, matrix_*, survival_roster, drops, craft, weather …
 │
 ├── templates/                           agnostic; one per recipe; plays a run of its recipe; copy one to brand it
 │   ├── vn/                              (godot/templates/vn/) The Signal Room
@@ -62,16 +62,16 @@ godot/                                   not a Godot project; a directory of pro
 │   │   ├── project.godot
 │   │   ├── addons/game_runtime → …      addons/survival → ../../../packages/survival/addons/survival
 │   │   ├── main.tscn  main.gd  input.gd README.md
-│   │   ├── fixtures/                    (godot/runtime/tests/fixtures/oblique_survival)
+│   │   ├── fixtures/                    (godot/legacy/runtime/tests/fixtures/oblique_survival)
 │   │   ├── tests/                       the host-level checks that need this project
 │   │   └── tools/                       capture.gd, parity.gd, smoke.gd
 │   ├── sideview_runner/
 │   │   ├── project.godot  README.md
 │   │   ├── addons/game_runtime → …
 │   │   ├── main.tscn  main.gd  input.gd
-│   │   ├── sim/                         (godot/runtime/genres/sideview_runner) contract, world, roster, segments,
+│   │   ├── sim/                         (godot/legacy/runtime/genres/sideview_runner) contract, world, roster, segments,
 │   │   │                                encounter_state, dust, presentation, systems/
-│   │   ├── view/  hud/  audio/          (godot/runtime/hosts/sideview_runner)
+│   │   ├── view/  hud/  audio/          (godot/legacy/runtime/hosts/sideview_runner)
 │   │   ├── fixtures/  tests/            runner_roster, runner_view, matrix_agents, music, mob, mobs …
 │   │   └── tools/                       runner_capture.gd, runner_parity.gd, runner_shots_check.py, runner_parity_diff.py
 │   ├── sideview_platformer/             same anatomy: sim/ view/ hud/ audio/ fixtures/ tests/ tools/
@@ -114,7 +114,7 @@ godot/                                   not a Godot project; a directory of pro
 Outside `godot/`, unchanged in role:
 
 ```text
-library/games/<id>/       authored generation packages; ember-hollow stays here, merge deferred
+godot/legacy/inputs/<id>/       authored generation packages; ember-hollow stays here, merge deferred
 out/<run>/                generated runs; what a template opens with --run
 web/                      the run viewer for recipes without a host (universe, storefront)
 docs/spec/game/           host contract: governs templates/ and the survival package
@@ -154,13 +154,13 @@ packages/*   --> declared packages             never a template, never a game
 - Every project owns its `project.godot`: canvas, renderer, main scene, input
   map. Nothing is applied at runtime to paper over a shared project file.
 - Tests sit with the code they test. Cross-project tooling sits in
-  `godot/runtime/tools/`; the Python contract tests stay in `tests/contract/`.
+  `godot/legacy/runtime/tools/`; the Python contract tests stay in `tests/contract/`.
 - Media bytes are ignored everywhere; catalogs, manifests, digests and reviews
   are tracked. Publishing bytes is the publication gate's decision, per root.
 
 ## 4. Order
 
-1. Move today's `godot/` project down to `godot/runtime/` intact; repoint the
+1. Move today's `godot/` project down to `godot/legacy/runtime/` intact; repoint the
    boundary test and run commands. `godot/` stops being a project.
 2. Land `packages/game_presentation`, `templates/vn`, `games/afterlight`,
    `games/command_link` from `godot/games/command_link/`; delete it. Commit the
@@ -168,7 +168,7 @@ packages/*   --> declared packages             never a template, never a game
 3. Carve `packages/game_runtime` out of `runtime/`; give each template its
    own project; `runtime/` disappears.
 4. Carve `packages/survival` and add `games/ember_hollow`.
-5. Deferred by the user: whether a branded game and its `library/games/<id>`
+5. Deferred by the user: whether a branded game and its `godot/legacy/inputs/<id>`
    authoring package share one home.
 
 Gates and references that change: `ARCHITECTURE.md`, `README.md`, `docs/README.md`,

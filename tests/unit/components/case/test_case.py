@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from stage_gen.components.case import (
+from stage_gen_legacy.components.case import (
     CaseAdmissionError,
     CaseDocument,
     admit_case,

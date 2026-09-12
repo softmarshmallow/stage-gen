@@ -23,9 +23,22 @@ from pathlib import Path
 ROOT_SUFFIXES = {".gd", ".tscn", ".tres", ".godot", ".gdshader"}
 CATALOG_SUFFIXES = {".json"}
 ASSET_SUFFIXES = {
-    ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg",
-    ".mp3", ".ogg", ".wav", ".flac", ".ogv", ".mp4", ".webm",
-    ".ttf", ".otf", ".glb",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
+    ".gif",
+    ".svg",
+    ".mp3",
+    ".ogg",
+    ".wav",
+    ".flac",
+    ".ogv",
+    ".mp4",
+    ".webm",
+    ".ttf",
+    ".otf",
+    ".glb",
 }
 WORKING_DIRECTORIES = {"art", "captures", ".godot", "build", "tests", "__pycache__"}
 
@@ -53,6 +66,7 @@ def unused(project: Path) -> list[Path]:
         for f in files
         if f.suffix.lower() in ROOT_SUFFIXES | CATALOG_SUFFIXES
     }
+
     # A candidate is named by its project-relative path or by its bare name; the
     # second catches catalogs that bind a file relative to their own directory.
     # A directory a script loads from by pattern, as in "text/" + language +
@@ -62,9 +76,7 @@ def unused(project: Path) -> list[Path]:
         if candidate.as_posix() in text or candidate.name in text:
             return True
         directory = candidate.parent.as_posix()
-        return directory != "." and (
-            f'"{directory}/"' in text or f'"res://{directory}/"' in text
-        )
+        return directory != "." and (f'"{directory}/"' in text or f'"res://{directory}/"' in text)
 
     reached: set[Path] = set()
     queue: deque[Path] = deque(f for f in texts if f.suffix.lower() in ROOT_SUFFIXES)

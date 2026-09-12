@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from stage_gen.components.game_ui.nodes import UI_SHEET_ROLES, sheet_family
-from stage_gen.orchestration.game_package import ResolvedGamePackage, resolve_game_package
-from stage_gen.recipes.sideview_platformer.prepared_manifest import (
+from stage_gen_legacy.components.game_ui.nodes import UI_SHEET_ROLES, sheet_family
+from stage_gen_legacy.orchestration.game_package import ResolvedGamePackage, resolve_game_package
+from stage_gen_legacy.recipes.sideview_platformer.prepared_manifest import (
     PREPARED_RUNTIME_MANIFEST_KIND,
     RUNTIME_ARTIFACT_ROLES,
     PreparedManifestError,
@@ -23,7 +23,7 @@ from stage_gen.recipes.sideview_platformer.prepared_manifest import (
 from tests.unit._ui_atlas_fixture import ui_sheet
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
-BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
+BELLWEATHER = REPOSITORY_ROOT / "godot/legacy/inputs/bellweather"
 
 
 def _layer_validation(anchor: str, offset: float) -> dict[str, object]:

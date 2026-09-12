@@ -20,12 +20,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, Protocol, cast
 
-from pydantic import Field
+from pydantic import Field, JsonValue
 
 from gnode.contracts.artifacts import SHA256_PATTERN, PersistedContractModel
 from gnode.graph import CacheDisposition, Graph, Node, NodeCard, Port, Resource, RetryOwner
 from gnode.node_types import NodeType, ViewArchetype
-from gnode.reliability import atomic_write_json
+from gnode.reliability import atomic_write_json, normalize_artifact_media_type
 
 NodeState = Literal["pending", "running", "succeeded", "failed", "skipped"]
 
@@ -35,7 +35,7 @@ NodeState = Literal["pending", "running", "succeeded", "failed", "skipped"]
 #: liveness question, answered by ``trace_modified_at`` against the wall clock,
 #: and it belongs to whoever is reading — not to a document written once.
 RunState = Literal["planned", "unfinished", "canceled", "succeeded", "failed"]
-ArtifactDisplay = Literal["image", "audio", "data", "text", "motion_atlas", "video"]
+ArtifactDisplay = str
 
 _TERMINAL_STATES = ("succeeded", "failed", "skipped")
 _MEDIA_TYPES = {
@@ -45,8 +45,15 @@ _MEDIA_TYPES = {
     ".webp": "image/webp",
     ".gif": "image/gif",
     ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".ogg": "audio/ogg",
+    ".flac": "audio/flac",
     ".mp4": "video/mp4",
     ".ogv": "video/ogg",
+    ".webm": "video/webm",
+    ".glb": "model/gltf-binary",
+    ".gltf": "model/gltf+json",
+    ".obj": "model/obj",
     ".json": "application/json",
     ".md": "text/markdown",
     ".txt": "text/plain",
@@ -56,15 +63,6 @@ _MEDIA_TYPES = {
 #: its title and archetype could not be joined and a renderer falls back to the
 #: generic view.
 UNREGISTERED_TYPE_GAP_ID = "node-type-not-registered"
-
-
-class RunViewMotion(PersistedContractModel):
-    """Uniform ``frame_count`` x 1 strip geometry for frame-stepped display."""
-
-    frame_count: int = Field(ge=1, le=16)
-    mode: Literal["hold", "loop", "once", "gameplay_driven"] | None = None
-    frames_per_second: float | None = Field(default=None, gt=0.0)
-    canonical_frame_indices: tuple[int, ...] = ()
 
 
 class RunViewGap(PersistedContractModel):
@@ -79,7 +77,10 @@ class RunViewArtifact(PersistedContractModel):
     media_type: str
     present: bool
     display: ArtifactDisplay
-    motion: RunViewMotion | None = None
+    # Historical view payload, interpreted only by the consuming application.
+    motion: dict[str, JsonValue] | None = None
+    # Renderer hints are opaque JSON to the engine; consumers own each kind.
+    preview: dict[str, JsonValue] | None = None
 
 
 class RunViewNode(PersistedContractModel):
@@ -145,11 +146,13 @@ class RunView(PersistedContractModel):
 
 @dataclass(frozen=True, slots=True)
 class ArtifactAnnotation:
-    """A recipe's reading of one artifact ref: how to display it, and at what cost."""
+    """Consumer-owned rendering hints for an artifact; the engine only carries them."""
 
     display: ArtifactDisplay
-    motion: RunViewMotion | None = None
+    motion: dict[str, JsonValue] | None = None
     gaps: tuple[RunViewGap, ...] = ()
+    preview: dict[str, JsonValue] | None = None
+    media_type: str | None = None
 
 
 class ArtifactAnnotator(Protocol):
@@ -465,10 +468,13 @@ def _view_artifacts(
                 artifact_ref=artifact_ref,
                 sha256=sha256,
                 bytes=size if isinstance(size, int) else 0,
-                media_type=artifact_media_type(artifact_ref),
+                media_type=normalize_artifact_media_type(
+                    annotation.media_type or artifact_media_type(artifact_ref)
+                ),
                 present=_artifact_present(run_dir, artifact_ref),
                 display=annotation.display,
                 motion=annotation.motion,
+                preview=annotation.preview,
             )
         )
     return tuple(artifacts)
@@ -510,7 +516,6 @@ __all__ = [
     "RunViewArtifact",
     "RunViewError",
     "RunViewGap",
-    "RunViewMotion",
     "RunViewNode",
     "artifact_media_type",
     "build_run_view",

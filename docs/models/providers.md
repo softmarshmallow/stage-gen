@@ -440,7 +440,7 @@ draw outside a run, look at the frames, and link the winner.
 ```sh
 uv run stage-gen generate-video --output ./explore/clip-audition/a1.mp4 \
   --duration 10 --resolution 720p --aspect-ratio 16:9 \
-  --reference ./library/games/ember-hollow/references/style-plate.png \
+  --reference ./godot/legacy/inputs/ember-hollow/references/style-plate.png \
   "the brief, verbatim"
 uv run stage-gen inspect-video --input ./explore/clip-audition/a1.mp4 \
   --output ./explore/clip-audition/a1.contact.png
@@ -474,9 +474,9 @@ uv run stage-gen remove-background --input ./input.png --output ./out/subject.pn
 Prepared-game planning is separate and provider-free:
 
 ```sh
-uv run stage-gen package plan --input library/games/bellweather
+uv run stage-gen package plan --input godot/legacy/inputs/bellweather
 uv run stage-gen generate \
-  --input library/games/bellweather \
+  --input godot/legacy/inputs/bellweather \
   --dry-run \
   --output /tmp/bellweather-dry-run
 ```

@@ -29,16 +29,16 @@ from stage_gen.components.sideview_terrain.atlas import (
     terrain_atlas_generation_prompt,
     terrain_atlas_paint_target,
 )
-from stage_gen.recipes.sideview_platformer.climbable_atlas import (
+from stage_gen.resources import terrain_atlas_lookup_path, terrain_atlas_template_path
+from stage_gen_legacy.recipes.sideview_platformer.climbable_atlas import (
     ClimbableRole,
     nominal_cell_box,
     plan_climbable_atlas,
 )
-from stage_gen.recipes.sideview_platformer.prepared_world import (
+from stage_gen_legacy.recipes.sideview_platformer.prepared_world import (
     _canonicalize_map_presentation,
     _validate_map_presentation_source,
 )
-from stage_gen.resources import terrain_atlas_lookup_path, terrain_atlas_template_path
 
 
 def _template() -> bytes:
@@ -172,7 +172,9 @@ def test_host_consumer_lookup_matches_the_authoritative_packaged_contract() -> N
     # own project, so the drift this guards against is exactly as possible as
     # it was, and the assertion only changed which file it points at.
     repository = Path(__file__).parents[4]
-    consumer = (repository / "godot/runtime/families/sideview/terrain/lookup.json").read_bytes()
+    consumer = (
+        repository / "godot/legacy/runtime/families/sideview/terrain/lookup.json"
+    ).read_bytes()
     authoritative = terrain_atlas_lookup_path().read_bytes()
     assert consumer == authoritative
 

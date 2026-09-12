@@ -3,39 +3,41 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-from stage_gen.components.game_contract import PREPARED_GAME_CONTRACT_SCHEMA_VERSION
-from stage_gen.components.game_soundtrack import GAME_SOUNDTRACK_SCHEMA_VERSION
-from stage_gen.components.game_ui import GAME_UI_SCHEMA_VERSION
-from stage_gen.components.platformer_content import (
-    GAME_CONTENT_SCHEMA_VERSION,
-    NPC_CONTENT_SCHEMA_VERSION,
-    PLAYER_CONTENT_SCHEMA_VERSION,
-)
-from stage_gen.components.platformer_gameplay import GAMEPLAY_CONTRACT_SCHEMA_VERSION
-from stage_gen.components.platformer_map import PREPARED_GAME_MAP_SCHEMA_VERSION
-from stage_gen.components.runner_audio import RUNNER_AUDIO_SCHEMA_VERSION
 from stage_gen.components.scenario import (
     SCENARIO_CATALOG_SCHEMA_VERSION,
     SCENARIO_SCHEMA_VERSION,
 )
-from stage_gen.orchestration.game_package import GAME_PACKAGE_SELECTOR_SCHEMA_VERSION
+from stage_gen_legacy.components.game_contract import PREPARED_GAME_CONTRACT_SCHEMA_VERSION
+from stage_gen_legacy.components.game_soundtrack import GAME_SOUNDTRACK_SCHEMA_VERSION
+from stage_gen_legacy.components.game_ui import GAME_UI_SCHEMA_VERSION
+from stage_gen_legacy.components.platformer_content import (
+    GAME_CONTENT_SCHEMA_VERSION,
+    NPC_CONTENT_SCHEMA_VERSION,
+    PLAYER_CONTENT_SCHEMA_VERSION,
+)
+from stage_gen_legacy.components.platformer_gameplay import GAMEPLAY_CONTRACT_SCHEMA_VERSION
+from stage_gen_legacy.components.platformer_map import PREPARED_GAME_MAP_SCHEMA_VERSION
+from stage_gen_legacy.components.runner_audio import RUNNER_AUDIO_SCHEMA_VERSION
+from stage_gen_legacy.orchestration.game_package import GAME_PACKAGE_SELECTOR_SCHEMA_VERSION
 
 
 def test_canonical_game_package_document_matches_current_prepared_contracts() -> None:
     repository = Path(__file__).parents[2]
     document = (repository / "docs/game-package.md").read_text(encoding="utf-8")
-    selector = tomllib.loads((repository / "library/games/main.toml").read_text(encoding="utf-8"))
+    selector = tomllib.loads(
+        (repository / "godot/legacy/inputs/main.toml").read_text(encoding="utf-8")
+    )
 
     # The selector names the package. It does not pin it: member digests are computed at ingest.
     assert selector == {
         "schema_version": GAME_PACKAGE_SELECTOR_SCHEMA_VERSION,
         "kind": f"game-package-v{GAME_PACKAGE_SELECTOR_SCHEMA_VERSION}",
         "game_id": "iron-petal-unit",
-        "package_ref": "library/games/iron-petal-unit/game.toml",
+        "package_ref": "godot/legacy/inputs/iron-petal-unit/game.toml",
     }
     assert selector["package_ref"] in document
-    assert "library/games/main.toml" in document
-    assert "scripts/validate_game_package.py --root . --require-committed" in document
+    assert "godot/legacy/inputs/main.toml" in document
+    assert "godot/legacy/tools/validate_game_package.py --root . --require-committed" in document
     assert '`generated_status = "not_checked"`' in document
 
     for current_contract in (

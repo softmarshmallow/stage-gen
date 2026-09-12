@@ -1,5 +1,8 @@
 # Canonical prepared game package
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Implementation status:** exact-current package validation, prepared execution,
 > provider-free integration, and prepared runtime consumption are implemented.
 >
@@ -11,13 +14,13 @@
 > passed semantic review, is playable, or is approved for publication.
 
 The canonical prepared package is selected by
-[`library/games/main.toml`](../library/games/main.toml). The selector points
+[`godot/legacy/inputs/main.toml`](../godot/legacy/inputs/main.toml). The selector points
 directly to one package-root `game.toml`; there is no examples request wrapper
 or map-book index:
 
 ```text
-library/games/main.toml
-└── library/games/iron-petal-unit/game.toml
+godot/legacy/inputs/main.toml
+└── godot/legacy/inputs/iron-petal-unit/game.toml
     ├── universe.md
     ├── runner/{gameplay,track,audio,soundtrack}.toml
     ├── runner/content/{avatar,props,items}.toml
@@ -70,8 +73,8 @@ particular, package ingest does not reconstruct a prompt request, `WorldSpec`,
 A package may be supplied directly as a directory:
 
 ```sh
-uv run stage-gen package validate --input library/games/iron-petal-unit
-uv run stage-gen package digest --input library/games/iron-petal-unit
+uv run stage-gen package validate --input godot/legacy/inputs/iron-petal-unit
+uv run stage-gen package digest --input godot/legacy/inputs/iron-petal-unit
 ```
 
 Or as a ZIP whose archive root is the package itself or one wrapper directory
@@ -172,14 +175,14 @@ visible fallback for incomplete presentation without disabling crouch mechanics.
 Validate the repository-selected package without consulting provider state:
 
 ```sh
-uv run python scripts/validate_game_package.py --root .
+uv run python godot/legacy/tools/validate_game_package.py --root .
 ```
 
 Before committing or serving the canonical package, require its exact closure
 to be tracked and equal to Git `HEAD`:
 
 ```sh
-uv run python scripts/validate_game_package.py --root . --require-committed
+uv run python godot/legacy/tools/validate_game_package.py --root . --require-committed
 ```
 
 The `game-package-validation-v6` report keeps authored, repository, and
@@ -215,9 +218,9 @@ panel contract is specified in [Authored game UI](spec/game/ui.md).
 
 ## Not a game package
 
-`library/games/<id>/universe.toml` is a package root of its own kind, read by
+`godot/legacy/inputs/<id>/universe.toml` is a package root of its own kind, read by
 the [universe recipe](spec/universe/generation-v1.md). It is never a member of
 a `game.toml` closure: [universe taxonomy V0](spec/universe/taxonomy-v0.md)
 declines to ratify that question, and the selected prepared-game closure must
 not carry universe-only files. The two roots sit side by side under
-`library/games/` and are resolved by different code.
+`godot/legacy/inputs/` and are resolved by different code.

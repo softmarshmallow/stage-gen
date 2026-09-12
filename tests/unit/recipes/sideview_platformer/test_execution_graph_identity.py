@@ -18,13 +18,16 @@ from pathlib import Path
 
 from gnode import LOCAL_OPERATION
 from stage_gen.config import StageGenConfig
-from stage_gen.recipes.sideview_platformer.execution_graph import ExecutionGraph, OperationKind
-from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
-from stage_gen.recipes.sideview_platformer.package_types import platformer_type_index
+from stage_gen_legacy.recipes.sideview_platformer.execution_graph import (
+    ExecutionGraph,
+    OperationKind,
+)
+from stage_gen_legacy.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
+from stage_gen_legacy.recipes.sideview_platformer.package_types import platformer_type_index
 from tests.unit.recipes._cache_key_golden import assert_cache_keys_match_golden
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
-BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
+BELLWEATHER = REPOSITORY_ROOT / "godot/legacy/inputs/bellweather"
 BELLWEATHER_CACHE_KEYS = Path(__file__).with_name("bellweather.cache-keys.json")
 
 BELLWEATHER_NODE_COUNT = 230

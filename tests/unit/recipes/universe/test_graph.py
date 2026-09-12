@@ -39,7 +39,7 @@ from stage_gen.recipes.universe.universe_request import (
 )
 from stage_gen.recipes.universe.universe_types import universe_type_index
 
-FIXTURE = Path("library/games/lantern_ferry")
+FIXTURE = Path("src/stage_gen/recipes/universe/examples/lantern_ferry")
 ADMITTED = Path("tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json")
 CONFIG = StageGenConfig()
 

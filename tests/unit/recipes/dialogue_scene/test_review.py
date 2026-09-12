@@ -11,10 +11,10 @@ import pytest
 
 from gnode import ArtifactProvenance
 from stage_gen.components import CharacterProfile, canonical_character_profile_json
-from stage_gen.interfaces.cli import main
-from stage_gen.recipes.dialogue_scene.identity import content_sha256
-from stage_gen.recipes.dialogue_scene.models import DialogueBundle, IndependentReview
-from stage_gen.recipes.dialogue_scene.review import (
+from stage_gen_legacy.interfaces.cli import main
+from stage_gen_legacy.recipes.dialogue_scene.identity import content_sha256
+from stage_gen_legacy.recipes.dialogue_scene.models import DialogueBundle, IndependentReview
+from stage_gen_legacy.recipes.dialogue_scene.review import (
     _validate_profile_artifact,
     transition_dialogue_review,
 )

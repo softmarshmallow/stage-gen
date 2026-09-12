@@ -12,15 +12,15 @@ from pydantic import ValidationError
 from gnode import RouteResolutionError
 from stage_gen.config import ConfigError, StageGenConfig
 from stage_gen.image_product import ImageProvider
-from stage_gen.recipes.dialogue_scene.identity import canonical_json_bytes, canonical_sha256
-from stage_gen.recipes.dialogue_scene.models import DialogueBundle, DialogueSceneDocument
-from stage_gen.recipes.dialogue_scene.scene_executor import DialogueSceneExecutor
-from stage_gen.recipes.dialogue_scene.scene_graph import (
+from stage_gen_legacy.recipes.dialogue_scene.identity import canonical_json_bytes, canonical_sha256
+from stage_gen_legacy.recipes.dialogue_scene.models import DialogueBundle, DialogueSceneDocument
+from stage_gen_legacy.recipes.dialogue_scene.scene_executor import DialogueSceneExecutor
+from stage_gen_legacy.recipes.dialogue_scene.scene_graph import (
     DialogueSceneGraph,
     build_dialogue_scene_graph,
     dialogue_graph_profile,
 )
-from stage_gen.recipes.dialogue_scene.scene_request import (
+from stage_gen_legacy.recipes.dialogue_scene.scene_request import (
     ResolvedDialogueScene,
     parse_dialogue_request,
     read_scene_document,

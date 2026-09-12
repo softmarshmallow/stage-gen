@@ -1,6 +1,6 @@
 # Universe ontology and entity concept taxonomy
 
-> **Checked by:** `tests/contract/test_generation_pipeline_docs.py`.
+> **Checked by:** `tests/contract/test_asset_recipe_graph_docs.py`.
 
 > **Contract maturity: ratified V0 target, documentation-only.**
 >
@@ -154,7 +154,7 @@ been activated by a public consumer.
 
 ## Ownership and library boundary
 
-Future authored universe inputs will live under `library/games/<project_id>/`
+Future authored universe inputs will live under `godot/legacy/inputs/<project_id>/`
 as requested for the shared project library. The directory is an ownership and
 discovery boundary; it does not assert that every project is playable.
 

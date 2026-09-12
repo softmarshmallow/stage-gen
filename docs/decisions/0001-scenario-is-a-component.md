@@ -6,7 +6,7 @@
 
 The authored narrative contract, the Ren'Py-shaped script surface, the compiler and the
 reachability proof landed under `src/stage_gen/components/scenario/`, with the authored
-script in `library/games/larkfield/scenarios/` and a `stage-gen scenario check` command.
+script in `godot/legacy/inputs/larkfield/scenarios/` and a `stage-gen scenario check` command.
 
 ## Challenge
 

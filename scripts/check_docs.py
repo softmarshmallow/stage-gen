@@ -198,7 +198,14 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
     # written, and the identity contract test exempts them for the same reason. Holding
     # them to today's tree would mean amending a ruling every time the tree moved past it,
     # which `docs/decisions/README.md` forbids outright.
-    history_roots = ("docs/decisions/", "docs/plans/", "docs/research/", "docs/media/")
+    history_roots = (
+        "docs/decisions/",
+        "docs/plans/",
+        "docs/research/",
+        "docs/media/",
+        "godot/legacy/inputs/the_grain/story/snapshot-",
+        "godot/legacy/inputs/the_grain/PILOT.md",
+    )
     link_pattern = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
     # A link to a path the repository deliberately ignores is not broken: a
     # game's review notes link the captures they judged and its README the art
@@ -252,7 +259,7 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
     # other way. A deleted module is never gitignored, so nothing the rule was
     # written for escapes through here.
     source_path_pattern = re.compile(
-        r"`((?:src|web|scripts|tests|library|concept-studio|godot)/[A-Za-z0-9_./-]+?)(?:::[^`]*)?`"
+        r"`((?:src|web|scripts|tests|apps|concept-studio|godot)/[A-Za-z0-9_./-]+?)(?:::[^`]*)?`"
     )
     named: list[tuple[str, str, str]] = []
     for markdown_file in markdown:
@@ -294,7 +301,10 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         ("legacy gateway URL", re.compile(r"ai-gateway\.vercel\.sh")),
         ("legacy gateway name", re.compile(r"Vercel AI Gateway", re.IGNORECASE)),
         ("legacy gateway shorthand", re.compile(r"vercel[-\s]+ai[-\s]+gateway", re.IGNORECASE)),
-        ("legacy pipeline workspace", re.compile(r"pipeline/")),
+        (
+            "legacy pipeline workspace",
+            re.compile(r"(?<![a-z_/-])pipeline/(?:src|package\.json|node_modules)"),
+        ),
         ("legacy recording directory", re.compile(r"fixtures/bgm", re.IGNORECASE)),
         ("legacy curated recording claim", re.compile(r"BGM\s+is\s+curated", re.IGNORECASE)),
         ("legacy no-audio rule", re.compile(r"do\s+not\s+add\s+audio\s+generation", re.IGNORECASE)),
@@ -414,12 +424,12 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
 
     required_contracts = (
         (
-            "README.md",
+            "godot/legacy/README.md",
             re.compile(r"directory or ZIP whose root contains `game\.toml`", re.IGNORECASE),
             "prepared-package CLI input",
         ),
         (
-            "README.md",
+            "godot/legacy/README.md",
             re.compile(
                 r"--dry-run.{0,200}deterministic fake operations",
                 re.IGNORECASE | re.DOTALL,
@@ -427,12 +437,12 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
             "provider-free execution dry run",
         ),
         (
-            "README.md",
+            "godot/legacy/README.md",
             re.compile(r"There is no bare-prompt fallback", re.IGNORECASE),
             "removed prompt fallback",
         ),
         (
-            "README.md",
+            "godot/legacy/README.md",
             re.compile(
                 r"without `--dry-run`.{0,160}fails before provider",
                 re.IGNORECASE | re.DOTALL,
@@ -465,7 +475,8 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         (
             "docs/web-viewer.md",
             re.compile(
-                r"web/` (?:starts|launches|plays) no run",
+                r"(?:web/` (?:starts|launches|plays) no run|does not (?:start|launch|generate)"
+                r"|never (?:starts|launches|generates))",
                 re.IGNORECASE,
             ),
             "web is not a generation authority",

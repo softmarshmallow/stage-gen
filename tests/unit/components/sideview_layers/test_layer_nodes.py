@@ -24,8 +24,8 @@ from stage_gen.components.sideview_layers.nodes import (
     layer_node_types,
     publish_layer,
 )
-from stage_gen.components.sideview_stage import PreparedMapLayer
 from stage_gen.recipes.graph_document import RecipeGraph
+from stage_gen_legacy.components.sideview_stage import PreparedMapLayer
 
 
 class _Ops(StrEnum):

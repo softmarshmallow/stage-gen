@@ -1,24 +1,11 @@
 #!/usr/bin/env python3
-"""Check or rewrite the executable graph-contract block in the generation-pipeline document.
+"""Check or rewrite graph snapshots for the independent universe recipe.
 
-`docs/spec/game/generation-pipeline.md` carries a JSON snapshot of the Bellweather platformer
-execution graph, `docs/spec/game/runner.md` snapshots the Iron Petal Unit structural-ground
-runner graph, `docs/spec/universe/generation-v1.md` snapshots both phases of the Lantern
-Ferry universe, and `docs/spec/survival/generation-v1.md` snapshots the widest scope of the
-Ember Hollow oblique-survival world. `tests/contract/test_generation_pipeline_docs.py` asserts
-every document matches the graphs the code actually builds. Any change to recipe stages, asset
-fan-out, or scheduling invalidates the relevant snapshot.
+The document block helpers here are recipe-neutral. Historical gameplay graph
+snapshots have their own writer under godot/legacy/tools.
 
-A document may carry more than one block when a recipe plans more than one graph. Universe does:
-the size of its gallery is a result of its semantic phase, so the two graphs are sealed
-separately and each carries its own labelled block.
-
-Regenerating it by hand means transcribing a sha256, a node count, an operation-count map, and
-the full resource list out of a pytest assertion diff. This owns that instead, so the snapshot is
-derived rather than typed.
-
-    uv run python scripts/write_pipeline_graph_contract.py            # check, non-zero if stale
-    uv run python scripts/write_pipeline_graph_contract.py --write    # rewrite the block
+    python scripts/write_pipeline_graph_contract.py
+    python scripts/write_pipeline_graph_contract.py --write
 """
 
 from __future__ import annotations
@@ -34,28 +21,6 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from stage_gen.config import StageGenConfig
-from stage_gen.orchestration.game_package import resolve_game_package
-from stage_gen.recipes.oblique_survival.survival_graph import (
-    build_graph as build_oblique_survival_graph,
-)
-from stage_gen.recipes.oblique_survival.survival_request import resolve_survival_source
-from stage_gen.recipes.sideview_platformer.package_graph import (
-    build_package_execution_graph,
-    package_graph_profile,
-)
-from stage_gen.recipes.sideview_runner.runner_graph import (
-    build_runner_execution_graph,
-    runner_graph_profile,
-)
-from stage_gen.recipes.sideview_runner.runner_request import resolve_runner_package
-from stage_gen.recipes.storefront.storefront_graph import (
-    build_storefront_graph,
-    storefront_graph_profile,
-)
-from stage_gen.recipes.storefront.storefront_request import (
-    read_storefront_document,
-    resolve_storefront,
-)
 from stage_gen.recipes.universe.universe_graph import (
     build_universe_gallery_graph,
     build_universe_semantic_graph,
@@ -69,29 +34,13 @@ from stage_gen.recipes.universe.universe_request import (
 )
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-PIPELINE_DOCUMENT = REPOSITORY_ROOT / "docs/spec/game/generation-pipeline.md"
 CONTRACT_START = "<!-- pipeline-graph-contract:start -->"
 CONTRACT_END = "<!-- pipeline-graph-contract:end -->"
-CONTRACT_KIND = "prepared-game-execution-graph-contract-v1"
-FIXTURE_REF = "library/games/bellweather"
-RUNNER_FIXTURE_REF = "library/games/iron-petal-unit"
-RUNNER_PIPELINE_DOCUMENT = REPOSITORY_ROOT / "docs/spec/game/runner.md"
-RUNNER_CONTRACT_KIND = "sideview-runner-execution-graph-contract-v1"
 UNIVERSE_DOCUMENT = REPOSITORY_ROOT / "docs/spec/universe/generation-v1.md"
-UNIVERSE_FIXTURE_REF = "library/games/lantern_ferry"
+UNIVERSE_FIXTURE_REF = "src/stage_gen/recipes/universe/examples/lantern_ferry"
 UNIVERSE_ADMITTED_REF = "tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json"
 UNIVERSE_SEMANTIC_CONTRACT_KIND = "universe-semantic-execution-graph-contract-v1"
 UNIVERSE_GALLERY_CONTRACT_KIND = "universe-gallery-execution-graph-contract-v1"
-OBLIQUE_SURVIVAL_DOCUMENT = REPOSITORY_ROOT / "docs/spec/survival/generation-v1.md"
-OBLIQUE_SURVIVAL_FIXTURE_REF = "library/games/ember-hollow"
-OBLIQUE_SURVIVAL_CONTRACT_KIND = "oblique-survival-execution-graph-contract-v1"
-#: The widest rung of the ladder. A narrower scope is a subset of this graph and
-#: changes nothing about the nodes it keeps, so snapshotting the widest one pins
-#: every node identity the recipe can plan.
-OBLIQUE_SURVIVAL_SCOPE = "full"
-STOREFRONT_DOCUMENT = REPOSITORY_ROOT / "docs/spec/storefront/generation-v1.md"
-STOREFRONT_FIXTURE_REF = "library/games/ember-hollow"
-STOREFRONT_CONTRACT_KIND = "storefront-execution-graph-contract-v1"
 
 
 def contract_markers(label: str | None) -> tuple[str, str, re.Pattern[str]]:
@@ -107,50 +56,6 @@ def contract_markers(label: str | None) -> tuple[str, str, re.Pattern[str]]:
 
 
 CONTRACT_PATTERN = contract_markers(None)[2]
-
-
-def build_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
-    """Derive the contract from the graph the code builds. Key order is the document's order."""
-
-    config = StageGenConfig()
-    package = resolve_game_package(repo / FIXTURE_REF)
-    graph = build_package_execution_graph(
-        package,
-        profile=package_graph_profile(config),
-        config=config,
-    )
-    return {
-        "kind": CONTRACT_KIND,
-        "fixture_ref": FIXTURE_REF,
-        "graph_schema_version": graph.schema_version,
-        "topology_sha256": graph.topology_sha256,
-        "node_count": len(graph.nodes),
-        "terminal_node_id": graph.terminal_node_id,
-        "operation_counts": graph.operation_counts(),
-        "resources": [resource.model_dump(mode="json") for resource in graph.resources],
-    }
-
-
-def build_runner_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
-    """Derive the runner member's contract from the graph the code builds."""
-
-    config = StageGenConfig()
-    resolved = resolve_runner_package(repo / RUNNER_FIXTURE_REF)
-    graph = build_runner_execution_graph(
-        resolved,
-        profile=runner_graph_profile(config),
-        config=config,
-    )
-    return {
-        "kind": RUNNER_CONTRACT_KIND,
-        "fixture_ref": RUNNER_FIXTURE_REF,
-        "graph_schema_version": graph.schema_version,
-        "topology_sha256": graph.topology_sha256,
-        "node_count": len(graph.nodes),
-        "terminal_node_id": graph.terminal_node_id,
-        "operation_counts": graph.operation_counts(),
-        "resources": [resource.model_dump(mode="json") for resource in graph.resources],
-    }
 
 
 def _universe_inputs(repo: Path) -> tuple[Any, Any]:
@@ -215,60 +120,7 @@ def build_universe_gallery_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[
     }
 
 
-def build_storefront_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
-    """Derive the storefront's contract from the graph the code builds.
-
-    Planned against an empty draw ledger, which is what a first run has: a reroll
-    changes one image node's identity and nothing about the shape of the graph, so
-    the snapshot would be identical and the ledger is left out of it.
-    """
-
-    config = StageGenConfig()
-    root = repo / STOREFRONT_FIXTURE_REF
-    resolved = resolve_storefront(read_storefront_document(root), root=root)
-    graph = build_storefront_graph(
-        resolved,
-        profile=storefront_graph_profile(config),
-        config=config,
-    )
-    return {
-        "kind": STOREFRONT_CONTRACT_KIND,
-        "fixture_ref": STOREFRONT_FIXTURE_REF,
-        "surface_count": graph.surface_count,
-        "graph_schema_version": graph.schema_version,
-        "topology_sha256": graph.topology_sha256,
-        "node_count": len(graph.nodes),
-        "terminal_node_id": graph.terminal_node_id,
-        "operation_counts": graph.operation_counts(),
-        "resources": [resource.model_dump(mode="json") for resource in graph.resources],
-    }
-
-
-def build_oblique_survival_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
-    """Derive the survival world's contract from the graph the code builds.
-
-    The scope rides the payload because it is the one header field in this
-    recipe's topology identity: it genuinely selects a subset of the nodes.
-    """
-
-    package = resolve_survival_source(repo / OBLIQUE_SURVIVAL_FIXTURE_REF)
-    graph = build_oblique_survival_graph(StageGenConfig(), package, OBLIQUE_SURVIVAL_SCOPE)
-    return {
-        "kind": OBLIQUE_SURVIVAL_CONTRACT_KIND,
-        "fixture_ref": OBLIQUE_SURVIVAL_FIXTURE_REF,
-        "scope": graph.scope,
-        "graph_schema_version": graph.schema_version,
-        "topology_sha256": graph.topology_sha256,
-        "node_count": len(graph.nodes),
-        "terminal_node_id": graph.terminal_node_id,
-        "operation_counts": graph.operation_counts(),
-        "resources": [resource.model_dump(mode="json") for resource in graph.resources],
-    }
-
-
-def document_contract(
-    document: Path = PIPELINE_DOCUMENT, *, label: str | None = None
-) -> dict[str, Any]:
+def document_contract(document: Path, *, label: str | None = None) -> dict[str, Any]:
     """Read the snapshot currently written into the document."""
 
     start, end, pattern = contract_markers(label)
@@ -289,9 +141,7 @@ def render(contract: dict[str, Any], *, label: str | None = None) -> str:
     return f"{start}\n```json\n{json.dumps(contract, indent=2)}\n```\n{end}"
 
 
-def write_contract(
-    contract: dict[str, Any], document: Path = PIPELINE_DOCUMENT, *, label: str | None = None
-) -> bool:
+def write_contract(contract: dict[str, Any], document: Path, *, label: str | None = None) -> bool:
     """Replace the block in place. Returns True when the document changed."""
 
     start, end, pattern = contract_markers(label)
@@ -315,8 +165,6 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     contracts: tuple[tuple[str, Path, Any, str | None], ...] = (
-        ("platformer", PIPELINE_DOCUMENT, build_graph_contract, None),
-        ("runner", RUNNER_PIPELINE_DOCUMENT, build_runner_graph_contract, None),
         (
             "universe-semantic",
             UNIVERSE_DOCUMENT,
@@ -329,13 +177,6 @@ def main(argv: list[str] | None = None) -> int:
             build_universe_gallery_graph_contract,
             "gallery",
         ),
-        (
-            "oblique-survival",
-            OBLIQUE_SURVIVAL_DOCUMENT,
-            build_oblique_survival_graph_contract,
-            None,
-        ),
-        ("storefront", STOREFRONT_DOCUMENT, build_storefront_graph_contract, None),
     )
     status = 0
     for label, document, build, marker in contracts:

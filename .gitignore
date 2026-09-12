@@ -186,20 +186,16 @@ spikes/
 # Session workspaces, never tracked (was only in .git/info/exclude, which a clone does not see).
 local/
 
-# Private game workspaces; only the shared boundary notice belongs in Git.
-/library/private/*
-!/library/private/README.md
-
 # Ember Hollow's adopted takes stay local: first-party draws that exceed the tracked-media
 # policy (docs/repository-storage.md) in size and in location, and are declared by sha256 in
 # the package TOMLs, so planning and graph identity need only the digest. The two reference
 # images beside them are tracked.
-/library/games/ember-hollow/ground/*.take.png
-/library/games/ember-hollow/items/*.take.png
-/library/games/ember-hollow/weather/*.take.png
-/library/games/ember-hollow/music/*.take.mp3
-/library/games/ember-hollow/sounds/*.take.mp3
-/library/games/ember-hollow/shell/*.take.mp4
+/godot/legacy/inputs/ember-hollow/ground/*.take.png
+/godot/legacy/inputs/ember-hollow/items/*.take.png
+/godot/legacy/inputs/ember-hollow/weather/*.take.png
+/godot/legacy/inputs/ember-hollow/music/*.take.mp3
+/godot/legacy/inputs/ember-hollow/sounds/*.take.mp3
+/godot/legacy/inputs/ember-hollow/shell/*.take.mp4
 
 # The Godot project: the editor's import cache is derived and an export is a
 # build, so neither is tracked. The project ships no media, so there are no
@@ -210,9 +206,9 @@ local/
 /godot/**/.godot/
 /godot/**/build/
 /godot/**/export_credentials.cfg
-/library/games/ember-hollow/ground/*.take.png.meta.json
-/library/games/ember-hollow/items/*.take.png.meta.json
-/library/games/ember-hollow/weather/*.take.png.meta.json
-/library/games/ember-hollow/music/*.take.mp3.meta.json
-/library/games/ember-hollow/sounds/*.take.mp3.meta.json
-/library/games/ember-hollow/shell/*.take.mp4.meta.json
+/godot/legacy/inputs/ember-hollow/ground/*.take.png.meta.json
+/godot/legacy/inputs/ember-hollow/items/*.take.png.meta.json
+/godot/legacy/inputs/ember-hollow/weather/*.take.png.meta.json
+/godot/legacy/inputs/ember-hollow/music/*.take.mp3.meta.json
+/godot/legacy/inputs/ember-hollow/sounds/*.take.mp3.meta.json
+/godot/legacy/inputs/ember-hollow/shell/*.take.mp4.meta.json

@@ -128,6 +128,48 @@ async def test_an_interrupted_run_records_that_it_was_canceled() -> None:
     assert canceled["started_node_ids"] == ["first"]
 
 
+async def test_repeated_cancellation_joins_cleanup_before_recording_terminal_event() -> None:
+    graph = _graph()
+    sink = MemoryTraceSink()
+    entered = asyncio.Event()
+    cleaning = asyncio.Event()
+    release = asyncio.Event()
+    cleaned = asyncio.Event()
+
+    async def handler(node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
+        entered.set()
+        try:
+            return await asyncio.Future[NodeExecutionResult]()
+        finally:
+            cleaning.set()
+            await release.wait()
+            cleaned.set()
+
+    task = asyncio.create_task(
+        Scheduler(graph.resources).run(
+            graph, handler, invocation_id="cleanup-fixture", trace_sink=sink
+        )
+    )
+    try:
+        await entered.wait()
+        task.cancel()
+        await cleaning.wait()
+        task.cancel()
+        await asyncio.sleep(0)
+        assert not task.done()
+        assert sink.events[-1]["event"] == "node_started"
+    finally:
+        release.set()
+        await asyncio.gather(task, return_exceptions=True)
+
+    assert task.cancelled()
+    assert cleaned.is_set()
+    assert [event["event"] for event in sink.events][-1] == "run_canceled"
+    assert not any(
+        item.get_name().startswith("gnode:") and not item.done() for item in asyncio.all_tasks()
+    )
+
+
 async def test_a_completed_run_records_no_cancellation() -> None:
     graph = _graph()
     sink = MemoryTraceSink()

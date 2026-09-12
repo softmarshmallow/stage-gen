@@ -1,5 +1,8 @@
 # Authored game voice
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Contract maturity: exact-current prepared-package contract.**
 
 A game's *voice* is two things: a **cast** - the voices the game may speak in,
@@ -235,8 +238,8 @@ the catalog.
 ## Validation
 
 ```sh
-uv run stage-gen package validate --input library/games/iron-petal-unit
-uv run stage-gen package plan --input library/games/iron-petal-unit
+uv run stage-gen package validate --input godot/legacy/inputs/iron-petal-unit
+uv run stage-gen package plan --input godot/legacy/inputs/iron-petal-unit
 ```
 
 Contract validity proves the cast resolves and the plan is sound, not the

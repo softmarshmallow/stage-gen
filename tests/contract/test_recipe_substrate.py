@@ -16,34 +16,9 @@ from types import ModuleType
 import pytest
 
 from gnode import Graph
-from stage_gen.recipes.dialogue_scene.scene_executor import DialogueSceneExecutor
-from stage_gen.recipes.dialogue_scene.scene_graph import (
-    DIALOGUE_GRAPH_SCHEMA_VERSION,
-    DialogueSceneGraph,
-)
 from stage_gen.recipes.executor import RecipeExecutor
 from stage_gen.recipes.graph_document import RecipeGraph
 from stage_gen.recipes.node_handler import RecipeNodeHandler
-from stage_gen.recipes.oblique_survival.survival_executor import ObliqueSurvivalExecutor
-from stage_gen.recipes.oblique_survival.survival_graph import (
-    OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION,
-    ObliqueSurvivalGraph,
-)
-from stage_gen.recipes.pointclick_room.room_executor import PointClickRoomExecutor
-from stage_gen.recipes.pointclick_room.room_graph import (
-    POINTCLICK_GRAPH_SCHEMA_VERSION,
-    PointClickRoomGraph,
-)
-from stage_gen.recipes.sideview_platformer.execution_graph import (
-    EXECUTION_GRAPH_SCHEMA_VERSION,
-    ExecutionGraph,
-)
-from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
-from stage_gen.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
-from stage_gen.recipes.sideview_runner.runner_graph import (
-    RUNNER_GRAPH_SCHEMA_VERSION,
-    SideviewRunnerGraph,
-)
 from stage_gen.recipes.storefront.storefront_executor import StorefrontExecutor
 from stage_gen.recipes.storefront.storefront_graph import (
     STOREFRONT_GRAPH_SCHEMA_VERSION,
@@ -53,6 +28,31 @@ from stage_gen.recipes.universe.universe_executor import UniverseExecutor
 from stage_gen.recipes.universe.universe_graph import (
     UNIVERSE_GRAPH_SCHEMA_VERSION,
     UniverseGraph,
+)
+from stage_gen_legacy.recipes.dialogue_scene.scene_executor import DialogueSceneExecutor
+from stage_gen_legacy.recipes.dialogue_scene.scene_graph import (
+    DIALOGUE_GRAPH_SCHEMA_VERSION,
+    DialogueSceneGraph,
+)
+from stage_gen_legacy.recipes.oblique_survival.survival_executor import ObliqueSurvivalExecutor
+from stage_gen_legacy.recipes.oblique_survival.survival_graph import (
+    OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION,
+    ObliqueSurvivalGraph,
+)
+from stage_gen_legacy.recipes.pointclick_room.room_executor import PointClickRoomExecutor
+from stage_gen_legacy.recipes.pointclick_room.room_graph import (
+    POINTCLICK_GRAPH_SCHEMA_VERSION,
+    PointClickRoomGraph,
+)
+from stage_gen_legacy.recipes.sideview_platformer.execution_graph import (
+    EXECUTION_GRAPH_SCHEMA_VERSION,
+    ExecutionGraph,
+)
+from stage_gen_legacy.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
+from stage_gen_legacy.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
+from stage_gen_legacy.recipes.sideview_runner.runner_graph import (
+    RUNNER_GRAPH_SCHEMA_VERSION,
+    SideviewRunnerGraph,
 )
 
 SOURCE_ROOT = Path(__file__).resolve().parents[2] / "src" / "stage_gen"

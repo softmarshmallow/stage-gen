@@ -1,5 +1,8 @@
 # Canonical game-generation pipeline
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Checked by:** `tests/contract/test_current_game_docs.py`, `tests/contract/test_generation_pipeline_docs.py`.
 
 > **Contract maturity: current executable overview.**
@@ -33,7 +36,7 @@ also stamp the `template_id` that produced them. A provider-backed image node ad
 `binding_ref`, which resolves through the graph's `resolved_routes` table to the exact product,
 provider, model, API surface, endpoint action, adapter behavior, admitted capabilities and exact
 canvas, and effective output options sealed during planning. Dispatch is a registry lookup over `type_id`
-([`package_types.py`](../../../src/stage_gen/recipes/sideview_platformer/package_types.py) declares
+([`package_types.py`](../../../godot/legacy/python/stage_gen_legacy/recipes/sideview_platformer/package_types.py) declares
 the recipe's whole type census); it is not a regex over node identifiers, and no reader recovers a
 node's kind from an output path convention.
 
@@ -41,19 +44,19 @@ node's kind from an output path convention.
 
 | Boundary | Current authority |
 | --- | --- |
-| Authored package capture, membership, and closure | [`game_package.py`](../../../src/stage_gen/orchestration/game_package.py) over [`package_capture.py`](../../../src/stage_gen/orchestration/package_capture.py) |
-| The platformer member's resolution and cross-contract rules | [`validation.py`](../../../src/stage_gen/recipes/sideview_platformer/validation.py) |
-| Asset-level fan-out, dependencies, typed ports, cache inputs, and provider-neutral image workload requirements | [`package_graph.py`](../../../src/stage_gen/recipes/sideview_platformer/package_graph.py) |
-| The recipe's node-type census: `type_id`, view archetype, capability and features, attempt policy, per-type cache contract version | [`package_types.py`](../../../src/stage_gen/recipes/sideview_platformer/package_types.py) |
+| Authored package capture, membership, and closure | [`game_package.py`](../../../godot/legacy/python/stage_gen_legacy/orchestration/game_package.py) over [`package_capture.py`](../../../godot/legacy/python/stage_gen_legacy/orchestration/package_capture.py) |
+| The platformer member's resolution and cross-contract rules | [`validation.py`](../../../godot/legacy/python/stage_gen_legacy/recipes/sideview_platformer/validation.py) |
+| Asset-level fan-out, dependencies, typed ports, cache inputs, and provider-neutral image workload requirements | [`package_graph.py`](../../../godot/legacy/python/stage_gen_legacy/recipes/sideview_platformer/package_graph.py) |
+| The recipe's node-type census: `type_id`, view archetype, capability and features, attempt policy, per-type cache contract version | [`package_types.py`](../../../godot/legacy/python/stage_gen_legacy/recipes/sideview_platformer/package_types.py) |
 | Dependency scheduling, resource gates, result contracts, and trace | [`gnode`](../../../src/gnode/) — [`graph.py`](../../../src/gnode/graph.py), [`schedule.py`](../../../src/gnode/schedule.py), [`trace.py`](../../../src/gnode/trace.py) |
-| Prepared-game document vocabulary over that engine | [`execution_graph.py`](../../../src/stage_gen/recipes/sideview_platformer/execution_graph.py) |
+| Prepared-game document vocabulary over that engine | [`execution_graph.py`](../../../godot/legacy/python/stage_gen_legacy/recipes/sideview_platformer/execution_graph.py) |
 | Sunburst provider routes, capability policies, and the optional scalar provider override | [`model_routes.py`](../../../src/stage_gen/model_routes.py) over [`routes.py`](../../../src/gnode/routes.py) and [`route_constraints.py`](../../../src/gnode/route_constraints.py) |
 | Per-node route admission and portable `resolved_routes` snapshots | [`build.py`](../../../src/gnode/build.py) and [`graph.py`](../../../src/gnode/graph.py) |
-| Side-view platformer resolve/plan/dispatch composition | [`package_executor.py`](../../../src/stage_gen/recipes/sideview_platformer/package_executor.py) |
-| Prepared-package map execution, canonicalization, cache, and review | [`prepared_world.py`](../../../src/stage_gen/recipes/sideview_platformer/prepared_world.py) |
-| Prepared-package cast, catalog, UI, soundtrack, binding, and review execution | [`prepared_content.py`](../../../src/stage_gen/recipes/sideview_platformer/prepared_content.py) |
+| Side-view platformer resolve/plan/dispatch composition | [`package_executor.py`](../../../godot/legacy/python/stage_gen_legacy/recipes/sideview_platformer/package_executor.py) |
+| Prepared-package map execution, canonicalization, cache, and review | [`prepared_world.py`](../../../godot/legacy/python/stage_gen_legacy/recipes/sideview_platformer/prepared_world.py) |
+| Prepared-package cast, catalog, UI, soundtrack, binding, and review execution | [`prepared_content.py`](../../../godot/legacy/python/stage_gen_legacy/recipes/sideview_platformer/prepared_content.py) |
 | Leaf provider retries, decoding, validation, and atomic persistence | Provider-neutral components and adapters |
-| Runtime artifact binding and atomic publication | [`prepared_manifest.py`](../../../src/stage_gen/recipes/sideview_platformer/prepared_manifest.py) |
+| Runtime artifact binding and atomic publication | [`prepared_manifest.py`](../../../godot/legacy/python/stage_gen_legacy/recipes/sideview_platformer/prepared_manifest.py) |
 
 The side-view platformer executor is deliberately thin. It resolves one directory or ZIP, asks the
 recipe to construct the graph, and gives that graph to generic orchestration. It does not plan a
@@ -201,7 +204,7 @@ move content-sensitive graph and cache identities even when the DAG shape does n
 ```json
 {
   "kind": "prepared-game-execution-graph-contract-v1",
-  "fixture_ref": "library/games/bellweather",
+  "fixture_ref": "godot/legacy/inputs/bellweather",
   "graph_schema_version": 2,
   "topology_sha256": "952aa5d0d1f2e059cb512544a84495c7a2bec0bfe596aedb46f8e00aa72b8b6f",
   "node_count": 230,
@@ -608,7 +611,7 @@ v12 rather than gain a version.
 ## Runtime closure roles
 
 Every artifact in `manifest.json`'s closure declares what it is published for. The role is chosen
-at the publication site in [`prepared_manifest.py`](../../../src/stage_gen/recipes/sideview_platformer/prepared_manifest.py)
+at the publication site in [`prepared_manifest.py`](../../../godot/legacy/python/stage_gen_legacy/recipes/sideview_platformer/prepared_manifest.py)
 and stated once, beside the path, in `runtime_artifact_closure`.
 
 | Role | Meaning | Members |
@@ -627,24 +630,24 @@ the vocabulary and may present, list, or ignore an artifact by role, but must no
 filename, directory, or media type.
 
 ```bash
-uv run stage-gen package plan --input library/games/bellweather
+uv run stage-gen package plan --input godot/legacy/inputs/bellweather
 uv run stage-gen generate \
-  --input library/games/bellweather \
+  --input godot/legacy/inputs/bellweather \
   --dry-run \
   --output /tmp/bellweather-dry-run
 
 uv run stage-gen generate \
-  --input library/games/bellweather \
+  --input godot/legacy/inputs/bellweather \
   --checkpoint world \
   --output /tmp/bellweather-world
 
 uv run stage-gen generate \
-  --input library/games/bellweather \
+  --input godot/legacy/inputs/bellweather \
   --checkpoint content \
   --output /tmp/bellweather-content
 
 uv run stage-gen generate \
-  --input library/games/bellweather \
+  --input godot/legacy/inputs/bellweather \
   --checkpoint integration \
   --output out/bellweather-prepared-v1
 ```

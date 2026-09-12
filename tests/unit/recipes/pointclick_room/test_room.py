@@ -11,32 +11,32 @@ from typing import Any
 import pytest
 
 from gnode import RouteResolutionError
-from stage_gen.components.game_ui.nodes import UI_SHEET_ROLES
 from stage_gen.config import ConfigError, StageGenConfig
 from stage_gen.image_product import ImageProvider
 from stage_gen.model_routes import (
     IMAGE_NATIVE_EDIT_POLICY_ID,
     IMAGE_TRANSPARENT_EDIT_POLICY_ID,
 )
-from stage_gen.recipes.pointclick_room.models import (
+from stage_gen_legacy.components.game_ui.nodes import UI_SHEET_ROLES
+from stage_gen_legacy.recipes.pointclick_room.models import (
     PointClickRoom,
     prove_room_solvable,
 )
-from stage_gen.recipes.pointclick_room.room_executor import PointClickRoomExecutor
-from stage_gen.recipes.pointclick_room.room_graph import (
+from stage_gen_legacy.recipes.pointclick_room.room_executor import PointClickRoomExecutor
+from stage_gen_legacy.recipes.pointclick_room.room_graph import (
     build_pointclick_room_graph,
     room_graph_profile,
 )
-from stage_gen.recipes.pointclick_room.room_request import (
+from stage_gen_legacy.recipes.pointclick_room.room_request import (
     ResolvedPointClickRoom,
     read_room_document,
     resolve_pointclick_room,
 )
-from stage_gen.recipes.pointclick_room.room_types import pointclick_type_index
-from stage_gen.recipes.pointclick_room.room_view import build_pointclick_room_view
+from stage_gen_legacy.recipes.pointclick_room.room_types import pointclick_type_index
+from stage_gen_legacy.recipes.pointclick_room.room_view import build_pointclick_room_view
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
-ATTIC = REPOSITORY_ROOT / "library/games/clockmakers_attic"
+ATTIC = REPOSITORY_ROOT / "godot/legacy/inputs/clockmakers_attic"
 
 
 def _attic_document() -> dict[str, Any]:

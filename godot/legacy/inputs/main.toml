@@ -1,0 +1,4 @@
+schema_version = 4
+kind = "game-package-v4"
+game_id = "iron-petal-unit"
+package_ref = "godot/legacy/inputs/iron-petal-unit/game.toml"

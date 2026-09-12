@@ -59,23 +59,12 @@ def test_active_snapshot_has_no_stale_generated_graph_contracts_or_cache_goldens
     )
 
 
-def test_active_snapshot_covers_every_policy_route_and_canonical_recipe() -> None:
+def test_core_snapshot_covers_routes_without_consumer_fixtures() -> None:
     snapshot = load_active_model_policy_snapshot()
     route_ids = {route.route_id for route in snapshot.routes}
     assert all(policy.route_id in route_ids for policy in snapshot.policies)
-    assert {recipe.recipe_id for recipe in snapshot.recipes} == {
-        "dialogue_scene",
-        "oblique_survival",
-        "pointclick_room",
-        "sideview_platformer",
-        "sideview_runner",
-        "storefront",
-        "universe_gallery",
-        "universe_semantic",
-    }
-    assert all(
-        binding.route_id in route_ids for recipe in snapshot.recipes for binding in recipe.bindings
-    )
+    assert snapshot.recipes == ()
+    assert snapshot.generated_files == ()
     serialized = SNAPSHOT.read_text(encoding="utf-8")
     assert "api_key" not in serialized.lower()
     assert "authorization" not in serialized.lower()

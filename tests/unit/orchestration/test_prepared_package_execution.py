@@ -6,12 +6,12 @@ from pathlib import Path
 from gnode import NodeStatus, Scheduler
 from stage_gen.config import StageGenConfig
 from stage_gen.recipes.dry_run import DryRunNodeHandler
-from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
-from stage_gen.recipes.sideview_platformer.prepared_content import content_target_node_ids
-from stage_gen.recipes.sideview_platformer.prepared_world import world_target_node_ids
+from stage_gen_legacy.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
+from stage_gen_legacy.recipes.sideview_platformer.prepared_content import content_target_node_ids
+from stage_gen_legacy.recipes.sideview_platformer.prepared_world import world_target_node_ids
 
 REPOSITORY_ROOT = Path(__file__).parents[3]
-BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
+BELLWEATHER = REPOSITORY_ROOT / "godot/legacy/inputs/bellweather"
 
 
 async def test_full_fake_execution_proves_concurrency_cache_and_failure_isolation(

@@ -16,7 +16,7 @@ into the same class, so one authored word selects a whole combat feel.
 ## Ruling
 
 Scale is a separate field, `number_scale` on the combat policy in
-`src/stage_gen/components/platformer_gameplay/models.py`, defaulting to `unit_v1`, with the
+`godot/legacy/python/stage_gen_legacy/components/platformer_gameplay/models.py`, defaulting to `unit_v1`, with the
 consumer table in `web/lib/sideview-platformer/number-scale.ts`. Scale is orthogonal to reach:
 folding it into the class would multiply the vocabulary by every combination and make a
 package unable to keep its reach while changing its numbers.

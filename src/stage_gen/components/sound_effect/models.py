@@ -93,7 +93,7 @@ class PinnedTake(PersistedContractModel):
         return self
 
 
-class GeneratedClipRealization(PersistedContractModel):
+class SoundEffectRequest(PersistedContractModel):
     """One provider-generated clip, requested with the parameters the route honours."""
 
     kind: Literal["generated_clip_v1"]
@@ -104,25 +104,20 @@ class GeneratedClipRealization(PersistedContractModel):
     duration_seconds: float = Field(ge=0.5, le=30.0)
     #: Omitted means the provider default.
     prompt_influence: float | None = Field(default=None, ge=0.0, le=1.0)
-    #: Playback gain applied by the consumer; the bytes are never touched.
-    gain: float = Field(gt=0.0, le=1.0)
-    #: Multiplies playback rate by ``1 + event_strength * value``. Zero disables it.
-    strength_pitch_multiplier: float = Field(ge=0.0, le=2.0)
     #: The reroll ordinal. Bump it to redraw this effect alone.
     take: int = Field(default=FIRST_TAKE, ge=FIRST_TAKE, le=MAX_TAKE)
     #: The reviewed pick. When present the graph buys nothing for this effect.
     pinned: PinnedTake | None = None
 
     @model_validator(mode="after")
-    def validate_prompt(self) -> GeneratedClipRealization:
+    def validate_prompt(self) -> SoundEffectRequest:
         self.prompt = normalized_text(self.prompt, "generated clip prompt")
         return self
 
     def generation_identity(self) -> dict[str, object]:
         """The fields that decide whether a draw must be re-bought.
 
-        Deliberately excludes ``gain`` and ``strength_pitch_multiplier``: they
-        change how a clip is played, not which clip was made. ``take`` enters
+        Playback bindings are separate from this asset request. ``take`` enters
         only above the first draw, so an existing key is undisturbed until a
         person asks for another.
         """
@@ -145,7 +140,7 @@ __all__ = [
     "GENERATED_CLIP_REALIZATION_KIND",
     "MAX_GENERATED_CLIP_PROMPT_CHARACTERS",
     "MAX_TAKE",
-    "GeneratedClipRealization",
+    "SoundEffectRequest",
     "PinnedTake",
     "TakeRightsStatus",
 ]

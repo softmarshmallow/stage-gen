@@ -34,7 +34,9 @@ _Color = tuple[int, int, int]
 _Point = tuple[int, int]
 
 REPOSITORY_ROOT: Final = Path(__file__).resolve().parents[1]
-POSTER_PATH: Final = REPOSITORY_ROOT / "library/games/lantern_ferry/references/poster.png"
+POSTER_PATH: Final = (
+    REPOSITORY_ROOT / "src/stage_gen/recipes/universe/examples/lantern_ferry/references/poster.png"
+)
 
 WIDTH: Final = 768
 HEIGHT: Final = 1024

@@ -7,7 +7,7 @@ import io
 import pytest
 from PIL import Image, ImageDraw
 
-from stage_gen.components.game_fx.sprite import (
+from stage_gen_legacy.components.game_fx.sprite import (
     DUST_CELL_FILL_MIN,
     DUST_CELL_KINDS,
     DUST_CELL_MIN_SIDE,

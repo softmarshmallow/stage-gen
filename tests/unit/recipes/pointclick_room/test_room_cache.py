@@ -26,20 +26,23 @@ from typing import Any, cast
 
 from gnode import JsonlTraceSink, Scheduler
 from stage_gen.config import StageGenConfig
-from stage_gen.recipes.pointclick_room.prepared_room import PointClickRoomNodeHandler
-from stage_gen.recipes.pointclick_room.room_graph import (
+from stage_gen_legacy.recipes.pointclick_room.prepared_room import PointClickRoomNodeHandler
+from stage_gen_legacy.recipes.pointclick_room.room_graph import (
     build_pointclick_room_graph,
     room_graph_profile,
 )
-from stage_gen.recipes.pointclick_room.room_prompts import backdrop_prompt, hotspot_sprite_prompt
-from stage_gen.recipes.pointclick_room.room_request import (
+from stage_gen_legacy.recipes.pointclick_room.room_prompts import (
+    backdrop_prompt,
+    hotspot_sprite_prompt,
+)
+from stage_gen_legacy.recipes.pointclick_room.room_request import (
     read_room_document,
     resolve_pointclick_room,
 )
 from tests.unit.recipes.pointclick_room.fakes import FakeRoomImages, FakeRoomStructured
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
-ATTIC = REPOSITORY_ROOT / "library/games/clockmakers_attic"
+ATTIC = REPOSITORY_ROOT / "godot/legacy/inputs/clockmakers_attic"
 
 
 # --------------------------------------------------------------- plan identity

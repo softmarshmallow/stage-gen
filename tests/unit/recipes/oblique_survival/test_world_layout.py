@@ -26,13 +26,13 @@ import pytest
 from PIL import Image
 
 from stage_gen.components.worldgen import PointIndex, plate_cells
-from stage_gen.recipes.oblique_survival import layout as layout_module
-from stage_gen.recipes.oblique_survival.layout import Layout
-from stage_gen.recipes.oblique_survival.manifest import manifest_bytes
-from stage_gen.recipes.oblique_survival.models import ClusterRule, Package, SourceError
-from stage_gen.recipes.oblique_survival.survival_request import load_package
+from stage_gen_legacy.recipes.oblique_survival import layout as layout_module
+from stage_gen_legacy.recipes.oblique_survival.layout import Layout
+from stage_gen_legacy.recipes.oblique_survival.manifest import manifest_bytes
+from stage_gen_legacy.recipes.oblique_survival.models import ClusterRule, Package, SourceError
+from stage_gen_legacy.recipes.oblique_survival.survival_request import load_package
 
-PACKAGE: Final = Path("library/games/ember-hollow")
+PACKAGE: Final = Path("godot/legacy/inputs/ember-hollow")
 #: The card count the world is authored to, and the tolerance a density edit
 #: may drift it by before the host sees a different game.
 ENTITY_BUDGET: Final = 2471

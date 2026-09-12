@@ -2,14 +2,13 @@
 
 The CLI parses; this package decides. A run report has one shape across every recipe
 and checkpoint, a usage error is its own class so it can exit 2 rather than be
-flattened with an internal failure, and the genre and path resolutions a command
+flattened with an internal failure, and the path resolutions a command
 makes are functions a test or a script calls directly.
 """
 
 from stage_gen.application.runs import (
     UsageError,
     resolve_cache_dir,
-    resolve_genre,
     resolve_output_path,
     run_report,
     write_report,
@@ -18,7 +17,6 @@ from stage_gen.application.runs import (
 __all__ = [
     "UsageError",
     "resolve_cache_dir",
-    "resolve_genre",
     "resolve_output_path",
     "run_report",
     "write_report",

@@ -10,17 +10,17 @@ from PIL import Image
 
 from gnode import BinaryArtifact, ProvenanceInput, SoftwareIdentity, write_artifact_with_provenance
 from stage_gen.components import canonical_character_profile_json
-from stage_gen.components.game_ui.nodes import UI_SHEET_ROLES, sheet_family
 from stage_gen.image_prompting import load_image_style_resources, materialize_style_anchor
 from stage_gen.image_style import StyleModeSelection
-from stage_gen.recipes.dialogue_scene.identity import (
+from stage_gen_legacy.components.game_ui.nodes import UI_SHEET_ROLES, sheet_family
+from stage_gen_legacy.recipes.dialogue_scene.identity import (
     canonical_sha256,
     content_sha256,
 )
-from stage_gen.recipes.dialogue_scene.manifest import _fit, write_dialogue_bundle
-from stage_gen.recipes.dialogue_scene.models import DialogueBundle
-from stage_gen.recipes.dialogue_scene.prompts import TEMPLATE_DIGEST
-from stage_gen.recipes.dialogue_scene.scene_request import (
+from stage_gen_legacy.recipes.dialogue_scene.manifest import _fit, write_dialogue_bundle
+from stage_gen_legacy.recipes.dialogue_scene.models import DialogueBundle
+from stage_gen_legacy.recipes.dialogue_scene.prompts import TEMPLATE_DIGEST
+from stage_gen_legacy.recipes.dialogue_scene.scene_request import (
     ResolvedDialogueScene,
     read_scene_document,
     resolve_dialogue_scene,

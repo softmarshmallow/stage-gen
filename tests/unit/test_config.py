@@ -28,7 +28,6 @@ def test_config_precedence_defaults_and_timeout_conversion() -> None:
             "STAGE_GEN_CAPABILITY_TIMEOUT_MS": "1250",
             "STAGE_GEN_OPENAI_IMAGE_IPM": "150",
             "STAGE_GEN_OPENROUTER_IMAGE_IPM": "120",
-            "STAGE_GEN_GAME_LIBRARY_ROOT": "/workspace/games",
         }
     )
     assert str(config.out_dir) == "new-out"
@@ -39,13 +38,11 @@ def test_config_precedence_defaults_and_timeout_conversion() -> None:
     assert config.openai_image_ipm == 150
     assert config.openrouter_image_ipm == 120
     assert config.capability_timeout_s == 1.25
-    assert config.game_library_root == Path("/workspace/games")
 
 
-def test_authored_library_roots_are_unset_by_default() -> None:
+def test_image_routes_are_unset_by_default() -> None:
     config = load_config(env={})
 
-    assert config.game_library_root is None
     assert config.openai_image_model is None
     assert config.image_model is None
     assert config.image_provider_override is None

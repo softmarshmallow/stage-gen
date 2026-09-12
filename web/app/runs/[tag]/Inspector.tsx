@@ -39,6 +39,7 @@ import {
 } from "@/lib/run-viewer/execution-view-verdict";
 import { preparedAssetUrl } from "@/lib/shell/asset-url";
 import MotionPlayer from "./MotionPlayer";
+import ParallaxPreview from "./ParallaxPreview";
 
 export const STATE_MARK: Record<ExecutionNodeState, string> = {
   pending: "·",
@@ -153,6 +154,8 @@ function ArtifactCard({
       </p>
       {!artifact.present ? (
         <p className="m-0 mt-1 text-[11px] text-dim">not on disk (pruned or elsewhere)</p>
+      ) : artifact.preview?.supported ? (
+        <ParallaxPreview tag={tag} preview={artifact.preview.content} />
       ) : artifact.display === "motion_atlas" && artifact.motion ? (
         <div className="mt-1">
           <MotionPlayer
@@ -543,20 +546,8 @@ export function RunFacts({
   return (
     <div className="p-3 text-xs">
       <dl className="m-0 border border-border">
-        <Fact
-          term={
-            view.subject.kind === "dialogue-scene-execution-view-v1"
-              ? "scene"
-              : view.subject.kind === "pointclick-room-execution-view-v1"
-                ? "room"
-                : view.subject.kind === "sideview-runner-execution-view-v1"
-                  ? "track"
-                  : "game"
-          }
-        >
-          {subjectLabel(view.subject)}
-        </Fact>
-        <Fact term="recipe">{view.subject.recipe}</Fact>
+        <Fact term="subject">{subjectLabel(view.subject)}</Fact>
+        <Fact term={view.subject.kind === "pipeline-execution-view-v1" ? "pipeline" : "recipe"}>{view.subject.recipe}</Fact>
         <Fact term="invocation">{view.invocationId ?? "—"}</Fact>
         <Fact term="result">{RUN_LIVENESS_LABELS[liveness]}</Fact>
         {view.runState === "unfinished" ? (

@@ -43,7 +43,6 @@ class StageGenConfig(ContractModel):
     #: a different parent used to start a cold cache silently, and `rm -rf out`
     #: destroyed a gigabyte of paid artifacts that only lived there.
     cache_dir: Path = Path(".cache")
-    game_library_root: Path | None = None
     openai_api_key: str | None = Field(default=None, repr=False)
     open_router_api_key: str | None = Field(default=None, repr=False)
     fal_key: str | None = Field(default=None, repr=False)
@@ -148,7 +147,6 @@ def load_config(
     config = StageGenConfig(
         out_dir=_first(values, "STAGE_GEN_OUT_DIR", "OUT_DIR") or "out",
         cache_dir=_first(values, "STAGE_GEN_CACHE_DIR") or ".cache",
-        game_library_root=_first(values, "STAGE_GEN_GAME_LIBRARY_ROOT"),
         openai_api_key=_first(values, "OPENAI_API_KEY"),
         open_router_api_key=_first(values, "OPENROUTER_API_KEY"),
         fal_key=_first(values, "FAL_KEY"),

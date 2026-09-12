@@ -99,16 +99,16 @@ from pathlib import Path
 from typing import Final
 
 from stage_gen.config import StageGenConfig
-from stage_gen.recipes.oblique_survival.survival_executor import ObliqueSurvivalExecutor
-from stage_gen.recipes.oblique_survival.survival_graph import (
+from stage_gen_legacy.recipes.oblique_survival.survival_executor import ObliqueSurvivalExecutor
+from stage_gen_legacy.recipes.oblique_survival.survival_graph import (
     OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION,
     ObliqueSurvivalGraph,
 )
-from stage_gen.recipes.oblique_survival.survival_types import SCOPES
-from stage_gen.recipes.oblique_survival.survival_view import OBLIQUE_SURVIVAL_VIEW_KIND
+from stage_gen_legacy.recipes.oblique_survival.survival_types import SCOPES
+from stage_gen_legacy.recipes.oblique_survival.survival_view import OBLIQUE_SURVIVAL_VIEW_KIND
 
 REPOSITORY_ROOT: Final = Path(__file__).parents[4]
-PACKAGE: Final = REPOSITORY_ROOT / "library/games/ember-hollow"
+PACKAGE: Final = REPOSITORY_ROOT / "godot/legacy/inputs/ember-hollow"
 
 
 @dataclass(frozen=True, slots=True)

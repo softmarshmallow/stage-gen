@@ -5,7 +5,7 @@ import io
 import pytest
 from PIL import Image, ImageDraw
 
-from stage_gen.components.game_ui import (
+from stage_gen_legacy.components.game_ui import (
     INVENTORY_CANVAS_HEIGHT,
     INVENTORY_CANVAS_WIDTH,
     INVENTORY_PANEL_HEIGHT,
@@ -16,7 +16,7 @@ from stage_gen.components.game_ui import (
     INVENTORY_SLOT_SIZE,
     INVENTORY_SLOT_TOP,
 )
-from stage_gen.components.game_ui.inventory_nodes import (
+from stage_gen_legacy.components.game_ui.inventory_nodes import (
     canonicalize_inventory_panel_image,
     validate_inventory_panel_image,
 )

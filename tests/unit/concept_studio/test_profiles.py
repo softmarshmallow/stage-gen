@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from stage_gen.concept_studio.profiles import (
+from concept_studio.profiles import (
     GPT_IMAGE_2_5_SUNBURST,
     GROK_IMAGINE_IMAGE_2,
     model_report,

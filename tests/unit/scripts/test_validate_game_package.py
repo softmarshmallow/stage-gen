@@ -12,7 +12,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 def _load_script() -> ModuleType:
-    path = REPOSITORY_ROOT / "scripts/validate_game_package.py"
+    path = REPOSITORY_ROOT / "godot/legacy/tools/validate_game_package.py"
     spec = importlib.util.spec_from_file_location("validate_game_package", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -37,7 +37,7 @@ def test_validate_game_package_script_prints_the_machine_report(
     assert report["game_id"] == "iron-petal-unit"
     assert report["schema_version"] == 6
     assert report["kind"] == "game-package-validation-v6"
-    package = REPOSITORY_ROOT / "library" / "games" / "iron-petal-unit"
+    package = REPOSITORY_ROOT / "godot" / "legacy" / "inputs" / "iron-petal-unit"
     assert report["file_count"] == sum(1 for path in package.rglob("*") if path.is_file())
 
 

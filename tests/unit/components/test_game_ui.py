@@ -6,7 +6,8 @@ import pytest
 from PIL import Image
 
 from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen.components.game_ui import (
+from stage_gen.resources import inventory_template_path
+from stage_gen_legacy.components.game_ui import (
     ATLAS_ALPHA_POLICY,
     BUTTON_RECT_LAYOUT,
     CURSOR_ALPHA_POLICY,
@@ -18,9 +19,8 @@ from stage_gen.components.game_ui import (
     inventory_panel_layout_contract,
     load_game_ui_bytes,
 )
-from stage_gen.resources import inventory_template_path
 
-GAMES = Path(__file__).resolve().parents[3] / "library" / "games"
+GAMES = Path(__file__).resolve().parents[3] / "godot" / "legacy" / "inputs"
 PACKAGE = GAMES / "bellweather"
 #: The one document that declares the optional cursor set. Every host may draw one
 #: (decision 0062); this is the package whose author asked for the art.

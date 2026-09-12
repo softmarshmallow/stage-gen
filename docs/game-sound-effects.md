@@ -1,5 +1,8 @@
 # Authored game sound effects
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Contract maturity: exact-current prepared-package contract.**
 
 A genre's audio contract binds its semantic events to named effects, says
@@ -245,8 +248,8 @@ commit the wording to `audio.toml`.
 ## Validation
 
 ```sh
-uv run stage-gen package validate --input library/games/iron-petal-unit
-uv run stage-gen package plan --input library/games/iron-petal-unit
+uv run stage-gen package validate --input godot/legacy/inputs/iron-petal-unit
+uv run stage-gen package plan --input godot/legacy/inputs/iron-petal-unit
 ```
 
 Contract validity proves the closure and the plan, not the sound. Generated

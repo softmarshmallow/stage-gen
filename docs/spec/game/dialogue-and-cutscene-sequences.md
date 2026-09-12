@@ -1,5 +1,8 @@
 # Dialogue and cutscene sequence contract
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Checked by:** `tests/contract/test_current_game_docs.py`, `tests/contract/test_docs_check.py`.
 
 > **Contract maturity: proposed TO-BE.**
@@ -197,9 +200,9 @@ line, shot, and cue in one growing table.
 The target authored layout is:
 
 ```text
-library/games/<game_id>/scenarios/index.toml
-library/games/<game_id>/scenarios/<scenario_id>.toml
-library/games/<game_id>/scenarios/<scenario_id>.scenario
+godot/legacy/inputs/<game_id>/scenarios/index.toml
+godot/legacy/inputs/<game_id>/scenarios/<scenario_id>.toml
+godot/legacy/inputs/<game_id>/scenarios/<scenario_id>.scenario
 ```
 
 `index.toml` is an ordered catalog. Each entry binds one stable sequence ID to

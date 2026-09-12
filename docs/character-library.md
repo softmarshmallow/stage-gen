@@ -6,7 +6,7 @@ of the game package that binds it**, named by exact relative path and exact
 bytes, the same way that package names every other authored member:
 
 ```text
-library/games/<game_id>/character.toml
+godot/legacy/inputs/<game_id>/character.toml
 ```
 
 There is no separate global character tree. A profile that no package names is a
@@ -35,7 +35,7 @@ from stage_gen.components.character_profile import (
     load_character_profile,
 )
 
-profile = load_character_profile("library/games/larkfield/characters/nao.toml")
+profile = load_character_profile("godot/legacy/inputs/larkfield/characters/nao.toml")
 artifact_bytes = canonical_character_profile_json(profile)
 artifact_sha256 = character_profile_sha256(profile)
 ```
@@ -78,11 +78,11 @@ digest required by that binding without calling a provider or writing output:
 
 ```sh
 uv run stage-gen character-profile validate \
-  --input library/games/larkfield/characters/nao.toml \
-  --package-root library/games/larkfield
+  --input godot/legacy/inputs/larkfield/characters/nao.toml \
+  --package-root godot/legacy/inputs/larkfield
 uv run stage-gen character-profile digest \
-  --input library/games/larkfield/characters/nao.toml \
-  --package-root library/games/larkfield
+  --input godot/legacy/inputs/larkfield/characters/nao.toml \
+  --package-root godot/legacy/inputs/larkfield
 ```
 
 `validate` emits deterministic compact lower_snake_case JSON containing stable
@@ -95,7 +95,7 @@ The recipe takes a package directory, and the package names its own members:
 
 ```sh
 uv run stage-gen dialogue-scene generate \
-  --input library/games/larkfield \
+  --input godot/legacy/inputs/larkfield \
   --output out/larkfield
 ```
 
@@ -104,7 +104,7 @@ The same public CLI is available through the stable web forwarding script:
 ```sh
 cd web
 bun run stage-gen -- dialogue-scene generate \
-  --input ../library/games/larkfield \
+  --input ../godot/legacy/inputs/larkfield \
   --output ../out/larkfield
 ```
 

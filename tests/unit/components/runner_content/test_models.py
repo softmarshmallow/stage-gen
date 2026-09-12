@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen.components.runner_content import (
+from stage_gen_legacy.components.runner_content import (
     RUNNER_AVATAR_SCHEMA_VERSION,
     load_runner_avatar_bytes,
 )

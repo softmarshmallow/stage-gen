@@ -25,8 +25,10 @@ from gnode import (
 )
 from gnode.providers.openrouter import OpenRouterStructuredBackend
 from stage_gen.components.portrait_motion.face_location import COMPONENT, validate_location
-from stage_gen.orchestration import portrait_face_location as locator
-from stage_gen.orchestration.portrait_motion import request_policy
+from stage_gen.orchestration import portrait_services
+from stage_gen.orchestration.portrait_services import ConfiguredPortraitServices
+from stage_gen.recipes.portrait_motion import face_location as locator
+from stage_gen.recipes.portrait_motion.pipeline import request_policy
 
 
 @pytest.fixture
@@ -274,10 +276,14 @@ async def test_live_requires_environment_opt_in_before_key_loading(
     locator.prepare_locator(source, run)
     monkeypatch.delenv("STAGE_GEN_RUN_LIVE", raising=False)
     monkeypatch.setattr(
-        locator, "load_provider_dotenv", lambda path: pytest.fail("No key loading before opt-in")
+        portrait_services,
+        "load_provider_dotenv",
+        lambda path: pytest.fail("No key loading before opt-in"),
     )
     with pytest.raises(ValueError, match="STAGE_GEN_RUN_LIVE"):
-        await locator.run_locator(run, live=True, dotenv=tmp_path / "absent")
+        await locator.run_locator(
+            run, live=True, dotenv=tmp_path / "absent", service_factory=ConfiguredPortraitServices()
+        )
     assert not (run / "locator/submission.json").exists()
 
 
@@ -305,7 +311,7 @@ async def test_live_budget_reserves_each_attempt_before_transport(
     run = source.parent / "run"
     locator.prepare_locator(source, run)
     store, _, _ = locator.load_locator_plan(run)
-    backend = locator._BudgetedBackend(
+    backend = portrait_services._BudgetedLocatorBackend(
         store, api_key="mock-budget-secret", model=locator.ROUTE_MODEL
     )
     count = 0

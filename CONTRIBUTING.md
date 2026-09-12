@@ -1,21 +1,23 @@
 # Contributing
 
-Contributions should preserve `stage-gen` as a headless, general 2D asset
+Contributions should preserve `stage-gen` as a headless, general asset
 pipeline with optional consumers.
 
 ## Boundaries
 
-- Put provider-neutral capability services in `src/stage_gen/components/` and
-  vendor adapters in `src/stage_gen/providers/`.
+- Put reusable asset capabilities in `src/stage_gen/components/`, modality services
+  in `src/gnode/modalities/`, and provider adapters in `src/gnode/providers/`.
 - Put shared recipe-neutral media inspection and transforms in
   `src/stage_gen/media/`. Keep capability-specific deterministic processing
   with its component contract and recipe-specific canonicalization with its
   recipe.
-- Compose them through `src/stage_gen/recipes/` and public manifests.
+- Compose them through the public `stage_gen.pipeline` harness and bounded
+  `src/stage_gen/recipes/`. Keep examples beside the surface they demonstrate.
+- Existing complete game recipes and their TOML readers belong to the optional
+  `stage-gen-legacy` package under `godot/legacy/`. The product imports none of it.
 - Keep generation-specific genre, composition, projection, framing, layout,
   artifact, and validation assumptions in recipes. Keep runtime camera, scene,
-  engine, movement, combat, and gameplay assumptions in consumer adapters such
-  as `web/`.
+  engine, movement, combat, and gameplay assumptions in consumer adapters under `godot/`. The web viewer owns inspection only.
 - Do not import `web/` from a reusable component.
 - Keep source identifiers, comments, logs, tests, and user-facing strings in
   English.
@@ -54,11 +56,14 @@ uv run python scripts/check_docs.py
 uv run pytest tests/unit/test_media_rights.py tests/contract/test_docs_check.py -q
 ```
 
-For Python code, run the locked offline gate:
+For product Python code, run its credential-free gate:
 
 ```sh
 uv run python scripts/check.py
 ```
+
+Use `--scope all` after installing all workspace groups for changes across owners.
+See [VERIFICATION.md](VERIFICATION.md) for the separate consumer gates.
 
 For the optional web boundary, run:
 

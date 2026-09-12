@@ -1,23 +1,10 @@
-"""The identity table: every persisted identity string, read from the one place that owns it.
+"""Identity lookup helpers and inventory for public asset contracts.
 
-A persisted identity is a ``kind`` or ``mode`` word a document carries so that a reader
-can refuse what it does not understand: the authored documents, the documents the
-pipeline generates, the runtime manifests, the execution graphs, the mode words inside
-documents, the cache namespaces, and the audio realization kinds. Each is declared once
-in the code, on a pydantic ``Literal`` field or a module constant; this table names that
-place and reads the value from it, so the docs can derive from the code instead of
-asserting version strings by hand (contract rule C-R5 in ``docs/game-contract.md``).
-
-What is *not* here: a node's ``contract_version``. That is a cache key, not an identity
-(C-R1), and the cache-key goldens under ``tests/unit/recipes`` are its evidence. The
-per-port ``kind`` labels inside an execution graph are graph vocabulary and stay with
-their recipe.
-
-Two families carry two live versions under one name, recorded rather than hidden:
-``dialogue-scene`` is both the authored document (v5) and the recipe version (v8) the
-plan and bundle stamp; ``scenario-program`` is the scenario component's program (v2)
-and, at v1, a port label in the dialogue graph. Renaming either is a persisted change
-and waits for the bump that needs it.
+Fields and constants remain owned by their capability packages; this inventory
+reads them without importing the optional demo workspace. It is not a registry
+that caller-defined pipelines must join. The public pipeline envelopes live in
+``stage_gen.pipeline``; the complete historical game census belongs to
+``stage_gen_legacy.identities`` under ``godot/legacy/python``.
 """
 
 from __future__ import annotations
@@ -165,117 +152,30 @@ def _graph(module: str, current: str, graph: str) -> GraphIdentitySource:
 
 
 IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
-    # Authored documents: what an author writes.
-    ("authored", _field("orchestration.game_package", "GamePackageSelector")),
-    ("authored", _field("components.game_contract.package", "PreparedGameContract")),
-    ("authored", _field("components.platformer_map.prepared", "PreparedGameMap")),
-    ("authored", _field("components.platformer_gameplay.models", "GameplayContract")),
-    ("authored", _field("components.game_ui.models", "GameUi")),
-    ("authored", _field("components.game_fx.models", "GameFx")),
-    ("authored", _field("components.game_shell.models", "GameShell")),
-    ("authored", _field("components.game_soundtrack.models", "GameSoundtrack")),
-    ("authored", _field("components.game_soundtrack.models", "GameSoundtrackBinding")),
-    ("authored", _field("components.game_voices.models", "GameVoices")),
-    ("authored", _field("components.platformer_content.models", "PlayerContentCatalog")),
-    ("authored", _field("components.platformer_content.models", "MobContentCatalog")),
-    ("authored", _field("components.platformer_content.models", "NpcContentCatalog")),
-    ("authored", _field("components.platformer_content.models", "PropContentCatalog")),
-    ("authored", _field("components.platformer_content.models", "ItemContentCatalog")),
-    ("authored", _field("components.platformer_content.models", "ProjectileContentCatalog")),
-    ("authored", _field("components.runner_gameplay.models", "RunnerGameplayContract")),
-    ("authored", _field("components.runner_track.models", "RunnerTrack")),
-    ("authored", _field("components.runner_content.models", "RunnerAvatarCatalog")),
-    ("authored", _field("components.runner_content.models", "RunnerBossCatalog")),
-    ("authored", _field("components.runner_audio.models", "RunnerAudioContract")),
     ("authored", _field("components.scenario.models", "ScenarioDeclarations")),
     ("authored", _field("components.scenario.models", "ScenarioCatalog")),
-    ("authored", _field("components.case.models", "CaseDocument")),
-    ("authored", _field("components.case.models", "CaseCatalog")),
     ("authored", _field("components.character_profile.models", "CharacterProfile")),
     ("authored", _field("components.character_profile.models", "CharacterProfileBinding")),
-    ("authored", _field("recipes.pointclick_room.models", "PointClickRoom")),
-    ("authored", _field("recipes.dialogue_scene.models", "DialogueSceneDocument")),
     ("authored", _field("recipes.universe.models", "UniverseSource")),
-    ("authored", _field("recipes.oblique_survival.models", "ObliqueSurvivalSource")),
-    ("authored", _constant("recipes.oblique_survival.models", "WORLD_KIND")),
     ("authored", _field("recipes.storefront.models", "StorefrontSource")),
-    # Generated documents: what the pipeline writes for a consumer or a later node.
-    ("generated", _field("components.platformer_map.prepared", "PreparedMapTerrain")),
     ("generated", _field("components.sideview_map_design.design", "PlatformerChunkMapDesign")),
     ("generated", _field("components.scenario.models", "ScenarioProgram")),
     ("generated", _field("components.scenario.models", "ScenarioAdmissionReport")),
-    ("generated", _field("components.case.models", "CaseRuntime")),
-    ("generated", _field("components.case.models", "CaseAdmissionReport")),
-    ("generated", _constant("orchestration.package_capture", "RESOLVED_GAME_PACKAGE_KIND")),
-    ("generated", _constant("orchestration.package_capture", "GAME_PACKAGE_VALIDATION_KIND")),
-    ("generated", _field("recipes.pointclick_room.models", "RoomSolvabilityReport")),
-    ("generated", _field("recipes.dialogue_scene.models", "DialogueScenePlan")),
-    ("generated", _field("recipes.dialogue_scene.models", "IndependentReview")),
-    ("generated", _field("recipes.dialogue_scene.models", "DialogueBundle")),
     ("generated", _field("recipes.universe.models", "SampleLedger")),
     ("generated", _field("recipes.storefront.models", "DrawLedger")),
     ("generated", _field("recipes.storefront.models", "StorefrontDirection")),
     ("generated", _field("recipes.storefront.models", "StoreListing")),
     (
         "generated",
-        _constant("orchestration.portrait_motion", "PORTRAIT_MOTION_PLAN_KIND"),
+        _constant("recipes.portrait_motion.pipeline", "PORTRAIT_MOTION_PLAN_KIND"),
     ),
-    # Runtime manifests: what a host parses.
-    (
-        "manifest",
-        _constant("recipes.sideview_platformer.package_types", "PREPARED_RUNTIME_MANIFEST_KIND"),
-    ),
-    ("manifest", _constant("recipes.sideview_runner.runner_types", "MANIFEST_KIND")),
-    ("manifest", _constant("recipes.pointclick_room.room_types", "MANIFEST_KIND")),
     ("manifest", _constant("recipes.universe.universe_types", "MANIFEST_KIND")),
-    ("manifest", _constant("recipes.oblique_survival.manifest", "MANIFEST_KIND")),
-    # Execution graphs.
-    (
-        "graph",
-        _graph(
-            "recipes.sideview_platformer.execution_graph",
-            "EXECUTION_GRAPH_KIND",
-            "ExecutionGraph",
-        ),
-    ),
-    (
-        "graph",
-        _graph(
-            "recipes.sideview_runner.runner_graph",
-            "RUNNER_GRAPH_KIND",
-            "SideviewRunnerGraph",
-        ),
-    ),
-    (
-        "graph",
-        _graph(
-            "recipes.pointclick_room.room_graph",
-            "POINTCLICK_GRAPH_KIND",
-            "PointClickRoomGraph",
-        ),
-    ),
-    (
-        "graph",
-        _graph(
-            "recipes.dialogue_scene.scene_graph",
-            "DIALOGUE_GRAPH_KIND",
-            "DialogueSceneGraph",
-        ),
-    ),
     (
         "graph",
         _graph(
             "recipes.universe.universe_graph",
             "UNIVERSE_GRAPH_KIND",
             "UniverseGraph",
-        ),
-    ),
-    (
-        "graph",
-        _graph(
-            "recipes.oblique_survival.survival_graph",
-            "OBLIQUE_SURVIVAL_GRAPH_KIND",
-            "ObliqueSurvivalGraph",
         ),
     ),
     (
@@ -289,81 +189,30 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     (
         "graph",
         _graph(
-            "orchestration.portrait_motion",
+            "recipes.portrait_motion.pipeline",
             "PORTRAIT_MOTION_GRAPH_KIND",
             "PortraitMotionGraph",
         ),
     ),
-    # Mode words.
-    ("mode", _field("components.sideview_stage.models", "PreparedMapGround", "mode")),
     ("mode", _field("components.painted_terrain.models", "PaintedTerrainGround", "mode")),
-    ("mode", _field("components.platformer_map.prepared", "PreparedMapClimbable", "mode")),
-    ("mode", _field("components.platformer_map.prepared", "PreparedMapPortal", "mode")),
-    ("mode", _field("components.runner_track.models", "RunnerStructuralGround", "mode")),
-    ("mode", _field("components.runner_track.models", "RunnerCamera", "mode")),
-    # Cache namespaces.
-    ("namespace", _constant("recipes.sideview_platformer.package_graph", "WORLD_CACHE_NAMESPACE")),
-    (
-        "namespace",
-        _constant("recipes.sideview_platformer.package_graph", "CONTENT_CACHE_NAMESPACE"),
-    ),
-    ("namespace", _constant("recipes.sideview_runner.runner_graph", "RUNNER_CACHE_NAMESPACE")),
-    ("namespace", _constant("recipes.pointclick_room.room_graph", "POINTCLICK_CACHE_NAMESPACE")),
-    ("namespace", _constant("recipes.dialogue_scene.scene_graph", "DIALOGUE_CACHE_NAMESPACE")),
     ("namespace", _constant("recipes.universe.universe_graph", "UNIVERSE_CACHE_NAMESPACE")),
-    (
-        "namespace",
-        _constant("recipes.oblique_survival.survival_graph", "OBLIQUE_SURVIVAL_CACHE_NAMESPACE"),
-    ),
     ("namespace", _constant("recipes.storefront.storefront_graph", "STOREFRONT_CACHE_NAMESPACE")),
-    # Recipe versions stamped beside a generated document's own kind.
-    ("recipe", _field("recipes.dialogue_scene.models", "DialogueScenePlan", "recipe_version")),
-    # Blocks a shared component builds for more than one manifest.
-    ("block", _constant("components.game_fx.block", "FX_MANIFEST_BLOCK_VERSION")),
-    # Audio realizations.
     ("realization", _constant("components.sound_effect.models", "GENERATED_CLIP_REALIZATION_KIND")),
     ("realization", _constant("components.speech.models", "SPOKEN_LINE_REALIZATION_KIND")),
-    ("realization", _field("components.runner_audio.models", "OscillatorSweepRealization")),
 )
 
 #: Block registries: a manifest's ``blocks`` table, key -> version. A version a component
 #: declares (a block a shared family builds) is read from the component; the registry that
 #: publishes it only references it.
-BLOCK_REGISTRIES: tuple[IdentitySource, ...] = (
-    _constant(
-        "recipes.sideview_platformer.prepared_manifest", "PLATFORMER_MANIFEST_BLOCK_VERSIONS"
-    ),
-    _constant("recipes.sideview_runner.runner_types", "RUNNER_MANIFEST_BLOCK_VERSIONS"),
-)
+BLOCK_REGISTRIES: tuple[IdentitySource, ...] = ()
 
 #: Families with no current member: the whole family is retired, at every version. A family
 #: with a current member needs no entry here, because every lower version is retired by
 #: arithmetic. The reason is the doc's, not the test's; it is what the table prints.
-RETIRED_FAMILIES: tuple[tuple[str, str], ...] = (
-    ("game-map-book", "the ordered map book required an index file the library forbids"),
-    ("game-map-book-manifest", "retired with the map book"),
-    ("game-map-book-binding", "retired with the map book"),
-    ("resolved-game-map", "the `game-map-v2` parser was a dead twin of the current map"),
-    ("resolved-game-map-book", "retired with the map book"),
-    ("game-sequence", "dialogue moved to authored scenarios; both genres walk one program"),
-    ("game-sequence-catalog", "retired with the sequence"),
-    ("game-soundtrack-manifest", "the soundtrack publishes inside the runtime manifest"),
-    (
-        "prepared-game-execution-graph",
-        "renamed with the node ABI to `sideview-platformer-execution-graph`",
-    ),
-    ("prepared-game-execution-event", "renamed with the node ABI"),
-    ("prepared-game-execution-summary", "renamed with the node ABI"),
-    ("prepared-game-execution-projection", "renamed with the node ABI"),
-    ("prepared-game-execution-view", "renamed with the node ABI"),
-)
+RETIRED_FAMILIES: tuple[tuple[str, str], ...] = ()
 
 #: Strings that are not `<family>-v<n>` shaped but name a retired thing all the same.
-RETIRED_STRINGS: tuple[tuple[str, str], ...] = (
-    ('"scrolling-preview"', "the recipe id, renamed to `sideview-platformer` with the node ABI"),
-    ("@stage-gen/scrolling-preview", "the provenance component, renamed with the recipe"),
-    ("manifest V7", "a runtime manifest named by number rather than by kind"),
-)
+RETIRED_STRINGS: tuple[tuple[str, str], ...] = ()
 
 
 def parse_identity(identity: str) -> tuple[str, str, int]:

@@ -17,7 +17,7 @@ from stage_gen.recipes.universe.universe_request import (
     synopsis_paragraphs,
 )
 
-FIXTURE = Path("library/games/lantern_ferry")
+FIXTURE = Path("src/stage_gen/recipes/universe/examples/lantern_ferry")
 
 
 def _ledger_file(tmp_path: Path, entity_ids: tuple[str, ...]) -> Path:

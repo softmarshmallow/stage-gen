@@ -5,8 +5,9 @@ from __future__ import annotations
 import pytest
 
 from stage_gen.components.sound_effect import SOUND_EFFECT_CLIPPING_PEAK_DBFS
-from stage_gen.components.speech import SpokenLineRealization, speech_admission_facts
+from stage_gen.components.speech import speech_admission_facts
 from stage_gen.media import MINIMUM_SOUND_EFFECT_PAYLOAD_BYTES, LevelAndDuration
+from stage_gen_legacy.components.runner_audio.realizations import SpokenLineRealization
 
 PAYLOAD = b"\xff\xfb" + b"\x00" * MINIMUM_SOUND_EFFECT_PAYLOAD_BYTES
 

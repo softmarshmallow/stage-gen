@@ -68,8 +68,15 @@ class Projection(PersistedContractModel):
     spans: tuple[ProjectedSpan, ...]
 
 
-def project_schedule(graph: Graph) -> Projection:
-    """Project one deterministic resource-aware schedule without calling a provider."""
+def project_schedule(graph: Graph, *, target_node_ids: Sequence[str] | None = None) -> Projection:
+    """Project the selected dependency closure without calling a provider.
+
+    The same target selection as ``Scheduler.run`` applies. The graph identity
+    remains that of the full plan while spans, cost, and counts describe only
+    the selected work. The critical path ends at the latest selected target.
+    """
+
+    selected_nodes = node_closure(graph, target_node_ids)
 
     spans: dict[str, ProjectedSpan] = {}
     resource_spans: dict[str, list[ProjectedSpan]] = {
@@ -78,7 +85,7 @@ def project_schedule(graph: Graph) -> Projection:
     resources = {resource.resource_id: resource for resource in graph.resources}
     blockers: dict[str, str | None] = {}
 
-    for node_id in topological_node_ids(graph.nodes):
+    for node_id in topological_node_ids(selected_nodes):
         node = graph.node(node_id)
         dependency: ProjectedSpan | None = None
         if node.depends_on:
@@ -134,13 +141,20 @@ def project_schedule(graph: Graph) -> Projection:
         scheduled.append(span)
         blockers[node.node_id] = blocking_node_id
 
-    terminal = spans[graph.terminal_node_id]
+    terminal = (
+        spans[graph.terminal_node_id]
+        if target_node_ids is None
+        else max(
+            (spans[node_id] for node_id in target_node_ids),
+            key=lambda span: span.ended_offset_ms,
+        )
+    )
     critical_path_reversed: list[str] = []
     cursor: str | None = terminal.node_id
     while cursor is not None:
         critical_path_reversed.append(cursor)
         cursor = blockers[cursor]
-    ordered_spans = tuple(spans[node.node_id] for node in graph.nodes)
+    ordered_spans = tuple(spans[node.node_id] for node in selected_nodes)
     return Projection(
         schema_version=graph.schema_version,
         kind=graph.PROJECTION_KIND,
@@ -148,9 +162,16 @@ def project_schedule(graph: Graph) -> Projection:
         topology_sha256=graph.topology_sha256,
         duration_ms=terminal.ended_offset_ms,
         critical_path=tuple(reversed(critical_path_reversed)),
-        operation_counts=graph.operation_counts(),
-        estimated_cost_low_usd=round(sum(node.estimated_cost_low_usd for node in graph.nodes), 6),
-        estimated_cost_high_usd=round(sum(node.estimated_cost_high_usd for node in graph.nodes), 6),
+        operation_counts={
+            operation: sum(node.operation == operation for node in selected_nodes)
+            for operation in graph.operation_vocabulary()
+        },
+        estimated_cost_low_usd=round(
+            sum(node.estimated_cost_low_usd for node in selected_nodes), 6
+        ),
+        estimated_cost_high_usd=round(
+            sum(node.estimated_cost_high_usd for node in selected_nodes), 6
+        ),
         spans=ordered_spans,
     )
 
@@ -199,7 +220,8 @@ class Scheduler:
         Cache and artifact admission belong to the handler. Ordinary exceptions and
         timeouts mark nodes failed and dependents skipped; independent branches
         continue. The returned summary's ``ok`` requires all targets to succeed.
-        Caller cancellation propagates as ``asyncio.CancelledError``.
+        Caller cancellation drains active handlers' cleanup before propagating as
+        ``asyncio.CancelledError``. The caller can then close its services and trace.
         """
 
         if tuple(self._resources) != tuple(resource.resource_id for resource in graph.resources):
@@ -220,96 +242,108 @@ class Scheduler:
         running: dict[asyncio.Task[tuple[NodeTrace, NodeExecutionResult | None]], str] = {}
         ready_at: dict[str, int] = {node.node_id: 0 for node in selected_nodes}
 
-        while pending or running:
-            changed = True
-            while changed:
-                changed = False
-                for node in selected_nodes:
-                    node_id = node.node_id
-                    if node_id not in pending:
-                        continue
-                    terminal_dependencies = {
-                        dependency for dependency in node.depends_on if dependency in traces
-                    }
-                    if len(terminal_dependencies) != len(node.depends_on):
-                        continue
-                    blocked_by = tuple(
-                        dependency
-                        for dependency in node.depends_on
-                        if traces[dependency].status is not NodeStatus.SUCCEEDED
-                    )
-                    if blocked_by:
-                        now = elapsed_ms(started)
-                        trace = NodeTrace(
-                            node_id=node_id,
-                            status=NodeStatus.SKIPPED,
-                            ready_offset_ms=now,
-                            ended_offset_ms=now,
-                            queue_ms=0,
-                            duration_ms=0,
-                            attempts=0,
-                            provider_operations=0,
-                            blocked_by=blocked_by,
+        try:
+            while pending or running:
+                changed = True
+                while changed:
+                    changed = False
+                    for node in selected_nodes:
+                        node_id = node.node_id
+                        if node_id not in pending:
+                            continue
+                        terminal_dependencies = {
+                            dependency for dependency in node.depends_on if dependency in traces
+                        }
+                        if len(terminal_dependencies) != len(node.depends_on):
+                            continue
+                        blocked_by = tuple(
+                            dependency
+                            for dependency in node.depends_on
+                            if traces[dependency].status is not NodeStatus.SUCCEEDED
                         )
-                        traces[node_id] = trace
+                        if blocked_by:
+                            now = elapsed_ms(started)
+                            trace = NodeTrace(
+                                node_id=node_id,
+                                status=NodeStatus.SKIPPED,
+                                ready_offset_ms=now,
+                                ended_offset_ms=now,
+                                queue_ms=0,
+                                duration_ms=0,
+                                attempts=0,
+                                provider_operations=0,
+                                blocked_by=blocked_by,
+                            )
+                            traces[node_id] = trace
+                            pending.remove(node_id)
+                            sink.emit(node_event("node_skipped", invocation_id, graph, trace))
+                            changed = True
+                            continue
+                        ready = max(
+                            (traces[dependency].ended_offset_ms for dependency in node.depends_on),
+                            default=0,
+                        )
+                        ready_at[node_id] = ready
+                        task = asyncio.create_task(
+                            self._run_node(
+                                graph,
+                                node,
+                                handler,
+                                invocation_id=invocation_id,
+                                dependency_results={
+                                    dependency: results[dependency]
+                                    for dependency in node.depends_on
+                                },
+                                started=started,
+                                ready_offset_ms=ready,
+                                sink=sink,
+                            ),
+                            name=f"gnode:{node_id}",
+                        )
+                        running[task] = node_id
                         pending.remove(node_id)
-                        sink.emit(node_event("node_skipped", invocation_id, graph, trace))
                         changed = True
-                        continue
-                    ready = max(
-                        (traces[dependency].ended_offset_ms for dependency in node.depends_on),
-                        default=0,
-                    )
-                    ready_at[node_id] = ready
-                    task = asyncio.create_task(
-                        self._run_node(
-                            graph,
-                            node,
-                            handler,
-                            invocation_id=invocation_id,
-                            dependency_results={
-                                dependency: results[dependency] for dependency in node.depends_on
-                            },
-                            started=started,
-                            ready_offset_ms=ready,
-                            sink=sink,
-                        ),
-                        name=f"gnode:{node_id}",
-                    )
-                    running[task] = node_id
-                    pending.remove(node_id)
-                    changed = True
 
-            if not running:
-                if pending:
-                    raise RuntimeError("execution scheduler reached an impossible pending state")
-                break
-            try:
+                if not running:
+                    if pending:
+                        raise RuntimeError(
+                            "execution scheduler reached an impossible pending state"
+                        )
+                    break
                 completed, _ = await asyncio.wait(running, return_when=asyncio.FIRST_COMPLETED)
-            except BaseException:
-                # An interrupt reaches the scheduler here, where the trace sink is
-                # still open. Record that the run was cancelled so its records say
-                # so outright, instead of leaving a reader to infer it from a trace
-                # that simply stops. Then let the interrupt finish arriving.
-                for task in running:
-                    task.cancel()
-                sink.emit(
-                    {
-                        **run_event(
-                            "run_canceled", invocation_id, graph, offset_ms=elapsed_ms(started)
-                        ),
-                        "started_node_ids": sorted(running.values()),
-                    }
-                )
-                raise
-            for task in completed:
-                node_id = running.pop(task)
-                trace, result = task.result()
-                traces[node_id] = trace
-                if trace.status is NodeStatus.SUCCEEDED:
-                    if result is None:
-                        raise RuntimeError("successful execution task did not retain its result")
-                    results[node_id] = result
+                for task in completed:
+                    node_id = running.pop(task)
+                    trace, result = task.result()
+                    traces[node_id] = trace
+                    if trace.status is NodeStatus.SUCCEEDED:
+                        if result is None:
+                            raise RuntimeError(
+                                "successful execution task did not retain its result"
+                            )
+                        results[node_id] = result
+
+        except BaseException:
+            # The caller owns the trace and any injected services. Finish every
+            # handler's cleanup before returning control to that caller. Shield
+            # this drain so a second cancellation cannot detach unfinished work.
+            for task in running:
+                task.cancel()
+            cleanup = asyncio.gather(*running, return_exceptions=True)
+            while not cleanup.done():
+                try:
+                    await asyncio.shield(cleanup)
+                except asyncio.CancelledError:
+                    continue
+            cleanup.result()
+            sink.emit(
+                {
+                    **run_event(
+                        "run_canceled", invocation_id, graph, offset_ms=elapsed_ms(started)
+                    ),
+                    "started_node_ids": sorted(running.values()),
+                }
+            )
+            raise
 
         ordered = tuple(traces[node.node_id] for node in selected_nodes)
         duration_ms = elapsed_ms(started)

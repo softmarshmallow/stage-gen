@@ -41,13 +41,13 @@ MIN_SPOKEN_LINE_SECONDS = 0.5
 MAX_SPOKEN_LINE_SECONDS = 30.0
 
 
-class SpokenLineRealization(PersistedContractModel):
+class SpeechRequest(PersistedContractModel):
     """One provider-read line, requested with the parameters the route honours."""
 
     kind: Literal["spoken_line_v1"]
     #: Sent to the provider exactly as written, bracketed delivery tags included.
     text: str = Field(min_length=1, max_length=MAX_SPOKEN_LINE_CHARACTERS)
-    #: A voice the game's catalog declares; never a provider reference.
+    #: A caller-owned voice-profile binding; never a gameplay catalog requirement.
     voice_id: str = Field(pattern=SNAKE_ID_PATTERN, max_length=64)
     #: How literally the voice follows the text and its tags. Omitted means
     #: the provider default.
@@ -56,17 +56,13 @@ class SpokenLineRealization(PersistedContractModel):
     #: takes - so the cue states the longest read its frame budget tolerates,
     #: and a longer draw is refused and redrawn, never trimmed.
     max_seconds: float = Field(ge=MIN_SPOKEN_LINE_SECONDS, le=MAX_SPOKEN_LINE_SECONDS)
-    #: Playback gain applied by the consumer; the bytes are never touched.
-    gain: float = Field(gt=0.0, le=1.0)
-    #: Multiplies playback rate by ``1 + event_strength * value``. Zero disables it.
-    strength_pitch_multiplier: float = Field(ge=0.0, le=2.0)
     #: The reroll ordinal. Bump it to redraw this line alone.
     take: int = Field(default=FIRST_TAKE, ge=FIRST_TAKE, le=MAX_TAKE)
     #: The reviewed pick. When present the graph buys nothing for this line.
     pinned: PinnedTake | None = None
 
     @model_validator(mode="after")
-    def validate_text(self) -> SpokenLineRealization:
+    def validate_text(self) -> SpeechRequest:
         self.text = normalized_text(self.text, "spoken line text")
         return self
 
@@ -77,9 +73,9 @@ class SpokenLineRealization(PersistedContractModel):
 
         Takes the resolved voice rather than the catalog name, because the same
         ``voice_id`` recast to a different provider voice is a different asset.
-        Deliberately excludes ``gain``, ``strength_pitch_multiplier`` and
-        ``max_seconds``: they change how a line is played or judged, not which
-        line was read. No seed: measured, a seed pins the length of a read and
+        Excludes ``max_seconds``: it changes admission, not which line was read.
+        Playback bindings are separate from this asset request. A seed pins the
+        length of a read and
         not its waveform, so it cannot make a draw repeatable. ``take`` enters
         only above the first draw, so an existing key is undisturbed until a
         person asks for another.
@@ -106,5 +102,5 @@ __all__ = [
     "MIN_SPOKEN_LINE_SECONDS",
     "SPOKEN_LINE_OUTPUT_FORMAT",
     "SPOKEN_LINE_REALIZATION_KIND",
-    "SpokenLineRealization",
+    "SpeechRequest",
 ]

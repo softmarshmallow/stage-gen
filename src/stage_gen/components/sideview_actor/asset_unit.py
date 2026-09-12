@@ -1,36 +1,24 @@
-"""Resolve, measure, and admit one package's magnitudes against the canonical player height.
+"""Explicit asset magnitude, alpha measurement, and scale calibration.
 
-Nothing an image model returns carries a size. A generated subject is normalized to fill its own
-canvas, so its pixels encode aspect ratio and nothing else about how large the thing is: measuring
-a subject against its untrimmed canvas measures the canvas. Magnitude is therefore authored - as a
-multiple of the player - and measurement exists only to establish a consistent ruler for turning
-that declaration into a draw scale.
-
-    source_px_per_unit = subject_extent_px / height_units
-    sprite_scale       = (player_height_tiles * tile_px) / source_px_per_unit
-
-`sprite_scale` is uniform on both axes, always. Width and height are never set independently.
-
-The contract is `docs/spec/asset-unit.md`. Cross-state coherence within one actor is a different
-question, owned by `motion_rebase`, and the two compose multiplicatively.
+The caller chooses its unit and target pixel density. A unit can be a meter, an
+illustration reference, or a display coordinate; no actor has canonical authority.
 """
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from io import BytesIO
 from typing import Final, Literal
 
 from PIL import Image
+from pydantic import Field, field_validator, model_validator
 
-from stage_gen.components.game_contract.package import PreparedScale
+from gnode import PersistedContractModel
 
 ASSET_UNIT_ERROR_CODE: Final = "scrolling-asset-unit-v1"
 
-#: The player is the unit, by definition. Declaring a magnitude for it is an error rather than a
-#: redundancy: two authorities for one measurement is the defect this contract exists to prevent.
-PLAYER_HEIGHT_UNITS: Final = 1.0
 
 #: Alpha above which a pixel counts as painted, matching the runtime's own threshold so a subject
 #: is measured at the extent the consumer will draw.
@@ -43,6 +31,29 @@ ENTITY_CONSISTENCY_FACTOR: Final = 4.0
 #: Downscale beyond this is recorded as a diagnostic rather than refused: it is a sharpness
 #: concern, not a correctness one.
 DOWNSCALE_WARN_RATIO: Final = 6.0
+
+
+class AssetScale(PersistedContractModel):
+    """A caller-selected visual ruler, independent of camera and gameplay entities."""
+
+    target_pixels_per_unit: float = Field(gt=0.0, allow_inf_nan=False)
+    minimum: float = Field(default=0.05, gt=0.0, allow_inf_nan=False)
+    steps: list[float] = Field(default_factory=list)
+
+    @field_validator("steps")
+    @classmethod
+    def validate_steps(cls, values: list[float]) -> list[float]:
+        if any(not math.isfinite(value) or value <= 0 for value in values):
+            raise ValueError("asset scale steps must be positive finite numbers")
+        if values != sorted(set(values)):
+            raise ValueError("asset scale steps must be unique and ascend")
+        return values
+
+    @model_validator(mode="after")
+    def validate_minimum(self) -> AssetScale:
+        if any(value < self.minimum for value in self.steps):
+            raise ValueError("asset scale steps must not fall below the declared minimum")
+        return self
 
 
 class AssetUnitError(ValueError):
@@ -95,19 +106,8 @@ class SubjectCalibration:
         return record
 
 
-def resolve_player_magnitude(declared: float | None) -> ResolvedMagnitude:
-    """The player is `1.0`. Stating it is an error, because the unit is defined by it."""
-
-    if declared is not None:
-        raise AssetUnitError(
-            "the player defines the unit and must not declare height_units; a second authority "
-            "for one measurement is the defect this contract prevents"
-        )
-    return ResolvedMagnitude(PLAYER_HEIGHT_UNITS, "definition")
-
-
 def resolve_declared_magnitude(
-    scale: PreparedScale,
+    scale: AssetScale,
     declared: float | None,
     *,
     subject: str,
@@ -125,7 +125,7 @@ def resolve_declared_magnitude(
     return ResolvedMagnitude(inherited, "inherited")
 
 
-def _nearest_step_at_or_above(scale: PreparedScale, floor: float) -> float:
+def _nearest_step_at_or_above(scale: AssetScale, floor: float) -> float:
     for step in scale.steps:
         if step >= floor:
             return step
@@ -164,8 +164,7 @@ def calibrate_subject(
     magnitude: ResolvedMagnitude,
     subject_extent_px: int,
     measured_sha256: str,
-    scale: PreparedScale,
-    tile_px: int,
+    scale: AssetScale,
     subject: str,
     extent_axis: SubjectExtentAxis = "height",
 ) -> SubjectCalibration:
@@ -176,7 +175,7 @@ def calibrate_subject(
     if magnitude.height_units <= 0:
         raise AssetUnitError(f"{subject} resolved a non-positive magnitude")
     source_px_per_unit = subject_extent_px / magnitude.height_units
-    target_px = scale.player_height_tiles * tile_px * magnitude.height_units
+    target_px = scale.target_pixels_per_unit * magnitude.height_units
     downscale_ratio = subject_extent_px / target_px if target_px > 0 else None
     return SubjectCalibration(
         height_units=magnitude.height_units,
@@ -189,15 +188,19 @@ def calibrate_subject(
     )
 
 
-def sprite_scale(
-    calibration: Mapping[str, object], *, player_height_tiles: float, tile_px: int
-) -> float:
+def sprite_scale(calibration: Mapping[str, object], *, target_pixels_per_unit: float) -> float:
     """The one projection from the unit onto the screen, applied uniformly on both axes."""
 
     source_px_per_unit = calibration.get("source_px_per_unit")
-    if not isinstance(source_px_per_unit, (int, float)) or source_px_per_unit <= 0:
+    if (
+        not isinstance(source_px_per_unit, (int, float))
+        or not math.isfinite(source_px_per_unit)
+        or source_px_per_unit <= 0
+    ):
         raise AssetUnitError("calibration carries no usable source_px_per_unit")
-    return (player_height_tiles * tile_px) / float(source_px_per_unit)
+    if not math.isfinite(target_pixels_per_unit) or target_pixels_per_unit <= 0:
+        raise AssetUnitError("target_pixels_per_unit must be positive and finite")
+    return target_pixels_per_unit / float(source_px_per_unit)
 
 
 def admit_entity_consistency(
@@ -220,7 +223,7 @@ def admit_entity_consistency(
         )
 
 
-def recovery_plate_steps(scale: PreparedScale) -> Sequence[float]:
+def recovery_plate_steps(scale: AssetScale) -> Sequence[float]:
     """The ladder a vision model chooses from when a magnitude was never declared.
 
     The recovered value is a *proposed* declaration, subject to review, and it is selected as an
@@ -228,5 +231,5 @@ def recovery_plate_steps(scale: PreparedScale) -> Sequence[float]:
     """
 
     if not scale.steps:
-        raise AssetUnitError("the game declares no [scale] steps to recover a magnitude from")
+        raise AssetUnitError("the asset scale declares no steps to recover a magnitude from")
     return tuple(scale.steps)

@@ -1,10 +1,13 @@
 # Point-and-click puzzle room
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Checked by:** `tests/contract/test_current_game_docs.py`.
 
 > **Contract maturity: exact-current for the authored contract, the pipeline,
 > and the runtime manifest.** Executable authority:
-> `src/stage_gen/recipes/pointclick_room/` and `godot/runtime/genres/pointclick_room/`.
+> `godot/legacy/python/stage_gen_legacy/recipes/pointclick_room/` and `godot/legacy/runtime/genres/pointclick_room/`.
 
 The third recipe on the engine, at taxonomy path `2d/roomview/pointclick`
 (`roomview` ≜ `screen_space_room_stage_v1` in the
@@ -22,10 +25,10 @@ from a model.
 
 ## Authored contract — `pointclick-room-v3`
 
-One room = one authored package directory `library/games/<game_id>/` holding
+One room = one authored package directory `godot/legacy/inputs/<game_id>/` holding
 `room.toml` beside the `references/` its art is generated against — the same
 package shape the platformer's `game.toml` uses (schema: `PointClickRoom` in
-[`models.py`](../../../src/stage_gen/recipes/pointclick_room/models.py);
+[`models.py`](../../../godot/legacy/python/stage_gen_legacy/recipes/pointclick_room/models.py);
 unknown fields rejected):
 
 - `schema_version = 1`, `kind = "pointclick-room-v3"`, `room_id`,
@@ -64,7 +67,7 @@ persisted into the run as `puzzle.validation.json`
 
 ## Pipeline — `pointclick-room-execution-graph-v2`
 
-`stage-gen pointclick-room generate --input library/games/<id>
+`stage-gen pointclick-room generate --input godot/legacy/inputs/<id>
 --output out/<tag>` (add `--dry-run` for the free rehearsal). The graph for
 the shipped room is 23 nodes: `room.resolve` → `style_anchor.select` → the
 backdrop, one generate+validate pair per sprite hotspot
@@ -153,8 +156,8 @@ generated one), the win condition, the three interface roles with the geometry
 the gate measured on each sheet, and a digest-bound closure of every
 published artifact — the republished cover and all three sheets included.
 
-The consumer (`godot/runtime/genres/pointclick_room/` for the rules,
-`godot/runtime/hosts/pointclick_room/` for the picture) plays the room from this
+The consumer (`godot/legacy/runtime/genres/pointclick_room/` for the rules,
+`godot/legacy/runtime/hosts/pointclick_room/` for the picture) plays the room from this
 document alone: one canvas, sized to the authored frame plus a HUD band, scaled
 to whatever window it lands in. Backdrop, hotspot sprites, narration panel,
 inventory and verb controls are all drawn **inside that canvas** — nothing

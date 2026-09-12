@@ -18,17 +18,10 @@ dependencies = [
   "scipy>=1.15,<2",
 ]
 
-[project.optional-dependencies]
-server = [
-  "fastapi>=0.116,<1",
-  "uvicorn>=0.35,<1",
-]
-
 [project.scripts]
 stage-gen-portrait-motion = "stage_gen.interfaces.portrait_motion:entrypoint"
 stage-gen = "stage_gen.interfaces.cli:entrypoint"
 stage-gen-py = "stage_gen.interfaces.cli:entrypoint"
-stage-gen-concept = "stage_gen.concept_studio.cli:entrypoint"
 
 [dependency-groups]
 dev = [
@@ -40,6 +33,24 @@ dev = [
   "pytest-timeout>=2.3,<3",
   "ruff>=0.11,<1",
 ]
+legacy = ["stage-gen-legacy"]
+apps = ["stage-gen-concept"]
+
+[tool.uv.workspace]
+members = ["godot/legacy/python", "apps/concept_studio"]
+
+[tool.uv.sources]
+stage-gen-legacy = { workspace = true }
+stage-gen-concept = { workspace = true }
+
+[tool.hatch.build]
+exclude = [
+  "/src/stage_gen/**/examples/**/references/**",
+  "/src/stage_gen/recipes/universe/examples/lantern_ferry/**",
+]
+
+[tool.hatch.build.hooks.custom]
+path = "scripts/build_hooks.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gnode", "src/stage_gen"]
@@ -51,9 +62,10 @@ include = [
   "/README.md",
   "/VERIFICATION.md",
   "/pyproject.toml",
-  "/uv.lock",
   "/docs/**/*.json",
   "/docs/**/*.md",
+  "/examples/**/*.py",
+  "/examples/**/*.md",
   "/scripts/**/*.py",
   "/src/gnode/**",
   "/src/stage_gen/**",
@@ -61,6 +73,8 @@ include = [
   "/tests/**/*.py",
 ]
 exclude = [
+  "/src/stage_gen/**/examples/**/references/**",
+  "/src/stage_gen/recipes/universe/examples/lantern_ferry/**",
   "/.env",
   "/.git/**",
   "/.mypy_cache/**",
@@ -85,6 +99,7 @@ addopts = "--strict-config --strict-markers"
 asyncio_default_fixture_loop_scope = "function"
 asyncio_mode = "auto"
 testpaths = ["tests"]
+pythonpath = ["."]
 markers = [
   "live: opt-in test that calls a hosted provider",
 ]
@@ -98,7 +113,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "RUF"]
 ignore = ["RUF022"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["gnode", "stage_gen"]
+known-first-party = ["gnode", "stage_gen", "stage_gen_legacy", "concept_studio"]
 
 [tool.mypy]
 python_version = "3.12"

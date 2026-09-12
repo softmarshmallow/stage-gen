@@ -12,7 +12,7 @@ from .models import (
     MIN_SPOKEN_LINE_SECONDS,
     SPOKEN_LINE_OUTPUT_FORMAT,
     SPOKEN_LINE_REALIZATION_KIND,
-    SpokenLineRealization,
+    SpeechRequest,
 )
 
 __all__ = [
@@ -22,7 +22,7 @@ __all__ = [
     "MIN_SPOKEN_LINE_SECONDS",
     "SPOKEN_LINE_OUTPUT_FORMAT",
     "SPOKEN_LINE_REALIZATION_KIND",
-    "SpokenLineRealization",
+    "SpeechRequest",
     "admit_speech_bytes",
     "admit_speech_bytes_sync",
     "speech_admission_facts",

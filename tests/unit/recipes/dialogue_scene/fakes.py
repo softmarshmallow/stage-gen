@@ -22,7 +22,7 @@ from gnode import (
     StructuredGenerationResult,
     write_artifact_with_provenance,
 )
-from stage_gen.components.game_ui.nodes import UI_SHEET_ROLES
+from stage_gen_legacy.components.game_ui.nodes import UI_SHEET_ROLES
 from tests.unit._ui_atlas_fixture import ui_sheet
 
 

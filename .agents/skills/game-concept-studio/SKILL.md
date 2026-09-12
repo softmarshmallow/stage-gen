@@ -12,8 +12,8 @@ promise that the depicted game has been implemented.
 ## Start from the short idea
 
 Read the repository `AGENTS.md`, `concept-studio/AGENTS.md`, and
-[references/artifact-contract.md](references/artifact-contract.md). Initialize one ignored
-workspace with `stage-gen-concept init`; never place draft work in `library/`, `fixtures/`,
+[references/artifact-contract.md](references/artifact-contract.md). Install the optional app with `uv sync --group apps`. Initialize one ignored
+workspace with `stage-gen-concept init` (or use `--root` for an external workspace); never place draft work in `godot/legacy/inputs/`, `fixtures/`,
 `docs/media/`, `src/`, or `web/`.
 
 Expand the user's brief through conversation without turning it into a questionnaire. Make useful

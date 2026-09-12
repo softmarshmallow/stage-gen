@@ -1,5 +1,8 @@
 # Authored game maps
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Contract maturity: exact-current prepared-package overview.**
 >
 > The field-level authority is the
@@ -18,7 +21,7 @@ path. There is no map index. The root `gameplay.toml` references maps by
 `map_id` and owns how the game uses them.
 
 ```text
-library/games/<game_id>/
+godot/legacy/inputs/<game_id>/
 ├── game.toml
 ├── gameplay.toml
 ├── maps/
@@ -119,8 +122,8 @@ not infer missing terrain, climbable, portal, or gameplay semantics.
 The canonical Bellweather package is the repository example:
 
 ```sh
-uv run stage-gen package validate --input library/games/bellweather
-uv run stage-gen package plan --input library/games/bellweather
+uv run stage-gen package validate --input godot/legacy/inputs/bellweather
+uv run stage-gen package plan --input godot/legacy/inputs/bellweather
 ```
 
 See also:

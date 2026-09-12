@@ -8,18 +8,18 @@ from pathlib import Path
 
 from gnode import Scheduler
 from stage_gen.config import StageGenConfig
-from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
-from stage_gen.recipes.sideview_platformer.package_types import MANIFEST_ASSEMBLE
-from stage_gen.recipes.sideview_platformer.prepared_content import (
+from stage_gen.resources import (
+    terrain_atlas_template_path,
+)
+from stage_gen_legacy.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
+from stage_gen_legacy.recipes.sideview_platformer.package_types import MANIFEST_ASSEMBLE
+from stage_gen_legacy.recipes.sideview_platformer.prepared_content import (
     PreparedContentNodeHandler,
     content_target_node_ids,
 )
-from stage_gen.recipes.sideview_platformer.prepared_integration import (
+from stage_gen_legacy.recipes.sideview_platformer.prepared_integration import (
     PROVIDER_FREE_REASON,
     PreparedIntegrationNodeHandler,
-)
-from stage_gen.resources import (
-    terrain_atlas_template_path,
 )
 from tests.unit.recipes.sideview_platformer.test_prepared_content import (
     BELLWEATHER,

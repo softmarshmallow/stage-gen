@@ -1,11 +1,14 @@
 # Survival world generation
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Checked by:** `tests/contract/test_generation_pipeline_docs.py`.
 
 > **Contract maturity: exact-current authored contracts.** Executable
 > authority: `src/stage_gen/components/worldgen/` (the generator),
-> `src/stage_gen/recipes/oblique_survival/layout.py` (the binding) and
-> `src/stage_gen/recipes/oblique_survival/survival_request.py` (the loader);
+> `godot/legacy/python/stage_gen_legacy/recipes/oblique_survival/layout.py` (the binding) and
+> `godot/legacy/python/stage_gen_legacy/recipes/oblique_survival/survival_request.py` (the loader);
 > the authored files are `world.toml` and the `placement` blocks in
 > `props.toml`, `actors.toml` and `ground.toml` of an
 > [oblique-survival package](generation-v1.md). The words are laid out in

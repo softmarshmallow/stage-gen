@@ -1,5 +1,8 @@
 # Authored game contract schema
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Checked by:** `tests/contract/test_current_game_docs.py`, `tests/contract/test_docs_check.py`, `tests/contract/test_generation_pipeline_docs.py`.
 
 > **Contract maturity: exact-current prepared-package root.**
@@ -22,7 +25,7 @@ configuration, execution order, map-use rules, or runtime objects.
 The canonical path is:
 
 ```text
-library/games/<game_id>/game.toml
+godot/legacy/inputs/<game_id>/game.toml
 ```
 
 Only `schema_version = 9` and `kind = "game-contract-v9"` are accepted. The
@@ -256,14 +259,14 @@ emits `prepared-game-runtime-v12`; runner integration emits
 Validate the canonical package with:
 
 ```sh
-uv run stage-gen package validate --input library/games/bellweather
-uv run stage-gen package digest --input library/games/bellweather
-uv run stage-gen package plan --input library/games/bellweather
+uv run stage-gen package validate --input godot/legacy/inputs/bellweather
+uv run stage-gen package digest --input godot/legacy/inputs/bellweather
+uv run stage-gen package plan --input godot/legacy/inputs/bellweather
 ```
 
 The executable authority is
-`src/stage_gen/components/game_contract/package.py` together with
-`src/stage_gen/orchestration/game_package.py`, which composes each genre's
+`godot/legacy/python/stage_gen_legacy/components/game_contract/package.py` together with
+`godot/legacy/python/stage_gen_legacy/orchestration/game_package.py`, which composes each genre's
 member resolution from its recipe's `validation.py`. The canonical Bellweather source
 is the integration fixture; documentation examples do not replace executable
 validation.

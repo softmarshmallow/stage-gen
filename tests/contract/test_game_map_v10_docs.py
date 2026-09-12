@@ -1,3 +1,4 @@
+# test-owner: legacy
 from __future__ import annotations
 
 from pathlib import Path

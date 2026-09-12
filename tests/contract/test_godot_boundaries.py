@@ -30,7 +30,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 #: The run consumer. The tiers beside it (`packages/`, `templates/`, `games/`) are
 #: separate projects; only the link rule below applies to them.
 GODOT_TREE = REPOSITORY_ROOT / "godot"
-GODOT_ROOT = GODOT_TREE / "runtime"
+GODOT_ROOT = GODOT_TREE / "legacy" / "runtime"
 
 #: Directories that hold simulation, in the order they may be named from.
 INNER_LAYERS = ("kernel", "families", "genres")
@@ -87,6 +87,7 @@ DIRECTION_EXEMPT = {
 
 
 def _gd_files(*relative: str) -> list[Path]:
+    assert GODOT_ROOT.is_dir(), "legacy Godot runtime root is missing"
     found: list[Path] = []
     for part in relative:
         root = GODOT_ROOT / part

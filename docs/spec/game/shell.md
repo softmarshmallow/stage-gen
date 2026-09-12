@@ -1,9 +1,12 @@
 # The game shell: opening, title, loading
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Checked by:** `tests/contract/test_current_game_docs.py`.
 
 > **Contract maturity: exact-current for the authored contract and its layouts.**
-> Executable authority: [`src/stage_gen/components/game_shell/`](../../../src/stage_gen/components/game_shell/)
+> Executable authority: [`godot/legacy/python/stage_gen_legacy/components/game_shell/`](../../../godot/legacy/python/stage_gen_legacy/components/game_shell/)
 > (the document, the licence rule, the prompt refusals, the screen geometry) and
 > [`tests/unit/components/test_game_shell.py`](../../../tests/unit/components/test_game_shell.py).
 > The plate gates, the node triplet, the manifest projection and the host states are
@@ -77,10 +80,10 @@ it removes the spelling failure mode entirely.
 A package that composites any string declares the face it is set in, and a title screen
 always composites one, because it carries the game's own name. Without a declared face
 the host sets that name in whatever the player's machine happens to have: today
-`godot/runtime/hosts/oblique_survival/hud/ui_kit.gd` builds a `SystemFont` over a monospace
+`godot/legacy/runtime/hosts/oblique_survival/hud/ui_kit.gd` builds a `SystemFont` over a monospace
 stack, and nothing under `godot/` loads a `FontFile` at all.
 
-The face lives at `library/games/<game_id>/fonts/`, its licence text beside it, and its
+The face lives at `godot/legacy/inputs/<game_id>/fonts/`, its licence text beside it, and its
 licence must be one that permits redistributing the font file — because publishing a run
 copies it. The accepted set is `OFL-1.1`, `Apache-2.0` and `CC0-1.0`; widening it is a
 rights decision. The record is the one `web/public/fonts/*/README.md` already keeps per
@@ -181,8 +184,8 @@ The two commands that make the loop practical. Neither knows anything about a pa
 ```bash
 uv run stage-gen generate-video --output explore/clip-audition/the_cold-a1.mp4 \
   --duration 10 --resolution 720p --aspect-ratio 16:9 \
-  --reference library/games/ember-hollow/references/style-plate.png \
-  --reference library/games/ember-hollow/references/player-appearance.png \
+  --reference godot/legacy/inputs/ember-hollow/references/style-plate.png \
+  --reference godot/legacy/inputs/ember-hollow/references/player-appearance.png \
   "the brief, verbatim"
 ```
 
@@ -492,7 +495,7 @@ directly. And a loading tip is chosen with the **seeded generator**, never the w
 so a replay of the same seed shows the same tip.
 
 The loading screen has one honest prerequisite: a host-side preload pass. Today
-`godot/runtime/hosts/common/run_dir.gd` caches "images and audio on first use", so a run's
+`godot/legacy/runtime/hosts/common/run_dir.gd` caches "images and audio on first use", so a run's
 textures decode during play. A progress bar drawn over a lazy loader is a fake, and the
 fraction it shows must come from a real pass over the closure the manifest enumerates.
 

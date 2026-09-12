@@ -14,24 +14,27 @@ from stage_gen.components.painted_terrain import (
     PAINTED_TERRAIN_NODE_TYPES,
     PaintedTerrainGround,
 )
-from stage_gen.components.platformer_map import PreparedGameMap, PreparedMapClimbable
 from stage_gen.components.sideview_layers import contract as layer_contract
 from stage_gen.config import StageGenConfig
 from stage_gen.media import LOOP_METHODS, LoopConstruction
-from stage_gen.orchestration.game_package import ResolvedGamePackage, resolve_game_package
-from stage_gen.recipes.sideview_platformer.execution_graph import ExecutionGraph, OperationKind
-from stage_gen.recipes.sideview_platformer.package_graph import (
-    build_package_execution_graph,
-    package_graph_profile,
-)
-from stage_gen.recipes.sideview_platformer.package_types import platformer_type_index
 from stage_gen.resources import (
     terrain_atlas_template_path,
     terrain_atlas_topology_reference_path,
 )
+from stage_gen_legacy.components.platformer_map import PreparedGameMap, PreparedMapClimbable
+from stage_gen_legacy.orchestration.game_package import ResolvedGamePackage, resolve_game_package
+from stage_gen_legacy.recipes.sideview_platformer.execution_graph import (
+    ExecutionGraph,
+    OperationKind,
+)
+from stage_gen_legacy.recipes.sideview_platformer.package_graph import (
+    build_package_execution_graph,
+    package_graph_profile,
+)
+from stage_gen_legacy.recipes.sideview_platformer.package_types import platformer_type_index
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
-BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
+BELLWEATHER = REPOSITORY_ROOT / "godot/legacy/inputs/bellweather"
 #: The only Bellweather map that declares a climbable atlas.
 CROWNCRAG = "crowncrag-road"
 

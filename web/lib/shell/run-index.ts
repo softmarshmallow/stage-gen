@@ -1,7 +1,7 @@
 // The run index: every run under out/, listed by the document it published.
 //
 // This is the viewer's own reader, and it is deliberately shallow. It opens
-// whichever of the three published documents a run carries and takes exactly
+// whichever published document a run carries and takes exactly
 // two fields — `kind` and `schema_version` — because those are what say *what*
 // the run is. It parses nothing else: a run's gameplay contract belongs to the
 // host that plays it, and a viewer that learned to read one would be a second
@@ -17,8 +17,8 @@ import { promises as fs } from "node:fs";
 import { readRunDocument } from "./run-json";
 import { assertSafeOutRoot, isSafeRunTag, OUT_ROOT } from "./runs";
 
-/** The three documents a run may publish. One run carries exactly one. */
-export const RUN_DOCUMENTS = ["manifest.json", "bundle.json", "case.json"] as const;
+/** Historical consumer documents, followed by the generic pipeline view. */
+export const RUN_DOCUMENTS = ["manifest.json", "bundle.json", "case.json", "execution-view.json"] as const;
 export type RunDocumentName = (typeof RUN_DOCUMENTS)[number];
 
 export const EXECUTION_VIEW_FILENAME = "execution-view.json";

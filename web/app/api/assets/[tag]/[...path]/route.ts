@@ -29,8 +29,15 @@ function contentTypeFor(filename: string): string {
   if (ext === ".webp") return "image/webp";
   if (ext === ".gif") return "image/gif";
   if (ext === ".mp3") return "audio/mpeg";
+  if (ext === ".wav") return "audio/wav";
+  if (ext === ".ogg") return "audio/ogg";
+  if (ext === ".flac") return "audio/flac";
   if (ext === ".mp4") return "video/mp4";
   if (ext === ".ogv") return "video/ogg";
+  if (ext === ".webm") return "video/webm";
+  if (ext === ".glb") return "model/gltf-binary";
+  if (ext === ".gltf") return "model/gltf+json";
+  if (ext === ".obj") return "model/obj";
   if (ext === ".json") return "application/json; charset=utf-8";
   if (ext === ".txt") return "text/plain; charset=utf-8";
   return "application/octet-stream";
@@ -66,6 +73,7 @@ export async function GET(
       status: 200,
       headers: {
         "content-type": ct,
+        "x-content-type-options": "nosniff",
         "content-length": String(data.byteLength),
         // Dev-only convenience: never cache during iteration.
         "cache-control": "no-store",

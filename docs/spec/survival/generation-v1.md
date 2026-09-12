@@ -1,13 +1,16 @@
 # Oblique-survival generation V1
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Checked by:** `tests/contract/test_generation_pipeline_docs.py`.
 
 > **Contract maturity: exact-current authored contracts.** Executable
-> authority: `src/stage_gen/recipes/oblique_survival/`. The camera vocabulary it
+> authority: `godot/legacy/python/stage_gen_legacy/recipes/oblique_survival/`. The camera vocabulary it
 > implements is ratified in the
 > [view and style taxonomy](../game/view-and-style-taxonomy.md) and its
 > namespace segment in the [asset taxonomy](../asset-taxonomy.md). The
-> committed fixture package is `library/games/ember-hollow`. The ground, the
+> committed fixture package is `godot/legacy/inputs/ember-hollow`. The ground, the
 > calendar and the crafting table have their own contracts beside this one:
 > [ground](ground.md), [world](world.md), [seasons](seasons.md), [crafting](crafting.md).
 
@@ -233,7 +236,7 @@ govern what goes where, and both were earned rather than designed:
 
 **The contract-version prefix is frozen.** Every node type's
 `contract_version` is built from `CONTRACT_VERSION_PREFIX` in
-`src/stage_gen/recipes/oblique_survival/survival_types.py`, and a contract
+`godot/legacy/python/stage_gen_legacy/recipes/oblique_survival/survival_types.py`, and a contract
 version is one of the inputs of a cache key. It is deliberately not the recipe
 word: renaming it would move every key in the graph and re-bill a run that has
 already been paid for. The recipe word, the document kinds and the CLI verb are
@@ -322,11 +325,11 @@ path below the run directory. The host that plays it is
 Offline, no provider, no credentials:
 
 ```bash
-uv run stage-gen oblique-survival plan --input library/games/ember-hollow --scope full
+uv run stage-gen oblique-survival plan --input godot/legacy/inputs/ember-hollow --scope full
 ```
 
 ```bash
-uv run stage-gen oblique-survival generate --input library/games/ember-hollow \
+uv run stage-gen oblique-survival generate --input godot/legacy/inputs/ember-hollow \
   --output out/ember-hollow-dry --scope minimal --dry-run --invocation-id dry-1
 ```
 
@@ -342,7 +345,7 @@ sealed routes and refuses on a missing key before a run directory exists. Set
 changing it means producing a new plan, not changing dispatch underneath an existing one:
 
 ```bash
-uv run stage-gen oblique-survival generate --input library/games/ember-hollow \
+uv run stage-gen oblique-survival generate --input godot/legacy/inputs/ember-hollow \
   --output out/ember-hollow-v1 --scope full --cache-dir out/.oblique-survival-cache
 ```
 
@@ -359,7 +362,7 @@ what it has on disk.
 ## Machine-checked graph contract
 
 The block below is derived, never transcribed. Regenerate it with
-`uv run python scripts/write_pipeline_graph_contract.py --write`; the gate is
+`uv run python godot/legacy/tools/write_pipeline_graph_contract.py --write`; the gate is
 `tests/contract/test_generation_pipeline_docs.py`, which also checks the scope
 table above against the graphs the code builds. Changing recipe stages, asset
 fan-out, dependencies, provider multiplicity, resources, scheduling, retries,
@@ -370,7 +373,7 @@ invalidates it and must be regenerated in the same change.
 ```json
 {
   "kind": "oblique-survival-execution-graph-contract-v1",
-  "fixture_ref": "library/games/ember-hollow",
+  "fixture_ref": "godot/legacy/inputs/ember-hollow",
   "scope": "full",
   "graph_schema_version": 2,
   "topology_sha256": "4243f56f7115d9ad6c733e70d677fea16e62ab524a883c80780935f243e381a2",

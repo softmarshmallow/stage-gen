@@ -806,7 +806,7 @@ Reply to the explicit question approving installation of the linked Nami detail 
 >    * examples
 >       * still game, but more of real 'example' game, that does not have a clear contract, but randomly consumes whatever we have, focusing on building and demonstrating actual marketable game with complete A-Z gameplay.
 >
-> if we push it further we can also consider the `library/games` (already existing) as more natural home for them is like...
+> if we push it further we can also consider the `godot/legacy/inputs` (already existing) as more natural home for them is like...
 >
 > * examples/game-a/
 >    * the ingest tomls for asset gen

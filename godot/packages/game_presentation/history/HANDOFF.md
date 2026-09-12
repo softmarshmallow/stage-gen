@@ -19,7 +19,7 @@ Paths in the sections below describe the workspace as it was.
 The workspace moved from the repository root to `godot/games/playground/`; the addon
 payload lives at `godot/packages/game_presentation/addons/game_presentation` and
 `addons/game_presentation` here is a symlink to it. The run consumer moved intact to
-`godot/runtime/`. Paths below were rewritten accordingly; the tier rule is in the
+`godot/legacy/runtime/`. Paths below were rewritten accordingly; the tier rule is in the
 [topology proposal](../../../../docs/research/game-presentation-sdk-topology.md) and
 [godot/README.md](../../../README.md). The next game is a new project under `godot/games/`.
 

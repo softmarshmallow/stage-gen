@@ -15,7 +15,7 @@ from stage_gen.components.scenario.resolve import read_scenario_declarations
 from .package import DEFAULT_SCRIPT, write_scenario_package
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
-LARKFIELD = REPOSITORY_ROOT / "library/games/larkfield"
+LARKFIELD = REPOSITORY_ROOT / "godot/legacy/inputs/larkfield"
 
 
 def test_the_shipped_scenario_is_admitted_and_both_endings_are_reachable() -> None:

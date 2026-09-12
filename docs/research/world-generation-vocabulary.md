@@ -4,7 +4,7 @@
 > world pass ("more interesting and more real: biome–object relationships, spawn
 > rate and uniqueness, a larger map, sparse but clumped placement, parameterised
 > and agnostic like Don't Starve or Minecraft"). Executable authority for what
-> exists today: `src/stage_gen/recipes/oblique_survival/layout.py`; authored
+> exists today: `godot/legacy/python/stage_gen_legacy/recipes/oblique_survival/layout.py`; authored
 > input: `[world]` in `survival.toml`, `[[biomes]]`, `[clutter]`, `[forage]`,
 > `[plants]` in `ground.toml`, `family`/`density_share`/`biome_weights` per prop
 > in `props.toml`. Nothing here is a contract yet.

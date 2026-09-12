@@ -1,10 +1,13 @@
 # Survival ground
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Checked by:** `tests/contract/test_generation_pipeline_docs.py`.
 
 > **Contract maturity: exact-current authored contracts.** Executable
-> authority: `src/stage_gen/recipes/oblique_survival/layout.py` and
-> `src/stage_gen/recipes/oblique_survival/gates.py`; the authored file is
+> authority: `godot/legacy/python/stage_gen_legacy/recipes/oblique_survival/layout.py` and
+> `godot/legacy/python/stage_gen_legacy/recipes/oblique_survival/gates.py`; the authored file is
 > `ground.toml` in an [oblique-survival package](generation-v1.md).
 
 The ground is the one asset in this recipe that is a **material rather than a
@@ -93,7 +96,7 @@ an edge costs nothing, and redrawing a plate costs an image operation.
 ## Gates
 
 Every plate and every sheet cell is measured before it is accepted; the
-thresholds are in `src/stage_gen/recipes/oblique_survival/gates.py` and the
+thresholds are in `godot/legacy/python/stage_gen_legacy/recipes/oblique_survival/gates.py` and the
 [recipe spec](generation-v1.md) tabulates them beside the rest. The ones that
 belong to the ground:
 

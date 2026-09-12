@@ -5,7 +5,11 @@ from __future__ import annotations
 import pytest
 
 from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen.components.game_voices import GameVoices, game_voices_sha256, load_game_voices_bytes
+from stage_gen_legacy.components.game_voices import (
+    GameVoices,
+    game_voices_sha256,
+    load_game_voices_bytes,
+)
 
 SOURCE = """schema_version = 1
 kind = "game-voices-v1"

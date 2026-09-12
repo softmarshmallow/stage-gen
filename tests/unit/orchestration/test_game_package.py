@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.orchestration.game_package import (
+from stage_gen_legacy.orchestration.game_package import (
     GamePackageValidationError,
     invalid_game_package_report,
     resolve_game_package,
@@ -17,7 +17,7 @@ from stage_gen.orchestration.game_package import (
 )
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
-SOURCE_PACKAGE = REPOSITORY_ROOT / "library" / "games" / "bellweather"
+SOURCE_PACKAGE = REPOSITORY_ROOT / "godot" / "legacy" / "inputs" / "bellweather"
 
 
 def _copy_package(tmp_path: Path) -> Path:
@@ -87,7 +87,7 @@ def test_validate_repository_selector_resolves_iron_petal_unit() -> None:
     assert report["kind"] == "game-package-validation-v6"
     assert report["game_id"] == "iron-petal-unit"
     assert report["generated_status"] == "not_checked"
-    selected = REPOSITORY_ROOT / "library" / "games" / "iron-petal-unit"
+    selected = REPOSITORY_ROOT / "godot" / "legacy" / "inputs" / "iron-petal-unit"
     assert report["file_count"] == sum(1 for path in selected.rglob("*") if path.is_file())
 
 
@@ -95,15 +95,15 @@ def test_rejects_the_retired_digest_pinning_selector(tmp_path: Path) -> None:
     """The v3 selector pinned game.toml by digest. Its shape is retired, not tolerated."""
 
     workspace = tmp_path / "workspace"
-    package = workspace / "library" / "games" / "bellweather"
+    package = workspace / "godot" / "legacy" / "inputs" / "bellweather"
     package.parent.mkdir(parents=True)
     shutil.copytree(SOURCE_PACKAGE, package)
-    selector = workspace / "library" / "games" / "main.toml"
+    selector = workspace / "godot" / "legacy" / "inputs" / "main.toml"
     selector.write_text(
         f'''schema_version = 3
 kind = "game-package-v3"
 game_id = "bellweather"
-package_ref = "library/games/bellweather/game.toml"
+package_ref = "godot/legacy/inputs/bellweather/game.toml"
 package_sha256 = "{_sha256(package / "game.toml")}"
 ''',
         encoding="utf-8",
@@ -119,15 +119,15 @@ def test_rejects_a_selector_that_reintroduces_the_package_digest(tmp_path: Path)
     """A current selector carrying the removed field is refused rather than ignored."""
 
     workspace = tmp_path / "workspace"
-    package = workspace / "library" / "games" / "bellweather"
+    package = workspace / "godot" / "legacy" / "inputs" / "bellweather"
     package.parent.mkdir(parents=True)
     shutil.copytree(SOURCE_PACKAGE, package)
-    selector = workspace / "library" / "games" / "main.toml"
+    selector = workspace / "godot" / "legacy" / "inputs" / "main.toml"
     selector.write_text(
         f'''schema_version = 4
 kind = "game-package-v4"
 game_id = "bellweather"
-package_ref = "library/games/bellweather/game.toml"
+package_ref = "godot/legacy/inputs/bellweather/game.toml"
 package_sha256 = "{_sha256(package / "game.toml")}"
 ''',
         encoding="utf-8",
@@ -144,14 +144,14 @@ def test_editing_a_member_needs_no_bookkeeping_anywhere_else(tmp_path: Path) -> 
     """The point of the change: a member edit resolves without touching game.toml or main.toml."""
 
     workspace = tmp_path / "workspace"
-    package = workspace / "library" / "games" / "bellweather"
+    package = workspace / "godot" / "legacy" / "inputs" / "bellweather"
     package.parent.mkdir(parents=True)
     shutil.copytree(SOURCE_PACKAGE, package)
-    (workspace / "library" / "games" / "main.toml").write_text(
+    (workspace / "godot" / "legacy" / "inputs" / "main.toml").write_text(
         """schema_version = 4
 kind = "game-package-v4"
 game_id = "bellweather"
-package_ref = "library/games/bellweather/game.toml"
+package_ref = "godot/legacy/inputs/bellweather/game.toml"
 """,
         encoding="utf-8",
     )

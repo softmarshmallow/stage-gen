@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen.components.runner_gameplay import (
+from stage_gen_legacy.components.runner_gameplay import (
     COLLISION_BOXES,
     DRAINING_CONSEQUENCES,
     VITALS_PROFILES,

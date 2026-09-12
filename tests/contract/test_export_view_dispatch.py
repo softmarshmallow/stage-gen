@@ -1,7 +1,7 @@
-"""Every recipe's execution-graph kind is one `export-view` can still read.
+"""Every historical recipe graph kind is one legacy `export-view` can still read.
 
 The viewer at `/runs` lists only runs that carry a derived `execution-view.json`, and that
-document is produced by `stage-gen export-view`, which picks its builder from the kind the
+document is produced by `stage-gen legacy export-view`, which picks its builder from the kind the
 run's own plan declares. The dispatch is a list of string literals, so bumping a recipe's
 graph contract without touching it does not fail: `export-view` simply refuses every run of
 that recipe from then on, and the recipe quietly disappears from the run list.
@@ -23,15 +23,23 @@ from typing import Protocol, cast
 
 import pytest
 
-from stage_gen.recipes.dialogue_scene.scene_graph import DialogueSceneGraph
-from stage_gen.recipes.oblique_survival.survival_graph import ObliqueSurvivalGraph
-from stage_gen.recipes.pointclick_room.room_graph import PointClickRoomGraph
-from stage_gen.recipes.sideview_platformer.execution_graph import ExecutionGraph
-from stage_gen.recipes.sideview_runner.runner_graph import SideviewRunnerGraph
 from stage_gen.recipes.storefront.storefront_graph import StorefrontGraph
 from stage_gen.recipes.universe.universe_graph import UniverseGraph
+from stage_gen_legacy.recipes.dialogue_scene.scene_graph import DialogueSceneGraph
+from stage_gen_legacy.recipes.oblique_survival.survival_graph import ObliqueSurvivalGraph
+from stage_gen_legacy.recipes.pointclick_room.room_graph import PointClickRoomGraph
+from stage_gen_legacy.recipes.sideview_platformer.execution_graph import ExecutionGraph
+from stage_gen_legacy.recipes.sideview_runner.runner_graph import SideviewRunnerGraph
 
-CLI_SOURCE = Path(__file__).resolve().parents[2] / "src" / "stage_gen" / "interfaces" / "cli.py"
+CLI_SOURCE = (
+    Path(__file__).resolve().parents[2]
+    / "godot"
+    / "legacy"
+    / "python"
+    / "stage_gen_legacy"
+    / "interfaces"
+    / "cli.py"
+)
 
 
 class RecipeGraphModel(Protocol):

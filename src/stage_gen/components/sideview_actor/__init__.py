@@ -11,7 +11,7 @@ from .asset_unit import (
     DOWNSCALE_WARN_RATIO,
     ENTITY_CONSISTENCY_FACTOR,
     PAINTED_ALPHA_THRESHOLD,
-    PLAYER_HEIGHT_UNITS,
+    AssetScale,
     AssetUnitError,
     ResolvedMagnitude,
     SubjectCalibration,
@@ -20,7 +20,6 @@ from .asset_unit import (
     measure_subject_extent,
     recovery_plate_steps,
     resolve_declared_magnitude,
-    resolve_player_magnitude,
     sprite_scale,
 )
 from .motion_rebase import (
@@ -67,10 +66,10 @@ __all__ = [
     "MOTION_REBASE_SCHEMA_NAME",
     "MOTION_REBASE_VERIFY",
     "PAINTED_ALPHA_THRESHOLD",
-    "PLAYER_HEIGHT_UNITS",
     "REBASE_PLATE_KIND",
     "REBASE_READING_KIND",
     "REBASE_VERIFICATION_KIND",
+    "AssetScale",
     "AssetUnitError",
     "MotionRebaseError",
     "MotionRebaseHandlers",
@@ -98,6 +97,5 @@ __all__ = [
     "parse_motion_rebase",
     "recovery_plate_steps",
     "resolve_declared_magnitude",
-    "resolve_player_magnitude",
     "sprite_scale",
 ]

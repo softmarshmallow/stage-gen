@@ -29,8 +29,9 @@ from stage_gen.components.portrait_motion.processing import png_bytes
 from stage_gen.components.portrait_motion.storage import COMPONENT
 from stage_gen.config import ConfigError, StageGenConfig
 from stage_gen.image_product import ImageProvider
-from stage_gen.orchestration.portrait_face import KIND, REQUIRED_STAGES, load_face_plan
-from stage_gen.orchestration.portrait_motion import (
+from stage_gen.orchestration.portrait_services import ConfiguredPortraitServices
+from stage_gen.recipes.portrait_motion.face import KIND, REQUIRED_STAGES, load_face_plan
+from stage_gen.recipes.portrait_motion.pipeline import (
     TOOL,
     RuntimeProfile,
     prepare_run,
@@ -275,7 +276,7 @@ async def test_all_live_keys_are_required_before_locator_spend(
     monkeypatch.setenv("OPENAI_API_KEY", "offline-unused-key")
     monkeypatch.delenv("FAL_KEY", raising=False)
     with pytest.raises(ConfigError) as caught:
-        await run_pipeline(case.run_dir, live=True)
+        await run_pipeline(case.run_dir, live=True, service_factory=ConfiguredPortraitServices())
     assert caught.value.missing == ("FAL_KEY",)
     assert not list(case.run_dir.rglob("submission.json"))
     assert not (case.run_dir / "locator/budget.json").exists()

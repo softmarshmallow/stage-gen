@@ -20,23 +20,23 @@ import pytest
 from PIL import Image, ImageDraw
 
 from stage_gen.config import StageGenConfig
-from stage_gen.recipes.oblique_survival import layout as layout_module
-from stage_gen.recipes.oblique_survival import survival_request
-from stage_gen.recipes.oblique_survival.layout import Layout
-from stage_gen.recipes.oblique_survival.manifest import measure_sprite
-from stage_gen.recipes.oblique_survival.models import (
+from stage_gen_legacy.recipes.oblique_survival import layout as layout_module
+from stage_gen_legacy.recipes.oblique_survival import survival_request
+from stage_gen_legacy.recipes.oblique_survival.layout import Layout
+from stage_gen_legacy.recipes.oblique_survival.manifest import measure_sprite
+from stage_gen_legacy.recipes.oblique_survival.models import (
     Forage,
     ItemUse,
     Package,
     Road,
     SourceError,
 )
-from stage_gen.recipes.oblique_survival.survival_graph import build_graph
-from stage_gen.recipes.oblique_survival.survival_prompts import actor_concept_prompt
-from stage_gen.recipes.oblique_survival.survival_request import load_package
+from stage_gen_legacy.recipes.oblique_survival.survival_graph import build_graph
+from stage_gen_legacy.recipes.oblique_survival.survival_prompts import actor_concept_prompt
+from stage_gen_legacy.recipes.oblique_survival.survival_request import load_package
 from tests.unit.recipes.oblique_survival._survival_fixture import write_fixture
 
-PACKAGE: Final = Path("library/games/ember-hollow")
+PACKAGE: Final = Path("godot/legacy/inputs/ember-hollow")
 
 
 def _document(package: Package, run_dir: Path, world: Layout) -> dict[str, Any]:

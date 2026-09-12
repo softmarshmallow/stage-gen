@@ -223,7 +223,8 @@ verifies that:
 Validator behavior is covered by synthetic JSON fixtures in
 [`check-fixtures/`](check-fixtures/) and does not need a media fixture.
 
-The sole authoritative packaged preview loop is `repository-approved` after an
+The legacy demo preview loop under `godot/legacy/python/stage_gen_legacy/resources/music/`
+is `repository-approved` after an
 artifact-specific maintainer rights decision and listening review. Its rights
 basis is recorded with the generated-output provenance. This approval applies
 only to that digest-matched artifact; updating model/provider provenance alone

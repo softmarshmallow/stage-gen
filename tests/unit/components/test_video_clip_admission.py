@@ -42,6 +42,7 @@ def _admit(**overrides: object) -> dict[str, object]:
         "expected_seconds": 10.0,
         "expected_size": (1920, 1080),
         "expected_codec": "theora",
+        "expected_aspect_ratio": 16 / 9,
     }
     fields.update(overrides)
     probe = fields.pop("probe")
@@ -86,7 +87,7 @@ def test_shape_refusals_name_what_was_wrong() -> None:
         _admit(expected_seconds=4.0)
     with pytest.raises(ClipAdmissionError, match="1920x1080 where the layout declares"):
         _admit(expected_size=(1280, 720))
-    with pytest.raises(ClipAdmissionError, match="16:9"):
+    with pytest.raises(ClipAdmissionError, match="aspect ratio"):
         _admit(probe=_probe(width=1920, height=1440), expected_size=(1920, 1440))
 
 
@@ -110,3 +111,18 @@ def test_the_audio_a_route_generated_is_recorded_not_refused() -> None:
     )
     assert facts["source_audio"] == {"codec": "aac", "channels": 2, "sample_rate": 48000}
     assert _admit()["source_audio"] is None
+
+
+def test_aspect_ratio_is_a_caller_constraint_not_a_global_screen_policy() -> None:
+    facts = clip_admission_facts(
+        _probe(width=1440, height=1440),
+        _motion(),
+        _luma(),
+        expected_seconds=10.0,
+        expected_size=(1440, 1440),
+    )
+    assert facts["width"] == facts["height"] == 1440
+    with pytest.raises(ValueError, match="positive finite"):
+        clip_admission_facts(
+            _probe(), _motion(), _luma(), expected_seconds=10.0, expected_aspect_ratio=float("nan")
+        )

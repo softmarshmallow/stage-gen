@@ -19,8 +19,8 @@ criteria it was measured against are in the
 [game-engine evaluation](game-engine-evaluation.md). 0061 extended the choice to
 every genre, for a reason that is about production rather than about cameras.
 The operating manual beside the code is
-[the project's README](../godot/runtime/README.md), and each host's own is beside its
-code under `godot/runtime/hosts/<recipe>/`.
+[the project's README](../godot/legacy/runtime/README.md), and each host's own is beside its
+code under `godot/legacy/runtime/hosts/<recipe>/`.
 
 ## Runtime input
 
@@ -60,7 +60,7 @@ Produce or select a run first — a live one, or the free rehearsal:
 
 ```sh
 uv run stage-gen oblique-survival generate \
-  --input library/games/ember-hollow \
+  --input godot/legacy/inputs/ember-hollow \
   --output out/ember-hollow-v3 \
   --scope full --cache-dir out/.oblique-survival-cache
 ```
@@ -69,7 +69,7 @@ Then play it. Everything after the bare `--` belongs to the host; the editor
 swallows the rest:
 
 ```sh
-Godot --path godot/runtime -- --run <run directory>
+Godot --path godot/legacy/runtime -- --run <run directory>
 ```
 
 `--mode` chooses the framing (`play` follows the player; `gallery` stands every
@@ -118,7 +118,7 @@ the tree beside it.
 ## Headless validation
 
 ```sh
-Godot --headless --path godot/runtime -s res://tests/run_tests.gd
+Godot --headless --path godot/legacy/runtime -s res://tests/run_tests.gd
 ```
 
 That is the simulation gate: the run package parser, the deterministic PRNG, the

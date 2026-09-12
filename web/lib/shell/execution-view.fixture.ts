@@ -474,3 +474,14 @@ export function dialogueExecutionViewFixture(): Record<string, unknown> {
     gaps: [],
   };
 }
+
+/** A user-authored pipeline; it carries no game or built-in recipe identity. */
+export function pipelineExecutionViewFixture(): Record<string, unknown> {
+  const { recipe: _recipe, game_id: _gameId, ...document } = executionViewFixture();
+  return {
+    ...document,
+    kind: "pipeline-execution-view-v1",
+    pipeline_id: "user.tools-material-set",
+    title: "Material study",
+  };
+}

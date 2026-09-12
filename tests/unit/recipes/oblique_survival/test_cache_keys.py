@@ -2,7 +2,7 @@
 
 A key that moved is a picture that will be drawn again, so the golden holds one
 ``node_id -> cache_key`` map per scope and the assertion below names and prices
-whatever moved. Rewrite it with ``scripts/write_oblique_survival_cache_keys.py
+whatever moved. Rewrite it with ``godot/legacy/tools/write_oblique_survival_cache_keys.py
 --write``, and only after reading the diff.
 
 Two claims the reuse story rests on live here, because the spike proved them
@@ -61,14 +61,17 @@ import pytest
 
 from gnode import LOCAL_OPERATION
 from stage_gen.config import StageGenConfig
-from stage_gen.recipes.oblique_survival.models import Package
-from stage_gen.recipes.oblique_survival.survival_graph import ObliqueSurvivalGraph, build_graph
-from stage_gen.recipes.oblique_survival.survival_request import load_package
-from stage_gen.recipes.oblique_survival.survival_types import SCOPES
+from stage_gen_legacy.recipes.oblique_survival.models import Package
+from stage_gen_legacy.recipes.oblique_survival.survival_graph import (
+    ObliqueSurvivalGraph,
+    build_graph,
+)
+from stage_gen_legacy.recipes.oblique_survival.survival_request import load_package
+from stage_gen_legacy.recipes.oblique_survival.survival_types import SCOPES
 from tests.unit.recipes._cache_key_golden import assert_cache_keys_match
 
 REPOSITORY_ROOT: Final = Path(__file__).parents[4]
-PACKAGE: Final = REPOSITORY_ROOT / "library/games/ember-hollow"
+PACKAGE: Final = REPOSITORY_ROOT / "godot/legacy/inputs/ember-hollow"
 GOLDEN_PATH: Final = (
     REPOSITORY_ROOT / "tests/contract/fixtures/oblique_survival/ember-hollow.cache-keys.json"
 )

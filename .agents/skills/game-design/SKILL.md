@@ -1,12 +1,18 @@
 ---
 name: game-design
-description: Author or revise a prepared Stage Gen game-input package after its concept is selected. Use for canonical game, gameplay, map, content, sequence, and soundtrack contracts; not for pipeline implementation, runtime code, or exploratory concept work.
+description: Maintain existing legacy Godot demo input packages. Use only for the retained game-specific TOML readers and their demos, never as the canonical Stage Gen asset-authoring contract.
 ---
 
-# Game Design
+# Legacy Demo Game Design
 
-Author the input under `library/games/<game_id>/`. Read the repository
-[`AGENTS.md`](../../../AGENTS.md) and [`library/games/AGENTS.md`](../../../library/games/AGENTS.md) first. For idea exploration or cover selection, use
+This skill applies only to existing demos under `godot/legacy/`. New asset pipelines use
+[asset-pipeline](../asset-pipeline/SKILL.md). New games own their GDScript, scenes and
+asset preparation under their own Godot project; they need no universal game TOML.
+Preserve old readers while maintaining an existing demo. Do not migrate every legacy
+input or add new gameplay vocabulary to the public SDK.
+
+Author the input under `godot/legacy/inputs/<game_id>/`. Read the repository
+[`AGENTS.md`](../../../AGENTS.md) and [`godot/legacy/inputs/AGENTS.md`](../../../godot/legacy/inputs/AGENTS.md) first. For idea exploration or cover selection, use
 [`game-concept-studio`](../game-concept-studio/SKILL.md) instead.
 
 ## Read the contract
@@ -22,7 +28,7 @@ Use these as the source of truth:
 7. [The host contract](../../../docs/spec/game/host-contract.md), for what a
    named gameplay choice actually becomes once a host runs it
 
-Resolve [`library/games/main.toml`](../../../library/games/main.toml) and inspect
+Resolve [`godot/legacy/inputs/main.toml`](../../../godot/legacy/inputs/main.toml) and inspect
 its selected package as the live example. Do not revive obsolete compatibility
 shapes.
 
@@ -95,16 +101,15 @@ cover: the validator compares two closed names and cannot read prose, so prose
 that contradicts the declaration passes closure and fails in the pixels.
 Record the required independent semantic review for accepted generated media.
 
-Run the canonical closure validator from the repository root:
+Run the legacy demo closure validator from the repository root:
 
 ```sh
-uv run python scripts/validate_game_package.py --root .
+uv run --group legacy python godot/legacy/tools/validate_game_package.py --root .
 ```
 
 It verifies TOML parsing, confined paths, exact path membership, the authored
 evidence and reference image digests, resolvable references, and orphaned
 entries. Before serving a committed canonical demo, also run it with
-`--require-committed`. If the ratified schema is newer than the implemented
-validator, report that gap; never downgrade the authored package to a legacy
-shape just to pass. Stop at a complete authored input package: do not implement
+`--require-committed`. Report reader and document mismatches as demo-local maintenance issues. Existing
+TOML is legacy compatibility, not a requirement for new asset workflows. Stop at a complete authored input package: do not implement
 the pipeline or claim that the game has been generated.

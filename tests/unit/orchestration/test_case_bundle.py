@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.orchestration.case_binding import bind_case
-from stage_gen.orchestration.case_bundle import (
+from stage_gen_legacy.orchestration.case_binding import bind_case
+from stage_gen_legacy.orchestration.case_bundle import (
     CaseBundleError,
     build_case_runtime,
     publish_case,

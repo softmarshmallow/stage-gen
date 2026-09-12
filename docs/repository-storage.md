@@ -3,8 +3,8 @@
 Generated run output belongs below the configured output directory and stays
 gitignored. Commit only small, deliberate fixtures needed to build, test, or
 explain a contract. A canonical prepared game may also commit its explicitly
-digest-bound image inputs under `library/games/<game_id>/references/` and its
-digest-bound typefaces under `library/games/<game_id>/fonts/`; those are authored
+digest-bound image inputs under `godot/legacy/inputs/<game_id>/references/` and its
+digest-bound typefaces under `godot/legacy/inputs/<game_id>/fonts/`; those are authored
 package members, not generated run output.
 
 README-only repository marketing assets live under `.github/assets/readme/`.
@@ -85,11 +85,11 @@ media into Git are anchored in [`godot/games/README.md`](../godot/games/README.m
   as WebP, and keep their use limited to repository presentation.
 - Every committed binary needs a reason, provenance, and rights status.
 - Prepared-package image inputs are allowed only beneath
-  `library/games/<game_id>/references/`. Their owning TOML contracts must bind
+  `godot/legacy/inputs/<game_id>/references/`. Their owning TOML contracts must bind
   exact digests and inline rights basis, while `game.toml` binds the selected
   evidence and reviews. They do not use generated-output `.meta.json` sidecars.
 - A prepared-package typeface is allowed only beneath
-  `library/games/<game_id>/fonts/`, with the face's licence file committed beside
+  `godot/legacy/inputs/<game_id>/fonts/`, with the face's licence file committed beside
   it, and its owning TOML contract binds the exact digest and the licence the same
   way. A face is a third-party input with a rights basis, not provider output
   published as art: it carries no inventory entry and no `.meta.json` sidecar.

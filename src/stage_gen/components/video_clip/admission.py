@@ -20,6 +20,7 @@ published one and the gates run on both.
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 from stage_gen.media import (
@@ -69,6 +70,7 @@ def clip_admission_facts(
     expected_seconds: float,
     expected_size: tuple[int, int] | None = None,
     expected_codec: str | None = None,
+    expected_aspect_ratio: float | None = None,
 ) -> dict[str, object]:
     """The verdict, as the facts that produced it.
 
@@ -93,10 +95,14 @@ def clip_admission_facts(
             f"clip is {probe.width}x{probe.height} where the layout declares "
             f"{expected_size[0]}x{expected_size[1]}"
         )
-    if abs(probe.aspect_ratio - CLIP_ASPECT_RATIO) > CLIP_ASPECT_TOLERANCE:
-        raise ClipAdmissionError(
-            f"clip is {probe.aspect_ratio:.4f} wide where 16:9 is {CLIP_ASPECT_RATIO:.4f}"
-        )
+    if expected_aspect_ratio is not None:
+        if not math.isfinite(expected_aspect_ratio) or expected_aspect_ratio <= 0:
+            raise ValueError("expected_aspect_ratio must be a positive finite number")
+        if abs(probe.aspect_ratio - expected_aspect_ratio) > CLIP_ASPECT_TOLERANCE:
+            raise ClipAdmissionError(
+                f"clip aspect ratio is {probe.aspect_ratio:.4f}, "
+                f"expected {expected_aspect_ratio:.4f}"
+            )
     if motion.mean < CLIP_MOTION_FLOOR_MEAN:
         raise ClipAdmissionError(
             f"clip barely moves: mean sample difference {motion.mean:.4f} is under the "
@@ -125,9 +131,7 @@ def clip_admission_facts(
         "luma_minimum": round(luma.minimum, 2),
         "luma_maximum": round(luma.maximum, 2),
     }
-    # Recorded, never stripped here and never played. The opening owns its sound
-    # through the package's soundtrack contract; the publication transcode drops
-    # this track, and saying so is what makes the drop auditable.
+    # Record source audio. Consumers explicitly choose whether to preserve or transform it.
     facts["source_audio"] = (
         None
         if probe.audio is None
@@ -146,6 +150,7 @@ async def admit_clip_file(
     expected_seconds: float,
     expected_size: tuple[int, int] | None = None,
     expected_codec: str | None = None,
+    expected_aspect_ratio: float | None = None,
     ffmpeg: str = "ffmpeg",
     ffprobe: str = "ffprobe",
 ) -> dict[str, object]:
@@ -161,6 +166,7 @@ async def admit_clip_file(
         expected_seconds=expected_seconds,
         expected_size=expected_size,
         expected_codec=expected_codec,
+        expected_aspect_ratio=expected_aspect_ratio,
     )
 
 
@@ -170,6 +176,7 @@ async def admit_clip_bytes(
     expected_seconds: float,
     expected_size: tuple[int, int] | None = None,
     expected_codec: str | None = None,
+    expected_aspect_ratio: float | None = None,
     ffmpeg: str = "ffmpeg",
     ffprobe: str = "ffprobe",
 ) -> dict[str, object]:
@@ -187,6 +194,7 @@ async def admit_clip_bytes(
             expected_seconds=expected_seconds,
             expected_size=expected_size,
             expected_codec=expected_codec,
+            expected_aspect_ratio=expected_aspect_ratio,
             ffmpeg=ffmpeg,
             ffprobe=ffprobe,
         )

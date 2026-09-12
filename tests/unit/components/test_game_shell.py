@@ -13,7 +13,7 @@ from typing import cast
 import pytest
 
 from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen.components.game_shell import (
+from stage_gen_legacy.components.game_shell import (
     LOADING_SCREEN,
     OPENING_SHOT,
     REDISTRIBUTABLE_FONT_LICENSES,

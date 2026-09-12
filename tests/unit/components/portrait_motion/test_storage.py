@@ -25,7 +25,7 @@ from gnode import (
 from stage_gen.components.portrait_motion.models import PortraitMotionSpec, StageReceipt
 from stage_gen.components.portrait_motion.nodes import PortraitMotionHandlers, StageOutput
 from stage_gen.components.portrait_motion.storage import RunStore, confined
-from stage_gen.orchestration.portrait_motion import RuntimeProfile, _Budget
+from stage_gen.recipes.portrait_motion.pipeline import RuntimeProfile, _Budget
 
 from .test_models import specification
 

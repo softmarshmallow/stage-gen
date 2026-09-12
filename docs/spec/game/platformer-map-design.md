@@ -1,5 +1,8 @@
 # Platformer map design
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Checked by:** none.
 
 > **Contract maturity: promoted module, exact-current for the design contract.**

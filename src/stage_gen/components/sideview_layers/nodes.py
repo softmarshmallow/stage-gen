@@ -55,12 +55,12 @@ from stage_gen.components.sideview_layers.contract import (
     RUNTIME_ONLY_LAYER_FIELDS,
     resolve_layer_placement,
 )
+from stage_gen.components.sideview_layers.models import LayerRequest
 from stage_gen.components.sideview_layers.pipeline import (
     layer_repeat_policies,
     loop_layer,
     validate_provider_image,
 )
-from stage_gen.components.sideview_stage import PreparedMapLayer
 from stage_gen.media import LOOP_METHODS, LoopConstruction, SeamConditioning, data_url
 from stage_gen.media.layer_rasters import trim_layer_to_alpha_box
 
@@ -190,7 +190,7 @@ def add_layer_nodes(
     builder: GraphBuilder,
     *,
     types: LayerNodeTypes,
-    layer: PreparedMapLayer,
+    layer: LayerRequest,
     construction: LoopConstruction,
     node_ids: tuple[str, str, str],
     domain: str,
@@ -390,7 +390,7 @@ def admit_layer_candidate(data: bytes, *, transparent: bool, gate: LayerGate) ->
 
 
 def publish_layer(
-    layer: PreparedMapLayer, looped: bytes, *, place_opaque: bool
+    layer: LayerRequest, looped: bytes, *, place_opaque: bool
 ) -> tuple[bytes, dict[str, object]]:
     """Trim an admitted loop unit to its alpha box and resolve its placement, once.
 
@@ -452,7 +452,7 @@ def bounded_repeat_preview(data: bytes) -> bytes:
 # ----------------------------------------------------------------- handler
 
 
-LoopPrompt = Callable[[Node, PreparedMapLayer, SeamConditioning, LoopConstruction], str]
+LoopPrompt = Callable[[Node, LayerRequest, SeamConditioning, LoopConstruction], str]
 
 
 @dataclass(frozen=True)
@@ -461,7 +461,7 @@ class LayerHost:
 
     run_dir: Path
     #: The authored layer a node is about.
-    layer: Callable[[Node], PreparedMapLayer]
+    layer: Callable[[Node], LayerRequest]
     #: The deterministic construction a failed generative loop falls back to.
     fallback: Callable[[Node], LoopConstruction]
     #: How the host names a layer in a refusal, e.g. ``crowncrag/hills``.

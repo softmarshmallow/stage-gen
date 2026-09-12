@@ -1,13 +1,16 @@
 # Case: the container above the narrative leaves
 
-> **Checked by:** `tests/contract/test_packaged_resources.py`.
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
+> **Checked by:** none.
 
 > **Contract maturity: exact-current for the authored contract, the structural
 > proof, the leaf binding, the `case-runtime-v1` projection, and
 > `stage-gen case check` / `case bundle`.** Executable authority:
-> `src/stage_gen/components/case/` (contract and proof),
-> `src/stage_gen/orchestration/case_binding.py` (leaf binding),
-> `src/stage_gen/orchestration/case_bundle.py` (the runtime projection), and
+> `godot/legacy/python/stage_gen_legacy/components/case/` (contract and proof),
+> `godot/legacy/python/stage_gen_legacy/orchestration/case_binding.py` (leaf binding),
+> `godot/legacy/python/stage_gen_legacy/orchestration/case_bundle.py` (the runtime projection), and
 > `tests/unit/components/case/`.
 
 A [scenario](scenario.md) is one movement. A
@@ -49,8 +52,8 @@ not already proven. See [The proof](#the-proof).
 Two package members, in the shape the scenario catalog already uses:
 
 ```text
-library/games/<game_id>/cases/index.toml     # case-catalog-v1
-library/games/<game_id>/cases/<case_id>.toml # case-v1
+godot/legacy/inputs/<game_id>/cases/index.toml     # case-catalog-v1
+godot/legacy/inputs/<game_id>/cases/<case_id>.toml # case-v1
 ```
 
 A game is not one case, for the same reason it is not one scenario: an episodic
@@ -189,16 +192,16 @@ resolves each beat's leaf and holds the two to each other:
   exactly — the same list said twice, on purpose, so neither side can drift; and
 - the beat's `writes` must be flags the leaf can actually set.
 
-Binding lives in `stage_gen.orchestration.case_binding` rather than in the
+Binding lives in `stage_gen_legacy.orchestration.case_binding` rather than in the
 component, because a component may not import a recipe and a room is a recipe.
 That is the composition-root rule, not a preference.
 
 ## CLI
 
 ```sh
-uv run stage-gen case check --input library/games/<game_id>
-uv run stage-gen case check --input library/games/<game_id> --case episode_one
-uv run stage-gen case check --input library/games/<game_id> --structure-only
+uv run stage-gen case check --input godot/legacy/inputs/<game_id>
+uv run stage-gen case check --input godot/legacy/inputs/<game_id> --case episode_one
+uv run stage-gen case check --input godot/legacy/inputs/<game_id> --structure-only
 ```
 
 Admission with no event loop, no config, and no provider — it never needs one.
@@ -216,7 +219,7 @@ been generated — so the join is supplied once, at publication, and published a
 
 ```sh
 uv run stage-gen case bundle \
-  --input library/games/the_grain --case episode_one \
+  --input godot/legacy/inputs/the_grain --case episode_one \
   --beat-run b_office=the-grain-scene --beat-run b_motor_court=the-grain-motor-court \
   --beat-run b_statements=the-grain-scene \
   --output out/the-grain-episode-one

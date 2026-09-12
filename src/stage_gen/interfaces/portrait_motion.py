@@ -9,7 +9,8 @@ from pathlib import Path
 
 from stage_gen.components.portrait_motion import PortraitMotionSpec
 from stage_gen.config import load_config
-from stage_gen.orchestration.portrait_motion import (
+from stage_gen.orchestration.portrait_services import ConfiguredPortraitServices
+from stage_gen.recipes.portrait_motion import (
     RuntimeProfile,
     prepare_run,
     run_pipeline,
@@ -55,7 +56,14 @@ def entrypoint() -> None:
             face_crop=args.face_crop,
         )
     elif args.command == "run":
-        result = asyncio.run(run_pipeline(args.run, live=args.live, dotenv=args.dotenv))
+        result = asyncio.run(
+            run_pipeline(
+                args.run,
+                live=args.live,
+                dotenv=args.dotenv,
+                service_factory=ConfiguredPortraitServices() if args.live else None,
+            )
+        )
     else:
         result = verify_run(args.run)
     print(json.dumps(result, indent=2, allow_nan=False))

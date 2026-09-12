@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 
-from stage_gen.recipes.dialogue_scene.models import DialogueScenePlanDraft
-from stage_gen.recipes.dialogue_scene.schema import (
+from stage_gen_legacy.recipes.dialogue_scene.models import DialogueScenePlanDraft
+from stage_gen_legacy.recipes.dialogue_scene.schema import (
     JSON_SCHEMA_STANDARD_KEYS,
     dialogue_plan_json_schema,
 )

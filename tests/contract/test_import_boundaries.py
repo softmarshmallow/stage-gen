@@ -5,7 +5,10 @@ import re
 from importlib.util import resolve_name
 from pathlib import Path
 
+# test-owner: product
 SOURCE_ROOT = Path(__file__).resolve().parents[2] / "src"
+LEGACY_SOURCE_ROOT = SOURCE_ROOT.parent / "godot/legacy/python"
+LEGACY_ROOT = LEGACY_SOURCE_ROOT / "stage_gen_legacy"
 COMPONENT_ROOT = SOURCE_ROOT / "stage_gen" / "components"
 FORBIDDEN_COMPONENT_DEPENDENCIES = (
     "stage_gen.providers",
@@ -16,7 +19,12 @@ FORBIDDEN_COMPONENT_DEPENDENCIES = (
 
 
 def _package_for(path: Path) -> str:
-    parts = path.relative_to(SOURCE_ROOT).with_suffix("").parts
+    root = next(
+        root
+        for root in (SOURCE_ROOT, LEGACY_SOURCE_ROOT, SOURCE_ROOT.parent)
+        if path.is_relative_to(root)
+    )
+    parts = path.relative_to(root).with_suffix("").parts
     if parts[-1] == "__init__":
         return ".".join(parts[:-1])
     return ".".join(parts[:-1])
@@ -185,17 +193,6 @@ def test_recipes_do_not_import_each_other() -> None:
 
 
 ORCHESTRATION_ROOT = SOURCE_ROOT / "stage_gen" / "orchestration"
-PACKAGE_RESOLUTION_MODULES = (
-    ORCHESTRATION_ROOT / "game_package.py",
-    ORCHESTRATION_ROOT / "package_capture.py",
-    *sorted(RECIPE_ROOT.glob("*/validation.py")),
-)
-PROVIDER_FREE_FORBIDDEN = (
-    "stage_gen.capabilities",
-    "stage_gen.providers",
-    "stage_gen.interfaces",
-    "stage_gen.orchestration.runtime",
-)
 
 
 def _import_violations(path: Path, forbidden: tuple[str, ...]) -> list[str]:
@@ -211,52 +208,6 @@ def _import_violations(path: Path, forbidden: tuple[str, ...]) -> list[str]:
                     f"{path.relative_to(SOURCE_ROOT.parent)}:{node.lineno} imports {imported}"
                 )
     return violations
-
-
-def test_prepared_package_resolution_is_provider_free() -> None:
-    """A malformed package must never reach a paid operation: the composition root,
-    the capture and every genre's validation module import no provider, capability,
-    interface or composed runtime, and the genre modules import no recipe at all -
-    the composition root may import exactly a recipe's `validation` module."""
-
-    violations: list[str] = []
-    for path in PACKAGE_RESOLUTION_MODULES:
-        forbidden: tuple[str, ...] = PROVIDER_FREE_FORBIDDEN
-        if path.name != "game_package.py":
-            forbidden = (*forbidden, "stage_gen.recipes")
-        violations.extend(_import_violations(path, forbidden))
-    composition_root = ORCHESTRATION_ROOT / "game_package.py"
-    package = _package_for(composition_root)
-    tree = ast.parse(composition_root.read_text(encoding="utf-8"), filename=str(composition_root))
-    for node in ast.walk(tree):
-        if not isinstance(node, (ast.Import, ast.ImportFrom)):
-            continue
-        for imported in _imported_modules(node, package):
-            if not imported.startswith("stage_gen.recipes."):
-                continue
-            parts = imported.split(".")
-            if len(parts) < 4 or parts[3] != "validation":
-                violations.append(
-                    f"game_package.py:{node.lineno} imports {imported}, "
-                    "not a recipe's validation module"
-                )
-    assert not violations, "package resolution must remain provider-free:\n" + "\n".join(violations)
-
-
-def test_orchestration_does_not_import_genre_components() -> None:
-    """Orchestration is the composition root, not a genre: a genre's contracts are
-    read by the recipe that owns them (its `validation.py`), never here."""
-
-    genre_components = tuple(
-        f"stage_gen.components.{entry.name}"
-        for entry in COMPONENT_ROOT.iterdir()
-        if entry.is_dir() and _genre_of(entry.name) is not None
-    )
-    assert genre_components, "the component root names no genre component"
-    violations: list[str] = []
-    for path in sorted(ORCHESTRATION_ROOT.rglob("*.py")):
-        violations.extend(_import_violations(path, genre_components))
-    assert not violations, "orchestration imports a genre component:\n" + "\n".join(violations)
 
 
 ENGINE_ROOT = SOURCE_ROOT / "gnode"
@@ -282,7 +233,7 @@ def test_engine_does_not_import_the_application() -> None:
             if not isinstance(node, (ast.Import, ast.ImportFrom)):
                 continue
             for imported in _imported_modules(node, package):
-                if imported == "stage_gen" or imported.startswith("stage_gen."):
+                if imported.split(".")[0] in {"stage_gen", "stage_gen_legacy", "concept_studio"}:
                     relative = path.relative_to(SOURCE_ROOT.parent)
                     violations.append(f"{relative}:{node.lineno} imports {imported}")
     assert not violations, "engine import boundary violations:\n" + "\n".join(violations)
@@ -445,5 +396,38 @@ def test_application_imports_only_declared_engine_surfaces() -> None:
                     relative = path.relative_to(SOURCE_ROOT.parent)
                     violations.append(f"{relative}:{node.lineno} imports {module}")
     assert not violations, "consumers import only the declared engine surfaces:\n" + "\n".join(
+        violations
+    )
+
+
+def test_product_source_never_statically_imports_optional_consumers() -> None:
+    violations: list[str] = []
+    for root in (
+        SOURCE_ROOT / "stage_gen",
+        SOURCE_ROOT.parent / "scripts",
+        SOURCE_ROOT.parent / "examples",
+    ):
+        for path in _python_sources(root):
+            violations.extend(_import_violations(path, ("stage_gen_legacy", "concept_studio")))
+    assert not violations, "product imports an optional consumer:\n" + "\n".join(violations)
+
+
+def test_pipeline_mechanics_have_no_component_recipe_or_host_dependencies() -> None:
+    violations: list[str] = []
+    for path in _python_sources(SOURCE_ROOT / "stage_gen/pipeline"):
+        violations.extend(
+            _import_violations(
+                path,
+                (
+                    "stage_gen.components",
+                    "stage_gen.recipes",
+                    "stage_gen.orchestration",
+                    "stage_gen.capabilities",
+                    "stage_gen.interfaces",
+                    "gnode.providers",
+                ),
+            )
+        )
+    assert not violations, "pipeline mechanics import a concrete application owner:\n" + "\n".join(
         violations
     )

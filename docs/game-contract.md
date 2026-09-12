@@ -1,5 +1,8 @@
 # Game contract
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Contract maturity: ratified TO-BE master.**
 >
 > This document is the canonical high-level contract for game-oriented
@@ -92,7 +95,7 @@ make every branch one schema or one file.
 Authored game material lives under one confined game identity:
 
 ```text
-library/games/<game_id>/
+godot/legacy/inputs/<game_id>/
 ├── game.toml
 ├── gameplay.toml
 ├── ui.toml

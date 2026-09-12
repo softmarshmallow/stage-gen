@@ -1,16 +1,19 @@
 # Runner genre family
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Checked by:** `tests/contract/test_current_game_docs.py`, `tests/contract/test_generation_pipeline_docs.py`, `tests/unit/recipes/sideview_runner/test_execution_graph_identity.py`.
 
 > **Contract maturity: exact-current authored contracts.** Executable
-> authority: `src/stage_gen/components/runner_gameplay/`,
-> `src/stage_gen/components/runner_track/`,
-> `src/stage_gen/components/runner_content/`,
-> `src/stage_gen/components/runner_audio/`, and the runner member resolution
-> in `src/stage_gen/recipes/sideview_runner/validation.py`. The generation
-> recipe lives in `src/stage_gen/recipes/sideview_runner/`, the playable
-> simulation in `godot/runtime/genres/sideview_runner/` and its host in
-> `godot/runtime/hosts/sideview_runner/` (decision 0065). The browser runner it replaced
+> authority: `godot/legacy/python/stage_gen_legacy/components/runner_gameplay/`,
+> `godot/legacy/python/stage_gen_legacy/components/runner_track/`,
+> `godot/legacy/python/stage_gen_legacy/components/runner_content/`,
+> `godot/legacy/python/stage_gen_legacy/components/runner_audio/`, and the runner member resolution
+> in `godot/legacy/python/stage_gen_legacy/recipes/sideview_runner/validation.py`. The generation
+> recipe lives in `godot/legacy/python/stage_gen_legacy/recipes/sideview_runner/`, the playable
+> simulation in `godot/legacy/runtime/genres/sideview_runner/` and its host in
+> `godot/legacy/runtime/hosts/sideview_runner/` (decision 0065). The browser runner it replaced
 > is gone; `web/` lists and inspects a runner run and plays none.
 
 The infinite runner is a genre member of the `game-contract-v9` container
@@ -672,14 +675,14 @@ audio block gained music transitions, which re-keyed the graph with no new
 node. The checked runner fixture is
 Iron Petal Unit so the snapshot covers the per-segment structural-ground fan-out
 rather than only the atlas branch. Regenerate with
-`uv run python scripts/write_pipeline_graph_contract.py --write`; the gate is
+`uv run python godot/legacy/tools/write_pipeline_graph_contract.py --write`; the gate is
 `tests/contract/test_generation_pipeline_docs.py`.
 
 <!-- pipeline-graph-contract:start -->
 ```json
 {
   "kind": "sideview-runner-execution-graph-contract-v1",
-  "fixture_ref": "library/games/iron-petal-unit",
+  "fixture_ref": "godot/legacy/inputs/iron-petal-unit",
   "graph_schema_version": 2,
   "topology_sha256": "f634afc9c267d21b68e091c09eebaeafcae85b5b713ac3fa3b2a63b4105f6ff9",
   "node_count": 109,

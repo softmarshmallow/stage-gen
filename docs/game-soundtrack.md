@@ -1,5 +1,8 @@
 # Authored game soundtracks
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Contract maturity: exact-current prepared-package contract.**
 
 The platformer root `soundtrack.toml`, or a runner member's
@@ -98,8 +101,8 @@ nothing about them.
 Validate the complete canonical package, including soundtrack cross-references:
 
 ```sh
-uv run stage-gen package validate --input library/games/bellweather
-uv run stage-gen package plan --input library/games/bellweather
+uv run stage-gen package validate --input godot/legacy/inputs/bellweather
+uv run stage-gen package plan --input godot/legacy/inputs/bellweather
 ```
 
 Contract validity does not prove listening quality. Generated audio still needs

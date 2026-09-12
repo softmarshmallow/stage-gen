@@ -16,25 +16,25 @@ from gnode import (
     Scheduler,
     StructuredGenerationRequest,
 )
-from stage_gen.components.game_ui import (
-    INVENTORY_PANEL_HEIGHT,
-    INVENTORY_PANEL_LEFT,
-    INVENTORY_PANEL_TOP,
-    INVENTORY_PANEL_WIDTH,
-)
-from stage_gen.components.game_ui.nodes import UI_SHEET_ROLES
 from stage_gen.components.sideview_actor.motion_geometry import (
     dialogue_atlas_grid,
     runtime_mirrors_source,
 )
 from stage_gen.config import StageGenConfig
-from stage_gen.recipes.sideview_platformer.motion_contract import (
+from stage_gen_legacy.components.game_ui import (
+    INVENTORY_PANEL_HEIGHT,
+    INVENTORY_PANEL_LEFT,
+    INVENTORY_PANEL_TOP,
+    INVENTORY_PANEL_WIDTH,
+)
+from stage_gen_legacy.components.game_ui.nodes import UI_SHEET_ROLES
+from stage_gen_legacy.recipes.sideview_platformer.motion_contract import (
     motion_semantic_direction,
     motion_source_facing,
 )
-from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
-from stage_gen.recipes.sideview_platformer.package_types import SOUNDTRACK_VALIDATE
-from stage_gen.recipes.sideview_platformer.prepared_content import (
+from stage_gen_legacy.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
+from stage_gen_legacy.recipes.sideview_platformer.package_types import SOUNDTRACK_VALIDATE
+from stage_gen_legacy.recipes.sideview_platformer.prepared_content import (
     PreparedContentNodeHandler,
     _validate_atlas,
     _validate_transparent_image,
@@ -42,10 +42,11 @@ from stage_gen.recipes.sideview_platformer.prepared_content import (
     content_target_node_ids,
     soundtrack_target_node_ids,
 )
+from stage_gen_legacy.resources import bundled_music_path
 from tests.unit._ui_atlas_fixture import ui_sheet
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
-BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
+BELLWEATHER = REPOSITORY_ROOT / "godot/legacy/inputs/bellweather"
 
 
 def _atlas(*, missing_cell: int | None = None) -> bytes:
@@ -241,9 +242,7 @@ class _FakeMusicService:
 def _write_fake_music(request: MusicGenerationRequest) -> SimpleNamespace:
     output = Path(request.artifact_path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_bytes(
-        (REPOSITORY_ROOT / "src/stage_gen/resources/music/preview-loop.mp3").read_bytes()
-    )
+    output.write_bytes(bundled_music_path().read_bytes())
     sidecar = Path(f"{output}.meta.json")
     sidecar.write_text("{}", encoding="utf-8")
     return SimpleNamespace(attempts=1, provenance_path=str(sidecar))

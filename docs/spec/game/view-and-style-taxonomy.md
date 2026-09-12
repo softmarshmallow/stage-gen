@@ -1,5 +1,8 @@
 # Game view and style taxonomy
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Checked by:** `tests/contract/test_docs_check.py`.
 
 > **Contract maturity: proposed TO-BE for the vocabulary; four of its profile

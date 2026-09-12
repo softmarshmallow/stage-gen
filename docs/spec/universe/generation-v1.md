@@ -1,13 +1,13 @@
 # Universe generation V1
 
-> **Checked by:** `tests/contract/test_generation_pipeline_docs.py`.
+> **Checked by:** `tests/contract/test_asset_recipe_graph_docs.py`.
 
 > **Contract maturity: exact-current authored contracts.** Executable
 > authority: `src/stage_gen/recipes/universe/`. The semantic vocabulary it
 > projects is ratified separately in [taxonomy V0](taxonomy-v0.md), which stays
 > the documentation-only authority over entity classes, source roles, and the
 > ratification rules; this document describes the pipeline that implements it.
-> The committed fixture package is `library/games/lantern_ferry`.
+> The committed fixture package is `src/stage_gen/recipes/universe/examples/lantern_ferry`.
 
 A universe package answers a different question from every other recipe here.
 The others produce something to play; this one produces something to *explore*:
@@ -134,7 +134,7 @@ so the same key restores the same picture. `sample-ledger.json` names the draw
 index for every planned entity, and each image node binds its own index. So:
 
 ```bash
-stage-gen universe gallery --input library/games/lantern_ferry --semantic-run out/u-sem --output out/u-gal-2 --cache-dir out/.universe-cache --sample-ledger out/u-gal/sample-ledger.json --reroll low_marsh
+stage-gen universe gallery --input src/stage_gen/recipes/universe/examples/lantern_ferry --semantic-run out/u-sem --output out/u-gal-2 --cache-dir out/.universe-cache --sample-ledger out/u-gal/sample-ledger.json --reroll low_marsh
 ```
 
 redraws one entity and takes every other branch, and both direction tiers, from
@@ -176,7 +176,7 @@ uv run python -m pytest -q tests/unit/recipes/universe
 ```
 
 ```bash
-uv run stage-gen universe semantic --input library/games/lantern_ferry --output out/u-sem --dry-run --invocation-id dry-1
+uv run stage-gen universe semantic --input src/stage_gen/recipes/universe/examples/lantern_ferry --output out/u-sem --dry-run --invocation-id dry-1
 ```
 
 Live. The semantic phase costs about USD 0.5; the gallery phase is where the
@@ -219,13 +219,13 @@ Two blocks, one per phase. The gallery block is planned against the committed
 admitted-universe fixture, so the fan-out has a checked identity without a paid
 semantic run. Regenerate with
 `uv run python scripts/write_pipeline_graph_contract.py --write`; the gate is
-`tests/contract/test_generation_pipeline_docs.py`.
+`tests/contract/test_asset_recipe_graph_docs.py`.
 
 <!-- pipeline-graph-contract:semantic:start -->
 ```json
 {
   "kind": "universe-semantic-execution-graph-contract-v1",
-  "fixture_ref": "library/games/lantern_ferry",
+  "fixture_ref": "src/stage_gen/recipes/universe/examples/lantern_ferry",
   "phase": "semantic",
   "graph_schema_version": 2,
   "topology_sha256": "e135e32f015b8418165a50fb0211ae81f0262a3c4656f810d05130fb59464027",
@@ -258,7 +258,7 @@ semantic run. Regenerate with
 ```json
 {
   "kind": "universe-gallery-execution-graph-contract-v1",
-  "fixture_ref": "library/games/lantern_ferry",
+  "fixture_ref": "src/stage_gen/recipes/universe/examples/lantern_ferry",
   "admitted_ref": "tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json",
   "phase": "gallery",
   "entity_count": 8,
@@ -305,7 +305,7 @@ semantic run. Regenerate with
 - An entity may not be called `global`: entity node ids share a namespace with
   the fixed `direction-global` node, and the gallery refuses the collision at
   plan time rather than failing on a duplicate node id.
-- `universe.toml` is a package root of its own kind under `library/games/`. It
+- `universe.toml` is a package root of its own kind under `godot/legacy/inputs/`. It
   is never a member of a `game.toml` closure — taxonomy V0 declines to ratify
   that question, and the selected prepared-game closure must not carry
   universe-only files.

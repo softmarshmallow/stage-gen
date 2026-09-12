@@ -1,8 +1,11 @@
 # The host contract
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Checked by:** `tests/contract/test_host_docs.py`, `tests/contract/test_godot_boundaries.py`
 
-**Applicability:** this contract governs the generated-run runtime under `godot/runtime/`.
+**Applicability:** this contract governs the generated-run runtime under `godot/legacy/runtime/`.
 The separate [Game Presentation SDK](../../../godot/packages/game_presentation/addons/game_presentation/README.md)
 and its code-authored example hosts have their own Godot-native boundary. They do
 not enter the engine-free family layer or require a published-run document. That

@@ -7,9 +7,13 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
-from stage_gen.components.platformer_gameplay.models import ScorePolicy, TimerEntry, TimersPolicy
 from stage_gen.recipes.manifest_blocks import present_blocks
-from stage_gen.recipes.sideview_platformer.prepared_manifest import (
+from stage_gen_legacy.components.platformer_gameplay.models import (
+    ScorePolicy,
+    TimerEntry,
+    TimersPolicy,
+)
+from stage_gen_legacy.recipes.sideview_platformer.prepared_manifest import (
     PLATFORMER_MANIFEST_BLOCK_VERSIONS,
     _score_block,
     _timers_block,

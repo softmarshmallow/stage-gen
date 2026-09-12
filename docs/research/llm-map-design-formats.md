@@ -1,7 +1,7 @@
 # LLM map-design format study
 
 > **Status: spike record.** The chunk-grammar format this study selected has since been promoted
-> to `src/stage_gen/components/platformer_map_design/`, specified in
+> to `godot/legacy/python/stage_gen_legacy/components/platformer_map_design/`, specified in
 > [Platformer map design](../spec/game/platformer-map-design.md); the four set-aside formats and
 > the comparison harness remain unpromoted spike code, and nothing below was re-measured against
 > the promoted module. Every number is from live structured-generation runs on 2026-08-28 against

@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen.components.game_fx import (
+from stage_gen_legacy.components.game_fx import (
     CUT_IN_FRAME_LAYOUT,
     CUT_IN_PORTRAIT_LAYOUT,
     FX_MOMENTS,
@@ -14,7 +14,7 @@ from stage_gen.components.game_fx import (
     load_game_fx_bytes,
 )
 
-PACKAGE = Path(__file__).resolve().parents[3] / "library" / "games" / "iron-petal-unit"
+PACKAGE = Path(__file__).resolve().parents[3] / "godot" / "legacy" / "inputs" / "iron-petal-unit"
 
 
 def _source() -> bytes:

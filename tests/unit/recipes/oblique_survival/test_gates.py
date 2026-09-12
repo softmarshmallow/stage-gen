@@ -22,17 +22,17 @@ from PIL import Image, ImageDraw, ImageFilter
 
 from stage_gen.media import measure_alpha_ground_contact
 from stage_gen.media.guide_lattice import detect_guide_lattice
-from stage_gen.recipes.oblique_survival import gates, templates
-from stage_gen.recipes.oblique_survival.manifest import alpha_bbox
-from stage_gen.recipes.oblique_survival.prepared_survival import (
+from stage_gen_legacy.recipes.oblique_survival import gates, templates
+from stage_gen_legacy.recipes.oblique_survival.manifest import alpha_bbox
+from stage_gen_legacy.recipes.oblique_survival.prepared_survival import (
     _look_drift,
     _normalise_look,
     plate_busyness_max,
     plate_gate_kwargs,
 )
-from stage_gen.recipes.oblique_survival.survival_request import load_package
+from stage_gen_legacy.recipes.oblique_survival.survival_request import load_package
 
-PACKAGE: Final = Path("library/games/ember-hollow")
+PACKAGE: Final = Path("godot/legacy/inputs/ember-hollow")
 CANVAS: Final = (1024, 1024)
 
 

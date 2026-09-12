@@ -119,15 +119,29 @@ def test_text_artifact_refuses_bytes_that_are_not_the_text_they_claim(tmp_path: 
     assert not Path(f"{artifact_path}.meta.json").exists()
 
 
-def test_unknown_media_family_fails_under_its_own_name(tmp_path: Path) -> None:
-    """An unrecognized family is named, not silently reported as `application`."""
+def test_model_artifact_persists_independently_of_installed_modalities(tmp_path: Path) -> None:
+    payload = b"glTF\x02\x00\x00\x00"
+    path = tmp_path / "scene.glb"
+    sidecar = write_artifact_with_provenance(
+        path,
+        BinaryArtifact(payload, "MODEL/GLTF-BINARY"),
+        provenance(),
+    )
+    assert path.read_bytes() == payload
+    assert json.loads(sidecar.read_text())["artifact"] == {
+        "sha256": sha256_hex(payload),
+        "bytes": len(payload),
+        "media_type": "model/gltf-binary",
+    }
 
-    with pytest.raises(ValueError, match="unsupported artifact media family: model"):
-        write_artifact_with_provenance(
-            tmp_path / "scene.glb",
-            BinaryArtifact(b"glTF\x02\x00\x00\x00", "model/gltf-binary"),
-            provenance(),
-        )
+
+@pytest.mark.parametrize("media_type", ["model", "model/", "/gltf", "model/a b", "a/b/c"])
+def test_invalid_media_type_cannot_persist_artifact(tmp_path: Path, media_type: str) -> None:
+    path = tmp_path / "scene.glb"
+    with pytest.raises(ValueError, match="invalid media type"):
+        write_artifact_with_provenance(path, BinaryArtifact(b"data", media_type), provenance())
+    assert not path.exists()
+    assert not Path(f"{path}.meta.json").exists()
 
 
 def test_pair_write_recursively_redacts_top_level_fields_refs_and_keys(tmp_path: Path) -> None:

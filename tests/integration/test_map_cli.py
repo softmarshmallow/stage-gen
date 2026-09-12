@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.interfaces.cli import main
+from stage_gen_legacy.interfaces.cli import main
 
 _GAME_ID = "test-game"
 
@@ -113,7 +113,7 @@ interaction_model = "none"
 
 
 def _write_component_library(root: Path) -> Path:
-    game = root / "library" / "games" / _GAME_ID
+    game = root / "godot" / "legacy" / "inputs" / _GAME_ID
     maps = game / "maps"
     maps.mkdir(parents=True)
     (game / "game.toml").write_text(_game_source(), encoding="utf-8")
@@ -218,7 +218,7 @@ def test_registered_component_cli_surfaces_reject_symlinked_sources(
     external_game_directory = _write_component_library(tmp_path / "external")
     external_source = external_game_directory / relative_source
     workspace = tmp_path / "workspace"
-    source = workspace / "library" / "games" / _GAME_ID / relative_source
+    source = workspace / "godot" / "legacy" / "inputs" / _GAME_ID / relative_source
     source.parent.mkdir(parents=True)
     source.symlink_to(external_source)
     errors = io.StringIO()
@@ -242,7 +242,7 @@ def test_registered_component_cli_surfaces_reject_symlinked_sources(
 
 def test_character_profile_cli_rejects_a_symlinked_source(tmp_path: Path) -> None:
     repository = Path(__file__).resolve().parents[2]
-    external_profile = repository / "library/games/larkfield/characters/nao.toml"
+    external_profile = repository / "godot/legacy/inputs/larkfield/characters/nao.toml"
     workspace = tmp_path / "workspace"
     source = workspace / "character.toml"
     source.parent.mkdir(parents=True)
@@ -269,10 +269,10 @@ def test_character_profile_cli_rejects_a_symlinked_source(tmp_path: Path) -> Non
 @pytest.mark.parametrize(
     ("command", "relative_source", "root_option"),
     [
-        ("soundtrack", "library/games/../soundtrack.toml", "--game-library-root"),
+        ("soundtrack", "godot/legacy/inputs/../soundtrack.toml", "--game-library-root"),
         (
             "character-profile",
-            "library/games/../profile.toml",
+            "godot/legacy/inputs/../profile.toml",
             "--package-root",
         ),
     ],

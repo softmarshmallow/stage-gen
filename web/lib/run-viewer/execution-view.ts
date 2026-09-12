@@ -2,10 +2,15 @@
 // `stage-gen export-view`. Wire fields are lower_snake_case; this adapter is
 // the one place they become camelCase runtime shapes.
 //
-// Versioning is hard-drop by contract: an unknown identity is refused with a
+// Versioning is hard-drop by contract: an unknown envelope is refused with a
 // re-export instruction, never migrated. The view is derived state — the plan,
 // trace, and sidecars stay canonical — so a refused document costs one
 // re-export, not a migration.
+
+import { artifactReference, parseArtifactPreview, parseLegacyMotion, type ArtifactPreview, type LegacyMotionPreview } from "./artifact-preview";
+
+/** Any authored asset pipeline, independent of built-in recipes. */
+export const PIPELINE_EXECUTION_VIEW_KIND = "pipeline-execution-view-v1";
 
 /** The side-view platformer recipe's view: identified by a game. */
 export const PLATFORMER_EXECUTION_VIEW_KIND =
@@ -30,8 +35,9 @@ export const SURVIVAL_EXECUTION_VIEW_KIND = "oblique-survival-execution-view-v1"
  * listed behind — so its run has a browser surface where its subject does not. */
 export const STOREFRONT_EXECUTION_VIEW_KIND = "storefront-execution-view-v1";
 
-/** Every view kind this build renders. A kind outside it is another recipe's. */
+/** Supported envelope versions. Pipeline identities are not a registry. */
 export const EXECUTION_VIEW_KINDS = [
+  PIPELINE_EXECUTION_VIEW_KIND,
   PLATFORMER_EXECUTION_VIEW_KIND,
   DIALOGUE_EXECUTION_VIEW_KIND,
   POINTCLICK_EXECUTION_VIEW_KIND,
@@ -133,12 +139,7 @@ export const EXECUTION_NODE_STATES: readonly ExecutionNodeState[] = [
 export type ArtifactDisplay =
   "image" | "audio" | "data" | "text" | "motion_atlas" | "video";
 
-export interface ExecutionViewMotion {
-  readonly frameCount: number;
-  readonly mode: "hold" | "loop" | "once" | "gameplay_driven" | null;
-  readonly framesPerSecond: number | null;
-  readonly canonicalFrameIndices: readonly number[];
-}
+export type ExecutionViewMotion = LegacyMotionPreview;
 
 export interface ExecutionViewArtifact {
   readonly artifactRef: string;
@@ -148,6 +149,7 @@ export interface ExecutionViewArtifact {
   readonly present: boolean;
   readonly display: ArtifactDisplay;
   readonly motion: ExecutionViewMotion | null;
+  readonly preview: ArtifactPreview | null;
 }
 
 /**
@@ -281,6 +283,13 @@ export interface ExecutionViewGap {
  */
 export type ExecutionViewSubject =
   | {
+      readonly kind: typeof PIPELINE_EXECUTION_VIEW_KIND;
+      /** Shared UI identity; never a persisted recipe contract. */
+      readonly recipe: string;
+      readonly pipelineId: string;
+      readonly title: string;
+    }
+  | {
       readonly kind: typeof PLATFORMER_EXECUTION_VIEW_KIND;
       readonly recipe: string;
       readonly gameId: string;
@@ -326,6 +335,8 @@ export type ExecutionViewSubject =
 /** The one identity a run is labelled by, whichever recipe wrote it. */
 export function subjectLabel(subject: ExecutionViewSubject): string {
   switch (subject.kind) {
+    case PIPELINE_EXECUTION_VIEW_KIND:
+      return subject.title;
     case PLATFORMER_EXECUTION_VIEW_KIND:
       return subject.gameId;
     case DIALOGUE_EXECUTION_VIEW_KIND:
@@ -396,6 +407,30 @@ function count(value: unknown, label: string): number {
   return value;
 }
 
+function integer(value: unknown, label: string): number {
+  const result = count(value, label);
+  if (!Number.isInteger(result)) throw new Error(`${label} must be an integer`);
+  return result;
+}
+
+function boolean(value: unknown, label: string): boolean {
+  if (typeof value !== "boolean") throw new Error(`${label} must be a boolean`);
+  return value;
+}
+
+function digest(value: unknown, label: string): string {
+  const result = text(value, label);
+  if (!/^[a-f0-9]{64}$/.test(result)) throw new Error(`${label} must be a SHA-256 digest`);
+  return result;
+}
+
+function mediaType(value: unknown, label: string): string {
+  const result = text(value, label);
+  if (!/^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/.test(result))
+    throw new Error(`${label} must be a bare media type`);
+  return result;
+}
+
 function countOrNull(value: unknown, label: string): number | null {
   if (value === null || value === undefined) return null;
   return count(value, label);
@@ -425,40 +460,9 @@ function nodeState(value: unknown, label: string): ExecutionNodeState {
   );
 }
 
-function motion(value: unknown, label: string): ExecutionViewMotion | null {
-  if (value === null || value === undefined) return null;
+function artifact(value: unknown, label: string, generic = false): ExecutionViewArtifact {
   const record = object(value, label);
-  const mode = record.mode ?? null;
-  if (
-    mode !== null &&
-    mode !== "hold" &&
-    mode !== "loop" &&
-    mode !== "once" &&
-    mode !== "gameplay_driven"
-  ) {
-    throw new Error(`${label}.mode is invalid`);
-  }
-  return Object.freeze({
-    frameCount: count(record.frame_count, `${label}.frame_count`),
-    mode,
-    framesPerSecond: countOrNull(
-      record.frames_per_second,
-      `${label}.frames_per_second`,
-    ),
-    canonicalFrameIndices: Object.freeze(
-      array(
-        record.canonical_frame_indices ?? [],
-        `${label}.canonical_frame_indices`,
-      ).map((entry, index) =>
-        count(entry, `${label}.canonical_frame_indices[${index}]`),
-      ),
-    ),
-  });
-}
-
-function artifact(value: unknown, label: string): ExecutionViewArtifact {
-  const record = object(value, label);
-  const display = record.display;
+  let display = record.display;
   if (
     display !== "image" &&
     display !== "audio" &&
@@ -467,16 +471,19 @@ function artifact(value: unknown, label: string): ExecutionViewArtifact {
     display !== "motion_atlas" &&
     display !== "video"
   ) {
-    throw new Error(`${label}.display is invalid`);
+    if (!generic || typeof display !== "string" || !display.trim())
+      throw new Error(`${label}.display is invalid`);
+    display = "data";
   }
   return Object.freeze({
-    artifactRef: text(record.artifact_ref, `${label}.artifact_ref`),
-    sha256: text(record.sha256, `${label}.sha256`),
-    bytes: count(record.bytes, `${label}.bytes`),
-    mediaType: text(record.media_type, `${label}.media_type`),
-    present: record.present === true,
-    display,
-    motion: motion(record.motion, `${label}.motion`),
+    artifactRef: artifactReference(record.artifact_ref, `${label}.artifact_ref`),
+    sha256: digest(record.sha256, `${label}.sha256`),
+    bytes: integer(record.bytes, `${label}.bytes`),
+    mediaType: mediaType(record.media_type, `${label}.media_type`),
+    present: boolean(record.present, `${label}.present`),
+    display: display as ArtifactDisplay,
+    motion: parseLegacyMotion(record.motion, `${label}.motion`),
+    preview: parseArtifactPreview(record.preview, `${label}.preview`),
   });
 }
 
@@ -557,7 +564,7 @@ function card(value: unknown, label: string): ExecutionViewCard | null {
   });
 }
 
-function node(value: unknown, label: string): ExecutionViewNode {
+function node(value: unknown, label: string, generic = false): ExecutionViewNode {
   const record = object(value, label);
   const cache = record.cache ?? null;
   if (
@@ -640,7 +647,7 @@ function node(value: unknown, label: string): ExecutionViewNode {
     blockedBy: texts(record.blocked_by ?? [], `${label}.blocked_by`),
     artifacts: Object.freeze(
       array(record.artifacts ?? [], `${label}.artifacts`).map((entry, index) =>
-        artifact(entry, `${label}.artifacts[${index}]`),
+        artifact(entry, `${label}.artifacts[${index}]`, generic),
       ),
     ),
   });
@@ -650,6 +657,15 @@ function subject(
   root: Record<string, unknown>,
   kind: ExecutionViewKind,
 ): ExecutionViewSubject {
+  if (kind === PIPELINE_EXECUTION_VIEW_KIND) {
+    const pipelineId = text(root.pipeline_id, "pipeline_id");
+    const title = text(root.title, "title");
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(pipelineId))
+      throw new Error("pipeline_id must be a safe identifier of at most 128 characters");
+    if (!title.trim() || title.trim() !== title || title.length > 256)
+      throw new Error("title must be a non-empty string of at most 256 characters");
+    return Object.freeze({ kind, recipe: pipelineId, pipelineId, title });
+  }
   const recipe = text(root.recipe, "recipe");
   switch (kind) {
     case PLATFORMER_EXECUTION_VIEW_KIND:
@@ -715,13 +731,13 @@ export function parseExecutionView(value: unknown): ExecutionView {
     Object.fromEntries(
       EXECUTION_NODE_STATES.map((state) => [
         state,
-        count(rawCounts[state] ?? 0, `state_counts.${state}`),
+        integer(rawCounts[state] ?? 0, `state_counts.${state}`),
       ]),
     ),
   ) as Readonly<Record<ExecutionNodeState, number>>;
   const nodes = Object.freeze(
     array(root.nodes, "nodes").map((entry, index) =>
-      node(entry, `nodes[${index}]`),
+      node(entry, `nodes[${index}]`, kind === PIPELINE_EXECUTION_VIEW_KIND),
     ),
   );
   const portsByNode = new Map(
@@ -760,8 +776,8 @@ export function parseExecutionView(value: unknown): ExecutionView {
   }
   return Object.freeze({
     subject: subject(root, kind),
-    graphSha256: text(root.graph_sha256, "graph_sha256"),
-    topologySha256: text(root.topology_sha256, "topology_sha256"),
+    graphSha256: digest(root.graph_sha256, "graph_sha256"),
+    topologySha256: digest(root.topology_sha256, "topology_sha256"),
     invocationId: textOrNull(root.invocation_id, "invocation_id"),
     runState: runState(root.run_state, "run_state"),
     traceModifiedAt: textOrNull(root.trace_modified_at, "trace_modified_at"),

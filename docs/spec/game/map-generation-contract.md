@@ -1,5 +1,8 @@
 # Authored map-generation contract
 
+> **Scope: legacy demos.** This document describes retained Godot demo contracts.
+> The public asset SDK and new games do not require this authoring format.
+
 > **Checked by:** `tests/contract/test_current_game_docs.py`, `tests/contract/test_game_map_v10_docs.py`.
 
 > **Contract maturity: exact-current authored, generation, manifest, and consumer contract.**
@@ -43,7 +46,7 @@ already overloaded by runtime scenes and cutscenes.
 The current package keeps maps beneath the selected game root:
 
 ```text
-library/games/<game_id>/
+godot/legacy/inputs/<game_id>/
 ├── game.toml
 ├── gameplay.toml
 ├── soundtrack.toml

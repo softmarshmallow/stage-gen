@@ -31,10 +31,21 @@ def test_offline_gate_removes_provider_credentials_and_lists_required_checks() -
         }
     )
     assert environment == {"PATH": "/bin", "_STAGE_GEN_DISABLE_DOTENV": "1"}
-    commands = check.commands("python")
+    commands = check.commands("python", scope="all")
     assert ("pytest", "-m", "not live") in commands
     assert ("ruff", "format", "--check", ".") in commands
-    assert ("mypy", "--strict", "src", "tests", "scripts") in commands
+    assert (
+        "mypy",
+        "--strict",
+        "src",
+        "tests",
+        "scripts",
+        "godot/legacy/python/stage_gen_legacy",
+        "godot/legacy/tools",
+        "godot/templates/asset_consumer/prepare.py",
+        "apps/concept_studio/src",
+        "examples",
+    ) in commands
     assert ("python", "scripts/check_docs.py") in commands
     assert ("python", "scripts/write_model_policy_snapshot.py") in commands
     # Both reference members and the selected Iron Petal runner plan offline in
@@ -42,19 +53,21 @@ def test_offline_gate_removes_provider_credentials_and_lists_required_checks() -
     # rather than against a provider.
     assert (
         "stage-gen",
+        "legacy",
         "package",
         "plan",
         "--input",
-        "library/games/bellweather",
+        "godot/legacy/inputs/bellweather",
         "--genre",
         "platformer",
     ) in commands
     assert (
         "stage-gen",
+        "legacy",
         "package",
         "plan",
         "--input",
-        "library/games/iron-petal-unit",
+        "godot/legacy/inputs/iron-petal-unit",
         "--genre",
         "runner",
     ) in commands
@@ -65,50 +78,75 @@ def test_offline_gate_removes_provider_credentials_and_lists_required_checks() -
     fixture = [
         command
         for command in commands
-        if command[:2] == ("python", "godot/runtime/tools/make_fixture_run.py")
+        if command[:2] == ("python", "godot/legacy/runtime/tools/make_fixture_run.py")
     ]
     suite = [
         command
         for command in commands
-        if command[:2] == ("python", "godot/runtime/tools/run_suite.py")
+        if command[:2] == ("python", "godot/legacy/runtime/tools/run_suite.py")
     ]
     assert len(fixture) == 1, "the gate no longer writes the Godot fixture run"
     assert len(suite) == 1, "the Godot suite is no longer in the gate"
     assert suite[0][2] == "--run", "the Godot suite is not pointed at the fixture"
     assert suite[0][3] == fixture[0][2], "the suite reads a different run than the gate wrote"
-    assert ("python", "scripts/validate_game_package.py", "--root", ".") in commands
+    assert ("python", "godot/legacy/tools/validate_game_package.py", "--root", ".") in commands
     # Every other package in the library plans offline too, as a dry run into
     # scratch, or as the offline proof its recipe offers.
     joined = [" ".join(command) for command in commands]
     assert any(
         c.startswith(
-            "stage-gen pointclick-room generate --input library/games/clockmakers_attic --dry-run"
+            "stage-gen legacy pointclick-room generate --input "
+            "godot/legacy/inputs/clockmakers_attic --dry-run"
         )
         for c in joined
     )
     assert any(
-        c.startswith("stage-gen dialogue-scene generate --input library/games/larkfield --dry-run")
-        for c in joined
-    )
-    assert any(
-        c.startswith("stage-gen dialogue-scene generate --input library/games/the_grain --dry-run")
-        for c in joined
-    )
-    assert any(
-        c.startswith("stage-gen universe semantic --input library/games/lantern_ferry --dry-run")
+        c.startswith(
+            "stage-gen legacy dialogue-scene generate --input "
+            "godot/legacy/inputs/larkfield --dry-run"
+        )
         for c in joined
     )
     assert any(
         c.startswith(
-            "stage-gen oblique-survival generate --input library/games/ember-hollow --dry-run"
+            "stage-gen legacy dialogue-scene generate --input "
+            "godot/legacy/inputs/the_grain --dry-run"
+        )
+        for c in joined
+    )
+    assert any(
+        c.startswith(
+            "stage-gen universe semantic --input "
+            "src/stage_gen/recipes/universe/examples/lantern_ferry --dry-run"
+        )
+        for c in joined
+    )
+    assert any(
+        c.startswith(
+            "stage-gen legacy oblique-survival generate --input "
+            "godot/legacy/inputs/ember-hollow --dry-run"
         )
         for c in joined
     )
     # The survival recipe's two provider-free commands are not reached by the dry
     # run, so the gate at least proves their parsers still build.
-    assert ("stage-gen", "oblique-survival", "import-run", "--help") in commands
-    assert ("stage-gen", "scenario", "check", "--input", "library/games/the_grain") in commands
-    assert ("stage-gen", "case", "check", "--input", "library/games/the_grain") in commands
+    assert ("stage-gen", "legacy", "oblique-survival", "import-run", "--help") in commands
+    assert (
+        "stage-gen",
+        "legacy",
+        "scenario",
+        "check",
+        "--input",
+        "godot/legacy/inputs/the_grain",
+    ) in commands
+    assert (
+        "stage-gen",
+        "legacy",
+        "case",
+        "check",
+        "--input",
+        "godot/legacy/inputs/the_grain",
+    ) in commands
 
 
 def test_the_gate_reports_every_step_rather_than_stopping_at_the_first() -> None:
@@ -124,3 +162,32 @@ def test_the_gate_reports_every_step_rather_than_stopping_at_the_first() -> None
     assert lines[1].startswith("PASS")
     assert lines[2].startswith("FAIL") and "exit   -" in lines[2]
     assert lines[-1] == "offline gate: 1 of 3 steps passed in 12s"
+
+
+def test_product_gate_does_not_require_optional_consumers() -> None:
+    check = load_check_script()
+    commands = check.commands("python")
+    assert all(command[0] != "bun" for command in commands)
+    assert all("godot/legacy/runtime" not in " ".join(command) for command in commands)
+    assert ("mypy", "--strict", "src") in commands
+    tests = next(command for command in commands if command[0] == "pytest")
+    assert len(tests) > 3
+    assert not any("concept_studio" in item or "test_godot_" in item for item in tests)
+
+
+def test_owned_test_gates_partition_every_offline_test() -> None:
+    from scripts.test_ownership import TestOwner, paths_for
+    from scripts.test_ownership import test_owners as collect_owners
+
+    root = Path(__file__).parents[2]
+    owned = collect_owners(root)
+    expected = {
+        str(path.relative_to(root))
+        for path in (root / "tests").rglob("test_*.py")
+        if not path.is_relative_to(root / "tests/live")
+    }
+    assert set(owned) == expected
+    scopes: tuple[TestOwner, ...] = ("product", "legacy", "godot", "viewer", "apps")
+    groups = [set(paths_for(root, scope)) for scope in scopes]
+    assert set.union(*groups) == expected
+    assert sum(map(len, groups)) == len(expected)

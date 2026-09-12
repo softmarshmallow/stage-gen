@@ -8,11 +8,14 @@ import pytest
 
 from gnode import RunViewError, write_run_view
 from stage_gen.config import StageGenConfig
-from stage_gen.recipes.sideview_platformer.execution_view import ExecutionView, build_execution_view
-from stage_gen.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
+from stage_gen_legacy.recipes.sideview_platformer.execution_view import (
+    ExecutionView,
+    build_execution_view,
+)
+from stage_gen_legacy.recipes.sideview_platformer.package_executor import PreparedPackageExecutor
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
-BELLWEATHER = REPOSITORY_ROOT / "library/games/bellweather"
+BELLWEATHER = REPOSITORY_ROOT / "godot/legacy/inputs/bellweather"
 
 
 @pytest.fixture(scope="module")

@@ -16,7 +16,7 @@ from typing import Any
 
 import pytest
 
-from stage_gen.orchestration.case_binding import CaseBindingError, bind_case
+from stage_gen_legacy.orchestration.case_binding import CaseBindingError, bind_case
 from tests.unit.components.case.package import (
     OFFICE_SCRIPT,
     STATEMENTS_SCRIPT,

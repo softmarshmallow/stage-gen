@@ -12,7 +12,7 @@ import pytest
 from stage_gen.capabilities import CapabilityArtifactResult
 from stage_gen.config import StageGenConfig, TransparencyMode
 from stage_gen.image_product import ImageProvider
-from stage_gen.interfaces.cli import build_parser, create_doctor_report, main
+from stage_gen_legacy.interfaces.cli import build_parser, create_doctor_report, main
 
 
 def test_cli_offline_surfaces_require_a_prepared_package() -> None:
@@ -23,7 +23,7 @@ def test_cli_offline_surfaces_require_a_prepared_package() -> None:
 
 def test_prepared_package_cli_validates_and_digests_directory_and_zip(tmp_path: Path) -> None:
     repository = Path(__file__).resolve().parents[2]
-    package = repository / "library/games/bellweather"
+    package = repository / "godot/legacy/inputs/bellweather"
     validate_output = StringIO()
 
     assert (
@@ -87,7 +87,7 @@ def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
 ) -> None:
     monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
     repository = Path(__file__).resolve().parents[2]
-    package = repository / "library/games/bellweather"
+    package = repository / "godot/legacy/inputs/bellweather"
     output = StringIO()
 
     assert (
@@ -169,7 +169,7 @@ def test_character_profile_cli_validate_digest_help_and_errors(
     capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
     repository = Path(__file__).resolve().parents[2]
-    package = repository / "library/games/larkfield"
+    package = repository / "godot/legacy/inputs/larkfield"
     profile = package / "characters/nao.toml"
     validate_output = StringIO()
     assert (
@@ -308,7 +308,7 @@ target_duration_seconds = 120
 
 
 def test_soundtrack_cli_validate_and_digest_use_the_game_library_binding(tmp_path: Path) -> None:
-    soundtrack = tmp_path / "library/games/test-game/soundtrack.toml"
+    soundtrack = tmp_path / "godot/legacy/inputs/test-game/soundtrack.toml"
     soundtrack.parent.mkdir(parents=True)
     soundtrack.write_text(_soundtrack_toml(), encoding="utf-8")
     expected_source_sha256 = hashlib.sha256(soundtrack.read_bytes()).hexdigest()
@@ -341,7 +341,7 @@ def test_soundtrack_cli_validate_and_digest_use_the_game_library_binding(tmp_pat
     assert validated["binding"] == {
         "schema_version": 1,
         "kind": "game-soundtrack-binding-v1",
-        "ref": "library/games/test-game/soundtrack.toml",
+        "ref": "godot/legacy/inputs/test-game/soundtrack.toml",
         "source_sha256": expected_source_sha256,
     }
 
@@ -384,7 +384,7 @@ def test_soundtrack_cli_rejects_a_source_outside_the_game_owned_path(tmp_path: P
         == 1
     )
     assert (
-        "game soundtrack input must equal ROOT/library/games/<game_id>/soundtrack.toml"
+        "game soundtrack input must equal ROOT/godot/legacy/inputs/<game_id>/soundtrack.toml"
     ) in error_output.getvalue()
 
 
@@ -654,7 +654,7 @@ def test_generate_speech_refuses_a_non_mp3_output_before_any_runtime(
 
 def test_scenario_cli_proves_the_shipped_scenario_without_touching_a_provider() -> None:
     repository = Path(__file__).resolve().parents[2]
-    package = repository / "library/games/larkfield"
+    package = repository / "godot/legacy/inputs/larkfield"
     output = StringIO()
 
     assert main(["scenario", "check", "--input", str(package)], stdout=output) == 0
@@ -676,7 +676,7 @@ def test_scenario_cli_refuses_a_script_that_drifted_from_its_digest(
 ) -> None:
     repository = Path(__file__).resolve().parents[2]
     package = tmp_path / "larkfield"
-    shutil.copytree(repository / "library/games/larkfield", package)
+    shutil.copytree(repository / "godot/legacy/inputs/larkfield", package)
     script = package / "scenarios/last_class.scenario"
     script.write_text(script.read_text(encoding="utf-8") + '\n"Extra."\n', encoding="utf-8")
 
@@ -691,7 +691,7 @@ def test_scenario_cli_repairs_the_digest_but_still_proves_the_narrative(
 
     repository = Path(__file__).resolve().parents[2]
     package = tmp_path / "larkfield"
-    shutil.copytree(repository / "library/games/larkfield", package)
+    shutil.copytree(repository / "godot/legacy/inputs/larkfield", package)
     script = package / "scenarios/last_class.scenario"
     original = script.read_text(encoding="utf-8")
 
@@ -723,7 +723,7 @@ def test_universe_cli_dry_runs_both_phases_and_re_renders_its_page(
 
     monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
     repository = Path(__file__).resolve().parents[2]
-    package = repository / "library/games/lantern_ferry"
+    package = repository / "src/stage_gen/recipes/universe/examples/lantern_ferry"
     admitted = repository / "tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json"
 
     semantic_out = tmp_path / "semantic"
@@ -828,7 +828,7 @@ def test_universe_failure_injection_is_refused_outside_a_dry_run(
             "universe",
             "semantic",
             "--input",
-            str(repository / "library/games/lantern_ferry"),
+            str(repository / "src/stage_gen/recipes/universe/examples/lantern_ferry"),
             "--output",
             str(tmp_path / "run"),
             "--failure-node",
@@ -848,7 +848,7 @@ def test_oblique_survival_cli_dry_runs_a_scope_and_exports_its_view(
 
     monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
     repository = Path(__file__).resolve().parents[2]
-    package = repository / "library/games/ember-hollow"
+    package = repository / "godot/legacy/inputs/ember-hollow"
     run_dir = tmp_path / "run"
 
     stdout = StringIO()
@@ -922,7 +922,7 @@ def test_oblique_survival_plan_prices_a_scope_without_touching_a_provider(
                 "oblique-survival",
                 "plan",
                 "--input",
-                str(repository / "library/games/ember-hollow"),
+                str(repository / "godot/legacy/inputs/ember-hollow"),
                 "--scope",
                 "full",
                 "--cache-dir",
@@ -957,7 +957,7 @@ def test_oblique_survival_failure_injection_is_refused_outside_a_dry_run(
             "oblique-survival",
             "generate",
             "--input",
-            str(repository / "library/games/ember-hollow"),
+            str(repository / "godot/legacy/inputs/ember-hollow"),
             "--output",
             str(tmp_path / "run"),
             "--scope",
@@ -984,7 +984,7 @@ def test_oblique_survival_import_run_refuses_a_run_whose_provider_keys_have_move
 
     monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
     repository = Path(__file__).resolve().parents[2]
-    package = repository / "library/games/ember-hollow"
+    package = repository / "godot/legacy/inputs/ember-hollow"
     prior = tmp_path / "prior"
     assert (
         main(
@@ -1074,7 +1074,7 @@ def test_a_dry_run_accepts_a_run_and_cache_root_under_a_symlinked_directory(
     real.mkdir()
     link = tmp_path / "link"
     link.symlink_to(real, target_is_directory=True)
-    room = Path(__file__).resolve().parents[2] / "library" / "games" / "clockmakers_attic"
+    room = Path(__file__).resolve().parents[2] / "godot" / "legacy" / "inputs" / "clockmakers_attic"
     stdout = StringIO()
     assert (
         main(

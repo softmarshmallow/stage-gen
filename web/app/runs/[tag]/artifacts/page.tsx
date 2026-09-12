@@ -4,12 +4,8 @@
 // walked that genre's block names — so it answered for the platformer and 404'd
 // for every other recipe, and it was a manifest parser living in the viewer.
 //
-// The run view already carries what an inspector needs, for all six recipes and
-// with no gameplay vocabulary: each node's declared artifacts with a portable
-// ref, a digest, a byte count, a media type, whether the bytes are present, and
-// a display kind from the engine's own closed vocabulary. Grouping those is the
-// whole page. A run with no view has nothing to group and says so, rather than
-// the viewer learning a second way to find files.
+// The run view carries artifacts independently of pipeline identity. Preview
+// hints are interpreted by the application; unfamiliar kinds retain a raw link.
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -33,7 +29,7 @@ interface Row {
   readonly typeId: string;
 }
 
-/** Display order, most-looked-at first. The vocabulary is the engine's. */
+/** Display order for this renderer's supported media previews. */
 const DISPLAY_ORDER: readonly ArtifactDisplay[] = [
   "image",
   "motion_atlas",

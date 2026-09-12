@@ -15,19 +15,19 @@ from stage_gen.model_routes import (
     configured_image_route_catalog,
     configured_image_workload_resolver,
 )
-from stage_gen.recipes.dialogue_scene.identity import content_sha256
-from stage_gen.recipes.dialogue_scene.models import (
+from stage_gen_legacy.recipes.dialogue_scene.identity import content_sha256
+from stage_gen_legacy.recipes.dialogue_scene.models import (
     AttemptLedger,
     DialogueBundle,
     MediaFacts,
 )
-from stage_gen.recipes.dialogue_scene.prepared_scene import DialogueSceneNodeHandler
-from stage_gen.recipes.dialogue_scene.scene_graph import (
+from stage_gen_legacy.recipes.dialogue_scene.prepared_scene import DialogueSceneNodeHandler
+from stage_gen_legacy.recipes.dialogue_scene.scene_graph import (
     DialogueSceneGraph,
     build_dialogue_scene_graph,
     dialogue_graph_profile,
 )
-from stage_gen.recipes.dialogue_scene.scene_request import (
+from stage_gen_legacy.recipes.dialogue_scene.scene_request import (
     read_scene_document,
     resolve_dialogue_scene,
 )

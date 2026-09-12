@@ -14,8 +14,8 @@ from .models import (
     GENERATED_CLIP_REALIZATION_KIND,
     MAX_GENERATED_CLIP_PROMPT_CHARACTERS,
     MAX_TAKE,
-    GeneratedClipRealization,
     PinnedTake,
+    SoundEffectRequest,
     TakeRightsStatus,
 )
 
@@ -28,7 +28,7 @@ __all__ = [
     "MAX_TAKE",
     "SOUND_EFFECT_CLIPPING_PEAK_DBFS",
     "SOUND_EFFECT_MINIMUM_PEAK_DBFS",
-    "GeneratedClipRealization",
+    "SoundEffectRequest",
     "PinnedTake",
     "TakeRightsStatus",
     "admission_facts",

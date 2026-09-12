@@ -5,15 +5,15 @@ from __future__ import annotations
 import pytest
 from PIL import Image
 
-from stage_gen.components.game_shell.clips import (
+from stage_gen.media.codec import encode_png
+from stage_gen_legacy.components.game_shell.clips import (
     CLIP_MATCH_TITLE_MAX_DISTANCE,
     SHELL_CLIP_VALIDATION_VERSION,
     ShellClipError,
     match_title_verdict,
     shell_clip_record,
 )
-from stage_gen.components.game_shell.layouts import OPENING_CLIP, OPENING_SHOT
-from stage_gen.media.codec import encode_png
+from stage_gen_legacy.components.game_shell.layouts import OPENING_CLIP, OPENING_SHOT
 
 
 def _picture(colour: tuple[int, int, int], *, size: tuple[int, int] = (320, 180)) -> bytes:

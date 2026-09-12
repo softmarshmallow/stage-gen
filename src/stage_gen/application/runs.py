@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
 from pathlib import Path
-from typing import TextIO
+from typing import Protocol, TextIO
 
+from gnode import Graph, RunSummary
 from stage_gen.config import StageGenConfig
-from stage_gen.recipes.executor import RecipeRun
 
 
 class UsageError(ValueError):
@@ -37,28 +36,21 @@ def resolve_cache_dir(explicit: str | None, config: StageGenConfig) -> Path:
     return (Path(explicit) if explicit else config.cache_dir).resolve()
 
 
-def resolve_genre(declared: Sequence[str], requested: str | None) -> str:
-    """Pick the genre member one run addresses.
+class GraphPlan(Protocol):
+    @property
+    def graph(self) -> Graph: ...
 
-    One run serves one genre member. With a single declared member the flag is noise,
-    so it defaults; with several, defaulting would silently choose a genre, which is
-    exactly the kind of decision a spend-adjacent command must not make on its own.
-    """
 
-    if requested is not None:
-        if requested not in declared:
-            raise UsageError(
-                f"--genre {requested!r} is not declared by the package; declared: "
-                + ", ".join(declared)
-            )
-        return requested
-    if len(declared) == 1:
-        return declared[0]
-    raise UsageError("--genre is required for a package declaring several: " + ", ".join(declared))
+class ReportableRun(Protocol):
+    @property
+    def plan(self) -> GraphPlan: ...
+
+    @property
+    def summary(self) -> RunSummary: ...
 
 
 def run_report(
-    run: RecipeRun[object],
+    run: ReportableRun,
     *,
     run_dir: Path,
     **fields: object,
@@ -66,12 +58,12 @@ def run_report(
     """The shape every run command reports, with the command's own fields on top.
 
     Every run says whether it succeeded, where it ran, which plan it executed and what
-    it spent. A command adds what only it knows - its recipe or genre, a checkpoint, an
+    it spent. A command adds what only it knows - its recipe, a checkpoint, an
     identity from the resolved input - and may override a base key when its meaning
     differs (a checkpoint reports the nodes it executed, not the plan's count).
     """
 
-    graph = run.plan.graph  # type: ignore[attr-defined]
+    graph = run.plan.graph
     return {
         "ok": run.summary.ok,
         "run_dir": str(run_dir),
@@ -94,7 +86,6 @@ def write_report(stdout: TextIO, report: dict[str, object]) -> int:
 __all__ = [
     "UsageError",
     "resolve_cache_dir",
-    "resolve_genre",
     "resolve_output_path",
     "run_report",
     "write_report",

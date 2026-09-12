@@ -12,10 +12,7 @@ _REQUIRED_RELATIVE_PATHS = (
     "fixtures/image_gen_templates/terrain_atlas_godot_topology_reference.png",
     "fixtures/prompts.txt",
     "fixtures/styles.txt",
-    "music/preview-loop.mp3",
-    "music/preview-loop.mp3.meta.json",
     "prompting/image_style_vocabulary_v1.json",
-    "prompting/game_vocabulary_v1.json",
     "skills/anchor-image-style/SKILL.md",
     "terrain/godot_3x3_minimal_lookup_v1.json",
 )
@@ -51,12 +48,6 @@ def terrain_atlas_lookup_path() -> Path:
     return _RESOURCE_ROOT / "terrain" / "godot_3x3_minimal_lookup_v1.json"
 
 
-def bundled_music_path() -> Path:
-    """Return the installed fallback music artifact; metadata stays adjacent."""
-
-    return _RESOURCE_ROOT / "music" / "preview-loop.mp3"
-
-
 def image_style_skill_path() -> Path:
     """Return the tracked image-style selection skill."""
 
@@ -67,12 +58,6 @@ def image_style_vocabulary_path() -> Path:
     """Return the versioned canonical image-style vocabulary."""
 
     return _RESOURCE_ROOT / "prompting" / "image_style_vocabulary_v1.json"
-
-
-def game_vocabulary_path() -> Path:
-    """Return the versioned closed vocabulary an authored game contract draws from."""
-
-    return _RESOURCE_ROOT / "prompting" / "game_vocabulary_v1.json"
 
 
 def image_style_resource_digests() -> dict[str, str]:
@@ -91,7 +76,6 @@ def required_resource_paths() -> tuple[Path, ...]:
 
 
 __all__ = [
-    "bundled_music_path",
     "image_style_resource_digests",
     "image_style_skill_path",
     "image_style_vocabulary_path",
@@ -101,5 +85,4 @@ __all__ = [
     "terrain_atlas_lookup_path",
     "terrain_atlas_template_path",
     "terrain_atlas_topology_reference_path",
-    "game_vocabulary_path",
 ]

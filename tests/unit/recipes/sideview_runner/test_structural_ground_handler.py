@@ -26,8 +26,8 @@ from gnode import (
     hash_input_reference,
 )
 from stage_gen.config import StageGenConfig
-from stage_gen.recipes.sideview_runner.prepared_runner import SideviewRunnerNodeHandler
-from stage_gen.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
+from stage_gen_legacy.recipes.sideview_runner.prepared_runner import SideviewRunnerNodeHandler
+from stage_gen_legacy.recipes.sideview_runner.runner_executor import SideviewRunnerExecutor
 
 from ..._runner_fixture import painted_over_guide, two_genre_package
 

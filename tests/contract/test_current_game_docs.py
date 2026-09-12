@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from stage_gen.identities import current_versions
+from stage_gen_legacy.identities import current_versions
 
 REPOSITORY_ROOT = Path(__file__).parents[2]
 

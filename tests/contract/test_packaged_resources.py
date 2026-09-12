@@ -6,12 +6,13 @@ import os
 import subprocess
 import sys
 import tarfile
+import tomllib
 import zipfile
 from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
 
 MODEL_POLICY_SNAPSHOT_RESOURCE = "stage_gen/model_policy_snapshot.json"
-MODEL_POLICY_SNAPSHOT_UNPACKED_LIMIT = 750_000
+MODEL_POLICY_SNAPSHOT_UNPACKED_LIMIT = 64_000
 PORTRAIT_FACE_MODULES = {
     "stage_gen/components/portrait_motion/face_crop.py",
     "stage_gen/components/portrait_motion/face_location.py",
@@ -28,10 +29,7 @@ WHEEL_RESOURCES = {
     "stage_gen/resources/fixtures/image_gen_templates/terrain_atlas_godot_topology_reference.png",
     "stage_gen/resources/fixtures/prompts.txt",
     "stage_gen/resources/fixtures/styles.txt",
-    "stage_gen/resources/music/preview-loop.mp3",
-    "stage_gen/resources/music/preview-loop.mp3.meta.json",
     "stage_gen/resources/prompting/image_style_vocabulary_v1.json",
-    "stage_gen/resources/prompting/game_vocabulary_v1.json",
     "stage_gen/resources/skills/anchor-image-style/SKILL.md",
     "stage_gen/resources/terrain/godot_3x3_minimal_lookup_v1.json",
 }
@@ -43,13 +41,16 @@ EXPECTED_SDIST_FILES = {
     "VERIFICATION.md",
     "docs/README.md",
     "docs/testing.md",
+    "examples/pipelines/local_media.py",
+    "examples/pipelines/portrait_processing.py",
+    "examples/pipelines/README.md",
     "pyproject.toml",
     "scripts/check.py",
     "src/stage_gen/__init__.py",
     "src/stage_gen/py.typed",
     "tests/contract/fixtures/tag-vectors.json",
     "tests/contract/test_packaged_resources.py",
-    "uv.lock",
+    "scripts/build_hooks.py",
 }
 LEGACY_TOP_LEVEL = {"components", "fixtures", "stage-gen", "web"}
 BANNED_SEGMENTS = {
@@ -143,7 +144,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
     wheels = list(distribution_directory.glob("*.whl"))
     sdists = list(distribution_directory.glob("*.tar.gz"))
     assert len(wheels) == len(sdists) == 1
-    assert wheels[0].stat().st_size < 3_000_000
+    assert wheels[0].stat().st_size < 1_500_000
     assert sdists[0].stat().st_size < 4_000_000
 
     installed = tmp_path / "installed"
@@ -152,43 +153,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
             entry.filename: entry.file_size for entry in wheel.infolist() if not entry.is_dir()
         }
         _assert_archive_hygiene(wheel_entries, resource_prefix="stage_gen/resources/")
-        # No entry count here either: like the sdist's, it was re-pinned on every
-        # honest addition with a paragraph of arithmetic. What it guarded - tests,
-        # library packages, docs media, or a stray directory in the wheel - is
-        # asserted by name below.
-        # The oblique-survival recipe (2026-09-06): fourteen source modules, 681,720 B of
-        # text, measured 5,139,148 against the previous 5,000,000 line; the ceiling is
-        # 5,300,000. No media, no library package and no gitignored path is in the wheel.
-        # The storefront recipe and the game-shell component (2026-09-07) crossed that
-        # line together: ten storefront modules are 85,147 B and three shell modules
-        # 29,458 B, and the wheel measured 5,399,739. The ceiling is 5,500,000. The
-        # storefront's authored package and its reference art live under library/,
-        # which the wheel does not carry, and its tests and specification are not in it.
-        # The video modality (2026-09-07) takes it again, and most of the growth since
-        # is the shell rather than the new work: the shell's modules went from 29,458 B
-        # to 100,713 B as its gates and node family landed, the storefront's from
-        # 85,147 B to 88,214 B, and the ring-1/ring-2 video slice adds 16,343 B across
-        # four modules. The wheel measured 5,494,920 against a 5,500,000 line with
-        # 5,080 B to spare. The ceiling is 5,600,000, which carries the clip gate,
-        # the transcode component and the shell's clip nodes still to land.
-        # The GPT Image 2.5 Sunburst migration (2026-09-09) adds route validation,
-        # OpenRouter pacing, and provenance fields without adding packaged media.
-        # The wheel measured 5,605,983; the narrowly re-pinned ceiling is 5,650,000.
-        # Portrait motion (2026-09-10) promotes nine source modules (128,908 B),
-        # provider request policy and service identity accessors. The inspected
-        # wheel is 5,752,229 B unpacked, with no experimental media or spike paths.
-        # Provider-neutral routing (2026-09-10) brings the wheel excluding its
-        # executable policy snapshot to 5,971,050 B. The snapshot is 713,729 B
-        # unpacked (129,093 B in the wheel), for a measured 6,684,779 B unpacked
-        # and 2,728,794 B compressed. Bound it separately so growth in generated
-        # policy evidence cannot hide unrelated source or resource growth.
-        # The final route preflight, lifecycle, and maintenance checks add 32,423 B,
-        # bringing that non-snapshot slice to 6,003,473 B; keep 46 KB of headroom.
-        # Face motion (2026-09-11) adds six modules (78,130 B) and their wiring.
-        # The inspected non-snapshot slice is 6,111,687 B, without new media or spikes.
+        # Budgets exclude the independently bounded route snapshot.
         model_policy_snapshot_size = wheel_entries[MODEL_POLICY_SNAPSHOT_RESOURCE]
         assert model_policy_snapshot_size < MODEL_POLICY_SNAPSHOT_UNPACKED_LIMIT
-        assert sum(wheel_entries.values()) - model_policy_snapshot_size < 6_150_000
+        assert sum(wheel_entries.values()) - model_policy_snapshot_size < 3_500_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert wheel_entries.keys() >= PORTRAIT_FACE_MODULES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
@@ -201,12 +169,42 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         } <= wheel_entries.keys()
         assert any(name.endswith(".dist-info/METADATA") for name in wheel_entries)
         assert any(name.endswith(".dist-info/entry_points.txt") for name in wheel_entries)
-        assert not any(name.startswith("godot/") for name in wheel_entries)
+        assert not any(
+            name.startswith(("godot/", "stage_gen_legacy/", "concept_studio/"))
+            for name in wheel_entries
+        )
         assert not any(name.startswith("tests/") for name in wheel_entries)
+        assert not any("/universe/examples/lantern_ferry/" in name for name in wheel_entries)
         assert not any(name.startswith("library/") for name in wheel_entries)
         assert not any(name.startswith("concept-studio/") for name in wheel_entries)
         assert not any(_is_docs_media(name) for name in wheel_entries)
-        wheel.extractall(installed)
+    installer_venv = tmp_path / "installer-venv"
+    subprocess.run(
+        [sys.executable, "-m", "venv", str(installer_venv)],
+        env=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    installer_python = installer_venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    subprocess.run(
+        [
+            str(installer_python),
+            "-m",
+            "pip",
+            "install",
+            "--no-index",
+            "--no-deps",
+            "--no-cache-dir",
+            "--target",
+            str(installed),
+            str(wheels[0]),
+        ],
+        env=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
     extracted_sdist_parent = tmp_path / "extracted-sdist"
     with tarfile.open(sdists[0], mode="r:gz") as sdist:
@@ -229,100 +227,8 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         )
         assert ignored.returncode in {0, 1}, ignored.stderr
         assert ignored.stdout.strip() == "", ignored.stdout
-        # Raised once when the loop-construction contract landed: two source modules, their
-        # focused tests, and the concurrent presentation work crossed the previous 6MB line by
-        # about 27KB. Raised again for the scenario contract, whose seven source modules put the
-        # archive about 1KB past the previous line, and again for the CookieRun adoption pass,
-        # whose placement admission, re-authored track, and refusal tests crossed it by about 3KB.
-        # Structural runner ground, native-alpha seam bridging, and the focused runner package
-        # proofs brought the unpacked source closure to 5.37 MB. The fail-closed replay migration
-        # and its adversarial tests bring the measured closure to 5.62 MB. The compressed archive
-        # remains below its separate 4 MB cap; this 5.75 MB ceiling still catches a swept directory
-        # without treating the reviewed recovery boundary as accidental bloat. The nine-slice UI
-        # atlas (`game-ui-v2`: gate module, taxonomy page, synthetic-sheet fixture, focused tests)
-        # measured 5.81 MB, so the ceiling moved to 5.9 MB by the same reasoning. The
-        # agnostic sound-effect node (modality, adapter, component, runner wiring, their
-        # tests, and the authored contract page) measured 5.92 MB; the ceiling was 6.0 MB.
-        # The screen-FX family (contract, plate gate with the polygon trace, node set,
-        # focused tests, spec page) measured 6.11 MB; the ceiling is 6.2 MB.
-        # The tool-loop agent (2026-09-03): measured 6.30 MB; the ceiling is 6.4 MB.
-        # The universe recipe and the case container (2026-09-03) together measured
-        # 6.94 MB - 6.85 MB of it the universe recipe's fourteen modules, five test
-        # modules and admitted-universe fixture, and 0.09 MB the case container's
-        # five modules, five test modules and specification page. The ceiling is
-        # 7.0 MB. An adversarial review of the universe recipe then added four
-        # more test modules and the rules they pin - cache identity for the
-        # requested canvas, the reroll ledger, the page's symlink refusal - and
-        # measured 7.03 MB; the ceiling is 7.1 MB. Painted terrain (2026-09-03) added
-        # its nine source modules, five test modules and their shared fixture and
-        # measured 7.15 MB; the ceiling is 7.2 MB. The dust atlas (2026-09-03) added its
-        # gate and its focused tests and measured 7.23 MB; the ceiling is 7.3 MB.
-        # Speech (2026-09-03): two documents and the modality, component, and test
-        # modules above are text, about 110 KiB together, and the tree was already
-        # within 60 KiB of the cap (measured 7,358,533).
-        # The world generator (2026-09-06): the worldgen component's nine modules,
-        # its seven test modules, the recipe's layout test split in two and the
-        # world specification measured 9,083,831; the ceiling is 9.2 MB.
-        # Raised for the engineering pass (2026-09-04): two runtime specifications,
-        # the system plan, and the two cache-key goldens that replaced the
-        # whole-graph digest pins.
-        # The oblique-survival recipe (2026-09-06): its fourteen source modules, eight
-        # test modules, the cache-key golden and four specification pages are 1,046,465 B
-        # of text and measured 8,892,585 against the previous 8,000,000 line; the ceiling
-        # is 9,000,000. library/ and godot/ contribute nothing to the archive.
-        # The Godot promotion (2026-09-07): decisions 0061 and 0062, the host
-        # contract, the promotion plan and the new Python contract tests are about
-        # 46 KiB of text and measured 9,207,769 against the 9,200,000 line; the
-        # ceiling is 9,300,000. Nothing else grew — the project the promotion moves
-        # is under godot/, which the archive does not carry.
-        # The storefront recipe and the game-shell component (2026-09-07) crossed that
-        # line together: the storefront's ten source modules, six test modules and
-        # specification page are 119,461 B, the shell's modules and page 56,986 B, and
-        # the archive measured 9,411,823. The ceiling is 9,550,000. The storefront's
-        # authored package and its reference art are under library/, which the archive
-        # does not carry.
-        # The video modality (2026-09-07) takes it again. The archive measured
-        # 9,552,204 against the 9,550,000 line - over by 2,204 B. Of the 140,381 B
-        # added since that number was written, the shell is 67,626 B (its gates, node
-        # family and tests), the video slice 26,656 B across seven modules, and the
-        # storefront 6,503 B; the rest is drift spread across the tree. The ceiling is
-        # 9,700,000, sized for the clip gate, the transcode component and their tests.
-        # Adopting a clip (2026-09-08) takes it by 13,155 B: the adopt node and its
-        # loader binding, the two audition commands, the review-sampling module moved
-        # out of the shell into the clip component, decision 0064 and about 250 lines of
-        # new tests. The ceiling is 9,800,000. The adopted clips themselves are under
-        # library/ and are not even in git, let alone the archive.
-        # The Godot suite entering the locked gate (2026-09-09) takes it by 4,359 B: the
-        # archive measured 9,804,359. Of the 88,802 B added, 57,732 B is
-        # godot/runtime/tools/make_fixture_run.py - the hand-authored survival package the gate
-        # writes for the suite to read, media and all, because out/ is gitignored and a
-        # fresh clone has no run - 8,936 B is decision 0068, and the rest is the two
-        # tiers across sixteen test files. The ceiling is 9,900,000. Nothing the
-        # generator writes is in the archive: it writes into the gate's scratch
-        # directory and is deleted with it.
-        # Portrait motion adds its component/CLI, provider policy, synthetic tests,
-        # four-card JSON example and specification. The inspected source archive
-        # is 10,151,315 B unpacked; the compressed 4 MB ceiling and all media,
-        # ignored-path and secret exclusions remain unchanged.
-        # Provider-neutral routing (2026-09-10) and its tests/docs bring the archive excluding
-        # the executable model-policy snapshot to 10,611,868 B. The same 713,729 B
-        # snapshot makes the inspected archive 11,325,597 B unpacked and 3,831,638 B
-        # compressed. Keep the snapshot on its own 750 KB budget and retain a narrow
-        # independent ceiling for every other source-archive member. Final route,
-        # lifecycle, and maintenance proofs bring the non-snapshot slice to
-        # 10,690,903 B; keep 59 KB of headroom.
-        # The terminal OpenAI/Fal live-canary verdicts and their provider/model
-        # documentation bring that slice to 10,750,706 B. The archive still contains
-        # no live artifacts or ignored evidence; retain about 59 KB of text headroom.
-        # Face-motion source, tests and user documentation bring the inspected slice
-        # to 10,913,760 B; retain about 36 KB. Compressed and media limits stay fixed.
         sdist_snapshot_size = sdist_entries[f"src/{MODEL_POLICY_SNAPSHOT_RESOURCE}"]
         assert sdist_snapshot_size < MODEL_POLICY_SNAPSHOT_UNPACKED_LIMIT
-        # Actor anatomy and the Game Presentation SDK design/triage add 96,120 B
-        # of research documentation (2026-09-11), plus README/boundary updates.
-        # The inspected non-snapshot slice is about 11.02 MB. The Godot addon,
-        # starter, assets and its scoped tests remain outside this Python sdist;
-        # retain the compressed/media caps and about 49 KB of text headroom.
         assert sum(sdist_entries.values()) - sdist_snapshot_size < 11_070_000
         assert not any(name.startswith("godot/") for name in sdist_entries)
         assert sdist_entries.keys() >= SDIST_RESOURCES | EXPECTED_SDIST_FILES
@@ -341,6 +247,21 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         sdist.extractall(extracted_sdist_parent, filter="data")
 
     extracted_sdist = extracted_sdist_parent / root
+    packaged_metadata = tomllib.loads((extracted_sdist / "pyproject.toml").read_text())
+    assert "uv" not in packaged_metadata["tool"]
+    assert set(packaged_metadata["dependency-groups"]) == {"dev"}
+    assert "uv.lock" not in sdist_entries
+    rebuilt = tmp_path / "rebuilt"
+    subprocess.run(
+        [sys.executable, "-m", "build", "--no-isolation", "--wheel", "--outdir", str(rebuilt)],
+        cwd=extracted_sdist,
+        env=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    with zipfile.ZipFile(next(rebuilt.glob("*.whl"))) as rebuilt_wheel:
+        assert set(rebuilt_wheel.namelist()) == set(wheel_entries)
     sdist_test_environment = environment | {"PYTHONPATH": str(extracted_sdist / "src")}
     subprocess.run(
         [
@@ -359,9 +280,20 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
 
     probe = """
 import importlib
+import importlib.abc
+import sys
 from pathlib import Path
+
+class NoConsumerImports(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname.split(".")[0] in {"stage_gen_legacy", "concept_studio"}:
+            raise AssertionError(f"core installation imports consumer: {fullname}")
+        return None
+
+sys.meta_path.insert(0, NoConsumerImports())
+from stage_gen.pipeline import define, inspect, plan, run
+from stage_gen.recipes.looping_parallax import create_pipeline
 from stage_gen.resources import (
-    bundled_music_path,
     image_style_resource_digests,
     image_style_skill_path,
     image_style_vocabulary_path,
@@ -375,7 +307,7 @@ from stage_gen.image_prompting import load_image_style_resources
 from stage_gen.model_policy_maintenance import load_active_model_policy_snapshot
 
 paths = required_resource_paths()
-assert len(paths) == 11
+assert len(paths) == 8
 assert all(path.is_file() and path.stat().st_size > 0 for path in paths)
 assert image_template_dir().is_dir()
 assert terrain_atlas_template_path().is_file()
@@ -390,11 +322,10 @@ assert image_style_resource_digests() == {
     "skill_sha256": style_resources.skill.sha256,
     "vocabulary_sha256": style_resources.vocabulary_sha256,
 }
-music = bundled_music_path()
-assert Path(f"{music}.meta.json").is_file()
 snapshot = load_active_model_policy_snapshot()
 assert snapshot.kind == "stage-gen-model-policy-snapshot-v1"
-assert snapshot.routes and snapshot.policies and snapshot.recipes
+assert snapshot.routes and snapshot.policies
+assert snapshot.recipes == () and snapshot.generated_files == ()
 face_surfaces = {
     "stage_gen.components.portrait_motion.face_crop": ("create_working_crop", "restore_feature"),
     "stage_gen.components.portrait_motion.face_location": (
@@ -431,30 +362,12 @@ for name, names in face_surfaces.items():
 
 def test_repository_media_obeys_git_size_and_location_policy() -> None:
     repository = Path(__file__).resolve().parents[2]
-    tracked = subprocess.run(
-        ["git", "ls-files", "-z"],
-        cwd=repository,
-        check=False,
-        capture_output=True,
-    )
-    relative_paths: set[PurePosixPath] = set()
-    if tracked.returncode == 0:
-        deleted = subprocess.run(
-            ["git", "ls-files", "--deleted", "-z"],
-            cwd=repository,
-            check=False,
-            capture_output=True,
-        )
-        deleted_paths = {
-            PurePosixPath(item.decode("utf-8")) for item in deleted.stdout.split(b"\0") if item
-        }
-        relative_paths.update(
-            PurePosixPath(item.decode("utf-8"))
-            for item in tracked.stdout.split(b"\0")
-            if item
-            and PurePosixPath(item.decode("utf-8")) not in deleted_paths
-            and PurePosixPath(item.decode("utf-8")).suffix.lower() in MEDIA_SUFFIXES
-        )
+    worktree_files = _worktree_files(repository)
+    relative_paths = {
+        PurePosixPath(name)
+        for name in worktree_files
+        if PurePosixPath(name).suffix.lower() in MEDIA_SUFFIXES
+    }
     docs_root = repository / "docs"
     relative_paths.update(
         PurePosixPath(path.relative_to(repository).as_posix())
@@ -480,11 +393,6 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
             if path.is_file() and path.suffix.lower() in MEDIA_SUFFIXES
         )
 
-    tracked_files = set(
-        subprocess.run(
-            ["git", "ls-files", "-z"], cwd=repository, capture_output=True, text=True, check=True
-        ).stdout.split("\0")
-    )
     total = 0
     for relative in sorted(relative_paths):
         assert relative.parts[0] in {
@@ -492,7 +400,7 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
             "concept-studio",
             "docs",
             "fixtures",
-            "library",
+            "godot",
             "src",
             "web",
         }
@@ -509,53 +417,65 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
         if is_style_dictionary:
             assert relative.parent == STYLE_DICTIONARY_ROOT / "images"
             assert relative.suffix.lower() == ".webp"
-        if relative.parts[0] == "src":
-            assert relative.parts[:3] == ("src", "stage_gen", "resources")
-        if relative.parts[0] == "library":
-            assert len(relative.parts) >= 5
-            assert relative.parts[:2] == ("library", "games")
-            # A game's own art sits at `library/games/<game_id>/references/`. A
-            # package holding several point-and-click rooms gives each room its own
-            # sub-package - `rooms/<room_id>/` with its own `room.toml`, `ui.toml`
-            # and `references/` - because a room's cover is that room's art
-            # direction of record rather than the game's, and the room recipe is
-            # handed that directory. It is the same rule read at the level that
-            # owns the reference; see docs/spec/game/case.md.
-            # A runner member owns a fixed `runner/` closure, and a spoken line the
-            # director pinned is committed inside it as `runner/audio/<take>.mp3`
-            # beside the `.meta.json` sidecar the audio contract binds by digest. It
-            # is the one place audio bytes may live in a package: a take is
-            # evidence of a chosen read, not reference art.
+        if relative.parts[0] == "src" and relative.parts[:3] != ("src", "stage_gen", "resources"):
+            assert relative == PurePosixPath(
+                "src/stage_gen/recipes/universe/examples/lantern_ferry/references/poster.png"
+            )
+            example = repository / relative.parent.parent
+            contract = tomllib.loads((example / "universe.toml").read_text())
+            assert (
+                hashlib.sha256((repository / relative).read_bytes()).hexdigest()
+                == (contract["poster"]["source_sha256"])
+            )
+            assert contract["poster"]["rights_status"] == "unreviewed"
+            assert contract["poster"]["rights_basis"]
+            assert contract["rights"]["publication_authorized"] is False
+        is_legacy_resource = relative.parts[:5] == (
+            "godot",
+            "legacy",
+            "python",
+            "stage_gen_legacy",
+            "resources",
+        )
+        if is_legacy_resource:
+            assert relative.parts[5:] == ("music", "preview-loop.mp3")
+            artifact = repository / relative
+            sidecar = json.loads(Path(f"{artifact}.meta.json").read_text())
+            assert (
+                sidecar["artifact"]["sha256"] == hashlib.sha256(artifact.read_bytes()).hexdigest()
+            )
+            assert sidecar["artifact"]["bytes"] == artifact.stat().st_size
+            assert sidecar["rights"]["status"] == "redistribution-approved"
+            assert sidecar["rights"]["basis"]
+        if relative.parts[0] == "godot" and not is_legacy_resource:
+            assert relative.parts[:3] == ("godot", "legacy", "inputs")
+            assert len(relative.parts) >= 6
+            package_parts = relative.parts[4:]
             is_pinned_take = (
-                relative.parts[3:5] == ("runner", "audio")
-                and len(relative.parts) == 6
+                package_parts[:2] == ("runner", "audio")
+                and len(package_parts) == 3
                 and relative.suffix.lower() == ".mp3"
             )
-            # A package's typeface sits at `library/games/<game_id>/fonts/`, the
-            # second and last place a package may hold a binary. Publishing a run
-            # copies the file, so the licence that permits it is committed beside
-            # the face and this gate checks that it is actually there; see
-            # docs/decisions/0063-a-typeface-is-a-package-input.md.
             is_package_font = (
-                relative.parts[3] == "fonts"
-                and len(relative.parts) == 5
+                package_parts[0] == "fonts"
+                and len(package_parts) == 2
                 and relative.suffix.lower() in FONT_MEDIA_SUFFIXES
             )
             if is_pinned_take:
-                assert relative.with_suffix(".mp3.meta.json").as_posix() in tracked_files
+                assert relative.with_suffix(".mp3.meta.json").as_posix() in worktree_files
             elif is_package_font:
                 licences = {
                     name
-                    for name in tracked_files
+                    for name in worktree_files
                     if name.startswith(f"{relative.parent.as_posix()}/")
                     and PurePosixPath(name).suffix.lower() in {".md", ".txt"}
                 }
-                assert licences, f"{relative} has no licence text committed beside it"
+                assert licences, f"{relative} has no licence text beside it"
             else:
-                assert relative.parts[3] == "references" or (
-                    relative.parts[3] == "rooms"
-                    and len(relative.parts) >= 7
-                    and relative.parts[5] == "references"
+                assert package_parts[0] == "references" or (
+                    package_parts[0] == "rooms"
+                    and len(package_parts) >= 4
+                    and package_parts[2] == "references"
                 )
                 assert relative.suffix.lower() in IMAGE_MEDIA_SUFFIXES
         if relative.parts[0] == "web":
@@ -602,7 +522,7 @@ def test_style_dictionary_collection_has_shared_review_record() -> None:
         STYLE_DICTIONARY_MANIFEST,
         STYLE_DICTIONARY_REVIEW,
     ):
-        _assert_tracked_regular_file(repository, relative)
+        _assert_worktree_regular_file(repository, relative)
 
     manifest_path = repository / STYLE_DICTIONARY_MANIFEST
     manifest_bytes = manifest_path.read_bytes()
@@ -677,16 +597,26 @@ def test_style_dictionary_collection_has_shared_review_record() -> None:
     )
 
 
-def _assert_tracked_regular_file(repository: Path, relative: PurePosixPath) -> None:
+def _assert_worktree_regular_file(repository: Path, relative: PurePosixPath) -> None:
     path = repository / relative
     assert path.is_file() and not path.is_symlink()
-    tracked = subprocess.run(
-        ["git", "ls-files", "--error-unmatch", "--", relative.as_posix()],
+    assert relative.as_posix() in _worktree_files(repository)
+
+
+def _worktree_files(repository: Path) -> set[str]:
+    """Inspect staged and unstaged source files; publication is a separate gate."""
+    discovered = subprocess.run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
         cwd=repository,
-        check=False,
+        check=True,
         capture_output=True,
+        text=True,
     )
-    assert tracked.returncode == 0
+    return {
+        name
+        for name in discovered.stdout.split("\0")
+        if name and ((repository / name).exists() or (repository / name).is_symlink())
+    }
 
 
 def _sdist_file_entries(members: list[tarfile.TarInfo]) -> tuple[str, dict[str, int]]:

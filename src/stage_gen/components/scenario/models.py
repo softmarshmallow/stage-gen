@@ -27,7 +27,7 @@ from stage_gen.components._game_input import (
     portable_relative_path,
     unique_values,
 )
-from stage_gen.components.game_soundtrack import TrackGenerationIntent
+from stage_gen.components.music import TrackGenerationIntent
 
 SCENARIO_SCHEMA_VERSION = 2
 SCENARIO_KIND = "scenario-v2"

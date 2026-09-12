@@ -3,6 +3,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   dialogueExecutionViewFixture,
+  pipelineExecutionViewFixture,
   executionViewFixture,
 } from "./execution-view.fixture";
 import {
@@ -31,6 +32,16 @@ async function withRun(
 }
 
 describe("execution view discovery", () => {
+  test("discovers a user pipeline without a built-in recipe or game document", async () => {
+    const tag = `custom-pipeline-${process.pid}`;
+    await withRun(tag, pipelineExecutionViewFixture(), async () => {
+      const entry = (await listExecutionViewRuns()).find((listed) => listed.tag === tag);
+      expect(entry?.label).toBe("Material study");
+      expect(entry?.unreadable).toBe(false);
+      expect(entry?.nodeCount).toBe(4);
+    });
+  });
+
   test("lists a platformer run under the game its header names", async () => {
     const tag = `platformer-view-kind-${process.pid}`;
     await withRun(tag, executionViewFixture(), async () => {
@@ -53,15 +64,13 @@ describe("execution view discovery", () => {
     });
   });
 
-  test("skips a view belonging to a recipe this build does not carry", async () => {
-    // A valid document this viewer does not render — not one that needs
-    // re-exporting — so it must not be listed with the "unreadable" flag.
+  test("lists unsupported envelopes as unreadable instead of hiding the run", async () => {
     const tag = `alien-view-kind-${process.pid}`;
     await withRun(
       tag,
       { schema_version: 3, kind: "3d/isometric-execution-view-v1", recipe: "isometric" },
       async () => {
-        expect((await listExecutionViewRuns()).find((entry) => entry.tag === tag)).toBeUndefined();
+        expect((await listExecutionViewRuns()).find((entry) => entry.tag === tag)?.unreadable).toBe(true);
       },
     );
   });

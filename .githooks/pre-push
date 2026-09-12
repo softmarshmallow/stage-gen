@@ -54,11 +54,11 @@ gate() {
 	fi
 	(
 		cd "$scratch"
-		uv sync --quiet
-		uv run ruff format --check .
-		uv run ruff check .
+		uv sync --all-groups --frozen --quiet
+		uv run --all-groups ruff format --check .
+		uv run --all-groups ruff check .
 		(cd web && bun install --frozen-lockfile --silent && bun test)
-		uv run pytest -m "not live" tests/contract -q
+		uv run --all-groups pytest -m "not live" tests/contract -q
 	) || status=$?
 	cleanup "$scratch"
 	trap - EXIT

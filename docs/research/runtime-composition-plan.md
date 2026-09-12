@@ -1803,7 +1803,7 @@ variant package with its played run.
   round is running and the lifecycle decides after it, because `session/run`
   reads the countdown. **The step-2 list of eight feedback reads, which step 6
   made nine, is ten.**
-- **The variant package (E6).** `library/games/bellweather-waves/` is
+- **The variant package (E6).** `godot/legacy/inputs/bellweather-waves/` is
   Bellweather's package, file for file: the same universe, maps, creatures,
   items, projectiles, props, NPCs, scenarios, soundtrack, UI atlas and reference
   evidence, at the same paths with the same digests, under the same `game_id`.
