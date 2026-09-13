@@ -1,9 +1,10 @@
 # Afterlight autoplay (P97)
 
-Optional autoplay belongs to Afterlight's [story host](story.gd). It continues
-ready beats after a reading delay, selects only an authored default choice,
-and waits for mandatory player input. It has no provider or generation work
-and introduces no shared narrative module.
+Afterlight's [story host](story.gd) configures the shared Scenario reading
+transport and routes its requests to Session. It continues ready lines after a
+reading delay, selects only an authored default choice, and waits for mandatory
+player input. The game owns its UI and policy; Scenario owns progression and
+gates. Playback makes no provider or generation calls.
 
 ## Authored inputs and ownership
 
@@ -18,11 +19,11 @@ The [root](root.gd) configures:
 ```
 
 The host owns the persistent top **Autoplay** on/off button, its English/Korean
-labels, delay clock and progression. The control remains accessible during
+labels and policy. Shared transport tracks reading time; Session owns progression. The control remains accessible during
 monologues, cinematic shots and contact. It starts off; toggling it restarts
 the delay. It changes no audio policy or story wording.
 
-Beat data can supply an `autoplay` dictionary:
+The authored Scenario presentation can supply an `autoplay` dictionary:
 
 | Field | Meaning |
 | --- | --- |
@@ -81,21 +82,23 @@ Changing to a different language clears the delay and waits for the localized
 current line to become ready, including its replacement recording. Selecting
 the current language preserves the timer.
 
-The existing version-4 in-session checkpoint may include an optional
-`autoplay` dictionary with `enabled` and `elapsed_seconds`. A Lab detour
+The current `story_version: 5` checkpoint may include optional `autoplay`
+transport state. A Lab detour
 preserves eligible elapsed time without advancing the story while it is away.
 Historical cue reconstruction does not run autoplay. Saved elapsed time is
 discarded when language or the current voice source changes, or restored
-readiness no longer holds. Older checkpoints without autoplay data remain
-valid and use the root's initial enabled setting (currently false) with zero
-elapsed delay. This adds no durable save migration contract.
+readiness no longer holds. A version-5 checkpoint without optional autoplay
+data uses the root's initial enabled setting (currently false) with zero elapsed
+delay. Version-4 checkpoints are preserved and explicitly refused with a visible
+Restart fresh-start action; they are not silently accepted or migrated. This
+adds no general durable save migration contract.
 
 ## Composition and verification
 
 [Intertitle](../../packages/game_presentation/addons/game_presentation/text/INTERTITLE.md) owns text reveal;
 [Text Reveal Audio](../../packages/game_presentation/addons/game_presentation/audio/TEXT_REVEAL_AUDIO.md) owns
 playback. Neither advances this game's story. Autoplay's host observes both
-and applies the authored delay and input gates. Point Contact continues to
+and supplies readiness to shared transport; Session applies its authored gates. Point Contact continues to
 own only hit testing and acknowledged state. Command Link and Presentation
 Lab retain their own gameplay controls and independent state.
 

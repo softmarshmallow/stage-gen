@@ -50,8 +50,8 @@ func _seek_pan() -> Control:
 		game._process(6.0)
 		if _fulfill_contact_gate(game): continue
 		if game.current_beat()["type"] == "choice":
-			game._choices[str(game.current_beat()["id"])] = "help_first"
-		game._continue_story()
+			game._choose("help_first")
+		else: game._continue_story()
 	_expect(false, "The physical relay setup must remain reachable.")
 	return game
 

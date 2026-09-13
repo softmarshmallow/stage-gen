@@ -1,5 +1,11 @@
 # Dialogue-scene framing control
 
+Scope: The Grain's standing-cast geometry for supported prepared runs. This is
+not the universal Scenario geometry. Its dialogue leaf separately supports no
+portrait, left/right portraits and text reflow/reserved space; speaker portraits
+do not require a visible staged actor. The [current Scenario framework](../../../packages/scenario_runtime/README.md)
+also supports game-owned 2D/3D anchors and other presentation profiles.
+
 > **Scope: game consumers.** This document describes the formats used by these Godot games.
 > The public asset SDK and new games do not require this authoring format.
 

@@ -1,5 +1,10 @@
 # Manual Afterlight voice preparation
 
+Current narrative ownership: the episode is authored in Scenario and its compiled
+program supplies the read-only review/voice inventory. This tool owns explicit
+recording preparation only; playing, compiling narrative, restoring a checkpoint
+or activating content does not request new speech. See the [game guide](../README.md).
+
 [prepare_afterlight_voice.py](prepare_afterlight_voice.py) is a local preparation
 command for the P95/P96 voice pass. Godot never imports it or requests speech
 generation. Later wording or casting changes require an explicit manual refresh;

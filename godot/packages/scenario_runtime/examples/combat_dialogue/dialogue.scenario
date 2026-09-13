@@ -1,0 +1,19 @@
+scenario combat_dialogue
+speaker pilot "Pilot"
+
+@arrival
+pilot "The fight keeps moving while we speak. The game chooses when to invoke this dialogue."
+
+@request
+menu text="Which channel should we use?" speaker=pilot:
+    close "Stay nearby." -> near
+    radio "Use the radio." -> radio
+
+@near
+pilot "This bubble follows my moving world actor." profile=bubble next=done
+
+@radio
+pilot "An off-screen voice can use a portrait without a front-facing stage." profile=portrait
+
+@done
+end dialogue_complete

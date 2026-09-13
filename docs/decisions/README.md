@@ -14,6 +14,11 @@ A record is history. It is not held to the current contract version — the iden
 test exempts this directory for that reason — and it is not amended when the tree moves past
 it. A ruling that is overturned gets a new record that says so.
 
+Current supersession: [0070](0070-the-game-invokes-scenario.md) moves Scenario ownership
+from Stage Gen to Godot and establishes game-owned invocation. It supersedes the
+relevant provisions of 0001/0005 and limits universal readings of 0008/0014; 0009
+and 0066 retain their evidence requirements. Historical records below remain unchanged.
+
 | # | Title | In one line |
 | --- | --- | --- |
 | [0001](0001-scenario-is-a-component.md) | Scenario is a component, not a recipe | Two genres consume one authored shape, so recipe-neutrality is structural |
@@ -85,3 +90,4 @@ it. A ruling that is overturned gets a new record that says so.
 | [0067](0067-the-room-the-scene-and-the-case-are-retired-from-the-browser.md) | The room, the scene and the case are retired from the browser | Three surfaces that were never three: 9,619 lines leave on exact simulations, and the picture each one lacked is named |
 | [0068](0068-the-suite-reads-a-world-the-repository-can-write.md) | The suite reads a world the repository can write | A gate that needs a run nobody can regenerate is a gate that decays; the suite writes its own fixture |
 | [0069](0069-the-platformer-is-retired-and-web-is-only-the-viewer.md) | The platformer is retired, and the web is only the viewer | The last 67,356 lines go; the picture gate 0066 asked for was rejected as a harness, and playing it found seventeen defects no hash could see |
+| [0070](0070-the-game-invokes-scenario.md) | The game invokes Scenario | One Godot-owned sequence executor, data-only content and versioned game capabilities; supported v2 inputs remain |

@@ -15,42 +15,19 @@ extends RefCounted
 
 const Program = preload("program.gd")
 const Refusal = preload("refusal.gd")
+const Compatibility = preload("compatibility/v2.gd")
 
 const ACTION_ADVANCE := "advance"
 const ACTION_CHOOSE := "choose"
 const ACTION_RESTART := "restart"
 
+const SNAPSHOT_KIND := "scenario-runtime-snapshot"
+const SNAPSHOT_SCHEMA_VERSION := 1
+
 
 ## The opening, with everything the settle did on the way to the first moment.
 static func initial_turn(program: Dictionary, carried: PackedStringArray = PackedStringArray()) -> Dictionary:
-	var declared := {}
-	for flag in (program["importedFlags"] as PackedStringArray):
-		declared[flag] = true
-	var seeded := {}
-	for flag in carried:
-		if declared.has(flag):
-			seeded[flag] = true
-	var flags := seeded.keys()
-	flags.sort()
-	var events: Array = []
-	var state := _settle(
-		program,
-		{
-			"label": String(program["entry"]),
-			# Before the first statement of the entry block: the settle steps it
-			# to zero, which is what makes entering a block and advancing inside
-			# one the same walk.
-			"index": -1,
-			"flags": flags,
-			"seen": [],
-			"stage": null,
-			"actors": [],
-			"tracks": [],
-			"outcome": null,
-		},
-		events
-	)
-	return _turn(state, events)
+	return Compatibility.initial_turn(program, carried)
 
 
 static func initial_state(program: Dictionary, carried: PackedStringArray = PackedStringArray()) -> Dictionary:
@@ -74,39 +51,22 @@ static func reduce_turn(program: Dictionary, state: Dictionary, action: Dictiona
 			return Refusal.of("scenario/action", "choice option must be an integer", "option")
 	if kind == ACTION_RESTART:
 		return initial_turn(program)
-	var events: Array = []
 	if state["outcome"] != null:
-		return {"state": state, "events": events}
+		return {"state": state, "events": []}
 	var statement := _statement_at(program, state)
 	if statement.is_empty():
-		return {"state": state, "events": events}
-
+		return {"state": state, "events": []}
 	if String(statement["kind"]) == "choice":
 		if kind != ACTION_CHOOSE:
-			return {"state": state, "events": events}
+			return {"state": state, "events": []}
 		var available := _available_options(statement["options"], state["flags"])
 		var option := int(action.get("option", -1))
 		if option < 0 or option >= available.size():
-			return {"state": state, "events": events}
-		var chosen: Dictionary = available[option]
-		events.append(
-			{
-				"type": "scenario/branched",
-				"from": state["label"],
-				"to": chosen["target"],
-				"cause": "choice",
-			}
-		)
-		var moved := state.duplicate(true)
-		moved["label"] = chosen["target"]
-		moved["index"] = -1
-		return _turn(_settle(program, moved, events), events)
-
+			return {"state": state, "events": []}
+		return Compatibility.reduce_turn(program, state, action)
 	if kind != ACTION_ADVANCE:
-		return {"state": state, "events": events}
-	var next := state.duplicate(true)
-	next["index"] = int(state["index"]) + 1
-	return _turn(_settle(program, next, events), events)
+		return {"state": state, "events": []}
+	return Compatibility.reduce_turn(program, state, action)
 
 
 static func reduce(program: Dictionary, state: Dictionary, action: Dictionary) -> Dictionary:
@@ -153,7 +113,8 @@ static func view(program: Dictionary, state: Dictionary) -> Dictionary:
 	return {}
 
 
-## A statement's stable name: the block it is in and where in it.
+## A statement's name within one program revision. Inserting statements changes
+## these positions; persistent saves should use snapshot's program fingerprint.
 static func statement_id(label: String, index: int) -> String:
 	return "%s#%d" % [label, index]
 
@@ -170,207 +131,8 @@ static func actor(state: Dictionary, actor_id: String) -> Dictionary:
 	return {}
 
 
-## Run forward until something is on screen or the scenario ends.
-static func _settle(program: Dictionary, start: Dictionary, events: Array) -> Dictionary:
-	var state := start
-	# Admission checks references and shapes, not every flag-dependent path.
-	# Each turn is transactional: exhaustion returns a refusal, never accumulated
-	# state/events. Retain the established deterministic execution bound.
-	var limit := (
-		Program.total_statements(program) + (program["blocks"] as Array).size() + 1
-	)
-	for _step in limit + 1:
-		var block := Program.block_of(program, String(state["label"]))
-		if block.is_empty():
-			return Refusal.of("scenario/unresolved", "the current block does not exist", String(state["label"]))
-		var statements: Array = block["statements"]
-		var index := int(state["index"])
-		if index == -1:
-			state = state.duplicate(true)
-			state["index"] = 0
-			continue
-		if index < 0 or index >= statements.size():
-			return Refusal.of("scenario/nonsettling", "a block ended without transferring control", statement_id(String(state["label"]), index))
-		var statement: Dictionary = statements[index]
-		var kind := String(statement["kind"])
-		if kind == "line" or kind == "choice":
-			if kind == "choice" and _available_options(statement["options"], state["flags"]).is_empty():
-				return Refusal.of("scenario/no-options", "no choice option is available", statement_id(String(state["label"]), index))
-			var settled := _mark_seen(_speak(state, statement, events))
-			events.append(
-				{
-					"type": "scenario/presented",
-					"statementId": statement_id(
-						String(settled["label"]), int(settled["index"])
-					),
-					"kind": "choice" if kind == "choice" else "line",
-				}
-			)
-			return settled
-		state = _apply(state, statement, events)
-		if state["outcome"] != null:
-			events.append({"type": "scenario/ended", "outcome": state["outcome"]})
-			return state
-	return Refusal.of("scenario/nonsettling", "the turn exceeded its invisible-statement bound", statement_id(String(state["label"]), int(state["index"])))
-
-
-static func _turn(state: Dictionary, events: Array) -> Dictionary:
-	return state if Refusal.is_refusal(state) else {"state": state, "events": events}
-
-
-static func _apply(state: Dictionary, statement: Dictionary, events: Array) -> Dictionary:
-	var next := state.duplicate(true)
-	match String(statement["kind"]):
-		"show":
-			var actor_id := String(statement["actor"])
-			var previous := actor(state, actor_id)
-			var expression: Variant = statement["expression"]
-			if expression == null and not previous.is_empty():
-				expression = previous["expression"]
-			events.append(
-				{
-					"type": "scenario/actor-changed",
-					"actorId": actor_id,
-					"slot": statement["slot"],
-					"expression": expression,
-				}
-			)
-			# The actor is removed and re-appended, so the cast list is in the
-			# order the author last staged them rather than first named them.
-			var others: Array = []
-			for entry: Variant in (state["actors"] as Array):
-				if String((entry as Dictionary)["actorId"]) != actor_id:
-					others.append(entry)
-			others.append(
-				{"actorId": actor_id, "expression": expression, "slot": statement["slot"]}
-			)
-			next["actors"] = others
-			next["index"] = int(state["index"]) + 1
-		"hide":
-			var actor_id := String(statement["actor"])
-			events.append(
-				{
-					"type": "scenario/actor-changed",
-					"actorId": actor_id,
-					"slot": null,
-					"expression": null,
-				}
-			)
-			var kept: Array = []
-			for entry: Variant in (state["actors"] as Array):
-				if String((entry as Dictionary)["actorId"]) != actor_id:
-					kept.append(entry)
-			next["actors"] = kept
-			next["index"] = int(state["index"]) + 1
-		"stage":
-			events.append({"type": "scenario/staged", "stage": statement["stage"]})
-			next["stage"] = statement["stage"]
-			next["index"] = int(state["index"]) + 1
-		"audio":
-			var track := String(statement["track"])
-			var action := String(statement["action"])
-			events.append(
-				{"type": "scenario/audio-changed", "track": track, "action": action}
-			)
-			var tracks: Array = []
-			for entry: Variant in (state["tracks"] as Array):
-				if String(entry) != track:
-					tracks.append(entry)
-			if action == "play":
-				tracks.append(track)
-			next["tracks"] = tracks
-			next["index"] = int(state["index"]) + 1
-		"set":
-			var flag := String(statement["flag"])
-			var value := bool(statement["value"])
-			events.append({"type": "scenario/flag-changed", "flag": flag, "value": value})
-			var flags: Array = []
-			for entry: Variant in (state["flags"] as Array):
-				if String(entry) != flag:
-					flags.append(entry)
-			if value:
-				flags.append(flag)
-				flags.sort()
-			next["flags"] = flags
-			next["index"] = int(state["index"]) + 1
-		"jump":
-			events.append(
-				{
-					"type": "scenario/branched",
-					"from": state["label"],
-					"to": statement["target"],
-					"cause": "jump",
-				}
-			)
-			next["label"] = statement["target"]
-			next["index"] = 0
-		"branch":
-			# The first satisfied edge, exactly as the admission proof searched
-			# it; the default is what an unsatisfied list falls to.
-			var target := String(statement["default"])
-			for entry: Variant in (statement["edges"] as Array):
-				var edge: Dictionary = entry
-				if _holds(edge["condition"], state["flags"]):
-					target = String(edge["target"])
-					break
-			events.append(
-				{
-					"type": "scenario/branched",
-					"from": state["label"],
-					"to": target,
-					"cause": "branch",
-				}
-			)
-			next["label"] = target
-			next["index"] = 0
-		"end":
-			next["outcome"] = statement["outcome"]
-		_:
-			next["index"] = int(state["index"]) + 1
-	return next
-
-
-## A line that names an expression re-dresses its speaker from here on, exactly
-## as the script surface reads: `mara delighted "..."` means Mara is delighted
-## for the rest of the scene, not only where `show` last put her. Staging stays
-## `show`'s job — a line spoken from off stage changes nothing.
-static func _speak(state: Dictionary, statement: Dictionary, events: Array) -> Dictionary:
-	if String(statement["kind"]) != "line":
-		return state
-	if statement["speaker"] == null or statement["expression"] == null:
-		return state
-	var speaker := String(statement["speaker"])
-	var staged := actor(state, speaker)
-	if staged.is_empty() or staged["expression"] == statement["expression"]:
-		return state
-	events.append(
-		{
-			"type": "scenario/actor-changed",
-			"actorId": speaker,
-			"slot": staged["slot"],
-			"expression": statement["expression"],
-		}
-	)
-	var next := state.duplicate(true)
-	var actors: Array = []
-	for entry: Variant in (state["actors"] as Array):
-		var member: Dictionary = (entry as Dictionary).duplicate()
-		if String(member["actorId"]) == speaker:
-			member["expression"] = statement["expression"]
-		actors.append(member)
-	next["actors"] = actors
-	return next
-
-
-static func _mark_seen(state: Dictionary) -> Dictionary:
-	var id := statement_id(String(state["label"]), int(state["index"]))
-	if (state["seen"] as Array).has(id):
-		return state
-	var next := state.duplicate(true)
-	(next["seen"] as Array).append(id)
-	return next
-
-
+## Compatibility keeps v2 views and snapshots stable; all sequence progression
+## runs through execution/session.gd via compatibility/v2.gd.
 static func _statement_at(program: Dictionary, state: Dictionary) -> Dictionary:
 	var block := Program.block_of(program, String(state["label"]))
 	if block.is_empty():
@@ -422,18 +184,41 @@ static func progress(program: Dictionary, state: Dictionary) -> Dictionary:
 	return {"seen": (state["seen"] as Array).size(), "total": total}
 
 
+## A content-bound save envelope. State and program must be the unmodified values
+## admitted by this package. Existing game save writers may keep their raw state
+## representation; this explicit boundary adds identity without changing reducer
+## state, events or their established replay representation.
+static func snapshot(program: Dictionary, state: Dictionary) -> Dictionary:
+	return {
+		"kind": SNAPSHOT_KIND,
+		"schema_version": SNAPSHOT_SCHEMA_VERSION,
+		"program_fingerprint": Program.fingerprint(program),
+		"state": state.duplicate(true),
+	}
+
+
 ## A saved state, checked against the program it claims to be of, or null.
 ##
-## A port of `restoreScenarioState`. The case shell writes a save on every
-## statement and offers a Continue when it finds one; a regenerated scenario can
-## have moved every block under it. Returning null rather than refusing is the
-## point — the player is offered a fresh scene instead of a Continue that opens
-## on an actor nobody declared, and a save that no longer fits is not an error
-## anyone can act on.
-static func restore(program: Dictionary, snapshot: Variant) -> Variant:
-	if not (snapshot is Dictionary):
+## New save writers can use snapshot() to refuse content edits even when the old
+## label/index still exists. Raw pre-envelope states retain structural admission
+## for supported game saves; their content revision cannot be verified. Neither
+## form authenticates a save nor proves that its state was reached by playing.
+## Incompatibility returns null so the host can offer a fresh invocation.
+static func restore(program: Dictionary, saved_value: Variant) -> Variant:
+	if not (saved_value is Dictionary):
 		return null
-	var saved: Dictionary = snapshot
+	var saved: Dictionary = saved_value
+	if saved.has("kind") or saved.has("program_fingerprint") or saved.has("state"):
+		var version: Variant = saved.get("schema_version")
+		if not (saved.get("kind") is String) or not (version is int or version is float):
+			return null
+		if saved["kind"] != SNAPSHOT_KIND or version != SNAPSHOT_SCHEMA_VERSION:
+			return null
+		if not (saved.get("program_fingerprint") is String) or not (saved.get("state") is Dictionary):
+			return null
+		if saved["program_fingerprint"] != Program.fingerprint(program):
+			return null
+		saved = saved["state"]
 	if not _snapshot_shape(saved):
 		return null
 	var block := Program.block_of(program, String(saved.get("label", "")))
@@ -444,41 +229,46 @@ static func restore(program: Dictionary, snapshot: Variant) -> Variant:
 	if index < 0 or index >= statements.size():
 		return null
 
+	var statement: Dictionary = statements[index]
+	var kind := String(statement["kind"])
 	var outcome: Variant = saved.get("outcome")
-	if outcome != null:
-		var published := false
-		for entry: Variant in (program["endings"] as Array):
-			if String((entry as Dictionary)["outcomeId"]) == String(outcome):
-				published = true
-				break
-		if not published:
+	if kind == "end":
+		if outcome != statement["outcome"]:
 			return null
+	elif (kind != "line" and kind != "choice") or outcome != null:
+		return null
 
 	var declared := {}
 	for flag in (program["flags"] as PackedStringArray):
 		declared[String(flag)] = true
 	var flags: Array = []
 	for flag: Variant in _array(saved.get("flags")):
-		if not declared.has(String(flag)):
+		if not declared.has(String(flag)) or flags.has(String(flag)):
 			return null
 		flags.append(String(flag))
 	flags.sort()
+	if kind == "choice" and _available_options(statement["options"], flags).is_empty():
+		return null
 
 	var stage: Variant = saved.get("stage")
 	if stage != null and not _names(program["stages"], String(stage)):
 		return null
 	var tracks: Array = []
 	for track: Variant in _array(saved.get("tracks")):
-		if not _names(program["tracks"], String(track)):
+		if not _names(program["tracks"], String(track)) or tracks.has(String(track)):
 			return null
 		tracks.append(String(track))
 
 	var actors: Array = []
+	var actor_ids := {}
 	for entry: Variant in _array(saved.get("actors")):
 		if not (entry is Dictionary):
 			return null
 		var staged: Dictionary = entry
 		var actor_id := String(staged.get("actorId", staged.get("actor_id", "")))
+		if actor_ids.has(actor_id):
+			return null
+		actor_ids[actor_id] = true
 		var member := _cast_member(program, actor_id)
 		if member.is_empty():
 			return null
@@ -491,8 +281,20 @@ static func restore(program: Dictionary, snapshot: Variant) -> Variant:
 		actors.append({"actorId": actor_id, "expression": expression, "slot": slot})
 
 	var seen: Array = []
+	var visible_ids := {}
+	for entry: Variant in (program["blocks"] as Array):
+		var visible_block: Dictionary = entry
+		var visible_statements: Array = visible_block["statements"]
+		for visible_index in visible_statements.size():
+			var visible_kind := String(visible_statements[visible_index]["kind"])
+			if visible_kind == "line" or visible_kind == "choice":
+				visible_ids[statement_id(String(visible_block["label"]), visible_index)] = true
 	for id: Variant in _array(saved.get("seen")):
+		if not visible_ids.has(String(id)) or seen.has(String(id)):
+			return null
 		seen.append(String(id))
+	if kind != "end" and not seen.has(statement_id(String(saved["label"]), index)):
+		return null
 	return {
 		"label": String(saved["label"]),
 		"index": index,

@@ -1,0 +1,1 @@
+{"particle":{"version":1,"reconstructable":true,"finishable":true,"parameters":{"sprite_id":{"type":"string","required":true},"rate":{"type":"number","min":0,"max":200,"default":1},"tint":{"type":"array","items":{"type":"number","min":0,"max":1},"default":[1,1,1,1]}}}}

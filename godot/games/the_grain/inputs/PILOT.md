@@ -1,5 +1,10 @@
 # Pilot 01 — The Grain, Episode One
 
+> Historical evidence. Current Scenario ownership and execution are defined by
+> the [invocation contract](../../../packages/scenario_runtime/docs/contract.md). Earlier paths, proof claims, requests
+> and code-director status below describe their recorded state, not current
+> architectural instructions. Existing media reviews retain their original scope.
+
 **A seven-hour unattended pilot production. Started 05:44 KST, Wednesday 3 September 2026.**
 Freeze 11:59. Report closed by 12:44.
 

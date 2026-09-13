@@ -1,0 +1,603 @@
+{
+  "kind": "scenario-program-v3",
+  "schema_version": 3,
+  "scenario_id": "command_link",
+  "entry": "arrival",
+  "nodes": [
+    {
+      "id": "arrival",
+      "kind": "line",
+      "speaker": "mira",
+      "text": "Commander on deck. Good timing — the evacuation convoy is almost ready.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "arrival"
+      },
+      "next": "briefing",
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "arrival_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "briefing",
+      "kind": "line",
+      "speaker": "lena",
+      "text": "The coast road is exposed, and our relay beacon has gone dark.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "briefing"
+      },
+      "next": "briefing_risk",
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "briefing_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "briefing_risk",
+      "kind": "line",
+      "speaker": "lena",
+      "text": "Every transport has civilians aboard. If we stop in those blind corners, we're holding them on open ground.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "briefing_risk"
+      },
+      "next": "briefing_plan",
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "briefing_risk_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "briefing_plan",
+      "kind": "line",
+      "speaker": "lena",
+      "text": "We'll keep them moving. Give the reserve team one clear job, and Mira and I will cover the rest.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "briefing_plan"
+      },
+      "next": "orders",
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "briefing_plan_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "orders",
+      "kind": "choice",
+      "options": [
+        {
+          "id": "escort_priority",
+          "text": "Keep the convoy covered.",
+          "target": "escort",
+          "set": {
+            "priority": "escort_priority"
+          }
+        },
+        {
+          "id": "beacon_priority",
+          "text": "Restore the relay beacon.",
+          "target": "beacon",
+          "set": {
+            "priority": "beacon_priority"
+          }
+        }
+      ],
+      "text": "Your call, Commander. What gets our first reserve team?",
+      "speaker": "mira",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "orders"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "orders_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "escort",
+      "kind": "line",
+      "speaker": "mira",
+      "text": "People first. I'll keep our reserve with the transports. Nobody gets left on that road.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "escort"
+      },
+      "next": "departure",
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "escort_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "beacon",
+      "kind": "line",
+      "speaker": "mira",
+      "text": "Copy. Our reserve goes with the repair team. Once that beacon is up, the convoy can see its way home.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "beacon"
+      },
+      "next": "departure",
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "beacon_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "departure",
+      "kind": "line",
+      "speaker": "lena",
+      "text": "I'll scout ahead. Sera, take over the route briefing. I'll meet you at staging.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "departure"
+      },
+      "next": "handoff",
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "departure_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "handoff",
+      "kind": "effect",
+      "effect": {
+        "type": "squad_handoff",
+        "parameters": {}
+      },
+      "instance_id": "briefing_handoff",
+      "scope": "sequence",
+      "clock": "presentation",
+      "duration": 2.5,
+      "next": "handoff_wait"
+    },
+    {
+      "id": "handoff_wait",
+      "kind": "wait",
+      "operation": "briefing_handoff",
+      "next": "analysis"
+    },
+    {
+      "id": "analysis",
+      "kind": "line",
+      "speaker": "sera",
+      "text": "I have two routes out. Before we move, Mira needs to pair your command link with the squad channel.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "analysis"
+      },
+      "next": "link",
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "analysis_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "link",
+      "kind": "line",
+      "speaker": "mira",
+      "text": "One touch, Commander. Then, wherever we go, you'll be right here with us.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "link"
+      },
+      "next": "set_connected",
+      "gates": [
+        {
+          "event": "contact_confirmed",
+          "finish_on_advance": false
+        }
+      ],
+      "advance_mode": "on_gates",
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "link_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "set_connected",
+      "kind": "set",
+      "values": {
+        "connected": true
+      },
+      "next": "link_confirmed"
+    },
+    {
+      "id": "link_confirmed",
+      "kind": "line",
+      "speaker": "mira",
+      "text": "There you are. Link confirmed. I hear you clearly, Commander. Let's bring everyone home.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "link"
+      },
+      "next": "approach",
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "link_confirmed_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "approach",
+      "kind": "choice",
+      "options": [
+        {
+          "id": "high_road",
+          "text": "Check the perimeter overlook first.",
+          "target": "overlook",
+          "set": {
+            "approach": "high_road"
+          }
+        },
+        {
+          "id": "shore_road",
+          "text": "Head straight to coastal staging.",
+          "target": "shore",
+          "set": {
+            "approach": "shore_road"
+          }
+        }
+      ],
+      "text": "We can meet Lena at the overlook, or follow Sera straight down the shore. Which way, Commander?",
+      "speaker": "mira",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "approach"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "approach_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "overlook",
+      "kind": "line",
+      "speaker": "lena",
+      "text": "Clear view from here. Two blind corners on the coast road — I'll mark them and take overwatch.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "overlook"
+      },
+      "next": "deploy",
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "overlook_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "shore",
+      "kind": "line",
+      "speaker": "sera",
+      "text": "Shore route clear. The transports are staged under the palms. We made it ahead of schedule.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "shore"
+      },
+      "next": "deploy",
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "shore_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "deploy",
+      "kind": "line",
+      "speaker": "mira",
+      "text": "There they are. Engines running, everyone aboard. Give the word and we'll bring them through.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "deploy"
+      },
+      "next": "remembered_branch",
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "deploy_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "remembered_branch",
+      "kind": "branch",
+      "edges": [
+        {
+          "condition": {
+            "priority": "escort_priority"
+          },
+          "target": "remembered_escort"
+        }
+      ],
+      "default": "remembered_beacon"
+    },
+    {
+      "id": "remembered_escort",
+      "kind": "line",
+      "speaker": "sera",
+      "text": "Your reserve is with the convoy. I'll patch the beacon remotely while Lena watches the road.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "remembered"
+      },
+      "next": "end",
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "remembered_escort_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "remembered_beacon",
+      "kind": "line",
+      "speaker": "sera",
+      "text": "The repair team has your reserve, as ordered. The beacon is coming online; I'll guide the convoy through.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "remembered"
+      },
+      "next": "end",
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "remembered_beacon_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "end",
+      "kind": "line",
+      "text": "The command link holds. Your squad takes its positions, and the first transport rolls toward the coast road.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "checkpoint": "end"
+      },
+      "next": "finish",
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "end_frame",
+            "parameters": {}
+          },
+          "instance_id": "current_frame",
+          "scope": "node",
+          "clock": "presentation",
+          "duration": 0
+        }
+      ]
+    },
+    {
+      "id": "finish",
+      "kind": "end",
+      "outcome": "mission_complete"
+    }
+  ],
+  "speakers": [
+    {
+      "id": "mira",
+      "display_name": "Mira"
+    },
+    {
+      "id": "lena",
+      "display_name": "Lena"
+    },
+    {
+      "id": "sera",
+      "display_name": "Sera"
+    }
+  ],
+  "facts": {
+    "priority": {
+      "type": "string",
+      "default": "unset",
+      "values": [
+        "unset",
+        "escort_priority",
+        "beacon_priority"
+      ]
+    },
+    "approach": {
+      "type": "string",
+      "default": "unset",
+      "values": [
+        "unset",
+        "high_road",
+        "shore_road"
+      ]
+    },
+    "connected": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required_capabilities": {
+    "squad_frame": 1,
+    "squad_handoff": 1
+  }
+}

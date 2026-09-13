@@ -51,6 +51,7 @@ jobs:
       - name: Typecheck product and optional consumers
         run: >-
           uv run --all-groups mypy --strict src tests scripts
+          godot/packages/scenario_runtime/authoring/src
           godot/games/_shared/python/src
           godot/games/bellweather/pipeline/src
           godot/games/iron_petal_unit/pipeline/src

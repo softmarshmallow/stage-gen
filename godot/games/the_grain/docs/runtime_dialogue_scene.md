@@ -1,5 +1,11 @@
 # Dialogue scene — the Godot host
 
+Current ownership: this leaf belongs to The Grain. Its supported v2 documents
+execute through [Scenario compatibility](../../../packages/scenario_runtime/docs/compatibility.md)
+into the current Session. The game owns five-slot staging, optional portraits,
+input/audio suspension, case ordering and save policy. Browser parity results
+below are historical evidence, not the current runtime owner or proof of v3 visuals.
+
 A Godot 4.7 host that plays one scenario of a `dialogue-scene` run: a run
 directory holding `bundle.json` beside the plates, backdrops and tracks it
 names. The host ships no media — a run is named on the command line every time.
@@ -24,9 +30,8 @@ Godot --path godot/games/the_grain res://scenes/dialogue_scene/main.tscn -- \
 **`--scenario` is not optional in practice.** A `dialogue-scene-bundle-v8` run
 publishes the union of every scenario its game holds — `out/the-grain-scene-a`
 carries six — and a bundle with more than one is refused by name rather than
-opened on whichever came first. The browser's own `/scene/<tag>` route omits it
-and throws on every run that exists; there is no run under `out/` that route can
-play.
+opened on whichever came first. The earlier browser route was retired; the web
+application is now an asset viewer.
 
 **Which runs open.** The contract is `dialogue-scene-bundle-v8` at
 `schema_version` 8: `out/the-grain-scene-a`, `out/the-grain-scene-4` and
@@ -36,8 +41,10 @@ not supply the required scenario array or UI bindings.
 
 ## The controls
 
-A scenario has no clock, so there is no loop here either: a transition is a
-keypress and the view redraws when the reducer moves.
+This game's retained v2 narrative advances at input boundaries. Its compatibility
+reader uses the current Session executor; v3 additionally supports explicit
+sequence/presentation/reading clocks. The leaf owns its audio and input suspension
+and does not pause the SceneTree.
 
 | Does | How |
 | --- | --- |

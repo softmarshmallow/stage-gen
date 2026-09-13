@@ -1,0 +1,83 @@
+{
+  "kind": "scenario-program-v3",
+  "schema_version": 3,
+  "scenario_id": "catalog_effects",
+  "entry": "weather",
+  "nodes": [
+    {
+      "id": "weather",
+      "kind": "line",
+      "speaker": "pilot",
+      "text": "One preset and one inline particle definition create two independent ember instances.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom"
+      },
+      "cues": [
+        {
+          "id": "first",
+          "at": 0,
+          "effect": {
+            "preset": "ember_effect",
+            "parameters": {}
+          },
+          "instance_id": "near_embers",
+          "scope": "sequence",
+          "clock": "presentation",
+          "target": "air"
+        },
+        {
+          "id": "second",
+          "at": 0.5,
+          "effect": {
+            "type": "particle",
+            "parameters": {
+              "sprite": "ember_sprite",
+              "x": 420,
+              "width": 250,
+              "height": 400,
+              "rate": 18
+            }
+          },
+          "instance_id": "far_embers",
+          "scope": "sequence",
+          "clock": "presentation",
+          "target": "air"
+        }
+      ],
+      "next": "stop_near"
+    },
+    {
+      "id": "stop_near",
+      "kind": "stop",
+      "instance_id": "near_embers",
+      "next": "still_running"
+    },
+    {
+      "id": "still_running",
+      "kind": "line",
+      "speaker": "pilot",
+      "text": "Only the named near instance stopped. The far instance continues until this invocation ends.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom"
+      },
+      "next": "done"
+    },
+    {
+      "id": "done",
+      "kind": "end",
+      "outcome": "effect_demo_complete"
+    }
+  ],
+  "speakers": [
+    {
+      "id": "pilot",
+      "display_name": "Pilot"
+    }
+  ],
+  "facts": {},
+  "required_capabilities": {
+    "particle": 1
+  }
+}

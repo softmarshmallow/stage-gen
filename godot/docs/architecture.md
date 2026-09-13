@@ -11,7 +11,7 @@ godot/
 ├── packages/
 │   ├── game_presentation/      # Presentation controllers and compatibility APIs
 │   ├── content_io/             # Confined local content access and decoding
-│   ├── scenario_runtime/       # Optional admitted-program interpreter
+│   ├── scenario_runtime/       # VN-oriented invocation framework and compiler
 │   └── sideview_rendering/     # Layers, pixels and parallax presentation
 ├── games/
 │   ├── afterlight/
@@ -36,16 +36,24 @@ godot/
 | Owner | Dependencies and responsibility |
 | --- | --- |
 | `content_io` | No other addon; accepts explicit roots, references and optional source digests. |
-| `scenario_runtime` | No other addon; owns admission and deterministic program/state/action reduction. No scene or clock ownership. |
+| `scenario_runtime` | Owns compiler, admission, Session progression/clocks, bindings and optional presenters. Declares `game_presentation` and `content_io`; pure execution has no scene/media dependency. |
 | `sideview_rendering` | No game manifest; accepts source images/data, dimensions, anchors and presentation values. Image baking is separate from pure arithmetic. |
 | `game_presentation` | Declares `content_io` for the existing local-content facade. Controllers retain their separate time, geometry and lifecycle contracts. |
 | Private `demo_support` | Actual shared game implementation. Run-directory adapters use `content_io`; game-specific parsing and scene composition stay outside it. |
 | Private scene navigation | Shared replacement/checkpoint lifecycle; games supply routes, scene preparation and opaque saved state. |
 
-Games select packages. Bellweather and The Grain use the scenario interpreter;
-Bellweather and Iron Petal Unit use side-view rendering. Afterlight and Command
-Link compose presentation controllers and private navigation with different story
-and checkpoint models. The VN template remains a small copyable composition.
+Games select packages. Afterlight, Command Link and the VN starter author v3
+Scenario content. Bellweather and The Grain retain v2 prepared content through
+the compatibility adapter into the same Session executor. Games own invocation,
+input, world/camera policy, assets and saves. Bellweather and Iron Petal Unit use
+side-view rendering. Afterlight and Command Link share private navigation while
+keeping their own UI and checkpoint policy.
+
+[Scenario's directory preview](../packages/scenario_runtime/docs/layout.md) expands
+its standalone authoring distribution, native sessions, game-installed capability
+bindings, optional presenters and data-package tooling. A catalog can introduce a
+new preset over installed mechanisms; adding an algorithm requires installed code.
+No narrative content owns a game or discovers arbitrary scene objects.
 
 The four prepared-run games own their options in their scene code. Shared token
 parsing owns syntax only. Ember Hollow loads mask images in a scene adapter and
@@ -63,7 +71,7 @@ generation. Separate preparation tools consume the asset product.
 Addon development links point to one maintained payload. Portable assembly copies
 real source and declared dependencies, retains source UIDs and licenses, verifies
 hashes and publishes a completed tree atomically. The game packager currently owns
-the four prepared-run games; the presentation assembler owns the VN starter.
+the four prepared-run games; the Scenario assembler owns the VN starter.
 Prepared media remains a separate input with its existing rights and provenance.
 
 Mechanism tests belong to packages; game integration tests remain with games.
@@ -77,8 +85,10 @@ from the remaining private imports and their follow-up decisions. The collection
 CLI dispatches lazily to game-owned operations and uses the product implementation
 for generic recipe commands. Game storefront graph evidence belongs to Ember
 Hollow; the product recipe uses its independent procedural example. Shared graph
-document formatting still uses explicit repository tooling. Some older game
-Python tests and snapshots remain under root test infrastructure and can move
+document formatting still uses explicit repository tooling. The Scenario
+compiler tests live beside its independent distribution; game production metadata
+tests live under shared game Python support. Some other game Python tests and
+snapshots remain under root test infrastructure and can move
 with their owners without changing the product contract.
 
 ## Evolution

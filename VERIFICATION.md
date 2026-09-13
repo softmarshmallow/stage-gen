@@ -35,6 +35,17 @@ viewer, Godot, docs, game input plans and optional application checks. Tests are
 assigned before collection so a product-only environment need not import the
 optional demo or concept distributions. The partition is tested for completeness.
 
+## Scenario and consumer ownership
+
+The asset product gate does not import `scenario_authoring`. Scenario's independently
+installed authoring distribution, native executor, shared conformance, content-package
+reader and starter assembly are Godot-owned. Its game-production adapter and tests
+belong to `godot/games/_shared/python`; current game source/freshness tests remain
+with each game. The Godot coordinator includes these owners and reports media and
+rendering prerequisites explicitly. See the [package verification guide](godot/packages/scenario_runtime/docs/verification.md).
+The aggregate gate checks both products; a green compiler gate alone is not
+whole-game or visual acceptance.
+
 ## Evidence boundaries
 
 An offline plan proves input resolution, route admission and graph construction.

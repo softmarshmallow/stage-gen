@@ -1,5 +1,11 @@
 # Game Presentation SDK — successor design
 
+> Historical review/plan: retained statements and proposed ownership describe
+> their original scope. The [current Godot architecture](../../godot/docs/architecture.md) and
+> [Scenario invocation contract](../../godot/packages/scenario_runtime/docs/contract.md) govern current work. Scenario
+> authoring/execution is now Godot-owned; earlier experimental, asset-component
+> or universal game-sequence prescriptions are superseded.
+
 > **Status: P106 design, implemented as a local canary package in P107.**
 > Reviewed 2026-09-11 against the exact P01–P106 request archive, current Godot
 > source and component contracts. P106 was documentation-only; see the current

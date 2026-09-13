@@ -118,8 +118,8 @@ func _keeper_samples(window_size: Vector2i) -> void:
 		# rerunning the full episode/input matrix before each selected sample.
 		game._process(maxf(0.0, 6.0 - game._elapsed))
 		if _fulfill_contact_gate(game): continue
-		if beat["type"] == "choice": game._choices[id] = "help_first"
-		game._continue_story()
+		if beat["type"] == "choice": game._choose("help_first")
+		else: game._continue_story()
 	_expect(captured == SAMPLES.size(), "All seven fixed encounter samples must be captured.")
 
 
@@ -212,7 +212,7 @@ func _ui_geometry(game: Control) -> Array:
 		_expect(control.material == null, "Scene VFX must never attach a shader to host UI.")
 		controls.append({"rect": control.get_rect(), "material": control.material})
 	for field: Control in [game._heat_haze, game._world_corruption, game._local_corruption, game._barrier]:
-		_expect(field.get_index() < game._ui.get_index(), "World effects must render before the UI.")
+		_expect(field.get_parent() == game._stage and game._stage.get_index() < game._ui.get_index(), "World effects must render before the UI.")
 	return controls
 
 

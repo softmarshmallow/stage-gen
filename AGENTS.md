@@ -26,7 +26,12 @@ and [IP](docs/oss-ip.md). This file controls applicability; focused docs control
 - The product owns asset-pipeline authoring, execution, artifacts and inspection. Components own bounded capabilities;
   recipes compose useful asset outcomes. Their inputs never require a complete game, selected demo or gameplay schema.
   Consumer adapters own runtime camera, scene, engine and gameplay assumptions. `web/` consumes public run/artifact
-  contracts and is not a second generator. Bounded animation, terrain, spatial and scenario contracts may remain optional.
+  contracts and is not a second generator. Bounded animation, terrain and spatial asset contracts may remain optional.
+  Scenario authoring and execution belong to the Godot package; they are not asset-product components.
+- Scenario is the Godot-owned VN-oriented invocation framework. Games own and invoke their sequences,
+  grant installed capabilities and retain simulation, input, objects, cameras and saves. Keep narrative
+  direction in data and mechanism implementations in declared bindings; do not dispatch by story/beat ID.
+  `game_presentation` remains a lower dependency and imports no Scenario or game code.
 - Complete game builders, gameplay schemas and their existing inputs/readers belong to their Godot game under
   `godot/games/`. Each game owns its project, preparation and bindings. Private reuse by multiple games belongs
   under `godot/games/_shared/`; independently usable runtime packages belong under `godot/packages/`.

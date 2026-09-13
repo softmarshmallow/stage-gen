@@ -29,13 +29,18 @@ accounted for, including checks that cannot run in this scope:
 | The Grain | Per-file native regression adapter | Game visual/play evidence is separate |
 | Afterlight | Voice policy, synthetic voice preparation and content-copy checks | Prepared art and recordings for host integration; some suites need native rendering or audio |
 | Command Link | Controller, bounds and synthetic-content checks | Prepared game media for composition and application checks; hologram checks need native rendering |
-| `game_presentation` | Standalone mechanisms, dependency validation and Python starter assembly checks | Corruption raster checks need native rendering; halo raster branch stays visibly skipped headlessly |
-| `scenario_runtime` | Independent program/state/action checks | None |
+| `game_presentation` | Standalone mechanisms and dependency validation | Corruption raster checks need native rendering; halo raster branch stays visibly skipped headlessly |
+| `scenario_runtime` | V3 Session/catalog/compiler, v2 compatibility, host/presenters, cross-language conformance, content packages and Python starter assembly | None; native visual acceptance is separate |
 | `content_io` | Independent local-content checks | None |
 | `sideview_rendering` | Layer, pixel and image-adapter checks with synthetic inputs | No game run or prepared art |
-| VN template | Standalone story checks with procedural content | Optional capture mode requires native rendering |
+| VN template | Source/program freshness and standalone story checks with procedural content | Optional capture mode requires native rendering |
 | Asset consumer template | Temporary project copy, deterministic PNG preparation and actual scene consumption | None |
 | Godot tooling | Python coordinator regression tests | Development pytest installation |
+
+[Scenario verification](../packages/scenario_runtime/docs/verification.md) identifies
+its independently installed authoring tests, native contract checks and game
+production adapter. Each game owns its narrative freshness and whole-game
+integration tests; the compiler is not part of the asset product gate.
 
 The four prepared-run games and private support retain
 [`run_native_suite.py`](../tools/run_native_suite.py), which imports each owning

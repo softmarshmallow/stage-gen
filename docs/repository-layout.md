@@ -88,7 +88,6 @@ metadata, so installing it does not require absent demo directories.
 src/stage_gen/components/
 ├── actor_content/                     # Actor asset content and admission
 ├── character_profile/                 # Reusable identity/profile input
-├── dialogue_sequence/                 # Bounded presentation sequence data
 ├── portrait_motion/                   # Portrait processing, rendering and validation
 ├── sideview_actor/                    # Sprite geometry, scale and locomotion assets
 ├── sideview_layers/                   # Layer processing and parallax parameters
@@ -105,8 +104,7 @@ src/stage_gen/components/
 ├── sound_effect/                      # Individual sound-effect requests
 ├── speech/                            # Individual speech requests
 ├── audio_normalization/               # Explicit audio transforms
-├── video_clip/                        # Video processing with explicit frame constraints
-└── scenario/                          # Self-contained narrative program and admission
+└── video_clip/                        # Video processing with explicit frame constraints
 ```
 
 These names describe actual capability families. A component need not be fully
@@ -120,10 +118,10 @@ the game-owned adapter. UI, effects, screens, music and voices were split from t
 former game aggregates. Game readers still supply game-specific role sets,
 event triggers and playback bindings to those independent capabilities.
 
-The `.scenario` contract survives independently. Its events can be bound by a
-consumer without becoming a mandatory field of every asset pipeline. The same
-rule applies to sprite playback, portrait animation and any future Live2D adapter:
-keep each contract bounded; do not combine them into a universal game language.
+The `.scenario` contract is owned by the Godot Scenario package, including its
+independent authoring distribution. The game invokes its sequence through explicit
+bindings; the asset product does not depend on that format. Sprite playback,
+portrait animation and any future Live2D adapter retain their own bounded roles.
 
 ## Recipes and examples
 
@@ -173,8 +171,8 @@ web/
 
 godot/
 ├── games/
-│   ├── afterlight/                    # Existing project, authored story and Lab
-│   ├── command_link/                  # Existing project, authored story and Lab
+│   ├── afterlight/                    # Authored Scenario episode and game bindings
+│   ├── command_link/                  # Authored Scenario mission and independent Lab
 │   ├── bellweather/                   # Own project, gameplay and prepared-run binding
 │   │   ├── inputs/
 │   │   │   ├── default/               # Complete original input closure
@@ -222,16 +220,24 @@ godot/
 │       │   │   └── testing/          # Game-independent native test harness
 │       │   └── tests/
 │       ├── python/src/demo_game_tools/
+│       │   ├── scenario/             # Supported v2 production metadata and adapters
 │       │   ├── input_formats/        # Shared readers with actual callers
 │       │   ├── media/                # Shared game UI and soundtrack binding helpers
 │       │   ├── io/                   # Package capture
 │       │   └── application/          # Shared preparation services
 │       └── docs/                     # Shared input and manifest format references
 ├── packages/
-│   └── game_presentation/            # Independent presentation addon and its tests
+│   ├── scenario_runtime/             # VN-oriented invocation framework
+│   │   ├── addons/scenario_runtime/  # Program, Session, bindings and presenters
+│   │   ├── authoring/                # Independent Python compiler and content tools
+│   │   ├── conformance/, examples/   # Shared fixtures and runnable consumers
+│   │   └── tests/, tools/, docs/     # Owned verification, assembly and contract
+│   ├── game_presentation/            # Independent lower presentation mechanisms
+│   ├── content_io/                   # Confined local media/data access
+│   └── sideview_rendering/           # Independent layer/parallax rendering
 ├── templates/
 │   ├── asset_consumer/               # Explicit PNG import and local GDScript display
-│   └── vn/                           # Copyable presentation starter
+│   └── vn/                           # Copyable game with authored Scenario content
 └── tools/
     └── python/src/demo_game_collection/
                                         # Collection CLI and cross-game fixture census
@@ -267,8 +273,9 @@ and does not start a provider operation. Existing `out/` runs remain at their
 current locations and are selected explicitly.
 
 Maintained game format documents live under their game or `_shared/docs`.
-Independent scenario and side-view map design specifications remain in
-`docs/spec/`. Historical decisions remain records of their original context. The
+The current [Scenario directory preview](../godot/packages/scenario_runtime/docs/layout.md)
+expands authoring, execution and game binding ownership. Side-view map design
+remains in `docs/spec/`; its former Scenario page points to the Godot owner. Historical decisions remain records of their original context. The
 [Godot ownership record](plans/godot-consumer-layout.md) details the migration.
 
 ## Choosing the owner of a new change
@@ -283,6 +290,8 @@ Independent scenario and side-view map design specifications remain in
 | User-specific graph composition | External Python definition or SDK example |
 | Recipe asset parameters | Recipe-owned TOML or Python inputs |
 | A specialized preview | Viewer inspector or bounded runtime package |
+| VN-oriented narrative authoring and invocation | Godot Scenario package |
+| Episode direction and installed game capabilities | Consuming game |
 | Resource import and asset-to-scene binding | Consumer's preparation script |
 | Combat, progression, quest state or scene control | Consumer's code |
 | Existing game TOML or whole-game build maintenance | Named game preparation package; shared reader only where reused |

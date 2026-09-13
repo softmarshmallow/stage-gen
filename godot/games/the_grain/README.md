@@ -25,7 +25,23 @@ Authored inputs live in `inputs/` and asset preparation starts with
 - `scenes/` owns rendering, input, camera, audio and interface code.
 - `tests/` and `tools/` own this game's regressions, replay and capture helpers.
 - `addons/demo_support` links to the private shared implementation used by these games.
-- `addons/scenario_runtime` selects the independent [scenario interpreter](../../packages/scenario_runtime/README.md); gameplay, dialogue UI and save policy stay here.
+- `addons/scenario_runtime` selects the independent [Scenario framework](../../packages/scenario_runtime/README.md); gameplay, dialogue UI and save policy stay here.
+
+## Scenario invocation
+
+Existing v2 declarations, scripts and prepared program bytes remain supported.
+`demo_game_tools.scenario` owns production metadata and preparation; the addon's
+compatibility reader executes these programs through the current Session.
+New rich source authoring belongs to the [Scenario compiler](../../packages/scenario_runtime/authoring/README.md).
+
+The case owns room order, durable facts and saves. A dialogue leaf may suspend
+its input/audio without pausing the SceneTree. Its `configure_presentation` can
+select no portrait or a left/right portrait, with reflow or explicit reservation;
+portrait selection is independent of the full cast stage. New dialogue saves use
+a fingerprinted compatibility snapshot. Historical raw saves receive structural
+checks only; invalid saved data is refused rather than silently restarted.
+
+## Checks
 
 Run this game's native regressions from the repository root:
 

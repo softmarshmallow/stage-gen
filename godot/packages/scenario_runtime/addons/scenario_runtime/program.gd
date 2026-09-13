@@ -126,6 +126,14 @@ static func speaker_label(program: Dictionary, actor_id: String) -> String:
 	return actor_id
 
 
+## Identity of this admitted interpreter content, independent of input dictionary
+## insertion order and producer-only metadata. Array order is preserved because
+## it controls statement positions, choice order and declaration presentation.
+## This is a compatibility fingerprint, not save authentication or asset identity.
+static func fingerprint(program: Dictionary) -> String:
+	return "sha256:" + JSON.stringify(program, "", true, true).sha256_text()
+
+
 static func _statement(statement: Dictionary, kind: String) -> Dictionary:
 	var made := {"kind": kind}
 	match kind:

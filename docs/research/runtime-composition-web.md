@@ -1,5 +1,11 @@
 # Runtime composition: families, genres, and the sealed tick
 
+> Historical review/plan: retained statements and proposed ownership describe
+> their original scope. The [current Godot architecture](../../godot/docs/architecture.md) and
+> [Scenario invocation contract](../../godot/packages/scenario_runtime/docs/contract.md) govern current work. Scenario
+> authoring/execution is now Godot-owned; earlier experimental, asset-component
+> or universal game-sequence prescriptions are superseded.
+
 > **History.** This document described the browser runtime, whose four layers were
 > kernel, families, genres and hosts in TypeScript. Every genre is hosted by Godot
 > since [decision 0061](../decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md); the layers survive in GDScript and the contract

@@ -59,11 +59,12 @@ func _run() -> void:
 				_expect(original.data == relocated.data, "Relocation must preserve exact MP3 bytes: " + language + "/" + line_id)
 		# Enter every preceding cue in order so the transmission's authored cast,
 		# projection, geometry and selected background all come from real direction.
-		for beat_index in external.beats.size():
-			external._beat_index = beat_index
-			external._enter_beat()
-			external._advance_clocks(10.0)
+		for step in external.beats.size() * 3:
 			if external.current_beat().id == "eira_on_the_relay": break
+			if external._choice_pending():
+				external._next()
+				external._choose("help_first")
+			else: external._next()
 		for language: String in ["en", "ko"]:
 			external.set_language(language)
 			external._begin_text_audio()

@@ -1,5 +1,11 @@
 # Game Presentation SDK — complete request triage
 
+> Historical review/plan: retained statements and proposed ownership describe
+> their original scope. The [current Godot architecture](../../godot/docs/architecture.md) and
+> [Scenario invocation contract](../../godot/packages/scenario_runtime/docs/contract.md) govern current work. Scenario
+> authoring/execution is now Godot-owned; earlier experimental, asset-component
+> or universal game-sequence prescriptions are superseded.
+
 > **Design evidence, 2026-09-11; no runtime promotion performed.**
 > Companion to the [SDK design](game-presentation-sdk-design.md).
 

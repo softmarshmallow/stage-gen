@@ -1,5 +1,11 @@
 # Runtime composition: the plan, and the evidence for each ruling
 
+> Historical review/plan: retained statements and proposed ownership describe
+> their original scope. The [current Godot architecture](../../godot/docs/architecture.md) and
+> [Scenario invocation contract](../../godot/packages/scenario_runtime/docs/contract.md) govern current work. Scenario
+> authoring/execution is now Godot-owned; earlier experimental, asset-component
+> or universal game-sequence prescriptions are superseded.
+
 > **History.** The path was walked: the kernel, the ring-1 families and both
 > side-view genres landed on it. The browser runtime it built is retired genre by
 > genre under [decision 0061](../decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md); the Godot promotion has its own plan at

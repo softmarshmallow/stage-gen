@@ -1,5 +1,11 @@
 # Bellweather asset preparation
 
+Scenario preparation uses the private `demo_game_tools.scenario` adapter over
+the independent Godot-owned authoring package. Existing v2 source, production
+metadata and prepared bytes remain supported; playback uses Scenario's single
+Session executor through its compatibility reader. Compilation does not generate
+media and is separate from the asset pipeline described below.
+
 The platformer owns the existing world/content graph, maps, gameplay input reader and manifest adapter. `inputs/default` and `inputs/waves` are complete separate variants.
 
 Install the optional game tools from the repository root:

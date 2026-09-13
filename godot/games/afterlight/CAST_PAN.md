@@ -3,8 +3,9 @@
 **Cast Pan** is a use of a **Layer Transform**: the cast is reframed as a group
 without changing actors' local placement or the background's framing. The
 [Layer Pan sampler](../../packages/game_presentation/addons/game_presentation/motion/LAYER_PAN.md) owns only an
-offset and time. Afterlight owns the group membership, target resolution, cues
-and lifecycle. No layer registry or arbitrary group hierarchy is needed here.
+offset and time. Scenario's front-stage capability owns reusable target resolution
+and effect application; Afterlight supplies group/geometry bindings and authored
+cues. Session owns cue timing and invocation lifetime.
 
 This follows a documented Ren'Py pattern: `camera` can transform a named layer,
 which can be separate from scenery. Ren'Py's `camera` holds until explicitly
@@ -37,17 +38,13 @@ reframes scenery as well. A pan is not a zoom or automatic speaker tracker.
 ## Authored cues
 
 The root's `cast_pan` settings select `duration_seconds` (default 0.45), `curve`
-(`ease_in_out`), `frequency` (1.5), and `damping_ratio` (0.8). Ordinary beat data
-can choose a visible target and override settings:
+(`ease_in_out`), `frequency` (1.5), and `damping_ratio` (0.8). The game catalog
+configures the installed `front_pan` capability:
 
 ```json
 {
-  "cast_pan": {
-    "actor": "riko",
-    "anchor_x": 640.0,
-    "delay_seconds": 0.35,
-    "settings": {"duration_seconds": 0.45, "curve": "ease_in_out"}
-  }
+  "type": "front_pan",
+  "parameters": {"actor": "riko", "anchor_x": 640.0}
 }
 ```
 
@@ -58,11 +55,12 @@ The resulting translation is held. Later independent actor/camera movement
 does not cause this cue to follow the target. Framed transmission targets use
 their authored frame center.
 
-Alternatively, `"cast_pan": {"offset": [0.0, 0.0]}` pans home; any two finite
+Alternatively, `"parameters": {"offset": [0.0, 0.0]}` pans home; any two finite
 numbers supply a direct layer-local X/Y offset. Target and offset forms are
 mutually exclusive. Numeric arrays are converted to Godot vectors at this host
-boundary. These examples represent existing dictionary cues, not a new JSON
-loader, versioned scenario schema or upstream contract.
+boundary. Catalog names are referenced by timed `.scenario` cues. Their parameter
+schema is the installed `presentation/front_types.json`; these game presets do
+not add a Stage Gen asset contract.
 
 ## Lifecycle and demonstration
 
@@ -70,14 +68,15 @@ Time advances explicitly with the story's world clock. Delayed requests split
 at their exact cue boundary. Retargeting starts from the current sampled offset;
 completion holds it, and pause withholds time. Ordinary dialogue preserves the
 pan. Afterlight explicitly clears it when authored cast/background composition
-changes, including handoffs, and on restart. Existing elapsed-history checkpoint
-replay reconstructs the pan across language changes and Lab visits.
+changes, including handoffs, and on restart. The version-5 Session snapshot and
+bound presentation journal reconstruct the pan across language changes and Lab visits.
 
 The relay conversation keeps the world camera wide: Riko is centered after
 arrival, Yuzu answers from the other side, then focus returns to Riko. The cast
 slides as a group at each handover, with the original speaker bounces still
 composed locally. The following black monologue changes composition and clears
-the pan. Dialogue wording and the 56-beat sequence are unchanged.
+the pan. The original P89 wording was retained; the current episode has 57 review beats,
+including the later required-contact addition.
 
 Presentation Lab provides a separate Cast Pan study with three actors, target
 buttons, timing, screen anchor and curve controls. Targets and anchor changes

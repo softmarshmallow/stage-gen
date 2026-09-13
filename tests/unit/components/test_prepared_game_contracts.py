@@ -14,11 +14,11 @@ from demo_game_tools.input_formats.sideview_content import (
     load_projectile_content_bytes,
 )
 from demo_game_tools.media.ui import load_game_ui_bytes
-from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen.components.scenario import (
+from demo_game_tools.scenario import (
     load_scenario_catalog_bytes,
     resolve_scenario_bytes,
 )
+from stage_gen.components._game_input import AuthoredContractLoadError
 
 PACKAGE = Path(__file__).resolve().parents[3] / "godot/games/bellweather/inputs/default"
 

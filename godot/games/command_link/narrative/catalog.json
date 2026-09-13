@@ -1,0 +1,166 @@
+{
+  "kind": "scenario-catalog",
+  "schema_version": 1,
+  "catalog_id": "command_link",
+  "revision": "1",
+  "definitions": {
+    "arrival_frame": {
+      "type": "squad_frame",
+      "parameters": {
+        "manpu": [
+          {
+            "actor": "mira",
+            "id": "surprise"
+          }
+        ]
+      }
+    },
+    "briefing_frame": {
+      "type": "squad_frame",
+      "parameters": {
+        "manpu": [
+          {
+            "actor": "lena",
+            "id": "sweat_drop"
+          }
+        ],
+        "camera": {
+          "shot": "close_up",
+          "target": "speaker",
+          "zoom": 3.5,
+          "duration_seconds": 0.9
+        }
+      }
+    },
+    "briefing_risk_frame": {
+      "type": "squad_frame",
+      "parameters": {
+        "manpu": [
+          {
+            "actor": "lena",
+            "id": "sweat_drop"
+          }
+        ]
+      }
+    },
+    "briefing_plan_frame": {
+      "type": "squad_frame",
+      "parameters": {}
+    },
+    "orders_frame": {
+      "type": "squad_frame",
+      "parameters": {
+        "camera": {
+          "shot": "wide",
+          "duration_seconds": 0.8
+        }
+      }
+    },
+    "escort_frame": {
+      "type": "squad_frame",
+      "parameters": {
+        "manpu": [
+          {
+            "actor": "mira",
+            "id": "sparkle"
+          }
+        ]
+      }
+    },
+    "beacon_frame": {
+      "type": "squad_frame",
+      "parameters": {
+        "manpu": [
+          {
+            "actor": "mira",
+            "id": "sparkle"
+          }
+        ]
+      }
+    },
+    "departure_frame": {
+      "type": "squad_frame",
+      "parameters": {}
+    },
+    "analysis_frame": {
+      "type": "squad_frame",
+      "parameters": {}
+    },
+    "link_frame": {
+      "type": "squad_frame",
+      "parameters": {
+        "mode": "reach_out",
+        "contact": true
+      }
+    },
+    "link_confirmed_frame": {
+      "type": "squad_frame",
+      "parameters": {
+        "mode": "reach_out",
+        "contact": false
+      }
+    },
+    "approach_frame": {
+      "type": "squad_frame",
+      "parameters": {}
+    },
+    "overlook_frame": {
+      "type": "squad_frame",
+      "parameters": {
+        "manpu": [
+          {
+            "actor": "lena",
+            "id": "sparkle"
+          }
+        ],
+        "location": "perimeter_overlook"
+      }
+    },
+    "shore_frame": {
+      "type": "squad_frame",
+      "parameters": {
+        "manpu": [
+          {
+            "actor": "sera",
+            "id": "sparkle"
+          }
+        ],
+        "location": "coastal_staging"
+      }
+    },
+    "deploy_frame": {
+      "type": "squad_frame",
+      "parameters": {
+        "location": "coastal_staging"
+      }
+    },
+    "remembered_escort_frame": {
+      "type": "squad_frame",
+      "parameters": {
+        "manpu": [
+          {
+            "actor": "sera",
+            "id": "sparkle"
+          }
+        ]
+      }
+    },
+    "remembered_beacon_frame": {
+      "type": "squad_frame",
+      "parameters": {
+        "manpu": [
+          {
+            "actor": "sera",
+            "id": "sparkle"
+          }
+        ]
+      }
+    },
+    "end_frame": {
+      "type": "squad_frame",
+      "parameters": {
+        "ending": true
+      }
+    }
+  }
+}

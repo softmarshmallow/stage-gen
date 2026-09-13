@@ -9,7 +9,7 @@ Rulings live in [decisions](../../docs/decisions/README.md) — one record per r
 
 ## Exact current contracts
 
-- [ ] Remove the remaining alternate public shapes rather than maintaining readers for them — camelCase artifact/capability and doctor output, the scrolling manifest, `legacyDialogueBeats`, tracked historical JSON under docs/media, and docs/generated-media-inventory.json — replacing or retiring each atomically with its consumers, digest bindings and rejection tests, and adding no aliases ([0005](../../docs/decisions/0005-one-narrative-contract-deleted-not-aliased.md)).
+- [ ] Remove the remaining alternate public shapes rather than maintaining readers for them — camelCase artifact/capability and doctor output, the scrolling manifest, `legacyDialogueBeats`, tracked historical JSON under docs/media, and docs/generated-media-inventory.json — replacing or retiring each atomically with its consumers, digest bindings and rejection tests, and adding no aliases ([0005](../../docs/decisions/0005-one-narrative-contract-deleted-not-aliased.md)); this does not remove the supported v2 Scenario reader retained by [0070](../../docs/decisions/0070-the-game-invokes-scenario.md).
 
 ## Game UI
 
@@ -20,15 +20,19 @@ The contract is [authored game UI](_shared/docs/formats/ui.md); the taxonomy is 
 
 ## Scenario
 
-The contract is [scenario](../../docs/spec/scenario.md); the component ruling is [0001](../../docs/decisions/0001-scenario-is-a-component.md).
+The contract is the Godot-owned [Scenario invocation framework](../packages/scenario_runtime/docs/contract.md);
+[0070](../../docs/decisions/0070-the-game-invokes-scenario.md) supersedes asset-component ownership.
+Current sessions, optional reading transport and supported snapshots are implemented.
 
-- [ ] M2, the player shell: persistence, save slots, backlog, skip-already-read, auto-advance, preferences. Cross-genre, and the same missing substrate the champion roster is blocked on — build it once for both.
+- [ ] Review game-specific durable save slots, backlog, read-history and preferences against actual users; keep application UI and world persistence with each game, and share only independently useful mechanisms. Do not introduce a universal player shell or count existing autoplay/checkpoints as missing.
 
 ## The Godot promotion
 
 The ruling is [0061](../../docs/decisions/0061-every-genre-runs-on-godot-and-web-is-the-viewer.md); the path is [the promotion plan](../../docs/plans/godot-promotion-plan.md), which dies when it is walked. Every genre's host is a Godot host and `web/` becomes the run viewer alone. Each line below is a step's remaining work, and each retirement carries its own record.
 
-- [ ] Walk the promotion plan: the viewer decoupled, the mono-project, the export factory, the kernel in GDScript, the suite in the locked gate, the browser instruments, then the runner, the platformer, and the room, the scene and the case.
+The browser gameplay retirement and named-game ownership moves are complete.
+Use the [current Godot roadmap](../docs/roadmap.md) for remaining organization work;
+the old promotion plan is historical evidence, not a fresh execution checklist.
 - [ ] Hosting is deliberately not in that plan: the upload, channel pointers, a catalogue, cache and CORS policy, and rights activation on published bytes stay in [issue 8](https://github.com/softmarshmallow/stage-gen/issues/8) until the export loop is proved end to end.
 - [ ] Three follow-ups the promotion defers by name, each provider-free with the cache-key golden as its proof: a per-block version table for the room manifest, the dialogue bundle and the survival manifest; the survival document's `schema_version`, which is pinned at 1 beside a kind that says v2; and the dialogue bundle's HTML `alt` fields, which become a host's accessibility names or leave.
 

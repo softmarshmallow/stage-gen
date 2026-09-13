@@ -1,9 +1,10 @@
 # Actor Blocking in Afterlight
 
 Quick Approach is a direction preset over the existing
-[Motion Curve](../../packages/game_presentation/addons/game_presentation/motion/motion_curve.gd). The concrete
-[cast adapter](cast_stage.gd) owns actor identities and standing positions.
-No new shared movement module, scenario vocabulary or route is required.
+[Motion Curve](../../packages/game_presentation/addons/game_presentation/motion/motion_curve.gd). The game
+[cast binding](cast_stage.gd) configures the shared Scenario front-cast presenter.
+Afterlight owns its actor identities/geometry; the episode invokes typed
+`front_approach` capability data through the same Session as other direction.
 
 ## Inputs and ownership
 
@@ -22,8 +23,8 @@ once and delegates to the same movement. The target does not move automatically.
 | `damping_ratio` | Existing spring damping; default 0.8. |
 
 The game root's `quick_approach` dictionary holds its selected defaults; the
-story cue supplies `actor`, `target`, `delay_seconds` and optional `settings`
-overrides. The reusable curve knows no actor, story, art or reaction meaning.
+Scenario catalog supplies typed `actor`, `target` and optional `settings`
+overrides, while the authored cue supplies its start time. The reusable curve knows no actor, story, art or reaction meaning.
 Sprite dimensions, valid center bounds and draw order remain host decisions.
 The destination center must be within 0..1280. Spring samples are clamped to
 those center bounds; this does not guarantee full-sprite screen coverage.
@@ -44,7 +45,8 @@ still requires its original slot positions; explicit restaging precedes a
 handoff when needed. `movement_state()` exposes inspection data, not a durable
 save format.
 
-The story uses its existing elapsed-history replay for language/Lab continuity.
+The current version-5 checkpoint uses the Session snapshot and a presentation
+command journal bound to operation IDs/parameters/clocks for language/Lab continuity.
 At `the_useful_kind`, the previous handoff has finished. Yuzu advances from X=410
 to X=610 toward Sena at X=890, starting after 0.25 seconds and taking 0.32 seconds.
 The 280-unit center spacing holds for the reply. The next establishing shot clears

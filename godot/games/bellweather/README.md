@@ -26,7 +26,23 @@ Authored inputs live in `inputs/default/` and `inputs/waves/` and asset preparat
 - `tests/` and `tools/` own this game's regressions, replay and capture helpers.
 - `addons/demo_support` links to the private shared implementation used by these games.
 - `addons/sideview_rendering` selects independent [layer layout and image presentation](../../packages/sideview_rendering/README.md); run-file interpretation and depth ordering stay here.
-- `addons/scenario_runtime` selects the independent [scenario interpreter](../../packages/scenario_runtime/README.md); gameplay, dialogue UI and save policy stay here.
+- `addons/scenario_runtime` selects the independent [Scenario framework](../../packages/scenario_runtime/README.md); gameplay, dialogue UI and save policy stay here.
+
+## Scenario invocation
+
+Existing v2 declarations, scripts and prepared program bytes remain supported.
+`demo_game_tools.scenario` owns production metadata and preparation; the addon's
+compatibility reader executes these programs through the current Session.
+New rich source authoring belongs to the [Scenario compiler](../../packages/scenario_runtime/authoring/README.md).
+
+The game explicitly chooses `world.dialogue_policy.hold_world` (default `true`).
+Setting it to `false` allows world/combat updates during conversation. The optional
+portrait profile defaults left; it can omit/reflow/reserve the portrait and choose
+a speaking expression without requiring the actor on stage. Dialogue snapshot/
+restore is a game-owned save slice that resolves its current interaction/program
+and does not replay rewards; this adds no general save UI.
+
+## Checks
 
 Run this game's native regressions from the repository root:
 

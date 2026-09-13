@@ -17,7 +17,7 @@ from the_grain_pipeline.dialogue_scene.models import (
 from the_grain_pipeline.dialogue_scene.policy import POLICY_DIGEST
 
 if TYPE_CHECKING:
-    from stage_gen.components.scenario import TrackDeclaration
+    from demo_game_tools.scenario import TrackDeclaration
 
 PROMPT_TEMPLATE_VERSION = 7
 _BASE = (

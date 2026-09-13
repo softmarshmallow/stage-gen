@@ -15,17 +15,17 @@ All routine verification is credential-free. Provider-backed tests carry the
 | CLI boundary | `uv run pytest tests/integration -q` |
 | Wheel-packaged resources | `uv run pytest tests/contract/test_packaged_resources.py -q` |
 | Import architecture | `uv run pytest tests/contract/test_import_boundaries.py -q` |
-| Godot hosts | `python3 godot/tools/run_native_suite.py --run <run directory>` |
+| Godot owners | `uv run --group games python godot/tools/check.py` |
+| Scenario compiler/runtime/embedding | `uv run --group games python godot/tools/check.py --owner scenario_runtime` |
 | Formatting and lint | `uv run ruff format --check . && uv run ruff check .` |
 | Strict typing | `uv run mypy --strict src tests scripts` |
 
-The Godot row runs inside the locked gate below too, against a fixture run the
-gate writes itself with `godot/games/ember_hollow/tools/make_fixture_run.py` — `out/` is not in the
-repository, so a fresh clone has no run to point it at. Naming a real run with
-`--run` adds the assertions pinned to that run's own counts, which the fixture
-cannot carry and which the suite names rather than drops. It proves the host's
-simulation only — never a picture, which the host's own capture harness produces
-instead. See [Godot host](../godot/games/ember_hollow/docs/runtime.md) and
+The Godot coordinator accounts for all maintained packages, games and templates.
+Its native-game adapter uses authored temporary fixtures, including Ember Hollow
+fixtures from `godot/games/ember_hollow/tools/make_fixture_run.py`. A fresh clone has
+no `out/` media. Naming a real run with `--run` adds assertions pinned to that run;
+prepared-media and rendered suites have explicit scopes and prerequisites. An
+offline state check does not prove a picture or listening quality. See [Godot host](../godot/games/ember_hollow/docs/runtime.md) and
 [decision 0068](decisions/0068-the-suite-reads-a-world-the-repository-can-write.md).
 
 The survival recipe's cache-key golden,

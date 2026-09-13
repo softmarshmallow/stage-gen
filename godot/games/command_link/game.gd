@@ -1,34 +1,27 @@
 extends "res://presentation/stage.gd"
 
-## Authored mission beats and player decisions belong to this disposable route.
+## The game owns its stage, controls and world. Scenario executes the mission.
 const BRIEFING_CAST_SCRIPT = preload("res://addons/game_presentation/actors/cast_transition.gd")
 const BRIEFING_CAST_SPEC := "res://addons/game_presentation/actors/presets/cast_transition.json"
-const STORY := {
-	"arrival": {"speaker": "Mira", "line": "Commander on deck. Good timing — the evacuation convoy is almost ready.", "manpu": [{"actor": "mira", "id": "surprise"}], "next": "briefing"},
-	"briefing": {"speaker": "Lena", "line": "The coast road is exposed, and our relay beacon has gone dark.", "manpu": [{"actor": "lena", "id": "sweat_drop"}], "camera": {"shot": "close_up", "target": "speaker", "zoom": 3.5, "duration_seconds": 0.9}, "next": "briefing_risk"},
-	"briefing_risk": {"speaker": "Lena", "line": "Every transport has civilians aboard. If we stop in those blind corners, we're holding them on open ground.", "manpu": [{"actor": "lena", "id": "sweat_drop"}], "next": "briefing_plan"},
-	"briefing_plan": {"speaker": "Lena", "line": "We'll keep them moving. Give the reserve team one clear job, and Mira and I will cover the rest.", "next": "orders"},
-	"orders": {"speaker": "Mira", "line": "Your call, Commander. What gets our first reserve team?", "camera": {"shot": "wide", "duration_seconds": 0.8}, "choices": [
-		{"label": "Keep the convoy covered.", "next": "escort", "priority": "escort_priority"},
-		{"label": "Restore the relay beacon.", "next": "beacon", "priority": "beacon_priority"}]},
-	"escort": {"speaker": "Mira", "line": "People first. I'll keep our reserve with the transports. Nobody gets left on that road.", "manpu": [{"actor": "mira", "id": "sparkle"}], "next": "departure"},
-	"beacon": {"speaker": "Mira", "line": "Copy. Our reserve goes with the repair team. Once that beacon is up, the convoy can see its way home.", "manpu": [{"actor": "mira", "id": "sparkle"}], "next": "departure"},
-	"departure": {"speaker": "Lena", "line": "I'll scout ahead. Sera, take over the route briefing. I'll meet you at staging.", "next": "analysis"},
-	"analysis": {"speaker": "Sera", "line": "I have two routes out. Before we move, Mira needs to pair your command link with the squad channel.", "next": "link"},
-	"link": {"speaker": "Mira", "line": "One touch, Commander. Then, wherever we go, you'll be right here with us.", "mode": "reach_out", "contact": true, "next": "approach"},
-	"approach": {"speaker": "Mira", "line": "We can meet Lena at the overlook, or follow Sera straight down the shore. Which way, Commander?", "choices": [
-		{"label": "Check the perimeter overlook first.", "next": "overlook", "approach": "high_road"},
-		{"label": "Head straight to coastal staging.", "next": "shore", "approach": "shore_road"}]},
-	"overlook": {"speaker": "Lena", "line": "Clear view from here. Two blind corners on the coast road — I'll mark them and take overwatch.", "manpu": [{"actor": "lena", "id": "sparkle"}], "location": "perimeter_overlook", "next": "deploy"},
-	"shore": {"speaker": "Sera", "line": "Shore route clear. The transports are staged under the palms. We made it ahead of schedule.", "manpu": [{"actor": "sera", "id": "sparkle"}], "location": "coastal_staging", "next": "deploy"},
-	"deploy": {"speaker": "Mira", "line": "There they are. Engines running, everyone aboard. Give the word and we'll bring them through.", "location": "coastal_staging", "next": "remembered"},
-	"remembered": {"speaker": "Sera", "line": "", "next": "end"},
-	"end": {"speaker": "", "line": "The command link holds. Your squad takes its positions, and the first transport rolls toward the coast road.", "ending": true},
-}
+const SCENARIO_PROGRAM = preload("res://addons/scenario_runtime/program/program.gd")
+const SCENARIO_CATALOG = preload("res://addons/scenario_runtime/program/catalog.gd")
+const SCENARIO_SESSION = preload("res://addons/scenario_runtime/execution/session.gd")
 var saved_state: Dictionary = {}
-var _story_id := "arrival"
-var _priority := ""
-var _approach := ""
+var _story_id: String:
+	get: return str(_presented.get("presentation", {}).get("checkpoint", _presented.get("id", "arrival")))
+var _priority: String:
+	get: return "" if _facts.get("priority", "unset") == "unset" else str(_facts.priority)
+var _approach: String:
+	get: return "" if _facts.get("approach", "unset") == "unset" else str(_facts.approach)
+var _session = SCENARIO_SESSION.new()
+var _program: Dictionary = {}
+var _catalog: Dictionary = {}
+var _presented: Dictionary = {}
+var _frame: Dictionary = {}
+var _facts: Dictionary = {}
+var _handoff_operation := ""
+var _scenario_ready := false
+var _restoring := false
 var _menu_button: Button
 var _skip_button: Button
 var _choice_buttons: Array[Button] = []
@@ -81,21 +74,41 @@ func _draw_dialogue_scrim(canvas: CanvasItem) -> void:
 func _configure_route() -> void:
 	for id: String in _character_effects:
 		_character_effects[id]["enabled"] = false
-	_story_id = String(saved_state.get("story_id", "arrival"))
-	if not STORY.has(_story_id):
-		_story_id = "arrival"
-	_priority = String(saved_state.get("priority", ""))
-	_approach = String(saved_state.get("approach", ""))
+	var capabilities: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://presentation/scenario_capabilities.json"))
+	_catalog = SCENARIO_CATALOG.parse(_read_narrative("catalog.json"), capabilities)
+	if _scenario_error(_catalog): return
+	_program = SCENARIO_PROGRAM.parse(_read_narrative("mission.json"), _catalog)
+	if _scenario_error(_program): return
+	_load_errors.append_array(_mission_binding_errors(_program))
+	if not _load_errors.is_empty(): return
+	var result: Dictionary
+	_restoring = not saved_state.is_empty()
+	if _restoring:
+		if saved_state.get("schema_version") != 2 or not saved_state.get("scenario") is Dictionary:
+			_load_errors.append("This mission checkpoint predates Scenario content identity. Start a new mission; the old state was preserved.")
+			return
+		result = _session.restore(_program, _catalog, _scenario_policy(), saved_state.scenario)
+	else:
+		result = _session.start(_program, _catalog, _scenario_policy())
+	if _scenario_error(result): return
+	if _restoring:
+		var checkpoint_errors := _checkpoint_errors(saved_state, result.state)
+		if not checkpoint_errors.is_empty():
+			_load_errors.append_array(checkpoint_errors)
+			return
+	_scenario_ready = true
+	_facts = result.state.facts.duplicate(true)
+	_presented = _session.view()
+	_frame = _frame_from_state(result.state)
+	_mode = str(_frame.get("mode", "dialogue"))
 	_connected = bool(saved_state.get("connected", false))
-	_mode = String(STORY[_story_id].get("mode", "dialogue"))
 	_natural_blink = true
 	_select_location(String(saved_state.get("location", "forward_command")), true)
 	_initialize_briefing_cast(saved_state)
-	if not saved_state.is_empty():
+	if _restoring:
 		_load_errors.append_array(restore_establishing(saved_state.get("establishing_shot", {})))
 		_location_title_elapsed = float(saved_state.get("location_title_elapsed", LOCATION_HEADER_SETTLE_SECONDS))
 		_entry = 1.0 if not is_establishing() else 0.0
-		# Returning from a demo resumes the held speaker without a fresh pulse.
 		_actor_focus.clear()
 		_manpu_animation.clear()
 		_sync_actor_focus(false)
@@ -104,12 +117,89 @@ func _configure_route() -> void:
 			_load_errors.append_array(restore_dialogue_camera(saved_state["dialogue_camera"]))
 	else:
 		_load_errors.append_array(start_establishing("forward_command"))
-	for beat: Dictionary in STORY.values():
-		_load_errors.append_array(_manpu_cue_errors(beat.get("manpu", [])))
+	_apply_scenario(result, _restoring)
+	_restoring = false
+	if not _load_errors.is_empty(): _scenario_ready = false
+
+
+func _mission_binding_errors(program: Dictionary) -> Array[String]:
+	var errors: Array[String] = []
+	for node: Dictionary in program.nodes.values():
+		var effects: Array = [node] if node.kind == "effect" else node.get("cues", [])
+		for cue: Dictionary in effects:
+			if cue.effect.type != "squad_frame": continue
+			var frame: Dictionary = cue.effect.parameters
+			errors.append_array(_manpu_cue_errors(frame.get("manpu", [])))
+			if frame.has("location") and (not _locations.has(frame.location) or not _location_textures.has(frame.location)):
+				errors.append("Mission node %s names an unavailable location: %s" % [node.id, frame.location])
+			if frame.has("camera") and frame.camera.shot != "wide":
+				var actor_id := str(frame.camera.get("target", "speaker"))
+				if actor_id == "speaker": actor_id = str(node.get("speaker", ""))
+				if _dialogue_actor_index(actor_id) < 0:
+					errors.append("Mission node %s camera names an unavailable actor: %s" % [node.id, actor_id])
+	return errors
+
+
+## The game envelope must agree with the admitted narrative, so a contact,
+## location or cast flag cannot create a second, contradictory progression state.
+func _checkpoint_errors(saved: Dictionary, state: Dictionary) -> Array[String]:
+	var fields := ["schema_version", "scenario", "story_id", "priority", "approach", "connected", "location", "location_title_elapsed", "establishing_shot", "briefing_cast_active", "briefing_handoff_started", "briefing_handoff_elapsed", "dialogue_camera"]
+	if saved.size() != fields.size(): return ["Mission checkpoint fields are incomplete or unknown; start a new mission."]
+	for field: String in fields:
+		if not saved.has(field): return ["Mission checkpoint is missing " + field]
+	if state.status != "running": return ["Only a running mission checkpoint can resume."]
+	for field: String in ["connected", "briefing_cast_active", "briefing_handoff_started"]:
+		if not saved[field] is bool: return ["Mission checkpoint " + field + " must be a boolean."]
+	for field: String in ["location_title_elapsed", "briefing_handoff_elapsed"]:
+		if not (saved[field] is int or saved[field] is float) or not is_finite(float(saved[field])) or float(saved[field]) < 0.0:
+			return ["Mission checkpoint " + field + " must be finite and nonnegative."]
+	if not saved.establishing_shot is Dictionary or not saved.dialogue_camera is Dictionary:
+		return ["Mission checkpoint camera states must be objects."]
+	var expected_priority := "" if state.facts.priority == "unset" else str(state.facts.priority)
+	var expected_approach := "" if state.facts.approach == "unset" else str(state.facts.approach)
+	var view: Dictionary = _session.view()
+	if saved.connected != state.facts.connected or saved.priority != expected_priority or saved.approach != expected_approach or saved.story_id != view.presentation.get("checkpoint", view.id):
+		return ["Mission checkpoint observations disagree with Scenario; start a new mission."]
+	var operations: Array = state.operations.values()
+	operations.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.operation_id).get_slice(":", 2).to_int() < str(b.operation_id).get_slice(":", 2).to_int())
+	var location := "forward_command"
+	var cast_active := true
+	var handoff := {}
+	for operation: Dictionary in operations:
+		if operation.effect.type == "squad_frame" and operation.effect.parameters.has("location"):
+			if location != str(operation.effect.parameters.location): cast_active = false
+			location = str(operation.effect.parameters.location)
+		elif operation.effect.type == "squad_handoff": handoff = operation
+	if saved.location != location or saved.briefing_cast_active != cast_active or saved.briefing_handoff_started != (not handoff.is_empty()):
+		return ["Mission checkpoint location or cast state disagrees with its admitted operations."]
+	var handoff_elapsed := 0.0 if handoff.is_empty() else minf(float(handoff.duration), float(state.clocks[handoff.clock]) - float(handoff.start_time))
+	if absf(float(saved.briefing_handoff_elapsed) - handoff_elapsed) > 0.0001:
+		return ["Mission checkpoint handoff time disagrees with its operation clock."]
+	var establishing = ESTABLISHING_SHOT_SCRIPT.new()
+	var errors: Array[String] = establishing.restore(saved.establishing_shot)
+	var camera = DIALOGUE_CAMERA_SCRIPT.new()
+	errors.append_array(camera.restore(saved.dialogue_camera))
+	if not errors.is_empty(): return errors
+	if saved.establishing_shot.location_id != location or not _location_textures.has(location):
+		return ["Mission checkpoint establishing view names another location."]
+	var texture: Texture2D = _location_textures[location]
+	var expected_bounds := _background_rect(DESIGN_SIZE, texture.get_size())
+	var bounds: Array = saved.dialogue_camera.background_rect
+	if not expected_bounds.is_equal_approx(Rect2(float(bounds[0]), float(bounds[1]), float(bounds[2]), float(bounds[3]))) or saved.dialogue_camera.viewport_size != [DESIGN_SIZE.x, DESIGN_SIZE.y]:
+		return ["Mission checkpoint camera bounds disagree with the loaded world."]
+	if not camera.focus_id.is_empty() and _dialogue_actor_index(camera.focus_id) < 0:
+		return ["Mission checkpoint camera names an unavailable actor."]
+	var frame := _frame_from_state(state)
+	var can_focus: bool = frame.get("mode", "dialogue") == "dialogue" and not saved.establishing_shot.active and (handoff.is_empty() or handoff.status != "running")
+	if not can_focus and (camera.sample() != DIALOGUE_CAMERA_SCRIPT.IDENTITY or camera.is_moving() or not camera.focus_id.is_empty()):
+		return ["Mission checkpoint camera conflicts with its current presentation."]
+	return []
 
 
 func save_game() -> Dictionary:
-	return {"story_id": _story_id, "priority": _priority, "approach": _approach,
+	if not _scenario_ready: return saved_state.duplicate(true)
+	return {"schema_version": 2, "scenario": _session.snapshot(),
+		"story_id": _story_id, "priority": _priority, "approach": _approach,
 		"connected": _connected, "location": _location_id,
 		"location_title_elapsed": _location_title_elapsed, "establishing_shot": save_establishing(),
 		"briefing_cast_active": _briefing_cast_active, "briefing_handoff_started": _briefing_handoff_started,
@@ -122,8 +212,7 @@ func _initialize_briefing_cast(saved: Dictionary = {}) -> void:
 	var ids: Array[String] = ["lena", "mira", "sera"]
 	_load_errors.append_array(_briefing_cast.initialize(ids, CHARACTER_EXIT_CATALOG, BRIEFING_CAST_SPEC))
 	_briefing_cast_active = bool(saved.get("briefing_cast_active", _location_id == "forward_command"))
-	var after_departure := _story_id in ["analysis", "link", "approach", "overlook", "shore", "deploy", "remembered", "end"]
-	_briefing_handoff_started = bool(saved.get("briefing_handoff_started", after_departure))
+	_briefing_handoff_started = bool(saved.get("briefing_handoff_started", false))
 	_briefing_handoff_elapsed = 0.0
 	_briefing_handoff_duration = 0.0
 	if _briefing_handoff_started and _briefing_cast.initialized:
@@ -132,8 +221,6 @@ func _initialize_briefing_cast(saved: Dictionary = {}) -> void:
 		var elapsed := float(saved.get("briefing_handoff_elapsed", _briefing_handoff_duration))
 		_briefing_handoff_elapsed = clampf(elapsed, 0.0, _briefing_handoff_duration) if is_finite(elapsed) else 0.0
 		_briefing_cast.advance(_briefing_handoff_elapsed)
-		if not _briefing_cast.is_busy() and _story_id == "departure":
-			_story_id = "analysis"
 
 
 func _handoff_duration() -> float:
@@ -144,7 +231,7 @@ func _handoff_duration() -> float:
 
 
 func _is_briefing_handoff_active() -> bool:
-	return _briefing_cast_active and _briefing_handoff_started and _story_id == "departure"
+	return _briefing_cast_active and not _handoff_operation.is_empty()
 
 
 func _can_use_dialogue_camera() -> bool:
@@ -203,12 +290,15 @@ func _dialogue_rect(viewport_size: Vector2, actor_index: int) -> Rect2:
 
 
 func _current_beat() -> Dictionary:
-	var beat: Dictionary = STORY[_story_id].duplicate(true)
-	if _story_id == "link" and _connected:
-		beat["line"] = "There you are. Link confirmed. I hear you clearly, Commander. Let's bring everyone home."
-	if _story_id == "remembered":
-		beat["line"] = "Your reserve is with the convoy. I'll patch the beacon remotely while Lena watches the road." if _priority == "escort_priority" else "The repair team has your reserve, as ordered. The beacon is coming online; I'll guide the convoy through."
-		beat["manpu"] = [{"actor": "sera", "id": "sparkle"}]
+	var beat := _frame.duplicate(true)
+	var speaker_id := str(_presented.get("speaker", ""))
+	if speaker_id == "<null>": speaker_id = ""
+	beat["speaker"] = str(_program.get("speakers", {}).get(speaker_id, {}).get("display_name", ""))
+	beat["line"] = str(_presented.get("text", ""))
+	if _presented.get("kind", "") == "choice":
+		beat["choices"] = []
+		for option: Dictionary in _session.view().get("options", []):
+			beat.choices.append({"id": option.id, "label": option.get("text", ""), "next": option.target})
 	return beat
 
 
@@ -216,23 +306,24 @@ func _active_manpu() -> Array:
 	return [] if _is_briefing_handoff_active() else _current_beat().get("manpu", [])
 
 
-func _enter_beat(id: String) -> void:
+func _enter_beat(presentation: Dictionary) -> void:
+	_presented = presentation.duplicate(true)
+	_update_interface()
+
+
+func _apply_frame(parameters: Dictionary) -> void:
 	var previous_mode := _mode
-	_story_id = id
-	var beat := _current_beat()
-	_mode = String(beat.get("mode", "dialogue"))
+	_frame = parameters.duplicate(true)
+	_mode = str(_frame.get("mode", "dialogue"))
 	if _mode != previous_mode:
 		_entry = 0.0
 		_reaction = 0.0
 		_pointer = Vector2(-1000, -1000)
-	if beat.has("location") and String(beat["location"]) != _location_id:
-		var errors := start_establishing(String(beat["location"]))
+	if _frame.has("location") and str(_frame.location) != _location_id:
+		var errors := start_establishing(str(_frame.location))
 		_load_errors.append_array(errors)
-		if errors.is_empty():
-			# Restore the full squad only while the new location owns the screen.
-			# The next cast reveal uses ordinary three-person scene framing.
-			_briefing_cast_active = false
-	_apply_camera_cue(beat)
+		if errors.is_empty(): _briefing_cast_active = false
+	_apply_camera_cue(_current_beat())
 	_update_interface()
 
 
@@ -258,41 +349,25 @@ func _apply_camera_cue(beat: Dictionary) -> void:
 
 func _choose(index: int) -> void:
 	var choices: Array = _current_beat().get("choices", [])
-	if is_establishing() or _is_briefing_handoff_active() or is_dialogue_camera_moving() or index < 0 or index >= choices.size() or not _load_errors.is_empty():
-		return
-	var choice: Dictionary = choices[index]
-	if choice.has("priority"):
-		_priority = choice["priority"]
-	if choice.has("approach"):
-		_approach = choice["approach"]
+	if is_establishing() or _is_briefing_handoff_active() or is_dialogue_camera_moving() or index < 0 or index >= choices.size() or not _load_errors.is_empty(): return
 	get_viewport().gui_release_focus()
-	_enter_beat(choice["next"])
+	_apply_scenario(_session.submit({"kind": "choose", "choice_id": choices[index].id}))
 
 
 func _advance_dialogue() -> void:
-	if not _load_errors.is_empty():
-		return
+	if not _load_errors.is_empty() or not _scenario_ready: return
 	if is_establishing():
 		_skip_view()
 		return
-	if _is_briefing_handoff_active():
-		return
-	if _story_id == "departure" and not _briefing_handoff_started:
-		_start_briefing_handoff()
-		return
-	var beat := _current_beat()
-	if beat.has("choices") or (beat.get("contact", false) and not _connected):
-		return
-	if beat.get("ending", false):
-		_restart()
-	else:
-		_enter_beat(beat["next"])
+	_apply_scenario(_session.submit({"kind": "advance"}))
 
 
 func _connect_at(point: Vector2) -> bool:
-	if _story_id != "link" or is_establishing() or _is_briefing_handoff_active() or _connected:
-		return false
-	return super._connect_at(point)
+	if not bool(_frame.get("contact", false)) or is_establishing() or _is_briefing_handoff_active() or _connected: return false
+	if not super._connect_at(point): return false
+	var view := _session.view()
+	_apply_scenario(_session.submit({"kind": "host_event", "session_id": "mission", "node_id": view.node_id, "visit_id": view.visit_id, "name": "contact_confirmed"}))
+	return true
 
 
 func _skip_view() -> void:
@@ -302,12 +377,14 @@ func _skip_view() -> void:
 
 
 func _restart() -> void:
+	if _scenario_ready:
+		_session.cancel("new_mission")
+		_session.drain_events()
+	_session = SCENARIO_SESSION.new()
+	_handoff_operation = ""
 	_actor_focus.clear()
 	_manpu_animation.clear()
 	_character_exit.clear()
-	_story_id = "arrival"
-	_priority = ""
-	_approach = ""
 	_connected = false
 	_reaction = 0.0
 	_mode = "dialogue"
@@ -318,6 +395,7 @@ func _restart() -> void:
 	_briefing_cast_active = true
 	_initialize_briefing_cast({"briefing_cast_active": true})
 	_load_errors.append_array(start_establishing("forward_command"))
+	_apply_scenario(_session.start(_program, _catalog, _scenario_policy()))
 	get_viewport().gui_release_focus()
 	_update_interface()
 
@@ -333,8 +411,9 @@ func _process(delta: float) -> void:
 		_briefing_handoff_elapsed = minf(_briefing_handoff_duration, _briefing_handoff_elapsed + delta)
 		handoff_overflow = maxf(0.0, delta - remaining)
 	super._process(delta)
-	if was_handoff and not _briefing_cast.is_busy() and not is_establishing() and not _capture_frozen:
-		_enter_beat("analysis")
+	if _scenario_ready and not _capture_frozen:
+		_apply_scenario(_session.tick(0.0 if was_establishing else delta))
+	if was_handoff and not _is_briefing_handoff_active():
 		_actor_focus.advance(handoff_overflow)
 		_manpu_animation.advance(handoff_overflow)
 		_update_character_layers()
@@ -387,7 +466,7 @@ func _update_interface() -> void:
 		if index < choices.size():
 			_choice_buttons[index].text = String(choices[index]["label"])
 	if not _load_errors.is_empty():
-		_line.text = "The scene could not load its artwork."
+		_line.text = "The mission could not load. Use Menu to start a new mission."
 		_hint.text = " · ".join(_load_errors)
 		_line.show()
 		_hint.show()
@@ -430,3 +509,61 @@ func _layout_interface() -> void:
 		_choice_buttons[index].size = Vector2(572, 44)
 	_update_character_layers()
 	queue_redraw()
+
+
+func _read_narrative(name: String) -> Dictionary:
+	var value = JSON.parse_string(FileAccess.get_file_as_string("res://narrative/" + name))
+	if value is Dictionary: return value
+	_load_errors.append("Unreadable narrative content: " + name)
+	return {}
+
+
+func _scenario_policy() -> Dictionary:
+	return {"session_id": "mission", "capabilities": {"squad_frame": 1, "squad_handoff": 1}, "channels": ["dialogue"], "bindings": []}
+
+
+func _scenario_error(result: Dictionary) -> bool:
+	if result.has("error"):
+		_load_errors.append(str(result.error.get("message", "Invalid Scenario content")))
+		return true
+	return false
+
+
+func _frame_from_state(state: Dictionary) -> Dictionary:
+	var latest := -1
+	var frame := {}
+	for operation: Dictionary in state.get("operations", {}).values():
+		var serial := str(operation.operation_id).get_slice(":", 2).to_int()
+		if operation.effect.type == "squad_frame" and serial > latest:
+			latest = serial
+			frame = operation.effect.parameters.duplicate(true)
+	return frame
+
+
+func _apply_scenario(result: Dictionary, restoring: bool = false) -> void:
+	if _scenario_error(result): return
+	_facts = result.get("state", {}).get("facts", {}).duplicate(true)
+	_session.drain_events()
+	for event: Dictionary in result.get("events", []):
+		match str(event.type):
+			"scenario/presented":
+				if not restoring: _enter_beat(event.presentation)
+			"scenario/effect_started", "scenario/effect_restored":
+				if event.effect.type == "squad_frame" and not restoring:
+					_apply_frame(event.effect.parameters)
+				elif event.effect.type == "squad_handoff":
+					_handoff_operation = str(event.operation_id)
+					if not restoring: _start_briefing_handoff()
+			"scenario/effect_finished", "scenario/effect_cancelled":
+				if str(event.operation_id) == _handoff_operation: _handoff_operation = ""
+			"scenario/ended":
+				_restart()
+			"scenario/failed":
+				_load_errors.append("Mission sequence failed: " + str(event.get("reason", "unknown")))
+	_update_interface()
+
+
+func _exit_tree() -> void:
+	if _scenario_ready:
+		_session.cancel("route_exit")
+		_session.drain_events()

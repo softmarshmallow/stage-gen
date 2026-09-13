@@ -56,10 +56,10 @@ install, run and be useful without Godot or its game packages. Godot's internal
 game formats must not become required inputs to public components or recipes.
 The example project can also consume supplied assets and other asset sources.
 
-Bounded asset contracts, such as sprite locomotion assets, looping parallax or
-standalone scenario data, retain their own scope in Stage Gen. Their existence
-does not imply a universal gameplay schema. A Godot adapter decides how to use
-them and which gameplay assumptions to add.
+Bounded asset contracts, such as sprite locomotion assets and looping parallax,
+retain their scope in Stage Gen. Their existence does not imply a universal
+gameplay schema. Scenario authoring and execution belong to this Godot project;
+they are not asset-product contracts.
 
 An existing game's TOML belongs to its supported reader and consumer. A game can
 keep it, simplify it, or replace parts with GDScript and Godot resources when that
@@ -108,12 +108,25 @@ Further Godot organization is work on this project. For each candidate:
    preserving supported game behavior and prepared content compatibility unless
    the task explicitly changes them.
 
-For example, the existing visual-novel and dialogue implementations may share
-useful progression, staging, transition, choice or replay behavior. Review those
-responsibilities individually. The outcome could be several packages, one optional
-Godot framework, game-specific adapters, or a combination. There is no prior
-requirement to make every game use one visual-novel engine. Such a framework and
-its contract belong to this project, not to Stage Gen's asset-authoring contract.
+The chosen narrative framework is [Scenario](packages/scenario_runtime/README.md).
+A game owns and invokes each VN-oriented sequence; it grants presentation channels,
+resources and installed capability versions while keeping simulation, objects,
+camera selection, input routing, navigation, persistence and consequences. Dialogue
+may run during combat or use fixed panels, optional portraits and bubbles bound to
+2D/3D actors. Front-facing staging is one optional presentation style.
+
+Scenario owns authored progression, branches, cues, waits, gates and operation
+lifetimes. Game content defines the episode; installed code implements declared
+mechanisms and profiles. Content contains no executable code, and game bindings
+do not hide scene direction behind story-ID callbacks. The independent authoring
+compiler and its tests belong beside the Godot runtime. Game preparation metadata
+and preserved v2 readers remain consumer-owned adapters.
+
+`game_presentation` remains an independently usable lower layer. Its controllers
+do not depend on Scenario. A game need not use narrative at all; choosing this
+framework does not require every game to share a whole-game format or save model.
+[Decision 0070](../docs/decisions/0070-the-game-invokes-scenario.md) records this
+promotion and the historical decisions it supersedes.
 
 Sharing a mechanism between games is not sufficient reason to move it into
 Stage Gen. A candidate for the main product needs a separate asset-pipeline use

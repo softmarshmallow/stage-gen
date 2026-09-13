@@ -1,0 +1,43 @@
+{
+  "kind": "scenario-program-v3",
+  "schema_version": 3,
+  "scenario_id": "world_bubbles",
+  "entry": "greeting",
+  "nodes": [
+    {
+      "id": "greeting",
+      "kind": "line",
+      "speaker": "pilot",
+      "text": "I am a 3D character in the game's world. My bubble follows its camera.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bubble"
+      },
+      "next": "fixed"
+    },
+    {
+      "id": "fixed",
+      "kind": "line",
+      "speaker": "pilot",
+      "text": "The next line can use the fixed dialogue surface. My identity is unchanged.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom"
+      },
+      "next": "done"
+    },
+    {
+      "id": "done",
+      "kind": "end",
+      "outcome": "conversation_complete"
+    }
+  ],
+  "speakers": [
+    {
+      "id": "pilot",
+      "display_name": "Pilot"
+    }
+  ],
+  "facts": {},
+  "required_capabilities": {}
+}

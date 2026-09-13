@@ -1,0 +1,1 @@
+{"kind":"scenario-catalog","schema_version":1,"catalog_id":"bridge","revision":"1","definitions":{"embers":{"type":"particle","parameters":{"sprite_id":"ember","rate":4},"overrides":["rate"]}}}

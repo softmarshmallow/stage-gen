@@ -22,12 +22,12 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from stage_gen.components._authored_package import read_package_member
-from stage_gen.components.scenario import (
+from demo_game_tools.scenario import (
     ResolvedScenario,
     read_scenario_catalog,
     resolve_scenario,
 )
+from stage_gen.components._authored_package import read_package_member
 from the_grain_pipeline.case import (
     ROOM_WIN_OUTCOME,
     Beat,

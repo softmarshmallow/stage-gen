@@ -63,9 +63,39 @@ static func update(world: PlatformerWorld, step: Dictionary) -> void:
 	# and the frame it closes on is still held. That is what the hand-written
 	# `return` in the browser did, and it is why a conversation's last frame does
 	# not also move the body.
-	world.hold = world.dialogue is Dictionary
-	if world.hold:
+	var active := world.dialogue is Dictionary
+	world.hold = active and bool(world.dialogue_policy.get("hold_world", true))
+	if active:
 		_advance(world, step)
+
+
+## The host may include this conversation slice in a game-owned save. Replay
+## world snapshots remain their existing observational contract, not save files.
+static func snapshot(world: PlatformerWorld) -> Variant:
+	if not (world.dialogue is Dictionary):
+		return null
+	return {"interaction_id": world.dialogue["interaction"], "scenario": ScenarioRuntime.snapshot(world.scenario, world.dialogue_state)}
+
+
+## Rebinding is restricted to an interaction still present in the current map.
+## Restoring never repeats a completed interaction's gameplay outcome.
+static func restore(world: PlatformerWorld, saved: Variant) -> bool:
+	if not (saved is Dictionary) or not (saved.get("interaction_id") is String):
+		return false
+	for entry: Dictionary in world.package["interactions"]:
+		if String(entry.get("interaction_id", "")) != saved["interaction_id"] or String(entry.get("map_id", "")) != world.map_id:
+			continue
+		var program: Dictionary = world.scenarios.get(String(entry.get("scenario_id", "")), {})
+		if program.is_empty():
+			return false
+		var state: Variant = ScenarioRuntime.restore(program, saved.get("scenario"))
+		if not (state is Dictionary) or ScenarioRuntime.is_finished(state):
+			return false
+		world.scenario = program
+		world.dialogue_state = state
+		world.dialogue = _published(saved["interaction_id"], state)
+		return true
+	return false
 
 
 ## The offer, after the body: who is near enough to speak to, and whether the

@@ -142,27 +142,19 @@ func _choice_checks(game: Control) -> void:
 	_expect(game.current_beat()["id"] == "courier_reply" and game._choices.get("courier_offer") == "tea_first" and game._resolved_text_key() == "episode.courier_reply.tea_first", "A manual alternative before timeout must win and cancel the pending default choice.")
 	for authored: Dictionary in [{}, {"default_choice": "help_first", "require_input": true}]:
 		_seek(game, "courier_offer")
-		var original: Dictionary = game.current_beat().get("autoplay", {}).duplicate(true)
-		game.current_beat()["autoplay"] = authored.duplicate(true)
+		game._transport.enter(str(game._shown["id"]), authored, ["help_first", "tea_first"])
 		game._next()
 		game.set_autoplay_enabled(true)
 		game._process(60.0)
-		_expect(game.current_beat()["id"] == "courier_offer" and game._choice_pending() and is_zero_approx(_timer(game)), "Missing defaults and explicit required input must hold a choice: " + str(authored))
-		game.current_beat()["autoplay"] = original
-	_seek(game, "courier_offer")
-	var original: Dictionary = game.current_beat().get("autoplay", {}).duplicate(true)
-	game.current_beat()["autoplay"] = {"default_choice": "unknown_option"}
-	game._validate_autoplay()
-	_expect(not game._load_errors.is_empty(), "Invalid authored choice defaults must be rejected before playback.")
-	game.current_beat()["autoplay"] = original
-	game._load_errors.clear()
+		_expect(game.current_beat()["id"] == "courier_offer" and game._choice_pending() and is_zero_approx(_timer(game)), "Explicit transport policies must hold input: " + str(authored))
+	_expect(not game.TRANSPORT.validate({"default_choice": "unknown_option"}, true, ["help_first", "tea_first"]).is_empty(), "Unknown defaults must be rejected by transport admission.")
 	_seek(game, "no_ordinary_post")
-	game.current_beat()["autoplay"] = {"require_input": true}
+	game._transport.enter(str(game._shown["id"]), {"require_input": true})
 	game._next()
 	game.set_autoplay_enabled(true)
 	game._process(60.0)
-	_expect(game.current_beat()["id"] == "no_ordinary_post" and is_zero_approx(_timer(game)), "An authored required-input dialogue must hold even after reveal and the normal delay.")
-	game.current_beat().erase("autoplay")
+	_expect(game.current_beat()["id"] == "no_ordinary_post" and is_zero_approx(_timer(game)), "An explicit required-input transport policy must hold dialogue.")
+
 	_evidence["checks"].append("Explicit help_first uses the 5s choice delay and matching reply; manual tea_first cancels the default; missing defaults and required input hold; invalid defaults are rejected")
 
 
@@ -208,7 +200,7 @@ func _checkpoint_checks(game: Control) -> void:
 	game.saved_state = game.save_game()
 	game.saved_state.erase("autoplay")
 	game._restore_game()
-	_expect(game._load_errors.is_empty() and game.current_beat()["id"] == "a_glass_record" and not bool(game.get_autoplay_state()["enabled"]) and is_zero_approx(_timer(game)), "A pre-autoplay version-four checkpoint must remain compatible and default to manual progression.")
+	_expect(game._load_errors.is_empty() and game.current_beat()["id"] == "a_glass_record" and not bool(game.get_autoplay_state()["enabled"]) and is_zero_approx(_timer(game)), "A checkpoint without optional transport state must remain compatible and default to manual progression.")
 	_evidence["checks"].append("Actual app-shell Lab round trip preserves enabled autoplay and 1.25s countdown, then advances after the remaining delay; Lab keeps independent behavior; older checkpoints default OFF")
 
 

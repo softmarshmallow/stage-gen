@@ -1,5 +1,11 @@
 # The engineering pass
 
+> Historical review/plan: retained statements and proposed ownership describe
+> their original scope. The [current Godot architecture](../../godot/docs/architecture.md) and
+> [Scenario invocation contract](../../godot/packages/scenario_runtime/docs/contract.md) govern current work. Scenario
+> authoring/execution is now Godot-owned; earlier experimental, asset-component
+> or universal game-sequence prescriptions are superseded.
+
 Status: historical engineering audit. Current product and game ownership are
 recorded in [the repository layout](../repository-layout.md). Its runtime workstream is superseded: the browser
 runtime it planned around is being retired genre by genre under

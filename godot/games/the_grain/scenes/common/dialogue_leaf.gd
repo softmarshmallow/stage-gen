@@ -4,6 +4,7 @@ extends Control
 const ScenarioRefusal = preload("res://addons/scenario_runtime/refusal.gd")
 const ScenarioProgram = preload("res://addons/scenario_runtime/program.gd")
 const ScenarioRuntime = preload("res://addons/scenario_runtime/runtime.gd")
+const DialogueSurface = preload("res://addons/scenario_runtime/presentation/dialogue_surface.gd")
 
 ## A dialogue scene, drawn and played.
 ##
@@ -15,10 +16,9 @@ const ScenarioRuntime = preload("res://addons/scenario_runtime/runtime.gd")
 ## three hosts draw it. The scene host plays one scenario, and the case host
 ## plays six of them in order with a room between.
 ##
-## There is no loop and no `update`. Everything redraws inside `_render`, which
-## runs once when the leaf opens and once per accepted action — the browser's
-## scene has no tween, no typewriter and no fade either, and inventing one here
-## would be a second opinion about a moment the reducer already decided.
+## This game's prepared v2 inputs use static presentation through the current
+## Scenario executor's compatibility reader. This host deliberately supplies no
+## sequence time. Its case owns input suspension, audio and save-file policy.
 
 ## What was just drawn, for a shell that autosaves every line.
 ## `line` is empty when the moment is not one.
@@ -80,6 +80,12 @@ var _complete_title: Label = null
 var _complete_control: HostAtlasButton = null
 var _players: Dictionary = {}
 var _playing: PackedStringArray = PackedStringArray()
+var _suspended := false
+var _dialogue_portrait: TextureRect = null
+var _portrait_bindings: Dictionary = {}
+var _presentation_profile: Dictionary = {"portrait": "none", "reserve_portrait": false, "portrait_width": 120.0, "padding": 16.0}
+var _body_frame := Rect2()
+var _name_frame := Rect2()
 
 
 ## What a dialogue-scene run's document is called. Not `manifest.json`: a scene
@@ -154,6 +160,9 @@ static func of(
 	if restored is Dictionary:
 		made._state = restored
 	else:
+		if resume != null:
+			made.free()
+			return KernelRefusal.of("dialogue/save-incompatible", "This saved conversation does not match the current content. Start the case again to use the updated episode; the saved file has been preserved.", "scenario")
 		var opening := ScenarioRuntime.initial_state(parsed, carried)
 		if ScenarioRefusal.is_refusal(opening):
 			made.free()
@@ -186,6 +195,38 @@ func state() -> Dictionary:
 	return _state
 
 
+## The case persists this envelope while runtime views retain their v2 shape.
+func snapshot() -> Dictionary:
+	return ScenarioRuntime.snapshot(program, _state)
+
+
+## The game pauses its own dialogue input/audio, never the shared SceneTree.
+func set_suspended(value: bool) -> void:
+	_suspended = value
+	for player: Variant in _players.values():
+		if player is AudioStreamPlayer:
+			player.stream_paused = value
+
+
+## Portrait bindings are independent of standing cast presence. The default
+## profile intentionally has no dialogue portrait; game bindings may opt in.
+func configure_presentation(profile: Dictionary, portraits: Dictionary = {}) -> Array[String]:
+	for key: Variant in profile:
+		if not ["portrait", "reserve_portrait", "portrait_width", "padding"].has(key):
+			return ["this game's framed dialogue exposes portrait layout only"]
+	var admitted := DialogueSurface.admit_profile(profile)
+	if admitted.has("error"):
+		return [String(admitted["error"])]
+	for speaker: Variant in portraits:
+		if not (speaker is String) or not (portraits[speaker] is Texture2D):
+			return ["dialogue portrait bindings must map speaker ids to textures"]
+	_presentation_profile = admitted
+	_portrait_bindings = portraits.duplicate()
+	if _dialogue_portrait != null:
+		_layout_dialogue_portrait(view())
+	return []
+
+
 ## Say the moment that is already on screen. A shell that connects after the
 ## leaf was built asks for it once, so its first save is its first line.
 func report() -> void:
@@ -199,6 +240,8 @@ func view() -> Dictionary:
 ## One transition. `advance` at an ending hands over to a listening shell
 ## instead of restarting, which is the whole of the seam a case needs.
 func act(action: Dictionary) -> void:
+	if _suspended:
+		return
 	var current := view()
 	if String(current.get("kind", "")) == "end" and String(action.get("kind", "")) == "advance":
 		if finished.get_connections().size() > 0:
@@ -312,6 +355,15 @@ func _build_panel() -> Variant:
 	_body.size = Vector2(float(laid["bodyWrapWidth"]), float(laid["bodyHeight"]))
 	_body.z_index = DEPTH_TEXT
 	add_child(_body)
+	_body_frame = Rect2(_body.position, _body.size)
+	_name_frame = Rect2(_name.position, _name.size)
+	_dialogue_portrait = TextureRect.new()
+	_dialogue_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_dialogue_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_dialogue_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_dialogue_portrait.z_index = DEPTH_TEXT
+	_dialogue_portrait.visible = false
+	add_child(_dialogue_portrait)
 
 	# Dim grey first, then ink, then paper — the browser's candidate order, at the
 	# browser's own threshold. A first draft asked for 3.0 here, which is the
@@ -443,6 +495,7 @@ func _render() -> void:
 	_progress.visible = showing_line
 	_choice_layer.visible = showing_choice
 	_complete.visible = showing_end
+	_layout_dialogue_portrait(current)
 
 	if showing_end:
 		_set_title(String(current.get("label", "")))
@@ -460,6 +513,24 @@ func _render() -> void:
 	var label: Variant = current.get("speakerLabel")
 	_name.text = "" if label == null else String(label)
 	_name.visible = _name.text != ""
+
+
+func _layout_dialogue_portrait(current: Dictionary) -> void:
+	if _dialogue_portrait == null:
+		return
+	var side := String(_presentation_profile["portrait"])
+	var texture: Texture2D = _portrait_bindings.get(current.get("speaker", ""))
+	var shown: bool = current.get("kind") == "line" and side != "none" and texture != null
+	_dialogue_portrait.texture = texture
+	_dialogue_portrait.visible = shown
+	var column := 0.0
+	if current.get("kind") == "line" and side != "none" and (shown or bool(_presentation_profile["reserve_portrait"])):
+		column = minf(float(_presentation_profile["portrait_width"]) + float(_presentation_profile["padding"]), _body_frame.size.x * 0.4)
+	_body.position = _body_frame.position + Vector2(column if side == "left" else 0.0, 0.0)
+	_body.size = Vector2(_body_frame.size.x - column, _body_frame.size.y)
+	_name.position = _name_frame.position + Vector2(column if side == "left" else 0.0, 0.0)
+	_dialogue_portrait.position = Vector2(_body_frame.position.x if side == "left" else _body_frame.end.x - column, _name_frame.position.y)
+	_dialogue_portrait.size = Vector2(maxf(0.0, column - float(_presentation_profile["padding"])), maxf(1.0, _body_frame.end.y - _name_frame.position.y))
 
 
 func _report(current: Dictionary) -> void:
@@ -602,6 +673,7 @@ func _start_tracks() -> void:
 		var player := _player(track_id)
 		if player != null and not player.playing:
 			player.play()
+			player.stream_paused = _suspended
 
 
 func _player(track_id: String) -> AudioStreamPlayer:

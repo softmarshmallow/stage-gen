@@ -18,7 +18,9 @@ with this game's art, framing, story and laboratory controls.
 
 The stage keeps its existing methods and field accessors so mission and study
 implementations retain their behavior. Catalog binding and control construction
-are local composition helpers; neither is a common visual-novel framework.
+are local composition helpers. Scenario owns mission progression; the game binds
+its installed `scenario_capabilities.json` mechanism schema and the stage. Lab
+studies continue to call controllers directly without becoming episode direction.
 
 [Stage seam checks](../tests/stage_seams_checks.gd) use synthetic images to prove
 catalog refusal, contact binding, instance isolation, child order, fixed layout

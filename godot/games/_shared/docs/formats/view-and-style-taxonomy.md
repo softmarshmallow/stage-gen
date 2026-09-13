@@ -1,5 +1,11 @@
 # Game view and style taxonomy
 
+Scope: retained game-owned input/readers, not a universal gameplay or asset SDK
+contract. Existing v2 scenario fields remain production-adapter inputs. The
+[current Scenario invocation contract](../../../../packages/scenario_runtime/docs/contract.md) independently owns v3
+narrative semantics and optional presentation profiles; it is not governed by
+this reader's genre, staging, camera or host taxonomy.
+
 > **Scope: game consumers.** This document describes the formats used by these Godot games.
 > The public asset SDK and new games do not require this authoring format.
 

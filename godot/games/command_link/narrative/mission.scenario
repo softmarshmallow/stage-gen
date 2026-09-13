@@ -1,0 +1,104 @@
+# The mission owns these nouns; Scenario owns sequencing.
+scenario command_link
+speaker mira "Mira"
+speaker lena "Lena"
+speaker sera "Sera"
+fact priority = "unset" in ["unset","escort_priority","beacon_priority"]
+fact approach = "unset" in ["unset","high_road","shore_road"]
+fact connected = false
+require squad_frame 1
+require squad_handoff 1
+
+@arrival
+mira "Commander on deck. Good timing — the evacuation convoy is almost ready." presentation={"checkpoint":"arrival"} next=briefing
+    cue direction at 0 start arrival_frame as current_frame duration=0
+
+@briefing
+lena "The coast road is exposed, and our relay beacon has gone dark." presentation={"checkpoint":"briefing"} next=briefing_risk
+    cue direction at 0 start briefing_frame as current_frame duration=0
+
+@briefing_risk
+lena "Every transport has civilians aboard. If we stop in those blind corners, we're holding them on open ground." presentation={"checkpoint":"briefing_risk"} next=briefing_plan
+    cue direction at 0 start briefing_risk_frame as current_frame duration=0
+
+@briefing_plan
+lena "We'll keep them moving. Give the reserve team one clear job, and Mira and I will cover the rest." presentation={"checkpoint":"briefing_plan"} next=orders
+    cue direction at 0 start briefing_plan_frame as current_frame duration=0
+
+@orders
+menu text="Your call, Commander. What gets our first reserve team?" speaker=mira presentation={"checkpoint":"orders"}:
+    cue direction at 0 start orders_frame as current_frame duration=0
+    escort_priority "Keep the convoy covered." -> escort set={"priority":"escort_priority"}
+    beacon_priority "Restore the relay beacon." -> beacon set={"priority":"beacon_priority"}
+
+@escort
+mira "People first. I'll keep our reserve with the transports. Nobody gets left on that road." presentation={"checkpoint":"escort"} next=departure
+    cue direction at 0 start escort_frame as current_frame duration=0
+
+@beacon
+mira "Copy. Our reserve goes with the repair team. Once that beacon is up, the convoy can see its way home." presentation={"checkpoint":"beacon"} next=departure
+    cue direction at 0 start beacon_frame as current_frame duration=0
+
+@departure
+lena "I'll scout ahead. Sera, take over the route briefing. I'll meet you at staging." presentation={"checkpoint":"departure"} next=handoff
+    cue direction at 0 start departure_frame as current_frame duration=0
+
+@handoff
+start squad_handoff({}) as briefing_handoff duration=2.5 next=handoff_wait
+@handoff_wait
+wait operation=briefing_handoff next=analysis
+
+@analysis
+sera "I have two routes out. Before we move, Mira needs to pair your command link with the squad channel." presentation={"checkpoint":"analysis"} next=link
+    cue direction at 0 start analysis_frame as current_frame duration=0
+
+@link
+mira "One touch, Commander. Then, wherever we go, you'll be right here with us." presentation={"checkpoint":"link"} next=set_connected
+    gate contact_confirmed finish_on_advance=false
+    advance_mode on_gates
+    cue direction at 0 start link_frame as current_frame duration=0
+
+@set_connected
+set connected=true next=link_confirmed
+
+@link_confirmed
+mira "There you are. Link confirmed. I hear you clearly, Commander. Let's bring everyone home." presentation={"checkpoint":"link"} next=approach
+    cue direction at 0 start link_confirmed_frame as current_frame duration=0
+
+@approach
+menu text="We can meet Lena at the overlook, or follow Sera straight down the shore. Which way, Commander?" speaker=mira presentation={"checkpoint":"approach"}:
+    cue direction at 0 start approach_frame as current_frame duration=0
+    high_road "Check the perimeter overlook first." -> overlook set={"approach":"high_road"}
+    shore_road "Head straight to coastal staging." -> shore set={"approach":"shore_road"}
+
+@overlook
+lena "Clear view from here. Two blind corners on the coast road — I'll mark them and take overwatch." presentation={"checkpoint":"overlook"} next=deploy
+    cue direction at 0 start overlook_frame as current_frame duration=0
+
+@shore
+sera "Shore route clear. The transports are staged under the palms. We made it ahead of schedule." presentation={"checkpoint":"shore"} next=deploy
+    cue direction at 0 start shore_frame as current_frame duration=0
+
+@deploy
+mira "There they are. Engines running, everyone aboard. Give the word and we'll bring them through." presentation={"checkpoint":"deploy"} next=remembered_branch
+    cue direction at 0 start deploy_frame as current_frame duration=0
+
+@remembered_branch
+branch:
+    if {"priority":"escort_priority"} -> remembered_escort
+    else -> remembered_beacon
+
+@remembered_escort
+sera "Your reserve is with the convoy. I'll patch the beacon remotely while Lena watches the road." presentation={"checkpoint":"remembered"} next=end
+    cue direction at 0 start remembered_escort_frame as current_frame duration=0
+
+@remembered_beacon
+sera "The repair team has your reserve, as ordered. The beacon is coming online; I'll guide the convoy through." presentation={"checkpoint":"remembered"} next=end
+    cue direction at 0 start remembered_beacon_frame as current_frame duration=0
+
+@end
+narrate "The command link holds. Your squad takes its positions, and the first transport rolls toward the coast road." presentation={"checkpoint":"end"} next=finish
+    cue direction at 0 start end_frame as current_frame duration=0
+
+@finish
+end mission_complete

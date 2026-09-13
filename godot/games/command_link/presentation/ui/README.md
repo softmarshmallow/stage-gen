@@ -1,6 +1,6 @@
 # Tactical styling utility and host-owned interface
 
-P27 gives this spike a code-authored interface aligned with the tactical cast:
+Command Link retains the P27 code-authored interface aligned with the tactical cast:
 dark panels, square controls, clipped panel corners, condensed headings, and
 restrained amber and teal accents. Godot draws the geometry and slider handles.
 No interface image, SVG, font download, or image-model request is part of this pass.
@@ -58,7 +58,7 @@ These adapters own layout and hierarchy, while the helper owns shared styles.
 
 The interface stays on the existing 1280×900 design canvas. Scene camera moves
 affect the world beneath it; panel decoration does not change control hit boxes,
-route behavior, or keyboard actions. This remains an internal spike interface.
+route behavior, or keyboard actions. This remains a game-owned interface; Scenario progression does not own its application controls.
 The user's later possibility of image-model UI automation is recorded in
 [P27](../../../../packages/game_presentation/history/USER_PROMPTS.md#p27); no generation contract or production module is
 introduced here. Verification is recorded in [the prototype QA](../../../../packages/game_presentation/history/QA.md).

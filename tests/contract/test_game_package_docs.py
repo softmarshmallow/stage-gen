@@ -13,11 +13,11 @@ from demo_game_tools.input_formats.sideview_content import (
 )
 from demo_game_tools.media.soundtrack import GAME_SOUNDTRACK_SCHEMA_VERSION
 from demo_game_tools.media.ui import GAME_UI_SCHEMA_VERSION
-from iron_petal_unit_pipeline.audio import RUNNER_AUDIO_SCHEMA_VERSION
-from stage_gen.components.scenario import (
+from demo_game_tools.scenario import (
     SCENARIO_CATALOG_SCHEMA_VERSION,
     SCENARIO_SCHEMA_VERSION,
 )
+from iron_petal_unit_pipeline.audio import RUNNER_AUDIO_SCHEMA_VERSION
 
 
 def test_game_input_document_matches_current_prepared_contracts() -> None:

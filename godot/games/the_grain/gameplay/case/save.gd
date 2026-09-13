@@ -33,7 +33,8 @@ static func of_scenario(
 	facts: PackedStringArray,
 	scenario: Dictionary,
 	backlog: Array,
-	updated_at: String
+	updated_at: String,
+	scenario_snapshot: Variant = null
 ) -> Dictionary:
 	return {
 		"runTag": run_tag,
@@ -42,7 +43,7 @@ static func of_scenario(
 		"statementId": ScenarioRuntime.statement_id(
 			String(scenario["label"]), int(scenario["index"])
 		),
-		"scenario": scenario,
+		"scenario": scenario if scenario_snapshot == null else scenario_snapshot,
 		"room": null,
 		"backlog": backlog,
 		"updatedAt": updated_at,

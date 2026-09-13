@@ -152,15 +152,11 @@ def _graph(module: str, current: str, graph: str) -> GraphIdentitySource:
 
 
 IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
-    ("authored", _field("components.scenario.models", "ScenarioDeclarations")),
-    ("authored", _field("components.scenario.models", "ScenarioCatalog")),
     ("authored", _field("components.character_profile.models", "CharacterProfile")),
     ("authored", _field("components.character_profile.models", "CharacterProfileBinding")),
     ("authored", _field("recipes.universe.models", "UniverseSource")),
     ("authored", _field("recipes.storefront.models", "StorefrontSource")),
     ("generated", _field("components.sideview_map_design.design", "PlatformerChunkMapDesign")),
-    ("generated", _field("components.scenario.models", "ScenarioProgram")),
-    ("generated", _field("components.scenario.models", "ScenarioAdmissionReport")),
     ("generated", _field("recipes.universe.models", "SampleLedger")),
     ("generated", _field("recipes.storefront.models", "DrawLedger")),
     ("generated", _field("recipes.storefront.models", "StorefrontDirection")),

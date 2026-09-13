@@ -5,6 +5,16 @@ consume Stage Gen, but some imports still depend on its internal implementation.
 This inventory records those exceptions; it does not declare them public APIs.
 The boundary check is `tests/contract/test_game_private_dependencies.py`.
 
+## Scenario ownership
+
+`packages/scenario_runtime/authoring` is the independent `stagegen-scenario`
+distribution. Its parser/compiler/admission and content tools import no Stage Gen,
+GNode or named game. The shared game package
+`demo_game_tools.scenario` owns retained v2 production metadata, file resolution,
+script digests and asset-generation intentions. Bellweather, The Grain and the
+collection CLI consume that adapter. The asset product imports neither package.
+Owned compiler and adapter tests moved with those responsibilities.
+
 ## Preparation ownership now
 
 ```text

@@ -15,6 +15,7 @@ members = [
     "iron-petal-unit-pipeline",
     "stage-gen",
     "stage-gen-concept",
+    "stagegen-scenario",
     "the-grain-pipeline",
 ]
 
@@ -125,10 +126,14 @@ version = "0.0.0"
 source = { editable = "godot/games/_shared/python" }
 dependencies = [
     { name = "stage-gen" },
+    { name = "stagegen-scenario" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "stage-gen", editable = "." }]
+requires-dist = [
+    { name = "stage-gen", editable = "." },
+    { name = "stagegen-scenario", editable = "godot/packages/scenario_runtime/authoring" },
+]
 
 [[package]]
 name = "ember-hollow-pipeline"
@@ -1001,6 +1006,31 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "stage-gen", editable = "." }]
+
+[[package]]
+name = "stagegen-scenario"
+version = "0.0.0"
+source = { editable = "godot/packages/scenario_runtime/authoring" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "build" },
+    { name = "hatchling" },
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2.11,<3" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "build", specifier = ">=1.2,<2" },
+    { name = "hatchling", specifier = ">=1.27,<2" },
+    { name = "pytest", specifier = ">=8.3,<9" },
+]
 
 [[package]]
 name = "the-grain-pipeline"

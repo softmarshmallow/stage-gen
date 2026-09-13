@@ -1,7 +1,7 @@
 extends Control
 
-## This file owns the game, art bindings and complete UI. SDK components only
-## receive resources, geometry, cues and time; they never choose the next beat.
+## The game owns bindings, resources, input and UI. Scenario alone executes the
+## authored narrative, choices, gates and operation lifetimes.
 const CAMERA = preload("res://addons/game_presentation/camera/dialogue_camera.gd")
 const MANPU = preload("res://addons/game_presentation/actors/manpu_animation.gd")
 const TEXT_SET = preload("res://addons/game_presentation/text/text_set.gd")
@@ -13,26 +13,20 @@ const CONTENT = preload("res://addons/game_presentation/content/local_content.gd
 const SIZE := Vector2(1280, 900)
 const BACKGROUND := Rect2(-160, -112.5, 1600, 1125)
 const CONTACT_POINT := Vector2(640, 438)
-const WORDS := {
-	"title": "THE SIGNAL ROOM", "intro": "At the last station, one light is still on.",
-	"welcome": "You made it. We kept the relay warm in case anyone found their way here.",
-	"choice": "One message can leave before dawn. What should we send?",
-	"light": "A light", "note": "A note",
-	"reply_light": "A light, then. No names or explanations. Just a small reason to look up.",
-	"reply_note": "A note, then. Something simple: we are here, and there is room for one more.",
-	"contact": "Rest your hand on the light. The relay needs someone on this side, too.",
-	"delivery": "There. Somewhere beyond the hills, another window is waking up.",
-	"ending": "For the first time tonight, the station does not feel like the end of the line.",
-}
-const BEATS := [
-	{"kind": "intertitle", "text": "intro"},
-	{"kind": "dialogue", "speaker": "mara", "text": "welcome"},
-	{"kind": "choice", "speaker": "ivo", "text": "choice"},
-	{"kind": "dialogue", "speaker": "mara", "text": "reply"},
-	{"kind": "contact", "speaker": "ivo", "text": "contact"},
-	{"kind": "dialogue", "speaker": "mara", "text": "delivery"},
-	{"kind": "intertitle", "text": "ending"},
-]
+const SCENARIO_PROGRAM = preload("res://addons/scenario_runtime/program/program.gd")
+const SCENARIO_CATALOG = preload("res://addons/scenario_runtime/program/catalog.gd")
+const SESSION = preload("res://addons/scenario_runtime/execution/session.gd")
+const REFUSAL = preload("res://addons/scenario_runtime/refusal.gd")
+var WORDS: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://text/en.json"))
+var _program: Dictionary = {}
+var _catalog: Dictionary = {}
+var _session = SESSION.new()
+var _current: Dictionary = {}
+var _revealed_visit := ""
+var _contact_operation := ""
+var _feedback_operation := ""
+var _contact_settings: Dictionary = {}
+var _session_serial := 0
 
 # Set these in the scene/editor, in code, or via the optional local-root flags.
 @export var background_texture: Texture2D
@@ -42,7 +36,9 @@ const BEATS := [
 @export var welcome_voice: AudioStream
 
 var errors: Array[String] = []
-var beat_index := 0
+# Observations retained for the starter's owned behavior checks; never execution selectors.
+var beat_index: int:
+	get: return int(_current.get("presentation", {}).get("progress_index", 0))
 var choice_id := ""
 var paused := false
 var _clock := 0.0
@@ -89,7 +85,8 @@ func _ready() -> void:
 	add_child(_audio)
 	errors.append_array(_audio.configure({"mode": "auto"}))
 	_build_ui()
-	_enter_beat()
+	_load_narrative()
+	_start_scenario()
 	if not errors.is_empty():
 		paused = true
 		_dialogue.text = "Content could not be loaded:\n" + "\n".join(errors)
@@ -128,95 +125,170 @@ func _bind_content() -> void:
 	if mark_texture == null: mark_texture = _glint()
 
 
-func _enter_beat() -> void:
+func _load_narrative() -> void:
+	var types: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://bindings/capabilities.json"))
+	_catalog = SCENARIO_CATALOG.parse(JSON.parse_string(FileAccess.get_file_as_string("res://narrative/catalog.json")), types)
+	if REFUSAL.is_refusal(_catalog):
+		errors.append(REFUSAL.line(_catalog))
+		return
+	_program = SCENARIO_PROGRAM.parse(JSON.parse_string(FileAccess.get_file_as_string("res://narrative/episode.json")), _catalog)
+	if REFUSAL.is_refusal(_program): errors.append(REFUSAL.line(_program))
+
+
+func _start_scenario() -> void:
+	if not errors.is_empty(): return
+	_session_serial += 1
+	_session = SESSION.new()
+	var result: Dictionary = _session.start(_program, _catalog, {
+		"session_id": "starter_%d" % _session_serial,
+		"capabilities": {"point_contact": 1, "radial_burst": 1},
+		"channels": ["dialogue"], "bindings": ["relay", "mara", "ivo"],
+	})
+	_accept(result)
+
+
+func _present(node: Dictionary) -> void:
+	_current = node.duplicate(true)
 	_audio.stop()
 	_contact.reset()
+	_contact_operation = ""
+	_feedback_operation = ""
 	_contact_seconds = -1.0
 	_burst.clear()
 	_manpu.clear()
-	var beat: Dictionary = BEATS[beat_index]
-	var key := str(beat["text"])
-	if key == "reply": key = "reply_" + choice_id
-	errors.append_array(_reveal.start(_text_set.text(key), {"chars_per_second": 38.0}))
-	if beat["kind"] == "intertitle" or beat["kind"] == "contact":
-		errors.append_array(_camera.wide(0.55))
+	_revealed_visit = ""
+	var direction: Dictionary = node["presentation"]
+	var key := str(node.get("text_key", ""))
+	var words := _text_set.text(key) if not key.is_empty() else str(node.get("text", ""))
+	errors.append_array(_reveal.start(words, {"chars_per_second": float(direction.get("chars_per_second", 38.0))}))
+	var camera: Dictionary = direction.get("camera", {})
+	if camera.get("mode", "wide") == "wide":
+		errors.append_array(_camera.wide(float(camera.get("duration", 0.55))))
 	else:
-		var actor_id := str(beat["speaker"])
-		errors.append_array(_camera.focus(actor_id, _actor_rect(actor_id).position + Vector2(150, 155), Vector2(640, 270), 1.2, 0.65))
-	if beat_index == 3:
-		errors.append_array(_manpu.sync([{"actor": "mara", "id": "glint", "preset": "step_loop"}]))
-	if beat_index == 5:
-		errors.append_array(_manpu.sync([{"actor": "mara", "id": "glint", "preset": "scale_pulse"}]))
-	var voice: AudioStream = welcome_voice if beat_index == 1 else null
+		var actor_id := str(camera["actor"])
+		var local: Array = camera.get("local_offset", [150, 155])
+		var anchor: Array = camera.get("anchor", [640, 270])
+		errors.append_array(_camera.focus(actor_id, _actor_rect(actor_id).position + Vector2(local[0], local[1]), Vector2(anchor[0], anchor[1]), float(camera["zoom"]), float(camera["duration"])))
+	errors.append_array(_manpu.sync(direction.get("manpu", [])))
+	var voices := {"welcome": welcome_voice}
+	var voice: AudioStream = voices.get(str(direction.get("voice", "")))
 	if voice != null: _reveal.request_advance()
-	_audio.begin(_text_set.text(key), voice, int(_reveal.sample()["visible_characters"]))
+	_audio.begin(words, voice, int(_reveal.sample()["visible_characters"]))
 	_audio.set_paused(paused)
 	_render()
 
 
-func _process(delta: float) -> void:
-	if paused or not errors.is_empty(): return
+func _accept(result: Dictionary) -> void:
+	if REFUSAL.is_refusal(result):
+		errors.append(REFUSAL.line(result))
+		return
+	for event: Dictionary in _session.drain_events():
+		var when := float(event.get("clocks", {}).get("presentation", _clock))
+		_advance_mechanisms(maxf(0.0, when - _clock))
+		match str(event["type"]):
+			"scenario/presented": _present(event["presentation"])
+			"scenario/reveal_requested":
+				_reveal.request_advance()
+				_audio.sync_reveal(int(_reveal.sample()["visible_characters"]))
+			"scenario/chosen": choice_id = str(event["choice_id"])
+			"scenario/effect_started": _start_effect(event)
+			"scenario/effect_finished", "scenario/effect_cancelled":
+				if event["operation_id"] == _contact_operation: _contact_operation = ""
+				if event["operation_id"] == _feedback_operation: _feedback_operation = ""
+	_notify_revealed()
+	_render()
+
+
+func _notify_revealed() -> void:
+	if _current.is_empty() or _reveal.sample()["phase"] != "holding": return
+	var view: Dictionary = _session.view()
+	var visit := str(view.get("visit_id", ""))
+	if visit.is_empty() or visit == _revealed_visit or view.get("status") != "running": return
+	_revealed_visit = visit
+	_accept(_session.submit({"kind": "host_event", "session_id": "starter_%d" % _session_serial, "node_id": view["node_id"], "visit_id": visit, "name": "text_revealed"}))
+
+
+func _start_effect(event: Dictionary) -> void:
+	var parameters: Dictionary = event["effect"]["parameters"]
+	match str(event["effect"]["type"]):
+		"point_contact":
+			_contact.reset()
+			_contact_operation = str(event["operation_id"])
+			_contact_settings = parameters.duplicate(true)
+		"radial_burst":
+			_feedback_operation = str(event["operation_id"])
+			_contact_seconds = 0.0
+			var settings := parameters.duplicate(true)
+			settings["duration"] = event["duration"]
+			var result: Dictionary = _burst.emit_burst(CONTACT_POINT, [mark_texture] as Array[Texture2D], settings)
+			errors.append_array(result["errors"])
+
+
+func _advance_mechanisms(delta: float) -> void:
+	if delta <= 0.0: return
 	_clock += delta
 	_camera.advance(delta)
 	_manpu.advance(delta)
 	_burst.advance(delta)
 	_reveal.advance(delta)
 	_audio.update_reveal(int(_reveal.sample()["visible_characters"]), delta)
-	if _contact_seconds >= 0.0:
-		_contact_seconds += delta
-		if _contact_seconds >= 0.65:
-			beat_index += 1
-			_enter_beat()
+	if _contact_seconds >= 0.0: _contact_seconds += delta
+
+
+func _process(delta: float) -> void:
+	if paused or not errors.is_empty(): return
+	var remaining := delta
+	while remaining > 0.000000001:
+		var step := remaining
+		var reveal: Dictionary = _reveal.get_state()
+		if reveal["phase"] == "revealing":
+			step = minf(step, maxf(0.000000001, float(str(reveal["text"]).length()) / float(reveal["chars_per_second"]) - float(reveal["elapsed"])))
+		var target := _clock + step
+		_accept(_session.tick(step))
+		_advance_mechanisms(maxf(0.0, target - _clock))
+		_notify_revealed()
+		remaining -= step
 	_render()
 
 
 func advance_story() -> void:
 	if paused or not errors.is_empty(): return
-	if _reveal.sample()["phase"] == "revealing":
-		_reveal.request_advance()
-		_audio.sync_reveal(int(_reveal.sample()["visible_characters"]))
-	elif BEATS[beat_index]["kind"] not in ["choice", "contact"] and beat_index < BEATS.size() - 1:
-		beat_index += 1
-		_enter_beat()
-	_render()
+	_accept(_session.submit({"kind": "advance"}))
 
 
 func choose(option: String) -> void:
-	if paused or BEATS[beat_index]["kind"] != "choice" or _reveal.sample()["phase"] != "holding" or option not in ["light", "note"]: return
-	choice_id = option
-	beat_index += 1
-	_enter_beat()
+	if paused or not errors.is_empty() or _reveal.sample()["phase"] != "holding": return
+	_accept(_session.submit({"kind": "choose", "choice_id": option}))
 
 
 func contact_target() -> Dictionary:
 	var camera := _world()
-	return {"center": camera * CONTACT_POINT, "radius": 43.0 * camera.x.length(),
-		"ready": not paused and BEATS[beat_index]["kind"] == "contact" and _reveal.sample()["phase"] == "holding" and not _contact.is_confirmed()}
+	return {"center": camera * CONTACT_POINT, "radius": float(_contact_settings.get("radius", 43.0)) * camera.x.length(),
+		"ready": not paused and not _contact_operation.is_empty() and _reveal.sample()["phase"] == "holding" and not _contact.is_confirmed()}
 
 
 func try_contact(point: Vector2) -> bool:
 	var target := contact_target()
 	if not target["ready"] or not _contact.confirm_at(point, target["center"], target["radius"]): return false
-	_contact_seconds = 0.0
-	var result: Dictionary = _burst.emit_burst(CONTACT_POINT, [mark_texture] as Array[Texture2D], {"count": 18, "duration": 0.65, "distance": 240.0, "sprite_size": 32.0, "seed": 21})
-	errors.append_array(result["errors"])
-	_render()
+	_accept(_session.submit({"kind": "operation_completed", "session_id": "starter_%d" % _session_serial, "operation_id": _contact_operation}))
 	return true
 
 
 func toggle_pause() -> void:
 	paused = not paused
+	_accept(_session.suspend() if paused else _session.resume())
 	_audio.set_paused(paused)
 	_render()
 
 
 func restart() -> void:
+	_session.cancel("restart")
+	_session.drain_events()
 	paused = false
-	beat_index = 0
 	choice_id = ""
 	_clock = 0.0
 	_camera.clear()
-	_enter_beat()
+	_start_scenario()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -247,8 +319,9 @@ func _actor_rect(actor_id: String) -> Rect2:
 
 
 func _render() -> void:
-	var beat: Dictionary = BEATS[beat_index]
-	var thought: bool = beat["kind"] == "intertitle"
+	var beat: Dictionary = _current
+	if beat.is_empty(): return
+	var thought: bool = beat["presentation"].get("profile") == "intertitle"
 	var camera := _world()
 	for id: String in _actors:
 		var actor: TextureRect = _actors[id]
@@ -256,11 +329,12 @@ func _render() -> void:
 		var rect: Rect2 = camera * _actor_rect(id)
 		actor.position = rect.position
 		actor.size = rect.size
-	var marks: bool = not thought and beat_index in [3, 5]
+	var marks: bool = not thought and not beat["presentation"].get("manpu", []).is_empty()
 	_mark.visible = marks
 	if marks:
-		var sample: Dictionary = _manpu.sample("mara", "glint")
-		var base: Rect2 = _actor_rect("mara")
+		var cue: Dictionary = beat["presentation"]["manpu"][0]
+		var sample: Dictionary = _manpu.sample(cue["actor"], cue["id"])
+		var base: Rect2 = _actor_rect(cue["actor"])
 		var size_px := 62.0 * float(sample["scale"])
 		var mark_rect: Rect2 = camera * Rect2(base.position + Vector2(base.size.x - 22, 48) - Vector2.ONE * size_px * 0.5 + Vector2(sample["offset_x_ratio"], sample["offset_y_ratio"]) * 62.0, Vector2.ONE * size_px)
 		_mark.position = mark_rect.position
@@ -276,16 +350,16 @@ func _render() -> void:
 	_thought.visible_characters = words["visible_characters"]
 	_dialogue.text = words["text"]
 	_dialogue.visible_characters = words["visible_characters"]
-	_speaker.text = str(beat.get("speaker", "")).capitalize()
-	_ready_dot.visible = words["phase"] == "holding" and beat["kind"] not in ["choice", "contact"] and beat_index < BEATS.size() - 1 and not paused
+	_speaker.text = str(beat.get("speaker") if beat.get("speaker") != null else "").capitalize()
+	_ready_dot.visible = words["phase"] == "holding" and beat["kind"] == "line" and not beat["presentation"].get("terminal", false) and _session.view().get("pending_gate", {}).is_empty() and not paused
 	for button: Button in _choices: button.visible = beat["kind"] == "choice" and words["phase"] == "holding" and not paused
 	_pause_button.text = "Resume" if paused else "Pause"
-	_restart_button.visible = beat_index == BEATS.size() - 1 or paused
+	_restart_button.visible = bool(beat["presentation"].get("terminal", false)) or paused
 	queue_redraw()
 
 
 func _draw() -> void:
-	if BEATS[beat_index]["kind"] == "intertitle":
+	if _current.is_empty() or _current["presentation"].get("profile") == "intertitle":
 		draw_rect(Rect2(Vector2.ZERO, SIZE), Color("111823"))
 		return
 	draw_set_transform_matrix(_world())
@@ -301,7 +375,7 @@ func _draw() -> void:
 			draw_line(Vector2(x + 125, 55), Vector2(x + 125, 350), Color("344b5c"), 10)
 		draw_rect(Rect2(525, 412, 230, 220), Color("263442"))
 		draw_rect(Rect2(520, 602, 240, 18), Color("bda585"))
-	if BEATS[beat_index]["kind"] == "contact":
+	if _current["presentation"].get("show_relay", false):
 		var glow := 0.12 + 0.04 * sin(_clock * 3.0)
 		for radius in [60, 48, 36]: draw_circle(CONTACT_POINT, radius, Color(0.8, 0.95, 1, glow))
 		draw_circle(CONTACT_POINT, 26, Color("e1f5ee"))
@@ -400,5 +474,6 @@ static func _glint() -> Texture2D:
 
 
 func _exit_tree() -> void:
+	if not _session.view().is_empty(): _session.cancel("host_exit")
 	_audio.stop()
 	_burst.clear()

@@ -1,0 +1,698 @@
+# Afterlight owns this episode. Installed front-stage operations interpret its cues.
+scenario afterlight_episode
+speaker nami "Nami"
+speaker yuzu "Yuzu"
+speaker sena "Sena"
+speaker riko "Riko"
+speaker keeper "Keeper"
+speaker eira "Eira"
+fact courier_offer = "" in ["", "help_first", "tea_first"]
+require front_view 1
+require front_reset 1
+require front_background 1
+require front_cast 1
+require front_focus 1
+require front_mark 1
+require front_reaction 1
+require front_projection 1
+require front_camera 1
+require front_walking 1
+require front_drift 1
+require front_delay 1
+require front_eye 1
+require front_establish 1
+require front_handoff 1
+require front_exit 1
+require front_shake 1
+require front_blackout 1
+require front_pan 1
+require front_approach 1
+require front_burst 1
+
+@undeliverable
+narrate key episode.undeliverable next=across_the_threshold
+    present {"channel":"afterlight_vn","profile":"monologue","review":{"id":"undeliverable","type":"monologue","text":"episode.undeliverable","speaker":""},"world_paused":true,"chars_per_second":32,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start undeliverable_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start undeliverable_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue background_04 at 0 start undeliverable_background_04 as background_04 target=stage scope=node clock=sequence duration=0
+    cue cast_05 at 0 start undeliverable_cast_05 as cast_05 target=stage scope=node clock=sequence duration=0
+    cue focus_06 at 0 start undeliverable_focus_06 as focus_06 target=stage scope=node clock=sequence duration=0
+
+@across_the_threshold
+narrate key episode.across_the_threshold next=eyes_on_nami
+    present {"channel":"afterlight_vn","profile":"walk","review":{"id":"across_the_threshold","type":"walk","text":"episode.across_the_threshold","speaker":""},"world_paused":false,"chars_per_second":48,"cinematic_controller":"walking","cinematic_seconds":1.6}
+    gate cinematic_ready finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start across_the_threshold_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start undeliverable_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue background_04 at 0 start undeliverable_background_04 as background_04 target=stage scope=node clock=sequence duration=0
+    cue cast_05 at 0 start undeliverable_cast_05 as cast_05 target=stage scope=node clock=sequence duration=0
+    cue focus_06 at 0 start undeliverable_focus_06 as focus_06 target=stage scope=node clock=sequence duration=0
+    cue reset_07 at 0 start across_the_threshold_reset_07 as reset_07 target=stage scope=node clock=sequence duration=0
+    cue walking_08 at 0 start across_the_threshold_walking_08 as walking_08 target=stage scope=node clock=sequence duration=0
+
+@eyes_on_nami
+nami key episode.eyes_on_nami next=no_ordinary_post
+    present {"channel":"afterlight_vn","profile":"eye","review":{"id":"eyes_on_nami","type":"eye","text":"episode.eyes_on_nami","speaker":"nami"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"eye","cinematic_seconds":1.6}
+    gate cinematic_ready finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start eyes_on_nami_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start undeliverable_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue cast_04 at 0 start eyes_on_nami_cast_04 as cast_04 target=stage scope=node clock=sequence duration=0
+    cue focus_05 at 0 start eyes_on_nami_focus_05 as focus_05 target=stage scope=node clock=sequence duration=0
+    cue eye_06 at 0 start eyes_on_nami_eye_06 as eye_06 target=stage scope=node clock=sequence duration=0
+
+@no_ordinary_post
+nami key episode.no_ordinary_post next=a_glass_record
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"no_ordinary_post","type":"dialogue","text":"episode.no_ordinary_post","speaker":"nami"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start no_ordinary_post_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start no_ordinary_post_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue cast_04 at 0 start no_ordinary_post_cast_04 as cast_04 target=stage scope=node clock=sequence duration=0
+    cue focus_05 at 0 start eyes_on_nami_focus_05 as focus_05 target=stage scope=node clock=sequence duration=0
+    cue mark_06 at 0 start no_ordinary_post_mark_06 as mark_06 target=stage scope=node clock=sequence duration=0
+    cue camera_07 at 0 start no_ordinary_post_camera_07 as camera_07 target=stage scope=node clock=sequence duration=0
+
+@a_glass_record
+yuzu key episode.a_glass_record next=no_forwarding_address
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"a_glass_record","type":"dialogue","text":"episode.a_glass_record","speaker":"yuzu"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start a_glass_record_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start a_glass_record_focus_04 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue camera_05 at 0 start a_glass_record_camera_05 as camera_05 target=stage scope=node clock=sequence duration=0
+
+@no_forwarding_address
+nami key episode.no_forwarding_address next=courier_offer
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"no_forwarding_address","type":"dialogue","text":"episode.no_forwarding_address","speaker":"nami"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start no_ordinary_post_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start eyes_on_nami_focus_05 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue reaction_05 on text_revealed start no_forwarding_address_reaction_05 as reaction_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start no_ordinary_post_camera_07 as camera_06 target=stage scope=node clock=sequence duration=0
+
+@courier_offer
+menu text_key="episode.courier_offer" speaker=nami:
+    present {"channel":"afterlight_vn","profile":"choice","review":{"id":"courier_offer","type":"choice","autoplay":{"default_choice":"help_first"},"text":"episode.courier_offer","speaker":"nami","choices":[{"id":"help_first","text":"episode.choice.help_first"},{"id":"tea_first","text":"episode.choice.tea_first"}]},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start no_ordinary_post_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start eyes_on_nami_focus_05 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue camera_05 at 0 start no_ordinary_post_camera_07 as camera_05 target=stage scope=node clock=sequence duration=0
+    help_first key episode.choice.help_first -> courier_reply_help_first set={"courier_offer":"help_first"}
+    tea_first key episode.choice.tea_first -> courier_reply_tea_first set={"courier_offer":"tea_first"}
+
+@courier_reply_help_first
+nami key episode.courier_reply.help_first next=one_more_minute
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"courier_reply","type":"dialogue","text":"episode.courier_reply.help_first","speaker":"nami","choice_from":"courier_offer","responses":{"help_first":"episode.courier_reply.help_first","tea_first":"episode.courier_reply.tea_first"}},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start no_ordinary_post_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start eyes_on_nami_focus_05 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue mark_05 at 0 start courier_reply_help_first_mark_05 as mark_05 target=stage scope=node clock=sequence duration=0
+    cue reaction_06 on text_revealed start no_forwarding_address_reaction_05 as reaction_06 target=stage scope=node clock=sequence duration=0
+    cue camera_07 at 0 start courier_reply_help_first_camera_07 as camera_07 target=stage scope=node clock=sequence duration=0
+
+@courier_reply_tea_first
+nami key episode.courier_reply.tea_first next=one_more_minute
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"courier_reply","type":"dialogue","text":"episode.courier_reply.tea_first","speaker":"nami","choice_from":"courier_offer","responses":{"help_first":"episode.courier_reply.help_first","tea_first":"episode.courier_reply.tea_first"}},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start no_ordinary_post_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start eyes_on_nami_focus_05 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue mark_05 at 0 start courier_reply_help_first_mark_05 as mark_05 target=stage scope=node clock=sequence duration=0
+    cue reaction_06 on text_revealed start no_forwarding_address_reaction_05 as reaction_06 target=stage scope=node clock=sequence duration=0
+    cue camera_07 at 0 start courier_reply_help_first_camera_07 as camera_07 target=stage scope=node clock=sequence duration=0
+
+@one_more_minute
+narrate key episode.one_more_minute next=a_second_line
+    present {"channel":"afterlight_vn","profile":"monologue","review":{"id":"one_more_minute","type":"monologue","text":"episode.one_more_minute","speaker":""},"world_paused":true,"chars_per_second":32,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start undeliverable_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start one_more_minute_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start undeliverable_focus_06 as focus_04 target=stage scope=node clock=sequence duration=0
+
+@a_second_line
+yuzu key episode.a_second_line next=caught_in_the_light
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"a_second_line","type":"dialogue","text":"episode.a_second_line","speaker":"yuzu"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start a_glass_record_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start a_glass_record_focus_04 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue mark_05 at 0 start a_second_line_mark_05 as mark_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start a_glass_record_camera_05 as camera_06 target=stage scope=node clock=sequence duration=0
+
+@caught_in_the_light
+nami key episode.caught_in_the_light next=the_warning
+    present {"channel":"afterlight_vn","profile":"detail","review":{"id":"caught_in_the_light","type":"detail","text":"episode.caught_in_the_light","speaker":"nami"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start caught_in_the_light_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start one_more_minute_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start eyes_on_nami_focus_05 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue drift_05 at 0 start caught_in_the_light_drift_05 as drift_05 target=stage scope=node clock=sequence duration=0
+
+@the_warning
+yuzu key episode.the_warning next=verified_trouble
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"the_warning","type":"dialogue","text":"episode.the_warning","speaker":"yuzu"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start a_glass_record_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start no_ordinary_post_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue cast_04 at 0 start the_warning_cast_04 as cast_04 target=stage scope=node clock=sequence duration=0
+    cue focus_05 at 0 start the_warning_focus_05 as focus_05 target=stage scope=node clock=sequence duration=0
+    cue mark_06 at 0 start the_warning_mark_06 as mark_06 target=stage scope=node clock=sequence duration=0
+    cue camera_07 at 0 start a_glass_record_camera_05 as camera_07 target=stage scope=node clock=sequence duration=0
+    cue blackout_08 at 1.0 start the_warning_blackout_08 as blackout_08 target=stage scope=node clock=sequence duration=0
+
+@verified_trouble
+nami key episode.verified_trouble next=keep_the_wards_lit
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"verified_trouble","type":"dialogue","text":"episode.verified_trouble","speaker":"nami"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start no_ordinary_post_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start no_ordinary_post_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue cast_04 at 0 start no_ordinary_post_cast_04 as cast_04 target=stage scope=node clock=sequence duration=0
+    cue focus_05 at 0 start eyes_on_nami_focus_05 as focus_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start no_ordinary_post_camera_07 as camera_06 target=stage scope=node clock=sequence duration=0
+
+@keep_the_wards_lit
+yuzu key episode.keep_the_wards_lit next=divide_the_work
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"keep_the_wards_lit","type":"dialogue","text":"episode.keep_the_wards_lit","speaker":"yuzu"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start a_glass_record_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start a_glass_record_focus_04 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue camera_05 at 0 start a_glass_record_camera_05 as camera_05 target=stage scope=node clock=sequence duration=0
+
+@divide_the_work
+nami key episode.divide_the_work next=sena_takes_over
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"divide_the_work","type":"dialogue","text":"episode.divide_the_work","speaker":"nami"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start no_ordinary_post_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start eyes_on_nami_focus_05 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue camera_05 at 0 start no_ordinary_post_camera_07 as camera_05 target=stage scope=node clock=sequence duration=0
+
+@sena_takes_over
+sena key episode.sena_takes_over next=the_useful_kind
+    present {"channel":"afterlight_vn","profile":"handoff","review":{"id":"sena_takes_over","type":"handoff","text":"episode.sena_takes_over","speaker":"sena"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"cast","cinematic_seconds":1.6}
+    gate cinematic_ready finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start sena_takes_over_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start no_ordinary_post_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start sena_takes_over_focus_04 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue mark_05 at 0 start sena_takes_over_mark_05 as mark_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start sena_takes_over_camera_06 as camera_06 target=stage scope=node clock=sequence duration=0
+    cue reset_07 at 0 start across_the_threshold_reset_07 as reset_07 target=stage scope=node clock=sequence duration=0
+    cue handoff_08 at 0 start sena_takes_over_handoff_08 as handoff_08 target=stage scope=node clock=sequence duration=0
+
+@the_useful_kind
+yuzu key episode.the_useful_kind next=reading_room
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"the_useful_kind","type":"dialogue","text":"episode.the_useful_kind","speaker":"yuzu"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start a_glass_record_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start the_warning_focus_05 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue mark_05 at 0 start the_useful_kind_mark_05 as mark_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start the_useful_kind_camera_06 as camera_06 target=stage scope=node clock=sequence duration=0
+    cue approach_07 at 0.25 start the_useful_kind_approach_07 as approach_07 target=stage scope=node clock=sequence duration=0
+
+@reading_room
+narrate key episode.reading_room next=a_live_line
+    present {"channel":"afterlight_vn","profile":"establish","review":{"id":"reading_room","type":"establish","text":"episode.reading_room","speaker":""},"world_paused":false,"chars_per_second":48,"cinematic_controller":"establish","cinematic_seconds":1.6}
+    gate cinematic_ready finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start reading_room_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start undeliverable_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue background_04 at 0 start reading_room_background_04 as background_04 target=stage scope=node clock=sequence duration=0
+    cue cast_05 at 0 start undeliverable_cast_05 as cast_05 target=stage scope=node clock=sequence duration=0
+    cue focus_06 at 0 start undeliverable_focus_06 as focus_06 target=stage scope=node clock=sequence duration=0
+    cue reset_07 at 0 start across_the_threshold_reset_07 as reset_07 target=stage scope=node clock=sequence duration=0
+    cue establish_08 at 0 start reading_room_establish_08 as establish_08 target=stage scope=node clock=sequence duration=0
+
+@a_live_line
+sena key episode.a_live_line next=riko_on_the_glass
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"a_live_line","type":"dialogue","text":"episode.a_live_line","speaker":"sena"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start sena_takes_over_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start no_ordinary_post_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue cast_04 at 0 start a_live_line_cast_04 as cast_04 target=stage scope=node clock=sequence duration=0
+    cue focus_05 at 0 start sena_takes_over_focus_04 as focus_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start sena_takes_over_camera_06 as camera_06 target=stage scope=node clock=sequence duration=0
+
+@riko_on_the_glass
+riko key episode.riko_on_the_glass next=two_green_lamps
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"riko_on_the_glass","type":"dialogue","text":"episode.riko_on_the_glass","speaker":"riko"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start riko_on_the_glass_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start no_ordinary_post_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue cast_04 at 0 start riko_on_the_glass_cast_04 as cast_04 target=stage scope=node clock=sequence duration=0
+    cue focus_05 at 0 start riko_on_the_glass_focus_05 as focus_05 target=stage scope=node clock=sequence duration=0
+    cue mark_06 at 0 start riko_on_the_glass_mark_06 as mark_06 target=stage scope=node clock=sequence duration=0
+    cue camera_07 at 0 start riko_on_the_glass_camera_07 as camera_07 target=stage scope=node clock=sequence duration=0
+    cue projection_08 at 0 start riko_on_the_glass_projection_08 as projection_08 target=stage scope=node clock=sequence duration=0
+    cue pan_09 at 0.35 start riko_on_the_glass_pan_09 as pan_09 target=stage scope=node clock=sequence duration=0
+
+@two_green_lamps
+yuzu key episode.two_green_lamps next=waiting_for_the_signal
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"two_green_lamps","type":"dialogue","text":"episode.two_green_lamps","speaker":"yuzu"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start a_glass_record_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start a_glass_record_focus_04 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue camera_05 at 0 start the_useful_kind_camera_06 as camera_05 target=stage scope=node clock=sequence duration=0
+    cue pan_06 at 0 start two_green_lamps_pan_06 as pan_06 target=stage scope=node clock=sequence duration=0
+
+@waiting_for_the_signal
+riko key episode.waiting_for_the_signal next=hold_the_message
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"waiting_for_the_signal","type":"dialogue","text":"episode.waiting_for_the_signal","speaker":"riko"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start riko_on_the_glass_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start waiting_for_the_signal_focus_04 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue mark_05 at 0 start waiting_for_the_signal_mark_05 as mark_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start riko_on_the_glass_camera_07 as camera_06 target=stage scope=node clock=sequence duration=0
+    cue pan_07 at 0 start riko_on_the_glass_pan_09 as pan_07 target=stage scope=node clock=sequence duration=0
+
+@hold_the_message
+narrate key episode.hold_the_message next=eira_on_the_relay
+    present {"channel":"afterlight_vn","profile":"monologue","review":{"id":"hold_the_message","type":"monologue","text":"episode.hold_the_message","speaker":""},"world_paused":true,"chars_per_second":32,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start undeliverable_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start undeliverable_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue background_04 at 0 start hold_the_message_background_04 as background_04 target=stage scope=node clock=sequence duration=0
+    cue cast_05 at 0 start undeliverable_cast_05 as cast_05 target=stage scope=node clock=sequence duration=0
+    cue focus_06 at 0 start undeliverable_focus_06 as focus_06 target=stage scope=node clock=sequence duration=0
+
+@eira_on_the_relay
+eira key episode.eira_on_the_relay next=a_voice_in_the_glass
+    present {"channel":"afterlight_vn","profile":"projection","review":{"id":"eira_on_the_relay","type":"projection","text":"episode.eira_on_the_relay","speaker":"eira"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start eira_on_the_relay_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start no_ordinary_post_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue cast_04 at 0 start eira_on_the_relay_cast_04 as cast_04 target=stage scope=node clock=sequence duration=0
+    cue focus_05 at 0 start eira_on_the_relay_focus_05 as focus_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start eira_on_the_relay_camera_06 as camera_06 target=stage scope=node clock=sequence duration=0
+    cue projection_07 at 0 start eira_on_the_relay_projection_07 as projection_07 target=stage scope=node clock=sequence duration=0
+
+@a_voice_in_the_glass
+narrate key episode.a_voice_in_the_glass next=the_return_channel
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"a_voice_in_the_glass","type":"dialogue","text":"episode.a_voice_in_the_glass","speaker":""},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start a_voice_in_the_glass_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start undeliverable_focus_06 as focus_04 target=stage scope=node clock=sequence duration=0
+
+@the_return_channel
+eira key episode.the_return_channel next=one_private_question
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"the_return_channel","type":"dialogue","text":"episode.the_return_channel","speaker":"eira"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start eira_on_the_relay_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start eira_on_the_relay_focus_05 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue camera_05 at 0 start the_return_channel_camera_05 as camera_05 target=stage scope=node clock=sequence duration=0
+
+@one_private_question
+narrate key episode.one_private_question next=follow_the_pulse
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"one_private_question","type":"dialogue","text":"episode.one_private_question","speaker":""},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start a_voice_in_the_glass_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start undeliverable_focus_06 as focus_04 target=stage scope=node clock=sequence duration=0
+
+@follow_the_pulse
+eira key episode.follow_the_pulse next=eira_signs_off
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"follow_the_pulse","type":"dialogue","text":"episode.follow_the_pulse","speaker":"eira"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start eira_on_the_relay_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start eira_on_the_relay_focus_05 as focus_04 target=stage scope=node clock=sequence duration=0
+
+@eira_signs_off
+eira key episode.eira_signs_off next=relay_return
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"eira_signs_off","type":"dialogue","text":"episode.eira_signs_off","speaker":"eira"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start eira_on_the_relay_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start eira_on_the_relay_focus_05 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue camera_05 at 0 start eira_on_the_relay_camera_06 as camera_05 target=stage scope=node clock=sequence duration=0
+
+@relay_return
+narrate key episode.relay_return next=follow_the_diagram
+    present {"channel":"afterlight_vn","profile":"monologue","review":{"id":"relay_return","type":"monologue","text":"episode.relay_return","speaker":""},"world_paused":true,"chars_per_second":32,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start undeliverable_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start undeliverable_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue background_04 at 0 start reading_room_background_04 as background_04 target=stage scope=node clock=sequence duration=0
+    cue cast_05 at 0 start undeliverable_cast_05 as cast_05 target=stage scope=node clock=sequence duration=0
+    cue focus_06 at 0 start undeliverable_focus_06 as focus_06 target=stage scope=node clock=sequence duration=0
+    cue projection_07 at 0 start relay_return_projection_07 as projection_07 target=stage scope=node clock=sequence duration=0
+
+@follow_the_diagram
+sena key episode.follow_the_diagram next=checked_twice
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"follow_the_diagram","type":"dialogue","text":"episode.follow_the_diagram","speaker":"sena"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start sena_takes_over_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start no_ordinary_post_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue cast_04 at 0 start riko_on_the_glass_cast_04 as cast_04 target=stage scope=node clock=sequence duration=0
+    cue focus_05 at 0 start sena_takes_over_focus_04 as focus_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start follow_the_diagram_camera_06 as camera_06 target=stage scope=node clock=sequence duration=0
+
+@checked_twice
+yuzu key episode.checked_twice next=the_signal
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"checked_twice","type":"dialogue","text":"episode.checked_twice","speaker":"yuzu"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start a_glass_record_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start a_glass_record_focus_04 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue camera_05 at 0 start the_useful_kind_camera_06 as camera_05 target=stage scope=node clock=sequence duration=0
+
+@the_signal
+riko key episode.the_signal next=the_reroute
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"the_signal","type":"dialogue","text":"episode.the_signal","speaker":"riko"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start riko_on_the_glass_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start waiting_for_the_signal_focus_04 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue mark_05 at 0 start the_signal_mark_05 as mark_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start the_signal_camera_06 as camera_06 target=stage scope=node clock=sequence duration=0
+
+@the_reroute
+sena key episode.the_reroute next=the_seal_answers
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"the_reroute","type":"dialogue","text":"episode.the_reroute","speaker":"sena"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start sena_takes_over_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start sena_takes_over_focus_04 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue camera_05 at 0 start sena_takes_over_camera_06 as camera_05 target=stage scope=node clock=sequence duration=0
+    cue burst_06 at 0.85 start the_reroute_burst_06 as burst_06 target=stage scope=node clock=sequence duration=0
+
+@the_seal_answers
+nami key episode.the_seal_answers next=scarlet_pressure
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"the_seal_answers","type":"dialogue","text":"episode.the_seal_answers","speaker":"nami"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start no_ordinary_post_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start no_ordinary_post_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue background_04 at 0 start reading_room_background_04 as background_04 target=stage scope=node clock=sequence duration=0
+    cue cast_05 at 0 start the_seal_answers_cast_05 as cast_05 target=stage scope=node clock=sequence duration=0
+    cue focus_06 at 0 start eyes_on_nami_focus_05 as focus_06 target=stage scope=node clock=sequence duration=0
+    cue camera_07 at 0 start no_ordinary_post_camera_07 as camera_07 target=stage scope=node clock=sequence duration=0
+
+@scarlet_pressure
+narrate key episode.scarlet_pressure next=between_addresses
+    present {"channel":"afterlight_vn","profile":"rift","review":{"id":"scarlet_pressure","type":"rift","text":"episode.scarlet_pressure","speaker":""},"world_paused":false,"chars_per_second":48,"cinematic_controller":"duration","cinematic_seconds":2.0}
+    gate cinematic_ready finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start scarlet_pressure_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start undeliverable_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue shake_04 at 0 start scarlet_pressure_shake_04 as shake_04 target=stage scope=node clock=sequence duration=0
+    cue cast_05 at 0 start undeliverable_cast_05 as cast_05 target=stage scope=node clock=sequence duration=0
+    cue focus_06 at 0 start undeliverable_focus_06 as focus_06 target=stage scope=node clock=sequence duration=0
+    cue camera_07 at 0 start scarlet_pressure_camera_07 as camera_07 target=stage scope=node clock=sequence duration=0
+
+@between_addresses
+narrate key episode.between_addresses next=the_unlit_house
+    present {"channel":"afterlight_vn","profile":"monologue","review":{"id":"between_addresses","type":"monologue","text":"episode.between_addresses","speaker":""},"world_paused":true,"chars_per_second":32,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start undeliverable_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start undeliverable_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue background_04 at 0 start between_addresses_background_04 as background_04 target=stage scope=node clock=sequence duration=0
+    cue cast_05 at 0 start undeliverable_cast_05 as cast_05 target=stage scope=node clock=sequence duration=0
+    cue focus_06 at 0 start undeliverable_focus_06 as focus_06 target=stage scope=node clock=sequence duration=0
+
+@the_unlit_house
+narrate key episode.the_unlit_house next=the_keeper
+    present {"channel":"afterlight_vn","profile":"eye","review":{"id":"the_unlit_house","type":"eye","text":"episode.the_unlit_house","speaker":"","place_name":"episode.place.beyond"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"eye","cinematic_seconds":1.6}
+    gate cinematic_ready finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start the_unlit_house_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start undeliverable_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue cast_04 at 0 start undeliverable_cast_05 as cast_04 target=stage scope=node clock=sequence duration=0
+    cue focus_05 at 0 start undeliverable_focus_06 as focus_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start scarlet_pressure_camera_07 as camera_06 target=stage scope=node clock=sequence duration=0
+    cue eye_07 at 0 start eyes_on_nami_eye_06 as eye_07 target=stage scope=node clock=sequence duration=0
+
+@the_keeper
+keeper key episode.the_keeper next=the_price_of_return
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"the_keeper","type":"dialogue","text":"episode.the_keeper","speaker":"keeper","speaker_name":"episode.speaker.keeper","place_name":"episode.place.beyond"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start the_keeper_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start no_ordinary_post_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue shake_04 at 0 start the_keeper_shake_04 as shake_04 target=stage scope=node clock=sequence duration=0
+    cue cast_05 at 0 start the_keeper_cast_05 as cast_05 target=stage scope=node clock=sequence duration=0
+    cue focus_06 at 0 start the_keeper_focus_06 as focus_06 target=stage scope=node clock=sequence duration=0
+    cue camera_07 at 0 start the_keeper_camera_07 as camera_07 target=stage scope=node clock=sequence duration=0
+
+@the_price_of_return
+keeper key episode.the_price_of_return next=a_name_is_not_consent
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"the_price_of_return","type":"dialogue","text":"episode.the_price_of_return","speaker":"keeper","speaker_name":"episode.speaker.keeper","place_name":"episode.place.beyond"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start the_price_of_return_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start the_keeper_focus_06 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue camera_05 at 0 start the_price_of_return_camera_05 as camera_05 target=stage scope=node clock=sequence duration=0
+
+@a_name_is_not_consent
+narrate key episode.a_name_is_not_consent next=the_room_refuses
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"a_name_is_not_consent","type":"dialogue","text":"episode.a_name_is_not_consent","speaker":"","place_name":"episode.place.beyond"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start a_name_is_not_consent_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue shake_04 at 0 start a_name_is_not_consent_shake_04 as shake_04 target=stage scope=node clock=sequence duration=0
+    cue focus_05 at 0 start undeliverable_focus_06 as focus_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start scarlet_pressure_camera_07 as camera_06 target=stage scope=node clock=sequence duration=0
+
+@the_room_refuses
+narrate key episode.the_room_refuses next=nami_beyond_the_wall
+    present {"channel":"afterlight_vn","profile":"rift","review":{"id":"the_room_refuses","type":"rift","text":"episode.the_room_refuses","speaker":"","place_name":"episode.place.beyond"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"duration","cinematic_seconds":2.2}
+    gate cinematic_ready finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start the_room_refuses_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start one_more_minute_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue shake_04 at 0 start the_room_refuses_shake_04 as shake_04 target=stage scope=node clock=sequence duration=0
+    cue focus_05 at 0 start undeliverable_focus_06 as focus_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start scarlet_pressure_camera_07 as camera_06 target=stage scope=node clock=sequence duration=0
+
+@nami_beyond_the_wall
+narrate key episode.nami_beyond_the_wall next=follow_the_warmth
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"nami_beyond_the_wall","type":"dialogue","text":"episode.nami_beyond_the_wall","speaker":"","speaker_name":"guest.nami.name","place_name":"episode.place.beyond"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start nami_beyond_the_wall_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start undeliverable_focus_06 as focus_04 target=stage scope=node clock=sequence duration=0
+
+@follow_the_warmth
+narrate key episode.follow_the_warmth next=the_return
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"follow_the_warmth","type":"dialogue","text":"episode.follow_the_warmth","speaker":"","place_name":"episode.place.beyond"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start follow_the_warmth_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start no_ordinary_post_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue cast_04 at 0 start undeliverable_cast_05 as cast_04 target=stage scope=node clock=sequence duration=0
+    cue focus_05 at 0 start undeliverable_focus_06 as focus_05 target=stage scope=node clock=sequence duration=0
+
+@the_return
+narrate key episode.the_return next=a_hand_to_hold
+    present {"channel":"afterlight_vn","profile":"rift","review":{"id":"the_return","type":"rift","text":"episode.the_return","speaker":""},"world_paused":false,"chars_per_second":48,"cinematic_controller":"duration","cinematic_seconds":1.8}
+    gate cinematic_ready finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start the_return_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start undeliverable_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue shake_04 at 0 start the_return_shake_04 as shake_04 target=stage scope=node clock=sequence duration=0
+    cue background_05 at 0 start reading_room_background_04 as background_05 target=stage scope=node clock=sequence duration=0
+    cue cast_06 at 0 start undeliverable_cast_05 as cast_06 target=stage scope=node clock=sequence duration=0
+    cue focus_07 at 0 start undeliverable_focus_06 as focus_07 target=stage scope=node clock=sequence duration=0
+    cue camera_08 at 0 start scarlet_pressure_camera_07 as camera_08 target=stage scope=node clock=sequence duration=0
+
+@a_hand_to_hold
+nami key episode.a_hand_to_hold next=a_touch_that_stays
+    present {"channel":"afterlight_vn","profile":"eye","review":{"id":"a_hand_to_hold","type":"eye","text":"episode.a_hand_to_hold","speaker":"nami"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"eye","cinematic_seconds":1.6}
+    gate cinematic_ready finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start eyes_on_nami_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start undeliverable_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue background_04 at 0 start reading_room_background_04 as background_04 target=stage scope=node clock=sequence duration=0
+    cue cast_05 at 0 start eyes_on_nami_cast_04 as cast_05 target=stage scope=node clock=sequence duration=0
+    cue focus_06 at 0 start eyes_on_nami_focus_05 as focus_06 target=stage scope=node clock=sequence duration=0
+    cue eye_07 at 0 start eyes_on_nami_eye_06 as eye_07 target=stage scope=node clock=sequence duration=0
+
+@a_touch_that_stays
+nami key episode.a_touch_that_stays next=only_a_second
+    present {"channel":"afterlight_vn","profile":"contact","review":{"id":"a_touch_that_stays","type":"contact","text":"episode.a_touch_that_stays","speaker":"nami"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    gate operation_completed:contact_feedback finish_on_advance=false
+    advance_mode on_gates
+    cue view_01 at 0 start a_touch_that_stays_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start undeliverable_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue cast_04 at 0 start eyes_on_nami_cast_04 as cast_04 target=stage scope=node clock=sequence duration=0
+    cue focus_05 at 0 start a_touch_that_stays_focus_05 as focus_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start no_ordinary_post_camera_07 as camera_06 target=stage scope=node clock=sequence duration=0
+    cue delay_07 on contact_confirmed start a_touch_that_stays_delay_07 as contact_feedback target=stage scope=node clock=sequence duration=0.45
+
+@only_a_second
+nami key episode.only_a_second next=steady_at_last
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"only_a_second","type":"dialogue","text":"episode.only_a_second","speaker":"nami"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start no_ordinary_post_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start no_ordinary_post_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue cast_04 at 0 start only_a_second_cast_04 as cast_04 target=stage scope=node clock=sequence duration=0
+    cue focus_05 at 0 start eyes_on_nami_focus_05 as focus_05 target=stage scope=node clock=sequence duration=0
+    cue reaction_06 on text_revealed start no_forwarding_address_reaction_05 as reaction_06 target=stage scope=node clock=sequence duration=0
+    cue camera_07 at 0 start no_ordinary_post_camera_07 as camera_07 target=stage scope=node clock=sequence duration=0
+
+@steady_at_last
+yuzu key episode.steady_at_last next=all_clear
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"steady_at_last","type":"dialogue","text":"episode.steady_at_last","speaker":"yuzu"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start a_glass_record_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start a_glass_record_focus_04 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue camera_05 at 0 start a_glass_record_camera_05 as camera_05 target=stage scope=node clock=sequence duration=0
+
+@all_clear
+riko key episode.all_clear next=riko_signs_off
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"all_clear","type":"dialogue","text":"episode.all_clear","speaker":"riko"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start riko_on_the_glass_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start waiting_for_the_signal_focus_04 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue reaction_05 on text_revealed start all_clear_reaction_05 as reaction_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start riko_on_the_glass_camera_07 as camera_06 target=stage scope=node clock=sequence duration=0
+
+@riko_signs_off
+riko key episode.riko_signs_off next=a_modest_name
+    present {"channel":"afterlight_vn","profile":"exit","review":{"id":"riko_signs_off","type":"exit","text":"episode.riko_signs_off","speaker":"riko"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"cast","cinematic_seconds":1.6}
+    gate cinematic_ready finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start riko_on_the_glass_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start waiting_for_the_signal_focus_04 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue camera_05 at 0 start riko_on_the_glass_camera_07 as camera_05 target=stage scope=node clock=sequence duration=0
+    cue exit_06 at 0 start riko_signs_off_exit_06 as exit_06 target=stage scope=node clock=sequence duration=0
+
+@a_modest_name
+sena key episode.a_modest_name next=back_to_the_house
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"a_modest_name","type":"dialogue","text":"episode.a_modest_name","speaker":"sena"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start sena_takes_over_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start sena_takes_over_focus_04 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue reaction_05 on text_revealed start a_modest_name_reaction_05 as reaction_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start sena_takes_over_camera_06 as camera_06 target=stage scope=node clock=sequence duration=0
+
+@back_to_the_house
+narrate key episode.back_to_the_house next=everyone_accounted_for
+    present {"channel":"afterlight_vn","profile":"establish","review":{"id":"back_to_the_house","type":"establish","text":"episode.back_to_the_house","speaker":""},"world_paused":false,"chars_per_second":48,"cinematic_controller":"establish","cinematic_seconds":1.6}
+    gate cinematic_ready finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start reading_room_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start undeliverable_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue background_04 at 0 start undeliverable_background_04 as background_04 target=stage scope=node clock=sequence duration=0
+    cue cast_05 at 0 start undeliverable_cast_05 as cast_05 target=stage scope=node clock=sequence duration=0
+    cue focus_06 at 0 start undeliverable_focus_06 as focus_06 target=stage scope=node clock=sequence duration=0
+    cue reset_07 at 0 start across_the_threshold_reset_07 as reset_07 target=stage scope=node clock=sequence duration=0
+    cue establish_08 at 0 start reading_room_establish_08 as establish_08 target=stage scope=node clock=sequence duration=0
+
+@everyone_accounted_for
+nami key episode.everyone_accounted_for next=a_proper_hello
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"everyone_accounted_for","type":"dialogue","text":"episode.everyone_accounted_for","speaker":"nami"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start no_ordinary_post_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start no_ordinary_post_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue cast_04 at 0 start only_a_second_cast_04 as cast_04 target=stage scope=node clock=sequence duration=0
+    cue focus_05 at 0 start eyes_on_nami_focus_05 as focus_05 target=stage scope=node clock=sequence duration=0
+    cue mark_06 at 0 start everyone_accounted_for_mark_06 as mark_06 target=stage scope=node clock=sequence duration=0
+    cue camera_07 at 0 start no_ordinary_post_camera_07 as camera_07 target=stage scope=node clock=sequence duration=0
+    cue projection_08 at 0 start everyone_accounted_for_projection_08 as projection_08 target=stage scope=node clock=sequence duration=0
+    cue projection_09 at 0 start everyone_accounted_for_projection_09 as projection_09 target=stage scope=node clock=sequence duration=0
+    cue projection_10 at 0 start everyone_accounted_for_projection_10 as projection_10 target=stage scope=node clock=sequence duration=0
+    cue projection_11 at 0 start riko_on_the_glass_projection_08 as projection_11 target=stage scope=node clock=sequence duration=0
+
+@a_proper_hello
+riko key episode.a_proper_hello next=the_unsigned_entry
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"a_proper_hello","type":"dialogue","text":"episode.a_proper_hello","speaker":"riko"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start riko_on_the_glass_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start waiting_for_the_signal_focus_04 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue reaction_05 on text_revealed start a_proper_hello_reaction_05 as reaction_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start the_signal_camera_06 as camera_06 target=stage scope=node clock=sequence duration=0
+
+@the_unsigned_entry
+yuzu key episode.the_unsigned_entry next=the_next_arrival
+    present {"channel":"afterlight_vn","profile":"dialogue","review":{"id":"the_unsigned_entry","type":"dialogue","text":"episode.the_unsigned_entry","speaker":"yuzu"},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    cue view_01 at 0 start a_glass_record_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start a_glass_record_focus_04 as focus_04 target=stage scope=node clock=sequence duration=0
+    cue mark_05 at 0 start a_second_line_mark_05 as mark_05 target=stage scope=node clock=sequence duration=0
+    cue camera_06 at 0 start the_useful_kind_camera_06 as camera_06 target=stage scope=node clock=sequence duration=0
+
+@the_next_arrival
+narrate key episode.the_next_arrival next=episode_end
+    present {"channel":"afterlight_vn","profile":"ending","review":{"id":"the_next_arrival","type":"ending","text":"episode.the_next_arrival","speaker":""},"world_paused":false,"chars_per_second":48,"cinematic_controller":"","cinematic_seconds":1.6}
+    gate text_revealed finish_on_advance=true
+    gate host_return finish_on_advance=false
+    cue view_01 at 0 start a_voice_in_the_glass_view_01 as view_01 target=stage scope=node clock=sequence duration=0
+    cue reset_02 at 0 start a_glass_record_reset_02 as reset_02 target=stage scope=node clock=sequence duration=0
+    cue blackout_03 at 0 start undeliverable_blackout_03 as blackout_03 target=stage scope=node clock=sequence duration=0
+    cue focus_04 at 0 start undeliverable_focus_06 as focus_04 target=stage scope=node clock=sequence duration=0
+
+@episode_end
+end completed

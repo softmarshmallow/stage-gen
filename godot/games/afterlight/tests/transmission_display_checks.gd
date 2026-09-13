@@ -37,7 +37,6 @@ func _transmission(width: int) -> void:
 	var game: Control = app.active_scene
 	game.set_process(false)
 	game.set_language("ko")
-	game._bind_background(3)
 	_seek(game, "eira_on_the_relay")
 	var display: Control = game._transmission_display
 	var before: Dictionary = display.snapshot()
@@ -67,14 +66,17 @@ func _transmission(width: int) -> void:
 
 
 func _seek(game: Control, beat_id: String) -> void:
-	for index in game.beats.size():
-		if game.beats[index]["id"] == beat_id:
-			game._beat_index = index
-			game._enter_beat()
+	game._restart()
+	for step in game.beats.size() * 3:
+		if game.current_beat()["id"] == beat_id:
 			game._process(1.8)
 			game._reveal.request_advance()
 			game._render()
 			return
+		if game._choice_pending():
+			game._next()
+			game._choose("help_first")
+		else: game._next()
 	_expect(false, "Missing focused capture beat: " + beat_id)
 
 

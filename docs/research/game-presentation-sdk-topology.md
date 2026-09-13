@@ -1,5 +1,11 @@
 # Godot monorepo: the final shape
 
+> Historical review/plan: retained statements and proposed ownership describe
+> their original scope. The [current Godot architecture](../../godot/docs/architecture.md) and
+> [Scenario invocation contract](../../godot/packages/scenario_runtime/docs/contract.md) govern current work. Scenario
+> authoring/execution is now Godot-owned; earlier experimental, asset-component
+> or universal game-sequence prescriptions are superseded.
+
 > **Status: historical P114 proposal.** This records the earlier three-tier
 > discussion and its directory assumptions. The implemented consumer ownership
 > and current tree are in [Godot game ownership](../plans/godot-consumer-layout.md).

@@ -1,0 +1,1023 @@
+{
+  "kind": "scenario-catalog",
+  "schema_version": 1,
+  "catalog_id": "afterlight_episode",
+  "revision": "1",
+  "definitions": {
+    "undeliverable_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "",
+        "camera_mode": "dialogue",
+        "portrait_mode": "none",
+        "cast_visible": false,
+        "halo": false,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6
+      }
+    },
+    "undeliverable_reset_02": {
+      "type": "front_reset",
+      "parameters": {
+        "controllers": [
+          "burst",
+          "eye",
+          "drift",
+          "establish",
+          "walking",
+          "shake",
+          "marks",
+          "pan",
+          "reactions"
+        ]
+      }
+    },
+    "undeliverable_blackout_03": {
+      "type": "front_blackout",
+      "parameters": {
+        "strength": 0,
+        "duration_seconds": 0.4
+      }
+    },
+    "undeliverable_background_04": {
+      "type": "front_background",
+      "parameters": {
+        "index": 0
+      }
+    },
+    "undeliverable_cast_05": {
+      "type": "front_cast",
+      "parameters": {
+        "actors": []
+      }
+    },
+    "undeliverable_focus_06": {
+      "type": "front_focus",
+      "parameters": {
+        "actor": "",
+        "preset": "bounce",
+        "replay": false
+      }
+    },
+    "across_the_threshold_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "",
+        "camera_mode": "walking",
+        "portrait_mode": "none",
+        "cast_visible": false,
+        "halo": false,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6
+      }
+    },
+    "across_the_threshold_reset_07": {
+      "type": "front_reset",
+      "parameters": {
+        "controllers": [
+          "camera"
+        ]
+      }
+    },
+    "across_the_threshold_walking_08": {
+      "type": "front_walking",
+      "parameters": {}
+    },
+    "eyes_on_nami_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "nami",
+        "camera_mode": "dialogue",
+        "portrait_mode": "eye",
+        "cast_visible": false,
+        "halo": false,
+        "eye_mask": true,
+        "flare": false,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6
+      }
+    },
+    "eyes_on_nami_cast_04": {
+      "type": "front_cast",
+      "parameters": {
+        "actors": [
+          "nami"
+        ]
+      }
+    },
+    "eyes_on_nami_focus_05": {
+      "type": "front_focus",
+      "parameters": {
+        "actor": "nami",
+        "preset": "bounce",
+        "replay": false
+      }
+    },
+    "eyes_on_nami_eye_06": {
+      "type": "front_eye",
+      "parameters": {
+        "mode": "waking_opening",
+        "settings": {}
+      }
+    },
+    "no_ordinary_post_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "nami",
+        "camera_mode": "dialogue",
+        "portrait_mode": "none",
+        "cast_visible": true,
+        "halo": false,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6
+      }
+    },
+    "no_ordinary_post_reset_02": {
+      "type": "front_reset",
+      "parameters": {
+        "controllers": [
+          "burst",
+          "eye",
+          "drift",
+          "establish",
+          "walking",
+          "shake",
+          "marks",
+          "pan"
+        ]
+      }
+    },
+    "no_ordinary_post_cast_04": {
+      "type": "front_cast",
+      "parameters": {
+        "actors": [
+          "nami",
+          "yuzu"
+        ]
+      }
+    },
+    "no_ordinary_post_mark_06": {
+      "type": "front_mark",
+      "parameters": {
+        "actor": "nami",
+        "sprite": "sweat_drop",
+        "preset": "step_loop"
+      }
+    },
+    "no_ordinary_post_camera_07": {
+      "type": "front_camera",
+      "parameters": {
+        "mode": "wide",
+        "actor": "nami",
+        "duration_seconds": 0.65
+      }
+    },
+    "a_glass_record_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "yuzu",
+        "camera_mode": "dialogue",
+        "portrait_mode": "none",
+        "cast_visible": true,
+        "halo": false,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6
+      }
+    },
+    "a_glass_record_reset_02": {
+      "type": "front_reset",
+      "parameters": {
+        "controllers": [
+          "burst",
+          "eye",
+          "drift",
+          "establish",
+          "walking",
+          "shake",
+          "marks"
+        ]
+      }
+    },
+    "a_glass_record_focus_04": {
+      "type": "front_focus",
+      "parameters": {
+        "actor": "yuzu",
+        "preset": "bounce",
+        "replay": false
+      }
+    },
+    "a_glass_record_camera_05": {
+      "type": "front_camera",
+      "parameters": {
+        "mode": "focus",
+        "actor": "yuzu",
+        "duration_seconds": 0.8
+      }
+    },
+    "no_forwarding_address_reaction_05": {
+      "type": "front_reaction",
+      "parameters": {
+        "actor": "nami",
+        "sprite": "sigh_puff",
+        "preset": "sigh_puff"
+      }
+    },
+    "courier_reply_help_first_mark_05": {
+      "type": "front_mark",
+      "parameters": {
+        "actor": "nami",
+        "sprite": "sparkle",
+        "preset": ""
+      }
+    },
+    "courier_reply_help_first_camera_07": {
+      "type": "front_camera",
+      "parameters": {
+        "mode": "focus",
+        "actor": "nami",
+        "duration_seconds": 0.8
+      }
+    },
+    "one_more_minute_reset_02": {
+      "type": "front_reset",
+      "parameters": {
+        "controllers": [
+          "burst",
+          "eye",
+          "drift",
+          "establish",
+          "walking",
+          "shake",
+          "marks",
+          "reactions"
+        ]
+      }
+    },
+    "a_second_line_mark_05": {
+      "type": "front_mark",
+      "parameters": {
+        "actor": "yuzu",
+        "sprite": "confusion",
+        "preset": ""
+      }
+    },
+    "caught_in_the_light_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "nami",
+        "camera_mode": "detail",
+        "portrait_mode": "detail",
+        "cast_visible": false,
+        "halo": true,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6
+      }
+    },
+    "caught_in_the_light_drift_05": {
+      "type": "front_drift",
+      "parameters": {}
+    },
+    "the_warning_cast_04": {
+      "type": "front_cast",
+      "parameters": {
+        "actors": [
+          "yuzu"
+        ]
+      }
+    },
+    "the_warning_focus_05": {
+      "type": "front_focus",
+      "parameters": {
+        "actor": "yuzu",
+        "preset": "none",
+        "replay": false
+      }
+    },
+    "the_warning_mark_06": {
+      "type": "front_mark",
+      "parameters": {
+        "actor": "yuzu",
+        "sprite": "surprise",
+        "preset": ""
+      }
+    },
+    "the_warning_blackout_08": {
+      "type": "front_blackout",
+      "parameters": {
+        "strength": 1,
+        "duration_seconds": 0.45
+      }
+    },
+    "sena_takes_over_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "sena",
+        "camera_mode": "dialogue",
+        "portrait_mode": "none",
+        "cast_visible": true,
+        "halo": false,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6
+      }
+    },
+    "sena_takes_over_focus_04": {
+      "type": "front_focus",
+      "parameters": {
+        "actor": "sena",
+        "preset": "bounce",
+        "replay": false
+      }
+    },
+    "sena_takes_over_mark_05": {
+      "type": "front_mark",
+      "parameters": {
+        "actor": "sena",
+        "sprite": "sparkle",
+        "preset": ""
+      }
+    },
+    "sena_takes_over_camera_06": {
+      "type": "front_camera",
+      "parameters": {
+        "mode": "wide",
+        "actor": "sena",
+        "duration_seconds": 0.65
+      }
+    },
+    "sena_takes_over_handoff_08": {
+      "type": "front_handoff",
+      "parameters": {
+        "outgoing": "nami",
+        "survivor": "yuzu",
+        "incoming": "sena",
+        "settings": {
+          "curve": "spring",
+          "damping_ratio": 0.8,
+          "exit_preset": "walk_away"
+        }
+      }
+    },
+    "the_useful_kind_mark_05": {
+      "type": "front_mark",
+      "parameters": {
+        "actor": "yuzu",
+        "sprite": "sweat_drop",
+        "preset": ""
+      }
+    },
+    "the_useful_kind_camera_06": {
+      "type": "front_camera",
+      "parameters": {
+        "mode": "wide",
+        "actor": "yuzu",
+        "duration_seconds": 0.65
+      }
+    },
+    "the_useful_kind_approach_07": {
+      "type": "front_approach",
+      "parameters": {
+        "actor": "yuzu",
+        "target": "sena"
+      }
+    },
+    "reading_room_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "",
+        "camera_mode": "establish",
+        "portrait_mode": "none",
+        "cast_visible": false,
+        "halo": false,
+        "eye_mask": false,
+        "flare": true,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6
+      }
+    },
+    "reading_room_background_04": {
+      "type": "front_background",
+      "parameters": {
+        "index": 1
+      }
+    },
+    "reading_room_establish_08": {
+      "type": "front_establish",
+      "parameters": {}
+    },
+    "a_live_line_cast_04": {
+      "type": "front_cast",
+      "parameters": {
+        "actors": [
+          "yuzu",
+          "sena"
+        ]
+      }
+    },
+    "riko_on_the_glass_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "riko",
+        "camera_mode": "dialogue",
+        "portrait_mode": "none",
+        "cast_visible": true,
+        "halo": false,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6
+      }
+    },
+    "riko_on_the_glass_cast_04": {
+      "type": "front_cast",
+      "parameters": {
+        "actors": [
+          "yuzu",
+          "sena",
+          "riko"
+        ]
+      }
+    },
+    "riko_on_the_glass_focus_05": {
+      "type": "front_focus",
+      "parameters": {
+        "actor": "riko",
+        "preset": "restless_bounce",
+        "replay": false
+      }
+    },
+    "riko_on_the_glass_mark_06": {
+      "type": "front_mark",
+      "parameters": {
+        "actor": "riko",
+        "sprite": "anger_vein",
+        "preset": "step_loop"
+      }
+    },
+    "riko_on_the_glass_camera_07": {
+      "type": "front_camera",
+      "parameters": {
+        "mode": "wide",
+        "actor": "riko",
+        "duration_seconds": 0.65
+      }
+    },
+    "riko_on_the_glass_projection_08": {
+      "type": "front_projection",
+      "parameters": {
+        "actor": "riko",
+        "enabled": false
+      }
+    },
+    "riko_on_the_glass_pan_09": {
+      "type": "front_pan",
+      "parameters": {
+        "actor": "riko",
+        "anchor_x": 640.0
+      }
+    },
+    "two_green_lamps_pan_06": {
+      "type": "front_pan",
+      "parameters": {
+        "actor": "yuzu",
+        "anchor_x": 640.0
+      }
+    },
+    "waiting_for_the_signal_focus_04": {
+      "type": "front_focus",
+      "parameters": {
+        "actor": "riko",
+        "preset": "bounce",
+        "replay": false
+      }
+    },
+    "waiting_for_the_signal_mark_05": {
+      "type": "front_mark",
+      "parameters": {
+        "actor": "riko",
+        "sprite": "sweat_drop",
+        "preset": ""
+      }
+    },
+    "hold_the_message_background_04": {
+      "type": "front_background",
+      "parameters": {
+        "index": 3
+      }
+    },
+    "eira_on_the_relay_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "eira",
+        "camera_mode": "dialogue",
+        "portrait_mode": "none",
+        "cast_visible": true,
+        "halo": false,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6
+      }
+    },
+    "eira_on_the_relay_cast_04": {
+      "type": "front_cast",
+      "parameters": {
+        "actors": [
+          "eira"
+        ]
+      }
+    },
+    "eira_on_the_relay_focus_05": {
+      "type": "front_focus",
+      "parameters": {
+        "actor": "eira",
+        "preset": "bounce",
+        "replay": false
+      }
+    },
+    "eira_on_the_relay_camera_06": {
+      "type": "front_camera",
+      "parameters": {
+        "mode": "wide",
+        "actor": "eira",
+        "duration_seconds": 0.65
+      }
+    },
+    "eira_on_the_relay_projection_07": {
+      "type": "front_projection",
+      "parameters": {
+        "actor": "eira",
+        "enabled": true
+      }
+    },
+    "a_voice_in_the_glass_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "",
+        "camera_mode": "dialogue",
+        "portrait_mode": "none",
+        "cast_visible": true,
+        "halo": false,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6
+      }
+    },
+    "the_return_channel_camera_05": {
+      "type": "front_camera",
+      "parameters": {
+        "mode": "focus",
+        "actor": "eira",
+        "duration_seconds": 0.8
+      }
+    },
+    "relay_return_projection_07": {
+      "type": "front_projection",
+      "parameters": {
+        "actor": "eira",
+        "enabled": false
+      }
+    },
+    "follow_the_diagram_camera_06": {
+      "type": "front_camera",
+      "parameters": {
+        "mode": "focus",
+        "actor": "sena",
+        "duration_seconds": 0.8
+      }
+    },
+    "the_signal_mark_05": {
+      "type": "front_mark",
+      "parameters": {
+        "actor": "riko",
+        "sprite": "surprise",
+        "preset": ""
+      }
+    },
+    "the_signal_camera_06": {
+      "type": "front_camera",
+      "parameters": {
+        "mode": "focus",
+        "actor": "riko",
+        "duration_seconds": 0.8
+      }
+    },
+    "the_reroute_burst_06": {
+      "type": "front_burst",
+      "parameters": {
+        "actor": "sena",
+        "sprites": [
+          "sparkle"
+        ],
+        "origin_uv": [
+          0.5,
+          0.25
+        ]
+      }
+    },
+    "the_seal_answers_cast_05": {
+      "type": "front_cast",
+      "parameters": {
+        "actors": [
+          "nami",
+          "yuzu",
+          "sena"
+        ]
+      }
+    },
+    "scarlet_pressure_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "",
+        "camera_mode": "dialogue",
+        "portrait_mode": "none",
+        "cast_visible": true,
+        "halo": false,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "fade_in",
+        "duration_seconds": 2.0,
+        "heat": 0.8,
+        "barrier": 0.88,
+        "scene_corruption": 0.68
+      }
+    },
+    "scarlet_pressure_shake_04": {
+      "type": "front_shake",
+      "parameters": {
+        "amplitude_x": 56.0,
+        "amplitude_y": 42.0,
+        "duration": 1.85,
+        "frequency": 10.5
+      }
+    },
+    "scarlet_pressure_camera_07": {
+      "type": "front_camera",
+      "parameters": {
+        "mode": "wide",
+        "actor": "",
+        "duration_seconds": 0.65
+      }
+    },
+    "between_addresses_background_04": {
+      "type": "front_background",
+      "parameters": {
+        "index": 2
+      }
+    },
+    "the_unlit_house_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "",
+        "camera_mode": "dialogue",
+        "portrait_mode": "none",
+        "cast_visible": true,
+        "halo": false,
+        "eye_mask": true,
+        "flare": false,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6,
+        "heat": 0.92,
+        "scene_corruption": 0.9,
+        "corruption": {
+          "area": [
+            750,
+            170,
+            280,
+            460
+          ],
+          "strength": 0.85
+        }
+      }
+    },
+    "the_keeper_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "keeper",
+        "camera_mode": "dialogue",
+        "portrait_mode": "none",
+        "cast_visible": true,
+        "halo": false,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6,
+        "heat": 0.85,
+        "barrier": 0.32,
+        "scene_corruption": 0.85,
+        "corruption": {
+          "actor": "keeper",
+          "strength": 0.98
+        }
+      }
+    },
+    "the_keeper_shake_04": {
+      "type": "front_shake",
+      "parameters": {
+        "amplitude_x": 26.0,
+        "amplitude_y": 20.0,
+        "duration": 1.25,
+        "frequency": 9.5,
+        "seed": 3
+      }
+    },
+    "the_keeper_cast_05": {
+      "type": "front_cast",
+      "parameters": {
+        "actors": [
+          "keeper"
+        ]
+      }
+    },
+    "the_keeper_focus_06": {
+      "type": "front_focus",
+      "parameters": {
+        "actor": "keeper",
+        "preset": "bounce",
+        "replay": false
+      }
+    },
+    "the_keeper_camera_07": {
+      "type": "front_camera",
+      "parameters": {
+        "mode": "wide",
+        "actor": "keeper",
+        "duration_seconds": 0.65
+      }
+    },
+    "the_price_of_return_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "keeper",
+        "camera_mode": "dialogue",
+        "portrait_mode": "none",
+        "cast_visible": true,
+        "halo": false,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6,
+        "heat": 0.8,
+        "barrier": 0.28,
+        "scene_corruption": 0.82,
+        "corruption": {
+          "actor": "keeper",
+          "strength": 0.93
+        }
+      }
+    },
+    "the_price_of_return_camera_05": {
+      "type": "front_camera",
+      "parameters": {
+        "mode": "focus",
+        "actor": "keeper",
+        "duration_seconds": 0.8
+      }
+    },
+    "a_name_is_not_consent_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "",
+        "camera_mode": "dialogue",
+        "portrait_mode": "none",
+        "cast_visible": true,
+        "halo": false,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6,
+        "heat": 0.9,
+        "barrier": 0.42,
+        "scene_corruption": 0.88,
+        "corruption": {
+          "actor": "keeper",
+          "strength": 0.98
+        }
+      }
+    },
+    "a_name_is_not_consent_shake_04": {
+      "type": "front_shake",
+      "parameters": {
+        "amplitude_x": 22.0,
+        "amplitude_y": 16.0,
+        "duration": 1.25,
+        "frequency": 8.0,
+        "seed": 5
+      }
+    },
+    "the_room_refuses_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "",
+        "camera_mode": "dialogue",
+        "portrait_mode": "none",
+        "cast_visible": true,
+        "halo": false,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "fade_in",
+        "duration_seconds": 2.2,
+        "heat": 1.0,
+        "barrier": 0.97,
+        "scene_corruption": 1.0,
+        "corruption": {
+          "actor": "keeper",
+          "strength": 1.0
+        }
+      }
+    },
+    "the_room_refuses_shake_04": {
+      "type": "front_shake",
+      "parameters": {
+        "amplitude_x": 72.0,
+        "amplitude_y": 54.0,
+        "duration": 1.95,
+        "frequency": 12.0,
+        "seed": 7
+      }
+    },
+    "nami_beyond_the_wall_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "",
+        "camera_mode": "dialogue",
+        "portrait_mode": "none",
+        "cast_visible": true,
+        "halo": false,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6,
+        "heat": 0.75,
+        "barrier": 0.38,
+        "scene_corruption": 0.8,
+        "corruption": {
+          "actor": "keeper",
+          "strength": 0.9
+        }
+      }
+    },
+    "follow_the_warmth_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "",
+        "camera_mode": "dialogue",
+        "portrait_mode": "none",
+        "cast_visible": true,
+        "halo": false,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6,
+        "heat": 0.62,
+        "barrier": 0.58,
+        "scene_corruption": 0.68,
+        "corruption": {
+          "area": [
+            750,
+            170,
+            280,
+            460
+          ],
+          "strength": 0.82
+        }
+      }
+    },
+    "the_return_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "",
+        "camera_mode": "dialogue",
+        "portrait_mode": "none",
+        "cast_visible": true,
+        "halo": false,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "fade_out",
+        "duration_seconds": 1.8,
+        "heat": 0.85,
+        "barrier": 0.95,
+        "scene_corruption": 0.82
+      }
+    },
+    "the_return_shake_04": {
+      "type": "front_shake",
+      "parameters": {
+        "amplitude_x": 54.0,
+        "amplitude_y": 42.0,
+        "duration": 1.6,
+        "frequency": 11.0,
+        "seed": 11
+      }
+    },
+    "a_touch_that_stays_view_01": {
+      "type": "front_view",
+      "parameters": {
+        "speaker": "nami",
+        "camera_mode": "dialogue",
+        "portrait_mode": "contact",
+        "cast_visible": false,
+        "halo": false,
+        "eye_mask": false,
+        "flare": false,
+        "field_envelope": "hold",
+        "duration_seconds": 1.6
+      }
+    },
+    "a_touch_that_stays_focus_05": {
+      "type": "front_focus",
+      "parameters": {
+        "actor": "nami",
+        "preset": "none",
+        "replay": false
+      }
+    },
+    "a_touch_that_stays_delay_07": {
+      "type": "front_delay",
+      "parameters": {}
+    },
+    "only_a_second_cast_04": {
+      "type": "front_cast",
+      "parameters": {
+        "actors": [
+          "nami",
+          "yuzu",
+          "sena",
+          "riko"
+        ]
+      }
+    },
+    "all_clear_reaction_05": {
+      "type": "front_reaction",
+      "parameters": {
+        "actor": "riko",
+        "sprite": "sigh_puff",
+        "preset": "sigh_puff"
+      }
+    },
+    "riko_signs_off_exit_06": {
+      "type": "front_exit",
+      "parameters": {
+        "actor": "riko",
+        "preset": "silhouette_fade"
+      }
+    },
+    "a_modest_name_reaction_05": {
+      "type": "front_reaction",
+      "parameters": {
+        "actor": "sena",
+        "sprite": "sweat_drop",
+        "preset": "sweat_drop_fall"
+      }
+    },
+    "everyone_accounted_for_mark_06": {
+      "type": "front_mark",
+      "parameters": {
+        "actor": "nami",
+        "sprite": "sparkle",
+        "preset": "step_loop"
+      }
+    },
+    "everyone_accounted_for_projection_08": {
+      "type": "front_projection",
+      "parameters": {
+        "actor": "nami",
+        "enabled": false
+      }
+    },
+    "everyone_accounted_for_projection_09": {
+      "type": "front_projection",
+      "parameters": {
+        "actor": "yuzu",
+        "enabled": false
+      }
+    },
+    "everyone_accounted_for_projection_10": {
+      "type": "front_projection",
+      "parameters": {
+        "actor": "sena",
+        "enabled": false
+      }
+    },
+    "a_proper_hello_reaction_05": {
+      "type": "front_reaction",
+      "parameters": {
+        "actor": "riko",
+        "sprite": "sweat_drop",
+        "preset": "sweat_drop_fall"
+      }
+    }
+  }
+}

@@ -1,10 +1,11 @@
 # The Signal Room — VN starter
 
-A small, complete code-authored visual novel using Game Presentation SDK on
-Godot 4.7 desktop Compatibility. The main script owns its story, resources,
-layout, input, camera direction and pause policy. The addon contains the reused
-presentation mechanisms. No Python, generation CLI, credentials, downloaded
-media or sibling checkout is needed to play this assembled project.
+A small, complete game that invokes Scenario on Godot 4.7 desktop Compatibility.
+The game owns resources, layout, input, camera bindings and pause policy.
+`narrative/episode.scenario` owns its dialogue, choices, presentation direction,
+required contact and feedback timing. Scenario executes that content using
+Game Presentation's mechanisms. The assembled project plays without Python,
+Stage Gen, credentials, downloaded media or a sibling checkout.
 
 ```sh
 Godot --path /path/to/this/project
@@ -15,53 +16,82 @@ the relay light when invited. Space and clicks elsewhere cannot confirm it.
 Escape or the top button pauses; Restart appears during pause and at the end.
 The two replies reconverge. There is no autoplay or durable save format.
 
-`main.gd` is the master host. Edit `BEATS` and `WORDS` for direction/text.
-The starter directly composes Dialogue Camera, Manpu animation, Text Set,
-Intertitle reveal, Text Reveal Audio, Point Contact and Radial Sprite Burst.
-The simple raster avatars and glint are code-authored placeholders owned by
-this host. They are not generated media or required SDK assets.
+## Ownership and authoring
+
+- `narrative/episode.scenario`: stable sequence IDs, dialogue and choice branches,
+  camera/Manpu presentation, reveal gates and the contact-to-feedback sequence.
+- `narrative/catalog.json`: named contact and burst configurations.
+- `bindings/capabilities.json`: the installed contact/burst parameter contract.
+- `narrative/episode.json` and `episode.map.json`: compiled program and source map.
+- `text/en.json`: localized text, including both replies and application title.
+- `main.gd`: resource bindings, UI, rendering and input. It reports actual contact
+  completion; the scenario decides what follows and how long feedback lasts.
+
+With the standalone `stagegen-scenario` authoring distribution installed, run
+from this project:
+
+```sh
+scenario-authoring compile narrative/episode.scenario \
+  --catalog narrative/catalog.json --capabilities bindings/capabilities.json \
+  --output narrative/episode.json --source-map narrative/episode.map.json
+```
+
+The source compiler is needed when authoring. Playback reads the compiled JSON.
+The simple raster avatars and glint are code-authored game placeholders, not
+generated media or required package assets.
 
 ## Supply your own resources
 
-Set the exported `background_texture`, `mara_texture`, `ivo_texture`,
-`mark_texture`, and `welcome_voice` properties in `main.tscn` or your code.
-Existing properties accept Texture2D/AudioStream resources directly. A supplied
-welcome recording shows its full subtitle immediately and replaces typing sound;
-other lines retain the built-in fallback. No clip is generated or refreshed.
-Adjust the host's actor rectangles and attachment rules to match your artwork.
-These are artistic bindings, not anatomical annotations.
+Set exported `background_texture`, `mara_texture`, `ivo_texture`, `mark_texture`
+and `welcome_voice` properties in `main.tscn` or the game binding code. They accept
+Texture2D/AudioStream resources directly. A supplied welcome recording shows its
+full subtitle immediately and replaces typing sound; other lines retain the
+built-in fallback. No clip is generated or refreshed.
 
-An optional local loader can replace selected inputs without editing source:
+The game owns actor rectangles and attachment geometry. Scenario binds named
+speakers and operations to these existing objects; it does not infer anatomy or
+create a world. The starter's declared `signal_room` and `intertitle` presentation
+profiles interpret its camera and Manpu configuration.
+
+An optional local loader replaces selected resources without editing source:
 
 ```sh
 Godot --path /path/to/this/project -- --content-root /absolute/media/directory --background room.png --mara actor.png --voice welcome.mp3
 ```
 
-Only supplied flags are loaded. Unspecified inputs keep their neutral defaults.
-Bindings are relative to the explicit root. A `res://` root selects imported
-Godot resources; an absolute directory selects raw local files. Invalid or
-missing selected content produces a visible error instead of silent replacement.
-No URLs or network loading are supported. Imported resources must be included
-in the export; external raw files remain separate content the host supplies.
+Unspecified inputs keep their neutral defaults. Bindings are relative to the
+explicit root. A `res://` root selects imported Godot resources; an absolute
+directory selects raw local files. Invalid or missing selected content produces
+a visible error. No URLs or network loading are supported. Imported resources
+must be included in the export; external raw files remain separate game inputs.
 
-## Check and export
+## Assemble, check and export
+
+From the repository root, create a fresh standalone copy:
 
 ```sh
-Godot --headless --path /path/to/this/project --script res://tests/starter_checks.gd
-mkdir -p /path/to/this/project/build
-Godot --headless --path /path/to/this/project --editor --import
-Godot --headless --path /path/to/this/project --export-pack "Desktop Pack" /path/to/this/project/build/signal-room.pck
-Godot --main-pack /path/to/this/project/build/signal-room.pck
+python godot/packages/scenario_runtime/tools/assemble_starter.py --output /path/to/new-project
 ```
 
-The pack export contains the runtime resources and behavior catalogs. Run it
-with a compatible Godot engine. This is a PCK proof, not a signed standalone
-desktop executable; executable export needs the matching platform templates.
-The script check exercises both replies, mandatory contact, pause, camera/Manpu
-composition, supplied voice precedence, end state and independent instances.
-`--capture` saves native frames in `user://starter-checks/`; headless checks do
-not claim visual review. `assembly.json` records the copied source hashes.
+Inside that copied project:
 
-Keep the presentation addon and its declared `content_io` dependency complete.
-Their READMEs identify supported APIs and limits;
-private helpers do not become a compatibility guarantee merely by being visible.
+```sh
+Godot --headless --path . --script res://tests/starter_checks.gd
+mkdir -p build
+Godot --headless --path . --editor --import
+Godot --headless --path . --export-pack "Desktop Pack" build/signal-room.pck
+Godot --main-pack build/signal-room.pck
+```
+
+The pack contains compiled narrative, text, behavior catalogs and runtime
+resources. A compatible Godot engine runs it. It is a PCK proof, not a signed
+standalone executable; executable export requires matching platform templates.
+
+The native script checks both replies, mandatory contact, pause, camera/Manpu
+composition, supplied voice precedence, end state and independent instances.
+The Python content checks verify compilation freshness and text closure.
+`--capture` saves native frames in `user://starter-checks/`; headless checks do not
+claim visual review. `assembly.json` records all copied source hashes.
+
+Keep `addons/scenario_runtime` and its declared `game_presentation` and `content_io`
+dependencies complete. Their READMEs define the supported APIs and limitations.

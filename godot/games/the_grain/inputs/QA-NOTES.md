@@ -1,5 +1,10 @@
 # QA notes — Pilot 01, Episode One
 
+> Historical evidence. Current Scenario ownership and execution are defined by
+> the [invocation contract](../../../packages/scenario_runtime/docs/contract.md). Earlier paths, proof claims, requests
+> and code-director status below describe their recorded state, not current
+> architectural instructions. Existing media reviews retain their original scope.
+
 Owner: QA lane. No other lane writes to this file.
 
 Method: every `speaker "text"` line and every narration string in the adaptation is

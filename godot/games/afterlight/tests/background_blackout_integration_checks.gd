@@ -54,8 +54,8 @@ func _seek_warning() -> Control:
 		game._process(6.0)
 		if _fulfill_contact_gate(game): continue
 		if game.current_beat()["type"] == "choice":
-			game._choices[str(game.current_beat()["id"])] = "help_first"
-		game._continue_story()
+			game._choose("help_first")
+		else: game._continue_story()
 	_expect(false, "The warning must remain in the playable episode.")
 	return game
 
@@ -66,7 +66,7 @@ func _story_blackout(factor: int) -> void:
 	var delay := float(cue.get("delay_seconds", 1.0))
 	var duration := float(cue.get("fade_seconds", game.content.get("background_blackout", {}).get("fade_seconds", 0.45)))
 	var blackout: ColorRect = game._background_blackout
-	_expect(blackout.get_index() < game._cast.get_index() and game._cast.get_index() < game._ui.get_index(), "Background Blackout must render below actors and interface chrome.")
+	_expect(blackout.get_parent() == game._cast.get_parent() and blackout.get_index() < game._cast.get_index() and game._stage.get_index() < game._ui.get_index(), "Background Blackout must render below actors and interface chrome.")
 	_expect(game._cast.visible_ids() == ["yuzu"], "The warning must be a solo Yuzu reaction.")
 	_expect(float(blackout.get_state()["strength"]) == 0.0, "Story entry must initially preserve the location.")
 	game._process(delay - 0.01)

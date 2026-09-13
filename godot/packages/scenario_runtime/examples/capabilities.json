@@ -1,0 +1,67 @@
+{
+  "particle": {
+    "finishable": false,
+    "parameters": {
+      "height": {
+        "default": 240.0,
+        "max": 32768,
+        "min": 0,
+        "type": "number"
+      },
+      "rate": {
+        "default": 12.0,
+        "max": 100,
+        "min": 0,
+        "type": "number"
+      },
+      "seed": {
+        "default": 1,
+        "max": 2147483647,
+        "min": 0,
+        "type": "integer"
+      },
+      "size": {
+        "default": 8.0,
+        "max": 256,
+        "min": 1,
+        "type": "number"
+      },
+      "sprite": {
+        "required": true,
+        "type": "string"
+      },
+      "velocity_x": {
+        "default": 0.0,
+        "max": 256,
+        "min": -256,
+        "type": "number"
+      },
+      "velocity_y": {
+        "default": -24.0,
+        "max": 256,
+        "min": -256,
+        "type": "number"
+      },
+      "width": {
+        "default": 320.0,
+        "max": 32768,
+        "min": 0,
+        "type": "number"
+      },
+      "x": {
+        "default": 0.0,
+        "max": 32768,
+        "min": -32768,
+        "type": "number"
+      },
+      "y": {
+        "default": 0.0,
+        "max": 32768,
+        "min": -32768,
+        "type": "number"
+      }
+    },
+    "reconstructable": true,
+    "version": 1
+  }
+}

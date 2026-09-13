@@ -12,7 +12,7 @@ without making their TOML a universal game language.
 
 Read the repository [`AGENTS.md`](../../../AGENTS.md), the
 [game ownership instructions](../../../godot/games/AGENTS.md), and the selected
-game's README. Author inputs under that game's own `inputs/` directory;
+game's README. Existing prepared games keep inputs under their own `inputs/` directory;
 Bellweather has separate `default/` and `waves/` closures. For idea exploration
 or cover selection, use [game-concept-studio](../game-concept-studio/SKILL.md).
 
@@ -24,7 +24,7 @@ Use these as the source of truth:
 2. [Game contract](../../../godot/games/_shared/docs/game-contract.md)
 3. [Map generation contract](../../../godot/games/bellweather/docs/map-generation-contract.md)
 4. [Asset contracts](../../../docs/spec/asset-contracts.md)
-5. [Dialogue and cutscene sequences](../../../godot/games/_shared/docs/formats/dialogue-and-cutscene-sequences.md)
+5. [Scenario invocation contract](../../../godot/packages/scenario_runtime/docs/contract.md)
 6. [Soundtrack contract](../../../godot/games/_shared/docs/soundtrack.md)
 7. [The host contract](../../../godot/games/_shared/docs/formats/host-contract.md), for what a
    named gameplay choice actually becomes once a host runs it
@@ -45,10 +45,26 @@ ones used by the game being edited.
   gameplay *numbers* and no placement, but they are not free of gameplay: a few
   fields are closed names the package validator holds against `gameplay.toml`,
   and `player.equipment` is the one to watch. See below.
-- `scenarios/*.toml` and `scenarios/*.scenario`: authored narrative, proven finishable.
+- `scenarios/*.toml` and `scenarios/*.scenario`: supported v2 narrative inputs;
+  admission checks bounded reachability, not termination on every possible path.
 - `soundtrack.toml`: music identities and generation direction.
 
 Use stable `lower_snake_case` IDs. Keep every cross-reference explicit.
+
+## Current Scenario content
+
+Afterlight, Command Link and the VN starter keep current source, catalog and
+compiled artifacts under their own `narrative/` directories. Installed capability
+schemas, resource bindings and game-specific behavior belong to the player, not
+the downloadable content. The game invokes Scenario and grants its channels,
+objects and capabilities. It retains gameplay, input policy, simulation and saves.
+
+Use the independent `scenario-authoring` check/compile commands for new v3 content;
+see [authoring](../../../godot/packages/scenario_runtime/docs/authoring.md). Update
+source, compiled program, source map and owned freshness tests together. Content
+may select typed installed capabilities and presets. Do not embed code or create
+story-ID callbacks that become another progression engine. Existing v2 inputs
+retain their supported readers and compile through the compatibility adapter.
 
 ## The character and the kit are one decision
 

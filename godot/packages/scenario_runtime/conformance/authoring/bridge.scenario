@@ -1,0 +1,50 @@
+# One source runs with a fixed panel or a game-selected presentation binding.
+scenario bridge_call
+speaker guide "Guide"
+fact accepted = false
+fact reply = "unset" in ["unset", "yes", "no"]
+
+sequence reaction:
+    @emit
+    start particle({"sprite_id":"spark","rate":12}) as burst duration=0.25 target=$actor
+    @settled
+    wait operation=burst
+
+@atmosphere
+start embers as hall_embers scope=sequence target=air
+
+@opening
+guide key greeting profile=bottom gates=[{"event":"text_revealed","finish_on_advance":true}]
+    cue glint at 0.85 start particle({"sprite_id":"spark","rate":6}) as glint duration=0.2
+    cue emphasis on text_revealed after 0.1 start embers as emphasis parameters={"rate":8} duration=0.5
+
+@decision
+menu text_key="question" speaker=guide profile=bottom:
+    yes key accept -> agreed set={"accepted":true,"reply":"yes"}
+    no "Another time." -> declined set={"reply":"no"}
+
+@agreed
+use reaction with={"actor":"guide"}
+
+@accepted_line
+guide "Then we go together." profile=bubble
+
+@accepted_exit
+jump cleanup
+
+@declined
+guide "I will wait here." profile=bottom
+
+@cleanup
+stop hall_embers
+
+@outcome
+branch:
+    if {"accepted":true} -> accepted_end
+    else -> declined_end
+
+@accepted_end
+end accepted
+
+@declined_end
+end declined

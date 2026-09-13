@@ -25,7 +25,15 @@ GAME_MODULES = frozenset(
         "iron_petal_unit_pipeline",
         "ember_hollow_pipeline",
         "the_grain_pipeline",
+        "scenario_authoring",
     }
+)
+
+# Independently distributed narrative authoring and its game-production adapter
+# own their tests beside their source. They are optional consumer gate inputs.
+CONSUMER_TEST_ROOTS = (
+    "godot/packages/scenario_runtime/authoring/tests",
+    "godot/games/_shared/python/tests",
 )
 
 
@@ -67,6 +75,8 @@ def _declared_owner(path: Path, root: Path, source: str, modules: set[str]) -> T
     marker = _MARKER.search(source)
     explicit = cast(TestOwner, marker.group(1)) if marker else None
     owners: set[TestOwner] = {explicit or "product"}
+    if any(path.is_relative_to(root / folder) for folder in CONSUMER_TEST_ROOTS):
+        owners.add("games")
     # An explicit marker cannot hide imports that require an optional distribution.
     if any(module.split(".")[0] == "concept_studio" for module in modules):
         owners.add("apps")
@@ -88,7 +98,7 @@ def _declared_owner(path: Path, root: Path, source: str, modules: set[str]) -> T
 def test_owners(root: Path) -> dict[str, TestOwner]:
     files = {
         path
-        for folder in (root / "tests", root / "scripts")
+        for folder in (root / "tests", root / "scripts", *(root / p for p in CONSUMER_TEST_ROOTS))
         for path in folder.rglob("*.py")
         if "__pycache__" not in path.parts
     }
@@ -119,7 +129,7 @@ def test_owners(root: Path) -> dict[str, TestOwner]:
     return {
         path.relative_to(root).as_posix(): ownership[path]
         for path in sorted(files)
-        if path.is_relative_to(root / "tests")
+        if any(path.is_relative_to(root / folder) for folder in ("tests", *CONSUMER_TEST_ROOTS))
         and path.name.startswith("test_")
         and not path.is_relative_to(root / "tests/live")
     }

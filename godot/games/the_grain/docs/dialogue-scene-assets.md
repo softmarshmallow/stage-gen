@@ -1,5 +1,11 @@
 # The Grain: dialogue-scene asset format
 
+Current ownership: this is The Grain's asset-preparation contract over its
+supported v2 input. Game metadata and generation briefs remain in its reader
+and shared game adapter. [Scenario](../../../packages/scenario_runtime/README.md)
+owns narrative compilation/execution under Godot; this document does not define
+new v3 staging, presentation capabilities or the asset product's input schema.
+
 > **Checked by:** none.
 
 > **Scope: The Grain preparation.** The Python `dialogue-scene`
@@ -28,7 +34,7 @@ the stages and the tracks between them, and the fan-out follows the union.
 | Location                                | Responsibility                                                                                                                                                                        |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `godot/games/the_grain/pipeline/src/the_grain_pipeline/dialogue_scene/` | Adult/non-explicit policy, expression taxonomy, prompts, strict v3 models, stage graph, cache identity, validation, and bundle assembly.                                              |
-| `src/stage_gen/components/`             | Provider-neutral structured generation, image generation, music generation, and background removal with one six-attempt retry owner. `scenario/` owns the narrative contract and its proof; the game-owned soundtrack binding owns authored track intent and the one music prompt compiler both recipes use. |
+| `src/stage_gen/components/`             | Provider-neutral structured generation, image generation, music generation, and background removal with one six-attempt retry owner. the independent Godot `scenario_authoring` distribution owns narrative compilation/admission and `demo_game_tools.scenario` retains the production envelope; the game-owned soundtrack binding owns authored track intent and the one music prompt compiler both recipes use. |
 | `src/stage_gen/media/`                  | Shared deterministic image inspection and transforms.                                                                                                                                 |
 | `src/stage_gen/orchestration/`          | Provider composition and generic recipe dispatch.                                                                                                                                     |
 | `web/`                                  | Strict bundle validation, immutable installation, projection into web runtime objects, activation, status, and rollback. It never imports Python recipe internals or calls providers. |

@@ -16,3 +16,8 @@ Bellweather owns its [map and build graph](../../bellweather/docs/generation-pip
 Iron Petal Unit owns its [runner](../../iron_petal_unit/docs/runner.md).
 Ember Hollow owns its [survival preparation](../../ember_hollow/docs/generation-v1.md).
 The Grain owns its [case](../../the_grain/docs/case.md) and narrative leaves.
+
+Scenario's [current contract](../../../packages/scenario_runtime/docs/contract.md)
+and [compatibility guide](../../../packages/scenario_runtime/docs/compatibility.md)
+live with its package. Shared game support owns v2 production metadata and input
+resolution, not a competing universal narrative specification.

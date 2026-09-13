@@ -70,6 +70,7 @@ def commands(
 # mypy invocation would invent duplicate top-level modules. Their typed behavior
 # lives in these packages; the wrappers are exercised by the local smoke commands.
 GAME_PYTHON_ROOTS = (
+    "godot/packages/scenario_runtime/authoring/src",
     "godot/games/_shared/python/src",
     "godot/games/bellweather/pipeline/src",
     "godot/games/iron_petal_unit/pipeline/src",

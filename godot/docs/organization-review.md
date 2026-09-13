@@ -1,5 +1,11 @@
 # Godot organization review
 
+> Historical review/plan: retained statements and proposed ownership describe
+> their original scope. The [current Godot architecture](architecture.md) and
+> [Scenario invocation contract](../packages/scenario_runtime/docs/contract.md) govern current work. Scenario
+> authoring/execution is now Godot-owned; earlier experimental, asset-component
+> or universal game-sequence prescriptions are superseded.
+
 Status: accepted review and implementation rationale. The recommendations below
 record the source review before extraction; some proposed directories now exist.
 Use the [architecture](architecture.md) for the implemented layout and the
@@ -279,7 +285,7 @@ claiming a performance improvement.
 
 Share assembly mechanics privately between the
 [game packager](../tools/package_game_project.py),
-[presentation starter assembler](../packages/game_presentation/tools/assemble_starter.py)
+[Scenario starter assembler](../packages/scenario_runtime/tools/assemble_starter.py)
 and content preparation tools: confined source selection, dependency copies,
 inventory/hashing, staging and atomic publication. Owners still declare what
 belongs in their build. Keep source assembly distinct from media preparation;

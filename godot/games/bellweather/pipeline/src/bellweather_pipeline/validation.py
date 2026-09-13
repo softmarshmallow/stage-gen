@@ -51,13 +51,13 @@ from demo_game_tools.io.package_capture import (
 )
 from demo_game_tools.media.soundtrack import GameSoundtrack, load_game_soundtrack_bytes
 from demo_game_tools.media.ui import GameUi, load_game_ui_bytes
-from stage_gen.components._game_input import AuthoredContractLoadError
-from stage_gen.components.scenario import (
+from demo_game_tools.scenario import (
     ResolvedScenario,
     ScenarioCatalog,
     load_scenario_catalog_bytes,
     resolve_scenario_bytes,
 )
+from stage_gen.components._game_input import AuthoredContractLoadError
 
 
 @dataclass(frozen=True, slots=True)

@@ -4,7 +4,8 @@ The [Godot project charter](../../CHARTER.md) defines this package's consumer-pr
 scope. This file governs the existing presentation addon and its supporting project;
 it does not impose its package boundary on sibling games or future packages.
 Restrictions on complete UI and game frameworks below protect this addon's bounded
-role. A separately owned Godot framework may be reviewed under the charter.
+role. The sibling Scenario package owns the selected VN-oriented framework and its
+presenters; these restrictions do not demote that framework or govern its content.
 Game-specific integration notes apply when changing those integrations; each game's
 own guidance controls its composition.
 
@@ -19,25 +20,29 @@ Do not reintroduce duplicate controllers under the former presentation directori
 
 Read [current status](docs/STATUS.md), the [Godot architecture](../../docs/architecture.md),
 and [PACKAGING.md](docs/PACKAGING.md) for current responsibilities and clean-copy checks.
-Scenario is experimental and secondary. No universal host UI or effect lifecycle
-is implied. P100 anatomy and standing framing remain deferred; upstream generation
-and engine-free gameplay contracts are separate. No release is authorized merely
+[Scenario](../scenario_runtime/README.md) owns game-invoked narrative execution,
+compiler, typed capability lifecycle and optional presenters. This addon remains
+its lower mechanism dependency and does not import it. Complete game UI and
+world policy stay with games. P100 anatomy and standing framing remain deferred;
+upstream generation and engine-free gameplay contracts are separate. No release is authorized merely
 by changing the local SDK or its canary metadata.
 
 - Favor practical flexibility. Judge components by explicit responsibilities,
   dependencies, state, and contracts. Integration size and file count alone are
   not reasons to refactor.
-- Keep game story, cast/art bindings, direction, and decisions in its game root
-  and supporting files. One discoverable master composition per game is useful;
-  forcing every implementation into that file is not required.
+- Keep game story, cast/art bindings, direction, and decisions with the game.
+  Narrative consumers author sequence direction in Scenario data and bind declared
+  mechanisms in code. There is no story-ID callback escape route. Complete
+  application composition remains discoverable from the game root.
 - P64 authorizes English/Korean text values in Afterlight's dedicated JSON sets
   and paired story review. Keep code identifiers, comments, and diagnostics in
   English. Use stable text IDs; language changes must preserve the current beat,
   effect state, and actor/choice identities. The host owns fonts and language UI.
 - The host/route owns its complete UI: hierarchy, controls, layout, theme/art,
   and action wiring. Configure it manually per game. Share optional utilities
-  or independently reusable behaviors, not a whole game UI, interchangeable
-  view contract, or skin framework. Similar layouts alone do not justify sharing.
+  or independently reusable behaviors in this addon. The Scenario sibling owns
+  reusable narrative presenters/profiles; complete application UI remains local.
+  Similar layouts alone do not justify moving a complete game UI into this addon.
   Existing stage/opening UI is concrete integration to untangle when customized;
   it is not a mandatory interface for other games.
 - Reuse the existing controllers. Shared behavior must not import a game root,
@@ -87,7 +92,8 @@ by changing the local SDK or its canary metadata.
 
 - P67/P68 replace Afterlight's guest-selection meeting with a linear bishōjo
   ensemble adventure. It is not a dating simulator. Story cues and the cast
-  renderer are game-owned; no universal scenario language is introduced.
+  renderer are game-owned; the Scenario sibling owns authored sequence execution,
+  without introducing a universal gameplay language.
   Presentation Lab owns all focused study routes; real games keep story UI
   and small navigation menus. Preserve per-game in-session checkpoints and
   independent lab fixture language/settings when navigating among roots.

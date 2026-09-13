@@ -1,97 +1,19 @@
-extends Control
+extends "res://addons/scenario_runtime/presentation/portrait_feed.gd"
 
-## Afterlight's floating television: a game-owned frame around one portrait feed.
-## The host supplies a logical world camera and its already-owned effect clock.
-## present() is stateless sampling; it does not start timers, advance simulation,
-## or follow the speaking actor. clear() hides the feed without keeping a call.
-const HOLOGRAM = preload("res://addons/game_presentation/effects/shaders/character_hologram.gdshader")
+## Afterlight supplies the frame geometry, motion and decorative television skin.
 const DEFAULT_FRAME := Rect2(332, 135, 616, 472)
 const DEFAULT_INSET := Vector2(20, 20)
-const EMPTY_STATE := {"visible": false, "actor_id": "", "frame_rect": Rect2(), "feed_rect": Rect2(),
-	"portrait_rect": Rect2(), "face_rect": Rect2(), "eye_point": Vector2.ZERO,
-	"effect_time": 0.0, "hologram_strength": 0.0}
-var _clip: Control
-var _feed: TextureRect
-var _material: ShaderMaterial
-var _state := EMPTY_STATE.duplicate(true)
-var _scale_factor := 1.0
-
-
-func _ready() -> void:
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	_clip = Control.new()
-	_clip.name = "ClippedTransmissionFeed"
-	_clip.clip_contents = true
-	_clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_clip)
-	_feed = TextureRect.new()
-	_feed.name = "TransmissionPortrait"
-	_feed.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_feed.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_clip.add_child(_feed)
-	_material = ShaderMaterial.new()
-	_material.shader = HOLOGRAM
-	_feed.material = _material
-	clear()
 
 
 func present(actor_id: String, texture: Texture2D, camera: Transform2D, effect_time: float, settings: Dictionary = {}) -> void:
-	if _feed == null or actor_id.is_empty() or texture == null:
-		clear()
-		return
-	var clock := maxf(0.0, effect_time)
-	var base: Rect2 = settings.get("frame_rect", DEFAULT_FRAME)
-	var bob := Vector2(2.0 * sin(clock * 0.61), 3.0 * sin(clock * 0.89))
-	var frame: Rect2 = camera * Rect2(base.position + bob, base.size)
-	_scale_factor = camera.x.length()
-	var inset: Vector2 = settings.get("feed_inset", DEFAULT_INSET) * _scale_factor
-	var feed_rect := Rect2(frame.position + inset, frame.size - inset * 2.0)
-	var source_size := texture.get_size()
-	var factor := maxf(feed_rect.size.x / source_size.x, feed_rect.size.y / source_size.y)
-	var portrait_size := source_size * factor
-	var portrait_rect := Rect2(feed_rect.position + (feed_rect.size - portrait_size) * 0.5, portrait_size)
-	var face_uv: Rect2 = settings.get("face_uv_rect", Rect2(0.35, 0.14, 0.25, 0.33))
-	var face_rect := Rect2(portrait_rect.position + portrait_rect.size * face_uv.position, portrait_rect.size * face_uv.size)
-	var eye_uv: Vector2 = settings.get("eye_uv", Vector2(0.47, 0.28))
-	var strength := clampf(float(settings.get("hologram_strength", 0.70)), 0.0, 1.0)
-	position = frame.position
-	size = frame.size
-	_clip.position = inset
-	_clip.size = feed_rect.size
-	_feed.texture = texture
-	_feed.position = portrait_rect.position - feed_rect.position
-	_feed.size = portrait_rect.size
-	_material.set_shader_parameter("effect_time", clock)
-	_material.set_shader_parameter("strength", strength)
-	_state = {"visible": true, "actor_id": actor_id, "frame_rect": frame, "feed_rect": feed_rect,
-		"portrait_rect": portrait_rect, "face_rect": face_rect,
-		"eye_point": portrait_rect.position + portrait_rect.size * eye_uv,
-		"effect_time": clock, "hologram_strength": strength}
-	show()
-	queue_redraw()
-
-
-func clear() -> void:
-	hide()
-	_state = EMPTY_STATE.duplicate(true)
-	_scale_factor = 1.0
-	position = Vector2.ZERO
-	size = Vector2.ZERO
-	if _feed != null: _feed.texture = null
-	if _material != null:
-		_material.set_shader_parameter("effect_time", 0.0)
-		_material.set_shader_parameter("strength", 0.0)
-
-
-func snapshot() -> Dictionary:
-	var result := _state.duplicate(true)
-	result["visible"] = visible
-	result["feed_clipped"] = _clip != null and _clip.clip_contents
-	if _material != null:
-		result["hologram_strength"] = float(_material.get_shader_parameter("strength"))
-		result["effect_time"] = float(_material.get_shader_parameter("effect_time"))
-	return result
+	var configured := {
+		"frame_rect": DEFAULT_FRAME, "feed_inset": DEFAULT_INSET,
+		"face_uv_rect": Rect2(0.35, 0.14, 0.25, 0.33), "eye_uv": Vector2(0.47, 0.28),
+		"hologram_strength": 0.70, "bob_amplitude": Vector2(2.0, 3.0),
+		"bob_frequencies": Vector2(0.61, 0.89),
+	}
+	configured.merge(settings, true)
+	super.present(actor_id, texture, camera, effect_time, configured)
 
 
 func _draw() -> void:

@@ -1,5 +1,11 @@
 # The Grain asset preparation
 
+Scenario preparation uses the private `demo_game_tools.scenario` adapter over
+the independent Godot-owned authoring package. Existing v2 source, production
+metadata and prepared bytes remain supported; playback uses Scenario's single
+Session executor through its compatibility reader. Compilation does not generate
+media and is separate from the asset pipeline described below.
+
 The investigation game owns its case bindings, room builder and dialogue builder. These are parts of this game, not a canonical game contract for the asset SDK.
 
 Install the optional game tools from the repository root:

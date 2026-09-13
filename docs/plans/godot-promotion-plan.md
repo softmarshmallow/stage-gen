@@ -1,5 +1,11 @@
 # The Godot promotion: the path
 
+> Historical review/plan: retained statements and proposed ownership describe
+> their original scope. The [current Godot architecture](../../godot/docs/architecture.md) and
+> [Scenario invocation contract](../../godot/packages/scenario_runtime/docs/contract.md) govern current work. Scenario
+> authoring/execution is now Godot-owned; earlier experimental, asset-component
+> or universal game-sequence prescriptions are superseded.
+
 Status: in flight. Steps 0 to 3, the kernel, the runner, the gate and step 10's
 three hosts have landed; the table marks them. Companion to [the host contract](../../godot/games/_shared/docs/formats/host-contract.md)
 (the end state) and

@@ -1,0 +1,13 @@
+{
+  "title": "THE SIGNAL ROOM",
+  "intro": "At the last station, one light is still on.",
+  "welcome": "You made it. We kept the relay warm in case anyone found their way here.",
+  "choice": "One message can leave before dawn. What should we send?",
+  "light": "A light",
+  "note": "A note",
+  "reply_light": "A light, then. No names or explanations. Just a small reason to look up.",
+  "reply_note": "A note, then. Something simple: we are here, and there is room for one more.",
+  "contact": "Rest your hand on the light. The relay needs someone on this side, too.",
+  "delivery": "There. Somewhere beyond the hills, another window is waking up.",
+  "ending": "For the first time tonight, the station does not feel like the end of the line."
+}

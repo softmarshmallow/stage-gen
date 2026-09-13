@@ -19,6 +19,8 @@ func _initialize() -> void:
 	_check(_failure_atomicity(), "failure section completed")
 	_check(_staging(), "staging section completed")
 	_check(_malformed_shapes(), "malformed section completed")
+	_check(_restore_invariants(), "restore invariants section completed")
+	_check(_snapshot_identity(), "snapshot identity section completed")
 	if not failures.is_empty():
 		for failure in failures:
 			printerr(failure)
@@ -168,6 +170,12 @@ func _staging() -> bool:
 	var saved: Dictionary = opening["state"].duplicate(true)
 	saved["actors"][0]["expression"] = "unknown"
 	_check(Runtime.restore(program, saved) == null, "unresolved saved expression returns null")
+	saved = opening["state"].duplicate(true)
+	saved["actors"].append(saved["actors"][0].duplicate(true))
+	_check(Runtime.restore(program, saved) == null, "duplicate saved actor refused")
+	saved = opening["state"].duplicate(true)
+	saved["tracks"].append("hum")
+	_check(Runtime.restore(program, saved) == null, "duplicate saved track refused")
 	return true
 
 func _malformed_shapes() -> bool:
@@ -200,4 +208,88 @@ func _malformed_shapes() -> bool:
 	var opening := Runtime.initial_state(program)
 	var failure := Runtime.reduce_turn(program, opening, {"kind": "advance"})
 	_check(Refusal.is_refusal(failure) and failure["error"]["code"] == "scenario/nonsettling", "fallthrough fails instead of wrapping to the same line")
+	return true
+
+
+func _restore_invariants() -> bool:
+	var program: Dictionary = Program.parse(Example.document())
+	var opening := Runtime.initial_state(program)
+	var choice := Runtime.reduce(program, opening, {"kind": "advance"})
+	var ended := Runtime.reduce(program, choice, {"kind": "choose", "option": 0})
+	for state in [opening, choice, ended]:
+		_check(Runtime.restore(program, JSON.parse_string(JSON.stringify(state))) == state, "JSON save round trip preserves a settled state")
+	for change in [
+		{"label": "reply", "index": 0},
+		{"outcome": "received"},
+		{"seen": ["ghost#0"]},
+		{"seen": ["start#0", "start#0"]},
+		{"seen": ["start#0", "reply#0"]},
+		{"seen": ["start#0", "reply#1"]},
+		{"seen": []},
+		{"flags": ["heard", "heard"]},
+	]:
+		var saved: Dictionary = opening.duplicate(true)
+		saved.merge(change, true)
+		_check(Runtime.restore(program, saved) == null, "inconsistent restored state refused: " + str(change))
+	var missing_outcome := ended.duplicate(true)
+	missing_outcome["outcome"] = null
+	_check(Runtime.restore(program, missing_outcome) == null, "end statement requires its outcome")
+	var raw := Example.document()
+	raw["endings"].append({"outcome_id": "other", "label": "Another ending"})
+	program = Program.parse(raw)
+	var wrong_outcome := ended.duplicate(true)
+	wrong_outcome["outcome"] = "other"
+	_check(Runtime.restore(program, wrong_outcome) == null, "declared outcome must match the current end statement")
+	raw["blocks"][0]["statements"][1]["options"][0]["condition"] = {"requires": ["heard"]}
+	program = Program.parse(raw)
+	_check(Runtime.restore(program, choice) == null, "a restored choice needs at least one available option")
+	_check(opening["seen"] == ["start#0"], "snapshot admission does not mutate the caller state")
+	return true
+
+
+func _snapshot_identity() -> bool:
+	var raw := Example.document()
+	var program: Dictionary = Program.parse(raw)
+	var opening := Runtime.initial_state(program)
+	var saved := Runtime.snapshot(program, opening)
+	_check(saved["kind"] == "scenario-runtime-snapshot" and saved["schema_version"] == 1, "content-bound envelope has its own version")
+	_check(Runtime.restore(program, saved) == opening, "content-bound snapshot restores current program")
+	_check(Runtime.restore(program, JSON.parse_string(JSON.stringify(saved))) == opening, "content-bound snapshot survives JSON serialization")
+	var edited := raw.duplicate(true)
+	edited["blocks"][0]["statements"].insert(0, {"kind": "line", "text": "New opening before the saved position."})
+	var changed: Dictionary = Program.parse(edited)
+	_check(Runtime.restore(changed, saved) == null, "inserting text refuses stale position even when label and index still exist")
+	_check(Runtime.restore(changed, opening) != null, "raw historical states keep structural compatibility without claiming revision verification")
+	edited = raw.duplicate(true)
+	edited["blocks"][0]["statements"][0]["text"] = "Changed text at the same position."
+	_check(Runtime.restore(Program.parse(edited), saved) == null, "editing existing text invalidates content identity")
+	edited = raw.duplicate(true)
+	edited["blocks"][1]["statements"][0]["value"] = false
+	_check(Runtime.restore(Program.parse(edited), saved) == null, "editing an invisible effect invalidates content identity")
+	edited = raw.duplicate(true)
+	edited["producer_metadata"] = {"revision": "not interpreted"}
+	_check(Runtime.restore(Program.parse(edited), saved) == opening, "unconsumed producer metadata does not invalidate interpreter identity")
+	var reordered := {}
+	var keys: Array = raw.keys()
+	keys.reverse()
+	for key: Variant in keys:
+		reordered[key] = raw[key]
+	_check(Runtime.restore(Program.parse(reordered), saved) == opening, "dictionary insertion order does not invalidate identity")
+	for change in [
+		{"kind": "unknown"}, {"kind": {}}, {"schema_version": 2}, {"schema_version": []}, {"schema_version": true},
+		{"program_fingerprint": "sha256:stale"}, {"program_fingerprint": {}},
+		{"state": false},
+	]:
+		var malformed := saved.duplicate(true)
+		malformed.merge(change, true)
+		_check(Runtime.restore(program, malformed) == null, "malformed envelope refused: " + str(change.keys()))
+	var missing_identity := saved.duplicate(true)
+	missing_identity.erase("program_fingerprint")
+	_check(Runtime.restore(program, missing_identity) == null, "partial envelope does not fall back to legacy admission")
+	var invalid_state := saved.duplicate(true)
+	invalid_state["state"]["index"] = 200
+	_check(Runtime.restore(program, invalid_state) == null, "matching fingerprint does not bypass state validation")
+	saved["state"]["seen"].append("ghost#0")
+	_check(opening["seen"] == ["start#0"], "snapshot creation detaches state from the caller")
+	_check(Runtime.restore(program, saved) == null, "matching fingerprint does not authenticate modified save state")
 	return true

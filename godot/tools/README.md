@@ -17,6 +17,11 @@ for commands that import game preparation packages.
 | `unused_assets.py` | Report tracked game media or catalogs unreachable from source and catalogs |
 | `python/src/demo_game_collection/` | The optional `demo-games` CLI and cross-game inspection |
 
+The [Scenario assembler](../packages/scenario_runtime/tools/README.md) owns the
+copyable VN starter and its declared addon closure. The independently installed
+[authoring CLI](../packages/scenario_runtime/authoring/README.md) owns narrative
+compilation and explicit local content-package assembly.
+
 Game-specific tools live with the game. Bellweather owns map/terrain authoring,
 ladder proofs and platformer capture. Ember Hollow owns survival fixtures and cache
 goldens. Iron Petal Unit and The Grain own their captures and parity scripts.

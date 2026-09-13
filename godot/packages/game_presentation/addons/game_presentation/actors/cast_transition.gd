@@ -35,24 +35,27 @@ var _completed_handoffs := 0
 
 ## The first two actor ids occupy left/right initially; the third is hidden.
 ## Validate everything in temporary state before replacing a live controller.
-func initialize(actor_ids: Array[String], exit_catalog_path: String, spec_path: String) -> Array[String]:
+func initialize(actor_ids: Array[String], exit_catalog_path: String, specification: Variant) -> Array[String]:
 	var errors: Array[String] = []
 	if actor_ids.size() != 3:
 		errors.append("Cast Transition requires exactly three actor ids.")
 	var next_exit = CHARACTER_EXIT.new()
 	errors.append_array(next_exit.initialize(actor_ids, exit_catalog_path))
-	var file := FileAccess.open(spec_path, FileAccess.READ)
-	if file == null:
-		errors.append("Cannot open the Cast Transition specification.")
-		return errors
-	var parser := JSON.new()
-	if parser.parse(file.get_as_text()) != OK:
-		errors.append("Cannot parse the Cast Transition specification: " + parser.get_error_message())
-		return errors
-	errors.append_array(_validate_spec(parser.data))
+	var supplied: Variant = specification
+	if specification is String:
+		var file := FileAccess.open(specification, FileAccess.READ)
+		if file == null:
+			errors.append("Cannot open the Cast Transition specification.")
+			return errors
+		var parser := JSON.new()
+		if parser.parse(file.get_as_text()) != OK:
+			errors.append("Cannot parse the Cast Transition specification: " + parser.get_error_message())
+			return errors
+		supplied = parser.data
+	errors.append_array(_validate_spec(supplied))
 	if not errors.is_empty():
 		return errors
-	var spec: Dictionary = parser.data
+	var spec: Dictionary = supplied
 	var selected_exit := String(spec["defaults"].get("exit_preset", spec["exit_preset"]))
 	errors.append_array(next_exit.configure(selected_exit))
 	if not errors.is_empty():

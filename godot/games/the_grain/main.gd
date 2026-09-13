@@ -170,6 +170,7 @@ func _on_moment(
 			# nothing said hands up an empty record rather than a null one.
 			"line": null if line.is_empty() else line,
 			"scenario": playback,
+			"scenario_snapshot": leaf.call("snapshot") if leaf != null and leaf.has_method("snapshot") else null,
 			"outcome": outcome,
 		}
 	)
@@ -296,6 +297,8 @@ func _gate_leaf() -> void:
 	if leaf == null:
 		return
 	var covered := chrome.covers_leaf()
+	if leaf.has_method("set_suspended"):
+		leaf.call("set_suspended", covered)
 	leaf.set_process_unhandled_key_input(not covered)
 	leaf.mouse_filter = (
 		Control.MOUSE_FILTER_IGNORE if covered else Control.MOUSE_FILTER_STOP

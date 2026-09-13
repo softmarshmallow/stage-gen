@@ -21,5 +21,8 @@ their local GDScript and preparation scripts.
 
 Whole-game builders and input readers belong to their named `godot/games/` consumers.
 Its [game graph](../../godot/games/bellweather/docs/generation-pipeline.md) describes that demo family only.
-New asset pipelines can use independent scenario, sprite, parallax, portrait,
-terrain and other contracts without combining them into a gameplay language.
+New asset pipelines can use independent sprite, parallax, portrait, terrain and
+other contracts without combining them into a gameplay language. The optional
+[Scenario framework](../../godot/packages/scenario_runtime/README.md) and its
+compiler belong to Godot. Games invoke its sequences through explicit capability
+bindings; the asset product has no Scenario dependency.

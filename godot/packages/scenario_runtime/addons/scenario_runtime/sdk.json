@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "name": "scenario_runtime",
+  "version": "0.1.0",
+  "install_path": "addons/scenario_runtime",
+  "engine": "Godot",
+  "dependencies": ["game_presentation", "content_io"],
+  "execution_version": 3,
+  "compatibility_inputs": ["scenario-program-v2"]
+}

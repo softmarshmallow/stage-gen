@@ -148,14 +148,16 @@ def test_product_gate_does_not_require_optional_consumers() -> None:
 
 
 def test_owned_test_gates_partition_every_offline_test() -> None:
-    from scripts.test_ownership import TestOwner, paths_for
+    from scripts.test_ownership import CONSUMER_TEST_ROOTS, TestOwner, paths_for
     from scripts.test_ownership import test_owners as collect_owners
 
     root = Path(__file__).parents[2]
     owned = collect_owners(root)
+    assert owned["tests/integration/test_game_cli_imports.py"] == "games"
     expected = {
         str(path.relative_to(root))
-        for path in (root / "tests").rglob("test_*.py")
+        for folder in ("tests", *CONSUMER_TEST_ROOTS)
+        for path in (root / folder).rglob("test_*.py")
         if not path.is_relative_to(root / "tests/live")
     }
     assert set(owned) == expected

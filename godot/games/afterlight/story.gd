@@ -1,96 +1,141 @@
 extends Control
 
-## Afterlight's episode director and complete game-owned interface.
-## Cue data is authored Godot content, not a shared scenario language. Effects
-## retain their own APIs; this host owns their ordering, clocks, and composition.
+## Afterlight owns its application, UI, audio, bindings and save envelope.
+## Scenario Session exclusively executes the authored episode and timed cues.
 signal navigate(route_id: String)
 signal language_changed(language: String)
-const WALKING = preload("res://addons/game_presentation/camera/walking_approach.gd")
-const CAMERA = preload("res://addons/game_presentation/camera/dialogue_camera.gd")
-const ESTABLISH = preload("res://addons/game_presentation/camera/establishing_shot.gd")
-const DRIFT = preload("res://addons/game_presentation/camera/camera_drift.gd")
-const EYE = preload("res://addons/game_presentation/transitions/eye_transition.gd")
-const BACKGROUND_BLACKOUT = preload("res://addons/game_presentation/transitions/background_blackout.gd")
-const LAYER_PAN = preload("res://addons/game_presentation/motion/layer_pan.gd")
+const SESSION = preload("res://addons/scenario_runtime/execution/session.gd")
+const PROGRAM = preload("res://addons/scenario_runtime/program/program.gd")
+const CATALOG = preload("res://addons/scenario_runtime/program/catalog.gd")
+const TRANSPORT = preload("res://addons/scenario_runtime/execution/transport.gd")
+const FRONT_STAGE = preload("res://addons/scenario_runtime/presentation/front_stage.gd")
+const BINDING = preload("res://narrative_binding.gd")
+const EPISODE = preload("res://story_beats.gd")
 const REVEAL = preload("res://addons/game_presentation/text/intertitle.gd")
-const VOICE_EFFECTS = preload("res://addons/game_presentation/audio/voice_effects.gd")
-const AMBIENT_PARTICLES = preload("res://addons/game_presentation/effects/particles/ambient_particles.gd")
-const ATMOSPHERE = preload("res://atmosphere_profile.gd")
 const TEXT_AUDIO = preload("res://addons/game_presentation/audio/text_reveal_audio.gd")
+const VOICE_EFFECTS = preload("res://addons/game_presentation/audio/voice_effects.gd")
 const POINT_CONTACT = preload("res://addons/game_presentation/interaction/point_contact.gd")
-const REFRACTION = preload("res://addons/game_presentation/effects/refraction_field.gd")
-const CORRUPTION = preload("res://addons/game_presentation/effects/ominous_corruption.gd")
-const SPRITE_BURST = preload("res://addons/game_presentation/effects/particles/sprite_burst.gd")
-const SHAKE = preload("res://addons/game_presentation/camera/impact_shake.gd")
-const HALO = preload("res://addons/game_presentation/effects/actor_halo.gd")
-const CAST = preload("res://cast_stage.gd")
 const CONTENT_ADAPTER = preload("res://content_adapter.gd")
 const TRANSMISSION_DISPLAY = preload("res://transmission_display.gd")
 const DESIGN_SIZE := Vector2(1280, 900)
 const INK := Color("f4eee6")
 const ACCENT := Color("e4bbac")
-const CINEMATICS := ["walk", "eye", "establish", "handoff", "exit", "rift"]
 var content: Dictionary = {}
 var beats: Array = []
 var saved_state: Dictionary = {}
 var text_set: RefCounted
 var voice_policy: RefCounted
 var content_factory: Callable
-var _voice_state: Dictionary = {}
-var _voice_waiting := false
-var _load_errors: Array[String] = []
-var _backgrounds: Array[Texture2D] = []
-var _textures: Dictionary = {}
-var _portraits: Dictionary = {}
-var _details: Dictionary = {}
-var _contact_textures: Dictionary = {}
-var _burst_textures: Dictionary = {}
-var _burst_emitted := false
-var _blackout_started := false
-var _approach_started := false
-var _cast_pan_started := false
-var _background_index := 0
-var _base_background := Rect2()
-var _beat_index := 0
+var text_audio_settings: Dictionary = {}
+var _session = SESSION.new()
+var _transport = TRANSPORT.new()
+var _stage = FRONT_STAGE.new()
+var _program: Dictionary = {}
+var _catalog: Dictionary = {}
+var _catalog_document: Dictionary = {}
+var _types: Dictionary = {}
+var _policy: Dictionary = {}
+var _shown: Dictionary = {}
+var _reported_gate_events: Dictionary = {}
+var _current_review: Dictionary = {}
+var _clock := {"sequence": 0.0, "presentation": 0.0, "reading": 0.0}
 var _elapsed := 0.0
-var _effect_time := 0.0
 var _history: Array[float] = []
-var _choices: Dictionary = {}
 var _manpu_history: Array[float] = []
 var _manpu_event_time := -1.0
 var _contact_history: Array[float] = []
 var _contact_time := -1.0
+var _journal: Array = []
 var _replaying_checkpoint := false
 var _paused := false
-var _autoplay_enabled := false
-var _autoplay_elapsed := 0.0
-var _walking = WALKING.new()
-var _camera = CAMERA.new()
-var _establish = ESTABLISH.new()
-var _drift = DRIFT.new()
-var _eye = EYE.new()
+var _voice_state: Dictionary = {}
+var _voice_waiting := false
+var _load_errors: Array[String] = []
+var _checkpoint_refused := false
+var _recovery_button: Button
 var _reveal = REVEAL.new()
 var _text_audio = TEXT_AUDIO.new()
 var _voice_effects = VOICE_EFFECTS.new()
-var _atmosphere_layer := Control.new()
-var _ambient_emitters: Array[Control] = []
-var _atmosphere_id := ""
-var _atmosphere_background := -1
 var _contact = POINT_CONTACT.new()
-var _shake = SHAKE.new()
-var _heat_haze = REFRACTION.new()
-var _world_corruption = CORRUPTION.new()
-var _local_corruption = CORRUPTION.new()
-var _barrier = REFRACTION.new()
-var _sprite_burst = SPRITE_BURST.new()
-var _background_blackout = BACKGROUND_BLACKOUT.new()
-var _cast_pan = LAYER_PAN.new()
-var _cast: Control
-var _transmission_display: Control
-var _portrait: TextureRect
-var _halo: TextureRect
-var _eye_layer: ColorRect
-var _flare: ColorRect
+var _beat_index: int:
+	get:
+		for index in beats.size():
+			if beats[index]["id"] == current_beat().get("id"): return index
+		return 0
+var _choices: Dictionary:
+	get:
+		var result := {}
+		if not _session.view().is_empty():
+			for key: String in _session.snapshot()["state"]["facts"]:
+				var value: Variant = _session.snapshot()["state"]["facts"][key]
+				if value != "": result[key] = value
+		return result
+var _autoplay_enabled: bool:
+	get: return _transport._enabled
+	set(value): _transport._enabled = value
+var _autoplay_elapsed: float:
+	get: return _transport._elapsed
+	set(value): _transport._elapsed = value
+var _cast: Control:
+	get: return _stage._cast
+var _transmission_display: Control:
+	get: return _stage._transmission_display
+var _portrait: TextureRect:
+	get: return _stage._portrait
+var _halo: TextureRect:
+	get: return _stage._halo
+var _eye_layer: ColorRect:
+	get: return _stage._eye_layer
+var _flare: ColorRect:
+	get: return _stage._flare
+var _background_index: int:
+	get: return _stage._background_index
+var _base_background: Rect2:
+	get: return _stage._base_background
+var _effect_time: float:
+	get: return _stage._effect_time
+var _walking: RefCounted:
+	get: return _stage._walking
+var _camera: RefCounted:
+	get: return _stage._camera
+var _establish: RefCounted:
+	get: return _stage._establish
+var _drift: RefCounted:
+	get: return _stage._drift
+var _eye: RefCounted:
+	get: return _stage._eye
+var _shake: RefCounted:
+	get: return _stage._shake
+var _heat_haze: Control:
+	get: return _stage._heat_haze
+var _world_corruption: Control:
+	get: return _stage._world_corruption
+var _local_corruption: Control:
+	get: return _stage._local_corruption
+var _barrier: Control:
+	get: return _stage._barrier
+var _sprite_burst: Control:
+	get: return _stage._sprite_burst
+var _background_blackout: Control:
+	get: return _stage._background_blackout
+var _cast_pan: RefCounted:
+	get: return _stage._cast_pan
+var _atmosphere_layer: Control:
+	get: return _stage._atmosphere_layer
+var _ambient_emitters: Array:
+	get: return _stage._ambient_emitters
+var _backgrounds: Array:
+	get: return _stage._backgrounds
+var _portraits: Dictionary:
+	get: return _stage._portraits
+var _details: Dictionary:
+	get: return _stage._details
+var _contact_textures: Dictionary:
+	get: return _stage._contact_textures
+var _burst_textures: Dictionary:
+	get: return _stage._burst_textures
+var _textures: Dictionary:
+	get: return _stage._textures
 var _ui: Control
 var _header: Control
 var _dialogue: Control
@@ -110,84 +155,10 @@ var _pause_menu: Control
 var _ui_bindings: Array[Dictionary] = []
 
 
-func _ready() -> void:
-	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	_text_audio.name = "TextRevealAudio"
-	# Children exit in reverse order: stop voice before its bus is removed.
-	add_child(_voice_effects)
-	add_child(_text_audio)
-	_load_errors.append_array(_voice_effects.configure(content.get("transmission_voice", {})))
-	for item: Dictionary in content.get("backgrounds", []):
-		_backgrounds.append(_load_texture(item["path"]))
-	for profile: Dictionary in _cast_profiles():
-		var actor_id := str(profile["id"])
-		_textures[actor_id] = _load_texture(profile["path"])
-		if profile.has("eye_close_path"): _portraits[actor_id] = _load_texture(profile["eye_close_path"])
-		if profile.has("detail_path"): _details[actor_id] = _load_texture(profile["detail_path"])
-		if profile.has("contact_path"): _contact_textures[actor_id] = _load_texture(profile["contact_path"])
-	for sprite_id: String in content.get("sprite_burst", {}).get("sprites", {}):
-		_burst_textures[sprite_id] = _load_texture(content["sprite_burst"]["sprites"][sprite_id])
-	# Background treatments sit below actors; local aura and the barrier sit
-	# above them. Every screen-reading pass owns its own preceding copy.
-	add_child(_heat_haze)
-	add_child(_world_corruption)
-	_atmosphere_layer.name = "AfterlightWorldAtmosphere"
-	_atmosphere_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_atmosphere_layer)
-	_load_errors.append_array(_heat_haze.configure(content.get("heat_haze", {})))
-	_load_errors.append_array(_world_corruption.configure(content.get("world_corruption", {})))
-	_load_errors.append_array(_local_corruption.configure(content.get("local_corruption", {})))
-	_load_errors.append_array(_barrier.configure(content.get("barrier", {})))
-	# Black out the environment only; actors, manpu and interface draw above it.
-	_background_blackout.name = "AfterlightBackgroundBlackout"
-	add_child(_background_blackout)
-	# The root chooses rear placement; emitted world positions detach from the
-	# actor while their rendering continues to follow the final camera.
-	_sprite_burst.name = "AfterlightSpriteBurst"
-	add_child(_sprite_burst)
-	_cast = CAST.new()
-	_cast.name = "AfterlightCast"
-	add_child(_cast)
-	_load_errors.append_array(_cast.initialize(_cast_profiles(), _textures, content.get("manpu_textures", {})))
-	_transmission_display = TRANSMISSION_DISPLAY.new()
-	_transmission_display.name = "AfterlightTransmissionDisplay"
-	add_child(_transmission_display)
-	_halo = HALO.new()
-	add_child(_halo)
-	_load_errors.append_array(_halo.configure(content.get("halo", {})))
-	_portrait = TextureRect.new()
-	_portrait.name = "DirectedPortrait"
-	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_portrait)
-	add_child(_local_corruption)
-	add_child(_barrier)
-	_flare = _shader_layer("res://addons/game_presentation/effects/shaders/location_lens_flare.gdshader")
-	_eye_layer = _shader_layer("res://addons/game_presentation/effects/shaders/eye_transition.gdshader")
-	_eye_layer.material.set_shader_parameter("viewport_size", DESIGN_SIZE)
-	_eye_layer.material.set_shader_parameter("edge_softness", float(content.get("eye_mask", {}).get("edge_softness", 28.0)))
-	_load_errors.append_array(_walking.configure(content.get("approach", {})))
-	_load_errors.append_array(_eye.configure(content.get("eye_transition", {})))
-	_validate_autoplay()
-	if content.get("autoplay", {}) is Dictionary:
-		_autoplay_enabled = bool(content.get("autoplay", {}).get("enabled", false))
-	_build_ui()
-	if beats.is_empty() or _backgrounds.is_empty(): _load_errors.append("Afterlight requires an authored episode and prepared backgrounds.")
-	if _load_errors.is_empty():
-		if saved_state.is_empty(): _restart()
-		else: _restore_game()
-	_render()
-
-
 func _load_texture(path: String) -> Texture2D:
 	var loaded := CONTENT_ADAPTER.load_texture(content.get("content_loader", CONTENT_ADAPTER.LOCAL_CONTENT.new()), path)
 	_load_errors.append_array(loaded.errors)
 	return loaded.resource
-
-
-func current_beat() -> Dictionary:
-	return beats[_beat_index] if _beat_index < beats.size() else {}
 
 
 func _cast_profiles() -> Array:
@@ -198,534 +169,6 @@ func _profile(actor_id: String) -> Dictionary:
 	for profile: Dictionary in _cast_profiles():
 		if profile["id"] == actor_id: return profile
 	return {}
-
-
-func _bind_background(index: int) -> void:
-	_background_index = index
-	var dimensions := _backgrounds[index].get_size()
-	var factor := maxf(DESIGN_SIZE.x / dimensions.x, DESIGN_SIZE.y / dimensions.y)
-	_base_background = Rect2((DESIGN_SIZE - dimensions * factor) * 0.5, dimensions * factor)
-	_load_errors.append_array(_walking.initialize(DESIGN_SIZE, _base_background))
-	_load_errors.append_array(_camera.initialize(DESIGN_SIZE, _base_background))
-	_bind_atmosphere(index)
-
-
-func _clear_atmosphere() -> void:
-	for emitter: Control in _ambient_emitters:
-		emitter.clear()
-		_atmosphere_layer.remove_child(emitter)
-		emitter.queue_free()
-	_ambient_emitters.clear()
-	_atmosphere_id = ""
-	_atmosphere_background = -1
-
-
-func _bind_atmosphere(background: int) -> void:
-	var background_id := str(content["backgrounds"][background]["id"])
-	var profile_id := str(content.get("ambient_particles", {}).get(background_id, ""))
-	if background == _atmosphere_background and profile_id == _atmosphere_id: return
-	_clear_atmosphere()
-	_atmosphere_id = profile_id
-	_atmosphere_background = background
-	for layer: Dictionary in ATMOSPHERE.profile(profile_id):
-		var emitter = AMBIENT_PARTICLES.new()
-		emitter.name = str(layer["id"])
-		_atmosphere_layer.add_child(emitter)
-		_load_errors.append_array(emitter.start(layer["region"], layer["textures"], layer["options"]))
-		_ambient_emitters.append(emitter)
-
-
-func get_atmosphere_state() -> Dictionary:
-	var layers := {}
-	for emitter: Control in _ambient_emitters: layers[str(emitter.name)] = emitter.get_state()
-	return {"profile": _atmosphere_id, "background": _atmosphere_background, "layers": layers}
-
-
-func _restart(restored_choices: Dictionary = {}) -> void:
-	_paused = false
-	_clear_atmosphere()
-	_background_blackout.clear()
-	_cast_pan.clear()
-	_history.clear()
-	_manpu_history.clear()
-	_contact_history.clear()
-	_contact.reset()
-	_choices = restored_choices.duplicate(true)
-	_beat_index = 0
-	_elapsed = 0.0
-	_effect_time = 0.0
-	_cast.set_cast([])
-	for actor_id: String in _textures: _cast.set_projection(actor_id, false)
-	_bind_background(0)
-	_enter_beat()
-	_render()
-
-
-func _enter_beat() -> void:
-	_autoplay_elapsed = 0.0
-	_text_audio.stop()
-	_voice_effects.set_bypassed(true)
-	_voice_effects.reset()
-	_sprite_burst.clear()
-	_burst_emitted = false
-	_blackout_started = false
-	_approach_started = false
-	_cast_pan_started = false
-	_load_errors.append_array(_background_blackout.fade_to(0.0, float(content.get("background_blackout", {}).get("restore_seconds", 0.4))))
-	_elapsed = 0.0
-	_manpu_event_time = -1.0
-	_contact_time = -1.0
-	_contact.reset()
-	var beat := current_beat()
-	var kind := str(beat["type"])
-	var actor_id := str(beat.get("speaker", ""))
-	# New scene/cast direction resets this host's cast-layer framing. Ordinary
-	# dialogue holds it until another pan, including through local actor motion.
-	if beat.has("cast") or beat.has("background"):
-		_cast_pan.clear()
-	_eye.clear()
-	_drift.clear()
-	_establish.clear()
-	_walking.clear()
-	_shake.clear()
-	if beat.has("shake"): _load_errors.append_array(_shake.start(beat["shake"]))
-	if beat.has("background"): _bind_background(int(beat["background"]))
-	if beat.has("cast") and kind != "handoff":
-		var ids: Array[String] = []
-		ids.assign(beat["cast"])
-		_load_errors.append_array(_cast.set_cast(ids))
-	_cast.set_marks([])
-	if kind in ["monologue", "walk", "eye", "detail", "contact", "establish", "rift"]:
-		_cast.cancel_manpu()
-	_load_errors.append_array(_cast.focus(actor_id, str(beat.get("focus", "bounce")), bool(beat.get("focus_replay", false))))
-	if beat.has("mark"):
-		_load_errors.append_array(_cast.mark(actor_id, str(beat["mark"]), str(beat.get("mark_preset", ""))))
-	if beat.get("manpu_timing", "on_enter") != "after_reveal" and not _replaying_checkpoint:
-		_emit_beat_manpu()
-	if str(beat.get("camera", "")) == "wide": _load_errors.append_array(_camera.wide(0.65))
-	elif str(beat.get("camera", "")) == "close":
-		var profile := _profile(actor_id)
-		if profile.has("transmission_display"):
-			var settings: Dictionary = profile["transmission_display"]
-			var frame: Rect2 = settings.get("frame_rect", TRANSMISSION_DISPLAY.DEFAULT_FRAME)
-			_load_errors.append_array(_camera.focus(actor_id, _cast_pan.sample_transform() * frame.get_center(), frame.get_center(), float(settings.get("camera_zoom", 1.06)), 0.8))
-		else:
-			var rect: Rect2 = _cast.get_actor_rect(actor_id)
-			var eye_uv: Array = profile["eye_uv"]
-			var point: Vector2 = _cast_pan.sample_transform() * (rect.position + rect.size * Vector2(float(eye_uv[0]), float(eye_uv[1])))
-			_load_errors.append_array(_camera.focus(actor_id, point, Vector2(640, 280), 2.35, 0.8))
-	match kind:
-		"walk":
-			_camera.clear()
-			_load_errors.append_array(_walking.start())
-		"eye":
-			_load_errors.append_array(_eye.start(str(beat.get("eye_mode", "eye_opening")), beat.get("eye_settings", {})))
-		"detail":
-			_load_errors.append_array(_drift.start(content.get("drift", {})))
-		"contact":
-			if not _contact_textures.has(actor_id):
-				_load_errors.append("Afterlight contact requires its actor's prepared contact portrait.")
-		"establish":
-			_camera.clear()
-			_load_errors.append_array(_establish.start(str(content["backgrounds"][_background_index]["id"]), {"duration_seconds": 3.4, "pan_amount": 48.0, "zoom_amount": 0.1, "flare_enabled": true, "flare_strength": 0.28, "flare_source_uv": [0.74, 0.2]}))
-		"handoff":
-			_camera.clear()
-			var ids: Array = beat["cast"]
-			_load_errors.append_array(_cast.handoff(str(ids[0]), str(ids[1]), str(ids[2]), {"curve": "spring", "damping_ratio": 0.8, "exit_preset": str(beat.get("exit_preset", "silhouette_fade"))}))
-		"projection": _load_errors.append_array(_cast.set_projection(actor_id, true))
-		"exit": _load_errors.append_array(_cast.dismiss(actor_id, str(beat.get("exit_preset", "silhouette_fade"))))
-	# A physical entrance explicitly clears a prior transmission treatment.
-	if beat.has("physical"):
-		for id: String in beat["physical"]: _cast.set_projection(id, false)
-	_reveal.clear()
-	var key := _resolved_text_key(beat)
-	if not key.is_empty():
-		_load_errors.append_array(_reveal.start(_text(key), {"chars_per_second": 32.0 if kind == "monologue" else 48.0}))
-	_begin_text_audio()
-
-
-func _process(delta: float) -> void:
-	if _paused or not _load_errors.is_empty() or not is_finite(delta) or delta <= 0.0: return
-	# A frame that finishes text, a cinematic or speech cannot also spend its
-	# earlier time on reading. Only time starting with an open gate counts.
-	var autoplay_ready := str(get_autoplay_state()["blocked_reason"]).is_empty()
-	var step := delta
-	if current_beat().get("type") == "contact" and _contact.is_confirmed():
-		step = minf(delta, maxf(0.0, _contact_feedback_seconds() - (_elapsed - _contact_time)))
-	_advance_clocks(step)
-	_start_waiting_voice()
-	_text_audio.update_reveal(int(_reveal.sample()["visible_characters"]), step)
-	if _contact_complete(): _continue_story()
-	else: _update_autoplay(step if autoplay_ready else 0.0)
-	_render()
-
-
-func _advance_clocks(delta: float) -> void:
-	# Split at the reveal boundary so event age is independent of frame size.
-	# Checkpoint replay uses the recorded actual event time, including fast taps.
-	if not _replaying_checkpoint and _pending_reveal_manpu():
-		var words: Dictionary = _reveal.get_state()
-		var remaining := maxf(0.0, float(str(words["text"]).length()) / float(words["chars_per_second"]) - float(words["elapsed"]))
-		if remaining <= delta:
-			_advance_segment(remaining)
-			_emit_beat_manpu()
-			_advance_segment(delta - remaining)
-			return
-	_advance_segment(delta)
-
-
-func _advance_segment(delta: float) -> void:
-	# This authored burst has a fixed cue time, so checkpoint replay can rebuild
-	# it from elapsed beat time without storing texture or particle snapshots.
-	var cue: Dictionary = current_beat().get("sprite_burst", {})
-	if not _burst_emitted and not cue.is_empty():
-		var wait := maxf(0.0, float(cue.get("delay_seconds", 0.0)) - _elapsed)
-		if wait <= delta:
-			_advance_pan_segment(wait)
-			_emit_beat_burst(cue)
-			_advance_pan_segment(delta - wait)
-			return
-	_advance_pan_segment(delta)
-
-
-func _advance_pan_segment(delta: float) -> void:
-	var cue: Dictionary = current_beat().get("cast_pan", {})
-	if not _cast_pan_started and not cue.is_empty():
-		var wait := maxf(0.0, float(cue.get("delay_seconds", 0.0)) - _elapsed)
-		if wait <= delta:
-			_advance_world_segment(wait)
-			_start_cast_pan(cue)
-			_advance_world_segment(delta - wait)
-			return
-	_advance_world_segment(delta)
-
-
-func _start_cast_pan(cue: Dictionary) -> void:
-	_cast_pan_started = true
-	var settings: Dictionary = content.get("cast_pan", {}).duplicate(true)
-	settings.merge(cue.get("settings", {}), true)
-	var offset := Vector2.ZERO
-	if cue.has("actor") and not cue.has("offset"):
-		var actor_id := str(cue["actor"])
-		if not _cast.visible_ids().has(actor_id):
-			_load_errors.append("Cast Pan requires a visible target actor.")
-			return
-		var anchor: Variant = cue.get("anchor_x", DESIGN_SIZE.x * 0.5)
-		if not (anchor is float or anchor is int) or not is_finite(float(anchor)) or float(anchor) < 0.0 or float(anchor) > DESIGN_SIZE.x:
-			_load_errors.append("Cast Pan anchor_x must be finite and inside the design viewport.")
-			return
-		var center: Vector2 = _cast.get_actor_rect(actor_id).get_center()
-		var profile := _profile(actor_id)
-		if profile.has("transmission_display"):
-			center = profile["transmission_display"].get("frame_rect", TRANSMISSION_DISPLAY.DEFAULT_FRAME).get_center()
-		# Resolve once from local blocking, never from an already panned sprite.
-		var anchor_world: Vector2 = _world_transform().affine_inverse() * Vector2(float(anchor), 0.0)
-		offset.x = anchor_world.x - center.x
-	elif cue.has("offset") and not cue.has("actor"):
-		var coordinates: Variant = cue["offset"]
-		if not (coordinates is Array) or coordinates.size() != 2 or not (coordinates[0] is float or coordinates[0] is int) or not (coordinates[1] is float or coordinates[1] is int):
-			_load_errors.append("Cast Pan offset must be an array of two finite numbers.")
-			return
-		offset = Vector2(float(coordinates[0]), float(coordinates[1]))
-	else:
-		_load_errors.append("Cast Pan requires exactly one actor target or offset.")
-		return
-	_load_errors.append_array(_cast_pan.pan_to(offset, settings))
-
-
-func _advance_world_segment(delta: float) -> void:
-	var previous_elapsed := _elapsed
-	_elapsed += delta
-	_reveal.advance(delta)
-	# Black monologues suspend the world; they do not finish a camera cue.
-	if current_beat().get("type") == "monologue": return
-	_effect_time += delta
-	for emitter: Control in _ambient_emitters: emitter.advance(delta)
-	_cast_pan.advance(delta)
-	_shake.advance(delta)
-	_walking.advance(delta)
-	_camera.advance(delta)
-	_establish.advance(delta)
-	_drift.advance(delta)
-	_eye.advance(delta)
-	_advance_actor_blocking(delta, previous_elapsed)
-	_sprite_burst.advance(delta)
-	_advance_background_blackout(delta, previous_elapsed)
-
-
-func _advance_actor_blocking(delta: float, previous_elapsed: float) -> void:
-	var cue: Dictionary = current_beat().get("quick_approach", {})
-	var delay := float(cue.get("delay_seconds", 0.0))
-	if not cue.is_empty() and not _approach_started and _elapsed >= delay:
-		var before := maxf(0.0, delay - previous_elapsed)
-		_cast.advance(before)
-		var settings: Dictionary = content.get("quick_approach", {}).duplicate(true)
-		settings.merge(cue.get("settings", {}), true)
-		_load_errors.append_array(_cast.approach_actor(str(cue["actor"]), str(cue["target"]), settings))
-		_approach_started = true
-		_cast.advance(maxf(0.0, delta - before))
-	else:
-		_cast.advance(delta)
-
-
-func _advance_background_blackout(delta: float, previous_elapsed: float) -> void:
-	var cue: Dictionary = current_beat().get("background_blackout", {})
-	var delay := float(cue.get("delay_seconds", 0.0))
-	if not cue.is_empty() and not _blackout_started and _elapsed >= delay:
-		# Use only the part of this frame after the authored cue boundary. This
-		# keeps large-step checkpoint replay identical to ordinary playback.
-		var before := maxf(0.0, delay - previous_elapsed)
-		_background_blackout.advance(before)
-		var duration := float(cue.get("fade_seconds", content.get("background_blackout", {}).get("fade_seconds", 0.45)))
-		_load_errors.append_array(_background_blackout.fade_to(1.0, duration))
-		_blackout_started = true
-		_background_blackout.advance(maxf(0.0, delta - before))
-	else:
-		_background_blackout.advance(delta)
-
-
-func _emit_beat_burst(cue: Dictionary) -> void:
-	_burst_emitted = true
-	var actor_id := str(cue.get("actor", ""))
-	if not _cast.visible_ids().has(actor_id):
-		_load_errors.append("Afterlight sprite burst requires a visible actor.")
-		return
-	var textures: Array[Texture2D] = []
-	for sprite_id: String in cue.get("sprites", []):
-		textures.append(_burst_textures.get(sprite_id))
-	var rect: Rect2 = _cast.get_actor_rect(actor_id)
-	var origin: Vector2 = rect.position + rect.size * cue.get("origin_uv", Vector2(0.5, 0.25))
-	var options: Dictionary = content.get("sprite_burst", {}).get("options", {}).duplicate(true)
-	options.merge(cue.get("options", {}), true)
-	var result: Dictionary = _sprite_burst.emit_burst(origin, textures, options)
-	_load_errors.append_array(result["errors"])
-
-
-func _pending_reveal_manpu() -> bool:
-	return _manpu_event_time < 0.0 and current_beat().get("manpu_timing") == "after_reveal" and not current_beat().get("manpu_events", []).is_empty()
-
-
-func _emit_beat_manpu() -> void:
-	if _manpu_event_time >= 0.0 or current_beat().get("manpu_events", []).is_empty(): return
-	_manpu_event_time = _elapsed
-	for event: Dictionary in current_beat()["manpu_events"]:
-		var result: Dictionary = _cast.emit_manpu(str(event["actor"]), str(event["id"]), str(event["preset"]))
-		_load_errors.append_array(result["errors"])
-
-
-func _emit_revealed_manpu() -> void:
-	if not _replaying_checkpoint and _pending_reveal_manpu() and _reveal.sample()["phase"] == "holding":
-		_emit_beat_manpu()
-
-
-func _cinematic() -> bool:
-	return current_beat().get("type") in CINEMATICS
-
-
-func _cinematic_complete() -> bool:
-	match current_beat().get("type"):
-		"walk": return not _walking.is_active()
-		"eye": return not _eye.is_active()
-		"establish": return not _establish.is_active()
-		"handoff", "exit": return not _cast.is_busy()
-		"rift": return _elapsed >= float(current_beat().get("duration_seconds", 1.6))
-	return false
-
-
-func _next() -> void:
-	if _paused or not _load_errors.is_empty(): return
-	_autoplay_elapsed = 0.0
-	if current_beat().get("type") == "contact":
-		# Revealing words is allowed; contact itself always needs a target hit.
-		if _reveal.sample()["phase"] == "revealing":
-			_reveal.request_advance()
-			_text_audio.sync_reveal(int(_reveal.sample()["visible_characters"]))
-		_render()
-		return
-	if _cinematic() and not _cinematic_complete():
-		# Complete the current motion; one input never skips the following beat.
-		_advance_clocks(30.0)
-		_start_waiting_voice()
-	elif _reveal.sample()["phase"] == "revealing":
-		_reveal.request_advance()
-		_text_audio.sync_reveal(int(_reveal.sample()["visible_characters"]))
-		_emit_revealed_manpu()
-	elif _choice_pending():
-		pass
-	elif _beat_index == beats.size() - 1:
-		_toggle_pause()
-	else:
-		_continue_story()
-	_render()
-
-
-func _continue_story() -> void:
-	if _choice_pending() or _beat_index + 1 >= beats.size(): return
-	if current_beat().get("type") == "contact" and not _contact_complete(): return
-	_history.append(_elapsed)
-	_manpu_history.append(_manpu_event_time)
-	_contact_history.append(_contact_time)
-	_beat_index += 1
-	_enter_beat()
-
-
-func _choice_pending() -> bool:
-	return current_beat().get("type") == "choice" and not _choices.has(current_beat()["id"])
-
-
-## Autoplay is host direction. The audio/reveal components never advance a beat.
-func set_autoplay_enabled(enabled: bool) -> void:
-	_autoplay_enabled = enabled
-	_autoplay_elapsed = 0.0
-	_render()
-
-
-func _autoplay_settings() -> Dictionary:
-	var settings: Dictionary = content.get("autoplay", {}).duplicate()
-	settings.merge(current_beat().get("autoplay", {}), true)
-	return settings
-
-
-func get_autoplay_state() -> Dictionary:
-	var settings := _autoplay_settings()
-	var delay := float(settings.get("choice_delay_seconds", 5.0) if _choice_pending() else settings.get("delay_seconds", 3.0))
-	var default_choice := str(settings.get("default_choice", ""))
-	var reason := ""
-	var audio: Dictionary = _text_audio.get_state()
-	if not _load_errors.is_empty(): reason = "load_error"
-	elif _paused: reason = "paused"
-	elif not _autoplay_enabled: reason = "disabled"
-	elif _cinematic() and not _cinematic_complete(): reason = "cinematic"
-	elif _reveal.sample()["phase"] != "holding": reason = "text"
-	elif _voice_waiting or (audio["active_mode"] == "voice" and not audio["voice_finished"]): reason = "voice"
-	elif current_beat().get("type") == "contact" or bool(settings.get("require_input", false)): reason = "required_input"
-	elif _choice_pending() and default_choice.is_empty(): reason = "choice"
-	elif not _choice_pending() and _beat_index + 1 >= beats.size(): reason = "ended"
-	return {"enabled": _autoplay_enabled, "elapsed_seconds": _autoplay_elapsed,
-		"delay_seconds": delay, "remaining_seconds": maxf(0.0, delay - _autoplay_elapsed),
-		"blocked_reason": reason, "default_choice": default_choice}
-
-
-func _update_autoplay(delta: float) -> void:
-	if _replaying_checkpoint or not is_finite(delta) or delta < 0.0: return
-	var state := get_autoplay_state()
-	var reason := str(state["blocked_reason"])
-	if reason == "paused": return
-	if not reason.is_empty():
-		_autoplay_elapsed = 0.0
-		if reason == "ended": _autoplay_enabled = false
-		return
-	_autoplay_elapsed += delta
-	if _autoplay_elapsed < float(state["delay_seconds"]): return
-	# At most one authored action per update, regardless of frame size.
-	if _choice_pending(): _choose(str(state["default_choice"]))
-	else: _continue_story()
-
-
-func _validate_autoplay() -> void:
-	var configured: Variant = content.get("autoplay", {})
-	if not configured is Dictionary:
-		_load_errors.append("Afterlight autoplay settings must be a dictionary.")
-		return
-	var inputs: Array = [{"settings": configured, "beat": {}}]
-	for beat: Dictionary in beats:
-		inputs.append({"settings": beat.get("autoplay", {}), "beat": beat})
-	for input: Dictionary in inputs:
-		var settings: Variant = input["settings"]
-		if not settings is Dictionary:
-			_load_errors.append("Afterlight beat autoplay settings must be a dictionary.")
-			continue
-		for key: Variant in settings:
-			var value: Variant = settings[key]
-			if key in ["delay_seconds", "choice_delay_seconds"]:
-				if not _valid_time(value) or float(value) <= 0.0 or float(value) > 120.0:
-					_load_errors.append("Afterlight autoplay delays must be positive and at most 120 seconds.")
-			elif key in ["enabled", "require_input"]:
-				if not value is bool: _load_errors.append("Afterlight autoplay flags must be boolean.")
-				if key == "enabled" and not input["beat"].is_empty():
-					_load_errors.append("Afterlight autoplay enabled is a host default; use require_input for a beat gate.")
-			elif key == "default_choice":
-				var valid := false
-				for option: Dictionary in input["beat"].get("choices", []):
-					if value is String and option["id"] == value: valid = true
-				if not valid: _load_errors.append("Afterlight autoplay default_choice must name this beat's authored option.")
-			else:
-				_load_errors.append("Unknown Afterlight autoplay setting: " + str(key))
-
-
-func _choose(option_id: String) -> void:
-	if _paused or not _load_errors.is_empty() or not _choice_pending() or _reveal.sample()["phase"] != "holding": return
-	for option: Dictionary in current_beat().get("choices", []):
-		if option["id"] == option_id:
-			_choices[current_beat()["id"]] = option_id
-			_continue_story()
-			_render()
-			return
-
-
-func _resolved_text_key(beat: Dictionary = {}) -> String:
-	if beat.is_empty(): beat = current_beat()
-	if beat.has("choice_from"):
-		return str(beat.get("responses", {}).get(_choices.get(beat["choice_from"], ""), ""))
-	return str(beat.get("text", ""))
-
-
-func _world_transform() -> Transform2D:
-	var pose: Dictionary = _walking.sample() if current_beat().get("type") == "walk" else _camera.sample()
-	var zoom := float(pose["zoom"])
-	var offset := Vector2(float(pose["offset_x"]), float(pose["offset_y"]))
-	if current_beat().get("type") == "establish":
-		var shot: Dictionary = _establish.sample()
-		zoom = float(shot["zoom"])
-		offset = DESIGN_SIZE * 0.5 * (1.0 - zoom) + Vector2(float(shot["pan_x"]), 0)
-		offset = offset.clamp(DESIGN_SIZE - _base_background.end * zoom, -_base_background.position * zoom)
-	if current_beat().get("type") == "detail":
-		zoom = 1.24
-		offset = DESIGN_SIZE * 0.5 * (1.0 - zoom) + _drift_offset()
-	var base := Transform2D(Vector2(zoom, 0), Vector2(0, zoom), offset)
-	return _shake.compose(base, _base_background, DESIGN_SIZE)
-
-
-func _drift_offset() -> Vector2:
-	var pose: Dictionary = _drift.sample()
-	var base := Rect2(_base_background.position * 1.24 + DESIGN_SIZE * -0.12, _base_background.size * 1.24)
-	return DRIFT.constrain_offset(base, DESIGN_SIZE, Vector2(float(pose["offset_x"]), float(pose["offset_y"])))
-
-
-func _cast_transform() -> Transform2D:
-	return _world_transform() * _cast_pan.sample_transform()
-
-
-func presented_background_rect() -> Rect2:
-	return _world_transform() * _base_background
-
-
-func _portrait_rect(detail: bool) -> Rect2:
-	var id := str(current_beat().get("speaker", "nami"))
-	var profile := _profile(id)
-	if current_beat().get("type") == "contact":
-		_portrait.texture = _contact_textures[id]
-		return _world_transform() * _contact_world_rect()
-	if detail and _details.has(id):
-		_portrait.texture = _details[id]
-		var height := float(profile.get("detail_height", 1600.0))
-		var width := height * _portrait.texture.get_width() / _portrait.texture.get_height()
-		return Rect2(Vector2(640 - width * 0.5, float(profile.get("detail_y", -200))) + _drift_offset(), Vector2(width, height))
-	_portrait.texture = _portraits.get(id, _textures[id])
-	var height := float(profile.get("eye_close_height", 1050.0))
-	var width := height * _portrait.texture.get_width() / _portrait.texture.get_height()
-	var uv: Array = profile.get("eye_close_uv", profile["eye_uv"])
-	return Rect2(640 - width * float(uv[0]), 280 - height * float(uv[1]), width, height)
-
-
-func _contact_world_rect() -> Rect2:
-	var actor_id := str(current_beat().get("speaker", ""))
-	var texture: Texture2D = _contact_textures.get(actor_id)
-	if texture == null: return Rect2()
-	var profile := _profile(actor_id)
-	var height := float(profile.get("contact_height", 960.0))
-	var width := height * texture.get_width() / texture.get_height()
-	return Rect2(640.0 - width * 0.5, float(profile.get("contact_y", -60.0)), width, height)
 
 
 func _contact_feedback_seconds() -> float:
@@ -756,6 +199,7 @@ func _try_contact(point: Vector2) -> bool:
 	if not bool(target["ready"]): return false
 	if not _contact.confirm_at(point, target["center"], float(target["radius"])): return false
 	_contact_time = _elapsed
+	_host_event("contact_confirmed")
 	_render()
 	return true
 
@@ -774,143 +218,6 @@ func _present_contact() -> void:
 	_contact_dot.position = (_contact_ring.size - _contact_dot.size) * 0.5
 
 
-func _render() -> void:
-	if _line == null: return
-	if not _load_errors.is_empty():
-		_black.hide()
-		_dialogue.show()
-		_line.text = _text("error.scene_load") + "\n" + "\n".join(_load_errors)
-		_line.visible_characters = -1
-		_line.add_theme_font_size_override("font_size", 17)
-		_ready_dot.hide()
-		_contact_ring.hide()
-		for button: Button in _choice_buttons: button.hide()
-		return
-	var beat := current_beat()
-	var kind := str(beat["type"])
-	var portrait_shot := kind in ["detail", "contact"] or (kind == "eye" and bool(beat.get("eye_portrait", true)))
-	_cast.visible = kind not in ["walk", "establish", "monologue"] and not portrait_shot
-	_cast.present(_cast_transform())
-	for emitter: Control in _ambient_emitters: emitter.present(_world_transform())
-	_sprite_burst.present(_cast_transform())
-	_present_transmission_display()
-	_portrait.visible = portrait_shot
-	_halo.hide()
-	if portrait_shot:
-		var rect := _portrait_rect(kind == "detail")
-		_portrait.position = rect.position
-		_portrait.size = rect.size
-		if kind == "detail":
-			_halo.set_source(_portrait.texture)
-			_halo.set_rect(rect)
-			_halo.set_strength(1.0)
-	_eye_layer.visible = kind == "eye"
-	_eye_layer.material.set_shader_parameter("openness", float(_eye.sample()["openness"]))
-	_flare.visible = kind == "establish"
-	if _flare.visible:
-		var shot: Dictionary = _establish.sample()
-		var uv: Array = shot["flare_source_uv"]
-		var point := _world_transform() * (_base_background.position + _base_background.size * Vector2(float(uv[0]), float(uv[1])))
-		_flare.material.set_shader_parameter("light_position", point / DESIGN_SIZE)
-		_flare.material.set_shader_parameter("strength", float(shot["flare_strength"]))
-	_ui.visible = kind != "monologue"
-	_header.visible = kind not in ["eye", "detail", "contact"]
-	_dialogue.visible = not _cinematic() or _cinematic_complete()
-	var words: Dictionary = _reveal.sample()
-	_line.text = str(words["text"])
-	_line.visible_characters = int(words["visible_characters"])
-	var speaker := str(beat.get("speaker", ""))
-	_speaker.text = _text(str(beat["speaker_name"])) if beat.has("speaker_name") else (_text("guest." + speaker + ".name") if not speaker.is_empty() else _text("episode.ui.protagonist"))
-	_location.text = _text(str(beat["place_name"])) if beat.has("place_name") else str(content["backgrounds"][_background_index]["name"])
-	_location.modulate.a = 1.0 if kind in ["walk", "establish"] else clampf(1.0 - (_elapsed - 1.8) / 1.2, 0.0, 1.0)
-	_black.visible = kind == "monologue"
-	_monologue.text = str(words["text"])
-	_monologue.visible_characters = int(words["visible_characters"])
-	var held := str(words["phase"]) == "holding"
-	var ready := held and kind != "contact" and not _choice_pending() and not _paused and (not _cinematic() or _cinematic_complete())
-	_ready_dot.visible = ready and kind != "monologue"
-	_monologue_dot.visible = ready and kind == "monologue"
-	var pulse := 0.65 + 0.35 * sin(_elapsed * 3.2) * sin(_elapsed * 3.2)
-	_ready_dot.modulate.a = pulse
-	_monologue_dot.modulate.a = pulse
-	var options: Array = beat.get("choices", [])
-	var autoplay := get_autoplay_state()
-	for index in _choice_buttons.size():
-		var button := _choice_buttons[index]
-		button.visible = _choice_pending() and held and not _paused and index < options.size()
-		if button.visible:
-			button.text = _text(str(options[index]["text"]))
-			var is_default: bool = autoplay["enabled"] and str(options[index]["id"]) == str(autoplay["default_choice"])
-			if is_default and str(autoplay["blocked_reason"]).is_empty():
-				button.text += "  ·  " + _text("episode.ui.autoplay_choice").replace("{seconds}", str(ceili(float(autoplay["remaining_seconds"]))))
-			button.add_theme_color_override("font_color", ACCENT if is_default else INK)
-			button.set_meta("choice_id", str(options[index]["id"]))
-	_pause_menu.visible = _paused
-	_language_button.text = _text("ui.language_target")
-	_autoplay_button.text = _text("episode.ui.autoplay_on" if _autoplay_enabled else "episode.ui.autoplay_off")
-	_autoplay_button.set_pressed_no_signal(_autoplay_enabled)
-	_autoplay_button.add_theme_color_override("font_color", ACCENT if _autoplay_enabled else INK)
-	_present_ominous_effects()
-	_present_contact()
-	queue_redraw()
-
-
-func _present_transmission_display() -> void:
-	_transmission_display.clear()
-	if not _cast.visible: return
-	# A call belongs to the staged participant, including protagonist replies.
-	# Cast semantics stay intact; this host swaps only the visible presentation.
-	var staged: Array[String] = _cast.visible_ids()
-	if staged.size() != 1: return
-	var actor_id := staged[0]
-	var profile := _profile(actor_id)
-	if not profile.has("transmission_display") or not bool(_cast._projection.get(actor_id, false)): return
-	var settings: Dictionary = profile["transmission_display"].duplicate(true)
-	var eye_uv: Array = profile.get("eye_uv", [0.5, 0.25])
-	settings["eye_uv"] = Vector2(float(eye_uv[0]), float(eye_uv[1]))
-	_transmission_display.present(actor_id, _textures[actor_id], _cast_transform(), _effect_time, settings)
-	_cast.hide()
-
-
-func _present_ominous_effects() -> void:
-	var beat := current_beat()
-	var envelope := 1.0
-	if bool(beat.get("vfx_fade_out", false)):
-		envelope = 1.0 - smoothstep(0.0, float(beat.get("duration_seconds", 1.6)), _elapsed)
-	elif beat.get("type") == "rift":
-		envelope = smoothstep(0.0, 0.25, _elapsed)
-	for field: Control in [_heat_haze, _world_corruption, _local_corruption, _barrier]:
-		field.set_time(_effect_time)
-	_heat_haze.set_rect(Rect2(60, 80, 1160, 790))
-	_heat_haze.set_strength(float(beat.get("heat", 0.0)) * envelope)
-	_world_corruption.set_rect(Rect2(Vector2.ZERO, DESIGN_SIZE))
-	_world_corruption.set_pattern_transform(_world_transform())
-	_world_corruption.set_strength(float(beat.get("scene_corruption", 0.0)) * envelope)
-	_barrier.set_rect(Rect2(240, 90, 800, 800))
-	_barrier.set_strength(float(beat.get("barrier", 0.0)) * envelope)
-	var target: Dictionary = beat.get("corruption", {})
-	_local_corruption.set_pattern_transform(_world_transform())
-	var actor_id := str(target.get("actor", ""))
-	var visible_target := false
-	if not actor_id.is_empty() and _cast.visible_ids().has(actor_id):
-		_local_corruption.set_pattern_transform(_cast_transform())
-		_local_corruption.set_source(_textures[actor_id])
-		_local_corruption.set_rect(_cast.get_presented_actor_rect(actor_id))
-		visible_target = true
-	elif target.has("area"):
-		_local_corruption.set_source(null)
-		_local_corruption.set_rect(_world_transform() * (target["area"] as Rect2))
-		visible_target = true
-	_local_corruption.set_strength(float(target.get("strength", 0.0)) * envelope if visible_target else 0.0)
-
-
-func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, DESIGN_SIZE), Color("15121d"))
-	if not _load_errors.is_empty() or _backgrounds.is_empty(): return
-	draw_texture_rect(_backgrounds[_background_index], presented_background_rect(), false)
-	draw_rect(Rect2(Vector2.ZERO, DESIGN_SIZE), Color(0.07, 0.045, 0.1, 0.08))
-
-
 func _input(event: InputEvent) -> void:
 	if not event is InputEventKey or not event.pressed or event.echo: return
 	if event.keycode == KEY_F6:
@@ -927,113 +234,10 @@ func _input(event: InputEvent) -> void:
 
 func _toggle_pause() -> void:
 	_paused = not _paused
+	_apply(_session.suspend() if _paused else _session.resume())
 	_text_audio.set_paused(_paused)
 	get_viewport().gui_release_focus()
 	_render()
-
-
-func save_game() -> Dictionary:
-	# Replay authored elapsed history; preserve manual reveal and event times
-	# separately because revealing a line never advances the world clock.
-	var words: Dictionary = _reveal.get_state()
-	return {"story_version": 4, "beat_id": current_beat()["id"], "history": _history.duplicate(), "elapsed": _elapsed,
-		"choices": _choices.duplicate(true), "manpu_history": _manpu_history.duplicate(), "manpu_event_time": _manpu_event_time,
-		"contact_history": _contact_history.duplicate(), "contact_time": _contact_time,
-		"reveal_fraction": minf(1.0, float(words["elapsed"]) * float(words["chars_per_second"]) / maxf(1.0, str(words["text"]).length())),
-		"voice_position_seconds": _voice_position(), "voice_source_revision": str(_voice_state.get("source_revision", "")), "language": get_language(),
-		"autoplay": {"enabled": _autoplay_enabled, "elapsed_seconds": _autoplay_elapsed}}
-
-
-func _restore_game() -> void:
-	var autoplay: Variant = saved_state.get("autoplay", {"enabled": bool(content.get("autoplay", {}).get("enabled", false)), "elapsed_seconds": 0.0})
-	if not autoplay is Dictionary or not autoplay.get("enabled") is bool or not _valid_time(autoplay.get("elapsed_seconds")):
-		_load_errors.append("Afterlight autoplay checkpoint requires enabled and a finite nonnegative elapsed_seconds.")
-		return
-	var voice_position: Variant = saved_state.get("voice_position_seconds", 0.0)
-	if not _valid_time(voice_position, true) or not saved_state.get("voice_source_revision", "") is String:
-		_load_errors.append("Afterlight voice position must be finite and nonnegative, or -1 for a finished clip.")
-		return
-	var history: Variant = saved_state.get("history")
-	var events: Variant = saved_state.get("manpu_history")
-	var contacts: Variant = saved_state.get("contact_history")
-	var choices: Variant = saved_state.get("choices")
-	if saved_state.get("story_version") != 4 or not history is Array or history.size() >= beats.size() or not events is Array or events.size() != history.size() or not contacts is Array or contacts.size() != history.size() or not choices is Dictionary:
-		_load_errors.append("Cannot resume an incompatible Afterlight episode checkpoint.")
-		return
-	var times: Array = history.duplicate()
-	times.append(saved_state.get("elapsed"))
-	var event_times: Array = events.duplicate()
-	event_times.append(saved_state.get("manpu_event_time"))
-	var contact_times: Array = contacts.duplicate()
-	contact_times.append(saved_state.get("contact_time"))
-	for index in times.size():
-		var value: Variant = times[index]
-		var event_time: Variant = event_times[index]
-		var contact_time: Variant = contact_times[index]
-		if not _valid_time(value) or not _valid_time(event_time, true) or float(event_time) > float(value) or not _valid_time(contact_time, true) or float(contact_time) > float(value):
-			_load_errors.append("Afterlight checkpoint times must be finite and internally consistent.")
-			return
-		var has_events: bool = not beats[index].get("manpu_events", []).is_empty()
-		if (not has_events and float(event_time) != -1.0) or (has_events and beats[index].get("manpu_timing", "on_enter") != "after_reveal" and float(event_time) != 0.0) or (has_events and index < history.size() and float(event_time) < 0.0):
-			_load_errors.append("Afterlight checkpoint event history does not match its authored beat.")
-			return
-		var is_contact: bool = beats[index].get("type") == "contact"
-		if (not is_contact and float(contact_time) != -1.0) or (is_contact and index < history.size() and (float(contact_time) < 0.0 or float(value) - float(contact_time) + 0.000000001 < _contact_feedback_seconds())):
-			_load_errors.append("Afterlight checkpoint contact history does not match its authored beat.")
-			return
-	var fraction: Variant = saved_state.get("reveal_fraction")
-	if not _valid_time(fraction) or float(fraction) > 1.0 or saved_state.get("beat_id") != beats[history.size()]["id"]:
-		_load_errors.append("Afterlight checkpoint does not match its authored beat.")
-		return
-	var current: Dictionary = beats[history.size()]
-	if current.get("type") == "contact" and float(contact_times.back()) >= 0.0 and float(fraction) < 1.0:
-		_load_errors.append("Afterlight contact cannot be acknowledged before its line is revealed.")
-		return
-	if current.get("manpu_timing") == "after_reveal" and not current.get("manpu_events", []).is_empty() and float(fraction) >= 1.0 and float(event_times.back()) < 0.0:
-		_load_errors.append("Afterlight checkpoint is missing its revealed line event.")
-		return
-	var known_choices: Dictionary = {}
-	for index in beats.size():
-		var beat: Dictionary = beats[index]
-		if beat.get("type") != "choice": continue
-		var id: String = beat["id"]
-		known_choices[id] = true
-		if not choices.has(id):
-			if index < history.size():
-				_load_errors.append("Afterlight checkpoint is missing an earlier choice.")
-				return
-			continue
-		var valid_option := false
-		for option: Dictionary in beat.get("choices", []):
-			if choices[id] is String and option["id"] == choices[id]: valid_option = true
-		if index >= history.size() or not valid_option:
-			_load_errors.append("Afterlight checkpoint contains an invalid or future choice.")
-			return
-	for id: Variant in choices:
-		if not id is String or not known_choices.has(id):
-			_load_errors.append("Afterlight checkpoint contains an unknown choice.")
-			return
-	_replaying_checkpoint = true
-	_restart(choices)
-	for index in times.size():
-		if index > 0: _continue_story()
-		var event_time := float(event_times[index])
-		if event_time >= 0.0:
-			_advance_clocks(event_time)
-			_emit_beat_manpu()
-			_advance_clocks(float(times[index]) - event_time)
-		else:
-			_advance_clocks(float(times[index]))
-		if float(contact_times[index]) >= 0.0:
-			_contact_time = float(contact_times[index])
-			_contact.reset(true)
-	_replaying_checkpoint = false
-	_set_reveal_fraction(float(fraction))
-	_begin_text_audio(float(voice_position), str(saved_state.get("voice_source_revision", "")))
-	_autoplay_enabled = bool(autoplay["enabled"])
-	var same_source := str(saved_state.get("voice_source_revision", "")) == str(_voice_state.get("source_revision", ""))
-	if same_source and saved_state.get("language") == get_language() and str(get_autoplay_state()["blocked_reason"]).is_empty():
-		_autoplay_elapsed = minf(float(autoplay["elapsed_seconds"]), float(get_autoplay_state()["delay_seconds"]))
 
 
 func _valid_time(value: Variant, allow_unemitted: bool = false) -> bool:
@@ -1073,6 +277,7 @@ func _set_reveal_fraction(fraction: float) -> void:
 	state["elapsed"] = float(str(state["text"]).length()) / float(state["chars_per_second"]) * fraction
 	state["phase"] = "holding" if fraction >= 1.0 else "revealing"
 	_load_errors.append_array(_reveal.restore(state))
+	if fraction >= 1.0: _emit_revealed_manpu()
 
 
 func _begin_text_audio(voice_position: float = 0.0, resume_revision: String = "") -> void:
@@ -1081,6 +286,7 @@ func _begin_text_audio(voice_position: float = 0.0, resume_revision: String = ""
 	_voice_waiting = false
 	var settings: Dictionary = content.get("text_audio", {}).duplicate()
 	settings.merge(current_beat().get("text_audio", {}), true)
+	settings.merge(text_audio_settings, true)
 	var voices: Dictionary = content.get("voiceovers", {}).get(get_language(), {})
 	var supplied: AudioStream = voices.get(_resolved_text_key())
 	_voice_state = voice_policy.resolve(_resolved_text_key(), get_language(), supplied) if voice_policy != null else {"status": "none", "voice_policy": "none", "stream": null}
@@ -1135,19 +341,11 @@ func _voice_position() -> float:
 
 
 func _exit_tree() -> void:
+	if not _session.view().is_empty():
+		_session.cancel("host_exit")
+		_session.drain_events()
 	_text_audio.stop()
 	_voice_effects.cleanup()
-
-
-func _shader_layer(path: String) -> ColorRect:
-	var layer := ColorRect.new()
-	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var material := ShaderMaterial.new()
-	material.shader = load(path)
-	layer.material = material
-	add_child(layer)
-	layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	return layer
 
 
 func _build_ui() -> void:
@@ -1334,3 +532,474 @@ func _button(parent: Node, key: String, rect: Rect2, action: Callable = Callable
 	if not key.is_empty(): _ui_bindings.append({"node": node, "key": key})
 	parent.add_child(node)
 	return node
+func _render() -> void:
+	if _line == null: return
+	if _recovery_button != null: _recovery_button.visible = _checkpoint_refused
+	if not _load_errors.is_empty():
+		_black.hide()
+		_dialogue.show()
+		_line.text = _text("error.scene_load") + "\n" + "\n".join(_load_errors)
+		_line.visible_characters = -1
+		_line.add_theme_font_size_override("font_size", 17)
+		_ready_dot.hide()
+		_contact_ring.hide()
+		for button: Button in _choice_buttons: button.hide()
+		return
+	var beat := current_beat()
+	var kind := str(beat["type"])
+	_stage.present()
+	_ui.visible = kind != "monologue"
+	_header.visible = kind not in ["eye", "detail", "contact"]
+	_dialogue.visible = not _cinematic() or _cinematic_complete()
+	var words: Dictionary = _reveal.sample()
+	_line.text = str(words["text"])
+	_line.visible_characters = int(words["visible_characters"])
+	var speaker := str(beat.get("speaker", ""))
+	_speaker.text = _text(str(beat["speaker_name"])) if beat.has("speaker_name") else (_text("guest." + speaker + ".name") if not speaker.is_empty() else _text("episode.ui.protagonist"))
+	_location.text = _text(str(beat["place_name"])) if beat.has("place_name") else str(content["backgrounds"][_background_index]["name"])
+	_location.modulate.a = 1.0 if kind in ["walk", "establish"] else clampf(1.0 - (_elapsed - 1.8) / 1.2, 0.0, 1.0)
+	_black.visible = kind == "monologue"
+	_monologue.text = str(words["text"])
+	_monologue.visible_characters = int(words["visible_characters"])
+	var held := str(words["phase"]) == "holding"
+	var ready := held and kind != "contact" and not _choice_pending() and not _paused and (not _cinematic() or _cinematic_complete())
+	_ready_dot.visible = ready and kind != "monologue"
+	_monologue_dot.visible = ready and kind == "monologue"
+	var pulse := 0.65 + 0.35 * sin(_elapsed * 3.2) * sin(_elapsed * 3.2)
+	_ready_dot.modulate.a = pulse
+	_monologue_dot.modulate.a = pulse
+	var options: Array = beat.get("choices", [])
+	var autoplay := get_autoplay_state()
+	for index in _choice_buttons.size():
+		var button := _choice_buttons[index]
+		button.visible = _choice_pending() and held and not _paused and index < options.size()
+		if button.visible:
+			button.text = _text(str(options[index]["text"]))
+			var is_default: bool = autoplay["enabled"] and str(options[index]["id"]) == str(autoplay["default_choice"])
+			if is_default and str(autoplay["blocked_reason"]).is_empty():
+				button.text += "  ·  " + _text("episode.ui.autoplay_choice").replace("{seconds}", str(ceili(float(autoplay["remaining_seconds"]))))
+			button.add_theme_color_override("font_color", ACCENT if is_default else INK)
+			button.set_meta("choice_id", str(options[index]["id"]))
+	_pause_menu.visible = _paused
+	_language_button.text = _text("ui.language_target")
+	_autoplay_button.text = _text("episode.ui.autoplay_on" if _autoplay_enabled else "episode.ui.autoplay_off")
+	_autoplay_button.set_pressed_no_signal(_autoplay_enabled)
+	_autoplay_button.add_theme_color_override("font_color", ACCENT if _autoplay_enabled else INK)
+	_present_contact()
+	queue_redraw()
+
+
+
+func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_voice_effects)
+	add_child(_text_audio)
+	_load_errors.append_array(_voice_effects.configure(content.get("transmission_voice", {})))
+	var resources := {"backgrounds": [], "actors": {}, "portraits": {}, "details": {}, "contacts": {}, "burst": {}, "manpu": content.get("manpu_textures", {})}
+	for item: Dictionary in content.get("backgrounds", []): resources["backgrounds"].append(_load_texture(item["path"]))
+	for profile: Dictionary in _cast_profiles():
+		resources["actors"][profile["id"]] = _load_texture(profile["path"])
+		for field: String in {"eye_close_path": "portraits", "detail_path": "details", "contact_path": "contacts"}:
+			if profile.has(field): resources[{"eye_close_path": "portraits", "detail_path": "details", "contact_path": "contacts"}[field]][profile["id"]] = _load_texture(profile[field])
+	for id: String in content.get("sprite_burst", {}).get("sprites", {}): resources["burst"][id] = _load_texture(content["sprite_burst"]["sprites"][id])
+	_load_errors.append_array(_stage.configure(BINDING.settings(content), resources, TRANSMISSION_DISPLAY.new()))
+	if _load_errors.is_empty():
+		add_child(_stage)
+		_stage.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		_load_errors.append_array(_stage._load_errors)
+	_build_ui()
+	_recovery_button = _button(self, "episode.ui.restart", Rect2(450, 520, 380, 64), _restart)
+	_recovery_button.hide()
+	if not _load_errors.is_empty(): _render(); return
+	if not _admit_documents(
+		JSON.parse_string(FileAccess.get_file_as_string("res://addons/scenario_runtime/presentation/front_types.json")),
+		JSON.parse_string(FileAccess.get_file_as_string("res://narrative/catalog.json")),
+		JSON.parse_string(FileAccess.get_file_as_string("res://narrative/program.json"))):
+		_render()
+		return
+	_load_errors.append_array(_transport.configure(content.get("autoplay", {})))
+	if _load_errors.is_empty():
+		if saved_state.is_empty(): _restart()
+		else: _restore_game()
+	_render()
+
+
+func _admit_documents(types_document: Variant, catalog_document: Variant, program_document: Variant) -> bool:
+	if not types_document is Dictionary:
+		_load_errors.append("Afterlight requires valid installed capability schemas.")
+		return false
+	var admitted_catalog: Dictionary = CATALOG.parse(catalog_document, types_document)
+	if admitted_catalog.has("error"):
+		_load_errors.append(str(admitted_catalog))
+		return false
+	var admitted_program: Dictionary = PROGRAM.parse(program_document, admitted_catalog)
+	if admitted_program.has("error"):
+		_load_errors.append(str(admitted_program))
+		return false
+	var binding_errors: Array[String] = []
+	for node: Dictionary in admitted_program["nodes"].values():
+		for cue: Dictionary in node.get("cues", []):
+			binding_errors.append_array(_stage.validate_operation(str(cue["effect"]["type"]), cue["effect"]["parameters"]))
+	if not binding_errors.is_empty():
+		_load_errors.append_array(binding_errors)
+		return false
+	var capabilities := {}
+	for id: String in types_document: capabilities[id] = types_document[id]["version"]
+	_types = types_document.duplicate(true)
+	_catalog_document = catalog_document.duplicate(true)
+	_catalog = admitted_catalog
+	_program = admitted_program
+	_policy = {"session_id": "afterlight_episode", "capabilities": capabilities, "channels": ["afterlight_vn"], "bindings": ["stage"]}
+	return true
+
+
+func current_beat() -> Dictionary:
+	return _current_review
+
+
+func _restart(_restored_choices: Dictionary = {}) -> void:
+	if not _session.view().is_empty():
+		_session.cancel("restart")
+		_session.drain_events()
+	if _checkpoint_refused: _load_errors.clear()
+	_checkpoint_refused = false
+	_paused = false
+	_history.clear()
+	_manpu_history.clear()
+	_contact_history.clear()
+	_current_review.clear()
+	_shown.clear()
+	_journal.clear()
+	_clock = {"sequence": 0.0, "presentation": 0.0, "reading": 0.0}
+	_stage.reset()
+	_elapsed = 0.0
+	_session = SESSION.new()
+	_apply(_session.start(_program, _catalog, _policy))
+	_render()
+
+
+func _present_node(node: Dictionary) -> void:
+	if not _shown.is_empty():
+		_history.append(_elapsed)
+		_manpu_history.append(_manpu_event_time)
+		_contact_history.append(_contact_time)
+	_shown = node.duplicate(true)
+	_reported_gate_events.clear()
+	_current_review = EPISODE.inspect(node, _catalog_document)
+	_elapsed = 0.0
+	_manpu_event_time = -1.0
+	_contact_time = -1.0
+	_contact.reset()
+	_text_audio.stop()
+	_voice_effects.set_bypassed(true)
+	_voice_effects.reset()
+	_reveal.clear()
+	_load_errors.append_array(_reveal.start(_text(str(node.get("text_key", ""))), {"chars_per_second": float(node.get("presentation", {}).get("chars_per_second", 48.0))}))
+	var choices: Array = []
+	for option: Dictionary in node.get("options", []): choices.append(option["id"])
+	_load_errors.append_array(_transport.enter(str(node["id"]), current_beat().get("autoplay", {}), choices))
+
+
+func _apply(report: Dictionary) -> void:
+	if report.has("error"):
+		_load_errors.append(str(report))
+		return
+	_session.drain_events()
+	if report.has("failure"):
+		_load_errors.append(str(report["failure"]))
+		return
+	var needs_audio := false
+	for event: Dictionary in report.get("events", []):
+		_advance_to(event["clocks"])
+		match event["type"]:
+			"scenario/presented":
+				_present_node(event["presentation"])
+				needs_audio = true
+			"scenario/effect_started":
+				var effect: Dictionary = event["effect"]
+				var type := str(effect["type"])
+				_load_errors.append_array(_stage.execute(type, effect["parameters"]))
+				_journal.append({"operation_id": event["operation_id"], "clocks": event["clocks"].duplicate(), "type": type, "parameters": effect["parameters"].duplicate(true)})
+				if type == "front_reaction": _manpu_event_time = _elapsed
+			"scenario/reveal_requested":
+				_reveal.request_advance()
+				_text_audio.sync_reveal(int(_reveal.sample()["visible_characters"]))
+				_emit_revealed_manpu()
+			"scenario/finish_requested":
+				if event["gate_event"] == "cinematic_ready":
+					_advance_clocks(30.0)
+					_start_waiting_voice()
+	if report.has("state") and report["state"].has("clocks"): _advance_to(report["state"]["clocks"])
+	if needs_audio: _begin_text_audio()
+
+
+func _advance_to(clocks: Dictionary) -> void:
+	var sequence := maxf(0.0, float(clocks["sequence"]) - float(_clock["sequence"]))
+	var presentation := maxf(0.0, float(clocks["presentation"]) - float(_clock["presentation"]))
+	_elapsed += sequence
+	_reveal.advance(sequence)
+	if presentation > 0.0:
+		_stage.advance(presentation)
+		if not _journal.is_empty() and _journal.back().has("advance"):
+			_journal.back()["advance"] = float(_journal.back()["advance"]) + presentation
+		else: _journal.append({"advance": presentation})
+	for key: String in _clock: _clock[key] = maxf(float(_clock[key]), float(clocks[key]))
+
+
+func _host_event(name: String) -> void:
+	var view := _session.view()
+	if view.is_empty(): return
+	var key := str(view["visit_id"]) + ":" + name
+	if _reported_gate_events.has(key): return
+	var report: Dictionary = _session.submit({"kind": "host_event", "session_id": _policy["session_id"], "node_id": view["node_id"], "visit_id": view["visit_id"], "name": name})
+	if bool(report.get("consumed", false)): _reported_gate_events[key] = true
+	_apply(report)
+
+
+func _emit_revealed_manpu() -> void:
+	if _reveal.sample()["phase"] == "holding": _host_event("text_revealed")
+
+
+func _advance_clocks(delta: float) -> void:
+	if not is_finite(delta) or delta < 0.0: return
+	# Reveal is a bound capability event. Split exactly at its completion, then
+	# Session schedules every authored cue and operation on the supplied clocks.
+	var words: Dictionary = _reveal.get_state()
+	var remaining := maxf(0.0, float(str(words["text"]).length()) / float(words["chars_per_second"]) - float(words["elapsed"]))
+	if _reveal.sample()["phase"] == "revealing" and remaining <= delta:
+		_tick_session(remaining)
+		_emit_revealed_manpu()
+		_tick_session(delta - remaining)
+	else:
+		_tick_session(delta)
+		_emit_revealed_manpu()
+	if _cinematic() and _cinematic_complete(): _host_event("cinematic_ready")
+
+
+func _tick_session(delta: float) -> void:
+	var world_paused := bool(_shown.get("presentation", {}).get("world_paused", false))
+	_apply(_session.tick({"sequence": delta, "presentation": 0.0 if world_paused else delta, "reading": delta}))
+
+
+func _process(delta: float) -> void:
+	if _paused or not _load_errors.is_empty() or not is_finite(delta) or delta <= 0.0: return
+	var ready := str(get_autoplay_state()["blocked_reason"]).is_empty()
+	var previous := str(_shown.get("id", ""))
+	var step := delta
+	if current_beat().get("type") == "contact" and _contact.is_confirmed(): step = minf(delta, maxf(0.0, _contact_feedback_seconds() - (_elapsed - _contact_time)))
+	_advance_clocks(step)
+	_start_waiting_voice()
+	_text_audio.update_reveal(int(_reveal.sample()["visible_characters"]), step)
+	if previous == _shown.get("id"): _update_autoplay(step if ready else 0.0)
+	_render()
+
+
+func _cinematic() -> bool:
+	return not str(_shown.get("presentation", {}).get("cinematic_controller", "")).is_empty()
+
+
+func _cinematic_complete() -> bool:
+	var controller := str(_shown.get("presentation", {}).get("cinematic_controller", ""))
+	if controller == "duration": return _elapsed >= float(_shown["presentation"]["cinematic_seconds"])
+	return _stage.cinematic_complete(controller) if not controller.is_empty() else false
+
+
+func _next() -> void:
+	if _paused or not _load_errors.is_empty(): return
+	_transport.manual_action()
+	_emit_revealed_manpu()
+	if _session.view().get("pending_gate", {}).get("event") == "host_return": _toggle_pause()
+	else: _apply(_session.submit({"kind": "advance"}))
+	_render()
+
+
+func _continue_story() -> void:
+	_apply(_session.submit({"kind": "advance"}))
+
+
+func _choice_pending() -> bool:
+	return _session.view().get("kind") == "choice"
+
+
+func _choose(option_id: String) -> void:
+	if _paused or not _load_errors.is_empty(): return
+	_transport.manual_action()
+	_emit_revealed_manpu()
+	_apply(_session.submit({"kind": "choose", "choice_id": option_id}))
+	_render()
+
+
+func _resolved_text_key(_beat: Dictionary = {}) -> String:
+	return str(_shown.get("text_key", ""))
+
+
+func set_autoplay_enabled(enabled: bool) -> void:
+	_transport.set_enabled(enabled)
+	_render()
+
+
+func _autoplay_settings() -> Dictionary:
+	var settings: Dictionary = content.get("autoplay", {}).duplicate()
+	settings.merge(current_beat().get("autoplay", {}), true)
+	return settings
+
+
+func get_autoplay_state() -> Dictionary:
+	var reason := ""
+	var audio: Dictionary = _text_audio.get_state()
+	if not _load_errors.is_empty(): reason = "load_error"
+	elif _paused: reason = "paused"
+	elif _cinematic() and not _cinematic_complete(): reason = "cinematic"
+	elif _reveal.sample()["phase"] != "holding": reason = "text"
+	elif _voice_waiting or (audio["active_mode"] == "voice" and not audio["voice_finished"]): reason = "voice"
+	elif current_beat().get("type") == "contact": reason = "required_input"
+	elif current_beat().get("type") == "ending": reason = "ended"
+	return _transport.state(reason, _choice_pending())
+
+
+func _update_autoplay(delta: float) -> void:
+	if _replaying_checkpoint: return
+	var action: Dictionary = _transport.tick(delta, str(get_autoplay_state()["blocked_reason"]), _choice_pending(), true)
+	if not action.is_empty(): _apply(_session.submit(action))
+
+
+func _validate_autoplay() -> void:
+	_load_errors.append_array(TRANSPORT.validate(content.get("autoplay", {}), false))
+	for beat: Dictionary in beats:
+		var ids: Array = []
+		for option: Dictionary in beat.get("choices", []): ids.append(option["id"])
+		_load_errors.append_array(TRANSPORT.validate(beat.get("autoplay", {}), true, ids))
+
+
+func _world_transform() -> Transform2D: return _stage._world_transform()
+func _cast_transform() -> Transform2D: return _stage._cast_transform()
+func presented_background_rect() -> Rect2: return _stage.presented_background_rect()
+func _contact_world_rect() -> Rect2: return _stage._contact_world_rect()
+func _portrait_rect(detail: bool) -> Rect2: return _stage._portrait_rect(detail)
+func get_atmosphere_state() -> Dictionary: return _stage.get_atmosphere_state()
+
+
+func save_game() -> Dictionary:
+	var words: Dictionary = _reveal.get_state()
+	return {"story_version": 5, "beat_id": current_beat()["id"], "history": _history.duplicate(), "elapsed": _elapsed,
+		"choices": _choices.duplicate(true), "manpu_history": _manpu_history.duplicate(), "manpu_event_time": _manpu_event_time,
+		"contact_history": _contact_history.duplicate(), "contact_time": _contact_time,
+		"reveal_fraction": minf(1.0, float(words["elapsed"]) * float(words["chars_per_second"]) / maxf(1.0, str(words["text"]).length())),
+		"voice_position_seconds": _voice_position(), "voice_source_revision": str(_voice_state.get("source_revision", "")), "language": get_language(),
+		"autoplay": {"enabled": _autoplay_enabled, "elapsed_seconds": _autoplay_elapsed},
+		"session": _session.snapshot(), "presentation_journal": _journal.duplicate(true)}
+
+
+func _restore_game() -> void:
+	_checkpoint_refused = true
+	# The game envelope is independently versioned. The Session validates its
+	# program/catalog identities before any visual or audio state is applied.
+	if saved_state.get("story_version") != 5:
+		_load_errors.append("Afterlight checkpoint requires story_version 5; earlier director checkpoints require migration.")
+		return
+	var candidate = SESSION.new()
+	var admitted: Dictionary = candidate.restore(_program, _catalog, _policy, saved_state.get("session"))
+	if admitted.has("error"):
+		_load_errors.append(str(admitted))
+		return
+	var checkpoint_state: Dictionary = candidate.snapshot()["state"]
+	var current_node: Dictionary = _program["nodes"][candidate.view()["node_id"]]
+	if saved_state.get("beat_id") != current_node.get("presentation", {}).get("review", {}).get("id"):
+		_load_errors.append("Checkpoint beat does not match its admitted Session node."); return
+	if not saved_state.get("voice_source_revision", "") is String or not saved_state.get("language") is String or not saved_state.get("choices") is Dictionary:
+		_load_errors.append("Checkpoint language, voice revision and choice records are invalid."); return
+	var facts := {}
+	for key: String in checkpoint_state["facts"]:
+		if checkpoint_state["facts"][key] != "": facts[key] = checkpoint_state["facts"][key]
+	if not CATALOG.equivalent(facts, saved_state["choices"]):
+		_load_errors.append("Checkpoint choices disagree with Session facts."); return
+	for field: String in ["history", "manpu_history", "contact_history"]:
+		if not saved_state.get(field) is Array or saved_state[field].size() >= beats.size():
+			_load_errors.append("Checkpoint history must be bounded arrays."); return
+		for value: Variant in saved_state[field]:
+			if not _valid_time(value, field != "history"):
+				_load_errors.append("Checkpoint history contains invalid elapsed time."); return
+	if saved_state["history"].size() != saved_state["manpu_history"].size() or saved_state["history"].size() != saved_state["contact_history"].size():
+		_load_errors.append("Checkpoint history lengths disagree."); return
+	var journal: Variant = saved_state.get("presentation_journal")
+	if not journal is Array or journal.size() > 100000:
+		_load_errors.append("Afterlight presentation journal must be a bounded array.")
+		return
+	var operations: Dictionary = candidate.snapshot()["state"]["operations"]
+	var seen_operations := {}
+	var presentation_time := 0.0
+	var sequence_time := 0.0
+	var entered_at := 0.0
+	for record: Variant in journal:
+		if not record is Dictionary or (not record.has("advance") and not record.has("type")):
+			_load_errors.append("Afterlight presentation journal record is invalid.")
+			return
+		if record.has("advance"):
+			if record.size() != 1 or not _valid_time(record["advance"]): _load_errors.append("Invalid presentation elapsed time."); return
+			presentation_time += float(record["advance"])
+		else:
+			if not _types.has(record["type"]) or not record.get("parameters") is Dictionary:
+				_load_errors.append("Unknown presentation journal capability."); return
+			var operation_id := str(record.get("operation_id", ""))
+			if not operations.has(operation_id) or seen_operations.has(operation_id):
+				_load_errors.append("Presentation journal must match unique Session operations."); return
+			var operation: Dictionary = operations[operation_id]
+			if operation["effect"]["type"] != record["type"] or not CATALOG.equivalent(operation["effect"]["parameters"], record["parameters"]):
+				_load_errors.append("Presentation journal does not match its admitted Session command."); return
+			var clocks: Variant = record.get("clocks")
+			if record.size() != 4 or not clocks is Dictionary or clocks.size() != 3:
+				_load_errors.append("Presentation journal requires explicit clocks."); return
+			for clock: String in ["sequence", "presentation", "reading"]:
+				if not _valid_time(clocks.get(clock)) or float(clocks[clock]) > float(checkpoint_state["clocks"][clock]) + 0.00000001:
+					_load_errors.append("Presentation journal clock exceeds its Session."); return
+			if float(clocks["sequence"]) < sequence_time or not is_equal_approx(float(clocks["presentation"]), presentation_time) or not is_equal_approx(float(clocks[operation["clock"]]), float(operation["start_time"])):
+				_load_errors.append("Presentation journal clocks disagree with Session operation order."); return
+			sequence_time = float(clocks["sequence"])
+			if record["type"] == "front_view" and operation["node_id"] == current_node["id"]: entered_at = float(clocks["sequence"])
+			seen_operations[operation_id] = true
+			var checked: Dictionary = CATALOG.resolve({"type": record["type"], "parameters": record["parameters"]}, _catalog)
+			if checked.has("error"): _load_errors.append(str(checked)); return
+	if seen_operations.size() != operations.size():
+		_load_errors.append("Presentation journal is missing Session operations."); return
+	for key: String in ["elapsed", "reveal_fraction", "voice_position_seconds", "manpu_event_time", "contact_time"]:
+		if not _valid_time(saved_state.get(key), key in ["voice_position_seconds", "manpu_event_time", "contact_time"]):
+			_load_errors.append("Invalid Afterlight checkpoint time: " + key); return
+	if not is_equal_approx(presentation_time, float(checkpoint_state["clocks"]["presentation"])) or not is_equal_approx(float(saved_state["elapsed"]), float(checkpoint_state["clocks"]["sequence"]) - entered_at):
+		_load_errors.append("Checkpoint presentation and node clocks disagree with Session."); return
+	if float(saved_state["manpu_event_time"]) > float(saved_state["elapsed"]) or float(saved_state["contact_time"]) > float(saved_state["elapsed"]):
+		_load_errors.append("Checkpoint event time exceeds the current presentation."); return
+	if float(saved_state["reveal_fraction"]) > 1.0:
+		_load_errors.append("Invalid Afterlight reveal fraction."); return
+	var autoplay: Variant = saved_state.get("autoplay", {"enabled": false, "elapsed_seconds": 0.0})
+	if not autoplay is Dictionary or not autoplay.get("enabled") is bool or not _valid_time(autoplay.get("elapsed_seconds")):
+		_load_errors.append("Invalid Afterlight transport checkpoint."); return
+	_checkpoint_refused = false
+	_replaying_checkpoint = true
+	_stage.reset()
+	for record: Dictionary in journal:
+		if record.has("advance"): _stage.advance(float(record["advance"]))
+		else: _load_errors.append_array(_stage.execute(str(record["type"]), record["parameters"]))
+	_session = candidate
+	_session.drain_events()
+	_shown.clear()
+	_present_node(_program["nodes"][_session.view()["node_id"]])
+	_clock = _session.snapshot()["state"]["clocks"].duplicate()
+	for event: String in _session.snapshot()["state"]["gate_events"]:
+		_reported_gate_events[str(_session.view()["visit_id"]) + ":" + event] = true
+	_elapsed = float(saved_state["elapsed"])
+	_history.assign(saved_state.get("history", []))
+	_manpu_history.assign(saved_state.get("manpu_history", []))
+	_contact_history.assign(saved_state.get("contact_history", []))
+	_manpu_event_time = float(saved_state["manpu_event_time"])
+	_contact_time = float(saved_state["contact_time"])
+	_contact.reset(_contact_time >= 0.0)
+	_journal = journal.duplicate(true)
+	_paused = false
+	_set_reveal_fraction(float(saved_state["reveal_fraction"]))
+	if _session.view()["status"] == "suspended": _apply(_session.resume())
+	_replaying_checkpoint = false
+	_begin_text_audio(float(saved_state["voice_position_seconds"]), str(saved_state.get("voice_source_revision", "")))
+	_autoplay_enabled = bool(autoplay["enabled"])
+	if str(saved_state.get("voice_source_revision", "")) == str(_voice_state.get("source_revision", "")) and saved_state.get("language") == get_language() and str(get_autoplay_state()["blocked_reason"]).is_empty():
+		_autoplay_elapsed = minf(float(autoplay["elapsed_seconds"]), float(get_autoplay_state()["delay_seconds"]))

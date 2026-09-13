@@ -1,0 +1,23 @@
+{
+  "kind": "scenario-catalog",
+  "schema_version": 1,
+  "catalog_id": "signal_room",
+  "revision": "1",
+  "definitions": {
+    "relay_contact": {
+      "type": "point_contact",
+      "parameters": {
+        "radius": 43
+      }
+    },
+    "relay_acknowledgement": {
+      "type": "radial_burst",
+      "parameters": {
+        "count": 18,
+        "distance": 240,
+        "sprite_size": 32,
+        "seed": 21
+      }
+    }
+  }
+}

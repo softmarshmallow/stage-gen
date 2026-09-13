@@ -251,11 +251,8 @@ func _id(game: Control) -> String:
 func _freeze_route(node: Node) -> void:
 	if node.has_method("current_beat"):
 		if _typing_fixture:
-			# Exercise typing policy explicitly even when local voice recordings exist.
-			# Per-beat overrides survive language refresh and checkpoint reconstruction.
-			node.beats = node.beats.duplicate(true)
-			for beat: Dictionary in node.beats:
-				beat["text_audio"] = {"mode": "typing"}
+			# Audio mode is an explicit game binding; admitted episode data stays immutable.
+			node.text_audio_settings = {"mode": "typing"}
 		node.set_process(false)
 		node.ready.connect(node.set_process.bind(false), CONNECT_ONE_SHOT)
 

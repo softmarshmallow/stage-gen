@@ -1,0 +1,17 @@
+{
+  "greeting": {
+    "source": "dialogue.scenario",
+    "line": 4,
+    "column": 1
+  },
+  "fixed": {
+    "source": "dialogue.scenario",
+    "line": 7,
+    "column": 1
+  },
+  "done": {
+    "source": "dialogue.scenario",
+    "line": 10,
+    "column": 1
+  }
+}

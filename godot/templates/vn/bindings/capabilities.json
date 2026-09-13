@@ -1,0 +1,38 @@
+{
+  "point_contact": {
+    "version": 1,
+    "parameters": {
+      "radius": {
+        "type": "number",
+        "min": 1,
+        "required": true
+      }
+    }
+  },
+  "radial_burst": {
+    "version": 1,
+    "reconstructable": true,
+    "finishable": true,
+    "parameters": {
+      "count": {
+        "type": "integer",
+        "min": 1,
+        "required": true
+      },
+      "distance": {
+        "type": "number",
+        "min": 0,
+        "required": true
+      },
+      "sprite_size": {
+        "type": "number",
+        "min": 1,
+        "required": true
+      },
+      "seed": {
+        "type": "integer",
+        "required": true
+      }
+    }
+  }
+}

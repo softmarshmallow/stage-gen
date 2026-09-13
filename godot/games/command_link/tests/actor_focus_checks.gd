@@ -295,7 +295,19 @@ func _check_runtime(root: Control) -> void:
 	_expect(String(scene.get("_story_id")) == "escort" and focus.focus_id == "mira" and is_equal_approx(focus.elapsed, focus.duration_seconds), "Resume must restore the current speaker at its settled pose.")
 	scene.call("set_actor_focus_preset", "listener_dim")
 	focus.advance(1.0)
-	scene.set("_story_id", "end")
+	# Scenario owns the position. Reach narration through admitted choices and
+	# the real contact/handoff gates instead of changing a private beat index.
+	for step in 32:
+		if String(scene.get("_story_id")) == "end": break
+		_tick(scene, 3.0)
+		var beat: Dictionary = scene.call("_current_beat")
+		if beat.has("choices"):
+			scene.call("_choose", 0)
+		elif beat.get("contact", false):
+			scene.call("_connect_at", scene.call("_fingertip_center", scene.size))
+		else:
+			scene.call("_advance_dialogue")
+	_expect(String(scene.get("_story_id")) == "end", "The narrative reaches the authored ending.")
 	scene.call("_update_interface")
 	_tick(scene, 1.0)
 	_expect(focus.focus_id.is_empty(), "Narration must have no focused actor.")

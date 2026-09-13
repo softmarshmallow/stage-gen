@@ -41,6 +41,7 @@ apps = ["stage-gen-concept"]
 
 [tool.uv.workspace]
 members = [
+  "godot/packages/scenario_runtime/authoring",
   "godot/games/_shared/python",
   "godot/games/bellweather/pipeline",
   "godot/games/iron_petal_unit/pipeline",
@@ -124,7 +125,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC", "RUF"]
 ignore = ["RUF022"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["gnode", "stage_gen", "demo_game_tools", "demo_game_collection", "bellweather_pipeline", "iron_petal_unit_pipeline", "ember_hollow_pipeline", "the_grain_pipeline", "concept_studio"]
+known-first-party = ["gnode", "stage_gen", "scenario_authoring", "demo_game_tools", "demo_game_collection", "bellweather_pipeline", "iron_petal_unit_pipeline", "ember_hollow_pipeline", "the_grain_pipeline", "concept_studio"]
 
 [tool.mypy]
 python_version = "3.12"

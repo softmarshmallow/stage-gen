@@ -33,13 +33,22 @@ ENGINE_DENY = (
 # wrapper. Mask decoding and world composition now belong to scene adapters.
 DIRECTION_EXEMPT = {"ember_hollow/gameplay/world.gd"}
 PURE_PACKAGE_MEMBERS = {
-    "scenario_runtime": ("program.gd", "runtime.gd", "refusal.gd"),
+    "scenario_runtime": (
+        "program.gd",
+        "runtime.gd",
+        "refusal.gd",
+        "program/catalog.gd",
+        "program/program.gd",
+        "execution/session.gd",
+        "compatibility/v2.gd",
+        "execution/transport.gd",
+    ),
     # image_baker.gd intentionally owns engine Image/WorkerThreadPool operations;
     # simulations may only consume the independent data-only modules.
     "sideview_rendering": ("parallax.gd", "pixels.gd", "refusal.gd"),
 }
 PURE_PRELOAD = re.compile(
-    r'preload\("res://addons/(scenario_runtime|sideview_rendering)/([a-z_]+\.gd)"\)'
+    r'preload\("res://addons/(scenario_runtime|sideview_rendering)/([a-z0-9_/]+\.gd)"\)'
 )
 
 
@@ -184,7 +193,7 @@ def test_a_simulation_never_touches_the_engine() -> None:
 
 
 def test_declared_pure_runtime_package_has_only_pure_local_dependencies() -> None:
-    local_preload = re.compile(r'preload\("([a-z_]+\.gd)"\)')
+    local_preload = re.compile(r'preload\("([a-z0-9_./]+\.gd)"\)')
     for package, members in PURE_PACKAGE_MEMBERS.items():
         package_root = GODOT_TREE / "packages" / package / "addons" / package
         for name in members:
@@ -192,8 +201,11 @@ def test_declared_pure_runtime_package_has_only_pure_local_dependencies() -> Non
             assert source.is_file(), f"declared pure package source is absent: {package}/{name}"
             code = _code(source)
             for member in local_preload.findall(code):
-                assert member in members, f"{source.name}: non-pure dependency {member}"
-                assert (package_root / member).is_file(), f"{source.name}: missing {member}"
+                target = (source.parent / member).resolve()
+                assert target.is_relative_to(package_root.resolve()), f"{source}: escaping preload"
+                relative = target.relative_to(package_root.resolve()).as_posix()
+                assert relative in members, f"{source.name}: non-pure dependency {relative}"
+                assert target.is_file(), f"{source.name}: missing {member}"
             code = local_preload.sub("PURE_PACKAGE_DEPENDENCY", code)
             for label, pattern in ENGINE_DENY:
                 assert not pattern.search(code), f"{source.name}: pure package reads {label}"

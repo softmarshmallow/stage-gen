@@ -1,0 +1,20 @@
+{
+  "kind": "scenario-catalog",
+  "schema_version": 1,
+  "catalog_id": "catalog_effects",
+  "revision": "1",
+  "definitions": {
+    "ember_effect": {
+      "type": "particle",
+      "parameters": {
+        "sprite": "ember_sprite",
+        "width": 250,
+        "height": 400,
+        "rate": 18
+      },
+      "overrides": [
+        "rate"
+      ]
+    }
+  }
+}

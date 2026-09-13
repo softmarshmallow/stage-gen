@@ -12,7 +12,9 @@ published release. The [API inventory](API.md) names the supported canary script
 entry points; underscore-prefixed helpers are private. No stable release is
 advertised yet. Consumers pin the complete payload and upgrade deliberately.
 Future stable and canary releases must name their supported surfaces and changes;
-Scenario compatibility is not a prerequisite for changing SDK behavior.
+The sibling Scenario framework consumes these declared mechanisms. Changes remain
+owned here, with affected consumer checks when a consumed contract changes; this
+addon never imports the framework or its authored content.
 
 ## Install and compose
 

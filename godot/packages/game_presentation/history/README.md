@@ -1,5 +1,10 @@
 # History of the presentation line
 
+> Historical evidence. Current Scenario ownership and execution are defined by
+> the [invocation contract](../../scenario_runtime/docs/contract.md). Earlier paths, proof claims, requests
+> and code-director status below describe their recorded state, not current
+> architectural instructions. Existing media reviews retain their original scope.
+
 The request ledger and the records that were kept while Afterlight, Command Link
 and the SDK grew up together in one workspace. These retain the original requests:
 

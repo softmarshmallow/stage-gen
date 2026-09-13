@@ -45,8 +45,8 @@ func _seek_burst() -> Control:
 		if str(game.current_beat()["id"]) == BURST_BEAT: return game
 		game._process(6.0)
 		if _fulfill_contact_gate(game): continue
-		if game.current_beat()["type"] == "choice": game._choices[str(game.current_beat()["id"])] = "help_first"
-		game._continue_story()
+		if game.current_beat()["type"] == "choice": game._choose("help_first")
+		else: game._continue_story()
 	_expect(false, "The authored ward-repair burst must remain in the playable episode.")
 	return game
 
@@ -56,7 +56,7 @@ func _story_burst(factor: int) -> void:
 	var cue: Dictionary = game.current_beat()["sprite_burst"]
 	var delay := float(cue["delay_seconds"])
 	var burst: Control = game._sprite_burst
-	_expect(burst.get_index() < game._cast.get_index() and game._cast.get_index() < game._ui.get_index(), "The host must place the burst behind actors and before interface chrome.")
+	_expect(burst.get_parent() == game._cast.get_parent() and burst.get_index() < game._cast.get_index() and game._stage.get_index() < game._ui.get_index(), "The host must place the burst behind actors and before interface chrome.")
 	_expect(burst.get_state().is_empty(), "The story burst must wait for its authored delay.")
 	game._process(delay - 0.02)
 	_expect(burst.get_state().is_empty(), "The burst must not emit before its cue boundary.")

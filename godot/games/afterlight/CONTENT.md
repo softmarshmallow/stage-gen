@@ -4,8 +4,12 @@
 assets and geometry, while [content_adapter.gd](content_adapter.gd) translates
 the existing `res://` asset strings into relative bindings for the SDK
 [local loader](../../packages/game_presentation/addons/game_presentation/content/LOCAL_CONTENT.md).
-The game script, direction, UI, shaders and neutral behavior catalogs remain
-part of the project/SDK, separate from prepared content.
+The game script, UI, bindings and installed capability implementations remain
+part of the player. Authored narrative source/catalog and its compiled program
+live in `narrative/`; this existing `--content-root` path selects prepared art,
+text and voice, not a new sequence or executable code. The separate Scenario
+content-package loader provides explicit data-package activation when a consuming
+application chooses that delivery boundary.
 
 By default, content resolves beneath `res://`. Launch with an absolute external
 directory to use raw prepared media and metadata:

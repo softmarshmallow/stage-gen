@@ -1,0 +1,53 @@
+scenario signal_room
+speaker mara "Mara"
+speaker ivo "Ivo"
+fact message = "unset" in ["unset", "light", "note"]
+
+@intro
+narrate key intro
+    present {"profile":"intertitle","progress_index":0,"camera":{"mode":"wide","duration":0.55}}
+    gate text_revealed finish_on_advance=true
+
+@welcome
+mara key welcome
+    present {"profile":"signal_room","progress_index":1,"voice":"welcome","camera":{"mode":"focus","actor":"mara","zoom":1.2,"duration":0.65}}
+    gate text_revealed finish_on_advance=true
+
+@message
+menu text_key="choice" speaker=ivo:
+    present {"profile":"signal_room","progress_index":2,"camera":{"mode":"focus","actor":"ivo","zoom":1.2,"duration":0.65}}
+    gate text_revealed finish_on_advance=true
+    light key light -> reply_light set={"message":"light"}
+    note key note -> reply_note set={"message":"note"}
+
+@reply_light
+mara key reply_light next=contact
+    present {"profile":"signal_room","progress_index":3,"camera":{"mode":"focus","actor":"mara","zoom":1.2,"duration":0.65},"manpu":[{"actor":"mara","id":"glint","preset":"step_loop"}]}
+    gate text_revealed finish_on_advance=true
+
+@reply_note
+mara key reply_note
+    present {"profile":"signal_room","progress_index":3,"camera":{"mode":"focus","actor":"mara","zoom":1.2,"duration":0.65},"manpu":[{"actor":"mara","id":"glint","preset":"step_loop"}]}
+    gate text_revealed finish_on_advance=true
+
+@contact
+ivo key contact
+    present {"profile":"signal_room","progress_index":4,"show_relay":true,"camera":{"mode":"wide","duration":0.55}}
+    gate text_revealed finish_on_advance=true
+    gate operation_completed:relay_feedback finish_on_advance=false
+    advance_mode on_gates
+    cue relay on text_revealed start relay_contact as relay target=relay
+    cue feedback on operation_completed:relay start relay_acknowledgement as relay_feedback target=relay duration=0.65
+
+@delivery
+mara key delivery
+    present {"profile":"signal_room","progress_index":5,"camera":{"mode":"focus","actor":"mara","zoom":1.2,"duration":0.65},"manpu":[{"actor":"mara","id":"glint","preset":"scale_pulse"}]}
+    gate text_revealed finish_on_advance=true
+
+@ending
+narrate key ending
+    present {"profile":"intertitle","progress_index":6,"terminal":true,"camera":{"mode":"wide","duration":0.55}}
+    gate text_revealed finish_on_advance=true
+
+@complete
+end delivered

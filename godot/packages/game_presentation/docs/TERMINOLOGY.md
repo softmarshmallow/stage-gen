@@ -1,5 +1,11 @@
 # Presentation terminology dictionary
 
+Current ownership: [Scenario](../../scenario_runtime/README.md) executes authored
+sequences and supplies optional presenters over the mechanisms named here. Games
+own their content, profiles, resources and application UI. P-numbered sections
+record when specific terms and effects entered the demonstrations; their original
+code-director placement is historical, not a current architectural requirement.
+
 P107 maps reusable mechanisms to the [Game Presentation SDK](../addons/game_presentation/README.md).
 Presets, host choreography and UI keep their existing ownership; terminology is
 not a list of mandatory modules. [Topology](../history/TOPOLOGY.md) is the implemented tree.
@@ -177,7 +183,8 @@ P95/P96 add localized character speech with explicit unvoiced narration and
 manual preparation. P99 adds sustained Ambient Particles and applies
 Transmission Voice processing to Eira's existing recordings while projected.
 P97 adds optional host autoplay to this composition, including authored choice
-defaults and mandatory-input gates; it creates no shared narrative module.
+defaults and mandatory-input gates. That historical implementation now uses
+Scenario's shared transport and Session gates; the game retains its policy.
 
 ## Actor motion presets (P69)
 

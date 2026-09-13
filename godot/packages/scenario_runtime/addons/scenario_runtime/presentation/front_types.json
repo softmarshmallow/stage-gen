@@ -1,0 +1,629 @@
+{
+  "front_view": {
+    "version": 1,
+    "parameters": {
+      "speaker": {
+        "type": "string",
+        "default": ""
+      },
+      "camera_mode": {
+        "type": "string",
+        "default": "dialogue",
+        "enum": [
+          "dialogue",
+          "walking",
+          "establish",
+          "detail"
+        ]
+      },
+      "portrait_mode": {
+        "type": "string",
+        "default": "none",
+        "enum": [
+          "none",
+          "detail",
+          "contact",
+          "eye"
+        ]
+      },
+      "cast_visible": {
+        "type": "boolean",
+        "default": true
+      },
+      "halo": {
+        "type": "boolean",
+        "default": false
+      },
+      "eye_mask": {
+        "type": "boolean",
+        "default": false
+      },
+      "flare": {
+        "type": "boolean",
+        "default": false
+      },
+      "heat": {
+        "type": "number",
+        "default": 0,
+        "min": 0,
+        "max": 1
+      },
+      "barrier": {
+        "type": "number",
+        "default": 0,
+        "min": 0,
+        "max": 1
+      },
+      "scene_corruption": {
+        "type": "number",
+        "default": 0,
+        "min": 0,
+        "max": 1
+      },
+      "corruption": {
+        "type": "object",
+        "properties": {
+          "actor": {
+            "type": "string"
+          },
+          "area": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "strength": {
+            "type": "number",
+            "default": 0,
+            "min": 0,
+            "max": 1
+          }
+        },
+        "default": {}
+      },
+      "field_envelope": {
+        "type": "string",
+        "default": "hold",
+        "enum": [
+          "hold",
+          "fade_in",
+          "fade_out"
+        ]
+      },
+      "duration_seconds": {
+        "type": "number",
+        "default": 1.6,
+        "min": 0
+      }
+    },
+    "reconstructable": true
+  },
+  "front_reset": {
+    "version": 1,
+    "parameters": {
+      "controllers": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "eye",
+            "drift",
+            "establish",
+            "walking",
+            "shake",
+            "burst",
+            "pan",
+            "camera",
+            "marks",
+            "reactions"
+          ]
+        },
+        "default": []
+      }
+    },
+    "reconstructable": true
+  },
+  "front_background": {
+    "version": 1,
+    "parameters": {
+      "index": {
+        "type": "integer",
+        "default": 0,
+        "min": 0
+      }
+    },
+    "reconstructable": true
+  },
+  "front_cast": {
+    "version": 1,
+    "parameters": {
+      "actors": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": []
+      }
+    },
+    "reconstructable": true
+  },
+  "front_focus": {
+    "version": 1,
+    "parameters": {
+      "actor": {
+        "type": "string",
+        "default": ""
+      },
+      "preset": {
+        "type": "string",
+        "default": "bounce"
+      },
+      "replay": {
+        "type": "boolean",
+        "default": false
+      }
+    },
+    "reconstructable": true
+  },
+  "front_mark": {
+    "version": 1,
+    "parameters": {
+      "actor": {
+        "type": "string",
+        "default": ""
+      },
+      "sprite": {
+        "type": "string",
+        "default": ""
+      },
+      "preset": {
+        "type": "string",
+        "default": ""
+      }
+    },
+    "reconstructable": true
+  },
+  "front_reaction": {
+    "version": 1,
+    "parameters": {
+      "actor": {
+        "type": "string",
+        "default": ""
+      },
+      "sprite": {
+        "type": "string",
+        "default": ""
+      },
+      "preset": {
+        "type": "string",
+        "default": "sigh_puff"
+      }
+    },
+    "reconstructable": true
+  },
+  "front_projection": {
+    "version": 1,
+    "parameters": {
+      "actor": {
+        "type": "string",
+        "default": ""
+      },
+      "enabled": {
+        "type": "boolean",
+        "default": true
+      }
+    },
+    "reconstructable": true
+  },
+  "front_camera": {
+    "version": 1,
+    "parameters": {
+      "mode": {
+        "type": "string",
+        "default": "wide",
+        "enum": [
+          "wide",
+          "focus"
+        ]
+      },
+      "actor": {
+        "type": "string",
+        "default": ""
+      },
+      "duration_seconds": {
+        "type": "number",
+        "default": 0.65,
+        "min": 0
+      },
+      "zoom": {
+        "type": "number",
+        "default": 2.35,
+        "min": 1
+      }
+    },
+    "reconstructable": true
+  },
+  "front_walking": {
+    "version": 1,
+    "parameters": {},
+    "reconstructable": true
+  },
+  "front_drift": {
+    "version": 1,
+    "parameters": {},
+    "reconstructable": true
+  },
+  "front_delay": {
+    "version": 1,
+    "parameters": {},
+    "reconstructable": true
+  },
+  "front_eye": {
+    "version": 1,
+    "parameters": {
+      "mode": {
+        "type": "string",
+        "default": "eye_opening",
+        "enum": [
+          "eye_opening",
+          "eye_closing",
+          "blink",
+          "waking_opening"
+        ]
+      },
+      "settings": {
+        "type": "object",
+        "properties": {
+          "opening_seconds": {
+            "type": "number",
+            "min": 0.1,
+            "max": 8
+          },
+          "closing_seconds": {
+            "type": "number",
+            "min": 0.1,
+            "max": 4
+          },
+          "closed_hold_seconds": {
+            "type": "number",
+            "min": 0,
+            "max": 2
+          },
+          "peek_seconds": {
+            "type": "number",
+            "min": 0.05,
+            "max": 2
+          },
+          "peek_openness": {
+            "type": "number",
+            "min": 0.05,
+            "max": 1
+          }
+        },
+        "default": {}
+      }
+    },
+    "reconstructable": true
+  },
+  "front_establish": {
+    "version": 1,
+    "parameters": {
+      "duration_seconds": {
+        "type": "number",
+        "default": 3.4,
+        "min": 0
+      },
+      "pan_amount": {
+        "type": "number",
+        "default": 48
+      },
+      "zoom_amount": {
+        "type": "number",
+        "default": 0.1
+      },
+      "flare_enabled": {
+        "type": "boolean",
+        "default": true
+      },
+      "flare_strength": {
+        "type": "number",
+        "default": 0.28,
+        "min": 0,
+        "max": 1
+      },
+      "flare_source_uv": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        },
+        "default": [
+          0.74,
+          0.2
+        ]
+      }
+    },
+    "reconstructable": true
+  },
+  "front_handoff": {
+    "version": 1,
+    "parameters": {
+      "outgoing": {
+        "type": "string",
+        "default": ""
+      },
+      "survivor": {
+        "type": "string",
+        "default": ""
+      },
+      "incoming": {
+        "type": "string",
+        "default": ""
+      },
+      "settings": {
+        "type": "object",
+        "properties": {
+          "curve": {
+            "type": "string",
+            "default": "spring"
+          },
+          "damping_ratio": {
+            "type": "number",
+            "default": 0.8
+          },
+          "exit_preset": {
+            "type": "string",
+            "default": "silhouette_fade"
+          }
+        },
+        "default": {}
+      }
+    },
+    "reconstructable": true
+  },
+  "front_exit": {
+    "version": 1,
+    "parameters": {
+      "actor": {
+        "type": "string",
+        "default": ""
+      },
+      "preset": {
+        "type": "string",
+        "default": "silhouette_fade"
+      }
+    },
+    "reconstructable": true
+  },
+  "front_shake": {
+    "version": 1,
+    "parameters": {
+      "amplitude_x": {
+        "type": "number",
+        "default": 28,
+        "min": 0,
+        "max": 128
+      },
+      "amplitude_y": {
+        "type": "number",
+        "default": 22,
+        "min": 0,
+        "max": 128
+      },
+      "frequency": {
+        "type": "number",
+        "default": 11,
+        "min": 0.5,
+        "max": 40
+      },
+      "duration": {
+        "type": "number",
+        "default": 1.35,
+        "min": 0.1,
+        "max": 30
+      },
+      "attack": {
+        "type": "number",
+        "default": 0.08,
+        "min": 0.01,
+        "max": 5
+      },
+      "seed": {
+        "type": "number",
+        "default": 0,
+        "min": 0,
+        "max": 65535
+      }
+    },
+    "reconstructable": true
+  },
+  "front_blackout": {
+    "version": 1,
+    "parameters": {
+      "strength": {
+        "type": "number",
+        "default": 0,
+        "min": 0,
+        "max": 1
+      },
+      "duration_seconds": {
+        "type": "number",
+        "default": 0.4,
+        "min": 0
+      }
+    },
+    "reconstructable": true
+  },
+  "front_pan": {
+    "version": 1,
+    "parameters": {
+      "actor": {
+        "type": "string"
+      },
+      "anchor_x": {
+        "type": "number"
+      },
+      "settings": {
+        "type": "object",
+        "properties": {
+          "duration_seconds": {
+            "type": "number",
+            "min": 0,
+            "max": 5
+          },
+          "curve": {
+            "type": "string",
+            "enum": [
+              "linear",
+              "ease_in_out",
+              "spring"
+            ]
+          },
+          "frequency": {
+            "type": "number"
+          },
+          "damping_ratio": {
+            "type": "number"
+          }
+        },
+        "default": {}
+      },
+      "offset": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        }
+      }
+    },
+    "reconstructable": true
+  },
+  "front_approach": {
+    "version": 1,
+    "parameters": {
+      "actor": {
+        "type": "string",
+        "default": ""
+      },
+      "target": {
+        "type": "string",
+        "default": ""
+      },
+      "settings": {
+        "type": "object",
+        "properties": {
+          "duration_seconds": {
+            "type": "number",
+            "min": 0,
+            "max": 5
+          },
+          "curve": {
+            "type": "string",
+            "enum": [
+              "linear",
+              "ease_in_out",
+              "spring"
+            ]
+          },
+          "frequency": {
+            "type": "number"
+          },
+          "damping_ratio": {
+            "type": "number"
+          },
+          "stop_distance": {
+            "type": "number"
+          }
+        },
+        "default": {}
+      }
+    },
+    "reconstructable": true
+  },
+  "front_burst": {
+    "version": 1,
+    "parameters": {
+      "actor": {
+        "type": "string",
+        "default": ""
+      },
+      "sprites": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": []
+      },
+      "origin_uv": {
+        "type": "array",
+        "items": {
+          "type": "number"
+        },
+        "default": [
+          0.5,
+          0.25
+        ]
+      },
+      "options": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number",
+            "min": 1,
+            "max": 256
+          },
+          "duration": {
+            "type": "number",
+            "min": 0.05,
+            "max": 30
+          },
+          "spread_degrees": {
+            "type": "number",
+            "min": 0,
+            "max": 360
+          },
+          "angle_degrees": {
+            "type": "number",
+            "min": -360,
+            "max": 360
+          },
+          "start_radius": {
+            "type": "number",
+            "min": 0,
+            "max": 2048
+          },
+          "distance": {
+            "type": "number",
+            "min": 0,
+            "max": 4096
+          },
+          "sprite_size": {
+            "type": "number",
+            "min": 1,
+            "max": 512
+          },
+          "pop_seconds": {
+            "type": "number",
+            "min": 0.01,
+            "max": 10
+          },
+          "fade_start": {
+            "type": "number",
+            "min": 0,
+            "max": 1
+          },
+          "spin_degrees": {
+            "type": "number",
+            "min": -1440,
+            "max": 1440
+          },
+          "seed": {
+            "type": "number",
+            "min": 0,
+            "max": 65535
+          }
+        },
+        "default": {}
+      }
+    },
+    "reconstructable": true
+  }
+}

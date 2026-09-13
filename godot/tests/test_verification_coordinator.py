@@ -129,12 +129,38 @@ def test_owned_python_checks_run_through_pytest(tmp_path: Path) -> None:
         "starter_assembly",
         "content_preparation",
         "voice_preparation",
+        "content_player",
+        "example_sources",
+        "episode_source",
+        "mission_source",
+        "narrative_source",
+        "authoring_admission",
+        "authoring_content",
+        "authoring_current",
+        "authoring_distribution",
+        "authoring_liveness",
+        "authoring_parser",
+        "scenario_production_generation",
+        "scenario_production_resolve",
     }
     for suite in suites:
         owner = next(owner for owner in check_suites.OWNERS if owner.name == suite.owner)
         command = check.command_for(suite, owner, options(), tmp_path)
         assert command[1:4] == ["-m", "pytest", "-q"]
         assert Path(command[-1]).is_file()
+
+
+def test_unregistered_authoring_test_is_not_silently_lost(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(check_suites, "ROOT", tmp_path)
+    project = tmp_path / "scenario"
+    (project / "authoring/tests").mkdir(parents=True)
+    (project / "project.godot").touch()
+    (project / "authoring/tests/test_new.py").write_text("def test_new(): pass\n")
+    owner = check_suites.Owner("scenario", "scenario", "explicit", ("tests", "authoring/tests"))
+    errors = check_suites.inventory_errors((owner,), [])
+    assert any("Python suite has no execution adapter: test_new.py" in error for error in errors)
 
 
 def test_native_adapter_uses_the_authored_fixture_and_owner(tmp_path: Path) -> None:

@@ -8,11 +8,12 @@ shaders/includes, neutral motion catalogs, API inventory, source UIDs and licens
 It has no dependency on the development workspace, game media or Python. The
 local canary version records the initial package contract; it is not a release.
 
-## New game
+## New narrative game
 
-The [starter](../../../templates/vn/README.md) has one editable `main.gd` composition,
-its own complete UI, original procedural placeholder art and a small choice/contact
-story. Assembly copies this host and its declared addon closure into a new directory,
+The [starter](../../../templates/vn/README.md) has a game-owned `main.gd` binding,
+its own UI, original procedural placeholder art and a small authored Scenario
+choice/contact story. The [Scenario assembler](../../scenario_runtime/tools/README.md)
+copies this host and its declared addon closure into a new directory,
 records source and dependency hashes and refuses to overwrite an existing destination. It makes no
 provider calls. The `.gdignore` in starter source prevents duplicate editor imports
 inside the development workspace and is omitted from the assembled project.
@@ -20,7 +21,7 @@ inside the development workspace and is omitted from the assembled project.
 From the repository root, choose a new output directory:
 
 ```sh
-python3 godot/packages/game_presentation/tools/assemble_starter.py --output /private/tmp/my-presentation-game
+python3 godot/packages/scenario_runtime/tools/assemble_starter.py --output /private/tmp/my-presentation-game
 Godot --headless --editor --path /private/tmp/my-presentation-game --quit
 Godot --path /private/tmp/my-presentation-game
 ```
@@ -32,8 +33,9 @@ is local packaging, not publishing. See the starter README for check/export comm
 
 ## Existing examples with external content
 
-Afterlight, Command Link and Presentation Lab retain their existing code and
-story-owned catalogs. `--content-root` selects a normalized absolute directory
+Afterlight and Command Link invoke authored Scenario content; their application
+bindings, art and media catalogs remain game-owned. Presentation Lab directly
+exercises mechanisms without a mission director. `--content-root` selects a normalized absolute directory
 of prepared raw files. Both games' roots and Lab fixtures receive that same
 option; detouring preserves it along with per-game state and language.
 
@@ -87,5 +89,6 @@ context and link to the moved sources; the package includes its own usage/API do
 The [verification record](../history/QA.md#sdk-package-and-content-boundary-p107) separates
 source closure, controller checks, external content, gameplay lifecycle, native
 rendering and exported-pack evidence. Anatomy/VLM annotation, standing framing,
-Scenario integration, upstream generation-family replacement, legacy deletion,
-and stable-release/publication work remain outside this implementation.
+upstream generation-family replacement and stable-release/publication work remain
+outside this implementation. Scenario integration and its starter assembly are
+owned by the sibling [Scenario package](../../scenario_runtime/README.md).

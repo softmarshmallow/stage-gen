@@ -10,6 +10,14 @@ packages, private scene-navigation reuse, game-owned options, narrower preparati
 and collection tooling, and a Godot verification coordinator. It preserves existing
 inputs and game composition rather than introducing a common gameplay language.
 
+Scenario promotion now places authoring, sequence execution, presenters and
+content-package admission in one Godot-owned package. Afterlight, Command Link
+and the VN starter author current content; Bellweather and The Grain retain
+supported v2 inputs through the same execution core. The [contract](../packages/scenario_runtime/docs/contract.md)
+and [directory preview](../packages/scenario_runtime/docs/layout.md) describe what
+exists. General catalog inheritance, code in content, arbitrary save migration
+and a delivery server are not implemented promises.
+
 ## Remaining reviews
 
 | Candidate | Next useful boundary | Decision before implementation |
@@ -21,7 +29,7 @@ inputs and game composition rather than introducing a common gameplay language.
 | Older Python tests and goldens | Tests beside their owning game/package | Move collection and fixture discovery together, preserving exact fixture bytes and test coverage. Root cross-product checks remain separate. |
 | Private widgets and conventions | Honest internal presentation/simulation groupings | Keep style, inventory and combat policies private until a smaller independent contract is useful. |
 | Active-audio shutdown | Playback ownership during application exit | Investigate MP3 stream/playback references reported on abrupt engine shutdown. Bellweather and runner reproduce the warnings with the previous loader too; separate engine behavior from game lifecycle before changing either. |
-| Full game frameworks | Optional consumer contracts | Review concrete consumers; there is no requirement for one visual-novel engine or save model. |
+| Scenario follow-up | Explicit installed mechanisms and game-owned invocation | Current v3 authoring/execution is the selected framework. Add capabilities with typed parameters, source/compiler/native conformance and real consumer evidence; do not create per-story execution callbacks. Preserve v2 input support and keep durable game saves local. |
 
 Review the [existing game backlog](../games/TODO.md) item by item when taking its
 work. Move a game feature to that game's notes as it is reviewed; retain historical

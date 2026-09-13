@@ -1,0 +1,11 @@
+scenario world_bubbles
+speaker pilot "Pilot"
+
+@greeting
+pilot "I am a 3D character in the game's world. My bubble follows its camera." profile=bubble
+
+@fixed
+pilot "The next line can use the fixed dialogue surface. My identity is unchanged."
+
+@done
+end conversation_complete

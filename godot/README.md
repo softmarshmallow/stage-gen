@@ -36,11 +36,11 @@ godot/
 ├── packages/
 │   ├── game_presentation/            # Independent presentation controllers
 │   ├── content_io/                   # Local content access and decoding
-│   ├── scenario_runtime/             # Optional deterministic scenario execution
+│   ├── scenario_runtime/             # VN-oriented sessions, compiler and presenters
 │   └── sideview_rendering/           # Layers, parallax and pixel presentation
 ├── templates/
 │   ├── asset_consumer/                # Explicit PNG preparation and display
-│   └── vn/                            # Copyable presentation project
+│   └── vn/                            # Copyable game invoking authored Scenario content
 ├── tools/                            # Workspace verification and collection CLI
 ├── tests/                            # Godot-owned tooling checks
 └── docs/                             # Current architecture, verification and roadmap
@@ -104,6 +104,14 @@ capabilities. [asset_consumer](templates/asset_consumer/README.md)
 and [vn](templates/vn/README.md) are copyable starting projects. A game chooses the
 packages it needs; it need not consume all packages or use a particular game schema.
 
+Scenario is the selected embeddable narrative framework: games invoke authored
+sequences and grant installed presentation capabilities while retaining their
+world, input, camera and saves. Its compiler is independently installable, and
+its data-only content can use new game-defined presets without adding algorithms.
+The [Scenario directory preview](packages/scenario_runtime/docs/layout.md) shows
+its authoring/runtime/game boundaries; [embedding](packages/scenario_runtime/docs/embedding.md)
+covers optional portraits, combat dialogue and 2D/3D actor bubbles.
+
 During development, projects link the addon payload of an independent package or
 `games/_shared/runtime/addons/demo_support`. Assemblers copy real source files
 into distributable projects. Shared support imports no named game. Media crosses
@@ -111,4 +119,4 @@ an application boundary through explicit copies with its provenance and rights.
 
 Every game owns its renderer, main scene, configuration and gameplay. Native tests
 live with their owner; [workspace tools](tools/README.md) run them together. See the
-[detailed layout](../docs/plans/godot-consumer-layout.md) for the ownership map.
+[current architecture](docs/architecture.md) for the ownership map.

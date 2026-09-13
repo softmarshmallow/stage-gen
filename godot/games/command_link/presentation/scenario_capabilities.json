@@ -1,0 +1,78 @@
+{
+  "squad_frame": {
+    "version": 1,
+    "reconstructable": true,
+    "parameters": {
+      "mode": {
+        "type": "string",
+        "enum": [
+          "dialogue",
+          "reach_out"
+        ],
+        "default": "dialogue"
+      },
+      "contact": {
+        "type": "boolean",
+        "default": false
+      },
+      "ending": {
+        "type": "boolean",
+        "default": false
+      },
+      "location": {
+        "type": "string"
+      },
+      "manpu": {
+        "type": "array",
+        "default": [],
+        "items": {
+          "type": "object",
+          "properties": {
+            "actor": {
+              "type": "string",
+              "required": true
+            },
+            "id": {
+              "type": "string",
+              "required": true
+            }
+          }
+        }
+      },
+      "camera": {
+        "type": "object",
+        "properties": {
+          "shot": {
+            "type": "string",
+            "enum": [
+              "wide",
+              "close_up"
+            ],
+            "required": true
+          },
+          "target": {
+            "type": "string",
+            "default": "speaker"
+          },
+          "zoom": {
+            "type": "number",
+            "default": 2,
+            "min": 1,
+            "max": 4
+          },
+          "duration_seconds": {
+            "type": "number",
+            "default": 0.7,
+            "min": 0,
+            "max": 2
+          }
+        }
+      }
+    }
+  },
+  "squad_handoff": {
+    "version": 1,
+    "reconstructable": true,
+    "parameters": {}
+  }
+}

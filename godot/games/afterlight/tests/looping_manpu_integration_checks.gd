@@ -158,6 +158,11 @@ func _record_loop(label: String, sample: Dictionary) -> void:
 
 
 func _frame_image() -> Image:
+	# Native pointer position must not alter unrelated Lab button hover pixels.
+	var motion := InputEventMouseMotion.new()
+	motion.position = Vector2(-100, -100)
+	motion.global_position = motion.position
+	root.push_input(motion, false)
 	await _settle()
 	# A background native window need not redraw spontaneously on macOS.
 	RenderingServer.force_draw(false)

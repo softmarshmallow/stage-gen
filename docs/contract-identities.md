@@ -59,8 +59,8 @@ field or constant. Game versioning follows [the game contract](../godot/games/_s
 | `runner-avatar-v3` | `authored` | `iron_petal_unit_pipeline.content.models:RunnerAvatarCatalog.kind` |
 | `runner-gameplay-v4` | `authored` | `iron_petal_unit_pipeline.gameplay.models:RunnerGameplayContract.kind` |
 | `runner-track-v4` | `authored` | `iron_petal_unit_pipeline.track.models:RunnerTrack.kind` |
-| `scenario-catalog-v1` | `authored` | `stage_gen.components.scenario.models:ScenarioCatalog.kind` |
-| `scenario-v2` | `authored` | `stage_gen.components.scenario.models:ScenarioDeclarations.kind` |
+| `scenario-catalog-v1` | `authored` | `demo_game_tools.scenario.models:ScenarioCatalog.kind` |
+| `scenario-v2` | `authored` | `demo_game_tools.scenario.models:ScenarioDeclarations.kind` |
 | `storefront-source-v1` | `authored` | `stage_gen.recipes.storefront.models:StorefrontSource.kind` |
 | `universe-source-v1` | `authored` | `stage_gen.recipes.universe.models:UniverseSource.kind` |
 | `fx-block-v1` | `block` | `iron_petal_unit_pipeline.fx.block:FX_MANIFEST_BLOCK_VERSION` |
@@ -105,8 +105,8 @@ field or constant. Game versioning follows [the game contract](../godot/games/_s
 | `pointclick-solvability-v1` | `generated` | `the_grain_pipeline.pointclick_room.models:RoomSolvabilityReport.kind` |
 | `portrait-motion-plan-v2` | `generated` | `stage_gen.recipes.portrait_motion.pipeline:PORTRAIT_MOTION_PLAN_KIND` |
 | `resolved-game-package-v6` | `generated` | `demo_game_tools.io.package_capture:RESOLVED_GAME_PACKAGE_KIND` |
-| `scenario-admission-v1` | `generated` | `stage_gen.components.scenario.models:ScenarioAdmissionReport.kind` |
-| `scenario-program-v2` | `generated` | `stage_gen.components.scenario.models:ScenarioProgram.kind` |
+| `scenario-admission-v1` | `generated` | `demo_game_tools.scenario.models:ScenarioAdmissionReport.kind` |
+| `scenario-program-v2` | `generated` | `demo_game_tools.scenario.models:ScenarioProgram.kind` |
 | `storefront-direction-v1` | `generated` | `stage_gen.recipes.storefront.models:StorefrontDirection.kind` |
 | `storefront-draw-ledger-v1` | `generated` | `stage_gen.recipes.storefront.models:DrawLedger.kind` |
 | `storefront-listing-v1` | `generated` | `stage_gen.recipes.storefront.models:StoreListing.kind` |

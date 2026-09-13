@@ -2,6 +2,8 @@ class_name PlatformerDialogueBox
 extends Control
 
 const ScenarioRuntime = preload("res://addons/scenario_runtime/runtime.gd")
+const ScenarioProgram = preload("res://addons/scenario_runtime/program.gd")
+const DialogueSurface = preload("res://addons/scenario_runtime/presentation/dialogue_surface.gd")
 
 ## What a villager is saying, on the panel and the faces the run published art for.
 ##
@@ -51,6 +53,8 @@ var _name: Label = null
 var _body: Label = null
 ## Every villager's expression sheet, by the id the scenario stages them under.
 var _sheets: Dictionary = {}
+var _safe_rect := Rect2()
+var _profile: Dictionary = {"portrait": "left", "reserve_portrait": false}
 
 
 ## Build from a run's `ui` block, or nothing when it publishes no panel frame.
@@ -83,6 +87,7 @@ static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerDialogueB
 	var safe_y := float(safe["y"])
 	var safe_w := float(safe["width"])
 	var safe_h := float(safe["height"])
+	made._safe_rect = Rect2(safe_x, safe_y, safe_w, safe_h)
 	var portrait_w := safe_w * PORTRAIT_SLOT_SHARE
 
 	made._portrait = TextureRect.new()
@@ -119,6 +124,21 @@ static func of(package: HostRunDir, manifest: Dictionary) -> PlatformerDialogueB
 	return made
 
 
+## Bellweather explicitly opts into portraits; the package default omits them.
+## Changing portrait layout never changes speaker identity or scenario staging.
+func configure_presentation(profile: Dictionary) -> Array[String]:
+	for key: Variant in profile:
+		if not ["portrait", "reserve_portrait"].has(key):
+			return ["Bellweather's framed dialogue exposes portrait side and reservation only"]
+	var admitted := DialogueSurface.admit_profile(profile)
+	if admitted.has("error"):
+		return [String(admitted["error"])]
+	_profile = admitted
+	if _portrait != null:
+		_layout_columns()
+	return []
+
+
 ## Show whatever the conversation is saying now, or nothing when none is open.
 func sync(world: PlatformerWorld) -> void:
 	if not (world.dialogue is Dictionary):
@@ -140,6 +160,7 @@ func sync(world: PlatformerWorld) -> void:
 			index += 1
 		_body.text = "\n".join(lines)
 		_portrait.visible = false
+		_layout_columns()
 		return
 	# A line with no speaker is narration, which is drawn with the name row
 	# empty rather than with a placeholder nobody said.
@@ -147,6 +168,7 @@ func sync(world: PlatformerWorld) -> void:
 	_name.text = "" if label == null else str(label).to_upper()
 	_body.text = str(view.get("text", ""))
 	_show_portrait(world, view.get("speaker"))
+	_layout_columns()
 
 
 ## The speaker's face, at the expression the scenario has them staged in.
@@ -155,13 +177,19 @@ func sync(world: PlatformerWorld) -> void:
 ## a line nobody said — with an empty slot, exactly as it should.
 func _show_portrait(world: PlatformerWorld, speaker: Variant) -> void:
 	_portrait.visible = false
-	if speaker == null:
+	if speaker == null or _profile["portrait"] == "none":
 		return
 	var sheet: Dictionary = _sheets.get(str(speaker), {})
 	if sheet.is_empty():
 		return
 	var staged := ScenarioRuntime.actor(world.dialogue_state, str(speaker))
 	var expression := str(staged.get("expression", ""))
+	# A line can select a face for an off-stage speaker. Stage occupancy is not
+	# a prerequisite for this independently bound dialogue representation.
+	var block := ScenarioProgram.block_of(world.scenario, String(world.dialogue_state["label"]))
+	var statement: Dictionary = block["statements"][int(world.dialogue_state["index"])]
+	if statement.get("expression") != null:
+		expression = String(statement["expression"])
 	var art: Texture2D = sheet["texture"]
 	var columns: int = maxi(1, int(sheet["columns"]))
 	var rows: int = maxi(1, int(sheet["rows"]))
@@ -182,6 +210,19 @@ func _show_portrait(world: PlatformerWorld, speaker: Variant) -> void:
 	)
 	_portrait.texture = atlas
 	_portrait.visible = true
+
+
+func _layout_columns() -> void:
+	if _profile["portrait"] == "none":
+		_portrait.visible = false
+	var reserve: bool = _profile["portrait"] != "none" and (_portrait.visible or bool(_profile["reserve_portrait"]))
+	var column := _safe_rect.size.x * PORTRAIT_SLOT_SHARE + COLUMN_GAP if reserve else 0.0
+	var left := _safe_rect.position.x + (column if _profile["portrait"] == "left" else 0.0)
+	_name.position.x = left
+	_body.position.x = left
+	_name.size.x = _safe_rect.size.x - column
+	_body.size.x = _safe_rect.size.x - column
+	_portrait.position.x = _safe_rect.position.x if _profile["portrait"] == "left" else _safe_rect.end.x - _portrait.size.x
 
 
 ## Every face in the cast, by the id the scenario stages them under.

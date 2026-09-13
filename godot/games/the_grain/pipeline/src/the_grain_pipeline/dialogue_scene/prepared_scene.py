@@ -128,6 +128,7 @@ from the_grain_pipeline.dialogue_scene.schema import dialogue_plan_json_schema
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Sequence
 
+    from demo_game_tools.scenario import TrackDeclaration
     from gnode import (
         BackgroundMaskArtifact,
         BackgroundRemovalService,
@@ -136,7 +137,6 @@ if TYPE_CHECKING:
         Node,
         StructuredGenerationService,
     )
-    from stage_gen.components.scenario import TrackDeclaration
     from the_grain_pipeline.dialogue_scene.models import DialoguePlan
 
 _COMPONENT = SoftwareIdentity(name="@stage-gen/dialogue-scene", version="5")

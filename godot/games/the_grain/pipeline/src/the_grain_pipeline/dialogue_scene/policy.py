@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import re
 
+from demo_game_tools.scenario import ScenarioProgram
 from stage_gen.components.character_profile import CharacterProfile
-from stage_gen.components.scenario import ScenarioProgram
 from the_grain_pipeline.dialogue_scene.identity import canonical_sha256
 from the_grain_pipeline.dialogue_scene.models import (
     MAXIMUM_AGE,

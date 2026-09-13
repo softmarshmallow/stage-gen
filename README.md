@@ -55,7 +55,11 @@ bounded inspectors can understand parallax or animation metadata.
 Godot consumers live under [godot](godot/README.md). The
 [asset consumer template](godot/templates/asset_consumer/README.md) shows a local
 preparation script and GDScript loading an explicit asset. Games own their scenes,
-controls, combat, narrative binding and asset-to-game wiring.
+controls, combat, narrative binding and asset-to-game wiring. The optional
+[Scenario framework](godot/packages/scenario_runtime/README.md) and its independent
+compiler belong to that Godot project. Games invoke authored sequences and grant
+presentation capabilities while retaining their world and input policy; Stage Gen
+does not require a scenario or gameplay contract.
 
 Each [example game](godot/games/README.md) owns its inputs, preparation script and
 Godot project. Install the optional game tooling when preparing those games:

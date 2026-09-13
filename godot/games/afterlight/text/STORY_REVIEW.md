@@ -1,5 +1,12 @@
 # Afterlight story text review
 
+Current source: [episode.scenario](../narrative/episode.scenario) owns sequence
+and presentation direction; compiled content supplies the read-only
+[review projection](../story_beats.gd). The numbered 57-beat review order is for
+reading and voice inventory, not executable array-index dispatch. Both reply
+branches have their own stable compiled IDs. Existing wording and artistic
+review below retain their original scope.
+
 P99 preserves every English/Korean display line. Ambient Particles now run
 through the lounge scenes (warm dust), Eira's relay (cool dust), and the infernal
 hall (smoke, rising embers and sparks), returning to quiet dust with Nami.

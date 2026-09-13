@@ -1,5 +1,7 @@
 """Read-only collection commands must not load unrelated game preparation graphs."""
 
+# test-owner: games
+# The collection import runs inside a child Python script, outside AST discovery.
 from __future__ import annotations
 
 import json

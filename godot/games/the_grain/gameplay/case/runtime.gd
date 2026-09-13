@@ -138,7 +138,8 @@ static func reduce(
 					(state["progress"] as Dictionary)["facts"],
 					action["scenario"],
 					remembered["backlog"],
-					at
+					at,
+					action.get("scenario_snapshot")
 				),
 				"clear": false,
 				"result": null,

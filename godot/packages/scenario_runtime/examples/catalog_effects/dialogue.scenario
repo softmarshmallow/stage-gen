@@ -1,0 +1,17 @@
+scenario catalog_effects
+speaker pilot "Pilot"
+require particle 1
+
+@weather
+pilot "One preset and one inline particle definition create two independent ember instances."
+    cue first at 0 start ember_effect as near_embers target=air scope=sequence
+    cue second at 0.5 start particle({"sprite":"ember_sprite","x":420,"width":250,"height":400,"rate":18}) as far_embers target=air scope=sequence
+
+@stop_near
+stop near_embers
+
+@still_running
+pilot "Only the named near instance stopped. The far instance continues until this invocation ends."
+
+@done
+end effect_demo_complete

@@ -1,5 +1,12 @@
 # Case: the container above the narrative leaves
 
+Current scope: The Grain owns this case graph, room ordering, durable facts and
+save policy. Its supported v2 narrative leaves use the [Scenario compatibility
+reader](../../../packages/scenario_runtime/docs/compatibility.md) and current
+Session executor. This case format is not a Scenario requirement or a Stage Gen
+asset contract. New dialogue snapshots are fingerprinted; old raw saves have
+structural admission only, and invalid saved state is explicitly refused.
+
 > **Scope: game consumers.** This document describes the formats used by these Godot games.
 > The public asset SDK and new games do not require this authoring format.
 
@@ -13,7 +20,7 @@
 > `godot/games/the_grain/pipeline/src/the_grain_pipeline/case_bundle.py` (the runtime projection), and
 > `tests/unit/components/case/`.
 
-A [scenario](../../../../docs/spec/scenario.md) is one movement. A
+A [supported v2 scenario](../../../packages/scenario_runtime/docs/compatibility.md) is one movement. A
 [point-and-click room](pointclick-room.md) is one screen. Both are proven, and
 neither knows what follows it — so a story told as six scenarios and two rooms
 had nowhere to say that it *is* one story. The chaining ended up in a consumer,
@@ -137,7 +144,7 @@ that works: **the same identifier on both sides.**
 - A scenario **exports** a fact by `set <fact_id>` in its script.
 - A room **exports** a fact through a `set_flag` effect naming the same id.
 - A scenario **imports** a fact by declaring it with
-  [`origin = "imported"`](../../../../docs/spec/scenario.md#imported-flags), which is what tells its own
+  [`origin = "imported"`](../../../packages/scenario_runtime/docs/compatibility.md#supported-v2-input), which is what tells its own
   admission that nothing local has to set it.
 
 Nothing else crosses. **No inventory crosses**: a room's items are that room's.

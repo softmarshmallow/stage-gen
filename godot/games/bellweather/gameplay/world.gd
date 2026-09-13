@@ -61,6 +61,8 @@ var quest_states: Array = []
 var dialogue: Variant = null
 var dialogue_state: Dictionary = {}
 var scenario: Dictionary = {}
+## This game's invocation grant. Scenario never chooses whether combat pauses.
+var dialogue_policy: Dictionary = {"hold_world": true}
 
 ## Every scenario the package publishes, by id. Read when a conversation opens
 ## and never after.

@@ -1,5 +1,10 @@
 # Afterlight voice policy and recordings
 
+Execution ownership: the game invokes Scenario for authored progression and
+reports actual playback completion to its gates/transport. This directory keeps
+Afterlight's recording policy, preparation and source revisions. The compiled
+review projection is not a parallel narrative source or a progression engine.
+
 This directory belongs to Afterlight. It resolves this game's actual speakers,
 localized story lines and prepared recordings. The shared
 [Text Reveal Audio presenter](../../../packages/game_presentation/addons/game_presentation/audio/TEXT_REVEAL_AUDIO.md)
@@ -10,7 +15,7 @@ automatic text/audio synchronization, or promoted voice module.
 
 | Source | Ownership |
 | --- | --- |
-| `../story_beats.gd` and `../text/en.json`, `ko.json` | Stable story text IDs, beat structure and approved subtitles. |
+| `../narrative/episode.scenario`, its compiled program and `../text/en.json`, `ko.json` | Authored sequence, stable story text IDs and approved subtitles; `../story_beats.gd` is a read-only inventory/review projection. |
 | [voices.json](voices.json) | Speaker policy defaults, per-line speaker/policy overrides, and optional speech scripts keyed by language and stable text ID. |
 | [cast.json](cast.json) | Selected existing provider voice and generation settings for each character/language. Descriptive casting notes do not change a recording's identity. |
 | `manifest.json` | Prepared clip status, original path, source revision and artifact/provenance hashes. Missing manifest is a pending preparation state, not a request to generate. |

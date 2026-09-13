@@ -1,0 +1,27 @@
+{
+  "arrival": {
+    "source": "dialogue.scenario",
+    "line": 4,
+    "column": 1
+  },
+  "request": {
+    "source": "dialogue.scenario",
+    "line": 7,
+    "column": 1
+  },
+  "near": {
+    "source": "dialogue.scenario",
+    "line": 12,
+    "column": 1
+  },
+  "radio": {
+    "source": "dialogue.scenario",
+    "line": 15,
+    "column": 1
+  },
+  "done": {
+    "source": "dialogue.scenario",
+    "line": 18,
+    "column": 1
+  }
+}

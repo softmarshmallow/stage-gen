@@ -1,5 +1,11 @@
 # Godot game ownership layout
 
+> Historical review/plan: retained statements and proposed ownership describe
+> their original scope. The [current Godot architecture](../../godot/docs/architecture.md) and
+> [Scenario invocation contract](../../godot/packages/scenario_runtime/docs/contract.md) govern current work. Scenario
+> authoring/execution is now Godot-owned; earlier experimental, asset-component
+> or universal game-sequence prescriptions are superseded.
+
 Implementation record, 2026-09-13. The named games own their inputs, preparation,
 Godot projects and gameplay. This completes the ownership change proposed on
 2026-09-12; the former `legacy` grouping and the empty `demos` tier are removed.

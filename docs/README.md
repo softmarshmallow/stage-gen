@@ -14,7 +14,9 @@ The product is the asset pipeline; complete games are consumers.
 - [Providers](models/providers.md): bindings, credentials and live-operation boundaries.
 - [Godot consumers](../godot/README.md): packages, games and templates.
 - [Godot project charter](../godot/CHARTER.md): the example product's continuing goals, ownership and independent evolution.
-- [Godot ownership layout](plans/godot-consumer-layout.md): named games, local inputs and private shared support.
+- [Godot architecture](../godot/docs/architecture.md): named games, local inputs and private shared support.
+- [Scenario](../godot/packages/scenario_runtime/README.md): Godot-owned narrative framework, compiler and game-owned invocation.
+- [Scenario directory preview](../godot/packages/scenario_runtime/docs/layout.md): execution, authoring, bindings, content and game responsibilities.
 - [Asset consumer template](../godot/templates/asset_consumer/README.md): explicit file import and GDScript display.
 - [Concept Studio](../apps/concept_studio/README.md): optional concept application.
 - [Verification](../VERIFICATION.md): owned gates and aggregate checks.
@@ -34,8 +36,8 @@ Their current format documents live with their owners: [shared package readers](
 serve those games; they are not requirements for new pipelines or new games.
 
 Standalone component and recipe specifications remain useful within their named
-scope, including scenario, sprite processing, terrain, portrait motion, universe
-and storefront. Historical [decisions](decisions/README.md), research and plans
+scope, including sprite processing, terrain, portrait motion, universe and
+storefront. Scenario's current contract is maintained under the Godot package. Historical [decisions](decisions/README.md), research and plans
 retain their original context; the current architecture controls new work.
 
 ## Repository policy

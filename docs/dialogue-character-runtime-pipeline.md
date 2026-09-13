@@ -1,12 +1,13 @@
-# Dialogue character runtime pipeline
+# Bellweather dialogue character runtime pipeline
 
 > **Contract maturity: exact-current prepared-package path.**
 
-Prepared games author NPC visual identity in `content/npcs.toml` and dialogue
+Bellweather authors NPC visual identity in `content/npcs.toml` and dialogue
 control flow in `scenarios/*.scenario`. Those sources are resolved together before
 generation, generated inside one immutable run, and projected into
-`prepared-game-runtime-v12`. The browser never reaches into a sibling run or
-invents missing dialogue.
+`prepared-game-runtime-v12`. Its Godot adapter never reaches into a sibling run or invents missing dialogue.
+These are this game's retained v2 prepared inputs; the [Scenario invocation contract](../godot/packages/scenario_runtime/docs/contract.md)
+owns current narrative execution and is not restricted to this platformer.
 
 ## Ownership
 
@@ -18,9 +19,9 @@ invents missing dialogue.
 | `scenarios/<scenario_id>.toml` | Cast, expressions, stages, flags, endings, and the script digest |
 | `scenarios/<scenario_id>.scenario` | The authored lines and control flow |
 | Prepared-package resolver | Validate IDs, expressions, targets, reachability, effects, and complete source/reference closure |
-| Scrolling recipe | Generate NPC concepts and state sheets, recover canonical frames, review the NPC catalog, and integrate artifacts |
+| Bellweather preparation pipeline | Generate NPC concepts and state sheets, recover canonical frames, review the NPC catalog, and integrate artifacts |
 | Prepared manifest | Publish digest-bound NPC states and the resolved sequence graph as one portable runtime closure |
-| Web consumer | Validate the exact manifest, load declared textures, run interaction/sequence state, and render dialogue |
+| Bellweather Godot consumer | Validate the exact manifest, load declared textures, run interaction/sequence state, and render dialogue |
 
 The sequence owns what is said and which expression is requested. NPC content
 owns how that expression looks. Neither copies the other’s authored data.

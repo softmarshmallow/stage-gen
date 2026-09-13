@@ -10,6 +10,12 @@ There is no globally selected game or mandatory whole-game input format.
 - Keep game-specific behavior, camera, story, UI and content interpretation in its
   game. The Grain owns its room, dialogue and case composition. Independent SDK
   packages under `godot/packages` retain their own documented APIs and boundaries.
+- Scenario executes game-owned VN-oriented sequences. Games own invocation,
+  resource/object bindings, installed capability schemas, input routing and
+  world/save policy. Keep rich episode direction in `.scenario`/catalog data,
+  not story-ID callbacks. Installed mechanisms are code; downloaded content is
+  data. Existing v2 prepared inputs use the supported compatibility reader.
+  The game may show an optional portrait or 2D/3D actor bubble during gameplay.
 - Existing TOML packages keep their supported readers. Move complete closures
   without rewriting their internal paths or changing identity merely for topology.
   Bellweather owns `inputs/default` and `inputs/waves`; other prepared games own

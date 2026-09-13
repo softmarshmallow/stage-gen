@@ -81,7 +81,7 @@ from the_grain_pipeline.dialogue_scene.scene_types import (
 )
 
 if TYPE_CHECKING:
-    from stage_gen.components.scenario import TrackDeclaration
+    from demo_game_tools.scenario import TrackDeclaration
     from stage_gen.config import StageGenConfig
     from the_grain_pipeline.dialogue_scene.scene_request import ResolvedDialogueScene
 

@@ -55,4 +55,4 @@ static func profile(id: String) -> Array:
 
 
 static func _layer(id: String, kind: String, options: Dictionary) -> Dictionary:
-	return {"id": id, "region": REGION, "textures": EMITTER.fallback_textures(kind), "options": options}
+	return {"id": id, "region": REGION, "sprite_kind": kind, "textures": EMITTER.fallback_textures(kind), "options": options}

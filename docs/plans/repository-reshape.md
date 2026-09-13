@@ -1,5 +1,11 @@
 # Repository reshape: asset product and independently owned games
 
+> Historical review/plan: retained statements and proposed ownership describe
+> their original scope. The [current Godot architecture](../../godot/docs/architecture.md) and
+> [Scenario invocation contract](../../godot/packages/scenario_runtime/docs/contract.md) govern current work. Scenario
+> authoring/execution is now Godot-owned; earlier experimental, asset-component
+> or universal game-sequence prescriptions are superseded.
+
 Implemented under the repository-wide authorization of 2026-09-12. The current
 layout is [the directory preview](../repository-layout.md). The subsequent
 [game ownership migration](godot-consumer-layout.md) replaces the temporary legacy

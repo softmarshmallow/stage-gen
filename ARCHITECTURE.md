@@ -49,9 +49,9 @@ adapters in `interfaces` load only the selected workflow.
 
 Public components include independent sound effects, speech, music, voice profiles,
 UI artwork, screen artwork, effects artwork, terrain, layers, sprites, portrait
-motion and scenarios. A scenario program can declare narrative events without
-prescribing a game's world or state machine. Spatial generation and sprite
-locomotion may retain their precise constraints; host combat and physics stay out.
+motion. Spatial generation and sprite locomotion retain their precise constraints;
+host combat and physics stay out. Scenario authoring and execution belong to the
+Godot project, independently of asset generation.
 
 A parallax recipe may own layer images, repeat axes, offsets and relative scroll
 factors. It does not own a player, level or camera controller. Portrait motion owns
@@ -74,6 +74,13 @@ retain readable metadata rather than disappearing.
 `godot/games/` contains playable consumers. `godot/templates/` contains starting
 projects whose preparation scripts import assets explicitly. A game's configuration
 is local to that game. No runtime package has to depend on all other packages.
+
+[Scenario](godot/packages/scenario_runtime/README.md) is the Godot-owned VN-oriented
+invocation framework. Its independent Python compiler and native Session executor
+share one data contract. A game owns and invokes a sequence, grants installed
+capabilities, and retains its world, camera, input, resource bindings and saves.
+Presentation mechanisms remain in the lower `game_presentation` package. This
+framework imposes no game contract or dependency on Stage Gen.
 
 Each named game in `godot/games/` owns its authored inputs, optional Python
 preparation package, Godot project, gameplay and asset bindings. Existing TOML

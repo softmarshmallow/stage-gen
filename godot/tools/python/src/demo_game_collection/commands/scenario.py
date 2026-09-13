@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 from typing import TextIO
 
-from stage_gen.components.scenario import (
+from demo_game_tools.scenario import (
     ResolvedScenario,
     read_scenario_catalog,
     read_scenario_declarations,

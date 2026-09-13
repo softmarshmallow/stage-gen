@@ -1,5 +1,12 @@
 # The case — the Godot host
 
+Current narrative integration uses Scenario's supported v2 reader and the shared
+Session executor. The Grain owns case order, room interactions, durable facts and
+save files. New dialogue state is wrapped in a fingerprinted compatibility
+snapshot; historical raw saves can only receive structural validation. Invalid
+saved dialogue is refused rather than silently restarted. See the
+[current game guide](../README.md) and [compatibility reference](../../../packages/scenario_runtime/docs/compatibility.md).
+
 A Godot 4.7 host that plays a whole case: several leaves in order, with facts
 crossing between them. It draws no game of its own — it plays the room's leaf
 and the scene's leaf, which is the whole reason both live in `hosts/common/`.

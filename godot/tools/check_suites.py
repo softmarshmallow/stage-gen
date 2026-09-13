@@ -16,6 +16,7 @@ class Owner:
     name: str
     directory: str
     convention: Literal["native", "checks", "explicit"]
+    python_test_roots: tuple[str, ...] = ("tests",)
 
     @property
     def project(self) -> Path:
@@ -36,7 +37,7 @@ class Suite:
 
 
 OWNERS = (
-    Owner("demo_support", "games/_shared/runtime", "native"),
+    Owner("demo_support", "games/_shared/runtime", "native", ("tests", "../python/tests")),
     Owner("bellweather", "games/bellweather", "native"),
     Owner("iron_petal_unit", "games/iron_petal_unit", "native"),
     Owner("ember_hollow", "games/ember_hollow", "native"),
@@ -44,7 +45,9 @@ OWNERS = (
     Owner("afterlight", "games/afterlight", "checks"),
     Owner("command_link", "games/command_link", "checks"),
     Owner("game_presentation", "packages/game_presentation", "checks"),
-    Owner("scenario_runtime", "packages/scenario_runtime", "explicit"),
+    Owner(
+        "scenario_runtime", "packages/scenario_runtime", "explicit", ("tests", "authoring/tests")
+    ),
     Owner("content_io", "packages/content_io", "explicit"),
     Owner("sideview_rendering", "packages/sideview_rendering", "explicit"),
     Owner("vn", "templates/vn", "checks"),
@@ -84,7 +87,8 @@ def declared_suites() -> list[Suite]:
     suites += _scripts(
         "game_presentation",
         """actor_halo_checks ambient_particle_checks background_blackout_checks
-        camera_drift_checks eye_transition_checks impact_shake_checks intertitle_checks
+        camera_drift_checks cast_transition_checks eye_transition_checks impact_shake_checks
+        intertitle_checks
         layer_pan_checks local_content_checks one_shot_manpu_checks point_contact_checks
         sprite_burst_checks walking_approach_checks""",
     )
@@ -95,7 +99,7 @@ def declared_suites() -> list[Suite]:
         afterlight_ensemble_checks afterlight_input_checks ambient_transmission_integration_checks
         ambient_voice_lab_checks autoplay_checks ominous_vfx_checks
         one_shot_manpu_integration_checks text_reveal_audio_checks voiceover_checks
-        waking_eye_integration_checks walk_away_integration_checks""",
+        waking_eye_integration_checks walk_away_integration_checks scenario_binding_checks""",
         "media",
     )
     suites += _scripts(
@@ -133,7 +137,7 @@ def declared_suites() -> list[Suite]:
     suites += _scripts(
         "command_link",
         """composition_checks presentation_lab_checks route_option_checks
-        one_shot_manpu_integration_checks walk_away_integration_checks""",
+        one_shot_manpu_integration_checks walk_away_integration_checks scenario_binding_checks""",
         "media",
     )
     suites += _scripts(
@@ -160,6 +164,33 @@ def declared_suites() -> list[Suite]:
             )
         )
     suites += _scripts("vn", "starter_checks")
+    suites += _scripts("scenario_runtime", "front_cast_checks transport_checks")
+    for name, prefix in (
+        ("front_stage_checks", "scenario_front_stage"),
+        ("run_session_checks", "scenario_session"),
+        ("run_embedding_checks", "scenario_embedding"),
+        ("run_host_checks", "scenario_host"),
+        ("run_example_checks", "scenario_examples"),
+    ):
+        suites.append(
+            Suite(
+                "scenario_runtime",
+                name,
+                "script",
+                f"tests/{name}.gd",
+                success=rf"(?m)^{prefix}: [1-9][0-9]* checks passed",
+            )
+        )
+    suites.append(
+        Suite(
+            "scenario_runtime",
+            "preview",
+            "script",
+            "tools/preview.gd",
+            arguments=("--check",),
+            success=r"(?m)^scenario_preview: content admitted and stepped by the installed player",
+        )
+    )
     for name in ("scenario_runtime", "content_io", "sideview_rendering"):
         suites.append(
             Suite(
@@ -186,11 +217,36 @@ def declared_suites() -> list[Suite]:
         Suite("game_presentation", "package_dependencies", "python", "tools/check_sdk_package.py")
     )
     for owner_name, name, source in (
-        ("game_presentation", "starter_assembly", "tests/python/test_starter_assembly.py"),
+        ("scenario_runtime", "starter_assembly", "tests/python/test_starter_assembly.py"),
+        ("scenario_runtime", "content_player", "tests/python/test_content_player.py"),
+        ("scenario_runtime", "example_sources", "tests/python/test_example_sources.py"),
+        ("vn", "narrative_source", "tests/test_narrative.py"),
+        ("afterlight", "episode_source", "tests/python/test_afterlight_narrative.py"),
+        ("command_link", "mission_source", "tests/python/test_command_link_narrative.py"),
         ("afterlight", "content_preparation", "tests/python/test_example_content.py"),
         ("afterlight", "voice_preparation", "tests/python/test_afterlight_voice_preparation.py"),
     ):
         suites.append(Suite(owner_name, name, "pytest", source, success=r"\b[1-9][0-9]* passed\b"))
+    for name in ("admission", "content", "current", "distribution", "liveness", "parser"):
+        suites.append(
+            Suite(
+                "scenario_runtime",
+                f"authoring_{name}",
+                "pytest",
+                f"authoring/tests/scenario_authoring_tests/test_{name}.py",
+                success=r"\b[1-9][0-9]* passed\b",
+            )
+        )
+    for name in ("generation", "resolve"):
+        suites.append(
+            Suite(
+                "demo_support",
+                f"scenario_production_{name}",
+                "pytest",
+                f"../python/tests/scenario_production_tests/test_{name}.py",
+                success=r"\b[1-9][0-9]* passed\b",
+            )
+        )
     return suites
 
 
@@ -225,7 +281,11 @@ def inventory_errors(owners: tuple[Owner, ...], suites: list[Suite]) -> list[str
                         f"{owner.name}: entry point does not preload bundled check: {member}"
                     )
         declared_python = {suite.source for suite in owned if suite.adapter == "pytest"}
-        for path in sorted((owner.project / "tests").rglob("test_*.py")):
+        for path in sorted(
+            path
+            for folder in owner.python_test_roots
+            for path in (owner.project / folder).rglob("test_*.py")
+        ):
             if path.relative_to(owner.project).as_posix() not in declared_python:
                 errors.append(f"{owner.name}: Python suite has no execution adapter: {path.name}")
         patterns = (

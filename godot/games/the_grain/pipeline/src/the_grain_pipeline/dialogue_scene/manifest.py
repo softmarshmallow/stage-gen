@@ -7,6 +7,15 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal, cast
 
+from demo_game_tools.scenario import (
+    CastMember as ScenarioCastMember,
+)
+from demo_game_tools.scenario import (
+    ScenarioAdmissionReport,
+    ScenarioProgram,
+    StageDeclaration,
+    TrackDeclaration,
+)
 from gnode import (
     ArtifactProvenance,
     ArtifactRights,
@@ -17,15 +26,6 @@ from gnode import (
     write_artifact_with_provenance_async,
 )
 from stage_gen.components import CharacterProfile, character_profile_sha256
-from stage_gen.components.scenario import (
-    CastMember as ScenarioCastMember,
-)
-from stage_gen.components.scenario import (
-    ScenarioAdmissionReport,
-    ScenarioProgram,
-    StageDeclaration,
-    TrackDeclaration,
-)
 from stage_gen.components.ui_art.nodes import ui_atlas_manifest_block
 from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.image_style import CanonicalStyleAnchor, canonical_style_anchor_digest

@@ -10,7 +10,7 @@ This is established effect vocabulary: Unity's official
 also describes moving scanlines and flicker as holographic-display techniques.
 The broader grouping used here is a project working choice.
 The broader [terminology dictionary](TERMINOLOGY.md) and
-[current status](../history/CURRENT_STATUS.md) also cover camera, screen, and narrative
+[current status](STATUS.md) also cover camera, screen, and narrative
 effects introduced after the hologram proof.
 
 ## Terms to keep distinct

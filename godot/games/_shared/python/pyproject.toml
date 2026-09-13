@@ -7,10 +7,11 @@ name = "demo-game-tools"
 version = "0.0.0"
 description = "Preparation implementation for demo game tools"
 requires-python = ">=3.12"
-dependencies = ["stage-gen"]
+dependencies = ["stage-gen", "stagegen-scenario"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/demo_game_tools"]
 
 [tool.uv.sources]
+stagegen-scenario = { workspace = true }
 stage-gen = { workspace = true }

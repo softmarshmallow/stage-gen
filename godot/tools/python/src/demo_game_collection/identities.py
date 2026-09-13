@@ -159,6 +159,7 @@ def _owner_module(module: str) -> str:
         "recipes.oblique_survival": "ember_hollow_pipeline",
         "recipes.dialogue_scene": "the_grain_pipeline.dialogue_scene",
         "recipes.pointclick_room": "the_grain_pipeline.pointclick_room",
+        "components.scenario": "demo_game_tools.scenario",
         "components.case": "the_grain_pipeline.case",
         "components.platformer_gameplay": "bellweather_pipeline.gameplay",
         "components.game_fx": "iron_petal_unit_pipeline.fx",

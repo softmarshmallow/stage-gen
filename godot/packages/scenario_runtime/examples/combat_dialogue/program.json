@@ -1,0 +1,76 @@
+{
+  "kind": "scenario-program-v3",
+  "schema_version": 3,
+  "scenario_id": "combat_dialogue",
+  "entry": "arrival",
+  "nodes": [
+    {
+      "id": "arrival",
+      "kind": "line",
+      "speaker": "pilot",
+      "text": "The fight keeps moving while we speak. The game chooses when to invoke this dialogue.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom"
+      },
+      "next": "request"
+    },
+    {
+      "id": "request",
+      "kind": "choice",
+      "options": [
+        {
+          "id": "close",
+          "text": "Stay nearby.",
+          "target": "near"
+        },
+        {
+          "id": "radio",
+          "text": "Use the radio.",
+          "target": "radio"
+        }
+      ],
+      "text": "Which channel should we use?",
+      "speaker": "pilot",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom"
+      }
+    },
+    {
+      "id": "near",
+      "kind": "line",
+      "speaker": "pilot",
+      "text": "This bubble follows my moving world actor.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bubble"
+      },
+      "next": "done"
+    },
+    {
+      "id": "radio",
+      "kind": "line",
+      "speaker": "pilot",
+      "text": "An off-screen voice can use a portrait without a front-facing stage.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "portrait"
+      },
+      "next": "done"
+    },
+    {
+      "id": "done",
+      "kind": "end",
+      "outcome": "dialogue_complete"
+    }
+  ],
+  "speakers": [
+    {
+      "id": "pilot",
+      "display_name": "Pilot"
+    }
+  ],
+  "facts": {},
+  "required_capabilities": {}
+}

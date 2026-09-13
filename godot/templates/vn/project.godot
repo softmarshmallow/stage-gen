@@ -4,7 +4,7 @@ config_version=5
 config/name="The Signal Room"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
-config/description="A small code-authored visual novel using Game Presentation SDK."
+config/description="A game-owned visual novel invoking Scenario with declared presentation bindings."
 
 [display]
 window/size/viewport_width=1280
