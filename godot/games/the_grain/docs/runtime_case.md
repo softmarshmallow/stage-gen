@@ -1,9 +1,11 @@
 # The case — the Godot host
 
-Current narrative integration uses Scenario's supported v2 reader and the shared
-Session executor. The Grain owns case order, room interactions, durable facts and
-save files. New dialogue state is wrapped in a fingerprinted compatibility
-snapshot; historical raw saves can only receive structural validation. Invalid
+Current narrative integration selects the rich v3 player for “The way in” and
+Scenario's supported v2 reader for the remaining conversations, all using the
+same Session executor. The Grain owns case order, room interactions, durable
+facts and save files. Rich checkpoints preserve Session clocks and operations;
+v2 dialogue state uses a fingerprinted compatibility snapshot. Historical raw
+v2 saves can only receive structural validation. Invalid
 saved dialogue is refused rather than silently restarted. See the
 [current game guide](../README.md) and [compatibility reference](../../../packages/scenario_runtime/docs/compatibility.md).
 

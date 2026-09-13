@@ -164,6 +164,21 @@ def declared_suites() -> list[Suite]:
             )
         )
     suites += _scripts("vn", "starter_checks")
+    grain_levels: tuple[tuple[str, Level], ...] = (
+        ("rich_dialogue", "media"),
+        ("rich_dialogue_rendered", "rendered"),
+    )
+    for name, level in grain_levels:
+        suites.append(
+            Suite(
+                "the_grain",
+                name,
+                "script",
+                "tests/rich_dialogue_checks.gd",
+                level,
+                prerequisite="--grain-scene-run with the prepared dialogue bundle",
+            )
+        )
     suites += _scripts("scenario_runtime", "front_cast_checks transport_checks")
     for name, prefix in (
         ("front_stage_checks", "scenario_front_stage"),
@@ -223,6 +238,7 @@ def declared_suites() -> list[Suite]:
         ("vn", "narrative_source", "tests/test_narrative.py"),
         ("afterlight", "episode_source", "tests/python/test_afterlight_narrative.py"),
         ("command_link", "mission_source", "tests/python/test_command_link_narrative.py"),
+        ("the_grain", "rich_narrative_source", "tests/python/test_rich_narrative.py"),
         ("afterlight", "content_preparation", "tests/python/test_example_content.py"),
         ("afterlight", "voice_preparation", "tests/python/test_afterlight_voice_preparation.py"),
     ):

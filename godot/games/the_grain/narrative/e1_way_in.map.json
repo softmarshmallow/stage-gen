@@ -1,0 +1,252 @@
+{
+  "the_service_door_02": {
+    "source": "e1_way_in.scenario",
+    "line": 15,
+    "column": 1
+  },
+  "the_service_door_03": {
+    "source": "e1_way_in.scenario",
+    "line": 22,
+    "column": 1
+  },
+  "the_service_door_04": {
+    "source": "e1_way_in.scenario",
+    "line": 29,
+    "column": 1
+  },
+  "the_service_door_05": {
+    "source": "e1_way_in.scenario",
+    "line": 36,
+    "column": 1
+  },
+  "the_service_door_06": {
+    "source": "e1_way_in.scenario",
+    "line": 43,
+    "column": 1
+  },
+  "the_service_door_09": {
+    "source": "e1_way_in.scenario",
+    "line": 50,
+    "column": 1
+  },
+  "the_service_door_10": {
+    "source": "e1_way_in.scenario",
+    "line": 57,
+    "column": 1
+  },
+  "the_service_door_11": {
+    "source": "e1_way_in.scenario",
+    "line": 64,
+    "column": 1
+  },
+  "the_place_card_00": {
+    "source": "e1_way_in.scenario",
+    "line": 73,
+    "column": 1
+  },
+  "the_place_card_01": {
+    "source": "e1_way_in.scenario",
+    "line": 80,
+    "column": 1
+  },
+  "the_place_card_02": {
+    "source": "e1_way_in.scenario",
+    "line": 87,
+    "column": 1
+  },
+  "the_place_card_03": {
+    "source": "e1_way_in.scenario",
+    "line": 94,
+    "column": 1
+  },
+  "the_place_card_04": {
+    "source": "e1_way_in.scenario",
+    "line": 101,
+    "column": 1
+  },
+  "the_place_card_05": {
+    "source": "e1_way_in.scenario",
+    "line": 108,
+    "column": 1
+  },
+  "the_place_card_06": {
+    "source": "e1_way_in.scenario",
+    "line": 115,
+    "column": 1
+  },
+  "the_place_card_07": {
+    "source": "e1_way_in.scenario",
+    "line": 118,
+    "column": 1
+  },
+  "the_place_card_08": {
+    "source": "e1_way_in.scenario",
+    "line": 125,
+    "column": 1
+  },
+  "the_dark_floor_03": {
+    "source": "e1_way_in.scenario",
+    "line": 134,
+    "column": 1
+  },
+  "the_service_lift_03": {
+    "source": "e1_way_in.scenario",
+    "line": 143,
+    "column": 1
+  },
+  "the_service_lift_04": {
+    "source": "e1_way_in.scenario",
+    "line": 150,
+    "column": 1
+  },
+  "the_service_lift_05": {
+    "source": "e1_way_in.scenario",
+    "line": 157,
+    "column": 1
+  },
+  "the_service_lift_06": {
+    "source": "e1_way_in.scenario",
+    "line": 164,
+    "column": 1
+  },
+  "the_service_lift_07": {
+    "source": "e1_way_in.scenario",
+    "line": 171,
+    "column": 1
+  },
+  "the_service_lift_08": {
+    "source": "e1_way_in.scenario",
+    "line": 178,
+    "column": 1
+  },
+  "the_service_lift_09": {
+    "source": "e1_way_in.scenario",
+    "line": 185,
+    "column": 1
+  },
+  "the_service_lift_10": {
+    "source": "e1_way_in.scenario",
+    "line": 192,
+    "column": 1
+  },
+  "the_service_lift_11": {
+    "source": "e1_way_in.scenario",
+    "line": 199,
+    "column": 1
+  },
+  "the_service_lift_12": {
+    "source": "e1_way_in.scenario",
+    "line": 206,
+    "column": 1
+  },
+  "the_service_lift_13": {
+    "source": "e1_way_in.scenario",
+    "line": 213,
+    "column": 1
+  },
+  "the_winter_room_03": {
+    "source": "e1_way_in.scenario",
+    "line": 222,
+    "column": 1
+  },
+  "the_winter_room_05": {
+    "source": "e1_way_in.scenario",
+    "line": 229,
+    "column": 1
+  },
+  "the_winter_room_06": {
+    "source": "e1_way_in.scenario",
+    "line": 236,
+    "column": 1
+  },
+  "the_winter_room_09": {
+    "source": "e1_way_in.scenario",
+    "line": 239,
+    "column": 1
+  },
+  "the_winter_room_10": {
+    "source": "e1_way_in.scenario",
+    "line": 246,
+    "column": 1
+  },
+  "the_winter_room_11": {
+    "source": "e1_way_in.scenario",
+    "line": 253,
+    "column": 1
+  },
+  "the_winter_room_12": {
+    "source": "e1_way_in.scenario",
+    "line": 260,
+    "column": 1
+  },
+  "the_winter_room_13": {
+    "source": "e1_way_in.scenario",
+    "line": 267,
+    "column": 1
+  },
+  "the_green_ink_01": {
+    "source": "e1_way_in.scenario",
+    "line": 276,
+    "column": 1
+  },
+  "the_green_ink_02": {
+    "source": "e1_way_in.scenario",
+    "line": 283,
+    "column": 1
+  },
+  "the_green_ink_03": {
+    "source": "e1_way_in.scenario",
+    "line": 290,
+    "column": 1
+  },
+  "the_green_ink_04": {
+    "source": "e1_way_in.scenario",
+    "line": 297,
+    "column": 1
+  },
+  "the_green_ink_05": {
+    "source": "e1_way_in.scenario",
+    "line": 304,
+    "column": 1
+  },
+  "the_green_ink_06": {
+    "source": "e1_way_in.scenario",
+    "line": 311,
+    "column": 1
+  },
+  "the_green_ink_07": {
+    "source": "e1_way_in.scenario",
+    "line": 318,
+    "column": 1
+  },
+  "the_green_ink_08": {
+    "source": "e1_way_in.scenario",
+    "line": 325,
+    "column": 1
+  },
+  "the_green_ink_09": {
+    "source": "e1_way_in.scenario",
+    "line": 332,
+    "column": 1
+  },
+  "the_first_bell_00": {
+    "source": "e1_way_in.scenario",
+    "line": 341,
+    "column": 1
+  },
+  "the_first_bell_02": {
+    "source": "e1_way_in.scenario",
+    "line": 348,
+    "column": 1
+  },
+  "the_first_bell_03": {
+    "source": "e1_way_in.scenario",
+    "line": 355,
+    "column": 1
+  },
+  "the_first_bell_06": {
+    "source": "e1_way_in.scenario",
+    "line": 362,
+    "column": 1
+  }
+}

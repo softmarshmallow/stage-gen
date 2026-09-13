@@ -1,0 +1,1149 @@
+{
+  "kind": "scenario-catalog",
+  "schema_version": 1,
+  "catalog_id": "the_grain",
+  "revision": "1",
+  "definitions": {
+    "the_service_door_02_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "center"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "center"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.0
+      }
+    },
+    "the_service_door_05_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "center"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "dry",
+              "slot": "center"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_service_door_06_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "dry",
+              "slot": "center"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "dry",
+              "slot": "center"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.0
+      }
+    },
+    "the_service_door_09_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "dry",
+              "slot": "center"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_service_door_10_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.0
+      }
+    },
+    "the_service_door_11_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "dry",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_place_card_00_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "dry",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "dry",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.0
+      }
+    },
+    "the_place_card_01_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "dry",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_place_card_03_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "dry",
+              "slot": "right"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_place_card_04_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "dry",
+              "slot": "right"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "dry",
+              "slot": "right"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.0
+      }
+    },
+    "the_place_card_08_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "dry",
+              "slot": "right"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "dry",
+              "slot": "right"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "dry",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_dark_floor_03_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "tollands_motor_court",
+          "cast": [
+            {
+              "actor_id": "ruth",
+              "expression": "dry",
+              "slot": "right"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "dry",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "tollands_cosmetics_floor",
+          "cast": [],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.6
+      }
+    },
+    "the_service_lift_03_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "tollands_cosmetics_floor",
+          "cast": [],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "service_lift",
+          "cast": [
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "left"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.6
+      }
+    },
+    "the_service_lift_04_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "service_lift",
+          "cast": [
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "left"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "service_lift",
+          "cast": [
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "left"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.0
+      }
+    },
+    "the_service_lift_10_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "service_lift",
+          "cast": [
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "left"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "service_lift",
+          "cast": [
+            {
+              "actor_id": "edwin",
+              "expression": "grave",
+              "slot": "left"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_service_lift_11_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "service_lift",
+          "cast": [
+            {
+              "actor_id": "edwin",
+              "expression": "grave",
+              "slot": "left"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "service_lift",
+          "cast": [
+            {
+              "actor_id": "edwin",
+              "expression": "grave",
+              "slot": "left"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.0
+      }
+    },
+    "the_winter_room_03_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "service_lift",
+          "cast": [
+            {
+              "actor_id": "edwin",
+              "expression": "grave",
+              "slot": "left"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "right"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "winter_room_evening",
+          "cast": [],
+          "focus": "",
+          "zoom": 1.06
+        },
+        "seconds": 0.8
+      }
+    },
+    "the_winter_room_05_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "winter_room_evening",
+          "cast": [],
+          "focus": "",
+          "zoom": 1.06
+        },
+        "to_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_winter_room_09_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "left"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "far_left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_winter_room_10_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "left"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "far_left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "left"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "far_left"
+            }
+          ],
+          "focus": "lydia",
+          "zoom": 1.1
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_winter_room_11_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "left"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "far_left"
+            }
+          ],
+          "focus": "lydia",
+          "zoom": 1.1
+        },
+        "to_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "left"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "far_left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_green_ink_01_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "left"
+            },
+            {
+              "actor_id": "edwin",
+              "expression": "formal",
+              "slot": "far_left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_green_ink_02_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "left"
+            }
+          ],
+          "focus": "lydia",
+          "zoom": 1.1
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_green_ink_03_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "left"
+            }
+          ],
+          "focus": "lydia",
+          "zoom": 1.1
+        },
+        "to_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_green_ink_06_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.0
+      }
+    },
+    "the_green_ink_08_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "composed",
+              "slot": "left"
+            }
+          ],
+          "focus": "lydia",
+          "zoom": 1.1
+        },
+        "to_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "exposed",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_green_ink_09_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "exposed",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "exposed",
+              "slot": "left"
+            }
+          ],
+          "focus": "lydia",
+          "zoom": 1.1
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_first_bell_00_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "exposed",
+              "slot": "left"
+            }
+          ],
+          "focus": "lydia",
+          "zoom": 1.1
+        },
+        "to_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "exposed",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_first_bell_02_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "composed",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "exposed",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "work",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "exposed",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "seconds": 0.45
+      }
+    },
+    "the_first_bell_03_frame": {
+      "type": "grain_frame",
+      "parameters": {
+        "from_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "work",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "exposed",
+              "slot": "left"
+            }
+          ],
+          "focus": "",
+          "zoom": 1.0
+        },
+        "to_frame": {
+          "stage": "winter_room_evening",
+          "cast": [
+            {
+              "actor_id": "lydia",
+              "expression": "work",
+              "slot": "center"
+            },
+            {
+              "actor_id": "ruth",
+              "expression": "exposed",
+              "slot": "left"
+            }
+          ],
+          "focus": "lydia",
+          "zoom": 1.1
+        },
+        "seconds": 0.45
+      }
+    }
+  }
+}

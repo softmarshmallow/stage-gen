@@ -41,8 +41,10 @@ only host writes. These semantics are deliberately distinguished.
 
 Old action indices and retained state/event spelling remain compatible at the
 facade. The new `Runtime.snapshot(program, state)` wraps that state in
-`scenario-runtime-snapshot`, schema 1, with a program fingerprint. New Grain saves
-use it. Historical raw saves can receive structural validation but cannot prove
+`scenario-runtime-snapshot`, schema 1, with a program fingerprint. Grain saves
+for retained v2 scenes use it; the migrated “The way in” saves a full v3 Session
+and refuses an older v2 checkpoint in that scene. Historical raw v2 saves can
+receive structural validation but cannot prove
 which content revision produced them. Malformed snapshots are refused; games
 choose how to expose that refusal. Bellweather's dialogue snapshot is one
 explicit game save slice and does not replay rewards.

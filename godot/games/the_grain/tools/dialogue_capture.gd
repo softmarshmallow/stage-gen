@@ -8,7 +8,7 @@ const ScenarioRuntime = preload("res://addons/scenario_runtime/runtime.gd")
 ##       --audio-driver Dummy --quit-after 120000 -s res://tools/dialogue_capture.gd -- \
 ##       --run <absolute run directory> --out <absolute directory> --shots all
 ##
-## A scenario has no clock either, so a shot is a *moment* rather than a frame:
+## This sheet captures settled story moments rather than transition midpoints:
 ## the opening, a two-hander, the same two-hander with the other one speaking,
 ## a line nobody says, a choice, and the end card. The steps below are written
 ## against `out/the-grain-scene-a`, which is the run the case points at.
@@ -95,7 +95,11 @@ func _initialize() -> void:
 			return
 		node.call("_scale_to_window")
 		for _step in int(shot[2]):
+			if leaf.has_method("step"):
+				leaf.call("step", 30.0)
 			leaf.advance()
+		if leaf.has_method("step"):
+			leaf.call("step", 30.0)
 
 		var target := (
 			out_path.path_join("%s.png" % String(shot[0])) if sheet else out_path

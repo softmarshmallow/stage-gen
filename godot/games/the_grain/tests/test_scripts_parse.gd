@@ -18,7 +18,7 @@ func run(h: TestHarness) -> void:
 	var checked := 0
 	if FileAccess.file_exists("res://main.gd"):
 		h.assert_true(load("res://main.gd").can_instantiate(), "the game entry script parses")
-	for root in ["res://addons/demo_support", "res://gameplay", "res://scenes", "res://tools"]:
+	for root in ["res://addons/demo_support", "res://gameplay", "res://presentation", "res://scenes", "res://tools"]:
 		for path in _walk(root):
 			checked += 1
 			var script: GDScript = load(path)

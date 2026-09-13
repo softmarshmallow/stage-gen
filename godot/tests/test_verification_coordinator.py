@@ -20,6 +20,7 @@ def options(**overrides: object) -> argparse.Namespace:
         "include_rendered": False,
         "run": None,
         "afterlight_content_root": None,
+        "grain_scene_run": None,
         "timeout": 30.0,
         "jobs": 2,
     }
@@ -133,6 +134,7 @@ def test_owned_python_checks_run_through_pytest(tmp_path: Path) -> None:
         "example_sources",
         "episode_source",
         "mission_source",
+        "rich_narrative_source",
         "narrative_source",
         "authoring_admission",
         "authoring_content",
@@ -170,6 +172,24 @@ def test_native_adapter_uses_the_authored_fixture_and_owner(tmp_path: Path) -> N
     assert command[2:4] == ["--project", "ember_hollow"]
     assert command[-2:] == ["--run", str(tmp_path / "ember-hollow-run")]
     assert "run_native_suite.py" in command[1]
+
+
+def test_grain_checks_require_an_explicit_prepared_dialogue_run(tmp_path: Path) -> None:
+    owner = next(owner for owner in check_suites.OWNERS if owner.name == "the_grain")
+    suite = next(suite for suite in check_suites.declared_suites() if suite.name == "rich_dialogue")
+    assert "--grain-scene-run" in check.prerequisite(suite, owner, None)
+    assert "--grain-scene-run" in check.prerequisite(suite, owner, tmp_path)
+    (tmp_path / "bundle.json").write_text("{}")
+    assert check.prerequisite(suite, owner, tmp_path) == ""
+    command = check.command_for(suite, owner, options(grain_scene_run=tmp_path), tmp_path)
+    assert command[-2:] == ["--run", str(tmp_path)]
+    assert "--headless" in command
+    rendered = next(
+        suite for suite in check_suites.declared_suites() if suite.name == "rich_dialogue_rendered"
+    )
+    command = check.command_for(rendered, owner, options(grain_scene_run=tmp_path), tmp_path)
+    assert "--headless" not in command
+    assert "--capture-dir" in command
 
 
 def test_provider_credentials_are_removed(monkeypatch: pytest.MonkeyPatch) -> None:

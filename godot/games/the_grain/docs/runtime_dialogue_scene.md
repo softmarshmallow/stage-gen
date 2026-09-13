@@ -6,6 +6,10 @@ into the current Session. The game owns five-slot staging, optional portraits,
 input/audio suspension, case ordering and save policy. Browser parity results
 below are historical evidence, not the current runtime owner or proof of v3 visuals.
 
+The installed game now selects [rich v3 playback](rich-presentation.md) for
+“The way in.” Its typed frame capability binds the same prepared art, while the
+other conversations keep the supported v2 reader.
+
 A Godot 4.7 host that plays one scenario of a `dialogue-scene` run: a run
 directory holding `bundle.json` beside the plates, backdrops and tracks it
 names. The host ships no media — a run is named on the command line every time.
@@ -45,6 +49,11 @@ This game's retained v2 narrative advances at input boundaries. Its compatibilit
 reader uses the current Session executor; v3 additionally supports explicit
 sequence/presentation/reading clocks. The leaf owns its audio and input suspension
 and does not pause the SceneTree.
+
+In “The way in,” the first advance settles a pending transition and reveals the
+line; the next advances. Dissolves, blocking and camera direction are authored in
+its current `.scenario` and catalog. The rich verification gate exercises these
+clocks and restoration separately from the historical static capture sheet below.
 
 | Does | How |
 | --- | --- |

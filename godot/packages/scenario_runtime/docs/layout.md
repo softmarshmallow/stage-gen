@@ -58,6 +58,8 @@ godot/
 │   │   └── tests/                  # Mission, application and presentation regressions
 │   ├── the_grain/
 │   │   ├── inputs/                 # Retained scenarios, case and room authoring
+│   │   ├── narrative/              # Rich v3 direction for The Way In
+│   │   ├── presentation/           # Installed frame-transition capability
 │   │   ├── pipeline/               # Game-specific preparation and art bindings
 │   │   ├── gameplay/case/          # Rooms, facts, case outcomes and durable saves
 │   │   └── scenes/common/          # Game-owned dialogue/room presentation

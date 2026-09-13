@@ -60,8 +60,9 @@ A new ember preset can be content; a new particle algorithm needs an installed
 capability. Presentation profiles can select a bottom panel, optional portrait,
 narration, subtitle or bubble. Front-facing cast staging is an optional adapter.
 
-Afterlight, Command Link and the VN starter author v3 content. Bellweather and
-The Grain retain their v2 inputs and prepared programs through the compatibility
-boundary. Each game owns its asset preparation and presentation bindings. See
+Afterlight, Command Link, the VN starter and The Grain's “The way in” author v3
+content. Bellweather and The Grain's other prepared conversations retain their
+v2 programs through the compatibility boundary. Each game owns its asset
+preparation and presentation bindings. See
 [Godot verification](../../docs/verification.md) for the current gate roster;
 source and headless correctness do not establish visual or listening acceptance.

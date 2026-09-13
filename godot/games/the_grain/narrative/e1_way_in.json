@@ -1,0 +1,1797 @@
+{
+  "kind": "scenario-program-v3",
+  "schema_version": 3,
+  "scenario_id": "e1_way_in",
+  "entry": "the_service_door_02",
+  "nodes": [
+    {
+      "id": "the_service_door_02",
+      "kind": "line",
+      "speaker": "henry",
+      "text": "Is that Lydia's work?",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_door#2"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_door_02_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_door_03"
+    },
+    {
+      "id": "the_service_door_03",
+      "kind": "line",
+      "speaker": "ruth",
+      "text": "No.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_door#3"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_door_02_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_door_04"
+    },
+    {
+      "id": "the_service_door_04",
+      "kind": "line",
+      "speaker": "henry",
+      "text": "You know where the servants enter.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_door#4"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_door_02_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_door_05"
+    },
+    {
+      "id": "the_service_door_05",
+      "kind": "line",
+      "speaker": "ruth",
+      "expression": "dry",
+      "text": "Everybody who works for a living knows where the servants enter.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_door#5"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_door_05_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_door_06"
+    },
+    {
+      "id": "the_service_door_06",
+      "kind": "line",
+      "text": "The door opens before Henry can answer. Edwin Price is narrow, silver-haired, and dressed with the severity of a man whose dining room has survived several owners.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_door#6"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_door_06_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_door_09"
+    },
+    {
+      "id": "the_service_door_09",
+      "kind": "line",
+      "speaker": "edwin",
+      "text": "You're early.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_door#9"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_door_09_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_door_10"
+    },
+    {
+      "id": "the_service_door_10",
+      "kind": "line",
+      "speaker": "ruth",
+      "text": "By thirteen minutes.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_door#10"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_door_10_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_door_11"
+    },
+    {
+      "id": "the_service_door_11",
+      "kind": "line",
+      "speaker": "edwin",
+      "expression": "dry",
+      "text": "For a departure, that is considered aggression.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_door#11"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_door_11_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_place_card_00"
+    },
+    {
+      "id": "the_place_card_00",
+      "kind": "line",
+      "speaker": "ruth",
+      "expression": "composed",
+      "text": "Edwin Price, Henry Calder.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_place_card#0"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_place_card_00_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_place_card_01"
+    },
+    {
+      "id": "the_place_card_01",
+      "kind": "line",
+      "speaker": "edwin",
+      "expression": "formal",
+      "text": "Mr. Calder. I had understood you were a friend.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_place_card#1"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_place_card_01_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_place_card_02"
+    },
+    {
+      "id": "the_place_card_02",
+      "kind": "line",
+      "speaker": "henry",
+      "text": "So had I.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_place_card#2"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_door_10_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_place_card_03"
+    },
+    {
+      "id": "the_place_card_03",
+      "kind": "line",
+      "speaker": "ruth",
+      "expression": "dry",
+      "text": "We're trying it out.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_place_card#3"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_place_card_03_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_place_card_04"
+    },
+    {
+      "id": "the_place_card_04",
+      "kind": "line",
+      "text": "Edwin considers Henry's coat, shoes, hands, and expression. It is not an inspection. It is seating preparation.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_place_card#4"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_place_card_04_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_place_card_05"
+    },
+    {
+      "id": "the_place_card_05",
+      "kind": "line",
+      "speaker": "edwin",
+      "text": "Miss Shaw has moved your place card twice.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_place_card#5"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_place_card_04_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_place_card_06"
+    },
+    {
+      "id": "the_place_card_06",
+      "kind": "set",
+      "values": {
+        "place_card_moved_twice": true
+      },
+      "next": "the_place_card_07"
+    },
+    {
+      "id": "the_place_card_07",
+      "kind": "line",
+      "speaker": "henry",
+      "text": "I didn't know I had one.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_place_card#7"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_place_card_04_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_place_card_08"
+    },
+    {
+      "id": "the_place_card_08",
+      "kind": "line",
+      "speaker": "edwin",
+      "expression": "dry",
+      "text": "Neither did she. This has not prevented her.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_place_card#8"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_place_card_08_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_dark_floor_03"
+    },
+    {
+      "id": "the_dark_floor_03",
+      "kind": "line",
+      "text": "He locks the door behind them and leads them up a short flight of stairs to the unlit cosmetics floor. In the dark, mirrors return fragments rather than people. Ruth knows the route and does not look at the counters. Henry does.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_dark_floor#3"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_dark_floor_03_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_lift_03"
+    },
+    {
+      "id": "the_service_lift_03",
+      "kind": "line",
+      "text": "The passenger elevators are dark. Edwin unlocks a service lift.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_lift#3"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_lift_03_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_lift_04"
+    },
+    {
+      "id": "the_service_lift_04",
+      "kind": "line",
+      "speaker": "edwin",
+      "text": "Mr. Bell will send the others up this way from the Hill Street door. It is the only car running.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_lift#4"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_lift_04_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_lift_05"
+    },
+    {
+      "id": "the_service_lift_05",
+      "kind": "line",
+      "speaker": "edwin",
+      "text": "The dining room staff left at six. I have retained one cook and one waiter, both of whom have been promised ignorance.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_lift#5"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_lift_04_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_lift_06"
+    },
+    {
+      "id": "the_service_lift_06",
+      "kind": "line",
+      "speaker": "henry",
+      "text": "Can they deliver?",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_lift#6"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_lift_04_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_lift_07"
+    },
+    {
+      "id": "the_service_lift_07",
+      "kind": "line",
+      "speaker": "edwin",
+      "expression": "formal",
+      "text": "They are professionals.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_lift#7"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_lift_04_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_lift_08"
+    },
+    {
+      "id": "the_service_lift_08",
+      "kind": "line",
+      "text": "The service lift rises through the store. Each floor appears briefly through the wire-glass panel: furniture arranged into rooms without walls, women's dresses hanging in patient rows, toys under canvas, lamps glowing alone because no one found the correct switch.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_lift#8"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_lift_04_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_lift_09"
+    },
+    {
+      "id": "the_service_lift_09",
+      "kind": "line",
+      "text": "Ruth watches the floor numbers. Edwin watches Ruth.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_lift#9"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_lift_04_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_lift_10"
+    },
+    {
+      "id": "the_service_lift_10",
+      "kind": "line",
+      "speaker": "edwin",
+      "expression": "grave",
+      "text": "She hasn't told me why she asked you.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_lift#10"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_lift_10_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_lift_11"
+    },
+    {
+      "id": "the_service_lift_11",
+      "kind": "line",
+      "speaker": "ruth",
+      "text": "She hasn't told me either.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_lift#11"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_lift_11_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_lift_12"
+    },
+    {
+      "id": "the_service_lift_12",
+      "kind": "line",
+      "speaker": "edwin",
+      "text": "You misunderstand. Lydia has told me three reasons. She hasn't told me which one she plans to remember.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_lift#12"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_lift_11_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_service_lift_13"
+    },
+    {
+      "id": "the_service_lift_13",
+      "kind": "line",
+      "text": "The lift stops.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_service_lift#13"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_service_lift_11_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_winter_room_03"
+    },
+    {
+      "id": "the_winter_room_03",
+      "kind": "line",
+      "text": "The Winter Room curves along the top floor beneath a shallow glass roof. At lunchtime it seats a hundred and forty. Tonight a single round table occupies its center, laid for eight beneath low amber lamps. Los Angeles continues beyond the windows as a field of lights without an audience.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_winter_room#3"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_winter_room_03_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_winter_room_05"
+    },
+    {
+      "id": "the_winter_room_05",
+      "kind": "line",
+      "text": "Lydia Shaw sits alone, writing place cards in green ink. She is dressed simply, but nothing about the dress appears accidental. One unopened suitcase stands beside the service bar.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_winter_room#5"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_winter_room_05_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_winter_room_06"
+    },
+    {
+      "id": "the_winter_room_06",
+      "kind": "set",
+      "values": {
+        "suitcase_unopened": true
+      },
+      "next": "the_winter_room_09"
+    },
+    {
+      "id": "the_winter_room_09",
+      "kind": "line",
+      "text": "She sees Ruth, then Henry. She finishes the name she is writing before she rises.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_winter_room#9"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_winter_room_09_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_winter_room_10"
+    },
+    {
+      "id": "the_winter_room_10",
+      "kind": "line",
+      "speaker": "lydia",
+      "text": "You brought a stranger.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_winter_room#10"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_winter_room_10_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_winter_room_11"
+    },
+    {
+      "id": "the_winter_room_11",
+      "kind": "line",
+      "speaker": "ruth",
+      "text": "You told me not to come alone.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_winter_room#11"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_winter_room_11_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_winter_room_12"
+    },
+    {
+      "id": "the_winter_room_12",
+      "kind": "line",
+      "speaker": "lydia",
+      "expression": "composed",
+      "text": "Those are not the same kindness.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_winter_room#12"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_winter_room_10_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_winter_room_13"
+    },
+    {
+      "id": "the_winter_room_13",
+      "kind": "line",
+      "speaker": "ruth",
+      "text": "Lydia Shaw, Henry Calder.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_winter_room#13"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_winter_room_11_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_green_ink_01"
+    },
+    {
+      "id": "the_green_ink_01",
+      "kind": "line",
+      "text": "Lydia offers Henry her hand. Her fingers carry two shallow pin marks and a stain of green ink.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_green_ink#1"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_green_ink_01_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_green_ink_02"
+    },
+    {
+      "id": "the_green_ink_02",
+      "kind": "line",
+      "speaker": "lydia",
+      "text": "What did she tell you about me?",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_green_ink#2"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_green_ink_02_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_green_ink_03"
+    },
+    {
+      "id": "the_green_ink_03",
+      "kind": "line",
+      "speaker": "henry",
+      "text": "That you're leaving.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_green_ink#3"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_green_ink_03_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_green_ink_04"
+    },
+    {
+      "id": "the_green_ink_04",
+      "kind": "line",
+      "speaker": "lydia",
+      "text": "Then she told you the only thing no one here believes.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_green_ink#4"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_green_ink_02_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_green_ink_05"
+    },
+    {
+      "id": "the_green_ink_05",
+      "kind": "line",
+      "speaker": "henry",
+      "text": "Do you?",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_green_ink#5"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_green_ink_03_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_green_ink_06"
+    },
+    {
+      "id": "the_green_ink_06",
+      "kind": "line",
+      "text": "Lydia smiles—not because the question is clever, but because Henry has returned it without decorating it.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_green_ink#6"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_green_ink_06_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_green_ink_07"
+    },
+    {
+      "id": "the_green_ink_07",
+      "kind": "line",
+      "speaker": "lydia",
+      "text": "Sit beside me, Mr. Calder.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_green_ink#7"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_green_ink_02_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_green_ink_08"
+    },
+    {
+      "id": "the_green_ink_08",
+      "kind": "line",
+      "speaker": "ruth",
+      "expression": "exposed",
+      "text": "He came with me.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_green_ink#8"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_green_ink_08_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_green_ink_09"
+    },
+    {
+      "id": "the_green_ink_09",
+      "kind": "line",
+      "speaker": "lydia",
+      "expression": "composed",
+      "text": "That is why I would like to make it inconvenient.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_green_ink#9"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_green_ink_09_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_first_bell_00"
+    },
+    {
+      "id": "the_first_bell_00",
+      "kind": "line",
+      "text": "An elevator bell sounds somewhere below. The empty store carries it upward, one clean note at a time.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_first_bell#0"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_first_bell_00_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_first_bell_02"
+    },
+    {
+      "id": "the_first_bell_02",
+      "kind": "line",
+      "text": "Lydia looks toward the entrance. For the first time, her composure does not fail; it becomes work.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_first_bell#2"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_first_bell_02_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_first_bell_03"
+    },
+    {
+      "id": "the_first_bell_03",
+      "kind": "line",
+      "speaker": "lydia",
+      "expression": "work",
+      "text": "That will be the first person who thinks this dinner is about them.",
+      "presentation": {
+        "channel": "dialogue",
+        "profile": "bottom",
+        "chars_per_second": 42,
+        "legacy_statement_id": "the_first_bell#3"
+      },
+      "cues": [
+        {
+          "id": "direction",
+          "at": 0,
+          "effect": {
+            "preset": "the_first_bell_03_frame",
+            "parameters": {}
+          },
+          "instance_id": "frame",
+          "scope": "node",
+          "clock": "presentation",
+          "target": "stage"
+        }
+      ],
+      "gates": [
+        {
+          "event": "operation_completed:frame",
+          "finish_on_advance": true
+        },
+        {
+          "event": "text_revealed",
+          "finish_on_advance": true
+        }
+      ],
+      "next": "the_first_bell_06"
+    },
+    {
+      "id": "the_first_bell_06",
+      "kind": "end",
+      "outcome": "first_bell"
+    }
+  ],
+  "speakers": [
+    {
+      "id": "henry",
+      "display_name": "Henry"
+    },
+    {
+      "id": "ruth",
+      "display_name": "Ruth"
+    },
+    {
+      "id": "edwin",
+      "display_name": "Edwin"
+    },
+    {
+      "id": "lydia",
+      "display_name": "Lydia"
+    }
+  ],
+  "facts": {
+    "place_card_moved_twice": {
+      "type": "boolean",
+      "default": false
+    },
+    "suitcase_unopened": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required_capabilities": {
+    "grain_frame": 1
+  }
+}

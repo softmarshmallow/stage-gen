@@ -7,8 +7,7 @@ extends Node2D
 ##
 ## It opens a run directory, reads the bundle, parses one scenario program and
 ## draws it. It owns loading, the window, the letterboxing and the refusal card;
-## every rule it does not own is under `families/scenario/`, where a headless
-## harness compares it against the browser action for action.
+## the game selects the installed rich sequence or its supported v2 reader.
 ##
 ## **`--scenario` is not optional in practice.** A `dialogue-scene-bundle-v8` run
 ## publishes the union of every scenario a game holds — The Grain's carries six —
@@ -16,9 +15,8 @@ extends Node2D
 ## whichever came first. The browser's own `/scene/<tag>` route omits it and
 ## throws on every run that exists.
 ##
-## There is no loop and no `_process`. A scenario has no clock: a transition is a
-## keypress, the whole runtime is a reducer over a finite graph, and the view
-## redraws when the reducer moves.
+## A rich leaf advances its own Scenario presentation clock. The shell remains
+## responsible for loading, scaling and lifecycle.
 
 var leaf: HostDialogueLeaf = null
 ## Which scenario to play, when a capture chooses one per shot rather than the
@@ -37,7 +35,7 @@ func _ready() -> void:
 	# opening it, reading it and refusing it are all the leaf's, which is the one
 	# thing that knows this genre.
 	var wanted := scenario_override if scenario_override != "" else args.scenario
-	var built: Variant = HostDialogueLeaf.open(args.run, wanted)
+	var built: Variant = GrainDialoguePlayer.open(args.run, wanted)
 	if KernelRefusal.is_refusal(built):
 		_refuse("dialogue host: %s" % (built as KernelRefusal).line())
 		return
@@ -47,6 +45,7 @@ func _ready() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
 	_root.add_child(leaf)
+	leaf.focus_mode = Control.FOCUS_ALL
 	leaf.grab_focus()
 	_scale_to_window()
 	get_viewport().size_changed.connect(_scale_to_window)

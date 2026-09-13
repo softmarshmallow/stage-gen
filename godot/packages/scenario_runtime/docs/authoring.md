@@ -60,3 +60,6 @@ activation and version boundaries.
 Bellweather and The Grain continue through the supported v2 compiler and their
 `demo_game_tools.scenario` production adapter. Do not move their asset briefs,
 input paths or soundtrack generation intentions into the current narrative IR.
+The Grain's installed game selects [rich v3 content](../../../games/the_grain/docs/rich-presentation.md)
+for “The way in,” binding its existing prepared art without rewriting that
+production input closure.

@@ -15,7 +15,8 @@ extends Node2D
 ## The two leaves it plays are `hosts/common/`'s, the same objects the room host
 ## and the scene host play. That is the whole reason they live there.
 ##
-## A case has no clock either. Every transition is a click or a key.
+## The case advances on leaf outcomes. An invoked leaf owns its presentation
+## clock; opening the backlog suspends that invocation, not the SceneTree.
 
 const CASE_REF := "case.json"
 const CANVAS := Vector2(1672.0, 1024.0)
@@ -156,6 +157,20 @@ func _on_pending_finish() -> void:
 func _on_backlog(open: bool) -> void:
 	chrome.show_backlog(open)
 	_gate_leaf()
+	if open:
+		_checkpoint_leaf()
+
+
+## Save actual presentation progress at deliberate game lifecycle boundaries.
+## Text reveal and transition ticks do not write a save on every frame.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_checkpoint_leaf()
+
+
+func _checkpoint_leaf() -> void:
+	if leaf != null and is_instance_valid(leaf) and leaf.has_method("snapshot") and String(state.get("phase", "")) == CaseRuntime.PHASE_PLAYING:
+		leaf.call("report")
 
 
 func _on_moment(
@@ -264,7 +279,7 @@ func _build_leaf(beat: Dictionary) -> Variant:
 			run, carried, null if resume == null else (resume as Dictionary)["room"]
 		)
 	var scenario: Variant = beat["scenarioId"]
-	return HostDialogueLeaf.open(
+	return GrainDialoguePlayer.open(
 		run,
 		"" if scenario == null else String(scenario),
 		carried,

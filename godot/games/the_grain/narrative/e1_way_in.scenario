@@ -1,0 +1,363 @@
+# The Grain — The Way In. Authored narrative for the installed grain_frame v1 binding.
+# The original prose, speakers, fact timing and ending are unchanged.
+# Frames are explicit content: dissolves, entrances and focus do not dispatch by node ID.
+scenario e1_way_in
+speaker henry "Henry"
+speaker ruth "Ruth"
+speaker edwin "Edwin"
+speaker lydia "Lydia"
+fact place_card_moved_twice = false
+fact suitcase_unopened = false
+require grain_frame 1
+
+# The service door.
+
+@the_service_door_02
+henry "Is that Lydia's work?"
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_door#2"}
+    cue direction at 0 start the_service_door_02_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_service_door_03
+ruth "No."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_door#3"}
+    cue direction at 0 start the_service_door_02_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_service_door_04
+henry "You know where the servants enter."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_door#4"}
+    cue direction at 0 start the_service_door_02_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_service_door_05
+ruth dry "Everybody who works for a living knows where the servants enter."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_door#5"}
+    cue direction at 0 start the_service_door_05_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_service_door_06
+narrate "The door opens before Henry can answer. Edwin Price is narrow, silver-haired, and dressed with the severity of a man whose dining room has survived several owners."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_door#6"}
+    cue direction at 0 start the_service_door_06_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_service_door_09
+edwin "You're early."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_door#9"}
+    cue direction at 0 start the_service_door_09_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_service_door_10
+ruth "By thirteen minutes."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_door#10"}
+    cue direction at 0 start the_service_door_10_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_service_door_11
+edwin dry "For a departure, that is considered aggression."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_door#11"}
+    cue direction at 0 start the_service_door_11_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+# The place card.
+
+@the_place_card_00
+ruth composed "Edwin Price, Henry Calder."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_place_card#0"}
+    cue direction at 0 start the_place_card_00_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_place_card_01
+edwin formal "Mr. Calder. I had understood you were a friend."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_place_card#1"}
+    cue direction at 0 start the_place_card_01_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_place_card_02
+henry "So had I."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_place_card#2"}
+    cue direction at 0 start the_service_door_10_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_place_card_03
+ruth dry "We're trying it out."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_place_card#3"}
+    cue direction at 0 start the_place_card_03_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_place_card_04
+narrate "Edwin considers Henry's coat, shoes, hands, and expression. It is not an inspection. It is seating preparation."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_place_card#4"}
+    cue direction at 0 start the_place_card_04_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_place_card_05
+edwin "Miss Shaw has moved your place card twice."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_place_card#5"}
+    cue direction at 0 start the_place_card_04_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_place_card_06
+set place_card_moved_twice=true
+
+@the_place_card_07
+henry "I didn't know I had one."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_place_card#7"}
+    cue direction at 0 start the_place_card_04_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_place_card_08
+edwin dry "Neither did she. This has not prevented her."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_place_card#8"}
+    cue direction at 0 start the_place_card_08_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+# The dark floor.
+
+@the_dark_floor_03
+narrate "He locks the door behind them and leads them up a short flight of stairs to the unlit cosmetics floor. In the dark, mirrors return fragments rather than people. Ruth knows the route and does not look at the counters. Henry does."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_dark_floor#3"}
+    cue direction at 0 start the_dark_floor_03_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+# The service lift.
+
+@the_service_lift_03
+narrate "The passenger elevators are dark. Edwin unlocks a service lift."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_lift#3"}
+    cue direction at 0 start the_service_lift_03_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_service_lift_04
+edwin "Mr. Bell will send the others up this way from the Hill Street door. It is the only car running."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_lift#4"}
+    cue direction at 0 start the_service_lift_04_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_service_lift_05
+edwin "The dining room staff left at six. I have retained one cook and one waiter, both of whom have been promised ignorance."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_lift#5"}
+    cue direction at 0 start the_service_lift_04_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_service_lift_06
+henry "Can they deliver?"
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_lift#6"}
+    cue direction at 0 start the_service_lift_04_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_service_lift_07
+edwin formal "They are professionals."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_lift#7"}
+    cue direction at 0 start the_service_lift_04_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_service_lift_08
+narrate "The service lift rises through the store. Each floor appears briefly through the wire-glass panel: furniture arranged into rooms without walls, women's dresses hanging in patient rows, toys under canvas, lamps glowing alone because no one found the correct switch."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_lift#8"}
+    cue direction at 0 start the_service_lift_04_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_service_lift_09
+narrate "Ruth watches the floor numbers. Edwin watches Ruth."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_lift#9"}
+    cue direction at 0 start the_service_lift_04_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_service_lift_10
+edwin grave "She hasn't told me why she asked you."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_lift#10"}
+    cue direction at 0 start the_service_lift_10_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_service_lift_11
+ruth "She hasn't told me either."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_lift#11"}
+    cue direction at 0 start the_service_lift_11_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_service_lift_12
+edwin "You misunderstand. Lydia has told me three reasons. She hasn't told me which one she plans to remember."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_lift#12"}
+    cue direction at 0 start the_service_lift_11_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_service_lift_13
+narrate "The lift stops."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_service_lift#13"}
+    cue direction at 0 start the_service_lift_11_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+# The winter room.
+
+@the_winter_room_03
+narrate "The Winter Room curves along the top floor beneath a shallow glass roof. At lunchtime it seats a hundred and forty. Tonight a single round table occupies its center, laid for eight beneath low amber lamps. Los Angeles continues beyond the windows as a field of lights without an audience."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_winter_room#3"}
+    cue direction at 0 start the_winter_room_03_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_winter_room_05
+narrate "Lydia Shaw sits alone, writing place cards in green ink. She is dressed simply, but nothing about the dress appears accidental. One unopened suitcase stands beside the service bar."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_winter_room#5"}
+    cue direction at 0 start the_winter_room_05_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_winter_room_06
+set suitcase_unopened=true
+
+@the_winter_room_09
+narrate "She sees Ruth, then Henry. She finishes the name she is writing before she rises."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_winter_room#9"}
+    cue direction at 0 start the_winter_room_09_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_winter_room_10
+lydia "You brought a stranger."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_winter_room#10"}
+    cue direction at 0 start the_winter_room_10_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_winter_room_11
+ruth "You told me not to come alone."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_winter_room#11"}
+    cue direction at 0 start the_winter_room_11_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_winter_room_12
+lydia composed "Those are not the same kindness."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_winter_room#12"}
+    cue direction at 0 start the_winter_room_10_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_winter_room_13
+ruth "Lydia Shaw, Henry Calder."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_winter_room#13"}
+    cue direction at 0 start the_winter_room_11_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+# The green ink.
+
+@the_green_ink_01
+narrate "Lydia offers Henry her hand. Her fingers carry two shallow pin marks and a stain of green ink."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_green_ink#1"}
+    cue direction at 0 start the_green_ink_01_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_green_ink_02
+lydia "What did she tell you about me?"
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_green_ink#2"}
+    cue direction at 0 start the_green_ink_02_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_green_ink_03
+henry "That you're leaving."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_green_ink#3"}
+    cue direction at 0 start the_green_ink_03_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_green_ink_04
+lydia "Then she told you the only thing no one here believes."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_green_ink#4"}
+    cue direction at 0 start the_green_ink_02_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_green_ink_05
+henry "Do you?"
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_green_ink#5"}
+    cue direction at 0 start the_green_ink_03_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_green_ink_06
+narrate "Lydia smiles—not because the question is clever, but because Henry has returned it without decorating it."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_green_ink#6"}
+    cue direction at 0 start the_green_ink_06_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_green_ink_07
+lydia "Sit beside me, Mr. Calder."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_green_ink#7"}
+    cue direction at 0 start the_green_ink_02_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_green_ink_08
+ruth exposed "He came with me."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_green_ink#8"}
+    cue direction at 0 start the_green_ink_08_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_green_ink_09
+lydia composed "That is why I would like to make it inconvenient."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_green_ink#9"}
+    cue direction at 0 start the_green_ink_09_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+# The first bell.
+
+@the_first_bell_00
+narrate "An elevator bell sounds somewhere below. The empty store carries it upward, one clean note at a time."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_first_bell#0"}
+    cue direction at 0 start the_first_bell_00_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_first_bell_02
+narrate "Lydia looks toward the entrance. For the first time, her composure does not fail; it becomes work."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_first_bell#2"}
+    cue direction at 0 start the_first_bell_02_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_first_bell_03
+lydia work "That will be the first person who thinks this dinner is about them."
+    present {"channel":"dialogue","profile":"bottom","chars_per_second":42,"legacy_statement_id":"the_first_bell#3"}
+    cue direction at 0 start the_first_bell_03_frame as frame target=stage scope=node
+    gate operation_completed:frame finish_on_advance=true
+    gate text_revealed finish_on_advance=true
+
+@the_first_bell_06
+end first_bell

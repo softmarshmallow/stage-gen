@@ -42,9 +42,10 @@ godot/
 | Private `demo_support` | Actual shared game implementation. Run-directory adapters use `content_io`; game-specific parsing and scene composition stay outside it. |
 | Private scene navigation | Shared replacement/checkpoint lifecycle; games supply routes, scene preparation and opaque saved state. |
 
-Games select packages. Afterlight, Command Link and the VN starter author v3
-Scenario content. Bellweather and The Grain retain v2 prepared content through
-the compatibility adapter into the same Session executor. Games own invocation,
+Games select packages. Afterlight, Command Link, the VN starter and The Grain's
+“The way in” author v3 Scenario content. Bellweather and The Grain's other scenes
+retain v2 prepared content through the compatibility adapter into the same Session
+executor. Games own invocation,
 input, world/camera policy, assets and saves. Bellweather and Iron Petal Unit use
 side-view rendering. Afterlight and Command Link share private navigation while
 keeping their own UI and checkpoint policy.

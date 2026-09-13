@@ -135,6 +135,11 @@ def media_requirements(owner: Owner) -> list[Path]:
 def prerequisite(suite: Suite, owner: Owner, external_root: Path | None) -> str:
     if suite.level == "offline":
         return ""
+    if owner.name == "the_grain" and suite.prerequisite:
+        if external_root is None or not (external_root / "bundle.json").is_file():
+            return suite.prerequisite
+        # The owning native player admits the complete referenced media closure.
+        return ""
     try:
         missing = [
             path.relative_to(owner.project).as_posix()
@@ -183,6 +188,9 @@ def command_for(suite: Suite, owner: Owner, args: argparse.Namespace, scratch: P
     command = [engine()]
     if suite.level != "rendered":
         command.append("--headless")
+    if owner.name == "the_grain" and suite.prerequisite:
+        # These checks inspect authored motion and text, with no audio verdict.
+        command += ["--audio-driver", "Dummy"]
     command += [
         "--path",
         str(project),
@@ -200,6 +208,10 @@ def command_for(suite: Suite, owner: Owner, args: argparse.Namespace, scratch: P
         options += ["--game", "command_link", "--route", "game", "--language", "ko"]
     if suite.name == "afterlight_external_content_checks" and args.afterlight_content_root:
         options += ["--content-root", str(args.afterlight_content_root)]
+    if owner.name == "the_grain" and suite.prerequisite and args.grain_scene_run:
+        options += ["--run", str(args.grain_scene_run)]
+        if suite.level == "rendered":
+            options += ["--capture-dir", str(scratch / "grain-captures")]
     if options:
         command += ["--", *options]
     return command
@@ -295,7 +307,7 @@ def run(args: argparse.Namespace, scratch: Path) -> list[Outcome]:
         owned = [suite for suite in suites if suite.owner == owner.name]
         # The native adapter imports its own project. Other styles share one import
         # per owner before their separate script/application processes start.
-        if owned and owner.convention != "native":
+        if owned and not any(suite.adapter == "native" for suite in owned):
             project = (
                 scratch / "asset-consumer" if owner.name == "asset_consumer" else owner.project
             )
@@ -323,7 +335,10 @@ def run(args: argparse.Namespace, scratch: Path) -> list[Outcome]:
                 )
                 continue
         for suite in owned:
-            missing = prerequisite(suite, owner, args.afterlight_content_root)
+            external_root = (
+                args.grain_scene_run if owner.name == "the_grain" else args.afterlight_content_root
+            )
+            missing = prerequisite(suite, owner, external_root)
             requested = (
                 suite.level == "offline"
                 or (args.include_media and suite.level == "media")
@@ -430,6 +445,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--afterlight-content-root", type=Path)
     parser.add_argument(
+        "--grain-scene-run", type=Path, help="Existing Grain dialogue run for rich sequence checks"
+    )
+    parser.add_argument(
         "--run", type=Path, help="Existing Ember Hollow run; otherwise create an offline fixture"
     )
     parser.add_argument(
@@ -449,7 +467,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.timeout <= 0 or args.jobs <= 0:
         parser.error("--timeout and --jobs must be positive")
-    for field in ("run", "afterlight_content_root"):
+    for field in ("run", "afterlight_content_root", "grain_scene_run"):
         value = getattr(args, field)
         if value is not None:
             setattr(args, field, value.resolve())
