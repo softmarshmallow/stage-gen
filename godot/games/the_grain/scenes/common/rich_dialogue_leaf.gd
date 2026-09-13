@@ -41,7 +41,7 @@ static func open_rich(run_dir: String, scenario_id: String, carried: PackedStrin
 	var document: Variant = DialogueBundle.parse(package.manifest, scenario_id)
 	if KernelRefusal.is_refusal(document):
 		return document
-	var source := _read_json("res://narrative/%s.json" % scenario_id)
+	var source := _read_json("res://narrative/" + scenario_id + ".json")
 	if source.has("error"):
 		return _rich_refusal(source)
 	var catalog := _read_json("res://narrative/catalog.json")

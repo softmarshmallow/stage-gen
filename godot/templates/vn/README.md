@@ -22,7 +22,8 @@ The two replies reconverge. There is no autoplay or durable save format.
   camera/Manpu presentation, reveal gates and the contact-to-feedback sequence.
 - `narrative/catalog.json`: named contact and burst configurations.
 - `bindings/capabilities.json`: the installed contact/burst parameter contract.
-- `narrative/episode.json` and `episode.map.json`: compiled program and source map.
+- `narrative/episode.json`: compiled runtime program.
+- `authoring/episode.map.json`: compiler source locations for authoring and verification.
 - `text/en.json`: localized text, including both replies and application title.
 - `main.gd`: resource bindings, UI, rendering and input. It reports actual contact
   completion; the scenario decides what follows and how long feedback lasts.
@@ -33,7 +34,7 @@ from this project:
 ```sh
 scenario-authoring compile narrative/episode.scenario \
   --catalog narrative/catalog.json --capabilities bindings/capabilities.json \
-  --output narrative/episode.json --source-map narrative/episode.map.json
+  --output narrative/episode.json --source-map authoring/episode.map.json
 ```
 
 The source compiler is needed when authoring. Playback reads the compiled JSON.

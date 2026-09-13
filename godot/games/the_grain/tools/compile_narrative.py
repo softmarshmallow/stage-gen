@@ -24,16 +24,16 @@ def compile_narrative(*, check: bool = False, narrative: Path = NARRATIVE) -> No
         ),
         source_name=source.name,
     )
-    for name, value in (
-        ("e1_way_in.json", compiled.program),
-        ("e1_way_in.map.json", compiled.source_map),
+    for target, value in (
+        (narrative / "e1_way_in.json", compiled.program),
+        (narrative.parent / "authoring/e1_way_in.map.json", compiled.source_map),
     ):
         expected = json.dumps(value, indent=2, ensure_ascii=False) + "\n"
-        target = narrative / name
         if check:
             if not target.is_file() or target.read_text(encoding="utf-8") != expected:
-                raise ValueError(f"Compiled Grain narrative is stale: {name}")
+                raise ValueError(f"Compiled Grain narrative is stale: {target.name}")
         else:
+            target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(expected, encoding="utf-8")
 
 

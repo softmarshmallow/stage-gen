@@ -11,6 +11,7 @@ from scenario_authoring import compile_scenario
 
 PROJECT = Path(__file__).resolve().parents[1]
 NARRATIVE = PROJECT / "narrative"
+AUTHORING = PROJECT / "authoring"
 CAPABILITIES = PROJECT.parents[1] / (
     "packages/scenario_runtime/addons/scenario_runtime/presentation/front_types.json"
 )
@@ -24,15 +25,15 @@ def compile_narrative(*, check: bool = False) -> None:
         capabilities=json.loads(CAPABILITIES.read_text()),
         source_name=source.name,
     )
-    for name, value in (
-        ("program.json", compiled.program),
-        ("program.map.json", compiled.source_map),
+    for target, value in (
+        (NARRATIVE / "program.json", compiled.program),
+        (AUTHORING / "program.map.json", compiled.source_map),
     ):
-        target = NARRATIVE / name
         if check:
             if not target.is_file() or json.loads(target.read_text()) != value:
-                raise ValueError(f"Compiled Afterlight episode is stale: {name}")
+                raise ValueError(f"Compiled Afterlight episode is stale: {target.name}")
         else:
+            target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(
                 json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
             )

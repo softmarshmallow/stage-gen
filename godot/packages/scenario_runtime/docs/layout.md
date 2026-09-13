@@ -46,19 +46,22 @@ godot/
 │   └── sideview_rendering/          # Independent layer and parallax rendering
 ├── games/
 │   ├── afterlight/
-│   │   ├── narrative/              # Episode source, catalog, compiled program and map
+│   │   ├── narrative/              # Episode source, catalog and compiled program
+│   │   ├── authoring/              # Compiler source map; not a playback resource
 │   │   ├── narrative_binding.gd    # Installed capabilities and game resource binding
 │   │   ├── text/, voice/, assets/   # Game-owned text, recordings and art catalogs
 │   │   ├── tools/                  # Content compilation and explicit media preparation
 │   │   └── tests/                  # Episode behavior and artistic integration checks
 │   ├── command_link/
-│   │   ├── narrative/              # Mission source, catalog, compiled program and map
+│   │   ├── narrative/              # Mission source, catalog and compiled program
+│   │   ├── authoring/              # Compiler source map
 │   │   ├── presentation/           # Game presenter and installed capability schema
 │   │   ├── lab/                    # Direct mechanism studies, separate from mission
 │   │   └── tests/                  # Mission, application and presentation regressions
 │   ├── the_grain/
 │   │   ├── inputs/                 # Retained scenarios, case and room authoring
 │   │   ├── narrative/              # Rich v3 direction for The Way In
+│   │   ├── authoring/              # Compiler source map
 │   │   ├── presentation/           # Installed frame-transition capability
 │   │   ├── pipeline/               # Game-specific preparation and art bindings
 │   │   ├── gameplay/case/          # Rooms, facts, case outcomes and durable saves
@@ -74,7 +77,8 @@ godot/
 │       └── src/demo_game_tools/scenario/
 │                                   # V2 game metadata, file resolution and production envelopes
 ├── templates/vn/
-│   ├── narrative/                  # Signal Room source, catalog, compiled program and map
+│   ├── narrative/                  # Signal Room source, catalog and compiled program
+│   ├── authoring/                  # Compiler source map
 │   ├── bindings/                   # Installed game capability schema
 │   ├── text/                       # Localized content
 │   ├── main.gd                     # Game objects, rendering, input and capability drivers

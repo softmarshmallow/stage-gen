@@ -22,16 +22,16 @@ def compile_mission(*, check: bool = False, narrative: Path = NARRATIVE) -> None
         ),
         source_name=source.name,
     )
-    for name, value in (
-        ("mission.json", compiled.program),
-        ("mission.map.json", compiled.source_map),
+    for target, value in (
+        (narrative / "mission.json", compiled.program),
+        (narrative.parent / "authoring/mission.map.json", compiled.source_map),
     ):
         expected = json.dumps(value, indent=2, ensure_ascii=False) + "\n"
-        target = narrative / name
         if check:
             if not target.is_file() or target.read_text(encoding="utf-8") != expected:
-                raise ValueError(f"Compiled mission is stale: {name}")
+                raise ValueError(f"Compiled mission is stale: {target.name}")
         else:
+            target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(expected, encoding="utf-8")
 
 

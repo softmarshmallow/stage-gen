@@ -23,6 +23,8 @@ Authored inputs live in `inputs/` and asset preparation starts with
 - `main.gd` and `main.tscn` compose this game's entry scene.
 - `gameplay/` owns the deterministic simulation and game-specific supporting systems.
 - `scenes/` owns rendering, input, camera, audio and interface code.
+- `narrative/` owns rich Scenario source, catalog and compiled playback data.
+- `authoring/` owns compiler source maps for diagnostics and freshness checks.
 - `tests/` and `tools/` own this game's regressions, replay and capture helpers.
 - `addons/demo_support` links to the private shared implementation used by these games.
 - `addons/scenario_runtime` selects the independent [Scenario framework](../../packages/scenario_runtime/README.md); gameplay, dialogue UI and save policy stay here.

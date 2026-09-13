@@ -4,7 +4,7 @@ A file is in use when a scene, script, resource or the project file names it,
 directly or through a catalog: a JSON file that a script reads binds the media
 it names. Anything else the project tracks, media or JSON, is dead weight and
 is listed. Working directories (art/, captures/, .godot/, build/, tests/) and
-game authoring sources (inputs/, pipeline/) are not runtime payloads and are
+game authoring sources/metadata (inputs/, pipeline/, authoring/) are not runtime payloads and are
 not searched. Imported records and Markdown never count as a use.
 
     python3 godot/tools/unused_assets.py godot/games/afterlight [more projects]
@@ -42,7 +42,7 @@ ASSET_SUFFIXES = {
     ".glb",
 }
 WORKING_DIRECTORIES = {"art", "captures", ".godot", "build", "tests", "__pycache__"}
-AUTHORING_DIRECTORIES = {"inputs", "pipeline"}
+AUTHORING_DIRECTORIES = {"inputs", "pipeline", "authoring"}
 
 
 def tracked_files(project: Path) -> list[Path]:

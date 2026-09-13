@@ -16,7 +16,8 @@ Godot --path godot/games/command_link
 | `main.tscn`, `main.gd`, `roots.gd` | the shell: `--game command_link` (default) or `--game lab`, `--content-root` |
 | `root.gd`, `game.gd`, `menu.gd`, `stage_profile.gd` | the mission composition, its game scene and menu |
 | [presentation/](presentation/README.md) | the integration code the mission is staged with: stage, profile, actor overlay, opening, tactical theme, curve graph |
-| `narrative/` | authored mission `.scenario`, versioned catalog, compiled program and source map |
+| `narrative/` | authored mission `.scenario`, versioned catalog and compiled runtime program |
+| `authoring/mission.map.json` | compiler source locations for authoring and verification |
 | `presentation/scenario_capabilities.json` | installed mission capability parameter schema; player-owned, not downloadable content |
 | `assets/` | the game's art, contact layout, Manpu marks and opening video; catalogs tracked, bytes local |
 | `lab/` | the Command Link Lab: eleven fixture studies and their menu; see [lab/README.md](lab/README.md) |

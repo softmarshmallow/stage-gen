@@ -24,7 +24,8 @@ voice catalogs; missing content is reported by the owning loader.
 | --- | --- |
 | `narrative/episode.scenario` | Sole authored episode: stable IDs, dialogue, choice branches, gates, cues, effects and timing |
 | `narrative/catalog.json` | Versioned named configurations of installed presentation capabilities |
-| `narrative/program.json`, `program.map.json` | Compiled execution document and source map |
+| `narrative/program.json` | Compiled execution document |
+| `authoring/program.map.json` | Compiler source locations for authoring and verification |
 | `tools/compile_narrative.py` | Deterministic compilation and `--check` freshness |
 | `story_beats.gd` | Read-only review/voice inventory projection of compiled content; no progression |
 | `story.gd` | Game UI/input/audio and invocation of the shared Session/presentation APIs |

@@ -1,8 +1,9 @@
 # Afterlight narrative content
 
 `episode.scenario` is the sole authored episode. `catalog.json` gives its typed
-presentation configurations reusable names. `program.json` and `program.map.json`
-are compiled artifacts, maintained by the game-owned tool:
+presentation configurations reusable names. `program.json` is the compiled runtime
+document; [the source map](../authoring/program.map.json) belongs to authoring and
+verification. Both are maintained by the game-owned tool:
 
 ```sh
 uv run --group games python godot/games/afterlight/tools/compile_narrative.py

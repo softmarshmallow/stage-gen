@@ -24,7 +24,7 @@ def test_shipped_starter_program_and_source_map_match_authored_source() -> None:
         source_name="episode.scenario",
     )
     assert result.program == _json(narrative / "episode.json")
-    assert result.source_map == _json(narrative / "episode.map.json")
+    assert result.source_map == _json(TEMPLATE / "authoring/episode.map.json")
     assert result.program["required_capabilities"] == {"point_contact": 1, "radial_burst": 1}
 
 
