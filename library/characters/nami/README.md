@@ -52,3 +52,24 @@ and reduced texture. Solid pink cuffs and skirt trim replace the gingham, while
 the waving pose and defining character features remain recognizable.
 
 ![Nami's flat SD concept with simplified clothing and stronger chibi proportions](sd_flat.webp)
+
+### 3D SD
+
+A textured, rigged interpretation of the flat SD artwork, with a neutral stance
+and fixed mitten hands. It preserves the floppy rabbit hood, long pink-tipped
+hair, flower ornament, charcoal-and-pink outfit, striped stockings, platform
+boots and crossbody bag.
+
+![Studio render of Nami's 3D SD model](sd_3d.webp)
+
+[Download the self-contained GLB](sd_3d.glb), inspect its
+[source and generation record](sd_3d.json), or read the
+[independent visual review](sd_3d.visual-review.md).
+
+The model embeds its textures and humanoid skeleton. Hair, hood ears and clothing
+have no secondary-motion simulation; fingers and facial features are fixed.
+The automatic rigs pulled hair and skirt geometry with arm movements, so this
+representation includes local skin-weight corrections followed by independent
+motion review. The six bundled clips cover rest, shoulder, elbow, knee and wrist
+checks, plus a short cheer. The preview is rendered from this GLB. Animation
+retargeting and runtime setup belong to the consuming project.

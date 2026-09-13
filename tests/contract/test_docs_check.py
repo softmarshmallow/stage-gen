@@ -31,6 +31,37 @@ def test_repository_documentation_and_publication_contract() -> None:
     assert result.media_count == 2
 
 
+def test_character_library_documentation_rejects_missing_links(tmp_path: Path) -> None:
+    for relative in (
+        ".env.example",
+        "src/stage_gen/config.py",
+        "web/lib/shell/runs.ts",
+        "README.md",
+        "docs/generated-media-publication.md",
+        "godot/games/_shared/docs/game-package.md",
+        "docs/spec/agent-prompts.md",
+        "docs/web-viewer.md",
+    ):
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("", encoding="utf-8")
+    (tmp_path / "docs/generated-media-inventory.json").write_text(
+        '{"schemaVersion": 1, "roots": [], "media": []}', encoding="utf-8"
+    )
+    character = tmp_path / "library/characters/example"
+    character.mkdir(parents=True)
+    (character / "sd_3d.glb").write_bytes(b"link target only")
+    (character / "README.md").write_text(
+        "[Model](sd_3d.glb)\n[Record](sd_3d.json)\n", encoding="utf-8"
+    )
+
+    result = _load_docs_checker().run_docs_check(tmp_path)
+
+    assert [failure for failure in result.failures if failure.startswith("library/")] == [
+        "library/characters/example/README.md: missing link sd_3d.json"
+    ]
+
+
 def test_component_contract_artifact_example_runs() -> None:
     """Execute the documented result example against the public Python API."""
 
@@ -82,7 +113,13 @@ def test_repository_storage_policy_uses_live_enforced_limits() -> None:
     policy = (repository_root / "docs/repository-storage.md").read_text(encoding="utf-8")
 
     assert re.search(r"\bapproximately\s+\d+(?:\.\d+)?\s+MiB\b", policy) is None
-    for limit in ("audio: 20 MiB", "image: 5 MiB", "video: 25 MiB", "combined: 100 MiB"):
+    for limit in (
+        "audio: 20 MiB",
+        "image: 5 MiB",
+        "model: 10 MiB",
+        "video: 25 MiB",
+        "combined: 125 MiB",
+    ):
         assert limit in policy
     assert "uv run python scripts/check_docs.py" in policy
     assert (

@@ -71,6 +71,7 @@ MEDIA_SUFFIXES = {
     ".aac",
     ".flac",
     ".gif",
+    ".glb",
     ".jpeg",
     ".jpg",
     ".m4a",
@@ -89,6 +90,7 @@ IMAGE_MEDIA_SUFFIXES = {".gif", ".jpeg", ".jpg", ".png", ".webp"}
 #: reads: two committed faces were outside both the aggregate ceiling and the
 #: per-root location rules. They are counted here like every other binary.
 FONT_MEDIA_SUFFIXES = {".otf", ".ttf"}
+MODEL_MEDIA_SUFFIXES = {".glb"}
 CONCEPT_GALLERY_PREFIX = ("concept-studio", "gallery")
 CONCEPT_STYLE_DICTIONARY_PREFIX = ("concept-studio", "style-dictionary")
 CONCEPT_MEDIA_PREFIXES = {
@@ -112,9 +114,10 @@ GIT_MEDIA_LIMITS = {
     "audio": 20 * 1024 * 1024,
     "font": 2 * 1024 * 1024,
     "image": 5 * 1024 * 1024,
+    "model": 10 * 1024 * 1024,
     "video": 25 * 1024 * 1024,
 }
-GIT_MEDIA_TOTAL_LIMIT = 100 * 1024 * 1024
+GIT_MEDIA_TOTAL_LIMIT = 125 * 1024 * 1024
 SECRET_SUFFIXES = {".key", ".p12", ".pem", ".pfx"}
 GAME_MODULES = {
     "demo_game_tools",
@@ -460,9 +463,14 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
         if relative.parts[0] == "library":
             assert len(relative.parts) >= 4
             assert relative.parts[:2] == ("library", "characters")
-            assert relative.suffix.lower() == ".webp"
+            assert relative.suffix.lower() in {".webp", ".glb"}
             for parent in relative.parents:
                 assert not (repository / parent).is_symlink()
+        if relative.suffix.lower() in MODEL_MEDIA_SUFFIXES:
+            assert len(relative.parts) == 4
+            assert relative.parts[:2] == ("library", "characters")
+            assert relative.name == "sd_3d.glb"
+            assert (repository / relative.with_suffix(".json")).is_file()
         if is_style_dictionary:
             assert relative.parent == STYLE_DICTIONARY_ROOT / "images"
             assert relative.suffix.lower() == ".webp"
@@ -716,6 +724,8 @@ def _media_family(suffix: str) -> str:
         return "video"
     if suffix in FONT_MEDIA_SUFFIXES:
         return "font"
+    if suffix in MODEL_MEDIA_SUFFIXES:
+        return "model"
     return "image"
 
 

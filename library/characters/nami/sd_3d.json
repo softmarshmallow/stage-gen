@@ -1,0 +1,611 @@
+{
+  "schema_version": 1,
+  "character_id": "nami",
+  "representation_id": "sd_3d",
+  "source": {
+    "path": "library/characters/nami/sd_flat.webp",
+    "sha256": "5aa418f700f9c99bde0e336915ba99a5e8f4b7e6446d6d34265b70164ac0fd67",
+    "bytes": 970236,
+    "rights_basis": "Repository-owned original Nami character artwork, explicitly selected by the maintainer for this 3D SD representation."
+  },
+  "generation": {
+    "pipeline": "stage-gen-character-3d",
+    "component_version": "0.2.0",
+    "repository_commit": "c424ddd73e155fd44b4dc0ed7451d24c71e41f89",
+    "experiment_id": "nami_library_sd_01",
+    "experiment_sha256": "90fb56202d7cb0f3cd09c0bf937beba22b30dfa0ba9148e7a23abb9d93f5df4b",
+    "brief": "Produce a faithful 3D SD version of Nami, the repository-owned original adult human woman mascot shown in the supplied canonical reference, not a newly redesigned character. The adopted initial reference ref_0001 is the identity authority. Reuse it directly as canonical if suitable; if you generate a neutral-pose canonical, explicitly use the adopted reference asset_id as a reference image and preserve the existing face, outfit, palette and silhouette. Keep the exact strong chibi/SD proportions of the artwork, oversized head and compact adult stylized body. Preserve her pale blonde hair with pink ends, magenta eyes, cheerful open smile with tiny stylized fang, pink flower and bow ornament, charcoal rabbit hood with long floppy dark ears and pink inner panels, charcoal jacket with solid pink cuffs, small pink neck bow, short pleated charcoal skirt with solid pink hem trim, thigh-high charcoal stockings with paired pink stripes, chunky charcoal platform ankle boots with pink laces, and small charcoal crossbody bag and visible narrow strap. Follow the flat SD representation: solid color accents rather than gingham. Nami is an adult woman wearing rabbit-themed clothes; she is not a rabbit species. Preserve her recognizable long pink-tipped locks as a compact connected static hair mass, and retain both large floppy hood ears as connected static geometry. These are permitted static shape details in this development trial; no independent ear or hair motion, cloth simulation, or facial animation is requested. Do not replace her hairstyle with a short bob or remove the hood, ears, flower, skirt or bag. Use a symmetric relaxed neutral A-pose with forearms angled away from torso, visible wrists and fixed rounded mitten hands; hands must have clear air gaps from skirt, hair and bag so the rig cannot bind them to garment surfaces. Both feet should be separated and flat. Treat the bag as attached at the hip, never floating. Convert thin bows/laces/ornament details into coherent attached small sculpted masses or painted detail; preserve their visual identity. Build one whole textured character with clean matte toy-like materials, soft rounded forms and readable face. Generate consistent isolated whole-character front/back references on a plain opaque background, with complete hood ears, hair tips and boot soles inside the frame and the same outfit at matching scale. Any additional reference views must use the same canonical identity. Keep broad color blocks and the distinctive reference proportions visible at 120 pixels. The input drawing is the original reference for this derivative; no named external character, franchise or artist imitation is requested.",
+    "brief_sha256": "cbed4e0e8b5ee429861b6b3b01673f6f366a27c83e7288e088b9fa55e9ea585b",
+    "pipeline_mode": "brief_to_rig",
+    "partition_preset": "whole",
+    "admission_mode": "development",
+    "effective_profile_sha256": "47848355ae59320acab9dd03282c079b770214d673bd419653bf7d9110ead012",
+    "profile_resource": {
+      "path": "profiles/sd_human_fixed.json",
+      "sha256": "1d047009a270156fe55783aafe99fe8342b3d8a116e4a3e32c79f83f344b1e79"
+    },
+    "agent_route": "openai/gpt-6-astra@openrouter",
+    "review_mode": "required",
+    "pipeline_review_quality_bar": "low",
+    "source_normalization": {
+      "operation": "decode_webp_encode_png_no_pixel_edits",
+      "input_sha256": "5aa418f700f9c99bde0e336915ba99a5e8f4b7e6446d6d34265b70164ac0fd67",
+      "output_sha256": "7b5d730b065821296a84f82fa4362f708049fcd2f68ef283d5442a613deb78c4",
+      "output_bytes": 1353155,
+      "image": {
+        "width": 1024,
+        "height": 1536,
+        "mode": "RGB"
+      }
+    },
+    "selected_reference_lineage": [
+      {
+        "asset_id": "ref_0001",
+        "kind": "adopted",
+        "purpose": "canonical",
+        "view": null,
+        "sha256": "7b5d730b065821296a84f82fa4362f708049fcd2f68ef283d5442a613deb78c4",
+        "bytes": 1353155,
+        "image": {
+          "format": "png",
+          "width": 1024,
+          "height": 1536,
+          "media_type": "image/png"
+        },
+        "input_sha256": []
+      },
+      {
+        "asset_id": "ref_0002",
+        "kind": "generated",
+        "purpose": "canonical",
+        "view": null,
+        "sha256": "d4e8878d984ca8af947c690b17e58e73f8b0957b7f91c96ae550c09845c2b9cf",
+        "bytes": 1706615,
+        "image": {
+          "format": "png",
+          "width": 1024,
+          "height": 1536,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "7b5d730b065821296a84f82fa4362f708049fcd2f68ef283d5442a613deb78c4"
+        ],
+        "generation": {
+          "provider": "openrouter",
+          "model": "openai/gpt-image-2.5-sunburst",
+          "prompt": "Faithfully convert the SAME repository-owned original adult human woman Nami in input ref_0001 into a matte 3D SD toy neutral-pose canonical, not a redesign. Preserve the artwork's extremely oversized head and compact short adult stylized body, huge magenta eyes, pale blonde sweeping bangs and long pink-ended locks, cheerful open smile with tiny fang. Strict front full body, symmetric relaxed A-pose, arms angled outward with both visible wrists and rounded fixed mitten hands clearly separated by air from skirt, hair and bag. No individual articulated fingers. Separated flat feet. Preserve charcoal rabbit clothing hood with TWO huge long floppy dark ears and solid pink inner panels. Pink X button on anatomical left hood (image right), pink flower and dark pink bow on anatomical left temple, large long pink-tipped side ponytail on anatomical left as compact connected static sculpted mass behind arm, plus long curled face-framing locks. No bob. No eye occlusion, no hair-hand contact. Charcoal jacket broad solid pink cuffs, small pink neck bow, short pleated charcoal skirt solid pink hem trim, thigh-high charcoal stockings TWO pink top stripes each, short visible thigh gap, chunky charcoal platform ankle boots with pink laces. Small charcoal rounded bag flush attached at anatomical left hip, narrow visible strap diagonally from anatomical right shoulder. No floating accessories or rabbit tail. Same palette, same strong chibi head/body ratio, do not lengthen limbs or shrink head. No gingham. Simplify laces bows ornament into attached coherent small sculpted masses or painted details. One whole character with soft rounded matte toy surfaces, face readable at small size. Plain opaque warm off-white background, even studio light, minimal contact shadow. No text. Full ears, hair tips and soles comfortably within frame.",
+          "prompt_sha256": "70e3618b74737823ed9b1a144c16bf7c443205649aa4e324eaa4ac1f3c0c55de",
+          "attempts": 1,
+          "retries": 0,
+          "prompt_hash_scope": "full_exact_utf8_string",
+          "settings": {
+            "n": 1,
+            "aspect_ratio": "2:3",
+            "quality": "high",
+            "background": "opaque"
+          }
+        }
+      },
+      {
+        "asset_id": "ref_0003",
+        "kind": "generated",
+        "purpose": "part_atlas",
+        "view": null,
+        "sha256": "d808e1b47643ac5973252047e089e1f98a0778d644465c2ad36f6ff33019768d",
+        "bytes": 1694664,
+        "image": {
+          "format": "png",
+          "width": 1536,
+          "height": 1024,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "d4e8878d984ca8af947c690b17e58e73f8b0957b7f91c96ae550c09845c2b9cf"
+        ],
+        "generation": {
+          "provider": "openrouter",
+          "model": "openai/gpt-image-2.5-sunburst",
+          "prompt": "Produce a two-panel whole-character turnaround of EXACTLY the Nami matte 3D SD toy in canonical ref_0002. Left panel strict straight FRONT, right panel strict straight BACK of the SAME figure rotated 180 degrees, not a second front. Full-body isolated character in EACH panel at identical scale, identical symmetric neutral A-pose and equal floor level; plain opaque off-white background, no text, no divider, no other objects. Generous blank gutter and outside margins so every ear tip, hair tip, hand and sole fits its own half without touching boundaries. Preserve extremely oversized head, short compact human adult stylized body, soft matte materials, original face with magenta eyes and cheerful open fang smile, all charcoal/pink outfit details and pale blonde long pink-tipped locks. Whole character includes all hair hood ears clothes bag hands feet as one intended generation group. Do not dismantle parts. Hood has exactly TWO long floppy charcoal ears with pink inner panels visible front and charcoal outer backs visible rear. Pink X hood button and pink flower/dark-pink bow at anatomical LEFT temple (front image right, back image left). Large long left-side pink-tipped ponytail stays on anatomical LEFT in both views, not mirrored to the other body side; connected compact sculpted hair mass tucked behind left arm, preserving long hairstyle. Back shows rounded charcoal hood covering rear skull, long side hair beneath it, rear charcoal jacket and pleated skirt with continuous solid pink hem, same paired pink stripes around stockings and chunky ankle platform boots (laces on front only). NO rabbit tail or added back ornaments. Crossbody bag flush at anatomical LEFT hip (front image right, back image left), narrow strap from anatomical RIGHT shoulder across torso to left hip, show natural rear continuation of strap on jacket. Keep arms relaxed symmetric angled outward, and expose a short skin wrist segment between each solid pink sleeve cuff and rounded fixed mitten hand; both hands have CLEAR BACKGROUND AIR GAPS from ALL skirt, bag and hair shapes in both views. Keep ponytail inward/behind arm so no hand/hair tangencies. Human mitten hands, not paws, no articulated fingers. Legs separated and feet flat. Preserve canonical scale/proportions/ear silhouette and palette; do not shorten hair or remove anything. No gingham, no gloss, no new accessories. Orthographic studio turnaround, identity and geometry consistent front-to-back.",
+          "prompt_sha256": "1e99a5f801e56c89a0ed08da45951558021bcbca6edd002a211bac1d6145df0c",
+          "attempts": 1,
+          "retries": 0,
+          "prompt_hash_scope": "full_exact_utf8_string",
+          "settings": {
+            "n": 1,
+            "aspect_ratio": "3:2",
+            "quality": "high",
+            "background": "opaque"
+          }
+        }
+      },
+      {
+        "asset_id": "ref_0006",
+        "kind": "atlas_crop",
+        "purpose": "part_view",
+        "view": "front",
+        "sha256": "630e1a642a9e6515fa8dec7d81b2972dfa280a452d27f251eeb6a801a6f94aa7",
+        "bytes": 768180,
+        "image": {
+          "format": "png",
+          "width": 768,
+          "height": 1024,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "d808e1b47643ac5973252047e089e1f98a0778d644465c2ad36f6ff33019768d"
+        ],
+        "crop": {
+          "box": [
+            0,
+            0,
+            768,
+            1024
+          ],
+          "coordinate_system": "stored_image_pixels_top_left_half_open_xyxy",
+          "pixel_operation": "Pillow crop only; decoded pixels preserved without repainting or resizing"
+        }
+      },
+      {
+        "asset_id": "ref_0007",
+        "kind": "atlas_crop",
+        "purpose": "part_view",
+        "view": "back",
+        "sha256": "ddb7455fcb731f699ed21f027a650bb93e12a59c3fa62bdfe75cb30ba203f592",
+        "bytes": 705133,
+        "image": {
+          "format": "png",
+          "width": 768,
+          "height": 1024,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "d808e1b47643ac5973252047e089e1f98a0778d644465c2ad36f6ff33019768d"
+        ],
+        "crop": {
+          "box": [
+            768,
+            0,
+            1536,
+            1024
+          ],
+          "coordinate_system": "stored_image_pixels_top_left_half_open_xyxy",
+          "pixel_operation": "Pillow crop only; decoded pixels preserved without repainting or resizing"
+        }
+      }
+    ],
+    "selected_mesh": {
+      "route": "P2-20260801@tripo",
+      "prompt": "Generate the independently reviewed character part from its named views.",
+      "input_views": [
+        {
+          "view": "front",
+          "sha256": "630e1a642a9e6515fa8dec7d81b2972dfa280a452d27f251eeb6a801a6f94aa7"
+        },
+        {
+          "view": "back",
+          "sha256": "ddb7455fcb731f699ed21f027a650bb93e12a59c3fa62bdfe75cb30ba203f592"
+        }
+      ],
+      "settings": {
+        "texture": true,
+        "pbr": true,
+        "quad": true,
+        "face_limit": 10000
+      },
+      "plan_sha256": "32589832206512e742ef86cccfca039fa8b281a3dc02f6230404852ef4077b6a",
+      "provider_output_sha256": "9bc184c4274772066e010ad6194406abe473f9a59e62d3ecad96de4fb2d3c0fd",
+      "assembly_sha256": "5e00bfe5c566faf11468ad15b6b7f541902bc043a7dd8edcba2f690183d5b689",
+      "assembly_report_sha256": "6ffdd46dd5e1cd494062e8d318e80cf8f05676ee01edd4884aa27e3a015b3b9b"
+    },
+    "selected_rig": {
+      "route": "v1.0-20240301@tripo",
+      "settings": {
+        "rig_type": "biped",
+        "spec": "mixamo",
+        "out_format": "glb"
+      },
+      "plan_sha256": "a7526289ab96d3e67c51190e9f1d62ca01870cb71a02037f9da8e91aad58894e",
+      "provider_output_sha256": "288456db04ecb09939e21b6f2ce1c8ca46ebc19686ccfc098aea1edb5b4d6fae",
+      "adapted_output_sha256": "8efbef43c6caa1379c2f0f60c21a6c1255ed1e557d0c8860d09e03eaf65177cf",
+      "local_processing": "Preserve geometry, UVs and textures; restore source normals, apply matte material policy, and add original diagnostic clips.",
+      "local_manifest_sha256": "0be603e31f54cad0a638a59b41c02388c6d0ea215f1e42cdd81e76ae1bd45742"
+    },
+    "pipeline_result": {
+      "status": "failed",
+      "record_sha256": "c2f4abb321941256215c62352ed0e7cef1ff8a6cfd0ae4e1cb46976b0322f235",
+      "reason": "Both automatic rigs were rejected for arm-driven hanging-hair deformation and skirt deformation.",
+      "selected_candidate": "rig_01",
+      "mesh_candidates": 2,
+      "rig_candidates": 2,
+      "review_facts": [
+        {
+          "stage": "references_review_01",
+          "record_sha256": "790cde78da24c8da0b567c9299cddb310fc24532a3634d4d7e0a340e6452d4ac",
+          "accepted": true,
+          "issues": [
+            {
+              "severity": "minor",
+              "region": "ref_0002 canonical and ref_0006 character/front: screen-right hand and long hair; ref_0007 character/back: screen-left hand and long hair",
+              "description": "Long curled hair tips approach the adjacent mitten closely, leaving only narrow visible background clearance. Several fine separated curls also make the requested compact static hair mass less explicit. No hand is visibly missing or merged, but these contours could complicate reconstruction."
+            }
+          ]
+        },
+        {
+          "stage": "assembly_review_01",
+          "record_sha256": "3062dedab0cdef881788d9a2bf2ff47297ef56f6b5bc57e10f61d0786b8ace02",
+          "accepted": true,
+          "issues": []
+        },
+        {
+          "stage": "rig_review_01",
+          "record_sha256": "5275eebe82abef45f2802b597d62de52b04c87fbcc9004b5745ca830a4985b40",
+          "accepted": false,
+          "issues": [
+            {
+              "severity": "blocking",
+              "region": "Character-right hip and skirt hem",
+              "description": "Shoulder_raise and cheer produce an asymmetric pointed skirt flap, visible on the left in front views and on the right in back views. The skirt is smooth at rest but lifts with arm motion, indicating inappropriate arm influence on hip clothing."
+            },
+            {
+              "severity": "blocking",
+              "region": "Long hanging pink hair beside and behind the shoulders",
+              "description": "The hanging hair swings into horizontal arm-following bunches during shoulder_raise and cheer and is dragged by elbow and wrist diagnostics. Its large pose-dependent displacement reads as flying, incorrectly skinned hair rather than stable attached hair."
+            }
+          ]
+        },
+        {
+          "stage": "rig_review_02",
+          "record_sha256": "cfc9b87e1a50c5f675958e836ccb36ef151c6ba5ef36c7b8565c663b3dd429fe",
+          "accepted": false,
+          "issues": [
+            {
+              "severity": "blocking",
+              "region": "Skirt and waist garment during shoulder_raise and cheer",
+              "description": "The hip garment widens and lifts when only the arms move, and thin angular extensions emerge beside the waist. These changes are visible in the atlas and are not sleeve or cuff flare."
+            },
+            {
+              "severity": "blocking",
+              "region": "Long hanging hair, especially the character's left side",
+              "description": "Hair that hangs near the hip at rest is pulled outward to shoulder height by shoulder_raise and cheer, and changes shape with elbow and wrist controls. This is conspicuous unintended deformation rather than stable attached hair."
+            }
+          ]
+        }
+      ],
+      "recorded_usage_value_usd": "10.73156",
+      "unresolved_liability_usd": "0"
+    },
+    "local_repair": {
+      "operation": "local_skin_weight_correction",
+      "input_sha256": "8efbef43c6caa1379c2f0f60c21a6c1255ed1e557d0c8860d09e03eaf65177cf",
+      "output_sha256": "4fed29a340920d8f01d0976dc8521a3a816d0576722dc3dcc23f50b1d5e81b13",
+      "record_sha256": "3dbdb25fe21a9c855c8573598161ad2b5113541b19f96f8885b93be080b1d541",
+      "selection": {
+        "method": "Exact POSITION equality welded triangle connectivity in public world coordinates; no topology edits",
+        "head_component_ids": [
+          3028,
+          8257,
+          8353,
+          8425,
+          8745,
+          8967,
+          9118,
+          9306,
+          9366,
+          9412,
+          10104,
+          10215,
+          10693
+        ],
+        "central_body_component_id": 8419,
+        "central_body_height_cut": 0.9,
+        "central_body_subcomponent_id": 6993,
+        "central_body_count": 2568,
+        "bag_hardware_component_ids": [
+          5135,
+          5860,
+          6767,
+          6838,
+          7204,
+          7642,
+          7737,
+          8047
+        ],
+        "component_digests": [
+          {
+            "component_id": 3028,
+            "count": 1140,
+            "indices_uint32_le_sha256": "6d3bb5261fa3701a1e735c42afc2049f8a077c8d40521a4405a4a998f5208277"
+          },
+          {
+            "component_id": 8257,
+            "count": 1151,
+            "indices_uint32_le_sha256": "c921922f9ed0d2e218c0992e6bae4ff4090d5444243e06366ec4896f6d894358"
+          },
+          {
+            "component_id": 8353,
+            "count": 4404,
+            "indices_uint32_le_sha256": "e4bb4e5d2d311f3b52d3115f8c7781eb100b4043a1b48e96d0b989b51dcd58a8"
+          },
+          {
+            "component_id": 8425,
+            "count": 72,
+            "indices_uint32_le_sha256": "2a53d5078e52ae0fb3db656a4df570af9c89a93df8d6c580ebc41ac85cf6c424"
+          },
+          {
+            "component_id": 8745,
+            "count": 409,
+            "indices_uint32_le_sha256": "cde6326920de13afb88d28d1466a2b116e060015541a32a0479e11ac60182c0e"
+          },
+          {
+            "component_id": 8967,
+            "count": 430,
+            "indices_uint32_le_sha256": "76b72154713f50771591900bd4c3fa957ebd89eda72babc4b036d1ea4835512d"
+          },
+          {
+            "component_id": 9118,
+            "count": 92,
+            "indices_uint32_le_sha256": "35bb50b769e37598968e86dc6c6e682079847a048ae0dd8231d34af800926819"
+          },
+          {
+            "component_id": 9306,
+            "count": 96,
+            "indices_uint32_le_sha256": "516f962ed27aadacd2dda60c71e567093db0ba489c4bc10f9e4de162991914d0"
+          },
+          {
+            "component_id": 9366,
+            "count": 86,
+            "indices_uint32_le_sha256": "7b518232042ae6b3cdda45978f05d6490b570cfb3b5aecffce0820a43ec28b50"
+          },
+          {
+            "component_id": 9412,
+            "count": 288,
+            "indices_uint32_le_sha256": "67c0c8247d61d3654e4b8a04f214a62515ead82af06a2733e388db343552b5bb"
+          },
+          {
+            "component_id": 10104,
+            "count": 296,
+            "indices_uint32_le_sha256": "f85ac2bce5424d18ff184ad926fce14796b2c901f2d1318415956cbd9c84f2ee"
+          },
+          {
+            "component_id": 10215,
+            "count": 1279,
+            "indices_uint32_le_sha256": "800c31792c12a54e12b062d71a08a2c70d495066b68c8977d0528174ac809b79"
+          },
+          {
+            "component_id": 10693,
+            "count": 2590,
+            "indices_uint32_le_sha256": "26f0f74e5d86b0a1339d38554070c57ec43bfbfcc068d1a5dc65d6036ac047c2"
+          },
+          {
+            "component_id": 5135,
+            "count": 148,
+            "indices_uint32_le_sha256": "da076781dfa8221ba7f2c0648c579f5e5fe6227a33df781c88a31b28d95f716f"
+          },
+          {
+            "component_id": 5860,
+            "count": 76,
+            "indices_uint32_le_sha256": "8ac314fd85a5d297a939895dce1c91c27085913dc57b2fde8b172a6d269eec27"
+          },
+          {
+            "component_id": 6767,
+            "count": 134,
+            "indices_uint32_le_sha256": "e829f77a46d55ca1dc68830e5065c716a495faa068b3ba076e2a36e8b83e510e"
+          },
+          {
+            "component_id": 6838,
+            "count": 312,
+            "indices_uint32_le_sha256": "72b473b62e09521e6507d8edd80668c85867dbc2dc991d378300844bd0db6e19"
+          },
+          {
+            "component_id": 7204,
+            "count": 92,
+            "indices_uint32_le_sha256": "47f4b95f746d7b42a02675a2f16a9ad53e43f7f5f4a2228b914d73c6218e678a"
+          },
+          {
+            "component_id": 7642,
+            "count": 144,
+            "indices_uint32_le_sha256": "78e5193576dd3a57cfacdaf921eb06f532353ecc73d828c7d3caa0920c38a14a"
+          },
+          {
+            "component_id": 7737,
+            "count": 60,
+            "indices_uint32_le_sha256": "da9b01cd5d2552f8039cc0b775c3d7b352faa32a6278eaae3a0eb9a41e0d3812"
+          },
+          {
+            "component_id": 8047,
+            "count": 232,
+            "indices_uint32_le_sha256": "27951034fd3d31ba3788da020254dd3d402d82316f1625a5e50010226f5666d3"
+          },
+          {
+            "component_id": 8419,
+            "count": 4260,
+            "indices_uint32_le_sha256": "f5e6aa4b434b0808ba013265368c782a9d4a930582f61591bb6d8bc277db5844"
+          }
+        ],
+        "masks": {
+          "head": {
+            "count": 12333,
+            "indices_sha256": "a089a8528d8d82ca2086640ec683f970ae54ac51e44ba85d2af22ece8b9f3012",
+            "indices_uint32_le_sha256": "427c0c96dea2ec444714791b0ab038aa8c0e486e05de5cca459bfac6f2abf0b7",
+            "assignment": "Rigid 100% mixamorig:Head, skin joint index 6",
+            "bounds_public": {
+              "min": [
+                -0.7635564707369978,
+                0.5959945333238226,
+                -0.4538350233331282
+              ],
+              "max": [
+                0.7635563515277284,
+                2.000000181467185,
+                0.45383484451922407
+              ]
+            }
+          },
+          "lower_body": {
+            "count": 3766,
+            "indices_sha256": "837073229749b863f17f10ea97e20cde2365e37561ea37ae573ec6bbd206d5bd",
+            "indices_uint32_le_sha256": "926f3e16e234d0a67534b5f96219972129869ea0a6dcd09fd0582b7866aed2c3",
+            "assignment": "Remove only skin joint indices 7..14; renormalize existing non-arm weights; Spine2 fallback for fully arm-bound strap vertices; Hips fallback for other lower-body vertices",
+            "bounds_public": {
+              "min": [
+                -0.3209576065009045,
+                0.19931636117164075,
+                -0.08060506115804261
+              ],
+              "max": [
+                0.3092327490038431,
+                1.106985662779963,
+                0.45383415906592484
+              ]
+            }
+          }
+        }
+      },
+      "preservation": {
+        "only_joint_and_weight_accessor_bytes_changed": true,
+        "changed_bytes": 143589,
+        "modified_vertices": 10341,
+        "head_vertices_modified": 8624,
+        "lower_body_vertices_modified": 1717,
+        "allowed_accessor_ranges": [
+          {
+            "semantic": "JOINTS_0",
+            "accessor": 3,
+            "file_start": 752108,
+            "stride": 4,
+            "count": 23101,
+            "row_bytes": 4
+          },
+          {
+            "semantic": "WEIGHTS_0",
+            "accessor": 4,
+            "file_start": 844512,
+            "stride": 16,
+            "count": 23101,
+            "row_bytes": 16
+          }
+        ],
+        "json_chunk_byte_identical": true,
+        "all_other_accessors_byte_identical": true,
+        "geometry_uv_normals_images_materials_skeleton_animation_bytes_identical": true,
+        "unchanged_nonweight_bytes_sha256": "7cd17bb41691ceacee5fb8691ad71d73a1016859de699a4995fbe67d03d3c2d1",
+        "maximum_rest_skin_vertex_displacement": 2.2766070894578732e-07,
+        "original_source_unchanged": true
+      },
+      "implementation_sha256": "edf44976b3d1d4e70f0d6e2935eed775c675b96b066750d33832ffa01c8f3645"
+    },
+    "model_inventory": {
+      "mesh_count": 1,
+      "primitive_count": 1,
+      "vertex_records": 23101,
+      "skin_count": 1,
+      "animation_names": [
+        "rest",
+        "shoulder_raise",
+        "elbow_bend",
+        "knee_bend",
+        "wrist_bend",
+        "cheer"
+      ],
+      "extensions_used": [
+        "KHR_materials_specular"
+      ]
+    },
+    "preview_render": {
+      "source_sha256": "4fed29a340920d8f01d0976dc8521a3a816d0576722dc3dcc23f50b1d5e81b13",
+      "record_sha256": "0272eba412b25dd57a74cb2045f44ebc77800e192bad10dac9516963481d6805",
+      "implementation_sha256": "92f3e54245f37831371d6c0220b9b40d4c9fed418f87f8c229cbab2c59b798b6",
+      "blender_version": "5.2.1 LTS",
+      "engine": "CYCLES",
+      "samples": 32,
+      "pose": "rest",
+      "material_policy": "unchanged imported GLB materials",
+      "background_srgb": [
+        240,
+        235,
+        227
+      ],
+      "camera": {
+        "matrix_public": [
+          [
+            0.9219821056073614,
+            -0.035551359538497807,
+            0.3855970666055187,
+            3.094484691590342
+          ],
+          [
+            0.0,
+            0.9957766514544958,
+            0.09180882538226637,
+            1.7367818704461597
+          ],
+          [
+            -0.3872324843550917,
+            -0.08464609413928051,
+            0.9180882538226636,
+            7.367820395529917
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "orthographic_scale": 2.5047566075245618,
+        "minimum_model_margin_pixels": 78.1016949152542
+      },
+      "rendered_png_sha256": "45d5c951bd9c9bea987bd47c53e9e9b035e4d2978bfac01fb997ff8e8021e544"
+    },
+    "publication_transform": {
+      "tool": "Pillow",
+      "version": "12.3.0",
+      "operation": "encode_webp_without_resize",
+      "settings": {
+        "quality": 90,
+        "method": 6,
+        "exact": true,
+        "metadata": "none"
+      },
+      "input_sha256": "45d5c951bd9c9bea987bd47c53e9e9b035e4d2978bfac01fb997ff8e8021e544",
+      "output_sha256": "fe030a366858906da23209f0b9cc3986878a8db54309cebd733ede4ad21b1271",
+      "width": 1024,
+      "height": 1024
+    }
+  },
+  "artifacts": [
+    {
+      "path": "library/characters/nami/sd_3d.glb",
+      "sha256": "4fed29a340920d8f01d0976dc8521a3a816d0576722dc3dcc23f50b1d5e81b13",
+      "bytes": 4601428,
+      "media_type": "model/gltf-binary"
+    },
+    {
+      "path": "library/characters/nami/sd_3d.webp",
+      "sha256": "fe030a366858906da23209f0b9cc3986878a8db54309cebd733ede4ad21b1271",
+      "bytes": 41322,
+      "media_type": "image/webp",
+      "width": 1024,
+      "height": 1024
+    }
+  ],
+  "visual_review": {
+    "reviewer": "Averroes, independent visual-review agent",
+    "independent": true,
+    "verdict": "pass",
+    "report": {
+      "path": "library/characters/nami/sd_3d.visual-review.md",
+      "sha256": "a6acb76f14d598b1f4984218e27cf5a5538db7a14f6c6eb84fb7409cdd4a770e",
+      "bytes": 8499
+    }
+  },
+  "rights": {
+    "status": "redistribution-approved",
+    "basis": [
+      "This representation derives from repository-owned original Nami artwork identified by the source SHA-256.",
+      "The maintainer explicitly authorized generating and landing 3D SD versions of the canonical library characters in this task; the final model and preview received a separate independent semantic review.",
+      "No third-party character artwork or animation recording is included. Repository source-code licensing is not asserted as a generated-media license."
+    ],
+    "reviewed_at": "2026-09-13T15:17:56Z"
+  }
+}

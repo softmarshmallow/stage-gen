@@ -1,0 +1,458 @@
+{
+  "schema_version": 1,
+  "character_id": "riko",
+  "representation_id": "sd_3d",
+  "source": {
+    "path": "library/characters/riko/sd_flat.webp",
+    "sha256": "f01c965ff785f0a90a8e19a0f2c1c78820eb54ac50cb4b9f78ba1d264369b3dd",
+    "bytes": 208504,
+    "rights_basis": "Repository-owned original Riko character artwork, explicitly selected by the maintainer for this 3D SD representation."
+  },
+  "generation": {
+    "pipeline": "stage-gen-character-3d",
+    "component_version": "0.2.0",
+    "repository_commit": "c424ddd73e155fd44b4dc0ed7451d24c71e41f89",
+    "experiment_id": "riko_sd_01",
+    "experiment_sha256": "d7590a68fda493b48a084ecf2e5115b4a1277c583d0ac87161f0261825418084",
+    "brief": "Create the 3D SD representation of Riko, the repository-owned original adult woman, directly from the supplied authoritative canonical SD illustration. She is an adult aged 24, with an oversized expressive head and compact curvy super-deformed proportions matching the reference, a defined waist, rounded hips and fuller thighs. Keep the same identity, recognizable silhouette, facial expression, outfit and colors; this is an adaptation of the existing Riko, not a new design. The supplied canonical has already been registered as ref_0001 by the host. Keep that exact original as the canonical when possible. Any generated canonical redraw must explicitly use ref_0001 in reference_asset_ids and preserve its identity; never generate a replacement character from text alone. Generate neutral front/back A-pose views explicitly from that canonical, with complete head-to-sole coverage, both feet visible, separated legs, clear air gaps between arms and torso, mitten hands separated from hips, and consistent scale and identity across views. Other named views may clarify the large side ponytail, sweater and sneakers.\nPreserve honey-blonde hair fading to saturated pink ends, the high side ponytail on her own left side (image-right in the front view), the large raspberry bow at its attachment, her short front fringe and two pink hair clips. The long sweeping side ponytail is a defining feature: do not remove it, replace it with a bob, shorten it to imitate the profile's short-haired examples, or move it to the opposite side. Model the ponytail, braid, bow and hair as a coherent statically connected sculpted mass carried by the head; independent hair, cloth and accessory dynamics are not required. Preserve the silhouette and visual length shown in the reference, with broad secure attachment. This is an explicitly authorized development adaptation beyond the profile's qualified short-haired examples; the fixed-hand profile controls body/wrist articulation, not a request to redesign Riko's hairstyle.\nKeep large rose-coral eyes, expressive lashes, friendly exuberant open smile, small visible fang if feasible, pink cheeks and a small nose. Preserve the loose off-shoulder raspberry cropped sweater with broad readable neckline and sleeves, small cream sparkle marks on the front, high-waisted dark denim shorts with readable pale frayed trim, small black choker with pink heart, pink heart details near the face, white short socks with pink bands, and chunky white high-top sneakers with pink laces and tongue accents and dark soles. Simplify tiny details only enough for clean matte SD 3D surfaces while retaining these identity markers and colors. Hands are fixed mitten hands with moving wrists; the input peace sign and hand-on-hip pose are replaced only by the neutral separated A-pose for rigging, not individual finger articulation. Keep all clothing and accessories attached; treat small hearts and ornament details as fixed integrated forms or texture details rather than detached swinging objects. One whole character generation group only, with no separate ponytail/ear/hand part roles. No rabbit hood, no invented logos or text, no extra props, no borrowed characters, and no changing the existing source artwork. Use a clean opaque neutral background and soft diffuse matte finish.",
+    "brief_sha256": "b332e4ccf2f012dd22603b85cc3a331f873d6377d30a83107f4558b1a64bf54d",
+    "pipeline_mode": "brief_to_rig",
+    "partition_preset": "whole",
+    "admission_mode": "development",
+    "effective_profile_sha256": "47848355ae59320acab9dd03282c079b770214d673bd419653bf7d9110ead012",
+    "profile_resource": {
+      "path": "profiles/sd_human_fixed.json",
+      "sha256": "1d047009a270156fe55783aafe99fe8342b3d8a116e4a3e32c79f83f344b1e79"
+    },
+    "agent_route": "openai/gpt-6-astra@openrouter",
+    "review_mode": "required",
+    "pipeline_review_quality_bar": "low",
+    "source_normalization": {
+      "operation": "decode_webp_encode_png_no_pixel_edits",
+      "input_sha256": "f01c965ff785f0a90a8e19a0f2c1c78820eb54ac50cb4b9f78ba1d264369b3dd",
+      "output_sha256": "70ae1d6f31a60c1e2ca0e7555c60ca74111a200b3377c49fd2bd58eb1fea46ea",
+      "output_bytes": 1033732,
+      "image": {
+        "width": 1024,
+        "height": 1536,
+        "mode": "RGB"
+      }
+    },
+    "selected_reference_lineage": [
+      {
+        "asset_id": "ref_0001",
+        "kind": "adopted",
+        "purpose": "canonical",
+        "view": null,
+        "sha256": "70ae1d6f31a60c1e2ca0e7555c60ca74111a200b3377c49fd2bd58eb1fea46ea",
+        "bytes": 1033732,
+        "image": {
+          "format": "png",
+          "width": 1024,
+          "height": 1536,
+          "media_type": "image/png"
+        },
+        "input_sha256": []
+      },
+      {
+        "asset_id": "ref_0002",
+        "kind": "generated",
+        "purpose": "canonical",
+        "view": null,
+        "sha256": "2bb6fd72a6c392510a4e0aceb37a0a867984842d22ef4f0e9d942a04e7d5acc1",
+        "bytes": 1720632,
+        "image": {
+          "format": "png",
+          "width": 1024,
+          "height": 1536,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "70ae1d6f31a60c1e2ca0e7555c60ca74111a200b3377c49fd2bd58eb1fea46ea"
+        ],
+        "generation": {
+          "provider": "openrouter",
+          "model": "openai/gpt-image-2.5-sunburst",
+          "prompt": "Faithfully adapt supplied Riko artwork to a clean matte 3D SD character reference. Riko is the same original adult woman, 24: oversized expressive head, compact curvy SD proportions, defined waist, rounded hips, fuller thighs. Preserve source identity, head/body proportions, outfit and colors. Entire character head to soles centered with ample margin, front-facing neutral A-pose, upright head, arms diagonally down 35 degrees away from torso with open air gaps, fixed mitten hands away from hips, legs separated and both feet visible. Honey-blonde hair fading to saturated pink ends. Preserve the large LONG sweeping high SIDE PONYTAIL on HER LEFT (image RIGHT), to upper thigh length as source, large raspberry bow at broad secure attachment, short front fringe, two pink oval hair clips, slim braid beside her left cheek. Head hair, braid, bow and ponytail are one coherent statically supported sculpted assembly, not floating or dynamic. Do not bob, shorten or flip the hairstyle. Large rose-coral eyes and expressive lashes, exuberant open smile with tiny fang, pink cheeks, tiny nose. No eye occlusion. Loose off-shoulder raspberry cropped sweater with broad neckline and roomy sleeves, two small cream sparkle marks on front. High-waisted dark denim shorts, pale frayed trim, small exposed waist. Black choker with pink heart, small attached pink hearts near ears. White short socks with pink bands, chunky white high-top sneakers with pink laces and tongue accents, navy dark soles and side panels. Fixed mitten hands with wrists, not source peace-sign or hand-on-hip. Accessories integrated, no detached pieces, no new props, no text/logos, no rabbit hood. Plain opaque light neutral background, diffuse lighting and matte SD surfaces. Match original faithfully, not a replacement design. This is a derivative adaptation study; original remains authoritative canonical.",
+          "prompt_sha256": "137426922eaf7b6584390b71078593f42a1234e9f0295dd443f43ea4979190d7",
+          "attempts": 1,
+          "retries": 0,
+          "prompt_hash_scope": "full_exact_utf8_string",
+          "settings": {
+            "n": 1,
+            "aspect_ratio": "2:3",
+            "quality": "high",
+            "background": "opaque"
+          }
+        }
+      },
+      {
+        "asset_id": "ref_0003",
+        "kind": "generated",
+        "purpose": "part_atlas",
+        "view": null,
+        "sha256": "4d1bf9ec76c534ad197aa6e339c28818fefbb7d797f238b748df2784c6fb50ce",
+        "bytes": 1732751,
+        "image": {
+          "format": "png",
+          "width": 1536,
+          "height": 1024,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "70ae1d6f31a60c1e2ca0e7555c60ca74111a200b3377c49fd2bd58eb1fea46ea",
+          "2bb6fd72a6c392510a4e0aceb37a0a867984842d22ef4f0e9d942a04e7d5acc1"
+        ],
+        "generation": {
+          "provider": "openrouter",
+          "model": "openai/gpt-image-2.5-sunburst",
+          "prompt": "Two-panel whole-character reference atlas of exactly the supplied Riko, faithful to original canonical ref_0001 and the supplied neutral matte adaptation ref_0002. LEFT panel strict orthographic FRONT; RIGHT panel strict orthographic BACK of the SAME character in identical neutral A-pose, equal size, head top and shoe soles aligned. Two separate full head-to-sole figures with ample blank margin and central gutter on opaque light gray background. No captions, text, borders or extra parts. Adult 24, oversized head and compact curvy SD proportions, defined waist, full rounded hips/thighs. Preserve honey-blonde to saturated pink hair, long voluminous sweeping ponytail attached high on HER LEFT: image RIGHT in FRONT, image LEFT in BACK. It must retain upper-thigh-reaching visual length and large raspberry bow, broad static head attachment; hair, bow and narrow left cheek braid are supported sculpted masses. Back shows back of head, swept hair into left ponytail, no face/eyes on rear. Front has two pink clips, fringe, readable rose-coral eyes, lashes, blush, exuberant open smile and tiny fang. Pink heart ornaments close attached to ears and heart on black choker. Raspberry loose off-shoulder cropped sweater, broad neckline, voluminous sleeves, two cream front sparkles ONLY front, plain sweater back. High-waist navy denim shorts with pale frayed hems, plausible rear pockets. White socks pink band, white high-top sneakers pink laces/tongues, navy side insets and dark soles; correct heel backs in rear view. CRITICAL neutral riggable A-pose with arms straight diagonally down/out, both wrists and simple fixed mitten hands fully outside hips, clear background wedges between sleeves and torso. Widen stance slightly from adaptation so visible gap begins at shorts crotch and extends between thighs to ground, both shoes apart and flat. Do not thin thighs; move legs apart. No peace sign, no fingers, no hand on hip. Keep ponytail behind the left arm and away from hand, no intersection or fusion to cuff; preserve hairstyle length. All accessories integrated, no detached hearts. Same scale, identity, hairstyle, materials, pose and lighting both views. Clean matte softly shaded 3D model appearance, no glossy finish. Whole character only; no isolated hair/hands or new design.",
+          "prompt_sha256": "a8c052c7f5348794acc253596700542f38f41af11d90f907a770821ad9fb7d00",
+          "attempts": 1,
+          "retries": 0,
+          "prompt_hash_scope": "full_exact_utf8_string",
+          "settings": {
+            "n": 1,
+            "aspect_ratio": "3:2",
+            "quality": "high",
+            "background": "opaque"
+          }
+        }
+      },
+      {
+        "asset_id": "ref_0004",
+        "kind": "generated",
+        "purpose": "part_atlas",
+        "view": null,
+        "sha256": "11f6eacb4bd20d764ef44b4d51275b23d6fe491c846c49d4ca3d4bb3381abe1e",
+        "bytes": 1794286,
+        "image": {
+          "format": "png",
+          "width": 1536,
+          "height": 1024,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "70ae1d6f31a60c1e2ca0e7555c60ca74111a200b3377c49fd2bd58eb1fea46ea",
+          "2bb6fd72a6c392510a4e0aceb37a0a867984842d22ef4f0e9d942a04e7d5acc1",
+          "4d1bf9ec76c534ad197aa6e339c28818fefbb7d797f238b748df2784c6fb50ce"
+        ],
+        "generation": {
+          "provider": "openrouter",
+          "model": "openai/gpt-image-2.5-sunburst",
+          "prompt": "Create corrected two-panel FRONT/BACK full-body whole-character modeling atlas of supplied Riko. Original ref_0001 is identity authority; ref_0002 is neutral adaptation and ref_0003 establishes paired views. Keep same adult woman age 24, expressive oversized head, compact curvy SD body, raspberry off-shoulder crop sweater with two cream sparkles on FRONT only, high-waist dark denim frayed shorts, black heart choker, attached ear hearts, striped white/pink socks and white/pink/navy high-top sneakers. Same rose-coral eyes, open exuberant fang smile, fringe, two pink clips and cheek braid. Long honey-blonde to saturated pink HIGH LEFT SIDE PONYTAIL and large raspberry bow; do NOT shorten, remove, change side or centralize it. Ponytail reaches upper thighs, front image-right, rear image-left, statically broadly attached to head. CORRECTION PRIORITIES: Both mitten hands and their wrists must be FULLY VISIBLE unobscured in BOTH front and rear. In prior rear view hair covers left wrist and most left hand: correct by bringing BOTH arms farther outward symmetrically to 45 degrees down from horizontal, with hands well OUTSIDE the outer ponytail silhouette. Place left ponytail in depth BEHIND arm from front, avoiding wrist and hand in BOTH projections; sweep only lower tip modestly inward into the open space beside hip, still long and attached high on left. Do not paint hair over hands, do not fuse hair to sleeves. Clear background air wedges from elbows to waist in both views. Slightly wider separated stance so gap between full thighs begins below shorts crotch. Upright head/body, neutral symmetric A-pose, flat separated feet. Complete head-to-sole silhouettes in both panels with >=5 percent margin above hair and below soles, centered at same scale and aligned heights. LEFT half strict FRONT; RIGHT half strict BACK with back of head, rear sweater, shorts rear pockets and shoe HEELS, no face on rear. Plain opaque light gray background, clean soft diffuse MATTE 3D sculpted finish, no text, no panel borders, no logos, no extra isolated parts or props. Preserve identity and source proportions; do not slenderize body or shrink defining long ponytail. One complete character per panel and empty central gutter.",
+          "prompt_sha256": "ecb3b3a99edda713ea4f1e0fe0ce3a37958503bdeb42cfe55184274b45b4e995",
+          "attempts": 1,
+          "retries": 0,
+          "prompt_hash_scope": "full_exact_utf8_string",
+          "settings": {
+            "n": 1,
+            "aspect_ratio": "3:2",
+            "quality": "high",
+            "background": "opaque"
+          }
+        }
+      },
+      {
+        "asset_id": "ref_0005",
+        "kind": "atlas_crop",
+        "purpose": "part_view",
+        "view": "front",
+        "sha256": "88c70587092d3fb540b58f123f89d1bde7d5a1e717be4b639eda690a21441b25",
+        "bytes": 827513,
+        "image": {
+          "format": "png",
+          "width": 768,
+          "height": 1024,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "11f6eacb4bd20d764ef44b4d51275b23d6fe491c846c49d4ca3d4bb3381abe1e"
+        ],
+        "crop": {
+          "box": [
+            0,
+            0,
+            768,
+            1024
+          ],
+          "coordinate_system": "stored_image_pixels_top_left_half_open_xyxy",
+          "pixel_operation": "Pillow crop only; decoded pixels preserved without repainting or resizing"
+        }
+      },
+      {
+        "asset_id": "ref_0006",
+        "kind": "atlas_crop",
+        "purpose": "part_view",
+        "view": "back",
+        "sha256": "70cf50e383226666f0ba90fdf4eb774f8d350c9b320c2c91058d0873eb41eb7e",
+        "bytes": 775264,
+        "image": {
+          "format": "png",
+          "width": 768,
+          "height": 1024,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "11f6eacb4bd20d764ef44b4d51275b23d6fe491c846c49d4ca3d4bb3381abe1e"
+        ],
+        "crop": {
+          "box": [
+            768,
+            0,
+            1536,
+            1024
+          ],
+          "coordinate_system": "stored_image_pixels_top_left_half_open_xyxy",
+          "pixel_operation": "Pillow crop only; decoded pixels preserved without repainting or resizing"
+        }
+      }
+    ],
+    "selected_mesh": {
+      "route": "P2-20260801@tripo",
+      "prompt": "Generate the independently reviewed character part from its named views.",
+      "input_views": [
+        {
+          "view": "front",
+          "sha256": "88c70587092d3fb540b58f123f89d1bde7d5a1e717be4b639eda690a21441b25"
+        },
+        {
+          "view": "back",
+          "sha256": "70cf50e383226666f0ba90fdf4eb774f8d350c9b320c2c91058d0873eb41eb7e"
+        }
+      ],
+      "settings": {
+        "texture": true,
+        "pbr": true,
+        "quad": true,
+        "face_limit": 10000
+      },
+      "plan_sha256": "b70d6489b8c38bd5cb917bbd572b26d2ba6e768bd2322bbf9701032bf40dab5e",
+      "provider_output_sha256": "f388ecf1d5946c39649bcce9b561639af57ec711e99f765ea3dc8040e44a8a39",
+      "assembly_sha256": "a1fe8c24f870f5b7885b509a2c1a1100e18535a5b40af69288989bfcb9db77c8",
+      "assembly_report_sha256": "077006dfb8df316cdfba072e9f911ba27d9942a2e994f7a862663fad83491878"
+    },
+    "selected_rig": {
+      "route": "v1.0-20240301@tripo",
+      "settings": {
+        "rig_type": "biped",
+        "spec": "mixamo",
+        "out_format": "glb"
+      },
+      "plan_sha256": "464b8bb774e7eafad3f13eab642901d2b9e71eacb5b13ed8b6811a87b2788f3c",
+      "provider_output_sha256": "04f1caf5d899c83dff900b6468b836b6bb6154d6cda1d6d93b453523b9fbdd51",
+      "adapted_output_sha256": "9a1edcfd31ee3f71eea3f0557306e43e74c09de36bc71697bd8a8a041f7bf93e",
+      "local_processing": "Preserve geometry, UVs and textures; restore source normals, apply matte material policy, and add original diagnostic clips.",
+      "local_manifest_sha256": "7dd8c9c5c903bdf7a17bf4efce341da2030a6fa48081e12c2e69ef4150e898ae"
+    },
+    "pipeline_result": {
+      "status": "failed",
+      "record_sha256": "1d9341f7c97a02b1bdbf5118dc8706c7212a4fac4afeeb83a092bd4ff5ff3b38",
+      "reason": "Both automatic rigs were rejected for arm-driven hanging-hair deformation.",
+      "selected_candidate": "rig_01",
+      "mesh_candidates": 2,
+      "rig_candidates": 2,
+      "review_facts": [
+        {
+          "stage": "references_review_01",
+          "record_sha256": "ba7c4943c27bbfa9fea4461677db99fb91fd43830380d8a28807b1d6c980d3a7",
+          "accepted": true,
+          "issues": [
+            {
+              "severity": "minor",
+              "region": "ref_0006 character/back: own-left ponytail over sleeve and wrist vicinity, image-left",
+              "description": "The long ponytail overlaps much of the rear left sleeve and approaches the mitten, reducing clarity of hair-versus-arm depth. Both the hand and sleeve remain identifiable; no missing anatomy is observed."
+            },
+            {
+              "severity": "minor",
+              "region": "ref_0006 character/back: knees and calves",
+              "description": "Rounded pink knee shading resembles the front-view shading and is anatomically ambiguous at inspection scale. Rear hair, clothing and heels independently establish a genuine back view."
+            }
+          ]
+        },
+        {
+          "stage": "assembly_review_01",
+          "record_sha256": "a3585d1f71ee95b61a4576f2e426fddbfde2b38b4c8431b4ba1ac985c21b9fbb",
+          "accepted": true,
+          "issues": []
+        },
+        {
+          "stage": "rig_review_01",
+          "record_sha256": "3b12051caace06a0f65912881e7e5729b69aa7c3b52f7126a1fa79089b45904f",
+          "accepted": false,
+          "issues": [
+            {
+              "severity": "blocking",
+              "region": "Long ponytail, especially its lower pink strands beside the raised arm",
+              "description": "Shoulder_raise and cheer pull the lower ponytail upward from shorts level into the shoulder/sleeve region. The back views show loss of its hanging silhouette, and cheer/right shows pink strands bunching across the sleeve. The hair is visibly being deformed with the arm rather than remaining a stable head-attached accessory."
+            }
+          ]
+        },
+        {
+          "stage": "rig_review_02",
+          "record_sha256": "66e8da2477607408f0db19766c90d87e7ba9028d1a7b7d900668dac2049c2e96",
+          "accepted": false,
+          "issues": [
+            {
+              "severity": "blocking",
+              "region": "Lower ponytail and hanging hair beside the shoulders and sleeves",
+              "description": "Arm and elbow motion visibly pulls the hanging hair away from its rest shape. Shoulder raise and cheer lift the hip-length pink strands into bunches around the upper arms; the cheer side and three-quarter views show hair entangled with the raised sleeve. This is unintended deformation of head-attached geometry, not merely an imperfect seam or bilateral cloth flare."
+            }
+          ]
+        }
+      ],
+      "recorded_usage_value_usd": "9.613833",
+      "unresolved_liability_usd": "0"
+    },
+    "local_repair": {
+      "operation": "local_skin_weight_correction",
+      "input_sha256": "9a1edcfd31ee3f71eea3f0557306e43e74c09de36bc71697bd8a8a041f7bf93e",
+      "output_sha256": "c3db2031bda77b7128d19d8e5b25c1c001a615390f0d50f1ff1577bd2048aca3",
+      "record_sha256": "65cf142d2813233359fe0ddece62e5c727764ea4e8d8298b418aa05be6d1ef59",
+      "selection": {
+        "method": "vertex base-color sample plus position height; coincident UV/normal seam vertices synchronized at 1e-6 position rounding",
+        "criteria": "y > 0.64 OR (y > 0.32 AND R > 230 AND B > 135 AND B > 1.08*G) in original GLB local coordinates, nearest baseColorTexture texel in 0..255 RGB",
+        "selected_vertices": 12357,
+        "changed_vertices": 5480,
+        "total_vertices": 22899,
+        "min_prior_head_weight_selected": 0.0,
+        "selected_with_prior_nonhead_influence": 5480
+      },
+      "preservation": {
+        "byte_length_identical": true,
+        "json_chunk_byte_identical": true,
+        "all_bytes_outside_joint_and_weight_buffer_ranges_identical": true,
+        "position_normal_uv_indices_images_materials_skeleton_inverse_bind_matrices_animation_bytes_identical": true,
+        "source_sha256_unchanged": true
+      },
+      "implementation_sha256": "cd513459ffb4aecaef7f99307d63c05cb07a148e2b81d7bf6fd4e5c47cf52adf",
+      "mutation": {
+        "attributes": [
+          "JOINTS_0",
+          "WEIGHTS_0"
+        ],
+        "target_node": "mixamorig:Head",
+        "target_skin_joint_index": 6,
+        "target_weights": [
+          1,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "model_inventory": {
+      "mesh_count": 1,
+      "primitive_count": 1,
+      "vertex_records": 22899,
+      "skin_count": 1,
+      "animation_names": [
+        "rest",
+        "shoulder_raise",
+        "elbow_bend",
+        "knee_bend",
+        "wrist_bend",
+        "cheer"
+      ],
+      "extensions_used": [
+        "KHR_materials_specular"
+      ]
+    },
+    "preview_render": {
+      "source_sha256": "c3db2031bda77b7128d19d8e5b25c1c001a615390f0d50f1ff1577bd2048aca3",
+      "record_sha256": "95fa4b6128d57e03582db28563a06080ead869a0dfc443b8e58366cf3d81e05d",
+      "implementation_sha256": "92f3e54245f37831371d6c0220b9b40d4c9fed418f87f8c229cbab2c59b798b6",
+      "blender_version": "5.2.1 LTS",
+      "engine": "CYCLES",
+      "samples": 32,
+      "pose": "rest",
+      "material_policy": "unchanged imported GLB materials",
+      "background_srgb": [
+        240,
+        235,
+        227
+      ],
+      "camera": {
+        "matrix_public": [
+          [
+            0.9219821056073614,
+            -0.035551359538497807,
+            0.3855970666055187,
+            3.009391800998128
+          ],
+          [
+            0.0,
+            0.9957766514544958,
+            0.09180882538226637,
+            1.716521695837146
+          ],
+          [
+            -0.3872324843550917,
+            -0.08464609413928051,
+            0.9180882538226636,
+            7.16521820766225
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "orthographic_scale": 2.508550321251708,
+        "minimum_model_margin_pixels": 78.1016949152542
+      },
+      "rendered_png_sha256": "e72e751dca1f1ee6a518fcfd26996a2238abd51d55302cfd28dc660a95ab209d"
+    },
+    "publication_transform": {
+      "tool": "Pillow",
+      "version": "12.3.0",
+      "operation": "encode_webp_without_resize",
+      "settings": {
+        "quality": 90,
+        "method": 6,
+        "exact": true,
+        "metadata": "none"
+      },
+      "input_sha256": "e72e751dca1f1ee6a518fcfd26996a2238abd51d55302cfd28dc660a95ab209d",
+      "output_sha256": "67c1ce85a0473f38150429843d0748b89d0e1c3e510019caa74d328df2e3c3b9",
+      "width": 1024,
+      "height": 1024
+    }
+  },
+  "artifacts": [
+    {
+      "path": "library/characters/riko/sd_3d.glb",
+      "sha256": "c3db2031bda77b7128d19d8e5b25c1c001a615390f0d50f1ff1577bd2048aca3",
+      "bytes": 4542432,
+      "media_type": "model/gltf-binary"
+    },
+    {
+      "path": "library/characters/riko/sd_3d.webp",
+      "sha256": "67c1ce85a0473f38150429843d0748b89d0e1c3e510019caa74d328df2e3c3b9",
+      "bytes": 43728,
+      "media_type": "image/webp",
+      "width": 1024,
+      "height": 1024
+    }
+  ],
+  "visual_review": {
+    "reviewer": "Averroes, independent visual-review agent",
+    "independent": true,
+    "verdict": "pass",
+    "report": {
+      "path": "library/characters/riko/sd_3d.visual-review.md",
+      "sha256": "6626fba1c6a7be009d500fdc94e2ace1ae3f656a27a19fe04ec829696c1f4730",
+      "bytes": 9811
+    }
+  },
+  "rights": {
+    "status": "redistribution-approved",
+    "basis": [
+      "This representation derives from repository-owned original Riko artwork identified by the source SHA-256.",
+      "The maintainer explicitly authorized generating and landing 3D SD versions of the canonical library characters in this task; the final model and preview received a separate independent semantic review.",
+      "No third-party character artwork or animation recording is included. Repository source-code licensing is not asserted as a generated-media license."
+    ],
+    "reviewed_at": "2026-09-13T15:17:56Z"
+  }
+}

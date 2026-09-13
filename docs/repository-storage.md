@@ -32,13 +32,18 @@ The repository gates enforce these binary-media limits:
 - audio: 20 MiB per file;
 - font: 2 MiB per file;
 - image: 5 MiB per file;
+- model: 10 MiB per file;
 - video: 25 MiB per file; and
-- all tracked/generated media combined: 100 MiB.
+- all tracked/generated media combined: 125 MiB.
 
-The aggregate ceiling intentionally accommodates the canonical 92-image style-dictionary
-preview family under `concept-studio/style-dictionary/`. That family uses full-resolution,
-deterministic lossy WebP encodes and remains subject to the unchanged 5 MiB per-image limit.
-Its lossless and provider-returned originals remain ignored run output.
+The aggregate ceiling accommodates the canonical 92-image style-dictionary preview
+family under `concept-studio/style-dictionary/` and the canonical character library.
+The increase from 100 to 125 MiB reserves space for Nami and Riko's two 3D SD models
+and their rendered previews while preserving the existing canonical artwork. Models
+count toward the same aggregate as every other media family. The style dictionary
+uses full-resolution, deterministic lossy WebP encodes and remains subject to the
+unchanged 5 MiB per-image limit. Lossless working files and provider-returned originals
+remain ignored run output.
 
 Git LFS remains disabled for this publication. The bounded preview family stays below the existing
 50 MiB family-level reconsideration threshold, no individual preview approaches the large-source
@@ -49,6 +54,7 @@ Run the canonical current-tree checks from the repository root:
 ```sh
 uv run python scripts/check_docs.py
 uv run pytest -q tests/contract/test_packaged_resources.py::test_repository_media_obeys_git_size_and_location_policy
+uv run pytest -q tests/contract/test_character_library.py
 ```
 
 The documentation checker validates every inventoried generated-media file,
@@ -69,6 +75,28 @@ all PNG/GIF or a small compressed placeholder through LFS preemptively.
 Before enabling LFS, verify remote upload/download access and quota for public
 contributors. Migrate existing matching history deliberately; adding a pattern
 does not move older blobs automatically.
+
+## Canonical character models
+
+The character library may retain one self-contained `sd_3d.glb` and one rendered
+`sd_3d.webp` beside each character's authored images. A GLB must embed its geometry
+buffers and textures; external files, data references and symlinked inputs are not
+part of this representation. Other model formats and generated working files stay
+outside the tracked library.
+
+The adjacent `sd_3d.json` record binds the canonical source image, generation and
+processing facts, and exact model and preview bytes. It records an artifact-specific
+redistribution decision and an independent passing review whose report is also
+bound by digest and byte count. The character's README links the representation
+and explains its limits. The library contract verifies those bindings and embedded
+GLB resources; runtime or provider success alone does not admit a representation.
+
+This is a curated library representation, not a new generated-media inventory root.
+The library owns its record and review; it does not use an unrelated image or
+browser-capture publication subtype. Raw responses, rejected candidates, working
+Blender files and execution logs remain ignored run output. Review the existing LFS
+thresholds against the final model sizes and expected revision history before
+landing larger binary families.
 
 ## Game media under `godot/games/`
 

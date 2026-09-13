@@ -174,6 +174,7 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         *[path for path in governance if path.exists()],
         *[path for path in (repo / "VERIFICATION.md", repo / "DESIGN.md") if path.exists()],
         *_walk_files(repo / "docs", frozenset({".md"})),
+        *_walk_files(repo / "library", frozenset({".md"})),
         # The presentation package's `history/` holds the request ledger and the
         # reviews written while its games grew up in one workspace; they cite
         # local workspace files and paths as they were. A game's `art/` and
@@ -287,7 +288,7 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
     # other way. A deleted module is never gitignored, so nothing the rule was
     # written for escapes through here.
     source_path_pattern = re.compile(
-        r"`((?:src|web|scripts|tests|apps|concept-studio|godot)/[A-Za-z0-9_./-]+?)(?:::[^`]*)?`"
+        r"`((?:src|web|scripts|tests|apps|concept-studio|godot|library)/[A-Za-z0-9_./-]+?)(?:::[^`]*)?`"
     )
     named: list[tuple[str, str, str]] = []
     for markdown_file in markdown:
@@ -316,6 +317,7 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         *prompt_fixtures,
         *concept_markdown,
         repo / "docs",
+        repo / "library",
         repo / "web",
     ]:
         text_files.extend(

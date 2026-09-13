@@ -12,6 +12,10 @@ Today, the library contains [Nami](characters/nami/README.md), the repository
 mascot, and [Riko](characters/riko/README.md), an adult human woman with exaggerated
 hourglass proportions. Nami has two illustration poses and detailed and flat SD
 concepts; Riko has fitted and loose sweater illustrations and a flat SD concept.
+Both also have a reviewed 3D SD model and a rendered preview derived from their
+flat SD artwork.
 The library retains distinct useful styles; consumers select the named
 representation suited to their purpose.
-Pipeline integration and broader user documentation updates are deferred.
+The 3D representations include self-contained GLBs, source and generation records,
+and independent visual reviews. Consumers choose their own camera, animation and
+runtime integration.

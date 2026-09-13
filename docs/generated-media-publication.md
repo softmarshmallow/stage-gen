@@ -13,7 +13,7 @@ blanket project policy. CC0 is acceptable only when the recorded basis is an
 artifact-specific rights-holder dedication.
 
 This gate governs generated outputs committed to repository publication roots.
-Two kinds of media sit outside it, and neither needs an adjacent `.meta.json`,
+Manually prepared inputs and documentation media sit outside it, and neither needs an adjacent `.meta.json`,
 `.source.meta.json`, or `.LICENSE.md` file.
 
 Manually prepared game inputs keep their exact digest, origin and rights basis
@@ -27,6 +27,14 @@ thing that would ever open one. Bind such a figure to the build it came from in
 the prose that carries it, where a person will actually see it.
 
 ## Publication records
+
+Curated canonical character models use the library-owned
+[character representation contract](repository-storage.md#canonical-character-models).
+Each `sd_3d.json` binds its original source, generated model, rendered preview,
+independent review and artifact-specific redistribution approval. These records
+are verified by `tests/contract/test_character_library.py`; the library is not
+an additional inventory root and does not use per-image `.meta.json` sidecars.
+This separate ownership does not waive semantic review or publication authorization.
 
 [`generated-media-inventory.json`](generated-media-inventory.json) enumerates
 every binary in the declared generated-media publication roots. An entry is

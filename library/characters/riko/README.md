@@ -41,3 +41,24 @@ replace the detailed textures while keeping her pink-tipped ponytail, peace sign
 loose raspberry sweater, and denim shorts recognizable.
 
 ![Riko's flat SD concept in her loose raspberry sweater, giving a peace sign](sd_flat.webp)
+
+## 3D SD
+
+A textured, rigged interpretation of the flat SD artwork, with a neutral stance
+and fixed mitten hands. It preserves the compact curvy silhouette, pink-tipped
+side ponytail and bow, loose raspberry sweater, denim shorts and chunky
+white-and-pink sneakers.
+
+![Studio render of Riko's 3D SD model](sd_3d.webp)
+
+[Download the self-contained GLB](sd_3d.glb), inspect its
+[source and generation record](sd_3d.json), or read the
+[independent visual review](sd_3d.visual-review.md).
+
+The model embeds its textures and humanoid skeleton. Hair and clothing have no
+secondary-motion simulation; fingers and facial features are fixed. The automatic
+rigs pulled the ponytail with arm movements, so this representation includes a
+local hair-weight correction followed by independent motion review. The six
+bundled clips cover rest, shoulder, elbow, knee and wrist checks, plus a short
+cheer. The preview is rendered from this GLB. Animation retargeting and runtime
+setup belong to the consuming project.
