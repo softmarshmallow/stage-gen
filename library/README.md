@@ -12,9 +12,10 @@ Today, the library contains [Nami](characters/nami/README.md), the repository
 mascot; [Riko](characters/riko/README.md), an adult human woman with exaggerated
 hourglass proportions; and [Helix](characters/helix/README.md), a male cat.
 Nami has two illustration poses and detailed and flat SD concepts; Riko has fitted
-and loose sweater illustrations and a flat SD concept. Both also have a reviewed
-3D SD model and a rendered preview derived from their flat SD artwork.
+and loose sweater illustrations and a flat SD concept.
 Helix has a seated anime-cat representation and an anthropomorphic SD concept.
+All three also have a reviewed 3D SD model and a rendered preview derived from
+their flat SD artwork.
 The library retains distinct useful styles; consumers select the named
 representation suited to their purpose.
 The 3D representations include self-contained GLBs, source and generation records,

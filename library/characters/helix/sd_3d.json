@@ -1,0 +1,1214 @@
+{
+  "schema_version": 1,
+  "character_id": "helix",
+  "representation_id": "sd_3d",
+  "source": {
+    "path": "library/characters/helix/sd_flat_anthro.webp",
+    "sha256": "16b24795aa2eba9c1159fbd482c139b339627ad43fd9baa77926adc46c0f902c",
+    "bytes": 116488,
+    "rights_basis": "Owner-provided original Helix character artwork based on the owner's pet, used with the maintainer's explicit instruction to generate this matching 3D SD representation."
+  },
+  "generation": {
+    "pipeline": "stage-gen-character-3d",
+    "component_version": "0.2.0",
+    "repository_commit": "defc6077836f30cccb3b2230b63e9f76d02dadaf",
+    "runtime_record_sha256": "dff3b0a251790b96f6ef975f481ad8ac57316cf5c3f08144c3251b7dfc1e875c",
+    "package_closure_sha256": "0d2234d5a158918b90fa48a4194cdc68b795a5d1dfbd4f26a2c28d49d7d1c2fa",
+    "experiment_id": "helix_sd_20260914",
+    "experiment_sha256": "a6292b6353a4c35eef3cc663ebe45c26344127a6e3001699826e24444548a64e",
+    "brief": "Create the 3D SD representation of Helix, the owner's original male silver-gray tabby cat, from the supplied authoritative anthropomorphic SD illustration. This is an adaptation of this specific existing cat, not a newly designed mascot. The supplied reference is already registered as ref_0001; keep it as the canonical identity. Any generated canonical or neutral reference sheet must explicitly use ref_0001 in reference_asset_ids, preserving the face, markings, colors and compact silhouette. Do not generate a replacement from text alone.\nHelix has a very oversized, round, expressive feline head with tall triangular ears, pink inner ears and white tufts; large dark eyes with warm amber rims and bright highlights; a tiny pink nose; a joyful small open mouth and pink tongue; white facial blaze, white muzzle and cheeks; silver-gray tabby forehead and cheek stripes. Preserve the white chest and round white belly, gray striped back and outer limbs, broad white paws, and a slender curved gray tabby tail with a fluffy tufted tip. His body is a compact round cat body and his hindlegs are very short, with broad paws beneath the belly. No human waist, human chest, human fingers, clothing, scarf, collar, shoes, bow, logos, text, or extra props. Keep his exact feline identity and unclothed fur. Express tufts and markings as broad sculpted shapes and texture; no fine projecting whisker strands or loose fur geometry.\nReplace only the waving/tilted input pose with a symmetrical neutral A-pose for rigging: level head, both forelimbs clearly extended diagonally away from the belly with uninterrupted air gaps from armpits through elbows to round paws; no paw or forearm touching, overlapping, or visually fused to the torso. Each forelimb must be one clean continuous form without extra folded-paw remnants or hanging strips beside the belly. Keep short but separately readable hindlegs and a small open gap between the two feet so a biped skeleton can bend naturally; allow only the minimum extra visible leg length needed for articulation, keeping his round compact cat proportions. Show full head-to-sole coverage, both feet fully visible and matching scale across all views.\nUse the cat profile's three required parts: body containing the torso and all four limbs; head including ears and face; and tail. Provide isolated front/back references of each part from the same canonical identity. The body's neck stump is simple and naturally covered by a generous fur overlap beneath the head, without inventing a scarf. Keep the long curved tail silhouette visible, with a thick secure root attached to the lower back; route it away from feet and legs with an open curve and avoid closed loops. Align both ends of every part connection. Review head-body and tail-body connections in front, back and side views. Matte toy-like 3D surfaces with faithful diffuse colors and a clean opaque neutral background.\nRig this as the profile's biped cat with grouped soft paw articulation, short hindlimb knees/ankles, rigid head/ears and attached tail chain. Place joints using the actual measured geometry. Forearm and paw influence must cover all corresponding forelimb vertices so no stationary scraps remain attached to the belly during shoulder raise or cheer. Keep torso weights out of the distal paws and use bounded semantic region overrides when inspection shows heat-weight leakage. Preserve round paws without sharp pinching. The intended final local presentation is Samba dancing; the pipeline's diagnostics are the first check, followed by independent review of the actual retargeted dance. No facial expressions or independent ear/whisker simulation are required. Each forearm and paw should be a complete closed rounded volume, with shallow toe and pad separations rendered as texture or integrated surface detail rather than layered shells. For rig influence selection, include every coincident or disconnected underside surface belonging to each distal limb, using position coincidence for selection without altering source geometry. Inspect both side views for underside remnants after shoulder, elbow, paw curl and cheer diagnostics.",
+    "brief_sha256": "a1da8cf74d106215488a772698503004b0e7075c17da712d02968e0a975f6ad1",
+    "generation_authorization_at_run": {
+      "scope": "local_generation_and_preview_only",
+      "historical_rights_basis": "Owner-provided original Helix character artwork based on the owner's pet; maintainer explicitly requested a matching local 3D SD representation and Samba preview. No public publication or Git addition is authorized. Canonical source library/characters/helix/sd_flat_anthro.webp SHA-256 16b24795aa2eba9c1159fbd482c139b339627ad43fd9baa77926adc46c0f902c is losslessly converted to the declared PNG; conversion lineage is retained beside this experiment.",
+      "later_repository_authorization": "Recorded separately in rights.basis; the frozen experiment was not changed."
+    },
+    "pipeline_mode": "brief_to_rig",
+    "partition_preset": null,
+    "part_roles": [
+      "body",
+      "head",
+      "tail"
+    ],
+    "admission_mode": "development",
+    "support_qualified": false,
+    "profile_id": "sd_cat_grouped_paws_v1",
+    "effective_profile_sha256": "d88020169e215e0f75b0943abc2c911dd7456974cb8e1ef8e08da362c43f5cb3",
+    "profile_resource": {
+      "path": "profiles/sd_cat.json",
+      "sha256": "92d5c44943a7ce3b5d870bc55b8ac3588ab73290564c3d488d4c14a0a47cc670"
+    },
+    "agent_route": "openai/gpt-6-astra@openrouter",
+    "review_mode": "required",
+    "pipeline_review_quality_bar": "low",
+    "source_normalization": {
+      "operation": "decode_webp_encode_png_no_pixel_edits",
+      "record_sha256": "905306d8b87f72407da4ca75864b76a64d181de2c892dcc844c1550b7703e0dd",
+      "input_sha256": "16b24795aa2eba9c1159fbd482c139b339627ad43fd9baa77926adc46c0f902c",
+      "output_sha256": "33e3e661026916fa812f22fbc94bdb3fbdaf228ed1c264d731c67df175d256cc",
+      "output_bytes": 676945,
+      "image": {
+        "width": 1024,
+        "height": 1536,
+        "mode": "RGB"
+      }
+    },
+    "selected_reference_lineage": [
+      {
+        "asset_id": "ref_0001",
+        "kind": "adopted",
+        "purpose": "canonical",
+        "roles": [],
+        "view": null,
+        "sha256": "33e3e661026916fa812f22fbc94bdb3fbdaf228ed1c264d731c67df175d256cc",
+        "bytes": 676945,
+        "image": {
+          "format": "png",
+          "width": 1024,
+          "height": 1536,
+          "media_type": "image/png"
+        },
+        "input_sha256": []
+      },
+      {
+        "asset_id": "ref_0002",
+        "kind": "generated",
+        "purpose": "canonical",
+        "roles": [],
+        "view": null,
+        "sha256": "f341f2bba96d45b25806293468b06ae47209aeacdbfa12752eecc734a0c5918a",
+        "bytes": 1139939,
+        "image": {
+          "format": "png",
+          "width": 1024,
+          "height": 1024,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "33e3e661026916fa812f22fbc94bdb3fbdaf228ed1c264d731c67df175d256cc"
+        ],
+        "generation": {
+          "provider": "openrouter",
+          "model": "openai/gpt-image-2.5-sunburst",
+          "operation_id": "ref_image_001",
+          "prompt": "Create a faithful neutral 3D adaptation reference of the EXACT owner cat Helix in supplied ref_0001, not a redesign. ref_0001 remains the authoritative identity. Single complete full-body FRONT image, level head, orthographic, opaque warm off-white plain background, no text. Preserve extremely oversized round head, tall triangular ears pink inside with white integrated tuft shapes, huge dark eyes warm amber rims and highlights, tiny pink nose, small joyful open mouth and pink tongue, white blaze muzzle cheeks, exact silver warm-gray tabby pattern character and colors. Compact round feline torso, white chest and round white belly, gray striped back and outer limbs, broad white paws. Unclothed cat, no accessories, no collar/scarf. Change ONLY tilted waving pose into symmetrical rig-ready A pose: shoulders at upper torso, both forelimbs extended outwards diagonally down at about 30 degrees below horizontal, continuous rounded forearm-to-paw volumes, unmistakable open background gap beneath each entire arm down to paw and between paws and belly. No old folded paw remnants or hanging fur strips beside belly. Very short but visible distinct hindlegs under round belly, broad feet fully visible with a small gap between them. Round proportions, not human waist or chest. Long curved striped tail with secure thick lower-back root, sweeps out to viewer right and curves upward openly, away from feet, fluffy integrated broad tuft tip, no closed loop. Matte toy-like smooth 3D shapes with diffuse faithful markings; no fine fur or projecting whiskers. Head rests with generous natural cheek/chin fur overlap on simple neck, no plates. Full head-to-sole and entire tail coverage, generous margins.",
+          "prompt_sha256": "25d64bc3aa6f1834d31afdf93a377c598181676e7ceb44a2275f858feaf32dd9",
+          "prompt_hash_scope": "full_exact_utf8_string",
+          "plan_file_sha256": "9ffbe9ebce0c2c611ad8603048ef57f4fafff4500b5358e15c4e0b6473953513",
+          "provider_provenance_sha256": "6aed629f158ad5671db0829632a0d9cf5b48036ee2f05a2aa84ddb3971c9cedc",
+          "attempts": 1,
+          "retries": 0,
+          "settings": {
+            "n": 1,
+            "aspect_ratio": "1:1",
+            "quality": "high",
+            "background": "opaque"
+          }
+        }
+      },
+      {
+        "asset_id": "ref_0003",
+        "kind": "generated",
+        "purpose": "part_atlas",
+        "roles": [
+          "body",
+          "head",
+          "tail"
+        ],
+        "view": null,
+        "sha256": "10ce9610cae67457fdb377469e768a0c3adf747c17a9b99718a42170965415bd",
+        "bytes": 1621683,
+        "image": {
+          "format": "png",
+          "width": 1024,
+          "height": 1536,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "33e3e661026916fa812f22fbc94bdb3fbdaf228ed1c264d731c67df175d256cc",
+          "f341f2bba96d45b25806293468b06ae47209aeacdbfa12752eecc734a0c5918a"
+        ],
+        "generation": {
+          "provider": "openrouter",
+          "model": "openai/gpt-image-2.5-sunburst",
+          "operation_id": "ref_image_002",
+          "prompt": "Faithful Helix isolated-part modeling atlas, from supplied authoritative ref_0001 and its neutral adaptation ref_0002. Preserve identity, warm silver-gray tabby colors, oversized round head, exact joyful eyes/blaze/pink nose and tongue. Opaque plain ivory background. SIX clean separated panels in a precise 2-column 3-row grid, no text, no lines, no labels, all objects wholly inside panels with large blank margins. LEFT COLUMN strict FRONT looking at +Z-facing surface, RIGHT COLUMN strict BACK looking at -Z-facing surface. ROW 1 isolated HEAD ONLY including tall pink-inner triangular ears with integrated white tufts, face and round cheeks, no torso: front left, rear right. Rear must show back of head and backs of ears, no face. ROW 2 isolated BODY ONLY: torso plus all four limbs, no head, no ears, NO TAIL. Front left and actual rear right. Preserve ref_0002 round compact white belly and chest, striped gray back/outer limbs and broad white paws. Symmetric A pose arms diagonally extended 30 degrees below horizontal. Uninterrupted large air gaps from underarms through elbows to paws, no forearms touching torso, no folded-paw remnants, no hanging strips, smooth closed single-piece forearm/paw volumes with shallow toe details, no human fingers/thumbs. Short distinct hindlegs with small foot gap, no human waist. Simple short natural fur neck stump with enough overlap to sit deep beneath head; no scarf/neck plate. Back view has striped gray back and subtle lower-back tail attachment area, no detached sockets. ROW 3 isolated TAIL ONLY, front left and rear right: same long open curved gray striped tail with thick secure rounded root tapering into shaft and integrated fluffy tufted tip, same curve and actual flipped rear projection, NOT two different designs. Root at lower inner end, tail opens toward outside, no closed loop. Same physical scale between front and rear of each role. Consistent physical relative dimensions across rows: head including ears slightly taller than body neck-to-soles, tail a little shorter than body. Entire silhouettes comfortably within each panel, no overlap into neighboring panel. Matte toy-like 3D form, faithful diffuse fur markings expressed in textures and broad integrated sculpted tufts, no fine projecting whiskers/fur, no clothes/accessories/props. This sheet is for assembling exactly three parts: body, head, tail.",
+          "prompt_sha256": "a97a609972602edb52769ad23ec53d35dd8f34649c3fc5b615ea67c0cf2bd8f8",
+          "prompt_hash_scope": "full_exact_utf8_string",
+          "plan_file_sha256": "7805979e93b854a090cb12820cf0ce4a63cdb08e990493018031c02c97f700d7",
+          "provider_provenance_sha256": "c07a1786da3d24eb26e8fb777a5e85e5ca61d73391274a98fa90688952915796",
+          "attempts": 1,
+          "retries": 0,
+          "settings": {
+            "n": 1,
+            "aspect_ratio": "2:3",
+            "quality": "high",
+            "background": "opaque"
+          }
+        }
+      },
+      {
+        "asset_id": "ref_0004",
+        "kind": "atlas_crop",
+        "purpose": "part_view",
+        "roles": [
+          "head"
+        ],
+        "view": "front",
+        "sha256": "d043ddcfd619bc214fc0600078d46e6552cfdc143dd069ad6d6074e0a199d22e",
+        "bytes": 276059,
+        "image": {
+          "format": "png",
+          "width": 492,
+          "height": 498,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "10ce9610cae67457fdb377469e768a0c3adf747c17a9b99718a42170965415bd"
+        ],
+        "crop": {
+          "box": [
+            16,
+            60,
+            508,
+            558
+          ],
+          "coordinate_system": "stored_image_pixels_top_left_half_open_xyxy",
+          "pixel_operation": "Pillow crop only; decoded pixels preserved without repainting or resizing"
+        }
+      },
+      {
+        "asset_id": "ref_0005",
+        "kind": "atlas_crop",
+        "purpose": "part_view",
+        "roles": [
+          "head"
+        ],
+        "view": "back",
+        "sha256": "b4cd843072cc90fbe8958dde86987f793e9214e4f279b54fe9ce3e5e8c008a59",
+        "bytes": 269358,
+        "image": {
+          "format": "png",
+          "width": 492,
+          "height": 498,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "10ce9610cae67457fdb377469e768a0c3adf747c17a9b99718a42170965415bd"
+        ],
+        "crop": {
+          "box": [
+            516,
+            60,
+            1008,
+            558
+          ],
+          "coordinate_system": "stored_image_pixels_top_left_half_open_xyxy",
+          "pixel_operation": "Pillow crop only; decoded pixels preserved without repainting or resizing"
+        }
+      },
+      {
+        "asset_id": "ref_0006",
+        "kind": "atlas_crop",
+        "purpose": "part_view",
+        "roles": [
+          "body"
+        ],
+        "view": "front",
+        "sha256": "5d9969e060d37efb0123758c5079b56efec92d59b29ca9657dcdf7ec10e578b3",
+        "bytes": 201566,
+        "image": {
+          "format": "png",
+          "width": 492,
+          "height": 440,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "10ce9610cae67457fdb377469e768a0c3adf747c17a9b99718a42170965415bd"
+        ],
+        "crop": {
+          "box": [
+            16,
+            570,
+            508,
+            1010
+          ],
+          "coordinate_system": "stored_image_pixels_top_left_half_open_xyxy",
+          "pixel_operation": "Pillow crop only; decoded pixels preserved without repainting or resizing"
+        }
+      },
+      {
+        "asset_id": "ref_0007",
+        "kind": "atlas_crop",
+        "purpose": "part_view",
+        "roles": [
+          "body"
+        ],
+        "view": "back",
+        "sha256": "4462a97223c157473cd37258af17d33298ca8e245b201faaa90c4ba6c7e458d1",
+        "bytes": 214650,
+        "image": {
+          "format": "png",
+          "width": 492,
+          "height": 440,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "10ce9610cae67457fdb377469e768a0c3adf747c17a9b99718a42170965415bd"
+        ],
+        "crop": {
+          "box": [
+            516,
+            570,
+            1008,
+            1010
+          ],
+          "coordinate_system": "stored_image_pixels_top_left_half_open_xyxy",
+          "pixel_operation": "Pillow crop only; decoded pixels preserved without repainting or resizing"
+        }
+      },
+      {
+        "asset_id": "ref_0008",
+        "kind": "atlas_crop",
+        "purpose": "part_view",
+        "roles": [
+          "tail"
+        ],
+        "view": "front",
+        "sha256": "26e91c9bf168c3c8c76077f9db3f2fd0219e793e8db728b8245ff23b7d2610ca",
+        "bytes": 162118,
+        "image": {
+          "format": "png",
+          "width": 420,
+          "height": 436,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "10ce9610cae67457fdb377469e768a0c3adf747c17a9b99718a42170965415bd"
+        ],
+        "crop": {
+          "box": [
+            60,
+            1024,
+            480,
+            1460
+          ],
+          "coordinate_system": "stored_image_pixels_top_left_half_open_xyxy",
+          "pixel_operation": "Pillow crop only; decoded pixels preserved without repainting or resizing"
+        }
+      },
+      {
+        "asset_id": "ref_0009",
+        "kind": "atlas_crop",
+        "purpose": "part_view",
+        "roles": [
+          "tail"
+        ],
+        "view": "back",
+        "sha256": "0bfec77c48ede6a92855cf4430b70361f9068577fc7a958762705ec48b834f4f",
+        "bytes": 160277,
+        "image": {
+          "format": "png",
+          "width": 420,
+          "height": 436,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "10ce9610cae67457fdb377469e768a0c3adf747c17a9b99718a42170965415bd"
+        ],
+        "crop": {
+          "box": [
+            544,
+            1024,
+            964,
+            1460
+          ],
+          "coordinate_system": "stored_image_pixels_top_left_half_open_xyxy",
+          "pixel_operation": "Pillow crop only; decoded pixels preserved without repainting or resizing"
+        }
+      },
+      {
+        "asset_id": "ref_0010",
+        "kind": "generated",
+        "purpose": "part_atlas",
+        "roles": [
+          "body",
+          "head",
+          "tail"
+        ],
+        "view": null,
+        "sha256": "28b6e76bf633a8ddb22eedea07662eca8cbd490522ac97dbcac2feedec0f6e40",
+        "bytes": 1489882,
+        "image": {
+          "format": "png",
+          "width": 1024,
+          "height": 1536,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "33e3e661026916fa812f22fbc94bdb3fbdaf228ed1c264d731c67df175d256cc",
+          "f341f2bba96d45b25806293468b06ae47209aeacdbfa12752eecc734a0c5918a",
+          "10ce9610cae67457fdb377469e768a0c3adf747c17a9b99718a42170965415bd"
+        ],
+        "generation": {
+          "provider": "openrouter",
+          "model": "openai/gpt-image-2.5-sunburst",
+          "operation_id": "ref_image_003",
+          "prompt": "Create supplementary SIX-panel isolated SIDE-view atlas for Helix, exact owner cat ref_0001, neutral geometry ref_0002 and isolated front/back geometry ref_0003. Preserve those exact proportions, markings and matte toy-like style. Plain opaque ivory background, no text or lines. 2 columns, 3 rows, large clear margins. LEFT COLUMN anatomical LEFT side (muzzle points toward image LEFT); RIGHT COLUMN anatomical RIGHT side (muzzle points toward image RIGHT). Orthographic genuine 90-degree side views, not front or three quarter. ROW 1 isolated HEAD with ears and face ONLY, level orientation: round oversized head tall triangular ears, huge amber/dark eyes pink nose joyful small open tongue mouth, white muzzle cheeks and blaze. Show full head depth and natural cheek/chin fur underside that overlaps neck, no neck plate. ROW 2 isolated BODY ONLY torso and all four limbs, NO HEAD NO TAIL: precise side projection of same symmetrical A-pose in ref_0003, rounded tummy white front chest and gray striped back, very short feline hindlegs broad white paws. Arms remain the SAME A pose, do not rotate limbs to wave, paw and forearm each clean single closed rounded volumes with shallow integrated details, no layered paw underside or hanging scraps. Show simple short fur neck stump that inserts under head, natural lower-back tail root attachment location but no tail appendage. ROW 3 isolated TAIL ONLY left and right side projections of exactly same open curve as ref_0003, no invented change in curve to look broader in side view: rounded thick secure root, gray tabby shaft, integrated fluffy tip. Tail has some backward depth from root before sweeping laterally outward and up, remain open curve clear of feet. Same physical scale across opposing views of each part, head ear-to-chin slightly taller than body neck-to-sole, tail slightly shorter than body. No clothing, scarf, collar, props, human fingers, fine fur geometry or projecting whiskers. Broad sculpted integrated tufts and diffuse pattern only. The purpose of these true side views is to resolve underside paw volumes, head/body depth and neck overlap, and tail root insertion angle, not redesign any part.",
+          "prompt_sha256": "cda1430116095dae9d815858b54767f367cb26a0e6ab09cc9d16fd7ebf100c49",
+          "prompt_hash_scope": "full_exact_utf8_string",
+          "plan_file_sha256": "e78d3be2fa91a9b502e8fa51ef58d5b515fcb2e130ece8af41367eea7890a714",
+          "provider_provenance_sha256": "05a6983430d2bc9ba781cbf91ce1a211f69f06bce779b179030a0ab0ae0f8f88",
+          "attempts": 1,
+          "retries": 0,
+          "settings": {
+            "n": 1,
+            "aspect_ratio": "2:3",
+            "quality": "high",
+            "background": "opaque"
+          }
+        }
+      },
+      {
+        "asset_id": "ref_0011",
+        "kind": "generated",
+        "purpose": "part_atlas",
+        "roles": [
+          "body",
+          "head",
+          "tail"
+        ],
+        "view": null,
+        "sha256": "ddf72dcad1ef07de8ea4795d27230a9a53d7b33e49257937ace3398181baf309",
+        "bytes": 1477318,
+        "image": {
+          "format": "png",
+          "width": 1024,
+          "height": 1536,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "33e3e661026916fa812f22fbc94bdb3fbdaf228ed1c264d731c67df175d256cc",
+          "f341f2bba96d45b25806293468b06ae47209aeacdbfa12752eecc734a0c5918a",
+          "10ce9610cae67457fdb377469e768a0c3adf747c17a9b99718a42170965415bd"
+        ],
+        "generation": {
+          "provider": "openrouter",
+          "model": "openai/gpt-image-2.5-sunburst",
+          "operation_id": "ref_image_004",
+          "prompt": "Corrected technical isolated-parts SIDE atlas of the EXACT Helix ref_0001 with neutral A-pose and parts from ref_0002/ref_0003. Six panels 2 columns x 3 rows opaque plain ivory background no text labels or lines, generous blank margins. All are STRICT true 90-degree LEFT profiles (left column, nose/front points screen left) and RIGHT profiles (right column, nose/front screen right). Do NOT show both feet offset sideways as in three-quarter. Row1 head only, same oversized round head triangular ears, amber eyes, white blaze/muzzle, tiny pink nose happy tongue mouth, natural broad chin fur overlap. Row2 body only with all four limbs, no head and NO TAIL or tail stub sticking out. Same round pear-cat torso and short hindlegs as ref_0003. Orthographic side projection of exact A pose: forelimbs extend LATERALLY toward/away from camera, 30 degrees below horizontal in FRONT, so in these strict side images they are FORESHORTENED SHORT rounded forms projected over side torso near upper belly. Do not angle arms forward. Far arm is occluded by near arm; far foot occluded by near foot in true side view. White chest/belly at front, gray tabby back at rear. Simple short neck stump, absolutely no scarf/collar. Forearm/paw a clean closed rounded continuous volume without layered underside, folded remnants or strips. Tail attachment is on lower BACK above hip midway up haunch, not perineum or below belly: no protruding nub. Row3 tail only as true side projection of SAME tail in ref_0003, NOT repeat its front/back broad C silhouette. Geometry: thick root emerges backward, then tail bends laterally toward character LEFT and upward, mostly in body's XY plane. Viewed along X from left/right this becomes NARROWER foreshortened upright gently bent tail with short backward base, broad integrated tuft tip. Left side root at image left and shaft behind toward image right; reverse on right side. Same physical scale opposing panels, head height slightly greater than body, tail slightly shorter than body. Faithful warm silver-gray markings matte toy-like smooth volumes, broad integrated fur tufts not strands or shells. No human anatomy, clothes, props. Prioritize exact camera geometry and unchanged A-pose over showing all limbs at once.",
+          "prompt_sha256": "2dd0c3f5c4bd570e815cb097f1a12cea8f178d96b2a6ef72d257e9d8b946ea27",
+          "prompt_hash_scope": "full_exact_utf8_string",
+          "plan_file_sha256": "bb6894e407ed70c64002b6b5bd48f6c1ef2d985d8d18fc7c285311da0bdd9691",
+          "provider_provenance_sha256": "52235e07821693fbd116054fec1516b576a588ed8759c29efd4c5a1666ee96a6",
+          "attempts": 1,
+          "retries": 0,
+          "settings": {
+            "n": 1,
+            "aspect_ratio": "2:3",
+            "quality": "high",
+            "background": "opaque"
+          }
+        }
+      },
+      {
+        "asset_id": "ref_0012",
+        "kind": "atlas_crop",
+        "purpose": "part_view",
+        "roles": [
+          "head"
+        ],
+        "view": "left",
+        "sha256": "c6cdaad5f95859f20230086cad28ee6556baa0b1e302cadc6788b8287c45f5df",
+        "bytes": 217069,
+        "image": {
+          "format": "png",
+          "width": 440,
+          "height": 490,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "28b6e76bf633a8ddb22eedea07662eca8cbd490522ac97dbcac2feedec0f6e40"
+        ],
+        "crop": {
+          "box": [
+            40,
+            40,
+            480,
+            530
+          ],
+          "coordinate_system": "stored_image_pixels_top_left_half_open_xyxy",
+          "pixel_operation": "Pillow crop only; decoded pixels preserved without repainting or resizing"
+        }
+      },
+      {
+        "asset_id": "ref_0013",
+        "kind": "atlas_crop",
+        "purpose": "part_view",
+        "roles": [
+          "head"
+        ],
+        "view": "right",
+        "sha256": "c7ec98d2aa55586a7824e416c560b3e9c4e04fd63600bfaa2e0bdf7023d5c179",
+        "bytes": 213294,
+        "image": {
+          "format": "png",
+          "width": 440,
+          "height": 490,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "28b6e76bf633a8ddb22eedea07662eca8cbd490522ac97dbcac2feedec0f6e40"
+        ],
+        "crop": {
+          "box": [
+            544,
+            40,
+            984,
+            530
+          ],
+          "coordinate_system": "stored_image_pixels_top_left_half_open_xyxy",
+          "pixel_operation": "Pillow crop only; decoded pixels preserved without repainting or resizing"
+        }
+      },
+      {
+        "asset_id": "ref_0014",
+        "kind": "atlas_crop",
+        "purpose": "part_view",
+        "roles": [
+          "body"
+        ],
+        "view": "left",
+        "sha256": "ec311dc4817d73c0c4002e0a4288cb5badb6ca7f5d2f12955fc2a6958cfc145e",
+        "bytes": 174964,
+        "image": {
+          "format": "png",
+          "width": 392,
+          "height": 488,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "ddf72dcad1ef07de8ea4795d27230a9a53d7b33e49257937ace3398181baf309"
+        ],
+        "crop": {
+          "box": [
+            80,
+            520,
+            472,
+            1008
+          ],
+          "coordinate_system": "stored_image_pixels_top_left_half_open_xyxy",
+          "pixel_operation": "Pillow crop only; decoded pixels preserved without repainting or resizing"
+        }
+      },
+      {
+        "asset_id": "ref_0015",
+        "kind": "atlas_crop",
+        "purpose": "part_view",
+        "roles": [
+          "body"
+        ],
+        "view": "right",
+        "sha256": "79d6838ded3f84b50d7dc533d2c8e8a66bcc15024da846d48ed7ac8eb6eadbee",
+        "bytes": 175475,
+        "image": {
+          "format": "png",
+          "width": 392,
+          "height": 488,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "ddf72dcad1ef07de8ea4795d27230a9a53d7b33e49257937ace3398181baf309"
+        ],
+        "crop": {
+          "box": [
+            552,
+            520,
+            944,
+            1008
+          ],
+          "coordinate_system": "stored_image_pixels_top_left_half_open_xyxy",
+          "pixel_operation": "Pillow crop only; decoded pixels preserved without repainting or resizing"
+        }
+      },
+      {
+        "asset_id": "ref_0016",
+        "kind": "atlas_crop",
+        "purpose": "part_view",
+        "roles": [
+          "tail"
+        ],
+        "view": "left",
+        "sha256": "01eda8f8ec2f352d3821ea3e65f50d68ca21b31c706d8e4c4737ffead960c303",
+        "bytes": 126538,
+        "image": {
+          "format": "png",
+          "width": 340,
+          "height": 436,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "ddf72dcad1ef07de8ea4795d27230a9a53d7b33e49257937ace3398181baf309"
+        ],
+        "crop": {
+          "box": [
+            120,
+            1024,
+            460,
+            1460
+          ],
+          "coordinate_system": "stored_image_pixels_top_left_half_open_xyxy",
+          "pixel_operation": "Pillow crop only; decoded pixels preserved without repainting or resizing"
+        }
+      },
+      {
+        "asset_id": "ref_0017",
+        "kind": "atlas_crop",
+        "purpose": "part_view",
+        "roles": [
+          "tail"
+        ],
+        "view": "right",
+        "sha256": "a7105aed3e5d7727c36a9210b6e66d0ac67783de4eb38dddb9b984fcbe2ce31d",
+        "bytes": 126933,
+        "image": {
+          "format": "png",
+          "width": 340,
+          "height": 436,
+          "media_type": "image/png"
+        },
+        "input_sha256": [
+          "ddf72dcad1ef07de8ea4795d27230a9a53d7b33e49257937ace3398181baf309"
+        ],
+        "crop": {
+          "box": [
+            564,
+            1024,
+            904,
+            1460
+          ],
+          "coordinate_system": "stored_image_pixels_top_left_half_open_xyxy",
+          "pixel_operation": "Pillow crop only; decoded pixels preserved without repainting or resizing"
+        }
+      }
+    ],
+    "selected_parts": [
+      {
+        "role": "body",
+        "candidate_id": "body_02",
+        "operation_id": "mesh_body_02",
+        "route": "P2-20260801@tripo",
+        "prompt": "Generate the independently reviewed body part from its named views.",
+        "prompt_sha256": "ac3c6377d92cf4b0b87b915d49947346c397ffa8ecd690195643f44af71928ba",
+        "input_views": [
+          {
+            "view": "front",
+            "asset_id": "ref_0006",
+            "sha256": "5d9969e060d37efb0123758c5079b56efec92d59b29ca9657dcdf7ec10e578b3"
+          },
+          {
+            "view": "back",
+            "asset_id": "ref_0007",
+            "sha256": "4462a97223c157473cd37258af17d33298ca8e245b201faaa90c4ba6c7e458d1"
+          },
+          {
+            "view": "left",
+            "asset_id": "ref_0014",
+            "sha256": "ec311dc4817d73c0c4002e0a4288cb5badb6ca7f5d2f12955fc2a6958cfc145e"
+          },
+          {
+            "view": "right",
+            "asset_id": "ref_0015",
+            "sha256": "79d6838ded3f84b50d7dc533d2c8e8a66bcc15024da846d48ed7ac8eb6eadbee"
+          }
+        ],
+        "settings": {
+          "texture": true,
+          "pbr": true,
+          "quad": true,
+          "face_limit": 10000
+        },
+        "plan_sha256": "14c2acfb531eeadc9b20b6252a74d06f1b1370e7185b1536eb5097ae4250d382",
+        "plan_file_sha256": "b76f28d3f0bf25e871855312cae3d0168c7d7613bfbe45e8490346597ab415c0",
+        "provider_output_sha256": "f70de5f33e065ad29865074a91b509e4d0f759f51171c936f1f0c259ce87a479",
+        "provider_provenance_sha256": "2e79f375d534793a791faaae77abf15a7f1cd15a8891944bc420974c8bd78102",
+        "normalized_output_sha256": "a3e5d8471f78cfc96175cf2709ea46eb23c01c1b317dc4b278ea6e325de1b2d0",
+        "normalization_report_sha256": "da079c0f8710e162f687425d15bb9202e597779735c61d79bd2c9454cbfa0e82",
+        "normalization_manifest_sha256": "31d70effd9b9ca7e5664d8b17fe096cf850988d512db2d1b988e0397b380351f"
+      },
+      {
+        "role": "head",
+        "candidate_id": "head_02",
+        "operation_id": "mesh_head_02",
+        "route": "P2-20260801@tripo",
+        "prompt": "Generate the independently reviewed head part from its named views.",
+        "prompt_sha256": "7c36e20974c57a4f8d9ba8f4be8f55ec2e2b989805cc7885ecffd30403b43c4d",
+        "input_views": [
+          {
+            "view": "front",
+            "asset_id": "ref_0004",
+            "sha256": "d043ddcfd619bc214fc0600078d46e6552cfdc143dd069ad6d6074e0a199d22e"
+          },
+          {
+            "view": "back",
+            "asset_id": "ref_0005",
+            "sha256": "b4cd843072cc90fbe8958dde86987f793e9214e4f279b54fe9ce3e5e8c008a59"
+          },
+          {
+            "view": "left",
+            "asset_id": "ref_0012",
+            "sha256": "c6cdaad5f95859f20230086cad28ee6556baa0b1e302cadc6788b8287c45f5df"
+          },
+          {
+            "view": "right",
+            "asset_id": "ref_0013",
+            "sha256": "c7ec98d2aa55586a7824e416c560b3e9c4e04fd63600bfaa2e0bdf7023d5c179"
+          }
+        ],
+        "settings": {
+          "texture": true,
+          "pbr": true,
+          "quad": true,
+          "face_limit": 10000
+        },
+        "plan_sha256": "256add7c11d0a8b7a3cd434a56ccd0b8c46129abd14b4c2bf931d848462cb061",
+        "plan_file_sha256": "3087e295df14c6864efe0c8d3a5341fdce41f6b8c4c6adfe7ec5e3285877f59d",
+        "provider_output_sha256": "77ca630d50a24eb2b51bbeccddfae5d9bfbfca641ffb4dedbf83040054fbafad",
+        "provider_provenance_sha256": "02865ad97ab7bb9fdd365d106e37fb23ebaed294235a05ccbcbcfaa8180406ad",
+        "normalized_output_sha256": "2d01262f07f259a8a7239d789c00f4200eca6b36e2cc9c2d5bc0568cb4fc00bf",
+        "normalization_report_sha256": "f6cfee7907d8e8392b6cb8008ffcb884ae10c315e1dc9a681ea5b878fe29b193",
+        "normalization_manifest_sha256": "cfe2d2f5d0a146b164bd80d2d89494d36e2d01b06e7d96a2f69fc4bc3e810f59"
+      },
+      {
+        "role": "tail",
+        "candidate_id": "tail_01",
+        "operation_id": "mesh_tail_01",
+        "route": "P2-20260801@tripo",
+        "prompt": "Generate the independently reviewed tail part from its named views.",
+        "prompt_sha256": "ba09effffcfe77e1b892e92d73755a4a3a2f4063257720cec72d17acfb6baa49",
+        "input_views": [
+          {
+            "view": "front",
+            "asset_id": "ref_0008",
+            "sha256": "26e91c9bf168c3c8c76077f9db3f2fd0219e793e8db728b8245ff23b7d2610ca"
+          },
+          {
+            "view": "back",
+            "asset_id": "ref_0009",
+            "sha256": "0bfec77c48ede6a92855cf4430b70361f9068577fc7a958762705ec48b834f4f"
+          },
+          {
+            "view": "left",
+            "asset_id": "ref_0016",
+            "sha256": "01eda8f8ec2f352d3821ea3e65f50d68ca21b31c706d8e4c4737ffead960c303"
+          },
+          {
+            "view": "right",
+            "asset_id": "ref_0017",
+            "sha256": "a7105aed3e5d7727c36a9210b6e66d0ac67783de4eb38dddb9b984fcbe2ce31d"
+          }
+        ],
+        "settings": {
+          "texture": true,
+          "pbr": true,
+          "quad": true,
+          "face_limit": 10000
+        },
+        "plan_sha256": "6a076b8de5f7bdce071cbc721e12cb5244a09244bda44ba2a4d4639f0193eccc",
+        "plan_file_sha256": "2585144d32a1f4a94228458b27fd98799576af7d1550c9d4456bd551caa2f99b",
+        "provider_output_sha256": "d3323ba0b29bfc54b2a957cabe8d7943e9d9f9db0dbf774651e6e8f972e72b29",
+        "provider_provenance_sha256": "43a2a3687dcedc2bd4572f685c20b1b7a740835b48fcdabb108b9c69a3f9b2c6",
+        "normalized_output_sha256": "ca9247736e459aec4481a24f0dcc26851efff70723ead2649ed685b591f257ac",
+        "normalization_report_sha256": "0a67b01e77b6b3718112374942fb7155aebdfd67ae8d71f01a49c50062ca6a3a",
+        "normalization_manifest_sha256": "f4e86f7bb4df10a1cf33673af32627abd4915ade1a8b9d33f6f2489ba6cbd4b6"
+      }
+    ],
+    "selected_assembly": {
+      "candidate_id": "assembly_02",
+      "output_sha256": "da03f52cf64c70161d32ba77b5e23d0a634b7fb627cb2baf6fdf3e4530b1f431",
+      "report_sha256": "18df065f46c7e6b1b655eccb8ddd3f697d909eaf0acee5d50d1207f495ae09d8",
+      "parts": [
+        {
+          "role": "body",
+          "source_sha256": "a3e5d8471f78cfc96175cf2709ea46eb23c01c1b317dc4b278ea6e325de1b2d0",
+          "transform": [
+            [
+              7.654042494670958e-17,
+              -0.0,
+              -1.25,
+              0
+            ],
+            [
+              0.0,
+              1.25,
+              -0.0,
+              0.51422119140625
+            ],
+            [
+              1.25,
+              0.0,
+              7.654042494670958e-17,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ]
+          ],
+          "material_mode": "preserve"
+        },
+        {
+          "role": "head",
+          "source_sha256": "2d01262f07f259a8a7239d789c00f4200eca6b36e2cc9c2d5bc0568cb4fc00bf",
+          "transform": [
+            [
+              7.225416114969384e-17,
+              -0.0,
+              -1.18,
+              0
+            ],
+            [
+              0.0,
+              1.18,
+              -0.0,
+              1.3602880859375
+            ],
+            [
+              1.18,
+              0.0,
+              7.225416114969384e-17,
+              0.1
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ]
+          ],
+          "material_mode": "preserve"
+        },
+        {
+          "role": "tail",
+          "source_sha256": "ca9247736e459aec4481a24f0dcc26851efff70723ead2649ed685b591f257ac",
+          "transform": [
+            [
+              4.898587196589413e-17,
+              -0.0,
+              -0.8,
+              0.58
+            ],
+            [
+              0.0,
+              0.8,
+              -0.0,
+              0.59
+            ],
+            [
+              0.8,
+              0.0,
+              4.898587196589413e-17,
+              -0.31
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ]
+          ],
+          "material_mode": "preserve"
+        }
+      ],
+      "geometry_policy": "Separate transformed parts with overlap attachment; no welded-seam claim."
+    },
+    "selected_rig": {
+      "candidate_id": "rig_01",
+      "method": "local_measured_cat_skeleton_and_skinning",
+      "source_sha256": "da03f52cf64c70161d32ba77b5e23d0a634b7fb627cb2baf6fdf3e4530b1f431",
+      "output_sha256": "f35acbec84c6fe2ee6d843a2765852125871003bca99be97b8cb948d5888a340",
+      "plan_sha256": "09e3dfa7fe988d9b23e1e780b7001fdcce484e44f04d5bb947b6849785e4595f",
+      "plan_file_sha256": "a04630ac3932ec7cbe308c065710551ee8834025611a559136be987f6d01b70b",
+      "request_sha256": "04d1d53b43d207be953a1dcd65fe058e7e16da4835052c8e9c6f5f7b50a72e8b",
+      "report_sha256": "9c79b3de06f28bb27db2cad3db4de4e527b611a2e3a49ebab07d7fd721c66279",
+      "local_manifest_sha256": "8073eb6cc9f31d220c9088b206aceca1d55e8c64841e15b9a2306fd542b1c82b",
+      "bindings": [
+        {
+          "role": "body",
+          "method": "bone_heat_proxy_with_explicit_segment_fallback",
+          "vertex_records": 18248,
+          "region_constraints": [
+            "central_torso",
+            "left_arm_isolation",
+            "right_arm_isolation",
+            "left_paw_group",
+            "right_paw_group",
+            "left_hindlimb",
+            "right_hindlimb",
+            "left_foot_toes",
+            "right_foot_toes"
+          ]
+        },
+        {
+          "role": "head",
+          "method": "rigid",
+          "vertex_records": 17921,
+          "region_constraints": [
+            "rigid_head_all_components"
+          ]
+        },
+        {
+          "role": "tail",
+          "method": "measured_chain_projection",
+          "vertex_records": 14950,
+          "region_constraints": [
+            "tail_root_anchor"
+          ]
+        }
+      ],
+      "material_policy": {
+        "default": "matte",
+        "by_role": {
+          "head": "unlit"
+        }
+      },
+      "preservation": {
+        "source_unchanged": true,
+        "original_binary_prefix_exact": true,
+        "geometry_uv_indices_exact": true,
+        "images_textures_exact": true
+      },
+      "provider_calls": 0,
+      "grounding": {
+        "root_bone": "pelvis",
+        "support_bones": [
+          "left_foot",
+          "left_toes",
+          "right_foot",
+          "right_toes"
+        ],
+        "support_roles": [
+          "body"
+        ],
+        "height_fraction": 0.1,
+        "min_weight": 0.3,
+        "ground_height": 0,
+        "max_correction_fraction": 0.15
+      },
+      "limitations": [
+        "Numerical binding is not visual acceptance.",
+        "No anatomy, fitting, collision or seam repair is inferred by this worker.",
+        "Whole-component constraints are evaluated per primitive.",
+        "Grounding is vertical support correction, not horizontal foot locking."
+      ]
+    },
+    "pipeline_result": {
+      "status": "accepted",
+      "record_sha256": "25766e01aedee7dcba74b77e600fd2a90bf48af77af54cb108f79636f0919f74",
+      "selected_candidate": "rig_01",
+      "mesh_candidates": {
+        "body": 2,
+        "head": 2,
+        "tail": 1
+      },
+      "assembly_candidates": 2,
+      "rig_candidates": 1,
+      "review_facts": [
+        {
+          "stage": "references_review_02",
+          "record_sha256": "3d4321100bdd2512ed97098d91320a425ea4b92ea5dff9319b17802b2b506325",
+          "asset_id": "ref_bundle_001",
+          "source_sha256": "1391c8f83bb6dd5f6242cc9fd3051d2ce98dd2426c568a918d06341203a3c0e6",
+          "accepted": true,
+          "issues": [
+            {
+              "severity": "minor",
+              "region": "ref_0014 body/left and ref_0015 body/right compared with ref_0006 body/front and ref_0007 body/back",
+              "description": "The side bodies occupy roughly 430 pixels vertically versus roughly 375 pixels in front/back, while head image heights stay similar. Thus these crops do not establish a single shared assembly scale. Side paws project over the torso, so lateral forelimb clearance cannot be established from those projections alone."
+            },
+            {
+              "severity": "minor",
+              "region": "Head-body and tail-body interfaces across ref_0004–ref_0009 and ref_0012–ref_0017",
+              "description": "Isolated neck stumps, head undersides and tail roots are visible, but no selected neutral assembled view demonstrates their mutual alignment, concealed neck overlap or tail-to-leg clearance. This is an assembly evidence limitation, not an observed detached part."
+            },
+            {
+              "severity": "minor",
+              "region": "Head and tail silhouettes: ref_0004/ref_0005/ref_0012/ref_0013 and ref_0008/ref_0009/ref_0016/ref_0017",
+              "description": "Numerous pointed fur contour tufts and drawn outlines retain more illustration detail than the requested broad matte toy-like sculpting. They do not impair identity or usability at 120 pixels."
+            }
+          ],
+          "review_reused_for_unchanged_hash": true
+        },
+        {
+          "stage": "part_review_body_02",
+          "record_sha256": "94a220aac772c6b8901a4bd8e41063f0e994d181e0996fe17d0bc198578d4ff1",
+          "asset_id": "part_body_02",
+          "source_sha256": "a3e5d8471f78cfc96175cf2709ea46eb23c01c1b317dc4b278ea6e325de1b2d0",
+          "accepted": true,
+          "issues": [
+            {
+              "severity": "minor",
+              "region": "Chest and belly fur relief",
+              "description": "The bib and belly tuft edges are more raised and plate-like than the softly illustrated fur in the references, particularly in side and three-quarter views. Identity and usability remain intact at 120 px."
+            },
+            {
+              "severity": "minor",
+              "region": "Mesh connectivity and neck rim",
+              "description": "Analysis-only welding reports 96 boundary edges, 11 nonmanifold edges and one degenerate triangle. The visible neck rim is uneven. These are local cleanup concerns rather than demonstrated broken anatomy; the diagnostic weld has not modified the source."
+            }
+          ],
+          "review_reused_for_unchanged_hash": false
+        },
+        {
+          "stage": "part_review_head_02",
+          "record_sha256": "68e5f278773350fb231330909f65e968dfeca01b40a4cc3808118953afd3f2e6",
+          "asset_id": "part_head_02",
+          "source_sha256": "2d01262f07f259a8a7239d789c00f4200eca6b36e2cc9c2d5bc0568cb4fc00bf",
+          "accepted": true,
+          "issues": [
+            {
+              "severity": "minor",
+              "region": "Rear cranium and ear backs",
+              "description": "The reference has prominent painted tabby stripes across the rear; the generated rear is predominantly uniform taupe with scattered raised fur clumps. Identity remains coherent, but rear-view graphic fidelity is reduced."
+            },
+            {
+              "severity": "minor",
+              "region": "Underside neck opening",
+              "description": "The bottom render reveals an open, roughly circular underside boundary with visible interior surfaces; a dark crescent also appears at the lower rear. This is a localized attachment opening, not a demonstrated assembled seam failure. The raw head is not watertight."
+            },
+            {
+              "severity": "minor",
+              "region": "Ear interiors and rear fur surface",
+              "description": "Some white ear tufts are rounded and clumped, and rear fur tips look irregular compared with the reference's clean graphic tufts. No unusable anatomical distortion is evident."
+            }
+          ],
+          "review_reused_for_unchanged_hash": false
+        },
+        {
+          "stage": "part_review_tail_02",
+          "record_sha256": "e6e1cf44fa5310c390a34cea6c881d0ab2144e0f04df33f94e5bb28e6001a924",
+          "asset_id": "part_tail_01",
+          "source_sha256": "ca9247736e459aec4481a24f0dcc26851efff70723ead2649ed685b591f257ac",
+          "accepted": true,
+          "issues": [
+            {
+              "severity": "minor",
+              "region": "Raised fur tufts and outer lower bend",
+              "description": "Some fur clumps read as hard layered relief, with small dark creases along the lower outer curve and tip, rather than the softer illustrated layering of the references. This is visible in enlarged part inspection, not a blocking identity or usability defect at 120-pixel character height."
+            }
+          ],
+          "review_reused_for_unchanged_hash": true
+        },
+        {
+          "stage": "assembly_review_02",
+          "record_sha256": "c6ff15b6ca1134225a83d203fb91fd181728a7605bc666010500f1b888ee15a8",
+          "asset_id": "assembly_02",
+          "source_sha256": "da03f52cf64c70161d32ba77b5e23d0a634b7fb627cb2baf6fdf3e4530b1f431",
+          "accepted": true,
+          "issues": [],
+          "review_reused_for_unchanged_hash": true
+        },
+        {
+          "stage": "rig_review_02",
+          "record_sha256": "558dc04c081b85aeb7193028f301c04dff769c0bbc3348621e21975b2f4acd36",
+          "asset_id": "rig_01",
+          "source_sha256": "f35acbec84c6fe2ee6d843a2765852125871003bca99be97b8cb948d5888a340",
+          "accepted": true,
+          "issues": [],
+          "review_reused_for_unchanged_hash": true
+        }
+      ],
+      "rig_review_scope": "Seven diagnostic/rest pose rows in five views at a 120 px character-height quality bar; selected second graph review reuses the unchanged accepted candidate. No unrestricted motion certification.",
+      "recorded_usage_value_usd": 18.4929195,
+      "unresolved_liability_usd": 0.0,
+      "cost_scope": "Inclusive settled run usage, including agent, reference-image and mesh operations, not only the selected successful assets."
+    },
+    "local_repair": {
+      "applied": false,
+      "note": "The library GLB is byte-identical to the admitted pipeline rig_01. Material and binding changes were part of the recorded in-run rig plan."
+    },
+    "model_inventory": {
+      "mesh_count": 3,
+      "primitive_count": 3,
+      "vertex_records": 51119,
+      "skin_count": 3,
+      "animation_names": [
+        "shoulder_raise",
+        "elbow_bend",
+        "knee_bend",
+        "paw_curl",
+        "cheer",
+        "tail_wag"
+      ],
+      "extensions_used": [
+        "KHR_materials_specular",
+        "KHR_materials_unlit"
+      ],
+      "unique_joint_count": 29
+    },
+    "preview_render": {
+      "source_sha256": "f35acbec84c6fe2ee6d843a2765852125871003bca99be97b8cb948d5888a340",
+      "record_sha256": "96070ec571adb686882f6ad310f670177359d406e0ed99585dd4fdbe82ba0e3e",
+      "implementation_sha256": "8d3b0fdcedac60d6cacfabe11dc0615018190d49ebe334083d91bb8bafbc5321",
+      "blender_version": "5.2.1 LTS",
+      "engine": "CYCLES",
+      "samples": 12,
+      "pose": {
+        "clip": null,
+        "time_seconds": 0
+      },
+      "material_policy": "native",
+      "color_management": {
+        "view_transform": "Standard",
+        "look": "None",
+        "exposure": 0,
+        "gamma": 1
+      },
+      "source_file_materials_modified": false,
+      "camera": {
+        "projection": "orthographic",
+        "camera_matrix_world": [
+          [
+            0.8320502943378437,
+            -0.10571835205230273,
+            0.5445327701173301,
+            4.736491631981747
+          ],
+          [
+            0.0,
+            0.9816704119142394,
+            0.19058646954106553,
+            2.5706917606524065
+          ],
+          [
+            -0.5547001962252293,
+            -0.15857752807845407,
+            0.8167991551759951,
+            6.767969379599416
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "horizontal_extent": 2.512952479236985,
+        "vertical_extent": 2.512952479236985,
+        "view_direction_from_target": [
+          1,
+          0.35,
+          1.5
+        ],
+        "requested_up": [
+          0,
+          1,
+          0
+        ],
+        "requested_character_height_pixels": 600
+      },
+      "width": 750,
+      "height": 750,
+      "rendered_png_sha256": "2a6c611db140916c755574f1dee170b0db5254774a07f16828dec7d9fafb72ca"
+    },
+    "publication_transform": {
+      "tool": "Pillow",
+      "version": "12.3.0",
+      "operation": "convert_rgb_encode_webp_without_resize",
+      "settings": {
+        "quality": 90,
+        "method": 6,
+        "metadata": "none"
+      },
+      "input_sha256": "2a6c611db140916c755574f1dee170b0db5254774a07f16828dec7d9fafb72ca",
+      "output_sha256": "abb389aaca787babdb960f07b3f0d2f01dfa44683aec0e5bd936b930a2266913",
+      "width": 750,
+      "height": 750
+    }
+  },
+  "artifacts": [
+    {
+      "path": "library/characters/helix/sd_3d.glb",
+      "sha256": "f35acbec84c6fe2ee6d843a2765852125871003bca99be97b8cb948d5888a340",
+      "bytes": 10305600,
+      "media_type": "model/gltf-binary"
+    },
+    {
+      "path": "library/characters/helix/sd_3d.webp",
+      "sha256": "abb389aaca787babdb960f07b3f0d2f01dfa44683aec0e5bd936b930a2266913",
+      "bytes": 22156,
+      "media_type": "image/webp",
+      "width": 750,
+      "height": 750
+    }
+  ],
+  "visual_review": {
+    "reviewer": "Codex independent semantic review agent",
+    "independent": true,
+    "verdict": "pass",
+    "report": {
+      "path": "library/characters/helix/sd_3d.visual-review.md",
+      "sha256": "2f3430314ac0a6c3056c4a08f1b9310e3c2f3451237c454a5be33f4013fbf2f2",
+      "bytes": 6497
+    }
+  },
+  "rights": {
+    "status": "redistribution-approved",
+    "basis": [
+      "Original owner-provided Helix character artwork based on the owner's pet. The maintainer subsequently explicitly authorized adding Helix to the same committed canonical 3D representation pattern as the existing characters; no push is authorized.",
+      "Company-backed paid generation was explicitly authorized. Settled API charges establish paid operation usage; the provider account tier was not independently verified.",
+      "The library model contains the six locally authored diagnostic clips listed in model_inventory. No third-party Samba or other external motion asset is included.",
+      "This record makes no BSD, CC0, exclusivity or blanket copyright claim for generated media."
+    ],
+    "reviewed_at": "2026-09-13T17:29:50Z",
+    "provider_terms_review": {
+      "reviewed_at": "2026-09-13T17:29:50Z",
+      "scope": "Existing Helix reference images and meshes for this curated library representation; not a general approval of every provider use or competing service.",
+      "account_basis": "Maintainer authorization to spend company-backed credits and retained settled API usage accounting; provider account tier and negotiated account terms were not independently inspected.",
+      "sources": [
+        {
+          "provider": "openrouter",
+          "url": "https://openrouter.ai/terms",
+          "sections": [
+            "5.1",
+            "5.8",
+            "6.1"
+          ],
+          "finding": "Underlying model terms govern output rights; OpenRouter provides no blanket generated-media redistribution grant."
+        },
+        {
+          "provider": "openai",
+          "url": "https://openai.com/policies/services-agreement/",
+          "sections": [
+            "4.1",
+            "4.3",
+            "4.4"
+          ],
+          "finding": "Output rights are assigned to the customer to the extent permitted by law, subject to input permissions and other terms. Output uniqueness and third-party clearance are not guaranteed."
+        },
+        {
+          "provider": "tripo",
+          "url": "https://platform.tripo3d.ai/docs/introduction",
+          "finding": "The API documentation links to the same Tripo terms used for this review."
+        },
+        {
+          "provider": "tripo",
+          "url": "https://www.tripo3d.ai/terms",
+          "sections": [
+            "5.2.2",
+            "3.2"
+          ],
+          "finding": "Paid-user terms permit use, modification, publication, distribution and licensing subject to the agreement. Free-user terms differ. Restrictions on directly competing models and services remain separate from this character-asset review."
+        },
+        {
+          "provider": "openai",
+          "url": "https://openai.com/policies/sharing-publication-policy/",
+          "finding": "Demonstrations and social sharing require review, attribution to the user or company, and clear AI disclosure. The library identifies the owner-provided artwork and AI-generated derivative process."
+        }
+      ],
+      "notices": "Retain genuine upstream notices when present. No additional provider-logo or synthetic asset-license requirement was identified for the reviewed paid output; no raw third-party motion is included."
+    }
+  }
+}
