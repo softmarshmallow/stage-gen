@@ -41,6 +41,7 @@ from stage_gen.components.character_3d.reference_studio import ReferenceStudio
 from stage_gen.components.character_3d.studio import STRING, object_schema
 from stage_gen.recipes.character_3d.full_runner import FullRun
 from stage_gen.recipes.character_3d.quality_bar import upstream_policy
+from stage_gen.recipes.character_3d.review_policy import review_mode
 from stage_gen.recipes.character_3d.runner import (
     FEATURES,
     REVIEW_SCHEMA,
@@ -172,13 +173,13 @@ class BriefRun(FullRun):
         if not 1 <= len(roles) <= 8:
             raise ValueError("Brief lane supports one through eight declared part roles")
         limits = self.experiment["limits"]
+        reviewed = review_mode(self.experiment) == "required"
+        rounds = limits["max_review_rounds"] if reviewed else 1
         maximum = (
             Decimal(str(limits["agent_max_usd"]))
             + Decimal(str(image_binding.estimated_cost_high_usd))
             * self.experiment["upstream"]["max_reference_generations"]
-            + Decimal(str(mesh_binding.estimated_cost_high_usd))
-            * len(roles)
-            * limits["max_review_rounds"]
+            + Decimal(str(mesh_binding.estimated_cost_high_usd)) * len(roles) * rounds
             + self.additional_provider_reservation()
         )
         if maximum > Decimal(str(limits["max_usd"])):
@@ -260,7 +261,7 @@ class BriefRun(FullRun):
             local=True,
         )
         prior = ("brief_preflight",)
-        for index in range(1, limits["max_review_rounds"] + 1):
+        for index in range(1, rounds + 1):
             produce, review = (f"references_{index:02d}", f"references_review_{index:02d}")
             add(
                 "reference_agent",
@@ -269,6 +270,9 @@ class BriefRun(FullRun):
                 prior=prior,
                 params={"round": str(index)},
             )
+            prior = (produce,)
+            if not reviewed:
+                continue
             add(
                 "reference_review",
                 review,
@@ -278,11 +282,17 @@ class BriefRun(FullRun):
                 review=True,
             )
             prior = (review,)
-        add("references_admit", "references_admit", self.admit_references, prior=prior, local=True)
+        add(
+            "references_admit" if reviewed else "references_select",
+            "references_admit",
+            self.admit_references if reviewed else self.select_references,
+            prior=prior,
+            local=True,
+        )
         part_gates = []
         for role in roles:
             prior = ("references_admit",)
-            for index in range(1, limits["max_review_rounds"] + 1):
+            for index in range(1, rounds + 1):
                 generate, review = (
                     f"generate_{role}_{index:02d}",
                     f"part_review_{role}_{index:02d}",
@@ -294,6 +304,9 @@ class BriefRun(FullRun):
                     prior=prior,
                     params={"round": str(index), "role": role},
                 )
+                prior = (generate,)
+                if not reviewed:
+                    continue
                 add(
                     "part_review",
                     review,
@@ -304,9 +317,22 @@ class BriefRun(FullRun):
                 )
                 prior = (review,)
             gate = f"part_admit_{role}"
-            add("part_admit", gate, self.admit_part, prior=prior, params={"role": role}, local=True)
+            add(
+                "part_admit" if reviewed else "part_select",
+                gate,
+                self.admit_part if reviewed else self.select_part,
+                prior=prior,
+                params={"role": role},
+                local=True,
+            )
             part_gates.append(gate)
-        add("parts_admit", "parts_admit", self.admit_parts, prior=tuple(part_gates), local=True)
+        add(
+            "parts_admit" if reviewed else "parts_select",
+            "parts_admit",
+            self.admit_parts,
+            prior=tuple(part_gates),
+            local=True,
+        )
         for node in base.nodes:
             if node.node_id == "runtime_admit":
                 continue
@@ -406,6 +432,7 @@ class BriefRun(FullRun):
             instructions=json.dumps(
                 {
                     "brief": self.experiment["brief"],
+                    "review_mode": review_mode(self.experiment),
                     "profile": self.profile,
                     "previous_review": prior,
                     "required_criteria": REFERENCE_CRITERIA,
@@ -502,6 +529,36 @@ class BriefRun(FullRun):
                     node, {"asset_id": prior["asset_id"], "reused_admitted_revision": True}
                 )
         return await self.generate_part_candidate(node, role, attempt)
+
+    async def select_references(
+        self, node: Node, context: NodeExecutionContext
+    ) -> NodeExecutionResult:
+        bundle = self.records[node.depends_on[0]]["bundle"]
+        payload = {
+            key: value for key, value in bundle.items() if key not in {"bundle_sha256", "manifest"}
+        }
+        manifest = verified_input(self.input_root, bundle["manifest"])
+        if (
+            canonical_digest(payload) != bundle["bundle_sha256"]
+            or json.loads(manifest.read_text()) != payload
+        ):
+            raise ValueError("Reference bundle digest or persisted manifest differs")
+        for item in [
+            bundle["canonical"],
+            *[view for part in bundle["parts"].values() for view in part["views"]],
+        ]:
+            inspect_image(verified_input(self.input_root, item["source"]).read_bytes())
+        self.reference_bundle = bundle
+        self.reference_source = bundle["canonical"]["source"]
+        return self.result(
+            node,
+            {
+                "status": "completed_unreviewed",
+                "review_status": "skipped",
+                "bundle": bundle,
+                "candidate_node": node.depends_on[0],
+            },
+        )
 
     async def generate_part_candidate(
         self, node: Node, role: str, attempt: int
@@ -650,4 +707,32 @@ class BriefRun(FullRun):
     async def admit_parts(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
         if set(self.parts) != set(self.profile["required_parts"]):
             raise NodeExecutionError("Required part coverage is incomplete")
-        return self.result(node, {"status": "parts_admitted", "parts": deepcopy(self.parts)})
+        return self.result(
+            node,
+            {"status": "parts_admitted", "parts": deepcopy(self.parts)}
+            if review_mode(self.experiment) == "required"
+            else {
+                "status": "completed_unreviewed",
+                "review_status": "skipped",
+                "parts": deepcopy(self.parts),
+            },
+        )
+
+    async def select_part(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
+        candidate = self.records[node.depends_on[0]]
+        if candidate.get("structural_failure"):
+            raise NodeExecutionError("Generated part failed import or texture validation")
+        asset = self.studio.asset(candidate["asset_id"])
+        role = node.params["role"]
+        self.parts[role] = asset
+        self.studio.assets[role] = asset
+        return self.result(
+            node,
+            {
+                "status": "completed_unreviewed",
+                "review_status": "skipped",
+                "role": role,
+                "asset": asset,
+                "candidate_node": node.depends_on[0],
+            },
+        )

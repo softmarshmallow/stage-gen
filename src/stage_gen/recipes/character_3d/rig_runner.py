@@ -37,6 +37,7 @@ from stage_gen.recipes.character_3d.quality_bar import (
     numeric_tools,
     quality_bar,
 )
+from stage_gen.recipes.character_3d.review_policy import review_mode
 from stage_gen.recipes.character_3d.runner import (
     PRODUCE_SCHEMA,
     REVIEW_SCHEMA,
@@ -44,6 +45,28 @@ from stage_gen.recipes.character_3d.runner import (
     RIG_SYSTEM,
     CharacterRun,
     node_type,
+)
+
+# These describe unreadable or incomplete exports, not whether deformation looks good.
+RIG_INTEGRITY_FINDINGS = frozenset(
+    {
+        "invalid_or_unsupported_glb",
+        "ambiguous_joint_names",
+        "required_joint_missing",
+        "exported_joint_hierarchy_mismatch",
+        "required_mesh_missing",
+        "invalid_mesh",
+        "required_mesh_unskinned",
+        "invalid_skin_weights",
+        "invalid_or_unsupported_surface",
+        "no_evaluable_surfaces",
+        "rest_bind_identity_mismatch",
+        "duplicate_clip_name",
+        "required_clip_missing",
+        "required_animation_channel_missing",
+        "animation_does_not_cover_plan_duration",
+        "animation_evaluation_incomplete",
+    }
 )
 
 
@@ -94,10 +117,13 @@ class RigRun(CharacterRun):
     def add_rig_nodes(
         self, builder: GraphBuilder, lineage: tuple[str, ...], *, prior: Sequence[str]
     ) -> None:
+        unreviewed = review_mode(self.experiment) == "none"
         produce, review = (node_type("rig_agent"), node_type("rig_review", review=True))
         self.registry.register(produce, self.produce_rig)
-        self.registry.register(review, self.review_rig)
-        for index in range(1, self.experiment["limits"]["max_review_rounds"] + 1):
+        if not unreviewed:
+            self.registry.register(review, self.review_rig)
+        rounds = 1 if unreviewed else self.experiment["limits"]["max_review_rounds"]
+        for index in range(1, rounds + 1):
             name, review_name = (f"rig_{index:02d}", f"rig_review_{index:02d}")
             builder.add(
                 produce,
@@ -116,6 +142,9 @@ class RigRun(CharacterRun):
                     ),
                 ),
             )
+            if unreviewed:
+                prior = (name,)
+                continue
             builder.add(
                 review,
                 review_name,
@@ -134,20 +163,22 @@ class RigRun(CharacterRun):
                 ),
             )
             prior = (review_name,)
-        gate = node_type("rig_admit", local=True)
-        self.registry.register(gate, self.admit_rig)
+        gate = node_type("rig_select" if unreviewed else "rig_admit", local=True)
+        self.registry.register(gate, self.select_rig if unreviewed else self.admit_rig)
         builder.add(
             gate,
             "rig_admit",
             domain="character",
-            description="Require independent admission and complete required skin weights",
+            description="Select the intact rig export without semantic review"
+            if unreviewed
+            else "Require independent admission and complete required skin weights",
             depends_on=prior,
             input_digests=lineage,
             ports=(
                 Port(
                     port_id="record",
                     artifact_ref="nodes/rig_admit.json",
-                    kind="admitted-rig-v1",
+                    kind="unreviewed-rig-v1" if unreviewed else "admitted-rig-v1",
                     sidecar_ref="nodes/rig_admit.json.meta.json",
                 ),
             ),
@@ -159,12 +190,19 @@ class RigRun(CharacterRun):
         spec = self.experiment["assembly_input"]
         source = verified_input(self.input_root, spec["source"])
         review = read_json(verified_input(self.input_root, spec["review"]))
-        if (
-            review.get("accepted") is not True
-            or review.get("source_sha256") != spec["source"]["sha256"]
-        ):
+        accepted = (
+            review.get("accepted") is True
+            and review.get("source_sha256") == spec["source"]["sha256"]
+        )
+        skipped = (
+            review_mode(self.experiment) == "none"
+            and review.get("review_status") == "skipped"
+            and isinstance(review.get("source"), dict)
+            and review["source"].get("sha256") == spec["source"]["sha256"]
+        )
+        if not accepted and not skipped:
             raise ValueError("Assembly input must have an admitted review bound to its exact hash")
-        print("stage adopt_assembly: measure hash-verified accepted assembly", flush=True)
+        print("stage adopt_assembly: measure hash-verified assembly checkpoint", flush=True)
         report, _ = await self.worker.execute(
             {
                 "schema_version": 1,
@@ -188,7 +226,13 @@ class RigRun(CharacterRun):
         self.studio.assets["assembly_input"] = asset
         self.studio.admitted_assembly = "assembly_input"
         return self.result(
-            node, {"asset_id": "assembly_input", **asset, "review_source": spec["review"]}
+            node,
+            {
+                "asset_id": "assembly_input",
+                **asset,
+                "review_source": spec["review"],
+                **({"review_status": "skipped"} if skipped else {}),
+            },
         )
 
     async def produce_rig(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
@@ -232,6 +276,7 @@ class RigRun(CharacterRun):
             instructions=json.dumps(
                 {
                     "stage": "rigging",
+                    "review_mode": review_mode(self.experiment),
                     "profile": self.profile,
                     "assembly_asset_id": self.studio.admitted_assembly,
                     "assembly_inventory": assembly["inventory"],
@@ -400,5 +445,47 @@ class RigRun(CharacterRun):
                 else ("Raw parts through reviewed assembly and rig in one contained graph.")
                 if self.experiment.get("pipeline_mode") == "parts_to_rig"
                 else ("Fresh rigging from an admitted assembly; no upstream generation claim."),
+            },
+        )
+
+    async def select_rig(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
+        """Deliver a real, intact candidate without claiming semantic acceptance."""
+        if review_mode(self.experiment) != "none":
+            raise NodeExecutionError("Unreviewed rig selection requires review_mode none")
+        candidate = self.records[node.depends_on[0]]
+        if candidate.get("structural_failure"):
+            raise NodeExecutionError("Rig failed the geometry preservation audit")
+        asset_id = candidate["asset_id"]
+        asset = self.studio.asset(asset_id)
+        if (
+            asset_id not in self.studio.rig_revisions
+            or not asset.get("rig_ready")
+            or asset.get("assembly_asset_id") != self.studio.admitted_assembly
+        ):
+            raise NodeExecutionError("Select a completed rig of the current assembly")
+        findings = asset["metrics"]["blocking_findings"]
+        if "source_texture_appearance_or_binding_not_preserved" in findings:
+            raise NodeExecutionError("Provider rig failed source appearance preservation")
+        integrity = [
+            finding["code"]
+            for finding in findings
+            if isinstance(finding, dict) and finding.get("code") in RIG_INTEGRITY_FINDINGS
+        ]
+        if integrity:
+            raise NodeExecutionError("Rig export integrity checks failed: " + ", ".join(integrity))
+        return self.result(
+            node,
+            {
+                "status": "completed_unreviewed",
+                "review_status": "skipped",
+                "asset_id": asset_id,
+                "source": asset["source"],
+                "candidate_node": node.depends_on[0],
+                "quality_findings": {
+                    "required_but_missing_weights": asset["required_but_missing_weights"],
+                    "numeric_findings": findings,
+                    "producer_open_issues": candidate.get("open_issues", []),
+                },
+                "scope": "Rig export completed; independent semantic review was skipped.",
             },
         )

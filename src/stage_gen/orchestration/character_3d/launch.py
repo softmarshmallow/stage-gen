@@ -27,12 +27,35 @@ from stage_gen.components.character_3d.package_resources import (
     verify_snapshot,
 )
 from stage_gen.recipes.character_3d.experiment import validate_experiment
+from stage_gen.recipes.character_3d.review_policy import REVIEW_MODES, review_mode
 from stage_gen.recipes.character_3d.runner import CharacterRun, validate_provider_submit_stop
 
 from .runtime_services import create_services
 from .support_admission import AdmissionMode, admit_support, support_target
 
 LAUNCH_PATH = Path(__file__).resolve()
+
+
+def resolve_review_experiment(
+    raw: dict[str, Any],
+    override: str | None,
+    *,
+    saved: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Freeze fresh CLI policy; an existing run can only assert its saved policy.
+
+    Comparing effective modes permits legacy omission without rewriting the
+    saved experiment, whose exact bytes and digest remain recovery inputs.
+    """
+    effective = dict(raw)
+    if override is not None:
+        effective["review_mode"] = override
+    effective["review_mode"] = review_mode(effective)
+    if saved is None:
+        return effective
+    if effective != {**saved, "review_mode": review_mode(saved)}:
+        raise ValueError("Resume requires the unchanged saved experiment and review_mode")
+    return dict(saved)
 
 
 def host_record(
@@ -118,7 +141,12 @@ async def execute(args: argparse.Namespace) -> int:
     for signum in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(signum, task.cancel, f"signal_{signum}")
     raw = read_json(args.experiment)
-    experiment = raw if args.resume and not args.frozen else validate_experiment(raw)
+    review_override = getattr(args, "review_mode", None)
+    experiment = (
+        raw if args.resume or args.frozen else resolve_review_experiment(raw, review_override)
+    )
+    if not (args.resume and not args.frozen):
+        experiment = validate_experiment(experiment)
     stop_after_submit = getattr(args, "stop_after_provider_submit", False)
     if stop_after_submit:
         validate_provider_submit_stop(
@@ -141,13 +169,16 @@ async def execute(args: argparse.Namespace) -> int:
         raise ValueError("Run root must be a confined child of the declared input root")
     if args.frozen:
         runtime = verify_snapshot(run_root)
+        experiment = resolve_review_experiment(
+            experiment,
+            review_override,
+            saved=read_json(confined(run_root, "experiment.json")),
+        )
         current = admission(args, experiment, input_root, run_root, runtime)
         if runtime.get("support_admission") != current:
             raise ValueError("Frozen execution requires its unchanged admission decision")
         if run_root / "code/stage_gen/orchestration/character_3d/launch.py" != LAUNCH_PATH:
             raise ValueError("Frozen execution must import its own verified run snapshot")
-        if read_json(confined(run_root, "experiment.json")) != experiment:
-            raise ValueError("The saved experiment changed")
         cls = run_class(
             experiment.get("pipeline_mode", "assembly"), provider_rig="rigging" in experiment
         )
@@ -175,8 +206,11 @@ async def execute(args: argparse.Namespace) -> int:
             raise ValueError("Resume requires unchanged admission mode and host record")
         # The frozen child owns full target evaluation against its original
         # profile, routes and source closure, even after the installed package changes.
-        if read_json(confined(run_root, "experiment.json")) != experiment:
-            raise ValueError("Resume requires the unchanged saved experiment")
+        experiment = resolve_review_experiment(
+            experiment,
+            review_override,
+            saved=read_json(confined(run_root, "experiment.json")),
+        )
     else:
         if run_root.exists():
             raise ValueError("Run output must be fresh unless --resume is explicit")
@@ -290,6 +324,11 @@ def main() -> None:
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--prepare-only", action="store_true")
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument(
+        "--review-mode",
+        choices=REVIEW_MODES,
+        help="Override semantic review policy for a fresh run; resume keeps its saved policy",
+    )
     parser.add_argument(
         "--stop-after-provider-submit",
         action="store_true",

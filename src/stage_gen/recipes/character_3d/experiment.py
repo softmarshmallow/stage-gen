@@ -7,6 +7,8 @@ import re
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+from stage_gen.recipes.character_3d.review_policy import review_mode
+
 EPISODE_LIMIT_MAXIMA = {
     "agent_episode_max_steps": 32,
     "agent_review_max_steps": 32,
@@ -54,6 +56,7 @@ def validate_experiment(value: dict[str, Any]) -> dict[str, Any]:
         "rigging",
         "partition_preset",
         "review_quality_bar",
+        "review_mode",
     }
     if (
         not isinstance(value, dict)
@@ -66,6 +69,8 @@ def validate_experiment(value: dict[str, Any]) -> dict[str, Any]:
     mode = value.get("pipeline_mode", "assembly")
     if mode not in {"assembly", "rig", "parts_to_rig", "brief_to_rig", "rig_review_calibration"}:
         raise ValueError("Unknown pipeline mode")
+    if review_mode(value) == "none" and mode == "rig_review_calibration":
+        raise ValueError("Review calibration requires review_mode required")
     if "review_quality_bar" in value:
         from stage_gen.recipes.character_3d.quality_bar import quality_bar_level
 

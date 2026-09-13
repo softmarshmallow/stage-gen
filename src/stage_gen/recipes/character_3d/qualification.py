@@ -33,6 +33,7 @@ from stage_gen.components.character_3d.tool_views import (
     RENDER_VIEW_PROJECTION,
     render_view,
 )
+from stage_gen.recipes.character_3d.review_policy import review_mode
 
 JsonObject = dict[str, Any]
 NodeRecords = dict[str, JsonObject]
@@ -664,6 +665,7 @@ def _collect(root: Path, trial: Trial) -> JsonObject:
             "failed",
             "interrupted",
             "terminal_pending_reconciliation",
+            "completed_unreviewed",
         }
         row["evidence"]["outcome"] = _reference(root, outcome_path)
         experiment_path = _path(run, "experiment.json")
@@ -676,6 +678,10 @@ def _collect(root: Path, trial: Trial) -> JsonObject:
         if mode not in _MODES:
             raise EvidenceError("unknown_pipeline_mode")
         row["pipeline_mode"] = mode
+        row["review_mode"] = review_mode(experiment)
+        row["qualification_eligible"] = (
+            row["review_mode"] == "required" and outcome.get("qualification_eligible") is not False
+        )
         row["reported_status"] = outcome.get("status")
         row["unattended_reported"] = outcome.get("unattended") is True
         row["resumed"] = outcome.get("resumed") is True or trial.outcome_path != "outcome.json"
@@ -772,8 +778,26 @@ def _collect(root: Path, trial: Trial) -> JsonObject:
                 raise EvidenceError("prepared_outcome_disagrees_with_summary")
             row["result"] = "prepared"
             return row
+        if status == "completed_unreviewed":
+            if (
+                row["review_mode"] != "none"
+                or outcome.get("accepted") is True
+                or outcome.get("qualification_eligible") is not False
+                or summary.get("ok") is not True
+                or row["failed_nodes"]
+                or row["review_statuses"]
+            ):
+                raise EvidenceError("unreviewed_outcome_disagrees_with_policy_or_summary")
+            row["result"] = "completed_unreviewed"
+            return row
+        if row["review_mode"] == "none" and status in _SUCCESS:
+            raise EvidenceError("accepted_outcome_without_required_review")
         for kind in ("assembly", "rig"):
-            if kind + "_admit" in nodes and nodes[kind + "_admit"]["status"] == "succeeded":
+            if (
+                row["review_mode"] == "required"
+                and kind + "_admit" in nodes
+                and nodes[kind + "_admit"]["status"] == "succeeded"
+            ):
                 row["admissions"][kind] = _admission(root, run, kind, nodes, experiment)
         if status in _SUCCESS:
             if summary.get("ok") is not True or row["failed_nodes"]:
@@ -810,6 +834,7 @@ def _collect(root: Path, trial: Trial) -> JsonObject:
             row["result"] = status
             row["safe_failure"] = (
                 status == "failed"
+                and row["review_mode"] == "required"
                 and row["unattended_reported"]
                 and row["accounting"]["within_budget"]
                 and row["accounting"]["reconciled"]

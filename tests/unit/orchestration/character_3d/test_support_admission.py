@@ -96,6 +96,7 @@ def test_experimental_modes_never_claim_support(
         "policy",
         "route",
         "pricing",
+        "review_mode",
     ],
 )
 def test_changed_execution_identity_is_not_covered_by_prior_qualification(field: str) -> None:
@@ -117,11 +118,20 @@ def test_changed_execution_identity_is_not_covered_by_prior_qualification(field:
         parameters["experiment"]["partition_preset"] = "head_body_hair"
     elif field == "policy":
         parameters["experiment"]["limits"]["max_review_rounds"] = 1
+    elif field == "review_mode":
+        parameters["experiment"]["review_mode"] = "none"
     else:
         parameters["experiment"]["agent_route"] = "different@fixture"
     changed = MODULE.support_target(**parameters)
     with pytest.raises(ValueError, match="does not match"):
         MODULE.admit_support(mode="supported", target=changed, support_record=record(original))
+
+
+def test_explicit_required_review_retains_the_legacy_support_target() -> None:
+    parameters = inputs()
+    original = MODULE.support_target(**parameters)
+    parameters["experiment"]["review_mode"] = "required"
+    assert MODULE.support_target(**parameters) == original
 
 
 def test_character_brief_and_input_order_can_change_without_changing_qualified_policy() -> None:

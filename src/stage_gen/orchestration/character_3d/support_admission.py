@@ -14,6 +14,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Literal
 
 from gnode import Binding
+from stage_gen.recipes.character_3d.review_policy import review_mode
 
 type JsonObject = dict[str, Any]
 type AdmissionMode = Literal["supported", "development", "qualification"]
@@ -59,6 +60,10 @@ def support_target(
     ):
         raise ValueError("Support admission requires the declared runtime dependency versions")
     policy = {name: experiment.get(name) for name in _POLICY_FIELDS}
+    # Required review predates this field; preserve its existing target identity.
+    # Skipping review must never inherit that qualification decision.
+    if review_mode(experiment) != "required":
+        policy["review_mode"] = review_mode(experiment)
     return {
         "package_closure_sha256": _sha(package_closure_sha256),
         "blender_executable_sha256": _sha(blender_executable_sha256),

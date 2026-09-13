@@ -5,8 +5,9 @@ textured, rigged character as a GLB with a short set of diagnostic clips, ready 
 game engine to load and drive with its own animations. Nobody sits between the stages:
 an agent draws the reference sheet, a mesh provider builds the geometry, a rig provider
 adds the skeleton, a local Blender worker checks every hand-off, and an independent
-reviewer judges the result at the size a player would actually see it. If any stage
-cannot be made good within its budget, the run stops and says why.
+reviewer judges the result at the size a player would actually see it. By default,
+if any stage cannot be made good within its budget, the run stops and says why.
+Set `review_mode: "none"` to skip independent review and receive an unreviewed export.
 
 ![Six characters the pipeline produced from three unseen briefs, each shown at rest and mid-cheer](media/character-3d-lineup.webp)
 
@@ -26,11 +27,17 @@ A run directory with:
   with a matte material, a 22-joint humanoid skeleton, and six clips named `rest`,
   `shoulder_raise`, `elbow_bend`, `knee_bend`, `wrist_bend` and `cheer`. Its height is
   exactly the profile's target height, so it drops into a scene at scale.
-- `nodes/*.json`: one record per stage with the reviewer's criteria, evidence sentences
-  and issues, so a refusal is always explained.
-- `observations/`: every render the reviewers saw, including the labeled atlases.
+- `nodes/*.json`: one record per stage, including the reviewer's criteria, evidence
+  sentences and issues when review is enabled. Skipped reviews are recorded as skipped
+  in selection and outcome records.
+- `observations/`: inspection renders and, when review is enabled, the labeled atlases
+  the reviewers saw.
 - `outcome.json` and `summary.json`: terminal status, node timings, provider operation
   counts and the ledger-backed cost.
+
+Every generated candidate remains in the run directory, including rejected candidates
+from a failed run. Skipping review is a choice about judging and continuation; keeping
+paid outputs does not require it.
 
 The export is an ordinary GLB. The picture below is the canary character loaded in a
 plain Godot scene, playing two CC0 Quaternius clips and a Mixamo samba that were
@@ -43,7 +50,8 @@ retargeted onto its skeleton by the same worker adapter the pipeline ships.
 The stages below are illustrated with one real run: the M3 canary "Wren", an original
 brief written for the promotion check, produced by the promoted package in supported
 mode (`runs/m3-canary-01/wren-01`, export SHA-256 `33b1092e…`, confirmed by an
-independent review with zero provider calls).
+independent review with zero provider calls). This example uses the default
+`review_mode: "required"`.
 
 ### 1. Reference sheet
 
@@ -93,6 +101,36 @@ checks pass (height, ground, material policy, preservation), and the reviewer pa
 every criterion with no blocking issue. A good-looking picture cannot waive a numeric
 failure, and a clean numeric report cannot waive a visible one.
 
+## Choosing whether to review
+
+`review_mode` controls whether independent reviewers participate. It is separate from
+`review_quality_bar`, which controls how an enabled reviewer judges the result.
+
+| Mode | Behavior |
+| --- | --- |
+| `required` (default) | Review each stage, allow bounded review-driven regeneration, and require a passing verdict before continuing. |
+| `none` | Skip independent reference, part, assembly and rig review, and continue with the selected generated candidates. No review-driven regeneration runs. |
+
+Choose the mode in the experiment JSON with `"review_mode": "none"`, or override it
+with `--review-mode none` on the command below. An explicit CLI value takes precedence
+over the experiment; omitting both keeps `required`. The launcher reads structured
+experiment JSON. If an authoring agent follows a user instruction file, it translates
+that preference into this field or CLI argument.
+
+With `none`, each stage gets one producer episode. The producer may still inspect and
+refine its own work within the existing generation limits. Review budget holdbacks
+do not reserve money for an absent reviewer. Technical checks for valid files, valid
+skin weights, export completeness and provider preservation still apply. Missing
+control influence and motion quality findings remain visible without blocking selection.
+A successful live run reports `completed_unreviewed` and `review_status: "skipped"`,
+with the selected output available to use; it makes no quality acceptance or
+qualification claim. A technical failure still leaves its generated candidates on disk.
+
+The resolved mode is frozen with the run. Resume with the same effective mode; changing
+it requires a new run. The default reviewed support record does not cover `none`,
+because the mode is part of support identity. Use `--admission-mode development` for
+an unreviewed trial without a matching support record.
+
 ## The quality bar
 
 `review_quality_bar: low` means usable in a mobile game at the smallest declared
@@ -112,9 +150,10 @@ per-boundary policy) exists but is uncalibrated; `high` is declared and refused.
 
 ## When a rig is refused
 
-A refusal at the rig stage is not the end of the run. The pipeline regenerates the
-mesh once from the same admitted references, orients and reviews it again, and rigs it
-a second time; if that rig is refused too, the run fails with both verdicts on record.
+With review required, a refusal at the rig stage is not the end of the run. The pipeline
+regenerates the mesh once from the same admitted references, orients and reviews it
+again, and rigs it a second time; if that rig is refused too, the run fails with both
+verdicts on record.
 A rig the worker cannot bind to the admitted mesh (changed triangle connectivity,
 drifted geometry or UVs) takes the same path without spending a review.
 
@@ -143,6 +182,7 @@ described in the [contract document](character-3d-contract.md).
   "experiment_id": "my_first_character_01",
   "pipeline_mode": "brief_to_rig",
   "partition_preset": "whole",
+  "review_mode": "required",
   "review_quality_bar": "low",
   "brief": {
     "description": "Create Wren, a new original adult woman in her twenties drawn as a chibi mobile-gacha character ...",
@@ -160,8 +200,8 @@ Keep the brief original and brand-neutral, name an adult, and describe short hai
 long hair and every other extension are outside the supported profile. Profile and
 pricing hashes come from the installed package, never from another version.
 
-Prepare offline first. This plans the 31-node graph, probes Blender and admits the
-run without calling any provider:
+Prepare offline first. This plans the 31-node reviewed graph (12 nodes with
+`review_mode: "none"`), probes Blender and admits the run without calling any provider:
 
 ```sh
 stage-gen-character \
@@ -184,8 +224,8 @@ the higher figure when the retry path was used.
 `--admission-mode supported` is the default and needs a host support record whose
 package closure matches the installed wheel; the host keeps the record for the qualified
 configuration with the promotion evidence, and it admits nothing else.
-`development` runs the same graph without a support claim, for trials and new
-profiles. `qualification` is what a new configuration runs under while it earns a
+`development` runs the selected graph without a support claim, for trials and new
+profiles. `qualification` is what a reviewed configuration runs under while it earns a
 record. Resume an interrupted or finished run with `--resume`; a finished run replays
 with zero provider calls and an unchanged export hash.
 
@@ -195,8 +235,9 @@ with zero provider calls and an unchanged export hash.
   profile at the `low` bar. `head_body_hair` is experimental.
 - No facial animation, hair motion, animals, weapons, cloth simulation or gameplay
   clips; the six clips are diagnostics and a cheer.
-- Skirt-to-hand weight bleed from the rig provider is refused, not repaired; expect the
-  retry path on outfits where the hands rest against a skirt.
+- With review required, skirt-to-hand weight bleed from the rig provider is refused,
+  not repaired; expect the retry path on outfits where the hands rest against a skirt.
+  Skipping review can return an export with this defect.
 - The export keeps one unreferenced texture the matte policy retired (about 3 MB); a
   consumer that cares about payload should strip it.
 - POSIX only; run ledgers rely on `fcntl` locks and exchange-renames.

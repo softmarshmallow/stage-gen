@@ -89,6 +89,7 @@ from stage_gen.recipes.character_3d.requirements import (
     validate_agent_metadata,
     validate_requirements,
 )
+from stage_gen.recipes.character_3d.review_policy import review_mode
 from stage_gen.recipes.character_3d.rig_studio import RigStudio
 
 
@@ -306,7 +307,9 @@ class CharacterRun:
         self.registry.register(produce, self.produce_assembly)
         self.registry.register(review, self.review_assembly)
         prior = tuple(node.node_id for node in builder.nodes)
-        for index in range(1, self.experiment["limits"]["max_review_rounds"] + 1):
+        reviewed = review_mode(self.experiment) == "required"
+        rounds = self.experiment["limits"]["max_review_rounds"] if reviewed else 1
+        for index in range(1, rounds + 1):
             name = f"assemble_{index:02d}"
             builder.add(
                 produce,
@@ -325,6 +328,9 @@ class CharacterRun:
                     ),
                 ),
             )
+            prior = (name,)
+            if not reviewed:
+                continue
             review_name = f"assembly_review_{index:02d}"
             builder.add(
                 review,
@@ -344,20 +350,22 @@ class CharacterRun:
                 ),
             )
             prior = (review_name,)
-        gate = node_type("assembly_admit", local=True)
-        self.registry.register(gate, self.admit_assembly)
+        gate = node_type("assembly_admit" if reviewed else "assembly_select", local=True)
+        self.registry.register(gate, self.admit_assembly if reviewed else self.select_assembly)
         builder.add(
             gate,
             "assembly_admit",
             domain="character",
-            description="Fail closed unless exact final assembly was accepted",
+            description="Fail closed unless exact final assembly was accepted"
+            if reviewed
+            else "Select the exported assembly with independent review skipped",
             depends_on=prior,
             input_digests=lineage,
             ports=(
                 Port(
                     port_id="record",
                     artifact_ref="nodes/assembly_admit.json",
-                    kind="admitted-assembly-v1",
+                    kind="admitted-assembly-v1" if reviewed else "unreviewed-assembly-v1",
                     sidecar_ref="nodes/assembly_admit.json.meta.json",
                 ),
             ),
@@ -527,7 +535,9 @@ class CharacterRun:
             max_text_bytes=limits.get("agent_max_text_bytes", 196608),
             max_image_bytes=67108864,
             recent_image_limit=limits.get("agent_recent_image_limit"),
-            review_holdback_usd=limits.get("agent_review_holdback_usd"),
+            review_holdback_usd=limits.get("agent_review_holdback_usd")
+            if review_mode(self.experiment) == "required"
+            else None,
         )
         if "budget_account" in self.experiment:
             account = self.require_run_budget()
@@ -658,7 +668,13 @@ class CharacterRun:
             "\nHost episode limits: "
             + json.dumps(caps, sort_keys=True)
             + (
-                ". Each response receives a current counter note. Plan for an a"
+                ". The caller selected review_mode none. Any earlier description of a "
+                "separate reviewer or review-requested repair round does not apply to this run. "
+                "Submit your best real candidate within the generation limits, recording "
+                "remaining defects and uncertainties in open_issues. The host will retain "
+                "and deliver it as unreviewed after technical validation; do not claim acceptance."
+                if review_mode(self.experiment) == "none"
+                else ". Each response receives a current counter note. Plan for an a"
                 "dmitted submit before exhaustion. A producer submission is a c"
                 "andidate for independent review; a reviewer must still apply e"
                 "very required criterion to the full evidence."
@@ -787,6 +803,7 @@ class CharacterRun:
         instructions = json.dumps(
             {
                 "stage": "assembly",
+                "review_mode": review_mode(self.experiment),
                 "profile": self.profile,
                 "available_parts": self.parts,
                 "previous_review": review_view(prior),
@@ -1075,8 +1092,28 @@ class CharacterRun:
             },
         )
 
+    async def select_assembly(
+        self, node: Node, context: NodeExecutionContext
+    ) -> NodeExecutionResult:
+        candidate = self.records[node.depends_on[0]]
+        asset = self.studio.asset(candidate["asset_id"])
+        self.studio.admitted_assembly = candidate["asset_id"]
+        return self.result(
+            node,
+            {
+                "status": "completed_unreviewed",
+                "review_status": "skipped",
+                "asset_id": candidate["asset_id"],
+                "source": asset["source"],
+                "candidate_node": node.depends_on[0],
+                "scope": "Selected assembly with independent quality review skipped.",
+            },
+        )
+
     def successful_outcome_status(self) -> str:
-        return "accepted" if self.live else "offline_fixture_complete"
+        if not self.live:
+            return "offline_fixture_complete"
+        return "completed_unreviewed" if review_mode(self.experiment) == "none" else "accepted"
 
     async def run(
         self,
@@ -1220,6 +1257,12 @@ class CharacterRun:
                     "resumed": resume,
                     "accounting": self.accounting(),
                 }
+                if review_mode(self.experiment) == "none":
+                    outcome.update(
+                        review_mode="none", review_status="skipped", qualification_eligible=False
+                    )
+                    if summary.ok and not prepare_only and not stopped:
+                        outcome["source"] = self.records[self.graph.terminal_node_id]["source"]
                 if control_path.exists():
                     outcome["development_control"] = {
                         "path": "recovery/development-stop.json",
@@ -1262,6 +1305,10 @@ class CharacterRun:
                     "resumed": resume,
                     "accounting": self.accounting(),
                 }
+                if review_mode(self.experiment) == "none":
+                    outcome.update(
+                        review_mode="none", review_status="skipped", qualification_eligible=False
+                    )
                 if control_path.exists():
                     outcome["development_control"] = {
                         "path": "recovery/development-stop.json",

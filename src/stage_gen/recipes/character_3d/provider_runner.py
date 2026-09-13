@@ -28,6 +28,7 @@ from stage_gen.components.character_3d.worker_client import WorkerRefusal
 from stage_gen.recipes.character_3d.brief_runner import BriefRun
 from stage_gen.recipes.character_3d.full_runner import FullRun
 from stage_gen.recipes.character_3d.profiles import articulation
+from stage_gen.recipes.character_3d.review_policy import review_mode
 from stage_gen.recipes.character_3d.rig_runner import RigRun
 from stage_gen.recipes.character_3d.runner import node_type
 
@@ -90,9 +91,12 @@ class ProviderRigMixin(RigRun):
         raise ValueError("Provider planning requires injected application bindings")
 
     def additional_provider_reservation(self) -> Decimal:
-        return Decimal(str(self.experiment["rigging"]["reservation_usd"])) * int(
-            self.experiment["limits"]["max_review_rounds"]
+        rounds = (
+            1
+            if review_mode(self.experiment) == "none"
+            else int(self.experiment["limits"]["max_review_rounds"])
         )
+        return Decimal(str(self.experiment["rigging"]["reservation_usd"])) * rounds
 
     def rig_executor(self) -> RigExecutor:
         if not hasattr(self, "_rig_executor"):
@@ -105,6 +109,7 @@ class ProviderRigMixin(RigRun):
     def add_rig_nodes(
         self, builder: GraphBuilder, lineage: tuple[str, ...], *, prior: Sequence[str]
     ) -> None:
+        unreviewed = review_mode(self.experiment) == "none"
         submit = node_type(
             "provider_rig_submit", operation="body_rig", features=("biped", "local_glb_input")
         )
@@ -112,15 +117,16 @@ class ProviderRigMixin(RigRun):
             "provider_rig_collect", operation="body_rig", features=("native_fbx_or_glb",)
         )
         review = node_type("rig_review", review=True)
-        gate = node_type("rig_admit", local=True)
+        gate = node_type("rig_select" if unreviewed else "rig_admit", local=True)
         handlers: tuple[tuple[NodeType, NodeHandler], ...] = (
             (submit, self.submit_rig),
             (collect, self.produce_rig),
-            (review, self.review_rig),
-            (gate, self.admit_rig),
+            (gate, self.select_rig if unreviewed else self.admit_rig),
         )
         for declaration, handler in handlers:
             self.registry.register(declaration, handler)
+        if not unreviewed:
+            self.registry.register(review, self.review_rig)
 
         def add(
             declaration: NodeType,
@@ -149,7 +155,8 @@ class ProviderRigMixin(RigRun):
                 ),
             )
 
-        for index in range(1, self.experiment["limits"]["max_review_rounds"] + 1):
+        rounds = 1 if unreviewed else self.experiment["limits"]["max_review_rounds"]
+        for index in range(1, rounds + 1):
             submitted, produced, reviewed = (
                 f"rig_submit_{index:02d}",
                 f"rig_{index:02d}",
@@ -171,6 +178,9 @@ class ProviderRigMixin(RigRun):
                 index,
                 "rig-candidate-v1",
             )
+            if unreviewed:
+                prior = (produced,)
+                continue
             add(
                 review,
                 reviewed,
@@ -184,10 +194,12 @@ class ProviderRigMixin(RigRun):
         add(
             gate,
             "rig_admit",
-            "Require exact exported rig admission and complete body controls",
+            "Select the intact provider rig export without semantic review"
+            if unreviewed
+            else "Require exact exported rig admission and complete body controls",
             prior,
             0,
-            "admitted-rig-v1",
+            "unreviewed-rig-v1" if unreviewed else "admitted-rig-v1",
         )
 
     async def submit_rig(self, node: Node, context: NodeExecutionContext) -> NodeExecutionResult:
@@ -348,7 +360,10 @@ class ProviderFullRun(ProviderRigMixin, FullRun):
 
 class ProviderBriefRun(ProviderRigMixin, BriefRun):
     def build_graph(self) -> Graph:
-        if self.experiment.get("partition_preset") != "whole":
+        if (
+            self.experiment.get("partition_preset") != "whole"
+            or review_mode(self.experiment) == "none"
+        ):
             return BriefRun.build_graph(self)
         if self.experiment["limits"]["max_review_rounds"] > 2:
             raise ValueError("Whole provider recovery permits at most two mesh and rig attempts")
@@ -387,7 +402,10 @@ class ProviderBriefRun(ProviderRigMixin, BriefRun):
     def prepare_provider_rig_round(
         self, builder: GraphBuilder, lineage: tuple[str, ...], *, prior: Sequence[str], index: int
     ) -> Sequence[str]:
-        if self.experiment.get("partition_preset") != "whole":
+        if (
+            self.experiment.get("partition_preset") != "whole"
+            or review_mode(self.experiment) == "none"
+        ):
             return prior
         if self.experiment["limits"]["max_review_rounds"] > 2:
             raise ValueError("Whole provider recovery permits at most two mesh and rig attempts")
