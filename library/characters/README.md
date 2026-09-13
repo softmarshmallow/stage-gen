@@ -20,6 +20,7 @@ The current cast:
 | --- | --- | --- |
 | [Nami](nami/README.md) | Repository mascot; human character in a charcoal and pink rabbit hood | Full-body and reaching poses, detailed and flat SD concepts, 3D SD model and preview |
 | [Riko](riko/README.md) | Adult human woman with exaggerated hourglass proportions and contemporary streetwear | Fitted and loose sweater illustrations, flat SD concept, 3D SD model and preview |
+| [Helix](helix/README.md) | Male gray-and-white cat; animal and anthropomorphic interpretations | Seated anime-cat illustration, flat anthropomorphic SD concept |
 
 Each 3D representation pairs `sd_3d.glb` with a studio render, `sd_3d.webp`.
 The adjacent `sd_3d.json` binds the exact source, model, preview and independent
@@ -27,4 +28,4 @@ review. See the character's README for supported behavior and limitations, and
 the [storage policy](../../docs/repository-storage.md#canonical-character-models)
 for the publication contract.
 
-A male character and an anthropomorphic animal character are planned next.
+A male human character remains a future addition.
