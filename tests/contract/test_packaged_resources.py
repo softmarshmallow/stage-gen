@@ -443,6 +443,7 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
             "docs",
             "fixtures",
             "godot",
+            "library",
             "src",
             "web",
         }
@@ -456,6 +457,12 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
         if relative.parts[0] == ".github":
             assert relative.parent == README_MARKETING_ROOT
             assert relative.suffix.lower() == ".webp"
+        if relative.parts[0] == "library":
+            assert len(relative.parts) >= 4
+            assert relative.parts[:2] == ("library", "characters")
+            assert relative.suffix.lower() == ".webp"
+            for parent in relative.parents:
+                assert not (repository / parent).is_symlink()
         if is_style_dictionary:
             assert relative.parent == STYLE_DICTIONARY_ROOT / "images"
             assert relative.suffix.lower() == ".webp"
