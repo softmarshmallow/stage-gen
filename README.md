@@ -16,6 +16,20 @@ tools. Godot demonstrates ways to use Stage Gen; its gameplay architecture can
 evolve within that project without becoming part of the asset SDK's contract.
 The [Godot project charter](godot/CHARTER.md) defines that continuing boundary.
 
+## 3D SD characters
+
+Explore the 3D character workflow and inspect textured, rigged chibi models:
+
+- [3D character guide](docs/character-3d.md): the brief-to-rig workflow, setup,
+  supported profile and current limits.
+- Example GLBs and review notes: [Nami — bunny hood](library/characters/nami/README.md#3d-sd)
+  and [Riko — pink sweater](library/characters/riko/README.md#3d-sd).
+
+The reference-led examples are development results that needed rig cleanup, beyond
+the guide's narrower supported profile. Their GLBs include rig-check clips and a
+cheer; the Samba motion shown in demos is applied separately. New generation uses
+local Python, Blender and your own paid-provider keys.
+
 ## Start with a local asset pipeline
 
 Python 3.12 or newer is required. From this checkout:
