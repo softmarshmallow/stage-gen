@@ -459,7 +459,7 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
             assert relative.suffix.lower() in IMAGE_MEDIA_SUFFIXES
         if relative.parts[0] == ".github":
             assert relative.parent == README_MARKETING_ROOT
-            assert relative.suffix.lower() == ".webp"
+            assert relative.suffix.lower() in {".gif", ".webp"}
         if relative.parts[0] == "library":
             assert len(relative.parts) >= 4
             assert relative.parts[:2] == ("library", "characters")

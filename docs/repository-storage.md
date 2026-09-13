@@ -9,9 +9,9 @@ package members, not generated run output. Bellweather keeps complete closures
 under `inputs/default/` and `inputs/waves/`; the other prepared games use `inputs/`.
 
 README-only repository marketing assets live under `.github/assets/readme/`.
-That directory contains efficient WebP presentation copies rather than
-canonical game inputs, documentation evidence, or runtime assets. Lossless
-working files and raw captures remain ignored.
+Use efficient WebP stills and optimized GIF animations for repository presentation.
+Keep canonical game inputs, documentation evidence, and runtime assets in their
+own locations. Lossless working files and raw captures remain ignored.
 
 Documentation media lives under `docs/media/` for raster figures and captures
 and `docs/diagrams/` for authored vector diagrams. Both hold work the repository
@@ -110,8 +110,8 @@ media into Git are anchored in [`godot/games/README.md`](../godot/games/README.m
 - Do not commit `.DS_Store` or editor metadata.
 - Do not commit populated env files, run output, caches, or screenshots created
   solely by local verification.
-- Keep README-only marketing images under `.github/assets/readme/`, encode them
-  as WebP, and keep their use limited to repository presentation.
+- Keep README-only marketing images under `.github/assets/readme/`, use efficient
+  WebP stills or optimized GIF animations, and limit them to repository presentation.
 - Every committed binary needs a reason, provenance, and rights status.
 - Prepared-package image inputs are allowed only beneath
   the owning game input closure's `references/` directory. Their owning TOML contracts must bind

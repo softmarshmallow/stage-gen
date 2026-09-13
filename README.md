@@ -5,6 +5,10 @@ pipeline from GNode nodes, reusable components and bounded recipes, then inspect
 outputs in the optional web-based run viewer. Your application decides how assets
 become a game, animation, tool or other experience.
 
+![Iron Petal Unit key art: a young mechanic-pilot riding a rescue robot through an orbital greenhouse](godot/games/iron_petal_unit/inputs/references/cover.png)
+
+_[Iron Petal Unit](godot/games/iron_petal_unit/README.md), one of the example games built with Stage Gen assets._
+
 The product accepts caller-owned Python pipeline definitions and explicit input,
 output and cache directories. TOML may describe the assets of a particular recipe;
 there is no universal gameplay document required by the public SDK.
@@ -17,6 +21,8 @@ evolve within that project without becoming part of the asset SDK's contract.
 The [Godot project charter](godot/CHARTER.md) defines that continuing boundary.
 
 ## 3D SD characters
+
+![Three reference illustrations above their rigged 3D characters dancing with retargeted Samba motion](.github/assets/readme/stagegen-3d-characters.gif)
 
 Explore the 3D character workflow and inspect textured, rigged chibi models:
 
