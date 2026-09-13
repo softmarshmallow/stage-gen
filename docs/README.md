@@ -6,7 +6,8 @@ The product is the asset pipeline; complete games are consumers.
 
 ## Authoring and inspection
 
-- [Contained 3D characters](character-3d.md): development-only brief, geometry, provider rig and motion recipe; installed launch, immutable recovery, explicit qualification modes and the fixed-hand SD human scope.
+- [3D characters from a brief](character-3d.md): what the pipeline makes, how a run goes stage by stage with real renders, the quality bar, retries, and how to run it.
+- [3D character contract](character-3d-contract.md): ownership, review policy, admission modes, support records, budgets and recovery, exactly as checked.
 - [Looping parallax](../src/stage_gen/recipes/looping_parallax/README.md): runnable supplied-layer recipe and preview contract.
 - [GNode rings](spec/gnode-rings.md): engine and provider ownership.
 - [Viewer](web-viewer.md): generic persisted-run inspection and optional inspectors.
