@@ -36,6 +36,19 @@ the guide's narrower supported profile. Their GLBs include rig-check clips and a
 cheer; the Samba motion shown in demos is applied separately. New generation uses
 local Python, Blender and your own paid-provider keys.
 
+## Movie sprites
+
+![Yuzu and Riko gently moving, blinking or winking, and changing mouth shapes over an Afterlight background](.github/assets/readme/movie-sprite.gif)
+
+Looping body motion with separately controlled eyes and mouth: Yuzu blinks,
+Riko winks, and both demonstrate A/O mouth shapes in this twelve-second preview.
+The characters are composited over an [Afterlight](godot/games/afterlight/README.md)
+background.
+
+`movie_sprite` is an experimental workflow; its generation module is not yet
+promoted into the public SDK. It uses the existing facial repaint pipeline.
+See the [preview details](.github/assets/readme/README.md#movie-sprite-preview).
+
 ## Start with a local asset pipeline
 
 Python 3.12 or newer is required. From this checkout:
