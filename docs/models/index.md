@@ -16,6 +16,8 @@ behavior before widening an adapter contract.
 - [Eleven Text to Sound v2](../spec/model-eleven-text-to-sound-v2.md) — measured
   sound-effect generation boundary.
 - [Eleven v3](../spec/model-eleven-v3.md) — measured speech-generation boundary.
+- [ElevenLabs v3 anime voices](elevenlabs-v3-anime-voices.md) — the voices a
+  person has auditioned and accepted for anime-style game characters.
 
 ## Provider operations
 
