@@ -30,7 +30,14 @@ voice/voices.json
 voice/cast.json
 voice/manifest.json
 voice/clips/{en,ko}/                   # manifest recording paths
+assets/movie_sprite/{yuzu,riko}/       # optional local diagnostic textures and provenance
 ```
+
+The optional [movie-sprite diagnostic](docs/movie-sprite-diagnostic.md) owns its
+own [prepared-content profile](docs/movie-sprite-content.md) for the independent
+[Movie Sprite Actor runtime](../../packages/movie_sprite_actor/README.md). The story still
+uses its standing-image bindings. The Lab reads prepared textures only; source
+FFV1 conversion is an explicit offline preparation command.
 
 Use the project's `tools/prepare_example_content.py` to assemble the current
 selection. The exporter does not generate new media.

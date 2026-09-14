@@ -95,3 +95,41 @@ def test_missing_recording_has_no_partial_destination(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         content.prepare(tmp_path / "output", source)
     assert not (tmp_path / "output").exists()
+
+
+def test_movie_sprite_export_keeps_verified_source_provenance_only(tmp_path: Path) -> None:
+    source = fixture_project(tmp_path / "source")
+    movie = source / "assets/movie_sprite/yuzu"
+    preserved = movie / "provenance/sources/body.mkv"
+    preserved.parent.mkdir(parents=True)
+    preserved.write_bytes(b"validated local lossless source")
+    inventory = {
+        "files": {
+            "provenance/sources/body.mkv": content.hashlib.sha256(
+                preserved.read_bytes()
+            ).hexdigest()
+        }
+    }
+    (movie / "inventory.json").write_text(json.dumps(inventory))
+    (movie.parent / ".gdignore").write_text("")
+    (source / "assets/unrelated.mkv").write_bytes(b"not a selected movie source")
+    report = content.prepare(tmp_path / "export", source)
+    assert "assets/movie_sprite/yuzu/provenance/sources/body.mkv" in report["files"]
+    assert "assets/movie_sprite/.gdignore" in report["files"]
+    assert "assets/unrelated.mkv" not in report["files"]
+    preserved.write_bytes(b"changed")
+    with pytest.raises(ValueError, match="inventory differs"):
+        content.prepare(tmp_path / "second-export", source)
+
+
+def test_movie_sprite_inventory_cannot_include_code(tmp_path: Path) -> None:
+    source = fixture_project(tmp_path / "source")
+    movie = source / "assets/movie_sprite/yuzu"
+    movie.mkdir(parents=True)
+    code = movie / "source.gd"
+    code.write_text("extends Node")
+    (movie / "inventory.json").write_text(
+        json.dumps({"files": {"source.gd": content.hashlib.sha256(code.read_bytes()).hexdigest()}})
+    )
+    with pytest.raises(ValueError, match="Unsupported movie diagnostic content"):
+        content.prepare(tmp_path / "export", source)

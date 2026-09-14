@@ -49,6 +49,25 @@ def content_files(project: Path) -> list[Path]:
         for path in (project / directory).rglob("*"):
             if path.suffix.lower() in CONTENT_SUFFIXES and path.is_file():
                 files.add(_confined_file(project, path.relative_to(project).as_posix()))
+    # The local movie_sprite diagnostic preserves its small FFV1 preparation
+    # inputs across this ownership boundary. Other videos remain excluded.
+    movie_root = project / "assets/movie_sprite"
+    for inventory_path in sorted(movie_root.glob("*/inventory.json")):
+        inventory_path = _confined_file(project, inventory_path.relative_to(project).as_posix())
+        inventory = json.loads(inventory_path.read_text())
+        for relative, expected_hash in inventory["files"].items():
+            actor_relative = inventory_path.parent.relative_to(project) / relative
+            source = _confined_file(project, actor_relative.as_posix())
+            if source.suffix.lower() == ".mkv":
+                if not relative.startswith("provenance/sources/"):
+                    raise ValueError("Movie source videos must be inside copied provenance.")
+            elif source.suffix.lower() not in CONTENT_SUFFIXES:
+                raise ValueError(f"Unsupported movie diagnostic content: {relative}")
+            if hashlib.sha256(source.read_bytes()).hexdigest() != expected_hash:
+                raise ValueError(f"Movie diagnostic inventory differs: {relative}")
+            files.add(source)
+    if (movie_root / ".gdignore").exists():
+        files.add(_confined_file(project, "assets/movie_sprite/.gdignore"))
     manifest = json.loads((project / "voice/manifest.json").read_text())
 
     def recordings(value: object) -> None:

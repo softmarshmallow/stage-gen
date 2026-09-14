@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "name": "movie_sprite_actor",
+  "version": "0.1.0-canary.1",
+  "channel": "canary",
+  "install_path": "addons/movie_sprite_actor",
+  "engine": "Godot",
+  "tested_engine_version": "4.7.2",
+  "tested_renderer": "gl_compatibility",
+  "dependencies": ["content_io"],
+  "entry_point": "movie_sprite_actor.gd",
+  "representation_profile": "registered_face_atlas_v1",
+  "public_scripts": [
+    {
+      "path": "movie_sprite_actor.gd",
+      "public_methods": [
+        "configure",
+        "advance",
+        "seek",
+        "set_paused",
+        "set_eye_state",
+        "set_mouth_state",
+        "snapshot",
+        "get_state",
+        "shutdown"
+      ],
+      "signals": ["playback_ready", "failed"]
+    }
+  ]
+}

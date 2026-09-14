@@ -25,3 +25,6 @@
 !/tests/**/*.md
 !/tests/.gdignore
 !/tests/python/*.py
+
+# Local movie_sprite diagnostic media and its copied provenance.
+/assets/movie_sprite/

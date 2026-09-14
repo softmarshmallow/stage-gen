@@ -40,6 +40,7 @@ def test_every_maintained_owner_and_check_has_an_adapter() -> None:
         "game_presentation",
         "scenario_runtime",
         "content_io",
+        "movie_sprite_actor",
         "sideview_rendering",
         "vn",
         "asset_consumer",
@@ -118,7 +119,7 @@ def test_default_afterlight_coverage_has_real_policy_checks_without_art() -> Non
     suites = [suite for suite in check_suites.declared_suites() if suite.owner == "afterlight"]
     offline = [suite for suite in suites if suite.level == "offline" and suite.adapter != "pytest"]
     assert [(suite.name, suite.arguments) for suite in offline] == [
-        ("voiceover_policy", ("--policy-only",))
+        ("voiceover_policy", ("--policy-only",)),
     ]
     assert any(suite.level == "media" for suite in suites)
     assert any(suite.level == "rendered" for suite in suites)
@@ -128,8 +129,10 @@ def test_owned_python_checks_run_through_pytest(tmp_path: Path) -> None:
     suites = [suite for suite in check_suites.declared_suites() if suite.adapter == "pytest"]
     assert {suite.name for suite in suites} == {
         "starter_assembly",
+        "standalone_assembly",
         "content_preparation",
         "voice_preparation",
+        "movie_sprite_preparation",
         "content_player",
         "example_sources",
         "episode_source",
@@ -150,6 +153,49 @@ def test_owned_python_checks_run_through_pytest(tmp_path: Path) -> None:
         command = check.command_for(suite, owner, options(), tmp_path)
         assert command[1:4] == ["-m", "pytest", "-q"]
         assert Path(command[-1]).is_file()
+
+
+def test_copied_actor_consumer_declares_headless_and_native_checks(tmp_path: Path) -> None:
+    owner = next(owner for owner in check_suites.OWNERS if owner.name == "movie_sprite_actor")
+    suites = [
+        suite
+        for suite in check_suites.declared_suites()
+        if suite.owner == owner.name and suite.adapter == "python"
+    ]
+    assert [(suite.name, suite.level, suite.arguments) for suite in suites] == [
+        ("independent_consumer", "offline", ()),
+        ("independent_consumer_rendered", "rendered", ("--rendered",)),
+    ]
+    for suite in suites:
+        command = check.command_for(suite, owner, options(), tmp_path)
+        assert command[1] == str(owner.project / "tools/check_standalone.py")
+        assert command[2:] == list(suite.arguments)
+
+
+def test_diagnostic_media_are_explicit_optional_prerequisites(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(check_suites, "ROOT", tmp_path)
+    owner = check_suites.Owner("afterlight", "afterlight", "checks")
+    suite = next(
+        suite
+        for suite in check_suites.declared_suites()
+        if suite.name == "movie_sprite_integration_checks"
+    )
+    monkeypatch.setattr(check, "media_requirements", lambda _owner: [])
+    assert "2 missing prepared files" in check.prerequisite(suite, owner, None)
+    for name in suite.prepared_files:
+        path = owner.project / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}")
+    assert check.prerequisite(suite, owner, None) == ""
+    command = check.command_for(suite, owner, options(), tmp_path)
+    assert "--headless" in command
+    rendered = next(
+        suite for suite in check_suites.declared_suites() if suite.name == "movie_sprite_rendered"
+    )
+    command = check.command_for(rendered, owner, options(), tmp_path)
+    assert "--headless" not in command and "--capture-movie-sprite" in command
 
 
 def test_unregistered_authoring_test_is_not_silently_lost(

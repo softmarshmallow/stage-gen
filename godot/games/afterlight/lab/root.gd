@@ -4,6 +4,7 @@ extends RefCounted
 const FIXTURE = preload("res://root.gd")
 const LOCAL_CONTENT = preload("res://addons/game_presentation/content/local_content.gd")
 const ROUTES := {
+	"movie_sprite_study": "res://lab/movie_sprite_study.tscn",
 	"approach_study": "res://lab/study.tscn",
 	"eye_study": "res://lab/eye_study.tscn",
 	"effects_menu": "res://lab/effects_menu.tscn",

@@ -32,10 +32,16 @@ accounted for, including checks that cannot run in this scope:
 | `game_presentation` | Standalone mechanisms and dependency validation | Corruption raster checks need native rendering; halo raster branch stays visibly skipped headlessly |
 | `scenario_runtime` | V3 Session/catalog/compiler, v2 compatibility, host/presenters, cross-language conformance, content packages and Python starter assembly | None; native visual acceptance is separate |
 | `content_io` | Independent local-content checks | None |
+| `movie_sprite_actor` | Descriptor, clock, facial-state and lifecycle checks; fresh standalone copy executes with synthetic PNGs and verifies its source/dependency hashes | Native standalone pixels and Afterlight movie integration are separate; Afterlight requires its prepared movie assets |
 | `sideview_rendering` | Layer, pixel and image-adapter checks with synthetic inputs | No game run or prepared art |
 | VN template | Source/program freshness and standalone story checks with procedural content | Optional capture mode requires native rendering |
 | Asset consumer template | Temporary project copy, deterministic PNG preparation and actual scene consumption | None |
 | Godot tooling | Python coordinator regression tests | Development pytest installation |
+
+[Movie Sprite Actor](../packages/movie_sprite_actor/README.md) has an independent
+consumer check in both offline and rendered scopes. Each run assembles a fresh
+project outside the checkout; native mode also checks captured composed pixels.
+Afterlight owns its separate movie-asset and actual-game lifecycle checks.
 
 [Scenario verification](../packages/scenario_runtime/docs/verification.md) identifies
 its independently installed authoring tests, native contract checks and game

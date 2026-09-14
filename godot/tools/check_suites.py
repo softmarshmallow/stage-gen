@@ -34,6 +34,7 @@ class Suite:
     success: str = r"(?m)^PASS(?: |:)"
     prerequisite: str = ""
     members: tuple[str, ...] = ()
+    prepared_files: tuple[str, ...] = ()
 
 
 OWNERS = (
@@ -49,6 +50,7 @@ OWNERS = (
         "scenario_runtime", "packages/scenario_runtime", "explicit", ("tests", "authoring/tests")
     ),
     Owner("content_io", "packages/content_io", "explicit"),
+    Owner("movie_sprite_actor", "packages/movie_sprite_actor", "explicit"),
     Owner("sideview_rendering", "packages/sideview_rendering", "explicit"),
     Owner("vn", "templates/vn", "checks"),
     Owner("asset_consumer", "templates/asset_consumer", "explicit"),
@@ -109,6 +111,39 @@ def declared_suites() -> list[Suite]:
         quick_approach_integration_checks sprite_burst_integration_checks
         transmission_audio_checks transmission_display_checks""",
         "rendered",
+    )
+    movie_levels: tuple[tuple[str, Level, tuple[str, ...]], ...] = (
+        ("movie_sprite_integration_checks", "media", ()),
+        ("movie_sprite_rendered", "rendered", ("--capture-movie-sprite",)),
+    )
+    for name, level, arguments in movie_levels:
+        suites.append(
+            Suite(
+                "afterlight",
+                name,
+                "script",
+                "tests/movie_sprite_integration_checks.gd",
+                level,
+                arguments=arguments,
+                prepared_files=(
+                    "assets/movie_sprite/yuzu/manifest.json",
+                    "assets/movie_sprite/riko/manifest.json",
+                ),
+            )
+        )
+    suites += _scripts("movie_sprite_actor", "run_checks")
+    suites.append(
+        Suite("movie_sprite_actor", "independent_consumer", "python", "tools/check_standalone.py")
+    )
+    suites.append(
+        Suite(
+            "movie_sprite_actor",
+            "independent_consumer_rendered",
+            "python",
+            "tools/check_standalone.py",
+            "rendered",
+            arguments=("--rendered",),
+        )
     )
     suites.append(
         Suite(
@@ -232,6 +267,7 @@ def declared_suites() -> list[Suite]:
         Suite("game_presentation", "package_dependencies", "python", "tools/check_sdk_package.py")
     )
     for owner_name, name, source in (
+        ("movie_sprite_actor", "standalone_assembly", "tests/python/test_standalone_assembly.py"),
         ("scenario_runtime", "starter_assembly", "tests/python/test_starter_assembly.py"),
         ("scenario_runtime", "content_player", "tests/python/test_content_player.py"),
         ("scenario_runtime", "example_sources", "tests/python/test_example_sources.py"),
@@ -241,6 +277,7 @@ def declared_suites() -> list[Suite]:
         ("the_grain", "rich_narrative_source", "tests/python/test_rich_narrative.py"),
         ("afterlight", "content_preparation", "tests/python/test_example_content.py"),
         ("afterlight", "voice_preparation", "tests/python/test_afterlight_voice_preparation.py"),
+        ("afterlight", "movie_sprite_preparation", "tests/python/test_movie_sprite_preparation.py"),
     ):
         suites.append(Suite(owner_name, name, "pytest", source, success=r"\b[1-9][0-9]* passed\b"))
     for name in ("admission", "content", "current", "distribution", "liveness", "parser"):

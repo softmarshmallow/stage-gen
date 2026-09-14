@@ -11,6 +11,7 @@ godot/
 ├── packages/
 │   ├── game_presentation/      # Presentation controllers and compatibility APIs
 │   ├── content_io/             # Confined local content access and decoding
+│   ├── movie_sprite_actor/     # Body playback and independent facial compositing
 │   ├── scenario_runtime/       # VN-oriented invocation framework and compiler
 │   └── sideview_rendering/     # Layers, pixels and parallax presentation
 ├── games/
@@ -36,6 +37,7 @@ godot/
 | Owner | Dependencies and responsibility |
 | --- | --- |
 | `content_io` | No other addon; accepts explicit roots, references and optional source digests. |
+| [`movie_sprite_actor`](../packages/movie_sprite_actor/README.md) | Declares only `content_io`; admits registered-face atlas descriptors, advances body frames, composites independent facial states and owns resource lifecycle. No Scenario or game dependency. |
 | `scenario_runtime` | Owns compiler, admission, Session progression/clocks, bindings and optional presenters. Declares `game_presentation` and `content_io`; pure execution has no scene/media dependency. |
 | `sideview_rendering` | No game manifest; accepts source images/data, dimensions, anchors and presentation values. Image baking is separate from pure arithmetic. |
 | `game_presentation` | Declares `content_io` for the existing local-content facade. Controllers retain their separate time, geometry and lifecycle contracts. |
@@ -48,7 +50,10 @@ retain v2 prepared content through the compatibility adapter into the same Sessi
 executor. Games own invocation,
 input, world/camera policy, assets and saves. Bellweather and Iron Petal Unit use
 side-view rendering. Afterlight and Command Link share private navigation while
-keeping their own UI and checkpoint policy.
+keeping their own UI and checkpoint policy. Afterlight Lab consumes Movie Sprite Actor
+through its public API; blink cadence, speaking mouth cycles, audio and diagnostic UI
+stay with the host. Its standalone synthetic consumer requires neither game content
+nor Scenario.
 
 [Scenario's directory preview](../packages/scenario_runtime/docs/layout.md) expands
 its standalone authoring distribution, native sessions, game-installed capability

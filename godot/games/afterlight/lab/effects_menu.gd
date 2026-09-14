@@ -38,6 +38,7 @@ func _ready() -> void:
 		description.size = Vector2(354, 50)
 		_button_text("ui.explore", Rect2(x + 400, y + 49, 150, 37), _open_study.bind(str(entry[0])))
 	_button("Ominous effects", Rect2(646, 780, 294, 48), _open_study.bind("ominous_study"))
+	_button("Movie Sprite Actors · Yuzu / Riko", Rect2(646, 838, 577, 42), _open_study.bind("movie_sprite_study"))
 	_button("Presentation Lab", Rect2(988, 780, 235, 48), func() -> void: navigate.emit("menu"))
 	_button_text("ui.walking_approach", Rect2(64, 780, 235, 48), _open_study.bind("approach_study"))
 	_button_text("ui.eye_transitions", Rect2(315, 780, 235, 48), _open_study.bind("eye_study"))

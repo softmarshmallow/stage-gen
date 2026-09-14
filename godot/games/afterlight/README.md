@@ -82,6 +82,17 @@ Scenario instructions.
 
 ## Art and checks
 
+The local [Yuzu/Riko Movie Sprite Actor diagnostic](docs/movie-sprite-diagnostic.md)
+in Afterlight Lab plays prepared transparent body loops with independently
+controlled eyes and speaking mouth states through the independent
+[Movie Sprite Actor package](../../packages/movie_sprite_actor/README.md).
+Afterlight owns the diagnostic composition and preparation. It reuses existing art, subtitles and
+recordings without changing the episode or promoting the generation pipeline:
+
+```sh
+godot --path godot/games/afterlight -- --game lab --route movie_sprite_study --language en
+```
+
 The [presentation history](docs/presentation-history.md) preserves detailed
 artistic decisions and their scoped evidence. The
 [paired story review](text/STORY_REVIEW.md), [asset catalog](assets/catalog.json)

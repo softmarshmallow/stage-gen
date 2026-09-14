@@ -143,7 +143,10 @@ def prerequisite(suite: Suite, owner: Owner, external_root: Path | None) -> str:
     try:
         missing = [
             path.relative_to(owner.project).as_posix()
-            for path in media_requirements(owner)
+            for path in (
+                *media_requirements(owner),
+                *(owner.project / name for name in suite.prepared_files),
+            )
             if not path.is_file()
         ]
     except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -181,7 +184,7 @@ def command_for(suite: Suite, owner: Owner, args: argparse.Namespace, scratch: P
             command += ["--run", str(args.run or scratch / "ember-hollow-run")]
         return command
     if suite.adapter == "python":
-        return [sys.executable, str(owner.project / suite.source)]
+        return [sys.executable, str(owner.project / suite.source), *suite.arguments]
     if suite.adapter == "pytest":
         return [sys.executable, "-m", "pytest", "-q", str(owner.project / suite.source)]
     project = scratch / "asset-consumer" if suite.adapter == "asset_consumer" else owner.project

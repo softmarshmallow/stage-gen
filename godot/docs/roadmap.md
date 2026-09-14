@@ -23,6 +23,7 @@ and a delivery server are not implemented promises.
 | Candidate | Next useful boundary | Decision before implementation |
 | --- | --- | --- |
 | Sprite playback | Frame clocks, anchors, rebasing and held frames | Separate these from calibration, `playerHeightTiles` and run manifests. Use synthetic textures and game integration evidence. |
+| [Movie Sprite Actor](movie-sprite-actor.md) | Prepared body performance plus independently controlled facial states | The [runtime package](../packages/movie_sprite_actor/README.md) now owns the registered-face atlas profile, with descriptor-driven geometry/timebase and a separate synthetic consumer. Afterlight retains content and direction. Moving-head registration, a separate whole-face plate, runtime video decoding and an optional Scenario actor-surface adapter remain separate future decisions; generation-module promotion stays deferred. |
 | System scheduling | System declarations, stable order, explicit ticks and refusals | Establish a useful independent API before promoting the small scheduler closure. RNG, inventory and gauges need not join it. |
 | Pose composition | Base rectangles plus controller samples | Extract only if a narrow helper preserves both games' framing, camera and clock behavior. Whole cast stages remain game-owned. |
 | Python SDK dependencies | Declared public asset interfaces | Review remaining private imports separately; do not promote game schema policy or documentation helpers into Stage Gen for convenience. |

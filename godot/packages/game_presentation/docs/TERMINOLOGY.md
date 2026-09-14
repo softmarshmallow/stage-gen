@@ -54,6 +54,19 @@ That layering is host direction, not a universal UI policy of the effect.
 closed-eye images or facial animation. Mira's existing sprite blink in Command
 Link is not an Eye-Opening, Eye-Closing, or Blink Transition.
 
+The canonical actor representation is [**Movie Sprite Actor**](../../../docs/movie-sprite-actor.md):
+pre-rendered body motion with independently controlled facial states. It supplies
+the animated character presentation from video/image-model output without a rig
+or deformation-data import. Afterlight's local [diagnostic](../../../games/afterlight/docs/movie-sprite-diagnostic.md)
+implements a body loop with independent facial states: a bilateral
+character blink for Yuzu, a canvas-left wink for Riko, and host-directed rest/A/O
+**speaking mouth animation**. The body clock and eye/mouth selection are separate.
+The neutral face is currently baked into body frames; eye/mouth patches are
+separate. This is not phoneme-aligned lip sync or a deformable rig. The independent
+[`movie_sprite_actor` runtime package](../../movie_sprite_actor/README.md) owns
+playback and facial compositing; the host owns direction. It is separate from
+`game_presentation`, and generation promotion remains deferred.
+
 If an organic, irregular edge later warrants image-model artwork, the relevant
 asset is a grayscale coverage mask or edge profile with a documented opacity
 convention. Animation and endpoint handling would remain in code. The current
