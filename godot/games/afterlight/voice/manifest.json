@@ -806,550 +806,10 @@
     "ko": {
       "episode.eyes_on_nami": {
         "status": "ready",
-        "path": "res://voice/clips/ko/episode.eyes_on_nami-a26775bb0c7a9989.mp3",
-        "source_revision": "6db19c393a5782ffa053e06ffdf4d72c87b9e3a8b8b3a6daf2722b92a0402333",
-        "preparation_revision": "a26775bb0c7a99899eec11351f3ac5f3c01bb6a1b4e6b2bd37feda41035773df",
-        "audio_sha256": "0310b40f1e2855f6924ddc2c9f57b02414725b3957916860d29dc6d18547e3db",
-        "duration_seconds": 6.97,
-        "speaker_id": "nami",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "6awt6FKyZGV0HyQEwisX",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.no_ordinary_post": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.no_ordinary_post-04dad030a64bb77f.mp3",
-        "source_revision": "36f921ef48f19d6c1efc00f27ec38a73110ad26843dade06f99ece24c961b69d",
-        "preparation_revision": "04dad030a64bb77ff956cddbc9b180bbb92effda7a65ec4691c4ee6e939cd658",
-        "audio_sha256": "abebe6fa77905b182d35f43941792384f6f8cc208600b28ffaf7d7d1d0f7cb38",
-        "duration_seconds": 9.06,
-        "speaker_id": "nami",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "6awt6FKyZGV0HyQEwisX",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.a_glass_record": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.a_glass_record-ef6e497cae897573.mp3",
-        "source_revision": "c9f553387329690638d8a8482c06ba6498a1ddd51ef515dabf983643e0c6df6c",
-        "preparation_revision": "ef6e497cae8975737a0be8f688559740a92dafd0ebb88ea76cdf6f54cffbed70",
-        "audio_sha256": "32466a54378661f5800900ff6155260a8e40c6f2b740c97210340bf96e08c386",
-        "duration_seconds": 7.13,
-        "speaker_id": "yuzu",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "EXAVITQu4vr4xnSDxMaL",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.no_forwarding_address": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.no_forwarding_address-c52b8f18b77e0871.mp3",
-        "source_revision": "df3745148756d72cc51fee404091d9eb7953e56f2ed84704ce11e42ed79d2d7e",
-        "preparation_revision": "c52b8f18b77e08716ce9742066ef571315a8bca916e07abb094c804a88294051",
-        "audio_sha256": "60810aa90e591c72b39b3d36ef61bd2b9fe36df52158d3f52f6de78934654ac7",
-        "duration_seconds": 7.36,
-        "speaker_id": "nami",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "6awt6FKyZGV0HyQEwisX",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.courier_offer": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.courier_offer-58b0b6e613fa5f69.mp3",
-        "source_revision": "04bfa68a63f61c957b150128bee3d11549e8dc0eb212f66fec57cf9e6d257eb7",
-        "preparation_revision": "58b0b6e613fa5f697e883e270adc98998ee11a0acc7233b2b041d32f2d3f83c2",
-        "audio_sha256": "f5ae848195c8ae8ce0ac3b2def8aedf24c36188b045f7567759c47ad653ebd22",
-        "duration_seconds": 6.5,
-        "speaker_id": "nami",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "6awt6FKyZGV0HyQEwisX",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.courier_reply.help_first": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.courier_reply.help_first-af44d203e94f8ff0.mp3",
-        "source_revision": "0999a848dfa3a13b7c93c28bd3fb928af7ed117d0bd3d0e28db56da7b1043881",
-        "preparation_revision": "af44d203e94f8ff0fe87e1524b4d96818b04645ad5513971fe9a62adcbe92ba3",
-        "audio_sha256": "023d3c4f3224ef21a3b1e253a7c9714179456b0adae1c7fc5e118972c0149768",
-        "duration_seconds": 7.86,
-        "speaker_id": "nami",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "6awt6FKyZGV0HyQEwisX",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.courier_reply.tea_first": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.courier_reply.tea_first-8e4f268c08775d44.mp3",
-        "source_revision": "aae7a5612fa40b37cfafa60c16bd25f93522ba0205664d4d65ef51a549e5a7ae",
-        "preparation_revision": "8e4f268c08775d445f328a8ac20a9d4fb6d2f651daccd1122c2cc02e82760bdc",
-        "audio_sha256": "dab6fa1a9f087a70c22a1b008a70ed9cc422017c939c8676527f517756bba6ae",
-        "duration_seconds": 7.68,
-        "speaker_id": "nami",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "6awt6FKyZGV0HyQEwisX",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.a_second_line": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.a_second_line-abcc6e8da90657d3.mp3",
-        "source_revision": "7e058f613c0f5be98118defea5e03158dc724adbba2dae1fe198c5a9ca93c393",
-        "preparation_revision": "abcc6e8da90657d38ff3eee7b27e463d6bd046d26725e05cde9cfe71028450c1",
-        "audio_sha256": "2c9190302865dc5156bc3a8f89064af4d3baf98251949262372d096a4327b9d6",
-        "duration_seconds": 6.0,
-        "speaker_id": "yuzu",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "EXAVITQu4vr4xnSDxMaL",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.caught_in_the_light": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.caught_in_the_light-e7c75e439ae61cad.mp3",
-        "source_revision": "74293b94b6114dca215f577833d5a6a7482247c7e296b9daffd59084b3de68f0",
-        "preparation_revision": "e7c75e439ae61cade15559bcd4a89d83cb549b8c3e8245aea83b7330ded9be16",
-        "audio_sha256": "158d66c2dade2a9c59a9743fd18330543b96d064c7fb42ff505fe9de02e79e78",
-        "duration_seconds": 5.93,
-        "speaker_id": "nami",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "6awt6FKyZGV0HyQEwisX",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.the_warning": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.the_warning-b6163fae338c33a8.mp3",
-        "source_revision": "d7b9ee0cfe50aa0ed23f414502dbce90b78ad17e91592e176f1484b63e2c97b2",
-        "preparation_revision": "b6163fae338c33a8195a608343d592e0863bb1b30f77d433e234e25c7b8ad56d",
-        "audio_sha256": "b1a896535707be29d1c4e26324aa176cb40f6f3c5e667a422256a5e3d4fe5363",
-        "duration_seconds": 10.16,
-        "speaker_id": "yuzu",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "EXAVITQu4vr4xnSDxMaL",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.verified_trouble": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.verified_trouble-7f4cf633b42cf1c0.mp3",
-        "source_revision": "577d7e8fb0dd5f293af8b3b924b8d7eeec0823a8b4e013f65acff1c735c6aae0",
-        "preparation_revision": "7f4cf633b42cf1c0b3e73690f1ec9cbf5b0717656f7fc1724e9479aa5116f3c6",
-        "audio_sha256": "f51a0cba14d7e7872e3beb2dbfc38641bb668f171ed389711c3c3ec3b36b87b6",
-        "duration_seconds": 7.86,
-        "speaker_id": "nami",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "6awt6FKyZGV0HyQEwisX",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.keep_the_wards_lit": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.keep_the_wards_lit-9021432566f9d366.mp3",
-        "source_revision": "2ab33054827c2076eae8ad092af4f119185953c2be12948d092d21727e5a2926",
-        "preparation_revision": "9021432566f9d36662e316572a058736159bc84507e5cfb5b59e205385e75ef9",
-        "audio_sha256": "0ee28ff29cb15a26103481786bfdaefce2ff925c08fdafeb675b6e0421e13e73",
-        "duration_seconds": 10.24,
-        "speaker_id": "yuzu",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "EXAVITQu4vr4xnSDxMaL",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.divide_the_work": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.divide_the_work-e9871ebff6b0f6ef.mp3",
-        "source_revision": "083f2203b56e9a12334e465d0768d5b2db220089f6a77974cc331e1e0e6c19b7",
-        "preparation_revision": "e9871ebff6b0f6ef51a0a87971a1e324ebaa902aa8c6538d2a35fb21f8c49b44",
-        "audio_sha256": "529547099ed12e371fea844e263dab665202c3e43c695c241389400ff17c5616",
-        "duration_seconds": 8.96,
-        "speaker_id": "nami",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "6awt6FKyZGV0HyQEwisX",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.sena_takes_over": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.sena_takes_over-ba149da9fa0806f5.mp3",
-        "source_revision": "da008eabbbec7cb2d8690c65d7409c66503e69d530b89be2be775d12fe4b786c",
-        "preparation_revision": "ba149da9fa0806f553356d497c7f10a410fd5d6b7ec04f5b8b1831c6343c84c5",
-        "audio_sha256": "6e443ec70e33802f64c8343ae4362223f1437d905f7a66a13dc703d3e7b9f9ce",
-        "duration_seconds": 6.74,
-        "speaker_id": "sena",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "FGY2WhTYpPnrIDTdsKH5",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.the_useful_kind": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.the_useful_kind-45e0aa397573a8fd.mp3",
-        "source_revision": "6cd1701938bf8e70dbf24d25903e3ecd17c6561764e4f636fa515badb5a84a1b",
-        "preparation_revision": "45e0aa397573a8fd0cfa704e8fac5daa0367e89a5a28c3d1095fe19ff72e0752",
-        "audio_sha256": "3372a53f0b070aa1c7b6c9aeff76bfd53927902a2f4c03bfbc7718f8b0e3f42e",
-        "duration_seconds": 8.25,
-        "speaker_id": "yuzu",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "EXAVITQu4vr4xnSDxMaL",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.a_live_line": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.a_live_line-0869e2e1e74725c0.mp3",
-        "source_revision": "34ba6cbff26f955ef38d00cea10c19e0f8d15a0af65d1006841621ab3e48d931",
-        "preparation_revision": "0869e2e1e74725c0717da34913f0c6d879217e30308fc1b2ee39233bf804f8fb",
-        "audio_sha256": "d989078937edf962066f30a9c067b1549991dc281eaa00418c6e4c14b7f788d0",
-        "duration_seconds": 11.36,
-        "speaker_id": "sena",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "FGY2WhTYpPnrIDTdsKH5",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.riko_on_the_glass": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.riko_on_the_glass-ca5b51a39c000292.mp3",
-        "source_revision": "0784c83c0cc4f6a382454aa0f388b306dd0256e033dcfd468a3d675c15d03b7c",
-        "preparation_revision": "ca5b51a39c00029269a2b4c6768eaceba4aa387180e2b8a5220684d347c48528",
-        "audio_sha256": "6b5e1c5550ca61297a1dd1d6b1a4525a8185af158863f0438d75d24460ea7d8f",
-        "duration_seconds": 8.02,
-        "speaker_id": "riko",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "W3C2vBPukr5b5jvoXhPK",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.two_green_lamps": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.two_green_lamps-388177a0a42a4651.mp3",
-        "source_revision": "9e3f22b8364022540ee1058e18a5c418c440bf6efcbcc0341360bf0cc493c8bf",
-        "preparation_revision": "388177a0a42a4651298d3e9c7aa378ac029469e6ffce15d96e4be026c3a51124",
-        "audio_sha256": "efba91a072f72b3f5ce60b23c98724ffbe5907c8332e26def09a0a4705ab373d",
-        "duration_seconds": 9.84,
-        "speaker_id": "yuzu",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "EXAVITQu4vr4xnSDxMaL",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.waiting_for_the_signal": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.waiting_for_the_signal-1932a6272c3b6bbd.mp3",
-        "source_revision": "2671507ac522daff23c5feac1431c63f8f6212ff6bbb02bc960ef0f8df49e3e3",
-        "preparation_revision": "1932a6272c3b6bbd6bf4b28fd8afd347b3b47cff87367f8aded9be44e3f54d3e",
-        "audio_sha256": "c84630699286c26b294b1cbe61f3350bed18f5aa6546100acf792634bd17d5f1",
-        "duration_seconds": 11.62,
-        "speaker_id": "riko",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "W3C2vBPukr5b5jvoXhPK",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.eira_on_the_relay": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.eira_on_the_relay-d4a6efab0a6772df.mp3",
-        "source_revision": "e0dbac950061bfd9ebca9ba5c09363c28eb83d37241567345212aa6ea3716737",
-        "preparation_revision": "d4a6efab0a6772df62f5904f51771d75f52df2432ec7b51911aa13c220ef1d38",
-        "audio_sha256": "8afbda7838679d2c79523250ea2db368348853efbca9c7244f5452be90c57986",
-        "duration_seconds": 8.96,
-        "speaker_id": "eira",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "XrExE9yKIg1WjnnlVkGX",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.the_return_channel": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.the_return_channel-afc944db9d1703c1.mp3",
-        "source_revision": "85c9ddc285c3c7eb130f9416935d8775269d4e697772d0d789753f8ce9b76fe4",
-        "preparation_revision": "afc944db9d1703c1fcc33f8b86956e1d54bcfa9000b96638b9f5b36c5c94e093",
-        "audio_sha256": "838dc4fd1c3d82daecc63f50b606f0af9688dd35ec64f6dc93b96c90fe096e5d",
-        "duration_seconds": 13.21,
-        "speaker_id": "eira",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "XrExE9yKIg1WjnnlVkGX",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.follow_the_pulse": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.follow_the_pulse-0422fb1199c2f481.mp3",
-        "source_revision": "d6f9bb22d5d354620fcb06960376087d8d1a3e183430564b9ea816720b468ab0",
-        "preparation_revision": "0422fb1199c2f48133cb2e042945c8622a2a301aac1d3ef8dffc066fd72e8458",
-        "audio_sha256": "c70650c092afe9b748c28a5231320c64e4e8a282952276559a48ac6146c0419d",
-        "duration_seconds": 10.5,
-        "speaker_id": "eira",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "XrExE9yKIg1WjnnlVkGX",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.eira_signs_off": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.eira_signs_off-9f77bad6cd1e221c.mp3",
-        "source_revision": "a9872c5d3680eff49bd62d832fa3bce8d67503807e18563930b98e4458be7cb5",
-        "preparation_revision": "9f77bad6cd1e221cae31c944a6d257ebde7189a151c17a79def8e3eee5bb21ba",
-        "audio_sha256": "91f65fbe2a01d4dc5e007656b22695fff9c9ff16a325d34bd5f6f4fe5421abc5",
-        "duration_seconds": 10.24,
-        "speaker_id": "eira",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "XrExE9yKIg1WjnnlVkGX",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.follow_the_diagram": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.follow_the_diagram-aeafd21b3c9b7ec4.mp3",
-        "source_revision": "e4f052b4e67b464ff3652e9535c088dafc40969f434ce8d6b015ce25a85eaf6f",
-        "preparation_revision": "aeafd21b3c9b7ec49185a274c99a317d751d47b9ca3d5e705b28888ccc67a4b5",
-        "audio_sha256": "974154b4f63474deaab480926cc327c286dc8c675b046377daead848c792548e",
-        "duration_seconds": 12.09,
-        "speaker_id": "sena",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "FGY2WhTYpPnrIDTdsKH5",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.checked_twice": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.checked_twice-b59516d4afe054fc.mp3",
-        "source_revision": "5843f48de816ac04ba8869226524a9a2b8282e202ce85f723be3b5d345d4321b",
-        "preparation_revision": "b59516d4afe054fc6925409a4d256696a45d182b9a2dd90de3a2ff2722bfd50d",
-        "audio_sha256": "c1ab96dd38c9f1560ea5307e7ecf7fa1231deb432b0f3793eef98d544db375a2",
-        "duration_seconds": 8.49,
-        "speaker_id": "yuzu",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "EXAVITQu4vr4xnSDxMaL",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.the_signal": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.the_signal-db63e93d43f28f8a.mp3",
-        "source_revision": "1ff9451d3394a08e7221860daed72ea2652c75eb676c91d6a47a076e31465c4e",
-        "preparation_revision": "db63e93d43f28f8a172841719d92b40ddf024b712d083671e8c39c982684750a",
-        "audio_sha256": "5afa3e11746bbb15a1bab10b122ebbd824f84d333366b83501ffefe4d94f7c50",
-        "duration_seconds": 10.08,
-        "speaker_id": "riko",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "W3C2vBPukr5b5jvoXhPK",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.the_reroute": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.the_reroute-47288b3307b6f819.mp3",
-        "source_revision": "a05f7a0b3ea040b77bd9876c585c02cd5ca35c2bf770bfa976900566dd694333",
-        "preparation_revision": "47288b3307b6f81923df433028924c5487190f918101659cb2a30388eb538f4b",
-        "audio_sha256": "f1909910489335b0992f6804dd4b12ce76e7f93a03901350b07fe6aafb9c5df9",
-        "duration_seconds": 7.68,
-        "speaker_id": "sena",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "FGY2WhTYpPnrIDTdsKH5",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.the_seal_answers": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.the_seal_answers-4e7814352ddbf2ba.mp3",
-        "source_revision": "5424f5de9aeaa2f069c40191282a6d9cf669cda950d5064d05f16e7bf50360d4",
-        "preparation_revision": "4e7814352ddbf2ba74cf494bb22f891e47fe758ac7af836c3dbdc5585a0ed229",
-        "audio_sha256": "28a5040c00deebf6a46404c159043407d345c79dd4febc0509bc1f29d22a8afd",
+        "path": "res://voice/clips/ko/episode.eyes_on_nami-f32edf45f45ce6a8.mp3",
+        "source_revision": "0d43f6c25449d5437aeb62344919f3a985735b5a9d5771c8dcc5730fc6a3e0f8",
+        "preparation_revision": "f32edf45f45ce6a8d0754e2507b41fa045648339c80e6b30f9c79422d4f839d2",
+        "audio_sha256": "cd7efb0e47793e5f312cab3e9f9f2c1d4882efb339bd85b053193b03cb2dbc4a",
         "duration_seconds": 9.3,
         "speaker_id": "nami",
         "provider": "elevenlabs",
@@ -1359,58 +819,18 @@
           "model": "eleven_v3",
           "output_format": "mp3_44100_192",
           "provider": "elevenlabs",
-          "provider_voice": "6awt6FKyZGV0HyQEwisX",
-          "stability": 0.5
+          "provider_voice": "ugYcuAusTuWCSOpJD0Xd",
+          "stability": 0.0
         },
         "listening_verdict": "not_reviewed"
       },
-      "episode.the_keeper": {
+      "episode.no_ordinary_post": {
         "status": "ready",
-        "path": "res://voice/clips/ko/episode.the_keeper-85f09fee0cb63de6.mp3",
-        "source_revision": "a76acdf8819c6187deb2a0520c72a1c48baabad6d4d7b721bf800d5da719c67f",
-        "preparation_revision": "85f09fee0cb63de6c757d1b002d9e522981236628593c7da3c31f1814e4d6a16",
-        "audio_sha256": "f401ea41ce44b750dc057fd9cc0905ee39ed3584831ea023c98497fa65b96a9d",
-        "duration_seconds": 12.64,
-        "speaker_id": "keeper",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "pFZP5JQG7iQjIQuC4Bku",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.the_price_of_return": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.the_price_of_return-b72295cb0860db62.mp3",
-        "source_revision": "e284b67f8e25a076bbebf0d65dc5ed4d08b2f97574163faba848485a9632c6c6",
-        "preparation_revision": "b72295cb0860db62579da03f92a5ea7769643cdfb9284f04b00fc79304690370",
-        "audio_sha256": "26ef61109521b010f545cdf31a6e0840f4a32fcdc1fc06d3587a437653df0d37",
-        "duration_seconds": 8.09,
-        "speaker_id": "keeper",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "pFZP5JQG7iQjIQuC4Bku",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.nami_beyond_the_wall": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.nami_beyond_the_wall-510b0afd9ff5cf32.mp3",
-        "source_revision": "84a0a247248b77d0ed958f596d08c668b4f0ce8e37ed0f508867f0b26a1b0f95",
-        "preparation_revision": "510b0afd9ff5cf3218818edce4edc83237f13b92a724d55ee47ff1d54494fe39",
-        "audio_sha256": "99218895436f338fb2f053b777214010281d7d4b01cc157d63452a1773ba0c02",
-        "duration_seconds": 7.94,
+        "path": "res://voice/clips/ko/episode.no_ordinary_post-267f8c81a317caec.mp3",
+        "source_revision": "e2a72743ee5c05e1ad3f8fe21cbb02e00f779db5db3ebe11c9c2edda0b3d6f7d",
+        "preparation_revision": "267f8c81a317caec27249b93f792cf9c78f5cc5693a8a9afa7c8268a111da06b",
+        "audio_sha256": "2b94d55b19f4608d86f9cfd294952f3bcc9113ed14b10149dd98315145cec159",
+        "duration_seconds": 9.37,
         "speaker_id": "nami",
         "provider": "elevenlabs",
         "model": "eleven_v3",
@@ -1419,58 +839,18 @@
           "model": "eleven_v3",
           "output_format": "mp3_44100_192",
           "provider": "elevenlabs",
-          "provider_voice": "6awt6FKyZGV0HyQEwisX",
-          "stability": 0.5
+          "provider_voice": "ugYcuAusTuWCSOpJD0Xd",
+          "stability": 0.0
         },
         "listening_verdict": "not_reviewed"
       },
-      "episode.a_touch_that_stays": {
+      "episode.a_glass_record": {
         "status": "ready",
-        "path": "res://voice/clips/ko/episode.a_touch_that_stays-836f3bbf110c99b2.mp3",
-        "source_revision": "6727a69810ca1af40c775ad2135676a00ea654e6783d1beaea50e1809eb8b350",
-        "preparation_revision": "836f3bbf110c99b257bebd1d7d1870863c84ad794ada78ab53fb168423d897e2",
-        "audio_sha256": "e3f9a24909e051d229eb0358a4a974366e9a0828bfd5313f92899ee0f429c4e5",
-        "duration_seconds": 7.21,
-        "speaker_id": "nami",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "6awt6FKyZGV0HyQEwisX",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.only_a_second": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.only_a_second-e22073854ad9eca3.mp3",
-        "source_revision": "673f6e56d00b357dbd2a67aab1fc152eeab78bbc36a0b0d88f407d559995c7b8",
-        "preparation_revision": "e22073854ad9eca390e00e8eb6959dabc97c800c67283fc254d96af435c08a7b",
-        "audio_sha256": "c27437178d46b2f7ae2ca619003d6d9a251e79bcabfd053c69ce3a011c2a7623",
-        "duration_seconds": 9.61,
-        "speaker_id": "nami",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "6awt6FKyZGV0HyQEwisX",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.steady_at_last": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.steady_at_last-8d4f2483660bcb22.mp3",
-        "source_revision": "a4d4a092323452fc281fec41710808ffdc7f45b83bc00f98e14bf9bc1e5c738b",
-        "preparation_revision": "8d4f2483660bcb22113c69e83d0d4ae78cf912e5f706418b524acaafc4ee1c7a",
-        "audio_sha256": "b7dfe06542b406c93426bdc6ec87dc977aee92e1bb6cb896b4b08848ce82a49e",
-        "duration_seconds": 8.41,
+        "path": "res://voice/clips/ko/episode.a_glass_record-5bee1bc6d3ece031.mp3",
+        "source_revision": "effdfb1ae369b20a575219e410b9e4dde54ad406b21a7fd4336e331d8fffcd5c",
+        "preparation_revision": "5bee1bc6d3ece031e5a9c65f9bd017028bae427ee4ce32c1729a1eb787e68e7d",
+        "audio_sha256": "839e269f6f5700ba9f8ce998062e8b2b13d37e15d498f62a91c4cb5a7e9e793b",
+        "duration_seconds": 8.49,
         "speaker_id": "yuzu",
         "provider": "elevenlabs",
         "model": "eleven_v3",
@@ -1479,19 +859,19 @@
           "model": "eleven_v3",
           "output_format": "mp3_44100_192",
           "provider": "elevenlabs",
-          "provider_voice": "EXAVITQu4vr4xnSDxMaL",
-          "stability": 0.5
+          "provider_voice": "JTlYtJrcTzPC71hMLOxo",
+          "stability": 0.0
         },
         "listening_verdict": "not_reviewed"
       },
-      "episode.all_clear": {
+      "episode.no_forwarding_address": {
         "status": "ready",
-        "path": "res://voice/clips/ko/episode.all_clear-5331a20744644757.mp3",
-        "source_revision": "f34dfaca12814d46df100f642ddaf1ed1963ec8306091f295c3e4007312edf9f",
-        "preparation_revision": "5331a20744644757fdfe050219492b608f02c5124a0acec74f44e210f5ba7561",
-        "audio_sha256": "e4013c498fd9f25b35af77e6f5d7823b95ef2eaae56366fd478eae07fa3b0680",
-        "duration_seconds": 9.06,
-        "speaker_id": "riko",
+        "path": "res://voice/clips/ko/episode.no_forwarding_address-b177a5aa91cc658c.mp3",
+        "source_revision": "61f74edb306d924bfc5f4af4d9752fe4d9b468a23714f9f49dfc662cb339973a",
+        "preparation_revision": "b177a5aa91cc658c1246db9ba08d0d8e778efb5e28d8f191d48f3df0c4bbab93",
+        "audio_sha256": "f9fdbc31fb009dc4b584b5e2cc448076a1fb85cc81ce28da0b4a51a264d6d454",
+        "duration_seconds": 7.78,
+        "speaker_id": "nami",
         "provider": "elevenlabs",
         "model": "eleven_v3",
         "voice_profile": {
@@ -1499,19 +879,19 @@
           "model": "eleven_v3",
           "output_format": "mp3_44100_192",
           "provider": "elevenlabs",
-          "provider_voice": "W3C2vBPukr5b5jvoXhPK",
-          "stability": 0.5
+          "provider_voice": "ugYcuAusTuWCSOpJD0Xd",
+          "stability": 0.0
         },
         "listening_verdict": "not_reviewed"
       },
-      "episode.riko_signs_off": {
+      "episode.courier_offer": {
         "status": "ready",
-        "path": "res://voice/clips/ko/episode.riko_signs_off-fa17ebbc104e2531.mp3",
-        "source_revision": "0f836efa6bf5e27bc5464c75e543d8fa8ce54b90a144d0ab22fd9b6d50b9acd7",
-        "preparation_revision": "fa17ebbc104e25315b9b5ba308aeb421f7165e1770bb3960f860c07fde28cafd",
-        "audio_sha256": "bf278bbf7ea7a2b3f6e90ed34f79ebca3b2a88552e4aef7acd0a19e59e750a68",
-        "duration_seconds": 6.89,
-        "speaker_id": "riko",
+        "path": "res://voice/clips/ko/episode.courier_offer-130dbdb0417bf19d.mp3",
+        "source_revision": "f5ee736a387828070375fd57ce304c575805c9101ed5353584fe9b7f89d1a1ad",
+        "preparation_revision": "130dbdb0417bf19d74b6b946fb4d42e9942f20de9b45a3ec4c514c7e394981a1",
+        "audio_sha256": "d54839b9ded60b3feea53222d9e80603ad84598eab9db1b310faa30ceee18dd2",
+        "duration_seconds": 7.6,
+        "speaker_id": "nami",
         "provider": "elevenlabs",
         "model": "eleven_v3",
         "voice_profile": {
@@ -1519,18 +899,178 @@
           "model": "eleven_v3",
           "output_format": "mp3_44100_192",
           "provider": "elevenlabs",
-          "provider_voice": "W3C2vBPukr5b5jvoXhPK",
-          "stability": 0.5
+          "provider_voice": "ugYcuAusTuWCSOpJD0Xd",
+          "stability": 0.0
         },
         "listening_verdict": "not_reviewed"
       },
-      "episode.a_modest_name": {
+      "episode.courier_reply.help_first": {
         "status": "ready",
-        "path": "res://voice/clips/ko/episode.a_modest_name-5d956e91d677b751.mp3",
-        "source_revision": "ba4fd4e2a5a734467bcfb192465f19815c438d10554fc13b03758e6b62785165",
-        "preparation_revision": "5d956e91d677b751973335b7f606698d2510c328c028b28d8823fc287b6e3842",
-        "audio_sha256": "6301bca8e7511e28774cb870fb29be115274d6ca7fcb136365bf0228acbabb2f",
-        "duration_seconds": 8.02,
+        "path": "res://voice/clips/ko/episode.courier_reply.help_first-a3d41fb3783a7c70.mp3",
+        "source_revision": "4fecdabfb6eeedc968de762553b74cb7b8d8a34cbc7de2b4c3a2b259e7fa5e94",
+        "preparation_revision": "a3d41fb3783a7c70f137b0a9520d0b26f602f5250ff7a40ecf0af3f2383e9ee8",
+        "audio_sha256": "5915041ac38f606351b60363ca2b6d8942babc54c8a4c4c863775adfaf3f3422",
+        "duration_seconds": 8.33,
+        "speaker_id": "nami",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "ugYcuAusTuWCSOpJD0Xd",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.courier_reply.tea_first": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.courier_reply.tea_first-4748d7bc7aa55c48.mp3",
+        "source_revision": "9237471ae109a39085d197a3f5d4ec2745b23cb67c4d92ee0d3c64ced84906c5",
+        "preparation_revision": "4748d7bc7aa55c48a07cbdb952ba78c9104b1b4309c7ab922db296f1bccd47ab",
+        "audio_sha256": "66e991670b1f52e097f7ab4a821746fcb04f9626ba73e438b49e221fc45e3813",
+        "duration_seconds": 8.49,
+        "speaker_id": "nami",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "ugYcuAusTuWCSOpJD0Xd",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.a_second_line": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.a_second_line-33b077ca4e459e42.mp3",
+        "source_revision": "9e5148f84a5e56d9c895155a31a41f56c564c0e54a85f2e94eb6403f25a84b5d",
+        "preparation_revision": "33b077ca4e459e4299cf30e68a1f2e84285f636a3049d208fa5695c12811076c",
+        "audio_sha256": "60c0120d01d57f13ed6c5d4dcf4298b402c1765f30dbf4ac89f32d2989582465",
+        "duration_seconds": 6.81,
+        "speaker_id": "yuzu",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "JTlYtJrcTzPC71hMLOxo",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.caught_in_the_light": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.caught_in_the_light-6ec37d147045e874.mp3",
+        "source_revision": "d0be48533cfaef03331cf986a01868b88529ebec6b3a2ffbedec1b0e5e0f17f0",
+        "preparation_revision": "6ec37d147045e874666cc8719230985d462abf1ef76741977484f620223fb9e9",
+        "audio_sha256": "176f77814b7ecb28689b17c4a9c87568cfe8806018af6605bfe555f82c35d97c",
+        "duration_seconds": 7.78,
+        "speaker_id": "nami",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "ugYcuAusTuWCSOpJD0Xd",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.the_warning": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.the_warning-490dc16476fc50d5.mp3",
+        "source_revision": "3c49fd1ed0fd3746a3487d086a00f3c91397c1502e6ad05ec6f9f5757ccc69a7",
+        "preparation_revision": "490dc16476fc50d5dfcd141e31e003b36886295b44060200ab36f7587626eec6",
+        "audio_sha256": "93aaa513aa9e7cfcc4902e5ab8a29e08f4c25d18df3a3124f769e51eed44875c",
+        "duration_seconds": 10.65,
+        "speaker_id": "yuzu",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "JTlYtJrcTzPC71hMLOxo",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.verified_trouble": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.verified_trouble-11f45335f29641b7.mp3",
+        "source_revision": "4559ee7edc71be178e8caa771e4bc091202b4c0a890fa60a251701069cb36101",
+        "preparation_revision": "11f45335f29641b7006f3a9a8eb632d404d9e37b51b68fe1a83108227606555e",
+        "audio_sha256": "aa1689ac56c7662fc5716aef3d95704703337421ed4d721f926502fc83b80f14",
+        "duration_seconds": 8.88,
+        "speaker_id": "nami",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "ugYcuAusTuWCSOpJD0Xd",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.keep_the_wards_lit": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.keep_the_wards_lit-8550616c9ae0d44d.mp3",
+        "source_revision": "019804f3b517053ad4e96cbe08a34b6a253de7c00dcbaec93f0c6150e05f79b8",
+        "preparation_revision": "8550616c9ae0d44d06d47ca86d376e5cb86505928a97aaead11c47e4307635de",
+        "audio_sha256": "53b22633289cb79d037a3680ae6909bd9db6030a89dc1a9c63c4004b66b739d0",
+        "duration_seconds": 10.89,
+        "speaker_id": "yuzu",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "JTlYtJrcTzPC71hMLOxo",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.divide_the_work": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.divide_the_work-a9693483510c9b2f.mp3",
+        "source_revision": "3e41b87e0459789c3c6b54b6a91687a8bfa681883f880df98bd90e2bf5bcb920",
+        "preparation_revision": "a9693483510c9b2f9b5566c756355a12ed7b3d575868763965f8475f663e459a",
+        "audio_sha256": "00bcd4c0f7396524180b4fba9010c05b0f9fdf05c2cf19603c1f00a9b16ec25b",
+        "duration_seconds": 8.88,
+        "speaker_id": "nami",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "ugYcuAusTuWCSOpJD0Xd",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.sena_takes_over": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.sena_takes_over-ab7e9f49afdaa7bc.mp3",
+        "source_revision": "96fc8aff0e3b1993ca76b541052d13d04bf10893436e70b0e73c88b46bf7fe80",
+        "preparation_revision": "ab7e9f49afdaa7bc85691b3efd60239a2b43883922e6253c977f94fff0ec23eb",
+        "audio_sha256": "89bfdeeee2b637bc7e9a1aa9d95efdcdf37a470e81fbf8cc2eded91919b98482",
+        "duration_seconds": 7.28,
         "speaker_id": "sena",
         "provider": "elevenlabs",
         "model": "eleven_v3",
@@ -1539,58 +1079,18 @@
           "model": "eleven_v3",
           "output_format": "mp3_44100_192",
           "provider": "elevenlabs",
-          "provider_voice": "FGY2WhTYpPnrIDTdsKH5",
-          "stability": 0.5
+          "provider_voice": "ngvNHfiCrXLPAHcTrZK1",
+          "stability": 0.0
         },
         "listening_verdict": "not_reviewed"
       },
-      "episode.everyone_accounted_for": {
+      "episode.the_useful_kind": {
         "status": "ready",
-        "path": "res://voice/clips/ko/episode.everyone_accounted_for-d220c6e96b2e5387.mp3",
-        "source_revision": "3e6e451006cfcbdd91f3dabaa3cfddbfa3e712c42cd8d93f6e433f703f9b3d1f",
-        "preparation_revision": "d220c6e96b2e53876dc2253f2193133527ab8cc682139bff8d9738ce405a6a23",
-        "audio_sha256": "e7b964a9044f59bbca7d850ae0fc8f857e55ebbda59aeb8a33db51600b9db364",
-        "duration_seconds": 7.94,
-        "speaker_id": "nami",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "6awt6FKyZGV0HyQEwisX",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.a_proper_hello": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.a_proper_hello-709c0c330a4b872d.mp3",
-        "source_revision": "bb70901967f31e827c195dbd1d4b7bc6b26694b585811c3cf0dadb0e0e40dafb",
-        "preparation_revision": "709c0c330a4b872d2336362a74fca0a0bf582fd43a88aa2e97b7e95b224728ca",
-        "audio_sha256": "068ca190dde9c220d37bed52392076974f2f0842095387eb9bd5a7f8456248ba",
-        "duration_seconds": 10.58,
-        "speaker_id": "riko",
-        "provider": "elevenlabs",
-        "model": "eleven_v3",
-        "voice_profile": {
-          "language_code": "ko",
-          "model": "eleven_v3",
-          "output_format": "mp3_44100_192",
-          "provider": "elevenlabs",
-          "provider_voice": "W3C2vBPukr5b5jvoXhPK",
-          "stability": 0.5
-        },
-        "listening_verdict": "not_reviewed"
-      },
-      "episode.the_unsigned_entry": {
-        "status": "ready",
-        "path": "res://voice/clips/ko/episode.the_unsigned_entry-9e8df095cff21ec1.mp3",
-        "source_revision": "f54d1e0cb4ca954f43d54dde25986b5984d94de418ede18e739273a94b357754",
-        "preparation_revision": "9e8df095cff21ec10bcda20be1cd443a59a1f4abe937623d9f9e4fd3964e6b6b",
-        "audio_sha256": "31f9679edb323d9b02326d9b944201c65516067c242a65ce124c68c112adc607",
-        "duration_seconds": 9.53,
+        "path": "res://voice/clips/ko/episode.the_useful_kind-a344a53533b14811.mp3",
+        "source_revision": "8500ac05f31c6a3cd56187f0920db74dedb50962520b5c15dbdf6bea6a21c6cc",
+        "preparation_revision": "a344a53533b14811a818b6aae3b4c0bf4deda2c8767a4c0368dd364bba1a47f1",
+        "audio_sha256": "2def217eb2cc7360cd19a3639ac84b5a8231534d0dd95344dcfb3c157b0ae290",
+        "duration_seconds": 10.42,
         "speaker_id": "yuzu",
         "provider": "elevenlabs",
         "model": "eleven_v3",
@@ -1599,8 +1099,508 @@
           "model": "eleven_v3",
           "output_format": "mp3_44100_192",
           "provider": "elevenlabs",
-          "provider_voice": "EXAVITQu4vr4xnSDxMaL",
-          "stability": 0.5
+          "provider_voice": "JTlYtJrcTzPC71hMLOxo",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.a_live_line": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.a_live_line-2e351ab64b211f5d.mp3",
+        "source_revision": "b9d9a44bc3dc88d165aa5dfac67895079bc7575d1642daeca1ae215653dce8f6",
+        "preparation_revision": "2e351ab64b211f5ddcc050bee9d18f30757843094d75c1b4086af8483e4c894b",
+        "audio_sha256": "b2ac7668afd7ef2e18a4d2df54c5e45ffb1ba93844cddd0cbcfb057a57e9af69",
+        "duration_seconds": 12.9,
+        "speaker_id": "sena",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "ngvNHfiCrXLPAHcTrZK1",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.riko_on_the_glass": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.riko_on_the_glass-d1334a48f99e918d.mp3",
+        "source_revision": "6bbd3f14837bd309d90f010b4244fce1183630cb8579eb404c70c0f100572744",
+        "preparation_revision": "d1334a48f99e918df19a442c8776d84b0d9802fd5a2c7de9f77c06f8ea47d34e",
+        "audio_sha256": "a71cb8786d920f15d36e58f6532f6c51dbd7d3c3bb0924691cc99ef033f99147",
+        "duration_seconds": 11.52,
+        "speaker_id": "riko",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "hMK7c1GPJmptCzI4bQIu",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.two_green_lamps": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.two_green_lamps-929b3c15ff6b8a19.mp3",
+        "source_revision": "2b2246c84b31d52e8453486757e5cc4a6802bb53a5a72fbc01fa6505853c3396",
+        "preparation_revision": "929b3c15ff6b8a19b92b5cc0b3c51d459bd26aa21f008a6501e0e1976d3e68e4",
+        "audio_sha256": "cd56b70b457010401cdc7da3ac317de49d26ebdf78076bce4912fa5ec006e1c1",
+        "duration_seconds": 9.77,
+        "speaker_id": "yuzu",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "JTlYtJrcTzPC71hMLOxo",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.waiting_for_the_signal": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.waiting_for_the_signal-5a59f3e45ec34835.mp3",
+        "source_revision": "38fe373aa3849b30dac8e912d04ea095f43cf3bb8d42e39cdb36c90cbaa4e1c0",
+        "preparation_revision": "5a59f3e45ec348358dcf37f53474589deeedeceae4e23f574effb7d36d26560b",
+        "audio_sha256": "6c853a180e7f88b3cc26425bb9ecc09bbdf55ee80230d535ba736e8e757a7807",
+        "duration_seconds": 12.98,
+        "speaker_id": "riko",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "hMK7c1GPJmptCzI4bQIu",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.eira_on_the_relay": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.eira_on_the_relay-a18ca68441dd2a93.mp3",
+        "source_revision": "54b6032df16224edb90bde26f07c401d30f5cd0df9a91562672881c4c7d912e2",
+        "preparation_revision": "a18ca68441dd2a93fe8e271f62b9269a4477e155c51d7bf1c332d7d90b6998af",
+        "audio_sha256": "266a8938f2598f9c0986ed1c2e6941b18ae63a1bb0c4d14578c65d997ec7295f",
+        "duration_seconds": 9.14,
+        "speaker_id": "eira",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "n2fbxG88jqAoaVPUy3IG",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.the_return_channel": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.the_return_channel-2da5a4168da63d19.mp3",
+        "source_revision": "ca93a0fc1a1252023f10b093d1d7e5c5687162f1ea005c71e2067400159c238a",
+        "preparation_revision": "2da5a4168da63d1970ff8d9fad6545f268f2588900f48e1aff612c0daca66735",
+        "audio_sha256": "0937eea40b08fee09ac24553b63c4932b3c7ae14d576f7342f236750460a728a",
+        "duration_seconds": 13.84,
+        "speaker_id": "eira",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "n2fbxG88jqAoaVPUy3IG",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.follow_the_pulse": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.follow_the_pulse-fd556f9b8df128cd.mp3",
+        "source_revision": "b7bcdcbb66b0262abed88c9df24f1ad140c0759c1f4f0a04c62b2cf85860b4e8",
+        "preparation_revision": "fd556f9b8df128cdbb27a6e777b5c37b0949ca36a951e24db9249a8cc5a7c075",
+        "audio_sha256": "949a9339d4eb4375f0d8d6dd1f3e22fda5233864af879dbbfa93032c7f8b05a7",
+        "duration_seconds": 12.56,
+        "speaker_id": "eira",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "n2fbxG88jqAoaVPUy3IG",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.eira_signs_off": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.eira_signs_off-8e4254f1c34a4315.mp3",
+        "source_revision": "1f857efe0da07a7f70c2872a8237c070caf8fa93bc30ad09e9cc3eb01f03a692",
+        "preparation_revision": "8e4254f1c34a431558eb173128ec47404b7ad62f8bb9de7f3caa9f7b9d56713b",
+        "audio_sha256": "2ba1b804814c23c60bd081f7ef3d72c9ddfd33d780d38d1b6c8cca7bec91068f",
+        "duration_seconds": 11.2,
+        "speaker_id": "eira",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "n2fbxG88jqAoaVPUy3IG",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.follow_the_diagram": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.follow_the_diagram-a0dddf1f470c20df.mp3",
+        "source_revision": "6838ccc04a5f59dddab744abecf00d7a5bfb150d6a13f32d0ff2b5618c380c61",
+        "preparation_revision": "a0dddf1f470c20df34f6beb05c8c8df07077ebbd4dbc5795aae961f195884f8e",
+        "audio_sha256": "3f284dcb41742984ad70990e2bc3533c019a9593982deab95870515c33861177",
+        "duration_seconds": 15.62,
+        "speaker_id": "sena",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "ngvNHfiCrXLPAHcTrZK1",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.checked_twice": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.checked_twice-371ead21bb6e1523.mp3",
+        "source_revision": "4f52324ee30f94e57681650efd0f2fbb171d589458369333accedaf0cd1dc914",
+        "preparation_revision": "371ead21bb6e1523dcc6a06fcc05cea4e315209638fad790e67d548a77cffb52",
+        "audio_sha256": "9ded961ca8eadf172db62644976bc77ebf9421ff9743deb793139bf6b5e3ec8c",
+        "duration_seconds": 10.65,
+        "speaker_id": "yuzu",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "JTlYtJrcTzPC71hMLOxo",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.the_signal": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.the_signal-8c14b45766a9622a.mp3",
+        "source_revision": "ef9393738e9a1ee4e84cf7f455873c8a6211ea81ba46ddaf781a77d5a1bfe48d",
+        "preparation_revision": "8c14b45766a9622ac3fbf723c1a62c17d20f41e6bfef0d8eb3bff0197ffa6453",
+        "audio_sha256": "a1e153c51a80a89b556977760fbd63d81e2f36a6d1921fd8ce54e145d4d17d2d",
+        "duration_seconds": 12.33,
+        "speaker_id": "riko",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "hMK7c1GPJmptCzI4bQIu",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.the_reroute": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.the_reroute-bdec0ee80f90ae18.mp3",
+        "source_revision": "ac6fa41dad78ae9e7980f90639481059afaeee2d296ad517884f2c503675826d",
+        "preparation_revision": "bdec0ee80f90ae18b8918a6b7e6813e5ea2b2b9a0a7e866bc4d317f03b1ec43d",
+        "audio_sha256": "786d31bf0eb8738e5512e0e06eccb9aca1df41bc799198b70c833bc384238f4c",
+        "duration_seconds": 11.05,
+        "speaker_id": "sena",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "ngvNHfiCrXLPAHcTrZK1",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.the_seal_answers": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.the_seal_answers-1917fb1114e59875.mp3",
+        "source_revision": "69562f7b99611cf9e86f7b5c131c5f8655568ce68c4e32397c66f6d8e686abfe",
+        "preparation_revision": "1917fb1114e598754209c0ab1dd57a8dbb1ea2d5f61a68f6ae340474834ee7a6",
+        "audio_sha256": "95d6bfc98527ed5eb8c9a6a8fc196a4aef451c76d7d4e95a4eddcb566ede5e70",
+        "duration_seconds": 8.96,
+        "speaker_id": "nami",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "ugYcuAusTuWCSOpJD0Xd",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.the_keeper": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.the_keeper-43168b4bd2945441.mp3",
+        "source_revision": "c992c698385090fc38a99e899607ba5645778677515e6ed3ae8a2c2430c538b9",
+        "preparation_revision": "43168b4bd29454411d7673899cd413bff8cfcc70dcccf9502e01ddda17dbc96c",
+        "audio_sha256": "dcad9f8caa61e0a33d215ee41e54d27c3fd59b8a8a395bc2e99db5225a20096d",
+        "duration_seconds": 13.37,
+        "speaker_id": "keeper",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "Lb7qkOn5hF8p7qfCDH8q",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.the_price_of_return": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.the_price_of_return-76afb8ce633e0162.mp3",
+        "source_revision": "aac20f14570e184985d71d371ed0090be2732dd73f73ceebef1d0419b5f66f83",
+        "preparation_revision": "76afb8ce633e0162c0a96f6a77d9130ea7d3c934e6291073cc14f5ce08534c37",
+        "audio_sha256": "1b1d7c0c45887739bcf4f69331c55e1524122c9d9deb7e1da859ea192e0530e4",
+        "duration_seconds": 8.25,
+        "speaker_id": "keeper",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "Lb7qkOn5hF8p7qfCDH8q",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.nami_beyond_the_wall": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.nami_beyond_the_wall-345b9258343134e8.mp3",
+        "source_revision": "61baa7328c82310246a8f6e3485706b01350c72f34a50974e97690a4bb3c3888",
+        "preparation_revision": "345b9258343134e840c38adf4964ac9448cd4989f28cbb9a2a1c992be509da0b",
+        "audio_sha256": "602022063af38bc8c0fe9c9f1258eae3436f5c39515386e0f87715cd08ca7d6f",
+        "duration_seconds": 8.64,
+        "speaker_id": "nami",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "ugYcuAusTuWCSOpJD0Xd",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.a_touch_that_stays": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.a_touch_that_stays-d6e2b0cdd7ca6591.mp3",
+        "source_revision": "39029e923e39516d0ec011b357891bf1450529330be6d723a26960204c9b9714",
+        "preparation_revision": "d6e2b0cdd7ca65917980c018323af01a753a8679ba0189eb86672dc7147dac47",
+        "audio_sha256": "d8729c92df4f07a79a7592692bd709dd0462100197580d2e0b35381d18c414f8",
+        "duration_seconds": 9.45,
+        "speaker_id": "nami",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "ugYcuAusTuWCSOpJD0Xd",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.only_a_second": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.only_a_second-a4a511742a5efd79.mp3",
+        "source_revision": "f7727fef41b677d0dceaa71a863f27e840c93f83ffe3fe29d29f36641ba5a0ee",
+        "preparation_revision": "a4a511742a5efd79a96cebff4a3de575bb7c28133667b2f8ffdcc1ac646db164",
+        "audio_sha256": "33bfab779bfb647f283391c82c422367ca2134066fe3bbe8ec360ee43f3e308d",
+        "duration_seconds": 9.92,
+        "speaker_id": "nami",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "ugYcuAusTuWCSOpJD0Xd",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.steady_at_last": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.steady_at_last-0ea913959f279b57.mp3",
+        "source_revision": "f36ad8d1ba8536c3f7d115517e388d535fab7454e91f34ee8846e76b4e29a40a",
+        "preparation_revision": "0ea913959f279b57e76b2b6b4526f167599b7214b0804b72c05e009c2b4b565f",
+        "audio_sha256": "f27fd80539bc966d176e90d4a067db127ccf3598fccdefa49ce82625f81285d2",
+        "duration_seconds": 9.77,
+        "speaker_id": "yuzu",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "JTlYtJrcTzPC71hMLOxo",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.all_clear": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.all_clear-8c8d9c74cee71311.mp3",
+        "source_revision": "50f11febfc10e9f8178ef89dbca1a5b9c5be6bfa46461c4bdfa985d23b66ca15",
+        "preparation_revision": "8c8d9c74cee71311cbb44234a94b1a9d84707e6b047112f1b048fc7e0a86a73f",
+        "audio_sha256": "bfb647bab20146f6f4e2a2da5c4f673d9794b5cb4e3a81ed8cce81d6cc4dee6e",
+        "duration_seconds": 10.08,
+        "speaker_id": "riko",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "hMK7c1GPJmptCzI4bQIu",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.riko_signs_off": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.riko_signs_off-fe29aeec4708f0b3.mp3",
+        "source_revision": "0cbcdd5eaebbc8102eb192484a435e7c5d1dcc24f6c66493e1caf068666c998a",
+        "preparation_revision": "fe29aeec4708f0b38806cf1b2eb2efbb38d78e643f29a475e98a73239e393218",
+        "audio_sha256": "b2f76c191a3829c12ce92669a37f9abd37a3c737b33472e5dfa43a5e5452ed44",
+        "duration_seconds": 9.3,
+        "speaker_id": "riko",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "hMK7c1GPJmptCzI4bQIu",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.a_modest_name": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.a_modest_name-e4ac94b462b255e1.mp3",
+        "source_revision": "9f50f77571679725654dd0b1fadc7165e1f03aa86c4fceab8694532d8702445c",
+        "preparation_revision": "e4ac94b462b255e17cb45814d2768ba40c512e1e3303bb063dbd0f18f8d127fb",
+        "audio_sha256": "3d3f7316457dc8037712a30a9e7d802171f66c4d744885023ae79b5032df4262",
+        "duration_seconds": 9.84,
+        "speaker_id": "sena",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "ngvNHfiCrXLPAHcTrZK1",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.everyone_accounted_for": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.everyone_accounted_for-838b7cdecc822bea.mp3",
+        "source_revision": "324e996334f3e5c577d75d41cbb4b4989805e55e7d64b8acc5bff734ce6fa6e2",
+        "preparation_revision": "838b7cdecc822beaf3afc76256f9664cab9e1bfc9a27732a8edc7497bd2a0329",
+        "audio_sha256": "55091753b84ddf84514d287ffae7ac4ef38401accb5b87289e4fdd61a15bb8ad",
+        "duration_seconds": 8.17,
+        "speaker_id": "nami",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "ugYcuAusTuWCSOpJD0Xd",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.a_proper_hello": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.a_proper_hello-dfa65bb63e24559f.mp3",
+        "source_revision": "06b7a9afe43d789c28f3226ff8ee68d0b87903d4dd62e7b7449a43dacaa33c01",
+        "preparation_revision": "dfa65bb63e24559f1999f98685832bf9615e8c2b78934b0b5540d7c0fb21a390",
+        "audio_sha256": "b5d65423ead0cf5a893625e69d274d90b1767f26451ec51009187c6eb722f1c5",
+        "duration_seconds": 12.8,
+        "speaker_id": "riko",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "hMK7c1GPJmptCzI4bQIu",
+          "stability": 0.0
+        },
+        "listening_verdict": "not_reviewed"
+      },
+      "episode.the_unsigned_entry": {
+        "status": "ready",
+        "path": "res://voice/clips/ko/episode.the_unsigned_entry-b651214d5935e5c5.mp3",
+        "source_revision": "c5801d9428b29c98aeb263af8f9b0d1b950ed6657a369f7b628256afc674ba52",
+        "preparation_revision": "b651214d5935e5c557151b4776d78a53c76017237c7b3073a696606185f25102",
+        "audio_sha256": "3f15837f2594ca696f51f079ac5b287e0becdc114fab6274fb95638ebef9469d",
+        "duration_seconds": 12.17,
+        "speaker_id": "yuzu",
+        "provider": "elevenlabs",
+        "model": "eleven_v3",
+        "voice_profile": {
+          "language_code": "ko",
+          "model": "eleven_v3",
+          "output_format": "mp3_44100_192",
+          "provider": "elevenlabs",
+          "provider_voice": "JTlYtJrcTzPC71hMLOxo",
+          "stability": 0.0
         },
         "listening_verdict": "not_reviewed"
       }

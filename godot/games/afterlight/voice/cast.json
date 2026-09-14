@@ -18,15 +18,15 @@
       "ko": {
         "provider": "elevenlabs",
         "model": "eleven_v3",
-        "provider_voice": "6awt6FKyZGV0HyQEwisX",
+        "provider_voice": "ugYcuAusTuWCSOpJD0Xd",
         "language_code": "ko",
-        "stability": 0.5,
+        "stability": 0.0,
         "output_format": "mp3_44100_192",
-        "display_name": "Suzu - Cute, Clear & Calm",
+        "display_name": "Seyana Seya - Social Meida & Voice Actor",
         "casting": "Warm, bright and reassuring; playful affection under pressure.",
-        "verified_on": "2026-09-11",
-        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
-        "listening_verdict": "not_performed"
+        "verified_on": "2026-09-14",
+        "selection_basis": "Human audition on 2026-09-14; see docs/models/elevenlabs-v3-anime-voices.md.",
+        "listening_verdict": "voice_accepted_line_takes_not_reviewed"
       }
     },
     "yuzu": {
@@ -46,15 +46,15 @@
       "ko": {
         "provider": "elevenlabs",
         "model": "eleven_v3",
-        "provider_voice": "EXAVITQu4vr4xnSDxMaL",
+        "provider_voice": "JTlYtJrcTzPC71hMLOxo",
         "language_code": "ko",
-        "stability": 0.5,
+        "stability": 0.0,
         "output_format": "mp3_44100_192",
-        "display_name": "Sarah - Mature, Reassuring, Confident",
+        "display_name": "Yuki",
         "casting": "Composed, precise and quietly observant; dry humor.",
-        "verified_on": "2026-09-11",
-        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
-        "listening_verdict": "not_performed"
+        "verified_on": "2026-09-14",
+        "selection_basis": "Human audition on 2026-09-14; see docs/models/elevenlabs-v3-anime-voices.md.",
+        "listening_verdict": "voice_accepted_line_takes_not_reviewed"
       }
     },
     "sena": {
@@ -74,15 +74,15 @@
       "ko": {
         "provider": "elevenlabs",
         "model": "eleven_v3",
-        "provider_voice": "FGY2WhTYpPnrIDTdsKH5",
+        "provider_voice": "ngvNHfiCrXLPAHcTrZK1",
         "language_code": "ko",
-        "stability": 0.5,
+        "stability": 0.0,
         "output_format": "mp3_44100_192",
-        "display_name": "Laura - Enthusiast, Quirky Attitude",
+        "display_name": "Aki - Friendly, Clear and Natural",
         "casting": "Lively, capable and quick-witted; confident practical energy.",
-        "verified_on": "2026-09-11",
-        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
-        "listening_verdict": "not_performed"
+        "verified_on": "2026-09-14",
+        "selection_basis": "Human audition on 2026-09-14; see docs/models/elevenlabs-v3-anime-voices.md.",
+        "listening_verdict": "voice_accepted_line_takes_not_reviewed"
       }
     },
     "riko": {
@@ -102,15 +102,15 @@
       "ko": {
         "provider": "elevenlabs",
         "model": "eleven_v3",
-        "provider_voice": "W3C2vBPukr5b5jvoXhPK",
+        "provider_voice": "hMK7c1GPJmptCzI4bQIu",
         "language_code": "ko",
-        "stability": 0.5,
+        "stability": 0.0,
         "output_format": "mp3_44100_192",
-        "display_name": "Kira - Video Game, Bold & Cinematic",
+        "display_name": "Sameno - inviting, Clear and Steady",
         "casting": "Bold, cinematic and teasing; decisive in an emergency.",
-        "verified_on": "2026-09-11",
-        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
-        "listening_verdict": "not_performed"
+        "verified_on": "2026-09-14",
+        "selection_basis": "Human audition on 2026-09-14; see docs/models/elevenlabs-v3-anime-voices.md.",
+        "listening_verdict": "voice_accepted_line_takes_not_reviewed"
       }
     },
     "eira": {
@@ -130,15 +130,15 @@
       "ko": {
         "provider": "elevenlabs",
         "model": "eleven_v3",
-        "provider_voice": "XrExE9yKIg1WjnnlVkGX",
+        "provider_voice": "n2fbxG88jqAoaVPUy3IG",
         "language_code": "ko",
-        "stability": 0.5,
+        "stability": 0.0,
         "output_format": "mp3_44100_192",
-        "display_name": "Matilda - Knowledgable, Professional",
+        "display_name": "Yooni - Natural & Clear",
         "casting": "Clear, measured researcher; composed and helpful over the relay.",
-        "verified_on": "2026-09-11",
-        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
-        "listening_verdict": "not_performed"
+        "verified_on": "2026-09-14",
+        "selection_basis": "Human audition on 2026-09-14; see docs/models/elevenlabs-v3-anime-voices.md.",
+        "listening_verdict": "voice_accepted_line_takes_not_reviewed"
       }
     },
     "keeper": {
@@ -158,15 +158,15 @@
       "ko": {
         "provider": "elevenlabs",
         "model": "eleven_v3",
-        "provider_voice": "pFZP5JQG7iQjIQuC4Bku",
+        "provider_voice": "Lb7qkOn5hF8p7qfCDH8q",
         "language_code": "ko",
-        "stability": 0.5,
+        "stability": 0.0,
         "output_format": "mp3_44100_192",
-        "display_name": "Lily - Velvety Actress",
+        "display_name": "Annie",
         "casting": "Velvety and self-assured; quiet menace rather than shouting.",
-        "verified_on": "2026-09-11",
-        "selection_basis": "Existing account voice metadata; no paid audition or custom voice creation.",
-        "listening_verdict": "not_performed"
+        "verified_on": "2026-09-14",
+        "selection_basis": "Human audition on 2026-09-14; see docs/models/elevenlabs-v3-anime-voices.md.",
+        "listening_verdict": "voice_accepted_line_takes_not_reviewed"
       }
     }
   }

@@ -72,3 +72,34 @@ manual refresh. Refer to the [voice contract](README.md) for policies, statuses,
 and the offline status command. Immutable local MP3s, canonical sidecars, the
 exported source, and request ledger remain under `art/voiceovers-p95/`; only
 their portable gameplay bindings and preparation source are tracked.
+
+## 2026-09-14 Korean recast
+
+The 40 Korean recordings were replaced. The English recordings are unchanged.
+The P95 Korean voices were chosen from account metadata and read as narration,
+so each character now uses a voice a person auditioned and accepted, listed in
+[ElevenLabs v3 anime voices](../../../../docs/models/elevenlabs-v3-anime-voices.md):
+
+| Speaker | Korean clips | Voice |
+| --- | ---: | --- |
+| Nami | 14 | Seyana Seya |
+| Yuzu | 9 | Yuki |
+| Riko | 6 | Sameno |
+| Sena | 5 | Aki |
+| Eira | 4 | Yooni |
+| Keeper | 2 | Annie |
+
+Every Korean line now has a directed speech script in [voices.json](voices.json):
+96 v3 delivery tags chosen from each line's place in the story, recorded at
+stability 0 so the model follows them. Removing the tags gives the display text
+word for word.
+
+The pass used a Korean-only inventory, because the English clips' provenance
+sidecars no longer sit beside them, and only the Korean manifest entries were
+swapped. It submitted 3,565 characters and the provider reported 1,959 credits,
+about $0.36 at the published rate. The only retry was `episode.the_signal`: two
+attempts at 46 credits each. The ledger, sidecars and inventory are under the
+ignored `art/voiceovers-ko-v2/`; the previous Korean takes are kept under
+`art/voiceovers-p95/clips/ko/`.
+
+The voices were accepted by ear, but the 40 recorded takes have not been listened to yet.

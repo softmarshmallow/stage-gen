@@ -18,7 +18,7 @@ func _initialize() -> void:
 	var text_sets := {}
 	var errors: Array[String] = []
 	for language: String in POLICY.LANGUAGES:
-		text_sets[language] = POLICY._read_json("res://text/" + language + ".json", errors)
+		text_sets[language] = POLICY._read_json(POLICY.LOCAL_CONTENT.new(), "res://text/" + language + ".json", errors)
 	var policy := POLICY.new()
 	if errors.is_empty(): errors.append_array(policy.load_project(EPISODE.BEATS, text_sets))
 	if not errors.is_empty():
