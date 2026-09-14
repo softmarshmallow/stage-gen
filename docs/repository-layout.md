@@ -89,6 +89,7 @@ src/stage_gen/components/
 ├── actor_content/                     # Actor asset content and admission
 ├── character_profile/                 # Reusable identity/profile input
 ├── portrait_motion/                   # Portrait processing, rendering and validation
+├── movie_sprite/                      # Transparent body-loop finishing and spatial controls
 ├── sideview_actor/                    # Sprite geometry, scale and locomotion assets
 ├── sideview_layers/                   # Layer processing and parallax parameters
 ├── sideview_map_design/               # Constrained spatial/layout generation
@@ -121,7 +122,7 @@ event triggers and playback bindings to those independent capabilities.
 The `.scenario` contract is owned by the Godot Scenario package, including its
 independent authoring distribution. The game invokes its sequence through explicit
 bindings; the asset product does not depend on that format. Sprite playback,
-portrait animation and any future Live2D adapter retain their own bounded roles.
+portrait animation and movie sprite assets retain their own bounded roles.
 
 ## Recipes and examples
 
@@ -131,6 +132,8 @@ src/stage_gen/recipes/
 │   └── examples/
 │       └── supplied_layers/           # Real offline layer normalization and preview
 ├── portrait_motion/                   # Generation, qualification, budgets and recovery
+├── movie_sprite_body_idle/             # Endpoint video generation and local loop finishing
+│   └── examples/supplied_clip/         # Original procedural clip; no provider calls
 ├── storefront/
 │   └── examples/
 │       └── minimal/                   # Original procedural input and offline planning

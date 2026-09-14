@@ -54,6 +54,10 @@ class VideoGenerationRequest:
     them - order is part of the ask, because a route reads the first as the
     art direction the rest are judged against.
 
+    ``start_frame`` and ``end_frame`` are explicit temporal roles. They never
+    acquire their meaning from the length or order of ``references``. A route's
+    adapter and application binding admit the combinations it can serve.
+
     There is no seed. The routes this modality is written for accept none, and
     per the speech precedent a control that cannot make a draw repeatable must
     not be exposed as though it could: two identical requests are independent
@@ -78,6 +82,8 @@ class VideoGenerationRequest:
     timeout_seconds: float | None = None
     cancellation: CancellationToken | None = None
     validate: ArtifactValidator | None = None
+    start_frame: VideoReference | None = None
+    end_frame: VideoReference | None = None
 
     def __post_init__(self) -> None:
         if not self.prompt.strip():
@@ -97,6 +103,24 @@ class VideoGenerationRequest:
         if self.aspect_ratio is not None and self.aspect_ratio not in _ASPECT_RATIO:
             raise ValueError(f"aspect_ratio must be one of {', '.join(_ASPECT_RATIO)}")
         validate_optional_timeout(self.timeout_seconds)
+        if self.end_frame is not None and self.start_frame is None:
+            raise ValueError("end_frame requires an explicit start_frame")
+        for reference in (self.start_frame, self.end_frame):
+            if reference is not None and not isinstance(reference, VideoReference):
+                raise TypeError("video endpoint frames must be VideoReference values")
+
+    def role_references(self) -> tuple[tuple[str, VideoReference], ...]:
+        """Material references with explicit roles, without inferring roles from order."""
+
+        endpoints = tuple(
+            (role, reference)
+            for role, reference in (
+                ("start_frame", self.start_frame),
+                ("end_frame", self.end_frame),
+            )
+            if reference is not None
+        )
+        return endpoints + tuple(("reference", reference) for reference in self.references)
 
 
 @dataclass(frozen=True, slots=True)

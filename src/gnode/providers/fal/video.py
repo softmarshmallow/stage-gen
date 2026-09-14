@@ -18,7 +18,9 @@ from gnode.providers._http import (
 #: no shape here that branches on how many plates a clip was drawn from - and
 #: therefore no place for a model's name to leak into a decision.
 FAL_VIDEO_MODEL = "google/gemini-omni-flash/v1.1/reference-to-video"
+FAL_ENDPOINT_VIDEO_MODEL = "google/gemini-omni-flash/v1.1/image-to-video"
 FAL_BASE_URL = "https://fal.run"
+_PERMANENT_REQUEST_STATUSES = frozenset({400, 401, 403, 404, 405, 410, 413, 415, 422})
 
 
 class FalVideoBackend:
@@ -58,13 +60,18 @@ class FalVideoBackend:
         if self._owns_client:
             await self._client.aclose()
 
-    async def generate_once(self, request: VideoGenerationRequest) -> ProviderVideo:
+    def _reference_body(self, request: VideoGenerationRequest) -> dict[str, object]:
+        if request.start_frame is not None or request.end_frame is not None:
+            raise ValueError("fal reference video route does not support endpoint frame roles")
         if not request.references:
             raise ValueError("fal video generation needs at least one reference image")
-        body: dict[str, object] = {
+        return {
             "prompt": request.prompt,
             "image_urls": [reference.url for reference in request.references],
         }
+
+    async def generate_once(self, request: VideoGenerationRequest) -> ProviderVideo:
+        body = self._reference_body(request)
         if request.aspect_ratio is not None:
             body["aspect_ratio"] = request.aspect_ratio
         if request.resolution is not None:
@@ -88,7 +95,12 @@ class FalVideoBackend:
             },
             json=body,
         )
-        assert_success(response, "fal video generation")
+        assert_success(
+            response,
+            "fal video generation",
+            permanent_statuses=_PERMANENT_REQUEST_STATUSES,
+            redactions=self.secrets,
+        )
         payload = json_object(response, "fal video generation")
         root = payload.get("data") if isinstance(payload.get("data"), dict) else payload
         video = root.get("video") if isinstance(root, dict) else None
@@ -119,6 +131,30 @@ class FalVideoBackend:
             source_shape="hosted-download",
             response_metadata=response_metadata(response, payload),
         )
+
+
+class FalEndpointVideoBackend(FalVideoBackend):
+    """Explicit first/last-frame input; ordinary references retain their own adapter."""
+
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        model: str = FAL_ENDPOINT_VIDEO_MODEL,
+        base_url: str = FAL_BASE_URL,
+        client: httpx.AsyncClient | None = None,
+    ) -> None:
+        super().__init__(api_key=api_key, model=model, base_url=base_url, client=client)
+
+    def _reference_body(self, request: VideoGenerationRequest) -> dict[str, object]:
+        if request.references:
+            raise ValueError("fal endpoint video route cannot mix ordinary references with frames")
+        if request.start_frame is None:
+            raise ValueError("fal endpoint video route requires an explicit start_frame")
+        body: dict[str, object] = {"prompt": request.prompt, "image_url": request.start_frame.url}
+        if request.end_frame is not None:
+            body["end_image_url"] = request.end_frame.url
+        return body
 
 
 def _optional_video_media_type(value: object) -> str | None:

@@ -206,6 +206,7 @@ def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
         Step((python, "scripts/write_model_policy_snapshot.py")),
         Step(("stage-gen", "--help")),
         Step(("stage-gen-portrait-motion", "--help")),
+        Step(("stage-gen-movie-sprite", "--help")),
     )
 
 

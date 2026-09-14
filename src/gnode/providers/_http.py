@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 import httpx
 
 from gnode.modalities._types import JsonObject, ProviderResponseMetadata
-from gnode.reliability import redact_secrets
+from gnode.reliability import NonRetryableError, redact_secrets
 
 _SAFE_ERROR_MESSAGE_SUMMARIES: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\binvalid (?:json )?schema\b", re.IGNORECASE), "invalid schema"),
@@ -31,6 +31,7 @@ def assert_success(
     *,
     include_safe_error_detail: bool = False,
     redactions: Sequence[str] = (),
+    permanent_statuses: frozenset[int] = frozenset(),
 ) -> None:
     if not response.is_success:
         message = f"{label} returned HTTP {response.status_code}"
@@ -38,6 +39,18 @@ def assert_success(
             detail = _safe_http_error_detail(response, redactions)
             if detail:
                 message = f"{message}: {detail}"
+        if response.status_code in permanent_statuses:
+            request_id = response.headers.get("x-request-id") or response.headers.get("request-id")
+            if request_id is not None:
+                request_id = redact_secrets(request_id, redactions)
+                if not _SAFE_ERROR_IDENTIFIER.fullmatch(request_id):
+                    request_id = None
+            raise NonRetryableError(
+                message,
+                code=f"http_{response.status_code}",
+                status_code=response.status_code,
+                request_id=request_id,
+            )
         raise ValueError(message)
 
 

@@ -62,9 +62,10 @@ it does not demonstrate synchronized speech or a complete viseme set.
   generation module or grant a blanket media license. Historical source rights
   and review records remain unchanged.
 
-This is an experimental workflow result. The final video-derived first frame is
+This reviewed result demonstrates the [movie sprite workflow](../../../docs/movie-sprite.md).
+The final video-derived first frame is
 the canonical for the existing facial repaint pipeline, whose implementation is
-unchanged. Source selection, stabilization and loop finishing remain experimental;
+unchanged. Source selection and spatial controls remain specific to each take;
 the image does not establish automatic success for arbitrary characters.
 Native edge softness and Riko's wink-only eye coverage remain limitations.
 

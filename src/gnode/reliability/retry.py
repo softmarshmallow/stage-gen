@@ -57,6 +57,30 @@ class AttemptTimeoutError(TimeoutError):
     """One retryable attempt exceeded its deadline."""
 
 
+class NonRetryableError(ValueError):
+    """An explicit permanent refusal; the retry owner must stop this operation."""
+
+    retryable = False
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str | None = None,
+        status_code: int | None = None,
+        request_id: str | None = None,
+        attempts: int = 1,
+        failure_history: Sequence[RetryFailureRecord] = (),
+    ) -> None:
+        self.code = code
+        self.status_code = status_code
+        self.request_id = request_id
+        self.attempts = attempts
+        self.retries = attempts - 1
+        self.failure_history = tuple(failure_history)
+        super().__init__(message)
+
+
 @dataclass(frozen=True, slots=True)
 class RetryFailureRecord:
     """Redacted, typed evidence for one failed retry attempt."""
@@ -67,6 +91,9 @@ class RetryFailureRecord:
     code: str | None = None
     row: int | None = None
     column: int | None = None
+    status_code: int | None = None
+    request_id: str | None = None
+    retryable: bool | None = None
 
     def as_dict(self) -> dict[str, object]:
         record: dict[str, object] = {
@@ -80,6 +107,9 @@ class RetryFailureRecord:
             record["row"] = self.row
         if self.column is not None:
             record["column"] = self.column
+        for name in ("status_code", "request_id", "retryable"):
+            if (value := getattr(self, name)) is not None:
+                record[name] = value
         return record
 
 
@@ -156,6 +186,17 @@ async def retry_with_backoff[T](
             failure_history.append(
                 _retry_failure_record(error, attempt=attempt, message=safe_message, secrets=secrets)
             )
+            if isinstance(error, NonRetryableError):
+                raise NonRetryableError(
+                    safe_message,
+                    code=redact_secrets(error.code, secrets) if error.code is not None else None,
+                    status_code=error.status_code,
+                    request_id=redact_secrets(error.request_id, secrets)
+                    if error.request_id is not None
+                    else None,
+                    attempts=attempt,
+                    failure_history=failure_history,
+                ) from None
             last_error = Exception(safe_message)
 
         if attempt == active_policy.max_attempts:
@@ -212,6 +253,11 @@ def _retry_failure_record(
         code=code,
         row=row,
         column=column,
+        status_code=error.status_code if isinstance(error, NonRetryableError) else None,
+        request_id=redact_secrets(error.request_id, secrets)
+        if isinstance(error, NonRetryableError) and error.request_id is not None
+        else None,
+        retryable=False if isinstance(error, NonRetryableError) else None,
     )
 
 

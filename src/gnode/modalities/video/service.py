@@ -101,6 +101,15 @@ class VideoGenerationService:
             params["aspect_ratio"] = request.aspect_ratio
         if request.metadata:
             params["metadata"] = dict(request.metadata)
+        references = request.role_references()
+        if request.start_frame is not None:
+            params["reference_roles"] = [
+                {
+                    "role": role,
+                    "ref": reference.provenance_ref or sanitize_reference(reference.url),
+                }
+                for role, reference in references
+            ]
         response: dict[str, object] = {
             "media_type": generated.media_type,
             "bytes": len(generated.data),
@@ -120,11 +129,11 @@ class VideoGenerationService:
                 prompt=request.prompt,
                 refs=[
                     reference.provenance_ref or sanitize_reference(reference.url)
-                    for reference in request.references
+                    for _, reference in references
                 ],
                 inputs=[
                     hash_input_reference(reference.url, reference.provenance_ref)
-                    for reference in request.references
+                    for _, reference in references
                 ],
                 params=params,
                 validation={

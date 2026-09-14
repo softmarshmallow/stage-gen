@@ -7,8 +7,8 @@ import json
 import httpx
 import pytest
 
-from gnode import VideoGenerationRequest, VideoReference
-from gnode.providers.fal import FalVideoBackend
+from gnode import NonRetryableError, VideoGenerationRequest, VideoReference
+from gnode.providers.fal import FAL_ENDPOINT_VIDEO_MODEL, FalEndpointVideoBackend, FalVideoBackend
 
 MP4 = b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 64
 PLATE = "data:image/png;base64,aGVsbG8="
@@ -121,3 +121,58 @@ async def test_a_duration_the_route_cannot_express_is_refused_not_rounded() -> N
         backend = FalVideoBackend(api_key="secret", client=c)
         with pytest.raises(ValueError, match="whole seconds"):
             await backend.generate_once(_request(duration_seconds=4.5))
+
+
+@pytest.mark.asyncio
+async def test_endpoint_adapter_uses_explicit_roles_and_preserves_their_order() -> None:
+    bodies = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            assert request.url.path.endswith(FAL_ENDPOINT_VIDEO_MODEL)
+            bodies.append(json.loads(request.content))
+            return httpx.Response(200, json={"video": {"url": "https://cdn.test/video.mp4"}})
+        assert "authorization" not in request.headers
+        return httpx.Response(200, content=MP4, headers={"content-type": "video/mp4"})
+
+    first, last = VideoReference(url=PLATE), VideoReference(url="https://input.test/last.png")
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        backend = FalEndpointVideoBackend(api_key="secret", client=client)
+        await backend.generate_once(_request(references=(), start_frame=first, end_frame=last))
+        with pytest.raises(ValueError, match="cannot mix"):
+            await backend.generate_once(_request(start_frame=first))
+        with pytest.raises(ValueError, match="endpoint frame roles"):
+            await FalVideoBackend(api_key="secret", client=client).generate_once(
+                _request(references=(), start_frame=first)
+            )
+    assert bodies == [
+        {
+            "prompt": "the robot walks",
+            "image_url": PLATE,
+            "end_image_url": last.url,
+            "duration": 10,
+            "resolution": "720p",
+            "aspect_ratio": "16:9",
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_permanent_refusal_retains_safe_status_and_request_identity() -> None:
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                422,
+                headers={"x-request-id": "request-123"},
+                json={"private": "never persist this payload"},
+            )
+        )
+    ) as client:
+        with pytest.raises(NonRetryableError) as caught:
+            await FalEndpointVideoBackend(api_key="secret", client=client).generate_once(
+                _request(references=(), start_frame=VideoReference(url=PLATE))
+            )
+    assert caught.value.status_code == 422
+    assert caught.value.request_id == "request-123"
+    assert caught.value.retryable is False
+    assert "private" not in str(caught.value)

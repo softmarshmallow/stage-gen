@@ -397,9 +397,9 @@ variants, optional masks, and `webp`/`gif` output.
 - Authentication: `Authorization: Key $FAL_KEY`.
 - Verified on 2026-09-07.
 
-One endpoint, deliberately. The reference form also serves the single-picture
-case as a list of one, so nothing in the adapter branches on how many plates a
-clip was drawn from — and therefore nothing there names a model.
+The reference form also serves the single-picture case as a list of one.
+Explicit temporal endpoints use the separate movie sprite route below; reference
+list length never determines whether an image means a start or end frame.
 
 Input is `prompt` plus `image_urls` (ordered; the route reads the first as the
 art direction the rest are judged against), with `aspect_ratio`, `resolution`
@@ -426,6 +426,35 @@ strictly more; there is no block to fill up and no length that comes free.
 The response is h264 in mp4. The pinned Godot host plays only Ogg Theora, so a
 clip is transcoded before publication — see [the shell spec](../../godot/games/ember_hollow/docs/shell.md)
 for that leg and the encoder it needs.
+
+### Movie sprite start/end frames
+
+The [movie sprite workflow](../movie-sprite.md) binds
+`google/gemini-omni-flash/v1.1/image-to-video` through `FalEndpointVideoBackend`.
+Its [official API schema](https://fal.ai/models/google/gemini-omni-flash/v1.1/image-to-video/api)
+was checked on 2026-09-15: `prompt`, `image_url`, optional `end_image_url`, integer
+`duration` from 3 through 10, `resolution` in `360p`/`720p`/`1080p`/`4k`, and
+`aspect_ratio` in `9:16`/`16:9`. The prompt ceiling is 20,000 characters.
+Ordinary references cannot be mixed into this adapter. The recipe passes the
+same prepared PNG in both roles and records each role and input digest.
+
+The [published rates](https://fal.ai/models/google/gemini-omni-flash/v1.1/image-to-video)
+checked that day are $0.03/$0.10/$0.15/$0.30 per generated second respectively.
+The application uses a persistent budget with a 25 percent reservation margin
+per dispatch. Unknown actual charges retain their reservation and are not
+reported as known spend. Local playback slowing does not alter generation cost.
+
+A 2026-09-15 live canary through the public CLI returned 360×640, 72 frames at
+24 fps over three seconds in one attempt. Both endpoint digests were retained.
+The response did not report an actual cost; its estimate was $0.09 and retained
+liability $0.1125. It carried audio despite the silent prompt; local sprite
+finishing removes it. This proves endpoint wiring and structural validation,
+not deterministic compliance with every artistic motion instruction.
+
+Permanent request refusals stop the retry owner immediately. Transient failures
+retain bounded retries; interrupted submissions preserve unresolved budget
+liability and block automatic resubmission of that candidate. The reference
+video adapter and its existing application default remain available.
 
 ### Audition this route before you plan a run on it
 

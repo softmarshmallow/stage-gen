@@ -10,6 +10,7 @@ from gnode import (
     AbortError,
     CancellationError,
     CancellationToken,
+    NonRetryableError,
     RetryContext,
     RetryExhaustedError,
     RetryPolicy,
@@ -39,6 +40,35 @@ async def test_retries_failures_and_reports_one_based_attempt() -> None:
     )
     assert result == 3
     assert seen == [(1, 0, 6), (2, 1, 6), (3, 2, 6)]
+
+
+@pytest.mark.asyncio
+async def test_permanent_refusal_stops_and_preserves_sanitized_attempt_evidence() -> None:
+    calls = 0
+
+    async def operation(context: RetryContext) -> None:
+        nonlocal calls
+        calls += 1
+        if context.attempt == 1:
+            raise ConnectionError("transient")
+        raise NonRetryableError(
+            "refused private-secret",
+            code="http_422",
+            status_code=422,
+            request_id="request-private-secret",
+        )
+
+    with pytest.raises(NonRetryableError) as caught:
+        await retry_with_backoff(
+            operation, policy=RetryPolicy(initial_delay_s=0), secrets=("private-secret",)
+        )
+    assert calls == caught.value.attempts == 2
+    assert caught.value.retries == 1
+    assert caught.value.status_code == 422
+    assert caught.value.failure_history[-1].as_dict()["retryable"] is False
+    assert "private-secret" not in str(caught.value)
+    assert "private-secret" not in str(caught.value.failure_history)
+    assert "private-secret" not in str(caught.value.request_id)
 
 
 @pytest.mark.asyncio

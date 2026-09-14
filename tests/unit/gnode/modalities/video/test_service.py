@@ -87,6 +87,37 @@ def test_no_ceiling_lives_in_the_modality() -> None:
     assert request.duration_seconds == 3600.0
 
 
+def test_last_frame_cannot_be_sent_without_an_explicit_first_frame() -> None:
+    with pytest.raises(ValueError, match="end_frame requires"):
+        VideoGenerationRequest(
+            prompt="idle", artifact_path="x.mp4", end_frame=VideoReference(url=PLATE)
+        )
+
+
+@pytest.mark.asyncio
+async def test_endpoint_roles_survive_provenance_even_when_the_bytes_are_identical(
+    tmp_path: Path,
+) -> None:
+    backend = _ScriptedBackend([MP4])
+    reference = VideoReference(url=PLATE, provenance_ref="body/endpoint.png")
+    await _service(backend).generate(
+        VideoGenerationRequest(
+            prompt="idle",
+            artifact_path=tmp_path / "clip.mp4",
+            start_frame=reference,
+            end_frame=reference,
+        )
+    )
+    record = json.loads((tmp_path / "clip.mp4.meta.json").read_text())
+    assert record["params"]["reference_roles"] == [
+        {"role": "start_frame", "ref": "body/endpoint.png"},
+        {"role": "end_frame", "ref": "body/endpoint.png"},
+    ]
+    assert [item["ref"] for item in record["inputs"]] == ["body/endpoint.png"] * 2
+    assert record["inputs"][0]["sha256"] == record["inputs"][1]["sha256"]
+    assert PLATE not in json.dumps(record)
+
+
 @pytest.mark.asyncio
 async def test_generate_records_each_reference_under_its_own_name(tmp_path: Path) -> None:
     backend = _ScriptedBackend([MP4])

@@ -21,6 +21,14 @@ PORTRAIT_FACE_MODULES = {
     "stage_gen/orchestration/portrait_face.py",
     "stage_gen/orchestration/portrait_face_location.py",
 }
+MOVIE_SPRITE_MODULES = {
+    "stage_gen/components/movie_sprite/__init__.py",
+    "stage_gen/components/movie_sprite/models.py",
+    "stage_gen/recipes/movie_sprite_body_idle/__init__.py",
+    "stage_gen/recipes/movie_sprite_body_idle/pipeline.py",
+    "stage_gen/recipes/movie_sprite_body_idle/examples/supplied_clip/make_inputs.py",
+    "stage_gen/recipes/movie_sprite_body_idle/examples/supplied_clip/pipeline.py",
+}
 
 WHEEL_RESOURCES = {
     MODEL_POLICY_SNAPSHOT_RESOURCE,
@@ -188,6 +196,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         assert sum(wheel_entries.values()) - model_policy_snapshot_size < 3_900_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert wheel_entries.keys() >= PORTRAIT_FACE_MODULES
+        assert wheel_entries.keys() >= MOVIE_SPRITE_MODULES
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
         assert {
             "gnode/__init__.py",
@@ -315,8 +324,10 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
     )
 
     probe = """
+import asyncio
 import importlib
 import importlib.abc
+import json
 import sys
 from pathlib import Path
 
@@ -393,6 +404,38 @@ for name, names in face_surfaces.items():
     module = importlib.import_module(name)
     assert Path(module.__file__).resolve().is_relative_to(Path("installed").resolve())
     assert all(callable(getattr(module, name)) for name in names)
+
+from stage_gen.components.movie_sprite import FinishSettings, finish_video
+from stage_gen.recipes.movie_sprite_body_idle import Authoring, GenerationSettings, create_pipeline
+from stage_gen.recipes.movie_sprite_body_idle.examples.supplied_clip import make_inputs as clip
+
+assert Path(clip.__file__).resolve().is_relative_to(Path("installed").resolve())
+clip_inputs = Path("movie-sprite-inputs")
+clip.make_inputs(clip_inputs)
+movie = create_pipeline(supplied_video_ref="actor.mkv", finish_ref="finish.json")
+movie_plan = plan(movie, input_root=clip_inputs)
+assert all(node.operation == "local" for node in movie_plan.graph.nodes)
+movie_run = asyncio.run(run(
+    movie_plan,
+    output_root=Path("movie-sprite-first"),
+    cache_root=Path("movie-sprite-cache"),
+))
+assert movie_run.summary.ok, movie_run.summary
+assert (movie_run.run_dir / "body/loop.mkv").is_file()
+assert (movie_run.run_dir / "body/canonical.png").is_file()
+assert (movie_run.run_dir / "body/frames.zip").is_file()
+from PIL import Image
+with Image.open(movie_run.run_dir / "body/canonical.png") as canonical:
+    assert canonical.convert("RGBA").tobytes() == clip.make_frame(0).tobytes()
+for record in movie_run.run_dir.rglob("*.json"):
+    assert str(Path.cwd()) not in record.read_text(encoding="utf-8")
+movie_cached = asyncio.run(run(
+    movie_plan,
+    output_root=Path("movie-sprite-second"),
+    cache_root=Path("movie-sprite-cache"),
+))
+assert movie_cached.summary.ok
+assert all(node.cache.value == "hit" for node in movie_cached.summary.nodes)
 """
     probe_environment = environment | {"PYTHONPATH": str(installed)}
     subprocess.run(

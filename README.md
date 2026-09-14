@@ -45,9 +45,11 @@ Riko winks, and both demonstrate A/O mouth shapes in this twelve-second preview.
 The characters are composited over an [Afterlight](godot/games/afterlight/README.md)
 background.
 
-`movie_sprite` is an experimental workflow; its generation module is not yet
-promoted into the public SDK. It uses the existing facial repaint pipeline.
-See the [preview details](.github/assets/readme/README.md#movie-sprite-preview).
+Use the supported [movie sprite workflow](docs/movie-sprite.md) to generate and
+finish transparent body loops, then pass the resulting first-frame canonical to
+the existing facial repaint pipeline. It exports standard videos, PNGs and metadata;
+the consuming application owns playback. See the
+[preview details](.github/assets/readme/README.md#movie-sprite-preview).
 
 ## Start with a local asset pipeline
 
