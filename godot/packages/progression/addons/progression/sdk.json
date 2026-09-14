@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "name": "progression",
+  "version": "0.1.0-canary.1",
+  "channel": "canary",
+  "install_path": "addons/progression",
+  "engine": "Godot",
+  "tested_engine_version": "4.7.2",
+  "tested_renderer": "gl_compatibility",
+  "dependencies": [],
+  "entry_point": "ledger/sources.gd",
+  "public_scripts": [
+    {"path": "design/catalog.gd", "public_methods": ["configure", "item", "curve", "measurement_type", "table", "source", "sources_for", "mail_template", "exp_to_leave", "validate_bundle", "merge"], "signals": []},
+    {"path": "design/builder.gd", "public_methods": ["item", "curve", "measurement", "table", "source", "mail", "objective", "build"], "signals": []},
+    {"path": "design/tables.gd", "public_methods": ["roll", "resolve"], "signals": []},
+    {"path": "ledger/ledger.gd", "public_methods": ["create", "validate", "balance", "grant", "spend", "entries"], "signals": []},
+    {"path": "ledger/levels.gd", "public_methods": ["state", "add_exp"], "signals": []},
+    {"path": "ledger/conditions.gd", "public_methods": ["evaluate", "objectives_met", "label_values"], "signals": []},
+    {"path": "ledger/sources.gd", "public_methods": ["preview", "claim", "record", "can_claim"], "signals": []},
+    {"path": "ledger/mailbox.gd", "public_methods": ["deliver", "deliver_custom", "deliver_once", "inbox", "find", "unread_count", "claimable", "mark_read", "claim", "claim_all", "is_expired", "days_left", "prune_expired", "evict"], "signals": []},
+    {"path": "store.gd", "public_methods": ["load_document", "save_document"], "signals": []},
+    {"path": "presenters/result_screen.gd", "public_methods": ["open", "show_result", "close", "is_open"], "signals": ["claim_pressed", "continue_pressed", "exit_pressed"]},
+    {"path": "presenters/reward_popup.gd", "public_methods": ["open", "close", "is_open"], "signals": ["closed"]},
+    {"path": "presenters/mailbox.gd", "public_methods": ["open", "refresh", "close", "is_open"], "signals": ["closed", "selected", "claim_requested", "claim_all_requested"]},
+    {"path": "presenters/mail_button.gd", "public_methods": ["place"], "signals": ["pressed"]}
+  ]
+}

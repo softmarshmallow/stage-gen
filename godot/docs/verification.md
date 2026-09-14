@@ -32,6 +32,7 @@ accounted for, including checks that cannot run in this scope:
 | `game_presentation` | Standalone mechanisms and dependency validation | Corruption raster checks need native rendering; halo raster branch stays visibly skipped headlessly |
 | `scenario_runtime` | V3 Session/catalog/compiler, v2 compatibility, host/presenters, cross-language conformance, content packages and Python starter assembly | None; native visual acceptance is separate |
 | `content_io` | Independent local-content checks | None |
+| `progression` | Design refusals, builder parity, tables, ledger grant/spend, levels, conditions, source lifecycle, mail and store checks; the fake-game example driven end to end; the package dependency check | None; `--capture` renders of the example need native rendering |
 | `movie_sprite_actor` | Descriptor, clock, facial-state and lifecycle checks; fresh standalone copy executes with synthetic PNGs and verifies its source/dependency hashes | Native standalone pixels and Afterlight movie integration are separate; Afterlight requires its prepared movie assets |
 | `sideview_rendering` | Layer, pixel and image-adapter checks with synthetic inputs | No game run or prepared art |
 | VN template | Source/program freshness and standalone story checks with procedural content | Optional capture mode requires native rendering |

@@ -42,6 +42,7 @@ godot/
 │   ├── game_presentation/            # Independent presentation controllers
 │   ├── content_io/                   # Local content access and decoding
 │   ├── movie_sprite_actor/           # Body atlas playback and independent facial states
+│   ├── progression/                  # Reward design, ledger, mailbox and claim screens
 │   ├── scenario_runtime/             # VN-oriented sessions, compiler and presenters
 │   └── sideview_rendering/           # Layers, parallax and pixel presentation
 ├── templates/
@@ -105,6 +106,7 @@ and authoring commands without making those formats part of the public asset SDK
 [game_presentation](packages/game_presentation/README.md),
 [content_io](packages/content_io/README.md),
 [movie_sprite_actor](packages/movie_sprite_actor/README.md),
+[progression](packages/progression/README.md),
 [scenario_runtime](packages/scenario_runtime/README.md) and
 [sideview_rendering](packages/sideview_rendering/README.md) provide bounded runtime
 capabilities. [asset_consumer](templates/asset_consumer/README.md)

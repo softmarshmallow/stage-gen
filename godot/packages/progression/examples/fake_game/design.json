@@ -1,0 +1,50 @@
+{
+  "schema_version": 2,
+  "items": {
+    "gold": {"type": "currency", "rarity": "common", "stack": 999999, "name_key": "item.gold"},
+    "gem": {"type": "currency", "rarity": "rare", "stack": 999999, "name_key": "item.gem"},
+    "core": {"type": "material", "rarity": "epic", "stack": 99, "name_key": "item.core"},
+    "charm": {"type": "material", "rarity": "rare", "stack": 99, "name_key": "item.charm"},
+    "potion": {"type": "material", "rarity": "common", "stack": 20, "name_key": "item.potion"}
+  },
+  "curves": {"account": [100, 150, 220, 320, 450]},
+  "measurements": {"fight_s": "number", "hits_taken": "integer", "hp_fraction": "number"},
+  "tables": {
+    "arena_drops": [
+      {"item": "gem", "count": 5, "weight": 70},
+      {"item": "core", "count": 1, "weight": 30}
+    ]
+  },
+  "sources": {
+    "arena.first": {
+      "trigger": "stage:arena", "claims": "once", "name_key": "reward.first_clear",
+      "bundle": [{"item": "gem", "count": 60}, {"item": "core", "count": 1}],
+      "mail_on_claim": "first_clear"
+    },
+    "arena.clear": {
+      "trigger": "stage:arena", "claims": "repeat", "name_key": "reward.clear",
+      "bundle": [{"item": "gold", "count": 150}, {"table": "arena_drops", "rolls": 1}],
+      "exp": {"curve": "account", "amount": 120},
+      "objectives": [
+        {"name_key": "objective.cleared", "condition": {"kind": "always"}},
+        {"name_key": "objective.fast", "condition": {"kind": "below", "measure": "fight_s", "value": 120}},
+        {"name_key": "objective.clean", "condition": {"kind": "at_most", "measure": "hits_taken", "value": 3}}
+      ],
+      "objective_bonus": {"3": [{"item": "charm", "count": 1}]}
+    },
+    "daily_gift": {
+      "trigger": "login", "claims": "periodic", "period_s": 86400, "name_key": "reward.daily",
+      "bundle": [{"item": "gold", "count": 50}]
+    }
+  },
+  "mails": {
+    "welcome": {
+      "sender_key": "sender.village", "title_key": "mail.welcome.title", "body_key": "mail.welcome.body",
+      "attachments": [{"item": "gold", "count": 500}], "expires_days": null
+    },
+    "first_clear": {
+      "sender_key": "sender.village", "title_key": "mail.first_clear.title", "body_key": "mail.first_clear.body",
+      "attachments": [{"item": "gem", "count": 40}], "expires_days": 30
+    }
+  }
+}

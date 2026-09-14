@@ -12,6 +12,7 @@ godot/
 │   ├── game_presentation/      # Presentation controllers and compatibility APIs
 │   ├── content_io/             # Confined local content access and decoding
 │   ├── movie_sprite_actor/     # Body playback and independent facial compositing
+│   ├── progression/            # Reward design contract, ledger, mailbox and presenters
 │   ├── scenario_runtime/       # VN-oriented invocation framework and compiler
 │   └── sideview_rendering/     # Layers, pixels and parallax presentation
 ├── games/
@@ -38,6 +39,7 @@ godot/
 | --- | --- |
 | `content_io` | No other addon; accepts explicit roots, references and optional source digests. |
 | [`movie_sprite_actor`](../packages/movie_sprite_actor/README.md) | Declares only `content_io`; admits registered-face atlas descriptors, advances body frames, composites independent facial states and owns resource lifecycle. No Scenario or game dependency. |
+| [`progression`](../packages/progression/README.md) | No other addon. Validates a game's reward design (items, curves, measurements, tables, sources, mails), keeps one ledger document (balances, tracks, records, entries, mail) and offers optional presenters. Knows no game noun: measurements, names and the clock come from the consumer. |
 | `scenario_runtime` | Owns compiler, admission, Session progression/clocks, bindings and optional presenters. Declares `game_presentation` and `content_io`; pure execution has no scene/media dependency. |
 | `sideview_rendering` | No game manifest; accepts source images/data, dimensions, anchors and presentation values. Image baking is separate from pure arithmetic. |
 | `game_presentation` | Declares `content_io` for the existing local-content facade. Controllers retain their separate time, geometry and lifecycle contracts. |

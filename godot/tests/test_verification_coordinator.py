@@ -41,6 +41,7 @@ def test_every_maintained_owner_and_check_has_an_adapter() -> None:
         "scenario_runtime",
         "content_io",
         "movie_sprite_actor",
+        "progression",
         "sideview_rendering",
         "vn",
         "asset_consumer",

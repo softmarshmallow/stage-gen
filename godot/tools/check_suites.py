@@ -51,6 +51,7 @@ OWNERS = (
     ),
     Owner("content_io", "packages/content_io", "explicit"),
     Owner("movie_sprite_actor", "packages/movie_sprite_actor", "explicit"),
+    Owner("progression", "packages/progression", "explicit"),
     Owner("sideview_rendering", "packages/sideview_rendering", "explicit"),
     Owner("vn", "templates/vn", "checks"),
     Owner("asset_consumer", "templates/asset_consumer", "explicit"),
@@ -241,6 +242,25 @@ def declared_suites() -> list[Suite]:
             success=r"(?m)^scenario_preview: content admitted and stepped by the installed player",
         )
     )
+    suites.append(
+        Suite(
+            "progression",
+            "run_checks",
+            "script",
+            "tests/run_checks.gd",
+            success=r"(?m)^progression: [1-9][0-9]* checks passed",
+        )
+    )
+    suites.append(
+        Suite(
+            "progression",
+            "run_example_checks",
+            "script",
+            "tests/run_example_checks.gd",
+            success=r"(?m)^progression_example: [1-9][0-9]* checks passed",
+        )
+    )
+    suites.append(Suite("progression", "package_dependencies", "python", "tools/check_package.py"))
     for name in ("scenario_runtime", "content_io", "sideview_rendering"):
         suites.append(
             Suite(

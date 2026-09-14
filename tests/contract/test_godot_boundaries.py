@@ -46,6 +46,17 @@ PURE_PACKAGE_MEMBERS = {
     # image_baker.gd intentionally owns engine Image/WorkerThreadPool operations;
     # simulations may only consume the independent data-only modules.
     "sideview_rendering": ("parallax.gd", "pixels.gd", "refusal.gd"),
+    # store.gd and the presenters own engine I/O and Controls; the design and ledger halves are pure.
+    "progression": (
+        "design/catalog.gd",
+        "design/builder.gd",
+        "design/tables.gd",
+        "ledger/ledger.gd",
+        "ledger/levels.gd",
+        "ledger/conditions.gd",
+        "ledger/sources.gd",
+        "ledger/mailbox.gd",
+    ),
 }
 PURE_PRELOAD = re.compile(
     r'preload\("res://addons/(scenario_runtime|sideview_rendering)/([a-z0-9_/]+\.gd)"\)'
