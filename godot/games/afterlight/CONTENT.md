@@ -35,8 +35,8 @@ assets/movie_sprite/{yuzu,riko}/       # optional local diagnostic textures and 
 
 The optional [movie-sprite diagnostic](docs/movie-sprite-diagnostic.md) owns its
 own [prepared-content profile](docs/movie-sprite-content.md) for the independent
-[Movie Sprite Actor runtime](../../packages/movie_sprite_actor/README.md). The story still
-uses its standing-image bindings. The Lab reads prepared textures only; source
+[Movie Sprite Actor runtime](../../packages/movie_sprite_actor/README.md). The main story uses the movie actors for Yuzu and Riko when their prepared
+manifests are present, with standing images retained for content sets without them. The Lab reads prepared textures only; source
 FFV1 conversion is an explicit offline preparation command.
 
 Use the project's `tools/prepare_example_content.py` to assemble the current

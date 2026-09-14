@@ -82,6 +82,12 @@ Scenario instructions.
 
 ## Art and checks
 
+The normal story route now uses Yuzu and Riko's prepared movie sprites through
+an Afterlight-owned [texture adapter](movie_cast.gd). Body loops, bilateral Yuzu
+blinks, Riko's canvas-left wink, and speech-driven mouth states follow the story.
+Existing cast transitions, camera and effects consume the composed textures.
+Missing optional movie manifests retain the standing-image bindings.
+
 The local [Yuzu/Riko Movie Sprite Actor diagnostic](docs/movie-sprite-diagnostic.md)
 in Afterlight Lab plays prepared transparent body loops with independently
 controlled eyes and speaking mouth states through the independent

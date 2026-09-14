@@ -17,6 +17,7 @@ const VOICE_EFFECTS = preload("res://addons/game_presentation/audio/voice_effect
 const POINT_CONTACT = preload("res://addons/game_presentation/interaction/point_contact.gd")
 const CONTENT_ADAPTER = preload("res://content_adapter.gd")
 const TRANSMISSION_DISPLAY = preload("res://transmission_display.gd")
+const MOVIE_CAST = preload("res://movie_cast.gd")
 const DESIGN_SIZE := Vector2(1280, 900)
 const INK := Color("f4eee6")
 const ACCENT := Color("e4bbac")
@@ -30,6 +31,7 @@ var text_audio_settings: Dictionary = {}
 var _session = SESSION.new()
 var _transport = TRANSPORT.new()
 var _stage = FRONT_STAGE.new()
+var _movie_cast = MOVIE_CAST.new()
 var _program: Dictionary = {}
 var _catalog: Dictionary = {}
 var _catalog_document: Dictionary = {}
@@ -341,6 +343,7 @@ func _voice_position() -> float:
 
 
 func _exit_tree() -> void:
+	_movie_cast.shutdown()
 	if not _session.view().is_empty():
 		_session.cancel("host_exit")
 		_session.drain_events()
@@ -603,6 +606,16 @@ func _ready() -> void:
 		for field: String in {"eye_close_path": "portraits", "detail_path": "details", "contact_path": "contacts"}:
 			if profile.has(field): resources[{"eye_close_path": "portraits", "detail_path": "details", "contact_path": "contacts"}[field]][profile["id"]] = _load_texture(profile[field])
 	for id: String in content.get("sprite_burst", {}).get("sprites", {}): resources["burst"][id] = _load_texture(content["sprite_burst"]["sprites"][id])
+	var movie_bindings := {}
+	for profile: Dictionary in _cast_profiles():
+		if profile.has("movie_sprite_manifest"): movie_bindings[profile["id"]] = profile["movie_sprite_manifest"]
+	add_child(_movie_cast)
+	_movie_cast.failed.connect(func(errors: Array[String]) -> void: _load_errors.append_array(errors))
+	_load_errors.append_array(_movie_cast.configure(content.get("content_loader"), movie_bindings))
+	for actor_id: String in _movie_cast.textures:
+		resources["actors"][actor_id] = _movie_cast.textures[actor_id]
+		for profile: Dictionary in _cast_profiles():
+			if profile["id"] == actor_id: profile["eye_uv"] = profile.get("movie_eye_uv", profile["eye_uv"])
 	_load_errors.append_array(_stage.configure(BINDING.settings(content), resources, TRANSMISSION_DISPLAY.new()))
 	if _load_errors.is_empty():
 		add_child(_stage)
@@ -783,6 +796,10 @@ func _tick_session(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
+	_movie_cast.set_paused(_paused)
+	var audio: Dictionary = _text_audio.get_state()
+	var speaking: bool = bool(audio.get("voice_playing", false)) and not bool(audio.get("voice_finished", false)) if audio.get("active_mode", "") == "voice" else _reveal.sample().get("phase", "") == "revealing"
+	_movie_cast.advance(delta, str(current_beat().get("speaker", "")), speaking)
 	if _paused or not _load_errors.is_empty() or not is_finite(delta) or delta <= 0.0: return
 	var ready := str(get_autoplay_state()["blocked_reason"]).is_empty()
 	var previous := str(_shown.get("id", ""))

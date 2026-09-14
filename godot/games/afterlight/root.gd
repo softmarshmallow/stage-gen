@@ -60,6 +60,8 @@ const CONTENT := {
 			"proportion_style": "flat",
 			"path": "res://assets/characters/yuzu_standing.png",
 			"eye_uv": [0.510, 0.141],
+			"movie_sprite_manifest": "assets/movie_sprite/yuzu/manifest.json",
+			"movie_eye_uv": [0.508, 0.155],
 		},
 		{
 			"id": "sena",
@@ -72,6 +74,8 @@ const CONTENT := {
 			"proportion_style": "exaggerated_feminine",
 			"path": "res://assets/characters/riko_standing.png",
 			"eye_uv": [0.494, 0.118],
+			"movie_sprite_manifest": "assets/movie_sprite/riko/manifest.json",
+			"movie_eye_uv": [0.50, 0.148],
 		},
 	],
 	"supporting_cast": [

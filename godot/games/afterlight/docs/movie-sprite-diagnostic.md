@@ -167,3 +167,20 @@ main-story replacement and new anatomy annotation remain separate future work.
 The later **GO** authorizes the runtime extraction described above. Generation
 work, main-story replacement and a Scenario actor-surface adapter remain outside
 that extraction.
+
+## Main-story wiring follow-up
+
+The user expected the normal `--language ko` launch to show the movie actors.
+The [game-owned texture adapter](../movie_cast.gd) now supplies transparent
+SubViewport textures to the existing front cast for Yuzu and Riko. Their authored
+story entrances, camera framing, transitions and Manpu continue through the same
+renderer. Speaker activity drives coarse A/O mouth cycling; pause holds body and
+face state. Missing optional movie manifests retain standing images, while
+invalid present content reports errors. Leaving the story releases its players.
+No Scenario or SDK actor-surface redesign is introduced by this adapter.
+The earlier main-story deferral is superseded by this authorized follow-up.
+
+The default-route story check reaches Yuzu's natural introduction and verifies
+both movie texture bindings, speaking, pause and cleanup. Native Korean rendering
+was inspected; the existing story/Lab integration still passes 109 checks.
+The two SubViewport outputs add a render pass per actor at its source resolution.

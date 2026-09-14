@@ -117,6 +117,32 @@ def declared_suites() -> list[Suite]:
         ("movie_sprite_integration_checks", "media", ()),
         ("movie_sprite_rendered", "rendered", ("--capture-movie-sprite",)),
     )
+    suites.append(
+        Suite(
+            "afterlight",
+            "movie_sprite_story_checks",
+            "script",
+            "tests/movie_sprite_story_checks.gd",
+            "media",
+            prepared_files=(
+                "assets/movie_sprite/yuzu/manifest.json",
+                "assets/movie_sprite/riko/manifest.json",
+            ),
+        )
+    )
+    suites.append(
+        Suite(
+            "afterlight",
+            "movie_sprite_story_rendered",
+            "script",
+            "tests/movie_sprite_story_checks.gd",
+            "rendered",
+            prepared_files=(
+                "assets/movie_sprite/yuzu/manifest.json",
+                "assets/movie_sprite/riko/manifest.json",
+            ),
+        )
+    )
     for name, level, arguments in movie_levels:
         suites.append(
             Suite(
