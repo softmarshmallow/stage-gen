@@ -39,10 +39,12 @@ Whatever construction a map declares, the node first asks the deterministic vali
 generated raster *already* repeats. When it does, the raster is published untouched and the node
 spends nothing.
 
-This is not a rare path. In the current Bellweather package three of eight layers — both sky plates
-and one midground — are admitted directly, because the image model does sometimes return a
-genuinely wrapping strip when asked for one. Constructing over a layer that already loops would
-add width and artefacts for no benefit, so admission is checked before anything else runs.
+The image model does sometimes return a genuinely wrapping strip when asked for one. Of
+Bellweather's eight current layers, Crowncrag's route does: its canopy, rocks and water run
+straight through the wrap, and admission publishes it untouched. Both sky plates do not, although
+the previous gate let them through: each carries a faint vertical line at its wrap, about six
+times the steps between its own interior columns. Constructing over a layer that already loops
+would add artefacts for no benefit, so admission is checked before anything else runs.
 
 A construction is therefore only ever a response to a measured failure, and the provider cost of the
 whole feature is proportional to how often the model misses.
@@ -249,10 +251,38 @@ does not inherit the bridge's hardest problem.
 Two properties follow that no other generative construction has:
 
 - **The period does not grow.** Authored content covers the same travel it always did.
-- **The join metric is real.** Nothing here assigns the wrap columns, so admission measuring them
+- **The wrap metric is real.** Nothing here assigns the wrap columns, so admission measuring them
   is an actual measurement rather than a restatement of what anchoring just wrote.
 
 The price is that the source is no longer recoverable: pixels near the join are replaced.
+
+### Cutting the repaint back in
+
+Moving the wrap into the provider's canvas does not remove every join; it creates two new ones,
+where the repaint meets the source again on either side. The endpoint redraws every pixel it is
+sent, so at those places the source and the return never match exactly.
+
+The first version kept only the painted span and eased it onto one fixed source column over 24
+columns, as the bridge does. Every village repaint came back with a clean wrap and a smear at both
+inner joins: a melted wall, a ghost of a roof, a tree streaked sideways. The wrap gate never looked
+there, and each step inside the smear was small, so no join metric could have seen it either.
+
+The construction now registers the *whole* return and cuts it into the source along the cheapest
+top-to-bottom path through a search band on each side of the wrap: the path, moving at most one
+column per row, where the return and the source agree most, in premultiplied RGBA. It is the
+minimum-error boundary cut of image quilting. Each band runs from `LOOP_REPAINT_CUT_REACH_PX`
+columns into the context to `LOOP_REPAINT_CUT_GUARD_PX` columns short of the wrap, so the wrap
+always stays inside painted art, and the cut is feathered over `LOOP_REPAINT_CUT_FEATHER_PX`
+columns either side. Pixels outside the feathered cuts are the source's own bytes and pixels
+inside are the return's; only the feather is blended.
+
+On the three village returns the smeared version rejected, the cut leaves no visible join: the
+two pictures disagree by 0.009 to 0.014 across the cut, against 0.045 to 0.095 at the old fixed
+columns.
+
+The record carries both cuts as **stitches**, in the unit's own coordinates: where each landed on
+every row, and how far the two pictures disagreed across it. Admission judges them with the wrap;
+see [validation](#validation-and-evidence).
 
 ## `fold_repaint` — break the mirror without breaking the loop
 
@@ -311,8 +341,8 @@ which is why the override exists.
 `loop_fallback` is what runs when a generative construction cannot be completed. It is validated to
 be deterministic: a fallback that can itself fail is not a fallback.
 
-Everything else — context spans, repaint window and span, anchor band, brief version and framing —
-is recipe-owned and versioned. It is not authored, because it describes how the provider is
+Everything else — context spans, repaint window and span, anchor band, seam cut reach, guard and
+feather, brief version and framing — is recipe-owned and versioned. It is not authored, because it describes how the provider is
 conditioned rather than a creative choice.
 
 ## Cache identity
@@ -324,8 +354,10 @@ byte-identical.
 
 The loop node's own identity is **scoped to the construction that layer actually selected**: its
 version, its guarantee, its mutability, and only the recipe constants that construction consumes.
-Deterministic constructions bind no registration or anchor version at all, because they have no
-provider return to register.
+`seam_repaint` binds its cut version and cut constants; the bridge and the fold bind the anchor
+band they still use. Deterministic constructions bind no registration or anchor version at all,
+because they have no provider return to register. Every construction binds the admission gate's
+version, because admission runs first and decides whether the construction runs at all.
 
 This scoping is the point rather than an optimisation. The identity previously bound *every*
 construction's version at once, so revising any one of them re-ran the loop node for every layer in
@@ -340,6 +372,14 @@ for the constructed unit.
 Every construction is re-admitted before it is accepted, and the layer's published artifact is
 re-admitted again after the vertical trim — the bytes that ship must be the bytes that passed, and
 trimming empty rows can change a raster's edge statistics.
+
+Admission holds every join to the picture it sits in: the mean colour, gradient and alpha steps
+across the join against the same steps at the layer's own interior columns
+([`single-axis-continuity-v3`](image-repeat.md#admission)). A `seam_repaint` unit is judged on
+three joins, not one: its wrap and its two stitches. A stitch fails on its step like any join, and
+also when the two stitched pictures disagreed across it by more than the layer's own interior
+steps, because that is a ghost however smooth the blend. Either failure sends the layer to its
+fallback with the rejected report recorded.
 
 **A bridged unit's join metric is vacuous on its own.** Anchoring assigns the boundary columns to
 equal their neighbours, and admission then measures those same columns, so `color_mae` is exactly
@@ -364,6 +404,7 @@ business, and its `looping_continuity` check is the gate that speaks to them.
 | Opaque fill where the source is transparent | Cut-out alpha clause not honoured on a transparent layer | Layer validation, review board |
 | Landmark appears twice per period, reflected | `mirror_repeat` on a high-salience layer | Map review `looping_continuity` |
 | A join reads correctly but the layer lost content | A repaint construction replaced pixels; the source is not recoverable | Loop record `mutates_source` |
+| Smear or ghost a short way either side of the wrap | A repaint forced onto the source at a fixed column; the pictures disagree there | Stitch join `clipped_or_disconnected_form`; the layer falls back and `rejected_repeat` records it |
 | Composite crops a layer | A consumer assumed one shared period | Composite geometry, review board |
 
 ## Related

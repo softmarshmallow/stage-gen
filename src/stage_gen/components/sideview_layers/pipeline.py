@@ -18,11 +18,18 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from PIL import Image
 
-from stage_gen.components.image_repeat import ImageRepeatValidationPolicy, validate_image_repeat
+from stage_gen.components.image_repeat import (
+    ImageRepeatStitch,
+    ImageRepeatValidationPolicy,
+    validate_image_repeat,
+)
 from stage_gen.components.sideview_layers.contract import (
     LOOP_ANCHOR_BAND_PX,
     LOOP_BRIDGE_CONTEXT_SPAN_PX,
     LOOP_BRIDGE_SPAN_PX,
+    LOOP_REPAINT_CUT_FEATHER_PX,
+    LOOP_REPAINT_CUT_GUARD_PX,
+    LOOP_REPAINT_CUT_REACH_PX,
     LOOP_REPAINT_SPAN_PX,
     LOOP_REPAINT_WINDOW_PX,
 )
@@ -86,7 +93,12 @@ def assemble_loop(
         )
     if construction == "seam_repaint":
         return assemble_seam_repaint(
-            data, provider_png, conditioning=conditioning, anchor_band=LOOP_ANCHOR_BAND_PX
+            data,
+            provider_png,
+            conditioning=conditioning,
+            cut_reach=LOOP_REPAINT_CUT_REACH_PX,
+            cut_guard=LOOP_REPAINT_CUT_GUARD_PX,
+            cut_feather=LOOP_REPAINT_CUT_FEATHER_PX,
         )
     if construction == "fold_repaint":
         return assemble_fold_repaint(
@@ -103,6 +115,20 @@ def construct_deterministic(
     if construction == "mirror_repeat":
         return mirror_repeat(data)
     raise ValueError(f"{construction} is not a deterministic loop construction")
+
+
+def _stitches(record: dict[str, object]) -> tuple[ImageRepeatStitch, ...]:
+    cut = record.get("cut")
+    if not isinstance(cut, dict):
+        return ()
+    return tuple(
+        ImageRepeatStitch(
+            positions=tuple(stitch["positions"]),
+            color_disagreement=float(stitch["color_disagreement"]),
+            alpha_disagreement=float(stitch["alpha_disagreement"]),
+        )
+        for stitch in cut["stitches"]
+    )
 
 
 def layer_repeat_policies(
@@ -229,13 +255,14 @@ async def loop_layer(
 
     alpha_policy, coverage = layer_repeat_policies(alpha_mode)
 
-    def admit(data: bytes) -> Any:
+    def admit(data: bytes, stitches: tuple[ImageRepeatStitch, ...] = ()) -> Any:
         return validate_image_repeat(
             data,
             axis="x",
             alpha_policy=alpha_policy,
             coverage_policy=coverage,
             validation_policy=ImageRepeatValidationPolicy(),
+            stitches=stitches,
         )
 
     generative = LOOP_METHODS[construction].is_generative
@@ -277,7 +304,9 @@ async def loop_layer(
             record["rejected_construction"] = construction
             record["rejection"] = str(error)
         record["provider_operations"] = provider_operations
-    report = admit(looped)
+    # A construction that cut provider pixels into the source names where; those joins are judged
+    # with the wrap, because a wrap-only verdict passes whatever the inner joins look like.
+    report = admit(looped, _stitches(record))
     if report.verdict != "pass" and generative:
         # A generative construction can return art that lands correctly and still fails
         # admission, which is exactly the case the fallback exists for; falling back only on a

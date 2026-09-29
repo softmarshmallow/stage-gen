@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+from typing import Any, cast
 
 import pytest
 from PIL import Image, ImageDraw
@@ -20,6 +21,10 @@ from stage_gen.media import (
     mirror_repeat,
     tile_to_width,
 )
+
+#: A seam cut sized for the 32-pixel test window: the tail band is columns 8 to 12 and the head
+#: band 19 to 23, so the wrap at 16 always stays inside the painted span.
+_CUT = {"cut_reach": 4, "cut_guard": 3, "cut_feather": 0}
 
 
 def _png(image: Image.Image) -> bytes:
@@ -229,10 +234,10 @@ def test_seam_repaint_leaves_the_period_unchanged_and_closes_the_wrap() -> None:
     conditioning = build_seam_repaint_conditioning(_png(source), window_span=32, repaint_span=8)
 
     looped, record = assemble_seam_repaint(
-        _png(source), _returned(conditioning), conditioning=conditioning, anchor_band=2
+        _png(source), _returned(conditioning), conditioning=conditioning, **_CUT
     )
 
-    assert record["kind"] == "seam-repaint-v1"
+    assert record["kind"] == "seam-repaint-v2"
     assert record["guarantee"] == "interior"
     assert record["mutates_source"] is True
     # No growth: this is the only construction whose period equals the source width.
@@ -241,20 +246,74 @@ def test_seam_repaint_leaves_the_period_unchanged_and_closes_the_wrap() -> None:
         assert opened.size == source.size
 
 
-def test_seam_repaint_writes_the_span_to_both_ends_of_the_source() -> None:
+def test_seam_repaint_writes_the_repaint_to_both_ends_and_leaves_the_rest_exact() -> None:
     source = _gradient(width=64)
     conditioning = build_seam_repaint_conditioning(_png(source), window_span=32, repaint_span=8)
 
     looped, _ = assemble_seam_repaint(
-        _png(source), _returned(conditioning), conditioning=conditioning, anchor_band=1
+        _png(source), _returned(conditioning), conditioning=conditioning, **_CUT
     )
 
-    # Half the span belongs to the tail and half to the head; the middle of each is untouched by
-    # anchoring, so it carries the provider's fill.
+    # The window's middle straddles the wrap: half of it lands on the tail, half on the head.
     assert _column(looped, 62)[0][:3] == (90, 160, 90)
     assert _column(looped, 1)[0][:3] == (90, 160, 90)
-    # Content a full span away from the wrap is not the provider's to change.
-    assert _column(looped, 32) == _column(_png(source), 32)
+    # The fixture's return agrees with the source everywhere outside the painted span, so the cut
+    # runs through agreement and every other column keeps the source's exact bytes.
+    for x in range(4, 60):
+        assert _column(looped, x) == _column(_png(source), x)
+
+
+def test_seam_repaint_cuts_along_the_path_where_the_return_agrees() -> None:
+    """The cut follows agreement row by row instead of forcing the two pictures together."""
+
+    # Textured, so registration can still tell where the return landed with part of a band
+    # overpainted; a constant-column strip would let any vertical offset explain it.
+    source = _textured(width=64, height=128)
+    conditioning = build_seam_repaint_conditioning(_png(source), window_span=32, repaint_span=8)
+    with Image.open(io.BytesIO(_returned(conditioning))) as opened:
+        returned = opened.convert("RGBA")
+    with Image.open(io.BytesIO(conditioning.conditioning_png)) as opened:
+        sent = opened.convert("RGBA")
+    # Disagree across the whole tail search band except one pixel per row, zig-zagging between
+    # columns 9 and 10: the only path that crosses the band through agreement.
+    agreeing = [9 + (y // 4) % 2 for y in range(returned.height)]
+    for y, keep in enumerate(agreeing):
+        for x in range(8, 13):
+            if x != keep:
+                returned.putpixel((x, y), (250, 10, 10, 255))
+            else:
+                returned.putpixel((x, y), cast(tuple[int, ...], sent.getpixel((x, y))))
+
+    _, record = assemble_seam_repaint(
+        _png(source), _png(returned), conditioning=conditioning, **_CUT
+    )
+
+    tail = cast(dict[str, Any], record["cut"])["stitches"][0]
+    assert tail["side"] == "tail"
+    # Window column c < 16 is unit column 48 + c.
+    assert tail["positions"] == [48 + x for x in agreeing]
+    assert tail["color_disagreement"] == 0.0
+    assert tail["alpha_disagreement"] == 0.0
+
+
+@pytest.mark.parametrize(
+    "cut",
+    [
+        {"cut_reach": 4, "cut_guard": 1, "cut_feather": 0},
+        {"cut_reach": 12, "cut_guard": 3, "cut_feather": 0},
+        {"cut_reach": 4, "cut_guard": 3, "cut_feather": 2},
+    ],
+)
+def test_seam_repaint_refuses_a_cut_that_could_reach_the_wrap_or_the_edge(
+    cut: dict[str, int],
+) -> None:
+    source = _gradient(width=64)
+    conditioning = build_seam_repaint_conditioning(_png(source), window_span=32, repaint_span=8)
+
+    with pytest.raises(ValueError, match="seam cut"):
+        assemble_seam_repaint(
+            _png(source), _returned(conditioning), conditioning=conditioning, **cut
+        )
 
 
 def test_fold_repaint_keeps_the_untouched_wrap_fold_exact() -> None:
@@ -319,5 +378,5 @@ def test_seam_repaint_rejects_a_span_whose_halves_would_overlap() -> None:
 
     with pytest.raises(ValueError, match="must not exceed the source width"):
         assemble_seam_repaint(
-            _png(source), _returned(conditioning), conditioning=conditioning, anchor_band=2
+            _png(source), _returned(conditioning), conditioning=conditioning, **_CUT
         )

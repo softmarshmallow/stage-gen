@@ -31,7 +31,11 @@ grid's height with storeys rather than with one tall tower.
 
 [continuity]
 seamless_axis = "x"
-loop_construction = "mirror_repeat"
+# Every layer is repainted through its own wrap. A mirror doubles the period and shows each
+# landmark twice, facing itself, which is exactly what this map's bell tree and shrines did.
+loop_construction = "seam_repaint"
+# Explicit because the default is generative and can be rejected.
+loop_fallback = "mirror_repeat"
 
 [[references]]
 reference_id = "amberbell_scene"

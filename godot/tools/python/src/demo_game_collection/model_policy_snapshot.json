@@ -16,16 +16,16 @@
     },
     {
       "check_id": "platformer_cache_keys",
-      "expected_state_sha256": "2e34a267c4f4702c506d926fb06d1f849625d0c48ae42b158140d1154ccf5888",
-      "file_sha256": "a8c418271c905b2662f48485af2f813e09685d5568045276f3470fb24429a391",
-      "observed_state_sha256": "2e34a267c4f4702c506d926fb06d1f849625d0c48ae42b158140d1154ccf5888",
+      "expected_state_sha256": "7c8443fc85a7c3b576564f1414919e3c9bfda8bc6e78452a37b12797b8314d06",
+      "file_sha256": "a6f1b59ad3775d5c07856fdc9be1dd011bc280f1d4b495858a134495f7d71fb0",
+      "observed_state_sha256": "7c8443fc85a7c3b576564f1414919e3c9bfda8bc6e78452a37b12797b8314d06",
       "path": "tests/unit/recipes/sideview_platformer/bellweather.cache-keys.json"
     },
     {
       "check_id": "platformer_graph_contract",
-      "expected_state_sha256": "e23a25a5859753a6e25b21088db97a5d32596957d785263fd056aa77bdc7f1f9",
-      "file_sha256": "b6626946ac1d19b028e4befe4e22faf38af10f82c60ed69bb04be5c91170498f",
-      "observed_state_sha256": "e23a25a5859753a6e25b21088db97a5d32596957d785263fd056aa77bdc7f1f9",
+      "expected_state_sha256": "cebb1dda2a2c2c44216247a0602652f3a65bcae15b0bc162078e8ce4041c1e39",
+      "file_sha256": "a8c027b16c52fb4dc550ff66e3cb1d8f26db17133c425ffc8a81c19044cfe80b",
+      "observed_state_sha256": "cebb1dda2a2c2c44216247a0602652f3a65bcae15b0bc162078e8ce4041c1e39",
       "path": "godot/games/bellweather/docs/generation-pipeline.md"
     },
     {
@@ -9177,17 +9177,17 @@
           "route_id": "image.sunburst.openai.images.edit"
         }
       ],
-      "estimated_cost_high_usd": 28.32,
-      "estimated_cost_low_usd": 17.7,
+      "estimated_cost_high_usd": 29.32,
+      "estimated_cost_low_usd": 18.42,
       "fixture_ref": "godot/games/bellweather/inputs/default",
       "graph_kind": "sideview-platformer-execution-graph-v2",
       "graph_schema_version": 2,
-      "graph_sha256": "56054d819cea95cce5ef068b8a6ec349116ee232a956f0407ae7c2438f4baae1",
+      "graph_sha256": "9dc067c11784d5889ce07f73bbf89ce6cc5b2223bcebd0696e7781c0bf51fd54",
       "nodes": [
         {
           "binding_ref": null,
           "cache_depends_on": [],
-          "cache_key": "11987bb4566baaddebef35fe5961e794c4556889fbda939e1b658442938435d4",
+          "cache_key": "8ea22b40c9e278f2239284f08bc4dea0e17a225f96187c1441cc3900454bdf0b",
           "consumer_structure_fingerprint": "09a2f2089d8a48833046a876bda4a458a0f11d983e242e577dcb52d559b0284f",
           "depends_on": [],
           "estimated_cost_high_usd": 0.0,
@@ -9215,7 +9215,7 @@
           "cache_depends_on": [
             "map-sunpetal-crossing-layer-clear_sky-generate"
           ],
-          "cache_key": "28e4333a28afcc32b62e8736d2a3a4d6f2351127f619607f2764b17c7814faf1",
+          "cache_key": "53019ce79ea2f46afa167d1e05e290931772962fcf3dff84d7cba5f5a780dcb9",
           "consumer_structure_fingerprint": "8a9a36f58773c269ca491e0de64fc42038635bd32d8218af68a34dfeba01cefe",
           "depends_on": [
             "map-sunpetal-crossing-layer-clear_sky-generate"
@@ -9231,7 +9231,7 @@
           "cache_depends_on": [
             "map-sunpetal-crossing-layer-clear_sky-loop"
           ],
-          "cache_key": "4cd73ca846a1ebf2c73452a33e7d845b2eb7d20cf1a5aecdd06baeea537b38c2",
+          "cache_key": "aed72376c7e6a43c3ca5b1424d30c5746c0156c5f33ae8a0c8af213fa27c40a9",
           "consumer_structure_fingerprint": "a6905d7099c54f39bd975d86bf50453c40c3afff4f8f154ff09f2d8e4df56101",
           "depends_on": [
             "map-sunpetal-crossing-layer-clear_sky-loop"
@@ -9261,7 +9261,7 @@
           "cache_depends_on": [
             "map-sunpetal-crossing-layer-clouds_and_far_valley-generate"
           ],
-          "cache_key": "32df680facd02150b042ee8d46c9f62455c7258b0187fb9a3e9d5115e0f17e4d",
+          "cache_key": "42730ef2e2807f0a78e12393a6402e0b1b18f181cc6401aa79f66ae70aa605e2",
           "consumer_structure_fingerprint": "831ac9d05510f2d60aff179118026b6cc6cffd554dcc2f6e3e9e3f29ca2b4760",
           "depends_on": [
             "map-sunpetal-crossing-layer-clouds_and_far_valley-generate"
@@ -9277,7 +9277,7 @@
           "cache_depends_on": [
             "map-sunpetal-crossing-layer-clouds_and_far_valley-loop"
           ],
-          "cache_key": "d39d9f053a18fd3ecb88e9851b392935e9dc7a9ee73267d9bc83013c1fb0c164",
+          "cache_key": "f86ca812bc38b11c53d3c771982ee95bed910f81a2a2aad12e21021aad1038ae",
           "consumer_structure_fingerprint": "e5a7b93675a9631003f9bd78a39cc78ad44ce2454a46402b449159219536498b",
           "depends_on": [
             "map-sunpetal-crossing-layer-clouds_and_far_valley-loop"
@@ -9307,7 +9307,7 @@
           "cache_depends_on": [
             "map-sunpetal-crossing-layer-sunpetal_village-generate"
           ],
-          "cache_key": "966ac821b3385c3c1c65b7bfbbd3205cd486496d2f30a3fc3f02854907165126",
+          "cache_key": "0d6bb9c9cdfbf505fe1635ada7b7ac25bd8d71e8aa14430a64b7b708497ceb6c",
           "consumer_structure_fingerprint": "79556c1f8c8fb8e4955fd06a40c6ade49ec7989b6407bf4981c5244e70be3133",
           "depends_on": [
             "map-sunpetal-crossing-layer-sunpetal_village-generate"
@@ -9323,7 +9323,7 @@
           "cache_depends_on": [
             "map-sunpetal-crossing-layer-sunpetal_village-loop"
           ],
-          "cache_key": "f52615e7a90db13521301622c9b0d984c0fc9cc69faf8e4cfde3c3e363a78581",
+          "cache_key": "4c88faf1a773595b467fece4b7cec0cf6a135581bc58d540ec3cc8e916e021f6",
           "consumer_structure_fingerprint": "ff38bb1ae0d08c5ec8118187f9bca35307b0a295070f4f84ef22456937efa113",
           "depends_on": [
             "map-sunpetal-crossing-layer-sunpetal_village-loop"
@@ -9353,7 +9353,7 @@
           "cache_depends_on": [
             "map-sunpetal-crossing-layer-near_garden_frame-generate"
           ],
-          "cache_key": "f84a4bb7acd5c29c9b1ff1c232a26edd7ea6d137951b58fed2eb5d501a9ba1da",
+          "cache_key": "43757db430f7bfad7b544423b49b24e684a482e1ec6405ddf163e9c3da34d38d",
           "consumer_structure_fingerprint": "b6db6c27c699809f85cb1fd52aaf43766f74977b8902192c31fcd197574505e0",
           "depends_on": [
             "map-sunpetal-crossing-layer-near_garden_frame-generate"
@@ -9369,7 +9369,7 @@
           "cache_depends_on": [
             "map-sunpetal-crossing-layer-near_garden_frame-loop"
           ],
-          "cache_key": "160604443ce3d9d232228f13fb4d07323bb81fd93e8bc6c8971310ecd9a49714",
+          "cache_key": "720369316e1e7750d6173569f4be833e07d1d9f5f5e6c58bac8d3432c516a7d7",
           "consumer_structure_fingerprint": "1f21a62308fa0edf8d372c38eb8074a79faf72677337e94c632755d3c321090b",
           "depends_on": [
             "map-sunpetal-crossing-layer-near_garden_frame-loop"
@@ -9466,7 +9466,7 @@
             "map-sunpetal-crossing-ground-validate",
             "map-sunpetal-crossing-terrain-generate"
           ],
-          "cache_key": "707eedc669b4516b899d4746d4259608cf4bbad2177f7affe13c0bff3f4f8d3d",
+          "cache_key": "1f977b3d8a76451a463acac2168392ac5dcd06a3d9708ace917aa468873e9db0",
           "consumer_structure_fingerprint": "a59870c7cca815aa55033c8e6cf448750eced89327eb919a3f711dbe18306099",
           "depends_on": [
             "map-sunpetal-crossing-layer-clear_sky-validate",
@@ -9488,7 +9488,7 @@
             "map-sunpetal-crossing-composite",
             "map-sunpetal-crossing-portal-validate"
           ],
-          "cache_key": "0a1f454e730e6ed8525906779500f0619c78aefa48829a7807ba4d8fd3d2d5a0",
+          "cache_key": "a02f29122415f20f4d1f7741fd03e8e69fef36d4a869f881c320775be5990ee9",
           "consumer_structure_fingerprint": "186c948d982dd6a9cb6d506e6509f3b1d7eb7822af63eff7d779e4a6c2be6595",
           "depends_on": [
             "map-sunpetal-crossing-composite",
@@ -9515,27 +9515,27 @@
           "structural_fingerprint": "71d5453f3fa9b69bcced4feadc227f6347c054c376525128b660af4e8e201937"
         },
         {
-          "binding_ref": null,
+          "binding_ref": "403ba69e4ff3af833b58673c5fc7e939e9ec45f21a3da1e38fd55b48b8543ea1",
           "cache_depends_on": [
             "map-crowncrag-road-layer-open_sky-generate"
           ],
-          "cache_key": "364c45e17b1726bccfb8f0bde741cc81a5b1483097f6a62d9879f60b1706ebb8",
-          "consumer_structure_fingerprint": "51ea5f28e1060fb0b923fce554b6df4cfe2a55d297d3c31197afad26d95ae0fd",
+          "cache_key": "ff520a0af105aefbf265ef90bb83a66dc348f52386068cd7508a1709cdbcdb3b",
+          "consumer_structure_fingerprint": "fe3f068f916f960493f1893dadb9913f0d3a5beba0d1e9d0089eb7a7a6421511",
           "depends_on": [
             "map-crowncrag-road-layer-open_sky-generate"
           ],
-          "estimated_cost_high_usd": 0.0,
-          "estimated_cost_low_usd": 0.0,
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
           "node_id": "map-crowncrag-road-layer-open_sky-loop",
-          "operation": "local",
-          "structural_fingerprint": "cfd388dc5d571c07c77a55f13e02c6065df251f08ea554cc8aa7303a6804e234"
+          "operation": "image_generation",
+          "structural_fingerprint": "7fd51c7694e6e3f6acd7e9b453a734d099ea486ca557c50fb02e7456a9c74cda"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
             "map-crowncrag-road-layer-open_sky-loop"
           ],
-          "cache_key": "9170d06b3b025628fbd8ddc44d08b0d75196caad860448baa42f065b6040094c",
+          "cache_key": "a0d0333cd8f38a502dbbf2767be279fd41c49d2ea765d4c93d14c59b975b223b",
           "consumer_structure_fingerprint": "16d504065eada38d81a97812462dbc9e179b1a8551738e7a6bd0ff7814ccd936",
           "depends_on": [
             "map-crowncrag-road-layer-open_sky-loop"
@@ -9561,27 +9561,27 @@
           "structural_fingerprint": "6d2ac0920f4a372340f2c060c7768c7d501a69ba981c9a0dfcf1e3a3cb21121a"
         },
         {
-          "binding_ref": null,
+          "binding_ref": "f88494e409bcd82629f363d562567f1e7a1691d668f6fba4aef032b99dbadaaa",
           "cache_depends_on": [
             "map-crowncrag-road-layer-amberbell_horizon-generate"
           ],
-          "cache_key": "dcabdeaece6a66ea0a9fe56fabb1b4c361b1949e48151e24a294ea0c74a0a006",
-          "consumer_structure_fingerprint": "b6a7bf81fcb7f7d162fab065d95886faea136be7b169f9ba1c06c85c7328c170",
+          "cache_key": "b5169d785ff762f4d096b9ceb0878080804012ed070ab6c0263d27d8b0fede6d",
+          "consumer_structure_fingerprint": "4b86ec969c2a73fc2142676a0b8ef970416e0731ee0a2642e8d5f608c79aedbb",
           "depends_on": [
             "map-crowncrag-road-layer-amberbell_horizon-generate"
           ],
-          "estimated_cost_high_usd": 0.0,
-          "estimated_cost_low_usd": 0.0,
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
           "node_id": "map-crowncrag-road-layer-amberbell_horizon-loop",
-          "operation": "local",
-          "structural_fingerprint": "2951d8cd1f5a869d82df7ea81fe2fb2e69b4de3463c8ba4be75b7ee2257466c7"
+          "operation": "image_generation",
+          "structural_fingerprint": "ba658f27927d234713c75f2852a32ee243f27cc8bed10c3fd5ce614b808651cf"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
             "map-crowncrag-road-layer-amberbell_horizon-loop"
           ],
-          "cache_key": "9d50bffc09db0f1aacd134884a29b56cbd34f943451018bd82e6f4612fa471fe",
+          "cache_key": "8e3f1a13eb2bf8d7d176d6c797d556436b75353f594930a1c19630bd0cf0bc91",
           "consumer_structure_fingerprint": "dd591b70d14b00547287263499598d94836a8aa95f9551dc9a736aa7fd6a3196",
           "depends_on": [
             "map-crowncrag-road-layer-amberbell_horizon-loop"
@@ -9607,27 +9607,27 @@
           "structural_fingerprint": "580fd84743da24f97702da07dc5f5bcf5fe7776868973c982a5b631b93e47ff9"
         },
         {
-          "binding_ref": null,
+          "binding_ref": "f88494e409bcd82629f363d562567f1e7a1691d668f6fba4aef032b99dbadaaa",
           "cache_depends_on": [
             "map-crowncrag-road-layer-amberbell_route-generate"
           ],
-          "cache_key": "acfd8f7db21dec15a70635632fb4b475cf5a0547ed83be009a373f12b8ec28c2",
-          "consumer_structure_fingerprint": "d589cfb614ab1da7c8ad48861ec98b8bf413b358ffb687432523b88a02ab8e51",
+          "cache_key": "f19d99e3af9d69e1c09d74a0cc18fd1690ec3a4f9b02a9e3fa4d1638646f21ac",
+          "consumer_structure_fingerprint": "ce35f3794431cdd41db7dc600dd7622168c7a873290a294ec4fa56e1517b9bc6",
           "depends_on": [
             "map-crowncrag-road-layer-amberbell_route-generate"
           ],
-          "estimated_cost_high_usd": 0.0,
-          "estimated_cost_low_usd": 0.0,
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
           "node_id": "map-crowncrag-road-layer-amberbell_route-loop",
-          "operation": "local",
-          "structural_fingerprint": "6fd3039130cc40034daabdcccdc2778fa9def0699da5c732b1271b9596697ede"
+          "operation": "image_generation",
+          "structural_fingerprint": "0c7ec41417337fc8960b8d08e27f714edb970d24dba084ecb423ac2c561b7433"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
             "map-crowncrag-road-layer-amberbell_route-loop"
           ],
-          "cache_key": "5960484a5eca3869c4845dd26625b659869d218fdcc3fa33d2c8d97f6f82cd50",
+          "cache_key": "6b81c984269d28aba1a2e4590b7170c608ba15075d5f6db4003be438bde3d81f",
           "consumer_structure_fingerprint": "2dbb5e8fcc4aca2119e164e6f07762da3eee99960ccfbad00ab1863aba127bac",
           "depends_on": [
             "map-crowncrag-road-layer-amberbell_route-loop"
@@ -9653,27 +9653,27 @@
           "structural_fingerprint": "da85d9868814864026530aef8c679028042b126b566ae6c25542bbd52731f73d"
         },
         {
-          "binding_ref": null,
+          "binding_ref": "f88494e409bcd82629f363d562567f1e7a1691d668f6fba4aef032b99dbadaaa",
           "cache_depends_on": [
             "map-crowncrag-road-layer-autumn_foliage_frame-generate"
           ],
-          "cache_key": "8d24b705f232781d64663bb9e6c3e98cbfc69316aec62d633615d0ba47d5499c",
-          "consumer_structure_fingerprint": "1050538d904cb8d3de104227966e66184e4b95e96951122e5f6ded2bad9e1e2f",
+          "cache_key": "86c7b9a55b569764f75ca5fe93966718e4f8c44b61fa19ca705dbd78cd94389d",
+          "consumer_structure_fingerprint": "ad6d0b0ef9d7b976a34f01192654f8dab8fb9cdaf28cfb550804a01e6519971c",
           "depends_on": [
             "map-crowncrag-road-layer-autumn_foliage_frame-generate"
           ],
-          "estimated_cost_high_usd": 0.0,
-          "estimated_cost_low_usd": 0.0,
+          "estimated_cost_high_usd": 0.25,
+          "estimated_cost_low_usd": 0.18,
           "node_id": "map-crowncrag-road-layer-autumn_foliage_frame-loop",
-          "operation": "local",
-          "structural_fingerprint": "c64cdd881b6293685f44d5ec9eaf0bee7c3b1c5983678d851871abd9634a5e75"
+          "operation": "image_generation",
+          "structural_fingerprint": "83a8a07d2076628c014f3994686f0e9d3ca60635db4ad371a51a45714e480969"
         },
         {
           "binding_ref": null,
           "cache_depends_on": [
             "map-crowncrag-road-layer-autumn_foliage_frame-loop"
           ],
-          "cache_key": "c7191f80938bf3e714c0c42cce9c53216186d50980120e0de0fb4d30c3fe3d65",
+          "cache_key": "7fe63d0ad075a8805d6a3790514931e4922575fb1df50656e6ebec80bb191dd5",
           "consumer_structure_fingerprint": "eed4547ca6e73b7bdb9bc27b4e643f6d9c889ae55adbe4c54ffc3b7b16e773f2",
           "depends_on": [
             "map-crowncrag-road-layer-autumn_foliage_frame-loop"
@@ -9800,7 +9800,7 @@
             "map-crowncrag-road-ground-validate",
             "map-crowncrag-road-terrain-generate"
           ],
-          "cache_key": "0b598f4abb24f26ac59b8cf0f37f27fdff96ebff1aeb62d8ed26d45f46df73d7",
+          "cache_key": "76c396958955c0d6c64c4db61873bb48061d42a30bfa54fb8f098456afba9dd4",
           "consumer_structure_fingerprint": "22917cb3b71ff644a13ff083a3db71a8417974a8a7b3cb18ba47551f5962dc92",
           "depends_on": [
             "map-crowncrag-road-layer-open_sky-validate",
@@ -9823,7 +9823,7 @@
             "map-crowncrag-road-climbable-validate",
             "map-crowncrag-road-portal-validate"
           ],
-          "cache_key": "413493d58fc7089d72fee1b2af43a8f276aa0e30203a94b0d6f5f44b9e7eb36b",
+          "cache_key": "71d2715d04fc2b54731d9cd5f7aea116d5cb5ca529e8db1e020138b052d94611",
           "consumer_structure_fingerprint": "aaabf495f6aa18ea352121e49da855297542c7a89d2749347791212749d832be",
           "depends_on": [
             "map-crowncrag-road-composite",
@@ -12887,7 +12887,7 @@
         {
           "binding_ref": null,
           "cache_depends_on": [],
-          "cache_key": "39ed479ffdb7944ec713e4edc7ef4e84d03490a7b4bd5dee74c105f37cc29157",
+          "cache_key": "da0751a5619054780cbd31226feffe6bf0fd5013f5ae2b1e4ed57ab0608896fb",
           "consumer_structure_fingerprint": "40fd7583ab0cb2dbcf1c282bb5b7b656bbce13fb7361827a81fd68c2a1a534f4",
           "depends_on": [
             "package-resolve"
@@ -12927,7 +12927,7 @@
             "track-sunpetal_morning-validate",
             "gameplay-bindings-validate"
           ],
-          "cache_key": "13db5e5d16167316ce02edebc6153dca6087a56d5093963c3fc12b35d6481516",
+          "cache_key": "aa0b1f0dd9732bfb3d493d07ecdd1cf98d3ba00085192b592ec2c5042b341753",
           "consumer_structure_fingerprint": "cd7b35ca502762bc5215011708fafad45ff6d04f116a55a590a9b690e35fb6db",
           "depends_on": [
             "map-sunpetal-crossing-review",
@@ -12964,8 +12964,8 @@
         }
       ],
       "operation_counts": {
-        "image_generation": 96,
-        "local": 107,
+        "image_generation": 100,
+        "local": 103,
         "music_generation": 3,
         "structured_generation": 24
       },
@@ -12997,7 +12997,7 @@
         }
       ],
       "terminal_node_id": "manifest-assemble",
-      "topology_sha256": "952aa5d0d1f2e059cb512544a84495c7a2bec0bfe596aedb46f8e00aa72b8b6f"
+      "topology_sha256": "f43da76d962f4a5ea40847947d86ec25718fae8e25332a147c704fa64a3a88ab"
     },
     {
       "bindings": [

@@ -60,7 +60,16 @@ BELLWEATHER_NODE_COUNT = 230
 # Re-pinned after exact-size admission stopped treating arbitrary custom canvases as verified
 # OpenRouter sizes. Bellweather's image routes are now all OpenAI, so the used resource set and
 # binding references move with the truthful plan; node count and dependency fan-out do not.
-BELLWEATHER_TOPOLOGY_SHA256 = "952aa5d0d1f2e059cb512544a84495c7a2bec0bfe596aedb46f8e00aa72b8b6f"
+# Re-pinned when both maps moved to `seam_repaint` with a cut paste-back and an interior-calibrated
+# admission (single-axis-continuity-v3), whose version every loop now binds: Crowncrag's four loops
+# became image operations, so the topology's operation kinds moved; all eight loops, their
+# admissions and the map composites, reviews and manifest downstream moved with them. Ten
+# provider operations re-bill, about USD 1.45-2.16. Node count is unchanged.
+# Sunpetal's clouds band then got an authored `vertical_offset`, because the measured top seal
+# lifted its peaks off the screen. Placement is outside generation identity, so six keys moved -
+# the layer's placement, the map board and review, and the package and manifest nodes - and one
+# structured review re-bills. Topology is unchanged.
+BELLWEATHER_TOPOLOGY_SHA256 = "f43da76d962f4a5ea40847947d86ec25718fae8e25332a147c704fa64a3a88ab"
 
 
 def _bellweather_graph() -> ExecutionGraph:

@@ -71,9 +71,8 @@ def _graph_with_projectile_edit(root: Path, old: str, new: str) -> ExecutionGrap
 def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None:
     graph = _graph()
 
-    # Eight loop nodes, one per layer. Sunpetal declares `generated_bridge` so its four are image
-    # operations; Crowncrag declares `mirror_repeat` so its four are local. The image count is a
-    # worst case: each loop node admits the generated raster first and only constructs when that
+    # Eight loop nodes, one per layer. Both maps declare `seam_repaint`, so all eight are image
+    # operations. The image count is a worst case: each loop node admits the generated raster first and only constructs when that
     # fails, so a layer the model already returned as a clean repeat unit spends nothing.
     # Two motion-rebase nodes per actor with published motion: the player. The first judges
     # every atlas against the baseline on a locally composited plate; the second applies that
@@ -81,8 +80,8 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     # no image generation - both plates are assembled locally from shipped bytes.
     assert len(graph.nodes) == 230
     assert graph.operation_counts() == {
-        "local": 107,
-        "image_generation": 96,
+        "local": 103,
+        "image_generation": 100,
         "structured_generation": 24,
         "music_generation": 3,
     }
@@ -538,8 +537,8 @@ def test_projection_applies_the_adapter_owned_image_start_rate() -> None:
 
     assert projection.duration_ms == 311_050
     assert projection.operation_counts == graph.operation_counts()
-    assert projection.estimated_cost_low_usd == 17.7
-    assert projection.estimated_cost_high_usd == 28.32
+    assert projection.estimated_cost_low_usd == 18.42
+    assert projection.estimated_cost_high_usd == 29.32
     assert projection.critical_path[0] == "package-resolve"
     assert projection.critical_path[-1] == "manifest-assemble"
 
@@ -599,15 +598,20 @@ def test_loop_node_kind_follows_the_construction_not_its_name() -> None:
 
     package = resolve_game_package(BELLWEATHER)
     profile = package_graph_profile(StageGenConfig())
-    # Crowncrag authors `mirror_repeat`, so its loop nodes are local until a layer says otherwise.
+    # Crowncrag authors `seam_repaint`, so its loop nodes are image operations until a layer says
+    # otherwise.
     crowncrag = next(item for item in package.maps if item.map_id == CROWNCRAG)
     layer_id = crowncrag.layers[0].layer_id
     node_id = f"map-{CROWNCRAG}-layer-{layer_id}-loop"
 
     baseline = build_package_execution_graph(package, profile=profile)
-    assert baseline.node(node_id).operation == OperationKind.LOCAL
+    assert baseline.node(node_id).operation == OperationKind.IMAGE_GENERATION
 
-    for construction in ("generated_bridge", "seam_repaint", "fold_repaint"):
+    mirrored = build_package_execution_graph(
+        _with_layer_construction(package, CROWNCRAG, layer_id, "mirror_repeat"), profile=profile
+    )
+    assert mirrored.node(node_id).operation == OperationKind.LOCAL
+    for construction in ("generated_bridge", "fold_repaint"):
         overridden = build_package_execution_graph(
             _with_layer_construction(package, CROWNCRAG, layer_id, construction),
             profile=profile,
@@ -625,7 +629,7 @@ def test_a_layer_construction_override_reruns_only_that_layer_loop() -> None:
 
     original = build_package_execution_graph(package, profile=profile)
     changed = build_package_execution_graph(
-        _with_layer_construction(package, CROWNCRAG, changed_layer.layer_id, "seam_repaint"),
+        _with_layer_construction(package, CROWNCRAG, changed_layer.layer_id, "mirror_repeat"),
         profile=profile,
     )
 
@@ -652,11 +656,10 @@ def test_revising_one_construction_leaves_the_others_untouched(
     package = resolve_game_package(BELLWEATHER)
     profile = package_graph_profile(StageGenConfig())
     crowncrag = next(item for item in package.maps if item.map_id == CROWNCRAG)
-    # Crowncrag is authored `mirror_repeat`; point one layer at a generative construction so the
-    # map holds both kinds at once and the isolation claim is actually exercised.
-    mixed = _with_layer_construction(
-        package, CROWNCRAG, crowncrag.layers[0].layer_id, "seam_repaint"
-    )
+    # Both maps are authored `seam_repaint`; point one layer at the bridge so the package holds
+    # two generative constructions at once and the isolation claim is actually exercised.
+    bridged = crowncrag.layers[0]
+    mixed = _with_layer_construction(package, CROWNCRAG, bridged.layer_id, "generated_bridge")
     original = build_package_execution_graph(mixed, profile=profile)
 
     # The registry is immutable by design, so revise a copy and patch the name the recipe's
@@ -668,30 +671,16 @@ def test_revising_one_construction_leaves_the_others_untouched(
     monkeypatch.setattr(layer_contract, "LOOP_METHODS", revised)
     changed = build_package_execution_graph(mixed, profile=profile)
 
-    # Crowncrag selects `mirror_repeat` with one layer on `seam_repaint`; neither reads the
-    # bridge's version, so revising it must leave every one of its loop nodes alone.
-    for layer in crowncrag.layers:
-        node_id = f"map-{CROWNCRAG}-layer-{layer.layer_id}-loop"
-        assert original.node(node_id).cache_key == changed.node(node_id).cache_key, node_id
-
-    # Asserting the other half matters as much: an identity that isolated everything would also
-    # fail to invalidate. Derive the expectation from each layer's resolved construction rather
-    # than from the map's default, because a layer may override it.
-    sunpetal = next(item for item in mixed.maps if item.map_id != CROWNCRAG)
-    bridged = [
-        layer
-        for layer in sunpetal.layers
-        if (layer.loop_construction or sunpetal.continuity.loop_construction) == "generated_bridge"
-    ]
-    assert bridged, "the fixture must retain at least one bridged layer to prove invalidation"
-    for layer in bridged:
-        node_id = f"map-{sunpetal.map_id}-layer-{layer.layer_id}-loop"
-        assert original.node(node_id).cache_key != changed.node(node_id).cache_key, node_id
-    for layer in sunpetal.layers:
-        if layer in bridged:
-            continue
-        node_id = f"map-{sunpetal.map_id}-layer-{layer.layer_id}-loop"
-        assert original.node(node_id).cache_key == changed.node(node_id).cache_key, node_id
+    # An identity that isolated everything would also fail to invalidate, so both halves matter:
+    # the bridged layer moves, and every repainted layer in either map stays where it was.
+    bridged_node = f"map-{CROWNCRAG}-layer-{bridged.layer_id}-loop"
+    assert original.node(bridged_node).cache_key != changed.node(bridged_node).cache_key
+    for game_map in mixed.maps:
+        for layer in game_map.layers:
+            if game_map.map_id == CROWNCRAG and layer.layer_id == bridged.layer_id:
+                continue
+            node_id = f"map-{game_map.map_id}-layer-{layer.layer_id}-loop"
+            assert original.node(node_id).cache_key == changed.node(node_id).cache_key, node_id
 
 
 def test_changing_the_fallback_does_not_re_bill_any_layer_image() -> None:

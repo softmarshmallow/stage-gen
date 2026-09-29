@@ -32,6 +32,7 @@ from stage_gen.components.image_repeat import (
     ImageConditionedRepairRequest,
     ImageConditionedRepairTransport,
     ImageRepeatAdmissionRequest,
+    ImageRepeatDeterministicReport,
     ImageRepeatDeterministicValidationError,
     ImageRepeatFailureCode,
     ImageRepeatManifest,
@@ -41,6 +42,7 @@ from stage_gen.components.image_repeat import (
     ImageRepeatReviewerUnavailableError,
     ImageRepeatSemanticValidationError,
     ImageRepeatService,
+    ImageRepeatStitch,
     ImageRepeatValidationPolicy,
     IntendedLoopReview,
     IntendedLoopReviewRequest,
@@ -676,12 +678,12 @@ async def test_openrouter_repair_persists_reference_conditioning_not_a_mask_clai
 
 
 def test_deterministic_alpha_and_coverage_policies_reject_transparent_discontinuity() -> None:
-    image = Image.new("RGBA", (6, 4), _GREEN)
-    for y in range(image.height):
-        image.putpixel((0, y), (40, 50, 60, 255))
-        image.putpixel((1, y), (40, 50, 60, 255))
-        image.putpixel((4, y), (40, 50, 60, 0))
-        image.putpixel((5, y), (40, 50, 60, 0))
+    # Fades to transparent across the strip and meets an opaque head at the wrap: one alpha step
+    # five times any the picture takes inside itself.
+    image = Image.new("RGBA", (6, 4))
+    for x in range(image.width):
+        for y in range(image.height):
+            image.putpixel((x, y), (40, 50, 60, round(255 * (1 - x / 5))))
     data = _png(image)
     report = validate_image_repeat(
         data,
@@ -703,6 +705,83 @@ def test_deterministic_alpha_and_coverage_policies_reject_transparent_discontinu
     )
     assert opaque_report.verdict == "reject"
     assert "alpha_halo_or_matte_contamination" in opaque_report.failure_codes
+
+
+def _periodic_texture(width: int = 48, height: int = 24) -> Image.Image:
+    """Hard-edged stripes of uneven widths: large steps everywhere, and a period that closes."""
+
+    widths = [3, 5, 2, 6, 4, 7, 3, 5, 2, 6, 5]
+    palette = [_RED, _GREEN, _BLUE, (230, 210, 60, 255), (20, 20, 20, 255)]
+    image = Image.new("RGBA", (width, height))
+    x = 0
+    for index, span in enumerate(widths):
+        for column in range(x, min(width, x + span)):
+            for y in range(height):
+                image.putpixel((column, y), palette[index % len(palette)])
+        x += span
+    return image
+
+
+def _looping_ramp(width: int = 48, height: int = 24) -> Image.Image:
+    """A smooth grey ramp that rises to the middle and falls back, so its wrap closes."""
+
+    image = Image.new("RGBA", (width, height))
+    for x in range(width):
+        level = 60 + round(40 * abs(x - width // 2) / (width // 2))
+        for y in range(height):
+            image.putpixel((x, y), (level, level, level, 255))
+    return image
+
+
+def _validate(
+    image: Image.Image, stitches: Sequence[ImageRepeatStitch] = ()
+) -> ImageRepeatDeterministicReport:
+    return validate_image_repeat(
+        _png(image),
+        axis="x",
+        alpha_policy="preserve",
+        coverage_policy="sparse_allowed",
+        validation_policy=ImageRepeatValidationPolicy(),
+        stitches=stitches,
+    )
+
+
+def test_a_hard_wrap_passes_when_the_picture_is_made_of_hard_steps() -> None:
+    """A join is held to the picture it sits in; a fixed limit would refuse this whole strip."""
+
+    assert _validate(_periodic_texture()).verdict == "pass"
+
+
+def test_a_stitch_is_rejected_when_the_pictures_either_side_disagree() -> None:
+    """A blend of two different pictures is a ghost even when every step across it is small."""
+
+    image = _looping_ramp()
+    positions = tuple([20] * image.height)
+
+    agreeing = _validate(image, [ImageRepeatStitch(positions, 0.0, 0.0)])
+    ghosted = _validate(image, [ImageRepeatStitch(positions, 0.3, 0.0)])
+
+    assert agreeing.verdict == "pass"
+    assert [join.name for join in agreeing.joins] == ["wrap", "stitch"]
+    assert ghosted.verdict == "reject"
+    assert ghosted.failure_codes == ["clipped_or_disconnected_form"]
+
+
+def test_a_stitch_that_steps_is_rejected_like_any_join() -> None:
+    # Everything right of a curved stitch is brightened: the step across it is unlike any column
+    # inside the ramp.
+    image = _looping_ramp()
+    positions = tuple(20 + (y // 6) for y in range(image.height))
+    for y, start in enumerate(positions):
+        for x in range(start, image.width):
+            level = cast(tuple[int, ...], image.getpixel((x, y)))[0]
+            image.putpixel((x, y), (level + 120, level + 120, level + 120, 255))
+
+    report = _validate(image, [ImageRepeatStitch(positions, 0.0, 0.0)])
+
+    assert report.verdict == "reject"
+    assert report.joins[1].verdict == "reject"
+    assert "visible_boundary_pop" in report.joins[1].failure_codes
 
 
 @pytest.mark.parametrize(
@@ -951,6 +1030,10 @@ def _repair_request(
     )
 
 
+def _blend(start: tuple[int, ...], end: tuple[int, ...], fraction: float) -> tuple[int, ...]:
+    return tuple(round(a + (b - a) * fraction) for a, b in zip(start, end, strict=True))
+
+
 def _source_with_provenance(
     root: Path,
     *,
@@ -959,10 +1042,13 @@ def _source_with_provenance(
 ) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     source = root / "layer.png"
+    # A bad wrap is one that looks unlike the picture's own interior: a gradient whose ends meet
+    # in one jump five times its interior steps. Stripes would not do, because a hard interior
+    # edge makes an equally hard wrap an ordinary column of a regular pattern.
     colors = (
         [_RED, _RED, _GREEN, _GREEN, _RED, _RED]
         if seamless
-        else [_RED, _RED, _RED, _BLUE, _BLUE, _BLUE]
+        else [_blend(_RED, _BLUE, index / 5) for index in range(6)]
     )
     if axis == "x":
         image = Image.new("RGBA", (6, 4))

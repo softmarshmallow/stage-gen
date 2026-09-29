@@ -76,8 +76,8 @@ def test_prepared_package_cli_validates_and_digests_directory_and_zip(tmp_path: 
     plan = json.loads(plan_output.getvalue())
     assert len(plan["graph"]["nodes"]) == 230
     assert plan["projection"]["operation_counts"] == {
-        "local": 107,
-        "image_generation": 96,
+        "local": 103,
+        "image_generation": 100,
         "structured_generation": 24,
         "music_generation": 3,
     }
@@ -116,7 +116,7 @@ def test_generate_cli_runs_the_prepared_graph_without_provider_calls(
     assert report["ok"] is True
     assert report["node_count"] == 230
     assert report["provider_operation_counts"] == {
-        "image_generation": 96,
+        "image_generation": 100,
         "structured_generation": 24,
         "music_generation": 3,
     }

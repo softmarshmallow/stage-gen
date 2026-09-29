@@ -28,9 +28,10 @@ meets the earth, and keep every villager easy to walk up to.
 
 [continuity]
 seamless_axis = "x"
-loop_construction = "generated_bridge"
-# Explicit here because this map's default is generative and can be rejected. Crowncrag omits the
-# field: its default is already deterministic, so the fallback can never fire.
+# Every layer is repainted through its own wrap, so the period stays the width that was drawn and
+# nothing is appended or reflected.
+loop_construction = "seam_repaint"
+# Explicit because the default is generative and can be rejected.
 loop_fallback = "mirror_repeat"
 
 [[references]]
@@ -68,6 +69,10 @@ order = 1
 parallax = 0.16
 alpha_mode = "transparent"
 vertical_anchor = "screen_top"
+# Placed by hand. This band is a horizon, not a canopy: the first row every column spans is the
+# valley floor at its foot, so the measured top seal lifted the clouds, islands and peaks off the
+# screen and left a sliver. Its top edge meets the screen top instead; any gap shows the sky plate.
+vertical_offset = 0.0
 presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 0.0 }
 prompt = """
 Separate the monumental cream clouds, lavender-blue mountains, floating
@@ -79,11 +84,6 @@ Exclude the village, trees, route, characters, creatures, and near decoration.
 
 [[layers]]
 layer_id = "sunpetal_village"
-# This layer's own ends disagree in the source art - its ground line sits about 21px lower at the
-# tail than at the head, against 0 or -1px for every other layer here - so it is the one layer the
-# map default cannot serve. `seam_repaint` relocates the wrap into the middle of the canvas the
-# provider sees, so the join is painted through rather than met at a canvas edge.
-loop_construction = "seam_repaint"
 reference_ids = ["sunpetal_scene"]
 plane = "background"
 order = 2

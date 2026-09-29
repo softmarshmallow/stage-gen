@@ -206,12 +206,12 @@ move content-sensitive graph and cache identities even when the DAG shape does n
   "kind": "prepared-game-execution-graph-contract-v1",
   "fixture_ref": "godot/games/bellweather/inputs/default",
   "graph_schema_version": 2,
-  "topology_sha256": "952aa5d0d1f2e059cb512544a84495c7a2bec0bfe596aedb46f8e00aa72b8b6f",
+  "topology_sha256": "f43da76d962f4a5ea40847947d86ec25718fae8e25332a147c704fa64a3a88ab",
   "node_count": 230,
   "terminal_node_id": "manifest-assemble",
   "operation_counts": {
-    "local": 107,
-    "image_generation": 96,
+    "local": 103,
+    "image_generation": 100,
     "structured_generation": 24,
     "music_generation": 3
   },
@@ -258,13 +258,13 @@ output identity input.
 
 ## Bellweather operation topology
 
-The normal first-pass graph contains 123 provider operations. Provider transport retries and
+The normal first-pass graph contains 127 provider operations. Provider transport retries and
 later semantic regenerations are not counted as new graph nodes; their actual calls must be
 reported by the owning node.
 
 | Domain | Concrete expansion | Image | Structured | Music | Local |
 | --- | --- | ---: | ---: | ---: | ---: |
-| Maps | 2 maps × (terrain topology design, 4 layers + 1 ground), 8 loop passes split provider-assisted or local by each layer's own selected construction, 2 map-local portal pairs, 1 map-local climbable atlas, validation, composite, map review | 17 | 4 | 0 | 19 |
+| Maps | 2 maps × (terrain topology design, 4 layers + 1 ground), 8 loop passes, provider-assisted because both maps select `seam_repaint` (a layer overriding to a deterministic construction makes its pass local), 2 map-local portal pairs, 1 map-local climbable atlas, validation, composite, map review | 21 | 4 | 0 | 15 |
 | Player | concept, 11 canonical-source states, dialogue, validations, board, review, two motion-rebase judgements - a first pass over a locally composited plate, then a residual verification over a plate composed with that pass applied | 13 | 3 | 0 | 13 |
 | Mobs | 6 mobs × (concept + 5 states + validations + board + review) | 36 | 6 | 0 | 36 |
 | NPCs | 4 NPCs × (concept + front-facing world atlas + dialogue + validations + board + review) | 12 | 4 | 0 | 12 |
@@ -274,7 +274,7 @@ reported by the owning node.
 | UI | one inventory panel plus three shared sheet roles (`panel_frame`, four-state `button_rect`, the fixed-vocabulary `preview_icons` grid), deterministic layout/alpha, nine-slice or glyph-registration validation, one review each | 4 | 4 | 0 | 4 |
 | Soundtrack | 3 generated tracks and technical validations | 0 | 0 | 3 | 3 |
 | Package / gameplay / manifest | package closure, bindings, terminal assembly | 0 | 0 | 0 | 3 |
-| **Total** | **230 nodes** | **96** | **24** | **3** | **107** |
+| **Total** | **230 nodes** | **100** | **24** | **3** | **103** |
 
 Each state image is one accepted state-strip operation, not one call per animation frame. Actor
 motion has one recipe-owned source facing rather than authored left/right coverage. Concept nodes
@@ -498,7 +498,7 @@ The resource-aware Bellweather projection uses planning assumptions of 120 secon
 adapter-owned 150 image starts per minute, the projected terminal offset is **311.05 seconds
 (5m 11.05s)**. This is a scheduling estimate, not a live latency claim.
 
-The graph carries a broad **USD 17.70–28.32 budgetary allowance**: USD 0.18–0.25 per maximum-quality image,
+The graph carries a broad **USD 18.42–29.32 budgetary allowance**: USD 0.18–0.25 per maximum-quality image,
 USD 0.005–0.08 per structured operation, and USD 0.10–0.80 per music operation. These are
 conservative planning inputs, not a canonical provider price sheet. Current provider pricing and
 returned usage remain operational evidence and must be refreshed at the live-provider gate.

@@ -29,9 +29,28 @@ Admission keeps the source bytes unchanged and evaluates only the declared
 
 1. Load the PNG and its digest-bound provenance through confined, non-symlink
    paths.
-2. Measure the direct edge join at native and downsampled scales. The report
-   covers color, local gradient, alpha, coverage, localized p95/max defects, and
-   an internal-boundary baseline.
+2. Measure the direct edge join, and hold it to the picture it sits in. The
+   same colour, local-gradient and alpha steps are measured at evenly spaced
+   interior lines, which are continuous by definition, and the join fails when
+   its mean step on any of the three exceeds the policy's interior quantile of
+   those by more than its margin (`single-axis-continuity-v3`: the 95th
+   percentile, by more than 1.5×, never below a small floor that keeps a flat
+   picture from failing on noise). Coverage is checked against a fixed ratio
+   when the policy requires continuous coverage. Per-line p95 and maxima are
+   recorded but do not decide the verdict: one line is not a seam, and
+   detailed cut-out art has silhouette edges in almost every column, so any
+   fixed per-pixel limit refuses the art's own interior. Version 2 refused 38
+   to 42 of 43 cuts through an untouched village drawing that way; version 3
+   refuses 7 of 396 such cuts across eleven Bellweather layers, and still
+   refuses every visibly broken wrap among them.
+
+   A construction that writes provider pixels into the unit also passes its
+   **stitches**, the paths along which it cut them in. Each is judged like
+   the wrap, on the step across it, and also on how far the two stitched
+   pictures disagreed where they were blended, which only the construction
+   can measure. A blend of two different pictures reads as a ghost even when
+   no single step across it is large, so a stitch whose disagreement exceeds
+   the colour or alpha limit fails as `clipped_or_disconnected_form`.
 3. Stop with a deterministic rejection when the join fails. Edge alpha or an
    empty border is only one measured fact; it is never proof that the image
    loops in the intended way.

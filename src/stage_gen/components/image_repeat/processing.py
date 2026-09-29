@@ -35,6 +35,7 @@ from .models import (
     ImageRepeatRepairConstruction,
     ImageRepeatRepairLineage,
     ImageRepeatScaleMetrics,
+    ImageRepeatStitch,
     ImageRepeatValidationPolicy,
 )
 
@@ -50,7 +51,7 @@ _INTEGER_WEIGHT_SCALE = 65_535
 _LINEAR_CHANNEL_SCALE = 65_535
 
 type _Rgba = tuple[int, int, int, int]
-type _JoinName = Literal["wrap", "source_to_repair", "repair_to_source"]
+type _JoinName = Literal["wrap", "stitch", "source_to_repair", "repair_to_source"]
 
 _SRGB_TO_LINEAR_U16 = tuple(
     int(
@@ -796,14 +797,22 @@ def validate_image_repeat(
     alpha_policy: ImageRepeatAlphaPolicy,
     coverage_policy: ImageRepeatCoveragePolicy,
     validation_policy: ImageRepeatValidationPolicy,
+    stitches: Sequence[ImageRepeatStitch] = (),
 ) -> ImageRepeatDeterministicReport:
-    """Evaluate the direct declared-axis wrap; the other axis is intentionally ignored."""
+    """Evaluate the declared-axis wrap, and every stitch a construction cut into the unit.
+
+    The other axis is intentionally ignored. A construction that writes provider pixels into the
+    source leaves joins inside the unit as well as at its wrap, and a verdict that measured only
+    the wrap would pass whatever those inner joins look like.
+    """
 
     facts = inspect_image(repeat_unit_data, expected_media_type="image/png")
     _validate_dimensions(facts.width, facts.height, "image-repeat candidate")
     primary = facts.width if axis == "x" else facts.height
     if primary < 2:
         raise ValueError("image-repeat candidate must span at least two pixels on its repeat axis")
+    if len(stitches) > 2:
+        raise ValueError("image-repeat validation measures at most two stitches")
     image = _decode_rgba(repeat_unit_data)
     join = _join_report(
         image,
@@ -814,6 +823,18 @@ def validate_image_repeat(
         policy=validation_policy,
     )
     joins = [join]
+    joins.extend(
+        _join_report(
+            image,
+            image,
+            axis=axis,
+            name="stitch",
+            coverage_policy=coverage_policy,
+            policy=validation_policy,
+            stitch=stitch,
+        )
+        for stitch in stitches
+    )
     if alpha_policy == "require_opaque" and _has_nonopaque_pixels(image):
         joins[0] = _add_join_failure(join, "alpha_halo_or_matte_contamination")
     return _deterministic_report(
@@ -948,56 +969,105 @@ def _join_report(
     name: _JoinName,
     coverage_policy: ImageRepeatCoveragePolicy,
     policy: ImageRepeatValidationPolicy,
+    stitch: ImageRepeatStitch | None = None,
 ) -> ImageRepeatJoinReport:
+    """Judge one join against the interior of the picture it sits in.
+
+    A straight join compares the last line of ``before`` with the first line of ``after``. A
+    ``stitch`` is a path through a single image (``before is after``), judged on the step across it
+    like any join, and also on how far the two stitched pictures disagreed where they were blended.
+    """
+
     _assert_cross_extent(before, after, axis)
+    if stitch is not None:
+        if before is not after:
+            raise ValueError("a stitched join is measured inside a single image")
+        if len(stitch.positions) != _cross_extent(before, axis):
+            raise ValueError("a stitch must name one position per cross-axis line")
     metrics: list[ImageRepeatScaleMetrics] = []
     failures: list[ImageRepeatFailureCode] = []
     seen_sizes: set[tuple[int, int, int, int]] = set()
     for scale in policy.scales:
         scaled_before = _scale_image(before, scale)
-        scaled_after = _scale_image(after, scale)
+        scaled_after = scaled_before if after is before else _scale_image(after, scale)
         if _primary_extent(scaled_before, axis) < 2 or _primary_extent(scaled_after, axis) < 2:
             continue
         size_key = (*scaled_before.size, *scaled_after.size)
         if size_key in seen_sizes:
             continue
         seen_sizes.add(size_key)
-        measured = _measure_scale(
-            scaled_before,
-            scaled_after,
-            axis=axis,
-            requested_scale=scale,
-            coverage_policy=coverage_policy,
-            policy=policy,
+        lines: tuple[Sequence[_Rgba], Sequence[_Rgba], Sequence[_Rgba], Sequence[_Rgba]]
+        if stitch is None:
+            lines = (
+                _edge_line(scaled_before, axis, -2),
+                _edge_line(scaled_before, axis, -1),
+                _edge_line(scaled_after, axis, 0),
+                _edge_line(scaled_after, axis, 1),
+            )
+        else:
+            scaled_stitch = _scaled_stitch(stitch.positions, scale, scaled_before, axis)
+            lines = _stitch_lines(scaled_before, axis, scaled_stitch)
+        sample = _step_sample(*lines, policy=policy)
+        interior = _interior_means(scaled_before, axis, policy)
+        if scaled_after is not scaled_before:
+            interior += _interior_means(scaled_after, axis, policy)
+        color_limit, gradient_limit, alpha_limit = (
+            min(
+                1.0,
+                max(
+                    floor,
+                    _percentile([means[index] for means in interior], policy.interior_quantile)
+                    * policy.interior_margin,
+                ),
+            )
+            for index, floor in enumerate(
+                (policy.color_mae_floor, policy.gradient_mae_floor, policy.alpha_mae_floor)
+            )
         )
-        metrics.append(measured)
-        adaptive_mean_limit = min(
-            policy.color_max,
-            max(
-                policy.color_mae,
-                measured.internal_color_p95 * policy.internal_baseline_multiplier,
+        measured = ImageRepeatScaleMetrics(
+            scale=float(scale),
+            boundary_width_px=max(1, round(1.0 / scale)),
+            color_mae=float(_mean(sample.color)),
+            color_p95=float(_percentile(sample.color, 0.95)),
+            color_max=float(max(sample.color, default=0.0)),
+            gradient_mae=float(_mean(sample.gradient)),
+            gradient_p95=float(_percentile(sample.gradient, 0.95)),
+            gradient_max=float(max(sample.gradient, default=0.0)),
+            alpha_mae=float(_mean(sample.alpha)),
+            alpha_p95=float(_percentile(sample.alpha, 0.95)),
+            alpha_max=float(max(sample.alpha, default=0.0)),
+            coverage_mismatch_ratio=float(sample.coverage_mismatches / max(1, len(sample.color))),
+            interior_samples=max(1, len(interior)),
+            color_limit=float(color_limit),
+            gradient_limit=float(gradient_limit),
+            alpha_limit=float(alpha_limit),
+            coverage_limit=float(
+                policy.coverage_mismatch_ratio if coverage_policy == "continuous" else 1.0
+            ),
+            color_disagreement=(
+                stitch.color_disagreement if stitch is not None and scale == 1.0 else None
+            ),
+            alpha_disagreement=(
+                stitch.alpha_disagreement if stitch is not None and scale == 1.0 else None
             ),
         )
-        if (
-            measured.color_mae > adaptive_mean_limit
-            or measured.color_p95 > measured.color_limit
-            or measured.color_max > policy.color_max
-        ):
+        metrics.append(measured)
+        if measured.color_mae > measured.color_limit:
             _append_unique(failures, "visible_boundary_pop")
-        if (
-            measured.gradient_mae > policy.gradient_mae
-            or measured.gradient_p95 > policy.gradient_p95
-            or measured.gradient_max > policy.gradient_max
-        ):
+        if measured.gradient_mae > measured.gradient_limit:
             _append_unique(failures, "lighting_or_texture_reset")
-        if (
-            measured.alpha_mae > policy.alpha_mae
-            or measured.alpha_p95 > policy.alpha_p95
-            or measured.alpha_max > policy.alpha_max
-        ):
+        if measured.alpha_mae > measured.alpha_limit:
             _append_unique(failures, "alpha_halo_or_matte_contamination")
         if measured.coverage_mismatch_ratio > measured.coverage_limit:
             _append_unique(failures, "unintended_transparent_gap")
+        if (
+            measured.color_disagreement is not None
+            and measured.color_disagreement > measured.color_limit
+        ) or (
+            measured.alpha_disagreement is not None
+            and measured.alpha_disagreement > measured.alpha_limit
+        ):
+            _append_unique(failures, "clipped_or_disconnected_form")
     if not metrics:
         raise ValueError("image-repeat validation could not evaluate any configured scale")
     return ImageRepeatJoinReport(
@@ -1008,33 +1078,35 @@ def _join_report(
     )
 
 
-def _measure_scale(
-    before: Image.Image,
-    after: Image.Image,
+@dataclass(frozen=True, slots=True)
+class _StepSample:
+    """Per-line steps across one join, sampled along its cross axis."""
+
+    color: list[float]
+    gradient: list[float]
+    alpha: list[float]
+    coverage_mismatches: int
+
+
+def _step_sample(
+    previous_line: Sequence[_Rgba],
+    before_line: Sequence[_Rgba],
+    after_line: Sequence[_Rgba],
+    following_line: Sequence[_Rgba],
     *,
-    axis: ImageRepeatAxis,
-    requested_scale: float,
-    coverage_policy: ImageRepeatCoveragePolicy,
     policy: ImageRepeatValidationPolicy,
-) -> ImageRepeatScaleMetrics:
-    before_last = _edge_line(before, axis, -1)
-    before_previous = _edge_line(before, axis, -2)
-    after_first = _edge_line(after, axis, 0)
-    after_next = _edge_line(after, axis, 1)
-    cross_indices = _sample_indices(len(before_last), _MAX_CROSS_AXIS_SAMPLES)
+) -> _StepSample:
     color_values: list[float] = []
     gradient_values: list[float] = []
     alpha_values: list[float] = []
     coverage_mismatches = 0
-    for index in cross_indices:
-        previous = before_previous[index]
-        boundary_before = before_last[index]
-        boundary_after = after_first[index]
-        following = after_next[index]
-        previous_visual = _visual_rgb(previous)
+    for index in _sample_indices(len(before_line), _MAX_CROSS_AXIS_SAMPLES):
+        boundary_before = before_line[index]
+        boundary_after = after_line[index]
+        previous_visual = _visual_rgb(previous_line[index])
         before_visual = _visual_rgb(boundary_before)
         after_visual = _visual_rgb(boundary_after)
-        following_visual = _visual_rgb(following)
+        following_visual = _visual_rgb(following_line[index])
         color_values.append(
             sum(abs(left - right) for left, right in zip(before_visual, after_visual, strict=True))
             / 3.0
@@ -1061,34 +1133,79 @@ def _measure_scale(
         after_covered = alpha_after > policy.coverage_alpha_threshold
         if before_covered != after_covered:
             coverage_mismatches += 1
-    internal_color_p95 = max(
-        _internal_color_p95(before, axis),
-        _internal_color_p95(after, axis),
+    return _StepSample(
+        color=color_values,
+        gradient=gradient_values,
+        alpha=alpha_values,
+        coverage_mismatches=coverage_mismatches,
     )
-    adaptive_color_limit = min(
-        policy.color_max,
-        max(policy.color_p95, internal_color_p95 * policy.internal_baseline_multiplier),
-    )
-    coverage_limit = policy.coverage_mismatch_ratio if coverage_policy == "continuous" else 1.0
-    return ImageRepeatScaleMetrics(
-        scale=float(requested_scale),
-        boundary_width_px=max(1, round(1.0 / requested_scale)),
-        color_mae=float(_mean(color_values)),
-        color_p95=float(_percentile(color_values, 0.95)),
-        color_max=float(max(color_values, default=0.0)),
-        gradient_mae=float(_mean(gradient_values)),
-        gradient_p95=float(_percentile(gradient_values, 0.95)),
-        gradient_max=float(max(gradient_values, default=0.0)),
-        alpha_mae=float(_mean(alpha_values)),
-        alpha_p95=float(_percentile(alpha_values, 0.95)),
-        alpha_max=float(max(alpha_values, default=0.0)),
-        coverage_mismatch_ratio=float(coverage_mismatches / len(cross_indices)),
-        internal_color_p95=float(internal_color_p95),
-        color_limit=float(adaptive_color_limit),
-        gradient_limit=float(policy.gradient_p95),
-        alpha_limit=float(policy.alpha_p95),
-        coverage_limit=float(coverage_limit),
-    )
+
+
+def _interior_means(
+    image: Image.Image, axis: ImageRepeatAxis, policy: ImageRepeatValidationPolicy
+) -> list[tuple[float, float, float]]:
+    """Mean colour, gradient and alpha steps at evenly spaced interior lines of one image.
+
+    Interior lines are continuous by definition, so their steps are what an unremarkable column of
+    this particular picture looks like: the baseline a join is held to.
+    """
+
+    rgba = image.convert("RGBA")
+    primary = _primary_extent(rgba, axis)
+    if primary < 4:
+        return []
+    pixels = rgba.load()
+    if pixels is None:
+        raise ValueError("image-repeat pixels are unavailable")
+    cross = _cross_extent(rgba, axis)
+
+    def line(index: int) -> tuple[_Rgba, ...]:
+        if axis == "x":
+            return tuple(cast(_Rgba, pixels[index, y]) for y in range(cross))
+        return tuple(cast(_Rgba, pixels[x, index]) for x in range(cross))
+
+    means: list[tuple[float, float, float]] = []
+    for position in _sample_indices(primary - 3, _MAX_BASELINE_PRIMARY_SAMPLES, offset=2):
+        sample = _step_sample(
+            line(position - 2),
+            line(position - 1),
+            line(position),
+            line(position + 1),
+            policy=policy,
+        )
+        means.append((_mean(sample.color), _mean(sample.gradient), _mean(sample.alpha)))
+    return means
+
+
+def _scaled_stitch(
+    stitch: Sequence[int], scale: float, scaled: Image.Image, axis: ImageRepeatAxis
+) -> list[int]:
+    """Carry a full-resolution stitch onto a scaled copy, one position per scaled line."""
+
+    primary = _primary_extent(scaled, axis)
+    positions: list[int] = []
+    for index in range(_cross_extent(scaled, axis)):
+        source = stitch[min(len(stitch) - 1, math.floor(index / scale))]
+        positions.append(min(max(2, round(source * scale)), primary - 2))
+    return positions
+
+
+def _stitch_lines(
+    image: Image.Image, axis: ImageRepeatAxis, stitch: Sequence[int]
+) -> tuple[list[_Rgba], list[_Rgba], list[_Rgba], list[_Rgba]]:
+    """The two pixels either side of a stitch on every line, as four join lines."""
+
+    rgba = image.convert("RGBA")
+    pixels = rgba.load()
+    if pixels is None:
+        raise ValueError("image-repeat pixels are unavailable")
+    lines: tuple[list[_Rgba], ...] = ([], [], [], [])
+    for index, position in enumerate(stitch):
+        for offset, target in zip((-2, -1, 0, 1), lines, strict=True):
+            at = position + offset
+            pixel = pixels[at, index] if axis == "x" else pixels[index, at]
+            target.append(cast(_Rgba, pixel))
+    return lines[0], lines[1], lines[2], lines[3]
 
 
 def _deterministic_report(
@@ -1226,6 +1343,10 @@ def _primary_extent(image: Image.Image, axis: ImageRepeatAxis) -> int:
     return image.width if axis == "x" else image.height
 
 
+def _cross_extent(image: Image.Image, axis: ImageRepeatAxis) -> int:
+    return image.height if axis == "x" else image.width
+
+
 def _edge_line(image: Image.Image, axis: ImageRepeatAxis, index: int) -> tuple[_Rgba, ...]:
     rgba = image.convert("RGBA")
     primary = _primary_extent(rgba, axis)
@@ -1238,20 +1359,6 @@ def _edge_line(image: Image.Image, axis: ImageRepeatAxis, index: int) -> tuple[_
     if axis == "x":
         return tuple(cast(_Rgba, pixels[resolved, y]) for y in range(rgba.height))
     return tuple(cast(_Rgba, pixels[x, resolved]) for x in range(rgba.width))
-
-
-def _internal_color_p95(image: Image.Image, axis: ImageRepeatAxis) -> float:
-    primary = _primary_extent(image, axis)
-    positions = _sample_indices(primary - 1, _MAX_BASELINE_PRIMARY_SAMPLES, offset=1)
-    values: list[float] = []
-    for position in positions:
-        before = _edge_line(image, axis, position - 1)
-        after = _edge_line(image, axis, position)
-        for cross in _sample_indices(len(before), _MAX_CROSS_AXIS_SAMPLES):
-            left = _visual_rgb(before[cross])
-            right = _visual_rgb(after[cross])
-            values.append(sum(abs(a - b) for a, b in zip(left, right, strict=True)) / 3.0)
-    return _percentile(values, 0.95)
 
 
 def _sample_indices(length: int, maximum: int, *, offset: int = 0) -> list[int]:

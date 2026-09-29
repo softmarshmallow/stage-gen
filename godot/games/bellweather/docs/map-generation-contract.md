@@ -255,9 +255,15 @@ than the camera it follows from.
 ### Loop construction
 
 Admission runs first on every layer, whichever construction is declared. The image model does
-sometimes return a genuinely wrapping plate — Bellweather's two sky layers do — and those are
-published untouched at zero provider cost. Construction only applies to a layer that fails
-admission.
+sometimes return a genuinely wrapping plate — Crowncrag's route does — and those are published
+untouched at zero provider cost. Construction only applies to a layer that fails admission.
+
+Both Bellweather maps declare `seam_repaint`, with `mirror_repeat` as the fallback. The provider is
+shown the layer's own wrap, centred, and repaints through it; the repaint is cut back into the
+layer along the path where the two pictures already agree, so the period stays the width that was
+drawn and nothing is appended or reflected. Admission then judges the wrap and both cuts against
+the layer's own interior. The full mechanism and its evidence are in
+[loop construction](../../../../docs/loop-construction.md#seam_repaint--repaint-the-wrap-where-the-provider-can-see-it).
 
 `mirror_repeat` is the baseline. Appending a horizontal mirror makes every join a reflection, and
 a reflection is continuous by definition, so the loop is exact before anything else runs. It cannot
@@ -280,8 +286,8 @@ The provider owns the bridge's alpha as well as its appearance. Reconstructing a
 interpolating the two endpoint profiles cannot invent a silhouette, so on a cut-out layer such as
 clouds it produces a rectangular blend rather than cloud edges.
 
-Loop construction is excluded from generation cache identity. Switching a map between the two
-methods re-runs the loop node only; it never re-bills the layer images, which would come back
+Loop construction is excluded from generation cache identity. Switching a map between methods
+re-runs the loop node only; it never re-bills the layer images, which would come back
 byte-identical.
 
 `seamless_axis` describes visual continuity. It never means that the player,
@@ -393,9 +399,13 @@ reliably reach `alpha == 255`, so a literal opacity test finds nothing.
 path. Omit it and the producer resolves the fraction from the raster it
 actually received, because a fraction written before generation is a prediction
 about pixels that do not exist yet and goes stale on the next regeneration. An
-override that is too small to seal a bottom-registered layer, or too large to
-seal a top-registered one, is rejected against the exact measured value rather
-than silently leaving a gap. One resolver, `resolve_layer_placement` in the
+override that is too small to seal a bottom-registered layer is rejected
+against the exact measured value rather than silently leaving a gap. A
+top-registered layer may be placed lower than its seal: whatever a gap at the
+top edge reveals is the opaque `canvas_cover` plate behind it, sky above a
+horizon, which is what should be there. That is how a horizon band is placed,
+because its first full row is its foot and the measured seal would lift its
+peaks off the screen. One resolver, `resolve_layer_placement` in the
 shared `sideview_layers` component, serves every recipe that places a layer, so
 the platformer and the runner cannot drift into two meanings of one anchor.
 

@@ -34,7 +34,7 @@ ENDPOINT_ANCHOR_ALGORITHM: Literal["linear-light-premultiplied-smoothstep-v1"] =
 ALPHA_RECONSTRUCTION_ALGORITHM: Literal["source-endpoint-alpha-smoothstep-v1"] = (
     "source-endpoint-alpha-smoothstep-v1"
 )
-DETERMINISTIC_VALIDATOR_VERSION: Literal["single-axis-continuity-v2"] = "single-axis-continuity-v2"
+DETERMINISTIC_VALIDATOR_VERSION: Literal["single-axis-continuity-v3"] = "single-axis-continuity-v3"
 THREE_REPEAT_PREVIEW_VERSION: Literal["alpha-checkerboard-three-repeat-v2"] = (
     "alpha-checkerboard-three-repeat-v2"
 )
@@ -98,20 +98,26 @@ _BACKEND_LABEL_RE = re.compile(
 
 @dataclass(frozen=True, slots=True)
 class ImageRepeatValidationPolicy:
-    """Versioned deterministic thresholds in normalized visual-channel units."""
+    """Versioned deterministic thresholds in normalized visual-channel units.
 
-    scales: tuple[float, ...] = (1.0, 0.5, 0.25)
-    color_mae: float = 0.12
-    color_p95: float = 0.25
-    color_max: float = 0.45
-    gradient_mae: float = 0.18
-    gradient_p95: float = 0.35
-    gradient_max: float = 0.70
-    alpha_mae: float = 0.08
-    alpha_p95: float = 0.20
-    alpha_max: float = 0.50
+    A join is judged against the picture it sits in, not against fixed numbers. The same step
+    statistics are measured at evenly spaced interior columns, which are continuous by definition,
+    and a join fails when its mean step exceeds ``interior_quantile`` of those by more than
+    ``interior_margin``. Detailed cut-out art has silhouette edges in almost every column, so any
+    fixed limit either passes a flat seam or rejects the art's own interior; version 2 did the
+    second, refusing 38 to 42 of 43 cuts through an untouched village drawing on single-pixel
+    maxima. The floors only stop a flat picture, whose interior steps are near zero, from failing
+    on noise. Per-row p95 and max are still measured and recorded, but a single row is not a seam,
+    so they do not decide the verdict.
+    """
+
+    scales: tuple[float, ...] = (1.0,)
+    interior_quantile: float = 0.95
+    interior_margin: float = 1.5
+    color_mae_floor: float = 0.004
+    gradient_mae_floor: float = 0.004
+    alpha_mae_floor: float = 0.004
     coverage_mismatch_ratio: float = 0.10
-    internal_baseline_multiplier: float = 2.0
     coverage_alpha_threshold: float = 0.05
 
     def __post_init__(self) -> None:
@@ -122,31 +128,37 @@ class ImageRepeatValidationPolicy:
         for scale in self.scales:
             _bounded_finite(scale, "validation scale", minimum=0.01, maximum=1.0)
         for name in (
-            "color_mae",
-            "color_p95",
-            "color_max",
-            "gradient_mae",
-            "gradient_p95",
-            "gradient_max",
-            "alpha_mae",
-            "alpha_p95",
-            "alpha_max",
+            "color_mae_floor",
+            "gradient_mae_floor",
+            "alpha_mae_floor",
             "coverage_mismatch_ratio",
             "coverage_alpha_threshold",
         ):
             _bounded_finite(getattr(self, name), name, minimum=0.0, maximum=1.0)
-        _bounded_finite(
-            self.internal_baseline_multiplier,
-            "internal_baseline_multiplier",
-            minimum=1.0,
-            maximum=10.0,
-        )
-        for prefix in ("color", "gradient", "alpha"):
-            mean = float(getattr(self, f"{prefix}_mae"))
-            percentile = float(getattr(self, f"{prefix}_p95"))
-            maximum = float(getattr(self, f"{prefix}_max"))
-            if not mean <= percentile <= maximum:
-                raise ValueError(f"{prefix} thresholds must be ordered mae <= p95 <= max")
+        _bounded_finite(self.interior_quantile, "interior_quantile", minimum=0.5, maximum=1.0)
+        _bounded_finite(self.interior_margin, "interior_margin", minimum=1.0, maximum=10.0)
+
+
+@dataclass(frozen=True, slots=True)
+class ImageRepeatStitch:
+    """Where a construction cut provider pixels into a unit, and how far the two pictures differed.
+
+    ``positions`` names, on every cross-axis line, the first pixel on the far side of the cut. The
+    disagreements are mean absolute differences between the two pictures across the blended zone,
+    in premultiplied colour and in alpha. Only the construction can measure them, because the unit
+    keeps one picture on each side; they matter because a blend of two different pictures reads as
+    a ghost even when no single step across the stitch is large.
+    """
+
+    positions: tuple[int, ...]
+    color_disagreement: float
+    alpha_disagreement: float
+
+    def __post_init__(self) -> None:
+        if not self.positions:
+            raise ValueError("an image-repeat stitch needs at least one position")
+        _bounded_finite(self.color_disagreement, "color_disagreement", minimum=0.0, maximum=1.0)
+        _bounded_finite(self.alpha_disagreement, "alpha_disagreement", minimum=0.0, maximum=1.0)
 
 
 @dataclass(frozen=True, slots=True)
@@ -266,6 +278,12 @@ class ImageConditionedRepairBackend(Protocol):
 
 
 class ImageRepeatScaleMetrics(PersistedContractModel):
+    """One join at one scale. The ``*_limit`` fields bound the matching ``*_mae``.
+
+    Each limit is the policy's interior quantile of that mean over ``interior_samples`` interior
+    columns, times the interior margin, never below the policy floor.
+    """
+
     scale: float = Field(gt=0, le=1, allow_inf_nan=False)
     boundary_width_px: int = Field(ge=1)
     color_mae: float = Field(ge=0, le=1, allow_inf_nan=False)
@@ -278,15 +296,21 @@ class ImageRepeatScaleMetrics(PersistedContractModel):
     alpha_p95: float = Field(ge=0, le=1, allow_inf_nan=False)
     alpha_max: float = Field(ge=0, le=1, allow_inf_nan=False)
     coverage_mismatch_ratio: float = Field(ge=0, le=1, allow_inf_nan=False)
-    internal_color_p95: float = Field(ge=0, le=1, allow_inf_nan=False)
+    interior_samples: int = Field(ge=1)
     color_limit: float = Field(ge=0, le=1, allow_inf_nan=False)
     gradient_limit: float = Field(ge=0, le=1, allow_inf_nan=False)
     alpha_limit: float = Field(ge=0, le=1, allow_inf_nan=False)
     coverage_limit: float = Field(ge=0, le=1, allow_inf_nan=False)
+    #: Set on a stitch at full scale: how far the two stitched pictures differed where they were
+    #: blended, judged against ``color_limit`` and ``alpha_limit``.
+    color_disagreement: float | None = Field(default=None, ge=0, le=1, allow_inf_nan=False)
+    alpha_disagreement: float | None = Field(default=None, ge=0, le=1, allow_inf_nan=False)
 
 
 class ImageRepeatJoinReport(PersistedContractModel):
-    name: Literal["wrap", "source_to_repair", "repair_to_source"]
+    # ``stitch`` is a curved join inside a constructed unit, where a provider's repaint was cut
+    # into the source; ``wrap`` is the unit meeting its own next repeat.
+    name: Literal["wrap", "stitch", "source_to_repair", "repair_to_source"]
     verdict: Literal["pass", "reject"]
     scales: list[ImageRepeatScaleMetrics] = Field(min_length=1)
     failure_codes: list[ImageRepeatFailureCode]
@@ -302,13 +326,13 @@ class ImageRepeatJoinReport(PersistedContractModel):
 
 
 class ImageRepeatDeterministicReport(PersistedContractModel):
-    validator_version: Literal["single-axis-continuity-v2"] = DETERMINISTIC_VALIDATOR_VERSION
+    validator_version: Literal["single-axis-continuity-v3"] = DETERMINISTIC_VALIDATOR_VERSION
     axis: ImageRepeatAxis
     verdict: Literal["pass", "reject"]
     alpha_policy: ImageRepeatAlphaPolicy
     coverage_policy: ImageRepeatCoveragePolicy
     source_immutable: bool
-    joins: list[ImageRepeatJoinReport] = Field(min_length=1, max_length=2)
+    joins: list[ImageRepeatJoinReport] = Field(min_length=1, max_length=3)
     failure_codes: list[ImageRepeatFailureCode]
 
     @model_validator(mode="after")

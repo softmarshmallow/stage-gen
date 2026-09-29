@@ -36,7 +36,7 @@
   <text x="222" y="171" font-size="12.5" font-weight="600" fill="#1d2430">Inside the loop node</text>
   <g font-size="12" fill="#3b4557">
     <text x="222" y="192">1. Admit the generated raster as it is. If it already repeats, publish it untouched — no cost.</text>
-    <text x="222" y="210">2. Otherwise construct by the map's declared method: mirror_repeat (local) or generated_bridge (1 image op).</text>
+    <text x="222" y="210">2. Otherwise construct by the declared method: mirror_repeat (local) or seam_repaint / a bridge (1 image op).</text>
     <text x="222" y="228">3. Re-admit the constructed unit. A construction that does not pass fails the node.</text>
   </g>
   <path d="M295 120 V148" stroke="#d8a250" stroke-width="1.6" fill="none" marker-end="url(#a)"/>

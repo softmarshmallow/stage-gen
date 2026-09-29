@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from typing import Literal, Protocol
 
+from stage_gen.components.image_repeat import DETERMINISTIC_VALIDATOR_VERSION
 from stage_gen.media import (
     LOOP_METHODS,
+    SEAM_CUT_VERSION,
     SEAM_REGISTRATION_VERSION,
     LoopConstruction,
     content_bottom_offset_fraction,
@@ -68,8 +70,17 @@ LOOP_REPAINT_WINDOW_PX = 1536
 LOOP_REPAINT_SPAN_PX = 384
 #: Columns over which a returned span is eased onto its exact neighbours. The endpoint does not
 #: honour a mask, and registration correction shifts the span vertically, so an edited span always
-#: arrives misaligned with whatever it is written next to.
+#: arrives misaligned with whatever it is written next to. The bridge and the fold still anchor;
+#: `seam_repaint` cuts instead, because easing a span onto one fixed column smeared every village
+#: repaint at both inner joins.
 LOOP_ANCHOR_BAND_PX = 24
+#: Where `seam_repaint` may cut its return into the source. Each cut is searched from
+#: LOOP_REPAINT_CUT_REACH_PX columns into the context to LOOP_REPAINT_CUT_GUARD_PX columns short of
+#: the wrap, so the wrap always stays inside painted art, and is feathered over
+#: LOOP_REPAINT_CUT_FEATHER_PX columns either side.
+LOOP_REPAINT_CUT_REACH_PX = 192
+LOOP_REPAINT_CUT_GUARD_PX = 64
+LOOP_REPAINT_CUT_FEATHER_PX = 4
 #: Identity of the brief the provider is given for a bridge. It is versioned separately from the
 #: layer's own generation brief because the two ask for different things: the layer brief composes
 #: a strip, the bridge brief joins one. Sending the composing brief here is what makes the model
@@ -102,6 +113,9 @@ def loop_method_identity(
 
     method = LOOP_METHODS[construction]
     identity: dict[str, object] = dict(method.identity())
+    # Admission runs before every construction, deterministic ones included, and decides whether
+    # the construction runs at all; a revised gate must re-run the loops it would judge otherwise.
+    identity["admission"] = DETERMINISTIC_VALIDATOR_VERSION
     if not method.is_generative:
         # A deterministic construction has no provider return to register or anchor, and no
         # failure path that could reach the fallback, so binding any of that would invalidate it
@@ -110,7 +124,13 @@ def loop_method_identity(
     if fallback is not None:
         identity["fallback"] = fallback
     identity["registration"] = SEAM_REGISTRATION_VERSION
-    identity["anchor_band"] = LOOP_ANCHOR_BAND_PX
+    if construction == "seam_repaint":
+        identity["cut"] = SEAM_CUT_VERSION
+        identity["cut_reach"] = LOOP_REPAINT_CUT_REACH_PX
+        identity["cut_guard"] = LOOP_REPAINT_CUT_GUARD_PX
+        identity["cut_feather"] = LOOP_REPAINT_CUT_FEATHER_PX
+    else:
+        identity["anchor_band"] = LOOP_ANCHOR_BAND_PX
     if construction == "generated_bridge":
         identity["brief"] = LOOP_BRIDGE_BRIEF_VERSION
         identity["framing"] = LOOP_BRIDGE_BRIEF_FRAMING

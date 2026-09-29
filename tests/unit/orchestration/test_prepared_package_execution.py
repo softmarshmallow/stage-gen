@@ -28,7 +28,7 @@ async def test_full_fake_execution_proves_concurrency_cache_and_failure_isolatio
     )
     assert first.summary.ok is True
     assert first.summary.provider_operation_counts == {
-        "image_generation": 96,
+        "image_generation": 100,
         "structured_generation": 24,
         "music_generation": 3,
     }
@@ -138,12 +138,11 @@ async def test_world_targets_execute_only_map_ancestors(tmp_path: Path) -> None:
     # The two map reviews sit outside the default closure: they are evidence for an
     # operator, run by `world-review` over a world the cache already holds.
     assert len(summary.nodes) == 39
-    # Thirteen asset images plus four Sunpetal loop nodes: that map declares `generated_bridge`,
-    # so each of its layers may need one bridge image. Crowncrag declares `mirror_repeat` and its
-    # loop nodes are local. This is the worst case; admission runs first and a layer that already
-    # loops spends nothing. The two structured operations are the terrain designs.
+    # Thirteen asset images plus eight loop nodes: both maps declare `seam_repaint`, so each layer
+    # may need one repaint image. This is the worst case; admission runs first and a layer that
+    # already loops spends nothing. The two structured operations are the terrain designs.
     assert summary.provider_operation_counts == {
-        "image_generation": 17,
+        "image_generation": 21,
         "structured_generation": 2,
         "music_generation": 0,
     }

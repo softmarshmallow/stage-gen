@@ -37,13 +37,16 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Literal
 
+import numpy as np
 from PIL import Image, ImageChops, ImageOps, ImageStat
 
 from stage_gen.media.codec import decode_rgba, encode_png
 
 MIRROR_REPEAT_VERSION = "mirror-repeat-v1"
 GENERATED_BRIDGE_VERSION = "generated-bridge-v1"
-SEAM_REPAINT_VERSION = "seam-repaint-v1"
+SEAM_REPAINT_VERSION = "seam-repaint-v2"
+#: How ``seam_repaint`` joins its return to the source: a minimum-error boundary cut on each side.
+SEAM_CUT_VERSION = "min-error-boundary-cut-v1"
 FOLD_REPAINT_VERSION = "fold-repaint-v1"
 #: Registration is shared by every generative construction, not specific to the bridge, because the
 #: endpoint re-registers whatever canvas it is given regardless of what the canvas contains.
@@ -401,20 +404,28 @@ def _landed_editable(
     edges are anchored. Every generative construction needs this, not just the bridge.
     """
 
+    returned, registration = _registered_return(conditioning, provider_png)
+    start = conditioning.context_span
+    stop = start + conditioning.editable_span
+    return returned.crop((start, 0, stop, conditioning.height)), registration
+
+
+def _registered_return(
+    conditioning: SeamConditioning, provider_png: bytes
+) -> tuple[Image.Image, Registration]:
+    """The whole provider return, translated back into the conditioning's frame."""
+
     returned = _decode(provider_png)
     if returned.size != (conditioning.width, conditioning.height):
         returned = returned.resize(
             (conditioning.width, conditioning.height), Image.Resampling.LANCZOS
         )
     registration = measure_registration(conditioning, provider_png)
-    start = conditioning.context_span
-    stop = start + conditioning.editable_span
-    band = returned.crop((start, 0, stop, conditioning.height)).copy()
     if registration.vertical_offset:
-        landed = Image.new("RGBA", band.size, (0, 0, 0, 0))
-        landed.paste(band, (0, -registration.vertical_offset))
-        band = landed
-    return band, registration
+        landed = Image.new("RGBA", returned.size, (0, 0, 0, 0))
+        landed.paste(returned, (0, -registration.vertical_offset))
+        returned = landed
+    return returned, registration
 
 
 def _anchor_columns(
@@ -496,53 +507,189 @@ def assemble_seam_repaint(
     provider_png: bytes,
     *,
     conditioning: SeamConditioning,
-    anchor_band: int = 24,
+    cut_reach: int,
+    cut_guard: int,
+    cut_feather: int,
 ) -> tuple[bytes, dict[str, object]]:
-    """Write a repainted wrap window back over the source tail and head. The period is unchanged.
+    """Cut the repainted wrap into the source where the two agree. The period is unchanged.
 
-    The returned span straddles the wrap, so its left half belongs to the end of the source and its
-    right half to the beginning. Splitting it there is what makes the loop close: the two halves
-    were adjacent pixels on the provider's canvas, so whatever it painted across them is continuous
-    by construction rather than by correction.
+    The wrap sits at the centre of the provider's canvas, so the repaint is continuous across it
+    by construction. What the construction has to get right is the two places where the repaint
+    meets the source again. The endpoint redraws every pixel it is sent, so the source and the
+    return never match exactly, and forcing them together at a fixed column smears one picture
+    into the other. Instead each side is cut along the cheapest top-to-bottom path through a
+    search band, the path where the return and the source already agree, and feathered by
+    ``cut_feather`` columns either side of it.
+
+    The left band runs from ``cut_reach`` columns into the left context to ``cut_guard`` columns
+    short of the wrap, and the right band mirrors it, so the wrap itself always stays inside
+    painted art. Pixels outside the feathered cuts are the source's bytes and those inside are the
+    registered return's; only the feather is blended. The record carries both stitches in the
+    unit's own coordinates, so admission can judge them as joins alongside the wrap.
     """
 
     source = _decode(data)
     method = LOOP_METHODS["seam_repaint"]
-    half_span = conditioning.editable_span // 2
-    if conditioning.editable_span % 2:
-        raise ValueError("seam repaint span must be even to split across the wrap")
-    if half_span * 2 > source.width:
+    window = conditioning.width
+    half = window // 2
+    if window % 2 or conditioning.editable_span % 2:
+        raise ValueError("seam repaint window and span must be even to split across the wrap")
+    if half * 2 > source.width:
         # The two halves are written to opposite ends of the source, so they collide as soon as
         # they are wider than it between them. Comparing one half against the whole width lets
         # that overlap through and silently overwrites the tail with the head.
         raise ValueError(
-            f"seam repaint span must not exceed the source width: {half_span * 2} > {source.width}"
+            f"seam repaint window must not exceed the source width: {half * 2} > {source.width}"
         )
-    band, registration = _landed_editable(conditioning, provider_png)
-    _anchor_columns(
-        band,
-        left=source.crop(
-            (source.width - half_span - 1, 0, source.width - half_span, source.height)
-        ),
-        right=source.crop((half_span, 0, half_span + 1, source.height)),
-        band=anchor_band,
+    tail_band = (conditioning.context_span - cut_reach, half - cut_guard)
+    head_band = (half + cut_guard, window - conditioning.context_span + cut_reach)
+    margin = cut_feather + 2
+    if cut_reach < 0 or cut_feather < 0 or cut_guard < margin:
+        raise ValueError("seam cut needs a non-negative reach and feather, and a guard past both")
+    if tail_band[0] < margin or head_band[1] > window - margin or tail_band[0] >= tail_band[1]:
+        raise ValueError("seam cut bands must be non-empty and clear of the window's edges")
+
+    returned, registration = _registered_return(conditioning, provider_png)
+    sent = _decode(conditioning.conditioning_png)
+    sent_pixels = np.asarray(sent, dtype=np.float64) / 255.0
+    returned_pixels = np.asarray(returned, dtype=np.float64) / 255.0
+    disagreement = np.abs(_premultiplied(returned_pixels) - _premultiplied(sent_pixels)).mean(
+        axis=2
     )
-    result = source.copy()
-    result.paste(band.crop((0, 0, half_span, band.height)), (source.width - half_span, 0))
-    result.paste(band.crop((half_span, 0, conditioning.editable_span, band.height)), (0, 0))
-    return _encode(result), {
+    tail_path = _min_error_path(disagreement[:, tail_band[0] : tail_band[1]]) + tail_band[0]
+    head_path = _min_error_path(disagreement[:, head_band[0] : head_band[1]]) + head_band[0]
+
+    columns = np.arange(window, dtype=np.float64)[None, :]
+    if cut_feather:
+        entering = (columns - (tail_path[:, None] - cut_feather)) / (2 * cut_feather)
+        leaving = ((head_path[:, None] + cut_feather) - columns) / (2 * cut_feather)
+    else:
+        entering = (columns >= tail_path[:, None]).astype(np.float64)
+        leaving = (columns < head_path[:, None]).astype(np.float64)
+    weight = np.clip(np.minimum(entering, leaving), 0.0, 1.0)[..., None]
+    blended = (
+        _premultiplied(sent_pixels) * (1.0 - weight) + _premultiplied(returned_pixels) * weight
+    )
+    composite = np.where(
+        weight <= 0.0,
+        np.asarray(sent, dtype=np.uint8),
+        np.where(weight >= 1.0, np.asarray(returned, dtype=np.uint8), _unpremultiplied(blended)),
+    )
+
+    result = np.asarray(source, dtype=np.uint8).copy()
+    result[:, source.width - half :] = composite[:, :half]
+    result[:, :half] = composite[:, half:]
+    sent_premultiplied = _premultiplied(sent_pixels)
+    returned_premultiplied = _premultiplied(returned_pixels)
+    return _encode(Image.fromarray(result, "RGBA")), {
         "schema_version": 1,
         "kind": SEAM_REPAINT_VERSION,
         "guarantee": method.guarantee,
         "mutates_source": method.mutates_source,
         "source_width": source.width,
-        "period_width": result.width,
+        "period_width": source.width,
         "repaint_span": conditioning.editable_span,
         "context_span": conditioning.context_span,
-        "anchor_band": anchor_band,
         "provider_owns_alpha": True,
         "provider_operations": 1,
         "registration": _registration_record(registration),
+        "cut": {
+            "kind": SEAM_CUT_VERSION,
+            "reach": cut_reach,
+            "guard": cut_guard,
+            "feather": cut_feather,
+            "stitches": [
+                _stitch_record(
+                    side,
+                    path,
+                    offset,
+                    sent_premultiplied,
+                    returned_premultiplied,
+                    feather=cut_feather,
+                )
+                for side, path, offset in (
+                    ("tail", tail_path, source.width - half),
+                    ("head", head_path, -half),
+                )
+            ],
+        },
+    }
+
+
+def _premultiplied(pixels: np.ndarray) -> np.ndarray:
+    """RGBA in [0, 1] with colour scaled by alpha, so transparent pixels agree whatever RGB."""
+
+    result = pixels.copy()
+    result[..., :3] *= pixels[..., 3:4]
+    return result
+
+
+def _unpremultiplied(pixels: np.ndarray) -> np.ndarray:
+    alpha = pixels[..., 3:4]
+    colour = np.divide(
+        pixels[..., :3], alpha, out=np.zeros_like(pixels[..., :3]), where=alpha > 0.0
+    )
+    straight = np.concatenate((colour, alpha), axis=2)
+    return np.clip(np.rint(straight * 255.0), 0, 255).astype(np.uint8)
+
+
+def _min_error_path(cost: np.ndarray) -> np.ndarray:
+    """The cheapest top-to-bottom path through ``cost``, moving at most one column per row.
+
+    Ties keep the path straight, so a band of empty rows is crossed without wandering.
+    """
+
+    height, width = cost.shape
+    steps = np.array([0, -1, 1])
+    total = cost[0].copy()
+    moves = np.zeros((height, width), dtype=np.int64)
+    for row in range(1, height):
+        options = np.stack(
+            (
+                total,
+                np.concatenate(([np.inf], total[:-1])),
+                np.concatenate((total[1:], [np.inf])),
+            )
+        )
+        choice = np.argmin(options, axis=0)
+        total = cost[row] + options[choice, np.arange(width)]
+        moves[row] = steps[choice]
+    path = np.empty(height, dtype=np.int64)
+    path[-1] = int(np.argmin(total))
+    for row in range(height - 1, 0, -1):
+        path[row - 1] = path[row] + moves[row, path[row]]
+    return path
+
+
+def _stitch_record(
+    side: str,
+    path: np.ndarray,
+    offset: int,
+    sent: np.ndarray,
+    returned: np.ndarray,
+    *,
+    feather: int,
+) -> dict[str, object]:
+    """One cut in the unit's coordinates, with how far the two pictures differed across it.
+
+    The disagreement is taken over the whole blended zone, ``feather`` columns either side of the
+    path, because that is where a difference between the pictures becomes visible: as a step at a
+    hard cut, as a ghost inside a blend.
+    """
+
+    rows = np.arange(path.shape[0])[:, None]
+    columns = np.clip(
+        path[:, None] + np.arange(-feather, feather + 1)[None, :], 0, sent.shape[1] - 1
+    )
+    difference = np.abs(returned[rows, columns] - sent[rows, columns])
+    positions = path + offset
+    return {
+        "side": side,
+        "x_min": int(positions.min()),
+        "x_max": int(positions.max()),
+        "color_disagreement": float(difference[..., :3].mean()),
+        "alpha_disagreement": float(difference[..., 3].mean()),
+        "positions": [int(position) for position in positions],
     }
 
 
