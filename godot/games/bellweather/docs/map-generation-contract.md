@@ -338,6 +338,7 @@ Each `[[layers]]` record owns one generated visual layer:
 | `alpha_mode` | `opaque` or `transparent`; transparent layers request native alpha from a capable image route |
 | `vertical_anchor` | Required placement vocabulary: `canvas_cover`, `screen_top`, `screen_bottom`, or `walk_surface` |
 | `vertical_offset` | Optional author override as a fraction of the layer's own trimmed height, positive pushing down |
+| `display_scale` | Optional multiple of the fitted height the runtime draws the layer at, 0.5 to 3, default 1; the anchored row keeps its datum; not allowed on `canvas_cover` |
 | `presentation` | Required consumer-only contrast, saturation, atmospheric wash, and screen-space detail blur |
 | `prompt` | Non-empty authored instruction describing what to retain, separate, or reconstruct from the selected references |
 
@@ -418,6 +419,17 @@ Placement is applied by exactly one authority. The producer bakes extent — the
 vertical trim — and never position; the consumer applies all position from the
 resolved manifest values and never re-measures the raster. Measurement is a
 fact, not a transform, so there is no double-scaling path.
+
+`display_scale` is the one authored size. At 1 a layer is drawn at the height
+that fits its painted frame to the viewport, and bands painted separately often
+stop short of each other, so the sky shows between them once the ground is
+out of the way. A larger scale grows the layer away from its anchored row: a
+walk-surface or bottom-anchored layer grows upward from its seal, a top-anchored
+one downward from its top. The width grows with it, so the drawn period does
+too; the scroll rate stays the layer's `parallax` in screen pixels. The value is
+copied into the manifest's `placement` and is not generation direction, so it
+never re-bills an image. The review board applies it like the runtime, and it is
+bound into the board's identity.
 
 ## Runtime layer presentation
 
@@ -660,7 +672,16 @@ playfield readability, and visible seams. Independent branch validation does
 not substitute for the composite verdict.
 
 The composed review image is evidence, not a runtime layer and not a substitute
-for the individual generated assets.
+for the individual generated assets. It is the whole map as the runtime draws it
+with the camera at the origin: every layer at its resolved placement and display
+scale, and the ground at the runtime's tile size with its bottom row on the
+frame's bottom edge. A map is several viewports wide and the judge bounds each
+image it is shown, so the board is cut into equal strips no wider than 2048
+pixels and stacked top to bottom. Portals and climbables are placed at play time
+and are judged from their own sheets. The board used to fit the whole ground
+plate into one layer period and cap it at half the frame, so the ground the
+reviewer judged was several times smaller than the game shows and detached from
+the walk line the layers are placed against.
 
 ## Identity, cache, and provenance
 
@@ -669,6 +690,7 @@ identity remains granular:
 
 - changing shared map view or continuity invalidates every affected map output;
 - changing one layer record or one of its references invalidates that layer and the composite review, not unrelated layers;
+- changing only `display_scale` invalidates the composite, its review and the manifest, and neither the layer's validation nor its image call;
 - changing only `vertical_anchor` or `vertical_offset` invalidates that layer's local validation, the composite, and the manifest, but never its image call: placement is consumed downstream of generation, so re-anchoring a layer must not re-bill an image that would return byte-identical. `vertical_fit` and `walk_surface_row` are excluded from the ground appearance request for the same reason;
 - changing only a layer's `presentation` invalidates provider-free manifest integration and browser presentation only. It does not invalidate layer generation, alpha/repeat admission, the authored review composite, or any provider operation. The consumer applies contrast, saturation, atmospheric color wash, and loop-safe detail blur once after texture decode while preserving the canonical alpha silhouette;
 - changing ground appearance direction invalidates the atlas and composite review;

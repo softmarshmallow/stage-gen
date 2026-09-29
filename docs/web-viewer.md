@@ -36,9 +36,10 @@ The historical `motion` field still describes a uniform strip of 1 through 16 fr
 application-owned parser preserves that bound; a different atlas layout needs its own preview
 kind. The existing motion player provides frame stepping and sample playback.
 
-A `preview` object with `kind = "parallax-background-v1"` describes supplied layers: canvas
-size, run-local image references, layer order, dimensions, offsets, parallax factors, and repeat
-flags. The node inspector provides horizontal and vertical camera-offset sliders and per-layer
+A `preview` object with `kind = "parallax-background-v2"` describes supplied layers: canvas
+size, run-local image references, layer order, dimensions, offsets, parallax factors, repeat
+flags, and how each layer repeats (`mirror_repeat`, `seam_repaint`, or `admitted`). Version 1
+manifests, which claimed one reflection for every layer, fall back to the ordinary artifact view. The node inspector provides horizontal and vertical camera-offset sliders and per-layer
 visibility controls. This inspects a composition; it does not infer layers from a reference or
 simulate a game. The renderer accepts up to 32 layers with dimensions up to 16384 pixels and
 rejects malformed geometry and paths. Unknown preview kinds retain the ordinary artifact

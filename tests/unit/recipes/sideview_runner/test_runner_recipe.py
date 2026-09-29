@@ -733,3 +733,38 @@ async def test_a_dry_run_failure_is_reported_rather_than_swallowed(tmp_path: Pat
     )
 
     assert not result.summary.ok
+
+
+def test_an_authored_display_scale_is_refused_rather_than_drawn_at_one(tmp_path: Path) -> None:
+    package = two_genre_package(tmp_path)
+    track = package / "runner" / "track.toml"
+    track.write_text(
+        track.read_text().replace(
+            "\n[ground]\n",
+            """
+[[layers]]
+layer_id = "meadow_hills"
+reference_ids = ["cover_style"]
+plane = "background"
+order = 1
+parallax = 0.3
+alpha_mode = "transparent"
+vertical_anchor = "screen_bottom"
+display_scale = 1.3
+prompt = "Low rolling meadow hills."
+
+[layers.presentation]
+contrast = 1.0
+saturation = 1.0
+atmosphere_color = "#9db8d9"
+atmosphere_strength = 0.0
+detail_blur_screen_pixels = 0.0
+
+[ground]
+""",
+            1,
+        )
+    )
+
+    with pytest.raises(ValueError, match="runner does not draw display_scale yet"):
+        _executor().plan(package)

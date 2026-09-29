@@ -21,6 +21,12 @@ func _layout(h) -> void:
 		h.assert_near(layout["top_y"], expected[anchor], 1e-12, "anchor places top: " + anchor)
 		h.assert_eq(layout["space"], "world" if anchor == "walk_surface" else "screen", "anchor chooses coordinate space")
 		h.assert_eq(layout["vertical_scroll_factor"], 1.0 if anchor == "walk_surface" else 0.25, "world anchored layers follow vertical camera fully")
+	var grown := Parallax.layer_layout("walk_surface", 0.4, 1200.0, 300.0, 720.0, 500.0, 0.25, 1.5)
+	h.assert_near(grown["scale"], 0.9, 1e-12, "display scale multiplies the fitted scale")
+	h.assert_near(grown["rendered_height"], 270.0, 1e-12, "display scale grows the drawn height")
+	h.assert_near(grown["top_y"], 500.0 - 0.6 * 270.0, 1e-12, "the anchored row keeps its datum as the layer grows")
+	for value in [0.0, -1.0, NAN, INF]:
+		h.assert_true(Refusal.is_refusal(Parallax.layer_layout("screen_top", 0.0, 100.0, 50.0, 720.0, 500.0, 0.5, value)), "display scale must be finite and positive")
 	h.assert_eq(Parallax.band_tile_position(360.0, 0.25, 0.6), 150.0, "scroll converts into texture space")
 	h.assert_eq(Parallax.band_tile_position(-360.0, 0.25, 0.6), -150.0, "negative scroll is valid")
 

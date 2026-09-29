@@ -28,8 +28,10 @@ func make_texture(source: Image) -> Variant:
 ## Layout
 
 `Parallax.layer_layout(vertical_anchor, vertical_offset, source_height,
-trimmed_height, viewport_height, walk_surface_y, parallax)` returns a layout
-or a structured refusal. Heights use the caller's units. `source_height` is the
+trimmed_height, viewport_height, walk_surface_y, parallax, display_scale = 1.0)`
+returns a layout or a structured refusal. `display_scale` multiplies the fitted
+scale, so the layer is drawn that much larger while the anchored row keeps its
+datum. Heights use the caller's units. `source_height` is the
 full reference frame the layer was painted against; `trimmed_height` is the
 remaining image height. Keeping these distinct avoids stretching a cropped strip
 to the whole viewport.
@@ -50,7 +52,10 @@ All dimensions must be finite and positive; offsets and the datum must be finite
 parallax must be finite and nonnegative. Overflowed results are refused too.
 
 `Parallax.band_tile_position(scroll_x, parallax, scale)` returns the scalar
-`scroll_x * parallax / scale`, or a refusal. Negative finite scroll is valid;
+`scroll_x * parallax / scale`, or a refusal. `scale` is how many screen pixels
+one texture pixel covers: 1 for a texture baked at the size it is drawn, the
+layout scale for a sprite that scales source pixels. Passing the layout scale
+for a pre-baked texture moves the band faster than its parallax. Negative finite scroll is valid;
 scale must be finite and positive. Consumers select wrapping, sprite regions,
 repeat counts, camera movement and scene ordering. The package does not enforce
 a platformer or runner depth vocabulary.

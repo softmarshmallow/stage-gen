@@ -37,4 +37,29 @@ func run(h: TestHarness) -> void:
 	h.assert_true(sprite.region_rect.size.x >= 1280.0, "whole repeats cover the game viewport")
 	h.assert_eq(sprite.texture_repeat, CanvasItem.TEXTURE_REPEAT_ENABLED, "game enables horizontal repetition")
 	stage.free()
+	_display_scale_and_speed(h, source, presentation)
 	h.done()
+
+
+## An authored display scale draws the band larger from its anchor, and a band
+## moves at its parallax factor in screen pixels whatever size it is drawn at.
+func _display_scale_and_speed(h: TestHarness, source: Image, presentation: Dictionary) -> void:
+	var package := HostRunDir.new()
+	package._images["band.png"] = source
+	var stage := PlatformerStage.of(package, {})
+	stage._build_bands({"layers": [{
+		"layer_id": "grown", "plane": "background", "order": 1, "parallax": 0.25,
+		"asset": {"path": "band.png", "width": 16, "height": 8},
+		"placement": {"vertical_anchor": "screen_bottom", "vertical_offset": 0.0, "source_height": 16, "trimmed_height": 8, "display_scale": 1.5},
+		"presentation": presentation,
+	}]}, "background")
+	var sprite: Sprite2D = stage._bands[0]["node"]
+	# 720 / 16 is the fitted scale; 1.5 more makes each source pixel 67.5 screen pixels.
+	h.assert_eq(sprite.texture.get_width(), 1080, "display scale widens the drawn tile")
+	h.assert_eq(sprite.texture.get_height(), 540, "display scale heightens the drawn tile")
+	h.assert_eq(sprite.position.y, 720.0 - 540.0, "a bottom-anchored band still meets the screen bottom")
+	var world := PlatformerWorld.new()
+	world.hold = true
+	stage.sync(world, Vector2(400.0, 0.0))
+	h.assert_eq(sprite.region_rect.position.x, 100.0, "a band moves at its parallax factor in screen pixels")
+	stage.free()

@@ -37,12 +37,13 @@ TOP_REGISTERED_ANCHORS: frozenset[str] = frozenset({"screen_top"})
 #: model should paint. They are excluded from generation cache identity so adjusting placement or
 #: runtime depth treatment never re-bills an image.
 NON_GENERATIVE_LAYER_FIELDS: frozenset[str] = frozenset(
-    {"vertical_anchor", "vertical_offset", "presentation", "loop_construction"}
+    {"vertical_anchor", "vertical_offset", "display_scale", "presentation", "loop_construction"}
 )
 
-#: Presentation does not alter local canonicalization or repeat admission either. It is projected
-#: only into the prepared runtime manifest and applied by the consumer.
-RUNTIME_ONLY_LAYER_FIELDS: frozenset[str] = frozenset({"presentation"})
+#: Presentation and display scale do not alter local canonicalization or repeat admission either.
+#: They are projected only into the prepared runtime manifest and applied by the consumer; a host
+#: whose review board mirrors the consumer binds display scale into that board's identity itself.
+RUNTIME_ONLY_LAYER_FIELDS: frozenset[str] = frozenset({"presentation", "display_scale"})
 
 #: The ground equivalent: authored geometry and vertical fit select cells and placement
 #: downstream without changing the appearance request sent to the provider.

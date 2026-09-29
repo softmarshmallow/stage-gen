@@ -12,7 +12,9 @@ const SPACE_SCREEN := "screen"
 const SPACE_WORLD := "world"
 
 ## Layout in caller-provided coordinates. No camera, scene or depth ladder.
-## Returns a layout dictionary or a structured refusal.
+## Returns a layout dictionary or a structured refusal. `display_scale` draws the
+## layer larger than the height that fits its painted frame to the viewport; the
+## anchored row keeps its datum and the layer grows away from it.
 static func layer_layout(
 	vertical_anchor: String,
 	vertical_offset: float,
@@ -20,11 +22,12 @@ static func layer_layout(
 	trimmed_height: float,
 	viewport_height: float,
 	walk_surface_y: float,
-	parallax: float
+	parallax: float,
+	display_scale: float = 1.0
 ) -> Dictionary:
 	if not [ANCHOR_CANVAS_COVER, ANCHOR_SCREEN_CENTER, ANCHOR_SCREEN_TOP, ANCHOR_SCREEN_BOTTOM, ANCHOR_WALK_SURFACE].has(vertical_anchor):
 		return Refusal.of("sideview/anchor", "unsupported vertical anchor", "vertical_anchor")
-	var dimensions := {"source_height": source_height, "trimmed_height": trimmed_height, "viewport_height": viewport_height}
+	var dimensions := {"source_height": source_height, "trimmed_height": trimmed_height, "viewport_height": viewport_height, "display_scale": display_scale}
 	for field: String in dimensions:
 		var value: float = dimensions[field]
 		if not is_finite(value) or value <= 0.0:
@@ -34,7 +37,7 @@ static func layer_layout(
 		var value: float = inputs[field]
 		if not is_finite(value) or (field == "parallax" and value < 0.0):
 			return Refusal.of("sideview/layout", "layout input is outside its finite range", field)
-	var scale := viewport_height / source_height
+	var scale := viewport_height / source_height * display_scale
 	var rendered_height := trimmed_height * scale
 	var top_y := 0.0
 	match vertical_anchor:
@@ -60,7 +63,9 @@ static func layer_layout(
 	}
 
 
-## Where a tiled band's origin sits for this scroll.
+## Where a tiled band's origin sits for this scroll, in texture pixels. `scale`
+## is how many screen pixels one texture pixel covers: 1.0 for a texture already
+## baked at its drawn size, the layout scale for one drawn from source pixels.
 static func band_tile_position(scroll_x: float, parallax: float, scale: float) -> Variant:
 	if not is_finite(scroll_x) or not is_finite(parallax) or parallax < 0.0 or not is_finite(scale) or scale <= 0.0:
 		return Refusal.of("sideview/scroll", "scroll needs finite values, nonnegative parallax and positive scale", "")

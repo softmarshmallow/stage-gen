@@ -241,6 +241,11 @@ def test_runtime_manifest_is_stable_id_bound_and_portable(tmp_path: Path) -> Non
         "atmosphere_strength": 0.06,
         "detail_blur_screen_pixels": 0.65,
     }
+    # The authored display scale rides the placement, where the runtime reads it.
+    assert [
+        [layer["placement"]["display_scale"] for layer in published["layers"]] for published in maps
+    ] == [[layer.display_scale for layer in game_map.layers] for game_map in package.maps]
+    assert maps[0]["layers"][2]["placement"]["display_scale"] == 1.22
     presentation = result.manifest["presentation"]
     assert isinstance(presentation, dict)
     assert presentation["contact_shadows"] == {

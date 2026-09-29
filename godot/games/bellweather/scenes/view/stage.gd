@@ -114,9 +114,11 @@ func sync(world: PlatformerWorld, scroll: Vector2) -> void:
 		var sprite: Sprite2D = band["node"]
 		# The band wraps rather than scrolls: the region is a whole number of
 		# repeats and only its origin moves, so a map wider than its own artwork
-		# never runs out of picture.
+		# never runs out of picture. The texture is baked at the size it is drawn,
+		# so one texture pixel is one screen pixel; converting by the layout scale
+		# again moved every band 1024/720 times faster than its parallax.
 		var origin: Variant = Parallax.band_tile_position(
-			scroll.x, float(band["parallax"]), float(band["scale"])
+			scroll.x, float(band["parallax"]), 1.0
 		)
 		if SideviewRefusal.is_refusal(origin):
 			push_error("platformer stage: %s" % SideviewRefusal.line(origin))
@@ -148,7 +150,8 @@ func _build_bands(authored: Dictionary, plane: String) -> void:
 			float(placement.get("trimmed_height", asset.get("height", 1))),
 			VIEW_HEIGHT,
 			walk_surface_y,
-			float(layer.get("parallax", 0.0))
+			float(layer.get("parallax", 0.0)),
+			float(placement.get("display_scale", 1.0))
 		)
 		if SideviewRefusal.is_refusal(layout):
 			push_error(
@@ -192,7 +195,6 @@ func _build_bands(authored: Dictionary, plane: String) -> void:
 			{
 				"node": sprite,
 				"parallax": float(layer.get("parallax", 0.0)),
-				"scale": scale_factor,
 				"sourceWidth": float(tile_width),
 				"topY": float(layout["top_y"]),
 				"space": String(layout["space"]),

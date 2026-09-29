@@ -19,10 +19,15 @@ export interface ParallaxLayer {
   readonly repeatY: boolean;
   readonly width: number;
   readonly height: number;
+  /** How the layer repeats: reflected, repainted through its wrap, or already seamless. */
+  readonly construction: ParallaxConstruction;
 }
 
+export type ParallaxConstruction = "mirror_repeat" | "seam_repaint" | "admitted";
+const PARALLAX_CONSTRUCTIONS: readonly ParallaxConstruction[] = ["mirror_repeat", "seam_repaint", "admitted"];
+
 export interface ParallaxPreview {
-  readonly kind: "parallax-background-v1";
+  readonly kind: "parallax-background-v2";
   readonly width: number;
   readonly height: number;
   readonly layers: readonly ParallaxLayer[];
@@ -54,6 +59,12 @@ function integer(value: unknown, label: string, min: number, max: number): numbe
   const result = number(value, label);
   if (!Number.isInteger(result) || result < min || result > max)
     throw new Error(`${label} must be an integer between ${min} and ${max}`);
+  return result;
+}
+
+function construction(value: unknown, label: string): ParallaxConstruction {
+  const result = PARALLAX_CONSTRUCTIONS.find((item) => item === value);
+  if (result === undefined) throw new Error(`${label} must be one of ${PARALLAX_CONSTRUCTIONS.join(", ")}`);
   return result;
 }
 
@@ -95,7 +106,7 @@ export function parseArtifactPreview(value: unknown, label: string): ArtifactPre
   if (value === null || value === undefined) return null;
   const record = object(value, label);
   const kind = text(record.kind, `${label}.kind`);
-  if (kind !== "parallax-background-v1") return Object.freeze({ supported: false, kind });
+  if (kind !== "parallax-background-v2") return Object.freeze({ supported: false, kind });
   const canvas = object(record.canvas, `${label}.canvas`);
   const width = integer(canvas.width, `${label}.canvas.width`, 1, 16384);
   const height = integer(canvas.height, `${label}.canvas.height`, 1, 16384);
@@ -115,6 +126,7 @@ export function parseArtifactPreview(value: unknown, label: string): ArtifactPre
       repeatY: bool(layer.repeat_y, `${prefix}.repeat_y`),
       width: integer(layer.width, `${prefix}.width`, 1, 16384),
       height: integer(layer.height, `${prefix}.height`, 1, 16384),
+      construction: construction(layer.construction, `${prefix}.construction`),
     });
   });
   if (new Set(layers.map((layer) => layer.layerId)).size !== layers.length)

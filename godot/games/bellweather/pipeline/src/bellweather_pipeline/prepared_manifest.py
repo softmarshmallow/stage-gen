@@ -328,6 +328,8 @@ def _layer_manifest(pub: _Publication, map_id: str, layer: PreparedMapLayer) -> 
             "source_height": int(placement["source_height"]),
             "trimmed_height": int(placement["trimmed_height"]),
             "trimmed_top": int(placement["trimmed_top"]),
+            # Authored, not measured: how much larger than the fitted height the runtime draws it.
+            "display_scale": layer.display_scale,
         },
         "presentation": layer.presentation.model_dump(mode="json"),
         "asset": asset,

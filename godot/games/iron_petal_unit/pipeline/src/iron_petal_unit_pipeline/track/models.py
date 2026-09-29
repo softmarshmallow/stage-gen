@@ -323,6 +323,13 @@ class RunnerTrack(PersistedContractModel):
         opaque = [entry for entry in self.layers if entry.alpha_mode == "opaque"]
         if len(opaque) != 1:
             raise ValueError("a track declares exactly one opaque base layer")
+        scaled = [entry.layer_id for entry in self.layers if entry.display_scale != 1.0]
+        if scaled:
+            # The shared layer vocabulary carries it, but the runner's runtime document does not,
+            # so an authored scale would be silently drawn at 1.
+            raise ValueError(
+                "the runner does not draw display_scale yet; remove it from: " + ", ".join(scaled)
+            )
         declared = {entry.reference_id for entry in self.references}
         selected = {
             *(reference_id for entry in self.layers for reference_id in entry.reference_ids),

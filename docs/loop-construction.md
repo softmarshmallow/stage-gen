@@ -6,7 +6,9 @@
 > horizontal axis. The authored field is `continuity.loop_construction` in
 > [`maps/<map_id>.toml`](../godot/games/bellweather/docs/map-generation-contract.md); the deterministic constructions live
 > in [`media/loop_construction.py`](../src/stage_gen/media/loop_construction.py); the graph node and
-> admission policy live in the scrolling recipe.
+> admission policy live in the scrolling recipe. The supplied-layer
+> [looping parallax recipe](../src/stage_gen/recipes/looping_parallax/README.md) reuses the same
+> admission, `seam_repaint` construction and mirror fallback per layer, without a game.
 >
 > Implementation status is not an acceptance claim. A constructed loop still has to pass the map's
 > semantic review before it is treated as usable art.

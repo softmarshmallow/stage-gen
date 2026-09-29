@@ -11,6 +11,14 @@ describe("artifact preview adapters", () => {
     expect(preview.content.layers.map((layer) => layer.layerId)).toEqual(["sky", "near"]);
     expect(parallaxOffset(preview.content.layers[0], 100, 50)).toEqual([-10, -5]);
     expect(parallaxOffset(preview.content.layers[1], 100, 50)).toEqual([-70, -20]);
+    expect(preview.content.layers.map((layer) => layer.construction)).toEqual(["mirror_repeat", "seam_repaint"]);
+  });
+
+  test("refuses an unknown construction and the retired v1 manifest", () => {
+    const value = parallaxFixture();
+    expect(parseArtifactPreview({ ...value, kind: "parallax-background-v1" }, "preview")).toEqual({ supported: false, kind: "parallax-background-v1" });
+    value.layers[0].construction = "stretched";
+    expect(() => parseArtifactPreview(value, "preview")).toThrow("construction");
   });
 
   test.each(["../outside.png", "/outside.png", "https://example.com/a.png", "layers/%2e%2e/a.png", "layers\\outside.png"])("refuses unsafe layer ref %s", (assetRef) => {

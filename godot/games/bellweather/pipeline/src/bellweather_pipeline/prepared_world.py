@@ -122,6 +122,15 @@ WORLD_HANDLER_VERSION = "prepared-world-v3"
 #: judging the same composition the player sees, not a differently-scaled approximation.
 _COMPOSITE_VIEWPORT_HEIGHT_PX = 720
 _COMPOSITE_TILE_PX = 64
+#: How far above its square a ground cell is drawn, as a fraction of the cell: the runtime's
+#: `WALK_SURFACE_INSET_PX / CELL_PX` in `gameplay/support/sideview/terrain/atlas.gd`.
+_COMPOSITE_WALK_SURFACE_INSET_FRACTION = 10.0 / 120.0
+#: The board is the whole map at gameplay scale, which is several viewports wide; the judge sees
+#: each image bounded to `_JUDGE_PLATE_MAX_SIDE`, so the board folds into stacked strips no wider
+#: than this, left to right from the top, with a neutral rule between them.
+_COMPOSITE_STRIP_MAX_PX = 2048
+_COMPOSITE_STRIP_GAP_PX = 24
+_COMPOSITE_STRIP_GAP_RGBA = (128, 128, 128, 255)
 
 
 class PreparedWorldNodeHandler(RecipeNodeHandler):
@@ -669,11 +678,18 @@ class PreparedWorldNodeHandler(RecipeNodeHandler):
         terrain = self._terrain(game_map)
         rows = len(terrain.occupancy)
         walk_surface_y = canvas_height - ((rows - terrain.walk_surface_row) * _COMPOSITE_TILE_PX)
-        composite_width = round(common * canvas_height / max(heights))
+        # The whole map, at the scale it is played at: at least the terrain's width in tiles, and
+        # at least one full period of the widest layer so a narrow map still shows its loop.
+        composite_width = max(
+            round(common * canvas_height / max(heights)),
+            len(terrain.occupancy[0]) * _COMPOSITE_TILE_PX,
+        )
 
         def place(layer: PreparedMapLayer, image: Image.Image) -> None:
             placement = placements[layer.layer_id]
-            scale = canvas_height / int(placement["source_height"])
+            # The runtime draws a layer larger than its fitted height by its display scale,
+            # growing away from the anchored row, so the board does the same.
+            scale = canvas_height / int(placement["source_height"]) * layer.display_scale
             rendered_height = max(1, round(int(placement["trimmed_height"]) * scale))
             rendered = image.resize(
                 (max(1, round(image.width * scale)), rendered_height), Image.Resampling.LANCZOS
@@ -707,6 +723,7 @@ class PreparedWorldNodeHandler(RecipeNodeHandler):
         for layer in foregrounds:
             with Image.open(layer_path(layer)) as opened:
                 place(layer, opened.convert("RGBA"))
+        canvas = _fold_into_strips(canvas)
         stream = io.BytesIO()
         canvas.save(stream, format="PNG", optimize=False)
         data = stream.getvalue()
@@ -731,7 +748,7 @@ class PreparedWorldNodeHandler(RecipeNodeHandler):
         await _write_local_image_multi(
             output,
             data,
-            model="prepared-map-placed-compositor-v6",
+            model="prepared-map-placed-compositor-v8",
             prompt="Composite authored map layers at their resolved placement, plane, and order.",
             inputs=inputs,
             validation={
@@ -822,10 +839,17 @@ class PreparedWorldNodeHandler(RecipeNodeHandler):
             StructuredGenerationRequest(
                 prompt=(
                     f"Review the generated map artifacts for {game_map.display_name}. "
-                    "Image 1 is the layer composite, image 2 is the deterministic authored-"
+                    "Image 1 is the layer composite: the whole map at gameplay scale, with its "
+                    "layers, ground and platforms where the runtime places them, cut into equal "
+                    "strips stacked top to bottom and read left to right, separated by grey "
+                    "rules. Portals and climbables are placed by the runtime at play time and "
+                    "are not drawn on it. Image 2 is the deterministic authored-"
                     "occupancy terrain composition, and image 3 is the canonical 47-mask "
                     f"ground atlas. The next images are the declared map-local presentation "
-                    f"assets in this exact order: {declared_presentations}. The next image is "
+                    f"assets in this exact order: {declared_presentations}. A portal image is "
+                    "one gate's pair of mouths, entry on the left and exit on the right; a "
+                    "climbable image holds one cell per declared climbable variant. The next "
+                    "image is "
                     "the authored reference. Remaining images alternate "
                     "between one isolated canonical layer and its checkerboard three-repeat "
                     "evidence, in declared painter order. Transparent empty edge space is an "
@@ -1061,6 +1085,27 @@ def world_target_node_ids(graph: ExecutionGraph) -> tuple[str, ...]:
     return tuple(terminals)
 
 
+def _fold_into_strips(board: Image.Image) -> Image.Image:
+    """Cut a board wider than one strip into equal strips, stacked top to bottom."""
+
+    strips = -(-board.width // _COMPOSITE_STRIP_MAX_PX)
+    if strips <= 1:
+        return board
+    width = -(-board.width // strips)
+    folded = Image.new(
+        "RGBA",
+        (width, strips * board.height + (strips - 1) * _COMPOSITE_STRIP_GAP_PX),
+        _COMPOSITE_STRIP_GAP_RGBA,
+    )
+    for index in range(strips):
+        strip = Image.new("RGBA", (width, board.height), (0, 0, 0, 0))
+        strip.paste(
+            board.crop((index * width, 0, min(board.width, (index + 1) * width), board.height))
+        )
+        folded.paste(strip, (0, index * (board.height + _COMPOSITE_STRIP_GAP_PX)))
+    return folded
+
+
 def _composite_layer_top(
     *,
     anchor: str,
@@ -1171,17 +1216,28 @@ def _ground_preview(
     *,
     composed: bool = False,
 ) -> Image.Image:
+    """The ground as the runtime draws it: one tile per row, the bottom row on the board's bottom.
+
+    It used to be squeezed to the board's width, which drew a whole map's ground into one layer
+    period and capped it at half the board, so the reviewer judged ground several times smaller
+    than the game shows and detached from the walk line the layers are placed against. The board
+    spans one stretch of the map; the ground is cropped to it at the scale it is played at.
+    """
+
     data = path.read_bytes()
     if not composed:
         data, _ = compose_canonical_terrain(data, occupancy)
     with Image.open(io.BytesIO(data)) as opened:
         ground = opened.convert("RGBA")
+    height = len(occupancy) * _COMPOSITE_TILE_PX
+    projected = ground.resize(
+        (max(1, round(ground.width * height / ground.height)), height), Image.Resampling.LANCZOS
+    )
+    top = size[1] - height - round(_COMPOSITE_WALK_SURFACE_INSET_FRACTION * _COMPOSITE_TILE_PX)
+    crop_top = max(0, -top)
+    projected = projected.crop((0, crop_top, min(projected.width, size[0]), projected.height))
     preview = Image.new("RGBA", size, (0, 0, 0, 0))
-    target_height = max(1, round(ground.height * size[0] / ground.width))
-    if target_height > size[1] // 2:
-        target_height = size[1] // 2
-    projected = ground.resize((size[0], target_height), Image.Resampling.LANCZOS)
-    preview.alpha_composite(projected, (0, size[1] - target_height))
+    preview.alpha_composite(projected, (0, top + crop_top))
     return preview
 
 

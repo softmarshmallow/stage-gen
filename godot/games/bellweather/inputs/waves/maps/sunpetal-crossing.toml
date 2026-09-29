@@ -71,8 +71,10 @@ alpha_mode = "transparent"
 vertical_anchor = "screen_top"
 # Placed by hand. This band is a horizon, not a canopy: the first row every column spans is the
 # valley floor at its foot, so the measured top seal lifted the clouds, islands and peaks off the
-# screen and left a sliver. Its top edge meets the screen top instead; any gap shows the sky plate.
-vertical_offset = 0.0
+# screen and left a sliver. Its top edge sits just below the screen top instead, and it is drawn
+# larger so the mountains reach down behind the village; any gap above shows the sky plate.
+vertical_offset = 0.0229
+display_scale = 1.55
 presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 0.0 }
 prompt = """
 Separate the monumental cream clouds, lavender-blue mountains, floating
@@ -90,6 +92,10 @@ order = 2
 parallax = 0.58
 alpha_mode = "transparent"
 vertical_anchor = "walk_surface"
+# Placed by hand, lower than its seal: the measured base sat on the walk line and the village
+# floated above the garden fence. Sunk and enlarged, its foot is behind the near layer.
+vertical_offset = 0.2621
+display_scale = 1.22
 presentation = { contrast = 0.84, saturation = 0.90, atmosphere_color = "#b8e8f4", atmosphere_strength = 0.06, detail_blur_screen_pixels = 0.65 }
 prompt = """
 Separate Sunpetal Crossing's readable midground village: warm timber-and-stone
@@ -108,6 +114,9 @@ order = 0
 parallax = 1.32
 alpha_mode = "transparent"
 vertical_anchor = "screen_bottom"
+# Drawn larger than its fitted height so the bands meet with the ground hidden: with the
+# layers alone at 1.0 they stopped short of each other and left the sky showing between.
+display_scale = 1.46
 presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 1.4 }
 prompt = """
 Separate only the restrained near fence, flower heads, grass tips, and low

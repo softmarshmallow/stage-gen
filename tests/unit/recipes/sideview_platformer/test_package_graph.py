@@ -72,8 +72,9 @@ def test_bellweather_package_expands_to_the_complete_asset_level_graph() -> None
     graph = _graph()
 
     # Eight loop nodes, one per layer. Both maps declare `seam_repaint`, so all eight are image
-    # operations. The image count is a worst case: each loop node admits the generated raster first and only constructs when that
-    # fails, so a layer the model already returned as a clean repeat unit spends nothing.
+    # operations. The image count is a worst case: each loop node admits the generated raster
+    # first and only constructs when that fails, so a layer the model already returned as a
+    # clean repeat unit spends nothing.
     # Two motion-rebase nodes per actor with published motion: the player. The first judges
     # every atlas against the baseline on a locally composited plate; the second applies that
     # reading and judges the residual on a plate composed with it. Two structured operations,

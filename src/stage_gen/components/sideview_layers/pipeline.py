@@ -117,7 +117,9 @@ def construct_deterministic(
     raise ValueError(f"{construction} is not a deterministic loop construction")
 
 
-def _stitches(record: dict[str, object]) -> tuple[ImageRepeatStitch, ...]:
+def recorded_stitches(record: dict[str, object]) -> tuple[ImageRepeatStitch, ...]:
+    """The stitches a loop record says its construction cut, for judging them with the wrap."""
+
     cut = record.get("cut")
     if not isinstance(cut, dict):
         return ()
@@ -195,10 +197,13 @@ def validate_provider_image(
 
 
 __all__ = [
+    "LoopOutcome",
     "assemble_loop",
     "construct_deterministic",
     "layer_repeat_policies",
     "loop_conditioning",
+    "loop_layer",
+    "recorded_stitches",
     "validate_provider_image",
 ]
 
@@ -306,7 +311,7 @@ async def loop_layer(
         record["provider_operations"] = provider_operations
     # A construction that cut provider pixels into the source names where; those joins are judged
     # with the wrap, because a wrap-only verdict passes whatever the inner joins look like.
-    report = admit(looped, _stitches(record))
+    report = admit(looped, recorded_stitches(record))
     if report.verdict != "pass" and generative:
         # A generative construction can return art that lands correctly and still fails
         # admission, which is exactly the case the fallback exists for; falling back only on a

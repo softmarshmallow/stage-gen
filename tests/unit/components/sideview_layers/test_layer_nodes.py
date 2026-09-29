@@ -12,6 +12,10 @@ from PIL import Image, ImageDraw
 from demo_game_tools.input_formats.sideview_stage import PreparedMapLayer
 from gnode import Binding, BindingTable, GraphBuilder, ModelRef
 from stage_gen.components._node_kit import text_digest
+from stage_gen.components.sideview_layers.contract import (
+    NON_GENERATIVE_LAYER_FIELDS,
+    RUNTIME_ONLY_LAYER_FIELDS,
+)
 from stage_gen.components.sideview_layers.nodes import (
     LAYER_GENERATE,
     LAYER_LOOP_CONSTRUCT,
@@ -196,3 +200,17 @@ def test_the_provider_gate_applies_the_hosts_floors_only_to_transparent_layers()
         admit_layer_candidate(mostly_opaque, transparent=True, gate=strict)
     # An opaque plate is never held to the transparency floors.
     admit_layer_candidate(_strip(transparent_rows=0), transparent=False, gate=strict)
+
+
+def test_display_scale_is_placement_only_and_never_scales_the_cover() -> None:
+    """An authored scale reaches the runtime and no image or admission key."""
+
+    assert "display_scale" in NON_GENERATIVE_LAYER_FIELDS
+    assert "display_scale" in RUNTIME_ONLY_LAYER_FIELDS
+    assert _layer().display_scale == 1.0
+    assert _layer(display_scale=1.4).display_scale == 1.4
+    for value in (0.4, 3.5, float("nan")):
+        with pytest.raises(ValueError):
+            _layer(display_scale=value)
+    with pytest.raises(ValueError, match="canvas_cover layer cannot declare a display scale"):
+        _layer(alpha_mode="opaque", vertical_anchor="canvas_cover", display_scale=1.2)

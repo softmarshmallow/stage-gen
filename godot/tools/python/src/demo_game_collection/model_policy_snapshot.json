@@ -16,9 +16,9 @@
     },
     {
       "check_id": "platformer_cache_keys",
-      "expected_state_sha256": "7c8443fc85a7c3b576564f1414919e3c9bfda8bc6e78452a37b12797b8314d06",
-      "file_sha256": "a6f1b59ad3775d5c07856fdc9be1dd011bc280f1d4b495858a134495f7d71fb0",
-      "observed_state_sha256": "7c8443fc85a7c3b576564f1414919e3c9bfda8bc6e78452a37b12797b8314d06",
+      "expected_state_sha256": "89514fbfa231b8d42d24ec542f902dffe2e6603cda806ec3c9c3ff3ca6e4ede5",
+      "file_sha256": "606453ceffc38bfb584619700304335adaca2c7e9610e23c5daa955362a7eade",
+      "observed_state_sha256": "89514fbfa231b8d42d24ec542f902dffe2e6603cda806ec3c9c3ff3ca6e4ede5",
       "path": "tests/unit/recipes/sideview_platformer/bellweather.cache-keys.json"
     },
     {
@@ -9182,12 +9182,12 @@
       "fixture_ref": "godot/games/bellweather/inputs/default",
       "graph_kind": "sideview-platformer-execution-graph-v2",
       "graph_schema_version": 2,
-      "graph_sha256": "9dc067c11784d5889ce07f73bbf89ce6cc5b2223bcebd0696e7781c0bf51fd54",
+      "graph_sha256": "d776e948c2c924d41190d0f30dc5a9457ec40dd22867a39c17a526612b2607ec",
       "nodes": [
         {
           "binding_ref": null,
           "cache_depends_on": [],
-          "cache_key": "8ea22b40c9e278f2239284f08bc4dea0e17a225f96187c1441cc3900454bdf0b",
+          "cache_key": "a2655a9e674559db566144bc4439cfb77981657f6a1d994ff37e9b89150d6b53",
           "consumer_structure_fingerprint": "09a2f2089d8a48833046a876bda4a458a0f11d983e242e577dcb52d559b0284f",
           "depends_on": [],
           "estimated_cost_high_usd": 0.0,
@@ -9277,7 +9277,7 @@
           "cache_depends_on": [
             "map-sunpetal-crossing-layer-clouds_and_far_valley-loop"
           ],
-          "cache_key": "f86ca812bc38b11c53d3c771982ee95bed910f81a2a2aad12e21021aad1038ae",
+          "cache_key": "15ae8f8fa18f018c9a90c09842149898359f9c05bf88066cf8428e71784b8baf",
           "consumer_structure_fingerprint": "e5a7b93675a9631003f9bd78a39cc78ad44ce2454a46402b449159219536498b",
           "depends_on": [
             "map-sunpetal-crossing-layer-clouds_and_far_valley-loop"
@@ -9323,7 +9323,7 @@
           "cache_depends_on": [
             "map-sunpetal-crossing-layer-sunpetal_village-loop"
           ],
-          "cache_key": "4c88faf1a773595b467fece4b7cec0cf6a135581bc58d540ec3cc8e916e021f6",
+          "cache_key": "41f6a00666a1d5df7cd424f3f1a57d0b2bf45ee99d0b93fdf8068ab0a2042f96",
           "consumer_structure_fingerprint": "ff38bb1ae0d08c5ec8118187f9bca35307b0a295070f4f84ef22456937efa113",
           "depends_on": [
             "map-sunpetal-crossing-layer-sunpetal_village-loop"
@@ -9466,7 +9466,7 @@
             "map-sunpetal-crossing-ground-validate",
             "map-sunpetal-crossing-terrain-generate"
           ],
-          "cache_key": "1f977b3d8a76451a463acac2168392ac5dcd06a3d9708ace917aa468873e9db0",
+          "cache_key": "3a1769f31f55160f4c1c76f3da5892a39c573cb7d6826d4da555ecb928b86dae",
           "consumer_structure_fingerprint": "a59870c7cca815aa55033c8e6cf448750eced89327eb919a3f711dbe18306099",
           "depends_on": [
             "map-sunpetal-crossing-layer-clear_sky-validate",
@@ -9488,7 +9488,7 @@
             "map-sunpetal-crossing-composite",
             "map-sunpetal-crossing-portal-validate"
           ],
-          "cache_key": "a02f29122415f20f4d1f7741fd03e8e69fef36d4a869f881c320775be5990ee9",
+          "cache_key": "05f39d26c40e2e91482dec563ac9a1d67ea779b3a9ba1076227c85e56a2b7109",
           "consumer_structure_fingerprint": "186c948d982dd6a9cb6d506e6509f3b1d7eb7822af63eff7d779e4a6c2be6595",
           "depends_on": [
             "map-sunpetal-crossing-composite",
@@ -9581,7 +9581,7 @@
           "cache_depends_on": [
             "map-crowncrag-road-layer-amberbell_horizon-loop"
           ],
-          "cache_key": "8e3f1a13eb2bf8d7d176d6c797d556436b75353f594930a1c19630bd0cf0bc91",
+          "cache_key": "eb37576ab5cba7bd6eb3e45aeb6f391abc89a3dc76178c02a1df2ff46d061d2e",
           "consumer_structure_fingerprint": "dd591b70d14b00547287263499598d94836a8aa95f9551dc9a736aa7fd6a3196",
           "depends_on": [
             "map-crowncrag-road-layer-amberbell_horizon-loop"
@@ -9627,7 +9627,7 @@
           "cache_depends_on": [
             "map-crowncrag-road-layer-amberbell_route-loop"
           ],
-          "cache_key": "6b81c984269d28aba1a2e4590b7170c608ba15075d5f6db4003be438bde3d81f",
+          "cache_key": "f4aacb5cd40f652dd25c032abf5e2c78c52ecc5db96b17ce09f0d7b6f810134b",
           "consumer_structure_fingerprint": "2dbb5e8fcc4aca2119e164e6f07762da3eee99960ccfbad00ab1863aba127bac",
           "depends_on": [
             "map-crowncrag-road-layer-amberbell_route-loop"
@@ -9800,7 +9800,7 @@
             "map-crowncrag-road-ground-validate",
             "map-crowncrag-road-terrain-generate"
           ],
-          "cache_key": "76c396958955c0d6c64c4db61873bb48061d42a30bfa54fb8f098456afba9dd4",
+          "cache_key": "073fe7479e384f299e6eaeb6359c30fadbedbfc9ee003d80169898f445a0cc95",
           "consumer_structure_fingerprint": "22917cb3b71ff644a13ff083a3db71a8417974a8a7b3cb18ba47551f5962dc92",
           "depends_on": [
             "map-crowncrag-road-layer-open_sky-validate",
@@ -9823,7 +9823,7 @@
             "map-crowncrag-road-climbable-validate",
             "map-crowncrag-road-portal-validate"
           ],
-          "cache_key": "71d2715d04fc2b54731d9cd5f7aea116d5cb5ca529e8db1e020138b052d94611",
+          "cache_key": "ee5e01d311db271b8023474a75a02fe997a0a3f1fdd0a4e69f080baaa94820c1",
           "consumer_structure_fingerprint": "aaabf495f6aa18ea352121e49da855297542c7a89d2749347791212749d832be",
           "depends_on": [
             "map-crowncrag-road-composite",
@@ -12887,7 +12887,7 @@
         {
           "binding_ref": null,
           "cache_depends_on": [],
-          "cache_key": "da0751a5619054780cbd31226feffe6bf0fd5013f5ae2b1e4ed57ab0608896fb",
+          "cache_key": "7383d997c7fc91be4aa89ba2ebef118d2348c6a144afd18c464311c21323007b",
           "consumer_structure_fingerprint": "40fd7583ab0cb2dbcf1c282bb5b7b656bbce13fb7361827a81fd68c2a1a534f4",
           "depends_on": [
             "package-resolve"
@@ -12927,7 +12927,7 @@
             "track-sunpetal_morning-validate",
             "gameplay-bindings-validate"
           ],
-          "cache_key": "aa0b1f0dd9732bfb3d493d07ecdd1cf98d3ba00085192b592ec2c5042b341753",
+          "cache_key": "588e8021d5d096f24d87dedd0bde8366f1824ae88a80de6f502c001c30ed1115",
           "consumer_structure_fingerprint": "cd7b35ca502762bc5215011708fafad45ff6d04f116a55a590a9b690e35fb6db",
           "depends_on": [
             "map-sunpetal-crossing-review",

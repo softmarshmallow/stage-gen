@@ -1,8 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { parallaxOffset, type ParallaxPreview as ParallaxDocument } from "@/lib/run-viewer/artifact-preview";
+import { parallaxOffset, type ParallaxConstruction, type ParallaxPreview as ParallaxDocument } from "@/lib/run-viewer/artifact-preview";
 import { preparedAssetUrl } from "@/lib/shell/asset-url";
+
+const CONSTRUCTION_LABELS: Readonly<Record<ParallaxConstruction, string>> = {
+  mirror_repeat: "mirrored",
+  seam_repaint: "seam painted",
+  admitted: "as drawn",
+};
 
 /** Inspection of supplied layers, with camera offsets as a preview control. */
 export default function ParallaxPreview({ tag, preview }: { tag: string; preview: ParallaxDocument }) {
@@ -39,7 +45,7 @@ export default function ParallaxPreview({ tag, preview }: { tag: string; preview
             if (next.has(layer.layerId)) next.delete(layer.layerId); else next.add(layer.layerId);
             return next;
           })} />
-          {layer.layerId} · {layer.parallax}×
+          {layer.layerId} · {layer.parallax}× · {CONSTRUCTION_LABELS[layer.construction]}
         </label>)}
       </div>
     </div>

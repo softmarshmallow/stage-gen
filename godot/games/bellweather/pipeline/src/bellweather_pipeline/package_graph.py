@@ -616,7 +616,16 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
             depends_on=(*layer_validations, ground_validation_id, terrain.node_id),
             input_digests=(
                 object_digest(_map_without_runtime_presentation(game_map)),
-                object_digest({"compositor": "prepared-map-placed-compositor-v6"}),
+                # v8: the whole map at the runtime's tile scale, folded into strips, with each
+                # layer at its display scale, which generation never sees but the runtime applies.
+                object_digest({"compositor": "prepared-map-placed-compositor-v8"}),
+                object_digest(
+                    {
+                        "display_scale": {
+                            layer.layer_id: layer.display_scale for layer in game_map.layers
+                        }
+                    }
+                ),
             ),
             ports=(
                 artifact_port("image", f"maps/{game_map.map_id}/composite.png", "map-composite-v1"),
@@ -634,7 +643,9 @@ def _add_map_nodes(builder: _GraphBuilder, package_root: str) -> list[str]:
                 map_direction,
                 # v5: judge references are transported as bounded recognition plates;
                 # an unbounded payload broke a large map's review in production.
-                object_digest({"review_contract": "prepared-map-review-v5"}),
+                # v6: the brief says the board is the whole map folded into strips, that the
+                # runtime places portals and climbables, and what each presentation sheet holds.
+                object_digest({"review_contract": "prepared-map-review-v6"}),
             ),
             ports=(
                 artifact_port(

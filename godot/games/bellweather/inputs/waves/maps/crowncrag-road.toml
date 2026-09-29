@@ -75,8 +75,10 @@ vertical_anchor = "screen_top"
 # edge. That is the right guess for a cloud fringe and the wrong one here: it pushed the
 # peaks, the clouds and the castle off the top and left a flat plate of sky where the
 # distance should be. Nothing is lost by letting the sky show above a mountain, because the
-# opaque base is a canvas_cover plate and is what a gap here reveals.
-vertical_offset = -0.28
+# opaque base is a canvas_cover plate and is what a gap here reveals. Drawn larger, and a little
+# lower than that first placement, so the distance reaches down to the route rather than floating.
+vertical_offset = -0.1805
+display_scale = 1.45
 # Haze, for the same reason the village hazes its midground: a distance painted at the same
 # contrast as the terrain competes with it, and the player has to read against both.
 presentation = { contrast = 0.88, saturation = 0.84, atmosphere_color = "#9fd8ee", atmosphere_strength = 0.22, detail_blur_screen_pixels = 0.6 }
@@ -97,6 +99,10 @@ order = 2
 parallax = 0.62
 alpha_mode = "transparent"
 vertical_anchor = "walk_surface"
+# Placed by hand, lower than its seal: at the measured base the route and its trees
+# floated above the foliage with the sky between. Sunk and enlarged, the foot is covered.
+vertical_offset = 0.2025
+display_scale = 1.16
 # Pushed further than the village pushes its own midground, because this one is measurably
 # more saturated than that one and it sits behind a fight rather than behind a conversation.
 presentation = { contrast = 0.80, saturation = 0.82, atmosphere_color = "#9fd8ee", atmosphere_strength = 0.12, detail_blur_screen_pixels = 0.8 }
@@ -117,6 +123,9 @@ order = 0
 parallax = 1.42
 alpha_mode = "transparent"
 vertical_anchor = "screen_bottom"
+# Drawn larger than its fitted height so the bands meet with the ground hidden: with the
+# layers alone at 1.0 they stopped short of each other and left the sky showing between.
+display_scale = 1.24
 presentation = { contrast = 1.0, saturation = 1.0, atmosphere_color = "#ffffff", atmosphere_strength = 0.0, detail_blur_screen_pixels = 1.6 }
 prompt = """
 Separate only restrained near stream-edge leaves, small roots, and a few mossy

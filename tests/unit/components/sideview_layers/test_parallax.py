@@ -98,4 +98,5 @@ def test_position_change_reuses_prepared_assets_and_preview_survives_reinspectio
         for artifact in node["artifacts"]
     ]
     preview = next(item for item in artifacts if item["artifact_ref"] == "parallax/manifest.json")
-    assert preview["preview"]["kind"] == "parallax-background-v1"
+    assert preview["preview"]["kind"] == "parallax-background-v2"
+    assert preview["preview"]["layers"][0]["construction"] == "mirror_repeat"

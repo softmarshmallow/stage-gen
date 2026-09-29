@@ -3,6 +3,9 @@
 This component does not infer occluded content or extract layers from a finished
 reference. Each input is already a layer. Reflection constructs an exact repeat;
 whether reflected content is suitable artwork remains a separate review question.
+A layer may instead ask for ``seam_repaint``, which needs a provider edit and is
+run by the recipe that hosts it; this module only declares that choice and its
+identity, and prepares the reflection locally.
 """
 
 from __future__ import annotations
@@ -18,9 +21,19 @@ from pydantic import Field, field_validator, model_validator
 
 from gnode import PersistedContractModel
 from stage_gen.components._game_input import portable_relative_path, unique_values
+from stage_gen.components.sideview_layers.contract import loop_method_identity
 from stage_gen.media.codec import decode_rgba, encode_png
 
-PARALLAX_KIND = "parallax-background-v1"
+PARALLAX_KIND = "parallax-background-v2"
+MIRROR_CONSTRUCTION_ID = "mirror_repeat_v1"
+
+#: How a supplied layer is made to repeat. ``mirror_repeat`` reflects it locally, which always
+#: loops and doubles the period. ``seam_repaint`` repaints the wrap itself through a provider edit,
+#: keeps the drawn period, and falls back to the reflection when the edit is not admitted.
+ParallaxLoopConstruction = Literal["mirror_repeat", "seam_repaint"]
+#: What a published layer actually is, which a seam layer only knows after it ran: ``admitted``
+#: when the supplied layer already looped and was published untouched.
+ParallaxLayerConstruction = Literal["mirror_repeat", "seam_repaint", "admitted"]
 
 
 class ParallaxLayer(PersistedContractModel):
@@ -34,24 +47,47 @@ class ParallaxLayer(PersistedContractModel):
     offset_y: float = Field(default=0.0, allow_inf_nan=False)
     repeat_x: bool = True
     repeat_y: bool = False
+    loop_construction: ParallaxLoopConstruction = "mirror_repeat"
+    #: What the layer is made of, for the repaint brief; a mirror never reads it.
+    description: str | None = Field(default=None, min_length=1, max_length=2000)
 
     @field_validator("source")
     @classmethod
     def validate_source(cls, value: str) -> str:
         return portable_relative_path(value, "parallax layer source")
 
+    @model_validator(mode="after")
+    def validate_construction(self) -> ParallaxLayer:
+        if self.loop_construction == "seam_repaint" and (not self.repeat_x or self.repeat_y):
+            raise ValueError(
+                f"parallax layer {self.layer_id} selects seam_repaint, which repeats on x only"
+            )
+        return self
+
     @property
     def asset_ref(self) -> str:
         return f"parallax/layers/{self.layer_id}.png"
 
     def generation_identity(self, source_sha256: str) -> dict[str, object]:
-        """Only image preparation inputs; movement and placement cannot redraw pixels."""
+        """Only image preparation inputs; movement and placement cannot redraw pixels.
 
+        A reflected layer keeps the identity it always had. A repainted one binds the
+        construction's own identity, admission and fallback included, so revising the cut or
+        the gate re-runs it; the host binds the brief it sends.
+        """
+
+        if self.loop_construction == "seam_repaint":
+            return {
+                "source_sha256": source_sha256,
+                "repeat_x": self.repeat_x,
+                "repeat_y": self.repeat_y,
+                "construction": loop_method_identity("seam_repaint", fallback="mirror_repeat"),
+            }
         return {
             "source_sha256": source_sha256,
             "repeat_x": self.repeat_x,
             "repeat_y": self.repeat_y,
-            "construction": "mirror_repeat_v1",
+            "construction": MIRROR_CONSTRUCTION_ID,
         }
 
 
@@ -73,11 +109,17 @@ class PreparedParallaxLayer:
     width: int
     height: int
     source_sha256: str
+    construction: ParallaxLayerConstruction = "mirror_repeat"
 
 
 def prepare_parallax_layer(data: bytes, layer: ParallaxLayer) -> PreparedParallaxLayer:
     """Normalize a supplied still to PNG and reflect requested repeating axes."""
 
+    if layer.loop_construction != "mirror_repeat":
+        raise ValueError(
+            f"parallax layer {layer.layer_id} selects {layer.loop_construction}, which needs a "
+            "provider edit; run it through the looping_parallax recipe"
+        )
     image = decode_rgba(data)
     width, height = image.size
     if width * (2 if layer.repeat_x else 1) > 16384:
@@ -124,10 +166,10 @@ def parallax_manifest(
                 "repeat_y": layer.repeat_y,
                 "width": prepared[layer.layer_id].width,
                 "height": prepared[layer.layer_id].height,
+                "construction": prepared[layer.layer_id].construction,
             }
             for layer in sorted(spec.layers, key=lambda layer: layer.order)
         ],
-        "construction": "mirror_repeat_v1",
         "semantic_review": "not_performed",
     }
 
@@ -203,8 +245,11 @@ def prepare_parallax(
 
 
 __all__ = [
+    "MIRROR_CONSTRUCTION_ID",
     "PARALLAX_KIND",
     "ParallaxLayer",
+    "ParallaxLayerConstruction",
+    "ParallaxLoopConstruction",
     "ParallaxSpec",
     "PreparedParallaxLayer",
     "parallax_manifest",

@@ -109,6 +109,12 @@ class LayerRequest(PersistedContractModel):
     # because an authored fraction is a prediction about pixels that do not exist yet. An override
     # that is too small to seal a bottom-anchored layer is rejected with the measured minimum.
     vertical_offset: float | None = Field(default=None, ge=-1.0, le=1.0)
+    # How large the layer is drawn, as a multiple of the height that fits its painted frame to the
+    # viewport. The anchored row stays on its datum and the layer grows away from it, so a band
+    # that stops short of its neighbour can be enlarged to meet it without moving its
+    # registration. Width scales with it; scroll speed does not. The full-bleed canvas_cover base
+    # cannot scale.
+    display_scale: float = Field(default=1.0, ge=0.5, le=3.0, allow_inf_nan=False)
     # Optional per-layer override of the map's loop construction. Omit it to take the map default.
     # Layers within one map do not share a difficulty: a layer whose own ends already agree loops
     # under any construction, while one whose ends disagree in the source art fails under all of
@@ -132,6 +138,8 @@ class LayerRequest(PersistedContractModel):
                 )
             if self.vertical_offset not in (None, 0.0):
                 raise ValueError("a canvas_cover layer cannot declare a vertical offset")
+            if self.display_scale != 1.0:
+                raise ValueError("a canvas_cover layer cannot declare a display scale")
         elif self.alpha_mode == "opaque":
             raise ValueError("the opaque base layer must use the canvas_cover vertical anchor")
         return self

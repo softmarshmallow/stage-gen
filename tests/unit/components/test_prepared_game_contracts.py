@@ -114,12 +114,17 @@ def test_scenario_catalog_rejects_a_reintroduced_source_digest() -> None:
 
 
 def test_map_contract_rejects_a_second_opaque_layer() -> None:
-    # A well-formed second base: opaque alpha paired with the canvas_cover anchor, so the
-    # per-layer placement rule passes and the map-level uniqueness rule is what rejects it.
-    source = _bytes("maps/sunpetal-crossing.toml").replace(
-        b'alpha_mode = "transparent"\nvertical_anchor = "screen_top"',
-        b'alpha_mode = "opaque"\nvertical_anchor = "canvas_cover"',
-        1,
+    # A well-formed second base: opaque alpha paired with the canvas_cover anchor, and without
+    # the band's authored offset and scale, which a base may not declare, so the per-layer
+    # placement rule passes and the map-level uniqueness rule is what rejects it.
+    source = (
+        _bytes("maps/sunpetal-crossing.toml")
+        .replace(
+            b'alpha_mode = "transparent"\nvertical_anchor = "screen_top"',
+            b'alpha_mode = "opaque"\nvertical_anchor = "canvas_cover"',
+            1,
+        )
+        .replace(b"vertical_offset = 0.0229\ndisplay_scale = 1.55\n", b"", 1)
     )
 
     with pytest.raises(AuthoredContractLoadError, match="exactly one opaque"):
