@@ -174,6 +174,11 @@ func _draw_glare(arc: Dictionary) -> void:
 	var start := float(arc["startAngle"])
 	var finish := float(arc["endAngle"])
 	var alpha := float(arc["alpha"])
+	# On a swing's first frame the head has not left the tail, so the ribbon has
+	# no area and the renderer refuses to triangulate it. Nothing has been swept
+	# yet, so nothing is drawn.
+	if is_zero_approx(finish - start):
+		return
 	var widest := radius * SWING_THICKNESS_SHARE
 	var outer := PackedVector2Array()
 	var inner := PackedVector2Array()
