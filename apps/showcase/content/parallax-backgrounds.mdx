@@ -1,0 +1,194 @@
++++
+title = "Seamless parallax backgrounds"
+promise = "One reference picture per map in. Depth layers that scroll forever without a seam out."
+order = 1
+footer = "Every layer on this page is the one Bellweather's latest world run published, traced back to the run that drew it."
+
+[run]
+adapter = "parallax_layers"
+runs = [
+  "out/bellweather-m18-world",
+  "out/bellweather-m18-world-review",
+  "out/bellweather-m19-world",
+  "out/bellweather-m19-world-review",
+  "out/bellweather-m20-world",
+  "out/bellweather-m21-world",
+  "out/bellweather-m21-world-review",
+]
+path = "out/bellweather-m21-world-review"
+package = "godot/games/bellweather/inputs/default"
+maps = ["sunpetal-crossing", "crowncrag-road"]
+walker = "out/bellweather-m21"
+output_node = "map-sunpetal-crossing-layer-sunpetal_village-loop"
+label = "Bellweather backgrounds"
+
+[node_labels]
+map-sunpetal-crossing-layer-clear_sky-generate = "Draw the village sky"
+map-sunpetal-crossing-layer-clear_sky-loop = "Loop the village sky"
+map-sunpetal-crossing-layer-clear_sky-validate = "Trim and place the village sky"
+map-sunpetal-crossing-layer-clouds_and_far_valley-generate = "Draw the clouds and far valley"
+map-sunpetal-crossing-layer-clouds_and_far_valley-loop = "Loop the clouds and far valley"
+map-sunpetal-crossing-layer-clouds_and_far_valley-validate = "Trim and place the clouds and far valley"
+map-sunpetal-crossing-layer-sunpetal_village-generate = "Draw the village"
+map-sunpetal-crossing-layer-sunpetal_village-loop = "Loop the village"
+map-sunpetal-crossing-layer-sunpetal_village-validate = "Trim and place the village"
+map-sunpetal-crossing-layer-near_garden_frame-generate = "Draw the garden fence"
+map-sunpetal-crossing-layer-near_garden_frame-loop = "Loop the garden fence"
+map-sunpetal-crossing-layer-near_garden_frame-validate = "Trim and place the garden fence"
+map-sunpetal-crossing-composite = "Lay out the village board"
+map-sunpetal-crossing-review = "Review Sunpetal Crossing"
+map-crowncrag-road-layer-open_sky-generate = "Draw the forest sky"
+map-crowncrag-road-layer-open_sky-loop = "Loop the forest sky"
+map-crowncrag-road-layer-open_sky-validate = "Trim and place the forest sky"
+map-crowncrag-road-layer-amberbell_horizon-generate = "Draw the horizon"
+map-crowncrag-road-layer-amberbell_horizon-loop = "Loop the horizon"
+map-crowncrag-road-layer-amberbell_horizon-validate = "Trim and place the horizon"
+map-crowncrag-road-layer-amberbell_route-generate = "Draw the bell-tree route"
+map-crowncrag-road-layer-amberbell_route-loop = "Loop the bell-tree route"
+map-crowncrag-road-layer-amberbell_route-validate = "Trim and place the bell-tree route"
+map-crowncrag-road-layer-autumn_foliage_frame-generate = "Draw the foliage"
+map-crowncrag-road-layer-autumn_foliage_frame-loop = "Loop the foliage"
+map-crowncrag-road-layer-autumn_foliage_frame-validate = "Trim and place the foliage"
+map-crowncrag-road-composite = "Lay out the forest board"
+map-crowncrag-road-review = "Review Amberbell Forest"
+
+[[tools]]
+name = "Pillow and NumPy"
+role = "Find the path where each repaint agrees with the drawing, cut it in, and trim and place every layer"
+
+[[stages]]
+label = "Sunpetal Crossing"
+note = "Four layers, far to near, each drawn from the map's reference picture. Each one is tested as it came back; one that does not loop has its wrap repainted and cut back in. Then it is trimmed to its content and placed by its anchor. Last, a board of every layer and the ground is judged by a model that drew none of it; its verdict is advice, and does not stop the run."
+rows = [
+  ["map-sunpetal-crossing-layer-clear_sky-generate", "map-sunpetal-crossing-layer-clouds_and_far_valley-generate", "map-sunpetal-crossing-layer-sunpetal_village-generate", "map-sunpetal-crossing-layer-near_garden_frame-generate"],
+  ["map-sunpetal-crossing-layer-clear_sky-loop", "map-sunpetal-crossing-layer-clouds_and_far_valley-loop", "map-sunpetal-crossing-layer-sunpetal_village-loop", "map-sunpetal-crossing-layer-near_garden_frame-loop"],
+  ["map-sunpetal-crossing-layer-clear_sky-validate", "map-sunpetal-crossing-layer-clouds_and_far_valley-validate", "map-sunpetal-crossing-layer-sunpetal_village-validate", "map-sunpetal-crossing-layer-near_garden_frame-validate"],
+  ["map-sunpetal-crossing-composite"],
+  ["map-sunpetal-crossing-review"],
+]
+
+[[stages]]
+label = "Amberbell Forest"
+note = "The same steps for the forest's four layers, its board and its review."
+rows = [
+  ["map-crowncrag-road-layer-open_sky-generate", "map-crowncrag-road-layer-amberbell_horizon-generate", "map-crowncrag-road-layer-amberbell_route-generate", "map-crowncrag-road-layer-autumn_foliage_frame-generate"],
+  ["map-crowncrag-road-layer-open_sky-loop", "map-crowncrag-road-layer-amberbell_horizon-loop", "map-crowncrag-road-layer-amberbell_route-loop", "map-crowncrag-road-layer-autumn_foliage_frame-loop"],
+  ["map-crowncrag-road-layer-open_sky-validate", "map-crowncrag-road-layer-amberbell_horizon-validate", "map-crowncrag-road-layer-amberbell_route-validate", "map-crowncrag-road-layer-autumn_foliage_frame-validate"],
+  ["map-crowncrag-road-composite"],
+  ["map-crowncrag-road-review"],
+]
+
++++
+
+<Hero input="reference" output="backgrounds" />
+
+<Stats>
+  <Stat metric="wall_seconds">for both maps: eight layers and their loops, drawn alongside the ground, portals and ladders</Stat>
+  <Stat metric="estimated_cost_usd">estimated, for 14 drawings and repaints and 2 reviews</Stat>
+</Stats>
+
+A side-scrolling level is drawn in layers: a sky, a far horizon, a midground, and a band in front of
+the player. The camera moves each one at its own speed, and that difference is what reads as depth.
+Every layer has to repeat without end, and a strip whose two ends do not meet shows a seam once
+every period. Mirroring the strip hides the seam and shows every landmark twice, facing itself.
+Stage Gen draws each layer from the map's reference picture and tests it as it came back. A layer
+that does not loop has its own wrap moved to the middle of a canvas the image model repaints, and
+the repaint is cut back in along the path where it agrees with the drawing. The wrap and both cuts
+are measured against the layer's own columns, and the layer is trimmed and placed for the game.
+
+## Try it
+
+<Try>
+<Agent>
+
+Make the scrolling backgrounds for a side-view platformer map from <Ref input="reference">this picture</Ref>, with Stage Gen's map layers described in `godot/games/bellweather/docs/map-generation-contract.md`. Start from a copy of the Bellweather package in `godot/games/bellweather/inputs/default`, put the picture in `references/`, and describe the map's layers far to near in its file under `maps/`, as `maps/sunpetal-crossing.toml` does, with `loop_construction = "seam_repaint"`.
+
+Do a dry run first. Then run the world checkpoint live, and show me every layer tiled across its wrap, with the path where each repaint was cut in.
+
+</Agent>
+<Shell>
+
+```sh
+uv run --group games demo-games generate \
+  --input my-game --dry-run --output runs/world-dry
+```
+
+```sh
+uv run --group games demo-games generate \
+  --input my-game --checkpoint world --output runs/world-01
+```
+
+```sh
+uv run --group games demo-games generate \
+  --input my-game --checkpoint world-review --output runs/world-review-01
+```
+
+`my-game` is a copy of `godot/games/bellweather/inputs/default` with your picture in `references/`, named by its digest in the map's file under `maps/`. The world checkpoint also draws each map's ground tiles, portal and ladders; the review is paid for separately, in its own checkpoint.
+
+</Shell>
+</Try>
+
+## Use it
+
+<ParallaxLoop output="backgrounds">The layers alone, scrolling without end. Pause them, change the camera's speed or direction, or drag the picture to scrub. Turn any layer off to see what is behind it, change how fast it moves, or move and resize it. Mark the joins and look for a seam at any of them.</ParallaxLoop>
+
+The same layers in a level: the map's own ground, and a character to walk it.
+
+<ParallaxStage output="backgrounds">Walk and jump across either map; the platforms are the map's own grid. The far layers barely move, the midground moves at a little over half the camera's speed, and the band in front passes faster than the ground. Both tables share one tuning, so a change in either shows here, in the view above and at the top of the page.</ParallaxStage>
+
+## From one drawing to a seamless loop
+
+<Filmstrip>
+  <Frame node="map-sunpetal-crossing-layer-sunpetal_village-generate">The village as the model drew it</Frame>
+  <Frame node="map-sunpetal-crossing-layer-sunpetal_village-loop" media={[0]}>Tiled, its two ends do not meet</Frame>
+  <Frame node="map-sunpetal-crossing-layer-sunpetal_village-loop" media={[1]}>The model repaints a window with the wrap at its middle</Frame>
+  <Frame node="map-sunpetal-crossing-layer-sunpetal_village-loop" media={[2]}>Cut back in where the two pictures agree</Frame>
+  <Frame node="map-sunpetal-crossing-layer-sunpetal_village-loop" media={[3]}>Tiled again, with no seam</Frame>
+</Filmstrip>
+
+<Compare node="map-sunpetal-crossing-layer-clouds_and_far_valley-loop" media={[4, 1]} at={70} left="What the model was given" right="What it painted">Drag across the picture. The window is the layer's own end set against its own start, so the join runs down its middle, between the two ticks: here it slices the big cloud and steps the ridge. The dashed lines mark the span the model was asked to repaint. It repaints everything it is sent, a little differently each time, which is why only the stretch between the two cuts is kept. The window shown is the exact one sent: rebuilt from the drawing when this page was built, and matched to the digest the request recorded.</Compare>
+
+<Compare node="map-sunpetal-crossing-layer-sunpetal_village-loop" media={[4, 1]} at={70} left="What the model was given" right="What it painted">The same on the village, where the join cuts through the windmill and the trees beside it.</Compare>
+
+## What you get
+
+<Files>
+  <File path="sunpetal-crossing/layers/sunpetal_village.png">One layer: exactly one period wide, trimmed to its content</File>
+  <File path="sunpetal-crossing/layers/sunpetal_village.loop.json">How it was looped: the wrap and both cuts, where each fell and how it measured</File>
+  <File path="sunpetal-crossing/layers/sunpetal_village.validation.json">Its trim, its placement and its last loop check</File>
+  <File path="sunpetal-crossing/composite.png">Every layer and the ground on one board, for the reviewer</File>
+  <File path="sunpetal-crossing/review.json">The reviewer's verdict</File>
+</Files>
+
+The game's manifest carries each layer's plane, order, scroll speed, anchor and placement, so a game
+places and scrolls the layers without measuring anything.
+
+## Where it works
+
+<Scope>
+  <Works>A side-scrolling level drawn in a few depth layers, far to near</Works>
+  <Works>Cut-out layers with transparency, and opaque backdrops</Works>
+  <Works>Any scroll speed, including a band in front that passes faster than the ground</Works>
+  <Works>A layer the model already draws as a loop, which is published untouched at no extra cost</Works>
+  <Limit>Loops across only; nothing repeats vertically</Limit>
+  <Limit>A landmark standing right on the wrap can be painted over by the repaint</Limit>
+  <Limit>A plain gradient: the model cannot repaint one to within a level of its own steps, so a gradient sky falls back to its reflection. An empty gradient reflected is the same picture, and these skies never move.</Limit>
+  <Tip>Two of the six moving layers, the garden fence and the bell-tree route, came back already looping, and cost nothing more.</Tip>
+  <Tip>A join passes when it steps no more than the layer's own columns do. A fixed limit either misses a flat seam or refuses the detail of the art itself.</Tip>
+  <Tip>The reviewer passed both maps' looping, ground and layering. It still rejected them: Sunpetal lacks the bridge and stream its reference shows, and on both maps it judged the portal and ladder sheets at their full drawn size rather than as the game places them.</Tip>
+  <Tip>Each layer's size and height come from the game's own map files, so the far peaks stand behind the village and nothing shows between the layers even without the ground.</Tip>
+</Scope>
+
+## What goes wrong by hand
+
+<Guards>
+  <Guard node="map-sunpetal-crossing-layer-sunpetal_village-loop" how="The wrap is moved to the middle of a canvas the model repaints, and the repaint is cut back in along the path where it agrees with the drawing.">The two ends of a strip do not meet, and a seam passes by once every period.</Guard>
+  <Guard node="map-crowncrag-road-layer-amberbell_horizon-loop" how="The period stays the width that was drawn. Nothing is appended or reflected.">Mirroring the strip hides the seam, and every landmark shows up twice, facing itself.</Guard>
+  <Guard node="map-sunpetal-crossing-layer-sunpetal_village-validate" how="The wrap and both cuts are measured against the layer's own columns, and the loop is checked again after trimming.">A seam is judged by eye, at one zoom, on one screen.</Guard>
+  <Guard node="map-crowncrag-road-layer-amberbell_route-loop" how="Every layer is tested first; one that already loops is published untouched.">Every layer is repainted, whether it needed it or not.</Guard>
+  <Guard node="map-sunpetal-crossing-review" how="A board of every layer and the ground is judged by a model that drew none of it.">Nobody looks at the layers together.</Guard>
+</Guards>
+
+## Models and tools
+
+<Models />

@@ -1,0 +1,11 @@
+@import "tailwindcss" source(none);
+
+/* Only the shell templates and the component set carry classes. */
+@source "{{root}}/templates";
+@source "{{root}}/showcase/components.py";
+@source "{{root}}/showcase/mdx.py";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}

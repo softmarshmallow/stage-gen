@@ -1,0 +1,142 @@
++++
+title = "Movie sprite"
+promise = "One character picture in. A transparent idle loop out."
+order = 6
+footer = "The take was generated once, then finished on this machine by the current recipe. Every picture comes from those two runs."
+
+[run]
+adapter = "execution_view"
+runs = ["spikes/movie_sprite/runs/yuzu-refactor-01-raw", "spikes/movie_sprite/showcase/runs/yuzu-idle-01"]
+path = "spikes/movie_sprite/showcase/runs/yuzu-idle-01"
+ledger = "spikes/movie_sprite/budget.json"
+output_node = "finish"
+label = "Yuzu idle"
+
+[node_labels]
+prepare = "Fit onto a green plate"
+generate = "Generate a take"
+adopt = "Adopt the chosen take"
+finish = "Key, loop and verify"
+
+[[tools]]
+name = "FFmpeg"
+role = "Decodes, encodes and verifies every frame"
+
+[[tools]]
+name = "OpenCV"
+role = "Optical flow that closes the loop"
+
+[[stages]]
+label = "Prepare"
+note = "The picture is fitted onto a green plate, and the request is checked against the video route's limits before anything is paid for."
+rows = [["prepare"]]
+
+[[stages]]
+label = "Generate"
+note = "One video call animates the same picture at both ends of an eight-second take. A new take is a deliberate new draw, never a silent retry."
+rows = [["generate"]]
+
+[[stages]]
+label = "Finish"
+note = "You pick the take. Finishing runs locally and costs nothing: green is removed, the face is held to the first frame, the loop is closed and every frame is verified."
+rows = [["adopt", "finish"]]
++++
+
+<Hero input="character" output="loop" />
+
+<Stats>
+  <Stat metric="wall_seconds">from picture to finished loop</Stat>
+  <Stat metric="estimated_cost_usd">estimated, for one eight-second take</Stat>
+</Stats>
+
+A character that breathes and shifts its weight usually means a video model, a green screen, a keyer,
+a loop editor, and someone checking frame by frame that the face did not drift and the edges are not
+green. Stage Gen holds that as one graph. The picture is fitted on a green plate and sent once to a
+video model, with the same picture at both ends. The take you choose is finished locally: keyed to
+transparency, the face held still so blinks and mouth shapes can be added separately, the loop closed,
+and every frame checked. The first frame of the finished loop becomes the picture the face workflow
+starts from.
+
+## Try it
+
+<Try>
+<Agent>
+
+Use Stage Gen's movie sprite workflow in `docs/movie-sprite.md` to turn <Ref input="character">this character</Ref> into a transparent idle loop. Keep the face still, because I will add blinks separately.
+
+Plan it offline, generate one eight-second 720p take with a $2 limit, and show me the take. Finish it only after I say it is good.
+
+</Agent>
+<Shell>
+
+```sh
+uv run stage-gen-movie-sprite body idle run \
+  --input-root inputs --authoring authoring.json --finish finish.json \
+  --output-root runs/take-01 --cache-root cache \
+  --resolution 720p --aspect-ratio 9:16 --duration 8 --target generate \
+  --candidate take-01 --live --budget-root budget --budget-usd 2
+```
+
+```sh
+uv run stage-gen-movie-sprite body idle replay \
+  --input-root inputs --authoring authoring.json --finish finish.json \
+  --output-root runs/finished-01 --cache-root cache \
+  --resolution 720p --aspect-ratio 9:16 --duration 8 --candidate take-01
+```
+
+Needs FFmpeg and a fal key. `authoring.json` names the picture and the motion, and `finish.json` holds the finishing settings; the [guide](https://github.com/softmarshmallow/stage-gen/blob/main/docs/movie-sprite.md) shows both.
+
+</Shell>
+</Try>
+
+## From picture to loop
+
+<Filmstrip>
+  <Frame node="prepare">On a green plate</Frame>
+  <Frame node="generate" media={[1]}>The generated take</Frame>
+  <Frame node="finish" media={[0]}>Keyed to transparency</Frame>
+  <Frame node="finish" media={[1]}>Checked on light, dark and checkerboard</Frame>
+</Filmstrip>
+
+## What you get
+
+<Files>
+  <File path="body/loop.mkv">The loop: lossless, with transparency, 192 frames played over 12 seconds</File>
+  <File path="body/canonical.png">Its exact first frame, for the face workflow</File>
+  <File path="body/loop-preview.mp4">A quick preview on a dark background, without transparency</File>
+  <File path="body/contact-sheet.png">Sampled frames on light, dark and checkerboard grounds</File>
+  <File path="body/manifest.json">Size, frame count, playback rate and digests</File>
+  <File path="body/processing-report.json">The settings used and a hash of every frame</File>
+  <File path="body/source.mp4">The take you chose, kept as it was</File>
+  <File path="execution-view.json">Every step as it ran, with its timing</File>
+</Files>
+
+## Where it works
+
+<Scope>
+  <Works>A finished character picture with a transparent background</Works>
+  <Works>Gentle idle motion: breathing, a little weight shift, hair and sleeves settling</Works>
+  <Works>Characters with no green in their design</Works>
+  <Works>Portrait or landscape takes of three to ten seconds, played back slower if you like</Works>
+  <Limit>Walking, turning, big gestures, or anything that leaves the pose</Limit>
+  <Limit>Green clothing, hair or props: green is what gets removed</Limit>
+  <Limit>Exact control of the motion: the prompt guides it, and some takes will not be usable</Limit>
+  <Limit>Sound</Limit>
+  <Tip>The video model may redraw the character slightly. The loop's first frame becomes the new picture for the face workflow.</Tip>
+  <Tip>Pick a take before finishing. Finishing is local, so trying other finishing settings costs nothing.</Tip>
+  <Tip>MP4 previews have no transparency. Use the lossless loop or the PNG frames in a game.</Tip>
+</Scope>
+
+## What goes wrong by hand
+
+<Guards>
+  <Guard node="prepare" how="Length, resolution, aspect ratio and prompt size are checked against the video route before any call.">Settings the video service cannot take are found after paying.</Guard>
+  <Guard node="generate" how="One owner handles retries, with budget reserved for every call. A refusal stops at once, and a new take has to be asked for by name.">A failed request is retried blindly and paid for again.</Guard>
+  <Guard node="finish" how="Green is removed with edge despill, and the result is checked on light, dark and checkerboard grounds.">A green fringe stays around the hair and edges.</Guard>
+  <Guard node="finish" how="The ends are blended with optical flow, and the first and last frames are verified identical.">The loop jumps where it restarts.</Guard>
+  <Guard node="finish" how="The face is held to the first frame, and that frame is handed to the face workflow.">The face drifts, so blinks drawn later no longer line up.</Guard>
+</Guards>
+
+## Models and tools
+
+<Models />

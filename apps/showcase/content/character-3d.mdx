@@ -1,0 +1,173 @@
++++
+title = "3D character"
+promise = "One written brief in. One rigged, reviewed character out."
+order = 7
+related = ["character-3d-parts"]
+
+[run]
+path = "spikes/3d-character-pipeline/runs/m3-canary-01/wren-01"
+label = "M3 canary · Wren"
+adapter = "gnode_records"
+input_field = "brief.description"
+output_node = "rig_admit"
+command = "stage-gen-character"
+
+[node_labels]
+runtime_admit = "Probe Blender"
+brief_preflight = "Check the brief"
+reference_agent = "Draw references"
+reference_review = "Review references"
+references_admit = "Admit references"
+generate_part = "Generate mesh"
+part_review = "Review mesh"
+part_admit = "Admit mesh"
+parts_admit = "Admit parts"
+assemble_agent = "Orient and ground"
+assembly_review = "Review orientation"
+assembly_admit = "Admit orientation"
+provider_rig_submit = "Submit for rigging"
+provider_rig_collect = "Collect and audit rig"
+rig_review = "Review rig"
+regenerate_whole = "Regenerate mesh"
+recovery_part_review = "Review mesh"
+recovery_part_admit = "Admit mesh"
+recovery_assemble = "Orient and ground"
+recovery_assembly_review = "Review orientation"
+recovery_assembly_admit = "Admit orientation"
+rig_admit = "Admit export"
+
+[[stages]]
+label = "Before any spend"
+note = "Blender's required features and the brief are checked offline. Nothing is paid for until both pass."
+rows = [["runtime_admit"], ["brief_preflight"]]
+
+[[stages]]
+label = "Reference sheet"
+note = "An agent draws a canonical sheet, then the front and back views the mesh service needs. A reviewer that did not draw them admits the bundle. Round two runs only after a refusal."
+rows = [["references_01", "references_review_01"], ["references_02", "references_review_02"], ["references_admit"]]
+
+[[stages]]
+label = "Textured mesh"
+note = "Tripo builds one textured character from the views. The worker normalises it and renders five views in the matte finish the export will wear."
+rows = [["generate_character_01", "part_review_character_01"], ["generate_character_02", "part_review_character_02"], ["part_admit_character", "parts_admit"]]
+
+[[stages]]
+label = "Orientation"
+note = "The mesh is stood on the ground plane facing forward, measured, and reviewed again."
+rows = [["assemble_01", "assembly_review_01"], ["assemble_02", "assembly_review_02"], ["assembly_admit"]]
+
+[[stages]]
+label = "Skeleton and clips"
+note = "Tripo adds bones and weights. The worker proves the rigged mesh is still the admitted mesh, bakes six diagnostic clips and exports at profile height. The reviewer sees one labelled atlas per pose."
+rows = [["rig_submit_01", "rig_01", "rig_review_01"]]
+
+[[stages]]
+label = "Bounded recovery"
+note = "If the rig is refused, the mesh is regenerated once from the same references and rigged again. A second refusal ends the run with both verdicts on record."
+rows = [["regenerate_character_02", "recovery_part_review_02", "recovery_part_admit"], ["assemble_recovery_02", "assembly_review_03", "recovery_assembly_admit"], ["rig_submit_02", "rig_02", "rig_review_02"]]
+
+[[stages]]
+label = "Admission"
+note = "Numbers and pictures must both pass. A good picture cannot waive a numeric failure; a clean report cannot waive a visible one."
+rows = [["rig_admit"]]
++++
+
+<Hero input="brief" output="export" clip="cheer" />
+
+<Stats>
+  <Stat metric="wall_seconds">from brief to rigged character, with nobody watching</Stat>
+  <Stat metric="cost_usd">paid to the model and 3D services</Stat>
+</Stats>
+
+Getting a rigged character from a written idea usually means a day of hand-offs: someone draws a
+reference sheet, a mesh service turns it into geometry, a rig service adds a skeleton, and a person
+checks each file in Blender before paying for the next step. Stage Gen holds that chain as one graph.
+An agent draws the references, Tripo builds and rigs the mesh, a local Blender worker checks every
+hand-off, and a reviewer that did not make the work judges each result at the size a player sees it.
+Each stage has a budget and a second round planned in advance; if a stage cannot be made good, the
+run stops and says why.
+
+## Try it
+
+<Try>
+<Agent>
+
+Use Stage Gen to make a rigged 3D character from <Ref input="brief">this brief</Ref>. Follow `docs/character-3d.md`: write the experiment file, plan it offline and show me the plan, then run it live with a $10 limit.
+
+When it finishes, show me the export and what the rig reviewer said about it.
+
+</Agent>
+<Shell>
+
+```sh
+stage-gen-character \
+  --experiment work/wren.json --input-root work --run-root work/runs/wren-plan \
+  --blender /Applications/Blender.app/Contents/MacOS/Blender \
+  --admission-mode development --prepare-only
+```
+
+```sh
+STAGE_GEN_RUN_LIVE=1 stage-gen-character \
+  --experiment work/wren.json --input-root work --run-root work/runs/wren-01 \
+  --blender /Applications/Blender.app/Contents/MacOS/Blender \
+  --admission-mode development --live
+```
+
+Needs an installed `stage-gen` wheel rather than an editable checkout, Blender, and your OpenRouter and Tripo keys. The [guide](https://github.com/softmarshmallow/stage-gen/blob/main/docs/character-3d.md) shows the experiment file.
+
+</Shell>
+</Try>
+
+## From brief to rig
+
+<Filmstrip>
+  <Frame node="references_01" media={[0]}>Reference sheet</Frame>
+  <Frame node="references_01" media={[1, 2]}>Front and back views</Frame>
+  <Frame node="generate_character_01">Textured mesh</Frame>
+  <Frame node="assembly_admit">Stood upright and grounded</Frame>
+  <Frame node="rig_admit">Rigged and approved</Frame>
+</Filmstrip>
+
+## What you get
+
+<Files>
+  <File path="candidates/rig_01/animated.glb">The character: textured mesh, 22-joint skeleton and six short clips, at game scale</File>
+  <File path="candidates/">Every attempt the run made, including refused ones</File>
+  <File path="references/">The reference sheet and the front and back views</File>
+  <File path="observations/">The renders each reviewer looked at</File>
+  <File path="nodes/">One record per step, with what each reviewer checked and why</File>
+  <File path="experiment.json">The brief and settings the run started from</File>
+  <File path="outcome.json">How the run ended and what it cost</File>
+  <File path="summary.json">When each step ran and how long it took</File>
+</Files>
+
+## Where it works
+
+<Scope>
+  <Works>Adult characters drawn chibi-style, about two and a half heads tall</Works>
+  <Works>Short hair that sits close to the head</Works>
+  <Works>Hands drawn as closed mittens</Works>
+  <Works>Outfits that stay close to the body, such as jumpsuits, jackets and trousers</Works>
+  <Works>Games that show the character small on screen, around 120 pixels tall</Works>
+  <Limit>Long hair, ponytails and braids: hair is fixed to the head and does not move</Limit>
+  <Limit>Animals, and characters carrying weapons, capes, scarves or props</Limit>
+  <Limit>Facial expressions, finger movement and cloth that moves on its own</Limit>
+  <Limit>Close-up shots: small seams are allowed at the size it is judged</Limit>
+  <Tip>The export has a cheer and five test poses. Walk, run and idle come from your own animation library, retargeted onto its skeleton.</Tip>
+  <Tip>Skirts where the hands rest often need a second rig. That run takes longer and costs more, up to about $8.60.</Tip>
+  <Tip>Needs Blender installed, on macOS or Linux, and your own model and 3D service keys.</Tip>
+</Scope>
+
+## What goes wrong by hand
+
+<Guards>
+  <Guard node="references_review_01" how="A second model that did not draw the views checks that front and back agree before any mesh is paid for.">A back view that is really a front goes to the mesh service, and the mesh is paid for twice.</Guard>
+  <Guard node="part_review_character_01" how="Every view is rendered in the matte material the export will use before anyone judges it.">The mesh looks right in the service's glossy preview and wrong in the game.</Guard>
+  <Guard node="rig_review_01" how="The reviewer sees every pose from five sides. A refused rig sends the mesh back for one more attempt.">A skirt or strap is tied to the hands, so it lifts whenever the arms move.</Guard>
+  <Guard node="rig_01" how="The rigged mesh is compared with the approved one, triangle for triangle, and any change is refused.">The rig service quietly alters the mesh, and the shading turns bumpy.</Guard>
+  <Guard node="runtime_admit" how="Blender is checked before anything is paid for.">A missing Blender feature turns up after the money is spent.</Guard>
+</Guards>
+
+## Models and tools
+
+<Models />
