@@ -46,7 +46,8 @@ PURE_PACKAGE_MEMBERS = {
     # image_baker.gd intentionally owns engine Image/WorkerThreadPool operations;
     # simulations may only consume the independent data-only modules.
     "sideview_rendering": ("parallax.gd", "pixels.gd", "refusal.gd"),
-    # store.gd and the presenters own engine I/O and Controls; the design and ledger halves are pure.
+    # store.gd and the presenters own engine I/O and Controls;
+    # the design and ledger halves are pure.
     "progression": (
         "design/catalog.gd",
         "design/builder.gd",

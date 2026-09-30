@@ -20,7 +20,9 @@ def main() -> int:
     if not CHECK.is_file():
         print(f"FAIL: shared package check is absent: {CHECK}")
         return 2
-    return subprocess.call([sys.executable, str(CHECK), "--sdk-root", str(PACKAGE / "addons" / "progression")])
+    return subprocess.call(
+        [sys.executable, str(CHECK), "--sdk-root", str(PACKAGE / "addons" / "progression")]
+    )
 
 
 if __name__ == "__main__":
