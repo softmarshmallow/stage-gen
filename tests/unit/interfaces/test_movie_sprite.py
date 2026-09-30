@@ -6,13 +6,18 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, NoReturn
 
 import pytest
 from PIL import Image
 
+from stage_gen.components.character_3d.budget_pool import BudgetPool
+from stage_gen.config import StageGenConfig
 from stage_gen.interfaces import movie_sprite as cli
+from stage_gen.pipeline import PipelinePlan, plan
 from stage_gen.recipes.movie_sprite_body_idle.examples.supplied_clip.make_inputs import make_inputs
 
 
@@ -89,14 +94,16 @@ def test_public_cli_runs_supplied_synthetic_clip_without_provider(tmp_path: Path
 
 
 @pytest.mark.asyncio
-async def test_invalid_plan_never_opens_credentials_or_budget(tmp_path: Path, monkeypatch) -> None:
+async def test_invalid_plan_never_opens_credentials_or_budget(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from stage_gen import config
     from stage_gen.orchestration import movie_sprite_services
 
     _inputs(tmp_path)
     (tmp_path / "inputs/authoring.json").write_text(json.dumps({"canonical_image": "missing.png"}))
 
-    def forbidden(*args, **kwargs):
+    def forbidden(*args: object, **kwargs: object) -> NoReturn:
         raise AssertionError("credentials or provider were opened before offline admission")
 
     monkeypatch.setattr(config, "load_config", forbidden)
@@ -114,7 +121,7 @@ async def test_invalid_plan_never_opens_credentials_or_budget(tmp_path: Path, mo
 @pytest.mark.asyncio
 async def test_live_config_and_service_are_opened_after_plan_and_always_closed(
     tmp_path: Path,
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from stage_gen import config
     from stage_gen.orchestration import movie_sprite_services
@@ -122,15 +129,15 @@ async def test_live_config_and_service_are_opened_after_plan_and_always_closed(
     _inputs(tmp_path)
     dotenv = tmp_path / "provider.env"
     dotenv.write_text("FAL_KEY=fixture-only-secret\nUNRELATED=value\n")
-    events = []
-    real_plan = cli.plan
+    events: list[str] = []
+    real_plan = plan
 
-    def planned(*args, **kwargs):
+    def planned(*args: Any, **kwargs: Any) -> PipelinePlan:
         result = real_plan(*args, **kwargs)
         events.append("plan")
         return result
 
-    def load(*, env=None, **kwargs):
+    def load(*, env: Mapping[str, str | None] | None = None, **kwargs: object) -> StageGenConfig:
         assert events == ["plan"]
         assert env is not None and env["FAL_KEY"] == "fixture-only-secret"
         events.append("config")
@@ -140,19 +147,26 @@ async def test_live_config_and_service_are_opened_after_plan_and_always_closed(
         provider_operations = 0
         known_cost_usd = None
 
-        def __init__(self, configured, budget, *, live, operation_id):
+        def __init__(
+            self,
+            configured: StageGenConfig,
+            budget: BudgetPool,
+            *,
+            live: bool,
+            operation_id: str,
+        ) -> None:
             assert events == ["plan", "config"]
             assert live and operation_id == "take-01"
             self.budget = budget
             events.append("service")
 
-        async def aclose(self):
+        async def aclose(self) -> None:
             events.append("closed")
 
-        def budget_snapshot(self):
+        def budget_snapshot(self) -> dict[str, Any]:
             return self.budget.snapshot()
 
-    async def run(*args, **kwargs):
+    async def run(*args: object, **kwargs: object) -> SimpleNamespace:
         assert events == ["plan", "config", "service", "plan"]
         assert kwargs["allow_provider_calls"] is True
         events.append("run")
@@ -187,11 +201,13 @@ async def test_live_config_and_service_are_opened_after_plan_and_always_closed(
     assert events == ["plan", "config", "service", "plan", "run", "closed"]
 
 
-def test_face_alias_forwards_unchanged_arguments_and_restores_process_argv(monkeypatch) -> None:
+def test_face_alias_forwards_unchanged_arguments_and_restores_process_argv(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from stage_gen.interfaces import portrait_motion
 
     original = ["stage-gen-movie-sprite", "face", "repaint", "verify", "--run", "fixture"]
-    seen = []
+    seen: list[list[str]] = []
     monkeypatch.setattr(sys, "argv", original)
     monkeypatch.setattr(portrait_motion, "entrypoint", lambda: seen.append(list(sys.argv)))
     cli.entrypoint()

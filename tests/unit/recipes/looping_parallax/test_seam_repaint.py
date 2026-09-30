@@ -63,6 +63,7 @@ def _paint_through(conditioning: Image.Image, mask: Image.Image) -> Image.Image:
     assert source is not None and target is not None
     for y in range(conditioning.height):
         a, b = source[left, y], source[right, y]
+        assert isinstance(a, tuple) and isinstance(b, tuple)
         for x in range(left + 1, right):
             t = (x - left) / (right - left)
             target[x, y] = tuple(round(p + (q - p) * t) for p, q in zip(a, b, strict=True))
@@ -152,7 +153,8 @@ def _manifest_layer(run_dir: Path) -> dict[str, object]:
     manifest = json.loads((run_dir / "parallax/manifest.json").read_bytes())
     assert manifest["kind"] == "parallax-background-v2"
     assert "construction" not in manifest
-    return manifest["layers"][0]
+    layer: dict[str, object] = manifest["layers"][0]
+    return layer
 
 
 def test_a_repaint_the_wrap_admits_keeps_the_drawn_period_and_is_reused(tmp_path: Path) -> None:

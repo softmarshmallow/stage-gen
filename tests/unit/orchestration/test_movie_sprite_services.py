@@ -4,6 +4,7 @@ import asyncio
 import io
 import json
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -37,7 +38,7 @@ def _endpoint() -> bytes:
         {"aspect_ratio": "1:1"},
     ],
 )
-def test_route_rejects_unsupported_options_offline(options: dict) -> None:
+def test_route_rejects_unsupported_options_offline(options: dict[str, Any]) -> None:
     with pytest.raises(ValueError):
         movie_sprite_video_binding(**options)
 

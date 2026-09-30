@@ -290,10 +290,8 @@ async def test_generation_wiring_and_finishing_change_reuse_paid_source(tmp_path
 
 
 async def test_missing_media_tools_refuses_before_provider_dispatch(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from stage_gen.recipes.movie_sprite_body_idle import pipeline as recipe
-
     inputs, data = _inputs(tmp_path)
     generator = FakeVideo(data)
     planned = plan(
@@ -307,7 +305,9 @@ async def test_missing_media_tools_refuses_before_provider_dispatch(
         input_root=inputs,
         targets=["generate"],
     )
-    monkeypatch.setattr(recipe.shutil, "which", lambda _: None)
+    monkeypatch.setattr(
+        "stage_gen.recipes.movie_sprite_body_idle.pipeline.shutil.which", lambda _: None
+    )
     result = await run(
         planned,
         output_root=tmp_path / "failed",

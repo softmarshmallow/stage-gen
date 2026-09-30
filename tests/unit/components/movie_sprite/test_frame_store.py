@@ -6,12 +6,15 @@ import io
 from fractions import Fraction
 from pathlib import Path
 from types import SimpleNamespace
+from typing import IO, Any, cast
 
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 
 from stage_gen.components.movie_sprite import processing
 from stage_gen.components.movie_sprite.frame_store import FrameStore
+from stage_gen.components.movie_sprite.models import MAX_OUTPUT_BYTES
 from stage_gen.recipes.movie_sprite_body_idle.examples.supplied_clip.make_inputs import make_inputs
 
 
@@ -47,8 +50,14 @@ def test_frame_store_refuses_out_of_bounds_and_invalid_writes(tmp_path: Path) ->
         with pytest.raises(IndexError):
             store[index] = frame
     with pytest.raises(TypeError):
-        _ = store[:]
-    for invalid in (frame.astype(np.float32), frame[..., :3], frame[None]):
+        # Deliberately the wrong index type: the store must refuse a slice at runtime.
+        _ = store[cast(int, slice(None))]
+    invalid_frames: tuple[NDArray[Any], ...] = (
+        frame.astype(np.float32),
+        frame[..., :3],
+        frame[None],
+    )
+    for invalid in invalid_frames:
         with pytest.raises(ValueError):
             store[0] = invalid
     assert path.read_bytes() == original
@@ -81,14 +90,14 @@ def test_single_frame_access_never_reads_the_sequence(
     reads: list[int] = []
 
     class BoundedReader(io.BytesIO):
-        def read(self, size: int = -1) -> bytes:
+        def read(self, size: int | None = -1) -> bytes:
             assert size == store.frame_bytes
             reads.append(size)
             return super().read(size)
 
     original_open = Path.open
 
-    def open_frame(file: Path, mode: str = "r", *args: object, **kwargs: object):
+    def open_frame(file: Path, mode: str = "r", *args: Any, **kwargs: Any) -> IO[Any]:
         if file == path and mode == "rb":
             return BoundedReader(data)
         return original_open(file, mode, *args, **kwargs)
@@ -121,10 +130,9 @@ def test_disk_preflight_includes_preview_storage(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     facts = {"width": 96, "height": 160, "fps": 6, "duration_seconds": 2}
-    old_incomplete_reservation = 96 * 160 * 4 * 14 * 2 + processing.MAX_OUTPUT_BYTES
+    old_incomplete_reservation = 96 * 160 * 4 * 14 * 2 + MAX_OUTPUT_BYTES
     monkeypatch.setattr(
-        processing.shutil,
-        "disk_usage",
+        "stage_gen.components.movie_sprite.processing.shutil.disk_usage",
         lambda _: SimpleNamespace(free=old_incomplete_reservation),
     )
     with pytest.raises(ValueError, match="Insufficient temporary disk"):

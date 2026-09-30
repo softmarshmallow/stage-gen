@@ -8,6 +8,7 @@ import subprocess
 import zipfile
 from fractions import Fraction
 from pathlib import Path
+from typing import Any, TypedDict
 
 import pytest
 from PIL import Image
@@ -59,7 +60,7 @@ def _decode(path: Path) -> bytes:
     ).stdout
 
 
-def _video_info(path: Path) -> dict:
+def _video_info(path: Path) -> dict[str, Any]:
     result = subprocess.run(
         [
             "ffprobe",
@@ -76,7 +77,8 @@ def _video_info(path: Path) -> dict:
         capture_output=True,
         text=True,
     )
-    return json.loads(result.stdout)
+    info: dict[str, Any] = json.loads(result.stdout)
+    return info
 
 
 async def test_supplied_example_preserves_rgba_and_publishes_portable_loop(tmp_path: Path) -> None:
@@ -182,11 +184,16 @@ async def test_corrupt_finished_cache_is_regenerated_from_reused_source(tmp_path
     assert _decode(second.run_dir / "body/loop.mkv") == _decode(first.run_dir / "body/loop.mkv")
 
 
+class _SourceArguments(TypedDict, total=False):
+    authoring_ref: str
+    supplied_video_ref: str
+
+
 @pytest.mark.parametrize(
     "source_arguments",
     [{}, {"authoring_ref": "authoring.json", "supplied_video_ref": "actor.mkv"}],
 )
-def test_exactly_one_source_is_required(source_arguments: dict[str, str]) -> None:
+def test_exactly_one_source_is_required(source_arguments: _SourceArguments) -> None:
     with pytest.raises(ValueError):
         create_pipeline(finish_ref="finish.json", **source_arguments)
 
