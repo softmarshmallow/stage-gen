@@ -1,0 +1,543 @@
+{
+ "cache_keys": {
+  "looping-parallax": {
+   "compose": "a417fc68ce83fec17d4a1379a32c53f782fb98f0f78674c676bbafa206706ebc",
+   "layer.distant_hills": "a820126b81d6fdd1e4a9a20b994b528d3088fb61984db13acef343e23ba40b17",
+   "layer.near_trees": "1ce19a899476b68c6f752573479f0560731a06a4c2343ece5d41be0486862fed"
+  },
+  "movie-sprite-generate": {
+   "finish": "3f12dd2e87f4ca2f1cfd029b52c938f38c5695b831483b1ca5be535ed01dc85e",
+   "generate": "dcaf6f773bcf43df1d4a32679798c969f3ce31e18fdad5221c669e6e94e06489",
+   "prepare": "2230dba600a1d91d3ae0c7c7d68beaa38778d8fde3fb55e1d9e5b4243e35069e"
+  },
+  "storefront": {
+   "storefront-close": "cfd89aa4b6c14e55b62b24ed1d7b5a6a7c19698f5141c9f0ac45dfa693f30769",
+   "storefront-direction": "9a53509d17a1e62ef73cde98777af9d70f791e0bdbf782bb2cfbaef937f5143c",
+   "storefront-listing": "540605615901bce249dbaa87ba05e0d3a2c2a9158e77d6afb1ce7a0369c2eed0",
+   "storefront-resolve": "9517329464236b6f27dcde11d59023a2c56d652fce5784f6dbc57e5745cfe3e0",
+   "surface-app-icon-generate": "6c0bfb9e0fec94838e6536548d29b9781510bcc7a2471b8e0e1704c869251148",
+   "surface-app-icon-normalize": "a2982e33b2fb6291ffbb2e2eb1a3459142e46728c77651d7b1e061db09726ad4",
+   "surface-app-icon-proxy": "58ad7d9a0dcbf1ecb267e803469caa550ac6d2793debd23c25b6c4d6d1c6dd7d",
+   "surface-app-icon-record": "68d63f12f0baa1b325630f0c3ab4159068f193375908f775201bc2ad942c351f",
+   "surface-app-icon-review": "d8f4854e0dfd7d3e60571a5833b67bb15df1becc6630d2ad1c3d8e5f0c056053",
+   "surface-app-icon-validate": "fd61d622aff59a7016f7271771dcd5fa300775db977f81cabc9c7666dbeb39b8"
+  },
+  "universe-semantic": {
+   "gallery-plan": "6f3915cf66bbc32923f47ff41c397f662a09eeef8c015b05177da2db0fe556b2",
+   "source-lock": "a72526d515228482b1a14e97c977bea255c2936e003dcc2f6523db3ff9962234",
+   "universe-admit": "ed237c9eb0c59102513554d24676796d842148b66311e017303157bc680537e6",
+   "universe-evaluate": "1dff0776713cd3f5a35d3ddac0275e261a8c9d4f977a7c6630148b68196b2c4e",
+   "universe-propose": "c989eb52aacac7c82c510ad4e2d30d3224a8699b7f1c780e9fbe88a267b003d8",
+   "universe-review": "5e76f2bf899f8af9d10189605419706262e6c9c94f34c7611a71a93a2448012a"
+  }
+ },
+ "character_frozen_set": {
+  "files": {
+   "stage_gen/components/character_3d/__init__.py": "1a45b3648a91b29130d147501e2669e826b37fa83398bf6d81fbdde5bf3d31b4",
+   "stage_gen/components/character_3d/agent_backend.py": "3d3545d25f15fac78e437c1d52b87824fc3d422d54fa8d0d5e1359ae346aac09",
+   "stage_gen/components/character_3d/atlas.py": "bb5624563ba5b3308b2304db1cc3f29d93c6ae9c93369707455686252e82f102",
+   "stage_gen/components/character_3d/budget_pool.py": "075414aaae03e3a9a627c447097af8a026ec1885f476e89ca85fbe26ae9ceea3",
+   "stage_gen/components/character_3d/context.py": "8d65cd72773a717acfe7c2ee6bd2342ea316f06a81ba1cfd77e48d90afd5edf6",
+   "stage_gen/components/character_3d/identity.py": "f38de6d1df57ea8cd21730dfa72b37b58142b5bea30d62e3b11fb4f16776e8ae",
+   "stage_gen/components/character_3d/io.py": "e51c746f7d779ced15a8e53e82b4d2f78901345ad486b972f965d286e210b8cb",
+   "stage_gen/components/character_3d/journal.py": "d293d38f9079156dbd75b4eb472fc059a671c90551575ff5dfe2e99197306a07",
+   "stage_gen/components/character_3d/package_resources.py": "3257e73492806a6056d5fcb15465b22db10706961056e52a1d7504dbea227bde",
+   "stage_gen/components/character_3d/provider_contracts.py": "ea0702d640340a1af6605162904ddbc986bb1458e7e0ea3a2504c8a6a0f1e1be",
+   "stage_gen/components/character_3d/reference_studio.py": "2cd2d7f1151e5feaf773b150d8b75e7e7ff6931c96bf43803c1e6088bb163328",
+   "stage_gen/components/character_3d/review_reuse.py": "16672e54a21731708ff196c344c2558baf17a5c1e8351419e8849c1620069829",
+   "stage_gen/components/character_3d/runtime_admission.py": "9f5dd1bf78d9144c28bab4f4ec5ff250b49ccc04134715af8e3d0a7053187db2",
+   "stage_gen/components/character_3d/service_contracts.py": "e3ca544807f6bf35f9945d3c70fc5351f59d56c900f3d24ac19a06d949aa203f",
+   "stage_gen/components/character_3d/studio.py": "18a0c3a72e368fcd01fbdfe479f8cbaec50d3b42b7a54007801a7870e94d27f6",
+   "stage_gen/components/character_3d/tool_views.py": "2c30fab494644fa538086d355eaa9dd77e6f4fb75e9c148e6b775d01f89dea33",
+   "stage_gen/components/character_3d/worker/__init__.py": "47de13cec6bcbca45bf4a388b270ba3fd9e07f526c4af4828f838dac1a096935",
+   "stage_gen/components/character_3d/worker/assemble.py": "a8536cbae290735ad12c21bb216251ddf588adb65820a619ce184f196865f444",
+   "stage_gen/components/character_3d/worker/blender_io.py": "9f41da79de80b0fa048db4ef40be8c8dd499bdc1f1ff86ff2a6696000271db02",
+   "stage_gen/components/character_3d/worker/contract.py": "a0b81055c995f04fe3e108d592d684cde1fc8f698d9c787e262a8cf43f1b24ca",
+   "stage_gen/components/character_3d/worker/geometry.py": "fae920af09d1f9b5ff80d246027d87f0a74c0e929851a7aee5ae9e67d5304f09",
+   "stage_gen/components/character_3d/worker/main.py": "2e51e47d122a514879f1955c6c175e09304a6b172ac7dd81fc1a43b963d54678",
+   "stage_gen/components/character_3d/worker/provider_rig.py": "e40b5ac0d4c75086c5e01049aa4b621d6d6edf524d1bb13b1900a1155ad02e0d",
+   "stage_gen/components/character_3d/worker/provider_rig_cli.py": "a3c49f2295727a64f7ee3c40bf3fe53526362cf32c3fe2e8aa21ac4d7b4697e2",
+   "stage_gen/components/character_3d/worker/rendering.py": "8d3b0fdcedac60d6cacfabe11dc0615018190d49ebe334083d91bb8bafbc5321",
+   "stage_gen/components/character_3d/worker/rig_cli.py": "813b6fb2780865e3902bb0a181806eb2566e503bed1425f23c593e918e6b8f9e",
+   "stage_gen/components/character_3d/worker/rig_contract.py": "c56acea5a06eff9f6669f34e2712008f8a6e062b53e9516b03ea9e90f9f76270",
+   "stage_gen/components/character_3d/worker/rig_glb.py": "aa5b1f3c2334fe4cec94808907e9c5db43c953e47a3e2ac21099ca121d44e237",
+   "stage_gen/components/character_3d/worker/rig_metrics.py": "ac415198e01cc8c3e169dadbef2cb2307d21a5f494b13298d830b7b82acedf12",
+   "stage_gen/components/character_3d/worker/rigging.py": "d76fcdfc084691de9390e74f48d8783ea818b64d64904af6e31b49bcb8fb1249",
+   "stage_gen/components/character_3d/worker/runtime_probe.py": "65bcb541a55b234e9596350c84bc29dc96205230781313f8b982d9c7dff1059a",
+   "stage_gen/components/character_3d/worker_client.py": "c79b47dc75be4fd4047a315fb828a1559938df07960554c72a939213e457b346",
+   "stage_gen/orchestration/character_3d/__init__.py": "37cde0b958c94d826f45a874bdbee25eb597c58b76001ab896c0051d2dcea2bd",
+   "stage_gen/orchestration/character_3d/bindings.py": "53361ce702e0c4baaf09bcc255b809d286338876a0105d9e011f677c123c469a",
+   "stage_gen/orchestration/character_3d/collect_recovery.py": "2681329b0c18226a276e30094f387d61a2cbda41679872e2894434b858e3e1a0",
+   "stage_gen/orchestration/character_3d/launch.py": "f92ee975d084f30f2bf86dbe770259c16917d25d736661d1b3de74b3408d702f",
+   "stage_gen/orchestration/character_3d/policy_defaults.py": "2034be36273681675b6c3ee91bffb7b10ccd4d4de6cb984fc9d1e531ad11941e",
+   "stage_gen/orchestration/character_3d/provider_execution.py": "9525d8c49548474b09bd98e941694c05d161c47938b8749f47cc2235d4deab14",
+   "stage_gen/orchestration/character_3d/runtime_services.py": "ab26e955d3a21264da1075e08545d928d827f94b596662c9924ea3f33adf5140",
+   "stage_gen/orchestration/character_3d/support_admission.py": "9ed84916b81531b3ca3a27ca6dd7cedff285e89b37f8caa6061e6b407d78fff5",
+   "stage_gen/orchestration/character_3d/upstream.py": "4b3cc530d1b5d50a28727a7ec7e7ea8bf1c96ef72919e3ec88b8274fb74268de",
+   "stage_gen/providers/character_3d/__init__.py": "1c831bfb2735724203c1ae9c97add785de73946c568365b58c38673c64da554d",
+   "stage_gen/providers/character_3d/images.py": "a404c2fe37a35343c83332299f4d47c1e53c25a0ee3169a71aaf2a2da5ce040f",
+   "stage_gen/providers/character_3d/rig.py": "063e8790a6c22fb391bdb97178d5237a512c4b8b006a77978ddf9d46ec7fe18e",
+   "stage_gen/providers/character_3d/tripo.py": "6028c4d182a0ef300fabc6219876fa1cfa477812fb743c84d3403a00d82acf88",
+   "stage_gen/providers/character_3d/tripo_pricing.py": "591b6f43e0b6deed46a488141e4a8a45cae0c351627b5f10236c99674a5d3e3e",
+   "stage_gen/recipes/character_3d/__init__.py": "589f3712697a583580baaf2fc6105ebf696518238290b1c323671feb53b9957f",
+   "stage_gen/recipes/character_3d/brief_evidence.py": "dd8a6685d2829273d976c4bee1ab0e85d8abace79c7bff507a1c0a3e2a723e20",
+   "stage_gen/recipes/character_3d/brief_runner.py": "1c3e52199d26066a14c1cbd01b3e2d91ada499d3686b15a772171e678a7e47e6",
+   "stage_gen/recipes/character_3d/calibration_inputs.py": "0459efec48571b7ce885692be6bfc6dcadfc2767091c0c412459383773383af5",
+   "stage_gen/recipes/character_3d/calibration_runner.py": "926a7ce1e2b279535e378bb423bbb6a6d232e78af343624955eeb84a13b2647d",
+   "stage_gen/recipes/character_3d/corpus.py": "fcd06a3a7b8832d91f07fd602372cfb888d2ca67275b8c554c26af83dd9512f9",
+   "stage_gen/recipes/character_3d/experiment.py": "91feb555e12202e8a4c6a20ec3720967befc7bde8bbfee958fe63155e2f9c3b1",
+   "stage_gen/recipes/character_3d/full_runner.py": "49c88edd011d0d423b49fb602c70c8750b0c357e243f0f8f00b726ea0240390b",
+   "stage_gen/recipes/character_3d/partitions.py": "1d435db2a784f348e12815701f3065a71ee79f3cb2679b089189bee13c86fe31",
+   "stage_gen/recipes/character_3d/profiles/__init__.py": "37c309f97d4d26dea014c234d9ef5ddd1d22c1125c5ca422eacc905ad8fa9faa",
+   "stage_gen/recipes/character_3d/profiles/anthro_cat.py": "64411b47b3977de2538e4f63dc465636aa4b2754a16f878adce64e1f4bfb1bbc",
+   "stage_gen/recipes/character_3d/profiles/fixed_human.py": "c29ce7e00218fbe2730878e757e1ca4cc61ccdf12f017f3fab6448a4a3f51cd6",
+   "stage_gen/recipes/character_3d/profiles/humanoid.py": "1e0056ec55158d42e329b5226251e9cbe15058e9fc4e6bc83ba21055d0d46a4c",
+   "stage_gen/recipes/character_3d/provider_runner.py": "0b33edab91ee04949487c4d22c87628515a7e25524fd8801c3edf2edec16fe1a",
+   "stage_gen/recipes/character_3d/qualification.py": "10d9b73c1fdf87eeb925b86195de1bd8f10796c8e4c6c38e526e2f284b2da3a3",
+   "stage_gen/recipes/character_3d/quality_bar.py": "2fe9cdbc2c82079093e4cae86f3cc9ad3c42e859963c1a5ed7e3d8685bae1e25",
+   "stage_gen/recipes/character_3d/recovery.py": "dbca8470eec76ab7f526b2257ee23e60090a780b87bc0d186206b16f2297a4f4",
+   "stage_gen/recipes/character_3d/requirements.py": "1aa6e76a39c636c5c339d85f611f34ea96a0e9c315dba54572b2a81eda08b502",
+   "stage_gen/recipes/character_3d/review_policy.py": "dddd4f01164fd57f71324ba592e9b46e17feb43c6e7ac54f2c955820ac716488",
+   "stage_gen/recipes/character_3d/rig_recipes.py": "336d44e2fa7f2534ed5aa2da2e1979a001a6d3c70d1b6d34de42c065cae38cdc",
+   "stage_gen/recipes/character_3d/rig_runner.py": "fe5a69f142781988a5e985f4955aae264f92ccd675b093abc2cf4f05b5f84d01",
+   "stage_gen/recipes/character_3d/rig_studio.py": "1b7c691152afb0b427b8108f96e49b6d70709ccab0827cc79cc39ae155609bdc",
+   "stage_gen/recipes/character_3d/runner.py": "1ba4d18cdb4c6fbe30250cc5aa88c2c90082c86dbafc21ad22734af945de3cf0",
+   "stage_gen/resources/character_3d/__init__.py": "d42a5edb6abab285c0f2e16b777e012bff1f6a38d6f1ede63f2353959e49c974",
+   "stage_gen/resources/character_3d/models/__init__.py": "10575178e57196e1b7a34fc0e1991077377731394250b5c03508515a5b9dcf7d",
+   "stage_gen/resources/character_3d/models/openrouter-gpt-6-astra-2026-09-11.json": "b8ba5085ee0bad0762f95d4441b18ed96306393954ecad3e2b0a367fbb778eda",
+   "stage_gen/resources/character_3d/models/tripo-api-pricing-2026-09-10.json": "9ebb19b62a5973191bdc9c7075a40e7f6f24870c1186895df61f9d6c90623b24",
+   "stage_gen/resources/character_3d/package-map.json": "72373424579261495ca3d0d63bb39eb2ae846dcc9548b77c8ac17b091d1d8c6e",
+   "stage_gen/resources/character_3d/profiles/__init__.py": "b460faf541e916abe95889a9c24a27ef0ba6e603e6f57d5513dbde9421ba2216",
+   "stage_gen/resources/character_3d/profiles/sd_cat.json": "92d5c44943a7ce3b5d870bc55b8ac3588ab73290564c3d488d4c14a0a47cc670",
+   "stage_gen/resources/character_3d/profiles/sd_human.json": "c4d343e0bf326415f0d90c612f1239d83da208e288cddfc4cd7131ef7f3383a3",
+   "stage_gen/resources/character_3d/profiles/sd_human_fixed.json": "1d047009a270156fe55783aafe99fe8342b3d8a116e4a3e32c79f83f344b1e79",
+   "stage_gen/resources/character_3d/prompts/__init__.py": "9d6142c571b1ae7f6de967e367f3581fe167629db686b71c078d0606a7788c91",
+   "stage_gen/resources/character_3d/prompts/assemble.md": "f6fda6d36031d2708626ec883e70b24940ad15afab251fd8339d4eaa00e18683",
+   "stage_gen/resources/character_3d/prompts/plan_references.md": "52e46b6ea1c97db9bb83e64437a23793c01c3a24c9c8560bfc40ebe020c27aed",
+   "stage_gen/resources/character_3d/prompts/review_assembly.md": "bbb6776e87f823e23ec56290f9b9676e12528ec9fb4d987468b540e0847ddcf0",
+   "stage_gen/resources/character_3d/prompts/review_references.md": "f1b558aad9ea0f2861902facf4c3f6c535adec070fee6606f15ed900094c9473",
+   "stage_gen/resources/character_3d/prompts/review_rig.md": "c56302562be87a7001982e8c734391e5e34feb1aa5d42576957524502d205963",
+   "stage_gen/resources/character_3d/prompts/rig.md": "04dcc8ce26c83650fa76271bf93d6437b9bc466c855798feb3117f81a997269b"
+  },
+  "package_map_aliases": {
+   "models/openrouter-gpt-6-astra-2026-09-11.json": "stage_gen/resources/character_3d/models/openrouter-gpt-6-astra-2026-09-11.json",
+   "models/tripo-api-pricing-2026-09-10.json": "stage_gen/resources/character_3d/models/tripo-api-pricing-2026-09-10.json",
+   "pipeline/launch.py": "stage_gen/orchestration/character_3d/launch.py",
+   "profiles/sd_cat.json": "stage_gen/resources/character_3d/profiles/sd_cat.json",
+   "profiles/sd_human.json": "stage_gen/resources/character_3d/profiles/sd_human.json",
+   "profiles/sd_human_fixed.json": "stage_gen/resources/character_3d/profiles/sd_human_fixed.json",
+   "prompts/assemble.md": "stage_gen/resources/character_3d/prompts/assemble.md",
+   "prompts/plan_references.md": "stage_gen/resources/character_3d/prompts/plan_references.md",
+   "prompts/review_assembly.md": "stage_gen/resources/character_3d/prompts/review_assembly.md",
+   "prompts/review_references.md": "stage_gen/resources/character_3d/prompts/review_references.md",
+   "prompts/review_rig.md": "stage_gen/resources/character_3d/prompts/review_rig.md",
+   "prompts/rig.md": "stage_gen/resources/character_3d/prompts/rig.md",
+   "worker/__init__.py": "stage_gen/components/character_3d/worker/__init__.py",
+   "worker/assemble.py": "stage_gen/components/character_3d/worker/assemble.py",
+   "worker/blender_io.py": "stage_gen/components/character_3d/worker/blender_io.py",
+   "worker/contract.py": "stage_gen/components/character_3d/worker/contract.py",
+   "worker/geometry.py": "stage_gen/components/character_3d/worker/geometry.py",
+   "worker/main.py": "stage_gen/components/character_3d/worker/main.py",
+   "worker/provider_rig.py": "stage_gen/components/character_3d/worker/provider_rig.py",
+   "worker/provider_rig_cli.py": "stage_gen/components/character_3d/worker/provider_rig_cli.py",
+   "worker/rendering.py": "stage_gen/components/character_3d/worker/rendering.py",
+   "worker/rig_cli.py": "stage_gen/components/character_3d/worker/rig_cli.py",
+   "worker/rig_contract.py": "stage_gen/components/character_3d/worker/rig_contract.py",
+   "worker/rig_glb.py": "stage_gen/components/character_3d/worker/rig_glb.py",
+   "worker/rig_metrics.py": "stage_gen/components/character_3d/worker/rig_metrics.py",
+   "worker/rigging.py": "stage_gen/components/character_3d/worker/rigging.py",
+   "worker/runtime_probe.py": "stage_gen/components/character_3d/worker/runtime_probe.py"
+  }
+ },
+ "identities": {
+  "cache": {
+   "dry_run_namespace": "dry-run-nodes-v1",
+   "dry_run_record_kind": "dry-run-node-cache-v1",
+   "node_cache_schema_version": 2,
+   "storefront_namespace": "storefront-nodes-v1",
+   "storefront_record_kind": "storefront-node-cache-v1",
+   "universe_namespace": "universe-nodes-v1",
+   "universe_record_kind": "universe-node-cache-v1"
+  },
+  "graph_documents": {
+   "storefront": {
+    "current_kind": "storefront-execution-graph-v2",
+    "current_schema_version": 2,
+    "legacy_graph_identities": [
+     [
+      1,
+      "storefront-execution-graph-v1"
+     ]
+    ],
+    "projection_kind": "storefront-execution-projection-v1",
+    "recipe": "storefront",
+    "run_summary_kind": "storefront-execution-summary-v1",
+    "trace_event_kind": "storefront-execution-event-v1",
+    "view_kind": "storefront-execution-view-v1"
+   },
+   "universe": {
+    "current_kind": "universe-execution-graph-v2",
+    "current_schema_version": 2,
+    "legacy_graph_identities": [
+     [
+      1,
+      "universe-execution-graph-v1"
+     ]
+    ],
+    "projection_kind": "universe-execution-projection-v1",
+    "recipe": "universe",
+    "run_summary_kind": "universe-execution-summary-v1",
+    "trace_event_kind": "universe-execution-event-v1",
+    "view_kind": "universe-execution-view-v1"
+   }
+  },
+  "node_types": [
+   [
+    "2d/portrait_motion/admission",
+    "2d/portrait_motion/admission",
+    "portrait-motion-v1"
+   ],
+   [
+    "2d/portrait_motion/atlas",
+    "2d/portrait_motion/atlas",
+    "portrait-motion-v1"
+   ],
+   [
+    "2d/portrait_motion/composition",
+    "2d/portrait_motion/composition",
+    "portrait-motion-v1"
+   ],
+   [
+    "2d/portrait_motion/face_location",
+    "2d/portrait_motion/face_location",
+    "face-locator-v1"
+   ],
+   [
+    "2d/portrait_motion/geometry",
+    "2d/portrait_motion/geometry",
+    "portrait-motion-v1"
+   ],
+   [
+    "2d/portrait_motion/guide",
+    "2d/portrait_motion/guide",
+    "portrait-motion-v1"
+   ],
+   [
+    "2d/portrait_motion/quality",
+    "2d/portrait_motion/quality",
+    "portrait-motion-v1"
+   ],
+   [
+    "2d/portrait_motion/registration",
+    "2d/portrait_motion/registration",
+    "portrait-motion-v1"
+   ],
+   [
+    "2d/portrait_motion/terminal",
+    "2d/portrait_motion/terminal",
+    "portrait-motion-v1"
+   ],
+   [
+    "movie_sprite.adopt",
+    "movie_sprite.adopt",
+    "movie-sprite-adopt-v1"
+   ],
+   [
+    "movie_sprite.finish",
+    "movie_sprite.finish",
+    "movie-sprite-finish-v1"
+   ],
+   [
+    "movie_sprite.generate",
+    "movie_sprite.generate",
+    "movie-sprite-generation-v1"
+   ],
+   [
+    "movie_sprite.prepare",
+    "movie_sprite.prepare",
+    "movie-sprite-prepare-v1"
+   ],
+   [
+    "parallax.compose",
+    "parallax.compose",
+    "parallax-background-v2"
+   ],
+   [
+    "parallax.prepare_layer",
+    "parallax.prepare_layer",
+    "parallax-layer-v1"
+   ],
+   [
+    "parallax.repaint_layer",
+    "parallax.repaint_layer",
+    "parallax-layer-repaint-v1"
+   ],
+   [
+    "storefront/direction.compile",
+    "storefront/direction.compile",
+    "storefront-direction-v1"
+   ],
+   [
+    "storefront/listing.compile",
+    "storefront/listing.compile",
+    "storefront-listing-v1"
+   ],
+   [
+    "storefront/storefront.close",
+    "storefront/storefront.close",
+    "storefront-close-v1"
+   ],
+   [
+    "storefront/storefront.resolve",
+    "storefront/storefront.resolve",
+    "storefront-resolve-v1"
+   ],
+   [
+    "storefront/surface.generate",
+    "storefront/surface.generate",
+    "storefront-surface-generate-v2"
+   ],
+   [
+    "storefront/surface.normalize",
+    "storefront/surface.normalize",
+    "storefront-surface-normalize-v1"
+   ],
+   [
+    "storefront/surface.proxy",
+    "storefront/surface.proxy",
+    "storefront-surface-proxy-v1"
+   ],
+   [
+    "storefront/surface.record",
+    "storefront/surface.record",
+    "storefront-surface-record-v1"
+   ],
+   [
+    "storefront/surface.review",
+    "storefront/surface.review",
+    "storefront-surface-review-v1"
+   ],
+   [
+    "storefront/surface.validate",
+    "storefront/surface.validate",
+    "storefront-surface-validate-v1"
+   ],
+   [
+    "universe/concept.image",
+    "universe/concept.image",
+    "universe-concept-image-v2"
+   ],
+   [
+    "universe/concept.proxy",
+    "universe/concept.proxy",
+    "universe-concept-proxy-v1"
+   ],
+   [
+    "universe/concept.review",
+    "universe/concept.review",
+    "universe-concept-review-v1"
+   ],
+   [
+    "universe/direction.entity",
+    "universe/direction.entity",
+    "universe-direction-entity-v1"
+   ],
+   [
+    "universe/direction.global",
+    "universe/direction.global",
+    "universe-direction-global-v1"
+   ],
+   [
+    "universe/entity.record",
+    "universe/entity.record",
+    "universe-entity-record-v1"
+   ],
+   [
+    "universe/gallery.close",
+    "universe/gallery.close",
+    "universe-gallery-close-v1"
+   ],
+   [
+    "universe/gallery.plan",
+    "universe/gallery.plan",
+    "universe-gallery-plan-v1"
+   ],
+   [
+    "universe/source.lock",
+    "universe/source.lock",
+    "universe-source-lock-v1"
+   ],
+   [
+    "universe/universe.admit",
+    "universe/universe.admit",
+    "universe-admit-v1"
+   ],
+   [
+    "universe/universe.evaluate",
+    "universe/universe.evaluate",
+    "universe-evaluate-v1"
+   ],
+   [
+    "universe/universe.propose",
+    "universe/universe.propose",
+    "universe-propose-v1"
+   ],
+   [
+    "universe/universe.review",
+    "universe/universe.review",
+    "universe-review-v1"
+   ]
+  ],
+  "pipelines": {
+   "looping-parallax": {
+    "namespace": "pipeline-8058a0a499e2d192ae8af634",
+    "record_kind": "pipeline-node-cache-v1"
+   },
+   "movie_sprite_body_idle": {
+    "namespace": "pipeline-b04e83bc297b820056e5b70a",
+    "record_kind": "pipeline-node-cache-v1"
+   }
+  },
+  "sdk_graph": {
+   "kind": "pipeline-execution-graph-v1",
+   "projection_kind": "pipeline-execution-projection-v1",
+   "run_summary_kind": "pipeline-execution-summary-v1",
+   "schema_version": 1,
+   "trace_event_kind": "pipeline-execution-event-v1",
+   "view_kind": "pipeline-execution-view-v1"
+  },
+  "software_identities": {
+   "@stage-gen/background-removal": "0.0.0",
+   "@stage-gen/image-generation": "0.0.0",
+   "@stage-gen/music-generation": "0.0.0",
+   "@stage-gen/sound-effect-generation": "0.0.0",
+   "@stage-gen/speech-generation": "0.0.0",
+   "@stage-gen/structured-generation": "0.0.0",
+   "@stage-gen/tool-loop": "0.0.0",
+   "@stage-gen/video-generation": "0.0.0",
+   "stage-gen": "0.0.0"
+  },
+  "view_schema_version": 3
+ },
+ "movie_sprite_sources": {
+  "authoring.py": "f8862f7ec5989cd2c4fa2af90cc9b978dfab76fd8ed30bd1cd5b628b5d2bb7b8",
+  "authoring_identity": "f8862f7ec5989cd2c4fa2af90cc9b978dfab76fd8ed30bd1cd5b628b5d2bb7b8",
+  "components": {
+   "__init__.py": "f7248ed873f7f40e8f15bf26e0580ade3b731f571681c6dc9fc92b4e6bf289b9",
+   "frame_store.py": "0ec23506dfda57d9c595892b3f1dce9eb1c716f862e93429c4d7ccde02785a35",
+   "geometry.py": "14f1f182aa134b9be1423e24319cd8633cbad2ba51621936ddb94fc8638d6db7",
+   "models.py": "35710670540ad720b58c2459d821419ef70f60bb1fb5bcc078fb7f8e5676399e",
+   "processing.py": "ac1d623a3484a6063060d69176bf52a399efd5f9744d5172643c45a32ac5aded"
+  },
+  "pipeline.py": "6f04a6e008eb79dafa22a4049fd09d57d456aac4174ac32b3f5fee8022de33e5",
+  "processing_identity": "f8dc99cc463327f70b67ff460f4eca20eb4badf8f46c340bdb4bffb784b49ba9",
+  "recipe_identity": "6f04a6e008eb79dafa22a4049fd09d57d456aac4174ac32b3f5fee8022de33e5"
+ },
+ "portrait_implementation": {
+  "face_location_digest": "57f66a190855038a96ffd74d1f00b925f4379252ec4b11c701177755ff4047b6",
+  "files": {
+   "gnode/__init__.py": "813acac44cd1ffdf43e7fa1719c81c84b751e18e5cf5759be64729a9aad4d2c9",
+   "gnode/binding.py": "1fc2f16d9da4c34a634fa5f0eefa93766440eab9d044d61dd6ba3647ffc4f413",
+   "gnode/build.py": "8ca379f5a90db8c70e322294ee3c66d651992f884399727c5c94be4e9db34d9d",
+   "gnode/contracts/__init__.py": "418d09bc4eec8839a43c323876da24cdf0f14fdf608e72727c9fd782f10c9445",
+   "gnode/contracts/artifacts.py": "a651b8f0a3a5be145c57d96e898b38959d3ae2ea4fdca4ed9db2d9911ed19d1d",
+   "gnode/contracts/provenance.py": "eae1db75e46388753c6e5dbab006d75ab1d7bb073464dae49404364207cd915c",
+   "gnode/graph.py": "b797a529b2cd8790c3c23524fb6071b7f95190d5d03e70300996dfb709176db1",
+   "gnode/modalities/__init__.py": "77796aa7f7f7fb6bd861af188a4337798b195d3c8935012c23f904779c91a1a7",
+   "gnode/modalities/_types.py": "ce9610ecab8a7138c23ca5edf356e2131e9f170483be4bd5efd532a86c68a630",
+   "gnode/modalities/background_removal/__init__.py": "90e5c6de0e7d785b77dc179709ef7774a34aaec67147636ad050fe4a243f59bb",
+   "gnode/modalities/background_removal/models.py": "2fb62de68ad198e7e693411db07654f1fae2fca8571fca3fb0e11b4dc2dac036",
+   "gnode/modalities/background_removal/service.py": "a4d1faf915abd36fdbb9bcc5d27c2f815dda6201d429668c4af434d23ee1cc29",
+   "gnode/modalities/image/__init__.py": "a44ed34836d3baee302dd4c14aff6ce912459e2833ebfedfd1e8de5aadb5730e",
+   "gnode/modalities/image/inspection.py": "964075847078887cac56de5576f44bb7040bcfba6494f9ec0d972868f4a5bab7",
+   "gnode/modalities/image/models.py": "f6c2e5b464fe8f47ef33f2a297d9d62e5b06c0cb6a16cfe19a246c6be91c5d83",
+   "gnode/modalities/image/service.py": "5656754794ea32bc8deb3f7269758677d5578e62be52ec8d696b291d4be9bbe3",
+   "gnode/modalities/music/__init__.py": "423b51507f0185e917dbb8a36df43685be31336cfa58329afe60b1f07edb6ee4",
+   "gnode/modalities/music/models.py": "6c1ed77e8b95929271b185ecf7a9fb834d41c625dfe4af4ab1f80b07af7665a3",
+   "gnode/modalities/music/service.py": "c4d2cd886e874e1b3c7ec9898a1bc7bc47880e5eaf7037b5051b5d393ae9ff52",
+   "gnode/modalities/signatures.py": "87c73225f323657c4f3d0a59484677ef3f49ba6151bbddb2d9684810fcfd50f7",
+   "gnode/modalities/sound_effect/__init__.py": "f402e6c9cf285e22850200a251ee35ac70c33f76883b4700ca31c82acb6feffc",
+   "gnode/modalities/sound_effect/models.py": "676d11c35883cd8f7112e14af1c77bddc5560f4ae7b9b260f495df2d9ef2e697",
+   "gnode/modalities/sound_effect/service.py": "aa1b10d59b6dc8b25ac6dbfc068d0ffe186867dd3b6d30d647aae4b749f3c5c1",
+   "gnode/modalities/speech/__init__.py": "9cd8c2dc01e6028ab5bb97667df087cbf89dc10c90e38807cf1722c700ac929b",
+   "gnode/modalities/speech/models.py": "68938367f61f359b60dbc62d451fd36f68225b567122a3c9666ce8065412f0e0",
+   "gnode/modalities/speech/service.py": "a78e136c844cb05ab3229afecfa967fceec05ad2f0b8ecc4d50d3cb1fd341023",
+   "gnode/modalities/structured/__init__.py": "f189bc562e62cce7d02d6e5375830f414dd266fb521acccc96f4c9f12ce85fc1",
+   "gnode/modalities/structured/models.py": "0e974c6acb8dffdcf2f182d399add951dbc69917c36cc5ea523958a542e65b99",
+   "gnode/modalities/structured/service.py": "c694af7a3dc3275af4f39ea8af811c1888607b97b377f09379441c3f07328637",
+   "gnode/modalities/tool_loop/__init__.py": "f912a0c130728dcc7d660ba24c36f29dee55b2c605a0cf4b4d06c9b140e36982",
+   "gnode/modalities/tool_loop/models.py": "8151f0e9824d677039f2e6d31ef4e4eb0a8731798a62dc173f5ae7c9a9fc6dbe",
+   "gnode/modalities/tool_loop/service.py": "647ebe60717464157f4c43baeff25e5aa04c753bfa95dadbf86d69c42a2efeae",
+   "gnode/modalities/video/__init__.py": "7e9bc986c0b0c3e26c9cee2a2a3f23a7e8018e1debbc1e14c9a3463e2a6c7bab",
+   "gnode/modalities/video/models.py": "94bdbe7ef97485e08643fa986d813bc036ef41e0936b24662f75c278d7612cbf",
+   "gnode/modalities/video/service.py": "846a9afde0295712b03eaf4b5bc5230dc35222a5a0b7a16d7d6bfc72b6c7cf78",
+   "gnode/node_types.py": "5aa8e0188efc0457d8c0ed2908a74dc7e0d832b732c5ba48ed5b0a8e35d17d0f",
+   "gnode/providers/__init__.py": "aded3a643d5098754fc164851d57c7ceda089003ef18e952af11cce00eb6d143",
+   "gnode/providers/_http.py": "93f20b49bf242a87a088c6290987ea1d1bf24db5a83cd49fda124d7960e91765",
+   "gnode/providers/elevenlabs/__init__.py": "0b2993fdc8e6edaf030f6f62e5082f827545e662d143b913c8996abfe42e8b47",
+   "gnode/providers/elevenlabs/sound_effect.py": "7486f95a95906af8bfc61886b432d2034dd5833e51f9221869a839d72c2ca937",
+   "gnode/providers/elevenlabs/speech.py": "571083a6013ee770a0d9d5f419c38e0ef5eaeb6a48674cf94062dcc1eba3360f",
+   "gnode/providers/fal/__init__.py": "5fb89116e820d186fddd4489573fd81171716d4447761804382f63a4fb89e46a",
+   "gnode/providers/fal/background.py": "f659498a0090eb5fbdab455ce8597bd024bfbe63775f05b42e5138291f179d45",
+   "gnode/providers/fal/image.py": "3b334d6ec0e37dd589e9688e24e2b5fd38c2744a906836e3b0238c9d3d95cf85",
+   "gnode/providers/fal/video.py": "9fc570984d843a7977d1587d3ee4b512c4e26e6b02ffa8bbef8686ee13ad053f",
+   "gnode/providers/openai/__init__.py": "1ef78b2abb000b7fe182fcef90c526860b1ed96321129937d3e788db5b4160a6",
+   "gnode/providers/openai/image.py": "b4f30eb9e9a6e91746ab7302756ecd2a13622d4a14d9ee4928b1b356781e8137",
+   "gnode/providers/openrouter/__init__.py": "304464e674c3fbe2250e3565918c4c05729445d024fcb309d8ec75f649e65a67",
+   "gnode/providers/openrouter/image.py": "cbcc16a234cae7c33e005fac969b62b773ff3afa4c3348f7978f09607d288612",
+   "gnode/providers/openrouter/music.py": "ed8f84bc3f1f357b5ff69715cefd87b205b5de55d7e2ff0cde0f04907dc87fe2",
+   "gnode/providers/openrouter/structured.py": "c78d102292ed4c58458640f20fd6e59af81fb03feddbbf2d9b3881e207a6441e",
+   "gnode/providers/openrouter/tool_loop.py": "657b217ea277829abf33d65633d2e1e1f6db3d18a9d3ec85b9287509d3ecc0b9",
+   "gnode/reliability/__init__.py": "3572ff706c6beaaf1d508bb03f65294a6cf1acad6aa7566696e9a8e5275fb210",
+   "gnode/reliability/atomic.py": "afd2b2dde0c6c8cb439e0712645a99b0dcb3100ea999b6f94501d5c13839cf5e",
+   "gnode/reliability/cancellation.py": "13d50737ef9706c7f00c812486e8a63badaaf22db64cc11a40121e6e2f4170bc",
+   "gnode/reliability/encoding.py": "aea60664e2998dfb85a41272b9c92b5520a6546a83111b1a19340d1efbd7944e",
+   "gnode/reliability/paths.py": "86c82ad2528a2aec6087df2915a8fbf07e5bd1f4a9f1402ff06bb268386a26cc",
+   "gnode/reliability/redaction.py": "1433bb575f85c2f17cf8341ff21d65679da7a8ffcfd396c7730081bf43ab01c9",
+   "gnode/reliability/retry.py": "8f71c79e39e6749dc72cb63afabd1a3fc9aa06a64764e54edff7f164da36fcce",
+   "gnode/route_constraints.py": "08a518f2ea138c101bf73af2999ee0df731664cd2406b9e351a703a4b4de5452",
+   "gnode/routes.py": "f9a8557af3d12f067dcfcd860d0ce96f4684904d2c6167c6b1aa3f99181126bf",
+   "gnode/schedule.py": "8ec2236e17cc11c6841590565dad7ec24537bfdc5e8423694193b0cfa38f44f8",
+   "gnode/trace.py": "5a049621babd178d53cba6b68216ac75ae750cb569200237f1df9865139b9ea2",
+   "gnode/view.py": "87569bdac040e4d683483da624166e8ac43a61b31371a2171877b6cfa9319268",
+   "stage_gen/components/_node_kit.py": "688637fd9677f4e6724999549010bc64f58f9fb55d2806981de24ec131e780bc",
+   "stage_gen/components/portrait_motion/__init__.py": "4136b7b11cbd114393ca8d234bf87a9eea75e7209686859fc9d9dc026dbe04dd",
+   "stage_gen/components/portrait_motion/face_crop.py": "c73f35714834c123372aae89df4908f0dff0cafd77a8d992dda9e40f7e6c6235",
+   "stage_gen/components/portrait_motion/face_location.py": "093fddfffe4a196ad09b36a45f6209322126f57d0d29538c8b6c3ca6f8c647f2",
+   "stage_gen/components/portrait_motion/face_patches.py": "a334ae98625ff5baf233128197453c45501748e36ccda5ac8bae2fdf7983d82a",
+   "stage_gen/components/portrait_motion/face_playback.py": "043353d138a03cabf880ba2047fbf87f3f0a24c2687e994ad923908735d42692",
+   "stage_gen/components/portrait_motion/models.py": "d46c3c843ae0db49068f669ee6fa097845802377aad784948a8a03691c29aae4",
+   "stage_gen/components/portrait_motion/nodes.py": "9d17e2e329801dbbebb234460f4409c710b393c60048852d997487e4f6ecb5fd",
+   "stage_gen/components/portrait_motion/playback.py": "0b85e402cd94bc54e55accf9c3e486e377f44b3c47498c4f4cec38a4d147abda",
+   "stage_gen/components/portrait_motion/processing.py": "96cf2b6759672f620045764413fb914317161f8103b0f0639f70d6023311d460",
+   "stage_gen/components/portrait_motion/review.py": "255bd10d7b7dff665b4920e829978b15aca688dcd69f986d8f6c6ea5632a02b9",
+   "stage_gen/components/portrait_motion/storage.py": "afc0602251ac5bbf9eaa4aa450ffca5fa91db643c00ee9f9eb54a2d50e9fab33",
+   "stage_gen/config.py": "d769acbad928480a15b26100abcafedb07fa5b0601d6e6188c2b08dc6e12d83e",
+   "stage_gen/identity.py": "a0b3909375b750ae183d882c0954302052a4f406f3740369de5c9f9c1e1168c3",
+   "stage_gen/image_binding.py": "83039fcd4b9ba5fe6f12e0d5c9738ca0896e74856dcd62d9ed7f0fc2c8a88b72",
+   "stage_gen/image_product.py": "5aa1513621977c8d5813091d0a96010296c5df17d1495b6402e6e73033d36bcd",
+   "stage_gen/media/__init__.py": "d7f75396c0bff0dd371959375700c309f6fb1684fd91bf59576d60cbe57388d2",
+   "stage_gen/media/audio.py": "b7a75338a85237bb8cac56ccf474c7c50744a25c6cfaa0ee3933035c199f37f4",
+   "stage_gen/media/codec.py": "5e5d730a2470afebd164ce6197c27fdb0587a45c042d837fd75603c5d13d59b0",
+   "stage_gen/media/comparison_plate.py": "50c2ce743cf7f74ffed94461a0406f4c217d3ddd6ec968d38f0a569326881bac",
+   "stage_gen/media/data_url.py": "5634f7a083ac68557e340958cb26733cbbe66df1b50025f8d1663bd17f0419ca",
+   "stage_gen/media/guide_lattice.py": "12f26a2209cb36f5d19032bee070d95869c424ac35f5a81fa2ae081bc5e7c4e9",
+   "stage_gen/media/images.py": "afd7b1baf758062ed42662988826c2809e009b411e99ac726e3f063b549b3708",
+   "stage_gen/media/layer_rasters.py": "2a12b0527669abaea11efb324cc792a8059341f55d9817aba29095a6b8f11609",
+   "stage_gen/media/loop_construction.py": "7ec4bc0e09c00d40df1228771e16bd1b387ed7576898c58997420e4cbc38b73f",
+   "stage_gen/media/sprite_sheets.py": "837295d8d0555d789079bb082262ee4bfffae587d83d0d89006ba060eb6117fc",
+   "stage_gen/media/video.py": "15452229a890b445f027ee2e8ba37786b7df6cf6c3b3317b0f1bd36e86ddf703",
+   "stage_gen/model_routes.py": "0bf4046389447afb1154ae0d34a1f005cb6283a9dfbf558ba09e2cea0de884e0",
+   "stage_gen/orchestration/image_routing.py": "74e68027fd598d7cf0e2ff66c2619697121586b1e443e9e5feff64bfc1fa798f",
+   "stage_gen/orchestration/portrait_services.py": "15a5f04bf66f42d8c706c6634be10a7137adedfcd73c9d7d4ae3cf9ed7c2f693",
+   "stage_gen/pipeline/ports.py": "02de9f5b3af02c886c7472779b633556fc7a893515adb081741278e543537272",
+   "stage_gen/portrait_policy.py": "f404933e67c885e020d5ac51b7662f1052070077f7c38d88eda7ee705d6dccfb",
+   "stage_gen/provider_env.py": "58d204549d4c0efb95aa61da584845e120d7f01b00a7bb06d78bc446bcc4e8cf",
+   "stage_gen/recipes/portrait_motion/__init__.py": "9f267ea8a9edff3500f767b4587db5b2b30d44a37e4b2da49e062b092f1a7de8",
+   "stage_gen/recipes/portrait_motion/face.py": "dd42e9c4bc98dbc602ab3082fae43de5173abbb916a8c9a5a1a7242abffd9e58",
+   "stage_gen/recipes/portrait_motion/face_location.py": "b410ae563a762ccb5b9def425435038cdd921f7979f9cb35b69a68a18a65369b",
+   "stage_gen/recipes/portrait_motion/pipeline.py": "e4ff4274f96d36122631ef5332f38210486c118c422c47be0a877afcafc089b9",
+   "stage_gen/recipes/portrait_motion/services.py": "5d8abe8ec58fc9bf0e34d1945dc4e95de4e1d1059fd47cebfa3b57603b8f1731"
+  }
+ }
+}
