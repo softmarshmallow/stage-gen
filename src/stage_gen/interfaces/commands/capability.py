@@ -38,39 +38,61 @@ def register(parser: argparse.ArgumentParser) -> None:
     calls = parser.add_subparsers(dest="capability", required=True)
 
     image = calls.add_parser("image", help="draw one image")
-    image.add_argument("--output", required=True)
-    image.add_argument("--aspect-ratio", default="1:1")
-    image.add_argument("--reference", action="append", default=[])
-    image.add_argument("prompt", nargs="+")
+    image.add_argument("--output", required=True, help="file to write the image to")
+    image.add_argument("--aspect-ratio", default="1:1", help="width:height of the image")
+    image.add_argument(
+        "--reference", action="append", default=[], help="a reference image; repeatable"
+    )
+    image.add_argument("prompt", nargs="+", help="what to draw")
     _confirm(image)
 
     background = calls.add_parser("remove-background", help="cut one image from its background")
-    background.add_argument("--input", required=True, dest="input_path")
-    background.add_argument("--output", required=True)
+    background.add_argument(
+        "--input", required=True, dest="input_path", help="the image to cut out"
+    )
+    background.add_argument("--output", required=True, help="file to write the cutout to")
     _confirm(background)
 
     music = calls.add_parser("music", help="compose one music clip")
-    music.add_argument("--output", required=True)
-    music.add_argument("--format", choices=("mp3", "wav"), default="mp3")
-    music.add_argument("prompt", nargs="+")
+    music.add_argument("--output", required=True, help="file to write the clip to")
+    music.add_argument(
+        "--format", choices=("mp3", "wav"), default="mp3", help="audio format of the clip"
+    )
+    music.add_argument("prompt", nargs="+", help="what to compose")
     _confirm(music)
 
     sound_effect = calls.add_parser("sound-effect", help="make one sound effect")
-    sound_effect.add_argument("--output", required=True)
-    sound_effect.add_argument("--duration", required=True, type=float, dest="duration")
+    sound_effect.add_argument("--output", required=True, help="file to write the effect to")
     sound_effect.add_argument(
-        "--prompt-influence", type=float, default=None, dest="prompt_influence"
+        "--duration", required=True, type=float, dest="duration", help="seconds of sound"
     )
-    sound_effect.add_argument("--loop", action="store_true")
-    sound_effect.add_argument("prompt", nargs="+")
+    sound_effect.add_argument(
+        "--prompt-influence",
+        type=float,
+        default=None,
+        dest="prompt_influence",
+        help="how closely to follow the prompt, 0 to 1 (default: the provider's)",
+    )
+    sound_effect.add_argument("--loop", action="store_true", help="ask for a seamless loop")
+    sound_effect.add_argument("prompt", nargs="+", help="the sound to make")
     _confirm(sound_effect)
 
     speech = calls.add_parser("speech", help="speak one line in a provider voice")
-    speech.add_argument("--output", required=True)
-    speech.add_argument("--voice", required=True)
-    speech.add_argument("--stability", type=float, default=None)
-    speech.add_argument("--language", default=None, dest="language_code")
-    speech.add_argument("text", nargs="+")
+    speech.add_argument("--output", required=True, help="file to write the line to")
+    speech.add_argument("--voice", required=True, help="the provider voice id")
+    speech.add_argument(
+        "--stability",
+        type=float,
+        default=None,
+        help="voice stability, 0 to 1 (default: the provider's)",
+    )
+    speech.add_argument(
+        "--language",
+        default=None,
+        dest="language_code",
+        help="language code (default: the provider's)",
+    )
+    speech.add_argument("text", nargs="+", help="the line to speak")
     _confirm(speech)
 
     # The audition pair. Video is the most expensive route this CLI reaches and it takes
@@ -78,20 +100,28 @@ def register(parser: argparse.ArgumentParser) -> None:
     # exist so the drawing and the choosing happen outside a run, where the frames can be
     # looked at and only the chosen file is carried into a package.
     video = calls.add_parser("video", help="draw one video clip")
-    video.add_argument("--output", required=True)
-    video.add_argument("--duration", required=True, type=float, dest="duration")
+    video.add_argument("--output", required=True, help="file to write the clip to")
+    video.add_argument(
+        "--duration", required=True, type=float, dest="duration", help="seconds of video"
+    )
     video.add_argument(
         "--resolution", default="720p", help="a resolution the video route offers (default: 720p)"
     )
-    video.add_argument("--aspect-ratio", default="16:9", dest="aspect_ratio")
-    video.add_argument("--reference", action="append", default=[])
-    video.add_argument("prompt", nargs="+")
+    video.add_argument(
+        "--aspect-ratio", default="16:9", dest="aspect_ratio", help="width:height of the clip"
+    )
+    video.add_argument(
+        "--reference", action="append", default=[], help="a reference image; repeatable"
+    )
+    video.add_argument("prompt", nargs="+", help="what to film")
     _confirm(video)
 
     inspect_video = calls.add_parser(
         "inspect-video", help="write a contact sheet of one clip, locally and for free"
     )
-    inspect_video.add_argument("--input", required=True, dest="input_path")
+    inspect_video.add_argument(
+        "--input", required=True, dest="input_path", help="the clip to inspect"
+    )
     inspect_video.add_argument("--output", required=True, help="where to write the contact sheet")
     inspect_video.add_argument(
         "--duration",

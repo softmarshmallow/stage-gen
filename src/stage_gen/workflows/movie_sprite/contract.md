@@ -112,7 +112,7 @@ requires FFmpeg and makes no provider calls:
 
 ```sh
 uv run python src/stage_gen/workflows/movie_sprite/inputs/supplied_clip/make_inputs.py /tmp/movie-inputs
-uv run stage-gen run movie-sprite --input-root /tmp/movie-inputs --source actor.mkv --finish finish.json --output-root /tmp/movie-run --cache-root /tmp/movie-cache
+uv run stage-gen run movie-sprite --input /tmp/movie-inputs --source actor.mkv --finish finish.json --output /tmp/movie-run --cache-dir /tmp/movie-cache
 uv run stage-gen inspect /tmp/movie-run
 ```
 

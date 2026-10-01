@@ -53,7 +53,9 @@ def register(parser: argparse.ArgumentParser) -> None:
         metavar="DIR",
         help="a folder of runs to show; repeat it for several (default: out/ of the checkout)",
     )
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument(
+        "--port", type=int, default=DEFAULT_PORT, help="local port the viewer listens on"
+    )
     parser.add_argument("--no-open", action="store_true", help="do not open a browser")
     # Test hook: print the command and environment the viewer would start with, and stop.
     parser.add_argument("--print-command", action="store_true", help=argparse.SUPPRESS)

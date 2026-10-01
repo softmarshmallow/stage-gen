@@ -251,22 +251,36 @@ def _workflow_document(workflow: LoadedWorkflow, repository: Path | None) -> dic
     }
 
 
-def _game_examples(examples_dir: Path | None, workflow_ids: set[str]) -> list[dict[str, Any]]:
+def _game_examples(
+    examples_dir: Path | None, workflow_ids: set[str]
+) -> tuple[list[dict[str, Any]], list[str]]:
     """Examples a game wrote into the store: every owner that is not a workflow.
 
     A game writes ``entry.json`` (with its pins and the currency it derived) and
     ``page.mdx`` beside each example when it exports it; until then the example is listed
-    with no entry, no page and no card.
+    with no entry, no page and no card. An example whose documents do not parse is left out
+    and returned as a problem that names it, beside what ``verify_game_example`` found.
     """
     if examples_dir is None or not examples_dir.is_dir():
-        return []
+        return [], []
     found = []
+    unreadable: list[str] = []
     for owner in sorted(p for p in examples_dir.iterdir() if p.is_dir()):
         if owner.name in workflow_ids:
             continue
         for directory in sorted(p for p in owner.iterdir() if (p / EXAMPLE_FILE).is_file()):
-            entry = read_entry(directory)
-            example = read_example(directory)
+            problems = verify_game_example(directory)
+            try:
+                entry = read_entry(directory)
+                example = read_example(directory)
+                figures = read_figures(directory) if (directory / FIGURES_FILE).is_file() else None
+            except ValueError as error:
+                first_line = str(error).splitlines()[0] if str(error) else type(error).__name__
+                unreadable += [
+                    f"{owner.name}/{directory.name}: {problem}"
+                    for problem in (*problems, f"unreadable example documents: {first_line}")
+                ]
+                continue
             found.append(
                 {
                     "owner": owner.name,
@@ -277,14 +291,14 @@ def _game_examples(examples_dir: Path | None, workflow_ids: set[str]) -> list[di
                     "example_sha256": hashlib.sha256(
                         (directory / EXAMPLE_FILE).read_bytes()
                     ).hexdigest(),
-                    "problems": verify_game_example(directory),
+                    "problems": problems,
                     "example": example.model_dump(mode="json"),
-                    "figures": read_figures(directory).model_dump(mode="json", exclude_none=True)
-                    if (directory / FIGURES_FILE).is_file()
-                    else None,
+                    "figures": None
+                    if figures is None
+                    else figures.model_dump(mode="json", exclude_none=True),
                 }
             )
-    return found
+    return found, unreadable
 
 
 def _game_card(game: dict[str, Any]) -> dict[str, Any] | None:
@@ -330,7 +344,7 @@ def build(
             )
             for found in discover()
         ]
-        games = _game_examples(examples_dir, {w.id for w in workflows})
+        games, unreadable = _game_examples(examples_dir, {w.id for w in workflows})
         game_orders = {
             f"{g['owner']}/{g['id']}": int(g["entry"]["order"])
             for g in games
@@ -357,6 +371,7 @@ def build(
                 ),
             ]
         ]
+        problems += unreadable
         cards = [
             card
             for card in (

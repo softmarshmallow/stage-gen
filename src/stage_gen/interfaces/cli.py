@@ -82,15 +82,19 @@ def build_parser() -> argparse.ArgumentParser:
         commands.add_parser("capability", help="one provider or media call outside any graph")
     )
     models = commands.add_parser("models", help="inspect the application-owned route catalog")
-    models.add_argument("action", nargs="?", choices=("routes",), default="routes")
+    models.add_argument(
+        "action", nargs="?", choices=("routes",), default="routes", help="what to list"
+    )
     models.set_defaults(handler=_models)
     env = commands.add_parser("env", help="import provider keys into a local dotenv file")
     env_actions = env.add_subparsers(dest="action", required=True)
     env_import = env_actions.add_parser(
         "import", help="copy allowlisted provider keys from one dotenv file into another"
     )
-    env_import.add_argument("--source", required=True)
-    env_import.add_argument("--destination", required=True)
+    env_import.add_argument("--source", required=True, help="dotenv file to read keys from")
+    env_import.add_argument(
+        "--destination", required=True, help="new dotenv file to write; must not exist"
+    )
     env_import.set_defaults(handler=_env_import)
     return parser
 

@@ -105,3 +105,30 @@ async def test_promote_exports_a_draft_and_pins_it_in_the_manifest(
     )
     assert main(argv, stdout=io.StringIO(), stderr=errors) == 2
     assert "already pins an example hills" in errors.getvalue()
+
+
+async def test_inputs_resolve_in_the_runs_input_root_or_refuse(tmp_path: Path) -> None:
+    inputs = tmp_path / "input"
+    runpy.run_path(str(SAMPLE_INPUTS / "make_inputs.py"))["write_layers"](inputs)
+    planned = plan(load_definition(str(SAMPLE_INPUTS / "pipeline.py")), input_root=inputs)
+    result = await run(planned, output_root=tmp_path / "runs/one", cache_root=tmp_path / "cache")
+    assert result.summary.ok
+    code = load_code("looping-parallax")
+    assert code.import_example is not None
+
+    def request(**options: str) -> ImportRequest:
+        return ImportRequest(
+            example_id="hills",
+            made_by=MadeBy(kind="workflow", id="looping-parallax"),
+            base=tmp_path,
+            runs=(result.run_dir,),
+            out=tmp_path / "store/looping-parallax/hills",
+            options=options,
+        )
+
+    with pytest.raises(ValueError, match="set the option input_root"):
+        code.import_example(request())
+    with pytest.raises(ValueError, match="outside"):
+        code.import_example(request(input_root=".."))
+    example = code.import_example(request(input_root="input"))
+    assert set(example.inputs) == {"distant_hills", "near_trees"}

@@ -455,6 +455,22 @@ def test_the_cli_exports_and_checks_the_catalog(tmp_path: Path) -> None:
     )
 
 
+def test_a_malformed_game_example_is_a_named_problem_not_a_crash(tmp_path: Path) -> None:
+    from stage_gen.interfaces.cli import main
+
+    store = tmp_path / "store"
+    (store / "somegame/demo").mkdir(parents=True)
+    (store / "somegame/demo/example.json").write_text("{}", encoding="utf-8")
+    output, errors = io.StringIO(), io.StringIO()
+    argv = ["catalog", "export", "--out", str(tmp_path / "site"), "--examples", str(store)]
+    assert main([*argv, "--check"], stdout=output, stderr=errors) == 1, errors.getvalue()
+    problems = json.loads(output.getvalue())["problems"]
+    assert any(
+        problem.startswith("somegame/demo: unreadable example documents: ") for problem in problems
+    )
+    assert "movie-sprite/yuzu-idle: is pinned but missing from the example store" in problems
+
+
 def test_the_cli_verifies_library_examples_without_a_store(tmp_path: Path) -> None:
     from stage_gen.interfaces.cli import main
 

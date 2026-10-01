@@ -160,7 +160,7 @@ def test_a_retired_command_fails_the_parse() -> None:
     for retired in (
         ("pipeline", "plan", "file.py:pipeline", "--input", "in"),
         ("universe", "semantic", "--input", "in"),
-        ("plan", "movie-sprite", "--cache-root", "cache"),
+        ("plan", "movie-sprite", "--cache-dir", "cache"),
     ):
         with pytest.raises((SystemExit, ValueError)):
             parse(retired, PARSER)

@@ -19,7 +19,7 @@ def register_list(parser: argparse.ArgumentParser) -> None:
 
 
 def register_show(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("workflow")
+    parser.add_argument("workflow", help="a workflow id, as `stage-gen list` prints it")
     parser.add_argument("--examples", type=Path, dest="examples_dir", help="the example store")
     parser.add_argument("--json", action="store_true", help="print the catalog entry as JSON")
     parser.set_defaults(handler=show_workflow)

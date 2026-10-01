@@ -231,6 +231,36 @@ def test_a_game_run_is_never_derived(tmp_path: Path) -> None:
     assert not cache.exists() or not any(cache.rglob(runs.VIEW_FILE))
 
 
+def test_inspect_refuses_a_game_run_by_name(tmp_path: Path) -> None:
+    run_dir = tmp_path / "out/bellweather-m21"
+    _write(run_dir / "execution-plan.json", {"kind": "sideview-platformer-execution-graph-v2"})
+
+    for extra in ([], ["--write-view", str(tmp_path / "view")]):
+        errors = StringIO()
+        assert main(["inspect", str(run_dir), *extra], stdout=StringIO(), stderr=errors) == 2
+        assert "is not a workflow or SDK run" in errors.getvalue()
+        assert "node-types.json" not in errors.getvalue()
+    assert not (tmp_path / "view").exists()
+
+
+def test_a_started_plain_portrait_run_is_listed_and_its_own_trace_is_a_source(
+    tmp_path: Path,
+) -> None:
+    run_dir = tmp_path / "runs/run-01"
+    plan = _write(run_dir / "plan.json", {"schema_version": 1, "kind": "portrait-motion-plan"})
+    graph = _write(run_dir / "graph.json", {"kind": "portrait-motion-v2"})
+    os.utime(plan, (1000, 1000))
+    os.utime(graph, (1000, 1000))
+
+    # Prepared, with no execution.json yet: listed, and its sources are the plan and graph.
+    assert [found.run_dir for found in runs.discover((tmp_path / "runs",))] == [run_dir.resolve()]
+    assert runs.source_mtime(run_dir) == 1000.0
+
+    trace = _write(run_dir / "trace/a.jsonl", "")
+    os.utime(trace, (2000, 2000))
+    assert runs.source_mtime(run_dir) == 2000.0
+
+
 def test_a_fresh_persisted_view_needs_no_derivation(tmp_path: Path) -> None:
     run_dir = _character_run(tmp_path / "runs/tavi-01")
     view = _write(run_dir / runs.VIEW_FILE, {"kind": "gnode-run-view-v1"})

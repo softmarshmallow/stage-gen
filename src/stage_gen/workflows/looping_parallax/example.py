@@ -17,16 +17,14 @@ OUTPUT_NODE = "compose"
 
 def deliver(runs: PipelineRuns) -> Delivered:
     """Every supplied layer, and the composed background with its preview frame."""
-    request, reader, media = runs.request, runs.request.reader, runs.request.media
+    reader, media = runs.request.reader, runs.request.media
     inputs: dict[str, dict[str, object]] = {}
-    for path, digest in runs.declared_inputs().items():
-        source = request.base / path
-        if path.endswith(".png") and source.is_file() and sha256(reader.path(source)) == digest:
-            inputs[source.stem] = {
-                "kind": "image",
-                "picture": media.still_alpha(f"input-{source.stem}.webp", source),
-                "file": source.name,
-            }
+    for source in runs.declared_pictures():
+        inputs[source.stem] = {
+            "kind": "image",
+            "picture": media.still_alpha(f"input-{source.stem}.webp", source),
+            "file": source.name,
+        }
     artifacts = {path.name: path for path, _ in runs.artifacts(OUTPUT_NODE)}
     manifest, preview = artifacts["manifest.json"], artifacts["preview.png"]
     layers = reader.json(manifest)["layers"]

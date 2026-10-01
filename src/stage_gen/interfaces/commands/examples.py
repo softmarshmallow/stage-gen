@@ -18,7 +18,13 @@ def register_catalog(parser: argparse.ArgumentParser) -> None:
     export = actions.add_parser(
         "export", help="write catalog.json and cli.json, or only check drift"
     )
-    export.add_argument("--out", type=Path, required=True, dest="out_dir")
+    export.add_argument(
+        "--out",
+        type=Path,
+        required=True,
+        dest="out_dir",
+        help="folder to write catalog.json and cli.json",
+    )
     export.add_argument("--examples", type=Path, dest="examples_dir", help="the example store")
     export.add_argument(
         "--allow-missing-examples",
@@ -38,9 +44,16 @@ def register_example(parser: argparse.ArgumentParser) -> None:
     promote = actions.add_parser(
         "promote", help="export runs as a draft example and pin it in workflow.toml"
     )
-    promote.add_argument("workflow")
-    promote.add_argument("--run", type=Path, action="append", required=True, dest="runs")
-    promote.add_argument("--id", required=True, dest="example_id")
+    promote.add_argument("workflow", help="the workflow id the example belongs to")
+    promote.add_argument(
+        "--run",
+        type=Path,
+        action="append",
+        required=True,
+        dest="runs",
+        help="a run folder to export; repeatable",
+    )
+    promote.add_argument("--id", required=True, dest="example_id", help="the new example's id")
     promote.add_argument("--title", help="the example's name (default: from its id)")
     promote.add_argument(
         "--option",
@@ -48,7 +61,7 @@ def register_example(parser: argparse.ArgumentParser) -> None:
         default=[],
         dest="options",
         metavar="KEY=VALUE",
-        help="an importer option, such as output_node=finish",
+        help="an importer option, such as input_root=DIR, the folder the run was given as --input",
     )
     promote.add_argument("--examples", type=Path, dest="examples_dir", help="the example store")
     promote.set_defaults(handler=example_promote)

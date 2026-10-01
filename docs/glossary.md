@@ -35,6 +35,7 @@ keep an old word because changing them would change an identity.
 | web viewer | viewer |
 | `stage-gen-py`, `stage-gen-character`, `stage-gen-portrait-motion`, `stage-gen-movie-sprite` | `stage-gen`, with no aliases |
 | `body idle`, `face repaint`, `prepare`, `verify`, `generate`, `semantic` and `gallery` as verbs | `plan`, `run` and `inspect`, with flags such as `--replay`, `--phase` and `--verify` |
+| movie-sprite's `--input-root`, `--output-root`, `--cache-root` | `--input`, `--output`, `--cache-dir`, as every workflow names its folders. Two exceptions: `run character-3d` forwards the frozen launcher's own argv (`--input-root`, `--run-root`), and portrait-motion takes `--run`, the prepared run folder `plan` writes |
 | `export-view` for product runs | `stage-gen inspect RUN --write-view DIR`; game runs keep `demo-games export-view` |
 | `STAGE_GEN_OUT_DIR` | `STAGE_GEN_RUN_ROOTS`, a list of paths |
 | a workflow's `examples/` input bundles | its `inputs/` |

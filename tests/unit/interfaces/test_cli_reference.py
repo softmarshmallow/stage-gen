@@ -79,3 +79,18 @@ def test_an_absolute_path_default_is_refused() -> None:
     probe.add_argument("--where", type=Path, default=Path.home() / "private")
     with pytest.raises(ValueError, match="absolute path"):
         command_reference(parser)
+
+
+def test_every_argument_says_what_it_is() -> None:
+    bare: list[str] = []
+
+    def walk(command: dict[str, Any], path: tuple[str, ...]) -> None:
+        for argument in command["arguments"]:
+            if not argument["help"]:
+                bare.append(f"{' '.join(path)} {'/'.join(argument['names'])}")
+        for child in command["commands"]:
+            walk(child, (*path, child["name"]))
+
+    reference = command_reference()
+    walk(reference, (reference["prog"],))
+    assert bare == [], "arguments without help: " + ", ".join(bare)

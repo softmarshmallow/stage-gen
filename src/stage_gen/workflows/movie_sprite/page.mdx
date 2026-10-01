@@ -27,16 +27,16 @@ Plan it offline, generate one eight-second 720p take with a $2 limit, and show m
 
 ```sh
 uv run stage-gen run movie-sprite \
-  --input-root inputs --authoring authoring.json --finish finish.json \
-  --output-root runs/take-01 --cache-root cache \
+  --input inputs --authoring authoring.json --finish finish.json \
+  --output runs/take-01 --cache-dir cache \
   --resolution 720p --aspect-ratio 9:16 --duration 8 --target generate \
   --candidate take-01 --live --budget-root budget --budget-usd 2
 ```
 
 ```sh
 uv run stage-gen run movie-sprite --replay \
-  --input-root inputs --authoring authoring.json --finish finish.json \
-  --output-root runs/finished-01 --cache-root cache \
+  --input inputs --authoring authoring.json --finish finish.json \
+  --output runs/finished-01 --cache-dir cache \
   --resolution 720p --aspect-ratio 9:16 --duration 8 --candidate take-01
 ```
 
@@ -166,8 +166,8 @@ Planning is offline. Use a new output directory for every invocation:
 
 ```sh
 uv run stage-gen plan movie-sprite \
-  --input-root /path/to/inputs --authoring authoring.json --finish finish.json \
-  --output-root /path/to/plan \
+  --input /path/to/inputs --authoring authoring.json --finish finish.json \
+  --output /path/to/plan \
   --resolution 720p --aspect-ratio 9:16 --duration 8
 ```
 
@@ -177,8 +177,8 @@ across attempts:
 
 ```sh
 uv run stage-gen run movie-sprite \
-  --input-root /path/to/inputs --authoring authoring.json --finish finish.json \
-  --output-root /path/to/candidate-run --cache-root /path/to/cache \
+  --input /path/to/inputs --authoring authoring.json --finish finish.json \
+  --output /path/to/candidate-run --cache-dir /path/to/cache \
   --resolution 720p --aspect-ratio 9:16 --duration 8 --target generate \
   --candidate take-01 --live --budget-root /path/to/budget --budget-usd 10
 ```
@@ -200,8 +200,8 @@ without opening a provider:
 
 ```sh
 uv run stage-gen run movie-sprite --replay \
-  --input-root /path/to/inputs --authoring authoring.json --finish finish.json \
-  --output-root /path/to/finished-run --cache-root /path/to/cache \
+  --input /path/to/inputs --authoring authoring.json --finish finish.json \
+  --output /path/to/finished-run --cache-dir /path/to/cache \
   --resolution 720p --aspect-ratio 9:16 --duration 8 --candidate take-01
 ```
 

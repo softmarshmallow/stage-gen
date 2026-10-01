@@ -19,7 +19,12 @@ PHASES = ("semantic", "gallery")
 
 
 def _input_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--phase", choices=PHASES, required=True)
+    parser.add_argument(
+        "--phase",
+        choices=PHASES,
+        required=True,
+        help="semantic writes the entities; gallery draws their concept images",
+    )
     parser.add_argument(
         "--input",
         required=True,
@@ -51,12 +56,16 @@ def register_plan(parser: argparse.ArgumentParser) -> None:
 
 def register_run(parser: argparse.ArgumentParser) -> None:
     _input_arguments(parser)
-    parser.add_argument("--output", required=True, dest="output_path")
-    parser.add_argument("--cache-dir", required=True)
+    parser.add_argument("--output", required=True, dest="output_path", help="run folder to write")
+    parser.add_argument("--cache-dir", required=True, help="content-addressed cache folder")
     mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--dry-run", action="store_true")
-    mode.add_argument("--live", action="store_true")
-    parser.add_argument("--invocation-id")
+    mode.add_argument(
+        "--dry-run", action="store_true", help="write node stubs without calling a provider"
+    )
+    mode.add_argument(
+        "--live", action="store_true", help="explicitly authorize the paid provider calls"
+    )
+    parser.add_argument("--invocation-id", help="name of this invocation's trace (default: random)")
     parser.add_argument("--failure-node", help="inject one dry-run node failure")
     parser.set_defaults(handler=_run)
 

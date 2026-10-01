@@ -1030,10 +1030,46 @@ class PipelineRuns:
         run_dir, item = self.chosen[node_id]
         return pipeline_artifacts(run_dir, item)
 
-    def declared_inputs(self) -> dict[str, str]:
-        """The first run's input files, base-relative, with the digests it bound."""
+    def declared_inputs(self) -> dict[Path, str]:
+        """The first run's input files, with the digests it bound.
+
+        ``pipeline.json`` records each ref relative to the run's input root, which it does
+        not store, so the root comes from the ``input_root`` option, relative to ``base``
+        (default: ``base`` itself). Both the root and every file stay inside ``base``.
+        """
+        base = self.request.base.resolve()
+        root = (base / self.request.option("input_root", ".")).resolve()
+        if not root.is_relative_to(base):
+            raise ValueError(f"input_root {root} is outside {base}")
         inputs = self.request.reader.json(self.run_dirs[0] / "pipeline.json")["inputs"]
-        return {str(path): str(digest) for path, digest in inputs.items()}
+        declared: dict[Path, str] = {}
+        for ref, digest in inputs.items():
+            path = (root / str(ref)).resolve()
+            if not path.is_relative_to(root):
+                raise ValueError(f"input {ref} escapes the input root")
+            declared[path] = str(digest)
+        return declared
+
+    def declared_pictures(self) -> list[Path]:
+        """The declared ``.png`` inputs, each present and matching the digest the run bound.
+
+        A picture that is missing or changed is refused by name rather than left out, so
+        an example never silently drops its input; pass ``--option input_root=DIR`` when
+        the run was given a folder other than the checkout.
+        """
+        pictures: list[Path] = []
+        for path, digest in self.declared_inputs().items():
+            if path.suffix != ".png":
+                continue
+            if not path.is_file():
+                raise ValueError(
+                    f"input {path.name} is not at {path}; set the option input_root to the "
+                    "folder the run was given as --input"
+                )
+            if sha256(self.request.reader.path(path)) != digest:
+                raise ValueError(f"input {path} no longer matches the digest the run bound")
+            pictures.append(path)
+        return pictures
 
 
 @dataclass(frozen=True, slots=True)

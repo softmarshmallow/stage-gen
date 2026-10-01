@@ -35,15 +35,15 @@ def _arguments(root: Path, verb: str = "plan", *extra: str) -> list[str]:
     return [
         verb,
         "movie-sprite",
-        "--input-root",
+        "--input",
         str(root / "inputs"),
         "--authoring",
         "authoring.json",
         "--finish",
         "finish.json",
-        "--output-root",
+        "--output",
         str(root / "output"),
-        *(["--cache-root", str(root / "cache")] if verb == "run" else []),
+        *(["--cache-dir", str(root / "cache")] if verb == "run" else []),
         *extra,
     ]
 
@@ -75,15 +75,15 @@ def test_public_cli_runs_supplied_synthetic_clip_without_provider(tmp_path: Path
     result = _invoke(
         "run",
         "movie-sprite",
-        "--input-root",
+        "--input",
         str(tmp_path / "inputs"),
         "--source",
         "actor.mkv",
         "--finish",
         "finish.json",
-        "--output-root",
+        "--output",
         str(tmp_path / "output"),
-        "--cache-root",
+        "--cache-dir",
         str(tmp_path / "cache"),
     )
     assert result.returncode == 0, result.stderr

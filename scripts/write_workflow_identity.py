@@ -335,13 +335,13 @@ def plan_movie_sprite_generate(scratch: Path) -> Graph:
         [
             "plan",
             "movie-sprite",
-            "--input-root",
+            "--input",
             str(input_root),
             "--authoring",
             "authoring.json",
             "--finish",
             "finish.json",
-            "--output-root",
+            "--output",
             str(scratch / "movie-sprite-plan"),
         ]
     )

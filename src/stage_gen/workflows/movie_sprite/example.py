@@ -21,18 +21,9 @@ def deliver(runs: PipelineRuns) -> Delivered:
 
     A chain that adopted supplied footage has no character picture among its inputs.
     """
-    request, reader, media = runs.request, runs.request.reader, runs.request.media
+    reader, media = runs.request.reader, runs.request.media
     # The input picture, as bound by digest in the first run's inputs.
-    source = next(
-        (
-            request.base / path
-            for path, digest in runs.declared_inputs().items()
-            if path.endswith(".png")
-            and (request.base / path).is_file()
-            and sha256(reader.path(request.base / path)) == digest
-        ),
-        None,
-    )
+    source = next(iter(runs.declared_pictures()), None)
     inputs = (
         {}
         if source is None

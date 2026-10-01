@@ -19,13 +19,25 @@ SPEC_FILE = "parallax.json"
 
 
 def _input_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--input", type=Path, required=True, dest="input_root")
+    parser.add_argument(
+        "--input",
+        type=Path,
+        required=True,
+        dest="input_root",
+        help="folder the input layers resolve in",
+    )
     parser.add_argument(
         "--spec",
         default=SPEC_FILE,
         help=f"input-relative ParallaxSpec JSON (default: {SPEC_FILE})",
     )
-    parser.add_argument("--target", action="append", default=None, dest="targets")
+    parser.add_argument(
+        "--target",
+        action="append",
+        default=None,
+        dest="targets",
+        help="stop at this node id; repeatable (default: every node)",
+    )
 
 
 def register_plan(parser: argparse.ArgumentParser) -> None:
@@ -36,9 +48,17 @@ def register_plan(parser: argparse.ArgumentParser) -> None:
 
 def register_run(parser: argparse.ArgumentParser) -> None:
     _input_arguments(parser)
-    parser.add_argument("--output", type=Path, required=True, dest="output_root")
-    parser.add_argument("--cache-dir", type=Path, required=True, dest="cache_root")
-    parser.add_argument("--invocation-id")
+    parser.add_argument(
+        "--output", type=Path, required=True, dest="output_root", help="run folder to write"
+    )
+    parser.add_argument(
+        "--cache-dir",
+        type=Path,
+        required=True,
+        dest="cache_root",
+        help="content-addressed cache folder",
+    )
+    parser.add_argument("--invocation-id", help="name of this invocation's trace (default: random)")
     parser.add_argument(
         "--live",
         action="store_true",

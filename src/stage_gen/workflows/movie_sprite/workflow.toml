@@ -13,8 +13,8 @@ related = ["portrait-motion"]
 [try]
 input = "A synthetic transparent clip and finish.json, written by inputs/supplied_clip/make_inputs.py out/movie-sprite-input (needs FFmpeg)"
 commands = [
-  "stage-gen plan movie-sprite --input-root out/movie-sprite-input --source actor.mkv --finish finish.json --output-root out/movie-sprite-plan",
-  "stage-gen run movie-sprite --input-root out/movie-sprite-input --source actor.mkv --finish finish.json --output-root out/movie-sprite-try --cache-root out/cache",
+  "stage-gen plan movie-sprite --input out/movie-sprite-input --source actor.mkv --finish finish.json --output out/movie-sprite-plan",
+  "stage-gen run movie-sprite --input out/movie-sprite-input --source actor.mkv --finish finish.json --output out/movie-sprite-try --cache-dir out/cache",
   "stage-gen inspect out/movie-sprite-try",
 ]
 

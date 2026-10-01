@@ -20,7 +20,13 @@ TARGETS = ("prepare", "generate", "adopt", "finish")
 
 
 def _definition_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--input-root", type=Path, required=True)
+    parser.add_argument(
+        "--input",
+        dest="input_root",
+        type=Path,
+        required=True,
+        help="Folder the input refs resolve in",
+    )
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument(
         "--authoring", help="Input-relative JSON: canonical_image and optional prompts"
@@ -28,11 +34,25 @@ def _definition_arguments(parser: argparse.ArgumentParser) -> None:
     source.add_argument("--source", help="Input-relative supplied MP4 or transparent Matroska")
     parser.add_argument("--source-provenance", help="Optional original sidecar, relative to inputs")
     parser.add_argument("--finish", required=True, help="Input-relative finishing JSON")
-    parser.add_argument("--output-root", type=Path, required=True)
-    parser.add_argument("--target", choices=TARGETS, default="finish")
-    parser.add_argument("--resolution", choices=("360p", "720p", "1080p", "4k"), default="720p")
-    parser.add_argument("--aspect-ratio", choices=("9:16", "16:9"), default="9:16")
-    parser.add_argument("--duration", type=int, default=8)
+    parser.add_argument(
+        "--output", dest="output_root", type=Path, required=True, help="Run folder to write"
+    )
+    parser.add_argument(
+        "--target", choices=TARGETS, default="finish", help="The last step to plan or run"
+    )
+    parser.add_argument(
+        "--resolution",
+        choices=("360p", "720p", "1080p", "4k"),
+        default="720p",
+        help="Resolution of the generated take",
+    )
+    parser.add_argument(
+        "--aspect-ratio",
+        choices=("9:16", "16:9"),
+        default="9:16",
+        help="Aspect ratio of the generated take",
+    )
+    parser.add_argument("--duration", type=int, default=8, help="Seconds of the generated take")
     parser.add_argument(
         "--candidate", default="take-01", help="Distinct identity for a deliberate new draw"
     )
@@ -45,13 +65,21 @@ def register_plan(parser: argparse.ArgumentParser) -> None:
 
 def register_run(parser: argparse.ArgumentParser) -> None:
     _definition_arguments(parser)
-    parser.add_argument("--cache-root", type=Path, required=True)
+    parser.add_argument(
+        "--cache-dir",
+        dest="cache_root",
+        type=Path,
+        required=True,
+        help="Content-addressed cache folder",
+    )
     parser.add_argument(
         "--replay",
         action="store_true",
         help="Finish from takes the cache already holds; binds no live provider",
     )
-    parser.add_argument("--live", action="store_true")
+    parser.add_argument(
+        "--live", action="store_true", help="Explicitly authorize the paid video generation"
+    )
     parser.add_argument(
         "--budget-root", type=Path, help="Persistent budget directory outside run/cache roots"
     )

@@ -2,9 +2,9 @@
 
 The workflow that owns the run reads it: each workflow's ``CODE.owns_run`` is asked in
 turn (``stage_gen.runs.owner_of``). A run no workflow owns is read as an SDK run, whose
-plan and trace gnode joins into a run view. ``--verify`` recomputes what the run recorded;
-``--write-view DIR`` writes the derived ``execution-view.json`` into ``DIR``, which is a run
-folder only when it names one.
+plan and trace gnode joins into a run view; any other folder, such as a game run, is
+refused. ``--verify`` recomputes what the run recorded; ``--write-view DIR`` writes the
+derived ``execution-view.json`` into ``DIR``, which is a run folder only when it names one.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from typing import Any, TextIO
 
 
 def register(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("run_dir", type=Path)
+    parser.add_argument("run_dir", type=Path, help="the run folder to read")
     parser.add_argument(
         "--verify", action="store_true", help="recompute every recorded artifact and stage"
     )
@@ -31,12 +31,17 @@ def register(parser: argparse.ArgumentParser) -> None:
 
 
 def run(args: argparse.Namespace, stdout: TextIO) -> int:
-    from stage_gen.runs import owner_of
+    from stage_gen.runs import is_sdk_run, owner_of, write_view
 
     owner = owner_of(args.run_dir)
+    if owner.workflow is None and not is_sdk_run(args.run_dir):
+        raise ValueError(
+            f"{args.run_dir} is not a workflow or SDK run; "
+            "a game run is read by its game (demo-games export-view)"
+        )
     record: dict[str, Any] = {"workflow": owner.workflow, "run_dir": str(args.run_dir)}
     if args.write_view is not None:
-        written = owner.write_view(args.run_dir, args.write_view)
+        written = write_view(args.run_dir, args.write_view)
         if written is None:
             raise ValueError(
                 f"{args.run_dir} has no view to write yet; inspect reads its own records"

@@ -14,10 +14,12 @@ from typing import Any, TextIO
 
 
 def register_plan(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--source", type=Path, required=True)
-    parser.add_argument("--spec", type=Path, required=True)
-    parser.add_argument("--profile", type=Path)
-    parser.add_argument("--run", type=Path, required=True)
+    parser.add_argument("--source", type=Path, required=True, help="the portrait image to animate")
+    parser.add_argument(
+        "--spec", type=Path, required=True, help="PortraitMotionSpec JSON: the motion to make"
+    )
+    parser.add_argument("--profile", type=Path, help="optional RuntimeProfile JSON")
+    parser.add_argument("--run", type=Path, required=True, help="the prepared run folder to write")
     parser.add_argument(
         "--face-crop",
         action="store_true",
@@ -27,7 +29,9 @@ def register_plan(parser: argparse.ArgumentParser) -> None:
 
 
 def register_run(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--run", type=Path, required=True)
+    parser.add_argument(
+        "--run", type=Path, required=True, help="a run folder `plan portrait-motion` prepared"
+    )
     parser.add_argument(
         "--live", action="store_true", help="Explicitly authorize configured provider calls"
     )

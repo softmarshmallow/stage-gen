@@ -33,10 +33,11 @@ RUN_DOCUMENTS = (
 )
 #: A folder holding the first of a pair and any one of its partners is a run: a character
 #: run keeps ``graph.json`` beside its trace and summary, a portrait run ``plan.json``
-#: beside ``execution.json``.
+#: beside ``graph.json`` from the moment it is prepared and ``execution.json`` once it ends,
+#: so a run is listed (without a view until it has a trace) while it runs.
 RUN_DOCUMENT_PAIRS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("graph.json", ("summary.json", "trace.jsonl")),
-    ("plan.json", ("execution.json",)),
+    ("plan.json", ("execution.json", "graph.json")),
 )
 #: The example store sits at the top of a run root (``out/examples``); it holds exports, not
 #: runs.
@@ -46,7 +47,8 @@ EXAMPLE_STORE = "examples"
 SEARCH_DEPTH = 4
 VIEW_FILE = "execution-view.json"
 #: The files whose change can make a run's view stale: plans, traces and the run's own
-#: records. A sub-run's trace (``<child>/trace/*.jsonl``) counts too.
+#: records. The run's own ``trace/*.jsonl`` counts too, as does a sub-run's
+#: (``<child>/trace/*.jsonl``).
 SOURCE_FILES = (
     "execution-plan.json",
     "execution-trace.jsonl",
@@ -148,7 +150,10 @@ def _mtime(path: Path) -> float | None:
 def source_mtime(run_dir: Path) -> float | None:
     """When the run's plan, trace or own records last changed; None when it has none."""
     stamps = [_mtime(run_dir / name) for name in SOURCE_FILES]
-    stamps += [_mtime(trace) for trace in run_dir.glob("*/trace/*.jsonl")]
+    stamps += [
+        _mtime(trace)
+        for trace in (*run_dir.glob("trace/*.jsonl"), *run_dir.glob("*/trace/*.jsonl"))
+    ]
     present = [stamp for stamp in stamps if stamp is not None]
     return max(present) if present else None
 
