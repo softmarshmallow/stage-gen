@@ -21,6 +21,8 @@ from typing import Any
 from gnode import Graph, atomic_write_bytes
 from stage_gen.examples import (
     EXAMPLE_FILE,
+    FIGURES_FILE,
+    PAGE_FILE,
     DisplayNames,
     ExamplePin,
     FiguresLedger,
@@ -35,9 +37,10 @@ from stage_gen.examples import (
     sha256_bytes,
     store_directory,
     verify,
+    verify_game_example,
 )
 
-from ._checks import CheckContext, LoadedExample, LoadedWorkflow, drift
+from ._checks import CheckContext, LoadedExample, LoadedWorkflow, drift, game_example
 from ._registry import (
     DiscoveredWorkflow,
     ExampleEntry,
@@ -178,6 +181,7 @@ def _card(workflow: LoadedWorkflow, example: LoadedExample) -> dict[str, Any] | 
         "title": entry.title if own else manifest.title,
         "promise": entry.promise if own else manifest.promise,
         "made_by": {"kind": "workflow", "id": manifest.id},
+        "made_inside": None,
         "workflow": manifest.id,
         "example": entry.id,
         "present": example.document is not None,
@@ -238,7 +242,12 @@ def _workflow_document(workflow: LoadedWorkflow, repository: Path | None) -> dic
 
 
 def _game_examples(examples_dir: Path | None, workflow_ids: set[str]) -> list[dict[str, Any]]:
-    """Examples a game wrote into the store: every owner that is not a workflow."""
+    """Examples a game wrote into the store: every owner that is not a workflow.
+
+    A game writes ``entry.json`` (with its pins and the currency it derived) and
+    ``page.mdx`` beside each example when it exports it; until then the example is listed
+    with no entry, no page and no card.
+    """
     if examples_dir is None or not examples_dir.is_dir():
         return []
     found = []
@@ -253,11 +262,16 @@ def _game_examples(examples_dir: Path | None, workflow_ids: set[str]) -> list[di
                     "owner": owner.name,
                     "id": directory.name,
                     "entry": None if entry is None else entry.model_dump(mode="json"),
+                    "currency": None if entry is None else entry.currency,
+                    "page": PAGE_FILE if (directory / PAGE_FILE).is_file() else None,
                     "example_sha256": hashlib.sha256(
                         (directory / EXAMPLE_FILE).read_bytes()
                     ).hexdigest(),
-                    "problems": verify(directory),
+                    "problems": verify_game_example(directory),
                     "example": example.model_dump(mode="json"),
+                    "figures": read_figures(directory).model_dump(mode="json", exclude_none=True)
+                    if (directory / FIGURES_FILE).is_file()
+                    else None,
                 }
             )
     return found
@@ -272,6 +286,7 @@ def _game_card(game: dict[str, Any]) -> dict[str, Any] | None:
         "title": entry["title"],
         "promise": entry["promise"],
         "made_by": entry["made_by"],
+        "made_inside": entry["game_title"],
         "workflow": None,
         "example": game["id"],
         "present": True,
@@ -323,7 +338,14 @@ def build(
             ),
         )
         problems += [
-            f"{g['owner']}/{g['id']}: {problem}" for g in games for problem in g["problems"]
+            f"{g['owner']}/{g['id']}: {problem}"
+            for g in games
+            for problem in [
+                *g["problems"],
+                *game_example(
+                    g["owner"], g["entry"], g["example"], {w.id for w in workflows}, names
+                ),
+            ]
         ]
         cards = [
             card

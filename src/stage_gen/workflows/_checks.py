@@ -221,6 +221,33 @@ def examples(workflows: Sequence[LoadedWorkflow], context: CheckContext) -> list
     return problems
 
 
+def game_example(
+    owner: str,
+    entry: Mapping[str, Any] | None,
+    example: Mapping[str, Any],
+    workflow_ids: set[str],
+    names: DisplayNames,
+) -> list[str]:
+    """An example a game exported: it names its own game, related workflows that exist, and
+    models with display names. Its pins and ledger are checked by ``verify_game_example``."""
+    if entry is None:
+        return []
+    problems: list[str] = []
+    if entry["made_by"] != {"kind": "game", "id": owner}:
+        problems.append(f"entry.json says it was made by {entry['made_by']}, not the game {owner}")
+    problems += [
+        f"related names unknown workflow {related}"
+        for related in entry["related"]
+        if related not in workflow_ids
+    ]
+    problems += [
+        f"model {row['name']} has no name"
+        for row in example["models"]
+        if row["provider"] != "local" and not names.knows_model(row["name"])
+    ]
+    return problems
+
+
 def identity(workflow: LoadedWorkflow, golden: Mapping[str, Any]) -> list[str]:
     """``CODE.identity()`` must agree with the identity golden wherever the golden pins it."""
     problems: list[str] = []
@@ -333,5 +360,6 @@ __all__ = [
     "LoadedExample",
     "LoadedWorkflow",
     "drift",
+    "game_example",
     "readme_table",
 ]

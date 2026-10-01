@@ -435,6 +435,38 @@ def build_parser() -> argparse.ArgumentParser:
         help="view document destination (default: RUN_DIR/execution-view.json)",
     )
 
+    example_parser = commands.add_parser(
+        "example",
+        description=(
+            "Publish the examples a game made into the local example store, through the "
+            "product's public example contract"
+        ),
+    )
+    example_commands = example_parser.add_subparsers(dest="example_command", required=True)
+    example_export_parser = example_commands.add_parser(
+        "export",
+        help=(
+            "check each pinned example against its runs, then write its page and entry "
+            "beside its frozen export"
+        ),
+    )
+    example_export_parser.add_argument("game", choices=("bellweather",))
+    example_export_parser.add_argument(
+        "--store",
+        dest="store",
+        metavar="DIR",
+        help="the example store (default: out/examples in the checkout)",
+    )
+    example_export_parser.add_argument(
+        "--from-frozen",
+        action="store_true",
+        dest="from_frozen",
+        help=(
+            "trust the frozen export in the store without making each example again from "
+            "its runs, for when a source run has moved on"
+        ),
+    )
+
     package_parser = commands.add_parser(
         "package",
         description="Validate and inspect one prepared game directory or ZIP",

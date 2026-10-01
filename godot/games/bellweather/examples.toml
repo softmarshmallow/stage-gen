@@ -1,0 +1,353 @@
+# The examples Bellweather made: outputs that need the whole game package, published through
+# the product's example contract by `demo-games example export bellweather`. Prose lives in
+# examples/<id>/page.mdx; the importers live in bellweather_pipeline.examples. Each example is
+# a frozen export in the local store (out/examples/bellweather/<id>/), pinned here by digest.
+schema_version = 1
+kind = "game-examples-v1"
+game = "bellweather"
+title = "Bellweather"
+
+[[examples]]
+id = "parallax-backgrounds"
+title = "Seamless parallax backgrounds"
+promise = "One reference picture per map in. Depth layers that scroll forever without a seam out."
+status = "approved"
+order = 1
+related = ["looping-parallax"]
+command = "demo-games generate --input my-game --checkpoint world --output runs/world-01"
+footer = "Every layer on this page is the one Bellweather's latest world run published, traced back to the run that drew it."
+importer = "parallax_layers"
+example_sha256 = "1df01cdf2277140fd5114c5cb8be57d388e4429136efc047a0f1d84bd67af722"
+figures_sha256 = "262c94ecc231c809813dc590ea8290bd2f484a492d0c3311dea3867da3dcfdac"
+
+[examples.run]
+runs = [
+  "out/bellweather-m18-world",
+  "out/bellweather-m18-world-review",
+  "out/bellweather-m19-world",
+  "out/bellweather-m19-world-review",
+  "out/bellweather-m20-world",
+  "out/bellweather-m21-world",
+  "out/bellweather-m21-world-review",
+]
+package = "godot/games/bellweather/inputs/default"
+maps = ["sunpetal-crossing", "crowncrag-road"]
+walker = "out/bellweather-m21"
+
+[[examples.tools]]
+name = "Pillow and NumPy"
+role = "Find the path where each repaint agrees with the drawing, cut it in, and trim and place every layer"
+
+[examples.labels]
+"map-sunpetal-crossing-layer-clear_sky-generate" = "Draw the village sky"
+"map-sunpetal-crossing-layer-clear_sky-loop" = "Loop the village sky"
+"map-sunpetal-crossing-layer-clear_sky-validate" = "Trim and place the village sky"
+"map-sunpetal-crossing-layer-clouds_and_far_valley-generate" = "Draw the clouds and far valley"
+"map-sunpetal-crossing-layer-clouds_and_far_valley-loop" = "Loop the clouds and far valley"
+"map-sunpetal-crossing-layer-clouds_and_far_valley-validate" = "Trim and place the clouds and far valley"
+"map-sunpetal-crossing-layer-sunpetal_village-generate" = "Draw the village"
+"map-sunpetal-crossing-layer-sunpetal_village-loop" = "Loop the village"
+"map-sunpetal-crossing-layer-sunpetal_village-validate" = "Trim and place the village"
+"map-sunpetal-crossing-layer-near_garden_frame-generate" = "Draw the garden fence"
+"map-sunpetal-crossing-layer-near_garden_frame-loop" = "Loop the garden fence"
+"map-sunpetal-crossing-layer-near_garden_frame-validate" = "Trim and place the garden fence"
+"map-sunpetal-crossing-composite" = "Lay out the village board"
+"map-sunpetal-crossing-review" = "Review Sunpetal Crossing"
+"map-crowncrag-road-layer-open_sky-generate" = "Draw the forest sky"
+"map-crowncrag-road-layer-open_sky-loop" = "Loop the forest sky"
+"map-crowncrag-road-layer-open_sky-validate" = "Trim and place the forest sky"
+"map-crowncrag-road-layer-amberbell_horizon-generate" = "Draw the horizon"
+"map-crowncrag-road-layer-amberbell_horizon-loop" = "Loop the horizon"
+"map-crowncrag-road-layer-amberbell_horizon-validate" = "Trim and place the horizon"
+"map-crowncrag-road-layer-amberbell_route-generate" = "Draw the bell-tree route"
+"map-crowncrag-road-layer-amberbell_route-loop" = "Loop the bell-tree route"
+"map-crowncrag-road-layer-amberbell_route-validate" = "Trim and place the bell-tree route"
+"map-crowncrag-road-layer-autumn_foliage_frame-generate" = "Draw the foliage"
+"map-crowncrag-road-layer-autumn_foliage_frame-loop" = "Loop the foliage"
+"map-crowncrag-road-layer-autumn_foliage_frame-validate" = "Trim and place the foliage"
+"map-crowncrag-road-composite" = "Lay out the forest board"
+"map-crowncrag-road-review" = "Review Amberbell Forest"
+
+[[examples.steps]]
+label = "Sunpetal Crossing"
+note = "Four layers, far to near, each drawn from the map's reference picture. Each one is tested as it came back; one that does not loop has its wrap repainted and cut back in. Then it is trimmed to its content and placed by its anchor. Last, a board of every layer and the ground is judged by a model that drew none of it; its verdict is advice, and does not stop the run."
+members = [
+  "map-sunpetal-crossing-layer-clear_sky-generate",
+  "map-sunpetal-crossing-layer-clouds_and_far_valley-generate",
+  "map-sunpetal-crossing-layer-sunpetal_village-generate",
+  "map-sunpetal-crossing-layer-near_garden_frame-generate",
+  "map-sunpetal-crossing-layer-clear_sky-loop",
+  "map-sunpetal-crossing-layer-clouds_and_far_valley-loop",
+  "map-sunpetal-crossing-layer-sunpetal_village-loop",
+  "map-sunpetal-crossing-layer-near_garden_frame-loop",
+  "map-sunpetal-crossing-layer-clear_sky-validate",
+  "map-sunpetal-crossing-layer-clouds_and_far_valley-validate",
+  "map-sunpetal-crossing-layer-sunpetal_village-validate",
+  "map-sunpetal-crossing-layer-near_garden_frame-validate",
+  "map-sunpetal-crossing-composite",
+  "map-sunpetal-crossing-review",
+]
+
+[[examples.steps]]
+label = "Amberbell Forest"
+note = "The same steps for the forest's four layers, its board and its review."
+members = [
+  "map-crowncrag-road-layer-open_sky-generate",
+  "map-crowncrag-road-layer-amberbell_horizon-generate",
+  "map-crowncrag-road-layer-amberbell_route-generate",
+  "map-crowncrag-road-layer-autumn_foliage_frame-generate",
+  "map-crowncrag-road-layer-open_sky-loop",
+  "map-crowncrag-road-layer-amberbell_horizon-loop",
+  "map-crowncrag-road-layer-amberbell_route-loop",
+  "map-crowncrag-road-layer-autumn_foliage_frame-loop",
+  "map-crowncrag-road-layer-open_sky-validate",
+  "map-crowncrag-road-layer-amberbell_horizon-validate",
+  "map-crowncrag-road-layer-amberbell_route-validate",
+  "map-crowncrag-road-layer-autumn_foliage_frame-validate",
+  "map-crowncrag-road-composite",
+  "map-crowncrag-road-review",
+]
+
+[[examples]]
+id = "terrain-tiles"
+title = "47-tile terrain"
+promise = "One scene picture in. A ground tile set that fits any shape of level out."
+status = "approved"
+order = 2
+command = "demo-games generate --input my-game --checkpoint world --output runs/world-01"
+footer = "Both atlases were made in Bellweather's world preparation, a larger graph that also paints each map's backgrounds; this page shows the part that makes the ground. The template is adapted from the terrain example in the Godot documentation, CC BY 3.0."
+importer = "terrain_atlas"
+example_sha256 = "2adce85b63f82d64fc47e7aebf7ab68e5f8afff472c3bc3dec8cb7b44a18d129"
+figures_sha256 = "3b7d1296fcd7d58938fc3f46fb52aac07983569e676fd1c33259b6dde057d707"
+
+[examples.run]
+runs = [
+  "out/bellweather-m4-world-v3",
+  "out/bellweather-m15-world",
+  "out/bellweather-m17-world",
+]
+package = "godot/games/bellweather/inputs/default"
+maps = [{ map = "sunpetal-crossing", name = "village" }, { map = "crowncrag-road", name = "forest" }]
+
+[[examples.tools]]
+name = "Pillow"
+role = "Cuts the sheet on fixed lines, measures every join and packs the atlas"
+
+[examples.labels]
+"map-sunpetal-crossing-terrain-generate" = "Lay out the village level"
+"map-sunpetal-crossing-ground-generate" = "Paint the village tiles"
+"map-sunpetal-crossing-ground-validate" = "Cut and check the village atlas"
+"map-crowncrag-road-terrain-generate" = "Lay out the forest level"
+"map-crowncrag-road-ground-generate" = "Paint the forest tiles"
+"map-crowncrag-road-ground-validate" = "Cut and check the forest atlas"
+
+[[examples.steps]]
+label = "Lay out the level"
+note = "A language model answers each map's terrain request with a grid of solid and empty cells. The atlas does not depend on it; the level preview does."
+members = [
+  "map-sunpetal-crossing-terrain-generate",
+  "map-crowncrag-road-terrain-generate",
+]
+
+[[examples.steps]]
+label = "Paint over the template"
+note = "One image call per map. The model is given the template's 48 cells behind a thin cyan fence, and the map's scene for its look. It repaints the art and keeps the structure. A sheet that fails the checks is drawn again, up to six tries."
+members = [
+  "map-sunpetal-crossing-ground-generate",
+  "map-crowncrag-road-ground-generate",
+]
+
+[[examples.steps]]
+label = "Cut and check"
+note = "Local and free. The sheet is cut on fixed lines into 120-pixel tiles, checked for holes and packed into the atlas, then laid out as the level to preview it."
+members = [
+  "map-sunpetal-crossing-ground-validate",
+  "map-crowncrag-road-ground-validate",
+]
+
+[[examples]]
+id = "game-ui-kit"
+title = "Game UI kit"
+promise = "One style picture in. A measured panel, buttons and icons out."
+status = "approved"
+order = 3
+command = "demo-games generate --input my-game --checkpoint content --output runs/content-01"
+footer = "Every sheet on this page is the one Bellweather's current package ships, traced back to the run that drew it."
+importer = "ui_kit"
+example_sha256 = "7f26e73b77a479f042bac372231ee82a31ceb4eed4a06e36d528d70591984011"
+figures_sha256 = "17dc2896a19d740dd402547b123c9bec83fc9cf00fc40419eddf4755888e659d"
+
+[examples.run]
+runs = [
+  "out/bellweather-ui-atlas-v1",
+  "out/bellweather-ui-atlas-v2",
+  "out/bellweather-icons-v1",
+  "out/bellweather-ui-atlas-v3",
+  "out/.bellweather-m17.integration-integration-2a62ed89b0dc448f98ae81356472f6ee",
+]
+delivered = "out/bellweather-m17"
+package = "godot/games/bellweather/inputs/default"
+sheets = ["panel_frame", "button_rect", "preview_icons"]
+
+[[examples.tools]]
+name = "Pillow"
+role = "Measures every sheet: insets, cells, text area, icon bounds and slots"
+
+[examples.labels]
+"ui-panel_frame-generate" = "Paint the panel frame"
+"ui-panel_frame-validate" = "Measure the panel"
+"ui-panel_frame-review" = "Review the panel"
+"ui-button_rect-generate" = "Paint the four button states"
+"ui-button_rect-validate" = "Measure the buttons"
+"ui-button_rect-review" = "Review the buttons"
+"ui-preview_icons-generate" = "Paint the 16 icons"
+"ui-preview_icons-validate" = "Measure the icons"
+"ui-preview_icons-review" = "Review the icons"
+
+[[examples.steps]]
+label = "Panel frame"
+note = "A nine-slice frame for dialogue, menus and titles. It took three tries before a drawing passed the gate."
+members = [
+  "ui-panel_frame-generate",
+  "ui-panel_frame-validate",
+  "ui-panel_frame-review",
+]
+
+[[examples.steps]]
+label = "Buttons"
+note = "One sheet with the normal, hover, pressed and disabled states, drawn together so they match. Two tries."
+members = [
+  "ui-button_rect-generate",
+  "ui-button_rect-validate",
+  "ui-button_rect-review",
+]
+
+[[examples.steps]]
+label = "Icons"
+note = "The 16 system icons every game needs, one per cell of a fixed grid."
+members = [
+  "ui-preview_icons-generate",
+  "ui-preview_icons-validate",
+  "ui-preview_icons-review",
+]
+
+[[examples]]
+id = "sprite-animation-set"
+title = "2D sprite animation set"
+promise = "One cover and a short brief in. Eleven animations at one size out."
+status = "approved"
+order = 4
+command = "demo-games generate --input my-game --checkpoint content --output runs/content-01"
+footer = "Every strip on this page is the one Bellweather's current package ships, traced back to the run that drew it."
+importer = "sprite_set"
+example_sha256 = "9f8aaa398c77f3248a3e37bd782d9722c5d0d768f38912e8e87665da3bf024d2"
+figures_sha256 = "588a997d77865e6a9a9c6527f33f5e4ed5f095c9328c20d03fd90bceceb6f2fe"
+
+[examples.run]
+runs = [
+  "out/bellweather-m5-player-v2",
+  "out/.bellweather-m17.integration-integration-2a62ed89b0dc448f98ae81356472f6ee",
+]
+delivered = "out/bellweather-m17"
+package = "godot/games/bellweather/inputs/default"
+actor = "wayfarer"
+
+[[examples.tools]]
+name = "Pillow"
+role = "Cuts each drawing into evenly spaced frames and lays out the size plates and the contact sheet"
+
+[examples.labels]
+"player-wayfarer-concept-generate" = "Draw the concept"
+"player-wayfarer-state-idle-generate" = "Draw idle"
+"player-wayfarer-state-idle-validate" = "Cut idle into frames"
+"player-wayfarer-state-walk-generate" = "Draw the walk"
+"player-wayfarer-state-walk-validate" = "Cut the walk into frames"
+"player-wayfarer-state-run-generate" = "Draw the run"
+"player-wayfarer-state-run-validate" = "Cut the run into frames"
+"player-wayfarer-state-jump-generate" = "Draw the jump"
+"player-wayfarer-state-jump-validate" = "Cut the jump into frames"
+"player-wayfarer-state-crouch-generate" = "Draw the crouch"
+"player-wayfarer-state-crouch-validate" = "Cut the crouch into frames"
+"player-wayfarer-state-climb_ladder-generate" = "Draw the ladder climb"
+"player-wayfarer-state-climb_ladder-validate" = "Cut the ladder climb into frames"
+"player-wayfarer-state-climb_rope-generate" = "Draw the rope climb"
+"player-wayfarer-state-climb_rope-validate" = "Cut the rope climb into frames"
+"player-wayfarer-state-basic_attack-generate" = "Draw the attack"
+"player-wayfarer-state-basic_attack-validate" = "Cut the attack into frames"
+"player-wayfarer-state-skill_cast-generate" = "Draw the cast"
+"player-wayfarer-state-skill_cast-validate" = "Cut the cast into frames"
+"player-wayfarer-state-hurt-generate" = "Draw the hurt"
+"player-wayfarer-state-hurt-validate" = "Cut the hurt into frames"
+"player-wayfarer-state-death-generate" = "Draw the death"
+"player-wayfarer-state-death-validate" = "Cut the death into frames"
+"player-wayfarer-dialogue-generate" = "Draw the dialogue portraits"
+"player-wayfarer-dialogue-validate" = "Cut the portraits apart"
+"player-wayfarer-motion-rebase" = "Size every strip against idle"
+"player-wayfarer-motion-rebase-verify" = "Check the sizes, applied"
+"player-wayfarer-contact-sheet" = "Lay out the contact sheet"
+"player-wayfarer-review" = "Review the whole set"
+
+[[examples.steps]]
+label = "Concept"
+note = "The character is drawn once, in side view and three-quarter view, from the game's cover and a short brief. Every later drawing is held to this picture."
+members = [
+  "player-wayfarer-concept-generate",
+]
+
+[[examples.steps]]
+label = "Moving"
+note = "Each animation is its own image call from the concept: four poses in one row. The gate cuts every pose out whole and stands it on one line."
+members = [
+  "player-wayfarer-state-idle-generate",
+  "player-wayfarer-state-idle-validate",
+  "player-wayfarer-state-walk-generate",
+  "player-wayfarer-state-walk-validate",
+  "player-wayfarer-state-run-generate",
+  "player-wayfarer-state-run-validate",
+  "player-wayfarer-state-jump-generate",
+  "player-wayfarer-state-jump-validate",
+  "player-wayfarer-state-crouch-generate",
+  "player-wayfarer-state-crouch-validate",
+]
+
+[[examples.steps]]
+label = "Climbing, acting and reacting"
+note = "The climbs are two frames each, seen from behind and hanging from the hands; the game steps them by how far she climbs. Attack, cast, hurt and death are four poses each, played once."
+members = [
+  "player-wayfarer-state-climb_ladder-generate",
+  "player-wayfarer-state-climb_ladder-validate",
+  "player-wayfarer-state-climb_rope-generate",
+  "player-wayfarer-state-climb_rope-validate",
+  "player-wayfarer-state-basic_attack-generate",
+  "player-wayfarer-state-basic_attack-validate",
+  "player-wayfarer-state-skill_cast-generate",
+  "player-wayfarer-state-skill_cast-validate",
+  "player-wayfarer-state-hurt-generate",
+  "player-wayfarer-state-hurt-validate",
+  "player-wayfarer-state-death-generate",
+  "player-wayfarer-state-death-validate",
+]
+
+[[examples.steps]]
+label = "Dialogue"
+note = "Five expressions for conversations, from the same concept."
+members = [
+  "player-wayfarer-dialogue-generate",
+  "player-wayfarer-dialogue-validate",
+]
+
+[[examples.steps]]
+label = "One size"
+note = "Every call draws at its own scale. A vision model compares all the strips with idle on one plate and sets a size for each; a second pass judges the plate with those sizes applied and corrects what is left."
+members = [
+  "player-wayfarer-motion-rebase",
+  "player-wayfarer-motion-rebase-verify",
+]
+
+[[examples.steps]]
+label = "Review"
+note = "A contact sheet of the whole set, judged by a model that drew none of it. The verdict is advice for the author; it does not stop the run."
+members = [
+  "player-wayfarer-contact-sheet",
+  "player-wayfarer-review",
+]

@@ -27,6 +27,11 @@ Authored inputs live in `inputs/default/` and `inputs/waves/` and asset preparat
 - `addons/demo_support` links to the private shared implementation used by these games.
 - `addons/sideview_rendering` selects independent [layer layout and image presentation](../../packages/sideview_rendering/README.md); run-file interpretation and depth ordering stay here.
 - `addons/scenario_runtime` selects the independent [Scenario framework](../../packages/scenario_runtime/README.md); gameplay, dialogue UI and save policy stay here.
+- `examples.toml`, `examples/<id>/page.mdx` and `pipeline/src/bellweather_pipeline/examples/` own
+  the examples this game made: its parallax backgrounds, terrain tiles, UI kit and animation set.
+  Each needs the whole game package, so none is a product workflow. `demo-games example export
+  bellweather` checks each one against its runs and pins and writes it into the local example
+  store through the product's public `stage_gen.examples` contract.
 
 ## Scenario invocation
 

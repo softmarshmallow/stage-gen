@@ -1,0 +1,108 @@
+<Hero input="village_scene" output="village_atlas" />
+
+<Stats>
+  <Stat metric="wall_seconds">from scene to finished atlas</Stat>
+  <Stat metric="estimated_cost_usd">estimated, for one image call</Stat>
+</Stats>
+
+A 47-tile set is what lets ground take any shape in a tile-based level: floors, floating ledges,
+steps, hollows and holes, with every edge and corner finished the right way. Painting one by hand
+means drawing all 47 variations so that each joins every other without a seam. Stage Gen holds that
+as a few steps of one graph. A locked template already has the right structure for every tile; the
+image model repaints it in the look of your scene in a single call, keeping each tile's finished
+sides exactly where they were. The sheet is then cut on fixed lines, checked for seams and holes,
+and packed into an atlas a game engine loads directly.
+
+## Try it
+
+<Try>
+<Agent>
+
+Make a 47-tile ground atlas that matches <Ref input="village_scene">this scene</Ref>, using Stage Gen's side-view terrain atlas in `docs/spec/terrain-atlas.md`. The picture is my own artwork. Start from a copy of the Bellweather package in `godot/games/bellweather/inputs/default`, and give one map's ground this scene as its reference, asking for warm cream paving, moss-softened edges and darker soil beneath.
+
+Do a dry run first. Then run the world checkpoint live, and show me the atlas and the level laid out with it.
+
+</Agent>
+<Shell>
+
+```sh
+uv run --group games demo-games generate \
+  --input my-game --dry-run --output runs/world-dry
+```
+
+```sh
+uv run --group games demo-games generate \
+  --input my-game --checkpoint world --output runs/world-01
+```
+
+`my-game` is a copy of `godot/games/bellweather/inputs/default` whose map names your scene under `[ground]`. The world checkpoint also paints that map's backgrounds. Needs OpenAI and OpenRouter keys.
+
+</Shell>
+</Try>
+
+## Draw with it
+
+<Painter start={[
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000000000000000000000000",
+  "000001111000000000000000",
+  "000000000000000011100000",
+  "111000000000000000000011",
+  "111110000110000000001111",
+  "111111100111111001111111"
+]}>
+  <Atlas output="village_atlas">Village</Atlas>
+  <Atlas output="forest_atlas">Forest</Atlas>
+</Painter>
+
+## How the template holds the shape
+
+<Compare node="map-sunpetal-crossing-ground-generate" left="What the model is given" right="What it paints">Drag across the sheet. Which sides of each tile are finished and which corners turn comes from the template; the prompt only describes the look.</Compare>
+
+## Another scene, same template
+
+<Hero input="forest_scene" output="forest_atlas" />
+
+The forest map asked for broad paving woven with old roots, amber leaves and dark forest soil. It
+was painted over the same template, passed the same checks, and fits the same levels.
+
+## What you get
+
+<Files>
+  <File path="maps/sunpetal-crossing/ground.png">The atlas: 47 tiles of 120 pixels, 12 by 4, with one reserved cell left empty</File>
+  <File path="maps/sunpetal-crossing/ground.validation.json">The checks it passed, and which tile each test shape used</File>
+  <File path="maps/sunpetal-crossing/ground.evidence.png">The level laid out with the atlas</File>
+  <File path="maps/sunpetal-crossing/ground.raw.png">The painted sheet as the model returned it</File>
+  <File path="maps/sunpetal-crossing/terrain.json">The level as a grid of solid and empty cells</File>
+  <File path="execution-summary.json">How the run ended, step by step</File>
+</Files>
+
+## Where it works
+
+<Scope>
+  <Works>A scene picture that shows the ground you want: paving, soil, rock, grass</Works>
+  <Works>Side-view levels on a square grid: floors, floating ledges, steps, hollows and holes</Works>
+  <Works>One material per atlas, with its own finish along the top</Works>
+  <Works>Engines that use 3×3 minimal terrain, such as Godot's terrain sets</Works>
+  <Limit>Smooth slopes: steps are square, and a slope needs its own tiles and collision</Limit>
+  <Limit>Two materials meeting, such as grass giving way to sand</Limit>
+  <Limit>Pixel art: the finish is hand-painted</Limit>
+  <Limit>Top-down maps</Limit>
+  <Tip>The tiles are admitted by measurement, not by a reviewer. Draw a few shapes with them before you use them.</Tip>
+  <Tip>Busy ground shows its repeats. A course of slabs reads as a wall; a single bright pebble reads as a copy.</Tip>
+  <Tip>For now the atlas is made as part of a platformer's world preparation, which also paints that map's backgrounds.</Tip>
+</Scope>
+
+## What goes wrong by hand
+
+<Guards>
+  <Guard node="map-sunpetal-crossing-ground-generate" how="The model repaints a template that already has every finished side and corner. It is never asked to draw structure from a description.">Described in words, tile edges come back as the words: grooves for a grid, gaps where an underside is mentioned.</Guard>
+  <Guard node="map-sunpetal-crossing-ground-generate" how="Every join the tiles can make is measured, and a sheet with a visible step in tone is drawn again, within six tries.">Tiles that look right alone show a line where they meet.</Guard>
+  <Guard node="map-sunpetal-crossing-ground-validate" how="The sheet is cut on fixed lines inside the fence, and a tile with any transparent pixel is refused.">A tile carries a hole or a strip of the guide line into the game.</Guard>
+  <Guard node="map-sunpetal-crossing-ground-validate" how="The lookup of 47 neighbour patterns is fixed and checked complete, so every shape a level can take has a tile.">A level shape turns up that no tile was drawn for.</Guard>
+</Guards>
+
+## Models and tools
+
+<Models />

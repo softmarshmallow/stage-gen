@@ -7,7 +7,9 @@ regenerated, and pinned by the sha256 of its two documents:
         example.json   workflow-example-v1: nodes, pictures, raw metrics, inputs and outputs
         figures.json   the figures ledger: every derived picture with the run file it came from
         media/         the derived pictures themselves
-        entry.json     only for an example a game made: its title, promise, command and steps
+        entry.json     only for an example a game made: its title, promise, command, steps,
+                       currency and the game's pins
+        page.mdx       only for an example a game made: its prose, copied from the game
 
 The owner is the workflow id, or the game id for an example made inside a game. A workflow
 pins its examples in its own ``workflow.toml``; a game pins its own. The store is ignored by
@@ -44,6 +46,8 @@ GAME_ENTRY_KIND: Literal["game-example-entry-v1"] = "game-example-entry-v1"
 EXAMPLE_FILE = "example.json"
 FIGURES_FILE = "figures.json"
 ENTRY_FILE = "entry.json"
+#: The prose of an example a game made, copied into the store beside it.
+PAGE_FILE = "page.mdx"
 MEDIA_DIR = "media"
 #: The document that identifies a run folder, in the order an importer looks for it.
 ANCHOR_DOCUMENTS = ("execution-plan.json", "graph.json", "execution.json", "manifest.json")
@@ -221,23 +225,47 @@ class FiguresLedger(_Strict):
 
 
 class GameExampleStep(_Strict):
+    """A labelled group of the example's node ids, with a one-line note."""
+
     label: str = Field(min_length=1)
     note: str
     members: list[str] = Field(min_length=1)
 
 
+class ExampleTool(_Strict):
+    name: str = Field(min_length=1)
+    role: str = Field(min_length=1)
+
+
 class GameExampleEntry(_Strict):
-    """``entry.json``: what a game says about an example it made, beside the example."""
+    """``entry.json``: what a game says about an example it made, beside the example.
+
+    The game writes it when it exports the example. ``game_title`` names the game for the
+    line a page shows ("Made inside the ... example game"); ``labels`` title the node ids its
+    ``steps`` group; ``currency`` is derived by the game from the node types and graph kinds
+    it has today; the two pins are the game's own, so the store can be checked without it.
+    """
 
     schema_version: Literal[1] = 1
     kind: Literal["game-example-entry-v1"] = GAME_ENTRY_KIND
     made_by: MadeBy
+    game_title: str = Field(min_length=1)
     title: str = Field(min_length=1)
     promise: str = Field(min_length=1)
-    order: int | None = None
+    order: int | None = Field(default=None, ge=1)
     related: list[str] = Field(default_factory=list)
     command: str = Field(min_length=1)
+    footer: str | None = None
+    tools: list[ExampleTool] = Field(default_factory=list)
+    labels: dict[str, str] = Field(default_factory=dict)
     steps: list[GameExampleStep] = Field(default_factory=list)
+    currency: Currency
+    example_sha256: str = Field(pattern=SHA256_PATTERN)
+    figures_sha256: str = Field(pattern=SHA256_PATTERN)
+
+    @property
+    def pin(self) -> ExamplePin:
+        return ExamplePin(self.example_sha256, self.figures_sha256)
 
 
 def document_bytes(document: BaseModel) -> bytes:
@@ -345,6 +373,23 @@ def verify(directory: Path, pin: ExamplePin | None = None) -> list[str]:
             name = path.relative_to(directory).as_posix()
             if path.is_file() and name not in listed:
                 problems.append(f"{name} is not in the ledger")
+    return problems
+
+
+def verify_game_example(directory: Path) -> list[str]:
+    """``verify`` for an example a game wrote, against the pins in its ``entry.json``.
+
+    Without an entry the game has not exported it yet, and only its ledger is checked.
+    """
+    try:
+        entry = read_entry(directory)
+    except ValueError as error:
+        return [f"unreadable {ENTRY_FILE}: {error}"]
+    problems = verify(directory, None if entry is None else entry.pin)
+    if entry is not None and not problems:
+        document = read_example(directory)
+        if document.example_id != directory.name or document.made_by != entry.made_by:
+            problems.append(f"{EXAMPLE_FILE} names another example or maker than {ENTRY_FILE}")
     return problems
 
 
@@ -1195,6 +1240,7 @@ __all__ = [
     "FIGURES_FILE",
     "GAME_ENTRY_KIND",
     "MEDIA_DIR",
+    "PAGE_FILE",
     "Currency",
     "Delivered",
     "DisplayNames",
@@ -1202,6 +1248,7 @@ __all__ = [
     "ExampleModel",
     "ExampleNode",
     "ExamplePin",
+    "ExampleTool",
     "FigureEntry",
     "FigureSource",
     "FiguresLedger",
@@ -1241,6 +1288,7 @@ __all__ = [
     "source_run",
     "store_directory",
     "verify",
+    "verify_game_example",
     "video_frames",
     "write_example",
 ]

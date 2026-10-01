@@ -98,6 +98,10 @@ def _dispatch(args: argparse.Namespace, *, runtime: HeadlessRuntime | None, stdo
         from demo_game_collection.commands.views import dispatch
 
         return dispatch(args, stdout=stdout)
+    if command == "example":
+        from demo_game_collection.commands.examples import dispatch
+
+        return dispatch(args, stdout=stdout)
     if command == "universe" and args.universe_command == "page":
         from stage_gen.workflows.universe import gallery_page
 

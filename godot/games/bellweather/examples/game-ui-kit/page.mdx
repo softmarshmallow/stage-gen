@@ -1,0 +1,105 @@
+<Hero input="cover" output="kit" />
+
+<Stats>
+  <Stat metric="wall_seconds">of drawing, checking and reviewing, three sheets</Stat>
+  <Stat metric="estimated_cost_usd">estimated, including the retries</Stat>
+</Stats>
+
+Every 2D game needs the same few pieces of interface: a panel for dialogue and menus, a button in its
+four states, and a set of system icons. Made by hand, each one has to be cut so it
+stretches without smearing its corners, lined up so the pressed state does not jump, and kept in the
+game's style. Stage Gen makes each sheet as a short chain in the game's graph. The image model paints
+over a geometry template, with the game's cover as its style reference. A local gate then measures
+what came back: where the corners end, where text can sit and in which colour, where each icon
+is. A reviewer that did not draw the sheet judges its style. The measurements travel with the
+sheet, so an engine lays it out without guessing.
+
+## Try it
+
+<Try>
+<Agent>
+
+Make a game UI kit in the style of <Ref input="cover">this picture</Ref>: a panel frame, a button in four states and the 16 system icons, using Stage Gen's UI sheets described in `godot/games/_shared/docs/formats/ui.md`. Start from a copy of the Bellweather package in `godot/games/bellweather/inputs/default`, use the picture as its style reference, and give each sheet a one-sentence direction in `ui.toml`.
+
+Do a dry run first. Then run the content checkpoint and its reviews live, and show me each sheet with the reviewer's verdict.
+
+</Agent>
+<Shell>
+
+```sh
+uv run --group games demo-games generate \
+  --input my-game --dry-run --output runs/content-dry
+```
+
+```sh
+uv run --group games demo-games generate \
+  --input my-game --checkpoint content --output runs/content-01
+```
+
+```sh
+uv run --group games demo-games generate \
+  --input my-game --checkpoint content-review --output runs/content-review-01
+```
+
+`my-game` is a copy of `godot/games/bellweather/inputs/default` with your picture as `references/cover.png` and your directions in `ui.toml`. The content checkpoint also draws the game's cast and catalog; the reviews are paid for separately, in their own checkpoint over what the first one drew.
+
+</Shell>
+</Try>
+
+## Use it
+
+<UiKit backdrop="cover" buttons={["Continue", "Settings", "Quit"]}>A panel like this holds dialogue, menus and titles. Drag its corner and it stretches without smearing its corners.</UiKit>
+
+## How the template holds the shape
+
+<Compare node="ui-button_rect-generate" left="The template" right="What the model painted">The template fixes where each state sits and where every edge falls; the cover supplies the look.</Compare>
+
+## What the gate measures
+
+<Filmstrip>
+  <Frame node="ui-panel_frame-validate" media={[1]}>The panel rebuilt wider and taller from its slices</Frame>
+  <Frame node="ui-button_rect-validate" media={[1]}>Every button state rebuilt wide and narrow</Frame>
+  <Frame node="ui-preview_icons-validate" media={[1]}>Each icon named, and seen at small sizes</Frame>
+</Filmstrip>
+
+## What you get
+
+<Files>
+  <File path="ui/panel_frame.png">The panel frame, one nine-slice cell</File>
+  <File path="ui/panel_frame.validation.json">Its insets, text area and text colour, for the engine</File>
+  <File path="ui/button_rect.png">The button in four states</File>
+  <File path="ui/button_rect.validation.json">Each state's cell, insets and text area</File>
+  <File path="ui/preview_icons.png">The 16 icons, one per cell</File>
+  <File path="ui/preview_icons.validation.json">Each icon's name and bounds</File>
+  <File path="manifest.json">The package manifest that binds them</File>
+</Files>
+
+## Where it works
+
+<Scope>
+  <Works>Any 2D game's standard screens: dialogue, menus, pause, settings</Works>
+  <Works>One style picture, such as the game's cover or a style plate</Works>
+  <Works>Panels and buttons that stretch to any size without distorting their corners</Works>
+  <Works>A short direction per sheet, in plain words</Works>
+  <Limit>Text: the sheets carry none, so labels are set in the engine</Limit>
+  <Limit>Item icons for a game's own things: these 16 are system icons</Limit>
+  <Limit>Animated interface</Limit>
+  <Limit>A strictly flat, vector look: the model tends to add shading, and the reviewer flags it</Limit>
+  <Tip>The reviewer's verdict is recorded, not enforced. Here it accepted the panel and the buttons, and rejected the icons for glossy shading where flat colour was asked for.</Tip>
+  <Tip>The gate is what stops a run. A drawing whose corners run into the edge bands is refused and drawn again.</Tip>
+  <Tip>The gate also picks the text colour for each surface from its measured contrast.</Tip>
+</Scope>
+
+## What goes wrong by hand
+
+<Guards>
+  <Guard node="ui-panel_frame-validate" how="The panel is rebuilt at other sizes from its slices, and a sheet whose bands do not repeat cleanly is refused.">Corner ornaments run into the part that stretches, and they smear when the panel grows.</Guard>
+  <Guard node="ui-button_rect-validate" how="All four states are measured against the normal one: the same outline and size, but visibly different.">The pressed button jumps a few pixels, or the hover state looks just like the normal one.</Guard>
+  <Guard node="ui-button_rect-validate" how="The gate measures the text area of each surface and records the text colour that reads on it.">Labels are unreadable on the button's face.</Guard>
+  <Guard node="ui-preview_icons-validate" how="Each icon is found in its own cell, the set is checked for one size, and nothing may sit outside the cells.">Icons drift off-centre and come out at different sizes.</Guard>
+  <Guard node="ui-preview_icons-review" how="A reviewer that did not draw the sheet judges it against the direction and the cover.">The kit slowly drifts away from the game's style.</Guard>
+</Guards>
+
+## Models and tools
+
+<Models />

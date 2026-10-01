@@ -204,10 +204,10 @@ def _catalog_export(args: argparse.Namespace, output: TextIO) -> int:
 def _example_verify(args: argparse.Namespace, output: TextIO) -> int:
     """One line per pinned example: ok, missing (from the local store), or what differs.
 
-    Examples a game wrote into the store are checked against their own ledger here; their
-    pins live with the game.
+    Examples a game wrote into the store are checked against the pins the game wrote beside
+    them in ``entry.json``, or only against their own ledger before the game exported them.
     """
-    from stage_gen.examples import EXAMPLE_FILE, verify
+    from stage_gen.examples import EXAMPLE_FILE, verify_game_example
     from stage_gen.workflows._catalog import default_examples_dir, load_example
     from stage_gen.workflows._registry import discover, load_code, repository_root
 
@@ -235,7 +235,9 @@ def _example_verify(args: argparse.Namespace, output: TextIO) -> int:
             if args.owner not in (None, owner.name):
                 continue
             for directory in sorted(p for p in owner.iterdir() if (p / EXAMPLE_FILE).is_file()):
-                lines.append((f"{owner.name}/{directory.name}", verify(directory), False))
+                lines.append(
+                    (f"{owner.name}/{directory.name}", verify_game_example(directory), False)
+                )
     if not lines:
         raise ValueError(f"no examples pinned or stored for {args.owner or 'any owner'}")
     for name, problems, missing in lines:

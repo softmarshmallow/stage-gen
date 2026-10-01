@@ -426,3 +426,92 @@ def test_the_cli_verifies_library_examples_without_a_store(tmp_path: Path) -> No
         "character-3d/riko: ok",
         "character-3d/helix: ok",
     ]
+
+
+def _game_store(tmp_path: Path, **entry: object) -> Path:
+    """A store holding one example a game made, exported with its entry and page."""
+    from stage_gen.examples import (
+        FiguresLedger,
+        GameExampleEntry,
+        MadeBy,
+        WorkflowExample,
+        document_bytes,
+        figures_bytes,
+        sha256_bytes,
+        write_example,
+    )
+
+    made_by = MadeBy(kind="game", id="some-game")
+    example = WorkflowExample.model_validate(
+        {
+            "example_id": "made-in-game",
+            "made_by": made_by,
+            "importer": "game_importer",
+            "delivered_run": "out/game-run",
+            "source_runs": [
+                {"path": "out/game-run", "anchor": "execution-plan.json", "anchor_sha256": "0" * 64}
+            ],
+            "source_files": {},
+            "status": "succeeded",
+            "graph_kind": None,
+            "graph_sha256": None,
+            "inputs": {},
+            "outputs": {},
+            "metrics": {},
+            "models": [],
+            "tree": {},
+            "nodes": {},
+        }
+    )
+    ledger = FiguresLedger(run="out/game-run", files=[])
+    fields: dict[str, object] = {
+        "made_by": made_by,
+        "game_title": "Some Game",
+        "title": "Made in a game",
+        "promise": "A whole game package in. One example out.",
+        "order": 1,
+        "related": ["looping-parallax"],
+        "command": "demo-games generate --input my-game",
+        "currency": "earlier_version",
+        "example_sha256": sha256_bytes(document_bytes(example)),
+        "figures_sha256": sha256_bytes(figures_bytes(ledger)),
+        **entry,
+    }
+    directory = tmp_path / "store" / "some-game" / "made-in-game"
+    write_example(directory, example, ledger, entry=GameExampleEntry.model_validate(fields))
+    (directory / "page.mdx").write_text("The game's page.\n", encoding="utf-8")
+    return tmp_path / "store"
+
+
+def test_examples_a_game_wrote_are_listed_generically_with_their_entry(tmp_path: Path) -> None:
+    catalog, problems = build(examples_dir=_game_store(tmp_path), allow_missing_examples=True)
+    assert problems == []
+    (game,) = catalog["game_examples"]
+    assert (game["owner"], game["id"], game["page"]) == ("some-game", "made-in-game", "page.mdx")
+    assert game["currency"] == "earlier_version" and game["entry"]["game_title"] == "Some Game"
+    assert [card["order"] for card in catalog["cards"]] == [1, 5, 6, 7, 8]
+    card = catalog["cards"][0]
+    assert (card["made_inside"], card["workflow"], card["example"]) == (
+        "Some Game",
+        None,
+        "made-in-game",
+    )
+    assert {card["made_inside"] for card in catalog["cards"][1:]} == {None}
+
+
+def test_a_game_entry_is_held_to_its_pins_relations_and_landing_order(tmp_path: Path) -> None:
+    store = _game_store(tmp_path, related=["no-such-workflow"], order=5, example_sha256="1" * 64)
+    _, problems = build(examples_dir=store, allow_missing_examples=True)
+    prefix = "some-game/made-in-game: "
+    assert f"{prefix}related names unknown workflow no-such-workflow" in problems
+    assert any(p.startswith(f"{prefix}example.json sha256") for p in problems)
+    assert "landing order 5 is claimed by some-game/made-in-game, portrait-motion/yuzu-face" in (
+        problems
+    )
+
+    from stage_gen.interfaces.cli import main
+
+    output = io.StringIO()
+    argv = ["example", "verify", "some-game", "--examples", str(store)]
+    assert main(argv, stdout=output, stderr=io.StringIO()) == 1
+    assert "differs from its pin" in output.getvalue()
