@@ -1,0 +1,11 @@
+:HL["/stage-gen/_next/static/chunks/23dm_e5809lin.css","style"]
+:HL["/stage-gen/examples/bellweather/parallax-backgrounds/media/reference.webp","image"]
+:HL["/stage-gen/examples/bellweather/parallax-backgrounds/media/sunpetal-crossing-sunpetal_village-drawn.webp","image"]
+:HL["/stage-gen/examples/bellweather/parallax-backgrounds/media/sunpetal-crossing-sunpetal_village-wrap-drawn.webp","image"]
+:HL["/stage-gen/examples/bellweather/parallax-backgrounds/media/sunpetal-crossing-sunpetal_village-window.webp","image"]
+:HL["/stage-gen/examples/bellweather/parallax-backgrounds/media/sunpetal-crossing-sunpetal_village-cuts.webp","image"]
+:HL["/stage-gen/examples/bellweather/parallax-backgrounds/media/sunpetal-crossing-clouds_and_far_valley-window.webp","image"]
+:HL["/stage-gen/examples/bellweather/parallax-backgrounds/media/sunpetal-crossing-clouds_and_far_valley-given.webp","image"]
+:HL["/stage-gen/examples/bellweather/parallax-backgrounds/media/sunpetal-crossing-sunpetal_village-given.webp","image"]
+:HL["/stage-gen/examples/bellweather/parallax-backgrounds/media/sunpetal-crossing-sunpetal_village-wrap-looped.webp","image"]
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"games","param":null,"prefetchHints":4192,"slots":{"children":{"name":"game","param":{"type":"d","key":"bellweather","siblings":[]},"prefetchHints":4192,"slots":{"children":{"name":"example","param":{"type":"d","key":"parallax-backgrounds","siblings":[]},"prefetchHints":4192,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}}}}}}}},"staleTime":300,"buildId":"IkBRJQQGekLxpyvk2X1WR"}

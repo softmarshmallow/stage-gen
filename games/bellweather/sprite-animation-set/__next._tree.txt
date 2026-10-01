@@ -1,0 +1,8 @@
+:HL["/stage-gen/_next/static/chunks/23dm_e5809lin.css","style"]
+:HL["/stage-gen/examples/bellweather/sprite-animation-set/media/cover.webp","image"]
+:HL["/stage-gen/examples/bellweather/sprite-animation-set/media/concept.webp","image"]
+:HL["/stage-gen/examples/bellweather/sprite-animation-set/media/run-drawn.webp","image"]
+:HL["/stage-gen/examples/bellweather/sprite-animation-set/media/rebase-plate.webp","image"]
+:HL["/stage-gen/examples/bellweather/sprite-animation-set/media/rebase-checked.webp","image"]
+:HL["/stage-gen/examples/bellweather/sprite-animation-set/media/dialogue.webp","image"]
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"games","param":null,"prefetchHints":4192,"slots":{"children":{"name":"game","param":{"type":"d","key":"bellweather","siblings":[]},"prefetchHints":4192,"slots":{"children":{"name":"example","param":{"type":"d","key":"sprite-animation-set","siblings":[]},"prefetchHints":4192,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}}}}}}}},"staleTime":300,"buildId":"IkBRJQQGekLxpyvk2X1WR"}
