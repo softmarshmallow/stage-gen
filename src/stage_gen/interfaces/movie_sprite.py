@@ -12,7 +12,7 @@ from typing import Any
 
 from gnode import BindingTable
 from stage_gen.pipeline import inspect, plan, run, write_plan
-from stage_gen.recipes.movie_sprite_body_idle import GenerationSettings, create_pipeline
+from stage_gen.workflows.movie_sprite import GenerationSettings, create_pipeline
 
 
 def _parser() -> argparse.ArgumentParser:

@@ -158,7 +158,7 @@ functions available to Python callers. For example, prepare a face run offline:
 from pathlib import Path
 
 from stage_gen.components.portrait_motion import PortraitMotionSpec
-from stage_gen.recipes.portrait_motion.pipeline import prepare_run
+from stage_gen.workflows.portrait_motion.pipeline import prepare_run
 
 spec = PortraitMotionSpec.model_validate_json(
     Path("docs/examples/portrait-motion/face-four-card.json").read_bytes()
@@ -248,7 +248,7 @@ from pathlib import Path
 from PIL import Image
 
 from stage_gen.components.portrait_motion import apply_offset_patch
-from stage_gen.recipes.portrait_motion.pipeline import verify_run
+from stage_gen.workflows.portrait_motion.pipeline import verify_run
 
 run = Path("/path/to/new-face-run")
 result = verify_run(run)

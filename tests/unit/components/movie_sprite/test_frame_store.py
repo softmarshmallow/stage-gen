@@ -15,7 +15,7 @@ from numpy.typing import NDArray
 from stage_gen.components.movie_sprite import processing
 from stage_gen.components.movie_sprite.frame_store import FrameStore
 from stage_gen.components.movie_sprite.models import MAX_OUTPUT_BYTES
-from stage_gen.recipes.movie_sprite_body_idle.examples.supplied_clip.make_inputs import make_inputs
+from stage_gen.workflows.movie_sprite.inputs.supplied_clip.make_inputs import make_inputs
 
 
 def test_frame_store_roundtrip_preserves_order_and_independent_reads(tmp_path: Path) -> None:

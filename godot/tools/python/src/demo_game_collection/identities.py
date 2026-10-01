@@ -233,10 +233,10 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     ("authored", _field("components.character_profile.models", "CharacterProfileBinding")),
     ("authored", _field("recipes.pointclick_room.models", "PointClickRoom")),
     ("authored", _field("recipes.dialogue_scene.models", "DialogueSceneDocument")),
-    ("authored", _field("recipes.universe.models", "UniverseSource")),
+    ("authored", _field("workflows.universe.models", "UniverseSource")),
     ("authored", _field("recipes.oblique_survival.models", "ObliqueSurvivalSource")),
     ("authored", _constant("recipes.oblique_survival.models", "WORLD_KIND")),
-    ("authored", _field("recipes.storefront.models", "StorefrontSource")),
+    ("authored", _field("workflows.storefront.models", "StorefrontSource")),
     # Generated documents: what the pipeline writes for a consumer or a later node.
     ("generated", _field("components.platformer_map.prepared", "PreparedMapTerrain")),
     ("generated", _field("components.sideview_map_design.design", "PlatformerChunkMapDesign")),
@@ -250,13 +250,13 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     ("generated", _field("recipes.dialogue_scene.models", "DialogueScenePlan")),
     ("generated", _field("recipes.dialogue_scene.models", "IndependentReview")),
     ("generated", _field("recipes.dialogue_scene.models", "DialogueBundle")),
-    ("generated", _field("recipes.universe.models", "SampleLedger")),
-    ("generated", _field("recipes.storefront.models", "DrawLedger")),
-    ("generated", _field("recipes.storefront.models", "StorefrontDirection")),
-    ("generated", _field("recipes.storefront.models", "StoreListing")),
+    ("generated", _field("workflows.universe.models", "SampleLedger")),
+    ("generated", _field("workflows.storefront.models", "DrawLedger")),
+    ("generated", _field("workflows.storefront.models", "StorefrontDirection")),
+    ("generated", _field("workflows.storefront.models", "StoreListing")),
     (
         "generated",
-        _constant("recipes.portrait_motion.pipeline", "PORTRAIT_MOTION_PLAN_KIND"),
+        _constant("workflows.portrait_motion.pipeline", "PORTRAIT_MOTION_PLAN_KIND"),
     ),
     # Runtime manifests: what a host parses.
     (
@@ -265,7 +265,7 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     ),
     ("manifest", _constant("recipes.sideview_runner.runner_types", "MANIFEST_KIND")),
     ("manifest", _constant("recipes.pointclick_room.room_types", "MANIFEST_KIND")),
-    ("manifest", _constant("recipes.universe.universe_types", "MANIFEST_KIND")),
+    ("manifest", _constant("workflows.universe.universe_types", "MANIFEST_KIND")),
     ("manifest", _constant("recipes.oblique_survival.manifest", "MANIFEST_KIND")),
     # Execution graphs.
     (
@@ -303,7 +303,7 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     (
         "graph",
         _graph(
-            "recipes.universe.universe_graph",
+            "workflows.universe.universe_graph",
             "UNIVERSE_GRAPH_KIND",
             "UniverseGraph",
         ),
@@ -319,7 +319,7 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     (
         "graph",
         _graph(
-            "recipes.storefront.storefront_graph",
+            "workflows.storefront.storefront_graph",
             "STOREFRONT_GRAPH_KIND",
             "StorefrontGraph",
         ),
@@ -327,7 +327,7 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     (
         "graph",
         _graph(
-            "recipes.portrait_motion.pipeline",
+            "workflows.portrait_motion.pipeline",
             "PORTRAIT_MOTION_GRAPH_KIND",
             "PortraitMotionGraph",
         ),
@@ -348,12 +348,12 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     ("namespace", _constant("recipes.sideview_runner.runner_graph", "RUNNER_CACHE_NAMESPACE")),
     ("namespace", _constant("recipes.pointclick_room.room_graph", "POINTCLICK_CACHE_NAMESPACE")),
     ("namespace", _constant("recipes.dialogue_scene.scene_graph", "DIALOGUE_CACHE_NAMESPACE")),
-    ("namespace", _constant("recipes.universe.universe_graph", "UNIVERSE_CACHE_NAMESPACE")),
+    ("namespace", _constant("workflows.universe.universe_graph", "UNIVERSE_CACHE_NAMESPACE")),
     (
         "namespace",
         _constant("recipes.oblique_survival.survival_graph", "OBLIQUE_SURVIVAL_CACHE_NAMESPACE"),
     ),
-    ("namespace", _constant("recipes.storefront.storefront_graph", "STOREFRONT_CACHE_NAMESPACE")),
+    ("namespace", _constant("workflows.storefront.storefront_graph", "STOREFRONT_CACHE_NAMESPACE")),
     # Recipe versions stamped beside a generated document's own kind.
     ("recipe", _field("recipes.dialogue_scene.models", "DialogueScenePlan", "recipe_version")),
     # Blocks a shared component builds for more than one manifest.

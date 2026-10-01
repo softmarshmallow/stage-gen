@@ -33,13 +33,13 @@ from stage_gen.config import ConfigError, StageGenConfig
 from stage_gen.model_routes import FAL_SUNBURST_EDIT_ENDPOINT, FAL_SUNBURST_TEXT_TO_IMAGE_ENDPOINT
 from stage_gen.orchestration.image_routing import RoutedImageGenerationService
 from stage_gen.provider_env import load_provider_dotenv
-from stage_gen.recipes.portrait_motion.face_location import (
+from stage_gen.workflows.portrait_motion.face_location import (
     ATTEMPT_RESERVATION_USD,
     BUDGET_USD,
     TIMEOUT_SECONDS,
     _budget_ledger,
 )
-from stage_gen.recipes.portrait_motion.pipeline import (
+from stage_gen.workflows.portrait_motion.pipeline import (
     TOOL,
     RuntimeProfile,
     _Budget,
@@ -47,7 +47,7 @@ from stage_gen.recipes.portrait_motion.pipeline import (
     _image_config,
     request_policy,
 )
-from stage_gen.recipes.portrait_motion.services import PortraitServices
+from stage_gen.workflows.portrait_motion.services import PortraitServices
 
 
 def _image_backend(route: RouteContractV1, config: StageGenConfig) -> ImageModelV1:

@@ -10,7 +10,7 @@ from pathlib import Path
 from stage_gen.components.portrait_motion import PortraitMotionSpec
 from stage_gen.config import load_config
 from stage_gen.orchestration.portrait_services import ConfiguredPortraitServices
-from stage_gen.recipes.portrait_motion import (
+from stage_gen.workflows.portrait_motion import (
     RuntimeProfile,
     prepare_run,
     run_pipeline,

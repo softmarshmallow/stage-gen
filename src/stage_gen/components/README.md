@@ -6,7 +6,7 @@ Components own bounded generation or processing capabilities. Recipes compose th
 |---|---|---|
 | Repeating images | `image_repeat.ImageRepeatService` | Explicit repeat admission or repair, with validation and lineage |
 | Layered scenery | `sideview_layers.models.LayerRequest`, `sideview_layers.nodes` | Layer generation, repeat construction, and placement |
-| Supplied-layer parallax | `sideview_layers.parallax`, `recipes.looping_parallax` | Repeating PNGs, portable composition metadata, and a scrolling preview |
+| Supplied-layer parallax | `sideview_layers.parallax`, `workflows.looping_parallax` | Repeating PNGs, portable composition metadata, and a scrolling preview |
 | Character identity | `character_profile.CharacterProfile` | Optional visual identity, expressions, and referenced artwork |
 | Sprite playback/coherence | `actor_content.MotionPresentation`, `sideview_actor` | Frames, anchors, source extent, caller-defined visual scale, cross-state coherence |
 | Fixed portrait motion | `portrait_motion` | Local eye/mouth patches, registration, review, and diagnostic playback |
@@ -58,4 +58,4 @@ Music, speech, and sound requests describe assets. Gain, event-strength pitch ch
 
 Existing fixed geometry remains useful as named presets. The 47-mask terrain atlas, four-frame motion strip, fixed UI glyph sheets, and local eye/mouth portrait pipeline do not claim to represent every terrain, animation, UI, or Live2D workflow. Authors can compose different capabilities or add their own nodes through the same harness.
 
-Runnable examples live beside recipes. Start with `../recipes/looping_parallax/examples/supplied_layers/`: its small Python input generator produces original geometric layers without a provider, and its `pipeline.py` runs through the standard authoring harness. Inspecting or scrolling the result requires no game definition.
+Runnable examples live beside recipes. Start with `../workflows/looping_parallax/inputs/supplied_layers/`: its small Python input generator produces original geometric layers without a provider, and its `pipeline.py` runs through the standard authoring harness. Inspecting or scrolling the result requires no game definition.

@@ -39,13 +39,13 @@ from stage_gen.model_policy_maintenance import (
     render_model_policy_snapshot,
 )
 from stage_gen.model_routes import IMAGE_ROUTE_CATALOG, image_workload_policies
-from stage_gen.recipes.storefront.storefront_executor import StorefrontExecutor
-from stage_gen.recipes.universe.universe_graph import (
+from stage_gen.workflows.storefront.storefront_executor import StorefrontExecutor
+from stage_gen.workflows.universe.universe_graph import (
     build_universe_gallery_graph,
     build_universe_semantic_graph,
     universe_graph_profile,
 )
-from stage_gen.recipes.universe.universe_request import (
+from stage_gen.workflows.universe.universe_request import (
     admitted_universe_from_document,
     read_universe_document,
     resolve_sample_ledger,
@@ -65,7 +65,7 @@ DIALOGUE_FIXTURE = "godot/games/the_grain/inputs"
 POINTCLICK_FIXTURE = "godot/games/the_grain/inputs/rooms/window"
 STOREFRONT_FIXTURE = "godot/games/ember_hollow/inputs"
 SURVIVAL_FIXTURE = "godot/games/ember_hollow/inputs"
-UNIVERSE_FIXTURE = "src/stage_gen/recipes/universe/examples/lantern_ferry"
+UNIVERSE_FIXTURE = "src/stage_gen/workflows/universe/inputs/lantern_ferry"
 UNIVERSE_ADMITTED_FIXTURE = "tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json"
 
 PLATFORMER_DOCUMENT = "godot/games/bellweather/docs/generation-pipeline.md"

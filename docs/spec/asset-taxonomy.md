@@ -86,7 +86,7 @@ the old names.
 | `recipes/scrolling_preview` | `recipes/sideview_platformer` | `2d/sideview/platformer` (the recipe is the genre package) | c/d |
 | `recipes/dialogue_scene` | unchanged | `2d/frontview/vn/scene` | c |
 | `recipes/pointclick_room` | new in the ABI pass | `2d/roomview/pointclick` | c/d — fixed-room stage, cursor-only interaction |
-| `recipes/universe` | new in the universe pass | `universe` | a — no camera and no genre: the semantic half of this recipe proposes, plans and admits a storyworld as text, and only its gallery half draws |
+| `workflows/universe` | new in the universe pass | `universe` | a — no camera and no genre: the semantic half of this recipe proposes, plans and admits a storyworld as text, and only its gallery half draws |
 | `recipes/oblique_survival` | new in the survival pass | `2d/obliqueview/survival` (the recipe is the genre package) | c/d — fixed elevated-oblique perspective camera, billboard cards on a ground plane, and the survival rules the cards obey |
 | the recipe's ground steps | new in the survival pass | `2d/obliqueview/survival/ground_*` | c — material plates, the macro colour field, the road and water plates, and the litter, forage and standing-plant sheets a consumer scatters |
 | the recipe's actor steps | new in the survival pass | `2d/obliqueview/survival/actor_concept`, `.../motion_atlas`, `.../motion_rebase` | c — the four-way facing set, billboard strip geometry, ground-contact measurement |

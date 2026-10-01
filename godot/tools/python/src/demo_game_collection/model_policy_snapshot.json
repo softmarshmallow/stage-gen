@@ -51,16 +51,16 @@
     },
     {
       "check_id": "universe_gallery_graph_contract",
-      "expected_state_sha256": "c1473d9f65963f08842e1d2d877520fc8d89da16ad897f811e9152e55d4653ca",
-      "file_sha256": "37424be6ad5a7b25a1fa0d5cfd0e891590c0abb16a4387e65e7e737cd7f1b94f",
-      "observed_state_sha256": "c1473d9f65963f08842e1d2d877520fc8d89da16ad897f811e9152e55d4653ca",
+      "expected_state_sha256": "db1fa2ed585117322826d0838256129966bce249fece540d35cd7967bd8baf52",
+      "file_sha256": "12c9b943ee5c7cc69e5c69d711a4b110b4ff8eb507413336b25143c1a70bb2b6",
+      "observed_state_sha256": "db1fa2ed585117322826d0838256129966bce249fece540d35cd7967bd8baf52",
       "path": "docs/spec/universe/generation-v1.md"
     },
     {
       "check_id": "universe_semantic_graph_contract",
-      "expected_state_sha256": "f1dbfadb3ab51f7da201c957aed39059146eb941977d017b8e570d9aab8757b5",
-      "file_sha256": "37424be6ad5a7b25a1fa0d5cfd0e891590c0abb16a4387e65e7e737cd7f1b94f",
-      "observed_state_sha256": "f1dbfadb3ab51f7da201c957aed39059146eb941977d017b8e570d9aab8757b5",
+      "expected_state_sha256": "ec5567dcef6ab9b85832b5400fd992cd0b2da42c12106629120ef9a70755b8f7",
+      "file_sha256": "12c9b943ee5c7cc69e5c69d711a4b110b4ff8eb507413336b25143c1a70bb2b6",
+      "observed_state_sha256": "ec5567dcef6ab9b85832b5400fd992cd0b2da42c12106629120ef9a70755b8f7",
       "path": "docs/spec/universe/generation-v1.md"
     }
   ],
@@ -15997,7 +15997,7 @@
       ],
       "estimated_cost_high_usd": 12.6,
       "estimated_cost_low_usd": 1.46,
-      "fixture_ref": "src/stage_gen/recipes/universe/examples/lantern_ferry",
+      "fixture_ref": "src/stage_gen/workflows/universe/inputs/lantern_ferry",
       "graph_kind": "universe-execution-graph-v2",
       "graph_schema_version": 2,
       "graph_sha256": "5ecfaf3a65370277325e59f0c8e0a45d9cab40390febee553822dcd9d4297be9",
@@ -16766,7 +16766,7 @@
       "bindings": [],
       "estimated_cost_high_usd": 1.8,
       "estimated_cost_low_usd": 0.06,
-      "fixture_ref": "src/stage_gen/recipes/universe/examples/lantern_ferry",
+      "fixture_ref": "src/stage_gen/workflows/universe/inputs/lantern_ferry",
       "graph_kind": "universe-execution-graph-v2",
       "graph_schema_version": 2,
       "graph_sha256": "581db57e5c1145e590e935c360f82f9f8df86085563639437121341ab96be563",

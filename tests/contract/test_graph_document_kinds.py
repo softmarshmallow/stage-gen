@@ -35,13 +35,13 @@ from iron_petal_unit_pipeline.runner_graph import (
 from stage_gen.orchestration.graph_executor import GraphExecutor
 from stage_gen.pipeline.graph_document import GraphDocument
 from stage_gen.pipeline.node_handler import CachedNodeHandler
-from stage_gen.recipes.storefront.storefront_executor import StorefrontExecutor
-from stage_gen.recipes.storefront.storefront_graph import (
+from stage_gen.workflows.storefront.storefront_executor import StorefrontExecutor
+from stage_gen.workflows.storefront.storefront_graph import (
     STOREFRONT_GRAPH_SCHEMA_VERSION,
     StorefrontGraph,
 )
-from stage_gen.recipes.universe.universe_executor import UniverseExecutor
-from stage_gen.recipes.universe.universe_graph import (
+from stage_gen.workflows.universe.universe_executor import UniverseExecutor
+from stage_gen.workflows.universe.universe_graph import (
     UNIVERSE_GRAPH_SCHEMA_VERSION,
     UniverseGraph,
 )
@@ -57,7 +57,8 @@ from the_grain_pipeline.pointclick_room.room_graph import (
 )
 
 SOURCE_ROOT = Path(__file__).resolve().parents[2] / "src" / "stage_gen"
-RECIPE_ROOT = SOURCE_ROOT / "recipes"
+#: Product workflows, plus the frozen character-3d implementation root.
+WORKFLOW_ROOTS = (SOURCE_ROOT / "workflows", SOURCE_ROOT / "recipes")
 
 #: Every recipe graph, the recipe word it derives its document kinds from, and the
 #: schema-version constant its module still exports beside the pinned literal.
@@ -134,9 +135,11 @@ def test_no_recipe_redefines_a_substrate_helper() -> None:
     """The helpers live in ``stage_gen.pipeline`` once; a recipe module may not grow its own."""
 
     violations: list[str] = []
-    for path in sorted(RECIPE_ROOT.rglob("*.py")):
-        if path.parent == RECIPE_ROOT:
-            continue
+    paths = sorted(
+        path for root in WORKFLOW_ROOTS for path in root.rglob("*.py") if path.parent != root
+    )
+    assert paths, "no workflow modules found"
+    for path in paths:
         where = path.relative_to(SOURCE_ROOT.parent)
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in tree.body:
@@ -161,7 +164,7 @@ def _recipe_modules() -> list[ModuleType]:
     import importlib
 
     modules: list[ModuleType] = []
-    for path in sorted(RECIPE_ROOT.rglob("prepared_*.py")):
+    for path in sorted(path for root in WORKFLOW_ROOTS for path in root.rglob("prepared_*.py")):
         relative = path.relative_to(SOURCE_ROOT.parent).with_suffix("")
         modules.append(importlib.import_module(".".join(relative.parts)))
     return modules

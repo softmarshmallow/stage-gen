@@ -3,8 +3,8 @@
 > **Checked by:** `tests/contract/test_generation_pipeline_docs.py`.
 
 > **Contract maturity: exact-current authored contracts.** Executable authority:
-> `src/stage_gen/recipes/storefront/`. The committed fixture package is
-> `src/stage_gen/recipes/storefront/examples/minimal/make_inputs.py`, which authors
+> `src/stage_gen/workflows/storefront/`. The committed fixture package is
+> `src/stage_gen/workflows/storefront/inputs/minimal/make_inputs.py`, which authors
 > original geometric reference art and a standalone request without reading any game.
 
 ## What this recipe is
@@ -51,7 +51,7 @@ to arbitrate.
 
 ## The closed surface table
 
-Surface geometry is a checked-in table (`src/stage_gen/recipes/storefront/surfaces.py`),
+Surface geometry is a checked-in table (`src/stage_gen/workflows/storefront/surfaces.py`),
 not free-form numbers in each package. A package names a kind; the table owns the
 pixels.
 
@@ -127,7 +127,7 @@ again — the same key restores the same image. The draw index in
 enters only the image node's identity:
 
 ```bash
-python src/stage_gen/recipes/storefront/examples/minimal/make_inputs.py out/storefront-input
+python src/stage_gen/workflows/storefront/inputs/minimal/make_inputs.py out/storefront-input
 stage-gen storefront generate --input out/storefront-input --dry-run \
   --output out/storefront-v1 --cache-dir out/storefront-cache
 stage-gen storefront generate --input out/storefront-input --dry-run \
@@ -201,7 +201,7 @@ after any change to the surface table, the fan-out or the routes.
 ```json
 {
   "kind": "storefront-execution-graph-contract-v1",
-  "fixture_ref": "src/stage_gen/recipes/storefront/examples/minimal",
+  "fixture_ref": "src/stage_gen/workflows/storefront/inputs/minimal",
   "surface_count": 1,
   "graph_schema_version": 2,
   "topology_sha256": "59f4553950d4dd2e618e932afafdb85676f9447fb92b64b1466c90c278833fe7",

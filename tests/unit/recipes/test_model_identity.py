@@ -21,8 +21,8 @@ from stage_gen.model_routes import (
     configured_image_route_catalog,
 )
 from stage_gen.orchestration.services import RunServices
-from stage_gen.recipes.storefront.storefront_graph import storefront_graph_profile
-from stage_gen.recipes.universe.universe_graph import universe_graph_profile
+from stage_gen.workflows.storefront.storefront_graph import storefront_graph_profile
+from stage_gen.workflows.universe.universe_graph import universe_graph_profile
 from the_grain_pipeline.dialogue_scene.scene_graph import dialogue_graph_profile
 from the_grain_pipeline.pointclick_room.room_graph import room_graph_profile
 

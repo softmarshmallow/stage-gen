@@ -27,8 +27,8 @@ from gnode.providers.openrouter import OpenRouterStructuredBackend
 from stage_gen.components.portrait_motion.face_location import COMPONENT, validate_location
 from stage_gen.orchestration import portrait_services
 from stage_gen.orchestration.portrait_services import ConfiguredPortraitServices
-from stage_gen.recipes.portrait_motion import face_location as locator
-from stage_gen.recipes.portrait_motion.pipeline import request_policy
+from stage_gen.workflows.portrait_motion import face_location as locator
+from stage_gen.workflows.portrait_motion.pipeline import request_policy
 
 
 @pytest.fixture

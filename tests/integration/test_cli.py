@@ -734,7 +734,7 @@ def test_universe_cli_dry_runs_both_phases_and_re_renders_its_page(
 
     monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
     repository = Path(__file__).resolve().parents[2]
-    package = repository / "src/stage_gen/recipes/universe/examples/lantern_ferry"
+    package = repository / "src/stage_gen/workflows/universe/inputs/lantern_ferry"
     admitted = repository / "tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json"
 
     semantic_out = tmp_path / "semantic"
@@ -766,7 +766,7 @@ def test_universe_cli_dry_runs_both_phases_and_re_renders_its_page(
 
     # The gallery phase starts from an admission rather than from the package,
     # so stand one up from the committed fixture instead of paying for a run.
-    from tests.unit.recipes.universe._universe_fixture import materialize_semantic_run
+    from tests.unit.workflows.universe._universe_fixture import materialize_semantic_run
 
     materialize_semantic_run(
         semantic_out, admitted=admitted, poster=package / "references/poster.png"
@@ -839,7 +839,7 @@ def test_universe_failure_injection_is_refused_outside_a_dry_run(
             "universe",
             "semantic",
             "--input",
-            str(repository / "src/stage_gen/recipes/universe/examples/lantern_ferry"),
+            str(repository / "src/stage_gen/workflows/universe/inputs/lantern_ferry"),
             "--output",
             str(tmp_path / "run"),
             "--failure-node",

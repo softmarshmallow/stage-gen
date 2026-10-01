@@ -17,7 +17,7 @@ from stage_gen.components.sideview_layers.parallax import (
 )
 from stage_gen.media.codec import decode_rgba, encode_png
 from stage_gen.pipeline import inspect, plan, run
-from stage_gen.recipes.looping_parallax import create_pipeline
+from stage_gen.workflows.looping_parallax import create_pipeline
 
 
 def _source() -> bytes:

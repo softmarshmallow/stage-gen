@@ -18,7 +18,7 @@ from stage_gen.components.character_3d.budget_pool import BudgetPool
 from stage_gen.config import StageGenConfig
 from stage_gen.interfaces import movie_sprite as cli
 from stage_gen.pipeline import PipelinePlan, plan
-from stage_gen.recipes.movie_sprite_body_idle.examples.supplied_clip.make_inputs import make_inputs
+from stage_gen.workflows.movie_sprite.inputs.supplied_clip.make_inputs import make_inputs
 
 
 def _inputs(root: Path) -> Path:

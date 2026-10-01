@@ -24,14 +24,14 @@ from scripts.graph_contracts import document_contract as document_contract
 from scripts.graph_contracts import render as render
 from scripts.graph_contracts import write_contract as write_contract
 from stage_gen.config import StageGenConfig
-from stage_gen.recipes.storefront.examples.minimal.make_inputs import write_inputs
-from stage_gen.recipes.storefront.storefront_executor import StorefrontExecutor
-from stage_gen.recipes.universe.universe_graph import (
+from stage_gen.workflows.storefront.inputs.minimal.make_inputs import write_inputs
+from stage_gen.workflows.storefront.storefront_executor import StorefrontExecutor
+from stage_gen.workflows.universe.universe_graph import (
     build_universe_gallery_graph,
     build_universe_semantic_graph,
     universe_graph_profile,
 )
-from stage_gen.recipes.universe.universe_request import (
+from stage_gen.workflows.universe.universe_request import (
     admitted_universe_from_document,
     read_universe_document,
     resolve_sample_ledger,
@@ -40,7 +40,7 @@ from stage_gen.recipes.universe.universe_request import (
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 UNIVERSE_DOCUMENT = REPOSITORY_ROOT / "docs/spec/universe/generation-v1.md"
-UNIVERSE_FIXTURE_REF = "src/stage_gen/recipes/universe/examples/lantern_ferry"
+UNIVERSE_FIXTURE_REF = "src/stage_gen/workflows/universe/inputs/lantern_ferry"
 UNIVERSE_ADMITTED_REF = "tests/contract/fixtures/universe/lantern_ferry.admitted-universe.json"
 UNIVERSE_SEMANTIC_CONTRACT_KIND = "universe-semantic-execution-graph-contract-v1"
 UNIVERSE_GALLERY_CONTRACT_KIND = "universe-gallery-execution-graph-contract-v1"
@@ -109,7 +109,7 @@ def build_universe_gallery_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[
 
 
 STOREFRONT_DOCUMENT = REPOSITORY_ROOT / "docs/spec/storefront/generation-v1.md"
-STOREFRONT_FIXTURE_REF = "src/stage_gen/recipes/storefront/examples/minimal"
+STOREFRONT_FIXTURE_REF = "src/stage_gen/workflows/storefront/inputs/minimal"
 STOREFRONT_CONTRACT_KIND = "storefront-execution-graph-contract-v1"
 
 

@@ -65,7 +65,8 @@ src/
 └── stage_gen/
     ├── pipeline/                      # define / plan / run / inspect; arbitrary graphs
     ├── components/                    # Reusable capabilities and bounded formats
-    ├── recipes/                       # Named compositions producing asset results
+    ├── workflows/                     # One package per product deliverable
+    ├── recipes/character_3d/          # Frozen character-3d implementation path
     ├── media/                         # Shared inspection and transforms
     ├── orchestration/                 # Concrete services and application configuration
     ├── interfaces/                    # Lazy CLI adapters
@@ -124,22 +125,24 @@ independent authoring distribution. The game invokes its sequence through explic
 bindings; the asset product does not depend on that format. Sprite playback,
 portrait animation and movie sprite assets retain their own bounded roles.
 
-## Recipes and examples
+## Workflows and inputs
 
 ```text
-src/stage_gen/recipes/
+src/stage_gen/workflows/
 ├── looping_parallax/
-│   └── examples/
+│   └── inputs/
 │       └── supplied_layers/           # Real offline layer normalization and preview
 ├── portrait_motion/                   # Generation, qualification, budgets and recovery
-├── movie_sprite_body_idle/             # Endpoint video generation and local loop finishing
-│   └── examples/supplied_clip/         # Original procedural clip; no provider calls
+├── movie_sprite/                      # Endpoint video generation and local loop finishing
+│   └── inputs/supplied_clip/          # Original procedural clip; no provider calls
 ├── storefront/
-│   └── examples/
+│   └── inputs/
 │       └── minimal/                   # Original procedural input and offline planning
 └── universe/
-    └── examples/
+    └── inputs/
         └── lantern_ferry/             # Existing self-contained storyworld input
+
+src/stage_gen/recipes/character_3d/    # Frozen: run lineage binds this path
 
 examples/
 └── pipelines/

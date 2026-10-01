@@ -5,7 +5,7 @@ sprite finishing. `FinishSettings` is the strict configuration model;
 `validate_finish_config` admits it without media or providers.
 `inspect_source_video` probes a source and decodes all frames with bounded work.
 The caller owns artifact persistence, provenance and provider execution. The
-[body recipe](../../recipes/movie_sprite_body_idle/README.md) provides those
+[body recipe](../../workflows/movie_sprite/README.md) provides those
 through the existing public harness.
 
 ## Settings

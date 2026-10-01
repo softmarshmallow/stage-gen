@@ -12,7 +12,7 @@ import pytest
 
 from stage_gen.components.character_3d.io import read_json, write_json
 from stage_gen.orchestration.character_3d import launch
-from tests.unit.recipes.character_3d.test_character_provider_flow import experiment
+from tests.unit.workflows.character_3d.test_character_provider_flow import experiment
 
 
 @pytest.mark.parametrize(

@@ -8,8 +8,8 @@ Games decide how to display the resulting videos and images.
 
 Install the Python dependencies with `uv sync --frozen`, and install `ffmpeg` and
 `ffprobe` on PATH. The CLI is `stage-gen-movie-sprite`; the Python factory is
-`stage_gen.recipes.movie_sprite_body_idle.create_pipeline`. See the
-[recipe contract](../src/stage_gen/recipes/movie_sprite_body_idle/README.md) for
+`stage_gen.workflows.movie_sprite.create_pipeline`. See the
+[recipe contract](../src/stage_gen/workflows/movie_sprite/README.md) for
 its graph, cache behavior and executable example.
 
 ## Author motion

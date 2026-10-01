@@ -99,7 +99,7 @@ def _dispatch(args: argparse.Namespace, *, runtime: HeadlessRuntime | None, stdo
 
         return dispatch(args, stdout=stdout)
     if command == "universe" and args.universe_command == "page":
-        from stage_gen.recipes.universe import gallery_page
+        from stage_gen.workflows.universe import gallery_page
 
         page_path = gallery_page.render(Path(args.run_dir))
         stdout.write(f"{json.dumps({'page': page_path}, sort_keys=True, separators=(',', ':'))}\n")

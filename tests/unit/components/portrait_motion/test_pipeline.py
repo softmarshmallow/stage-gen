@@ -51,7 +51,7 @@ from stage_gen.model_routes import (
     OPENAI_SUNBURST_MODEL,
 )
 from stage_gen.orchestration.portrait_services import ConfiguredPortraitServices
-from stage_gen.recipes.portrait_motion.pipeline import (
+from stage_gen.workflows.portrait_motion.pipeline import (
     PORTRAIT_MOTION_GRAPH_KIND,
     PORTRAIT_MOTION_GRAPH_SCHEMA_VERSION,
     PORTRAIT_MOTION_PLAN_KIND,

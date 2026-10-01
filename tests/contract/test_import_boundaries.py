@@ -27,6 +27,7 @@ COMPONENT_ROOT = SOURCE_ROOT / "stage_gen" / "components"
 FORBIDDEN_COMPONENT_DEPENDENCIES = (
     "stage_gen.providers",
     "stage_gen.orchestration",
+    "stage_gen.workflows",
     "stage_gen.recipes",
     "stage_gen.interfaces",
 )
@@ -57,7 +58,7 @@ def _imported_modules(node: ast.Import | ast.ImportFrom, package: str) -> tuple[
 
 def test_components_do_not_import_application_or_provider_layers() -> None:
     violations: list[str] = []
-    for path in sorted(COMPONENT_ROOT.rglob("*.py")):
+    for path in _python_sources(COMPONENT_ROOT):
         package = _package_for(path)
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in ast.walk(tree):
@@ -94,7 +95,7 @@ def test_components_import_across_genres_only_through_neutral_homes() -> None:
     """
 
     violations: list[str] = []
-    for path in sorted(COMPONENT_ROOT.rglob("*.py")):
+    for path in _python_sources(COMPONENT_ROOT):
         component = path.relative_to(COMPONENT_ROOT).parts[0]
         if component.endswith(".py"):
             component = component[: -len(".py")]
@@ -122,7 +123,12 @@ def test_components_import_across_genres_only_through_neutral_homes() -> None:
     assert not violations, "cross-genre component imports:\n" + "\n".join(violations)
 
 
-RECIPE_ROOT = SOURCE_ROOT / "stage_gen" / "recipes"
+WORKFLOW_ROOT = SOURCE_ROOT / "stage_gen" / "workflows"
+# A workflow whose implementation lives outside WORKFLOW_ROOT because its path is bound
+# into run lineage. It moves only with that workflow's next qualification cohort.
+FROZEN_IMPLEMENTATION_ROOTS = {
+    "character_3d": SOURCE_ROOT / "stage_gen" / "recipes" / "character_3d",
+}
 
 _ACTIVE_IMAGE_MODEL_ID = re.compile(r"^(?:(?:openai|fal-ai)/)?gpt-image-[0-9][A-Za-z0-9._/-]*$")
 _CONCRETE_PROVIDER_IMPORT_PREFIXES = (
@@ -135,7 +141,7 @@ def test_active_image_routes_have_one_application_authority() -> None:
     """Deployment identities belong to the application's route catalog.
 
     The product module is the sole production home for provider model spellings,
-    so a same-spec promotion cannot require a source sweep. Recipes and
+    so a same-spec promotion cannot require a source sweep. Workflows and
     components may describe semantic image intent but cannot construct provider
     adapters. Historical prose and fixture data live outside these production
     Python roots.
@@ -158,7 +164,7 @@ def test_active_image_routes_have_one_application_authority() -> None:
                     f"{relative}:{node.lineno} owns active image model {node.value!r}"
                 )
 
-    for root in (RECIPE_ROOT, COMPONENT_ROOT):
+    for root in (WORKFLOW_ROOT, *FROZEN_IMPLEMENTATION_ROOTS.values(), COMPONENT_ROOT):
         for path in _python_sources(root):
             package = _package_for(path)
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -177,51 +183,108 @@ def test_active_image_routes_have_one_application_authority() -> None:
     assert not violations, "active image routes escaped the catalog:\n" + "\n".join(violations)
 
 
-def test_recipes_do_not_import_each_other() -> None:
-    """Recipes share code through declared homes (canonical, media, components,
-    the SDK in stage_gen.pipeline such as node_cache), never through another
-    recipe's modules."""
+def _module_of(root: Path) -> str:
+    return ".".join(root.relative_to(SOURCE_ROOT).parts)
 
-    recipe_packages = sorted(
-        entry.name for entry in RECIPE_ROOT.iterdir() if entry.is_dir() and entry.name[0] != "_"
-    )
+
+def _workflow_roots() -> dict[str, tuple[Path, ...]]:
+    """Each workflow's own source roots: its package, plus its frozen implementation."""
+
+    packages: dict[str, tuple[Path, ...]] = {
+        entry.name: (entry,)
+        for entry in sorted(WORKFLOW_ROOT.iterdir())
+        if entry.is_dir() and entry.name[0] not in "_."
+    }
+    for name, frozen in FROZEN_IMPLEMENTATION_ROOTS.items():
+        packages[name] = (*packages.get(name, ()), frozen)
+    return packages
+
+
+def test_workflows_do_not_import_each_other() -> None:
+    """Workflows share code through declared homes (canonical, media, components,
+    the SDK in stage_gen.pipeline such as node_cache), never through another
+    workflow's modules. A workflow imports only its own package and its own frozen
+    implementation root."""
+
+    workflows = _workflow_roots()
+    assert len(workflows) >= 6, f"expected at least 6 workflow packages, found {sorted(workflows)}"
     violations: list[str] = []
-    for package_name in recipe_packages:
-        foreign = tuple(
-            f"stage_gen.recipes.{other}" for other in recipe_packages if other != package_name
-        )
-        for path in sorted((RECIPE_ROOT / package_name).rglob("*.py")):
-            package = _package_for(path)
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            for node in ast.walk(tree):
-                if not isinstance(node, (ast.Import, ast.ImportFrom)):
-                    continue
-                for imported in _imported_modules(node, package):
-                    if any(
-                        imported == forbidden or imported.startswith(f"{forbidden}.")
-                        for forbidden in foreign
-                    ):
-                        relative = path.relative_to(SOURCE_ROOT.parent)
-                        violations.append(f"{relative}:{node.lineno} imports {imported}")
-    assert not violations, "recipe-to-recipe import violations:\n" + "\n".join(violations)
+    for name, roots in workflows.items():
+        own = (f"stage_gen.workflows.{name}", *(_module_of(root) for root in roots))
+        for root in roots:
+            for path in _python_sources(root):
+                violations.extend(
+                    violation
+                    for violation, imported in _import_violation_pairs(
+                        path, ("stage_gen.workflows", "stage_gen.recipes")
+                    )
+                    if not any(_matches(imported, allowed) for allowed in own)
+                )
+    assert not violations, "workflow-to-workflow import violations:\n" + "\n".join(violations)
 
 
 ORCHESTRATION_ROOT = SOURCE_ROOT / "stage_gen" / "orchestration"
 
 
-def _import_violations(path: Path, forbidden: tuple[str, ...]) -> list[str]:
+def _import_violation_pairs(path: Path, forbidden: tuple[str, ...]) -> list[tuple[str, str]]:
     package = _package_for(path)
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    violations: list[str] = []
+    violations: list[tuple[str, str]] = []
     for node in ast.walk(tree):
         if not isinstance(node, (ast.Import, ast.ImportFrom)):
             continue
         for imported in _imported_modules(node, package):
             if any(imported == prefix or imported.startswith(f"{prefix}.") for prefix in forbidden):
                 violations.append(
-                    f"{path.relative_to(SOURCE_ROOT.parent)}:{node.lineno} imports {imported}"
+                    (
+                        f"{path.relative_to(SOURCE_ROOT.parent)}:{node.lineno} imports {imported}",
+                        imported,
+                    )
                 )
     return violations
+
+
+def _import_violations(path: Path, forbidden: tuple[str, ...]) -> list[str]:
+    return [violation for violation, _ in _import_violation_pairs(path, forbidden)]
+
+
+GENERIC_ORCHESTRATION_MODULES = (
+    "runtime.py",
+    "services.py",
+    "image_routing.py",
+    "env_import.py",
+    "graph_executor.py",
+    "image_repeat.py",
+)
+# Concrete provider composition for one workflow stays at the composition root, and
+# may import that workflow (or its frozen implementation root) and nothing else.
+ORCHESTRATION_WORKFLOW_OWNERS = {
+    "movie_sprite_services.py": "stage_gen.workflows.movie_sprite",
+    "portrait_services.py": "stage_gen.workflows.portrait_motion",
+    "character_3d": "stage_gen.recipes.character_3d",
+}
+
+
+def test_generic_orchestration_imports_no_workflow() -> None:
+    """The composition root is generic except for named per-workflow service modules."""
+
+    sources = _python_sources(ORCHESTRATION_ROOT)
+    names = {path.relative_to(ORCHESTRATION_ROOT).as_posix() for path in sources}
+    missing = sorted(set(GENERIC_ORCHESTRATION_MODULES) - names)
+    assert not missing, f"generic orchestration modules moved; update this rule: {missing}"
+    violations: list[str] = []
+    for path in sources:
+        owner = ORCHESTRATION_WORKFLOW_OWNERS.get(path.relative_to(ORCHESTRATION_ROOT).parts[0])
+        violations.extend(
+            violation
+            for violation, imported in _import_violation_pairs(
+                path, ("stage_gen.workflows", "stage_gen.recipes")
+            )
+            if owner is None or not _matches(imported, owner)
+        )
+    assert not violations, "orchestration imports a workflow it does not own:\n" + "\n".join(
+        violations
+    )
 
 
 ENGINE_ROOT = SOURCE_ROOT / "gnode"
@@ -234,7 +297,11 @@ CONSUMER_ROOTS = (
 
 
 def _python_sources(root: Path) -> list[Path]:
-    return sorted(path for path in root.rglob("*.py") if "__pycache__" not in path.parts)
+    """Every scan must match at least one file, or a moved root would pass vacuously."""
+
+    sources = sorted(path for path in root.rglob("*.py") if "__pycache__" not in path.parts)
+    assert sources, f"{root.relative_to(SOURCE_ROOT.parent)} matched no Python source"
+    return sources
 
 
 def test_engine_does_not_import_the_application() -> None:
@@ -443,7 +510,7 @@ def test_game_pipelines_do_not_import_other_games_or_collection_tooling() -> Non
     assert not violations, "game imports a sibling consumer:\n" + "\n".join(violations)
 
 
-def test_pipeline_mechanics_have_no_component_recipe_or_host_dependencies() -> None:
+def test_pipeline_mechanics_have_no_component_workflow_or_host_dependencies() -> None:
     violations: list[str] = []
     for path in _python_sources(SOURCE_ROOT / "stage_gen/pipeline"):
         violations.extend(
@@ -451,6 +518,7 @@ def test_pipeline_mechanics_have_no_component_recipe_or_host_dependencies() -> N
                 path,
                 (
                     "stage_gen.components",
+                    "stage_gen.workflows",
                     "stage_gen.recipes",
                     "stage_gen.orchestration",
                     "stage_gen.capabilities",

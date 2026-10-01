@@ -47,7 +47,7 @@ async def _dispatch_universe(
     config: StageGenConfig,
     stdout: TextIO,
 ) -> int:
-    from stage_gen.recipes.universe.universe_executor import UniverseExecutor
+    from stage_gen.workflows.universe.universe_executor import UniverseExecutor
 
     executor = UniverseExecutor(config)
     input_path = Path(args.input_path)
@@ -116,8 +116,8 @@ async def _dispatch_storefront(
     config: StageGenConfig,
     stdout: TextIO,
 ) -> int:
-    from stage_gen.recipes.storefront.storefront_executor import StorefrontExecutor
-    from stage_gen.recipes.storefront.storefront_request import (
+    from stage_gen.workflows.storefront.storefront_executor import StorefrontExecutor
+    from stage_gen.workflows.storefront.storefront_request import (
         apply_rerolls,
         empty_ledger,
         read_draw_ledger,

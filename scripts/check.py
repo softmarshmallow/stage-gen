@@ -153,8 +153,8 @@ def _game_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
 
 def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
     """Execute a real local recipe and plan retained independent asset recipes."""
-    parallax = "src/stage_gen/recipes/looping_parallax/examples/supplied_layers"
-    storefront = "src/stage_gen/recipes/storefront/examples/minimal"
+    parallax = "src/stage_gen/workflows/looping_parallax/inputs/supplied_layers"
+    storefront = "src/stage_gen/workflows/storefront/inputs/minimal"
     inputs = scratch / "parallax-inputs"
     run = scratch / "parallax-run"
     return (
@@ -195,7 +195,7 @@ def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
                 "universe",
                 "semantic",
                 "--input",
-                "src/stage_gen/recipes/universe/examples/lantern_ferry",
+                "src/stage_gen/workflows/universe/inputs/lantern_ferry",
                 "--dry-run",
                 "--cache-dir",
                 str(scratch / "asset-cache"),

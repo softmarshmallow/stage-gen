@@ -26,8 +26,8 @@ import pytest
 from bellweather_pipeline.execution_graph import ExecutionGraph
 from ember_hollow_pipeline.survival_graph import ObliqueSurvivalGraph
 from iron_petal_unit_pipeline.runner_graph import SideviewRunnerGraph
-from stage_gen.recipes.storefront.storefront_graph import StorefrontGraph
-from stage_gen.recipes.universe.universe_graph import UniverseGraph
+from stage_gen.workflows.storefront.storefront_graph import StorefrontGraph
+from stage_gen.workflows.universe.universe_graph import UniverseGraph
 from the_grain_pipeline.dialogue_scene.scene_graph import DialogueSceneGraph
 from the_grain_pipeline.pointclick_room.room_graph import PointClickRoomGraph
 

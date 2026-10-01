@@ -18,16 +18,16 @@ PORTRAIT_FACE_MODULES = {
     "stage_gen/components/portrait_motion/face_location.py",
     "stage_gen/components/portrait_motion/face_patches.py",
     "stage_gen/components/portrait_motion/face_playback.py",
-    "stage_gen/recipes/portrait_motion/face.py",
-    "stage_gen/recipes/portrait_motion/face_location.py",
+    "stage_gen/workflows/portrait_motion/face.py",
+    "stage_gen/workflows/portrait_motion/face_location.py",
 }
 MOVIE_SPRITE_MODULES = {
     "stage_gen/components/movie_sprite/__init__.py",
     "stage_gen/components/movie_sprite/models.py",
-    "stage_gen/recipes/movie_sprite_body_idle/__init__.py",
-    "stage_gen/recipes/movie_sprite_body_idle/pipeline.py",
-    "stage_gen/recipes/movie_sprite_body_idle/examples/supplied_clip/make_inputs.py",
-    "stage_gen/recipes/movie_sprite_body_idle/examples/supplied_clip/pipeline.py",
+    "stage_gen/workflows/movie_sprite/__init__.py",
+    "stage_gen/workflows/movie_sprite/pipeline.py",
+    "stage_gen/workflows/movie_sprite/inputs/supplied_clip/make_inputs.py",
+    "stage_gen/workflows/movie_sprite/inputs/supplied_clip/pipeline.py",
 }
 
 WHEEL_RESOURCES = {
@@ -219,7 +219,7 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
             for name in wheel_entries
         )
         assert not any(name.startswith("tests/") for name in wheel_entries)
-        assert not any("/universe/examples/lantern_ferry/" in name for name in wheel_entries)
+        assert not any("/universe/inputs/lantern_ferry/" in name for name in wheel_entries)
         assert not any(name.startswith("library/") for name in wheel_entries)
         assert not any(name.startswith("concept-studio/") for name in wheel_entries)
         assert not any(_is_docs_media(name) for name in wheel_entries)
@@ -348,7 +348,7 @@ class NoConsumerImports(importlib.abc.MetaPathFinder):
 
 sys.meta_path.insert(0, NoConsumerImports())
 from stage_gen.pipeline import define, inspect, plan, run
-from stage_gen.recipes.looping_parallax import create_pipeline
+from stage_gen.workflows.looping_parallax import create_pipeline
 from stage_gen.resources import (
     image_style_resource_digests,
     image_style_skill_path,
@@ -393,10 +393,10 @@ face_surfaces = {
     "stage_gen.components.portrait_motion.face_playback": (
         "build_face_combinations", "encode_face_preview"
     ),
-    "stage_gen.recipes.portrait_motion.face": (
+    "stage_gen.workflows.portrait_motion.face": (
         "prepare_face_run", "run_face_pipeline", "verify_face_run"
     ),
-    "stage_gen.recipes.portrait_motion.face_location": (
+    "stage_gen.workflows.portrait_motion.face_location": (
         "prepare_locator", "run_locator", "verify_locator", "load_locator_plan"
     ),
 }
@@ -406,8 +406,8 @@ for name, names in face_surfaces.items():
     assert all(callable(getattr(module, name)) for name in names)
 
 from stage_gen.components.movie_sprite import FinishSettings, finish_video
-from stage_gen.recipes.movie_sprite_body_idle import Authoring, GenerationSettings, create_pipeline
-from stage_gen.recipes.movie_sprite_body_idle.examples.supplied_clip import make_inputs as clip
+from stage_gen.workflows.movie_sprite import Authoring, GenerationSettings, create_pipeline
+from stage_gen.workflows.movie_sprite.inputs.supplied_clip import make_inputs as clip
 
 assert Path(clip.__file__).resolve().is_relative_to(Path("installed").resolve())
 clip_inputs = Path("movie-sprite-inputs")
@@ -519,7 +519,7 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
             assert relative.suffix.lower() == ".webp"
         if relative.parts[0] == "src" and relative.parts[:3] != ("src", "stage_gen", "resources"):
             assert relative == PurePosixPath(
-                "src/stage_gen/recipes/universe/examples/lantern_ferry/references/poster.png"
+                "src/stage_gen/workflows/universe/inputs/lantern_ferry/references/poster.png"
             )
             example = repository / relative.parent.parent
             contract = tomllib.loads((example / "universe.toml").read_text())

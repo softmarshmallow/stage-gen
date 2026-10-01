@@ -17,7 +17,7 @@ separate, game-independent asset capability belongs in Stage Gen.
   with its component contract and recipe-specific canonicalization with its
   recipe.
 - Compose them through the public `stage_gen.pipeline` harness and bounded
-  `src/stage_gen/recipes/`. Keep examples beside the surface they demonstrate.
+  `src/stage_gen/workflows/`. Keep examples beside the surface they demonstrate.
 - Complete games own their preparation packages, input formats, gameplay and
   bindings under `godot/games/<game>/`. Share implementations under
   `godot/games/_shared/` only when multiple games use them. The optional `games`

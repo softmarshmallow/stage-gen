@@ -45,10 +45,10 @@ if __package__ in {None, ""}:
 import stage_gen
 import stage_gen.components.movie_sprite as movie_sprite_component
 import stage_gen.identity as provenance_identities
-import stage_gen.recipes.looping_parallax.pipeline as looping_parallax_pipeline
-import stage_gen.recipes.movie_sprite_body_idle.pipeline as movie_sprite_pipeline
-import stage_gen.recipes.storefront.storefront_types as storefront_types
-import stage_gen.recipes.universe.universe_types as universe_types
+import stage_gen.workflows.looping_parallax.pipeline as looping_parallax_pipeline
+import stage_gen.workflows.movie_sprite.pipeline as movie_sprite_pipeline
+import stage_gen.workflows.storefront.storefront_types as storefront_types
+import stage_gen.workflows.universe.universe_types as universe_types
 from gnode import (
     BindingTable,
     Graph,
@@ -81,27 +81,27 @@ from stage_gen.pipeline import (
 from stage_gen.pipeline.dry_run import DRY_RUN_CACHE_NAMESPACE, DRY_RUN_CACHE_RECORD_KIND
 from stage_gen.pipeline.graph_document import GraphDocument
 from stage_gen.pipeline.node_cache import NODE_CACHE_SCHEMA_VERSION
-from stage_gen.recipes.looping_parallax import ParallaxLayer, ParallaxSpec
-from stage_gen.recipes.looping_parallax import create_pipeline as create_parallax_pipeline
-from stage_gen.recipes.movie_sprite_body_idle import GenerationSettings
-from stage_gen.recipes.movie_sprite_body_idle import create_pipeline as create_movie_sprite_pipeline
-from stage_gen.recipes.movie_sprite_body_idle.authoring import digest as movie_sprite_digest
-from stage_gen.recipes.portrait_motion.face_location import _implementation_digest
-from stage_gen.recipes.portrait_motion.pipeline import implementation
-from stage_gen.recipes.storefront.storefront_executor import StorefrontExecutor
-from stage_gen.recipes.storefront.storefront_graph import (
+from stage_gen.workflows.looping_parallax import ParallaxLayer, ParallaxSpec
+from stage_gen.workflows.looping_parallax import create_pipeline as create_parallax_pipeline
+from stage_gen.workflows.movie_sprite import GenerationSettings
+from stage_gen.workflows.movie_sprite import create_pipeline as create_movie_sprite_pipeline
+from stage_gen.workflows.movie_sprite.authoring import digest as movie_sprite_digest
+from stage_gen.workflows.portrait_motion.face_location import _implementation_digest
+from stage_gen.workflows.portrait_motion.pipeline import implementation
+from stage_gen.workflows.storefront.storefront_executor import StorefrontExecutor
+from stage_gen.workflows.storefront.storefront_graph import (
     STOREFRONT_CACHE_NAMESPACE,
     STOREFRONT_CACHE_RECORD_KIND,
     StorefrontGraph,
 )
-from stage_gen.recipes.storefront.storefront_request import (
+from stage_gen.workflows.storefront.storefront_request import (
     apply_rerolls,
     empty_ledger,
     read_storefront_document,
     resolve_storefront,
 )
-from stage_gen.recipes.universe.universe_executor import UniverseExecutor
-from stage_gen.recipes.universe.universe_graph import (
+from stage_gen.workflows.universe.universe_executor import UniverseExecutor
+from stage_gen.workflows.universe.universe_graph import (
     UNIVERSE_CACHE_NAMESPACE,
     UNIVERSE_CACHE_RECORD_KIND,
     UniverseGraph,
@@ -113,7 +113,7 @@ GOLDEN_PATH = FIXTURES / "workflow-identity.json"
 INPUTS_PATH = FIXTURES / "workflow-identity-inputs.json"
 
 PACKAGE_ROOT = Path(stage_gen.__file__).parent
-UNIVERSE_INPUT = Path(universe_types.__file__).parent / "examples/lantern_ferry"
+UNIVERSE_INPUT = Path(universe_types.__file__).parent / "inputs/lantern_ferry"
 #: Every package that holds character_3d members; their paths and bytes are frozen.
 CHARACTER_OWNERS = ("recipes", "orchestration", "components", "providers", "resources")
 #: Modules whose NodeType constants are product node types.

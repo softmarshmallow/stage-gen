@@ -55,11 +55,11 @@ def _build_run_view_for(run_dir: Path) -> RunView:
 
         return build_sideview_runner_view(run_dir)
     if declared == "universe-execution-graph-v2" or declared == "universe-execution-graph-v1":
-        from stage_gen.recipes.universe.universe_view import build_universe_view
+        from stage_gen.workflows.universe.universe_view import build_universe_view
 
         return build_universe_view(run_dir)
     if declared == "storefront-execution-graph-v2" or declared == "storefront-execution-graph-v1":
-        from stage_gen.recipes.storefront.storefront_view import build_storefront_view
+        from stage_gen.workflows.storefront.storefront_view import build_storefront_view
 
         return build_storefront_view(run_dir)
     if (

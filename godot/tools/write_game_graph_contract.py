@@ -35,11 +35,11 @@ from iron_petal_unit_pipeline.runner_graph import (
 from iron_petal_unit_pipeline.runner_request import resolve_runner_package
 from scripts.graph_contracts import document_contract, write_contract
 from stage_gen.config import StageGenConfig
-from stage_gen.recipes.storefront.storefront_graph import (
+from stage_gen.workflows.storefront.storefront_graph import (
     build_storefront_graph,
     storefront_graph_profile,
 )
-from stage_gen.recipes.storefront.storefront_request import (
+from stage_gen.workflows.storefront.storefront_request import (
     read_storefront_document,
     resolve_storefront,
 )

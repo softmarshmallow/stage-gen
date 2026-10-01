@@ -38,7 +38,7 @@ from stage_gen.model_routes import (
     configured_image_route_catalog,
     image_workload_policies,
 )
-from stage_gen.orchestration.route_context import current_resolved_binding
+from stage_gen.pipeline.route_context import current_resolved_binding
 
 _FAL_BASE_URL = "https://fal.run"
 _SUPPORTED_ROUTE_IDS = frozenset(

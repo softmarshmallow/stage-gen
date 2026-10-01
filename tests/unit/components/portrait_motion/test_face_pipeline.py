@@ -30,8 +30,8 @@ from stage_gen.components.portrait_motion.storage import COMPONENT
 from stage_gen.config import ConfigError, StageGenConfig
 from stage_gen.image_product import ImageProvider
 from stage_gen.orchestration.portrait_services import ConfiguredPortraitServices
-from stage_gen.recipes.portrait_motion.face import KIND, REQUIRED_STAGES, load_face_plan
-from stage_gen.recipes.portrait_motion.pipeline import (
+from stage_gen.workflows.portrait_motion.face import KIND, REQUIRED_STAGES, load_face_plan
+from stage_gen.workflows.portrait_motion.pipeline import (
     TOOL,
     RuntimeProfile,
     prepare_run,

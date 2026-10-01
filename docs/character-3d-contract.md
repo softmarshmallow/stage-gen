@@ -1,9 +1,9 @@
 # Contained 3D character pipeline: contract
 
 > **Contract maturity: current executable contract.** The behaviour below is exercised by
-> `tests/unit/recipes/character_3d/test_character_provider_flow.py`,
-> `tests/unit/recipes/character_3d/test_character_whole_recovery.py`,
-> `tests/unit/recipes/character_3d/test_character_quality_bar.py` and
+> `tests/unit/workflows/character_3d/test_character_provider_flow.py`,
+> `tests/unit/workflows/character_3d/test_character_whole_recovery.py`,
+> `tests/unit/workflows/character_3d/test_character_quality_bar.py` and
 > `tests/unit/orchestration/character_3d/test_support_admission.py`; no test parses this
 > prose, so a change to a checked rule updates the test and this page together. The reader-facing walkthrough with
 > figures is [`docs/character-3d.md`](character-3d.md); this document holds the exact
@@ -139,14 +139,14 @@ graph has 31 nodes, including three conditional mesh-generation declarations, wh
 host receipt guard permits at most two actual mesh generations and two rig submissions
 across the run. The executable global-count, dependency, exact-hash and preserved-history
 checks live in
-[`test_character_whole_recovery.py`](../tests/unit/recipes/character_3d/test_character_whole_recovery.py);
+[`test_character_whole_recovery.py`](../tests/unit/workflows/character_3d/test_character_whole_recovery.py);
 the partition, dependency and provider/agent ownership checks in
-[`test_character_provider_flow.py`](../tests/unit/recipes/character_3d/test_character_provider_flow.py);
+[`test_character_provider_flow.py`](../tests/unit/workflows/character_3d/test_character_provider_flow.py);
 the quality bar, atlas and issue-height checks in
-[`test_character_quality_bar.py`](../tests/unit/recipes/character_3d/test_character_quality_bar.py).
+[`test_character_quality_bar.py`](../tests/unit/workflows/character_3d/test_character_quality_bar.py).
 Unreviewed selection and artifact integrity are covered by
-[`test_character_unreviewed_stages.py`](../tests/unit/recipes/character_3d/test_character_unreviewed_stages.py)
-and [`test_character_rig_review_mode.py`](../tests/unit/recipes/character_3d/test_character_rig_review_mode.py);
+[`test_character_unreviewed_stages.py`](../tests/unit/workflows/character_3d/test_character_unreviewed_stages.py)
+and [`test_character_rig_review_mode.py`](../tests/unit/workflows/character_3d/test_character_rig_review_mode.py);
 CLI precedence and frozen resume by
 [`test_review_launch.py`](../tests/unit/orchestration/character_3d/test_review_launch.py).
 This graph is independent of the retained legacy game recipes.

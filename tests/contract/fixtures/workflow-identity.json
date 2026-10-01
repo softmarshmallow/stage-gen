@@ -434,7 +434,7 @@
   "recipe_identity": "6f04a6e008eb79dafa22a4049fd09d57d456aac4174ac32b3f5fee8022de33e5"
  },
  "portrait_implementation": {
-  "face_location_digest": "57f66a190855038a96ffd74d1f00b925f4379252ec4b11c701177755ff4047b6",
+  "face_location_digest": "652ab072f87dfd96955539cb7ef366183c0641d8f6bae654d4ad0929e282b9dd",
   "files": {
    "gnode/__init__.py": "813acac44cd1ffdf43e7fa1719c81c84b751e18e5cf5759be64729a9aad4d2c9",
    "gnode/binding.py": "1fc2f16d9da4c34a634fa5f0eefa93766440eab9d044d61dd6ba3647ffc4f413",
@@ -528,16 +528,15 @@
    "stage_gen/media/sprite_sheets.py": "837295d8d0555d789079bb082262ee4bfffae587d83d0d89006ba060eb6117fc",
    "stage_gen/media/video.py": "15452229a890b445f027ee2e8ba37786b7df6cf6c3b3317b0f1bd36e86ddf703",
    "stage_gen/model_routes.py": "0bf4046389447afb1154ae0d34a1f005cb6283a9dfbf558ba09e2cea0de884e0",
-   "stage_gen/orchestration/image_routing.py": "74e68027fd598d7cf0e2ff66c2619697121586b1e443e9e5feff64bfc1fa798f",
-   "stage_gen/orchestration/portrait_services.py": "15a5f04bf66f42d8c706c6634be10a7137adedfcd73c9d7d4ae3cf9ed7c2f693",
+   "stage_gen/orchestration/image_routing.py": "8561d9bdfd6404c9ca1f88e35e09fe31eee2a8a0a4e4c11a125848c5ed964023",
+   "stage_gen/orchestration/portrait_services.py": "0732e67e7206292417299ca0174d416fd02635cd0b4bd6a47adc4202fbd1ab4b",
    "stage_gen/pipeline/ports.py": "02de9f5b3af02c886c7472779b633556fc7a893515adb081741278e543537272",
    "stage_gen/portrait_policy.py": "f404933e67c885e020d5ac51b7662f1052070077f7c38d88eda7ee705d6dccfb",
    "stage_gen/provider_env.py": "58d204549d4c0efb95aa61da584845e120d7f01b00a7bb06d78bc446bcc4e8cf",
-   "stage_gen/recipes/portrait_motion/__init__.py": "9f267ea8a9edff3500f767b4587db5b2b30d44a37e4b2da49e062b092f1a7de8",
-   "stage_gen/recipes/portrait_motion/face.py": "dd42e9c4bc98dbc602ab3082fae43de5173abbb916a8c9a5a1a7242abffd9e58",
-   "stage_gen/recipes/portrait_motion/face_location.py": "b410ae563a762ccb5b9def425435038cdd921f7979f9cb35b69a68a18a65369b",
-   "stage_gen/recipes/portrait_motion/pipeline.py": "e4ff4274f96d36122631ef5332f38210486c118c422c47be0a877afcafc089b9",
-   "stage_gen/recipes/portrait_motion/services.py": "5d8abe8ec58fc9bf0e34d1945dc4e95de4e1d1059fd47cebfa3b57603b8f1731"
+   "stage_gen/workflows/portrait_motion/face.py": "dd42e9c4bc98dbc602ab3082fae43de5173abbb916a8c9a5a1a7242abffd9e58",
+   "stage_gen/workflows/portrait_motion/face_location.py": "76fccbaefe63f23b436646447e4644c37a47edd270e4d9a5b2dc50285134eaa4",
+   "stage_gen/workflows/portrait_motion/pipeline.py": "3b7f7fa88171d11c4fb58ff65e5c70247e01e75bc36a83be7679fc83c4f310f8",
+   "stage_gen/workflows/portrait_motion/services.py": "5d8abe8ec58fc9bf0e34d1945dc4e95de4e1d1059fd47cebfa3b57603b8f1731"
   }
  }
 }
