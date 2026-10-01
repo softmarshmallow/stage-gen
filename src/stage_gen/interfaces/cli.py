@@ -250,6 +250,10 @@ def main(
             return 0
         args = parse(arguments, parser)
         return int(args.handler(args, output))
+    except FileExistsError as error:
+        # Runs and exports write a new folder and never overwrite one.
+        errors.write(f"stage-gen: {error.filename} already exists; choose a new output folder\n")
+        return 2
     except (ValueError, OSError) as error:
         errors.write(f"stage-gen: {error}\n")
         return 2

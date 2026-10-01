@@ -188,6 +188,12 @@ def test_looping_parallax_runs_offline_and_plans_like_its_sdk_sample(tmp_path: P
     assert json.loads(output)["pipeline_id"] == "looping-parallax"
     assert (run_dir / "parallax/manifest.json").is_file()
 
+    status, _, errors = _stage_gen(
+        "run", "looping-parallax", *arguments, "--cache-dir", str(tmp_path / "cache")
+    )
+    assert status == 2
+    assert errors == f"stage-gen: {run_dir} already exists; choose a new output folder\n"
+
     status, output, errors = _stage_gen("inspect", str(run_dir), "--verify", "--json")
     assert status == 0, errors
     record = json.loads(output)
