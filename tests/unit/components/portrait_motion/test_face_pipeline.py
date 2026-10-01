@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import io
 import json
 from pathlib import Path
 
@@ -330,30 +331,19 @@ def test_original_import_rights_tampering_is_rejected_before_location(tmp_path: 
 
 
 def test_cli_face_crop_flag_prepares_the_same_public_run(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from stage_gen.interfaces import portrait_motion as cli
+    from stage_gen.interfaces.cli import main
 
     prepare_face_case(tmp_path)
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(specification().model_dump_json())
     run = tmp_path / "cli-run"
-    monkeypatch.setattr(cli, "load_config", StageGenConfig)
-    monkeypatch.setattr(
-        "sys.argv",
-        [
-            "stage-gen-portrait-motion",
-            "prepare",
-            "--source",
-            str(tmp_path / "source.png"),
-            "--spec",
-            str(spec_path),
-            "--run",
-            str(run),
-            "--face-crop",
-        ],
-    )
-    cli.entrypoint()
-    result = json.loads(capsys.readouterr().out)
+    monkeypatch.setattr("stage_gen.config.load_config", StageGenConfig)
+    output = io.StringIO()
+    arguments = ["plan", "portrait-motion", "--source", str(tmp_path / "source.png")]
+    arguments += ["--spec", str(spec_path), "--run", str(run), "--face-crop"]
+    assert main(arguments, stdout=output) == 0
+    result = json.loads(output.getvalue())
     assert result["status"] == "prepared" and result["source_size"] == list(SOURCE_SIZE)
     assert json.loads((run / "plan.json").read_bytes())["kind"] == KIND

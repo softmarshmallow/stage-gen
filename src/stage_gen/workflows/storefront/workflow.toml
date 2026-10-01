@@ -9,6 +9,14 @@ One reading of the game's reference art becomes a direction every surface inheri
 surface is drawn from its own brief, cut to its exact store canvas, checked and reviewed, and \
 the listing copy is written beside them."""
 
+[try]
+input = "The minimal quiet_orbit package, written by inputs/minimal/make_inputs.py out/storefront-input"
+commands = [
+  "stage-gen plan storefront --input out/storefront-input",
+  "stage-gen run storefront --input out/storefront-input --output out/storefront-try --cache-dir out/cache --dry-run",
+  "stage-gen inspect out/storefront-try",
+]
+
 [[outputs]]
 artifact_ref = "package/surfaces/app_icon.png"
 description = "Each surface at the exact canvas its store asks for"

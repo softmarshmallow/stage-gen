@@ -15,7 +15,7 @@ sprite, applies the same component to an opaque working crop, then restores
 native face patches onto the unchanged full sprite. Use the
 [user walkthrough](../portrait-motion.md) and the square
 [face-crop example](../examples/portrait-motion/face-four-card.json) for that
-workflow. Omitting `prepare --face-crop` keeps the existing opaque-portrait
+workflow. Omitting `--face-crop` from `stage-gen plan portrait-motion` keeps the existing opaque-portrait
 workflow and its source-canvas requirements.
 
 This is a standalone headless capability and CLI. It does not add a stage to the
@@ -72,8 +72,9 @@ Ownership follows the existing [component contract](../component-contract.md):
   playback helpers remain in the portrait-motion component.
 - [`orchestration/portrait_services.py`](../../src/stage_gen/orchestration/portrait_services.py)
   owns the concrete, opt-in provider construction a live run injects.
-- [`interfaces/portrait_motion.py`](../../src/stage_gen/interfaces/portrait_motion.py)
-  exposes `stage-gen-portrait-motion prepare`, `run`, and `verify`.
+- [`workflows/portrait_motion/cli.py`](../../src/stage_gen/workflows/portrait_motion/cli.py)
+  exposes `stage-gen plan portrait-motion` (preparation) and `stage-gen run portrait-motion`;
+  `stage-gen inspect RUN --verify` verifies a run through the workflow's declaration.
 
 ## Eight-stage graph
 
@@ -144,7 +145,7 @@ resolution, retries, and structured review all contribute.
 
 ## Face-crop boundary
 
-With `prepare --face-crop`, the supplied PNG is the original full sprite. It
+With `stage-gen plan portrait-motion --face-crop`, the supplied PNG is the original full sprite. It
 may use RGB or RGBA pixels, including partial transparency; its dimensions need
 not match the specification. Each original axis must fit the full-resolution
 WebP limit of 16383 pixels. The face specification instead declares the square
@@ -186,7 +187,7 @@ working reference.
 ## CLI workflow
 
 Use an original opaque PNG with a matching canonical
-`portrait.png.meta.json` provenance sidecar. `prepare` checks the digest,
+`portrait.png.meta.json` provenance sidecar. Preparation checks the digest,
 dimensions, opacity, and source provenance, then imports unchanged source bytes
 and preserves the original provenance in the new run. The supplied example
 requires a 1024×1536 PNG. The run directory must not already exist; source and
@@ -200,7 +201,7 @@ full sprite, use `--face-crop` and the face example as shown in the
 From a repository checkout:
 
 ```sh
-uv run stage-gen-portrait-motion prepare \
+uv run stage-gen plan portrait-motion \
   --source /path/to/portrait.png \
   --spec docs/examples/portrait-motion/four-card.json \
   --run /path/to/new-portrait-run
@@ -213,7 +214,7 @@ plan (`OPENAI_API_KEY` by default or `FAL_KEY` after a fal override). Keys come 
 environment or the optional existing allowlisted dotenv file:
 
 ```sh
-STAGE_GEN_RUN_LIVE=1 uv run stage-gen-portrait-motion run \
+STAGE_GEN_RUN_LIVE=1 uv run stage-gen run portrait-motion \
   --run /path/to/new-portrait-run --live --dotenv .env
 ```
 
@@ -227,7 +228,8 @@ exact and has no fallback. This opaque-source workflow requires no native-transp
 The runtime bindings are independent of other recipes' default text model; provider details remain
 in [Provider operations](../models/providers.md).
 
-`prepare --profile /path/to/profile.json` accepts a strict `RuntimeProfile`.
+`stage-gen plan portrait-motion --profile /path/to/profile.json` accepts a strict
+`RuntimeProfile`.
 The default run allowance is $6, with $1.50 reserved before every dispatched
 provider attempt. Each operation has one service retry owner and at most six
 attempts, subject to the run's 24-attempt and spend limits. Successful responses
@@ -243,8 +245,8 @@ reservations are quoted image prices; actual cost depends on usage and retries.
 Verify all retained outputs or replay validated checkpoints without providers:
 
 ```sh
-uv run stage-gen-portrait-motion verify --run /path/to/new-portrait-run
-uv run stage-gen-portrait-motion run --run /path/to/new-portrait-run
+uv run stage-gen inspect /path/to/new-portrait-run --verify
+uv run stage-gen run portrait-motion --run /path/to/new-portrait-run
 ```
 
 An incomplete run without supplied services fails rather than making a provider

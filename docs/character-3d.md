@@ -1,6 +1,6 @@
 # Make a rigged 3D character from a brief
 
-`stage-gen-character` takes one written character brief and returns a small,
+`stage-gen run character-3d` takes one written character brief and returns a small,
 textured, rigged character as a GLB with a short set of diagnostic clips, ready for a
 game engine to load and drive with its own animations. Nobody sits between the stages:
 an agent draws the reference sheet, a mesh provider builds the geometry, a rig provider
@@ -204,7 +204,7 @@ Prepare offline first. This plans the 31-node reviewed graph (12 nodes with
 `review_mode: "none"`), probes Blender and admits the run without calling any provider:
 
 ```sh
-stage-gen-character \
+stage-gen run character-3d \
   --experiment /work/characters/my_first_character_01.json \
   --input-root /work/characters \
   --run-root /work/characters/runs/my_first_character_01 \

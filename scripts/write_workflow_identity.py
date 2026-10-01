@@ -64,8 +64,7 @@ from gnode import (
 from stage_gen.components.portrait_motion.face_location import locator_node_type
 from stage_gen.components.portrait_motion.nodes import portrait_motion_node_types
 from stage_gen.config import load_config
-from stage_gen.interfaces.movie_sprite import _parser as movie_sprite_parser
-from stage_gen.orchestration.movie_sprite_services import movie_sprite_video_binding
+from stage_gen.interfaces.cli import parse
 from stage_gen.pipeline import (
     InputFiles,
     NodeBinding,
@@ -83,9 +82,9 @@ from stage_gen.pipeline.graph_document import GraphDocument
 from stage_gen.pipeline.node_cache import NODE_CACHE_SCHEMA_VERSION
 from stage_gen.workflows.looping_parallax import ParallaxLayer, ParallaxSpec
 from stage_gen.workflows.looping_parallax import create_pipeline as create_parallax_pipeline
-from stage_gen.workflows.movie_sprite import GenerationSettings
 from stage_gen.workflows.movie_sprite import create_pipeline as create_movie_sprite_pipeline
 from stage_gen.workflows.movie_sprite.authoring import digest as movie_sprite_digest
+from stage_gen.workflows.movie_sprite.cli import build_definition
 from stage_gen.workflows.portrait_motion.face_location import _implementation_digest
 from stage_gen.workflows.portrait_motion.pipeline import implementation
 from stage_gen.workflows.storefront.storefront_executor import StorefrontExecutor
@@ -329,13 +328,13 @@ def plan_looping_parallax(scratch: Path) -> Graph:
 
 
 def plan_movie_sprite_generate(scratch: Path) -> Graph:
-    """The paid generate path, from argv through the CLI parser, built as the CLI builds it."""
+    """The paid generate path, from argv through `stage-gen plan movie-sprite`, built by the
+    one function that builds a movie-sprite definition from argv."""
     input_root = materialize_inputs("movie-sprite-generate", scratch)
-    args = movie_sprite_parser().parse_args(
+    args = parse(
         [
-            "body",
-            "idle",
             "plan",
+            "movie-sprite",
             "--input-root",
             str(input_root),
             "--authoring",
@@ -344,42 +343,13 @@ def plan_movie_sprite_generate(scratch: Path) -> Graph:
             "finish.json",
             "--output-root",
             str(scratch / "movie-sprite-plan"),
-            "--cache-root",
-            str(scratch / "movie-sprite-cache"),
         ]
     )
-    settings = GenerationSettings(
-        duration_seconds=args.duration,
-        resolution=args.resolution,
-        aspect_ratio=args.aspect_ratio,
-        candidate_id=args.candidate,
-    )
-    routes = (
-        BindingTable(())
-        if args.source
-        else BindingTable(
-            (
-                movie_sprite_video_binding(
-                    duration_seconds=args.duration,
-                    resolution=args.resolution,
-                    aspect_ratio=args.aspect_ratio,
-                ),
-            )
-        )
-    )
-    definition = create_movie_sprite_pipeline(
-        finish_ref=args.finish,
-        authoring_ref=args.authoring,
-        settings=settings,
-        routes=routes,
-        supplied_video_ref=args.source,
-        supplied_provenance_ref=args.source_provenance,
-    )
-    return plan(definition, input_root=args.input_root, targets=[args.target]).graph
+    return plan(build_definition(args), input_root=args.input_root, targets=[args.target]).graph
 
 
 def plan_storefront(scratch: Path) -> Graph:
-    """Mirror `stage-gen storefront generate` without a draw ledger or a reroll."""
+    """Mirror `stage-gen run storefront` without a draw ledger or a reroll."""
     source_root = materialize_inputs("storefront", scratch)
     source = resolve_storefront(read_storefront_document(source_root), root=source_root)
     draws = apply_rerolls(empty_ledger(source.storefront_id), ())

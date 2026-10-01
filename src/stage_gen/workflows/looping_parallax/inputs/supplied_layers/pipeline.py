@@ -1,4 +1,5 @@
-"""Load with stage-gen pipeline plan/run using this file's ``pipeline`` export."""
+"""Load with ``stage-gen plan|run file <this file>:pipeline``; ``make_inputs.py`` writes the
+same spec as ``parallax.json`` for ``stage-gen run looping-parallax``."""
 
 from stage_gen.workflows.looping_parallax import ParallaxLayer, ParallaxSpec, create_pipeline
 

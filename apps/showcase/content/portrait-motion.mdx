@@ -78,18 +78,18 @@ Prepare the run offline with the face crop, run it live, then show me the animat
 <Shell>
 
 ```sh
-uv run stage-gen-portrait-motion prepare --face-crop \
+uv run stage-gen plan portrait-motion --face-crop \
   --source character.png \
   --spec docs/examples/portrait-motion/face-four-card.json \
   --run runs/face-01
 ```
 
 ```sh
-STAGE_GEN_RUN_LIVE=1 uv run stage-gen-portrait-motion run --run runs/face-01 --live
+STAGE_GEN_RUN_LIVE=1 uv run stage-gen run portrait-motion --run runs/face-01 --live
 ```
 
 ```sh
-uv run stage-gen-portrait-motion verify --run runs/face-01
+uv run stage-gen inspect runs/face-01 --verify
 ```
 
 Needs `character.png.meta.json` beside the picture, and OpenRouter and OpenAI keys. The [guide](https://github.com/softmarshmallow/stage-gen/blob/main/docs/portrait-motion.md) shows how to register your own artwork.

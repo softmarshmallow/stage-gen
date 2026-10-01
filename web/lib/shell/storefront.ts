@@ -2,7 +2,7 @@
 //
 // The shell is a consumer. It locates and validates paths, parses each document
 // against its own contract, and never generates: a storefront is produced by
-// `stage-gen storefront generate` and only read here.
+// `stage-gen run storefront` and only read here.
 //
 // A storefront publishes no runtime manifest — nothing plays it — so this
 // module locates a run by its package inventory instead of by manifest.json.

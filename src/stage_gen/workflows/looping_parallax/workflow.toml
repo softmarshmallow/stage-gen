@@ -9,6 +9,14 @@ Each supplied layer is made to repeat on its own, by mirroring its edges or by r
 seam, then the layers are composed with their offsets and scroll factors into a portable \
 manifest and a preview frame."""
 
+[try]
+input = "Two original layers and their parallax.json, written by inputs/supplied_layers/make_inputs.py out/looping-parallax-input"
+commands = [
+  "stage-gen plan looping-parallax --input out/looping-parallax-input",
+  "stage-gen run looping-parallax --input out/looping-parallax-input --output out/looping-parallax-try --cache-dir out/cache",
+  "stage-gen inspect out/looping-parallax-try",
+]
+
 [[outputs]]
 artifact_ref = "parallax/manifest.json"
 description = "Every layer with its size, order, offsets, repeat axes and scroll factor"

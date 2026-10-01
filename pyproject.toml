@@ -21,11 +21,7 @@ dependencies = [
 ]
 
 [project.scripts]
-stage-gen-character = "stage_gen.interfaces.character_3d:main"
-stage-gen-portrait-motion = "stage_gen.interfaces.portrait_motion:entrypoint"
-stage-gen-movie-sprite = "stage_gen.interfaces.movie_sprite:entrypoint"
 stage-gen = "stage_gen.interfaces.cli:entrypoint"
-stage-gen-py = "stage_gen.interfaces.cli:entrypoint"
 
 [dependency-groups]
 dev = [

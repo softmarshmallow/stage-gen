@@ -9,6 +9,14 @@ A semantic phase proposes typed entities, their relationships and open questions
 independent reviewer must admit; a gallery phase then draws exactly one reviewed concept image \
 for each admitted entity."""
 
+[try]
+input = "The committed lantern_ferry package in inputs/lantern_ferry"
+commands = [
+  "stage-gen plan universe --phase semantic --input src/stage_gen/workflows/universe/inputs/lantern_ferry",
+  "stage-gen run universe --phase semantic --input src/stage_gen/workflows/universe/inputs/lantern_ferry --output out/universe-try --cache-dir out/cache --dry-run",
+  "stage-gen inspect out/universe-try",
+]
+
 [[outputs]]
 artifact_ref = "semantic/universe.json"
 description = "The admitted storyworld: entities, relationships and open questions"

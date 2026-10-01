@@ -94,13 +94,16 @@ raise SystemExit(main())
             check=False,
         )
 
-    planned = cli("pipeline", "plan", str(definition), "--input", str(inputs), "--target", "swatch")
+    listed = cli("list", "--json")
+    assert listed.returncode == 0, listed.stderr
+    assert len(json.loads(listed.stdout)) == 6
+    planned = cli("plan", "file", str(definition), "--input", str(inputs), "--target", "swatch")
     assert planned.returncode == 0, planned.stderr
     assert json.loads(planned.stdout)["projection"]["operation_counts"] == {"local": 1}
     cache = consumer / "cache"
     first = cli(
-        "pipeline",
         "run",
+        "file",
         str(definition),
         "--input",
         str(inputs),
@@ -112,8 +115,8 @@ raise SystemExit(main())
     assert first.returncode == 0, first.stderr
     assert json.loads(first.stdout)["ok"]
     second = cli(
-        "pipeline",
         "run",
+        "file",
         str(definition),
         "--input",
         str(inputs),
@@ -124,13 +127,14 @@ raise SystemExit(main())
     )
     assert second.returncode == 0, second.stderr
     assert all(node["cache"] == "hit" for node in json.loads(second.stdout)["summary"]["nodes"])
-    inspected = cli("pipeline", "inspect", str(consumer / "second"))
+    inspected = cli("inspect", str(consumer / "second"), "--json")
     assert inspected.returncode == 0, inspected.stderr
-    assert json.loads(inspected.stdout)["pipeline_id"] == "local-media"
+    record = json.loads(inspected.stdout)
+    assert record["workflow"] is None and record["view"]["pipeline_id"] == "local-media"
     (inputs / "palette.json").write_text('{"color": [999, 0, 0]}')
     failed = cli(
-        "pipeline",
         "run",
+        "file",
         str(definition),
         "--input",
         str(inputs),
@@ -140,22 +144,20 @@ raise SystemExit(main())
         str(cache),
     )
     assert failed.returncode == 1, failed.stderr
-    failure_view = cli("pipeline", "inspect", str(consumer / "failed"))
+    failure_view = cli("inspect", str(consumer / "failed"), "--json")
     assert failure_view.returncode == 0
-    assert json.loads(failure_view.stdout)["run_state"] == "failed"
-    refused = cli(
-        "pipeline", "plan", str(definition), "--input", str(inputs), "--target", "unknown"
-    )
+    assert json.loads(failure_view.stdout)["view"]["run_state"] == "failed"
+    refused = cli("plan", "file", str(definition), "--input", str(inputs), "--target", "unknown")
     assert refused.returncode == 2
     assert "undeclared" in refused.stderr
-    missing = cli("pipeline", "plan", "missing_external_pipeline", "--input", str(inputs))
+    missing = cli("plan", "file", "missing_external_pipeline", "--input", str(inputs))
     assert missing.returncode == 2 and "cannot load pipeline definition" in missing.stderr
     invalid = consumer / "invalid.py"
     invalid.write_text("pipeline = object()\n")
-    rejected = cli("pipeline", "plan", str(invalid), "--input", str(inputs))
+    rejected = cli("plan", "file", str(invalid), "--input", str(inputs))
     assert rejected.returncode == 2 and "cannot load pipeline definition" in rejected.stderr
     invalid.write_text("invalid syntax !!!\n")
-    malformed = cli("pipeline", "plan", str(invalid), "--input", str(inputs))
+    malformed = cli("plan", "file", str(invalid), "--input", str(inputs))
     assert malformed.returncode == 2 and "cannot load pipeline definition" in malformed.stderr
 
 

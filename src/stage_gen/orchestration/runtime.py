@@ -453,7 +453,7 @@ class DefaultHeadlessRuntime:
         output = await asyncio.to_thread(Path(output_path).resolve)
         if output.suffix.lower() != f".{music_format}":
             raise ValueError(
-                f"generate-music {music_format} output must use a .{music_format} extension"
+                f"capability music {music_format} output must use a .{music_format} extension"
             )
         raw = output.parent / f".{output.name}.{uuid.uuid4().hex}.raw.{output_format}"
         try:
@@ -505,7 +505,7 @@ class DefaultHeadlessRuntime:
         service = self._sound_effect or _missing("ELEVENLABS_API_KEY")
         output = await asyncio.to_thread(Path(output_path).resolve)
         if output.suffix.lower() != ".mp3":
-            raise ValueError("generate-sound-effect output must use a .mp3 extension")
+            raise ValueError("capability sound-effect output must use a .mp3 extension")
         generated = await service.generate(
             SoundEffectGenerationRequest(
                 prompt=prompt,
@@ -558,7 +558,7 @@ class DefaultHeadlessRuntime:
         service = self._video or _missing("FAL_KEY")
         output = await asyncio.to_thread(Path(output_path).resolve)
         if output.suffix.lower() != ".mp4":
-            raise ValueError("generate-video output must use a .mp4 extension")
+            raise ValueError("capability video output must use a .mp4 extension")
         references: list[VideoReference] = []
         for reference in reference_paths:
             path = await asyncio.to_thread(Path(reference).resolve)
@@ -620,7 +620,7 @@ class DefaultHeadlessRuntime:
         service = self._speech or _missing("ELEVENLABS_API_KEY")
         output = await asyncio.to_thread(Path(output_path).resolve)
         if output.suffix.lower() != ".mp3":
-            raise ValueError("generate-speech output must use a .mp3 extension")
+            raise ValueError("capability speech output must use a .mp3 extension")
         generated = await service.generate(
             SpeechGenerationRequest(
                 text=text,

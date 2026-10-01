@@ -29,7 +29,6 @@ REVIEWED = {
         "read_absolute_regular_file",
         "read_relative_regular_file",
     },
-    "stage_gen.interfaces.asset_recipes": {"_dispatch_storefront", "_dispatch_universe"},
 }
 
 

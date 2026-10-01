@@ -71,12 +71,12 @@ It requires FFmpeg and makes no provider calls:
 
 ```sh
 uv run python src/stage_gen/workflows/movie_sprite/inputs/supplied_clip/make_inputs.py /tmp/movie-inputs
-uv run stage-gen-movie-sprite body idle run --input-root /tmp/movie-inputs --source actor.mkv --finish finish.json --output-root /tmp/movie-run --cache-root /tmp/movie-cache
-uv run stage-gen-movie-sprite inspect /tmp/movie-run
+uv run stage-gen run movie-sprite --input-root /tmp/movie-inputs --source actor.mkv --finish finish.json --output-root /tmp/movie-run --cache-root /tmp/movie-cache
+uv run stage-gen inspect /tmp/movie-run
 ```
 
 The same [definition](inputs/supplied_clip/pipeline.py) works with
-`stage-gen pipeline plan|run`. Python callers import `create_pipeline` and use
+`stage-gen plan|run file`. Python callers import `create_pipeline` and use
 `stage_gen.pipeline.plan` and `run`; no checkout-relative runtime paths are needed.
 
 Tests exercise all RGBA pixels, playback rate, exact canonical, frame archive,

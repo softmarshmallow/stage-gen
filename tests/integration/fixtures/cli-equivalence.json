@@ -1,0 +1,2090 @@
+{
+ "schema_version": 1,
+ "kind": "stage-gen-cli-equivalence-v1",
+ "recorded_from": "the old console scripts and demo-games commands, before decision 0071 deleted them; see the test's docstring",
+ "files": {
+  "spec.json": "{\"schema_version\":1,\"width\":128,\"height\":192,\"columns\":2,\"rows\":2,\"states\":[{\"state_id\":\"half\",\"feature_group\":\"eyes\",\"instruction\":\"Half blink\"},{\"state_id\":\"closed\",\"feature_group\":\"eyes\",\"instruction\":\"Close eyes\"},{\"state_id\":\"smile\",\"feature_group\":\"mouth\",\"instruction\":\"Small smile\"},{\"state_id\":\"a\",\"feature_group\":\"mouth\",\"instruction\":\"Open mouth\"}],\"requested_features\":[\"canvas_right_eye\",\"mouth\"],\"feather_panel_px\":3.0,\"playback\":[{\"eyes\":\"rest\",\"mouth\":\"rest\",\"duration_ms\":100},{\"eyes\":\"half\",\"mouth\":\"rest\",\"duration_ms\":100},{\"eyes\":\"closed\",\"mouth\":\"a\",\"duration_ms\":100},{\"eyes\":\"rest\",\"mouth\":\"rest\",\"duration_ms\":100}]}",
+  "profile.json": "{\"structured_model\":\"openai/gpt-6-astra\",\"max_provider_operations\":24,\"max_tokens\":8000,\"timeout_seconds\":900.0,\"budget_usd\":4.0,\"attempt_reservation_usd\":1.5}",
+  "runs/portrait/plan.json": "{\"kind\": \"portrait-motion-plan-v2\"}",
+  "runs/universe/execution-plan.json": "{\"kind\": \"universe-execution-graph-v2\"}",
+  "runs/storefront/execution-plan.json": "{\"kind\": \"storefront-execution-graph-v2\"}"
+ },
+ "identity_inputs": [
+  "storefront"
+ ],
+ "cases": {
+  "sdk-plan": {
+   "old_argv": [
+    "stage-gen",
+    "pipeline",
+    "plan",
+    "defs.sample:pipeline",
+    "--input",
+    "in",
+    "--target",
+    "a",
+    "--target",
+    "b"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "plan",
+    "file",
+    "defs.sample:pipeline",
+    "--input",
+    "in",
+    "--target",
+    "a",
+    "--target",
+    "b"
+   ],
+   "target": "stage_gen.pipeline.plan",
+   "kwargs": {
+    "definition": "<definition>",
+    "input_root": "in",
+    "targets": [
+     "a",
+     "b"
+    ]
+   },
+   "before": [
+    {
+     "target": "stage_gen.pipeline.load_definition",
+     "kwargs": {
+      "reference": "defs.sample:pipeline"
+     }
+    }
+   ]
+  },
+  "sdk-plan-written": {
+   "old_argv": [
+    "stage-gen",
+    "pipeline",
+    "plan",
+    "def.py:pipeline",
+    "--input",
+    "in",
+    "--output",
+    "o"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "plan",
+    "file",
+    "def.py:pipeline",
+    "--input",
+    "in",
+    "--output",
+    "o"
+   ],
+   "target": "stage_gen.pipeline.write_plan",
+   "kwargs": {
+    "planned": "<planned>",
+    "output_root": "o"
+   },
+   "before": [
+    {
+     "target": "stage_gen.pipeline.load_definition",
+     "kwargs": {
+      "reference": "def.py:pipeline"
+     }
+    },
+    {
+     "target": "stage_gen.pipeline.plan",
+     "kwargs": {
+      "definition": "<definition>",
+      "input_root": "in",
+      "targets": null
+     }
+    }
+   ]
+  },
+  "sdk-run": {
+   "old_argv": [
+    "stage-gen",
+    "pipeline",
+    "run",
+    "def.py",
+    "--input",
+    "in",
+    "--output",
+    "out/r",
+    "--cache-dir",
+    "cache",
+    "--target",
+    "t",
+    "--invocation-id",
+    "inv-1"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "run",
+    "file",
+    "def.py",
+    "--input",
+    "in",
+    "--output",
+    "out/r",
+    "--cache-dir",
+    "cache",
+    "--target",
+    "t",
+    "--invocation-id",
+    "inv-1"
+   ],
+   "target": "stage_gen.pipeline.run",
+   "kwargs": {
+    "planned": "<planned>",
+    "output_root": "out/r",
+    "cache_root": "cache",
+    "services": null,
+    "invocation_id": "inv-1",
+    "allow_provider_calls": false,
+    "node_timeout_seconds": 900.0,
+    "secrets": []
+   },
+   "before": [
+    {
+     "target": "stage_gen.pipeline.load_definition",
+     "kwargs": {
+      "reference": "def.py"
+     }
+    },
+    {
+     "target": "stage_gen.pipeline.plan",
+     "kwargs": {
+      "definition": "<definition>",
+      "input_root": "in",
+      "targets": [
+       "t"
+      ]
+     }
+    }
+   ]
+  },
+  "sdk-run-live": {
+   "old_argv": [
+    "stage-gen",
+    "pipeline",
+    "run",
+    "def.py:pipeline",
+    "--input",
+    "in",
+    "--output",
+    "out/r",
+    "--cache-dir",
+    "cache",
+    "--live"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "run",
+    "file",
+    "def.py:pipeline",
+    "--input",
+    "in",
+    "--output",
+    "out/r",
+    "--cache-dir",
+    "cache",
+    "--live"
+   ],
+   "target": "stage_gen.pipeline.run",
+   "kwargs": {
+    "planned": "<planned>",
+    "output_root": "out/r",
+    "cache_root": "cache",
+    "services": null,
+    "invocation_id": null,
+    "allow_provider_calls": true,
+    "node_timeout_seconds": 900.0,
+    "secrets": []
+   },
+   "before": [
+    {
+     "target": "stage_gen.pipeline.load_definition",
+     "kwargs": {
+      "reference": "def.py:pipeline"
+     }
+    },
+    {
+     "target": "stage_gen.pipeline.plan",
+     "kwargs": {
+      "definition": "<definition>",
+      "input_root": "in",
+      "targets": null
+     }
+    }
+   ]
+  },
+  "sdk-inspect": {
+   "old_argv": [
+    "stage-gen",
+    "pipeline",
+    "inspect",
+    "runs/sdk"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "inspect",
+    "runs/sdk"
+   ],
+   "target": "stage_gen.pipeline.inspect",
+   "kwargs": {
+    "run_dir": "runs/sdk"
+   },
+   "before": []
+  },
+  "movie-sprite-plan-authoring": {
+   "old_argv": [
+    "stage-gen-movie-sprite",
+    "body",
+    "idle",
+    "plan",
+    "--input-root",
+    "ms-in",
+    "--finish",
+    "finish.json",
+    "--output-root",
+    "out/ms",
+    "--authoring",
+    "authoring.json",
+    "--cache-root",
+    "cache"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "plan",
+    "movie-sprite",
+    "--input-root",
+    "ms-in",
+    "--finish",
+    "finish.json",
+    "--output-root",
+    "out/ms",
+    "--authoring",
+    "authoring.json"
+   ],
+   "target": "stage_gen.pipeline.write_plan",
+   "kwargs": {
+    "planned": "<planned>",
+    "output_root": "out/ms"
+   },
+   "before": [
+    {
+     "target": "stage_gen.orchestration.movie_sprite_services.movie_sprite_video_binding",
+     "kwargs": {
+      "duration_seconds": 8,
+      "resolution": "720p",
+      "aspect_ratio": "9:16"
+     }
+    },
+    {
+     "target": "stage_gen.workflows.movie_sprite.pipeline.create_pipeline",
+     "kwargs": {
+      "finish_ref": "finish.json",
+      "authoring_ref": "authoring.json",
+      "settings": {
+       "duration_seconds": 8,
+       "resolution": "720p",
+       "aspect_ratio": "9:16",
+       "padding_pixels": 32,
+       "alpha_floor": 24,
+       "candidate_id": "take-01"
+      },
+      "routes": [
+       "movie_sprite_video"
+      ],
+      "generator": null,
+      "supplied_video_ref": null,
+      "supplied_provenance_ref": null,
+      "rights": null
+     }
+    },
+    {
+     "target": "stage_gen.pipeline.plan",
+     "kwargs": {
+      "definition": "<definition>",
+      "input_root": "ms-in",
+      "targets": [
+       "finish"
+      ]
+     }
+    }
+   ]
+  },
+  "movie-sprite-plan-tuned": {
+   "old_argv": [
+    "stage-gen-movie-sprite",
+    "body",
+    "idle",
+    "plan",
+    "--input-root",
+    "ms-in",
+    "--finish",
+    "finish.json",
+    "--output-root",
+    "out/ms",
+    "--authoring",
+    "authoring.json",
+    "--resolution",
+    "1080p",
+    "--aspect-ratio",
+    "16:9",
+    "--duration",
+    "6",
+    "--candidate",
+    "take-02",
+    "--cache-root",
+    "cache",
+    "--target",
+    "generate"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "plan",
+    "movie-sprite",
+    "--input-root",
+    "ms-in",
+    "--finish",
+    "finish.json",
+    "--output-root",
+    "out/ms",
+    "--authoring",
+    "authoring.json",
+    "--resolution",
+    "1080p",
+    "--aspect-ratio",
+    "16:9",
+    "--duration",
+    "6",
+    "--candidate",
+    "take-02",
+    "--target",
+    "generate"
+   ],
+   "target": "stage_gen.pipeline.write_plan",
+   "kwargs": {
+    "planned": "<planned>",
+    "output_root": "out/ms"
+   },
+   "before": [
+    {
+     "target": "stage_gen.orchestration.movie_sprite_services.movie_sprite_video_binding",
+     "kwargs": {
+      "duration_seconds": 6,
+      "resolution": "1080p",
+      "aspect_ratio": "16:9"
+     }
+    },
+    {
+     "target": "stage_gen.workflows.movie_sprite.pipeline.create_pipeline",
+     "kwargs": {
+      "finish_ref": "finish.json",
+      "authoring_ref": "authoring.json",
+      "settings": {
+       "duration_seconds": 6,
+       "resolution": "1080p",
+       "aspect_ratio": "16:9",
+       "padding_pixels": 32,
+       "alpha_floor": 24,
+       "candidate_id": "take-02"
+      },
+      "routes": [
+       "movie_sprite_video"
+      ],
+      "generator": null,
+      "supplied_video_ref": null,
+      "supplied_provenance_ref": null,
+      "rights": null
+     }
+    },
+    {
+     "target": "stage_gen.pipeline.plan",
+     "kwargs": {
+      "definition": "<definition>",
+      "input_root": "ms-in",
+      "targets": [
+       "generate"
+      ]
+     }
+    }
+   ]
+  },
+  "movie-sprite-plan-source": {
+   "old_argv": [
+    "stage-gen-movie-sprite",
+    "body",
+    "idle",
+    "plan",
+    "--input-root",
+    "ms-in",
+    "--finish",
+    "finish.json",
+    "--output-root",
+    "out/ms",
+    "--source",
+    "actor.mkv",
+    "--source-provenance",
+    "actor.provenance.json",
+    "--cache-root",
+    "cache"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "plan",
+    "movie-sprite",
+    "--input-root",
+    "ms-in",
+    "--finish",
+    "finish.json",
+    "--output-root",
+    "out/ms",
+    "--source",
+    "actor.mkv",
+    "--source-provenance",
+    "actor.provenance.json"
+   ],
+   "target": "stage_gen.pipeline.write_plan",
+   "kwargs": {
+    "planned": "<planned>",
+    "output_root": "out/ms"
+   },
+   "before": [
+    {
+     "target": "stage_gen.workflows.movie_sprite.pipeline.create_pipeline",
+     "kwargs": {
+      "finish_ref": "finish.json",
+      "authoring_ref": null,
+      "settings": {
+       "duration_seconds": 8,
+       "resolution": "720p",
+       "aspect_ratio": "9:16",
+       "padding_pixels": 32,
+       "alpha_floor": 24,
+       "candidate_id": "take-01"
+      },
+      "routes": [],
+      "generator": null,
+      "supplied_video_ref": "actor.mkv",
+      "supplied_provenance_ref": "actor.provenance.json",
+      "rights": null
+     }
+    },
+    {
+     "target": "stage_gen.pipeline.plan",
+     "kwargs": {
+      "definition": "<definition>",
+      "input_root": "ms-in",
+      "targets": [
+       "finish"
+      ]
+     }
+    }
+   ]
+  },
+  "movie-sprite-run-prepare": {
+   "old_argv": [
+    "stage-gen-movie-sprite",
+    "body",
+    "idle",
+    "run",
+    "--input-root",
+    "ms-in",
+    "--finish",
+    "finish.json",
+    "--output-root",
+    "out/ms",
+    "--authoring",
+    "authoring.json",
+    "--cache-root",
+    "cache",
+    "--target",
+    "prepare"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "run",
+    "movie-sprite",
+    "--input-root",
+    "ms-in",
+    "--finish",
+    "finish.json",
+    "--output-root",
+    "out/ms",
+    "--authoring",
+    "authoring.json",
+    "--cache-root",
+    "cache",
+    "--target",
+    "prepare"
+   ],
+   "target": "stage_gen.pipeline.run",
+   "kwargs": {
+    "planned": "<planned>",
+    "output_root": "out/ms",
+    "cache_root": "cache",
+    "services": null,
+    "invocation_id": null,
+    "allow_provider_calls": false,
+    "node_timeout_seconds": 6000,
+    "secrets": []
+   },
+   "before": [
+    {
+     "target": "stage_gen.orchestration.movie_sprite_services.movie_sprite_video_binding",
+     "kwargs": {
+      "duration_seconds": 8,
+      "resolution": "720p",
+      "aspect_ratio": "9:16"
+     }
+    },
+    {
+     "target": "stage_gen.workflows.movie_sprite.pipeline.create_pipeline",
+     "kwargs": {
+      "finish_ref": "finish.json",
+      "authoring_ref": "authoring.json",
+      "settings": {
+       "duration_seconds": 8,
+       "resolution": "720p",
+       "aspect_ratio": "9:16",
+       "padding_pixels": 32,
+       "alpha_floor": 24,
+       "candidate_id": "take-01"
+      },
+      "routes": [
+       "movie_sprite_video"
+      ],
+      "generator": null,
+      "supplied_video_ref": null,
+      "supplied_provenance_ref": null,
+      "rights": null
+     }
+    },
+    {
+     "target": "stage_gen.pipeline.plan",
+     "kwargs": {
+      "definition": "<definition>",
+      "input_root": "ms-in",
+      "targets": [
+       "prepare"
+      ]
+     }
+    }
+   ]
+  },
+  "movie-sprite-run-source": {
+   "old_argv": [
+    "stage-gen-movie-sprite",
+    "body",
+    "idle",
+    "run",
+    "--input-root",
+    "ms-in",
+    "--finish",
+    "finish.json",
+    "--output-root",
+    "out/ms",
+    "--source",
+    "actor.mkv",
+    "--source-provenance",
+    "actor.provenance.json",
+    "--cache-root",
+    "cache"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "run",
+    "movie-sprite",
+    "--input-root",
+    "ms-in",
+    "--finish",
+    "finish.json",
+    "--output-root",
+    "out/ms",
+    "--source",
+    "actor.mkv",
+    "--source-provenance",
+    "actor.provenance.json",
+    "--cache-root",
+    "cache"
+   ],
+   "target": "stage_gen.pipeline.run",
+   "kwargs": {
+    "planned": "<planned>",
+    "output_root": "out/ms",
+    "cache_root": "cache",
+    "services": null,
+    "invocation_id": null,
+    "allow_provider_calls": false,
+    "node_timeout_seconds": 6000,
+    "secrets": []
+   },
+   "before": [
+    {
+     "target": "stage_gen.workflows.movie_sprite.pipeline.create_pipeline",
+     "kwargs": {
+      "finish_ref": "finish.json",
+      "authoring_ref": null,
+      "settings": {
+       "duration_seconds": 8,
+       "resolution": "720p",
+       "aspect_ratio": "9:16",
+       "padding_pixels": 32,
+       "alpha_floor": 24,
+       "candidate_id": "take-01"
+      },
+      "routes": [],
+      "generator": null,
+      "supplied_video_ref": "actor.mkv",
+      "supplied_provenance_ref": "actor.provenance.json",
+      "rights": null
+     }
+    },
+    {
+     "target": "stage_gen.pipeline.plan",
+     "kwargs": {
+      "definition": "<definition>",
+      "input_root": "ms-in",
+      "targets": [
+       "finish"
+      ]
+     }
+    }
+   ]
+  },
+  "movie-sprite-run-live": {
+   "old_argv": [
+    "stage-gen-movie-sprite",
+    "body",
+    "idle",
+    "run",
+    "--input-root",
+    "ms-in",
+    "--finish",
+    "finish.json",
+    "--output-root",
+    "out/ms",
+    "--authoring",
+    "authoring.json",
+    "--resolution",
+    "1080p",
+    "--aspect-ratio",
+    "16:9",
+    "--duration",
+    "6",
+    "--candidate",
+    "take-02",
+    "--cache-root",
+    "cache",
+    "--live",
+    "--budget-root",
+    "budget",
+    "--budget-usd",
+    "3.5",
+    "--dotenv",
+    "keys.env"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "run",
+    "movie-sprite",
+    "--input-root",
+    "ms-in",
+    "--finish",
+    "finish.json",
+    "--output-root",
+    "out/ms",
+    "--authoring",
+    "authoring.json",
+    "--resolution",
+    "1080p",
+    "--aspect-ratio",
+    "16:9",
+    "--duration",
+    "6",
+    "--candidate",
+    "take-02",
+    "--cache-root",
+    "cache",
+    "--live",
+    "--budget-root",
+    "budget",
+    "--budget-usd",
+    "3.5",
+    "--dotenv",
+    "keys.env"
+   ],
+   "target": "stage_gen.orchestration.movie_sprite_services.MovieSpriteVideoService",
+   "kwargs": {
+    "config": "<StageGenConfig>",
+    "budget": "<budget>",
+    "live": true,
+    "operation_id": "take-02",
+    "client": null,
+    "retry_policy": null
+   },
+   "before": [
+    {
+     "target": "stage_gen.orchestration.movie_sprite_services.movie_sprite_video_binding",
+     "kwargs": {
+      "duration_seconds": 6,
+      "resolution": "1080p",
+      "aspect_ratio": "16:9"
+     }
+    },
+    {
+     "target": "stage_gen.workflows.movie_sprite.pipeline.create_pipeline",
+     "kwargs": {
+      "finish_ref": "finish.json",
+      "authoring_ref": "authoring.json",
+      "settings": {
+       "duration_seconds": 6,
+       "resolution": "1080p",
+       "aspect_ratio": "16:9",
+       "padding_pixels": 32,
+       "alpha_floor": 24,
+       "candidate_id": "take-02"
+      },
+      "routes": [
+       "movie_sprite_video"
+      ],
+      "generator": null,
+      "supplied_video_ref": null,
+      "supplied_provenance_ref": null,
+      "rights": null
+     }
+    },
+    {
+     "target": "stage_gen.pipeline.plan",
+     "kwargs": {
+      "definition": "<definition>",
+      "input_root": "ms-in",
+      "targets": [
+       "finish"
+      ]
+     }
+    },
+    {
+     "target": "stage_gen.provider_env.load_provider_dotenv",
+     "kwargs": {
+      "path": "keys.env"
+     }
+    },
+    {
+     "target": "stage_gen.components.character_3d.budget_pool.BudgetPool",
+     "kwargs": {
+      "root": "budget",
+      "account_id": "movie-sprite",
+      "ceiling_usd": "3.5",
+      "historical_liability_usd": "0",
+      "parent_reservation": null
+     }
+    }
+   ]
+  },
+  "movie-sprite-run-live-4k": {
+   "old_argv": [
+    "stage-gen-movie-sprite",
+    "body",
+    "idle",
+    "run",
+    "--input-root",
+    "ms-in",
+    "--finish",
+    "finish.json",
+    "--output-root",
+    "out/ms",
+    "--authoring",
+    "authoring.json",
+    "--resolution",
+    "4k",
+    "--target",
+    "generate",
+    "--cache-root",
+    "cache",
+    "--live",
+    "--budget-root",
+    "budget",
+    "--budget-usd",
+    "9"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "run",
+    "movie-sprite",
+    "--input-root",
+    "ms-in",
+    "--finish",
+    "finish.json",
+    "--output-root",
+    "out/ms",
+    "--authoring",
+    "authoring.json",
+    "--resolution",
+    "4k",
+    "--target",
+    "generate",
+    "--cache-root",
+    "cache",
+    "--live",
+    "--budget-root",
+    "budget",
+    "--budget-usd",
+    "9"
+   ],
+   "target": "stage_gen.orchestration.movie_sprite_services.MovieSpriteVideoService",
+   "kwargs": {
+    "config": "<StageGenConfig>",
+    "budget": "<budget>",
+    "live": true,
+    "operation_id": "take-01",
+    "client": null,
+    "retry_policy": null
+   },
+   "before": [
+    {
+     "target": "stage_gen.orchestration.movie_sprite_services.movie_sprite_video_binding",
+     "kwargs": {
+      "duration_seconds": 8,
+      "resolution": "4k",
+      "aspect_ratio": "9:16"
+     }
+    },
+    {
+     "target": "stage_gen.workflows.movie_sprite.pipeline.create_pipeline",
+     "kwargs": {
+      "finish_ref": "finish.json",
+      "authoring_ref": "authoring.json",
+      "settings": {
+       "duration_seconds": 8,
+       "resolution": "4k",
+       "aspect_ratio": "9:16",
+       "padding_pixels": 32,
+       "alpha_floor": 24,
+       "candidate_id": "take-01"
+      },
+      "routes": [
+       "movie_sprite_video"
+      ],
+      "generator": null,
+      "supplied_video_ref": null,
+      "supplied_provenance_ref": null,
+      "rights": null
+     }
+    },
+    {
+     "target": "stage_gen.pipeline.plan",
+     "kwargs": {
+      "definition": "<definition>",
+      "input_root": "ms-in",
+      "targets": [
+       "generate"
+      ]
+     }
+    },
+    {
+     "target": "stage_gen.components.character_3d.budget_pool.BudgetPool",
+     "kwargs": {
+      "root": "budget",
+      "account_id": "movie-sprite",
+      "ceiling_usd": "9",
+      "historical_liability_usd": "0",
+      "parent_reservation": null
+     }
+    }
+   ]
+  },
+  "movie-sprite-replay": {
+   "old_argv": [
+    "stage-gen-movie-sprite",
+    "body",
+    "idle",
+    "replay",
+    "--input-root",
+    "ms-in",
+    "--finish",
+    "finish.json",
+    "--output-root",
+    "out/ms",
+    "--authoring",
+    "authoring.json",
+    "--resolution",
+    "1080p",
+    "--aspect-ratio",
+    "16:9",
+    "--duration",
+    "6",
+    "--candidate",
+    "take-02",
+    "--cache-root",
+    "cache"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "run",
+    "movie-sprite",
+    "--replay",
+    "--input-root",
+    "ms-in",
+    "--finish",
+    "finish.json",
+    "--output-root",
+    "out/ms",
+    "--authoring",
+    "authoring.json",
+    "--resolution",
+    "1080p",
+    "--aspect-ratio",
+    "16:9",
+    "--duration",
+    "6",
+    "--candidate",
+    "take-02",
+    "--cache-root",
+    "cache"
+   ],
+   "target": "stage_gen.pipeline.run",
+   "kwargs": {
+    "planned": "<planned>",
+    "output_root": "out/ms",
+    "cache_root": "cache",
+    "services": null,
+    "invocation_id": null,
+    "allow_provider_calls": true,
+    "node_timeout_seconds": 6000,
+    "secrets": []
+   },
+   "before": [
+    {
+     "target": "stage_gen.orchestration.movie_sprite_services.movie_sprite_video_binding",
+     "kwargs": {
+      "duration_seconds": 6,
+      "resolution": "1080p",
+      "aspect_ratio": "16:9"
+     }
+    },
+    {
+     "target": "stage_gen.workflows.movie_sprite.pipeline.create_pipeline",
+     "kwargs": {
+      "finish_ref": "finish.json",
+      "authoring_ref": "authoring.json",
+      "settings": {
+       "duration_seconds": 6,
+       "resolution": "1080p",
+       "aspect_ratio": "16:9",
+       "padding_pixels": 32,
+       "alpha_floor": 24,
+       "candidate_id": "take-02"
+      },
+      "routes": [
+       "movie_sprite_video"
+      ],
+      "generator": null,
+      "supplied_video_ref": null,
+      "supplied_provenance_ref": null,
+      "rights": null
+     }
+    },
+    {
+     "target": "stage_gen.pipeline.plan",
+     "kwargs": {
+      "definition": "<definition>",
+      "input_root": "ms-in",
+      "targets": [
+       "finish"
+      ]
+     }
+    }
+   ]
+  },
+  "movie-sprite-inspect": {
+   "old_argv": [
+    "stage-gen-movie-sprite",
+    "inspect",
+    "runs/ms"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "inspect",
+    "runs/ms"
+   ],
+   "target": "stage_gen.pipeline.inspect",
+   "kwargs": {
+    "run_dir": "runs/ms"
+   },
+   "before": []
+  },
+  "portrait-prepare": {
+   "old_argv": [
+    "stage-gen-portrait-motion",
+    "prepare",
+    "--source",
+    "sprite.png",
+    "--spec",
+    "spec.json",
+    "--run",
+    "runs/new-portrait"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "plan",
+    "portrait-motion",
+    "--source",
+    "sprite.png",
+    "--spec",
+    "spec.json",
+    "--run",
+    "runs/new-portrait"
+   ],
+   "target": "stage_gen.workflows.portrait_motion.pipeline.prepare_run",
+   "kwargs": {
+    "source": "sprite.png",
+    "run_dir": "runs/new-portrait",
+    "spec": {
+     "schema_version": 1,
+     "width": 128,
+     "height": 192,
+     "columns": 2,
+     "rows": 2,
+     "states": [
+      {
+       "state_id": "half",
+       "feature_group": "eyes",
+       "instruction": "Half blink"
+      },
+      {
+       "state_id": "closed",
+       "feature_group": "eyes",
+       "instruction": "Close eyes"
+      },
+      {
+       "state_id": "smile",
+       "feature_group": "mouth",
+       "instruction": "Small smile"
+      },
+      {
+       "state_id": "a",
+       "feature_group": "mouth",
+       "instruction": "Open mouth"
+      }
+     ],
+     "requested_features": [
+      "canvas_right_eye",
+      "mouth"
+     ],
+     "feather_panel_px": 3.0,
+     "playback": [
+      {
+       "eyes": "rest",
+       "mouth": "rest",
+       "duration_ms": 100
+      },
+      {
+       "eyes": "half",
+       "mouth": "rest",
+       "duration_ms": 100
+      },
+      {
+       "eyes": "closed",
+       "mouth": "a",
+       "duration_ms": 100
+      },
+      {
+       "eyes": "rest",
+       "mouth": "rest",
+       "duration_ms": 100
+      }
+     ]
+    },
+    "profile": null,
+    "config": "<StageGenConfig>",
+    "face_crop": false
+   },
+   "before": []
+  },
+  "portrait-prepare-face": {
+   "old_argv": [
+    "stage-gen-portrait-motion",
+    "prepare",
+    "--source",
+    "sprite.png",
+    "--spec",
+    "spec.json",
+    "--profile",
+    "profile.json",
+    "--run",
+    "runs/new-face",
+    "--face-crop"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "plan",
+    "portrait-motion",
+    "--source",
+    "sprite.png",
+    "--spec",
+    "spec.json",
+    "--profile",
+    "profile.json",
+    "--run",
+    "runs/new-face",
+    "--face-crop"
+   ],
+   "target": "stage_gen.workflows.portrait_motion.pipeline.prepare_run",
+   "kwargs": {
+    "source": "sprite.png",
+    "run_dir": "runs/new-face",
+    "spec": {
+     "schema_version": 1,
+     "width": 128,
+     "height": 192,
+     "columns": 2,
+     "rows": 2,
+     "states": [
+      {
+       "state_id": "half",
+       "feature_group": "eyes",
+       "instruction": "Half blink"
+      },
+      {
+       "state_id": "closed",
+       "feature_group": "eyes",
+       "instruction": "Close eyes"
+      },
+      {
+       "state_id": "smile",
+       "feature_group": "mouth",
+       "instruction": "Small smile"
+      },
+      {
+       "state_id": "a",
+       "feature_group": "mouth",
+       "instruction": "Open mouth"
+      }
+     ],
+     "requested_features": [
+      "canvas_right_eye",
+      "mouth"
+     ],
+     "feather_panel_px": 3.0,
+     "playback": [
+      {
+       "eyes": "rest",
+       "mouth": "rest",
+       "duration_ms": 100
+      },
+      {
+       "eyes": "half",
+       "mouth": "rest",
+       "duration_ms": 100
+      },
+      {
+       "eyes": "closed",
+       "mouth": "a",
+       "duration_ms": 100
+      },
+      {
+       "eyes": "rest",
+       "mouth": "rest",
+       "duration_ms": 100
+      }
+     ]
+    },
+    "profile": {
+     "structured_model": "openai/gpt-6-astra",
+     "max_provider_operations": 24,
+     "max_tokens": 8000,
+     "timeout_seconds": 900.0,
+     "budget_usd": 4.0,
+     "attempt_reservation_usd": 1.5
+    },
+    "config": "<StageGenConfig>",
+    "face_crop": true
+   },
+   "before": []
+  },
+  "portrait-run": {
+   "old_argv": [
+    "stage-gen-portrait-motion",
+    "run",
+    "--run",
+    "runs/portrait",
+    "--dotenv",
+    "keys.env"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "run",
+    "portrait-motion",
+    "--run",
+    "runs/portrait",
+    "--dotenv",
+    "keys.env"
+   ],
+   "target": "stage_gen.workflows.portrait_motion.pipeline.run_pipeline",
+   "kwargs": {
+    "run_dir": "runs/portrait",
+    "image_service": null,
+    "structured_service": null,
+    "live": false,
+    "dotenv": "keys.env",
+    "locator_service": null,
+    "service_factory": null
+   },
+   "before": []
+  },
+  "portrait-run-live": {
+   "old_argv": [
+    "stage-gen-portrait-motion",
+    "run",
+    "--run",
+    "runs/portrait",
+    "--live"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "run",
+    "portrait-motion",
+    "--run",
+    "runs/portrait",
+    "--live"
+   ],
+   "target": "stage_gen.workflows.portrait_motion.pipeline.run_pipeline",
+   "kwargs": {
+    "run_dir": "runs/portrait",
+    "image_service": null,
+    "structured_service": null,
+    "live": true,
+    "dotenv": null,
+    "locator_service": null,
+    "service_factory": "<ConfiguredPortraitServices>"
+   },
+   "before": []
+  },
+  "portrait-verify": {
+   "old_argv": [
+    "stage-gen-portrait-motion",
+    "verify",
+    "--run",
+    "runs/portrait"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "inspect",
+    "runs/portrait",
+    "--verify"
+   ],
+   "target": "stage_gen.workflows.portrait_motion.pipeline.verify_run",
+   "kwargs": {
+    "run_dir": "runs/portrait"
+   },
+   "before": []
+  },
+  "character-prepare": {
+   "old_argv": [
+    "stage-gen-character",
+    "--experiment",
+    "experiment.json",
+    "--input-root",
+    "ch-in",
+    "--run-root",
+    "runs/character",
+    "--blender",
+    "/opt/blender",
+    "--review-mode",
+    "none",
+    "--admission-mode",
+    "development",
+    "--prepare-only"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "run",
+    "character-3d",
+    "--experiment",
+    "experiment.json",
+    "--input-root",
+    "ch-in",
+    "--run-root",
+    "runs/character",
+    "--blender",
+    "/opt/blender",
+    "--review-mode",
+    "none",
+    "--admission-mode",
+    "development",
+    "--prepare-only"
+   ],
+   "target": "stage_gen.orchestration.character_3d.launch.main",
+   "kwargs": {
+    "argv": [
+     "--experiment",
+     "experiment.json",
+     "--input-root",
+     "ch-in",
+     "--run-root",
+     "runs/character",
+     "--blender",
+     "/opt/blender",
+     "--review-mode",
+     "none",
+     "--admission-mode",
+     "development",
+     "--prepare-only"
+    ]
+   },
+   "before": []
+  },
+  "character-live": {
+   "old_argv": [
+    "stage-gen-character",
+    "--experiment",
+    "e.json",
+    "--input-root",
+    "ch-in",
+    "--run-root",
+    "runs/c2",
+    "--blender",
+    "/opt/blender",
+    "--live",
+    "--dotenv",
+    "keys.env"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "run",
+    "character-3d",
+    "--experiment",
+    "e.json",
+    "--input-root",
+    "ch-in",
+    "--run-root",
+    "runs/c2",
+    "--blender",
+    "/opt/blender",
+    "--live",
+    "--dotenv",
+    "keys.env"
+   ],
+   "target": "stage_gen.orchestration.character_3d.launch.main",
+   "kwargs": {
+    "argv": [
+     "--experiment",
+     "e.json",
+     "--input-root",
+     "ch-in",
+     "--run-root",
+     "runs/c2",
+     "--blender",
+     "/opt/blender",
+     "--live",
+     "--dotenv",
+     "keys.env"
+    ]
+   },
+   "before": []
+  },
+  "universe-semantic-dry": {
+   "old_argv": [
+    "stage-gen",
+    "universe",
+    "semantic",
+    "--input",
+    "universe-in",
+    "--output",
+    "out/u-sem",
+    "--cache-dir",
+    "cache",
+    "--dry-run",
+    "--invocation-id",
+    "dry-1",
+    "--failure-node",
+    "propose"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "run",
+    "universe",
+    "--phase",
+    "semantic",
+    "--input",
+    "universe-in",
+    "--output",
+    "out/u-sem",
+    "--cache-dir",
+    "cache",
+    "--dry-run",
+    "--invocation-id",
+    "dry-1",
+    "--failure-node",
+    "propose"
+   ],
+   "target": "stage_gen.workflows.universe.universe_executor.UniverseExecutor.dry_run_semantic",
+   "kwargs": {
+    "input_path": "universe-in",
+    "run_dir": "out/u-sem",
+    "cache_dir": "cache",
+    "invocation_id": "dry-1",
+    "failure_node_id": "propose",
+    "time_scale": 0.0001
+   },
+   "before": []
+  },
+  "universe-semantic-live": {
+   "old_argv": [
+    "stage-gen",
+    "universe",
+    "semantic",
+    "--input",
+    "universe-in",
+    "--output",
+    "out/u-sem",
+    "--cache-dir",
+    "cache",
+    "--live",
+    "--invocation-id",
+    "live-1"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "run",
+    "universe",
+    "--phase",
+    "semantic",
+    "--input",
+    "universe-in",
+    "--output",
+    "out/u-sem",
+    "--cache-dir",
+    "cache",
+    "--live",
+    "--invocation-id",
+    "live-1"
+   ],
+   "target": "stage_gen.workflows.universe.universe_executor.UniverseExecutor.run_semantic",
+   "kwargs": {
+    "input_path": "universe-in",
+    "run_dir": "out/u-sem",
+    "cache_dir": "cache",
+    "invocation_id": "live-1"
+   },
+   "before": []
+  },
+  "universe-gallery-dry": {
+   "old_argv": [
+    "stage-gen",
+    "universe",
+    "gallery",
+    "--input",
+    "universe-in",
+    "--semantic-run",
+    "runs/u-sem",
+    "--output",
+    "out/u-gal",
+    "--cache-dir",
+    "cache",
+    "--dry-run",
+    "--invocation-id",
+    "g-1",
+    "--reroll",
+    "low_marsh",
+    "--reroll",
+    "ferry",
+    "--sample-ledger",
+    "ledger.json"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "run",
+    "universe",
+    "--phase",
+    "gallery",
+    "--input",
+    "universe-in",
+    "--semantic-run",
+    "runs/u-sem",
+    "--output",
+    "out/u-gal",
+    "--cache-dir",
+    "cache",
+    "--dry-run",
+    "--invocation-id",
+    "g-1",
+    "--reroll",
+    "low_marsh",
+    "--reroll",
+    "ferry",
+    "--sample-ledger",
+    "ledger.json"
+   ],
+   "target": "stage_gen.workflows.universe.universe_executor.UniverseExecutor.dry_run_gallery",
+   "kwargs": {
+    "input_path": "universe-in",
+    "semantic_run": "runs/u-sem",
+    "run_dir": "out/u-gal",
+    "cache_dir": "cache",
+    "invocation_id": "g-1",
+    "rerolls": [
+     "low_marsh",
+     "ferry"
+    ],
+    "sample_ledger": "ledger.json",
+    "failure_node_id": null,
+    "time_scale": 1e-05
+   },
+   "before": []
+  },
+  "universe-gallery-live": {
+   "old_argv": [
+    "stage-gen",
+    "universe",
+    "gallery",
+    "--input",
+    "universe-in",
+    "--semantic-run",
+    "runs/u-sem",
+    "--output",
+    "out/u-gal",
+    "--cache-dir",
+    "cache",
+    "--live",
+    "--invocation-id",
+    "g-2"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "run",
+    "universe",
+    "--phase",
+    "gallery",
+    "--input",
+    "universe-in",
+    "--semantic-run",
+    "runs/u-sem",
+    "--output",
+    "out/u-gal",
+    "--cache-dir",
+    "cache",
+    "--live",
+    "--invocation-id",
+    "g-2"
+   ],
+   "target": "stage_gen.workflows.universe.universe_executor.UniverseExecutor.run_gallery",
+   "kwargs": {
+    "input_path": "universe-in",
+    "semantic_run": "runs/u-sem",
+    "run_dir": "out/u-gal",
+    "cache_dir": "cache",
+    "invocation_id": "g-2",
+    "rerolls": [],
+    "sample_ledger": null
+   },
+   "before": []
+  },
+  "storefront-dry": {
+   "old_argv": [
+    "stage-gen",
+    "storefront",
+    "generate",
+    "--input",
+    "inputs/storefront",
+    "--output",
+    "out/sf",
+    "--cache-dir",
+    "cache",
+    "--dry-run",
+    "--invocation-id",
+    "s-1"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "run",
+    "storefront",
+    "--input",
+    "inputs/storefront",
+    "--output",
+    "out/sf",
+    "--cache-dir",
+    "cache",
+    "--dry-run",
+    "--invocation-id",
+    "s-1"
+   ],
+   "target": "stage_gen.workflows.storefront.storefront_executor.StorefrontExecutor.dry_run",
+   "kwargs": {
+    "input_path": "inputs/storefront",
+    "run_dir": "out/sf",
+    "cache_dir": "cache",
+    "invocation_id": "s-1",
+    "failure_node_id": null,
+    "time_scale": 0.0001
+   },
+   "before": [
+    {
+     "target": "stage_gen.workflows.storefront.storefront_executor.StorefrontExecutor.__init__",
+     "kwargs": {
+      "config": "<StageGenConfig>",
+      "draws": {
+       "schema_version": 1,
+       "kind": "storefront-draw-ledger-v1",
+       "storefront_id": "quiet_orbit",
+       "draws": {}
+      }
+     }
+    }
+   ]
+  },
+  "storefront-live-reroll": {
+   "old_argv": [
+    "stage-gen",
+    "storefront",
+    "generate",
+    "--input",
+    "inputs/storefront",
+    "--output",
+    "out/sf2",
+    "--cache-dir",
+    "cache",
+    "--live",
+    "--invocation-id",
+    "s-2",
+    "--reroll",
+    "app_icon"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "run",
+    "storefront",
+    "--input",
+    "inputs/storefront",
+    "--output",
+    "out/sf2",
+    "--cache-dir",
+    "cache",
+    "--live",
+    "--invocation-id",
+    "s-2",
+    "--reroll",
+    "app_icon"
+   ],
+   "target": "stage_gen.workflows.storefront.storefront_executor.StorefrontExecutor.run",
+   "kwargs": {
+    "input_path": "inputs/storefront",
+    "run_dir": "out/sf2",
+    "cache_dir": "cache",
+    "invocation_id": "s-2"
+   },
+   "before": [
+    {
+     "target": "stage_gen.workflows.storefront.storefront_executor.StorefrontExecutor.__init__",
+     "kwargs": {
+      "config": "<StageGenConfig>",
+      "draws": {
+       "schema_version": 1,
+       "kind": "storefront-draw-ledger-v1",
+       "storefront_id": "quiet_orbit",
+       "draws": {
+        "app_icon": 1
+       }
+      }
+     }
+    }
+   ]
+  },
+  "capability-image": {
+   "old_argv": [
+    "demo-games",
+    "generate-image",
+    "--output",
+    "out/a.png",
+    "--aspect-ratio",
+    "16:9",
+    "--reference",
+    "r1.png",
+    "--reference",
+    "r2.png",
+    "--yes",
+    "a",
+    "lighthouse"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "capability",
+    "image",
+    "--output",
+    "out/a.png",
+    "--aspect-ratio",
+    "16:9",
+    "--reference",
+    "r1.png",
+    "--reference",
+    "r2.png",
+    "--yes",
+    "a",
+    "lighthouse"
+   ],
+   "target": "stage_gen.capabilities.generate_image_artifact",
+   "kwargs": {
+    "prompt": "a lighthouse",
+    "output_path": "out/a.png",
+    "config": "<StageGenConfig>",
+    "aspect_ratio": "16:9",
+    "reference_paths": [
+     "r1.png",
+     "r2.png"
+    ],
+    "runtime": null
+   },
+   "before": []
+  },
+  "capability-image-default": {
+   "old_argv": [
+    "demo-games",
+    "generate-image",
+    "--output",
+    "out/b.png",
+    "--yes",
+    "plain"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "capability",
+    "image",
+    "--output",
+    "out/b.png",
+    "--yes",
+    "plain"
+   ],
+   "target": "stage_gen.capabilities.generate_image_artifact",
+   "kwargs": {
+    "prompt": "plain",
+    "output_path": "out/b.png",
+    "config": "<StageGenConfig>",
+    "aspect_ratio": "1:1",
+    "reference_paths": [],
+    "runtime": null
+   },
+   "before": []
+  },
+  "capability-remove-background": {
+   "old_argv": [
+    "demo-games",
+    "remove-background",
+    "--input",
+    "in.png",
+    "--output",
+    "out/c.png",
+    "--yes"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "capability",
+    "remove-background",
+    "--input",
+    "in.png",
+    "--output",
+    "out/c.png",
+    "--yes"
+   ],
+   "target": "stage_gen.capabilities.remove_background",
+   "kwargs": {
+    "input_path": "in.png",
+    "output_path": "out/c.png",
+    "config": "<StageGenConfig>",
+    "runtime": null
+   },
+   "before": []
+  },
+  "capability-music": {
+   "old_argv": [
+    "demo-games",
+    "generate-music",
+    "--output",
+    "out/t.wav",
+    "--format",
+    "wav",
+    "--yes",
+    "calm",
+    "loop"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "capability",
+    "music",
+    "--output",
+    "out/t.wav",
+    "--format",
+    "wav",
+    "--yes",
+    "calm",
+    "loop"
+   ],
+   "target": "stage_gen.capabilities.generate_music",
+   "kwargs": {
+    "prompt": "calm loop",
+    "output_path": "out/t.wav",
+    "output_format": "wav",
+    "config": "<StageGenConfig>",
+    "runtime": null,
+    "metadata": null
+   },
+   "before": []
+  },
+  "capability-sound-effect": {
+   "old_argv": [
+    "demo-games",
+    "generate-sound-effect",
+    "--output",
+    "out/h.mp3",
+    "--duration",
+    "0.6",
+    "--prompt-influence",
+    "0.3",
+    "--loop",
+    "--yes",
+    "metal",
+    "hatch"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "capability",
+    "sound-effect",
+    "--output",
+    "out/h.mp3",
+    "--duration",
+    "0.6",
+    "--prompt-influence",
+    "0.3",
+    "--loop",
+    "--yes",
+    "metal",
+    "hatch"
+   ],
+   "target": "stage_gen.capabilities.generate_sound_effect",
+   "kwargs": {
+    "prompt": "metal hatch",
+    "output_path": "out/h.mp3",
+    "duration_seconds": 0.6,
+    "config": "<StageGenConfig>",
+    "prompt_influence": 0.3,
+    "loop": true,
+    "runtime": null,
+    "metadata": null
+   },
+   "before": []
+  },
+  "capability-speech": {
+   "old_argv": [
+    "demo-games",
+    "generate-speech",
+    "--output",
+    "out/s.mp3",
+    "--voice",
+    "V1",
+    "--stability",
+    "0.5",
+    "--language",
+    "ja",
+    "--yes",
+    "hello",
+    "there"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "capability",
+    "speech",
+    "--output",
+    "out/s.mp3",
+    "--voice",
+    "V1",
+    "--stability",
+    "0.5",
+    "--language",
+    "ja",
+    "--yes",
+    "hello",
+    "there"
+   ],
+   "target": "stage_gen.capabilities.generate_speech",
+   "kwargs": {
+    "text": "hello there",
+    "output_path": "out/s.mp3",
+    "voice": "V1",
+    "config": "<StageGenConfig>",
+    "stability": 0.5,
+    "language_code": "ja",
+    "runtime": null,
+    "metadata": null
+   },
+   "before": []
+  },
+  "capability-video": {
+   "old_argv": [
+    "demo-games",
+    "generate-video",
+    "--output",
+    "out/v.mp4",
+    "--duration",
+    "4",
+    "--resolution",
+    "1080p",
+    "--aspect-ratio",
+    "9:16",
+    "--reference",
+    "r.png",
+    "--yes",
+    "a",
+    "slow",
+    "pan"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "capability",
+    "video",
+    "--output",
+    "out/v.mp4",
+    "--duration",
+    "4",
+    "--resolution",
+    "1080p",
+    "--aspect-ratio",
+    "9:16",
+    "--reference",
+    "r.png",
+    "--yes",
+    "a",
+    "slow",
+    "pan"
+   ],
+   "target": "stage_gen.capabilities.generate_video",
+   "kwargs": {
+    "prompt": "a slow pan",
+    "output_path": "out/v.mp4",
+    "duration_seconds": 4.0,
+    "config": "<StageGenConfig>",
+    "resolution": "1080p",
+    "aspect_ratio": "9:16",
+    "reference_paths": [
+     "r.png"
+    ],
+    "runtime": null,
+    "metadata": null
+   },
+   "before": []
+  },
+  "capability-inspect-video": {
+   "old_argv": [
+    "demo-games",
+    "inspect-video",
+    "--input",
+    "v.mp4",
+    "--output",
+    "out/sheet.png",
+    "--duration",
+    "4"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "capability",
+    "inspect-video",
+    "--input",
+    "v.mp4",
+    "--output",
+    "out/sheet.png",
+    "--duration",
+    "4"
+   ],
+   "target": "stage_gen.capabilities.inspect_video",
+   "kwargs": {
+    "input_path": "v.mp4",
+    "output_path": "out/sheet.png",
+    "expected_seconds": 4.0,
+    "ffmpeg": "ffmpeg",
+    "ffprobe": "ffprobe"
+   },
+   "before": []
+  },
+  "env-import": {
+   "old_argv": [
+    "demo-games",
+    "import-env",
+    "--source",
+    "a.env",
+    "--destination",
+    "b.env"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "env",
+    "import",
+    "--source",
+    "a.env",
+    "--destination",
+    "b.env"
+   ],
+   "target": "stage_gen.orchestration.env_import.import_provider_env",
+   "kwargs": {
+    "source_path": "a.env",
+    "destination_path": "b.env"
+   },
+   "before": []
+  },
+  "export-view-universe": {
+   "old_argv": [
+    "demo-games",
+    "export-view",
+    "--run",
+    "runs/universe"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "inspect",
+    "runs/universe",
+    "--write-view",
+    "runs/universe"
+   ],
+   "target": "gnode.write_run_view",
+   "kwargs": {
+    "path": "runs/universe/execution-view.json",
+    "view": "<view>"
+   },
+   "before": [
+    {
+     "target": "stage_gen.workflows.universe.universe_view.build_universe_view",
+     "kwargs": {
+      "run_dir": "runs/universe"
+     }
+    }
+   ]
+  },
+  "export-view-storefront": {
+   "old_argv": [
+    "demo-games",
+    "export-view",
+    "--run",
+    "runs/storefront"
+   ],
+   "new_argv": [
+    "stage-gen",
+    "inspect",
+    "runs/storefront",
+    "--write-view",
+    "runs/storefront"
+   ],
+   "target": "gnode.write_run_view",
+   "kwargs": {
+    "path": "runs/storefront/execution-view.json",
+    "view": "<view>"
+   },
+   "before": [
+    {
+     "target": "stage_gen.workflows.storefront.storefront_view.build_storefront_view",
+     "kwargs": {
+      "run_dir": "runs/storefront"
+     }
+    }
+   ]
+  }
+ }
+}

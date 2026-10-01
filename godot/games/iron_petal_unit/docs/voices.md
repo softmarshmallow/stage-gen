@@ -131,7 +131,7 @@ voice_id = "mira"
 take = 2                       # the second draw of exactly this request
 ```
 
-**`pinned`** is the pick. An audition you liked - from `generate-speech`, or
+**`pinned`** is the pick. An audition you liked - from `capability speech`, or
 from a run's `audio/` - is committed into the package with the sidecar that
 produced it, both digest-locked, and republished as the effect through the
 same level and length gates a fresh draw meets. The graph buys nothing for a
@@ -226,7 +226,7 @@ one. The text and the provider voice live only in
 ## Auditioning a line
 
 ```sh
-uv run --group games demo-games generate-speech --output out/go.mp3 --voice 6awt6FKyZGV0HyQEwisX --stability 0.5 --language ja "[excited][shouting] よーし、いくよーっ！"
+uv run stage-gen capability speech --output out/go.mp3 --voice 6awt6FKyZGV0HyQEwisX --stability 0.5 --language ja "[excited][shouting] よーし、いくよーっ！"
 ```
 
 The command takes the provider's voice reference directly, as the sound-effect

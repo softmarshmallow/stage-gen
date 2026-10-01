@@ -152,61 +152,78 @@ def _game_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
 
 
 def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
-    """Execute a real local recipe and plan retained independent asset recipes."""
+    """Run a real local workflow, dry-run the graph-document workflows, and parse every
+    workflow verb, all through the one ``stage-gen`` verb set."""
+    from stage_gen.workflows._registry import discover
+
     parallax = "src/stage_gen/workflows/looping_parallax/inputs/supplied_layers"
     storefront = "src/stage_gen/workflows/storefront/inputs/minimal"
     inputs = scratch / "parallax-inputs"
     run = scratch / "parallax-run"
+    cache = ("--cache-dir", str(scratch / "asset-cache"))
     return (
         Step((python, f"{parallax}/make_inputs.py", str(inputs))),
         Step(
             (
                 "stage-gen",
-                "pipeline",
                 "run",
-                f"{parallax}/pipeline.py",
+                "looping-parallax",
                 "--input",
                 str(inputs),
                 "--output",
                 str(run),
-                "--cache-dir",
-                str(scratch / "asset-cache"),
+                *cache,
             )
         ),
-        Step(("stage-gen", "pipeline", "inspect", str(run))),
+        Step(("stage-gen", "inspect", str(run), "--verify")),
         Step((python, f"{storefront}/make_inputs.py", str(scratch / "storefront-inputs"))),
         Step(
             (
                 "stage-gen",
+                "run",
                 "storefront",
-                "generate",
                 "--input",
                 str(scratch / "storefront-inputs"),
                 "--dry-run",
-                "--cache-dir",
-                str(scratch / "asset-cache"),
                 "--output",
                 str(scratch / "storefront-run"),
+                *cache,
             )
         ),
         Step(
             (
                 "stage-gen",
+                "run",
                 "universe",
+                "--phase",
                 "semantic",
                 "--input",
                 "src/stage_gen/workflows/universe/inputs/lantern_ferry",
                 "--dry-run",
-                "--cache-dir",
-                str(scratch / "asset-cache"),
                 "--output",
                 str(scratch / "lantern-ferry"),
+                *cache,
             )
         ),
         Step((python, "scripts/write_model_policy_snapshot.py")),
         Step(("stage-gen", "--help")),
-        Step(("stage-gen-portrait-motion", "--help")),
-        Step(("stage-gen-movie-sprite", "--help")),
+        Step(("stage-gen", "list")),
+        Step(
+            (
+                "stage-gen",
+                "catalog",
+                "export",
+                "--check",
+                "--allow-missing-examples",
+                "--out",
+                str(scratch / "catalog"),
+            )
+        ),
+        *(
+            Step(("stage-gen", verb, workflow.id, "--help"))
+            for workflow in discover()
+            for verb in ("plan", "run")
+        ),
     )
 
 
@@ -267,7 +284,6 @@ def steps(
             *groups["games"][1:],
             *_asset_steps(python, scratch=scratch),
             Step((python, "-m", "build", "--no-isolation")),
-            Step(("stage-gen", "--help")),
             Step(("stage-gen-concept", "models")),
         )
     if scope not in groups:

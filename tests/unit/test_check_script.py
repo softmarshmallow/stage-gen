@@ -147,6 +147,33 @@ def test_product_gate_does_not_require_optional_consumers() -> None:
     assert not any("concept_studio" in item or "test_godot_" in item for item in tests)
 
 
+def test_product_gate_runs_the_workflows_through_the_one_verb_set() -> None:
+    from stage_gen.workflows._registry import discover
+
+    check = load_check_script()
+    commands = check.commands("python")
+    runs = [
+        command
+        for command in commands
+        if command[:2] == ("stage-gen", "run") and command[-1] != "--help"
+    ]
+    assert {command[2] for command in runs} == {"looping-parallax", "storefront", "universe"}
+    assert all("--dry-run" in command for command in runs if command[2] != "looping-parallax")
+    assert ("stage-gen", "list") in commands
+    assert any(command[:3] == ("stage-gen", "catalog", "export") for command in commands)
+    verb_help = {
+        command[1:3]
+        for command in commands
+        if command[0] == "stage-gen" and command[-1] == "--help"
+    }
+    assert {(verb, w.id) for w in discover() for verb in ("plan", "run")} <= verb_help
+    assert all("--live" not in command for command in commands)
+    assert not any(
+        command[0].startswith("stage-gen-") and command[0] != "stage-gen-concept"
+        for command in check.commands("python", scope="all")
+    )
+
+
 def test_owned_test_gates_partition_every_offline_test() -> None:
     from scripts.test_ownership import CONSUMER_TEST_ROOTS, TestOwner, paths_for
     from scripts.test_ownership import test_owners as collect_owners

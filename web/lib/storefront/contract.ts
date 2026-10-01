@@ -20,7 +20,7 @@ export const STOREFRONT_SCHEMA_VERSION = 1;
 
 export const STOREFRONT_REFUSAL =
   "unsupported storefront run; regenerate it with a current stage-gen " +
-  "(stage-gen storefront generate)";
+  "(stage-gen run storefront)";
 
 /**
  * The surface kinds, in the order a storefront presents them rather than the

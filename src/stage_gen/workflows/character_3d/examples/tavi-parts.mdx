@@ -31,14 +31,14 @@ When it finishes, show me the export and what the rig reviewer said about it.
 <Shell>
 
 ```sh
-stage-gen-character \
+stage-gen run character-3d \
   --experiment work/tavi.json --input-root work --run-root work/runs/tavi-plan \
   --blender /Applications/Blender.app/Contents/MacOS/Blender \
   --admission-mode development --prepare-only
 ```
 
 ```sh
-STAGE_GEN_RUN_LIVE=1 stage-gen-character \
+STAGE_GEN_RUN_LIVE=1 stage-gen run character-3d \
   --experiment work/tavi.json --input-root work --run-root work/runs/tavi-01 \
   --blender /Applications/Blender.app/Contents/MacOS/Blender \
   --admission-mode development --live

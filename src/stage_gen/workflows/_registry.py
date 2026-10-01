@@ -7,6 +7,9 @@ offline sample plan and run readers are read from the implementation. Facts the 
 know - title, promise, related workflows, tools, output notes and pinned examples - live in
 ``workflow.toml``, which is read without importing the workflow, so listing workflows stays
 cheap. Prose sits beside them in ``page.mdx`` and ``contract.md``.
+
+``stage-gen`` builds its parser from these manifests, so this module imports neither the
+engine nor any media library when it loads; they are imported where they are used.
 """
 
 from __future__ import annotations
@@ -25,10 +28,9 @@ from typing import TYPE_CHECKING, Literal, get_args
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from gnode import Graph, NodeType, RunView, write_run_view
-from stage_gen.examples import ExampleImporter, FiguresLedger, WorkflowExample
-
 if TYPE_CHECKING:
+    from gnode import Graph, NodeType, RunView
+    from stage_gen.examples import ExampleImporter, FiguresLedger, WorkflowExample
     from stage_gen.pipeline.graph_document import GraphDocument
 
 WORKFLOWS_PACKAGE = "stage_gen.workflows"
@@ -121,16 +123,14 @@ class WorkflowCode:
                 raise ValueError("every step has a label, a note and at least one member")
 
     def member_type_id(self, member: NodeType | str) -> str:
-        return member.type_id if isinstance(member, NodeType) else self.member_namespace + member
+        return self.member_namespace + member if isinstance(member, str) else member.type_id
 
     def type_ids(self) -> tuple[str, ...]:
         """Every type id the steps place, in step order."""
         return tuple(self.member_type_id(m) for step in self.steps for m in step.members)
 
     def node_types(self) -> dict[str, NodeType]:
-        return {
-            m.type_id: m for step in self.steps for m in step.members if isinstance(m, NodeType)
-        }
+        return {m.type_id: m for step in self.steps for m in step.members if not isinstance(m, str)}
 
     def graph_kinds(self) -> frozenset[str]:
         kinds = self.identity().get("graph_kinds", [])
@@ -211,6 +211,8 @@ class ViewRuns:
         return result
 
     def write_view(self, run_dir: Path, out_dir: Path) -> Path:
+        from gnode import write_run_view
+
         path = out_dir / "execution-view.json"
         write_run_view(path, self.build_view(run_dir))
         return path

@@ -324,7 +324,7 @@ def try_commands(workflow: LoadedWorkflow) -> list[str]:
     manifest = workflow.discovered.manifest
     if manifest.try_ is None:
         return []
-    from stage_gen.interfaces.cli import build_parser
+    from stage_gen.interfaces.cli import parse
 
     problems: list[str] = []
     for command in manifest.try_.commands:
@@ -333,7 +333,7 @@ def try_commands(workflow: LoadedWorkflow) -> list[str]:
             problems.append(f"{manifest.id}: [try] command does not start with stage-gen")
             continue
         try:
-            build_parser().parse_args(words[1:])
+            parse(words[1:])
         except (ValueError, SystemExit) as error:
             problems.append(f"{manifest.id}: [try] command does not parse: {error}")
     return problems

@@ -145,7 +145,8 @@ export default async function Home() {
           </ul>
         ) : (
           <p className={metaLine}>
-            None yet. Generate one with <code>stage-gen universe gallery</code>.
+            None yet. Generate one with{" "}
+            <code>stage-gen run universe --phase gallery</code>.
           </p>
         )}
       </section>
@@ -184,8 +185,7 @@ export default async function Home() {
           </ul>
         ) : (
           <p className={metaLine}>
-            None yet. Generate one with{" "}
-            <code>stage-gen storefront generate</code>.
+            None yet. Generate one with <code>stage-gen run storefront</code>.
           </p>
         )}
       </section>

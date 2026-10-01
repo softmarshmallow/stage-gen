@@ -69,7 +69,7 @@ def test_fresh_cli_freezes_effective_policy_before_child_launch(
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", spawn)
     arguments = [
-        "stage-gen-character",
+        "stage-gen run character-3d",
         "--experiment",
         str(config),
         "--input-root",

@@ -1,4 +1,4 @@
-"""The family CLI keeps offline planning separate from provider opt-in."""
+"""``stage-gen plan|run movie-sprite`` keeps offline planning separate from provider opt-in."""
 
 from __future__ import annotations
 
@@ -16,8 +16,9 @@ from PIL import Image
 
 from stage_gen.components.character_3d.budget_pool import BudgetPool
 from stage_gen.config import StageGenConfig
-from stage_gen.interfaces import movie_sprite as cli
+from stage_gen.interfaces.cli import parse
 from stage_gen.pipeline import PipelinePlan, plan
+from stage_gen.workflows.movie_sprite import cli
 from stage_gen.workflows.movie_sprite.inputs.supplied_clip.make_inputs import make_inputs
 
 
@@ -30,11 +31,10 @@ def _inputs(root: Path) -> Path:
     return inputs
 
 
-def _arguments(root: Path, *extra: str) -> list[str]:
+def _arguments(root: Path, verb: str = "plan", *extra: str) -> list[str]:
     return [
-        "body",
-        "idle",
-        "plan",
+        verb,
+        "movie-sprite",
         "--input-root",
         str(root / "inputs"),
         "--authoring",
@@ -43,8 +43,7 @@ def _arguments(root: Path, *extra: str) -> list[str]:
         "finish.json",
         "--output-root",
         str(root / "output"),
-        "--cache-root",
-        str(root / "cache"),
+        *(["--cache-root", str(root / "cache")] if verb == "run" else []),
         *extra,
     ]
 
@@ -53,7 +52,7 @@ def _invoke(*arguments: str) -> subprocess.CompletedProcess[str]:
     env = {key: value for key, value in os.environ.items() if not key.endswith(("_KEY", "_TOKEN"))}
     env["_STAGE_GEN_DISABLE_DOTENV"] = "1"
     return subprocess.run(
-        [sys.executable, "-m", "stage_gen.interfaces.movie_sprite", *arguments],
+        [sys.executable, "-m", "stage_gen.interfaces.cli", *arguments],
         env=env,
         text=True,
         capture_output=True,
@@ -74,9 +73,8 @@ def test_public_cli_plans_generation_without_credentials(tmp_path: Path) -> None
 def test_public_cli_runs_supplied_synthetic_clip_without_provider(tmp_path: Path) -> None:
     make_inputs(tmp_path / "inputs")
     result = _invoke(
-        "body",
-        "idle",
         "run",
+        "movie-sprite",
         "--input-root",
         str(tmp_path / "inputs"),
         "--source",
@@ -109,12 +107,10 @@ async def test_invalid_plan_never_opens_credentials_or_budget(
     monkeypatch.setattr(config, "load_config", forbidden)
     monkeypatch.setattr(movie_sprite_services, "MovieSpriteVideoService", forbidden)
     arguments = _arguments(
-        tmp_path, "--live", "--budget-root", str(tmp_path / "budget"), "--budget-usd", "10"
+        tmp_path, "run", "--live", "--budget-root", str(tmp_path / "budget"), "--budget-usd", "10"
     )
-    arguments[2] = "run"
-    args = cli._parser().parse_args(arguments)
     with pytest.raises((ValueError, OSError)):
-        await cli._execute(args)
+        await cli._execute(parse(arguments))
     assert not (tmp_path / "budget").exists()
 
 
@@ -181,12 +177,13 @@ async def test_live_config_and_service_are_opened_after_plan_and_always_closed(
         )
 
     monkeypatch.delenv("FAL_KEY", raising=False)
-    monkeypatch.setattr(cli, "plan", planned)
-    monkeypatch.setattr(cli, "run", run)
+    monkeypatch.setattr("stage_gen.pipeline.plan", planned)
+    monkeypatch.setattr("stage_gen.pipeline.run", run)
     monkeypatch.setattr(config, "load_config", load)
     monkeypatch.setattr(movie_sprite_services, "MovieSpriteVideoService", FakeService)
     arguments = _arguments(
         tmp_path,
+        "run",
         "--live",
         "--budget-root",
         str(tmp_path / "budget"),
@@ -195,21 +192,24 @@ async def test_live_config_and_service_are_opened_after_plan_and_always_closed(
         "--dotenv",
         str(dotenv),
     )
-    arguments[2] = "run"
-    result = await cli._execute(cli._parser().parse_args(arguments))
+    result = await cli._execute(parse(arguments))
     assert result["status"] == "succeeded"
     assert events == ["plan", "config", "service", "plan", "run", "closed"]
 
 
-def test_face_alias_forwards_unchanged_arguments_and_restores_process_argv(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize(
+    ("extra", "refusal"),
+    [
+        (("--replay", "--live"), "--replay binds no live provider"),
+        (("--live",), "--live requires --budget-root and --budget-usd"),
+        ((), "generation requires --live; use --replay for cached generation"),
+    ],
+)
+def test_run_refuses_an_opt_in_its_flags_cannot_mean(
+    tmp_path: Path, extra: tuple[str, ...], refusal: str
 ) -> None:
-    from stage_gen.interfaces import portrait_motion
-
-    original = ["stage-gen-movie-sprite", "face", "repaint", "verify", "--run", "fixture"]
-    seen: list[list[str]] = []
-    monkeypatch.setattr(sys, "argv", original)
-    monkeypatch.setattr(portrait_motion, "entrypoint", lambda: seen.append(list(sys.argv)))
-    cli.entrypoint()
-    assert seen == [["stage-gen-movie-sprite face repaint", "verify", "--run", "fixture"]]
-    assert sys.argv is original
+    _inputs(tmp_path)
+    result = _invoke(*_arguments(tmp_path, "run", *extra))
+    assert result.returncode == 2
+    assert refusal in result.stderr
+    assert not (tmp_path / "output").exists() and not (tmp_path / "cache").exists()

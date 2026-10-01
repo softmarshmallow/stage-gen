@@ -17,7 +17,6 @@ from pathlib import Path
 from gnode import NodeType, RunSummary, assert_safe_path_segment, atomic_write_json
 from stage_gen.config import CapabilityName
 from stage_gen.orchestration.graph_executor import GraphExecutor, GraphRun, PlannedGraph
-from stage_gen.workflows.universe import gallery_page
 from stage_gen.workflows.universe.manifest import finalize_gallery
 from stage_gen.workflows.universe.models import SampleLedger
 from stage_gen.workflows.universe.prepared_universe import UniverseNodeHandler
@@ -197,7 +196,7 @@ class UniverseExecutor(GraphExecutor[ResolvedUniverseSource, UniverseGraph]):
             failure_node_id=failure_node_id,
             time_scale=time_scale,
         )
-        manifest = self._close_gallery(plan, summary, run_dir=run_dir, render=False)
+        manifest = self._close_gallery(plan, summary, run_dir=run_dir)
         return UniverseRun(plan=plan, summary=summary, run_dir=run_dir, manifest=manifest)
 
     async def run_gallery(
@@ -234,7 +233,7 @@ class UniverseExecutor(GraphExecutor[ResolvedUniverseSource, UniverseGraph]):
             summary = await self.dispatch(
                 plan, handler, run_dir=run_dir, invocation_id=invocation_id
             )
-        manifest = self._close_gallery(plan, summary, run_dir=run_dir, render=True)
+        manifest = self._close_gallery(plan, summary, run_dir=run_dir)
         return UniverseRun(plan=plan, summary=summary, run_dir=run_dir, manifest=manifest)
 
     # -- shared ---------------------------------------------------------------
@@ -246,8 +245,8 @@ class UniverseExecutor(GraphExecutor[ResolvedUniverseSource, UniverseGraph]):
         if not isinstance(plan, UniversePlan) or plan.admitted is None or plan.semantic_run is None:
             return
         # A gallery run carries its own copy of what it was planned from, so the
-        # run is a closed set of bytes and the consumer page never has to follow
-        # a path out of the run directory to render.
+        # run is a closed set of bytes and a reader never has to follow a path out
+        # of the run directory.
         inputs = run_dir / "inputs"
         inputs.mkdir(parents=True, exist_ok=True)
         (run_dir / INPUT_UNIVERSE_REF).write_bytes(plan.admitted.universe_bytes)
@@ -256,14 +255,11 @@ class UniverseExecutor(GraphExecutor[ResolvedUniverseSource, UniverseGraph]):
             atomic_write_json(run_dir / SAMPLE_LEDGER_REF, plan.samples.model_dump(mode="json"))
 
     def _close_gallery(
-        self, plan: UniversePlan, summary: RunSummary, *, run_dir: Path, render: bool
+        self, plan: UniversePlan, summary: RunSummary, *, run_dir: Path
     ) -> dict[str, object] | None:
         if plan.admitted is None:
             return None
-        manifest = finalize_gallery(run_dir, plan.graph, summary, plan.admitted)
-        if render:
-            gallery_page.render(run_dir)
-        return manifest
+        return finalize_gallery(run_dir, plan.graph, summary, plan.admitted)
 
 
 __all__ = ["UniverseExecutor", "UniversePlan", "UniverseRun"]

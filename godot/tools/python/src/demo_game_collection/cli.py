@@ -4,19 +4,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 import sys
 from collections.abc import Sequence
-from pathlib import Path
-from typing import TYPE_CHECKING, TextIO
+from typing import TextIO
 
+from demo_game_collection.parser import build_parser as build_parser
 from stage_gen.application import (
     UsageError as CliUsageError,
 )
-
-if TYPE_CHECKING:
-    from stage_gen.capabilities import HeadlessRuntime
-from demo_game_collection.parser import build_parser as build_parser
 from stage_gen.config import (
     ConfigError,
     StageGenConfig,
@@ -27,7 +22,6 @@ from stage_gen.config import (
 def main(
     argv: Sequence[str] | None = None,
     *,
-    runtime: HeadlessRuntime | None = None,
     stdout: TextIO | None = None,
     stderr: TextIO | None = None,
 ) -> int:
@@ -45,7 +39,7 @@ def main(
         return 0
     try:
         namespace = parser.parse_args(args)
-        return _dispatch(namespace, runtime=runtime, stdout=output)
+        return _dispatch(namespace, stdout=output)
     except CliUsageError as error:
         errors.write(f"demo-games: usage: {error}\n")
         return 2
@@ -72,7 +66,7 @@ def create_doctor_report(
     return report(config, requested_mode)
 
 
-def _dispatch(args: argparse.Namespace, *, runtime: HeadlessRuntime | None, stdout: TextIO) -> int:
+def _dispatch(args: argparse.Namespace, *, stdout: TextIO) -> int:
     command: str = args.command
     if command == "models":
         from demo_game_collection.commands.models import dispatch
@@ -102,18 +96,6 @@ def _dispatch(args: argparse.Namespace, *, runtime: HeadlessRuntime | None, stdo
         from demo_game_collection.commands.examples import dispatch
 
         return dispatch(args, stdout=stdout)
-    if command == "universe" and args.universe_command == "page":
-        from stage_gen.workflows.universe import gallery_page
-
-        page_path = gallery_page.render(Path(args.run_dir))
-        stdout.write(f"{json.dumps({'page': page_path}, sort_keys=True, separators=(',', ':'))}\n")
-        return 0
-    if command == "import-env":
-        from stage_gen.orchestration.env_import import import_provider_env
-
-        imported = import_provider_env(args.source, args.destination)
-        stdout.write(f"{json.dumps(imported, separators=(',', ':'))}\n")
-        return 0
     if command == "scenario":
         from demo_game_collection.commands.scenario import _dispatch_scenario
 
@@ -122,12 +104,10 @@ def _dispatch(args: argparse.Namespace, *, runtime: HeadlessRuntime | None, stdo
         from demo_game_collection.commands.case import _dispatch_case
 
         return _dispatch_case(args, stdout=stdout)
-    return asyncio.run(_dispatch_async(args, runtime=runtime, stdout=stdout))
+    return asyncio.run(_dispatch_async(args, stdout=stdout))
 
 
-async def _dispatch_async(
-    args: argparse.Namespace, *, runtime: HeadlessRuntime | None, stdout: TextIO
-) -> int:
+async def _dispatch_async(args: argparse.Namespace, *, stdout: TextIO) -> int:
     from stage_gen.config import load_config
 
     config = load_config()
@@ -139,22 +119,10 @@ async def _dispatch_async(
         from demo_game_collection.commands.room import _dispatch_pointclick_room
 
         return await _dispatch_pointclick_room(args, config=config, stdout=stdout)
-    if args.command == "universe":
-        from stage_gen.interfaces.asset_recipes import _dispatch_universe
-
-        return await _dispatch_universe(args, config=config, stdout=stdout)
-    if args.command == "storefront":
-        from stage_gen.interfaces.asset_recipes import _dispatch_storefront
-
-        return await _dispatch_storefront(args, config=config, stdout=stdout)
     if args.command == "oblique-survival":
         from demo_game_collection.commands.survival import _dispatch_oblique_survival
 
         return await _dispatch_oblique_survival(args, config=config, stdout=stdout)
-    if args.command == "generate":
-        from demo_game_collection.commands.generate import dispatch
+    from demo_game_collection.commands.generate import dispatch
 
-        return await dispatch(args, config=config, stdout=stdout)
-    from demo_game_collection.commands.capabilities import dispatch as capability_dispatch
-
-    return await capability_dispatch(args, config=config, runtime=runtime, stdout=stdout)
+    return await dispatch(args, config=config, stdout=stdout)

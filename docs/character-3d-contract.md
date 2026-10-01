@@ -200,9 +200,12 @@ in `stage_gen.orchestration.character_3d`. See the
 Install a reviewed `stage-gen` wheel into a fresh Python environment. The launcher
 freezes hash-verified installed sources into every run and refuses an editable
 checkout, so the repository's own `uv sync` environment can plan but cannot launch.
-The console entry point is `stage-gen-character`, a one-line adapter in
-`stage_gen.interfaces.character_3d` over the composition root; the equivalent module
-is `python -m stage_gen.orchestration.character_3d.launch`. The pipeline is
+The command is `stage-gen run character-3d`: everything after the workflow id reaches the
+launcher at the composition root verbatim, through the workflow's
+[`cli.py`](../src/stage_gen/workflows/character_3d/cli.py); the equivalent module is
+`python -m stage_gen.orchestration.character_3d.launch`. A character run is prepared
+inside that launcher, so `stage-gen plan character-3d` refuses and names
+`--prepare-only` instead. The pipeline is
 POSIX-only today: run ledgers and atomic publication use `fcntl` locks and
 exchange-renames, and other platforms are refused before any spend.
 
@@ -247,7 +250,7 @@ argument, using the same policy boundary.
 Prepare a development run without model-provider calls:
 
 ```sh
-stage-gen-character \
+stage-gen run character-3d \
   --experiment /work/character-inputs/experiment.json \
   --input-root /work/character-inputs \
   --run-root /work/character-inputs/runs/prepare-01 \

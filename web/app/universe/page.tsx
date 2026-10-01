@@ -46,7 +46,7 @@ export default async function UniverseIndexPage() {
       <p className={cx(metaLine, "mb-4")}>
         {runs.length} gallery run{runs.length === 1 ? "" : "s"} under{" "}
         <code>out/</code> · generate one with{" "}
-        <code>stage-gen universe gallery</code>
+        <code>stage-gen run universe --phase gallery</code>
       </p>
       {runs.length === 0 ? (
         <p className="text-dim">

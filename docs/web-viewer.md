@@ -18,8 +18,9 @@ The viewer also retains readers for historical platformer, dialogue, point-and-c
 survival, universe, and storefront execution views. These readers describe old run records; they
 do not restore those games' browser runtimes. Unsupported versions and malformed documents are
 listed as unreadable instead of being silently hidden. Re-export a compatible plan with
-`stage-gen export-view --run out/<tag>`; an older plan that cannot be read remains a historical
-record rather than being migrated by the viewer.
+`stage-gen inspect out/<tag> --write-view out/<tag>` for a workflow run, or
+`demo-games export-view --run out/<tag>` for a game run; an older plan that cannot be read
+remains a historical record rather than being migrated by the viewer.
 
 The index reads `kind` and `schema_version` from historical consumer documents or the execution
 view. Artifact inspection uses the execution view's declared references, digests, byte counts,

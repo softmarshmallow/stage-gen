@@ -182,7 +182,7 @@ for, after planning has already said what the run would cost.
 The two commands that make the loop practical. Neither knows anything about a package:
 
 ```bash
-uv run --group games demo-games generate-video --output explore/clip-audition/the_cold-a1.mp4 \
+uv run stage-gen capability video --output explore/clip-audition/the_cold-a1.mp4 \
   --duration 10 --resolution 720p --aspect-ratio 16:9 \
   --reference godot/games/ember_hollow/inputs/references/style-plate.png \
   --reference godot/games/ember_hollow/inputs/references/player-appearance.png \
@@ -190,16 +190,16 @@ uv run --group games demo-games generate-video --output explore/clip-audition/th
 ```
 
 ```bash
-uv run stage-gen inspect-video --input explore/clip-audition/the_cold-a1.mp4 \
+uv run stage-gen capability inspect-video --input explore/clip-audition/the_cold-a1.mp4 \
   --output explore/clip-audition/the_cold-a1.contact.png
 ```
 
-`generate-video` gates its draw exactly as the pipeline does, minus the layout's
+`capability video` gates its draw exactly as the pipeline does, minus the layout's
 rectangle — which is a shot's business rather than a clip's, and is checked again when a
 package adopts it. So a draw refused at audition would have been refused in a run, which
 is the point.
 
-`inspect-video` makes no provider call and costs nothing. It measures the clip and lays
+`capability inspect-video` makes no provider call and costs nothing. It measures the clip and lays
 its frames out on a contact sheet, sampled by the **same** constants the pipeline's own
 reviewer uses (`components/video_clip/review.py`), so a verdict formed by looking here
 and a verdict formed in a run are about the same pictures. A clip the gate would refuse

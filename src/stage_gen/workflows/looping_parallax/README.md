@@ -23,9 +23,9 @@ planned = plan(pipeline, input_root=input_directory)
 result = await run(planned, output_root=run_directory, cache_root=cache_directory)
 ```
 
-A seam layer plans an image-edit node on the configured route, offline, and needs `allow_provider_calls=True` (`--live` on the CLI) only to run. Its handler uses the `image` service passed to `run(..., services={"image": ...})`; without one it opens the configured route for the call itself, so `stage-gen pipeline run ... --live` works with credentials in the environment. The repaint costs one image edit per layer, plus the shared retry owner's attempts, and nothing when the layer already loops.
+A seam layer plans an image-edit node on the configured route, offline, and needs `allow_provider_calls=True` (`--live` on the CLI) only to run. Its handler uses the `image` service passed to `run(..., services={"image": ...})`; without one it opens the configured route for the call itself, so `stage-gen run looping-parallax ... --live` works with credentials in the environment. The repaint costs one image edit per layer, plus the shared retry owner's attempts, and nothing when the layer already loops.
 
-`inputs/supplied_layers/make_inputs.py <directory>` creates two original geometric PNGs without a provider. The neighboring `pipeline.py` exports `pipeline`, ready for the generic CLI's `file.py:pipeline` loader. Supply that directory as the input root. No game definition or Godot project is needed.
+`inputs/supplied_layers/make_inputs.py <directory>` creates two original geometric PNGs and the `parallax.json` spec that places them, without a provider. `stage-gen plan|run looping-parallax --input <directory>` reads that spec; the neighboring `pipeline.py` states the same spec in Python and exports `pipeline` for `stage-gen plan|run file <path>:pipeline`. Supply that directory as the input root. No game definition or Godot project is needed.
 
 Outputs:
 

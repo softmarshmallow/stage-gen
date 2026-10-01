@@ -200,6 +200,20 @@ def test_a_try_command_must_parse_with_the_real_parser(loaded: dict[str, LoadedW
     assert "does not parse" in problem
 
 
+def test_every_workflow_says_how_to_try_it_with_its_own_verbs() -> None:
+    """Each [try] names its input and uses the workflow's own id with plan or run; the drift
+    check above parses every command with the real parser."""
+    for workflow in discover():
+        assert workflow.manifest.try_ is not None, workflow.id
+        assert workflow.manifest.try_.input.strip()
+        commands = workflow.manifest.try_.commands
+        assert 1 <= len(commands) <= 3, workflow.id
+        assert any(
+            command.startswith((f"stage-gen plan {workflow.id} ", f"stage-gen run {workflow.id} "))
+            for command in commands
+        ), workflow.id
+
+
 def test_related_must_name_a_known_workflow(loaded: dict[str, LoadedWorkflow]) -> None:
     others = [w for key, w in loaded.items() if key != "universe"]
     universe = _with_manifest(loaded["universe"], related=["no-such-workflow"])

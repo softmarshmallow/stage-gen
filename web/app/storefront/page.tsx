@@ -33,7 +33,7 @@ export default async function StorefrontIndexPage() {
       <p className={cx(metaLine, "mb-4")}>
         {runs.length} storefront run{runs.length === 1 ? "" : "s"} under{" "}
         <code>out/</code> · generate one with{" "}
-        <code>stage-gen storefront generate</code>
+        <code>stage-gen run storefront</code>
       </p>
       {runs.length === 0 ? (
         <p className="text-dim">

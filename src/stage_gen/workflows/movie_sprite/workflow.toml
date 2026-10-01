@@ -10,6 +10,14 @@ both ends. The take you choose is finished locally: keyed to transparency, the f
 blinks and mouth shapes can be added separately, the loop closed, and every frame checked."""
 related = ["portrait-motion"]
 
+[try]
+input = "A synthetic transparent clip and finish.json, written by inputs/supplied_clip/make_inputs.py out/movie-sprite-input (needs FFmpeg)"
+commands = [
+  "stage-gen plan movie-sprite --input-root out/movie-sprite-input --source actor.mkv --finish finish.json --output-root out/movie-sprite-plan",
+  "stage-gen run movie-sprite --input-root out/movie-sprite-input --source actor.mkv --finish finish.json --output-root out/movie-sprite-try --cache-root out/cache",
+  "stage-gen inspect out/movie-sprite-try",
+]
+
 # The node-type titles sit in pipeline.py, whose bytes are part of the generate and finish keys.
 [labels]
 "movie_sprite.prepare" = "Fit onto a green plate"

@@ -24,7 +24,7 @@
     {
       "check_id": "platformer_graph_contract",
       "expected_state_sha256": "cebb1dda2a2c2c44216247a0602652f3a65bcae15b0bc162078e8ce4041c1e39",
-      "file_sha256": "a8c027b16c52fb4dc550ff66e3cb1d8f26db17133c425ffc8a81c19044cfe80b",
+      "file_sha256": "1ba0e6c7571f4627136af6f18411495e2a580f9e165b67a7669865105746891c",
       "observed_state_sha256": "cebb1dda2a2c2c44216247a0602652f3a65bcae15b0bc162078e8ce4041c1e39",
       "path": "godot/games/bellweather/docs/generation-pipeline.md"
     },
@@ -52,14 +52,14 @@
     {
       "check_id": "universe_gallery_graph_contract",
       "expected_state_sha256": "db1fa2ed585117322826d0838256129966bce249fece540d35cd7967bd8baf52",
-      "file_sha256": "12c9b943ee5c7cc69e5c69d711a4b110b4ff8eb507413336b25143c1a70bb2b6",
+      "file_sha256": "ac5560e92b79f24ee74a271bf8933bb508d62e0ec66a0ca6f6a0b52aa1b90d46",
       "observed_state_sha256": "db1fa2ed585117322826d0838256129966bce249fece540d35cd7967bd8baf52",
       "path": "docs/spec/universe/generation-v1.md"
     },
     {
       "check_id": "universe_semantic_graph_contract",
       "expected_state_sha256": "ec5567dcef6ab9b85832b5400fd992cd0b2da42c12106629120ef9a70755b8f7",
-      "file_sha256": "12c9b943ee5c7cc69e5c69d711a4b110b4ff8eb507413336b25143c1a70bb2b6",
+      "file_sha256": "ac5560e92b79f24ee74a271bf8933bb508d62e0ec66a0ca6f6a0b52aa1b90d46",
       "observed_state_sha256": "ec5567dcef6ab9b85832b5400fd992cd0b2da42c12106629120ef9a70755b8f7",
       "path": "docs/spec/universe/generation-v1.md"
     }

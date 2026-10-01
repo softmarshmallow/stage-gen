@@ -1,4 +1,4 @@
-"""Every historical recipe graph kind is the collection `export-view` can still read.
+"""Every historical game graph kind is one the collection's `export-view` can still read.
 
 The viewer at `/runs` lists only runs that carry a derived `execution-view.json`, and that
 document is produced by `demo-games export-view`, which picks its builder from the kind the
@@ -10,9 +10,10 @@ That is exactly what happened to `dialogue-scene`. Its graph went to v5 while th
 still named v3, and no scene run could be exported or listed until it was noticed by hand.
 The failure is invisible because nothing calls export-view on the way to a green gate.
 
-So this test reads the kinds out of the recipe graph models themselves and asserts the
+So this test reads the kinds out of the game graph models themselves and asserts the
 dispatch covers each one. It fails on the bump rather than on the next person who wonders
-where their run went.
+where their run went. Product workflows write their views with `stage-gen inspect RUN
+--write-view DIR`, whose run readers take their kinds from the same graph models.
 """
 
 from __future__ import annotations
@@ -51,9 +52,12 @@ GRAPH_MODELS = cast(
         PointClickRoomGraph,
         ExecutionGraph,
         SideviewRunnerGraph,
-        StorefrontGraph,
-        UniverseGraph,
     ),
+)
+#: Every graph document whose runs the viewer reads, the product workflows' included.
+VIEW_MODELS = (
+    *GRAPH_MODELS,
+    *cast(tuple[type[GraphDocumentModel], ...], (StorefrontGraph, UniverseGraph)),
 )
 
 
@@ -106,7 +110,7 @@ def test_every_recipe_exports_the_run_viewer_document_version() -> None:
     still writes, and only the listing quietly drops the recipe. That is what happened when
     dialogue-scene went to graph v5 and took the view version to 5 with it.
     """
-    versions = {model.__name__: model.VIEW_SCHEMA_VERSION for model in GRAPH_MODELS}
+    versions = {model.__name__: model.VIEW_SCHEMA_VERSION for model in VIEW_MODELS}
     assert len(set(versions.values())) == 1, (
         "recipes disagree on the run-view document version, so the run viewer can only read "
         f"some of them: {versions}. Bump the viewer and every recipe together, or leave this "

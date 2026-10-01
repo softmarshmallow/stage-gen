@@ -200,7 +200,7 @@ def cli(
 
     monkeypatch.setattr(asyncio, "create_subprocess_exec", spawn)
     arguments = [
-        "stage-gen-character",
+        "stage-gen run character-3d",
         "--experiment",
         str(config),
         "--input-root",

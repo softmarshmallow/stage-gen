@@ -72,8 +72,8 @@ Rules that hold across both:
   `review_failed`, or `unknown`. A package that vanishes because one image
   failed is useless for exploration.
 - **A gallery run is closed.** It carries its own copies of the admitted
-  universe and the poster proxy under `inputs/`, so the consumer page never
-  follows a path out of the run directory.
+  universe and the poster proxy under `inputs/`, so a reader never follows a
+  path out of the run directory.
 
 Publication still requires every entity admitted *plus* a separate human rights
 review. Admission authorizes gallery generation and nothing else.
@@ -134,7 +134,7 @@ so the same key restores the same picture. `sample-ledger.json` names the draw
 index for every planned entity, and each image node binds its own index. So:
 
 ```bash
-stage-gen universe gallery --input src/stage_gen/workflows/universe/inputs/lantern_ferry --semantic-run out/u-sem --output out/u-gal-2 --cache-dir out/.universe-cache --sample-ledger out/u-gal/sample-ledger.json --reroll low_marsh
+stage-gen run universe --phase gallery --input src/stage_gen/workflows/universe/inputs/lantern_ferry --semantic-run out/u-sem --output out/u-gal-2 --cache-dir out/.universe-cache --live --sample-ledger out/u-gal/sample-ledger.json --reroll low_marsh
 ```
 
 redraws one entity and takes every other branch, and both direction tiers, from
@@ -176,22 +176,23 @@ uv run python -m pytest -q tests/unit/workflows/universe
 ```
 
 ```bash
-uv run stage-gen universe semantic --input src/stage_gen/workflows/universe/inputs/lantern_ferry --output out/u-sem --dry-run --invocation-id dry-1
+uv run stage-gen run universe --phase semantic --input src/stage_gen/workflows/universe/inputs/lantern_ferry --output out/u-sem --cache-dir out/.universe-cache --dry-run --invocation-id dry-1
 ```
 
 Live. The semantic phase costs about USD 0.5; the gallery phase is where the
 money is, which is why the phases are separate commands:
 
 ```bash
-uv run stage-gen universe semantic --input <package> --output out/u-sem --cache-dir out/.universe-cache
+uv run stage-gen run universe --phase semantic --input <package> --output out/u-sem --cache-dir out/.universe-cache --live
 ```
 
 ```bash
-uv run stage-gen universe gallery --input <package> --semantic-run out/u-sem --output out/u-gal --cache-dir out/.universe-cache
+uv run stage-gen run universe --phase gallery --input <package> --semantic-run out/u-sem --output out/u-gal --cache-dir out/.universe-cache --live
 ```
 
-`stage-gen universe page --run out/u-gal` re-renders the consumer page from an
-existing manifest with no provider call.
+`stage-gen inspect out/u-gal` reads a finished run back with no provider call, and
+`stage-gen plan universe --phase semantic --input <package>` prints the planned graph
+without opening a run.
 
 ## Diagnosing a rejected attempt
 

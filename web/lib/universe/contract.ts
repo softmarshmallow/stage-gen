@@ -19,7 +19,7 @@ export const UNIVERSE_SCHEMA_VERSION = 1;
 
 export const UNIVERSE_REFUSAL =
   "unsupported universe gallery run; regenerate it with a current stage-gen " +
-  "(stage-gen universe gallery)";
+  "(stage-gen run universe --phase gallery)";
 
 /** How a branch can end. `admitted` and `rejected` are review outcomes; the rest name a stage. */
 export const ENTITY_STATUSES = [

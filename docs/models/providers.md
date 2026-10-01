@@ -467,16 +467,16 @@ So the recommended shape is the one the soundtrack and the sound effects already
 draw outside a run, look at the frames, and link the winner.
 
 ```sh
-uv run --group games demo-games generate-video --output ./explore/clip-audition/a1.mp4 \
+uv run stage-gen capability video --output ./explore/clip-audition/a1.mp4 \
   --duration 10 --resolution 720p --aspect-ratio 16:9 \
   --reference ./godot/games/ember_hollow/inputs/references/style-plate.png \
   "the brief, verbatim"
-uv run stage-gen inspect-video --input ./explore/clip-audition/a1.mp4 \
+uv run stage-gen capability inspect-video --input ./explore/clip-audition/a1.mp4 \
   --output ./explore/clip-audition/a1.contact.png
 ```
 
-`generate-video` applies the pipeline's own admission gate, so a draw refused at
-audition would have been refused in a run. `inspect-video` costs nothing, makes no
+`capability video` applies the pipeline's own admission gate, so a draw refused at
+audition would have been refused in a run. `capability inspect-video` costs nothing, makes no
 provider call, and lays the clip's frames out exactly as the pipeline's reviewer sees
 them — reading the frames is how a clip is judged, and no measurement answers whether
 the beats a brief asked for are actually on the screen.
@@ -497,7 +497,7 @@ provenance. Technical suitability is not a legal assurance.
 The key-backed CLI path is:
 
 ```sh
-uv run stage-gen remove-background --input ./input.png --output ./out/subject.png
+uv run stage-gen capability remove-background --input ./input.png --output ./out/subject.png
 ```
 
 Prepared-game planning is separate and provider-free:
@@ -571,7 +571,7 @@ Repository publication still requires the independent
 The key-backed CLI path is:
 
 ```sh
-uv run --group games demo-games generate-music --output ./out/theme.mp3 --format mp3 "original instrumental exploration loop with a gentle pulse"
+uv run stage-gen capability music --output ./out/theme.mp3 --format mp3 "original instrumental exploration loop with a gentle pulse"
 ```
 
 Primary sources:

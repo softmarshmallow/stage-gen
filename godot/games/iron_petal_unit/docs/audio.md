@@ -238,7 +238,7 @@ A clip costs a few credits; a package run costs the whole graph. Try the wording
 first:
 
 ```sh
-uv run --group games demo-games generate-sound-effect --output out/hatch.mp3 --duration 0.6 "metal hatch latch release"
+uv run stage-gen capability sound-effect --output out/hatch.mp3 --duration 0.6 "metal hatch latch release"
 ```
 
 Optional `--prompt-influence 0.3` and `--loop`. The same admission applies and

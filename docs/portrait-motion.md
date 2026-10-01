@@ -76,7 +76,7 @@ From a repository checkout with dependencies installed, choose a new run
 directory and prepare it offline:
 
 ```sh
-uv run stage-gen-portrait-motion prepare --face-crop \
+uv run stage-gen plan portrait-motion --face-crop \
   --source /path/to/character.png \
   --spec docs/examples/portrait-motion/face-four-card.json \
   --run /path/to/new-face-run
@@ -104,7 +104,7 @@ an opaque 1024×1536 PNG because its source and atlas share the declared canvas.
 Paid execution requires explicit live opt-in and provider credentials:
 
 ```sh
-STAGE_GEN_RUN_LIVE=1 uv run stage-gen-portrait-motion run \
+STAGE_GEN_RUN_LIVE=1 uv run stage-gen run portrait-motion \
   --run /path/to/new-face-run --live --dotenv .env
 ```
 
@@ -139,8 +139,8 @@ retries. Stage-specific VLM controls and reference optimization are deferred in
 Check the resulting run without provider calls:
 
 ```sh
-uv run stage-gen-portrait-motion verify --run /path/to/new-face-run
-uv run stage-gen-portrait-motion run --run /path/to/new-face-run
+uv run stage-gen inspect /path/to/new-face-run --verify
+uv run stage-gen run portrait-motion --run /path/to/new-face-run
 ```
 
 The first command verifies retained evidence; the second reuses validated

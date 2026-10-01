@@ -7,7 +7,7 @@ provides the canonical image for the existing, separate facial repaint pipeline.
 Games decide how to display the resulting videos and images.
 
 Install the Python dependencies with `uv sync --frozen`, and install `ffmpeg` and
-`ffprobe` on PATH. The CLI is `stage-gen-movie-sprite`; the Python factory is
+`ffprobe` on PATH. The CLI is `stage-gen plan|run movie-sprite`; the Python factory is
 `stage_gen.workflows.movie_sprite.create_pipeline`. See the
 [recipe contract](../src/stage_gen/workflows/movie_sprite/README.md) for
 its graph, cache behavior and executable example.
@@ -69,9 +69,9 @@ Start with `finish.json`:
 Planning is offline. Use a new output directory for every invocation:
 
 ```sh
-uv run stage-gen-movie-sprite body idle plan \
+uv run stage-gen plan movie-sprite \
   --input-root /path/to/inputs --authoring authoring.json --finish finish.json \
-  --output-root /path/to/plan --cache-root /path/to/cache \
+  --output-root /path/to/plan \
   --resolution 720p --aspect-ratio 9:16 --duration 8
 ```
 
@@ -80,7 +80,7 @@ corrections. The budget directory must be separate from input, output and cache
 directories, and should persist across attempts:
 
 ```sh
-uv run stage-gen-movie-sprite body idle run \
+uv run stage-gen run movie-sprite \
   --input-root /path/to/inputs --authoring authoring.json --finish finish.json \
   --output-root /path/to/candidate-run --cache-root /path/to/cache \
   --resolution 720p --aspect-ratio 9:16 --duration 8 --target generate \
@@ -104,7 +104,7 @@ Once the footage is selected, adjust `finish.json` and finish from the validated
 generation cache without opening a provider:
 
 ```sh
-uv run stage-gen-movie-sprite body idle replay \
+uv run stage-gen run movie-sprite --replay \
   --input-root /path/to/inputs --authoring authoring.json --finish finish.json \
   --output-root /path/to/finished-run --cache-root /path/to/cache \
   --resolution 720p --aspect-ratio 9:16 --duration 8 --candidate take-01
@@ -113,6 +113,7 @@ uv run stage-gen-movie-sprite body idle replay \
 Alternatively, `--source selected.mp4` or `--source selected.mkv` accepts footage
 relative to the input root. Add `--source-provenance selected.mp4.meta.json` when
 the original sidecar is available. This is a local `run`, without `--live`.
+`stage-gen inspect /path/to/finished-run --verify` reads any run back without services.
 Original provenance remains recorded; supplied footage is never attributed to
 the current prompt template. Imported provenance must be portable and sanitized.
 
@@ -161,12 +162,12 @@ For independent eyes and mouth, pass the finalized canonical to the unchanged
 [portrait pipeline](portrait-motion.md):
 
 ```sh
-uv run stage-gen-movie-sprite face repaint prepare --face-crop \
+uv run stage-gen plan portrait-motion --face-crop \
   --source /path/to/finished-run/body/canonical.png \
   --spec docs/examples/portrait-motion/face-four-card.json \
   --run /path/to/face-run
 ```
 
-`face repaint` is a CLI alias for `stage-gen-portrait-motion`; its input contracts,
-generation, validation, budgets and outputs are unchanged. The two pipelines
-exchange an image and its provenance, not game state or a combined runtime.
+The portrait-motion workflow's input contracts, generation, validation, budgets and
+outputs are its own. The two workflows exchange an image and its provenance, not game
+state or a combined runtime.

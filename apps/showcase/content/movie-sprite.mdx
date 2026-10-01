@@ -70,7 +70,7 @@ Plan it offline, generate one eight-second 720p take with a $2 limit, and show m
 <Shell>
 
 ```sh
-uv run stage-gen-movie-sprite body idle run \
+uv run stage-gen run movie-sprite \
   --input-root inputs --authoring authoring.json --finish finish.json \
   --output-root runs/take-01 --cache-root cache \
   --resolution 720p --aspect-ratio 9:16 --duration 8 --target generate \
@@ -78,7 +78,7 @@ uv run stage-gen-movie-sprite body idle run \
 ```
 
 ```sh
-uv run stage-gen-movie-sprite body idle replay \
+uv run stage-gen run movie-sprite --replay \
   --input-root inputs --authoring authoring.json --finish finish.json \
   --output-root runs/finished-01 --cache-root cache \
   --resolution 720p --aspect-ratio 9:16 --duration 8 --candidate take-01

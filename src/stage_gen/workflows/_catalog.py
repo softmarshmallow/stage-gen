@@ -46,6 +46,7 @@ from ._registry import (
     ExampleEntry,
     WorkflowCode,
     discover,
+    find,
     load_code,
     repository_root,
 )
@@ -127,9 +128,18 @@ def load_workflow(
     examples_dir: Path | None,
     repository: Path | None,
     allow_missing: bool,
+    require_sample: bool = True,
 ) -> LoadedWorkflow:
+    """One workflow with its identity, sample plan and examples. Without ``require_sample``,
+    a sample plan whose committed inputs are absent (an installed wheel ships none) is
+    left out instead of failing."""
     code = load_code(found.id)
-    sample = code.sample_plan(scratch / found.folder)
+    try:
+        sample = code.sample_plan(scratch / found.folder)
+    except FileNotFoundError:
+        if require_sample:
+            raise
+        sample = None
     return LoadedWorkflow(
         discovered=found,
         code=code,
@@ -367,6 +377,21 @@ def build(
     return catalog, problems
 
 
+def describe(workflow_id: str, *, examples_dir: Path | None) -> dict[str, Any]:
+    """One workflow's catalog entry, built in memory and without the drift checks."""
+    repository = repository_root()
+    with tempfile.TemporaryDirectory(prefix="stage-gen-show-") as scratch:
+        workflow = load_workflow(
+            find(workflow_id),
+            Path(scratch),
+            examples_dir=examples_dir,
+            repository=repository,
+            allow_missing=True,
+            require_sample=False,
+        )
+        return _workflow_document(workflow, repository)
+
+
 def export(
     out_dir: Path,
     *,
@@ -393,6 +418,7 @@ __all__ = [
     "ExportResult",
     "build",
     "default_examples_dir",
+    "describe",
     "export",
     "load_example",
 ]

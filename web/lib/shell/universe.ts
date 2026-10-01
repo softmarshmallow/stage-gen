@@ -2,7 +2,7 @@
 //
 // The shell is a consumer. It locates and validates paths, parses each
 // document against its own contract, and never generates: a gallery is
-// produced by `stage-gen universe gallery` and only read here.
+// produced by `stage-gen run universe --phase gallery` and only read here.
 //
 // One gallery page needs three kinds of document — the manifest, the admitted
 // universe the manifest names, and one record per entity — so this module owns

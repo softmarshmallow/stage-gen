@@ -10,6 +10,13 @@ An agent draws reference views, a 3D service builds a textured mesh from them, a
 stood upright, rigged and given test clips. Independent reviewers judge every stage on renders \
 in the export's own finish, and the export is admitted only when numbers and pictures both pass."""
 
+[try]
+input = "An original character brief as an experiment JSON beside its inputs, and a Blender install"
+commands = [
+  "stage-gen run character-3d --experiment characters/my_character_01.json --input-root characters --run-root out/character-try --blender /Applications/Blender.app/Contents/MacOS/Blender --admission-mode development --prepare-only",
+  "stage-gen inspect out/character-try",
+]
+
 [[tools]]
 name = "Blender"
 role = "Normalises, audits, renders and exports every mesh"

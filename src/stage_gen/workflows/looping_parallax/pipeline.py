@@ -213,7 +213,7 @@ def create_pipeline(
     A ``seam_repaint`` layer plans an image-edit node on the configured route, offline, and
     needs a provider only when the supplied layer does not already loop. Its handler uses the
     ``image`` service a caller injects into ``run``; without one it opens the configured
-    route for the call itself, which is what ``stage-gen pipeline run --live`` relies on.
+    route for the call itself, which is what ``stage-gen run looping-parallax --live`` relies on.
     """
 
     layers = {layer.layer_id: layer for layer in spec.layers}

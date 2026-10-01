@@ -128,9 +128,9 @@ enters only the image node's identity:
 
 ```bash
 python src/stage_gen/workflows/storefront/inputs/minimal/make_inputs.py out/storefront-input
-stage-gen storefront generate --input out/storefront-input --dry-run \
+stage-gen run storefront --input out/storefront-input --dry-run \
   --output out/storefront-v1 --cache-dir out/storefront-cache
-stage-gen storefront generate --input out/storefront-input --dry-run \
+stage-gen run storefront --input out/storefront-input --dry-run \
   --output out/storefront-v2 --cache-dir out/storefront-cache \
   --draw-ledger out/storefront-v1/draw-ledger.json --reroll app_icon
 ```

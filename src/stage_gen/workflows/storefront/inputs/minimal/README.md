@@ -8,7 +8,7 @@ From the repository root:
 
 ```sh
 python src/stage_gen/workflows/storefront/inputs/minimal/make_inputs.py /tmp/quiet-orbit-input
-stage-gen storefront generate --input /tmp/quiet-orbit-input \
+stage-gen run storefront --input /tmp/quiet-orbit-input \
   --output /tmp/quiet-orbit-plan --cache-dir /tmp/quiet-orbit-cache --dry-run
 ```
 

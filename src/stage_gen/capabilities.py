@@ -118,7 +118,7 @@ async def generate_image_artifact(
     runtime: HeadlessRuntime | None = None,
 ) -> CapabilityArtifactResult:
     if not output_path.lower().endswith(".png"):
-        raise ValueError("generate-image output must use a .png extension")
+        raise ValueError("capability image output must use a .png extension")
     requirements = ImageRouteRequirementsV1(
         operation_variant="edit" if reference_paths else "generation",
         background="opaque",
@@ -285,7 +285,7 @@ async def generate_video(
 
     assert_capabilities(config, ("video_generation",))
     if not output_path.lower().endswith(".mp4"):
-        raise ValueError("generate-video output must use a .mp4 extension")
+        raise ValueError("capability video output must use a .mp4 extension")
     if resolution not in VIDEO_RESOLUTIONS:
         raise ValueError(f"--resolution must be one of {', '.join(VIDEO_RESOLUTIONS)}")
     owned = None
@@ -323,7 +323,7 @@ async def generate_sound_effect(
 ) -> CapabilityArtifactResult:
     assert_capabilities(config, ("sound_effect_generation",))
     if not output_path.lower().endswith(".mp3"):
-        raise ValueError("generate-sound-effect output must use a .mp3 extension")
+        raise ValueError("capability sound-effect output must use a .mp3 extension")
     owned = None
     if runtime is None:
         from stage_gen.orchestration.runtime import create_headless_runtime
@@ -358,7 +358,7 @@ async def generate_speech(
 ) -> CapabilityArtifactResult:
     assert_capabilities(config, ("speech_generation",))
     if not output_path.lower().endswith(".mp3"):
-        raise ValueError("generate-speech output must use a .mp3 extension")
+        raise ValueError("capability speech output must use a .mp3 extension")
     owned = None
     if runtime is None:
         from stage_gen.orchestration.runtime import create_headless_runtime

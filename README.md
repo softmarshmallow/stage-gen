@@ -73,11 +73,11 @@ Python 3.12 or newer is required. From this checkout:
 
 ```sh
 uv sync --frozen
-uv run stage-gen --help
+uv run stage-gen list
 uv run python src/stage_gen/workflows/looping_parallax/inputs/supplied_layers/make_inputs.py /tmp/parallax-inputs
-uv run stage-gen pipeline plan src/stage_gen/workflows/looping_parallax/inputs/supplied_layers/pipeline.py --input /tmp/parallax-inputs
-uv run stage-gen pipeline run src/stage_gen/workflows/looping_parallax/inputs/supplied_layers/pipeline.py --input /tmp/parallax-inputs --output /tmp/parallax-run --cache-dir /tmp/parallax-cache
-uv run stage-gen pipeline inspect /tmp/parallax-run
+uv run stage-gen plan looping-parallax --input /tmp/parallax-inputs
+uv run stage-gen run looping-parallax --input /tmp/parallax-inputs --output /tmp/parallax-run --cache-dir /tmp/parallax-cache
+uv run stage-gen inspect /tmp/parallax-run
 ```
 
 Use a new output directory for each run. The example uses supplied, procedurally
@@ -85,8 +85,11 @@ authored layers and makes no provider calls. It produces repeating images, place
 metadata and a preview. Layer extraction from a final reference image is a separate
 generation step and is not implemented by this example.
 
+Every workflow has the same verbs: `stage-gen plan <workflow>`, `stage-gen run
+<workflow>` and `stage-gen inspect <run>`; `stage-gen show <workflow>` describes one.
 Author your own definition with `stage_gen.pipeline.define`, then use `plan`, `run`
-and `inspect` from Python or the CLI. Plan a subset with `--target NODE_ID`. Outputs
+and `inspect` from Python, or `stage-gen plan|run file <file.py:attr>` from the CLI.
+Plan a subset with `--target NODE_ID`. Outputs
 retain trace, projection, validated cache entries and portable provenance. Read the
 [SDK guide](src/stage_gen/pipeline/README.md) and
 [recipe example](src/stage_gen/workflows/looping_parallax/README.md).
@@ -94,8 +97,9 @@ retain trace, projection, validated cache entries and portable provenance. Read 
 Planning is offline. Provider nodes require explicit `--live` or
 `allow_provider_calls=True` and an author-configured service. The SDK injects services
 at the application boundary; credentials never belong in inputs or viewer code.
-The existing universe and storefront recipes also expose explicit `--dry-run`
-commands for deterministic fake operations. See [provider setup](docs/models/providers.md).
+The universe and storefront workflows also take an explicit `--dry-run` for
+deterministic fake operations, and `stage-gen capability` makes one provider call
+outside any graph. See [provider setup](docs/models/providers.md).
 
 ## Inspect outputs and consume assets
 
