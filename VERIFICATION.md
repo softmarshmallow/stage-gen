@@ -20,6 +20,7 @@ The default product gate requires Python tools only. Among its steps it runs a r
 offline looping-parallax run and its `inspect --verify`, the universe and storefront dry
 runs, `stage-gen catalog export --check --allow-missing-examples`, and `--help` for every
 workflow verb.
+
 ## Web
 
 The web scope requires `bun install --frozen-lockfile` in `web`, the one Bun workspace
@@ -39,10 +40,11 @@ Godot docs, every workflow's prose and the games' example pages; that every spec
 game consumer spec and workflow `contract.md` names a true checker; that the front-page
 documents and every workflow's `page.mdx` and `contract.md` use none of the retired words
 the [glossary](docs/glossary.md) lists; the prompt fixtures' originality rules; and the
-generated-media inventory. `tests/contract/test_documented_commands.py` parses every
-documented `stage-gen` command with the real parser, and
-`uv run python scripts/write_workflow_contracts.py --check` holds each workflow's graph
-contract to its offline sample plan.
+generated-media inventory. The product gate, not this scope, holds the remaining docs claims:
+`tests/contract/test_documented_commands.py` parses every documented `stage-gen` command with
+the real parser, and `tests/contract/test_workflow_contract_docs.py` holds each workflow's
+graph contract to its offline sample plan (`uv run python scripts/write_workflow_contracts.py
+--check` runs the same check by hand).
 
 ## Godot
 

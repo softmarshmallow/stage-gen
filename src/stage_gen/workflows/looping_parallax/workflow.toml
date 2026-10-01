@@ -10,11 +10,11 @@ seam, then the layers are composed with their offsets and scroll factors into a 
 manifest and a preview frame."""
 
 [try]
-input = "Two original layers and their parallax.json, written by inputs/supplied_layers/make_inputs.py out/looping-parallax-input"
+input = "Two original layers and their parallax.json, written by uv run python src/stage_gen/workflows/looping_parallax/inputs/supplied_layers/make_inputs.py out/looping-parallax-input"
 commands = [
   "stage-gen plan looping-parallax --input out/looping-parallax-input",
   "stage-gen run looping-parallax --input out/looping-parallax-input --output out/looping-parallax-try --cache-dir out/cache",
-  "stage-gen inspect out/looping-parallax-try",
+  "stage-gen inspect out/looping-parallax-try --verify",
 ]
 
 [[outputs]]

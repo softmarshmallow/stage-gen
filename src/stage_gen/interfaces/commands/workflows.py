@@ -66,6 +66,11 @@ def _page(document: dict[str, Any]) -> str:
     for step in document["steps"]:
         titles = ", ".join(member["title"] for member in step["members"])
         lines += [f"  {step['label']}: {titles}", f"    {step['note']}"]
+    if plan := document["sample_plan"]:
+        counts = ", ".join(f"{name} {n}" for name, n in sorted(plan["operation_counts"].items()))
+        lines += ["", f"Sample plan: {len(plan['nodes'])} nodes ({counts})"]
+    elif document["no_sample_plan"]:
+        lines += ["", f"Sample plan: none, {document['no_sample_plan']}"]
     if manifest["outputs"]:
         lines += ["", "Outputs"]
         lines += [f"  {o['artifact_ref']}  {o['description']}" for o in manifest["outputs"]]

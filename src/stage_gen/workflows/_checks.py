@@ -23,12 +23,15 @@ from ._registry import (
     ExampleEntry,
     Identity,
     WorkflowCode,
+    WorkflowManifest,
     folder_of,
 )
 
 README_BEGIN = "<!-- workflows:begin -->"
 README_END = "<!-- workflows:end -->"
+WORKFLOWS_PATH = "src/stage_gen/workflows"
 CHECKED_BY = "> **Checked by:**"
+ENVIRONMENT = re.compile(r"^[A-Z_][A-Z0-9_]*=")
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +95,9 @@ def structure(workflow: LoadedWorkflow) -> list[str]:
     for name in (PAGE_FILE, CONTRACT_FILE):
         if not found.root.joinpath(name).is_file():
             problems.append(f"{prefix} {name} is missing")
+    page = found.root.joinpath(PAGE_FILE)
+    if page.is_file():
+        problems += _restated(manifest.id, page.read_text("utf-8"), manifest)
     contract = found.root.joinpath(CONTRACT_FILE)
     if contract.is_file() and CHECKED_BY not in contract.read_text("utf-8"):
         problems.append(f"{prefix} {CONTRACT_FILE} has no '{CHECKED_BY}' line")
@@ -131,6 +137,23 @@ def structure(workflow: LoadedWorkflow) -> list[str]:
     for entry in manifest.examples:
         if _slug_like(entry.title, entry.id):
             problems.append(f"{prefix} example {entry.id} title is empty or its raw slug")
+    return problems
+
+
+def _restated(workflow_id: str, page: str, manifest: WorkflowManifest) -> list[str]:
+    """The manifest is the one home of the summary and the output notes: the site renders them
+    (an empty ``<File path=... />`` takes its note from ``[[outputs]]``), so a page that copies
+    one keeps a second copy that drifts."""
+    text = " ".join(page.split())
+    problems: list[str] = []
+    if (summary := " ".join(manifest.summary.split())) and summary in text:
+        problems.append(f"{workflow_id}: {PAGE_FILE} restates the workflow.toml summary")
+    problems += [
+        f"{workflow_id}: {PAGE_FILE} restates the [[outputs]] note of {note.artifact_ref}; "
+        f'write <File path="{note.artifact_ref}" /> instead'
+        for note in manifest.outputs
+        if " ".join(note.description.split()) in text
+    ]
     return problems
 
 
@@ -323,7 +346,8 @@ def readme_table(workflows: Sequence[LoadedWorkflow]) -> str:
         "| Workflow | Id | Promise |",
         "| --- | --- | --- |",
         *(
-            f"| {w.discovered.manifest.title} | `{w.id}` | {w.discovered.manifest.promise} |"
+            f"| [{w.discovered.manifest.title}]({WORKFLOWS_PATH}/{folder_of(w.id)}/{PAGE_FILE}) "
+            f"| `{w.id}` | {w.discovered.manifest.promise} |"
             for w in workflows
         ),
     ]
@@ -343,7 +367,8 @@ def readme(workflows: Sequence[LoadedWorkflow], text: str) -> list[str]:
 
 
 def try_commands(workflow: LoadedWorkflow) -> list[str]:
-    """Each ``[try]`` command must parse with the real ``stage-gen`` argument parser."""
+    """Each ``[try]`` command must parse with the real ``stage-gen`` argument parser. A command
+    may start with environment assignments, such as a live opt-in."""
     manifest = workflow.discovered.manifest
     if manifest.try_ is None:
         return []
@@ -352,6 +377,8 @@ def try_commands(workflow: LoadedWorkflow) -> list[str]:
     problems: list[str] = []
     for command in manifest.try_.commands:
         words = shlex.split(command)
+        while words and ENVIRONMENT.match(words[0]):
+            words = words[1:]
         if words[:1] != ["stage-gen"]:
             problems.append(f"{manifest.id}: [try] command does not start with stage-gen")
             continue

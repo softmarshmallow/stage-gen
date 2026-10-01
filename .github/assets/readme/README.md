@@ -3,7 +3,7 @@
 ## 3D character comparison
 
 [`stagegen-3d-characters.gif`](stagegen-3d-characters.gif) illustrates the
-[3D SD characters](../../../README.md#3d-sd-characters) section: reference art
+[3D character workflow](../../../src/stage_gen/workflows/character_3d/page.mdx): reference art
 above the corresponding rigged Nami, Helix and Riko models. The character sources
 and representation records are in the [library](../../../library/characters/README.md)
 at repository revision `e44f78042b666c1c845f5d295508df33231ff0c5`.
@@ -34,7 +34,7 @@ assets, following the [storage policy](../../../docs/repository-storage.md).
 ## Movie sprite preview
 
 [`movie-sprite.gif`](movie-sprite.gif) illustrates the
-[Movie sprites](../../../README.md#movie-sprites) section. Yuzu and Riko retain
+[movie sprite workflow](../../../src/stage_gen/workflows/movie_sprite/page.mdx). Yuzu and Riko retain
 gentle body motion while separate facial patches animate a bilateral blink for
 Yuzu, a canvas-left wink for Riko, and A/O mouth states for both. They are
 composited over the Afterlight reading-lounge background. The preview is silent;

@@ -10,7 +10,7 @@ surface is drawn from its own brief, cut to its exact store canvas, checked and 
 the listing copy is written beside them."""
 
 [try]
-input = "The minimal quiet_orbit package, written by inputs/minimal/make_inputs.py out/storefront-input"
+input = "The minimal quiet_orbit package, written by uv run python src/stage_gen/workflows/storefront/inputs/minimal/make_inputs.py out/storefront-input"
 commands = [
   "stage-gen plan storefront --input out/storefront-input",
   "stage-gen run storefront --input out/storefront-input --output out/storefront-try --cache-dir out/cache --dry-run",

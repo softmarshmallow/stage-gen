@@ -410,7 +410,7 @@ candidates are the UI kit and parallax-from-reference.
 ## 11. Identity preservation
 
 **Pinned before anything moved.** `tests/contract/test_workflow_identity.py` plus
-`fixtures/workflow-identity.json` were written on 9e3e782d in the first commit. The pins are
+`tests/contract/fixtures/workflow-identity.json` were written on 9e3e782d in the first commit. The pins are
 machine-independent:
 - movie-sprite: the sha256 of `pipeline.py` and `authoring.py`, the `{filename: sha}` of
   `components/movie_sprite/*.py`, and the three derived identities;
@@ -427,7 +427,7 @@ machine-independent:
 - provenance names;
 - RunView schema 3;
 - node_id-to-cache_key maps for plans made only from committed files or constant bytes
-  embedded in `fixtures/workflow-identity-inputs.json`. These cover looping-parallax, the
+  embedded in `tests/contract/fixtures/workflow-identity-inputs.json`. These cover looping-parallax, the
   paid movie-sprite *generate* path planned through the real CLI parser, storefront, and
   universe lantern_ferry. The universe gallery plan needs a semantic run, so it is left out
   of the golden; its graph contract block checks its shape.
@@ -509,7 +509,9 @@ and in the file digests of documents whose paths it records.
   `~/.cache/stage-gen/catalog/`, sets `STAGE_GEN_RUN_ROOTS`, `STAGE_GEN_CATALOG`,
   `STAGE_GEN_VIEW_CACHE` and `STAGE_GEN_REPO_ROOT`, strips provider keys from the child's
   environment, runs a derived-view refresher thread every 3 s, and starts `next dev` bound to
-  127.0.0.1. Next's agent-file writer is turned off so a launch leaves the checkout as it was.
+  127.0.0.1. Next's agent-file writer is turned off, so a launch writes no AGENTS.md or
+  CLAUDE.md; `next dev` still rewrites the tracked `web/viewer/next-env.d.ts` to its
+  `.next/dev` form.
 - The repository root is found by walking up to the `pyproject.toml` named `stage-gen`, which
   replaced the `cwd/..` hazard.
 - It parses any schema-3 `*-execution-view-v1`, and gnode's own `gnode-run-view-v1` with a
@@ -576,7 +578,7 @@ Mapping from before, with no aliases:
 
 - `plan character-3d` refuses with its reason: a character run is prepared inside its
   launcher, so use `run character-3d --prepare-only`.
-- demo-games keeps `generate`, `dialogue-scene`, `room`, `oblique-survival`, `scenario`,
+- demo-games keeps `generate`, `dialogue-scene`, `pointclick-room`, `oblique-survival`, `scenario`,
   `case`, `package`, `character-profile`, `soundtrack`, `doctor`, `models routes|diff`, and
   `export-view` for game kinds. It gained `example export <game> [--store DIR] [--from-frozen]`.
 - Offline proof that each renamed command reaches the same internal call with the same
@@ -690,10 +692,11 @@ documents and package types cite.
 | a3b1443d | Make `web/` one Bun workspace with shared contracts and the viewer. |
 | f7355a1a | Launch the viewer from the CLI and show every workflow's runs. |
 | c57e9698 | Build the site with standard tools and retire the hand-rolled showcase. |
-| (S11) | Put workflow prose beside the code and make the vocabulary enforceable: this record, the doctrine, the checked graph contracts, the retired-term lint and the documented-command test. |
-| (S11) | Speak the workflow vocabulary in the agent instructions. |
+| adc093c0 | Put workflow prose beside the code and make the vocabulary enforceable: this record, the doctrine, the checked graph contracts, the retired-term lint and the documented-command test. |
+| 2e4209a7 | Speak the workflow vocabulary in the agent instructions. |
+| 3576b96a | Stop the viewer child when `stage-gen view` is terminated: the launcher traps SIGTERM, SIGHUP and SIGINT and stops the whole process group (S12). |
 
-Every commit passed the clean-worktree replica of the pre-push gate. From 0044a4ac on, every
+Every commit through 3576b96a passed the clean-worktree replica of the pre-push gate. From 0044a4ac on, every
 commit also passed `uv run --all-groups python scripts/check.py --scope all`; b174e1ff passed
 every step but mypy `--strict`, which had been red on main on six test files until 0044a4ac
 typed them. The identity golden, the before-and-after key diff, the frozen evidence and the

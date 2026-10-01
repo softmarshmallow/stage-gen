@@ -11,7 +11,7 @@ blinks and mouth shapes can be added separately, the loop closed, and every fram
 related = ["portrait-motion"]
 
 [try]
-input = "A synthetic transparent clip and finish.json, written by inputs/supplied_clip/make_inputs.py out/movie-sprite-input (needs FFmpeg)"
+input = "A synthetic transparent clip and finish.json, written by uv run python src/stage_gen/workflows/movie_sprite/inputs/supplied_clip/make_inputs.py out/movie-sprite-input (needs FFmpeg)"
 commands = [
   "stage-gen plan movie-sprite --input out/movie-sprite-input --source actor.mkv --finish finish.json --output out/movie-sprite-plan",
   "stage-gen run movie-sprite --input out/movie-sprite-input --source actor.mkv --finish finish.json --output out/movie-sprite-try --cache-dir out/cache",

@@ -194,8 +194,29 @@ def test_an_output_note_without_a_port_fails(loaded: dict[str, LoadedWorkflow]) 
     assert checks.outputs(loaded["looping-parallax"]) == []
 
 
+def test_a_page_that_restates_the_manifest_fails(loaded: dict[str, LoadedWorkflow]) -> None:
+    movie = loaded["movie-sprite"]
+    copied = _with_manifest(
+        movie,
+        summary="Stage Gen holds that as one graph",
+        outputs=[OutputNote(artifact_ref="body/source.mp4", description="The take you chose")],
+    )
+    assert checks.structure(copied) == [
+        "movie-sprite: page.mdx restates the workflow.toml summary",
+        "movie-sprite: page.mdx restates the [[outputs]] note of body/source.mp4; "
+        'write <File path="body/source.mp4" /> instead',
+    ]
+    assert checks.structure(movie) == []
+
+
 def test_a_try_command_must_parse_with_the_real_parser(loaded: dict[str, LoadedWorkflow]) -> None:
-    good = TryIt(input="inputs", commands=["stage-gen catalog export --out site --check"])
+    good = TryIt(
+        input="inputs",
+        commands=[
+            "stage-gen catalog export --out site --check",
+            "STAGE_GEN_RUN_LIVE=1 stage-gen catalog export --out site --check",
+        ],
+    )
     bad = TryIt(input="inputs", commands=["stage-gen catalog export --no-such-flag"])
     assert checks.try_commands(_with_manifest(loaded["universe"], try_=good)) == []
     [problem] = checks.try_commands(_with_manifest(loaded["universe"], try_=bad))
@@ -352,7 +373,7 @@ def test_the_readme_table_must_match_the_manifests(loaded: dict[str, LoadedWorkf
     workflows = list(loaded.values())
     readme = (REPOSITORY / "README.md").read_text(encoding="utf-8")
     assert checks.readme(workflows, readme) == []
-    edited = readme.replace("| Movie sprite |", "| Movie sprites |")
+    edited = readme.replace("| [Movie sprite](", "| [Movie sprites](")
     [problem] = checks.readme(workflows, edited)
     assert problem.startswith("README.md workflow table differs from workflow.toml")
 

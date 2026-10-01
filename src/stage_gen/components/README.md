@@ -1,14 +1,14 @@
 # Components
 
-A component is an independently testable capability under `src/stage_gen/components/`: node
+A component is an independently testable package under `src/stage_gen/components/`: node
 types, graph fragments (`add_*_nodes`), contracts and services. It never runs alone and never
 imports a workflow. Workflows compose components; the SDK, `stage_gen.pipeline`, plans,
 executes, caches and inspects those compositions. A component can expose several GNode nodes,
 and it does not need a game package or a particular runtime.
 
-## Capabilities
+## Components
 
-| Capability | Public surface | Output or responsibility |
+| Component | Public surface | Output or responsibility |
 |---|---|---|
 | Repeating images | `image_repeat.ImageRepeatService` | Explicit repeat admission or repair, with validation and lineage |
 | Layered scenery | `sideview_layers.models.LayerRequest`, `sideview_layers.nodes` | Layer generation, repeat construction, and placement |
@@ -61,13 +61,13 @@ Music, speech, and sound requests describe assets. Gain, event-strength pitch ch
 
 `AssetScale(target_pixels_per_unit=80.0)` defines a visual ruler without choosing a player, tile size, or camera controller. Sprite measurement and calibration use that ruler; a game can derive it from its own units in its adapter.
 
-Existing fixed geometry remains useful as named presets. The 47-mask terrain atlas, four-frame motion strip, fixed UI glyph sheets, and local eye/mouth portrait pipeline do not claim to represent every terrain, animation, UI, or Live2D workflow. Authors can compose different capabilities or add their own nodes through the same SDK.
+Existing fixed geometry remains useful as named presets. The 47-mask terrain atlas, four-frame motion strip, fixed UI glyph sheets, and local eye/mouth portrait pipeline do not claim to represent every terrain, animation, UI, or Live2D workflow. Authors can compose different components or add their own nodes through the same SDK.
 
 Runnable inputs live beside workflows. Start with [`../workflows/looping_parallax/inputs/supplied_layers/`](../workflows/looping_parallax/inputs/supplied_layers/): its small Python input generator produces original geometric layers without a provider, and its `pipeline.py` runs through the SDK. Inspecting or scrolling the result requires no game definition.
 
 ## Contract
 
-A Stage Gen component is an independently testable application capability under
+A Stage Gen component is an independently testable application package under
 `src/stage_gen/components/`, such as sprite-sheet processing, soundtrack assembly,
 or an authored game contract. Components use the provider-neutral modality services
 exported from `gnode`: image generation, background removal, structured generation,
@@ -75,7 +75,7 @@ and music generation live in ring 1 under `src/gnode/modalities/`. Provider adap
 live in ring 2. See the [gnode rings](../../../docs/spec/gnode-rings.md) for their import boundaries.
 
 Shared, workflow-neutral media inspection and transforms live under
-`src/stage_gen/media/`; capability-specific processing stays with its component,
+`src/stage_gen/media/`; component-specific processing stays with its component,
 and workflow-specific canonicalization stays with its workflow. A workflow composes
 components into a graph; a runtime or preview consumes its artifacts.
 
@@ -122,11 +122,11 @@ holding:
 
 A component imports the engine, `stage_gen.media`, `stage_gen.canonical` and other
 components; never a workflow, a game, the orchestration layer or a provider. Workflows and
-game graphs host node families; they do not own node semantics. Two departures stand today and are named in
-the conformance test so they cannot silently multiply: `painted_terrain/nodes.py`
-declares its four types but its graph helper and handlers still live in the Bellweather
-platformer graph (workstream D9), and `game_fx/sprite_nodes.py` exposes request builders rather
-than a handler kit because the runner drives its retries.
+game graphs host node families; they do not own node semantics. No graph-helper departure
+stands today: `GRAPH_HELPER_DEPARTURES` in `tests/contract/test_component_structure.py` is
+empty, and any new one must be named there. One family differs by design:
+`effects_art/sprite_nodes.py` exposes request builders rather than a handler kit, because the
+runner drives its retries.
 
 ### Independence rule
 

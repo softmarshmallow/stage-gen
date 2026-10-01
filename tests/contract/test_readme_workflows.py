@@ -27,7 +27,10 @@ def _table_rows() -> list[tuple[str, str, str]]:
     rows: list[tuple[str, str, str]] = []
     for line in table[2:]:
         title, identifier, promise = (cell.strip() for cell in line.strip("|").split("|"))
-        rows.append((title, identifier.strip("`"), promise))
+        linked = re.fullmatch(r"\[(.+)\]\((src/stage_gen/workflows/\w+/page\.mdx)\)", title)
+        assert linked is not None, title
+        assert (REPOSITORY_ROOT / linked.group(2)).is_file(), linked.group(2)
+        rows.append((linked.group(1), identifier.strip("`"), promise))
     return rows
 
 
@@ -45,5 +48,5 @@ def test_readme_is_a_short_front_page_with_its_hero_media() -> None:
     for image in images:
         assert (REPOSITORY_ROOT / image).is_file(), image
     # The viewer is named once, with the command that opens it.
-    assert "optional web-based run viewer" in text
+    assert "the local read-only client" in text
     assert "stage-gen view" in text

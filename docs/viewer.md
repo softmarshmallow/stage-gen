@@ -11,7 +11,7 @@ surface: it documents workflows and shows their examples, and it never reads run
 
 ```sh
 uv run stage-gen view
-uv run stage-gen view --runs out --runs spikes/movie_sprite --port 3100 --no-open
+uv run stage-gen view --runs out --runs path/to/more-runs --port 3100 --no-open
 ```
 
 `stage-gen view [--runs DIR]... [--port 3000] [--no-open]` needs a source checkout and Bun,
@@ -88,7 +88,7 @@ message rather than migrated.
   graph document's literal and graph kinds, a character run's graph kind, a portrait run's plan
   kind.
 - `/workflows/<id>` shows a workflow's promise and summary, its commands with a copy button, the
-  graph it plans offline from its committed sample inputs (drawn by the run viewer with every node
+  graph it plans offline from its committed sample inputs (drawn as on a run page, with every node
   pending; each lane is a step), its steps, and its runs.
 - `/runs/<root>/<tag>` is one run. `<root>` is a root's folder name and a short digest of its real
   path; `<tag>` is the run's root-relative path with `/` written as `~`. A universe gallery or a
@@ -157,6 +157,7 @@ bun install --frozen-lockfile
 bun run check
 bun test
 bun run --cwd viewer build
+cd ..
 uv run pytest -q tests/unit/test_runs.py tests/unit/interfaces/test_view.py
 ```
 

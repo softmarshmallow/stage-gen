@@ -20,7 +20,10 @@ require common game formats or synchronized releases.
 
 ## Layers
 
-Each layer imports only the layers above it in this list.
+Each layer imports only the layers above it in this list, with two named exceptions: the
+character-3d and portrait-motion run readers in `workflow.py` import `stage_gen.runs` for the
+run-view file, and `_checks.py` imports the CLI parser lazily to parse `[try]` commands. The
+import rules below are what the tests enforce; this ordering is not tested.
 
 1. **GNode** (`src/gnode/`) keeps its three rings. Ring 0 owns media-independent topology,
    scheduling, traces, run views, model binding, reliability and provenance. Ring 1 owns
@@ -32,30 +35,35 @@ Each layer imports only the layers above it in this list.
    class. It supplies explicit roots, selected-node closure, input lineage, service
    injection, node admission and portable views, and reuses GNode's atomic artifact and cache
    machinery. It prescribes no workflow or game schema. See the [SDK guide](docs/sdk/guide.md).
-3. **Components** (`src/stage_gen/components/`): bounded capabilities with their node types,
+3. **Components** (`src/stage_gen/components/`): bounded building blocks with their node types,
    graph fragments, contracts and services. A component never runs alone and never imports
    a workflow. Shared workflow-neutral media inspection and transforms belong in
    `src/stage_gen/media/`. See the [component contract](src/stage_gen/components/README.md).
-4. **Workflows** (`src/stage_gen/workflows/<id>/`): the product unit. A workflow composes
+4. **Examples.** An example is a frozen export of real runs (`workflow-example-v1`), pinned
+   by sha256 in its owner's manifest and kept in the local, gitignored store
+   `out/examples/<owner>/<id>/`; `stage_gen.examples` is its public contract, which imports
+   only GNode and which workflow importers and games use. `library/` holds committed,
+   approved character-3d examples that the catalog builds from tracked files.
+5. **Workflows** (`src/stage_gen/workflows/<id>/`): the product unit. A workflow composes
    components into one named deliverable and owns its layout, generation and validation
    assumptions. Its folder holds `workflow.py` (the code facts: typed steps over the real
    node types, persisted identity, an offline sample plan and its run readers),
-   `workflow.toml` (what code cannot know: title, promise, tools, output notes, try-it
-   commands and pinned examples), `page.mdx`, `contract.md`, `cli.py`, `example.py` where
-   it has an importer, `inputs/`, and its implementation. `_registry.py`, `_catalog.py`
-   and `_checks.py` read them, and the catalog's drift check fails when code, manifest and
-   prose disagree.
-5. **Runs and examples.** A run is one execution folder. An example is a frozen export of
-   real runs (`workflow-example-v1`), pinned by sha256 in its owner's manifest and kept in
-   the local, gitignored store `out/examples/<owner>/<id>/`; `stage_gen.examples` is its
-   public contract, which games use too. `library/` holds committed, approved
-   character-3d examples that the catalog builds from tracked files.
-6. **Surfaces.** The `stage-gen` CLI (`src/stage_gen/interfaces/`) has one verb set over
+   `workflow.toml` (what code cannot know: title, promise, summary, tools, output notes,
+   try-it commands and pinned examples), `page.mdx`, `contract.md`, `cli.py`, `example.py`
+   where it has an importer, `inputs/` where it has sample inputs, and its implementation.
+   `_registry.py`, `_catalog.py` and `_checks.py` read them. The catalog's drift check
+   (`stage-gen catalog export --check`) fails when a step and the node types disagree, an
+   output note names neither a port of the sample plan nor a path of the cover example, a
+   `[try]` command does not parse, `page.mdx` restates the manifest's summary or an output
+   note, the README workflow table differs from the manifests, or a stated identity differs
+   from the identity golden.
+6. **Runs.** A run is one execution folder; `stage_gen.runs` finds and reads run folders.
+7. **Surfaces.** The `stage-gen` CLI (`src/stage_gen/interfaces/`) has one verb set over
    the workflow ids. The [viewer](docs/viewer.md) (`web/viewer`, opened by `stage-gen view`)
    reads run folders. The [site](docs/site.md) (`web/site`) is built from the catalog
    export and the example store. `web/` is one Bun workspace and the only Node boundary;
    the viewer and the site share only `web/ui` and the versioned data contracts.
-7. **Consumers.** The Godot example project and the optional applications under `apps/`.
+8. **Consumers.** The Godot example project and the optional applications under `apps/`.
 
 Provider configuration, credentials and concrete service construction belong to the
 composition root, `src/stage_gen/orchestration/`: runtime and services, the

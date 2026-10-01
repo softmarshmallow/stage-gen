@@ -10,7 +10,7 @@ keep an old word because changing them would change an identity.
 | node type | A `NodeType` of the gnode engine: its `type_id` (part of the cache identity), its `title` (the one reader label of a node, kept out of cache keys and graph digests), its archetype, operation and policy. |
 | node | One operation in a sealed graph, with its cache key. |
 | component | A package under `src/stage_gen/components/`: node types, graph fragments, contracts and services. It never runs alone and never imports a workflow. |
-| workflow | One folder under `src/stage_gen/workflows/` that makes one kind of deliverable: `workflow.py`, `workflow.toml`, `page.mdx`, `contract.md`, `cli.py`, `example.py`, `inputs/` and its code. Its kebab-case id is the CLI word (`stage-gen run movie-sprite`), the site's slug and the docs path. |
+| workflow | One folder under `src/stage_gen/workflows/` that makes one kind of deliverable: `workflow.py`, `workflow.toml`, `page.mdx`, `contract.md`, `cli.py`, its code and, where it has them, `example.py` (its example importer) and `inputs/`. Its kebab-case id is the CLI word (`stage-gen run movie-sprite`), the site's slug and the docs path. |
 | step | A labelled group of node types with a one-line note, declared in `workflow.py`. Every node type of a workflow sits in exactly one step. |
 | input | A folder a run reads. A workflow's committed sample inputs live in its `inputs/<name>/`. |
 | run | One execution folder. A chain, such as a take and then its finish, is several runs. |
@@ -32,12 +32,13 @@ keep an old word because changing them would change an identity.
 | showcase | site |
 | showcase record, adapter | example, importer (`example.py`) |
 | `node_labels`, `[[stages]]` | `NodeType.title` and the typed steps |
-| web viewer | viewer |
+| web viewer, run viewer | viewer |
+| capability, meaning a package under `components/` | component |
 | `stage-gen-py`, `stage-gen-character`, `stage-gen-portrait-motion`, `stage-gen-movie-sprite` | `stage-gen`, with no aliases |
 | `body idle`, `face repaint`, `prepare`, `verify`, `generate`, `semantic` and `gallery` as verbs | `plan`, `run` and `inspect`, with flags such as `--replay`, `--phase` and `--verify` |
 | movie-sprite's `--input-root`, `--output-root`, `--cache-root` | `--input`, `--output`, `--cache-dir`, as every workflow names its folders. Two exceptions: `run character-3d` forwards the frozen launcher's own argv (`--input-root`, `--run-root`), and portrait-motion takes `--run`, the prepared run folder `plan` writes |
 | `export-view` for product runs | `stage-gen inspect RUN --write-view DIR`; game runs keep `demo-games export-view` |
-| `STAGE_GEN_OUT_DIR` | `STAGE_GEN_RUN_ROOTS`, a list of paths |
+| `STAGE_GEN_OUT_DIR` as the viewer's run folder | `STAGE_GEN_RUN_ROOTS`, a list of paths; the application still reads `STAGE_GEN_OUT_DIR` as its own output folder (config `out_dir`) |
 | a workflow's `examples/` input bundles | its `inputs/` |
 | `examples/pipelines` (SDK samples) | `docs/sdk/pipelines/` |
 | a workflow's `README.md` and its guide under `docs/` | its `page.mdx` and `contract.md` |

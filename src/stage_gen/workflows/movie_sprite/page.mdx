@@ -7,11 +7,8 @@
 
 A character that breathes and shifts its weight usually means a video model, a green screen, a keyer,
 a loop editor, and someone checking frame by frame that the face did not drift and the edges are not
-green. Stage Gen holds that as one graph. The picture is fitted on a green plate and sent once to a
-video model, with the same picture at both ends. The take you choose is finished locally: keyed to
-transparency, the face held still so blinks and mouth shapes can be added separately, the loop closed,
-and every frame checked. The first frame of the finished loop becomes the picture the face workflow
-starts from.
+green. Stage Gen holds that as one graph, and the first frame of the finished loop becomes the
+picture the face workflow starts from.
 
 ## Try it
 
@@ -56,13 +53,15 @@ Needs FFmpeg and a fal key. `authoring.json` names the picture and the motion, a
 
 ## What you get
 
+In this example the loop holds 192 frames, played over 12 seconds.
+
 <Files>
-  <File path="body/loop.mkv">The loop: lossless, with transparency, 192 frames played over 12 seconds</File>
-  <File path="body/canonical.png">Its exact first frame, for the face workflow</File>
-  <File path="body/loop-preview.mp4">A quick preview on a dark background, without transparency</File>
-  <File path="body/contact-sheet.png">Sampled frames on light, dark and checkerboard grounds</File>
-  <File path="body/manifest.json">Size, frame count, playback rate and digests</File>
-  <File path="body/processing-report.json">The settings used and a hash of every frame</File>
+  <File path="body/loop.mkv" />
+  <File path="body/canonical.png" />
+  <File path="body/loop-preview.mp4" />
+  <File path="body/contact-sheet.png" />
+  <File path="body/manifest.json" />
+  <File path="body/processing-report.json" />
   <File path="body/source.mp4">The take you chose, kept as it was</File>
   <File path="execution-view.json">Every step as it ran, with its timing</File>
 </Files>
@@ -232,18 +231,10 @@ fully opaque foreground pixels. Use `playback_seconds: null` to keep the source 
 
 ### Consume the assets
 
-| Artifact | Purpose |
-| --- | --- |
-| `body/loop.mkv` | Native lossless FFV1 video with straight RGBA and no audio |
-| `body/canonical.png` | Exact first frame, for the portrait-motion workflow |
-| `body/loop-preview.mp4` | Opaque viewing preview over a dark background |
-| `body/contact-sheet.png` | Sampled frames for inspection |
-| `body/manifest.json` | Dimensions, frame count, exact playback rate and canonical/source digests |
-| `body/processing-report.json` | Settings, per-frame pixel hashes and structural verification |
-| `body/frames.zip` | Optional numbered PNG sequence when `export_frames` is true |
-
-All outputs have portable provenance sidecars. FFV1 is the lossless interchange master; consumers
-may select their own playback codec or use the PNG sequence. MP4 previews do not carry transparency.
+The outputs are listed under What you get. `body/loop.mkv` is native lossless FFV1 video with
+straight RGBA and no audio, and `body/frames.zip` adds a numbered PNG sequence when
+`export_frames` is true. All outputs have portable provenance sidecars. FFV1 is the lossless
+interchange master; consumers may select their own playback codec or use the PNG sequence. MP4 previews do not carry transparency.
 Structural verification checks every decoded native output frame and the loop endpoints. Visual
 review still chooses whether a new character's motion and keyed edges are acceptable, including over
 the intended background. That review does not require a game runtime.

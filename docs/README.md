@@ -11,24 +11,21 @@ live beside its code, in `src/stage_gen/workflows/<id>/page.mdx` and `contract.m
 
 ## Workflows
 
-| Workflow | Page | Contract |
-| --- | --- | --- |
-| 3D character | [page](../src/stage_gen/workflows/character_3d/page.mdx) | [contract](../src/stage_gen/workflows/character_3d/contract.md): ownership, review policy, admission modes, support records, budgets and recovery |
-| Looping parallax | [page](../src/stage_gen/workflows/looping_parallax/page.mdx) | [contract](../src/stage_gen/workflows/looping_parallax/contract.md): the spec, outputs, graph and every loop construction |
-| Movie sprite | [page](../src/stage_gen/workflows/movie_sprite/page.mdx) | [contract](../src/stage_gen/workflows/movie_sprite/contract.md): factory, graph, cache and lineage |
-| Portrait motion | [page](../src/stage_gen/workflows/portrait_motion/page.mdx) | [contract](../src/stage_gen/workflows/portrait_motion/contract.md): the eight-stage graph, face crop, budgets and the proposed viseme profile |
-| Storefront | [page](../src/stage_gen/workflows/storefront/page.mdx) | [contract](../src/stage_gen/workflows/storefront/contract.md): surfaces, canvases, routes and graph |
-| Universe | [page](../src/stage_gen/workflows/universe/page.mdx) | [contract](../src/stage_gen/workflows/universe/contract.md): source roles, both phases and their graphs |
+The root README's [workflow table](../README.md#workflows) links each workflow's page and
+is checked against its `workflow.toml`; `stage-gen list` and `stage-gen show <id>` print the
+same facts from the command line.
 
 The universe vocabulary is ratified separately in [taxonomy V0](spec/universe/taxonomy-v0.md),
-beside the [world vocabulary](research/world-generation-vocabulary.md) research.
+beside the [world vocabulary](research/world-generation-vocabulary.md) research; the
+[universe contract](../src/stage_gen/workflows/universe/contract.md) holds its source roles,
+both phases and their graphs.
 
 ## Authoring and inspection
 
 - [SDK guide](sdk/guide.md): define, plan, run and inspect your own graph, with
   [samples](sdk/pipelines/README.md) and the
   [provider-neutral image node](sdk/provider-neutral-image-node.md) pattern.
-- [Components](../src/stage_gen/components/README.md): the capabilities and the component contract.
+- [Components](../src/stage_gen/components/README.md): the component table and the component contract.
 - [GNode rings](spec/gnode-rings.md): engine and provider ownership.
 - [Viewer](viewer.md): `stage-gen view`, the local read-only client over run folders.
 - [Site](site.md): the static landing and documentation site, built by `scripts/site.py` from the catalog and the example store.

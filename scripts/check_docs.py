@@ -99,7 +99,7 @@ PROMPT_FIXTURES = (
 # The words decision 0071 retired from product prose, and where the lint reads. A retired word
 # survives only where it is a frozen persisted string or a path: inside code spans and fenced
 # blocks, in a link target, or in the glossary sections that list the retired and frozen words.
-RETIRED_TERMS = re.compile(r"\b(?:recipes?|harness|showcase|web viewer)\b", re.IGNORECASE)
+RETIRED_TERMS = re.compile(r"\b(?:recipes?|harness|showcase|(?:web|run) viewer)\b", re.IGNORECASE)
 RETIRED_TERM_EXEMPT_PHRASES = re.compile(r"\b(?:rig|crafting) recipes?\b", re.IGNORECASE)
 RETIRED_TERM_DOCUMENTS = (
     "README.md",
@@ -571,18 +571,18 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
             )
 
     readme = (repo / "README.md").read_text(encoding="utf-8")
-    # The viewer is optional and it is the CLI's: the sentence that names it names its command.
+    # The viewer is the CLI's: the sentence that names it names its command.
     viewer_sentences = [
         sentence
         for sentence in re.split(r"(?<=[.!?])\s+", " ".join(readme.split()))
-        if re.search(r"optional web-based run viewer", sentence, re.IGNORECASE)
+        if re.search(r"\bviewer\b", sentence, re.IGNORECASE)
     ]
     if re.search(r"\bgeneral\b", readme, re.IGNORECASE) is None or not any(
         "stage-gen view" in sentence for sentence in viewer_sentences
     ):
         failures.append(
-            "README.md: missing general-core / optional-viewer framing (a sentence naming the "
-            "optional web-based run viewer and `stage-gen view`)"
+            "README.md: missing general-core / viewer framing (a sentence naming the "
+            "viewer and `stage-gen view`)"
         )
     failures.extend(check_retired_terms(repo))
 

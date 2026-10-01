@@ -3,14 +3,14 @@ Give each layer of a background as its own picture, and get it back as a layer t
 ## Run it yourself
 
 The workflow runs offline on two original layers that a committed script draws, together with the
-`parallax.json` that places them. It makes no provider calls:
+`parallax.json` that places them. It makes no provider calls. Write the inputs, then plan, run and
+inspect them:
 
 ```sh
 uv run python src/stage_gen/workflows/looping_parallax/inputs/supplied_layers/make_inputs.py out/looping-parallax-input
-uv run stage-gen plan looping-parallax --input out/looping-parallax-input
-uv run stage-gen run looping-parallax --input out/looping-parallax-input --output out/looping-parallax-try --cache-dir out/cache
-uv run stage-gen inspect out/looping-parallax-try --verify
 ```
+
+<Try />
 
 Use a new output folder for each run. The run writes each repeating layer, `parallax/manifest.json`
 with every layer's size, order, offsets, repeat axes and scroll factor, and one preview frame. A

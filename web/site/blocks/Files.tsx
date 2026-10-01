@@ -1,5 +1,8 @@
 // <Files>: A file-browser list of the run folder: the named paths, their parents, and a count of the rest.
 // Port of the retired showcase's `files` component.
+//
+// A <File> with no text takes its note from the workflow.toml [[outputs]] entry for its path,
+// and an empty <Files /> lists every declared output, so a page never restates the manifest.
 
 import type { ReactElement, ReactNode } from "react";
 import type { BlockProps } from "./shared";
@@ -61,14 +64,21 @@ const nameOf = (path: string): string => path.slice(path.lastIndexOf("/") + 1);
 
 export default function Files({ page, children }: BlockProps<FilesProps>): ReactElement {
   const tree = page.record.tree;
-  const listed = childrenOf(children, "File");
+  const declared = new Map<string, string>(
+    (page.data.workflow?.manifest.outputs ?? []).map((o) => [o.artifactRef.replace(/\/+$/, ""), o.description]),
+  );
+  const named = childrenOf(children, "File");
+  const listed: { path: string; text: ReactNode }[] =
+    named.length > 0
+      ? named.map((f) => ({ path: String(f.props.path), text: textOf(f.props.children) }))
+      : [...declared.keys()].map((path) => ({ path, text: null }));
   const notes = new Map<string, ReactNode>();
   const order: string[] = [];
   for (const f of listed) {
-    const asked = String(f.props.path);
+    const asked = f.path;
     const path = asked.replace(/\/+$/, "");
     if (tree[path] === undefined) throw new MdxError(`<File path='${asked}'> is not in this run`);
-    notes.set(path, textOf(f.props.children));
+    notes.set(path, f.text ?? declared.get(path) ?? null);
     const parts = path.split("/");
     for (let depth = 1; depth <= parts.length; depth += 1) {
       const ancestor = parts.slice(0, depth).join("/");

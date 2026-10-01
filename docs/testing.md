@@ -29,7 +29,7 @@ prepared-media and rendered suites have explicit scopes and prerequisites. An
 offline state check does not prove a picture or listening quality. See [Godot host](../godot/games/ember_hollow/docs/runtime.md) and
 [decision 0068](decisions/0068-the-suite-reads-a-world-the-repository-can-write.md).
 
-The survival recipe's cache-key golden,
+Ember Hollow's survival cache-key golden,
 `tests/contract/fixtures/oblique_survival/ember-hollow.cache-keys.json`, pins every
 node's cache key per scope for the committed package; after a deliberate identity
 change, regenerate it with `uv run python godot/games/ember_hollow/tools/write_oblique_survival_cache_keys.py --write`
@@ -88,12 +88,14 @@ or execute a live generation request.
 
 ## Documentation and publication policy
 
-For documentation or publication-policy changes, run these Python utilities;
-they are also part of the locked Python gate:
+For documentation or publication-policy changes, run these Python utilities. The
+docs scope runs `check_docs.py`, the product gate runs `test_media_rights.py`, and
+`test_docs_check.py` imports a game package, so it runs in the games scope
+(`uv run --group games python scripts/check.py --scope games`):
 
 ```sh
 uv run python scripts/check_docs.py
-uv run pytest tests/unit/test_media_rights.py tests/contract/test_docs_check.py -q
+uv run --group games pytest tests/unit/test_media_rights.py tests/contract/test_docs_check.py -q
 ```
 
 Two of the checker's rules bind prose to the tree. A backticked source path

@@ -29,8 +29,10 @@ gitignored folders, then runs `bun run --cwd web/site build`, which writes `web/
   library example from the tracked files its figures ledger names.
 
 Without `--allow-missing-examples`, an approved example missing from the store fails the export.
-A release build is strict. A clean clone builds with the flag: a card whose example is absent is
-drawn faded as "not built yet", and the library characters still show. `--base-path P` builds for
+A release build is strict. A clean clone builds with the flag: a workflow card whose example is
+absent is drawn faded as "not built yet", and the library characters still show. Game-made cards
+come only from the `entry.json` a game writes into the store, so a clean clone has no game cards
+and its landing starts at the first workflow card. `--base-path P` builds for
 a site served below a path. `serve` serves `web/site/out/` on 127.0.0.1 with the standard
 library file server.
 

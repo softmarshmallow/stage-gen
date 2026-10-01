@@ -116,6 +116,8 @@ def documented_commands() -> list[Documented]:
         table = tomllib.loads(manifest.read_text(encoding="utf-8")).get("try", {})
         for command in table.get("commands", []):
             words = shlex.split(command)
+            while words and ENVIRONMENT.match(words[0]):
+                words = words[1:]
             assert words[0] == "stage-gen", f"{relative}: [try] command must start with stage-gen"
             found.append(Documented(f"{relative} [try]", tuple(words[1:])))
     return found

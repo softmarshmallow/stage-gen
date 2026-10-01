@@ -3,8 +3,8 @@ A universe is something to explore rather than play: typed entities, their relat
 ## Run it yourself
 
 The committed `lantern_ferry` package is a complete source: a poster, a synopsis and an expansion
-direction. Plan both phases offline, and try a run with deterministic fake operations before any
-spend:
+direction. Plan the semantic phase offline, and try it with deterministic fake operations before
+any spend:
 
 ```sh
 uv run stage-gen plan universe --phase semantic --input src/stage_gen/workflows/universe/inputs/lantern_ferry
@@ -13,5 +13,6 @@ uv run stage-gen inspect out/universe-try
 ```
 
 A live semantic run needs `--live` in place of `--dry-run`, and an OpenRouter key. The gallery phase
-runs from an admitted semantic run with `--phase gallery --semantic-run DIR`. The
+is planned and run from an admitted live semantic run with `--phase gallery --semantic-run DIR`;
+a dry-run semantic run is never admitted. The
 [contract](contract.md) holds the source roles, both phases, their reviews and their graphs.

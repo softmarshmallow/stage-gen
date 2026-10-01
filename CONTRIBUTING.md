@@ -102,7 +102,7 @@ Run the checks relevant to your change. At minimum for public documentation:
 
 ```sh
 uv run python scripts/check_docs.py
-uv run pytest tests/unit/test_media_rights.py tests/contract/test_docs_check.py -q
+uv run --group games pytest tests/unit/test_media_rights.py tests/contract/test_docs_check.py -q
 uv run pytest tests/contract/test_documented_commands.py tests/contract/test_workflow_contract_docs.py -q
 ```
 

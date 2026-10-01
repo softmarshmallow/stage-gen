@@ -64,7 +64,7 @@ src/
 │       └── elevenlabs/
 └── stage_gen/
     ├── pipeline/                      # The SDK: define / plan / run / inspect, GraphDocument
-    ├── components/                    # Reusable capabilities and bounded formats
+    ├── components/                    # Reusable components and bounded formats
     ├── workflows/                     # One folder per product deliverable
     ├── recipes/character_3d/          # Frozen character-3d implementation path
     ├── examples.py                    # The public example contract
@@ -112,7 +112,7 @@ src/stage_gen/components/
 └── video_clip/                        # Video processing with explicit frame constraints
 ```
 
-These names describe actual capability families. A component need not be fully
+These names describe actual component families. A component need not be fully
 agnostic about its medium: a sprite component can understand frames and foot
 anchors, and a terrain component can understand occupancy. It must not infer a
 complete game's combat, quests, camera controller or runtime state.
@@ -143,11 +143,11 @@ src/stage_gen/workflows/
 │   └── inputs/supplied_clip/          # Original procedural clip; no provider calls
 ├── portrait_motion/                   # Generation, qualification, budgets and recovery
 │   └── inputs/                        # The four-card and face-crop specifications
-├── storefront/
+├── storefront/                        # No example.py; executor modules, not pipeline.py
 │   └── inputs/minimal/                # Original procedural input and offline planning
-├── universe/
+├── universe/                          # No example.py; executor modules, not pipeline.py
 │   └── inputs/lantern_ferry/          # Existing self-contained storyworld input
-└── character_3d/                      # Declaration, CLI and importer only
+└── character_3d/                      # Declaration, CLI and importer only; no inputs/
     └── examples/tavi-parts.mdx        # Prose for one pinned example
 
 src/stage_gen/recipes/character_3d/    # Frozen: run lineage binds this path
@@ -157,8 +157,9 @@ docs/sdk/pipelines/
 └── portrait_processing.py             # Component composition and preserved-pixel proof
 ```
 
-Every workflow folder has the shape `looping_parallax/` shows; the tree lists only what
-differs. Sample inputs and their scripts live in a workflow's `inputs/`; cross-capability
+Every workflow folder has the shape `looping_parallax/` shows, less the files a workflow
+does not need; the tree lists only what differs. Sample inputs and their scripts live in a
+workflow's `inputs/`; cross-component
 SDK samples live in `docs/sdk/pipelines`. A future component example should likewise live
 beside that component. Documentation links these owners instead of creating a second
 implementation under a central examples framework.
@@ -280,8 +281,9 @@ Bellweather's preparation entry point once to avoid repeating identical mechanic
 Afterlight and Command Link keep their working project organization and game-local
 Labs; this is not a mandatory directory schema for a new game.
 
-Inputs live with each game. There is no root `main.toml` selector and no `library`,
-`legacy` or empty `demos` ownership tier. Existing TOML member paths, identities and
+Inputs live with each game. Game inputs have no root `main.toml` selector and no
+`library`, `legacy` or empty `demos` tier; `library/` holds only the approved
+character-3d examples. Existing TOML member paths, identities and
 cache semantics remain supported by the same consuming game. Gameplay parameters
 may move into GDScript or resources later, independently for each game.
 

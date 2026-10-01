@@ -2,7 +2,7 @@
 
 The contract's Structure section says what that shape is; this refuses a component
 that grows a node family without its graph helper, or a package without a surface.
-The two departures the contract names are listed here so they cannot multiply.
+Any departure from the contract is listed here so departures cannot multiply; none stand today.
 """
 
 from __future__ import annotations

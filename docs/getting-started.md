@@ -12,9 +12,11 @@ uv run stage-gen show movie-sprite
 ```
 
 `stage-gen list` prints each installed workflow: its id, title and promise. `stage-gen show`
-describes one workflow: its steps, its offline sample plan and the examples it pins. Every
-workflow takes the same verbs, `plan`, `run` and `inspect`. `stage-gen <command> --help` prints
-a command's flags, and the site's CLI reference lists every command and flag in one page.
+describes one workflow: its steps, the size of its offline sample plan where it has one, its
+outputs, try-it commands and the examples it pins (`--json` prints the whole plan). Every
+workflow takes the same verbs, `plan`, `run` and `inspect` (3D character prepares with
+`run --prepare-only` instead of `plan`). `stage-gen <command> <workflow> --help` prints a
+workflow's flags, and the site's CLI reference lists every command and flag in one page.
 
 ## Run a workflow
 
