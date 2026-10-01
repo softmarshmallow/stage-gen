@@ -33,8 +33,9 @@ Before it starts the server, the command:
 - starts a thread that derives missing views into the view cache every three seconds (below).
 
 It then runs `bun run --cwd web/viewer dev --port PORT --hostname 127.0.0.1`, opens the browser
-once the port answers unless `--no-open` is given, and stops the server and everything it started
-when you interrupt it. The server listens on the loopback interface only.
+once the port answers unless `--no-open` is given. The server leads its own process group; when the
+launcher ends, by Ctrl-C, SIGTERM, a hangup or the server exiting, it stops that whole group, so
+nothing it started outlives it. The server listens on the loopback interface only.
 
 Run without `stage-gen view` (`cd web/viewer && bun run dev`), the viewer reads `out/` of its
 checkout and has neither a catalog nor a view cache: runs are listed ungrouped and only views a

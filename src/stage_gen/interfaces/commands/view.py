@@ -4,12 +4,16 @@ The viewer is the Next app in ``web/viewer``, so this command needs a source che
 Bun; from an installed wheel it refuses. It exports the catalog into the user cache, keeps
 derived run views fresh in that cache while it runs, and starts the viewer's dev server
 with the run roots, the catalog and the view cache in its environment. Nothing it starts
-can start a run: the viewer only reads.
+can start a run: the viewer only reads. However the launcher ends, by the server exiting,
+Ctrl-C, SIGTERM or a hangup, it first ends the server and every process the server started.
 """
 
 from __future__ import annotations
 
 import argparse
+import atexit
+import contextlib
+import functools
 import json
 import os
 import shutil
@@ -18,18 +22,26 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 import tomllib
 import webbrowser
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TextIO
+from types import FrameType
+from typing import Any, TextIO
 
 REFUSAL = "stage-gen view needs a source checkout and Bun; see docs/viewer.md"
 VIEWER = Path("web/viewer")
 DEFAULT_PORT = 3000
 REFRESH_SECONDS = 3.0
 HOST = "127.0.0.1"
+# The signals that end the launcher; each one ends the viewer first.
+STOP_SIGNALS = (signal.SIGTERM, signal.SIGHUP, signal.SIGINT)
+# How long the viewer's process group has to leave after SIGTERM before it gets SIGKILL.
+STOP_GRACE_SECONDS = 10.0
+
+SignalHandler = Callable[[int, FrameType | None], Any] | int | signal.Handlers | None
 
 
 def register(parser: argparse.ArgumentParser) -> None:
@@ -173,18 +185,76 @@ def _open_when_listening(url: str, port: int, stop: threading.Event) -> None:
             continue
 
 
-def _stop(child: subprocess.Popen[bytes]) -> None:
-    """End the dev server and everything it started: it leads its own process group."""
-    for sent in (signal.SIGTERM, signal.SIGKILL):
-        try:
-            os.killpg(child.pid, sent)
-        except ProcessLookupError:
-            return
-        try:
-            child.wait(timeout=10)
-            return
-        except subprocess.TimeoutExpired:
-            continue
+def _group_alive(group: int) -> bool:
+    try:
+        os.killpg(group, 0)
+    except OSError:  # gone, or the id no longer names a group of ours
+        return False
+    return True
+
+
+def _stop(child: subprocess.Popen[bytes], grace: float = STOP_GRACE_SECONDS) -> None:
+    """End the dev server and everything it started.
+
+    The server leads its own process group, so the group is signalled, not the child alone:
+    ``next dev`` starts a server process of its own that would otherwise outlive it. A group
+    still alive ``grace`` seconds after SIGTERM gets SIGKILL. The child is reaped as it
+    exits, since on some systems an unreaped child keeps its group alive, and once more at
+    the end so that it leaves no zombie behind.
+    """
+    try:
+        for sent in (signal.SIGTERM, signal.SIGKILL):
+            child.poll()
+            if not _group_alive(child.pid):
+                return
+            try:
+                os.killpg(child.pid, sent)
+            except ProcessLookupError:
+                return
+            deadline = time.monotonic() + grace
+            while time.monotonic() < deadline:
+                child.poll()
+                if not _group_alive(child.pid):
+                    return
+                time.sleep(0.05)
+    finally:
+        with contextlib.suppress(subprocess.TimeoutExpired):
+            child.wait(timeout=grace)
+
+
+class _Stopped(Exception):
+    """A stop signal reached the launcher; it unwinds to the code that ends the viewer."""
+
+    def __init__(self, signum: int) -> None:
+        super().__init__(signum)
+        self.signum = signum
+
+
+def _raise_stopped(signum: int, frame: FrameType | None) -> None:
+    raise _Stopped(signum)
+
+
+def _trap_stop_signals() -> dict[int, SignalHandler]:
+    """Make SIGTERM, SIGHUP and SIGINT unwind the launcher instead of ending it outright.
+
+    The viewer leads its own session, so a terminal's hangup or interrupt never reaches it,
+    and the default action of SIGTERM or SIGHUP would end the launcher alone and orphan the
+    server. A signal the launcher was started ignoring, as under ``nohup``, stays ignored.
+    Only the main thread may set handlers; elsewhere nothing is trapped. Returns the
+    handlers replaced, for :func:`_restore_signals`.
+    """
+    if threading.current_thread() is not threading.main_thread():
+        return {}
+    replaced: dict[int, SignalHandler] = {}
+    for number in STOP_SIGNALS:
+        if signal.getsignal(number) is not signal.SIG_IGN:
+            replaced[number] = signal.signal(number, _raise_stopped)
+    return replaced
+
+
+def _restore_signals(replaced: Mapping[int, SignalHandler]) -> None:
+    for number, handler in replaced.items():
+        signal.signal(number, handler)
 
 
 def run(args: argparse.Namespace, stdout: TextIO) -> int:
@@ -218,15 +288,32 @@ def run(args: argparse.Namespace, stdout: TextIO) -> int:
     stdout.flush()
     stop = threading.Event()
     threading.Thread(target=_refresh_views, args=(launch, stop, sys.stderr), daemon=True).start()
-    child = subprocess.Popen(
-        launch.command, cwd=launch.checkout, env=launch.env, start_new_session=True
-    )
-    if not args.no_open:
-        threading.Thread(
-            target=_open_when_listening, args=(launch.url, launch.port, stop), daemon=True
-        ).start()
+    replaced = _trap_stop_signals()
+    child: subprocess.Popen[bytes] | None = None
+    stop_child: Callable[[], None] | None = None
+    status = 0
     try:
-        return child.wait()
+        child = subprocess.Popen(
+            launch.command, cwd=launch.checkout, env=launch.env, start_new_session=True
+        )
+        # Also stopped at interpreter exit, should this frame never unwind.
+        stop_child = functools.partial(_stop, child)
+        atexit.register(stop_child)
+        if not args.no_open:
+            threading.Thread(
+                target=_open_when_listening, args=(launch.url, launch.port, stop), daemon=True
+            ).start()
+        status = child.wait()
+    except _Stopped as stopped:
+        status = 128 + stopped.signum
     finally:
+        # A second stop signal must not cut the stop short.
+        for number in replaced:
+            signal.signal(number, signal.SIG_IGN)
         stop.set()
-        _stop(child)
+        if child is not None:
+            _stop(child)
+        if stop_child is not None:
+            atexit.unregister(stop_child)
+        _restore_signals(replaced)
+    return status
