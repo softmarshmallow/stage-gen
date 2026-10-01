@@ -695,8 +695,12 @@ documents and package types cite.
 | adc093c0 | Put workflow prose beside the code and make the vocabulary enforceable: this record, the doctrine, the checked graph contracts, the retired-term lint and the documented-command test. |
 | 2e4209a7 | Speak the workflow vocabulary in the agent instructions. |
 | 3576b96a | Stop the viewer child when `stage-gen view` is terminated: the launcher traps SIGTERM, SIGHUP and SIGINT and stops the whole process group (S12). |
+| b2db530a | Fix what the final review found in the Python CLI and run readers: one flag vocabulary (`--input`, `--output`, `--cache-dir`), help on every argument, input pictures resolved against the run's own input root, clear refusals for game runs in `inspect`. |
+| cb14e758 | Fix what the final review found in the site and viewer: the site names itself Stage Gen, the landing says what it is and how to start, pages without an example show no empty graph or footer, `next-env.d.ts` is generated instead of tracked. |
+| 17bea8a3 | Fix what the final review found in the docs: pages take output notes from `workflow.toml` instead of copying them, and the drift check refuses a copy; stale and contradictory prose corrected. |
+| bbc2d921 | Say plainly when a run's output folder already exists. |
 
-Every commit through 3576b96a passed the clean-worktree replica of the pre-push gate. From 0044a4ac on, every
+Every commit passed the clean-worktree replica of the pre-push gate. From 0044a4ac on, every
 commit also passed `uv run --all-groups python scripts/check.py --scope all`; b174e1ff passed
 every step but mypy `--strict`, which had been red on main on six test files until 0044a4ac
 typed them. The identity golden, the before-and-after key diff, the frozen evidence and the
