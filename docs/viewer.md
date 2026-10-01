@@ -4,8 +4,8 @@ The viewer is the local web client for the `stage-gen` CLI. It lists every run u
 you give it, grouped by the workflow that made it, draws each run's execution graph and artifacts,
 and shows each workflow's offline plan and the commands that run it. It is read-only: it
 does not start runs, receives no provider credentials, and implements no gameplay. Playable
-projects and their asset wiring belong to their Godot owners. The site is a separate surface: it
-documents workflows and shows their examples, and it never reads run folders.
+projects and their asset wiring belong to their Godot owners. The [site](site.md) is a separate
+surface: it documents workflows and shows their examples, and it never reads run folders.
 
 ## Start it
 

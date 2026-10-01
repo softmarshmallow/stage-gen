@@ -57,5 +57,6 @@ status = "approved"
 source = "store"
 cover = true
 order = 5
+footer = "Every picture on this page comes from one real run. Its source is the first frame of a Yuzu body loop."
 example_sha256 = "9633077caf605814ce6b9eaf376615628838f0f97c1c3c03eac4c96e51c0bc92"
 figures_sha256 = "b0a7a148b628d6efff7817769757eea45794c173948fe69406dba5caaa4bfce6"

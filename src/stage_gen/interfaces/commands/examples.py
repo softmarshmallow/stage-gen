@@ -1,7 +1,8 @@
 """``stage-gen catalog export`` and ``stage-gen example verify|promote``.
 
 The catalog is the derived document the site builds from; an example is a frozen export
-of real runs, pinned by digest in its owner's manifest.
+of real runs, pinned by digest in its owner's manifest. The export also writes ``cli.json``
+beside the catalog, the argparse tree the site's CLI reference is written from.
 """
 
 from __future__ import annotations
@@ -14,7 +15,9 @@ from typing import TextIO
 
 def register_catalog(parser: argparse.ArgumentParser) -> None:
     actions = parser.add_subparsers(dest="action", required=True)
-    export = actions.add_parser("export", help="write catalog.json, or only check drift")
+    export = actions.add_parser(
+        "export", help="write catalog.json and cli.json, or only check drift"
+    )
     export.add_argument("--out", type=Path, required=True, dest="out_dir")
     export.add_argument("--examples", type=Path, dest="examples_dir", help="the example store")
     export.add_argument(
@@ -52,6 +55,8 @@ def register_example(parser: argparse.ArgumentParser) -> None:
 
 
 def catalog_export(args: argparse.Namespace, output: TextIO) -> int:
+    from gnode import atomic_write_bytes
+    from stage_gen.interfaces.cli import CLI_REFERENCE_FILE, command_reference
     from stage_gen.workflows._catalog import default_examples_dir, export
 
     result = export(
@@ -60,11 +65,17 @@ def catalog_export(args: argparse.Namespace, output: TextIO) -> int:
         allow_missing_examples=args.allow_missing_examples,
         check=args.check,
     )
+    reference: Path | None = None
+    if result.path is not None:
+        reference = args.out_dir / CLI_REFERENCE_FILE
+        payload = json.dumps(command_reference(), indent=2, ensure_ascii=False) + "\n"
+        atomic_write_bytes(reference, payload.encode(), mode=0o644)
     output.write(
         json.dumps(
             {
                 "workflows": result.workflows,
                 "catalog": None if result.path is None else str(result.path),
+                "cli": None if reference is None else str(reference),
                 "problems": list(result.problems),
             },
             indent=2,

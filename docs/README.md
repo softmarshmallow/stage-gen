@@ -1,6 +1,7 @@
 # Documentation
 
-Start with the [repository directory preview](repository-layout.md),
+New here? Read [getting started](getting-started.md) and the [glossary](glossary.md).
+Then start with the [repository directory preview](repository-layout.md),
 [architecture](../ARCHITECTURE.md) and [public pipeline SDK](../src/stage_gen/pipeline/README.md).
 The product is the asset pipeline; complete games are consumers.
 
@@ -12,6 +13,7 @@ The product is the asset pipeline; complete games are consumers.
 - [Movie sprites](movie-sprite.md): transparent body loops and a canonical image for separate facial repaint.
 - [GNode rings](spec/gnode-rings.md): engine and provider ownership.
 - [Viewer](viewer.md): `stage-gen view`, the local read-only client over run folders.
+- [Site](site.md): the static landing and documentation site, built by `scripts/site.py` from the catalog and the example store.
 - [Providers](models/providers.md): bindings, credentials and live-operation boundaries.
 - [Godot consumers](../godot/README.md): packages, games and templates.
 - [Godot project charter](../godot/CHARTER.md): the example product's continuing goals, ownership and independent evolution.

@@ -240,6 +240,14 @@ class TryIt(_Manifest):
     commands: list[str] = Field(min_length=1)
 
 
+class ExampleStep(_Manifest):
+    """A labelled group of an example's node ids, with a one-line note."""
+
+    label: str = Field(min_length=1)
+    note: str = Field(min_length=1)
+    members: list[str] = Field(min_length=1)
+
+
 class ExampleEntry(_Manifest):
     """One pinned example.
 
@@ -247,6 +255,10 @@ class ExampleEntry(_Manifest):
     ``order``: it carries the workflow's title and promise, or the example's own title and
     ``promise`` when the example declares one. ``source`` is ``store`` for an export in the
     example store, or ``library:<path>`` for one built from tracked library files.
+
+    ``footer`` is the closing line of the example's page. An example made with an earlier
+    version, whose run the workflow's steps no longer describe, may group its own node ids
+    in ``steps`` and title them in ``labels``, as a game's example entry does.
     """
 
     id: str = Field(pattern=WORKFLOW_ID_PATTERN)
@@ -258,6 +270,9 @@ class ExampleEntry(_Manifest):
     source: str = Field(pattern=r"^(?:store|library:[A-Za-z0-9_./-]+)$")
     cover: bool = False
     order: int | None = Field(default=None, ge=1)
+    footer: str | None = None
+    labels: dict[str, str] = Field(default_factory=dict)
+    steps: list[ExampleStep] = Field(default_factory=list)
 
     @property
     def library_path(self) -> str | None:

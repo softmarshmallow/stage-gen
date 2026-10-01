@@ -11,6 +11,7 @@
 import {
   parseCurrency,
   parseFiguresLedger,
+  parseExampleStep,
   parseGameExampleEntry,
   parseMadeBy,
   parseWorkflowExample,
@@ -18,6 +19,7 @@ import {
   type ExampleTool,
   type FiguresLedger,
   type GameExampleEntry,
+  type GameExampleStep,
   type MadeBy,
   type WorkflowExample,
 } from "./example";
@@ -68,6 +70,12 @@ export interface ExampleEntry {
   readonly source: string;
   readonly cover: boolean;
   readonly order: number | null;
+  /** The closing line of the example's page; null for the default one. */
+  readonly footer: string | null;
+  /** Titles for node ids of the example (an example made with an earlier version). */
+  readonly labels: Readonly<Record<string, string>>;
+  /** The example's own steps, by node id, when the workflow's no longer describe its run. */
+  readonly steps: readonly GameExampleStep[];
 }
 
 /** workflow.toml (`stage-gen-workflow-v1`): what the code cannot know. */
@@ -201,6 +209,9 @@ function exampleEntry(fields: Record<string, unknown>, label: string): ExampleEn
     source: text(fields.source, `${label}.source`),
     cover: boolean(fields.cover ?? false, `${label}.cover`),
     order: integerOrNull(fields.order, `${label}.order`, 1),
+    footer: textOrNull(fields.footer, `${label}.footer`),
+    labels: record(fields.labels ?? {}, `${label}.labels`, text),
+    steps: list(fields.steps ?? [], `${label}.steps`, parseExampleStep),
   };
 }
 

@@ -13,11 +13,13 @@ import io
 import json
 from collections.abc import Iterator
 from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
 
 import pytest
 
 import stage_gen.recipes.character_3d.runner as frozen_runner
-from stage_gen.examples import ExamplePin, display_names, verify
+from stage_gen.examples import ExamplePin, WorkflowExample, display_names, verify
 from stage_gen.workflows import _checks as checks
 from stage_gen.workflows._catalog import build, load_workflow
 from stage_gen.workflows._checks import CheckContext, LoadedWorkflow
@@ -384,6 +386,24 @@ def test_landing_order_and_covers_are_one_each(loaded: dict[str, LoadedWorkflow]
     assert "portrait-motion: the cover example must be approved" in problems
 
 
+def test_an_examples_own_steps_place_each_node_once_and_labels_name_its_nodes() -> None:
+    character = next(w for w in discover() if w.id == "character-3d").manifest
+    tavi = next(e for e in character.examples if e.id == "tavi-parts")
+    assert [s.label for s in tavi.steps][:2] == ["Three meshes", "Before the agent is paid"]
+    assert tavi.labels["generate_body"] == "Generate the body" and tavi.footer
+    nodes = {member: None for step in tavi.steps for member in step.members}
+    document = cast(WorkflowExample, SimpleNamespace(nodes=nodes))
+    assert checks._own_steps(tavi, document) == []
+    first, *rest = tavi.steps
+    moved = first.model_copy(update={"members": [*first.members, "runtime_admit", "nope"]})
+    broken = tavi.model_copy(update={"steps": [moved, *rest], "labels": {"ghost": "Ghost"}})
+    assert checks._own_steps(broken, document) == [
+        "labels names ghost, which is not a node of it",
+        "steps must place every node once: unplaced [], unknown ['nope'], "
+        "doubled ['runtime_admit']",
+    ]
+
+
 def _sample_plans(loaded: dict[str, LoadedWorkflow]) -> Iterator[tuple[str, LoadedWorkflow]]:
     yield from ((key, w) for key, w in loaded.items() if w.sample is not None)
 
@@ -411,12 +431,20 @@ def test_the_cli_exports_and_checks_the_catalog(tmp_path: Path) -> None:
     argv = ["catalog", "export", "--out", str(tmp_path / "site")]
     argv += ["--examples", str(tmp_path / "absent"), "--allow-missing-examples"]
     assert main([*argv, "--check"], stdout=output, stderr=errors) == 0, errors.getvalue()
-    assert json.loads(output.getvalue()) == {"workflows": 6, "catalog": None, "problems": []}
+    assert json.loads(output.getvalue()) == {
+        "workflows": 6,
+        "catalog": None,
+        "cli": None,
+        "problems": [],
+    }
     assert not (tmp_path / "site").exists()
     output = io.StringIO()
     assert main(argv, stdout=output, stderr=errors) == 0
     written = json.loads((tmp_path / "site/catalog.json").read_text(encoding="utf-8"))
     assert written["kind"] == "stage-gen-catalog-v1" and len(written["workflows"]) == 6
+    reference = json.loads((tmp_path / "site/cli.json").read_text(encoding="utf-8"))
+    assert reference["kind"] == "stage-gen-cli-v1" and reference["prog"] == "stage-gen"
+    assert json.loads(output.getvalue())["cli"] == str(tmp_path / "site/cli.json")
     strict = ["catalog", "export", "--out", str(tmp_path / "strict")]
     strict += ["--examples", str(tmp_path / "absent")]
     output = io.StringIO()

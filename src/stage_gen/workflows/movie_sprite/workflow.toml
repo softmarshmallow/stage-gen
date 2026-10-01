@@ -65,5 +65,6 @@ status = "approved"
 source = "store"
 cover = true
 order = 6
+footer = "The take was generated once, then finished on this machine by the current recipe. Every picture comes from those two runs."
 example_sha256 = "090cd4a9578ec5477e0ba2744c67a6957e758045f5c85f3ee160595aff8df9bd"
 figures_sha256 = "31a8611f9816e12f932b7e6023984bd0e7301ca88f8482f669fb3f46a017b974"

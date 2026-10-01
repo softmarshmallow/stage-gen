@@ -106,6 +106,47 @@ source = "store"
 order = 8
 example_sha256 = "9e3161453464be9ec27c9c3782543d4f45ca837d26b5933442ab8c67d9ab7c68"
 figures_sha256 = "b07c95b15b869a2cd927be902e7a7b25ac372f0958971f04bcf7fed820e5b843"
+footer = "Every picture and model on this page comes from real runs: the three mesh requests, then the fit and rig run. The samba clip was added to the export afterwards."
+
+# Made with an earlier version: the meshes were requested before the graph started, and the
+# workflow's steps no longer describe this run, so the example groups its own node ids.
+[examples.labels]
+generate_body = "Generate the body"
+generate_head = "Generate the head"
+generate_hair = "Generate the hair"
+normalize_body = "Measure the body"
+normalize_head = "Measure the head"
+normalize_hair = "Measure the hair"
+
+[[examples.steps]]
+label = "Three meshes"
+note = "Made before the graph starts: one Tripo request per part, from the front and back drawings cut from the parts sheet. The graph picks the files up by digest."
+members = ["generate_body", "generate_head", "generate_hair"]
+
+[[examples.steps]]
+label = "Before the agent is paid"
+note = "Blender's required features are checked offline. The agent does not start until they pass."
+members = ["runtime_admit"]
+
+[[examples.steps]]
+label = "Measure"
+note = "Each mesh is converted and measured as it arrived. Nothing is moved or fitted yet."
+members = ["normalize_body", "normalize_head", "normalize_hair"]
+
+[[examples.steps]]
+label = "Fit"
+note = "An agent places the head on the body and the hair on the head. Each part gets one placement: a move, a turn and a size. A reviewer that did not fit them judges the exported result. Round two runs only after a refusal."
+members = ["assemble_01", "assembly_review_01", "assemble_02", "assembly_review_02", "assembly_admit"]
+
+[[examples.steps]]
+label = "Skeleton and clips"
+note = "The agent finds the joints on the fitted mesh, binds the skin and bakes the test clips. The reviewer sees every pose from five sides, with the hands enlarged."
+members = ["rig_01", "rig_review_01", "rig_02", "rig_review_02"]
+
+[[examples.steps]]
+label = "Admission"
+note = "The export is admitted only if the reviewer accepted this exact file and every skinned vertex carries weights."
+members = ["rig_admit"]
 
 [[examples]]
 id = "nami"

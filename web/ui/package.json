@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "exports": {
     "./contracts/*": "./contracts/*.ts",
-    "./contracts/*.json": "./contracts/*.json"
+    "./contracts/*.json": "./contracts/*.json",
+    "./players/*": "./players/*.ts"
   },
   "scripts": {
     "check": "tsc --noEmit",
@@ -13,5 +14,8 @@
   "devDependencies": {
     "@types/bun": "^1.4.0",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "elkjs": "^0.12.0"
   }
 }

@@ -17,7 +17,8 @@ uv run --group games python scripts/check.py --scope godot
 ```
 
 The default product gate requires Python tools only. The web scope requires
-`bun install --frozen-lockfile` in `web`, the one Bun workspace (`ui`, `viewer`).
+`bun install --frozen-lockfile` in `web`, the one Bun workspace (`ui`, `viewer`, `site`),
+and builds the [site](docs/site.md) with `scripts/site.py build --allow-missing-examples`.
 Godot checks require the engine on PATH (or `GODOT`) and verify the retained demo
 fixture and independently packaged SDK.
 Some media processing tests also require FFmpeg. A missing required tool fails its

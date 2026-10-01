@@ -44,7 +44,10 @@
             "figures_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
             "source": "store",
             "cover": true,
-            "order": 2
+            "order": 2,
+            "footer": null,
+            "labels": {},
+            "steps": []
           }
         ]
       },
@@ -168,6 +171,9 @@
           "source": "store",
           "cover": true,
           "order": 2,
+          "footer": null,
+          "labels": {},
+          "steps": [],
           "present": true,
           "currency": "current",
           "example": {

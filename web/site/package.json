@@ -1,0 +1,30 @@
+{
+  "name": "@stage-gen/site",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "check": "tsc --noEmit",
+    "test": "bun test",
+    "build": "next build"
+  },
+  "dependencies": {
+    "@google/model-viewer": "3.5.0",
+    "@mdx-js/mdx": "^3.1.1",
+    "@stage-gen/ui": "workspace:*",
+    "elkjs": "^0.12.0",
+    "next": "^16.3.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/bun": "^1.4.0",
+    "@types/node": "^26.4.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2"
+  }
+}

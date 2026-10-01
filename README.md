@@ -104,6 +104,8 @@ outside any graph. See [provider setup](docs/models/providers.md).
 ## Inspect outputs and consume assets
 
 The [viewer](docs/viewer.md), opened with `stage-gen view`, reads completed or running run folders.
+The static [site](docs/site.md) in `web/site`, built with `uv run python scripts/site.py build`,
+shows each workflow with its pinned examples.
 Generic media and metadata stay inspectable without a built-in recipe identity;
 bounded inspectors can understand parallax or animation metadata.
 

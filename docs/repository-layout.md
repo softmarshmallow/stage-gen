@@ -14,7 +14,7 @@ stage-gen/
 │   └── stage_gen/                     # Asset authoring, capabilities and recipes
 ├── examples/
 │   └── pipelines/                     # Public SDK composition examples
-├── web/                               # Optional run viewer and asset inspectors
+├── web/                               # Run viewer, static site and their shared UI (Bun)
 ├── godot/
 │   ├── packages/                      # Reusable, bounded runtime SDKs
 │   ├── templates/                     # Copyable application starting points

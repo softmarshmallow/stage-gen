@@ -246,6 +246,8 @@ def steps(
         "web": (
             Step(("bun", "run", "check"), WEB_ROOT),
             Step(("bun", "test"), WEB_ROOT),
+            # The static site, from the catalog and whatever the example store holds.
+            Step((python, "scripts/site.py", "build", "--allow-missing-examples")),
             Step(("pytest", "-m", "not live", *paths_for(REPOSITORY_ROOT, "web"))),
         ),
         "godot": (
@@ -278,7 +280,7 @@ def steps(
                 )
             ),
             Step(("pytest", "-m", "not live")),
-            *groups["web"][:2],
+            *groups["web"][:3],
             *groups["godot"][:-1],
             *groups["docs"],
             *groups["games"][1:],

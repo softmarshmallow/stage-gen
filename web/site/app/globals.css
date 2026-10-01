@@ -1,0 +1,41 @@
+/* The retired showcase's stylesheet, moved: Tailwind with only the classes the site's own
+ * sources carry, and the showcase's two font stacks.
+ *
+ * The showcase scanned its templates and its Python components. Their ports live in app/,
+ * components/, blocks/ and lib/, and the players' scripts in web/ui/players set classes too.
+ * The staged page sources (.catalog/) and the example media are never scanned.
+ */
+
+@import "tailwindcss" source(none);
+
+@source "./";
+@source "../components";
+@source "../blocks";
+@source "../lib";
+@source "../../ui/players";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+/* A page opened at #graph… shows the graph view from its first paint, as the old page script
+ * did by switching views before the browser painted: the page shell's first script sets
+ * data-view="graph" on <html>, these rules show the view and press its header button, and the
+ * stage stays hidden until it is arranged. The graph player clears the attribute when it
+ * mounts, and route() takes over with the same classes the switch uses. */
+:root[data-view="graph"] #overview {
+  display: none;
+}
+:root[data-view="graph"] #graph {
+  display: block;
+}
+:root[data-view="graph"] #stage {
+  opacity: 0;
+}
+:root[data-view="graph"] #to-overview {
+  @apply border-transparent text-zinc-500;
+}
+:root[data-view="graph"] #to-graph {
+  @apply border-zinc-900 text-zinc-900 dark:border-zinc-100 dark:text-zinc-100;
+}

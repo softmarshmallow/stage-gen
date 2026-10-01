@@ -331,6 +331,18 @@ export function latestFigures(ledger: FiguresLedger): ReadonlyMap<string, Figure
   return new Map(ledger.files.map((entry) => [entry.file, entry]));
 }
 
+/** One labelled group of an example's node ids, from a game's entry or a workflow.toml entry. */
+export function parseExampleStep(value: unknown, label: string): GameExampleStep {
+  const fields = object(value, label);
+  const members = texts(fields.members, `${label}.members`);
+  if (members.length === 0) throw new Error(`${label}.members must not be empty`);
+  return Object.freeze({
+    label: text(fields.label, `${label}.label`),
+    note: anyText(fields.note, `${label}.note`),
+    members,
+  });
+}
+
 export function parseGameExampleEntry(value: unknown): GameExampleEntry {
   const root = envelope(
     value,
@@ -357,16 +369,7 @@ export function parseGameExampleEntry(value: unknown): GameExampleEntry {
       });
     }),
     labels: record(root.labels ?? {}, "labels", text),
-    steps: list(root.steps ?? [], "steps", (entry, label) => {
-      const fields = object(entry, label);
-      const members = texts(fields.members, `${label}.members`);
-      if (members.length === 0) throw new Error(`${label}.members must not be empty`);
-      return Object.freeze({
-        label: text(fields.label, `${label}.label`),
-        note: anyText(fields.note, `${label}.note`),
-        members,
-      });
-    }),
+    steps: list(root.steps ?? [], "steps", parseExampleStep),
     currency: parseCurrency(root.currency, "currency"),
     exampleSha256: digest(root.example_sha256, "example_sha256"),
     figuresSha256: digest(root.figures_sha256, "figures_sha256"),

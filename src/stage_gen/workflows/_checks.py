@@ -208,6 +208,7 @@ def examples(workflows: Sequence[LoadedWorkflow], context: CheckContext) -> list
                 continue
             if document.example_id != entry.id or document.made_by.id != manifest.id:
                 problems.append(f"{manifest.id}/{entry.id}: the document names another example")
+            problems.extend(f"{manifest.id}/{entry.id}: {p}" for p in _own_steps(entry, document))
             for row in document.models:
                 if row.provider != "local" and not context.names.knows_model(row.name):
                     problems.append(f"{manifest.id}/{entry.id}: model {row.name} has no name")
@@ -218,6 +219,28 @@ def examples(workflows: Sequence[LoadedWorkflow], context: CheckContext) -> list
     for order, owners in sorted(orders.items()):
         if len(owners) > 1:
             problems.append(f"landing order {order} is claimed by {', '.join(owners)}")
+    return problems
+
+
+def _own_steps(entry: ExampleEntry, document: WorkflowExample) -> list[str]:
+    """An example's own steps place each of its nodes once; its labels title its nodes."""
+    nodes = set(document.nodes)
+    problems = [
+        f"labels names {node}, which is not a node of it"
+        for node in entry.labels
+        if node not in nodes
+    ]
+    if not entry.steps:
+        return problems
+    placed = [member for step in entry.steps for member in step.members]
+    unknown = sorted(set(placed) - nodes)
+    missing = sorted(nodes - set(placed))
+    doubled = sorted({member for member in placed if placed.count(member) > 1})
+    if unknown or missing or doubled:
+        problems.append(
+            f"steps must place every node once: unplaced {missing}, unknown {unknown}, "
+            f"doubled {doubled}"
+        )
     return problems
 
 

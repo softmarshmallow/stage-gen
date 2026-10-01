@@ -38,6 +38,23 @@ describe("parseCatalog", () => {
     expect(findWorkflow(parsed, "unknown")).toBeNull();
   });
 
+  test("reads an example entry's own footer, labels and steps", () => {
+    const parsed = parseCatalog(catalog());
+    const [plain] = findWorkflow(parsed, "swatch-sheet")?.examples ?? [];
+    expect([plain.footer, plain.labels, plain.steps]).toEqual([null, {}, []]);
+    const document = catalog();
+    const entry = (firstWorkflow(document).examples as Wire[])[0];
+    entry.footer = "Made from one run.";
+    entry.labels = { draw: "Draw the sheet" };
+    entry.steps = [{ label: "Draw", note: "One sheet.", members: ["brief", "draw"] }];
+    const [own] = findWorkflow(parseCatalog(document), "swatch-sheet")?.examples ?? [];
+    expect(own.footer).toBe("Made from one run.");
+    expect(own.labels).toEqual({ draw: "Draw the sheet" });
+    expect(own.steps).toEqual([{ label: "Draw", note: "One sheet.", members: ["brief", "draw"] }]);
+    entry.steps = [{ label: "Draw", note: "", members: [] }];
+    expect(() => parseCatalog(document)).toThrow(/members must not be empty/);
+  });
+
   test("lists game examples and orders the landing cards", () => {
     const parsed = parseCatalog(catalog());
     expect(parsed.gameExamples[0].entry?.gameTitle).toBe("Example Game");
