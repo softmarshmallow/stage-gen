@@ -104,9 +104,7 @@ def register(parser: argparse.ArgumentParser) -> None:
     video.add_argument(
         "--duration", required=True, type=float, dest="duration", help="seconds of video"
     )
-    video.add_argument(
-        "--resolution", default="720p", help="a resolution the video route offers (default: 720p)"
-    )
+    video.add_argument("--resolution", default="720p", help="a resolution the video route offers")
     video.add_argument(
         "--aspect-ratio", default="16:9", dest="aspect_ratio", help="width:height of the clip"
     )

@@ -17,7 +17,7 @@ export function generateStaticParams(): Params[] {
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { game, example } = await params;
   if (isPlaceholder(game, example)) return {};
-  return { title: `${gamePage(game, example).data.title} · Stage Gen showcase` };
+  return { title: `${gamePage(game, example).data.title} · Stage Gen` };
 }
 
 export default async function GameExampleRoute({ params }: { params: Promise<Params> }) {

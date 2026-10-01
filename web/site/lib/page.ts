@@ -62,7 +62,8 @@ export interface PageData {
   readonly source: string;
   readonly title: string;
   readonly promise: string;
-  readonly footer: string;
+  /** The closing sentence; null on a workflow page with no example, which has no pictures to vouch for. */
+  readonly footer: string | null;
   readonly related: readonly RelatedLink[];
   /** Node titles by node id, type id or type-id tail (the showcase's `node_labels`). */
   readonly labels: Readonly<Record<string, string>>;

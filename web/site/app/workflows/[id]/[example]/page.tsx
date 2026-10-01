@@ -18,7 +18,7 @@ export function generateStaticParams(): Params[] {
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { id, example } = await params;
   if (isPlaceholder(id, example)) return {};
-  return { title: `${examplePage(id, example).data.title} · Stage Gen showcase` };
+  return { title: `${examplePage(id, example).data.title} · Stage Gen` };
 }
 
 export default async function ExampleRoute({ params }: { params: Promise<Params> }) {

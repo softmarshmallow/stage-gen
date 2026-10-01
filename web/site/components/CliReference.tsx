@@ -28,7 +28,8 @@ function signature(argument: CliArgument): string {
 function notes(argument: CliArgument): string[] {
   const out: string[] = [];
   if (argument.required && !argument.positional) out.push("Required.");
-  if (argument.repeatable) out.push("Repeatable.");
+  // Help that already says an argument repeats ("repeatable", "repeat it") is not echoed.
+  if (argument.repeatable && !/\brepeat/i.test(argument.help ?? "")) out.push("Repeatable.");
   if (argument.choices !== null) out.push(`One of: ${argument.choices.join(", ")}.`);
   if (argument.default !== null) out.push(`Default: ${argument.default}.`);
   return out;

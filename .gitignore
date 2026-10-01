@@ -100,9 +100,11 @@ web_modules/
 .cache
 .parcel-cache
 
-# Next.js build output
+# Next.js build output, and the type stub next dev and next build each rewrite in their own
+# form (each package's `check` script regenerates it with `next typegen`).
 .next
 out
+next-env.d.ts
 
 # stage-gen run outputs (per-tag dirs land under <repo-root>/out)
 /out/

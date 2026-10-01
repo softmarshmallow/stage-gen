@@ -29,7 +29,7 @@ def _input_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--spec",
         default=SPEC_FILE,
-        help=f"input-relative ParallaxSpec JSON (default: {SPEC_FILE})",
+        help="input-relative ParallaxSpec JSON",
     )
     parser.add_argument(
         "--target",

@@ -71,26 +71,35 @@ const VIEW_BUTTON =
 
 export default function PageShell({ page, body }: { page: Page; body: ReactNode }): ReactElement {
   const title = page.data.title;
-  const nodes = JSON.stringify(page.hasExample ? drawerData(page) : {});
+  // A workflow without an example has no run to draw: no node graph, no view switch, no drawer.
+  const graph = page.hasExample;
+  const nodes = JSON.stringify(graph ? drawerData(page) : {});
   return (
     <>
-      <script dangerouslySetInnerHTML={{ __html: FIRST_VIEW }} />
+      {graph ? <script dangerouslySetInnerHTML={{ __html: FIRST_VIEW }} /> : null}
       <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
           <nav className="flex items-center gap-2 text-sm text-zinc-500">
             <a className="hover:text-zinc-900 dark:hover:text-zinc-100" href={href("/")}>
-              Showcase
+              Stage Gen
             </a>{" "}
             <span>/</span>
             <span className="text-zinc-900 dark:text-zinc-100">{title}</span>
           </nav>
-          <div className="flex h-full text-sm" role="group" aria-label="View">
-            <button id="to-overview" aria-pressed="true" className={VIEW_BUTTON}>
-              Overview
-            </button>{" "}
-            <button id="to-graph" aria-pressed="false" className={VIEW_BUTTON}>
-              Node graph
-            </button>
+          <div className="flex h-full items-center gap-4 text-sm">
+            {graph ? (
+              <div className="flex h-full" role="group" aria-label="View">
+                <button id="to-overview" aria-pressed="true" className={VIEW_BUTTON}>
+                  Overview
+                </button>{" "}
+                <button id="to-graph" aria-pressed="false" className={VIEW_BUTTON}>
+                  Node graph
+                </button>
+              </div>
+            ) : null}
+            <a className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100" href={href("/docs/")}>
+              Docs
+            </a>
           </div>
         </div>
       </header>
@@ -100,12 +109,15 @@ export default function PageShell({ page, body }: { page: Page; body: ReactNode 
         <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">{page.data.promise}</p>
         <Related page={page} />
         {body}
-        <footer className="mt-16 border-t border-zinc-200 pt-6 text-sm text-zinc-500 dark:border-zinc-800">
-          {page.data.footer}
-          <ProductionNotes page={page} />
-        </footer>
+        {page.data.footer === null ? null : (
+          <footer className="mt-16 border-t border-zinc-200 pt-6 text-sm text-zinc-500 dark:border-zinc-800">
+            {page.data.footer}
+            <ProductionNotes page={page} />
+          </footer>
+        )}
       </main>
 
+      {graph ? (
       <GraphPlayer nodes={nodes} className="hidden">
         <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-2.5 text-xs text-zinc-500 dark:border-zinc-800">
           <div className="flex flex-wrap items-center gap-5">
@@ -136,11 +148,13 @@ export default function PageShell({ page, body }: { page: Page; body: ReactNode 
         >
           <div id="stage" className="absolute left-0 top-0 flex w-[2280px] origin-top-left flex-wrap items-start gap-x-10 gap-y-14 p-10">
             <svg id="edges" className="pointer-events-none absolute left-0 top-0 z-[1] overflow-visible text-zinc-900 dark:text-zinc-100"></svg>
-            {page.hasExample ? <NodeGraph page={page} /> : null}
+            <NodeGraph page={page} />
           </div>
         </div>
       </GraphPlayer>
+      ) : null}
 
+      {graph ? (
       <aside
         id="drawer"
         className="fixed inset-y-0 right-0 z-30 w-[min(440px,92vw)] translate-x-full overflow-y-auto border-l border-zinc-200 bg-white px-6 pb-10 pt-5 transition-transform dark:border-zinc-800 dark:bg-zinc-950"
@@ -150,6 +164,7 @@ export default function PageShell({ page, body }: { page: Page; body: ReactNode 
         </button>
         <div id="dbody"></div>
       </aside>
+      ) : null}
 
       {showsModel(page) ? <ModelViewer /> : null}
     </>

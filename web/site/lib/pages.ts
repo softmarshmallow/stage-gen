@@ -185,7 +185,7 @@ export function workflowPage(id: string, catalog: Catalog = loadCatalog()): Page
     source: `workflows/${id}/page.mdx`,
     title: workflow.manifest.title,
     promise: workflow.manifest.promise,
-    footer: cover?.footer ?? DEFAULT_FOOTER,
+    footer: cover === null ? null : (cover.footer ?? DEFAULT_FOOTER),
     related,
     labels: { ...workflow.manifest.labels, ...cover?.labels },
     typeTitles: typeTitlesOf(workflow),

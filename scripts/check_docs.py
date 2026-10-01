@@ -114,6 +114,13 @@ RETIRED_TERM_DOCUMENTS = (
     "docs/sdk/guide.md",
 )
 GLOSSARY_EXEMPT_SECTIONS = ("## Retired terms", "## Frozen persisted strings")
+# The site's own sources, whose strings and JSX text readers see (page titles, headings,
+# breadcrumbs). Comments are stripped first: they may name what a port replaced.
+RETIRED_TERM_SITE_SOURCES = tuple(
+    f"web/site/{folder}" for folder in ("app", "components", "blocks", "lib")
+)
+_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
+_LINE_COMMENT = re.compile(r"(?<![:\w\"'])//.*$", re.MULTILINE)
 
 
 def ignored_paths(repo: Path, candidates: set[str]) -> frozenset[str]:
@@ -233,8 +240,9 @@ def check_retired_terms(repo: Path) -> list[str]:
     """Product prose speaks decision 0071's vocabulary.
 
     The doctrine, the cross-cutting docs and every workflow's ``page.mdx`` and ``contract.md``
-    are read; history (decisions, plans, research) is not, because it describes what was. A
-    scan that matched no workflow prose would prove nothing, so an empty one fails.
+    are read, and so are the site's sources with their comments stripped. History (decisions,
+    plans, research) is not, because it describes what was. A scan that matched no workflow
+    prose would prove nothing, so an empty one fails.
     """
     failures: list[str] = []
     workflow_prose = sorted(
@@ -253,6 +261,20 @@ def check_retired_terms(repo: Path) -> list[str]:
         for number, text in _prose_lines(
             document.read_text(encoding="utf-8"), exempt_sections=exempt
         ):
+            for match in RETIRED_TERMS.finditer(RETIRED_TERM_EXEMPT_PHRASES.sub(" ", text)):
+                failures.append(f"{relative}:{number}: retired term '{match.group(0)}'")
+    site_sources = [
+        path
+        for folder in RETIRED_TERM_SITE_SOURCES
+        for path in _walk_files(repo / folder, frozenset({".ts", ".tsx"}))
+    ]
+    for source in site_sources:
+        relative = source.relative_to(repo).as_posix()
+        code = _BLOCK_COMMENT.sub(
+            lambda comment: "\n" * comment.group(0).count("\n"),
+            source.read_text(encoding="utf-8"),
+        )
+        for number, text in enumerate(_LINE_COMMENT.sub("", code).splitlines(), start=1):
             for match in RETIRED_TERMS.finditer(RETIRED_TERM_EXEMPT_PHRASES.sub(" ", text)):
                 failures.append(f"{relative}:{number}: retired term '{match.group(0)}'")
     return failures

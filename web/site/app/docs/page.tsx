@@ -34,7 +34,9 @@ export default function DocsIndex() {
           {list(references)}
         </>
       ) : null}
-      <h2 className="mt-16 border-b border-zinc-200 pb-2 font-medium dark:border-zinc-800">Workflow reference</h2>
+      <h2 id="workflows" className="mt-16 border-b border-zinc-200 pb-2 font-medium dark:border-zinc-800">
+        Workflow reference
+      </h2>
       {list(workflows)}
     </DocShell>
   );

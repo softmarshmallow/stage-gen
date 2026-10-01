@@ -83,14 +83,20 @@ def test_an_absolute_path_default_is_refused() -> None:
 
 def test_every_argument_says_what_it_is() -> None:
     bare: list[str] = []
+    # The site renders a recorded default itself, so help that repeats it reads twice.
+    echoed: list[str] = []
 
     def walk(command: dict[str, Any], path: tuple[str, ...]) -> None:
         for argument in command["arguments"]:
+            name = f"{' '.join(path)} {'/'.join(argument['names'])}"
             if not argument["help"]:
-                bare.append(f"{' '.join(path)} {'/'.join(argument['names'])}")
+                bare.append(name)
+            elif argument["default"] is not None and "default:" in argument["help"]:
+                echoed.append(name)
         for child in command["commands"]:
             walk(child, (*path, child["name"]))
 
     reference = command_reference()
     walk(reference, (reference["prog"],))
     assert bare == [], "arguments without help: " + ", ".join(bare)
+    assert echoed == [], "help repeating its recorded default: " + ", ".join(echoed)

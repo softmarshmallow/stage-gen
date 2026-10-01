@@ -8,7 +8,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata = {
-  title: "Stage Gen showcase",
+  title: "Stage Gen",
 };
 
 export const viewport = {

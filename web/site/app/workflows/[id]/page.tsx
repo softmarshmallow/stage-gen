@@ -18,7 +18,7 @@ export function generateStaticParams(): Params[] {
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { id } = await params;
-  return { title: `${workflowPage(id).data.title} · Stage Gen showcase` };
+  return { title: `${workflowPage(id).data.title} · Stage Gen` };
 }
 
 export default async function WorkflowRoute({ params }: { params: Promise<Params> }) {

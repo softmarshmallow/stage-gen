@@ -68,6 +68,29 @@ def test_character_library_documentation_rejects_missing_links(tmp_path: Path) -
     ]
 
 
+def test_retired_terms_are_read_in_site_strings_but_not_comments(tmp_path: Path) -> None:
+    workflow = tmp_path / "src/stage_gen/workflows/example"
+    workflow.mkdir(parents=True)
+    (workflow / "page.mdx").write_text("A workflow.\n", encoding="utf-8")
+    components = tmp_path / "web/site/components"
+    components.mkdir(parents=True)
+    (components / "Header.tsx").write_text(
+        "// The port of the retired showcase's header.\n"
+        "/* The showcase\n   had none. */\n"
+        'export const link = "https://example.test/showcase/";\n'
+        "export const Header = () => <h1>Showcase</h1>;\n",
+        encoding="utf-8",
+    )
+
+    failures = _load_docs_checker().check_retired_terms(tmp_path)
+
+    # A URL's "//" opens no comment, so the string it sits in is read too.
+    assert failures == [
+        "web/site/components/Header.tsx:4: retired term 'showcase'",
+        "web/site/components/Header.tsx:5: retired term 'Showcase'",
+    ]
+
+
 def test_web_text_walk_reads_git_files_and_the_viewer_shell_may_not_spawn(
     tmp_path: Path,
 ) -> None:

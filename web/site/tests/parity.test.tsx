@@ -138,7 +138,9 @@ function referenceGraph(slug: string): string {
 // data-model ways: "See also" links that workflow.toml or a game entry's `related` now
 // declares where the showcase's front matter had none, and the production notes of an
 // example made with an earlier version, behind a disclosure in the footer (amendment A5).
-// The parts page's route is new as well, as on the landing.
+// The parts page's route is new as well, as on the landing. The header's breadcrumb root
+// says "Stage Gen" rather than the retired "Showcase", and a Docs link sits beside the view
+// switch; oldHeader maps both back before the comparison.
 const NEW_RELATED: Readonly<Record<string, readonly string[]>> = {
   "movie-sprite": ["Portrait motion"],
   "portrait-motion": ["Movie sprite"],
@@ -152,6 +154,13 @@ function between(html: string, start: string, end: string): string {
   return html.slice(from, to + end.length);
 }
 
+function oldHeader(header: string): string {
+  return header
+    .replace(/(<nav[^]*?<a [^>]*>)Stage Gen<\/a>/, "$1Showcase</a>")
+    .replace(/<div class="flex h-full items-center gap-4 text-sm">(<div class="flex h-full)" /, '$1 text-sm" ')
+    .replace(/(<\/button><\/div>)<a [^>]*>Docs<\/a><\/div>/, "$1");
+}
+
 function shellParts(slug: string, shell: string): Record<"header" | "head" | "footer", string> {
   const html = shell.replaceAll('href="/workflows/character-3d/tavi-parts/"', 'href="character-3d-parts/index.html"');
   let head = between(html, "<h1", "</p>");
@@ -161,7 +170,7 @@ function shellParts(slug: string, shell: string): Record<"header" | "head" | "fo
   const declared = NEW_RELATED[slug];
   if (declared === undefined || titles.join(",") !== declared.join(",")) head += related;
   return {
-    header: between(html, "<header", "</header>"),
+    header: oldHeader(between(html, "<header", "</header>")),
     head,
     footer: between(html, "<footer", "</footer>").replace(/<details[^]*?<\/details>/, ""),
   };

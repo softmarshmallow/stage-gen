@@ -38,7 +38,7 @@ library file server.
 
 | Route | Page |
 |---|---|
-| `/` | The landing: one ordered list of cards, one per example with an `order` |
+| `/` | The landing: what Stage Gen is, the install lines and links into the docs, then one ordered list of cards, one per example with an `order` |
 | `/workflows/<id>/` | The workflow's `page.mdx`, bound to its cover example |
 | `/workflows/<id>/<example>/` | An example with its own `examples/<example>.mdx` |
 | `/workflows/<id>/contract/` | The workflow's `contract.md` |
@@ -53,7 +53,9 @@ and the rest). Every prop that names a node, metric, output or input is resolved
 bound example, and an unknown name fails the build. The node graph groups the example's nodes by
 the workflow's steps, or by the example's own `steps` when its `workflow.toml` entry declares them
 (an example made with an earlier version). An example entry's `labels` title its node ids, and
-its `footer` is the page's closing line. Production notes sit behind a disclosure.
+its `footer` is the page's closing line. Production notes sit behind a disclosure. A workflow
+page with no example has no pictures, so it shows its prose only: no node graph and no closing
+line.
 
 A doc's, a page body's and a contract's relative links are written for the checkout. On the
 site, a link to another staged doc, a workflow's page or a workflow's contract leads to that
