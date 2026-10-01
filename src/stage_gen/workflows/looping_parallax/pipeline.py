@@ -77,14 +77,14 @@ from stage_gen.pipeline import (
 
 PREPARE_LAYER = NodeType(
     type_id="parallax.prepare_layer",
-    title="Prepare repeating layer",
+    title="Make the layer repeat",
     archetype=ViewArchetype.TRANSFORM,
     operation="local",
     contract_version="parallax-layer-v1",
 )
 REPAINT_LAYER = NodeType(
     type_id="parallax.repaint_layer",
-    title="Repaint layer wrap",
+    title="Repaint the seam",
     archetype=ViewArchetype.IMAGE,
     operation="image_generation",
     features=("transparent_background", "reference_images", "masked_edit"),
@@ -93,7 +93,7 @@ REPAINT_LAYER = NodeType(
 )
 COMPOSE = NodeType(
     type_id="parallax.compose",
-    title="Compose scrolling background",
+    title="Compose the scrolling background",
     archetype=ViewArchetype.PACKAGE,
     operation="local",
     contract_version=PARALLAX_KIND,

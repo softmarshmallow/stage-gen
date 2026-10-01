@@ -151,17 +151,30 @@ def _workflow_roots() -> dict[str, tuple[Path, ...]]:
     return packages
 
 
+#: The registry's declarations (Step, WorkflowCode, run readers) every workflow states
+#: itself with. It is not a workflow, and it imports none.
+WORKFLOW_DECLARATIONS = "stage_gen.workflows._registry"
+#: Modules at the workflows root that read every workflow; they load one only on demand,
+#: through ``load_code``, and import none statically.
+WORKFLOW_REGISTRY_MODULES = ("_registry.py", "_catalog.py", "_checks.py")
+
+
 def test_workflows_do_not_import_each_other() -> None:
     """Workflows share code through declared homes (canonical, media, components,
-    the SDK in stage_gen.pipeline such as node_cache), never through another
-    workflow's modules. A workflow imports only its own package and its own frozen
-    implementation root."""
+    the SDK in stage_gen.pipeline such as node_cache, the example contract in
+    stage_gen.examples), never through another workflow's modules. A workflow imports
+    only its own package, its own frozen implementation root, and the registry's
+    declarations."""
 
     workflows = _workflow_roots()
     assert len(workflows) >= 6, f"expected at least 6 workflow packages, found {sorted(workflows)}"
     violations: list[str] = []
     for name, roots in workflows.items():
-        own = (f"stage_gen.workflows.{name}", *(_module_of(root) for root in roots))
+        own = (
+            f"stage_gen.workflows.{name}",
+            *(_module_of(root) for root in roots),
+            WORKFLOW_DECLARATIONS,
+        )
         for root in roots:
             for path in _python_sources(root):
                 violations.extend(
@@ -172,6 +185,25 @@ def test_workflows_do_not_import_each_other() -> None:
                     if not any(_matches(imported, allowed) for allowed in own)
                 )
     assert not violations, "workflow-to-workflow import violations:\n" + "\n".join(violations)
+
+
+def test_registry_and_example_contract_import_no_workflow() -> None:
+    """The registry reads workflows lazily, and the public example contract knows none."""
+
+    paths = [WORKFLOW_ROOT / name for name in WORKFLOW_REGISTRY_MODULES]
+    paths.append(SOURCE_ROOT / "stage_gen" / "examples.py")
+    missing = sorted(str(path.relative_to(SOURCE_ROOT)) for path in paths if not path.is_file())
+    assert not missing, f"registry modules moved; update this rule: {missing}"
+    violations = [
+        violation
+        for path in paths
+        for violation, imported in _import_violation_pairs(
+            path, ("stage_gen.workflows", "stage_gen.recipes")
+        )
+        if not _matches(imported, WORKFLOW_DECLARATIONS)
+        and not imported.startswith("stage_gen.workflows._")
+    ]
+    assert not violations, "a registry module imports a workflow:\n" + "\n".join(violations)
 
 
 ORCHESTRATION_ROOT = SOURCE_ROOT / "stage_gen" / "orchestration"

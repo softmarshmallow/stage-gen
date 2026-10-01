@@ -44,7 +44,7 @@ DRAW_LEDGER_KIND = "storefront-draw-ledger-v1"
 
 STOREFRONT_RESOLVE = NodeType(
     type_id=f"{_P}/storefront.resolve",
-    title="Storefront document",
+    title="Read the storefront request",
     archetype=ViewArchetype.SOURCE,
     operation="local",
     contract_version="storefront-resolve-v1",
@@ -52,7 +52,7 @@ STOREFRONT_RESOLVE = NodeType(
 
 DIRECTION_COMPILE = NodeType(
     type_id=f"{_P}/direction.compile",
-    title="Storefront direction",
+    title="Compile the art direction",
     archetype=ViewArchetype.STRUCTURED,
     operation="structured_generation",
     features=STRUCTURED_FEATURES,
@@ -62,7 +62,7 @@ DIRECTION_COMPILE = NodeType(
 
 LISTING_COMPILE = NodeType(
     type_id=f"{_P}/listing.compile",
-    title="Store listing copy",
+    title="Write the store listing",
     archetype=ViewArchetype.STRUCTURED,
     operation="structured_generation",
     features=("structured_output",),
@@ -72,7 +72,7 @@ LISTING_COMPILE = NodeType(
 
 SURFACE_GENERATE = NodeType(
     type_id=f"{_P}/surface.generate",
-    title="Storefront surface",
+    title="Draw the surface",
     archetype=ViewArchetype.IMAGE,
     operation="image_generation",
     features=IMAGE_FEATURES,
@@ -82,7 +82,7 @@ SURFACE_GENERATE = NodeType(
 
 SURFACE_NORMALIZE = NodeType(
     type_id=f"{_P}/surface.normalize",
-    title="Ship canvas",
+    title="Fit the shipping canvas",
     archetype=ViewArchetype.TRANSFORM,
     operation="local",
     contract_version="storefront-surface-normalize-v1",
@@ -90,7 +90,7 @@ SURFACE_NORMALIZE = NodeType(
 
 SURFACE_VALIDATE = NodeType(
     type_id=f"{_P}/surface.validate",
-    title="Surface admission",
+    title="Admit the surface",
     archetype=ViewArchetype.VALIDATE,
     operation="local",
     policy=NodePolicy(gates=("exact_ship_canvas", "alpha_policy", "byte_ceiling")),
@@ -99,7 +99,7 @@ SURFACE_VALIDATE = NodeType(
 
 SURFACE_PROXY = NodeType(
     type_id=f"{_P}/surface.proxy",
-    title="Review proxy",
+    title="Make a review copy",
     archetype=ViewArchetype.TRANSFORM,
     operation="local",
     contract_version="storefront-surface-proxy-v1",
@@ -107,7 +107,7 @@ SURFACE_PROXY = NodeType(
 
 SURFACE_REVIEW = NodeType(
     type_id=f"{_P}/surface.review",
-    title="Surface review",
+    title="Review the surface",
     archetype=ViewArchetype.STRUCTURED,
     operation="structured_generation",
     features=STRUCTURED_FEATURES,
@@ -117,7 +117,7 @@ SURFACE_REVIEW = NodeType(
 
 SURFACE_RECORD = NodeType(
     type_id=f"{_P}/surface.record",
-    title="Surface record",
+    title="Record the surface",
     archetype=ViewArchetype.TRANSFORM,
     operation="local",
     contract_version="storefront-surface-record-v1",
@@ -125,7 +125,7 @@ SURFACE_RECORD = NodeType(
 
 STOREFRONT_CLOSE = NodeType(
     type_id=f"{_P}/storefront.close",
-    title="Storefront package",
+    title="Close the storefront package",
     archetype=ViewArchetype.PACKAGE,
     operation="local",
     contract_version="storefront-close-v1",

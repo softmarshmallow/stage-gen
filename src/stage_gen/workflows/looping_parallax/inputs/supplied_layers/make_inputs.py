@@ -6,10 +6,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("directory", type=Path)
-    target = parser.parse_args().directory
+def write_layers(target: Path) -> None:
+    """Draw the two example layers into ``target``."""
     target.mkdir(parents=True, exist_ok=True)
     hills = Image.new("RGBA", (320, 360), "#c5e2df")
     draw = ImageDraw.Draw(hills)
@@ -26,6 +24,12 @@ def main() -> None:
         draw.rectangle((x - 5, y, x + 5, 332), fill="#204b49")
         draw.polygon([(x, y - 55), (x - 32, y + 62), (x + 32, y + 62)], fill="#315e59")
     trees.save(target / "near_trees.png")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("directory", type=Path)
+    write_layers(parser.parse_args().directory)
 
 
 if __name__ == "__main__":

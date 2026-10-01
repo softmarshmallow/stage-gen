@@ -1,0 +1,18 @@
+# Only what the code cannot know. Steps, identity and the sample plan live in workflow.py.
+schema_version = 1
+kind = "stage-gen-workflow-v1"
+id = "looping-parallax"
+title = "Looping parallax"
+promise = "Layer pictures in. Repeating layers and their scroll placement out."
+summary = """
+Each supplied layer is made to repeat on its own, by mirroring its edges or by repainting the \
+seam, then the layers are composed with their offsets and scroll factors into a portable \
+manifest and a preview frame."""
+
+[[outputs]]
+artifact_ref = "parallax/manifest.json"
+description = "Every layer with its size, order, offsets, repeat axes and scroll factor"
+
+[[outputs]]
+artifact_ref = "parallax/preview.png"
+description = "One composed frame, for inspection"

@@ -68,6 +68,14 @@ path = "scripts/build_hooks.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gnode", "src/stage_gen"]
+# A target's exclude replaces the build-wide list, so the wheel repeats it. Workflow prose
+# (page.mdx, contract.md) is read from the checkout by the site, never by installed code.
+exclude = [
+  "/src/stage_gen/**/inputs/**/references/**",
+  "/src/stage_gen/workflows/universe/inputs/lantern_ferry/**",
+  "/src/stage_gen/workflows/**/*.mdx",
+  "/src/stage_gen/workflows/**/contract.md",
+]
 
 [tool.hatch.build.targets.sdist]
 include = [

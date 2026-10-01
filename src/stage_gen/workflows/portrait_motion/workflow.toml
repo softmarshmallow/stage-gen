@@ -1,0 +1,53 @@
+# Only what the code cannot know. Steps, identity and run readers live in workflow.py.
+schema_version = 1
+kind = "stage-gen-workflow-v1"
+id = "portrait-motion"
+title = "Portrait motion"
+promise = "One finished sprite in. Eyes and mouth a game can drive separately out."
+summary = """
+The face is found and cropped, a reviewer decides which eyes and mouth can safely change, and an \
+image model draws every new state in one sheet. Each drawing is aligned to the original, every \
+combination is reviewed, and the accepted patches go back on the sprite at full size."""
+related = ["movie-sprite"]
+
+# The node-type titles are built by components/portrait_motion, part of the implementation
+# fingerprint; face_crop and face_reconstruction are stages of the parent run, not node types.
+[labels]
+"2d/portrait_motion/face_location" = "Find the face"
+"2d/portrait_motion/admission" = "Decide what can move"
+"2d/portrait_motion/guide" = "Lay out the sheet"
+"2d/portrait_motion/atlas" = "Draw the new states"
+"2d/portrait_motion/registration" = "Line them up"
+"2d/portrait_motion/geometry" = "Outline eyes and mouth"
+"2d/portrait_motion/composition" = "Build every combination"
+"2d/portrait_motion/quality" = "Review the result"
+"2d/portrait_motion/terminal" = "Keep what passed"
+"2d/portrait_motion/face_crop" = "Crop the face"
+"2d/portrait_motion/face_reconstruction" = "Put it back at full size"
+
+[[outputs]]
+artifact_ref = "render/animation.webp"
+description = "A preview at the sprite's full size, playing the timeline"
+
+[[outputs]]
+artifact_ref = "render/states/"
+description = "Every eyes-and-mouth combination, as full-size PNGs"
+
+[[outputs]]
+artifact_ref = "render/patches/"
+description = "Each eye and the mouth in every state, as patches placed at one offset"
+
+[[outputs]]
+artifact_ref = "render/manifest.json"
+description = "Where the patches go, which feature each belongs to, and a sample timeline"
+
+# Frozen exports in the example store (out/examples/portrait-motion/<id>/), pinned by digest.
+[[examples]]
+id = "yuzu-face"
+title = "Yuzu face"
+status = "approved"
+source = "store"
+cover = true
+order = 5
+example_sha256 = "9633077caf605814ce6b9eaf376615628838f0f97c1c3c03eac4c96e51c0bc92"
+figures_sha256 = "b0a7a148b628d6efff7817769757eea45794c173948fe69406dba5caaa4bfce6"

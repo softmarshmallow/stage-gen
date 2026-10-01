@@ -1,0 +1,18 @@
+# Only what the code cannot know. Steps, identity and the sample plan live in workflow.py.
+schema_version = 1
+kind = "stage-gen-workflow-v1"
+id = "universe"
+title = "Universe"
+promise = "A poster, a synopsis and a direction in. A reviewed storyworld and one concept image per entity out."
+summary = """
+A semantic phase proposes typed entities, their relationships and open questions, which an \
+independent reviewer must admit; a gallery phase then draws exactly one reviewed concept image \
+for each admitted entity."""
+
+[[outputs]]
+artifact_ref = "semantic/universe.json"
+description = "The admitted storyworld: entities, relationships and open questions"
+
+[[outputs]]
+artifact_ref = "semantic/admission.json"
+description = "Why the world was admitted, with the review it passed"

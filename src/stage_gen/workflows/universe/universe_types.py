@@ -49,7 +49,7 @@ ATTEMPT_LEDGER_KIND = "universe-attempt-ledger-v1"
 
 SOURCE_LOCK = NodeType(
     type_id=f"{_P}/source.lock",
-    title="Source lock and evidence ledger",
+    title="Lock the source and its evidence",
     archetype=ViewArchetype.SOURCE,
     operation=LOCAL_OPERATION,
     contract_version="universe-source-lock-v1",
@@ -57,7 +57,7 @@ SOURCE_LOCK = NodeType(
 
 PROPOSE = NodeType(
     type_id=f"{_P}/universe.propose",
-    title="Universe proposal",
+    title="Propose the universe",
     archetype=ViewArchetype.STRUCTURED,
     operation="structured_generation",
     features=STRUCTURED_FEATURES,
@@ -67,7 +67,7 @@ PROPOSE = NodeType(
 
 PLAN = NodeType(
     type_id=f"{_P}/gallery.plan",
-    title="Set-level gallery plan",
+    title="Plan the gallery",
     archetype=ViewArchetype.STRUCTURED,
     operation="structured_generation",
     features=STRUCTURED_FEATURES,
@@ -77,7 +77,7 @@ PLAN = NodeType(
 
 EVALUATE = NodeType(
     type_id=f"{_P}/universe.evaluate",
-    title="Deterministic evaluation",
+    title="Evaluate the proposal",
     archetype=ViewArchetype.VALIDATE,
     operation=LOCAL_OPERATION,
     contract_version="universe-evaluate-v1",
@@ -85,7 +85,7 @@ EVALUATE = NodeType(
 
 REVIEW = NodeType(
     type_id=f"{_P}/universe.review",
-    title="Independent semantic review",
+    title="Review the world independently",
     archetype=ViewArchetype.JUDGE,
     operation="structured_generation",
     features=STRUCTURED_FEATURES,
@@ -95,7 +95,7 @@ REVIEW = NodeType(
 
 ADMIT = NodeType(
     type_id=f"{_P}/universe.admit",
-    title="Semantic admission",
+    title="Admit the world",
     archetype=ViewArchetype.VALIDATE,
     operation=LOCAL_OPERATION,
     contract_version="universe-admit-v1",
@@ -103,7 +103,7 @@ ADMIT = NodeType(
 
 GLOBAL_DIRECTION = NodeType(
     type_id=f"{_P}/direction.global",
-    title="Global visual grammar",
+    title="Set the visual grammar",
     archetype=ViewArchetype.STRUCTURED,
     operation="structured_generation",
     features=STRUCTURED_FEATURES,
@@ -113,7 +113,7 @@ GLOBAL_DIRECTION = NodeType(
 
 ENTITY_DIRECTION = NodeType(
     type_id=f"{_P}/direction.entity",
-    title="Entity concept direction",
+    title="Direct one entity's concept",
     archetype=ViewArchetype.STRUCTURED,
     operation="structured_generation",
     features=STRUCTURED_FEATURES,
@@ -123,7 +123,7 @@ ENTITY_DIRECTION = NodeType(
 
 CONCEPT_IMAGE = NodeType(
     type_id=f"{_P}/concept.image",
-    title="Entity concept image",
+    title="Draw the concept image",
     archetype=ViewArchetype.IMAGE,
     operation="image_generation",
     features=IMAGE_FEATURES,
@@ -133,7 +133,7 @@ CONCEPT_IMAGE = NodeType(
 
 CONCEPT_PROXY = NodeType(
     type_id=f"{_P}/concept.proxy",
-    title="Review proxy",
+    title="Make a review copy",
     archetype=ViewArchetype.IMAGE,
     operation=LOCAL_OPERATION,
     contract_version="universe-concept-proxy-v1",
@@ -141,7 +141,7 @@ CONCEPT_PROXY = NodeType(
 
 CONCEPT_REVIEW = NodeType(
     type_id=f"{_P}/concept.review",
-    title="Independent image review",
+    title="Review the image independently",
     archetype=ViewArchetype.JUDGE,
     operation="structured_generation",
     features=STRUCTURED_FEATURES,
@@ -151,7 +151,7 @@ CONCEPT_REVIEW = NodeType(
 
 ENTITY_RECORD = NodeType(
     type_id=f"{_P}/entity.record",
-    title="Entity text record",
+    title="Write the entity record",
     archetype=ViewArchetype.TRANSFORM,
     operation=LOCAL_OPERATION,
     contract_version="universe-entity-record-v1",
@@ -159,7 +159,7 @@ ENTITY_RECORD = NodeType(
 
 GALLERY_CLOSE = NodeType(
     type_id=f"{_P}/gallery.close",
-    title="Closed image inventory",
+    title="Close the gallery",
     archetype=ViewArchetype.PACKAGE,
     operation=LOCAL_OPERATION,
     contract_version="universe-gallery-close-v1",

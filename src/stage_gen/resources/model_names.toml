@@ -1,0 +1,21 @@
+# Display names for the model and provider identifiers that runs and route bindings record.
+# Pages, the catalog and example importers show these names; the identifiers stay as recorded.
+# `stage-gen catalog export --check` fails when a planned route or an example names a model
+# that has no entry here.
+schema_version = 1
+
+[models]
+"openai/gpt-6-astra" = "GPT-6 Astra"
+"openai/gpt-image-2.5-sunburst" = "GPT Image 2.5 Sunburst"
+"P2-20260801" = "Tripo P2 mesh"
+"v1.0-20240301" = "Tripo rig 1.0"
+"google/gemini-omni-flash/v1.1/image-to-video" = "Gemini Omni Flash 1.1"
+"gpt-image-2.5-sunburst" = "GPT Image 2.5 Sunburst"
+"gpt-image-2" = "GPT Image 2"
+"openai/gpt-5.6-sol" = "GPT-5.6 Sol"
+
+[providers]
+openrouter = "OpenRouter"
+tripo = "Tripo"
+openai = "OpenAI"
+fal = "fal"

@@ -30,8 +30,22 @@ MOVIE_SPRITE_MODULES = {
     "stage_gen/workflows/movie_sprite/inputs/supplied_clip/pipeline.py",
 }
 
+#: Each workflow's non-code facts ship with it; its prose stays in the checkout.
+WORKFLOW_MANIFESTS = {
+    f"stage_gen/workflows/{folder}/workflow.toml"
+    for folder in (
+        "character_3d",
+        "looping_parallax",
+        "movie_sprite",
+        "portrait_motion",
+        "storefront",
+        "universe",
+    )
+}
+
 WHEEL_RESOURCES = {
     MODEL_POLICY_SNAPSHOT_RESOURCE,
+    "stage_gen/resources/model_names.toml",
     "stage_gen/resources/fixtures/image_gen_templates/inventory_template.png",
     "stage_gen/resources/fixtures/image_gen_templates/terrain_atlas_12x4_template.png",
     "stage_gen/resources/fixtures/image_gen_templates/terrain_atlas_godot_topology_reference.png",
@@ -192,11 +206,20 @@ def test_built_distributions_are_small_clean_and_resource_complete(tmp_path: Pat
         # across 85 Python/data files. No new media; the executable model snapshot
         # retains its separate unchanged cap. The compressed wheel (1,140,885 B),
         # the sdist (2,091,676 B) and the sdist slice (8,069,738 B) stay under
-        # their incumbent limits. The raised cap leaves about 170 KB for growth.
-        assert sum(wheel_entries.values()) - model_policy_snapshot_size < 3_900_000
+        # their incumbent limits.
+        # Decision 0071 (2026-10-01): self-describing workflows (registry, catalog,
+        # drift checks, the example contract, importers, six workflow.toml and
+        # model_names.toml) measured 3,990,782 B; the cap is that plus 10%. Workflow
+        # prose (page.mdx, contract.md) is excluded from the wheel. No new media.
+        assert sum(wheel_entries.values()) - model_policy_snapshot_size < 4_390_000
         assert wheel_entries.keys() >= WHEEL_RESOURCES
         assert wheel_entries.keys() >= PORTRAIT_FACE_MODULES
         assert wheel_entries.keys() >= MOVIE_SPRITE_MODULES
+        assert wheel_entries.keys() >= WORKFLOW_MANIFESTS
+        assert not any(
+            name.startswith("stage_gen/workflows/") and name.endswith((".mdx", "/contract.md"))
+            for name in wheel_entries
+        )
         assert all(wheel_entries[name] > 0 for name in WHEEL_RESOURCES)
         assert {
             "gnode/__init__.py",

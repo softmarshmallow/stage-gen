@@ -1,0 +1,61 @@
+# Only what the code cannot know. Steps, identity and the sample plan live in workflow.py.
+schema_version = 1
+kind = "stage-gen-workflow-v1"
+id = "movie-sprite"
+title = "Movie sprite"
+promise = "One character picture in. A transparent idle loop out."
+summary = """
+The picture is fitted on a green plate and sent once to a video model, with the same picture at \
+both ends. The take you choose is finished locally: keyed to transparency, the face held still so \
+blinks and mouth shapes can be added separately, the loop closed, and every frame checked."""
+related = ["portrait-motion"]
+
+# The node-type titles sit in pipeline.py, whose bytes are part of the generate and finish keys.
+[labels]
+"movie_sprite.prepare" = "Fit onto a green plate"
+"movie_sprite.generate" = "Generate a take"
+"movie_sprite.adopt" = "Adopt the chosen take"
+"movie_sprite.finish" = "Key, loop and verify"
+
+[[tools]]
+name = "FFmpeg"
+role = "Decodes, encodes and verifies every frame"
+
+[[tools]]
+name = "OpenCV"
+role = "Optical flow that closes the loop"
+
+[[outputs]]
+artifact_ref = "body/loop.mkv"
+description = "The loop: lossless, with transparency"
+
+[[outputs]]
+artifact_ref = "body/canonical.png"
+description = "Its exact first frame, for the face workflow"
+
+[[outputs]]
+artifact_ref = "body/loop-preview.mp4"
+description = "A quick preview on a dark background, without transparency"
+
+[[outputs]]
+artifact_ref = "body/contact-sheet.png"
+description = "Sampled frames on light, dark and checkerboard grounds"
+
+[[outputs]]
+artifact_ref = "body/manifest.json"
+description = "Size, frame count, playback rate and digests"
+
+[[outputs]]
+artifact_ref = "body/processing-report.json"
+description = "The settings used and a hash of every frame"
+
+# Frozen exports in the example store (out/examples/movie-sprite/<id>/), pinned by digest.
+[[examples]]
+id = "yuzu-idle"
+title = "Yuzu idle"
+status = "approved"
+source = "store"
+cover = true
+order = 6
+example_sha256 = "090cd4a9578ec5477e0ba2744c67a6957e758045f5c85f3ee160595aff8df9bd"
+figures_sha256 = "31a8611f9816e12f932b7e6023984bd0e7301ca88f8482f669fb3f46a017b974"

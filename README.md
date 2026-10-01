@@ -20,6 +20,22 @@ tools. Godot demonstrates ways to use Stage Gen; its gameplay architecture can
 evolve within that project without becoming part of the asset SDK's contract.
 The [Godot project charter](godot/CHARTER.md) defines that continuing boundary.
 
+## Workflows
+
+Each workflow is one folder under `src/stage_gen/workflows/` that makes one kind of
+deliverable. This table is checked against each folder's `workflow.toml`.
+
+<!-- workflows:begin -->
+| Workflow | Id | Promise |
+| --- | --- | --- |
+| 3D character | `character-3d` | One written brief in. One rigged, reviewed character out. |
+| Looping parallax | `looping-parallax` | Layer pictures in. Repeating layers and their scroll placement out. |
+| Movie sprite | `movie-sprite` | One character picture in. A transparent idle loop out. |
+| Portrait motion | `portrait-motion` | One finished sprite in. Eyes and mouth a game can drive separately out. |
+| Storefront | `storefront` | A game's own art and a short brief in. Store icon, stills, banner and listing copy out. |
+| Universe | `universe` | A poster, a synopsis and a direction in. A reviewed storyworld and one concept image per entity out. |
+<!-- workflows:end -->
+
 ## 3D SD characters
 
 ![Three reference illustrations above their rigged 3D characters dancing with retargeted Samba motion](.github/assets/readme/stagegen-3d-characters.gif)
