@@ -6,7 +6,7 @@ description: Develop an early game idea through conversation, a concise concept 
 # Game Concept Studio
 
 Work only inside the `concept-studio` project. The outcome is a game concept that a person can
-read and look at before paying for full game generation. It is not a Stage Gen recipe input or a
+read and look at before paying for full game generation. It is not a Stage Gen workflow input or a
 promise that the depicted game has been implemented.
 
 ## Start from the short idea
@@ -26,7 +26,7 @@ schemas, implementation plans, source code, production asset trees, or engine/ru
 Before writing an image prompt, read
 [references/style-library.md](references/style-library.md). Use it as a vocabulary and evidence
 map, not an allowlist. The concept workflow may combine or depart from its entries using concrete,
-observable visual language. Do not apply the runtime's three-mode style anchor, recipe layouts,
+observable visual language. Do not apply the runtime's three-mode style anchor, workflow layouts,
 sprite constraints, camera contracts, transparency requirements, or asset-sheet conventions.
 
 Keep rendering style, subject matter, camera/composition, production role, and adult-commercial

@@ -80,7 +80,7 @@ commits the package to melee; changing your mind afterwards means re-selecting
 the cover and re-rendering the whole player domain, not editing one line.
 
 The equipment name is only the *class* of thing. The player `prompt` still names
-the specific object, and the recipe supplies the structural direction - that it
+the specific object, and the game's graph supplies the structural direction - that it
 appears in every frame, or that it is never drawn at all. Do not repeat the
 structural direction in the prose; do name the object.
 

@@ -33,7 +33,7 @@ semantic miss.
 - A model, prompt, reference, or composition change creates a new semantic candidate.
 - Technical provider retries remain inside the shared six-attempt maximum.
 - Provider policy and moderation still apply; "unconstrained" means no repository-added creative
-  style allowlist or recipe constraints.
+  style allowlist or workflow constraints.
 
 Official references:
 
