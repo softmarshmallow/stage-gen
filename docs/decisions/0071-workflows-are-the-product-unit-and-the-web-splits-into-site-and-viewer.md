@@ -671,7 +671,7 @@ documents and package types cite.
    then `uv run python scripts/site.py build && uv run python scripts/site.py serve`.
 4. Visual QA of the site against the old showcase.
 5. Install the staged presentation copy when the presentation should show the new site.
-6. G1: bumping its stage-gen submodule breaks these, with these replacements:
+6. A downstream checkout that pins an older Stage Gen breaks on these when it updates, with these replacements:
    - `stage-gen-character` → `stage-gen run character-3d`;
    - `stage-gen-movie-sprite` → `stage-gen run movie-sprite`;
    - `stage_gen.recipes.movie_sprite_body_idle` imports → `stage_gen.workflows.movie_sprite`.
