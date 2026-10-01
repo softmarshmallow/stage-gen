@@ -9,7 +9,7 @@ place and reads the value from it, so the docs can derive from the code instead 
 asserting version strings by hand (contract rule C-R5 in ``docs/game-contract.md``).
 
 What is *not* here: a node's ``contract_version``. That is a cache key, not an identity
-(C-R1), and the cache-key goldens under ``tests/unit/recipes`` are its evidence. The
+(C-R1), and the cache-key goldens under ``tests/unit/games`` are its evidence. The
 per-port ``kind`` labels inside an execution graph are graph vocabulary and stay with
 their recipe.
 

@@ -5,7 +5,7 @@ the test says what the defect is rather than depending on a stored file. Nothing
 under this file reads a run: a gate is a pure function of bytes, and that is the
 only reason the whole set is free to execute on every gate.
 
-    uv run pytest tests/unit/recipes/oblique_survival/test_gates.py
+    uv run pytest tests/unit/games/oblique_survival/test_gates.py
 """
 
 from __future__ import annotations

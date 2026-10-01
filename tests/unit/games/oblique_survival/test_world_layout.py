@@ -8,7 +8,7 @@ quotas and shares hold, nothing overlaps, the plates agree with the record,
 an edit to one object moves only that object, and the component that lays
 the world knows none of the package's words.
 
-    uv run pytest tests/unit/recipes/oblique_survival/test_world_layout.py
+    uv run pytest tests/unit/games/oblique_survival/test_world_layout.py
 """
 
 from __future__ import annotations

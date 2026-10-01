@@ -6,7 +6,7 @@ narrow run's artifacts are paid for twice. Everything else here is the same
 question asked of one part of the package at a time -- edit this brief, and
 exactly these keys move.
 
-    uv run pytest tests/unit/recipes/oblique_survival/test_graph.py
+    uv run pytest tests/unit/games/oblique_survival/test_graph.py
 """
 
 from __future__ import annotations
@@ -67,7 +67,7 @@ from ember_hollow_pipeline.survival_types import (
 )
 from gnode import LOCAL_OPERATION, BinaryArtifact, CapabilityError, Node
 from stage_gen.config import StageGenConfig
-from tests.unit.recipes.oblique_survival._survival_fixture import (
+from tests.unit.games.oblique_survival._survival_fixture import (
     _fixture_drops,
     _fixture_splash,
     _fixture_strike,

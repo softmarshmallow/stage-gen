@@ -20,7 +20,7 @@ from scripts.write_workflow_identity import (
     SECTIONS,
     differences,
 )
-from tests.unit.recipes._cache_key_golden import assert_cache_keys_match
+from tests.support.cache_key_golden import assert_cache_keys_match
 
 GOLDEN = json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
 

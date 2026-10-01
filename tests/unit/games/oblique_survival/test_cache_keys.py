@@ -69,7 +69,7 @@ from ember_hollow_pipeline.survival_request import load_package
 from ember_hollow_pipeline.survival_types import SCOPES
 from gnode import LOCAL_OPERATION
 from stage_gen.config import StageGenConfig
-from tests.unit.recipes._cache_key_golden import assert_cache_keys_match
+from tests.support.cache_key_golden import assert_cache_keys_match
 
 REPOSITORY_ROOT: Final = Path(__file__).parents[4]
 PACKAGE: Final = REPOSITORY_ROOT / "godot/games/ember_hollow/inputs"

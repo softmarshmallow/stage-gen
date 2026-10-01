@@ -2,7 +2,7 @@
 manifest's scale arithmetic, the seam policy. The layout itself is
 ``test_world_layout.py``.
 
-    uv run pytest tests/unit/recipes/oblique_survival/test_layout.py
+    uv run pytest tests/unit/games/oblique_survival/test_layout.py
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from ember_hollow_pipeline.survival_graph import build_graph
 from ember_hollow_pipeline.survival_prompts import actor_concept_prompt
 from ember_hollow_pipeline.survival_request import load_package
 from stage_gen.config import StageGenConfig
-from tests.unit.recipes.oblique_survival._survival_fixture import write_fixture
+from tests.unit.games.oblique_survival._survival_fixture import write_fixture
 
 PACKAGE: Final = Path("godot/games/ember_hollow/inputs")
 

@@ -19,7 +19,7 @@
       "expected_state_sha256": "89514fbfa231b8d42d24ec542f902dffe2e6603cda806ec3c9c3ff3ca6e4ede5",
       "file_sha256": "606453ceffc38bfb584619700304335adaca2c7e9610e23c5daa955362a7eade",
       "observed_state_sha256": "89514fbfa231b8d42d24ec542f902dffe2e6603cda806ec3c9c3ff3ca6e4ede5",
-      "path": "tests/unit/recipes/sideview_platformer/bellweather.cache-keys.json"
+      "path": "tests/unit/games/sideview_platformer/bellweather.cache-keys.json"
     },
     {
       "check_id": "platformer_graph_contract",
@@ -33,12 +33,12 @@
       "expected_state_sha256": "a8c84cb2b23625549dc68809778f7cf584b4035786db5a1655439df14a8d3310",
       "file_sha256": "b13dde166db5719291cace6f7c879256f3e1a56611ae2a81f3a84fe03a141073",
       "observed_state_sha256": "a8c84cb2b23625549dc68809778f7cf584b4035786db5a1655439df14a8d3310",
-      "path": "tests/unit/recipes/sideview_runner/iron-petal-unit.cache-keys.json"
+      "path": "tests/unit/games/sideview_runner/iron-petal-unit.cache-keys.json"
     },
     {
       "check_id": "runner_graph_contract",
       "expected_state_sha256": "0b1c3a5c7beed3f67e5542718eef92551ca19d2f634b4e3b759c7b8799f0ec24",
-      "file_sha256": "bc0000744e3cc4b8ed6177f710e750bfa19b4cdd7dfac7803a3859e2198b287f",
+      "file_sha256": "efb25710b293b243261893f259da98afa34d4041b3cebb388b0793ced5f9e0c3",
       "observed_state_sha256": "0b1c3a5c7beed3f67e5542718eef92551ca19d2f634b4e3b759c7b8799f0ec24",
       "path": "godot/games/iron_petal_unit/docs/runner.md"
     },

@@ -10,7 +10,7 @@ from pathlib import Path
 
 from iron_petal_unit_pipeline.runner_executor import SideviewRunnerExecutor
 from stage_gen.config import StageGenConfig
-from tests.unit.recipes._cache_key_golden import assert_cache_keys_match_golden
+from tests.support.cache_key_golden import assert_cache_keys_match_golden
 
 REPOSITORY_ROOT = Path(__file__).parents[4]
 IRON_PETAL = REPOSITORY_ROOT / "godot/games/iron_petal_unit/inputs"

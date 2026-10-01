@@ -26,7 +26,7 @@ from typing import Any, cast
 
 from gnode import JsonlTraceSink, Scheduler
 from stage_gen.config import StageGenConfig
-from tests.unit.recipes.pointclick_room.fakes import FakeRoomImages, FakeRoomStructured
+from tests.unit.games.pointclick_room.fakes import FakeRoomImages, FakeRoomStructured
 from the_grain_pipeline.pointclick_room.prepared_room import PointClickRoomNodeHandler
 from the_grain_pipeline.pointclick_room.room_graph import (
     build_pointclick_room_graph,

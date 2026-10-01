@@ -3,7 +3,7 @@
 > **Scope: game consumers.** This document describes the formats used by these Godot games.
 > The public asset SDK and new games do not require this authoring format.
 
-> **Checked by:** `tests/contract/test_current_game_docs.py`, `tests/contract/test_generation_pipeline_docs.py`, `tests/unit/recipes/sideview_runner/test_execution_graph_identity.py`.
+> **Checked by:** `tests/contract/test_current_game_docs.py`, `tests/contract/test_generation_pipeline_docs.py`, `tests/unit/games/sideview_runner/test_execution_graph_identity.py`.
 
 > **Contract maturity: exact-current authored contracts.** Executable
 > authority: `godot/games/iron_petal_unit/pipeline/src/iron_petal_unit_pipeline/gameplay/`,

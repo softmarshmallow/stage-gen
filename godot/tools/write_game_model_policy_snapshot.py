@@ -74,8 +74,8 @@ UNIVERSE_DOCUMENT = "docs/spec/universe/generation-v1.md"
 SURVIVAL_DOCUMENT = "godot/games/ember_hollow/docs/generation-v1.md"
 STOREFRONT_DOCUMENT = "godot/games/ember_hollow/docs/storefront-integration.md"
 
-PLATFORMER_CACHE_GOLDEN = "tests/unit/recipes/sideview_platformer/bellweather.cache-keys.json"
-RUNNER_CACHE_GOLDEN = "tests/unit/recipes/sideview_runner/iron-petal-unit.cache-keys.json"
+PLATFORMER_CACHE_GOLDEN = "tests/unit/games/sideview_platformer/bellweather.cache-keys.json"
+RUNNER_CACHE_GOLDEN = "tests/unit/games/sideview_runner/iron-petal-unit.cache-keys.json"
 SURVIVAL_CACHE_GOLDEN = "tests/contract/fixtures/oblique_survival/ember-hollow.cache-keys.json"
 
 

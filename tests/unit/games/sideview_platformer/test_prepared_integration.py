@@ -21,7 +21,7 @@ from stage_gen.config import StageGenConfig
 from stage_gen.resources import (
     terrain_atlas_template_path,
 )
-from tests.unit.recipes.sideview_platformer.test_prepared_content import (
+from tests.unit.games.sideview_platformer.test_prepared_content import (
     BELLWEATHER,
     _FakeImageService,
     _FakeMusicService,
