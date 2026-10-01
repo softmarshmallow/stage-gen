@@ -1,17 +1,16 @@
 """``stage-gen inspect RUN``: read one run folder without services.
 
 The workflow that owns the run reads it: each workflow's ``CODE.owns_run`` is asked in
-turn. A run no workflow owns is read as an SDK run, whose plan and trace gnode joins into a
-run view. ``--verify`` recomputes what the run recorded; ``--write-view DIR`` writes the
-derived ``execution-view.json`` into ``DIR``, which is a run folder only when it names one.
+turn (``stage_gen.runs.owner_of``). A run no workflow owns is read as an SDK run, whose
+plan and trace gnode joins into a run view. ``--verify`` recomputes what the run recorded;
+``--write-view DIR`` writes the derived ``execution-view.json`` into ``DIR``, which is a run
+folder only when it names one.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-from collections.abc import Callable
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -31,36 +30,16 @@ def register(parser: argparse.ArgumentParser) -> None:
     parser.set_defaults(handler=run)
 
 
-@dataclass(frozen=True, slots=True)
-class RunOwner:
-    """The workflow that owns a run, or None for an SDK run, and its readers for it."""
-
-    workflow: str | None
-    inspect: Callable[[Path, bool], dict[str, object]]
-    write_view: Callable[[Path, Path], Path | None]
-
-
-def owner_of(run_dir: Path) -> RunOwner:
-    from stage_gen import pipeline
-    from stage_gen.workflows._registry import ViewRuns, discover, load_code
-
-    for found in discover():
-        code = load_code(found.id)
-        if code.owns_run(run_dir):
-            return RunOwner(found.id, code.inspect, code.write_view)
-    runs = ViewRuns(kinds=frozenset(), build_view=pipeline.inspect)
-    return RunOwner(None, runs.inspect, runs.write_view)
-
-
 def run(args: argparse.Namespace, stdout: TextIO) -> int:
+    from stage_gen.runs import owner_of
+
     owner = owner_of(args.run_dir)
     record: dict[str, Any] = {"workflow": owner.workflow, "run_dir": str(args.run_dir)}
     if args.write_view is not None:
         written = owner.write_view(args.run_dir, args.write_view)
         if written is None:
             raise ValueError(
-                f"{owner.workflow} runs persist no run view to write; "
-                "inspect reads their own records"
+                f"{args.run_dir} has no view to write yet; inspect reads its own records"
             )
         record["written_view"] = str(written)
     record.update(owner.inspect(args.run_dir, args.verify))

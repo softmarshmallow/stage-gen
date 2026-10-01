@@ -3,7 +3,8 @@
   "private": true,
   "version": "0.0.0",
   "exports": {
-    "./contracts/*": "./contracts/*.ts"
+    "./contracts/*": "./contracts/*.ts",
+    "./contracts/*.json": "./contracts/*.json"
   },
   "scripts": {
     "check": "tsc --noEmit",

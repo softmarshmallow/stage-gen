@@ -1,65 +1,39 @@
-// Parser for the derived execution-view.json document written by
-// `stage-gen export-view`. Wire fields are lower_snake_case; this adapter is
-// the one place they become camelCase runtime shapes.
+// Parser for the derived execution-view.json a run view is read from: the one a run
+// persists, or the one `stage-gen inspect RUN --write-view DIR` and `stage-gen view`
+// derive. Wire fields are lower_snake_case; this adapter is the one place they become
+// camelCase runtime shapes.
 //
-// Versioning is hard-drop by contract: an unknown envelope is refused with a
-// re-export instruction, never migrated. The view is derived state — the plan,
-// trace, and sidecars stay canonical — so a refused document costs one
-// re-export, not a migration.
+// Any `*-execution-view-v1` envelope at schema 3 is read, and so is gnode's own
+// `gnode-run-view-v1`, which a view joined from a plain gnode plan carries: the engine
+// owns the envelope, so pipeline and game identities are not a registry here. The header
+// fields a producer adds beside the envelope become the view's subject. Versioning is
+// hard-drop by contract: an unknown envelope is refused with a re-derive instruction,
+// never migrated. The view is derived state — the plan, trace, and sidecars stay
+// canonical — so a refused document costs one re-derivation, not a migration.
 
 import { artifactReference, parseArtifactPreview, parseLegacyMotion, type ArtifactPreview, type LegacyMotionPreview } from "./artifact-preview";
 
-/** Any authored asset pipeline, independent of built-in recipes. */
+/** Any authored asset pipeline, independent of the installed workflows. */
 export const PIPELINE_EXECUTION_VIEW_KIND = "pipeline-execution-view-v1";
 
-/** The side-view platformer recipe's view: identified by a game. */
-export const PLATFORMER_EXECUTION_VIEW_KIND =
-  "sideview-platformer-execution-view-v1";
-/** The dialogue-scene recipe's view: identified by a scene. */
-export const DIALOGUE_EXECUTION_VIEW_KIND = "dialogue-scene-execution-view-v1";
-/** The point-and-click room recipe's view: identified by a room. */
-export const POINTCLICK_EXECUTION_VIEW_KIND =
-  "pointclick-room-execution-view-v1";
-/** The infinite-runner recipe's view: identified by a game and its track. */
-export const RUNNER_EXECUTION_VIEW_KIND = "sideview-runner-execution-view-v1";
+/** gnode's own view kind, carried by a view joined from a plain gnode plan and trace. */
+export const GNODE_RUN_VIEW_KIND = "gnode-run-view-v1";
 
-/** The universe recipe's view: identified by the universe it expanded. */
-export const UNIVERSE_EXECUTION_VIEW_KIND = "universe-execution-view-v1";
-
-/** The oblique-survival recipe's view: identified by its package and scope. The
- * game itself has no browser surface (it runs on the Godot host); its run does. */
-export const SURVIVAL_EXECUTION_VIEW_KIND = "oblique-survival-execution-view-v1";
-
-/** The storefront recipe's view: identified by the storefront it drew. This is the
- * one recipe whose output is not part of a game — it is the face the game is
- * listed behind — so its run has a browser surface where its subject does not. */
-export const STOREFRONT_EXECUTION_VIEW_KIND = "storefront-execution-view-v1";
-
-/** Supported envelope versions. Pipeline identities are not a registry. */
-export const EXECUTION_VIEW_KINDS = [
-  PIPELINE_EXECUTION_VIEW_KIND,
-  PLATFORMER_EXECUTION_VIEW_KIND,
-  DIALOGUE_EXECUTION_VIEW_KIND,
-  POINTCLICK_EXECUTION_VIEW_KIND,
-  RUNNER_EXECUTION_VIEW_KIND,
-  UNIVERSE_EXECUTION_VIEW_KIND,
-  SURVIVAL_EXECUTION_VIEW_KIND,
-  STOREFRONT_EXECUTION_VIEW_KIND,
-] as const;
-
-export type ExecutionViewKind = (typeof EXECUTION_VIEW_KINDS)[number];
+/** Every graph document names its view `<word>-execution-view-v1`. */
+const EXECUTION_VIEW_KIND_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*-execution-view-v1$/;
 
 export const EXECUTION_VIEW_SCHEMA_VERSION = 3;
 
 export const EXECUTION_VIEW_REFUSAL =
-  `unsupported execution view: expected ${EXECUTION_VIEW_KINDS.join(" or ")} ` +
-  `schema_version ${EXECUTION_VIEW_SCHEMA_VERSION}; re-export this run ` +
-  "(stage-gen export-view --run out/<tag>)";
+  "unsupported execution view: expected a *-execution-view-v1 or gnode-run-view-v1 " +
+  `document at schema_version ${EXECUTION_VIEW_SCHEMA_VERSION}; derive it again ` +
+  "(stage-gen inspect RUN --write-view DIR, or demo-games export-view for a game run)";
 
-export function isExecutionViewKind(
-  value: unknown,
-): value is ExecutionViewKind {
-  return (EXECUTION_VIEW_KINDS as readonly unknown[]).includes(value);
+export function isExecutionViewKind(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    (value === GNODE_RUN_VIEW_KIND || EXECUTION_VIEW_KIND_PATTERN.test(value))
+  );
 }
 
 // What a run's own records say became of it. "unfinished" deliberately does not
@@ -276,88 +250,36 @@ export interface ExecutionViewGap {
   readonly detail: string;
 }
 
-/**
- * Who the run was for. Each recipe names its subject differently, and the view
- * kind is the discriminant: a caller labels a run without guessing which field
- * the header carries.
- */
-export type ExecutionViewSubject =
-  | {
-      readonly kind: typeof PIPELINE_EXECUTION_VIEW_KIND;
-      /** Shared UI identity; never a persisted recipe contract. */
-      readonly recipe: string;
-      readonly pipelineId: string;
-      readonly title: string;
-    }
-  | {
-      readonly kind: typeof PLATFORMER_EXECUTION_VIEW_KIND;
-      readonly recipe: string;
-      readonly gameId: string;
-    }
-  | {
-      readonly kind: typeof DIALOGUE_EXECUTION_VIEW_KIND;
-      readonly recipe: string;
-      readonly sceneId: string;
-    }
-  | {
-      readonly kind: typeof POINTCLICK_EXECUTION_VIEW_KIND;
-      readonly recipe: string;
-      readonly roomId: string;
-    }
-  | {
-      readonly kind: typeof RUNNER_EXECUTION_VIEW_KIND;
-      readonly recipe: string;
-      readonly gameId: string;
-      readonly trackId: string;
-    }
-  | {
-      readonly kind: typeof UNIVERSE_EXECUTION_VIEW_KIND;
-      readonly recipe: string;
-      readonly universeId: string;
-      /** Which of the recipe's two sealed graphs this run was. */
-      readonly phase: string;
-    }
-  | {
-      readonly kind: typeof SURVIVAL_EXECUTION_VIEW_KIND;
-      readonly recipe: string;
-      readonly packageId: string;
-      /** Which rung of the scope ladder the run drew: minimal, props, actors or full. */
-      readonly scope: string;
-    }
-  | {
-      readonly kind: typeof STOREFRONT_EXECUTION_VIEW_KIND;
-      readonly recipe: string;
-      readonly storefrontId: string;
-      /** How many surfaces the package declared, which is the whole size of the run. */
-      readonly surfaceCount: number;
-    };
+/** A header value a producer added beside the envelope. */
+export type SubjectValue = string | number | boolean;
 
-/** The one identity a run is labelled by, whichever recipe wrote it. */
+/**
+ * Who the run was for. Each producer names its subject with its own header fields —
+ * a pipeline its id and title, a graph document its `recipe` literal and its ids, a
+ * joined gnode view its graph kind — so they are kept as a map, and the few a reader
+ * groups or labels by are lifted out.
+ */
+export interface ExecutionViewSubject {
+  /** The view kind, verbatim. */
+  readonly kind: string;
+  /** The graph document's persisted `recipe` literal, when the producer has one. */
+  readonly recipe: string | null;
+  readonly pipelineId: string | null;
+  readonly title: string | null;
+  /** Every other scalar header field, by its wire name. */
+  readonly fields: Readonly<Record<string, SubjectValue>>;
+}
+
+/** The one identity a run is labelled by, whichever producer wrote it. */
 export function subjectLabel(subject: ExecutionViewSubject): string {
-  switch (subject.kind) {
-    case PIPELINE_EXECUTION_VIEW_KIND:
-      return subject.title;
-    case PLATFORMER_EXECUTION_VIEW_KIND:
-      return subject.gameId;
-    case DIALOGUE_EXECUTION_VIEW_KIND:
-      return subject.sceneId;
-    case POINTCLICK_EXECUTION_VIEW_KIND:
-      return subject.roomId;
-    case RUNNER_EXECUTION_VIEW_KIND:
-      // A runner run generates one track of one game; the track is the
-      // specific thing the run was for, so it carries the label.
-      return subject.trackId;
-    case UNIVERSE_EXECUTION_VIEW_KIND:
-      // The recipe runs one universe twice — semantic, then gallery — so the
-      // phase is what tells two runs of the same world apart in a list.
-      return `${subject.universeId} · ${subject.phase}`;
-    case SURVIVAL_EXECUTION_VIEW_KIND:
-      // One package is drawn at four widening scopes that share every node they
-      // keep, so the scope is what tells two runs of the same world apart.
-      return `${subject.packageId} · ${subject.scope}`;
-    case STOREFRONT_EXECUTION_VIEW_KIND:
-      return subject.storefrontId;
-  }
+  if (subject.title) return subject.title;
+  // A producer's ids are the specific thing the run was for (a universe and its phase,
+  // a package and its scope); counts and flags describe it rather than name it.
+  const named = Object.values(subject.fields).filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
+  if (named.length > 0) return named.join(" · ");
+  return subject.recipe ?? subject.kind;
 }
 
 export interface ExecutionView {
@@ -460,7 +382,7 @@ function nodeState(value: unknown, label: string): ExecutionNodeState {
   );
 }
 
-function artifact(value: unknown, label: string, generic = false): ExecutionViewArtifact {
+function artifact(value: unknown, label: string): ExecutionViewArtifact {
   const record = object(value, label);
   let display = record.display;
   if (
@@ -471,7 +393,9 @@ function artifact(value: unknown, label: string, generic = false): ExecutionView
     display !== "motion_atlas" &&
     display !== "video"
   ) {
-    if (!generic || typeof display !== "string" || !display.trim())
+    // The engine carries display hints as consumer-owned text; one this renderer has no
+    // view for falls back to the ordinary artifact link.
+    if (typeof display !== "string" || !display.trim())
       throw new Error(`${label}.display is invalid`);
     display = "data";
   }
@@ -564,7 +488,7 @@ function card(value: unknown, label: string): ExecutionViewCard | null {
   });
 }
 
-function node(value: unknown, label: string, generic = false): ExecutionViewNode {
+function node(value: unknown, label: string): ExecutionViewNode {
   const record = object(value, label);
   const cache = record.cache ?? null;
   if (
@@ -647,16 +571,39 @@ function node(value: unknown, label: string, generic = false): ExecutionViewNode
     blockedBy: texts(record.blocked_by ?? [], `${label}.blocked_by`),
     artifacts: Object.freeze(
       array(record.artifacts ?? [], `${label}.artifacts`).map((entry, index) =>
-        artifact(entry, `${label}.artifacts[${index}]`, generic),
+        artifact(entry, `${label}.artifacts[${index}]`),
       ),
     ),
   });
 }
 
-function subject(
-  root: Record<string, unknown>,
-  kind: ExecutionViewKind,
-): ExecutionViewSubject {
+/** The envelope's own fields; anything else in the header describes the subject. */
+const ENVELOPE_FIELDS = new Set([
+  "schema_version",
+  "kind",
+  "graph_sha256",
+  "topology_sha256",
+  "invocation_id",
+  "run_state",
+  "trace_modified_at",
+  "duration_ms",
+  "known_cost_usd",
+  "state_counts",
+  "resources",
+  "nodes",
+  "gaps",
+  "recipe",
+  "pipeline_id",
+  "title",
+]);
+
+function subject(root: Record<string, unknown>, kind: string): ExecutionViewSubject {
+  const fields: Record<string, SubjectValue> = {};
+  for (const [name, value] of Object.entries(root)) {
+    if (ENVELOPE_FIELDS.has(name)) continue;
+    if (typeof value === "string" || typeof value === "boolean") fields[name] = value;
+    else if (typeof value === "number" && Number.isFinite(value)) fields[name] = value;
+  }
   if (kind === PIPELINE_EXECUTION_VIEW_KIND) {
     const pipelineId = text(root.pipeline_id, "pipeline_id");
     const title = text(root.title, "title");
@@ -664,57 +611,15 @@ function subject(
       throw new Error("pipeline_id must be a safe identifier of at most 128 characters");
     if (!title.trim() || title.trim() !== title || title.length > 256)
       throw new Error("title must be a non-empty string of at most 256 characters");
-    return Object.freeze({ kind, recipe: pipelineId, pipelineId, title });
+    return Object.freeze({ kind, recipe: null, pipelineId, title, fields: Object.freeze(fields) });
   }
-  const recipe = text(root.recipe, "recipe");
-  switch (kind) {
-    case PLATFORMER_EXECUTION_VIEW_KIND:
-      return Object.freeze({
-        kind,
-        recipe,
-        gameId: text(root.game_id, "game_id"),
-      });
-    case DIALOGUE_EXECUTION_VIEW_KIND:
-      return Object.freeze({
-        kind,
-        recipe,
-        sceneId: text(root.scene_id, "scene_id"),
-      });
-    case POINTCLICK_EXECUTION_VIEW_KIND:
-      return Object.freeze({
-        kind,
-        recipe,
-        roomId: text(root.room_id, "room_id"),
-      });
-    case RUNNER_EXECUTION_VIEW_KIND:
-      return Object.freeze({
-        kind,
-        recipe,
-        gameId: text(root.game_id, "game_id"),
-        trackId: text(root.track_id, "track_id"),
-      });
-    case UNIVERSE_EXECUTION_VIEW_KIND:
-      return Object.freeze({
-        kind,
-        recipe,
-        universeId: text(root.universe_id, "universe_id"),
-        phase: text(root.phase, "phase"),
-      });
-    case SURVIVAL_EXECUTION_VIEW_KIND:
-      return Object.freeze({
-        kind,
-        recipe,
-        packageId: text(root.package_id, "package_id"),
-        scope: text(root.scope, "scope"),
-      });
-    case STOREFRONT_EXECUTION_VIEW_KIND:
-      return Object.freeze({
-        kind,
-        recipe,
-        storefrontId: text(root.storefront_id, "storefront_id"),
-        surfaceCount: count(root.surface_count, "surface_count"),
-      });
-  }
+  return Object.freeze({
+    kind,
+    recipe: root.recipe === undefined || root.recipe === null ? null : text(root.recipe, "recipe"),
+    pipelineId: textOrNull(root.pipeline_id, "pipeline_id"),
+    title: textOrNull(root.title, "title"),
+    fields: Object.freeze(fields),
+  });
 }
 
 export function parseExecutionView(value: unknown): ExecutionView {
@@ -737,7 +642,7 @@ export function parseExecutionView(value: unknown): ExecutionView {
   ) as Readonly<Record<ExecutionNodeState, number>>;
   const nodes = Object.freeze(
     array(root.nodes, "nodes").map((entry, index) =>
-      node(entry, `nodes[${index}]`, kind === PIPELINE_EXECUTION_VIEW_KIND),
+      node(entry, `nodes[${index}]`),
     ),
   );
   const portsByNode = new Map(

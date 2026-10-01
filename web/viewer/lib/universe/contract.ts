@@ -9,7 +9,8 @@
  * is the boundary, so nothing downstream spells a field two ways.
  *
  * The viewer reads three documents and never the graph: a gallery is finished
- * work, and the run view at /runs/<tag> already owns how it was produced.
+ * work, and the run graph at /runs/<root>/<tag>?view=graph already owns how it
+ * was produced.
  */
 
 export const GALLERY_MANIFEST_KIND = "universe-gallery-manifest-v1";

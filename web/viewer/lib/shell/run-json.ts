@@ -10,12 +10,8 @@
 
 import { constants as fsConstants, promises as fs } from "node:fs";
 import path from "node:path";
-import {
-  artifactPathFor,
-  assertSafeOutRoot,
-  isRealRunDirectory,
-  runDirFor,
-} from "./runs";
+import type { RunRef } from "./run-ref";
+import { artifactPathFor, isRealRunDirectory, runDirFor } from "./runs";
 
 async function lstatOrNull(
   target: string,
@@ -44,14 +40,13 @@ export interface RunDocumentLabels {
  * parses to null, so each caller's parser still sees exactly what was read.
  */
 export async function readRunDocument(
-  tag: string,
+  run: RunRef,
   filename: string,
   labels: RunDocumentLabels,
 ): Promise<{ document: unknown } | null> {
-  if (!(await assertSafeOutRoot())) return null;
-  if (!(await isRealRunDirectory(tag))) return null;
+  if (!(await isRealRunDirectory(run))) return null;
 
-  const filePath = artifactPathFor(tag, filename);
+  const filePath = artifactPathFor(run, filename);
   const initial = await lstatOrNull(filePath);
   if (!initial) return null;
   if (!initial.isFile() || initial.isSymbolicLink()) {
@@ -85,7 +80,7 @@ export async function readRunDocument(
   ) {
     throw new Error(`${labels.label} changed while it was being read`);
   }
-  const runDir = runDirFor(tag);
+  const runDir = runDirFor(run);
   if ((await fs.realpath(runDir)) !== path.resolve(runDir)) {
     throw new Error(
       `run directory changed while its ${labels.noun} was being read`,

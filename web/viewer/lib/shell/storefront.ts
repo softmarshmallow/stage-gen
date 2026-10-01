@@ -1,4 +1,4 @@
-// Server-side helper: read and enumerate storefront runs under out/.
+// Server-side helper: read one storefront run, wherever its root is.
 //
 // The shell is a consumer. It locates and validates paths, parses each document
 // against its own contract, and never generates: a storefront is produced by
@@ -7,7 +7,6 @@
 // A storefront publishes no runtime manifest — nothing plays it — so this
 // module locates a run by its package inventory instead of by manifest.json.
 
-import { promises as fs } from "node:fs";
 import {
   INVENTORY_KIND,
   parseInventory,
@@ -17,9 +16,9 @@ import {
   type StorefrontInventory,
   type SurfaceRecord,
 } from "@/lib/storefront/contract";
-import { EXECUTION_VIEW_FILENAME } from "./execution-view";
+import { viewLocation } from "./execution-view";
 import { readRunDocument } from "./run-json";
-import { assertSafeOutRoot, isSafeRunTag, outRoot } from "./runs";
+import type { RunRef } from "./run-ref";
 
 const INVENTORY_REF = "package/inventory.json";
 
@@ -30,9 +29,9 @@ const INVENTORY_REF = "package/inventory.json";
  * than a run this build does not read.
  */
 export async function readStorefrontInventory(
-  tag: string,
+  run: RunRef,
 ): Promise<StorefrontInventory | null> {
-  const read = await readRunDocument(tag, INVENTORY_REF, {
+  const read = await readRunDocument(run, INVENTORY_REF, {
     label: "storefront inventory",
     noun: "inventory",
   });
@@ -42,57 +41,9 @@ export async function readStorefrontInventory(
   return parseInventory(document);
 }
 
-/** One row of the storefront index: enough to choose a run, nothing more. */
-export interface StorefrontRunListEntry {
-  readonly tag: string;
-  readonly storefrontId: string;
-  readonly displayName: string;
-  readonly surfaceCount: number;
-  readonly admitted: number;
-  readonly rejected: number;
-  /** The icon, when the run drew one: the one image a list row is worth showing. */
-  readonly iconRef: string | null;
-}
-
-export async function listStorefrontRuns(): Promise<
-  readonly StorefrontRunListEntry[]
-> {
-  if (!(await assertSafeOutRoot())) return [];
-  const entries = await fs.readdir(outRoot(), { withFileTypes: true });
-  const rows: StorefrontRunListEntry[] = [];
-  await Promise.all(
-    entries.map(async (entry) => {
-      if (!entry.isDirectory()) return;
-      const tag = entry.name;
-      if (!isSafeRunTag(tag)) return;
-      try {
-        const inventory = await readStorefrontInventory(tag);
-        if (!inventory) return;
-        const icon = inventory.surfaces.find(
-          (surface) => surface.surfaceKind === "app_icon",
-        );
-        rows.push({
-          tag,
-          storefrontId: inventory.storefrontId,
-          displayName: inventory.displayName,
-          surfaceCount: inventory.surfaces.length,
-          admitted: inventory.admitted,
-          rejected: inventory.rejected,
-          iconRef: icon?.artifactRef ?? null,
-        });
-      } catch {
-        // An invalid inventory is not a listable storefront. The detail route
-        // still surfaces the refusal for anyone who addresses the tag.
-      }
-    }),
-  );
-  rows.sort((a, b) => a.tag.localeCompare(b.tag));
-  return rows;
-}
-
 /** Everything one storefront page renders from, read once on the server. */
 export interface Storefront {
-  readonly tag: string;
+  readonly run: RunRef;
   readonly inventory: StorefrontInventory;
   readonly listing: StoreListing;
   /** Records by surface id. A branch that produced none is simply absent. */
@@ -108,22 +59,22 @@ export interface Storefront {
     readonly surfaceId: string;
     readonly reason: string;
   }[];
-  /** Whether this run also carries an execution view, and so appears at /runs. */
+  /** Whether this run also carries an execution view, and so has a graph to open. */
   readonly hasExecutionView: boolean;
 }
 
 /**
- * Compose one storefront, or null when the tag is not a storefront run.
+ * Compose one storefront, or null when the run is not a storefront run.
  *
  * A missing or unreadable surface record is not fatal: the inventory already
  * carries a terminal status for every surface precisely so a storefront
  * survives the branches that failed, and the page says so per surface.
  */
-export async function readStorefront(tag: string): Promise<Storefront | null> {
-  const inventory = await readStorefrontInventory(tag);
+export async function readStorefront(run: RunRef): Promise<Storefront | null> {
+  const inventory = await readStorefrontInventory(run);
   if (!inventory) return null;
 
-  const listingRead = await readRunDocument(tag, inventory.listingRef, {
+  const listingRead = await readRunDocument(run, inventory.listingRef, {
     label: "store listing",
     noun: "listing",
   });
@@ -143,7 +94,7 @@ export async function readStorefront(tag: string): Promise<Storefront | null> {
     inventory.surfaces.map(async (surface): Promise<Attempt> => {
       const ref = `package/surfaces/${surface.surfaceId}.json`;
       try {
-        const read = await readRunDocument(tag, ref, {
+        const read = await readRunDocument(run, ref, {
           label: "storefront surface record",
           noun: "surface record",
         });
@@ -175,13 +126,10 @@ export async function readStorefront(tag: string): Promise<Storefront | null> {
       });
   }
 
-  const view = await readRunDocument(tag, EXECUTION_VIEW_FILENAME, {
-    label: "execution view",
-    noun: "execution view",
-  }).catch(() => null);
+  const view = await viewLocation(run).catch(() => null);
 
   return {
-    tag,
+    run,
     inventory,
     listing,
     records,

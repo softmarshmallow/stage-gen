@@ -728,11 +728,11 @@ The gallery MUST:
 - preserve review and publication state rather than treating file presence as
   acceptance.
 
-The existing `/universe/demo` illustrated-map route remains a specialized map
-spike. It demonstrates a possible image-space orientation projection, but its
-current manifest does not carry the universe subject, relationship, fact,
-review, and publication bindings required of a conforming consumer projection.
-A future binding or adapter MAY connect it to the canonical package; the map
+An illustrated-map route was explored as a specialized map spike and has since
+been removed from the viewer. It demonstrated a possible image-space orientation
+projection, but its manifest did not carry the universe subject, relationship,
+fact, review, and publication bindings required of a conforming consumer
+projection. A future map consumer MAY bind to the canonical package; a map
 manifest is not the root universe contract and MUST NOT be widened into one.
 Atlas, timeline, blueprint, dossier, investigation, and other refined
 experiences MAY later consume the same canonical package from their separate

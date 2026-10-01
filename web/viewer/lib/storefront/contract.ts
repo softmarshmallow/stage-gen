@@ -9,8 +9,8 @@
  * is the boundary, so nothing downstream spells a field two ways.
  *
  * The viewer reads three documents and never the graph: a finished storefront
- * is finished work, and the run view at /runs/<tag> already owns how it was
- * produced.
+ * is finished work, and the run graph at /runs/<root>/<tag>?view=graph already
+ * owns how it was produced.
  */
 
 export const INVENTORY_KIND = "storefront-inventory-v1";

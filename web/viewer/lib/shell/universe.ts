@@ -1,4 +1,4 @@
-// Server-side helper: read and enumerate universe gallery runs under out/.
+// Server-side helper: read one universe gallery run, wherever its root is.
 //
 // The shell is a consumer. It locates and validates paths, parses each
 // document against its own contract, and never generates: a gallery is
@@ -8,7 +8,6 @@
 // universe the manifest names, and one record per entity — so this module owns
 // composing them into the single value the route renders from.
 
-import { promises as fs } from "node:fs";
 import {
   type AdmittedUniverse,
   type EntityRecord,
@@ -18,10 +17,10 @@ import {
   parseEntityRecord,
   parseGalleryManifest,
 } from "@/lib/universe/contract";
-import { EXECUTION_VIEW_FILENAME } from "./execution-view";
+import { viewLocation } from "./execution-view";
 import { readRunManifestDocument } from "./manifest-io";
 import { readRunDocument } from "./run-json";
-import { assertSafeOutRoot, isSafeRunTag, outRoot } from "./runs";
+import type { RunRef } from "./run-ref";
 
 /**
  * A manifest published under any other identity is not a universe gallery
@@ -30,67 +29,16 @@ import { assertSafeOutRoot, isSafeRunTag, outRoot } from "./runs";
  * rather than a run this build does not read.
  */
 export async function readUniverseManifest(
-  tag: string,
+  run: RunRef,
 ): Promise<GalleryManifest | null> {
-  const document = await readRunManifestDocument(tag);
+  const document = await readRunManifestDocument(run);
   if (document === null || document.kind !== GALLERY_MANIFEST_KIND) return null;
   return parseGalleryManifest(document.declared);
 }
 
-/** One row of the gallery index: enough to choose a run, nothing more. */
-export interface UniverseRunListEntry {
-  readonly tag: string;
-  readonly universeId: string;
-  readonly title: string;
-  readonly mediumId: string;
-  readonly entityCount: number;
-  readonly counts: Readonly<Record<string, number>>;
-  readonly durationMs: number | null;
-  readonly knownCostUsd: number | null;
-  readonly closedInGraph: boolean;
-  /** Run-relative ref of the poster the universe was locked against. */
-  readonly poster: string;
-}
-
-export async function listUniverseRuns(): Promise<
-  readonly UniverseRunListEntry[]
-> {
-  if (!(await assertSafeOutRoot())) return [];
-  const entries = await fs.readdir(outRoot(), { withFileTypes: true });
-  const rows: UniverseRunListEntry[] = [];
-  await Promise.all(
-    entries.map(async (entry) => {
-      if (!entry.isDirectory()) return;
-      const tag = entry.name;
-      if (!isSafeRunTag(tag)) return;
-      try {
-        const manifest = await readUniverseManifest(tag);
-        if (!manifest) return;
-        rows.push({
-          tag,
-          universeId: manifest.universeId,
-          title: manifest.title,
-          mediumId: manifest.mediumId,
-          entityCount: manifest.entityCount,
-          counts: manifest.counts,
-          durationMs: manifest.durationMs,
-          knownCostUsd: manifest.knownCostUsd,
-          closedInGraph: manifest.closedInGraph,
-          poster: manifest.inputs.posterProxyPath,
-        });
-      } catch {
-        // An invalid manifest is not a listable gallery. The detail route
-        // still surfaces the refusal for anyone who addresses the tag.
-      }
-    }),
-  );
-  rows.sort((a, b) => a.tag.localeCompare(b.tag));
-  return rows;
-}
-
 /** Everything one gallery page renders from, read once on the server. */
 export interface UniverseGallery {
-  readonly tag: string;
+  readonly run: RunRef;
   readonly manifest: GalleryManifest;
   readonly universe: AdmittedUniverse;
   /** Records by entity id. A branch that produced none is simply absent. */
@@ -107,7 +55,7 @@ export interface UniverseGallery {
     readonly reason: string;
   }[];
   /**
-   * Whether this run also carries an execution view, and so appears at /runs.
+   * Whether this run also carries an execution view, and so has a graph to open.
    *
    * A gallery and a trace are separate documents: a run reconstructed from a
    * package has the first and not the second. The viewer offers the run-view
@@ -117,10 +65,10 @@ export interface UniverseGallery {
 }
 
 async function readEntityRecord(
-  tag: string,
+  run: RunRef,
   ref: string,
 ): Promise<EntityRecord | null> {
-  const read = await readRunDocument(tag, ref, {
+  const read = await readRunDocument(run, ref, {
     label: "universe entity record",
     noun: "entity record",
   });
@@ -129,19 +77,19 @@ async function readEntityRecord(
 }
 
 /**
- * Compose one gallery, or null when the tag is not a universe run.
+ * Compose one gallery, or null when the run is not a universe gallery.
  *
  * A missing or unreadable entity record is not fatal: the manifest already
  * carries a terminal status for every entity precisely so a gallery survives
  * the branches that failed, and the viewer says so per card.
  */
 export async function readUniverseGallery(
-  tag: string,
+  run: RunRef,
 ): Promise<UniverseGallery | null> {
-  const manifest = await readUniverseManifest(tag);
+  const manifest = await readUniverseManifest(run);
   if (!manifest) return null;
 
-  const read = await readRunDocument(tag, manifest.inputs.universePath, {
+  const read = await readRunDocument(run, manifest.inputs.universePath, {
     label: "admitted universe",
     noun: "admitted universe",
   });
@@ -165,7 +113,7 @@ export async function readUniverseGallery(
     manifest.entities.map(async (entry): Promise<Attempt> => {
       if (!entry.record) return null;
       try {
-        const parsed = await readEntityRecord(tag, entry.record);
+        const parsed = await readEntityRecord(run, entry.record);
         return parsed === null
           ? null
           : { ok: true, entityId: entry.entityId, record: parsed };
@@ -191,13 +139,10 @@ export async function readUniverseGallery(
       });
   }
 
-  const view = await readRunDocument(tag, EXECUTION_VIEW_FILENAME, {
-    label: "execution view",
-    noun: "execution view",
-  }).catch(() => null);
+  const view = await viewLocation(run).catch(() => null);
 
   return {
-    tag,
+    run,
     manifest,
     universe,
     records,

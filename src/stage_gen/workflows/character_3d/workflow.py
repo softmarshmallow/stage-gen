@@ -105,9 +105,26 @@ def inspect(run_dir: Path, verify: bool) -> dict[str, object]:
     return result
 
 
-def write_view(run_dir: Path, out_dir: Path) -> None:
-    """Character runs persist ``graph.json`` and ``trace.jsonl``, not a run view."""
-    del run_dir, out_dir
+def write_view(run_dir: Path, out_dir: Path) -> Path | None:
+    """A character run keeps a gnode plan and trace as ``graph.json`` and ``trace.jsonl``;
+    they are joined into a run view without the launcher. Its node types are built inside
+    the frozen implementation, so their titles come from ``workflow.toml``."""
+    from gnode import write_run_view
+    from stage_gen.runs import VIEW_FILE, join_run_view
+    from stage_gen.workflows._registry import find
+
+    if not owns_run(run_dir):
+        raise ValueError(f"{run_dir.name} is not a character-3d run")
+    trace = run_dir / "trace.jsonl"
+    view = join_run_view(
+        run_dir,
+        plan=run_dir / "graph.json",
+        traces=(trace,) if trace.is_file() else (),
+        labels=find("character-3d").manifest.labels,
+    )
+    path = out_dir / VIEW_FILE
+    write_run_view(path, view)
+    return path
 
 
 CODE = WorkflowCode(

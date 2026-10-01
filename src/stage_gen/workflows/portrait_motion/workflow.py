@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from gnode import NodeType
 from stage_gen.components.portrait_motion.face_location import locator_node_type
 from stage_gen.components.portrait_motion.nodes import portrait_motion_node_types
 from stage_gen.workflows._registry import Identity, Step, WorkflowCode, node_type_inventory
@@ -33,8 +34,12 @@ def identity() -> Identity:
     }
 
 
+def implemented_node_types() -> tuple[NodeType, ...]:
+    return (*portrait_motion_node_types(), locator_node_type())
+
+
 def implemented_types() -> frozenset[str]:
-    return frozenset(t.type_id for t in (*portrait_motion_node_types(), locator_node_type()))
+    return frozenset(t.type_id for t in implemented_node_types())
 
 
 def _plan_kind(run_dir: Path) -> str | None:
@@ -72,9 +77,50 @@ def inspect(run_dir: Path, verify: bool) -> dict[str, object]:
     return result
 
 
-def write_view(run_dir: Path, out_dir: Path) -> None:
-    """Portrait runs persist no gnode run view; the viewer lists their own record."""
-    del run_dir, out_dir
+def _portrait_run(run_dir: Path) -> Path:
+    """The folder holding the portrait graph: the run itself, or the sub-run a face-crop
+    run names in its execution record."""
+    if (run_dir / "graph.json").is_file():
+        return run_dir
+    execution = run_dir / "execution.json"
+    reference = "portrait"
+    if execution.is_file():
+        try:
+            document = json.loads(execution.read_text(encoding="utf-8"))
+        except ValueError:
+            document = None
+        named = document.get("portrait_run_ref") if isinstance(document, dict) else None
+        if isinstance(named, str) and named and ".." not in named.split("/"):
+            reference = named
+    return run_dir / reference
+
+
+def write_view(run_dir: Path, out_dir: Path) -> Path | None:
+    """A portrait run keeps its gnode plan as ``graph.json`` and one trace per invocation
+    under ``trace/``; they are joined into a run view when both exist. A run prepared but
+    never run, or one whose trace is missing, has no view, and readers list its own
+    execution record instead."""
+    from gnode import write_run_view
+    from stage_gen.runs import VIEW_FILE, join_run_view
+    from stage_gen.workflows._registry import find
+
+    if not owns_run(run_dir):
+        raise ValueError(f"{run_dir.name} is not a portrait-motion run")
+    portrait = _portrait_run(run_dir)
+    plan = portrait / "graph.json"
+    traces = sorted((portrait / "trace").glob("*.jsonl"), key=lambda trace: trace.stat().st_mtime)
+    if not plan.is_file() or not traces:
+        return None
+    view = join_run_view(
+        run_dir,
+        plan=plan,
+        traces=traces,
+        types={node_type.type_id: node_type for node_type in implemented_node_types()},
+        labels=find("portrait-motion").manifest.labels,
+    )
+    path = out_dir / VIEW_FILE
+    write_run_view(path, view)
+    return path
 
 
 CODE = WorkflowCode(

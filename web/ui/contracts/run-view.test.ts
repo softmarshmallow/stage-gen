@@ -22,7 +22,8 @@ describe("parseExecutionView", () => {
     const view = parseExecutionView(document);
     expect(view.subject.kind).toBe("pipeline-execution-view-v1");
     expect(subjectLabel(view.subject)).toBe("Material study");
-    expect(view.subject.recipe).toBe("user.tools-material-set");
+    expect(view.subject.pipelineId).toBe("user.tools-material-set");
+    expect(view.subject.recipe).toBeNull();
     expect(document.recipe).toBeUndefined();
     expect(document.game_id).toBeUndefined();
     expect(isExecutionViewKind("pipeline-execution-view-v1")).toBe(true);
@@ -32,7 +33,7 @@ describe("parseExecutionView", () => {
     expect(() => parseExecutionView({ ...pipelineExecutionViewFixture(), pipeline_id: identity })).toThrow("pipeline_id");
   });
 
-  test("generic fallback accepts unknown artifact display hints but refuses malformed artifacts", () => {
+  test("accepts unknown artifact display hints but refuses malformed artifacts", () => {
     const document = pipelineExecutionViewFixture();
     const nodes = document.nodes as Record<string, unknown>[];
     const artifact = (nodes[0].artifacts as Record<string, unknown>[])[0];
@@ -120,18 +121,22 @@ describe("parseExecutionView", () => {
     );
   });
 
-  test("isExecutionViewKind knows every carried recipe and nothing else", () => {
-    expect(isExecutionViewKind("sideview-platformer-execution-view-v1")).toBe(
-      true,
-    );
-    expect(isExecutionViewKind("dialogue-scene-execution-view-v1")).toBe(true);
-    expect(isExecutionViewKind("sideview-runner-execution-view-v1")).toBe(true);
-    expect(isExecutionViewKind("universe-execution-view-v1")).toBe(true);
-    expect(isExecutionViewKind("prepared-game-execution-view-v1")).toBe(false);
-    expect(isExecutionViewKind(3)).toBe(false);
+  test("isExecutionViewKind reads any execution-view envelope and gnode's own", () => {
+    for (const kind of [
+      "sideview-platformer-execution-view-v1",
+      "dialogue-scene-execution-view-v1",
+      "universe-execution-view-v1",
+      "a-producer-this-build-never-heard-of-execution-view-v1",
+      "gnode-run-view-v1",
+    ]) {
+      expect(isExecutionViewKind(kind)).toBe(true);
+    }
+    for (const kind of ["someone-elses-view-v1", "execution-view-v1", "Upper-execution-view-v1", 3]) {
+      expect(isExecutionViewKind(kind)).toBe(false);
+    }
   });
 
-  test("accepts the sideview-runner kind and labels it by its track", () => {
+  test("keeps every extra header field as the subject, labelled by its ids", () => {
     const document = {
       ...executionViewFixture(),
       kind: "sideview-runner-execution-view-v1",
@@ -141,14 +146,11 @@ describe("parseExecutionView", () => {
     const view = parseExecutionView(document);
     expect(view.subject.kind).toBe("sideview-runner-execution-view-v1");
     expect(view.subject.recipe).toBe("sideview-runner");
-    expect(subjectLabel(view.subject)).toBe("sunpetal-sprint");
-    if (view.subject.kind !== "sideview-runner-execution-view-v1") {
-      throw new Error("unreachable");
-    }
-    expect(view.subject.gameId).toBe("bellweather");
+    expect(view.subject.fields).toEqual({ game_id: "bellweather", track_id: "sunpetal-sprint" });
+    expect(subjectLabel(view.subject)).toBe("bellweather · sunpetal-sprint");
   });
 
-  test("accepts the universe kind and labels it by universe and phase", () => {
+  test("labels a universe run by universe and phase", () => {
     const document = {
       ...executionViewFixture(),
       kind: "universe-execution-view-v1",
@@ -156,34 +158,33 @@ describe("parseExecutionView", () => {
       universe_id: "lantern_ferry",
       phase: "gallery",
     };
+    delete (document as Record<string, unknown>).game_id;
     const view = parseExecutionView(document);
-    expect(view.subject.kind).toBe("universe-execution-view-v1");
     // One universe runs twice — semantic, then gallery — so the phase is what
     // tells two runs of the same world apart in the list.
     expect(subjectLabel(view.subject)).toBe("lantern_ferry · gallery");
-    if (view.subject.kind !== "universe-execution-view-v1") {
-      throw new Error("unreachable");
-    }
-    expect(view.subject.universeId).toBe("lantern_ferry");
+    expect(view.subject.fields.universe_id).toBe("lantern_ferry");
   });
 
-  test("refuses a universe view missing its phase", () => {
-    const document = {
+  test("labels by ids, not counts, and reads a joined gnode view by its graph kind", () => {
+    const storefront = parseExecutionView({
       ...executionViewFixture(),
-      kind: "universe-execution-view-v1",
-      recipe: "universe",
-      universe_id: "lantern_ferry",
-    };
-    expect(() => parseExecutionView(document)).toThrow(/phase/);
-  });
+      kind: "storefront-execution-view-v1",
+      recipe: "storefront",
+      game_id: undefined,
+      storefront_id: "quiet_orbit",
+      surface_count: 4,
+    });
+    expect(subjectLabel(storefront.subject)).toBe("quiet_orbit");
+    expect(storefront.subject.fields.surface_count).toBe(4);
 
-  test("refuses a runner view missing its track identity", () => {
-    const document = {
-      ...executionViewFixture(),
-      kind: "sideview-runner-execution-view-v1",
-      recipe: "sideview-runner",
-    };
-    expect(() => parseExecutionView(document)).toThrow("track_id");
+    const joined = { ...executionViewFixture(), kind: "gnode-run-view-v1" } as Record<string, unknown>;
+    delete joined.recipe;
+    delete joined.game_id;
+    joined.graph_kind = "contained-character-parts-to-rig-v1";
+    const view = parseExecutionView(joined);
+    expect(view.subject.recipe).toBeNull();
+    expect(subjectLabel(view.subject)).toBe("contained-character-parts-to-rig-v1");
   });
 
   test("keeps unfinished and failed states distinct", () => {
@@ -218,7 +219,7 @@ describe("parseExecutionView", () => {
       kind: "prepared-game-execution-view-v1",
     };
     expect(() => parseExecutionView(v2)).toThrow(EXECUTION_VIEW_REFUSAL);
-    expect(() => parseExecutionView(v2)).toThrow("re-export this run");
+    expect(() => parseExecutionView(v2)).toThrow("derive it again");
   });
 
   test("carries a text artifact through as its own display", () => {
@@ -242,14 +243,14 @@ describe("parseExecutionView", () => {
     expect(view.nodes[1].artifacts[0].mediaType).toBe("text/markdown");
   });
 
-  test("refuses a display outside the declared vocabulary", () => {
+  test("reads a display hint it has no view for as data, and refuses a missing one", () => {
+    // The engine carries display hints as consumer text; any producer may add one.
     const document = executionViewFixture();
     const nodes = document.nodes as Record<string, unknown>[];
     const artifacts = nodes[1].artifacts as Record<string, unknown>[];
-    nodes[1] = {
-      ...nodes[1],
-      artifacts: [{ ...artifacts[0], display: "hologram" }],
-    };
+    nodes[1] = { ...nodes[1], artifacts: [{ ...artifacts[0], display: "hologram" }] };
+    expect(parseExecutionView(document).nodes[1].artifacts[0].display).toBe("data");
+    nodes[1] = { ...nodes[1], artifacts: [{ ...artifacts[0], display: " " }] };
     expect(() => parseExecutionView(document)).toThrow("display is invalid");
   });
 

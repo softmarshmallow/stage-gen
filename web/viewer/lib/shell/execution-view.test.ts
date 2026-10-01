@@ -1,90 +1,89 @@
-import { describe, expect, test } from "bun:test";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdir, mkdtemp, readdir, realpath, rm, utimes, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   dialogueExecutionViewFixture,
   pipelineExecutionViewFixture,
-  executionViewFixture,
 } from "@stage-gen/ui/contracts/run-view.test-fixtures";
-import {
-  EXECUTION_VIEW_FILENAME,
-  listExecutionViewRuns,
-} from "./execution-view";
-import { runDirFor } from "./runs";
+import { EXECUTION_VIEW_FILENAME, readExecutionView } from "./execution-view";
+import { runRoots, viewKey } from "./runs";
 
-async function withRun(
-  tag: string,
-  document: unknown,
-  body: () => Promise<void>,
-): Promise<void> {
-  const runDir = runDirFor(tag);
-  await mkdir(runDir, { recursive: true });
-  try {
-    await writeFile(
-      path.join(runDir, EXECUTION_VIEW_FILENAME),
-      JSON.stringify(document),
-      "utf8",
-    );
-    await body();
-  } finally {
-    await rm(runDir, { recursive: true, force: true });
+const saved = {
+  STAGE_GEN_RUN_ROOTS: process.env.STAGE_GEN_RUN_ROOTS,
+  STAGE_GEN_VIEW_CACHE: process.env.STAGE_GEN_VIEW_CACHE,
+};
+const scratch: string[] = [];
+
+afterEach(async () => {
+  for (const [name, value] of Object.entries(saved)) {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
   }
+  await Promise.all(scratch.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
+});
+
+/** A root with one run folder, a view cache beside it, and the run's name. */
+async function setUp(): Promise<{ runDir: string; cache: string; run: { root: string; tag: string } }> {
+  const base = await realpath(await mkdtemp(path.join(tmpdir(), "stage-gen-views-")));
+  scratch.push(base);
+  const root = path.join(base, "out");
+  const runDir = path.join(root, "nested", "run-01");
+  await mkdir(runDir, { recursive: true });
+  process.env.STAGE_GEN_RUN_ROOTS = root;
+  process.env.STAGE_GEN_VIEW_CACHE = path.join(base, "views");
+  return { runDir, cache: path.join(base, "views"), run: { root: runRoots()[0].key, tag: "nested~run-01" } };
 }
 
-describe("execution view discovery", () => {
-  test("discovers a user pipeline without a built-in recipe or game document", async () => {
-    const tag = `custom-pipeline-${process.pid}`;
-    await withRun(tag, pipelineExecutionViewFixture(), async () => {
-      const entry = (await listExecutionViewRuns()).find((listed) => listed.tag === tag);
-      expect(entry?.label).toBe("Material study");
-      expect(entry?.unreadable).toBe(false);
-      expect(entry?.nodeCount).toBe(4);
-    });
+async function writeView(file: string, document: unknown, secondsAgo: number): Promise<void> {
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, JSON.stringify(document), "utf8");
+  const stamp = new Date(Date.now() - secondsAgo * 1000);
+  await utimes(file, stamp, stamp);
+}
+
+describe("execution view source", () => {
+  test("reads the run's own view when the cache has none", async () => {
+    const { runDir, run } = await setUp();
+    await writeView(path.join(runDir, EXECUTION_VIEW_FILENAME), pipelineExecutionViewFixture(), 10);
+    const read = await readExecutionView(run);
+    expect(read?.source).toBe("run");
+    expect(read?.view.subject.title).toBe("Material study");
   });
 
-  test("lists a platformer run under the game its header names", async () => {
-    const tag = `platformer-view-kind-${process.pid}`;
-    await withRun(tag, executionViewFixture(), async () => {
-      const entry = (await listExecutionViewRuns()).find((listed) => listed.tag === tag);
-      expect(entry?.unreadable).toBe(false);
-      expect(entry?.label).toBe("bellweather");
-      expect(entry?.nodeCount).toBe(4);
-    });
+  test("falls back to the view stage-gen view derived into its cache when it is newer", async () => {
+    const { runDir, cache, run } = await setUp();
+    await writeView(path.join(runDir, EXECUTION_VIEW_FILENAME), pipelineExecutionViewFixture(), 60);
+    await writeView(path.join(cache, viewKey(runDir), EXECUTION_VIEW_FILENAME), dialogueExecutionViewFixture(), 5);
+    const read = await readExecutionView(run);
+    expect(read?.source).toBe("cache");
+    expect(read?.view.subject.kind).toBe("dialogue-scene-execution-view-v1");
+    // Reading never writes into the run.
+    expect(await readdir(runDir)).toEqual([EXECUTION_VIEW_FILENAME]);
   });
 
-  test("lists a dialogue run too, labelled by its scene", async () => {
-    // Two recipes, two view kinds, one list. A dialogue run used to be skipped
-    // as "someone else's document"; it is this build's document now.
-    const tag = `dialogue-view-kind-${process.pid}`;
-    await withRun(tag, dialogueExecutionViewFixture(), async () => {
-      const entry = (await listExecutionViewRuns()).find((listed) => listed.tag === tag);
-      expect(entry?.unreadable).toBe(false);
-      expect(entry?.label).toBe("mio-researcher-424f93ae7637");
-      expect(entry?.runState).toBe("succeeded");
-    });
+  test("prefers the run's view when it is the newer one, and reads a cache-only run", async () => {
+    const { runDir, cache, run } = await setUp();
+    await writeView(path.join(cache, viewKey(runDir), EXECUTION_VIEW_FILENAME), dialogueExecutionViewFixture(), 60);
+    expect((await readExecutionView(run))?.source).toBe("cache");
+    await writeView(path.join(runDir, EXECUTION_VIEW_FILENAME), pipelineExecutionViewFixture(), 5);
+    expect((await readExecutionView(run))?.source).toBe("run");
   });
 
-  test("lists unsupported envelopes as unreadable instead of hiding the run", async () => {
-    const tag = `alien-view-kind-${process.pid}`;
-    await withRun(
-      tag,
-      { schema_version: 3, kind: "3d/isometric-execution-view-v1", recipe: "isometric" },
-      async () => {
-        expect((await listExecutionViewRuns()).find((entry) => entry.tag === tag)?.unreadable).toBe(true);
-      },
+  test("without a view cache only the run's own view is read", async () => {
+    const { runDir, cache, run } = await setUp();
+    await writeView(path.join(cache, viewKey(runDir), EXECUTION_VIEW_FILENAME), dialogueExecutionViewFixture(), 5);
+    delete process.env.STAGE_GEN_VIEW_CACHE;
+    expect(await readExecutionView(run)).toBeNull();
+  });
+
+  test("a refused document throws the re-derive message instead of hiding the run", async () => {
+    const { runDir, run } = await setUp();
+    await writeView(
+      path.join(runDir, EXECUTION_VIEW_FILENAME),
+      { ...pipelineExecutionViewFixture(), schema_version: 2 },
+      5,
     );
-  });
-
-  test("lists a view this build refuses so the operator sees the re-export need", async () => {
-    const tag = `stale-view-kind-${process.pid}`;
-    await withRun(
-      tag,
-      { schema_version: 2, kind: "sideview-platformer-execution-view-v1" },
-      async () => {
-        const entry = (await listExecutionViewRuns()).find((listed) => listed.tag === tag);
-        expect(entry?.unreadable).toBe(true);
-        expect(entry?.label).toBeNull();
-      },
-    );
+    await expect(readExecutionView(run)).rejects.toThrow("derive it again");
   });
 });

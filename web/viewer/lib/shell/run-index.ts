@@ -1,109 +1,266 @@
-// The run index: every run under out/, listed by the document it published.
+// The run index: every run under every root, with what it is and how it stands.
 //
-// This is the viewer's own reader, and it is deliberately shallow. It opens
-// whichever published document a run carries and takes exactly
-// two fields — `kind` and `schema_version` — because those are what say *what*
-// the run is. It parses nothing else: a run's gameplay contract belongs to the
-// host that plays it, and a viewer that learned to read one would be a second
-// implementation of that genre (decision 0061).
+// This is the viewer's own reader, and it is deliberately shallow. From a run's anchor
+// document it takes only the fields that say what wrote it — `kind`, `schema_version`,
+// `pipeline_id`, `recipe` — and from its view only the run-level summary. It parses no
+// gameplay contract: a run's gameplay belongs to the host that plays it, and a viewer
+// that learned to read one would be a second implementation of that genre (decision
+// 0061). Which workflow a run belongs to is decided from those fields and the catalog
+// (lib/run-groups.ts).
 //
-// The index existed before as four genre readers, one per playable kind, each
-// importing that genre's parser to find a title and a cover. That coupled the
-// front page to every runtime: adding a genre meant editing the index, and
-// removing one broke it. What the index actually needs is a tag, a kind, and
-// whether there is anything to open.
+// Parsed summaries are kept per file and modification time, so a page that lists
+// hundreds of runs re-reads only the ones that changed since the last request.
 
 import { promises as fs } from "node:fs";
+import path from "node:path";
+import {
+  type ExecutionNodeState,
+  type ExecutionRunState,
+  subjectLabel,
+} from "@stage-gen/ui/contracts/run-view";
+import type { RunIdentity } from "@/lib/run-groups";
+import { readExecutionView, type ViewSource, viewLocation } from "./execution-view";
 import { readRunDocument } from "./run-json";
-import { assertSafeOutRoot, isSafeRunTag, outRoot } from "./runs";
+import type { RunRef } from "./run-ref";
+import { type FoundRun, discoverRuns, runDirFor } from "./runs";
 
-/** Historical consumer documents, followed by the generic pipeline view. */
-export const RUN_DOCUMENTS = ["manifest.json", "bundle.json", "case.json", "execution-view.json"] as const;
-export type RunDocumentName = (typeof RUN_DOCUMENTS)[number];
+/** The documents that say what a run is, in the order the index asks them. */
+export const ANCHOR_DOCUMENTS = [
+  "execution-plan.json",
+  "graph.json",
+  "plan.json",
+  "manifest.json",
+  "bundle.json",
+  "case.json",
+  "execution-view.json",
+] as const;
 
-export const EXECUTION_VIEW_FILENAME = "execution-view.json";
+/** Files whose change is the run changing: plans, traces, records and views. */
+const UPDATE_FILES = [
+  "execution-plan.json",
+  "execution-trace.jsonl",
+  "execution-view.json",
+  "graph.json",
+  "trace.jsonl",
+  "summary.json",
+  "plan.json",
+  "execution.json",
+  "manifest.json",
+  "bundle.json",
+  "case.json",
+] as const;
+
+/** What a run's view says about the whole run. */
+export interface ViewSummary {
+  readonly source: ViewSource;
+  readonly runState: ExecutionRunState;
+  readonly traceModifiedAt: string | null;
+  readonly label: string;
+  readonly nodeCount: number;
+  readonly stateCounts: Readonly<Record<ExecutionNodeState, number>>;
+  readonly durationMs: number | null;
+  readonly knownCostUsd: number | null;
+  readonly kind: string;
+  readonly recipe: string | null;
+  readonly pipelineId: string | null;
+  readonly graphKind: string | null;
+}
 
 export interface RunIndexEntry {
-  readonly tag: string;
-  /** Which document the run published, or null when it carries none. */
-  readonly document: RunDocumentName | null;
-  /** The document's `kind`, verbatim, or null when it declares none. */
-  readonly kind: string | null;
-  /** The document's `schema_version`, verbatim, or null. */
+  readonly run: RunRef;
+  readonly rootLabel: string;
+  readonly relative: string;
+  readonly identity: RunIdentity;
   readonly schemaVersion: number | null;
-  /** Whether the run carries a derived execution view the viewer can render. */
-  readonly hasExecutionView: boolean;
+  /** The view's summary, or null when the run has none in the run folder or the cache. */
+  readonly view: ViewSummary | null;
+  /** Why the view this build found was refused, so a reader sees the re-derive need. */
+  readonly viewRefusal: string | null;
+  /** What the run's own record says when there is no view: a status, or ok/failed. */
+  readonly recordState: string | null;
+  /** When any of the run's documents last changed, in UTC. */
+  readonly updatedAt: string | null;
 }
 
-async function exists(target: string): Promise<boolean> {
-  try {
-    await fs.stat(target);
-    return true;
-  } catch {
-    return false;
-  }
+interface Anchor {
+  readonly document: string | null;
+  readonly kind: string | null;
+  readonly schemaVersion: number | null;
+  readonly pipelineId: string | null;
+  readonly recipe: string | null;
 }
+
+const NO_ANCHOR: Anchor = {
+  document: null,
+  kind: null,
+  schemaVersion: null,
+  pipelineId: null,
+  recipe: null,
+};
 
 /**
- * Read one run's identity: which document it published, and what that document
- * says it is. A document that is unreadable or is not a JSON object leaves the
- * kind null rather than throwing — the index lists the run either way, because
- * a run the viewer cannot identify is exactly the run an operator wants to see.
+ * A file directly inside a run folder. Written as a template rather than path.join: the
+ * bundler traces a joined path as if it could reach any file of the project.
  */
-export async function readRunIdentity(tag: string): Promise<RunIndexEntry> {
-  const runDir = `${outRoot()}/${tag}`;
-  for (const document of RUN_DOCUMENTS) {
-    if (!(await exists(`${runDir}/${document}`))) continue;
-    let kind: string | null = null;
-    let schemaVersion: number | null = null;
-    try {
-      const read = await readRunDocument(tag, document, {
-        label: "run document",
-        noun: "document",
-      });
-      const body = read?.document;
-      if (body !== null && typeof body === "object") {
-        const declared = body as { kind?: unknown; schema_version?: unknown };
-        if (typeof declared.kind === "string") kind = declared.kind;
-        if (typeof declared.schema_version === "number") {
-          schemaVersion = declared.schema_version;
-        }
-      }
-    } catch {
-      // Unreadable or refused: the run is still listed, with no identity.
-    }
-    return {
-      tag,
-      document,
-      kind,
-      schemaVersion,
-      hasExecutionView: await exists(`${runDir}/${EXECUTION_VIEW_FILENAME}`),
-    };
+function inRun(runDir: string, name: string): string {
+  return `${runDir}${path.sep}${name}`;
+}
+
+const memo = new Map<string, { readonly stamp: string; readonly value: unknown }>();
+
+async function stampOf(file: string): Promise<string | null> {
+  try {
+    const stat = await fs.lstat(file);
+    return stat.isFile() ? `${stat.mtimeMs}:${stat.size}` : null;
+  } catch {
+    return null;
   }
+}
+
+/** Compute once per file version; the key names both the file and what is taken from it. */
+async function remembered<T>(key: string, file: string, compute: () => Promise<T>): Promise<T> {
+  const stamp = await stampOf(file);
+  const known = memo.get(key);
+  if (stamp !== null && known?.stamp === stamp) return known.value as T;
+  const value = await compute();
+  if (stamp !== null) memo.set(key, { stamp, value });
+  return value;
+}
+
+function textField(document: Record<string, unknown>, name: string): string | null {
+  return typeof document[name] === "string" ? (document[name] as string) : null;
+}
+
+async function readAnchor(run: RunRef, runDir: string): Promise<Anchor> {
+  for (const name of ANCHOR_DOCUMENTS) {
+    const file = inRun(runDir, name);
+    if ((await stampOf(file)) === null) continue;
+    return remembered(`anchor\0${file}`, file, async () => {
+      try {
+        const read = await readRunDocument(run, name, { label: "run document", noun: "document" });
+        const body = read?.document;
+        if (body === null || typeof body !== "object" || Array.isArray(body)) {
+          return { ...NO_ANCHOR, document: name };
+        }
+        const declared = body as Record<string, unknown>;
+        return {
+          document: name,
+          kind: textField(declared, "kind"),
+          schemaVersion: typeof declared.schema_version === "number" ? declared.schema_version : null,
+          pipelineId: textField(declared, "pipeline_id"),
+          recipe: textField(declared, "recipe"),
+        };
+      } catch {
+        // Unreadable or refused: the run is still listed, with no identity.
+        return { ...NO_ANCHOR, document: name };
+      }
+    });
+  }
+  return NO_ANCHOR;
+}
+
+type ViewRead = { readonly view: ViewSummary | null; readonly refusal: string | null };
+
+async function readViewSummary(run: RunRef): Promise<ViewRead> {
+  const location = await viewLocation(run).catch(() => null);
+  if (location === null) return { view: null, refusal: null };
+  return remembered(`view\0${location.file}`, location.file, async (): Promise<ViewRead> => {
+    try {
+      const read = await readExecutionView(run);
+      if (read === null) return { view: null, refusal: null };
+      const { view, source } = read;
+      const graphKind = view.subject.fields.graph_kind;
+      return {
+        view: {
+          source,
+          runState: view.runState,
+          traceModifiedAt: view.traceModifiedAt,
+          label: subjectLabel(view.subject),
+          nodeCount: view.nodes.length,
+          stateCounts: view.stateCounts,
+          durationMs: view.durationMs,
+          knownCostUsd: view.knownCostUsd,
+          kind: view.subject.kind,
+          recipe: view.subject.recipe,
+          pipelineId: view.subject.pipelineId,
+          graphKind: typeof graphKind === "string" ? graphKind : null,
+        },
+        refusal: null,
+      };
+    } catch (error) {
+      return { view: null, refusal: error instanceof Error ? error.message : String(error) };
+    }
+  });
+}
+
+/** A character run's summary says ok; a portrait run's execution record says its status. */
+async function readRecordState(run: RunRef, runDir: string): Promise<string | null> {
+  for (const [name, field] of [
+    ["execution.json", "status"],
+    ["summary.json", "ok"],
+  ] as const) {
+    const file = inRun(runDir, name);
+    if ((await stampOf(file)) === null) continue;
+    return remembered(`record\0${file}`, file, async () => {
+      try {
+        const read = await readRunDocument(run, name, { label: "run record", noun: "record" });
+        const value = (read?.document as Record<string, unknown> | null)?.[field];
+        if (typeof value === "boolean") return value ? "succeeded" : "failed";
+        return typeof value === "string" ? value : null;
+      } catch {
+        return null;
+      }
+    });
+  }
+  return null;
+}
+
+async function updatedAt(runDir: string): Promise<string | null> {
+  const stamps = await Promise.all(
+    UPDATE_FILES.map(async (name) => {
+      try {
+        return (await fs.stat(inRun(runDir, name))).mtimeMs;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  const present = stamps.filter((stamp): stamp is number => stamp !== null);
+  return present.length ? new Date(Math.max(...present)).toISOString() : null;
+}
+
+/** One run's index entry. */
+export async function readRunEntry(found: FoundRun): Promise<RunIndexEntry> {
+  const runDir = runDirFor(found.run);
+  const [anchor, viewRead, recordState, updated] = await Promise.all([
+    readAnchor(found.run, runDir),
+    readViewSummary(found.run),
+    readRecordState(found.run, runDir),
+    updatedAt(runDir),
+  ]);
+  const view = viewRead.view;
   return {
-    tag,
-    document: null,
-    kind: null,
-    schemaVersion: null,
-    hasExecutionView: await exists(`${runDir}/${EXECUTION_VIEW_FILENAME}`),
+    run: found.run,
+    rootLabel: found.root.label,
+    relative: found.relative,
+    identity: {
+      document: anchor.document,
+      kind: anchor.kind,
+      pipelineId: anchor.pipelineId ?? view?.pipelineId ?? null,
+      recipe: anchor.recipe ?? view?.recipe ?? null,
+      viewKind: view?.kind ?? null,
+      graphKind: view?.graphKind ?? null,
+    },
+    schemaVersion: anchor.schemaVersion,
+    view,
+    viewRefusal: viewRead.refusal,
+    recordState,
+    updatedAt: updated,
   };
 }
 
-/**
- * Every run under out/ that published a document or a view, newest tag first.
- *
- * A directory with neither is not a run this viewer has anything to say about —
- * a scratch directory, an interrupted generate — and is skipped.
- */
+/** Every run under every root, in discovery order. */
 export async function listRuns(): Promise<RunIndexEntry[]> {
-  if (!(await assertSafeOutRoot())) return [];
-  const entries = await fs.readdir(outRoot(), { withFileTypes: true });
-  const found = await Promise.all(
-    entries
-      .filter((entry) => entry.isDirectory() && isSafeRunTag(entry.name))
-      .map((entry) => readRunIdentity(entry.name)),
-  );
-  return found
-    .filter((entry) => entry.document !== null || entry.hasExecutionView)
-    .sort((a, b) => b.tag.localeCompare(a.tag));
+  const found = await discoverRuns();
+  return Promise.all(found.map(readRunEntry));
 }

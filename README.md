@@ -103,7 +103,7 @@ outside any graph. See [provider setup](docs/models/providers.md).
 
 ## Inspect outputs and consume assets
 
-The [web viewer](docs/web-viewer.md) reads completed or running output directories.
+The [viewer](docs/viewer.md), opened with `stage-gen view`, reads completed or running run folders.
 Generic media and metadata stay inspectable without a built-in recipe identity;
 bounded inspectors can understand parallax or animation metadata.
 

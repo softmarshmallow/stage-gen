@@ -1,194 +1,150 @@
-// Home (root URL).
+// Home (root URL): every run under every root `stage-gen view` was given, grouped by the
+// workflow that made it.
 //
-// The viewer's index over out/: every run the pipeline published, what each
-// one is, and where to open it. Generation happens in the headless CLI;
-// nothing on this page starts a run, and nothing on it plays one.
-//
-// It used to ask four genre readers for their runs, each importing that
-// genre's parser for a title and a cover, which made the front page a consumer
-// of every runtime at once. It now reads one field — the document's `kind` —
-// through `listRuns`, and knows nothing else about what a run contains.
-//
-// It also used to hold a table of the kinds a browser surface could still
-// play, which shrank as each genre landed its Godot host (decision 0061). The
-// platformer was the last row, and the table left with it: no run is playable
-// from here, and a reader who wants to play one runs the host.
+// Each installed workflow leads with its title and promise from the catalog and a link
+// to its page, where its offline plan and the commands to run it are. Under it, its runs,
+// newest first, each with how it stands and when it last changed; the page refreshes
+// itself while any run is live. Runs no workflow claims follow: game runs, whose views
+// their game exports, and other runs. Generation happens in the headless CLI; nothing on
+// this page starts a run, and nothing on it plays one.
 
 import Link from "next/link";
+import { runLiveness } from "@stage-gen/ui/contracts/run-view";
+import type { CatalogWorkflow } from "@stage-gen/ui/contracts/catalog";
+import LiveRefresh from "./LiveRefresh";
+import RunList from "./RunList";
+import { groupRuns } from "@/lib/run-groups";
+import { readCatalog } from "@/lib/shell/catalog";
 import { listRuns, type RunIndexEntry } from "@/lib/shell/run-index";
-import { listStorefrontRuns } from "@/lib/shell/storefront";
-import { listUniverseRuns } from "@/lib/shell/universe";
-import {
-  cx,
-  h1,
-  linkGhost,
-  metaLine,
-  page,
-  playActive,
-  playSizeCompact,
-} from "./ui";
+import { runRoots } from "@/lib/shell/runs";
+import { cx, errorBanner, h1, linkGhost, metaLine, page } from "./ui";
 
 export const dynamic = "force-dynamic";
 
-/** What a run says it is, for the reader: the kind, or why there is none. */
-function identity(entry: RunIndexEntry): string {
-  if (entry.kind) {
-    return entry.schemaVersion === null
-      ? entry.kind
-      : `${entry.kind} · schema ${entry.schemaVersion}`;
-  }
-  if (entry.document) return `${entry.document} · declares no kind`;
-  return "no published document";
+function firstRun(workflow: CatalogWorkflow): string | null {
+  const commands = workflow.manifest.tryIt?.commands ?? [];
+  return commands.find((command) => /(?:^|\s)stage-gen run /.test(command)) ?? commands[0] ?? null;
 }
 
-function RunRow({ entry }: { entry: RunIndexEntry }) {
+function WorkflowSection({
+  workflow,
+  runs,
+  now,
+}: {
+  workflow: CatalogWorkflow;
+  runs: readonly RunIndexEntry[];
+  now: number;
+}) {
+  const live = runs.filter((entry) => entry.view && runLiveness(entry.view, now) === "running");
+  const command = firstRun(workflow);
   return (
-    <li className="grid grid-cols-[1fr_auto] items-center gap-3 border border-border px-2.5 py-1.5 hover:border-fg">
-      <div className="min-w-0">
-        <div className="truncate text-[13px] text-fg">{entry.tag}</div>
-        <div className="mt-0.5 truncate text-[11px] text-dim">
-          {identity(entry)}
+    <section id={workflow.id} className="mt-7">
+      <div className="mb-2 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="m-0 text-[13px] font-semibold text-fg">
+            {workflow.manifest.title}
+            <span className="font-normal text-dim">
+              {" "}
+              · {workflow.id} · {runs.length} run{runs.length === 1 ? "" : "s"}
+              {live.length > 0 ? ` · ${live.length} running` : ""}
+            </span>
+          </h2>
+          <p className="m-0 mt-0.5 text-xs text-dim">{workflow.manifest.promise}</p>
         </div>
+        <Link className={cx(linkGhost, "shrink-0")} href={`/workflows/${workflow.id}`}>
+          [ ⌕ plan &amp; commands ]
+        </Link>
       </div>
-      <div className="flex items-center gap-1.5">
-        {entry.hasExecutionView ? (
-          <Link
-            className={linkGhost}
-            href={`/runs/${encodeURIComponent(entry.tag)}`}
-          >
-            [ ⌕ run ]
-          </Link>
-        ) : null}
-        {entry.hasExecutionView ? (
-          <Link
-            className={linkGhost}
-            href={`/runs/${encodeURIComponent(entry.tag)}/artifacts`}
-          >
-            [ ⌕ assets ]
-          </Link>
-        ) : null}
-      </div>
-    </li>
+      {runs.length > 0 ? (
+        <RunList runs={runs} now={now} />
+      ) : (
+        <p className={cx(metaLine, "border-t border-border pt-1.5")}>
+          No runs under these roots yet.
+          {command ? (
+            <>
+              {" "}
+              Try <code className="text-fg">{command}</code>
+            </>
+          ) : null}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function UnclaimedSection({
+  title,
+  note,
+  runs,
+  game = false,
+  now,
+}: {
+  title: string;
+  note: string;
+  runs: readonly RunIndexEntry[];
+  game?: boolean;
+  now: number;
+}) {
+  if (runs.length === 0) return null;
+  return (
+    <details className="mt-7">
+      <summary className="cursor-pointer text-[13px] font-semibold text-fg">
+        {title}
+        <span className="font-normal text-dim"> · {runs.length}</span>
+      </summary>
+      <p className={cx(metaLine, "mt-1")}>{note}</p>
+      <RunList runs={runs} game={game} now={now} />
+    </details>
   );
 }
 
 export default async function Home() {
-  const [runs, universes, storefronts] = await Promise.all([
-    listRuns(),
-    listUniverseRuns(),
-    listStorefrontRuns(),
-  ]);
-  const withView = runs.filter((entry) => entry.hasExecutionView).length;
+  const [runs, catalogRead] = await Promise.all([listRuns(), readCatalog()]);
+  const roots = runRoots();
+  const groups = groupRuns(runs, catalogRead.catalog);
+  // One clock for the whole page, read on the server: liveness is a judgement about
+  // right now, but it must be the same "now" for every row.
+  const now = Date.now();
+  const live = runs.some((entry) => entry.view && runLiveness(entry.view, now) === "running");
   return (
     <main className={page}>
+      <LiveRefresh live={live} />
       <h1 className={h1}>stage-gen</h1>
-      <p className={cx(metaLine, "mb-5")}>
-        the run viewer over <code>out/</code> · generation runs headlessly ·
-        games are played by their Godot host
+      <p className={metaLine}>
+        the local viewer · {runs.length} run{runs.length === 1 ? "" : "s"} under{" "}
+        {roots.map((root, index) => (
+          <span key={root.key}>
+            {index > 0 ? ", " : ""}
+            <code title={root.dir}>{root.label}</code>
+          </span>
+        ))}{" "}
+        · read-only: nothing here starts a run
+        {live ? " · refreshing while a run is live" : ""}
       </p>
-
-      <section>
-        <div className="mb-2 text-[13px]">
-          <span className="text-dim">runs</span>
-          <span className="text-dim opacity-60"> · {runs.length}</span>
-        </div>
-        <p className={cx(metaLine, "mb-2")}>
-          {withView} of {runs.length} carry a derived view.{" "}
-          <Link className={linkGhost} href="/runs">
-            [ ⌕ open the run viewer ]
-          </Link>
+      {catalogRead.refusal !== null ? (
+        <p className={errorBanner}>{catalogRead.refusal}</p>
+      ) : catalogRead.catalog === null ? (
+        <p className={metaLine}>
+          No catalog, so runs are not grouped by workflow. Start the viewer with{" "}
+          <code>stage-gen view</code>.
         </p>
-        {runs.length > 0 ? (
-          <ul className="flex list-none flex-col gap-1.5">
-            {runs.map((entry) => (
-              <RunRow key={entry.tag} entry={entry} />
-            ))}
-          </ul>
-        ) : (
-          <p className={metaLine}>
-            None yet. Publish one with <code>stage-gen generate</code>.
-          </p>
-        )}
-      </section>
-
-      {/* A universe is a world, not a game: nothing plays it, and the gallery
-          is a viewer surface that stays. */}
-      <section className="mt-8 border-t border-border pt-4">
-        <div className="mb-2 text-[13px]">
-          <span className="text-dim">universes</span>
-          <span className="text-dim opacity-60"> · {universes.length}</span>
-        </div>
-        {universes.length > 0 ? (
-          <ul className="flex list-none flex-col gap-1.5">
-            {universes.map((entry) => (
-              <li
-                key={entry.tag}
-                className="grid grid-cols-[1fr_auto] items-center gap-3 border border-border px-2.5 py-1.5 hover:border-fg"
-              >
-                <div className="min-w-0">
-                  <div className="truncate text-[13px] text-fg">
-                    {entry.title}
-                  </div>
-                  <div className="mt-0.5 truncate text-[11px] text-dim">
-                    {entry.tag} · {entry.entityCount} entities ·{" "}
-                    {entry.counts.admitted ?? 0} admitted
-                  </div>
-                </div>
-                <Link
-                  className={cx(playActive, playSizeCompact)}
-                  href={`/universe/${encodeURIComponent(entry.tag)}`}
-                >
-                  [ ▶ open gallery ]
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className={metaLine}>
-            None yet. Generate one with{" "}
-            <code>stage-gen run universe --phase gallery</code>.
-          </p>
-        )}
-      </section>
-
-      {/* A storefront is the face a game is listed behind, not the game: it has
-          no player either, and its own viewer surface stays. */}
-      <section className="mt-8 border-t border-border pt-4">
-        <div className="mb-2 text-[13px]">
-          <span className="text-dim">storefronts</span>
-          <span className="text-dim opacity-60"> · {storefronts.length}</span>
-        </div>
-        {storefronts.length > 0 ? (
-          <ul className="flex list-none flex-col gap-1.5">
-            {storefronts.map((entry) => (
-              <li
-                key={entry.tag}
-                className="grid grid-cols-[1fr_auto] items-center gap-3 border border-border px-2.5 py-1.5 hover:border-fg"
-              >
-                <div className="min-w-0">
-                  <div className="truncate text-[13px] text-fg">
-                    {entry.displayName}
-                  </div>
-                  <div className="mt-0.5 truncate text-[11px] text-dim">
-                    {entry.tag} · {entry.surfaceCount} surfaces ·{" "}
-                    {entry.admitted} admitted
-                  </div>
-                </div>
-                <Link
-                  className={cx(playActive, playSizeCompact)}
-                  href={`/storefront/${encodeURIComponent(entry.tag)}`}
-                >
-                  [ ▶ open storefront ]
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className={metaLine}>
-            None yet. Generate one with <code>stage-gen run storefront</code>.
-          </p>
-        )}
-      </section>
+      ) : null}
+      {groups.workflows.map(({ workflow, runs: owned }) => (
+        <WorkflowSection key={workflow.id} workflow={workflow} runs={owned} now={now} />
+      ))}
+      <UnclaimedSection
+        title="Game runs"
+        note="Made inside an example game. A game exports its own run views: demo-games export-view --run DIR."
+        runs={groups.game}
+        game
+        now={now}
+      />
+      <UnclaimedSection
+        title="Other runs"
+        note="Runs no installed workflow claims: your own SDK pipelines, calibrations, and runs an older build wrote."
+        runs={groups.other}
+        now={now}
+      />
     </main>
   );
 }

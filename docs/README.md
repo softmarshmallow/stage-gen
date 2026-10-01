@@ -11,7 +11,7 @@ The product is the asset pipeline; complete games are consumers.
 - [Looping parallax](../src/stage_gen/workflows/looping_parallax/README.md): runnable supplied-layer recipe and preview contract.
 - [Movie sprites](movie-sprite.md): transparent body loops and a canonical image for separate facial repaint.
 - [GNode rings](spec/gnode-rings.md): engine and provider ownership.
-- [Viewer](web-viewer.md): generic persisted-run inspection and optional inspectors.
+- [Viewer](viewer.md): `stage-gen view`, the local read-only client over run folders.
 - [Providers](models/providers.md): bindings, credentials and live-operation boundaries.
 - [Godot consumers](../godot/README.md): packages, games and templates.
 - [Godot project charter](../godot/CHARTER.md): the example product's continuing goals, ownership and independent evolution.

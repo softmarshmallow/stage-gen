@@ -16,7 +16,7 @@ import sys
 from collections.abc import Sequence
 from typing import Never, TextIO
 
-from stage_gen.interfaces.commands import capability, examples, sdk, workflows
+from stage_gen.interfaces.commands import capability, examples, sdk, view, workflows
 from stage_gen.interfaces.commands import inspect as inspect_command
 
 
@@ -68,11 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
     inspect_command.register(
         commands.add_parser("inspect", help="read, verify or write the view of one run folder")
     )
-    view = commands.add_parser("view", help="open the local viewer over run folders")
-    view.add_argument("--runs", action="append", default=[], metavar="DIR")
-    view.add_argument("--port", type=int, default=3000)
-    view.add_argument("--no-open", action="store_true")
-    view.set_defaults(handler=_view)
+    view.register(commands.add_parser("view", help="open the local viewer over run folders"))
     examples.register_example(
         commands.add_parser("example", help="verify or promote pinned examples")
     )
@@ -113,11 +109,6 @@ def parse(
     elif extra:
         parser.error(f"unrecognized arguments: {' '.join(extra)}")
     return args
-
-
-def _view(args: argparse.Namespace, stdout: TextIO) -> int:
-    del args, stdout
-    raise ValueError("stage-gen view is available after the viewer lands")
 
 
 def _models(args: argparse.Namespace, stdout: TextIO) -> int:

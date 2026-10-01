@@ -42,7 +42,7 @@ def _minimal_repository(root: Path) -> None:
         "docs/generated-media-publication.md",
         "godot/games/_shared/docs/game-package.md",
         "docs/spec/agent-prompts.md",
-        "docs/web-viewer.md",
+        "docs/viewer.md",
     ):
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -90,6 +90,22 @@ def test_web_text_walk_reads_git_files_and_the_viewer_shell_may_not_spawn(
         "web/ui/contracts/stale.ts: legacy gateway URL",
         "web/viewer/lib/shell/launch.ts: web shell must not spawn a generation process",
     ]
+
+
+def test_every_environment_name_the_viewer_shell_reads_is_documented(tmp_path: Path) -> None:
+    """Any viewer shell module, not only runs.ts, may read the environment that
+    ``stage-gen view`` sets; each name it reads must be in ``.env.example``."""
+    _minimal_repository(tmp_path)
+    (tmp_path / "web/viewer/lib/shell/catalog.ts").write_text(
+        "const file = process.env.STAGE_GEN_CATALOG;\n", encoding="utf-8"
+    )
+
+    failures = _load_docs_checker().run_docs_check(tmp_path).failures
+    assert ".env.example: missing Python/web config name STAGE_GEN_CATALOG" in failures
+
+    (tmp_path / ".env.example").write_text("STAGE_GEN_CATALOG=\n", encoding="utf-8")
+    failures = _load_docs_checker().run_docs_check(tmp_path).failures
+    assert not any("STAGE_GEN_CATALOG" in failure for failure in failures)
 
 
 def test_component_contract_artifact_example_runs() -> None:

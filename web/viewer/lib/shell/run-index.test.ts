@@ -1,104 +1,101 @@
-import { describe, expect, test } from "bun:test";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
-import { listRuns, readRunIdentity } from "./run-index";
-import { runDirFor } from "./runs";
+import { executionViewFixture } from "@stage-gen/ui/contracts/run-view.test-fixtures";
+import { listRuns } from "./run-index";
 
-async function withRun(
-  tag: string,
-  files: Readonly<Record<string, unknown>>,
-  body: () => Promise<void>,
-): Promise<void> {
-  const runDir = runDirFor(tag);
-  await mkdir(runDir, { recursive: true });
-  try {
-    for (const [name, document] of Object.entries(files)) {
-      await writeFile(
-        path.join(runDir, name),
-        typeof document === "string" ? document : JSON.stringify(document),
-        "utf8",
-      );
-    }
-    await body();
-  } finally {
-    await rm(runDir, { recursive: true, force: true });
+const saved = {
+  STAGE_GEN_RUN_ROOTS: process.env.STAGE_GEN_RUN_ROOTS,
+  STAGE_GEN_VIEW_CACHE: process.env.STAGE_GEN_VIEW_CACHE,
+};
+const scratch: string[] = [];
+
+afterEach(async () => {
+  for (const [name, value] of Object.entries(saved)) {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
   }
+  await Promise.all(scratch.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
+});
+
+/** Write runs under fresh roots: `{ "<root>/<run path>/<file>": document }`. */
+async function withRuns(files: Readonly<Record<string, unknown>>): Promise<void> {
+  const base = await realpath(await mkdtemp(path.join(tmpdir(), "stage-gen-index-")));
+  scratch.push(base);
+  const roots = new Set<string>();
+  for (const [name, document] of Object.entries(files)) {
+    const file = path.join(base, name);
+    roots.add(path.join(base, name.split("/")[0]));
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, typeof document === "string" ? document : JSON.stringify(document), "utf8");
+  }
+  process.env.STAGE_GEN_RUN_ROOTS = [...roots].join(path.delimiter);
+  delete process.env.STAGE_GEN_VIEW_CACHE;
 }
 
 describe("the run index", () => {
-  test("reads only the two fields that say what a run is", async () => {
+  test("reads only the fields that say what wrote a run", async () => {
     // The index deliberately does not parse the rest: a run's gameplay contract
     // belongs to the host that plays it (decision 0061).
-    await withRun(
-      "run-index-kind",
-      {
-        "manifest.json": {
-          kind: "oblique-survival-manifest-v3",
-          schema_version: 1,
-          ground: { size_meters: 512 },
-        },
+    await withRuns({
+      "out/survival/manifest.json": {
+        kind: "oblique-survival-manifest-v3",
+        schema_version: 1,
+        ground: { size_meters: 512 },
       },
-      async () => {
-        const entry = await readRunIdentity("run-index-kind");
-        expect(entry.document).toBe("manifest.json");
-        expect(entry.kind).toBe("oblique-survival-manifest-v3");
-        expect(entry.schemaVersion).toBe(1);
-        expect(entry.hasExecutionView).toBe(false);
+      "out/sdk/execution-plan.json": {
+        kind: "pipeline-execution-graph-v1",
+        schema_version: 1,
+        pipeline_id: "swatch-sheet",
       },
-    );
+      "out/room/execution-plan.json": {
+        kind: "pointclick-room-execution-graph-v1",
+        recipe: "pointclick-room",
+      },
+    });
+    const byName = new Map((await listRuns()).map((entry) => [entry.relative, entry]));
+    expect(byName.get("survival")?.identity).toMatchObject({
+      document: "manifest.json",
+      kind: "oblique-survival-manifest-v3",
+    });
+    expect(byName.get("survival")?.schemaVersion).toBe(1);
+    expect(byName.get("sdk")?.identity.pipelineId).toBe("swatch-sheet");
+    expect(byName.get("room")?.identity.recipe).toBe("pointclick-room");
+    expect(byName.get("room")?.view).toBeNull();
   });
 
-  test("lists a run whose document declares no kind rather than hiding it", async () => {
+  test("lists runs it cannot identify rather than hiding them", async () => {
     // A run an operator cannot identify is exactly the run they want to see.
-    await withRun("run-index-anonymous", { "bundle.json": { note: "no kind" } }, async () => {
-      const entry = await readRunIdentity("run-index-anonymous");
-      expect(entry.document).toBe("bundle.json");
-      expect(entry.kind).toBeNull();
-      expect(entry.schemaVersion).toBeNull();
+    await withRuns({
+      "out/anonymous/bundle.json": { note: "no kind" },
+      "out/broken/case.json": "{ not json",
+      "out/empty/notes.txt": "scratch",
     });
+    const listed = await listRuns();
+    expect(listed.map((entry) => entry.relative)).toEqual(["anonymous", "broken"]);
+    expect(listed[0].identity.kind).toBeNull();
+    expect(listed[1].identity.document).toBe("case.json");
   });
 
-  test("does not throw on a document that is not JSON", async () => {
-    await withRun("run-index-broken", { "case.json": "{ not json" }, async () => {
-      const entry = await readRunIdentity("run-index-broken");
-      expect(entry.document).toBe("case.json");
-      expect(entry.kind).toBeNull();
+  test("summarises a view, and a run's own record when it has none", async () => {
+    await withRuns({
+      "out/viewed/execution-view.json": executionViewFixture(),
+      "spikes/review/yuzu/run-01/plan.json": { kind: "portrait-face-motion-plan-v1" },
+      "spikes/review/yuzu/run-01/execution.json": { status: "prepared" },
+      "spikes/canary/wren-01/graph.json": { kind: "contained-character-rig-v1" },
+      "spikes/canary/wren-01/summary.json": { ok: false },
+      "spikes/stale/execution-view.json": { ...executionViewFixture(), schema_version: 2 },
     });
-  });
-
-  test("skips a directory that published neither a document nor a view", async () => {
-    await withRun("run-index-empty", { "notes.txt": "scratch" }, async () => {
-      const listed = await listRuns();
-      expect(listed.some((entry) => entry.tag === "run-index-empty")).toBe(false);
-      const entry = await readRunIdentity("run-index-empty");
-      expect(entry.document).toBeNull();
-    });
-  });
-
-  test("lists a run that carries a view but no document", async () => {
-    // A run whose document was never written still has a plan worth reading.
-    await withRun("run-index-viewonly", { "execution-view.json": { kind: "x" } }, async () => {
-      const listed = await listRuns();
-      const entry = listed.find((row) => row.tag === "run-index-viewonly");
-      expect(entry).toBeDefined();
-      expect(entry?.document).toBe("execution-view.json");
-      expect(entry?.kind).toBe("x");
-      expect(entry?.hasExecutionView).toBe(true);
-    });
-  });
-
-  test("prefers the manifest when a run carries more than one document", async () => {
-    await withRun(
-      "run-index-two",
-      {
-        "manifest.json": { kind: "first", schema_version: 2 },
-        "bundle.json": { kind: "second", schema_version: 8 },
-      },
-      async () => {
-        const entry = await readRunIdentity("run-index-two");
-        expect(entry.document).toBe("manifest.json");
-        expect(entry.kind).toBe("first");
-      },
-    );
+    const byName = new Map((await listRuns()).map((entry) => [entry.relative, entry]));
+    const viewed = byName.get("viewed");
+    expect(viewed?.view).toMatchObject({ source: "run", runState: "succeeded", nodeCount: 4 });
+    expect(viewed?.identity.recipe).toBe("sideview-platformer");
+    expect(viewed?.updatedAt).toMatch(/Z$/);
+    expect(byName.get("review/yuzu/run-01")?.recordState).toBe("prepared");
+    expect(byName.get("review/yuzu/run-01")?.identity.kind).toBe("portrait-face-motion-plan-v1");
+    expect(byName.get("canary/wren-01")?.recordState).toBe("failed");
+    expect(byName.get("stale")?.view).toBeNull();
+    expect(byName.get("stale")?.viewRefusal).toContain("derive it again");
   });
 });

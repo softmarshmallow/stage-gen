@@ -143,11 +143,6 @@ def test_run_character_3d_forwards_its_arguments_verbatim_and_restores_argv(
     assert sys.argv is original
 
 
-def test_view_waits_for_the_viewer() -> None:
-    status, _, errors = _stage_gen("view", "--runs", "out")
-    assert status == 2 and "available after the viewer lands" in errors
-
-
 def test_list_and_show_read_the_workflows() -> None:
     status, output, _ = _stage_gen("list", "--json")
     assert status == 0

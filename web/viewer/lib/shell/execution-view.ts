@@ -1,91 +1,83 @@
-// Server-side reader for the derived execution-view.json a run may carry.
+// Server-side reader for a run's execution view: the one the run persists, or the one
+// `stage-gen view` derived for it into the user cache.
 //
-// Absent is null; present-but-refused throws — the page turns that into the
-// re-export message rather than a crash, per the view's hard-drop versioning.
+// The run folder's own view is read when it is at least as new as the cached one;
+// otherwise the cache's, which `stage-gen view` keeps fresh while the run's trace grows.
+// A run is never written to: a view the viewer needs and the run lacks lives only in the
+// cache. Absent is null; present-but-refused throws — the page turns that into the
+// re-derive message rather than a crash, per the view's hard-drop versioning.
 
 import { promises as fs } from "node:fs";
-import {
-  type ExecutionRunState,
-  type ExecutionView,
-  parseExecutionView,
-  subjectLabel,
-} from "@stage-gen/ui/contracts/run-view";
+import path from "node:path";
+import { type ExecutionView, parseExecutionView } from "@stage-gen/ui/contracts/run-view";
 import { readRunDocument } from "./run-json";
-import { assertSafeOutRoot, isSafeRunTag, outRoot } from "./runs";
+import type { RunRef } from "./run-ref";
+import { isRealRunDirectory, runDirFor, viewCacheDir, viewKey } from "./runs";
 
 export const EXECUTION_VIEW_FILENAME = "execution-view.json";
 
+/** Where a view came from: the run folder, or the cache `stage-gen view` keeps. */
+export type ViewSource = "run" | "cache";
+
+export interface ReadView {
+  readonly view: ExecutionView;
+  readonly source: ViewSource;
+}
+
+async function modifiedMs(target: string): Promise<number | null> {
+  try {
+    const stat = await fs.lstat(target);
+    return stat.isFile() ? stat.mtimeMs : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The cached view of a run, or null when the viewer runs without a view cache. */
+export function cachedViewPath(runDir: string): string | null {
+  const cache = viewCacheDir();
+  return cache === null ? null : path.join(cache, viewKey(runDir), EXECUTION_VIEW_FILENAME);
+}
+
+async function readCachedView(file: string): Promise<unknown> {
+  const stat = await fs.lstat(file);
+  if (!stat.isFile() || stat.isSymbolicLink()) {
+    throw new Error("cached execution view must be a real regular file");
+  }
+  return JSON.parse(await fs.readFile(file, "utf8")) as unknown;
+}
+
+/** Which view to read, without reading it: the newer of the run's and the cache's. */
+export async function viewLocation(
+  run: RunRef,
+): Promise<{ readonly source: ViewSource; readonly file: string; readonly mtimeMs: number } | null> {
+  if (!(await isRealRunDirectory(run))) return null;
+  const runDir = runDirFor(run);
+  const own = path.join(runDir, EXECUTION_VIEW_FILENAME);
+  const cached = cachedViewPath(runDir);
+  const ownMs = await modifiedMs(own);
+  const cachedMs = cached === null ? null : await modifiedMs(cached);
+  if (cached !== null && cachedMs !== null && (ownMs === null || cachedMs > ownMs)) {
+    return { source: "cache", file: cached, mtimeMs: cachedMs };
+  }
+  return ownMs === null ? null : { source: "run", file: own, mtimeMs: ownMs };
+}
+
 /**
- * Read and parse one run's execution view. Returns null when the run or the
- * document is absent; throws when the file exists but is not a document this
- * build renders (unknown version, tampered read, invalid shape).
+ * Read and parse one run's execution view. Returns null when the run has no view in
+ * either place; throws when the chosen file is not a document this build renders
+ * (unknown version, tampered read, invalid shape).
  */
-export async function readExecutionView(tag: string): Promise<ExecutionView | null> {
-  const read = await readRunDocument(tag, EXECUTION_VIEW_FILENAME, {
+export async function readExecutionView(run: RunRef): Promise<ReadView | null> {
+  const location = await viewLocation(run);
+  if (location === null) return null;
+  if (location.source === "cache") {
+    return { view: parseExecutionView(await readCachedView(location.file)), source: "cache" };
+  }
+  const read = await readRunDocument(run, EXECUTION_VIEW_FILENAME, {
     label: "execution view",
     noun: "view",
   });
   if (read === null) return null;
-  return parseExecutionView(read.document);
-}
-
-export interface ExecutionViewRunListEntry {
-  readonly tag: string;
-  /** What the run's records say; null for a document this build refuses. */
-  readonly runState: ExecutionRunState | null;
-  /** When the trace was last appended, so a reader can judge liveness. */
-  readonly traceModifiedAt: string | null;
-  /** true when execution-view.json exists but this build refuses it. */
-  readonly unreadable: boolean;
-  /** What the run was for: the pipeline title or a historical subject identity. */
-  readonly label: string | null;
-  readonly nodeCount: number;
-  readonly stateCounts: Readonly<Record<string, number>> | null;
-  readonly durationMs: number | null;
-  readonly knownCostUsd: number | null;
-}
-
-/** Enumerate runs under out/ that carry an execution view, newest tag first. */
-export async function listExecutionViewRuns(): Promise<ExecutionViewRunListEntry[]> {
-  if (!(await assertSafeOutRoot())) return [];
-  const entries = await fs.readdir(outRoot(), { withFileTypes: true });
-  const out: ExecutionViewRunListEntry[] = [];
-  await Promise.all(
-    entries.map(async (entry) => {
-      if (!entry.isDirectory()) return;
-      const tag = entry.name;
-      if (!isSafeRunTag(tag)) return;
-      try {
-        const view = await readExecutionView(tag);
-        if (!view) return;
-        out.push({
-          tag,
-          runState: view.runState,
-          traceModifiedAt: view.traceModifiedAt,
-          unreadable: false,
-          label: subjectLabel(view.subject),
-          nodeCount: view.nodes.length,
-          stateCounts: view.stateCounts,
-          durationMs: view.durationMs,
-          knownCostUsd: view.knownCostUsd,
-        });
-      } catch {
-        // The document exists but this build refuses it (stale version or
-        // invalid shape). List it so the operator sees the re-export need.
-        out.push({
-          tag,
-          runState: null,
-          traceModifiedAt: null,
-          unreadable: true,
-          label: null,
-          nodeCount: 0,
-          stateCounts: null,
-          durationMs: null,
-          knownCostUsd: null,
-        });
-      }
-    }),
-  );
-  out.sort((a, b) => b.tag.localeCompare(a.tag));
-  return out;
+  return { view: parseExecutionView(read.document), source: "run" };
 }

@@ -230,8 +230,14 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         consumed_env_names.update(
             re.findall(r"""["']([A-Z][A-Z0-9_]*)["']""", source_path.read_text(encoding="utf-8"))
         )
-    web_env_source = (repo / "web/viewer/lib/shell/runs.ts").read_text(encoding="utf-8")
-    consumed_env_names.update(re.findall(r"process\.env\.([A-Z][A-Z0-9_]*)", web_env_source))
+    # The viewer's shell is where it reads its environment; a scan that matched no file
+    # would prove nothing, so an empty one fails below with the no-spawn rule.
+    for web_env_source in sorted((repo / "web/viewer/lib/shell").glob("*.ts")):
+        consumed_env_names.update(
+            re.findall(
+                r"process\.env\.([A-Z][A-Z0-9_]*)", web_env_source.read_text(encoding="utf-8")
+            )
+        )
     for name in sorted(consumed_env_names):
         if name not in env_assignments:
             failures.append(f".env.example: missing Python/web config name {name}")
@@ -532,7 +538,7 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
             "opaque exclusion",
         ),
         (
-            "docs/web-viewer.md",
+            "docs/viewer.md",
             re.compile(
                 r"(?:web/` (?:starts|launches|plays) no run|does not (?:start|launch|generate)"
                 r"|never (?:starts|launches|generates))",
@@ -541,7 +547,7 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
             "web is not a generation authority",
         ),
         (
-            "docs/web-viewer.md",
+            "docs/viewer.md",
             re.compile(r"no gameplay", re.IGNORECASE),
             "web holds no game logic",
         ),
