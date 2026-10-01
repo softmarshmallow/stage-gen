@@ -27,7 +27,7 @@ jobs:
       - run: uv sync --all-groups --frozen
       - run: uv run --all-groups python scripts/check.py --scope ${{ matrix.scope }}
 
-  viewer:
+  web:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +38,7 @@ jobs:
       - run: uv sync --frozen
       - run: bun install --frozen-lockfile
         working-directory: web
-      - run: uv run python scripts/check.py --scope viewer
+      - run: uv run python scripts/check.py --scope web
 
   lint:
     runs-on: ubuntu-latest

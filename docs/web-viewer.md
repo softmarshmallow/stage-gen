@@ -1,6 +1,6 @@
 # The web viewer
 
-`web/` is an optional, read-only consumer of asset pipeline outputs. It lists runs, displays
+`web/viewer` is an optional, read-only consumer of asset pipeline outputs. It lists runs, displays
 execution graphs and artifacts, and offers bounded previews. It does not start generation, receives
 no provider credentials, and implements no gameplay. Playable projects and their asset wiring
 belong to their Godot owners.
@@ -47,8 +47,8 @@ rejects malformed geometry and paths. Unknown preview kinds retain the ordinary 
 fallback. Model files such as GLB retain their media type and can be opened or downloaded;
 there is no dedicated spatial renderer yet.
 
-[`artifact-preview.ts`](../web/lib/run-viewer/artifact-preview.ts) owns these adapters and
-[`ParallaxPreview.tsx`](../web/app/runs/[tag]/ParallaxPreview.tsx) owns the interactive layer
+[`artifact-preview.ts`](../web/ui/contracts/artifact-preview.ts) owns these adapters and
+[`ParallaxPreview.tsx`](../web/viewer/app/runs/[tag]/ParallaxPreview.tsx) owns the interactive layer
 preview. Adding a renderer is an application change, independent of adding a pipeline.
 
 ## Other consumers and serving
@@ -65,14 +65,18 @@ known passive image, audio, video, model, text, and JSON media types, with an op
 `nosniff`. It does not serve executable HTML or SVG media types. Runs default to `out/`; set
 `STAGE_GEN_OUT_DIR` to inspect a different local output root.
 
-Nothing under [`lib/shell`](../web/lib/shell) starts a subprocess. Generation, retry, cache
+Nothing under [`lib/shell`](../web/viewer/lib/shell) starts a subprocess. Generation, retry, cache
 admission, artifact publication, and exporting a run view belong to the Python application.
-The web workspace imports no game engine.
+The web workspace imports no game engine. The viewer reads the run-view, catalog and example
+wire formats through the shared parsers in [`web/ui/contracts`](../web/ui/contracts), whose
+hand-authored fixtures a Python contract test also validates. The run root is `out/` of the
+checkout found by walking up to the `pyproject.toml` named `stage-gen`, or of
+`STAGE_GEN_REPO_ROOT` when it is set.
 
 ## Presentation
 
-The shell uses Tailwind CSS v4. [`app/globals.css`](../web/app/globals.css) declares design tokens
-and the transparent-image checkerboard; [`app/ui.ts`](../web/app/ui.ts) holds shared utility
+The shell uses Tailwind CSS v4. [`app/globals.css`](../web/viewer/app/globals.css) declares design tokens
+and the transparent-image checkerboard; [`app/ui.ts`](../web/viewer/app/ui.ts) holds shared utility
 class strings. OpenLayers supplies the illustrated-map view's navigation and its own CSS.
 
 ## Verification
@@ -81,9 +85,10 @@ Credential-free gates for this boundary are:
 
 ```sh
 cd web
+bun install --frozen-lockfile
 bun run check
 bun test
-bun run build
+bun run --cwd viewer build
 ```
 
 Tests cover generic and historical view parsing, run discovery, confined paths, bounded previews,

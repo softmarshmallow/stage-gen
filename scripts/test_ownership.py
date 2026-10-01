@@ -14,9 +14,9 @@ from importlib.util import resolve_name
 from pathlib import Path
 from typing import Literal, cast
 
-TestOwner = Literal["product", "games", "godot", "viewer", "apps"]
-_OWNERS: tuple[TestOwner, ...] = ("product", "games", "viewer", "godot", "apps")
-_MARKER = re.compile(r"^# test-owner: (product|games|godot|viewer|apps)$", re.MULTILINE)
+TestOwner = Literal["product", "games", "godot", "web", "apps"]
+_OWNERS: tuple[TestOwner, ...] = ("product", "games", "web", "godot", "apps")
+_MARKER = re.compile(r"^# test-owner: (product|games|godot|web|apps)$", re.MULTILINE)
 GAME_MODULES = frozenset(
     {
         "demo_game_tools",
@@ -89,7 +89,7 @@ def _declared_owner(path: Path, root: Path, source: str, modules: set[str]) -> T
         elif path.name.startswith("test_godot_"):
             owners.add("godot")
         elif path.name == "test_web_node_boundary.py":
-            owners.add("viewer")
+            owners.add("web")
         elif "godot/games/" in source or "godot/tools/" in source or '"godot" / "games"' in source:
             owners.add("games")
     return _strongest(owners)

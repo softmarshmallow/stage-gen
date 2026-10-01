@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import re
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -31,23 +32,28 @@ def test_repository_documentation_and_publication_contract() -> None:
     assert result.media_count == 2
 
 
-def test_character_library_documentation_rejects_missing_links(tmp_path: Path) -> None:
+def _minimal_repository(root: Path) -> None:
+    """The files the docs gate reads unconditionally, all empty."""
     for relative in (
         ".env.example",
         "src/stage_gen/config.py",
-        "web/lib/shell/runs.ts",
+        "web/viewer/lib/shell/runs.ts",
         "README.md",
         "docs/generated-media-publication.md",
         "godot/games/_shared/docs/game-package.md",
         "docs/spec/agent-prompts.md",
         "docs/web-viewer.md",
     ):
-        path = tmp_path / relative
+        path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("", encoding="utf-8")
-    (tmp_path / "docs/generated-media-inventory.json").write_text(
+    (root / "docs/generated-media-inventory.json").write_text(
         '{"schemaVersion": 1, "roots": [], "media": []}', encoding="utf-8"
     )
+
+
+def test_character_library_documentation_rejects_missing_links(tmp_path: Path) -> None:
+    _minimal_repository(tmp_path)
     character = tmp_path / "library/characters/example"
     character.mkdir(parents=True)
     (character / "sd_3d.glb").write_bytes(b"link target only")
@@ -59,6 +65,30 @@ def test_character_library_documentation_rejects_missing_links(tmp_path: Path) -
 
     assert [failure for failure in result.failures if failure.startswith("library/")] == [
         "library/characters/example/README.md: missing link sd_3d.json"
+    ]
+
+
+def test_web_text_walk_reads_git_files_and_the_viewer_shell_may_not_spawn(
+    tmp_path: Path,
+) -> None:
+    """The web walk is git's list, so ignored build output is never scanned, and a
+    viewer shell module that can start a process fails the gate."""
+    _minimal_repository(tmp_path)
+    stale = "const gateway = 'https://ai-gateway.vercel.sh';\n"
+    (tmp_path / ".gitignore").write_text(".next\n", encoding="utf-8")
+    for relative in ("web/viewer/.next/server/page.js", "web/ui/contracts/stale.ts"):
+        (tmp_path / relative).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / relative).write_text(stale, encoding="utf-8")
+    (tmp_path / "web/viewer/lib/shell/launch.ts").write_text(
+        'import { spawn } from "node:child_process";\n', encoding="utf-8"
+    )
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+
+    result = _load_docs_checker().run_docs_check(tmp_path)
+
+    assert sorted(failure for failure in result.failures if failure.startswith("web")) == [
+        "web/ui/contracts/stale.ts: legacy gateway URL",
+        "web/viewer/lib/shell/launch.ts: web shell must not spawn a generation process",
     ]
 
 

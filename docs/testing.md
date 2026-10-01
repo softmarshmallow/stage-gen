@@ -77,7 +77,7 @@ cd web
 bun install --frozen-lockfile
 bun run check
 bun test
-bun run build
+bun run --cwd viewer build
 ```
 
 Web tests cover run-tag and artifact-path confinement, prepared-manifest

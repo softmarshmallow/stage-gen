@@ -1,0 +1,5 @@
+# One hoisted node_modules for the whole workspace. Bun defaults a workspace to
+# isolated installs, but web/scripts/showcase-tailwind.mjs resolves postcss and
+# Tailwind from web/ itself, and Next resolves its peers from the hoisted tree.
+[install]
+linker = "hoisted"

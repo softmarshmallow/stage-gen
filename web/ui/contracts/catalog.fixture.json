@@ -1,0 +1,632 @@
+{
+  "schema_version": 1,
+  "kind": "stage-gen-catalog-v1",
+  "workflows": [
+    {
+      "id": "swatch-sheet",
+      "folder": "swatch_sheet",
+      "source_folder": "src/stage_gen/workflows/swatch_sheet",
+      "manifest": {
+        "schema_version": 1,
+        "kind": "stage-gen-workflow-v1",
+        "id": "swatch-sheet",
+        "title": "Swatch sheet",
+        "promise": "One brief in. A checked sheet of material swatches out.",
+        "summary": "Draws every swatch a brief asks for on one transparent sheet, then refuses a sheet whose swatches touch.",
+        "related": [],
+        "tools": [
+          {
+            "name": "Pillow",
+            "role": "Cuts and checks the sheet"
+          }
+        ],
+        "labels": {},
+        "outputs": [
+          {
+            "artifact_ref": "sheet.png",
+            "description": "The swatches on one transparent sheet."
+          }
+        ],
+        "try": {
+          "input": "src/stage_gen/workflows/swatch_sheet/inputs/slate",
+          "commands": [
+            "uv run stage-gen plan swatch-sheet --input src/stage_gen/workflows/swatch_sheet/inputs/slate",
+            "uv run stage-gen run swatch-sheet --input src/stage_gen/workflows/swatch_sheet/inputs/slate --output out/swatch-sheet-slate-01 --dry-run"
+          ]
+        },
+        "examples": [
+          {
+            "id": "slate-swatches",
+            "title": "Slate swatches",
+            "promise": null,
+            "status": "approved",
+            "example_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+            "figures_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+            "source": "store",
+            "cover": true,
+            "order": 2
+          }
+        ]
+      },
+      "implementation_root": "stage_gen.workflows.swatch_sheet",
+      "plan_refusal": null,
+      "no_sample_plan": null,
+      "importer": true,
+      "no_importer": null,
+      "identity": {
+        "graph_kinds": [
+          "pipeline-execution-graph-v1"
+        ],
+        "pipelines": {
+          "swatch-sheet": {
+            "namespace": "pipeline-0123456789abcdef01234567",
+            "record_kind": "pipeline-node-cache-v1"
+          }
+        },
+        "node_types": [
+          [
+            "swatch.brief",
+            "swatch.brief",
+            "swatch-brief-v1"
+          ],
+          [
+            "swatch.check",
+            "swatch.check",
+            "swatch-check-v1"
+          ],
+          [
+            "swatch.draw",
+            "swatch.draw",
+            "swatch-sheet-v1"
+          ]
+        ]
+      },
+      "steps": [
+        {
+          "label": "Draw",
+          "note": "The brief becomes one sheet in a single image call.",
+          "members": [
+            {
+              "type_id": "swatch.brief",
+              "title": "Read the brief",
+              "archetype": "source",
+              "operation": "local"
+            },
+            {
+              "type_id": "swatch.draw",
+              "title": "Draw the swatch sheet",
+              "archetype": "image",
+              "operation": "image_generation"
+            }
+          ]
+        },
+        {
+          "label": "Check",
+          "note": "",
+          "members": [
+            {
+              "type_id": "swatch.check",
+              "title": "Check the sheet",
+              "archetype": "validate",
+              "operation": "local"
+            }
+          ]
+        }
+      ],
+      "sample_plan": {
+        "kind": "pipeline-execution-graph-v1",
+        "topology_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+        "operation_counts": {
+          "image_generation": 1,
+          "local": 2
+        },
+        "nodes": [
+          {
+            "id": "brief",
+            "type_id": "swatch.brief",
+            "title": "Read the brief",
+            "archetype": "source",
+            "operation": "local",
+            "provider": null,
+            "model": null,
+            "depends_on": []
+          },
+          {
+            "id": "draw",
+            "type_id": "swatch.draw",
+            "title": "Draw the swatch sheet",
+            "archetype": "image",
+            "operation": "image_generation",
+            "provider": "openai",
+            "model": "gpt-image-2",
+            "depends_on": [
+              "brief"
+            ]
+          },
+          {
+            "id": "check",
+            "type_id": "swatch.check",
+            "title": "Check the sheet",
+            "archetype": "validate",
+            "operation": "local",
+            "provider": null,
+            "model": null,
+            "depends_on": [
+              "draw"
+            ]
+          }
+        ]
+      },
+      "examples": [
+        {
+          "id": "slate-swatches",
+          "title": "Slate swatches",
+          "promise": null,
+          "status": "approved",
+          "example_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "figures_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+          "source": "store",
+          "cover": true,
+          "order": 2,
+          "present": true,
+          "currency": "current",
+          "example": {
+            "schema_version": 1,
+            "kind": "workflow-example-v1",
+            "example_id": "slate-swatches",
+            "made_by": {
+              "kind": "workflow",
+              "id": "swatch-sheet"
+            },
+            "importer": "pipeline_run",
+            "delivered_run": "out/swatch-sheet-slate-01",
+            "source_runs": [
+              {
+                "path": "out/swatch-sheet-slate-01",
+                "anchor": "execution-plan.json",
+                "anchor_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            ],
+            "source_files": {
+              "out/swatch-sheet-slate-01/execution-plan.json": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "out/swatch-sheet-slate-01/sheet.png": "6666666666666666666666666666666666666666666666666666666666666666"
+            },
+            "status": "succeeded",
+            "graph_kind": "pipeline-execution-graph-v1",
+            "graph_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+            "inputs": {
+              "brief": {
+                "kind": "text",
+                "file": "brief.json",
+                "text": "Six slate swatches, lit from the upper left."
+              }
+            },
+            "outputs": {
+              "sheet": {
+                "kind": "image",
+                "file": "sheet.png",
+                "bytes": 1048576,
+                "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+                "picture": {
+                  "src": "media/output-sheet.webp",
+                  "width": 640,
+                  "height": 640,
+                  "bg": "transparent",
+                  "alpha": true
+                }
+              }
+            },
+            "metrics": {
+              "wall_seconds": 12.45,
+              "provider_operations": 1,
+              "swatches": 6,
+              "estimated_cost_usd": 0.04
+            },
+            "models": [
+              {
+                "name": "GPT Image 2",
+                "provider": "OpenAI",
+                "roles": [
+                  "Image model"
+                ],
+                "nodes": 1,
+                "called_by": []
+              }
+            ],
+            "tree": {
+              "": {
+                "kind": "dir",
+                "bytes": 1051266,
+                "files": 4,
+                "entries": 4
+              },
+              "brief.json": {
+                "kind": "file",
+                "bytes": 412
+              },
+              "check.json": {
+                "kind": "file",
+                "bytes": 230
+              },
+              "sheet.png": {
+                "kind": "file",
+                "bytes": 1048576
+              },
+              "sheet.png.provenance.json": {
+                "kind": "file",
+                "bytes": 2048
+              }
+            },
+            "nodes": {
+              "brief": {
+                "id": "brief",
+                "type_id": "swatch.brief",
+                "kind": "Input",
+                "description": "Capture the authored brief the swatches are drawn from",
+                "provider": null,
+                "model": null,
+                "retry_owner": "none",
+                "max_attempts": 1,
+                "depends_on": [],
+                "state": "succeeded",
+                "attempts": 1,
+                "duration_ms": 12,
+                "cost_usd": null,
+                "provider_operations": 0,
+                "cache": "hit",
+                "not_needed": null,
+                "verdict": null,
+                "checks": [],
+                "prompt": null,
+                "rationale": null,
+                "open_issues": [],
+                "record_ref": "brief.json",
+                "thumb": null,
+                "pictures": [],
+                "origin": "run"
+              },
+              "draw": {
+                "id": "draw",
+                "type_id": "swatch.draw",
+                "kind": "Image model",
+                "description": "Draw every swatch of the brief on one transparent sheet",
+                "provider": "OpenAI",
+                "model": "GPT Image 2",
+                "retry_owner": "component",
+                "max_attempts": 6,
+                "depends_on": [
+                  "brief"
+                ],
+                "state": "succeeded",
+                "attempts": 1,
+                "duration_ms": 11785,
+                "cost_usd": 0.04,
+                "provider_operations": 1,
+                "cache": "miss",
+                "not_needed": null,
+                "verdict": null,
+                "checks": [],
+                "prompt": "Draw six square slate swatches, evenly spaced, lit from the upper left, on a transparent background.",
+                "rationale": null,
+                "open_issues": [],
+                "record_ref": "sheet.png.provenance.json",
+                "thumb": {
+                  "src": "media/draw-sheet.webp",
+                  "width": 320,
+                  "height": 320,
+                  "bg": "transparent",
+                  "alpha": true
+                },
+                "pictures": [
+                  {
+                    "src": "media/output-sheet.webp",
+                    "width": 640,
+                    "height": 640,
+                    "bg": "transparent",
+                    "alpha": true,
+                    "caption": "The sheet as drawn"
+                  }
+                ],
+                "origin": "run"
+              },
+              "check": {
+                "id": "check",
+                "type_id": "swatch.check",
+                "kind": "Check",
+                "description": "Refuse a sheet whose swatches touch or leave the grid",
+                "provider": null,
+                "model": null,
+                "retry_owner": "none",
+                "max_attempts": 1,
+                "depends_on": [
+                  "draw"
+                ],
+                "state": "succeeded",
+                "attempts": 1,
+                "duration_ms": 640,
+                "cost_usd": null,
+                "provider_operations": 0,
+                "cache": "miss",
+                "not_needed": null,
+                "verdict": {
+                  "passed": true,
+                  "reason": "six swatches, none touching, all inside the grid"
+                },
+                "checks": [
+                  {
+                    "name": "separated",
+                    "passed": true
+                  },
+                  {
+                    "name": "inside_grid",
+                    "passed": true
+                  }
+                ],
+                "prompt": null,
+                "rationale": null,
+                "open_issues": [],
+                "record_ref": "check.json",
+                "thumb": null,
+                "pictures": [],
+                "origin": "run"
+              },
+              "contact-sheet": {
+                "id": "contact-sheet",
+                "type_id": "swatch.contact_sheet",
+                "kind": "Composite",
+                "description": "Lay the swatches out for the page, made by the importer from the sheet",
+                "provider": null,
+                "model": null,
+                "retry_owner": null,
+                "max_attempts": null,
+                "depends_on": [
+                  "draw"
+                ],
+                "state": "succeeded",
+                "attempts": null,
+                "duration_ms": null,
+                "cost_usd": null,
+                "provider_operations": null,
+                "cache": null,
+                "not_needed": null,
+                "verdict": null,
+                "checks": [],
+                "prompt": null,
+                "rationale": null,
+                "open_issues": [],
+                "record_ref": null,
+                "thumb": null,
+                "pictures": [],
+                "origin": "derived"
+              }
+            }
+          },
+          "figures": {
+            "run": "out/swatch-sheet-slate-01",
+            "files": [
+              {
+                "file": "media/output-sheet.webp",
+                "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "bytes": 48210,
+                "size": [
+                  640,
+                  640
+                ],
+                "sources": [
+                  {
+                    "path": "out/swatch-sheet-slate-01/sheet.png",
+                    "sha256": "6666666666666666666666666666666666666666666666666666666666666666"
+                  }
+                ],
+                "transform": "at most 640 px high, WebP q84"
+              },
+              {
+                "file": "media/draw-sheet.webp",
+                "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "bytes": 15002,
+                "size": [
+                  320,
+                  320
+                ],
+                "sources": [
+                  {
+                    "path": "out/swatch-sheet-slate-01/sheet.png",
+                    "sha256": "6666666666666666666666666666666666666666666666666666666666666666"
+                  }
+                ],
+                "transform": "at most 320 px high, WebP q84"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "game_examples": [
+    {
+      "owner": "example-game",
+      "id": "harbor-tiles",
+      "entry": {
+        "schema_version": 1,
+        "kind": "game-example-entry-v1",
+        "made_by": {
+          "kind": "game",
+          "id": "example-game"
+        },
+        "game_title": "Example Game",
+        "title": "Harbor tiles",
+        "promise": "One painted harbor in. Forty-seven seamless tiles out.",
+        "order": 1,
+        "related": [
+          "swatch-sheet"
+        ],
+        "command": "uv run --group games demo-games generate --input my-game --checkpoint world --output runs/example-game-world-v1",
+        "footer": null,
+        "tools": [
+          {
+            "name": "Godot",
+            "role": "Plays the tiles"
+          }
+        ],
+        "labels": {
+          "harbor-atlas": "Cut the atlas"
+        },
+        "steps": [
+          {
+            "label": "Cut",
+            "note": "One atlas, one pass.",
+            "members": [
+              "harbor-atlas"
+            ]
+          }
+        ],
+        "currency": "current",
+        "example_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+        "figures_sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      "currency": "current",
+      "page": "page.mdx",
+      "example_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "problems": [],
+      "example": {
+        "schema_version": 1,
+        "kind": "workflow-example-v1",
+        "example_id": "harbor-tiles",
+        "made_by": {
+          "kind": "game",
+          "id": "example-game"
+        },
+        "importer": "tile_atlas",
+        "delivered_run": "out/example-game-world-v1/maps",
+        "source_runs": [
+          {
+            "path": "out/example-game-world-v1",
+            "anchor": "execution-plan.json",
+            "anchor_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        ],
+        "source_files": null,
+        "status": "succeeded",
+        "graph_kind": "example-game-execution-graph-v1",
+        "graph_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "inputs": {},
+        "outputs": {
+          "atlas": {
+            "kind": "image",
+            "file": "maps/harbor/atlas.png",
+            "picture": {
+              "src": "media/atlas.webp",
+              "width": 512,
+              "height": 512,
+              "bg": "checker",
+              "alpha": true
+            }
+          }
+        },
+        "metrics": {
+          "wall_seconds": 30.5,
+          "tiles": 47
+        },
+        "models": [],
+        "tree": {
+          "": {
+            "kind": "dir",
+            "bytes": 90112,
+            "files": 1,
+            "entries": 1
+          },
+          "maps": {
+            "kind": "dir",
+            "bytes": 90112,
+            "files": 1,
+            "entries": 1
+          }
+        },
+        "nodes": {
+          "harbor-atlas": {
+            "id": "harbor-atlas",
+            "type_id": "example_game/tiles.atlas",
+            "kind": "Tile atlas",
+            "description": "Cut the harbor terrain into its 47 tiles",
+            "provider": null,
+            "model": null,
+            "retry_owner": "none",
+            "max_attempts": 1,
+            "depends_on": [],
+            "state": "succeeded",
+            "attempts": 1,
+            "duration_ms": 30500,
+            "cost_usd": null,
+            "provider_operations": 0,
+            "cache": "miss",
+            "not_needed": null,
+            "verdict": null,
+            "checks": [],
+            "prompt": null,
+            "rationale": null,
+            "open_issues": [],
+            "record_ref": null,
+            "thumb": null,
+            "pictures": [],
+            "origin": "run"
+          }
+        }
+      },
+      "figures": {
+        "run": "out/example-game-world-v1",
+        "files": [
+          {
+            "file": "media/atlas.webp",
+            "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "bytes": 22000,
+            "size": [
+              512,
+              512
+            ],
+            "sources": [
+              {
+                "path": "out/example-game-world-v1/maps/harbor/atlas.png",
+                "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ],
+            "transform": "WebP q84"
+          }
+        ]
+      }
+    }
+  ],
+  "cards": [
+    {
+      "order": 1,
+      "title": "Harbor tiles",
+      "promise": "One painted harbor in. Forty-seven seamless tiles out.",
+      "made_by": {
+        "kind": "game",
+        "id": "example-game"
+      },
+      "made_inside": "Example Game",
+      "workflow": null,
+      "example": "harbor-tiles",
+      "present": true
+    },
+    {
+      "order": 2,
+      "title": "Swatch sheet",
+      "promise": "One brief in. A checked sheet of material swatches out.",
+      "made_by": {
+        "kind": "workflow",
+        "id": "swatch-sheet"
+      },
+      "made_inside": null,
+      "workflow": "swatch-sheet",
+      "example": "slate-swatches",
+      "present": true
+    }
+  ],
+  "model_names": {
+    "gpt-image-2": "GPT Image 2"
+  },
+  "provider_names": {
+    "openai": "OpenAI"
+  }
+}

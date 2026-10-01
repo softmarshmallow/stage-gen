@@ -83,7 +83,7 @@ cd web
 bun install --frozen-lockfile
 bun run check
 bun test
-bun run build
+bun run --cwd viewer build
 ```
 
 See [docs/testing.md](docs/testing.md) for focused module commands. For code,

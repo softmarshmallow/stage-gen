@@ -39,6 +39,32 @@ def _walk_files(path: Path, suffixes: frozenset[str]) -> list[Path]:
     return files
 
 
+def _web_files(repo: Path, suffixes: frozenset[str]) -> list[Path] | None:
+    """The web workspace's own files: tracked, plus untracked ones a commit would take.
+
+    Build output, installs and staged catalogs (``.next``, ``out``, ``node_modules``,
+    ``.catalog``, copied example media) are ignored, so they are never scanned. None when
+    git cannot answer, which the caller reports instead of passing an empty walk.
+    """
+    try:
+        completed = subprocess.run(
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", "web"],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if completed.returncode != 0:
+        return None
+    return sorted(
+        repo / entry
+        for entry in completed.stdout.split("\0")
+        if entry and Path(entry).suffix in suffixes and (repo / entry).is_file()
+    )
+
+
 CONSUMER_SPECS = (
     "godot/games/ember_hollow/docs/generation-v1.md",
     "godot/games/ember_hollow/docs/crafting.md",
@@ -106,7 +132,7 @@ def check_spec_checkers(repo: Path) -> list[str]:
 
     A spec under ``docs/spec`` opens with ``> **Checked by:** `tests/...`, ...`` naming
     the test modules that read it, or ``none.`` when nothing does. A named test must
-    exist, live under ``tests/`` or be a ``web/lib`` test, and actually name the spec,
+    exist, live under ``tests/`` or be a Bun test under ``web/``, and actually name the spec,
     so a document cannot borrow a checker it never had; ``none`` is a statement a
     reader can act on rather than a pointer that quietly rotted.
     """
@@ -133,7 +159,7 @@ def check_spec_checkers(repo: Path) -> list[str]:
         spec_ref = relative.removeprefix("docs/")
         for test_ref in named:
             is_test = (test_ref.startswith("tests/") and test_ref.endswith(".py")) or (
-                test_ref.startswith("web/lib/") and test_ref.endswith(".test.ts")
+                test_ref.startswith("web/") and test_ref.endswith((".test.ts", ".test.tsx"))
             )
             if not is_test:
                 failures.append(f"{relative}: Checked by names a non-test `{test_ref}`")
@@ -204,7 +230,7 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         consumed_env_names.update(
             re.findall(r"""["']([A-Z][A-Z0-9_]*)["']""", source_path.read_text(encoding="utf-8"))
         )
-    web_env_source = (repo / "web/lib/shell/runs.ts").read_text(encoding="utf-8")
+    web_env_source = (repo / "web/viewer/lib/shell/runs.ts").read_text(encoding="utf-8")
     consumed_env_names.update(re.findall(r"process\.env\.([A-Z][A-Z0-9_]*)", web_env_source))
     for name in sorted(consumed_env_names):
         if name not in env_assignments:
@@ -310,6 +336,7 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
 
     failures.extend(check_spec_checkers(repo))
 
+    text_suffixes = frozenset({".md", ".txt", ".ts", ".tsx", ".mjs", ".js", ".jsx", ".cjs"})
     text_files: list[Path] = []
     for path in [
         *doctrine,
@@ -318,13 +345,13 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         *concept_markdown,
         repo / "docs",
         repo / "library",
-        repo / "web",
     ]:
-        text_files.extend(
-            _walk_files(
-                path, frozenset({".md", ".txt", ".ts", ".tsx", ".mjs", ".js", ".jsx", ".cjs"})
-            )
-        )
+        text_files.extend(_walk_files(path, text_suffixes))
+    web_text = _web_files(repo, text_suffixes)
+    if web_text is None:
+        failures.append("web: git could not list the workspace's files")
+    else:
+        text_files.extend(web_text)
     text_files = sorted(dict.fromkeys(text_files))
     stale_patterns = (
         ("legacy gateway key", re.compile("_".join(("AI", "GATEWAY", "API", "KEY")))),
@@ -392,7 +419,7 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         re.compile(r"""\blike\s+["'A-Z]"""),
         re.compile(r"""\bmeets\s+["'A-Z]"""),
     )
-    for policy_file in [*prompt_fixtures, repo / "web/app/Picker.tsx"]:
+    for policy_file in prompt_fixtures:
         if not policy_file.exists():
             continue
         source = policy_file.read_text(encoding="utf-8")
@@ -519,11 +546,14 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
             "web holds no game logic",
         ),
     )
-    # `web/` consumes published contracts; it must not be able to start a run. A shell that
-    # can spawn a process is one refactor away from being a second generator, so the absence
-    # of the capability is checked rather than described.
-    web_shell = repo / "web/lib/shell"
-    for source_path in sorted(web_shell.glob("*.ts")):
+    # The viewer consumes published contracts; it must not be able to start a run. A shell
+    # that can spawn a process is one refactor away from being a second generator, so the
+    # absence of the capability is checked rather than described. A scan that matched no
+    # file proves nothing, so an empty one fails too.
+    web_shell = sorted((repo / "web/viewer/lib/shell").glob("*.ts"))
+    if not web_shell:
+        failures.append("web/viewer/lib/shell: the no-spawn rule matched no file")
+    for source_path in web_shell:
         source = source_path.read_text(encoding="utf-8")
         if "node:child_process" in source or "Bun.spawn" in source:
             relative = source_path.relative_to(repo).as_posix()

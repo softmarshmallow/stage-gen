@@ -1,0 +1,237 @@
+{
+  "schema_version": 3,
+  "kind": "pipeline-execution-view-v1",
+  "pipeline_id": "swatch-sheet",
+  "title": "Swatch sheet",
+  "graph_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "topology_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "invocation_id": "slate-01",
+  "run_state": "succeeded",
+  "trace_modified_at": "2026-09-30T08:00:12Z",
+  "duration_ms": 12450,
+  "known_cost_usd": 0.04,
+  "state_counts": {
+    "pending": 0,
+    "running": 0,
+    "succeeded": 3,
+    "failed": 0,
+    "skipped": 0
+  },
+  "resources": [
+    {
+      "resource_id": "local",
+      "max_in_flight": 4,
+      "requests_per_minute": null,
+      "rate_limit_owner": "none"
+    },
+    {
+      "resource_id": "image-route",
+      "max_in_flight": 2,
+      "requests_per_minute": 30,
+      "rate_limit_owner": "scheduler"
+    }
+  ],
+  "nodes": [
+    {
+      "node_id": "brief",
+      "type_id": "swatch.brief",
+      "title": "Read the brief",
+      "archetype": "source",
+      "domain": "swatch",
+      "description": "capture the authored brief the swatches are drawn from",
+      "params": {},
+      "depends_on": [],
+      "barrier_only": [],
+      "operation": "local",
+      "resource_id": "local",
+      "provider": null,
+      "model": null,
+      "retry_owner": "none",
+      "max_attempts": 1,
+      "input_sha256": ["3333333333333333333333333333333333333333333333333333333333333333"],
+      "cache_key": "4444444444444444444444444444444444444444444444444444444444444444",
+      "ports": [
+        {
+          "port_id": "brief",
+          "artifact_ref": "brief.json",
+          "kind": "swatch-brief-v1",
+          "sidecar_ref": null
+        }
+      ],
+      "card": {
+        "prompt": null,
+        "template_ref": null,
+        "schema_name": null,
+        "reference_inputs": [],
+        "authored_inputs": [
+          {
+            "label": "brief",
+            "ref": "inputs/brief.json",
+            "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+          }
+        ]
+      },
+      "template_id": null,
+      "estimated_duration_seconds": 0.1,
+      "estimated_cost_low_usd": 0.0,
+      "estimated_cost_high_usd": 0.0,
+      "state": "succeeded",
+      "started_offset_ms": 0,
+      "ended_offset_ms": 12,
+      "queue_ms": 0,
+      "duration_ms": 12,
+      "cache": "hit",
+      "attempts": 1,
+      "provider_operations": 0,
+      "known_cost_usd": 0.0,
+      "error": null,
+      "blocked_by": [],
+      "artifacts": [
+        {
+          "artifact_ref": "brief.json",
+          "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+          "bytes": 412,
+          "media_type": "application/json",
+          "present": true,
+          "display": "data",
+          "motion": null,
+          "preview": null
+        }
+      ]
+    },
+    {
+      "node_id": "draw",
+      "type_id": "swatch.draw",
+      "title": "Draw the swatch sheet",
+      "archetype": "image",
+      "domain": "swatch",
+      "description": "draw every swatch of the brief on one transparent sheet",
+      "params": {
+        "material": "slate"
+      },
+      "depends_on": ["brief"],
+      "barrier_only": [],
+      "operation": "image_generation",
+      "resource_id": "image-route",
+      "provider": "openai",
+      "model": "gpt-image-2",
+      "retry_owner": "component",
+      "max_attempts": 6,
+      "input_sha256": ["3333333333333333333333333333333333333333333333333333333333333333"],
+      "cache_key": "5555555555555555555555555555555555555555555555555555555555555555",
+      "ports": [
+        {
+          "port_id": "sheet",
+          "artifact_ref": "sheet.png",
+          "kind": "swatch-sheet-v1",
+          "sidecar_ref": "sheet.png.provenance.json"
+        }
+      ],
+      "card": {
+        "prompt": "Draw six square slate swatches, evenly spaced, lit from the upper left, on a transparent background.",
+        "template_ref": null,
+        "schema_name": null,
+        "reference_inputs": [
+          {
+            "node_id": "brief",
+            "port_id": "brief"
+          }
+        ],
+        "authored_inputs": []
+      },
+      "template_id": null,
+      "estimated_duration_seconds": 45.0,
+      "estimated_cost_low_usd": 0.02,
+      "estimated_cost_high_usd": 0.06,
+      "state": "succeeded",
+      "started_offset_ms": 12,
+      "ended_offset_ms": 11800,
+      "queue_ms": 3,
+      "duration_ms": 11785,
+      "cache": "miss",
+      "attempts": 1,
+      "provider_operations": 1,
+      "known_cost_usd": 0.04,
+      "error": null,
+      "blocked_by": [],
+      "artifacts": [
+        {
+          "artifact_ref": "sheet.png",
+          "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+          "bytes": 1048576,
+          "media_type": "image/png",
+          "present": true,
+          "display": "image",
+          "motion": null,
+          "preview": null
+        },
+        {
+          "artifact_ref": "sheet.png.provenance.json",
+          "sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+          "bytes": 2048,
+          "media_type": "application/json",
+          "present": true,
+          "display": "data",
+          "motion": null,
+          "preview": null
+        }
+      ]
+    },
+    {
+      "node_id": "check",
+      "type_id": "swatch.check",
+      "title": "Check the sheet",
+      "archetype": "validate",
+      "domain": "swatch",
+      "description": "refuse a sheet whose swatches touch or leave the grid",
+      "params": {},
+      "depends_on": ["draw"],
+      "barrier_only": [],
+      "operation": "local",
+      "resource_id": "local",
+      "provider": null,
+      "model": null,
+      "retry_owner": "none",
+      "max_attempts": 1,
+      "input_sha256": ["6666666666666666666666666666666666666666666666666666666666666666"],
+      "cache_key": "8888888888888888888888888888888888888888888888888888888888888888",
+      "ports": [
+        {
+          "port_id": "report",
+          "artifact_ref": "check.json",
+          "kind": "swatch-check-v1",
+          "sidecar_ref": null
+        }
+      ],
+      "card": null,
+      "template_id": null,
+      "estimated_duration_seconds": 0.5,
+      "estimated_cost_low_usd": 0.0,
+      "estimated_cost_high_usd": 0.0,
+      "state": "succeeded",
+      "started_offset_ms": 11800,
+      "ended_offset_ms": 12440,
+      "queue_ms": 0,
+      "duration_ms": 640,
+      "cache": "miss",
+      "attempts": 1,
+      "provider_operations": 0,
+      "known_cost_usd": 0.0,
+      "error": null,
+      "blocked_by": [],
+      "artifacts": [
+        {
+          "artifact_ref": "check.json",
+          "sha256": "9999999999999999999999999999999999999999999999999999999999999999",
+          "bytes": 230,
+          "media_type": "application/json",
+          "present": true,
+          "display": "data",
+          "motion": null,
+          "preview": null
+        }
+      ]
+    }
+  ],
+  "gaps": []
+}

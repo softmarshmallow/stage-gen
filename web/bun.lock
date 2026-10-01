@@ -3,8 +3,25 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@stage-gen/web",
+      "name": "@stage-gen/web-workspace",
+      "devDependencies": {
+        "@tailwindcss/postcss": "^4.3.3",
+        "tailwindcss": "^4.3.3",
+      },
+    },
+    "ui": {
+      "name": "@stage-gen/ui",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@types/bun": "^1.4.0",
+        "typescript": "^7.0.2",
+      },
+    },
+    "viewer": {
+      "name": "@stage-gen/viewer",
+      "version": "0.0.0",
       "dependencies": {
+        "@stage-gen/ui": "workspace:*",
         "next": "^16.3.3",
         "ol": "10.10.0",
         "react": "^19.2.8",
@@ -109,6 +126,10 @@
     "@next/swc-win32-x64-msvc": ["@next/swc-win32-x64-msvc@16.3.3", "", { "os": "win32", "cpu": "x64" }, "sha512-2VR4cTBzHXaBjnGsuH6GyJjENzQOmHeAh11uY1iUhjm3j5dEUrVJuUj+VL78jaGi/Dik8xS76zEj18BsFhlVZQ=="],
 
     "@petamoriken/float16": ["@petamoriken/float16@3.9.3", "", {}, "sha512-8awtpHXCx/bNpFt4mt2xdkgtgVvKqty8VbjHI/WWWQuEw+KLzFot3f4+LkQY9YmOtq7A5GdOnqoIC8Pdygjk2g=="],
+
+    "@stage-gen/ui": ["@stage-gen/ui@workspace:ui"],
+
+    "@stage-gen/viewer": ["@stage-gen/viewer@workspace:viewer"],
 
     "@swc/helpers": ["@swc/helpers@0.5.23", "", { "dependencies": { "tslib": "^2.8.0" } }, "sha512-5lSsMOTXURePglDfvuAQUqkGek9Hg2kksOYay2m0+XR++b2NWYL/4sWyuvVBIs8oKnJaxkdi9whaL/sqN13afw=="],
 

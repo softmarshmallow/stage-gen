@@ -9,16 +9,17 @@ listening review are separate, explicit checks.
 ```sh
 uv sync --frozen
 uv run python scripts/check.py                    # product: Python SDK, tests, build
-uv run python scripts/check.py --scope viewer     # Bun checks and viewer boundary tests
+uv run python scripts/check.py --scope web        # Bun workspace checks and web contract tests
 uv run python scripts/check.py --scope docs       # links, policy and media inventory
 uv run --group games python scripts/check.py --scope games
 uv run --group apps python scripts/check.py --scope apps
 uv run --group games python scripts/check.py --scope godot
 ```
 
-The default product gate requires Python tools only. The viewer scope requires
-`bun install --frozen-lockfile` in `web`. Godot checks require the engine on PATH
-(or `GODOT`) and verify the retained demo fixture and independently packaged SDK.
+The default product gate requires Python tools only. The web scope requires
+`bun install --frozen-lockfile` in `web`, the one Bun workspace (`ui`, `viewer`).
+Godot checks require the engine on PATH (or `GODOT`) and verify the retained demo
+fixture and independently packaged SDK.
 Some media processing tests also require FFmpeg. A missing required tool fails its
 owning gate; it is not a reason to skip the whole product gate.
 
@@ -31,7 +32,7 @@ uv run --all-groups python scripts/check.py --scope all
 ```
 
 `all` retains full offline Python collection, formatting, type checking, packaging,
-viewer, Godot, docs, game input plans and optional application checks. Tests are
+web, Godot, docs, game input plans and optional application checks. Tests are
 assigned before collection so a product-only environment need not import the
 optional demo or concept distributions. The partition is tested for completeness.
 

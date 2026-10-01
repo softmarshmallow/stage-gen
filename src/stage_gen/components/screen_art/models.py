@@ -102,7 +102,7 @@ class ShellReference(PersistedContractModel):
 class ShellTypeface(PersistedContractModel):
     """The face every composited string on a shell screen is set in.
 
-    The record is the one ``web/public/fonts/*/README.md`` already keeps per face, moved
+    The record is the one ``web/viewer/public/fonts/*/README.md`` already keeps per face, moved
     from a README convention into a contract a resolver can refuse. ``license`` must be a
     licence that permits redistributing the font file, because publishing a run copies it.
     """

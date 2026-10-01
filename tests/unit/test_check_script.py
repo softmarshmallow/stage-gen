@@ -188,7 +188,7 @@ def test_owned_test_gates_partition_every_offline_test() -> None:
         if not path.is_relative_to(root / "tests/live")
     }
     assert set(owned) == expected
-    scopes: tuple[TestOwner, ...] = ("product", "games", "godot", "viewer", "apps")
+    scopes: tuple[TestOwner, ...] = ("product", "games", "godot", "web", "apps")
     groups = [set(paths_for(root, scope)) for scope in scopes]
     assert set.union(*groups) == expected
     assert sum(map(len, groups)) == len(expected)

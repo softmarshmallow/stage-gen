@@ -603,7 +603,11 @@ def test_repository_media_obeys_git_size_and_location_policy() -> None:
                 )
                 assert relative.suffix.lower() in IMAGE_MEDIA_SUFFIXES
         if relative.parts[0] == "web":
-            assert relative.parts[:2] in {("web", "public"), ("web", "scripts")}
+            # The viewer's own static files; the site's example media is staged, never tracked.
+            assert relative.parts[:3] == ("web", "viewer", "public") or relative.parts[:2] == (
+                "web",
+                "scripts",
+            )
         if relative.suffix.lower() in {".mp4", ".webm"}:
             assert relative.parts[0] == "docs"
         path = repository / relative

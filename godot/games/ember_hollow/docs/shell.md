@@ -86,7 +86,7 @@ stack, and nothing under `godot/` loads a `FontFile` at all.
 The face lives at `godot/games/<game>/inputs/fonts/`, its licence text beside it, and its
 licence must be one that permits redistributing the font file — because publishing a run
 copies it. The accepted set is `OFL-1.1`, `Apache-2.0` and `CC0-1.0`; widening it is a
-rights decision. The record is the one `web/public/fonts/*/README.md` already keeps per
+rights decision. The record is the one `web/viewer/public/fonts/*/README.md` already keeps per
 face, promoted from a README convention into a contract a resolver can refuse. See
 [decision 0063](../../../../docs/decisions/0063-a-typeface-is-a-package-input.md).
 

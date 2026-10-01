@@ -1,0 +1,16 @@
+{
+  "name": "@stage-gen/ui",
+  "private": true,
+  "version": "0.0.0",
+  "exports": {
+    "./contracts/*": "./contracts/*.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.0",
+    "typescript": "^7.0.2"
+  }
+}

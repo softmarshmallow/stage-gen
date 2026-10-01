@@ -243,10 +243,10 @@ def steps(
             Step((python, "-m", "build", "--no-isolation")),
             *_asset_steps(python, scratch=scratch),
         ),
-        "viewer": (
+        "web": (
             Step(("bun", "run", "check"), WEB_ROOT),
             Step(("bun", "test"), WEB_ROOT),
-            Step(("pytest", "-m", "not live", *paths_for(REPOSITORY_ROOT, "viewer"))),
+            Step(("pytest", "-m", "not live", *paths_for(REPOSITORY_ROOT, "web"))),
         ),
         "godot": (
             Step((python, "godot/tools/check.py")),
@@ -278,7 +278,7 @@ def steps(
                 )
             ),
             Step(("pytest", "-m", "not live")),
-            *groups["viewer"][:2],
+            *groups["web"][:2],
             *groups["godot"][:-1],
             *groups["docs"],
             *groups["games"][1:],
@@ -324,7 +324,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run credential-free checks for an owned surface")
     parser.add_argument(
         "--scope",
-        choices=("product", "viewer", "godot", "games", "apps", "docs", "all"),
+        choices=("product", "web", "godot", "games", "apps", "docs", "all"),
         default="product",
     )
     args = parser.parse_args()
