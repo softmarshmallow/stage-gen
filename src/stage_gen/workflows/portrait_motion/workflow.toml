@@ -11,9 +11,9 @@ combination is reviewed, and the accepted patches go back on the sprite at full 
 related = ["movie-sprite"]
 
 [try]
-input = "Your own finished sprite PNG with its provenance sidecar, and a PortraitMotionSpec JSON"
+input = "Your own finished sprite PNG with its provenance sidecar; the face spec is the committed inputs/face-four-card.json"
 commands = [
-  "stage-gen plan portrait-motion --source sprite.png --spec spec.json --run out/portrait-try --face-crop",
+  "stage-gen plan portrait-motion --source sprite.png --spec src/stage_gen/workflows/portrait_motion/inputs/face-four-card.json --run out/portrait-try --face-crop",
   "stage-gen run portrait-motion --run out/portrait-try --live",
   "stage-gen inspect out/portrait-try --verify",
 ]

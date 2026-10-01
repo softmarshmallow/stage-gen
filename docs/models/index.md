@@ -23,8 +23,8 @@ behavior before widening an adapter contract.
 
 - [Provider operations](providers.md) — credentials, endpoints, retry ownership,
   response handling, and experimental boundaries shared by provider adapters.
-- [Image adapter quick reference](../tech/gpt-image-2.5.md) — the current
-  Sunburst route split and implementation checklist.
+- [GPT Image 2.5](gpt-image-2.5.md) — the current Sunburst route split and its provider
+  contract.
 
 ## Capability surveys
 

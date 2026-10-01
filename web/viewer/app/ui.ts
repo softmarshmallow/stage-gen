@@ -1,4 +1,4 @@
-// The shell's shared class strings, per DESIGN.md.
+// The shell's shared class strings, per docs/plans/2026-05-prototype-design.md.
 //
 // A constant here earns its place by being used from more than one file.
 // Anything worn once is written on the element that wears it. These are

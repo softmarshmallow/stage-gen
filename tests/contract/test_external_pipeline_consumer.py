@@ -55,7 +55,7 @@ def test_installed_public_pipeline_cli_plan_run_cache_failure_and_inspect(tmp_pa
     consumer = tmp_path / "consumer"
     consumer.mkdir()
     definition = consumer / "my_assets.py"
-    shutil.copyfile(repository / "examples/pipelines/local_media.py", definition)
+    shutil.copyfile(repository / "docs/sdk/pipelines/local_media.py", definition)
     inputs = consumer / "inputs"
     inputs.mkdir()
     (inputs / "palette.json").write_text('{"color": [24, 48, 72]}')

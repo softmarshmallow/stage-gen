@@ -88,4 +88,13 @@ describe("doc links", () => {
     expect(html).not.toContain("runs.py");
     expect(html).toContain('href="https://docs.astral.sh/uv/"');
   });
+
+  test("a relative image the site does not publish keeps its alt text", async () => {
+    const source = "Before.\n\n![The loop node in the map branch](../../../../docs/diagrams/loop.svg)\n\nAfter.";
+    const Content = await compileSource(source, "md", { from: "src/stage_gen/workflows/x/contract.md", resolve: () => null });
+    const html = renderToStaticMarkup(createElement(Content, { components: docComponents() }));
+    expect(html).toContain("The loop node in the map branch");
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("loop.svg");
+  });
 });

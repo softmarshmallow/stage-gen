@@ -62,7 +62,7 @@ it does not demonstrate synchronized speech or a complete viseme set.
   generation module or grant a blanket media license. Historical source rights
   and review records remain unchanged.
 
-This reviewed result demonstrates the [movie sprite workflow](../../../docs/movie-sprite.md).
+This reviewed result demonstrates the [movie sprite workflow](../../../src/stage_gen/workflows/movie_sprite/page.mdx).
 The final video-derived first frame is
 the canonical for the existing facial repaint pipeline, whose implementation is
 unchanged. Source selection and spatial controls remain specific to each take;

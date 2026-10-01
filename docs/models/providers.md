@@ -174,10 +174,12 @@ Before changing a product, route, capability, price, or policy, save the current
 `src/stage_gen/model_policy_snapshot.json` and compare it after the edit:
 
 ```sh
-uv run stage-gen models diff --base ./previous-model-policy.json
-uv run stage-gen models diff --base ./previous-model-policy.json --recipe sideview_platformer
-uv run stage-gen models diff --base ./previous-model-policy.json --image-provider fal
+uv run --group games demo-games models diff --base ./previous-model-policy.json
+uv run --group games demo-games models diff --base ./previous-model-policy.json --recipe sideview_platformer
+uv run --group games demo-games models diff --base ./previous-model-policy.json --image-provider fal
 ```
+
+The diff replans the example games' canonical fixtures too, so it lives in the games' tooling.
 
 `--image-provider` replans every canonical fixture under that explicit provider
 policy in a source checkout, so the report includes real direct and downstream
@@ -429,7 +431,7 @@ for that leg and the encoder it needs.
 
 ### Movie sprite start/end frames
 
-The [movie sprite workflow](../movie-sprite.md) binds
+The [movie sprite workflow](../../src/stage_gen/workflows/movie_sprite/page.mdx) binds
 `google/gemini-omni-flash/v1.1/image-to-video` through `FalEndpointVideoBackend`.
 Its [official API schema](https://fal.ai/models/google/gemini-omni-flash/v1.1/image-to-video/api)
 was checked on 2026-09-15: `prompt`, `image_url`, optional `end_image_url`, integer

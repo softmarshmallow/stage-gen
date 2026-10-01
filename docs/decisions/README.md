@@ -18,6 +18,9 @@ Current supersession: [0070](0070-the-game-invokes-scenario.md) moves Scenario o
 from Stage Gen to Godot and establishes game-owned invocation. It supersedes the
 relevant provisions of 0001/0005 and limits universal readings of 0008/0014; 0009
 and 0066 retain their evidence requirements. Historical records below remain unchanged.
+[0071](0071-workflows-are-the-product-unit-and-the-web-splits-into-site-and-viewer.md)
+supersedes [0069](0069-the-platformer-is-retired-and-web-is-only-the-viewer.md) only on the
+viewer being launched by the CLI, multi-root and workflow-aware.
 
 | # | Title | In one line |
 | --- | --- | --- |
@@ -91,3 +94,4 @@ and 0066 retain their evidence requirements. Historical records below remain unc
 | [0068](0068-the-suite-reads-a-world-the-repository-can-write.md) | The suite reads a world the repository can write | A gate that needs a run nobody can regenerate is a gate that decays; the suite writes its own fixture |
 | [0069](0069-the-platformer-is-retired-and-web-is-only-the-viewer.md) | The platformer is retired, and the web is only the viewer | The last 67,356 lines go; the picture gate 0066 asked for was rejected as a harness, and playing it found seventeen defects no hash could see |
 | [0070](0070-the-game-invokes-scenario.md) | The game invokes Scenario | One Godot-owned sequence executor, data-only content and versioned game capabilities; supported v2 inputs remain |
+| [0071](0071-workflows-are-the-product-unit-and-the-web-splits-into-site-and-viewer.md) | Workflows are the product unit, and the web splits into a site and a viewer | One folder per deliverable describes itself; the site is built from the catalog and pinned examples, the viewer is the CLI's local client |

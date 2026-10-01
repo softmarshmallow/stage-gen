@@ -1,1 +1,18 @@
 A storefront is the outward face of a game: the app icon, the store preview stills, the feature banner and the listing copy beside them. It reads the game's own art, so the look is taken from the references rather than named in words. One reading of those references is compiled into a direction every surface inherits, and each surface is then drawn from its own brief. A local step cuts each picture to the exact canvas the store asks for, and a surface with the wrong size, alpha or file size is refused. Nothing here is an in-game asset.
+
+## Run it yourself
+
+A committed script draws a minimal, original storefront package: one reference picture, a
+positioning note and a request for one surface. Plan it offline, and try a run with deterministic
+fake operations before any spend:
+
+```sh
+uv run python src/stage_gen/workflows/storefront/inputs/minimal/make_inputs.py out/storefront-input
+uv run stage-gen plan storefront --input out/storefront-input
+uv run stage-gen run storefront --input out/storefront-input --output out/storefront-try --cache-dir out/cache --dry-run
+uv run stage-gen inspect out/storefront-try
+```
+
+A live run needs `--live` in place of `--dry-run`, and your provider keys. The
+[contract](contract.md) holds the package format, the surfaces and their canvases, the routes and
+the graph.

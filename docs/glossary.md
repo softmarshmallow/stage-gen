@@ -38,6 +38,8 @@ keep an old word because changing them would change an identity.
 | `export-view` for product runs | `stage-gen inspect RUN --write-view DIR`; game runs keep `demo-games export-view` |
 | `STAGE_GEN_OUT_DIR` | `STAGE_GEN_RUN_ROOTS`, a list of paths |
 | a workflow's `examples/` input bundles | its `inputs/` |
+| `examples/pipelines` (SDK samples) | `docs/sdk/pipelines/` |
+| a workflow's `README.md` and its guide under `docs/` | its `page.mdx` and `contract.md` |
 
 ## Frozen persisted strings
 

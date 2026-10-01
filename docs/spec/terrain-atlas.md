@@ -114,7 +114,7 @@ change must advance that identity so cached paintovers cannot mask stale atlases
 The machine-readable lookup in
 `stage_gen/resources/terrain/godot_3x3_minimal_lookup_v1.json` is authoritative.
 The tracked companion
-`fixtures/image_gen_templates/terrain_atlas_godot_topology_reference.md`
+[`docs/spec/terrain-atlas-topology-reference.md`](terrain-atlas-topology-reference.md)
 explains every atlas coordinate and mask beside the attributed reference image;
 its cell table is contract-tested against that lookup.
 Mask order is `nw, n, ne, w, center, e, sw, s, se`. The center bit is always

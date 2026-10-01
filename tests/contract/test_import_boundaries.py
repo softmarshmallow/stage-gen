@@ -470,7 +470,7 @@ def test_product_source_never_statically_imports_optional_consumers() -> None:
     for root in (
         SOURCE_ROOT / "stage_gen",
         SOURCE_ROOT.parent / "scripts",
-        SOURCE_ROOT.parent / "examples",
+        SOURCE_ROOT.parent / "docs/sdk/pipelines",
     ):
         for path in _python_sources(root):
             violations.extend(_import_violations(path, (*GAME_MODULES, "concept_studio")))

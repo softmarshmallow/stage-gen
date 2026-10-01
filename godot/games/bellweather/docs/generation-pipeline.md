@@ -19,7 +19,7 @@
 > [oblique-survival](../../ember_hollow/docs/generation-v1.md), which builds a
 > billboard-sprite world on a ground plane under its own camera and carries a
 > checked contract block of its own, and
-> [universe](../../../../docs/spec/universe/generation-v1.md), which is not a game at all: it
+> [universe](../../../../src/stage_gen/workflows/universe/contract.md), which is not a game at all: it
 > builds a storyworld package to read rather than a package to play, and seals
 > two graphs because the size of its gallery is a result of its first phase. The typed package graph is
 > the machine authority, and the compact graph contract embedded below is checked against the

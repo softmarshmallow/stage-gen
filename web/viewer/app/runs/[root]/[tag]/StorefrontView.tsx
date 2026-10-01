@@ -11,9 +11,9 @@
 // numbers there that no one measured would be a fabricated record, so the
 // strip shows what the run actually knows.
 //
-// A reader's page, per DESIGN.md: no status borders anywhere. A surface review
-// can only refuse, so a refusal takes a red dot beside its name, and every
-// grade sits in the disclosure at the foot for whoever wants it.
+// A reader's page, per docs/plans/2026-05-prototype-design.md: no status borders
+// anywhere. A surface review can only refuse, so a refusal takes a red dot beside
+// its name, and every grade sits in the disclosure at the foot for whoever wants it.
 
 import Link from "next/link";
 import { cx } from "@/app/ui";

@@ -1,4 +1,4 @@
-/* stage-gen visual language — see DESIGN.md.
+/* stage-gen visual language — see docs/plans/2026-05-prototype-design.md.
  *
  * Three colours total: bg, fg, accent. Plus a dim and an error.
  * Monospace everywhere. CSS keyframes are forbidden by the design rule.

@@ -1,7 +1,7 @@
 # Authored character profiles
 
 A character profile is reusable, human-authored identity: not generated output, a
-provider cache, a recipe fixture, or a publication root. A profile is a **member
+provider cache, a workflow input, or a publication root. A profile is a **member
 of the game package that binds it**, named by exact relative path and exact
 bytes, the same way that package names every other authored member:
 
@@ -9,9 +9,15 @@ bytes, the same way that package names every other authored member:
 godot/games/<game>/inputs/character.toml
 ```
 
-There is no separate global character tree. A profile that no package names is a
-file nothing can resolve, and a package that names one owns its rights statement
-alongside its own.
+A profile that no package names is a file nothing can resolve, and a package that
+names one owns its rights statement alongside its own.
+
+The shared cast under [`library/characters/`](../library/characters/README.md) is a
+different thing: committed, reviewed artwork and 3D models for documentation and
+demonstrations. Its `sd_3d.*` triplets are the approved character-3d examples Nami,
+Riko and Helix, which the `character-3d` workflow pins by digest and the catalog builds
+from those tracked files. A library character is not a profile that a game package
+binds.
 
 `profile_id` is a stable logical identity. Increment `revision` whenever any
 semantic profile value, rights statement, or reference binding changes. The
@@ -60,7 +66,7 @@ statement; profile rights never silently grant rights to external bytes.
 Authored profiles are workspace content, not Python package data. The repository
 sample remains available in a source checkout; the public Stage Gen distribution
 does not bundle Godot game inputs. An installed CLI receives the package
-directory explicitly with `--package-root PATH`. Profile-aware recipes use the
+directory explicitly with `--package-root PATH`. Profile-aware game graphs use the
 exact shared binding below; the source digest binds authored bytes while the
 shared resolver computes canonical profile identity only after loader
 validation, resolving the ref inside that package root and following no symlink:
@@ -89,9 +95,9 @@ uv run --group games demo-games character-profile digest \
 identity, revision, rights status, source digest, and canonical digest. `digest`
 prints only the lowercase authored-source SHA-256 used as `source_sha256`.
 
-## Runnable recipe inputs
+## Runnable game inputs
 
-The recipe takes a package directory, and the package names its own members:
+The game's graph takes a package directory, and the package names its own members:
 
 ```sh
 uv run --group games demo-games dialogue-scene generate \
@@ -100,14 +106,15 @@ uv run --group games demo-games dialogue-scene generate \
   --dry-run
 ```
 
-The optional game tool owns this preparation command. The web application only
-inspects its outputs. Remove `--dry-run` only for explicitly authorized provider
+The optional game tool owns this preparation command. The viewer only inspects
+its outputs. Remove `--dry-run` only for explicitly authorized provider
 execution.
 
 A prepared game binds its cast in `game.toml` rather than in a request document,
-so the `sideview-platformer` recipe reads authored profiles through the package it
+so the `sideview-platformer` game graph reads authored profiles through the package it
 is given. The dialogue run persists `character-profile.json` with provenance and
-publishes `dialogue-scene-bundle-v8` using recipe `dialogue-scene-v8`. These
+publishes `dialogue-scene-bundle-v8` from the graph document whose `recipe` literal is
+`dialogue-scene-v8`. These
 artifacts carry identity and lineage; they do not authorize publication.
 
 The scene document resolves only package-relative TOML members, rejects symlink

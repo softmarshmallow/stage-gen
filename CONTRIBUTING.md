@@ -12,12 +12,13 @@ separate, game-independent asset capability belongs in Stage Gen.
 
 - Put reusable asset capabilities in `src/stage_gen/components/`, modality services
   in `src/gnode/modalities/`, and provider adapters in `src/gnode/providers/`.
-- Put shared recipe-neutral media inspection and transforms in
+- Put shared workflow-neutral media inspection and transforms in
   `src/stage_gen/media/`. Keep capability-specific deterministic processing
-  with its component contract and recipe-specific canonicalization with its
-  recipe.
-- Compose them through the public `stage_gen.pipeline` harness and bounded
-  `src/stage_gen/workflows/`. Keep examples beside the surface they demonstrate.
+  with its component contract and workflow-specific canonicalization with its
+  workflow.
+- Compose them into a workflow under `src/stage_gen/workflows/` through the
+  `stage_gen.pipeline` SDK. Keep sample inputs in the workflow's `inputs/`, and SDK
+  samples in `docs/sdk/pipelines/`.
 - Complete games own their preparation packages, input formats, gameplay and
   bindings under `godot/games/<game>/`. Share implementations under
   `godot/games/_shared/` only when multiple games use them. The optional `games`
@@ -27,11 +28,48 @@ separate, game-independent asset capability belongs in Stage Gen.
   extraction within the Godot project's scope; no common engine is required of
   every example game.
 - Keep generation-specific genre, composition, projection, framing, layout,
-  artifact, and validation assumptions in recipes. Keep runtime camera, scene,
-  engine, movement, combat, and gameplay assumptions in consumer adapters under `godot/`. The web viewer owns inspection only.
+  artifact, and validation assumptions in workflows. Keep runtime camera, scene,
+  engine, movement, combat, and gameplay assumptions in consumer adapters under
+  `godot/`. The viewer owns inspection only.
 - Do not import `web/` from a reusable component.
 - Keep source identifiers, comments, logs, tests, and user-facing strings in
   English.
+
+## Adding a workflow
+
+A workflow is one folder, `src/stage_gen/workflows/<snake_id>/`, whose kebab-case id is the
+CLI word, the site slug and the docs path. The folder name is the id with `-` written as
+`_`, and a test holds them equal.
+
+1. Write the implementation with the SDK and the components it needs. Name every file a
+   digest reads; no digest may glob the folder.
+2. `workflow.py` exports `CODE`, a `WorkflowCode`: typed steps that reference the real
+   `NodeType` objects (every type in exactly one step), `identity()` read from the code, an
+   offline `sample_plan` (or a stated reason it has none), and the run readers `owns_run`,
+   `inspect` and `write_view`.
+3. `workflow.toml` holds only what code cannot know: title, promise, summary, related
+   workflows, tools, output notes, a `[try]` table of real commands, and pinned examples.
+4. `page.mdx` is the reader's page; `contract.md` is the exact contract, with a
+   `> **Checked by:**` line. A workflow with a sample plan carries its graph-contract block,
+   written by `uv run python scripts/write_workflow_contracts.py --write`.
+5. `cli.py` registers its `plan` and `run` flags with argparse only, so building the parser
+   imports no implementation; `example.py` is its importer, when it has one.
+6. Add the workflow's row to the README table, and pin its persisted identities in the
+   identity golden that `scripts/write_workflow_identity.py` writes; `CODE.identity()` must
+   agree with it. Then run
+   `uv run stage-gen catalog export --check --allow-missing-examples --out <scratch>`.
+
+An example is promoted from real runs with `stage-gen example promote`; it is pinned by
+digest and stays in the local store. Committing run media or deploying the site follows
+[generated-media publication](docs/generated-media-publication.md).
+
+### When a game's output becomes a workflow
+
+Output only a game can make is an example made by that game: its prose, pins and importer
+live with the game, and `demo-games example export <game>` writes it to the store through
+`stage_gen.examples`. It becomes a product workflow once it has product-owned inputs, a
+standalone product graph and a real product run. The UI kit and parallax from a reference
+are the first candidates.
 
 ## Provider work
 
@@ -65,7 +103,11 @@ Run the checks relevant to your change. At minimum for public documentation:
 ```sh
 uv run python scripts/check_docs.py
 uv run pytest tests/unit/test_media_rights.py tests/contract/test_docs_check.py -q
+uv run pytest tests/contract/test_documented_commands.py tests/contract/test_workflow_contract_docs.py -q
 ```
+
+The docs gate also keeps the retired words of the [glossary](docs/glossary.md) out of the
+front-page documents and every workflow's `page.mdx` and `contract.md`.
 
 For product Python code, run its credential-free gate:
 
@@ -76,7 +118,7 @@ uv run python scripts/check.py
 Use `--scope all` after installing all workspace groups for changes across owners.
 See [VERIFICATION.md](VERIFICATION.md) for the separate consumer gates.
 
-For the optional web boundary, run:
+For the web workspace (the viewer, the site and their shared `ui`), run:
 
 ```sh
 cd web
@@ -84,6 +126,8 @@ bun install --frozen-lockfile
 bun run check
 bun test
 bun run --cwd viewer build
+cd ..
+uv run python scripts/site.py build --allow-missing-examples
 ```
 
 See [docs/testing.md](docs/testing.md) for focused module commands. For code,

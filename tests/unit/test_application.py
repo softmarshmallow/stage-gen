@@ -16,7 +16,7 @@ from stage_gen.application import (
 from stage_gen.config import StageGenConfig
 from stage_gen.pipeline import load_definition, plan, run
 
-EXAMPLE = Path(__file__).resolve().parents[2] / "examples/pipelines/local_media.py"
+EXAMPLE = Path(__file__).resolve().parents[2] / "docs/sdk/pipelines/local_media.py"
 
 
 def test_paths_resolve_through_symlinks_at_the_boundary(tmp_path: Path) -> None:

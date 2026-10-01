@@ -111,7 +111,7 @@ def test_every_environment_name_the_viewer_shell_reads_is_documented(tmp_path: P
 def test_component_contract_artifact_example_runs() -> None:
     """Execute the documented result example against the public Python API."""
 
-    document = Path(__file__).parents[2] / "docs/component-contract.md"
+    document = Path(__file__).parents[2] / "src/stage_gen/components/README.md"
     section = document.read_text(encoding="utf-8").split("## Artifact result\n", 1)[1]
     section = section.split("\n## ", 1)[0]
     examples = re.findall(r"```python\n(.*?)\n```", section, re.DOTALL)

@@ -263,7 +263,7 @@ shown the layer's own wrap, centred, and repaints through it; the repaint is cut
 layer along the path where the two pictures already agree, so the period stays the width that was
 drawn and nothing is appended or reflected. Admission then judges the wrap and both cuts against
 the layer's own interior. The full mechanism and its evidence are in
-[loop construction](../../../../docs/loop-construction.md#seam_repaint--repaint-the-wrap-where-the-provider-can-see-it).
+[loop construction](../../../../src/stage_gen/workflows/looping_parallax/contract.md#seam_repaint--repaint-the-wrap-where-the-provider-can-see-it).
 
 `mirror_repeat` is the baseline. Appending a horizontal mirror makes every join a reflection, and
 a reflection is continuous by definition, so the loop is exact before anything else runs. It cannot

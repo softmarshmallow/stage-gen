@@ -1,29 +1,19 @@
 # Stage Gen
 
-Stage Gen is a general asset generation SDK and authoring toolkit. Build your own
-pipeline from GNode nodes, reusable components and bounded recipes, then inspect its
-outputs in the optional web-based run viewer. Your application decides how assets
-become a game, animation, tool or other experience.
+Stage Gen is a general asset generation toolkit. Each workflow turns a small input into a
+named deliverable, such as a transparent idle loop, a rigged 3D character or a set of
+repeating parallax layers, and every workflow is a GNode graph you can plan offline, run,
+inspect and cache. Inspect runs in the optional web-based run viewer that `stage-gen view`
+opens. Your application decides how the assets become a game, an animation or a tool.
 
 ![Iron Petal Unit key art: a young mechanic-pilot riding a rescue robot through an orbital greenhouse](godot/games/iron_petal_unit/inputs/references/cover.png)
 
 _[Iron Petal Unit](godot/games/iron_petal_unit/README.md), one of the example games built with Stage Gen assets._
 
-The product accepts caller-owned Python pipeline definitions and explicit input,
-output and cache directories. TOML may describe the assets of a particular recipe;
-there is no universal gameplay document required by the public SDK.
-
-This repository houses two separately owned products: **Stage Gen**, the main
-asset product described here, and the **[Godot example project](godot/README.md)**,
-a maintained consumer project with its own games, runtime packages, templates and
-tools. Godot demonstrates ways to use Stage Gen; its gameplay architecture can
-evolve within that project without becoming part of the asset SDK's contract.
-The [Godot project charter](godot/CHARTER.md) defines that continuing boundary.
-
 ## Workflows
 
-Each workflow is one folder under `src/stage_gen/workflows/` that makes one kind of
-deliverable. This table is checked against each folder's `workflow.toml`.
+Each workflow is one folder under `src/stage_gen/workflows/` with its declaration, page,
+contract and examples. This table is checked against each folder's `workflow.toml`.
 
 <!-- workflows:begin -->
 | Workflow | Id | Promise |
@@ -36,110 +26,49 @@ deliverable. This table is checked against each folder's `workflow.toml`.
 | Universe | `universe` | A poster, a synopsis and a direction in. A reviewed storyworld and one concept image per entity out. |
 <!-- workflows:end -->
 
-## 3D SD characters
-
 ![Three reference illustrations above their rigged 3D characters dancing with retargeted Samba motion](.github/assets/readme/stagegen-3d-characters.gif)
-
-Explore the 3D character workflow and inspect textured, rigged chibi models:
-
-- [3D character guide](docs/character-3d.md): the brief-to-rig workflow, setup,
-  supported profile and current limits.
-- Example GLBs and review notes: [Nami — bunny hood](library/characters/nami/README.md#3d-sd)
-  and [Riko — pink sweater](library/characters/riko/README.md#3d-sd).
-
-The reference-led examples are development results that needed rig cleanup, beyond
-the guide's narrower supported profile. Their GLBs include rig-check clips and a
-cheer; the Samba motion shown in demos is applied separately. New generation uses
-local Python, Blender and your own paid-provider keys.
-
-## Movie sprites
 
 ![Yuzu and Riko gently moving, blinking or winking, and changing mouth shapes over an Afterlight background](.github/assets/readme/movie-sprite.gif)
 
-Looping body motion with separately controlled eyes and mouth: Yuzu blinks,
-Riko winks, and both demonstrate A/O mouth shapes in this twelve-second preview.
-The characters are composited over an [Afterlight](godot/games/afterlight/README.md)
-background.
+The [3D character](src/stage_gen/workflows/character_3d/page.mdx) and
+[movie sprite](src/stage_gen/workflows/movie_sprite/page.mdx) workflows made these; the
+[preview notes](.github/assets/readme/README.md) say how.
 
-Use the supported [movie sprite workflow](docs/movie-sprite.md) to generate and
-finish transparent body loops, then pass the resulting first-frame canonical to
-the existing facial repaint pipeline. It exports standard videos, PNGs and metadata;
-the consuming application owns playback. See the
-[preview details](.github/assets/readme/README.md#movie-sprite-preview).
+## Install and try it
 
-## Start with a local asset pipeline
-
-Python 3.12 or newer is required. From this checkout:
+Python 3.12 or newer and [uv](https://docs.astral.sh/uv/) are required. From this checkout:
 
 ```sh
 uv sync --frozen
 uv run stage-gen list
-uv run python src/stage_gen/workflows/looping_parallax/inputs/supplied_layers/make_inputs.py /tmp/parallax-inputs
-uv run stage-gen plan looping-parallax --input /tmp/parallax-inputs
-uv run stage-gen run looping-parallax --input /tmp/parallax-inputs --output /tmp/parallax-run --cache-dir /tmp/parallax-cache
-uv run stage-gen inspect /tmp/parallax-run
+uv run stage-gen show looping-parallax
+uv run python src/stage_gen/workflows/looping_parallax/inputs/supplied_layers/make_inputs.py out/parallax-input
+uv run stage-gen run looping-parallax --input out/parallax-input --output out/parallax-try --cache-dir out/cache
+uv run stage-gen inspect out/parallax-try --verify
 ```
 
-Use a new output directory for each run. The example uses supplied, procedurally
-authored layers and makes no provider calls. It produces repeating images, placement
-metadata and a preview. Layer extraction from a final reference image is a separate
-generation step and is not implemented by this example.
+That run is offline: committed scripts draw the input layers, and no provider is called.
+Every workflow takes the same verbs, `plan`, `run` and `inspect`. Planning never spends; a
+provider call needs the workflow's explicit opt-in, such as `--live`, and your own keys
+(see [provider setup](docs/models/providers.md)). Write your own graph with the
+[SDK](docs/sdk/guide.md) and run it with `stage-gen run file <file.py:attr>`.
 
-Every workflow has the same verbs: `stage-gen plan <workflow>`, `stage-gen run
-<workflow>` and `stage-gen inspect <run>`; `stage-gen show <workflow>` describes one.
-Author your own definition with `stage_gen.pipeline.define`, then use `plan`, `run`
-and `inspect` from Python, or `stage-gen plan|run file <file.py:attr>` from the CLI.
-Plan a subset with `--target NODE_ID`. Outputs
-retain trace, projection, validated cache entries and portable provenance. Read the
-[SDK guide](src/stage_gen/pipeline/README.md) and
-[recipe example](src/stage_gen/workflows/looping_parallax/README.md).
+## Read more
 
-Planning is offline. Provider nodes require explicit `--live` or
-`allow_provider_calls=True` and an author-configured service. The SDK injects services
-at the application boundary; credentials never belong in inputs or viewer code.
-The universe and storefront workflows also take an explicit `--dry-run` for
-deterministic fake operations, and `stage-gen capability` makes one provider call
-outside any graph. See [provider setup](docs/models/providers.md).
+- [Getting started](docs/getting-started.md) and the [glossary](docs/glossary.md).
+- [Viewer](docs/viewer.md): `stage-gen view`, the local read-only client over run folders.
+- [Site](docs/site.md): the static landing and documentation site built from the catalog
+  and the example store.
+- [Architecture](ARCHITECTURE.md), the [documentation index](docs/README.md), the
+  [directory preview](docs/repository-layout.md) and the [contribution guide](CONTRIBUTING.md).
+- [Verification](VERIFICATION.md): `uv run python scripts/check.py` is the product gate and
+  needs neither Bun nor Godot. Source licensing is distinct from asset rights; see
+  [media publication](docs/generated-media-publication.md).
 
-## Inspect outputs and consume assets
+## Godot example project
 
-The [viewer](docs/viewer.md), opened with `stage-gen view`, reads completed or running run folders.
-The static [site](docs/site.md) in `web/site`, built with `uv run python scripts/site.py build`,
-shows each workflow with its pinned examples.
-Generic media and metadata stay inspectable without a built-in recipe identity;
-bounded inspectors can understand parallax or animation metadata.
-
-Godot consumers live under [godot](godot/README.md). The
-[asset consumer template](godot/templates/asset_consumer/README.md) shows a local
-preparation script and GDScript loading an explicit asset. Games own their scenes,
-controls, combat, narrative binding and asset-to-game wiring. The optional
-[Scenario framework](godot/packages/scenario_runtime/README.md) and its independent
-compiler belong to that Godot project. Games invoke authored sequences and grant
-presentation capabilities while retaining their world and input policy; Stage Gen
-does not require a scenario or gameplay contract.
-
-Each [example game](godot/games/README.md) owns its inputs, preparation script and
-Godot project. Install the optional game tooling when preparing those games:
-
-```sh
-uv sync --frozen --group games
-uv run --group games python godot/games/bellweather/pipeline/prepare.py
-```
-
-Concept Studio is an optional application in [apps/concept_studio](apps/concept_studio/README.md).
-Install it with `uv sync --group apps`. Its concept workflow has its own workspace
-and is not a mandatory phase of asset generation.
-
-## Repository and checks
-
-Start with the [directory preview](docs/repository-layout.md),
-[architecture](ARCHITECTURE.md), [documentation index](docs/README.md), and
-[contribution guide](CONTRIBUTING.md). The product gate does not need Bun or Godot:
-
-```sh
-uv run python scripts/check.py
-```
-
-[Verification](VERIFICATION.md) defines separate product, viewer, Godot, game,
-application and documentation gates, plus the aggregate gate. Source code licensing
-is distinct from asset rights; see [media publication](docs/generated-media-publication.md).
+The repository also houses a separately owned consumer product, the
+[Godot example project](godot/README.md): its [example games](godot/games/README.md),
+runtime packages, templates and tools show ways to use Stage Gen assets, under its own
+[charter](godot/CHARTER.md). Games own their scenes, controls, narrative and asset wiring;
+Stage Gen requires no game or gameplay contract.

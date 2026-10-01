@@ -24,7 +24,7 @@ gitignored folders, then runs `bun run --cwd web/site build`, which writes `web/
 - the prose from the checkout into `web/site/.catalog/pages/`: each workflow's `page.mdx`,
   `contract.md` and `examples/<id>.mdx`, each game example's `page.mdx` from the store, and the
   Markdown the site shows under `/docs/` (`SITE_DOCS` in the script: getting started, the
-  glossary, the viewer and the SDK guide);
+  glossary, the viewer, the SDK guide, this guide and decision 0071);
 - the example media into `web/site/public/examples/<owner>/<id>/media/`, from the store, or for a
   library example from the tracked files its figures ledger names.
 
@@ -43,7 +43,7 @@ library file server.
 | `/workflows/<id>/<example>/` | An example with its own `examples/<example>.mdx` |
 | `/workflows/<id>/contract/` | The workflow's `contract.md` |
 | `/games/<game>/<example>/` | An example a game made, with the `page.mdx` it exported |
-| `/docs/<slug>/` | The guides `SITE_DOCS` names: getting started, glossary, viewer, SDK |
+| `/docs/<slug>/` | The guides `SITE_DOCS` names: getting started, glossary, viewer, SDK guide, site, decision 0071 |
 | `/docs/cli/` | The CLI reference, written from `cli.json`: every command, its usage and arguments |
 | `/docs/workflows/<id>/` | The reference for every workflow, written from the catalog |
 
@@ -55,9 +55,10 @@ the workflow's steps, or by the example's own `steps` when its `workflow.toml` e
 (an example made with an earlier version). An example entry's `labels` title its node ids, and
 its `footer` is the page's closing line. Production notes sit behind a disclosure.
 
-A doc's relative links are written for the checkout. On the site, a link to another staged doc
-or to a workflow's contract leads to that page; a link to a file the site does not publish keeps
-its words without the link.
+A doc's, a page body's and a contract's relative links are written for the checkout. On the
+site, a link to another staged doc, a workflow's page or a workflow's contract leads to that
+page; a link to a file the site does not publish keeps its words without the link, and such an
+image keeps its alt text.
 
 The interactive players (the graph and its drawer, the painter, the wipe, the UI kit, the face
 rig, the sprite and part stages, the hero's model and clips, the parallax loop, stage and

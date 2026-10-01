@@ -14,9 +14,10 @@ import { createElement, type ComponentType, type ReactNode } from "react";
 import * as runtime from "react/jsx-runtime";
 import remarkGfm from "remark-gfm";
 import { BLOCKS, NAMED_PROPS, type BlockSpec, type PropKind } from "@/blocks";
-import { DOC_MARKDOWN, MARKDOWN } from "@/blocks/markdown";
+import { DOC_MARKDOWN } from "@/blocks/markdown";
 import { readPageSource } from "./catalog";
 import { PageError, type Page } from "./page";
+import { checkoutPath, docLink } from "./pages";
 
 // MDX hands each component its props and children, and a component map may hold any
 // component; `any` is the honest type of that map's values.
@@ -72,10 +73,14 @@ function checkNames(page: Page, name: string, props: Record<string, unknown>): v
 
 // ------------------------------------------------------------------------------ binding
 
-/** Every showcase component and Markdown element, bound to one page. */
+/**
+ * Every showcase component and Markdown element, bound to one page. A page body takes the
+ * docs' Markdown too, since a workflow's guide (its "Run it yourself") holds tables and
+ * ordered lists.
+ */
 export function makeComponents(page: Page): MdxComponents {
   const components: MdxComponents = {};
-  for (const [name, element] of Object.entries(MARKDOWN)) {
+  for (const [name, element] of Object.entries(DOC_MARKDOWN)) {
     components[name] = tag((props: Record<string, unknown>) => createElement(element, props), name);
   }
   for (const [name, spec] of Object.entries(BLOCKS)) {
@@ -103,6 +108,7 @@ interface TextNode {
   type: string;
   value?: string;
   url?: string;
+  alt?: string | null;
   children?: TextNode[];
 }
 
@@ -129,14 +135,21 @@ const ABSOLUTE = /^(?:[a-z][a-z0-9+.-]*:|\/)/i;
 /**
  * A doc is written for the checkout, so its relative links name files beside it. Each one is
  * pointed at the page the site builds for its target; a link to a file the site does not
- * publish keeps its words and loses the link, instead of leading nowhere.
+ * publish keeps its words and loses the link, instead of leading nowhere. A relative image
+ * the site does not publish keeps its alt text.
  */
 function remarkDocLinks(resolve: LinkResolver) {
   const visit = (node: TextNode): void => {
-    node.children = node.children?.flatMap((child) => {
-      if (child.type === "link" && typeof child.url === "string" && !ABSOLUTE.test(child.url)) {
-        const target = resolve(child.url);
+    node.children = node.children?.flatMap((child): TextNode[] => {
+      const relative = typeof child.url === "string" && !ABSOLUTE.test(child.url);
+      if (child.type === "link" && relative) {
+        const target = resolve(child.url as string);
         if (target === null) return child.children ?? [];
+        child.url = target;
+      }
+      if (child.type === "image" && relative) {
+        const target = resolve(child.url as string);
+        if (target === null) return child.alt ? [{ type: "text", value: child.alt }] : [];
         child.url = target;
       }
       return [child];
@@ -182,7 +195,9 @@ export function pageSource(relative: string): string {
 
 /** A page's MDX body, rendered with the blocks bound to that page. */
 export async function renderBody(page: Page): Promise<ReactNode> {
-  const Content = await compileSource(pageSource(page.data.source));
+  const from = checkoutPath(page.data);
+  const links = from === null ? null : { from, resolve: (target: string) => docLink(from, target) };
+  const Content = await compileSource(pageSource(page.data.source), "mdx", links);
   return createElement(Content, { components: makeComponents(page) });
 }
 

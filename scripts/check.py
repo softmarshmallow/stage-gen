@@ -236,8 +236,18 @@ def steps(
     product_tests = paths_for(REPOSITORY_ROOT, "product")
     groups: dict[str, tuple[Step, ...]] = {
         "product": (
-            Step(("ruff", "format", "--check", "src", "scripts", "examples", *product_tests)),
-            Step(("ruff", "check", "src", "scripts", "examples", *product_tests)),
+            Step(
+                (
+                    "ruff",
+                    "format",
+                    "--check",
+                    "src",
+                    "scripts",
+                    "docs/sdk/pipelines",
+                    *product_tests,
+                )
+            ),
+            Step(("ruff", "check", "src", "scripts", "docs/sdk/pipelines", *product_tests)),
             Step(("mypy", "--strict", "src")),
             Step(("pytest", "-m", "not live", *product_tests)),
             Step((python, "-m", "build", "--no-isolation")),
@@ -276,7 +286,7 @@ def steps(
                     *GAME_TYPED_TOOLS,
                     "godot/templates/asset_consumer/prepare.py",
                     "apps/concept_studio/src",
-                    "examples",
+                    "docs/sdk/pipelines",
                 )
             ),
             Step(("pytest", "-m", "not live")),

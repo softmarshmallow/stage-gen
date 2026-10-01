@@ -79,11 +79,8 @@ web_modules/
 
 # Local browser-control snapshots and logs
 .playwright-cli/
-/output/playwright/
-/output/imagegen/**/*.png
-/output/imagegen/**/*.png.meta.json
-/output/imagegen/**/*.meta.json
-/output/imagegen/**/*.metadata.json
+# Local scratch output; nothing under it is tracked.
+/output/
 /web/output/**/*.png
 /web/output/architecture/
 /web/output/imagegen/

@@ -55,7 +55,7 @@ uv run python scripts/site.py serve --port 8790
 
 ## Write your own pipeline
 
-The [pipeline SDK](../src/stage_gen/pipeline/README.md) defines, plans, runs and inspects your
+The [SDK guide](sdk/guide.md) shows how to define, plan, run and inspect your
 own graph of nodes, with the same cache and provenance the workflows use. Run a definition from
 the CLI with `stage-gen plan file <file.py:attr>` and `stage-gen run file <file.py:attr>`. The
 [glossary](glossary.md) names the parts.

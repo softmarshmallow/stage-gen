@@ -12,6 +12,7 @@ from bellweather_pipeline.package_graph import (
     package_graph_profile,
 )
 from demo_game_collection.game_package import ResolvedGamePackage, resolve_game_package
+from scripts.graph_contracts import document_contract, render
 from stage_gen.config import StageGenConfig
 
 REPOSITORY_ROOT = Path(__file__).parents[2]
@@ -29,9 +30,6 @@ def _load_contract_writer(relative: str, name: str) -> ModuleType:
 
 
 _writer = _load_contract_writer("godot/tools/write_game_graph_contract.py", "game_graph_contract")
-_asset_writer = _load_contract_writer(
-    "scripts/write_pipeline_graph_contract.py", "asset_graph_contract"
-)
 CONTRACT_KIND = _writer.CONTRACT_KIND
 FIXTURE_REF = _writer.FIXTURE_REF
 RUNNER_PIPELINE_DOCUMENT = REPOSITORY_ROOT / "godot/games/iron_petal_unit/docs/runner.md"
@@ -48,8 +46,6 @@ build_oblique_survival_graph_contract = _writer.build_oblique_survival_graph_con
 build_storefront_graph_contract = _writer.build_storefront_graph_contract
 build_graph_contract = _writer.build_graph_contract
 build_runner_graph_contract = _writer.build_runner_graph_contract
-document_contract = _asset_writer.document_contract
-render = _asset_writer.render
 
 
 def test_generation_pipeline_document_tracks_the_executable_stage_graphs() -> None:
@@ -228,9 +224,12 @@ def test_storefront_contract_block_is_rendered_canonically() -> None:
     assert render(document_contract(STOREFRONT_DOCUMENT)) in source
 
 
-def test_storefront_document_is_discoverable_from_the_docs_index() -> None:
-    docs_index = (REPOSITORY_ROOT / "docs/README.md").read_text(encoding="utf-8")
-    assert "spec/storefront/generation-v1.md" in docs_index
+def test_storefront_contract_is_discoverable_from_the_game_integration() -> None:
+    # The game's storefront integration names the product workflow whose contract it uses.
+    integration = REPOSITORY_ROOT / "godot/games/ember_hollow/docs/storefront-integration.md"
+    assert (
+        REPOSITORY_ROOT / "src/stage_gen/workflows/storefront/contract.md"
+    ).resolve() in _linked_files(integration)
 
 
 def test_generation_pipeline_document_is_discoverable_from_game_authorities() -> None:

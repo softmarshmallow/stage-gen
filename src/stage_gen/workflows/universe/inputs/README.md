@@ -7,7 +7,7 @@ runnable example with missing image references.
 
 To author another universe, supply your own local directory containing
 `universe.toml`, its referenced image, and the two named text documents. Follow
-the universe source contract in `docs/spec/universe/generation-v1.md`. The
+the universe source contract in `src/stage_gen/workflows/universe/contract.md`. The
 repository fixture's image can be regenerated with
 `scripts/author_universe_fixture_poster.py`; that script writes the checkout
 fixture, not an installed-package resource.

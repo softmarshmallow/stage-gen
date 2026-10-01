@@ -11,10 +11,9 @@ already has an end-to-end generation example.
 stage-gen/
 ├── src/
 │   ├── gnode/                         # Execution SDK: no Stage Gen or game imports
-│   └── stage_gen/                     # Asset authoring, capabilities and recipes
-├── examples/
-│   └── pipelines/                     # Public SDK composition examples
-├── web/                               # Run viewer, static site and their shared UI (Bun)
+│   └── stage_gen/                     # SDK, components, workflows, CLI
+├── library/                           # Committed, approved character-3d examples
+├── web/                               # One Bun workspace: ui/, viewer/ and site/
 ├── godot/
 │   ├── packages/                      # Reusable, bounded runtime SDKs
 │   ├── templates/                     # Copyable application starting points
@@ -25,17 +24,18 @@ stage-gen/
 ├── concept-studio/                    # Existing concept docs, gallery and local drafts
 ├── scripts/                           # Product/repository maintenance and verification
 ├── tests/                             # Tests selected by product or consumer ownership
-├── docs/                              # Product guides, scoped references and history
+├── docs/                              # Cross-cutting guides, SDK, policy, specs and history
 ├── .agents/skills/                    # Asset authoring and consumer-specific workflows
 ├── .github/workflows/                # Separate product and consumer gates
 ├── pyproject.toml                     # Core distribution and local workspace metadata
 └── uv.lock                            # Repository development workspace lock
 ```
 
-`library/` is gone. Its private folder held no private implementation or assets.
-The game inputs belong to their individual Godot games; the independent
-universe example belongs to its recipe. Users supply external input, output and
-cache directories rather than registering projects inside this checkout.
+`library/characters/` holds the committed, approved character-3d examples (Nami, Riko
+and Helix), which the catalog builds from their tracked files. The game inputs belong
+to their individual Godot games; each workflow's sample inputs belong to its folder.
+Users supply external input, output and cache directories rather than registering
+projects inside this checkout.
 
 `concept-studio/` remains the existing concept-content workspace, with its ignored
 drafts and curated media rights records. Its executable application is separately
@@ -63,20 +63,23 @@ src/
 │       ├── fal/
 │       └── elevenlabs/
 └── stage_gen/
-    ├── pipeline/                      # define / plan / run / inspect; arbitrary graphs
+    ├── pipeline/                      # The SDK: define / plan / run / inspect, GraphDocument
     ├── components/                    # Reusable capabilities and bounded formats
-    ├── workflows/                     # One package per product deliverable
+    ├── workflows/                     # One folder per product deliverable
     ├── recipes/character_3d/          # Frozen character-3d implementation path
+    ├── examples.py                    # The public example contract
+    ├── runs.py                        # Run discovery and derived views for the viewer
     ├── media/                         # Shared inspection and transforms
-    ├── orchestration/                 # Concrete services and application configuration
-    ├── interfaces/                    # Lazy CLI adapters
+    ├── orchestration/                 # Composition root: services, GraphExecutor, routing
+    ├── providers/                     # Application provider adapters (character_3d)
+    ├── interfaces/                    # The stage-gen CLI: one verb set, lazy commands
     ├── application/                   # Generic output/cache roots and reporting
     └── resources/                     # Explicitly packaged support resources
 ```
 
 GNode scheduling, topology, trace, cache identity and provenance mechanisms remain
-in place. The public harness composes them. It does not add another graph engine.
-Provider construction stays at the application boundary; recipes can receive
+in place. The SDK composes them. It does not add another graph engine.
+Provider construction stays at the application boundary; workflows can receive
 services without taking ownership of credentials or provider selection.
 
 The wheel contains `gnode` and `stage_gen`. Optional demo and concept packages have
@@ -129,53 +132,73 @@ portrait animation and movie sprite assets retain their own bounded roles.
 
 ```text
 src/stage_gen/workflows/
+├── _registry.py, _catalog.py, _checks.py   # Discovery, catalog export, drift checks
 ├── looping_parallax/
-│   └── inputs/
-│       └── supplied_layers/           # Real offline layer normalization and preview
-├── portrait_motion/                   # Generation, qualification, budgets and recovery
+│   ├── workflow.py, workflow.toml     # Code facts; what code cannot know
+│   ├── page.mdx, contract.md          # The reader's page; the exact contract
+│   ├── cli.py, example.py             # plan/run flags; example importer
+│   ├── pipeline.py                    # The implementation
+│   └── inputs/supplied_layers/        # Real offline layer normalization and preview
 ├── movie_sprite/                      # Endpoint video generation and local loop finishing
 │   └── inputs/supplied_clip/          # Original procedural clip; no provider calls
+├── portrait_motion/                   # Generation, qualification, budgets and recovery
+│   └── inputs/                        # The four-card and face-crop specifications
 ├── storefront/
-│   └── inputs/
-│       └── minimal/                   # Original procedural input and offline planning
-└── universe/
-    └── inputs/
-        └── lantern_ferry/             # Existing self-contained storyworld input
+│   └── inputs/minimal/                # Original procedural input and offline planning
+├── universe/
+│   └── inputs/lantern_ferry/          # Existing self-contained storyworld input
+└── character_3d/                      # Declaration, CLI and importer only
+    └── examples/tavi-parts.mdx        # Prose for one pinned example
 
 src/stage_gen/recipes/character_3d/    # Frozen: run lineage binds this path
 
-examples/
-└── pipelines/
-    ├── local_media.py                 # Arbitrary graph: PNG + WAV + catalog
-    └── portrait_processing.py         # Component composition and preserved-pixel proof
+docs/sdk/pipelines/
+├── local_media.py                     # Arbitrary graph: PNG + WAV + catalog
+└── portrait_processing.py             # Component composition and preserved-pixel proof
 ```
 
-Cross-capability SDK examples live in `examples/pipelines`. Recipe-specific inputs
-and scripts live beside their recipe. A future component example should likewise
-live beside that component. Documentation links these owners instead of creating
-a second implementation under a central examples framework.
+Every workflow folder has the shape `looping_parallax/` shows; the tree lists only what
+differs. Sample inputs and their scripts live in a workflow's `inputs/`; cross-capability
+SDK samples live in `docs/sdk/pipelines`. A future component example should likewise live
+beside that component. Documentation links these owners instead of creating a second
+implementation under a central examples framework.
 
-The parallax example currently accepts supplied layers. It produces repeating
-images, canvas/offset/order/scroll metadata and a working scrolling inspector.
-It does **not** yet extract hidden layers from one finished reference image. That
-operation can be added as a bounded upstream generation stage with its own
-validation, while the repeat/composition/preview stages remain reusable.
+The looping-parallax workflow accepts supplied layers. It produces repeating images,
+canvas/offset/order/scroll metadata and a preview frame. It does **not** yet extract
+hidden layers from one finished reference image. That operation can be added as a bounded
+upstream generation stage with its own validation, while the repeat/composition/preview
+stages remain reusable.
 
-The existing universe and storefront graph builders keep their own scoped TOML
-and command adapters. Portrait motion's workflow now belongs to its recipe;
-component-level crop/render/reconstruction remains in the component. Universe and
-storefront seal a `GraphDocument` (`stage_gen.pipeline.graph_document`) and run
-through `GraphExecutor` (`stage_gen.orchestration.graph_executor`) at the composition
-root, because it builds `RunServices`; neither defines the new SDK.
+The universe and storefront workflows keep their own scoped TOML. Portrait motion's
+pipeline belongs to its workflow; component-level crop/render/reconstruction remains in the
+component. Universe and storefront seal a `GraphDocument` (`stage_gen.pipeline.graph_document`)
+and run through `GraphExecutor` (`stage_gen.orchestration.graph_executor`) at the
+composition root, because it builds `RunServices`; neither defines the SDK.
+
+Examples are not committed. `stage-gen example promote` and `demo-games example export`
+write frozen exports into the local, gitignored store `out/examples/<owner>/<id>/`, and each
+owner's manifest pins them by digest.
+
+## Documentation
+
+`docs/` holds only what crosses workflows: [getting started](getting-started.md), the
+[glossary](glossary.md), the [viewer](viewer.md) and [site](site.md) guides, the
+[SDK guide](sdk/guide.md) and its samples, provider notes under `models/`, policy
+(storage, publication, IP), cross-cutting specifications under `spec/`, and the history
+under `decisions/`, `plans/` and `research/`. A workflow's guide and contract live in its
+own `page.mdx` and `contract.md`; a game's documents live under its folder.
 
 ## Preview and runtime consumers
 
 ```text
-web/
-├── app/                               # Run browsing and inspection UI
-└── lib/
-    ├── shell/                         # Confined read-only access to persisted runs
-    └── run-viewer/                    # Generic graphs, media and bounded inspectors
+web/                                   # One Bun workspace and the only Node boundary
+├── ui/
+│   ├── contracts/                     # Catalog, example and run-view parsers and fixtures
+│   └── players/                       # Framework-free page players: mount(el, config)
+├── viewer/                            # stage-gen view: read-only client over run folders
+│   ├── app/                           # Run, workflow and artifact pages
+│   └── lib/shell/                     # Confined read-only access to persisted runs
+└── site/                              # Static landing and documentation (Next export)
 
 godot/
 ├── games/
@@ -272,7 +295,7 @@ public product's default environment and distributions.
 The viewer accepts the public pipeline envelope with arbitrary pipeline identity.
 It retains persisted readers, displays unknown metadata and supports application
 preview annotations. Parallax is one inspector. Generic MIME handling permits
-unfamiliar assets without adding a recipe enum.
+unfamiliar assets without adding a workflow enum.
 
 The asset-consumer template copies a selected asset and its verified provenance;
 its GDScript loads that local content. A game can extend preparation to create
@@ -294,9 +317,9 @@ remains in `docs/spec/`; its former Scenario page points to the Godot owner. His
 | A modality protocol or retry-owning service | GNode ring 1 |
 | Provider request/response adaptation | GNode ring 2 |
 | Asset-specific processing and admission | Component |
-| Several asset stages with a bounded output | Recipe |
+| Several asset stages with a bounded output | Workflow |
 | User-specific graph composition | External Python definition or SDK example |
-| Recipe asset parameters | Recipe-owned TOML or Python inputs |
+| Workflow asset parameters | Workflow-owned TOML or Python inputs |
 | A specialized preview | Viewer inspector or bounded runtime package |
 | VN-oriented narrative authoring and invocation | Godot Scenario package |
 | Episode direction and installed game capabilities | Consuming game |

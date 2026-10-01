@@ -47,8 +47,13 @@ DEFAULT_EXAMPLES = REPOSITORY_ROOT / "out" / "examples"
 SITE_DOCS: Mapping[str, tuple[str, str]] = {
     "getting-started": ("docs/getting-started.md", "Getting started"),
     "glossary": ("docs/glossary.md", "Glossary"),
-    "viewer": ("docs/viewer.md", "Run viewer"),
-    "sdk": ("src/stage_gen/pipeline/README.md", "Pipeline SDK"),
+    "viewer": ("docs/viewer.md", "Viewer"),
+    "sdk": ("docs/sdk/guide.md", "SDK guide"),
+    "site": ("docs/site.md", "Site"),
+    "decision-0071": (
+        "docs/decisions/0071-workflows-are-the-product-unit-and-the-web-splits-into-site-and-viewer.md",
+        "Decision 0071: workflows and the two webs",
+    ),
 }
 
 SLUG = re.compile(r"^[a-z0-9][a-z0-9_-]*$")

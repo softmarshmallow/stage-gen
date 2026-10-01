@@ -43,5 +43,6 @@ default summary lists deferred suites explicitly; it is an offline verdict.
 
 Each script supports `--help`. Read-only checks remain offline. A `--write` option
 updates a maintained snapshot; provider-backed authoring retains explicit opt-in.
-The neutral document-block helpers and independent universe graph writer remain
-in [`scripts/write_pipeline_graph_contract.py`](../../scripts/write_pipeline_graph_contract.py).
+The neutral document-block helpers live in
+[`scripts/graph_contracts.py`](../../scripts/graph_contracts.py); each product workflow's graph
+block is written by [`scripts/write_workflow_contracts.py`](../../scripts/write_workflow_contracts.py).

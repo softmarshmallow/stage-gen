@@ -1,7 +1,9 @@
 # Godot 3x3-minimal 47-cell terrain reference
 
+> **Checked by:** `tests/contract/test_terrain_atlas_cell_reference.py`.
+
 This document explains the topology encoded by
-[`terrain_atlas_godot_topology_reference.png`](terrain_atlas_godot_topology_reference.png).
+[`terrain_atlas_godot_topology_reference.png`](../../src/stage_gen/resources/fixtures/image_gen_templates/terrain_atlas_godot_topology_reference.png).
 It is a cell-by-cell companion to the image, not an alternative lookup contract.
 The authoritative machine-readable mapping is
 `src/stage_gen/resources/terrain/godot_3x3_minimal_lookup_v1.json`.
@@ -154,5 +156,5 @@ Sources:
 - <https://docs.godotengine.org/en/3.4/tutorials/2d/using_tilemaps.html#x3-minimal>
 - <https://docs.godotengine.org/en/latest/tutorials/2d/using_tilesets.html>
 - `docs/spec/terrain-atlas.md`
-- `src/stage_gen/recipes/scrolling_preview/terrain_atlas.py`
+- `src/stage_gen/components/sideview_terrain/atlas.py`
 - `src/stage_gen/resources/terrain/godot_3x3_minimal_lookup_v1.json`

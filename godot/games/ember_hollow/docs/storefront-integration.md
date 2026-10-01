@@ -1,8 +1,8 @@
 # Ember Hollow storefront integration
 
-Ember Hollow uses the product's [storefront asset recipe](../../../../docs/spec/storefront/generation-v1.md)
+Ember Hollow uses the product's [storefront workflow](../../../../src/stage_gen/workflows/storefront/contract.md)
 with the game-owned [storefront request](../inputs/storefront.toml), its positioning note and
-reference art. This records the existing four-surface integration; the product recipe also
+reference art. This records the existing four-surface integration; the product workflow also
 has independent evidence that does not require this game.
 
 The authored inputs, prompts, graph topology and cache identities are unchanged. This

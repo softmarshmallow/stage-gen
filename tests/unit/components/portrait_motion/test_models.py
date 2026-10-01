@@ -42,10 +42,10 @@ def test_valid_spec_keeps_declared_source_and_state_layout() -> None:
 
 
 def test_documented_four_card_example_keeps_independent_blink_and_mouth_states() -> None:
-    """Bind docs/spec/portrait-motion.md to its executable four-card input."""
+    """Bind src/stage_gen/workflows/portrait_motion/contract.md to its four-card input."""
     repository = Path(__file__).resolve().parents[4]
     spec = PortraitMotionSpec.model_validate_json(
-        (repository / "docs/examples/portrait-motion/four-card.json").read_bytes()
+        (repository / "src/stage_gen/workflows/portrait_motion/inputs/four-card.json").read_bytes()
     )
     assert spec.panel_size == (512, 768)
     assert (spec.columns, spec.rows) == (2, 2)

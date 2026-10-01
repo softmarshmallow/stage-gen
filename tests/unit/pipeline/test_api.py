@@ -36,7 +36,7 @@ from stage_gen.pipeline import (
     run,
 )
 
-EXAMPLE = Path(__file__).resolve().parents[3] / "examples/pipelines/local_media.py"
+EXAMPLE = Path(__file__).resolve().parents[3] / "docs/sdk/pipelines/local_media.py"
 
 
 def _input(tmp_path: Path) -> Path:

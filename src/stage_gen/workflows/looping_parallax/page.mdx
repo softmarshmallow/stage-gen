@@ -1,1 +1,20 @@
 Give each layer of a background as its own picture, and get it back as a layer that repeats without end, placed for scrolling. Each layer is prepared on its own. By default its repeating edges are mirrored, which repeats exactly but shows every landmark twice, facing itself. A layer at least 1536 pixels wide can ask for its seam to be repainted instead, and one that already loops is kept untouched. Changing offsets, order or scroll factors reruns only the composition, so the prepared pictures are reused. What you get is a manifest a game reads and one preview frame; the scrolling, the camera and the player stay with the game.
+
+## Run it yourself
+
+The workflow runs offline on two original layers that a committed script draws, together with the
+`parallax.json` that places them. It makes no provider calls:
+
+```sh
+uv run python src/stage_gen/workflows/looping_parallax/inputs/supplied_layers/make_inputs.py out/looping-parallax-input
+uv run stage-gen plan looping-parallax --input out/looping-parallax-input
+uv run stage-gen run looping-parallax --input out/looping-parallax-input --output out/looping-parallax-try --cache-dir out/cache
+uv run stage-gen inspect out/looping-parallax-try --verify
+```
+
+Use a new output folder for each run. The run writes each repeating layer, `parallax/manifest.json`
+with every layer's size, order, offsets, repeat axes and scroll factor, and one preview frame. A
+consumer places each layer at `offset - scroll * parallax` and repeats it along its declared axes.
+A layer that asks for `loop_construction = "seam_repaint"` plans one image edit on the configured
+route, and needs `--live` and your provider keys only to run it. The [contract](contract.md) holds
+the spec, the outputs, the graph and every loop construction.

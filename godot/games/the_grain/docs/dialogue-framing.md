@@ -183,12 +183,12 @@ evidence.
 
 | Evidence | SHA-256 |
 |---|---|
-| [Experiment specification](../../../../output/imagegen/dialogue-scene-framing/experiment-spec.json) | `cdaa96e244b3aeda5fb819f7e75b1247bf427960ef271226aa13112ec0ff1d3b` |
-| [Round-one blind map](../../../../output/imagegen/dialogue-scene-framing/blind-map.json) | `ed5e3cf4ef5d1bc5c5a97a1554d0c2778fcd7d2f83f0788471224d0d68bfcd10` |
-| [Round-one blind verdict](../../../../output/imagegen/dialogue-scene-framing/blind-verdict.json) | `b04fbbb137a308067ef2135c989298b441f92bd2cce36b0b68901d00c3b0d66e` |
-| [Round-two blind map](../../../../output/imagegen/dialogue-scene-framing/round-2-blind-map.json) | `80368f34cb79c44ec11dc01c24a4e89a1df022e29094130b53323d1977a93ea7` |
-| [Round-two blind verdict](../../../../output/imagegen/dialogue-scene-framing/round-2-blind-verdict.json) | `c968a44cf31683c7cd87bd412c148d4efabb602c007e73d196f9df10aec05272` |
-| [Decoded experiment results](../../../../output/imagegen/dialogue-scene-framing/experiment-results.json) | `3dbd2eb0ae8f3647201c922395343546025a621b7c70824a28cfd7a7caef0934` |
+| [Experiment specification](experiments/dialogue-scene-framing/experiment-spec.json) | `cdaa96e244b3aeda5fb819f7e75b1247bf427960ef271226aa13112ec0ff1d3b` |
+| [Round-one blind map](experiments/dialogue-scene-framing/blind-map.json) | `ed5e3cf4ef5d1bc5c5a97a1554d0c2778fcd7d2f83f0788471224d0d68bfcd10` |
+| [Round-one blind verdict](experiments/dialogue-scene-framing/blind-verdict.json) | `b04fbbb137a308067ef2135c989298b441f92bd2cce36b0b68901d00c3b0d66e` |
+| [Round-two blind map](experiments/dialogue-scene-framing/round-2-blind-map.json) | `80368f34cb79c44ec11dc01c24a4e89a1df022e29094130b53323d1977a93ea7` |
+| [Round-two blind verdict](experiments/dialogue-scene-framing/round-2-blind-verdict.json) | `c968a44cf31683c7cd87bd412c148d4efabb602c007e73d196f9df10aec05272` |
+| [Decoded experiment results](experiments/dialogue-scene-framing/experiment-results.json) | `3dbd2eb0ae8f3647201c922395343546025a621b7c70824a28cfd7a7caef0934` |
 | Pure mapper — web/lib/dialogue-scene/framing.ts, retired by [0067](../../../../docs/decisions/0067-the-room-the-scene-and-the-case-are-retired-from-the-browser.md) | `298b91e176f7a206b83143dc3e4c7077928b4bdf9e1c2c3115f88a073f0e13c7` |
 | Focused mapper tests — web/lib/dialogue-scene/framing.test.ts, retired with it | `a6905c7eee3cb459eb66af28fee15acf77913d2a3df6a112026ddf4b78a915b1` |
 | [The mapper now](../gameplay/dialogue_scene/framing.gd), which reproduces the three pinned values | measured rather than digested: 3.244 / 58.0 / 5.6 at zoom 70, and 0.308 and 1.37 normalised at 25 and 85 |

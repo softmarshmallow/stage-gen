@@ -1,1 +1,17 @@
 A universe is something to explore rather than play: typed entities, their relationships, the tensions between them and the questions the source leaves open, with exactly one concept image for each entity. It starts from a poster, a synopsis and an expansion direction, and keeps their roles apart: the poster is visual evidence only, and the synopsis holds the world's facts. The semantic phase proposes the world, and it must pass an independent review before anything is drawn. The gallery phase then gives each admitted entity one concept image, reviewed by a model that did not draw it. The set is judged as a whole: a reader who has not seen the synopsis should be able to explain how the world works, who disagrees, and why.
+
+## Run it yourself
+
+The committed `lantern_ferry` package is a complete source: a poster, a synopsis and an expansion
+direction. Plan both phases offline, and try a run with deterministic fake operations before any
+spend:
+
+```sh
+uv run stage-gen plan universe --phase semantic --input src/stage_gen/workflows/universe/inputs/lantern_ferry
+uv run stage-gen run universe --phase semantic --input src/stage_gen/workflows/universe/inputs/lantern_ferry --output out/universe-try --cache-dir out/cache --dry-run
+uv run stage-gen inspect out/universe-try
+```
+
+A live semantic run needs `--live` in place of `--dry-run`, and an OpenRouter key. The gallery phase
+runs from an admitted semantic run with `--phase gallery --semantic-run DIR`. The
+[contract](contract.md) holds the source roles, both phases, their reviews and their graphs.

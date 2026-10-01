@@ -9,8 +9,8 @@ listening review by the task owner; nothing here was judged by an agent. Sample
 sizes are given because most of them are small.
 
 This page records the model-specific boundary. General provider procedure lives
-in [../models/providers.md](../models/providers.md); the component contract lives in
-[../component-contract.md](../component-contract.md); the authored contract that
+in [../models/providers.md](../models/providers.md); the component contract lives in the
+[components README](../../src/stage_gen/components/README.md); the authored contract that
 consumes this route, and the gates it applies, is
 [../game-sound-effects.md](../../godot/games/iron_petal_unit/docs/audio.md).
 

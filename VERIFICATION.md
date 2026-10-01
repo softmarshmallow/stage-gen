@@ -9,18 +9,48 @@ listening review are separate, explicit checks.
 ```sh
 uv sync --frozen
 uv run python scripts/check.py                    # product: Python SDK, tests, build
-uv run python scripts/check.py --scope web        # Bun workspace checks and web contract tests
-uv run python scripts/check.py --scope docs       # links, policy and media inventory
+uv run python scripts/check.py --scope web        # Bun workspace, the site build, web contract tests
+uv run python scripts/check.py --scope docs       # links, paths, checkers, vocabulary, media inventory
 uv run --group games python scripts/check.py --scope games
 uv run --group apps python scripts/check.py --scope apps
 uv run --group games python scripts/check.py --scope godot
 ```
 
-The default product gate requires Python tools only. The web scope requires
-`bun install --frozen-lockfile` in `web`, the one Bun workspace (`ui`, `viewer`, `site`),
-and builds the [site](docs/site.md) with `scripts/site.py build --allow-missing-examples`.
+The default product gate requires Python tools only. Among its steps it runs a real
+offline looping-parallax run and its `inspect --verify`, the universe and storefront dry
+runs, `stage-gen catalog export --check --allow-missing-examples`, and `--help` for every
+workflow verb.
+## Web
+
+The web scope requires `bun install --frozen-lockfile` in `web`, the one Bun workspace
+(`ui`, `viewer`, `site`, one `bun.lock`). It type-checks each package with `bun run check`,
+runs `bun test`, builds the [site](docs/site.md) with
+`uv run python scripts/site.py build --allow-missing-examples`, and runs the web-owned Python
+tests, which hold the hand-authored `web/ui` contract fixtures to the Python models. The
+flag lets a clean clone build without the local example store; a present but mismatched
+example still fails. A release build of the site drops the flag, so every approved example
+must be in the store. `bun run --cwd viewer build` builds the [viewer](docs/viewer.md),
+which `stage-gen view` otherwise runs in development mode.
+
+## Docs
+
+The docs scope checks links and backtick paths in the doctrine, `docs/`, `library/`, the
+Godot docs, every workflow's prose and the games' example pages; that every specification,
+game consumer spec and workflow `contract.md` names a true checker; that the front-page
+documents and every workflow's `page.mdx` and `contract.md` use none of the retired words
+the [glossary](docs/glossary.md) lists; the prompt fixtures' originality rules; and the
+generated-media inventory. `tests/contract/test_documented_commands.py` parses every
+documented `stage-gen` command with the real parser, and
+`uv run python scripts/write_workflow_contracts.py --check` holds each workflow's graph
+contract to its offline sample plan.
+
+## Godot
+
 Godot checks require the engine on PATH (or `GODOT`) and verify the retained demo
 fixture and independently packaged SDK.
+
+## All scopes
+
 Some media processing tests also require FFmpeg. A missing required tool fails its
 owning gate; it is not a reason to skip the whole product gate.
 

@@ -1,17 +1,17 @@
 # Universe ontology and entity concept taxonomy
 
-> **Checked by:** `tests/contract/test_asset_recipe_graph_docs.py`.
+> **Checked by:** `tests/contract/test_workflow_contract_docs.py`.
 
 > **Contract maturity: ratified V0 target, documentation-only.**
 >
 > This document defines the first semantic contract for universe-oriented
 > generation in `stage-gen`: the minimal storyworld ontology, relationships,
 > identity markers, narrative roles, entity concept obligations, and
-> ratification rules from which a future universe recipe may be built.
+> ratification rules from which a future universe workflow may be built.
 >
-> That recipe now exists. This document remains the semantic authority over
+> That workflow now exists. This document remains the semantic authority over
 > classes, source roles, and ratification; the pipeline that implements it is
-> described in [universe generation V1](generation-v1.md).
+> described in the [universe contract](../../../src/stage_gen/workflows/universe/contract.md).
 >
 > V0 deliberately starts with an agnostic core. It is not the permanent ceiling
 > of the taxonomy. Future genre profiles MAY widen the authored vocabulary with

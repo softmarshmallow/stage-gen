@@ -10,8 +10,8 @@ OpenAI released transparent backgrounds for GPT Image 2 in preview on
 2026-08-20, and the direct native-alpha contract was verified from official
 documentation on 2026-08-25. The fal and OpenRouter routes were rechecked on
 2026-09-07. This page records the model-specific boundary formerly used by the
-image recipes. The general component contract lives in
-[../component-contract.md](../component-contract.md).
+image recipes. The general component contract lives in the
+[components README](../../src/stage_gen/components/README.md).
 
 ## Direct OpenAI route
 
@@ -149,7 +149,7 @@ executable graph contract in the same implementation change. Also review the
 [gnode rings](../spec/gnode-rings.md),
 [asset contracts](../spec/asset-contracts.md), and the
 [survival](../../godot/games/ember_hollow/docs/generation-v1.md),
-[universe](../spec/universe/generation-v1.md), and
-[storefront](../spec/storefront/generation-v1.md) recipe contracts. The
+[universe](../../src/stage_gen/workflows/universe/contract.md), and
+[storefront](../../src/stage_gen/workflows/storefront/contract.md) contracts. The
 Sunburst successor migration updated those current-route documents without
 changing their declared topology.

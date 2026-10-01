@@ -473,9 +473,10 @@ export function findDoc(slug: readonly string[], catalog: Catalog = loadCatalog(
 }
 
 /**
- * Where a relative link of a staged doc leads on the site: the route of the doc or workflow
- * contract it names, with its fragment, or null when the site does not publish its target.
- * `from` is the doc's checkout path ("docs/viewer.md").
+ * Where a relative link of a staged doc, page body or contract leads on the site: the route
+ * of the doc, workflow page or workflow contract it names, with its fragment, or null when
+ * the site does not publish its target. `from` is the source's checkout path
+ * ("docs/viewer.md", "src/stage_gen/workflows/movie_sprite/contract.md").
  */
 export function docLink(from: string, target: string, catalog: Catalog = loadCatalog()): string | null {
   const [file, fragment] = target.split("#", 2) as [string, string | undefined];
@@ -484,9 +485,22 @@ export function docLink(from: string, target: string, catalog: Catalog = loadCat
   const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(from), file));
   const doc = stagedDocs().find((entry) => entry.path === resolved);
   if (doc !== undefined) return href(docRoute([doc.slug])) + hash;
-  const workflow = catalog.workflows.find(
-    (entry) => entry.sourceFolder !== null && `${entry.sourceFolder}/contract.md` === resolved,
-  );
-  if (workflow !== undefined) return href(contractRoute(workflow.id)) + hash;
+  for (const workflow of catalog.workflows) {
+    if (workflow.sourceFolder === null) continue;
+    if (`${workflow.sourceFolder}/contract.md` === resolved) return href(contractRoute(workflow.id)) + hash;
+    if (`${workflow.sourceFolder}/page.mdx` === resolved) return href(workflowRoute(workflow.id)) + hash;
+  }
+  return null;
+}
+
+/**
+ * Where a page body or contract lives in the checkout, so its relative links resolve like a
+ * doc's; null for a game's page, whose prose comes from the example store.
+ */
+export function checkoutPath(data: PageData): string | null {
+  const folder = data.workflow?.sourceFolder ?? null;
+  if (folder === null) return null;
+  if (data.kind === "workflow") return `${folder}/page.mdx`;
+  if (data.kind === "example" && data.exampleId !== null) return `${folder}/examples/${data.exampleId}.mdx`;
   return null;
 }

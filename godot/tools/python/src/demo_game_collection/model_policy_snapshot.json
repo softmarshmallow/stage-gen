@@ -24,7 +24,7 @@
     {
       "check_id": "platformer_graph_contract",
       "expected_state_sha256": "cebb1dda2a2c2c44216247a0602652f3a65bcae15b0bc162078e8ce4041c1e39",
-      "file_sha256": "1ba0e6c7571f4627136af6f18411495e2a580f9e165b67a7669865105746891c",
+      "file_sha256": "a187a9fb672f702f7f4af6c3399ca5e64106c91e598bca7571749f63f3ced87d",
       "observed_state_sha256": "cebb1dda2a2c2c44216247a0602652f3a65bcae15b0bc162078e8ce4041c1e39",
       "path": "godot/games/bellweather/docs/generation-pipeline.md"
     },
@@ -45,23 +45,9 @@
     {
       "check_id": "storefront_graph_contract",
       "expected_state_sha256": "4fd7181691bb3e794c17fe84c76326a42f4d1c01148f44318dd43e24b2d43348",
-      "file_sha256": "0cdafb199f9af3cbab44e5acb8eb7187c3bacb4d7b8400ca9ccefd1feb7db0de",
+      "file_sha256": "b692f5d6480331f32ee7be13eb622ce921217a2fe08e73bd5afc68d4f5075bf8",
       "observed_state_sha256": "4fd7181691bb3e794c17fe84c76326a42f4d1c01148f44318dd43e24b2d43348",
       "path": "godot/games/ember_hollow/docs/storefront-integration.md"
-    },
-    {
-      "check_id": "universe_gallery_graph_contract",
-      "expected_state_sha256": "db1fa2ed585117322826d0838256129966bce249fece540d35cd7967bd8baf52",
-      "file_sha256": "ac5560e92b79f24ee74a271bf8933bb508d62e0ec66a0ca6f6a0b52aa1b90d46",
-      "observed_state_sha256": "db1fa2ed585117322826d0838256129966bce249fece540d35cd7967bd8baf52",
-      "path": "docs/spec/universe/generation-v1.md"
-    },
-    {
-      "check_id": "universe_semantic_graph_contract",
-      "expected_state_sha256": "ec5567dcef6ab9b85832b5400fd992cd0b2da42c12106629120ef9a70755b8f7",
-      "file_sha256": "ac5560e92b79f24ee74a271bf8933bb508d62e0ec66a0ca6f6a0b52aa1b90d46",
-      "observed_state_sha256": "ec5567dcef6ab9b85832b5400fd992cd0b2da42c12106629120ef9a70755b8f7",
-      "path": "docs/spec/universe/generation-v1.md"
     }
   ],
   "kind": "stage-gen-model-policy-snapshot-v1",

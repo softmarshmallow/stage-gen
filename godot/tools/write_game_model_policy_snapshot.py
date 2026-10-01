@@ -70,7 +70,6 @@ UNIVERSE_ADMITTED_FIXTURE = "tests/contract/fixtures/universe/lantern_ferry.admi
 
 PLATFORMER_DOCUMENT = "godot/games/bellweather/docs/generation-pipeline.md"
 RUNNER_DOCUMENT = "godot/games/iron_petal_unit/docs/runner.md"
-UNIVERSE_DOCUMENT = "docs/spec/universe/generation-v1.md"
 SURVIVAL_DOCUMENT = "godot/games/ember_hollow/docs/generation-v1.md"
 STOREFRONT_DOCUMENT = "godot/games/ember_hollow/docs/storefront-integration.md"
 
@@ -216,11 +215,11 @@ def _generated_file_checks(
 ) -> tuple[GeneratedModelPolicyFileSnapshotV1, ...]:
     platformer = graphs["sideview_platformer"]
     runner = graphs["sideview_runner"]
-    semantic = graphs["universe_semantic"]
-    gallery = graphs["universe_gallery"]
     survival = graphs["oblique_survival"]
     storefront = graphs["storefront"]
 
+    # The product workflows' own contract blocks, universe's included, are checked by
+    # scripts/write_workflow_contracts.py; these are the documents the games own.
     document_checks: tuple[tuple[str, str, str | None, dict[str, object]], ...] = (
         (
             "platformer_graph_contract",
@@ -240,32 +239,6 @@ def _generated_file_checks(
                 runner,
                 kind="sideview-runner-execution-graph-contract-v1",
                 fixture_ref=RUNNER_FIXTURE,
-            ),
-        ),
-        (
-            "universe_semantic_graph_contract",
-            UNIVERSE_DOCUMENT,
-            "semantic",
-            _graph_contract(
-                semantic,
-                kind="universe-semantic-execution-graph-contract-v1",
-                fixture_ref=UNIVERSE_FIXTURE,
-                extra={"phase": _graph_field(semantic, "phase")},
-            ),
-        ),
-        (
-            "universe_gallery_graph_contract",
-            UNIVERSE_DOCUMENT,
-            "gallery",
-            _graph_contract(
-                gallery,
-                kind="universe-gallery-execution-graph-contract-v1",
-                fixture_ref=UNIVERSE_FIXTURE,
-                extra={
-                    "admitted_ref": UNIVERSE_ADMITTED_FIXTURE,
-                    "phase": _graph_field(gallery, "phase"),
-                    "entity_count": _graph_field(gallery, "entity_count"),
-                },
             ),
         ),
         (

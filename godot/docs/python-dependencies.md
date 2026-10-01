@@ -109,9 +109,9 @@ These are offline proofs; they do not establish new visual or listening acceptan
 
 Game graph evidence is owned by Godot. The existing Ember storefront integration
 has [its own unchanged graph evidence](../games/ember_hollow/docs/storefront-integration.md),
-while the product storefront writer plans the independent procedural example.
-The collection model-policy census intentionally combines product examples and
-these game integrations for regression comparisons.
+while the product storefront workflow plans its independent procedural input.
+The collection model-policy census intentionally combines product workflow plans and
+these game integrations for regression comparisons; it checks only the documents the games own.
 
 Graph-document formatting still uses the private repository tooling module
 `scripts/graph_contracts.py`. This is an explicit source-checkout dependency;

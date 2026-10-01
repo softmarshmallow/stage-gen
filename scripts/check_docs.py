@@ -89,6 +89,32 @@ CONSUMER_SPECS = (
 
 CHECKED_BY_PATTERN = re.compile(r"^> \*\*Checked by:\*\* (.+)$", re.MULTILINE)
 
+#: Where each workflow keeps its prose beside its code: page.mdx, contract.md, input notes.
+WORKFLOWS_SOURCE = "src/stage_gen/workflows"
+PROMPT_FIXTURES = (
+    "src/stage_gen/resources/fixtures/prompts.txt",
+    "src/stage_gen/resources/fixtures/styles.txt",
+)
+
+# The words decision 0071 retired from product prose, and where the lint reads. A retired word
+# survives only where it is a frozen persisted string or a path: inside code spans and fenced
+# blocks, in a link target, or in the glossary sections that list the retired and frozen words.
+RETIRED_TERMS = re.compile(r"\b(?:recipes?|harness|showcase|web viewer)\b", re.IGNORECASE)
+RETIRED_TERM_EXEMPT_PHRASES = re.compile(r"\b(?:rig|crafting) recipes?\b", re.IGNORECASE)
+RETIRED_TERM_DOCUMENTS = (
+    "README.md",
+    "ARCHITECTURE.md",
+    "CONTRIBUTING.md",
+    "VERIFICATION.md",
+    "docs/README.md",
+    "docs/getting-started.md",
+    "docs/glossary.md",
+    "docs/viewer.md",
+    "docs/site.md",
+    "docs/sdk/guide.md",
+)
+GLOSSARY_EXEMPT_SECTIONS = ("## Retired terms", "## Frozen persisted strings")
+
 
 def ignored_paths(repo: Path, candidates: set[str]) -> frozenset[str]:
     """Which of these repository-relative paths git deliberately ignores.
@@ -130,7 +156,8 @@ def ignored_paths(repo: Path, candidates: set[str]) -> frozenset[str]:
 def check_spec_checkers(repo: Path) -> list[str]:
     """Every specification says what checks it, and the claim is true.
 
-    A spec under ``docs/spec`` opens with ``> **Checked by:** `tests/...`, ...`` naming
+    A spec under ``docs/spec``, a game-owned consumer spec, or a workflow's ``contract.md``
+    opens with ``> **Checked by:** `tests/...`, ...`` naming
     the test modules that read it, or ``none.`` when nothing does. A named test must
     exist, live under ``tests/`` or be a Bun test under ``web/``, and actually name the spec,
     so a document cannot borrow a checker it never had; ``none`` is a statement a
@@ -142,6 +169,7 @@ def check_spec_checkers(repo: Path) -> list[str]:
         [
             *_walk_files(repo / "docs/spec", frozenset({".md"})),
             *(repo / ref for ref in CONSUMER_SPECS if (repo / ref).is_file()),
+            *sorted((repo / WORKFLOWS_SOURCE).glob("*/contract.md")),
         ]
     ):
         relative = spec.relative_to(repo).as_posix()
@@ -175,6 +203,61 @@ def check_spec_checkers(repo: Path) -> list[str]:
     return failures
 
 
+def _prose_lines(source: str, *, exempt_sections: tuple[str, ...] = ()) -> list[tuple[int, str]]:
+    """The prose of a Markdown or MDX document, line by line, without its code.
+
+    Fenced blocks, code spans, link targets and HTML comments are blanked out; a line inside
+    one of ``exempt_sections`` (a level-2 heading and everything up to the next) is skipped.
+    """
+    lines: list[tuple[int, str]] = []
+    fenced = False
+    exempt = False
+    for number, line in enumerate(source.splitlines(), start=1):
+        if line.lstrip().startswith(("```", "~~~")):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        if line.startswith("## "):
+            exempt = line.strip() in exempt_sections
+        if exempt:
+            continue
+        text = re.sub(r"`[^`]*`", " ", line)
+        text = re.sub(r"\]\([^)]*\)", "]", text)
+        text = re.sub(r"<!--.*?-->", " ", text)
+        lines.append((number, text))
+    return lines
+
+
+def check_retired_terms(repo: Path) -> list[str]:
+    """Product prose speaks decision 0071's vocabulary.
+
+    The doctrine, the cross-cutting docs and every workflow's ``page.mdx`` and ``contract.md``
+    are read; history (decisions, plans, research) is not, because it describes what was. A
+    scan that matched no workflow prose would prove nothing, so an empty one fails.
+    """
+    failures: list[str] = []
+    workflow_prose = sorted(
+        path
+        for pattern in ("*/page.mdx", "*/contract.md")
+        for path in (repo / WORKFLOWS_SOURCE).glob(pattern)
+    )
+    if not workflow_prose:
+        failures.append(f"{WORKFLOWS_SOURCE}: the retired-term lint matched no page or contract")
+    documents = [repo / relative for relative in RETIRED_TERM_DOCUMENTS]
+    for document in [*documents, *workflow_prose]:
+        if not document.is_file():
+            continue
+        relative = document.relative_to(repo).as_posix()
+        exempt = GLOSSARY_EXEMPT_SECTIONS if relative == "docs/glossary.md" else ()
+        for number, text in _prose_lines(
+            document.read_text(encoding="utf-8"), exempt_sections=exempt
+        ):
+            for match in RETIRED_TERMS.finditer(RETIRED_TERM_EXEMPT_PHRASES.sub(" ", text)):
+                failures.append(f"{relative}:{number}: retired term '{match.group(0)}'")
+    return failures
+
+
 def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
     doctrine = [
         repo / "README.md",
@@ -182,7 +265,7 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
         repo / "ARCHITECTURE.md",
     ]
     governance = [repo / "AGENTS.md", repo / "TODO.md"]
-    prompt_fixtures = [repo / "fixtures/prompts.txt", repo / "fixtures/styles.txt"]
+    prompt_fixtures = [repo / relative for relative in PROMPT_FIXTURES]
     concept_markdown = [
         path
         for path in _walk_files(repo / "concept-studio", frozenset({".md"}))
@@ -191,14 +274,15 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
     # `TODO.md` is one line per open item, each linking to the decision, plan or
     # spec that holds its context, so it is link-checked like the rest of the
     # documentation rather than only scanned for stale prose.
-    # `VERIFICATION.md` and `DESIGN.md` name the locked gate and the surfaces, and were in
-    # no list at all; `CLAUDE.md` is a symlink to `AGENTS.md` and is already governance. The
-    # Godot operating manuals are documentation like any other and are held to the same
-    # links and paths (decision 0061 makes them the manuals for every genre).
+    # `VERIFICATION.md` names the locked gate and was in no list at all (the May
+    # prototype's `DESIGN.md` is a plan under docs/plans now); `CLAUDE.md` is a symlink to
+    # `AGENTS.md` and is already governance. The Godot operating manuals are documentation
+    # like any other and are held to the same links and paths (decision 0061 makes them the
+    # manuals for every genre).
     markdown = [
         *[path for path in doctrine if path.exists()],
         *[path for path in governance if path.exists()],
-        *[path for path in (repo / "VERIFICATION.md", repo / "DESIGN.md") if path.exists()],
+        *[path for path in (repo / "VERIFICATION.md",) if path.exists()],
         *_walk_files(repo / "docs", frozenset({".md"})),
         *_walk_files(repo / "library", frozenset({".md"})),
         # The presentation package's `history/` holds the request ledger and the
@@ -215,6 +299,15 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
             )
         ],
         *concept_markdown,
+        # Workflow prose lives beside its code, and a game's example pages beside the game.
+        *_walk_files(repo / WORKFLOWS_SOURCE, frozenset({".md", ".mdx"})),
+        *_walk_files(repo / "src/stage_gen/components", frozenset({".md"})),
+        *_walk_files(repo / "src/stage_gen/pipeline", frozenset({".md"})),
+        *[
+            path
+            for game in sorted((repo / "godot/games").glob("*/examples"))
+            for path in _walk_files(game, frozenset({".mdx"}))
+        ],
     ]
     failures: list[str] = []
 
@@ -445,22 +538,31 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
             not line.startswith("- Create an original ") for line in lines
         ):
             failures.append(
-                "fixtures/prompts.txt: every preset must explicitly request an original result"
+                f"{PROMPT_FIXTURES[0]}: every preset must explicitly request an original result"
             )
         if fixture.name == "styles.txt" and any(
             re.search(r"""["'()]|\b(?:game|film|studio|artist)\b""", line, re.IGNORECASE)
             for line in lines
         ):
             failures.append(
-                "fixtures/styles.txt: style hints must remain neutral property descriptions"
+                f"{PROMPT_FIXTURES[1]}: style hints must remain neutral property descriptions"
             )
 
     readme = (repo / "README.md").read_text(encoding="utf-8")
-    if (
-        re.search(r"\bgeneral\b", readme, re.IGNORECASE) is None
-        or re.search(r"optional web-based run viewer", readme, re.IGNORECASE) is None
+    # The viewer is optional and it is the CLI's: the sentence that names it names its command.
+    viewer_sentences = [
+        sentence
+        for sentence in re.split(r"(?<=[.!?])\s+", " ".join(readme.split()))
+        if re.search(r"optional web-based run viewer", sentence, re.IGNORECASE)
+    ]
+    if re.search(r"\bgeneral\b", readme, re.IGNORECASE) is None or not any(
+        "stage-gen view" in sentence for sentence in viewer_sentences
     ):
-        failures.append("README.md: missing general-core / optional-viewer framing")
+        failures.append(
+            "README.md: missing general-core / optional-viewer framing (a sentence naming the "
+            "optional web-based run viewer and `stage-gen view`)"
+        )
+    failures.extend(check_retired_terms(repo))
 
     media_policy = (repo / "docs/generated-media-publication.md").read_text(encoding="utf-8")
     policy_requirements = (
