@@ -37,14 +37,14 @@ CLI_SOURCE = (
 )
 
 
-class RecipeGraphModel(Protocol):
+class GraphDocumentModel(Protocol):
     CURRENT_KIND: str
     LEGACY_GRAPH_IDENTITIES: frozenset[tuple[int, str]]
     VIEW_SCHEMA_VERSION: int
 
 
 GRAPH_MODELS = cast(
-    tuple[type[RecipeGraphModel], ...],
+    tuple[type[GraphDocumentModel], ...],
     (
         DialogueSceneGraph,
         ObliqueSurvivalGraph,
@@ -57,7 +57,7 @@ GRAPH_MODELS = cast(
 )
 
 
-def declared_kinds(model: type[RecipeGraphModel]) -> set[str]:
+def declared_kinds(model: type[GraphDocumentModel]) -> set[str]:
     """Every current or named legacy graph kind this reader accepts."""
 
     current = model.CURRENT_KIND
@@ -80,7 +80,7 @@ def dispatched_kinds() -> set[str]:
     ids=lambda model: model.__name__,
 )
 def test_export_view_dispatch_covers_every_recipe_graph_kind(
-    model: type[RecipeGraphModel],
+    model: type[GraphDocumentModel],
 ) -> None:
     missing = declared_kinds(model) - dispatched_kinds()
     assert not missing, (

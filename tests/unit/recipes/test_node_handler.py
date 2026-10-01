@@ -23,8 +23,8 @@ from gnode import (
     Port,
     ViewArchetype,
 )
-from stage_gen.recipes.graph_document import RecipeGraph
-from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
+from stage_gen.pipeline.graph_document import GraphDocument
+from stage_gen.pipeline.node_handler import CachedNodeHandler, NodeMethod
 
 
 class _Ops(StrEnum):
@@ -32,7 +32,7 @@ class _Ops(StrEnum):
     IMAGE_GENERATION = "image_generation"
 
 
-class _Graph(RecipeGraph):
+class _Graph(GraphDocument):
     OPERATIONS = _Ops
 
     schema_version: Literal[1]
@@ -75,7 +75,7 @@ class _Exhausted(Exception):
     attempts = 3
 
 
-class _Handler(RecipeNodeHandler):
+class _Handler(CachedNodeHandler):
     def __init__(self, graph: _Graph, *, run_dir: Path, cache_dir: Path) -> None:
         self.calls: list[str] = []
         self.failed: list[str] = []

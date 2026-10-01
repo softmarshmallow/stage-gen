@@ -154,8 +154,8 @@ from stage_gen.model_routes import (
     configured_image_workload_resolver,
     image_workload_policies,
 )
-from stage_gen.recipes.graph_document import RecipeGraph
-from stage_gen.recipes.ports import (
+from stage_gen.pipeline.graph_document import GraphDocument
+from stage_gen.pipeline.ports import (
     artifact_port,
     attempts_port,
     object_digest,
@@ -202,7 +202,7 @@ class RunnerOperationKind(StrEnum):
     SPEECH_GENERATION = "speech_generation"
 
 
-class SideviewRunnerGraph(RecipeGraph):
+class SideviewRunnerGraph(GraphDocument):
     """One runner plan of record, bound to the package closure that produced it."""
 
     OPERATIONS = RunnerOperationKind

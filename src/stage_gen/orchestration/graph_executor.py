@@ -1,12 +1,13 @@
-"""The composition boundary every recipe runs through.
+"""The composition boundary every graph document runs through.
 
 Resolve, plan, open a run directory, dispatch a handler under a scheduler, close what
 was opened, write the summary. Five executors wrote that bootstrap five times - the run
-directory inlined three times per recipe, the secrets rebuilt in each, the provider
+directory inlined three times per executor, the secrets rebuilt in each, the provider
 services constructed with their default base URLs at fifteen call sites - and that is
 how one credential once escaped redaction in two of them. The base owns the bootstrap;
-a recipe owns what it resolves, how it builds its graph, and which handler runs it.
-Nothing here generates.
+a subclass owns what it resolves, how it builds its graph, and which handler runs it.
+It lives at the composition root because it builds ``RunServices``. Nothing here
+generates.
 """
 
 from __future__ import annotations
@@ -35,13 +36,8 @@ from gnode import (
     write_run_summary,
 )
 from stage_gen.config import CapabilityName, ConfigError, StageGenConfig, assert_capabilities
-from stage_gen.orchestration.services import (
-    ELEVENLABS_BASE_URL,
-    OPENAI_BASE_URL,
-    OPENROUTER_BASE_URL,
-    RunServices,
-)
-from stage_gen.recipes.dry_run import DryRunNodeHandler
+from stage_gen.orchestration.services import RunServices
+from stage_gen.pipeline.dry_run import DryRunNodeHandler
 
 
 class Identified(Protocol):
@@ -51,7 +47,7 @@ class Identified(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
-class RecipePlan[R: Identified, G: Graph]:
+class PlannedGraph[R: Identified, G: Graph]:
     """One resolved input, the graph it expands to, and the schedule the graph projects."""
 
     resolved: R
@@ -60,13 +56,13 @@ class RecipePlan[R: Identified, G: Graph]:
 
 
 @dataclass(frozen=True, slots=True)
-class RecipeRun[P]:
+class GraphRun[P]:
     plan: P
     summary: RunSummary
     run_dir: Path
 
 
-class RecipeExecutor[R: Identified, G: Graph](ABC):
+class GraphExecutor[R: Identified, G: Graph](ABC):
     """Resolve, plan, and dispatch one authored input; leaf work stays in the handler."""
 
     #: The identity document written beside the plan; its name is part of the run layout.
@@ -78,7 +74,7 @@ class RecipeExecutor[R: Identified, G: Graph](ABC):
     def __init__(self, config: StageGenConfig) -> None:
         self._config = config
 
-    # ------------------------------------------------------------ the recipe's
+    # ---------------------------------------------------------- the subclass's
 
     @abstractmethod
     def _resolve(self, input_path: Path) -> R:
@@ -90,23 +86,23 @@ class RecipeExecutor[R: Identified, G: Graph](ABC):
 
     @abstractmethod
     def _type_index(self) -> Mapping[str, NodeType]:
-        """Every node type the recipe's plan may contain."""
+        """Every node type the plan may contain."""
 
     # --------------------------------------------------------------- planning
 
-    def plan(self, input_path: Path) -> RecipePlan[R, G]:
+    def plan(self, input_path: Path) -> PlannedGraph[R, G]:
         """Resolve one authored input into its exact plan, offline."""
 
         return self.plan_resolved(self._resolve(input_path))
 
-    def plan_resolved(self, resolved: R) -> RecipePlan[R, G]:
+    def plan_resolved(self, resolved: R) -> PlannedGraph[R, G]:
         return self.plan_graph(resolved, self._build(resolved))
 
-    def plan_graph(self, resolved: R, graph: G) -> RecipePlan[R, G]:
+    def plan_graph(self, resolved: R, graph: G) -> PlannedGraph[R, G]:
         """Admit a graph built some other way - a second phase, say - as a plan."""
 
         validate_plan_types(graph.nodes, self._type_index())
-        return RecipePlan(resolved=resolved, graph=graph, projection=project_schedule(graph))
+        return PlannedGraph(resolved=resolved, graph=graph, projection=project_schedule(graph))
 
     # ------------------------------------------------------------------- runs
 
@@ -126,7 +122,7 @@ class RecipeExecutor[R: Identified, G: Graph](ABC):
         Credentials admit an already-planned route. They never select a route,
         and an unused registered route or unselected graph branch therefore
         never becomes a run requirement. ``None`` preserves whole-graph
-        admission for recipes that do not expose target slices.
+        admission for executors that do not expose target slices.
         """
 
         credential_by_provider = {
@@ -154,7 +150,7 @@ class RecipeExecutor[R: Identified, G: Graph](ABC):
     def services(self) -> RunServices:
         return RunServices(self._config)
 
-    async def open_run(self, plan: RecipePlan[R, G], *, run_dir: Path) -> None:
+    async def open_run(self, plan: PlannedGraph[R, G], *, run_dir: Path) -> None:
         """Create the run directory and write the plan, the projection and the identity."""
 
         await asyncio.to_thread(run_dir.mkdir, parents=True, exist_ok=False)
@@ -166,7 +162,7 @@ class RecipeExecutor[R: Identified, G: Graph](ABC):
 
     async def dispatch(
         self,
-        plan: RecipePlan[R, G],
+        plan: PlannedGraph[R, G],
         handler: NodeHandler,
         *,
         run_dir: Path,
@@ -200,7 +196,7 @@ class RecipeExecutor[R: Identified, G: Graph](ABC):
 
     async def dry_dispatch(
         self,
-        plan: RecipePlan[R, G],
+        plan: PlannedGraph[R, G],
         *,
         run_dir: Path,
         cache_dir: Path,
@@ -233,7 +229,7 @@ class RecipeExecutor[R: Identified, G: Graph](ABC):
         invocation_id: str,
         failure_node_id: str | None = None,
         time_scale: float = 0.0001,
-    ) -> RecipeRun[RecipePlan[R, G]]:
+    ) -> GraphRun[PlannedGraph[R, G]]:
         assert_safe_path_segment(invocation_id, "invocation_id")
         plan = self.plan(input_path)
         await self.open_run(plan, run_dir=run_dir)
@@ -245,16 +241,7 @@ class RecipeExecutor[R: Identified, G: Graph](ABC):
             failure_node_id=failure_node_id,
             time_scale=time_scale,
         )
-        return RecipeRun(plan=plan, summary=summary, run_dir=run_dir)
+        return GraphRun(plan=plan, summary=summary, run_dir=run_dir)
 
 
-__all__ = [
-    "ELEVENLABS_BASE_URL",
-    "OPENAI_BASE_URL",
-    "OPENROUTER_BASE_URL",
-    "Identified",
-    "RecipeExecutor",
-    "RecipePlan",
-    "RecipeRun",
-    "RunServices",
-]
+__all__ = ["GraphExecutor", "GraphRun", "Identified", "PlannedGraph"]

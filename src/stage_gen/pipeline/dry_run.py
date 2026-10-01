@@ -25,7 +25,7 @@ from gnode import (
     NodeType,
     atomic_write_bytes,
 )
-from stage_gen.pipeline.node_handler import NodeMethod, RecipeNodeHandler
+from stage_gen.pipeline.node_handler import CachedNodeHandler, NodeMethod
 
 DRY_RUN_CACHE_NAMESPACE = "dry-run-nodes-v1"
 DRY_RUN_CACHE_RECORD_KIND = "dry-run-node-cache-v1"
@@ -33,7 +33,7 @@ DRY_RUN_ARTIFACT_KIND = "dry-run-artifact-v1"
 PLACEHOLDER_PREFIX = f'{{"kind":"{DRY_RUN_ARTIFACT_KIND}"'.encode()
 
 
-class DryRunNodeHandler(RecipeNodeHandler):
+class DryRunNodeHandler(CachedNodeHandler):
     """Exercise scheduling, failure, trace and cache behaviour without provider access."""
 
     def __init__(

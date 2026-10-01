@@ -124,7 +124,7 @@ from stage_gen.media import (
     repack_alpha_components,
 )
 from stage_gen.media.sprite_sheets import measure_alpha_subjects
-from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
+from stage_gen.pipeline.node_handler import CachedNodeHandler, NodeMethod
 from stage_gen.resources import inventory_template_path
 
 CONTENT_HANDLER_VERSION = "prepared-content-v4"
@@ -137,7 +137,7 @@ CatalogEntry = PropContent | ItemContent | ProjectileContent
 ActorContent = PlayerContent | MobContent | NpcContent
 
 
-class PreparedContentNodeHandler(RecipeNodeHandler):
+class PreparedContentNodeHandler(CachedNodeHandler):
     """Dispatch content nodes while shared components retain provider/retry ownership."""
 
     def __init__(

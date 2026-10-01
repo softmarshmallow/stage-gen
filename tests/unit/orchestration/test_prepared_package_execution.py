@@ -8,7 +8,7 @@ from bellweather_pipeline.prepared_content import content_target_node_ids
 from bellweather_pipeline.prepared_world import world_target_node_ids
 from gnode import NodeStatus, Scheduler
 from stage_gen.config import StageGenConfig
-from stage_gen.recipes.dry_run import DryRunNodeHandler
+from stage_gen.pipeline.dry_run import DryRunNodeHandler
 
 REPOSITORY_ROOT = Path(__file__).parents[3]
 BELLWEATHER = REPOSITORY_ROOT / "godot/games/bellweather/inputs/default"

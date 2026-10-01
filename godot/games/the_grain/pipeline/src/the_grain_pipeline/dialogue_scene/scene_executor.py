@@ -11,7 +11,7 @@ from pathlib import Path
 
 from gnode import NodeType, assert_safe_path_segment
 from stage_gen.config import CapabilityName
-from stage_gen.recipes.executor import RecipeExecutor, RecipePlan, RecipeRun
+from stage_gen.orchestration.graph_executor import GraphExecutor, GraphRun, PlannedGraph
 from the_grain_pipeline.dialogue_scene.prepared_scene import DialogueSceneNodeHandler
 from the_grain_pipeline.dialogue_scene.scene_graph import (
     DialogueSceneGraph,
@@ -25,11 +25,11 @@ from the_grain_pipeline.dialogue_scene.scene_request import (
 )
 from the_grain_pipeline.dialogue_scene.scene_types import dialogue_type_index
 
-DialogueScenePlan = RecipePlan[ResolvedDialogueScene, DialogueSceneGraph]
-DialogueSceneRun = RecipeRun[DialogueScenePlan]
+DialogueScenePlan = PlannedGraph[ResolvedDialogueScene, DialogueSceneGraph]
+DialogueSceneRun = GraphRun[DialogueScenePlan]
 
 
-class DialogueSceneExecutor(RecipeExecutor[ResolvedDialogueScene, DialogueSceneGraph]):
+class DialogueSceneExecutor(GraphExecutor[ResolvedDialogueScene, DialogueSceneGraph]):
     """Resolve, plan, and dispatch one authored scene package."""
 
     IDENTITY_DOCUMENT = "scene.json"
@@ -83,7 +83,7 @@ class DialogueSceneExecutor(RecipeExecutor[ResolvedDialogueScene, DialogueSceneG
             summary = await self.dispatch(
                 plan, handler, run_dir=run_dir, invocation_id=invocation_id
             )
-        return RecipeRun(plan=plan, summary=summary, run_dir=run_dir)
+        return GraphRun(plan=plan, summary=summary, run_dir=run_dir)
 
 
 __all__ = ["DialogueSceneExecutor", "DialogueScenePlan", "DialogueSceneRun"]

@@ -14,7 +14,7 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from gnode import Graph, RunSummary
-from stage_gen.recipes.executor import Identified, RecipeExecutor
+from stage_gen.orchestration.graph_executor import GraphExecutor, Identified
 
 
 def preparation_parser(description: str) -> argparse.ArgumentParser:
@@ -43,7 +43,7 @@ def validate_run_options(parser: argparse.ArgumentParser, args: argparse.Namespa
 
 
 def execute_preparation[R: Identified, G: Graph](
-    executor: RecipeExecutor[R, G],
+    executor: GraphExecutor[R, G],
     input_path: Path,
     args: argparse.Namespace,
     *,

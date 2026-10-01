@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from stage_gen.config import CapabilityName, ConfigError, StageGenConfig
-from stage_gen.recipes.executor import RunServices
+from stage_gen.orchestration.services import RunServices
 
 
 class _Service:
@@ -52,12 +52,10 @@ def test_configured_services_compose_from_the_config_alone() -> None:
     config = StageGenConfig(openai_api_key="openai", open_router_api_key="openrouter")
     services = RunServices(config)
     image = services.image()
-    opaque_image = services.opaque_image()
     structured = services.structured()
     music = services.music()
     assert {
         type(image).__name__,
-        type(opaque_image).__name__,
         type(structured).__name__,
         type(music).__name__,
     } == {
@@ -65,7 +63,7 @@ def test_configured_services_compose_from_the_config_alone() -> None:
         "StructuredGenerationService",
         "MusicGenerationService",
     }
-    assert image is opaque_image
+    assert services.image() is image
     assert image.provider == "routed"
     assert image.model == "gpt-image-2.5-sunburst"
     asyncio.run(services.aclose())

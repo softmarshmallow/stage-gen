@@ -37,8 +37,8 @@ from stage_gen.canonical import canonical_json_bytes, content_sha256
 from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.media import data_url
 from stage_gen.media.codec import encode_png
-from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
-from stage_gen.recipes.structured_transport import (
+from stage_gen.pipeline.node_handler import CachedNodeHandler, NodeMethod
+from stage_gen.pipeline.structured_transport import (
     AttemptLedger,
     generate_structured,
     known_cost,
@@ -132,7 +132,7 @@ def _compact(value: object) -> str:
     return canonical_json_bytes(value).decode("utf-8")
 
 
-class UniverseNodeHandler(RecipeNodeHandler):
+class UniverseNodeHandler(CachedNodeHandler):
     """One run's node work: cache first, then the type's own handler."""
 
     def __init__(

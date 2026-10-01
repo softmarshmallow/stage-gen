@@ -19,14 +19,14 @@ from gnode import (
     WorkloadRequestV1,
     seal_graph,
 )
-from stage_gen.recipes.graph_document import RecipeGraph
+from stage_gen.pipeline.graph_document import GraphDocument
 
 
 class _Operations(StrEnum):
     IMAGE_GENERATION = "image_generation"
 
 
-class _VersionedGraph(RecipeGraph):
+class _VersionedGraph(GraphDocument):
     OPERATIONS = _Operations
     CURRENT_SCHEMA_VERSION = 2
     CURRENT_KIND = "versioned-test-execution-graph-v2"

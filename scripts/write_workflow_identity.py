@@ -79,8 +79,8 @@ from stage_gen.pipeline import (
     run,
 )
 from stage_gen.pipeline.dry_run import DRY_RUN_CACHE_NAMESPACE, DRY_RUN_CACHE_RECORD_KIND
+from stage_gen.pipeline.graph_document import GraphDocument
 from stage_gen.pipeline.node_cache import NODE_CACHE_SCHEMA_VERSION
-from stage_gen.recipes.graph_document import RecipeGraph
 from stage_gen.recipes.looping_parallax import ParallaxLayer, ParallaxSpec
 from stage_gen.recipes.looping_parallax import create_pipeline as create_parallax_pipeline
 from stage_gen.recipes.movie_sprite_body_idle import GenerationSettings
@@ -238,7 +238,7 @@ def _parallax_definition() -> PipelineDefinition:
     )
 
 
-def _graph_document(document: type[RecipeGraph]) -> Section:
+def _graph_document(document: type[GraphDocument]) -> Section:
     (recipe,) = get_args(document.model_fields["recipe"].annotation)
     return {
         "recipe": recipe,

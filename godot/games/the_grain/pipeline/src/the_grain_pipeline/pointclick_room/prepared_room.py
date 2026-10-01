@@ -50,7 +50,7 @@ from stage_gen.image_style import (
     compile_style_prompt_anchor,
 )
 from stage_gen.media import data_url, inspect_image
-from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
+from stage_gen.pipeline.node_handler import CachedNodeHandler, NodeMethod
 from the_grain_pipeline.pointclick_room.models import RoomReference, prove_room_solvable
 from the_grain_pipeline.pointclick_room.room_graph import (
     POINTCLICK_CACHE_NAMESPACE,
@@ -99,7 +99,7 @@ def room_target_node_ids(graph: PointClickRoomGraph) -> tuple[str, ...]:
     return tuple(node.node_id for node in graph.nodes if node.node_id != graph.terminal_node_id)
 
 
-class PointClickRoomNodeHandler(RecipeNodeHandler):
+class PointClickRoomNodeHandler(CachedNodeHandler):
     """Dispatch room nodes while provider operations stay component-owned."""
 
     def __init__(

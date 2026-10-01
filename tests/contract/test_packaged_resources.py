@@ -18,8 +18,8 @@ PORTRAIT_FACE_MODULES = {
     "stage_gen/components/portrait_motion/face_location.py",
     "stage_gen/components/portrait_motion/face_patches.py",
     "stage_gen/components/portrait_motion/face_playback.py",
-    "stage_gen/orchestration/portrait_face.py",
-    "stage_gen/orchestration/portrait_face_location.py",
+    "stage_gen/recipes/portrait_motion/face.py",
+    "stage_gen/recipes/portrait_motion/face_location.py",
 }
 MOVIE_SPRITE_MODULES = {
     "stage_gen/components/movie_sprite/__init__.py",
@@ -393,10 +393,10 @@ face_surfaces = {
     "stage_gen.components.portrait_motion.face_playback": (
         "build_face_combinations", "encode_face_preview"
     ),
-    "stage_gen.orchestration.portrait_face": (
+    "stage_gen.recipes.portrait_motion.face": (
         "prepare_face_run", "run_face_pipeline", "verify_face_run"
     ),
-    "stage_gen.orchestration.portrait_face_location": (
+    "stage_gen.recipes.portrait_motion.face_location": (
         "prepare_locator", "run_locator", "verify_locator", "load_locator_plan"
     ),
 }

@@ -208,7 +208,7 @@ from stage_gen.media.sprite_sheets import (
     AlphaComponentRepackContract,
     repack_alpha_components,
 )
-from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
+from stage_gen.pipeline.node_handler import CachedNodeHandler, NodeMethod
 from stage_gen.resources import (
     terrain_atlas_template_path,
 )
@@ -531,7 +531,7 @@ def _no_soundtrack(track_id: str) -> SoundtrackTrack:
     raise ValueError(f"runner package declares no soundtrack member (asked for {track_id})")
 
 
-class SideviewRunnerNodeHandler(RecipeNodeHandler):
+class SideviewRunnerNodeHandler(CachedNodeHandler):
     """Dispatch runner nodes while provider operations stay component-owned."""
 
     def __init__(

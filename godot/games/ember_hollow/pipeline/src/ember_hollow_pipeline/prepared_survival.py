@@ -189,7 +189,7 @@ from stage_gen.components.ui_art.nodes import (
 from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.media import measure_level_and_duration_sync, validate_music_payload
 from stage_gen.media.comparison_plate import BandedComparisonPlate
-from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
+from stage_gen.pipeline.node_handler import CachedNodeHandler, NodeMethod
 
 OBLIQUE_SURVIVAL_COMPONENT: Final = SoftwareIdentity(
     name="@stage-gen/oblique-survival", version="1"
@@ -330,7 +330,7 @@ def _measured_centre_x(validation: Mapping[str, object]) -> float:
     return round(float(value) if isinstance(value, int | float) else 0.5, 3)
 
 
-class ObliqueSurvivalNodeHandler(RecipeNodeHandler):
+class ObliqueSurvivalNodeHandler(CachedNodeHandler):
     """Every node of one oblique-survival run: the gates, the drawing, the publishing.
 
     A provider operation stays inside the service that owns its retry; a method here

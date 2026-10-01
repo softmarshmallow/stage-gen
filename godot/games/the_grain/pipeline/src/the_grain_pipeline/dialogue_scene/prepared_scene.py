@@ -70,7 +70,7 @@ from stage_gen.media import (
     probe_audio,
     validate_music_payload,
 )
-from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
+from stage_gen.pipeline.node_handler import CachedNodeHandler, NodeMethod
 from the_grain_pipeline.dialogue_scene.identity import (
     canonical_json_bytes,
     content_sha256,
@@ -148,7 +148,7 @@ def scene_target_node_ids(graph: DialogueSceneGraph) -> tuple[str, ...]:
     return tuple(node.node_id for node in graph.nodes if node.node_id != graph.terminal_node_id)
 
 
-class DialogueSceneNodeHandler(RecipeNodeHandler):
+class DialogueSceneNodeHandler(CachedNodeHandler):
     """Dispatch dialogue nodes while provider operations stay component-owned."""
 
     def __init__(

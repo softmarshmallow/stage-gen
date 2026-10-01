@@ -33,17 +33,17 @@ from bellweather_pipeline.prepared_world import (
 from bellweather_pipeline.validation import ResolvedGamePackage
 from gnode import NodeType, assert_safe_path_segment
 from stage_gen.config import CapabilityName, StageGenConfig
-from stage_gen.recipes.executor import RecipeExecutor, RecipePlan, RecipeRun
+from stage_gen.orchestration.graph_executor import GraphExecutor, GraphRun, PlannedGraph
 from stage_gen.resources import (
     terrain_atlas_template_path,
 )
 
-PreparedPackagePlan = RecipePlan[ResolvedGamePackage, ExecutionGraph]
-PreparedPackageRun = RecipeRun[PreparedPackagePlan]
+PreparedPackagePlan = PlannedGraph[ResolvedGamePackage, ExecutionGraph]
+PreparedPackageRun = GraphRun[PreparedPackagePlan]
 
 
 @dataclass(frozen=True, slots=True)
-class PreparedPackageIntegrationRun(RecipeRun[PreparedPackagePlan]):
+class PreparedPackageIntegrationRun(GraphRun[PreparedPackagePlan]):
     #: The published run, or ``None`` when the closure could not be restored and the
     #: terminal node never ran; ``summary`` names the node that stopped it.
     result: PreparedManifestResult | None
@@ -53,7 +53,7 @@ class PreparedPackageIntegrationRun(RecipeRun[PreparedPackagePlan]):
     adopted_node_ids: tuple[str, ...] = ()
 
 
-class PreparedPackageExecutor(RecipeExecutor[ResolvedGamePackage, ExecutionGraph]):
+class PreparedPackageExecutor(GraphExecutor[ResolvedGamePackage, ExecutionGraph]):
     """Resolve, plan, and dispatch; leaf generation remains component-owned."""
 
     IDENTITY_DOCUMENT = "package.json"
@@ -162,7 +162,7 @@ class PreparedPackageExecutor(RecipeExecutor[ResolvedGamePackage, ExecutionGraph
                 invocation_id=invocation_id,
                 targets=target_node_ids,
             )
-        return RecipeRun(plan=plan, summary=summary, run_dir=run_dir)
+        return GraphRun(plan=plan, summary=summary, run_dir=run_dir)
 
     async def run_content(
         self,
@@ -204,7 +204,7 @@ class PreparedPackageExecutor(RecipeExecutor[ResolvedGamePackage, ExecutionGraph
                 invocation_id=invocation_id,
                 targets=target_node_ids,
             )
-        return RecipeRun(plan=plan, summary=summary, run_dir=run_dir)
+        return GraphRun(plan=plan, summary=summary, run_dir=run_dir)
 
 
 __all__ = [

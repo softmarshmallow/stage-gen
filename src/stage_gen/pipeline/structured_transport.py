@@ -9,9 +9,9 @@ vocabulary. And a usage record may or may not carry a cost the provider will
 stand behind.
 
 They live here because two recipes wrote them character for character alike and
-recipes may not import each other: a direct child of ``recipes/`` is the shared
-home the import-boundary contract allows. Nothing here knows a genre, a medium
-or a document kind, which is the test for whether something belongs.
+recipes may not import each other: the SDK is the shared home the import-boundary
+contract allows. Nothing here knows a genre, a medium or a document kind, which is
+the test for whether something belongs.
 
 The honest longer-term home for the envelope decoder is the provider adapter
 that meets the envelope; moving it there is a wider change than the one that

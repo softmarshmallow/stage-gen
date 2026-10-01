@@ -41,7 +41,7 @@ from stage_gen.components.sideview_actor.motion_rebase_nodes import (
     add_motion_rebase_nodes,
     motion_rebase_node_types,
 )
-from stage_gen.recipes.graph_document import RecipeGraph
+from stage_gen.pipeline.graph_document import GraphDocument
 
 STATES = ("idle", "run", "hurt")
 GEOMETRY = MotionAtlasGeometry(columns=4, rows=1, required_cells=4, width=208, height=112)
@@ -52,7 +52,7 @@ class _Ops(StrEnum):
     STRUCTURED_GENERATION = "structured_generation"
 
 
-class _Graph(RecipeGraph):
+class _Graph(GraphDocument):
     OPERATIONS = _Ops
 
     schema_version: Literal[1]

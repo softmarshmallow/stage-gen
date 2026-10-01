@@ -12,7 +12,7 @@ from pathlib import Path
 
 from gnode import NodeType, assert_safe_path_segment
 from stage_gen.config import CapabilityName
-from stage_gen.recipes.executor import RecipeExecutor, RecipePlan, RecipeRun
+from stage_gen.orchestration.graph_executor import GraphExecutor, GraphRun, PlannedGraph
 from the_grain_pipeline.pointclick_room.prepared_room import PointClickRoomNodeHandler
 from the_grain_pipeline.pointclick_room.room_graph import (
     PointClickRoomGraph,
@@ -26,11 +26,11 @@ from the_grain_pipeline.pointclick_room.room_request import (
 )
 from the_grain_pipeline.pointclick_room.room_types import pointclick_type_index
 
-PointClickRoomPlan = RecipePlan[ResolvedPointClickRoom, PointClickRoomGraph]
-PointClickRoomRun = RecipeRun[PointClickRoomPlan]
+PointClickRoomPlan = PlannedGraph[ResolvedPointClickRoom, PointClickRoomGraph]
+PointClickRoomRun = GraphRun[PointClickRoomPlan]
 
 
-class PointClickRoomExecutor(RecipeExecutor[ResolvedPointClickRoom, PointClickRoomGraph]):
+class PointClickRoomExecutor(GraphExecutor[ResolvedPointClickRoom, PointClickRoomGraph]):
     """Resolve, plan, and dispatch one authored room."""
 
     IDENTITY_DOCUMENT = "room-identity.json"
@@ -76,7 +76,7 @@ class PointClickRoomExecutor(RecipeExecutor[ResolvedPointClickRoom, PointClickRo
             summary = await self.dispatch(
                 plan, handler, run_dir=run_dir, invocation_id=invocation_id
             )
-        return RecipeRun(plan=plan, summary=summary, run_dir=run_dir)
+        return GraphRun(plan=plan, summary=summary, run_dir=run_dir)
 
 
 __all__ = ["PointClickRoomExecutor", "PointClickRoomPlan", "PointClickRoomRun"]

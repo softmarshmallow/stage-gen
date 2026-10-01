@@ -16,7 +16,7 @@ from pathlib import Path
 
 from gnode import NodeType, RunSummary, assert_safe_path_segment, atomic_write_json
 from stage_gen.config import CapabilityName
-from stage_gen.recipes.executor import RecipeExecutor, RecipePlan, RecipeRun
+from stage_gen.orchestration.graph_executor import GraphExecutor, GraphRun, PlannedGraph
 from stage_gen.recipes.universe import gallery_page
 from stage_gen.recipes.universe.manifest import finalize_gallery
 from stage_gen.recipes.universe.models import SampleLedger
@@ -43,7 +43,7 @@ from stage_gen.recipes.universe.universe_types import universe_type_index
 
 
 @dataclass(frozen=True, slots=True)
-class UniversePlan(RecipePlan[ResolvedUniverseSource, UniverseGraph]):
+class UniversePlan(PlannedGraph[ResolvedUniverseSource, UniverseGraph]):
     #: The gallery phase's extra inputs; a semantic plan carries neither.
     admitted: AdmittedUniverse | None = None
     samples: SampleLedger | None = None
@@ -52,11 +52,11 @@ class UniversePlan(RecipePlan[ResolvedUniverseSource, UniverseGraph]):
 
 
 @dataclass(frozen=True, slots=True)
-class UniverseRun(RecipeRun[UniversePlan]):
+class UniverseRun(GraphRun[UniversePlan]):
     manifest: dict[str, object] | None = None
 
 
-class UniverseExecutor(RecipeExecutor[ResolvedUniverseSource, UniverseGraph]):
+class UniverseExecutor(GraphExecutor[ResolvedUniverseSource, UniverseGraph]):
     """Resolve, plan, and dispatch one phase of one authored universe."""
 
     IDENTITY_DOCUMENT = "universe-identity.json"
@@ -240,7 +240,7 @@ class UniverseExecutor(RecipeExecutor[ResolvedUniverseSource, UniverseGraph]):
     # -- shared ---------------------------------------------------------------
 
     async def open_run(
-        self, plan: RecipePlan[ResolvedUniverseSource, UniverseGraph], *, run_dir: Path
+        self, plan: PlannedGraph[ResolvedUniverseSource, UniverseGraph], *, run_dir: Path
     ) -> None:
         await super().open_run(plan, run_dir=run_dir)
         if not isinstance(plan, UniversePlan) or plan.admitted is None or plan.semantic_run is None:

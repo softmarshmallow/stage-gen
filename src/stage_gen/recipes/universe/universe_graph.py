@@ -40,8 +40,8 @@ from stage_gen.model_routes import (
     configured_image_workload_resolver,
     image_workload_policies,
 )
-from stage_gen.recipes.graph_document import RecipeGraph
-from stage_gen.recipes.ports import artifact_port, attempts_port, text_digest
+from stage_gen.pipeline.graph_document import GraphDocument
+from stage_gen.pipeline.ports import artifact_port, attempts_port, text_digest
 from stage_gen.recipes.universe.models import GalleryPlan, SampleLedger, UniverseProposal
 from stage_gen.recipes.universe.ontology import SIZE_BY_MODE
 from stage_gen.recipes.universe.universe_prompts import (
@@ -128,7 +128,7 @@ class UniverseOperationKind(StrEnum):
     STRUCTURED_GENERATION = "structured_generation"
 
 
-class UniverseGraph(RecipeGraph):
+class UniverseGraph(GraphDocument):
     """One phase of one universe, bound to the source package that produced it."""
 
     OPERATIONS = UniverseOperationKind

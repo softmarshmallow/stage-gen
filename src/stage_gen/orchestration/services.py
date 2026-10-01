@@ -41,7 +41,7 @@ class RunServices:
     Each accessor composes the configured backend behind the shared retry owner. A
     service a recipe composes itself - the universe's route-bound image service - is
     ``adopt``ed so it closes with the rest. Credentials are the config's; a missing one
-    is refused before a run opens, by ``RecipeExecutor.require``.
+    is refused before a run opens, by ``GraphExecutor.require``.
     """
 
     def __init__(self, config: StageGenConfig) -> None:
@@ -59,11 +59,6 @@ class RunServices:
         if self._routed_image is None:
             self._routed_image = self.adopt(RoutedImageGenerationService(self._config))
         return self._routed_image
-
-    def opaque_image(self) -> ImageGenerationService:
-        """Compatibility alias; opacity is a request capability, not a provider."""
-
-        return self.image()
 
     def structured(self) -> StructuredGenerationService[object]:
         config = self._config

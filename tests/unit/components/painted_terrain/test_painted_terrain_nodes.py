@@ -40,7 +40,7 @@ from stage_gen.components.painted_terrain import (
     painted_terrain_segments,
 )
 from stage_gen.media import data_url
-from stage_gen.recipes.graph_document import RecipeGraph
+from stage_gen.pipeline.graph_document import GraphDocument
 
 from ._fixture import MATERIAL_IDENTITY, OCCUPANCY, material_reference, organic_alpha, painting
 
@@ -50,7 +50,7 @@ class _Ops(StrEnum):
     IMAGE_GENERATION = "image_generation"
 
 
-class _Graph(RecipeGraph):
+class _Graph(GraphDocument):
     OPERATIONS = _Ops
 
     schema_version: Literal[1]

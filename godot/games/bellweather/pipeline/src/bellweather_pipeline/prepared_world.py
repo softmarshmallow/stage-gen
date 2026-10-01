@@ -112,7 +112,7 @@ from stage_gen.media import (
     repack_alpha_components,
 )
 from stage_gen.media.codec import decode_rgba, encode_png
-from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
+from stage_gen.pipeline.node_handler import CachedNodeHandler, NodeMethod
 
 WORLD_HANDLER_VERSION = "prepared-world-v3"
 #: Ceiling on the common period a map composite may need. Mixed layer periods multiply out through
@@ -133,7 +133,7 @@ _COMPOSITE_STRIP_GAP_PX = 24
 _COMPOSITE_STRIP_GAP_RGBA = (128, 128, 128, 255)
 
 
-class PreparedWorldNodeHandler(RecipeNodeHandler):
+class PreparedWorldNodeHandler(CachedNodeHandler):
     """Dispatch map nodes while retaining provider operations in shared components."""
 
     def __init__(

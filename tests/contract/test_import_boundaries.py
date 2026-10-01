@@ -179,7 +179,7 @@ def test_active_image_routes_have_one_application_authority() -> None:
 
 def test_recipes_do_not_import_each_other() -> None:
     """Recipes share code through declared homes (canonical, media, components,
-    the direct children of recipes/ such as node_cache), never through another
+    the SDK in stage_gen.pipeline such as node_cache), never through another
     recipe's modules."""
 
     recipe_packages = sorted(

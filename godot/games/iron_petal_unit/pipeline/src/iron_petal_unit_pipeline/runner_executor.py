@@ -23,13 +23,13 @@ from iron_petal_unit_pipeline.runner_request import (
 )
 from iron_petal_unit_pipeline.runner_types import runner_type_index
 from stage_gen.config import CapabilityName, StageGenConfig
-from stage_gen.recipes.executor import RecipeExecutor, RecipePlan, RecipeRun
+from stage_gen.orchestration.graph_executor import GraphExecutor, GraphRun, PlannedGraph
 
-SideviewRunnerPlan = RecipePlan[ResolvedRunnerPackage, SideviewRunnerGraph]
-SideviewRunnerRun = RecipeRun[SideviewRunnerPlan]
+SideviewRunnerPlan = PlannedGraph[ResolvedRunnerPackage, SideviewRunnerGraph]
+SideviewRunnerRun = GraphRun[SideviewRunnerPlan]
 
 
-class SideviewRunnerExecutor(RecipeExecutor[ResolvedRunnerPackage, SideviewRunnerGraph]):
+class SideviewRunnerExecutor(GraphExecutor[ResolvedRunnerPackage, SideviewRunnerGraph]):
     """Resolve, plan, and dispatch one package's runner member."""
 
     IDENTITY_DOCUMENT = "runner-identity.json"
@@ -97,7 +97,7 @@ class SideviewRunnerExecutor(RecipeExecutor[ResolvedRunnerPackage, SideviewRunne
             summary = await self.dispatch(
                 plan, handler, run_dir=run_dir, invocation_id=invocation_id
             )
-        return RecipeRun(plan=plan, summary=summary, run_dir=run_dir)
+        return GraphRun(plan=plan, summary=summary, run_dir=run_dir)
 
 
 __all__ = ["SideviewRunnerExecutor", "SideviewRunnerPlan", "SideviewRunnerRun"]

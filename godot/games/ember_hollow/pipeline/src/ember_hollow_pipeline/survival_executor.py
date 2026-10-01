@@ -48,9 +48,9 @@ from gnode import (
 )
 from stage_gen.canonical import content_sha256
 from stage_gen.config import CapabilityName, StageGenConfig
-from stage_gen.recipes.dry_run import is_placeholder
-from stage_gen.recipes.executor import RecipeExecutor, RecipePlan, RecipeRun
-from stage_gen.recipes.node_cache import NodeArtifactCache
+from stage_gen.orchestration.graph_executor import GraphExecutor, GraphRun, PlannedGraph
+from stage_gen.pipeline.dry_run import is_placeholder
+from stage_gen.pipeline.node_cache import NodeArtifactCache
 
 #: The operation each provider capability answers for, so a run asks for exactly the
 #: credentials its own plan will spend and no more.
@@ -71,14 +71,14 @@ def admit_scope(scope: str) -> str:
 
 
 @dataclass(frozen=True, slots=True)
-class ObliqueSurvivalPlan(RecipePlan[Package, ObliqueSurvivalGraph]):
+class ObliqueSurvivalPlan(PlannedGraph[Package, ObliqueSurvivalGraph]):
     #: The rung this plan was built for; it is on the graph too, and repeated here so
     #: a caller that holds only the plan does not have to reach through it.
     scope: str = "full"
 
 
 @dataclass(frozen=True, slots=True)
-class ObliqueSurvivalRun(RecipeRun[ObliqueSurvivalPlan]):
+class ObliqueSurvivalRun(GraphRun[ObliqueSurvivalPlan]):
     manifest: dict[str, object] | None = None
 
 
@@ -118,7 +118,7 @@ class _PriorNode:
     artifacts: list[NodeArtifact] = field(default_factory=list)
 
 
-class ObliqueSurvivalExecutor(RecipeExecutor[Package, ObliqueSurvivalGraph]):
+class ObliqueSurvivalExecutor(GraphExecutor[Package, ObliqueSurvivalGraph]):
     """Resolve, plan, and dispatch one scope of one authored survival package."""
 
     IDENTITY_DOCUMENT = "oblique-survival-identity.json"

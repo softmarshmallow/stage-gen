@@ -3,7 +3,7 @@
 The shape of an accepted call — inline the schema, decode the provider's
 envelope, validate against the caller's contract inside the service's single
 retry owner, record every rejected attempt — is not universe's. It moved to
-``recipes/structured_transport.py`` when a third recipe turned out to need the
+``pipeline/structured_transport.py`` when a third recipe turned out to need the
 same two hundred lines. What is universe's is the paragraph below and the one
 sentence that describes its schemas to the route; a recipe's voice is exactly
 what a shared helper must not decide.

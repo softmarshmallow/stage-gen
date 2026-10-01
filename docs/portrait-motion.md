@@ -158,7 +158,7 @@ functions available to Python callers. For example, prepare a face run offline:
 from pathlib import Path
 
 from stage_gen.components.portrait_motion import PortraitMotionSpec
-from stage_gen.orchestration.portrait_motion import prepare_run
+from stage_gen.recipes.portrait_motion.pipeline import prepare_run
 
 spec = PortraitMotionSpec.model_validate_json(
     Path("docs/examples/portrait-motion/face-four-card.json").read_bytes()
@@ -173,7 +173,9 @@ prepare_run(
 
 The module's async `run_pipeline` and synchronous `verify_run` recognize both
 face-crop and direct-portrait preparations. Live execution uses the same
-opt-in and credentials as the CLI. Ordinary gnode services can also be supplied
+opt-in and credentials as the CLI, and takes the CLI's provider composition as
+`service_factory=ConfiguredPortraitServices()` from
+`stage_gen.orchestration.portrait_services`. Ordinary gnode services can also be supplied
 by a programmatic host under the prepared binding and service-lifetime rules in
 the [technical specification](spec/portrait-motion.md#cli-workflow).
 An injected face run can provide a separate `locator_service`; otherwise its
@@ -246,7 +248,7 @@ from pathlib import Path
 from PIL import Image
 
 from stage_gen.components.portrait_motion import apply_offset_patch
-from stage_gen.orchestration.portrait_motion import verify_run
+from stage_gen.recipes.portrait_motion.pipeline import verify_run
 
 run = Path("/path/to/new-face-run")
 result = verify_run(run)

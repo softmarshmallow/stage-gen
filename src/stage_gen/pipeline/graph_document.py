@@ -1,12 +1,13 @@
-"""The execution-graph document every recipe seals.
+"""The sealed execution-graph document a graph executor runs.
 
-A recipe's graph is the engine's ``Graph`` plus a header binding it to one authored
-package. Five recipes declared that header five times, each re-stating the four derived
-document kinds and the run-view version by hand - and twice a recipe bumped the view
+A graph document is the engine's ``Graph`` plus a header binding it to one authored
+package. Five graphs declared that header five times, each re-stating the four derived
+document kinds and the run-view version by hand - and twice a graph bumped the view
 version alongside its own graph version, which made every one of its runs invisible to
 the run viewer while the document shape had not moved at all. Here the base owns what
-is uniform: the derived kinds follow from the recipe name, the view version is the
-engine's, and a subclass declares only what is its own.
+is uniform: the derived kinds follow from the persisted ``recipe`` word, the view
+version is the engine's, and a subclass declares only what is its own. The field keeps
+its historical name because every sealed plan and derived kind carries it.
 """
 
 from __future__ import annotations
@@ -28,8 +29,8 @@ def _literal_of(cls: type[Graph], field: str) -> Any:
     return values[0]
 
 
-class RecipeGraph(Graph):
-    """One recipe's plan of record, bound to the authored input that produced it.
+class GraphDocument(Graph):
+    """One graph's plan of record, bound to the authored input that produced it.
 
     A subclass pins ``recipe`` as a one-value ``Literal`` and declares its current
     graph identity explicitly. Its ``schema_version`` and ``kind`` fields may also
@@ -77,12 +78,12 @@ class RecipeGraph(Graph):
         return schema_version, kind
 
     @model_validator(mode="after")
-    def validate_recipe_graph_identity(self) -> Self:
+    def validate_graph_document_identity(self) -> Self:
         current = self.current_graph_identity()
         identity = (self.schema_version, self.kind)
         if identity not in {current, *self.LEGACY_GRAPH_IDENTITIES}:
             raise ValueError(
-                "recipe graph schema_version and kind must form a declared current or "
+                "graph document schema_version and kind must form a declared current or "
                 "legacy identity pair"
             )
 
@@ -91,13 +92,13 @@ class RecipeGraph(Graph):
         )
         if identity in self.LEGACY_GRAPH_IDENTITIES:
             if self.resolved_routes or any(node.binding_ref is not None for node in self.nodes):
-                raise ValueError("legacy recipe graph identities cannot carry resolved routes")
+                raise ValueError("legacy graph document identities cannot carry resolved routes")
             return self
 
         missing = sorted(node.node_id for node in routed_nodes if node.binding_ref is None)
         if missing:
             raise ValueError(
-                "current recipe graph routed nodes require resolved route bindings: "
+                "current graph document routed nodes require resolved route bindings: "
                 + ", ".join(missing)
             )
         return self
@@ -149,4 +150,4 @@ class RecipeGraph(Graph):
         return tuple(operation.value for operation in self.OPERATIONS)
 
 
-__all__ = ["RecipeGraph"]
+__all__ = ["GraphDocument"]

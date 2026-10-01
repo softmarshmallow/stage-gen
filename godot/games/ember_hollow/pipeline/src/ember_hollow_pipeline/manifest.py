@@ -45,7 +45,7 @@ from ember_hollow_pipeline.shell.nodes import (
     shell_typeface_ref,
 )
 from stage_gen.components.ui_art.nodes import document_roles, ui_atlas_manifest_block
-from stage_gen.recipes.dry_run import is_placeholder
+from stage_gen.pipeline.dry_run import is_placeholder
 
 SCHEMA_VERSION: Final = 1
 #: Bumped to v3 by the clip plate: a shot's plate now says which kind it is, and a

@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-from stage_gen.recipes.dry_run import is_placeholder
+from stage_gen.pipeline.dry_run import is_placeholder
 from stage_gen.recipes.universe.universe_graph import (
     INPUT_POSTER_PROXY_REF,
     INPUT_UNIVERSE_REF,

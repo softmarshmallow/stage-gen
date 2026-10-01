@@ -43,6 +43,12 @@ from demo_game_tools.input_formats.game_contract.asset_scale import (
 )
 from demo_game_tools.input_formats.game_contract.package import PreparedScale
 from demo_game_tools.input_formats.sideview_content import MotionPresentation, PropContent
+from demo_game_tools.manifest_blocks import (
+    ManifestBlock,
+    block_table,
+    build_blocks,
+    present_blocks,
+)
 from demo_game_tools.media.ui import inventory_panel_layout_contract
 from gnode import atomic_write_json
 from stage_gen.components.painted_terrain import (
@@ -58,12 +64,6 @@ from stage_gen.components.sideview_actor.motion_geometry import (
 from stage_gen.components.ui_art.nodes import document_roles, ui_atlas_manifest_block
 from stage_gen.media import measure_alpha_ground_contact
 from stage_gen.media.sprite_sheets import split_atlas_columns
-from stage_gen.recipes.manifest_blocks import (
-    ManifestBlock,
-    block_table,
-    build_blocks,
-    present_blocks,
-)
 
 #: The render projection the scrolling-preview consumer draws at. This is the only place
 #: the asset unit meets pixels, and a consumer multiplies through it exactly once.

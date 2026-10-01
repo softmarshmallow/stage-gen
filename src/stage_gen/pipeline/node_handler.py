@@ -1,6 +1,6 @@
-"""The node handler every recipe dispatches through.
+"""The cached node handler every sealed graph dispatches through.
 
-A recipe's handler answers the scheduler for every node in its graph: the cache first,
+A graph's handler answers the scheduler for every node in its graph: the cache first,
 then the registered method for the node's type, and a failure mapped onto the ledger
 the trace records. Six handlers wrote that loop six ways; the differences that survive
 are hooks here, the rest is one implementation. Provider operations stay inside the
@@ -164,7 +164,7 @@ class CachedNodeHandler(ABC):
         )
 
     def _failed(self, node: Node, error: NodeExecutionError) -> None:  # noqa: B027
-        """A node failed with ``error``; a recipe that keeps its own ledger writes it here."""
+        """A node failed with ``error``; a handler that keeps its own ledger writes it here."""
 
     def _cancelled(self, node: Node, error: CancellationError) -> None:  # noqa: B027
         """A node was cancelled mid-flight; the count of started operations is on ``error``."""
@@ -225,8 +225,4 @@ class CachedNodeHandler(ABC):
         return node.card.prompt
 
 
-__all__ = ["NodeMethod", "RecipeNodeHandler", "bind"]
-
-
-# Historical subclass name retained for existing recipe adapters.
-RecipeNodeHandler = CachedNodeHandler
+__all__ = ["CachedNodeHandler", "NodeMethod", "bind"]

@@ -29,7 +29,7 @@ from stage_gen.components.sideview_layers.nodes import (
     layer_node_types,
     publish_layer,
 )
-from stage_gen.recipes.graph_document import RecipeGraph
+from stage_gen.pipeline.graph_document import GraphDocument
 
 
 class _Ops(StrEnum):
@@ -37,7 +37,7 @@ class _Ops(StrEnum):
     IMAGE_GENERATION = "image_generation"
 
 
-class _Graph(RecipeGraph):
+class _Graph(GraphDocument):
     OPERATIONS = _Ops
 
     schema_version: Literal[1]

@@ -21,7 +21,7 @@ from stage_gen.application import (
 from stage_gen.config import (
     load_config,
 )
-from stage_gen.recipes.cache_report import cache_report
+from stage_gen.pipeline.cache_report import cache_report
 
 
 def dispatch(args: argparse.Namespace, *, stdout: TextIO) -> int:

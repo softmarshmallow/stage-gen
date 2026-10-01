@@ -63,13 +63,15 @@ Ownership follows the existing [component contract](../component-contract.md):
   composition, playback, semantic contracts, and confined artifact store. It
   consumes public `gnode` interfaces and contains no provider credentials or
   model selection.
-- [`orchestration/portrait_motion.py`](../../src/stage_gen/orchestration/portrait_motion.py)
-  owns the image route catalog/policy, structured binding, provider construction, durable spend
-  accounting, preparation, execution, and verification.
-- [`orchestration/portrait_face.py`](../../src/stage_gen/orchestration/portrait_face.py)
+- [`recipes/portrait_motion/pipeline.py`](../../src/stage_gen/recipes/portrait_motion/pipeline.py)
+  owns the image route binding, structured binding, durable spend accounting,
+  preparation, execution, and verification.
+- [`recipes/portrait_motion/face.py`](../../src/stage_gen/recipes/portrait_motion/face.py)
   owns the optional original-sprite wrapper, its contained locator and portrait
   runs, crop lineage, and native patch outputs. Deterministic crop, patch, and
   playback helpers remain in the portrait-motion component.
+- [`orchestration/portrait_services.py`](../../src/stage_gen/orchestration/portrait_services.py)
+  owns the concrete, opt-in provider construction a live run injects.
 - [`interfaces/portrait_motion.py`](../../src/stage_gen/interfaces/portrait_motion.py)
   exposes `stage-gen-portrait-motion prepare`, `run`, and `verify`.
 

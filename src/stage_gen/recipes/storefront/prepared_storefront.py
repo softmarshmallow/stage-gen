@@ -40,7 +40,12 @@ from stage_gen.identity import STAGE_GEN_TOOL
 from stage_gen.media import data_url
 from stage_gen.media.codec import encode_png
 from stage_gen.media.images import normalize_png_cover
-from stage_gen.recipes.node_handler import NodeMethod, RecipeNodeHandler
+from stage_gen.pipeline.node_handler import CachedNodeHandler, NodeMethod
+from stage_gen.pipeline.structured_transport import (
+    AttemptLedger,
+    generate_structured,
+    known_cost,
+)
 from stage_gen.recipes.storefront import models
 from stage_gen.recipes.storefront.storefront_graph import (
     REVIEW_PROXY_LONG_EDGE,
@@ -81,11 +86,6 @@ from stage_gen.recipes.storefront.storefront_types import (
     SURFACE_VALIDATION_KIND,
 )
 from stage_gen.recipes.storefront.surfaces import surface
-from stage_gen.recipes.structured_transport import (
-    AttemptLedger,
-    generate_structured,
-    known_cost,
-)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -145,7 +145,7 @@ def flatten_alpha(data: bytes) -> tuple[bytes, bool]:
     return encode_png(flattened), True
 
 
-class StorefrontNodeHandler(RecipeNodeHandler):
+class StorefrontNodeHandler(CachedNodeHandler):
     """One run's node work: cache first, then the type's own handler."""
 
     def __init__(

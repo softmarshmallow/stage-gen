@@ -24,7 +24,7 @@ from stage_gen.application import (
 from stage_gen.config import (
     StageGenConfig,
 )
-from stage_gen.recipes.cache_report import cache_report
+from stage_gen.pipeline.cache_report import cache_report
 
 
 async def _dispatch_oblique_survival(

@@ -6,7 +6,7 @@ the same six-attempt budget without a nested loop.
 
 What this module owns is the recipe's own voice -- the system prompt the judge
 reads -- and the shape of one accepted call. The transport repairs it needs are
-shared with the other recipes and live in ``recipes/structured_transport.py``.
+shared with the other recipes and live in ``pipeline/structured_transport.py``.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from gnode import (
     StructuredOutputSchema,
     StructuredReference,
 )
-from stage_gen.recipes.structured_transport import (
+from stage_gen.pipeline.structured_transport import (
     decode_completion_wrapper,
     inline_local_schema_refs,
     known_cost,

@@ -12,7 +12,7 @@ from pathlib import Path
 
 from gnode import NodeType, assert_safe_path_segment
 from stage_gen.config import CapabilityName, StageGenConfig
-from stage_gen.recipes.executor import RecipeExecutor, RecipePlan, RecipeRun
+from stage_gen.orchestration.graph_executor import GraphExecutor, GraphRun, PlannedGraph
 from stage_gen.recipes.storefront.models import DrawLedger
 from stage_gen.recipes.storefront.prepared_storefront import StorefrontNodeHandler
 from stage_gen.recipes.storefront.storefront_graph import (
@@ -29,11 +29,11 @@ from stage_gen.recipes.storefront.storefront_request import (
 )
 from stage_gen.recipes.storefront.storefront_types import storefront_type_index
 
-StorefrontPlan = RecipePlan[ResolvedStorefront, StorefrontGraph]
-StorefrontRun = RecipeRun[StorefrontPlan]
+StorefrontPlan = PlannedGraph[ResolvedStorefront, StorefrontGraph]
+StorefrontRun = GraphRun[StorefrontPlan]
 
 
-class StorefrontExecutor(RecipeExecutor[ResolvedStorefront, StorefrontGraph]):
+class StorefrontExecutor(GraphExecutor[ResolvedStorefront, StorefrontGraph]):
     """Resolve, plan, and dispatch one authored storefront package."""
 
     IDENTITY_DOCUMENT = "storefront-identity.json"
@@ -98,7 +98,7 @@ class StorefrontExecutor(RecipeExecutor[ResolvedStorefront, StorefrontGraph]):
             summary = await self.dispatch(
                 plan, handler, run_dir=run_dir, invocation_id=invocation_id
             )
-        return RecipeRun(plan=plan, summary=summary, run_dir=run_dir)
+        return GraphRun(plan=plan, summary=summary, run_dir=run_dir)
 
 
 __all__ = ["StorefrontExecutor", "StorefrontPlan", "StorefrontRun"]

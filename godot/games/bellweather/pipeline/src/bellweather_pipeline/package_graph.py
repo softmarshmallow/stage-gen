@@ -121,7 +121,7 @@ from stage_gen.model_routes import (
     configured_image_workload_resolver,
     image_workload_policies,
 )
-from stage_gen.recipes.ports import artifact_port, object_digest, record_port
+from stage_gen.pipeline.ports import artifact_port, object_digest, record_port
 from stage_gen.resources import (
     inventory_template_path,
     terrain_atlas_lookup_path,

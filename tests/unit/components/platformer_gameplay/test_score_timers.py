@@ -17,7 +17,7 @@ from bellweather_pipeline.prepared_manifest import (
     _score_block,
     _timers_block,
 )
-from stage_gen.recipes.manifest_blocks import present_blocks
+from demo_game_tools.manifest_blocks import present_blocks
 
 
 def test_a_score_names_closed_events_with_bounded_points() -> None:

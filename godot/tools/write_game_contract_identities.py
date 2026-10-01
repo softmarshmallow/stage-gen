@@ -44,9 +44,8 @@ def render() -> str:
         "It includes shared asset identities those demos consume, but it does not define",
         "the public asset pipeline contract or restrict caller-defined pipelines.",
         "",
-        "The public [asset identity inventory](../src/stage_gen/identities.py) and",
-        "[pipeline API](../src/stage_gen/pipeline/api.py) own the independent product",
-        "identities. The game table below derives from each demo contract's declaring",
+        "The public [pipeline API](../src/stage_gen/pipeline/api.py) owns the independent",
+        "product identities. The game table below derives from each demo contract's declaring",
         "field or constant. Game versioning follows "
         "[the game contract](../godot/games/_shared/docs/game-contract.md)",
         "(C-R5); a node's contract version remains a cache key rather than an identity.",

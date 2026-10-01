@@ -37,8 +37,9 @@ from stage_gen.model_routes import (
     configured_image_workload_resolver,
     image_workload_policies,
 )
-from stage_gen.recipes.graph_document import RecipeGraph
-from stage_gen.recipes.ports import artifact_port, attempts_port, record_port, text_digest
+from stage_gen.pipeline.graph_document import GraphDocument
+from stage_gen.pipeline.ports import artifact_port, attempts_port, record_port, text_digest
+from stage_gen.pipeline.structured_transport import ATTEMPT_LEDGER_KIND
 from stage_gen.recipes.storefront.storefront_prompts import (
     direction_instructions,
     listing_instructions,
@@ -79,7 +80,6 @@ from stage_gen.recipes.storefront.storefront_types import (
     SURFACE_VALIDATION_KIND,
 )
 from stage_gen.recipes.storefront.surfaces import surface
-from stage_gen.recipes.structured_transport import ATTEMPT_LEDGER_KIND
 
 if TYPE_CHECKING:
     from stage_gen.config import StageGenConfig
@@ -104,7 +104,7 @@ class StorefrontOperationKind(StrEnum):
     STRUCTURED_GENERATION = "structured_generation"
 
 
-class StorefrontGraph(RecipeGraph):
+class StorefrontGraph(GraphDocument):
     """One storefront plan of record, bound to the package that produced it."""
 
     OPERATIONS = StorefrontOperationKind

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from stage_gen.config import StageGenConfig
-from stage_gen.recipes.dry_run import DRY_RUN_CACHE_NAMESPACE, is_placeholder
+from stage_gen.pipeline.dry_run import DRY_RUN_CACHE_NAMESPACE, is_placeholder
 from the_grain_pipeline.pointclick_room.room_executor import PointClickRoomExecutor
 
 ROOM = Path(__file__).resolve().parents[3] / "godot/games/the_grain/inputs/rooms/motor_court"

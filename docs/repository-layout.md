@@ -160,8 +160,10 @@ validation, while the repeat/composition/preview stages remain reusable.
 
 The existing universe and storefront graph builders keep their own scoped TOML
 and command adapters. Portrait motion's workflow now belongs to its recipe;
-component-level crop/render/reconstruction remains in the component. Old internal
-executor aliases preserve supported code paths without defining the new SDK.
+component-level crop/render/reconstruction remains in the component. Universe and
+storefront seal a `GraphDocument` (`stage_gen.pipeline.graph_document`) and run
+through `GraphExecutor` (`stage_gen.orchestration.graph_executor`) at the composition
+root, because it builds `RunServices`; neither defines the new SDK.
 
 ## Preview and runtime consumers
 

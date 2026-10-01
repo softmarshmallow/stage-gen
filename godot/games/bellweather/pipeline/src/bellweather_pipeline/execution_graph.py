@@ -13,7 +13,7 @@ from typing import Literal
 from pydantic import Field
 
 from gnode import SHA256_PATTERN
-from stage_gen.recipes.graph_document import RecipeGraph
+from stage_gen.pipeline.graph_document import GraphDocument
 
 EXECUTION_GRAPH_SCHEMA_VERSION = 2
 EXECUTION_GRAPH_KIND = "sideview-platformer-execution-graph-v2"
@@ -29,7 +29,7 @@ class OperationKind(StrEnum):
     MUSIC_GENERATION = "music_generation"
 
 
-class ExecutionGraph(RecipeGraph):
+class ExecutionGraph(GraphDocument):
     """One prepared-game plan of record, bound to the package that produced it."""
 
     OPERATIONS = OperationKind

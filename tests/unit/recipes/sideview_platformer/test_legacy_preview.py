@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from stage_gen.preview import LegacyMotionPreview
+from bellweather_pipeline.legacy_preview import LegacyMotionPreview
 
 
 @pytest.mark.parametrize("frame_count", [0, 17, 64])

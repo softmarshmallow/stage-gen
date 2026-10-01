@@ -20,7 +20,7 @@ from stage_gen.model_routes import (
     SUNBURST_PRODUCT_ID,
     configured_image_route_catalog,
 )
-from stage_gen.recipes.executor import RunServices
+from stage_gen.orchestration.services import RunServices
 from stage_gen.recipes.storefront.storefront_graph import storefront_graph_profile
 from stage_gen.recipes.universe.universe_graph import universe_graph_profile
 from the_grain_pipeline.dialogue_scene.scene_graph import dialogue_graph_profile
@@ -80,7 +80,7 @@ def test_image_runtime_is_request_routed_instead_of_bound_to_an_ambient_provider
     services = RunServices(CONFIG)
     try:
         image = services.image()
-        assert services.opaque_image() is image
+        assert services.image() is image
         assert image.provider == "routed"
         assert image.model == SUNBURST_PRODUCT_ID
     finally:

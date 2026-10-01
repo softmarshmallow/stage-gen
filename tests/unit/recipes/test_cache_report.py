@@ -9,7 +9,7 @@ from gnode import Graph
 from iron_petal_unit_pipeline.runner_executor import SideviewRunnerExecutor
 from iron_petal_unit_pipeline.runner_graph import RUNNER_CACHE_NAMESPACE
 from stage_gen.config import StageGenConfig
-from stage_gen.recipes.cache_report import cache_report
+from stage_gen.pipeline.cache_report import cache_report
 
 IRON_PETAL = Path(__file__).parents[3] / "godot/games/iron_petal_unit/inputs"
 

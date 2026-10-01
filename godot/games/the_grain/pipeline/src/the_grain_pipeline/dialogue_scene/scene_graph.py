@@ -39,8 +39,8 @@ from stage_gen.model_routes import (
     configured_image_workload_resolver,
     image_workload_policies,
 )
-from stage_gen.recipes.graph_document import RecipeGraph
-from stage_gen.recipes.ports import artifact_port, attempts_port
+from stage_gen.pipeline.graph_document import GraphDocument
+from stage_gen.pipeline.ports import artifact_port, attempts_port
 from the_grain_pipeline.dialogue_scene.identity import canonical_json_bytes
 from the_grain_pipeline.dialogue_scene.prompts import (
     background_prompt,
@@ -112,7 +112,7 @@ class DialogueOperationKind(StrEnum):
     MUSIC_GENERATION = "music_generation"
 
 
-class DialogueSceneGraph(RecipeGraph):
+class DialogueSceneGraph(GraphDocument):
     """One dialogue-scene plan of record, bound to the request that produced it."""
 
     OPERATIONS = DialogueOperationKind

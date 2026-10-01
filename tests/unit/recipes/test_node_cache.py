@@ -15,7 +15,7 @@ from typing import Any, cast
 
 import pytest
 
-import stage_gen.recipes.node_cache as node_cache_module
+import stage_gen.pipeline.node_cache as node_cache_module
 from gnode import (
     CacheDisposition,
     Graph,
@@ -29,7 +29,7 @@ from gnode import (
     build_node_cache_key,
     seal_graph,
 )
-from stage_gen.recipes.node_cache import NodeArtifactCache
+from stage_gen.pipeline.node_cache import NodeArtifactCache
 
 
 def _node(

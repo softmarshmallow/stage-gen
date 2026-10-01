@@ -1,9 +1,10 @@
-"""The recipe substrate is the one place the bootstrap lives.
+"""The graph document and graph executor are the one place the bootstrap lives.
 
-Five recipes once carried their own graph document, port helpers, dispatch loop and
-executor bootstrap. The base classes own those now; this test keeps a sixth copy
-from growing back, and pins the document kinds the base derives so a rename of a
-recipe cannot silently rename every run document it writes.
+Five graphs once carried their own graph document, port helpers, dispatch loop and
+executor bootstrap. ``GraphDocument``, ``CachedNodeHandler`` and ``GraphExecutor`` own
+those now; this test keeps a sixth copy from growing back, and pins the document kinds
+the base derives so a rename of a graph cannot silently rename every run document it
+writes.
 """
 
 from __future__ import annotations
@@ -31,9 +32,9 @@ from iron_petal_unit_pipeline.runner_graph import (
     RUNNER_GRAPH_SCHEMA_VERSION,
     SideviewRunnerGraph,
 )
-from stage_gen.recipes.executor import RecipeExecutor
-from stage_gen.recipes.graph_document import RecipeGraph
-from stage_gen.recipes.node_handler import RecipeNodeHandler
+from stage_gen.orchestration.graph_executor import GraphExecutor
+from stage_gen.pipeline.graph_document import GraphDocument
+from stage_gen.pipeline.node_handler import CachedNodeHandler
 from stage_gen.recipes.storefront.storefront_executor import StorefrontExecutor
 from stage_gen.recipes.storefront.storefront_graph import (
     STOREFRONT_GRAPH_SCHEMA_VERSION,
@@ -60,7 +61,7 @@ RECIPE_ROOT = SOURCE_ROOT / "recipes"
 
 #: Every recipe graph, the recipe word it derives its document kinds from, and the
 #: schema-version constant its module still exports beside the pinned literal.
-GRAPHS: tuple[tuple[type[RecipeGraph], str, int], ...] = (
+GRAPHS: tuple[tuple[type[GraphDocument], str, int], ...] = (
     (ExecutionGraph, "sideview-platformer", EXECUTION_GRAPH_SCHEMA_VERSION),
     (SideviewRunnerGraph, "sideview-runner", RUNNER_GRAPH_SCHEMA_VERSION),
     (PointClickRoomGraph, "pointclick-room", POINTCLICK_GRAPH_SCHEMA_VERSION),
@@ -92,7 +93,7 @@ ROUTERS = frozenset({"PreparedIntegrationNodeHandler"})
 
 @pytest.mark.parametrize(("graph_type", "recipe", "schema_version"), GRAPHS)
 def test_document_kinds_derive_from_the_recipe_word(
-    graph_type: type[RecipeGraph], recipe: str, schema_version: int
+    graph_type: type[GraphDocument], recipe: str, schema_version: int
 ) -> None:
     """The four derived kinds and the view version are the base's, not the recipe's."""
 
@@ -112,8 +113,8 @@ def test_document_kinds_derive_from_the_recipe_word(
 
 def test_every_recipe_runs_through_the_substrate() -> None:
     for executor in EXECUTORS:
-        assert issubclass(executor, RecipeExecutor), executor
-        assert executor.IDENTITY_DOCUMENT != RecipeExecutor.IDENTITY_DOCUMENT, (
+        assert issubclass(executor, GraphExecutor), executor
+        assert executor.IDENTITY_DOCUMENT != GraphExecutor.IDENTITY_DOCUMENT, (
             f"{executor.__name__} must name its identity document"
         )
     handlers = [
@@ -126,11 +127,11 @@ def test_every_recipe_runs_through_the_substrate() -> None:
     ]
     assert handlers, "no recipe node handlers found"
     for handler in handlers:
-        assert issubclass(handler, RecipeNodeHandler), handler
+        assert issubclass(handler, CachedNodeHandler), handler
 
 
 def test_no_recipe_redefines_a_substrate_helper() -> None:
-    """The helpers live in ``recipes/`` once; a recipe module may not grow its own."""
+    """The helpers live in ``stage_gen.pipeline`` once; a recipe module may not grow its own."""
 
     violations: list[str] = []
     for path in sorted(RECIPE_ROOT.rglob("*.py")):

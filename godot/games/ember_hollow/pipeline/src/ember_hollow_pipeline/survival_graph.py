@@ -124,8 +124,8 @@ from stage_gen.model_routes import (
     configured_image_workload_resolver,
     image_workload_policies,
 )
-from stage_gen.recipes.graph_document import RecipeGraph
-from stage_gen.recipes.ports import artifact_port, attempts_port, text_digest
+from stage_gen.pipeline.graph_document import GraphDocument
+from stage_gen.pipeline.ports import artifact_port, attempts_port, text_digest
 
 #: The graph document's own version, read by the recipe-substrate contract test.
 OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION = 2
@@ -288,7 +288,7 @@ class _LedgerGraphBuilder(GraphBuilder):
         )
 
 
-class ObliqueSurvivalGraph(RecipeGraph):
+class ObliqueSurvivalGraph(GraphDocument):
     """One authored survival world's plan of record, for one scope of the ladder."""
 
     OPERATIONS = ObliqueSurvivalOperationKind
