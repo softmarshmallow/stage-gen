@@ -1,0 +1,7 @@
+# The portrait-motion workflow's home. Its node modules import Stage Gen's portrait-motion
+# component, so that counts as its source: gnode.lock notices when it changes.
+gnode: project/v1
+sources: [stage_gen]
+routes:
+  structured.generate: openai/gpt-6-astra@openrouter
+  image.edit: gpt-image-2.5-sunburst@openai

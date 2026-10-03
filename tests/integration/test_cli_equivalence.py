@@ -62,9 +62,6 @@ PROBES: tuple[Probe, ...] = (
     Probe("stage_gen.pipeline.inspect", "stop"),
     Probe("stage_gen.provider_env.load_provider_dotenv", "empty"),
     Probe("stage_gen.components.character_3d.budget_pool.BudgetPool", "budget"),
-    Probe("stage_gen.workflows.portrait_motion.pipeline.prepare_run", "stop"),
-    Probe("stage_gen.workflows.portrait_motion.pipeline.run_pipeline", "stop"),
-    Probe("stage_gen.workflows.portrait_motion.pipeline.verify_run", "stop"),
     Probe("stage_gen.orchestration.character_3d.launch.main", "argv"),
     Probe("stage_gen.capabilities.generate_image_artifact", "stop"),
     Probe("stage_gen.capabilities.remove_background", "stop"),
@@ -347,9 +344,6 @@ def test_every_retired_entry_point_has_a_case() -> None:
     old = {_entry(case["old_argv"]) for case in cases}
     for program in (
         "stage-gen pipeline",
-        "stage-gen-portrait-motion prepare",
-        "stage-gen-portrait-motion run",
-        "stage-gen-portrait-motion verify",
         "stage-gen-character",
         "demo-games generate-image",
         "demo-games generate-music",

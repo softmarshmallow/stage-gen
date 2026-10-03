@@ -6,9 +6,13 @@ each paid call from the provider results of old v1 runs, but only from the resul
 made from exactly this request: the same provider and model, the same route, prompt and
 input pictures, and the same size and background for a picture, or length, resolution
 and aspect ratio for a clip, as the old result's provenance sidecar records them, and
-bytes that still match the sidecar. The answer is written to gnode's call cache as the same
-bytes, noting the artifact it was rekeyed from. A call no old result answers is refused,
-never made, and the report prices it: that is what a live run would bill.
+bytes that still match the sidecar. A structured answer also needs the same system prompt,
+token limit and request policy, the pictures in the same order, and a schema that holds an
+answer to the same constraints (both inlined and made canonical, as a provider is sent
+them; the schema's name is a label). The answer is written to gnode's call cache as the
+same bytes, or the same JSON, noting the artifact it was rekeyed from. A call no old
+result answers is refused, never made, and the report prices it: that is what a live run
+would bill.
 
 The v1 formula goes in M9, and this with it.
 """
@@ -33,7 +37,10 @@ from gnode import (
     RunOutcome,
     Store,
     WorkflowRun,
+    canonicalize_strict_json_schema,
 )
+from stage_gen.orchestration.gnode_plugin import StructuredQuestion
+from stage_gen.pipeline.structured_transport import inline_local_schema_refs
 
 #: Provenance sidecars of v1 artifacts; the artifact sits beside its sidecar.
 SIDECAR_SUFFIX = ".meta.json"
@@ -49,9 +56,14 @@ class OldResult:
     model: str
     route_id: str | None
     prompt_sha256: str
-    inputs: frozenset[str]
+    #: The digests of its input files, in the order they were sent.
+    sent: tuple[str, ...]
     #: The request's settings, as the sidecar recorded them.
     params: Mapping[str, Any]
+
+    @property
+    def inputs(self) -> frozenset[str]:
+        return frozenset(self.sent)
 
 
 def _old_result(sidecar: Path) -> OldResult | None:
@@ -77,7 +89,7 @@ def _old_result(sidecar: Path) -> OldResult | None:
         model=str(record.get("model")),
         route_id=binding.get("route_id"),
         prompt_sha256=str(record.get("prompt_sha256")),
-        inputs=frozenset(str(item["sha256"]) for item in record.get("inputs") or []),
+        sent=tuple(str(item["sha256"]) for item in record.get("inputs") or []),
         params=params,
     )
 
@@ -151,7 +163,30 @@ def _same_settings(old: OldResult, capability: str, request: Mapping[str, Any]) 
     }
 
 
+def _same_question(old: OldResult, route: Route, request: Mapping[str, Any]) -> bool:
+    try:
+        question = StructuredQuestion.of(request)
+    except ValueError:
+        return False
+    params = old.params
+    recorded = params.get("schema")
+    policy = (params.get("metadata") or {}).get("request_policy")
+    return (
+        (old.provider, old.model) == (route.provider, route.model)
+        and old.prompt_sha256 == hashlib.sha256(question.prompt.encode("utf-8")).hexdigest()
+        and old.sent == tuple(picture.digest for picture in question.pictures)
+        and params.get("system") == question.system
+        and params.get("max_tokens") == question.max_tokens
+        and policy == route.contract.get("request_policy")
+        and isinstance(recorded, dict)
+        and canonicalize_strict_json_schema(inline_local_schema_refs(recorded))
+        == question.sent_schema()
+    )
+
+
 def _matches(old: OldResult, capability: str, route: Route, request: Mapping[str, Any]) -> bool:
+    if capability == "structured.generate":
+        return old.media_type == "application/json" and _same_question(old, route, request)
     prompt = request.get("prompt")
     if not isinstance(prompt, str):
         return False
@@ -192,11 +227,13 @@ def rekey_handlers(
                     f"no v1 result answers this {capability} call on {route.route_id} "
                     f"(take {take}); a live run would bill up to ${high:.2f}"
                 )
+            source = {"rekeyed_from": found.artifact.as_posix(), "attempts": 0}
+            if capability == "structured.generate":
+                value = json.loads(found.artifact.read_text(encoding="utf-8"))
+                return CallRecord({}, {"json": value, **source}, 0.0)
             name = found.media_type.split("/", 1)[0]
             answer = store.put_file(found.artifact, kind=found.media_type, name=name)
-            return CallRecord(
-                {name: answer}, {"rekeyed_from": found.artifact.as_posix(), "attempts": 0}, 0.0
-            )
+            return CallRecord({name: answer}, source, 0.0)
 
         return answer
 

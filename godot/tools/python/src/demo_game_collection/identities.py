@@ -248,10 +248,6 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     ("generated", _field("recipes.dialogue_scene.models", "DialogueScenePlan")),
     ("generated", _field("recipes.dialogue_scene.models", "IndependentReview")),
     ("generated", _field("recipes.dialogue_scene.models", "DialogueBundle")),
-    (
-        "generated",
-        _constant("workflows.portrait_motion.pipeline", "PORTRAIT_MOTION_PLAN_KIND"),
-    ),
     # Runtime manifests: what a host parses.
     (
         "manifest",
@@ -299,14 +295,6 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
             "recipes.oblique_survival.survival_graph",
             "OBLIQUE_SURVIVAL_GRAPH_KIND",
             "ObliqueSurvivalGraph",
-        ),
-    ),
-    (
-        "graph",
-        _graph(
-            "workflows.portrait_motion.pipeline",
-            "PORTRAIT_MOTION_GRAPH_KIND",
-            "PortraitMotionGraph",
         ),
     ),
     # Mode words.

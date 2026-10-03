@@ -19,29 +19,25 @@ blink, wink and talk independently, in any order and at any pace.
 <Try>
 <Agent>
 
-Use Stage Gen's portrait motion workflow (`stage-gen show portrait-motion`) to add a blink and mouth shapes to <Ref input="sprite">this sprite</Ref>. It is my own artwork, so if it has no provenance record yet, register it as mine.
-
-Prepare the run offline with the face crop, run it live, then show me the animation and tell me which features were accepted.
+Use Stage Gen's portrait motion workflow (`gnode plan portrait-motion`) to add a blink and mouth shapes to <Ref input="sprite">this sprite</Ref>. Plan it first and tell me what it may cost, then run it live with a ceiling of five dollars, show me the animation, and tell me which features were accepted.
 
 </Agent>
 <Shell>
 
 ```sh
-uv run stage-gen plan portrait-motion --face-crop \
-  --source character.png \
-  --spec src/stage_gen/workflows/portrait_motion/inputs/face-four-card.json \
-  --run runs/face-01
+uv run gnode plan portrait-motion --inputs face.yaml
 ```
 
 ```sh
-STAGE_GEN_RUN_LIVE=1 uv run stage-gen run portrait-motion --run runs/face-01 --live
+uv run gnode run portrait-motion --inputs face.yaml --live --max-usd 5
 ```
 
 ```sh
-uv run stage-gen inspect runs/face-01 --verify
+uv run gnode inspect portrait-motion
 ```
 
-Needs `character.png.meta.json` beside the picture, and OpenRouter and OpenAI keys. Run it yourself, at the end of this page, shows how to register your own artwork.
+`face.yaml` names your sprite and the committed face spec; Run it yourself, at the end of this page,
+shows one. A live run needs OpenRouter and OpenAI keys.
 
 </Shell>
 </Try>
@@ -63,10 +59,10 @@ Needs `character.png.meta.json` beside the picture, and OpenRouter and OpenAI ke
 ## What you get
 
 <Files>
-  <File path="render/animation.webp" />
-  <File path="render/states/" />
-  <File path="render/patches/" />
-  <File path="render/manifest.json" />
+  <File path="render/animation.webp">The authored timeline, played at the sprite's full size</File>
+  <File path="render/states/">All nine eyes-and-mouth states, each a full-size PNG of the sprite</File>
+  <File path="render/patches/">The six patches a game layers: each eye and the mouth, per state</File>
+  <File path="render/manifest.json">What a game reads: the offset, the patches, the states and the timeline</File>
   <File path="crop/">The face workspace and how it maps back to the sprite</File>
   <File path="portrait/">Each stage's decisions and pictures</File>
   <File path="locator/">Where the face was found, and why</File>
@@ -106,224 +102,71 @@ Needs `character.png.meta.json` beside the picture, and OpenRouter and OpenAI ke
 
 ## Run it yourself
 
-The workflow takes one original character image and produces selectable facial drawings: a half
-blink, closed eyes, a smile, and an A-mouth. Face-crop mode locates the face, authors the four
-states in one sheet, and returns an animation at the original sprite size. The source supplies the
-rest state, all original alpha, and every pixel outside the active facial patches. It animates
-facial drawings on a fixed image; it does not create speech audio, infer phonemes, animate a body,
-or perform IK. The [contract](contract.md) holds the exact graph, pixel ownership, budgets,
-provenance and service boundaries.
+The workflow takes one finished character image and gives it selectable facial drawings: a half
+blink, closed eyes and two mouth shapes, as the spec asks. With a face crop (the default) it finds
+the face, draws the states in one sheet on a square crop of it, and returns them at the original
+sprite's full size. The source supplies the rest state, all of its transparency, and every pixel
+outside the facial patches. It animates drawings on a fixed image; it does not make speech audio,
+infer phonemes, move a body or do IK. The [contract](contract.md) holds the graph, what each step
+checks, and what a run costs.
 
-### Prepare your source
+### Inputs
 
-Use a PNG with RGB or RGBA pixels and a matching canonical provenance sidecar beside it, such as
-`character.png` and `character.png.meta.json`. Face-crop mode accepts arbitrary source proportions,
-including transparent full-body sprites. Both dimensions must be at most 16383 pixels so the
-resulting full-size WebP can be encoded. Keep a source whose face has readable artwork at its native
-size: enlargement of a tiny face does not recover missing feature detail.
+An inputs file names the picture and the spec:
 
-The sidecar binds the image bytes to their origin and rights record. Keep the sidecar produced by
-the original generator or importer. A renamed image needs its adjacent sidecar renamed with it;
-edited image bytes require updated, truthful provenance. Preparation rejects missing or mismatched
-records.
-
-For a PNG you drew yourself that has no provenance yet, the public gnode utilities can register the
-unchanged image locally. The example below records manual authorship and leaves redistribution
-approval unreviewed. Use it only when those statements are true; it must not replace a generated
-image's actual provider history. Replace the input path and author attribution first:
-
-```python
-from pathlib import Path
-
-from gnode import (
-    ArtifactRights,
-    BinaryArtifact,
-    ProvenanceInput,
-    SoftwareIdentity,
-    build_artifact_provenance,
-    serialize_provenance,
-)
-
-source = Path("/path/to/character.png")
-record = build_artifact_provenance(
-    BinaryArtifact(source.read_bytes(), "image/png"),
-    ProvenanceInput(
-        provider="local",
-        model="manual-artwork-import",
-        prompt="Register an unchanged original illustration drawn by its author.",
-        component=SoftwareIdentity(name="artwork-import", version="1"),
-        tool=SoftwareIdentity(name="personal-artwork-workflow", version="1"),
-        attempts=1,
-        rights=ArtifactRights(
-            status="unreviewed",
-            attribution=["Your name"],
-            basis=["Original illustration authored by the attributed artist."],
-            reviewed_at=None,
-        ),
-    ),
-)
-with Path(str(source) + ".meta.json").open("xb") as output:
-    output.write(serialize_provenance(record))
+```yaml
+portrait: character.png
+spec: src/stage_gen/workflows/portrait_motion/inputs/face-four-card.json
+face_crop: true
 ```
 
-Run this snippet in the repository's Python environment, for example from a local script with
-`uv run python`. It writes only a new sidecar and refuses to overwrite an existing one. It makes no
-provider call and does not grant publication approval.
+The picture is a PNG, RGB or RGBA, at most 16383 pixels on a side; a full-body sprite on
+transparency is fine. Keep a source whose face reads at its own size: enlarging a small face does
+not add detail. The committed `inputs/face-four-card.json` declares a 1024×1024 face workspace and a
+sheet of four 512×512 cards: both eyes and the mouth, and an eight-second sample timeline. A face
+crop's workspace and grid are square. To animate an opaque portrait whole instead, set
+`face_crop: false` and use `inputs/four-card.json`, whose 1024×1536 canvas the picture must match
+exactly.
 
-### Plan the face run
+`uv run python src/stage_gen/workflows/portrait_motion/inputs/make_inputs.py DIR` draws an original
+geometric character both ways, with the two inputs files, to try the plan with.
 
-From a repository checkout with dependencies installed, choose a new run directory and prepare it
-offline:
+### Plan, run, read
 
 ```sh
-uv run stage-gen plan portrait-motion --face-crop \
-  --source /path/to/character.png \
-  --spec src/stage_gen/workflows/portrait_motion/inputs/face-four-card.json \
-  --run /path/to/new-face-run
+uv run gnode plan portrait-motion --inputs face.yaml
+uv run gnode run portrait-motion --inputs face.yaml --live --max-usd 5
+uv run gnode inspect portrait-motion
 ```
 
-The committed face input, `inputs/face-four-card.json`, declares a 1024×1024 internal working image
-and a sheet of four 512×512 cards. Those dimensions describe the face workspace, not your original
-sprite. It requests both eyes and the mouth and includes an eight-second timeline with independent
-eye and mouth selections. No character image is bundled with it. The face workspace and its cards
-must be square: this mode supports one card in a 1×1 grid or four cards in a 2×2 grid.
-Direct-portrait mode keeps the general one-to-four-card layouts the contract describes.
+The plan prices the run before anything is paid for. The usual accepted run makes five paid calls:
+the face box, the feature decision, one sheet edit, the outlines and the still review, about one US
+dollar in all. Each answer is held by a judge, and a malformed one is drawn again, six takes at most,
+which is why the plan's ceiling is far above a usual run. The structured calls go to
+`openai/gpt-6-astra` through OpenRouter, with high reasoning and high image detail, through OpenAI
+only; the sheet goes to OpenAI's Sunburst edit route. A project's `gnode.yaml` or `--routes` may
+choose another route that serves the step; one that cannot is refused while planning.
 
-Preparation validates the source and configuration and records an immutable plan. It does not
-locate the face yet. The source and run paths must not traverse symlinks, and the run directory must
-not already exist.
-
-To keep the direct opaque-portrait mode, omit `--face-crop` and use `inputs/four-card.json`. That
-input requires an opaque 1024×1536 PNG because its source and sheet share the declared canvas.
-
-### Generate and verify
-
-Paid execution requires explicit live opt-in and provider credentials:
-
-```sh
-STAGE_GEN_RUN_LIVE=1 uv run stage-gen run portrait-motion \
-  --run /path/to/new-face-run --live --dotenv .env
-```
-
-Use `OPENROUTER_API_KEY` for face localization and structured review. The default sheet route uses
-`OPENAI_API_KEY`; preparing with `STAGE_GEN_IMAGE_PROVIDER=fal` selects the supported fal route and
-requires `FAL_KEY` instead. Keys can come from the environment; `--dotenv` is optional and reads an
-existing allowlisted local file. See
-[provider configuration](../../../../docs/models/providers.md) for the route contract.
-
-The locator returns only a spatial face box. It chooses the principal face, then the caller adds
-context padding of 35 percent of the longest face dimension on each side. The portrait graph decides
-which eyes or mouth can safely animate. A located face can therefore yield a partial result or a
-refusal; localization is not animation approval.
-
-The usual accepted path contains five provider operations: face location, feature admission, one
-sheet image edit, feature geometry, and still-image quality review. Registration, cropping, patch
-assembly, and playback are local. An earlier refusal stops dependent work, and retryable failures
-stay within each service's attempt limit. Replaying an accepted animation does not pay for another
-blink.
-
-The portrait subrun keeps its default $6 allowance and $1.50 reservation per attempt. The locator
-has a separate $3 allowance and $0.50 reservation per attempt. Reported dollar costs settle their
-reservations when available; unknown costs keep the reservation. These are local accounting
-allowances, not invoices or guaranteed provider price caps. Cost varies with usage and retries.
-Stage-specific VLM controls and reference optimization are deferred in
-[issue #12](https://github.com/softmarshmallow/stage-gen/issues/12).
-
-Check the resulting run without provider calls:
-
-```sh
-uv run stage-gen inspect /path/to/new-face-run --verify
-uv run stage-gen run portrait-motion --run /path/to/new-face-run
-```
-
-The first command verifies retained evidence; the second reuses validated checkpoints. Missing work
-fails without live services. A fully verified replay has zero new provider operations. Code, source,
-or configuration changes require a fresh preparation so an old verdict cannot silently apply to new
-inputs.
-
-### Use the Python API
-
-The CLI delegates to the same reusable preparation, execution, and verification functions available
-to Python callers. For example, prepare a face run offline:
-
-```python
-from pathlib import Path
-
-from stage_gen.components.portrait_motion import PortraitMotionSpec
-from stage_gen.workflows.portrait_motion.pipeline import prepare_run
-
-spec = PortraitMotionSpec.model_validate_json(
-    Path("src/stage_gen/workflows/portrait_motion/inputs/face-four-card.json").read_bytes()
-)
-prepare_run(
-    Path("/path/to/character.png"),
-    Path("/path/to/new-face-run"),
-    spec,
-    face_crop=True,
-)
-```
-
-The module's async `run_pipeline` and synchronous `verify_run` recognize both face-crop and
-direct-portrait preparations. Live execution uses the same opt-in and credentials as the CLI, and
-takes the CLI's provider composition as `service_factory=ConfiguredPortraitServices()` from
-`stage_gen.orchestration.portrait_services`. Ordinary gnode services can also be supplied by a
-programmatic host under the prepared binding and service-lifetime rules in the
-[contract](contract.md). An injected face run can provide a separate `locator_service`; otherwise its
-supplied `structured_service` handles both localization and portrait review.
+Every paid answer is kept in gnode's call cache by the request that made it, so running the same
+inputs again pays for nothing, and a run that stopped continues where it stopped.
 
 ### Read the result
 
-Inspect the returned JSON status:
+`outputs/result.json` says what was accepted:
 
 | Status | Meaning |
 | --- | --- |
-| `complete` | Every requested feature was admitted and passed still review. |
-| `partial` | A nonempty subset passed; excluded features keep their source drawing. |
-| `refused` | A valid location, feature, registration, or quality decision refused the result. |
-| `failed` | Execution or integrity checks failed. |
+| `complete` | Every requested feature was admitted and passed the still review. |
+| `partial` | Some features could not move; they keep their original drawing, and the rest passed. |
+| `refused` | A stage refused: `refused_at` names it (face, admission, registration, geometry or quality) and `reason` says why. |
 
-The CLI exits unsuccessfully for `failed`; inspect the status rather than assuming that process
-success means every requested feature is usable. A wide-open source mouth may be unsupported while
-both eyes produce an accepted blink. Selecting a mouth state then keeps the original mouth. The
-retained full-body face-crop demonstration exercised that partial result; it does not establish a
-success rate for arbitrary new characters.
-
-Accepted face-crop runs expose these parent-run outputs:
-
-| Output | Use |
-| --- | --- |
-| `render/manifest.json` | Relative artifact references, state selections, placement, and the authored `timeline`. |
-| `render/animation.webp` | Local preview at the original full sprite size. |
-| `render/states/*.png` | Full-source PNG combinations, including unchanged rest/rest. |
-| `render/patches/*.png` | Native padded-face patches to place at the manifest's integer offset. |
-| `crop/transform.json` and `crop/work.png` | Recorded crop mapping and opaque internal face workspace. |
-| `locator/` | Face-location plan, request, verdict, and spend ledger. |
-| `portrait/` | The contained eight-stage sheet run, including donor, geometry, quality, and provenance evidence. |
-
-Paths in the parent manifest resolve from the parent run directory. A patch's RGB already includes
-its edge blending; its binary alpha marks pixels to replace. The manifest declares
-`patch_application: "replace_selected_rgb_preserve_original_alpha"` and gives `offset_xy` for
-placement. Keep the original sprite alpha and do not resize or alpha-blend the patch a second time.
-PNG states preserve original hidden RGB under zero alpha; the WebP encoder may normalize that
-invisible RGB.
-
-Still-image review and pixel checks do not establish temporal quality. Results keep
-`temporal_review: "not_performed"` and `publication_authorized: false`. Full-source output inherits
-the contained face still verdict; native reconstruction adds deterministic pixel checks, not another
-semantic review. Review actual playback separately before accepting a generated animation as art.
-The pipeline keeps its registration refusal behavior; the experimental context-registration
-continuation, foreground restoration, and hidden-anatomy reconstruction are not part of this
-workflow.
-
-### Select a state from native patches
-
-Use the supplied full-source PNG states when that is sufficient. For independent patch playback,
-each manifest patch identifies its `state_id` and `feature_id`. The `mouth` feature belongs to the
-mouth group; both canvas-side eye features belong to the eyes group. The manifest's `timeline` holds
-the authored eyes, mouth, and duration selections, while `playback` records WebP encoding facts.
-
-The public `apply_offset_patch` helper performs the required RGB replacement while keeping original
-alpha. This example constructs closed eyes with the original mouth from a verified run:
+A wide-open mouth may be refused while both eyes give an accepted blink; selecting a mouth state then
+keeps the original mouth. An accepted face-crop run delivers `animation.webp`, `states/`,
+`patches/` and `manifest.json` under `outputs/`. A patch's RGB already includes its edge blending
+and its binary alpha marks the pixels to replace: the manifest says
+`patch_application: "replace_selected_rgb_preserve_original_alpha"` and gives `offset_xy`. Keep the
+original sprite's alpha, and never resize or blend a patch a second time. The component's
+`apply_offset_patch` does exactly that:
 
 ```python
 import json
@@ -332,24 +175,19 @@ from pathlib import Path
 from PIL import Image
 
 from stage_gen.components.portrait_motion import apply_offset_patch
-from stage_gen.workflows.portrait_motion.pipeline import verify_run
 
-run = Path("/path/to/new-face-run")
-result = verify_run(run)
-if result["status"] not in {"complete", "partial"}:
-    raise ValueError("The run has no accepted facial states")
-manifest = json.loads((run / result["manifest_ref"]).read_text())
-with Image.open(run / manifest["source_ref"]) as original:
-    frame = original.convert("RGBA")
-
+outputs = Path("out/runs/portrait-motion/<run>/outputs")
+manifest = json.loads((outputs / "manifest.json").read_text())
+with Image.open(outputs / "states" / "rest--rest.png") as rest:
+    frame = rest.convert("RGBA")
 selected = {"eyes": "eyes_closed", "mouth": "rest"}
 for item in manifest["patches"]:
     group = "mouth" if item["feature_id"] == "mouth" else "eyes"
     if item["state_id"] == selected[group]:
-        with Image.open(run / item["ref"]) as patch:
+        with Image.open(outputs / "patches" / f"{item['key']}.png") as patch:
             frame = apply_offset_patch(frame, patch, manifest["offset_xy"])
 ```
 
-Start each new selection from the original source, then apply only that selection's admitted
-patches. Rest and excluded features require no patch. The resulting `frame` is a Pillow image that a
-caller may render or encode locally; this operation makes no provider call.
+Start each selection from the rest state and apply only that selection's patches. The review judges
+still pictures: results keep `temporal_review: "not_performed"` and
+`publication_authorized: false`, so watch the animation play before accepting it.

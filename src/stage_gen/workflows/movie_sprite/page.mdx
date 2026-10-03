@@ -193,13 +193,16 @@ verification checks every decoded native output frame and the loop endpoints. Vi
 chooses whether a new character's motion and keyed edges are acceptable, including over the
 intended background. That review does not require a game runtime.
 
-For independent eyes and mouth, pass the finished canonical to the portrait-motion workflow:
+For independent eyes and mouth, pass the finished canonical to the portrait-motion workflow, with
+an inputs file that names it and the committed face spec:
+
+```yaml
+portrait: sprites/idle.png
+spec: src/stage_gen/workflows/portrait_motion/inputs/face-four-card.json
+```
 
 ```sh
-uv run stage-gen plan portrait-motion --face-crop \
-  --source sprites/idle.png \
-  --spec src/stage_gen/workflows/portrait_motion/inputs/face-four-card.json \
-  --run /path/to/face-run
+uv run gnode plan portrait-motion --inputs face.yaml
 ```
 
 The portrait-motion workflow's input contracts, generation, validation, budgets and outputs are its

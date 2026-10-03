@@ -8,17 +8,17 @@
           "title": "Check Id",
           "type": "string"
         },
-        "finding": {
-          "minLength": 1,
-          "title": "Finding",
-          "type": "string"
-        },
         "status": {
           "enum": [
             "pass",
             "fail"
           ],
           "title": "Status",
+          "type": "string"
+        },
+        "finding": {
+          "minLength": 1,
+          "title": "Finding",
           "type": "string"
         }
       },
@@ -32,37 +32,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "universe structured output for universe.review",
   "properties": {
-    "advisory_findings": {
-      "items": {
-        "minLength": 1,
-        "type": "string"
-      },
-      "title": "Advisory Findings",
-      "type": "array"
-    },
-    "blocking_findings": {
-      "items": {
-        "minLength": 1,
-        "type": "string"
-      },
-      "title": "Blocking Findings",
-      "type": "array"
-    },
-    "checks": {
-      "items": {
-        "$ref": "#/$defs/ReviewCheck"
-      },
-      "minItems": 6,
-      "title": "Checks",
-      "type": "array"
-    },
-    "conclusion": {
-      "minLength": 1,
-      "title": "Conclusion",
-      "type": "string"
-    },
     "review_id": {
       "const": "universe_independent_semantic_review",
       "title": "Review Id",
@@ -80,6 +50,35 @@
       ],
       "title": "Verdict",
       "type": "string"
+    },
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/ReviewCheck"
+      },
+      "minItems": 6,
+      "title": "Checks",
+      "type": "array"
+    },
+    "blocking_findings": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Blocking Findings",
+      "type": "array"
+    },
+    "advisory_findings": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Advisory Findings",
+      "type": "array"
+    },
+    "conclusion": {
+      "minLength": 1,
+      "title": "Conclusion",
+      "type": "string"
     }
   },
   "required": [
@@ -92,5 +91,6 @@
     "conclusion"
   ],
   "title": "SemanticReview",
-  "type": "object"
+  "type": "object",
+  "description": "universe structured output for universe.review"
 }

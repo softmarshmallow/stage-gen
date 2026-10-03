@@ -1,8 +1,8 @@
 // Which workflow a run belongs to, decided from the catalog and nothing else.
 //
 // A run's documents say what wrote it: an SDK plan its pipeline id, a graph document its
-// `recipe` literal and graph kind, a character run its graph kind, a portrait run its
-// plan kind, a joined view the graph kind it was joined from. The catalog says which
+// `recipe` literal and graph kind, a character run its graph kind, a joined view the graph
+// kind it was joined from. The catalog says which
 // identities each installed workflow's runs carry, so the match is a lookup and the
 // viewer learns no workflow by name. Runs no workflow claims are game runs when a game
 // wrote them (a graph document literal no workflow owns, or a consumer document), and

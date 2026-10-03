@@ -821,12 +821,29 @@ class Expander:
                     elif target.state == "maybe" and instance.state == "planned":
                         instance.state = "maybe"
             into.instances.append(instance)
+        # When a later step's condition reached this judge first, the judged step left its
+        # takes unsettled for it: settle them now that every take is linked.
+        if (
+            judged is not None
+            and judged.declared is not None
+            and judged.declared.takes is None
+            and len(judged.instances) > 1
+        ):
+            self._sequence(judged.instances)
         # The judges of this step belong to its result: expand them now, so whatever reads
         # this step waits for them.
-        for sibling, other in frame.steps.items():
-            if other.judges == name and sibling != name:
-                self.step(frame, sibling)
-        if declared.judges is None and declared.takes is None and len(into.instances) > 1:
+        judges = [s for s, other in frame.steps.items() if other.judges == name and s != name]
+        for sibling in judges:
+            self.step(frame, sibling)
+        # A judge already being expanded (something reached it first) links itself after
+        # this returns, and settles the takes then.
+        linked = not judges or all(instance.judged_by for instance in into.instances)
+        if (
+            linked
+            and declared.judges is None
+            and declared.takes is None
+            and len(into.instances) > 1
+        ):
             self._sequence(into.instances)
         self._independence(frame, declared, where, into.instances)
 

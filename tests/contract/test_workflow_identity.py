@@ -53,6 +53,7 @@ def test_input_bytes_are_small_constants() -> None:
     assert set(json.loads(INPUTS_PATH.read_text(encoding="utf-8"))) == {
         "looping-parallax",
         "movie-sprite-take",
+        "portrait-motion",
     }
 
 

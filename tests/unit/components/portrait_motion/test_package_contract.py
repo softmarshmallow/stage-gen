@@ -15,9 +15,6 @@ REQUIRED = {
     "PlaybackSegment",
     "PortraitMotionSpec",
     "PortraitMotionResult",
-    "PortraitMotionHandlers",
-    "PortraitMotionHost",
-    "add_portrait_motion_nodes",
     "FaceMotionFrames",
     "create_working_crop",
     "restore_feature",
@@ -39,7 +36,6 @@ def test_public_component_surface_is_complete_without_loading_experiments() -> N
     assert len(set(portrait_motion.__all__)) == len(portrait_motion.__all__)
     for name in portrait_motion.__all__:
         assert getattr(portrait_motion, name) is not None
-    assert callable(portrait_motion.add_portrait_motion_nodes)
 
 
 @pytest.mark.parametrize(
@@ -49,8 +45,6 @@ def test_public_component_surface_is_complete_without_loading_experiments() -> N
         "processing",
         "playback",
         "review",
-        "nodes",
-        "storage",
         "face_crop",
         "face_patches",
         "face_playback",

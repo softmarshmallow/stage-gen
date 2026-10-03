@@ -81,8 +81,8 @@ describe("the run index", () => {
   test("summarises a view, and a run's own record when it has none", async () => {
     await withRuns({
       "out/viewed/execution-view.json": executionViewFixture(),
-      "spikes/review/yuzu/run-01/plan.json": { kind: "portrait-face-motion-plan-v1" },
-      "spikes/review/yuzu/run-01/execution.json": { status: "prepared" },
+      "spikes/review/yuzu/run-01/plan.json": { gnode: "plan/v1" },
+      "spikes/review/yuzu/run-01/events.jsonl": "",
       "spikes/canary/wren-01/graph.json": { kind: "contained-character-rig-v1" },
       "spikes/canary/wren-01/summary.json": { ok: false },
       "spikes/stale/execution-view.json": { ...executionViewFixture(), schema_version: 2 },
@@ -92,8 +92,7 @@ describe("the run index", () => {
     expect(viewed?.view).toMatchObject({ source: "run", runState: "succeeded", nodeCount: 4 });
     expect(viewed?.identity.recipe).toBe("sideview-platformer");
     expect(viewed?.updatedAt).toMatch(/Z$/);
-    expect(byName.get("review/yuzu/run-01")?.recordState).toBe("prepared");
-    expect(byName.get("review/yuzu/run-01")?.identity.kind).toBe("portrait-face-motion-plan-v1");
+    expect(byName.get("review/yuzu/run-01")?.view).toBeNull();
     expect(byName.get("canary/wren-01")?.recordState).toBe("failed");
     expect(byName.get("stale")?.view).toBeNull();
     expect(byName.get("stale")?.viewRefusal).toContain("derive it again");

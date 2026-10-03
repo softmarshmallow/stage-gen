@@ -3,19 +3,6 @@
     "DirectionCoverage": {
       "additionalProperties": false,
       "properties": {
-        "evidence_ids": {
-          "items": {
-            "pattern": "^[a-z][a-z0-9_]{1,95}$",
-            "type": "string"
-          },
-          "title": "Evidence Ids",
-          "type": "array"
-        },
-        "note": {
-          "minLength": 1,
-          "title": "Note",
-          "type": "string"
-        },
         "requirement_id": {
           "pattern": "^[a-z][a-z0-9_]{1,95}$",
           "title": "Requirement Id",
@@ -28,6 +15,19 @@
             "unmet"
           ],
           "title": "Status",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "note": {
+          "minLength": 1,
+          "title": "Note",
           "type": "string"
         }
       },
@@ -43,19 +43,28 @@
     "Entity": {
       "additionalProperties": false,
       "properties": {
-        "display_name": {
-          "minLength": 1,
-          "title": "Display Name",
-          "type": "string"
-        },
         "entity_id": {
           "pattern": "^[a-z][a-z0-9_]{1,95}$",
           "title": "Entity Id",
           "type": "string"
         },
-        "entity_kind": {
+        "display_name": {
           "minLength": 1,
-          "title": "Entity Kind",
+          "title": "Display Name",
+          "type": "string"
+        },
+        "primary_class": {
+          "enum": [
+            "actor",
+            "collective",
+            "place",
+            "thing",
+            "kind",
+            "system",
+            "event",
+            "idea"
+          ],
+          "title": "Primary Class",
           "type": "string"
         },
         "facets": {
@@ -75,37 +84,9 @@
           "title": "Facets",
           "type": "array"
         },
-        "facts": {
-          "items": {
-            "$ref": "#/$defs/Fact"
-          },
-          "maxItems": 4,
-          "minItems": 2,
-          "title": "Facts",
-          "type": "array"
-        },
-        "how_it_works_or_lives": {
+        "entity_kind": {
           "minLength": 1,
-          "title": "How It Works Or Lives",
-          "type": "string"
-        },
-        "present_tension": {
-          "minLength": 1,
-          "title": "Present Tension",
-          "type": "string"
-        },
-        "primary_class": {
-          "enum": [
-            "actor",
-            "collective",
-            "place",
-            "thing",
-            "kind",
-            "system",
-            "event",
-            "idea"
-          ],
-          "title": "Primary Class",
+          "title": "Entity Kind",
           "type": "string"
         },
         "salience": {
@@ -121,6 +102,25 @@
           "minLength": 1,
           "title": "Summary",
           "type": "string"
+        },
+        "how_it_works_or_lives": {
+          "minLength": 1,
+          "title": "How It Works Or Lives",
+          "type": "string"
+        },
+        "present_tension": {
+          "minLength": 1,
+          "title": "Present Tension",
+          "type": "string"
+        },
+        "facts": {
+          "items": {
+            "$ref": "#/$defs/Fact"
+          },
+          "maxItems": 4,
+          "minItems": 2,
+          "title": "Facts",
+          "type": "array"
         }
       },
       "required": [
@@ -141,35 +141,14 @@
     "Fact": {
       "additionalProperties": false,
       "properties": {
-        "basis": {
-          "minLength": 1,
-          "title": "Basis",
+        "fact_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Fact Id",
           "type": "string"
         },
         "claim": {
           "minLength": 1,
           "title": "Claim",
-          "type": "string"
-        },
-        "direction_requirement_ids": {
-          "items": {
-            "pattern": "^[a-z][a-z0-9_]{1,95}$",
-            "type": "string"
-          },
-          "title": "Direction Requirement Ids",
-          "type": "array"
-        },
-        "evidence_ids": {
-          "items": {
-            "pattern": "^[a-z][a-z0-9_]{1,95}$",
-            "type": "string"
-          },
-          "title": "Evidence Ids",
-          "type": "array"
-        },
-        "fact_id": {
-          "pattern": "^[a-z][a-z0-9_]{1,95}$",
-          "title": "Fact Id",
           "type": "string"
         },
         "lineage": {
@@ -181,6 +160,27 @@
           ],
           "title": "Lineage",
           "type": "string"
+        },
+        "basis": {
+          "minLength": 1,
+          "title": "Basis",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "direction_requirement_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Direction Requirement Ids",
+          "type": "array"
         }
       },
       "required": [
@@ -197,52 +197,44 @@
     "IdentityMarker": {
       "additionalProperties": false,
       "properties": {
-        "applied_use": {
-          "minLength": 1,
-          "title": "Applied Use",
+        "marker_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Marker Id",
           "type": "string"
         },
-        "direction_requirement_ids": {
-          "items": {
-            "pattern": "^[a-z][a-z0-9_]{1,95}$",
-            "type": "string"
-          },
-          "title": "Direction Requirement Ids",
-          "type": "array"
-        },
-        "evidence_ids": {
-          "items": {
-            "pattern": "^[a-z][a-z0-9_]{1,95}$",
-            "type": "string"
-          },
-          "title": "Evidence Ids",
-          "type": "array"
+        "owner_entity_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Owner Entity Id",
+          "type": "string"
         },
         "form": {
           "minLength": 1,
           "title": "Form",
           "type": "string"
         },
-        "historical_origin": {
+        "materials": {
           "minLength": 1,
-          "title": "Historical Origin",
+          "title": "Materials",
           "type": "string"
         },
-        "independently_admitted_thing_id": {
-          "anyOf": [
-            {
-              "pattern": "^[a-z][a-z0-9_]{1,95}$",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Independently Admitted Thing Id"
+        "applied_use": {
+          "minLength": 1,
+          "title": "Applied Use",
+          "type": "string"
+        },
+        "meaning": {
+          "minLength": 1,
+          "title": "Meaning",
+          "type": "string"
         },
         "limits": {
           "minLength": 1,
           "title": "Limits",
+          "type": "string"
+        },
+        "historical_origin": {
+          "minLength": 1,
+          "title": "Historical Origin",
           "type": "string"
         },
         "lineage": {
@@ -255,25 +247,33 @@
           "title": "Lineage",
           "type": "string"
         },
-        "marker_id": {
-          "pattern": "^[a-z][a-z0-9_]{1,95}$",
-          "title": "Marker Id",
-          "type": "string"
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
         },
-        "materials": {
-          "minLength": 1,
-          "title": "Materials",
-          "type": "string"
+        "direction_requirement_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Direction Requirement Ids",
+          "type": "array"
         },
-        "meaning": {
-          "minLength": 1,
-          "title": "Meaning",
-          "type": "string"
-        },
-        "owner_entity_id": {
-          "pattern": "^[a-z][a-z0-9_]{1,95}$",
-          "title": "Owner Entity Id",
-          "type": "string"
+        "independently_admitted_thing_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{1,95}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Independently Admitted Thing Id"
         }
       },
       "required": [
@@ -296,10 +296,23 @@
     "InstitutionalTension": {
       "additionalProperties": false,
       "properties": {
-        "competing_legitimate_needs": {
-          "minLength": 1,
-          "title": "Competing Legitimate Needs",
+        "tension_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Tension Id",
           "type": "string"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "participant_entity_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Participant Entity Ids",
+          "type": "array"
         },
         "fact_ids": {
           "items": {
@@ -314,22 +327,9 @@
           "title": "Material Stakes",
           "type": "string"
         },
-        "participant_entity_ids": {
-          "items": {
-            "pattern": "^[a-z][a-z0-9_]{1,95}$",
-            "type": "string"
-          },
-          "title": "Participant Entity Ids",
-          "type": "array"
-        },
-        "summary": {
+        "competing_legitimate_needs": {
           "minLength": 1,
-          "title": "Summary",
-          "type": "string"
-        },
-        "tension_id": {
-          "pattern": "^[a-z][a-z0-9_]{1,95}$",
-          "title": "Tension Id",
+          "title": "Competing Legitimate Needs",
           "type": "string"
         }
       },
@@ -347,35 +347,9 @@
     "Relationship": {
       "additionalProperties": false,
       "properties": {
-        "direction_requirement_ids": {
-          "items": {
-            "pattern": "^[a-z][a-z0-9_]{1,95}$",
-            "type": "string"
-          },
-          "title": "Direction Requirement Ids",
-          "type": "array"
-        },
-        "evidence_ids": {
-          "items": {
-            "pattern": "^[a-z][a-z0-9_]{1,95}$",
-            "type": "string"
-          },
-          "title": "Evidence Ids",
-          "type": "array"
-        },
-        "lineage": {
-          "enum": [
-            "explicit_source",
-            "visual_observation",
-            "conservative_inference",
-            "generated_extension"
-          ],
-          "title": "Lineage",
-          "type": "string"
-        },
-        "perspective": {
-          "minLength": 1,
-          "title": "Perspective",
+        "relationship_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Relationship Id",
           "type": "string"
         },
         "relationship_family": {
@@ -390,11 +364,6 @@
           "title": "Relationship Family",
           "type": "string"
         },
-        "relationship_id": {
-          "pattern": "^[a-z][a-z0-9_]{1,95}$",
-          "title": "Relationship Id",
-          "type": "string"
-        },
         "relationship_kind": {
           "pattern": "^[a-z][a-z0-9_]{1,95}$",
           "title": "Relationship Kind",
@@ -405,20 +374,51 @@
           "title": "Source Entity Id",
           "type": "string"
         },
-        "summary": {
-          "minLength": 1,
-          "title": "Summary",
-          "type": "string"
-        },
         "target_entity_id": {
           "pattern": "^[a-z][a-z0-9_]{1,95}$",
           "title": "Target Entity Id",
+          "type": "string"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
           "type": "string"
         },
         "temporal_scope": {
           "minLength": 1,
           "title": "Temporal Scope",
           "type": "string"
+        },
+        "perspective": {
+          "minLength": 1,
+          "title": "Perspective",
+          "type": "string"
+        },
+        "lineage": {
+          "enum": [
+            "explicit_source",
+            "visual_observation",
+            "conservative_inference",
+            "generated_extension"
+          ],
+          "title": "Lineage",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "direction_requirement_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Direction Requirement Ids",
+          "type": "array"
         }
       },
       "required": [
@@ -450,19 +450,6 @@
           "title": "Detail",
           "type": "string"
         },
-        "evidence_ids": {
-          "items": {
-            "pattern": "^[a-z][a-z0-9_]{1,95}$",
-            "type": "string"
-          },
-          "title": "Evidence Ids",
-          "type": "array"
-        },
-        "resolution": {
-          "minLength": 1,
-          "title": "Resolution",
-          "type": "string"
-        },
         "status": {
           "enum": [
             "unresolved",
@@ -471,6 +458,19 @@
           ],
           "title": "Status",
           "type": "string"
+        },
+        "resolution": {
+          "minLength": 1,
+          "title": "Resolution",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{1,95}$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
         }
       },
       "required": [
@@ -486,6 +486,21 @@
     "Viewpoint": {
       "additionalProperties": false,
       "properties": {
+        "viewpoint_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Viewpoint Id",
+          "type": "string"
+        },
+        "display_name": {
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
         "anchor_entity_ids": {
           "items": {
             "pattern": "^[a-z][a-z0-9_]{1,95}$",
@@ -494,29 +509,14 @@
           "title": "Anchor Entity Ids",
           "type": "array"
         },
-        "display_name": {
-          "minLength": 1,
-          "title": "Display Name",
-          "type": "string"
-        },
-        "entry_question": {
-          "minLength": 1,
-          "title": "Entry Question",
-          "type": "string"
-        },
         "initially_known": {
           "minLength": 1,
           "title": "Initially Known",
           "type": "string"
         },
-        "summary": {
+        "entry_question": {
           "minLength": 1,
-          "title": "Summary",
-          "type": "string"
-        },
-        "viewpoint_id": {
-          "pattern": "^[a-z][a-z0-9_]{1,95}$",
-          "title": "Viewpoint Id",
+          "title": "Entry Question",
           "type": "string"
         }
       },
@@ -534,13 +534,9 @@
     "VisualObservation": {
       "additionalProperties": false,
       "properties": {
-        "canonical_status": {
-          "enum": [
-            "evidence",
-            "uncertain",
-            "exclude_from_canon"
-          ],
-          "title": "Canonical Status",
+        "observation_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Observation Id",
           "type": "string"
         },
         "category": {
@@ -570,9 +566,13 @@
           "title": "Confidence",
           "type": "string"
         },
-        "observation_id": {
-          "pattern": "^[a-z][a-z0-9_]{1,95}$",
-          "title": "Observation Id",
+        "canonical_status": {
+          "enum": [
+            "evidence",
+            "uncertain",
+            "exclude_from_canon"
+          ],
+          "title": "Canonical Status",
           "type": "string"
         }
       },
@@ -588,27 +588,28 @@
     }
   },
   "additionalProperties": false,
-  "description": "universe structured output for universe.propose",
   "properties": {
-    "direction_coverage": {
-      "items": {
-        "$ref": "#/$defs/DirectionCoverage"
-      },
-      "title": "Direction Coverage",
-      "type": "array"
+    "universe_id": {
+      "pattern": "^[a-z][a-z0-9_]{1,95}$",
+      "title": "Universe Id",
+      "type": "string"
     },
-    "entities": {
-      "items": {
-        "$ref": "#/$defs/Entity"
-      },
-      "title": "Entities",
-      "type": "array"
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
     },
-    "identity_markers": {
+    "premise": {
+      "$ref": "#/$defs/Fact"
+    },
+    "present_state": {
+      "$ref": "#/$defs/Fact"
+    },
+    "physical_ecological_rules": {
       "items": {
-        "$ref": "#/$defs/IdentityMarker"
+        "$ref": "#/$defs/Fact"
       },
-      "title": "Identity Markers",
+      "title": "Physical Ecological Rules",
       "type": "array"
     },
     "institutional_tensions": {
@@ -618,49 +619,11 @@
       "title": "Institutional Tensions",
       "type": "array"
     },
-    "physical_ecological_rules": {
+    "visual_observations": {
       "items": {
-        "$ref": "#/$defs/Fact"
+        "$ref": "#/$defs/VisualObservation"
       },
-      "title": "Physical Ecological Rules",
-      "type": "array"
-    },
-    "premise": {
-      "$ref": "#/$defs/Fact"
-    },
-    "present_state": {
-      "$ref": "#/$defs/Fact"
-    },
-    "relationships": {
-      "items": {
-        "$ref": "#/$defs/Relationship"
-      },
-      "title": "Relationships",
-      "type": "array"
-    },
-    "source_conflicts": {
-      "items": {
-        "$ref": "#/$defs/SourceConflict"
-      },
-      "title": "Source Conflicts",
-      "type": "array"
-    },
-    "title": {
-      "minLength": 1,
-      "title": "Title",
-      "type": "string"
-    },
-    "universe_id": {
-      "pattern": "^[a-z][a-z0-9_]{1,95}$",
-      "title": "Universe Id",
-      "type": "string"
-    },
-    "unresolved_questions": {
-      "items": {
-        "minLength": 1,
-        "type": "string"
-      },
-      "title": "Unresolved Questions",
+      "title": "Visual Observations",
       "type": "array"
     },
     "viewpoints": {
@@ -670,11 +633,47 @@
       "title": "Viewpoints",
       "type": "array"
     },
-    "visual_observations": {
+    "entities": {
       "items": {
-        "$ref": "#/$defs/VisualObservation"
+        "$ref": "#/$defs/Entity"
       },
-      "title": "Visual Observations",
+      "title": "Entities",
+      "type": "array"
+    },
+    "relationships": {
+      "items": {
+        "$ref": "#/$defs/Relationship"
+      },
+      "title": "Relationships",
+      "type": "array"
+    },
+    "identity_markers": {
+      "items": {
+        "$ref": "#/$defs/IdentityMarker"
+      },
+      "title": "Identity Markers",
+      "type": "array"
+    },
+    "direction_coverage": {
+      "items": {
+        "$ref": "#/$defs/DirectionCoverage"
+      },
+      "title": "Direction Coverage",
+      "type": "array"
+    },
+    "source_conflicts": {
+      "items": {
+        "$ref": "#/$defs/SourceConflict"
+      },
+      "title": "Source Conflicts",
+      "type": "array"
+    },
+    "unresolved_questions": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Unresolved Questions",
       "type": "array"
     }
   },
@@ -695,5 +694,6 @@
     "unresolved_questions"
   ],
   "title": "UniverseProposal",
-  "type": "object"
+  "type": "object",
+  "description": "universe structured output for universe.propose"
 }

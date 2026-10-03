@@ -71,6 +71,7 @@ def _sample_plan(workflow_id: str) -> Callable[[Path, Path], Graph | SamplePlan]
 BLOCKS: tuple[ContractBlock, ...] = (
     ContractBlock("looping-parallax", None, _sample_plan("looping-parallax")),
     ContractBlock("movie-sprite", None, _sample_plan("movie-sprite")),
+    ContractBlock("portrait-motion", None, _sample_plan("portrait-motion")),
     ContractBlock("universe", None, _sample_plan("universe")),
 )
 

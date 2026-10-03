@@ -45,7 +45,7 @@ run carries itself are drawn.
 
 A run is a folder that holds `execution-plan.json`, `execution-view.json`, `manifest.json`,
 `bundle.json` or `case.json`; or `graph.json` beside `summary.json` or `trace.jsonl` (a
-character run); or `plan.json` beside `execution.json` (a portrait run). Runs are found up to
+character run); or `plan.json` beside `events.jsonl` (a gnode workflow run). Runs are found up to
 four folders below each root. A run's own folders are not searched again, hidden folders and
 `node_modules` are skipped, symlinked folders are not followed out of the root, and the example
 store at the top of a root (`out/examples`) is not a run. [`src/stage_gen/runs.py`](../src/stage_gen/runs.py)
@@ -62,16 +62,13 @@ plan, trace or own record is newer than both its own view and its cached one:
   step's view context and, when its workflow has a view of its own, the whole run's;
 - a character run's `graph.json` and `trace.jsonl` are staged under gnode's names in a temporary
   folder and joined there, titled from the workflow's `[labels]`;
-- a portrait run is joined the same way from its portrait sub-run's `graph.json` and traces, with
-  artifact references made relative to the run. A portrait run prepared but never run has no
-  trace to join, and is listed with its own `execution.json` status;
 - a game run is never derived. Its persisted view is drawn, or its row says the view is not
   exported, and `demo-games export-view --run DIR` exports one.
 
 `stage-gen inspect RUN --write-view DIR` writes the same derived view into a folder you name.
 
 The viewer reads any `*-execution-view-v1` envelope at `schema_version = 3`, and gnode's own
-`gnode-run-view-v1`, which a joined character or portrait view carries. Header fields a producer
+`gnode-run-view-v1`, which a joined character view carries. Header fields a producer
 adds beside the envelope (`pipeline_id`, `title`, a graph document's `recipe` literal, a game's
 ids, a joined view's `graph_kind`) are kept as the run's subject. Pipeline identities and node
 type IDs need no registration. A user-authored pipeline uses the same graph, state, timing, cache,
@@ -86,8 +83,8 @@ message rather than migrated.
   node counts and when it last changed. Runs no workflow claims follow under "Game runs" (a graph
   document literal no workflow owns, or a consumer document) and "Other runs". Which workflow a
   run belongs to is read from the catalog's declared identities: an SDK run's pipeline id, a
-  graph document's literal and graph kinds, a character run's graph kind, a portrait run's plan
-  kind.
+  graph document's literal and graph kinds, a character run's graph kind, a workflow run's
+  graph kind.
 - `/workflows/<id>` shows a workflow's promise and summary, its commands with a copy button, the
   graph it plans offline from its committed sample inputs (drawn as on a run page, with every node
   pending; each lane is a step), its steps, and its runs.

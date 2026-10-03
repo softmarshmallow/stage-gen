@@ -1,34 +1,22 @@
 {
   "additionalProperties": false,
-  "description": "universe structured output for universe.review.image",
   "properties": {
-    "action_legibility": {
-      "enum": [
-        "pass",
-        "fail"
-      ],
-      "title": "Action Legibility",
+    "review_id": {
+      "const": "universe_independent_image_review",
+      "title": "Review Id",
       "type": "string"
-    },
-    "advisory_findings": {
-      "items": {
-        "minLength": 1,
-        "type": "string"
-      },
-      "title": "Advisory Findings",
-      "type": "array"
-    },
-    "blocking_findings": {
-      "items": {
-        "minLength": 1,
-        "type": "string"
-      },
-      "title": "Blocking Findings",
-      "type": "array"
     },
     "entity_id": {
       "pattern": "^[a-z][a-z0-9_]{1,95}$",
       "title": "Entity Id",
+      "type": "string"
+    },
+    "verdict": {
+      "enum": [
+        "admit",
+        "reject"
+      ],
+      "title": "Verdict",
       "type": "string"
     },
     "entity_identity": {
@@ -39,12 +27,12 @@
       "title": "Entity Identity",
       "type": "string"
     },
-    "explanatory_form_absent": {
+    "action_legibility": {
       "enum": [
         "pass",
         "fail"
       ],
-      "title": "Explanatory Form Absent",
+      "title": "Action Legibility",
       "type": "string"
     },
     "medium_fidelity": {
@@ -55,14 +43,6 @@
       "title": "Medium Fidelity",
       "type": "string"
     },
-    "readable_text_absent": {
-      "enum": [
-        "pass",
-        "fail"
-      ],
-      "title": "Readable Text Absent",
-      "type": "string"
-    },
     "register_fidelity": {
       "enum": [
         "pass",
@@ -71,9 +51,20 @@
       "title": "Register Fidelity",
       "type": "string"
     },
-    "review_id": {
-      "const": "universe_independent_image_review",
-      "title": "Review Id",
+    "readable_text_absent": {
+      "enum": [
+        "pass",
+        "fail"
+      ],
+      "title": "Readable Text Absent",
+      "type": "string"
+    },
+    "explanatory_form_absent": {
+      "enum": [
+        "pass",
+        "fail"
+      ],
+      "title": "Explanatory Form Absent",
       "type": "string"
     },
     "technical_quality": {
@@ -84,13 +75,21 @@
       "title": "Technical Quality",
       "type": "string"
     },
-    "verdict": {
-      "enum": [
-        "admit",
-        "reject"
-      ],
-      "title": "Verdict",
-      "type": "string"
+    "blocking_findings": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Blocking Findings",
+      "type": "array"
+    },
+    "advisory_findings": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Advisory Findings",
+      "type": "array"
     },
     "what_the_image_teaches": {
       "minLength": 1,
@@ -114,5 +113,6 @@
     "what_the_image_teaches"
   ],
   "title": "ImageReview",
-  "type": "object"
+  "type": "object",
+  "description": "universe structured output for universe.review.image"
 }

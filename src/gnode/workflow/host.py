@@ -785,8 +785,11 @@ async def execute(
             return Result("succeeded", outputs, {**facts, "cached": True})
     if instance.native:
         return _select(instance)
+    # An optional input that does not exist (its step did not run) is not among the inputs.
     inputs = {
-        name: _stage(store, instance.with_[name]) for name in spec.inputs if name in instance.with_
+        name: _stage(store, instance.with_[name])
+        for name in spec.inputs
+        if name in instance.with_ and instance.with_[name] is not MISSING
     }
     params = {
         name: _param_value(instance.with_[name]) for name in spec.params if name in instance.with_

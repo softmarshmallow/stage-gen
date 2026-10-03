@@ -30,6 +30,7 @@ import base64
 import hashlib
 import json
 import re
+import runpy
 import sys
 import tempfile
 from collections.abc import Callable, Iterable, Mapping
@@ -57,8 +58,6 @@ from gnode import (
     project_run,
 )
 from gnode import run as gnode_run
-from stage_gen.components.portrait_motion.face_location import locator_node_type
-from stage_gen.components.portrait_motion.nodes import portrait_motion_node_types
 from stage_gen.pipeline import (
     PipelineGraph,
 )
@@ -104,8 +103,6 @@ def character_frozen_set(scratch: Path) -> Section:
 
 
 def _node_types() -> Iterable[NodeType]:
-    yield from portrait_motion_node_types()
-    yield locator_node_type()
     # A workflow file's steps, each titled and typed by the gnode type it uses.
     for workflow in discover():
         if workflow.root.joinpath("workflow.yaml").is_file():
@@ -285,6 +282,40 @@ def run_universe(scratch: Path) -> dict[str, str]:
     outcome = asyncio.run(WorkflowRun(planned, run_dir=run_dir, services=services).run())
     if not outcome.ok:
         raise RuntimeError(f"the universe sample failed: {outcome.failed}")
+    return _run_keys(run_dir)
+
+
+#: Draws the portrait sample and answers its paid calls from the sample's own colours.
+PORTRAIT_INPUTS_SCRIPT = PACKAGE_ROOT / "workflows/portrait_motion/inputs/make_inputs.py"
+
+
+def run_portrait_motion(scratch: Path) -> dict[str, str]:
+    """The face path run offline, free: every paid call answered by the sample's stand-in,
+    so every step identity and every call's key is pinned, the reconstruction included."""
+    root = materialize_inputs("portrait-motion", scratch)
+    inputs = root / "face.yaml"
+    inputs.write_text(
+        json.dumps({"portrait": "sprite.png", "spec": "spec.json", "face_crop": True}),
+        encoding="utf-8",
+    )
+    project = scratch / "project"
+    project.mkdir()
+    (project / "gnode.yaml").write_text("gnode: project/v1\n", encoding="utf-8")
+    planned = asyncio.run(plan_async("portrait-motion", input_files=[inputs], cwd=project))
+    if not planned.ok:
+        raise RuntimeError(f"the portrait sample does not plan: {planned.problems}")
+    store = planned.planner.store
+    stand_in = runpy.run_path(str(PORTRAIT_INPUTS_SCRIPT))["stand_in"]
+    services = HostServices(store=store, capabilities=stand_in(store), live=True)
+    run_dir = project / "runs/face"
+    outcome = asyncio.run(WorkflowRun(planned, run_dir=run_dir, services=services).run())
+    if not outcome.ok:
+        raise RuntimeError(f"the portrait sample failed: {outcome.failed}")
+    return _run_keys(run_dir)
+
+
+def _run_keys(run_dir: Path) -> dict[str, str]:
+    """Every finished step's identity, and every paid call's key, of one run."""
     keys = {
         node.node_id: node.cache_key
         for node in project_run(run_dir).nodes
@@ -301,6 +332,7 @@ def run_universe(scratch: Path) -> dict[str, str]:
 CACHE_KEY_PLANS: dict[str, Callable[[Path], Graph | RunView | dict[str, str]]] = {
     "looping-parallax": run_looping_parallax,
     "movie-sprite-take": run_movie_sprite_take,
+    "portrait-motion": run_portrait_motion,
     "universe": run_universe,
 }
 

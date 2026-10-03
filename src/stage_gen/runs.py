@@ -3,10 +3,10 @@
 A run is a folder an executor wrote. ``discover`` finds runs under any number of roots by
 the documents they publish, without importing a workflow. The workflow that owns a run
 writes its run view on request: SDK and graph-document runs join their own plan and trace,
-a character run and a joinable portrait run are joined from the plan and trace they keep
-under their own names, and a game run is never derived here, because its game exports its
-own view. ``derive_view`` writes into a user cache keyed by the run's real path, never into
-the run; ``stage-gen view`` keeps those views fresh while runs are live, and
+a character run is joined from the plan and trace it keeps under its own names, a gnode
+workflow run from its plan and events, and a game run is never derived here, because its
+game exports its own view. ``derive_view`` writes into a user cache keyed by the run's real
+path, never into the run; ``stage-gen view`` keeps those views fresh while runs are live, and
 ``stage-gen inspect RUN --write-view DIR`` writes one where it is asked to.
 """
 
@@ -32,24 +32,21 @@ RUN_DOCUMENTS = (
     "case.json",
 )
 #: A folder holding the first of a pair and any one of its partners is a run: a character
-#: run keeps ``graph.json`` beside its trace and summary, a portrait run ``plan.json``
-#: beside ``graph.json`` from the moment it is prepared and ``execution.json`` once it ends,
-#: and a gnode workflow run ``plan.json`` beside its ``events.jsonl``, so a run is listed
-#: (without a view until it has a trace) while it runs.
+#: run keeps ``graph.json`` beside its trace and summary, and a gnode workflow run
+#: ``plan.json`` beside its ``events.jsonl``, so a run is listed while it runs.
 RUN_DOCUMENT_PAIRS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("graph.json", ("summary.json", "trace.jsonl")),
-    ("plan.json", ("execution.json", "graph.json", "events.jsonl")),
+    ("plan.json", ("events.jsonl",)),
 )
 #: The example store sits at the top of a run root (``out/examples``); it holds exports, not
 #: runs.
 EXAMPLE_STORE = "examples"
-#: How many folders below a root a run may sit: a portrait review run sits four deep
+#: How many folders below a root a run may sit: a review run can sit four deep
 #: (``review/<set>/<character>/run-01``).
 SEARCH_DEPTH = 4
 VIEW_FILE = "execution-view.json"
 #: The files whose change can make a run's view stale: plans, traces and the run's own
-#: records. The run's own ``trace/*.jsonl`` counts too, as does a sub-run's
-#: (``<child>/trace/*.jsonl``).
+#: records.
 SOURCE_FILES = (
     "execution-plan.json",
     "execution-trace.jsonl",
@@ -57,7 +54,6 @@ SOURCE_FILES = (
     "trace.jsonl",
     "summary.json",
     "plan.json",
-    "execution.json",
     "events.jsonl",
 )
 VIEW_KEY_LENGTH = 16
@@ -152,10 +148,6 @@ def _mtime(path: Path) -> float | None:
 def source_mtime(run_dir: Path) -> float | None:
     """When the run's plan, trace or own records last changed; None when it has none."""
     stamps = [_mtime(run_dir / name) for name in SOURCE_FILES]
-    stamps += [
-        _mtime(trace)
-        for trace in (*run_dir.glob("trace/*.jsonl"), *run_dir.glob("*/trace/*.jsonl"))
-    ]
     present = [stamp for stamp in stamps if stamp is not None]
     return max(present) if present else None
 
@@ -337,8 +329,8 @@ def _utc(stamp: float) -> str:
 class ViewRefresher:
     """Derives the views of stale runs into a cache, once per change of their sources.
 
-    A run whose owner cannot derive a view (a game run, a portrait run whose trace cannot
-    be joined) is tried again only after its sources change.
+    A run whose owner cannot derive a view (a game run, a run with no trace yet) is tried
+    again only after its sources change.
     """
 
     roots: tuple[Path, ...]

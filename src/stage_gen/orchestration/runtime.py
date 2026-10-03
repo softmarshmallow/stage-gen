@@ -40,6 +40,7 @@ from gnode.providers.openrouter import (
     OpenRouterImageBackend,
     OpenRouterMusicBackend,
     OpenRouterStructuredBackend,
+    OpenRouterStructuredRequestPolicy,
     OpenRouterToolLoopBackend,
 )
 from stage_gen.components.audio_normalization import (
@@ -131,9 +132,12 @@ def create_structured_service(
     model: str,
     base_url: str = "https://openrouter.ai/api/v1",
     retry_policy: RetryPolicy | None = None,
+    request_policy: OpenRouterStructuredRequestPolicy | None = None,
 ) -> StructuredGenerationService[object]:
     return StructuredGenerationService(
-        OpenRouterStructuredBackend(api_key=api_key, model=model, base_url=base_url),
+        OpenRouterStructuredBackend(
+            api_key=api_key, model=model, base_url=base_url, request_policy=request_policy
+        ),
         component=STRUCTURED_GENERATION_COMPONENT,
         tool=STAGE_GEN_TOOL,
         retry_policy=retry_policy,

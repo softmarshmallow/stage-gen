@@ -31,6 +31,7 @@ import yaml
 from PIL import Image
 
 from gnode import (
+    BinaryArtifact,
     CallRecord,
     CallRefused,
     CapabilityHandler,
@@ -51,12 +52,17 @@ from gnode import (
     StructuredReference,
     VideoGenerationRequest,
     VideoReference,
+    canonicalize_strict_json_schema,
     retry_with_backoff,
 )
 from gnode.providers.fal import (
     FAL_ENDPOINT_VIDEO_MODEL,
     FalEndpointVideoBackend,
     FalVideoJobFailed,
+)
+from gnode.providers.openrouter import (
+    OpenRouterProviderRouting,
+    OpenRouterStructuredRequestPolicy,
 )
 from stage_gen.config import StageGenConfig, load_config
 from stage_gen.image_product import ImageProvider
@@ -136,6 +142,15 @@ def _data_url(file: FileValue) -> str:
     return f"data:{media};base64,{base64.b64encode(data).decode('ascii')}"
 
 
+def _opaque(artifact: BinaryArtifact) -> dict[str, Any]:
+    """An opaque picture was asked for: a pixel with any transparency draws it again."""
+
+    with Image.open(io.BytesIO(artifact.data)) as picture:
+        if picture.convert("RGBA").getchannel("A").getextrema() != (255, 255):
+            raise ValueError("the picture asked for as opaque has transparent pixels")
+    return {"opaque": True}
+
+
 def _image_handler(
     config: StageGenConfig, store: Store, factory: ImageServiceFactory, variant: str
 ) -> CapabilityHandler:
@@ -196,6 +211,7 @@ def _image_handler(
                         background=background,  # type: ignore[arg-type]
                         output_format="png",
                         size=str(size) if size else None,
+                        validate=_opaque if background == "opaque" else None,
                         timeout_seconds=_TIMEOUT_SECONDS,
                         resolved_binding=binding,
                     )
@@ -417,30 +433,81 @@ _CONTEXT_LONG_EDGE = 1_600
 StructuredServiceFactory = Callable[..., Any]
 
 
+@dataclass(frozen=True, slots=True)
+class _StructuredRoute:
+    """One structured model on OpenRouter, with the request settings it is called with."""
+
+    price: RoutePrice
+    #: Reasoning, image detail and provider routing; they change the answer, so they are
+    #: part of the route's identity.
+    policy: OpenRouterStructuredRequestPolicy | None = None
+    #: Pictures are reduced to this long edge and flattened onto the step's matte; ``None``
+    #: sends each picture's file exactly as it is.
+    long_edge: int | None = _CONTEXT_LONG_EDGE
+    timeout_seconds: float = _STRUCTURED_TIMEOUT_SECONDS
+
+    def contract(self) -> dict[str, Any]:
+        contract: dict[str, Any] = {"adapter": "openrouter-structured", "adapter_behavior": 1}
+        if self.policy is not None:
+            contract["request_policy"] = self.policy.snapshot()
+        if self.long_edge is None:
+            contract["pictures"] = "unchanged"
+        return contract
+
+
+#: Structured models verified beyond the configured text model. The vision judge reads a
+#: portrait at high detail with high reasoning, through OpenAI only, and is shown every
+#: picture as it is: the face workflow's admission, geometry and still review were
+#: calibrated on it (2026-09-13). A call cost USD 0.07 to 0.39 then; the worst case keeps the
+#: reservation those runs held per attempt.
+_VERIFIED_STRUCTURED = {
+    "openai/gpt-6-astra": _StructuredRoute(
+        price=RoutePrice(0.05, 1.50),
+        policy=OpenRouterStructuredRequestPolicy(
+            reasoning_effort="high",
+            image_detail="high",
+            provider=OpenRouterProviderRouting(only=("openai",), allow_fallbacks=False),
+        ),
+        long_edge=None,
+        timeout_seconds=900,
+    ),
+}
+
+
+def _structured_table(config: StageGenConfig) -> dict[str, _StructuredRoute]:
+    """Every structured model by name: the configured text model, then the verified ones."""
+
+    return {config.text_model: _StructuredRoute(_STRUCTURED_PRICE), **_VERIFIED_STRUCTURED}
+
+
 def structured_routes(config: StageGenConfig) -> list[Route]:
-    """The configured text model, answering to a JSON Schema, with pictures in its context."""
+    """Each structured model, answering to a JSON Schema, with pictures in its context."""
 
     return [
         Route(
             capability="structured.generate",
-            model=config.text_model,
+            model=model,
             provider="openrouter",
-            price=_STRUCTURED_PRICE,
+            price=settings.price,
             features=frozenset({"structured_output", "image_input"}),
             concurrency=4,
-            contract={"adapter": "openrouter-structured", "adapter_behavior": 1},
+            contract=settings.contract(),
         )
+        for model, settings in _structured_table(config).items()
     ]
 
 
-def _context_picture(file: FileValue, matte: str) -> StructuredReference:
-    """A picture of the context, reduced and flattened onto ``matte``, as a PNG data URL."""
+def _context_picture(file: FileValue, matte: str, long_edge: int | None) -> StructuredReference:
+    """A picture of the context as a data URL: the file itself, or reduced to ``long_edge``
+    and flattened onto ``matte`` as a PNG."""
 
     if file.location is None:
         raise _NotSent(f"{file.name} has no bytes to send")
+    if long_edge is None:
+        return StructuredReference(_data_url(file), file.name)
     with Image.open(file.location) as opened:
         picture = opened.convert("RGBA")
-    picture.thumbnail((_CONTEXT_LONG_EDGE, _CONTEXT_LONG_EDGE), Image.Resampling.LANCZOS)
+    picture.thumbnail((long_edge, long_edge), Image.Resampling.LANCZOS)
     ground = Image.new("RGBA", picture.size, matte)
     ground.alpha_composite(picture)
     buffer = io.BytesIO()
@@ -456,17 +523,21 @@ def _context_text(file: FileValue) -> str:
 
 
 @dataclass(frozen=True, slots=True)
-class _StructuredAsk:
-    """One structured call as it is sent: the prompt with its text context, the pictures."""
+class StructuredQuestion:
+    """One structured call as the model is asked it: the prompt with its text context
+    after it, the system prompt, the JSON Schema the answer is held to, the pictures in
+    the order they are shown, and the most tokens the answer may take."""
 
     prompt: str
     system: str | None
     schema: dict[str, Any]
     name: str
-    pictures: tuple[StructuredReference, ...]
+    pictures: tuple[FileValue, ...]
+    matte: str
+    max_tokens: int
 
     @classmethod
-    def of(cls, request: Mapping[str, Any]) -> _StructuredAsk:
+    def of(cls, request: Mapping[str, Any]) -> StructuredQuestion:
         prompt = request.get("prompt")
         if not isinstance(prompt, str) or not prompt.strip():
             raise _NotSent("a structured call needs its prompt as text")
@@ -476,7 +547,6 @@ class _StructuredAsk:
         schema = json.loads(Path(schema_file.location).read_text(encoding="utf-8"))
         if not isinstance(schema, dict):
             raise _NotSent("a structured call's schema is a JSON object")
-        matte = str(request.get("matte") or "#ffffff")
         context = [f for f in request.get("context") or [] if isinstance(f, FileValue)]
         texts = [_context_text(f) for f in context if not f.kind.startswith("image")]
         name = str(schema.get("title") or Path(schema_file.name).stem)
@@ -486,10 +556,15 @@ class _StructuredAsk:
             system=system if isinstance(system, str) and system.strip() else None,
             schema=schema,
             name="".join(c if c.isalnum() else "_" for c in name)[:64],
-            pictures=tuple(
-                _context_picture(f, matte) for f in context if f.kind.startswith("image")
-            ),
+            pictures=tuple(f for f in context if f.kind.startswith("image")),
+            matte=str(request.get("matte") or "#ffffff"),
+            max_tokens=int(request.get("max_tokens") or _STRUCTURED_MAX_TOKENS),
         )
+
+    def sent_schema(self) -> dict[str, Any]:
+        """The schema as the provider is sent it: local references inlined, canonical."""
+
+        return canonicalize_strict_json_schema(inline_local_schema_refs(self.schema))
 
 
 def structured_job(
@@ -506,11 +581,18 @@ def structured_job(
     """
 
     del store
+    table = _structured_table(config)
 
     async def handle(route: Route, request: Mapping[str, Any], take: int) -> CallRecord:
         del take
+        settings = table.get(route.model)
         try:
-            ask = _StructuredAsk.of(request)
+            if settings is None or settings.contract() != dict(route.contract):
+                raise _NotSent(f"{route.route_id} is not a structured route Stage Gen calls")
+            ask = StructuredQuestion.of(request)
+            pictures = tuple(
+                _context_picture(f, ask.matte, settings.long_edge) for f in ask.pictures
+            )
             if not config.open_router_api_key:
                 raise _NotSent("OPENROUTER_API_KEY is not set")
         except _NotSent as error:
@@ -530,6 +612,7 @@ def structured_job(
             api_key=config.open_router_api_key,
             model=route.model,
             base_url=config.open_router_base_url or OPENROUTER_BASE_URL,
+            request_policy=settings.policy,
         )
         try:
             with tempfile.TemporaryDirectory(prefix="gnode-structured-") as scratch:
@@ -537,7 +620,7 @@ def structured_job(
                     StructuredGenerationRequest(
                         prompt=ask.prompt,
                         system=ask.system,
-                        references=ask.pictures,
+                        references=pictures,
                         artifact_path=Path(scratch) / "answer.json",
                         schema=StructuredOutputSchema(
                             name=ask.name,
@@ -545,8 +628,8 @@ def structured_job(
                             description=str(schema.get("description") or "") or None,
                         ),
                         parse=parse,
-                        max_tokens=int(request.get("max_tokens") or _STRUCTURED_MAX_TOKENS),
-                        timeout_seconds=_STRUCTURED_TIMEOUT_SECONDS,
+                        max_tokens=ask.max_tokens,
+                        timeout_seconds=settings.timeout_seconds,
                     )
                 )
         finally:
@@ -587,6 +670,7 @@ def plugin() -> Plugin:
 
 
 __all__ = [
+    "StructuredQuestion",
     "image_capabilities",
     "image_routes",
     "plugin",

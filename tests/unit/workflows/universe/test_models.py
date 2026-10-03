@@ -190,5 +190,8 @@ def test_the_workflow_schemas_are_the_models_schemas() -> None:
     files = {path.name for path in folder.glob("*.json")}
     assert files == set(models.SCHEMA_MODELS)
     for name, schema in models.json_schemas().items():
-        written = json.loads((folder / name).read_text(encoding="utf-8"))
-        assert written == schema, f"schemas/{name} drifted from its model; regenerate it"
+        written = (folder / name).read_text(encoding="utf-8")
+        # Order counts: a model answers properties in the order the schema lists them.
+        assert written == json.dumps(schema, indent=2, ensure_ascii=False) + "\n", (
+            f"schemas/{name} drifted from its model; regenerate it"
+        )

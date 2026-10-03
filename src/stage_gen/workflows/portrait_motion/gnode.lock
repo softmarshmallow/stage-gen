@@ -1,0 +1,15 @@
+# gnode.lock: the source behind each versioned node type; commit it
+nodes:
+  nodes/face.py#crop@1: 254fac3e2c2c338584339ad105f9358c70876ba3a2d1d49242eb1842f673da09
+  nodes/face.py#located@1: 254fac3e2c2c338584339ad105f9358c70876ba3a2d1d49242eb1842f673da09
+  nodes/face.py#render@1: 254fac3e2c2c338584339ad105f9358c70876ba3a2d1d49242eb1842f673da09
+  nodes/motion.py#admitted@1: 44266b26d21f8fe4dc05f529cb0fb4b1708d40cb202443a8ff59e72e4bb6080b
+  nodes/motion.py#briefs@1: 44266b26d21f8fe4dc05f529cb0fb4b1708d40cb202443a8ff59e72e4bb6080b
+  nodes/motion.py#check@1: 44266b26d21f8fe4dc05f529cb0fb4b1708d40cb202443a8ff59e72e4bb6080b
+  nodes/motion.py#composition@1: 44266b26d21f8fe4dc05f529cb0fb4b1708d40cb202443a8ff59e72e4bb6080b
+  nodes/motion.py#geometry_ok@1: 44266b26d21f8fe4dc05f529cb0fb4b1708d40cb202443a8ff59e72e4bb6080b
+  nodes/motion.py#guide@1: 44266b26d21f8fe4dc05f529cb0fb4b1708d40cb202443a8ff59e72e4bb6080b
+  nodes/motion.py#keep@1: 44266b26d21f8fe4dc05f529cb0fb4b1708d40cb202443a8ff59e72e4bb6080b
+  nodes/motion.py#quality_ok@1: 44266b26d21f8fe4dc05f529cb0fb4b1708d40cb202443a8ff59e72e4bb6080b
+  nodes/motion.py#registration@1: 44266b26d21f8fe4dc05f529cb0fb4b1708d40cb202443a8ff59e72e4bb6080b
+  nodes/motion.py#result@1: 44266b26d21f8fe4dc05f529cb0fb4b1708d40cb202443a8ff59e72e4bb6080b

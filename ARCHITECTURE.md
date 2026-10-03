@@ -21,8 +21,7 @@ require common game formats or synchronized releases.
 ## Layers
 
 Each layer imports only the layers above it in this list, with two named exceptions: the
-character-3d and portrait-motion run readers in `workflow.py` import `stage_gen.runs` for the
-run-view file, and `_checks.py` imports the CLI parser lazily to parse `[try]` commands. The
+character-3d run reader in `workflow.py` imports `stage_gen.runs` for the run-view file, and `_checks.py` imports the CLI parser lazily to parse `[try]` commands. The
 import rules below are what the tests enforce; this ordering is not tested.
 
 1. **GNode** (`src/gnode/`) keeps its three rings. Ring 0 owns media-independent topology,
@@ -70,9 +69,9 @@ import rules below are what the tests enforce; this ordering is not tested.
 
 Provider configuration, credentials and concrete service construction belong to the
 composition root, `src/stage_gen/orchestration/`: runtime and services, the
-`GraphExecutor` that graph-document workflows run on, image routing, and the provider
-composition of the portrait-motion and character-3d workflows, and Stage Gen's gnode
-plugin: the image and video routes and the adapters that serve them. Application
+`GraphExecutor` that graph-document workflows run on, image routing, the provider
+composition of the character-3d workflow, and Stage Gen's gnode plugin: the image, video and
+structured routes and the adapters that serve them. Application
 provider adapters that are not GNode ring-2 adapters live in `src/stage_gen/providers/`.
 Neither the SDK nor a workflow's graph builder acquires those responsibilities.
 
@@ -123,8 +122,8 @@ independently of asset generation.
 
 The looping-parallax workflow, the first written as a gnode workflow file, owns layer images,
 repeat axes, offsets and relative scroll factors. It does not own a player, level or camera controller. Portrait motion owns its
-generation, qualification and recovery process; the consuming presentation decides when
-that animation plays. These contracts are not combined into a universal gameplay language.
+judged chain from one sprite to independent eye and mouth patches; the consuming
+presentation decides when that animation plays. These contracts are not combined into a universal gameplay language.
 
 TOML remains suitable for a workflow's asset requests. Ordinary Python is the composition
 language for arbitrary graphs. GDScript and scenes compose Godot games. Do not require users

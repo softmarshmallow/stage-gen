@@ -3,14 +3,14 @@
     "RegionPalette": {
       "additionalProperties": false,
       "properties": {
-        "palette": {
-          "minLength": 1,
-          "title": "Palette",
-          "type": "string"
-        },
         "region": {
           "minLength": 1,
           "title": "Region",
+          "type": "string"
+        },
+        "palette": {
+          "minLength": 1,
+          "title": "Palette",
           "type": "string"
         }
       },
@@ -23,8 +23,22 @@
     }
   },
   "additionalProperties": false,
-  "description": "universe structured output for universe.direction.global",
   "properties": {
+    "universe_id": {
+      "pattern": "^[a-z][a-z0-9_]{1,95}$",
+      "title": "Universe Id",
+      "type": "string"
+    },
+    "medium_id": {
+      "pattern": "^[a-z][a-z0-9_]{1,95}$",
+      "title": "Medium Id",
+      "type": "string"
+    },
+    "world_silhouette_language": {
+      "minLength": 1,
+      "title": "World Silhouette Language",
+      "type": "string"
+    },
     "architecture_grammar": {
       "minLength": 1,
       "title": "Architecture Grammar",
@@ -35,23 +49,9 @@
       "title": "Costume Grammar",
       "type": "string"
     },
-    "forbidden_substitutions": {
-      "items": {
-        "minLength": 1,
-        "type": "string"
-      },
-      "minItems": 3,
-      "title": "Forbidden Substitutions",
-      "type": "array"
-    },
     "material_language": {
       "minLength": 1,
       "title": "Material Language",
-      "type": "string"
-    },
-    "medium_id": {
-      "pattern": "^[a-z][a-z0-9_]{1,95}$",
-      "title": "Medium Id",
       "type": "string"
     },
     "palette_by_region": {
@@ -60,14 +60,6 @@
       },
       "minItems": 2,
       "title": "Palette By Region",
-      "type": "array"
-    },
-    "poster_observation_ids_used": {
-      "items": {
-        "pattern": "^[a-z][a-z0-9_]{1,95}$",
-        "type": "string"
-      },
-      "title": "Poster Observation Ids Used",
       "type": "array"
     },
     "scale_anchors": {
@@ -80,15 +72,22 @@
       "title": "Technology And Ecology Rules",
       "type": "string"
     },
-    "universe_id": {
-      "pattern": "^[a-z][a-z0-9_]{1,95}$",
-      "title": "Universe Id",
-      "type": "string"
+    "forbidden_substitutions": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 3,
+      "title": "Forbidden Substitutions",
+      "type": "array"
     },
-    "world_silhouette_language": {
-      "minLength": 1,
-      "title": "World Silhouette Language",
-      "type": "string"
+    "poster_observation_ids_used": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9_]{1,95}$",
+        "type": "string"
+      },
+      "title": "Poster Observation Ids Used",
+      "type": "array"
     }
   },
   "required": [
@@ -105,5 +104,6 @@
     "poster_observation_ids_used"
   ],
   "title": "GlobalDirection",
-  "type": "object"
+  "type": "object",
+  "description": "universe structured output for universe.direction.global"
 }

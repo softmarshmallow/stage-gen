@@ -8,7 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 FeatureId = Literal["canvas_left_eye", "canvas_right_eye", "mouth"]
 FeatureGroup = Literal["eyes", "mouth"]
-TerminalStatus = Literal["complete", "partial", "refused", "failed"]
+TerminalStatus = Literal["complete", "partial", "refused"]
+RefusingStage = Literal["face", "admission", "registration", "geometry", "quality"]
 
 
 class Contract(BaseModel):
@@ -72,29 +73,17 @@ class PortraitMotionSpec(Contract):
         return self.width // self.columns, self.height // self.rows
 
 
-class StageReceipt(Contract):
-    schema_version: Literal[1] = 1
-    stage: str
-    node_cache_key: str = Field(pattern=r"^[a-f0-9]{64}$")
-    status: Literal["passed", "refused", "skipped"]
-    reason: str
-    files: dict[str, str]
-    dependency_records: dict[str, str]
-    provider_operations: int = Field(ge=0, le=6)
-    reported_cost_usd: float | None = Field(default=None, ge=0)
-
-
 class PortraitMotionResult(Contract):
-    schema_version: Literal[1] = 1
+    """What a run accepted: every admitted feature, or nothing and the stage that refused."""
+
+    schema_version: Literal[2] = 2
     status: TerminalStatus
-    reason: str
+    reason: str = Field(min_length=1)
+    refused_at: RefusingStage | None
     admitted_features: list[FeatureId]
     accepted_features: list[FeatureId]
-    preview_ref: str | None
-    manifest_ref: str | None
     temporal_review: Literal["not_performed"] = "not_performed"
     publication_authorized: Literal[False] = False
-    required_stages: list[str]
 
     @model_validator(mode="after")
     def consistent_acceptance(self) -> Self:
@@ -103,16 +92,11 @@ class PortraitMotionResult(Contract):
                 raise ValueError("Terminal feature IDs must be unique")
         if self.status in {"complete", "partial"}:
             if (
-                not self.accepted_features
+                self.refused_at is not None
+                or not self.accepted_features
                 or self.accepted_features != self.admitted_features
-                or not self.preview_ref
-                or not self.manifest_ref
             ):
-                raise ValueError(
-                    "Accepted terminal output requires admitted features and artifacts"
-                )
-        elif (
-            self.accepted_features or self.preview_ref is not None or self.manifest_ref is not None
-        ):
-            raise ValueError("Failed or refused terminal output cannot grant accepted artifacts")
+                raise ValueError("Accepted output requires every admitted feature and no refusal")
+        elif self.refused_at is None or self.accepted_features:
+            raise ValueError("A refused output names its stage and accepts nothing")
         return self

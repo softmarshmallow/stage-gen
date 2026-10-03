@@ -150,10 +150,10 @@ describe("run discovery", () => {
     await write(path.join(spikes, "canary-01", "wren-01", "graph.json"));
     await write(path.join(spikes, "canary-01", "wren-01", "trace.jsonl"), "");
     await write(path.join(spikes, "review", "facial-4k", "yuzu", "run-01", "plan.json"));
-    await write(path.join(spikes, "review", "facial-4k", "yuzu", "run-01", "execution.json"));
-    // A sub-run is part of its run, not a run of its own.
-    await write(path.join(spikes, "review", "facial-4k", "yuzu", "run-01", "portrait", "plan.json"));
-    await write(path.join(spikes, "review", "facial-4k", "yuzu", "run-01", "portrait", "execution.json"));
+    await write(path.join(spikes, "review", "facial-4k", "yuzu", "run-01", "events.jsonl"), "");
+    // A run's own folders are not searched again.
+    await write(path.join(spikes, "review", "facial-4k", "yuzu", "run-01", "inner", "plan.json"));
+    await write(path.join(spikes, "review", "facial-4k", "yuzu", "run-01", "inner", "events.jsonl"), "");
     await write(path.join(spikes, "scratch", "notes.txt"), "not a run");
     await write(path.join(spikes, "graph-only", "graph.json"));
     process.env.STAGE_GEN_RUN_ROOTS = [out, spikes].join(path.delimiter);

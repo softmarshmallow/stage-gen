@@ -55,6 +55,7 @@ STANDARD_TYPES: tuple[tuple[int, NodeSpec], ...] = (
             inputs=_ports(image="image", mask="image?", references="image[]?"),
             params={
                 "prompt": TEMPLATE,
+                "size": _p(str, optional=True),
                 "background": _p(("opaque", "transparent", "auto"), default="auto"),
                 "vars": _p(dict, default={}),
             },

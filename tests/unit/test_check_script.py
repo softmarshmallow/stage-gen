@@ -166,12 +166,14 @@ def test_product_gate_runs_the_workflows_through_their_command_lines() -> None:
     ]
     assert runs == []
     files = {w.id for w in discover() if w.root.joinpath("workflow.yaml").is_file()}
-    assert files == {"looping-parallax", "movie-sprite", "universe"}
-    for workflow in files - {"universe"}:
+    assert files == {"looping-parallax", "movie-sprite", "portrait-motion", "universe"}
+    paid = {"portrait-motion", "universe"}
+    for workflow in files - paid:
         assert ("gnode", "run", workflow) in {command[:3] for command in commands}
         assert ("gnode", "inspect", workflow, "--verify") in commands
-    # Universe's run is all paid calls: the gate plans it, phases and ceilings included.
-    assert ("gnode", "plan", "universe") in {command[:3] for command in commands}
+    # A run of all paid calls is planned, phases and ceilings included; pytest runs it offline.
+    for workflow in paid:
+        assert ("gnode", "plan", workflow) in {command[:3] for command in commands}
     assert {("gnode", "lock", workflow, "--check") for workflow in files} <= set(commands)
     assert ("stage-gen", "list") in commands
     assert any(command[:3] == ("stage-gen", "catalog", "export") for command in commands)

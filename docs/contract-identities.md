@@ -100,14 +100,12 @@ field or constant. Game versioning follows [the game contract](../godot/games/_s
 | `map-terrain-v1` | `generated` | `bellweather_pipeline.maps.prepared:PreparedMapTerrain.kind` |
 | `platformer-chunk-map-v1` | `generated` | `stage_gen.components.sideview_map_design.design:PlatformerChunkMapDesign.kind` |
 | `pointclick-solvability-v1` | `generated` | `the_grain_pipeline.pointclick_room.models:RoomSolvabilityReport.kind` |
-| `portrait-motion-plan-v2` | `generated` | `stage_gen.workflows.portrait_motion.pipeline:PORTRAIT_MOTION_PLAN_KIND` |
 | `resolved-game-package-v6` | `generated` | `demo_game_tools.io.package_capture:RESOLVED_GAME_PACKAGE_KIND` |
 | `scenario-admission-v1` | `generated` | `demo_game_tools.scenario.models:ScenarioAdmissionReport.kind` |
 | `scenario-program-v2` | `generated` | `demo_game_tools.scenario.models:ScenarioProgram.kind` |
 | `dialogue-scene-execution-graph-v6` | `graph` | `the_grain_pipeline.dialogue_scene.scene_graph:DIALOGUE_GRAPH_KIND` |
 | `oblique-survival-execution-graph-v2` | `graph` | `ember_hollow_pipeline.survival_graph:OBLIQUE_SURVIVAL_GRAPH_KIND` |
 | `pointclick-room-execution-graph-v2` | `graph` | `the_grain_pipeline.pointclick_room.room_graph:POINTCLICK_GRAPH_KIND` |
-| `portrait-motion-v2` | `graph` | `stage_gen.workflows.portrait_motion.pipeline:PORTRAIT_MOTION_GRAPH_KIND` |
 | `sideview-platformer-execution-graph-v2` | `graph` | `bellweather_pipeline.execution_graph:EXECUTION_GRAPH_KIND` |
 | `sideview-runner-execution-graph-v2` | `graph` | `iron_petal_unit_pipeline.runner_graph:RUNNER_GRAPH_KIND` |
 | `oblique-survival-manifest-v3` | `manifest` | `ember_hollow_pipeline.manifest:MANIFEST_KIND` |
@@ -142,7 +140,6 @@ retired while their owning reader explicitly declares this compatibility.
 | `dialogue-scene-execution-graph-v5` | `5` | `the_grain_pipeline.dialogue_scene.scene_graph:DialogueSceneGraph.LEGACY_GRAPH_IDENTITIES` |
 | `oblique-survival-execution-graph-v1` | `1` | `ember_hollow_pipeline.survival_graph:ObliqueSurvivalGraph.LEGACY_GRAPH_IDENTITIES` |
 | `pointclick-room-execution-graph-v1` | `1` | `the_grain_pipeline.pointclick_room.room_graph:PointClickRoomGraph.LEGACY_GRAPH_IDENTITIES` |
-| `portrait-motion-v1` | `1` | `stage_gen.workflows.portrait_motion.pipeline:PortraitMotionGraph.LEGACY_GRAPH_IDENTITIES` |
 | `sideview-platformer-execution-graph-v1` | `1` | `bellweather_pipeline.execution_graph:ExecutionGraph.LEGACY_GRAPH_IDENTITIES` |
 | `sideview-runner-execution-graph-v1` | `1` | `iron_petal_unit_pipeline.runner_graph:SideviewRunnerGraph.LEGACY_GRAPH_IDENTITIES` |
 

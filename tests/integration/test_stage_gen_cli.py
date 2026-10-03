@@ -35,7 +35,7 @@ WORKFLOWS = {
     "universe",
 }
 #: Workflows written as workflow files are planned and run with gnode, not stage-gen.
-WORKFLOW_FILES = {"looping-parallax", "movie-sprite", "universe"}
+WORKFLOW_FILES = {"looping-parallax", "movie-sprite", "portrait-motion", "universe"}
 
 
 @pytest.fixture(autouse=True)
@@ -168,9 +168,7 @@ def test_list_and_show_read_the_workflows() -> None:
 
 
 def test_unknown_arguments_are_refused_outside_a_forwarding_workflow() -> None:
-    status, _, errors = _stage_gen(
-        "plan", "portrait-motion", "--source", "a.png", "--spec", "s.json", "--run", "r", "--bogus"
-    )
+    status, _, errors = _stage_gen("inspect", "runs/r", "--bogus")
     assert status == 2 and "unrecognized arguments: --bogus" in errors
 
 

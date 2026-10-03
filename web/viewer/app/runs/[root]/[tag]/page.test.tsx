@@ -242,7 +242,7 @@ describe("run view route", () => {
     cleanup.push(runDir);
     await mkdir(runDir, { recursive: true });
     await writeFile(path.join(runDir, "plan.json"), "{}", "utf8");
-    await writeFile(path.join(runDir, "execution.json"), "{}", "utf8");
+    await writeFile(path.join(runDir, "events.jsonl"), "", "utf8");
     const cached = path.join(process.env.STAGE_GEN_VIEW_CACHE ?? "", viewKey(runDir));
     cleanup.push(cached);
     await mkdir(cached, { recursive: true });
@@ -266,11 +266,11 @@ describe("run view route", () => {
 
   test("a run with only its own record says so and how a view is made", async () => {
     const run = await writeFiles("prepared-01", {
-      "plan.json": { kind: "portrait-face-motion-plan-v1" },
-      "execution.json": { status: "prepared" },
+      "graph.json": { kind: "contained-character-parts-to-rig-v1" },
+      "summary.json": { ok: false },
     });
     const markup = await page(run);
-    expect(markup).toContain("prepared");
+    expect(markup).toContain("failed");
     expect(markup).toContain("has no view yet");
     expect(markup).toContain("--write-view");
     // Asked for the graph, a run without a view refuses instead of guessing.

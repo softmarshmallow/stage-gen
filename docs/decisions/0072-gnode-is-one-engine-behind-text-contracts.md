@@ -105,7 +105,7 @@ node bodies.
 | M0 | Remove storefront and portrait's engine-wide fingerprint; record this ruling. |
 | M1 | One runner and run record, with v1 keys byte-identical. |
 | M2 | The documents, expander, identity v2, call cache, protocol host, CLI and a language-neutral conformance suite. |
-| M3–M7 | Port looping-parallax (with the view host), movie-sprite, universe, portrait-motion and character-3d, each re-keyed once: the ported workflow replays offline and each paid call is answered only by the old result whose provenance records the identical request (`scripts/rekey_v1_runs.py`). A standard type gets its body only when a port uses it: movie-sprite gave `video.generate` its route, video file facts and the `video` view, while `image.key`, `image.contact_sheet` and `video.probe` stay declared, because its finishing keys, checks and samples frames in one local step. Universe gave `structured.generate` (prompt templates rendered with `vars:` and `inputs`), `image.resize`, `package` and the workflow's own view their bodies; its two reviews keep their tuned schemas as `structured.generate` answers read by local steps, so `structured.review` and `vision.review` wait for portrait-motion. |
+| M3–M7 | Port looping-parallax (with the view host), movie-sprite, universe, portrait-motion and character-3d, each re-keyed once: the ported workflow replays offline and each paid call is answered only by the old result whose provenance records the identical request (`scripts/rekey_v1_runs.py`). A standard type gets its body only when a port uses it: movie-sprite gave `video.generate` its route, video file facts and the `video` view, while `image.key`, `image.contact_sheet` and `video.probe` stay declared, because its finishing keys, checks and samples frames in one local step. Universe gave `structured.generate` (prompt templates rendered with `vars:` and `inputs`), `image.resize`, `package` and the workflow's own view their bodies; its two reviews keep their tuned schemas as `structured.generate` answers read by local steps. Portrait-motion did the same with its four vision answers, each held by a judge to the component's validator, and gave `image.edit` its exact `size`; so `structured.review` and `vision.review` stay declared without bodies, and a route's contract carries the request settings that change an answer. |
 | M8 | Port the Godot game pipelines onto the public contract, and retire the viewer's motion-atlas player with the game runs it plays. |
 | M9 | Delete v1 identity, the rekey tool, `GraphExecutor`, the old SDK and the `stage-gen` command; publish the user guide. |
 | M10 | The paid requalification of character-3d. |
@@ -140,6 +140,15 @@ said TOML; the amendment is posted on issue #3 with the owner's go.
   no run of the current version exists, so nothing could pair, and nothing is lost by the port.
   The offline run answers every call from committed constants instead, and the identity golden
   pins all 105 of its step identities and call keys.
+- **M6 re-key.** The face run behind the yuzu-face example made five paid calls (the face
+  box, the feature decision, the sheet edit, the outlines and the still review); the port
+  rebuilt every request exactly, so all five paired with nothing refused, and its delivered
+  states, patches and animation are byte-identical to the v1 run's. Two findings came with
+  it: a JSON Schema's property order is part of the request (canonicalization derives
+  `required` from it, and a model answers in that order), so schema files keep their source
+  order and the drift tests compare bytes, which re-keyed universe's offline identities; and
+  the expander settled a judged step's takes before its judges were linked when a later
+  condition reached the judge first, which left a regeneration stalled until fixed.
 - **Cost.** Every milestone up to M9 is offline. M10 is estimated at about USD 45 on a first
   pass (calibration about USD 2.3, a six-run cohort capped at USD 27 each, a canary about
   USD 5.6), about double if a cohort fails.

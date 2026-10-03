@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from stage_gen.components.portrait_motion.models import PortraitMotionSpec, StageReceipt
+from stage_gen.components.portrait_motion.models import PortraitMotionResult, PortraitMotionSpec
 
 
 def specification() -> dict[str, Any]:
@@ -154,17 +154,31 @@ def test_requested_feature_must_have_a_state_family() -> None:
         PortraitMotionSpec.model_validate(value)
 
 
-@pytest.mark.parametrize("operations", [-1, 7, True, "1"])
-def test_stage_receipt_operations_are_strict_and_bounded(operations: Any) -> None:
+def test_an_accepted_result_accepts_every_admitted_feature_and_names_no_refusal() -> None:
+    accepted = {
+        "status": "partial",
+        "reason": "The mouth stays; both eyes passed.",
+        "refused_at": None,
+        "admitted_features": ["canvas_left_eye", "canvas_right_eye"],
+        "accepted_features": ["canvas_left_eye", "canvas_right_eye"],
+    }
+    assert PortraitMotionResult.model_validate(accepted).status == "partial"
     with pytest.raises(ValidationError):
-        StageReceipt.model_validate(
-            {
-                "stage": "admission",
-                "node_cache_key": "a" * 64,
-                "status": "passed",
-                "reason": "Synthetic receipt",
-                "files": {},
-                "dependency_records": {},
-                "provider_operations": operations,
-            }
-        )
+        PortraitMotionResult.model_validate({**accepted, "accepted_features": ["canvas_left_eye"]})
+    with pytest.raises(ValidationError):
+        PortraitMotionResult.model_validate({**accepted, "refused_at": "quality"})
+
+
+def test_a_refused_result_names_its_stage_and_accepts_nothing() -> None:
+    refused = {
+        "status": "refused",
+        "reason": "No safe outline.",
+        "refused_at": "geometry",
+        "admitted_features": ["mouth"],
+        "accepted_features": [],
+    }
+    assert PortraitMotionResult.model_validate(refused).refused_at == "geometry"
+    with pytest.raises(ValidationError):
+        PortraitMotionResult.model_validate({**refused, "refused_at": None})
+    with pytest.raises(ValidationError):
+        PortraitMotionResult.model_validate({**refused, "accepted_features": ["mouth"]})

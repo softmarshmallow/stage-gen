@@ -44,7 +44,6 @@ const UPDATE_FILES = [
   "trace.jsonl",
   "summary.json",
   "plan.json",
-  "execution.json",
   "events.jsonl",
   "manifest.json",
   "bundle.json",
@@ -209,12 +208,9 @@ async function readViewSummary(run: RunRef): Promise<ViewRead> {
   });
 }
 
-/** A character run's summary says ok; a portrait run's execution record says its status. */
+/** A character run's summary says whether it succeeded. */
 async function readRecordState(run: RunRef, runDir: string): Promise<string | null> {
-  for (const [name, field] of [
-    ["execution.json", "status"],
-    ["summary.json", "ok"],
-  ] as const) {
+  for (const [name, field] of [["summary.json", "ok"]] as const) {
     const file = inRun(runDir, name);
     if ((await stampOf(file)) === null) continue;
     return remembered(`record\0${file}`, file, async () => {

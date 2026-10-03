@@ -103,7 +103,7 @@ def test_pinned_store_examples_verify_and_carry_their_currency() -> None:
     }
     expected = {
         "yuzu-idle": "earlier_version",
-        "yuzu-face": "current",
+        "yuzu-face": "earlier_version",
         "wren-brief": "current",
         "tavi-parts": "earlier_version",
     }
@@ -441,12 +441,11 @@ def test_sample_plans_are_offline_and_every_planned_type_sits_in_a_step(
     loaded: dict[str, LoadedWorkflow],
 ) -> None:
     planned = dict(_sample_plans(loaded))
-    assert set(planned) == {"looping-parallax", "movie-sprite", "universe"}
+    assert set(planned) == {"looping-parallax", "movie-sprite", "portrait-motion", "universe"}
     for workflow in planned.values():
         assert workflow.sample is not None
         assert {node.type_id for node in workflow.sample.nodes} <= set(workflow.code.type_ids())
-    for key in ("portrait-motion", "character-3d"):
-        assert loaded[key].sample is None and loaded[key].code.no_sample_plan
+    assert loaded["character-3d"].sample is None and loaded["character-3d"].code.no_sample_plan
     assert loaded["character-3d"].code.plan_refusal is not None
     assert "stage-gen run character-3d --prepare-only" in str(
         loaded["character-3d"].code.plan_refusal

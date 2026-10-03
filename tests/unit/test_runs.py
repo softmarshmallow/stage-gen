@@ -15,7 +15,6 @@ from pathlib import Path
 from gnode import LOCAL_OPERATION, Graph, Node, Resource, RetryOwner, seal_graph
 from stage_gen import runs
 from stage_gen.interfaces.cli import main
-from stage_gen.workflows.portrait_motion.workflow import ADMISSION, GUIDE
 
 CHARACTER_KIND = "contained-character-parts-to-rig-v1"
 
@@ -99,22 +98,10 @@ def _character_run(run_dir: Path) -> Path:
     return run_dir
 
 
-def _portrait_run(run_dir: Path, *, traced: bool = True) -> Path:
-    _write(run_dir / "plan.json", {"schema_version": 1, "kind": "portrait-face-motion-plan-v1"})
-    _write(run_dir / "execution.json", {"status": "complete", "portrait_run_ref": "portrait"})
-    graph = _graph(
-        "portrait-motion-v2",
-        _node("admission", ADMISSION.type_id),
-        _node("guide", GUIDE.type_id, ("admission",)),
-        schema_version=2,
-    )
-    _write(run_dir / "portrait/graph.json", graph.model_dump(mode="json"))
-    if traced:
-        _write(
-            run_dir / "portrait/trace/one.jsonl",
-            _events(graph, ("admission", "admission/result.json"), ("guide", "guide/sheet.png")),
-        )
-    _write(run_dir / "portrait/admission/result.json", "{}")
+def _workflow_run(run_dir: Path) -> Path:
+    """A gnode workflow run as it starts: its plan, and the events it appends."""
+    _write(run_dir / "plan.json", {"gnode": "plan/v1"})
+    _write(run_dir / "events.jsonl", "")
     return run_dir
 
 
@@ -127,7 +114,7 @@ def test_discovery_finds_every_run_shape_under_several_roots(tmp_path: Path) -> 
     _write(out / "game-run/manifest.json", {"kind": "prepared-game-runtime-v12"})
     _write(out / "view-only/execution-view.json", {"kind": "x"})
     _character_run(spikes / "canary-01/wren-01")
-    _portrait_run(spikes / "review/facial-4k/yuzu/run-01")
+    _workflow_run(spikes / "review/facial-4k/yuzu/run-01")
     _write(spikes / "scratch/notes.txt", "not a run")
 
     found = runs.discover([out, spikes])
@@ -156,7 +143,7 @@ def test_discovery_skips_the_example_store_hidden_folders_and_links_out(tmp_path
 
 def test_a_run_is_not_searched_again_and_depth_is_bounded(tmp_path: Path) -> None:
     root = tmp_path / "runs"
-    _portrait_run(root / "run-01")
+    _workflow_run(root / "run-01")
     _write(root / "a/b/c/d/e/execution-plan.json", {"kind": "x"})
     _write(root / "graph-only/graph.json", {"kind": "x"})
 
@@ -193,32 +180,6 @@ def test_a_character_run_is_joined_into_a_view_in_the_cache_only(tmp_path: Path)
     assert not runs.needs_view(run_dir, cache)
 
 
-def test_a_portrait_run_is_joined_from_its_sub_run_with_run_relative_artifacts(
-    tmp_path: Path,
-) -> None:
-    run_dir = _portrait_run(tmp_path / "runs/run-01")
-    cache = tmp_path / "cache"
-    before = _snapshot(run_dir)
-
-    written = runs.derive_view(run_dir, cache)
-
-    assert written is not None and _snapshot(run_dir) == before
-    view = json.loads(written.read_text(encoding="utf-8"))
-    assert view["graph_kind"] == "portrait-motion-v2"
-    admission = next(node for node in view["nodes"] if node["node_id"] == "admission")
-    assert admission["artifacts"][0]["artifact_ref"] == "portrait/admission/result.json"
-    assert admission["artifacts"][0]["present"] is True
-    assert admission["title"]
-
-
-def test_a_portrait_run_without_a_trace_has_no_view_and_writes_nothing(tmp_path: Path) -> None:
-    run_dir = _portrait_run(tmp_path / "runs/run-01", traced=False)
-    cache = tmp_path / "cache"
-
-    assert runs.derive_view(run_dir, cache) is None
-    assert not (cache / runs.view_key(run_dir) / runs.VIEW_FILE).exists()
-
-
 def test_a_game_run_is_never_derived(tmp_path: Path) -> None:
     run_dir = tmp_path / "out/bellweather-m21"
     _write(run_dir / "execution-plan.json", {"kind": "sideview-platformer-execution-graph-v2"})
@@ -243,21 +204,18 @@ def test_inspect_refuses_a_game_run_by_name(tmp_path: Path) -> None:
     assert not (tmp_path / "view").exists()
 
 
-def test_a_started_plain_portrait_run_is_listed_and_its_own_trace_is_a_source(
+def test_a_started_workflow_run_is_listed_and_its_events_are_a_source(
     tmp_path: Path,
 ) -> None:
     run_dir = tmp_path / "runs/run-01"
-    plan = _write(run_dir / "plan.json", {"schema_version": 1, "kind": "portrait-motion-plan"})
-    graph = _write(run_dir / "graph.json", {"kind": "portrait-motion-v2"})
+    plan = _write(run_dir / "plan.json", {"gnode": "plan/v1"})
     os.utime(plan, (1000, 1000))
-    os.utime(graph, (1000, 1000))
+    # A plan alone is not yet a run.
+    assert runs.discover((tmp_path / "runs",)) == []
 
-    # Prepared, with no execution.json yet: listed, and its sources are the plan and graph.
+    events = _write(run_dir / "events.jsonl", "")
+    os.utime(events, (2000, 2000))
     assert [found.run_dir for found in runs.discover((tmp_path / "runs",))] == [run_dir.resolve()]
-    assert runs.source_mtime(run_dir) == 1000.0
-
-    trace = _write(run_dir / "trace/a.jsonl", "")
-    os.utime(trace, (2000, 2000))
     assert runs.source_mtime(run_dir) == 2000.0
 
 

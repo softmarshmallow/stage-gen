@@ -125,6 +125,15 @@ outputs for that slug, but this repository has not persisted a live contract
 probe for the migration. Hosted capabilities can drift, so keep the provider
 smoke test as a release gate for recipes that require structured generation.
 
+Stage Gen's gnode plugin offers `structured.generate` on that model and on one verified
+vision judge, `openai/gpt-6-astra@openrouter`, which portrait motion's gnode.yaml names.
+The judge's route contract carries its request settings (high reasoning effort, high image
+detail, OpenAI as the only upstream, fallbacks off) and shows every picture exactly as its
+file is (`pictures: unchanged`); the configured text model reduces pictures to a 1600-pixel
+long edge flattened onto the step's matte. Both settings are part of the route fingerprint,
+so a call's cache key changes with them. Its worst case is USD 1.50 a call, the reservation
+the portrait runs held per attempt; their calls cost USD 0.07 to 0.39.
+
 ## Binding-driven image selection and dispatch
 
 Stage Gen registers GPT Image 2.5 Sunburst as one product with six base image

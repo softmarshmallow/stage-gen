@@ -160,6 +160,8 @@ def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
     inputs = scratch / "parallax-inputs"
     movie = "src/stage_gen/workflows/movie_sprite/inputs/supplied_clip"
     clip = scratch / "movie-sprite-inputs"
+    portrait = "src/stage_gen/workflows/portrait_motion/inputs/make_inputs.py"
+    face = scratch / "portrait-inputs"
     # A scratch folder with no gnode.yaml: the runs and their cache stay inside it.
     project = scratch / "parallax-project"
     files = [w for w in discover() if w.root.joinpath("workflow.yaml").is_file()]
@@ -177,6 +179,13 @@ def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
         Step(("gnode", "plan", "movie-sprite", "--inputs", str(clip / "take.yaml")), cwd=project),
         Step(("gnode", "run", "movie-sprite", "--inputs", str(clip / "clip.yaml")), cwd=project),
         Step(("gnode", "inspect", "movie-sprite", "--verify"), cwd=project),
+        # portrait-motion: every call is paid, so both paths are planned; pytest runs them on
+        # the sample's stand-in answers.
+        Step((python, portrait, str(face))),
+        *(
+            Step(("gnode", "plan", "portrait-motion", "--inputs", str(face / name)), cwd=project)
+            for name in ("face.yaml", "whole.yaml")
+        ),
         # gnode's published document schemas, and the language-neutral conformance suite that
         # any gnode implementation must pass, run through the gnode command only.
         Step((python, "scripts/write_gnode_schemas.py", "--check")),

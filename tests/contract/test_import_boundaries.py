@@ -245,7 +245,6 @@ GENERIC_ORCHESTRATION_MODULES = (
 # Concrete provider composition for one workflow stays at the composition root, and
 # may import that workflow (or its frozen implementation root) and nothing else.
 ORCHESTRATION_WORKFLOW_OWNERS = {
-    "portrait_services.py": "stage_gen.workflows.portrait_motion",
     "character_3d": "stage_gen.recipes.character_3d",
 }
 

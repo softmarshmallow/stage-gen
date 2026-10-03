@@ -3,9 +3,9 @@
     "ConceptPlan": {
       "additionalProperties": false,
       "properties": {
-        "audience_question": {
-          "minLength": 1,
-          "title": "Audience Question",
+        "entity_id": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Entity Id",
           "type": "string"
         },
         "concept_mode": {
@@ -24,21 +24,6 @@
           "title": "Concept Mode",
           "type": "string"
         },
-        "entity_id": {
-          "pattern": "^[a-z][a-z0-9_]{1,95}$",
-          "title": "Entity Id",
-          "type": "string"
-        },
-        "in_frame_contrast": {
-          "minLength": 1,
-          "title": "In Frame Contrast",
-          "type": "string"
-        },
-        "lesson_key": {
-          "pattern": "^[a-z][a-z0-9_]{1,95}$",
-          "title": "Lesson Key",
-          "type": "string"
-        },
         "primary_purpose": {
           "enum": [
             "orient",
@@ -54,20 +39,14 @@
           "title": "Primary Purpose",
           "type": "string"
         },
-        "scene_premise": {
-          "minLength": 1,
-          "title": "Scene Premise",
+        "lesson_key": {
+          "pattern": "^[a-z][a-z0-9_]{1,95}$",
+          "title": "Lesson Key",
           "type": "string"
         },
-        "scene_register": {
-          "$ref": "#/$defs/SceneRegister"
-        },
-        "signature_motif": {
-          "$ref": "#/$defs/SignatureMotif"
-        },
-        "unique_contribution": {
+        "audience_question": {
           "minLength": 1,
-          "title": "Unique Contribution",
+          "title": "Audience Question",
           "type": "string"
         },
         "visible_fact_ids": {
@@ -85,6 +64,27 @@
           },
           "title": "Visible Relationship Ids",
           "type": "array"
+        },
+        "scene_premise": {
+          "minLength": 1,
+          "title": "Scene Premise",
+          "type": "string"
+        },
+        "signature_motif": {
+          "$ref": "#/$defs/SignatureMotif"
+        },
+        "in_frame_contrast": {
+          "minLength": 1,
+          "title": "In Frame Contrast",
+          "type": "string"
+        },
+        "unique_contribution": {
+          "minLength": 1,
+          "title": "Unique Contribution",
+          "type": "string"
+        },
+        "scene_register": {
+          "$ref": "#/$defs/SceneRegister"
         }
       },
       "required": [
@@ -107,24 +107,6 @@
     "SceneRegister": {
       "additionalProperties": false,
       "properties": {
-        "energy": {
-          "enum": [
-            "still",
-            "working",
-            "urgent"
-          ],
-          "title": "Energy",
-          "type": "string"
-        },
-        "population": {
-          "enum": [
-            "solitary",
-            "few",
-            "crowd"
-          ],
-          "title": "Population",
-          "type": "string"
-        },
         "scale": {
           "enum": [
             "intimate",
@@ -133,15 +115,6 @@
             "landscape"
           ],
           "title": "Scale",
-          "type": "string"
-        },
-        "setting": {
-          "enum": [
-            "interior",
-            "exterior",
-            "threshold"
-          ],
-          "title": "Setting",
           "type": "string"
         },
         "time_of_day": {
@@ -170,6 +143,33 @@
         "weather_justification": {
           "minLength": 1,
           "title": "Weather Justification",
+          "type": "string"
+        },
+        "setting": {
+          "enum": [
+            "interior",
+            "exterior",
+            "threshold"
+          ],
+          "title": "Setting",
+          "type": "string"
+        },
+        "population": {
+          "enum": [
+            "solitary",
+            "few",
+            "crowd"
+          ],
+          "title": "Population",
+          "type": "string"
+        },
+        "energy": {
+          "enum": [
+            "still",
+            "working",
+            "urgent"
+          ],
+          "title": "Energy",
           "type": "string"
         }
       },
@@ -222,24 +222,23 @@
     }
   },
   "additionalProperties": false,
-  "description": "universe structured output for universe.plan",
   "properties": {
-    "plans": {
-      "items": {
-        "$ref": "#/$defs/ConceptPlan"
-      },
-      "title": "Plans",
-      "type": "array"
+    "universe_id": {
+      "pattern": "^[a-z][a-z0-9_]{1,95}$",
+      "title": "Universe Id",
+      "type": "string"
     },
     "set_rationale": {
       "minLength": 1,
       "title": "Set Rationale",
       "type": "string"
     },
-    "universe_id": {
-      "pattern": "^[a-z][a-z0-9_]{1,95}$",
-      "title": "Universe Id",
-      "type": "string"
+    "plans": {
+      "items": {
+        "$ref": "#/$defs/ConceptPlan"
+      },
+      "title": "Plans",
+      "type": "array"
     }
   },
   "required": [
@@ -248,5 +247,6 @@
     "plans"
   ],
   "title": "GalleryPlan",
-  "type": "object"
+  "type": "object",
+  "description": "universe structured output for universe.plan"
 }

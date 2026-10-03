@@ -1,368 +1,223 @@
 # Portrait motion: contract
 
-> **Checked by:** `tests/unit/components/portrait_motion/test_models.py`.
+> **Checked by:** `tests/contract/test_workflow_contract_docs.py`.
 
-The `portrait-motion` workflow turns one fixed original portrait into independently
-selectable eye and mouth drawings. It uses the N-card atlas method: repeat the same
-source into a supplied grid, repaint all declared states in one image job, register the
-cards, and replace only localized facial regions over the original. The current bounded
-contract supports one to four cards. The [four-card input](inputs/four-card.json)
-supplies a half blink, closed eyes, a smile, and an A-mouth in a 2×2 grid.
+Turn one finished character picture into eye and mouth drawings a game can select
+independently: a half blink, closed eyes and mouth shapes, each a patch over the unchanged
+original. The method is one sheet: the face is repeated into every cell of a grid, one image
+edit draws every state at once so they share one hand, and each cell is aligned back onto the
+original and cut to an outline. The workflow does not bind a character into a game or publish
+generated art; the [movie-sprite](../movie_sprite/contract.md) workflow's `canonical.png` is
+one source it is made for.
 
-The optional face-crop mode first locates a face in an original RGB or RGBA sprite,
-applies the same component to an opaque working crop, then restores native face patches
-onto the unchanged full sprite. The [workflow page](page.mdx) walks through it with the
-square [face-crop input](inputs/face-four-card.json). Omitting `--face-crop` from
-`stage-gen plan portrait-motion` keeps the opaque-portrait mode and its source-canvas
-requirements.
+The workflow is a gnode workflow file, [`workflow.yaml`](workflow.yaml), over its own node
+types in [`nodes/`](nodes/), its static prompts in [`prompts/`](prompts/) and the JSON Schemas
+its structured steps answer to in [`schemas/`](schemas/), both generated from the
+[portrait-motion component](../../components/portrait_motion/__init__.py) and held to it by a
+test, and gnode's standard `structured.generate` and `image.edit`. `gnode plan|run
+portrait-motion` plans and runs it. Its inputs:
 
-This is a standalone headless capability and CLI. It does not add a stage to the
-[game-generation graph](../../../../godot/games/bellweather/docs/generation-pipeline.md),
-bind a character into a game, or publish generated art. A consumer can choose the eye
-and mouth states independently from the resulting composition manifest.
+- `portrait`: the finished picture, a PNG with RGB or RGBA pixels, at most 16383 pixels on a
+  side.
+- `spec`: a `PortraitMotionSpec` JSON file (below).
+- `face_crop` (default `true`): find the face and animate a square crop of it. With `false`
+  the picture is the portrait itself, and must be opaque and exactly the spec's canvas.
 
-## Scope and ownership
+## Ownership
 
-The original portrait remains the rest state and the source of every pixel outside the
-active replacement masks. The component animates visible open eyes and a resting mouth.
-Fully hidden features remain hidden. Ambiguous subjects or unreadable artwork refuse the
-source. Substantial occlusion that prevents locating usable feature artwork can be
-refused independently per feature. Fine hair touching peripheral lashes alone does not
-exclude a readable eye whose main opening and lid path can be localized while preserving
-the foreground. One visible eye or only a mouth is a valid partial result.
+The original remains the rest state and the source of every pixel outside the active
+replacement masks. The workflow animates visible open eyes and a resting mouth. Fully hidden
+features stay hidden. An ambiguous subject or unreadable artwork refuses the source, and
+substantial occlusion can refuse one feature at a time; fine hair touching peripheral lashes
+alone does not exclude an eye whose opening and lid path are readable. One eye, or only a
+mouth, is a valid partial result.
 
-The accepted baseline allows modest atlas-induced softness and small peripheral lash
-differences when the intended blink or mouth state remains clear. Those limits must be
-recorded by the review rather than silently relabeled as perfect source fidelity. Wrong
-states, identity changes, substantial surviving open-eye art, displaced features, severe
-seams, and changes to excluded features remain failures. Source restoration,
-hidden-anatomy reconstruction, bald donors, hair removal, gaze, brows, head/body motion,
-IK, and video generation are outside this capability. The sample timeline demonstrates
-speaking-like mouth changes; it does not infer phonemes, align audio, or supply a full
-viseme set. The [proposed viseme profile](#proposed-portrait-visemes) below records the
-nine-state mouth vocabulary and future audio-timing boundary. It is an unimplemented
-evolution target, not part of this contract.
+The accepted baseline allows modest softness from enlarging an atlas cell and small
+peripheral lash differences, when the intended state stays clear; the review records those
+limits rather than calling them perfect. Wrong states, identity changes, surviving open-eye
+art, displaced features, severe seams and changes to excluded features are failures. Source
+restoration, hidden anatomy, bald donors, hair removal, gaze, brows, head or body motion, IK
+and video are outside it. The sample timeline shows speaking-like mouth changes; it does not
+infer phonemes, align audio or supply a viseme set (see the
+[proposed viseme profile](#proposed-portrait-visemes) below).
 
-The N-card baseline and optional face-crop mode are promoted. Bald donors, foreground
-restoration, stricter visual-fidelity research, and the experimental
-context-registration continuation remain deferred. The face-crop mode keeps the
-component's existing registration and semantic refusal rules. Configurable VLM controls
-and reference optimization are tracked in
-[issue #12](https://github.com/softmarshmallow/stage-gen/issues/12) as follow-up work,
-not as unfinished promotion tasks.
-
-Ownership follows the [component contract](../../components/README.md):
-
-- [`components/portrait_motion`](../../components/portrait_motion/__init__.py) owns the
-  strict specification, graph nodes, image registration, masks, composition, playback,
-  semantic contracts, and confined artifact store. It consumes public `gnode` interfaces
-  and contains no provider credentials or model selection.
-- [`pipeline.py`](pipeline.py) owns the image route binding, structured binding, durable
-  spend accounting, preparation, execution, and verification.
-- [`face.py`](face.py) owns the optional original-sprite wrapper, its contained locator
-  and portrait runs, crop lineage, and native patch outputs. Deterministic crop, patch,
-  and playback helpers remain in the portrait-motion component.
-- [`services.py`](services.py) declares the injected-services protocol, and
-  [`orchestration/portrait_services.py`](../../orchestration/portrait_services.py) owns
-  the concrete, opt-in provider construction a live run injects. The workflow never
-  imports that implementation.
-- [`cli.py`](cli.py) exposes `stage-gen plan portrait-motion` (preparation) and
-  `stage-gen run portrait-motion`; `stage-gen inspect RUN --verify` verifies a run
-  through the workflow's declaration in [`workflow.py`](workflow.py).
-
-## Python API
-
-```python
-from stage_gen.workflows.portrait_motion import prepare, run, verify, PortraitMotionSpec
-
-prepare(source_path, run_dir, spec)
-result = await run(
-    run_dir,
-    image_service=my_retry_owning_image_service,
-    structured_service=my_retry_owning_review_service,
-)
-verified = verify(run_dir)
-```
-
-`prepare_run`, `run_pipeline`, and `verify_run` remain available under their existing
-names. `prepare(..., face_crop=True)` selects the contained face-crop mode: face location,
-deterministic working crop, the portrait graph, and reconstruction on the original
-canvas. The package also exports `RuntimeProfile`, `graph_for`, and `load_plan` for
-inspection and host integration.
-
-Injected services remain caller-owned and must match the prepared route and request
-policy. A host can implement `PortraitServiceFactory` to admit live execution and
-construct budget-aware services. The CLI explicitly supplies
-`stage_gen.orchestration.portrait_services.ConfiguredPortraitServices`. That host retains
-the allowlisted key loader, the `STAGE_GEN_RUN_LIVE=1` requirement, exact route
-credentials, and durable per-attempt budget reservation before transport. Ordinary
-component services remain the sole retry owners.
-
-Preparation is immutable. Content digests, dependency versions, exact route snapshots,
-stage receipts, submission markers, and source provenance keep their admission semantics. An unresolved provider submission is not
-automatically dispatched again. Local reconstruction cannot expand an upstream semantic
-acceptance decision. The parent run preflights all downstream keys before locating a
-face.
-
-A preparation binds the code that made it through its node types' declared versions, not
-through source bytes: a change that alters what a stage produces bumps that stage's node
-type, and only its keys and those downstream move. Existing artifacts stay on disk, and their
-plans and traces remain historical evidence. The contract identity/version pairs and artifact
-layouts are not rewritten.
-
-For provider-free experimentation, the SDK sample
-[`docs/sdk/pipelines/portrait_processing.py`](../../../../docs/sdk/pipelines/portrait_processing.py)
-composes the real face crop and restoration components through `stage_gen.pipeline`. It
-creates a deterministic synthetic donor, preserves pixels outside the authored mask and
-original alpha, and writes a two-frame WebP preview. It demonstrates mechanical
-composition and cache reuse; it makes no semantic or temporal approval.
-
-## Eight-stage graph
-
-New preparations write the route-bearing `portrait-motion-plan-v2` plan and
-`portrait-motion-v2` graph documents. Readers recognize route-free v1 records as
-historical data and never rewrite them; a v1 run must be freshly prepared before resume.
-
-| Stage | Work and retained evidence | Provider job |
-| --- | --- | --- |
-| `admission` | Inspect the source and record `direct`, `hidden`, or `unsupported` for each canvas-side eye and the mouth. | One structured vision job |
-| `guide` | Fill every declared cell with the identical resized source. | Local |
-| `atlas` | Edit each card according to its declared state while preserving the guide layout. | One image job for the entire atlas |
-| `registration` | Slice in row-major state order, automatically align each donor to the source, and retain transforms, valid coverage, and difference heatmaps. | Local |
-| `geometry` | Locate the admitted eye/mouth replacement polygons from the source, coordinate guide, registered donors, and heatmaps. | One structured vision job |
-| `composition` | Construct disjoint masks, all independent eye/mouth combinations, pixel-exactness evidence, and an animated preview. | Local |
-| `quality` | Independently review the final combinations against the original using the baseline tolerance above. | One structured vision job |
-| `terminal` | Derive the final outcome from every validated stage decision. | Local |
-
-The normal path therefore has one atlas image job and three structured jobs. An earlier
-refusal skips dependent work. A valid semantic refusal is a terminal decision, not an
-invalid response to retry. There is no semantic regeneration loop and no hand-authored
-coordinate correction in this pipeline.
-
-Face-crop mode adds one spatial face-location job before these eight stages. Its usual
-successful path has five provider operations: locator, admission, one atlas edit,
-geometry, and still-image quality. Cropping, patch restoration, full-sprite assembly,
-and playback are local. Repeated blinks reuse the authored states and incur no
-additional provider operation.
-
-Difference heatmaps are evidence for localization, not the masks themselves. The
-semantic stage assigns anatomical ownership; bright differences in hair, clothing, or the
-background are not permission to repaint those regions. The fully opaque polygon core
-targets the union of old and replacement feature artwork, while preserving foreground
-hair even when isolated peripheral lash tips remain as a baseline limitation. Feathering
-extends outside that core into agreeing surrounding pixels. Eye and mouth support,
-including feathers, must remain disjoint and inside valid registered donor coverage.
-
-Composition retains the original pixels exactly outside active support and the
-registered donor exactly inside fully opaque cores. Rest/rest is always the unchanged
-source. Excluded features use the original even when a state card contains incidental
-edits. These deterministic properties establish pixel ownership; they do not establish
-semantic quality by themselves.
+- [`components/portrait_motion`](../../components/portrait_motion/__init__.py) owns the strict
+  spec and result models, the schemas and validators of every structured answer, the atlas,
+  outline and review prompts, registration, masks, composition, playback, and the face crop
+  and its way back. It calls no provider and owns no run.
+- The workflow owns how they compose: the steps, the judges, what a refusal ends, and which
+  routes answer by default ([`gnode.yaml`](gnode.yaml)).
 
 ## Authored specification
 
-`PortraitMotionSpec` is a strict, lower_snake_case JSON contract. Extra fields and
-coercions are refused. The source and atlas share `width` and `height`; `panel_size` is
+`PortraitMotionSpec` is a strict, lower_snake_case JSON contract; extra fields and coercions
+are refused. The working canvas and the atlas share `width` and `height`; `panel_size` is
 `(width / columns, height / rows)`.
 
 | Field | Contract |
 | --- | --- |
 | `schema_version` | `1` |
-| `width`, `height` | Integers from 128 through 2048; both divide evenly into the grid. The supplied provider profile also validates its canvas constraints offline. |
-| `columns`, `rows` | Each from 1 through 4; their product equals the number of states, currently at most 4. |
+| `width`, `height` | Integers from 128 through 2048; both divide evenly into the grid. |
+| `columns`, `rows` | Each from 1 through 4; their product equals the number of states, at most 4. |
 | `states` | One record per cell in row-major order: unique `state_id`, `feature_group` (`eyes` or `mouth`), and an edit `instruction`. `rest` is reserved for the original. |
-| `requested_features` | Unique members of `canvas_left_eye`, `canvas_right_eye`, and `mouth`; canvas sides are viewer sides. Every requested group needs a declared state. |
+| `requested_features` | Unique members of `canvas_left_eye`, `canvas_right_eye` and `mouth`; canvas sides are viewer sides. Every requested group needs a declared state. |
 | `feather_panel_px` | Exterior feather width in panel pixels, from 0 through 8; default 3.0. |
-| `playback` | Up to 128 segments containing `eyes`, `mouth`, and `duration_ms`; selections must belong to the correct group. Each segment is 20–10000 ms; total duration is at most 60 seconds. First and last selections are rest/rest. |
+| `playback` | Up to 128 segments of `eyes`, `mouth` and `duration_ms` (20 to 10000 ms each, at most 60 seconds in all), each selection from its own group; the first and last are rest/rest. |
 
-The four-card input uses a 1024×1536 source and atlas, so each donor card is 512×768.
-Replacement regions are enlarged back to the original canvas; the rest of the image
-retains native source detail. This can make the mouth or lash art softer than its
-surroundings. One image job also does not imply exactly one quarter of the monetary cost
-of four separate images: reference payloads, resolution, retries, and structured review
-all contribute.
+The committed [face input](inputs/face-four-card.json) declares a 1024×1024 workspace and four
+512×512 cards; a face crop's workspace and grid are square, so it allows one card or a 2×2
+sheet. The [whole-portrait input](inputs/four-card.json) uses a 1024×1536 canvas, so each card
+is 512×768. Replacement regions are enlarged back to the canvas while the rest keeps native
+detail, so a mouth or lash can read softer than its surroundings.
 
-## Face-crop boundary
+## Graph and calls
 
-With `stage-gen plan portrait-motion --face-crop`, the supplied PNG is the original full
-sprite. It may use RGB or RGBA pixels, including partial transparency; its dimensions
-need not match the specification. Each original axis must fit the full-resolution WebP
-limit of 16383 pixels. The face specification instead declares the square working crop
-and atlas. The supplied face input uses 1024×1024 with four 512×512 cards in a 2×2 grid.
-Both the working canvas and each card must be square: `width == height` and
-`columns == rows`. Given the four-card limit, this permits a 1×1 single-card grid or a 2×2
-four-card grid. Rectangular cards refuse offline before localization. Direct-portrait
-mode keeps its general N-card grid contract.
-
-The locator answers only where the principal face is. Its box uses normalized
-whole-image coordinates from 0 through 1000, covering forehead, cheeks, and chin. It does
-not decide animation suitability. A located face proceeds to the feature admission
-stage; a valid `not_locatable` result stops the wrapper.
-
-The crop adds context equal to 35 percent of the longest face dimension on each side and
-rounds out to a square. Areas beyond the original canvas are padded. The working
-reference is flattened over a neutral background and resized once for the atlas
-pipeline. This internal opaque representation never replaces the full source.
-
-After the eight stages accept features, registered raw donors and their masks are mapped
-into the exact native padded face crop. Edge blending is applied there once. The
-resulting patches carry binary replacement support and the already blended RGB. The
-outer operation places those pixels using only the recorded integer crop offset: no
-second resize or feather is applied, and the original alpha is retained. Alpha,
-rest/rest, and pixels outside active support are checked against the original. Fully
-transparent source pixels retain their hidden RGB in PNG states; WebP may normalize
-invisible RGB during encoding.
-
-The parent writes a `portrait-face-motion-plan-v1` plan. It owns the original and two
-contained subruns: `locator/` and `portrait/`. Their plans, receipts, request policies,
-ledgers, and lineage remain inspectable. Parent verification checks the contained work
-and reconstructed full-source artifacts. The operation adds no runtime host or game
-consumer. The locator verdict is `locator/locator/location.json`; `crop/transform.json`
-records the source-to-work transform, and `crop/work.png` is the derived opaque working
-reference.
-
-## Direct-portrait CLI
-
-Use an original opaque PNG with a matching canonical `portrait.png.meta.json` provenance
-sidecar. Preparation checks the digest, dimensions, opacity, and source provenance, then
-imports unchanged source bytes and preserves the original provenance in the new run. The
-four-card input requires a 1024×1536 PNG. The run directory must not already exist;
-source and run paths must not traverse symlinks. No generated character media is bundled
-with the text input.
-
-These commands describe direct opaque-portrait mode. For an arbitrary RGB/RGBA full
-sprite, use `--face-crop` and the face input as the [workflow page](page.mdx) shows.
-
-From a repository checkout:
-
-```sh
-uv run stage-gen plan portrait-motion \
-  --source /path/to/portrait.png \
-  --spec src/stage_gen/workflows/portrait_motion/inputs/four-card.json \
-  --run /path/to/new-portrait-run
+```
+check (at plan)
+face:    locate ◁ located → crop                         (face_crop only)
+draw:    admission ◁ admitted → guide, briefs → atlas
+fit:     registration → geometry ◁ geometry_ok
+compose: composition → quality ◁ quality_ok
+deliver: result, keep (whole portrait) | render (face crop)
 ```
 
-Preparation is offline and seals the current image-provider selection into the plan.
-Paid execution requires both `--live` and `STAGE_GEN_RUN_LIVE=1`, plus
-`OPENROUTER_API_KEY` for the structured jobs and the key for the image provider named by
-that plan (`OPENAI_API_KEY` by default or `FAL_KEY` after a fal override). Keys come from
-the environment or the optional existing allowlisted dotenv file:
+`◁` marks a deterministic judge: it holds the answer to the component's validator, and a
+malformed answer is drawn again, six takes at most, before the run fails. A valid refusal is
+not malformed: it is a result, it ends the chain, and `deliver.result` names the stage.
 
-```sh
-STAGE_GEN_RUN_LIVE=1 uv run stage-gen run portrait-motion \
-  --run /path/to/new-portrait-run --live --dotenv .env
+- **check** reads the spec and holds the picture to it before anything is paid for.
+- **locate** asks `structured.generate` only where the principal face is: a box in
+  coordinates normalized to 0..1000 over the whole picture. It never judges whether the face
+  can move. A `not_locatable` answer refuses the run at `face`.
+- **crop** adds 35 percent of the face's longest side as context on every side, rounds out to
+  a square, pads beyond the canvas, flattens onto neutral grey and resizes once to the spec's
+  canvas; its transform maps every pixel back.
+- **admission** records `direct`, `hidden` or `unsupported` for each eye and the mouth; only
+  `direct` features move, and none at all refuses the run at `admission`.
+- **guide** fills every cell with the same reduced picture, and keeps one reduced copy and the
+  copy with a labelled pixel grid for outlining. **briefs** writes the three questions that
+  depend on what was admitted: the sheet edit, the outlines, and the still review with its
+  pictures named in order.
+- **atlas** is one `image.edit` of the guide at the exact canvas, opaque; a picture with any
+  transparency is drawn again inside the call's one retry owner.
+- **registration** cuts the sheet into its cells, aligns each to the original and records its
+  fit and a difference map; a cell that moved, turned or changed scale beyond the gate refuses
+  the run at `registration`.
+- **geometry** outlines each admitted feature as polygons on the reduced copy, shown the copy,
+  its grid and every drawing with its difference map. The judge checks the canvas, the
+  polygons and that their feathered masks are disjoint; `cannot_segment` refuses the run at
+  `geometry`.
+- **composition** builds every eyes-and-mouth combination from those outlines, checks that
+  nothing outside the active masks changed and that the order the groups are applied in
+  changes nothing, and encodes the timeline at panel size.
+- **quality** is an independent review of every combination but the rest, after the source,
+  against the baseline above; a `fail` refuses the run at `quality`.
+- **render** (face crop) maps each accepted drawing and mask into the native face crop, blends
+  its edge there once, and places the patch on the original at one integer offset: no second
+  resize or feather, the original's alpha kept. Alpha, rest/rest and every pixel outside the
+  patches are checked against the original. **keep** (whole portrait) hands on the reviewed
+  combinations as they are.
+
+The usual accepted face run makes five paid calls: four structured answers on
+`openai/gpt-6-astra@openrouter` and one sheet edit on `gpt-image-2.5-sunburst@openai`. The
+structured route's contract carries its request settings (high reasoning, high image detail,
+OpenAI only, no fallback) and shows every picture exactly as it is, so both are part of each
+call's identity. The plan prices each call at its route's ceiling and every judge's redraws as
+possible takes; a usual run costs about one US dollar. A run makes calls only with `--live`
+(`live=True` in Python), an OpenRouter key and an OpenAI key.
+
+```python
+import gnode
+
+result = gnode.run("portrait-motion", input_files=["face.yaml"], live=True, max_usd=5)
 ```
 
-The current application profile binds the opaque Sunburst atlas edit through OpenAI by
-default and GPT-6 Astra through OpenRouter for admission, polygons, and review. Set
-`STAGE_GEN_IMAGE_PROVIDER=fal` while preparing to seal fal's equivalent reference-edit
-route; an OpenRouter image override is refused because this atlas canvas is outside its
-verified exact-size set. Its structured request policy uses high reasoning and image
-detail, restricts the upstream structured route to OpenAI, and disables provider
-fallback. The image route is likewise exact and has no fallback. This opaque-source mode
-requires no native-transparency generation. The runtime bindings are independent of
-other workflows' default text model; provider details remain in
-[Provider operations](../../../../docs/models/providers.md).
+## Results
 
-`stage-gen plan portrait-motion --profile /path/to/profile.json` accepts a strict
-`RuntimeProfile`. The default run allowance is $6, with $1.50 reserved before every
-dispatched provider attempt. Each operation has one service retry owner and at most six
-attempts, subject to the run's 24-attempt and spend limits. Successful responses with
-dollar-cost metadata settle to that reported cost; absent dollar cost or an interrupted
-attempt retains the reservation. `budget_charged_usd` is therefore conservative local
-accounting, not an invoice or guaranteed provider price cap.
+`outputs/result.json` is `PortraitMotionResult` v2:
 
-Face-crop mode retains that $6 allowance for its portrait subrun and adds a separate
-locator allowance of $3, reserving $0.50 per locator attempt. The two ledgers account for
-distinct operations. Neither their limits nor retained reservations are quoted image
-prices; actual cost depends on usage and retries.
+- `complete`: every requested feature was admitted and passed the still review;
+- `partial`: some were admitted and all of those passed; the rest keep their drawing;
+- `refused`: `refused_at` names the stage (`face`, `admission`, `registration`, `geometry` or
+  `quality`) and `reason` gives its own words. A refused run accepts no feature.
 
-Verify all retained outputs or replay validated checkpoints without providers:
+It always carries `temporal_review: "not_performed"` and `publication_authorized: false`: a
+still verdict does not prove how the animation plays.
 
-```sh
-uv run stage-gen inspect /path/to/new-portrait-run --verify
-uv run stage-gen run portrait-motion --run /path/to/new-portrait-run
+An accepted face run delivers, under `outputs/`, `animation.webp` (the timeline at the
+original's full size, lossless, alpha kept), `states/` (every combination as a full-size PNG,
+keyed `<eyes>--<mouth>`), `patches/` (each feature in each state, keyed
+`<state>-<feature>`) and `manifest.json` (`portrait-face-motion-v2`: `offset_xy`,
+`patch_size`, the patches and combinations with their digests, the authored `timeline`, and
+`patch_application: "replace_selected_rgb_preserve_original_alpha"`). A patch's RGB already
+includes its edge blending (`feather_already_baked: true`); a second blend changes it. The
+component's `apply_offset_patch` places a patch exactly. A whole-portrait run delivers
+`animation.webp` at panel size, `states/` and the composition's `manifest.json`.
+
+## Identity: what re-bills what
+
+Each step's identity is its node type's locked version ([`gnode.lock`](gnode.lock); the node
+modules and the component count as their source) and what it reads; each paid call is kept in
+gnode's call cache by the request it sends. So:
+
+| Edit | Re-bills |
+| --- | --- |
+| `prompts/locate.md` | the face box, then everything after it if the box moves |
+| `prompts/admission.md` | the feature decision, then the sheet, outlines and review |
+| a state's `instruction`, or the atlas prompt in the component | the sheet, then the outlines and review |
+| the outline or review prompt in the component | that step and what follows it |
+| `playback` only | nothing: composition and render rerun locally |
+
+Every pixel step is deterministic, so a run with unchanged inputs and code delivers the same
+bytes: the earlier pipeline's yuzu-face run, carried into the call cache with its five answers,
+delivers byte-identical states, patches and animation.
+
+## Graph
+
+gnode plans the face path of the drawn sample offline; this is the shape of that plan.
+`scripts/write_workflow_contracts.py --write` regenerates the block, and the check above fails
+when it drifts:
+
+<!-- pipeline-graph-contract:start -->
+```json
+{
+  "graph_kind": "gnode-graph-v2",
+  "topology_sha256": "f3acd298cf6d9b842aff9724ec1c4153e567b9b1839a633bcf597c78544ca0b6",
+  "node_count": 57,
+  "operation_counts": {
+    "image_edit": 1,
+    "local": 32,
+    "structured_generate": 24
+  },
+  "outputs": [
+    "outputs/animation.webp",
+    "outputs/manifest.json",
+    "outputs/patches/",
+    "outputs/result.json",
+    "outputs/states/"
+  ],
+  "type_ids": [
+    "portrait_motion/check",
+    "portrait_motion/compose/composition",
+    "portrait_motion/compose/quality",
+    "portrait_motion/compose/quality_ok",
+    "portrait_motion/deliver/render",
+    "portrait_motion/deliver/result",
+    "portrait_motion/draw/admission",
+    "portrait_motion/draw/admitted",
+    "portrait_motion/draw/atlas",
+    "portrait_motion/draw/briefs",
+    "portrait_motion/draw/guide",
+    "portrait_motion/face/crop",
+    "portrait_motion/face/locate",
+    "portrait_motion/face/located",
+    "portrait_motion/fit/geometry",
+    "portrait_motion/fit/geometry_ok",
+    "portrait_motion/fit/registration"
+  ]
+}
 ```
-
-An incomplete run without supplied services fails rather than making a provider call. A
-fully verified run reuses all stages with zero new provider operations. Prepared plans
-bind the source, specification, resolved image route snapshot and effective output
-options, model policy, implementation source hashes, and runtime dependency versions.
-Changing any of these requires a fresh preparation rather than replaying an old run under
-different code.
-
-Programmatic callers can inject ordinary gnode services into `run_pipeline`. Their
-provider/model identities must match the prepared bindings before any submission.
-Injected services remain caller-owned: the caller must configure the recorded request
-policy and manage the services' lifetime. Request metadata records intended settings,
-not an attestation about an injected backend. The normal live CLI constructs and
-configures its own backends from the profile.
-
-The same `run` and `inspect --verify` commands recognize the prepared face-crop plan and
-operate on its wrapper and contained runs. Replaying accepted local outputs does not
-repeat face localization or atlas generation. Programmatic preparation uses
-`prepare_run(..., face_crop=True)`. Its async `run_pipeline` also accepts an optional
-`locator_service`; when omitted in an injected run, localization uses the supplied
-`structured_service`. Both must match the planned route and policy. Direct-portrait mode
-rejects a locator service because it has no localization stage.
-
-## Results and evidence
-
-The final `terminal/manifest.json` and returned JSON distinguish:
-
-- `complete`: every requested feature was admitted and passed still review;
-- `partial`: a nonempty subset was admitted and passed still review;
-- `refused`: a valid semantic or registration decision rejected the result;
-- `failed`: a required execution or integrity check failed.
-
-The CLI returns a nonzero status for `failed`. Consumers must inspect the JSON status to
-distinguish `refused`, `partial`, and `complete`; process success alone does not grant a
-usable animation.
-
-Accepted results reference `composition/manifest.json`, which lists the
-source-resolution PNG combinations and their hashes, and `composition/preview.webp`, an
-animated lossless WebP at panel resolution. The four-card input produces nine
-independent combinations, including rest/rest, and an eight-second loop.
-`quality/quality.json` records the artifact-specific still verdict. Diagnostics,
-rejected candidates, masks, heatmaps, and registration fits remain inspectable even when
-the terminal result grants no accepted output.
-
-For an accepted face-crop result, the parent `terminal/result.json` and returned JSON
-select `render/manifest.json`, whose kind is `portrait-face-motion-v1`. The manifest
-records native face patches, their placement, full-source state combinations, and the
-authored `timeline`; `playback` holds encoding facts. Each patch maps a `state_id` to a
-`feature_id`: mouth is the mouth group and both canvas-side eyes are the eyes group.
-`render/animation.webp` plays at the original full canvas size; `render/states/` holds
-full-source PNG states, and `render/patches/` holds native padded-face patches. Paths are
-relative to the parent run. Consumers must keep the manifest's `offset_xy` and
-`patch_application: "replace_selected_rgb_preserve_original_alpha"` semantics.
-`feather_already_baked: true` means the patch RGB already includes its edge transition; a
-second alpha blend would change it. Parent acceptance is inherited from the face still
-review, while native reconstruction is checked deterministically. It does not grant an
-additional full-canvas semantic verdict. The public component helper
-`apply_offset_patch` implements this placement without changing original alpha. The
-[workflow page](page.mdx) shows independent patch selection from a verified manifest.
-
-A source with a wide-open mouth can yield an accepted blink and an unsupported mouth.
-That is a `partial` result: mouth selections retain the source drawing. The retained
-full-body face-crop demonstration accepted both eyes under that condition. It is evidence
-for that artifact, not a guarantee that every fresh source passes or a new live
-validation of this promotion.
-
-Every required stage has a validated receipt, complete expected file set, canonical
-provenance, and dependency/content hashes. Writes are confined and rollback-safe. A
-pending submission is retained before provider dispatch; interrupted work without a
-committed result is not automatically resubmitted. Verification recomputes terminal
-acceptance from retained stage decisions, so rewriting a terminal label cannot override
-a refusal.
-
-All results retain `temporal_review: "not_performed"` and
-`publication_authorized: false`. A still verdict or deterministic cache replay does not
-prove observed playback quality or repeatability of fresh generation. Promotion ships the
-agreed method and its documented limitations; accepting or publishing particular
-generated art remains a separate artifact-bound decision under
-[Verification](../../../../VERIFICATION.md) and
-[Generated-media publication](../../../../docs/generated-media-publication.md).
+<!-- pipeline-graph-contract:end -->
 
 ## Proposed: portrait visemes
 

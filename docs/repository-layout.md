@@ -92,7 +92,7 @@ metadata, so installing it does not require absent demo directories.
 src/stage_gen/components/
 ├── actor_content/                     # Actor asset content and admission
 ├── character_profile/                 # Reusable identity/profile input
-├── portrait_motion/                   # Portrait processing, rendering and validation
+├── portrait_motion/                   # Portrait prompts, schemas, validators and pixel work
 ├── movie_sprite/                      # Transparent body-loop finishing and spatial controls
 ├── sideview_actor/                    # Sprite geometry, scale and locomotion assets
 ├── sideview_layers/                   # Layer processing and parallax parameters
@@ -146,8 +146,10 @@ src/stage_gen/workflows/
 │   ├── nodes/, prompts/, views/       # Plate, brief and finish; the idle template; the loop view
 │   ├── workflow.py, example.py        # Registry hook; the example importer
 │   └── inputs/supplied_clip/          # Original geometric actor: a still and a lossless clip
-├── portrait_motion/                   # Generation, qualification, budgets and recovery
-│   └── inputs/                        # The four-card and face-crop specifications
+├── portrait_motion/                   # A workflow file: face, draw, fit, compose, deliver
+│   ├── nodes/, prompts/, schemas/     # Steps and judges; the static prompts; answer schemas
+│   ├── states.py                      # The combinations every step lists, in one order
+│   └── inputs/                        # The specs, and an original sprite with stand-in answers
 ├── universe/                          # A workflow file: world, look, entity, close
 │   ├── nodes/, prompts/, schemas/     # Judges and projections; templates; answer schemas
 │   ├── views/gallery.html             # The workflow's own view: the gallery
@@ -163,8 +165,8 @@ docs/sdk/pipelines/
 └── portrait_processing.py             # Component composition and preserved-pixel proof
 ```
 
-A workflow written as a workflow file has the shape `looping_parallax/`, `movie_sprite/` and
-`universe/` show. The tree lists
+A workflow written as a workflow file has the shape `looping_parallax/`, `movie_sprite/`,
+`portrait_motion/` and `universe/` show. The tree lists
 only what differs. Sample inputs and their scripts live in a
 workflow's `inputs/`; cross-component
 SDK samples live in `docs/sdk/pipelines`. A future component example should likewise live
@@ -177,8 +179,8 @@ hidden layers from one finished reference image. That operation can be added as 
 upstream generation stage with its own validation, while the repeat/composition/preview
 stages remain reusable.
 
-Portrait motion's pipeline belongs to its workflow; component-level
-crop/render/reconstruction remains in the component.
+Portrait motion's steps and judges belong to its workflow; the prompts, validators, crop,
+composition and reconstruction they compose remain in the component.
 
 Examples are not committed. `stage-gen example promote` and `demo-games example export`
 write frozen exports into the local, gitignored store `out/examples/<owner>/<id>/`, and each

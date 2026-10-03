@@ -1,4 +1,5 @@
-# Only what the code cannot know. Steps, identity and run readers live in workflow.py.
+# Only what the workflow file cannot say. Steps, titles and the sample plan come from
+# workflow.yaml through gnode.
 schema_version = 1
 kind = "stage-gen-workflow-v1"
 id = "portrait-motion"
@@ -11,34 +12,32 @@ combination is reviewed, and the accepted patches go back on the sprite at full 
 related = ["movie-sprite"]
 
 [try]
-input = "Your own finished sprite PNG with its provenance sidecar; the face spec is the committed inputs/face-four-card.json. The run step is paid: it needs your provider keys (or --dotenv)"
+input = "An original geometric character, as a full sprite and as an opaque portrait, with the inputs that use them, written by uv run python src/stage_gen/workflows/portrait_motion/inputs/make_inputs.py out/portrait-motion-input. The run is paid: it needs OpenRouter and OpenAI keys, and --live"
 commands = [
-  "stage-gen plan portrait-motion --source sprite.png --spec src/stage_gen/workflows/portrait_motion/inputs/face-four-card.json --run out/portrait-try --face-crop",
-  "STAGE_GEN_RUN_LIVE=1 stage-gen run portrait-motion --run out/portrait-try --live",
-  "stage-gen inspect out/portrait-try --verify",
+  "gnode plan portrait-motion --inputs out/portrait-motion-input/face.yaml",
+  "gnode run portrait-motion --inputs out/portrait-motion-input/face.yaml --live --max-usd 5",
+  "gnode inspect portrait-motion",
 ]
 
-# face_crop and face_reconstruction are stages of the parent run, not node types; only the
-# pinned example's run carries them.
-[labels]
-"2d/portrait_motion/face_crop" = "Crop the face"
-"2d/portrait_motion/face_reconstruction" = "Put it back at full size"
+[[outputs]]
+artifact_ref = "outputs/animation.webp"
+description = "The timeline at the sprite's full size, transparency kept"
 
 [[outputs]]
-artifact_ref = "render/animation.webp"
-description = "A preview at the sprite's full size, playing the timeline"
-
-[[outputs]]
-artifact_ref = "render/states/"
+artifact_ref = "outputs/states/"
 description = "Every eyes-and-mouth combination, as full-size PNGs"
 
 [[outputs]]
-artifact_ref = "render/patches/"
+artifact_ref = "outputs/patches/"
 description = "Each eye and the mouth in every state, as patches placed at one offset"
 
 [[outputs]]
-artifact_ref = "render/manifest.json"
+artifact_ref = "outputs/manifest.json"
 description = "Where the patches go, which feature each belongs to, and a sample timeline"
+
+[[outputs]]
+artifact_ref = "outputs/result.json"
+description = "Which features were accepted, or where the run refused and why"
 
 # Frozen exports in the example store (out/examples/portrait-motion/<id>/), pinned by digest.
 [[examples]]
@@ -48,6 +47,47 @@ status = "approved"
 source = "store"
 cover = true
 order = 5
-footer = "Every picture on this page comes from one real run. Its source is the first frame of a Yuzu body loop."
+footer = "Every picture on this page comes from one real run, made by the workflow of that time. Its source is the first frame of a Yuzu body loop."
 example_sha256 = "9633077caf605814ce6b9eaf376615628838f0f97c1c3c03eac4c96e51c0bc92"
 figures_sha256 = "b0a7a148b628d6efff7817769757eea45794c173948fe69406dba5caaa4bfce6"
+
+# Made with an earlier version: a pipeline whose steps the workflow file no longer has, so the
+# example groups and titles its own nodes. Its five paid answers were carried into the
+# workflow file's call cache, and running it again delivers the same bytes.
+[examples.labels]
+locator = "Find the face"
+face_crop = "Crop the face"
+admission = "Decide what can move"
+guide = "Lay out the sheet"
+atlas = "Draw the new states"
+registration = "Line them up"
+geometry = "Outline eyes and mouth"
+composition = "Build every combination"
+quality = "Review the result"
+terminal = "Keep what passed"
+face_reconstruction = "Put it back at full size"
+
+[[examples.steps]]
+label = "Find the face"
+note = "A vision model returned only a box around the face. The workspace was cut from the full sprite with padding on every side."
+members = ["locator", "face_crop"]
+
+[[examples.steps]]
+label = "Decide and draw"
+note = "A reviewer decided which eyes and mouth could safely change. The image model then drew every new state in one sheet, so they share one hand."
+members = ["admission", "guide", "atlas"]
+
+[[examples.steps]]
+label = "Fit"
+note = "Each new drawing was aligned to the original, and one that moved or changed scale would have been refused. A vision model outlined the eyes and mouth."
+members = ["registration", "geometry"]
+
+[[examples.steps]]
+label = "Compose and review"
+note = "Every eyes-and-mouth combination was built from those outlines, then judged by a reviewer that did not draw them."
+members = ["composition", "quality"]
+
+[[examples.steps]]
+label = "Deliver"
+note = "Only accepted features were kept. The patches went back on the original sprite at full size, with every pixel outside them checked unchanged."
+members = ["terminal", "face_reconstruction"]

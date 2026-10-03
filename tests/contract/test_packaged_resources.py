@@ -20,8 +20,25 @@ PORTRAIT_FACE_MODULES = {
     "stage_gen/components/portrait_motion/face_location.py",
     "stage_gen/components/portrait_motion/face_patches.py",
     "stage_gen/components/portrait_motion/face_playback.py",
-    "stage_gen/workflows/portrait_motion/face.py",
-    "stage_gen/workflows/portrait_motion/face_location.py",
+    *(
+        f"stage_gen/workflows/portrait_motion/{name}"
+        for name in (
+            "workflow.yaml",
+            "gnode.yaml",
+            "gnode.lock",
+            "states.py",
+            "nodes/face.py",
+            "nodes/motion.py",
+            "prompts/locate.md",
+            "prompts/admission.md",
+            "schemas/location.json",
+            "schemas/admission.json",
+            "schemas/geometry.json",
+            "schemas/quality.json",
+            "inputs/make_inputs.py",
+            "inputs/face-four-card.json",
+        )
+    ),
 }
 MOVIE_SPRITE_MODULES = {
     "stage_gen/components/movie_sprite/__init__.py",
@@ -455,7 +472,7 @@ assert snapshot.recipes == () and snapshot.generated_files == ()
 face_surfaces = {
     "stage_gen.components.portrait_motion.face_crop": ("create_working_crop", "restore_feature"),
     "stage_gen.components.portrait_motion.face_location": (
-        "locator_node_type", "validate_location"
+        "locator_schema", "validate_location"
     ),
     "stage_gen.components.portrait_motion.face_patches": (
         "make_face_input", "isolate_patch", "apply_offset_patch"
@@ -463,12 +480,7 @@ face_surfaces = {
     "stage_gen.components.portrait_motion.face_playback": (
         "build_face_combinations", "encode_face_preview"
     ),
-    "stage_gen.workflows.portrait_motion.face": (
-        "prepare_face_run", "run_face_pipeline", "verify_face_run"
-    ),
-    "stage_gen.workflows.portrait_motion.face_location": (
-        "prepare_locator", "run_locator", "verify_locator", "load_locator_plan"
-    ),
+    "stage_gen.workflows.portrait_motion.states": ("combination_key", "reviewed"),
 }
 for name, names in face_surfaces.items():
     module = importlib.import_module(name)
@@ -514,6 +526,17 @@ with Image.open(outputs["canonical"].path) as canonical:
     assert canonical.convert("RGBA").tobytes() == clip.make_frame(0).tobytes()
 assert gnode.verify_run(movie_runs[1].run_dir) == []
 assert [node.cache for node in gnode.project_run(movie_runs[1].run_dir).nodes] == ["hit"]
+
+portrait = Path(importlib.import_module("stage_gen.workflows.portrait_motion").__file__).parent
+assert portrait.resolve().is_relative_to(Path("installed").resolve())
+face = runpy.run_path(str(portrait / "inputs/make_inputs.py"))["write_inputs"](
+    Path("portrait-inputs")
+)
+Path("portrait-project").mkdir()
+face_plan = gnode.plan(
+    "portrait-motion", input_files=[face.resolve()], cwd=Path("portrait-project")
+)
+assert face_plan.ok and face_plan.estimate()[1] > 0
 """
     probe_environment = environment | {"PYTHONPATH": str(installed)}
     subprocess.run(

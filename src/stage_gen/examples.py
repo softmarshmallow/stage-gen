@@ -54,7 +54,6 @@ ANCHOR_DOCUMENTS = (
     "plan.json",
     "execution-plan.json",
     "graph.json",
-    "execution.json",
     "manifest.json",
 )
 SHA256_PATTERN = r"^[0-9a-f]{64}$"

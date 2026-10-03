@@ -56,8 +56,8 @@ const tailOf = (typeId: string): string => typeId.split(/[/.]/).at(-1) ?? typeId
  * - An example made with an earlier version names its types in an older namespace
  *   ("spike/character.normalize"), so a node no member names exactly joins the member whose
  *   type id ends the same way ("3d/character/normalize").
- * - A node whose type is in no step (a node the importer derived, such as portrait-motion's
- *   face_crop) joins the step of the node it depends on, or else of a node that depends on it.
+ * - A node whose type is in no step (a node an importer derived) joins the step of the node it
+ *   depends on, or else of a node that depends on it.
  * - A stage never holds a node that waits on a later stage: a node depending on a node of a
  *   later step joins that step (character-3d's second rig, after the bounded recovery).
  */

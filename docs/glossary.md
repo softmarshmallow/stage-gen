@@ -34,9 +34,9 @@ keep an old word because changing them would change an identity.
 | `node_labels`, `[[stages]]` | `NodeType.title` and the typed steps |
 | web viewer, run viewer | viewer |
 | capability, meaning a package under `components/` | component |
-| `stage-gen-py`, `stage-gen-character`, `stage-gen-portrait-motion`, `stage-gen-movie-sprite` | `stage-gen`, with no aliases |
+| `stage-gen-py`, `stage-gen-character`, `stage-gen-portrait-motion`, `stage-gen-movie-sprite` | `stage-gen`, with no aliases; a workflow written as a workflow file is planned and run with `gnode` |
 | `body idle`, `face repaint`, `prepare`, `verify`, `generate`, `semantic` and `gallery` as verbs | `plan`, `run` and `inspect`, with flags such as `--replay`, `--phase` and `--verify` |
-| movie-sprite's `--input-root`, `--output-root`, `--cache-root` | `--input`, `--output`, `--cache-dir`, as every workflow names its folders. Two exceptions: `run character-3d` forwards the frozen launcher's own argv (`--input-root`, `--run-root`), and portrait-motion takes `--run`, the prepared run folder `plan` writes |
+| movie-sprite's `--input-root`, `--output-root`, `--cache-root` | an inputs file (`gnode plan movie-sprite --inputs take.yaml`); `run character-3d` forwards the frozen launcher's own argv (`--input-root`, `--run-root`) |
 | `export-view` for product runs | `stage-gen inspect RUN --write-view DIR`; game runs keep `demo-games export-view` |
 | `STAGE_GEN_OUT_DIR` as the viewer's run folder | `STAGE_GEN_RUN_ROOTS`, a list of paths; the application still reads `STAGE_GEN_OUT_DIR` as its own output folder (config `out_dir`) |
 | a workflow's `examples/` input bundles | its `inputs/` |
