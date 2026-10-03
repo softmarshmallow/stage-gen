@@ -223,7 +223,6 @@ def _graph_document(document: type[GraphDocument]) -> Section:
         "legacy_graph_identities": sorted(
             [version, kind] for version, kind in document.LEGACY_GRAPH_IDENTITIES
         ),
-        "trace_event_kind": document.TRACE_EVENT_KIND,
         "run_summary_kind": document.RUN_SUMMARY_KIND,
         "projection_kind": document.PROJECTION_KIND,
         "view_kind": document.VIEW_KIND,
@@ -261,7 +260,6 @@ def identities(scratch: Path) -> Section:
         "sdk_graph": {
             "kind": PipelineGraph.model_fields["kind"].default,
             "schema_version": PipelineGraph.model_fields["schema_version"].default,
-            "trace_event_kind": PipelineGraph.TRACE_EVENT_KIND,
             "run_summary_kind": PipelineGraph.RUN_SUMMARY_KIND,
             "projection_kind": PipelineGraph.PROJECTION_KIND,
             "view_kind": PipelineGraph.VIEW_KIND,

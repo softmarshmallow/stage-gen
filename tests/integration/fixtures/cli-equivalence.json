@@ -140,6 +140,8 @@
     "invocation_id": "inv-1",
     "allow_provider_calls": false,
     "node_timeout_seconds": 900.0,
+    "wall_timeout_seconds": null,
+    "ceiling_usd": null,
     "secrets": []
    },
    "before": [
@@ -197,6 +199,8 @@
     "invocation_id": null,
     "allow_provider_calls": true,
     "node_timeout_seconds": 900.0,
+    "wall_timeout_seconds": null,
+    "ceiling_usd": null,
     "secrets": []
    },
    "before": [
@@ -527,6 +531,8 @@
     "invocation_id": null,
     "allow_provider_calls": false,
     "node_timeout_seconds": 6000,
+    "wall_timeout_seconds": null,
+    "ceiling_usd": null,
     "secrets": []
    },
    "before": [
@@ -617,6 +623,8 @@
     "invocation_id": null,
     "allow_provider_calls": false,
     "node_timeout_seconds": 6000,
+    "wall_timeout_seconds": null,
+    "ceiling_usd": null,
     "secrets": []
    },
    "before": [
@@ -952,6 +960,8 @@
     "invocation_id": null,
     "allow_provider_calls": true,
     "node_timeout_seconds": 6000,
+    "wall_timeout_seconds": null,
+    "ceiling_usd": null,
     "secrets": []
    },
    "before": [

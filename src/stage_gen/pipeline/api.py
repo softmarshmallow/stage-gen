@@ -7,6 +7,7 @@ load credentials, choose providers, or prescribe an asset or game taxonomy.
 
 from __future__ import annotations
 
+import errno
 import importlib
 import importlib.util
 import json
@@ -31,7 +32,6 @@ from gnode import (
     CacheDisposition,
     Graph,
     InputProvenance,
-    JsonlTraceSink,
     Node,
     NodeArtifact,
     NodeExecutionContext,
@@ -42,7 +42,6 @@ from gnode import (
     ProvenanceInput,
     RunSummary,
     RunView,
-    Scheduler,
     SoftwareIdentity,
     ViewArchetype,
     assert_safe_path_segment,
@@ -55,11 +54,12 @@ from gnode import (
     project_schedule,
     resolve_relative_path_within_root,
     resolve_writable_path_within_root,
+    resume_check,
+    run_graph,
     seal_graph,
     serialize_provenance,
     validate_plan_types,
     write_graph,
-    write_run_summary,
     write_run_view,
 )
 from stage_gen.identity import STAGE_GEN_TOOL
@@ -123,7 +123,6 @@ class InputFiles:
 class PipelineGraph(Graph):
     """Portable graph envelope shared by every caller-defined asset pipeline."""
 
-    TRACE_EVENT_KIND: ClassVar[str] = "pipeline-execution-event-v1"
     RUN_SUMMARY_KIND: ClassVar[str] = "pipeline-execution-summary-v1"
     PROJECTION_KIND: ClassVar[str] = "pipeline-execution-projection-v1"
     VIEW_KIND: ClassVar[str] = "pipeline-execution-view-v1"
@@ -526,6 +525,15 @@ def _admit_roots(output_root: Path, cache_root: Path) -> Path:
     return cache
 
 
+def _open_run(planned: PipelinePlan, output_root: Path) -> Path:
+    """A new run folder with the plan written, or the folder of this very plan to continue."""
+
+    existing = resume_check(Path(output_root), planned.graph)
+    if existing.exists and not existing.same_plan:
+        raise FileExistsError(errno.EEXIST, "run folder holds another plan", str(output_root))
+    return Path(output_root).resolve() if existing.exists else write_plan(planned, output_root)
+
+
 async def run(
     planned: PipelinePlan,
     *,
@@ -535,6 +543,8 @@ async def run(
     invocation_id: str | None = None,
     allow_provider_calls: bool = False,
     node_timeout_seconds: float = 900.0,
+    wall_timeout_seconds: float | None = None,
+    ceiling_usd: float | None = None,
     secrets: Sequence[str] = (),
 ) -> PipelineRun:
     """Execute a plan with GNode scheduling, trace, cache, and failure reporting.
@@ -542,6 +552,11 @@ async def run(
     A failed node returns a run whose summary has ``ok=False``; independent branches
     still complete. Caller cancellation propagates after writing an inspectable view.
     Provider-capable nodes require explicit opt-in, including when a cache may exist.
+
+    ``output_root`` is a new folder, or the folder of an earlier invocation of this very
+    plan: the run then continues there, its log grows and the cache answers what already
+    succeeded. A folder holding anything else is refused. ``ceiling_usd`` bounds every
+    invocation of the run together.
     """
 
     invocation = assert_safe_path_segment(invocation_id or uuid.uuid4().hex, "invocation_id")
@@ -551,25 +566,23 @@ async def run(
         if sha256(_read_confined(planned.input_root, ref)).hexdigest() != digest:
             raise ValueError(f"input changed after planning: {ref}")
     cache = _admit_roots(output_root, cache_root)
-    scheduler = Scheduler(
-        planned.graph.resources, node_timeout_seconds=node_timeout_seconds, secrets=secrets
-    )
-    root = write_plan(planned, output_root)
+    root = _open_run(planned, output_root)
     handler = _BoundHandler(
         planned, root, cache, MappingProxyType(dict(services or {})), tuple(secrets)
     )
-    trace = JsonlTraceSink(root / "execution-trace.jsonl")
     try:
-        summary = await scheduler.run(
+        summary = await run_graph(
             planned.graph,
             handler,
+            run_dir=root,
             invocation_id=invocation,
-            trace_sink=trace,
-            target_node_ids=planned.targets,
+            targets=planned.targets,
+            ceiling_usd=ceiling_usd,
+            node_timeout_seconds=node_timeout_seconds,
+            wall_timeout_seconds=wall_timeout_seconds,
+            secrets=secrets,
         )
-        write_run_summary(root / "execution-summary.json", summary)
     finally:
-        trace.close()
         view = inspect(root)
         write_run_view(root / "execution-view.json", view)
     return PipelineRun(planned, summary, root, view)

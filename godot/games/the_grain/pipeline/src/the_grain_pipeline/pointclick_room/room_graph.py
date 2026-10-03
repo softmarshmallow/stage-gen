@@ -73,7 +73,6 @@ if TYPE_CHECKING:
 
 POINTCLICK_GRAPH_SCHEMA_VERSION = 2
 POINTCLICK_GRAPH_KIND = "pointclick-room-execution-graph-v2"
-POINTCLICK_TRACE_SCHEMA_VERSION = 1
 POINTCLICK_CACHE_NAMESPACE = "pointclick-room-nodes-v1"
 POINTCLICK_CACHE_RECORD_KIND = "pointclick-room-node-cache-v1"
 
@@ -435,7 +434,6 @@ __all__ = [
     "POINTCLICK_CACHE_RECORD_KIND",
     "POINTCLICK_GRAPH_SCHEMA_VERSION",
     "POINTCLICK_GRAPH_KIND",
-    "POINTCLICK_TRACE_SCHEMA_VERSION",
     "PointClickRoomGraph",
     "RoomOperationKind",
     "build_pointclick_room_graph",

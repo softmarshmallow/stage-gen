@@ -191,11 +191,14 @@ def build_run_view[GraphT: Graph, ViewT: RunView](
     annotators: Mapping[str, ArtifactAnnotator] | None = None,
     types: Mapping[str, NodeType] | None = None,
 ) -> ViewT:
-    """Join a run directory's plan and trace into one renderable view document.
+    """Project a run directory's plan and event log into one renderable view document.
 
-    The consumer supplies both document types, the annotators its graphs
-    recognise, and its node-type index (for the display join); the engine owns
-    the join, the state vocabulary, and the gap list.
+    The view is a pure projection of the plan, the log and the artifacts the log names;
+    no summary or handler state enters it. When the log holds several invocations, each
+    node shows its latest outcome and the run shows its latest invocation. The consumer
+    supplies both document types, the annotators its graphs recognise, and its node-type
+    index (for the display join); the engine owns the join, the state vocabulary, and the
+    gap list.
     """
 
     plan_path = run_dir / "execution-plan.json"
@@ -229,8 +232,11 @@ def build_run_view[GraphT: Graph, ViewT: RunView](
                 "trace events carry a different graph_sha256 than the plan",
             )
         name = event.get("event")
-        if name == "run_started" and isinstance(event.get("invocation_id"), str):
-            invocation_id = cast(str, event["invocation_id"])
+        if name == "run_started":
+            # One log holds every invocation of the run; the latest says how it stands.
+            if isinstance(event.get("invocation_id"), str):
+                invocation_id = cast(str, event["invocation_id"])
+            ok, canceled, run_duration_ms = None, False, None
         elif name == "run_finished":
             if isinstance(event.get("ok"), bool):
                 ok = cast(bool, event["ok"])
@@ -256,6 +262,8 @@ def build_run_view[GraphT: Graph, ViewT: RunView](
             if name == "node_started":
                 offset = event.get("offset_ms")
                 started[node_id] = offset if isinstance(offset, int) else 0
+                # A later invocation starting the node again supersedes its old outcome.
+                terminal.pop(node_id, None)
             else:
                 terminal[node_id] = event
 

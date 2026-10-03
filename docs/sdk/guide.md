@@ -136,8 +136,9 @@ uv run stage-gen run file docs/sdk/pipelines/local_media.py:pipeline \
 uv run stage-gen inspect runs/first
 ```
 
-`plan file` prints the plan, or writes it to `--output`; `run file` needs a new output folder
-and a cache folder outside it, and `--live` before any provider-capable node runs. `--target NODE_ID`
+`plan file` prints the plan, or writes it to `--output`; `run file` needs its own output folder
+(running the same plan into it again continues that run; any other plan is refused) and a cache
+folder outside it, and `--live` before any provider-capable node runs. `--target NODE_ID`
 plans a subset. `stage-gen view` lists SDK runs beside the workflows' runs.
 
 ## Samples

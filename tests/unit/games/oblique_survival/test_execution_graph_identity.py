@@ -213,7 +213,6 @@ def test_every_plan_keeps_the_recipe_vocabulary_it_declares() -> None:
         assert graph.schema_version == OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION
         assert graph.kind == "oblique-survival-execution-graph-v2"
         assert graph.recipe == "oblique-survival"
-        assert graph.TRACE_EVENT_KIND == "oblique-survival-execution-event-v1"
         assert graph.RUN_SUMMARY_KIND == "oblique-survival-execution-summary-v1"
         assert graph.PROJECTION_KIND == "oblique-survival-execution-projection-v1"
         assert graph.VIEW_KIND == OBLIQUE_SURVIVAL_VIEW_KIND

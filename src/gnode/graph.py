@@ -6,7 +6,7 @@ import hashlib
 import json
 import math
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -582,8 +582,6 @@ class Graph(PersistedContractModel):
     without the engine knowing anything about it.
     """
 
-    TRACE_SCHEMA_VERSION: ClassVar[int] = 1
-    TRACE_EVENT_KIND: ClassVar[str] = "gnode-node-event-v1"
     RUN_SUMMARY_KIND: ClassVar[str] = "gnode-run-summary-v1"
     PROJECTION_KIND: ClassVar[str] = "gnode-projection-v1"
     VIEW_KIND: ClassVar[str] = "gnode-run-view-v1"
@@ -847,13 +845,24 @@ class NodeExecutionError(RuntimeError):
         self.known_cost_usd = known_cost_usd
 
 
+async def _no_dispatch_gate() -> None:
+    return None
+
+
 @dataclass(frozen=True, slots=True)
 class NodeExecutionContext:
-    """Run identity and successful direct-dependency results, including barriers."""
+    """Run identity and successful direct-dependency results, including barriers.
+
+    ``begin_dispatch`` is the run's gate in front of real work. A handler awaits it once,
+    after its cache missed and before it calls a provider: the run paces the route's
+    request starts there and reserves the node's worst case against the run's ceiling,
+    refusing the node before anything is spent when it does not fit.
+    """
 
     invocation_id: str
     graph_sha256: str
     dependency_results: Mapping[str, NodeExecutionResult]
+    begin_dispatch: Callable[[], Awaitable[None]] = _no_dispatch_gate
 
 
 class NodeHandler(Protocol):

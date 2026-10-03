@@ -13,6 +13,7 @@ generates.
 from __future__ import annotations
 
 import asyncio
+import errno
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -21,19 +22,18 @@ from typing import ClassVar, Protocol
 
 from gnode import (
     Graph,
-    JsonlTraceSink,
     NodeHandler,
     NodeType,
     Projection,
     RunSummary,
-    Scheduler,
     assert_safe_path_segment,
     atomic_write_json,
     node_closure,
     project_schedule,
+    resume_check,
+    run_graph,
     validate_plan_types,
     write_graph,
-    write_run_summary,
 )
 from stage_gen.config import CapabilityName, ConfigError, StageGenConfig, assert_capabilities
 from stage_gen.orchestration.services import RunServices
@@ -151,8 +151,17 @@ class GraphExecutor[R: Identified, G: Graph](ABC):
         return RunServices(self._config)
 
     async def open_run(self, plan: PlannedGraph[R, G], *, run_dir: Path) -> None:
-        """Create the run directory and write the plan, the projection and the identity."""
+        """Create the run directory and write the plan, the projection and the identity.
 
+        A directory that already holds this very plan is an earlier invocation of the
+        same run, and is continued; one holding anything else is refused.
+        """
+
+        existing = resume_check(run_dir, plan.graph)
+        if existing.exists and not existing.same_plan:
+            raise FileExistsError(errno.EEXIST, "run folder holds another plan", str(run_dir))
+        if existing.exists:
+            return
         await asyncio.to_thread(run_dir.mkdir, parents=True, exist_ok=False)
         write_graph(run_dir / "execution-plan.json", plan.graph)
         atomic_write_json(
@@ -170,29 +179,20 @@ class GraphExecutor[R: Identified, G: Graph](ABC):
         targets: Sequence[str] | None = None,
         floor_timeout: bool = True,
     ) -> RunSummary:
-        """Run ``handler`` over the plan under the trace, and write the summary."""
+        """Run ``handler`` over the plan with the engine's runner, which writes the summary."""
 
         timeout = self._config.stage_timeout_s
         if floor_timeout:
             timeout = max(timeout, self.NODE_TIMEOUT_FLOOR_S)
-        scheduler = Scheduler(
-            plan.graph.resources,
+        return await run_graph(
+            plan.graph,
+            handler,
+            run_dir=run_dir,
+            invocation_id=invocation_id,
+            targets=tuple(targets) if targets is not None else None,
             node_timeout_seconds=timeout,
             secrets=self._config.secret_values(),
         )
-        trace = JsonlTraceSink(run_dir / "execution-trace.jsonl")
-        try:
-            summary = await scheduler.run(
-                plan.graph,
-                handler,
-                invocation_id=invocation_id,
-                trace_sink=trace,
-                target_node_ids=tuple(targets) if targets is not None else None,
-            )
-        finally:
-            trace.close()
-        write_run_summary(run_dir / "execution-summary.json", summary)
-        return summary
 
     async def dry_dispatch(
         self,

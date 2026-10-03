@@ -1,4 +1,8 @@
-"""Append-only run trace: one immutable record of what the scheduler did."""
+"""The run record: one append-only event log of what every invocation of a run did.
+
+Every graph writes the same event vocabulary (``gnode-run-events-v1``), whatever kind its
+plan document is, so one reader projects any run.
+"""
 
 from __future__ import annotations
 
@@ -28,13 +32,23 @@ class MemoryTraceSink:
         self.events.append(dict(event))
 
 
-class JsonlTraceSink:
-    """Create one immutable JSONL trace without persisting absolute paths or secrets."""
+#: The one event vocabulary every run log is written in.
+RUN_EVENTS_SCHEMA_VERSION = 1
+RUN_EVENTS_KIND = "gnode-run-events-v1"
 
-    def __init__(self, path: Path) -> None:
+
+class JsonlTraceSink:
+    """Write a JSONL event log without persisting absolute paths or secrets.
+
+    A new log is created exclusively. With ``append``, an existing log is continued
+    instead: that is how a resumed run keeps one record, under the run's lock.
+    """
+
+    def __init__(self, path: Path, *, append: bool = False) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        self._stream = os.fdopen(descriptor, "w", encoding="utf-8")
+        flags = os.O_WRONLY | os.O_CREAT | (os.O_APPEND if append else os.O_EXCL)
+        descriptor = os.open(path, flags, 0o600)
+        self._stream = os.fdopen(descriptor, "a" if append else "w", encoding="utf-8")
 
     def emit(self, event: Mapping[str, object]) -> None:
         self._stream.write(json.dumps(dict(event), sort_keys=True, separators=(",", ":")))
@@ -96,8 +110,8 @@ def run_event(
     offset_ms: int,
 ) -> dict[str, object]:
     return {
-        "schema_version": graph.TRACE_SCHEMA_VERSION,
-        "kind": graph.TRACE_EVENT_KIND,
+        "schema_version": RUN_EVENTS_SCHEMA_VERSION,
+        "kind": RUN_EVENTS_KIND,
         "event": event,
         "invocation_id": invocation_id,
         "graph_sha256": graph.graph_sha256,

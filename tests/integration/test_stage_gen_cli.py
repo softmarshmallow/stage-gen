@@ -186,8 +186,31 @@ def test_looping_parallax_runs_offline_and_plans_like_its_sdk_sample(tmp_path: P
     assert json.loads(output)["pipeline_id"] == "looping-parallax"
     assert (run_dir / "parallax/manifest.json").is_file()
 
-    status, _, errors = _stage_gen(
+    # The same plan again continues the run in place: one record, every step cached.
+    status, output, errors = _stage_gen(
         "run", "looping-parallax", *arguments, "--cache-dir", str(tmp_path / "cache")
+    )
+    assert status == 0, errors
+    started = [
+        json.loads(line)
+        for line in (run_dir / "execution-trace.jsonl").read_text(encoding="utf-8").splitlines()
+        if json.loads(line)["event"] == "run_started"
+    ]
+    assert [event["resumed"] for event in started] == [False, True]
+
+    # A different plan never lands in a folder that holds another run.
+    changed = tmp_path / "changed"
+    runpy.run_path(str(PARALLAX_INPUTS / "make_inputs.py"))["write_inputs"](changed)
+    (changed / "near_trees.png").write_bytes((inputs / "distant_hills.png").read_bytes())
+    status, _, errors = _stage_gen(
+        "run",
+        "looping-parallax",
+        "--input",
+        str(changed),
+        "--output",
+        str(run_dir),
+        "--cache-dir",
+        str(tmp_path / "cache"),
     )
     assert status == 2
     assert errors == f"stage-gen: {run_dir} already exists; choose a new output folder\n"

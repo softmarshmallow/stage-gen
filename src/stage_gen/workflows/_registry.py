@@ -149,7 +149,6 @@ def graph_document_identity(document: type[GraphDocument]) -> dict[str, object]:
         "legacy_graph_identities": sorted(
             [version, kind] for version, kind in document.LEGACY_GRAPH_IDENTITIES
         ),
-        "trace_event_kind": document.TRACE_EVENT_KIND,
         "run_summary_kind": document.RUN_SUMMARY_KIND,
         "projection_kind": document.PROJECTION_KIND,
         "view_kind": document.VIEW_KIND,

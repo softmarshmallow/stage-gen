@@ -174,7 +174,6 @@ if TYPE_CHECKING:
 
 RUNNER_GRAPH_SCHEMA_VERSION = 2
 RUNNER_GRAPH_KIND = "sideview-runner-execution-graph-v2"
-RUNNER_TRACE_SCHEMA_VERSION = 1
 RUNNER_CACHE_NAMESPACE = "sideview-runner-nodes-v1"
 RUNNER_CACHE_RECORD_KIND = "sideview-runner-node-cache-v1"
 #: The generate node's identity contract: bump when what a clip request means changes.
@@ -1318,7 +1317,6 @@ __all__ = [
     "RUNNER_GRAPH_SCHEMA_VERSION",
     "RUNNER_GRAPH_KIND",
     "RUNNER_MOTION_STATES",
-    "RUNNER_TRACE_SCHEMA_VERSION",
     "RunnerOperationKind",
     "SideviewRunnerGraph",
     "build_runner_execution_graph",

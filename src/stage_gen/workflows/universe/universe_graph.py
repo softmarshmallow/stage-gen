@@ -94,7 +94,6 @@ if TYPE_CHECKING:
 
 UNIVERSE_GRAPH_SCHEMA_VERSION = 2
 UNIVERSE_GRAPH_KIND = "universe-execution-graph-v2"
-UNIVERSE_TRACE_SCHEMA_VERSION = 1
 UNIVERSE_CACHE_NAMESPACE = "universe-nodes-v1"
 UNIVERSE_CACHE_RECORD_KIND = "universe-node-cache-v1"
 
@@ -678,7 +677,6 @@ __all__ = [
     "UNIVERSE_GRAPH_SCHEMA_VERSION",
     "UNIVERSE_GRAPH_KIND",
     "UNIVERSE_REF",
-    "UNIVERSE_TRACE_SCHEMA_VERSION",
     "UniverseGraph",
     "UniverseOperationKind",
     "build_universe_gallery_graph",

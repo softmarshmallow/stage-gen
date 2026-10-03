@@ -1,21 +1,25 @@
 """Resource-aware scheduling: one offline projection and one live scheduler.
 
 The scheduler never retries. A provider operation has exactly one retry owner,
-and it lives inside the node handler.
+and it lives inside the node handler. The scheduler owns admission instead: it
+paces the request starts of routes whose rate limit it owns, and it reserves each
+provider node's worst case against the run's ceiling before the node dispatches.
 """
 
 from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import AsyncExitStack
+from dataclasses import dataclass
 from typing import Literal
 
 from pydantic import Field
 
 from gnode.contracts.artifacts import SHA256_PATTERN, PersistedContractModel
 from gnode.graph import (
+    CacheDisposition,
     Graph,
     Node,
     NodeExecutionContext,
@@ -27,6 +31,7 @@ from gnode.graph import (
     node_closure,
     topological_node_ids,
 )
+from gnode.ledger import CeilingExceeded, CeilingLedger
 from gnode.reliability import redact_secrets
 from gnode.trace import (
     MemoryTraceSink,
@@ -176,6 +181,15 @@ def project_schedule(graph: Graph, *, target_node_ids: Sequence[str] | None = No
     )
 
 
+@dataclass(slots=True)
+class _Pace:
+    """The next moment a request may start on one scheduler-paced resource."""
+
+    interval_s: float
+    lock: asyncio.Lock
+    next_start: float = 0.0
+
+
 class Scheduler:
     """Run ready DAG nodes concurrently; provider retry loops stay inside components."""
 
@@ -197,6 +211,11 @@ class Scheduler:
             )
             for resource in resources
         }
+        self._paces = {
+            resource.resource_id: _Pace(60.0 / resource.requests_per_minute, asyncio.Lock())
+            for resource in resources
+            if resource.rate_limit_owner == "scheduler" and resource.requests_per_minute
+        }
         self._node_timeout_seconds = node_timeout_seconds
         self._secrets = tuple(secret for secret in secrets if secret)
 
@@ -208,6 +227,9 @@ class Scheduler:
         invocation_id: str,
         trace_sink: TraceSink | None = None,
         target_node_ids: Sequence[str] | None = None,
+        ceiling_usd: float | None = None,
+        prior_events: Sequence[Mapping[str, object]] = (),
+        cancel_reason: Callable[[], str | None] | None = None,
     ) -> RunSummary:
         """Execute targets and their ancestors, returning one trace per selected node.
 
@@ -222,6 +244,11 @@ class Scheduler:
         continue. The returned summary's ``ok`` requires all targets to succeed.
         Caller cancellation drains active handlers' cleanup before propagating as
         ``asyncio.CancelledError``. The caller can then close its services and trace.
+
+        ``ceiling_usd`` bounds the whole run, counting what ``prior_events`` (an earlier
+        invocation's log) already charged; a node whose worst case does not fit fails
+        before it dispatches. ``cancel_reason`` names why a cancellation happened, for
+        the record.
         """
 
         if tuple(self._resources) != tuple(resource.resource_id for resource in graph.resources):
@@ -235,7 +262,27 @@ class Scheduler:
         )
         sink = trace_sink or MemoryTraceSink()
         started = time.perf_counter()
-        sink.emit(run_event("run_started", invocation_id, graph, offset_ms=0))
+
+        def emit_budget(body: Mapping[str, object]) -> None:
+            sink.emit(
+                {
+                    **run_event(
+                        str(body["event"]), invocation_id, graph, offset_ms=elapsed_ms(started)
+                    ),
+                    **body,
+                }
+            )
+
+        ledger = CeilingLedger(ceiling_usd, emit=emit_budget, prior_events=prior_events)
+        sink.emit(
+            {
+                **run_event("run_started", invocation_id, graph, offset_ms=0),
+                "resumed": bool(prior_events),
+                "targets": list(targets) if target_node_ids is not None else None,
+                "ceiling_usd": ceiling_usd,
+                "charged_usd": ledger.charged_usd,
+            }
+        )
         pending = set(selected_ids)
         results: dict[str, NodeExecutionResult] = {}
         traces: dict[str, NodeTrace] = {}
@@ -297,6 +344,7 @@ class Scheduler:
                                 started=started,
                                 ready_offset_ms=ready,
                                 sink=sink,
+                                ledger=ledger,
                             ),
                             name=f"gnode:{node_id}",
                         )
@@ -341,6 +389,8 @@ class Scheduler:
                         "run_canceled", invocation_id, graph, offset_ms=elapsed_ms(started)
                     ),
                     "started_node_ids": sorted(running.values()),
+                    "reason": (cancel_reason() if cancel_reason is not None else None) or "caller",
+                    "charged_usd": ledger.charged_usd,
                 }
             )
             raise
@@ -372,9 +422,23 @@ class Scheduler:
                 **run_event("run_finished", invocation_id, graph, offset_ms=duration_ms),
                 "ok": summary.ok,
                 "provider_operation_counts": provider_counts,
+                "charged_usd": ledger.charged_usd,
             }
         )
         return summary
+
+    async def _pace(self, node: Node) -> None:
+        """Hold a request start until the resource's own rate allows it."""
+
+        pace = self._paces.get(node.resource_id)
+        if pace is None:
+            return
+        async with pace.lock:
+            now = time.monotonic()
+            if pace.next_start > now:
+                await asyncio.sleep(pace.next_start - now)
+                now = time.monotonic()
+            pace.next_start = now + pace.interval_s
 
     async def _run_node(
         self,
@@ -387,8 +451,19 @@ class Scheduler:
         started: float,
         ready_offset_ms: int,
         sink: TraceSink,
+        ledger: CeilingLedger,
     ) -> tuple[NodeTrace, NodeExecutionResult | None]:
         semaphore = self._semaphores[node.resource_id]
+        gate_opened = False
+
+        async def begin_dispatch() -> None:
+            nonlocal gate_opened
+            if gate_opened:
+                raise RuntimeError(f"{node.node_id} opened its dispatch gate twice")
+            gate_opened = True
+            await self._pace(node)
+            await ledger.reserve(node)
+
         async with AsyncExitStack() as stack:
             if semaphore is not None:
                 await stack.enter_async_context(semaphore)
@@ -410,7 +485,17 @@ class Scheduler:
                             invocation_id=invocation_id,
                             graph_sha256=graph.graph_sha256,
                             dependency_results=dependency_results,
+                            begin_dispatch=begin_dispatch,
                         ),
+                    )
+                if result.cache is CacheDisposition.HIT:
+                    # A restored result carries the ledger of the run that paid for it.
+                    ledger.release(node)
+                else:
+                    ledger.settle(
+                        node,
+                        provider_operations=result.provider_operations,
+                        known_cost_usd=result.known_cost_usd,
                     )
                 if result.attempts > node.max_attempts:
                     raise ValueError("node handler exceeded its declared attempt limit")
@@ -435,20 +520,28 @@ class Scheduler:
                 return trace, result
             except Exception as error:
                 ended = elapsed_ms(started)
+                refused = isinstance(error, CeilingExceeded)
                 raw_attempts = getattr(error, "attempts", 1)
                 attempts = (
                     raw_attempts
                     if isinstance(raw_attempts, int) and not isinstance(raw_attempts, bool)
                     else 1
                 )
-                raw_provider_operations = getattr(error, "provider_operations", 0)
-                provider_operations = (
-                    raw_provider_operations
+                raw_provider_operations = getattr(error, "provider_operations", None)
+                reported_operations = (
+                    max(0, raw_provider_operations)
                     if isinstance(raw_provider_operations, int)
                     and not isinstance(raw_provider_operations, bool)
-                    else 0
+                    else None
                 )
+                provider_operations = reported_operations or 0
                 known_cost = error.known_cost_usd if isinstance(error, NodeExecutionError) else None
+                if not refused:
+                    ledger.settle(
+                        node,
+                        provider_operations=reported_operations,
+                        known_cost_usd=known_cost,
+                    )
                 message = redact_secrets(str(error).strip() or type(error).__name__, self._secrets)
                 message = message.replace("\x00", "[NUL]")[:2_000]
                 trace = NodeTrace(
@@ -459,8 +552,8 @@ class Scheduler:
                     ended_offset_ms=ended,
                     queue_ms=max(0, node_started - ready_offset_ms),
                     duration_ms=max(0, ended - node_started),
-                    attempts=min(max(attempts, 1), node.max_attempts),
-                    provider_operations=max(0, provider_operations),
+                    attempts=0 if refused else min(max(attempts, 1), node.max_attempts),
+                    provider_operations=provider_operations,
                     known_cost_usd=known_cost,
                     error=message,
                 )

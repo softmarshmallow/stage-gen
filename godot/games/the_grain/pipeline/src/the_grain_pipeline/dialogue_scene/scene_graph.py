@@ -87,7 +87,6 @@ if TYPE_CHECKING:
 
 DIALOGUE_GRAPH_SCHEMA_VERSION = 6
 DIALOGUE_GRAPH_KIND = "dialogue-scene-execution-graph-v6"
-DIALOGUE_TRACE_SCHEMA_VERSION = 1
 #: The cache tree this recipe's node artifacts live under. Renaming it is the
 #: whole-recipe invalidation lever; per-type levers are the types' own
 #: ``contract_version`` values.
@@ -644,7 +643,6 @@ __all__ = [
     "DIALOGUE_CACHE_RECORD_KIND",
     "DIALOGUE_GRAPH_SCHEMA_VERSION",
     "DIALOGUE_GRAPH_KIND",
-    "DIALOGUE_TRACE_SCHEMA_VERSION",
     "DialogueOperationKind",
     "DialogueSceneGraph",
     "build_dialogue_scene_graph",

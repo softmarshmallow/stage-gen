@@ -158,7 +158,6 @@
     "projection_kind": "universe-execution-projection-v1",
     "recipe": "universe",
     "run_summary_kind": "universe-execution-summary-v1",
-    "trace_event_kind": "universe-execution-event-v1",
     "view_kind": "universe-execution-view-v1"
    }
   },
@@ -324,7 +323,6 @@
    "projection_kind": "pipeline-execution-projection-v1",
    "run_summary_kind": "pipeline-execution-summary-v1",
    "schema_version": 1,
-   "trace_event_kind": "pipeline-execution-event-v1",
    "view_kind": "pipeline-execution-view-v1"
   },
   "software_identities": {

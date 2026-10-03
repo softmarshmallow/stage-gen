@@ -56,7 +56,6 @@ class GraphDocument(Graph):
     def __pydantic_init_subclass__(cls, **kwargs: Any) -> None:
         super().__pydantic_init_subclass__(**kwargs)
         recipe = _literal_of(cls, "recipe")
-        cls.TRACE_EVENT_KIND = f"{recipe}-execution-event-v1"
         cls.RUN_SUMMARY_KIND = f"{recipe}-execution-summary-v1"
         cls.PROJECTION_KIND = f"{recipe}-execution-projection-v1"
         cls.VIEW_KIND = f"{recipe}-execution-view-v1"

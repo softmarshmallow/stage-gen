@@ -101,7 +101,6 @@ def test_both_plans_keep_the_recipe_vocabulary_they_declare() -> None:
     for graph in (_semantic(), _gallery()):
         assert graph.kind == "universe-execution-graph-v2"
         assert graph.recipe == "universe"
-        assert graph.TRACE_EVENT_KIND == "universe-execution-event-v1"
         assert graph.RUN_SUMMARY_KIND == "universe-execution-summary-v1"
         assert graph.PROJECTION_KIND == "universe-execution-projection-v1"
         assert graph.VIEW_KIND == UNIVERSE_VIEW_KIND

@@ -91,6 +91,9 @@ class CachedNodeHandler(ABC):
             # The cached attempt ledger is provenance for the bytes being restored.
             # It comes back byte-for-byte; cache disposition belongs to the trace.
             return cached
+        # The run paces and budgets real work here; a refusal spends nothing, so it
+        # is not this handler's failure to record.
+        await context.begin_dispatch()
         try:
             with node_route_context(self._graph, node):
                 result = await self._dispatch(node, context)

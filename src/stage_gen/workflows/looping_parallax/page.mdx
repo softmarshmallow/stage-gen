@@ -12,9 +12,10 @@ uv run python src/stage_gen/workflows/looping_parallax/inputs/supplied_layers/ma
 
 <Try />
 
-Use a new output folder for each run. The run writes each repeating layer, `parallax/manifest.json`
-with every layer's size, order, offsets, repeat axes and scroll factor, and one preview frame. A
-consumer places each layer at `offset - scroll * parallax` and repeats it along its declared axes.
+Give each run its own output folder; running the same plan into it again continues that run. The
+run writes each repeating layer, `parallax/manifest.json` with every layer's size, order, offsets,
+repeat axes and scroll factor, and one preview frame. A consumer places each layer at
+`offset - scroll * parallax` and repeats it along its declared axes.
 A layer that asks for `loop_construction = "seam_repaint"` plans one image edit on the configured
 route, and needs `--live` and your provider keys only to run it. The [contract](contract.md) holds
 the spec, the outputs, the graph and every loop construction.

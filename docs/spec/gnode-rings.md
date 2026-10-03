@@ -18,7 +18,7 @@ the SDK grows above it.
 
 | Ring | Name | Contents | Media-aware? |
 | --- | --- | --- | --- |
-| 0 | engine core | graph topology, the node ABI (typed node types, registry dispatch, ports, cards, policy, the graph builder and its subgraph-template stamping), scheduling, trace, run view, model bindings, provider-neutral route-catalog and exact-size contract shapes, reliability, provenance contracts | no — media-free by lint |
+| 0 | engine core | graph topology, the node ABI (typed node types, registry dispatch, ports, cards, policy, the graph builder and its subgraph-template stamping), scheduling, the runner and its spending ceiling, the run record, run view, model bindings, provider-neutral route-catalog and exact-size contract shapes, reliability, provenance contracts | no — media-free by lint |
 | 1 | modality disciplines | per-modality model specs and their retry-owning services: image, structured, tool loop, music, sound effect, speech, background removal, video (`gnode/modalities/`) | yes — modality-generic only |
 | 2 | first-party providers | vendor adapters implementing ring-1 specs: `openai`, `openrouter`, `fal`, `elevenlabs` (`gnode/providers/`) | yes |
 | 3 | standard nodes | individually promoted, cross-domain node types | empty by policy (see below) |

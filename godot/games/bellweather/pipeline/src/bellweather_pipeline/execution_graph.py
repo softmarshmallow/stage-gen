@@ -17,7 +17,6 @@ from stage_gen.pipeline.graph_document import GraphDocument
 
 EXECUTION_GRAPH_SCHEMA_VERSION = 2
 EXECUTION_GRAPH_KIND = "sideview-platformer-execution-graph-v2"
-EXECUTION_TRACE_SCHEMA_VERSION = 1
 
 
 class OperationKind(StrEnum):
@@ -52,7 +51,6 @@ class ExecutionGraph(GraphDocument):
 __all__ = [
     "EXECUTION_GRAPH_SCHEMA_VERSION",
     "EXECUTION_GRAPH_KIND",
-    "EXECUTION_TRACE_SCHEMA_VERSION",
     "ExecutionGraph",
     "OperationKind",
 ]

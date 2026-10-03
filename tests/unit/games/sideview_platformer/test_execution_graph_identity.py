@@ -99,7 +99,6 @@ def test_the_plan_document_keeps_its_declared_vocabulary() -> None:
     assert graph.view_header() == {"recipe": "sideview-platformer", "game_id": "bellweather"}
     assert graph.annotator_key() == "sideview-platformer"
 
-    assert ExecutionGraph.TRACE_EVENT_KIND == "sideview-platformer-execution-event-v1"
     assert ExecutionGraph.RUN_SUMMARY_KIND == "sideview-platformer-execution-summary-v1"
     assert ExecutionGraph.PROJECTION_KIND == "sideview-platformer-execution-projection-v1"
     assert ExecutionGraph.VIEW_KIND == "sideview-platformer-execution-view-v1"

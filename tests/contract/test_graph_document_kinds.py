@@ -89,14 +89,13 @@ ROUTERS = frozenset({"PreparedIntegrationNodeHandler"})
 def test_document_kinds_derive_from_the_recipe_word(
     graph_type: type[GraphDocument], recipe: str, schema_version: int
 ) -> None:
-    """The four derived kinds and the view version are the base's, not the recipe's."""
+    """The three derived kinds and the view version are the base's, not the recipe's; run
+    events are the engine's one vocabulary for every graph."""
 
-    assert f"{recipe}-execution-event-v1" == graph_type.TRACE_EVENT_KIND
     assert f"{recipe}-execution-summary-v1" == graph_type.RUN_SUMMARY_KIND
     assert f"{recipe}-execution-projection-v1" == graph_type.PROJECTION_KIND
     assert f"{recipe}-execution-view-v1" == graph_type.VIEW_KIND
     assert graph_type.VIEW_SCHEMA_VERSION == Graph.VIEW_SCHEMA_VERSION == 3
-    assert graph_type.TRACE_SCHEMA_VERSION == 1
     # The exported constant is the only write version; field literals also admit
     # named legacy identities for read compatibility.
     literal = graph_type.model_fields["schema_version"].annotation
