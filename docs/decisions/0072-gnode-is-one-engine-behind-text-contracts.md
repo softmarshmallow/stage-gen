@@ -214,6 +214,23 @@ said TOML; the amendment is posted on issue #3 with the owner's go.
   plate it was never shown, which it now is. Re-key carried the scene's four tracks; the
   images were drawn on `gpt-image-2@openai` and the style was compiled on another route, so
   the rest is refused with its price (at most USD 9.15 for the scene, USD 1.35 a room).
+- **M8d port (Ember Hollow).** The survival world's graph, handlers, executor, types,
+  view and cache admission (about 6,400 lines), and the v1 halves of the UI and shell
+  kits, gave way to one builder over the game's package at a chosen scope
+  (`build(package, scope)`), 40 locked node types and pure gate, finish, anchor and review
+  modules (about 3,200 lines). Two node types, one judge and one finish dispatching to
+  named gates and finishes, replace about sixty handler types, and every record keeps the
+  shape the manifest reads. The four scopes make exactly the paid calls v1's graphs did;
+  the full build plans 103 images, 17 structured calls, 11 anchor episodes and 3 sounds at
+  first takes. An auditioned take is bound by content when it is on disk and refused by name
+  when it is not, so a fresh clone still plans. A replay against the last full run answered
+  every paid call and delivered a folder the Godot host plays; where it differs from that
+  run, it equals today's v1 code on that run's own sources, which changed after it. Re-key
+  carried the three weather sounds; the art was drawn on `gpt-image-2@openai`. The port
+  fixes four v1 defects: the actors review never showed the player's four facings, the
+  ground review's sheet order did not match its labels, the anchor's cache key omitted most
+  of what its instructions read, and rebase verification failed instead of asking again.
+  With the last executor gone, the model-policy census lists no recipe.
 - **Cost.** Every milestone up to M9 is offline. M10 is estimated at about USD 45 on a first
   pass (calibration about USD 2.3, a six-run cohort capped at USD 27 each, a canary about
   USD 5.6), about double if a cohort fails.

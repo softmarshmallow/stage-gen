@@ -87,24 +87,21 @@ media. The game READMEs describe their refusal behavior when content is missing.
 Each game owns its preparation entry point and its input selection. No root selector
 chooses a game for the repository.
 
+Every game's assets build with gnode from the game's own folder, and planning is offline.
+Bellweather's `default` and `waves` inputs are variants of the same game; Ember Hollow
+plans one rung of its scope ladder at a time:
+
 ```sh
 uv sync --frozen --group games
-uv run --group games python godot/games/ember_hollow/pipeline/prepare.py
-uv run --group games python godot/games/the_grain/pipeline/prepare.py
-```
-
-These defaults plan or validate inputs offline. Run `--help` on the selected
-script for generation, deterministic rehearsal and output options; The Grain's script
-proves and publishes its case. Iron Petal Unit, Bellweather and The Grain's rooms and
-scene are built with gnode from their own folders instead; Bellweather's `default` and
-`waves` inputs are variants of the same game:
-
-```sh
 cd godot/games/iron_petal_unit && uv run gnode plan pipeline/workflow.py:build --arg package=inputs
 cd godot/games/bellweather && uv run gnode plan pipeline/workflow.py:build --arg package=inputs/default
 cd godot/games/the_grain && uv run gnode plan pipeline/workflow.py:room --arg package=inputs/rooms/window
 cd godot/games/the_grain && uv run gnode plan pipeline/workflow.py:scene --arg package=inputs
+cd godot/games/ember_hollow && uv run gnode plan pipeline/workflow.py:build --arg package=inputs --arg scope=full
 ```
+
+The Grain's `pipeline/prepare.py` proves its case and publishes it over the rooms' and the
+scene's delivered folders.
 
 The collection CLI, `uv run --group games demo-games --help`, maintains existing format
 inspection and authoring commands without making those formats part of the public asset SDK.

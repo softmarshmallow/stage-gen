@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 from typing import Never
 
-from ember_hollow_pipeline.scopes import SCOPES as SURVIVAL_SCOPES
 from stage_gen.application import (
     UsageError as CliUsageError,
 )
@@ -62,62 +61,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--acceptance-spec", required=True, dest="acceptance_spec_path"
     )
     dialogue_review_parser.add_argument("--usage", required=True, choices=("local-demo",))
-
-    oblique_survival_parser = commands.add_parser(
-        "oblique-survival",
-        description="Generate one authored elevated-oblique survival world, scope by scope",
-    )
-    oblique_survival_commands = oblique_survival_parser.add_subparsers(
-        dest="oblique_survival_command", required=True
-    )
-    oblique_survival_generate_parser = oblique_survival_commands.add_parser(
-        "generate",
-        help="draw, gate and publish one scope of one survival package",
-    )
-    oblique_survival_generate_parser.add_argument(
-        "--input",
-        required=True,
-        dest="input_path",
-        help="authored survival package directory (survival.toml plus its siblings)",
-    )
-    oblique_survival_generate_parser.add_argument("--output", required=True, dest="output_path")
-    oblique_survival_generate_parser.add_argument("--cache-dir", dest="cache_dir")
-    oblique_survival_generate_parser.add_argument(
-        "--scope",
-        choices=SURVIVAL_SCOPES,
-        default="full",
-        help="which rung of the ladder to draw; a narrower scope shares every node it keeps",
-    )
-    oblique_survival_generate_parser.add_argument("--dry-run", action="store_true", dest="dry_run")
-    oblique_survival_generate_parser.add_argument("--invocation-id")
-    oblique_survival_generate_parser.add_argument(
-        "--failure-node", dest="failure_node", help="inject one dry-run node failure"
-    )
-    oblique_survival_plan_parser = oblique_survival_commands.add_parser(
-        "plan",
-        help="print the exact plan for one scope, offline, and what a cache would restore",
-    )
-    oblique_survival_plan_parser.add_argument("--input", required=True, dest="input_path")
-    oblique_survival_plan_parser.add_argument("--scope", choices=SURVIVAL_SCOPES, default="full")
-    oblique_survival_plan_parser.add_argument(
-        "--cache-dir",
-        dest="cache_dir",
-        help="report which provider operations this cache would restore, before any spend",
-    )
-    oblique_survival_import_parser = oblique_survival_commands.add_parser(
-        "import-run",
-        help="replay a prior run's artifacts into the cache, key by key, provider-free",
-    )
-    oblique_survival_import_parser.add_argument("--run", required=True, dest="run_dir")
-    oblique_survival_import_parser.add_argument("--input", required=True, dest="input_path")
-    oblique_survival_import_parser.add_argument("--cache-dir", required=True, dest="cache_dir")
-    oblique_survival_import_parser.add_argument("--scope", choices=SURVIVAL_SCOPES, default="full")
-    oblique_survival_finalize_parser = oblique_survival_commands.add_parser(
-        "finalize",
-        help="rebuild one run's manifest from what it has on disk, provider-free",
-    )
-    oblique_survival_finalize_parser.add_argument("--run", required=True, dest="run_dir")
-    oblique_survival_finalize_parser.add_argument("--input", required=True, dest="input_path")
 
     scenario_parser = commands.add_parser(
         "scenario",

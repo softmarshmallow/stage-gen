@@ -84,19 +84,27 @@ GNODE_GAME_PROJECTS = (
     "godot/games/iron_petal_unit",
     "godot/games/bellweather",
     "godot/games/the_grain",
+    "godot/games/ember_hollow",
 )
 #: The builder a one-builder gnode game plans from its own folder.
 BUILDER = "pipeline/workflow.py:build"
-#: Each gnode game's builders and the packages each one plans, offline.
-GNODE_GAME_PLANS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
-    ("iron_petal_unit", ((BUILDER, "inputs"),)),
-    ("bellweather", ((BUILDER, "inputs/default"), (BUILDER, "inputs/waves"))),
+#: Each gnode game's builders, the packages each one plans offline, and any other arguments.
+GNODE_GAME_PLANS: tuple[tuple[str, tuple[tuple[str, str, tuple[str, ...]], ...]], ...] = (
+    ("iron_petal_unit", ((BUILDER, "inputs", ()),)),
+    ("bellweather", ((BUILDER, "inputs/default", ()), (BUILDER, "inputs/waves", ()))),
     (
         "the_grain",
         (
-            ("pipeline/workflow.py:room", "inputs/rooms/window"),
-            ("pipeline/workflow.py:room", "inputs/rooms/motor_court"),
-            ("pipeline/workflow.py:scene", "inputs"),
+            ("pipeline/workflow.py:room", "inputs/rooms/window", ()),
+            ("pipeline/workflow.py:room", "inputs/rooms/motor_court", ()),
+            ("pipeline/workflow.py:scene", "inputs", ()),
+        ),
+    ),
+    (
+        "ember_hollow",
+        tuple(
+            (BUILDER, "inputs", ("--arg", f"scope={scope}"))
+            for scope in ("minimal", "props", "actors", "full")
         ),
     ),
 )
@@ -105,7 +113,6 @@ GAME_TYPED_TOOLS = (
     "godot/games/bellweather/tools/design_map.py",
     "godot/games/bellweather/tools/prove_climbable_bands.py",
     "godot/games/bellweather/tools/render_asset_scale_figures.py",
-    "godot/games/ember_hollow/tools/write_oblique_survival_cache_keys.py",
     "godot/tools/parity_diff.py",
     "godot/tools/render_terrain_atlas_qa.py",
     "godot/tools/validate_game_package.py",
@@ -125,7 +132,6 @@ def _gnode_game_typechecks() -> tuple[Step, ...]:
 def _game_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
     """Exercise game-owned preparation entry points without provider work."""
     result = [
-        Step((python, "godot/games/ember_hollow/pipeline/prepare.py", "--plan")),
         # The Grain's script proves its case; its rooms and scene are planned below.
         Step((python, "godot/games/the_grain/pipeline/prepare.py")),
     ]
@@ -135,23 +141,11 @@ def _game_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
         home = REPOSITORY_ROOT / "godot/games" / game
         result.append(Step(("gnode", "lock", "--check"), cwd=home))
         result.extend(
-            Step(("gnode", "plan", builder, "--arg", f"package={package}", "--check"), cwd=home)
-            for builder, package in plans
-        )
-    for game, label, options in (("ember_hollow", "survival", ()),):
-        result.append(
             Step(
-                (
-                    python,
-                    f"godot/games/{game}/pipeline/prepare.py",
-                    *options,
-                    "--dry-run",
-                    "--cache-dir",
-                    str(scratch / "game-cache"),
-                    "--output",
-                    str(scratch / f"{game}-{label}"),
-                )
+                ("gnode", "plan", builder, "--arg", f"package={package}", *extra, "--check"),
+                cwd=home,
             )
+            for builder, package, extra in plans
         )
     result.extend(
         Step((python, "godot/tools/validate_game_package.py", "--input", input_path))
@@ -171,7 +165,6 @@ def _game_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
     result.extend(
         (
             Step(("demo-games", "case", "bundle", "--help")),
-            Step(("demo-games", "oblique-survival", "import-run", "--help")),
             Step((python, "godot/tools/write_game_model_policy_snapshot.py")),
         )
     )

@@ -15,14 +15,14 @@ nodes:
   pipeline/nodes/ground.py#compose_painted@1: 05dad66e555ec2b7f9bc520e281a841a6147b0219d8ba14bba913cc1eaea85be
   pipeline/nodes/ground.py#ground_evidence@1: 05dad66e555ec2b7f9bc520e281a841a6147b0219d8ba14bba913cc1eaea85be
   pipeline/nodes/ground.py#painted_guide@1: 05dad66e555ec2b7f9bc520e281a841a6147b0219d8ba14bba913cc1eaea85be
-  pipeline/nodes/interface.py#admit_inventory@1: a2e037e384049a663b617d60f7e48249cc24820c35853734577d62f2ede97d1b
-  pipeline/nodes/interface.py#admit_ui_sheet@1: a2e037e384049a663b617d60f7e48249cc24820c35853734577d62f2ede97d1b
-  pipeline/nodes/interface.py#inventory_review_schema@1: a2e037e384049a663b617d60f7e48249cc24820c35853734577d62f2ede97d1b
-  pipeline/nodes/interface.py#inventory_template@1: a2e037e384049a663b617d60f7e48249cc24820c35853734577d62f2ede97d1b
-  pipeline/nodes/interface.py#publish_inventory@1: a2e037e384049a663b617d60f7e48249cc24820c35853734577d62f2ede97d1b
-  pipeline/nodes/interface.py#publish_ui_sheet@1: a2e037e384049a663b617d60f7e48249cc24820c35853734577d62f2ede97d1b
-  pipeline/nodes/interface.py#ui_review_schema@1: a2e037e384049a663b617d60f7e48249cc24820c35853734577d62f2ede97d1b
-  pipeline/nodes/interface.py#ui_template@1: a2e037e384049a663b617d60f7e48249cc24820c35853734577d62f2ede97d1b
+  pipeline/nodes/interface.py#admit_inventory@1: 3bda9a2edbd9f15f83fad3a50d30cbbf206683d95d0dd16aa9b4b3a116bf7925
+  pipeline/nodes/interface.py#admit_ui_sheet@1: 3bda9a2edbd9f15f83fad3a50d30cbbf206683d95d0dd16aa9b4b3a116bf7925
+  pipeline/nodes/interface.py#inventory_review_schema@1: 3bda9a2edbd9f15f83fad3a50d30cbbf206683d95d0dd16aa9b4b3a116bf7925
+  pipeline/nodes/interface.py#inventory_template@1: 3bda9a2edbd9f15f83fad3a50d30cbbf206683d95d0dd16aa9b4b3a116bf7925
+  pipeline/nodes/interface.py#publish_inventory@1: 3bda9a2edbd9f15f83fad3a50d30cbbf206683d95d0dd16aa9b4b3a116bf7925
+  pipeline/nodes/interface.py#publish_ui_sheet@1: 3bda9a2edbd9f15f83fad3a50d30cbbf206683d95d0dd16aa9b4b3a116bf7925
+  pipeline/nodes/interface.py#ui_review_schema@1: 3bda9a2edbd9f15f83fad3a50d30cbbf206683d95d0dd16aa9b4b3a116bf7925
+  pipeline/nodes/interface.py#ui_template@1: 3bda9a2edbd9f15f83fad3a50d30cbbf206683d95d0dd16aa9b4b3a116bf7925
   pipeline/nodes/layers.py#admit_layer@1: 66c61af9b1309fad65b111c6e0f7d052e284af96fcc4d459b30e48c0acec9335
   pipeline/nodes/layers.py#loop_layer@1: 66c61af9b1309fad65b111c6e0f7d052e284af96fcc4d459b30e48c0acec9335
   pipeline/nodes/layers.py#publish_layer@1: 66c61af9b1309fad65b111c6e0f7d052e284af96fcc4d459b30e48c0acec9335
@@ -34,8 +34,8 @@ nodes:
   pipeline/nodes/maps.py#publish_presentation@1: b76aa34d010bfa60d7eef42f2f2d3dc154848656299f7686e240e5402bcb041c
   pipeline/nodes/maps.py#terrain@1: b76aa34d010bfa60d7eef42f2f2d3dc154848656299f7686e240e5402bcb041c
   pipeline/nodes/maps.py#terrain_schema@1: b76aa34d010bfa60d7eef42f2f2d3dc154848656299f7686e240e5402bcb041c
-  pipeline/nodes/package.py#assemble_package@1: 99f18cfc5a053ee0bb76f30055d89a8b857c72ec8856a758090212c395c89506
-  pipeline/nodes/package.py#bindings@1: 99f18cfc5a053ee0bb76f30055d89a8b857c72ec8856a758090212c395c89506
+  pipeline/nodes/package.py#assemble_package@1: 7967a8954a6135c28b90f3f29cc43a7ab0ecdc706be882f10f31b1d670b5137b
+  pipeline/nodes/package.py#bindings@1: 7967a8954a6135c28b90f3f29cc43a7ab0ecdc706be882f10f31b1d670b5137b
   pipeline/nodes/rebase.py#rebase_admit@1: 9dc82b0ef75b92132501f7a8550fea3f941346666e92829f351d5d1feb3b5d47
   pipeline/nodes/rebase.py#rebase_plate@1: 9dc82b0ef75b92132501f7a8550fea3f941346666e92829f351d5d1feb3b5d47
   pipeline/nodes/rebase.py#rebase_record@1: 9dc82b0ef75b92132501f7a8550fea3f941346666e92829f351d5d1feb3b5d47

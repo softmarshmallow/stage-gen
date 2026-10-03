@@ -30,10 +30,9 @@ from ember_hollow_pipeline.models import (
     Road,
     SourceError,
 )
-from ember_hollow_pipeline.survival_graph import build_graph
 from ember_hollow_pipeline.survival_prompts import actor_concept_prompt
 from ember_hollow_pipeline.survival_request import load_package
-from stage_gen.config import StageGenConfig
+from tests.unit.games.oblique_survival._ember import ember_project, first_takes, plan
 from tests.unit.games.oblique_survival._survival_fixture import write_fixture
 
 PACKAGE: Final = Path("godot/games/ember_hollow/inputs")
@@ -594,16 +593,15 @@ def test_swapping_the_appearance_picture_moves_every_node_drawn_against_it(
     named whether or not anything is drawn from it.
     """
 
-    def keys(root: Path) -> dict[str, str]:
-        package = load_package(root)
-        built = build_graph(StageGenConfig(), package, "actors")
-        wanted = ("actor-wren-concept", "shell-opening_the_cold-clip-adopt")
-        return {n.node_id: n.cache_key for n in built.nodes if n.node_id in wanted}
+    def identities(project: Path) -> dict[str, str]:
+        wanted = ("actors.wren.concept.generate", "shell.opening_the_cold.adopt")
+        found = {i.step: i.identity for i in first_takes(plan(project, "actors"))}
+        return {step: found[step] for step in wanted}
 
-    root = tmp_path / "source"
-    shutil.copytree(PACKAGE, root)
-    before = keys(root)
-    assert set(before) == {"actor-wren-concept", "shell-opening_the_cold-clip-adopt"}
+    project = ember_project(tmp_path, takes=True)
+    root = project / "inputs"
+    before = identities(project)
+    assert all(before.values()), "both steps are known while planning"
 
     picture = root / "references" / "player-appearance.png"
     data = bytearray(picture.read_bytes())
@@ -622,11 +620,12 @@ def test_swapping_the_appearance_picture_moves_every_node_drawn_against_it(
             "6bae2780aae3e8857e2e4eb95b9f930a0588108cc5ff535a77278b88b6eb76b0", digest
         )
     )
-    after = keys(root)
-    assert after["actor-wren-concept"] != before["actor-wren-concept"]
-    assert (
-        after["shell-opening_the_cold-clip-adopt"] == before["shell-opening_the_cold-clip-adopt"]
-    ), "an adopted clip is a file; re-briefing the picture it was drawn from re-buys nothing"
+    after = identities(project)
+    concept, adopted = "actors.wren.concept.generate", "shell.opening_the_cold.adopt"
+    assert after[concept] != before[concept]
+    assert after[adopted] == before[adopted], (
+        "an adopted clip is a file; re-briefing the picture it was drawn from re-buys nothing"
+    )
 
 
 def test_the_approach_radius_never_falls_inside_the_reach(tmp_path: Path) -> None:

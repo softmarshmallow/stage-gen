@@ -152,9 +152,9 @@ may mix them inside one opening: audition the shot that matters, let a simpler o
 itself.
 
 Adoption is the recommended default, and it is recommended by arithmetic rather than by a
-flag. `oblique-survival plan` on Ember Hollow reports **134 billable operations and
-$18.91–30.71** with its three clips adopted, against **137 and $21.91–33.71** with them drawn. There
-is no warning to silence and no confirmation to pass.
+flag. `gnode plan` on Ember Hollow's full scope reports **134 paid calls** with its three
+clips adopted, against **137** with them drawn, each drawn ten-second clip about a dollar.
+There is no warning to silence and no confirmation to pass.
 
 Three consequences worth stating:
 

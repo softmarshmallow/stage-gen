@@ -1,23 +1,23 @@
 # gnode.lock: the source behind each versioned node type; commit it
 nodes:
-  pipeline/nodes/interface.py#admit_ui_sheet@1: f95505572f99ebeb3f24ed6824bbb7cf998d98ba461b6c039d40f94326a6940b
-  pipeline/nodes/interface.py#publish_ui_sheet@1: f95505572f99ebeb3f24ed6824bbb7cf998d98ba461b6c039d40f94326a6940b
-  pipeline/nodes/interface.py#ui_review_schema@1: f95505572f99ebeb3f24ed6824bbb7cf998d98ba461b6c039d40f94326a6940b
-  pipeline/nodes/interface.py#ui_template@1: f95505572f99ebeb3f24ed6824bbb7cf998d98ba461b6c039d40f94326a6940b
-  pipeline/nodes/room.py#admit_room_image@1: f5e69fd3ad5dd0a78c0d50b2f76bee2dde857f9aef92be386a2c43da981ef2d7
-  pipeline/nodes/room.py#check_narration@1: f5e69fd3ad5dd0a78c0d50b2f76bee2dde857f9aef92be386a2c43da981ef2d7
-  pipeline/nodes/room.py#narration@1: f5e69fd3ad5dd0a78c0d50b2f76bee2dde857f9aef92be386a2c43da981ef2d7
-  pipeline/nodes/room.py#narration_schema@1: f5e69fd3ad5dd0a78c0d50b2f76bee2dde857f9aef92be386a2c43da981ef2d7
-  pipeline/nodes/room.py#room_package@1: f5e69fd3ad5dd0a78c0d50b2f76bee2dde857f9aef92be386a2c43da981ef2d7
-  pipeline/nodes/scene.py#admit_plan@1: 5b7a22e6723e2045f94c7f1f1ea04199449af7981cc50d155708470c354c7f7d
-  pipeline/nodes/scene.py#admit_scene_image@1: 5b7a22e6723e2045f94c7f1f1ea04199449af7981cc50d155708470c354c7f7d
-  pipeline/nodes/scene.py#admit_scene_track@1: 5b7a22e6723e2045f94c7f1f1ea04199449af7981cc50d155708470c354c7f7d
-  pipeline/nodes/scene.py#backdrop@1: 5b7a22e6723e2045f94c7f1f1ea04199449af7981cc50d155708470c354c7f7d
-  pipeline/nodes/scene.py#face_brief@1: 5b7a22e6723e2045f94c7f1f1ea04199449af7981cc50d155708470c354c7f7d
-  pipeline/nodes/scene.py#plan_record@1: 5b7a22e6723e2045f94c7f1f1ea04199449af7981cc50d155708470c354c7f7d
-  pipeline/nodes/scene.py#plan_schema@1: 5b7a22e6723e2045f94c7f1f1ea04199449af7981cc50d155708470c354c7f7d
-  pipeline/nodes/scene.py#scene_package@1: 5b7a22e6723e2045f94c7f1f1ea04199449af7981cc50d155708470c354c7f7d
-  pipeline/nodes/scene.py#sprite@1: 5b7a22e6723e2045f94c7f1f1ea04199449af7981cc50d155708470c354c7f7d
+  pipeline/nodes/interface.py#admit_ui_sheet@1: 3f60f715dcecd3a07fd21ca949c36962ca22dab5f6e85d85a7924ae43d7bed12
+  pipeline/nodes/interface.py#publish_ui_sheet@1: 3f60f715dcecd3a07fd21ca949c36962ca22dab5f6e85d85a7924ae43d7bed12
+  pipeline/nodes/interface.py#ui_review_schema@1: 3f60f715dcecd3a07fd21ca949c36962ca22dab5f6e85d85a7924ae43d7bed12
+  pipeline/nodes/interface.py#ui_template@1: 3f60f715dcecd3a07fd21ca949c36962ca22dab5f6e85d85a7924ae43d7bed12
+  pipeline/nodes/room.py#admit_room_image@1: 642be0e7c24209d4ee72ff4172135441c141550fe6c3164d687d960801e737e7
+  pipeline/nodes/room.py#check_narration@1: 642be0e7c24209d4ee72ff4172135441c141550fe6c3164d687d960801e737e7
+  pipeline/nodes/room.py#narration@1: 642be0e7c24209d4ee72ff4172135441c141550fe6c3164d687d960801e737e7
+  pipeline/nodes/room.py#narration_schema@1: 642be0e7c24209d4ee72ff4172135441c141550fe6c3164d687d960801e737e7
+  pipeline/nodes/room.py#room_package@1: 642be0e7c24209d4ee72ff4172135441c141550fe6c3164d687d960801e737e7
+  pipeline/nodes/scene.py#admit_plan@1: 6481d7a488f83132207ea1e59277f5e08a1b3cb118596a2379f24151251d38a4
+  pipeline/nodes/scene.py#admit_scene_image@1: 6481d7a488f83132207ea1e59277f5e08a1b3cb118596a2379f24151251d38a4
+  pipeline/nodes/scene.py#admit_scene_track@1: 6481d7a488f83132207ea1e59277f5e08a1b3cb118596a2379f24151251d38a4
+  pipeline/nodes/scene.py#backdrop@1: 6481d7a488f83132207ea1e59277f5e08a1b3cb118596a2379f24151251d38a4
+  pipeline/nodes/scene.py#face_brief@1: 6481d7a488f83132207ea1e59277f5e08a1b3cb118596a2379f24151251d38a4
+  pipeline/nodes/scene.py#plan_record@1: 6481d7a488f83132207ea1e59277f5e08a1b3cb118596a2379f24151251d38a4
+  pipeline/nodes/scene.py#plan_schema@1: 6481d7a488f83132207ea1e59277f5e08a1b3cb118596a2379f24151251d38a4
+  pipeline/nodes/scene.py#scene_package@1: 6481d7a488f83132207ea1e59277f5e08a1b3cb118596a2379f24151251d38a4
+  pipeline/nodes/scene.py#sprite@1: 6481d7a488f83132207ea1e59277f5e08a1b3cb118596a2379f24151251d38a4
   pipeline/nodes/style.py#admit_style@1: 396fcfd0438516b4b444908e0bd81667755c38dc6469f09c2ebcdd1fe5e3e322
   pipeline/nodes/style.py#selection_schema@1: 396fcfd0438516b4b444908e0bd81667755c38dc6469f09c2ebcdd1fe5e3e322
   pipeline/nodes/style.py#style_record@1: 396fcfd0438516b4b444908e0bd81667755c38dc6469f09c2ebcdd1fe5e3e322

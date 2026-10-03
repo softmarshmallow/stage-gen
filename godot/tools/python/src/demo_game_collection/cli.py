@@ -115,10 +115,6 @@ async def _dispatch_async(args: argparse.Namespace, *, stdout: TextIO) -> int:
         from demo_game_collection.commands.dialogue import _dispatch_dialogue_scene
 
         return await _dispatch_dialogue_scene(args, config=config, stdout=stdout)
-    if args.command == "oblique-survival":
-        from demo_game_collection.commands.survival import _dispatch_oblique_survival
-
-        return await _dispatch_oblique_survival(args, config=config, stdout=stdout)
     from demo_game_collection.commands.generate import dispatch
 
     return await dispatch(args, config=config, stdout=stdout)

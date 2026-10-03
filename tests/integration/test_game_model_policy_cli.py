@@ -49,41 +49,11 @@ def test_models_routes_is_credential_network_and_adapter_free(
         "openai",
         "openrouter",
     }
-    assert {recipe["recipe_id"] for recipe in report["recipes"]} == {"oblique_survival"}
+    # Every game builds with gnode and names its routes in its own gnode.yaml.
+    assert report["recipes"] == []
 
 
-def test_models_diff_reads_a_local_base_and_honors_recipe_filter(tmp_path: Path) -> None:
-    base = tmp_path / "base.json"
-    base.write_text(
-        render_model_policy_snapshot(load_active_model_policy_snapshot()),
-        encoding="utf-8",
-    )
-    output = StringIO()
-
-    assert (
-        cli.main(
-            [
-                "models",
-                "diff",
-                "--base",
-                str(base),
-                "--recipe",
-                "oblique_survival",
-            ],
-            stdout=output,
-        )
-        == 0
-    )
-
-    report = json.loads(output.getvalue())
-    assert report["kind"] == "stage-gen-model-policy-diff-v1"
-    assert report["recipe_filter"] == "oblique_survival"
-    assert report["route_deltas"] == []
-    assert report["policy_deltas"] == []
-    assert report["recipe_deltas"] == []
-
-
-def test_models_diff_projects_provider_policy_through_canonical_graphs_offline(
+def test_models_diff_reads_a_local_base_offline(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -96,73 +66,18 @@ def test_models_diff_projects_provider_policy_through_canonical_graphs_offline(
     monkeypatch.setattr(FalImageBackend, "__init__", _unexpected)
     monkeypatch.setattr(OpenRouterImageBackend, "__init__", _unexpected)
     monkeypatch.setattr(socket.socket, "connect", _unexpected)
-    output = StringIO()
 
-    assert (
-        cli.main(
-            [
-                "models",
-                "diff",
-                "--base",
-                str(base),
-                "--image-provider",
-                "fal",
-                "--recipe",
-                "oblique_survival",
-            ],
-            stdout=output,
-        )
-        == 0
-    )
-
-    report = json.loads(output.getvalue())
-    [delta] = report["recipe_deltas"]
-    assert delta["recipe_id"] == "oblique_survival"
-    assert delta["direct_nodes"]
-    assert delta["downstream_cache_rekeys"]
-    assert report["consumer_source_changes"]["catalog_or_policy_only"] is True
-
-
-def test_models_diff_reports_all_openrouter_capability_gaps_without_planning_abort(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    base = tmp_path / "base.json"
-    base.write_text(
-        render_model_policy_snapshot(load_active_model_policy_snapshot()),
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(OpenAIImageBackend, "__init__", _unexpected)
-    monkeypatch.setattr(FalImageBackend, "__init__", _unexpected)
-    monkeypatch.setattr(OpenRouterImageBackend, "__init__", _unexpected)
-    monkeypatch.setattr(socket.socket, "connect", _unexpected)
-    output = StringIO()
-
-    assert (
-        cli.main(
-            [
-                "models",
-                "diff",
-                "--base",
-                str(base),
-                "--image-provider",
-                "openrouter",
-            ],
-            stdout=output,
-        )
-        == 0
-    )
-
-    report = json.loads(output.getvalue())
-    gaps = report["capability_gaps"]
-    assert len(gaps) > 1
-    assert len({(gap["recipe_id"], gap["node_id"]) for gap in gaps}) == len(gaps)
-    assert {gap["recipe_id"] for gap in gaps} == {"oblique_survival"}
-    assert all("openrouter" in gap["route_id"] for gap in gaps)
-    assert any("missing features: transparent_background" in gap["reasons"] for gap in gaps)
-    assert any(any(reason.startswith("size ") for reason in gap["reasons"]) for gap in gaps)
-    assert report["has_changes"] is True
-    assert report["consumer_source_changes"]["same_spec_route_change"] is False
+    for provider in ("default", "fal", "openrouter"):
+        output = StringIO()
+        arguments = ["models", "diff", "--base", str(base)]
+        if provider != "default":
+            arguments += ["--image-provider", provider]
+        assert cli.main(arguments, stdout=output) == 0
+        report = json.loads(output.getvalue())
+        assert report["kind"] == "stage-gen-model-policy-diff-v1"
+        assert report["route_deltas"] == []
+        assert report["recipe_deltas"] == []
+        assert report["capability_gaps"] == []
 
 
 def test_models_diff_refuses_an_unknown_recipe(tmp_path: Path) -> None:

@@ -55,13 +55,12 @@ second copy of a run rather than a player of one.
 
 ## How to run it
 
-Produce or select a run first — a live one, or the free rehearsal:
+Build and deliver a folder first, or select one already delivered. From
+`godot/games/ember_hollow` ([the generation document](generation-v1.md) has the rest):
 
 ```sh
-uv run --group games demo-games oblique-survival generate \
-  --input godot/games/ember_hollow/inputs \
-  --output out/ember-hollow-v3 \
-  --scope full --cache-dir out/.oblique-survival-cache
+gnode run pipeline/workflow.py:build --arg package=inputs --arg scope=full --live \
+  --max-usd 40 --deliver package=../../../out/ember-hollow/{key}
 ```
 
 Then play it. Everything after the bare `--` belongs to the host; the editor
@@ -203,6 +202,5 @@ reversible: the manifest is the only contract between the two sides, and
 replacing the host changes nothing on the generating side of it.
 
 The host is also not an authority on how a run was made. It reads a manifest; it
-never writes one. `demo-games oblique-survival finalize` rebuilds a manifest from
-what a run has on disk, and that command is Python, provider-free, and outside
-this host entirely.
+never writes one. The build's package step writes it, in Python, and how each file in it
+was made is the gnode run's record, outside this host entirely.

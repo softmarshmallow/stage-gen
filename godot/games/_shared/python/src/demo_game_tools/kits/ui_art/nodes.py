@@ -1,37 +1,22 @@
-"""The UI sheet roles as one recipe-neutral node triplet.
+"""The UI sheet roles: geometry, gates, review questions and the manifest projection.
 
 Every 2D game draws panels, buttons and a few system icons, so this is the one piece of
 generation that is genuinely the same work in every genre: the geometry template, the
-pixel gate, and the review question do not know whether a platformer, a visual novel, a
-point-and-click room, or a runner asked for them. The triplet therefore lives beside the
-contract it serves rather than inside whichever recipe built it first, under the
-component's own taxonomy name (``2d/ui/atlas.*``), so a later promotion into a gnode
-ring is a namespace move rather than a rename.
-
-Three sheet families share the triplet. A nine-slice role (``panel_frame``, ``button_rect``)
-is gated by slice reconstruction and published with insets; the preview icon grid is
-gated by cell registration and published with glyph bounds; the cursor set is the icon
-grid's gate with one measured hotspot per glyph. The node types, ids, ports, cache
-identity and manifest projection are one shape; only the family's own template, gate,
-evidence and review question differ, and they are looked up from the role.
-
-A host recipe supplies what only it knows — its authored ``ui`` document, the art
-direction that wraps the prompt, the digests that make a role cache-identifiable inside
-its own graph, and (where it keeps attempt ledgers) a provider-call wrapper — and keeps
-everything else. Nothing here reads a game, a genre, or a camera.
-
-The prompt is composed at plan time and carried on the node card, so a reader sees the
-exact instruction the provider will be given without running anything, and a recipe that
-gates on full static prompts admits these nodes like any other.
+pixel gate and the review question do not know which genre asked for them. Three sheet
+families share one shape. A nine-slice role (``panel_frame``, ``button_rect``) is gated by
+slice reconstruction and published with insets; the preview icon grid is gated by cell
+registration and published with glyph bounds; the cursor set is the icon grid's gate with
+one measured hotspot per glyph. Only each family's own template, gate, evidence and review
+question differ, and they are looked up from the role. The build steps that draw them are
+``demo_game_tools.steps.ui_atlas``. Nothing here reads a game, a genre, or a camera.
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
-from typing import Any, Literal, Protocol, cast
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -77,40 +62,11 @@ from demo_game_tools.kits.ui_art.models import (
     UiArtwork,
 )
 from gnode import (
-    AuthoredInput,
-    BinaryArtifact,
-    Graph,
-    GraphBuilder,
-    ImageGenerationRequest,
-    ImageGenerationService,
-    ImageReference,
-    ImageRouteRequirementsV1,
-    InputProvenance,
-    Node,
-    NodeCard,
-    NodeExecutionResult,
     NodePolicy,
-    NodeType,
     PersistedContractModel,
-    Port,
-    PortRef,
-    ProvenanceInput,
-    SoftwareIdentity,
-    StructuredGenerationRequest,
-    StructuredGenerationService,
-    StructuredOutputSchema,
-    StructuredReference,
-    ViewArchetype,
-    WorkloadRequestV1,
-    atomic_write_json,
-    dependency_port,
-    write_artifact_with_provenance_async,
 )
-from stage_gen.canonical import content_sha256
 from stage_gen.components._game_input import SNAKE_ID_PATTERN
-from stage_gen.components._node_kit import ProviderCall, card_prompt, node_result
-from stage_gen.media import data_url
-from stage_gen.pipeline import artifact_port, object_digest, record_port
+from stage_gen.components._node_kit import ProviderCall
 
 _P = "2d/ui"
 _PROVIDER = NodePolicy(max_attempts=6)
@@ -137,37 +93,7 @@ UI_ATLAS_VALIDATION_KIND = "ui-atlas-validation-v1"
 UI_ATLAS_EVIDENCE_KIND = "ui-atlas-evidence-v1"
 UI_ATLAS_VERDICT_KIND = "review-verdict-v1"
 
-UI_ATLAS_GENERATE = NodeType(
-    type_id=f"{_P}/atlas.generate",
-    title="UI atlas role",
-    archetype=ViewArchetype.IMAGE,
-    operation="image_generation",
-    features=IMAGE_FEATURES,
-    policy=_PROVIDER,
-    contract_version="ui-atlas-v2",
-)
-
-UI_ATLAS_VALIDATE = NodeType(
-    type_id=f"{_P}/atlas.validate",
-    title="UI atlas admission",
-    archetype=ViewArchetype.VALIDATE,
-    operation="local",
-    contract_version="ui-atlas-validate-v1",
-)
-
-UI_ATLAS_REVIEW = NodeType(
-    type_id=f"{_P}/atlas.review",
-    title="UI atlas review",
-    archetype=ViewArchetype.JUDGE,
-    operation="structured_generation",
-    features=STRUCTURED_FEATURES,
-    policy=_PROVIDER,
-    contract_version="ui-atlas-review-v1",
-)
-
 #: Every type this module owns, for a recipe's own type census and registry checks.
-UI_ATLAS_NODE_TYPES = (UI_ATLAS_GENERATE, UI_ATLAS_VALIDATE, UI_ATLAS_REVIEW)
-
 #: Any sheet family's role: what the triplet is fanned out over.
 UiSheetRole = AtlasRole | IconGridRole | CursorGridRole
 
@@ -539,415 +465,6 @@ def validate_ui_sheet(data: bytes, role: str) -> dict[str, object]:
 # ------------------------------------------------------------------- graph
 
 
-def atlas_node_ids(role: UiSheetRole, *, prefix: str = "ui") -> tuple[str, str, str]:
-    """The generate, validate and review ids one role occupies in a host graph."""
-
-    return (
-        f"{prefix}-{role.role}-generate",
-        f"{prefix}-{role.role}-validate",
-        f"{prefix}-{role.role}-review",
-    )
-
-
-def atlas_artifact_refs(role: UiSheetRole) -> tuple[str, str, str, str, str]:
-    """Every path one role writes: raw, canonical, validation, evidence, verdict."""
-
-    return (
-        f"ui/{role.role}.raw.png",
-        f"ui/{role.role}.png",
-        f"ui/{role.role}.validation.json",
-        f"ui/{role.role}.evidence.png",
-        f"ui/{role.role}.review.json",
-    )
-
-
-def add_ui_atlas_nodes(
-    builder: GraphBuilder,
-    *,
-    root: str,
-    ui: UiArtwork,
-    style_prompt: Callable[[str], str],
-    direction_digests: Sequence[str] = (),
-    roles: Sequence[UiSheetRole] = DEFAULT_ATLAS_ROLES,
-    domain: str = "ui",
-    prefix: str = "ui",
-    attempts_port: Callable[[str], Port] | None = None,
-    image_workload: Callable[[ImageRouteRequirementsV1], WorkloadRequestV1] | None = None,
-) -> list[str]:
-    """Add one generic sheet triplet per role, fanned out over the role parameter.
-
-    The template is rendered from the role's geometry record at run time, so the record is
-    what the cache key hashes: a rasterizer change that draws the same guides differently
-    must not re-bill the image, and a geometry change must. ``direction_digests`` is the
-    host's own art-direction identity, so a recipe that repaints its whole look re-bills
-    its sheets without this module knowing what a look is.
-
-    Returns the review node ids, which are the terminals a host adds to its own list.
-    """
-
-    references = {entry.reference_id: entry for entry in ui.references}
-    terminals: list[str] = []
-    for role in roles:
-        family = sheet_family(role)
-        direction = _role_direction(ui, role)
-        direction_digest = object_digest(direction.model_dump(mode="json"))
-        geometry_digest = object_digest(role.geometry_record())
-        generate_id, validate_id, review_id = atlas_node_ids(role, prefix=prefix)
-        raw_ref, image_ref, validation_ref, evidence_ref, verdict_ref = atlas_artifact_refs(role)
-        # An input that reaches a provider is never invisible in the plan: the card names
-        # each authored reference and the bytes it binds, not just an opaque digest.
-        authored = tuple(
-            AuthoredInput(
-                label=reference_id,
-                ref=references[reference_id].source,
-                sha256=references[reference_id].source_sha256,
-            )
-            for reference_id in direction.reference_ids
-        )
-        generate_ports: list[Port] = [artifact_port("image", raw_ref, UI_ATLAS_RAW_KIND)]
-        review_ports: list[Port] = [artifact_port("verdict", verdict_ref, UI_ATLAS_VERDICT_KIND)]
-        if attempts_port is not None:
-            generate_ports.append(attempts_port(generate_id))
-            review_ports.append(attempts_port(review_id))
-        generated = builder.add(
-            UI_ATLAS_GENERATE,
-            generate_id,
-            domain=domain,
-            description=family.generate_description.format(role=role.role),
-            depends_on=(root,),
-            cache_depends_on=(),
-            params={"role": role.role},
-            input_digests=(
-                *direction_digests,
-                object_digest({"contract": UI_ATLAS_CONTRACT_VERSION}),
-                direction_digest,
-                *(entry.sha256 for entry in authored),
-                geometry_digest,
-            ),
-            ports=tuple(generate_ports),
-            workload=(
-                None
-                if image_workload is None
-                else image_workload(
-                    ImageRouteRequirementsV1(
-                        operation_variant="edit",
-                        background="transparent",
-                        output_format="png",
-                        size=f"{role.canvas[0]}x{role.canvas[1]}",
-                        reference_count=len(authored) + 1,
-                    )
-                )
-            ),
-            card=NodeCard(
-                prompt=style_prompt(family.content_task(role, direction.prompt)),
-                template_ref=f"{role.layout}_template",
-                authored_inputs=authored,
-            ),
-        )
-        validated = builder.add(
-            UI_ATLAS_VALIDATE,
-            validate_id,
-            domain=domain,
-            description=family.validate_description,
-            depends_on=(generated.node_id,),
-            params={"role": role.role},
-            input_digests=(
-                object_digest({"contract": UI_ATLAS_VALIDATION_VERSION}),
-                direction_digest,
-                geometry_digest,
-            ),
-            ports=(
-                artifact_port("image", image_ref, UI_ATLAS_IMAGE_KIND),
-                record_port("validation", validation_ref, UI_ATLAS_VALIDATION_KIND),
-                artifact_port("evidence", evidence_ref, UI_ATLAS_EVIDENCE_KIND),
-            ),
-            card=NodeCard(reference_inputs=(PortRef(node_id=generated.node_id, port_id="image"),)),
-            duration_seconds=1.5,
-        )
-        reviewed = builder.add(
-            UI_ATLAS_REVIEW,
-            review_id,
-            domain=domain,
-            description=family.review_description.format(role=role.role),
-            depends_on=(validated.node_id,),
-            params={"role": role.role},
-            input_digests=(
-                object_digest({"contract": UI_ATLAS_REVIEW_VERSION}),
-                direction_digest,
-            ),
-            ports=tuple(review_ports),
-            card=NodeCard(
-                prompt=family.review_prompt(role, direction.prompt, {}),
-                schema_name=UI_ATLAS_REVIEW_SCHEMA_NAME,
-                reference_inputs=(PortRef(node_id=validated.node_id, port_id="image"),),
-                authored_inputs=authored,
-            ),
-        )
-        terminals.append(reviewed.node_id)
-    return terminals
-
-
-def _role_direction(ui: UiArtwork, role: UiSheetRole) -> UiSheetDirection:
-    direction = getattr(ui, role.role, None)
-    if not isinstance(direction, sheet_family(role).direction_type):
-        raise ValueError(f"UI document names no {role.role} direction of the expected family")
-    return direction
-
-
-# ----------------------------------------------------------------- handler
-
-
-class _PackageFile(Protocol):
-    """The two facts the triplet needs about an authored file, however a host stores it."""
-
-    @property
-    def data(self) -> bytes: ...
-
-    @property
-    def sha256(self) -> str: ...
-
-
-@dataclass(frozen=True)
-class UiAtlasHost:
-    """Everything the shared triplet needs from whichever recipe hosts it."""
-
-    #: The authored UI document whose roles this host generates.
-    ui: UiArtwork
-    #: The run the host is writing into.
-    run_dir: Path
-    #: The authored package's own identity, for ``package://`` provenance refs.
-    package_id: str
-    #: One authored member by its declared source path.
-    file: Callable[[str], _PackageFile]
-    #: The host's software identity, stamped on the local artifacts the gate writes.
-    component: SoftwareIdentity
-    #: The host tool identity, stamped alongside the component.
-    tool: SoftwareIdentity
-
-
-class UiAtlasHandlers:
-    """The three coroutines behind the atlas node types, owned by no recipe.
-
-    A host binds these into its own registry and keeps its caching, tracing, and error
-    translation. ``provider_call`` is the seam for a recipe that writes attempt ledgers:
-    it receives the node, a role label, the exact prompt, and a thunk, and must return
-    whatever the thunk returns.
-    """
-
-    def __init__(
-        self,
-        host: UiAtlasHost,
-        *,
-        graph: Graph,
-        image_service: ImageGenerationService,
-        structured_service: StructuredGenerationService[object],
-        provider_call: ProviderCall | None = None,
-    ) -> None:
-        self._host = host
-        self._graph = graph
-        self._images = image_service
-        self._structured = structured_service
-        self._provider_call = provider_call
-
-    # -- dispatch ---------------------------------------------------------
-
-    async def generate(self, node: Node) -> NodeExecutionResult:
-        role, direction = self._role(node)
-        family = sheet_family(role)
-        output = self._host.run_dir / node.port("image").artifact_ref
-        template_data = family.template(role)
-        prompt = card_prompt(node)
-        references = (
-            *self._image_references(direction.reference_ids),
-            ImageReference(
-                url=data_url(template_data, "image/png"),
-                provenance_ref=f"geometry://{role.layout}#sha256={content_sha256(template_data)}",
-            ),
-        )
-        request = ImageGenerationRequest(
-            prompt=prompt,
-            artifact_path=output,
-            input_references=references,
-            quality="max",
-            background="transparent",
-            output_format="png",
-            size=f"{role.canvas[0]}x{role.canvas[1]}",
-            timeout_seconds=600,
-            metadata={
-                "checkpoint": "ui",
-                "role": role.role,
-                "layout": role.layout,
-                "alpha_policy": family.alpha_policy,
-            },
-            validate=lambda artifact: family.validate(artifact.data, role),
-        )
-        result = await self._call(node, role.role, prompt, lambda: self._images.generate(request))
-        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
-
-    async def validate(self, node: Node) -> NodeExecutionResult:
-        role, _direction = self._role(node)
-        family = sheet_family(role)
-        run_dir = self._host.run_dir
-        source = run_dir / self._dependency(node, kind=UI_ATLAS_RAW_KIND)
-        data = source.read_bytes()
-        canonical_data, facts = family.canonicalize(data, role)
-        canonical_facts = cast(dict[str, object], facts["canonical"])
-        contract = family.contract(canonical_facts)
-        canonical = run_dir / node.port("image").artifact_ref
-        validation = run_dir / node.port("validation").artifact_ref
-        evidence = run_dir / node.port("evidence").artifact_ref
-        await self._write_local_image(
-            canonical,
-            canonical_data,
-            prompt=family.canonical_prompt,
-            inputs=((source.relative_to(run_dir).as_posix(), data),),
-            validation=facts,
-            model=UI_ATLAS_VALIDATION_VERSION,
-        )
-        atomic_write_json(
-            validation,
-            {
-                "schema_version": 1,
-                "kind": UI_ATLAS_VALIDATION_VERSION,
-                **contract,
-                "facts": facts,
-            },
-        )
-        evidence_data = family.evidence(canonical_data, canonical_facts)
-        await self._write_local_image(
-            evidence,
-            evidence_data,
-            prompt=family.evidence_prompt,
-            inputs=((canonical.relative_to(run_dir).as_posix(), canonical_data),),
-            validation={"source_validation": contract, "checkerboard_only": False},
-            model=UI_ATLAS_EVIDENCE_VERSION,
-        )
-        return self._result(node, provider_operations=0)
-
-    async def review(self, node: Node) -> NodeExecutionResult:
-        role, direction = self._role(node)
-        family = sheet_family(role)
-        run_dir = self._host.run_dir
-        evidence = run_dir / self._dependency(node, kind=UI_ATLAS_EVIDENCE_KIND)
-        validation = run_dir / self._dependency(node, kind=UI_ATLAS_VALIDATION_KIND)
-        contract = json.loads(validation.read_bytes())
-        selected = set(direction.reference_ids)
-        references = [_structured_reference_from_run(evidence, run_dir)]
-        references.extend(
-            self._package_structured_reference(reference.source)
-            for reference in self._host.ui.references
-            if reference.reference_id in selected
-        )
-        prompt = family.review_prompt(role, direction.prompt, contract)
-        output = run_dir / node.port("verdict").artifact_ref
-        request: StructuredGenerationRequest[object] = StructuredGenerationRequest(
-            prompt=prompt,
-            system=(
-                "You are a strict independent 2D game-art technical director. Return only the "
-                "requested structured review."
-            ),
-            artifact_path=output,
-            schema=StructuredOutputSchema(
-                name=UI_ATLAS_REVIEW_SCHEMA_NAME,
-                json_schema=ui_atlas_review_schema(family.review_checks),
-            ),
-            parse=_parse_review,
-            references=tuple(references),
-            max_tokens=1800,
-            timeout_seconds=600,
-            metadata={"checkpoint": "ui", "role": role.role},
-        )
-        result = await self._call(
-            node, role.role, prompt, lambda: self._structured.generate(request)
-        )
-        return self._result(node, attempts=result.attempts, provider_operations=result.attempts)
-
-    # -- internals --------------------------------------------------------
-
-    def _role(self, node: Node) -> tuple[UiSheetRole, UiSheetDirection]:
-        role = UI_SHEET_ROLES[str(node.params["role"])]
-        return role, _role_direction(self._host.ui, role)
-
-    async def _call(
-        self, node: Node, label: str, prompt: str, thunk: Callable[[], Awaitable[Any]]
-    ) -> Any:
-        if self._provider_call is None:
-            return await thunk()
-        return await self._provider_call(node, label, prompt, thunk)
-
-    def _dependency(self, node: Node, *, kind: str) -> str:
-        _producer, port = dependency_port(self._graph, node, kind=kind)
-        return port.artifact_ref
-
-    def _image_references(self, reference_ids: Sequence[str]) -> tuple[ImageReference, ...]:
-        by_id = {entry.reference_id: entry for entry in self._host.ui.references}
-        values = []
-        for reference_id in reference_ids:
-            source = by_id[reference_id].source
-            package_file = self._host.file(source)
-            values.append(
-                ImageReference(
-                    url=data_url(package_file.data, _media_type(source)),
-                    provenance_ref=(
-                        f"package://{self._host.package_id}/{source}#sha256={package_file.sha256}"
-                    ),
-                )
-            )
-        return tuple(values)
-
-    def _package_structured_reference(self, source: str) -> StructuredReference:
-        package_file = self._host.file(source)
-        return StructuredReference(
-            url=data_url(package_file.data, _media_type(source)),
-            provenance_ref=(
-                f"package://{self._host.package_id}/{source}#sha256={package_file.sha256}"
-            ),
-        )
-
-    async def _write_local_image(
-        self,
-        path: Path,
-        data: bytes,
-        *,
-        prompt: str,
-        inputs: Sequence[tuple[str, bytes]],
-        validation: Mapping[str, object],
-        model: str,
-    ) -> Path:
-        return await write_artifact_with_provenance_async(
-            path,
-            BinaryArtifact(data=data, media_type="image/png"),
-            ProvenanceInput(
-                provider="local",
-                model=model,
-                prompt=prompt,
-                refs=[ref for ref, _ in inputs],
-                inputs=[
-                    InputProvenance(
-                        ref=ref,
-                        sha256=content_sha256(payload),
-                        source="content",
-                        bytes=len(payload),
-                        media_type="image/png",
-                    )
-                    for ref, payload in inputs
-                ],
-                params={"version": self._host.component.version},
-                validation=dict(validation),
-                component=self._host.component,
-                tool=self._host.tool,
-                attempts=1,
-            ),
-        )
-
-    def _result(
-        self, node: Node, *, attempts: int = 1, provider_operations: int
-    ) -> NodeExecutionResult:
-        return node_result(
-            self._host.run_dir, node, attempts=attempts, provider_operations=provider_operations
-        )
-
-
 def ui_atlas_review_schema(
     checks: Sequence[str] = NINE_SLICE_FAMILY.review_checks,
 ) -> dict[str, object]:
@@ -1141,22 +658,6 @@ def ui_atlas_manifest_block(
 # ----------------------------------------------------------------- helpers
 
 
-def _structured_reference_from_run(path: Path, run_dir: Path) -> StructuredReference:
-    return StructuredReference(
-        url=data_url(path.read_bytes(), "image/png"),
-        provenance_ref=f"run://{path.relative_to(run_dir).as_posix()}",
-    )
-
-
-def _media_type(path: str) -> str:
-    return {
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".webp": "image/webp",
-    }[PurePosixPath(path).suffix.lower()]
-
-
 __all__ = [
     "CURSOR_GRID_FAMILY",
     "DEFAULT_ATLAS_ROLES",
@@ -1178,28 +679,19 @@ __all__ = [
     "UI_ATLAS_CONTRACT_VERSION",
     "UI_ATLAS_EVIDENCE_KIND",
     "UI_ATLAS_EVIDENCE_VERSION",
-    "UI_ATLAS_GENERATE",
     "UI_ATLAS_IMAGE_KIND",
-    "UI_ATLAS_NODE_TYPES",
     "UI_ATLAS_RAW_KIND",
-    "UI_ATLAS_REVIEW",
     "UI_ATLAS_REVIEW_SCHEMA_NAME",
     "UI_ATLAS_REVIEW_VERSION",
-    "UI_ATLAS_VALIDATE",
     "UI_ATLAS_VALIDATION_KIND",
     "UI_ATLAS_VALIDATION_VERSION",
     "UI_ATLAS_VERDICT_KIND",
     "ProviderCall",
     "SheetFamily",
-    "UiAtlasHandlers",
-    "UiAtlasHost",
     "UiSheetDirection",
     "UiSheetLayout",
     "UiSheetRole",
-    "add_ui_atlas_nodes",
-    "atlas_artifact_refs",
     "atlas_content_task",
-    "atlas_node_ids",
     "atlas_review_prompt",
     "cursor_content_task",
     "cursor_review_prompt",

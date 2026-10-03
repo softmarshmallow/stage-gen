@@ -3,10 +3,11 @@
 > **Scope: game consumers.** This document describes the formats used by these Godot games.
 > The public asset SDK and new games do not require this authoring format.
 
-> **Checked by:** `tests/contract/test_generation_pipeline_docs.py`.
+> **Checked by:** `tests/contract/test_generation_pipeline_docs.py`, `tests/unit/games/oblique_survival/test_workflow.py`.
 
 > **Contract maturity: exact-current authored contracts.** Executable
-> authority: `godot/games/ember_hollow/pipeline/src/ember_hollow_pipeline/`. The camera vocabulary it
+> authority: the gnode build `godot/games/ember_hollow/pipeline/workflow.py` over
+> `godot/games/ember_hollow/pipeline/src/ember_hollow_pipeline/`. The camera vocabulary it
 > implements is ratified in the
 > [view and style taxonomy](../../_shared/docs/formats/view-and-style-taxonomy.md) and its
 > namespace segment in the [asset taxonomy](../../../../docs/spec/asset-taxonomy.md). The
@@ -44,11 +45,11 @@ answered by review, not by a gate.
 | Asset view | `three_quarter_front`, pictorial pitch `above` (about 30°) |
 | Directional coverage | `four_way` for the player; `single_mirrored` for a mob |
 
-Type ids live at `2d/obliqueview/survival/<module>.<step>`. `obliqueview` is a
-camera alias bound to the profile above, which is what the
-[asset taxonomy](../../../../docs/spec/asset-taxonomy.md) requires of a new camera segment: a
-segment's authority is its binding, and an unbound informal label never becomes
-one.
+`obliqueview` is the camera alias the
+[asset taxonomy](../../../../docs/spec/asset-taxonomy.md) binds to the profile above: a
+segment's authority is its binding, and an unbound informal label never becomes one. The
+build's step types are this project's own, in `pipeline/nodes/`, beside the shared steps
+it reuses.
 
 **The scene pitch and the pictorial pitch are deliberately different numbers.**
 A screen-aligned billboard is not foreshortened by the camera at all, so the
@@ -86,8 +87,7 @@ a `game.toml` closure.
 | `shell.toml` | `game-shell-v3` | optional: the screens around the game — the opening cinematic's shot list, each shot drawn as a still or filmed as a clip, the title screen's backdrop and text-free emblem, and the loading screen — the shared [authored game shell contract](shell.md), planned through the game_shell component's own triplet. Every string on them is composited by the host in the package's declared typeface, never drawn into a plate |
 | `sounds.toml` | — | one clip per thing the player does, with its exact duration and its playback gain |
 
-`publication_authorized` is `false` in every graph this recipe seals and in
-every manifest it writes. A package cannot authorize its own publication, and
+`publication_authorized` is `false` in every manifest the build writes. A package cannot authorize its own publication, and
 neither can a run.
 
 **Takes, and why some of them are local.** An adopted take is an auditioned
@@ -98,16 +98,16 @@ bare path, which is read and digested from disk, or the inline table
 `take = { path = "...", sha256 = "..." }`, which declares the digest instead.
 The declared digest enters the package's digest ledger exactly as the file's
 own would, the file is verified against it whenever it is present, and its
-absence is allowed and recorded — so the graph plans, prices and keys itself
-from the committed text alone, and the adopt node refuses at execution with the
-digest it wanted.
+absence is allowed and recorded — so the build plans and prices itself from the
+committed text alone, and the adopt step refuses at execution, naming the take
+and the digest it wanted.
 
 That rule is what lets the fixture package obey the
 [repository storage policy](../../../../docs/repository-storage.md): the two reference
 images are tracked, and the ground, item, weather, music and sound takes are
-first-party draws that stay local and untracked, declared by digest. Planning,
-graph identity and the machine-checked contract below need only the digest; a
-live run needs the bytes.
+first-party draws that stay local and untracked, declared by digest. Planning
+and the machine-checked contract below need only the declaration; a run needs
+the bytes.
 
 ## Facings
 
@@ -141,113 +141,96 @@ of one strip's depth on the critical path. Strips land at
 four specs under `facings` with the front's fields repeated at the top level, so
 a consumer that knows one strip per state still reads it.
 
-## The graph
+## The build
 
-One graph serves every scope. A scope selects a subset of the nodes and changes
-nothing about the ones it keeps, so a narrow run warms the cache for a wide one
-instead of paying twice.
+The game's folder is a gnode project. `pipeline/workflow.py:build` reads the package with
+the game's own reader and writes one group of steps per asset. One build serves every
+scope: a scope selects which assets are built and changes nothing about the ones it
+keeps, so a narrow build's answers are the wide build's too.
 
-| Scope | Nodes | Image | Structured | Tool loop | Music | Sound | Video | Local |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `minimal` | 64 | 21 | 0 | 5 | 0 | 0 | 0 | 38 |
-| `props` | 202 | 75 | 11 | 11 | 0 | 0 | 0 | 105 |
-| `actors` | 252 | 96 | 16 | 11 | 0 | 0 | 0 | 129 |
-| **`full`** | **294** | **103** | **17** | **11** | **0** | **3** | **0** | **160** |
+| Scope | Image | Structured | Agent episode | Sound | Music | Video |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `minimal` | 21 | 0 | 5 | 0 | 0 | 0 |
+| `props` | 75 | 11 | 11 | 0 | 0 | 0 |
+| `actors` | 96 | 16 | 11 | 0 | 0 | 0 |
+| **`full`** | **103** | **17** | **11** | **3** | **0** | **0** |
 
-Counted from the committed fixture package with every plate, track and clip take
-adopted; the music and video counts are zero for that reason. Video is where that
-matters most — a ten-second clip is a dollar, so the three adopted opening shots are
-the difference between 134 billable operations and 137, and between
-$18.91–30.71 and $21.91–33.71.
-Drop a shot's `take` and it goes back to being filmed in the run. The `full` row is the
-block below, and both are derived rather than transcribed.
+Paid calls at first takes, counted from the committed fixture package with every plate,
+track and clip take adopted; the music and video counts are zero for that reason. An
+agent episode is one anchor placement, however many turns it takes (at most six). Video
+is where adoption matters most: a ten-second clip is a dollar, so the three adopted
+opening shots are the difference between 134 billable calls and 137. Drop a shot's
+`take` and it goes back to being filmed. The `full` row is the block below, and the
+table is checked against the plans the builder makes.
 
 `minimal` draws what a played demo needs on screen: each minimal prop's baseline
 state, the state its interaction leaves behind (a chopped tree is a stump, and
 without the stump the tree would simply vanish), the items those interactions
 yield, and the items the forage sheet lets the player pick up. Everything else
-waits for `props`, the interface and the shell included: the four `ui.toml`
-sheets and the four `shell.toml` plates are drawn
-from `props` up, because the frame around the screen is part of the rest of
-what is on screen and nothing about it bears on the oblique clause `minimal`
-exists to prove.
+waits for `props`, the interface and the shell included: the `ui.toml` sheets and
+the `shell.toml` plates and shots are built from `props` up, because the frame
+around the screen is part of the rest of what is on screen and nothing about it
+bears on the oblique clause `minimal` exists to prove.
 
-The phases, in dependency order: source lock and the paintover lattice
-templates; prop sprites, one image per state, each gated and then given one
-tool-loop anchor; items and the inventory icon sheet; the ground as its layers —
-biome material plates, the macro colour field, the road plate and the water
-plate, each gated and made tileable, then the forage sheet as a lattice
-paintover gated cell by cell; decals; the actor concept sheet,
-then per-state motion strips per facing, gated, repacked and rebased against a
-judging plate; the flame-cycle paintover and the dust sheet; the weather layers;
-the season looks, one paintover per prop state; one contact sheet and one
-semantic review per family; the interface sheets, the shared game_ui triplet
-(generate, pixel gate, review) over the panel frame, the button state sheet, the
-preview icon grid and the cursor set, each hanging off the source lock and
-wrapped in this package's own style words with the style plate as reference
-image 1; the
-algorithmic world layout; the manifest.
+The groups, in dependency order: the paintover lattice templates; the props, one image
+per state (or one sheet cut at its emptiest seams into its looks), each gated, finished
+and given one agent-placed anchor; the season looks, one paintover per prop state off its
+summer sprite; the items and the inventory icon sheet; the ground as its layers — biome
+material plates, the macro colour field, the road and the water plates, each gated and
+mirrored to tile, the forage sheet as a lattice paintover gated cell by cell, and the
+decals; the actor concept sheet, then per-state motion strips per facing, gated,
+repacked and rebased against a judging plate; the flame-cycle paintover and the dust
+sheet; the music; the weather layers; the sound effects; one contact sheet and one
+semantic review per family; the interface sheets (the shared UI sheet steps, wrapped in
+this package's own style words with the style plate as a reference); the shell's plates
+and shots; the algorithmic world layout; and the package step, which lays every
+published file out where the manifest names it and writes `manifest.json`.
 
-**One image service, exact routes per node.** Image nodes declare generation or edit, background,
-references or a real mask, and exact canvas without naming a provider. Planning resolves each
-workload through the checked-in Sunburst catalog and seals its route snapshot into the graph. The
-current survival defaults select OpenAI for native-alpha/masked work and for opaque canvases not in
-OpenRouter's verified exact-size set. `STAGE_GEN_IMAGE_PROVIDER=fal` replans both transparent and
-opaque workloads onto fal without adding a second recipe service or retry owner. An OpenRouter
-override refuses this complete graph offline because that surface cannot serve transparent or
-masked nodes. Credentials are checked only for providers already selected, and there is no
-automatic fallback.
+**Every painting is judged and drawn again when it fails.** A judge holds each draw to
+its family's pixel gate (below); a refusal is a redraw, at most six takes, and the
+refused takes stay in the run's records. The publishing step runs the same gate,
+finishes the picture (alpha lifted, a plate mirrored, a strip repacked, a sheet cut) and
+writes the record the manifest reads. Auditioned takes are adopted through the same
+gate instead of drawn.
 
-**Reviews succeed whether they admit or reject.** A rejection is a recorded
-result, not a failure, so the scheduler still reaches the manifest and a run that
-is refused is still readable.
+**Routes are the game's.** `gnode.yaml` binds each kind of call to one route; a step that
+needs a feature its route lacks (a transparent background, say) is refused while
+planning, before any key is checked, and nothing replaces a failed or uncredentialed
+provider automatically. The opening's clips publish through an ffmpeg built with
+libtheora, declared as the `ffmpeg-theora` tool (`GNODE_TOOL_FFMPEG_THEORA`).
+
+**Reviews are evidence, never gates.** A family review that rejects is recorded, and the
+build goes on; only a review that contradicts itself (a failed check naming no finding)
+is asked again.
 
 ## Identity: what re-bills what
 
-A node's cache key hashes its id, its type id, its operation, its sorted input digests, its
-dependency keys and its contract version. An image node additionally binds the resolved route's
-output fingerprint, covering provider, model, surface, endpoint action, adapter behavior and
-effective output options; the portable route snapshot retains the capability and exact-size proof.
-Two rules
-govern what goes where, and both were earned rather than designed:
-
-- **Anything that decides what a node produces is an input digest, not a
-  parameter.** The engine does not hash a node's `params`, so a value that
-  changes the answer and rides `params` would restore the old answer and report
-  a cache hit.
-- **A hard acceptance rule belongs to the digest of the tier it refuses.** A
-  gate threshold nobody shows the model is still part of the question that node
-  is being asked.
+A step's identity is what it is asked and shown: its type, its inputs by content (pictures
+by their bytes) and its parameters, and for a paid call the route. A build reuses every
+answer whose question has not changed, so an edit re-bills exactly the steps whose
+question it changes.
 
 | Edit | Effect |
 | --- | --- |
 | `crafting.toml` — any of it | mixing: reaches the manifest, re-bills nothing |
 | an item's `use`, `tool`, `stack_max` | mixing (`display_name` is painted into the icon sheet, so it bills the icons) |
 | an interaction's `tool` | mixing |
-| `ground.toml [blend]`, `[macro] period_meters`, per-biome display `level` | mixing: the consumer's numbers, read by no node |
+| `ground.toml [blend]`, `[macro] period_meters`, per-biome display `level` | mixing: the consumer's numbers, read by no step that draws |
 | `music.toml [transition]`, a sound cue's `gain` or `pitch_jitter` | mixing: a fade is a cue switch, not a redraw |
-| a prop state's prompt, an item's pickup brief, a plate's material clause, a season look's `season_prompt` | identity: the node that reads it redraws |
-| the style plate's bytes | identity for every generative image node — each digests the plate's bytes, not just its own prompt, because the prompt does not change when the picture does |
-| `ui.toml`, a role's prompt or reference, the package's `[style]` words | identity for that interface sheet's triplet: the role's direction, the reference's digest and the style wrapper's words are its cache inputs, exactly as the game_ui component declares them; the slot count and the HUD's layout are the host's and re-bill nothing |
-| `shell.toml`, a plate's prompt or reference, the package's `[style]` words | identity for that plate's triplet: the plate's direction, the reference's digest, the style wrapper's words and the screen's declared geometry are its cache inputs. Moving a reserved region re-bills the plate that has to keep it quiet; the host's choreography — parallax, easing, dwell — is not an input and re-bills nothing |
-| a summer prop state | identity for that state **and** its winter twin, which hangs off the summer's gated sprite |
-| `world.toml`, any `placement` block, a prop's `canopy_radius_meters` | the layout re-lays (`world-layout`, a local node) and the manifest follows; no provider node moves, and an edit to one object's block moves that object's points and nothing beyond one footprint of them — see [world](world.md) |
-| the scope | selects nodes; it never moves the key of a node it keeps |
-
-**The contract-version prefix is frozen.** Every node type's
-`contract_version` is built from `CONTRACT_VERSION_PREFIX` in
-`godot/games/ember_hollow/pipeline/src/ember_hollow_pipeline/survival_types.py`, and a contract
-version is one of the inputs of a cache key. It is deliberately not the recipe
-word: renaming it would move every key in the graph and re-bill a run that has
-already been paid for. The recipe word, the document kinds and the CLI verb are
-`oblique-survival`; the frozen prefix is its own string and stays put.
+| a prop state's prompt, an item's pickup brief, a plate's material clause, a season look's `season_prompt` | the step that reads it redraws; an item without an icon brief of its own also redraws the icon sheet, which draws it from its pickup brief |
+| the style plate's bytes | every image drawn against it redraws |
+| `ui.toml`, a role's prompt or reference, the package's `[style]` words | that interface sheet redraws; the slot count and the HUD's layout are the host's and re-bill nothing |
+| `shell.toml`, a plate's prompt or reference, the package's `[style]` words | that plate redraws. Moving a reserved region re-bills the plate that has to keep it quiet; the host's choreography — parallax, easing, dwell — re-bills nothing |
+| a summer prop state | that state **and** its winter twin, which is painted over the summer's published sprite |
+| `world.toml`, any `placement` block, a prop's `canopy_radius_meters` | the layout re-lays (a local step) and the manifest follows; no paid call moves — see [world](world.md) |
+| the scope | selects steps; it never moves the identity of a step it keeps |
 
 ## Deterministic gates
 
 Every threshold here is refusal-bearing — a gate that only reports is not a
-gate, and the two that only report say so. A refusal is retried inside the
-node's own single retry owner, within its attempt budget; it is never a nested
-loop and never a second provider adapter.
+gate, and the two that only report say so. A refusal is a redraw: the judge sends
+the take back, at most six takes, and each provider call keeps its own single
+retry owner inside that.
 
 | Gate | Threshold | What it refuses |
 | --- | --- | --- |
@@ -311,132 +294,116 @@ and that nothing is mirrored except an actor's facing. `status` reports one word
 per family — `ok`, `partial`, `missing` or `none` — so a run that lost one
 family is still playable and says which.
 
-`run` carries the run id, the graph digest, the scope and the package's source
-digest. A block published at a version a consumer does not read must be refused
-by name rather than skipped.
+`run` carries the package and scope it was built for (as `run_id`), the scope and the
+package's source digest; `graph_sha256` is null, since the build's record is the gnode
+run's. A block published at a version a consumer does not read must be refused by name
+rather than skipped.
 
 The manifest is a consumer contract and nothing else: it carries no credentials,
 no signed URLs, no absolute paths, and every artifact path in it is a portable
-path below the run directory. The host that plays it is
+path below the delivered folder. The host that plays it is
 [the Godot host](runtime.md).
 
 ## Running it
 
-Offline, no provider, no credentials:
+From `godot/games/ember_hollow`, offline, no provider, no credentials:
 
 ```bash
-uv run --group games demo-games oblique-survival plan --input godot/games/ember_hollow/inputs --scope full
+gnode plan pipeline/workflow.py:build --arg package=inputs --arg scope=full
 ```
+
+A build is the same command run, with `--live` as the explicit provider opt-in and a
+spending cap:
 
 ```bash
-uv run --group games demo-games oblique-survival generate --input godot/games/ember_hollow/inputs \
-  --output out/ember-hollow-dry --scope minimal --dry-run --invocation-id dry-1
+gnode run pipeline/workflow.py:build --arg package=inputs --arg scope=full --live \
+  --max-usd 40 --deliver package=../../../out/<tag>/{key}
 ```
 
-`plan` prints the sealed graph and its projection; adding `--cache-dir` reports
-which provider operations that cache would restore, statically and for free,
-before any spend. `--dry-run` writes node stubs rather than artifacts: it proves
-the graph, not the art.
+Runs land in `out/runs/` and the call cache in `out/gnode-cache/`, so a second build
+pays only for what changed; `--deliver` copies the folder the host plays out of a
+successful build. Budget the widest scope at roughly **USD 19–34** at first takes for the
+committed fixture, from the planner's own low estimate; the build's ceiling, every take
+redrawn, is USD 220. That is a planning allowance, not a quote: redraws and deliberate
+semantic regenerations change the charge, and a semantic regeneration is not a provider
+retry.
 
-Live is simply the absence of `--dry-run`. The executor asks for the
-capabilities the resolved package actually needs, then asks only for credentials named by the
-sealed routes and refuses on a missing key before a run directory exists. Set
-`STAGE_GEN_IMAGE_PROVIDER` while planning and executing to select a non-default image provider;
-changing it means producing a new plan, not changing dispatch underneath an existing one:
-
-```bash
-uv run --group games demo-games oblique-survival generate --input godot/games/ember_hollow/inputs \
-  --output out/ember-hollow-v1 --scope full --cache-dir out/.oblique-survival-cache
-```
-
-Budget the widest scope at roughly **USD 18–30** for the committed fixture, from
-the planner's own low and high estimates. That is a planning allowance, not a
-quote: retries and deliberate semantic regenerations change the charge, and a
-semantic regeneration is not a provider retry.
-
-Two commands are provider-free by construction. `import-run` replays a prior
-run's artifacts into a cache, key by key, so a run that has already been paid
-for is restored rather than redrawn; `finalize` rebuilds one run's manifest from
-what it has on disk.
-
-## Machine-checked graph contract
+## Machine-checked plan contract
 
 The block below is derived, never transcribed. Regenerate it with
 `uv run python godot/tools/write_game_graph_contract.py --write`; the gate is
 `tests/contract/test_generation_pipeline_docs.py`, which also checks the scope
-table above against the graphs the code builds. Changing recipe stages, asset
-fan-out, dependencies, provider multiplicity, resources, scheduling, retries,
-cache identity, trace fields, persisted outputs, or manifest prerequisites
-invalidates it and must be regenerated in the same change.
+table above against the plans the builder makes. A change to the build's steps,
+fan-out, dependencies or routes invalidates it and must be regenerated in the
+same change.
 
 <!-- pipeline-graph-contract:start -->
 ```json
 {
-  "kind": "oblique-survival-execution-graph-contract-v1",
+  "kind": "oblique-survival-gnode-plan-contract-v1",
   "fixture_ref": "godot/games/ember_hollow/inputs",
-  "scope": "full",
-  "graph_schema_version": 2,
-  "topology_sha256": "4243f56f7115d9ad6c733e70d677fea16e62ab524a883c80780935f243e381a2",
-  "node_count": 294,
-  "terminal_node_id": "package-manifest",
-  "operation_counts": {
-    "local": 160,
-    "image_generation": 103,
-    "structured_generation": 17,
-    "tool_loop": 11,
-    "music_generation": 0,
-    "sound_effect_generation": 3,
-    "video_generation": 0
+  "builder": "pipeline/workflow.py:build",
+  "arguments": {
+    "scope": "full"
   },
-  "resources": [
-    {
-      "resource_id": "local",
-      "max_in_flight": null,
-      "requests_per_minute": null,
-      "rate_limit_owner": "none"
-    },
-    {
-      "resource_id": "survival-openrouter-structured",
-      "max_in_flight": 4,
-      "requests_per_minute": null,
-      "rate_limit_owner": "none"
-    },
-    {
-      "resource_id": "survival-openrouter-tool-loop",
-      "max_in_flight": 2,
-      "requests_per_minute": null,
-      "rate_limit_owner": "none"
-    },
-    {
-      "resource_id": "survival-openrouter-music",
-      "max_in_flight": 2,
-      "requests_per_minute": null,
-      "rate_limit_owner": "none"
-    },
-    {
-      "resource_id": "survival-elevenlabs-sound",
-      "max_in_flight": 2,
-      "requests_per_minute": null,
-      "rate_limit_owner": "none"
-    },
-    {
-      "resource_id": "survival-fal-video",
-      "max_in_flight": 1,
-      "requests_per_minute": null,
-      "rate_limit_owner": "none"
-    },
-    {
-      "resource_id": "openai-image",
-      "max_in_flight": null,
-      "requests_per_minute": 150,
-      "rate_limit_owner": "provider_adapter"
-    },
-    {
-      "resource_id": "openrouter-image",
-      "max_in_flight": null,
-      "requests_per_minute": 150,
-      "rate_limit_owner": "provider_adapter"
-    }
+  "workflow_id": "ember-hollow",
+  "topology_sha256": "11e85ddd55a719764986770834ea9d23f5d93b98563642c992a3b6392c6b0d61",
+  "node_count": 1656,
+  "step_count": 466,
+  "first_take_operation_counts": {
+    "agent.turn": 11,
+    "image.edit": 100,
+    "image.generate": 3,
+    "local": 332,
+    "sound.generate": 3,
+    "structured.generate": 17
+  },
+  "outputs": [
+    "package"
+  ],
+  "type_ids": [
+    "./pipeline/nodes/actors.py#publish_rebase",
+    "./pipeline/nodes/actors.py#rebase_admit",
+    "./pipeline/nodes/actors.py#rebase_plate",
+    "./pipeline/nodes/actors.py#rebase_record",
+    "./pipeline/nodes/actors.py#rebase_schema",
+    "./pipeline/nodes/actors.py#rebase_verify_admit",
+    "./pipeline/nodes/actors.py#rebase_verify_plate",
+    "./pipeline/nodes/actors.py#rebase_verify_record",
+    "./pipeline/nodes/audio.py#admit_audio",
+    "./pipeline/nodes/audio.py#adopt_audio",
+    "./pipeline/nodes/audio.py#publish_audio",
+    "./pipeline/nodes/interface.py#admit_ui_sheet",
+    "./pipeline/nodes/interface.py#publish_ui_sheet",
+    "./pipeline/nodes/interface.py#ui_review_schema",
+    "./pipeline/nodes/interface.py#ui_template",
+    "./pipeline/nodes/pictures.py#admit_picture",
+    "./pipeline/nodes/pictures.py#adopt_picture",
+    "./pipeline/nodes/pictures.py#cut_look",
+    "./pipeline/nodes/pictures.py#finish_picture",
+    "./pipeline/nodes/pictures.py#lattice_template",
+    "./pipeline/nodes/pictures.py#lay_sheet",
+    "./pipeline/nodes/props.py#place_anchor",
+    "./pipeline/nodes/reviews.py#admit_review",
+    "./pipeline/nodes/reviews.py#review_record",
+    "./pipeline/nodes/reviews.py#review_schema",
+    "./pipeline/nodes/reviews.py#review_sheet",
+    "./pipeline/nodes/shell.py#admit_shell_plate",
+    "./pipeline/nodes/shell.py#admit_shell_review",
+    "./pipeline/nodes/shell.py#adopt_clip",
+    "./pipeline/nodes/shell.py#clip_record",
+    "./pipeline/nodes/shell.py#publish_clip",
+    "./pipeline/nodes/shell.py#publish_shell_plate",
+    "./pipeline/nodes/shell.py#publish_typeface",
+    "./pipeline/nodes/shell.py#shell_review_brief",
+    "./pipeline/nodes/shell.py#shell_review_record",
+    "./pipeline/nodes/shell.py#shell_review_schema",
+    "./pipeline/nodes/world.py#package_manifest",
+    "./pipeline/nodes/world.py#world_layout",
+    "gnode/image.edit@1",
+    "gnode/image.generate@1",
+    "gnode/sound.generate@1",
+    "gnode/structured.generate@1"
   ]
 }
 ```
@@ -445,8 +412,7 @@ invalidates it and must be regenerated in the same change.
 ## Change protocol
 
 Update this document and its embedded contract in the same change whenever
-package inputs, node fan-out, dependencies, provider multiplicity, resources,
-scheduling, retries, cache identity, trace fields, persisted outputs, or
+package inputs, step fan-out, dependencies, routes, judges, persisted outputs, or
 manifest prerequisites change. Run:
 `uv run pytest tests/contract/test_generation_pipeline_docs.py` and
 `uv run python scripts/check_docs.py`. Live latency, price, quota, and semantic
@@ -470,12 +436,12 @@ permanent graph truth.
 - **Four biomes is the capacity.** A fifth needs a second weight plate and a
   second sampler set in the consumer's shader; the loader refuses it with that
   sentence rather than producing art nobody can blend.
-- **The wall clock of a run is one retry chain, not the graph.** The scheduler
-  runs wide and the graph is finished long before whichever strip is failing its
+- **The wall clock of a run is one redraw chain, not the build.** The scheduler
+  runs wide and the build is finished long before whichever strip is failing its
   spread gate. The lever is the prompt or the gate, never the scheduler.
 - **Set pieces are compositions, not designs.** The camp and the boulder rings
   are members at authored offsets, sited by the generator; nothing composes one.
 - **Generated visual output is unreviewed until a non-producer reviews it**, and
   an audio quality claim needs a separately recorded listening verdict. A run's
-  own `reviews` block records the graph's semantic reviews; it is not that
+  own `reviews` block records the build's semantic reviews; it is not that
   independent verdict.

@@ -1,42 +1,18 @@
-"""The graph document and graph executor are the one place the bootstrap lives.
+"""Product workflows do not grow their own copy of the substrate's helpers.
 
-Five graphs once carried their own graph document, port helpers, dispatch loop and
-executor bootstrap. ``GraphDocument``, ``CachedNodeHandler`` and ``GraphExecutor`` own
-those now; this test keeps a sixth copy from growing back, and pins the document kinds
-the base derives so a rename of a graph cannot silently rename every run document it
-writes.
+The graph substrate once had five hand-written copies of its document, port helpers,
+dispatch loop and executor bootstrap; every game now builds with gnode, and this keeps a
+workflow module from growing a copy back.
 """
 
 from __future__ import annotations
 
 import ast
-import inspect
 from pathlib import Path
-from types import ModuleType
-
-import pytest
-
-from ember_hollow_pipeline.survival_executor import ObliqueSurvivalExecutor
-from ember_hollow_pipeline.survival_graph import (
-    OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION,
-    ObliqueSurvivalGraph,
-)
-from gnode import Graph
-from stage_gen.orchestration.graph_executor import GraphExecutor
-from stage_gen.pipeline.graph_document import GraphDocument
-from stage_gen.pipeline.node_handler import CachedNodeHandler
 
 SOURCE_ROOT = Path(__file__).resolve().parents[2] / "src" / "stage_gen"
 #: Product workflows.
 WORKFLOW_ROOTS = (SOURCE_ROOT / "workflows",)
-
-#: Every recipe graph, the recipe word it derives its document kinds from, and the
-#: schema-version constant its module still exports beside the pinned literal.
-GRAPHS: tuple[tuple[type[GraphDocument], str, int], ...] = (
-    (ObliqueSurvivalGraph, "oblique-survival", OBLIQUE_SURVIVAL_GRAPH_SCHEMA_VERSION),
-)
-
-EXECUTORS = (ObliqueSurvivalExecutor,)
 
 #: Module-level helpers the substrate owns. A recipe defining one again is the drift.
 SUBSTRATE_FUNCTIONS = frozenset(
@@ -44,42 +20,6 @@ SUBSTRATE_FUNCTIONS = frozenset(
 )
 #: Methods the base classes own; a recipe handler or executor may not carry its own.
 SUBSTRATE_METHODS = frozenset({"_build_registry", "_bind", "_open_run", "_secrets", "__call__"})
-
-
-@pytest.mark.parametrize(("graph_type", "recipe", "schema_version"), GRAPHS)
-def test_document_kinds_derive_from_the_recipe_word(
-    graph_type: type[GraphDocument], recipe: str, schema_version: int
-) -> None:
-    """The three derived kinds and the view version are the base's, not the recipe's; run
-    events are the engine's one vocabulary for every graph."""
-
-    assert f"{recipe}-execution-summary-v1" == graph_type.RUN_SUMMARY_KIND
-    assert f"{recipe}-execution-projection-v1" == graph_type.PROJECTION_KIND
-    assert f"{recipe}-execution-view-v1" == graph_type.VIEW_KIND
-    assert graph_type.VIEW_SCHEMA_VERSION == Graph.VIEW_SCHEMA_VERSION == 3
-    # The exported constant is the only write version; field literals also admit
-    # named legacy identities for read compatibility.
-    literal = graph_type.model_fields["schema_version"].annotation
-    assert literal is not None and schema_version in literal.__args__
-    assert schema_version == graph_type.CURRENT_SCHEMA_VERSION
-    assert graph_type.model_fields["recipe"].annotation.__args__ == (recipe,)  # type: ignore[union-attr]
-
-
-def test_every_recipe_runs_through_the_substrate() -> None:
-    for executor in EXECUTORS:
-        assert issubclass(executor, GraphExecutor), executor
-        assert executor.IDENTITY_DOCUMENT != GraphExecutor.IDENTITY_DOCUMENT, (
-            f"{executor.__name__} must name its identity document"
-        )
-    handlers = [
-        member
-        for module in _recipe_modules()
-        for _name, member in inspect.getmembers(module, inspect.isclass)
-        if member.__name__.endswith("NodeHandler") and member.__module__ == module.__name__
-    ]
-    assert handlers, "no recipe node handlers found"
-    for handler in handlers:
-        assert issubclass(handler, CachedNodeHandler), handler
 
 
 def test_no_recipe_redefines_a_substrate_helper() -> None:
@@ -109,20 +49,3 @@ def test_no_recipe_redefines_a_substrate_helper() -> None:
                 ):
                     violations.append(f"{where}:{child.lineno} {node.name}.{child.name}")
     assert not violations, "recipe modules redefine substrate members:\n" + "\n".join(violations)
-
-
-def _recipe_modules() -> list[ModuleType]:
-    """Each graph executor's ``prepared_*`` handler modules, beside the executor."""
-
-    import importlib
-    import sys
-
-    modules: list[ModuleType] = []
-    for executor in EXECUTORS:
-        module = sys.modules[executor.__module__]
-        assert module.__file__ is not None
-        folder = Path(module.__file__).parent
-        package = executor.__module__.rsplit(".", 1)[0]
-        for path in sorted(folder.glob("prepared_*.py")):
-            modules.append(importlib.import_module(f"{package}.{path.stem}"))
-    return modules

@@ -41,4 +41,4 @@ print(json.dumps({'status': status, 'errors': errors.getvalue(), 'loaded': loade
     assert report["status"] in ({0, 2} if arguments[0] == "doctor" else {0})
     assert report["errors"] == ""
     # The parser reads only this small game-owned vocabulary, with no node imports.
-    assert report["loaded"] == ["ember_hollow_pipeline", "ember_hollow_pipeline.scopes"]
+    assert report["loaded"] == []

@@ -75,19 +75,18 @@ def test_games_gate_exercises_local_defaults_variants_and_explicit_sources() -> 
         for command in commands
         if command[0] == "python" and command[1].endswith("/pipeline/prepare.py")
     ]
-    assert ("python", "godot/games/ember_hollow/pipeline/prepare.py", "--plan") in commands
-    # The Grain's script proves its case; its rooms and scene are built with gnode.
-    assert ("python", "godot/games/the_grain/pipeline/prepare.py") in commands
-    # Iron Petal Unit, Bellweather and The Grain are built with gnode: each lock and each
-    # package's plan are checked.
-    assert commands.count(("gnode", "lock", "--check")) == 3
-    for builder, package in (
-        ("build", "inputs"),
-        ("build", "inputs/default"),
-        ("build", "inputs/waves"),
-        ("room", "inputs/rooms/window"),
-        ("room", "inputs/rooms/motor_court"),
-        ("scene", "inputs"),
+    # The Grain's script proves its case; every asset of every game is built with gnode.
+    assert game_scripts == [("python", "godot/games/the_grain/pipeline/prepare.py")]
+    # Each game's lock and each package's plan are checked, Ember Hollow's at every scope.
+    assert commands.count(("gnode", "lock", "--check")) == 4
+    for builder, package, extra in (
+        ("build", "inputs", ()),
+        ("build", "inputs/default", ()),
+        ("build", "inputs/waves", ()),
+        ("room", "inputs/rooms/window", ()),
+        ("room", "inputs/rooms/motor_court", ()),
+        ("scene", "inputs", ()),
+        *(("build", "inputs", ("--arg", f"scope={scope}")) for scope in ("minimal", "full")),
     ):
         assert (
             "gnode",
@@ -95,12 +94,9 @@ def test_games_gate_exercises_local_defaults_variants_and_explicit_sources() -> 
             f"pipeline/workflow.py:{builder}",
             "--arg",
             f"package={package}",
+            *extra,
             "--check",
         ) in commands
-    dry_runs = [command for command in game_scripts if "--dry-run" in command]
-    assert len(dry_runs) == 1
-    assert {command[1].split("/")[2] for command in dry_runs} == {"ember_hollow"}
-    assert all("--output" in command and "--cache-dir" in command for command in dry_runs)
     assert all("--live" not in command for command in commands)
     validators = [
         command
@@ -120,7 +116,6 @@ def test_games_gate_exercises_local_defaults_variants_and_explicit_sources() -> 
         "godot/games/the_grain/inputs",
     ) in commands
     assert ("demo-games", "case", "bundle", "--help") in commands
-    assert ("demo-games", "oblique-survival", "import-run", "--help") in commands
     assert all("legacy" not in command and "main.toml" not in command for command in commands)
 
 

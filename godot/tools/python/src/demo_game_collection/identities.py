@@ -33,9 +33,7 @@ type IdentityRole = Literal[
     "generated",
     "manifest",
     "block",
-    "graph",
     "mode",
-    "namespace",
     "recipe",
     "realization",
 ]
@@ -45,9 +43,7 @@ ROLE_MEANING: dict[IdentityRole, str] = {
     "generated": "a document the pipeline writes and a consumer or a later node reads",
     "manifest": "a runtime manifest a host parses",
     "block": "one named block of a runtime manifest, versioned on its own (C-R3)",
-    "graph": "a sealed execution-graph document",
     "mode": "a closed-vocabulary word inside a document that selects a producer",
-    "namespace": "a node-cache namespace: one recipe's whole tree of restorable work",
     "recipe": "a recipe version a generated document stamps beside its own kind",
     "realization": "how an authored audio event is realized",
 }
@@ -82,49 +78,7 @@ class IdentitySource:
         return f"{self.module}:{self.attribute}{suffix}"
 
 
-@dataclass(frozen=True, slots=True)
-class GraphIdentitySource:
-    """The current kind and accepted legacy pairs declared by one graph reader."""
-
-    module: str
-    current_attribute: str
-    graph_attribute: str
-
-    def resolve(self) -> str:
-        identity = getattr(import_module(self.module), self.current_attribute)
-        if not isinstance(identity, str):
-            raise TypeError(f"{self} is not a string constant")
-        return identity
-
-    def resolve_legacy(self) -> tuple[tuple[int, str], ...]:
-        graph = getattr(import_module(self.module), self.graph_attribute)
-        identities = getattr(graph, "LEGACY_GRAPH_IDENTITIES", None)
-        if not isinstance(identities, frozenset):
-            raise TypeError(f"{self.legacy_authority} is not a frozen identity set")
-        resolved: list[tuple[int, str]] = []
-        for item in identities:
-            if (
-                not isinstance(item, tuple)
-                or len(item) != 2
-                or not isinstance(item[0], int)
-                or isinstance(item[0], bool)
-                or item[0] < 1
-                or not isinstance(item[1], str)
-                or not item[1]
-            ):
-                raise TypeError(f"{self.legacy_authority} contains invalid graph identity {item!r}")
-            resolved.append(item)
-        return tuple(sorted(resolved, key=lambda item: (item[1], item[0])))
-
-    @property
-    def legacy_authority(self) -> str:
-        return f"{self.module}:{self.graph_attribute}.LEGACY_GRAPH_IDENTITIES"
-
-    def __str__(self) -> str:
-        return f"{self.module}:{self.current_attribute}"
-
-
-type CurrentIdentitySource = IdentitySource | GraphIdentitySource
+type CurrentIdentitySource = IdentitySource
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,18 +92,6 @@ class ContractIdentity:
 
     def sibling(self, version: int) -> str:
         return f"{self.family}{self.separator}v{version}"
-
-
-@dataclass(frozen=True, slots=True)
-class AcceptedLegacyGraphIdentity:
-    """One graph identity a reader accepts but new plans never publish."""
-
-    schema_version: int
-    identity: str
-    family: str
-    separator: str
-    version: int
-    source: GraphIdentitySource
 
 
 def _owner_module(module: str) -> str:
@@ -211,10 +153,6 @@ def _constant(module: str, name: str) -> IdentitySource:
     return IdentitySource(_owner_module(module), name)
 
 
-def _graph(module: str, current: str, graph: str) -> GraphIdentitySource:
-    return GraphIdentitySource(_owner_module(module), current, graph)
-
-
 IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     # Authored documents: what an author writes.
     ("authored", _field("components.game_contract.package", "PreparedGameContract")),
@@ -270,15 +208,6 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     ("manifest", _constant("recipes.sideview_runner.manifest", "MANIFEST_KIND")),
     ("manifest", _constant("recipes.pointclick_room.runtime", "MANIFEST_KIND")),
     ("manifest", _constant("recipes.oblique_survival.manifest", "MANIFEST_KIND")),
-    # Execution graphs.
-    (
-        "graph",
-        _graph(
-            "recipes.oblique_survival.survival_graph",
-            "OBLIQUE_SURVIVAL_GRAPH_KIND",
-            "ObliqueSurvivalGraph",
-        ),
-    ),
     # Mode words.
     ("mode", _field("components.sideview_stage.models", "PreparedMapGround", "mode")),
     ("mode", _field("components.painted_terrain.models", "PaintedTerrainGround", "mode")),
@@ -286,11 +215,6 @@ IDENTITY_SOURCES: tuple[tuple[IdentityRole, CurrentIdentitySource], ...] = (
     ("mode", _field("components.platformer_map.prepared", "PreparedMapPortal", "mode")),
     ("mode", _field("components.runner_track.models", "RunnerStructuralGround", "mode")),
     ("mode", _field("components.runner_track.models", "RunnerCamera", "mode")),
-    # Cache namespaces.
-    (
-        "namespace",
-        _constant("recipes.oblique_survival.survival_graph", "OBLIQUE_SURVIVAL_CACHE_NAMESPACE"),
-    ),
     # Recipe versions stamped beside a generated document's own kind.
     ("recipe", _field("recipes.dialogue_scene.models", "DialogueScenePlan", "recipe_version")),
     # Blocks a shared component builds for more than one manifest.
@@ -352,6 +276,11 @@ RETIRED_FAMILIES: tuple[tuple[str, str], ...] = (
         "the scene builds through gnode; its plan is a `gnode-graph`",
     ),
     ("dialogue-scene-nodes", "retired with the scene's execution graph"),
+    (
+        "oblique-survival-execution-graph",
+        "the survival world builds through gnode; its plan is a `gnode-graph`",
+    ),
+    ("oblique-survival-nodes", "retired with the survival world's execution graph"),
 )
 
 #: Strings that are not `<family>-v<n>` shaped but name a retired thing all the same.
@@ -395,47 +324,6 @@ def contract_identities() -> tuple[ContractIdentity, ...]:
             seen[identity] = source
             family, separator, version = parse_identity(identity)
             entries.append(ContractIdentity(identity, family, separator, version, "block", source))
-    return tuple(entries)
-
-
-@cache
-def accepted_legacy_graph_identities() -> tuple[AcceptedLegacyGraphIdentity, ...]:
-    """Graph identities retained strictly for reading route-free historical plans."""
-
-    current = {entry.identity: entry.source for entry in contract_identities()}
-    entries: list[AcceptedLegacyGraphIdentity] = []
-    seen: dict[str, GraphIdentitySource] = {}
-    for role, source in IDENTITY_SOURCES:
-        if role != "graph" or not isinstance(source, GraphIdentitySource):
-            continue
-        for schema_version, identity in source.resolve_legacy():
-            if identity in current:
-                raise ValueError(
-                    f"{identity} is both current at {current[identity]} and legacy at "
-                    f"{source.legacy_authority}"
-                )
-            if identity in seen:
-                raise ValueError(
-                    f"{identity} is accepted twice: {seen[identity].legacy_authority} and "
-                    f"{source.legacy_authority}"
-                )
-            seen[identity] = source
-            family, separator, version = parse_identity(identity)
-            if schema_version != version:
-                raise ValueError(
-                    f"{identity} encodes v{version} but {source.legacy_authority} "
-                    f"pairs it with schema version {schema_version}"
-                )
-            entries.append(
-                AcceptedLegacyGraphIdentity(
-                    schema_version=schema_version,
-                    identity=identity,
-                    family=family,
-                    separator=separator,
-                    version=version,
-                    source=source,
-                )
-            )
     return tuple(entries)
 
 

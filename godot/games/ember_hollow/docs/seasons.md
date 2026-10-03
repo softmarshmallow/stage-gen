@@ -7,7 +7,7 @@
 
 > **Contract maturity: exact-current authored contracts.** Executable
 > authority: `godot/games/ember_hollow/pipeline/src/ember_hollow_pipeline/survival_request.py` and
-> `godot/games/ember_hollow/pipeline/src/ember_hollow_pipeline/prepared_survival.py`; the authored
+> the gnode build `godot/games/ember_hollow/pipeline/workflow.py`; the authored
 > file is `seasons.toml` in an
 > [oblique-survival package](generation-v1.md).
 

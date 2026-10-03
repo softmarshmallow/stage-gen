@@ -61,16 +61,12 @@ def test_active_snapshot_has_no_stale_generated_graph_contracts_or_cache_goldens
     )
 
 
-def test_active_snapshot_covers_every_policy_route_and_canonical_recipe() -> None:
+def test_active_snapshot_covers_every_policy_route_and_no_recipe() -> None:
     snapshot = load_active_model_policy_snapshot()
     route_ids = {route.route_id for route in snapshot.routes}
     assert all(policy.route_id in route_ids for policy in snapshot.policies)
-    # The runner, the platformer, the room and the scene are built with gnode: their routes
-    # are their projects', not this census's.
-    assert {recipe.recipe_id for recipe in snapshot.recipes} == {"oblique_survival"}
-    assert all(
-        binding.route_id in route_ids for recipe in snapshot.recipes for binding in recipe.bindings
-    )
+    # Every game builds with gnode: its routes are its own project's, not this census's.
+    assert snapshot.recipes == ()
     serialized = SNAPSHOT.read_text(encoding="utf-8")
     assert "api_key" not in serialized.lower()
     assert "authorization" not in serialized.lower()

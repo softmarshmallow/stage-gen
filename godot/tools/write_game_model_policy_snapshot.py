@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """Check or rewrite the executable, provider-free model-policy snapshot.
 
-The fixture census is demo-owned and packaged with ``demo-game-collection``.  It records
-the checked-in image route catalog and policy table together with compact plans
-for every canonical recipe fixture still built by an executor. A game built with gnode
-(Iron Petal Unit, Bellweather, The Grain) declares its routes in its ``gnode.yaml`` and
-pins its plan through ``godot/tools/write_game_graph_contract.py`` instead. Checking and
-writing only parse local files and build offline graphs; neither path loads credentials
-or constructs a provider adapter.
+The fixture census is demo-owned and packaged with ``demo-game-collection``. It records
+the checked-in image route catalog and its policy table. Every game builds with gnode,
+declares its routes in its own ``gnode.yaml`` and pins its plan through
+``godot/tools/write_game_graph_contract.py``, so no recipe plan is recorded here. Checking
+and writing only read local files; neither loads credentials or constructs a provider
+adapter.
 
     uv run python godot/tools/write_game_model_policy_snapshot.py
     uv run python godot/tools/write_game_model_policy_snapshot.py --write
@@ -16,24 +15,16 @@ or constructs a provider adapter.
 from __future__ import annotations
 
 import argparse
-import hashlib
-import json
-import re
 import sys
 from pathlib import Path
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from ember_hollow_pipeline.survival_executor import ObliqueSurvivalExecutor
-from ember_hollow_pipeline.survival_types import SCOPES as SURVIVAL_SCOPES
-from gnode import Graph, atomic_write_text
-from stage_gen.canonical import canonical_json_bytes
-from stage_gen.config import StageGenConfig
+from gnode import atomic_write_text
 from stage_gen.image_product import ImageProvider
 from stage_gen.model_policy_maintenance import (
     ACTIVE_MODEL_POLICY_SNAPSHOT,
-    GeneratedModelPolicyFileSnapshotV1,
     ModelPolicySnapshotV1,
     build_model_policy_snapshot,
     render_model_policy_snapshot,
@@ -45,172 +36,14 @@ SNAPSHOT_PATH = (
     REPOSITORY_ROOT / "godot/tools/python/src/demo_game_collection" / ACTIVE_MODEL_POLICY_SNAPSHOT
 )
 
-SURVIVAL_FIXTURE = "godot/games/ember_hollow/inputs"
-
-SURVIVAL_DOCUMENT = "godot/games/ember_hollow/docs/generation-v1.md"
-
-SURVIVAL_CACHE_GOLDEN = "tests/contract/fixtures/oblique_survival/ember-hollow.cache-keys.json"
-
-
-def _state_sha256(value: object) -> str:
-    return hashlib.sha256(canonical_json_bytes(value)).hexdigest()
-
-
-def _file_sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes() if path.is_file() else b"").hexdigest()
-
-
-def _read_json(path: Path) -> object:
-    if not path.is_file():
-        return {"missing": path.name}
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _document_contract(path: Path, *, label: str | None = None) -> object:
-    marker = "pipeline-graph-contract" + ("" if label is None else f":{label}")
-    pattern = re.compile(
-        rf"<!-- {re.escape(marker)}:start -->\s*```json\s*(.*?)\s*```\s*"
-        rf"<!-- {re.escape(marker)}:end -->",
-        re.DOTALL,
-    )
-    if not path.is_file():
-        return {"missing": path.name, "label": label}
-    matches = pattern.findall(path.read_text(encoding="utf-8"))
-    if len(matches) != 1:
-        return {"malformed": path.name, "label": label}
-    return json.loads(matches[0])
-
-
-def _resources(graph: Graph) -> list[dict[str, object]]:
-    return [resource.model_dump(mode="json") for resource in graph.resources]
-
-
-def _graph_field(graph: Graph, name: str) -> object:
-    value = graph.model_dump(mode="json").get(name)
-    if value is None:
-        raise ValueError(f"graph {graph.kind} does not declare {name}")
-    return value
-
-
-def _graph_contract(
-    graph: Graph,
-    *,
-    kind: str,
-    fixture_ref: str,
-    extra: dict[str, object] | None = None,
-) -> dict[str, object]:
-    return {
-        "kind": kind,
-        "fixture_ref": fixture_ref,
-        **(extra or {}),
-        "graph_schema_version": graph.schema_version,
-        "topology_sha256": graph.topology_sha256,
-        "node_count": len(graph.nodes),
-        "terminal_node_id": graph.terminal_node_id,
-        "operation_counts": graph.operation_counts(),
-        "resources": _resources(graph),
-    }
-
-
-def _generated_check(
-    *,
-    check_id: str,
-    relative_path: str,
-    expected: object,
-    observed: object,
-) -> GeneratedModelPolicyFileSnapshotV1:
-    path = REPOSITORY_ROOT / relative_path
-    return GeneratedModelPolicyFileSnapshotV1(
-        check_id=check_id,
-        path=relative_path,
-        expected_state_sha256=_state_sha256(expected),
-        observed_state_sha256=_state_sha256(observed),
-        file_sha256=_file_sha256(path),
-    )
-
-
-def _planned_graphs() -> tuple[dict[str, Graph], dict[str, dict[str, str]]]:
-    """Build canonical graphs without reading env or constructing run services."""
-
-    config = StageGenConfig()
-
-    survival_executor = ObliqueSurvivalExecutor(config)
-    survival_graphs = {
-        scope: survival_executor.plan(REPOSITORY_ROOT / SURVIVAL_FIXTURE, scope).graph
-        for scope in SURVIVAL_SCOPES
-    }
-
-    graphs: dict[str, Graph] = {"oblique_survival": survival_graphs["full"]}
-    survival_cache_keys = {
-        scope: {node.node_id: node.cache_key for node in graph.nodes}
-        for scope, graph in survival_graphs.items()
-    }
-    return graphs, survival_cache_keys
-
-
-def _generated_file_checks(
-    graphs: dict[str, Graph],
-    survival_cache_keys: dict[str, dict[str, str]],
-) -> tuple[GeneratedModelPolicyFileSnapshotV1, ...]:
-    survival = graphs["oblique_survival"]
-
-    # The product workflows' own contract blocks are checked by
-    # scripts/write_workflow_contracts.py; these are the documents the games own.
-    document_checks: tuple[tuple[str, str, str | None, dict[str, object]], ...] = (
-        (
-            "oblique_survival_graph_contract",
-            SURVIVAL_DOCUMENT,
-            None,
-            _graph_contract(
-                survival,
-                kind="oblique-survival-execution-graph-contract-v1",
-                fixture_ref=SURVIVAL_FIXTURE,
-                extra={"scope": _graph_field(survival, "scope")},
-            ),
-        ),
-    )
-    checks = [
-        _generated_check(
-            check_id=check_id,
-            relative_path=path,
-            expected=expected,
-            observed=_document_contract(REPOSITORY_ROOT / path, label=label),
-        )
-        for check_id, path, label, expected in document_checks
-    ]
-    for check_id, relative_path, expected in (
-        ("oblique_survival_cache_keys", SURVIVAL_CACHE_GOLDEN, survival_cache_keys),
-    ):
-        checks.append(
-            _generated_check(
-                check_id=check_id,
-                relative_path=relative_path,
-                expected=expected,
-                observed=_read_json(REPOSITORY_ROOT / relative_path),
-            )
-        )
-    return tuple(checks)
-
 
 def build_snapshot() -> ModelPolicySnapshotV1:
-    graphs, survival_cache_keys = _planned_graphs()
     policy_selections = {
         "default": image_workload_policies(),
         **{provider.value: image_workload_policies(provider) for provider in ImageProvider},
     }
-    recipes = tuple(
-        (
-            recipe_id,
-            {"oblique_survival": SURVIVAL_FIXTURE}[recipe_id],
-            graph,
-        )
-        for recipe_id, graph in graphs.items()
-    )
     return build_model_policy_snapshot(
-        catalog=IMAGE_ROUTE_CATALOG,
-        policy_selections=policy_selections,
-        recipes=recipes,
-        generated_files=_generated_file_checks(graphs, survival_cache_keys),
+        catalog=IMAGE_ROUTE_CATALOG, policy_selections=policy_selections, recipes=()
     )
 
 
@@ -222,22 +55,14 @@ def main(argv: list[str] | None = None) -> int:
         help="rewrite the active snapshot instead of only checking it",
     )
     args = parser.parse_args(argv)
-    snapshot = build_snapshot()
-    rendered = render_model_policy_snapshot(snapshot)
+    rendered = render_model_policy_snapshot(build_snapshot())
     relative = SNAPSHOT_PATH.relative_to(REPOSITORY_ROOT)
-    stale_dependencies = [entry.check_id for entry in snapshot.generated_files if entry.stale]
     if args.write:
         atomic_write_text(SNAPSHOT_PATH, rendered, mode=0o644)
         print(f"wrote {relative}")
-        if stale_dependencies:
-            print("generated dependencies remain stale: " + ", ".join(stale_dependencies))
-            return 1
         return 0
     if not SNAPSHOT_PATH.is_file() or SNAPSHOT_PATH.read_text(encoding="utf-8") != rendered:
         print(f"{relative} is stale; read the diff, then run with --write")
-        return 1
-    if stale_dependencies:
-        print("generated dependencies are stale: " + ", ".join(stale_dependencies))
         return 1
     print(f"{relative} is current")
     return 0

@@ -25,13 +25,8 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from ember_hollow_pipeline.survival_graph import (
-    build_graph as build_oblique_survival_graph,
-)
-from ember_hollow_pipeline.survival_request import resolve_survival_source
 from gnode import plan_async
 from scripts.graph_contracts import document_contract, write_contract
-from stage_gen.config import StageGenConfig
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 #: Every gnode game's builder, planned from its own folder.
@@ -49,18 +44,26 @@ ROOM_DOCUMENT = REPOSITORY_ROOT / GRAIN_GAME / "docs/pointclick-room.md"
 ROOM_CONTRACT_KIND = "pointclick-room-gnode-plan-contract-v1"
 SCENE_DOCUMENT = REPOSITORY_ROOT / GRAIN_GAME / "docs/dialogue-scene-assets.md"
 SCENE_CONTRACT_KIND = "dialogue-scene-gnode-plan-contract-v1"
-OBLIQUE_SURVIVAL_DOCUMENT = REPOSITORY_ROOT / "godot/games/ember_hollow/docs/generation-v1.md"
-OBLIQUE_SURVIVAL_FIXTURE_REF = "godot/games/ember_hollow/inputs"
-OBLIQUE_SURVIVAL_CONTRACT_KIND = "oblique-survival-execution-graph-contract-v1"
+SURVIVAL_GAME = "godot/games/ember_hollow"
+OBLIQUE_SURVIVAL_DOCUMENT = REPOSITORY_ROOT / SURVIVAL_GAME / "docs/generation-v1.md"
+OBLIQUE_SURVIVAL_FIXTURE_REF = f"{SURVIVAL_GAME}/inputs"
+OBLIQUE_SURVIVAL_CONTRACT_KIND = "oblique-survival-gnode-plan-contract-v1"
 OBLIQUE_SURVIVAL_SCOPE = "full"
 
 
 def _gnode_plan_contract(
-    *, kind: str, game: str, package: str, builder: str, repo: Path
+    *,
+    kind: str,
+    game: str,
+    package: str,
+    builder: str,
+    repo: Path,
+    arguments: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Derive a gnode game's contract from the plan its builder makes of its package."""
 
-    planned = asyncio.run(plan_async(builder, cwd=repo / game, arguments={"package": package}))
+    asked = {"package": package, **(arguments or {})}
+    planned = asyncio.run(plan_async(builder, cwd=repo / game, arguments=asked))
     if not planned.ok:
         problems = "; ".join(f"{p.where}: {p.message}" for p in planned.problems)
         raise ValueError(f"the {game} builder does not plan: {problems}")
@@ -79,6 +82,7 @@ def _gnode_plan_contract(
         "kind": kind,
         "fixture_ref": f"{game}/{package}",
         "builder": builder,
+        **({"arguments": dict(sorted(arguments.items()))} if arguments else {}),
         "workflow_id": planned.planner.workflow.id,
         "topology_sha256": hashlib.sha256(
             json.dumps(topology, separators=(",", ":")).encode("utf-8")
@@ -136,25 +140,19 @@ def build_scene_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
 
 
 def build_oblique_survival_graph_contract(repo: Path = REPOSITORY_ROOT) -> dict[str, Any]:
-    """Derive the survival world's contract from the graph the code builds.
+    """Derive the survival world's contract from the plan its builder makes at full scope.
 
-    The scope rides the payload because it is the one header field in this
-    recipe's topology identity: it genuinely selects a subset of the nodes.
+    The scope rides the contract because it genuinely selects a subset of the steps.
     """
 
-    package = resolve_survival_source(repo / OBLIQUE_SURVIVAL_FIXTURE_REF)
-    graph = build_oblique_survival_graph(StageGenConfig(), package, OBLIQUE_SURVIVAL_SCOPE)
-    return {
-        "kind": OBLIQUE_SURVIVAL_CONTRACT_KIND,
-        "fixture_ref": OBLIQUE_SURVIVAL_FIXTURE_REF,
-        "scope": graph.scope,
-        "graph_schema_version": graph.schema_version,
-        "topology_sha256": graph.topology_sha256,
-        "node_count": len(graph.nodes),
-        "terminal_node_id": graph.terminal_node_id,
-        "operation_counts": graph.operation_counts(),
-        "resources": [resource.model_dump(mode="json") for resource in graph.resources],
-    }
+    return _gnode_plan_contract(
+        kind=OBLIQUE_SURVIVAL_CONTRACT_KIND,
+        game=SURVIVAL_GAME,
+        package="inputs",
+        builder=BUILDER,
+        repo=repo,
+        arguments={"scope": OBLIQUE_SURVIVAL_SCOPE},
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

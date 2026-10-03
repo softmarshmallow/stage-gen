@@ -29,12 +29,6 @@ prepared-media and rendered suites have explicit scopes and prerequisites. An
 offline state check does not prove a picture or listening quality. See [Godot host](../godot/games/ember_hollow/docs/runtime.md) and
 [decision 0068](decisions/0068-the-suite-reads-a-world-the-repository-can-write.md).
 
-Ember Hollow's survival cache-key golden,
-`tests/contract/fixtures/oblique_survival/ember-hollow.cache-keys.json`, pins every
-node's cache key per scope for the committed package; after a deliberate identity
-change, regenerate it with `uv run python godot/games/ember_hollow/tools/write_oblique_survival_cache_keys.py --write`
-and read the diff before committing, because a moved provider key is a re-bill.
-
 The product gate is `uv run python scripts/check.py`. It needs no Bun or Godot.
 Use the owning optional scope or `--scope all` for the complete repository gate,
 after `uv sync --all-groups --frozen`. See [VERIFICATION.md](../VERIFICATION.md).

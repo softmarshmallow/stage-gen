@@ -23,7 +23,6 @@ from demo_game_collection.identities import (
     RETIRED_FAMILIES,
     RETIRED_STRINGS,
     ROLE_MEANING,
-    accepted_legacy_graph_identities,
     contract_identities,
     current_versions,
 )
@@ -67,30 +66,14 @@ def render() -> str:
         lines.append(
             f"| `{current_entry.identity}` | `{current_entry.role}` | `{current_entry.source}` |"
         )
-    lines += [
-        "",
-        "## Accepted legacy graph identities",
-        "",
-        "These identity pairs remain readable only for route-free historical graph",
-        "documents. New plans never publish them. They are neither current identities nor",
-        "retired while their owning reader explicitly declares this compatibility.",
-        "",
-        "| Identity | Schema version | Authority |",
-        "| --- | ---: | --- |",
-    ]
-    for legacy_entry in sorted(accepted_legacy_graph_identities(), key=lambda item: item.identity):
-        lines.append(
-            f"| `{legacy_entry.identity}` | `{legacy_entry.schema_version}` | "
-            f"`{legacy_entry.source.legacy_authority}` |"
-        )
     doubled = {family: sorted(v) for family, v in current_versions().items() if len(v) > 1}
     lines += [
         "",
         "## Retired identities",
         "",
         "Every `<family>-v<n>` whose family appears above with `n` below the listed version is",
-        "retired unless it appears in the accepted-legacy table. Current artifacts may",
-        "publish none of them. Where one family name carries two live versions, both are current: "
+        "retired. Current artifacts may publish none of them. Where one family name carries two",
+        "live versions, both are current: "
         + ", ".join(
             f"`{family}` at " + " and ".join(f"v{v}" for v in versions)
             for family, versions in sorted(doubled.items())

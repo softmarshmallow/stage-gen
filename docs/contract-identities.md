@@ -20,9 +20,7 @@ field or constant. Game versioning follows [the game contract](../godot/games/_s
 | `generated` | a document the pipeline writes and a consumer or a later node reads |
 | `manifest` | a runtime manifest a host parses |
 | `block` | one named block of a runtime manifest, versioned on its own (C-R3) |
-| `graph` | a sealed execution-graph document |
 | `mode` | a closed-vocabulary word inside a document that selects a producer |
-| `namespace` | a node-cache namespace: one recipe's whole tree of restorable work |
 | `recipe` | a recipe version a generated document stamps beside its own kind |
 | `realization` | how an authored audio event is realized |
 
@@ -103,7 +101,6 @@ field or constant. Game versioning follows [the game contract](../godot/games/_s
 | `resolved-game-package-v6` | `generated` | `demo_game_tools.io.package_capture:RESOLVED_GAME_PACKAGE_KIND` |
 | `scenario-admission-v1` | `generated` | `demo_game_tools.scenario.models:ScenarioAdmissionReport.kind` |
 | `scenario-program-v2` | `generated` | `demo_game_tools.scenario.models:ScenarioProgram.kind` |
-| `oblique-survival-execution-graph-v2` | `graph` | `ember_hollow_pipeline.survival_graph:OBLIQUE_SURVIVAL_GRAPH_KIND` |
 | `oblique-survival-manifest-v3` | `manifest` | `ember_hollow_pipeline.manifest:MANIFEST_KIND` |
 | `pointclick-room-runtime-v3` | `manifest` | `the_grain_pipeline.pointclick_room.runtime:MANIFEST_KIND` |
 | `prepared-game-runtime-v12` | `manifest` | `bellweather_pipeline.prepared_manifest:PREPARED_RUNTIME_MANIFEST_KIND` |
@@ -114,27 +111,16 @@ field or constant. Game versioning follows [the game contract](../godot/games/_s
 | `portal-pair-1x2-v1` | `mode` | `bellweather_pipeline.maps.prepared:PreparedMapPortal.mode` |
 | `runner-structural-ground-v1` | `mode` | `iron_petal_unit_pipeline.track.models:RunnerStructuralGround.mode` |
 | `terrain-atlas-3x3-minimal-v1` | `mode` | `demo_game_tools.input_formats.sideview_stage.models:PreparedMapGround.mode` |
-| `oblique-survival-nodes-v1` | `namespace` | `ember_hollow_pipeline.survival_graph:OBLIQUE_SURVIVAL_CACHE_NAMESPACE` |
 | `generated_clip_v1` | `realization` | `stage_gen.components.sound_effect.models:GENERATED_CLIP_REALIZATION_KIND` |
 | `oscillator_sweep_v1` | `realization` | `iron_petal_unit_pipeline.audio.models:OscillatorSweepRealization.kind` |
 | `spoken_line_v1` | `realization` | `stage_gen.components.speech.models:SPOKEN_LINE_REALIZATION_KIND` |
 | `dialogue-scene-v8` | `recipe` | `the_grain_pipeline.dialogue_scene.models:DialogueScenePlan.recipe_version` |
 
-## Accepted legacy graph identities
-
-These identity pairs remain readable only for route-free historical graph
-documents. New plans never publish them. They are neither current identities nor
-retired while their owning reader explicitly declares this compatibility.
-
-| Identity | Schema version | Authority |
-| --- | ---: | --- |
-| `oblique-survival-execution-graph-v1` | `1` | `ember_hollow_pipeline.survival_graph:ObliqueSurvivalGraph.LEGACY_GRAPH_IDENTITIES` |
-
 ## Retired identities
 
 Every `<family>-v<n>` whose family appears above with `n` below the listed version is
-retired unless it appears in the accepted-legacy table. Current artifacts may
-publish none of them. Where one family name carries two live versions, both are current: `dialogue-scene` at v5 and v8.
+retired. Current artifacts may publish none of them. Where one family name carries two
+live versions, both are current: `dialogue-scene` at v5 and v8.
 
 These families have no current member; the whole family is retired:
 
@@ -162,6 +148,8 @@ These families have no current member; the whole family is retired:
 | `pointclick-room-nodes` | retired with the room's execution graph |
 | `dialogue-scene-execution-graph` | the scene builds through gnode; its plan is a `gnode-graph` |
 | `dialogue-scene-nodes` | retired with the scene's execution graph |
+| `oblique-survival-execution-graph` | the survival world builds through gnode; its plan is a `gnode-graph` |
+| `oblique-survival-nodes` | retired with the survival world's execution graph |
 
 And these strings, which are not version-shaped:
 

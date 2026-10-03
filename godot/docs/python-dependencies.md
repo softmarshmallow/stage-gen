@@ -29,9 +29,9 @@ godot/games/
 │   ├── gameplay/                # Runner movement and encounter contracts
 │   └── track/                   # Runner track and structural ground contracts
 └── ember_hollow/pipeline/src/ember_hollow_pipeline/
-    ├── prepared_survival.py     # Node dispatch, provider orchestration, publication
+    ├── build.py                 # Every gate and finish the build calls, records the manifest reads
+    ├── anchor.py                # The anchor episode's words, picture, admission and record
     ├── preparation_media.py     # Seasonal alignment, review rasters, biome gate policy
-    ├── cache_admission.py       # Decode restored images against node canvas requirements
     ├── manifest.py              # Existing game manifest types, measurement and projection
     ├── survival_request.py      # Existing authored source admission
     └── shell/                  # This game's complete title/loading/cinematic composition
@@ -44,15 +44,15 @@ writes the document. Audio, ground, gameplay, rebase and encounter projection li
 that document. Its node handler, executor and graph document are gone: gnode runs its steps,
 and the shared step families live in `demo_game_tools.steps`.
 
-Ember already delegated its complete manifest to `manifest.py`; that boundary stays.
-Its seasonal/raster helpers now run independently of a node handler or provider
-service. Canvas-aware cache admission also has its own module. Existing tested
-helper imports from `prepared_survival` remain available. Graph identities, cache
-namespaces, prompt text, media policies and manifest fields are unchanged.
+Ember's manifest builder reads a folder holding every published file and record at the
+path it names; the builder's `package` step lays that folder out. Its node handler,
+executor, graph document and cache admission are gone: gnode runs its steps, judges hold
+each draw to its gate, and the shared step families (rebase, UI sheets) live in
+`demo_game_tools.steps`. Prompt text, media policies and manifest fields are unchanged.
 
-This does not finish every local decomposition. Ember's request loader and manifest,
-and its provider handler, still contain substantial game-specific logic.
-Further splits should follow a caller and contract review, not a target file length.
+This does not finish every local decomposition. Ember's request loader and manifest still
+contain substantial game-specific logic. Further splits should follow a caller and
+contract review, not a target file length.
 
 ## Dependency decisions
 

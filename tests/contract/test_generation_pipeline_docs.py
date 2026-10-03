@@ -121,10 +121,9 @@ def test_survival_contract_declares_its_identity_its_fixture_and_its_scope() -> 
     assert contract["kind"] == SURVIVAL_CONTRACT_KIND
     assert contract["fixture_ref"] == SURVIVAL_FIXTURE_REF
     assert (REPOSITORY_ROOT / contract["fixture_ref"]).is_dir()
-    # The scope is the one header field in this recipe's topology identity: it
-    # selects a subset of the nodes. The snapshot is of the widest rung, so the
-    # narrower ones are subsets of a checked graph.
-    assert contract["scope"] == SURVIVAL_SCOPE == "full"
+    # The scope selects a subset of the steps. The snapshot is of the widest rung, so the
+    # narrower ones are subsets of a checked plan.
+    assert contract["arguments"] == {"scope": SURVIVAL_SCOPE} and SURVIVAL_SCOPE == "full"
 
 
 def test_survival_contract_block_is_rendered_canonically() -> None:
@@ -133,10 +132,10 @@ def test_survival_contract_block_is_rendered_canonically() -> None:
 
 
 def _survival_scope_table_rows() -> list[tuple[str, list[int]]]:
-    """The eight count columns of the survival scope table, per row."""
+    """The six paid-call columns of the survival scope table, per row."""
 
     source = SURVIVAL_DOCUMENT.read_text(encoding="utf-8")
-    body = source.split("## The graph", 1)[1]
+    body = source.split("## The build", 1)[1]
     rows: list[tuple[str, list[int]]] = []
     for line in body.splitlines():
         if not line.startswith("|"):
@@ -144,7 +143,7 @@ def _survival_scope_table_rows() -> list[tuple[str, list[int]]]:
                 break
             continue
         cells = [cell.strip().strip("*` ") for cell in line.strip().strip("|").split("|")]
-        if len(cells) != 9:
+        if len(cells) != 7:
             continue
         counts = cells[1:]
         if not all(re.fullmatch(r"\d+", count) for count in counts):
@@ -154,33 +153,41 @@ def _survival_scope_table_rows() -> list[tuple[str, list[int]]]:
     return rows
 
 
-def test_survival_scope_table_agrees_with_the_graphs_the_code_builds() -> None:
-    """The human table beside the machine block is derived from the same graphs.
+def test_survival_scope_table_agrees_with_the_plans_the_builder_makes() -> None:
+    """The human table beside the machine block is counted from the same plans.
 
     The block above it snapshots the widest scope only; the ladder is the claim a
-    reader budgets a narrow run from, and nothing else recomputes it.
+    reader budgets a narrow build from, and nothing else recomputes it.
     """
 
-    from ember_hollow_pipeline.survival_graph import build_graph
-    from ember_hollow_pipeline.survival_request import resolve_survival_source
-    from stage_gen.config import StageGenConfig
+    import asyncio
+    from collections import Counter
 
-    package = resolve_survival_source(REPOSITORY_ROOT / SURVIVAL_FIXTURE_REF)
-    config = StageGenConfig()
+    from gnode import plan_async
+
     rows = _survival_scope_table_rows()
     assert [name for name, _ in rows] == ["minimal", "props", "actors", "full"]
     for name, counts in rows:
-        graph = build_graph(config, package, name)
-        operations = graph.operation_counts()
+        planned = asyncio.run(
+            plan_async(
+                "pipeline/workflow.py:build",
+                cwd=REPOSITORY_ROOT / "godot/games/ember_hollow",
+                arguments={"package": "inputs", "scope": name},
+            )
+        )
+        calls = Counter(
+            route
+            for instance in planned.instances
+            if instance.state != "absent" and set(instance.takes) <= {1}
+            for route in instance.routes
+        )
         assert counts == [
-            len(graph.nodes),
-            operations["image_generation"],
-            operations["structured_generation"],
-            operations["tool_loop"],
-            operations["music_generation"],
-            operations["sound_effect_generation"],
-            operations["video_generation"],
-            operations["local"],
+            calls["image.edit"] + calls["image.generate"],
+            calls["structured.generate"],
+            calls["agent.turn"],
+            calls["sound.generate"],
+            calls["music.generate"],
+            calls["video.generate"],
         ], name
 
 

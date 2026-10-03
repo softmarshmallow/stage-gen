@@ -5,7 +5,6 @@ from __future__ import annotations
 from importlib.resources import files
 from pathlib import Path
 
-from gnode import Graph
 from stage_gen.model_policy_maintenance import ModelPolicySnapshotV1, build_model_policy_snapshot
 
 
@@ -21,42 +20,28 @@ def build_repository_model_policy_projection(
     image_provider: str,
     recipe_id: str | None = None,
 ) -> ModelPolicySnapshotV1:
-    """Plan canonical recipes under one explicit provider policy, offline."""
+    """Project the route catalog under one explicit provider policy, offline.
 
-    from ember_hollow_pipeline.survival_executor import ObliqueSurvivalExecutor
-    from stage_gen.config import StageGenConfig
+    Every game now builds with gnode and declares its routes in its own ``gnode.yaml``, so
+    no recipe graph is planned here: the census is the catalog and its policies.
+    """
+
     from stage_gen.image_product import ImageProvider
     from stage_gen.model_routes import IMAGE_ROUTE_CATALOG, image_workload_policies
 
     root = repository_root.resolve()
     if not (root / "pyproject.toml").is_file():
         raise ValueError("model-policy provider projection requires a source checkout")
-    provider = ImageProvider(image_provider)
-    config = StageGenConfig(image_provider_override=provider)
-    fixture_by_recipe = {
-        "oblique_survival": "godot/games/ember_hollow/inputs",
-    }
-    available = tuple(sorted(fixture_by_recipe))
-    if recipe_id is not None and recipe_id not in fixture_by_recipe:
+    ImageProvider(image_provider)
+    if recipe_id is not None:
         raise ValueError(
-            f"unknown model-policy recipe {recipe_id!r}; available: {', '.join(available)}"
-        )
-    selected = set(available if recipe_id is None else (recipe_id,))
-    graphs: dict[str, Graph] = {}
-    if "oblique_survival" in selected:
-        graphs["oblique_survival"] = (
-            ObliqueSurvivalExecutor(config)
-            .plan(root / fixture_by_recipe["oblique_survival"], "full")
-            .graph
+            f"unknown model-policy recipe {recipe_id!r}: every game builds with gnode now, "
+            "and its routes are in its own gnode.yaml"
         )
     policy_selections = {
         "default": image_workload_policies(),
         **{candidate.value: image_workload_policies(candidate) for candidate in ImageProvider},
     }
     return build_model_policy_snapshot(
-        catalog=IMAGE_ROUTE_CATALOG,
-        policy_selections=policy_selections,
-        recipes=tuple(
-            (recipe_id, fixture_by_recipe[recipe_id], graph) for recipe_id, graph in graphs.items()
-        ),
+        catalog=IMAGE_ROUTE_CATALOG, policy_selections=policy_selections, recipes=()
     )

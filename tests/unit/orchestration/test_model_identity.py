@@ -5,10 +5,6 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 
-import pytest
-
-from ember_hollow_pipeline.survival_graph import oblique_survival_graph_profile
-from gnode import BindingTable
 from stage_gen.config import StageGenConfig
 from stage_gen.image_product import ImageProvider
 from stage_gen.model_routes import (
@@ -37,31 +33,6 @@ SERVICE_FOR_OPERATION: dict[str, Callable[[RunServices], object]] = {
     "sound_effect_generation": lambda services: services.sound_effect(),
     "speech_generation": lambda services: services.speech(),
 }
-
-PROFILES: tuple[tuple[str, Callable[[StageGenConfig], BindingTable]], ...] = (
-    ("oblique-survival", oblique_survival_graph_profile),
-)
-
-
-def _backend_model(service: object) -> str:
-    backend = service._backend  # type: ignore[attr-defined]
-    return str(backend.model)
-
-
-@pytest.mark.parametrize(("recipe", "profile"), PROFILES)
-def test_every_bound_model_is_the_model_the_run_calls(
-    recipe: str, profile: Callable[[StageGenConfig], BindingTable]
-) -> None:
-    services = RunServices(CONFIG)
-    try:
-        for binding in profile(CONFIG).bindings:
-            service = SERVICE_FOR_OPERATION[binding.operation](services)
-            assert _backend_model(service) == binding.model.model.lstrip("/"), (
-                f"{recipe}: {binding.operation} keys on {binding.model.model!r} but calls "
-                f"{_backend_model(service)!r}"
-            )
-    finally:
-        asyncio.run(services.aclose())
 
 
 def test_image_runtime_is_request_routed_instead_of_bound_to_an_ambient_provider() -> None:

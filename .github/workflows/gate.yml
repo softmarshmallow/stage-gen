@@ -62,7 +62,6 @@ jobs:
           godot/games/bellweather/tools/design_map.py
           godot/games/bellweather/tools/prove_climbable_bands.py
           godot/games/bellweather/tools/render_asset_scale_figures.py
-          godot/games/ember_hollow/tools/write_oblique_survival_cache_keys.py
           godot/tools/parity_diff.py
           godot/tools/render_terrain_atlas_qa.py
           godot/tools/validate_game_package.py
@@ -76,6 +75,7 @@ jobs:
           uv run --all-groups mypy --strict godot/games/iron_petal_unit/pipeline/workflow.py godot/games/iron_petal_unit/pipeline/nodes
           uv run --all-groups mypy --strict godot/games/bellweather/pipeline/workflow.py godot/games/bellweather/pipeline/nodes
           uv run --all-groups mypy --strict godot/games/the_grain/pipeline/workflow.py godot/games/the_grain/pipeline/nodes
+          uv run --all-groups mypy --strict godot/games/ember_hollow/pipeline/workflow.py godot/games/ember_hollow/pipeline/nodes
 
   godot:
     runs-on: ubuntu-latest

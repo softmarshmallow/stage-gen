@@ -22,13 +22,6 @@ def _build_run_view_for(run_dir: Path) -> RunView:
     if not plan_path.is_file():
         raise ValueError(f"run directory has no execution-plan.json: {run_dir.name}")
     declared = json.loads(plan_path.read_text(encoding="utf-8")).get("kind")
-    if (
-        declared == "oblique-survival-execution-graph-v2"
-        or declared == "oblique-survival-execution-graph-v1"
-    ):
-        from ember_hollow_pipeline.survival_view import build_oblique_survival_view
-
-        return build_oblique_survival_view(run_dir)
     raise ValueError(
         f"unsupported execution plan kind: {declared!r}; a product workflow writes its run "
         "view with `stage-gen inspect RUN_DIR --write-view DIR`, and an older game run is "

@@ -22,7 +22,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 from ember_hollow_pipeline import gates, templates
 from ember_hollow_pipeline.manifest import alpha_bbox
-from ember_hollow_pipeline.prepared_survival import (
+from ember_hollow_pipeline.preparation_media import (
     _look_drift,
     _normalise_look,
     plate_busyness_max,
