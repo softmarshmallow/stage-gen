@@ -60,8 +60,6 @@ def _page(document: dict[str, Any]) -> str:
     manifest = document["manifest"]
     lines = [f"{manifest['title']} ({document['id']})", manifest["promise"], ""]
     lines += [manifest["summary"].strip(), ""]
-    if document["plan_refusal"]:
-        lines += [f"Plan: {document['plan_refusal']}", ""]
     lines.append("Steps")
     for step in document["steps"]:
         titles = ", ".join(member["title"] for member in step["members"])

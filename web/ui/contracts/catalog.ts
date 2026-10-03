@@ -146,8 +146,6 @@ export interface CatalogWorkflow {
   readonly sourceFolder: string | null;
   readonly manifest: WorkflowManifest;
   readonly implementationRoot: string;
-  /** Why `stage-gen plan <id>` refuses; null when it plans. */
-  readonly planRefusal: string | null;
   /** Why the catalog has no sample plan; null when it has one or the inputs are absent. */
   readonly noSamplePlan: string | null;
   readonly importer: boolean;
@@ -345,7 +343,6 @@ function workflow(value: unknown, label: string): CatalogWorkflow {
     sourceFolder: textOrNull(fields.source_folder, `${label}.source_folder`),
     manifest: parsed,
     implementationRoot: text(fields.implementation_root, `${label}.implementation_root`),
-    planRefusal: textOrNull(fields.plan_refusal, `${label}.plan_refusal`),
     noSamplePlan: textOrNull(fields.no_sample_plan, `${label}.no_sample_plan`),
     importer: boolean(fields.importer, `${label}.importer`),
     noImporter: textOrNull(fields.no_importer, `${label}.no_importer`),

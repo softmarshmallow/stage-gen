@@ -52,7 +52,6 @@
         ]
       },
       "implementation_root": "stage_gen.workflows.swatch_sheet",
-      "plan_refusal": null,
       "no_sample_plan": null,
       "importer": true,
       "no_importer": null,

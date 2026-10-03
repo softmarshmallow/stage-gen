@@ -52,15 +52,11 @@ def folder_of(workflow_id: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class Step:
-    """A labelled group of node types with a one-line note, for readers.
-
-    Members are ``NodeType`` objects. A workflow whose node types are built at run time
-    (character-3d) lists their slugs instead, joined to its ``member_namespace``.
-    """
+    """A labelled group of node types with a one-line note, for readers."""
 
     label: str
     note: str
-    members: tuple[NodeType | str, ...]
+    members: tuple[NodeType, ...]
 
 
 type Identity = dict[str, object]
@@ -120,13 +116,8 @@ class WorkflowCode:
       the steps must place each of them exactly once.
     - ``sample_plan`` plans offline into a scratch folder, without a provider or FFmpeg, or
       returns None with ``no_sample_plan`` saying why.
-    - ``plan_refusal`` is set only when the workflow cannot be planned outside its own
-      launcher, and says what to run instead.
     - ``import_example`` makes an example from run folders; ``no_importer`` says why there
       is none. ``read_library`` builds an example from tracked library files.
-    - ``titles_frozen_in`` names the package-relative files that hold this workflow's
-      node-type titles when those files are cache or lineage identity; only then may
-      ``workflow.toml`` relabel its types in ``[labels]``.
     """
 
     steps: tuple[Step, ...]
@@ -137,34 +128,24 @@ class WorkflowCode:
     inspect: Callable[[Path, bool], dict[str, object]]
     write_view: Callable[[Path, Path], Path | None]
     implementation_root: str
-    plan_refusal: str | None = None
     no_sample_plan: str | None = None
     import_example: ExampleImporter | None = None
     no_importer: str | None = None
     read_library: LibraryReader | None = None
-    member_namespace: str = ""
-    titles_frozen_in: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if (self.import_example is None) == (self.no_importer is None):
             raise ValueError("a workflow has an importer or says why it has none, not both")
-        if any(isinstance(m, str) for step in self.steps for m in step.members) and not (
-            self.member_namespace
-        ):
-            raise ValueError("slug members need a member_namespace that makes them type ids")
         for step in self.steps:
             if not step.label.strip() or not step.note.strip() or not step.members:
                 raise ValueError("every step has a label, a note and at least one member")
 
-    def member_type_id(self, member: NodeType | str) -> str:
-        return self.member_namespace + member if isinstance(member, str) else member.type_id
-
     def type_ids(self) -> tuple[str, ...]:
         """Every type id the steps place, in step order."""
-        return tuple(self.member_type_id(m) for step in self.steps for m in step.members)
+        return tuple(m.type_id for step in self.steps for m in step.members)
 
     def node_types(self) -> dict[str, NodeType]:
-        return {m.type_id: m for step in self.steps for m in step.members if not isinstance(m, str)}
+        return {m.type_id: m for step in self.steps for m in step.members}
 
     def graph_kinds(self) -> frozenset[str]:
         kinds = self.identity().get("graph_kinds", [])

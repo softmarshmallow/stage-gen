@@ -10,6 +10,7 @@ builds are the node protocol's, so an out-of-process host can replace it.
 from __future__ import annotations
 
 import asyncio
+import base64
 import inspect
 import json
 import shutil
@@ -272,22 +273,67 @@ class _Tool:
         self.executable = executable
 
     def run(
-        self, argv: Sequence[str], *, cwd: Path | None = None, timeout_s: float | None = None
+        self,
+        argv: Sequence[str],
+        *,
+        cwd: Path | None = None,
+        timeout_s: float | None = None,
+        env: Mapping[str, str] | None = None,
+        check: bool = True,
     ) -> subprocess.CompletedProcess[str]:
-        """Run the declared program; a non-zero exit fails the step with its output."""
+        """Run the declared program in a session of its own.
 
-        completed = subprocess.run(
+        A timeout ends the program and everything it started. With ``check`` (the default) a
+        non-zero exit fails the step with its output; without, the caller reads the exit.
+        ``env`` replaces the inherited environment when given.
+        """
+
+        process = subprocess.Popen(
             [self.executable, *argv],
             cwd=cwd or self._ctx.work_path("."),
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=timeout_s,
-            check=False,
+            env=None if env is None else dict(env),
+            start_new_session=True,
         )
-        if completed.returncode != 0:
+        try:
+            stdout, stderr = process.communicate(timeout=timeout_s)
+        except subprocess.TimeoutExpired:
+            _end_session(process)
+            raise NodeFailure(f"{self.name} ran past {timeout_s} seconds") from None
+        completed = subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
+        if check and completed.returncode != 0:
             tail = (completed.stderr or completed.stdout).strip()[-2_000:]
             raise NodeFailure(f"{self.name} exited {completed.returncode}: {tail}")
         return completed
+
+
+def _end_session(process: subprocess.Popen[str]) -> None:
+    import contextlib
+    import os
+    import signal
+
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(process.pid, signal.SIGKILL)
+    process.communicate()
+
+
+def tool_name(entry: str) -> str:
+    """The program a ``tools=`` entry names, without its version bound (``blender>=4.2``)."""
+
+    return entry.split(">", 1)[0].split("=", 1)[0].strip()
+
+
+def resolve_tool(name: str) -> str | None:
+    """Where a declared program is: ``GNODE_TOOL_<NAME>`` when set, else on ``PATH``."""
+
+    import os
+
+    configured = os.environ.get(f"GNODE_TOOL_{name.upper().replace('-', '_')}")
+    if configured:
+        return configured if Path(configured).is_file() else None
+    return shutil.which(name)
 
 
 class Ctx:
@@ -388,10 +434,10 @@ class Ctx:
         return render_template(source, {**self.params, **variables})
 
     def tool(self, name: str) -> _Tool:
-        declared = {entry.split(">", 1)[0].split("=", 1)[0].strip() for entry in self.spec.tools}
+        declared = {tool_name(entry) for entry in self.spec.tools}
         if name not in declared:
             raise NodeFailure(f"{name} is not one of this node's declared tools")
-        executable = shutil.which(name)
+        executable = resolve_tool(name)
         if executable is None:
             raise NodeFailure(f"{name} is not installed (see gnode doctor)")
         return _Tool(self, name, executable)
@@ -401,7 +447,7 @@ class Ctx:
     async def capability(self, name: str, **request: Any) -> CallResult:
         """A paid call through gnode: routed, priced, budgeted, recorded and call-cached."""
 
-        allowed = self.spec.capability_calls()
+        allowed = self.spec.capability_calls(self.params)
         if name not in allowed:
             raise CapabilityError(
                 f"{self.spec.name} calls {name} without declaring it (calls={{'{name}': N}})"
@@ -417,8 +463,9 @@ class Ctx:
             self._services,
             name,
             route,
-            _staged_request(request),
+            _stored(self._services.store, _staged_request(request)),
             take=self.instance.take,
+            take_path=self.instance.takes,
             instance_id=self.instance.id,
         )
         if not result.cached:
@@ -435,10 +482,19 @@ class Ctx:
     async def structured_generate(self, **request: Any) -> CallResult:
         return await self.capability("structured.generate", **request)
 
-    def agent(self, *, system: str, tools: Sequence[Callable[..., Any]]) -> Agent:
+    def agent(
+        self,
+        *,
+        system: str,
+        tools: Sequence[Callable[..., Any]] = (),
+        recent_images: int | None = None,
+        max_tokens: int | None = None,
+    ) -> Agent:
         """A tool-using model loop; declare its turns with ``calls={"agent.turn": N}``."""
 
-        return Agent(self, system=system, tools=tools)
+        return Agent(
+            self, system=system, tools=tools, recent_images=recent_images, max_tokens=max_tokens
+        )
 
 
 def tool(function: Callable[..., Any]) -> Callable[..., Any]:
@@ -492,57 +548,241 @@ def tool_schema(function: Callable[..., Any]) -> dict[str, Any]:
     }
 
 
+@dataclass(frozen=True, slots=True)
+class ToolReply:
+    """What a tool hands back when the model should see pictures as well as words."""
+
+    text: str
+    images: Sequence[Any] = ()
+
+
+#: The tool an agent calls to finish, when its node asks for a structured answer.
+SUBMIT = "submit"
+
+
 class Agent:
     """A tool-using model loop inside a node; every model turn is a paid, call-cached call.
 
     Each turn sends the transcript so far to the ``agent.turn`` capability and gets back
     text and tool calls. The tools run here, in the node's process, and their results join
-    the transcript. A resumed run replays the turns it already paid for: an identical
-    transcript is an identical request.
+    the transcript; a tool may return a ``ToolReply`` to show the model pictures. A resumed
+    run replays the turns it already paid for: an identical transcript is an identical
+    request. Pictures travel as files, so a request is keyed by their digests.
+
+    With ``submit=`` (a JSON Schema), the model must finish by calling ``submit``; an answer
+    the schema or ``check`` refuses goes back to the model as the tool's result, and the
+    loop goes on. ``recent_images`` keeps only the newest pictures in each request.
     """
 
-    def __init__(self, ctx: Ctx, *, system: str, tools: Sequence[Callable[..., Any]]) -> None:
+    def __init__(
+        self,
+        ctx: Ctx,
+        *,
+        system: str,
+        tools: Sequence[Callable[..., Any]],
+        recent_images: int | None = None,
+        max_tokens: int | None = None,
+    ) -> None:
+        self._tools: dict[str, Any] = {}
         for function in tools:
-            if not getattr(function, "gnode_tool", False):
-                raise NodeFailure(f"{function.__name__} is not declared with @tool")
+            name = _tool_name(function)
+            if name == SUBMIT:
+                raise NodeFailure(f"{SUBMIT} is the agent's own tool; name yours otherwise")
+            self._tools[name] = function
         self._ctx = ctx
         self._system = system
-        self._tools = {function.__name__: function for function in tools}
+        self._recent_images = recent_images
+        self._max_tokens = max_tokens
         self.transcript: list[dict[str, Any]] = []
 
-    async def run(self, instructions: str, *, max_steps: int) -> str:
-        """Turn by turn until the model answers without calling a tool, or ``max_steps``."""
+    async def run(
+        self,
+        instructions: str,
+        *,
+        max_steps: int,
+        images: Sequence[Any] = (),
+        submit: Mapping[str, Any] | None = None,
+        check: Callable[[Any], None] | None = None,
+    ) -> Any:
+        """Turn by turn until the model answers (or submits), or ``max_steps``.
 
-        self.transcript.append({"role": "user", "content": instructions})
-        schemas = [tool_schema(function) for function in self._tools.values()]
-        for _ in range(max_steps):
-            reply = await self._ctx.capability(
-                "agent.turn", system=self._system, messages=list(self.transcript), tools=schemas
+        Returns the final text, or with ``submit`` the submitted value.
+        """
+
+        opening: dict[str, Any] = {"role": "user", "content": instructions}
+        if images:
+            opening["images"] = [self._picture(image) for image in images]
+        self.transcript.append(opening)
+        schemas = [_declared_schema(function) for function in self._tools.values()]
+        if submit is not None:
+            schemas.append(
+                {
+                    "name": SUBMIT,
+                    "description": "Finish: submit the answer this task asks for.",
+                    "parameters": dict(submit),
+                }
             )
+        validator = None if submit is None else _validator(submit)
+        for _ in range(max_steps):
+            request: dict[str, Any] = {
+                "system": self._system,
+                "messages": self._window(),
+                "tools": schemas,
+                "tool_choice": "required" if submit is not None else "auto",
+            }
+            if self._max_tokens is not None:
+                request["max_tokens"] = self._max_tokens
+            reply = await self._ctx.capability("agent.turn", **request)
             data = reply.data if isinstance(reply.data, Mapping) else {}
             calls = list(data.get("tool_calls", []))
             self.transcript.append(
                 {"role": "assistant", "content": data.get("text", ""), "tool_calls": calls}
             )
             if not calls:
-                return str(data.get("text", ""))
+                if submit is None:
+                    return str(data.get("text", ""))
+                self.transcript.append({"role": "user", "content": f"Finish by calling {SUBMIT}."})
+                continue
             for call in calls:
-                function = self._tools.get(call.get("name", ""))
-                if function is None:
-                    result: Any = f"no tool named {call.get('name')}"
-                else:
-                    try:
-                        result = function(self._ctx, **dict(call.get("arguments", {})))
-                        if inspect.isawaitable(result):
-                            result = await result
-                    except NodeFailure:
-                        raise
-                    except Exception as error:
-                        result = f"{type(error).__name__}: {error}"
-                self.transcript.append(
-                    {"role": "tool", "name": call.get("name"), "content": _tool_text(result)}
-                )
+                name = str(call.get("name", ""))
+                arguments = dict(call.get("arguments", {}))
+                if name == SUBMIT and validator is not None:
+                    refusal = _refusal(validator, check, arguments)
+                    if refusal is None:
+                        return arguments
+                    self._answer(call, f"refused: {refusal}")
+                    continue
+                self._answer(call, await self._call(name, arguments))
         raise NodeFailure(f"the agent did not finish within {max_steps} turns")
+
+    async def _call(self, name: str, arguments: dict[str, Any]) -> Any:
+        function = self._tools.get(name)
+        if function is None:
+            return f"no tool named {name}"
+        try:
+            if _is_declared(function):
+                result = function.handler(arguments)
+            else:
+                result = function(self._ctx, **arguments)
+            if inspect.isawaitable(result):
+                result = await result
+        except NodeFailure:
+            raise
+        except Exception as error:
+            return f"{type(error).__name__}: {error}"
+        if _is_declared(function):
+            return ToolReply(str(result.text), tuple(result.images))
+        return result
+
+    def _answer(self, call: Mapping[str, Any], result: Any) -> None:
+        message: dict[str, Any] = {"role": "tool", "name": call.get("name")}
+        if call.get("id") is not None:
+            message["tool_call_id"] = call.get("id")
+        if isinstance(result, ToolReply):
+            message["content"] = result.text
+            if result.images:
+                message["images"] = [self._picture(image) for image in result.images]
+        else:
+            message["content"] = _tool_text(result)
+        self.transcript.append(message)
+
+    def _picture(self, image: Any) -> FileValue:
+        """A picture as a stored file: what the request is keyed by."""
+
+        store = self._ctx._services.store
+        if isinstance(image, InputFile):
+            return image.value
+        if isinstance(image, FileValue):
+            return image
+        if isinstance(image, Output):
+            return store.put_bytes(image.data, kind=image.kind, name="agent/image")
+        if isinstance(image, str) and image.startswith("data:"):
+            header, _, encoded = image.partition(",")
+            kind = header.removeprefix("data:").split(";", 1)[0] or "image/png"
+            return store.put_bytes(base64.b64decode(encoded), kind=kind, name="agent/image")
+        if isinstance(image, Path | str):
+            path = Path(image)
+            return store.put_bytes(path.read_bytes(), kind=_image_kind(path), name=path.name)
+        raise NodeFailure(f"an agent picture is a file, not {type(image).__name__}")
+
+    def _window(self) -> list[dict[str, Any]]:
+        """The transcript as it is sent: only the newest ``recent_images`` pictures."""
+
+        if self._recent_images is None:
+            return [dict(message) for message in self.transcript]
+        keep = self._recent_images
+        sent: list[dict[str, Any]] = []
+        for message in reversed(self.transcript):
+            images = list(message.get("images", []))
+            if not images:
+                sent.append(dict(message))
+                continue
+            shown = images[len(images) - keep :] if keep > 0 else []
+            keep -= len(shown)
+            dropped = len(images) - len(shown)
+            copy = {key: value for key, value in message.items() if key != "images"}
+            if shown:
+                copy["images"] = shown
+            if dropped:
+                copy["content"] = (
+                    f"{copy.get('content', '')}\n[{dropped} older picture(s) not shown]"
+                )
+            sent.append(copy)
+        return list(reversed(sent))
+
+
+def _is_declared(tool: Any) -> bool:
+    """A tool declared by its schema (a name, description, parameters and handler)."""
+
+    return all(hasattr(tool, field) for field in ("name", "description", "parameters", "handler"))
+
+
+def _tool_name(tool: Any) -> str:
+    if _is_declared(tool):
+        return str(tool.name)
+    if not getattr(tool, "gnode_tool", False):
+        raise NodeFailure(f"{getattr(tool, '__name__', tool)} is not declared with @tool")
+    return str(tool.__name__)
+
+
+def _declared_schema(tool: Any) -> dict[str, Any]:
+    if _is_declared(tool):
+        return {
+            "name": str(tool.name),
+            "description": str(tool.description),
+            "parameters": dict(tool.parameters),
+        }
+    return tool_schema(tool)
+
+
+def _image_kind(path: Path) -> str:
+    return {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+    }.get(path.suffix.lower(), "image/png")
+
+
+def _validator(schema: Mapping[str, Any]) -> Any:
+    try:
+        import jsonschema
+    except ImportError as error:  # pragma: no cover - a declared dependency
+        raise NodeFailure("an agent's submit schema needs jsonschema installed") from error
+    return jsonschema.Draft202012Validator(dict(schema))
+
+
+def _refusal(validator: Any, check: Callable[[Any], None] | None, value: Any) -> str | None:
+    problems = sorted(validator.iter_errors(value), key=lambda error: list(error.path))
+    if problems:
+        where = "/".join(str(part) for part in problems[0].path) or "the answer"
+        return f"{where}: {problems[0].message}"[:500]
+    if check is not None:
+        try:
+            check(value)
+        except (ValueError, NodeFailure) as error:
+            return str(error)[:500]
+    return None
 
 
 def _tool_text(value: Any) -> str:
@@ -585,6 +825,21 @@ def _staged_request(request: Mapping[str, Any]) -> dict[str, Any]:
     return {key: stage(value) for key, value in request.items()}
 
 
+def _stored(store: Store, request: Mapping[str, Any]) -> dict[str, Any]:
+    """A request with each file the node made itself (``ctx.out``) kept in the store."""
+
+    def keep(value: Any) -> Any:
+        if isinstance(value, Output):
+            return store.put_bytes(value.data, kind=value.kind, name="request/file")
+        if isinstance(value, list):
+            return [keep(item) for item in value]
+        if isinstance(value, dict):
+            return {key: keep(item) for key, item in value.items()}
+        return value
+
+    return {key: keep(value) for key, value in request.items()}
+
+
 def _request_identity(request: Mapping[str, Any]) -> Any:
     def encode(value: Any) -> Any:
         if isinstance(value, Output):
@@ -608,17 +863,24 @@ async def call_capability(
     *,
     take: int,
     instance_id: str,
+    take_path: Sequence[int] = (),
 ) -> CallResult:
     """One paid call: from the call cache when an identical request was answered.
 
     Every call is written down before it may leave. A call whose process died while it was
     out stops the next run for a person, since nobody can say it did not bill; a long job an
     interrupted run submitted is collected instead, never submitted again.
+
+    A call is keyed by its take: a number, or inside a group that regenerates, every take on
+    the way to it, so the group's next take asks again instead of reading the last answer.
     """
 
     store = services.store
     key = store.call_key(
-        capability=name, route=route.fingerprint, request=_request_identity(request), take=take
+        capability=name,
+        route=route.fingerprint,
+        request=_request_identity(request),
+        take=list(take_path) if len(take_path) > 1 else take,
     )
     cached = store.load_call(key)
     if cached is not None:
@@ -741,6 +1003,8 @@ def _stage(store: Store, value: Any) -> Any:
         return {key: _stage(store, item) for key, item in value.items}
     if isinstance(value, list):
         return [_stage(store, item) for item in value]
+    if isinstance(value, dict):  # a map of files from the inputs, given to a keyed port
+        return {key: _stage(store, item) for key, item in value.items()}
     return value
 
 
@@ -785,11 +1049,12 @@ async def execute(
             return Result("succeeded", outputs, {**facts, "cached": True})
     if instance.native:
         return _select(instance)
-    # An optional input that does not exist (its step did not run) is not among the inputs.
+    # An optional input that does not exist (its step did not run, or the workflow input
+    # was not given) is not among the inputs.
     inputs = {
         name: _stage(store, instance.with_[name])
         for name in spec.inputs
-        if name in instance.with_ and instance.with_[name] is not MISSING
+        if name in instance.with_ and not expr.is_nothing(instance.with_[name])
     }
     params = {
         name: _param_value(instance.with_[name]) for name in spec.params if name in instance.with_

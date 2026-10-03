@@ -1,0 +1,14 @@
+# gnode.lock: the source behind each versioned node type; commit it
+nodes:
+  nodes/assembly.py#assemble@1: 8aae880c538783eef899a8d3e5cbebe71002d87791d1795b1f0aa789c65874a1
+  nodes/assembly.py#review@1: 2bc0ecdd12ae950ed06a9a678ccae2d5788d010a783934937d3417fc32e17c78
+  nodes/parts.py#normalize@1: 0f1d4dbbd19a95633a530e50c6266a76604e29f21ec454ee042cc4b6603224d3
+  nodes/parts.py#review@1: 2da97c130f3414f4f537f321da0c72973365fce727d13ff063961d4b79194fa5
+  nodes/references.py#draw@1: b1a8c98fd97b7e314a6bd8c0728defc5cf5b8613b25b274ceab59a8a38451f69
+  nodes/references.py#review@1: e63e6521a5a63f2beb1e7d7b85a59570b029864e9a0c5685a8a73f0e436496df
+  nodes/references.py#role_views@1: ec2668849078894177d7de9456ba1a3b08835dceac2e23e36a47b49d90c3b31e
+  nodes/result.py#result@1: 9f8d4fc4ba3525068ee615c19cb53bc0265e55d9abf77401d0ef9c49b16f410e
+  nodes/rig.py#agent@1: f3598c0748345e886402464320087d42f29f4a7ce3e6c10c15235c4b03d278b2
+  nodes/rig.py#finish@1: 2fc566eda59fe239741157d96135e62e414c55fefc5215f60f98fb6ab1e2f86e
+  nodes/rig.py#review@1: af2ea7e534093bb3ee83d00ae136594f73262a34afcb73d10fc4f5716a78e9cd
+  nodes/setup.py#setup@1: 58a3e8aade995efd0dae0e4d0bb7db90509654030ed906a6fa30b24c9eb87b1b

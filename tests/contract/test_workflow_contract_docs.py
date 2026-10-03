@@ -1,6 +1,7 @@
 """Each workflow's contract.md carries the checked shape of its offline sample plan.
 
-The blocks live in src/stage_gen/workflows/looping_parallax/contract.md,
+The blocks live in src/stage_gen/workflows/character_3d/contract.md,
+src/stage_gen/workflows/looping_parallax/contract.md,
 src/stage_gen/workflows/movie_sprite/contract.md,
 src/stage_gen/workflows/portrait_motion/contract.md and
 src/stage_gen/workflows/universe/contract.md. The universe
@@ -67,13 +68,9 @@ def test_contract_block_is_rendered_canonically(block: ContractBlock) -> None:
 def test_every_sample_plan_workflow_has_a_block() -> None:
     from stage_gen.workflows._registry import discover, load_code
 
-    # A workflow without a sample plan says why: character-3d cannot be planned outside its
-    # own launcher. Every other workflow has a block.
+    # A workflow without a sample plan says why; every other workflow has a block.
     planned = {
-        workflow.id
-        for workflow in discover()
-        if load_code(workflow.id).no_sample_plan is None
-        and load_code(workflow.id).plan_refusal is None
+        workflow.id for workflow in discover() if load_code(workflow.id).no_sample_plan is None
     }
     assert {block.workflow_id for block in BLOCKS} == planned
 

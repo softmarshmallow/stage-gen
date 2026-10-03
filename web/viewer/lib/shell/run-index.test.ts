@@ -78,13 +78,11 @@ describe("the run index", () => {
     expect(listed[1].identity.document).toBe("case.json");
   });
 
-  test("summarises a view, and a run's own record when it has none", async () => {
+  test("summarises a view, and lists a run that has none", async () => {
     await withRuns({
       "out/viewed/execution-view.json": executionViewFixture(),
       "spikes/review/yuzu/run-01/plan.json": { gnode: "plan/v1" },
       "spikes/review/yuzu/run-01/events.jsonl": "",
-      "spikes/canary/wren-01/graph.json": { kind: "contained-character-rig-v1" },
-      "spikes/canary/wren-01/summary.json": { ok: false },
       "spikes/stale/execution-view.json": { ...executionViewFixture(), schema_version: 2 },
     });
     const byName = new Map((await listRuns()).map((entry) => [entry.relative, entry]));
@@ -93,7 +91,6 @@ describe("the run index", () => {
     expect(viewed?.identity.recipe).toBe("sideview-platformer");
     expect(viewed?.updatedAt).toMatch(/Z$/);
     expect(byName.get("review/yuzu/run-01")?.view).toBeNull();
-    expect(byName.get("canary/wren-01")?.recordState).toBe("failed");
     expect(byName.get("stale")?.view).toBeNull();
     expect(byName.get("stale")?.viewRefusal).toContain("derive it again");
   });

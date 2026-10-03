@@ -7,8 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from gnode import RunRefused, WorkflowRun, make_plan
-from tests.unit.gnode.workflow._project import FakeProvider, planner, project
+from gnode import RunRefused, WorkflowRun, make_plan, make_planner
+from gnode_std import file_facts, standard_types
+from tests.unit.gnode.workflow._project import ROUTES, FakeProvider, planner, project
 
 REGENERATING = """
 gnode: workflow/v1
@@ -284,3 +285,126 @@ async def test_accepted_keeps_only_what_the_judges_accepted(tmp_path: Path) -> N
 
     assert outcome.ok, outcome.failed
     assert outcome.outputs["all"].content == "ada=ADA"
+
+
+GROUP_NODES = """
+from gnode import Ctx, node
+
+
+@node("first_build_rejected", inputs={"subject": "file"}, outputs={})
+def first_build_rejected(ctx: Ctx) -> dict:
+    ctx.fact("verdict", "reject" if ctx.instance.takes[0] == 1 else "accept")
+    return {}
+
+
+@node(
+    "bounded",
+    params={"max_steps": {"type": "integer", "minimum": 1, "maximum": 5, "default": 2}},
+    outputs={},
+    calls={"agent.turn": "max_steps"},
+)
+def bounded(ctx: Ctx) -> dict:
+    return {}
+"""
+
+REBUILDING = """
+gnode: workflow/v1
+id: flow
+title: Flow
+steps:
+  build:
+    steps:
+      draw:
+        uses: gnode/image.generate@1
+        with: { prompt: a lantern }
+      audit:
+        uses: ./nodes/group_nodes.py#first_build_rejected
+        with: { subject: "${{ steps.draw.outputs.image }}" }
+    regenerate: { max: 2, until: "${{ steps.audit.facts.verdict == 'accept' }}" }
+"""
+
+
+async def test_a_regenerating_group_asks_its_paid_calls_again_on_each_take(
+    tmp_path: Path,
+) -> None:
+    path = project(tmp_path, REBUILDING, **{"nodes/group_nodes.py": GROUP_NODES})
+    provider = FakeProvider(planner(path).store)
+
+    outcome = await _run(path, tmp_path / "runs/one", provider)
+
+    # The same request inside the group's second take is a new take, not the cached answer.
+    assert outcome.ok, outcome.failed
+    assert [name for name, _ in provider.calls] == ["image.generate", "image.generate"]
+
+
+MAPPED = """
+gnode: workflow/v1
+id: flow
+title: Flow
+inputs:
+  parts:
+    type: map
+    values: { type: file, kind: text }
+    optional: true
+  settings:
+    depth: { type: integer, default: 3 }
+steps:
+  joined:
+    uses: ./nodes/test_nodes.py#join
+    with: { parts: "${{ inputs.parts }}" }
+  depth:
+    uses: ./nodes/test_nodes.py#shout
+    with: { text: "depth ${{ inputs.settings.depth }}" }
+outputs:
+  joined: ${{ steps.joined.outputs.text }}
+  depth: ${{ steps.depth.outputs.text }}
+"""
+
+
+async def test_an_optional_map_of_files_and_left_out_settings_reach_the_steps(
+    tmp_path: Path,
+) -> None:
+    path = project(tmp_path, MAPPED, **{"in/a.txt": "one", "in/b.txt": "two"})
+    (tmp_path / "in/inputs.yaml").write_text("parts: { a: a.txt, b: b.txt }\n", encoding="utf-8")
+    built = make_planner(
+        path,
+        input_files=[tmp_path / "in/inputs.yaml"],
+        cwd=tmp_path,
+        builtins=standard_types(),
+        routes=ROUTES,
+        facts_reader=file_facts,
+    )
+    plan = await make_plan(built)
+    assert plan.ok, plan.problems
+    outcome = await WorkflowRun(
+        plan, run_dir=tmp_path / "runs/one", services=FakeProvider(built.store).services()
+    ).run()
+
+    assert outcome.ok, outcome.failed
+    assert outcome.outputs["joined"].content == "a=one|b=two"
+    assert outcome.outputs["depth"].content == "DEPTH 3"
+
+
+BOUNDED = """
+gnode: workflow/v1
+id: flow
+title: Flow
+steps:
+  given:
+    uses: ./nodes/group_nodes.py#bounded
+    with: { max_steps: 4 }
+  default:
+    uses: ./nodes/group_nodes.py#bounded
+"""
+
+
+async def test_a_call_bound_named_by_a_setting_prices_what_the_step_was_given(
+    tmp_path: Path,
+) -> None:
+    path = project(tmp_path, BOUNDED, **{"nodes/group_nodes.py": GROUP_NODES})
+
+    plan = await make_plan(planner(path))
+
+    assert plan.ok, plan.problems
+    calls = {i.step: sum(price.calls for price in i.prices) for i in plan.instances}
+    assert calls == {"given": 4, "default": 2}

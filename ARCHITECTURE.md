@@ -69,11 +69,9 @@ import rules below are what the tests enforce; this ordering is not tested.
 
 Provider configuration, credentials and concrete service construction belong to the
 composition root, `src/stage_gen/orchestration/`: runtime and services, the
-`GraphExecutor` that graph-document workflows run on, image routing, the provider
-composition of the character-3d workflow, and Stage Gen's gnode plugin: the image, video and
-structured routes and the adapters that serve them. Application
-provider adapters that are not GNode ring-2 adapters live in `src/stage_gen/providers/`.
-Neither the SDK nor a workflow's graph builder acquires those responsibilities.
+`GraphExecutor` that graph-document workflows run on, image routing, and Stage Gen's gnode
+plugin: the image, video, structured, agent, mesh and rig routes and the adapters that serve
+them. Neither the SDK nor a workflow acquires those responsibilities.
 
 ## Import rules
 
@@ -106,11 +104,9 @@ persisted strings that keep an older word (the graph-document field `recipe`, th
 `*-execution-*` kinds) are
 listed in the [glossary](docs/glossary.md) so nobody renames them.
 
-The character-3d implementation stays at `stage_gen.recipes.character_3d`, a frozen path
-beside its frozen orchestration, components, providers and resources under
-`*/character_3d/`. Every character run hashes that source closure into its lineage, and any
-member change needs a new paid qualification cohort, so `workflows/character_3d/` holds only
-the workflow's declaration, CLI and example importer, which a run never imports.
+Character-3d qualification binds a declared closure rather than every installed byte: its
+node types as `gnode.lock` pins their source, the workflow file, the core contract versions,
+its routes and prices, and the Blender build (`workflows/character_3d/support.py`).
 
 ## Bounded contracts and flexible composition
 

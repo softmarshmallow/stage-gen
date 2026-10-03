@@ -4,7 +4,7 @@
 //   is shown in that view, with the run's graph one link away (`?view=graph`);
 // - otherwise its execution view — the run's own, or the one `stage-gen view` derived
 //   into the cache — fills the window as a graph, and refreshes while the run is live;
-// - a run with neither says what its own record says and how a view is made. A game
+// - a run with neither says how a view is made. A game
 //   run's view is exported by its game; the viewer never derives one.
 //
 // A document this build refuses (hard-drop versioning) gets the re-derive message
@@ -55,7 +55,7 @@ interface NoViewFacts {
   readonly game: boolean;
 }
 
-/** What a run without a view is: its root, its workflow or a game, its own record. */
+/** What a run without a view is: its root, and its workflow or a game. */
 async function noViewFacts(run: RunRef, runDir: string): Promise<NoViewFacts> {
   const root = rootFor(run.root);
   const entry = root
@@ -74,7 +74,7 @@ async function noViewFacts(run: RunRef, runDir: string): Promise<NoViewFacts> {
   };
 }
 
-/** A run with no view: what its own record says, and where a view comes from. */
+/** A run with no view: what it is, and where a view comes from. */
 function NoView({ run, runDir, rootLabel, entry, workflow, game }: NoViewFacts) {
   return (
     <main className={page}>
@@ -87,7 +87,6 @@ function NoView({ run, runDir, rootLabel, entry, workflow, game }: NoViewFacts) 
       <p className={metaLine}>
         {rootLabel} · {workflow ? workflow.manifest.title : game ? "game run" : "other run"}
         {entry?.identity.kind ? ` · ${entry.identity.kind}` : ""}
-        {entry?.recordState ? ` · ${entry.recordState}` : ""}
       </p>
       {entry?.viewRefusal ? <p className={errorBanner}>{entry.viewRefusal}</p> : null}
       {game ? (
@@ -98,9 +97,9 @@ function NoView({ run, runDir, rootLabel, entry, workflow, game }: NoViewFacts) 
       ) : (
         <p className="text-dim">
           This run has no view yet. While it runs, <code>stage-gen view</code> derives one
-          into its cache whenever the run&apos;s plan and trace can be joined; a run prepared
-          but never run, or one whose trace is missing, keeps only its own record. Write one
-          with <code>stage-gen inspect {runDir} --write-view DIR</code>.
+          into its cache whenever the run&apos;s plan and trace can be joined; a run planned but
+          never started has nothing to show yet. Write one with{" "}
+          <code>stage-gen inspect {runDir} --write-view DIR</code>.
         </p>
       )}
       {workflow ? (

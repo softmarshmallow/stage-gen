@@ -195,6 +195,7 @@ def gnode_workflow(
     no_sample_plan: str | None = None,
     import_example: Callable[..., Any] | None = None,
     no_importer: str | None = None,
+    read_library: Callable[..., Any] | None = None,
 ) -> WorkflowCode:
     """The ``CODE`` of a workflow folder written as ``workflow.yaml``.
 
@@ -233,6 +234,7 @@ def gnode_workflow(
         no_sample_plan=no_sample_plan,
         import_example=import_example,
         no_importer=no_importer,
+        read_library=read_library,
     )
 
 

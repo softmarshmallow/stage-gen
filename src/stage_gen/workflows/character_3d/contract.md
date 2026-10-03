@@ -1,375 +1,195 @@
 # 3D character: contract
 
-> **Checked by:** none.
+> **Checked by:** `tests/contract/test_workflow_contract_docs.py`.
 
-> **Contract maturity: current executable contract.** The behaviour below is exercised by
-> `tests/unit/workflows/character_3d/test_character_provider_flow.py`,
-> `tests/unit/workflows/character_3d/test_character_whole_recovery.py`,
-> `tests/unit/workflows/character_3d/test_character_quality_bar.py` and
-> `tests/unit/orchestration/character_3d/test_support_admission.py`; no test parses this
-> prose, so a change to a checked rule updates the test and this page together. The
-> reader-facing walkthrough is the [workflow page](page.mdx); this document holds the exact
-> ownership, review, admission, budget and recovery contracts it summarises.
+Turn one original character brief, or a character's supplied parts, into one rigged character
+at game scale: reference pictures, textured geometry, a skeleton with skin weights and short
+diagnostic clips, each stage judged by a reviewer that did not make it. The workflow does not
+bind a character into a game or publish generated art.
 
-The implementation is frozen at `stage_gen.recipes.character_3d`, its own path since before
-workflows had folders: renaming or editing any member would change the source closure every
-character run hashes into its lineage, and would need a new paid qualification cohort. This
-folder holds only the workflow's declaration, CLI and example importer, and a run never
-imports them.
+The workflow is a gnode workflow file, [`workflow.yaml`](workflow.yaml), over its own node
+types in [`nodes/`](nodes/), its prompts in [`prompts/`](prompts/), its profiles in
+[`profiles/`](profiles/), and gnode's standard `mesh.generate` and `mesh.rig`. `gnode
+plan|run character-3d` plans and runs it. Its inputs:
 
-The pipeline turns an original character brief into reference images, textured
-geometry, a rig and motion, with bounded agent stages inside the graph, independent
-reviews by default and explicit terminal outcomes. A run does not require an
-interactive coding agent to intervene between stages. The first qualified target is
-the `whole` partition of the fixed-hand SD human profile; the support record for it is
-a host decision held outside the package, and every other profile or partition remains
-development-only until it earns its own.
+- `brief`: the character in your words, as Markdown; or `parts`, a map of the profile's part
+  roles to FBX or GLB files. Exactly one of them.
+- `reference` (optional): a picture of the character the references are drawn from.
+- `profile` (default `sd_human_fixed_hands_v1`): anatomy, parts, joints, criteria and review
+  heights; it decides the rig lane.
+- `partition` (default `whole`): one whole mesh, or `head_body_hair` (the fixed-hand profile
+  only).
+- `review` (default `required`), `quality_bar` (default `low`), `rounds` (takes per reviewed
+  stage, default 2), `rebuilds` (builds of the body in all, default 2), `through` (`rig` or
+  `assembly`), `preservation` (`audit` or `restore_normals`), `mesh` (Tripo's face limit,
+  quads, texture and PBR) and `limits` (agent turns, reference pictures, crops, revisions and
+  how many recent pictures an agent keeps seeing).
 
-## Ownership and supported scope
+## Ownership and scope
 
-| Responsibility | Implementation |
+| Responsibility | Owner |
 | --- | --- |
-| Graph execution, tool loop, provenance and retries | Public `gnode` SDK surfaces |
-| Reference design, part layout, assembly choices and semantic reviews | Agents through application-injected OpenRouter services |
-| Textured geometry | Tripo adapter selected by the application binding table |
-| Skeleton and skin weights in the provider lane | Tripo rigging adapter |
-| Measurements, fitting operations, surface preservation checks and exports | Contained local Blender worker |
-| Diagnostic and cheer motion | Local worker operating on the provider skeleton and weights |
-| Admission, budgets, credentials and service factories | Application orchestration; unavailable to agent-authored policy changes |
+| Steps, takes, rebuilds, routes, the call cache, ceilings and resume | gnode |
+| Reference design, part layout, assembly choices and semantic reviews | Agents on the `agent.turn` route ([`gnode.yaml`](gnode.yaml)) |
+| Textured geometry | `mesh.generate` on Tripo |
+| Skeleton and skin weights on the provider lane | `mesh.rig` on Tripo |
+| Measurements, fitting, preservation checks, renders and exports | The contained local Blender worker, a declared tool (`gnode doctor`) |
+| Anatomy, partitions, criteria, quality bars and their rules | [`components/character_3d`](../../components/character_3d/__init__.py) |
+| Admission of the delivered character | The `result` step |
 
-The first qualification target is `sd_human_fixed_hands_v1`: an original short-haired
-SD human with a moving body and wrists, fixed mitten hands, and a matte surface.
-It requires no fist, grip or individual finger movement. Facial expressions,
-independent hair motion, animals, weapons and garment simulation remain extensions.
+The first qualification target is `sd_human_fixed_hands_v1`: an original short-haired SD human
+with a moving body and wrists, fixed mitten hands, and a matte surface. It requires no fist,
+grip or finger movement, and it is the only profile on the provider rig lane; the other
+profiles are rigged by an agent with the rig studio's tools. Facial expressions, independent
+hair motion, animals, weapons and garment simulation remain extensions.
 
-### Review mode
+The `setup` step runs while planning: it compiles the profile, applies the partition and holds
+both to the character rules, so a profile, partition or set of supplied parts they refuse
+stops the plan before anything is paid for.
 
-The caller chooses `review_mode` independently of the review quality bar:
+## Stages
 
-| Mode | Graph and completion behavior |
-| --- | --- |
-| `required` (default) | Independent review and bounded review-driven regeneration remain enabled. An accepted output must pass the technical and semantic requirements. |
-| `none` | Omit independent reference, part, assembly and rig reviewer nodes and review-driven regeneration. Each stage has one producer episode; technically valid selected output completes as unreviewed. |
+1. **References** (brief only). An agent draws a canonical picture and a front and back of
+   every part (each an `image.generate`, or with references an `image.edit` at the exact size
+   of its aspect), crops atlases into labelled views, and submits one bundle. A reviewer judges
+   the canonical and every view; a rejected bundle is drawn again, told what the review found.
+2. **Parts.** For each part role, Tripo builds a textured mesh from its views (or the supplied
+   file is taken), and Blender imports it once and exports a clean GLB with its measurements. A
+   mesh that cannot be normalized (missing texture, an unexpected rig, geometry that changes on
+   re-import) is a structural rejection, judged without a model call. A reviewer compares the
+   part with its references from five sides; a rejection asks Tripo again.
+3. **Assembly.** An agent builds candidate assemblies, each from all the original parts with one
+   rigid transform per part, and submits the one it stands behind. A reviewer judges the rest
+   pose at inspection height and at every gameplay height, from every required view.
+4. **Rig** (unless `through: assembly`). On the provider lane Tripo rigs the assembly; its
+   riggability check is advisory and recorded. `finish` maps the skeleton, proves every vertex,
+   UV and triangle of the assembly survived (restoring normals when asked), applies the
+   material policy, appends the diagnostic clips without touching the provider's nodes, skins
+   or meshes, and exports at the profile's `target_height` with the feet on the ground. On the
+   agent lane an agent places landmarks and binding regions and builds rigs. The reviewer judges
+   one labeled atlas in one turn.
+5. **Result.** With review, the character is accepted only when its review accepted the exact
+   export and its numbers hold: no missing required weights, no blocking numeric finding. A good
+   picture cannot waive a numeric failure, and a clean report cannot waive a visible one.
 
-The policy applies to assembly, rig, parts-to-rig and brief-to-rig runs, including
-the local and provider rig paths. It does not disable generation agents, their
-bounded internal inspection and refinement, provider retry ownership, worker
-validation, artifact integrity, provenance or exact-hash input verification.
-`max_review_rounds` remains a validated finite limit, but does not schedule additional
-episodes when review is skipped. Image-generation and producer revision limits
-continue to apply independently. `agent_review_holdback_usd` does not withhold producer
-budget when no reviewer is scheduled.
+A provider rig the preservation audit refuses (changed triangle connectivity or winding,
+drifted geometry or UVs, normals that cannot be restored) is a rejected candidate with no review
+claimed. Any other worker error fails its step.
 
-In `none`, the stable graph IDs `references_admit`, `part_admit_*`, `parts_admit`,
-`assembly_admit` and `rig_admit` remain available to consumers. Their node types and
-records describe selection with `review_status: "skipped"`, not semantic acceptance.
-They select exact produced candidates for downstream use without fabricating a
-positive review. No independent reviewer calls or reviewer evidence atlases are
-needed by this graph. Producer inspection may still render its own evidence.
+## Takes and rebuilds
 
-A successful live run has status `completed_unreviewed`, `review_status: "skipped"`
-and `qualification_eligible: false`, and exposes the selected output source. Export
-integrity checks, including valid skin weights, required meshes and animation data,
-and provider preservation checks still apply. Missing control influence and motion
-quality findings are retained in `quality_findings` without blocking selection.
-If a provider output fails a preservation check, the run retains it and fails;
-the conditional whole-mesh recovery is disabled in this mode. Missing or invalid
-artifacts remain errors. Every candidate already persisted by either mode remains
-available, including candidates a reviewer rejected. Skipping review does not erase
-an earlier verdict, convert an earlier rejection into acceptance, or grant a
-publication or support claim.
+Each reviewed stage regenerates up to `rounds` takes. Every take starts fresh: nothing a
+rejected take built is carried into the next except what its review said. When an assembly or a
+rig is still rejected after its own takes, the whole body is built again (new meshes, a new
+assembly, a new rig), up to `rebuilds` builds in all; the references are not drawn again. On
+the provider lane the rig itself is one take per build, so a rejected rig rebuilds the body.
+A paid call inside a later take or build is asked again, never answered from the earlier
+take's cache entry. A run that ends rejected delivers nothing, and its result says why.
 
-`rig_review_calibration` requires `review_mode: "required"`: running its independent
-reviewer is the purpose of that pipeline mode. Unreviewed runs cannot supply semantic
-qualification evidence.
+## Review mode and quality bar
 
-### Review quality bar
+`review: none` leaves out every reviewer and every review-driven take; each stage runs its
+producer once. A technically valid character is delivered with status `completed_unreviewed`,
+`review_status: "skipped"` and `qualification_eligible: false`, with its numeric findings in
+`quality_findings`. Export integrity checks still apply, and an export whose provider rig lost
+the source's appearance is refused. Skipping review never converts a rejection into acceptance
+or grants a support claim.
 
-SD characters are consumed at mobile gameplay scale, so the experiment names the
-bar an enabled rig reviewer decides at with `review_quality_bar`:
+SD characters are consumed at mobile gameplay scale, so `quality_bar` names the height a
+reviewer decides at:
 
 | Level | Verdict height | Meaning |
 | --- | --- | --- |
-| `low` (default) | smallest declared gameplay height, 120 px for this profile | Usable in a game: a player-visible defect fails, a seam that only shows when magnified is a minor issue. |
+| `low` (default) | smallest declared gameplay height, 120 px for this profile | Usable in a game: a player-visible defect fails, a seam that only shows when magnified is minor. |
 | `medium` | largest declared gameplay height, 180 px | Same evidence with an explicit per-boundary rest-versus-motion policy. Uncalibrated. |
-| `high` | not implemented | Declared for later close-up work and refused before any spend. |
+| `high` | not implemented | Refused while planning. |
 
-At `low`, `texture_integrity` blocks only for scrambled, missing or wrong-object texture:
-UV garbage, a blank image, or a large region in the wrong color. An off-color patch,
-streak or small invented detail that still reads as plausible surface detail is a minor
-issue, even when the reference does not show it. Rig, part and assembly reviews all
-receive this policy, so the same blemish gets the same severity at every stage.
+At `low`, `texture_integrity` blocks only for scrambled, missing or wrong-object texture. The
+rig reviewer receives one labeled atlas (rows are pose samples, columns are the required views,
+every cell native pixels cut from a render at twice the verdict height) and a face strip at
+inspection height, with the numeric `inspect_asset` tool, and must submit in one turn. Each
+issue states the smallest declared height at which it is visible; a blocking issue must be
+visible at the verdict height, and missing required weights or numeric rig findings block at
+every level. Reviews before export render with the `matte_policy` material when the profile's
+surface is matte, so raw provider gloss is never judged as a defect of something the workflow
+does not ship.
 
-The host renders every required diagnostic pose and the required motion at the
-verdict height, from the profile's required views, and cuts one labeled atlas:
-rows are pose samples, columns are views, every cell is native pixels, and a
-manifest binds each cell to its source render hash. The reviewer receives that
-atlas, the exported rig facts and the numeric `inspect_asset` tool, and must
-submit in a single turn. Each reported issue states the smallest declared height
-at which it is visible; a blocking issue must be visible at the verdict height,
-a failed criterion must be backed by one, and missing required weights or numeric
-rig findings block at every level. The bar is part of the review-context identity,
-so a verdict at one height is never reused at another, and calibration labels are
-bar-specific.
+## Export space
 
-Reviews that run before export, raw-part and assembly review, render with the
-`matte_policy` material mode whenever the profile's surface policy is matte. That
-previews the finish the export applies, so raw provider gloss is never judged as a
-defect of something the pipeline does not ship. The rig atlas renders the exported
-file natively, because that file already carries the policy.
+The profile's `target_height` is the required rest height in world units; provider output
+units do not decide it. One uniform transform at the rig root keeps mesh, skeleton and
+animation in one frame, and the exported bounds must verify the height and the ground within
+float32 round-off. This never repaints textures or changes UVs.
 
-Partition selection is explicit. `whole` generates one complete character;
-`head_body_hair` generates separate parts and adds an assembly stage. With review
-required, the parts are independently reviewed.
-Both use the provider rig lane. A clothing-covered overlap can satisfy a particular
-view requirement, but it is recorded as concealment rather than welded topology.
-Passing one preset never qualifies the other automatically.
+## Support
 
-In a two-round whole run with review required, a rejected first rig can use the
-remaining mesh-generation slot from the same admitted references. The replacement
-receives raw-part review, a newly built orientation/assembly and its independent
-review before the second rig submission. The complete motion/material checks then
-run again. At most two
-whole meshes and two rig tasks may be generated across the run; an earlier raw-part
-retry can exhaust the replacement opportunity. A passing first rig skips this work.
-Identical replacements are refused, and byte-identical rejected rigs keep the prior
-negative verdict. A provider rig that the local preservation audit refuses to bind to
-the admitted mesh (changed triangle connectivity or winding, drifted geometry or UVs,
-or normals that cannot be restored) is recorded as a rejected candidate with no review
-claimed, and takes the same bounded path; any other worker error stays terminal. This
-is a bounded semantic recovery attempt, not a promise that generation will fix
-deformation.
-
-Rejection of the first rig opens a conditional six-node sequence: remaining whole-mesh
-generation, part review and admission, new orientation/assembly, assembly review and
-admission. The second rig-submit/collect/review then binds the new assembly. The whole
-graph has 31 nodes, including three conditional mesh-generation declarations, while a
-host receipt guard permits at most two actual mesh generations and two rig submissions
-across the run. The executable global-count, dependency, exact-hash and preserved-history
-checks live in
-[`test_character_whole_recovery.py`](../../../../tests/unit/workflows/character_3d/test_character_whole_recovery.py);
-the partition, dependency and provider/agent ownership checks in
-[`test_character_provider_flow.py`](../../../../tests/unit/workflows/character_3d/test_character_provider_flow.py);
-the quality bar, atlas and issue-height checks in
-[`test_character_quality_bar.py`](../../../../tests/unit/workflows/character_3d/test_character_quality_bar.py).
-Unreviewed selection and artifact integrity are covered by
-[`test_character_unreviewed_stages.py`](../../../../tests/unit/workflows/character_3d/test_character_unreviewed_stages.py)
-and [`test_character_rig_review_mode.py`](../../../../tests/unit/workflows/character_3d/test_character_rig_review_mode.py);
-CLI precedence and frozen resume by
-[`test_review_launch.py`](../../../../tests/unit/orchestration/character_3d/test_review_launch.py).
-This graph is independent of the game graphs.
-
-The corresponding brief-to-rig graph contracts are below. Reviewed counts use
-`max_review_rounds: 2`; they count declared nodes, including conditional stages and
-stages that reuse an already accepted candidate, rather than paid dispatches.
-
-| Path | `required` nodes | `none` nodes | Mesh generations / rig tasks with `none` |
-| --- | ---: | ---: | --- |
-| Provider rig, `whole` | 31 | 12 | At most one mesh and one rig task |
-| Provider rig, `head_body_hair` | 35 | 16 | At most three meshes and one rig task |
-| Local rig, three required parts | 33 | 15 | At most three meshes; local rig producer |
-
-The unreviewed provider whole graph is:
-
-```text
-runtime_admit -> brief_preflight -> references_01 -> references_admit
-  -> generate_character_01 -> part_admit_character -> parts_admit
-  -> assemble_01 -> assembly_admit -> rig_submit_01 -> rig_01 -> rig_admit
-```
-
-With multiple parts, each `generate_<role>_01 -> part_admit_<role>` branch depends
-on `references_admit`; `parts_admit` joins every branch before assembly. The local
-rig path uses one `rig_01` producer in place of provider submit and collect. For
-`P` part roles, these unreviewed graphs have `10 + 2P` provider-path nodes and
-`9 + 2P` local-path nodes. Both have zero reviewer nodes and no review-triggered
-replacement meshes or second rig submissions. These counts do not promise one
-model dispatch per agent episode: image generation and internal producer work
-remain separately bounded by the authored limits.
-
-The provider-rig normalization contract uses the profile's `target_height` as the
-required world-space rest height. Provider output units do not determine that
-requirement. A uniform transform at the common rig root keeps the mesh, skeleton
-and animation in one coordinate frame; the exported rest bounds must then verify
-the declared height. This operation does not repaint textures or change UVs, and
-it is not an anatomical repair. Numeric acceptance must enforce units and scale;
-a character looking correct in an automatically framed image cannot waive them.
-
-Components contain reusable inspection, worker and agent-tool capabilities. The workflow
-owns anatomy, composition, review requirements and graph policy. Vendor adapters for
-the workflow's own image, mesh and rig protocols live under
-`stage_gen.providers.character_3d`, the application-owned adapter layer that sits
-beside `gnode.providers`; credential-aware factories and the reviewed binding table
-(reference image, whole mesh, provider rig and the single admitted agent route) live
-in `stage_gen.orchestration.character_3d`. See the
-[architecture boundaries](../../../../ARCHITECTURE.md) and [provider policy](../../../../docs/models/providers.md).
-
-## Installation and input
-
-Install a reviewed `stage-gen` wheel into a fresh Python environment. The launcher
-freezes hash-verified installed sources into every run and refuses an editable
-checkout, so the repository's own `uv sync` environment can plan but cannot launch.
-The command is `stage-gen run character-3d`: everything after the workflow id reaches the
-launcher at the composition root verbatim, through the workflow's
-[`cli.py`](cli.py); the equivalent module is
-`python -m stage_gen.orchestration.character_3d.launch`. A character run is prepared
-inside that launcher, so `stage-gen plan character-3d` refuses and names
-`--prepare-only` instead. The pipeline is
-POSIX-only today: run ledgers and atomic publication use `fcntl` locks and
-exchange-renames, and other platforms are refused before any spend.
-
-Blender is a separate, explicitly supplied executable. Local admission checks its
-hash, format import/export, armature support and rendering capabilities before a
-generation run. It is not downloaded by the launcher. The tested runtime and package
-dependencies are recorded in each immutable execution snapshot.
-
-The launcher requires an authored experiment JSON. Its contract is validated by
-[`validate_experiment`](../../recipes/character_3d/experiment.py). A full
-brief-to-motion configuration declares:
-
-- `schema_version`, a portable `experiment_id`, and `pipeline_mode: "brief_to_rig"`.
-- Original `brief` text and its rights basis, plus the chosen `partition_preset`.
-- Optional `review_mode` (`required` or `none`) and `review_quality_bar`.
-- Installed `profile` and `pricing` resource references, each with an exact SHA-256.
-- `agent_route`, provider `rigging` policy, upstream generation limits and mesh parameters.
-- `parts` (empty for a new brief), and finite `limits` for cost, dispatches, time,
-  worker calls, assembly revisions, rig revisions and independent review rounds.
-
-Resource paths such as `profiles/sd_human_fixed.json` are declared package aliases,
-not paths relative to the current working directory. Installed resource lookup is
-available from
-[`package_resources`](../../components/character_3d/package_resources.py).
-Do not copy hashes from another package version. Routes must exist in the application
-binding table and provide the features required by the selected graph.
-
-All external input paths are portable references beneath the declared input root.
-The run directory must be a fresh child of that root. Profile requirements and
-model pricing belong to the installed package; generated files and billing receipts
-belong to the run. Neither location depends on an ignored spike directory.
-
-An explicit CLI `--review-mode required|none` overrides the experiment's value;
-the experiment overrides the default `required`. The launcher resolves the mode
-before planning and freezes the effective configuration with the run. It has no
-natural-language instruction-file parser. An authoring agent following a user
-instruction file passes the resolved preference through the JSON field or CLI
-argument, using the same policy boundary.
-
-## Offline preparation and live execution
-
-Prepare a development run without model-provider calls:
+A run claims support only through a host support record, a reviewed deployment decision kept
+outside any run folder; no model writes it, and no single run can qualify its own pipeline.
+The record binds a closure, not every installed byte: the node types as `gnode.lock` pins their
+source, the workflow file, the core contract versions, each route with its contract and price,
+the Blender build, and the settings the cohort ran with. The brief, reference and supplied parts
+may vary. [`support.py`](support.py) computes the target of a plan, admits a record against it,
+and runs exactly the admitted plan:
 
 ```sh
-stage-gen run character-3d \
-  --experiment /work/character-inputs/experiment.json \
-  --input-root /work/character-inputs \
-  --run-root /work/character-inputs/runs/prepare-01 \
-  --blender /path/to/blender \
-  --admission-mode development \
-  --prepare-only
+uv run python -m stage_gen.workflows.character_3d.support target --inputs inputs.yaml
+uv run python -m stage_gen.workflows.character_3d.support run --record support.json --inputs inputs.yaml --live --max-usd 30
 ```
 
-Preparation performs local checks and a synthetic Blender capability probe. It is
-not a generated-character quality verdict. A live run requires both `--live` and
-`STAGE_GEN_RUN_LIVE=1`; supply a fresh run root or explicitly resume the prepared run.
-Provider keys use the existing allowlisted environment loader. `--dotenv` is optional
-and local. Never put credentials in the experiment, model prompts or generated files.
-Uploads and provider spending require the caller's task authorization; CLI opt-in
-does not replace that authorization.
+Without a record a run is development and claims nothing. A record for the reviewed
+configuration does not admit an unreviewed run, because the review setting is part of the
+target.
 
-Add `--review-mode none` to this development command to prepare the graph without
-independent reviewers. Use that same effective mode when starting or resuming it.
-No provider spending is required to validate the mode or inspect its graph.
+## Verification
 
-## Qualification and ordinary use
+[`test_workflow.py`](../../../../tests/unit/workflows/character_3d/test_workflow.py) runs the
+whole graph offline with stand-in paid calls and a stand-in Blender: the accepted character,
+review none, supplied parts, a rejected rig that rebuilds the body from a new mesh, a rig the
+audit refuses, a rig rejected on every build, a rerun that pays for nothing, a killed run that
+resumes to the same bytes, and support admission.
+[`test_character_rules.py`](../../../../tests/unit/workflows/character_3d/test_character_rules.py)
+holds the bars, atlases, profiles and export space. Live runs and qualification cohorts are
+separate, paid evidence.
 
-`--admission-mode supported` is the default. It refuses before creating the run when
-there is no matching host-reviewed support record. `development` and `qualification`
-are explicit experimental modes; neither asserts that the profile is supported.
+## Graph
 
-Supported mode additionally requires `--support-record` (a portable input path) and
-`--support-record-sha256`. The host owns this immutable record outside the run's
-writable directory. It binds the exact executable/resource closure, Blender hash,
-Python and dependency versions, profile, partition, model routes, pricing and policy
-limits to the reviewed calibration, cohort, qualification and release-review evidence.
-The character brief may vary within that qualified policy. A changed profile,
-partition, runtime or policy requires a new matching support decision.
-The effective review mode is part of this policy identity, so a record for the
-default reviewed configuration does not admit an unreviewed run. Development mode
-allows an unreviewed trial without making a support claim.
+gnode plans the committed brief offline; this is the shape of that plan.
+`scripts/write_workflow_contracts.py --write` regenerates the block, and the check above fails
+when it drifts:
 
-An agent's visual verdict cannot issue a support record. A successful individual
-run also cannot qualify its own pipeline. The record is an external deployment
-input, so it introduces no circular package hash dependency.
-
-## Budgets, recovery and outcomes
-
-Each paid operation has one retry owner. Semantic revisions are separately bounded;
-transport retries do not create an unlimited regeneration loop. Shared ledgers reserve
-funds before dispatch, preserve unresolved charges and protect review capacity.
-Reservations are estimates, not a provider-enforced maximum invoice. Reaching a cap
-produces a failure or blocked recovery outcome instead of silently weakening review.
-
-Use the same experiment, effective review mode, run root and admission mode with
-`--resume`. Keep any support record and its pinned hash unchanged. Repeating an
-equivalent `--review-mode` override is allowed; changing the resolved mode is refused
-before paid work and requires a fresh run. The launcher verifies the run-owned source
-snapshot and delegates policy evaluation to that frozen code, even if the surrounding
-installation has changed. Verified checkpoints are reused; a saved provider dispatch
-receipt resumes collection without submitting another paid request. Ambiguous state
-remains blocked for reconciliation rather than being guessed successful.
-
-For a deliberate development recovery trial, add `--stop-after-provider-submit`
-to a fresh live run using `--admission-mode development`. The scheduler stops after
-the first rig submission and its completed checkpoint have been committed, before
-collection starts. The outcome is `development_checkpoint_stopped`, with
-`accepted: false`; the provider task ID, checkpoint hash and budget reservation
-remain available for reconciliation and continuation.
-
-Resume that same frozen run with the same arguments and `--resume`, omitting
-`--stop-after-provider-submit`. Collection reuses the committed task instead of
-submitting another paid request. The deliberate stop marker remains in its history,
-so this pilot cannot count as an uninterrupted qualification run, even if the
-resumed export later passes. This control is refused in supported or qualification
-mode and does not enable replay of arbitrary stages that started without a
-committed checkpoint. Such ambiguous recovery still fails closed.
-
-Inspect `outcome.json`, `summary.json`, `runtime.json`, node records and trace files.
-Later resume invocations retain their own reports under `invocations/`. Outcomes
-distinguish preparation, accepted scoped results, unreviewed completion, failure and
-interruption; launch failure is also explicit. With review required, a rig is admitted
-only after required joint/weight checks, numeric diagnostics and independent review
-of the exact exported artifact. A successful API response, exporter or skeleton
-inventory alone is insufficient.
-
-For each prospective bounded review episode, distinguish four results:
-
-- **Episode completed:** the reviewer submitted a valid decision within its limits.
-  A completed rejection can be the correct result.
-- **Artifact admitted or rejected:** the exact export passes or fails the combined
-  numeric and semantic requirements. Visual criteria passing does not override a
-  numeric blocker such as an incorrect rest height.
-- **Calibration matched or mismatched:** the decision agrees or disagrees with the
-  independent expected result for that case. A false acceptance remains failed
-  calibration even when the episode completed normally.
-- **Episode failed or exhausted:** transport, tool, schema, time or budget limits
-  prevented a valid decision. This is not evidence that the character passed.
-
-Freeze the cases and expected checks before running their review episodes. Keep
-each actual outcome, including false acceptances and incomplete episodes; do not
-replace a failed case's result with a later repaired asset. A corrected exporter,
-fixture or review policy requires a new candidate or case identity and fresh
-evidence for the changed boundary. Prospective qualification counts valid failures
-as well as successes instead of retaining only agreeable reviews.
-
-## Verification and future changes
-
-Run the unchanged [offline verification gates](../../../../VERIFICATION.md) for code handoff.
-The maintained character tests cover provider retries and appearance preservation,
-durable dispatch/collection, graph policy, fixed-hand requirements and support
-admission. Installed-package checks additionally run outside the source checkout,
-verify immutable resources, and prove preparation and resume without provider calls.
-
-Live calibration and repeated fresh-character runs remain separate evidence. Publish
-neither generated media nor a support claim merely because the offline suite passes.
-Profiles, partition plans, provider bindings and agent tools are explicit extension
-points; adding expressions, hair, animals or finer hand articulation must bring its
-own requirements, diagnostics and qualification evidence.
+<!-- pipeline-graph-contract:start -->
+```json
+{
+  "graph_kind": "gnode-graph-v2",
+  "topology_sha256": "613df246bdd6f2570e0379b6df9a4d478eea37ba5860f07bf86c934419df5763",
+  "node_count": 36,
+  "operation_counts": {
+    "agent_turn": 18,
+    "local": 12,
+    "mesh_generate": 4,
+    "mesh_rig": 2
+  },
+  "outputs": [
+    "outputs/atlas/",
+    "outputs/character.glb",
+    "outputs/references.png",
+    "outputs/result.json"
+  ],
+  "type_ids": [
+    "character_3d/build/assembly/assemble",
+    "character_3d/build/assembly/review",
+    "character_3d/build/part/mesh",
+    "character_3d/build/part/normalize",
+    "character_3d/build/part/review",
+    "character_3d/build/part/views",
+    "character_3d/build/rig/finish",
+    "character_3d/build/rig/review",
+    "character_3d/build/rig/task",
+    "character_3d/references/draw",
+    "character_3d/references/review",
+    "character_3d/result",
+    "character_3d/setup"
+  ]
+}
+```
+<!-- pipeline-graph-contract:end -->

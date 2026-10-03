@@ -58,9 +58,16 @@ product and route catalog; any non-matching value is refused offline. The
 active provider spellings and fal endpoint IDs have one executable authority in
 `stage_gen.image_product`.
 
-The credential loader also accepts optional `TRIPO_API_KEY` for direct Tripo
-experiments. Credential import includes it when present; existing imports still
-require only the four established keys. This does not add a production 3D route.
+`TRIPO_API_KEY` authenticates the two Tripo routes the character-3d workflow names in its
+gnode.yaml, served by `gnode.providers.tripo`: `mesh.generate` on `P2-20260801@tripo` (a
+multiview task from the part's front and back, and its left and right when given; USD 1.20
+to 2.50 a mesh) and `mesh.rig` on `v1.0-20240301@tripo` (USD 0.25 to 0.50 a rig). Both are
+long jobs: a task is posted once, polled, and after a crash collected instead of posted
+again; an answer the post cannot confirm is never posted twice. The rig route first asks
+Tripo's free riggability check; a doubted model is refused unless the step allows it, and
+the check's answer is recorded either way. Downloads are taken only from Tripo's own hosts.
+Credential import includes the key when present; the other workflows need only the four
+established keys.
 
 Without `STAGE_GEN_IMAGE_PROVIDER`, checked-in capability policies select
 OpenAI Images for transparency, masks, automatic backgrounds, and custom exact
@@ -133,6 +140,13 @@ file is (`pictures: unchanged`); the configured text model reduces pictures to a
 long edge flattened onto the step's matte. Both settings are part of the route fingerprint,
 so a call's cache key changes with them. Its worst case is USD 1.50 a call, the reservation
 the portrait runs held per attempt; their calls cost USD 0.07 to 0.39.
+
+The same model answers `agent.turn`, one turn of a tool-using agent, on
+`openai/gpt-6-astra@openrouter` with the same request settings. A turn sends the
+transcript so far, the step's tools and, when the step asks for a structured answer, a
+required tool choice; pictures a tool returns are sent as one user message after the run of
+tool results. Each turn is call-cached by its transcript, so a resumed agent replays the
+turns it already paid for. Its worst case is USD 1.50 a turn.
 
 ## Binding-driven image selection and dispatch
 

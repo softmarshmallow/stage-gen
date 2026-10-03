@@ -26,7 +26,6 @@ const command = (prog: string, extra: Record<string, unknown> = {}) => ({
   summary: null,
   description: null,
   usage: prog,
-  forwards: false,
   arguments: [],
   commands: [],
   ...extra,
@@ -44,7 +43,7 @@ const TREE = {
         arguments: [argument(["--port"], { metavar: "PORT", default: "3000" })],
       }),
       command("stage-gen run", {
-        commands: [command("stage-gen run character-3d", { forwards: true })],
+        commands: [command("stage-gen run file")],
       }),
     ],
   }),
@@ -56,9 +55,9 @@ describe("CLI reference", () => {
     expect(cliCommands(root).map((c) => c.prog)).toEqual([
       "stage-gen view",
       "stage-gen run",
-      "stage-gen run character-3d",
+      "stage-gen run file",
     ]);
-    expect(commandAnchor(root.commands[1].commands[0])).toBe("stage-gen-run-character-3d");
+    expect(commandAnchor(root.commands[1].commands[0])).toBe("stage-gen-run-file");
   });
 
   test("refuses another kind or a malformed command", () => {
@@ -68,12 +67,11 @@ describe("CLI reference", () => {
     expect(() => parseCliReference(nameless)).toThrow("names is empty");
   });
 
-  test("renders usage, arguments and the forwarding note from the tree alone", () => {
+  test("renders usage and arguments from the tree alone", () => {
     const html = renderToStaticMarkup(createElement(CliReference, { root: parseCliReference(TREE) }));
     expect(html).toContain('id="stage-gen-view"');
     expect(html).toContain("--port PORT");
     expect(html).toContain("Default: 3000.");
-    expect(html).toContain("reaches the workflow&#x27;s own launcher");
   });
 });
 

@@ -263,6 +263,7 @@ from gnode.schedule import (
 )
 from gnode.trace import (
     RUN_EVENTS_KIND,
+    RUN_EVENTS_SCHEMA_VERSION,
     JsonlTraceSink,
     MemoryTraceSink,
     NodeTrace,
@@ -300,8 +301,10 @@ from gnode.workflow.host import (
     LongJob,
     NodeFailure,
     Spending,
+    ToolReply,
     register_reader,
     register_writer,
+    resolve_tool,
     tool,
 )
 from gnode.workflow.plan import Plan, Planner, Project, make_plan, make_planner
@@ -556,6 +559,7 @@ __all__ = [
     "CeilingExceeded",
     "CeilingLedger",
     "RUN_EVENTS_KIND",
+    "RUN_EVENTS_SCHEMA_VERSION",
     "ResumeCheck",
     "RunCanceled",
     "RunLocked",
@@ -575,6 +579,8 @@ __all__ = [
     "register_reader",
     "register_writer",
     "tool",
+    "ToolReply",
+    "resolve_tool",
     "Workflow",
     "PlanRefused",
     "RunResult",

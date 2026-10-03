@@ -12,7 +12,6 @@ this parser loads no engine, media library or workflow implementation.
 from __future__ import annotations
 
 import argparse
-import importlib
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -28,29 +27,14 @@ class _Parser(argparse.ArgumentParser):
 
 
 def _workflow_verbs(commands: argparse._SubParsersAction[_Parser]) -> None:
-    from stage_gen.workflows._registry import discover
-
-    found = discover()
+    # Every workflow is a workflow file, planned and run with gnode; these verbs plan and run
+    # a pipeline written with the SDK.
     for verb, summary in (
         ("plan", "plan a workflow offline, before any spend"),
         ("run", "run a workflow; provider calls need its explicit opt-in"),
     ):
         command = commands.add_parser(verb, help=summary, description=summary)
         targets = command.add_subparsers(dest="workflow", required=True, metavar="WORKFLOW")
-        for workflow in found:
-            if not workflow.root.joinpath("cli.py").is_file():
-                continue  # a workflow file: planned and run with gnode
-            module = importlib.import_module(f"{workflow.package}.cli")
-            forwards = verb == "run" and getattr(module, "FORWARDS_RUN_ARGUMENTS", False)
-            parser = targets.add_parser(
-                workflow.id,
-                help=workflow.manifest.promise,
-                description=f"{workflow.manifest.title}: {workflow.manifest.promise}",
-                add_help=not forwards,
-            )
-            getattr(module, f"register_{verb}")(parser)
-            if forwards:
-                parser.set_defaults(forward=True)
         sdk_parser = targets.add_parser(
             sdk.FILE_COMMAND,
             help="a pipeline definition written with the SDK (module:attribute or file.py:attr)",
@@ -173,7 +157,6 @@ def _command(parser: argparse.ArgumentParser, name: str, summary: str | None) ->
         "summary": summary,
         "description": parser.description,
         "usage": _usage(parser),
-        "forwards": bool(parser.get_default("forward")),
         "arguments": arguments,
         "commands": commands,
     }
@@ -192,18 +175,9 @@ def command_reference(parser: argparse.ArgumentParser | None = None) -> dict[str
 def parse(
     arguments: Sequence[str], parser: argparse.ArgumentParser | None = None
 ) -> argparse.Namespace:
-    """Parse one ``stage-gen`` command line, as the console script does.
-
-    A workflow whose run parser forwards its arguments (character-3d) receives everything
-    after its id, verbatim, as ``forwarded``; anywhere else an unknown argument is an error.
-    """
+    """Parse one ``stage-gen`` command line, as the console script does."""
     parser = parser or build_parser()
-    args, extra = parser.parse_known_args(list(arguments))
-    if getattr(args, "forward", False):
-        args.forwarded = extra
-    elif extra:
-        parser.error(f"unrecognized arguments: {' '.join(extra)}")
-    return args
+    return parser.parse_args(list(arguments))
 
 
 def _models(args: argparse.Namespace, stdout: TextIO) -> int:

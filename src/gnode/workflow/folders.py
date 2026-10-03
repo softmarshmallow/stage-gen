@@ -16,6 +16,7 @@ _SUFFIXES = {
     "video/webm": ".webm",
     "video/x-matroska": ".mkv",
     "model/gltf-binary": ".glb",
+    "model/fbx": ".fbx",
     "file/zip": ".zip",
 }
 

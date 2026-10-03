@@ -108,6 +108,8 @@ next-env.d.ts
 
 # stage-gen run outputs (per-tag dirs land under <repo-root>/out)
 /out/
+# A gnode project's cache, wherever gnode was run (`.gnode/cache` beside its gnode.yaml)
+.gnode/
 codex-session-*.md
 /tmp/
 

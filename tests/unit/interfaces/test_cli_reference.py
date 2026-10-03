@@ -56,12 +56,6 @@ def test_arguments_carry_their_usage_help_and_defaults() -> None:
     assert all("-h" not in entry["names"] for entry in export["arguments"])
 
 
-def test_a_forwarding_workflow_is_marked() -> None:
-    run = _find(command_reference(), "run", "character-3d")
-    assert run["forwards"] and run["arguments"] == []
-    assert not _find(command_reference(), "inspect")["forwards"]
-
-
 def test_the_reference_does_not_depend_on_the_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("COLUMNS", "40")
     narrow = command_reference()

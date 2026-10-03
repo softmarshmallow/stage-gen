@@ -70,18 +70,7 @@ function Command({ command, depth }: { command: CliCommand; depth: number }): Re
         <code className={CODE}>{command.prog}</code>
       </Heading>
       {said ? <p className={P}>{said}</p> : null}
-      {command.forwards ? (
-        <>
-          <pre className={PRE}>{`${command.usage} ...`}</pre>
-          <p className={P}>
-            Everything after <code className={CODE}>{command.prog}</code> reaches the workflow&apos;s own launcher
-            verbatim, <code className={CODE}>--help</code> included; run{" "}
-            <code className={CODE}>{`${command.prog} --help`}</code> for its flags.
-          </p>
-        </>
-      ) : (
-        <pre className={PRE}>{command.usage}</pre>
-      )}
+      <pre className={PRE}>{command.usage}</pre>
       <Arguments command={command} />
       {command.commands.map((child) => (
         <Command key={child.name} command={child} depth={depth + 1} />

@@ -35,7 +35,15 @@ from gnode.trace import RUN_EVENTS_KIND, RUN_EVENTS_SCHEMA_VERSION, JsonlTraceSi
 from gnode.workflow.document import Step, WorkflowDocument
 from gnode.workflow.expand import Expansion, Instance, Result
 from gnode.workflow.folders import output_file, step_file, view_file, view_template
-from gnode.workflow.host import CapabilityError, HostServices, NodeFailure, Spending, execute
+from gnode.workflow.host import (
+    CapabilityError,
+    HostServices,
+    NodeFailure,
+    Spending,
+    execute,
+    resolve_tool,
+    tool_name,
+)
 from gnode.workflow.plan import Plan, Planner
 from gnode.workflow.store import files_in
 from gnode.workflow.values import (
@@ -308,12 +316,30 @@ class WorkflowRun:
     async def run(self) -> RunOutcome:
         if not self.plan.ok:
             raise RunRefused("the plan is refused:\n" + "\n".join(map(str, self.plan.problems)))
+        self._check_tools()
         self._check_folder()
         try:
             with run_lock(self.run_dir):
                 return await self._locked()
         except RunLocked as error:
             raise RunRefused(str(error)) from error
+
+    def _check_tools(self) -> None:
+        """Every program a step that may run declares is installed: refused before any spend."""
+
+        missing: dict[str, list[str]] = {}
+        for instance in self.plan.live():
+            for entry in instance.spec.tools:
+                name = tool_name(entry)
+                if resolve_tool(name) is None:
+                    missing.setdefault(name, []).append(instance.step)
+        if missing:
+            lines = [
+                f"{name} (for {', '.join(sorted(set(steps)))}): install it, or set "
+                f"GNODE_TOOL_{name.upper().replace('-', '_')}"
+                for name, steps in sorted(missing.items())
+            ]
+            raise RunRefused("a program the run needs is not installed:\n" + "\n".join(lines))
 
     def _check_folder(self) -> None:
         self.run_dir.mkdir(parents=True, exist_ok=True)

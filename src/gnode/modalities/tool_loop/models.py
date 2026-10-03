@@ -142,6 +142,8 @@ class ToolLoopStepRequest:
     tools: tuple[ToolSpec, ...]
     temperature: float | None = None
     max_tokens: int | None = None
+    #: ``required``: the model must call a tool; ``auto``: it may answer in text instead.
+    tool_choice: Literal["required", "auto"] = "required"
 
 
 @dataclass(frozen=True, slots=True)

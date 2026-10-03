@@ -166,8 +166,8 @@ def test_product_gate_runs_the_workflows_through_their_command_lines() -> None:
     ]
     assert runs == []
     files = {w.id for w in discover() if w.root.joinpath("workflow.yaml").is_file()}
-    assert files == {"looping-parallax", "movie-sprite", "portrait-motion", "universe"}
-    paid = {"portrait-motion", "universe"}
+    assert files == {w.id for w in discover()}
+    paid = {"character-3d", "portrait-motion", "universe"}
     for workflow in files - paid:
         assert ("gnode", "run", workflow) in {command[:3] for command in commands}
         assert ("gnode", "inspect", workflow, "--verify") in commands
@@ -177,14 +177,6 @@ def test_product_gate_runs_the_workflows_through_their_command_lines() -> None:
     assert {("gnode", "lock", workflow, "--check") for workflow in files} <= set(commands)
     assert ("stage-gen", "list") in commands
     assert any(command[:3] == ("stage-gen", "catalog", "export") for command in commands)
-    verb_help = {
-        command[1:3]
-        for command in commands
-        if command[0] == "stage-gen" and command[-1] == "--help"
-    }
-    assert {
-        (verb, w.id) for w in discover() if w.id not in files for verb in ("plan", "run")
-    } <= verb_help
     assert all("--live" not in command for command in commands)
     assert not any(
         command[0].startswith("stage-gen-") and command[0] != "stage-gen-concept"

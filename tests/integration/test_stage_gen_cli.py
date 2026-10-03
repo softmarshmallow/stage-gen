@@ -13,7 +13,7 @@ import subprocess
 import sys
 from io import StringIO
 from pathlib import Path
-from typing import NoReturn, cast
+from typing import cast
 
 import pytest
 
@@ -34,8 +34,6 @@ WORKFLOWS = {
     "portrait-motion",
     "universe",
 }
-#: Workflows written as workflow files are planned and run with gnode, not stage-gen.
-WORKFLOW_FILES = {"looping-parallax", "movie-sprite", "portrait-motion", "universe"}
 
 
 @pytest.fixture(autouse=True)
@@ -100,49 +98,10 @@ def test_help_lists_the_verbs_and_every_workflow_with_its_promise() -> None:
     help_text = _subprocess("run", "--help")
     assert help_text.returncode == 0, help_text.stderr
     flat = " ".join(help_text.stdout.split())
+    # Every workflow is a workflow file, planned and run with gnode, not stage-gen.
     for found in discover():
-        if found.id in WORKFLOW_FILES:
-            assert f" {found.id} " not in flat
-            continue
-        assert found.id in flat and " ".join(found.manifest.promise.split()) in flat
+        assert f" {found.id} " not in flat
     assert " file " in flat
-
-
-@pytest.mark.parametrize("verb", ["plan", "run"])
-@pytest.mark.parametrize("workflow", sorted(WORKFLOWS - WORKFLOW_FILES))
-def test_every_workflow_verb_has_help(verb: str, workflow: str) -> None:
-    completed = _subprocess(verb, workflow, "--help")
-    assert completed.returncode == 0, completed.stderr
-    assert "usage:" in completed.stdout
-    if (verb, workflow) == ("run", "character-3d"):
-        # The frozen launcher answers its own --help, under the name it is reached by.
-        assert "stage-gen run character-3d" in completed.stdout
-        assert "--experiment" in completed.stdout
-
-
-def test_plan_character_3d_refuses_and_says_what_to_run() -> None:
-    status, _, errors = _stage_gen("plan", "character-3d")
-    assert status == 2
-    assert "stage-gen run character-3d --prepare-only" in errors
-
-
-def test_run_character_3d_forwards_its_arguments_verbatim_and_restores_argv(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from stage_gen.orchestration.character_3d import launch
-
-    seen: list[list[str]] = []
-
-    def launcher() -> NoReturn:
-        seen.append(list(sys.argv))
-        raise SystemExit(3)
-
-    monkeypatch.setattr(launch, "main", launcher)
-    original = sys.argv
-    forwarded = ["--experiment", "e.json", "--review-mode=none", "-h", "--", "x y"]
-    assert _stage_gen("run", "character-3d", *forwarded)[0] == 3
-    assert seen == [["stage-gen run character-3d", *forwarded]]
-    assert sys.argv is original
 
 
 def test_list_and_show_read_the_workflows() -> None:
@@ -162,7 +121,7 @@ def test_list_and_show_read_the_workflows() -> None:
     ]
     assert document["sample_plan"]["operation_counts"] == {"local": 5}
     status, output, _ = _stage_gen("show", "character-3d")
-    assert status == 0 and "Plan: a character run is prepared inside its launcher" in output
+    assert status == 0 and "Build the body" in output
     status, _, errors = _stage_gen("show", "no-such-workflow")
     assert status == 2 and "unknown workflow" in errors
 

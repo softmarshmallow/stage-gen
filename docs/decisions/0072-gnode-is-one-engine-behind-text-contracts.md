@@ -105,7 +105,7 @@ node bodies.
 | M0 | Remove storefront and portrait's engine-wide fingerprint; record this ruling. |
 | M1 | One runner and run record, with v1 keys byte-identical. |
 | M2 | The documents, expander, identity v2, call cache, protocol host, CLI and a language-neutral conformance suite. |
-| M3–M7 | Port looping-parallax (with the view host), movie-sprite, universe, portrait-motion and character-3d, each re-keyed once: the ported workflow replays offline and each paid call is answered only by the old result whose provenance records the identical request (`scripts/rekey_v1_runs.py`). A standard type gets its body only when a port uses it: movie-sprite gave `video.generate` its route, video file facts and the `video` view, while `image.key`, `image.contact_sheet` and `video.probe` stay declared, because its finishing keys, checks and samples frames in one local step. Universe gave `structured.generate` (prompt templates rendered with `vars:` and `inputs`), `image.resize`, `package` and the workflow's own view their bodies; its two reviews keep their tuned schemas as `structured.generate` answers read by local steps. Portrait-motion did the same with its four vision answers, each held by a judge to the component's validator, and gave `image.edit` its exact `size`; so `structured.review` and `vision.review` stay declared without bodies, and a route's contract carries the request settings that change an answer. |
+| M3–M7 | Port looping-parallax (with the view host), movie-sprite, universe, portrait-motion and character-3d, each re-keyed once: the ported workflow replays offline and each paid call is answered only by the old result whose provenance records the identical request (`scripts/rekey_v1_runs.py`). A standard type gets its body only when a port uses it: movie-sprite gave `video.generate` its route, video file facts and the `video` view, while `image.key`, `image.contact_sheet` and `video.probe` stay declared, because its finishing keys, checks and samples frames in one local step. Universe gave `structured.generate` (prompt templates rendered with `vars:` and `inputs`), `image.resize`, `package` and the workflow's own view their bodies; its two reviews keep their tuned schemas as `structured.generate` answers read by local steps. Portrait-motion did the same with its four vision answers, each held by a judge to the component's validator, and gave `image.edit` its exact `size`; so `structured.review` and `vision.review` stay declared without bodies, and a route's contract carries the request settings that change an answer. Character-3d is not re-keyed: an agent's turns depend on its whole transcript, so no earlier run's turns pair, and R12 requalifies it in M10; its port gave `mesh.generate` and `mesh.rig` their Tripo long jobs and `agent.turn` its route. |
 | M8 | Port the Godot game pipelines onto the public contract, and retire the viewer's motion-atlas player with the game runs it plays. |
 | M9 | Delete v1 identity, the rekey tool, `GraphExecutor`, the old SDK and the `stage-gen` command; publish the user guide. |
 | M10 | The paid requalification of character-3d. |
@@ -149,6 +149,23 @@ said TOML; the amendment is posted on issue #3 with the owner's go.
   order and the drift tests compare bytes, which re-keyed universe's offline identities; and
   the expander settled a judged step's takes before its judges were linked when a later
   condition reached the judge first, which left a regeneration stalled until fixed.
+- **M7 port.** The frozen character implementation (runners, recovery, budget pool, journals,
+  provider adapters, launcher and support admission) left about 16,800 lines; the workflow
+  file, its six node modules, the shared harness and the support and cohort tooling are about
+  2,200, over the unchanged Blender worker, studios and profiles. Run offline on stand-in calls
+  and a stand-in Blender, the graph accepts a character, delivers one unreviewed, fits
+  supplied parts to a reference, rebuilds the body after a rejected rig or a rig the audit
+  refuses, refuses after every build is rejected, pays for nothing on a rerun, and resumes a
+  killed run to identical bytes. Four engine findings came with it: a paid call was keyed by
+  its innermost take only, so a regenerating group's later take answered from the earlier
+  take's cache entry and a rebuild would never have drawn a new mesh (inside such a group the
+  key now carries the take path; no other workflow's key moved); optional map and list inputs
+  were never bound to files, and a nested group of settings left out took none of its
+  defaults; a node's call ceiling may now name an integer setting, so an agent is priced for
+  the turns it was given; and a run whose steps need a program that is not installed is
+  refused before anything is paid for. The support closure computed from a built wheel in a
+  clean environment is byte-identical to the source tree's, and a two-brief cohort plans under
+  one target in dry-run mode.
 - **Cost.** Every milestone up to M9 is offline. M10 is estimated at about USD 45 on a first
   pass (calibration about USD 2.3, a six-run cohort capped at USD 27 each, a canary about
   USD 5.6), about double if a cohort fails.

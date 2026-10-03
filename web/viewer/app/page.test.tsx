@@ -30,8 +30,8 @@ beforeAll(async () => {
     "execution-plan.json": { kind: "sideview-platformer-execution-graph-v2", recipe: "sideview-platformer" },
   });
   await env.write("calibration-01", {
-    "graph.json": { kind: "contained-rig-review-calibration-v1" },
-    "summary.json": { ok: true },
+    "plan.json": { gnode: "plan/v1", workflow: { id: "no-such-workflow" } },
+    "events.jsonl": "",
   });
   await env.write("old-platformer", { "execution-view.json": executionViewFixture() });
 });

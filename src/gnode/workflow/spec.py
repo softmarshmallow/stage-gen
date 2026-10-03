@@ -84,7 +84,9 @@ class NodeSpec:
     ``uses`` is how a workflow names it: ``gnode/<name>@<major>`` for a built-in, or
     ``./nodes/file.py#name`` for a project type. ``capability`` is set on built-in paid
     types: the step's route serves it. ``calls`` bounds the paid capability calls a body
-    makes, per run of the node, so a plan can price it before it runs.
+    makes, per run of the node, so a plan can price it before it runs: a number, or the
+    name of one of its integer settings (an agent's ``max_steps``), whose value the step
+    was given is the bound and whose ``maximum`` bounds every step.
     """
 
     name: str
@@ -93,7 +95,7 @@ class NodeSpec:
     outputs: Mapping[str, PortSpec] = field(default_factory=dict)
     judge: bool = False
     capability: str | None = None
-    calls: Mapping[str, int] = field(default_factory=dict)
+    calls: Mapping[str, int | str] = field(default_factory=dict)
     resources: tuple[str, ...] = ()
     tools: tuple[str, ...] = ()
     view: str | None = None
@@ -109,7 +111,18 @@ class NodeSpec:
         if overlap:
             raise SpecError(f"{self.name}: {sorted(overlap)} declared as both input and param")
         for name, count in self.calls.items():
-            if count < 1:
+            if isinstance(count, str):
+                setting = self.params.get(count, {})
+                if setting.get("type") != "integer" or setting.get("minimum", 0) < 1:
+                    raise SpecError(
+                        f"{self.name}: calls[{name!r}] names {count!r}, which is not an "
+                        "integer setting with a minimum of at least 1"
+                    )
+                if "maximum" not in setting:
+                    raise SpecError(
+                        f"{self.name}: calls[{name!r}] needs {count!r} to set a maximum"
+                    )
+            elif count < 1:
                 raise SpecError(f"{self.name}: calls[{name!r}] must be at least 1")
         if self.capability is not None and self.calls:
             raise SpecError(f"{self.name}: a capability type is its own one call")
@@ -118,12 +131,26 @@ class NodeSpec:
     def paid(self) -> bool:
         return self.capability is not None or bool(self.calls)
 
-    def capability_calls(self) -> Mapping[str, int]:
-        """Each capability this type calls and its most calls per run of the node."""
+    def capability_calls(self, params: Mapping[str, Any] | None = None) -> Mapping[str, int]:
+        """Each capability this type calls and its most calls per run of the node.
+
+        A bound named by a setting is that setting's value in ``params`` when it is a
+        number there, and the setting's ``maximum`` otherwise.
+        """
 
         if self.capability is not None:
             return {self.capability: 1}
-        return dict(self.calls)
+        bounds: dict[str, int] = {}
+        for name, count in self.calls.items():
+            if isinstance(count, int):
+                bounds[name] = count
+                continue
+            given = (params or {}).get(count)
+            if isinstance(given, int) and not isinstance(given, bool):
+                bounds[name] = given
+            else:
+                bounds[name] = int(self.params[count]["maximum"])
+        return bounds
 
 
 def node(
@@ -133,7 +160,7 @@ def node(
     params: Mapping[str, Any] | None = None,
     outputs: Mapping[str, str] | None = None,
     judge: bool = False,
-    calls: Mapping[str, int] | None = None,
+    calls: Mapping[str, int | str] | None = None,
     resources: Sequence[str] = (),
     tools: Sequence[str] = (),
     view: str | None = None,

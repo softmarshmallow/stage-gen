@@ -40,7 +40,7 @@ function badge(entry: RunIndexEntry, game: boolean, now: number): Badge {
   }
   if (entry.viewRefusal !== null) return { label: "re-derive", className: "border-error text-error" };
   if (game) return { label: "view not exported", className: "border-border text-dim" };
-  return { label: entry.recordState ?? "no view", className: "border-border text-dim" };
+  return { label: "no view", className: "border-border text-dim" };
 }
 
 function states(entry: RunIndexEntry): string {
@@ -56,10 +56,9 @@ function states(entry: RunIndexEntry): string {
   return parts.filter(Boolean).join(" ");
 }
 
-/** What a run says it is, for the reader: its label, its kind, or its record. */
+/** What a run says it is, for the reader: its label and its kind. */
 function identity(entry: RunIndexEntry): string {
   const parts = [entry.view?.label ?? null, entry.identity.kind ?? entry.view?.kind ?? null];
-  if (entry.view === null && entry.recordState) parts.push(entry.recordState);
   return parts.filter((part, index) => part && parts.indexOf(part) === index).join(" · ");
 }
 

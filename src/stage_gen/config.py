@@ -47,6 +47,7 @@ class StageGenConfig(ContractModel):
     open_router_api_key: str | None = Field(default=None, repr=False)
     fal_key: str | None = Field(default=None, repr=False)
     elevenlabs_api_key: str | None = Field(default=None, repr=False)
+    tripo_api_key: str | None = Field(default=None, repr=False)
 
     def secret_values(self) -> tuple[str, ...]:
         """Every provider credential this configuration holds, for trace redaction.
@@ -64,6 +65,7 @@ class StageGenConfig(ContractModel):
                 self.open_router_api_key,
                 self.fal_key,
                 self.elevenlabs_api_key,
+                self.tripo_api_key,
             )
             if value is not None
         )
@@ -151,6 +153,7 @@ def load_config(
         open_router_api_key=_first(values, "OPENROUTER_API_KEY"),
         fal_key=_first(values, "FAL_KEY"),
         elevenlabs_api_key=_first(values, "ELEVENLABS_API_KEY"),
+        tripo_api_key=_first(values, "TRIPO_API_KEY"),
         openai_base_url=_first(values, "OPENAI_BASE_URL"),
         open_router_base_url=_first(values, "OPENROUTER_BASE_URL"),
         fal_base_url=_first(values, "FAL_BASE_URL"),

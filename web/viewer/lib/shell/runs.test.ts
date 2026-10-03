@@ -147,8 +147,8 @@ describe("run discovery", () => {
     await write(path.join(out, "sdk-run", "execution-plan.json"), { kind: "pipeline-execution-graph-v1" });
     await write(path.join(out, "game-run", "manifest.json"), { kind: "prepared-game-runtime-v12" });
     await write(path.join(out, "view-only", "execution-view.json"), { kind: "x" });
-    await write(path.join(spikes, "canary-01", "wren-01", "graph.json"));
-    await write(path.join(spikes, "canary-01", "wren-01", "trace.jsonl"), "");
+    await write(path.join(spikes, "canary-01", "wren-01", "plan.json"));
+    await write(path.join(spikes, "canary-01", "wren-01", "events.jsonl"), "");
     await write(path.join(spikes, "review", "facial-4k", "yuzu", "run-01", "plan.json"));
     await write(path.join(spikes, "review", "facial-4k", "yuzu", "run-01", "events.jsonl"), "");
     // A run's own folders are not searched again.

@@ -167,6 +167,13 @@ def flag_name(name: str) -> str:
 # --------------------------------------------------------------------------- loading
 
 
+def _is(schema: Mapping[str, Any], kind: str) -> bool:
+    """Whether a schema node is of ``kind``, also when it is optional (``[kind, "null"]``)."""
+
+    declared = schema.get("type")
+    return declared == kind or (isinstance(declared, list) and kind in declared)
+
+
 def _anchor(schema: Mapping[str, Any], value: Any, base: Path) -> Any:
     """Make every file path absolute against ``base`` (where it was written)."""
 
@@ -187,8 +194,7 @@ def _anchor(schema: Mapping[str, Any], value: Any, base: Path) -> Any:
                     paths.append(str((base / str(pattern)).resolve()))
             return paths
         return str((base / str(value)).resolve())
-    kinds = schema.get("type")
-    if kinds == "object" and isinstance(value, Mapping):
+    if _is(schema, "object") and isinstance(value, Mapping):
         properties = schema.get("properties", {})
         extra = schema.get("additionalProperties")
         return {
@@ -197,21 +203,24 @@ def _anchor(schema: Mapping[str, Any], value: Any, base: Path) -> Any:
             )
             for name, item in value.items()
         }
-    if kinds == "array" and isinstance(value, list):
+    if _is(schema, "array") and isinstance(value, list):
         return [_anchor(schema.get("items", {}), item, base) for item in value]
     return value
 
 
 def _with_defaults(schema: Mapping[str, Any], value: Any) -> Any:
-    if schema.get("type") == "object" and isinstance(value, Mapping):
+    if _is(schema, "object") and isinstance(value, Mapping):
         out = dict(value)
         for name, field in schema.get("properties", {}).items():
             if name not in out and "default" in field:
                 out[name] = field["default"]
+            elif name not in out and "properties" in field and not field.get("required"):
+                # A nested group of settings left out entirely takes every field's default.
+                out[name] = _with_defaults(field, {})
             elif name in out:
                 out[name] = _with_defaults(field, out[name])
         return out
-    if schema.get("type") == "array" and isinstance(value, list):
+    if _is(schema, "array") and isinstance(value, list):
         return [_with_defaults(schema.get("items", {}), item) for item in value]
     return value
 
@@ -241,7 +250,7 @@ def _bind(schema: Mapping[str, Any], value: Any, read: Callable[[Path, str], Fil
         if tag.get("many"):
             return [read(Path(path), tag["kind"]).with_key(Path(path).stem) for path in value]
         return read(Path(value), tag["kind"])
-    if schema.get("type") == "object" and isinstance(value, Mapping):
+    if _is(schema, "object") and isinstance(value, Mapping):
         properties = schema.get("properties", {})
         extra = schema.get("additionalProperties")
         return {
@@ -250,7 +259,7 @@ def _bind(schema: Mapping[str, Any], value: Any, read: Callable[[Path, str], Fil
             )
             for name, item in value.items()
         }
-    if schema.get("type") == "array" and isinstance(value, list):
+    if _is(schema, "array") and isinstance(value, list):
         return [_bind(schema.get("items", {}), item, read) for item in value]
     return value
 
@@ -328,7 +337,7 @@ def _bind_open(
                 for item in value
             ]
         return read(str(value), tag["kind"])
-    if schema.get("type") == "object" and isinstance(value, Mapping):
+    if _is(schema, "object") and isinstance(value, Mapping):
         properties = schema.get("properties", {})
         extra = schema.get("additionalProperties")
         return {
@@ -340,7 +349,7 @@ def _bind_open(
             )
             for name, item in value.items()
         }
-    if schema.get("type") == "array" and isinstance(value, list):
+    if _is(schema, "array") and isinstance(value, list):
         return [_bind_open(schema.get("items", {}), item, read, is_open) for item in value]
     return value
 

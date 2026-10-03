@@ -31,7 +31,6 @@ from stage_gen.components.character_3d.io import (
     write_bytes,
     write_json,
 )
-from stage_gen.components.character_3d.provider_contracts import inspect_image
 from stage_gen.components.character_3d.studio import nullable, object_schema
 
 Record = dict[str, Any]
@@ -39,6 +38,37 @@ ImageGenerator = Callable[[Record], Awaitable[Record]]
 ToolMethod = Callable[[Record], Awaitable[ToolResult]]
 VIEWS = ("front", "back", "left", "right", "three_quarter", "detail")
 PURPOSES = ("canonical", "part_atlas", "part_view")
+
+
+#: Each shape a reference may be drawn in, at the exact size the reference route draws it.
+ASPECT_SIZES = {
+    "1:1": "1024x1024",
+    "2:3": "1712x2560",
+    "3:2": "2560x1712",
+    "16:9": "2560x1440",
+    "21:9": "2496x1152",
+    "9:21": "1152x2496",
+}
+
+
+def inspect_image(data: bytes) -> Record:
+    """A reference picture's format and size, refused unless a PNG or JPEG of usable size."""
+
+    if not data or len(data) > 20000000:
+        raise ValueError("Reference image must be nonempty and at most 20 MB")
+    with Image.open(BytesIO(data)) as image:
+        if image.format not in {"PNG", "JPEG"}:
+            raise ValueError("This narrow adapter accepts PNG or JPEG only")
+        if min(image.size) < 64 or max(image.size) > 8192:
+            raise ValueError("Reference dimensions must be within 64 through 8192 pixels")
+        result: Record = {
+            "format": image.format.lower(),
+            "width": image.width,
+            "height": image.height,
+        }
+        image.verify()
+    result["media_type"] = "image/png" if result["format"] == "png" else "image/jpeg"
+    return result
 
 
 class ReferenceGenerationStopped(RuntimeError):
@@ -371,11 +401,7 @@ class ReferenceStudio:
                         "maxItems": 4,
                         "uniqueItems": True,
                     },
-                    "aspect_ratio": {
-                        "type": "string",
-                        "enum": ["1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "9:16", "21:9"],
-                    },
-                    "quality": {"type": "string", "enum": ["auto", "low", "medium", "high"]},
+                    "aspect_ratio": {"type": "string", "enum": list(ASPECT_SIZES)},
                     "reason": {"type": "string", "minLength": 1, "maxLength": 2000},
                 }
             ),
@@ -463,7 +489,7 @@ class ReferenceStudio:
                 "inputs": [item["source"] for item in inputs],
                 "params": {
                     "aspect_ratio": args["aspect_ratio"],
-                    "quality": args["quality"],
+                    "size": ASPECT_SIZES[args["aspect_ratio"]],
                     "background": "opaque",
                 },
                 "rights_basis": self.rights_basis,

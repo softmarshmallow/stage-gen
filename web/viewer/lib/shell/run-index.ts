@@ -27,7 +27,6 @@ import { type FoundRun, discoverRuns, runDirFor } from "./runs";
 /** The documents that say what a run is, in the order the index asks them. */
 export const ANCHOR_DOCUMENTS = [
   "execution-plan.json",
-  "graph.json",
   "plan.json",
   "manifest.json",
   "bundle.json",
@@ -40,9 +39,6 @@ const UPDATE_FILES = [
   "execution-plan.json",
   "execution-trace.jsonl",
   "execution-view.json",
-  "graph.json",
-  "trace.jsonl",
-  "summary.json",
   "plan.json",
   "events.jsonl",
   "manifest.json",
@@ -80,8 +76,6 @@ export interface RunIndexEntry {
   readonly view: ViewSummary | null;
   /** Why the view this build found was refused, so a reader sees the re-derive need. */
   readonly viewRefusal: string | null;
-  /** What the run's own record says when there is no view: a status, or ok/failed. */
-  readonly recordState: string | null;
   /** When any of the run's documents last changed, in UTC. */
   readonly updatedAt: string | null;
 }
@@ -208,25 +202,6 @@ async function readViewSummary(run: RunRef): Promise<ViewRead> {
   });
 }
 
-/** A character run's summary says whether it succeeded. */
-async function readRecordState(run: RunRef, runDir: string): Promise<string | null> {
-  for (const [name, field] of [["summary.json", "ok"]] as const) {
-    const file = inRun(runDir, name);
-    if ((await stampOf(file)) === null) continue;
-    return remembered(`record\0${file}`, file, async () => {
-      try {
-        const read = await readRunDocument(run, name, { label: "run record", noun: "record" });
-        const value = (read?.document as Record<string, unknown> | null)?.[field];
-        if (typeof value === "boolean") return value ? "succeeded" : "failed";
-        return typeof value === "string" ? value : null;
-      } catch {
-        return null;
-      }
-    });
-  }
-  return null;
-}
-
 async function updatedAt(runDir: string): Promise<string | null> {
   const stamps = await Promise.all(
     UPDATE_FILES.map(async (name) => {
@@ -244,10 +219,9 @@ async function updatedAt(runDir: string): Promise<string | null> {
 /** One run's index entry. */
 export async function readRunEntry(found: FoundRun): Promise<RunIndexEntry> {
   const runDir = runDirFor(found.run);
-  const [anchor, viewRead, recordState, updated] = await Promise.all([
+  const [anchor, viewRead, updated] = await Promise.all([
     readAnchor(found.run, runDir),
     readViewSummary(found.run),
-    readRecordState(found.run, runDir),
     updatedAt(runDir),
   ]);
   const view = viewRead.view;
@@ -267,7 +241,6 @@ export async function readRunEntry(found: FoundRun): Promise<RunIndexEntry> {
     schemaVersion: anchor.schemaVersion,
     view,
     viewRefusal: viewRead.refusal,
-    recordState,
     updatedAt: updated,
   };
 }

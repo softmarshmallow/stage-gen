@@ -23,28 +23,22 @@ graph is experimental and is not shown.
 <Try>
 <Agent>
 
-Use Stage Gen to fit and rig a 3D character from three part meshes I will give you: body, head and hair. They were generated from <Ref input="parts">this parts sheet</Ref>, and the finished character should match <Ref input="reference">this reference sheet</Ref>. Write the experiment file that `validate_experiment` in `src/stage_gen/recipes/character_3d/experiment.py` accepts, with `pipeline_mode` set to `parts_to_rig`, the sheet under `reference` and the three meshes under `parts`. Plan it offline and show me the plan, then run it live with a $25 limit.
+Use Stage Gen to fit and rig a 3D character from three part meshes I will give you: body, head and hair. They were generated from <Ref input="parts">this parts sheet</Ref>, and the finished character should match <Ref input="reference">this reference sheet</Ref>. Follow the 3D character workflow (`stage-gen show character-3d`): write an inputs file with the three meshes under `parts`, the sheet as `reference` and the profile `sd_human_grouped_hands_v1`, plan it offline and show me the plan, then run it live with a $25 limit.
 
-When it finishes, show me the export and what the rig reviewer said about it.
+When it finishes, show me the character and what the rig reviewer said about it.
 
 </Agent>
 <Shell>
 
 ```sh
-stage-gen run character-3d \
-  --experiment work/tavi.json --input-root work --run-root work/runs/tavi-plan \
-  --blender /Applications/Blender.app/Contents/MacOS/Blender \
-  --admission-mode development --prepare-only
+gnode plan character-3d --inputs work/tavi.yaml
 ```
 
 ```sh
-STAGE_GEN_RUN_LIVE=1 stage-gen run character-3d \
-  --experiment work/tavi.json --input-root work --run-root work/runs/tavi-01 \
-  --blender /Applications/Blender.app/Contents/MacOS/Blender \
-  --admission-mode development --live
+gnode run character-3d --inputs work/tavi.yaml --live --max-usd 25
 ```
 
-Needs an installed `stage-gen` wheel rather than an editable checkout, Blender, and your OpenRouter key. The experiment file sets `pipeline_mode` to `parts_to_rig`, names the reference sheet under `reference` and lists the three meshes under `parts`.
+Needs Blender and your OpenRouter key. The inputs file names the three meshes under `parts` (`body`, `head` and `hair`), the reference sheet as `reference`, and sets `profile` to `sd_human_grouped_hands_v1`, whose rig an agent builds.
 
 </Shell>
 </Try>

@@ -1028,6 +1028,9 @@ GNODE_CAPABILITY_KINDS = {
     "structured.generate": "Language model",
     "vision.review": "Vision model",
     "vision.annotate": "Vision model",
+    "agent.turn": "Agent",
+    "mesh.generate": "3D mesh",
+    "mesh.rig": "Rig",
 }
 
 

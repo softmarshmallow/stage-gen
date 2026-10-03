@@ -17,6 +17,7 @@ from gnode.providers._http import (
     normalized_base_url,
     response_metadata,
 )
+from gnode.providers.openrouter.structured import OpenRouterStructuredRequestPolicy
 
 OPENROUTER_TOOL_LOOP_BASE_URL = "https://openrouter.ai/api/v1"
 _LABEL = "OpenRouter tool loop"
@@ -35,11 +36,14 @@ class OpenRouterToolLoopBackend:
         model: str,
         base_url: str = OPENROUTER_TOOL_LOOP_BASE_URL,
         client: httpx.AsyncClient | None = None,
+        request_policy: OpenRouterStructuredRequestPolicy | None = None,
     ) -> None:
         if not api_key.strip():
             raise ValueError("OpenRouter api_key must be non-empty")
         if not model.strip():
             raise ValueError("OpenRouter tool-loop model must be non-empty")
+        #: Reasoning, image detail and provider routing; none sends the provider defaults.
+        self.request_policy = request_policy
         self._api_key = api_key
         self.secrets: tuple[str, ...] = (api_key,)
         self.model = model.strip()
@@ -52,9 +56,10 @@ class OpenRouterToolLoopBackend:
             await self._client.aclose()
 
     async def step(self, request: ToolLoopStepRequest) -> ProviderToolLoopStep:
+        detail = None if self.request_policy is None else self.request_policy.image_detail
         body: dict[str, object] = {
             "model": self.model,
-            "messages": [_wire_message(message) for message in request.messages],
+            "messages": [_wire_message(message, detail) for message in request.messages],
             "tools": [
                 {
                     "type": "function",
@@ -67,9 +72,13 @@ class OpenRouterToolLoopBackend:
                 }
                 for spec in request.tools
             ],
-            "tool_choice": "required",
+            "tool_choice": request.tool_choice,
             "provider": {"require_parameters": True},
         }
+        if self.request_policy is not None:
+            body["provider"] = self.request_policy.provider.snapshot()
+            if self.request_policy.reasoning_effort is not None:
+                body["reasoning"] = {"effort": self.request_policy.reasoning_effort}
         if request.temperature is not None:
             body["temperature"] = request.temperature
         if request.max_tokens is not None:
@@ -105,7 +114,7 @@ class OpenRouterToolLoopBackend:
         )
 
 
-def _wire_message(message: ToolLoopMessage) -> dict[str, object]:
+def _wire_message(message: ToolLoopMessage, detail: str | None = None) -> dict[str, object]:
     if message.role == "system":
         return {"role": "system", "content": message.text}
     if message.role == "user":
@@ -115,7 +124,13 @@ def _wire_message(message: ToolLoopMessage) -> dict[str, object]:
             "role": "user",
             "content": [
                 {"type": "text", "text": message.text},
-                *[{"type": "image_url", "image_url": {"url": image}} for image in message.images],
+                *[
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": image, **({"detail": detail} if detail else {})},
+                    }
+                    for image in message.images
+                ],
             ],
         }
     if message.role == "assistant":

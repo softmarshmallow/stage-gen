@@ -1,1 +1,0 @@
-"""Dated pricing snapshots."""

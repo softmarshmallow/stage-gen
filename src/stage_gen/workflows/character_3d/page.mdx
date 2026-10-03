@@ -7,39 +7,33 @@
 
 Getting a rigged character from a written idea usually means a day of hand-offs: someone draws a
 reference sheet, a mesh service turns it into geometry, a rig service adds a skeleton, and a person
-checks each file in Blender before paying for the next step. Stage Gen holds that chain as one graph.
-An agent draws the references, Tripo builds and rigs the mesh, a local Blender worker checks every
-hand-off, and a reviewer that did not make the work judges each result at the size a player sees it.
-Each stage has a budget and a second round planned in advance; if a stage cannot be made good, the
-run stops and says why.
+checks each file in Blender before paying for the next step. Stage Gen holds that chain as one
+workflow. An agent draws the references, Tripo builds and rigs the mesh, a local Blender worker
+checks every hand-off, and a reviewer that did not make the work judges each result at the size a
+player sees it. Each stage has a bounded number of takes; if a stage cannot be made good, the run
+stops and says why.
 
 ## Try it
 
 <Try>
 <Agent>
 
-Use Stage Gen to make a rigged 3D character from <Ref input="brief">this brief</Ref>. Follow the 3D character workflow (`stage-gen show character-3d`): write the experiment file, plan it offline and show me the plan, then run it live with a $10 limit.
+Use Stage Gen to make a rigged 3D character from <Ref input="brief">this brief</Ref>. Follow the 3D character workflow (`stage-gen show character-3d`): plan it offline and show me the plan, then run it live with a $30 limit.
 
-When it finishes, show me the export and what the rig reviewer said about it.
+When it finishes, show me the character and what the rig reviewer said about it.
 
 </Agent>
 <Shell>
 
 ```sh
-stage-gen run character-3d \
-  --experiment work/wren.json --input-root work --run-root work/runs/wren-plan \
-  --blender /Applications/Blender.app/Contents/MacOS/Blender \
-  --admission-mode development --prepare-only
+gnode plan character-3d --inputs src/stage_gen/workflows/character_3d/inputs/sample/inputs.yaml
 ```
 
 ```sh
-STAGE_GEN_RUN_LIVE=1 stage-gen run character-3d \
-  --experiment work/wren.json --input-root work --run-root work/runs/wren-01 \
-  --blender /Applications/Blender.app/Contents/MacOS/Blender \
-  --admission-mode development --live
+gnode run character-3d --inputs src/stage_gen/workflows/character_3d/inputs/sample/inputs.yaml --live --max-usd 30
 ```
 
-Needs an installed `stage-gen` wheel rather than an editable checkout, Blender, and your OpenRouter and Tripo keys. Run it yourself, at the end of this page, shows the experiment file.
+Needs Blender and your OpenRouter and Tripo keys. `gnode doctor character-3d` says whether Blender is found.
 
 </Shell>
 </Try>
@@ -56,16 +50,17 @@ Needs an installed `stage-gen` wheel rather than an editable checkout, Blender, 
 
 ## What you get
 
-In this example the character has a 22-joint skeleton and six short clips.
+In this example the character has a 22-joint skeleton and six short clips. It was made with an
+earlier version of the workflow, so its folder is laid out the way that version wrote it.
 
 <Files>
-  <File path="candidates/rig_01/animated.glb" />
-  <File path="candidates/" />
-  <File path="references/" />
-  <File path="observations/" />
-  <File path="nodes/" />
+  <File path="candidates/rig_01/animated.glb">The admitted export: one textured mesh, its skeleton and six clips</File>
+  <File path="candidates/">Every attempt the run made, including refused ones</File>
+  <File path="references/">The reference sheet and the front and back views</File>
+  <File path="observations/">The renders each reviewer looked at</File>
+  <File path="nodes/">One record per step, with what each reviewer checked and why</File>
   <File path="experiment.json">The brief and settings the run started from</File>
-  <File path="outcome.json" />
+  <File path="outcome.json">How the run ended and what it cost</File>
   <File path="summary.json">When each step ran and how long it took</File>
 </Files>
 
@@ -82,7 +77,7 @@ In this example the character has a 22-joint skeleton and six short clips.
   <Limit>Facial expressions, finger movement and cloth that moves on its own</Limit>
   <Limit>Close-up shots: small seams are allowed at the size it is judged</Limit>
   <Tip>The export has a cheer and five test poses. Walk, run and idle come from your own animation library, retargeted onto its skeleton.</Tip>
-  <Tip>Skirts where the hands rest often need a second rig. That run takes longer and costs more, up to about $8.60.</Tip>
+  <Tip>Skirts where the hands rest often need a second build of the body. That run takes longer and costs more.</Tip>
   <Tip>Needs Blender installed, on macOS or Linux, and your own model and 3D service keys.</Tip>
 </Scope>
 
@@ -91,9 +86,9 @@ In this example the character has a 22-joint skeleton and six short clips.
 <Guards>
   <Guard node="references_review_01" how="A second model that did not draw the views checks that front and back agree before any mesh is paid for.">A back view that is really a front goes to the mesh service, and the mesh is paid for twice.</Guard>
   <Guard node="part_review_character_01" how="Every view is rendered in the matte material the export will use before anyone judges it.">The mesh looks right in the service's glossy preview and wrong in the game.</Guard>
-  <Guard node="rig_review_01" how="The reviewer sees every pose from five sides. A refused rig sends the mesh back for one more attempt.">A skirt or strap is tied to the hands, so it lifts whenever the arms move.</Guard>
+  <Guard node="rig_review_01" how="The reviewer sees every pose from five sides. A refused rig sends the body back to be built again.">A skirt or strap is tied to the hands, so it lifts whenever the arms move.</Guard>
   <Guard node="rig_01" how="The rigged mesh is compared with the approved one, triangle for triangle, and any change is refused.">The rig service quietly alters the mesh, and the shading turns bumpy.</Guard>
-  <Guard node="runtime_admit" how="Blender is checked before anything is paid for.">A missing Blender feature turns up after the money is spent.</Guard>
+  <Guard node="runtime_admit" how="A run whose steps need Blender does not start without it.">A missing Blender turns up after the money is spent.</Guard>
 </Guards>
 
 ## Models and tools
@@ -102,164 +97,89 @@ In this example the character has a 22-joint skeleton and six short clips.
 
 ## Run it yourself
 
-`stage-gen run character-3d` takes one written character brief and returns a small, textured,
-rigged character as a GLB with a short set of diagnostic clips, ready for a game engine to load and
-drive with its own animations. By default, if any stage cannot be made good within its budget, the
-run stops and says why. Set `review_mode: "none"` to skip independent review and receive an
-unreviewed export. The [contract](contract.md) holds the exact review, admission, budget and
-recovery rules.
+`gnode run character-3d` takes one written character brief, or a character's parts, and returns a
+small, textured, rigged character as a GLB with a short set of diagnostic clips, ready for a game
+engine to load and drive with its own animations. If a stage cannot be made good within its takes,
+the run stops and says why. The [contract](contract.md) holds the exact review, admission, rebuild
+and support rules.
 
-The first supported configuration is short-haired adult SD humans with fixed mitten hands, the
-`whole` partition at the `low` quality bar; six characters from three unseen briefs qualified it,
-each judged a second time by a reviewer that had not seen the run. The workflow does not animate
-faces or hair, does not build animals, weapons or cloth simulation, and does not author gameplay
-motion; walk, run and idle clips come from the consumer.
+The supported profile is short-haired adult SD humans with fixed mitten hands, built whole at the
+`low` quality bar. The workflow does not animate faces or hair, does not build animals, weapons or
+cloth simulation, and does not author gameplay motion; walk, run and idle clips come from the
+consumer.
 
-### What a run writes
+### Inputs
 
-- `candidates/rig_01/animated.glb` (or `rig_02` after a retry): the export. One mesh with a matte
-  material, a 22-joint humanoid skeleton, and six clips named `rest`, `shoulder_raise`,
-  `elbow_bend`, `knee_bend`, `wrist_bend` and `cheer`. Its height is exactly the profile's target
-  height, so it drops into a scene at scale.
-- `nodes/*.json`: one record per stage, including the reviewer's criteria, evidence sentences and
-  issues when review is enabled. Skipped reviews are recorded as skipped in selection and outcome
-  records.
-- `observations/`: inspection renders and, when review is enabled, the labeled atlases the
-  reviewers saw.
-- `outcome.json` and `summary.json`: terminal status, node timings, provider operation counts and
-  the ledger-backed cost.
+Write the brief as Markdown, and an inputs file that names it:
 
-Every generated candidate remains in the run directory, including rejected candidates from a failed
-run. Skipping review is a choice about judging and continuation; keeping paid outputs does not
-require it. The export is an ordinary GLB: the worker adapter the workflow ships can retarget other
-clips onto its skeleton, and a plain Godot scene plays it.
-
-### Choosing whether to review
-
-`review_mode` controls whether independent reviewers participate. It is separate from
-`review_quality_bar`, which controls how an enabled reviewer judges the result.
-
-| Mode | Behavior |
-| --- | --- |
-| `required` (default) | Review each stage, allow bounded review-driven regeneration, and require a passing verdict before continuing. |
-| `none` | Skip independent reference, part, assembly and rig review, and continue with the selected generated candidates. No review-driven regeneration runs. |
-
-Choose the mode in the experiment JSON with `"review_mode": "none"`, or override it with
-`--review-mode none` on the command below. An explicit CLI value takes precedence over the
-experiment; omitting both keeps `required`. The launcher reads structured experiment JSON. If an
-authoring agent follows a user instruction file, it translates that preference into this field or
-CLI argument.
-
-With `none`, each stage gets one producer episode. The producer may still inspect and refine its own
-work within the existing generation limits. Review budget holdbacks do not reserve money for an
-absent reviewer. Technical checks for valid files, valid skin weights, export completeness and
-provider preservation still apply. Missing control influence and motion quality findings remain
-visible without blocking selection. A successful live run reports `completed_unreviewed` and
-`review_status: "skipped"`, with the selected output available to use; it makes no quality
-acceptance or qualification claim. A technical failure still leaves its generated candidates on
-disk.
-
-The resolved mode is frozen with the run. Resume with the same effective mode; changing it requires
-a new run. The default reviewed support record does not cover `none`, because the mode is part of
-support identity. Use `--admission-mode development` for an unreviewed trial without a matching
-support record.
-
-### The quality bar
-
-`review_quality_bar: low` means usable in a mobile game at the smallest declared gameplay height,
-120 px for this profile. A defect a player would notice at that size fails; a seam or cuff mark that
-only shows when magnified is recorded as a minor issue and passes. Texture blocks only when it is
-scrambled, missing or the wrong object; a small off-colour streak that reads as a hair clip or a
-shading band is minor even when the reference does not show it.
-
-The reviewer is calibrated before every candidate is qualified: ten reviews of five frozen subjects
-whose expected verdicts are held by an evaluator the reviewer never sees, among them a head off its
-neck, a one-sided shoulder spike and a scrambled face. The current reviewer scored ten of ten on
-every calibration since the bar was introduced. `medium` (180 px, stricter per-boundary policy)
-exists but is uncalibrated; `high` is declared and refused.
-
-### When a rig is refused
-
-With review required, a refusal at the rig stage is not the end of the run. The workflow regenerates
-the mesh once from the same admitted references, orients and reviews it again, and rigs it a second
-time; if that rig is refused too, the run fails with both verdicts on record. A rig the worker cannot
-bind to the admitted mesh (changed triangle connectivity, drifted geometry or UVs) takes the same
-path without spending a review.
-
-Two of the six cohort runs went through this path and were confirmed on the second rig. The most
-common refusal on this profile is a provider rig that weights a skirt hem to the mitten hands resting
-against it; the workflow refuses it rather than repairing weights.
-
-### Run a character
-
-Install a reviewed `stage-gen` wheel into a fresh Python environment; the launcher freezes
-hash-verified installed sources into every run and refuses an editable checkout. Blender is
-supplied explicitly and checked before any spend. The workflow is POSIX-only.
-
-Write an experiment file. The fields that matter most are shown here; the full contract is validated
-by `validate_experiment` in `stage_gen.recipes.character_3d.experiment` and described in the
-[contract](contract.md).
-
-```json
-{
-  "schema_version": 1,
-  "experiment_id": "my_first_character_01",
-  "pipeline_mode": "brief_to_rig",
-  "partition_preset": "whole",
-  "review_mode": "required",
-  "review_quality_bar": "low",
-  "brief": {
-    "description": "Create Wren, a new original adult woman in her twenties drawn as a chibi mobile-gacha character ...",
-    "rights_basis": "original brief written for this run"
-  },
-  "profile": {"path": "profiles/sd_human_fixed.json", "sha256": "<installed profile hash>"},
-  "pricing": {"path": "models/openrouter-gpt-6-astra-2026-09-11.json", "sha256": "<installed pricing hash>"},
-  "agent_route": "openai/gpt-6-astra@openrouter",
-  "parts": [],
-  "limits": {"max_usd": "27.00", "agent_max_usd": "12.00", "max_review_rounds": 2, "max_rig_revisions": 2, "max_wall_seconds": 2700}
-}
+```yaml
+brief: brief.md
 ```
 
 Keep the brief original and brand-neutral, name an adult, and describe short hair: long hair and
-every other extension are outside the supported profile. Profile and pricing hashes come from the
-installed package, never from another version.
+every other extension are outside the profile. Everything else has a default: `review` (`required`
+or `none`), `quality_bar` (`low` or `medium`), `rounds` (takes per reviewed stage, default 2),
+`rebuilds` (builds of the body, default 2), `partition` (`whole` or `head_body_hair`) and `through`
+(`rig`, or `assembly` to stop before the skeleton). To rig parts you already have, give `parts`
+instead of `brief`, one FBX or GLB per part role of the profile.
 
-Prepare offline first. This plans the 31-node reviewed graph (12 nodes with `review_mode: "none"`),
-probes Blender and admits the run without calling any provider:
+### Plan, run, read
 
 ```sh
-stage-gen run character-3d \
-  --experiment /work/characters/my_first_character_01.json \
-  --input-root /work/characters \
-  --run-root /work/characters/runs/my_first_character_01 \
-  --blender /Applications/Blender.app/Contents/MacOS/Blender \
-  --admission-mode supported \
-  --support-record support/whole_sd_human_fixed_hands_low.json \
-  --support-record-sha256 <record hash> \
-  --prepare-only
+gnode plan character-3d --inputs inputs.yaml
 ```
 
-Then run live with the same arguments, a fresh run root, `--live` and `STAGE_GEN_RUN_LIVE=1`.
-Provider keys come from the allowlisted environment loader or an optional local `--dotenv` file;
-never put them in the experiment. A run takes fifteen to twenty minutes and cost between 4.60 and
-8.60 US dollars across the cohort, the higher figure when the retry path was used.
+The plan runs nothing paid: it compiles the profile, so a profile or set of parts the character
+rules refuse stops here, and it prices every call with the most it may cost. A run then needs
+`--live` and a ceiling:
 
-`--admission-mode supported` is the default and needs a host support record whose package closure
-matches the installed wheel; the host keeps the record for the qualified configuration with the
-promotion evidence, and it admits nothing else. `development` runs the selected graph without a
-support claim, for trials and new profiles. `qualification` is what a reviewed configuration runs
-under while it earns a record. Resume an interrupted or finished run with `--resume`; a finished
-run replays with zero provider calls and an unchanged export hash.
+```sh
+gnode run character-3d --inputs inputs.yaml --live --max-usd 30
+```
+
+Every paid answer is kept in the call cache, so running the same inputs again, or resuming a run
+that stopped, pays for nothing it already has. The run folder holds `outputs/character.glb`,
+`outputs/result.json` (accepted, or delivered unreviewed, with the findings that travel with it),
+`outputs/references.png` and `outputs/atlas/`, the labeled pose rows the rig reviewer judged.
+`gnode inspect character-3d` shows every step, take and verdict.
+
+### Choosing whether to review
+
+`review: none` skips every independent review and every review-driven take; each stage runs its
+producer once. A technically valid character is delivered as `completed_unreviewed`, with its numeric
+findings visible and no quality or support claim. Export checks for valid files, skin weights and
+appearance still apply.
+
+### The quality bar
+
+`quality_bar: low` means usable in a mobile game at the smallest declared gameplay height, 120 px for
+this profile. A defect a player would notice at that size fails; a seam or cuff mark that only shows
+when magnified is minor and passes. Texture blocks only when it is scrambled, missing or the wrong
+object. `medium` (180 px, a stricter per-boundary policy) exists but is uncalibrated; `high` is
+refused while planning.
+
+### When a rig is refused
+
+With review required, a refused rig is not the end of the run. The body is built again from the same
+references, with new meshes, a new assembly and a new rig, up to `rebuilds` builds in all; if every
+build is refused, the run fails with every verdict on record. A rig the worker cannot bind to the
+approved mesh (changed triangle connectivity, drifted geometry or UVs) takes the same path without
+paying a reviewer. The most common refusal on this profile is a provider rig that weights a skirt hem
+to the mitten hands resting against it; the workflow refuses it rather than repairing weights.
+
+### Support
+
+A run claims support only through a host support record that names exactly its configuration: the
+node types, the workflow file, its routes and prices, the Blender build and the settings. Run it with
+`python -m stage_gen.workflows.character_3d.support run --record ...`, which checks the record against
+the plan before anything is paid for. Without a record a run is development and claims nothing.
 
 ### Limits
 
-- One supported configuration: the `whole` partition of the fixed-hand SD human profile at the
-  `low` bar. `head_body_hair` is experimental.
+- One supported configuration: the `whole` partition of the fixed-hand SD human profile at the `low`
+  bar. `head_body_hair` and the agent-rigged profiles are experimental.
 - No facial animation, hair motion, animals, weapons, cloth simulation or gameplay clips; the six
   clips are diagnostics and a cheer.
-- With review required, skirt-to-hand weight bleed from the rig provider is refused, not repaired;
-  expect the retry path on outfits where the hands rest against a skirt. Skipping review can return
-  an export with this defect.
-- The export keeps one unreferenced texture the matte policy retired (about 3 MB); a consumer that
-  cares about payload should strip it.
-- POSIX only; run ledgers rely on `fcntl` locks and exchange-renames.
+- With review required, skirt-to-hand weight bleed from the rig provider is refused, not repaired.
+  Skipping review can return an export with this defect.
+- macOS or Linux, with Blender installed.

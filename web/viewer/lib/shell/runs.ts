@@ -245,7 +245,6 @@ export const RUN_DOCUMENTS = [
 
 /** A folder holding the first of a pair and one of its partners is a run too. */
 export const RUN_DOCUMENT_PAIRS: readonly (readonly [string, readonly string[]])[] = [
-  ["graph.json", ["summary.json", "trace.jsonl"]],
   ["plan.json", ["events.jsonl"]],
 ];
 

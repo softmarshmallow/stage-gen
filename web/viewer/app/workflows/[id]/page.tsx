@@ -76,11 +76,6 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
           <CopyCommand key={command} command={command} />
         ))}
       </div>
-      {workflow.planRefusal ? (
-        <p className={cx(metaLine, "mt-2")}>
-          <code>stage-gen plan {workflow.id}</code> refuses: {workflow.planRefusal}
-        </p>
-      ) : null}
 
       <h2 className={sectionHeading}>offline plan</h2>
       {planned ? (

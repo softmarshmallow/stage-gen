@@ -1,6 +1,5 @@
-"""The character-3d workflow's declaration, CLI and example importer.
+"""The character-3d workflow: a brief or parts in, one rigged, reviewed character out.
 
-Its implementation stays at the frozen path ``stage_gen.recipes.character_3d``: that path and
-those bytes are bound into every character run's lineage, so nothing here is imported by the
-launcher or by a run.
+``workflow.yaml`` declares it; ``nodes/`` holds its steps, ``harness.py`` what they share, and
+``support.py`` the host's support closure and admission.
 """

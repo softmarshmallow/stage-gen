@@ -211,7 +211,6 @@ def _workflow_document(workflow: LoadedWorkflow, repository: Path | None) -> dic
         else None,
         "manifest": manifest.model_dump(mode="json", by_alias=True),
         "implementation_root": code.implementation_root,
-        "plan_refusal": code.plan_refusal,
         "no_sample_plan": code.no_sample_plan,
         "importer": code.import_example is not None,
         "no_importer": code.no_importer,
@@ -222,7 +221,7 @@ def _workflow_document(workflow: LoadedWorkflow, repository: Path | None) -> dic
                 "note": step.note,
                 "members": [
                     {
-                        "type_id": (type_id := code.member_type_id(member)),
+                        "type_id": (type_id := member.type_id),
                         "title": manifest.label(type_id, types.get(type_id)),
                         "archetype": types[type_id].archetype.value if type_id in types else None,
                         "operation": types[type_id].operation if type_id in types else None,

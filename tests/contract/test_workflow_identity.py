@@ -26,10 +26,6 @@ GOLDEN = json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
 
 #: What a change to each value-only section costs; cache_keys price themselves per node.
 COSTS = {
-    "character_frozen_set": (
-        "a character_3d member changed: supported mode needs a paid qualification cohort, "
-        "not a carry-over"
-    ),
     "identities": (
         "a persisted identity moved: runs, caches and consumers that read it back stop matching"
     ),

@@ -61,17 +61,16 @@ src/
 │       ├── openai/
 │       ├── openrouter/
 │       ├── fal/
-│       └── elevenlabs/
+│       ├── elevenlabs/
+│       └── tripo/
 └── stage_gen/
     ├── pipeline/                      # The SDK: define / plan / run / inspect, GraphDocument
     ├── components/                    # Reusable components and bounded formats
     ├── workflows/                     # One folder per product deliverable
-    ├── recipes/character_3d/          # Frozen character-3d implementation path
     ├── examples.py                    # The public example contract
     ├── runs.py                        # Run discovery and derived views for the viewer
     ├── media/                         # Shared inspection and transforms
     ├── orchestration/                 # Composition root: services, GraphExecutor, routing
-    ├── providers/                     # Application provider adapters (character_3d)
     ├── interfaces/                    # The stage-gen CLI: one verb set, lazy commands
     ├── application/                   # Generic output/cache roots and reporting
     └── resources/                     # Explicitly packaged support resources
@@ -155,10 +154,9 @@ src/stage_gen/workflows/
 │   ├── views/gallery.html             # The workflow's own view: the gallery
 │   ├── models.py, medium.py, ontology.py  # The contract models, mediums and vocabulary
 │   └── inputs/lantern_ferry/          # The committed fixture world and its inputs.yaml
-└── character_3d/                      # Declaration, CLI and importer only; no inputs/
+└── character_3d/                      # workflow.yaml, nodes/, profiles/, prompts/, support.py
+    ├── inputs/sample/                 # The committed brief and its inputs.yaml
     └── examples/tavi-parts.mdx        # Prose for one pinned example
-
-src/stage_gen/recipes/character_3d/    # Frozen: run lineage binds this path
 
 docs/sdk/pipelines/
 ├── local_media.py                     # Arbitrary graph: PNG + WAV + catalog

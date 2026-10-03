@@ -50,6 +50,10 @@ from gnode import (
     StructuredGenerationRequest,
     StructuredOutputSchema,
     StructuredReference,
+    ToolCall,
+    ToolLoopMessage,
+    ToolLoopStepRequest,
+    ToolSpec,
     VideoGenerationRequest,
     VideoReference,
     canonicalize_strict_json_schema,
@@ -63,7 +67,9 @@ from gnode.providers.fal import (
 from gnode.providers.openrouter import (
     OpenRouterProviderRouting,
     OpenRouterStructuredRequestPolicy,
+    OpenRouterToolLoopBackend,
 )
+from gnode.providers.tripo import TripoBackend, TripoTaskFailed
 from stage_gen.config import StageGenConfig, load_config
 from stage_gen.image_product import ImageProvider
 from stage_gen.media.video import probe_video, scratch_clip
@@ -640,6 +646,368 @@ def structured_job(
     return handle
 
 
+# ----------------------------------------------------------------------------- meshes
+
+#: Tripo's multiview mesh and its automatic rig, verified 2026-09-11. A mesh is Tripo's
+#: credits at USD 0.01 each, 120 to 250 for a textured quad mesh; a rig is 25 credits, with
+#: a free riggability check before it.
+_MESH_MODEL, _RIG_MODEL = "P2-20260801", "v1.0-20240301"
+#: How long a run waits for a Tripo task before leaving it to the next run.
+_MESH_COLLECT_SECONDS = 1_200
+_RIG_COLLECT_SECONDS = 600
+#: The most faces a quad mesh may ask for on the verified route.
+_QUAD_FACE_LIMIT = 25_000
+
+TripoFactory = Callable[[StageGenConfig], TripoBackend]
+
+
+def mesh_routes() -> list[Route]:
+    """``mesh.generate`` and ``mesh.rig`` on Tripo."""
+
+    return [
+        Route(
+            capability="mesh.generate",
+            model=_MESH_MODEL,
+            provider="tripo",
+            price=RoutePrice(1.20, 2.50),
+            features=frozenset({"multiview", "textured_mesh", "quad", "pbr"}),
+            concurrency=1,
+            contract={"adapter": "tripo-multiview", "adapter_behavior": 1},
+        ),
+        Route(
+            capability="mesh.rig",
+            model=_RIG_MODEL,
+            provider="tripo",
+            price=RoutePrice(0.25, 0.50),
+            features=frozenset({"biped", "rig_check", "glb_input"}),
+            concurrency=1,
+            contract={"adapter": "tripo-rig", "adapter_behavior": 1},
+        ),
+    ]
+
+
+def _file_bytes(file: FileValue) -> bytes:
+    assert file.location is not None
+    return Path(file.location).read_bytes()
+
+
+def _tripo(config: StageGenConfig) -> TripoBackend:
+    if not config.tripo_api_key:
+        raise _NotSent("TRIPO_API_KEY is not set")
+    return TripoBackend(api_key=config.tripo_api_key)
+
+
+def _mesh_views(request: Mapping[str, Any]) -> dict[str, tuple[bytes, str]]:
+    views = request.get("views")
+    if not isinstance(views, Mapping) or not views:
+        raise _NotSent("a mesh call needs its views, by name")
+    found: dict[str, tuple[bytes, str]] = {}
+    for name, file in views.items():
+        if not isinstance(file, FileValue) or file.location is None:
+            raise _NotSent(f"the {name} view has no bytes to send")
+        if file.kind not in {"image/png", "image/jpeg"}:
+            raise _NotSent(f"the {name} view is {file.kind}; Tripo takes PNG or JPEG")
+        found[str(name)] = (Path(file.location).read_bytes(), file.kind)
+    return found
+
+
+def _mesh_params(request: Mapping[str, Any]) -> dict[str, Any]:
+    params: dict[str, Any] = {
+        "quad": bool(request.get("quad", False)),
+        "texture": bool(request.get("texture", True)),
+        "pbr": bool(request.get("pbr", False)),
+    }
+    limit = request.get("face_limit")
+    if limit is not None:
+        if not isinstance(limit, int) or not 48 <= limit <= _QUAD_FACE_LIMIT:
+            raise _NotSent(f"face_limit is 48 to {_QUAD_FACE_LIMIT}")
+        params["face_limit"] = limit
+    return params
+
+
+def mesh_job(config: StageGenConfig, store: Store, *, factory: TripoFactory = _tripo) -> LongJob:
+    """``mesh.generate`` on Tripo: views uploaded, one task posted, its model collected.
+
+    Uploads are free and retried. The task is posted once: an uncertain post stays on
+    record and stops the next run for a person; a task Tripo failed is over, and drawing
+    again is a new take.
+    """
+
+    async def start(route: Route, request: Mapping[str, Any], take: int, log: JobLog) -> CallRecord:
+        del take
+        try:
+            views = _mesh_views(request)
+            params = _mesh_params(request)
+            backend = factory(config)
+        except _NotSent as error:
+            raise CallRefused(str(error)) from error
+        try:
+            inputs = await backend.mesh_inputs(views)
+            log.submitting()
+            try:
+                handle = await backend.submit_mesh(model=route.model, inputs=inputs, params=params)
+            except NonRetryableError as error:
+                if error.code != "tripo_submission_uncertain":
+                    log.settled()
+                raise
+            log.submitted(handle)
+            return await _collect(backend, handle, log)
+        finally:
+            await backend.aclose()
+
+    async def collect(
+        route: Route, request: Mapping[str, Any], take: int, handle: Mapping[str, Any], log: JobLog
+    ) -> CallRecord:
+        del route, request, take
+        backend = factory(config)
+        try:
+            return await _collect(backend, handle, log)
+        finally:
+            await backend.aclose()
+
+    async def _collect(backend: TripoBackend, handle: Mapping[str, Any], log: JobLog) -> CallRecord:
+        try:
+            result = await backend.collect(handle, deadline_seconds=_MESH_COLLECT_SECONDS)
+        except (TripoTaskFailed, ValueError):
+            log.settled()  # the task is over: nothing is left to collect
+            raise
+        files = sorted(result.files, key=lambda f: f.media_type != "model/fbx")
+        if not files:
+            log.settled()
+            raise ValueError("the Tripo task made no model")
+        chosen = files[0]
+        model = store.put_bytes(chosen.data, kind=chosen.media_type, name="model")
+        data = {"task_id": handle.get("task_id"), "facts": {"model_kind": chosen.media_type}}
+        return CallRecord({"model": model}, data, result.cost_usd)
+
+    return LongJob(start, collect)
+
+
+def rig_job(config: StageGenConfig, store: Store, *, factory: TripoFactory = _tripo) -> LongJob:
+    """``mesh.rig`` on Tripo: a free riggability check, then one rig task, collected.
+
+    A doubted model is rigged only when the step allows it (``allow_negative_check``); the
+    check's verdict is kept as facts either way.
+    """
+
+    async def start(route: Route, request: Mapping[str, Any], take: int, log: JobLog) -> CallRecord:
+        del take
+        model = request.get("model")
+        try:
+            if not isinstance(model, FileValue) or model.location is None:
+                raise _NotSent("a rig call needs its model")
+            if model.kind != "model/gltf-binary":
+                raise _NotSent(f"Tripo rigs a GLB, not {model.kind}")
+            backend = factory(config)
+        except _NotSent as error:
+            raise CallRefused(str(error)) from error
+        rig_type = str(request.get("rig_type") or "biped")
+        params = {
+            "rig_type": rig_type,
+            "spec": str(request.get("skeleton") or "mixamo"),
+            "out_format": "glb",
+        }
+        glb = _file_bytes(model)
+        try:
+            check = await backend.check_rig(glb, deadline_seconds=_RIG_COLLECT_SECONDS)
+            doubted = check["riggable"] is not True or check["rig_type"] != rig_type
+            if doubted and not request.get("allow_negative_check"):
+                raise CallRefused(
+                    f"Tripo's check doubts this model (riggable={check['riggable']}, "
+                    f"rig_type={check['rig_type']})"
+                )
+            log.submitting()
+            try:
+                handle = await backend.submit_rig(
+                    model=route.model,
+                    file_token=check["file_token"],
+                    params={**params, "out_format": "glb"},
+                )
+            except NonRetryableError as error:
+                if error.code != "tripo_submission_uncertain":
+                    log.settled()
+                raise
+            handle = {
+                **handle,
+                "check": {k: check[k] for k in ("task_id", "riggable", "rig_type")},
+                "advisory_override": doubted,
+            }
+            log.submitted(handle)
+            return await _collect(backend, handle, log)
+        finally:
+            await backend.aclose()
+
+    async def collect(
+        route: Route, request: Mapping[str, Any], take: int, handle: Mapping[str, Any], log: JobLog
+    ) -> CallRecord:
+        del route, request, take
+        backend = factory(config)
+        try:
+            return await _collect(backend, handle, log)
+        finally:
+            await backend.aclose()
+
+    async def _collect(backend: TripoBackend, handle: Mapping[str, Any], log: JobLog) -> CallRecord:
+        try:
+            result = await backend.collect(handle, deadline_seconds=_RIG_COLLECT_SECONDS)
+        except (TripoTaskFailed, ValueError):
+            log.settled()
+            raise
+        glbs = [f for f in result.files if f.media_type == "model/gltf-binary"]
+        if len(glbs) != 1:
+            log.settled()
+            raise ValueError("the Tripo rig task made no single GLB")
+        rigged = store.put_bytes(glbs[0].data, kind="model/gltf-binary", name="model")
+        check = handle.get("check") or {}
+        facts = {
+            "riggable": check.get("riggable"),
+            "checked_rig_type": check.get("rig_type"),
+            "advisory_override": bool(handle.get("advisory_override")),
+        }
+        data = {"task_id": handle.get("task_id"), "facts": facts}
+        return CallRecord({"model": rigged}, data, result.cost_usd)
+
+    return LongJob(start, collect)
+
+
+# ----------------------------------------------------------------------------- agents
+
+#: One agent turn on the vision judge's model: its tokens at USD 10 per million in and 50 per
+#: million out (2026-09-11). A turn with a full picture window and a long answer stays under
+#: the worst case; most cost cents.
+_AGENT_PRICE = RoutePrice(0.01, 1.50)
+_AGENT_TIMEOUT_SECONDS = 600
+AgentBackendFactory = Callable[..., Any]
+
+
+def agent_routes() -> list[Route]:
+    """``agent.turn`` on the verified vision judge, with its request settings."""
+
+    model = "openai/gpt-6-astra"
+    policy = _VERIFIED_STRUCTURED[model].policy
+    assert policy is not None
+    return [
+        Route(
+            capability="agent.turn",
+            model=model,
+            provider="openrouter",
+            price=_AGENT_PRICE,
+            features=frozenset({"tool_use", "image_input"}),
+            concurrency=1,
+            contract={
+                "adapter": "openrouter-tool-loop",
+                "adapter_behavior": 1,
+                "request_policy": policy.snapshot(),
+            },
+        )
+    ]
+
+
+def _turn_picture(file: Any) -> str:
+    if not isinstance(file, FileValue) or file.location is None:
+        raise _NotSent("an agent picture has no bytes to send")
+    return _data_url(file)
+
+
+def _turn_messages(request: Mapping[str, Any]) -> tuple[ToolLoopMessage, ...]:
+    """The transcript as the provider takes it: a tool's pictures follow its run of results
+    as one user message, since only user messages carry pictures."""
+
+    system = request.get("system")
+    messages = [ToolLoopMessage("system", str(system))] if system else []
+    held: list[str] = []
+    for entry in request.get("messages") or []:
+        role = entry.get("role")
+        if role != "tool" and held:
+            messages.append(ToolLoopMessage("user", "Pictures the tools returned.", tuple(held)))
+            held = []
+        if role == "user":
+            pictures = tuple(_turn_picture(file) for file in entry.get("images") or [])
+            messages.append(ToolLoopMessage("user", str(entry.get("content", "")), pictures))
+        elif role == "assistant":
+            calls = tuple(
+                ToolCall(str(call.get("id")), str(call.get("name")), call.get("arguments") or {})
+                for call in entry.get("tool_calls") or []
+            )
+            messages.append(
+                ToolLoopMessage("assistant", str(entry.get("content") or ""), (), calls)
+            )
+        elif role == "tool":
+            messages.append(
+                ToolLoopMessage(
+                    "tool",
+                    str(entry.get("content", "")),
+                    tool_call_id=str(entry.get("tool_call_id")),
+                )
+            )
+            held.extend(_turn_picture(file) for file in entry.get("images") or [])
+        else:
+            raise _NotSent(f"an agent transcript has no {role!r} messages")
+    if held:
+        messages.append(ToolLoopMessage("user", "Pictures the tools returned.", tuple(held)))
+    return tuple(messages)
+
+
+def agent_turn_job(
+    config: StageGenConfig,
+    store: Store,
+    *,
+    factory: AgentBackendFactory = OpenRouterToolLoopBackend,
+) -> CapabilityHandler:
+    """``agent.turn``: one model turn of a node's agent, its tool calls returned to it."""
+
+    del store
+    routes = {route.route_id: route for route in agent_routes()}
+
+    async def handle(route: Route, request: Mapping[str, Any], take: int) -> CallRecord:
+        del take
+        try:
+            if routes.get(route.route_id) is None or dict(routes[route.route_id].contract) != dict(
+                route.contract
+            ):
+                raise _NotSent(f"{route.route_id} is not an agent route Stage Gen calls")
+            if not config.open_router_api_key:
+                raise _NotSent("OPENROUTER_API_KEY is not set")
+            step = ToolLoopStepRequest(
+                messages=_turn_messages(request),
+                tools=tuple(
+                    ToolSpec(str(t["name"]), str(t["description"]), t["parameters"])
+                    for t in request.get("tools") or []
+                ),
+                max_tokens=request.get("max_tokens"),
+                tool_choice="auto" if request.get("tool_choice") == "auto" else "required",
+            )
+        except (_NotSent, ValueError, KeyError) as error:
+            raise CallRefused(str(error)) from error
+        policy = _VERIFIED_STRUCTURED[route.model].policy
+        backend = factory(
+            api_key=config.open_router_api_key,
+            model=route.model,
+            base_url=config.open_router_base_url or OPENROUTER_BASE_URL,
+            request_policy=policy,
+        )
+
+        async def turn(_: object) -> Any:
+            return await backend.step(step)
+
+        try:
+            answered = await retry_with_backoff(
+                turn, label="agent turn", timeout_s=_AGENT_TIMEOUT_SECONDS
+            )
+        finally:
+            await backend.aclose()
+        data = {
+            "text": answered.text,
+            "tool_calls": [
+                {"id": call.call_id, "name": call.name, "arguments": dict(call.arguments)}
+                for call in answered.tool_calls
+            ],
+        }
+        return CallRecord({}, data, known_cost(answered.response_metadata.usage))
+
+    return handle
+
+
 def published_workflows() -> dict[str, Path]:
     """Every first-party workflow written as a workflow file, by id."""
 
@@ -658,12 +1026,17 @@ def plugin() -> Plugin:
     return Plugin(
         name="stage_gen",
         routes=image_routes(config).merged(
-            RouteTable([*video_routes(), *structured_routes(config)])
+            RouteTable(
+                [*video_routes(), *structured_routes(config), *agent_routes(), *mesh_routes()]
+            )
         ),
         capabilities=lambda store: {
             **image_capabilities(config, store),
             "video.generate": video_job(config, store),
             "structured.generate": structured_job(config, store),
+            "agent.turn": agent_turn_job(config, store),
+            "mesh.generate": mesh_job(config, store),
+            "mesh.rig": rig_job(config, store),
         },
         workflows=published_workflows(),
     )
@@ -671,6 +1044,11 @@ def plugin() -> Plugin:
 
 __all__ = [
     "StructuredQuestion",
+    "agent_routes",
+    "agent_turn_job",
+    "mesh_job",
+    "mesh_routes",
+    "rig_job",
     "image_capabilities",
     "image_routes",
     "plugin",

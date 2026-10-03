@@ -9,14 +9,20 @@ from __future__ import annotations
 
 import json
 import os
+import runpy
+import shutil
 from io import StringIO
 from pathlib import Path
 
-from gnode import LOCAL_OPERATION, Graph, Node, Resource, RetryOwner, seal_graph
+import pytest
+
 from stage_gen import runs
 from stage_gen.interfaces.cli import main
 
-CHARACTER_KIND = "contained-character-parts-to-rig-v1"
+PARALLAX_INPUTS = (
+    Path(__file__).resolve().parents[2]
+    / "src/stage_gen/workflows/looping_parallax/inputs/supplied_layers/make_inputs.py"
+)
 
 
 def _write(path: Path, document: object) -> Path:
@@ -34,67 +40,23 @@ def _snapshot(directory: Path) -> dict[str, bytes]:
     }
 
 
-def _node(node_id: str, type_id: str, depends_on: tuple[str, ...] = ()) -> Node:
-    return Node(
-        node_id=node_id,
-        type_id=type_id,
-        domain="character",
-        description=f"the {node_id} step",
-        depends_on=depends_on,
-        operation=LOCAL_OPERATION,
-        resource_id="local",
-        retry_owner=RetryOwner.NONE,
-        max_attempts=1,
-        cache_key="0" * 64,
-        estimated_duration_seconds=0.0,
-        estimated_cost_low_usd=0.0,
-        estimated_cost_high_usd=0.0,
-    )
+@pytest.fixture(scope="module")
+def parallax_run(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A real, free looping-parallax run: an installed workflow owns it."""
+    from gnode import run as gnode_run
+
+    base = tmp_path_factory.mktemp("parallax")
+    inputs = runpy.run_path(str(PARALLAX_INPUTS))["write_inputs"](base / "inputs")
+    project = base / "project"
+    project.mkdir()
+    (project / "gnode.yaml").write_text("gnode: project/v1\n", encoding="utf-8")
+    completed = gnode_run("looping-parallax", input_files=[inputs], cwd=project)
+    assert completed.ok, completed.failed
+    return completed.run_dir
 
 
-def _graph(kind: str, *nodes: Node, schema_version: int = 1) -> Graph:
-    return seal_graph(
-        Graph,
-        resources=(Resource(resource_id="local", rate_limit_owner="none"),),
-        nodes=nodes,
-        terminal_node_id=nodes[-1].node_id,
-        schema_version=schema_version,
-        kind=kind,
-    )
-
-
-def _events(graph: Graph, *finished: tuple[str, str]) -> str:
-    """A gnode trace: the run starts, each node finishes with its one artifact, it ends."""
-    lines: list[dict[str, object]] = [
-        {"event": "run_started", "graph_sha256": graph.graph_sha256, "invocation_id": "one"}
-    ]
-    for node_id, artifact_ref in finished:
-        lines.append(
-            {
-                "event": "node_finished",
-                "graph_sha256": graph.graph_sha256,
-                "node_id": node_id,
-                "status": "succeeded",
-                "artifacts": [{"artifact_ref": artifact_ref, "sha256": "a" * 64, "bytes": 2}],
-            }
-        )
-    lines.append({"event": "run_finished", "graph_sha256": graph.graph_sha256, "ok": True})
-    return "".join(json.dumps(line) + "\n" for line in lines)
-
-
-def _character_run(run_dir: Path) -> Path:
-    graph = _graph(
-        CHARACTER_KIND,
-        _node("runtime_admit", "3d/character/runtime_admit"),
-        _node("rig_admit", "3d/character/rig_admit", ("runtime_admit",)),
-    )
-    _write(run_dir / "graph.json", graph.model_dump(mode="json"))
-    _write(
-        run_dir / "trace.jsonl",
-        _events(graph, ("runtime_admit", "nodes/runtime_admit.json"), ("rig_admit", "x.json")),
-    )
-    _write(run_dir / "summary.json", {"kind": "gnode-run-summary-v1", "ok": True})
-    _write(run_dir / "nodes/runtime_admit.json", "{}")
+def _owned_run(parallax_run: Path, run_dir: Path) -> Path:
+    shutil.copytree(parallax_run, run_dir)
     return run_dir
 
 
@@ -113,7 +75,7 @@ def test_discovery_finds_every_run_shape_under_several_roots(tmp_path: Path) -> 
     _write(out / "sdk-run/execution-plan.json", {"kind": "pipeline-execution-graph-v1"})
     _write(out / "game-run/manifest.json", {"kind": "prepared-game-runtime-v12"})
     _write(out / "view-only/execution-view.json", {"kind": "x"})
-    _character_run(spikes / "canary-01/wren-01")
+    _workflow_run(spikes / "canary-01/wren-01")
     _workflow_run(spikes / "review/facial-4k/yuzu/run-01")
     _write(spikes / "scratch/notes.txt", "not a run")
 
@@ -155,8 +117,10 @@ def test_a_run_is_not_searched_again_and_depth_is_bounded(tmp_path: Path) -> Non
 # ---------------------------------------------------------------- derived views
 
 
-def test_a_character_run_is_joined_into_a_view_in_the_cache_only(tmp_path: Path) -> None:
-    run_dir = _character_run(tmp_path / "runs/tavi-01")
+def test_a_workflow_run_is_projected_into_a_view_in_the_cache_only(
+    tmp_path: Path, parallax_run: Path
+) -> None:
+    run_dir = _owned_run(parallax_run, tmp_path / "runs/parallax-01")
     cache = tmp_path / "cache"
     before = _snapshot(run_dir)
 
@@ -167,16 +131,9 @@ def test_a_character_run_is_joined_into_a_view_in_the_cache_only(tmp_path: Path)
     assert _snapshot(run_dir) == before
     view = json.loads(written.read_text(encoding="utf-8"))
     assert view["kind"] == "gnode-run-view-v1" and view["schema_version"] == 3
-    assert view["graph_kind"] == CHARACTER_KIND
     assert view["run_state"] == "succeeded"
-    assert view["state_counts"]["succeeded"] == 2
-    nodes = {node["node_id"]: node for node in view["nodes"]}
-    # Titles come from workflow.toml, since the frozen implementation builds the types.
-    assert nodes["runtime_admit"]["title"] == "Probe Blender"
-    assert view["gaps"] == []
-    assert nodes["runtime_admit"]["artifacts"][0]["present"] is True
-    assert nodes["rig_admit"]["artifacts"][0]["present"] is False
-    assert view["trace_modified_at"].endswith("Z")
+    assert {node["state"] for node in view["nodes"]} == {"succeeded"}
+    assert all(node["title"] for node in view["nodes"])
     assert not runs.needs_view(run_dir, cache)
 
 
@@ -220,9 +177,9 @@ def test_a_started_workflow_run_is_listed_and_its_events_are_a_source(
 
 
 def test_a_fresh_persisted_view_needs_no_derivation(tmp_path: Path) -> None:
-    run_dir = _character_run(tmp_path / "runs/tavi-01")
+    run_dir = _workflow_run(tmp_path / "runs/run-01")
     view = _write(run_dir / runs.VIEW_FILE, {"kind": "gnode-run-view-v1"})
-    trace = run_dir / "trace.jsonl"
+    trace = run_dir / "events.jsonl"
     os.utime(view, (trace.stat().st_mtime + 5, trace.stat().st_mtime + 5))
     assert not runs.needs_view(run_dir, tmp_path / "cache")
     os.utime(trace, (view.stat().st_mtime + 5, view.stat().st_mtime + 5))
@@ -230,27 +187,30 @@ def test_a_fresh_persisted_view_needs_no_derivation(tmp_path: Path) -> None:
 
 
 def test_the_refresher_derives_once_per_change_and_keeps_going_past_a_broken_run(
-    tmp_path: Path,
+    tmp_path: Path, parallax_run: Path
 ) -> None:
     root = tmp_path / "runs"
-    good = _character_run(root / "good")
-    broken = root / "broken"
-    _write(broken / "graph.json", {"kind": CHARACTER_KIND, "nodes": "not a graph"})
-    _write(broken / "trace.jsonl", "")
+    good = _owned_run(parallax_run, root / "good")
+    # Owned by looping-parallax, but its plan has lost every instance: no view can be built.
+    broken = _owned_run(parallax_run, root / "broken")
+    plan = json.loads((broken / "plan.json").read_text(encoding="utf-8"))
+    (broken / "plan.json").write_text(
+        json.dumps({**plan, "instances": "not a list"}), encoding="utf-8"
+    )
     refresher = runs.ViewRefresher((root,), tmp_path / "cache")
 
     assert refresher.refresh() == [runs.cached_view(good, tmp_path / "cache")]
     assert set(refresher.failures) == {broken.resolve()}
     assert refresher.refresh() == []
 
-    trace = good / "trace.jsonl"
+    trace = good / "events.jsonl"
     later = trace.stat().st_mtime + 10
     os.utime(trace, (later, later))
     assert refresher.refresh() == [runs.cached_view(good, tmp_path / "cache")]
 
 
-def test_inspect_writes_a_character_view_only_where_it_is_asked(tmp_path: Path) -> None:
-    run_dir = _character_run(tmp_path / "runs/tavi-01")
+def test_inspect_writes_a_view_only_where_it_is_asked(tmp_path: Path, parallax_run: Path) -> None:
+    run_dir = _owned_run(parallax_run, tmp_path / "runs/parallax-01")
     before = _snapshot(run_dir)
     out, errors = StringIO(), StringIO()
 
@@ -262,6 +222,6 @@ def test_inspect_writes_a_character_view_only_where_it_is_asked(tmp_path: Path) 
 
     assert status == 0, errors.getvalue()
     record = json.loads(out.getvalue())
-    assert record["workflow"] == "character-3d"
+    assert record["workflow"] == "looping-parallax"
     assert record["written_view"] == str(tmp_path / "view" / runs.VIEW_FILE)
     assert _snapshot(run_dir) == before

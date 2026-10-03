@@ -50,7 +50,8 @@ class Regeneration(_Document):
     rejection asks for the next take; on a group, ``until`` decides after each take.
     """
 
-    max: int = Field(ge=1, le=12)
+    #: Takes in all, the first included: a number, or an expression known while planning.
+    max: Annotated[int, Field(ge=1, le=12)] | str
     then: Literal["fail", "continue", "skip"] | dict[Literal["keep_best"], KeepBest] = "fail"
     until: str | None = None
     feedback: bool = False

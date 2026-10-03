@@ -116,7 +116,7 @@ def structure(workflow: LoadedWorkflow) -> list[str]:
     implemented = code.implemented_types()
     if unplaced := sorted(implemented - set(placed)):
         problems.append(f"{prefix} types in no step: {', '.join(unplaced)}")
-    if not code.member_namespace and (unknown := sorted(set(placed) - implemented)):
+    if unknown := sorted(set(placed) - implemented):
         problems.append(f"{prefix} steps place types the code does not have: {unknown}")
     if workflow.sample is not None:
         planned = {node.type_id for node in workflow.sample.nodes}
@@ -130,7 +130,7 @@ def structure(workflow: LoadedWorkflow) -> list[str]:
     types = code.node_types()
     for step in code.steps:
         for member in step.members:
-            type_id = code.member_type_id(member)
+            type_id = member.type_id
             title = manifest.label(type_id, types.get(type_id))
             slug = re.split(r"[/.]", type_id)[-1]
             if _slug_like(title, slug):
@@ -158,22 +158,17 @@ def _restated(workflow_id: str, page: str, manifest: WorkflowManifest) -> list[s
     return problems
 
 
-def labels(workflow: LoadedWorkflow, frozen_files: frozenset[str] | None) -> list[str]:
-    """A label may retitle a type of this workflow whose title sits in a digested or frozen
-    file, or a type that appears only in one of its pinned examples."""
+def labels(workflow: LoadedWorkflow) -> list[str]:
+    """A label may title only a type that appears in one of the workflow's pinned examples
+    and not in its steps: a step's title lives in the workflow file."""
     problems: list[str] = []
     manifest, code = workflow.discovered.manifest, workflow.code
     own, seen = set(code.type_ids()), workflow.example_type_ids()
     for target in manifest.labels:
         if target in own:
-            if not code.titles_frozen_in:
-                problems.append(
-                    f"{manifest.id}: [labels] retitles {target}, whose title is editable in code"
-                )
-            elif frozen_files is not None and (
-                stray := sorted(set(code.titles_frozen_in) - frozen_files)
-            ):
-                problems.append(f"{manifest.id}: titles_frozen_in names unpinned files {stray}")
+            problems.append(
+                f"{manifest.id}: [labels] retitles {target}, whose title is in the workflow file"
+            )
         elif target not in seen and not workflow.any_missing():
             problems.append(f"{manifest.id}: [labels] names {target}, which no type or example has")
     return problems
@@ -320,11 +315,6 @@ def _entries(value: object) -> Iterable[tuple[str, ...]]:
                 yield tuple(str(part) for part in item)
 
 
-def frozen_files(golden: Mapping[str, Any]) -> frozenset[str]:
-    """Package-relative files whose bytes the identity golden pins."""
-    return frozenset(golden["character_frozen_set"]["files"])
-
-
 def readme_table(workflows: Sequence[LoadedWorkflow]) -> str:
     rows = [
         "| Workflow | Id | Promise |",
@@ -417,10 +407,9 @@ def _input_names(target: str) -> list[str] | None:
 
 def drift(workflows: Sequence[LoadedWorkflow], context: CheckContext) -> list[str]:
     problems: list[str] = []
-    frozen = frozen_files(context.golden) if context.golden is not None else None
     for workflow in workflows:
         problems += structure(workflow)
-        problems += labels(workflow, frozen)
+        problems += labels(workflow)
         problems += outputs(workflow)
         problems += try_commands(workflow)
         if context.golden is not None:

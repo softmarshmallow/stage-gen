@@ -31,7 +31,7 @@ import yaml
 
 from gnode.workflow.api import run_at_plan
 from gnode.workflow.document import DocumentError, load_workflow, read_yaml
-from gnode.workflow.host import HostServices
+from gnode.workflow.host import HostServices, resolve_tool, tool_name
 from gnode.workflow.inputs import FILE_TAG, InputError, compile_inputs, flag_name
 from gnode.workflow.plan import (
     BUILDER_TARGET,
@@ -659,9 +659,9 @@ def cmd_doctor(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
             problems += 1
             continue
         spec = getattr(resolved, "spec", None)
-        for tool_name in getattr(spec, "tools", ()):
-            name = tool_name.split(">", 1)[0].split("=", 1)[0].strip()
-            found = shutil.which(name)
+        for entry in getattr(spec, "tools", ()):
+            name = tool_name(entry)
+            found = resolve_tool(name)
             out.write(f"tool      {name:12} {found or 'NOT FOUND'}\n")
             problems += found is None
     return 1 if problems else 0

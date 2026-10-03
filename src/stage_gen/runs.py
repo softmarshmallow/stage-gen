@@ -3,8 +3,7 @@
 A run is a folder an executor wrote. ``discover`` finds runs under any number of roots by
 the documents they publish, without importing a workflow. The workflow that owns a run
 writes its run view on request: SDK and graph-document runs join their own plan and trace,
-a character run is joined from the plan and trace it keeps under its own names, a gnode
-workflow run from its plan and events, and a game run is never derived here, because its
+a gnode workflow run its plan and events, and a game run is never derived here, because its
 game exports its own view. ``derive_view`` writes into a user cache keyed by the run's real
 path, never into the run; ``stage-gen view`` keeps those views fresh while runs are live, and
 ``stage-gen inspect RUN --write-view DIR`` writes one where it is asked to.
@@ -14,14 +13,10 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
-import time
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from hashlib import sha256
 from pathlib import Path
-
-from gnode import UNREGISTERED_TYPE_GAP_ID, Graph, NodeType, RunView, build_run_view
 
 #: A folder holding one of these is a run.
 RUN_DOCUMENTS = (
@@ -31,13 +26,10 @@ RUN_DOCUMENTS = (
     "bundle.json",
     "case.json",
 )
-#: A folder holding the first of a pair and any one of its partners is a run: a character
-#: run keeps ``graph.json`` beside its trace and summary, and a gnode workflow run
-#: ``plan.json`` beside its ``events.jsonl``, so a run is listed while it runs.
-RUN_DOCUMENT_PAIRS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("graph.json", ("summary.json", "trace.jsonl")),
-    ("plan.json", ("events.jsonl",)),
-)
+#: A folder holding the first of a pair and any one of its partners is a run: a gnode
+#: workflow run keeps ``plan.json`` beside its ``events.jsonl``, so a run is listed while it
+#: runs.
+RUN_DOCUMENT_PAIRS: tuple[tuple[str, tuple[str, ...]], ...] = (("plan.json", ("events.jsonl",)),)
 #: The example store sits at the top of a run root (``out/examples``); it holds exports, not
 #: runs.
 EXAMPLE_STORE = "examples"
@@ -50,9 +42,6 @@ VIEW_FILE = "execution-view.json"
 SOURCE_FILES = (
     "execution-plan.json",
     "execution-trace.jsonl",
-    "graph.json",
-    "trace.jsonl",
-    "summary.json",
     "plan.json",
     "events.jsonl",
 )
@@ -222,106 +211,6 @@ def derive_view(run_dir: Path, cache_dir: Path) -> Path | None:
     return write_view(run_dir, cache_dir / view_key(run_dir))
 
 
-# ---------------------------------------------------------------- joined views
-
-
-class JoinedGraph(Graph):
-    """Any gnode graph document, read for its view; the view keeps the graph's own kind."""
-
-    def view_header(self) -> dict[str, object]:
-        return {"graph_kind": self.kind}
-
-
-class JoinedRunView(RunView):
-    graph_kind: str
-
-
-def _present(run_dir: Path, artifact_ref: str) -> bool:
-    if artifact_ref.startswith(("/", "\\")) or ".." in artifact_ref.split("/"):
-        return False
-    candidate = (run_dir / artifact_ref).resolve()
-    return candidate.is_relative_to(run_dir.resolve()) and candidate.is_file()
-
-
-def join_run_view(
-    run_dir: Path,
-    *,
-    plan: Path,
-    traces: Sequence[Path],
-    types: Mapping[str, NodeType] | None = None,
-    labels: Mapping[str, str] | None = None,
-) -> JoinedRunView:
-    """The run view of a run that keeps a gnode plan and trace under names of its own.
-
-    ``plan`` is a gnode graph document inside ``run_dir`` (perhaps in a sub-run), and
-    ``traces`` its append-only traces in the order they were written. They are staged in a
-    temporary folder under gnode's names and joined there, so nothing is written into the
-    run. Artifact references are made relative to ``run_dir`` and their presence checked
-    there, so the view reads like any other run's. ``labels`` titles node types the
-    registry cannot build; a label wins over a registry title, as in the catalog.
-    """
-    base = plan.parent.resolve()
-    prefix = base.relative_to(run_dir.resolve()).as_posix()
-
-    def relocated(ref: str) -> str:
-        return ref if prefix == "." else f"{prefix}/{ref}"
-
-    with tempfile.TemporaryDirectory(prefix="stage-gen-view-") as scratch:
-        staged = Path(scratch)
-        (staged / "execution-plan.json").symlink_to(plan.resolve())
-        if len(traces) == 1:
-            (staged / "execution-trace.jsonl").symlink_to(traces[0].resolve())
-        elif traces:
-            with (staged / "execution-trace.jsonl").open("wb") as joined:
-                for trace in traces:
-                    joined.write(trace.read_bytes().rstrip(b"\n") + b"\n")
-        view = build_run_view(staged, graph_type=JoinedGraph, view_type=JoinedRunView, types=types)
-    titles = labels or {}
-    nodes = tuple(
-        node.model_copy(
-            update={
-                "title": titles.get(node.type_id, node.title),
-                "ports": tuple(
-                    port.model_copy(
-                        update={
-                            "artifact_ref": relocated(port.artifact_ref),
-                            "sidecar_ref": None
-                            if port.sidecar_ref is None
-                            else relocated(port.sidecar_ref),
-                        }
-                    )
-                    for port in node.ports
-                ),
-                "artifacts": tuple(
-                    artifact.model_copy(
-                        update={
-                            "artifact_ref": relocated(artifact.artifact_ref),
-                            "present": _present(run_dir, relocated(artifact.artifact_ref)),
-                        }
-                    )
-                    for artifact in node.artifacts
-                ),
-            }
-        )
-        for node in view.nodes
-    )
-    titled = all(node.title for node in nodes)
-    stamps = [stamp for stamp in (_mtime(trace) for trace in traces) if stamp is not None]
-    return view.model_copy(
-        update={
-            "nodes": nodes,
-            "gaps": tuple(
-                gap for gap in view.gaps if not (titled and gap.gap_id == UNREGISTERED_TYPE_GAP_ID)
-            ),
-            "trace_modified_at": _utc(max(stamps)) if stamps else None,
-        }
-    )
-
-
-def _utc(stamp: float) -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(stamp))
-
-
 # ---------------------------------------------------------------- refreshing
 
 
@@ -367,8 +256,6 @@ __all__ = [
     "SOURCE_FILES",
     "VIEW_FILE",
     "FoundRun",
-    "JoinedGraph",
-    "JoinedRunView",
     "RunOwner",
     "ViewRefresher",
     "cached_view",
@@ -376,7 +263,6 @@ __all__ = [
     "discover",
     "is_run",
     "is_sdk_run",
-    "join_run_view",
     "needs_view",
     "owner_of",
     "source_mtime",

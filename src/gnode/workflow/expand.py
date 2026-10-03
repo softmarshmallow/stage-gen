@@ -687,12 +687,17 @@ class Expander:
         into.kind = "regenerating"
         into.then = regeneration.then if isinstance(regeneration.then, str) else "continue"
         previous: bool | Pending = False
-        for take in range(1, regeneration.max + 1):
+        for take in range(1, self._takes_max(child, regeneration, f"{where}.regenerate") + 1):
             if previous is True:
                 break
+            variables = child.variables
+            if regeneration.feedback:
+                said = MISSING if take == 1 else self._group_feedback(declared, child, take - 1)
+                variables = {**variables, "feedback": said}
             take_frame = child.nest(
                 takes=(*child.takes, take),
                 maybe=child.maybe or isinstance(previous, Pending),
+                variables=variables,
             )
             into.take_scopes.append(take_frame)
             self._scopes.append(take_frame)
@@ -785,11 +790,28 @@ class Expander:
         else:
             judged = None
             numbers = self._take_numbers(path, declared, frame, name)
+        # A judge that regenerates with ``feedback: true`` hands each next take its verdict on
+        # the take before, as ``feedback``: its facts, by the judge's step name.
+        suffix = path[len(frame.prefix) + len(name) :]
+        feedback = [
+            other_name
+            for other_name, other in frame.steps.items()
+            if other.judges == name
+            and isinstance(other.on_reject, OnRejectRegenerate)
+            and other.on_reject.regenerate.feedback
+        ]
         for take in numbers:
             take_frame = frame.derive(
                 takes=(*frame.takes, take),
                 judging=(judged_name, take) if judged_name is not None else None,
             )
+            if feedback:
+                take_frame = take_frame.derive(
+                    variables={
+                        **take_frame.variables,
+                        "feedback": self._feedback(frame, feedback, suffix, take, numbers[0]),
+                    }
+                )
             instance = self._instance(
                 take_frame,
                 declared,
@@ -833,11 +855,11 @@ class Expander:
         # The judges of this step belong to its result: expand them now, so whatever reads
         # this step waits for them.
         judges = [s for s, other in frame.steps.items() if other.judges == name and s != name]
-        for sibling in judges:
-            self.step(frame, sibling)
+        # A judge left out by its own ``if:`` judges nothing: the step is unjudged.
+        present = [s for s in judges if self.step(frame, s).kind != "absent"]
         # A judge already being expanded (something reached it first) links itself after
         # this returns, and settles the takes then.
-        linked = not judges or all(instance.judged_by for instance in into.instances)
+        linked = not present or all(instance.judged_by for instance in into.instances)
         if (
             linked
             and declared.judges is None
@@ -846,6 +868,22 @@ class Expander:
         ):
             self._sequence(into.instances)
         self._independence(frame, declared, where, into.instances)
+
+    def _feedback(
+        self, frame: _Frame, judges: list[str], suffix: str, take: int, first: int
+    ) -> Any:
+        """What the judges said of the take before ``take``: nothing for the first take."""
+
+        if take == first:
+            return MISSING
+        said: dict[str, Any] = {}
+        for judge in judges:
+            identifier = instance_id(f"{frame.prefix}{judge}{suffix}", (*frame.takes, take - 1))
+            result = self.results.get(identifier)
+            if result is None:
+                return Pending(frozenset({identifier}), digest_of({"feedback": identifier}))
+            said[judge] = dict(result.facts)
+        return said
 
     def _sibling(self, frame: _Frame, name: str, where: str) -> _StepExpansion | None:
         owner = frame.find(name)
@@ -873,10 +911,42 @@ class Expander:
         """How many takes a judged step may need: its judges' regeneration maximum."""
 
         longest = 1
-        for other in frame.steps.values():
+        for judge, other in frame.steps.items():
             if other.judges == name and isinstance(other.on_reject, OnRejectRegenerate):
-                longest = max(longest, other.on_reject.regenerate.max)
+                limit = self._takes_max(frame, other.on_reject.regenerate, f"{judge}.on_reject")
+                longest = max(longest, limit)
         return longest
+
+    def _takes_max(self, frame: _Frame, regeneration: Regeneration, where: str) -> int:
+        """A regeneration's ``max``: a number, or an expression the plan can evaluate."""
+
+        if isinstance(regeneration.max, int):
+            return regeneration.max
+        limit = self._evaluate(frame, regeneration.max, f"{where}.max")
+        if contains_pending(limit) or isinstance(limit, bool) or not isinstance(limit, int):
+            self.problems.append(Problem(f"{where}.max", "max: is a number known while planning"))
+            return 1
+        if not 1 <= limit <= 12:
+            self.problems.append(Problem(f"{where}.max", "max: is 1 to 12 takes"))
+            return 1
+        return int(limit)
+
+    def _group_feedback(self, declared: Step, child: _Frame, take: int) -> dict[str, Any]:
+        """What the steps of a group's take said: their facts, by step name."""
+
+        said: dict[str, Any] = {}
+        for name in declared.steps or {}:
+            path = f"{child.prefix}{name}"
+            stem = instance_id(path, (*child.takes, take))
+            found = [
+                (identifier, result)
+                for identifier, result in self.results.items()
+                if identifier == stem or identifier.startswith(stem + ".")
+            ]
+            if found:
+                latest = max(found, key=lambda pair: _take_path(pair[0]))
+                said[name] = dict(latest[1].facts)
+        return said
 
     def _sequence(self, instances: list[Instance]) -> None:
         """Takes after the first exist only after the one before was rejected."""
@@ -887,7 +957,10 @@ class Expander:
                 continue
             verdict = self.verdict(earlier)
             wants_more = self._regenerates(earlier, verdict)
-            if earlier.state in {"absent", "blocked", "failed"} or verdict == "accept":
+            if not earlier.judged_by:
+                later.state = "absent"
+                later.reason = "nothing judges the take before it"
+            elif earlier.state in {"absent", "blocked", "failed"} or verdict == "accept":
                 later.state = "absent"
                 later.reason = "an earlier take settled it"
             elif verdict == "reject" and not wants_more:
@@ -1156,7 +1229,7 @@ class Expander:
         spec: NodeSpec,
         with_values: Mapping[str, Any],
     ) -> tuple[dict[str, Route], tuple[CallPrice, ...]]:
-        calls = spec.capability_calls()
+        calls = spec.capability_calls(with_values)
         if not calls:
             if declared.route is not None:
                 self.problems.append(Problem(f"{where}.route", f"{spec.name} makes no paid call"))
@@ -1689,6 +1762,13 @@ def _finish(value: Any) -> Any:
 # --------------------------------------------------------------------------- helpers
 
 
+def _take_path(identifier: str) -> tuple[int, ...]:
+    """An instance id's take numbers, outermost first: ``part.mesh#2.10`` is (2, 10)."""
+
+    takes = identifier.rpartition("#")[2]
+    return tuple(int(take) for take in takes.split(".") if take.isdigit())
+
+
 def _native(resolved: TypeRef) -> bool:
     return resolved.uses.startswith("gnode/") and resolved.spec.name in NATIVE_TYPES
 
@@ -1699,7 +1779,7 @@ def _is_project_path(value: Any) -> bool:
 
 def _missing_required(spec: NodeSpec, values: Mapping[str, Any]) -> bool:
     for name, port in spec.inputs.items():
-        if not port.optional and values.get(name, MISSING) is MISSING and name in values:
+        if not port.optional and name in values and expr.is_nothing(values[name]):
             return True
     return False
 

@@ -111,10 +111,17 @@
      "type": "boolean"
     },
     "max": {
-     "maximum": 12,
-     "minimum": 1,
-     "title": "Max",
-     "type": "integer"
+     "anyOf": [
+      {
+       "maximum": 12,
+       "minimum": 1,
+       "type": "integer"
+      },
+      {
+       "type": "string"
+      }
+     ],
+     "title": "Max"
     },
     "then": {
      "anyOf": [

@@ -353,6 +353,7 @@ _KINDS = {
     ".zip": "file/zip",
     ".glb": "model/gltf-binary",
     ".gltf": "model/gltf+json",
+    ".fbx": "model/fbx",
     ".html": "text/html",
 }
 

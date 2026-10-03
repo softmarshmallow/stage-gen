@@ -47,8 +47,8 @@ from the_grain_pipeline.pointclick_room.room_graph import (
 )
 
 SOURCE_ROOT = Path(__file__).resolve().parents[2] / "src" / "stage_gen"
-#: Product workflows, plus the frozen character-3d implementation root.
-WORKFLOW_ROOTS = (SOURCE_ROOT / "workflows", SOURCE_ROOT / "recipes")
+#: Product workflows.
+WORKFLOW_ROOTS = (SOURCE_ROOT / "workflows",)
 
 #: Every recipe graph, the recipe word it derives its document kinds from, and the
 #: schema-version constant its module still exports beside the pinned literal.

@@ -136,9 +136,15 @@ STANDARD_TYPES: tuple[tuple[int, NodeSpec], ...] = (
         _spec(
             "mesh.generate",
             1,
-            inputs=_ports(references="image[]"),
-            params={"role": _p(str, optional=True)},
-            outputs=_ports(model="model/gltf-binary"),
+            # Views by name (front, back, left, right): which side each picture shows.
+            inputs=_ports(views="image{}"),
+            params={
+                "face_limit": _p(int, optional=True),
+                "quad": _p(bool, default=False),
+                "texture": _p(bool, default=True),
+                "pbr": _p(bool, default=False),
+            },
+            outputs=_ports(model="model"),
             capability="mesh.generate",
         ),
     ),
@@ -148,6 +154,12 @@ STANDARD_TYPES: tuple[tuple[int, NodeSpec], ...] = (
             "mesh.rig",
             1,
             inputs=_ports(model="model"),
+            params={
+                "rig_type": _p(str, default="biped"),
+                "skeleton": _p(str, default="mixamo"),
+                # A route that checks riggability first rigs a model its check doubts.
+                "allow_negative_check": _p(bool, default=False),
+            },
             outputs=_ports(model="model/gltf-binary"),
             capability="mesh.rig",
         ),

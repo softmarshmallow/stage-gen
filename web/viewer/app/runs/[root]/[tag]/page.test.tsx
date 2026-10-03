@@ -264,13 +264,12 @@ describe("run view route", () => {
     expect(markup).toContain("game run");
   });
 
-  test("a run with only its own record says so and how a view is made", async () => {
+  test("a run without a view says so and how a view is made", async () => {
     const run = await writeFiles("prepared-01", {
-      "graph.json": { kind: "contained-character-parts-to-rig-v1" },
-      "summary.json": { ok: false },
+      "plan.json": { gnode: "plan/v1" },
+      "events.jsonl": "",
     });
     const markup = await page(run);
-    expect(markup).toContain("failed");
     expect(markup).toContain("has no view yet");
     expect(markup).toContain("--write-view");
     // Asked for the graph, a run without a view refuses instead of guessing.

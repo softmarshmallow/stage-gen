@@ -26,8 +26,6 @@ export interface CliCommand {
   readonly summary: string | null;
   readonly description: string | null;
   readonly usage: string;
-  /** Hands every argument after its name to the workflow's own launcher, verbatim. */
-  readonly forwards: boolean;
   readonly arguments: readonly CliArgument[];
   readonly commands: readonly CliCommand[];
 }
@@ -86,7 +84,6 @@ function parseCommand(value: unknown, label: string): CliCommand {
     summary: textOrNull(fields.summary, `${label}.summary`),
     description: textOrNull(fields.description, `${label}.description`),
     usage: text(fields.usage, `${label}.usage`),
-    forwards: flag(fields.forwards, `${label}.forwards`),
     arguments: list(fields.arguments, `${label}.arguments`).map((entry, i) => parseArgument(entry, `${label}.arguments[${i}]`)),
     commands: list(fields.commands, `${label}.commands`).map((entry) =>
       parseCommand(entry, `${label} ${String(object(entry, label).name)}`),

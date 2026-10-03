@@ -1,5 +1,10 @@
 {
  "cache_keys": {
+  "character-3d": {
+   "references.draw#1.1": "6b13ec9a57249fa35d2ef9d2f5111c8de9bb97489544b26e6fd67a8147612ef3",
+   "references.draw#2.1": "19cacce05b1f057b19e889ebd35c1486397909fa7bb85e8e04795015438a136b",
+   "setup#1": "7fdb22c44990e4905576a59964a3975fad0e22960df7465a37153cd4b0535676"
+  },
   "looping-parallax": {
    "compose#1": "868e6478e5c8364d35ada5644830246b4b2678f50a0fa28483195115e3259662",
    "layer['distant_hills'].loop#1": "2b18be3b1f5622d1fa0ae56f3ef5d4a99ae5bcae454bb7e6050f17527489a142",
@@ -146,124 +151,6 @@
    "world.source#1": "50869246dd9f950196ee52465d7d9b07cd39a3f2564344e1de1ec2fec93d28de"
   }
  },
- "character_frozen_set": {
-  "files": {
-   "stage_gen/components/character_3d/__init__.py": "1a45b3648a91b29130d147501e2669e826b37fa83398bf6d81fbdde5bf3d31b4",
-   "stage_gen/components/character_3d/agent_backend.py": "3d3545d25f15fac78e437c1d52b87824fc3d422d54fa8d0d5e1359ae346aac09",
-   "stage_gen/components/character_3d/atlas.py": "bb5624563ba5b3308b2304db1cc3f29d93c6ae9c93369707455686252e82f102",
-   "stage_gen/components/character_3d/budget_pool.py": "075414aaae03e3a9a627c447097af8a026ec1885f476e89ca85fbe26ae9ceea3",
-   "stage_gen/components/character_3d/context.py": "8d65cd72773a717acfe7c2ee6bd2342ea316f06a81ba1cfd77e48d90afd5edf6",
-   "stage_gen/components/character_3d/identity.py": "f38de6d1df57ea8cd21730dfa72b37b58142b5bea30d62e3b11fb4f16776e8ae",
-   "stage_gen/components/character_3d/io.py": "e51c746f7d779ced15a8e53e82b4d2f78901345ad486b972f965d286e210b8cb",
-   "stage_gen/components/character_3d/journal.py": "d293d38f9079156dbd75b4eb472fc059a671c90551575ff5dfe2e99197306a07",
-   "stage_gen/components/character_3d/package_resources.py": "3257e73492806a6056d5fcb15465b22db10706961056e52a1d7504dbea227bde",
-   "stage_gen/components/character_3d/provider_contracts.py": "ea0702d640340a1af6605162904ddbc986bb1458e7e0ea3a2504c8a6a0f1e1be",
-   "stage_gen/components/character_3d/reference_studio.py": "2cd2d7f1151e5feaf773b150d8b75e7e7ff6931c96bf43803c1e6088bb163328",
-   "stage_gen/components/character_3d/review_reuse.py": "16672e54a21731708ff196c344c2558baf17a5c1e8351419e8849c1620069829",
-   "stage_gen/components/character_3d/runtime_admission.py": "9f5dd1bf78d9144c28bab4f4ec5ff250b49ccc04134715af8e3d0a7053187db2",
-   "stage_gen/components/character_3d/service_contracts.py": "e3ca544807f6bf35f9945d3c70fc5351f59d56c900f3d24ac19a06d949aa203f",
-   "stage_gen/components/character_3d/studio.py": "18a0c3a72e368fcd01fbdfe479f8cbaec50d3b42b7a54007801a7870e94d27f6",
-   "stage_gen/components/character_3d/tool_views.py": "2c30fab494644fa538086d355eaa9dd77e6f4fb75e9c148e6b775d01f89dea33",
-   "stage_gen/components/character_3d/worker/__init__.py": "47de13cec6bcbca45bf4a388b270ba3fd9e07f526c4af4828f838dac1a096935",
-   "stage_gen/components/character_3d/worker/assemble.py": "a8536cbae290735ad12c21bb216251ddf588adb65820a619ce184f196865f444",
-   "stage_gen/components/character_3d/worker/blender_io.py": "9f41da79de80b0fa048db4ef40be8c8dd499bdc1f1ff86ff2a6696000271db02",
-   "stage_gen/components/character_3d/worker/contract.py": "a0b81055c995f04fe3e108d592d684cde1fc8f698d9c787e262a8cf43f1b24ca",
-   "stage_gen/components/character_3d/worker/geometry.py": "fae920af09d1f9b5ff80d246027d87f0a74c0e929851a7aee5ae9e67d5304f09",
-   "stage_gen/components/character_3d/worker/main.py": "2e51e47d122a514879f1955c6c175e09304a6b172ac7dd81fc1a43b963d54678",
-   "stage_gen/components/character_3d/worker/provider_rig.py": "e40b5ac0d4c75086c5e01049aa4b621d6d6edf524d1bb13b1900a1155ad02e0d",
-   "stage_gen/components/character_3d/worker/provider_rig_cli.py": "a3c49f2295727a64f7ee3c40bf3fe53526362cf32c3fe2e8aa21ac4d7b4697e2",
-   "stage_gen/components/character_3d/worker/rendering.py": "8d3b0fdcedac60d6cacfabe11dc0615018190d49ebe334083d91bb8bafbc5321",
-   "stage_gen/components/character_3d/worker/rig_cli.py": "813b6fb2780865e3902bb0a181806eb2566e503bed1425f23c593e918e6b8f9e",
-   "stage_gen/components/character_3d/worker/rig_contract.py": "c56acea5a06eff9f6669f34e2712008f8a6e062b53e9516b03ea9e90f9f76270",
-   "stage_gen/components/character_3d/worker/rig_glb.py": "aa5b1f3c2334fe4cec94808907e9c5db43c953e47a3e2ac21099ca121d44e237",
-   "stage_gen/components/character_3d/worker/rig_metrics.py": "ac415198e01cc8c3e169dadbef2cb2307d21a5f494b13298d830b7b82acedf12",
-   "stage_gen/components/character_3d/worker/rigging.py": "d76fcdfc084691de9390e74f48d8783ea818b64d64904af6e31b49bcb8fb1249",
-   "stage_gen/components/character_3d/worker/runtime_probe.py": "65bcb541a55b234e9596350c84bc29dc96205230781313f8b982d9c7dff1059a",
-   "stage_gen/components/character_3d/worker_client.py": "c79b47dc75be4fd4047a315fb828a1559938df07960554c72a939213e457b346",
-   "stage_gen/orchestration/character_3d/__init__.py": "37cde0b958c94d826f45a874bdbee25eb597c58b76001ab896c0051d2dcea2bd",
-   "stage_gen/orchestration/character_3d/bindings.py": "53361ce702e0c4baaf09bcc255b809d286338876a0105d9e011f677c123c469a",
-   "stage_gen/orchestration/character_3d/collect_recovery.py": "2681329b0c18226a276e30094f387d61a2cbda41679872e2894434b858e3e1a0",
-   "stage_gen/orchestration/character_3d/launch.py": "f92ee975d084f30f2bf86dbe770259c16917d25d736661d1b3de74b3408d702f",
-   "stage_gen/orchestration/character_3d/policy_defaults.py": "2034be36273681675b6c3ee91bffb7b10ccd4d4de6cb984fc9d1e531ad11941e",
-   "stage_gen/orchestration/character_3d/provider_execution.py": "9525d8c49548474b09bd98e941694c05d161c47938b8749f47cc2235d4deab14",
-   "stage_gen/orchestration/character_3d/runtime_services.py": "ab26e955d3a21264da1075e08545d928d827f94b596662c9924ea3f33adf5140",
-   "stage_gen/orchestration/character_3d/support_admission.py": "9ed84916b81531b3ca3a27ca6dd7cedff285e89b37f8caa6061e6b407d78fff5",
-   "stage_gen/orchestration/character_3d/upstream.py": "4b3cc530d1b5d50a28727a7ec7e7ea8bf1c96ef72919e3ec88b8274fb74268de",
-   "stage_gen/providers/character_3d/__init__.py": "1c831bfb2735724203c1ae9c97add785de73946c568365b58c38673c64da554d",
-   "stage_gen/providers/character_3d/images.py": "a404c2fe37a35343c83332299f4d47c1e53c25a0ee3169a71aaf2a2da5ce040f",
-   "stage_gen/providers/character_3d/rig.py": "063e8790a6c22fb391bdb97178d5237a512c4b8b006a77978ddf9d46ec7fe18e",
-   "stage_gen/providers/character_3d/tripo.py": "6028c4d182a0ef300fabc6219876fa1cfa477812fb743c84d3403a00d82acf88",
-   "stage_gen/providers/character_3d/tripo_pricing.py": "591b6f43e0b6deed46a488141e4a8a45cae0c351627b5f10236c99674a5d3e3e",
-   "stage_gen/recipes/character_3d/__init__.py": "589f3712697a583580baaf2fc6105ebf696518238290b1c323671feb53b9957f",
-   "stage_gen/recipes/character_3d/brief_evidence.py": "dd8a6685d2829273d976c4bee1ab0e85d8abace79c7bff507a1c0a3e2a723e20",
-   "stage_gen/recipes/character_3d/brief_runner.py": "1c3e52199d26066a14c1cbd01b3e2d91ada499d3686b15a772171e678a7e47e6",
-   "stage_gen/recipes/character_3d/calibration_inputs.py": "0459efec48571b7ce885692be6bfc6dcadfc2767091c0c412459383773383af5",
-   "stage_gen/recipes/character_3d/calibration_runner.py": "926a7ce1e2b279535e378bb423bbb6a6d232e78af343624955eeb84a13b2647d",
-   "stage_gen/recipes/character_3d/corpus.py": "fcd06a3a7b8832d91f07fd602372cfb888d2ca67275b8c554c26af83dd9512f9",
-   "stage_gen/recipes/character_3d/experiment.py": "91feb555e12202e8a4c6a20ec3720967befc7bde8bbfee958fe63155e2f9c3b1",
-   "stage_gen/recipes/character_3d/full_runner.py": "49c88edd011d0d423b49fb602c70c8750b0c357e243f0f8f00b726ea0240390b",
-   "stage_gen/recipes/character_3d/partitions.py": "1d435db2a784f348e12815701f3065a71ee79f3cb2679b089189bee13c86fe31",
-   "stage_gen/recipes/character_3d/profiles/__init__.py": "37c309f97d4d26dea014c234d9ef5ddd1d22c1125c5ca422eacc905ad8fa9faa",
-   "stage_gen/recipes/character_3d/profiles/anthro_cat.py": "64411b47b3977de2538e4f63dc465636aa4b2754a16f878adce64e1f4bfb1bbc",
-   "stage_gen/recipes/character_3d/profiles/fixed_human.py": "c29ce7e00218fbe2730878e757e1ca4cc61ccdf12f017f3fab6448a4a3f51cd6",
-   "stage_gen/recipes/character_3d/profiles/humanoid.py": "1e0056ec55158d42e329b5226251e9cbe15058e9fc4e6bc83ba21055d0d46a4c",
-   "stage_gen/recipes/character_3d/provider_runner.py": "0b33edab91ee04949487c4d22c87628515a7e25524fd8801c3edf2edec16fe1a",
-   "stage_gen/recipes/character_3d/qualification.py": "10d9b73c1fdf87eeb925b86195de1bd8f10796c8e4c6c38e526e2f284b2da3a3",
-   "stage_gen/recipes/character_3d/quality_bar.py": "2fe9cdbc2c82079093e4cae86f3cc9ad3c42e859963c1a5ed7e3d8685bae1e25",
-   "stage_gen/recipes/character_3d/recovery.py": "dbca8470eec76ab7f526b2257ee23e60090a780b87bc0d186206b16f2297a4f4",
-   "stage_gen/recipes/character_3d/requirements.py": "1aa6e76a39c636c5c339d85f611f34ea96a0e9c315dba54572b2a81eda08b502",
-   "stage_gen/recipes/character_3d/review_policy.py": "dddd4f01164fd57f71324ba592e9b46e17feb43c6e7ac54f2c955820ac716488",
-   "stage_gen/recipes/character_3d/rig_recipes.py": "336d44e2fa7f2534ed5aa2da2e1979a001a6d3c70d1b6d34de42c065cae38cdc",
-   "stage_gen/recipes/character_3d/rig_runner.py": "fe5a69f142781988a5e985f4955aae264f92ccd675b093abc2cf4f05b5f84d01",
-   "stage_gen/recipes/character_3d/rig_studio.py": "1b7c691152afb0b427b8108f96e49b6d70709ccab0827cc79cc39ae155609bdc",
-   "stage_gen/recipes/character_3d/runner.py": "1ba4d18cdb4c6fbe30250cc5aa88c2c90082c86dbafc21ad22734af945de3cf0",
-   "stage_gen/resources/character_3d/__init__.py": "d42a5edb6abab285c0f2e16b777e012bff1f6a38d6f1ede63f2353959e49c974",
-   "stage_gen/resources/character_3d/models/__init__.py": "10575178e57196e1b7a34fc0e1991077377731394250b5c03508515a5b9dcf7d",
-   "stage_gen/resources/character_3d/models/openrouter-gpt-6-astra-2026-09-11.json": "b8ba5085ee0bad0762f95d4441b18ed96306393954ecad3e2b0a367fbb778eda",
-   "stage_gen/resources/character_3d/models/tripo-api-pricing-2026-09-10.json": "9ebb19b62a5973191bdc9c7075a40e7f6f24870c1186895df61f9d6c90623b24",
-   "stage_gen/resources/character_3d/package-map.json": "72373424579261495ca3d0d63bb39eb2ae846dcc9548b77c8ac17b091d1d8c6e",
-   "stage_gen/resources/character_3d/profiles/__init__.py": "b460faf541e916abe95889a9c24a27ef0ba6e603e6f57d5513dbde9421ba2216",
-   "stage_gen/resources/character_3d/profiles/sd_cat.json": "92d5c44943a7ce3b5d870bc55b8ac3588ab73290564c3d488d4c14a0a47cc670",
-   "stage_gen/resources/character_3d/profiles/sd_human.json": "c4d343e0bf326415f0d90c612f1239d83da208e288cddfc4cd7131ef7f3383a3",
-   "stage_gen/resources/character_3d/profiles/sd_human_fixed.json": "1d047009a270156fe55783aafe99fe8342b3d8a116e4a3e32c79f83f344b1e79",
-   "stage_gen/resources/character_3d/prompts/__init__.py": "9d6142c571b1ae7f6de967e367f3581fe167629db686b71c078d0606a7788c91",
-   "stage_gen/resources/character_3d/prompts/assemble.md": "f6fda6d36031d2708626ec883e70b24940ad15afab251fd8339d4eaa00e18683",
-   "stage_gen/resources/character_3d/prompts/plan_references.md": "52e46b6ea1c97db9bb83e64437a23793c01c3a24c9c8560bfc40ebe020c27aed",
-   "stage_gen/resources/character_3d/prompts/review_assembly.md": "bbb6776e87f823e23ec56290f9b9676e12528ec9fb4d987468b540e0847ddcf0",
-   "stage_gen/resources/character_3d/prompts/review_references.md": "f1b558aad9ea0f2861902facf4c3f6c535adec070fee6606f15ed900094c9473",
-   "stage_gen/resources/character_3d/prompts/review_rig.md": "c56302562be87a7001982e8c734391e5e34feb1aa5d42576957524502d205963",
-   "stage_gen/resources/character_3d/prompts/rig.md": "04dcc8ce26c83650fa76271bf93d6437b9bc466c855798feb3117f81a997269b"
-  },
-  "package_map_aliases": {
-   "models/openrouter-gpt-6-astra-2026-09-11.json": "stage_gen/resources/character_3d/models/openrouter-gpt-6-astra-2026-09-11.json",
-   "models/tripo-api-pricing-2026-09-10.json": "stage_gen/resources/character_3d/models/tripo-api-pricing-2026-09-10.json",
-   "pipeline/launch.py": "stage_gen/orchestration/character_3d/launch.py",
-   "profiles/sd_cat.json": "stage_gen/resources/character_3d/profiles/sd_cat.json",
-   "profiles/sd_human.json": "stage_gen/resources/character_3d/profiles/sd_human.json",
-   "profiles/sd_human_fixed.json": "stage_gen/resources/character_3d/profiles/sd_human_fixed.json",
-   "prompts/assemble.md": "stage_gen/resources/character_3d/prompts/assemble.md",
-   "prompts/plan_references.md": "stage_gen/resources/character_3d/prompts/plan_references.md",
-   "prompts/review_assembly.md": "stage_gen/resources/character_3d/prompts/review_assembly.md",
-   "prompts/review_references.md": "stage_gen/resources/character_3d/prompts/review_references.md",
-   "prompts/review_rig.md": "stage_gen/resources/character_3d/prompts/review_rig.md",
-   "prompts/rig.md": "stage_gen/resources/character_3d/prompts/rig.md",
-   "worker/__init__.py": "stage_gen/components/character_3d/worker/__init__.py",
-   "worker/assemble.py": "stage_gen/components/character_3d/worker/assemble.py",
-   "worker/blender_io.py": "stage_gen/components/character_3d/worker/blender_io.py",
-   "worker/contract.py": "stage_gen/components/character_3d/worker/contract.py",
-   "worker/geometry.py": "stage_gen/components/character_3d/worker/geometry.py",
-   "worker/main.py": "stage_gen/components/character_3d/worker/main.py",
-   "worker/provider_rig.py": "stage_gen/components/character_3d/worker/provider_rig.py",
-   "worker/provider_rig_cli.py": "stage_gen/components/character_3d/worker/provider_rig_cli.py",
-   "worker/rendering.py": "stage_gen/components/character_3d/worker/rendering.py",
-   "worker/rig_cli.py": "stage_gen/components/character_3d/worker/rig_cli.py",
-   "worker/rig_contract.py": "stage_gen/components/character_3d/worker/rig_contract.py",
-   "worker/rig_glb.py": "stage_gen/components/character_3d/worker/rig_glb.py",
-   "worker/rig_metrics.py": "stage_gen/components/character_3d/worker/rig_metrics.py",
-   "worker/rigging.py": "stage_gen/components/character_3d/worker/rigging.py",
-   "worker/runtime_probe.py": "stage_gen/components/character_3d/worker/runtime_probe.py"
-  }
- },
  "identities": {
   "cache": {
    "dry_run_namespace": "dry-run-nodes-v1",
@@ -271,6 +158,76 @@
    "node_cache_schema_version": 2
   },
   "node_types": [
+   [
+    "character_3d/build/assembly/assemble",
+    "character_3d/build/assembly/assemble",
+    "nodes/assembly.py#assemble@1"
+   ],
+   [
+    "character_3d/build/assembly/review",
+    "character_3d/build/assembly/review",
+    "nodes/assembly.py#review@1"
+   ],
+   [
+    "character_3d/build/part/mesh",
+    "character_3d/build/part/mesh",
+    "gnode/mesh.generate@1.1"
+   ],
+   [
+    "character_3d/build/part/normalize",
+    "character_3d/build/part/normalize",
+    "nodes/parts.py#normalize@1"
+   ],
+   [
+    "character_3d/build/part/review",
+    "character_3d/build/part/review",
+    "nodes/parts.py#review@1"
+   ],
+   [
+    "character_3d/build/part/views",
+    "character_3d/build/part/views",
+    "nodes/references.py#role_views@1"
+   ],
+   [
+    "character_3d/build/rig/agent",
+    "character_3d/build/rig/agent",
+    "nodes/rig.py#agent@1"
+   ],
+   [
+    "character_3d/build/rig/finish",
+    "character_3d/build/rig/finish",
+    "nodes/rig.py#finish@1"
+   ],
+   [
+    "character_3d/build/rig/review",
+    "character_3d/build/rig/review",
+    "nodes/rig.py#review@1"
+   ],
+   [
+    "character_3d/build/rig/task",
+    "character_3d/build/rig/task",
+    "gnode/mesh.rig@1.1"
+   ],
+   [
+    "character_3d/references/draw",
+    "character_3d/references/draw",
+    "nodes/references.py#draw@1"
+   ],
+   [
+    "character_3d/references/review",
+    "character_3d/references/review",
+    "nodes/references.py#review@1"
+   ],
+   [
+    "character_3d/result",
+    "character_3d/result",
+    "nodes/result.py#result@1"
+   ],
+   [
+    "character_3d/setup",
+    "character_3d/setup",
+    "nodes/setup.py#setup@1"
+   ],
    [
     "looping_parallax/compose",
     "looping_parallax/compose",

@@ -151,9 +151,12 @@ def _game_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
     return tuple(result)
 
 
+CHARACTER_SAMPLE = "src/stage_gen/workflows/character_3d/inputs/sample/inputs.yaml"
+
+
 def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
-    """Run a real local workflow through gnode, check every workflow file's lock, dry-run the
-    graph-document workflows, and parse every ``stage-gen`` workflow verb."""
+    """Run a real local workflow through gnode, check every workflow file's lock, and plan
+    every workflow whose calls are all paid."""
     from stage_gen.workflows._registry import discover
 
     parallax = "src/stage_gen/workflows/looping_parallax/inputs/supplied_layers"
@@ -205,6 +208,18 @@ def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
             ),
             cwd=project,
         ),
+        # character-3d: every agent, mesh and rig call is paid, and its run needs Blender; the
+        # committed brief is planned, and pytest runs the graph on stand-ins.
+        Step(
+            (
+                "gnode",
+                "plan",
+                "character-3d",
+                "--inputs",
+                str(REPOSITORY_ROOT / CHARACTER_SAMPLE),
+            ),
+            cwd=project,
+        ),
         Step((python, "scripts/write_model_policy_snapshot.py")),
         Step(("stage-gen", "--help")),
         Step(("stage-gen", "list")),
@@ -218,12 +233,6 @@ def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
                 "--out",
                 str(scratch / "catalog"),
             )
-        ),
-        *(
-            Step(("stage-gen", verb, workflow.id, "--help"))
-            for workflow in discover()
-            if workflow.root.joinpath("cli.py").is_file()
-            for verb in ("plan", "run")
         ),
     )
 

@@ -34,7 +34,7 @@ FIXTURE_KIND = "stage-gen-cli-equivalence-v1"
 
 #: What a recorder does after it records: stop the command there, hand back a stand-in so
 #: the command reaches its next call, or call through to the real code.
-type Behaviour = Literal["stop", "argv", "definition", "planned", "budget", "view", "empty", "pass"]
+type Behaviour = Literal["stop", "definition", "planned", "view", "empty", "pass"]
 
 #: Module prefixes whose bindings a recorder replaces; any other module keeps the original.
 PATCHED_PACKAGES = ("stage_gen", "demo_game_collection", "gnode")
@@ -61,8 +61,6 @@ PROBES: tuple[Probe, ...] = (
     Probe("stage_gen.pipeline.run", "stop"),
     Probe("stage_gen.pipeline.inspect", "stop"),
     Probe("stage_gen.provider_env.load_provider_dotenv", "empty"),
-    Probe("stage_gen.components.character_3d.budget_pool.BudgetPool", "budget"),
-    Probe("stage_gen.orchestration.character_3d.launch.main", "argv"),
     Probe("stage_gen.capabilities.generate_image_artifact", "stop"),
     Probe("stage_gen.capabilities.remove_background", "stop"),
     Probe("stage_gen.capabilities.generate_music", "stop"),
@@ -77,7 +75,7 @@ PROBES: tuple[Probe, ...] = (
 
 @dataclasses.dataclass(frozen=True, slots=True)
 class StandIn:
-    """What a recorder hands back in place of a definition, a budget or a view."""
+    """What a recorder hands back in place of a definition or a view."""
 
     label: str
     pipeline_id: str = "<definition>"
@@ -166,9 +164,6 @@ def _arguments(original: Any, args: tuple[Any, ...], kwargs: dict[str, Any]) -> 
 
 def _stub(probe: Probe, original: Any, calls: list[dict[str, object]], root: Path) -> Any:
     def recorder(*args: Any, **kwargs: Any) -> Any:
-        if probe.behaviour == "argv":
-            calls.append({"target": probe.target, "kwargs": {"argv": list(sys.argv[1:])}})
-            raise Stop
         recorded = _arguments(original, args, kwargs)
         calls.append({"target": probe.target, "kwargs": plain(recorded, root)})
         match probe.behaviour:
@@ -335,7 +330,7 @@ def test_new_command_reaches_the_recorded_call(
 
 
 def _entry(argv: Sequence[str]) -> str:
-    return argv[0] if argv[0] == "stage-gen-character" else " ".join(argv[:2])
+    return " ".join(argv[:2])
 
 
 def test_every_retired_entry_point_has_a_case() -> None:
@@ -344,7 +339,6 @@ def test_every_retired_entry_point_has_a_case() -> None:
     old = {_entry(case["old_argv"]) for case in cases}
     for program in (
         "stage-gen pipeline",
-        "stage-gen-character",
         "demo-games generate-image",
         "demo-games generate-music",
         "demo-games generate-video",

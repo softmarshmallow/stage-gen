@@ -1,5 +1,5 @@
-# Only what the code cannot know. The implementation is frozen at stage_gen.recipes.character_3d;
-# steps and identity are read from it as text in workflow.py.
+# Only what the workflow file cannot say. Steps, titles and the sample plan come from
+# workflow.yaml through gnode.
 schema_version = 1
 kind = "stage-gen-workflow-v1"
 id = "character-3d"
@@ -11,18 +11,19 @@ stood upright, rigged and given test clips. Independent reviewers judge every st
 in the export's own finish, and the export is admitted only when numbers and pictures both pass."""
 
 [try]
-input = "An original character brief as an experiment JSON beside its inputs, and a Blender install"
+input = "The committed brief in inputs/sample, an original courier, and the inputs.yaml that names it. The run is paid: it needs OpenRouter and Tripo keys, Blender, and --live"
 commands = [
-  "stage-gen run character-3d --experiment characters/my_character_01.json --input-root characters --run-root out/character-try --blender /Applications/Blender.app/Contents/MacOS/Blender --admission-mode development --prepare-only",
-  "stage-gen inspect out/character-try",
+  "gnode plan character-3d --inputs src/stage_gen/workflows/character_3d/inputs/sample/inputs.yaml",
+  "gnode run character-3d --inputs src/stage_gen/workflows/character_3d/inputs/sample/inputs.yaml --live --max-usd 30",
+  "gnode inspect character-3d",
 ]
 
 [[tools]]
 name = "Blender"
-role = "Normalises, audits, renders and exports every mesh"
+role = "Normalises, assembles, audits, renders and exports every mesh"
 
-# The node types and their titles are built inside the frozen implementation. The spike/ and
-# part_request/ types appear only in the tavi-parts example, made with an earlier version.
+# The types of the two examples made with the earlier implementation; the workflow file
+# titles its own steps.
 [labels]
 "3d/character/runtime_admit" = "Probe Blender"
 "3d/character/brief_preflight" = "Check the brief"
@@ -30,18 +31,14 @@ role = "Normalises, audits, renders and exports every mesh"
 "3d/character/reference_review" = "Review references"
 "3d/character/references_admit" = "Admit references"
 "3d/character/generate_part" = "Generate mesh"
-"3d/character/normalize" = "Measure the part"
 "3d/character/part_review" = "Review mesh"
 "3d/character/part_admit" = "Admit mesh"
 "3d/character/parts_admit" = "Admit parts"
 "3d/character/assemble_agent" = "Orient and ground"
 "3d/character/assembly_review" = "Review orientation"
 "3d/character/assembly_admit" = "Admit orientation"
-"3d/character/assembly_select" = "Select the assembly"
-"3d/character/adopt_assembly" = "Adopt the admitted assembly"
 "3d/character/provider_rig_submit" = "Submit for rigging"
 "3d/character/provider_rig_collect" = "Collect and audit rig"
-"3d/character/rig_agent" = "Build the rig"
 "3d/character/rig_review" = "Review rig"
 "3d/character/regenerate_whole" = "Regenerate mesh"
 "3d/character/recovery_part_review" = "Review mesh"
@@ -50,7 +47,6 @@ role = "Normalises, audits, renders and exports every mesh"
 "3d/character/recovery_assembly_review" = "Review orientation"
 "3d/character/recovery_assembly_admit" = "Admit orientation"
 "3d/character/rig_admit" = "Admit export"
-"3d/character/rig_select" = "Select the export"
 "part_request/generate_part" = "Generate a part"
 "spike/character.runtime_admit" = "Probe Blender"
 "spike/character.normalize" = "Measure the part"
@@ -62,31 +58,23 @@ role = "Normalises, audits, renders and exports every mesh"
 "spike/character.rig_admit" = "Admit export"
 
 [[outputs]]
-artifact_ref = "candidates/rig_01/animated.glb"
+artifact_ref = "outputs/character.glb"
 description = "The character: textured mesh, skeleton and short clips, at game scale"
 
 [[outputs]]
-artifact_ref = "candidates/"
-description = "Every attempt the run made, including refused ones"
+artifact_ref = "outputs/result.json"
+description = "Accepted, or delivered unreviewed, with the findings that travel with it"
 
 [[outputs]]
-artifact_ref = "references/"
-description = "The reference sheet and the front and back views"
+artifact_ref = "outputs/references.png"
+description = "The canonical reference picture the parts were drawn from"
 
 [[outputs]]
-artifact_ref = "observations/"
-description = "The renders each reviewer looked at"
+artifact_ref = "outputs/atlas/"
+description = "The labeled pose rows and the face strip the rig reviewer judged"
 
-[[outputs]]
-artifact_ref = "nodes/"
-description = "One record per step, with what each reviewer checked and why"
-
-[[outputs]]
-artifact_ref = "outcome.json"
-description = "How the run ended and what it cost"
-
-# Frozen exports in the example store (out/examples/character-3d/<id>/), pinned by digest, and
-# the approved library characters, built from the tracked files their sd_3d.json binds.
+# Exports in the example store (out/examples/character-3d/<id>/), pinned by digest, and the
+# approved library characters, built from the tracked files their sd_3d.json binds.
 [[examples]]
 id = "wren-brief"
 title = "Wren, from a brief"
@@ -96,6 +84,44 @@ cover = true
 order = 7
 example_sha256 = "304d8a49365d4124976ba67698011ce893c15a6a8cc68a8219aa9bc27d8463b5"
 figures_sha256 = "4a576b22f2d95fbef7274ec31b1db23203500f735f42d0e7959c8b523e6e474c"
+
+# Made with an earlier version: a runner whose steps the workflow file no longer has, so the
+# example groups its own nodes. Its second takes were reused, not paid for again, and its
+# recovery never started.
+[[examples.steps]]
+label = "Before any spend"
+note = "Blender's required features and the brief were checked offline before anything was paid for."
+members = ["runtime_admit", "brief_preflight"]
+
+[[examples.steps]]
+label = "Reference sheet"
+note = "An agent drew a canonical sheet, then the front and back views the mesh service needs. A reviewer that did not draw them admitted the bundle."
+members = ["references_01", "references_review_01", "references_02", "references_review_02", "references_admit"]
+
+[[examples.steps]]
+label = "Textured mesh"
+note = "Tripo built one textured character from the views. The worker normalised it and rendered five views in the matte finish the export wears, for a reviewer."
+members = ["generate_character_01", "part_review_character_01", "generate_character_02", "part_review_character_02", "part_admit_character", "parts_admit"]
+
+[[examples.steps]]
+label = "Orientation"
+note = "The mesh was stood on the ground plane facing forward, measured, and reviewed again."
+members = ["assemble_01", "assembly_review_01", "assemble_02", "assembly_review_02", "assembly_admit"]
+
+[[examples.steps]]
+label = "Skeleton and clips"
+note = "Tripo added bones and weights. The worker proved the rigged mesh was still the admitted mesh, baked diagnostic clips and exported at profile height; a reviewer judged every pose."
+members = ["rig_submit_01", "rig_01", "rig_review_01", "rig_submit_02", "rig_02", "rig_review_02"]
+
+[[examples.steps]]
+label = "Bounded recovery"
+note = "Had the rig been refused, the mesh would have been drawn again from the same references and rigged once more. The rig passed, so none of this ran."
+members = ["regenerate_character_02", "recovery_part_review_02", "recovery_part_admit", "assemble_recovery_02", "assembly_review_03", "recovery_assembly_admit"]
+
+[[examples.steps]]
+label = "Admission"
+note = "Numbers and pictures both passed: a good picture cannot waive a numeric failure, and a clean report cannot waive a visible one."
+members = ["rig_admit"]
 
 [[examples]]
 id = "tavi-parts"

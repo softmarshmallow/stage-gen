@@ -5,8 +5,6 @@ tests/contract/fixtures/workflow-identity.json holds values only - digests, stri
 versions and cache keys - never a module path, so moving code changes this script's
 imports and never the fixture. Each section prices what a change to it would cost:
 
-  character_frozen_set     every character_3d member and the package-map aliases (a change
-                           needs a paid qualification cohort, not a carry-over)
   identities               cache constants, the run-view version, provenance names and
                            the product node-type inventory
   cache_keys               node_id -> cache_key for offline plans and free runs over
@@ -74,8 +72,6 @@ INPUTS_PATH = FIXTURES / "workflow-identity-inputs.json"
 PACKAGE_ROOT = Path(stage_gen.__file__).parent
 UNIVERSE_INPUTS = PACKAGE_ROOT / "workflows/universe/inputs/lantern_ferry/inputs.yaml"
 UNIVERSE_ANSWERS = FIXTURES / "universe/lantern_ferry.answers.json"
-#: Every package that holds character_3d members; their paths and bytes are frozen.
-CHARACTER_OWNERS = ("recipes", "orchestration", "components", "providers", "resources")
 #: Modules whose NodeType constants are product node types.
 
 type Section = dict[str, Any]
@@ -83,23 +79,6 @@ type Section = dict[str, Any]
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def character_frozen_set(scratch: Path) -> Section:
-    """Package-relative path -> sha256 for every member, plus the package-map aliases."""
-    del scratch
-    files: dict[str, str] = {}
-    for owner in CHARACTER_OWNERS:
-        root = PACKAGE_ROOT / owner / "character_3d"
-        if not root.is_dir():
-            raise ValueError(f"character_3d member root is missing: stage_gen/{owner}")
-        for path in sorted(root.rglob("*")):
-            if path.is_file() and "__pycache__" not in path.parts and path.name != ".DS_Store":
-                files[f"stage_gen/{path.relative_to(PACKAGE_ROOT).as_posix()}"] = _sha256(path)
-    package_map = json.loads(
-        (PACKAGE_ROOT / "resources/character_3d/package-map.json").read_text(encoding="utf-8")
-    )
-    return {"files": files, "package_map_aliases": package_map["aliases"]}
 
 
 def _node_types() -> Iterable[NodeType]:
@@ -328,8 +307,24 @@ def _run_keys(run_dir: Path) -> dict[str, str]:
     return dict(sorted(keys.items()))
 
 
+CHARACTER_INPUTS = PACKAGE_ROOT / "workflows/character_3d/inputs/sample/inputs.yaml"
+
+
+def plan_character_3d(scratch: Path) -> dict[str, str]:
+    """The committed brief planned offline: the identity of every step a plan can know
+    (a run needs Blender, so the rest is pinned by the workflow's own offline tests)."""
+    project = scratch / "project"
+    project.mkdir(parents=True)
+    (project / "gnode.yaml").write_text("gnode: project/v1\n", encoding="utf-8")
+    planned = asyncio.run(plan_async("character-3d", input_files=[CHARACTER_INPUTS], cwd=project))
+    if not planned.ok:
+        raise RuntimeError(f"the character sample does not plan: {planned.problems}")
+    return {i.id: i.identity for i in planned.instances if i.identity is not None}
+
+
 #: Each pinned plan or free run.
 CACHE_KEY_PLANS: dict[str, Callable[[Path], Graph | RunView | dict[str, str]]] = {
+    "character-3d": plan_character_3d,
     "looping-parallax": run_looping_parallax,
     "movie-sprite-take": run_movie_sprite_take,
     "portrait-motion": run_portrait_motion,
@@ -349,7 +344,6 @@ def cache_keys(scratch: Path) -> Section:
 
 
 SECTIONS: dict[str, Callable[[Path], Section]] = {
-    "character_frozen_set": character_frozen_set,
     "identities": identities,
     "cache_keys": cache_keys,
 }

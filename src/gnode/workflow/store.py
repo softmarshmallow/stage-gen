@@ -216,7 +216,7 @@ class Store:
     # ------------------------------------------------------------------ calls
 
     @staticmethod
-    def call_key(*, capability: str, route: str, request: Any, take: int) -> str:
+    def call_key(*, capability: str, route: str, request: Any, take: int | list[int]) -> str:
         return digest_of(
             {"capability": capability, "route": route, "request": request, "take": take}
         )

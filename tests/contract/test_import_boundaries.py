@@ -25,10 +25,8 @@ GAME_MODULES = (
 )
 COMPONENT_ROOT = SOURCE_ROOT / "stage_gen" / "components"
 FORBIDDEN_COMPONENT_DEPENDENCIES = (
-    "stage_gen.providers",
     "stage_gen.orchestration",
     "stage_gen.workflows",
-    "stage_gen.recipes",
     "stage_gen.interfaces",
 )
 
@@ -75,17 +73,9 @@ def test_components_do_not_import_application_or_provider_layers() -> None:
 
 
 WORKFLOW_ROOT = SOURCE_ROOT / "stage_gen" / "workflows"
-# A workflow whose implementation lives outside WORKFLOW_ROOT because its path is bound
-# into run lineage. It moves only with that workflow's next qualification cohort.
-FROZEN_IMPLEMENTATION_ROOTS = {
-    "character_3d": SOURCE_ROOT / "stage_gen" / "recipes" / "character_3d",
-}
 
 _ACTIVE_IMAGE_MODEL_ID = re.compile(r"^(?:(?:openai|fal-ai)/)?gpt-image-[0-9][A-Za-z0-9._/-]*$")
-_CONCRETE_PROVIDER_IMPORT_PREFIXES = (
-    "gnode.providers",
-    "stage_gen.providers",
-)
+_CONCRETE_PROVIDER_IMPORT_PREFIXES = ("gnode.providers",)
 
 
 def test_active_image_routes_have_one_application_authority() -> None:
@@ -115,7 +105,7 @@ def test_active_image_routes_have_one_application_authority() -> None:
                     f"{relative}:{node.lineno} owns active image model {node.value!r}"
                 )
 
-    for root in (WORKFLOW_ROOT, *FROZEN_IMPLEMENTATION_ROOTS.values(), COMPONENT_ROOT):
+    for root in (WORKFLOW_ROOT, COMPONENT_ROOT):
         for path in _python_sources(root):
             package = _package_for(path)
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -139,16 +129,13 @@ def _module_of(root: Path) -> str:
 
 
 def _workflow_roots() -> dict[str, tuple[Path, ...]]:
-    """Each workflow's own source roots: its package, plus its frozen implementation."""
+    """Each workflow's own source root: its package."""
 
-    packages: dict[str, tuple[Path, ...]] = {
+    return {
         entry.name: (entry,)
         for entry in sorted(WORKFLOW_ROOT.iterdir())
         if entry.is_dir() and entry.name[0] not in "_."
     }
-    for name, frozen in FROZEN_IMPLEMENTATION_ROOTS.items():
-        packages[name] = (*packages.get(name, ()), frozen)
-    return packages
 
 
 #: The registry's declarations (Step, WorkflowCode, run readers) every workflow states
@@ -165,8 +152,7 @@ def test_workflows_do_not_import_each_other() -> None:
     """Workflows share code through declared homes (canonical, media, components,
     the SDK in stage_gen.pipeline such as node_cache, the example contract in
     stage_gen.examples), never through another workflow's modules. A workflow imports
-    only its own package, its own frozen implementation root, and the registry's
-    declarations."""
+    only its own package and the registry's declarations."""
 
     workflows = _workflow_roots()
     assert len(workflows) >= 5, f"expected at least 5 workflow packages, found {sorted(workflows)}"
@@ -183,7 +169,7 @@ def test_workflows_do_not_import_each_other() -> None:
                 violations.extend(
                     violation
                     for violation, imported in _import_violation_pairs(
-                        path, ("stage_gen.workflows", "stage_gen.recipes")
+                        path, ("stage_gen.workflows",)
                     )
                     if not any(_matches(imported, allowed) for allowed in own)
                 )
@@ -200,9 +186,7 @@ def test_registry_and_example_contract_import_no_workflow() -> None:
     violations = [
         violation
         for path in paths
-        for violation, imported in _import_violation_pairs(
-            path, ("stage_gen.workflows", "stage_gen.recipes")
-        )
+        for violation, imported in _import_violation_pairs(path, ("stage_gen.workflows",))
         if not _matches(imported, WORKFLOW_DECLARATIONS)
         and not imported.startswith("stage_gen.workflows._")
     ]
@@ -242,15 +226,10 @@ GENERIC_ORCHESTRATION_MODULES = (
     "graph_executor.py",
     "image_repeat.py",
 )
-# Concrete provider composition for one workflow stays at the composition root, and
-# may import that workflow (or its frozen implementation root) and nothing else.
-ORCHESTRATION_WORKFLOW_OWNERS = {
-    "character_3d": "stage_gen.recipes.character_3d",
-}
 
 
 def test_generic_orchestration_imports_no_workflow() -> None:
-    """The composition root is generic except for named per-workflow service modules."""
+    """The composition root imports no workflow."""
 
     sources = _python_sources(ORCHESTRATION_ROOT)
     names = {path.relative_to(ORCHESTRATION_ROOT).as_posix() for path in sources}
@@ -258,17 +237,8 @@ def test_generic_orchestration_imports_no_workflow() -> None:
     assert not missing, f"generic orchestration modules moved; update this rule: {missing}"
     violations: list[str] = []
     for path in sources:
-        owner = ORCHESTRATION_WORKFLOW_OWNERS.get(path.relative_to(ORCHESTRATION_ROOT).parts[0])
-        violations.extend(
-            violation
-            for violation, imported in _import_violation_pairs(
-                path, ("stage_gen.workflows", "stage_gen.recipes")
-            )
-            if owner is None or not _matches(imported, owner)
-        )
-    assert not violations, "orchestration imports a workflow it does not own:\n" + "\n".join(
-        violations
-    )
+        violations.extend(_import_violations(path, ("stage_gen.workflows",)))
+    assert not violations, "orchestration imports a workflow:\n" + "\n".join(violations)
 
 
 ENGINE_ROOT = SOURCE_ROOT / "gnode"
@@ -435,6 +405,7 @@ DECLARED_ENGINE_SURFACES = (
     "gnode.providers.fal",
     "gnode.providers.openai",
     "gnode.providers.openrouter",
+    "gnode.providers.tripo",
 )
 
 
@@ -506,7 +477,6 @@ def test_pipeline_mechanics_have_no_component_workflow_or_host_dependencies() ->
                 (
                     "stage_gen.components",
                     "stage_gen.workflows",
-                    "stage_gen.recipes",
                     "stage_gen.orchestration",
                     "stage_gen.capabilities",
                     "stage_gen.interfaces",

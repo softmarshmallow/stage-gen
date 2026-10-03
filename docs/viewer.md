@@ -44,8 +44,7 @@ run carries itself are drawn.
 ## Runs and their views
 
 A run is a folder that holds `execution-plan.json`, `execution-view.json`, `manifest.json`,
-`bundle.json` or `case.json`; or `graph.json` beside `summary.json` or `trace.jsonl` (a
-character run); or `plan.json` beside `events.jsonl` (a gnode workflow run). Runs are found up to
+`bundle.json` or `case.json`; or `plan.json` beside `events.jsonl` (a gnode workflow run). Runs are found up to
 four folders below each root. A run's own folders are not searched again, hidden folders and
 `node_modules` are skipped, symlinked folders are not followed out of the root, and the example
 store at the top of a root (`out/examples`) is not a run. [`src/stage_gen/runs.py`](../src/stage_gen/runs.py)
@@ -55,22 +54,20 @@ The view a run page draws is the run's own `execution-view.json`, or the one der
 cache, whichever is newer. Derived views are written only under
 `~/.cache/stage-gen/views/<first 16 hex digits of sha256(real path)>/execution-view.json`; the
 viewer and the refresher never write into a run folder. The refresher derives a view when a run's
-plan, trace or own record is newer than both its own view and its cached one:
+plan or trace is newer than both its own view and its cached one:
 
 - SDK runs, and runs of the SDK workflows, are joined from their plan and trace by the SDK;
 - a gnode workflow run is projected from its own `plan.json` and `events.jsonl`, with each
   step's view context and, when its workflow has a view of its own, the whole run's;
-- a character run's `graph.json` and `trace.jsonl` are staged under gnode's names in a temporary
-  folder and joined there, titled from the workflow's `[labels]`;
 - a game run is never derived. Its persisted view is drawn, or its row says the view is not
   exported, and `demo-games export-view --run DIR` exports one.
 
 `stage-gen inspect RUN --write-view DIR` writes the same derived view into a folder you name.
 
 The viewer reads any `*-execution-view-v1` envelope at `schema_version = 3`, and gnode's own
-`gnode-run-view-v1`, which a joined character view carries. Header fields a producer
+`gnode-run-view-v1`, which a workflow run's view carries. Header fields a producer
 adds beside the envelope (`pipeline_id`, `title`, a graph document's `recipe` literal, a game's
-ids, a joined view's `graph_kind`) are kept as the run's subject. Pipeline identities and node
+ids, a view's `graph_kind`) are kept as the run's subject. Pipeline identities and node
 type IDs need no registration. A user-authored pipeline uses the same graph, state, timing, cache,
 artifact and provenance surfaces as an installed workflow, and node types without joined display
 metadata use the generic node view. A document at another version is refused with a re-derive
@@ -83,8 +80,7 @@ message rather than migrated.
   node counts and when it last changed. Runs no workflow claims follow under "Game runs" (a graph
   document literal no workflow owns, or a consumer document) and "Other runs". Which workflow a
   run belongs to is read from the catalog's declared identities: an SDK run's pipeline id, a
-  graph document's literal and graph kinds, a character run's graph kind, a workflow run's
-  graph kind.
+  graph document's literal and graph kinds, a workflow run's graph kind.
 - `/workflows/<id>` shows a workflow's promise and summary, its commands with a copy button, the
   graph it plans offline from its committed sample inputs (drawn as on a run page, with every node
   pending; each lane is a step), its steps, and its runs.
@@ -92,7 +88,7 @@ message rather than migrated.
   path; `<tag>` is the run's root-relative path with `/` written as `~`. A run whose workflow has a
   view of its own (universe's gallery) is shown in that view, with the graph one link away
   (`?view=graph`); any other run with a view fills the window with its graph and node inspector; a
-  run with neither shows its own record and how to get a view. `/runs/<root>/<tag>/artifacts`
+  run with neither says how to get a view. `/runs/<root>/<tag>/artifacts`
   lists the declared outputs.
 
 While a run on a page is live (its trace was written in the last fifteen minutes and it has not
