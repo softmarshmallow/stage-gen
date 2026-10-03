@@ -256,7 +256,7 @@ describe("run view route", () => {
 
   test("a game run without a view says where one is", async () => {
     const run = await writeFiles("bellweather-m21", {
-      "execution-plan.json": { kind: "sideview-platformer-execution-graph-v2", recipe: "sideview-platformer" },
+      "manifest.json": { kind: "sideview-platformer-runtime-v1", schema_version: 1 },
     });
     const markup = await page(run);
     expect(markup).toContain("No run view");

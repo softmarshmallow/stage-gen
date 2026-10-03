@@ -18,9 +18,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from gnode.graph import CacheDisposition, Graph, Resource, RetryOwner
 from gnode.node_types import ViewArchetype
+from gnode.records import CacheDisposition, Resource, RetryOwner
 from gnode.view import (
+    RUN_VIEW_KIND,
+    RUN_VIEW_SCHEMA_VERSION,
     NodeState,
     RunState,
     RunView,
@@ -271,8 +273,8 @@ def project_run(run_dir: Path) -> RunView:
     finished = [event for event in events if event.get("event") == "run_finished"]
     log = run_dir / EVENTS_FILE
     return RunView(
-        schema_version=Graph.VIEW_SCHEMA_VERSION,
-        kind=Graph.VIEW_KIND,
+        schema_version=RUN_VIEW_SCHEMA_VERSION,
+        kind=RUN_VIEW_KIND,
         graph_sha256=str(plan.get("plan") or digest_of(plan)),
         topology_sha256=digest_of(
             sorted([node.node_id, sorted(node.depends_on)] for node in nodes)

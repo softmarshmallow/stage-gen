@@ -45,7 +45,7 @@ The take is a long provider job. gnode records the job before it is submitted an
 
 Each step's identity is its node type's locked version ([`gnode.lock`](gnode.lock); the node modules' sources and Stage Gen's movie sprite component count as their source) and what it reads. The take's call is kept in gnode's call cache by its capability, route, request (the prompt, the plate's digest, length, resolution and aspect ratio) and take number, so changing only the finishing settings reruns `finish` alone and bills nothing, and a reroll is a new take. Changing the template, the plate's fit or the brief's wording changes the request, and with it the bill.
 
-A take answered by a provider earlier, under the same request, is reused from the cache whatever run made it; the earlier pipeline's takes were carried over that way, by request, with `scripts/rekey_v1_runs.py`.
+A take answered by a provider earlier, under the same request, is reused from the cache whatever run made it.
 
 ## Outputs
 

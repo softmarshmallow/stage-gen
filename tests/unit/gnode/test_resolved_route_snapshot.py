@@ -9,33 +9,12 @@ from pydantic import ValidationError
 from gnode import (
     ExactSize2DV1,
     ExactSizeConstraints2DV1,
-    Graph,
-    GraphBuilder,
     ModelRef,
-    Node,
-    NodePolicy,
-    NodeType,
     ResolvedRouteSnapshotV1,
-    Resource,
     RouteCatalog,
     RouteContractV1,
-    ViewArchetype,
     WorkloadPolicyV1,
     WorkloadRequestV1,
-    graph_sha256_of,
-    seal_graph,
-    topology_sha256,
-)
-
-_INPUT_DIGEST = "a" * 64
-
-IMAGE_TYPE = NodeType(
-    type_id="asset/image.generate",
-    title="Generate image",
-    archetype=ViewArchetype.IMAGE,
-    operation="image_generation",
-    contract_version="image-v1",
-    policy=NodePolicy(max_attempts=3),
 )
 
 
@@ -97,63 +76,20 @@ def _workload(*, policy_id: str = "hero-image") -> WorkloadRequestV1:
     )
 
 
-def _builder(
-    *,
-    route: RouteContractV1 | None = None,
-    policy_id: str = "hero-image",
-    policy_version: str = "1",
-) -> GraphBuilder:
+def _snapshot(*, route: RouteContractV1 | None = None) -> ResolvedRouteSnapshotV1:
     selected = route or _route()
     policy = WorkloadPolicyV1(
-        policy_id=policy_id,
-        policy_version=policy_version,
+        policy_id="hero-image",
+        policy_version="1",
         product_id="gpt-image-2.5-sunburst",
         route_id=selected.route_id,
     )
-    return GraphBuilder(
-        route_catalog=RouteCatalog([selected]),
-        workload_policies={policy_id: policy},
-    )
-
-
-def _add_image(
-    builder: GraphBuilder,
-    *,
-    node_id: str = "hero.generate",
-    depends_on: tuple[str, ...] = (),
-    policy_id: str = "hero-image",
-) -> Node:
-    return builder.add(
-        IMAGE_TYPE,
-        node_id,
-        domain="image",
-        description="Generate a hero image",
-        depends_on=depends_on,
-        input_digests=(_INPUT_DIGEST,),
-        workload=_workload(policy_id=policy_id),
-    )
-
-
-def _seal(builder: GraphBuilder, *, terminal_node_id: str = "hero.generate") -> Graph:
-    return seal_graph(
-        Graph,
-        resources=builder.resources(),
-        resolved_routes=builder.resolved_routes(),
-        nodes=builder.nodes,
-        terminal_node_id=terminal_node_id,
-        schema_version=1,
-        kind="test-graph-v1",
-    )
+    return RouteCatalog([selected]).resolve(_workload(), policy).to_snapshot()
 
 
 def test_snapshot_round_trips_and_rehydrates_exact_dispatch_identity() -> None:
-    builder = _builder()
-    node = _add_image(builder)
-    graph = _seal(builder)
+    snapshot = _snapshot()
 
-    snapshot = graph.resolved_route_for(node)
-    assert graph.resolved_route_for(node.node_id) is snapshot
-    assert graph.resolved_route(snapshot.binding_ref) is snapshot
     assert snapshot.endpoint == "https://queue.fal.test/fal-ai/gpt-image-2.5-sunburst"
     assert snapshot.required_features == (
         "maximum_quality",
@@ -170,7 +106,6 @@ def test_snapshot_round_trips_and_rehydrates_exact_dispatch_identity() -> None:
         max_edge=3_840,
         max_aspect_ratio=3.0,
     )
-    assert snapshot.output_fingerprint in node.input_sha256
 
     forbidden = {
         "estimated_duration_seconds",
@@ -193,11 +128,7 @@ def test_snapshot_round_trips_and_rehydrates_exact_dispatch_identity() -> None:
     assert restored.request.output_options["quality"] == "sunburst"
     assert restored.policy.policy_version == snapshot.policy_version
     assert restored.to_snapshot() == snapshot
-
-    reparsed = Graph.model_validate_json(graph.model_dump_json())
-    assert reparsed == graph
-    assert reparsed.graph_sha256 == graph.graph_sha256
-    assert reparsed.topology_sha256 == graph.topology_sha256
+    assert ResolvedRouteSnapshotV1.model_validate_json(snapshot.model_dump_json()) == snapshot
 
 
 def test_snapshot_round_trips_a_strict_exact_size_allowlist() -> None:
@@ -208,132 +139,26 @@ def test_snapshot_round_trips_a_strict_exact_size_allowlist() -> None:
             allowed_sizes=(allowed_size,),
         ),
     )
-    builder = _builder(route=route)
-    node = _add_image(builder)
-    graph = _seal(builder)
+    snapshot = _snapshot(route=route)
 
-    snapshot = graph.resolved_route_for(node)
     assert snapshot.supported_exact_size_constraints is not None
     assert snapshot.supported_exact_size_constraints.allowed_sizes == (allowed_size,)
-    assert Graph.model_validate_json(graph.model_dump_json()) == graph
     assert snapshot.to_resolved_binding().to_snapshot() == snapshot
 
 
-def test_builder_deduplicates_only_identical_used_snapshots() -> None:
-    builder = _builder()
-    first = _add_image(builder)
-    second = _add_image(
-        builder,
-        node_id="hero-variant.generate",
-        depends_on=(first.node_id,),
+def test_price_pacing_and_verification_do_not_change_the_binding() -> None:
+    changed = _route(
+        duration=120.0,
+        cost_low=0.05,
+        cost_high=0.25,
+        requests_per_minute=60,
+        verified_on="2026-10-01",
     )
-
-    assert first.binding_ref == second.binding_ref
-    assert len(builder.resolved_routes()) == 1
-    graph = _seal(builder, terminal_node_id=second.node_id)
-    assert len(graph.resolved_routes) == 1
-
-
-def test_inactive_registered_routes_never_enter_the_plan() -> None:
-    selected = _route()
-    inactive = replace(
-        selected,
-        route_id="gpt-image-2.5-sunburst/openai/images",
-        model=ModelRef(model="gpt-image-2.5-sunburst", provider="openai"),
-        surface="images_api",
-        endpoint="https://api.openai.test/v1/images/generations",
-        adapter_id="gnode.providers.openai.image",
-        resource_id="openai-image",
-    )
-    policy = WorkloadPolicyV1(
-        policy_id="hero-image",
-        policy_version="1",
-        product_id=selected.product_id,
-        route_id=selected.route_id,
-    )
-    builder = GraphBuilder(
-        route_catalog=RouteCatalog([inactive, selected]),
-        workload_policies={policy.policy_id: policy},
-    )
-    _add_image(builder)
-
-    assert [snapshot.route_id for snapshot in builder.resolved_routes()] == [selected.route_id]
-    assert [resource.resource_id for resource in builder.resources()] == ["local", "fal-image"]
-
-
-@pytest.mark.parametrize(
-    ("policy_id", "policy_version"),
-    [("alternate-hero-image", "1"), ("hero-image", "2")],
-)
-def test_policy_alias_or_revision_changes_plan_ref_but_not_artifact_cache(
-    policy_id: str, policy_version: str
-) -> None:
-    base_builder = _builder()
-    base_node = _add_image(base_builder)
-    changed_builder = _builder(policy_id=policy_id, policy_version=policy_version)
-    changed_node = _add_image(changed_builder, policy_id=policy_id)
-
-    assert changed_node.cache_key == base_node.cache_key
-    assert changed_node.binding_ref != base_node.binding_ref
-    assert (
-        changed_builder.resolved_routes()[0].output_fingerprint
-        == base_builder.resolved_routes()[0].output_fingerprint
-    )
-
-
-def test_price_pacing_and_verification_do_not_change_ref_or_artifact_cache() -> None:
-    base_builder = _builder()
-    base_node = _add_image(base_builder)
-    changed_route = replace(
-        _route(),
-        estimated_duration_seconds=999.0,
-        estimated_cost_low_usd=8.0,
-        estimated_cost_high_usd=9.0,
-        requests_per_minute=2,
-        verified_on="2030-01-01",
-        evidence_ref="new-evidence",
-    )
-    changed_builder = _builder(route=changed_route)
-    changed_node = _add_image(changed_builder)
-
-    assert changed_node.cache_key == base_node.cache_key
-    assert changed_node.binding_ref == base_node.binding_ref
-    assert changed_builder.resolved_routes() == base_builder.resolved_routes()
-
-
-def test_exact_size_constraint_change_rekeys_plan_but_not_artifact_cache() -> None:
-    base_builder = _builder()
-    base_node = _add_image(base_builder)
-    changed_route = replace(
-        _route(),
-        exact_size_constraints=ExactSizeConstraints2DV1(
-            width_multiple=16,
-            height_multiple=16,
-            min_area=655_360,
-            max_area=8_294_400,
-            max_edge=4_096,
-            max_aspect_ratio=3.0,
-        ),
-    )
-    changed_builder = _builder(route=changed_route)
-    changed_node = _add_image(changed_builder)
-
-    assert changed_node.cache_key == base_node.cache_key
-    assert changed_node.binding_ref != base_node.binding_ref
-    assert (
-        changed_builder.resolved_routes()[0].behavior_fingerprint
-        == base_builder.resolved_routes()[0].behavior_fingerprint
-    )
-    assert (
-        changed_builder.resolved_routes()[0].output_fingerprint
-        == base_builder.resolved_routes()[0].output_fingerprint
-    )
+    assert _snapshot(route=changed).binding_ref == _snapshot().binding_ref
 
 
 def test_snapshot_refuses_tampered_behavior_options_and_reference() -> None:
-    builder = _builder()
-    _add_image(builder)
-    payload = builder.resolved_routes()[0].model_dump(mode="json")
+    payload = _snapshot().model_dump(mode="json")
 
     changed_endpoint = {**payload, "endpoint": "https://queue.fal.test/another-route"}
     with pytest.raises(ValidationError, match="behavior fingerprint is stale"):
@@ -355,9 +180,7 @@ def test_snapshot_refuses_tampered_behavior_options_and_reference() -> None:
 
 
 def test_snapshot_refuses_tampered_exact_size_capability_or_requirement() -> None:
-    builder = _builder()
-    _add_image(builder)
-    payload = builder.resolved_routes()[0].model_dump(mode="json")
+    payload = _snapshot().model_dump(mode="json")
 
     changed_constraints = {
         **payload,
@@ -378,9 +201,7 @@ def test_snapshot_refuses_tampered_exact_size_capability_or_requirement() -> Non
 
 
 def test_snapshot_refuses_credentials_in_endpoint_or_output_options() -> None:
-    builder = _builder()
-    _add_image(builder)
-    payload = builder.resolved_routes()[0].model_dump(mode="json")
+    payload = _snapshot().model_dump(mode="json")
 
     secret_endpoint = {
         **payload,
@@ -399,133 +220,3 @@ def test_snapshot_refuses_credentials_in_endpoint_or_output_options() -> None:
     }
     with pytest.raises(ValidationError, match="credential-bearing keys"):
         ResolvedRouteSnapshotV1.model_validate_json(json.dumps(secret_options))
-
-
-@pytest.mark.parametrize(
-    ("change", "value", "pattern"),
-    [
-        ("operation", "image_edit", "operation"),
-        ("provider", "openrouter", "provider"),
-        ("model", "another-model", "model"),
-        ("resource_id", "another-image", "resource_id"),
-        ("input_sha256", (_INPUT_DIGEST,), "output_fingerprint"),
-    ],
-)
-def test_graph_refuses_node_binding_mismatches(change: str, value: object, pattern: str) -> None:
-    builder = _builder()
-    node = _add_image(builder)
-    changed_node = node.model_copy(update={change: value})
-    resources = list(builder.resources())
-    if change == "resource_id":
-        resources.append(Resource(resource_id="another-image", rate_limit_owner="none"))
-
-    with pytest.raises(ValidationError, match=pattern):
-        seal_graph(
-            Graph,
-            resources=resources,
-            resolved_routes=builder.resolved_routes(),
-            nodes=(changed_node,),
-            terminal_node_id=changed_node.node_id,
-            schema_version=1,
-            kind="test-graph-v1",
-        )
-
-
-def test_graph_refuses_dangling_duplicate_and_unused_snapshots() -> None:
-    builder = _builder()
-    node = _add_image(builder)
-    snapshot = builder.resolved_routes()[0]
-
-    dangling = node.model_copy(update={"binding_ref": "0" * 64})
-    with pytest.raises(ValidationError, match="references an undeclared binding"):
-        seal_graph(
-            Graph,
-            resources=builder.resources(),
-            resolved_routes=(snapshot,),
-            nodes=(dangling,),
-            terminal_node_id=dangling.node_id,
-            schema_version=1,
-            kind="test-graph-v1",
-        )
-
-    with pytest.raises(ValidationError, match="resolved routes must be unique"):
-        seal_graph(
-            Graph,
-            resources=builder.resources(),
-            resolved_routes=(snapshot, snapshot),
-            nodes=(node,),
-            terminal_node_id=node.node_id,
-            schema_version=1,
-            kind="test-graph-v1",
-        )
-
-    alternate_builder = _builder(policy_version="2")
-    _add_image(alternate_builder)
-    unused = alternate_builder.resolved_routes()[0]
-    with pytest.raises(ValidationError, match="unused resolved routes"):
-        seal_graph(
-            Graph,
-            resources=builder.resources(),
-            resolved_routes=(snapshot, unused),
-            nodes=(node,),
-            terminal_node_id=node.node_id,
-            schema_version=1,
-            kind="test-graph-v1",
-        )
-
-
-def test_old_graph_json_keeps_its_exact_serialized_shape_and_hashes() -> None:
-    old_record = {
-        "schema_version": 1,
-        "kind": "test-graph-v1",
-        "resources": [
-            {
-                "resource_id": "local",
-                "max_in_flight": None,
-                "requests_per_minute": None,
-                "rate_limit_owner": "none",
-            },
-            {
-                "resource_id": "legacy-image",
-                "max_in_flight": None,
-                "requests_per_minute": None,
-                "rate_limit_owner": "none",
-            },
-        ],
-        "nodes": [
-            {
-                "node_id": "hero.generate",
-                "type_id": "asset/image.generate",
-                "domain": "image",
-                "description": "Generate a hero image",
-                "params": {},
-                "depends_on": [],
-                "barrier_only": [],
-                "operation": "image_generation",
-                "resource_id": "legacy-image",
-                "provider": "openai",
-                "model": "legacy-model",
-                "retry_owner": "component",
-                "max_attempts": 3,
-                "input_sha256": [_INPUT_DIGEST],
-                "cache_key": "b4f8ef5a956475b0119e68b777c4283a491daf7f007eba4475979d3d33b75e57",
-                "ports": [],
-                "card": None,
-                "template_id": None,
-                "estimated_duration_seconds": 10.0,
-                "estimated_cost_low_usd": 0.1,
-                "estimated_cost_high_usd": 0.2,
-            }
-        ],
-        "terminal_node_id": "hero.generate",
-        "topology_sha256": "9707669e3adfaf257534fb96fded2ff368cd87e0863b0436b0377f231a6ebba9",
-        "graph_sha256": "2d4562db630d67d82a38bf6cd5317e4d36e205400ee2f44f495a6073cde50e74",
-    }
-
-    graph = Graph.model_validate_json(json.dumps(old_record))
-
-    assert graph.resolved_routes == ()
-    assert graph.node("hero.generate").binding_ref is None
-    assert graph.topology_sha256 == topology_sha256(graph)
-    assert graph.graph_sha256 == graph_sha256_of(graph)
-    assert graph.model_dump(mode="json") == old_record

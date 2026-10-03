@@ -1,23 +1,12 @@
-"""The application layer: what a command does, reachable without argparse.
+"""The application layer's one shared error.
 
-The CLI parses; this package decides. A run report has one shape across every recipe
-and checkpoint, a usage error is its own class so it can exit 2 rather than be
-flattened with an internal failure, and the path resolutions a command
-makes are functions a test or a script calls directly.
+A usage error is its own class so a command can exit 2 for it, the way argparse does for a
+malformed command line, rather than flatten it with an internal failure.
 """
 
-from stage_gen.application.runs import (
-    UsageError,
-    resolve_cache_dir,
-    resolve_output_path,
-    run_report,
-    write_report,
-)
 
-__all__ = [
-    "UsageError",
-    "resolve_cache_dir",
-    "resolve_output_path",
-    "run_report",
-    "write_report",
-]
+class UsageError(ValueError):
+    """A command was asked for something its flags cannot mean."""
+
+
+__all__ = ["UsageError"]

@@ -19,8 +19,7 @@ describe("parseCatalog", () => {
     const workflow = findWorkflow(parsed, "swatch-sheet");
     expect(workflow?.manifest.title).toBe("Swatch sheet");
     expect(workflow?.manifest.tryIt?.commands).toHaveLength(2);
-    expect(workflow?.identity.graphKinds).toEqual(["pipeline-execution-graph-v1"]);
-    expect(workflow?.identity.declared.pipelines).toBeDefined();
+    expect(workflow?.identity.graphKinds).toEqual(["gnode-graph-v2"]);
     expect(workflow?.steps.map((step) => step.label)).toEqual(["Draw", "Check"]);
     expect(workflow?.steps[0].members[1]).toEqual({
       typeId: "swatch.draw",

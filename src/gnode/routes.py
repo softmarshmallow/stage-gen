@@ -22,7 +22,7 @@ from typing import Literal
 from urllib.parse import urlsplit
 
 from gnode.binding import Binding, CapabilityError, ModelRef
-from gnode.graph import (
+from gnode.records import (
     LOCAL_OPERATION,
     NODE_ID_PATTERN,
     ResolvedRouteSnapshotV1,

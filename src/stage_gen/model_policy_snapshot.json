@@ -1,6 +1,5 @@
 {
-  "generated_files": [],
-  "kind": "stage-gen-model-policy-snapshot-v1",
+  "kind": "stage-gen-model-policy-snapshot-v2",
   "policies": [
     {
       "policy_id": "image.conditioned.repair",
@@ -227,7 +226,6 @@
       "selection": "openrouter"
     }
   ],
-  "recipes": [],
   "routes": [
     {
       "adapter_behavior_version": "1",
@@ -773,5 +771,5 @@
       "verified_on": "2026-09-09"
     }
   ],
-  "schema_version": 1
+  "schema_version": 2
 }

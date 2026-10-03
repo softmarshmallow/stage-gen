@@ -111,7 +111,6 @@ RETIRED_TERM_DOCUMENTS = (
     "docs/glossary.md",
     "docs/viewer.md",
     "docs/site.md",
-    "docs/sdk/guide.md",
 )
 GLOSSARY_EXEMPT_SECTIONS = ("## Retired terms", "## Frozen persisted strings")
 # The site's own sources, whose strings and JSX text readers see (page titles, headings,

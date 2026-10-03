@@ -91,7 +91,6 @@ include = [
   "/pyproject.toml",
   "/docs/**/*.json",
   "/docs/**/*.md",
-  "/docs/sdk/pipelines/**/*.py",
   "/scripts/**/*.py",
   "/src/gnode/**",
   "/src/gnode_std/**",

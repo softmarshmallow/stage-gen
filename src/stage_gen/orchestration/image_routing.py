@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from dataclasses import replace
 from typing import Protocol, Self
 
 from gnode import (
@@ -38,7 +37,6 @@ from stage_gen.model_routes import (
     configured_image_route_catalog,
     image_workload_policies,
 )
-from stage_gen.pipeline.route_context import current_resolved_binding
 
 _FAL_BASE_URL = "https://fal.run"
 _SUPPORTED_ROUTE_IDS = frozenset(
@@ -132,16 +130,9 @@ class RoutedImageGenerationService(ImageGenerationService):
     def endpoint_for(self, request: ImageGenerationRequest) -> str:
         """Return the endpoint sealed into this request without constructing a provider."""
 
-        contextual = current_resolved_binding()
-        binding = request.resolved_binding or contextual
+        binding = request.resolved_binding
         if binding is None:
             raise ImageRoutingError("image request is missing its resolved binding")
-        if (
-            request.resolved_binding is not None
-            and contextual is not None
-            and request.resolved_binding != contextual
-        ):
-            raise ImageRoutingError("image request binding disagrees with its planned node")
         return _registered_route(binding, self._config).endpoint
 
     async def __aenter__(self) -> Self:
@@ -157,17 +148,9 @@ class RoutedImageGenerationService(ImageGenerationService):
         await self.aclose()
 
     async def generate(self, request: ImageGenerationRequest) -> ImageGenerationResult:
-        contextual = current_resolved_binding()
-        binding = request.resolved_binding or contextual
+        binding = request.resolved_binding
         if binding is None:
             raise ImageRoutingError("image request is missing its resolved binding")
-        if (
-            request.resolved_binding is not None
-            and contextual is not None
-            and request.resolved_binding != contextual
-        ):
-            raise ImageRoutingError("image request binding disagrees with its planned node")
-        request = replace(request, resolved_binding=binding)
         route = _registered_route(binding, self._config)
         try:
             applied = apply_stage_gen_image_binding(request, binding)

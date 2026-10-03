@@ -141,10 +141,11 @@ describe("run names", () => {
 });
 
 describe("run discovery", () => {
-  test("finds every run shape under several roots, as stage_gen.runs.discover does", async () => {
+  test("finds every run shape under several roots, as gnode view does for workflow runs", async () => {
     const out = await tempDir("stage-gen-out-");
     const spikes = await tempDir("stage-gen-spikes-");
-    await write(path.join(out, "sdk-run", "execution-plan.json"), { kind: "pipeline-execution-graph-v1" });
+    // A plan the retired executor wrote is no longer a run.
+    await write(path.join(out, "old-run", "execution-plan.json"), { kind: "pipeline-execution-graph-v1" });
     await write(path.join(out, "game-run", "manifest.json"), { kind: "prepared-game-runtime-v12" });
     await write(path.join(out, "view-only", "execution-view.json"), { kind: "x" });
     await write(path.join(spikes, "canary-01", "wren-01", "plan.json"));
@@ -162,24 +163,23 @@ describe("run discovery", () => {
 
     expect(found.map((entry) => [entry.root.dir, entry.relative])).toEqual([
       [out, "game-run"],
-      [out, "sdk-run"],
       [out, "view-only"],
       [spikes, "canary-01/wren-01"],
       [spikes, "review/facial-4k/yuzu/run-01"],
     ]);
-    expect(found[4].run.tag).toBe("review~facial-4k~yuzu~run-01");
+    expect(found[3].run.tag).toBe("review~facial-4k~yuzu~run-01");
   });
 
   test("skips the example store, hidden folders, node_modules, links out and deep folders", async () => {
     const out = await tempDir("stage-gen-out-");
     const elsewhere = await tempDir("stage-gen-elsewhere-");
     await write(path.join(out, "examples", "movie-sprite", "yuzu-idle", "manifest.json"));
-    await write(path.join(out, ".cache", "run", "execution-plan.json"));
+    await write(path.join(out, ".cache", "run", "manifest.json"));
     await write(path.join(out, "node_modules", "pkg", "manifest.json"));
-    await write(path.join(out, "a", "b", "c", "d", "e", "execution-plan.json"));
-    await write(path.join(elsewhere, "outside", "execution-plan.json"));
+    await write(path.join(out, "a", "b", "c", "d", "e", "manifest.json"));
+    await write(path.join(elsewhere, "outside", "manifest.json"));
     await symlink(elsewhere, path.join(out, "linked"));
-    await write(path.join(out, "batch", "examples", "execution-plan.json"));
+    await write(path.join(out, "batch", "examples", "manifest.json"));
     process.env.STAGE_GEN_RUN_ROOTS = out;
 
     expect((await discoverRuns()).map((entry) => entry.relative)).toEqual(["batch/examples"]);

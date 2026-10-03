@@ -12,9 +12,6 @@
 
 import { artifactReference, parseArtifactPreview, parseLegacyMotion, type ArtifactPreview, type LegacyMotionPreview } from "./artifact-preview";
 
-/** Any authored asset pipeline, independent of the installed workflows. */
-export const PIPELINE_EXECUTION_VIEW_KIND = "pipeline-execution-view-v1";
-
 /** gnode's own view kind, carried by a view joined from a plain gnode plan and trace. */
 export const GNODE_RUN_VIEW_KIND = "gnode-run-view-v1";
 
@@ -253,17 +250,12 @@ export interface ExecutionViewGap {
 export type SubjectValue = string | number | boolean;
 
 /**
- * Who the run was for. Each producer names its subject with its own header fields —
- * a pipeline its id and title, a graph document its `recipe` literal and its ids, a
- * joined gnode view its graph kind — so they are kept as a map, and the few a reader
- * groups or labels by are lifted out.
+ * Who the run was for. Each producer names its subject with its own header fields, so
+ * they are kept as a map, and the title a reader labels by is lifted out.
  */
 export interface ExecutionViewSubject {
   /** The view kind, verbatim. */
   readonly kind: string;
-  /** The graph document's persisted `recipe` literal, when the producer has one. */
-  readonly recipe: string | null;
-  readonly pipelineId: string | null;
   readonly title: string | null;
   /** Every other scalar header field, by its wire name. */
   readonly fields: Readonly<Record<string, SubjectValue>>;
@@ -278,7 +270,7 @@ export function subjectLabel(subject: ExecutionViewSubject): string {
     (value): value is string => typeof value === "string" && value.length > 0,
   );
   if (named.length > 0) return named.join(" · ");
-  return subject.recipe ?? subject.kind;
+  return subject.kind;
 }
 
 export interface ExecutionView {
@@ -591,8 +583,6 @@ const ENVELOPE_FIELDS = new Set([
   "resources",
   "nodes",
   "gaps",
-  "recipe",
-  "pipeline_id",
   "title",
 ]);
 
@@ -603,19 +593,8 @@ function subject(root: Record<string, unknown>, kind: string): ExecutionViewSubj
     if (typeof value === "string" || typeof value === "boolean") fields[name] = value;
     else if (typeof value === "number" && Number.isFinite(value)) fields[name] = value;
   }
-  if (kind === PIPELINE_EXECUTION_VIEW_KIND) {
-    const pipelineId = text(root.pipeline_id, "pipeline_id");
-    const title = text(root.title, "title");
-    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(pipelineId))
-      throw new Error("pipeline_id must be a safe identifier of at most 128 characters");
-    if (!title.trim() || title.trim() !== title || title.length > 256)
-      throw new Error("title must be a non-empty string of at most 256 characters");
-    return Object.freeze({ kind, recipe: null, pipelineId, title, fields: Object.freeze(fields) });
-  }
   return Object.freeze({
     kind,
-    recipe: root.recipe === undefined || root.recipe === null ? null : text(root.recipe, "recipe"),
-    pipelineId: textOrNull(root.pipeline_id, "pipeline_id"),
     title: textOrNull(root.title, "title"),
     fields: Object.freeze(fields),
   });

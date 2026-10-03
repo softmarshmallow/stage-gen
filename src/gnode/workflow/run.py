@@ -18,19 +18,19 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import fcntl
 import hashlib
 import json
 import os
 import shutil
 import time
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from gnode.ledger import CeilingExceeded, CeilingLedger
-from gnode.runner import RunLocked, run_lock
 from gnode.trace import RUN_EVENTS_KIND, RUN_EVENTS_SCHEMA_VERSION, JsonlTraceSink
 from gnode.workflow.document import Step, WorkflowDocument
 from gnode.workflow.expand import Expansion, Instance, Result
@@ -58,6 +58,29 @@ from gnode.workflow.values import (
 EVENTS_FILE = "events.jsonl"
 PLAN_FILE = "plan.json"
 ENGINE_ATTEMPTS = 6
+
+
+#: The file a run's invocation holds an exclusive lock on while it runs.
+LOCK_FILE = "run.lock"
+
+
+class RunLocked(RuntimeError):
+    """Another invocation holds this run."""
+
+
+@contextlib.contextmanager
+def run_lock(run_dir: Path) -> Iterator[None]:
+    """Hold the run's exclusive lock, or refuse at once when someone else does."""
+
+    with (run_dir / LOCK_FILE).open("a+b") as handle:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise RunLocked(f"another invocation is running {run_dir.name}") from error
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 class RunRefused(RuntimeError):

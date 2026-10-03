@@ -149,10 +149,9 @@ WORKFLOW_REGISTRY_MODULES = ("_registry.py", "_catalog.py", "_checks.py", "_gnod
 
 
 def test_workflows_do_not_import_each_other() -> None:
-    """Workflows share code through declared homes (canonical, media, components,
-    the SDK in stage_gen.pipeline such as node_cache, the example contract in
-    stage_gen.examples), never through another workflow's modules. A workflow imports
-    only its own package and the registry's declarations."""
+    """Workflows share code through declared homes (canonical, media, components, the
+    example contract in stage_gen.examples), never through another workflow's modules. A
+    workflow imports only its own package and the registry's declarations."""
 
     workflows = _workflow_roots()
     assert len(workflows) >= 5, f"expected at least 5 workflow packages, found {sorted(workflows)}"
@@ -220,9 +219,7 @@ def _import_violations(path: Path, forbidden: tuple[str, ...]) -> list[str]:
 
 GENERIC_ORCHESTRATION_MODULES = (
     "runtime.py",
-    "services.py",
     "image_routing.py",
-    "graph_executor.py",
     "image_repeat.py",
 )
 
@@ -276,16 +273,13 @@ def test_engine_does_not_import_the_application() -> None:
 
 ENGINE_RINGS = {
     "binding": 0,
-    "build": 0,
     "contracts": 0,
-    "graph": 0,
     "ledger": 0,
     "node_types": 0,
+    "records": 0,
     "reliability": 0,
     "route_constraints": 0,
     "routes": 0,
-    "runner": 0,
-    "schedule": 0,
     "trace": 0,
     "view": 0,
     "workflow": 0,
@@ -444,7 +438,6 @@ def test_product_source_never_statically_imports_optional_consumers() -> None:
     for root in (
         SOURCE_ROOT / "stage_gen",
         SOURCE_ROOT.parent / "scripts",
-        SOURCE_ROOT.parent / "docs/sdk/pipelines",
     ):
         for path in _python_sources(root):
             violations.extend(_import_violations(path, (*GAME_MODULES, "concept_studio")))
@@ -467,32 +460,23 @@ def test_game_pipelines_do_not_import_other_games_or_collection_tooling() -> Non
     assert not violations, "game imports a sibling consumer:\n" + "\n".join(violations)
 
 
-def test_pipeline_mechanics_have_no_component_workflow_or_host_dependencies() -> None:
-    violations: list[str] = []
-    for path in _python_sources(SOURCE_ROOT / "stage_gen/pipeline"):
-        violations.extend(
-            _import_violations(
-                path,
-                (
-                    "stage_gen.components",
-                    "stage_gen.workflows",
-                    "stage_gen.orchestration",
-                    "stage_gen.capabilities",
-                    "stage_gen.viewer",
-                    "gnode.providers",
-                ),
-            )
-        )
-    assert not violations, "pipeline mechanics import a concrete application owner:\n" + "\n".join(
-        violations
-    )
-
-
 #: Modules the gnode epic retired: each is gone, and nothing imports it.
 RETIRED_MODULES = (
     "stage_gen.interfaces",
     "stage_gen.runs",
+    "stage_gen.pipeline",
+    "stage_gen.application.runs",
+    "stage_gen.components._node_kit",
     "stage_gen.orchestration.env_import",
+    "stage_gen.orchestration.graph_executor",
+    "stage_gen.orchestration.rekey",
+    "stage_gen.orchestration.services",
+    "stage_gen.capabilities",
+    "gnode.graph",
+    "gnode.build",
+    "gnode.schedule",
+    "gnode.runner",
+    "demo_game_tools.preparation",
 )
 
 
@@ -500,8 +484,9 @@ def test_retired_modules_are_gone_and_imported_by_nothing() -> None:
     present = [
         module
         for module in RETIRED_MODULES
-        if (SOURCE_ROOT / Path(*module.split("."))).with_suffix(".py").exists()
-        or (SOURCE_ROOT / Path(*module.split("."))).is_dir()
+        for root in (SOURCE_ROOT, *GAME_SOURCE_ROOTS)
+        if (root / Path(*module.split("."))).with_suffix(".py").exists()
+        or (root / Path(*module.split("."))).is_dir()
     ]
     assert not present, f"retired modules are back: {present}"
     violations: list[str] = []

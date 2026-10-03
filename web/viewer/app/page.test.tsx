@@ -2,7 +2,6 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   executionViewFixture,
-  pipelineExecutionViewFixture,
   unfinishedExecutionViewFixture,
 } from "@stage-gen/ui/contracts/run-view.test-fixtures";
 import { type ViewerEnv, viewerEnv } from "@/lib/test-support/viewer-env";
@@ -13,21 +12,22 @@ let env: ViewerEnv;
 
 beforeAll(async () => {
   env = await viewerEnv();
+  const swatchPlan = { gnode: "graph/v2", workflow: { id: "swatch-sheet" } };
   await env.write("swatch-old", {
-    "execution-plan.json": { kind: "pipeline-execution-graph-v1", pipeline_id: "swatch-sheet" },
-    "execution-view.json": { ...pipelineExecutionViewFixture(), pipeline_id: "swatch-sheet" },
+    "plan.json": swatchPlan,
+    "events.jsonl": "",
+    "execution-view.json": { ...executionViewFixture(), kind: "gnode-run-view-v1" },
   });
   await env.write("batch~swatch-live", {
-    "execution-plan.json": { kind: "pipeline-execution-graph-v1", pipeline_id: "swatch-sheet" },
+    "plan.json": swatchPlan,
+    "events.jsonl": "",
     "execution-view.json": {
       ...unfinishedExecutionViewFixture(new Date().toISOString()),
-      kind: "pipeline-execution-view-v1",
-      pipeline_id: "swatch-sheet",
-      title: "Swatch sheet",
+      kind: "gnode-run-view-v1",
     },
   });
   await env.write("bellweather-m21", {
-    "execution-plan.json": { kind: "sideview-platformer-execution-graph-v2", recipe: "sideview-platformer" },
+    "manifest.json": { kind: "sideview-platformer-runtime-v1", schema_version: 1 },
   });
   await env.write("calibration-01", {
     "plan.json": { gnode: "plan/v1", workflow: { id: "no-such-workflow" } },

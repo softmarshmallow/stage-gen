@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import Callable
-
 from stage_gen.config import StageGenConfig
 from stage_gen.image_product import ImageProvider
 from stage_gen.model_routes import (
@@ -14,7 +11,6 @@ from stage_gen.model_routes import (
     SUNBURST_PRODUCT_ID,
     configured_image_route_catalog,
 )
-from stage_gen.orchestration.services import RunServices
 
 CONFIG = StageGenConfig(
     openai_api_key="openai",
@@ -22,28 +18,6 @@ CONFIG = StageGenConfig(
     fal_key="fal",
     elevenlabs_api_key="elevenlabs",
 )
-
-#: Which ``RunServices`` accessor serves each bound operation.
-SERVICE_FOR_OPERATION: dict[str, Callable[[RunServices], object]] = {
-    "structured_generation": lambda services: services.structured(),
-    "tool_loop": lambda services: services.tool_loop(),
-    "music_generation": lambda services: services.music(),
-    "background_removal": lambda services: services.background_removal(),
-    "video_generation": lambda services: services.video(),
-    "sound_effect_generation": lambda services: services.sound_effect(),
-    "speech_generation": lambda services: services.speech(),
-}
-
-
-def test_image_runtime_is_request_routed_instead_of_bound_to_an_ambient_provider() -> None:
-    services = RunServices(CONFIG)
-    try:
-        image = services.image()
-        assert services.image() is image
-        assert image.provider == "routed"
-        assert image.model == SUNBURST_PRODUCT_ID
-    finally:
-        asyncio.run(services.aclose())
 
 
 def test_registered_image_routes_are_sunburst_only_and_provider_exact() -> None:

@@ -61,15 +61,8 @@ from demo_game_tools.kits.ui_art.models import (
     IconSetDirection,
     UiArtwork,
 )
-from gnode import (
-    NodePolicy,
-    PersistedContractModel,
-)
+from gnode import PersistedContractModel
 from stage_gen.components._game_input import SNAKE_ID_PATTERN
-from stage_gen.components._node_kit import ProviderCall
-
-_P = "2d/ui"
-_PROVIDER = NodePolicy(max_attempts=6)
 
 IMAGE_FEATURES = ("transparent_background", "reference_images")
 STRUCTURED_FEATURES = ("structured_output", "image_input")
@@ -686,7 +679,6 @@ __all__ = [
     "UI_ATLAS_VALIDATION_KIND",
     "UI_ATLAS_VALIDATION_VERSION",
     "UI_ATLAS_VERDICT_KIND",
-    "ProviderCall",
     "SheetFamily",
     "UiSheetDirection",
     "UiSheetLayout",

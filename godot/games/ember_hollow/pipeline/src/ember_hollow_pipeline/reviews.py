@@ -10,7 +10,7 @@ from typing import Any, Final
 
 from pydantic import BaseModel, Field
 
-from stage_gen.pipeline.structured_transport import inline_local_schema_refs
+from stage_gen.orchestration.structured_transport import inline_local_schema_refs
 
 #: The families a build reviews, each over its own contact sheet.
 REVIEW_FAMILIES: Final = ("props", "ground", "actors", "fx", "seasons")

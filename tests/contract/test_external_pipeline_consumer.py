@@ -186,8 +186,6 @@ import gnode_std
 import stage_gen.viewer
 import stage_gen.orchestration.gnode_plugin
 import stage_gen.application
-import stage_gen.capabilities
-import stage_gen.pipeline
 import stage_gen.components
 for module in pkgutil.iter_modules(stage_gen.components.__path__):
     if module.ispkg and not module.name.startswith('_'):
@@ -244,8 +242,8 @@ class NoConsumers(importlib.abc.MetaPathFinder):
             raise AssertionError('Product collection attempted an optional import: ' + fullname)
 sys.meta_path.insert(0, NoConsumers())
 from scripts.test_ownership import paths_for
-import stage_gen.pipeline
-assert Path(stage_gen.pipeline.__file__).is_relative_to(installed)
+import stage_gen
+assert Path(stage_gen.__file__).is_relative_to(installed)
 import pytest
 status = pytest.main(['--collect-only', '-q', *paths_for(repository, 'product')])
 assert not attempted, sorted(attempted)

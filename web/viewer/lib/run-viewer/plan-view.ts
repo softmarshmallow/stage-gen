@@ -82,7 +82,7 @@ export function samplePlanView(
     artifacts: [],
   }));
   const view: ExecutionView = {
-    subject: { kind: sample.kind, recipe: null, pipelineId: null, title: workflow.manifest.title, fields: {} },
+    subject: { kind: sample.kind, title: workflow.manifest.title, fields: {} },
     graphSha256: sample.topologySha256,
     topologySha256: sample.topologySha256,
     invocationId: null,

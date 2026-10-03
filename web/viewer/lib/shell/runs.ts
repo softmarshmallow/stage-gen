@@ -227,7 +227,7 @@ export async function isRealRunDirectory(run: RunRef): Promise<boolean> {
   return assertRealDirectory(runDirFor(run), "run directory");
 }
 
-/** The cache folder name of a run, as stage_gen.runs.view_key: its real path, hashed. */
+/** The cache folder name of a run, as gnode's view_key: its real path, hashed. */
 export function viewKey(runDir: string): string {
   return createHash("sha256").update(realOrResolved(runDir)).digest("hex").slice(0, 16);
 }
@@ -236,7 +236,6 @@ export function viewKey(runDir: string): string {
 
 /** A folder holding one of these is a run. */
 export const RUN_DOCUMENTS = [
-  "execution-plan.json",
   "execution-view.json",
   "manifest.json",
   "bundle.json",

@@ -1,4 +1,4 @@
-"""The run's spending ceiling: reserve a node's worst case before it dispatches, settle after.
+"""The run's spending ceiling: hold a paid call's worst case before it is made, charge after.
 
 The ledger is the run record's own arithmetic. Every reservation, settlement and refusal
 is an event in the run's log, and a resumed run rebuilds the ledger from the events its
@@ -13,7 +13,7 @@ import asyncio
 import math
 from collections.abc import Callable, Iterable, Mapping
 
-from gnode.graph import Node, NodeExecutionError
+from gnode.records import NodeExecutionError
 
 #: The events this ledger writes into the run log, and reads back on resume.
 BUDGET_RESERVED = "budget_reserved"
@@ -22,7 +22,7 @@ BUDGET_REFUSED = "budget_refused"
 
 
 class CeilingExceeded(NodeExecutionError):
-    """A node's worst case does not fit what is left under the run's ceiling.
+    """A paid call's worst case does not fit what is left under the run's ceiling.
 
     Raised before dispatch, so nothing was attempted and nothing was spent.
     """
@@ -37,14 +37,6 @@ class CeilingExceeded(NodeExecutionError):
         )
         self.needed_usd = needed_usd
         self.remaining_usd = remaining_usd
-
-
-def worst_case_usd(node: Node) -> float:
-    """What a provider node may bill at most: every attempt at the route's high estimate."""
-
-    if node.is_local:
-        return 0.0
-    return round(node.estimated_cost_high_usd * node.max_attempts, 6)
 
 
 class CeilingLedger:
@@ -102,15 +94,10 @@ class CeilingLedger:
             return None
         return round(max(0.0, self.ceiling_usd - self._charged - sum(self._open.values())), 6)
 
-    async def reserve(self, node: Node) -> None:
-        """Hold ``node``'s worst case, or refuse it before anything is dispatched."""
-
-        await self.hold(node.node_id, worst_case_usd(node))
-
     async def hold(self, key: str, amount: float) -> None:
         """Hold ``amount`` under ``key``, or refuse before anything is spent.
 
-        ``key`` names what is reserved for: a node, or one paid call of a step.
+        ``key`` names what is reserved for: one paid call of a step.
         """
 
         if amount == 0.0:
@@ -151,57 +138,6 @@ class CeilingLedger:
             }
         )
 
-    def settle(
-        self,
-        node: Node,
-        *,
-        provider_operations: int | None,
-        known_cost_usd: float | None,
-    ) -> None:
-        """Replace ``node``'s hold with what it cost.
-
-        A reported cost is charged as reported. Operations whose cost nobody reported
-        keep the route's high estimate per operation, never less. When not even the
-        number of operations is known (a timeout, an error that says nothing), the whole
-        hold stays charged.
-        """
-
-        held = self._open.pop(node.node_id, None)
-        if known_cost_usd is not None:
-            charged = known_cost_usd
-        elif provider_operations is not None:
-            charged = node.estimated_cost_high_usd * provider_operations
-        else:
-            charged = held or 0.0
-        if held is None and charged == 0.0:
-            return
-        charged = round(charged, 6)
-        self._charged += charged
-        self._emit(
-            {
-                "event": BUDGET_SETTLED,
-                "node_id": node.node_id,
-                "charged_usd": charged,
-                "reported": known_cost_usd is not None,
-                "provider_operations": provider_operations,
-            }
-        )
-
-    def release(self, node: Node) -> None:
-        """Drop ``node``'s hold uncharged: its result came from the cache, so nothing ran."""
-
-        if self._open.pop(node.node_id, None) is None:
-            return
-        self._emit(
-            {
-                "event": BUDGET_SETTLED,
-                "node_id": node.node_id,
-                "charged_usd": 0.0,
-                "reported": True,
-                "provider_operations": 0,
-            }
-        )
-
 
 def _amount(value: object) -> float:
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -215,5 +151,4 @@ __all__ = [
     "BUDGET_SETTLED",
     "CeilingExceeded",
     "CeilingLedger",
-    "worst_case_usd",
 ]

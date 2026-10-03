@@ -21,12 +21,6 @@ REVIEWED = {
         "sha256_bytes",
         "unique_values",
     },
-    "stage_gen.components._node_kit": {
-        "ProviderCall",
-        "card_prompt",
-        "node_result",
-        "write_local_image",
-    },
     "stage_gen.components._secure_fs": {
         "SecurePathError",
         "open_absolute_directory",

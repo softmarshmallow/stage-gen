@@ -68,7 +68,7 @@ jobs:
           godot/tools/write_game_contract_identities.py
           godot/tools/write_game_graph_contract.py
           godot/templates/asset_consumer/prepare.py
-          apps/concept_studio/src docs/sdk/pipelines
+          apps/concept_studio/src
       - name: Typecheck gnode game projects
         run: |
           uv run --all-groups mypy --strict godot/games/iron_petal_unit/pipeline/workflow.py godot/games/iron_petal_unit/pipeline/nodes

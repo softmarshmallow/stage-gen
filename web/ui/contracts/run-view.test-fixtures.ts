@@ -74,7 +74,6 @@ export function executionViewFixture(): Record<string, unknown> {
   return {
     schema_version: 3,
     kind: "sideview-platformer-execution-view-v1",
-    recipe: "sideview-platformer",
     game_id: "bellweather",
     graph_sha256: DIGEST,
     topology_sha256: DIGEST,
@@ -459,7 +458,6 @@ export function dialogueExecutionViewFixture(): Record<string, unknown> {
   return {
     schema_version: 3,
     kind: "dialogue-scene-execution-view-v1",
-    recipe: "dialogue-scene",
     scene_id: "mio-researcher-424f93ae7637",
     graph_sha256: DIGEST,
     topology_sha256: DIGEST,
@@ -475,9 +473,9 @@ export function dialogueExecutionViewFixture(): Record<string, unknown> {
   };
 }
 
-/** A user-authored pipeline; it carries no game or built-in recipe identity. */
+/** A producer this build has never heard of, titled by its own header. */
 export function pipelineExecutionViewFixture(): Record<string, unknown> {
-  const { recipe: _recipe, game_id: _gameId, ...document } = executionViewFixture();
+  const { game_id: _gameId, ...document } = executionViewFixture();
   return {
     ...document,
     kind: "pipeline-execution-view-v1",

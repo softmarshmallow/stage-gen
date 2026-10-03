@@ -265,11 +265,10 @@ def steps(
                     "--check",
                     "src",
                     "scripts",
-                    "docs/sdk/pipelines",
                     *product_tests,
                 )
             ),
-            Step(("ruff", "check", "src", "scripts", "docs/sdk/pipelines", *product_tests)),
+            Step(("ruff", "check", "src", "scripts", *product_tests)),
             Step(("mypy", "--strict", "src")),
             Step(("pytest", "-m", "not live", *product_tests)),
             Step((python, "-m", "build", "--no-isolation")),
@@ -309,7 +308,6 @@ def steps(
                     *GAME_TYPED_TOOLS,
                     "godot/templates/asset_consumer/prepare.py",
                     "apps/concept_studio/src",
-                    "docs/sdk/pipelines",
                 )
             ),
             Step(("pytest", "-m", "not live")),

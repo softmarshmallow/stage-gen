@@ -32,11 +32,10 @@ import rules below are what the tests enforce; this ordering is not tested.
    game or brand. Consumers use declared public surfaces. The standard node types live in
    `src/gnode_std/` (ring 3), a plugin that imports only the `gnode` surface. See
    [ring rules](docs/spec/gnode-rings.md).
-2. **SDK** (`src/stage_gen/pipeline/`): definitions, planning, execution and persisted-run
-   inspection over ordinary GNode graphs, plus `GraphDocument`, the sealed-document base
-   class. It supplies explicit roots, selected-node closure, input lineage, service
-   injection, node admission and portable views, and reuses GNode's atomic artifact and cache
-   machinery. It prescribes no workflow or game schema. See the [SDK guide](docs/sdk/guide.md).
+2. **Plugins** (`src/stage_gen/orchestration/gnode_plugin.py`, `src/stage_gen/viewer.py`):
+   Stage Gen composes its provider routes and capability handlers, its workflows and its
+   viewer into gnode as plugins. It adds no graph engine of its own: every workflow, game
+   build and user project is a gnode workflow file or Python builder.
 3. **Components** (`src/stage_gen/components/`): bounded building blocks with their node types,
    graph fragments, contracts and services. A component never runs alone and never imports
    a workflow. Shared workflow-neutral media inspection and transforms belong in
@@ -70,10 +69,9 @@ import rules below are what the tests enforce; this ordering is not tested.
 8. **Consumers.** The Godot example project and the optional applications under `apps/`.
 
 Provider configuration, credentials and concrete service construction belong to the
-composition root, `src/stage_gen/orchestration/`: runtime and services, the
-`GraphExecutor` that graph-document workflows run on, image routing, and Stage Gen's gnode
-plugin: the image, video, structured, agent, mesh and rig routes and the adapters that serve
-them. Neither the SDK nor a workflow acquires those responsibilities.
+composition root, `src/stage_gen/orchestration/`: the provider services, image routing, and
+Stage Gen's gnode plugin: the image, video, structured, agent, mesh and rig routes and the
+adapters that serve them. No workflow acquires those responsibilities.
 
 ## Import rules
 

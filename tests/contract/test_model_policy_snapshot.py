@@ -49,22 +49,11 @@ def test_active_model_policy_snapshot_is_current_and_provider_free(
     assert SNAPSHOT.read_bytes() == before
 
 
-def test_active_snapshot_has_no_stale_generated_graph_contracts_or_cache_goldens() -> None:
-    snapshot = load_active_model_policy_snapshot()
-    stale = [entry.check_id for entry in snapshot.generated_files if entry.stale]
-    assert stale == [], (
-        "generated model-policy dependencies are stale; update their owning graph contract or "
-        "cache golden, inspect that diff, then regenerate the model-policy snapshot: "
-        + ", ".join(stale)
-    )
-
-
 def test_core_snapshot_covers_routes_without_consumer_fixtures() -> None:
     snapshot = load_active_model_policy_snapshot()
     route_ids = {route.route_id for route in snapshot.routes}
     assert all(policy.route_id in route_ids for policy in snapshot.policies)
-    assert snapshot.recipes == ()
-    assert snapshot.generated_files == ()
+    assert snapshot.kind == "stage-gen-model-policy-snapshot-v2"
     serialized = SNAPSHOT.read_text(encoding="utf-8")
     assert "api_key" not in serialized.lower()
     assert "authorization" not in serialized.lower()

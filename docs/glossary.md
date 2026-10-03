@@ -16,8 +16,7 @@ keep an old word because changing them would change an identity.
 | run | One execution folder. A chain, such as a take and then its finish, is several runs. |
 | example | A frozen export of real runs (`example.json`, `figures.json` and `media/`), pinned by sha256 in its owner's manifest and made by a workflow or a game. It is the only result the site shows. An example made with an earlier version of its workflow says so behind a disclosure. |
 | take | One draw of a step's request. `takes:` draws several at once, `gnode reroll` draws the next, and `gnode pick` keeps one in the takes file beside the workflow. An audition is a take a person chose, which a run may adopt by digest as a file. |
-| SDK | `stage_gen.pipeline`: `define`, `plan`, `run` and `inspect`, the node cache, dry runs and ports. A definition is what you write with it, planned and run from Python. |
-| graph executor | `GraphExecutor`, `PlannedGraph` and `GraphRun` in `stage_gen.orchestration.graph_executor`, at the composition root because they build the run's services. |
+| SDK | gnode's Python surface: a builder (`gnode.Workflow`, `gnode.plan`, `gnode.run`), node types (`@node` over a body taking `Ctx`) and the plugin seam. Stage Gen's workflows and every game build are written with it. |
 | catalog | The `stage-gen-catalog-v1` JSON that `scripts/catalog.py` writes from the installed workflows and the example store, beside the `gnode-cli-v1` command tree. It is derived and never committed. |
 | site | `web/site`, the static landing and documentation, built from the catalog and the example store. |
 | viewer | `web/viewer`, the dashboard `gnode view` starts: the local, read-only client over run folders. |
@@ -27,7 +26,8 @@ keep an old word because changing them would change an identity.
 | Retired | Now |
 |---|---|
 | recipe | workflow. The one character implementation folder that keeps the old path is listed below. |
-| `RecipeGraph`, `RecipeExecutor`, `RecipePlan`, `RecipeRun` | `GraphDocument`, `GraphExecutor`, `PlannedGraph`, `GraphRun`; `RecipeNodeHandler` is gone, use `CachedNodeHandler` |
+| `RecipeGraph`, `RecipeExecutor`, `RecipePlan`, `RecipeRun`, `GraphDocument`, `GraphExecutor`, `PlannedGraph`, `GraphRun`, `CachedNodeHandler` | a gnode workflow file or Python builder, run by `gnode run` |
+| `stage_gen.pipeline` (`define`, `plan`, `run`, `inspect`, dry runs, the node cache) | gnode: `gnode.Workflow` with `gnode.plan` and `gnode.run`, and the call cache |
 | harness | SDK |
 | showcase | site |
 | showcase record, adapter | example, importer (`example.py`) |
@@ -42,7 +42,7 @@ keep an old word because changing them would change an identity.
 | `export-view`, `stage-gen inspect --write-view` | `gnode view`, which keeps every workflow run's view; every game builds with gnode, and a game's run is a gnode run |
 | `STAGE_GEN_OUT_DIR` as the viewer's run folder | `STAGE_GEN_RUN_ROOTS`, a list of paths; the application still reads `STAGE_GEN_OUT_DIR` as its own output folder (config `out_dir`) |
 | a workflow's `examples/` input bundles | its `inputs/` |
-| `examples/pipelines` (SDK samples) | `docs/sdk/pipelines/` |
+| `examples/pipelines`, `docs/sdk/pipelines/` (SDK samples) | the example projects in the user guide |
 | a workflow's `README.md` and its guide under `docs/` | its `page.mdx` and `contract.md` |
 
 ## Frozen persisted strings
@@ -50,9 +50,7 @@ keep an old word because changing them would change an identity.
 These keep their old words because they are written into runs, caches or digests. Leave them
 as they are:
 
-- the `GraphDocument` field `recipe` and its literals (the game words);
 - the `<word>-execution-{graph,event,summary,projection,view}` kinds and `pipeline-execution-*`;
-- the `@stage-gen/<name>` provenance names;
-- the module name `components/_node_kit.py`.
+- the `@stage-gen/<name>` provenance names.
 
 The domain phrases "rig recipe" and "crafting recipe" are unrelated and stay.

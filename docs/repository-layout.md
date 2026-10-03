@@ -46,6 +46,8 @@ packaged under `apps/`; the core distribution does not require either workspace.
 ```text
 src/
 ├── gnode/
+│   ├── workflow/                      # The workflow file: expander, planner, node host,
+│   │                                  # call cache, run record and view, the gnode command
 │   ├── contracts/                     # Public execution and persistence contracts
 │   ├── reliability/                   # Retry and failure mechanics
 │   ├── modalities/                    # Ring 1: typed capability specs and services
@@ -64,19 +66,18 @@ src/
 │       ├── elevenlabs/
 │       └── tripo/
 └── stage_gen/
-    ├── pipeline/                      # The SDK: define / plan / run / inspect, GraphDocument
     ├── components/                    # Reusable components and bounded formats
     ├── workflows/                     # One folder per product deliverable
     ├── examples.py                    # The public example contract
     ├── viewer.py                      # The viewer, the gnode plugin gnode view starts
     ├── media/                         # Shared inspection and transforms
-    ├── orchestration/                 # Composition root: services, GraphExecutor, routing
-    ├── application/                   # Generic output/cache roots and reporting
+    ├── orchestration/                 # Composition root: services, routing, the gnode plugin
+    ├── application/                   # The one shared usage error
     └── resources/                     # Explicitly packaged support resources
 ```
 
-GNode scheduling, topology, trace, cache identity and provenance mechanisms remain
-in place. The SDK composes them. It does not add another graph engine.
+Stage Gen adds no graph engine: every workflow, game build and user project is a gnode
+workflow file or Python builder, planned and run by gnode.
 Provider construction stays at the application boundary; workflows can receive
 services without taking ownership of credentials or provider selection.
 
@@ -159,18 +160,13 @@ src/stage_gen/workflows/
 └── character_3d/                      # workflow.yaml, nodes/, profiles/, prompts/, support.py
     ├── inputs/sample/                 # The committed brief and its inputs.yaml
     └── examples/tavi-parts.mdx        # Prose for one pinned example
-
-docs/sdk/pipelines/
-├── local_media.py                     # Arbitrary graph: PNG + WAV + catalog
-└── portrait_processing.py             # Component composition and preserved-pixel proof
 ```
 
 A workflow written as a workflow file has the shape `looping_parallax/`, `movie_sprite/`,
 `portrait_motion/` and `universe/` show. The tree lists
 only what differs. Sample inputs and their scripts live in a
-workflow's `inputs/`; cross-component
-SDK samples live in `docs/sdk/pipelines`. A future component example should likewise live
-beside that component. Documentation links these owners instead of creating a second
+workflow's `inputs/`. A future component example should likewise live beside that
+component. Documentation links these owners instead of creating a second
 implementation under a central examples framework.
 
 The looping-parallax workflow accepts supplied layers. It produces repeating images,
@@ -189,8 +185,8 @@ owner's manifest pins them by digest.
 ## Documentation
 
 `docs/` holds only what crosses workflows: [getting started](getting-started.md), the
-[glossary](glossary.md), the [viewer](viewer.md) and [site](site.md) guides, the
-[SDK guide](sdk/guide.md) and its samples, provider notes under `models/`, policy
+[glossary](glossary.md), the [viewer](viewer.md) and [site](site.md) guides, provider
+notes under `models/`, policy
 (storage, publication, IP), cross-cutting specifications under `spec/`, and the history
 under `decisions/`, `plans/` and `research/`. A workflow's guide and contract live in its
 own `page.mdx` and `contract.md`; a game's documents live under its folder.

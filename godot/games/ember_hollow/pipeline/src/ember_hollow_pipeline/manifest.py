@@ -45,7 +45,6 @@ from ember_hollow_pipeline.shell.nodes import (
     shell_manifest_block,
     shell_typeface_ref,
 )
-from stage_gen.pipeline.dry_run import is_placeholder
 
 SCHEMA_VERSION: Final = 1
 #: Bumped to v3 by the clip plate: a shot's plate now says which kind it is, and a
@@ -729,15 +728,9 @@ class Manifest(TypedDict):
 
 
 def _present(path: Path) -> bool:
-    """True when a run artifact really is one.
+    """True when the build laid the artifact out; a missing family is a status, not a crash."""
 
-    A dry run writes a placeholder at every declared port, so a file being
-    there is not evidence that art is: without this the rehearsal's stubs would
-    be published as finished work and a consumer would load them. A missing
-    family is a status, not a crash, and a stub is a missing family.
-    """
-
-    return path.is_file() and not is_placeholder(path)
+    return path.is_file()
 
 
 # --- artifact refs -------------------------------------------------------------------

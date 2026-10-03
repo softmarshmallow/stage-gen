@@ -547,8 +547,6 @@ export function RunFacts({
       <dl className="m-0 border border-border">
         <Fact term="subject">{subjectLabel(view.subject)}</Fact>
         <Fact term="view">{view.subject.kind}</Fact>
-        {view.subject.pipelineId ? <Fact term="pipeline">{view.subject.pipelineId}</Fact> : null}
-        {view.subject.recipe ? <Fact term="document">{view.subject.recipe}</Fact> : null}
         {Object.entries(view.subject.fields).map(([name, value]) => (
           <Fact key={name} term={name.replace(/_/g, " ")}>
             {String(value)}

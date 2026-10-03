@@ -16,9 +16,8 @@ separate, game-independent asset capability belongs in Stage Gen.
   `src/stage_gen/media/`. Keep capability-specific deterministic processing
   with its component contract and workflow-specific canonicalization with its
   workflow.
-- Compose them into a workflow under `src/stage_gen/workflows/` through the
-  `stage_gen.pipeline` SDK. Keep sample inputs in the workflow's `inputs/`, and SDK
-  samples in `docs/sdk/pipelines/`.
+- Compose them into a workflow under `src/stage_gen/workflows/`: a gnode workflow file
+  whose node types call them. Keep sample inputs in the workflow's `inputs/`.
 - Complete games own their preparation packages, input formats, gameplay and
   bindings under `godot/games/<game>/`. Share implementations under
   `godot/games/_shared/` only when multiple games use them. The optional `games`

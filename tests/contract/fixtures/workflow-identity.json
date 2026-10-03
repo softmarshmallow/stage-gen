@@ -152,11 +152,6 @@
   }
  },
  "identities": {
-  "cache": {
-   "dry_run_namespace": "dry-run-nodes-v1",
-   "dry_run_record_kind": "dry-run-node-cache-v1",
-   "node_cache_schema_version": 2
-  },
   "node_types": [
    [
     "character_3d/build/assembly/assemble",
@@ -474,13 +469,6 @@
     "nodes/world.py#source@1"
    ]
   ],
-  "sdk_graph": {
-   "kind": "pipeline-execution-graph-v1",
-   "projection_kind": "pipeline-execution-projection-v1",
-   "run_summary_kind": "pipeline-execution-summary-v1",
-   "schema_version": 1,
-   "view_kind": "pipeline-execution-view-v1"
-  },
   "software_identities": {
    "@stage-gen/background-removal": "0.0.0",
    "@stage-gen/image-generation": "0.0.0",

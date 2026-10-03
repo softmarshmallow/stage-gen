@@ -29,7 +29,14 @@ from typing import Any
 
 import yaml
 
-from gnode import RUN_EVENTS_SCHEMA_VERSION, Graph, Plan, RunResult, resolve_tool, run
+from gnode import (
+    RUN_EVENTS_SCHEMA_VERSION,
+    RUN_VIEW_SCHEMA_VERSION,
+    Plan,
+    RunResult,
+    resolve_tool,
+    run,
+)
 from gnode import plan as make_plan
 
 type JsonObject = dict[str, Any]
@@ -98,7 +105,7 @@ def closure(plan: Plan, *, blender: JsonObject) -> JsonObject:
         "contracts": {
             "workflow_document": planner.workflow.gnode,
             "run_events": RUN_EVENTS_SCHEMA_VERSION,
-            "run_view": Graph.VIEW_SCHEMA_VERSION,
+            "run_view": RUN_VIEW_SCHEMA_VERSION,
         },
         "routes": dict(sorted(routes.items())),
         "blender": dict(blender),

@@ -124,9 +124,6 @@ EXPECTED_SDIST_FILES = {
     "VERIFICATION.md",
     "docs/README.md",
     "docs/testing.md",
-    "docs/sdk/pipelines/local_media.py",
-    "docs/sdk/pipelines/portrait_processing.py",
-    "docs/sdk/pipelines/README.md",
     "pyproject.toml",
     "scripts/check.py",
     "src/stage_gen/__init__.py",
@@ -433,7 +430,6 @@ class NoConsumerImports(importlib.abc.MetaPathFinder):
         return None
 
 sys.meta_path.insert(0, NoConsumerImports())
-from stage_gen.pipeline import define, inspect, plan, run
 import runpy
 import gnode
 from stage_gen.resources import (
@@ -466,9 +462,8 @@ assert image_style_resource_digests() == {
     "vocabulary_sha256": style_resources.vocabulary_sha256,
 }
 snapshot = load_active_model_policy_snapshot()
-assert snapshot.kind == "stage-gen-model-policy-snapshot-v1"
+assert snapshot.kind == "stage-gen-model-policy-snapshot-v2"
 assert snapshot.routes and snapshot.policies
-assert snapshot.recipes == () and snapshot.generated_files == ()
 face_surfaces = {
     "stage_gen.components.portrait_motion.face_crop": ("create_working_crop", "restore_feature"),
     "stage_gen.components.portrait_motion.face_location": (

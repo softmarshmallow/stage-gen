@@ -7,8 +7,8 @@ This census belongs to the game-owned builders and their historical readers.
 It includes shared asset identities those demos consume, but it does not define
 the public asset pipeline contract or restrict caller-defined pipelines.
 
-The public [pipeline API](../src/stage_gen/pipeline/api.py) owns the independent
-product identities. The game table below derives from each demo contract's declaring
+Each workflow owns its own identities in its workflow file and the identity
+golden. The game table below derives from each demo contract's declaring
 field or constant. Game versioning follows [the game contract](../godot/games/_shared/docs/game-contract.md)
 (C-R5); a node's contract version remains a cache key rather than an identity.
 

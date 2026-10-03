@@ -44,15 +44,9 @@ describe("the run index", () => {
         schema_version: 1,
         ground: { size_meters: 512 },
       },
-      "out/sdk/execution-plan.json": {
-        kind: "pipeline-execution-graph-v1",
-        schema_version: 1,
-        pipeline_id: "swatch-sheet",
-      },
-      "out/room/execution-plan.json": {
-        kind: "pointclick-room-execution-graph-v1",
-        recipe: "pointclick-room",
-      },
+      "out/runs/universe/2026-10-03-1/plan.json": { gnode: "graph/v2", workflow: { id: "universe" } },
+      "out/runs/universe/2026-10-03-1/events.jsonl": "",
+      "out/old/execution-plan.json": { kind: "pointclick-room-execution-graph-v1" },
     });
     const byName = new Map((await listRuns()).map((entry) => [entry.relative, entry]));
     expect(byName.get("survival")?.identity).toMatchObject({
@@ -60,9 +54,13 @@ describe("the run index", () => {
       kind: "oblique-survival-manifest-v3",
     });
     expect(byName.get("survival")?.schemaVersion).toBe(1);
-    expect(byName.get("sdk")?.identity.pipelineId).toBe("swatch-sheet");
-    expect(byName.get("room")?.identity.recipe).toBe("pointclick-room");
-    expect(byName.get("room")?.view).toBeNull();
+    expect(byName.get("runs/universe/2026-10-03-1")?.identity).toMatchObject({
+      document: "plan.json",
+      kind: "gnode-graph-v2",
+      workflowId: "universe",
+    });
+    // A plan the retired executor wrote is no longer a run.
+    expect(byName.has("old")).toBe(false);
   });
 
   test("lists runs it cannot identify rather than hiding them", async () => {
@@ -88,7 +86,7 @@ describe("the run index", () => {
     const byName = new Map((await listRuns()).map((entry) => [entry.relative, entry]));
     const viewed = byName.get("viewed");
     expect(viewed?.view).toMatchObject({ source: "run", runState: "succeeded", nodeCount: 4 });
-    expect(viewed?.identity.recipe).toBe("sideview-platformer");
+    expect(viewed?.identity.viewKind).toBe("sideview-platformer-execution-view-v1");
     expect(viewed?.updatedAt).toMatch(/Z$/);
     expect(byName.get("review/yuzu/run-01")?.view).toBeNull();
     expect(byName.get("stale")?.view).toBeNull();

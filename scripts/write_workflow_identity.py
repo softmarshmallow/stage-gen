@@ -5,8 +5,8 @@ tests/contract/fixtures/workflow-identity.json holds values only - digests, stri
 versions and cache keys - never a module path, so moving code changes this script's
 imports and never the fixture. Each section prices what a change to it would cost:
 
-  identities               cache constants, the run-view version, provenance names and
-                           the product node-type inventory
+  identities               the run-view version, provenance names and the product
+                           node-type inventory
   cache_keys               node_id -> cache_key for offline plans and free runs over
                            committed files or the constant bytes in
                            workflow-identity-inputs.json, and the key of each paid call a
@@ -41,8 +41,8 @@ if __package__ in {None, ""}:
 import stage_gen
 import stage_gen.identity as provenance_identities
 from gnode import (
+    RUN_VIEW_SCHEMA_VERSION,
     CallRecord,
-    Graph,
     HostServices,
     JobLog,
     LongJob,
@@ -56,11 +56,6 @@ from gnode import (
     project_run,
 )
 from gnode import run as gnode_run
-from stage_gen.pipeline import (
-    PipelineGraph,
-)
-from stage_gen.pipeline.dry_run import DRY_RUN_CACHE_NAMESPACE, DRY_RUN_CACHE_RECORD_KIND
-from stage_gen.pipeline.node_cache import NODE_CACHE_SCHEMA_VERSION
 from stage_gen.workflows._gnode import GnodeWorkflow
 from stage_gen.workflows._registry import discover
 
@@ -100,19 +95,7 @@ def identities(scratch: Path) -> Section:
         if isinstance(value, SoftwareIdentity)
     }
     return {
-        "sdk_graph": {
-            "kind": PipelineGraph.model_fields["kind"].default,
-            "schema_version": PipelineGraph.model_fields["schema_version"].default,
-            "run_summary_kind": PipelineGraph.RUN_SUMMARY_KIND,
-            "projection_kind": PipelineGraph.PROJECTION_KIND,
-            "view_kind": PipelineGraph.VIEW_KIND,
-        },
-        "cache": {
-            "dry_run_namespace": DRY_RUN_CACHE_NAMESPACE,
-            "dry_run_record_kind": DRY_RUN_CACHE_RECORD_KIND,
-            "node_cache_schema_version": NODE_CACHE_SCHEMA_VERSION,
-        },
-        "view_schema_version": Graph.VIEW_SCHEMA_VERSION,
+        "view_schema_version": RUN_VIEW_SCHEMA_VERSION,
         "software_identities": dict(sorted(software.items())),
         "node_types": [list(entry) for entry in sorted(inventory)],
     }
@@ -323,7 +306,7 @@ def plan_character_3d(scratch: Path) -> dict[str, str]:
 
 
 #: Each pinned plan or free run.
-CACHE_KEY_PLANS: dict[str, Callable[[Path], Graph | RunView | dict[str, str]]] = {
+CACHE_KEY_PLANS: dict[str, Callable[[Path], RunView | dict[str, str]]] = {
     "character-3d": plan_character_3d,
     "looping-parallax": run_looping_parallax,
     "movie-sprite-take": run_movie_sprite_take,
@@ -332,7 +315,7 @@ CACHE_KEY_PLANS: dict[str, Callable[[Path], Graph | RunView | dict[str, str]]] =
 }
 
 
-def cache_key_map(graph: Graph | RunView | dict[str, str]) -> dict[str, str]:
+def cache_key_map(graph: RunView | dict[str, str]) -> dict[str, str]:
     if isinstance(graph, dict):
         return graph
     keys = {node.node_id: node.cache_key for node in graph.nodes}

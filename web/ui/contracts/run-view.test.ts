@@ -17,20 +17,14 @@ import {
 import runViewFixture from "./run-view.fixture.json";
 
 describe("parseExecutionView", () => {
-  test("renders an unfamiliar pipeline identity without a recipe registration", () => {
+  test("renders an unfamiliar producer without a registration, labelled by its title", () => {
     const document = pipelineExecutionViewFixture();
     const view = parseExecutionView(document);
     expect(view.subject.kind).toBe("pipeline-execution-view-v1");
     expect(subjectLabel(view.subject)).toBe("Material study");
-    expect(view.subject.pipelineId).toBe("user.tools-material-set");
-    expect(view.subject.recipe).toBeNull();
-    expect(document.recipe).toBeUndefined();
+    expect(view.subject.fields.pipeline_id).toBe("user.tools-material-set");
     expect(document.game_id).toBeUndefined();
     expect(isExecutionViewKind("pipeline-execution-view-v1")).toBe(true);
-  });
-
-  test.each([undefined, "", "  ", "../pipeline", "pipeline/id", 5])("refuses malformed generic pipeline identity %s", (identity) => {
-    expect(() => parseExecutionView({ ...pipelineExecutionViewFixture(), pipeline_id: identity })).toThrow("pipeline_id");
   });
 
   test("accepts unknown artifact display hints but refuses malformed artifacts", () => {
@@ -109,7 +103,6 @@ describe("parseExecutionView", () => {
     const view = parseExecutionView(dialogueExecutionViewFixture());
     expect(view.subject.kind).toBe("dialogue-scene-execution-view-v1");
     expect(subjectLabel(view.subject)).toBe("mio-researcher-424f93ae7637");
-    expect(view.subject.recipe).toBe("dialogue-scene");
     expect(view.nodes.map((node) => node.archetype)).toEqual([
       "source",
       "image",
@@ -140,12 +133,10 @@ describe("parseExecutionView", () => {
     const document = {
       ...executionViewFixture(),
       kind: "sideview-runner-execution-view-v1",
-      recipe: "sideview-runner",
       track_id: "sunpetal-sprint",
     };
     const view = parseExecutionView(document);
     expect(view.subject.kind).toBe("sideview-runner-execution-view-v1");
-    expect(view.subject.recipe).toBe("sideview-runner");
     expect(view.subject.fields).toEqual({ game_id: "bellweather", track_id: "sunpetal-sprint" });
     expect(subjectLabel(view.subject)).toBe("bellweather · sunpetal-sprint");
   });
@@ -154,7 +145,6 @@ describe("parseExecutionView", () => {
     const document = {
       ...executionViewFixture(),
       kind: "universe-execution-view-v1",
-      recipe: "universe",
       universe_id: "lantern_ferry",
       phase: "gallery",
     };
@@ -170,7 +160,6 @@ describe("parseExecutionView", () => {
     const sample = parseExecutionView({
       ...executionViewFixture(),
       kind: "sample-execution-view-v1",
-      recipe: "sample",
       game_id: undefined,
       sample_id: "quiet_orbit",
       item_count: 4,
@@ -179,11 +168,9 @@ describe("parseExecutionView", () => {
     expect(sample.subject.fields.item_count).toBe(4);
 
     const joined = { ...executionViewFixture(), kind: "gnode-run-view-v1" } as Record<string, unknown>;
-    delete joined.recipe;
     delete joined.game_id;
     joined.graph_kind = "contained-character-parts-to-rig-v1";
     const view = parseExecutionView(joined);
-    expect(view.subject.recipe).toBeNull();
     expect(subjectLabel(view.subject)).toBe("contained-character-parts-to-rig-v1");
   });
 
@@ -395,9 +382,9 @@ describe("runLiveness", () => {
 describe("the shared run-view fixture", () => {
   // The same document tests/contract/test_web_contract_fixtures.py validates against the
   // engine's RunView, so the parser and the producer read one wire format.
-  test("parses as an SDK run with its cards, sidecars and artifacts", () => {
+  test("parses as a workflow run with its cards, sidecars and artifacts", () => {
     const view = parseExecutionView(structuredClone(runViewFixture));
-    expect(subjectLabel(view.subject)).toBe("Swatch sheet");
+    expect(subjectLabel(view.subject)).toBe("gnode-run-view-v1");
     expect(view.runState).toBe("succeeded");
     expect(view.nodes.map((node) => node.nodeId)).toEqual(["brief", "draw", "check"]);
     const draw = view.nodes[1];

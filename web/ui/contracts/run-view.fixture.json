@@ -1,8 +1,6 @@
 {
   "schema_version": 3,
-  "kind": "pipeline-execution-view-v1",
-  "pipeline_id": "swatch-sheet",
-  "title": "Swatch sheet",
+  "kind": "gnode-run-view-v1",
   "graph_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
   "topology_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
   "invocation_id": "slate-01",

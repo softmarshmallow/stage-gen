@@ -33,7 +33,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
-from gnode.graph import LOCAL_OPERATION, Resource
+from gnode.records import LOCAL_OPERATION, Resource
 
 _PROVIDER_PATTERN = re.compile(r"^[a-z0-9]+(?:[-_][a-z0-9]+)*$")
 _MODEL_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")

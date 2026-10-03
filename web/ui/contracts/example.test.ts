@@ -23,8 +23,8 @@ describe("parseWorkflowExample", () => {
     const parsed = parseWorkflowExample(example());
     expect(parsed.exampleId).toBe("slate-swatches");
     expect(parsed.madeBy).toEqual({ kind: "workflow", id: "swatch-sheet" });
-    expect(parsed.sourceRuns[0].anchor).toBe("execution-plan.json");
-    expect(parsed.graphKind).toBe("pipeline-execution-graph-v1");
+    expect(parsed.sourceRuns[0].anchor).toBe("plan.json");
+    expect(parsed.graphKind).toBe("gnode-graph-v2");
     expect(Object.keys(parsed.nodes)).toEqual(["brief", "draw", "check", "contact-sheet"]);
     expect(parsed.nodes.draw.dependsOn).toEqual(["brief"]);
     expect(parsed.nodes.draw.maxAttempts).toBe(6);

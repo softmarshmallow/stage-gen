@@ -2,8 +2,8 @@
 
 A component is an independently testable package under `src/stage_gen/components/`: node
 types, graph fragments (`add_*_nodes`), contracts and services. It never runs alone and never
-imports a workflow. Workflows compose components; the SDK, `stage_gen.pipeline`, plans,
-executes, caches and inspects those compositions. A component can expose several GNode nodes,
+imports a workflow. Workflows compose components in their node types; gnode plans, runs,
+caches and inspects those compositions. A component can expose several GNode nodes,
 and it does not need a game package or a particular runtime.
 
 ## Components

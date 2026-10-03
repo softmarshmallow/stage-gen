@@ -68,6 +68,7 @@ from gnode.providers.fal import (
     FalVideoJobFailed,
 )
 from gnode.providers.openrouter import (
+    OPENROUTER_BASE_URL,
     OpenRouterProviderRouting,
     OpenRouterStructuredRequestPolicy,
     OpenRouterToolLoopBackend,
@@ -88,8 +89,7 @@ from stage_gen.orchestration.runtime import (
     create_speech_service,
     create_structured_service,
 )
-from stage_gen.orchestration.services import OPENROUTER_BASE_URL
-from stage_gen.pipeline.structured_transport import (
+from stage_gen.orchestration.structured_transport import (
     decode_completion_wrapper,
     inline_local_schema_refs,
     known_cost,

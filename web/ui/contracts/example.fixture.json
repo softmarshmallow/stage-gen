@@ -11,16 +11,16 @@
   "source_runs": [
     {
       "path": "out/swatch-sheet-slate-01",
-      "anchor": "execution-plan.json",
+      "anchor": "plan.json",
       "anchor_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     }
   ],
   "source_files": {
-    "out/swatch-sheet-slate-01/execution-plan.json": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "out/swatch-sheet-slate-01/plan.json": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "out/swatch-sheet-slate-01/sheet.png": "6666666666666666666666666666666666666666666666666666666666666666"
   },
   "status": "succeeded",
-  "graph_kind": "pipeline-execution-graph-v1",
+  "graph_kind": "gnode-graph-v2",
   "graph_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
   "inputs": {
     "brief": {

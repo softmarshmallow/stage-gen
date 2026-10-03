@@ -22,14 +22,13 @@ from dataclasses import dataclass
 from importlib import resources
 from importlib.resources.abc import Traversable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Protocol, get_args
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
 if TYPE_CHECKING:
     from gnode import NodeType
     from stage_gen.examples import ExampleImporter, FiguresLedger, WorkflowExample
-    from stage_gen.pipeline.graph_document import GraphDocument
 
 WORKFLOWS_PACKAGE = "stage_gen.workflows"
 MANIFEST_FILE = "workflow.toml"
@@ -148,22 +147,6 @@ class WorkflowCode:
         if not isinstance(kinds, list):
             raise TypeError("identity()['graph_kinds'] must be a list")
         return frozenset(str(kind) for kind in kinds)
-
-
-def graph_document_identity(document: type[GraphDocument]) -> dict[str, object]:
-    """The persisted identities of a graph-document workflow, read from its class."""
-    (recipe,) = get_args(document.model_fields["recipe"].annotation)
-    return {
-        "recipe": recipe,
-        "current_kind": document.CURRENT_KIND,
-        "current_schema_version": document.CURRENT_SCHEMA_VERSION,
-        "legacy_graph_identities": sorted(
-            [version, kind] for version, kind in document.LEGACY_GRAPH_IDENTITIES
-        ),
-        "run_summary_kind": document.RUN_SUMMARY_KIND,
-        "projection_kind": document.PROJECTION_KIND,
-        "view_kind": document.VIEW_KIND,
-    }
 
 
 def node_type_inventory(types: Iterable[NodeType]) -> list[list[str]]:
@@ -356,7 +339,6 @@ __all__ = [
     "discover",
     "find",
     "folder_of",
-    "graph_document_identity",
     "load_code",
     "node_type_inventory",
     "read_manifest",

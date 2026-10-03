@@ -1,8 +1,8 @@
 # Documentation
 
 New here? Read [getting started](getting-started.md) and the [glossary](glossary.md).
-Then start with the [repository directory preview](repository-layout.md),
-[architecture](../ARCHITECTURE.md) and the [SDK guide](sdk/guide.md).
+Then start with the [repository directory preview](repository-layout.md) and the
+[architecture](../ARCHITECTURE.md).
 The product is the asset pipeline; complete games are consumers.
 
 This folder holds only what crosses workflows. Each workflow's guide and exact contract
@@ -21,9 +21,6 @@ both phases and their graphs.
 
 ## Authoring and inspection
 
-- [SDK guide](sdk/guide.md): define, plan, run and inspect your own graph, with
-  [samples](sdk/pipelines/README.md) and the
-  [provider-neutral image node](sdk/provider-neutral-image-node.md) pattern.
 - [Components](../src/stage_gen/components/README.md): the component table and the component contract.
 - [GNode rings](spec/gnode-rings.md): engine and provider ownership.
 - [Viewer](viewer.md): `gnode view`, the local read-only client over run folders.

@@ -1,8 +1,9 @@
 // The run index: every run under every root, with what it is and how it stands.
 //
 // This is the viewer's own reader, and it is deliberately shallow. From a run's anchor
-// document it takes only the fields that say what wrote it — `kind`, `schema_version`,
-// `pipeline_id`, `recipe` — and from its view only the run-level summary. It parses no
+// document it takes only the fields that say what wrote it — a workflow run's plan its
+// workflow, a delivered package its `kind` and `schema_version` — and from its view only
+// the run-level summary. It parses no
 // gameplay contract: a run's gameplay belongs to the host that plays it, and a viewer
 // that learned to read one would be a second implementation of that genre (decision
 // 0061). Which workflow a run belongs to is decided from those fields and the catalog
@@ -26,7 +27,6 @@ import { type FoundRun, discoverRuns, runDirFor } from "./runs";
 
 /** The documents that say what a run is, in the order the index asks them. */
 export const ANCHOR_DOCUMENTS = [
-  "execution-plan.json",
   "plan.json",
   "manifest.json",
   "bundle.json",
@@ -36,8 +36,6 @@ export const ANCHOR_DOCUMENTS = [
 
 /** Files whose change is the run changing: plans, traces, records and views. */
 const UPDATE_FILES = [
-  "execution-plan.json",
-  "execution-trace.jsonl",
   "execution-view.json",
   "plan.json",
   "events.jsonl",
@@ -61,8 +59,6 @@ export interface ViewSummary {
   readonly durationMs: number | null;
   readonly knownCostUsd: number | null;
   readonly kind: string;
-  readonly recipe: string | null;
-  readonly pipelineId: string | null;
   readonly graphKind: string | null;
 }
 
@@ -84,8 +80,6 @@ interface Anchor {
   readonly document: string | null;
   readonly kind: string | null;
   readonly schemaVersion: number | null;
-  readonly pipelineId: string | null;
-  readonly recipe: string | null;
   readonly workflowId: string | null;
 }
 
@@ -93,8 +87,6 @@ const NO_ANCHOR: Anchor = {
   document: null,
   kind: null,
   schemaVersion: null,
-  pipelineId: null,
-  recipe: null,
   workflowId: null,
 };
 
@@ -155,8 +147,6 @@ async function readAnchor(run: RunRef, runDir: string): Promise<Anchor> {
           document: name,
           kind: textField(declared, "kind"),
           schemaVersion: typeof declared.schema_version === "number" ? declared.schema_version : null,
-          pipelineId: textField(declared, "pipeline_id"),
-          recipe: textField(declared, "recipe"),
           workflowId: null,
         };
       } catch {
@@ -190,8 +180,6 @@ async function readViewSummary(run: RunRef): Promise<ViewRead> {
           durationMs: view.durationMs,
           knownCostUsd: view.knownCostUsd,
           kind: view.subject.kind,
-          recipe: view.subject.recipe,
-          pipelineId: view.subject.pipelineId,
           graphKind: typeof graphKind === "string" ? graphKind : null,
         },
         refusal: null,
@@ -232,8 +220,6 @@ export async function readRunEntry(found: FoundRun): Promise<RunIndexEntry> {
     identity: {
       document: anchor.document,
       kind: anchor.kind,
-      pipelineId: anchor.pipelineId ?? view?.pipelineId ?? null,
-      recipe: anchor.recipe ?? view?.recipe ?? null,
       viewKind: view?.kind ?? null,
       graphKind: view?.graphKind ?? null,
       workflowId: anchor.workflowId,

@@ -18,7 +18,7 @@ from gnode import atomic_write_text
 from stage_gen.image_product import ImageProvider
 from stage_gen.model_policy_maintenance import (
     ACTIVE_MODEL_POLICY_SNAPSHOT,
-    ModelPolicySnapshotV1,
+    ModelPolicySnapshotV2,
     build_model_policy_snapshot,
     render_model_policy_snapshot,
 )
@@ -28,7 +28,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT_PATH = REPOSITORY_ROOT / "src/stage_gen" / ACTIVE_MODEL_POLICY_SNAPSHOT
 
 
-def build_snapshot() -> ModelPolicySnapshotV1:
+def build_snapshot() -> ModelPolicySnapshotV2:
     """Snapshot core routing without importing or planning any consumer."""
     return build_model_policy_snapshot(
         catalog=IMAGE_ROUTE_CATALOG,
@@ -36,7 +36,6 @@ def build_snapshot() -> ModelPolicySnapshotV1:
             "default": image_workload_policies(),
             **{provider.value: image_workload_policies(provider) for provider in ImageProvider},
         },
-        recipes=(),
     )
 
 

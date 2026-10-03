@@ -57,14 +57,8 @@
       "no_importer": null,
       "identity": {
         "graph_kinds": [
-          "pipeline-execution-graph-v1"
+          "gnode-graph-v2"
         ],
-        "pipelines": {
-          "swatch-sheet": {
-            "namespace": "pipeline-0123456789abcdef01234567",
-            "record_kind": "pipeline-node-cache-v1"
-          }
-        },
         "node_types": [
           [
             "swatch.brief",
@@ -116,7 +110,7 @@
         }
       ],
       "sample_plan": {
-        "kind": "pipeline-execution-graph-v1",
+        "kind": "gnode-graph-v2",
         "topology_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
         "operation_counts": {
           "image_generation": 1,
@@ -188,16 +182,16 @@
             "source_runs": [
               {
                 "path": "out/swatch-sheet-slate-01",
-                "anchor": "execution-plan.json",
+                "anchor": "plan.json",
                 "anchor_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
               }
             ],
             "source_files": {
-              "out/swatch-sheet-slate-01/execution-plan.json": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "out/swatch-sheet-slate-01/plan.json": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
               "out/swatch-sheet-slate-01/sheet.png": "6666666666666666666666666666666666666666666666666666666666666666"
             },
             "status": "succeeded",
-            "graph_kind": "pipeline-execution-graph-v1",
+            "graph_kind": "gnode-graph-v2",
             "graph_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
             "inputs": {
               "brief": {
@@ -506,7 +500,7 @@
         "source_runs": [
           {
             "path": "out/example-game-world-v1",
-            "anchor": "execution-plan.json",
+            "anchor": "plan.json",
             "anchor_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
           }
         ],
