@@ -118,7 +118,6 @@ GAME_TYPED_TOOLS = (
     "godot/tools/validate_game_package.py",
     "godot/tools/write_game_contract_identities.py",
     "godot/tools/write_game_graph_contract.py",
-    "godot/tools/write_game_model_policy_snapshot.py",
 )
 
 
@@ -162,12 +161,7 @@ def _game_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
             "godot/games/the_grain/inputs",
         )
     )
-    result.extend(
-        (
-            Step(("demo-games", "case", "bundle", "--help")),
-            Step((python, "godot/tools/write_game_model_policy_snapshot.py")),
-        )
-    )
+    result.append(Step(("demo-games", "case", "bundle", "--help")))
     return tuple(result)
 
 

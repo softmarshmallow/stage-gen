@@ -37,7 +37,7 @@ keep an old word because changing them would change an identity.
 | `stage-gen-py`, `stage-gen-character`, `stage-gen-portrait-motion`, `stage-gen-movie-sprite` | `stage-gen`, with no aliases; a workflow written as a workflow file is planned and run with `gnode` |
 | `body idle`, `face repaint`, `prepare`, `verify`, `generate`, `semantic` and `gallery` as verbs | `plan`, `run` and `inspect`, with flags such as `--replay`, `--phase` and `--verify` |
 | movie-sprite's `--input-root`, `--output-root`, `--cache-root`; character-3d's experiment file and launcher flags | an inputs file (`gnode plan movie-sprite --inputs take.yaml`) |
-| `export-view` for product runs | `stage-gen inspect RUN --write-view DIR`; game runs keep `demo-games export-view` |
+| `export-view` | `stage-gen inspect RUN --write-view DIR`; every game builds with gnode, and a game's run is a gnode run |
 | `STAGE_GEN_OUT_DIR` as the viewer's run folder | `STAGE_GEN_RUN_ROOTS`, a list of paths; the application still reads `STAGE_GEN_OUT_DIR` as its own output folder (config `out_dir`) |
 | a workflow's `examples/` input bundles | its `inputs/` |
 | `examples/pipelines` (SDK samples) | `docs/sdk/pipelines/` |

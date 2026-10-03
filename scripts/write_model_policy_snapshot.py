@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Check or write the provider-free core route and policy snapshot.
 
-Fixture plans belong to their consuming project. The complete historical game
-census lives in godot/tools/write_game_model_policy_snapshot.py.
+Fixture plans belong to their consuming project: every game declares its routes in its
+own gnode.yaml and pins its plan through godot/tools/write_game_graph_contract.py.
 """
 
 from __future__ import annotations

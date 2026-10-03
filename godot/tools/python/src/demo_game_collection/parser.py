@@ -20,28 +20,11 @@ def build_parser() -> argparse.ArgumentParser:
         prog="demo-games",
         description="repository game preparation and regression tooling",
         epilog=(
-            "Every generated artifact reports its output and provenance paths. "
-            "Prepared game generation requires a directory or ZIP containing game.toml."
+            "Every game's assets build with gnode from the game's own folder: "
+            "cd godot/games/<game> && gnode plan pipeline/workflow.py:build ..."
         ),
     )
     commands = parser.add_subparsers(dest="command", required=True)
-
-    generate_parser = commands.add_parser(
-        "generate",
-        help="name the gnode command that builds a game package's assets",
-    )
-    generate_parser.add_argument(
-        "--input",
-        required=True,
-        dest="input_path",
-        help="prepared game directory or ZIP",
-    )
-    generate_parser.add_argument(
-        "--genre",
-        help=(
-            "which declared genre member to build; optional when the package declares exactly one"
-        ),
-    )
 
     dialogue_parser = commands.add_parser(
         "dialogue-scene",
@@ -157,26 +140,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="directory holding the named runs (default: the output's parent)",
     )
 
-    export_view_parser = commands.add_parser(
-        "export-view",
-        description=(
-            "Join one run directory's execution plan and trace into a derived "
-            "execution-view.json for read-only rendering"
-        ),
-    )
-    export_view_parser.add_argument(
-        "--run",
-        required=True,
-        dest="run_dir",
-        metavar="RUN_DIR",
-        help="existing execution output directory holding execution-plan.json",
-    )
-    export_view_parser.add_argument(
-        "--output",
-        dest="output_path",
-        help="view document destination (default: RUN_DIR/execution-view.json)",
-    )
-
     example_parser = commands.add_parser(
         "example",
         description=(
@@ -214,7 +177,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Validate and inspect one prepared game directory or ZIP",
     )
     package_commands = package_parser.add_subparsers(dest="package_command", required=True)
-    for action in ("validate", "digest", "plan"):
+    for action in ("validate", "digest"):
         package_action_parser = package_commands.add_parser(action)
         package_action_parser.add_argument(
             "--input",
@@ -222,22 +185,6 @@ def build_parser() -> argparse.ArgumentParser:
             dest="input_path",
             help="prepared package directory or ZIP",
         )
-        if action == "plan":
-            package_action_parser.add_argument(
-                "--genre",
-                help=(
-                    "which declared genre member to plan; optional when the package "
-                    "declares exactly one"
-                ),
-            )
-            package_action_parser.add_argument(
-                "--cache-dir",
-                dest="cache_dir",
-                help=(
-                    "price the plan against this execution cache: the report gains a "
-                    "`cache` block naming every provider node that would bill"
-                ),
-            )
 
     profile_parser = commands.add_parser(
         "character-profile",
@@ -269,39 +216,4 @@ def build_parser() -> argparse.ArgumentParser:
             help="explicit root containing this game soundtrack input",
         )
 
-    doctor_parser = commands.add_parser("doctor")
-    doctor_parser.add_argument("--transparency", choices=("native", "ai", "chroma"))
-    doctor_parser.add_argument("--json", action="store_true", dest="json_output")
-
-    models_parser = commands.add_parser(
-        "models",
-        description="Inspect checked-in model routes and policy changes entirely offline",
-    )
-    models_commands = models_parser.add_subparsers(dest="models_command", required=True)
-    models_commands.add_parser(
-        "routes",
-        help="print the active route catalog, policy selections, and recipe summaries",
-    )
-    models_diff_parser = models_commands.add_parser(
-        "diff",
-        help="compare a prior model-policy snapshot with the active application snapshot",
-    )
-    models_diff_parser.add_argument(
-        "--base",
-        required=True,
-        dest="base_path",
-        help="prior stage-gen-model-policy-snapshot-v1 JSON document",
-    )
-    models_diff_parser.add_argument(
-        "--recipe",
-        default=None,
-        dest="recipe_id",
-        help="limit graph, cache, count, and cost analysis to one canonical recipe id",
-    )
-    models_diff_parser.add_argument(
-        "--image-provider",
-        choices=("openai", "fal", "openrouter"),
-        default=None,
-        help="replan canonical recipe graphs under this explicit provider policy",
-    )
     return parser

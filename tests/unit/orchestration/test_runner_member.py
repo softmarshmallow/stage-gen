@@ -172,7 +172,7 @@ def test_repository_package_validation_accepts_a_runner_only_selection(tmp_path:
     assert report["genres"] == resolve_prepared_package(package).identity()["genres"]
 
 
-def test_package_cli_validates_digests_and_selects_the_only_runner(tmp_path: Path) -> None:
+def test_package_cli_validates_and_digests_a_runner_package(tmp_path: Path) -> None:
     package = runner_only_package(tmp_path)
     validate_output = StringIO()
 
@@ -184,11 +184,6 @@ def test_package_cli_validates_digests_and_selects_the_only_runner(tmp_path: Pat
     digest_output = StringIO()
     assert main(["package", "digest", "--input", str(package)], stdout=digest_output) == 0
     assert digest_output.getvalue() == f"{report['closure_sha256']}\n"
-
-    # The runner is built with gnode from its own project, and the collection says so.
-    plan_errors = StringIO()
-    assert main(["package", "plan", "--input", str(package)], stderr=plan_errors) == 2
-    assert "gnode plan pipeline/workflow.py:build" in plan_errors.getvalue()
 
 
 def test_combined_avatar_requires_a_package_level_visible_rider_head_override(

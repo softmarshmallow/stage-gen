@@ -11,7 +11,7 @@ import sys
 import pytest
 
 
-@pytest.mark.parametrize("arguments", [["--help"], ["models", "routes"], ["doctor", "--json"]])
+@pytest.mark.parametrize("arguments", [["--help"], ["help"]])
 def test_read_only_commands_do_not_import_game_builders(arguments: list[str]) -> None:
     result = subprocess.run(
         [
@@ -38,7 +38,7 @@ print(json.dumps({'status': status, 'errors': errors.getvalue(), 'loaded': loade
         check=True,
     )
     report = json.loads(result.stdout)
-    assert report["status"] in ({0, 2} if arguments[0] == "doctor" else {0})
+    assert report["status"] == 0
     assert report["errors"] == ""
     # The parser reads only this small game-owned vocabulary, with no node imports.
     assert report["loaded"] == []

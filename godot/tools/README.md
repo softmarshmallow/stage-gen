@@ -10,7 +10,6 @@ for commands that import game preparation packages.
 | `check_suites.py` | Declare suite execution conventions and enforce complete discovery |
 | `run_native_suite.py` | Run native regression suites in their owning game or shared-support project |
 | `write_game_contract_identities.py` | Derive the identity census from the game readers |
-| `write_game_model_policy_snapshot.py` | Maintain the game collection's routing snapshot |
 | `write_game_graph_contract.py` | Maintain game build-graph snapshots |
 | `package_game_project.py` | Assemble a game with real addon source and no inputs or generated output |
 | `parity_diff.py` | Compare deterministic runtime traces |

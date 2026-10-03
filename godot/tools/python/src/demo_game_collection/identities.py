@@ -135,7 +135,6 @@ def _owner_module(module: str) -> str:
         "orchestration.case_bundle": "the_grain_pipeline.case_bundle",
         "interfaces.cli": "demo_game_collection.cli",
         "application": "demo_game_tools.application",
-        "model_policy": "demo_game_collection.model_policy",
         "identities": "demo_game_collection.identities",
         "resources": "demo_game_collection.resources",
     }

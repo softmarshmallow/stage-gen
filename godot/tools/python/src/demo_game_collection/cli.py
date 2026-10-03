@@ -14,8 +14,6 @@ from stage_gen.application import (
 )
 from stage_gen.config import (
     ConfigError,
-    StageGenConfig,
-    TransparencyMode,
 )
 
 
@@ -57,21 +55,8 @@ def entrypoint() -> None:
     raise SystemExit(main())
 
 
-def create_doctor_report(
-    config: StageGenConfig, requested_mode: TransparencyMode | None = None
-) -> dict[str, object]:
-    """Compatibility entry point for callers of the collection readiness report."""
-    from demo_game_collection.commands.doctor import create_doctor_report as report
-
-    return report(config, requested_mode)
-
-
 def _dispatch(args: argparse.Namespace, *, stdout: TextIO) -> int:
     command: str = args.command
-    if command == "models":
-        from demo_game_collection.commands.models import dispatch
-
-        return dispatch(args, stdout=stdout)
     if command == "package":
         from demo_game_collection.commands.package import dispatch
 
@@ -84,14 +69,6 @@ def _dispatch(args: argparse.Namespace, *, stdout: TextIO) -> int:
         from demo_game_collection.commands.bindings import dispatch_soundtrack
 
         return dispatch_soundtrack(args, stdout=stdout)
-    if command == "doctor":
-        from demo_game_collection.commands.doctor import dispatch
-
-        return dispatch(args, stdout=stdout)
-    if command == "export-view":
-        from demo_game_collection.commands.views import dispatch
-
-        return dispatch(args, stdout=stdout)
     if command == "example":
         from demo_game_collection.commands.examples import dispatch
 
@@ -115,6 +92,4 @@ async def _dispatch_async(args: argparse.Namespace, *, stdout: TextIO) -> int:
         from demo_game_collection.commands.dialogue import _dispatch_dialogue_scene
 
         return await _dispatch_dialogue_scene(args, config=config, stdout=stdout)
-    from demo_game_collection.commands.generate import dispatch
-
-    return await dispatch(args, config=config, stdout=stdout)
+    raise CliUsageError(f"unknown command {args.command!r}")

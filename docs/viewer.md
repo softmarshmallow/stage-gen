@@ -59,8 +59,9 @@ plan or trace is newer than both its own view and its cached one:
 - SDK runs, and runs of the SDK workflows, are joined from their plan and trace by the SDK;
 - a gnode workflow run is projected from its own `plan.json` and `events.jsonl`, with each
   step's view context and, when its workflow has a view of its own, the whole run's;
-- a game run is never derived. Its persisted view is drawn, or its row says the view is not
-  exported, and `demo-games export-view --run DIR` exports one.
+- a game's assets build with gnode, so its run is a gnode workflow run like any other; an
+  older game run is never derived: its persisted view is drawn, or its row says none was
+  exported.
 
 `stage-gen inspect RUN --write-view DIR` writes the same derived view into a folder you name.
 

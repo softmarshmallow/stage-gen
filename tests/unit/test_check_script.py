@@ -51,7 +51,6 @@ def test_offline_gate_removes_provider_credentials_and_lists_required_checks() -
     ]
     assert ("python", "scripts/check_docs.py") in commands
     assert ("python", "scripts/write_model_policy_snapshot.py") in commands
-    assert ("python", "godot/tools/write_game_model_policy_snapshot.py") in commands
     assert ("bun", "test") in commands
     assert ("python", "scripts/site.py", "build", "--allow-missing-examples") in commands
     assert check.commands("python", scope="web")[2] == (

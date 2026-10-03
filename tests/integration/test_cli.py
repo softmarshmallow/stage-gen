@@ -9,15 +9,15 @@ from pathlib import Path
 
 import pytest
 
-from demo_game_collection.cli import build_parser, create_doctor_report, main
-from stage_gen.config import StageGenConfig, TransparencyMode
-from stage_gen.image_product import ImageProvider
+from demo_game_collection.cli import build_parser, main
 
 
-def test_cli_offline_surfaces_require_a_prepared_package() -> None:
+def test_cli_help_names_the_gnode_build_and_no_generation_of_its_own() -> None:
     help_text = " ".join(build_parser().format_help().split())
-    assert "Prepared game generation requires a directory or ZIP containing game.toml." in help_text
-    assert "bare prompt" not in help_text
+    assert "build with gnode from the game's own folder" in help_text
+    for retired in ("generate", "export-view", "doctor", "models"):
+        assert f"{{{retired}," not in help_text and f",{retired}," not in help_text
+        assert f",{retired}}}" not in help_text
 
 
 def test_prepared_package_cli_validates_and_digests_directory_and_zip(tmp_path: Path) -> None:
@@ -63,36 +63,6 @@ def test_prepared_package_cli_validates_and_digests_directory_and_zip(tmp_path: 
         == 0
     )
     assert json.loads(zip_output.getvalue())["closure_sha256"] == report["closure_sha256"]
-
-    error = StringIO()
-    # The platformer builds with gnode from its game folder; the collection names the command.
-    assert (
-        main(["package", "plan", "--input", str(package), "--genre", "platformer"], stderr=error)
-        == 2
-    )
-    assert "gnode plan pipeline/workflow.py:build --arg package=inputs/default" in error.getvalue()
-
-
-def test_generate_names_the_gnode_build_of_each_game_it_once_ran(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("_STAGE_GEN_DISABLE_DOTENV", "1")
-    repository = Path(__file__).resolve().parents[2]
-    for package, command in (
-        (
-            "godot/games/bellweather/inputs/default",
-            "cd godot/games/bellweather && gnode plan pipeline/workflow.py:build "
-            "--arg package=inputs/default",
-        ),
-        (
-            "godot/games/iron_petal_unit/inputs",
-            "cd godot/games/iron_petal_unit && gnode plan pipeline/workflow.py:build "
-            "--arg package=inputs",
-        ),
-    ):
-        error = StringIO()
-        assert main(["generate", "--input", str(repository / package)], stderr=error) == 2
-        assert command in error.getvalue()
 
 
 def test_character_profile_cli_validate_digest_help_and_errors(
@@ -315,111 +285,6 @@ def test_soundtrack_cli_rejects_a_source_outside_the_game_owned_path(tmp_path: P
         == 1
     )
     assert "game soundtrack input must be inside game library root" in error_output.getvalue()
-
-
-def test_generate_help_names_only_what_it_reads(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    with pytest.raises(SystemExit) as exit_info:
-        build_parser().parse_args(["generate", "--help"])
-    help_text = capsys.readouterr().out
-
-    assert exit_info.value.code == 0
-    assert "--input" in help_text and "--genre" in help_text
-    assert "--checkpoint" not in help_text and "--dry-run" not in help_text
-
-
-def test_doctor_consumes_cwd_dotenv_without_exposing_credentials(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.chdir(tmp_path)
-    for name in (
-        "OPENAI_API_KEY",
-        "OPENROUTER_API_KEY",
-        "FAL_KEY",
-        "ELEVENLABS_API_KEY",
-        "_STAGE_GEN_DISABLE_DOTENV",
-    ):
-        monkeypatch.delenv(name, raising=False)
-    (tmp_path / ".env").write_text(
-        "OPENAI_API_KEY=doctor-openai\n"
-        "OPENROUTER_API_KEY=doctor-openrouter\n"
-        "FAL_KEY=doctor-fal\n"
-        "ELEVENLABS_API_KEY=doctor-elevenlabs\n",
-        encoding="utf-8",
-    )
-    output = StringIO()
-
-    assert main(["doctor", "--json"], stdout=output) == 0
-
-    rendered = output.getvalue()
-    report = json.loads(rendered)
-    assert report["ok"] is True
-    assert report["capabilities"] == {
-        "openai": True,
-        "openrouter": True,
-        "fal": True,
-        "elevenlabs": True,
-    }
-    assert report["models"]["sound_effect"] == "eleven_text_to_sound_v2"
-    assert "doctor-openai" not in rendered
-    assert "doctor-openrouter" not in rendered
-    assert "doctor-fal" not in rendered
-    assert "doctor-elevenlabs" not in rendered
-
-
-@pytest.mark.parametrize(
-    ("mode", "provider", "expected_provider", "expected_ok"),
-    (
-        (TransparencyMode.NATIVE, None, ImageProvider.OPENAI, True),
-        (TransparencyMode.NATIVE, ImageProvider.FAL, ImageProvider.FAL, True),
-        (TransparencyMode.NATIVE, ImageProvider.OPENROUTER, ImageProvider.OPENROUTER, False),
-        (TransparencyMode.AI, None, ImageProvider.OPENROUTER, True),
-        (TransparencyMode.CHROMA, ImageProvider.FAL, ImageProvider.FAL, True),
-    ),
-)
-def test_doctor_reports_the_selected_image_provider_and_native_admission(
-    mode: TransparencyMode,
-    provider: ImageProvider | None,
-    expected_provider: ImageProvider,
-    expected_ok: bool,
-) -> None:
-    report = create_doctor_report(
-        StageGenConfig(
-            openai_api_key="openai",
-            open_router_api_key="openrouter",
-            fal_key="fal",
-            image_provider_override=provider,
-        ),
-        mode,
-    )
-
-    assert report["ok"] is expected_ok
-    requirements = report["requirements"]
-    assert isinstance(requirements, dict)
-    assert requirements["image_route_provider"] == (
-        expected_provider.value
-        if not (mode is TransparencyMode.NATIVE and provider is ImageProvider.OPENROUTER)
-        else None
-    )
-    assert requirements["image_route_supported"] is not (
-        mode is TransparencyMode.NATIVE and provider is ImageProvider.OPENROUTER
-    )
-
-
-def test_doctor_requires_fal_when_it_is_the_selected_image_provider() -> None:
-    report = create_doctor_report(
-        StageGenConfig(
-            open_router_api_key="openrouter",
-            image_provider_override=ImageProvider.FAL,
-        ),
-        TransparencyMode.CHROMA,
-    )
-
-    assert report["ok"] is False
-    requirements = report["requirements"]
-    assert isinstance(requirements, dict)
-    assert requirements["image_route_provider"] == "fal"
 
 
 def test_scenario_cli_proves_the_shipped_scenario_without_touching_a_provider() -> None:

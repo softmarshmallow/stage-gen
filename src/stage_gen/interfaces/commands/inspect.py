@@ -37,7 +37,7 @@ def run(args: argparse.Namespace, stdout: TextIO) -> int:
     if owner.workflow is None and not is_sdk_run(args.run_dir):
         raise ValueError(
             f"{args.run_dir} is not a workflow or SDK run; "
-            "a game run is read by its game (demo-games export-view)"
+            "every game builds with gnode, and its run is read with `gnode inspect`"
         )
     record: dict[str, Any] = {"workflow": owner.workflow, "run_dir": str(args.run_dir)}
     if args.write_view is not None:

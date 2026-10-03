@@ -193,24 +193,17 @@ credentials:
 uv run stage-gen models routes
 ```
 
-Before changing a product, route, capability, price, or policy, save the current
-`src/stage_gen/model_policy_snapshot.json` and compare it after the edit:
+Before changing a product, route, capability, price, or policy, check the packaged
+snapshot, then rewrite it and read the diff of `src/stage_gen/model_policy_snapshot.json`:
 
 ```sh
-uv run --group games demo-games models diff --base ./previous-model-policy.json
-uv run --group games demo-games models diff --base ./previous-model-policy.json --recipe sideview_platformer
-uv run --group games demo-games models diff --base ./previous-model-policy.json --image-provider fal
+uv run python scripts/write_model_policy_snapshot.py
+uv run python scripts/write_model_policy_snapshot.py --write
 ```
 
-The diff replans the example games' canonical fixtures too, so it lives in the games' tooling.
-
-`--image-provider` replans every canonical fixture under that explicit provider
-policy in a source checkout, so the report includes real direct and downstream
-graph/cache movement instead of only comparing policy-table rows. The diff reports
-route and policy fields, capability gaps, exact option changes,
-direct and downstream cache rekeys, resource/topology movement, operation and
-cost deltas, required live-canary classes, and stale generated contracts. Both
-commands are offline and read-only.
+Both are offline and read only local files. The games are not part of it: each binds
+its routes in its own `gnode.yaml`, and a route without a feature a step requires is
+refused when that game plans.
 
 All image routes are the Sunburst variant at `quality="max"`. Flare, the bare
 `gpt-image-2.5` name, dated aliases, and arbitrary model overrides are closed.

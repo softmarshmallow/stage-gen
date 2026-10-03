@@ -231,6 +231,14 @@ said TOML; the amendment is posted on issue #3 with the owner's go.
   ground review's sheet order did not match its labels, the anchor's cache key omitted most
   of what its instructions read, and rebase verification failed instead of asking again.
   With the last executor gone, the model-policy census lists no recipe.
+- **M8e (the collection CLI).** With every game on gnode, `demo-games` keeps only what reads
+  or proves authored files: `package validate|digest`, `scenario check`, `case check|bundle`,
+  `character-profile`, `soundtrack`, `dialogue-scene review` and `example export`. `generate`
+  and `package plan` (notices naming a gnode command), `export-view` (no game writes a v1
+  run), `doctor` (readiness for the executors' configuration; `gnode doctor` checks a
+  build's routes and tools) and `models` with its census (now the product snapshot's catalog
+  and policies with no recipe, which `scripts/write_model_policy_snapshot.py` already checks)
+  are gone.
 - **Cost.** Every milestone up to M9 is offline. M10 is estimated at about USD 45 on a first
   pass (calibration about USD 2.3, a six-run cohort capped at USD 27 each, a canary about
   USD 5.6), about double if a cohort fails.
