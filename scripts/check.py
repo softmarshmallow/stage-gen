@@ -235,13 +235,11 @@ def _asset_steps(python: str, *, scratch: Path) -> tuple[Step, ...]:
             cwd=project,
         ),
         Step((python, "scripts/write_model_policy_snapshot.py")),
-        Step(("stage-gen", "--help")),
-        Step(("stage-gen", "list")),
+        Step(("gnode", "--help")),
         Step(
             (
-                "stage-gen",
-                "catalog",
-                "export",
+                python,
+                "scripts/catalog.py",
                 "--check",
                 "--allow-missing-examples",
                 "--out",

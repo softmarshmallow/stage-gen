@@ -6,8 +6,8 @@
     uv run python scripts/site.py serve [--port 8790]
 
 `stage` writes everything `next build` reads, all into gitignored folders:
-- `stage-gen catalog export` into web/site/.catalog/: catalog.json, and cli.json, the command
-  tree the CLI reference page is written from;
+- the catalog export (as `scripts/catalog.py` writes it) into web/site/.catalog/:
+  catalog.json, and cli.json, the `gnode` command tree the CLI reference page is written from;
 - the prose from the checkout into web/site/.catalog/pages/: each workflow's page.mdx,
   contract.md and examples/*.mdx, each game example's page.mdx from the store, and the
   SITE_DOCS markdown with docs/index.json, their slugs, titles and checkout paths in order;
@@ -76,39 +76,22 @@ def _inside(path: Path, root: Path, label: str) -> Path:
     return resolved
 
 
-def _stage_gen() -> str:
-    beside = Path(sys.executable).parent / "stage-gen"
-    if beside.is_file():
-        return str(beside)
-    found = shutil.which("stage-gen")
-    if found is None:
-        raise SiteError("stage-gen is not installed here; run this through `uv run`")
-    return found
-
-
 def export_catalog(examples: Path, *, allow_missing_examples: bool) -> dict[str, object]:
+    from stage_gen.workflows._catalog import export
+
     if CATALOG_ROOT.exists():
         shutil.rmtree(CATALOG_ROOT)
     CATALOG_ROOT.mkdir(parents=True)
-    command = [
-        _stage_gen(),
-        "catalog",
-        "export",
-        "--out",
-        str(CATALOG_ROOT),
-        "--examples",
-        str(examples),
-    ]
-    if allow_missing_examples:
-        command.append("--allow-missing-examples")
-    completed = subprocess.run(command, cwd=REPOSITORY_ROOT, check=False)
-    if completed.returncode != 0:
-        raise SiteError(f"stage-gen catalog export failed with exit code {completed.returncode}")
+    result = export(
+        CATALOG_ROOT, examples_dir=examples, allow_missing_examples=allow_missing_examples
+    )
+    if result.problems:
+        raise SiteError("the catalog drifted:\n" + "\n".join(result.problems))
     loaded: object = json.loads((CATALOG_ROOT / "catalog.json").read_text(encoding="utf-8"))
     if not isinstance(loaded, dict):
         raise SiteError("catalog.json is not an object")
     if not (CATALOG_ROOT / "cli.json").is_file():
-        raise SiteError("stage-gen catalog export wrote no cli.json; the CLI reference needs it")
+        raise SiteError("the catalog export wrote no cli.json; the CLI reference needs it")
     return loaded
 
 

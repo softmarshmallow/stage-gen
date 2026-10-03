@@ -140,9 +140,8 @@ export default async function RunArtifactsPage({
         {back}
         <h1 className={h1}>{name}</h1>
         <p className={metaLine}>
-          This run carries no execution view, so there is nothing to list. Derive
-          one with <code>stage-gen inspect {runDirFor(run)} --write-view DIR</code>,
-          or let <code>stage-gen view</code> derive it; a run whose execution plan
+          This run carries no execution view, so there is nothing to list. Let{" "}
+          <code>gnode view</code> keep one for a workflow run; a run whose execution plan
           predates this build cannot be re-derived and keeps only its published
           document.
         </p>

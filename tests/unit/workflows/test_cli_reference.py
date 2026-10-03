@@ -1,4 +1,4 @@
-"""``command_reference``: the argparse tree the site's CLI reference is written from."""
+"""``command_reference``: gnode's argparse tree, which the site's CLI reference is written from."""
 
 from __future__ import annotations
 
@@ -9,7 +9,8 @@ from typing import Any
 
 import pytest
 
-from stage_gen.interfaces.cli import build_parser, command_reference
+from gnode import cli
+from stage_gen.workflows._reference import command_reference
 
 REPOSITORY = Path(__file__).resolve().parents[3]
 
@@ -26,34 +27,32 @@ def _argument(command: dict[str, Any], name: str) -> dict[str, Any]:
 
 def test_every_command_is_in_the_reference_once() -> None:
     reference = command_reference()
-    assert reference["kind"] == "stage-gen-cli-v1"
-    assert reference["prog"] == "stage-gen"
+    assert reference["kind"] == "gnode-cli-v1"
+    assert reference["prog"] == "gnode"
     names = [command["name"] for command in reference["commands"]]
     assert len(names) == len(set(names))
-    assert names[:5] == ["list", "show", "plan", "run", "inspect"]
-    assert {"view", "example", "catalog", "capability", "models", "env"} <= set(names)
-    from stage_gen.workflows._registry import discover
-
-    # A workflow written as a workflow file is planned and run with gnode instead.
-    workflows = [w.id for w in discover() if w.root.joinpath("cli.py").is_file()]
-    assert "looping-parallax" not in workflows
-    for verb in ("plan", "run"):
-        targets = [command["name"] for command in _find(reference, verb)["commands"]]
-        assert targets == [*workflows, "file"]
+    assert names[:2] == ["plan", "run"]
+    assert {"reroll", "pick", "takes", "inspect", "view", "nodes", "doctor"} <= set(names)
+    assert [command["name"] for command in _find(reference, "takes")["commands"]] == [
+        "list",
+        "mv",
+    ]
 
 
 def test_arguments_carry_their_usage_help_and_defaults() -> None:
     reference = command_reference()
-    export = _find(reference, "catalog", "export")
-    assert export["usage"].startswith("stage-gen catalog export [-h] --out OUT_DIR")
-    out = _argument(export, "--out")
-    assert out["required"] and out["metavar"] == "OUT_DIR" and not out["positional"]
-    check = _argument(export, "--check")
-    assert check["metavar"] is None and check["default"] is None
-    assert _argument(_find(reference, "view"), "--port")["default"] == "3000"
-    runs = _argument(_find(reference, "view"), "--runs")
-    assert runs["repeatable"] and runs["default"] is None
-    assert all("-h" not in entry["names"] for entry in export["arguments"])
+    run = _find(reference, "run")
+    assert run["usage"].startswith("gnode run [-h] [--inputs INPUTS]")
+    deliver = _argument(run, "--deliver")
+    assert deliver["repeatable"] and deliver["metavar"] == "OUTPUT=PATH"
+    live = _argument(run, "--live")
+    assert live["metavar"] is None and live["default"] is None
+    view = _find(reference, "view")
+    assert _argument(view, "--port")["default"] == "3000"
+    assert view["usage"] == "gnode view [-h] [--port PORT] [--no-open] [runs ...]"
+    roots = _argument(view, "[runs ...]")
+    assert roots["positional"] and roots["repeatable"] and roots["default"] is None
+    assert all("-h" not in entry["names"] for entry in run["arguments"])
 
 
 def test_the_reference_does_not_depend_on_the_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -69,7 +68,7 @@ def test_the_reference_is_portable_json() -> None:
 
 
 def test_an_absolute_path_default_is_refused() -> None:
-    parser = build_parser()
+    parser = cli.build_parser()
     commands = next(a for a in parser._actions if isinstance(a, argparse._SubParsersAction))
     probe = commands.add_parser("probe", help="a command with a private default")
     probe.add_argument("--where", type=Path, default=Path.home() / "private")
@@ -77,7 +76,7 @@ def test_an_absolute_path_default_is_refused() -> None:
         command_reference(parser)
 
 
-def test_every_argument_says_what_it_is() -> None:
+def test_every_command_and_argument_says_what_it_is() -> None:
     bare: list[str] = []
     # The site renders a recorded default itself, so help that repeats it reads twice.
     echoed: list[str] = []
@@ -90,9 +89,11 @@ def test_every_argument_says_what_it_is() -> None:
             elif argument["default"] is not None and "default:" in argument["help"]:
                 echoed.append(name)
         for child in command["commands"]:
+            if not child["summary"]:
+                bare.append(" ".join((*path, child["name"])))
             walk(child, (*path, child["name"]))
 
     reference = command_reference()
     walk(reference, (reference["prog"],))
-    assert bare == [], "arguments without help: " + ", ".join(bare)
+    assert bare == [], "commands or arguments without help: " + ", ".join(bare)
     assert echoed == [], "help repeating its recorded default: " + ", ".join(echoed)

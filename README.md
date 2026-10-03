@@ -4,7 +4,7 @@ Stage Gen is a general asset generation toolkit. Each workflow turns a small inp
 named deliverable, such as a transparent idle loop, a rigged 3D character or a set of
 repeating parallax layers, and every workflow is a GNode graph you can run and inspect. All
 but 3D character plan offline before any spend, and most reuse a node cache across runs.
-Inspect runs in the viewer, the local read-only client that `stage-gen view` opens. Your
+Inspect runs in the viewer, the local read-only client that `gnode view` opens. Your
 application decides how the assets become a game, an animation or a tool.
 
 ![Iron Petal Unit key art: a young mechanic-pilot riding a rescue robot through an orbital greenhouse](godot/games/iron_petal_unit/inputs/references/cover.png)
@@ -40,27 +40,25 @@ Python 3.12 or newer and [uv](https://docs.astral.sh/uv/) are required. From thi
 
 ```sh
 uv sync --frozen
-uv run stage-gen list
-uv run stage-gen show looping-parallax
+uv run gnode schema looping-parallax
 uv run python src/stage_gen/workflows/looping_parallax/inputs/supplied_layers/make_inputs.py out/looping-parallax-input
+uv run gnode plan looping-parallax --inputs out/looping-parallax-input/inputs.yaml
 uv run gnode run looping-parallax --inputs out/looping-parallax-input/inputs.yaml
 uv run gnode inspect looping-parallax --verify
+uv run gnode view
 ```
 
 That run is offline: committed scripts draw the input layers, and no provider is called.
-Looping parallax is written as a gnode workflow file, so `gnode` plans and runs it; its run
-folder is under `out/runs/`. The other workflows take the same `stage-gen` verbs, `plan`,
-`run` and `inspect` (3D character prepares with `run --prepare-only` instead of `plan`;
-each workflow's flags are in `stage-gen <command> <workflow> --help`), until each moves to
-a workflow file too. Planning never spends; a
-provider call needs the workflow's explicit opt-in, such as `--live`, and your own keys
-(see [provider setup](docs/models/providers.md)). Write your own graph with the
-[SDK](docs/sdk/guide.md) and run it with `stage-gen run file <file.py:attr>`.
+Every workflow is a gnode workflow file, so `gnode` plans, runs and inspects each by its id;
+`gnode schema <id>` prints the inputs it takes, and its run folders are under `out/runs/`.
+Planning never spends; a provider call needs `--live` and your own keys (see
+[provider setup](docs/models/providers.md)). Your own workflow is a workflow file or a Python
+builder, which `gnode plan` and `gnode run` take the same way.
 
 ## Read more
 
 - [Getting started](docs/getting-started.md) and the [glossary](docs/glossary.md).
-- [Viewer](docs/viewer.md): `stage-gen view`, the local read-only client over run folders.
+- [Viewer](docs/viewer.md): `gnode view`, the local read-only client over run folders.
 - [Site](docs/site.md): the static landing and documentation site built from the catalog
   and the example store.
 - [Architecture](ARCHITECTURE.md), the [documentation index](docs/README.md), the

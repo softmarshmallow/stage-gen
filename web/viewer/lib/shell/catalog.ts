@@ -1,9 +1,9 @@
-// Server-side reader for the catalog `stage-gen view` exported before it started.
+// Server-side reader for the catalog `gnode view` exported before it started.
 //
 // The catalog says what every installed workflow is: its title and promise, its steps,
 // the identities its runs carry and the graph it plans offline. The viewer groups runs
 // by it and draws each workflow's plan from it; it never plans anything itself. Started
-// without `stage-gen view`, the viewer has no catalog and lists every run ungrouped.
+// without `gnode view`, the viewer has no catalog and lists every run ungrouped.
 
 import { promises as fs } from "node:fs";
 import { type Catalog, parseCatalog } from "@stage-gen/ui/contracts/catalog";
@@ -25,7 +25,7 @@ export async function readCatalog(): Promise<CatalogRead> {
     const stat = await fs.stat(file);
     mtimeMs = stat.mtimeMs;
   } catch {
-    return { catalog: null, refusal: `no catalog at ${file}; restart stage-gen view` };
+    return { catalog: null, refusal: `no catalog at ${file}; restart gnode view` };
   }
   if (memo !== null && memo.file === file && memo.mtimeMs === mtimeMs) return memo.read;
   let read: CatalogRead;

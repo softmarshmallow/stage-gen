@@ -1,5 +1,5 @@
-// The CLI reference page (/docs/cli/), written from the command tree `stage-gen catalog
-// export` writes beside the catalog (lib/cli.ts): every command in the parser's order, with
+// The CLI reference page (/docs/cli/), written from the `gnode` command tree the catalog
+// export writes beside the catalog (lib/cli.ts): every command in the parser's order, with
 // its usage and its arguments. Nothing here is typed by hand, so the page cannot drift from
 // the parser.
 
@@ -86,7 +86,7 @@ export default function CliReference({ root }: { root: CliCommand }): ReactEleme
       {root.description ? <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">{root.description}</p> : null}
       <pre className={PRE}>{root.usage}</pre>
       <p className={P}>
-        Written from the parser itself when the site is built. <code className={CODE}>stage-gen &lt;command&gt; --help</code>{" "}
+        Written from the parser itself when the site is built. <code className={CODE}>gnode &lt;command&gt; --help</code>{" "}
         prints the same for one command.
       </p>
       <ul className="mt-6 max-w-3xl space-y-1.5 text-zinc-700 dark:text-zinc-300">

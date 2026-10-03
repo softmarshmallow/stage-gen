@@ -1,4 +1,4 @@
-// One workflow, read from the catalog `stage-gen view` exported: what it promises, the
+// One workflow, read from the catalog `gnode view` exported: what it promises, the
 // commands that run it, the graph it plans offline from its committed sample inputs,
 // its steps, and its runs under the viewer's roots.
 //
@@ -33,7 +33,7 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
         </p>
         <h1 className={h1}>{id}</h1>
         <p className={refusal ? errorBanner : metaLine}>
-          {refusal ?? "No catalog. Start the viewer with stage-gen view to read workflows."}
+          {refusal ?? "No catalog. Start the viewer with gnode view to read workflows."}
         </p>
       </main>
     );
@@ -48,9 +48,8 @@ export default async function WorkflowPage({ params }: { params: Promise<{ id: s
   const now = Date.now();
   const commands = [
     ...(manifest.tryIt?.commands ?? []),
-    `stage-gen show ${workflow.id}`,
-    `stage-gen plan ${workflow.id} --help`,
-    `stage-gen run ${workflow.id} --help`,
+    `gnode schema ${workflow.id}`,
+    `gnode plan ${workflow.id} --help`,
   ];
   const related = manifest.related
     .map((other) => findWorkflow(catalog, other))

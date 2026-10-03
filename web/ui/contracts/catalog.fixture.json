@@ -30,8 +30,8 @@
         "try": {
           "input": "src/stage_gen/workflows/swatch_sheet/inputs/slate",
           "commands": [
-            "uv run stage-gen plan swatch-sheet --input src/stage_gen/workflows/swatch_sheet/inputs/slate",
-            "uv run stage-gen run swatch-sheet --input src/stage_gen/workflows/swatch_sheet/inputs/slate --output out/swatch-sheet-slate-01 --dry-run"
+            "uv run gnode plan swatch-sheet --inputs src/stage_gen/workflows/swatch_sheet/inputs/slate.yaml",
+            "uv run gnode run swatch-sheet --inputs src/stage_gen/workflows/swatch_sheet/inputs/slate.yaml"
           ]
         },
         "examples": [

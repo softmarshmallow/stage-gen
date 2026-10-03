@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 import sys
 import zipfile
@@ -40,7 +39,45 @@ def _install_wheel(repository: Path, tmp_path: Path, environment: dict[str, str]
     return installed
 
 
-def test_installed_public_pipeline_cli_plan_run_cache_failure_and_inspect(tmp_path: Path) -> None:
+WORKFLOW = """\
+gnode: workflow/v1
+id: swatches
+title: Swatches
+inputs:
+  palette: { type: file, kind: json }
+steps:
+  swatch:
+    uses: ./nodes/swatch.py#swatch
+    with: { palette: "${{ inputs.palette }}" }
+  small:
+    uses: gnode/image.resize@1
+    with: { image: "${{ steps.swatch.outputs.image }}", longest_side: 8 }
+outputs:
+  swatch: ${{ steps.small.outputs.image }}
+"""
+
+NODE = """\
+import io
+
+from PIL import Image
+
+from gnode import Ctx, node
+
+
+@node("swatch", inputs={"palette": "json"}, outputs={"image": "image/png"})
+def swatch(ctx: Ctx) -> dict:
+    color = ctx.read.json("palette")["color"]
+    if not all(0 <= channel <= 255 for channel in color):
+        raise ctx.fail(f"color {color} is outside 0..255")
+    out = io.BytesIO()
+    Image.new("RGB", (16, 16), tuple(color)).save(out, format="PNG")
+    return {"image": ctx.out.bytes(out.getvalue(), "image/png")}
+"""
+
+
+def test_an_installed_wheel_plans_runs_reuses_and_inspects_an_outside_project(
+    tmp_path: Path,
+) -> None:
     repository = Path(__file__).resolve().parents[2]
     environment = os.environ.copy()
     for key in (
@@ -53,12 +90,12 @@ def test_installed_public_pipeline_cli_plan_run_cache_failure_and_inspect(tmp_pa
         environment.pop(key, None)
     installed = _install_wheel(repository, tmp_path, environment)
     consumer = tmp_path / "consumer"
-    consumer.mkdir()
-    definition = consumer / "my_assets.py"
-    shutil.copyfile(repository / "docs/sdk/pipelines/local_media.py", definition)
-    inputs = consumer / "inputs"
-    inputs.mkdir()
-    (inputs / "palette.json").write_text('{"color": [24, 48, 72]}')
+    (consumer / "nodes").mkdir(parents=True)
+    (consumer / "gnode.yaml").write_text("gnode: project/v1\n", encoding="utf-8")
+    (consumer / "swatches.yaml").write_text(WORKFLOW, encoding="utf-8")
+    (consumer / "nodes/swatch.py").write_text(NODE, encoding="utf-8")
+    (consumer / "palette.json").write_text('{"color": [24, 48, 72]}', encoding="utf-8")
+    (consumer / "inputs.yaml").write_text("palette: palette.json\n", encoding="utf-8")
     bootstrap = """
 import importlib.abc
 import sys
@@ -76,15 +113,15 @@ class NoOptionalConsumers(importlib.abc.MetaPathFinder):
             'ember_hollow_pipeline',
             'the_grain_pipeline',
         }:
-            raise AssertionError('Public pipeline imported an optional consumer: ' + fullname)
+            raise AssertionError('The installed product imported an optional consumer: ' + fullname)
 sys.meta_path.insert(0, NoOptionalConsumers())
-from stage_gen.interfaces.cli import main
-import stage_gen.pipeline
-assert Path(stage_gen.pipeline.__file__).is_relative_to(Path(sys.path[0]))
-raise SystemExit(main())
+import gnode
+from gnode import cli
+assert Path(gnode.__file__).is_relative_to(Path(sys.path[0]))
+raise SystemExit(cli.main())
 """
 
-    def cli(*arguments: str) -> subprocess.CompletedProcess[str]:
+    def gnode_cli(*arguments: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [sys.executable, "-I", "-c", bootstrap, str(installed), *arguments],
             cwd=consumer,
@@ -94,74 +131,37 @@ raise SystemExit(main())
             check=False,
         )
 
-    listed = cli("list", "--json")
-    assert listed.returncode == 0, listed.stderr
-    assert len(json.loads(listed.stdout)) == 5
-    planned = cli("plan", "file", str(definition), "--input", str(inputs), "--target", "swatch")
+    planned = gnode_cli("plan", "swatches", "--inputs", "inputs.yaml")
     assert planned.returncode == 0, planned.stderr
-    assert json.loads(planned.stdout)["projection"]["operation_counts"] == {"local": 1}
-    cache = consumer / "cache"
-    first = cli(
-        "run",
-        "file",
-        str(definition),
-        "--input",
-        str(inputs),
-        "--output",
-        str(consumer / "first"),
-        "--cache-dir",
-        str(cache),
+    first = gnode_cli(
+        "run", "swatches", "--inputs", "inputs.yaml", "--deliver", "swatch=delivered/swatch.png"
     )
     assert first.returncode == 0, first.stderr
-    assert json.loads(first.stdout)["ok"]
-    second = cli(
-        "run",
-        "file",
-        str(definition),
-        "--input",
-        str(inputs),
-        "--output",
-        str(consumer / "second"),
-        "--cache-dir",
-        str(cache),
-    )
+    assert (consumer / "delivered/swatch.png").read_bytes().startswith(b"\x89PNG")
+    second = gnode_cli("run", "swatches", "--inputs", "inputs.yaml")
     assert second.returncode == 0, second.stderr
-    assert all(node["cache"] == "hit" for node in json.loads(second.stdout)["summary"]["nodes"])
-    inspected = cli("inspect", str(consumer / "second"), "--json")
+    inspected = gnode_cli("inspect", "swatches", "--verify", "--json")
     assert inspected.returncode == 0, inspected.stderr
     record = json.loads(inspected.stdout)
-    assert record["workflow"] is None and record["view"]["pipeline_id"] == "local-media"
-    (inputs / "palette.json").write_text('{"color": [999, 0, 0]}')
-    failed = cli(
-        "run",
-        "file",
-        str(definition),
-        "--input",
-        str(inputs),
-        "--output",
-        str(consumer / "failed"),
-        "--cache-dir",
-        str(cache),
-    )
+    assert record["verification"]["verified"]
+    assert {node["cache"] for node in record["view"]["nodes"]} == {"hit"}
+
+    (consumer / "palette.json").write_text('{"color": [999, 0, 0]}', encoding="utf-8")
+    failed = gnode_cli("run", "swatches", "--inputs", "inputs.yaml")
     assert failed.returncode == 1, failed.stderr
-    failure_view = cli("inspect", str(consumer / "failed"), "--json")
-    assert failure_view.returncode == 0
-    assert json.loads(failure_view.stdout)["view"]["run_state"] == "failed"
-    refused = cli("plan", "file", str(definition), "--input", str(inputs), "--target", "unknown")
-    assert refused.returncode == 2
-    assert "undeclared" in refused.stderr
-    missing = cli("plan", "file", "missing_external_pipeline", "--input", str(inputs))
-    assert missing.returncode == 2 and "cannot load pipeline definition" in missing.stderr
-    invalid = consumer / "invalid.py"
-    invalid.write_text("pipeline = object()\n")
-    rejected = cli("plan", "file", str(invalid), "--input", str(inputs))
-    assert rejected.returncode == 2 and "cannot load pipeline definition" in rejected.stderr
-    invalid.write_text("invalid syntax !!!\n")
-    malformed = cli("plan", "file", str(invalid), "--input", str(inputs))
-    assert malformed.returncode == 2 and "cannot load pipeline definition" in malformed.stderr
+    failure = json.loads(gnode_cli("inspect", "swatches", "--json").stdout)
+    assert failure["view"]["run_state"] == "failed"
+
+    (consumer / "broken.yaml").write_text(
+        WORKFLOW.replace("id: swatches", "id: broken").replace("#swatch", "#missing"),
+        encoding="utf-8",
+    )
+    refused = gnode_cli("plan", "broken", "--inputs", "inputs.yaml", "--check")
+    assert refused.returncode != 0
+    assert "missing is not declared with @node" in refused.stdout
 
 
-def test_public_cli_capabilities_and_components_import_without_optional_consumers() -> None:
+def test_public_modules_and_components_import_without_optional_consumers() -> None:
     program = """
 import importlib
 import importlib.abc
@@ -181,7 +181,10 @@ class NoConsumers(importlib.abc.MetaPathFinder):
         }:
             raise AssertionError('Public surface imported optional consumer: ' + fullname)
 sys.meta_path.insert(0, NoConsumers())
-import stage_gen.interfaces.cli
+import gnode
+import gnode_std
+import stage_gen.viewer
+import stage_gen.orchestration.gnode_plugin
 import stage_gen.application
 import stage_gen.capabilities
 import stage_gen.pipeline

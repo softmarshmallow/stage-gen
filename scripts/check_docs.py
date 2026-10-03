@@ -571,18 +571,18 @@ def run_docs_check(repo: Path = REPOSITORY_ROOT) -> DocsCheckResult:
             )
 
     readme = (repo / "README.md").read_text(encoding="utf-8")
-    # The viewer is the CLI's: the sentence that names it names its command.
+    # The viewer is gnode's dashboard: the sentence that names it names its command.
     viewer_sentences = [
         sentence
         for sentence in re.split(r"(?<=[.!?])\s+", " ".join(readme.split()))
         if re.search(r"\bviewer\b", sentence, re.IGNORECASE)
     ]
     if re.search(r"\bgeneral\b", readme, re.IGNORECASE) is None or not any(
-        "stage-gen view" in sentence for sentence in viewer_sentences
+        "gnode view" in sentence for sentence in viewer_sentences
     ):
         failures.append(
             "README.md: missing general-core / viewer framing (a sentence naming the "
-            "viewer and `stage-gen view`)"
+            "viewer and `gnode view`)"
         )
     failures.extend(check_retired_terms(repo))
 

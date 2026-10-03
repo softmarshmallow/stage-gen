@@ -1,6 +1,6 @@
 # Display names for the model and provider identifiers that runs and route bindings record.
 # Pages, the catalog and example importers show these names; the identifiers stay as recorded.
-# `stage-gen catalog export --check` fails when a planned route or an example names a model
+# `scripts/catalog.py --check` fails when a planned route or an example names a model
 # that has no entry here.
 schema_version = 1
 

@@ -27,7 +27,7 @@ COMPONENT_ROOT = SOURCE_ROOT / "stage_gen" / "components"
 FORBIDDEN_COMPONENT_DEPENDENCIES = (
     "stage_gen.orchestration",
     "stage_gen.workflows",
-    "stage_gen.interfaces",
+    "stage_gen.viewer",
 )
 
 
@@ -222,7 +222,6 @@ GENERIC_ORCHESTRATION_MODULES = (
     "runtime.py",
     "services.py",
     "image_routing.py",
-    "env_import.py",
     "graph_executor.py",
     "image_repeat.py",
 )
@@ -479,7 +478,7 @@ def test_pipeline_mechanics_have_no_component_workflow_or_host_dependencies() ->
                     "stage_gen.workflows",
                     "stage_gen.orchestration",
                     "stage_gen.capabilities",
-                    "stage_gen.interfaces",
+                    "stage_gen.viewer",
                     "gnode.providers",
                 ),
             )
@@ -487,3 +486,26 @@ def test_pipeline_mechanics_have_no_component_workflow_or_host_dependencies() ->
     assert not violations, "pipeline mechanics import a concrete application owner:\n" + "\n".join(
         violations
     )
+
+
+#: Modules the gnode epic retired: each is gone, and nothing imports it.
+RETIRED_MODULES = (
+    "stage_gen.interfaces",
+    "stage_gen.runs",
+    "stage_gen.orchestration.env_import",
+)
+
+
+def test_retired_modules_are_gone_and_imported_by_nothing() -> None:
+    present = [
+        module
+        for module in RETIRED_MODULES
+        if (SOURCE_ROOT / Path(*module.split("."))).with_suffix(".py").exists()
+        or (SOURCE_ROOT / Path(*module.split("."))).is_dir()
+    ]
+    assert not present, f"retired modules are back: {present}"
+    violations: list[str] = []
+    for root in (*CONSUMER_ROOTS, SOURCE_ROOT.parent / "apps"):
+        for path in _python_sources(root):
+            violations.extend(_import_violations(path, RETIRED_MODULES))
+    assert not violations, "imports of retired modules:\n" + "\n".join(violations)

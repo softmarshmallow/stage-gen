@@ -26,15 +26,10 @@ from gnode import (
     StepDescription,
     ViewArchetype,
     WorkflowDescription,
-    atomic_write_json,
     describe,
     is_workflow_run,
-    load_plugins,
     plan_async,
-    project_run,
     read_plan,
-    verify_run,
-    view_contexts,
 )
 
 from ._registry import Identity, Step, WorkflowCode, node_type_inventory
@@ -161,32 +156,6 @@ class GnodeWorkflow:
         )
 
 
-def _inspect(run_dir: Path, verify: bool) -> dict[str, object]:
-    result: dict[str, object] = {"view": project_run(run_dir).model_dump(mode="json")}
-    if verify:
-        problems = verify_run(run_dir)
-        result["verification"] = {"verified": not problems, "problems": problems}
-    return result
-
-
-#: Beside the derived run view: each view the run keeps, as its context.
-VIEW_CONTEXTS_FILE = "view-contexts.json"
-
-
-def _write_view(run_dir: Path, out_dir: Path) -> Path:
-    path = out_dir / "execution-view.json"
-    atomic_write_json(
-        out_dir / VIEW_CONTEXTS_FILE,
-        {
-            "kind": "gnode-view-contexts-v1",
-            "view_origins": list(read_plan(run_dir).get("view_origins", [])),
-            "views": view_contexts(run_dir, facts_reader=load_plugins().facts_reader),
-        },
-    )
-    atomic_write_json(path, project_run(run_dir).model_dump(mode="json"))
-    return path
-
-
 def gnode_workflow(
     package: str,
     *,
@@ -228,8 +197,6 @@ def gnode_workflow(
         implemented_types=lambda: frozenset(t.type_id for t in workflow.types.values()),
         sample_plan=sample_plan,
         owns_run=workflow.owns_run,
-        inspect=_inspect,
-        write_view=_write_view,
         implementation_root=package,
         no_sample_plan=no_sample_plan,
         import_example=import_example,
@@ -240,7 +207,6 @@ def gnode_workflow(
 
 __all__ = [
     "GRAPH_KIND",
-    "VIEW_CONTEXTS_FILE",
     "GnodeWorkflow",
     "SampleNode",
     "SamplePlan",

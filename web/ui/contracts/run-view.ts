@@ -1,7 +1,6 @@
 // Parser for the derived execution-view.json a run view is read from: the one a run
-// persists, or the one `stage-gen inspect RUN --write-view DIR` and `stage-gen view`
-// derive. Wire fields are lower_snake_case; this adapter is the one place they become
-// camelCase runtime shapes.
+// persists, or the one `gnode view` keeps in its cache. Wire fields are lower_snake_case;
+// this adapter is the one place they become camelCase runtime shapes.
 //
 // Any `*-execution-view-v1` envelope at schema 3 is read, and so is gnode's own
 // `gnode-run-view-v1`, which a view joined from a plain gnode plan carries: the engine
@@ -27,7 +26,7 @@ export const EXECUTION_VIEW_SCHEMA_VERSION = 3;
 export const EXECUTION_VIEW_REFUSAL =
   "unsupported execution view: expected a *-execution-view-v1 or gnode-run-view-v1 " +
   `document at schema_version ${EXECUTION_VIEW_SCHEMA_VERSION}; derive it again ` +
-  "(stage-gen inspect RUN --write-view DIR, or demo-games export-view for a game run)";
+  "(gnode view keeps a workflow run's view current)";
 
 export function isExecutionViewKind(value: unknown): value is string {
   return (

@@ -158,7 +158,7 @@ def test_game_docs_describe_the_exact_current_prepared_closure() -> None:
     runner = documents["godot/games/iron_petal_unit/docs/runner.md"]
     assert "native-alpha GPT Image 2.5 Sunburst" in runner
     voice = documents["godot/games/iron_petal_unit/docs/voices.md"]
-    assert "stage-gen capability speech" in voice
+    assert "workflow.takes.yaml" in voice
 
     dialogue = documents["docs/dialogue-character-runtime-pipeline.md"]
     assert "NPC visual identity in `content/npcs.toml`" in dialogue

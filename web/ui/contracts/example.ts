@@ -33,7 +33,7 @@ export const EXAMPLE_KIND = "workflow-example-v1";
 export const EXAMPLE_SCHEMA_VERSION = 1;
 export const EXAMPLE_REFUSAL =
   `unsupported example: expected ${EXAMPLE_KIND} schema_version ${EXAMPLE_SCHEMA_VERSION}; ` +
-  "re-export it (stage-gen example promote, or the game's example export)";
+  "re-export it (scripts/examples.py promote, or the game's example export)";
 
 export const GAME_EXAMPLE_ENTRY_KIND = "game-example-entry-v1";
 export const GAME_EXAMPLE_ENTRY_SCHEMA_VERSION = 1;

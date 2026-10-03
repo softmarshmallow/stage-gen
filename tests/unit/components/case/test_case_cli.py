@@ -1,4 +1,4 @@
-"""`stage-gen case check`: the CLI surface over the case container.
+"""`demo-games case check`: the CLI surface over the case container.
 
 It lives beside the contract rather than in `tests/integration/` because the
 fixture it needs is the case package builder next door, and `tests/integration/`

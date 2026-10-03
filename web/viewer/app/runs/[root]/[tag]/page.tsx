@@ -2,7 +2,7 @@
 //
 // - a run whose workflow has a view of its own (a gnode `view:`, such as universe's gallery)
 //   is shown in that view, with the run's graph one link away (`?view=graph`);
-// - otherwise its execution view — the run's own, or the one `stage-gen view` derived
+// - otherwise its execution view — the run's own, or the one `gnode view` derived
 //   into the cache — fills the window as a graph, and refreshes while the run is live;
 // - a run with neither says how a view is made. A game
 //   run's view is exported by its game; the viewer never derives one.
@@ -91,15 +91,14 @@ function NoView({ run, runDir, rootLabel, entry, workflow, game }: NoViewFacts) 
       {entry?.viewRefusal ? <p className={errorBanner}>{entry.viewRefusal}</p> : null}
       {game ? (
         <p className="text-dim">
-          View not exported. A game exports its own run view:{" "}
-          <code>demo-games export-view --run {runDir}</code>
+          No run view. A delivered game package carries none; the gnode run that built it
+          does.
         </p>
       ) : (
         <p className="text-dim">
-          This run has no view yet. While it runs, <code>stage-gen view</code> derives one
-          into its cache whenever the run&apos;s plan and trace can be joined; a run planned but
-          never started has nothing to show yet. Write one with{" "}
-          <code>stage-gen inspect {runDir} --write-view DIR</code>.
+          This run has no view yet. <code>gnode view</code> keeps one in its cache for every
+          workflow run under the folders it is given, and writes it again whenever the run&apos;s
+          record grows.
         </p>
       )}
       {workflow ? (

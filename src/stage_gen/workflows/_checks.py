@@ -1,6 +1,6 @@
 """Drift checks: where a workflow's code, manifest, prose and examples disagree.
 
-Each check returns readable problems, never raises, so ``stage-gen catalog export --check``
+Each check returns readable problems, never raises, so ``scripts/catalog.py --check``
 and ``tests/contract/test_workflow_registry.py`` report every disagreement at once.
 """
 
@@ -341,29 +341,21 @@ def readme(workflows: Sequence[LoadedWorkflow], text: str) -> list[str]:
 
 
 def try_commands(workflow: LoadedWorkflow) -> list[str]:
-    """Each ``[try]`` command must parse with the real ``stage-gen`` or ``gnode`` argument
-    parser; a gnode ``plan`` or ``run`` command's own flags must be the workflow's inputs. A
-    command may start with environment assignments, such as a live opt-in."""
+    """Each ``[try]`` command must be a ``gnode`` command that parses with gnode's own
+    argument parser; a ``plan`` or ``run`` command's own flags must be the workflow's inputs.
+    A command may start with environment assignments, such as a live opt-in."""
     manifest = workflow.discovered.manifest
     if manifest.try_ is None:
         return []
-    from stage_gen.interfaces.cli import parse
-
     problems: list[str] = []
     for command in manifest.try_.commands:
         words = shlex.split(command)
         while words and ENVIRONMENT.match(words[0]):
             words = words[1:]
-        if words[:1] == ["gnode"]:
-            problems += [f"{manifest.id}: [try] {p}" for p in gnode_command_problems(words[1:])]
+        if words[:1] != ["gnode"]:
+            problems.append(f"{manifest.id}: [try] command does not start with gnode")
             continue
-        if words[:1] != ["stage-gen"]:
-            problems.append(f"{manifest.id}: [try] command does not start with stage-gen or gnode")
-            continue
-        try:
-            parse(words[1:])
-        except (ValueError, SystemExit) as error:
-            problems.append(f"{manifest.id}: [try] command does not parse: {error}")
+        problems += [f"{manifest.id}: [try] {p}" for p in gnode_command_problems(words[1:])]
     return problems
 
 

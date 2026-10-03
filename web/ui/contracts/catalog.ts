@@ -1,4 +1,4 @@
-// Parser for `stage-gen-catalog-v1`, the catalog.json `stage-gen catalog export` writes
+// Parser for `stage-gen-catalog-v1`, the catalog.json `scripts/catalog.py` writes
 // from the installed workflows and the example store. The site builds from it and the
 // viewer groups runs by it. Wire fields are lower_snake_case; this adapter is the one
 // place they become camelCase runtime shapes.
@@ -44,7 +44,7 @@ export const CATALOG_KIND = "stage-gen-catalog-v1";
 export const CATALOG_SCHEMA_VERSION = 1;
 export const CATALOG_REFUSAL =
   `unsupported catalog: expected ${CATALOG_KIND} schema_version ${CATALOG_SCHEMA_VERSION}; ` +
-  "re-export it (stage-gen catalog export --out DIR)";
+  "re-export it (uv run python scripts/catalog.py --out DIR)";
 
 export interface OutputNote {
   readonly artifactRef: string;

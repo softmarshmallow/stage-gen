@@ -236,7 +236,7 @@ describe("run view route", () => {
     expect(markup).toContain("scale(1)");
   });
 
-  test("draws a nested run from the view stage-gen view derived into its cache", async () => {
+  test("draws a nested run from the view gnode view derived into its cache", async () => {
     const run = runOf("review~yuzu~run-01");
     const runDir = runDirFor(run);
     cleanup.push(runDir);
@@ -254,13 +254,13 @@ describe("run view route", () => {
     expect(markup).toContain(`/runs/${run.root}/review~yuzu~run-01/artifacts`);
   });
 
-  test("a game run without a view says its game exports one", async () => {
+  test("a game run without a view says where one is", async () => {
     const run = await writeFiles("bellweather-m21", {
       "execution-plan.json": { kind: "sideview-platformer-execution-graph-v2", recipe: "sideview-platformer" },
     });
     const markup = await page(run);
-    expect(markup).toContain("View not exported");
-    expect(markup).toContain("demo-games export-view --run");
+    expect(markup).toContain("No run view");
+    expect(markup).toContain("the gnode run that built it");
     expect(markup).toContain("game run");
   });
 
@@ -271,7 +271,7 @@ describe("run view route", () => {
     });
     const markup = await page(run);
     expect(markup).toContain("has no view yet");
-    expect(markup).toContain("--write-view");
+    expect(markup).toContain("gnode view");
     // Asked for the graph, a run without a view refuses instead of guessing.
     expect(await page(run, "graph")).toContain("no execution view to draw");
   });
@@ -287,7 +287,7 @@ describe("run view route", () => {
 
     const markup = await page(run);
     expect(markup).toContain("derive it again");
-    expect(markup).toContain("stage-gen inspect RUN --write-view");
+    expect(markup).toContain("gnode view keeps a workflow run");
     expect(markup).not.toContain("package-resolve");
   });
 });

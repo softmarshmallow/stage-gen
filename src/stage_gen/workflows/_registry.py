@@ -3,24 +3,22 @@
 Each product workflow is one folder under ``stage_gen/workflows/`` whose name is its id with
 ``-`` written as ``_``. Facts the code knows live in code: ``workflow.py`` exports ``CODE``,
 a ``WorkflowCode`` whose steps reference the real ``NodeType`` objects, and whose identity,
-offline sample plan and run readers are read from the implementation. Facts the code cannot
+offline sample plan and run ownership are read from the implementation. Facts the code cannot
 know - title, promise, related workflows, tools, output notes and pinned examples - live in
 ``workflow.toml``, which is read without importing the workflow, so listing workflows stays
 cheap. Prose sits beside them in ``page.mdx`` and ``contract.md``.
 
-``stage-gen`` builds its parser from these manifests, so this module imports neither the
-engine nor any media library when it loads; they are imported where they are used.
+The catalog is built from these manifests, so this module imports neither the engine nor any
+media library when it loads; they are imported where they are used.
 """
 
 from __future__ import annotations
 
 import importlib
-import json
 import re
 import tomllib
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
-from hashlib import sha256
 from importlib import resources
 from importlib.resources.abc import Traversable
 from pathlib import Path
@@ -29,7 +27,7 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, get_args
 from pydantic import BaseModel, ConfigDict, Field
 
 if TYPE_CHECKING:
-    from gnode import NodeType, RunView
+    from gnode import NodeType
     from stage_gen.examples import ExampleImporter, FiguresLedger, WorkflowExample
     from stage_gen.pipeline.graph_document import GraphDocument
 
@@ -125,8 +123,6 @@ class WorkflowCode:
     implemented_types: Callable[[], frozenset[str]]
     sample_plan: Callable[[Path], PlannedSample | None]
     owns_run: Callable[[Path], bool]
-    inspect: Callable[[Path, bool], dict[str, object]]
-    write_view: Callable[[Path, Path], Path | None]
     implementation_root: str
     no_sample_plan: str | None = None
     import_example: ExampleImporter | None = None
@@ -178,58 +174,6 @@ def node_type_inventory(types: Iterable[NodeType]) -> list[list[str]]:
             for entry in {(t.type_id, t.cache_identity, t.contract_version) for t in types}
         ]
     )
-
-
-@dataclass(frozen=True, slots=True)
-class ViewRuns:
-    """Run readers for a workflow whose runs persist a plan and a trace that gnode joins
-    into a run view: the SDK workflows and the graph-document workflows.
-
-    A run belongs to the workflow when its ``execution-plan.json`` declares one of
-    ``kinds`` (and, for an SDK workflow, its ``pipeline_id``). Verification recomputes the
-    digest of every artifact the view lists.
-    """
-
-    kinds: frozenset[str]
-    build_view: Callable[[Path], RunView]
-    pipeline_id: str | None = None
-
-    def owns_run(self, run_dir: Path) -> bool:
-        plan = run_dir / "execution-plan.json"
-        if not plan.is_file():
-            return False
-        try:
-            document = json.loads(plan.read_text(encoding="utf-8"))
-        except ValueError:
-            return False
-        return (
-            isinstance(document, dict)
-            and document.get("kind") in self.kinds
-            and (self.pipeline_id is None or document.get("pipeline_id") == self.pipeline_id)
-        )
-
-    def inspect(self, run_dir: Path, verify: bool) -> dict[str, object]:
-        view = self.build_view(run_dir)
-        result: dict[str, object] = {"view": view.model_dump(mode="json")}
-        if verify:
-            problems = [
-                f"{node.node_id}: {artifact.artifact_ref} "
-                + ("is missing" if not artifact.present else "differs from its recorded digest")
-                for node in view.nodes
-                for artifact in node.artifacts
-                if not artifact.present
-                or sha256((run_dir / artifact.artifact_ref).read_bytes()).hexdigest()
-                != artifact.sha256
-            ]
-            result["verification"] = {"verified": not problems, "problems": problems}
-        return result
-
-    def write_view(self, run_dir: Path, out_dir: Path) -> Path:
-        from gnode import write_run_view
-
-        path = out_dir / "execution-view.json"
-        write_run_view(path, self.build_view(run_dir))
-        return path
 
 
 # ---------------------------------------------------------------- non-code facts
@@ -407,7 +351,6 @@ __all__ = [
     "Step",
     "Tool",
     "TryIt",
-    "ViewRuns",
     "WorkflowCode",
     "WorkflowManifest",
     "discover",

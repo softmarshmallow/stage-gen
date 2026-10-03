@@ -68,10 +68,9 @@ src/
     ├── components/                    # Reusable components and bounded formats
     ├── workflows/                     # One folder per product deliverable
     ├── examples.py                    # The public example contract
-    ├── runs.py                        # Run discovery and derived views for the viewer
+    ├── viewer.py                      # The viewer, the gnode plugin gnode view starts
     ├── media/                         # Shared inspection and transforms
     ├── orchestration/                 # Composition root: services, GraphExecutor, routing
-    ├── interfaces/                    # The stage-gen CLI: one verb set, lazy commands
     ├── application/                   # Generic output/cache roots and reporting
     └── resources/                     # Explicitly packaged support resources
 ```
@@ -183,7 +182,7 @@ stages remain reusable.
 Portrait motion's steps and judges belong to its workflow; the prompts, validators, crop,
 composition and reconstruction they compose remain in the component.
 
-Examples are not committed. `stage-gen example promote` and `demo-games example export`
+Examples are not committed. `scripts/examples.py promote` and `demo-games example export`
 write frozen exports into the local, gitignored store `out/examples/<owner>/<id>/`, and each
 owner's manifest pins them by digest.
 
@@ -203,7 +202,7 @@ web/                                   # One Bun workspace and the only Node bou
 ├── ui/
 │   ├── contracts/                     # Catalog, example and run-view parsers and fixtures
 │   └── players/                       # Framework-free page players: mount(el, config)
-├── viewer/                            # stage-gen view: read-only client over run folders
+├── viewer/                            # gnode view: read-only client over run folders
 │   ├── app/                           # Run, workflow and artifact pages
 │   └── lib/shell/                     # Confined read-only access to persisted runs
 └── site/                              # Static landing and documentation (Next export)

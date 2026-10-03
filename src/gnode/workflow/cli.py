@@ -8,6 +8,7 @@
     gnode schema <target>               gnode nodes [type]
     gnode doctor [target]               gnode lock [where] [--same <node>] [--check]
     gnode expand | identity | price <target> [inputs]      gnode project <run>
+    gnode view [runs ...] [--port N] [--no-open]
 
 ``<target>`` is a workflow file, a workflow id in this project, or the id of a workflow an
 installed plugin publishes. Inputs are the workflow's own flags
@@ -21,8 +22,10 @@ import argparse
 import asyncio
 import datetime as dt
 import json
+import os
 import shutil
 import sys
+import threading
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, TextIO
@@ -30,6 +33,7 @@ from typing import Any, TextIO
 import yaml
 
 from gnode.workflow.api import run_at_plan
+from gnode.workflow.dashboard import Dashboard, ViewRefresher, cache_home, keep_fresh
 from gnode.workflow.document import DocumentError, load_workflow, read_yaml
 from gnode.workflow.host import HostServices, resolve_tool, tool_name
 from gnode.workflow.inputs import FILE_TAG, InputError, compile_inputs, flag_name
@@ -60,6 +64,7 @@ from gnode.workflow.store import Store, StoreError, files_in
 from gnode.workflow.values import Collection, FileValue
 
 PROG = "gnode"
+DASHBOARD_PORT = 3000
 
 
 class UsageError(ValueError):
@@ -126,24 +131,24 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--run", type=Path, dest="run_dir", help="the run folder (default: new)")
 
     reroll = verbs.add_parser("reroll", help="draw the next take of one step")
-    reroll.add_argument("run", type=Path)
-    reroll.add_argument("step")
-    reroll.add_argument("--live", action="store_true")
-    reroll.add_argument("--max-usd", type=float)
+    reroll.add_argument("run", type=Path, help="the run folder the step ran in")
+    reroll.add_argument("step", help="the step's path, as the run shows it")
+    reroll.add_argument("--live", action="store_true", help="admit the paid call the take needs")
+    reroll.add_argument("--max-usd", type=float, help="the ceiling for the new take")
 
     pick = verbs.add_parser("pick", help="use one take of a step from now on")
-    pick.add_argument("run", type=Path)
-    pick.add_argument("step")
-    pick.add_argument("take", type=int)
+    pick.add_argument("run", type=Path, help="the run folder the step ran in")
+    pick.add_argument("step", help="the step's path, as the run shows it")
+    pick.add_argument("take", type=int, help="the take downstream steps receive from now on")
 
     takes = verbs.add_parser("takes", help="list or repair a takes file")
     takes_verbs = takes.add_subparsers(dest="takes_verb", required=True)
-    takes_list = takes_verbs.add_parser("list")
-    takes_list.add_argument("target")
-    takes_mv = takes_verbs.add_parser("mv")
-    takes_mv.add_argument("target")
-    takes_mv.add_argument("old")
-    takes_mv.add_argument("new")
+    takes_list = takes_verbs.add_parser("list", help="every pick in a workflow's takes file")
+    takes_list.add_argument("target", help="the workflow whose takes file to read")
+    takes_mv = takes_verbs.add_parser("mv", help="move a pick to a step's new path")
+    takes_mv.add_argument("target", help="the workflow whose takes file to repair")
+    takes_mv.add_argument("old", help="the step path the pick was made under")
+    takes_mv.add_argument("new", help="the step's path now")
 
     jobs = verbs.add_parser("jobs", help="long provider jobs submitted and not collected")
     jobs.add_argument(
@@ -153,13 +158,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     schema = verbs.add_parser("schema", help="the JSON Schema a workflow's inputs compile to")
-    schema.add_argument("target")
+    schema.add_argument("target", help="a workflow file, or a workflow id")
 
     nodes = verbs.add_parser("nodes", help="the node types gnode knows")
-    nodes.add_argument("type", nargs="?")
+    nodes.add_argument("type", nargs="?", help="one type, with its settings and routes")
 
     doctor = verbs.add_parser("doctor", help="the tools and routes a workflow needs")
-    doctor.add_argument("target", nargs="?")
+    doctor.add_argument("target", nargs="?", help="a workflow file, or a workflow id")
 
     lock = verbs.add_parser("lock", help="pin versioned node types to their source")
     lock.add_argument(
@@ -183,10 +188,10 @@ def build_parser() -> argparse.ArgumentParser:
     ):
         verb = verbs.add_parser(name, help=summary)
         _common(verb)
-        verb.add_argument("--max-usd", type=float)
+        verb.add_argument("--max-usd", type=float, help="the run's ceiling")
 
     project = verbs.add_parser("project", help="a run's record projected to its state, as JSON")
-    project.add_argument("run", type=Path)
+    project.add_argument("run", type=Path, help="a run folder")
 
     inspect = verbs.add_parser("inspect", help="a run's summary, from its own folder")
     inspect.add_argument("run", type=Path, help="a run folder, or a workflow id for its newest run")
@@ -194,6 +199,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--verify", action="store_true", help="re-check every file against its recorded digest"
     )
     inspect.add_argument("--json", action="store_true", help="the run's view, as JSON")
+
+    view = verbs.add_parser("view", help="the dashboard over run folders")
+    view.add_argument(
+        "roots",
+        nargs="*",
+        type=Path,
+        metavar="runs",
+        help="folders of runs to show (default: this project's runs folder)",
+    )
+    view.add_argument("--port", type=int, default=DASHBOARD_PORT, help="local port to listen on")
+    view.add_argument("--no-open", action="store_true", help="do not open a browser")
     return parser
 
 
@@ -832,6 +848,41 @@ def cmd_inspect(args: argparse.Namespace, cwd: Path, out: TextIO) -> int:
     return 1 if problems else 0
 
 
+def cmd_view(args: argparse.Namespace, cwd: Path, errors: TextIO) -> int:
+    """Keep the run views of every run under the roots fresh while the installed dashboard
+    serves them; gnode ships no dashboard, so without one this says so and stops."""
+
+    try:
+        launcher = load_plugins().dashboard
+    except ValueError as error:
+        raise UsageError(str(error)) from error
+    if launcher is None:
+        raise UsageError(
+            "no dashboard is installed: gnode keeps run views, and a plugin serves them"
+        )
+    if not 0 < args.port < 65536:
+        raise UsageError(f"--port must be between 1 and 65535, not {args.port}")
+    roots = tuple((cwd / root).resolve() for root in args.roots) or (Project.find(cwd).runs_dir,)
+    missing = [str(root) for root in roots if not root.is_dir()]
+    if missing:
+        raise UsageError(f"no run folder at {', '.join(missing)}")
+    request = Dashboard(
+        roots=roots,
+        view_cache=cache_home(os.environ) / "views",
+        port=args.port,
+        open_browser=not args.no_open,
+    )
+    stop = threading.Event()
+    refresher = ViewRefresher(roots, request.view_cache)
+    threading.Thread(target=keep_fresh, args=(refresher, stop, errors), daemon=True).start()
+    try:
+        return launcher(request)
+    except ValueError as error:  # the dashboard refused before it started
+        raise UsageError(str(error)) from error
+    finally:
+        stop.set()
+
+
 # ---------------------------------------------------------------------------- main
 
 
@@ -876,6 +927,8 @@ def main(
             return cmd_project(args, here, out)
         if args.verb == "inspect":
             return cmd_inspect(args, here, out)
+        if args.verb == "view":
+            return cmd_view(args, here, errors)
     except (
         UsageError,
         PlanError,

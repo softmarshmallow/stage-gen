@@ -4,7 +4,7 @@ The TypeScript parsers in ``web/ui`` read these fixtures in their Bun tests. Her
 files are held to the Python side of each contract, so neither half can drift unseen: the run
 view against the SDK's ``PipelineRunView`` (gnode's ``RunView``, schema 3), the example and its
 ledger against ``stage_gen.examples``, and the catalog against the structure
-``stage-gen catalog export`` actually writes, built here over a store holding the fixture's
+``scripts/catalog.py`` actually writes, built here over a store holding the fixture's
 game example.
 """
 

@@ -116,24 +116,17 @@ usable by trimming and trimming is forbidden.
 
 A read is a lottery: the seed pins its length and nothing else, and level is
 the one thing the route holds steady. Whether a draw *lands* is a person's
-call, so the contract carries two fields for that person and nothing else
-tries to decide for them.
+call, and nothing else tries to decide for them.
 
-**`take`** is the reroll ordinal. It enters the cache identity only above the
-first draw, so bumping it redraws this one line and leaves every other node a
-cache hit:
+**A take** is one draw of exactly this request. The build draws take 1;
+`gnode reroll <run> "lines.<effect_id>.generate"` draws the next take of that
+one line and leaves every other step a cache hit, and `gnode pick` keeps one.
+The pick is written to `pipeline/workflow.takes.yaml` beside the builder, which
+every run reads; the authored `take` field stays 1, and the build refuses
+another with a notice naming that file.
 
-```toml
-[effects.realization]
-kind = "spoken_line_v1"
-text = "[excited][shouting] よーし、いくよーっ！"
-voice_id = "mira"
-take = 2                       # the second draw of exactly this request
-```
-
-**`pinned`** is the pick. An audition you liked - from `capability speech`, or
-from a run's `audio/` - is committed into the package with the sidecar that
-produced it, both digest-locked, and republished as the effect through the
+**`pinned`** commits a take into the package instead. A take you liked is
+committed with the sidecar that produced it, both digest-locked, and republished as the effect through the
 same level and length gates a fresh draw meets. The graph buys nothing for a
 pinned line; the text and voice stay authored beside it as the record of what
 produced the take.
@@ -155,9 +148,8 @@ made what a person chose. Its admission record carries
 `listening_verdict: "author_selected"`, the one verdict code ever writes,
 because pinning *is* the listen.
 
-The loop is: audition N (cheap), bump `take` where a draw is close, pin the one
-that lands. Everything downstream - gain, pitch, `max_seconds` - stays a
-re-plan.
+The loop is: run the build, reroll where a draw is close, pick the one that
+lands. Everything downstream - gain, pitch, `max_seconds` - stays a re-plan.
 
 ## Events
 
@@ -205,35 +197,38 @@ it.
 
 ## Execution
 
-For each spoken line the runner graph contains:
+For each spoken line the build contains:
 
 ```text
-speech-<effect_id>-generate   (speech_generation, elevenlabs route, the cast voice)
-  -> speech-<effect_id>-validate   (local: ffprobe, level and length facts)
-  -> manifest-assemble
+lines.<effect_id>.generate   (gnode/speech.generate@1 on the speech route, the cast voice)
+  -> lines.<effect_id>.admit    (judge: level and length)
+  -> lines.<effect_id>.record   (local: ffprobe, level and length facts)
+  -> package
 ```
 
-The generate node's card shows the authored text exactly. Execution refuses
-before any spend when a line is declared and `ELEVENLABS_API_KEY` is absent.
+The generate step shows the authored text exactly. A live run refuses before any
+spend when a line is declared and `ELEVENLABS_API_KEY` is absent.
 
 The manifest publishes what the consumer plays - `clip`, `duration_seconds`,
 `gain`, `strength_pitch_multiplier` - under the same shape as a generated
 clip, so the runtime treats the two identically. `duration_seconds` is the
 **measured** read, taken off the admission record, since the route never took
-one. The text and the provider voice live only in
-`audio/<effect_id>.mp3.meta.json`.
+one. The text and the provider voice live only in the run's record.
 
 ## Auditioning a line
 
+Write the line into the audio contract and its voice into the catalog, then run
+the build: every other step comes back from the call cache, so only the new line
+is drawn and billed.
+
 ```sh
-uv run stage-gen capability speech --output out/go.mp3 --voice 6awt6FKyZGV0HyQEwisX --stability 0.5 --language ja "[excited][shouting] よーし、いくよーっ！"
+cd godot/games/iron_petal_unit
+uv run gnode run pipeline/workflow.py:build --arg package=inputs --live --max-usd 2
+uv run gnode view
 ```
 
-The command takes the provider's voice reference directly, as the sound-effect
-audition takes a raw prompt: it is a tool for choosing, not a package. The same
-level gates apply; the output is untouched provider bytes with a provenance
-sidecar. Listen, then commit the text to the audio contract and the voice to
-the catalog.
+The line plays in the dashboard after the level and length gates a build
+applies. Reroll it for another read, or redirect it and run again.
 
 ## Validation
 

@@ -63,12 +63,12 @@ export default function Landing({ cards }: { cards: readonly Card[] }): ReactEle
           Asset workflows you can plan offline, run, inspect and cache.
         </h1>
         <p className="mt-3 max-w-2xl text-lg text-zinc-600 dark:text-zinc-400">
-          Stage Gen is a command line and Python SDK for generating assets. Each workflow is a long chain of models,
+          Stage Gen is a set of asset workflows that run on gnode, a command line and Python SDK. Each workflow is a long chain of models,
           local tools and checks, held as one graph that turns a small input into a named deliverable. Every picture
           below is from a real run.
         </p>
         <pre className="mt-6 max-w-2xl overflow-x-auto rounded-md border border-zinc-200 bg-zinc-50 p-4 font-mono text-[13px] leading-relaxed text-zinc-800 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
-          {"uv sync --frozen\nuv run stage-gen list"}
+          {"uv sync --frozen\nuv run gnode plan universe \\\n  --inputs src/stage_gen/workflows/universe/inputs/lantern_ferry/inputs.yaml"}
         </pre>
         <p className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-sm">
           <a className={LINK} href={href("/docs/getting-started/")}>

@@ -174,12 +174,7 @@ def test_product_gate_runs_the_workflows_through_their_command_lines() -> None:
 
     check = load_check_script()
     commands = check.commands("python")
-    runs = [
-        command
-        for command in commands
-        if command[:2] == ("stage-gen", "run") and command[-1] != "--help"
-    ]
-    assert runs == []
+    assert not any(command[0] == "stage-gen" for command in commands)
     files = {w.id for w in discover() if w.root.joinpath("workflow.yaml").is_file()}
     assert files == {w.id for w in discover()}
     paid = {"character-3d", "portrait-motion", "universe"}
@@ -190,8 +185,8 @@ def test_product_gate_runs_the_workflows_through_their_command_lines() -> None:
     for workflow in paid:
         assert ("gnode", "plan", workflow) in {command[:3] for command in commands}
     assert {("gnode", "lock", workflow, "--check") for workflow in files} <= set(commands)
-    assert ("stage-gen", "list") in commands
-    assert any(command[:3] == ("stage-gen", "catalog", "export") for command in commands)
+    assert ("gnode", "--help") in commands
+    assert any(command[1:3] == ("scripts/catalog.py", "--check") for command in commands)
     assert all("--live" not in command for command in commands)
     assert not any(
         command[0].startswith("stage-gen-") and command[0] != "stage-gen-concept"

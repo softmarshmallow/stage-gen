@@ -28,7 +28,6 @@ PROVIDER_FREE_FORBIDDEN = (
     "gnode.providers",
     "stage_gen.capabilities",
     "stage_gen.providers",
-    "stage_gen.interfaces",
     "stage_gen.orchestration",
 )
 

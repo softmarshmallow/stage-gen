@@ -4,7 +4,7 @@ Benchmarking belongs to the authoritative Python headless package, not the
 optional web preview. The public entry point is:
 
 ```sh
-uv run stage-gen --help
+uv run gnode --help
 ```
 
 Use the CLI help as the source of truth for currently implemented pipeline and

@@ -1,43 +1,46 @@
 # The viewer
 
-The viewer is the local web client for the `stage-gen` CLI. It lists every run under the folders
-you give it, grouped by the workflow that made it, draws each run's execution graph and artifacts,
-and shows each workflow's offline plan and the commands that run it. It is read-only: it
-does not start runs, receives no provider credentials, and implements no gameplay. Playable
-projects and their asset wiring belong to their Godot owners. The [site](site.md) is a separate
-surface: it documents workflows and shows their examples, and it never reads run folders.
+The viewer is the local web client for gnode runs: `gnode view` starts it. It lists every run
+under the folders you give it, grouped by the workflow that made it, draws each run's execution
+graph and artifacts, and shows each workflow's offline plan and the commands that run it. It is
+read-only: it does not start runs, receives no provider credentials, and implements no gameplay.
+Playable projects and their asset wiring belong to their Godot owners. The [site](site.md) is a
+separate surface: it documents workflows and shows their examples, and it never reads run folders.
 
 ## Start it
 
 ```sh
-uv run stage-gen view
-uv run stage-gen view --runs out --runs path/to/more-runs --port 3100 --no-open
+uv run gnode view out
+uv run gnode view out path/to/more-runs --port 3100 --no-open
 ```
 
-`stage-gen view [--runs DIR]... [--port 3000] [--no-open]` needs a source checkout and Bun,
-because the viewer is the Next app in [`web/viewer`](../web/viewer). It finds the checkout by
-walking up from the installed package, then from the working directory, to the `pyproject.toml`
-named `stage-gen` that has `web/viewer` beside it. From an installed wheel, or without Bun on
-`PATH`, it exits 2 and points here. Install the web workspace once with
-`cd web && bun install --frozen-lockfile`.
+`gnode view [runs]... [--port 3000] [--no-open]` shows the runs under each folder you name, or
+the project's runs folder (`out/runs` here) when you name none. gnode keeps the run views and
+ships no dashboard of its own; the one it starts is this viewer, which Stage Gen installs as a
+gnode plugin of its own ([`stage_gen/viewer.py`](../src/stage_gen/viewer.py)). The
+viewer is the Next app in [`web/viewer`](../web/viewer), so it needs a source checkout and Bun:
+the plugin finds the checkout by walking up from the installed package, then from the working
+directory, to the `pyproject.toml` named `stage-gen` that has `web/viewer` beside it. From an
+installed wheel, or without Bun on `PATH`, `gnode view` exits 2 and points here. Install the web
+workspace once with `cd web && bun install --frozen-lockfile`.
 
-Before it starts the server, the command:
+Before the server starts:
 
-- exports the catalog into `~/.cache/stage-gen/catalog/catalog.json` (`$XDG_CACHE_HOME`
+- gnode starts a thread that writes each workflow run's view into the view cache every three
+  seconds when the run has changed (below).
+- the plugin exports the catalog into `~/.cache/stage-gen/catalog/catalog.json` (`$XDG_CACHE_HOME`
   replaces `~/.cache` when it is an absolute path). The viewer groups runs by it and draws plans
   from it; it never plans anything itself.
-- sets `STAGE_GEN_RUN_ROOTS` (the absolute run folders, joined by the platform's path separator;
-  `out/` of the checkout when no `--runs` is given), `STAGE_GEN_CATALOG`, `STAGE_GEN_VIEW_CACHE`
-  (`~/.cache/stage-gen/views`) and `STAGE_GEN_REPO_ROOT` for the server. Provider keys are removed
-  from the server's environment.
-- starts a thread that derives missing views into the view cache every three seconds (below).
+- the plugin sets `STAGE_GEN_RUN_ROOTS` (the absolute run folders, joined by the platform's path
+  separator), `STAGE_GEN_CATALOG`, `STAGE_GEN_VIEW_CACHE` (`~/.cache/gnode/views`) and
+  `STAGE_GEN_REPO_ROOT` for the server. Provider keys are removed from the server's environment.
 
 It then runs `bun run --cwd web/viewer dev --port PORT --hostname 127.0.0.1`, opens the browser
-once the port answers unless `--no-open` is given. The server leads its own process group; when the
-launcher ends, by Ctrl-C, SIGTERM, a hangup or the server exiting, it stops that whole group, so
-nothing it started outlives it. The server listens on the loopback interface only.
+once the port answers unless `--no-open` is given. The server leads its own process group; when
+`gnode view` ends, by Ctrl-C, SIGTERM, a hangup or the server exiting, it stops that whole group,
+so nothing it started outlives it. The server listens on the loopback interface only.
 
-Run without `stage-gen view` (`cd web/viewer && bun run dev`), the viewer reads `out/` of its
+Run without `gnode view` (`cd web/viewer && bun run dev`), the viewer reads `out/` of its
 checkout and has neither a catalog nor a view cache: runs are listed ungrouped and only views a
 run carries itself are drawn.
 
@@ -47,23 +50,18 @@ A run is a folder that holds `execution-plan.json`, `execution-view.json`, `mani
 `bundle.json` or `case.json`; or `plan.json` beside `events.jsonl` (a gnode workflow run). Runs are found up to
 four folders below each root. A run's own folders are not searched again, hidden folders and
 `node_modules` are skipped, symlinked folders are not followed out of the root, and the example
-store at the top of a root (`out/examples`) is not a run. [`src/stage_gen/runs.py`](../src/stage_gen/runs.py)
-and [`lib/shell/runs.ts`](../web/viewer/lib/shell/runs.ts) apply the same rules.
+store at the top of a root (`out/examples`) is not a run
+([`lib/shell/runs.ts`](../web/viewer/lib/shell/runs.ts)). gnode finds the workflow runs whose
+views it keeps by the same rules ([`gnode/workflow/dashboard.py`](../src/gnode/workflow/dashboard.py)).
 
-The view a run page draws is the run's own `execution-view.json`, or the one derived into the view
-cache, whichever is newer. Derived views are written only under
-`~/.cache/stage-gen/views/<first 16 hex digits of sha256(real path)>/execution-view.json`; the
-viewer and the refresher never write into a run folder. The refresher derives a view when a run's
-plan or trace is newer than both its own view and its cached one:
-
-- SDK runs, and runs of the SDK workflows, are joined from their plan and trace by the SDK;
-- a gnode workflow run is projected from its own `plan.json` and `events.jsonl`, with each
-  step's view context and, when its workflow has a view of its own, the whole run's;
-- a game's assets build with gnode, so its run is a gnode workflow run like any other; an
-  older game run is never derived: its persisted view is drawn, or its row says none was
-  exported.
-
-`stage-gen inspect RUN --write-view DIR` writes the same derived view into a folder you name.
+The view a run page draws is the run's own `execution-view.json`, or the one kept in the view
+cache, whichever is newer. Kept views are written only under
+`~/.cache/gnode/views/<first 16 hex digits of sha256(real path)>/execution-view.json`; neither the
+viewer nor gnode writes into a run folder. gnode writes a workflow run's view when its
+`plan.json` or `events.jsonl` is newer than its cached one, projected from those two files, with
+each step's view context and, when its workflow has a view of its own, the whole run's. A game's
+assets build with gnode, so its run is a workflow run like any other. Any other run is drawn from
+the view it carries itself, or its row says none was exported.
 
 The viewer reads any `*-execution-view-v1` envelope at `schema_version = 3`, and gnode's own
 `gnode-run-view-v1`, which a workflow run's view carries. Header fields a producer
@@ -117,7 +115,7 @@ read-only context ([`view-context.ts`](../web/ui/contracts/view-context.ts)); a 
 its default view, and a step's `view: true` (a generic image, JSON or video view when its type has none)
 or `view: <file>` marks it as worth looking at. When such a step finishes, the run keeps the
 template under `views/<digest>.html` and every file the view shows under `views/files/`, so a
-copied run folder still shows its views. `stage-gen view` derives each context next to the run's
+copied run folder still shows its views. `gnode view` writes each context next to the run's
 view, in `view-contexts.json`: the step's inputs, outputs, facts and title, with each file's
 run-local path and a small JSON file's value inline.
 
@@ -141,7 +139,7 @@ and no SVG media type.
 
 Nothing under [`lib/shell`](../web/viewer/lib/shell) starts a subprocess, and a docs check fails if
 anything there imports one. Generation, retry, cache admission, artifact publication and deriving a
-run view belong to the Python application; the viewer only reads what it is given. The web
+run view belong to gnode and the Python application; the viewer only reads what it is given. The web
 workspace imports no game engine. The viewer reads the run-view, catalog and example wire formats
 through the shared parsers in [`web/ui/contracts`](../web/ui/contracts), whose hand-authored
 fixtures a Python contract test also validates.
@@ -163,7 +161,7 @@ bun run check
 bun test
 bun run --cwd viewer build
 cd ..
-uv run pytest -q tests/unit/test_runs.py tests/unit/interfaces/test_view.py
+uv run pytest -q tests/unit/test_run_views.py tests/unit/test_viewer.py
 ```
 
 Tests cover multi-root discovery, the derived-view cache and its fallback, grouping by workflow,

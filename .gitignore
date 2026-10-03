@@ -106,7 +106,7 @@ web_modules/
 out
 next-env.d.ts
 
-# stage-gen run outputs (per-tag dirs land under <repo-root>/out)
+# run outputs (gnode runs land under <repo-root>/out/runs)
 /out/
 # A gnode project's cache, wherever gnode was run (`.gnode/cache` beside its gnode.yaml)
 .gnode/

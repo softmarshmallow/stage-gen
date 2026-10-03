@@ -1,16 +1,19 @@
-"""``stage-gen view``: open the viewer, the local read-only client, over run folders.
+"""The viewer, the dashboard ``gnode view`` starts: a local read-only client over run folders.
 
-The viewer is the Next app in ``web/viewer``, so this command needs a source checkout and
-Bun; from an installed wheel it refuses. It exports the catalog into the user cache, keeps
-derived run views fresh in that cache while it runs, and starts the viewer's dev server
-with the run roots, the catalog and the view cache in its environment. Nothing it starts
-can start a run: the viewer only reads. However the launcher ends, by the server exiting,
-Ctrl-C, SIGTERM or a hangup, it first ends the server and every process the server started.
+Stage Gen installs it as a gnode plugin of its own (``viewer`` in ``gnode.plugins``), apart
+from the one that composes its routes and providers, because it reads the workflow catalog.
+
+The viewer is the Next app in ``web/viewer``, so it needs a source checkout and Bun; from an
+installed wheel it refuses. gnode keeps the run views fresh in its cache; this exports the
+catalog the viewer groups runs by into the user cache and starts the viewer's dev server
+with the run roots, the catalog and the view cache in its environment, provider keys left
+out. Nothing it starts can start a run: the viewer only reads. However it ends, by the
+server exiting, Ctrl-C, SIGTERM or a hangup, it first ends the server and every process the
+server started.
 """
 
 from __future__ import annotations
 
-import argparse
 import atexit
 import contextlib
 import functools
@@ -29,12 +32,12 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import FrameType
-from typing import Any, TextIO
+from typing import Any
 
-REFUSAL = "stage-gen view needs a source checkout and Bun; see docs/viewer.md"
+from gnode import Dashboard, Plugin
+
+REFUSAL = "the viewer needs a source checkout of Stage Gen and Bun; see docs/viewer.md"
 VIEWER = Path("web/viewer")
-DEFAULT_PORT = 3000
-REFRESH_SECONDS = 3.0
 HOST = "127.0.0.1"
 # The signals that end the launcher; each one ends the viewer first.
 STOP_SIGNALS = (signal.SIGTERM, signal.SIGHUP, signal.SIGINT)
@@ -42,24 +45,6 @@ STOP_SIGNALS = (signal.SIGTERM, signal.SIGHUP, signal.SIGINT)
 STOP_GRACE_SECONDS = 10.0
 
 SignalHandler = Callable[[int, FrameType | None], Any] | int | signal.Handlers | None
-
-
-def register(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "--runs",
-        action="append",
-        default=[],
-        type=Path,
-        metavar="DIR",
-        help="a folder of runs to show; repeat it for several (default: out/ of the checkout)",
-    )
-    parser.add_argument(
-        "--port", type=int, default=DEFAULT_PORT, help="local port the viewer listens on"
-    )
-    parser.add_argument("--no-open", action="store_true", help="do not open a browser")
-    # Test hook: print the command and environment the viewer would start with, and stop.
-    parser.add_argument("--print-command", action="store_true", help=argparse.SUPPRESS)
-    parser.set_defaults(handler=run)
 
 
 def cache_home(env: Mapping[str, str]) -> Path:
@@ -106,7 +91,7 @@ class Launch:
         return f"http://{HOST}:{self.port}/"
 
 
-def prepare(args: argparse.Namespace, env: Mapping[str, str]) -> Launch:
+def prepare(request: Dashboard, env: Mapping[str, str]) -> Launch:
     """Everything the viewer starts with, checked before anything is written or started."""
     import stage_gen
     from stage_gen.provider_env import PROVIDER_ENV_KEYS
@@ -115,21 +100,13 @@ def prepare(args: argparse.Namespace, env: Mapping[str, str]) -> Launch:
     bun = shutil.which("bun", path=env.get("PATH"))
     if checkout is None or bun is None:
         raise ValueError(REFUSAL)
-    if not 0 < args.port < 65536:
-        raise ValueError(f"--port must be between 1 and 65535, not {args.port}")
-    roots = tuple(path.resolve() for path in args.runs) or ((checkout / "out").resolve(),)
-    missing = [str(root) for root in args.runs if not root.is_dir()]
-    if missing:
-        raise ValueError(f"no run folder at {', '.join(missing)}")
-    cache = cache_home(env)
-    catalog = cache / "catalog" / "catalog.json"
-    view_cache = cache / "views"
+    catalog = cache_home(env) / "catalog" / "catalog.json"
     child_env = {name: value for name, value in env.items() if name not in PROVIDER_ENV_KEYS}
     child_env.update(
         {
-            "STAGE_GEN_RUN_ROOTS": os.pathsep.join(str(root) for root in roots),
+            "STAGE_GEN_RUN_ROOTS": os.pathsep.join(str(root) for root in request.roots),
             "STAGE_GEN_CATALOG": str(catalog),
-            "STAGE_GEN_VIEW_CACHE": str(view_cache),
+            "STAGE_GEN_VIEW_CACHE": str(request.view_cache),
             "STAGE_GEN_REPO_ROOT": str(checkout),
         }
     )
@@ -140,11 +117,13 @@ def prepare(args: argparse.Namespace, env: Mapping[str, str]) -> Launch:
         str(VIEWER),
         "dev",
         "--port",
-        str(args.port),
+        str(request.port),
         "--hostname",
         HOST,
     )
-    return Launch(checkout, roots, catalog, view_cache, args.port, command, child_env)
+    return Launch(
+        checkout, request.roots, catalog, request.view_cache, request.port, command, child_env
+    )
 
 
 def export_catalog(path: Path) -> list[str]:
@@ -157,24 +136,6 @@ def export_catalog(path: Path) -> list[str]:
     payload = json.dumps(catalog, indent=2, ensure_ascii=False) + "\n"
     atomic_write_bytes(path, payload.encode(), mode=0o644)
     return problems
-
-
-def _refresh_views(launch: Launch, stop: threading.Event, errors: TextIO) -> None:
-    from stage_gen.runs import ViewRefresher
-
-    refresher = ViewRefresher(launch.roots, launch.view_cache)
-    reported: set[Path] = set()
-    while True:
-        try:
-            refresher.refresh()
-        except OSError as error:
-            errors.write(f"stage-gen view: could not refresh views: {error}\n")
-        for run_dir, failure in refresher.failures.items():
-            if run_dir not in reported:
-                reported.add(run_dir)
-                errors.write(f"stage-gen view: no view for {run_dir}: {failure}\n")
-        if stop.wait(REFRESH_SECONDS):
-            return
 
 
 def _open_when_listening(url: str, port: int, stop: threading.Event) -> None:
@@ -259,51 +220,30 @@ def _restore_signals(replaced: Mapping[int, SignalHandler]) -> None:
         signal.signal(number, handler)
 
 
-def run(args: argparse.Namespace, stdout: TextIO) -> int:
-    launch = prepare(args, os.environ)
-    problems = export_catalog(launch.catalog)
-    if args.print_command:
-        shown = (
-            "STAGE_GEN_RUN_ROOTS",
-            "STAGE_GEN_CATALOG",
-            "STAGE_GEN_VIEW_CACHE",
-            "STAGE_GEN_REPO_ROOT",
-        )
-        stdout.write(
-            json.dumps(
-                {
-                    "command": list(launch.command),
-                    "cwd": str(launch.checkout),
-                    "env": {name: launch.env[name] for name in shown},
-                    "url": launch.url,
-                    "catalog_problems": problems,
-                },
-                indent=2,
-            )
-            + "\n"
-        )
-        return 0
-    roots = ", ".join(str(root) for root in launch.roots)
-    stdout.write(f"stage-gen view: {launch.url} over {roots}\n")
+def launch(request: Dashboard) -> int:
+    """Serve the viewer over ``request.roots`` until it ends; its exit status."""
+    launched = prepare(request, os.environ)
+    problems = export_catalog(launched.catalog)
+    roots = ", ".join(str(root) for root in launched.roots)
+    sys.stdout.write(f"gnode view: {launched.url} over {roots}\n")
     if problems:
-        stdout.write(f"stage-gen view: the catalog has {len(problems)} drift problem(s)\n")
-    stdout.flush()
+        sys.stdout.write(f"gnode view: the catalog has {len(problems)} drift problem(s)\n")
+    sys.stdout.flush()
     stop = threading.Event()
-    threading.Thread(target=_refresh_views, args=(launch, stop, sys.stderr), daemon=True).start()
     replaced = _trap_stop_signals()
     child: subprocess.Popen[bytes] | None = None
     stop_child: Callable[[], None] | None = None
     status = 0
     try:
         child = subprocess.Popen(
-            launch.command, cwd=launch.checkout, env=launch.env, start_new_session=True
+            launched.command, cwd=launched.checkout, env=launched.env, start_new_session=True
         )
         # Also stopped at interpreter exit, should this frame never unwind.
         stop_child = functools.partial(_stop, child)
         atexit.register(stop_child)
-        if not args.no_open:
+        if request.open_browser:
             threading.Thread(
-                target=_open_when_listening, args=(launch.url, launch.port, stop), daemon=True
+                target=_open_when_listening, args=(launched.url, launched.port, stop), daemon=True
             ).start()
         status = child.wait()
     except _Stopped as stopped:
@@ -319,3 +259,11 @@ def run(args: argparse.Namespace, stdout: TextIO) -> int:
             atexit.unregister(stop_child)
         _restore_signals(replaced)
     return status
+
+
+def plugin() -> Plugin:
+    """The ``gnode.plugins`` entry point: the viewer is the dashboard ``gnode view`` starts."""
+    return Plugin(name="viewer", dashboard=launch)
+
+
+__all__ = ["REFUSAL", "Launch", "export_catalog", "find_checkout", "launch", "plugin", "prepare"]

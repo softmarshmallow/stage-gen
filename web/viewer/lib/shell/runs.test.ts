@@ -72,7 +72,7 @@ describe("repository root", () => {
 });
 
 describe("run roots", () => {
-  test("default to out/ of the checkout when stage-gen view set none", () => {
+  test("default to out/ of the checkout when gnode view set none", () => {
     delete process.env.STAGE_GEN_REPO_ROOT;
     delete process.env.STAGE_GEN_RUN_ROOTS;
     const [only, ...rest] = runRoots();

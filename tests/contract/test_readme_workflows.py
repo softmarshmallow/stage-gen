@@ -49,4 +49,4 @@ def test_readme_is_a_short_front_page_with_its_hero_media() -> None:
         assert (REPOSITORY_ROOT / image).is_file(), image
     # The viewer is named once, with the command that opens it.
     assert "the local read-only client" in text
-    assert "stage-gen view" in text
+    assert "gnode view" in text

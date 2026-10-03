@@ -177,34 +177,26 @@ enters the package's identity, so a clone that does not carry the bytes still lo
 still plans and still prices the run; the adopt node is where an absence is finally paid
 for, after planning has already said what the run would cost.
 
-### Drawing and judging a clip outside a run
+### Auditioning a shot
 
-The two commands that make the loop practical. Neither knows anything about a package:
-
-```bash
-uv run stage-gen capability video --output explore/clip-audition/the_cold-a1.mp4 \
-  --duration 10 --resolution 720p --aspect-ratio 16:9 \
-  --reference godot/games/ember_hollow/inputs/references/style-plate.png \
-  --reference godot/games/ember_hollow/inputs/references/player-appearance.png \
-  "the brief, verbatim"
-```
+A shot that declares no take is filmed by the build itself, so the build is where a shot
+is auditioned. Leave the take out and run it: everything else comes back from the call
+cache, and only the shot is drawn.
 
 ```bash
-uv run stage-gen capability inspect-video --input explore/clip-audition/the_cold-a1.mp4 \
-  --output explore/clip-audition/the_cold-a1.contact.png
+cd godot/games/ember_hollow
+uv run gnode run pipeline/workflow.py:build --arg package=inputs --live --max-usd 40
+uv run gnode view
 ```
 
-`capability video` gates its draw exactly as the pipeline does, minus the layout's
-rectangle — which is a shot's business rather than a clip's, and is checked again when a
-package adopts it. So a draw refused at audition would have been refused in a run, which
-is the point.
-
-`capability inspect-video` makes no provider call and costs nothing. It measures the clip and lays
-its frames out on a contact sheet, sampled by the **same** constants the pipeline's own
-reviewer uses (`components/video_clip/review.py`), so a verdict formed by looking here
-and a verdict formed in a run are about the same pictures. A clip the gate would refuse
-still gets its sheet, with the refusal reported beside the facts: the reason to look at a
-refused clip is to find out what is wrong with it.
+Each take meets the admission gate a kept take meets, is published in the codec the host
+plays, and is laid out on a contact sheet sampled by the **same** constants the
+build's own reviewer uses (`components/video_clip/review.py`), so a verdict formed by looking
+at the sheet and a verdict formed in the run are about the same pictures. `gnode reroll <run>
+"shell.opening_the_cold.generate"` films another take of that shot; `gnode pick` keeps one, and the takes
+file beside the builder records it. To keep the shot through a cold cache, copy the picked
+clip beside the package and declare it as the shot's `take`; adopting it is then the zero-
+operation path above.
 
 Reading the frames is how a clip is judged. No measurement answers whether the beats the
 brief asked for are on the screen, and both a person and a model can answer it from a

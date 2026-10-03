@@ -7,13 +7,12 @@ The product is the asset pipeline; complete games are consumers.
 
 This folder holds only what crosses workflows. Each workflow's guide and exact contract
 live beside its code, in `src/stage_gen/workflows/<id>/page.mdx` and `contract.md`, and
-`stage-gen show <id>` describes it from the command line.
+`gnode schema <id>` prints the inputs it takes.
 
 ## Workflows
 
 The root README's [workflow table](../README.md#workflows) links each workflow's page and
-is checked against its `workflow.toml`; `stage-gen list` and `stage-gen show <id>` print the
-same facts from the command line.
+is checked against its `workflow.toml`.
 
 The universe vocabulary is ratified separately in [taxonomy V0](spec/universe/taxonomy-v0.md),
 beside the [world vocabulary](research/world-generation-vocabulary.md) research; the
@@ -27,7 +26,7 @@ both phases and their graphs.
   [provider-neutral image node](sdk/provider-neutral-image-node.md) pattern.
 - [Components](../src/stage_gen/components/README.md): the component table and the component contract.
 - [GNode rings](spec/gnode-rings.md): engine and provider ownership.
-- [Viewer](viewer.md): `stage-gen view`, the local read-only client over run folders.
+- [Viewer](viewer.md): `gnode view`, the local read-only client over run folders.
 - [Site](site.md): the static landing and documentation site, built by `scripts/site.py` from the catalog and the example store.
 - [Providers](models/providers.md): bindings, credentials and live-operation boundaries.
 - [Character library](character-library.md): the committed character profiles and approved 3D examples.

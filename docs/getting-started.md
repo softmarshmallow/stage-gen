@@ -7,16 +7,16 @@ Stage Gen runs from a source checkout. You need Python 3.12 or newer and
 
 ```sh
 uv sync --frozen
-uv run stage-gen list
-uv run stage-gen show movie-sprite
+uv run gnode schema movie-sprite
+uv run gnode nodes
 ```
 
-`stage-gen list` prints each installed workflow: its id, title and promise. `stage-gen show`
-describes one workflow: its steps, the size of its offline sample plan where it has one, its
-outputs, try-it commands and the examples it pins (`--json` prints the whole plan). Every
-workflow takes the same verbs, `plan`, `run` and `inspect` (3D character prepares with
-`run --prepare-only` instead of `plan`). `stage-gen <command> <workflow> --help` prints a
-workflow's flags, and the site's CLI reference lists every command and flag in one page.
+The installed workflows are listed in the [README](../README.md#workflows) and on the site, each
+with its page. Every workflow is a gnode workflow file, run by its id with the same verbs:
+`plan`, `run` and `inspect`. `gnode schema <id>` prints the inputs a workflow takes, as JSON
+Schema; each input is also a flag (`--max-entities 24`), or a key of an `--inputs` file.
+`gnode nodes` lists every node type with its settings and the routes that serve it, and the
+site's CLI reference lists every command and flag in one page.
 
 ## Run a workflow
 
@@ -45,11 +45,11 @@ and they need your own provider keys. Read [provider setup](models/providers.md)
 
 ```sh
 (cd web && bun install --frozen-lockfile)
-uv run stage-gen view
+uv run gnode view
 ```
 
-The [viewer](viewer.md) lists every run under `out/` (or the folders you name with `--runs`),
-grouped by workflow, with each run's graph and artifacts. It never starts a run.
+The [viewer](viewer.md) lists every run under `out/runs/` (or the folders you name), grouped by
+workflow, with each run's graph, its steps' views and its artifacts. It never starts a run.
 
 The [site](site.md) shows each workflow with the example it pins, and the docs. Build and serve
 it locally:
@@ -61,7 +61,6 @@ uv run python scripts/site.py serve --port 8790
 
 ## Write your own pipeline
 
-The [SDK guide](sdk/guide.md) shows how to define, plan, run and inspect your
-own graph of nodes, with the same cache and provenance the workflows use. Run a definition from
-the CLI with `stage-gen plan file <file.py:attr>` and `stage-gen run file <file.py:attr>`. The
-[glossary](glossary.md) names the parts.
+Your own workflow is a gnode workflow file, or a Python builder for a graph that a file cannot
+state; `gnode plan` and `gnode run` take either, with the same cache, takes and run record the
+installed workflows use. The [glossary](glossary.md) names the parts.

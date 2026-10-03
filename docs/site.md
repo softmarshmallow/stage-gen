@@ -3,7 +3,7 @@
 The site is the static landing and documentation site in [`web/site`](../web/site). It shows
 each workflow with the example it pins, the examples the example games made, each workflow's
 contract and a reference for every workflow. It reads only the catalog that
-`stage-gen catalog export` writes and the example store; it never reads run folders and never
+`scripts/catalog.py` writes and the example store; it never reads run folders and never
 starts a run. The [viewer](viewer.md) is the local client for runs.
 
 ## Build and serve it
@@ -18,9 +18,9 @@ uv run python scripts/site.py serve --port 8790
 [`scripts/site.py`](../scripts/site.py) `build` stages everything the Next build reads into
 gitignored folders, then runs `bun run --cwd web/site build`, which writes `web/site/out/`:
 
-- the catalog into `web/site/.catalog/catalog.json`, from `stage-gen catalog export --examples
-  out/examples` (`--examples DIR` names another store), and beside it `cli.json`, the command
-  tree the export reads from the `stage-gen` parser;
+- the catalog into `web/site/.catalog/catalog.json`, exported as `scripts/catalog.py` exports
+  it from `out/examples` (`--examples DIR` names another store), and beside it `cli.json`, the
+  command tree the export reads from `gnode`'s parser;
 - the prose from the checkout into `web/site/.catalog/pages/`: each workflow's `page.mdx`,
   `contract.md` and `examples/<id>.mdx`, each game example's `page.mdx` from the store, and the
   Markdown the site shows under `/docs/` (`SITE_DOCS` in the script: getting started, the

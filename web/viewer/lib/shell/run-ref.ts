@@ -1,6 +1,6 @@
 // How the viewer names one run in a URL: its root's key and its tag.
 //
-// A run sits up to four folders below one of the roots `stage-gen view` was given, so its
+// A run sits up to four folders below one of the roots `gnode view` was given, so its
 // tag is its root-relative path with each `/` written as `~`, which a safe path segment
 // never contains. This module holds only names and URLs, so client components import it;
 // resolving a name to a folder belongs to runs.ts on the server.

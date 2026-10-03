@@ -1,4 +1,4 @@
-// Home (root URL): every run under every root `stage-gen view` was given, grouped by the
+// Home (root URL): every run under every root `gnode view` was given, grouped by the
 // workflow that made it.
 //
 // Each installed workflow leads with its title and promise from the catalog and a link
@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
 
 function firstRun(workflow: CatalogWorkflow): string | null {
   const commands = workflow.manifest.tryIt?.commands ?? [];
-  return commands.find((command) => /(?:^|\s)stage-gen run /.test(command)) ?? commands[0] ?? null;
+  return commands.find((command) => /(?:^|\s)gnode run /.test(command)) ?? commands[0] ?? null;
 }
 
 function WorkflowSection({
@@ -126,7 +126,7 @@ export default async function Home() {
       ) : catalogRead.catalog === null ? (
         <p className={metaLine}>
           No catalog, so runs are not grouped by workflow. Start the viewer with{" "}
-          <code>stage-gen view</code>.
+          <code>gnode view</code>.
         </p>
       ) : null}
       {groups.workflows.map(({ workflow, runs: owned }) => (
@@ -134,7 +134,7 @@ export default async function Home() {
       ))}
       <UnclaimedSection
         title="Game runs"
-        note="Made inside an example game. A game exports its own run views: demo-games export-view --run DIR."
+        note="Made inside an example game, by its gnode build."
         runs={groups.game}
         game
         now={now}

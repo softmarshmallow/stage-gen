@@ -75,8 +75,8 @@ describe("workflow page", () => {
       await WorkflowPage({ params: Promise.resolve({ id: "swatch-sheet" }) }),
     );
     expect(markup).toContain("One brief in. A checked sheet of material swatches out.");
-    expect(markup).toContain("uv run stage-gen plan swatch-sheet --input");
-    expect(markup).toContain("stage-gen show swatch-sheet");
+    expect(markup).toContain("uv run gnode plan swatch-sheet --inputs");
+    expect(markup).toContain("gnode schema swatch-sheet");
     expect(markup).toContain("[ copy ]");
     // The plan is drawn by the run viewer, embedded and with nothing run.
     expect(markup).toContain("planned offline");

@@ -1,4 +1,4 @@
-"""``stage-gen view``: the launcher's checkout, environment and command, offline.
+"""The viewer ``gnode view`` starts: its checkout, environment and command, offline.
 
 Bun is a fake script on ``PATH`` and the user cache is a temporary folder, so nothing here
 starts the real viewer or writes outside ``tmp_path``. The stop tests give the fake Bun a
@@ -23,29 +23,39 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.interfaces.cli import main, parse
-from stage_gen.interfaces.commands import view
+from gnode import Dashboard, cli
+from stage_gen import viewer as dashboard
 
-REPOSITORY = Path(__file__).resolve().parents[3]
+REPOSITORY = Path(__file__).resolve().parents[2]
 SLEEP = shutil.which("sleep") or "/bin/sleep"
-# Runs the real launcher in its own process, as a terminal would start it: the stop signals
-# at their defaults, and the catalog export skipped since these tests are about processes.
+# Runs the real `gnode view` in its own process, as a terminal would start it: the stop
+# signals at their defaults, and the catalog export skipped since these tests are about
+# processes.
 LAUNCHER = """
 import signal, sys
 signal.signal(signal.SIGTERM, signal.SIG_DFL)
 signal.signal(signal.SIGHUP, signal.SIG_DFL)
 signal.signal(signal.SIGINT, signal.default_int_handler)
-from stage_gen.interfaces.commands import view
-view.export_catalog = lambda path: []
-from stage_gen.interfaces.cli import main
-raise SystemExit(main(["view", "--runs", sys.argv[1], "--no-open"]))
+from stage_gen import viewer as dashboard
+dashboard.export_catalog = lambda path: []
+from gnode import cli
+raise SystemExit(cli.main(["view", sys.argv[1], "--no-open"]))
 """
 
 
-def _stage_gen(*arguments: str) -> tuple[int, str, str]:
+def _gnode_view(*arguments: str) -> tuple[int, str, str]:
     output, errors = StringIO(), StringIO()
-    status = main(list(arguments), stdout=output, stderr=errors)
+    status = cli.main(["view", *arguments], stdout=output, stderr=errors, cwd=REPOSITORY)
     return status, output.getvalue(), errors.getvalue()
+
+
+def _request(*roots: Path, port: int = 3000) -> Dashboard:
+    return Dashboard(
+        roots=tuple(root.resolve() for root in roots) or ((REPOSITORY / "out/runs").resolve(),),
+        view_cache=Path("/views"),
+        port=port,
+        open_browser=False,
+    )
 
 
 @pytest.fixture
@@ -65,20 +75,14 @@ def fake_bun(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return bun
 
 
-def test_print_command_shows_the_environment_and_command_without_starting(
+def test_the_launch_carries_the_roots_catalog_and_view_cache(
     fake_bun: Path, tmp_path: Path
 ) -> None:
     first, second = tmp_path / "out", tmp_path / "spikes"
-    first.mkdir()
-    second.mkdir()
 
-    status, output, errors = _stage_gen(
-        "view", "--runs", str(first), "--runs", str(second), "--port", "3100", "--print-command"
-    )
+    launch = dashboard.prepare(_request(first, second, port=3100), os.environ)
 
-    assert status == 0, errors
-    shown = json.loads(output)
-    assert shown["command"] == [
+    assert launch.command == (
         str(fake_bun),
         "run",
         "--cwd",
@@ -88,45 +92,43 @@ def test_print_command_shows_the_environment_and_command_without_starting(
         "3100",
         "--hostname",
         "127.0.0.1",
-    ]
-    assert shown["cwd"] == str(REPOSITORY)
+    )
+    assert launch.checkout == REPOSITORY
     cache = tmp_path / "cache" / "stage-gen"
-    assert shown["env"] == {
+    assert {name: launch.env[name] for name in launch.env if name.startswith("STAGE_GEN_")} == {
         "STAGE_GEN_RUN_ROOTS": os.pathsep.join((str(first.resolve()), str(second.resolve()))),
         "STAGE_GEN_CATALOG": str(cache / "catalog" / "catalog.json"),
-        "STAGE_GEN_VIEW_CACHE": str(cache / "views"),
+        "STAGE_GEN_VIEW_CACHE": "/views",
         "STAGE_GEN_REPO_ROOT": str(REPOSITORY),
     }
-    assert shown["url"] == "http://127.0.0.1:3100/"
-    catalog = json.loads((cache / "catalog" / "catalog.json").read_text(encoding="utf-8"))
+    assert launch.url == "http://127.0.0.1:3100/"
+
+
+def test_the_catalog_export_lists_the_installed_workflows(tmp_path: Path) -> None:
+    path = tmp_path / "catalog.json"
+    assert dashboard.export_catalog(path) == []
+    catalog = json.loads(path.read_text(encoding="utf-8"))
     assert catalog["kind"] == "stage-gen-catalog-v1"
     assert {workflow["id"] for workflow in catalog["workflows"]} >= {"movie-sprite", "universe"}
-    assert not (tmp_path / "bun-called.json").exists()
-
-
-def test_the_default_root_is_out_of_the_checkout(fake_bun: Path) -> None:
-    launch = view.prepare(parse(["view"]), os.environ)
-    assert launch.roots == ((REPOSITORY / "out").resolve(),)
-    assert launch.env["STAGE_GEN_RUN_ROOTS"] == str((REPOSITORY / "out").resolve())
 
 
 def test_provider_keys_never_reach_the_viewer(fake_bun: Path) -> None:
     environment = {**os.environ, "OPENAI_API_KEY": "not-a-key", "FAL_KEY": "not-a-key"}
-    launch = view.prepare(parse(["view"]), environment)
+    launch = dashboard.prepare(_request(), environment)
     assert "OPENAI_API_KEY" not in launch.env and "FAL_KEY" not in launch.env
     assert launch.env["PATH"] == environment["PATH"]
 
 
-def test_the_launcher_runs_bun_in_the_checkout_and_returns_its_status(
-    fake_bun: Path, tmp_path: Path
+def test_gnode_view_runs_bun_in_the_checkout_and_returns_its_status(
+    fake_bun: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setattr(dashboard, "export_catalog", lambda path: [])
     root = tmp_path / "runs"
     root.mkdir()
 
-    status, output, errors = _stage_gen("view", "--runs", str(root), "--no-open")
+    status, _, errors = _gnode_view(str(root), "--no-open")
 
     assert status == 0, errors
-    assert "http://127.0.0.1:3000/" in output
     called = (tmp_path / "bun-called.json").read_text(encoding="utf-8").splitlines()
     assert called == [
         str(REPOSITORY),
@@ -146,16 +148,15 @@ def test_without_bun_it_refuses_and_points_at_the_guide(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("PATH", str(tmp_path))
-    status, _, errors = _stage_gen("view", "--print-command")
+    status, _, errors = _gnode_view(str(tmp_path))
     assert status == 2
-    assert view.REFUSAL in errors
+    assert dashboard.REFUSAL in errors
 
 
 def test_outside_a_checkout_it_refuses(fake_bun: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(view, "find_checkout", lambda starts: None)
-    status, _, errors = _stage_gen("view", "--print-command")
-    assert status == 2
-    assert "needs a source checkout and Bun; see docs/viewer.md" in errors
+    monkeypatch.setattr(dashboard, "find_checkout", lambda starts: None)
+    with pytest.raises(ValueError, match="needs a source checkout of Stage Gen and Bun"):
+        dashboard.prepare(_request(), os.environ)
 
 
 def test_a_checkout_is_a_stage_gen_project_that_holds_the_viewer(tmp_path: Path) -> None:
@@ -164,25 +165,18 @@ def test_a_checkout_is_a_stage_gen_project_that_holds_the_viewer(tmp_path: Path)
     nested.mkdir(parents=True)
     (checkout / "pyproject.toml").write_text('[project]\nname = "stage-gen"\n', encoding="utf-8")
     # An installed wheel's project file, without the viewer beside it, is not a checkout.
-    assert view.find_checkout((nested,)) is None
+    assert dashboard.find_checkout((nested,)) is None
     (checkout / "web" / "viewer").mkdir(parents=True)
     (checkout / "web" / "viewer" / "package.json").write_text("{}", encoding="utf-8")
-    assert view.find_checkout((nested,)) == checkout
+    assert dashboard.find_checkout((nested,)) == checkout
     (checkout / "pyproject.toml").write_text('[project]\nname = "other"\n', encoding="utf-8")
-    assert view.find_checkout((nested,)) is None
+    assert dashboard.find_checkout((nested,)) is None
 
 
-def test_a_missing_run_folder_or_port_is_refused(fake_bun: Path, tmp_path: Path) -> None:
-    status, _, errors = _stage_gen("view", "--runs", str(tmp_path / "absent"), "--print-command")
-    assert status == 2 and "no run folder at" in errors
-    status, _, errors = _stage_gen("view", "--port", "0", "--print-command")
-    assert status == 2 and "--port" in errors
-
-
-def test_the_cache_follows_an_absolute_xdg_cache_home_only(tmp_path: Path) -> None:
-    assert view.cache_home({"XDG_CACHE_HOME": str(tmp_path)}) == tmp_path / "stage-gen"
-    assert view.cache_home({"XDG_CACHE_HOME": "relative"}) == Path.home() / ".cache/stage-gen"
-    assert view.cache_home({}) == Path.home() / ".cache/stage-gen"
+def test_the_catalog_cache_follows_an_absolute_xdg_cache_home_only(tmp_path: Path) -> None:
+    assert dashboard.cache_home({"XDG_CACHE_HOME": str(tmp_path)}) == tmp_path / "stage-gen"
+    assert dashboard.cache_home({"XDG_CACHE_HOME": "rel"}) == Path.home() / ".cache/stage-gen"
+    assert dashboard.cache_home({}) == Path.home() / ".cache/stage-gen"
 
 
 def _write_server_bun(bun: Path, pids: Path, *, then: str) -> None:
@@ -272,17 +266,17 @@ def test_when_the_viewer_exits_what_it_started_is_ended_too(
     fake_bun: Path, server_pids: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _write_server_bun(fake_bun, server_pids, then="exit 0")
-    monkeypatch.setattr(view, "export_catalog", lambda path: [])
+    monkeypatch.setattr(dashboard, "export_catalog", lambda path: [])
     root = tmp_path / "runs"
     root.mkdir()
-    before = {number: signal.getsignal(number) for number in view.STOP_SIGNALS}
+    before = {number: signal.getsignal(number) for number in dashboard.STOP_SIGNALS}
 
-    status, _, errors = _stage_gen("view", "--runs", str(root), "--no-open")
+    status, _, errors = _gnode_view(str(root), "--no-open")
 
     assert status == 0, errors
     _, server = (int(field) for field in server_pids.read_text(encoding="utf-8").split())
     assert _gone(server), "a process the viewer started outlived the launcher"
-    assert {number: signal.getsignal(number) for number in view.STOP_SIGNALS} == before
+    assert {number: signal.getsignal(number) for number in dashboard.STOP_SIGNALS} == before
 
 
 def test_a_viewer_that_ignores_sigterm_is_killed_after_the_grace(tmp_path: Path) -> None:
@@ -298,7 +292,7 @@ def test_a_viewer_that_ignores_sigterm_is_killed_after_the_grace(tmp_path: Path)
             time.sleep(0.05)
         server = int(pids.read_text(encoding="utf-8"))
 
-        view._stop(child, grace=0.3)
+        dashboard._stop(child, grace=0.3)
 
         assert child.returncode == -signal.SIGKILL
         assert _gone(server)
@@ -311,12 +305,12 @@ def test_a_viewer_that_ignores_sigterm_is_killed_after_the_grace(tmp_path: Path)
 def test_a_signal_the_launcher_was_started_ignoring_stays_ignored() -> None:
     previous = signal.signal(signal.SIGHUP, signal.SIG_IGN)
     try:
-        replaced = view._trap_stop_signals()
+        replaced = dashboard._trap_stop_signals()
         try:
             assert signal.SIGHUP not in replaced
             assert signal.getsignal(signal.SIGHUP) is signal.SIG_IGN
             assert set(replaced) == {signal.SIGTERM, signal.SIGINT}
         finally:
-            view._restore_signals(replaced)
+            dashboard._restore_signals(replaced)
     finally:
         signal.signal(signal.SIGHUP, previous)

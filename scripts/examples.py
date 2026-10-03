@@ -1,46 +1,34 @@
-"""``stage-gen catalog export`` and ``stage-gen example verify|promote``.
+"""Verify pinned examples, or promote runs to a new draft example.
 
-The catalog is the derived document the site builds from; an example is a frozen export
-of real runs, pinned by digest in its owner's manifest. The export also writes ``cli.json``
-beside the catalog, the argparse tree the site's CLI reference is written from.
+    uv run python scripts/examples.py verify [OWNER] [--examples DIR]
+    uv run python scripts/examples.py promote WORKFLOW --run RUN [--run RUN ...] --id ID
+        [--title TITLE] [--option KEY=VALUE ...] [--examples DIR]
+
+An example is a frozen export of real runs, pinned by digest in its owner's manifest.
+``verify`` recomputes every pin and prints one line per example: ok, missing (from the local
+store), or what differs. ``promote`` exports runs as a draft example into the store and pins
+it in the workflow's ``workflow.toml``.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import shutil
+import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TextIO
 
 
-def register_catalog(parser: argparse.ArgumentParser) -> None:
-    actions = parser.add_subparsers(dest="action", required=True)
-    export = actions.add_parser(
-        "export", help="write catalog.json and cli.json, or only check drift"
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="scripts/examples.py", description="verify or promote pinned examples"
     )
-    export.add_argument(
-        "--out",
-        type=Path,
-        required=True,
-        dest="out_dir",
-        help="folder to write catalog.json and cli.json",
-    )
-    export.add_argument("--examples", type=Path, dest="examples_dir", help="the example store")
-    export.add_argument(
-        "--allow-missing-examples",
-        action="store_true",
-        help="build without pinned store examples that are absent; a mismatch still fails",
-    )
-    export.add_argument("--check", action="store_true", help="run the drift checks only")
-    export.set_defaults(handler=catalog_export)
-
-
-def register_example(parser: argparse.ArgumentParser) -> None:
     actions = parser.add_subparsers(dest="action", required=True)
     verify = actions.add_parser("verify", help="recompute every example pin")
     verify.add_argument("owner", nargs="?", help="a workflow or game id (default: all)")
     verify.add_argument("--examples", type=Path, dest="examples_dir", help="the example store")
-    verify.set_defaults(handler=example_verify)
     promote = actions.add_parser(
         "promote", help="export runs as a draft example and pin it in workflow.toml"
     )
@@ -64,41 +52,10 @@ def register_example(parser: argparse.ArgumentParser) -> None:
         help="an importer option, such as input_root=DIR, the folder the run was given as --input",
     )
     promote.add_argument("--examples", type=Path, dest="examples_dir", help="the example store")
-    promote.set_defaults(handler=example_promote)
+    return parser
 
 
-def catalog_export(args: argparse.Namespace, output: TextIO) -> int:
-    from gnode import atomic_write_bytes
-    from stage_gen.interfaces.cli import CLI_REFERENCE_FILE, command_reference
-    from stage_gen.workflows._catalog import default_examples_dir, export
-
-    result = export(
-        args.out_dir,
-        examples_dir=args.examples_dir or default_examples_dir(),
-        allow_missing_examples=args.allow_missing_examples,
-        check=args.check,
-    )
-    reference: Path | None = None
-    if result.path is not None:
-        reference = args.out_dir / CLI_REFERENCE_FILE
-        payload = json.dumps(command_reference(), indent=2, ensure_ascii=False) + "\n"
-        atomic_write_bytes(reference, payload.encode(), mode=0o644)
-    output.write(
-        json.dumps(
-            {
-                "workflows": result.workflows,
-                "catalog": None if result.path is None else str(result.path),
-                "cli": None if reference is None else str(reference),
-                "problems": list(result.problems),
-            },
-            indent=2,
-        )
-        + "\n"
-    )
-    return 1 if result.problems else 0
-
-
-def example_verify(args: argparse.Namespace, output: TextIO) -> int:
+def verify(args: argparse.Namespace, output: TextIO) -> int:
     """One line per pinned example: ok, missing (from the local store), or what differs.
 
     Examples a game wrote into the store are checked against the pins the game wrote beside
@@ -143,10 +100,8 @@ def example_verify(args: argparse.Namespace, output: TextIO) -> int:
     return 1 if any(problems for _, problems, _ in lines) else 0
 
 
-def example_promote(args: argparse.Namespace, output: TextIO) -> int:
+def promote(args: argparse.Namespace, output: TextIO) -> int:
     """Export runs as a draft example in the store and pin it in the workflow's manifest."""
-    import shutil
-
     from stage_gen.examples import ImportRequest, MadeBy, store_directory, write_example
     from stage_gen.workflows._catalog import default_examples_dir
     from stage_gen.workflows._registry import (
@@ -220,3 +175,22 @@ def example_promote(args: argparse.Namespace, output: TextIO) -> int:
         + "\n"
     )
     return 0
+
+
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    stdout: TextIO | None = None,
+    stderr: TextIO | None = None,
+) -> int:
+    output, errors = stdout or sys.stdout, stderr or sys.stderr
+    args = build_parser().parse_args(argv)
+    try:
+        return verify(args, output) if args.action == "verify" else promote(args, output)
+    except (ValueError, OSError) as error:
+        errors.write(f"scripts/examples.py: {error}\n")
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

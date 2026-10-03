@@ -23,13 +23,13 @@ dependencies = [
 
 [project.scripts]
 gnode = "gnode.workflow.cli:entrypoint"
-stage-gen = "stage_gen.interfaces.cli:entrypoint"
 
 # What the gnode command line composes: standard node types, file facts, routes and the
 # provider adapters that serve them. The engine never imports a plugin by name.
 [project.entry-points."gnode.plugins"]
 std = "gnode_std:plugin"
 stage_gen = "stage_gen.orchestration.gnode_plugin:plugin"
+viewer = "stage_gen.viewer:plugin"
 
 [dependency-groups]
 dev = [

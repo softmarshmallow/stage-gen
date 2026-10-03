@@ -447,7 +447,7 @@ def scene_value(
 
 
 def repoint_digests(package: Path) -> None:
-    """Re-pin an edited script, the way `stage-gen scenario check --write-digest` does.
+    """Re-pin an edited script, the way `demo-games scenario check --write-digest` does.
 
     Editing prose invalidates two recorded hashes: the scenario's binding of its
     script, and the scene's binding of the scenario. A test that edits a line has

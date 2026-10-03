@@ -129,13 +129,15 @@ post-processing.
 
 ## Choosing a take
 
-The route has no seed and a person picks the winner, so a generated clip
-carries the same two selection fields a spoken line does (see
-[game-voice.md](voices.md) for the full account). `take` is the reroll
-ordinal - part of the identity above the first draw, so bumping it redraws
-this one clip alone - and `[effects.realization.pinned]` commits a reviewed
-audition into the package by digest, sidecar and all, republished through the
-same gates with no provider call:
+The route has no seed and a person picks the winner, so a generated clip is
+chosen the way a spoken line is (see [game-voice.md](voices.md) for the full
+account). The build draws take 1; `gnode reroll <run> "sounds.<effect_id>.generate"`
+draws the next take of that one clip, and `gnode pick` keeps one. The pick is
+written to `pipeline/workflow.takes.yaml` beside the builder, which every run
+reads; the authored `take` field stays 1, and the build refuses another with a
+notice naming that file. `[effects.realization.pinned]` instead commits a
+reviewed take into the package by digest, sidecar and all, republished through
+the same gates with no provider call:
 
 ```toml
 [effects.realization]
@@ -144,7 +146,6 @@ prompt = "hard hit on sheet metal"
 duration_seconds = 0.5
 gain = 0.8
 strength_pitch_multiplier = 0.0
-take = 3
 
 [effects.realization.pinned]
 source = "runner/audio/hull_clank.mp3"
@@ -230,20 +231,21 @@ before any spend when a clip is declared and `ELEVENLABS_API_KEY` is absent.
 
 The manifest publishes what the consumer plays - `clip`, `duration_seconds`,
 `gain`, `strength_pitch_multiplier` - and not what bought it. The prompt lives
-in `audio/<effect_id>.mp3.meta.json`.
+in the run's record.
 
 ## Auditioning a prompt
 
-A clip costs a few credits; a package run costs the whole graph. Try the wording
-first:
+Write the wording into `audio.toml` and run the build: every other step comes
+back from the call cache, so only the changed clip is drawn and billed.
 
 ```sh
-uv run stage-gen capability sound-effect --output out/hatch.mp3 --duration 0.6 "metal hatch latch release"
+cd godot/games/iron_petal_unit
+uv run gnode run pipeline/workflow.py:build --arg package=inputs --live --max-usd 2
+uv run gnode view
 ```
 
-Optional `--prompt-influence 0.3` and `--loop`. The same admission applies and
-the output is untouched provider bytes with a provenance sidecar. Listen, then
-commit the wording to `audio.toml`.
+The clip's step plays in the dashboard after the same admission a build applies.
+Reroll it for another take, or reword it and run again.
 
 ## Validation
 

@@ -1,5 +1,5 @@
 // The catalog the site builds from: web/site/.catalog/catalog.json, written by
-// `scripts/site.py stage|build` (`stage-gen catalog export`), plus the page sources that
+// `scripts/site.py stage|build` (the export `scripts/catalog.py` writes), plus the page sources that
 // script stages beside it under .catalog/pages/. Read once per process, at build time.
 //
 // Example documents carry run-relative media paths ("media/input.webp"). They are made

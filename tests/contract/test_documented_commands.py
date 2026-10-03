@@ -1,18 +1,18 @@
-"""Every documented ``stage-gen`` and ``gnode`` command parses with the real CLI.
+"""Every documented ``gnode`` command parses with the real CLI.
 
 A command shown to a reader is a promise: a renamed verb, a dropped flag or a misspelt
 workflow id must fail here, not on the reader's machine. Commands are read from fenced
 ``sh``/``bash`` blocks in README.md, the live docs (``docs/`` without its history roots),
 each workflow's ``page.mdx``, ``contract.md`` and example pages, the Godot docs, and each
-``workflow.toml`` ``[try]`` table. A ``stage-gen`` command is parsed by
-``stage_gen.interfaces.cli.parse``, the console script's own ``parse_known_args`` path; a
-``gnode`` command by gnode's parser, with only its workflow's own input flags beside it. None
-is executed.
+``workflow.toml`` ``[try]`` table. A ``gnode`` command is parsed by gnode's own parser, with
+only its workflow's own input flags beside it; the retired ``stage-gen`` command line fails
+wherever it is still shown. None is executed.
 """
 
 from __future__ import annotations
 
-import argparse
+import contextlib
+import io
 import re
 import shlex
 import tomllib
@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from stage_gen.interfaces.cli import build_parser, parse
+from gnode import cli
 from stage_gen.workflows._checks import gnode_command_problems
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -34,7 +34,7 @@ FENCE = re.compile(
 )
 SHELL_FENCES = {"sh", "bash", "shell", "console"}
 ENVIRONMENT = re.compile(r"^[A-Z_][A-Z0-9_]*=")
-#: The ``uv run`` options a documented command may carry before ``stage-gen``.
+#: The ``uv run`` options a documented command may carry before ``gnode``.
 UV_RUN_FLAGS_WITH_VALUE = {"--group", "--extra", "--with", "--python", "--directory"}
 COMMAND_SEPARATORS = {"&&", "||", ";", "|"}
 PROGRAMS = ("stage-gen", "gnode")
@@ -44,7 +44,7 @@ PROGRAMS = ("stage-gen", "gnode")
 class Documented:
     source: str
     arguments: tuple[str, ...]
-    program: str = "stage-gen"
+    program: str = "gnode"
 
     def __str__(self) -> str:
         return f"{self.source}: {self.program} {shlex.join(self.arguments)}"
@@ -83,8 +83,8 @@ def _logical_lines(body: str) -> Iterator[str]:
 
 
 def _commands(line: str) -> Iterator[tuple[str, tuple[str, ...]]]:
-    """The ``stage-gen`` and ``gnode`` invocations in one shell line, after env assignments
-    and ``uv run``."""
+    """The ``gnode`` (and retired ``stage-gen``) invocations in one shell line, after env
+    assignments and ``uv run``."""
     try:
         tokens = shlex.split(line, comments=True)
     except ValueError:
@@ -132,7 +132,6 @@ def documented_commands() -> list[Documented]:
 
 
 DOCUMENTED = documented_commands()
-PARSER = build_parser()
 
 
 def test_the_scan_reads_every_kind_of_source() -> None:
@@ -149,32 +148,24 @@ def test_the_scan_reads_every_kind_of_source() -> None:
 
 @pytest.mark.parametrize("command", DOCUMENTED, ids=str)
 def test_documented_command_parses_with_the_real_cli(command: Documented) -> None:
-    if command.program == "gnode":
-        problems = gnode_command_problems(command.arguments)
-        assert not problems, f"{command.source}: {problems}"
-        return
-    if "--help" in command.arguments or "-h" in command.arguments:
-        # A help request parses only as far as the command it asks about; that much must exist.
-        arguments = command.arguments[
-            : command.arguments.index("--help" if "--help" in command.arguments else "-h")
-        ]
-        with pytest.raises(SystemExit) as exit_:
-            parse((*arguments, "--help"), PARSER)
-        assert exit_.value.code == 0, f"{command} asks for help on a command that is not there"
-        return
-    try:
-        args = parse(command.arguments, PARSER)
-    except (SystemExit, ValueError) as error:
-        pytest.fail(f"{command} does not parse: {error}")
-    assert isinstance(args, argparse.Namespace)
-    assert getattr(args, "handler", None) is not None, f"{command} names no command"
+    assert command.program == "gnode", f"{command}: stage-gen is retired; show the gnode command"
+    for flag in ("--help", "-h"):
+        if flag in command.arguments:
+            # A help request parses only as far as the command it asks about; that much must
+            # exist.
+            asked = command.arguments[: command.arguments.index(flag)]
+            with contextlib.redirect_stdout(io.StringIO()), pytest.raises(SystemExit) as exit_:
+                cli.build_parser().parse_args([*asked, "--help"])
+            assert exit_.value.code == 0, f"{command} asks for help on a command that is not there"
+            return
+    problems = gnode_command_problems(command.arguments)
+    assert not problems, f"{command.source}: {problems}"
 
 
 def test_a_retired_command_fails_the_parse() -> None:
     for retired in (
-        ("pipeline", "plan", "file.py:pipeline", "--input", "in"),
-        ("universe", "semantic", "--input", "in"),
-        ("plan", "movie-sprite", "--cache-dir", "cache"),
+        ("show", "universe"),
+        ("catalog", "export", "--out", "site"),
+        ("plan", "file", "pipeline.py:pipeline"),
     ):
-        with pytest.raises((SystemExit, ValueError)):
-            parse(retired, PARSER)
+        assert gnode_command_problems(retired), retired

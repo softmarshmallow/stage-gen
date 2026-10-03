@@ -38,28 +38,28 @@ separate, game-independent asset capability belongs in Stage Gen.
 ## Adding a workflow
 
 A workflow is one folder, `src/stage_gen/workflows/<snake_id>/`, whose kebab-case id is the
-CLI word, the site slug and the docs path. The folder name is the id with `-` written as
+id `gnode` runs it by, the site slug and the docs path. The folder name is the id with `-` written as
 `_`, and a test holds them equal.
 
-1. Write the implementation with the SDK and the components it needs. Name every file a
-   digest reads; no digest may glob the folder.
-2. `workflow.py` exports `CODE`, a `WorkflowCode`: typed steps that reference the real
-   `NodeType` objects (every type in exactly one step), `identity()` read from the code, an
-   offline `sample_plan` (or a stated reason it has none), and the run readers `owns_run`,
-   `inspect` and `write_view`.
+1. Write `workflow.yaml` beside its own `gnode.yaml`, with its node types under `nodes/`
+   and the prompts and schemas it reads; `gnode lock` pins the versioned types in
+   `gnode.lock`. A node imports the components it needs.
+2. `workflow.py` exports `CODE`, from `gnode_workflow`: the typed steps and node types are
+   read from the workflow file (every type in exactly one step), with `identity()`, an
+   offline `sample_plan` over committed or drawn sample inputs (or a stated reason it has
+   none), and `owns_run`.
 3. `workflow.toml` holds only what code cannot know: title, promise, summary, related
    workflows, tools, output notes, a `[try]` table of real commands, and pinned examples.
 4. `page.mdx` is the reader's page; `contract.md` is the exact contract, with a
    `> **Checked by:**` line. A workflow with a sample plan carries its graph-contract block,
    written by `uv run python scripts/write_workflow_contracts.py --write`.
-5. `cli.py` registers its `plan` and `run` flags with argparse only, so building the parser
-   imports no implementation; `example.py` is its importer, when it has one.
+5. `example.py` is its example importer, when it has one.
 6. Add the workflow's row to the README table, and pin its persisted identities in the
    identity golden that `scripts/write_workflow_identity.py` writes; `CODE.identity()` must
    agree with it. Then run
-   `uv run stage-gen catalog export --check --allow-missing-examples --out <scratch>`.
+   `uv run python scripts/catalog.py --check --allow-missing-examples --out <scratch>`.
 
-An example is promoted from real runs with `stage-gen example promote`; it is pinned by
+An example is promoted from real runs with `scripts/examples.py promote`; it is pinned by
 digest and stays in the local store. Committing run media or deploying the site follows
 [generated-media publication](docs/generated-media-publication.md).
 

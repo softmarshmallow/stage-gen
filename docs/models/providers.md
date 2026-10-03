@@ -186,11 +186,12 @@ pacer. Conditioned repair remains a separately composed component service. This
 keeps each service's ownership explicit instead of implying that a shared
 resource ID alone merges adapter instances.
 
-Review the packaged active catalog without loading configuration or provider
-credentials:
+Review every node type with its settings and the routes that serve it, without loading
+provider credentials; `gnode doctor <workflow>` names the keys, tools and routes one workflow
+needs:
 
 ```sh
-uv run stage-gen models routes
+uv run gnode nodes
 ```
 
 Before changing a product, route, capability, price, or policy, check the packaged
@@ -488,31 +489,45 @@ video adapter and its existing application default remain available.
 
 Video is the most expensive route this repository binds — a ten-second 720p clip is
 $1.00, about four to six maximum-quality images — and, like every other seedless route here, it
-answers the same brief differently every time. Drawing inside a pipeline run therefore
-re-buys the whole opening whenever a cache goes cold, and buys a *different* opening.
+answers the same brief differently every time. A take kept only in the call cache is drawn
+anew, and differently, whenever that cache goes cold.
 
-So the recommended shape is the one the soundtrack and the sound effects already use:
-draw outside a run, look at the frames, and link the winner.
+So draw takes, look at the frames, and keep the winner as a file. A one-step workflow is
+enough, beside a `gnode.yaml` that names the video route:
 
-```sh
-uv run stage-gen capability video --output ./explore/clip-audition/a1.mp4 \
-  --duration 10 --resolution 720p --aspect-ratio 16:9 \
-  --reference ./godot/games/ember_hollow/inputs/references/style-plate.png \
-  "the brief, verbatim"
-uv run stage-gen capability inspect-video --input ./explore/clip-audition/a1.mp4 \
-  --output ./explore/clip-audition/a1.contact.png
+```yaml
+# clip-audition.yaml
+gnode: workflow/v1
+id: clip-audition
+title: Clip audition
+steps:
+  film:
+    uses: gnode/video.generate@1
+    with:
+      prompt: the brief, verbatim
+      first_frame: ./references/style-plate.png
+      duration: 10
+      resolution: 720p
+      aspect_ratio: "16:9"
+    takes: 4
+    view: true
+outputs:
+  clip: ${{ steps.film.outputs.video }}
 ```
 
-`capability video` applies the pipeline's own admission gate, so a draw refused at
-audition would have been refused in a run. `capability inspect-video` costs nothing, makes no
-provider call, and lays the clip's frames out exactly as the pipeline's reviewer sees
-them — reading the frames is how a clip is judged, and no measurement answers whether
-the beats a brief asked for are actually on the screen.
+```sh
+uv run gnode run clip-audition.yaml --live --max-usd 5
+uv run gnode view
+```
 
-A package then names the file instead of the brief; see [the shell spec](../../godot/games/ember_hollow/docs/shell.md)
-for the `take` contract. Adopting costs zero provider operations and is not held to
-`clip_seconds_max`, because nothing is being asked of the route. Drawing in the run
-stays fully supported for any shot that does not declare a take.
+The dashboard plays the four takes side by side. `gnode pick <run> film 3` makes the third
+the one the workflow outputs, and `gnode run clip-audition.yaml --deliver clip=explore/the_cold.mp4`
+copies it out without drawing anything again. A game that films a shot in its own build gates
+and reviews each take there instead; see [the shell spec](../../godot/games/ember_hollow/docs/shell.md)
+for Ember Hollow's, and for its `take` contract, which names the kept file instead of the
+brief. Adopting costs zero provider operations and is not held to `clip_seconds_max`, because
+nothing is being asked of the route. Drawing in the run stays fully supported for any shot
+that does not declare a take.
 
 Success requires an `image` object with a URL and media metadata. Download the
 result inside the retry attempt, verify that it is non-empty decodable media,
@@ -522,11 +537,7 @@ artifact.
 The endpoint documentation does not establish training-data license
 provenance. Technical suitability is not a legal assurance.
 
-The key-backed CLI path is:
-
-```sh
-uv run stage-gen capability remove-background --input ./input.png --output ./out/subject.png
-```
+No workflow removes a background today, so no route serves `gnode/background.remove@1`.
 
 Prepared-game planning is separate and provider-free:
 
@@ -588,11 +599,8 @@ ownership, originality, clearance, or permission to redistribute an artifact.
 Repository publication still requires the independent
 [generated-media approval gate](../generated-media-publication.md).
 
-The key-backed CLI path is:
-
-```sh
-uv run stage-gen capability music --output ./out/theme.mp3 --format mp3 "original instrumental exploration loop with a gentle pulse"
-```
+A draw outside any build is a one-step workflow over `gnode/music.generate@1`, with
+`takes:` to hear several; a game's own soundtrack steps draw, admit and pick takes the same way.
 
 Primary sources:
 

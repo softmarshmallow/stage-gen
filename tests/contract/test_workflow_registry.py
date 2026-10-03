@@ -8,11 +8,13 @@ is local and ignored: its pinned examples are verified when it is present.
 from __future__ import annotations
 
 import dataclasses
+import importlib.util
 import io
 import json
+import sys
 from collections.abc import Iterator
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from typing import cast
 
 import pytest
@@ -32,6 +34,19 @@ from stage_gen.workflows._registry import (
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 STORE = REPOSITORY / "out" / "examples"
+
+
+def _script(name: str) -> ModuleType:
+    """One of the repository's maintainer scripts, loaded as a module."""
+    path = REPOSITORY / "scripts" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(f"stage_gen_script_{name}", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 GOLDEN = json.loads(
     (REPOSITORY / "tests/contract/fixtures/workflow-identity.json").read_text(encoding="utf-8")
 )
@@ -166,14 +181,17 @@ def test_a_try_command_must_parse_with_the_real_parser(loaded: dict[str, LoadedW
     good = TryIt(
         input="inputs",
         commands=[
-            "stage-gen catalog export --out site --check",
-            "STAGE_GEN_RUN_LIVE=1 stage-gen catalog export --out site --check",
+            "gnode inspect universe --verify",
+            "GNODE_LIVE=1 gnode plan universe --inputs inputs.yaml",
         ],
     )
-    bad = TryIt(input="inputs", commands=["stage-gen catalog export --no-such-flag"])
+    bad = TryIt(input="inputs", commands=["gnode inspect --no-such-flag"])
     assert checks.try_commands(_with_manifest(loaded["universe"], try_=good)) == []
     [problem] = checks.try_commands(_with_manifest(loaded["universe"], try_=bad))
     assert "does not parse" in problem
+    retired = TryIt(input="inputs", commands=["stage-gen show universe"])
+    [problem] = checks.try_commands(_with_manifest(loaded["universe"], try_=retired))
+    assert "does not start with gnode" in problem
 
 
 def test_every_workflow_says_how_to_try_it_with_its_own_verbs() -> None:
@@ -184,7 +202,7 @@ def test_every_workflow_says_how_to_try_it_with_its_own_verbs() -> None:
         assert workflow.manifest.try_.input.strip()
         commands = workflow.manifest.try_.commands
         assert 1 <= len(commands) <= 3, workflow.id
-        verbs = ("stage-gen plan", "stage-gen run", "gnode plan", "gnode run")
+        verbs = ("gnode plan", "gnode run")
         assert any(
             command.startswith(tuple(f"{verb} {workflow.id} " for verb in verbs))
             for command in commands
@@ -392,13 +410,13 @@ def test_sample_plans_are_offline_and_every_planned_type_sits_in_a_step(
         assert {node.type_id for node in workflow.sample.nodes} <= set(workflow.code.type_ids())
 
 
-def test_the_cli_exports_and_checks_the_catalog(tmp_path: Path) -> None:
-    from stage_gen.interfaces.cli import main
+def test_the_script_exports_and_checks_the_catalog(tmp_path: Path) -> None:
+    main = _script("catalog").main
 
-    output, errors = io.StringIO(), io.StringIO()
-    argv = ["catalog", "export", "--out", str(tmp_path / "site")]
+    output = io.StringIO()
+    argv = ["--out", str(tmp_path / "site")]
     argv += ["--examples", str(tmp_path / "absent"), "--allow-missing-examples"]
-    assert main([*argv, "--check"], stdout=output, stderr=errors) == 0, errors.getvalue()
+    assert main([*argv, "--check"], stdout=output) == 0
     assert json.loads(output.getvalue()) == {
         "workflows": 5,
         "catalog": None,
@@ -407,16 +425,16 @@ def test_the_cli_exports_and_checks_the_catalog(tmp_path: Path) -> None:
     }
     assert not (tmp_path / "site").exists()
     output = io.StringIO()
-    assert main(argv, stdout=output, stderr=errors) == 0
+    assert main(argv, stdout=output) == 0
     written = json.loads((tmp_path / "site/catalog.json").read_text(encoding="utf-8"))
     assert written["kind"] == "stage-gen-catalog-v1" and len(written["workflows"]) == 5
     reference = json.loads((tmp_path / "site/cli.json").read_text(encoding="utf-8"))
-    assert reference["kind"] == "stage-gen-cli-v1" and reference["prog"] == "stage-gen"
+    assert reference["kind"] == "gnode-cli-v1" and reference["prog"] == "gnode"
     assert json.loads(output.getvalue())["cli"] == str(tmp_path / "site/cli.json")
-    strict = ["catalog", "export", "--out", str(tmp_path / "strict")]
+    strict = ["--out", str(tmp_path / "strict")]
     strict += ["--examples", str(tmp_path / "absent")]
     output = io.StringIO()
-    assert main(strict, stdout=output, stderr=errors) == 1
+    assert main(strict, stdout=output) == 1
     assert (
         "movie-sprite/yuzu-idle: is pinned but missing from the example store"
         in (json.loads(output.getvalue())["problems"])
@@ -424,14 +442,14 @@ def test_the_cli_exports_and_checks_the_catalog(tmp_path: Path) -> None:
 
 
 def test_a_malformed_game_example_is_a_named_problem_not_a_crash(tmp_path: Path) -> None:
-    from stage_gen.interfaces.cli import main
+    main = _script("catalog").main
 
     store = tmp_path / "store"
     (store / "somegame/demo").mkdir(parents=True)
     (store / "somegame/demo/example.json").write_text("{}", encoding="utf-8")
-    output, errors = io.StringIO(), io.StringIO()
-    argv = ["catalog", "export", "--out", str(tmp_path / "site"), "--examples", str(store)]
-    assert main([*argv, "--check"], stdout=output, stderr=errors) == 1, errors.getvalue()
+    output = io.StringIO()
+    argv = ["--out", str(tmp_path / "site"), "--examples", str(store)]
+    assert main([*argv, "--check"], stdout=output) == 1
     problems = json.loads(output.getvalue())["problems"]
     assert any(
         problem.startswith("somegame/demo: unreadable example documents: ") for problem in problems
@@ -439,11 +457,11 @@ def test_a_malformed_game_example_is_a_named_problem_not_a_crash(tmp_path: Path)
     assert "movie-sprite/yuzu-idle: is pinned but missing from the example store" in problems
 
 
-def test_the_cli_verifies_library_examples_without_a_store(tmp_path: Path) -> None:
-    from stage_gen.interfaces.cli import main
+def test_the_script_verifies_library_examples_without_a_store(tmp_path: Path) -> None:
+    main = _script("examples").main
 
     output = io.StringIO()
-    argv = ["example", "verify", "character-3d", "--examples", str(tmp_path)]
+    argv = ["verify", "character-3d", "--examples", str(tmp_path)]
     assert main(argv, stdout=output, stderr=io.StringIO()) == 0
     assert output.getvalue().splitlines() == [
         "character-3d/wren-brief: missing",
@@ -535,9 +553,9 @@ def test_a_game_entry_is_held_to_its_pins_relations_and_landing_order(tmp_path: 
         problems
     )
 
-    from stage_gen.interfaces.cli import main
+    main = _script("examples").main
 
     output = io.StringIO()
-    argv = ["example", "verify", "some-game", "--examples", str(store)]
+    argv = ["verify", "some-game", "--examples", str(store)]
     assert main(argv, stdout=output, stderr=io.StringIO()) == 1
     assert "differs from its pin" in output.getvalue()

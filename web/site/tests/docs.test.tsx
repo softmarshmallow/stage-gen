@@ -32,18 +32,18 @@ const command = (prog: string, extra: Record<string, unknown> = {}) => ({
 });
 
 const TREE = {
-  kind: "stage-gen-cli-v1",
-  ...command("stage-gen", {
-    description: "Plan, run and inspect asset workflows",
-    usage: "stage-gen [-h] COMMAND ...",
+  kind: "gnode-cli-v1",
+  ...command("gnode", {
+    description: "Plan and run gnode workflows.",
+    usage: "gnode [-h] <command> ...",
     commands: [
-      command("stage-gen view", {
-        summary: "open the local viewer over run folders",
-        usage: "stage-gen view [-h] [--port PORT]",
+      command("gnode view", {
+        summary: "the dashboard over run folders",
+        usage: "gnode view [-h] [--port PORT]",
         arguments: [argument(["--port"], { metavar: "PORT", default: "3000" })],
       }),
-      command("stage-gen run", {
-        commands: [command("stage-gen run file")],
+      command("gnode takes", {
+        commands: [command("gnode takes list")],
       }),
     ],
   }),
@@ -53,23 +53,23 @@ describe("CLI reference", () => {
   test("parses the exported tree and lists every command depth first", () => {
     const root = parseCliReference(TREE);
     expect(cliCommands(root).map((c) => c.prog)).toEqual([
-      "stage-gen view",
-      "stage-gen run",
-      "stage-gen run file",
+      "gnode view",
+      "gnode takes",
+      "gnode takes list",
     ]);
-    expect(commandAnchor(root.commands[1].commands[0])).toBe("stage-gen-run-file");
+    expect(commandAnchor(root.commands[1].commands[0])).toBe("gnode-takes-list");
   });
 
   test("refuses another kind or a malformed command", () => {
-    expect(() => parseCliReference({ ...TREE, kind: "stage-gen-catalog-v1" })).toThrow("not stage-gen-cli-v1");
+    expect(() => parseCliReference({ ...TREE, kind: "stage-gen-catalog-v1" })).toThrow("not gnode-cli-v1");
     expect(() => parseCliReference({ ...TREE, usage: 3 })).toThrow("cli.json.usage is not a string");
-    const nameless = { ...TREE, commands: [command("stage-gen view", { arguments: [argument([])] })] };
+    const nameless = { ...TREE, commands: [command("gnode view", { arguments: [argument([])] })] };
     expect(() => parseCliReference(nameless)).toThrow("names is empty");
   });
 
   test("renders usage and arguments from the tree alone", () => {
     const html = renderToStaticMarkup(createElement(CliReference, { root: parseCliReference(TREE) }));
-    expect(html).toContain('id="stage-gen-view"');
+    expect(html).toContain('id="gnode-view"');
     expect(html).toContain("--port PORT");
     expect(html).toContain("Default: 3000.");
   });

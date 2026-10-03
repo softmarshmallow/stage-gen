@@ -2,8 +2,8 @@
 
 A plugin is an entry point in the ``gnode.plugins`` group that returns a ``Plugin``: the
 standard node types, the file facts reader, the image readers and writers bodies use,
-the routes gnode can call, the provider adapters that serve them, and the workflows it
-publishes for ``gnode run <id>``. The engine imports
+the routes gnode can call, the provider adapters that serve them, the workflows it
+publishes for ``gnode run <id>``, and the dashboard ``gnode view`` starts. The engine imports
 no plugin by name; ``load_plugins`` merges whatever is installed.
 """
 
@@ -14,12 +14,16 @@ import os
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from gnode.workflow.host import CapabilityHandler, LongJob
 from gnode.workflow.registry import BuiltinType
 from gnode.workflow.routes import RouteTable
 from gnode.workflow.store import Store
 from gnode.workflow.values import FactsReader
+
+if TYPE_CHECKING:
+    from gnode.workflow.dashboard import DashboardLauncher
 
 GROUP = "gnode.plugins"
 
@@ -37,6 +41,8 @@ class Plugin:
     #: Generic view templates by file kind (``image``, ``json``), for ``view: true`` on a
     #: step whose type has no view of its own.
     views: Mapping[str, Path] = field(default_factory=dict)
+    #: The dashboard ``gnode view`` starts over the run views it keeps fresh.
+    dashboard: DashboardLauncher | None = None
 
 
 @dataclass(frozen=True)
@@ -79,6 +85,14 @@ class Composition:
         for plugin in self.plugins:
             merged.update(plugin.views)
         return merged
+
+    @property
+    def dashboard(self) -> DashboardLauncher | None:
+        installed = [plugin for plugin in self.plugins if plugin.dashboard is not None]
+        if len(installed) > 1:
+            names = ", ".join(plugin.name for plugin in installed)
+            raise ValueError(f"two plugins install a dashboard: {names}")
+        return installed[0].dashboard if installed else None
 
     def capabilities(self, store: Store) -> dict[str, CapabilityHandler | LongJob]:
         handlers: dict[str, CapabilityHandler | LongJob] = {}

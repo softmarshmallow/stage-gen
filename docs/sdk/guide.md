@@ -3,8 +3,7 @@
 `stage_gen.pipeline` is the SDK: it runs caller-defined GNode graphs. A definition is ordinary
 Python: a graph-building function plus node types and their async implementations.
 It requires no game TOML, genre, workflow folder, repository fixture, or provider.
-The product's workflows are built on the same SDK; a definition you write is run the same
-way with `stage-gen plan file` and `stage-gen run file`.
+A definition is planned, run and inspected from Python, with the functions below.
 
 ```python
 from pathlib import Path
@@ -126,20 +125,6 @@ For an application-owned preview contract, either pass
 `previews={port_id: {"kind": "my-preview-v1", ...}}` on an artifact port. Annotation
 values are persisted as data for later inspection; preview objects do not become
 engine contracts. Viewers can fall back to ordinary media for unknown preview kinds.
-
-## Run a definition from the CLI
-
-```sh
-uv run stage-gen plan file docs/sdk/pipelines/local_media.py:pipeline --input inputs
-uv run stage-gen run file docs/sdk/pipelines/local_media.py:pipeline \
-  --input inputs --output runs/first --cache-dir cache
-uv run stage-gen inspect runs/first
-```
-
-`plan file` prints the plan, or writes it to `--output`; `run file` needs its own output folder
-(running the same plan into it again continues that run; any other plan is refused) and a cache
-folder outside it, and `--live` before any provider-capable node runs. `--target NODE_ID`
-plans a subset. `stage-gen view` lists SDK runs beside the workflows' runs.
 
 ## Samples
 

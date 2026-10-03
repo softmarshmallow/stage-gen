@@ -21,8 +21,7 @@ workflow file's `gnode.lock` (`gnode lock <id> --check`), runs real offline loop
 and movie-sprite runs through `gnode` with their `gnode inspect --verify` (movie-sprite finishes
 its supplied clip, and only plans its paid take, so the gate needs FFmpeg), the universe plan
 (both phases and their ceilings, offline),
-`stage-gen catalog export --check --allow-missing-examples`, and `--help` for every
-`stage-gen` workflow verb. It also checks gnode's published document schemas
+`scripts/catalog.py --check --allow-missing-examples`, and `gnode --help`. It also checks gnode's published document schemas
 (`scripts/write_gnode_schemas.py --check`) and runs the
 [conformance suite](tests/conformance/README.md) through the `gnode` command only: the
 cases any gnode implementation must pass.
@@ -37,7 +36,7 @@ tests, which hold the hand-authored `web/ui` contract fixtures to the Python mod
 flag lets a clean clone build without the local example store; a present but mismatched
 example still fails. A release build of the site drops the flag, so every approved example
 must be in the store. `bun run --cwd viewer build` builds the [viewer](docs/viewer.md),
-which `stage-gen view` otherwise runs in development mode.
+which `gnode view` otherwise runs in development mode.
 
 ## Docs
 
@@ -47,7 +46,7 @@ game consumer spec and workflow `contract.md` names a true checker; that the fro
 documents and every workflow's `page.mdx` and `contract.md` use none of the retired words
 the [glossary](docs/glossary.md) lists; the prompt fixtures' originality rules; and the
 generated-media inventory. The product gate, not this scope, holds the remaining docs claims:
-`tests/contract/test_documented_commands.py` parses every documented `stage-gen` command with
+`tests/contract/test_documented_commands.py` parses every documented `gnode` command with
 the real parser, and `tests/contract/test_workflow_contract_docs.py` holds each workflow's
 graph contract to its offline sample plan (`uv run python scripts/write_workflow_contracts.py
 --check` runs the same check by hand).

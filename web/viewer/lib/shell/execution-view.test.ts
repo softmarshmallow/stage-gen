@@ -51,7 +51,7 @@ describe("execution view source", () => {
     expect(read?.view.subject.title).toBe("Material study");
   });
 
-  test("falls back to the view stage-gen view derived into its cache when it is newer", async () => {
+  test("falls back to the view gnode view derived into its cache when it is newer", async () => {
     const { runDir, cache, run } = await setUp();
     await writeView(path.join(runDir, EXECUTION_VIEW_FILENAME), pipelineExecutionViewFixture(), 60);
     await writeView(path.join(cache, viewKey(runDir), EXECUTION_VIEW_FILENAME), dialogueExecutionViewFixture(), 5);

@@ -48,21 +48,23 @@ import rules below are what the tests enforce; this ordering is not tested.
    approved character-3d examples that the catalog builds from tracked files.
 5. **Workflows** (`src/stage_gen/workflows/<id>/`): the product unit. A workflow composes
    components into one named deliverable and owns its layout, generation and validation
-   assumptions. Its folder holds `workflow.py` (the code facts: typed steps over the real
-   node types, persisted identity, an offline sample plan and its run readers),
+   assumptions. Its folder holds `workflow.yaml` beside its own `gnode.yaml`, `workflow.py`
+   (the code facts read from the workflow file: typed steps over the real node types,
+   persisted identity, an offline sample plan and which runs it owns),
    `workflow.toml` (what code cannot know: title, promise, summary, tools, output notes,
-   try-it commands and pinned examples), `page.mdx`, `contract.md`, `cli.py`, `example.py`
+   try-it commands and pinned examples), `page.mdx`, `contract.md`, `example.py`
    where it has an importer, `inputs/` where it has sample inputs, and its implementation.
    `_registry.py`, `_catalog.py` and `_checks.py` read them. The catalog's drift check
-   (`stage-gen catalog export --check`) fails when a step and the node types disagree, an
+   (`scripts/catalog.py --check`) fails when a step and the node types disagree, an
    output note names neither a port of the sample plan nor a path of the cover example, a
    `[try]` command does not parse, `page.mdx` restates the manifest's summary or an output
    note, the README workflow table differs from the manifests, or a stated identity differs
    from the identity golden.
-6. **Runs.** A run is one execution folder; `stage_gen.runs` finds and reads run folders.
-7. **Surfaces.** The `stage-gen` CLI (`src/stage_gen/interfaces/`) has one verb set over
-   the workflow ids. The [viewer](docs/viewer.md) (`web/viewer`, opened by `stage-gen view`)
-   reads run folders. The [site](docs/site.md) (`web/site`) is built from the catalog
+6. **Runs.** A run is one gnode run folder: its plan, its record (`events.jsonl`) and its
+   steps' files. `gnode inspect` reads it back, and `gnode view` keeps its run view.
+7. **Surfaces.** The `gnode` command line plans, runs and inspects every workflow by its id.
+   The [viewer](docs/viewer.md) (`web/viewer`, the dashboard `gnode view` starts, installed
+   by `stage_gen.viewer`) reads run folders. The [site](docs/site.md) (`web/site`) is built from the catalog
    export and the example store. `web/` is one Bun workspace and the only Node boundary;
    the viewer and the site share only `web/ui` and the versioned data contracts.
 8. **Consumers.** The Godot example project and the optional applications under `apps/`.

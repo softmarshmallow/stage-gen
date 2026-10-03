@@ -1,7 +1,7 @@
 // Server-side helpers for finding and addressing runs under the configured run roots.
 //
 // The shell is a consumer: it locates and validates paths, and never generates.
-// `stage-gen view` passes the roots in STAGE_GEN_RUN_ROOTS; without it the viewer reads
+// `gnode view` passes the roots in STAGE_GEN_RUN_ROOTS; without it the viewer reads
 // out/ of its checkout. Runs are found the way `stage_gen.runs.discover` finds them, by
 // the documents they publish. Every tag is checked segment by segment against the
 // producer's one-safe-segment contract, and every artifact path is confined to its own
@@ -61,7 +61,7 @@ export function findRepoRoot(
 
 // ------------------------------------------------------------------ roots
 
-/** One folder of runs, as `stage-gen view --runs DIR` named it. */
+/** One folder of runs, as `gnode view DIR` named it. */
 export interface RunRoot {
   /** The URL key: the folder name and the first six hex digits of its real path's digest. */
   readonly key: string;
@@ -94,7 +94,7 @@ const rootsCache = new Map<string, readonly RunRoot[]>();
 
 /**
  * The run roots, in the order they were given: STAGE_GEN_RUN_ROOTS (a path list in the
- * platform's delimiter, as `stage-gen view` sets it), or out/ of the checkout.
+ * platform's delimiter, as `gnode view` sets it), or out/ of the checkout.
  */
 export function runRoots(): readonly RunRoot[] {
   const configured = process.env.STAGE_GEN_RUN_ROOTS?.trim() ?? "";
@@ -118,13 +118,13 @@ export function rootFor(key: string): RunRoot | null {
   return runRoots().find((root) => root.key === key) ?? null;
 }
 
-/** Where `stage-gen view` keeps the views it derives, or null when it is not running. */
+/** Where `gnode view` keeps the views it derives, or null when it is not running. */
 export function viewCacheDir(): string | null {
   const configured = process.env.STAGE_GEN_VIEW_CACHE?.trim();
   return configured ? path.resolve(configured) : null;
 }
 
-/** The catalog `stage-gen view` exported, or null when it is not running. */
+/** The catalog `gnode view` exported, or null when it is not running. */
 export function catalogPath(): string | null {
   const configured = process.env.STAGE_GEN_CATALOG?.trim();
   return configured ? path.resolve(configured) : null;

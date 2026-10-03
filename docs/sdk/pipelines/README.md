@@ -38,7 +38,7 @@ independent audio node, and a skipped catalog.
 
 The file may be copied into an external application and renamed. It imports only
 installed public `gnode`, `stage_gen.pipeline`, and Pillow APIs. Its `pipeline`
-export is also loadable by `stage-gen plan|run file`.
+export is loaded with `stage_gen.pipeline.load_definition`.
 
 ## Deterministic portrait processing
 

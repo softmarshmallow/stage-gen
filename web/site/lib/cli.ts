@@ -1,13 +1,13 @@
-// The CLI reference's data: web/site/.catalog/cli.json, the `stage-gen-cli-v1` command tree
-// that `stage-gen catalog export` writes from the argparse parser
-// (stage_gen.interfaces.cli.command_reference). Read once per process, at build time, and
+// The CLI reference's data: web/site/.catalog/cli.json, the `gnode-cli-v1` command tree
+// that the catalog export writes from gnode's argparse parser
+// (stage_gen.workflows._reference.command_reference). Read once per process, at build time, and
 // checked here, so a drifted export fails the build instead of rendering half a page.
 
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { catalogDir } from "./catalog";
 
-export const CLI_REFERENCE_KIND = "stage-gen-cli-v1";
+export const CLI_REFERENCE_KIND = "gnode-cli-v1";
 
 export interface CliArgument {
   readonly names: readonly string[];
@@ -91,7 +91,7 @@ function parseCommand(value: unknown, label: string): CliCommand {
   };
 }
 
-/** The parsed command tree, rooted at `stage-gen`. */
+/** The parsed command tree, rooted at `gnode`. */
 export function parseCliReference(value: unknown): CliCommand {
   const fields = object(value, "cli.json");
   if (fields.kind !== CLI_REFERENCE_KIND) {
