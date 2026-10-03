@@ -303,13 +303,19 @@ def test_a_viewer_that_ignores_sigterm_is_killed_after_the_grace(tmp_path: Path)
 
 
 def test_a_signal_the_launcher_was_started_ignoring_stays_ignored() -> None:
+    # A shell's background job inherits SIGINT ignored; that one must stay ignored too.
+    trapped = {
+        number
+        for number in (signal.SIGTERM, signal.SIGINT)
+        if signal.getsignal(number) is not signal.SIG_IGN
+    }
     previous = signal.signal(signal.SIGHUP, signal.SIG_IGN)
     try:
         replaced = dashboard._trap_stop_signals()
         try:
             assert signal.SIGHUP not in replaced
             assert signal.getsignal(signal.SIGHUP) is signal.SIG_IGN
-            assert set(replaced) == {signal.SIGTERM, signal.SIGINT}
+            assert set(replaced) == trapped
         finally:
             dashboard._restore_signals(replaced)
     finally:

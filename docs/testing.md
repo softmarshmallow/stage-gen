@@ -36,7 +36,8 @@ The retained game and Concept Studio tests require their optional workspace grou
 use those groups when selecting old test directories directly.
 
 The pre-push hook checks each pushed commit in a temporary worktree, preserving the
-working checkout. It installs all groups before formatting and contract checks.
+working checkout. It installs all groups, then runs the format and lint checks, the web tests,
+the contract tests and the gnode [conformance suite](../tests/conformance/README.md).
 
 ## Live provider tests
 

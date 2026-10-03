@@ -53,11 +53,13 @@ Every workflow is a gnode workflow file, so `gnode` plans, runs and inspects eac
 `gnode schema <id>` prints the inputs it takes, and its run folders are under `out/runs/`.
 Planning never spends; a provider call needs `--live` and your own keys (see
 [provider setup](docs/models/providers.md)). Your own workflow is a workflow file or a Python
-builder, which `gnode plan` and `gnode run` take the same way.
+builder, which `gnode plan` and `gnode run` take the same way; the [gnode guide](docs/guide/README.md)
+shows how to write one.
 
 ## Read more
 
-- [Getting started](docs/getting-started.md) and the [glossary](docs/glossary.md).
+- [Getting started](docs/getting-started.md), the [gnode guide](docs/guide/README.md) and the
+  [glossary](docs/glossary.md).
 - [Viewer](docs/viewer.md): `gnode view`, the local read-only client over run folders.
 - [Site](docs/site.md): the static landing and documentation site built from the catalog
   and the example store.

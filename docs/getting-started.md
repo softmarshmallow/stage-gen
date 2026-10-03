@@ -59,8 +59,9 @@ uv run python scripts/site.py build --allow-missing-examples
 uv run python scripts/site.py serve --port 8790
 ```
 
-## Write your own pipeline
+## Write your own workflow
 
 Your own workflow is a gnode workflow file, or a Python builder for a graph that a file cannot
 state; `gnode plan` and `gnode run` take either, with the same cache, takes and run record the
-installed workflows use. The [glossary](glossary.md) names the parts.
+installed workflows use. The [gnode guide](guide/README.md) shows how, from a first workflow to
+your own node types, and the [glossary](glossary.md) names the parts.

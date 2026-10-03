@@ -1,0 +1,25 @@
+<!doctype html>
+<!-- Scroll the composed layers at their parallax factors. Plain web. -->
+<canvas id="stage" width="640" height="360"></canvas>
+<script type="module">
+  import { context } from "/_gnode/view.js";
+  const { step } = await context();
+  const manifest = step.outputs.manifest.value;
+  const images = await Promise.all(manifest.layers.map((layer) => new Promise((done) => {
+    const picture = new Image();
+    picture.onload = () => done({ layer, picture });
+    picture.src = step.with.layers[layer.id].url;
+  })));
+  const pen = document.getElementById("stage").getContext("2d");
+  let scroll = 0;
+  (function frame() {
+    pen.clearRect(0, 0, 640, 360);
+    for (const { layer, picture } of images.sort((a, b) => a.layer.order - b.layer.order)) {
+      const x = -((scroll * layer.parallax) % picture.width);
+      pen.drawImage(picture, x, layer.offset_y);
+      pen.drawImage(picture, x + picture.width, layer.offset_y);
+    }
+    scroll += 1;
+    requestAnimationFrame(frame);
+  })();
+</script>

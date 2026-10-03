@@ -16,7 +16,7 @@
 # working tree is never read, never stashed, and never touched — which also
 # makes the hook safe to run while somebody else is editing it.
 #
-# About twenty seconds, most of it the contract suite. Install once with:
+# Under a minute, most of it the contract suite. Install once with:
 #   git config core.hooksPath .githooks
 set -euo pipefail
 
@@ -59,6 +59,9 @@ gate() {
 		uv run --all-groups ruff check .
 		(cd web && bun install --frozen-lockfile --silent && bun test)
 		uv run --all-groups pytest -m "not live" tests/contract -q
+		# The language-neutral cases any gnode implementation must pass, through the command
+		# only: the readiness gate for a second core.
+		uv run --all-groups python tests/conformance/run.py
 	) || status=$?
 	cleanup "$scratch"
 	trap - EXIT

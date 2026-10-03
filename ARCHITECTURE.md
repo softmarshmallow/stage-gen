@@ -24,9 +24,10 @@ Each layer imports only the layers above it in this list, with two named excepti
 character-3d run reader in `workflow.py` imports `stage_gen.runs` for the run-view file, and `_checks.py` imports the CLI parser lazily to parse `[try]` commands. The
 import rules below are what the tests enforce; this ordering is not tested.
 
-1. **GNode** (`src/gnode/`) keeps its three rings. Ring 0 owns media-independent topology,
-   scheduling, traces, run views, model binding, reliability and provenance, and the
-   workflow file with its expander, planner, node host, call cache and the `gnode` command.
+1. **GNode** (`src/gnode/`) keeps its three rings. Ring 0 owns the workflow file with its
+   expander, planner, node host, call cache, runner and spending ceiling, the run record and
+   the run view projected from it, the `gnode` command, and the media-free records, model
+   binding, reliability and provenance they share.
    Ring 1 owns modality specifications and retry-owning services. Ring 2 owns first-party
    provider adapters. Imports point inward. GNode imports no Stage Gen package, workflow,
    game or brand. Consumers use declared public surfaces. The standard node types live in

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import re
 import shlex
 import tomllib
@@ -21,12 +22,15 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+import yaml
 
 from gnode import cli
 from stage_gen.workflows._checks import gnode_command_problems
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = REPOSITORY_ROOT / "src/stage_gen/workflows"
+#: The guide's example projects: a command in one of their READMEs runs in that folder.
+GUIDE_EXAMPLES = REPOSITORY_ROOT / "docs/guide/examples"
 #: History describes what was true when it was written, so its commands are not held to today.
 HISTORY_ROOTS = ("docs/decisions/", "docs/plans/", "docs/research/", "docs/media/")
 FENCE = re.compile(
@@ -146,6 +150,43 @@ def test_the_scan_reads_every_kind_of_source() -> None:
     )
 
 
+def _example_project(source: str) -> Path | None:
+    """The example project a README belongs to, or None."""
+    path = REPOSITORY_ROOT / source
+    if not path.is_relative_to(GUIDE_EXAMPLES) or path.parent == GUIDE_EXAMPLES:
+        return None
+    return path.parent
+
+
+def _block_inputs(source: str, target: str) -> list[str] | None:
+    """The inputs of a workflow the guide shows as a code block headed with its file name."""
+    text = (REPOSITORY_ROOT / source).read_text(encoding="utf-8")
+    for fence in FENCE.finditer(text):
+        body = fence.group("body")
+        if fence.group("info").strip().startswith("yaml") and body.startswith(f"# {target}\n"):
+            document = yaml.safe_load(body)
+            if isinstance(document, dict) and document.get("gnode") == "workflow/v1":
+                return list(document.get("inputs") or {})
+    return None
+
+
+def _local_inputs(command: Documented) -> list[str] | None:
+    """The input names of a command's target when the target is the document's own: an
+    example project's workflow, or a workflow file a guide chapter shows. None otherwise."""
+    if command.arguments[:1] not in (("plan",), ("run",)) or len(command.arguments) < 2:
+        return None
+    target = command.arguments[1]
+    project = _example_project(command.source)
+    if project is not None:
+        out, err = io.StringIO(), io.StringIO()
+        if cli.main(["schema", target], stdout=out, stderr=err, cwd=project) != 0:
+            return None
+        return list(json.loads(out.getvalue()).get("properties", {}))
+    if command.source.startswith("docs/guide/") and target.endswith((".yaml", ".yml")):
+        return _block_inputs(command.source, target)
+    return None
+
+
 @pytest.mark.parametrize("command", DOCUMENTED, ids=str)
 def test_documented_command_parses_with_the_real_cli(command: Documented) -> None:
     assert command.program == "gnode", f"{command}: stage-gen is retired; show the gnode command"
@@ -158,6 +199,15 @@ def test_documented_command_parses_with_the_real_cli(command: Documented) -> Non
                 cli.build_parser().parse_args([*asked, "--help"])
             assert exit_.value.code == 0, f"{command} asks for help on a command that is not there"
             return
+    local = _local_inputs(command)
+    if local is not None:
+        args, rest = cli.build_parser().parse_known_args(list(command.arguments))
+        flags = {f"--{name.replace('_', '-')}" for name in local}
+        unknown = [
+            word for word in rest if word.startswith("--") and word.split("=")[0] not in flags
+        ]
+        assert not unknown, f"{command}: {unknown} are not inputs of {args.target}"
+        return
     problems = gnode_command_problems(command.arguments)
     assert not problems, f"{command.source}: {problems}"
 

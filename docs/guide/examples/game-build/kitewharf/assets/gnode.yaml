@@ -1,0 +1,6 @@
+gnode: project/v1
+budget:
+  max_usd: 5
+routes:
+  image.generate: gpt-image-2@openai
+  image.edit: gpt-image-2@openai

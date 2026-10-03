@@ -18,16 +18,16 @@ the SDK grows above it.
 
 | Ring | Name | Contents | Media-aware? |
 | --- | --- | --- | --- |
-| 0 | engine core | graph topology, the node ABI (typed node types, registry dispatch, ports, cards, policy, the graph builder and its subgraph-template stamping), scheduling, the runner and its spending ceiling, the run record, run view, model bindings, provider-neutral route-catalog and exact-size contract shapes, reliability, provenance contracts; the workflow file, its expressions and expander, the planner, the node protocol host and call cache, and the `gnode` command (`gnode/workflow/`) | no — media-free by lint |
+| 0 | engine core | the workflow file, its expressions and expander, the planner and its prices, the node protocol host and its call cache, the runner and its spending ceiling, the run record (`gnode-run-events-v1`) and the run view projected from it, takes, and the `gnode` command with the run views it keeps for a dashboard (`gnode/workflow/`); the records they share (`gnode.records`: resources, route snapshots, ports and cards), node type declarations, model bindings, provider-neutral route-catalog and exact-size contract shapes, reliability and provenance contracts | no — media-free by lint |
 | 1 | modality disciplines | per-modality model specs and their retry-owning services: image, structured, tool loop, music, sound effect, speech, background removal, video (`gnode/modalities/`) | yes — modality-generic only |
-| 2 | first-party providers | vendor adapters implementing ring-1 specs: `openai`, `openrouter`, `fal`, `elevenlabs` (`gnode/providers/`) | yes |
+| 2 | first-party providers | vendor adapters implementing ring-1 specs: `openai`, `openrouter`, `fal`, `elevenlabs`, `tripo` (`gnode/providers/`) | yes |
 | 3 | standard nodes | the node types workflows use by name (`uses: gnode/<name>@<major>`), their file facts and picture helpers: the separate `gnode_std` package, loaded as a plugin | yes |
 
 **Layering law.** A ring imports only rings strictly below it. Ring 0 imports
 nothing above it and stays free of media libraries and HTTP clients; ring 1
 never imports a provider; a provider adapter imports only ring 0, ring 1, the
 shared provider HTTP hygiene module, and its own package. An application (such
-as `stage_gen`) may consume every ring. Game-, recipe-, and genre-specific
+as `stage_gen`) may consume every ring. Game-, workflow-, and genre-specific
 vocabulary is banned from **all** rings — that boundary did not move; what
 moved is that modality-generic material now has a home inside the engine.
 
@@ -40,9 +40,9 @@ deterministic floor is enforced by the write itself: the bytes must decode as
 UTF-8, carry no NUL, and be non-empty. Format is the caller's business.
 
 **Import surfaces.** The flat `gnode` surface exports rings 0 and 1
-(`from gnode import X`, never a submodule). Ring 2 adds exactly four declared
-secondary surfaces — `gnode.providers.openai`, `gnode.providers.openrouter`,
-`gnode.providers.fal`, `gnode.providers.elevenlabs` — because adapters are
+(`from gnode import X`, never a submodule). Ring 2 adds one declared secondary
+surface per provider — `gnode.providers.openai`, `gnode.providers.openrouter`,
+`gnode.providers.fal`, `gnode.providers.elevenlabs`, `gnode.providers.tripo` — because adapters are
 plugins: importing `gnode` must not pay for an HTTP client, and each provider
 package must stay separable into its own distribution later without a rename.
 The import lint
@@ -78,6 +78,12 @@ Each modality package owns three things and nothing else:
   backoff), caller validation, and rollback-safe atomic artifact-plus-sidecar
   persistence. Identity strings in provenance are supplied by the application;
   the engine ships no brand.
+
+**One retry owner per call.** A capability call is retried by its ring-1 service
+and nowhere else. A node body that calls a provider gnode does not route declares
+`retry="engine"`: the engine re-runs the body, at most six attempts, and the call
+cache answers every capability call an earlier attempt already made, so a re-run
+pays only for what it calls anew. Nothing nests a retry loop inside either owner.
 
 **The tool loop is the one service that loops.** `ToolLoopService.run` owns an
 *episode*: the model is handed caller-supplied tools (JSON-schema'd, executed by
@@ -139,14 +145,13 @@ aspect-ratio ceilings, and a closed allowlist of sizes without teaching ring 0
 what an image or provider is.
 
 An admitted `ResolvedBindingV1` produces separate fingerprints for material
-route behavior, its capability contract, and the exact output options. The
-graph seals it as `ResolvedRouteSnapshotV1`; an image or other routed node stores
-only the snapshot's `binding_ref`. The snapshot carries the exact policy,
-provider/model/surface/endpoint/adapter identity, required and supported facts,
-and effective output options. It deliberately omits credentials, prices,
-pacing, and verification evidence because those are operational facts, not
-portable output identity. Graph validation rejects dangling, unused, stale, or
-node-disagreeing route snapshots.
+route behavior, its capability contract, and the exact output options. A caller
+that keeps a binding seals it as `ResolvedRouteSnapshotV1`, which carries the
+exact policy, provider/model/surface/endpoint/adapter identity, required and
+supported facts, and effective output options. It deliberately omits
+credentials, prices, pacing, and verification evidence because those are
+operational facts, not portable output identity, and it refuses a tampered or
+stale fingerprint when it is read back.
 
 Applications own product names, route catalogs, capability vocabulary, and
 policy. At dispatch they rehydrate the node's snapshot, validate it against the
@@ -159,15 +164,15 @@ a route or authorize fallback.
 A provider adapter belongs in the engine when it is **essential and actively
 dogfooded** — used in production by this repository's own application. The
 current set is OpenAI (direct image route), OpenRouter (image, structured, tool
-loop, music), fal (image, background removal, video), and ElevenLabs (sound
-effect, speech). Adapters are one attempt by contract — for the tool loop, one *turn* —
+loop, music), fal (image, background removal, video), ElevenLabs (sound
+effect, speech), and Tripo (mesh, rig). Adapters are one attempt by contract — for the tool loop, one *turn* —
 and retry, caller validation, and persistence live in the ring-1 service.
 Adapters never read the environment; every constructor takes its key explicitly,
 and credential loading stays with the application.
 
 An adapter for an application-owned component protocol stays in the application
 beside its protocol; registering a provider in ring 2 does not move
-recipe-specific admission or repair semantics into the engine.
+workflow-specific admission or repair semantics into the engine.
 
 ## Ring 3 — the promotion bar
 

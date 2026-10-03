@@ -1,0 +1,29 @@
+<!doctype html>
+<!-- A whole-run page: one card per entity, its image and the reviewer's verdict. Plain web. -->
+<style>
+  body { font: 14px system-ui; margin: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .card img { width: 100%; border-radius: 6px; }
+  .reject { opacity: .55; }
+  .badge { font-size: 12px; }
+</style>
+<h1 id="title"></h1>
+<div class="grid" id="grid"></div>
+<script type="module">
+  import { context } from "/_gnode/view.js";
+  const { run, steps } = await context();              // the whole run, read-only
+  document.getElementById("title").textContent = run.outputs.world.value.title;
+  for (const e of steps.entity.instances) {            // one per key, in key order
+    const verdict = e.steps.review.facts.verdict;
+    const card = document.createElement("figure");
+    card.className = `card ${verdict}`;
+    card.innerHTML = `
+      <img src="${e.steps.draw.outputs.image.url}" alt="">
+      <figcaption>${e.item.name} <span class="badge">${verdict} · take ${e.steps.draw.take}</span></figcaption>`;
+    // The reviewer's marks are an artifact; the dashboard already overlays them on the image.
+    // Here, a tooltip list of their comments.
+    const marks = await (await fetch(e.steps.review.outputs.annotations.url)).json();
+    card.title = marks.annotations.map((a) => a.label ?? "").join("\n");
+    document.getElementById("grid").append(card);
+  }
+</script>

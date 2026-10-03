@@ -99,7 +99,13 @@ PROMPT_FIXTURES = (
 # The words decision 0071 retired from product prose, and where the lint reads. A retired word
 # survives only where it is a frozen persisted string or a path: inside code spans and fenced
 # blocks, in a link target, or in the glossary sections that list the retired and frozen words.
-RETIRED_TERMS = re.compile(r"\b(?:recipes?|harness|showcase|(?:web|run) viewer)\b", re.IGNORECASE)
+RETIRED_TERMS = re.compile(
+    r"\b(?:recipes?|harness|showcase|(?:web|run) viewer)\b"
+    # The gnode epic (decision 0072) retired the stage-gen command line and the old engine.
+    r"|\bstage-gen (?:list|show|plan|run|inspect|view|example|catalog|capability|models|env)\b"
+    r"|\bstage_gen\.pipeline\b|\bGraphExecutor\b|\bGraphBuilder\b|\brekey_v1_runs\b",
+    re.IGNORECASE,
+)
 RETIRED_TERM_EXEMPT_PHRASES = re.compile(r"\b(?:rig|crafting) recipes?\b", re.IGNORECASE)
 RETIRED_TERM_DOCUMENTS = (
     "README.md",
@@ -111,6 +117,16 @@ RETIRED_TERM_DOCUMENTS = (
     "docs/glossary.md",
     "docs/viewer.md",
     "docs/site.md",
+    "docs/spec/gnode-rings.md",
+    ".agents/skills/asset-pipeline/SKILL.md",
+    "docs/guide/README.md",
+    "docs/guide/01-getting-started.md",
+    "docs/guide/02-workflow-file.md",
+    "docs/guide/03-nodes.md",
+    "docs/guide/04-cost-and-cache.md",
+    "docs/guide/05-views.md",
+    "docs/guide/06-running.md",
+    "docs/guide/07-annotations-and-judges.md",
 )
 GLOSSARY_EXEMPT_SECTIONS = ("## Retired terms", "## Frozen persisted strings")
 # The site's own sources, whose strings and JSX text readers see (page titles, headings,

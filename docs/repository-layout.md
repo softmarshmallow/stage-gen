@@ -185,8 +185,8 @@ owner's manifest pins them by digest.
 ## Documentation
 
 `docs/` holds only what crosses workflows: [getting started](getting-started.md), the
-[glossary](glossary.md), the [viewer](viewer.md) and [site](site.md) guides, provider
-notes under `models/`, policy
+[gnode guide](guide/README.md) and its example projects, the [glossary](glossary.md), the
+[viewer](viewer.md) and [site](site.md) guides, provider notes under `models/`, policy
 (storage, publication, IP), cross-cutting specifications under `spec/`, and the history
 under `decisions/`, `plans/` and `research/`. A workflow's guide and contract live in its
 own `page.mdx` and `contract.md`; a game's documents live under its folder.

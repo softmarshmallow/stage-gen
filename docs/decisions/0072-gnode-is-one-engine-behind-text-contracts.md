@@ -239,6 +239,33 @@ said TOML; the amendment is posted on issue #3 with the owner's go.
   build's routes and tools) and `models` with its census (now the product snapshot's catalog
   and policies with no recipe, which `scripts/write_model_policy_snapshot.py` already checks)
   are gone.
+- **M8f (concept studio): dropped.** The owner ruled that concept studio stays as it is. It
+  never ran a graph: it makes single image calls through the image services, so nothing in it
+  needed porting, and M9 touched it only where the image router stopped reading a contextual
+  binding.
+- **M9 (delete and close).** One command line, one engine, one guide.
+  - **The command line is `gnode`.** The `stage-gen` console script and
+    `src/stage_gen/interfaces/` are gone. `gnode view` keeps every workflow run's view in the
+    user cache and starts the dashboard an installed plugin offers; Stage Gen's viewer is that
+    plugin (`stage_gen.viewer`), apart from the plugin that composes its routes, because it
+    reads the workflow catalog. The catalog and the `gnode-cli-v1` reference the site renders
+    are written by `scripts/catalog.py`, the example tools are `scripts/examples.py`, an
+    audition is a step's takes, and every documented command is a `gnode` command.
+  - **The engine is gnode's workflow engine alone.** `stage_gen.pipeline` (the old SDK, its
+    node cache, dry runs and graph documents), `GraphExecutor`, the rekey tool, and gnode's
+    v1 graph engine (`Graph`, `GraphBuilder`, `Scheduler`, `run_graph`, the node cache and its
+    key formula) are deleted, about 15,000 lines. What ring 0 still shares moved to
+    `gnode.records`; the ledger holds and charges by key; the run lock lives with the runner.
+    The headless runtime, `RunServices` and the capability wrappers went with the commands
+    that used them, and the model-policy snapshot keeps routes and policies (v2). gnode's
+    surface is 175 names, down from 302: what something outside gnode uses, or the guide
+    documents. No workflow's identity moved; the identity golden lost only its v1 sections.
+  - **The guide is published** under `docs/guide/`, reconciled with what was built: verbs,
+    settings and APIs that exist are documented as they are, and what is designed but not
+    built (`gnode export`, `gnode cache`, `gnode mcp`, the `vision.*` judges, tool scripts,
+    several media types) is marked planned. Tests hold it: its first workflow plans as
+    printed, every built-in step it shows uses only its type's settings, every command
+    parses, and the example projects plan offline as written.
 - **Cost.** Every milestone up to M9 is offline. M10 is estimated at about USD 45 on a first
   pass (calibration about USD 2.3, a six-run cohort capped at USD 27 each, a canary about
   USD 5.6), about double if a cohort fails.
